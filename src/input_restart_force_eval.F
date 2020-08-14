@@ -84,8 +84,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: write_binary_restart_file
       LOGICAL, OPTIONAL                                  :: respa
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_force_eval', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'update_force_eval'
 
       INTEGER                                            :: i_subsys, iforce_eval, myid, nforce_eval
       INTEGER, DIMENSION(:), POINTER                     :: i_force_eval
@@ -234,8 +233,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: rng_section
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_rng_particle', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_rng_particle'
 
       CHARACTER(LEN=rng_record_length)                   :: rng_record
       INTEGER                                            :: iparticle, iparticle_kind, &
@@ -445,8 +443,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(section_vals_type), POINTER                   :: cell_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_cell_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_cell_section'
 
       INTEGER                                            :: handle
       INTEGER, DIMENSION(:), POINTER                     :: iwork
@@ -505,8 +502,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       LOGICAL, INTENT(IN), OPTIONAL                      :: shell
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'section_coord_val_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'section_coord_val_set'
 
       CHARACTER(LEN=2*default_string_length)             :: line
       CHARACTER(LEN=default_string_length)               :: my_tag, name
@@ -645,8 +641,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dipoles
       TYPE(section_vals_type), POINTER                   :: dipoles_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_dipoles_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_dipoles_section'
 
       INTEGER                                            :: handle, ik, irk, Nlist, nloop
       REAL(KIND=dp), DIMENSION(:), POINTER               :: work
@@ -722,8 +717,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: quadrupoles
       TYPE(section_vals_type), POINTER                   :: quadrupoles_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_quadrupoles_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_quadrupoles_section'
 
       INTEGER                                            :: handle, i, ik, ind, irk, j, Nlist, nloop
       REAL(KIND=dp), DIMENSION(:), POINTER               :: work
@@ -818,8 +812,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: output_unit
       LOGICAL, INTENT(IN)                                :: core_or_shell, scaled_coordinates
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_coordinates_cp2k', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_coordinates_cp2k'
 
       CHARACTER(LEN=default_string_length)               :: kind_name, tag
       INTEGER                                            :: handle, imolecule, iparticle, last_atom

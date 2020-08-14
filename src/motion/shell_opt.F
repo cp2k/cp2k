@@ -68,8 +68,7 @@ CONTAINS
       TYPE(tmp_variables_type), OPTIONAL, POINTER        :: tmp
       LOGICAL, INTENT(IN), OPTIONAL                      :: check
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'optimize_shell_core', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'optimize_shell_core'
 
       INTEGER                                            :: handle, i, iat, nshell
       LOGICAL                                            :: do_update, explicit, my_check, optimize
@@ -190,8 +189,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(INOUT)                             :: optimize
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'check_shell_core_distance', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'check_shell_core_distance'
 
       INTEGER                                            :: ikind, iparticle, iparticle_local, &
                                                             itest, nkind, nparticle_local, &

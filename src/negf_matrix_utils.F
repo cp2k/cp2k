@@ -96,8 +96,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(in)                  :: atomlist_row, atomlist_col
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_copy_fm_submat_to_dbcsr', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_copy_fm_submat_to_dbcsr'
 
       INTEGER :: first_sgf_col, first_sgf_row, handle, iatom_col, iatom_row, icol, irow, &
          natoms_col, natoms_row, ncols, nparticles, nrows
@@ -187,8 +186,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: mpi_comm_global
       LOGICAL, INTENT(in)                                :: do_upper_diag, do_lower
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_copy_sym_dbcsr_to_fm_submat', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_copy_sym_dbcsr_to_fm_submat'
 
       INTEGER :: handle, iatom_col, iatom_row, icol, irow, natoms_col, natoms_row, ncols_fm, &
          nparticles, nrows_fm, offset_sgf_col, offset_sgf_row
@@ -307,8 +305,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), INTENT(inout)            :: is_same_cell
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_ref
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_copy_contact_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_copy_contact_matrix'
 
       INTEGER                                            :: direction_axis_abs, handle, iatom_col, &
                                                             iatom_row, image, natoms, nimages, &
@@ -504,8 +501,7 @@ CONTAINS
       TYPE(negf_atom_map_type), DIMENSION(:), INTENT(in) :: atom_map
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_reference_contact_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_reference_contact_matrix'
 
       INTEGER                                            :: handle, i1, i2, iatom_col, iatom_row, &
                                                             icol, iproc, irow, max_atom, &
@@ -746,8 +742,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: nimages
       INTEGER, DIMENSION(3, nimages), INTENT(out)        :: index_to_cell
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'invert_cell_to_index', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'invert_cell_to_index'
 
       INTEGER                                            :: handle, i1, i2, i3, image
       INTEGER, DIMENSION(3)                              :: lbounds, ubounds
@@ -789,8 +784,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       INTEGER                                            :: image
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_index_by_cell', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_index_by_cell'
 
       IF (LBOUND(cell_to_index, 1) <= cell(1) .AND. UBOUND(cell_to_index, 1) >= cell(1) .AND. &
           LBOUND(cell_to_index, 2) <= cell(2) .AND. UBOUND(cell_to_index, 2) >= cell(2) .AND. &

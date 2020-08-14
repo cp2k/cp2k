@@ -108,8 +108,7 @@ CONTAINS
       TYPE(dbcsr_p_type)                                 :: mat_SinvVSinv
       LOGICAL                                            :: do_W_and_not_V
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Wc_real_space_tau_GW', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Wc_real_space_tau_GW'
 
       INTEGER :: handle, handle2, i_global, iatom, iatom_old, icell, iiB, iquad, irow, j_global, &
          jatom, jatom_old, jcol, jjB, jkp, LLL, natom, ncol_local, nkind, nkp, nrow_local, &
@@ -404,8 +403,7 @@ CONTAINS
       TYPE(dbcsr_p_type)                                 :: mat_SinvVSinv
       TYPE(cp_fm_type), POINTER                          :: fm_mat_work_global
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_mat_work_global_to_mat_SinvVSinv', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_mat_work_global_to_mat_SinvVSinv'
 
       INTEGER                                            :: handle
       TYPE(dbcsr_p_type)                                 :: mat_work
@@ -453,8 +451,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(0:num_integ_points)       :: tau_tj
       REAL(KIND=dp), DIMENSION(:, :)                     :: weights_cos_tf_w_to_t
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Wc_kp_tau_GW', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Wc_kp_tau_GW'
 
       INTEGER                                            :: handle, handle2, i_global, iiB, iquad, &
                                                             j_global, jjB, ncol_local, nrow_local
@@ -732,8 +729,7 @@ CONTAINS
 
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q, cfm_mat_work
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'own_cfm_upper_to_full', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'own_cfm_upper_to_full'
 
       INTEGER                                            :: handle, i_global, iiB, j_global, jjB, &
                                                             ncol_local, nrow_local
@@ -817,8 +813,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: eps_filter
       INTEGER                                            :: i_cell_R1_plus_S2, i_cell_S2, start_jquad
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'trace_for_self_ener', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'trace_for_self_ener'
 
       INTEGER                                            :: handle, n_level_gw_ref
       REAL(KIND=dp) :: trace_neg_tau_im_1, trace_neg_tau_im_2, trace_neg_tau_re_1, &
@@ -933,8 +928,7 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER                                            :: ikp, x_cell_R1, y_cell_R1, z_cell_R1
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'trafo_I_T_R1_plus_S2_to_M_R1_S2', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'trafo_I_T_R1_plus_S2_to_M_R1_S2'
 
       INTEGER                                            :: handle, i_cell_T, num_cells_3c, xcell, &
                                                             ycell, zcell
@@ -1040,8 +1034,7 @@ CONTAINS
                                                             has_blocks_mat_dm_virt_S
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_G_real_space', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_G_real_space'
 
       INTEGER                                            :: handle, i_cell, ispin, jquad, nblks
       REAL(KIND=dp)                                      :: tau
@@ -1117,8 +1110,7 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER                                            :: unit_nr, maxcell, num_cells_dm
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_cell_vec_for_R1_plus_S2_or_R1', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_cell_vec_for_R1_plus_S2_or_R1'
 
       INTEGER :: bound_1, bound_2, bound_3, bound_4, bound_5, bound_6, handle, i_cell_S_1, &
          size_set, x_cell_R1_plus_S2, x_cell_R1_plus_S2_minus_S1, y_cell_R1_plus_S2, &
@@ -1225,8 +1217,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_dm
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_cell_vec_for_R2', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_cell_vec_for_R2'
 
       INTEGER                                            :: bound_1, bound_2, bound_3, bound_4, &
                                                             bound_5, bound_6, handle, icell, &

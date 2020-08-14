@@ -53,8 +53,7 @@ CONTAINS
       TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env
       TYPE(pw_env_type), POINTER                         :: pw_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_pw_grid_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qmmm_pw_grid_init'
 
       INTEGER                                            :: auxbas_grid, Ilevel, pw_mode
       REAL(KIND=dp), DIMENSION(3)                        :: Maxdr, Mindr
@@ -120,8 +119,7 @@ CONTAINS
       TYPE(pw_grid_type), POINTER                        :: pw_grid_in, pw_grid_out
       INTEGER, INTENT(IN), OPTIONAL                      :: pw_mode
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_create_copy_no_pbc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_create_copy_no_pbc'
 
       INTEGER                                            :: pw_mode_loc
       INTEGER, DIMENSION(:), POINTER                     :: pos_of_x

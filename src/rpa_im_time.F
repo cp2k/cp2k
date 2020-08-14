@@ -159,8 +159,7 @@ CONTAINS
       REAL(dp), INTENT(INOUT)                            :: dbcsr_time
       INTEGER(int_8), INTENT(INOUT)                      :: dbcsr_nflop
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_mat_P_omega', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_mat_P_omega'
 
       INTEGER :: comm_2d, handle, handle2, handle3, i, i_cell, i_cell_R_1, i_cell_R_1_minus_S, &
          i_cell_R_1_minus_T, i_cell_R_2, i_cell_R_2_minus_S_minus_T, i_cell_S, i_cell_T, i_mem, &
@@ -704,8 +703,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_dm
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_mat_dm_global', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_mat_dm_global'
       REAL(KIND=dp), PARAMETER                           :: stabilize_exp = 70.0_dp
 
       INTEGER                                            :: handle, i_global, iiB, iquad, jjB, &
@@ -880,8 +878,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: tau, e_fermi
       LOGICAL, INTENT(IN)                                :: remove_occ, remove_virt
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_matrices_rpa', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_matrices_rpa'
       REAL(KIND=dp), PARAMETER                           :: stabilize_exp = 70.0_dp
 
       INTEGER                                            :: handle, i_mo, ikpgr, ispin, kplocal, &
@@ -1020,8 +1017,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: remove_occ, remove_virt
       INTEGER, INTENT(IN)                                :: first_jquad
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_transl_dm', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_transl_dm'
 
       INTEGER                                            :: handle, i_dim, i_img, iquad, jspin, nspin
       INTEGER, DIMENSION(3)                              :: cell_grid_dm
@@ -1136,8 +1132,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_dm_global_work
       INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: index_to_cell
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_from_kp_to_transl', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_from_kp_to_transl'
 
       INTEGER                                            :: handle, icell, ik, ispin, nkp, nspin, &
                                                             xcell, ycell, zcell
@@ -1231,8 +1226,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell
       TYPE(cell_type), POINTER                           :: cell
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_cell_index_rpa', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_cell_index_rpa'
 
       INTEGER                                            :: cell_counter, handle, i_cell, &
                                                             index_min_dist, num_cells, xcell, &
@@ -1364,8 +1358,7 @@ CONTAINS
       LOGICAL, INTENT(OUT)                               :: R_minus_S_needed
       LOGICAL, INTENT(IN)                                :: do_kpoints_cubic_RPA
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_diff_index_3c', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_diff_index_3c'
 
       INTEGER :: handle, x_cell_R, x_cell_R_minus_S, x_cell_S, y_cell_R, y_cell_R_minus_S, &
          y_cell_S, z_cell_R, z_cell_R_minus_S, z_cell_S
@@ -1451,8 +1444,7 @@ CONTAINS
       LOGICAL, INTENT(OUT)                               :: R_minus_S_minus_T_needed
       LOGICAL, INTENT(IN)                                :: do_kpoints_cubic_RPA
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_diff_diff_index_3c', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_diff_diff_index_3c'
 
       INTEGER :: handle, x_cell_R, x_cell_R_minus_S_minus_T, x_cell_S, x_cell_T, y_cell_R, &
          y_cell_R_minus_S_minus_T, y_cell_S, y_cell_T, z_cell_R, z_cell_R_minus_S_minus_T, &

@@ -104,8 +104,7 @@ CONTAINS
 
       TYPE(pwdft_environment_type), POINTER              :: pwdft_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pwdft_env_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pwdft_env_retain'
 
 !   ------------------------------------------------------------------------
 
@@ -125,8 +124,7 @@ CONTAINS
 
       TYPE(pwdft_environment_type), POINTER              :: pwdft_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pwdft_env_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pwdft_env_release'
 
 !   ------------------------------------------------------------------------
 
@@ -295,8 +293,7 @@ CONTAINS
 
       TYPE(pwdft_environment_type), POINTER              :: pwdft_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pwdft_env_clear', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pwdft_env_clear'
 
 !   ------------------------------------------------------------------------
 
@@ -332,8 +329,7 @@ CONTAINS
 
       TYPE(pwdft_environment_type), POINTER              :: pwdft_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pwdft_env_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pwdft_env_create'
 
       ALLOCATE (pwdft_env)
 

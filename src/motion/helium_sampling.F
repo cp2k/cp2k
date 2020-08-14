@@ -571,8 +571,7 @@ CONTAINS
       TYPE(helium_solvent_type), POINTER                 :: helium
       TYPE(pint_env_type), POINTER                       :: pint_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_try_permutations', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_try_permutations'
 
       CHARACTER(len=default_string_length)               :: err_str, stmp
       INTEGER                                            :: cyclen, ni
@@ -742,8 +741,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: cyclen
       LOGICAL                                            :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_slice_metro_cyclic', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_slice_metro_cyclic'
 
       CHARACTER(len=default_string_length)               :: err_str, stmp
       INTEGER                                            :: c, ia, ib, ic, ifix, j, k, l, level, &

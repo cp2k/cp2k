@@ -102,8 +102,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: eigenvectors
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_vib_eigs_unformatted', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_vib_eigs_unformatted'
 
       CHARACTER(LEN=default_path_length)                 :: filename
       INTEGER                                            :: jj, n_rep_val, unit_nr

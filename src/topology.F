@@ -137,8 +137,7 @@ CONTAINS
          POINTER                                         :: exclusions
       LOGICAL, INTENT(IN), OPTIONAL                      :: elkind
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'topology_control', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'topology_control'
 
       INTEGER                                            :: handle, iw, iw2
       LOGICAL                                            :: binary_coord_read, el_as_kind, explicit, &
@@ -288,8 +287,7 @@ CONTAINS
       TYPE(qmmm_env_mm_type), OPTIONAL, POINTER          :: qmmm_env
       TYPE(section_vals_type), POINTER                   :: subsys_section, force_env_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'connectivity_control', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'connectivity_control'
       INTEGER, PARAMETER                                 :: map0 = ICHAR("0"), map9 = ICHAR("9")
 
       CHARACTER(len=default_string_length)               :: element0, my_element
@@ -453,8 +451,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_topology_conn', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_topology_conn'
 
       CHARACTER(len=default_path_length)                 :: filename
       INTEGER                                            :: i_rep, imol, loc_conn_type, n_rep, nmol
@@ -522,8 +519,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'coordinate_control', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'coordinate_control'
 
       CHARACTER(LEN=default_string_length)               :: message
       INTEGER                                            :: handle, handle2, istat, iw
@@ -615,8 +611,7 @@ CONTAINS
       TYPE(colvar_p_type), DIMENSION(:), POINTER         :: colvar_p
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'topology_post_proc_colvar', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'topology_post_proc_colvar'
 
       INTEGER                                            :: i
 

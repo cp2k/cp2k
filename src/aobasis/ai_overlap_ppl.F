@@ -211,8 +211,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          OPTIONAL                                        :: dva
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ppl_integral_ri', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ppl_integral_ri'
 
       INTEGER                                            :: i, iexp, ipgf, iw, mmax, na, nexp
       INTEGER, DIMENSION(3)                              :: ani, anm, anp

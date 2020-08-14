@@ -104,8 +104,7 @@ CONTAINS
       REAL(Kind=dp), DIMENSION(0:lmat, 10)               :: occupation, wfnocc
       INTEGER, INTENT(OUT), OPTIONAL                     :: multiplicity
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_set_occupation', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_set_occupation'
 
       CHARACTER(len=2)                                   :: elem
       CHARACTER(LEN=default_string_length)               :: pstring
@@ -428,8 +427,7 @@ CONTAINS
    SUBROUTINE atom_write_zmp_restart(atom)
       TYPE(atom_type), INTENT(IN)                        :: atom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_write_zmp_restart', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_write_zmp_restart'
 
       INTEGER                                            :: extunit, i, k, l, n
 
@@ -467,8 +465,7 @@ CONTAINS
       LOGICAL, INTENT(INOUT)                             :: doguess
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_read_zmp_restart', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_read_zmp_restart'
 
       INTEGER                                            :: er, extunit, i, k, l, maxl, n
       INTEGER, DIMENSION(0:lmat)                         :: maxn, nbas
@@ -529,8 +526,7 @@ CONTAINS
       TYPE(atom_type), INTENT(INOUT)                     :: atom
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_read_external_density', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_read_external_density'
 
       CHARACTER(LEN=default_string_length)               :: filename
       INTEGER                                            :: extunit, ir, j, k, l, maxl_occ, maxnbas, &
@@ -623,8 +619,7 @@ CONTAINS
       TYPE(atom_type), INTENT(INOUT)                     :: atom
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_read_external_vxc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_read_external_vxc'
 
       CHARACTER(LEN=default_string_length)               :: adum, filename
       INTEGER                                            :: extunit, ir, nr
@@ -674,8 +669,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: l
       TYPE(atom_basis_type), INTENT(IN)                  :: basis
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_orbital_charge', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_orbital_charge'
 
       INTEGER                                            :: i, j, m, n
       REAL(KIND=dp)                                      :: ff
@@ -716,8 +710,7 @@ CONTAINS
       CHARACTER(LEN=*), OPTIONAL                         :: typ
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_core_density', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'atom_core_density'
 
       CHARACTER(LEN=3)                                   :: my_typ
       INTEGER                                            :: i, j, m, n
@@ -824,8 +817,7 @@ CONTAINS
       TYPE(atom_gthpot_type), INTENT(IN)                 :: gthpot
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_local_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_local_potential'
 
       INTEGER                                            :: i, j, m, n
       REAL(KIND=dp)                                      :: a
@@ -872,8 +864,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: l
       TYPE(atom_basis_type), INTENT(IN)                  :: basis
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_orbital_max', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'atom_orbital_max'
 
       INTEGER                                            :: i, m, n
       REAL(KIND=dp)                                      :: ff
@@ -914,8 +905,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: l
       TYPE(atom_basis_type), INTENT(IN)                  :: basis
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_orbital_nodes', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_orbital_nodes'
 
       INTEGER                                            :: i, m, n
       REAL(KIND=dp)                                      :: ff
@@ -1114,8 +1104,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: density
       TYPE(grid_atom_type), INTENT(IN)                   :: grid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'coulomb_potential_numeric', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'coulomb_potential_numeric'
 
       INTEGER                                            :: i, nc
       REAL(dp)                                           :: int1, int2
@@ -1156,8 +1145,7 @@ CONTAINS
       TYPE(grid_atom_type)                               :: grid
       INTEGER, INTENT(IN)                                :: maxl
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'coulomb_potential_analytic', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'coulomb_potential_analytic'
 
       INTEGER                                            :: i, j, k, l, m, n
       REAL(KIND=dp)                                      :: a, b, ff, oab, sab
@@ -1265,8 +1253,7 @@ CONTAINS
       TYPE(atom_basis_type), INTENT(IN)                  :: basis
       TYPE(atom_hfx_type), INTENT(IN)                    :: hfx_pot
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'exchange_numeric', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'exchange_numeric'
 
       INTEGER                                            :: i, ia, ib, k, lad, lbc, lh, ll, nbas, &
                                                             norb, nr, nu
@@ -1356,8 +1343,7 @@ CONTAINS
       TYPE(atom_basis_type), INTENT(IN)                  :: basis
       TYPE(atom_hfx_type), INTENT(IN)                    :: hfx_pot
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'exchange_semi_analytic', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'exchange_semi_analytic'
 
       INTEGER                                            :: i, ia, ib, k, lad, lbc, lh, ll, nbas, &
                                                             norb, nr, nu
@@ -1437,8 +1423,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nu
       TYPE(grid_atom_type), INTENT(IN)                   :: grid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'potential_coulomb_numeric', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'potential_coulomb_numeric'
 
       INTEGER                                            :: i, nc
       REAL(dp)                                           :: int1, int2
@@ -1479,8 +1464,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: omega
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: kernel
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'potential_longrange_numeric', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'potential_longrange_numeric'
 
       INTEGER                                            :: nc
       REAL(dp), DIMENSION(:), POINTER                    :: r, wr
@@ -1523,8 +1507,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: omega
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: kernel
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'potential_longrange_numeric_gh', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'potential_longrange_numeric_gh'
 
       INTEGER                                            :: n_max, nc, nc_kernel, nr_kernel
       REAL(dp), DIMENSION(:), POINTER                    :: wr
@@ -1572,8 +1555,7 @@ CONTAINS
       TYPE(atom_basis_type), INTENT(IN)                  :: basis
       TYPE(atom_hfx_type), INTENT(IN)                    :: hfx_pot
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'potential_analytic', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'potential_analytic'
 
       INTEGER                                            :: i, j, k, l, ll, m
       REAL(KIND=dp)                                      :: a, b
@@ -1659,8 +1641,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ll, nu
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rad
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'potential_coulomb_analytic', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'potential_coulomb_analytic'
 
       INTEGER                                            :: nr
       REAL(KIND=dp)                                      :: oab, sab
@@ -1761,8 +1742,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rad
       REAL(KIND=dp), INTENT(IN)                          :: omega
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'potential_longrange_analytic', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'potential_longrange_analytic'
 
       INTEGER                                            :: i, lambda, nr
       REAL(KIND=dp)                                      :: ab, oab, pab, prel, sab
@@ -2240,8 +2220,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rho
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: vxc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'wigner_slater_functional', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'wigner_slater_functional'
 
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: ec, ex, rs, vc, vx
@@ -2565,8 +2544,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: rad
       REAL(KIND=dp), INTENT(OUT)                         :: cnum
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_basis_condnum', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_basis_condnum'
 
       INTEGER                                            :: ia, ib, imax, info, ix, iy, iz, ja, jb, &
                                                             ka, kb, l, la, lb, lwork, na, nb, &

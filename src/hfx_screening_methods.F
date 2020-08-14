@@ -146,8 +146,7 @@ CONTAINS
       INTEGER                                            :: nkind
       INTEGER, DIMENSION(:, :)                           :: is_assoc_atomic_block
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_pmax_mat', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'update_pmax_mat'
 
       INTEGER :: act_atomic_block_offset, act_set_offset, handle, i, img, jatom, jkind, jset, &
          katom, kind_kind_idx, kkind, kset, mb, mc, nimg, nsetb, nsetc
@@ -313,8 +312,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: max_set, max_pgf, n_threads, i_thread
       REAL(dp), DIMENSION(:), POINTER                    :: p_work
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_screening_functions', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_screening_functions'
 
       INTEGER                                            :: handle, i, ikind, ipgf, iset, jkind, &
                                                             jpgf, jset, la, lb, ncoa, ncob, nkind, &
@@ -666,8 +664,7 @@ CONTAINS
       REAL(dp)                                           :: eps_schwarz
       INTEGER, INTENT(IN)                                :: n_threads, i_thread
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_pair_dist_radii', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_pair_dist_radii'
 
       INTEGER                                            :: handle, i, ikind, ipgf, iset, jkind, &
                                                             jpgf, jset, la, lb, ncoa, ncob, nkind, &

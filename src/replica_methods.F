@@ -291,8 +291,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: rep_env_id
       INTEGER, INTENT(out)                               :: ierr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_init_low', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rep_env_init_low'
 
       INTEGER                                            :: i, in_use, stat
       LOGICAL                                            :: do_kpoints, has_unit_metric
@@ -375,8 +374,7 @@ CONTAINS
       TYPE(replica_env_type), POINTER                    :: rep_env
       LOGICAL, OPTIONAL                                  :: calc_f
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_calc_e_f', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rep_env_calc_e_f'
 
       INTEGER                                            :: handle, ierr, my_calc_f
 
@@ -408,8 +406,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: rep_env_id, calc_f
       INTEGER, INTENT(out)                               :: ierr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_calc_e_f_low', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_calc_e_f_low'
 
       TYPE(f_env_type), POINTER                          :: f_env
       TYPE(replica_env_type), POINTER                    :: rep_env
@@ -436,8 +433,7 @@ CONTAINS
       TYPE(replica_env_type), POINTER                    :: rep_env
       LOGICAL, OPTIONAL                                  :: calc_f
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_calc_e_f_int', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_calc_e_f_int'
 
       INTEGER                                            :: i, ierr, irep, md_iter, my_calc_f, ndim
       TYPE(cp_logger_type), POINTER                      :: logger

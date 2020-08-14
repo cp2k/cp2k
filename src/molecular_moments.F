@@ -83,8 +83,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: loc_print_key
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_molecular_moments', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_molecular_moments'
 
       INTEGER :: akind, first_atom, i, iatom, ikind, imol, imol_now, iounit, iproc, ispin, j, lx, &
          ly, lz, molkind, n, n1, n2, natom, ncol_global, nm, nmol, nmols, norder, nrow_global, ns, &

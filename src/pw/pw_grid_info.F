@@ -52,8 +52,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: n_orig(3)
       INTEGER, DIMENSION(3)                              :: n
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_init_setup', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_init_setup'
 
       INTEGER                                            :: my_icommensurate
 
@@ -191,8 +190,7 @@ CONTAINS
       LOGICAL, INTENT(in), OPTIONAL                      :: odd
       INTEGER, DIMENSION(3)                              :: nout
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_n_for_fft', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_grid_n_for_fft'
 
       LOGICAL                                            :: my_odd
 
@@ -233,8 +231,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
       INTEGER, DIMENSION(3)                              :: n
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_n_from_cutoff', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_n_from_cutoff'
 
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: alat(3)
@@ -257,8 +254,7 @@ CONTAINS
       INTEGER, DIMENSION(3), INTENT(in)                  :: npts
       INTEGER, DIMENSION(2, 3)                           :: bounds
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_bounds_from_n', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_bounds_from_n'
 
       bounds(1, :) = -npts/2
       bounds(2, :) = bounds(1, :) + npts - 1

@@ -43,8 +43,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE overlap_ab_test_simple()
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'overlap_ab_test_simple', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'overlap_ab_test_simple'
 
       INTEGER                                            :: ia1, iax, iay, iaz, ib1, ibx, iby, ibz, &
                                                             la_max, la_min, lb_max, lb_min, lds, &
@@ -142,8 +141,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: sab
       REAL(KIND=dp), INTENT(INOUT)                       :: dmax
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'overlap_ab_test', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'overlap_ab_test'
 
       INTEGER                                            :: coa, cob, ia1, iax, iay, iaz, ib1, ibx, &
                                                             iby, ibz, ipgf, jpgf, ma, mb
@@ -194,8 +192,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE overlap_abc_test_simple()
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'overlap_abc_test_simple', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'overlap_abc_test_simple'
 
       INTEGER                                            :: ia1, iax, iay, iaz, ib1, ibx, iby, ibz, &
                                                             ic1, icx, icy, icz, la_max, la_min, &
@@ -322,8 +319,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: sabc
       REAL(KIND=dp), INTENT(INOUT)                       :: dmax
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'overlap_abc_test', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'overlap_abc_test'
 
       INTEGER                                            :: coa, cob, coc, ia1, iax, iay, iaz, ib1, &
                                                             ibx, iby, ibz, ic1, icx, icy, icz, &
@@ -395,8 +391,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE overlap_aabb_test_simple()
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'overlap_aabb_test_simple', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'overlap_aabb_test_simple'
 
       INTEGER :: i, iax, iay, iaz, ibx, iby, ibz, j, k, l, la_max, la_max1, la_max2, la_min, &
          la_min1, la_min2, lb_max, lb_max1, lb_max2, lb_min, lb_min1, lb_min2, lds, ma, maxl, mb
@@ -537,8 +532,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: saabb
       REAL(KIND=dp), INTENT(INOUT)                       :: dmax
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'overlap_aabb_test', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'overlap_aabb_test'
 
       INTEGER                                            :: coa1, coa2, cob1, cob2, i, iax, iay, &
                                                             iaz, ibx, iby, ibz, ipgf, j, jpgf, k, &

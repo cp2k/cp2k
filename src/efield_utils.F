@@ -60,8 +60,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_p_type)                                    :: v_efield_rspace
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'efield_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'efield_potential'
 
       INTEGER                                            :: handle, i, j, k
       INTEGER, DIMENSION(2, 3)                           :: bo_global, bo_local
@@ -192,8 +191,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, OPTIONAL                                  :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ecore_efield', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ecore_efield'
 
       INTEGER                                            :: atom_a, handle, iatom, ikind, natom, &
                                                             nkind

@@ -57,8 +57,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: storageform
       REAL(KIND=dp), INTENT(OUT)                         :: eigenvalues(:), eigenvectors(:, :)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'diagonalise_ssyev', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'diagonalise_ssyev'
       CHARACTER, PARAMETER                               :: jobz = "V"
 
       CHARACTER                                          :: uplo
@@ -107,8 +106,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: eigenvalues(:)
       COMPLEX(KIND=dp), INTENT(OUT)                      :: eigenvectors(:, :)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'diagonalise_chpev', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'diagonalise_chpev'
       CHARACTER, PARAMETER                               :: jobz = "V"
 
       CHARACTER                                          :: uplo

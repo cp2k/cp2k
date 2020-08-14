@@ -70,8 +70,7 @@ CONTAINS
       LOGICAL, INTENT(OUT)                               :: calc(0:)
       INTEGER, INTENT(IN)                                :: tag
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_calculation', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'setup_calculation'
 
       IF (ABS(order) > 3) &
          CPABORT("Order of derivative too high")
@@ -265,8 +264,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(*), INTENT(IN)            :: rho, grho
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: s
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calc_wave_vector', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'calc_wave_vector'
 
       INTEGER                                            :: ip, n
       REAL(KIND=dp)                                      :: fac

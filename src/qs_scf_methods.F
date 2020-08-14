@@ -101,8 +101,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iter_count
       LOGICAL, INTENT(in), OPTIONAL                      :: diis, invert
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_density_mixing', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_density_mixing'
 
       INTEGER                                            :: handle, ic, ispin
       LOGICAL                                            :: my_diis, my_invert
@@ -270,8 +269,7 @@ CONTAINS
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(dbcsr_type), POINTER                          :: ortho_dbcsr, ksbuf1, ksbuf2
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver_dbcsr', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'eigensolver_dbcsr'
 
       INTEGER                                            :: handle, nao, nmo
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
@@ -334,8 +332,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: use_jacobi
       REAL(KIND=dp), INTENT(IN)                          :: jacobi_threshold
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver_symm', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'eigensolver_symm'
 
       INTEGER                                            :: handle, homo, nao, nelectron, nmo
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
@@ -412,8 +409,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: use_jacobi
       REAL(KIND=dp), INTENT(IN)                          :: jacobi_threshold
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver_simple', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver_simple'
 
       INTEGER                                            :: handle, homo, nao, nelectron, nmo
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
@@ -553,8 +549,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(0:2, 0:2, 1:2), &
          INTENT(IN)                                      :: roks_parameter
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'combine_ks_matrices_1', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'combine_ks_matrices_1'
 
       INTEGER                                            :: handle, i, icol_global, icol_local, &
                                                             irow_global, irow_local, j, &
@@ -630,8 +625,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: f
       INTEGER, INTENT(IN)                                :: nalpha, nbeta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'combine_ks_matrices_2', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'combine_ks_matrices_2'
 
       INTEGER                                            :: handle, icol_global, icol_local, &
                                                             irow_global, irow_local, ncol_local, &
@@ -756,8 +750,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: homo, nmo
       REAL(kind=dp), INTENT(in)                          :: level_shift
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'correct_mo_eigenvalues', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'correct_mo_eigenvalues'
 
       INTEGER                                            :: imo
 
@@ -791,8 +784,7 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: is_triangular
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: matrix_u_fm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'shift_unocc_mos', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'shift_unocc_mos'
 
       INTEGER                                            :: handle
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: weights

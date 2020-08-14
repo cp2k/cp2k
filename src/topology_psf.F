@@ -81,8 +81,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: subsys_section
       INTEGER, INTENT(IN)                                :: psf_type
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_topology_psf', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_topology_psf'
 
       CHARACTER(LEN=2*default_string_length)             :: psf_format
       CHARACTER(LEN=3)                                   :: c_int
@@ -416,8 +415,7 @@ CONTAINS
       TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'psf_post_process', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'psf_post_process'
 
       INTEGER                                            :: handle, i, iatom, ibond, ionfo, iw, &
                                                             jatom, N, natom, nbond, nonfo, nphi, &
@@ -723,8 +721,7 @@ CONTAINS
       TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
       TYPE(section_vals_type), POINTER                   :: subsys_section, force_env_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_topology_psf', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_topology_psf'
 
       CHARACTER(LEN=2*default_string_length)             :: psf_format
       CHARACTER(LEN=default_string_length)               :: c_int, my_tag1, my_tag2, my_tag3, record

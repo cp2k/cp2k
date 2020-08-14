@@ -98,8 +98,7 @@ CONTAINS
    SUBROUTINE admm_dm_release(admm_dm)
       TYPE(admm_dm_type), POINTER                        :: admm_dm
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_dm_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'admm_dm_release'
 
       IF (.NOT. ASSOCIATED(admm_dm)) RETURN
 

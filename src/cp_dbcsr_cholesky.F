@@ -60,8 +60,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER          :: para_env
       TYPE(cp_blacs_env_type), POINTER         :: blacs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_cholesky_decompose', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_cholesky_decompose'
 
       INTEGER                                  :: handle, info, my_n, &
                                                   nfullcols_total, &
@@ -144,8 +143,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER          :: blacs_env
       LOGICAL, INTENT(IN)                       :: upper_to_full
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_cholesky_invert', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_cholesky_invert'
 
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
       REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp
@@ -237,8 +235,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                :: para_env
       TYPE(cp_blacs_env_type), POINTER               :: blacs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_cholesky_restore', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_cholesky_restore'
 
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b, out
       REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp, b_sp, out_sp

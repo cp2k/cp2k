@@ -73,8 +73,7 @@ CONTAINS
       REAL(dp), DIMENSION(:)                             :: hf_energy
       LOGICAL, INTENT(in)                                :: just_energy, calculate_forces, use_virial
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rescale_xc_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rescale_xc_potential'
 
       INTEGER                                            :: adiabatic_functional, adiabatic_model, &
                                                             handle, n_rep_hf, nimages

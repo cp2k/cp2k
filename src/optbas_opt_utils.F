@@ -44,8 +44,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: S_inv_orb, Q, tmp1
       REAL(KIND=dp)                                      :: energy
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'evaluate_energy', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'evaluate_energy'
 
       INTEGER                                            :: ispin, naux, nmo, norb
       REAL(KIND=dp)                                      :: tmp_energy

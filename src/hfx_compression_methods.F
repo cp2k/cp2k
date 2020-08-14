@@ -112,8 +112,7 @@ CONTAINS
       LOGICAL                                            :: use_disk_storage
       INTEGER(int_8), OPTIONAL                           :: max_val_memory
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_compress_cache', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_compress_cache'
 
       INTEGER                                            :: end_idx, increment_counter, start_idx, &
                                                             tmp_elements, tmp_nints

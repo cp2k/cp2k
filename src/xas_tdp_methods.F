@@ -1073,8 +1073,7 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'assign_mos_to_ex_atoms', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'assign_mos_to_ex_atoms'
 
       INTEGER                                            :: at_index, iat, iat_memo, imo, ispin, &
                                                             n_atoms, n_search, nex_atoms, nspins
@@ -1153,8 +1152,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_uks
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'reinit_qs_loc_env', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'reinit_qs_loc_env'
 
       INTEGER                                            :: i, nspins
       TYPE(localized_wfn_control_type), POINTER          :: loc_wfn_control
@@ -1206,8 +1204,7 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'diagonalize_assigned_mo_subset', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'diagonalize_assigned_mo_subset'
 
       INTEGER                                            :: i, iat, ilmo, ispin, nao, nlmo, nspins
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: evals
@@ -1308,8 +1305,7 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'assign_mos_to_donor_state', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'assign_mos_to_donor_state'
 
       INTEGER                                            :: at_index, i, iat, imo, ispin, l, my_mo, &
                                                             n_search, n_states, nao, ndo_so, nj, &
@@ -1639,8 +1635,7 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'find_mo_centers', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'find_mo_centers'
 
       INTEGER                                            :: dim_op, i, ispin, j, n_centers, nao, &
                                                             nspins
@@ -1834,8 +1829,7 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'compute_lenrep_multipole', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'compute_lenrep_multipole'
 
       INTEGER                                            :: i, order
       REAL(dp), DIMENSION(3)                             :: rc
@@ -1888,8 +1882,7 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'compute_dipole_fosc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'compute_dipole_fosc'
 
       INTEGER                                            :: handle, iosc, j, nao, ndo_mo, ndo_so, &
                                                             ngs, nosc, nspins
@@ -2003,8 +1996,7 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'compute_quadrupole_fosc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'compute_quadrupole_fosc'
 
       INTEGER                                            :: handle, iosc, j, nao, ndo_mo, ndo_so, &
                                                             ngs, nosc, nspins
@@ -2124,8 +2116,7 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mos_to_ex_atoms_association', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mos_to_ex_atoms_association'
 
       CHARACTER(LEN=default_string_length)               :: kind_name
       INTEGER                                            :: at_index, imo, ispin, nmo, nspins, &
@@ -2212,8 +2203,7 @@ CONTAINS
       TYPE(donor_state_type), POINTER                    :: donor_state
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'perform_mulliken_on_donor_state', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'perform_mulliken_on_donor_state'
 
       INTEGER                                            :: at_index, i, ispin, nao, natom, ndo_mo, &
                                                             ndo_so, nsgf, nspins, output_unit
@@ -2547,8 +2537,7 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(section_vals_type), POINTER                   :: xas_tdp_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_xas_tdp_to_file', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_xas_tdp_to_file'
 
       INTEGER                                            :: i, output_unit, xas_tdp_unit
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -2782,8 +2771,7 @@ CONTAINS
       TYPE(donor_state_type), POINTER                    :: donor_state
       TYPE(section_vals_type), POINTER                   :: xas_tdp_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_donor_state_restart', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_donor_state_restart'
 
       CHARACTER(len=default_path_length)                 :: filename
       CHARACTER(len=default_string_length)               :: domo, excite, my_middle
@@ -2894,8 +2882,7 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN)                       :: filename
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_donor_state_restart', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_donor_state_restart'
 
       INTEGER                                            :: group, handle, nao, nex, nspins, &
                                                             output_unit, read_params(7), rst_unit, &
@@ -2998,8 +2985,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xas_tdp_section
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'restart_calculation', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'restart_calculation'
 
       INTEGER                                            :: ex_type
       TYPE(donor_state_type), POINTER                    :: donor_state

@@ -1203,8 +1203,7 @@ CONTAINS
       TYPE(mp2_type), POINTER                            :: mp2_env
       LOGICAL, INTENT(IN)                                :: alpha_case
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_dbcsr_gamma', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_dbcsr_gamma'
 
       INTEGER :: dummy_proc, handle, i_global, i_local, iaia, iiB, iii, itmp(2), j_global, &
          j_local, jjB, jjj, kkB, mypcol, myprow, ncol_block, ncol_local, npcol, nprow, nrow_block, &

@@ -113,8 +113,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: l, n
       INTEGER                                            :: number_of_lebedev_grid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_number_of_lebedev_grid', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_number_of_lebedev_grid'
 
       INTEGER                                            :: i
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ll, nn
@@ -345,8 +344,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE init_lebedev_grids()
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_lebedev_grids', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_lebedev_grids'
 
       INTEGER                                            :: handle, ilg
 

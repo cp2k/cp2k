@@ -117,8 +117,7 @@ CONTAINS
       TYPE(stda_env_type)                                :: stda_kernel
       TYPE(stda_control_type)                            :: stda_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'stda_init_param', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'stda_init_param'
 
       INTEGER                                            :: ikind, iounit, nkind
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -184,8 +183,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n_ao
       INTEGER, DIMENSION(:), INTENT(IN)                  :: nactive
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_stda_env', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'allocate_stda_env'
 
       INTEGER                                            :: ii, nkind
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -219,8 +217,7 @@ CONTAINS
 
       TYPE(stda_env_type)                                :: stda_kernel
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_stda_env', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_stda_env'
 
       INTEGER                                            :: ii
       TYPE(stda_kind_type), POINTER                      :: kind_param
@@ -244,8 +241,7 @@ CONTAINS
 
       TYPE(stda_kind_type), POINTER                      :: kind_param
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_stda_kind_param', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_stda_kind_param'
 
       IF (ASSOCIATED(kind_param)) &
          CALL deallocate_stda_kind_param(kind_param)
@@ -267,8 +263,7 @@ CONTAINS
 
       TYPE(stda_kind_type), POINTER                      :: kind_param
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_stda_kind_param', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_stda_kind_param'
 
       CPASSERT(ASSOCIATED(kind_param))
       DEALLOCATE (kind_param)

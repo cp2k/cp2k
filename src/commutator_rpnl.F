@@ -434,8 +434,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(IN), OPTIONAL  :: ref_point
       TYPE(cell_type), INTENT(IN), OPTIONAL, POINTER     :: cell
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_com_mom_nl', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_com_mom_nl'
 
       INTEGER                                            :: handle, i, iab, iac, iatom, ibc, icol, &
                                                             ikind, ind, irow, jatom, jkind, kac, &

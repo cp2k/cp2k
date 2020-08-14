@@ -82,8 +82,7 @@ CONTAINS
       TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
       REAL(KIND=dp)                                      :: my_res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rescaling_factor', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rescaling_factor'
 
       REAL(KIND=dp)                                      :: factor, resample, reverse, rr
 

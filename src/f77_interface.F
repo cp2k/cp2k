@@ -395,8 +395,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: f_env_id
       TYPE(f_env_type), POINTER                          :: f_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'f_env_get_from_id', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'f_env_get_from_id'
 
       INTEGER                                            :: f_env_pos
 
@@ -430,8 +429,7 @@ CONTAINS
       TYPE(f_env_type), POINTER                          :: f_env
       INTEGER, INTENT(out), OPTIONAL                     :: handle
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'f_env_add_defaults', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'f_env_add_defaults'
 
       INTEGER                                            :: f_env_pos, ierr
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -477,8 +475,7 @@ CONTAINS
       INTEGER, INTENT(out), OPTIONAL                     :: ierr
       INTEGER, INTENT(in), OPTIONAL                      :: handle
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'f_env_rm_defaults', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'f_env_rm_defaults'
 
       INTEGER                                            :: ierr2
       TYPE(cp_logger_type), POINTER                      :: d_logger, logger
@@ -559,8 +556,7 @@ CONTAINS
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: work_dir
       CHARACTER(len=*), DIMENSION(:, :), OPTIONAL        :: initial_variables
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_force_env', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_force_env'
 
       CHARACTER(len=default_path_length)                 :: old_dir, wdir
       INTEGER :: handle, i, ierr2, iforce_eval, isubforce_eval, k, method_name_id, my_group, &
@@ -929,8 +925,7 @@ CONTAINS
       INTEGER, INTENT(out)                               :: ierr
       LOGICAL, INTENT(IN), OPTIONAL                      :: q_finalize
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'destroy_force_env', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'destroy_force_env'
 
       INTEGER                                            :: env_pos, i
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -1130,8 +1125,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: stress_tensor
       INTEGER, INTENT(OUT)                               :: ierr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_stress_tensor', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_stress_tensor'
 
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_subsys_type), POINTER                      :: subsys
@@ -1307,8 +1301,7 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: calc_force
       INTEGER, INTENT(out)                               :: ierr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calc_energy_force', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'calc_energy_force'
 
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(f_env_type), POINTER                          :: f_env

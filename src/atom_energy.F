@@ -77,8 +77,7 @@ CONTAINS
    SUBROUTINE atom_energy_opt(atom_section)
       TYPE(section_vals_type), POINTER                   :: atom_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_energy_opt', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'atom_energy_opt'
 
       CHARACTER(LEN=2)                                   :: elem
       CHARACTER(LEN=default_string_length)               :: filename
@@ -486,8 +485,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: delta
       INTEGER, INTENT(IN)                                :: nder, iw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_response_basis', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_response_basis'
 
       INTEGER                                            :: i, ider, j, k, l, lhomo, m, n, nhomo, &
                                                             s1, s2

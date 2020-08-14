@@ -97,8 +97,7 @@ CONTAINS
       TYPE(greens_fn_type), INTENT(IN), POINTER          :: green
       TYPE(ps_implicit_type), INTENT(INOUT), POINTER     :: ps_implicit_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_create'
 
       INTEGER                                            :: boundary_condition, handle, j, &
                                                             n_contacts, neumann_directions
@@ -193,8 +192,7 @@ CONTAINS
       TYPE(pw_type), INTENT(INOUT), POINTER              :: v_new
       REAL(dp), INTENT(OUT), OPTIONAL                    :: ehartree
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'implicit_poisson_solver_periodic', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'implicit_poisson_solver_periodic'
 
       INTEGER                                            :: handle, iter, max_iter, outp_unit, &
                                                             times_called
@@ -327,8 +325,7 @@ CONTAINS
       TYPE(pw_type), INTENT(INOUT), POINTER              :: v_new
       REAL(dp), INTENT(OUT), OPTIONAL                    :: ehartree
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'implicit_poisson_solver_neumann', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'implicit_poisson_solver_neumann'
 
       INTEGER                                            :: handle, iter, max_iter, &
                                                             neumann_directions, outp_unit, &
@@ -496,8 +493,7 @@ CONTAINS
       TYPE(pw_type), INTENT(INOUT), POINTER              :: v_new
       REAL(dp), INTENT(OUT), OPTIONAL                    :: electric_enthalpy
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'implicit_poisson_solver_mixed_periodic', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'implicit_poisson_solver_mixed_periodic'
 
       INTEGER :: data_size, handle, iter, j, lb1, lb2, lb3, max_iter, n_contacts, n_tiles_tot, ng, &
          ngpts_local, nt, nt_tot, outp_unit, times_called, ub1, ub2, ub3
@@ -756,8 +752,7 @@ CONTAINS
       TYPE(pw_type), INTENT(INOUT), POINTER              :: v_new
       REAL(dp), INTENT(OUT), OPTIONAL                    :: electric_enthalpy
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'implicit_poisson_solver_mixed', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'implicit_poisson_solver_mixed'
 
       INTEGER :: data_size, handle, iter, j, lb1, lb2, lb3, max_iter, n_contacts, n_tiles_tot, &
          neumann_directions, ng, ngpts_local, nt, nt_tot, outp_unit, times_called, ub1, ub2, ub3
@@ -1047,8 +1042,7 @@ CONTAINS
       TYPE(ps_implicit_type), INTENT(INOUT), POINTER     :: ps_implicit_env
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_initial_guess_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_initial_guess_create'
 
       INTEGER                                            :: handle, n_tiles_tot
 
@@ -1085,8 +1079,7 @@ CONTAINS
       TYPE(pw_poisson_parameter_type), INTENT(IN)        :: poisson_params
       TYPE(ps_implicit_type), INTENT(INOUT), POINTER     :: ps_implicit_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_prepare_blocks', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_prepare_blocks'
 
       INTEGER :: data_size, handle, i, indx1, indx2, info, j, k, l, lb1, lb2, lb3, n_contacts, &
          n_tiles, n_tiles_tot, neumann_directions, ngpts_local, ub1, ub2, ub3, unit_nr
@@ -1426,8 +1419,7 @@ CONTAINS
       TYPE(pw_type), INTENT(IN), POINTER                 :: v
       TYPE(pw_type), INTENT(INOUT), POINTER              :: Pxv
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_P_operator', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'apply_P_operator'
 
       INTEGER                                            :: handle, i
       TYPE(pw_p_type), DIMENSION(3)                      :: dln_eps, dv
@@ -1470,8 +1462,7 @@ CONTAINS
       TYPE(pw_type), INTENT(IN), POINTER                 :: pw_in
       TYPE(pw_type), INTENT(INOUT), POINTER              :: pw_out
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_inv_laplace_operator_fft', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_inv_laplace_operator_fft'
 
       INTEGER                                            :: handle, ig, ng
       REAL(dp)                                           :: prefactor
@@ -1520,8 +1511,7 @@ CONTAINS
       TYPE(pw_type), INTENT(IN), POINTER                 :: pw_in
       TYPE(pw_type), INTENT(INOUT), POINTER              :: pw_out
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_inv_laplace_operator_dct', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_inv_laplace_operator_dct'
 
       INTEGER                                            :: handle, ig, ng
       REAL(dp)                                           :: prefactor
@@ -1568,8 +1558,7 @@ CONTAINS
       TYPE(pw_type), INTENT(IN), POINTER                 :: pw_in
       TYPE(pw_type), INTENT(INOUT), POINTER              :: pw_out
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_laplace_operator_fft', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_laplace_operator_fft'
 
       INTEGER                                            :: g0_index, handle, ig, ng
       LOGICAL                                            :: have_g0
@@ -1625,8 +1614,7 @@ CONTAINS
       TYPE(pw_type), INTENT(IN), POINTER                 :: pw_in
       TYPE(pw_type), INTENT(INOUT), POINTER              :: pw_out
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_laplace_operator_dct', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_laplace_operator_dct'
 
       INTEGER                                            :: g0_index, handle, ig, ng
       LOGICAL                                            :: have_g0
@@ -1683,8 +1671,7 @@ CONTAINS
       TYPE(pw_type), INTENT(IN), POINTER                 :: v
       TYPE(pw_type), INTENT(INOUT), POINTER              :: density
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_poisson_operator_fft', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_poisson_operator_fft'
 
       INTEGER                                            :: handle
       TYPE(pw_type), POINTER                             :: Pxv
@@ -1725,8 +1712,7 @@ CONTAINS
       TYPE(pw_type), INTENT(IN), POINTER                 :: v
       TYPE(pw_type), INTENT(INOUT), POINTER              :: density
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_poisson_operator_dct', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_poisson_operator_dct'
 
       INTEGER                                            :: handle
       TYPE(pw_type), POINTER                             :: Pxv
@@ -1767,8 +1753,7 @@ CONTAINS
       TYPE(pw_type), INTENT(IN), POINTER                 :: v
       TYPE(pw_type), INTENT(INOUT), POINTER              :: v_eps
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_compute_veps', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_compute_veps'
 
       INTEGER                                            :: handle, i
       REAL(dp)                                           :: eightpi
@@ -1817,8 +1802,7 @@ CONTAINS
       TYPE(pw_type), INTENT(IN), POINTER                 :: density, v
       REAL(dp), INTENT(OUT)                              :: ehartree
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_ehartree_periodic_bc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_ehartree_periodic_bc'
 
       INTEGER                                            :: handle
 
@@ -1853,8 +1837,7 @@ CONTAINS
       TYPE(pw_type), INTENT(IN), POINTER                 :: v
       REAL(dp), INTENT(OUT)                              :: ehartree, electric_enthalpy
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_ehartree_mixed_bc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_ehartree_mixed_bc'
 
       INTEGER                                            :: handle
       REAL(dp)                                           :: dvol, ehartree_rho, ehartree_rho_cstr
@@ -1908,8 +1891,7 @@ CONTAINS
       TYPE(pw_type), INTENT(INOUT), POINTER              :: QAinvxres_new
       REAL(dp), INTENT(OUT)                              :: pres_error, nabs_error
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_compute_error_fft', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_compute_error_fft'
 
       INTEGER                                            :: handle
       REAL(dp)                                           :: vol
@@ -1960,8 +1942,7 @@ CONTAINS
       TYPE(pw_type), INTENT(INOUT), POINTER              :: QAinvxres_new
       REAL(dp), INTENT(OUT)                              :: pres_error, nabs_error
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_compute_error_dct', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_compute_error_dct'
 
       INTEGER                                            :: handle
       REAL(dp)                                           :: vol
@@ -2003,8 +1984,7 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: pres_error, nabs_error
       INTEGER, INTENT(OUT)                               :: outp_unit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_output', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_output'
       INTEGER, PARAMETER                                 :: low_print_level = 1
 
       INTEGER                                            :: handle
@@ -2050,8 +2030,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: outp_unit
       REAL(dp), INTENT(IN)                               :: ehartree
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_report_ehartree', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_report_ehartree'
       INTEGER, PARAMETER                                 :: low_print_level = 1
 
       INTEGER                                            :: handle
@@ -2080,8 +2059,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: iter, max_iter, outp_unit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_print_convergence_msg', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_print_convergence_msg'
 
       CHARACTER(LEN=12)                                  :: msg
       INTEGER                                            :: handle, last_iter

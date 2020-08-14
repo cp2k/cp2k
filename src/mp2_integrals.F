@@ -231,8 +231,7 @@ CONTAINS
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: mo_coeff_o_beta, mo_coeff_v_beta, &
                                                             mo_coeff_all_beta, mo_coeff_gw_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_gpw_compute_in', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_gpw_compute_in'
 
       INTEGER :: cm, cut_memory, cut_memory_int, eri_method, gw_corr_lev_total, handle, handle2, &
          handle4, i, i_counter, itmp(2), j, jcell, kcell, LLL, max_row_col_local, &
@@ -1197,8 +1196,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: local_col_row_info
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_intermediate_matrices', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_intermediate_matrices'
 
       INTEGER                                            :: handle, ncol_local, nfullcols_total, &
                                                             nfullrows_total, nrow_local
@@ -1324,8 +1322,7 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER                                            :: unit_nr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_kpoints', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_kpoints'
 
       INTEGER                                            :: handle, i, i_dim, ix, iy, iz, nkp, &
                                                             num_dim
@@ -1563,8 +1560,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: local_col_row_info
       INTEGER, INTENT(IN)                                :: my_B_virtual_end, my_B_virtual_start
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'grep_my_integrals', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'grep_my_integrals'
 
       INTEGER                                            :: i_global, iiB, j_global, jjB, ncol_rec, &
                                                             nrow_rec, proc_receive, proc_send, &

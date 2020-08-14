@@ -81,8 +81,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps1_mao
       INTEGER, INTENT(IN), OPTIONAL                      :: unit_nr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mao_generate_basis', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mao_generate_basis'
 
       CHARACTER(len=10)                                  :: mao_basis_set
       INTEGER                                            :: handle, iab, iatom, ikind, ispin, iw, &

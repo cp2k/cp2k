@@ -66,8 +66,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_calculation', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_calculation'
 
       INTEGER                                            :: handle, iw
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -125,8 +124,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'orbital_eigenvalue_correction', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'orbital_eigenvalue_correction'
 
       INTEGER                                            :: oe_corr, output_unit
       TYPE(cp_logger_type), POINTER                      :: logger

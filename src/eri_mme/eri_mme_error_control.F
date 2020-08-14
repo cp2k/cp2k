@@ -75,8 +75,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: print_calib
       INTEGER, INTENT(IN)                                :: unit_nr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calibrate_cutoff', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calibrate_cutoff'
 
       INTEGER                                            :: i, iter1, iter2, max_iter
       LOGICAL                                            :: do_print, valid_initial
@@ -213,8 +212,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: err_mm, err_ctff, C_mm
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cutoff_minimax_error', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cutoff_minimax_error'
 
       REAL(KIND=dp)                                      :: delta_mm
 
@@ -410,8 +408,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: err_c
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cutoff_error_fixed_exp', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cutoff_error_fixed_exp'
 
       INTEGER                                            :: ax, ay, az, G_l, G_u, Gl_first, Gl_last, &
                                                             Gu_first, Gu_last, i_xyz, l, my_p, &

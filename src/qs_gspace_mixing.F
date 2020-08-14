@@ -220,8 +220,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'gmix_potential_only', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'gmix_potential_only'
 
       COMPLEX(dp), DIMENSION(:), POINTER                 :: cc_new
       INTEGER                                            :: handle, iatom, ic, ig, ispin, natom, ng, &
@@ -889,8 +888,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'broyden_mixing_new', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'broyden_mixing_new'
 
       COMPLEX(dp), ALLOCATABLE, DIMENSION(:)             :: delta_res_p, res_rho, res_rho_p, tmp
       INTEGER                                            :: handle, ib, ibb, ig, info, ispin, jb, &
@@ -1199,8 +1197,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'multisecant_mixing', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'multisecant_mixing'
       COMPLEX(KIND=dp), PARAMETER                        :: cmone = (-1.0_dp, 0.0_dp), &
                                                             cone = (1.0_dp, 0.0_dp), &
                                                             czero = (0.0_dp, 0.0_dp)

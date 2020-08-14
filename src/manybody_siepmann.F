@@ -80,8 +80,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       INTEGER, INTENT(INOUT)                             :: nr_oh, nr_h3o, nr_o
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'siepmann_energy', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'siepmann_energy'
 
       REAL(KIND=dp)                                      :: a_ij, D, E, f2, Phi_ij, pot_loc_v2, &
                                                             pot_loc_v3
@@ -563,8 +562,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'siepmann_forces_v3', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'siepmann_forces_v3'
 
       CHARACTER(LEN=2)                                   :: element_symbol
       REAL(KIND=dp)                                      :: a_ij, beta, drji, E, f2, f2_d, f_A1, &
@@ -653,8 +651,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: rcutsq
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'siepmann_forces_v2', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'siepmann_forces_v2'
 
       CHARACTER(LEN=2)                                   :: element_symbol
       REAL(KIND=dp)                                      :: D, drji, f2, f2_d, f_A1, f_A2, fac, &
@@ -732,8 +729,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a
       TYPE(cell_type), POINTER                           :: cell
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_siepmann_arrays', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_siepmann_arrays'
 
       INTEGER                                            :: handle, i, iend, igrp, ikind, ilist, &
                                                             ipair, istart, jkind, nkinds, npairs, &
@@ -831,8 +827,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: glob_cell_v
       INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'destroy_siepmann_arrays', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'destroy_siepmann_arrays'
 
       IF (ASSOCIATED(glob_loc_list)) THEN
          DEALLOCATE (glob_loc_list)
@@ -862,8 +857,7 @@ CONTAINS
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       LOGICAL, INTENT(IN)                                :: print_oh, print_h3o, print_o
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_nr_ions_siepmann', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_nr_ions_siepmann'
 
       INTEGER                                            :: iw
       TYPE(cp_logger_type), POINTER                      :: logger

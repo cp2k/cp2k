@@ -64,8 +64,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_coordinate_cp2k', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_coordinate_cp2k'
 
       CHARACTER(LEN=default_string_length)               :: string
       CHARACTER(LEN=max_line_length)                     :: error_message

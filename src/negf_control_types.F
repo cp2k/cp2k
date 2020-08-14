@@ -129,8 +129,7 @@ CONTAINS
    SUBROUTINE negf_control_create(negf_control)
       TYPE(negf_control_type), POINTER                   :: negf_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'negf_control_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'negf_control_create'
 
       INTEGER                                            :: handle
 
@@ -151,8 +150,7 @@ CONTAINS
    SUBROUTINE negf_control_release(negf_control)
       TYPE(negf_control_type), POINTER                   :: negf_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'negf_control_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'negf_control_release'
 
       INTEGER                                            :: handle, i, j
 
@@ -199,8 +197,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(cp_subsys_type), POINTER                      :: subsys
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_negf_control', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_negf_control'
 
       CHARACTER(len=default_string_length) :: contact_id_str, eta_current_str, eta_max_str, &
          npoles_current_str, npoles_min_str, temp_current_str, temp_min_str
@@ -465,8 +462,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: i_rep_section
       TYPE(cp_subsys_type), POINTER                      :: subsys
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_negf_atomlist', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_negf_atomlist'
 
       CHARACTER(len=default_string_length)               :: index_str, natoms_str
       CHARACTER(len=default_string_length), &

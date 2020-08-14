@@ -246,8 +246,7 @@ CONTAINS
       TYPE(tree_type), POINTER                           :: elem
       INTEGER                                            :: io_unit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_subtree_elem_unformated', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_subtree_elem_unformated'
 
       CPASSERT(ASSOCIATED(elem))
       CPASSERT(io_unit .GT. 0)
@@ -279,8 +278,7 @@ CONTAINS
       TYPE(tree_type), POINTER                           :: elem
       INTEGER                                            :: io_unit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_subtree_elem_unformated', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_subtree_elem_unformated'
 
       CPASSERT(ASSOCIATED(elem))
       CPASSERT(io_unit .GT. 0)
@@ -311,8 +309,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: array
       INTEGER                                            :: io_unit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_subtree_elem_darray', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_subtree_elem_darray'
 
       WRITE (io_unit) ASSOCIATED(array)
       IF (ASSOCIATED(array)) THEN
@@ -330,8 +327,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: array
       INTEGER                                            :: io_unit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_subtree_elem_darray', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_subtree_elem_darray'
 
       INTEGER                                            :: i_tmp
       LOGICAL                                            :: l_tmp

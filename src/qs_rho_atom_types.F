@@ -66,8 +66,7 @@ CONTAINS
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
       INTEGER, INTENT(IN)                                :: natom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho_atom_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho_atom_set'
 
       INTEGER                                            :: iat
 
@@ -106,8 +105,7 @@ CONTAINS
 
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_rho_atom_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_rho_atom_set'
 
       INTEGER                                            :: i, iat, j, n, natom
 

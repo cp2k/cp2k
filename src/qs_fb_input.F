@@ -34,8 +34,7 @@ CONTAINS
    SUBROUTINE create_filtermatrix_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_filtermatrix_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_filtermatrix_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 

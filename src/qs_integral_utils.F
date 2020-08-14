@@ -52,8 +52,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: basis_type_a
       INTEGER                                            :: ldmem
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_memory_usage_a', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_memory_usage_a'
 
       INTEGER                                            :: maxc, maxl, maxs
 
@@ -79,8 +78,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: basis_type_a, basis_type_b
       INTEGER                                            :: ldmem
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_memory_usage_ab', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_memory_usage_ab'
 
       INTEGER                                            :: lda, ldb
 
@@ -105,8 +103,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: basis_type_a, basis_type_b, basis_type_c
       INTEGER                                            :: ldmem
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_memory_usage_abc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_memory_usage_abc'
 
       INTEGER                                            :: lda, ldb, ldc
 
@@ -134,8 +131,7 @@ CONTAINS
                                                             basis_type_c, basis_type_d
       INTEGER                                            :: ldmem
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_memory_usage_abcd', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_memory_usage_abcd'
 
       INTEGER                                            :: lda, ldb, ldc, ldd
 
@@ -161,8 +157,7 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN)                       :: basis_type
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'basis_set_list_setup', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'basis_set_list_setup'
 
       INTEGER                                            :: ikind
       TYPE(gto_basis_set_type), POINTER                  :: basis_set

@@ -112,8 +112,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_initialize', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'kpoint_initialize'
 
       INTEGER                                            :: handle, i, ik, iounit, ir, is, natom, &
                                                             nr, ns
@@ -269,8 +268,7 @@ CONTAINS
 
       TYPE(kpoint_type), POINTER                         :: kpoint
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_env_initialize', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_env_initialize'
 
       INTEGER                                            :: comm_cart, comm_inter_kp, comm_kp, &
                                                             handle, igr, ik, ikk, ngr, niogrp, &
@@ -425,8 +423,7 @@ CONTAINS
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       INTEGER, INTENT(IN), OPTIONAL                      :: added_mos
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_initialize_mos', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_initialize_mos'
 
       INTEGER                                            :: handle, ic, ik, is, nadd, nao, nc, &
                                                             nelectron, nkp_loc, nmo, nmorig(2), &
@@ -565,8 +562,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_init_cell_index', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_init_cell_index'
 
       INTEGER                                            :: handle, i1, i2, i3, ic, icount, it, &
                                                             ncount
@@ -788,8 +784,7 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoint
       TYPE(smear_type), POINTER                          :: smear
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_set_mo_occupation', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_set_mo_occupation'
 
       INTEGER                                            :: handle, ik, ikpgr, ispin, kplocal, nb, &
                                                             ne_a, ne_b, nelectron, nkp, nmo, nspin
@@ -899,8 +894,7 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoint
       LOGICAL, OPTIONAL                                  :: energy_weighted
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_matrices', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_matrices'
 
       INTEGER                                            :: handle, ikpgr, ispin, kplocal, nao, nmo, &
                                                             nspin
@@ -1008,8 +1002,7 @@ CONTAINS
          POINTER                                         :: sab_nl
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fmwork
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_transform', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_transform'
 
       INTEGER                                            :: handle, ic, ik, ikk, indx, is, ispin, &
                                                             nc, nimg, nkp, nspin

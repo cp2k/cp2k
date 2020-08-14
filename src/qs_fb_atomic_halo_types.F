@@ -140,8 +140,7 @@ CONTAINS
       ! obj type will not be changed
       TYPE(fb_atomic_halo_obj), INTENT(IN)               :: atomic_halo
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_retain'
 
       CPASSERT(ASSOCIATED(atomic_halo%obj))
       CPASSERT(atomic_halo%obj%ref_count > 0)
@@ -158,8 +157,7 @@ CONTAINS
    SUBROUTINE fb_atomic_halo_release(atomic_halo)
       TYPE(fb_atomic_halo_obj), INTENT(INOUT)            :: atomic_halo
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_release'
 
       IF (ASSOCIATED(atomic_halo%obj)) THEN
          CPASSERT(atomic_halo%obj%ref_count > 0)
@@ -192,8 +190,7 @@ CONTAINS
    SUBROUTINE fb_atomic_halo_nullify(atomic_halo)
       TYPE(fb_atomic_halo_obj), INTENT(INOUT)            :: atomic_halo
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_nullify', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_nullify'
 
       NULLIFY (atomic_halo%obj)
    END SUBROUTINE fb_atomic_halo_nullify
@@ -208,8 +205,7 @@ CONTAINS
       TYPE(fb_atomic_halo_obj), INTENT(OUT)              :: a
       TYPE(fb_atomic_halo_obj), INTENT(IN)               :: b
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_associate', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_associate'
 
       a%obj => b%obj
    END SUBROUTINE fb_atomic_halo_associate
@@ -225,8 +221,7 @@ CONTAINS
       TYPE(fb_atomic_halo_obj), INTENT(IN)               :: atomic_halo
       LOGICAL                                            :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_has_data', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_has_data'
 
       res = ASSOCIATED(atomic_halo%obj)
    END FUNCTION fb_atomic_halo_has_data
@@ -240,8 +235,7 @@ CONTAINS
    SUBROUTINE fb_atomic_halo_create(atomic_halo)
       TYPE(fb_atomic_halo_obj), INTENT(INOUT)            :: atomic_halo
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_create'
 
       CPASSERT(.NOT. ASSOCIATED(atomic_halo%obj))
       ALLOCATE (atomic_halo%obj)
@@ -266,8 +260,7 @@ CONTAINS
    SUBROUTINE fb_atomic_halo_init(atomic_halo)
       TYPE(fb_atomic_halo_obj), INTENT(INOUT)            :: atomic_halo
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_init'
 
       CPASSERT(ASSOCIATED(atomic_halo%obj))
       ! if halo_atoms are associated, then deallocate and de-associate
@@ -313,8 +306,7 @@ CONTAINS
       LOGICAL, INTENT(OUT), OPTIONAL                     :: sorted
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: cost
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_get', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_get'
 
       CPASSERT(ASSOCIATED(atomic_halo%obj))
       IF (PRESENT(owner_atom)) owner_atom = atomic_halo%obj%owner_atom
@@ -359,8 +351,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: sorted
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: cost
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_set'
 
       CPASSERT(ASSOCIATED(atomic_halo%obj))
       IF (PRESENT(owner_atom)) atomic_halo%obj%owner_atom = owner_atom
@@ -387,8 +378,7 @@ CONTAINS
    SUBROUTINE fb_atomic_halo_sort(atomic_halo)
       TYPE(fb_atomic_halo_obj), INTENT(INOUT)            :: atomic_halo
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_sort', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_sort'
 
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: tmp_index
 
@@ -419,8 +409,7 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: iatom_halo
       LOGICAL, INTENT(OUT)                               :: found
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_atom_global2halo', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_atom_global2halo'
 
       INTEGER                                            :: handle
 
@@ -452,8 +441,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
       INTEGER                                            :: nelectrons
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_nelectrons_estimate_Z', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_nelectrons_estimate_Z'
 
       INTEGER                                            :: iatom_global, iatom_halo, z
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
@@ -496,8 +484,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), INTENT(IN)       :: qs_kind_set
       REAL(KIND=dp)                                      :: cost
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_cost', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_cost'
 
       INTEGER                                            :: iatom, ii, ikind, ncgf
 
@@ -542,8 +529,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: halo_atoms
       INTEGER, INTENT(OUT)                               :: nhalo_atoms, owner_id_in_halo
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_build_halo_atoms', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_build_halo_atoms'
 
       INTEGER                                            :: iatom, ikind, jatom, jkind, natoms_global
       LOGICAL                                            :: check_ok
@@ -597,8 +583,7 @@ CONTAINS
    SUBROUTINE fb_atomic_halo_list_retain(atomic_halos)
       TYPE(fb_atomic_halo_list_obj), INTENT(IN)          :: atomic_halos
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_retain'
 
       CPASSERT(ASSOCIATED(atomic_halos%obj))
       CPASSERT(atomic_halos%obj%ref_count > 0)
@@ -614,8 +599,7 @@ CONTAINS
    SUBROUTINE fb_atomic_halo_list_release(atomic_halos)
       TYPE(fb_atomic_halo_list_obj), INTENT(INOUT)       :: atomic_halos
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_release'
 
       INTEGER                                            :: ii
 
@@ -649,8 +633,7 @@ CONTAINS
    SUBROUTINE fb_atomic_halo_list_nullify(atomic_halos)
       TYPE(fb_atomic_halo_list_obj), INTENT(INOUT)       :: atomic_halos
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_nullify', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_nullify'
 
       NULLIFY (atomic_halos%obj)
    END SUBROUTINE fb_atomic_halo_list_nullify
@@ -666,8 +649,7 @@ CONTAINS
       TYPE(fb_atomic_halo_list_obj), INTENT(IN)          :: atomic_halos
       LOGICAL                                            :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_has_data', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_has_data'
 
       res = ASSOCIATED(atomic_halos%obj)
    END FUNCTION fb_atomic_halo_list_has_data
@@ -682,8 +664,7 @@ CONTAINS
       TYPE(fb_atomic_halo_list_obj), INTENT(OUT)         :: a
       TYPE(fb_atomic_halo_list_obj), INTENT(IN)          :: b
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_associate', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_associate'
 
       a%obj => b%obj
    END SUBROUTINE fb_atomic_halo_list_associate
@@ -697,8 +678,7 @@ CONTAINS
    SUBROUTINE fb_atomic_halo_list_create(atomic_halos)
       TYPE(fb_atomic_halo_list_obj), INTENT(INOUT)       :: atomic_halos
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_create'
 
       CPASSERT(.NOT. ASSOCIATED(atomic_halos%obj))
       ALLOCATE (atomic_halos%obj)
@@ -719,8 +699,7 @@ CONTAINS
    SUBROUTINE fb_atomic_halo_list_init(atomic_halos)
       TYPE(fb_atomic_halo_list_obj), INTENT(INOUT)       :: atomic_halos
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_init'
 
       INTEGER                                            :: ii
 
@@ -753,8 +732,7 @@ CONTAINS
       TYPE(fb_atomic_halo_obj), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: halos
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_get', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_get'
 
       CPASSERT(ASSOCIATED(atomic_halos%obj))
       IF (PRESENT(nhalos)) nhalos = atomic_halos%obj%nhalos
@@ -780,8 +758,7 @@ CONTAINS
       TYPE(fb_atomic_halo_obj), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: halos
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_set'
 
       INTEGER                                            :: ihalo
 
@@ -812,8 +789,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: fb_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_write', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_write'
 
       CHARACTER(LEN=default_string_length)               :: string
       INTEGER                                            :: ihalo, jatom, mype, nhalo_atoms, nhalos, &
@@ -885,8 +861,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: scf_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_write_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_write_info'
 
       INTEGER                                            :: ihalo, max_natoms, min_natoms, &
                                                             nhalo_atoms, nhalos, &

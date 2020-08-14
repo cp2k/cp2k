@@ -96,8 +96,7 @@ CONTAINS
       TYPE(mpole_gau_overlap), DIMENSION(:), POINTER     :: mp_gau
       INTEGER, INTENT(IN)                                :: nkind
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_multipoles', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_multipoles'
 
       INTEGER                                            :: iat, ikind
 
@@ -140,8 +139,7 @@ CONTAINS
       TYPE(rho0_atom_type), DIMENSION(:), POINTER        :: rho0_set
       INTEGER, INTENT(IN)                                :: natom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho0_atom', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho0_atom'
 
       INTEGER                                            :: iat
 
@@ -169,8 +167,7 @@ CONTAINS
       TYPE(rho0_atom_type), INTENT(OUT)                  :: rho0_atom
       INTEGER, INTENT(IN)                                :: nr, nchannels
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho0_atom_rad', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho0_atom_rad'
 
       ALLOCATE (rho0_atom%rho0_rad_h)
 
@@ -194,8 +191,7 @@ CONTAINS
 
       TYPE(rho0_mpole_type), POINTER                     :: rho0
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho0_mpole', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho0_mpole'
 
       IF (ASSOCIATED(rho0)) THEN
          CALL deallocate_rho0_mpole(rho0)
@@ -290,8 +286,7 @@ CONTAINS
 
       TYPE(mpole_gau_overlap), DIMENSION(:), POINTER     :: mp_gau
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_mpole_gau', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_mpole_gau'
 
       INTEGER                                            :: ikind, nkind
 
@@ -320,8 +315,7 @@ CONTAINS
 
       TYPE(mpole_rho_atom), DIMENSION(:), POINTER        :: mp_rho
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_mpole_rho', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_mpole_rho'
 
       INTEGER                                            :: iat, natom
 
@@ -346,8 +340,7 @@ CONTAINS
 
       TYPE(rho0_atom_type), DIMENSION(:), POINTER        :: rho0_atom_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_rho0_atom', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_rho0_atom'
 
       INTEGER                                            :: iat, natom
 
@@ -382,8 +375,7 @@ CONTAINS
 
       TYPE(rho0_mpole_type), POINTER                     :: rho0
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_rho0_mpole', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_rho0_mpole'
 
       IF (ASSOCIATED(rho0)) THEN
 
@@ -508,8 +500,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nchan_s, nchan_c
       REAL(KIND=dp), INTENT(IN)                          :: zeff
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_mpole_rho', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_mpole_rho'
 
       CALL reallocate(mp_rho%Qlm_h, 1, nchan_s)
       CALL reallocate(mp_rho%Qlm_s, 1, nchan_s)
@@ -537,8 +528,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: unit_str
       INTEGER, INTENT(in)                                :: output_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_rho0_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'write_rho0_info'
 
       INTEGER                                            :: ikind, l, nkind
       REAL(dp)                                           :: conv

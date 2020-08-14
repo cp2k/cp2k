@@ -845,8 +845,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(in)                          :: scal
       INTEGER, INTENT(in)                                :: mpi_group
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'S_PoissonSolver', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'S_PoissonSolver'
       INTEGER, PARAMETER                                 :: ncache_optimal = 8*1024
 
       INTEGER                                            :: handle, i, i1, i3, ic1, ic2, ic3, inzee, &

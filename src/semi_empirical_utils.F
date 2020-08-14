@@ -56,8 +56,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       INTEGER, INTENT(IN)                                :: output_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'se_cutoff_compatible', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'se_cutoff_compatible'
 
       LOGICAL                                            :: explicit1, explicit2
       REAL(KIND=dp)                                      :: rc
@@ -164,8 +163,7 @@ CONTAINS
       TYPE(se_taper_type), POINTER                       :: se_taper
       LOGICAL, INTENT(IN), OPTIONAL                      :: coulomb, exchange, lr_corr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_se_taper', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_se_taper'
 
       LOGICAL                                            :: check, l_coulomb, l_exchange, l_lrc
 
@@ -202,8 +200,7 @@ CONTAINS
    SUBROUTINE finalize_se_taper(se_taper)
       TYPE(se_taper_type), POINTER                       :: se_taper
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'finalize_se_taper', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'finalize_se_taper'
 
       LOGICAL                                            :: check
 
@@ -281,8 +278,7 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sep
       INTEGER, INTENT(IN)                                :: z, method
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'se_param_set_default', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'se_param_set_default'
 
       IF (ASSOCIATED(sep)) THEN
          IF (z < 0) THEN

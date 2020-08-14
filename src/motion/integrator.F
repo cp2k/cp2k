@@ -1883,8 +1883,7 @@ CONTAINS
 
       TYPE(md_environment_type), POINTER                 :: md_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'nph_uniaxial_damped', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'nph_uniaxial_damped'
       REAL(dp), PARAMETER                                :: e2 = 1._dp/6._dp, e4 = e2/20._dp, &
                                                             e6 = e4/42._dp, e8 = e6/72._dp
 

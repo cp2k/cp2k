@@ -222,8 +222,7 @@ CONTAINS
    SUBROUTINE get_restart_wfn(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_restart_wfn', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_restart_wfn'
 
       CHARACTER(LEN=default_path_length)                 :: file_name, project_name
       INTEGER                                            :: i, id_nr, im, ispin, ncol, nspin, re, &
@@ -347,8 +346,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calc_update_rho', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'calc_update_rho'
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
       INTEGER                                            :: handle, i, im, ncol, re
@@ -418,8 +416,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calc_update_rho_sparse', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calc_update_rho_sparse'
       REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
       INTEGER                                            :: handle, ispin
@@ -469,8 +466,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p_im
       LOGICAL, OPTIONAL                                  :: keep_sparsity
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_P_imaginary', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_P_imaginary'
 
       INTEGER                                            :: i, im, ncol, re
       LOGICAL                                            :: my_keep_sparsity

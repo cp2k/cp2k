@@ -98,8 +98,7 @@ CONTAINS
 
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_paw_proj_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_paw_proj_set'
 
       IF (ASSOCIATED(paw_proj_set)) CALL deallocate_paw_proj_set(paw_proj_set)
 
@@ -145,8 +144,7 @@ CONTAINS
    SUBROUTINE deallocate_paw_proj_set(paw_proj_set)
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_paw_proj_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_paw_proj_set'
 
       DEALLOCATE (paw_proj_set%zisomin)
       DEALLOCATE (paw_proj_set%zprjisomin)
@@ -239,8 +237,7 @@ CONTAINS
                                                             max_rad_local
       TYPE(section_vals_type), POINTER                   :: force_env_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_projector', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'build_projector'
 
       CHARACTER(LEN=default_string_length)               :: bsname
       INTEGER :: ic, icgf, icgfmax, icgfmin, ico, icomax, icomin, il, info, ip, ipgf, ipp, iprj, &
@@ -820,8 +817,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), OPTIONAL, POINTER          :: zisomin
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: zetprj
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_paw_proj_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_paw_proj_set'
 
       IF (ASSOCIATED(paw_proj_set)) THEN
          IF (PRESENT(cprj)) cprj => paw_proj_set%cprj
@@ -864,8 +860,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: rzetprj
       REAL(dp), INTENT(IN), OPTIONAL                     :: rcprj
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_paw_proj_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_paw_proj_set'
 
       IF (ASSOCIATED(paw_proj_set)) THEN
          IF (PRESENT(rzetprj)) paw_proj_set%rzetprj(:, 0:) = rzetprj(:, 0:)

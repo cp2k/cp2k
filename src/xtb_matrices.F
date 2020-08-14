@@ -117,8 +117,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_xtb_matrices', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_xtb_matrices'
 
       INTEGER :: after, atom_a, atom_b, atom_c, handle, i, iatom, ic, icol, ikind, img, ir, irow, &
          iset, iw, j, jatom, jkind, jset, katom, kkind, la, lb, ldsab, lmaxa, lmaxb, maxder, maxs, &
@@ -953,8 +952,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ext_ks_matrix
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_xtb_ks_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_xtb_ks_matrix'
 
       INTEGER                                            :: atom_a, handle, iatom, ikind, img, &
                                                             iounit, is, ispin, na, natom, natorb, &

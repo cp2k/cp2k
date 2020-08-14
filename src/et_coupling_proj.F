@@ -153,8 +153,7 @@ CONTAINS
       ! Routine arguments
       TYPE(et_cpl), POINTER                              :: ec
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'release_ec_data', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'release_ec_data'
 
       INTEGER                                            :: i, j, k
 
@@ -424,8 +423,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER             :: arr
 
       ! Routine name for debug purposes
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_fm_matrix_array', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_fm_matrix_array'
 
       ! Local variables
       INTEGER                                            :: i, j
@@ -490,8 +488,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mat_w
 
       ! Routine name for debug purposes
-      CHARACTER(len=*), PARAMETER :: routineN = 'reorder_hamiltonian_matrix', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'reorder_hamiltonian_matrix'
 
       ! Local variables
       INTEGER                                            :: ir, ic, jr, jc, kr, kc, nr, nc
@@ -587,8 +584,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), POINTER                          :: mat_t, mat_i, mat_w
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_s_half_inv_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_s_half_inv_matrix'
 
       INTEGER                                            :: n_deps
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_s
@@ -637,8 +633,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mat_w
       INTEGER                                            :: n_ao, n_spins
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_block_hamiltonian', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_block_hamiltonian'
 
       INTEGER                                            :: i
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_h
@@ -692,8 +687,7 @@ CONTAINS
       TYPE(et_cpl), POINTER                              :: ec
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mat_h
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'hamiltonian_block_diag', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'hamiltonian_block_diag'
 
       INTEGER                                            :: i, j, k, l, n_spins, spin
       REAL(KIND=dp), DIMENSION(:), POINTER               :: vec_e
@@ -848,8 +842,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: c2
 
       ! Routine name for debug purposes
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_mo_c2_sum', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_mo_c2_sum'
 
       ! Local variables
       LOGICAL                                            :: found
@@ -1146,8 +1139,7 @@ CONTAINS
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo
 
       ! Routine name for debug purposes
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_couplings', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_couplings'
 
       ! Local variables
       CHARACTER(LEN=default_path_length)                 :: filename, my_pos, title
@@ -1322,8 +1314,7 @@ CONTAINS
       TYPE(mo_set_type), POINTER                         :: mo
       INTEGER                                            :: n_ao, n_mo
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'normalize_mo_vectors', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'normalize_mo_vectors'
 
       REAL(KIND=dp), DIMENSION(:), POINTER               :: vec_t
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -1400,8 +1391,7 @@ CONTAINS
       INTEGER                                            :: n_mo
 
       ! Routine name for debug purposes
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_mo_coefficients', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'set_mo_coefficients'
 
       ! Local variables
       INTEGER                                            :: ir, ic, jr, jc, nr, nc
@@ -1508,8 +1498,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mat_u
       REAL(KIND=dp), DIMENSION(:), POINTER               :: vec_e
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_block_mo_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_block_mo_set'
 
       INTEGER                                            :: n_ao, n_el, n_mo
       REAL(KIND=dp)                                      :: mx_occ
@@ -1790,8 +1779,7 @@ CONTAINS
       ! Routine arguments
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calc_et_coupling_proj', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calc_et_coupling_proj'
 
       INTEGER                                            :: i, j, k, n_ao, n_atoms, output_unit
       LOGICAL                                            :: do_kp, master

@@ -506,8 +506,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: oe_corr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'gapw_add_atomic_saop_pot', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'gapw_add_atomic_saop_pot'
 
       INTEGER                                            :: ia, iat, iatom, ikind, ir, ispin, mepos, &
                                                             na, natom, nr, ns, nspins, num_pe, orb

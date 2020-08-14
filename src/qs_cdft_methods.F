@@ -105,8 +105,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL                                            :: calc_pot, calculate_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'becke_constraint', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'becke_constraint'
 
       INTEGER                                            :: handle
       TYPE(cdft_control_type), POINTER                   :: cdft_control
@@ -142,8 +141,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, OPTIONAL                                  :: just_gradients
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'becke_constraint_low', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'becke_constraint_low'
 
       INTEGER                                            :: handle, i, iatom, igroup, ind(3), ip, j, &
                                                             jatom, jp, k, natom, np(3), nskipped
@@ -590,8 +588,7 @@ CONTAINS
    SUBROUTINE becke_constraint_force(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'becke_constraint_force', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'becke_constraint_force'
 
       INTEGER                                            :: handle, i, iatom, igroup, ikind, ind(3), &
                                                             ispin, j, k, natom, nvar
@@ -773,8 +770,7 @@ CONTAINS
    SUBROUTINE cdft_constraint_integrate(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cdft_constraint_integrate', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cdft_constraint_integrate'
 
       INTEGER                                            :: handle, i, iatom, igroup, ikind, ivar, &
                                                             iw, jatom, natom, nvar
@@ -965,8 +961,7 @@ CONTAINS
    SUBROUTINE prepare_fragment_constraint(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'prepare_fragment_constraint', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'prepare_fragment_constraint'
 
       INTEGER                                            :: handle, i, iatom, igroup, natom, &
                                                             nelectron_total, nfrag_spins
@@ -1122,8 +1117,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL                                            :: calc_pot, calculate_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'hirshfeld_constraint', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'hirshfeld_constraint'
 
       INTEGER                                            :: handle
       TYPE(cdft_control_type), POINTER                   :: cdft_control
@@ -1157,8 +1151,7 @@ CONTAINS
    SUBROUTINE hirshfeld_constraint_low(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'hirshfeld_constraint_low', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'hirshfeld_constraint_low'
 
       INTEGER                                            :: atom_a, handle, i, iatom, iex, igroup, &
                                                             ikind, ithread, j, natom, npme, &

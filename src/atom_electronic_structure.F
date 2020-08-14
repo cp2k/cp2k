@@ -127,8 +127,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: noguess
       LOGICAL, INTENT(OUT), OPTIONAL                     :: converged
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atom_restricted', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atom_restricted'
 
       INTEGER                                            :: handle, i, iter, l, max_iter, method, &
                                                             reltyp
@@ -445,8 +444,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: noguess
       LOGICAL, INTENT(OUT), OPTIONAL                     :: converged
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atom_unrestricted', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atom_unrestricted'
 
       INTEGER                                            :: handle, i, iter, k, l, max_iter, method, &
                                                             reltyp

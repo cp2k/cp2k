@@ -95,8 +95,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: natom, natom_prev, nbond_prev
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: id_molname
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_molname', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_molname'
       CHARACTER(LEN=default_string_length), PARAMETER    :: basename = "MOL"
 
       CHARACTER(LEN=default_string_length)               :: molname
@@ -148,8 +147,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length), INTENT(IN)   :: molname
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: id_molname
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'generate_molname_low', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'generate_molname_low'
 
       INTEGER                                            :: j, k
 
@@ -188,8 +186,7 @@ CONTAINS
       TYPE(qmmm_env_mm_type), OPTIONAL, POINTER          :: qmmm_env
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_molecule', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_molecule'
       INTEGER, PARAMETER                                 :: nblock = 100
 
       INTEGER :: atom_in_kind, atom_in_mol, first, handle, handle2, i, iatm, iatom, iend, ifirst, &
@@ -570,8 +567,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_bond', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_bond'
 
       CHARACTER(LEN=2)                                   :: upper_sym_1
       INTEGER :: cbond, handle, handle2, i, iatm1, iatm2, iatom, ibond, idim, iw, j, jatom, k, &
@@ -938,8 +934,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: output_unit
       LOGICAL                                            :: conn_ok
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'check_generate_mol', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'check_generate_mol'
 
       CHARACTER(LEN=10)                                  :: ctmp1, ctmp2, ctmp3
       INTEGER                                            :: handle, i, idim, itype, j, mol_natom, &
@@ -1085,8 +1080,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: output_unit
       LOGICAL, INTENT(IN), OPTIONAL                      :: is_impr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'connectivity_external_control', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'connectivity_external_control'
 
       CHARACTER(LEN=8)                                   :: fmt
       INTEGER                                            :: do_action, do_it, i, j, k, n_rep, &
@@ -1497,8 +1491,7 @@ CONTAINS
       TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_bend', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_bend'
 
       INTEGER                                            :: handle, handle2, i, iw, natom, nbond, &
                                                             nsize, ntheta, output_unit
@@ -1605,8 +1598,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: it_levl
       INTEGER, INTENT(INOUT)                             :: nvar
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'match_iterative_path', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'match_iterative_path'
 
       INTEGER                                            :: i, ind, j, my_levl, natom
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: my_list
@@ -1738,8 +1730,7 @@ CONTAINS
       TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_ub', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_ub'
 
       INTEGER                                            :: handle, itheta, iw, ntheta, output_unit
       TYPE(connectivity_info_type), POINTER              :: conn_info
@@ -1782,8 +1773,7 @@ CONTAINS
       TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_dihe', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_dihe'
 
       INTEGER                                            :: handle, i, iw, natom, nbond, nphi, &
                                                             nsize, output_unit
@@ -1868,8 +1858,7 @@ CONTAINS
       TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_impr', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_impr'
 
       CHARACTER(LEN=2)                                   :: atm_symbol
       INTEGER                                            :: handle, i, ind, iw, j, natom, nbond, &
@@ -1976,8 +1965,7 @@ CONTAINS
       TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_onfo', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_onfo'
 
       INTEGER                                            :: atom_a, atom_b, handle, i, ionfo, iw, &
                                                             natom, nbond, nphi, ntheta, output_unit

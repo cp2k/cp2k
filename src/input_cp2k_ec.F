@@ -49,8 +49,7 @@ CONTAINS
    SUBROUTINE create_ec_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_ec_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_ec_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -162,8 +161,7 @@ CONTAINS
    SUBROUTINE create_ec_solver_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_ec_solver_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_ec_solver_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 

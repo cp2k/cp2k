@@ -392,8 +392,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: e_self(:)
       REAL(KIND=dp), DIMENSION(:), POINTER               :: charges
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ewald_self_atom', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ewald_self_atom'
 
       INTEGER                                            :: ewald_type, ii, iparticle_kind, &
                                                             iparticle_local, nparticle_kind, &

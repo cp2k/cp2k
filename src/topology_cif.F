@@ -87,8 +87,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_cif', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_cif'
       INTEGER, PARAMETER                                 :: nblock = 1000
       REAL(KIND=dp), PARAMETER                           :: threshold = 1.0E-3_dp
 

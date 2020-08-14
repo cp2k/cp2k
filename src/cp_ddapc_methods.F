@@ -64,8 +64,7 @@ CONTAINS
       TYPE(pw_type), POINTER                             :: rho_tot_g
       REAL(kind=dp), DIMENSION(:), POINTER               :: radii
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ddapc_eval_gfunc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ddapc_eval_gfunc'
 
       INTEGER                                            :: e_dim, handle, ig, igauss, s_dim
       REAL(KIND=dp)                                      :: g2, gcut2, rc, rc2
@@ -283,8 +282,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: gcut
       INTEGER, INTENT(IN)                                :: iparticle0
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_der_b_vector', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_der_b_vector'
 
       COMPLEX(KIND=dp)                                   :: dphase
       INTEGER                                            :: e_dim, handle, idim, ig, igauss, igmax, &
@@ -377,8 +375,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iparticle0, nparticles
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: g_dot_rvec_sin, g_dot_rvec_cos
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_der_A_matrix_rows', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_der_A_matrix_rows'
 
       INTEGER                                            :: e_dim, handle, ig, igauss2, igmax, &
                                                             iparticle1, iparticle2, s_dim
@@ -478,8 +475,7 @@ CONTAINS
    SUBROUTINE cleanup_g_dot_rvec_sin_cos(g_dot_rvec_sin, g_dot_rvec_cos)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: g_dot_rvec_sin, g_dot_rvec_cos
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cleanup_g_dot_rvec_sin_cos', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cleanup_g_dot_rvec_sin_cos'
 
       IF (ALLOCATED(g_dot_rvec_sin)) DEALLOCATE (g_dot_rvec_sin)
       IF (ALLOCATED(g_dot_rvec_cos)) DEALLOCATE (g_dot_rvec_cos)
@@ -499,8 +495,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: gcut
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: g_dot_rvec_sin, g_dot_rvec_cos
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'prep_g_dot_rvec_sin_cos', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'prep_g_dot_rvec_sin_cos'
 
       INTEGER                                            :: e_dim, ig, igmax, iparticle, s_dim
       REAL(KIND=dp)                                      :: g2, g_dot_rvec, gcut2, rvec(3)
@@ -641,8 +636,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: M
       REAL(KIND=dp), DIMENSION(:), POINTER               :: radii
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ewald_ddapc_pot', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ewald_ddapc_pot'
 
       INTEGER :: ewmdim, handle, idim, idim1, idim2, idimo, igauss1, igauss2, ip1, ip2, &
          iparticle1, iparticle2, istart_g, k1, k2, k3, n_rep, ndim, nmax1, nmax2, nmax3, r1, r2, &
@@ -821,8 +815,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: M
       REAL(KIND=dp), DIMENSION(:), POINTER               :: radii
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'solvation_ddapc_pot', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'solvation_ddapc_pot'
 
       INTEGER :: i, idim, idim1, idim2, igauss1, igauss2, ip1, ip2, iparticle1, iparticle2, &
          istart_g, j, l, lmax, n_rep1, n_rep2, ndim, output_unit, weight

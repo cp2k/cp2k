@@ -299,8 +299,7 @@ CONTAINS
       TYPE(particle_type), POINTER                       :: particle_set(:)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: pv
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'pv_constraint_low', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pv_constraint_low'
 
       INTEGER                                            :: iconst, index_a, index_b, index_c, &
                                                             index_d
@@ -543,8 +542,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: u
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_roll_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_roll_matrix'
 
       INTEGER                                            :: i
       REAL(KIND=dp), DIMENSION(3, 3)                     :: diag
@@ -608,8 +606,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          OPTIONAL                                        :: pos, vel
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'restore_temporary_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'restore_temporary_set'
 
       INTEGER                                            :: iparticle, iparticle_kind, &
                                                             iparticle_local, nparticle_local

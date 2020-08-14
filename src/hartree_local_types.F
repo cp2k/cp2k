@@ -55,8 +55,7 @@ CONTAINS
       TYPE(ecoul_1center_type), DIMENSION(:), POINTER    :: ecoul_1c
       INTEGER, INTENT(IN)                                :: natom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_ecoul_1center', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_ecoul_1center'
 
       INTEGER                                            :: iat
 
@@ -83,8 +82,7 @@ CONTAINS
 
       TYPE(ecoul_1center_type), DIMENSION(:), POINTER    :: ecoul_1c
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_ecoul_1center', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_ecoul_1center'
 
       INTEGER                                            :: iat, natom
 
@@ -118,8 +116,7 @@ CONTAINS
       TYPE(ecoul_1center_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ecoul_1c
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_hartree_local', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_hartree_local'
 
       IF (PRESENT(ecoul_1c)) ecoul_1c => hartree_local%ecoul_1c
 
@@ -133,8 +130,7 @@ CONTAINS
 
       TYPE(hartree_local_type), POINTER                  :: hartree_local
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'hartree_local_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'hartree_local_create'
 
       ALLOCATE (hartree_local)
 
@@ -150,8 +146,7 @@ CONTAINS
 
       TYPE(hartree_local_type), POINTER                  :: hartree_local
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'hartree_local_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'hartree_local_release'
 
       IF (ASSOCIATED(hartree_local)) THEN
          IF (ASSOCIATED(hartree_local%ecoul_1c)) THEN
@@ -199,8 +194,7 @@ CONTAINS
       TYPE(ecoul_1center_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ecoul_1c
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_hartree_local', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_hartree_local'
 
       IF (PRESENT(ecoul_1c)) hartree_local%ecoul_1c => ecoul_1c
 

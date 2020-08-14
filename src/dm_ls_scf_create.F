@@ -173,8 +173,7 @@ CONTAINS
       TYPE(ls_scf_env_type), INTENT(INOUT)               :: ls_scf_env
       INTEGER, INTENT(IN)                                :: unit_nr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_init_read_write_input', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_init_read_write_input'
 
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: mu

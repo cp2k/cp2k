@@ -120,8 +120,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: virial_xc
       TYPE(pw_p_type), INTENT(INOUT), OPTIONAL           :: exc_r
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create1', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_vxc_pw_create1'
 
       INTEGER                                            :: f_routine
 
@@ -180,8 +179,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(pw_pool_type), POINTER                        :: pw_pool
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create_test_lsd', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create_test_lsd'
       LOGICAL, PARAMETER                                 :: compute_virial = .FALSE.
 
       CHARACTER(len=default_path_length)                 :: filename
@@ -520,8 +518,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(pw_pool_type), POINTER                        :: pw_pool
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create_debug', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create_debug'
       LOGICAL, PARAMETER                                 :: compute_virial = .FALSE.
 
       CHARACTER(len=default_path_length)                 :: filename
@@ -816,8 +813,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       LOGICAL, INTENT(in)                                :: needs_basic_components
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_and_dset_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_and_dset_create'
 
       INTEGER                                            :: handle, nspins
       LOGICAL                                            :: lsd
@@ -1073,8 +1069,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: virial_xc
       TYPE(pw_p_type), INTENT(INOUT), OPTIONAL           :: exc_r
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_vxc_pw_create'
       CHARACTER(len=30), DIMENSION(2), PARAMETER :: &
          norm_drho_spin_name = (/"(norm_drhoa)", "(norm_drhob)"/)
 
@@ -1926,8 +1921,7 @@ CONTAINS
          POINTER                                         :: vxg
       REAL(kind=dp), INTENT(in), OPTIONAL                :: tddfpt_fac
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_2nd_deriv', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_calc_2nd_deriv'
 
       CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH)          :: desc
       CHARACTER(len=MAX_LABEL_LENGTH), DIMENSION(:), &
@@ -3039,8 +3033,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(pw_p_type), DIMENSION(:), OPTIONAL, POINTER   :: tau_r
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_prep_2nd_deriv', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_prep_2nd_deriv'
 
       INTEGER                                            :: handle, ispin, nspins
       LOGICAL                                            :: lsd
@@ -3088,8 +3081,7 @@ CONTAINS
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
       LOGICAL, INTENT(IN)                                :: lsd
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'divide_by_norm_drho', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'divide_by_norm_drho'
 
       CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH)          :: desc
       CHARACTER(len=MAX_LABEL_LENGTH), DIMENSION(:), &

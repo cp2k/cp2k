@@ -56,8 +56,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: energy
       LOGICAL                                            :: check_conv
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dm_ls_curvy_optimization', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dm_ls_curvy_optimization'
 
       INTEGER                                            :: handle, i, lsstep
 
@@ -150,8 +149,7 @@ CONTAINS
       TYPE(ls_scf_curvy_type)                            :: curvy_data
       TYPE(ls_scf_env_type)                              :: ls_scf_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'optimization_step', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'optimization_step'
 
       INTEGER                                            :: handle, ispin
       REAL(KIND=dp)                                      :: filter, step_size(2)
@@ -274,8 +272,7 @@ CONTAINS
    SUBROUTINE line_search_3pnt(energies, step_size)
       REAL(KIND=dp)                                      :: energies(3), step_size(2)
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'line_search_3pnt', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'line_search_3pnt'
 
       INTEGER                                            :: unit_nr
       REAL(KIND=dp)                                      :: a, b, c, e_pred, min_val, step1, tmp, &
@@ -338,8 +335,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: curvy_shift(2), cg_numer(2), &
                                                             cg_denom(2), min_shift
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_direction_newton', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_direction_newton'
 
       INTEGER                                            :: handle, i, ispin, ncyc, nspin, unit_nr
       LOGICAL                                            :: at_limit
@@ -482,8 +478,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: eps_filter
       LOGICAL                                            :: at_limit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_cg_matrices', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_cg_matrices'
 
       INTEGER                                            :: i, info
       REAL(KIND=dp)                                      :: alpha, beta, devi(3), fac, fac1, &
@@ -590,8 +585,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: a, b, res
       REAL(KIND=dp)                                      :: eps_filter, prefac
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'commutator_symm', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'commutator_symm'
 
       INTEGER                                            :: handle
       TYPE(dbcsr_type)                                   :: work
@@ -734,8 +728,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: matrix_trafo
       REAL(KIND=dp)                                      :: eps_filter
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_matrix_orth', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_matrix_orth'
 
       INTEGER                                            :: handle, ispin
       TYPE(dbcsr_type)                                   :: matrix_tmp, matrix_work
@@ -769,8 +762,7 @@ CONTAINS
    SUBROUTINE deallocate_curvy_data(curvy_data)
       TYPE(ls_scf_curvy_type)                            :: curvy_data
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_curvy_data', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_curvy_data'
 
       INTEGER                                            :: i, j
 
@@ -802,8 +794,7 @@ CONTAINS
    SUBROUTINE release_dbcsr_array(matrix)
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: matrix
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'release_dbcsr_array', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'release_dbcsr_array'
 
       INTEGER                                            :: i
 

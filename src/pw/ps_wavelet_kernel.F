@@ -227,8 +227,7 @@ CONTAINS
          INTENT(out)                                     :: karray
       INTEGER, INTENT(in)                                :: mpi_group
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'Surfaces_Kernel', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'Surfaces_Kernel'
       INTEGER, PARAMETER                                 :: n_points = 2**6, ncache_optimal = 8*1024
 
       INTEGER :: i, i1, i2, i3, ic, iend, imu, ind1, ind2, inzee, ipolyord, ireim, istart, j2, &
@@ -558,8 +557,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(in)                          :: mu, hres
       REAL(KIND=dp), DIMENSION(n), INTENT(out)           :: g_mu
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculates_green_opt', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculates_green_opt'
       REAL(KIND=dp), PARAMETER                           :: mu_max = 0.2_dp
 
       INTEGER                                            :: i, iend, ikern, ivalue, izero, n_iter, &

@@ -100,8 +100,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_crd', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_crd'
 
       CHARACTER(LEN=default_string_length)               :: string
       INTEGER                                            :: handle, iw, j, natom
@@ -287,8 +286,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_connectivity_amber', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_connectivity_amber'
 
       INTEGER                                            :: handle, iw
       TYPE(atom_info_type), POINTER                      :: atom_info
@@ -945,8 +943,7 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: istart
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: charges
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'conform_atom_type_low', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'conform_atom_type_low'
 
       INTEGER                                            :: counter, gind, handle, iend, ind, isize, &
                                                             j, k, kend, kstart
@@ -1019,8 +1016,7 @@ CONTAINS
       INTEGER, DIMENSION(:)                              :: array1
       INTEGER, INTENT(IN)                                :: dim
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_i1', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_i1'
 
       INTEGER                                            :: i
       LOGICAL                                            :: my_end
@@ -1057,8 +1053,7 @@ CONTAINS
       INTEGER, DIMENSION(:)                              :: array1, array2, array3
       INTEGER, INTENT(IN)                                :: dim
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_i3', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_i3'
 
       INTEGER                                            :: i
       LOGICAL                                            :: my_end
@@ -1107,8 +1102,7 @@ CONTAINS
       INTEGER, DIMENSION(:)                              :: array1, array2, array3, array4
       INTEGER, INTENT(IN)                                :: dim
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_i4', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_i4'
 
       INTEGER                                            :: i
       LOGICAL                                            :: my_end
@@ -1164,8 +1158,7 @@ CONTAINS
       INTEGER, DIMENSION(:)                              :: array1, array2, array3, array4, array5
       INTEGER, INTENT(IN)                                :: dim
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_i5', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_i5'
 
       INTEGER                                            :: i
       LOGICAL                                            :: my_end
@@ -1221,8 +1214,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length), DIMENSION(:) :: array1
       INTEGER, INTENT(IN)                                :: dim
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_c1', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_c1'
 
       INTEGER                                            :: i
       LOGICAL                                            :: my_end
@@ -1257,8 +1249,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:)                        :: array1
       INTEGER, INTENT(IN)                                :: dim
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_r1', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_r1'
 
       INTEGER                                            :: i
       LOGICAL                                            :: my_end
@@ -1291,8 +1282,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length), INTENT(OUT)  :: section, input_format
       LOGICAL                                            :: another_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_section_parmtop', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_section_parmtop'
 
       INTEGER                                            :: end_f, indflag, start_f
       LOGICAL                                            :: found, my_end
@@ -1331,8 +1321,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: output_unit
       LOGICAL                                            :: found_AMBER_V8
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'check_amber_8_std', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'check_amber_8_std'
 
       CALL parser_search_string(parser, "%VERSION ", .TRUE., found_AMBER_V8, begin_line=.TRUE.)
       IF (.NOT. found_AMBER_V8) &
@@ -1371,8 +1360,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: ib, jb, icb
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rk, req
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'post_process_bonds_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'post_process_bonds_info'
 
       CHARACTER(LEN=default_string_length)               :: name_atm_a, name_atm_b
       CHARACTER(LEN=default_string_length), &
@@ -1460,8 +1448,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: it, jt, kt, ict
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tk, teq
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'post_process_bends_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'post_process_bends_info'
 
       CHARACTER(LEN=default_string_length)               :: name_atm_a, name_atm_b, name_atm_c
       CHARACTER(LEN=default_string_length), &
@@ -1564,8 +1551,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: ip, jp, kp, lp, icp
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: pk, pn, phase
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'post_process_torsions_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'post_process_torsions_info'
 
       CHARACTER(LEN=default_string_length)               :: name_atm_a, name_atm_b, name_atm_c, &
                                                             name_atm_d
@@ -1690,8 +1676,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: cn1, cn2
       INTEGER, INTENT(IN)                                :: natom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'post_process_LJ_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'post_process_LJ_info'
 
       CHARACTER(LEN=default_string_length)               :: name_atm_a
       CHARACTER(LEN=default_string_length), &

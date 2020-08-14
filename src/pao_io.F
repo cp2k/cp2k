@@ -88,8 +88,7 @@ CONTAINS
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_read_restart', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_read_restart'
 
       CHARACTER(LEN=default_string_length)               :: param
       INTEGER                                            :: iatom, ikind, natoms
@@ -496,8 +495,7 @@ CONTAINS
       REAL(dp)                                           :: energy
       INTEGER, INTENT(IN)                                :: unit_nr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_restart_header', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_restart_header'
 
       CHARACTER(LEN=default_string_length)               :: kindname
       INTEGER                                            :: iatom, ikind, ipot, nparams, &
@@ -567,8 +565,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(ls_scf_env_type), TARGET                      :: ls_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_write_ks_matrix_csr', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_write_ks_matrix_csr'
 
       CHARACTER(LEN=default_path_length)                 :: file_name, fileformat
       INTEGER                                            :: handle, ispin, output_unit, unit_nr
@@ -643,8 +640,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(ls_scf_env_type), TARGET                      :: ls_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_write_s_matrix_csr', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_write_s_matrix_csr'
 
       CHARACTER(LEN=default_path_length)                 :: file_name, fileformat
       INTEGER                                            :: handle, output_unit, unit_nr

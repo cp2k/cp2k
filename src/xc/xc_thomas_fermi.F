@@ -118,8 +118,7 @@ CONTAINS
       TYPE(xc_derivative_set_type), POINTER              :: deriv_set
       INTEGER, INTENT(in)                                :: order
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'thomas_fermi_lda_eval', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'thomas_fermi_lda_eval'
 
       INTEGER                                            :: handle, npoints
       INTEGER, DIMENSION(:, :), POINTER                  :: bo
@@ -185,8 +184,7 @@ CONTAINS
       TYPE(xc_derivative_set_type), POINTER              :: deriv_set
       INTEGER, INTENT(in)                                :: order
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'thomas_fermi_lsd_eval', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'thomas_fermi_lsd_eval'
       CHARACTER(len=6), DIMENSION(2), PARAMETER :: rho_spin_name = (/"(rhoa)", "(rhob)"/)
 
       INTEGER                                            :: handle, i, ispin, npoints

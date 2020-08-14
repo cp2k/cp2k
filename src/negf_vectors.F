@@ -44,8 +44,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(in)                  :: atomlist_screening, atomlist_bulk
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'contact_direction_vector', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'contact_direction_vector'
 
       INTEGER                                            :: handle, iatom, natoms_bulk, &
                                                             natoms_screening, nparticles

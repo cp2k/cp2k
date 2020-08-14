@@ -844,8 +844,7 @@ CONTAINS
    SUBROUTINE scf_env_cleanup(scf_env)
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_cleanup', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'scf_env_cleanup'
 
       INTEGER                                            :: handle, ispin
 
@@ -1154,8 +1153,7 @@ CONTAINS
    SUBROUTINE cdft_control_cleanup(cdft_control)
       TYPE(cdft_control_type), POINTER                   :: cdft_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cdft_control_cleanup', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cdft_control_cleanup'
 
       IF (ASSOCIATED(cdft_control%constraint%variables)) &
          DEALLOCATE (cdft_control%constraint%variables)
@@ -1180,8 +1178,7 @@ CONTAINS
    SUBROUTINE qs_calculate_inverse_jacobian(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_calculate_inverse_jacobian', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_calculate_inverse_jacobian'
 
       CHARACTER(len=default_path_length)                 :: project_name
       INTEGER                                            :: counter, handle, i, ispin, iter_count, &
@@ -1378,8 +1375,7 @@ CONTAINS
    SUBROUTINE qs_cdft_line_search(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_cdft_line_search', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_cdft_line_search'
 
       CHARACTER(len=default_path_length)                 :: project_name
       INTEGER                                            :: handle, i, ispin, iter_count, &

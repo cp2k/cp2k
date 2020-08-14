@@ -156,8 +156,7 @@ CONTAINS
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
       LOGICAL, INTENT(IN), OPTIONAL                      :: print_warn
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_functional_get_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xc_functional_get_info'
 
       INTEGER                                            :: i_param
       REAL(kind=dp)                                      :: r_param
@@ -357,8 +356,7 @@ CONTAINS
       TYPE(xc_derivative_set_type), POINTER              :: deriv_set
       INTEGER, INTENT(IN)                                :: deriv_order
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_functional_eval', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xc_functional_eval'
 
       INTEGER                                            :: handle, i_param
       LOGICAL                                            :: fun_active
@@ -587,8 +585,7 @@ CONTAINS
       TYPE(xc_derivative_set_type), POINTER              :: deriv_set
       INTEGER, INTENT(in)                                :: deriv_order
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_functionals_eval', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xc_functionals_eval'
 
       INTEGER                                            :: i_rep, ifun, n_rep
       TYPE(section_vals_type), POINTER                   :: libxc_fun, xc_fun
@@ -642,8 +639,7 @@ CONTAINS
       LOGICAL, INTENT(in), OPTIONAL                      :: add_basic_components
       TYPE(xc_rho_cflags_type)                           :: needs
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_functionals_get_needs', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xc_functionals_get_needs'
 
       INTEGER                                            :: i_rep, ifun, n_rep
       LOGICAL                                            :: my_add_basic_components

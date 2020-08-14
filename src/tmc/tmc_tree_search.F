@@ -227,8 +227,7 @@ CONTAINS
       TYPE(global_tree_type), POINTER                    :: gt_head, new_gt_elem
       INTEGER                                            :: stat, react_count
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'search_next_energy_calc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'search_next_energy_calc'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: flag
@@ -278,8 +277,7 @@ CONTAINS
    RECURSIVE FUNCTION search_parent_element(current) RESULT(parent)
       TYPE(tree_type), POINTER                           :: current, parent
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'search_parent_element', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'search_parent_element'
 
       INTEGER                                            :: handle
 
@@ -313,8 +311,7 @@ CONTAINS
       TYPE(global_tree_type), POINTER                    :: ptr
       LOGICAL                                            :: found
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'search_next_gt_element_to_check', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'search_next_gt_element_to_check'
 
       INTEGER                                            :: handle
 
@@ -368,8 +365,7 @@ CONTAINS
       TYPE(global_tree_type), POINTER                    :: gt_act_elem
       TYPE(tree_type), INTENT(OUT), POINTER              :: elem1, elem2
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_subtree_elements_to_check', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_subtree_elements_to_check'
 
       INTEGER                                            :: handle
 
@@ -417,8 +413,7 @@ CONTAINS
    RECURSIVE SUBROUTINE search_end_of_clean_g_tree(last_acc, tree_ptr)
       TYPE(global_tree_type), POINTER                    :: last_acc, tree_ptr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'search_end_of_clean_g_tree', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'search_end_of_clean_g_tree'
 
       INTEGER                                            :: handle
 
@@ -470,8 +465,7 @@ CONTAINS
       TYPE(tree_type), POINTER                           :: tree_ptr
       TYPE(tree_type), INTENT(IN), POINTER               :: last_acc
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'search_end_of_clean_tree', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'search_end_of_clean_tree'
 
       INTEGER                                            :: handle
 
@@ -511,8 +505,7 @@ CONTAINS
       REAL(KIND=dp), OPTIONAL                            :: prob
       TYPE(tmc_env_type), POINTER                        :: tmc_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'search_canceling_elements', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'search_canceling_elements'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: ready
@@ -584,8 +577,7 @@ CONTAINS
       TYPE(global_tree_type), INTENT(IN), POINTER        :: global_tree_ptr
       INTEGER, DIMENSION(:), POINTER                     :: counters
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'count_prepared_nodes_in_trees', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'count_prepared_nodes_in_trees'
 
       INTEGER                                            :: handle, i
       TYPE(tree_type), POINTER                           :: begin_ptr
@@ -621,8 +613,7 @@ CONTAINS
       TYPE(tree_type), POINTER                           :: tree_ptr
       INTEGER                                            :: counter
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'count_prepared_nodes_in_subtree', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'count_prepared_nodes_in_subtree'
 
       TYPE(tree_type), POINTER                           :: tmp_ptr
 
@@ -678,8 +669,7 @@ CONTAINS
       TYPE(elem_array_type), DIMENSION(:), POINTER       :: end_of_clean_trees
       INTEGER, DIMENSION(:), POINTER                     :: counters, head_elements_nr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'count_nodes_in_trees', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'count_nodes_in_trees'
 
       INTEGER                                            :: handle, i
       TYPE(global_tree_type), POINTER                    :: begin_gt_ptr
@@ -727,8 +717,7 @@ CONTAINS
       TYPE(global_tree_type), INTENT(IN), POINTER        :: ptr
       INTEGER, INTENT(INOUT)                             :: counter
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'count_nodes_in_global_tree', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'count_nodes_in_global_tree'
 
       CPASSERT(ASSOCIATED(ptr))
 
@@ -750,8 +739,7 @@ CONTAINS
       TYPE(tree_type), POINTER                           :: ptr
       INTEGER                                            :: counter
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'count_nodes_in_tree', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'count_nodes_in_tree'
 
       CPASSERT(ASSOCIATED(ptr))
 

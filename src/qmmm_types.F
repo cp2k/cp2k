@@ -84,8 +84,7 @@ CONTAINS
    SUBROUTINE qmmm_env_release(qmmm_env)
       TYPE(qmmm_env_type), POINTER                       :: qmmm_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qmmm_env_release'
 
       IF (ASSOCIATED(qmmm_env)) THEN
          CPASSERT(qmmm_env%ref_count > 0)
@@ -108,8 +107,7 @@ CONTAINS
    SUBROUTINE qmmm_env_retain(qmmm_env)
       TYPE(qmmm_env_type), POINTER                       :: qmmm_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qmmm_env_retain'
 
       CPASSERT(ASSOCIATED(qmmm_env))
       CPASSERT(qmmm_env%ref_count > 0)

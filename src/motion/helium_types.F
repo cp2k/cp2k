@@ -353,8 +353,7 @@ CONTAINS
 
       TYPE(int_arr_ptr), DIMENSION(:), POINTER           :: int_arr_p
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_destroy_int_arr_ptr', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_destroy_int_arr_ptr'
 
       INTEGER                                            :: ip
 
@@ -385,8 +384,7 @@ CONTAINS
 
       TYPE(real_arr_ptr), DIMENSION(:), POINTER          :: real_arr_p
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_destroy_real_arr_ptr', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_destroy_real_arr_ptr'
 
       INTEGER                                            :: ip
 

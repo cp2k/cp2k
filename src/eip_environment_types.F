@@ -146,8 +146,7 @@ CONTAINS
 
       TYPE(eip_environment_type), POINTER                :: eip_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eip_env_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'eip_env_release'
 
 !   ------------------------------------------------------------------------
 

@@ -74,8 +74,7 @@ CONTAINS
       TYPE(dimer_env_type), POINTER                      :: dimer_env
       TYPE(section_vals_type), POINTER                   :: motion_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'update_dimer_vec', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'update_dimer_vec'
 
       INTEGER                                            :: i, i_rep_val, isize, j, size_array
       REAL(KIND=dp), DIMENSION(:), POINTER               :: array

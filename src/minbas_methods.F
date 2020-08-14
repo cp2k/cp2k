@@ -79,8 +79,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: full_ortho
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_filter
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'minbas_calculation', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'minbas_calculation'
 
       INTEGER                                            :: handle, homo, i, iab, ispin, nao, natom, &
                                                             ndep, nmao, nmo, nmx, np, np1, nspin, &
@@ -341,8 +340,7 @@ CONTAINS
    SUBROUTINE diag_sqrt_invert(sortho)
       TYPE(dbcsr_type)                                   :: sortho
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'diag_sqrt_invert', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'diag_sqrt_invert'
 
       INTEGER                                            :: i, iatom, info, jatom, lwork, n
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: w, work

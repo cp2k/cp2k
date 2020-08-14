@@ -98,8 +98,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(INOUT), OPTIONAL     :: first_sgf, last_sgf, nsgf, nmao
       TYPE(gto_basis_set_p_type), DIMENSION(:), OPTIONAL :: basis
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_particle_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_particle_set'
 
       INTEGER                                            :: ikind, iparticle, isgf, nparticle, ns
 
@@ -185,8 +184,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: charge_occup, charge_beta, &
                                                             charge_extended
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_particle_coordinates', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_particle_coordinates'
 
       CHARACTER(LEN=120)                                 :: line
       CHARACTER(LEN=2)                                   :: element_symbol
@@ -479,8 +477,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: subsys_section
       REAL(KIND=dp), DIMENSION(:), POINTER               :: charges
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_fist_particle_coordinates', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_fist_particle_coordinates'
 
       CHARACTER(LEN=default_string_length)               :: name, unit_str
       INTEGER                                            :: iatom, ikind, iw, natom
@@ -549,8 +546,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: subsys_section
       CHARACTER(LEN=*), INTENT(IN)                       :: label
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_qs_particle_coordinates', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_qs_particle_coordinates'
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=default_string_length)               :: unit_str
@@ -612,8 +608,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_particle_distances', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_particle_distances'
 
       CHARACTER(LEN=default_string_length)               :: unit_str
       INTEGER                                            :: handle, iatom, iw, jatom, natom
@@ -743,8 +738,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(section_vals_type), POINTER                   :: input_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_structure_data', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_structure_data'
 
       CHARACTER(LEN=default_string_length)               :: string, unit_str
       INTEGER                                            :: handle, i, i_rep, iw, n, n_rep, n_vals, &

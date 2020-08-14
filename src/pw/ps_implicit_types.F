@@ -85,8 +85,7 @@ CONTAINS
       TYPE(ps_implicit_parameters), INTENT(INOUT)        :: ps_implicit_params
       TYPE(pw_pool_type), INTENT(IN), OPTIONAL, POINTER  :: pw_pool
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ps_implicit_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ps_implicit_release'
 
       INTEGER                                            :: boundary_condition, handle
       LOGICAL                                            :: can_give_back, do_dbc_cube

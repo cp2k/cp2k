@@ -41,8 +41,7 @@ CONTAINS
    SUBROUTINE create_rsgrid_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_rsgrid_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_rsgrid_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 

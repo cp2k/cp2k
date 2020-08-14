@@ -104,8 +104,7 @@ CONTAINS
       TYPE(lgrid_type), POINTER                          :: lgrid
       INTEGER, INTENT(in)                                :: nthreads
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'lgrid_allocate_grid', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'lgrid_allocate_grid'
 
       INTEGER                                            :: handle
 

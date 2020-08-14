@@ -97,8 +97,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'optimize_lri_basis', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'optimize_lri_basis'
 
       INTEGER                                            :: iunit, nkind
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -192,8 +191,7 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_lri_overlap_aabb', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_lri_overlap_aabb'
 
       INTEGER                                            :: handle, iac, iatom, ikind, ilist, jatom, &
                                                             jkind, jneighbor, nba, nbb, nkind, &
@@ -283,8 +281,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x, zet_init
       INTEGER, INTENT(IN)                                :: nkind, iunit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_optimization', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_optimization'
 
       INTEGER                                            :: ikind, iset, ishell, n, nset
       INTEGER, DIMENSION(:), POINTER                     :: npgf, nshell
@@ -391,8 +388,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: lri_optbas_section
       TYPE(opt_state_type)                               :: opt_state
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_optimization_parameter', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_optimization_parameter'
 
       INTEGER                                            :: degree_freedom
       TYPE(section_vals_type), POINTER                   :: constrain_exp_section
@@ -460,8 +456,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x, zet_init
       INTEGER, INTENT(IN)                                :: nkind
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_exponents', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'update_exponents'
 
       INTEGER                                            :: ikind, iset, ishell, n, nset, nvar_exp
       INTEGER, DIMENSION(:), POINTER                     :: npgf, nshell
@@ -570,8 +565,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: zet_max, zet_min
       INTEGER, INTENT(IN)                                :: nexp
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'geometric_progression', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'geometric_progression'
 
       INTEGER                                            :: i, n
       REAL(KIND=dp)                                      :: q
@@ -611,8 +605,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: nkind
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_lri_integrals_get_objective', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_lri_integrals_get_objective'
 
       INTEGER                                            :: ikind, nset
       INTEGER, DIMENSION(:), POINTER                     :: npgf
@@ -662,8 +655,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), INTENT(OUT)                         :: fobj
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_objective', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_objective'
 
       INTEGER :: handle, iac, iatom, ikind, ilist, isgfa, ispin, jatom, jkind, jneighbor, jsgfa, &
          ksgfb, lsgfb, mepos, nba, nbb, nfa, nfb, nkind, nlist, nn, nneighbor, nspin, nthread
@@ -835,8 +827,7 @@ CONTAINS
 
       TYPE(lri_environment_type), POINTER                :: lri_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_condition_number_of_overlap', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_condition_number_of_overlap'
 
       INTEGER                                            :: handle, iac, iatom, ikind, ilist, info, &
                                                             jatom, jkind, jneighbor, lwork, mepos, &
@@ -934,8 +925,7 @@ CONTAINS
       TYPE(lri_opt_type), POINTER                        :: lri_opt
       INTEGER, INTENT(IN)                                :: iunit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_optimization_update', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_optimization_update'
 
       INTEGER                                            :: n10
 
@@ -974,8 +964,7 @@ CONTAINS
       TYPE(lri_opt_type), POINTER                        :: lri_opt
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_optimized_lri_basis', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_optimized_lri_basis'
 
       CHARACTER(LEN=default_path_length)                 :: filename
       INTEGER                                            :: cc_l, ikind, ipgf, iset, ishell, nset, &

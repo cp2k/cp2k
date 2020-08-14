@@ -147,8 +147,7 @@ CONTAINS
       TYPE(mixed_cdft_settings_type)                     :: settings
       INTEGER                                            :: natom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_parse_settings', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_parse_settings'
 
       INTEGER                                            :: i, iatom, iforce_eval, igroup, &
                                                             nforce_eval, nkinds
@@ -541,8 +540,7 @@ CONTAINS
       TYPE(mixed_cdft_type), POINTER                     :: mixed_cdft
       TYPE(mixed_cdft_settings_type)                     :: settings
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_transfer_settings', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_transfer_settings'
 
       INTEGER                                            :: i, nkinds
       LOGICAL                                            :: is_match
@@ -642,8 +640,7 @@ CONTAINS
       TYPE(mixed_cdft_type), POINTER                     :: mixed_cdft
       TYPE(mixed_cdft_settings_type)                     :: settings
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_init_structures', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_init_structures'
 
       CHARACTER(len=default_path_length)                 :: c_val, input_file_path, output_file_path
       INTEGER                                            :: i, imap, iounit, j, lp, n_force_eval, &
@@ -1054,8 +1051,7 @@ CONTAINS
    SUBROUTINE mixed_cdft_redistribute_arrays(force_env)
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_redistribute_arrays', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_redistribute_arrays'
 
       INTEGER                                            :: iforce_eval, ispin, ivar, ncol_overlap, &
                                                             ncol_wmat, nforce_eval, nrow_overlap, &
@@ -1375,8 +1371,7 @@ CONTAINS
    SUBROUTINE mixed_cdft_print_couplings(force_env)
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_print_couplings', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_print_couplings'
 
       INTEGER                                            :: iounit, ipermutation, istate, ivar, &
                                                             jstate, nforce_eval, npermutations, &
@@ -1497,8 +1492,7 @@ CONTAINS
    SUBROUTINE mixed_cdft_release_work(force_env)
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_release_work', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_release_work'
 
       TYPE(mixed_cdft_type), POINTER                     :: mixed_cdft
 
@@ -1524,8 +1518,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n, ipermutation
       INTEGER, INTENT(OUT)                               :: i, j
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'map_permutation_to_states', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'map_permutation_to_states'
 
       INTEGER                                            :: kcol, kpermutation, krow, npermutations
 
@@ -1635,8 +1628,7 @@ CONTAINS
       LOGICAL, INTENT(OUT)                               :: ignore_excited
       INTEGER, INTENT(OUT)                               :: nrecursion
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_read_block_diag', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_read_block_diag'
 
       INTEGER                                            :: i, j, k, l, nblk, nforce_eval
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
@@ -1729,8 +1721,7 @@ CONTAINS
       TYPE(cp_2d_r_p_type), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: H_block, S_block
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_get_blocks', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_get_blocks'
 
       INTEGER                                            :: i, icol, irow, j, k, nblk
 
@@ -1779,8 +1770,7 @@ CONTAINS
       TYPE(cp_1d_r_p_type), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: eigenvalues
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_diagonalize_blocks', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_diagonalize_blocks'
 
       INTEGER                                            :: i, info, nblk, work_array_size
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: work
@@ -1844,8 +1834,7 @@ CONTAINS
       TYPE(cp_1d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: eigenvalues
       INTEGER                                            :: n, iounit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_assemble_block_diag', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_assemble_block_diag'
 
       CHARACTER(LEN=20)                                  :: ilabel, jlabel
       CHARACTER(LEN=3)                                   :: tmp

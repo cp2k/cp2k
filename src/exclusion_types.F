@@ -39,8 +39,7 @@ CONTAINS
    SUBROUTINE exclusion_release(exclusions)
       TYPE(exclusion_type), DIMENSION(:), POINTER        :: exclusions
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'exclusion_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'exclusion_release'
 
       INTEGER                                            :: iatom
 

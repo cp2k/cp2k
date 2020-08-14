@@ -63,8 +63,7 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: calculate_forces
       TYPE(cdft_control_type), POINTER                   :: cdft_control
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_cdft_constraint', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_cdft_constraint'
 
       INTEGER                                            :: iatom, igroup, natom
       LOGICAL                                            :: do_kpoints
@@ -150,8 +149,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       REAL(KIND=dp)                                      :: mulliken_order_p
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_mulliken_restraint', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_mulliken_restraint'
 
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ksmat, rho_ao
 
@@ -197,8 +195,7 @@ CONTAINS
       TYPE(qs_energy_type), POINTER                      :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_s2_restraint', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_s2_restraint'
 
       INTEGER                                            :: i
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mo_derivs

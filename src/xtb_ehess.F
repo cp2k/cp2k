@@ -79,8 +79,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :)                          :: charges1
       REAL(dp), DIMENSION(:)                             :: mcharge1, mcharge
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xtb_coulomb_hessian', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xtb_coulomb_hessian'
 
       INTEGER :: blk, ewald_type, handle, i, ia, iatom, icol, ikind, irow, is, j, jatom, jkind, &
          la, lb, lmaxa, lmaxb, natom, natorb_a, natorb_b, ni, nj, nkind, nmat, za, zb
@@ -303,8 +302,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix
       REAL(dp), DIMENSION(:)                             :: mcharge, mcharge1, xgamma
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dftb3_diagonal_hessian', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dftb3_diagonal_hessian'
 
       INTEGER                                            :: blk, handle, icol, ikind, irow, is, &
                                                             jkind, natom

@@ -133,8 +133,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(2*k), INTENT(OUT)         :: aw
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: mm_error
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_minimax_coeff_k15', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_minimax_coeff_k15'
 
       INTEGER                                            :: handle, icoef, kkk
       REAL(KIND=dp)                                      :: L_b, R_max, R_min, R_transf, U_b

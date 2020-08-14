@@ -100,8 +100,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(ls_scf_env_type)                              :: ls_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'compute_chebyshev', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'compute_chebyshev'
       REAL(KIND=dp), PARAMETER                           :: scale_evals = 1.01_dp
 
       CHARACTER(LEN=30)                                  :: middle_name

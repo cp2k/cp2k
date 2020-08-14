@@ -84,8 +84,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: print_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'Setup_Ewald_Spline', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'Setup_Ewald_Spline'
 
       INTEGER                                            :: bo(2, 3), iounit
       TYPE(cell_type), POINTER                           :: cell
@@ -363,8 +362,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: param_section
       CHARACTER(LEN=*), INTENT(IN)                       :: tag
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'check_spline_interp_TabLR', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'check_spline_interp_TabLR'
 
       INTEGER                                            :: handle, i, iw, kg, npoints
       REAL(KIND=dp)                                      :: dn(3), dr1, dr2, dr3, dxTerm, dyTerm, &

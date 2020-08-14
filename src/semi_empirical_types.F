@@ -186,8 +186,7 @@ CONTAINS
    SUBROUTINE semi_empirical_create(sep)
       TYPE(semi_empirical_type), POINTER                 :: sep
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_create'
 
       CPASSERT(.NOT. ASSOCIATED(sep))
       ALLOCATE (sep)
@@ -210,8 +209,7 @@ CONTAINS
 
       TYPE(semi_empirical_type), POINTER                 :: sep
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_release'
 
       INTEGER                                            :: i
 
@@ -617,8 +615,7 @@ CONTAINS
                                                             range_exc, taper_scr, range_scr, &
                                                             taper_lrc, range_lrc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'se_taper_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'se_taper_create'
 
       CPASSERT(.NOT. ASSOCIATED(se_taper))
       ALLOCATE (se_taper)
@@ -646,8 +643,7 @@ CONTAINS
    SUBROUTINE se_taper_release(se_taper)
       TYPE(se_taper_type), POINTER                       :: se_taper
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'se_taper_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'se_taper_release'
 
       IF (ASSOCIATED(se_taper)) THEN
          CALL taper_release(se_taper%taper_cou)

@@ -120,8 +120,7 @@ CONTAINS
          POINTER                                         :: sab_nl, sac_nl
       LOGICAL, INTENT(IN), OPTIONAL                      :: only_bc_same_center
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_o3c_container', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_o3c_container'
 
       INTEGER                                            :: kkind, nij, nk, nkind
       LOGICAL                                            :: my_sort_bc, symmetric
@@ -226,8 +225,7 @@ CONTAINS
 
       TYPE(o3c_container_type)                           :: o3c_container
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'release_o3c_container', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'release_o3c_container'
 
       o3c_container%ijsymmetric = .FALSE.
       o3c_container%nijpairs = 0
@@ -341,8 +339,7 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: sab_nl, sac_nl
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_o3c_container', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_o3c_container'
 
       IF (PRESENT(ijsymmetric)) ijsymmetric = o3c%ijsymmetric
       IF (PRESENT(nspin)) nspin = o3c%nspin
@@ -369,8 +366,7 @@ CONTAINS
       TYPE(o3c_iterator_type)                            :: o3c_iterator
       INTEGER, OPTIONAL                                  :: nthread
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'o3c_iterator_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'o3c_iterator_create'
 
       INTEGER                                            :: n
 
@@ -397,8 +393,7 @@ CONTAINS
    SUBROUTINE o3c_iterator_release(o3c_iterator)
       TYPE(o3c_iterator_type)                            :: o3c_iterator
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'o3c_iterator_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'o3c_iterator_release'
 
       NULLIFY (o3c_iterator%o3c)
       o3c_iterator%ijp_last = 0
@@ -441,8 +436,7 @@ CONTAINS
          POINTER                                         :: integral
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: tvec, force_i, force_j, force_k
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_o3c_iterator_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_o3c_iterator_info'
 
       INTEGER                                            :: ij, k, me
       TYPE(o3c_container_type), POINTER                  :: o3c
@@ -579,8 +573,7 @@ CONTAINS
          POINTER                                         :: integral
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: tvec, force_i, force_j, force_k
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_o3c_container', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'set_o3c_container'
 
       INTEGER                                            :: ij, k, me
       TYPE(o3c_container_type), POINTER                  :: o3c
@@ -640,8 +633,7 @@ CONTAINS
    SUBROUTINE o3c_vec_release(o3c_vec)
       TYPE(o3c_vec_type), DIMENSION(:)                   :: o3c_vec
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'o3c_vec_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'o3c_vec_release'
 
       INTEGER                                            :: i
 

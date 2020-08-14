@@ -136,8 +136,7 @@ CONTAINS
    SUBROUTINE admm_mo_calc_rho_aux(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'admm_mo_calc_rho_aux', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'admm_mo_calc_rho_aux'
 
       CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: handle, ispin
@@ -283,8 +282,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'admm_update_ks_atom', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'admm_update_ks_atom'
 
       INTEGER                                            :: handle, ispin
       TYPE(admm_type), POINTER                           :: admm_env
@@ -331,8 +329,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'update_admm_gapw', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'update_admm_gapw'
 
       INTEGER                                            :: handle, ikind, nkind
       LOGICAL                                            :: paw_atom
@@ -440,8 +437,7 @@ CONTAINS
    SUBROUTINE admm_mo_merge_ks_matrix(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_mo_merge_ks_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_mo_merge_ks_matrix'
 
       INTEGER                                            :: handle
       TYPE(admm_type), POINTER                           :: admm_env
@@ -491,8 +487,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_derivs, mo_derivs_aux_fit
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_mo_merge_derivs', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_mo_merge_derivs'
 
       INTEGER                                            :: handle
 
@@ -533,8 +528,7 @@ CONTAINS
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
       LOGICAL, INTENT(IN)                                :: geometry_did_change
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_fit_mo_coeffs', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_fit_mo_coeffs'
 
       INTEGER                                            :: handle
 
@@ -662,8 +656,7 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'purify_mo_cholesky', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'purify_mo_cholesky'
 
       INTEGER                                            :: handle, ispin, nao_aux_fit, nao_orb, &
                                                             nmo, nspins
@@ -840,8 +833,7 @@ CONTAINS
       INTEGER                                            :: ispin
       LOGICAL, INTENT(IN)                                :: blocked
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'purify_dm_cauchy', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'purify_dm_cauchy'
 
       INTEGER                                            :: handle, i, nao_aux_fit, nao_orb, nmo, &
                                                             nspins
@@ -924,8 +916,7 @@ CONTAINS
    SUBROUTINE merge_ks_matrix_cauchy(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_ks_matrix_cauchy', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_ks_matrix_cauchy'
 
       INTEGER                                            :: blk, handle, i, iatom, ispin, j, jatom, &
                                                             nao_aux_fit, nao_orb, nmo
@@ -1083,8 +1074,7 @@ CONTAINS
    SUBROUTINE merge_ks_matrix_cauchy_subspace(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_ks_matrix_cauchy_subspace', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_ks_matrix_cauchy_subspace'
 
       INTEGER                                            :: handle, ispin, nao_aux_fit, nao_orb, nmo
       TYPE(admm_type), POINTER                           :: admm_env
@@ -1241,8 +1231,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_derivs, mo_derivs_aux_fit
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_mo_derivs_diag', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_mo_derivs_diag'
 
       INTEGER                                            :: handle, i, j, nao_aux_fit, nao_orb, nmo
       REAL(dp)                                           :: eig_diff, pole, tmp32, tmp52, tmp72, &
@@ -1376,8 +1365,7 @@ CONTAINS
    SUBROUTINE merge_ks_matrix_none(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_ks_matrix_none', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_ks_matrix_none'
 
       INTEGER                                            :: blk, handle, iatom, ispin, jatom, &
                                                             nao_aux_fit, nao_orb, nmo
@@ -1644,8 +1632,7 @@ CONTAINS
       REAL(dp), INTENT(INOUT)                            :: ener_k_ispin, ener_x_ispin, ener_x1_ispin
       INTEGER, INTENT(IN)                                :: ispin
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_spin_dep_aux_exch_ener', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_spin_dep_aux_exch_ener'
 
       CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: handle, myspin
@@ -1838,8 +1825,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff_aux_fit
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_aux_mo_derivs_none', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_aux_mo_derivs_none'
 
       INTEGER                                            :: handle, nao_aux_fit, nao_orb, nmo
       REAL(dp), DIMENSION(:), POINTER                    :: occupation_numbers, scaling_factor
@@ -1891,8 +1877,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_mo_derivs_no_diag', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_mo_derivs_no_diag'
 
       INTEGER                                            :: handle, nao_aux_fit, nao_orb, nmo
       REAL(dp), DIMENSION(:), POINTER                    :: occupation_numbers, scaling_factor
@@ -1975,8 +1960,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_mixed_overlap_force', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_mixed_overlap_force'
 
       INTEGER                                            :: handle, ispin, iw, nao_aux_fit, nao_orb, &
                                                             natom, neighbor_list_id, nmo
@@ -2314,8 +2298,7 @@ CONTAINS
                                                             overlap_matrix_large
       INTEGER                                            :: ispin
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_dm_mo_no_diag', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_dm_mo_no_diag'
 
       INTEGER                                            :: handle, nao_aux_fit, nmo
       REAL(KIND=dp)                                      :: alpha, nel_tmp_aux
@@ -2394,8 +2377,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: density_matrix, density_matrix_aux
       INTEGER                                            :: ispin, nspins
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'blockify_density_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'blockify_density_matrix'
 
       INTEGER                                            :: blk, handle, iatom, jatom
       LOGICAL                                            :: found

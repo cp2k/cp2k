@@ -226,8 +226,7 @@ CONTAINS
 
       TYPE(qtb_therm_type), POINTER                      :: qtb_therm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_qtb_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_qtb_release'
 
       IF (ASSOCIATED(qtb_therm)) THEN
          qtb_therm%ref_count = qtb_therm%ref_count - 1
@@ -260,8 +259,7 @@ CONTAINS
    SUBROUTINE pint_calc_qtb_energy(pint_env)
       TYPE(pint_env_type), POINTER                       :: pint_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_qtb_energy', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_qtb_energy'
 
       IF (ASSOCIATED(pint_env%qtb_therm)) THEN
          pint_env%e_qtb = pint_env%qtb_therm%thermostat_energy
@@ -288,8 +286,7 @@ CONTAINS
       TYPE(qtb_therm_type), POINTER                      :: qtb_therm
       LOGICAL                                            :: restart
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_qtb_forces_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_qtb_forces_init'
 
       COMPLEX(KIND=dp)                                   :: tmp1
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: filter
@@ -552,8 +549,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: dw, aa, bb
       INTEGER                                            :: log_unit, ibead, print_level
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_qtb_computefp0', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_qtb_computefp0'
 
       CHARACTER(len=200)                                 :: line
       INTEGER                                            :: i, j, k, n, niter, nx, p
@@ -764,8 +760,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: dw, aa, bb
       INTEGER                                            :: log_unit, ibead, print_level
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_qtb_computefp1', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_qtb_computefp1'
 
       CHARACTER(len=200)                                 :: line
       INTEGER                                            :: i, j, k, n, niter, nx, p
@@ -956,8 +951,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: a, b, r2
       INTEGER                                            :: log_unit, print_level
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_qtb_linreg', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_qtb_linreg'
 
       CHARACTER(len=200)                                 :: line
       INTEGER                                            :: i, n

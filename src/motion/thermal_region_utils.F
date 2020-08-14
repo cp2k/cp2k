@@ -77,8 +77,7 @@ CONTAINS
       TYPE(simpar_type), POINTER                         :: simpar
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_thermal_regions', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_thermal_regions'
 
       CHARACTER(LEN=default_string_length)               :: my_region
       INTEGER                                            :: i, il, ipart, ireg, nlist, nregions
@@ -217,8 +216,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: time
       CHARACTER(LEN=default_string_length)               :: pos, act
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_thermal_regions_temperature', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_thermal_regions_temperature'
 
       CHARACTER(LEN=default_string_length)               :: fmd
       INTEGER                                            :: ireg, nregions, unit
@@ -275,8 +273,7 @@ CONTAINS
       TYPE(simpar_type), POINTER                         :: simpar
       CHARACTER(LEN=default_string_length)               :: pos, act
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_thermal_regions_langevin', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_thermal_regions_langevin'
 
       INTEGER                                            :: ipart, ipart_reg, ireg, natoms, &
                                                             print_unit

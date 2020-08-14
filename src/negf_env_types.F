@@ -166,8 +166,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: negf_mixing_section
       INTEGER, INTENT(in)                                :: log_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'negf_env_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'negf_env_create'
 
       CHARACTER(len=default_string_length)               :: contact_str, force_env_str, &
                                                             n_force_env_str
@@ -324,8 +323,7 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: eps_geometry
       TYPE(qs_subsys_type), POINTER                      :: subsys_device, subsys_contact
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_env_contact_init_maps', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_env_contact_init_maps'
 
       INTEGER                                            :: handle, natoms
 
@@ -391,8 +389,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env_contact
       TYPE(dbcsr_type), POINTER                          :: matrix_s_device
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_env_contact_init_matrices', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_env_contact_init_matrices'
 
       INTEGER                                            :: handle, iatom, ispin, nao, natoms, &
                                                             nimages, nspins
@@ -550,8 +547,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(kind=dp), INTENT(in)                          :: eps_geometry
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_env_contact_init_matrices_gamma', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_env_contact_init_matrices_gamma'
 
       INTEGER                                            :: handle, iatom, icell, ispin, nao_c, &
                                                             nspins
@@ -719,8 +715,7 @@ CONTAINS
       TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_env_device_init_matrices', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_env_device_init_matrices'
 
       INTEGER                                            :: handle, icontact, ispin, nao_c, nao_s, &
                                                             ncontacts, nspins
@@ -867,8 +862,7 @@ CONTAINS
       TYPE(negf_control_contact_type), DIMENSION(:), &
          INTENT(in)                                      :: contact_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'negf_env_init_v_hartree', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'negf_env_init_v_hartree'
       REAL(kind=dp), PARAMETER :: threshold = 16.0_dp*EPSILON(0.0_dp)
 
       INTEGER                                            :: dx, dy, dz, handle, icontact, ix, iy, &
@@ -957,8 +951,7 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: eps_geometry
       INTEGER                                            :: direction_axis
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'contact_direction_axis', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'contact_direction_axis'
 
       INTEGER                                            :: i, naxes
       REAL(kind=dp), DIMENSION(3)                        :: scaled
@@ -996,8 +989,7 @@ CONTAINS
       REAL(kind=dp), INTENT(out)                         :: homo_energy
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_homo_energy_estimate', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_homo_energy_estimate'
       INTEGER, PARAMETER                                 :: gamma_point = 1
 
       INTEGER                                            :: handle, homo, ikpgr, ikpoint, imo, &
@@ -1092,8 +1084,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: direction_axis
       TYPE(qs_subsys_type), POINTER                      :: subsys_device
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'list_atoms_in_bulk_primary_unit_cell', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'list_atoms_in_bulk_primary_unit_cell'
 
       INTEGER                                            :: atom_min, dir_axis_min, &
                                                             direction_axis_abs, handle, iatom, &
@@ -1173,8 +1164,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: direction_axis
       TYPE(qs_subsys_type), POINTER                      :: subsys_device
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'list_atoms_in_bulk_secondary_unit_cell', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'list_atoms_in_bulk_secondary_unit_cell'
 
       INTEGER                                            :: atom_min, dir_axis_min, &
                                                             direction_axis_abs, handle, iatom, &
@@ -1237,8 +1227,7 @@ CONTAINS
    SUBROUTINE negf_env_release(negf_env)
       TYPE(negf_env_type), INTENT(inout)                 :: negf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'negf_env_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'negf_env_release'
 
       INTEGER                                            :: handle, icontact, ispin, nspins
 
@@ -1303,8 +1292,7 @@ CONTAINS
    SUBROUTINE negf_env_contact_release(contact_env)
       TYPE(negf_env_contact_type), INTENT(inout)         :: contact_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'negf_env_contact_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'negf_env_contact_release'
 
       INTEGER                                            :: handle, ispin
 

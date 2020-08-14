@@ -173,8 +173,7 @@ CONTAINS
    SUBROUTINE shell_p_release(shell_list)
       TYPE(shell_p_type), DIMENSION(:), POINTER          :: shell_list
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'shell_p_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'shell_p_release'
 
       INTEGER                                            :: i
 

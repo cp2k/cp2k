@@ -77,8 +77,7 @@ CONTAINS
       TYPE(section_vals_type), OPTIONAL, POINTER         :: powell_section
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: results
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_fit_density', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'atom_fit_density'
 
       INTEGER                                            :: n10
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: co
@@ -492,8 +491,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iunit
       TYPE(section_vals_type), POINTER                   :: powell_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_fit_pseudo', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'atom_fit_pseudo'
       LOGICAL, PARAMETER                                 :: debug = .FALSE.
 
       CHARACTER(len=2)                                   :: pc1, pc2, pct
@@ -1705,8 +1703,7 @@ CONTAINS
       TYPE(atom_gthpot_type), INTENT(in)                 :: gthpot
       LOGICAL, INTENT(in)                                :: noopt_nlcc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_pseudo_param', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_pseudo_param'
 
       INTEGER                                            :: i, ival, j, l, n
 
@@ -1782,8 +1779,7 @@ CONTAINS
       TYPE(atom_gthpot_type), INTENT(inout)              :: gthpot
       LOGICAL, INTENT(in)                                :: noopt_nlcc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'put_pseudo_param', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'put_pseudo_param'
 
       INTEGER                                            :: i, ival, j, l, n
 

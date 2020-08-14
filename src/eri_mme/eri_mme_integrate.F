@@ -78,8 +78,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: potential
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pot_par
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_2c_integrate', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_2c_integrate'
 
       INTEGER                                            :: ax, ay, az, bx, by, bz, grid, i_aw, &
                                                             i_xyz, ico, jco, l_max, la, lb, n_aw
@@ -281,8 +280,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: o1, o2, o3
       INTEGER, INTENT(INOUT), OPTIONAL                   :: GG_count, GR_count, RR_count
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_3c_integrate', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_3c_integrate'
 
       CPASSERT(param%is_valid)
       IF (param%is_ortho) THEN
@@ -328,8 +326,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: o1, o2, o3
       INTEGER, INTENT(INOUT), OPTIONAL                   :: RR_count
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_3c_integrate_ortho', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_3c_integrate_ortho'
 
       INTEGER                                            :: grid, i_aw, lmax_0, n_aw
       INTEGER(KIND=int_8), DIMENSION(3)                  :: n_sum_3d
@@ -449,8 +446,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: o1, o2, o3
       INTEGER, INTENT(INOUT), OPTIONAL                   :: GG_count, GR_count, RR_count
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_3c_integrate_nonortho', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_3c_integrate_nonortho'
 
       INTEGER                                            :: ax, ay, az, bx, by, bz, cx, cy, cz, &
                                                             grid, i_aw, ico, ir, jco, kco, la, lb, &

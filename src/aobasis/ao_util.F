@@ -571,8 +571,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), INTENT(OUT)             :: CPC_so
       INTEGER                                            :: maxl
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'transform_c2s_new', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'transform_c2s_new'
 
       INTEGER                                            :: iso, ldc, lds
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: work

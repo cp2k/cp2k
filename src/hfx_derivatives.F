@@ -123,8 +123,7 @@ CONTAINS
       REAL(dp), INTENT(IN), OPTIONAL                     :: adiabatic_rescale_factor
       LOGICAL, INTENT(IN), OPTIONAL                      :: resp_only
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'derivatives_four_center', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'derivatives_four_center'
 
       INTEGER :: atomic_offset_ac, atomic_offset_ad, atomic_offset_bc, atomic_offset_bd, bin, &
          bits_max_val, buffer_left, buffer_size, buffer_start, cache_size, coord, current_counter, &

@@ -73,8 +73,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: subsys_section
       LOGICAL, INTENT(OUT)                               :: binary_file_read
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_binary_coordinates', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_binary_coordinates'
 
       CHARACTER(LEN=default_path_length)                 :: binary_restart_file_name
       CHARACTER(LEN=default_string_length)               :: string
@@ -300,8 +299,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: root_section, subsys_section
       LOGICAL, INTENT(OUT)                               :: binary_file_read
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_binary_cs_coordinates', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_binary_cs_coordinates'
 
       CHARACTER(LEN=default_path_length)                 :: binary_restart_file_name, message
       CHARACTER(LEN=default_string_length)               :: section_label, section_name
@@ -499,8 +497,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: subsys_section
       LOGICAL, INTENT(OUT)                               :: binary_file_read
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_binary_velocities', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_binary_velocities'
 
       CHARACTER(LEN=default_path_length)                 :: binary_restart_file_name, message
       CHARACTER(LEN=default_string_length)               :: section_label, section_name
@@ -683,8 +680,7 @@ CONTAINS
       LOGICAL, INTENT(OUT)                               :: restart
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_binary_thermostats_nose', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_binary_thermostats_nose'
 
       CHARACTER(LEN=default_string_length)               :: section_label, section_name
       INTEGER                                            :: handle, i, idx, input_unit, istat, j, &

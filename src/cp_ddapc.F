@@ -234,8 +234,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: calculate_forces
       CHARACTER(LEN=*)                                   :: Itype_of_density
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_apply_CD', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_ddapc_apply_CD'
 
       INTEGER                                            :: handle, iw
       LOGICAL                                            :: apply_decpl, need_f
@@ -368,8 +367,7 @@ CONTAINS
       TYPE(ddapc_restraint_type), POINTER                :: ddapc_restraint_control
       LOGICAL, INTENT(IN), OPTIONAL                      :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_apply_RS', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_ddapc_apply_RS'
 
       INTEGER                                            :: handle, iw, my_id
       LOGICAL                                            :: apply_restrain, need_f
@@ -474,8 +472,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: calculate_forces
       CHARACTER(LEN=*)                                   :: Itype_of_density
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_apply_RF', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_ddapc_apply_RF'
 
       INTEGER                                            :: handle, iw
       LOGICAL                                            :: apply_solvation, need_f

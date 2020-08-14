@@ -181,8 +181,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: iB
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'current_build_current', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'current_build_current'
 
       CHARACTER(LEN=default_path_length)                 :: ext, filename, my_pos
       INTEGER                                            :: handle, idir, iiB, iiiB, ispin, istate, &
@@ -586,8 +585,7 @@ CONTAINS
       TYPE(current_env_type)                             :: current_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: soft_valid, retain_rsgrid
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_resp', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_resp'
       INTEGER, PARAMETER                                 :: max_tasks = 2000
 
       INTEGER :: adbmdab_func, bcol, brow, cindex, curr_tasks, handle, i, iatom, iatom_old, idir2, &
@@ -1436,8 +1434,7 @@ CONTAINS
       TYPE(current_env_type)                   :: current_env
       TYPE(qs_environment_type), POINTER       :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'current_set_gauge', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'current_set_gauge'
 
       REAL(dp)                                 :: dbox(3)
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)    :: box_data
@@ -2004,8 +2001,7 @@ CONTAINS
       TYPE(realspace_grid_type), POINTER                 :: rs_grid_x, rs_grid_y, rs_grid_z
       TYPE(box_type), DIMENSION(:, :, :), POINTER        :: box
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'collocate_gauge_new', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'collocate_gauge_new'
 
       INTEGER :: delta_lb(3), handle, i, iatom, ib, ibe, ibox, ibs, ie, is, j, jatom, jb, jbe, &
          jbox, jbs, je, js, k, kb, kbe, kbox, kbs, ke, ks, lb(3), lb_local(3), natms, &
@@ -2276,8 +2272,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: iB
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'current_build_chi_many_centers', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'current_build_chi_many_centers'
 
       INTEGER :: handle, icenter, idir, idir2, ii, iiB, iii, iiiB, ispin, istate, j, jstate, &
          max_states, nao, natom, nbr_center(2), nmo, nspins, nstate_loc, nstates(2), output_unit
@@ -2703,8 +2698,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: iB
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'current_build_chi_one_center', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'current_build_chi_one_center'
 
       INTEGER :: handle, idir, idir2, iiB, iiiB, ispin, jdir, jjdir, kdir, max_states, nao, natom, &
          nbr_center(2), nmo, nspins, nstates(2), output_unit

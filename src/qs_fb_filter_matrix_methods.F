@@ -110,8 +110,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: filter_mat
       REAL(KIND=dp), INTENT(IN)                          :: tolerance
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_build', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fb_fltrmat_build'
 
       CHARACTER(LEN=32)                                  :: symmetry_string
       CHARACTER(LEN=default_string_length)               :: name_string
@@ -271,8 +270,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: filter_mat
       REAL(KIND=dp), INTENT(IN)                          :: tolerance
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_build_2', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_build_2'
 
       CHARACTER(LEN=default_string_length)               :: name_string
       INTEGER                                            :: handle, iblkcol, ihalo, ikind, &
@@ -478,8 +476,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: filter_mat
       REAL(KIND=dp), INTENT(IN)                          :: tolerance
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_add_blkcol', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_add_blkcol'
 
       INTEGER :: handle, handle_mpi, iatom_global, iatom_in_halo, ind, ipair, ipe, itrial, &
          jatom_global, jatom_in_halo, jkind, natoms_global, natoms_in_halo, ncols_atmatrix, &
@@ -795,8 +792,7 @@ CONTAINS
       TYPE(fb_matrix_data_obj), INTENT(INOUT)            :: filter_mat_data
       REAL(KIND=dp), INTENT(IN)                          :: tolerance
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_add_blkcol_2', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_add_blkcol_2'
 
       INTEGER :: handle, iatom_global, iatom_in_halo, itrial, jatom_global, jatom_in_halo, jkind, &
          natoms_global, natoms_in_halo, ncols_atmatrix, ncols_blk, ncols_blk_max, nrows_atmatrix, &
@@ -979,8 +975,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(fb_com_atom_pairs_obj), INTENT(INOUT)         :: atom_pairs_send, atom_pairs_recv
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_generate_com_pairs', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_generate_com_pairs'
 
       INTEGER                                            :: dest, handle, iatom_global, &
                                                             iatom_in_halo, itask, jatom_global, &
@@ -1118,8 +1113,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(fb_com_atom_pairs_obj), INTENT(INOUT)         :: atom_pairs_send, atom_pairs_recv
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_generate_com_pairs_2', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_generate_com_pairs_2'
 
       INTEGER :: dest, handle, iatom_global, iatom_in_halo, iatom_stored, ihalo, itask, &
          jatom_global, jatom_stored, natoms_in_halo, nblkrows_total, nhalos, ntasks_send, src
@@ -1267,8 +1261,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: atomic_filter_mat
       REAL(KIND=dp), INTENT(IN)                          :: tolerance
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_build_atomic_fltrmat', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_build_atomic_fltrmat'
 
       INTEGER                                            :: handle, handle_dgemm, handle_dsygv, ii, &
                                                             info, jj, mat_dim, work_array_size
@@ -1419,8 +1412,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eigenvals
       REAL(KIND=dp), INTENT(IN)                          :: T, mu
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_fltrmat_fermi_dirac_mu', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_fltrmat_fermi_dirac_mu'
 
       REAL(KIND=dp)                                      :: kTS, ne
 
@@ -1444,8 +1436,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eigenvals
       REAL(KIND=dp), INTENT(IN)                          :: T, ne, maxocc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_fltrmat_fermi_dirac_ne', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_fltrmat_fermi_dirac_ne'
 
       REAL(KIND=dp)                                      :: kTS, mu
 

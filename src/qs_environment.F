@@ -1620,8 +1620,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: force_env_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_total_numbers', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_total_numbers'
 
       INTEGER                                            :: maxlgto, maxlppl, maxlppnl, natom, ncgf, &
                                                             nkind, npgf, nset, nsgf, nshell, &

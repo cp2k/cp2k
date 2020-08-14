@@ -380,8 +380,7 @@ CONTAINS
    SUBROUTINE rt_prop_release(rtp)
       TYPE(rt_prop_type), INTENT(inout)                  :: rtp
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rt_prop_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rt_prop_release'
 
       CALL dbcsr_deallocate_matrix_set(rtp%exp_H_old)
       CALL dbcsr_deallocate_matrix_set(rtp%exp_H_new)
@@ -435,8 +434,7 @@ CONTAINS
       TYPE(rt_prop_type), INTENT(inout)                  :: rtp
       INTEGER, INTENT(in)                                :: aspc_order
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rtp_history_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rtp_history_create'
 
       INTEGER                                            :: i, j, nmat
       TYPE(rtp_history_type), POINTER                    :: history
@@ -485,8 +483,7 @@ CONTAINS
    SUBROUTINE rtp_history_release(rtp)
       TYPE(rt_prop_type), INTENT(inout)                  :: rtp
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rtp_history_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rtp_history_release'
 
       INTEGER                                            :: i, j
 

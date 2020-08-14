@@ -129,8 +129,7 @@ CONTAINS
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(force_field_type), INTENT(INOUT)              :: ff_type
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_unique_bond', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_unique_bond'
 
       CHARACTER(LEN=default_string_length)               :: name_atm_a, name_atm_a2, name_atm_b, &
                                                             name_atm_b2
@@ -226,8 +225,7 @@ CONTAINS
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(force_field_type), INTENT(INOUT)              :: ff_type
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_unique_bend', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_unique_bend'
 
       CHARACTER(LEN=default_string_length)               :: name_atm_a, name_atm_a2, name_atm_b, &
                                                             name_atm_b2, name_atm_c, name_atm_c2
@@ -331,8 +329,7 @@ CONTAINS
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_unique_ub', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_unique_ub'
 
       CHARACTER(LEN=default_string_length)               :: name_atm_a, name_atm_a2, name_atm_b, &
                                                             name_atm_b2, name_atm_c, name_atm_c2
@@ -430,8 +427,7 @@ CONTAINS
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(force_field_type), INTENT(INOUT)              :: ff_type
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_unique_tors', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_unique_tors'
 
       CHARACTER(LEN=default_string_length)               :: name_atm_a, name_atm_a2, name_atm_b, &
                                                             name_atm_b2, name_atm_c, name_atm_c2, &
@@ -549,8 +545,7 @@ CONTAINS
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(force_field_type), INTENT(INOUT)              :: ff_type
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_unique_impr', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_unique_impr'
 
       CHARACTER(LEN=default_string_length)               :: name_atm_a, name_atm_a2, name_atm_b, &
                                                             name_atm_b2, name_atm_c, name_atm_c2, &
@@ -670,8 +665,7 @@ CONTAINS
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(force_field_type), INTENT(INOUT)              :: ff_type
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_unique_opbend', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_unique_opbend'
 
       CHARACTER(LEN=default_string_length)               :: name_atm_a, name_atm_a2, name_atm_b, &
                                                             name_atm_b2, name_atm_c, name_atm_c2, &
@@ -800,8 +794,7 @@ CONTAINS
       TYPE(gromos_info_type), POINTER                    :: gro_info
       TYPE(amber_info_type), POINTER                     :: amb_info
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_bond', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_bond'
 
       CHARACTER(LEN=default_string_length)               :: name_atm_a, name_atm_b
       INTEGER                                            :: atm_a, atm_b, first, handle2, i, itype, &
@@ -950,8 +943,7 @@ CONTAINS
       TYPE(gromos_info_type), POINTER                    :: gro_info
       TYPE(amber_info_type), POINTER                     :: amb_info
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_bend', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_bend'
 
       CHARACTER(LEN=default_string_length)               :: name_atm_a, name_atm_b, name_atm_c
       INTEGER                                            :: atm_a, atm_b, atm_c, first, handle2, i, &
@@ -1125,8 +1117,7 @@ CONTAINS
       TYPE(input_info_type), POINTER                     :: inp_info
       INTEGER                                            :: iw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_ub', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_ub'
 
       CHARACTER(LEN=default_string_length)               :: name_atm_a, name_atm_b, name_atm_c
       INTEGER                                            :: atm_a, atm_b, atm_c, first, handle2, i, &
@@ -1265,8 +1256,7 @@ CONTAINS
       TYPE(amber_info_type), POINTER                     :: amb_info
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_tors', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_tors'
 
       CHARACTER(LEN=default_string_length)               :: ldum, name_atm_a, name_atm_b, &
                                                             name_atm_c, name_atm_d
@@ -1529,8 +1519,7 @@ CONTAINS
       TYPE(input_info_type), POINTER                     :: inp_info
       TYPE(gromos_info_type), POINTER                    :: gro_info
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_impr', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_impr'
 
       CHARACTER(LEN=default_string_length)               :: name_atm_a, name_atm_b, name_atm_c, &
                                                             name_atm_d
@@ -1721,8 +1710,7 @@ CONTAINS
          DIMENSION(:), POINTER                           :: Ainfo
       TYPE(input_info_type), POINTER                     :: inp_info
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_opbend', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_opbend'
 
       CHARACTER(LEN=default_string_length)               :: name_atm_a, name_atm_b, name_atm_c, &
                                                             name_atm_d
@@ -1853,8 +1841,7 @@ CONTAINS
       TYPE(input_info_type), POINTER                     :: inp_info
       INTEGER                                            :: iw4
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_charges', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_charges'
 
       CHARACTER(LEN=default_string_length)               :: atmname
       INTEGER                                            :: handle, iatom, ilink, j, nval
@@ -1984,8 +1971,7 @@ CONTAINS
       LOGICAL                                            :: my_qmmm
       TYPE(input_info_type), POINTER                     :: inp_info
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_charge', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_charge'
 
       CHARACTER(LEN=default_string_length)               :: atmname
       INTEGER                                            :: handle, i, ilink, j
@@ -2130,8 +2116,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iw
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_radius', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_radius'
 
       CHARACTER(LEN=default_string_length)               :: inp_kind_name, kind_name
       INTEGER                                            :: handle, i, i_rep, n_rep
@@ -2189,8 +2174,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iw
       TYPE(input_info_type), POINTER                     :: inp_info
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_pol', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_pol'
 
       CHARACTER(LEN=default_string_length)               :: kind_name
       INTEGER                                            :: handle, i, j
@@ -2253,8 +2237,7 @@ CONTAINS
       INTEGER                                            :: iw
       TYPE(input_info_type), POINTER                     :: inp_info
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_damp', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_damp'
 
       CHARACTER(len=default_string_length)               :: atm_name1, atm_name2, my_atm_name1, &
                                                             my_atm_name2
@@ -2354,8 +2337,7 @@ CONTAINS
       INTEGER                                            :: iw
       TYPE(input_info_type), POINTER                     :: inp_info
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_shell', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_shell'
 
       CHARACTER(LEN=default_string_length)               :: atmname
       INTEGER                                            :: counter, first, first_shell, handle2, i, &
@@ -2566,8 +2548,7 @@ CONTAINS
       TYPE(pair_potential_pp_type), POINTER              :: potparm_nonbond14
       TYPE(ewald_environment_type), POINTER              :: ewald_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_nonbond14', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_nonbond14'
 
       CHARACTER(LEN=default_string_length)               :: name_atm_a, name_atm_a_local, &
                                                             name_atm_b, name_atm_b_local
@@ -2857,8 +2838,7 @@ CONTAINS
       TYPE(pair_potential_pp_type), POINTER              :: potparm_nonbond
       TYPE(ewald_environment_type), POINTER              :: ewald_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_nonbond', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_nonbond'
 
       CHARACTER(LEN=default_string_length)               :: name_atm_a, name_atm_a_local, &
                                                             name_atm_b, name_atm_b_local
@@ -3169,8 +3149,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_zbl
       CHARACTER(LEN=*), INTENT(IN)                       :: nonbonded_type
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_splines', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_splines'
 
       INTEGER                                            :: handle2, ikind, jkind, n
       TYPE(spline_data_p_type), DIMENSION(:), POINTER    :: spl_p
@@ -3221,8 +3200,7 @@ CONTAINS
       TYPE(pair_potential_pp_type), POINTER              :: potparm_nonbond
       TYPE(ewald_environment_type), POINTER              :: ewald_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_eicut', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_eicut'
 
       INTEGER                                            :: ewald_type, handle, i1, i2, nkinds
       REAL(KIND=dp)                                      :: alpha, beta, mm_radius1, mm_radius2, &
@@ -3302,8 +3280,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: tag_label, name_atm_a
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: name_atm_b, name_atm_c, name_atm_d
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'issue_duplications', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'issue_duplications'
 
       CHARACTER(LEN=default_string_length)               :: item
 
@@ -3341,8 +3318,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: array
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'store_FF_missing_par', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'store_FF_missing_par'
 
       CHARACTER(LEN=10)                                  :: sfmt
       CHARACTER(LEN=4)                                   :: my_atm1, my_atm2, my_atm3, my_atm4

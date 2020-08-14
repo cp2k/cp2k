@@ -71,8 +71,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: subsys_section
       LOGICAL, INTENT(IN), OPTIONAL                      :: save_mem
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_atoms_input', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_atoms_input'
 
       CHARACTER(len=2*default_string_length)             :: line_att
       CHARACTER(len=default_string_length)               :: error_message, my_default_index, strtmp, &
@@ -271,8 +270,7 @@ CONTAINS
          POINTER                                         :: core_particle_set
       LOGICAL, INTENT(IN), OPTIONAL                      :: save_mem
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_shell_coord_input', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_shell_coord_input'
 
       CHARACTER(len=2*default_string_length)             :: line_att
       CHARACTER(len=default_string_length)               :: name_kind, unit_str

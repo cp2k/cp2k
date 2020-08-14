@@ -335,8 +335,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(out)                         :: ekin_mol
       LOGICAL                                            :: calc_force
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_ekin_embed_lri', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'kg_ekin_embed_lri'
 
       INTEGER                                            :: color, handle, iatom, ikind, imol, &
                                                             ispin, isub, natom, nkind, nspins
@@ -501,8 +500,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(out)                         :: ekin_mol
       LOGICAL                                            :: calc_force
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_ekin_ri_embed', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'kg_ekin_ri_embed'
 
       INTEGER                                            :: color, handle, iatom, ikind, imol, &
                                                             ispin, isub, natom, nkind, nspins

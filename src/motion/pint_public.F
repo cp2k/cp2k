@@ -125,8 +125,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:), POINTER               :: x
       INTEGER, INTENT(OUT)                               :: nout
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_free_part_bead_x', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_free_part_bead_x'
 
       INTEGER                                            :: dl, i1, i2, ib, ic, il, ip, j, nlevels, &
                                                             np
@@ -276,8 +275,7 @@ CONTAINS
 
       TYPE(pint_env_type), POINTER                       :: pint_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_centroid', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_centroid'
 
       INTEGER                                            :: ia, ib
       REAL(KIND=dp)                                      :: invp

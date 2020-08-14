@@ -272,8 +272,7 @@ CONTAINS
                                                             vdw_scale14
       LOGICAL, INTENT(IN)                                :: shift_cutoff
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fist_nonbond_env_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fist_nonbond_env_create'
 
       ALLOCATE (fist_nonbond_env)
       NULLIFY (fist_nonbond_env%potparm14)
@@ -320,8 +319,7 @@ CONTAINS
                                                             vdw_scale14
       LOGICAL, INTENT(IN)                                :: shift_cutoff
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_fist_nonbond_env', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_fist_nonbond_env'
 
       INTEGER                                            :: idim, jdim, natom_types
       LOGICAL                                            :: check, use_potparm, use_potparm14
@@ -442,8 +440,7 @@ CONTAINS
    SUBROUTINE fist_nonbond_env_retain(fist_nonbond_env)
       TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fist_nonbond_env_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fist_nonbond_env_retain'
 
       CPASSERT(ASSOCIATED(fist_nonbond_env))
       CPASSERT(fist_nonbond_env%ref_count > 0)
@@ -460,8 +457,7 @@ CONTAINS
    SUBROUTINE fist_nonbond_env_release(fist_nonbond_env)
       TYPE(fist_nonbond_env_type), POINTER               :: fist_nonbond_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fist_nonbond_env_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fist_nonbond_env_release'
 
       IF (ASSOCIATED(fist_nonbond_env)) THEN
          CPASSERT(fist_nonbond_env%ref_count > 0)

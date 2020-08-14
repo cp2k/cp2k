@@ -70,8 +70,7 @@ CONTAINS
       INTEGER                                            :: handle, ig, ng
       REAL(dp)                                           :: g2
       TYPE(pw_grid_type), POINTER                        :: grid
-      CHARACTER(len=*), PARAMETER :: routineN = 'mult_G_ov_G2_grid', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'mult_G_ov_G2_grid'
 
       TYPE(pw_type), POINTER                             :: frho, influence_fn
 

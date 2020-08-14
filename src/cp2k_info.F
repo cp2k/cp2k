@@ -344,8 +344,7 @@ CONTAINS
    SUBROUTINE write_restart_header(iunit)
       INTEGER, INTENT(IN)                                :: iunit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_restart_header', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_restart_header'
 
       CHARACTER(LEN=256)                                 :: cwd, datx
 

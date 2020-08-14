@@ -67,8 +67,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT)                    :: C_re, C_im
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: filter_eps
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_complex_dbcsr_gemm_3', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_complex_dbcsr_gemm_3'
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
       CHARACTER(LEN=1)                                   :: transa2, transb2
@@ -165,8 +164,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: nsquare, ntaylor
       REAL(KIND=dp), INTENT(in)                          :: filter_eps
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'taylor_only_imaginary_dbcsr', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'taylor_only_imaginary_dbcsr'
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
       INTEGER                                            :: handle, i, nloop
@@ -260,8 +258,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: nsquare, ntaylor
       REAL(KIND=dp), INTENT(in)                          :: filter_eps
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'taylor_full_complex_dbcsr', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'taylor_full_complex_dbcsr'
       COMPLEX(KIND=dp), PARAMETER                        :: one = (1.0_dp, 0.0_dp), &
                                                             zero = (0.0_dp, 0.0_dp)
 
@@ -350,8 +347,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: propagator, density_re, density_im
       REAL(KIND=dp), INTENT(in)                          :: filter_eps, filter_eps_small, eps_exp
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'bch_expansion_imaginary_propagator', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'bch_expansion_imaginary_propagator'
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
       INTEGER                                            :: handle, i, unit_nr
@@ -442,8 +438,7 @@ CONTAINS
                                                             density_re, density_im
       REAL(KIND=dp), INTENT(in)                          :: filter_eps, filter_eps_small, eps_exp
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'bch_expansion_complex_propagator', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'bch_expansion_complex_propagator'
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
       INTEGER                                            :: handle, i, unit_nr

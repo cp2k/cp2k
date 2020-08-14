@@ -47,8 +47,7 @@ CONTAINS
       INTEGER, INTENT(in), OPTIONAL                      :: source, mepos, num_pe
       LOGICAL, INTENT(in), OPTIONAL                      :: owns_group
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_create'
 
       CPASSERT(.NOT. ASSOCIATED(para_env))
       ALLOCATE (para_env)
@@ -78,8 +77,7 @@ CONTAINS
    SUBROUTINE cp_para_env_retain(para_env)
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_retain'
 
       CPASSERT(ASSOCIATED(para_env))
       CPASSERT(para_env%ref_count > 0)
@@ -100,8 +98,7 @@ CONTAINS
    SUBROUTINE cp_para_env_release(para_env)
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_release'
 
       IF (ASSOCIATED(para_env)) THEN
          CPASSERT(para_env%ref_count > 0)
@@ -175,8 +172,7 @@ CONTAINS
    SUBROUTINE cp_cart_release(cart)
       TYPE(cp_para_cart_type), POINTER                   :: cart
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cart_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cart_release'
 
       IF (ASSOCIATED(cart)) THEN
          CPASSERT(cart%ref_count > 0)

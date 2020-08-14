@@ -2487,8 +2487,7 @@ CONTAINS
 
       TYPE(pint_env_type), POINTER                       :: pint_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_energy', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_calc_energy'
 
       REAL(KIND=dp)                                      :: e_h
 
@@ -2631,8 +2630,7 @@ CONTAINS
          OPTIONAL, TARGET                                :: uv
       REAL(kind=dp), INTENT(out), OPTIONAL               :: e_k
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_e_kin_beads_u', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_e_kin_beads_u'
 
       INTEGER                                            :: ib, idim
       REAL(kind=dp)                                      :: res
@@ -2667,8 +2665,7 @@ CONTAINS
       TYPE(pint_env_type), POINTER                       :: pint_env
       REAL(kind=dp), INTENT(out), OPTIONAL               :: e_vir
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_e_vir', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_calc_e_vir'
 
       INTEGER                                            :: ib, idim
       REAL(kind=dp)                                      :: res, xcentroid
@@ -2704,8 +2701,7 @@ CONTAINS
    SUBROUTINE pint_calc_nh_energy(pint_env)
       TYPE(pint_env_type), POINTER                       :: pint_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_nh_energy', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_nh_energy'
 
       INTEGER                                            :: ib, idim, inos
       REAL(kind=dp)                                      :: ekin, epot
@@ -2743,8 +2739,7 @@ CONTAINS
       TYPE(pint_env_type), POINTER                       :: pint_env
       REAL(KIND=dp)                                      :: link_action
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_total_link_action', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_total_link_action'
 
       INTEGER                                            :: iatom, ibead, idim, indx
       REAL(KIND=dp)                                      :: hb2m, tau, tmp_link_action
@@ -2791,8 +2786,7 @@ CONTAINS
       TYPE(pint_env_type), POINTER                       :: pint_env
       REAL(KIND=dp)                                      :: pot_action
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_total_pot_action', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_total_pot_action'
 
       REAL(KIND=dp)                                      :: tau
 
@@ -2814,8 +2808,7 @@ CONTAINS
    SUBROUTINE pint_calc_total_action(pint_env)
       TYPE(pint_env_type), POINTER                       :: pint_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_total_action', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_total_action'
 
       CPASSERT(ASSOCIATED(pint_env))
       CPASSERT(pint_env%ref_count > 0)

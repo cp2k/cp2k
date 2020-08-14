@@ -91,8 +91,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation_se', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation_se'
 
       INTEGER                                            :: handle, output_unit
       LOGICAL                                            :: explicit, my_localized_wfn
@@ -210,8 +209,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_moments', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_moments'
 
       CHARACTER(LEN=default_string_length)               :: description, dipole_type
       COMPLEX(KIND=dp)                                   :: dzeta, zeta
@@ -465,8 +463,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_charges', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_charges'
 
       CHARACTER(LEN=2)                                   :: ana
       CHARACTER(LEN=default_string_length)               :: aname
@@ -599,8 +596,7 @@ CONTAINS
    SUBROUTINE write_available_results(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_available_results', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_available_results'
 
       INTEGER                                            :: after, handle, ispin, iw, output_unit
       LOGICAL                                            :: omit_headers

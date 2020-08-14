@@ -123,8 +123,7 @@ CONTAINS
       INTEGER, DIMENSION(2, 3), INTENT(in)               :: local_bounds
       REAL(kind=dp), INTENT(in), OPTIONAL                :: rho_cutoff, drho_cutoff, tau_cutoff
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_rho_set_create'
 
       INTEGER                                            :: i
 
@@ -164,8 +163,7 @@ CONTAINS
    SUBROUTINE xc_rho_set_retain(rho_set)
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_rho_set_retain'
 
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
@@ -181,8 +179,7 @@ CONTAINS
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
       TYPE(pw_pool_type), OPTIONAL, POINTER              :: pw_pool
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_release'
 
       INTEGER                                            :: i
 
@@ -450,8 +447,7 @@ CONTAINS
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
       TYPE(pw_pool_type), POINTER                        :: pw_pool
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_clean', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_rho_set_clean'
 
       INTEGER                                            :: idir
 
@@ -584,8 +580,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: xc_deriv_method_id, xc_rho_smooth_id
       TYPE(pw_pool_type), POINTER                        :: pw_pool
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_update', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_rho_set_update'
       REAL(KIND=dp), PARAMETER                           :: f13 = (1.0_dp/3.0_dp)
 
       INTEGER                                            :: i, idir, ispin, j, k, nspins

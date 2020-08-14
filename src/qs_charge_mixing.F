@@ -123,8 +123,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: imin, ns
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mix_charges_only', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'mix_charges_only'
 
       INTEGER                                            :: ia, ii
 

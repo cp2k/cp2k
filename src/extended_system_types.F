@@ -117,8 +117,7 @@ CONTAINS
    SUBROUTINE create_map_info_type(map_info)
       TYPE(map_info_type), POINTER                       :: map_info
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_map_info_type', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_map_info_type'
 
       ALLOCATE (map_info)
       NULLIFY (map_info%index, map_info%map_index)
@@ -137,8 +136,7 @@ CONTAINS
    SUBROUTINE release_map_info_type(map_info)
       TYPE(map_info_type), POINTER                       :: map_info
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'release_map_info_type', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'release_map_info_type'
 
       IF (ASSOCIATED(map_info)) THEN
          IF (ASSOCIATED(map_info%p_kin)) THEN

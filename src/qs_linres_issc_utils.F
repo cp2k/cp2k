@@ -1042,8 +1042,7 @@ CONTAINS
 
       TYPE(issc_env_type)                                :: issc_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'issc_env_cleanup', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'issc_env_cleanup'
 
       INTEGER                                            :: idir, ispin
 

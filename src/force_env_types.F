@@ -177,8 +177,7 @@ CONTAINS
    SUBROUTINE force_env_retain(force_env)
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_env_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'force_env_retain'
 
       CPASSERT(ASSOCIATED(force_env))
       CPASSERT(force_env%ref_count > 0)
@@ -197,8 +196,7 @@ CONTAINS
    RECURSIVE SUBROUTINE force_env_release(force_env)
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_env_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'force_env_release'
 
       INTEGER                                            :: i, my_group
       TYPE(cp_logger_type), POINTER                      :: my_logger
@@ -483,8 +481,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       INTEGER                                            :: n_atom
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_get_natom', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_get_natom'
 
       TYPE(cp_subsys_type), POINTER                      :: subsys
 
@@ -507,8 +504,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       INTEGER                                            :: n_particle
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_get_nparticle', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_get_nparticle'
 
       TYPE(cp_subsys_type), POINTER                      :: subsys
 
@@ -533,8 +529,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(*), INTENT(OUT)           :: frc
       INTEGER, INTENT(IN)                                :: n
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_get_frc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'force_env_get_frc'
 
       INTEGER                                            :: handle
       TYPE(cp_subsys_type), POINTER                      :: subsys
@@ -562,8 +557,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(*), INTENT(OUT)           :: pos
       INTEGER, INTENT(IN)                                :: n
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_get_pos', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'force_env_get_pos'
 
       INTEGER                                            :: handle
       TYPE(cp_subsys_type), POINTER                      :: subsys
@@ -591,8 +585,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(*), INTENT(OUT)           :: vel
       INTEGER, INTENT(IN)                                :: n
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_get_vel', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'force_env_get_vel'
 
       INTEGER                                            :: handle
       TYPE(cp_subsys_type), POINTER                      :: subsys
@@ -674,8 +667,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: i_force_eval
       INTEGER                                            :: nforce_eval
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'multiple_fe_list', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'multiple_fe_list'
 
       INTEGER                                            :: iforce_eval, main_force_eval
       INTEGER, DIMENSION(:), POINTER                     :: my_i_force_eval

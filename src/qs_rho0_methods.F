@@ -86,8 +86,7 @@ CONTAINS
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       INTEGER, INTENT(IN)                                :: nchannels, nsotot
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_mpole_gau', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_mpole_gau'
 
       INTEGER :: handle, icg, ig1, ig2, ipgf1, ipgf2, iset1, iset2, iso, iso1, iso2, l, l1, l2, &
          llmax, m1, m2, max_iso_not0_local, max_s_harm, maxl, maxso, n1, n2, nset
@@ -183,8 +182,7 @@ CONTAINS
       TYPE(qs_kind_type), INTENT(IN)                     :: qs_kind
       REAL(dp), INTENT(INOUT)                            :: rho0_h_tot
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho0_atom', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho0_atom'
 
       INTEGER                                            :: handle, iat, iatom, ic, ico, ir, is, &
                                                             iso, ispin, l, lmax0, lshell, lx, ly, &
@@ -547,8 +545,7 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: eps_Vrho0
       REAL(dp), INTENT(INOUT)                            :: max_rpgf0_s
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'interaction_radii_g0', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'interaction_radii_g0'
 
       INTEGER                                            :: l, lmax
       REAL(dp)                                           :: r_h, z0_h

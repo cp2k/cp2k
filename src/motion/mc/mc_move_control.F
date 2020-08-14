@@ -166,8 +166,7 @@ CONTAINS
 
       TYPE(mc_moves_type), POINTER                       :: moves
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mc_moves_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'mc_moves_release'
 
       INTEGER                                            :: handle
 
@@ -344,8 +343,7 @@ CONTAINS
       TYPE(mc_moves_type), POINTER                       :: moves
       INTEGER, INTENT(IN)                                :: nnstep, unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_move_stats', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'write_move_stats'
 
       INTEGER                                            :: handle
 

@@ -73,8 +73,7 @@ CONTAINS
       TYPE(dirichlet_bc_p_type), DIMENSION(:), &
          INTENT(INOUT), POINTER                          :: dbcs
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dirichlet_boundary_region_setup', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dirichlet_boundary_region_setup'
 
       INTEGER :: apx_type, dbc_id, handle, ind_end, ind_start, j, l, n_aa_cuboidal, &
          n_aa_cylindrical, n_aa_planar, n_dbcs, n_planar, parallel_axis, parallel_plane, unit_nr
@@ -291,8 +290,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: is_periodic, verbose
       TYPE(dirichlet_bc_type), INTENT(INOUT), POINTER    :: dirichlet_bc
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dirichlet_bc_partition', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dirichlet_bc_partition'
 
       INTEGER                                            :: handle, i, k, n_tiles, unit_nr
       REAL(dp)                                           :: cyl_maxval, tile_volume
@@ -462,8 +460,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: verbose
       TYPE(dirichlet_bc_type), INTENT(INOUT), POINTER    :: dirichlet_bc
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'aa_planar_dbc_setup', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'aa_planar_dbc_setup'
       LOGICAL, DIMENSION(6), PARAMETER                   :: test_forb_xtnts = .TRUE.
 
       INTEGER                                            :: handle, i, n_forb_xtnts, unit_nr
@@ -568,8 +565,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: verbose
       TYPE(dirichlet_bc_type), INTENT(INOUT), POINTER    :: dirichlet_bc
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'aa_cuboidal_dbc_setup', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'aa_cuboidal_dbc_setup'
       LOGICAL, DIMENSION(6), PARAMETER                   :: test_forb_xtnts = .TRUE.
 
       INTEGER                                            :: handle, i, n_forb_xtnts, unit_nr
@@ -660,8 +656,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: verbose
       TYPE(dirichlet_bc_type), INTENT(INOUT), POINTER    :: dirichlet_bc
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'arbitrary_planar_dbc_setup', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'arbitrary_planar_dbc_setup'
 
       INTEGER                                            :: handle, i, unit_nr
       LOGICAL                                            :: A_is_inside, are_coplanar, &
@@ -808,8 +803,7 @@ CONTAINS
       TYPE(dirichlet_bc_p_type), DIMENSION(:), &
          INTENT(INOUT)                                   :: dbcs
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'aa_cylindrical_dbc_setup', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'aa_cylindrical_dbc_setup'
 
       INTEGER                                            :: handle, i, intern_apx_type, j, n_dbcs, &
                                                             unit_nr
@@ -1117,8 +1111,7 @@ CONTAINS
       REAL(dp), DIMENSION(3), INTENT(OUT)                :: Tpnt
       REAL(dp), DIMENSION(3, 8), INTENT(OUT)             :: cuboid_transfd_vtx
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rotate_translate_cuboid', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rotate_translate_cuboid'
 
       INTEGER                                            :: handle
       REAL(dp), DIMENSION(3)                             :: A, A2, AA2, AB, AD, B, B2, C, C2, D, D2, &
@@ -1216,8 +1209,7 @@ CONTAINS
       TYPE(tile_p_type), DIMENSION(:), INTENT(OUT), &
          POINTER                                         :: tiles
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'aa_dbc_partition', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'aa_dbc_partition'
 
       INTEGER                                            :: handle, i, ii, jj, k, kk
       REAL(dp)                                           :: step
@@ -1300,8 +1292,7 @@ CONTAINS
       TYPE(tile_p_type), DIMENSION(:), INTENT(OUT), &
          POINTER                                         :: tiles
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'arbitrary_dbc_partition', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'arbitrary_dbc_partition'
 
       INTEGER                                            :: handle, i, k, l, np1, np2
       REAL(dp)                                           :: ABlength, ADlength, step, thickness
@@ -1406,8 +1397,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: is_periodic
       TYPE(pw_type), INTENT(INOUT), POINTER              :: tile_pw
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'aa_tile_pw_compute', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'aa_tile_pw_compute'
 
       INTEGER                                            :: handle, i, j, k, lb1, lb2, lb3, ub1, &
                                                             ub2, ub3
@@ -1509,8 +1499,7 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: sigma
       TYPE(pw_type), INTENT(INOUT), POINTER              :: tile_pw
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'arbitrary_tile_pw_compute', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'arbitrary_tile_pw_compute'
 
       INTEGER                                            :: handle, i, j, k, lb1, lb2, lb3, ub1, &
                                                             ub2, ub3

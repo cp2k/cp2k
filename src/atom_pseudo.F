@@ -62,8 +62,7 @@ CONTAINS
    SUBROUTINE atom_pseudo_opt(atom_section)
       TYPE(section_vals_type), POINTER                   :: atom_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_pseudo_opt', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'atom_pseudo_opt'
 
       CHARACTER(LEN=2)                                   :: elem
       CHARACTER(LEN=default_string_length), &

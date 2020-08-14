@@ -51,8 +51,7 @@ CONTAINS
    SUBROUTINE create_dftb_control_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_dftb_control_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_dftb_control_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -125,8 +124,7 @@ CONTAINS
    SUBROUTINE create_xtb_control_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_xtb_control_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_xtb_control_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -199,8 +197,7 @@ CONTAINS
 
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_dftb_parameter_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_dftb_parameter_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -299,8 +296,7 @@ CONTAINS
 
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_xtb_parameter_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_xtb_parameter_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -414,8 +410,7 @@ CONTAINS
    SUBROUTINE create_atom_parameter_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_parameter_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_parameter_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 

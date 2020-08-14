@@ -92,8 +92,7 @@ CONTAINS
 
       TYPE(cdft_opt_type), POINTER                       :: cdft_opt_control
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cdft_opt_type_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cdft_opt_type_create'
 
       INTEGER                                            :: handle
 
@@ -133,8 +132,7 @@ CONTAINS
 
       TYPE(cdft_opt_type), POINTER                       :: cdft_opt_control
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cdft_opt_type_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cdft_opt_type_release'
 
       IF (ASSOCIATED(cdft_opt_control)) THEN
          IF (ASSOCIATED(cdft_opt_control%jacobian_vector)) &
@@ -162,8 +160,7 @@ CONTAINS
       TYPE(cdft_opt_type), POINTER                       :: cdft_opt_control
       TYPE(section_vals_type), POINTER                   :: inp_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cdft_opt_type_read', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cdft_opt_type_read'
 
       INTEGER                                            :: handle
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
@@ -235,8 +232,7 @@ CONTAINS
       TYPE(cdft_opt_type), POINTER                       :: cdft_opt_control
       INTEGER                                            :: optimizer, output_unit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cdft_opt_type_write', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cdft_opt_type_write'
 
       CPASSERT(ASSOCIATED(cdft_opt_control))
 
@@ -306,8 +302,7 @@ CONTAINS
 
       TYPE(cdft_opt_type), POINTER                       :: new, old
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cdft_opt_type_copy', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cdft_opt_type_copy'
 
       INTEGER                                            :: handle
 

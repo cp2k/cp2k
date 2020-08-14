@@ -49,8 +49,7 @@ CONTAINS
    SUBROUTINE almo_scf_env_create(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_env_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_env_create'
 
       INTEGER                                            :: handle, nallocate
       TYPE(almo_scf_env_type), POINTER                   :: almo_scf_env
@@ -101,8 +100,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_init_read_write_input', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_init_read_write_input'
 
       INTEGER                                            :: handle
       TYPE(section_vals_type), POINTER :: almo_analysis_section, almo_opt_diis_section, &

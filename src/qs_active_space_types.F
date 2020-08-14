@@ -122,8 +122,7 @@ CONTAINS
    SUBROUTINE create_active_space_type(active_space_env)
       TYPE(active_space_type), POINTER                   :: active_space_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_active_space_type', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_active_space_type'
 
       IF (ASSOCIATED(active_space_env)) THEN
          CALL release_active_space_type(active_space_env)
@@ -144,8 +143,7 @@ CONTAINS
    SUBROUTINE release_active_space_type(active_space_env)
       TYPE(active_space_type), POINTER                   :: active_space_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'release_active_space_type', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'release_active_space_type'
 
       INTEGER                                            :: imo, isp
 
@@ -217,8 +215,7 @@ CONTAINS
    SUBROUTINE release_eri_type(eri_env)
       TYPE(eri_type)                                     :: eri_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'release_eri_type', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'release_eri_type'
 
       INTEGER                                            :: i
 

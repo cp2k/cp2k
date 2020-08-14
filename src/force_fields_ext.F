@@ -69,8 +69,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: mm_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_gromos', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_gromos'
       REAL(KIND=dp), PARAMETER                           :: ekt = 2.5_dp
 
       CHARACTER(LEN=default_string_length)               :: label
@@ -317,8 +316,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: mm_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_charmm', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_charmm'
 
       CHARACTER(LEN=default_string_length)               :: label, string, string2, string3, string4
       CHARACTER(LEN=default_string_length), DIMENSION(1) :: bond_section
@@ -686,8 +684,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: mm_section
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_amber', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_amber'
 
       INTEGER                                            :: handle, i, iw
       TYPE(amber_info_type), POINTER                     :: amb_info
@@ -794,8 +791,7 @@ CONTAINS
       TYPE(cp_parser_type), POINTER                      :: parser
       INTEGER, INTENT(IN)                                :: nline
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'charmm_get_next_line', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'charmm_get_next_line'
       CHARACTER(LEN=1), PARAMETER                        :: continuation_char = "-"
 
       INTEGER                                            :: i, len_line

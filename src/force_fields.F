@@ -100,8 +100,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: shell_particle_set, core_particle_set
       TYPE(cell_type), POINTER                           :: cell
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_control', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_field_control'
 
       INTEGER                                            :: exclude_ei, exclude_vdw, handle, iw
       LOGICAL                                            :: found
@@ -212,8 +211,7 @@ CONTAINS
       TYPE(force_field_type)                             :: ff_type
       TYPE(section_vals_type), POINTER                   :: mm_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_pot_parameter_file', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_pot_parameter_file'
 
       INTEGER                                            :: handle, i, iw, m
       REAL(KIND=dp)                                      :: eps, k, phi0, r0, sigma, theta0

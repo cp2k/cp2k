@@ -63,8 +63,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dftb_dispersion', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dftb_dispersion'
 
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(dftb_control_type), POINTER                   :: dftb_control
@@ -105,8 +104,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dispersion_uff', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dispersion_uff'
 
       INTEGER                                            :: atom_a, atom_b, handle, iatom, ikind, &
                                                             jatom, jkind, natom, nkind

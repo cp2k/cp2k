@@ -1089,8 +1089,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: s
       REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: sda, sdc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'derivatives_overlap3', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'derivatives_overlap3'
 
       INTEGER :: ax, ay, az, bx, by, bz, coa, coamx, coamy, coamz, coapx, coapy, coapz, cob, coc, &
          cocmx, cocmy, cocmz, cocpx, cocpy, cocpz, cx, cy, cz, devx, devy, devz, handle, la, lb, lc

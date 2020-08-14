@@ -343,8 +343,7 @@ CONTAINS
       TYPE(mincrawl_type)                                :: this
       TYPE(swarm_message_type)                           :: report
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mincrawl_register_minima', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mincrawl_register_minima'
 
       INTEGER                                            :: new_mid, tempstep, wid
       LOGICAL                                            :: minima_known

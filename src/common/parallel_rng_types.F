@@ -513,8 +513,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: antithetic, extended_precision
       TYPE(rng_stream_type)                              :: rng_stream
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rng_stream_constructor', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rng_stream_constructor'
 
       IF (LEN_TRIM(name) .GT. rng_name_length) &
          CPABORT("given random number generator name is too long")
@@ -568,8 +567,7 @@ CONTAINS
       CHARACTER(LEN=rng_record_length), INTENT(IN)       :: rng_record
       TYPE(rng_stream_type)                              :: rng_stream
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rng_stream_type_from_record', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rng_stream_type_from_record'
 
       READ (UNIT=rng_record, FMT=rng_record_format) &
          rng_stream%name, &
@@ -794,8 +792,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: low, high
       INTEGER                                            :: u
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'next_integer_random_number', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'next_integer_random_number'
 
       REAL(KIND=dp)                                      :: r
 

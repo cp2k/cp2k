@@ -135,8 +135,7 @@ CONTAINS
    SUBROUTINE globenv_release(globenv)
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'globenv_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'globenv_release'
 
       IF (ASSOCIATED(globenv)) THEN
          CPASSERT(globenv%ref_count > 0)

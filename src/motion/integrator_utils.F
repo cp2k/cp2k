@@ -271,8 +271,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: shell_adiabatic
       LOGICAL, INTENT(IN), OPTIONAL                      :: pos, vel, should_deall_vel
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'update_dealloc_tmp', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'update_dealloc_tmp'
 
       LOGICAL                                            :: my_deall, my_pos, my_vel
 
@@ -413,8 +412,7 @@ CONTAINS
       TYPE(npt_info_type), DIMENSION(:, :), POINTER      :: npt
       CHARACTER(LEN=*), INTENT(IN)                       :: char
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_particle_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_particle_set'
 
       INTEGER                                            :: idim, iparticle, iparticle_kind, &
                                                             iparticle_local, nparticle_kind, &
@@ -1481,8 +1479,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: u(3, 3), dm, dt, poly_v(3), poly_r(3), &
                                                             scale_v(3), scale_r(3)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'transform_first', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'transform_first'
 
       REAL(KIND=dp), DIMENSION(3)                        :: uf, ur, uv
 
@@ -1524,8 +1521,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: index
       REAL(KIND=dp), INTENT(IN)                          :: u(3, 3), dm, poly_v(3), scale_v(3)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'transform_second', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'transform_second'
 
       REAL(KIND=dp), DIMENSION(3)                        :: uf, uv
 
@@ -1575,8 +1571,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: shell_adiabatic
       TYPE(npt_info_type), OPTIONAL, POINTER             :: npt(:, :)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'variable_timestep', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'variable_timestep'
 
       INTEGER, SAVE                                      :: itime = 0
       REAL(KIND=dp)                                      :: dt_fact, dt_fact_f, dt_fact_old, &
@@ -1687,8 +1682,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: shell_adiabatic
       TYPE(npt_info_type), OPTIONAL, POINTER             :: npt(:, :)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rescaled_vv_first', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rescaled_vv_first'
       REAL(KIND=dp), PARAMETER                           :: e2 = 1.0_dp/6.0_dp, e4 = e2/20.0_dp, &
                                                             e6 = e4/42.0_dp, e8 = e6/72.0_dp
 

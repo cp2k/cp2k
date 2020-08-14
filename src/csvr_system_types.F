@@ -90,8 +90,7 @@ CONTAINS
    SUBROUTINE csvr_thermo_create(csvr)
       TYPE(csvr_system_type), POINTER                    :: csvr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'csvr_thermo_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'csvr_thermo_create'
 
       CHARACTER(LEN=40)                                  :: name
       INTEGER                                            :: i, ithermo, my_index
@@ -153,8 +152,7 @@ CONTAINS
    SUBROUTINE csvr_thermo_dealloc(nvt)
       TYPE(csvr_thermo_type), DIMENSION(:), POINTER      :: nvt
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'csvr_thermo_dealloc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'csvr_thermo_dealloc'
 
       IF (ASSOCIATED(nvt)) &
          DEALLOCATE (nvt)

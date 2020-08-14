@@ -66,8 +66,7 @@ CONTAINS
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
       TYPE(section_vals_type), POINTER                   :: scf_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ot_scf_read_input', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ot_scf_read_input'
 
       INTEGER                                            :: handle, ispin, nspin, output_unit
       LOGICAL                                            :: explicit

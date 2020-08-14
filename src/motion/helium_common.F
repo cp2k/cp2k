@@ -226,8 +226,7 @@ CONTAINS
 
       TYPE(helium_solvent_type), POINTER                 :: helium
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_calc_atom_cycle_length', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_calc_atom_cycle_length'
 
       CHARACTER(len=default_string_length)               :: err_str
       INTEGER                                            :: clen, curr_idx, handle, ia, start_idx
@@ -313,8 +312,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: permutation
       TYPE(int_arr_ptr), DIMENSION(:), POINTER           :: cycles
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_calc_cycles', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_calc_cycles'
 
       INTEGER                                            :: curat, ncycl, nsize, nused
       INTEGER, DIMENSION(:), POINTER                     :: cur_cycle, used_indices
@@ -377,8 +375,7 @@ CONTAINS
 
       TYPE(helium_solvent_type), POINTER                 :: helium
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_calc_rho', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'helium_calc_rho'
 
       CHARACTER(len=default_string_length)               :: msgstr
       INTEGER                                            :: aa, bx, by, bz, handle, ia, ib, ic, id, &
@@ -640,8 +637,7 @@ CONTAINS
 
       TYPE(helium_solvent_type), POINTER                 :: helium
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_calc_rdf', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'helium_calc_rdf'
 
       CHARACTER(len=default_string_length)               :: msgstr
       INTEGER                                            :: bin, handle, ia, ib, ic, ind_hehe, &
@@ -775,8 +771,7 @@ CONTAINS
 
       TYPE(helium_solvent_type), POINTER                 :: helium
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_calc_plength', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_calc_plength'
 
       INTEGER                                            :: i, j, k
 
@@ -1662,8 +1657,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: CYCLE
 
       INTEGER                                            :: ia, icur, len, nsize
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_cycle_of', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'helium_cycle_of'
 
       INTEGER, DIMENSION(:), POINTER                     :: my_cycle
       LOGICAL                                            :: cycle_end_reached
@@ -1716,8 +1710,7 @@ CONTAINS
       TYPE(helium_solvent_type), POINTER                 :: helium
       REAL(KIND=dp), DIMENSION(3)                        :: wnum
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_winding_number', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_winding_number'
 
       INTEGER                                            :: ia, ib
       REAL(KIND=dp), DIMENSION(3)                        :: rcur
@@ -1758,8 +1751,7 @@ CONTAINS
       INTEGER                                            :: ia, ib
       REAL(KIND=dp), DIMENSION(3)                        :: wnum
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_link_winding_number', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_link_winding_number'
 
       INTEGER                                            :: ja1, ja2, jb1, jb2
       REAL(KIND=dp), DIMENSION(:), POINTER               :: r1, r2
@@ -1796,8 +1788,7 @@ CONTAINS
       TYPE(helium_solvent_type), POINTER                 :: helium
       REAL(KIND=dp), DIMENSION(3)                        :: wnum
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_winding_number_linkwise', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_winding_number_linkwise'
 
       INTEGER                                            :: ia, ib
 
@@ -1827,8 +1818,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: pos
       REAL(KIND=dp), DIMENSION(3)                        :: wnum
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_cycle_winding_number', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_cycle_winding_number'
 
       INTEGER                                            :: i1, i2, ia, ib, nsize
       REAL(KIND=dp), DIMENSION(3)                        :: rcur
@@ -1878,8 +1868,7 @@ CONTAINS
       TYPE(helium_solvent_type), POINTER                 :: helium
       REAL(KIND=dp), DIMENSION(3)                        :: wnum
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_winding_number_cyclewise', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_winding_number_cyclewise'
 
       INTEGER                                            :: ic
       REAL(KIND=dp), DIMENSION(3)                        :: wn
@@ -1913,8 +1902,7 @@ CONTAINS
       TYPE(helium_solvent_type), POINTER                 :: helium
       REAL(KIND=dp), DIMENSION(3)                        :: area
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_projected_area', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_projected_area'
 
       INTEGER                                            :: ia, ib
       REAL(KIND=dp), DIMENSION(3)                        :: r1, r12, r2, rcur
@@ -1971,8 +1959,7 @@ CONTAINS
       INTEGER                                            :: ia, ib
       REAL(KIND=dp), DIMENSION(3)                        :: area
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_link_projected_area', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_link_projected_area'
 
       INTEGER                                            :: ja1, ja2, jb1, jb2
       REAL(KIND=dp), DIMENSION(3)                        :: r1, r12, r2
@@ -2017,8 +2004,7 @@ CONTAINS
       TYPE(helium_solvent_type), POINTER                 :: helium
       REAL(KIND=dp), DIMENSION(3)                        :: area
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_projected_area_linkwise', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_projected_area_linkwise'
 
       INTEGER                                            :: ia, ib
 
@@ -2045,8 +2031,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: CYCLE
       REAL(KIND=dp), DIMENSION(3)                        :: area
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_cycle_projected_area', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_cycle_projected_area'
 
       INTEGER                                            :: i1, i2, ia, ib, nsize
       REAL(KIND=dp), DIMENSION(3)                        :: rcur, rsum
@@ -2101,8 +2086,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: CYCLE
       REAL(KIND=dp), DIMENSION(3)                        :: area
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_cycle_projected_area_pbc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_cycle_projected_area_pbc'
 
       INTEGER                                            :: i1, i2, ia, ib, nsize
       REAL(KIND=dp), DIMENSION(3)                        :: r1, r12, r2, rcur
@@ -2162,8 +2146,7 @@ CONTAINS
       TYPE(helium_solvent_type), POINTER                 :: helium
       REAL(KIND=dp), DIMENSION(3)                        :: area
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_projected_area_cyclewise', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_projected_area_cyclewise'
 
       INTEGER                                            :: ic
       REAL(KIND=dp), DIMENSION(3)                        :: pa
@@ -2195,8 +2178,7 @@ CONTAINS
       TYPE(helium_solvent_type), POINTER                 :: helium
       REAL(KIND=dp), DIMENSION(3)                        :: moit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_moment_of_inertia', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_moment_of_inertia'
 
       INTEGER                                            :: ia, ib
       REAL(KIND=dp), DIMENSION(3)                        :: com, r1, r12, r2, rcur
@@ -2255,8 +2237,7 @@ CONTAINS
       INTEGER                                            :: ia, ib
       REAL(KIND=dp), DIMENSION(3)                        :: moit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_link_moment_of_inertia', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_link_moment_of_inertia'
 
       INTEGER                                            :: ja1, ja2, jb1, jb2
       REAL(KIND=dp), DIMENSION(3)                        :: com, r1, r12, r2
@@ -2303,8 +2284,7 @@ CONTAINS
       TYPE(helium_solvent_type), POINTER                 :: helium
       REAL(KIND=dp), DIMENSION(3)                        :: moit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_moment_of_inertia_linkwise', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_moment_of_inertia_linkwise'
 
       INTEGER                                            :: ia, ib
 
@@ -2333,8 +2313,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: pos
       REAL(KIND=dp), DIMENSION(3)                        :: moit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_cycle_moment_of_inertia', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_cycle_moment_of_inertia'
 
       INTEGER                                            :: i1, i2, ia, ib, nsize
       REAL(KIND=dp), DIMENSION(3)                        :: com, rcur, ri, rj
@@ -2388,8 +2367,7 @@ CONTAINS
       TYPE(helium_solvent_type), POINTER                 :: helium
       REAL(KIND=dp), DIMENSION(3)                        :: moit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_moment_of_inertia_cyclewise', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_moment_of_inertia_cyclewise'
 
       INTEGER                                            :: ic
       REAL(KIND=dp), DIMENSION(3)                        :: pa
@@ -2427,8 +2405,7 @@ CONTAINS
       TYPE(helium_solvent_type), POINTER                 :: helium
       TYPE(pint_env_type), POINTER                       :: pint_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_update_coord_system', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_update_coord_system'
 
       IF (helium%solute_present) THEN
          helium%center(:) = pint_com_pos(pint_env)
@@ -2459,8 +2436,7 @@ CONTAINS
       TYPE(helium_solvent_type), POINTER                 :: helium
       TYPE(pint_env_type), POINTER                       :: pint_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_set_rdf_coord_system', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_set_rdf_coord_system'
 
       INTEGER                                            :: i, j
 
@@ -2516,8 +2492,7 @@ CONTAINS
       INTEGER                                            :: ia, ib
       REAL(KIND=dp), DIMENSION(3)                        :: lvec
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_link_vector', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_link_vector'
 
       INTEGER                                            :: ia1, ia2, ib1, ib2
       REAL(KIND=dp), DIMENSION(:), POINTER               :: r1, r2
@@ -2553,8 +2528,7 @@ CONTAINS
       INTEGER                                            :: ia, ib
       REAL(KIND=dp), DIMENSION(3)                        :: rperp
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_rperpendicular', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_rperpendicular'
 
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ri
 
@@ -2581,8 +2555,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: wnum
       INTEGER, DIMENSION(3)                              :: inum
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_wnumber_to_integer', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_wnumber_to_integer'
 
       REAL(KIND=dp), DIMENSION(3)                        :: wcur
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: invcell
@@ -2615,8 +2588,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: permutation
       LOGICAL                                            :: is_winding
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_is_winding', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'helium_is_winding'
 
       INTEGER                                            :: ic
       INTEGER, DIMENSION(3)                              :: inum

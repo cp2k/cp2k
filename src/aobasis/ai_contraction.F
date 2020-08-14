@@ -211,8 +211,7 @@ CONTAINS
          OPTIONAL                                        :: cc
       INTEGER, INTENT(IN), OPTIONAL                      :: nc, mc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'contraction_abc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'contraction_abc'
 
       INTEGER                                            :: lda, ldb, ldc, mal, mbl, mcl, nal, nbl, &
                                                             ncl
@@ -326,8 +325,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nb, mb
       LOGICAL, INTENT(IN), OPTIONAL                      :: trans
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'decontraction_ab', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'decontraction_ab'
 
       INTEGER                                            :: lda, ldb, ldq, lds, ldw
       LOGICAL                                            :: my_trans

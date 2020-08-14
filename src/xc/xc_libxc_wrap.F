@@ -139,8 +139,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: sc
       CHARACTER(LEN=*), INTENT(OUT)                      :: reference
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_info_refs', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_info_refs'
       INTEGER, PARAMETER                                 :: maxlen = 67
 
       CHARACTER(LEN=128)                                 :: descr_string
@@ -217,8 +216,7 @@ CONTAINS
    SUBROUTINE xc_libxc_wrap_version(version)
       CHARACTER(LEN=*), INTENT(OUT)                      :: version
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_version', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_version'
 
       INTEGER                                            :: handle
 
@@ -245,8 +243,7 @@ CONTAINS
    INTEGER FUNCTION xc_libxc_wrap_functional_get_number(func_string) RESULT(func_id)
       CHARACTER(LEN=*), INTENT(IN)                       :: func_string
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_functional_get_number', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_functional_get_number'
 
       INTEGER                                            :: handle
 
@@ -275,8 +272,7 @@ CONTAINS
    LOGICAL FUNCTION xc_libxc_wrap_is_under_development(xc_info)
       TYPE(xc_f03_func_info_t)                           :: xc_info
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_is_under_development', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_is_under_development'
 
       IF (IAND(xc_f03_func_info_get_flags(xc_info), XC_FLAGS_DEVELOPMENT) == XC_FLAGS_DEVELOPMENT) THEN
          xc_libxc_wrap_is_under_development = .TRUE.
@@ -298,8 +294,7 @@ CONTAINS
       ! Only some MGGA functionals needs the laplacian
       INTEGER, INTENT(IN)                                :: func_id
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_needs_laplace', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_needs_laplace'
 
       INTEGER                                            :: handle
       TYPE(xc_f03_func_info_t)                           :: xc_info
@@ -348,8 +343,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), POINTER   :: params
       LOGICAL, INTENT(INOUT)                             :: no_exc
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_functional_set_params', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_functional_set_params'
 
       INTEGER                                            :: handle, i_params, n_params
 

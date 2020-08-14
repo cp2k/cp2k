@@ -62,8 +62,7 @@ CONTAINS
       TYPE(simpar_type), POINTER                         :: simpar
       TYPE(section_vals_type), POINTER                   :: motion_section, md_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_md_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_md_section'
 
       CHARACTER(LEN=default_path_length)                 :: filename
       INTEGER                                            :: iprint, iw

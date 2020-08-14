@@ -76,8 +76,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: blacs_grid_layout
       LOGICAL, INTENT(in)                                :: blacs_repeatable
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_sub_env_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_sub_env_create'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: is_split
@@ -133,8 +132,7 @@ CONTAINS
    SUBROUTINE negf_sub_env_release(sub_env)
       TYPE(negf_subgroup_env_type), INTENT(inout)        :: sub_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_sub_env_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_sub_env_release'
 
       INTEGER                                            :: handle
 

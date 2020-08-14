@@ -287,8 +287,7 @@ CONTAINS
    SUBROUTINE mixed_cdft_type_create(cdft_control)
       TYPE(mixed_cdft_type), POINTER                     :: cdft_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_type_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_type_create'
 
       NULLIFY (cdft_control%pw_env, cdft_control%blacs_env, cdft_control%qs_kind_set)
       NULLIFY (cdft_control%dlb_control, cdft_control%dest_list_bo, cdft_control%dest_list)
@@ -308,8 +307,7 @@ CONTAINS
    SUBROUTINE mixed_cdft_type_release(cdft_control)
       TYPE(mixed_cdft_type), POINTER                     :: cdft_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_type_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_type_release'
 
       INTEGER                                            :: i, j
 
@@ -381,8 +379,7 @@ CONTAINS
    SUBROUTINE mixed_cdft_dlb_release(dlb_control)
       TYPE(mixed_cdft_dlb_type), POINTER                 :: dlb_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_dlb_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_dlb_release'
 
       INTEGER                                            :: i
 
@@ -435,8 +432,7 @@ CONTAINS
    SUBROUTINE mixed_cdft_buffers_release(buffer)
       TYPE(buffers)                                      :: buffer
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_buffers_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_buffers_release'
 
       IF (ASSOCIATED(buffer%cavity)) &
          DEALLOCATE (buffer%cavity)
@@ -455,8 +451,7 @@ CONTAINS
    SUBROUTINE mixed_cdft_p_buffers_release(p_buffer)
       TYPE(p_buffers)                                    :: p_buffer
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_p_buffers_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_p_buffers_release'
 
       INTEGER                                            :: i
 
@@ -497,8 +492,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: energy
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL           :: strength, S_minushalf
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_result_type_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_result_type_set'
 
       IF (PRESENT(lowdin)) THEN
          IF (ALLOCATED(results%lowdin)) DEALLOCATE (results%lowdin)
@@ -576,8 +570,7 @@ CONTAINS
    SUBROUTINE mixed_cdft_result_type_release(results)
       TYPE(mixed_cdft_result_type)                       :: results
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_result_type_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_result_type_release'
 
       IF (ALLOCATED(results%lowdin)) DEALLOCATE (results%lowdin)
       IF (ALLOCATED(results%wfn)) DEALLOCATE (results%wfn)
@@ -603,8 +596,7 @@ CONTAINS
    SUBROUTINE mixed_cdft_work_type_init(matrix)
       TYPE(mixed_cdft_work_type)                         :: matrix
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_work_type_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_work_type_init'
 
       NULLIFY (matrix%w_matrix)
       NULLIFY (matrix%mixed_matrix_s)
@@ -621,8 +613,7 @@ CONTAINS
    SUBROUTINE mixed_cdft_work_type_release(matrix)
       TYPE(mixed_cdft_work_type)                         :: matrix
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_work_type_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_work_type_release'
 
       INTEGER                                            :: i, j
 

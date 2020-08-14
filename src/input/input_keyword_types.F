@@ -426,8 +426,7 @@ CONTAINS
    SUBROUTINE keyword_release(keyword)
       TYPE(keyword_type), POINTER                        :: keyword
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'keyword_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'keyword_release'
 
       IF (ASSOCIATED(keyword)) THEN
          CPASSERT(keyword%ref_count > 0)
@@ -504,8 +503,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
       INTEGER, INTENT(in)                                :: unit_nr, level
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'keyword_describe', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'keyword_describe'
 
       CHARACTER(len=default_string_length)               :: c_string
       INTEGER                                            :: i, l
@@ -642,8 +640,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
       INTEGER, INTENT(IN)                                :: level, unit_number
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_keyword_xml', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_keyword_xml'
 
       CHARACTER(LEN=1000)                                :: string
       CHARACTER(LEN=3)                                   :: removed, repeats
@@ -839,8 +836,7 @@ CONTAINS
       CHARACTER(LEN=*), DIMENSION(:), INTENT(INOUT)      :: matching_string
       INTEGER, INTENT(IN)                                :: bonus
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'keyword_typo_match', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'keyword_typo_match'
 
       CHARACTER(LEN=LEN(matching_string(1)))             :: line
       INTEGER                                            :: i, imatch, imax, irank, j, k

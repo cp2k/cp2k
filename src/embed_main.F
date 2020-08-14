@@ -57,8 +57,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n_subforce_eval
       LOGICAL, INTENT(IN)                                :: use_motion_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'embed_create_force_env', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'embed_create_force_env'
 
       CHARACTER(len=default_path_length)                 :: c_val, input_file_path, output_file_path
       INTEGER                                            :: group_size_wish, handle, i, lp, &

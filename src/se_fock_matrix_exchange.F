@@ -80,8 +80,7 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: calculate_forces
       TYPE(semi_empirical_si_type), POINTER              :: store_int_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_exchange', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_exchange'
 
       INTEGER                                            :: atom_a, atom_b, handle, iatom, icol, &
                                                             ikind, integral_screening, irow, &

@@ -148,8 +148,7 @@ CONTAINS
       TYPE(pw_p_type), INTENT(INOUT)                     :: rho_nlcc
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_nlcc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_nlcc'
 
       INTEGER                                            :: atom_a, handle, iatom, iexp_nlcc, ikind, &
                                                             ithread, j, n, natom, nc, nexp_nlcc, &
@@ -332,8 +331,7 @@ CONTAINS
       TYPE(pw_p_type), INTENT(INOUT)                     :: vppl
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ppl_grid', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ppl_grid'
 
       INTEGER                                            :: atom_a, handle, iatom, ikind, ithread, &
                                                             j, lppl, n, natom, ni, npme, nthread, &
@@ -527,8 +525,7 @@ CONTAINS
       TYPE(dbcsr_type), OPTIONAL                         :: pmat
       INTEGER, DIMENSION(:), OPTIONAL                    :: atomlist
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_lri_rho_elec', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_lri_rho_elec'
 
       INTEGER :: atom_a, dir, group_size, handle, iatom, igrid_level, ikind, ipgf, iset, jpgf, &
          jset, m1, maxco, maxsgf_set, my_pos, na1, natom, nb1, ncoa, ncob, nseta, offset, sgfa, &
@@ -855,8 +852,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: only_nopaw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_core', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_core'
 
       INTEGER                                            :: atom_a, handle, iatom, ikind, ithread, &
                                                             j, natom, npme, nthread, &
@@ -989,8 +985,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: iatom_in
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_single_gaussian', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_single_gaussian'
 
       INTEGER                                            :: atom_a, handle, iatom, npme, &
                                                             subpatch_pattern
@@ -1084,8 +1079,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: total_rho_metal
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_metal', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_metal'
 
       INTEGER                                            :: atom_a, handle, iatom, j, natom, npme, &
                                                             subpatch_pattern
@@ -1194,8 +1188,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eta
       INTEGER, INTENT(IN)                                :: iatom_in
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_resp_single', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_resp_single'
 
       INTEGER                                            :: handle, iatom, npme, subpatch_pattern
       REAL(KIND=dp)                                      :: eps_rho_rspace, radius
@@ -1291,8 +1284,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eta
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_resp_all', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_resp_all'
 
       INTEGER                                            :: handle, iatom, j, npme, subpatch_pattern
       INTEGER, DIMENSION(:), POINTER                     :: cores
@@ -1419,8 +1411,7 @@ CONTAINS
       TYPE(task_list_type), OPTIONAL, POINTER            :: task_list_external
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_external
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_elec', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_elec'
 
       CHARACTER(LEN=default_string_length)               :: my_basis_type
       INTEGER                                            :: ga_gb_function, group, handle, ilevel, &
@@ -1586,8 +1577,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: soft_valid
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_drho_elec', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_drho_elec'
 
       CHARACTER(LEN=default_string_length)               :: my_basis_type
       INTEGER :: bcol, brow, dabqadb_func, handle, i, iatom, iatom_old, idir, igrid_level, ikind, &
@@ -1989,8 +1979,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: external_vector
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_wavefunction', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_wavefunction'
 
       CHARACTER(LEN=default_string_length)               :: my_basis_type
       INTEGER :: dir, group, group_size, handle, i, iatom, igrid_level, ikind, ipgf, iset, maxco, &

@@ -71,8 +71,7 @@ CONTAINS
       TYPE(tmc_param_type), POINTER                      :: tmc_params
       TYPE(section_vals_type), POINTER                   :: tmc_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_init_move_types', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_init_move_types'
 
       CHARACTER(LEN=default_string_length)               :: inp_kind_name
       INTEGER                                            :: i, i_rep, i_tmp, ind, n_items, &
@@ -409,8 +408,7 @@ CONTAINS
    SUBROUTINE finalize_mv_types(tmc_params)
       TYPE(tmc_param_type), POINTER                      :: tmc_params
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'finalize_mv_types', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'finalize_mv_types'
 
       CPASSERT(ASSOCIATED(tmc_params))
       CALL move_types_release(tmc_params%move_types)
@@ -434,8 +432,7 @@ CONTAINS
       INTEGER                                            :: file_io
       TYPE(tmc_param_type), POINTER                      :: tmc_params
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_move_types', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'print_move_types'
 
       CHARACTER(LEN=10)                                  :: c_t
       CHARACTER(LEN=50)                                  :: FMT_c, FMT_i, FMT_r
@@ -858,8 +855,7 @@ CONTAINS
    SUBROUTINE clear_move_probs(move_types)
       TYPE(tmc_move_type), POINTER                       :: move_types
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'clear_move_probs', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'clear_move_probs'
 
       CPASSERT(ASSOCIATED(move_types))
 
@@ -884,8 +880,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: rnd
       INTEGER                                            :: mv_type
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'select_random_move_type', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'select_random_move_type'
 
       INTEGER                                            :: handle, i
       REAL(KIND=dp)                                      :: rnd_mv, total_moves

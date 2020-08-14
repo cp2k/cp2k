@@ -42,8 +42,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       CHARACTER(6), OPTIONAL                             :: wf_type
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_compute_properties', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_compute_properties'
 
       LOGICAL                                            :: explicit
       TYPE(dft_control_type), POINTER                    :: dft_control

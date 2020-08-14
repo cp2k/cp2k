@@ -256,8 +256,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_create_work_matrices', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_create_work_matrices'
 
       INTEGER                                            :: handle, igroup, ispin, istate, nao, &
                                                             nao_aux, ngroups, nspins
@@ -481,8 +480,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'stda_create_work_matrices', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'stda_create_work_matrices'
 
       INTEGER                                            :: handle, igroup, ispin, istate, nao, &
                                                             ngroups, nspins
@@ -602,8 +600,7 @@ CONTAINS
       TYPE(tddfpt_work_matrices), INTENT(inout)          :: work_matrices
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_release_work_matrices', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_release_work_matrices'
 
       INTEGER                                            :: handle, ispin, istate
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -714,8 +711,7 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: is_rks_triplets
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_create_kernel_env', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_create_kernel_env'
 
       INTEGER                                            :: handle, ispin, nao, nspins
       INTEGER, DIMENSION(maxspins)                       :: nmo_occ
@@ -810,8 +806,7 @@ CONTAINS
    SUBROUTINE tddfpt_release_kernel_env(kernel_env)
       TYPE(full_kernel_env_type), POINTER                :: kernel_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_release_kernel_env', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_release_kernel_env'
 
       IF (ASSOCIATED(kernel_env)) THEN
          CALL xc_rho_set_release(kernel_env%xc_rho1_set)

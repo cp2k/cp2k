@@ -211,8 +211,7 @@ CONTAINS
       TYPE(force_env_type), OPTIONAL, POINTER            :: force_env
       TYPE(section_vals_type), POINTER                   :: root_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_subsys_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_subsys_release'
 
       CHARACTER(LEN=default_string_length)               :: unit_str
       INTEGER                                            :: handle, iforce_eval, myid, nforce_eval
@@ -337,8 +336,7 @@ CONTAINS
 
       TYPE(section_vals_type), POINTER                   :: motion_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion_release'
 
       INTEGER                                            :: handle
       TYPE(section_vals_type), POINTER                   :: work_section
@@ -901,8 +899,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: motion_section
       TYPE(pint_env_type), POINTER                       :: pint_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion_pint', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion_pint'
 
       CHARACTER(LEN=rng_record_length)                   :: rng_record
       INTEGER                                            :: handle, i, iatom, ibead, inos, isp
@@ -1059,8 +1056,7 @@ CONTAINS
 
       TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion_helium', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion_helium'
 
       CHARACTER(LEN=default_string_length)               :: err_str, stmp
       INTEGER                                            :: handle, i, itmp, iweight, msglen, &
@@ -1438,8 +1434,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nsize
       TYPE(section_vals_type), POINTER                   :: work_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_csvr_energy_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_csvr_energy_info'
 
       INTEGER                                            :: ik, irk, Nlist
       TYPE(cp_sll_val_type), POINTER                     :: new_pos, vals
@@ -1514,8 +1509,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: csvr_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_csvr_restart_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_csvr_restart_info'
 
       CHARACTER(LEN=rng_record_length)                   :: rng_record
       INTEGER                                            :: i, my_index
@@ -1581,8 +1575,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: al_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_al_restart_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_al_restart_info'
 
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: dum
@@ -1638,8 +1631,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: gle_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_gle_restart_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_gle_restart_info'
 
       CHARACTER(LEN=rng_record_length)                   :: rng_record
       INTEGER                                            :: counter, glob_num, i, iproc, j, loc_num
@@ -1759,8 +1751,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eta, veta, fnhc, mnhc
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'collect_nose_restart_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'collect_nose_restart_info'
 
       INTEGER                                            :: counter, i, iproc, j, nhc_len, num_nhc, &
                                                             numneed, tot_nhcneed
@@ -1932,8 +1923,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp)                                      :: conv_factor
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'section_neb_coord_val_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'section_neb_coord_val_set'
 
       INTEGER                                            :: ik, irk, Nlist
       REAL(KIND=dp), DIMENSION(:), POINTER               :: my_c
@@ -2008,8 +1998,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: work_section
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: eta, veta, fnhc, mnhc
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_template_restart', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_template_restart'
 
       TYPE(section_vals_type), POINTER                   :: coord, force, mass, velocity
 
@@ -2062,8 +2051,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: ss_section
       TYPE(meta_env_type), POINTER                       :: meta_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'meta_hills_val_set_ss', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'meta_hills_val_set_ss'
 
       INTEGER                                            :: ik, irk, lsize, Nlist
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ss_val
@@ -2133,8 +2121,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: ds_section
       TYPE(meta_env_type), POINTER                       :: meta_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'meta_hills_val_set_ds', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'meta_hills_val_set_ds'
 
       INTEGER                                            :: ik, irk, lsize, Nlist
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ds_val
@@ -2204,8 +2191,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: ww_section
       TYPE(meta_env_type), POINTER                       :: meta_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'meta_hills_val_set_ww', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'meta_hills_val_set_ww'
 
       INTEGER                                            :: ik, irk, lsize, Nlist
       TYPE(cp_sll_val_type), POINTER                     :: new_pos, vals
@@ -2271,8 +2257,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: invdt_section
       TYPE(meta_env_type), POINTER                       :: meta_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'meta_hills_val_set_dt', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'meta_hills_val_set_dt'
 
       INTEGER                                            :: ik, irk, lsize, Nlist
       TYPE(cp_sll_val_type), POINTER                     :: new_pos, vals
@@ -2345,8 +2330,7 @@ CONTAINS
       TYPE(md_environment_type), OPTIONAL, POINTER       :: md_env
       TYPE(force_env_type), OPTIONAL, POINTER            :: force_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_binary_restart', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_binary_restart'
 
       CHARACTER(LEN=default_path_length)                 :: binary_restart_file_name
       CHARACTER(LEN=default_string_length)               :: section_label
@@ -2793,8 +2777,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: print_info
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_binary_thermostats_nose', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_binary_thermostats_nose'
 
       INTEGER                                            :: handle, istat, nhc_size
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eta, fnhc, mnhc, veta

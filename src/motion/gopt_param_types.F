@@ -79,8 +79,7 @@ CONTAINS
    SUBROUTINE gopt_param_create(gopt_param)
       TYPE(gopt_param_type), POINTER                     :: gopt_param
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'gopt_param_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'gopt_param_create'
 
       ALLOCATE (gopt_param)
 
@@ -103,8 +102,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: gopt_section
       INTEGER, INTENT(IN), OPTIONAL                      :: type_id
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'gopt_param_read', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'gopt_param_read'
 
       CPASSERT(.NOT. ASSOCIATED(gopt_param))
       CPASSERT(ASSOCIATED(gopt_section))
@@ -171,8 +169,7 @@ CONTAINS
    SUBROUTINE gopt_param_retain(gopt_param)
       TYPE(gopt_param_type), POINTER                     :: gopt_param
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'gopt_param_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'gopt_param_retain'
 
       CPASSERT(ASSOCIATED(gopt_param))
       CPASSERT(gopt_param%ref_count > 0)
@@ -188,8 +185,7 @@ CONTAINS
    SUBROUTINE gopt_param_release(gopt_param)
       TYPE(gopt_param_type), POINTER                     :: gopt_param
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'gopt_param_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'gopt_param_release'
 
       IF (ASSOCIATED(gopt_param)) THEN
          CPASSERT(gopt_param%ref_count > 0)

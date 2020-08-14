@@ -108,8 +108,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: just_energy, calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_efield_berry_phase', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_efield_berry_phase'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: s_mstruct_changed
@@ -142,8 +141,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_efield_integrals', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_efield_integrals'
 
       INTEGER                                            :: handle, i
       REAL(dp), DIMENSION(3)                             :: kvec
@@ -187,8 +185,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: just_energy, calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_efield_derivatives', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_efield_derivatives'
 
       COMPLEX(dp)                                        :: zdet, zdeta, zi(3)
       INTEGER :: atom_a, atom_b, handle, i, ia, iatom, icol, idir, ikind, irow, iset, ispin, j, &
@@ -671,8 +668,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: just_energy, calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_dispfield_derivatives', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_dispfield_derivatives'
 
       COMPLEX(dp)                                        :: zdet, zdeta, zi(3)
       INTEGER :: handle, i, ia, iatom, icol, idir, ikind, irow, iset, ispin, jatom, jkind, jset, &

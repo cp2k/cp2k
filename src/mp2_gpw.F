@@ -772,8 +772,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt
       LOGICAL, INTENT(IN), OPTIONAL                      :: only_mo_coeff_all
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'replicate_mat_to_subgroup', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'replicate_mat_to_subgroup'
 
       INTEGER :: handle, i_global, iiB, j_global, jjB, max_row_col_local, my_mu_end, my_mu_size, &
          my_mu_start, ncol_local, ncol_rec, nrow_local, nrow_rec, proc_receive, &
@@ -984,8 +983,7 @@ CONTAINS
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: proc_map
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_mo_coeff_v_o_all', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_mo_coeff_v_o_all'
 
       INTEGER :: blk, col, col_offset, col_size, handle, i, i_global, j, j_global, proc_receive, &
          proc_send, proc_shift, rec_mu_end, rec_mu_size, rec_mu_start, row, row_offset, row_size
@@ -1106,8 +1104,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: group_size_prim
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_im_time
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_mat_munu', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_mat_munu'
 
       INTEGER                                            :: handle, ikind, natom, nkind
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, row_blk_sizes
@@ -1332,8 +1329,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_matrix_P', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_matrix_P'
 
       INTEGER                                            :: blacs_grid_layout, handle
       LOGICAL                                            :: blacs_repeatable

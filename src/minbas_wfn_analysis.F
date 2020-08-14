@@ -110,8 +110,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input_section
       INTEGER, INTENT(IN)                                :: unit_nr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'minbas_analysis', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'minbas_analysis'
 
       INTEGER                                            :: handle, homo, i, ispin, nao, natom, &
                                                             nimages, nmao, nmo, nspin
@@ -492,8 +491,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: minbas_coeff
       INTEGER, INTENT(IN)                                :: ispin
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'post_minbas_cubes', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'post_minbas_cubes'
 
       CHARACTER(LEN=default_path_length)                 :: filename, title
       INTEGER                                            :: i, i_rep, ivec, iw, j, n_rep, natom

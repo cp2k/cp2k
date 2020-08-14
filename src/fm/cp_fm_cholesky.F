@@ -46,8 +46,7 @@ CONTAINS
       INTEGER, INTENT(in), OPTIONAL            :: n
       INTEGER, INTENT(out), OPTIONAL           :: info_out
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_cholesky_decompose', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_cholesky_decompose'
 
       INTEGER                                  :: handle, info, my_n
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
@@ -113,8 +112,7 @@ CONTAINS
       INTEGER, INTENT(in), OPTIONAL             :: n
       INTEGER, INTENT(OUT), OPTIONAL            :: info_out
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_cholesky_invert', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_cholesky_invert'
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
       REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp
       INTEGER                                   :: info, handle
@@ -183,8 +181,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER           :: matrix, matrixb
       INTEGER, OPTIONAL                   :: itype
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_cholesky_reduce', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_cholesky_reduce'
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
       INTEGER                                   :: info, handle
       INTEGER                                   :: n, my_itype
@@ -249,8 +246,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL :: pos
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL :: transa
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_cholesky_restore', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_cholesky_restore'
       REAL(KIND=dp), DIMENSION(:, :), POINTER         :: a, b, out
       REAL(KIND=sp), DIMENSION(:, :), POINTER         :: a_sp, b_sp, out_sp
       INTEGER                                   :: itype, handle

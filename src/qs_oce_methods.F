@@ -77,8 +77,7 @@ CONTAINS
       LOGICAL, INTENT(OUT)                               :: sgf_soft_only
       REAL(dp), INTENT(IN)                               :: eps_fit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_oce_block', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'build_oce_block'
 
       INTEGER :: first_col, ic, ico, ider, ig1, igau, ip, ipgf, is, isgfb, isgfb_cnt, iso, isp, &
          jc, jset, lds, lm, lpoint, lprj, lsgfb, lsgfb_cnt, lshell, lx, ly, lz, m, m1, maxcob, &
@@ -278,8 +277,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(OUT)                 :: sgf_list
       INTEGER, INTENT(OUT)                               :: nsgf_cnt
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_oce_block_local', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_oce_block_local'
 
       INTEGER                                            :: i, iset, isgfa, j, jc, lsgfa, maxlprj, &
                                                             maxsoa, n, nsatbas, nseta, nsgfa
@@ -364,8 +362,7 @@ CONTAINS
          POINTER                                         :: sap_oce
       REAL(dp), INTENT(IN)                               :: eps_fit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_oce_matrices', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_oce_matrices'
 
       INTEGER :: atom_a, atom_b, handle, i, iac, ikind, ilist, jkind, jneighbor, ldai, ldsab, &
          maxco, maxder, maxl, maxlgto, maxlprj, maxprj, maxsgf, maxsoa, maxsob, mlprj, natom, &

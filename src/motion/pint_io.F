@@ -74,8 +74,7 @@ CONTAINS
 
       CHARACTER(len=*), INTENT(IN)                       :: line
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_line', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_write_line'
 
       CHARACTER(len=default_string_length)               :: my_label
       INTEGER                                            :: unit_nr
@@ -105,8 +104,7 @@ CONTAINS
    SUBROUTINE pint_write_centroids(pint_env)
       TYPE(pint_env_type), POINTER                       :: pint_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_centroids', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_centroids'
       INTEGER, PARAMETER                                 :: n_ids = 2, pos_id = 1, vel_id = 2
 
       CHARACTER(len=default_string_length)               :: ext, form, my_middle_name, unit_str
@@ -260,8 +258,7 @@ CONTAINS
    SUBROUTINE pint_write_trajectory(pint_env)
       TYPE(pint_env_type), POINTER                       :: pint_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_trajectory', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_trajectory'
       INTEGER, PARAMETER                                 :: force_id = 3, n_ids = 3, pos_id = 1, &
                                                             vel_id = 2
 
@@ -492,8 +489,7 @@ CONTAINS
    SUBROUTINE pint_write_ener(pint_env)
       TYPE(pint_env_type), POINTER                       :: pint_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_ener', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_write_ener'
 
       INTEGER                                            :: ndof, unit_nr
       LOGICAL                                            :: file_is_new
@@ -575,8 +571,7 @@ CONTAINS
    SUBROUTINE pint_write_action(pint_env)
       TYPE(pint_env_type), POINTER                       :: pint_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_action', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_write_action'
 
       INTEGER                                            :: unit_nr
       LOGICAL                                            :: file_is_new
@@ -649,8 +644,7 @@ CONTAINS
    SUBROUTINE pint_write_step_info(pint_env)
       TYPE(pint_env_type), POINTER                       :: pint_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_step_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_step_info'
 
       CHARACTER(len=default_string_length)               :: msgstr, stmp, time_unit
       INTEGER                                            :: unit_nr
@@ -711,8 +705,7 @@ CONTAINS
 
       TYPE(pint_env_type), POINTER                       :: pint_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_rgyr', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_write_rgyr'
 
       CHARACTER(len=default_string_length)               :: unit_str
       INTEGER                                            :: ia, ib, ic, idim, unit_nr

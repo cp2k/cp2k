@@ -52,8 +52,7 @@ CONTAINS
    SUBROUTINE create_transport_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_transport_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_transport_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -314,8 +313,7 @@ CONTAINS
    SUBROUTINE create_contact_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_contact_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_contact_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -372,8 +370,7 @@ CONTAINS
    SUBROUTINE create_beyn_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_beyn_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_beyn_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -430,8 +427,7 @@ CONTAINS
    SUBROUTINE create_pexsi_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_pexsi_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_pexsi_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -489,8 +485,7 @@ CONTAINS
    SUBROUTINE create_transport_print_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_transport_print_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_transport_print_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key

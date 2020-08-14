@@ -93,8 +93,7 @@ CONTAINS
    SUBROUTINE allocate_task_list(task_list)
       TYPE(task_list_type), POINTER                      :: task_list
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_task_list', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_task_list'
 
       ALLOCATE (task_list)
 
@@ -144,8 +143,7 @@ CONTAINS
    SUBROUTINE deallocate_task_list(task_list)
       TYPE(task_list_type), POINTER                      :: task_list
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_task_list', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_task_list'
 
       INTEGER                                            :: i
 

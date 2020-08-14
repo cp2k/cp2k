@@ -117,8 +117,7 @@ CONTAINS
 
       TYPE(preconditioner_type)                          :: preconditioner_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'destroy_preconditioner', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'destroy_preconditioner'
 
       INTEGER                                            :: handle, i
 

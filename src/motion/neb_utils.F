@@ -106,8 +106,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iw
       LOGICAL, INTENT(IN), OPTIONAL                      :: rotate
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'neb_replica_distance', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'neb_replica_distance'
 
       LOGICAL                                            :: my_rotate
 
@@ -147,8 +146,7 @@ CONTAINS
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_replica_coords', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_replica_coords'
 
       CHARACTER(LEN=default_path_length)                 :: filename
       CHARACTER(LEN=default_string_length)               :: dummy_char
@@ -373,8 +371,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       INTEGER, INTENT(IN)                                :: output_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'neb_calc_energy_forces', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'neb_calc_energy_forces'
       CHARACTER(LEN=1), DIMENSION(3), PARAMETER          :: lab = (/"X", "Y", "Z"/)
 
       INTEGER                                            :: handle, i, irep, j, n_int, n_rep, &
@@ -513,8 +510,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: irep, n_rep_neb
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: cvalues, Mmatrix
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'perform_replica_md', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'perform_replica_md'
 
       INTEGER                                            :: handle, handle2, ierr, j, n_el
       LOGICAL                                            :: explicit
@@ -589,8 +585,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: irep, n_rep_neb
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: cvalues, Mmatrix
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'perform_replica_geo', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'perform_replica_geo'
 
       INTEGER                                            :: handle, handle2, ierr, j, n_el
       LOGICAL                                            :: explicit
@@ -852,8 +847,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: array3
       REAL(KIND=dp)                                      :: value
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dot_product_band', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dot_product_band'
 
       INTEGER                                            :: nsize_int
       LOGICAL                                            :: check
@@ -893,8 +887,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: distances
       INTEGER, INTENT(IN)                                :: number_of_replica
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'reorient_images', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'reorient_images'
 
       INTEGER                                            :: i, k, kind
       LOGICAL                                            :: check
@@ -948,8 +941,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: coords, sline
       REAL(KIND=dp), DIMENSION(:)                        :: distances
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'reparametrize_images', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'reparametrize_images'
 
       INTEGER                                            :: i, j
       REAL(KIND=dp)                                      :: avg_distance, xtmp
@@ -1012,8 +1004,7 @@ CONTAINS
       TYPE(neb_var_type), POINTER                        :: Dcoords, forces
       LOGICAL                                            :: converged
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'check_convergence', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'check_convergence'
 
       CHARACTER(LEN=3), DIMENSION(4)                     :: labels
       INTEGER                                            :: iw

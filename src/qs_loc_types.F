@@ -168,8 +168,7 @@ CONTAINS
 
       TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_loc_env_create'
 
       CPASSERT(.NOT. ASSOCIATED(qs_loc_env))
 
@@ -202,8 +201,7 @@ CONTAINS
 
       TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_destroy', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_destroy'
 
       INTEGER                                            :: i, ii, j
 
@@ -261,8 +259,7 @@ CONTAINS
 
       TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_release'
 
       IF (ASSOCIATED(qs_loc_env)) THEN
          CPASSERT(qs_loc_env%ref_count > 0)
@@ -286,8 +283,7 @@ CONTAINS
 
       TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_loc_env_retain'
 
       CPASSERT(ASSOCIATED(qs_loc_env))
       CPASSERT(qs_loc_env%ref_count > 0)
@@ -303,8 +299,7 @@ CONTAINS
    SUBROUTINE localized_wfn_control_create(localized_wfn_control)
       TYPE(localized_wfn_control_type), POINTER          :: localized_wfn_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'localized_wfn_control_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'localized_wfn_control_create'
 
       CPASSERT(.NOT. ASSOCIATED(localized_wfn_control))
       ALLOCATE (localized_wfn_control)
@@ -333,8 +328,7 @@ CONTAINS
 
       TYPE(localized_wfn_control_type), POINTER          :: localized_wfn_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'localized_wfn_control_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'localized_wfn_control_release'
 
       IF (ASSOCIATED(localized_wfn_control)) THEN
          CPASSERT(localized_wfn_control%ref_count > 0)
@@ -364,8 +358,7 @@ CONTAINS
    SUBROUTINE localized_wfn_control_retain(localized_wfn_control)
       TYPE(localized_wfn_control_type), POINTER          :: localized_wfn_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'localized_wfn_control_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'localized_wfn_control_retain'
 
       CPASSERT(ASSOCIATED(localized_wfn_control))
 

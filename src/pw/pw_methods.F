@@ -1510,8 +1510,7 @@ CONTAINS
       TYPE(pw_type), INTENT(INOUT), TARGET               :: pw2
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fft_wrap_pw1pw2', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_wrap_pw1pw2'
 
       CHARACTER(LEN=9)                                   :: mode
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: grays
@@ -2080,8 +2079,7 @@ CONTAINS
       TYPE(pw_type), INTENT(IN)                          :: pw1, pw2
       REAL(KIND=dp)                                      :: integral_value
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_integral_a2b', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_integral_a2b'
 
       INTEGER                                            :: handle
 
@@ -2131,8 +2129,7 @@ CONTAINS
       TYPE(pw_type), INTENT(INOUT)                       :: sf
       REAL(KIND=dp), DIMENSION(:), INTENT(in)            :: r
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_structure_factor', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_structure_factor'
 
       INTEGER                                            :: cnt, handle, ig
       REAL(KIND=dp)                                      :: arg, flop
@@ -2177,8 +2174,7 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: oprt
       REAL(KIND=dp)                                      :: total_fun
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_integrate_function', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_integrate_function'
 
       INTEGER                                            :: iop
 

@@ -153,8 +153,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: cpmos
       TYPE(section_vals_type), OPTIONAL, POINTER         :: lr_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'response_equation', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'response_equation'
 
       INTEGER                                            :: handle, iounit, ispin, nao, nao_aux, &
                                                             nspins
@@ -912,8 +911,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_hz
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_pz
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_projection_derivative', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_projection_derivative'
 
       INTEGER                                            :: handle, ispin, nao, natom, naux, nspins
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: admm_force
@@ -1008,8 +1006,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: psi1
       TYPE(dbcsr_type), POINTER                          :: ks_matrix, w_matrix
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_wz_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_wz_matrix'
 
       INTEGER                                            :: handle, ncol, nrow
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
@@ -1056,8 +1053,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: hzm, w_matrix
       REAL(KIND=dp), INTENT(IN)                          :: focc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_whz_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_whz_matrix'
 
       INTEGER                                            :: handle, nao, norb
       REAL(KIND=dp)                                      :: falpha
@@ -1107,8 +1103,7 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rspace, vtau_rspace
       REAL(KIND=dp), INTENT(OUT)                         :: ehartree, exc
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ks_ref_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ks_ref_potential'
 
       INTEGER                                            :: handle, iab, ispin, nspins
       REAL(dp)                                           :: eovrl, eself

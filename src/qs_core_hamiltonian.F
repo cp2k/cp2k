@@ -155,8 +155,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_core_hamiltonian_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_core_hamiltonian_matrix'
 
       INTEGER                                            :: handle, ic, img, iw, nder, nders, &
                                                             nimages, nkind
@@ -550,8 +549,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_atomic_relmat', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_atomic_relmat'
 
       INTEGER                                            :: blk, iatom, ikind, jatom, natom
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
@@ -588,8 +586,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_info_core_hamiltonian', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_info_core_hamiltonian'
 
       INTEGER                                            :: after, handle, i, ic, iw, output_unit
       LOGICAL                                            :: omit_headers

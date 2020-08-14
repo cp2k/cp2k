@@ -42,8 +42,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       REAL(KIND=dp), INTENT(IN)                          :: ajquad, alpha_old
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_fm_mat_S_laplace', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_fm_mat_S_laplace'
 
       INTEGER                                            :: avirt, handle, i_global, iiB, iocc, jjB, &
                                                             ncol_local, nrow_local
@@ -108,8 +107,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: tau_wjquad
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_mat_Q_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'SOS_MP2_postprocessing', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'SOS_MP2_postprocessing'
 
       INTEGER                                            :: handle, jjB, ncol_local
       LOGICAL                                            :: my_open_shell

@@ -58,8 +58,7 @@ CONTAINS
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'lyp_adiabatic_lda_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'lyp_adiabatic_lda_info'
 
       IF (PRESENT(reference)) THEN
          reference = "C. Lee, W. Yang, R.G. Parr, Phys. Rev. B, 37, 785 (1988) {LDA version}"
@@ -92,8 +91,7 @@ CONTAINS
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'lyp_adiabatic_lsd_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'lyp_adiabatic_lsd_info'
 
       IF (PRESENT(reference)) THEN
          reference = "C. Lee, W. Yang, R.G. Parr, Phys. Rev. B, 37, 785 (1988) {LSD version}"
@@ -125,8 +123,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: grad_deriv
       TYPE(section_vals_type), POINTER                   :: lyp_adiabatic_params
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'lyp_adiabatic_lda_eval', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'lyp_adiabatic_lda_eval'
 
       INTEGER                                            :: handle, npoints
       INTEGER, DIMENSION(:, :), POINTER                  :: bo
@@ -214,8 +211,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(1:npoints), INTENT(in)    :: norm_drho, rho
       REAL(kind=dp), INTENT(in)                          :: epsilon_rho, lambda
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'lyp_adiabatic_lda_calc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'lyp_adiabatic_lda_calc'
 
       INTEGER                                            :: ii
       REAL(kind=dp) :: cf, my_ndrho, my_rho, t10, t107, t11, t117, t12, t122, t125, t13, t14, t15, &
@@ -336,8 +332,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: grad_deriv
       TYPE(section_vals_type), POINTER                   :: lyp_adiabatic_params
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'lyp_adiabatic_lsd_eval', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'lyp_adiabatic_lsd_eval'
 
       INTEGER                                            :: handle, npoints
       INTEGER, DIMENSION(:, :), POINTER                  :: bo
@@ -462,8 +457,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: grad_deriv, npoints
       REAL(kind=dp), INTENT(in)                          :: epsilon_rho, lambda
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'lyp_adiabatic_lsd_calc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'lyp_adiabatic_lsd_calc'
 
       INTEGER                                            :: ii
       REAL(KIND=dp) :: cf, my_ndrho, my_ndrhoa, my_ndrhob, my_rhoa, my_rhob, t1, t10, t100, t102, &

@@ -192,8 +192,7 @@ CONTAINS
       TYPE(global_constraint_type), POINTER              :: gci
       LOGICAL, INTENT(IN)                                :: save_mem
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_gle_part', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_gle_part'
 
       LOGICAL                                            :: restart
       REAL(dp)                                           :: Mtmp(gle%ndim, gle%ndim)
@@ -333,8 +332,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(global_constraint_type), POINTER              :: gci
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'gle_to_particle_mapping', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'gle_to_particle_mapping'
 
       INTEGER                                            :: i, imap, j, mal_size, natoms_local, &
                                                             nkind, number, region, &
@@ -517,8 +515,7 @@ CONTAINS
 
       TYPE(gle_type), POINTER                            :: gle
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_gle_variables', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_gle_variables'
 
       INTEGER                                            :: i, j
       REAL(dp)                                           :: rr(gle%ndim), cc(gle%ndim, gle%ndim)

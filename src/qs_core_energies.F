@@ -80,8 +80,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: ecore
       INTEGER, INTENT(IN)                                :: nspin
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ptrace_gamma', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ptrace_gamma'
 
       INTEGER                                            :: handle, ispin
       REAL(KIND=dp)                                      :: etr
@@ -117,8 +116,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: ecore
       INTEGER, INTENT(IN)                                :: nspin
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ptrace_kp', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ptrace_kp'
 
       INTEGER                                            :: handle, ic, ispin, nc
       REAL(KIND=dp)                                      :: etr
@@ -162,8 +160,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: h, p
       REAL(KIND=dp), INTENT(OUT)                         :: ecore
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ptrace_1', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ptrace_1'
 
       INTEGER                                            :: handle
 
@@ -200,8 +197,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: molecular
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: E_overlap_core
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ecore_overlap', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ecore_overlap'
 
       INTEGER                                            :: atom_a, atom_b, group, handle, iatom, &
                                                             ikind, jatom, jkind, natom, nkind
@@ -350,8 +346,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: E_self_core
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ecore_self', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ecore_self'
 
       INTEGER                                            :: handle, iatom, ikind, iparticle_local, &
                                                             natom, nparticle_local

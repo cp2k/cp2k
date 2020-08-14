@@ -86,8 +86,7 @@ CONTAINS
    SUBROUTINE create_dbcsr_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_dbcsr_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_dbcsr_section'
 
       INTEGER                                            :: idefault
       LOGICAL                                            :: ldefault
@@ -448,8 +447,7 @@ CONTAINS
          POINTER                                         :: sab_orb
       LOGICAL, INTENT(IN), OPTIONAL                      :: desymmetrize
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_alloc_block_from_nbl', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_alloc_block_from_nbl'
 
       CHARACTER(LEN=1)                                   :: symmetry
       INTEGER                                            :: blk_cnt, handle, iatom, icol, inode, &
@@ -561,8 +559,7 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(dbcsr_type), INTENT(INOUT)                    :: csr_sparsity
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_to_csr_screening', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_to_csr_screening'
 
       INTEGER :: atom_a, atom_b, handle, iatom, icol, ikind, ipgf, irow, iset, isgf, ishell, &
          jatom, jkind, jpgf, jset, jsgf, jshell, natom, nkind, nset_a, nset_b

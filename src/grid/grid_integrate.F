@@ -119,8 +119,7 @@ CONTAINS
       LOGICAL, OPTIONAL                        :: use_subpatch
       INTEGER, INTENT(IN), OPTIONAL            :: subpatch_pattern
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'integrate_pgf_product_rspace', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'integrate_pgf_product_rspace'
 
       INTEGER :: ax, ay, az, bx, by, bz, cmax, coef_max, gridbounds(2, 3), i, &
                  ico, icoef, ig, j, jco, la, la_max_local, la_min_local, lb, &

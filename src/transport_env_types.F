@@ -136,8 +136,7 @@ CONTAINS
    SUBROUTINE transport_env_release(transport_env)
       TYPE(transport_env_type), POINTER                  :: transport_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'transport_env_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'transport_env_release'
 
       INTEGER                                            :: handle
 
@@ -177,8 +176,7 @@ CONTAINS
 
       TYPE(cp2k_csr_interop_type), INTENT(INOUT)         :: csr_interop_mat
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_interop_nullify', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_interop_nullify'
 
       INTEGER                                            :: handle
 
@@ -229,8 +227,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), INTENT(OUT), OPTIONAL, &
          POINTER                                         :: nzvals_local
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_interop_matrix_get_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_interop_matrix_get_info'
 
       INTEGER                                            :: handle
 

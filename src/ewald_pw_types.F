@@ -78,8 +78,7 @@ CONTAINS
    SUBROUTINE ewald_pw_retain(ewald_pw)
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ewald_pw_retain'
 
       CPASSERT(ASSOCIATED(ewald_pw))
       CPASSERT(ewald_pw%ref_count > 0)
@@ -100,8 +99,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell, cell_ref
       TYPE(section_vals_type), POINTER                   :: print_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ewald_pw_create'
 
       TYPE(dg_type), POINTER                             :: dg
 
@@ -128,8 +126,7 @@ CONTAINS
    SUBROUTINE ewald_pw_release(ewald_pw)
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ewald_pw_release'
 
       INTEGER                                            :: handle
 

@@ -107,8 +107,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'run_optimize_input', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'run_optimize_input'
 
       INTEGER                                            :: handle, i_var
       REAL(KIND=dp)                                      :: random_number, seed(3, 2)
@@ -506,8 +505,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: energy_traj
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: cell_traj
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_reference_data', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_reference_data'
 
       CHARACTER(len=default_path_length)                 :: filename
       CHARACTER(len=default_string_length)               :: AA

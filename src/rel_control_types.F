@@ -155,8 +155,7 @@ CONTAINS
       TYPE(rel_control_type), POINTER                    :: rel_control
       TYPE(section_vals_type), POINTER                   :: dft_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rel_c_read_parameters', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rel_c_read_parameters'
 
       TYPE(section_vals_type), POINTER                   :: rel_section
 

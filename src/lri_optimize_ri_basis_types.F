@@ -103,8 +103,7 @@ CONTAINS
 
       TYPE(lri_opt_type), POINTER                        :: lri_opt
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_lri_opt', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_lri_opt'
 
       INTEGER                                            :: i
 
@@ -145,8 +144,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
       TYPE(lri_opt_type), POINTER                        :: lri_opt
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_original_gcc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_original_gcc'
 
       INTEGER                                            :: il, ipgf, iset, ishell, l, maxpgf, &
                                                             maxshell, nl, nset
@@ -211,8 +209,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
       TYPE(lri_opt_type), POINTER                        :: lri_opt
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'orthonormalize_gcc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'orthonormalize_gcc'
 
       INTEGER                                            :: il, iset, ishell, ishell1, ishell2, &
                                                             istart, nset

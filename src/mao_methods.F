@@ -87,8 +87,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: mao_coef, pmat, smat
       REAL(KIND=dp), INTENT(IN)                          :: eps1
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mao_initialization', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mao_initialization'
 
       INTEGER                                            :: group, i, iatom, info, jatom, lwork, m, &
                                                             n, nblk
@@ -251,8 +250,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: mao_grad, qmat, smat, binv
       LOGICAL, INTENT(IN)                                :: reuse
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mao_function_gradient', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mao_function_gradient'
 
       REAL(KIND=dp)                                      :: convergence, threshold
       TYPE(dbcsr_type)                                   :: bmat, scmat, t2mat, tmat
@@ -301,8 +299,7 @@ CONTAINS
    SUBROUTINE mao_orthogonalization(mao_coef, smat)
       TYPE(dbcsr_type)                                   :: mao_coef, smat
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mao_orthogonalization', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mao_orthogonalization'
 
       INTEGER                                            :: i, iatom, info, jatom, lwork, m, n
       LOGICAL                                            :: found
@@ -349,8 +346,7 @@ CONTAINS
    SUBROUTINE mao_project_gradient(mao_coef, mao_grad, smat)
       TYPE(dbcsr_type)                                   :: mao_coef, mao_grad, smat
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mao_project_gradient', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mao_project_gradient'
 
       INTEGER                                            :: iatom, jatom, m, n
       LOGICAL                                            :: found
@@ -389,8 +385,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: fmat1, fmat2
       REAL(KIND=dp)                                      :: spro
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mao_scalar_product', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mao_scalar_product'
 
       INTEGER                                            :: group, iatom, jatom, m, n
       LOGICAL                                            :: found
@@ -434,8 +429,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nmos
       REAL(KIND=dp), INTENT(IN)                          :: occ
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_p_gamma', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'calculate_p_gamma'
 
       INTEGER                                            :: norb
       REAL(KIND=dp)                                      :: de
@@ -504,8 +498,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: iunit
       LOGICAL, INTENT(IN), OPTIONAL                      :: print_basis
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mao_reference_basis', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mao_reference_basis'
 
       INTEGER                                            :: ikind, nbas, nkind, unit_nr
       REAL(KIND=dp)                                      :: eps_pgf_orb
@@ -619,8 +612,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mao_basis_analysis', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mao_basis_analysis'
 
       CHARACTER(len=2)                                   :: element_symbol
       INTEGER                                            :: ia, iab, iatom, ikind, iset, ishell, &

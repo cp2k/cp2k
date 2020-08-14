@@ -84,8 +84,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(INOUT)                    :: input_line, input_file_name
       INTEGER, INTENT(INOUT)                             :: input_line_number, input_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'inpp_process_directive', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'inpp_process_directive'
 
       CHARACTER(LEN=default_path_length)                 :: cond1, cond2, filename, mytag, value, &
                                                             varname
@@ -524,8 +523,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(INOUT)                    :: input_file_name
       INTEGER, INTENT(INOUT)                             :: input_line_number, input_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'inpp_end_include', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'inpp_end_include'
 
       CPASSERT(ASSOCIATED(inpp))
       IF (inpp%io_stack_level > 0) THEN
@@ -557,8 +555,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(INOUT)                    :: input_line, input_file_name
       INTEGER, INTENT(IN)                                :: input_line_number
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'inpp_expand_variables', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'inpp_expand_variables'
 
       CHARACTER(LEN=default_path_length)                 :: newline
       CHARACTER(LEN=max_message_length)                  :: message

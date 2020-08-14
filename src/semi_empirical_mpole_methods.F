@@ -56,8 +56,7 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: se_parameter
       INTEGER, INTENT(IN)                                :: method
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_mpole_p_setup', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_mpole_p_setup'
       CHARACTER(LEN=3), DIMENSION(9), PARAMETER :: &
          label_print_orb = (/"  s", " px", " py", " pz", "dx2", "dzx", "dz2", "dzy", "dxy"/)
       INTEGER, DIMENSION(9), PARAMETER :: loc_index = (/1, 2, 2, 2, 3, 3, 3, 3, 3/)
@@ -237,8 +236,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: qcart
       REAL(KIND=dp), DIMENSION(5), INTENT(IN)            :: qsph
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'quadrupole_sph_to_cart', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'quadrupole_sph_to_cart'
 
 ! Notation
 !          qs(1) - d3z2-r2
@@ -272,8 +270,7 @@ CONTAINS
       TYPE(nddo_mpole_type), POINTER                     :: nddo_mpole
       INTEGER, INTENT(IN)                                :: natom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'nddo_mpole_setup', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'nddo_mpole_setup'
 
       INTEGER                                            :: handle
 

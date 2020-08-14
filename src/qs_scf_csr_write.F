@@ -61,8 +61,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: input
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_ks_matrix_csr', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_ks_matrix_csr'
 
       INTEGER                                            :: handle, output_unit
       LOGICAL                                            :: do_kpoints, do_ks_csr_write
@@ -113,8 +112,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: input
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_s_matrix_csr', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_s_matrix_csr'
 
       INTEGER                                            :: handle, output_unit
       LOGICAL                                            :: do_kpoints, do_s_csr_write
@@ -172,8 +170,7 @@ CONTAINS
       TYPE(kpoint_type), INTENT(IN), OPTIONAL, POINTER   :: kpoints
       CHARACTER(*), INTENT(in)                           :: prefix
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_matrix_csr', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'write_matrix_csr'
       COMPLEX(KIND=dp), PARAMETER :: cone = CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
          ione = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
 

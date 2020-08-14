@@ -70,8 +70,7 @@ CONTAINS
    SUBROUTINE get_ut_cell_matrix(cell)
       TYPE(cell_type), POINTER                           :: cell
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_ut_cell_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_ut_cell_matrix'
 
       INTEGER, DIMENSION(3)                              :: periodic
       REAL(KIND=dp), DIMENSION(3)                        :: cell_angle, cell_length
@@ -103,8 +102,7 @@ CONTAINS
       CHARACTER(len=default_string_length), INTENT(OUT)  :: project_name
       INTEGER, INTENT(IN)                                :: id_run
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'gopt_new_logger_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'gopt_new_logger_create'
 
       CHARACTER(len=default_path_length)                 :: c_val, input_file_path, output_file_path
       CHARACTER(len=default_string_length)               :: label
@@ -169,8 +167,7 @@ CONTAINS
       CHARACTER(len=default_string_length), INTENT(IN)   :: project_name
       INTEGER, INTENT(IN)                                :: id_run
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'gopt_new_logger_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'gopt_new_logger_release'
 
       INTEGER                                            :: unit_nr
 
@@ -200,8 +197,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: mtrx
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: rot
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_external_press_tensor', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_external_press_tensor'
 
       INTEGER                                            :: i, ind, j
       LOGICAL                                            :: check
@@ -353,8 +349,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: keep_angles, keep_symmetry
       INTEGER, INTENT(IN)                                :: constraint_id
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_cell_constraints', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_cell_constraints'
 
       REAL(KIND=dp)                                      :: a, a_length, ab_length, b_length, cosa, &
                                                             cosah, cosgamma, deriv_gamma, g, &

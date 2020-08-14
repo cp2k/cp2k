@@ -76,8 +76,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rtp_admm_calc_rho_aux', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rtp_admm_calc_rho_aux'
 
       INTEGER                                            :: handle, ispin, nspins
       LOGICAL                                            :: s_mstruct_changed
@@ -171,8 +170,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: density_matrix_aux, density_matrix_aux_im
       INTEGER, INTENT(in)                                :: ispin
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rtp_admm_calculate_dm', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rtp_admm_calculate_dm'
 
       INTEGER                                            :: handle
 
@@ -217,8 +215,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: rtp_coeff_aux_fit
       LOGICAL, INTENT(IN)                                :: geometry_did_change
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rtp_admm_fit_mo_coeffs', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rtp_admm_fit_mo_coeffs'
 
       INTEGER                                            :: handle, natoms
       LOGICAL                                            :: recalc_S
@@ -288,8 +285,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: rtp_coeff_aux_fit
       LOGICAL, INTENT(IN)                                :: geometry_did_change
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rtp_fit_mo_coeffs_none', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rtp_fit_mo_coeffs_none'
 
       INTEGER                                            :: handle, ispin, nao_aux_fit, nao_orb, &
                                                             natoms, nmo, nmo_mos, nspins
@@ -375,8 +371,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: rtp_coeff_aux_fit
       INTEGER, INTENT(in)                                :: ispin
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rtp_admm_density', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rtp_admm_density'
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
       INTEGER                                            :: handle, im, ncol, re
@@ -426,8 +421,7 @@ CONTAINS
    SUBROUTINE rtp_admm_merge_ks_matrix(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rtp_admm_merge_ks_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rtp_admm_merge_ks_matrix'
 
       INTEGER                                            :: handle, ispin
       TYPE(admm_type), POINTER                           :: admm_env
@@ -477,8 +471,7 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_aux_fit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rt_merge_ks_matrix_none', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rt_merge_ks_matrix_none'
 
       CHARACTER                                          :: matrix_type_fit
       INTEGER                                            :: handle, nao_aux_fit, nao_orb, nmo

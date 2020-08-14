@@ -247,8 +247,7 @@ CONTAINS
 
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_qs_kind_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_qs_kind_set'
 
       INTEGER                                            :: ikind, nkind
 
@@ -821,8 +820,7 @@ CONTAINS
       CHARACTER(len=*), OPTIONAL                         :: basis_type
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: total_zeff_corr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_kind_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_qs_kind_set'
 
       CHARACTER(len=default_string_length)               :: my_basis_type
       INTEGER                                            :: ikind, imax, lmax_rho0_kind, &
@@ -1208,8 +1206,7 @@ CONTAINS
 
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_qs_kind_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'init_qs_kind_set'
 
       INTEGER                                            :: handle, ikind
       TYPE(qs_kind_type), POINTER                        :: qs_kind
@@ -1243,8 +1240,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section
       LOGICAL, OPTIONAL                                  :: modify_qs_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_gapw_basis_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_gapw_basis_set'
 
       INTEGER                                            :: ikind, nkind
       LOGICAL                                            :: gpw, my_mod_control, paw_atom
@@ -2446,8 +2442,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: force_env_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_qs_kind_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_qs_kind_set'
 
       INTEGER                                            :: handle, ikind, method, nkind, qs_method
       LOGICAL                                            :: no_fail
@@ -2546,8 +2541,7 @@ CONTAINS
       TYPE(dft_control_type), INTENT(IN)                 :: dft_control
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'check_qs_kind_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'check_qs_kind_set'
 
       INTEGER                                            :: handle, ikind, nkind
       TYPE(qs_kind_type), POINTER                        :: qs_kind
@@ -2581,8 +2575,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: subsys_section
       TYPE(xtb_control_type), POINTER                    :: xtb_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_xtb_kab_param', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_xtb_kab_param'
 
       CHARACTER(LEN=default_string_length)               :: aname, bname
       INTEGER                                            :: ikind, io_unit, jkind, nkind, za, zb
@@ -2855,8 +2848,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_qs_kind_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'write_qs_kind_set'
 
       INTEGER                                            :: handle, ikind, nkind, output_unit
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -2902,8 +2894,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_gto_basis_sets', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_gto_basis_sets'
 
       CHARACTER(LEN=default_string_length)               :: basis_type, bstring
       INTEGER                                            :: handle, ibas, ikind, nkind, output_unit
@@ -2987,8 +2978,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(0:lmat, 10, 2), &
          INTENT(OUT)                                     :: edelta
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_atom_electronic_state', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_atom_electronic_state'
 
       INTEGER                                            :: i, ii, is, l, ll, ne, nn, z
       INTEGER, DIMENSION(:), POINTER                     :: econf
@@ -3120,8 +3110,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: z
       INTEGER, DIMENSION(0:lmat, 10), INTENT(OUT)        :: ncalc, ncore, nelem
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_pseudo_state', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_pseudo_state'
 
       INTEGER                                            :: ii, l, ll, lx, nn
       INTEGER, DIMENSION(0:lmat)                         :: econfx

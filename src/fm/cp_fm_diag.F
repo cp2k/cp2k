@@ -167,8 +167,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
       INTEGER, INTENT(OUT), OPTIONAL                     :: info
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'choose_eigv_solver', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'choose_eigv_solver'
 
       INTEGER                                            :: myinfo, nmo
 #if defined(__CHECK_DIAG)
@@ -290,8 +289,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
       INTEGER, INTENT(OUT), OPTIONAL           :: info
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_syevd', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_syevd'
 
       INTEGER                                  :: handle, myinfo, n, nmo
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig
@@ -395,8 +393,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:)              :: eig
       INTEGER, INTENT(OUT)                     :: info
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_syevd_base', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_syevd_base'
 
       INTEGER                                  :: handle
 #if defined(__SCALAPACK)
@@ -746,8 +743,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(2), INTENT(OUT), &
          OPTIONAL                               :: eigvals
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_power', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_power'
 
       INTEGER                                    :: handle, icol_global, &
                                                     mypcol, myprow, &
@@ -927,8 +923,7 @@ CONTAINS
       INTEGER, INTENT(IN)                       :: start_sec_block
       REAL(KIND=dp), INTENT(IN)               :: thresh
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_block_jacobi', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_block_jacobi'
 
       INTEGER :: handle
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, ev
@@ -1177,8 +1172,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: work
       REAL(KIND=dp), INTENT(IN)                          :: epseig
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_geeig_canon', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_geeig_canon'
 
       INTEGER                                            :: handle, i, icol, irow, nao, nc, ncol, &
                                                             nmo, nx

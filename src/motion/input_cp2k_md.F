@@ -63,8 +63,7 @@ CONTAINS
    SUBROUTINE create_md_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_md_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_md_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -323,8 +322,7 @@ CONTAINS
    SUBROUTINE create_langevin_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_langevin_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_langevin_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -372,8 +370,7 @@ CONTAINS
    SUBROUTINE create_md_print_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_md_print_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_md_print_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key
@@ -467,8 +464,7 @@ CONTAINS
    SUBROUTINE create_respa_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_respa_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_respa_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -502,8 +498,7 @@ CONTAINS
    SUBROUTINE create_reftraj_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_reftraj_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_reftraj_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection
@@ -620,8 +615,7 @@ CONTAINS
    SUBROUTINE create_msd_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_msd_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_msd_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -700,8 +694,7 @@ CONTAINS
    SUBROUTINE create_msst_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_msst_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_msst_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -766,8 +759,7 @@ CONTAINS
    SUBROUTINE create_shell_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_shell_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_shell_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: thermo_section
@@ -830,8 +822,7 @@ CONTAINS
    SUBROUTINE create_adiabatic_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_adiabatic_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_adiabatic_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: thermo_fast_section, thermo_slow_section
@@ -903,8 +894,7 @@ CONTAINS
    SUBROUTINE create_softening_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_softening_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_softening_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -952,8 +942,7 @@ CONTAINS
    SUBROUTINE create_thermal_region_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_thermal_region_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_thermal_region_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, region_section, subsection
@@ -1078,8 +1067,7 @@ CONTAINS
 
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_cascade_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_cascade_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -1143,8 +1131,7 @@ CONTAINS
    SUBROUTINE create_avgs_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_avgs_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_avgs_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection
@@ -1196,8 +1183,7 @@ CONTAINS
    SUBROUTINE create_avgs_restart_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_avgs_restart_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_avgs_restart_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -1378,8 +1364,7 @@ CONTAINS
    SUBROUTINE create_vib_init_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_vib_init_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_vib_init_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 

@@ -72,8 +72,7 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: nrows, ncols
       INTEGER, DIMENSION(:), INTENT(OUT)                 :: blk_row_start, blk_col_start
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_calc_size', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_calc_size'
 
       INTEGER                                            :: ii, natoms_in_halo
       INTEGER, DIMENSION(:), POINTER                     :: col_block_size_data, halo_atoms, &
@@ -136,8 +135,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: atomic_matrix
       INTEGER, DIMENSION(:), INTENT(IN)                  :: blk_row_start, blk_col_start
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_construct', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_construct'
 
       INTEGER :: handle, iatom, iatom_in_halo, ii, ind, ipair, ipe, jatom, jatom_in_halo, jj, &
          ncols_blk, npairs_recv, npairs_send, nrows_blk, numprocs, pe, recv_encode, send_encode
@@ -347,8 +345,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: atomic_matrix
       INTEGER, DIMENSION(:), INTENT(IN)                  :: blk_row_start, blk_col_start
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_construct_2', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_construct_2'
 
       INTEGER                                            :: handle, iatom, iatom_global, icol, ii, &
                                                             irow, jatom, jatom_global, jj, &
@@ -439,8 +436,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(fb_com_atom_pairs_obj), INTENT(INOUT)         :: atom_pairs_send, atom_pairs_recv
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_generate_com_pairs', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_generate_com_pairs'
 
       INTEGER :: counter, dest, handle, iatom, iatom_global, itask, jatom, jatom_global, &
          natoms_in_halo, nblkrows_total, nencode, ntasks_recv, ntasks_send, src
@@ -634,8 +630,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(fb_com_atom_pairs_obj), INTENT(INOUT)         :: atom_pairs_send, atom_pairs_recv
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_generate_com_pairs_2', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_generate_com_pairs_2'
 
       INTEGER :: counter, dest, handle, iatom, iatom_global, ihalo, itask, jatom, jatom_global, &
          natoms_in_halo, nblkrows_total, nencode, nhalos, ntasks_recv, ntasks_send, src

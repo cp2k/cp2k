@@ -93,8 +93,7 @@ CONTAINS
       LOGICAL                                            :: diis_step, energy_only, just_energy, &
                                                             exit_inner_loop
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_set_loop_flags', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_set_loop_flags'
 
 ! Some flags needed to be set at the beginning of the loop
 
@@ -299,8 +298,7 @@ CONTAINS
       TYPE(scf_control_type), POINTER                    :: scf_control
       LOGICAL                                            :: diis_step
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_new_mos_kp', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_scf_new_mos_kp'
 
       INTEGER                                            :: handle, ispin
       LOGICAL                                            :: has_unit_metric
@@ -400,8 +398,7 @@ CONTAINS
       LOGICAL, INTENT(INOUT)                             :: energy_only
       LOGICAL, INTENT(IN)                                :: has_unit_metric
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_loop_do_ot', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_scf_loop_do_ot'
 
       INTEGER                                            :: handle, ispin
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
@@ -456,8 +453,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL                                            :: diis_step
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_density_mixing', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_density_mixing'
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
 
@@ -501,8 +497,7 @@ CONTAINS
       LOGICAL                                            :: should_stop, outer_loop_converged, &
                                                             exit_outer_loop
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_check_outer_exit', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_check_outer_exit'
 
       REAL(KIND=dp)                                      :: outer_loop_eps
 
@@ -543,8 +538,7 @@ CONTAINS
                                                             inner_loop_converged
       INTEGER                                            :: output_unit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_check_inner_exit', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_check_inner_exit'
 
       inner_loop_converged = .FALSE.
       exit_inner_loop = .FALSE.
@@ -584,8 +578,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL                                            :: diis_step
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_undo_mixing', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_undo_mixing'
 
       CHARACTER(len=default_string_length)               :: name
       INTEGER                                            :: ic, ispin, nc
@@ -635,8 +628,7 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       LOGICAL, INTENT(IN)                                :: mix_rho
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_rho_update', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_scf_rho_update'
 
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
@@ -667,8 +659,7 @@ CONTAINS
       LOGICAL                                            :: diis_step
       INTEGER, INTENT(IN)                                :: output_unit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_inner_finalize', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_inner_finalize'
 
       LOGICAL                                            :: do_kpoints
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -707,8 +698,7 @@ CONTAINS
    SUBROUTINE cleanup_scf_loop(scf_env)
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cleanup_scf_loop', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cleanup_scf_loop'
 
       INTEGER                                            :: handle, ispin
 

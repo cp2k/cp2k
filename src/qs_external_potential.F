@@ -63,8 +63,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'external_e_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'external_e_potential'
 
       INTEGER                                            :: handle, i, j, k
       INTEGER, DIMENSION(2, 3)                           :: bo_global, bo_local
@@ -129,8 +128,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, OPTIONAL                                  :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'external_c_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'external_c_potential'
 
       INTEGER                                            :: atom_a, handle, iatom, ikind, natom, &
                                                             nkind
@@ -227,8 +225,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: func, dfunc(3)
       LOGICAL, INTENT(IN), OPTIONAL                      :: calc_derivatives
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_external_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_external_potential'
 
       CHARACTER(LEN=default_path_length)                 :: coupling_function
       CHARACTER(LEN=default_string_length)               :: def_error, this_error
@@ -294,8 +291,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: func, dfunc(3)
       LOGICAL, INTENT(IN), OPTIONAL                      :: calc_derivatives
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'interpolate_external_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'interpolate_external_potential'
 
       INTEGER                                            :: buffer_i, buffer_j, buffer_k, &
                                                             data_source, fd_extra_point, gid, &

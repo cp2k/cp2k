@@ -258,8 +258,7 @@ CONTAINS
    SUBROUTINE create_pao_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_pao_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_pao_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: printkey, subsection, subsubsection

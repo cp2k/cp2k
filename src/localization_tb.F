@@ -80,8 +80,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       CHARACTER(LEN=*)                                   :: tb_type
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'wfn_localization_tb', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'wfn_localization_tb'
 
       INTEGER                                            :: handle, iounit, ispin, nspins
       INTEGER, DIMENSION(:, :, :), POINTER               :: marked_states

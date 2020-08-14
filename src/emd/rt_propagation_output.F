@@ -264,8 +264,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_s
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rt_calculate_orthonormality', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rt_calculate_orthonormality'
 
       INTEGER                                            :: handle, i, im, ispin, j, k, n, &
                                                             ncol_local, nrow_local, nspin, re
@@ -456,8 +455,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: delta_P
       REAL(dp), INTENT(out)                              :: delta_eps
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rt_convergence_density', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rt_convergence_density'
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
       INTEGER                                            :: col_atom, group, handle, i, ispin, &
@@ -557,8 +555,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: filter_eps
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'report_density_occupation', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'report_density_occupation'
 
       INTEGER                                            :: handle, i, im, ispin, re, unit_nr
       REAL(KIND=dp)                                      :: eps, occ
@@ -613,8 +610,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_new
       LOGICAL                                            :: history
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_rt_p_to_restart', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_rt_p_to_restart'
 
       CHARACTER(LEN=default_path_length)                 :: file_name, project_name
       INTEGER                                            :: handle, im, ispin, re, unit_nr

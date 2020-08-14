@@ -560,8 +560,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nl
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: prefac
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_prefac_sabb', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_prefac_sabb'
 
       INTEGER                                            :: il, j, k
       REAL(KIND=dp)                                      :: sqrt_pi3, temp
@@ -932,8 +931,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: swork_cont
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'contract_sint_ab_clow', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'contract_sint_ab_clow'
 
       INTEGER                                            :: ids, ids_start, ipgfa, ishella, jpgfb, &
                                                             jshellb, lai, lbj, ndev, nds
@@ -988,8 +986,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: swork
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: swork_cont
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'contract_sint_ab_chigh', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'contract_sint_ab_chigh'
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: work_pc
 
@@ -1031,8 +1028,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: swork_cont
       INTEGER, INTENT(IN)                                :: m, nds_max
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'contract_s_ra2m_ab', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'contract_s_ra2m_ab'
 
       INTEGER                                            :: i, my_m
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: work_pc
@@ -1093,8 +1089,7 @@ CONTAINS
          INTENT(INOUT)                                   :: swork_cont
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'contract_s_overlap_abb', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'contract_s_overlap_abb'
 
       INTEGER                                            :: forb, fri, ids, ids_start, iil, il, &
                                                             ishella, jpgfb, jshellb, kpgfb, &
@@ -1185,8 +1180,7 @@ CONTAINS
          INTENT(INOUT)                                   :: swork_cont
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'contract_s_overlap_aba', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'contract_s_overlap_aba'
 
       INTEGER                                            :: forb, fri, ids, ids_start, iil, il, &
                                                             ipgfa, ishella, jshellb, kpgfa, &

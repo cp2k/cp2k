@@ -84,8 +84,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: tkind, tshell
       INTEGER, INTENT(IN)                                :: natom
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_conserved_quantity', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_conserved_quantity'
 
       INTEGER                                            :: ikind, nfree_qm, nkind
       INTEGER, POINTER                                   :: itimes
@@ -283,8 +282,7 @@ CONTAINS
       TYPE(md_ener_type), INTENT(inout)                  :: md_ener
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_nvt_adiabatic', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_nvt_adiabatic'
 
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(thermostat_type), POINTER                     :: thermostat_fast, thermostat_slow
@@ -435,8 +433,7 @@ CONTAINS
       TYPE(md_environment_type), POINTER                 :: md_env
       TYPE(md_ener_type), INTENT(inout)                  :: md_ener
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_nph_uniaxial', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_nph_uniaxial'
 
       TYPE(cell_type), POINTER                           :: box
       TYPE(npt_info_type), POINTER                       :: npt(:, :)

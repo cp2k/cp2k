@@ -76,8 +76,7 @@ CONTAINS
       TYPE(energy_correction_type), POINTER              :: ec_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_efield_local_operator', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_efield_local_operator'
 
       INTEGER                                            :: handle
       REAL(dp), DIMENSION(3)                             :: rpoint
@@ -110,8 +109,7 @@ CONTAINS
       TYPE(energy_correction_type), POINTER              :: ec_env
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rpoint
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_efield_integrals', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_efield_integrals'
 
       INTEGER                                            :: handle, i
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dipmat, matrix_s
@@ -151,8 +149,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rpoint
       LOGICAL                                            :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_efield_mo_derivatives', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_efield_mo_derivatives'
 
       INTEGER :: atom_a, atom_b, handle, i, ia, iatom, icol, idir, ikind, irow, iset, ispin, &
          jatom, jkind, jset, ldab, natom, ncoa, ncob, nkind, nseta, nsetb, sgfa, sgfb

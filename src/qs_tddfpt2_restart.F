@@ -68,8 +68,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: tddfpt_print_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_write_restart', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_write_restart'
 
       INTEGER                                            :: handle, ispin, istate, nao, nspins, &
                                                             nstates, ounit
@@ -157,8 +156,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global
       INTEGER                                            :: nstates_read
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_read_restart', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_read_restart'
 
       CHARACTER(len=20)                                  :: read_str, ref_str
       CHARACTER(LEN=default_path_length)                 :: filename

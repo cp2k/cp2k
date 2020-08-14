@@ -71,8 +71,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: matrix_s
       TYPE(ls_scf_env_type)                              :: ls_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_init_matrix_S', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_init_matrix_S'
 
       INTEGER                                            :: handle, unit_nr
       REAL(KIND=dp)                                      :: frob_matrix, frob_matrix_base
@@ -222,8 +221,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: eps_lanczos
       INTEGER                                            :: max_iter_lanczos
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_matrix_preconditioner', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_matrix_preconditioner'
 
       INTEGER                                            :: datatype, handle, iblock_col, iblock_row
       LOGICAL                                            :: block_needed
@@ -328,8 +326,7 @@ CONTAINS
       CHARACTER(LEN=*)                                   :: direction
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_bs_sqrt, matrix_bs_sqrt_inv
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_matrix_preconditioner', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_matrix_preconditioner'
 
       INTEGER                                            :: handle
       TYPE(dbcsr_type)                                   :: matrix_tmp
@@ -394,8 +391,7 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: submatrix_sign_method
       TYPE(dbcsr_type), INTENT(IN), OPTIONAL             :: matrix_s_sqrt_inv
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_sign', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_sign'
       REAL(KIND=dp), PARAMETER                           :: initial_increment = 0.01_dp
 
       INTEGER                                            :: handle, iter, unit_nr, &
@@ -504,8 +500,7 @@ CONTAINS
       INTEGER                                            :: submatrix_sign_method
       TYPE(dbcsr_type), INTENT(IN), OPTIONAL             :: matrix_s_sqrt_inv
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_sign_fixed_mu', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_sign_fixed_mu'
 
       INTEGER                                            :: handle, unit_nr
       REAL(KIND=dp)                                      :: frob_matrix
@@ -637,8 +632,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nelectron
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix_s_sqrt_inv
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_sign_internal_mu', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_sign_internal_mu'
 
       INTEGER                                            :: handle, unit_nr
       REAL(KIND=dp)                                      :: frob_matrix
@@ -746,8 +740,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps_lanczos
       LOGICAL, INTENT(OUT), OPTIONAL                     :: converged
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_trs4', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_trs4'
       INTEGER, PARAMETER                                 :: max_iter = 100
       REAL(KIND=dp), PARAMETER                           :: gamma_max = 6.0_dp, gamma_min = 0.0_dp
 
@@ -1040,8 +1033,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps_lanczos
       INTEGER, INTENT(IN)                                :: max_iter_lanczos
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_tc2', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_tc2'
       INTEGER, PARAMETER                                 :: max_iter = 100
 
       INTEGER                                            :: handle, i, j, k, unit_nr
@@ -1302,8 +1294,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: homo, lumo
       INTEGER                                            :: unit_nr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_homo_lumo', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_homo_lumo'
 
       LOGICAL                                            :: converged
       REAL(KIND=dp)                                      :: max_eig, min_eig, shift1, shift2

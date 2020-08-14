@@ -77,8 +77,7 @@ CONTAINS
       TYPE(qs_energy_type), POINTER                      :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_tb_coulomb_qmqm', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_tb_coulomb_qmqm'
 
       INTEGER                                            :: atom_i, atom_j, blk, ewald_type, handle, &
                                                             i, ia, iatom, ikind, jatom, jkind, &

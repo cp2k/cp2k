@@ -134,8 +134,7 @@ CONTAINS
 
       TYPE(ct_step_env_type)                             :: env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ct_step_env_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ct_step_env_init'
 
       env%use_occ_orbs = .TRUE.
       env%use_virt_orbs = .FALSE.
@@ -232,8 +231,7 @@ CONTAINS
                                                             qq_preconditioner_full, &
                                                             pp_preconditioner_full
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ct_step_env_get', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ct_step_env_get'
 
 !INTEGER      , OPTIONAL                     :: nspins
 !SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: p_index_up
@@ -356,8 +354,7 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: qq_preconditioner_full, &
                                                             pp_preconditioner_full
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ct_step_env_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ct_step_env_set'
 
 !INTEGER      , OPTIONAL                     :: nspins
 !SPIN!!!    TYPE(dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: p_index_up
@@ -422,8 +419,7 @@ CONTAINS
 
       TYPE(ct_step_env_type)                             :: env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ct_step_env_clean', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ct_step_env_clean'
 
 !INTEGER                                     :: ispin
 

@@ -738,8 +738,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: ot_section
       INTEGER, INTENT(IN)                                :: output_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ot_readwrite_input', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'ot_readwrite_input'
 
       INTEGER                                            :: handle, ls_method, ot_algorithm, &
                                                             ot_method, ot_ortho_irac

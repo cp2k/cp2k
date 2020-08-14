@@ -133,8 +133,7 @@ CONTAINS
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_first_density_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_first_density_matrix'
 
       CHARACTER(LEN=default_path_length)                 :: file_name, filename
       INTEGER :: atom_a, blk, density_guess, group, handle, homo, i, iatom, ic, icol, id_nr, &
@@ -1092,8 +1091,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ounit
       TYPE(cp_para_env_type)                             :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atomic_block_dm', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atomic_block_dm'
 
       INTEGER                                            :: blk, group, handle, icol, ikind, irow, &
                                                             ispin, natom, nc, nkind, nocc(2)
@@ -1228,8 +1226,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       INTEGER, INTENT(IN)                                :: ounit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atomic_fock_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atomic_fock_matrix'
 
       INTEGER                                            :: handle, icol, ikind, irow
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
@@ -1307,8 +1304,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: nelectron_spin
       TYPE(cp_para_env_type)                             :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_mopac_dm', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_mopac_dm'
 
       INTEGER                                            :: atom_a, group, handle, iatom, ikind, &
                                                             iset, isgf, isgfa, ishell, ispin, la, &

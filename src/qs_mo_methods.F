@@ -138,8 +138,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ncol
       TYPE(cp_fm_type), POINTER                          :: svmatrix
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_sv_fm', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'make_basis_sv_fm'
       REAL(KIND=dp), PARAMETER                           :: rone = 1.0_dp, rzero = 0.0_dp
 
       INTEGER                                            :: handle, n, ncol_global
@@ -187,8 +186,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_sv_dbcsr', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_sv_dbcsr'
       REAL(KIND=dp), PARAMETER                           :: rone = 1.0_dp, rzero = 0.0_dp
 
       INTEGER                                            :: handle, n, ncol_global
@@ -252,8 +250,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ncol
       TYPE(cp_fm_type), POINTER                          :: ortho
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_cholesky', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_cholesky'
       REAL(KIND=dp), PARAMETER                           :: rone = 1.0_dp, rzero = 0.0_dp
 
       INTEGER                                            :: handle, n, ncol_global
@@ -304,8 +301,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ncol
       TYPE(dbcsr_type), POINTER                          :: matrix_s
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_lowdin', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'make_basis_lowdin'
       REAL(KIND=dp), PARAMETER                           :: rone = 1.0_dp, rzero = 0.0_dp
 
       INTEGER                                            :: handle, n, ncol_global, ndep
@@ -358,8 +354,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: vmatrix
       INTEGER, INTENT(IN)                                :: ncol
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_simple', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'make_basis_simple'
       REAL(KIND=dp), PARAMETER                           :: rone = 1.0_dp, rzero = 0.0_dp
 
       INTEGER                                            :: handle, n, ncol_global
@@ -409,8 +404,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: density_matrix
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_dbcsr, retain_sparsity
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_dm_sparse', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_dm_sparse'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: my_retain_sparsity, my_use_dbcsr
@@ -502,8 +496,7 @@ CONTAINS
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: co_rotate
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: co_rotate_dbcsr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'subspace_eigenvalues_ks_fm', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'subspace_eigenvalues_ks_fm'
 
       INTEGER                                            :: handle, i, j, ncol_global, nrow_global
       LOGICAL                                            :: compute_evecs, do_rotation_local
@@ -645,8 +638,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'subspace_eigenvalues_ks_dbcsr', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'subspace_eigenvalues_ks_dbcsr'
 
       INTEGER                                            :: handle, i, j, ncol_global, nrow_global
       LOGICAL                                            :: compute_evecs, do_rotation_local
@@ -787,8 +779,7 @@ CONTAINS
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_s
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_orthonormality', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_orthonormality'
 
       INTEGER                                            :: handle, i, ispin, j, k, n, ncol_local, &
                                                             nrow_local, nspin
@@ -866,8 +857,7 @@ CONTAINS
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
       REAL(KIND=dp)                                      :: mo_mag_min, mo_mag_max
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_magnitude', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_magnitude'
 
       INTEGER                                            :: handle, ispin, k, n, nspin
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: evals

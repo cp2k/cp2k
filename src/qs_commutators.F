@@ -56,8 +56,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_hr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_com_hr_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_com_hr_matrix'
 
       INTEGER                                            :: handle, ir
       REAL(KIND=dp)                                      :: eps_ppnl

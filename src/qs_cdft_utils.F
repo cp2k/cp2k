@@ -98,8 +98,7 @@ CONTAINS
    SUBROUTINE becke_constraint_init(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'becke_constraint_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'becke_constraint_init'
 
       CHARACTER(len=2)                                   :: element_symbol
       INTEGER :: atom_a, bounds(2), handle, i, iatom, iex, igroup, ikind, ip, ithread, iw, j, &
@@ -461,8 +460,7 @@ CONTAINS
       TYPE(cdft_control_type), INTENT(INOUT)             :: cdft_control
       TYPE(section_vals_type), POINTER                   :: becke_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_becke_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_becke_section'
 
       INTEGER                                            :: j
       LOGICAL                                            :: exists
@@ -538,8 +536,7 @@ CONTAINS
       TYPE(cdft_control_type), INTENT(INOUT)             :: cdft_control
       TYPE(section_vals_type), INTENT(INOUT), POINTER    :: cdft_control_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_constraint_definitions', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_constraint_definitions'
 
       INTEGER                                            :: i, j, jj, k, n_rep, natoms, nvar, &
                                                             tot_natoms
@@ -731,8 +728,7 @@ CONTAINS
       TYPE(qs_control_type), INTENT(INOUT)               :: qs_control
       TYPE(section_vals_type), POINTER                   :: cdft_control_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_cdft_control_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_cdft_control_section'
 
       LOGICAL                                            :: exists
       TYPE(cdft_control_type), POINTER                   :: cdft_control
@@ -810,8 +806,7 @@ CONTAINS
       TYPE(cdft_control_type), INTENT(INOUT)             :: cdft_control
       TYPE(section_vals_type), POINTER                   :: hirshfeld_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_hirshfeld_constraint_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_hirshfeld_constraint_section'
 
       LOGICAL                                            :: exists
       REAL(KIND=dp), DIMENSION(:), POINTER               :: rtmplist
@@ -980,8 +975,7 @@ CONTAINS
    SUBROUTINE hirshfeld_constraint_init(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'hirshfeld_constraint_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'hirshfeld_constraint_init'
 
       CHARACTER(len=2)                                   :: element_symbol
       INTEGER                                            :: handle, iat, iatom, igroup, ikind, ip, &
@@ -1111,8 +1105,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: electronic_charge
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cdft_constraint_print', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cdft_constraint_print'
 
       CHARACTER(len=2)                                   :: element_symbol
       INTEGER                                            :: iatom, ikind, iw, jatom
@@ -1275,8 +1268,7 @@ CONTAINS
    SUBROUTINE cdft_print_weight_function(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cdft_print_weight_function', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cdft_print_weight_function'
 
       CHARACTER(LEN=default_path_length)                 :: middle_name
       INTEGER                                            :: igroup, unit_nr

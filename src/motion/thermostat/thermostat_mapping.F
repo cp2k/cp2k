@@ -91,8 +91,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: map_loc_thermo_gen
       INTEGER, INTENT(INOUT)                             :: sum_of_thermostats
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'adiabatic_mapping_region', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'adiabatic_mapping_region'
 
       INTEGER                                            :: handle, nkind, nmol_local, nsize, &
                                                             number_of_thermostats
@@ -184,8 +183,7 @@ CONTAINS
       TYPE(global_constraint_type), POINTER              :: gci
       INTEGER, DIMENSION(:), POINTER                     :: map_loc_thermo_gen
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'adiabatic_mapping_region_low', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'adiabatic_mapping_region_low'
 
       INTEGER :: first_atom, first_shell, glob_therm_num, handle, icount, ielement, ii, ikind, &
          imol, imol_local, ipart, jj, k, kk, last_atom, last_shell, nglob_cns, nmol_local, number
@@ -396,8 +394,7 @@ CONTAINS
       TYPE(simpar_type), POINTER                         :: simpar
       LOGICAL, INTENT(IN)                                :: shell
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'adiabatic_region_evaluate', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'adiabatic_region_evaluate'
 
       INTEGER :: atm_offset, first_atom, handle, icount, ikind, ilist, imol, imol_local, katom, &
          last_atom, natom, nc, nfixd, nkind, nmol_per_kind, nmolecule, nshell
@@ -548,8 +545,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: map_loc_thermo_gen
       INTEGER, INTENT(IN)                                :: sum_of_thermostats
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'thermostat_mapping_region', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'thermostat_mapping_region'
 
       INTEGER                                            :: handle, nkind, nmol_local, nsize, &
                                                             number_of_thermostats
@@ -637,8 +633,7 @@ CONTAINS
       TYPE(global_constraint_type), POINTER              :: gci
       INTEGER, DIMENSION(:), POINTER                     :: map_loc_thermo_gen
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'thermostat_mapping_region_low', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'thermostat_mapping_region_low'
 
       INTEGER :: first_atom, first_shell, handle, i, icount, ielement, ii, ikind, imap, imol, &
          imol_local, ipart, itmp, jj, k, kk, last_atom, last_shell, nglob_cns, nmol_local
@@ -828,8 +823,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: sum_of_thermostats
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mapping_region_evaluate', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mapping_region_evaluate'
 
       INTEGER :: atm_offset, first_atom, handle, i, iatm, icount, id_region, ikind, ilist, imol, &
          imol_local, j, jatm, katom, last_atom, natom, nc, nfixd, nkind, nmol_per_kind, nmolecule, &
@@ -1101,8 +1095,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: region
       LOGICAL, INTENT(IN)                                :: shell
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'massive_list_generate', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'massive_list_generate'
 
       INTEGER :: first_atom, first_shell, handle, i, ikind, imol, iproc, j, natom, ncount, nkind, &
          nmol_per_kind, nshell, num_massive_atm, num_massive_atm_local, offset
@@ -1191,8 +1184,7 @@ CONTAINS
       TYPE(map_info_type), POINTER                       :: map_info
       INTEGER, INTENT(IN)                                :: ndeg, num_thermo
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_baro_map_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_baro_map_info'
 
       INTEGER                                            :: handle, i
 

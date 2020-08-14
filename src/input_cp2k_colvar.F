@@ -61,8 +61,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
       LOGICAL, OPTIONAL                                  :: skip_recursive_colvar
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_section'
 
       LOGICAL                                            :: skip
       TYPE(section_type), POINTER                        :: print_key, subsection
@@ -106,8 +105,7 @@ CONTAINS
    SUBROUTINE create_clv_info_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_clv_info_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_clv_info_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -139,8 +137,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection, section
       LOGICAL, INTENT(IN)                                :: skip_recursive_colvar
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_var_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_var_section'
 
       CPASSERT(.NOT. ASSOCIATED(subsection))
       CPASSERT(ASSOCIATED(section))
@@ -261,8 +258,7 @@ CONTAINS
    SUBROUTINE create_colvar_coord_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_coord_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_coord_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -390,8 +386,7 @@ CONTAINS
    SUBROUTINE create_colvar_cond_dist_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_cond_dist_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_cond_dist_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -489,8 +484,7 @@ CONTAINS
    SUBROUTINE create_colvar_pop_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_pop_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_pop_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -588,8 +582,7 @@ CONTAINS
    SUBROUTINE create_colvar_gyr_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_gyr_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_gyr_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -631,8 +624,7 @@ CONTAINS
    SUBROUTINE create_colvar_dfunct_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_dfunct_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_dfunct_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -684,8 +676,7 @@ CONTAINS
    SUBROUTINE create_colvar_torsion_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_torsion_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_torsion_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -720,8 +711,7 @@ CONTAINS
    SUBROUTINE create_colvar_rot_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_rot_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_rot_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -781,8 +771,7 @@ CONTAINS
    SUBROUTINE create_colvar_angle_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_angle_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_angle_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -816,8 +805,7 @@ CONTAINS
    SUBROUTINE create_colvar_dist_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_dist_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_dist_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -859,8 +847,7 @@ CONTAINS
    SUBROUTINE create_colvar_xyz_d_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_xyz_d_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_xyz_d_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -922,8 +909,7 @@ CONTAINS
    SUBROUTINE create_colvar_xyz_od_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_xyz_od_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_xyz_od_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -987,8 +973,7 @@ CONTAINS
    SUBROUTINE create_colvar_u_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_u_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_u_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -1069,8 +1054,7 @@ CONTAINS
    SUBROUTINE create_colvar_d_pl_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_d_pl_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_d_pl_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -1122,8 +1106,7 @@ CONTAINS
    SUBROUTINE create_colvar_a_pl_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_a_pl_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_a_pl_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -1183,8 +1166,7 @@ CONTAINS
    SUBROUTINE create_point_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_point_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_point_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -1240,8 +1222,7 @@ CONTAINS
    SUBROUTINE create_colvar_qparm_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_qparm_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_qparm_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -1320,8 +1301,7 @@ CONTAINS
    SUBROUTINE create_colvar_hydronium_shell_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_hydronium_shell_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_hydronium_shell_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -1446,8 +1426,7 @@ CONTAINS
    SUBROUTINE create_colvar_hydronium_dist_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_hydronium_dist_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_hydronium_dist_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -1566,8 +1545,7 @@ CONTAINS
    SUBROUTINE create_colvar_acid_hyd_dist_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_acid_hyd_dist_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_acid_hyd_dist_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -1695,8 +1673,7 @@ CONTAINS
    SUBROUTINE create_colvar_acid_hyd_shell_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_acid_hyd_shell_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_acid_hyd_shell_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -1869,8 +1846,7 @@ CONTAINS
    SUBROUTINE create_colvar_rmsd_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_rmsd_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_rmsd_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection, subsubsection
@@ -1943,8 +1919,7 @@ CONTAINS
    SUBROUTINE create_colvar_rpath_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_rpath_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_rpath_section'
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="REACTION_PATH", &
@@ -1966,8 +1941,7 @@ CONTAINS
    SUBROUTINE create_colvar_dpath_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_dpath_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_dpath_section'
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="DISTANCE_FROM_PATH", &
@@ -1991,8 +1965,7 @@ CONTAINS
 
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'keywords_colvar_path', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'keywords_colvar_path'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection, subsubsection
@@ -2134,8 +2107,7 @@ CONTAINS
    SUBROUTINE create_colvar_comb_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_comb_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_comb_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -2215,8 +2187,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
       CHARACTER(LEN=*), INTENT(IN)                       :: name
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_coord_section_cv', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_coord_section_cv'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -2242,8 +2213,7 @@ CONTAINS
    SUBROUTINE create_colvar_wc_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_wc_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_wc_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -2285,8 +2255,7 @@ CONTAINS
    SUBROUTINE create_colvar_hbp_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_hbp_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_hbp_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -2343,8 +2312,7 @@ CONTAINS
    SUBROUTINE create_colvar_ring_puckering_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_ring_puckering_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_ring_puckering_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection

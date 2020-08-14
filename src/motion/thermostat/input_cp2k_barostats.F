@@ -54,8 +54,7 @@ CONTAINS
    SUBROUTINE create_barostat_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_barostat_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_barostat_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection, thermo_section
@@ -131,8 +130,7 @@ CONTAINS
    SUBROUTINE create_print_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_print_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_print_section'
 
       TYPE(section_type), POINTER                        :: print_key
 

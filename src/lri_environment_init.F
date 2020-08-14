@@ -419,8 +419,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: basis
       REAL(dp), DIMENSION(:), POINTER                    :: norm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'basis_norm_s_func', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'basis_norm_s_func'
 
       INTEGER                                            :: ipgf, iset, isgf, ishell, jpgf, l, nbas
       REAL(KIND=dp)                                      :: aai, aaj, cci, ccj, expa, ppl
@@ -465,8 +464,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: basis
       REAL(dp), DIMENSION(:), POINTER                    :: norm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'basis_norm_radial', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'basis_norm_radial'
 
       INTEGER                                            :: ipgf, iset, isgf, ishell, jpgf, l, nbas
       REAL(KIND=dp)                                      :: aai, aaj, cci, ccj, expa, ppl

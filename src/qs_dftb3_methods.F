@@ -80,8 +80,7 @@ CONTAINS
       TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
       LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_dftb3_diagonal', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_dftb3_diagonal'
 
       INTEGER                                            :: atom_i, atom_j, blk, handle, i, ia, iac, &
                                                             iatom, ic, icol, ikind, irow, is, &

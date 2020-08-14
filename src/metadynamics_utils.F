@@ -282,8 +282,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n_colvar
       TYPE(section_vals_type), POINTER                   :: metadyn_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_metadyn_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_metadyn_info'
 
       CHARACTER(LEN=10)                                  :: my_id, my_tag
       INTEGER                                            :: handle, i, iw, j
@@ -511,8 +510,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n_colvar
       TYPE(section_vals_type), POINTER                   :: metadyn_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'synchronize_multiple_walkers', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'synchronize_multiple_walkers'
 
       CHARACTER(LEN=default_path_length)                 :: filename, tmpname
       INTEGER                                            :: delta_hills, handle, i, i_hills, ih, iw, &
@@ -659,8 +657,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n_colvar
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: invdt
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'add_hill_single', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'add_hill_single'
 
       INTEGER                                            :: handle, i
       LOGICAL                                            :: wtcontrol
@@ -866,8 +863,7 @@ CONTAINS
       TYPE(meta_env_type), POINTER                       :: meta_env
       INTEGER, INTENT(OUT)                               :: iter_nr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_meta_iter_level', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_meta_iter_level'
 
       IF (meta_env%do_multiple_walkers) THEN
          iter_nr = meta_env%multiple_walkers%n_hills_local

@@ -109,8 +109,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: natom, nspins
       REAL(dp), DIMENSION(:), INTENT(INOUT)              :: tot_rho1_h, tot_rho1_s
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_atom', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_atom'
 
       INTEGER :: damax_iso_not0_local, dbmax_iso_not0_local, dmax_iso_not0, handle, i, i1, i2, &
          iat, iatom, icg, ipgf1, ipgf2, ir, iset1, iset2, iso, iso1, iso1_first, iso1_last, iso2, &
@@ -484,8 +483,7 @@ CONTAINS
          POINTER                                         :: sab
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_atom_coeff', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_atom_coeff'
 
       INTEGER :: bo(2), handle, i, iac, iatom, ibc, icol, ikind, img, irow, ispin, istat, jatom, &
          jkind, kac, katom, kbc, kkind, len_CPC, len_PC1, max_gau, max_nsgf, maxsoc, mepos, &
@@ -994,8 +992,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho_atom_internals', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho_atom_internals'
 
       INTEGER                                            :: bo(2), handle, iat, iatom, ikind, ispin, &
                                                             istat, j, max_iso_not0, mepos, nat, &
@@ -1148,8 +1145,7 @@ CONTAINS
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
       INTEGER, INTENT(IN)                                :: iatom, ispin, nr, max_iso_not0
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho_atom_rad', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho_atom_rad'
 
       INTEGER                                            :: handle, istat, j
 
@@ -1209,8 +1205,7 @@ CONTAINS
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
       INTEGER, INTENT(IN)                                :: iatom, ispin
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set2zero_rho_atom_rad', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'set2zero_rho_atom_rad'
 
       INTEGER                                            :: j
 

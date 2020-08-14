@@ -50,8 +50,7 @@ CONTAINS
    SUBROUTINE semi_empirical_expns3_create(expns3)
       TYPE(semi_empirical_expns3_type), POINTER          :: expns3
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_expns3_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_expns3_create'
 
       CPASSERT(.NOT. ASSOCIATED(expns3))
       ALLOCATE (expns3)
@@ -69,8 +68,7 @@ CONTAINS
    SUBROUTINE semi_empirical_expns3_release(expns3)
       TYPE(semi_empirical_expns3_type), POINTER          :: expns3
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_expns3_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_expns3_release'
 
       IF (ASSOCIATED(expns3)) THEN
          DEALLOCATE (expns3)

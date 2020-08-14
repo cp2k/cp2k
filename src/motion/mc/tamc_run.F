@@ -673,8 +673,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: An
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'tamc_velocities_colvar', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'tamc_velocities_colvar'
 
       INTEGER                                            :: handle, i_c
       REAL(kind=dp)                                      :: dt, fft, sigma
@@ -713,8 +712,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: xieta
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'tamc_position_colvar', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'tamc_position_colvar'
 
       INTEGER                                            :: handle, i_c
       REAL(kind=dp)                                      :: dt, sigma
@@ -1265,8 +1263,7 @@ CONTAINS
    SUBROUTINE metadyn_write_colvar_header(force_env)
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_write_colvar_header', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_write_colvar_header'
 
       CHARACTER(len=100)                                 :: aux, fmt
       CHARACTER(len=255)                                 :: label1, label2, label3, label4, label5, &
@@ -1345,8 +1342,7 @@ CONTAINS
    SUBROUTINE metadyn_write_colvar(force_env)
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_write_colvar', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_write_colvar'
 
       INTEGER                                            :: handle, i, i_c, iw
       REAL(KIND=dp)                                      :: temp

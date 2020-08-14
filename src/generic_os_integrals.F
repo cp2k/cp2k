@@ -83,8 +83,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: omega, r_cutoff
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_operators_r12_ab_os', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_operators_r12_ab_os'
 
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: my_omega, my_r_cutoff
@@ -275,8 +274,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calculate_forces, debug
       REAL(KIND=dp), INTENT(INOUT)                       :: dmax
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_ab_os', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'int_overlap_ab_os'
 
       INTEGER                                            :: handle, i, iset, jset, m1, m2, maxco, &
                                                             maxcoa, maxcob, maxl, maxla, maxlb, &
@@ -512,8 +510,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calculate_forces, debug
       REAL(KIND=dp), INTENT(INOUT)                       :: dmax
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_aba_os', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_aba_os'
 
       INTEGER                                            :: handle, i, iset, jset, kaset, m1, m2, &
                                                             m3, ncoa, ncob, ncoc, nseta, nsetb, &
@@ -674,8 +671,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calculate_forces, debug
       REAL(KIND=dp), INTENT(INOUT)                       :: dmax
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_abb_os', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_abb_os'
 
       INTEGER                                            :: handle, i, iset, jset, kbset, m1, m2, &
                                                             m3, ncoa, ncob, ncoc, nseta, nsetb, &
@@ -830,8 +826,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: debug
       REAL(KIND=dp), INTENT(INOUT)                       :: dmax
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_aabb_os', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_aabb_os'
 
       INTEGER :: handle, iset, isgfa1, jset, jsgfa2, kset, ksgfb1, lds, lset, lsgfb2, m1, m2, m3, &
          m4, maxco, maxcoa, maxcob, maxl, maxla, maxlb, ncoa1, ncoa2, ncob1, ncob2, nseta, nsetb, &

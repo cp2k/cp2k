@@ -52,8 +52,7 @@ CONTAINS
    SUBROUTINE add_external_potential(force_env)
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'add_external_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'add_external_potential'
 
       CHARACTER(LEN=default_path_length)                 :: coupling_function
       CHARACTER(LEN=default_string_length)               :: def_error, this_error

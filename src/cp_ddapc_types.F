@@ -108,8 +108,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: Vol
       TYPE(section_vals_type), POINTER                   :: force_env_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_ddapc_create'
 
       INTEGER                                            :: handle
       TYPE(section_vals_type), POINTER                   :: param_section, solvation_section
@@ -185,8 +184,7 @@ CONTAINS
    SUBROUTINE cp_ddapc_retain(cp_ddapc_env)
       TYPE(cp_ddapc_type), POINTER                       :: cp_ddapc_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_ddapc_retain'
 
       CPASSERT(ASSOCIATED(cp_ddapc_env))
       CPASSERT(cp_ddapc_env%ref_count > 0)
@@ -203,8 +201,7 @@ CONTAINS
    SUBROUTINE cp_ddapc_release(cp_ddapc_env)
       TYPE(cp_ddapc_type), POINTER                       :: cp_ddapc_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_ddapc_release'
 
       IF (ASSOCIATED(cp_ddapc_env)) THEN
          CPASSERT(cp_ddapc_env%ref_count > 0)
@@ -256,8 +253,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_ewald_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_ewald_create'
 
       INTEGER                                            :: my_val, npts(3), output_unit
       INTEGER, DIMENSION(:), POINTER                     :: ngrids
@@ -442,8 +438,7 @@ CONTAINS
    SUBROUTINE cp_ddapc_ewald_release(cp_ddapc_ewald)
       TYPE(cp_ddapc_ewald_type), POINTER                 :: cp_ddapc_ewald
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_ewald_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_ewald_release'
 
       IF (ASSOCIATED(cp_ddapc_ewald)) THEN
          IF (ASSOCIATED(cp_ddapc_ewald%coeff_qm)) THEN

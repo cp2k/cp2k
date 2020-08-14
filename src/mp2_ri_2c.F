@@ -176,8 +176,7 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb_sub
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_2c_integrals', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_2c_integrals'
 
       INTEGER                                            :: handle, i_real_imag, i_size, j_size
       REAL(KIND=dp)                                      :: eps_pgf_orb_old
@@ -370,8 +369,7 @@ CONTAINS
                                                             fm_matrix_L_RI_metric
       TYPE(kpoint_type), POINTER                         :: kpoints
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_V_by_lattice_sum', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_V_by_lattice_sum'
 
       INTEGER                                            :: handle, i_dim, i_real_imag, ikp, nkp
       INTEGER, DIMENSION(3)                              :: periodic
@@ -485,8 +483,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_kpoints
       TYPE(kpoint_type), POINTER                         :: kpoints
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'RI_2c_integral_mat', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'RI_2c_integral_mat'
 
       INTEGER                                            :: handle, i_real_imag, i_size, ikp, img, &
                                                             n_real_imag, natom, nimg, nkind, nkp
@@ -715,8 +712,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_im_time
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_matrix_L_extern
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_2c_integrals', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_2c_integrals'
 
       INTEGER :: best_group_size, color_L, comm_exchange, comm_L, group_size, handle, handle2, i, &
          i_global, iatom, iiB, ikind, iproc, j_global, jjB, natom, ncol_local, nkind, nrow_local, &
@@ -990,8 +986,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_inversion
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_root_with_svd', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_root_with_svd'
 
       INTEGER                                            :: comm_exchange, group_size_L, handle, ii, &
                                                             needed_evals, nrow, pos_max
@@ -1097,8 +1092,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: new_size
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_template
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reset_size_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'reset_size_matrix'
 
       INTEGER                                            :: handle
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
@@ -1139,8 +1133,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: my_group_L_start, my_group_L_end, &
                                                             dimen_RI
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_fm_L_from_L_loc_non_blocking', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_fm_L_from_L_loc_non_blocking'
 
       INTEGER :: dummy_proc, handle, handle2, i_entry_rec, i_row, i_row_global, iproc, j_col, &
          j_col_global, LLL, MMM, ncol_block, ncol_local, npcol, nprow, nrow_block, nrow_local, &
@@ -1361,8 +1354,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dimen_RI
       LOGICAL, INTENT(IN)                                :: do_inversion
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cholesky_decomp', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cholesky_decomp'
 
       INTEGER                                            :: handle, i_global, iiB, info_chol, &
                                                             j_global, jjB, ncol_local, nrow_local
@@ -1410,8 +1402,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dimen_RI
       TYPE(kpoint_type), POINTER                         :: kpoints
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'inversion_of_S_and_mult_with_chol_dec_of_V', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'inversion_of_S_and_mult_with_chol_dec_of_V'
       COMPLEX(KIND=dp), PARAMETER :: cone = CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
          czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp), ione = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
 
@@ -1559,8 +1550,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: name
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_matrix_L_extern
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_matrix_L', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_matrix_L'
 
       INTEGER                                            :: handle
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct

@@ -654,8 +654,7 @@ CONTAINS
       CHARACTER(LEN=1), INTENT(IN), OPTIONAL             :: option
       LOGICAL, INTENT(IN), OPTIONAL                      :: improve
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'invert_matrix_d', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'invert_matrix_d'
 
       CHARACTER(LEN=1)                                   :: norm, trans
       CHARACTER(LEN=default_string_length)               :: message
@@ -818,8 +817,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: eval_error
       CHARACTER(LEN=1), INTENT(IN), OPTIONAL             :: option
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'invert_matrix_z', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'invert_matrix_z'
 
       CHARACTER(LEN=1)                                   :: norm, trans
       CHARACTER(LEN=default_string_length)               :: message
@@ -966,8 +964,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), &
          OPTIONAL, POINTER                               :: sval
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_pseudo_inverse_svd', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_pseudo_inverse_svd'
 
       INTEGER                                            :: handle, i, info, lwork, n
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iwork
@@ -1046,8 +1043,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :)                     :: a, a_pinverse
       REAL(KIND=dp), INTENT(IN)                          :: rskip
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_pseudo_inverse_diag', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_pseudo_inverse_diag'
 
       INTEGER                                            :: handle, i, info, lwork, n
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eig, work
@@ -1226,8 +1222,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: a
       CHARACTER(LEN=*), INTENT(IN)                       :: option
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'symmetrize_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'symmetrize_matrix'
 
       INTEGER                                            :: i, n
 
@@ -1787,8 +1782,7 @@ CONTAINS
       REAL(dp), INTENT(in)  :: eps, omg
       REAL(dp), INTENT(out) :: r_cutoff
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'erfc_cutoff', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'erfc_cutoff'
 
       REAL(dp), PARAMETER :: abstol = 1E-10_dp, soltol = 1E-16_dp
       REAL(dp) :: r0, f0, fprime0, delta_r

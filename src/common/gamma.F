@@ -64,8 +64,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nmax
       REAL(KIND=dp), INTENT(IN)                          :: tmin, tmax, tdelta
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_md_ftable', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_md_ftable'
 
       INTEGER                                            :: itab, itabmax, itabmin, n
       REAL(KIND=dp)                                      :: t
@@ -120,8 +119,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE deallocate_md_ftable()
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_md_ftable', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_md_ftable'
 
       IF (current_nmax > -1) THEN
 

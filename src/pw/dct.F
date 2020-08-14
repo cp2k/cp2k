@@ -137,8 +137,7 @@ CONTAINS
 
       TYPE(dct_type), INTENT(INOUT)                      :: dct_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dct_type_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dct_type_release'
 
       INTEGER                                            :: handle
 
@@ -172,8 +171,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: neumann_directions
       TYPE(pw_grid_type), INTENT(INOUT), POINTER         :: dct_pw_grid
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_dct_pw_grids', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_dct_pw_grids'
 
       INTEGER                                            :: blocked, handle, maxn_sendrecv, &
                                                             srcs_shrink
@@ -272,8 +270,7 @@ CONTAINS
                                                             dests_shrink
       INTEGER, INTENT(OUT)                               :: srcs_shrink
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_dests_srcs_pid', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_dests_srcs_pid'
 
       INTEGER                                            :: group_size, handle, i, j, k, &
                                                             maxn_sendrecv, rs_dim1, rs_dim2, &
@@ -1064,8 +1061,7 @@ CONTAINS
          POINTER                                         :: recv_msgs_bnds
       INTEGER, DIMENSION(2, 3), INTENT(OUT)              :: bounds_new, bounds_local_new
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'expansion_bounds', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'expansion_bounds'
 
       INTEGER                                            :: group_size, handle, i, lb1_new, lb2_new, &
                                                             lb3_new, loc, maxn_sendrecv, rs_group, &
@@ -1219,8 +1215,7 @@ CONTAINS
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bndsl_in, bounds
       INTEGER, DIMENSION(2, 3)                           :: bndsl_out
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'flipud_bounds_local', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'flipud_bounds_local'
 
       INTEGER                                            :: handle
 
@@ -1255,8 +1250,7 @@ CONTAINS
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bndsl_in, bounds
       INTEGER, DIMENSION(2, 3)                           :: bndsl_out
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fliplr_bounds_local', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fliplr_bounds_local'
 
       INTEGER                                            :: handle
 
@@ -1291,8 +1285,7 @@ CONTAINS
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bndsl_in, bounds
       INTEGER, DIMENSION(2, 3)                           :: bndsl_out
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'flipbf_bounds_local', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'flipbf_bounds_local'
 
       INTEGER                                            :: handle
 
@@ -1327,8 +1320,7 @@ CONTAINS
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bndsl_in, bounds
       INTEGER, DIMENSION(2, 3)                           :: bndsl_out
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rot180_bounds_local', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rot180_bounds_local'
 
       INTEGER                                            :: handle
 

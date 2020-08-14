@@ -67,8 +67,7 @@ CONTAINS
       TYPE(basis_set_container_type), DIMENSION(:), &
          INTENT(inout)                                   :: basis
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'remove_basis_set_container', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'remove_basis_set_container'
 
       INTEGER                                            :: i
 
@@ -140,8 +139,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
       CHARACTER(len=*)                                   :: basis_set_type
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'add_basis_set_to_container', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'add_basis_set_to_container'
 
       INTEGER                                            :: i
       LOGICAL                                            :: success
@@ -172,8 +170,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: inum
       CHARACTER(len=*), OPTIONAL                         :: basis_type
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'remove_basis_from_container', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'remove_basis_from_container'
 
       INTEGER                                            :: basis_nr, i, ibas
 
@@ -228,8 +225,7 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: inumbas
       CHARACTER(len=*), OPTIONAL                         :: basis_type
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_basis_from_container', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_basis_from_container'
 
       INTEGER                                            :: basis_nr, i
 

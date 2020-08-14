@@ -187,8 +187,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nspins
       LOGICAL, INTENT(IN), OPTIONAL                      :: centers_only
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_localize', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'linres_localize'
 
       INTEGER                                            :: iounit, ispin, istate, nmoloc(2)
       LOGICAL                                            :: my_centers_only
@@ -739,8 +738,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: c0, c1
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dm
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_dm_response', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_dm_response'
 
       INTEGER                                            :: ispin, ncol, nspins
 
@@ -1851,8 +1849,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: c0, c1
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_aux_r, rho1_aux_g
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_aux_reponse_density', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_aux_reponse_density'
 
       INTEGER                                            :: handle, ispin, nao, nao_aux, ncol, nspins
       REAL(KIND=dp)                                      :: tot_rho_aux
@@ -1924,8 +1921,7 @@ CONTAINS
       TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'p_env_check_i_alloc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'p_env_check_i_alloc'
 
       CHARACTER(len=25)                                  :: name
       INTEGER                                            :: handle, ispin, nspins
@@ -1984,8 +1980,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: lr_triplet
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_check_i_alloc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_check_i_alloc'
 
       INTEGER                                            :: ispin, nspins
       TYPE(admm_type), POINTER                           :: admm_env
@@ -2206,8 +2201,7 @@ CONTAINS
       CHARACTER(LEN=*)                                   :: tag
       INTEGER, INTENT(IN), OPTIONAL                      :: ind
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_write_restart', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_write_restart'
 
       CHARACTER(LEN=default_path_length)                 :: filename
       CHARACTER(LEN=default_string_length)               :: my_middle, my_pos, my_status
@@ -2321,8 +2315,7 @@ CONTAINS
       CHARACTER(LEN=*)                                   :: tag
       INTEGER, INTENT(INOUT), OPTIONAL                   :: ind
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_read_restart', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_read_restart'
 
       CHARACTER(LEN=default_path_length)                 :: filename
       CHARACTER(LEN=default_string_length)               :: my_middle
@@ -2485,8 +2478,7 @@ CONTAINS
       TYPE(linres_control_type), POINTER                 :: linres_control
       INTEGER, INTENT(IN)                                :: nspins
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'check_p_env_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_p_env_init'
 
       INTEGER                                            :: ispin, ncol, nrow
 

@@ -75,8 +75,7 @@ CONTAINS
    SUBROUTINE qs_subsys_retain(subsys)
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_subsys_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_subsys_retain'
 
       CPASSERT(ASSOCIATED(subsys))
       CPASSERT(subsys%ref_count > 0)
@@ -91,8 +90,7 @@ CONTAINS
    SUBROUTINE qs_subsys_release(subsys)
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_subsys_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_subsys_release'
 
       IF (ASSOCIATED(subsys)) THEN
          CPASSERT(subsys%ref_count > 0)

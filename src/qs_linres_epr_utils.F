@@ -240,8 +240,7 @@ CONTAINS
 
       TYPE(epr_env_type)                                 :: epr_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_env_cleanup', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'epr_env_cleanup'
 
       INTEGER                                            :: i_B, idir, ispin
 

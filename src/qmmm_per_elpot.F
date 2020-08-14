@@ -91,8 +91,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps_mm_rspace, maxchrg
       INTEGER, INTENT(IN)                                :: ncp(3), ncpl(3)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_per_potential_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_per_potential_init'
 
       INTEGER                                            :: I, idim, ig, ig_start, iw, ix, iy, iz, &
                                                             K, Kmax(3), n_rep_real(3), &
@@ -288,8 +287,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: qmmm_per_section, print_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_per_pot_type_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_per_pot_type_create'
 
       INTEGER                                            :: npts(3)
       INTEGER, DIMENSION(:), POINTER                     :: ngrids
@@ -345,8 +343,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: qmmm_periodic, print_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_ewald_potential_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_ewald_potential_init'
 
       INTEGER                                            :: ewald_type, gmax(3), iw, o_spline, ounit
       LOGICAL                                            :: do_multipoles

@@ -264,8 +264,7 @@ CONTAINS
       LOGICAL                                            :: calc_intens
       TYPE(cp_logger_type), POINTER                      :: logger
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'MS_initial_moves', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'MS_initial_moves'
 
       INTEGER                                            :: guess, handle, i, j, jj, k, m, &
                                                             n_rep_val, natoms, ncoord
@@ -841,8 +840,7 @@ CONTAINS
       INTEGER                                            :: output_unit_ms
       TYPE(cp_logger_type), POINTER                      :: logger
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'evaluate_H_update_b', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'evaluate_H_update_b'
 
       INTEGER                                            :: i, j, jj, k, natoms, ncoord
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ind

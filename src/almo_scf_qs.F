@@ -120,8 +120,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: spin_key
       LOGICAL, INTENT(IN)                                :: init_domains
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'matrix_almo_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'matrix_almo_create'
 
       INTEGER                                            :: dimen, handle, hold, iatom, iblock_col, &
                                                             iblock_row, imol, mynode, natoms, &
@@ -423,8 +422,7 @@ CONTAINS
       INTEGER                                            :: mat_distr_aos
       LOGICAL, INTENT(IN)                                :: keep_sparsity
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'matrix_qs_to_almo', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'matrix_qs_to_almo'
 
       INTEGER                                            :: handle
       TYPE(dbcsr_type)                                   :: matrix_qs_nosym
@@ -476,8 +474,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: matrix_almo, matrix_qs
       INTEGER, INTENT(IN)                                :: mat_distr_aos
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'matrix_almo_to_qs', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'matrix_almo_to_qs'
 
       INTEGER                                            :: handle
 
@@ -515,8 +512,7 @@ CONTAINS
       INTEGER                                            :: mat_distr_aos
       REAL(KIND=dp)                                      :: eps_filter
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_almo_ks_matrix_via_qs', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_almo_ks_matrix_via_qs'
 
       INTEGER                                            :: handle, ispin, nspin
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_qs_ks, matrix_qs_s
@@ -576,8 +572,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'construct_qs_mos', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'construct_qs_mos'
 
       INTEGER                                            :: handle, ispin, ncol_fm, nrow_fm
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
@@ -643,8 +638,7 @@ CONTAINS
       TYPE(dbcsr_type), DIMENSION(:)                     :: matrix_p
       INTEGER, INTENT(IN)                                :: mat_distr_aos
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'almo_dm_to_qs_env', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'almo_dm_to_qs_env'
 
       INTEGER                                            :: handle, ispin, nspins
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
@@ -692,8 +686,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: smear
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: kTS_sum
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'almo_dm_to_qs_ks', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'almo_dm_to_qs_ks'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: smearing
@@ -758,8 +751,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: smear
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: kTS_sum
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'almo_dm_to_almo_ks', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'almo_dm_to_almo_ks'
 
       INTEGER                                            :: handle, ispin, nspins
       LOGICAL                                            :: smearing
@@ -814,8 +806,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: energy, energy_singles_corr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_update_ks_energy', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_update_ks_energy'
 
       TYPE(qs_energy_type), POINTER                      :: qs_energy
 
@@ -848,8 +839,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_construct_quencher', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_construct_quencher'
 
       CHARACTER                                          :: sym
       INTEGER :: col, contact_atom_1, contact_atom_2, domain_col, domain_map_local_entries, &
@@ -1548,8 +1538,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_w
       TYPE(almo_scf_env_type)                            :: almo_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_almo', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_almo'
 
       INTEGER                                            :: handle, ispin
       REAL(KIND=dp)                                      :: scaling

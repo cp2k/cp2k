@@ -80,8 +80,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'run_optimize_basis', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'run_optimize_basis'
 
       INTEGER                                            :: handle
       TYPE(basis_optimization_type)                      :: opt_bas
@@ -110,8 +109,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: input_declaration
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'driver_para_opt_basis', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'driver_para_opt_basis'
 
       INTEGER                                            :: handle, n_groups_created, opt_group
       INTEGER, DIMENSION(:), POINTER                     :: group_distribution_p
@@ -146,8 +144,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env_top
       INTEGER                                            :: mpi_comm_opt
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'driver_optimization_para_low', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'driver_optimization_para_low'
 
       INTEGER                                            :: handle, icalc, iopt, mp_id, stat
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: f_env_id
@@ -239,8 +236,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env_top, para_env
       INTEGER                                            :: iopt
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'compute_residuum_vectors', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'compute_residuum_vectors'
 
       INTEGER                                            :: bas_id, handle, icalc, icomb, mp_id, &
                                                             my_id, ncalc, set_id
@@ -339,8 +335,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: mpi_comm_opt
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_training_force_envs', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_training_force_envs'
 
       CHARACTER(len=default_path_length)                 :: main_dir
       INTEGER                                            :: bas_id, handle, icalc, ierr, mp_id, &
@@ -415,8 +410,7 @@ CONTAINS
    SUBROUTINE update_free_vars(opt_bas)
       TYPE(basis_optimization_type)                      :: opt_bas
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'update_free_vars', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'update_free_vars'
 
       INTEGER                                            :: handle, ikind, iset, ix
 
@@ -444,8 +438,7 @@ CONTAINS
       INTEGER                                            :: ix
       REAL(KIND=dp), DIMENSION(:)                        :: x
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'update_subset_freevars', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'update_subset_freevars'
 
       INTEGER                                            :: handle, icon1, icon2, icont, iexp, il, &
                                                             istart
@@ -532,8 +525,7 @@ CONTAINS
       INTEGER                                            :: ix
       REAL(KIND=dp), DIMENSION(:)                        :: x
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_subset_freevars', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_subset_freevars'
 
       INTEGER                                            :: handle, icont, iexp
       REAL(KIND=dp)                                      :: fract
@@ -584,8 +576,7 @@ CONTAINS
       INTEGER                                            :: iopt
       TYPE(cp_para_env_type), POINTER                    :: para_env_top
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'output_opt_info', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'output_opt_info'
 
       INTEGER                                            :: handle, ibasis, icalc, iset, unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger

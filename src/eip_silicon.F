@@ -405,8 +405,7 @@ CONTAINS
       TYPE(eip_environment_type), POINTER                :: eip_env
       INTEGER, INTENT(IN)                                :: output_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_energies', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_energies'
 
 !   ------------------------------------------------------------------------
 
@@ -431,8 +430,7 @@ CONTAINS
       TYPE(eip_environment_type), POINTER                :: eip_env
       INTEGER, INTENT(IN)                                :: output_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_energy_var', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_energy_var'
 
       INTEGER                                            :: unit_nr
 
@@ -463,8 +461,7 @@ CONTAINS
       TYPE(eip_environment_type), POINTER                :: eip_env
       INTEGER, INTENT(IN)                                :: output_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_forces', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'eip_print_forces'
 
       INTEGER                                            :: iatom, natom, unit_nr
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -505,8 +502,7 @@ CONTAINS
       TYPE(eip_environment_type), POINTER                :: eip_env
       INTEGER, INTENT(IN)                                :: output_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_coord_avg', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_coord_avg'
 
       INTEGER                                            :: unit_nr
 
@@ -537,8 +533,7 @@ CONTAINS
       TYPE(eip_environment_type), POINTER                :: eip_env
       INTEGER, INTENT(IN)                                :: output_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_coord_var', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_coord_var'
 
       INTEGER                                            :: unit_nr
 
@@ -569,8 +564,7 @@ CONTAINS
       TYPE(eip_environment_type), POINTER                :: eip_env
       INTEGER, INTENT(IN)                                :: output_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_count', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'eip_print_count'
 
       INTEGER                                            :: unit_nr
 

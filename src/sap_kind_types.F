@@ -78,8 +78,7 @@ CONTAINS
 
       TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'release_sap_int', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'release_sap_int'
 
       INTEGER                                            :: i, j, k
       TYPE(clist_type), POINTER                          :: clist

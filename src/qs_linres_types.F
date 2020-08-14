@@ -240,8 +240,7 @@ CONTAINS
 
       TYPE(linres_control_type), POINTER                 :: linres_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'linres_control_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'linres_control_create'
 
       CPASSERT(.NOT. ASSOCIATED(linres_control))
       ALLOCATE (linres_control)
@@ -271,8 +270,7 @@ CONTAINS
 
       TYPE(linres_control_type), POINTER                 :: linres_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'linres_control_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'linres_control_release'
 
       IF (ASSOCIATED(linres_control)) THEN
          CPASSERT(linres_control%ref_count > 0)
@@ -295,8 +293,7 @@ CONTAINS
 
       TYPE(linres_control_type), POINTER                 :: linres_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'linres_control_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'linres_control_retain'
 
       CPASSERT(ASSOCIATED(linres_control))
       CPASSERT(linres_control%ref_count > 0)
@@ -312,8 +309,7 @@ CONTAINS
 
       TYPE(current_env_type)                             :: current_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'current_env_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'current_env_create'
 
       CPASSERT(current_env%ref_count == 0)
       current_env%ref_count = 1
@@ -376,8 +372,7 @@ CONTAINS
 
       TYPE(issc_env_type)                                :: issc_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'issc_env_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'issc_env_create'
 
       CPASSERT(issc_env%ref_count == 0)
       issc_env%ref_count = 1
@@ -489,8 +484,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: psi0_order
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_current_env', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_current_env'
 
 !
 !
@@ -669,8 +663,7 @@ CONTAINS
       TYPE(qs_rho_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: jrho1_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_current_env', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_current_env'
 
       INTEGER                                            :: idir
 
@@ -801,8 +794,7 @@ CONTAINS
       TYPE(nablavks_atom_type), DIMENSION(:), POINTER    :: nablavks_atom_set
       INTEGER, INTENT(IN)                                :: natom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_nablavks_atom_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_nablavks_atom_set'
 
       INTEGER                                            :: iat
 
@@ -822,8 +814,7 @@ CONTAINS
 
       TYPE(nablavks_atom_type), DIMENSION(:), POINTER    :: nablavks_atom_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_nablavks_atom_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_nablavks_atom_set'
 
       INTEGER                                            :: i, iat, idir, n, natom
 
@@ -858,8 +849,7 @@ CONTAINS
       TYPE(jrho_atom_type), DIMENSION(:), POINTER        :: jrho_atom_set
       INTEGER, INTENT(IN)                                :: natom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_jrho_atom_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_jrho_atom_set'
 
       INTEGER                                            :: iat
 
@@ -901,8 +891,7 @@ CONTAINS
 
       TYPE(jrho_atom_type), DIMENSION(:), POINTER        :: jrho_atom_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_jrho_atom_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_jrho_atom_set'
 
       INTEGER                                            :: i, iat, idir, n, natom
 
@@ -1007,8 +996,7 @@ CONTAINS
       TYPE(jrho_atom_type), POINTER                      :: jrho1_atom
       INTEGER, INTENT(IN)                                :: ispin, nr, na, max_iso_not0
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_jrho_atom_rad', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_jrho_atom_rad'
 
       INTEGER                                            :: handle, idir
 
@@ -1066,8 +1054,7 @@ CONTAINS
       TYPE(jrho_atom_type), POINTER                      :: jrho1_atom
       INTEGER, INTENT(IN)                                :: ispin
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set2zero_jrho_atom_rad', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'set2zero_jrho_atom_rad'
 
 !
 
@@ -1106,8 +1093,7 @@ CONTAINS
       TYPE(jrho_atom_type), DIMENSION(:), POINTER        :: jrho1_atom_set
       INTEGER, INTENT(IN)                                :: iatom, nsotot
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_jrho_coeff', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_jrho_coeff'
 
       INTEGER                                            :: handle, i
 
@@ -1146,8 +1132,7 @@ CONTAINS
       TYPE(jrho_atom_type), DIMENSION(:), POINTER        :: jrho1_atom_set
       INTEGER, INTENT(IN)                                :: iatom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_jrho_coeff', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_jrho_coeff'
 
       INTEGER                                            :: handle, i
 
@@ -1218,8 +1203,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       INTEGER, INTENT(IN)                                :: nspins
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_jrho_atom_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_jrho_atom_set'
 
       INTEGER                                            :: handle, iat, iatom, idir, ikind, ispin, &
                                                             nat, natom, nkind
@@ -1324,8 +1308,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       INTEGER, INTENT(IN)                                :: nspins
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_nablavks_atom_set', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_nablavks_atom_set'
 
       INTEGER                                            :: handle, iat, iatom, idir, ikind, ispin, &
                                                             max_iso_not0, maxso, na, nat, natom, &
@@ -1393,8 +1376,7 @@ CONTAINS
 
       TYPE(polar_env_type), POINTER                      :: polar_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'polar_env_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'polar_env_create'
 
       CPASSERT(.NOT. ASSOCIATED(polar_env))
       ALLOCATE (polar_env)
@@ -1489,8 +1471,7 @@ CONTAINS
 
       TYPE(polar_env_type), POINTER                      :: polar_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'polar_env_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'polar_env_release'
 
       INTEGER                                            :: idir, ispin
 

@@ -206,8 +206,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: root_section
       INTEGER                                            :: worker_id
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'logger_init_worker', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'logger_init_worker'
 
       CHARACTER(LEN=default_path_length)                 :: output_path
       CHARACTER(len=default_string_length)               :: new_project_name, project_name, &

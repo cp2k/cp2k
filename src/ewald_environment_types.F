@@ -246,8 +246,7 @@ CONTAINS
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ewald_env_create'
 
       ALLOCATE (ewald_env)
       ewald_env%ref_count = 1
@@ -269,8 +268,7 @@ CONTAINS
    SUBROUTINE ewald_env_retain(ewald_env)
       TYPE(ewald_environment_type), POINTER              :: ewald_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ewald_env_retain'
 
       CPASSERT(ASSOCIATED(ewald_env))
       CPASSERT(ewald_env%ref_count > 0)
@@ -287,8 +285,7 @@ CONTAINS
    SUBROUTINE ewald_env_release(ewald_env)
       TYPE(ewald_environment_type), POINTER              :: ewald_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ewald_env_release'
 
       IF (ASSOCIATED(ewald_env)) THEN
          CPASSERT(ewald_env%ref_count > 0)
@@ -315,8 +312,7 @@ CONTAINS
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(section_vals_type), POINTER                   :: ewald_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_ewald_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_ewald_section'
 
       INTEGER                                            :: iw
       INTEGER, DIMENSION(:), POINTER                     :: gmax_read
@@ -450,8 +446,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: ewald_section
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_ewald_section_tb', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_ewald_section_tb'
 
       INTEGER                                            :: i, iw, n(3)
       INTEGER, DIMENSION(:), POINTER                     :: gmax_read
@@ -549,8 +544,7 @@ CONTAINS
    FUNCTION find_ewald_optimal_value(precs) RESULT(value)
       REAL(KIND=dp)                                      :: precs, value
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'find_ewald_optimal_value', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'find_ewald_optimal_value'
 
       REAL(KIND=dp)                                      :: func, func1, func2, s, s1, s2
 

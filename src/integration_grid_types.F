@@ -72,8 +72,7 @@ CONTAINS
 
       TYPE(integration_grid_type), POINTER               :: int_grid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_intgrid', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'allocate_intgrid'
 
       IF (ASSOCIATED(int_grid)) CALL deallocate_intgrid(int_grid)
       ALLOCATE (int_grid)
@@ -92,8 +91,7 @@ CONTAINS
    SUBROUTINE deallocate_intgrid(int_grid)
       TYPE(integration_grid_type), POINTER               :: int_grid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_intgrid', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_intgrid'
 
       INTEGER                                            :: i
 
@@ -130,8 +128,7 @@ CONTAINS
 
       TYPE(integration_grid_value_type), POINTER         :: int_grid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_intgrid_val', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_intgrid_val'
 
       IF (ASSOCIATED(int_grid)) CALL deallocate_intgrid_val(int_grid)
       ALLOCATE (int_grid)
@@ -150,8 +147,7 @@ CONTAINS
    SUBROUTINE deallocate_intgrid_val(int_grid)
       TYPE(integration_grid_value_type), POINTER         :: int_grid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_intgrid_val', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_intgrid_val'
 
       INTEGER                                            :: i
 

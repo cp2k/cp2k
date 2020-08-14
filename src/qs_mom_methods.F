@@ -69,8 +69,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: iarr
       LOGICAL                                            :: is_unique
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mom_is_unique_orbital_indices', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mom_is_unique_orbital_indices'
 
       INTEGER                                            :: handle, norbs
       INTEGER, DIMENSION(:), POINTER                     :: tmp_iarr
@@ -117,8 +116,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: deocc_orb_set, occ_orb_set
       CHARACTER(len=*), INTENT(in)                       :: spin
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mom_reoccupy_orbitals', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mom_reoccupy_orbitals'
 
       CHARACTER(len=10)                                  :: str_iorb, str_norbs
       CHARACTER(len=3)                                   :: str_prefix

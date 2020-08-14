@@ -336,8 +336,7 @@ CONTAINS
       TYPE(atom_basis_type), INTENT(INOUT)               :: basis
       TYPE(atom_potential_type), INTENT(IN)              :: potential
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_ppint_setup', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'atom_ppint_setup'
 
       INTEGER                                            :: handle, i, ii, j, k, l, m, n
       REAL(KIND=dp)                                      :: al, alpha, rc
@@ -808,8 +807,7 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: zcore
       REAL(dp), INTENT(IN), OPTIONAL                     :: alpha
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_relint_setup', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'atom_relint_setup'
 
       INTEGER                                            :: dkhorder, handle, i, k1, k2, l, m, n, nl
       REAL(dp)                                           :: ascal
@@ -1113,8 +1111,7 @@ CONTAINS
    SUBROUTINE atom_int_release(integrals)
       TYPE(atom_integrals), INTENT(INOUT)                :: integrals
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_int_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'atom_int_release'
 
       INTEGER                                            :: ll
 
@@ -1153,8 +1150,7 @@ CONTAINS
    SUBROUTINE atom_ppint_release(integrals)
       TYPE(atom_integrals), INTENT(INOUT)                :: integrals
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_ppint_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_ppint_release'
 
       IF (ASSOCIATED(integrals%hnl)) THEN
          DEALLOCATE (integrals%hnl)
@@ -1177,8 +1173,7 @@ CONTAINS
    SUBROUTINE atom_relint_release(integrals)
       TYPE(atom_integrals), INTENT(INOUT)                :: integrals
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_relint_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_relint_release'
 
       IF (ASSOCIATED(integrals%tzora)) THEN
          DEALLOCATE (integrals%tzora)
@@ -1203,8 +1198,7 @@ CONTAINS
       TYPE(grid_atom_type), INTENT(IN)                   :: grid
       REAL(dp), INTENT(IN)                               :: zcore
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_model_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_model_potential'
 
       INTEGER                                            :: i, ii, l, ll, n, z
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: pot, rho

@@ -152,7 +152,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: just_energy, calculate_forces
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
 
-      CHARACTER(*), PARAMETER :: routineN = 'low_spin_roks', routineP = moduleN//':'//routineN
+      CHARACTER(*), PARAMETER                            :: routineN = 'low_spin_roks'
 
       INTEGER                                            :: handle, ispin, iterm, k, k_alpha, &
                                                             k_beta, n_rep, Nelectron, Nspin, Nterms
@@ -398,8 +398,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: just_energy, calculate_forces
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
 
-      CHARACTER(*), PARAMETER :: routineN = 'sic_explicit_orbitals', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(*), PARAMETER :: routineN = 'sic_explicit_orbitals'
 
       INTEGER                                            :: handle, i, Iorb, k_alpha, k_beta, Norb
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: sic_orbital_list
@@ -716,7 +715,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: just_energy, calculate_forces
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
 
-      CHARACTER(*), PARAMETER :: routineN = 'calc_v_sic_rspace', routineP = moduleN//':'//routineN
+      CHARACTER(*), PARAMETER                            :: routineN = 'calc_v_sic_rspace'
 
       INTEGER                                            :: i, nelec, nelec_a, nelec_b, nforce
       REAL(kind=dp)                                      :: ener, full_scaling, scaling
@@ -968,8 +967,7 @@ CONTAINS
       TYPE(qs_energy_type), POINTER                      :: energy
       REAL(KIND=dp), INTENT(IN)                          :: mulliken_order_p
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_detailed_energy', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_detailed_energy'
 
       INTEGER                                            :: bc, n, output_unit, psolver
       REAL(KIND=dp)                                      :: ddapc_order_p, implicit_ps_ehartree, &
@@ -1132,8 +1130,7 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vxc
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_matrix_vxc', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_matrix_vxc'
 
       INTEGER                                            :: handle, ispin
       LOGICAL                                            :: gapw
@@ -1218,8 +1215,7 @@ CONTAINS
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       LOGICAL, INTENT(in)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'sum_up_and_integrate', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'sum_up_and_integrate'
 
       CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: handle, igroup, ikind, ispin, nkind, &
@@ -1650,8 +1646,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       REAL(KIND=dp)                                      :: exc
 
-      CHARACTER(*), PARAMETER :: routineN = 'calculate_zmp_potential', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(*), PARAMETER :: routineN = 'calculate_zmp_potential'
 
       INTEGER                                            :: handle, my_val, nelectron, nspins, stat
       INTEGER, DIMENSION(2)                              :: nelectron_spin
@@ -1779,8 +1774,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: embed_corr
       LOGICAL                                            :: just_energy
 
-      CHARACTER(*), PARAMETER :: routineN = 'get_embed_potential_energy', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(*), PARAMETER :: routineN = 'get_embed_potential_energy'
 
       INTEGER                                            :: handle, ispin, ns1, ns2
       REAL(KIND=dp)                                      :: embed_corr_local

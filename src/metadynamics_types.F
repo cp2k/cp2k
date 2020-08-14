@@ -256,8 +256,7 @@ CONTAINS
    SUBROUTINE meta_env_retain(meta_env)
       TYPE(meta_env_type), POINTER                       :: meta_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'meta_env_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'meta_env_retain'
 
       CPASSERT(ASSOCIATED(meta_env))
       CPASSERT(meta_env%ref_count > 0)
@@ -272,8 +271,7 @@ CONTAINS
    SUBROUTINE meta_env_release(meta_env)
       TYPE(meta_env_type), POINTER                       :: meta_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'meta_env_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'meta_env_release'
 
       INTEGER                                            :: i
 
@@ -323,8 +321,7 @@ CONTAINS
    SUBROUTINE hills_env_release(hills_env)
       TYPE(hills_env_type), POINTER                      :: hills_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'hills_env_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'hills_env_release'
 
       IF (ASSOCIATED(hills_env)) THEN
          IF (ASSOCIATED(hills_env%ss_history)) THEN

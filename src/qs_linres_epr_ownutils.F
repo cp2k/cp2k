@@ -782,8 +782,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: iB
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_ind_magnetic_field', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_ind_magnetic_field'
 
       INTEGER                                            :: handle, idir, idir2, idir3, iiB, iiiB, &
                                                             ispin, natom, nspins

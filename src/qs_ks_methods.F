@@ -210,8 +210,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ext_ks_matrix
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix'
 
       CHARACTER(len=default_string_length)               :: name
       INTEGER                                            :: handle, iatom, idir, img, ispin, &
@@ -917,8 +916,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       LOGICAL, INTENT(IN), OPTIONAL                      :: skip_nuclear_density
 
-      CHARACTER(*), PARAMETER :: routineN = 'calc_rho_tot_gspace', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(*), PARAMETER :: routineN = 'calc_rho_tot_gspace'
 
       INTEGER                                            :: ispin
       LOGICAL                                            :: my_skip
@@ -974,8 +972,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, mo_derivs
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_mo_derivatives', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_mo_derivatives'
 
       INTEGER                                            :: ispin
       LOGICAL                                            :: uniform_occupation
@@ -1096,8 +1093,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: calculate_forces, just_energy, &
                                                             print_active
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_update_qs_env', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_update_qs_env'
 
       INTEGER                                            :: handle, unit_nr
       LOGICAL                                            :: c_forces, do_rebuild, energy_only, &
@@ -1165,8 +1161,7 @@ CONTAINS
    SUBROUTINE evaluate_core_matrix_traces(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'evaluate_core_matrix_traces', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'evaluate_core_matrix_traces'
 
       INTEGER                                            :: handle
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrixkp_h, matrixkp_t, rho_ao_kp
@@ -1208,8 +1203,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calculate_forces, just_energy
       LOGICAL, INTENT(IN), OPTIONAL                      :: print_active
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rebuild_ks_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rebuild_ks_matrix'
 
       INTEGER                                            :: handle
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -1262,8 +1256,7 @@ CONTAINS
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(dbcsr_type), POINTER                          :: w_matrix
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_1', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_1'
 
       INTEGER                                            :: handle, imo
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigocc
@@ -1314,8 +1307,7 @@ CONTAINS
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(dbcsr_type), POINTER                          :: mo_deriv, w_matrix, s_matrix
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_ot', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_ot'
       LOGICAL, PARAMETER                                 :: check_gradient = .FALSE., &
                                                             do_symm = .FALSE.
 
@@ -1408,8 +1400,7 @@ CONTAINS
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(dbcsr_type), POINTER                          :: matrix_ks, matrix_p, matrix_w
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_roks', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_roks'
 
       INTEGER                                            :: handle, nao
       TYPE(cp_blacs_env_type), POINTER                   :: context
@@ -1462,8 +1453,7 @@ CONTAINS
    SUBROUTINE qs_ks_allocate_basics(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_allocate_basics', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_allocate_basics'
 
       CHARACTER(LEN=default_string_length)               :: headline
       INTEGER                                            :: ic, ispin, nimg

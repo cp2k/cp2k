@@ -87,8 +87,7 @@ CONTAINS
    SUBROUTINE pw_poisson_cleanup(poisson_env)
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_cleanup', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_cleanup'
 
       TYPE(pw_pool_type), POINTER                        :: pw_pool
 
@@ -112,8 +111,7 @@ CONTAINS
    SUBROUTINE pw_poisson_check(poisson_env)
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_check', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_poisson_check'
 
       LOGICAL                                            :: rebuild
       TYPE(greens_fn_type), POINTER                      :: green
@@ -179,8 +177,7 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_type), OPTIONAL, POINTER                   :: density
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_rebuild', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_rebuild'
 
       INTEGER                                            :: handle
 
@@ -253,8 +250,7 @@ CONTAINS
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: rho_core
       TYPE(pw_type), OPTIONAL, POINTER                   :: greenfn
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_solve', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_poisson_solve'
 
       INTEGER                                            :: alpha, beta, handle, i
       INTEGER, DIMENSION(3)                              :: n

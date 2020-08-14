@@ -52,8 +52,7 @@ CONTAINS
          OPTIONAL                                        :: electronic_charges
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: atomic_charges
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_atomic_charges', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_atomic_charges'
 
       CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER                                            :: handle, iatom, ikind, natom, nspin
@@ -143,8 +142,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
          OPTIONAL                                        :: quadrupole
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_multipoles', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'print_multipoles'
 
       CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER                                            :: handle, i, iatom, ikind, natom
@@ -199,8 +197,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: scr
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: bond_orders
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_bond_orders', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'print_bond_orders'
 
       CHARACTER(LEN=2)                                   :: el1, el2
       INTEGER                                            :: iatom, jatom, natom

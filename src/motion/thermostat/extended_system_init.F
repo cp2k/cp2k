@@ -177,8 +177,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: nose_section
       LOGICAL, INTENT(IN)                                :: save_mem
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_baro', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_baro'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: restart
@@ -247,8 +246,7 @@ CONTAINS
       TYPE(global_constraint_type), POINTER              :: gci
       LOGICAL, INTENT(IN)                                :: save_mem
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_slow', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_slow'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: restart
@@ -314,8 +312,7 @@ CONTAINS
       TYPE(global_constraint_type), POINTER              :: gci
       LOGICAL, INTENT(IN)                                :: save_mem
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_fast', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_fast'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: restart
@@ -383,8 +380,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: save_mem
       CHARACTER(LEN=*), INTENT(IN)                       :: binary_restart_file_name
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_part', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_part'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: restart
@@ -453,8 +449,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: save_mem
       CHARACTER(LEN=*), INTENT(IN)                       :: binary_restart_file_name
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_shell', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_shell'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: restart
@@ -502,8 +497,7 @@ CONTAINS
       TYPE(lnhc_parameters_type), POINTER                :: nhc
       REAL(KIND=dp), INTENT(IN)                          :: dt
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_yoshida_coef', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_yoshida_coef'
 
       REAL(KIND=dp), DIMENSION(nhc%nyosh)                :: yosh_wt
 
@@ -716,8 +710,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_nhc_variables', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_nhc_variables'
 
       INTEGER                                            :: handle, i, icount, j, number, tot_rn
       REAL(KIND=dp)                                      :: akin, dum, temp
@@ -853,8 +846,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: cmass
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_barostat_variables', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_barostat_variables'
 
       INTEGER                                            :: handle, i, j, number
       REAL(KIND=dp)                                      :: akin, temp, v
@@ -937,8 +929,7 @@ CONTAINS
 
       TYPE(lnhc_parameters_type), POINTER                :: nhc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_nhc_forces', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'init_nhc_forces'
 
       INTEGER                                            :: handle, i, j
 

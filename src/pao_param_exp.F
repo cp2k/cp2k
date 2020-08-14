@@ -43,8 +43,7 @@ CONTAINS
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_init_exp', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_init_exp'
 
       INTEGER                                            :: acol, arow, handle, iatom, N
       LOGICAL                                            :: found
@@ -126,8 +125,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ikind
       INTEGER, INTENT(OUT)                               :: nparams
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_count_exp', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_count_exp'
 
       INTEGER                                            :: cols, pao_basis_size, pri_basis_size, &
                                                             rows
@@ -154,8 +152,7 @@ CONTAINS
    SUBROUTINE pao_param_initguess_exp(pao)
       TYPE(pao_env_type), POINTER                        :: pao
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_initguess_exp', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_initguess_exp'
 
       CALL dbcsr_set(pao%matrix_X, 0.0_dp) ! actual initial guess is matrix_U0
 
@@ -290,8 +287,7 @@ CONTAINS
       COMPLEX(dp), DIMENSION(:, :), INTENT(IN)           :: D, R
       REAL(dp), DIMENSION(SIZE(M, 1), SIZE(M, 1))        :: G
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fold_derivatives', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fold_derivatives'
 
       COMPLEX(dp), DIMENSION(:, :), POINTER              :: F, RF, RM, RMR
       INTEGER                                            :: n

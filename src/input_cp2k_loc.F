@@ -50,8 +50,7 @@ CONTAINS
 
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_localize_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_localize_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, print_section, subsection
@@ -382,8 +381,7 @@ CONTAINS
    SUBROUTINE create_molecular_states_section(print_key)
       TYPE(section_type), POINTER                        :: print_key
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_molecular_states_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_molecular_states_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key2
@@ -435,8 +433,7 @@ CONTAINS
    SUBROUTINE create_wannier_states_section(print_key)
       TYPE(section_type), POINTER                        :: print_key
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_wannier_states_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_wannier_states_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key2

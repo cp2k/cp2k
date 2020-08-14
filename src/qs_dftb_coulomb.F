@@ -106,8 +106,7 @@ CONTAINS
       TYPE(qs_energy_type), POINTER                      :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_dftb_coulomb', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_dftb_coulomb'
 
       INTEGER :: atom_i, atom_j, blk, ewald_type, handle, i, ia, iac, iatom, ic, icol, ikind, img, &
          irow, is, jatom, jkind, natom, natorb_a, natorb_b, nimg, nkind, nmat
@@ -613,8 +612,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dftb_dsint_list', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dftb_dsint_list'
 
       INTEGER :: handle, i, iac, iatom, ikind, ilist, jatom, jkind, jneighbor, llm, lmaxi, lmaxj, &
          n1, n2, natorb_a, natorb_b, ngrd, ngrdcut, nkind, nlist, nneighbor

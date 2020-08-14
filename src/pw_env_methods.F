@@ -746,8 +746,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'compute_max_radius', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'compute_max_radius'
       CHARACTER(LEN=8), DIMENSION(4), PARAMETER :: &
          pbas = (/"ORB     ", "AUX_FIT ", "MAO     ", "HARRIS  "/)
       CHARACTER(LEN=8), DIMENSION(8), PARAMETER :: sbas = (/"ORB     ", "AUX     ", "RI_AUX  ", &
@@ -932,8 +931,7 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: uf_grid
       TYPE(section_vals_type), POINTER                   :: print_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_super_ref_grid', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'setup_super_ref_grid'
 
       INTEGER                                            :: iounit, my_val, nn(3), no(3)
       LOGICAL                                            :: mt_s_grid
@@ -1014,8 +1012,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(pw_grid_type), POINTER                        :: pw_grid
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_diel_rs_grid', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_diel_rs_grid'
 
       INTEGER                                            :: border_points, handle
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc

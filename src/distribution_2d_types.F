@@ -114,8 +114,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(in), OPTIONAL        :: n_local_cols
       INTEGER, INTENT(in), OPTIONAL                      :: n_row_distribution, n_col_distribution
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_create'
 
       INTEGER                                            :: i
 
@@ -225,8 +224,7 @@ CONTAINS
    SUBROUTINE distribution_2d_retain(distribution_2d)
       TYPE(distribution_2d_type), POINTER                :: distribution_2d
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_retain', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_retain'
 
       CPASSERT(ASSOCIATED(distribution_2d))
       CPASSERT(distribution_2d%ref_count > 0)
@@ -240,8 +238,7 @@ CONTAINS
    SUBROUTINE distribution_2d_release(distribution_2d)
       TYPE(distribution_2d_type), POINTER                :: distribution_2d
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_release'
 
       INTEGER                                            :: i
 
@@ -303,8 +300,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: unit_nr
       LOGICAL, INTENT(in), OPTIONAL                      :: local, long_description
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_write', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_write'
 
       INTEGER                                            :: i
       LOGICAL                                            :: my_local, my_long_description
@@ -507,8 +503,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env
       INTEGER, INTENT(out), OPTIONAL                     :: id_nr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_get', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_get'
 
       INTEGER                                            :: iblock_atomic, iblock_min, ikind, &
                                                             ikind_min

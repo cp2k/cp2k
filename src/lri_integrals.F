@@ -599,8 +599,7 @@ CONTAINS
                                                             skip_dsab, skip_dsoo, skip_daba, &
                                                             skip_dabb
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_int_type', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'allocate_int_type'
 
       LOGICAL                                            :: do_aba, do_abb, do_daba, do_dabb, &
                                                             do_dsab, do_dsoo, do_sab, do_soo
@@ -681,8 +680,7 @@ CONTAINS
       TYPE(int_type), INTENT(INOUT), OPTIONAL            :: lriint
       TYPE(dint_type), INTENT(INOUT), OPTIONAL           :: lridint
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_int_type', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_int_type'
 
       IF (PRESENT(lriint)) THEN
          IF (ALLOCATED(lriint%sabint)) DEALLOCATE (lriint%sabint)

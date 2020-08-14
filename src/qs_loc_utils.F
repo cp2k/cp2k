@@ -149,8 +149,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_new, mo_ref
       TYPE(dbcsr_type), POINTER                          :: matrix_S
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rotate_state_to_ref', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rotate_state_to_ref'
 
       INTEGER                                            :: handle, ncol, ncol_ref, nrow
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
@@ -229,8 +228,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: vectors
       INTEGER                                            :: sweeps
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'jacobi_rotation_pipek', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'jacobi_rotation_pipek'
 
       INTEGER                                            :: iatom, istate, jstate, natom, nstate
       REAL(KIND=dp)                                      :: aij, bij, ct, mii, mij, mjj, ratio, st, &
@@ -387,8 +385,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:, :)                :: zij_fm_set
       REAL(dp), INTENT(OUT)                              :: tolerance
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'check_tolerance_real', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'check_tolerance_real'
 
       INTEGER                                            :: iatom, istate, jstate, natom, &
                                                             ncol_local, nrow_global, nrow_local
@@ -460,8 +457,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: loc_coeff, mo_loc_history
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_loc_env_init'
 
       INTEGER                                            :: dim_op, handle, i, iatom, imo, imoloc, &
                                                             ispin, j, l_spin, lb, nao, naosub, &
@@ -663,8 +659,7 @@ CONTAINS
       TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_berry_operator', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_berry_operator'
 
       INTEGER                                            :: dim_op, handle
       TYPE(cell_type), POINTER                           :: cell
@@ -706,8 +701,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_sm_set
       INTEGER                                            :: dim_op
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'compute_berry_operator', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'compute_berry_operator'
 
       INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, jatom, jkind, jset, last_jatom, &
          ldab, ldsa, ldsb, ldwork, maxl, ncoa, ncob, nkind, nrow, nseta, nsetb, sgfa, sgfb
@@ -925,8 +919,7 @@ CONTAINS
       TYPE(cp_1d_r_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: evals
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'loc_write_restart', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'loc_write_restart'
 
       CHARACTER(LEN=default_path_length)                 :: filename
       CHARACTER(LEN=default_string_length)               :: my_middle
@@ -1035,8 +1028,7 @@ CONTAINS
       TYPE(cp_1d_r_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: evals
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'loc_read_restart', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'loc_read_restart'
 
       CHARACTER(LEN=25)                                  :: fname_key
       CHARACTER(LEN=default_path_length)                 :: filename
@@ -1217,8 +1209,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_xas
       INTEGER, INTENT(IN), OPTIONAL                      :: nloc_xas, spin_xas
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_control_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_control_init'
 
       TYPE(localized_wfn_control_type), POINTER          :: localized_wfn_control
 
@@ -1441,8 +1432,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_xas
       INTEGER, INTENT(IN), OPTIONAL                      :: nloc_xas, spin_channel_xas
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_loc_section', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'read_loc_section'
 
       INTEGER                                            :: i, ind, ir, n_list, n_rep, n_state, &
                                                             nline, other_spin, output_unit, &
@@ -1711,8 +1701,7 @@ CONTAINS
       INTEGER, DIMENSION(2), INTENT(IN)                  :: nmoloc
       INTEGER, INTENT(IN)                                :: nspins
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_loc_centers', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_loc_centers'
 
       INTEGER                                            :: ispin
 
@@ -1740,8 +1729,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nspins
       INTEGER, INTENT(IN), OPTIONAL                      :: my_spin
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_loc_wfn_lists', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_loc_wfn_lists'
 
       INTEGER                                            :: i, ispin, max_iloc, max_nmoloc, state
 

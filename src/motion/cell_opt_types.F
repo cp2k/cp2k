@@ -82,8 +82,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(section_vals_type), POINTER                   :: geo_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cell_opt_env_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cell_opt_env_create'
 
       CHARACTER(LEN=4)                                   :: label
       INTEGER                                            :: ip, output_unit
@@ -178,8 +177,7 @@ CONTAINS
    SUBROUTINE cell_opt_env_release(cell_env)
       TYPE(cell_opt_env_type), POINTER                   :: cell_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cell_opt_env_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cell_opt_env_release'
 
       IF (ASSOCIATED(cell_env)) THEN
          CPASSERT(cell_env%ref_count > 0)

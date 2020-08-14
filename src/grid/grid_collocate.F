@@ -107,8 +107,7 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: use_subpatch
       INTEGER, INTENT(IN), OPTIONAL                      :: subpatch_pattern
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'collocate_pgf_product', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'collocate_pgf_product'
 
       INTEGER :: ider1, ider2, idir, ir, la_max_local, la_min_local, lb_max_local, lb_min_local, &
          lxa, lxb, lya, lyb, lza, lzb, o1_local, o2_local
@@ -415,8 +414,7 @@ CONTAINS
       INTEGER, OPTIONAL, INTENT(IN)            :: subpatch_pattern
       INTEGER, INTENT(IN)                      :: lp, lmax
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'collocate_pgf_product_part2', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'collocate_pgf_product_part2'
 
       INTEGER :: cmax, gridbounds(2, 3), i, ico, icoef, ig, jco, k, l, lxp, lyp, lzp, lxpm, iaxis, &
                  length, lxa, lxb, lxy, lxyz, lya, lyb, lza, lzb, offset, start

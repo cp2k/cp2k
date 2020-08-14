@@ -402,8 +402,7 @@ CONTAINS
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_X_mo_beta, fm_P_mu_nu_beta, &
                                                             mo_coeff_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'exchange_contribution', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'exchange_contribution'
 
       INTEGER                                            :: handle, irep, is, ns
       LOGICAL                                            :: alpha_beta, my_recalc_hfx_integrals
@@ -513,8 +512,7 @@ CONTAINS
       INTEGER                                            :: dimen
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_XC_mo_beta, mo_coeff_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_contribution', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'xc_contribution'
 
       INTEGER                                            :: handle, i
       LOGICAL                                            :: alpha_beta

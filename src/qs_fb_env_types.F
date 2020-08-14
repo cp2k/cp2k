@@ -165,8 +165,7 @@ CONTAINS
       TYPE(fb_env_obj), INTENT(OUT)                      :: a
       TYPE(fb_env_obj), INTENT(IN)                       :: b
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_associate', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fb_env_associate'
 
       a%obj => b%obj
    END SUBROUTINE fb_env_associate
@@ -182,8 +181,7 @@ CONTAINS
       TYPE(fb_env_obj), INTENT(IN)                       :: fb_env
       LOGICAL                                            :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_has_data', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fb_env_has_data'
 
       res = ASSOCIATED(fb_env%obj)
    END FUNCTION fb_env_has_data

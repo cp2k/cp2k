@@ -156,8 +156,7 @@ CONTAINS
 
       TYPE(reftraj_type), POINTER                        :: reftraj
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'release_reftraj', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'release_reftraj'
 
       IF (ASSOCIATED(reftraj)) THEN
          CPASSERT(reftraj%ref_count > 0)

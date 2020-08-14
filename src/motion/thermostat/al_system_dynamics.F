@@ -270,8 +270,7 @@ CONTAINS
       TYPE(map_info_type), POINTER                       :: map_info
       LOGICAL, INTENT(in)                                :: set_half_step_vel_factors
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'al_NH_quarter_step', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'al_NH_quarter_step'
 
       INTEGER                                            :: i, imap
       REAL(KIND=dp)                                      :: decay, delta_K

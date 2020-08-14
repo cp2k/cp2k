@@ -87,8 +87,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL                                            :: master
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'check_if_group_master', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'check_if_group_master'
 
       CPASSERT(ASSOCIATED(para_env))
 
@@ -395,8 +394,7 @@ CONTAINS
    SUBROUTINE create_status_message(m_send)
       TYPE(message_send), POINTER                        :: m_send
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_status_message', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_status_message'
 
       CPASSERT(ASSOCIATED(m_send))
 
@@ -502,8 +500,7 @@ CONTAINS
       TYPE(tmc_param_type), POINTER                      :: tmc_params
       TYPE(message_send), POINTER                        :: m_send
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_worker_init_message', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_worker_init_message'
 
       INTEGER                                            :: counter, msg_size_int, msg_size_real
 
@@ -552,8 +549,7 @@ CONTAINS
       TYPE(tmc_param_type), POINTER                      :: tmc_params
       TYPE(message_send), POINTER                        :: m_send
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_worker_init_message', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_worker_init_message'
 
       INTEGER                                            :: counter
       LOGICAL                                            :: flag
@@ -608,8 +604,7 @@ CONTAINS
       TYPE(tmc_param_type), POINTER                      :: tmc_params
       TYPE(message_send), POINTER                        :: m_send
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_start_conf_message', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_start_conf_message'
 
       INTEGER                                            :: counter, i, msg_size_int, msg_size_real
 
@@ -691,8 +686,7 @@ CONTAINS
       TYPE(message_send), POINTER                        :: m_send
       TYPE(tmc_param_type), POINTER                      :: tmc_params
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_start_conf_message', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_start_conf_message'
 
       INTEGER                                            :: counter, i
       LOGICAL                                            :: flag
@@ -767,8 +761,7 @@ CONTAINS
       TYPE(message_send), POINTER                        :: m_send
       TYPE(tmc_param_type), POINTER                      :: tmc_params
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_energy_request_message', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_energy_request_message'
 
       INTEGER                                            :: counter, msg_size_int, msg_size_real
 
@@ -823,8 +816,7 @@ CONTAINS
       TYPE(message_send), POINTER                        :: m_send
       TYPE(tmc_param_type), POINTER                      :: tmc_params
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_energy_request_message', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_energy_request_message'
 
       INTEGER                                            :: counter
 
@@ -873,8 +865,7 @@ CONTAINS
       TYPE(message_send), POINTER                        :: m_send
       TYPE(tmc_param_type), POINTER                      :: tmc_params
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_energy_result_message', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_energy_result_message'
 
       INTEGER                                            :: counter, msg_size_int, msg_size_real
 
@@ -939,8 +930,7 @@ CONTAINS
       TYPE(message_send), POINTER                        :: m_send
       TYPE(tmc_param_type), POINTER                      :: tmc_params
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_energy_result_message', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_energy_result_message'
 
       INTEGER                                            :: counter
 
@@ -993,8 +983,7 @@ CONTAINS
       TYPE(message_send), POINTER                        :: m_send
       TYPE(tmc_param_type), POINTER                      :: tmc_params
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_approx_energy_result_message', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_approx_energy_result_message'
 
       INTEGER                                            :: counter, msg_size_real
 
@@ -1038,8 +1027,7 @@ CONTAINS
       TYPE(message_send), POINTER                        :: m_send
       TYPE(tmc_param_type), POINTER                      :: tmc_params
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_approx_energy_result', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_approx_energy_result'
 
       INTEGER                                            :: counter
 
@@ -1078,8 +1066,7 @@ CONTAINS
       TYPE(message_send), POINTER                        :: m_send
       TYPE(tmc_param_type), POINTER                      :: tmc_params
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_NMC_request_massage', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_NMC_request_massage'
 
       INTEGER                                            :: counter, msg_size_int, msg_size_real
 
@@ -1168,8 +1155,7 @@ CONTAINS
       TYPE(message_send), POINTER                        :: m_send
       TYPE(tmc_param_type), POINTER                      :: tmc_params
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_NMC_request_massage', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_NMC_request_massage'
 
       INTEGER                                            :: counter, num_dim, rnd_seed_size
 
@@ -1247,8 +1233,7 @@ CONTAINS
       TYPE(message_send), POINTER                        :: m_send
       TYPE(tmc_param_type), POINTER                      :: tmc_params
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_NMC_result_massage', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_NMC_result_massage'
 
       INTEGER                                            :: counter, msg_size_int, msg_size_real
 
@@ -1376,8 +1361,7 @@ CONTAINS
       TYPE(message_send), POINTER                        :: m_send
       TYPE(tmc_param_type), POINTER                      :: tmc_params
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_NMC_result_massage', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_NMC_result_massage'
 
       INTEGER                                            :: counter
       INTEGER, DIMENSION(:, :), POINTER                  :: acc_counter, mv_counter, &
@@ -1492,8 +1476,7 @@ CONTAINS
       TYPE(message_send), POINTER                        :: m_send
       TYPE(tmc_param_type), POINTER                      :: tmc_params
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_analysis_request_message', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_analysis_request_message'
 
       INTEGER                                            :: counter, msg_size_int, msg_size_real
 
@@ -1548,8 +1531,7 @@ CONTAINS
       TYPE(message_send), POINTER                        :: m_send
       TYPE(tmc_param_type), POINTER                      :: tmc_params
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_analysis_request_message', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_analysis_request_message'
 
       INTEGER                                            :: counter
 
@@ -1599,8 +1581,7 @@ CONTAINS
       TYPE(tree_type), POINTER                           :: elem
       TYPE(message_send), POINTER                        :: m_send
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_scf_step_ener', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_scf_step_ener'
 
       CPASSERT(ASSOCIATED(elem))
       CPASSERT(ASSOCIATED(m_send))
@@ -1627,8 +1608,7 @@ CONTAINS
       INTEGER                                            :: source
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'communicate_atom_types', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'communicate_atom_types'
 
       CHARACTER(LEN=default_string_length), &
          ALLOCATABLE, DIMENSION(:)                       :: msg(:)
@@ -1671,8 +1651,7 @@ CONTAINS
          POINTER                                         :: worker_info
       TYPE(tmc_param_type), POINTER                      :: tmc_params
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'stop_whole_group', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'stop_whole_group'
 
       INTEGER                                            :: act_rank, dest_rank, stat
       LOGICAL                                            :: flag

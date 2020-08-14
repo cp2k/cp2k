@@ -73,8 +73,7 @@ CONTAINS
       CHARACTER(LEN=*)                                   :: file_name, extra
       CHARACTER(LEN=default_path_length)                 :: result_file_name
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'expand_file_name_ending', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'expand_file_name_ending'
 
       INTEGER                                            :: ind
 
@@ -103,8 +102,7 @@ CONTAINS
       CHARACTER(LEN=*)                                   :: file_name, extra
       CHARACTER(LEN=default_path_length)                 :: result_file_name
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'expand_file_name_char', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'expand_file_name_char'
 
       INTEGER                                            :: ind
 
@@ -134,8 +132,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: rvalue
       CHARACTER(LEN=default_path_length)                 :: result_file_name
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'expand_file_name_temp', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'expand_file_name_temp'
 
       CHARACTER(LEN=18)                                  :: rval_to_string
       INTEGER                                            :: ind
@@ -174,8 +171,7 @@ CONTAINS
       INTEGER                                            :: ivalue
       CHARACTER(LEN=default_path_length)                 :: result_file_name
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'expand_file_name_int', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'expand_file_name_int'
 
       CHARACTER(LEN=18)                                  :: rval_to_string
       INTEGER                                            :: ind
@@ -219,8 +215,7 @@ CONTAINS
       INTEGER, DIMENSION(:)                              :: job_counts
       REAL(KIND=dp), DIMENSION(4)                        :: timings
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_restart_file', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_restart_file'
 
       CHARACTER(LEN=default_path_length)                 :: c_tmp, file_name
       INTEGER                                            :: f_unit, i
@@ -292,8 +287,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(4)                        :: timings
       CHARACTER(LEN=*)                                   :: file_name
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_restart_file', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'read_restart_file'
 
       INTEGER                                            :: file_ptr, i, temp_size
       LOGICAL                                            :: flag
@@ -384,8 +378,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: accepted
       TYPE(tmc_param_type), POINTER                      :: tmc_params
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_result_list_element', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_result_list_element'
 
       CHARACTER(LEN=default_path_length)                 :: file_name
       INTEGER                                            :: handle, i
@@ -442,8 +435,7 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: conf_nr
       CHARACTER(LEN=*), OPTIONAL                         :: conf_info
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_element_in_file', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_element_in_file'
 
       CHARACTER(LEN=default_path_length)                 :: file_name_act, tmp_name
       CHARACTER(LEN=default_string_length)               :: header
@@ -593,8 +585,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: dip
       CHARACTER(LEN=*), INTENT(in), OPTIONAL             :: file_ext
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_dipoles_in_file', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_dipoles_in_file'
 
       CHARACTER(LEN=default_path_length)                 :: file_name_tmp
       INTEGER                                            :: file_ptr
@@ -641,8 +632,7 @@ CONTAINS
       TYPE(tmc_analysis_env), POINTER                    :: tmc_ana
       INTEGER                                            :: conf_nr, stat
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_element_from_file', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_element_from_file'
 
       INTEGER                                            :: conf_nr_old, handle, i_tmp
       LOGICAL                                            :: files_conf_missmatch
@@ -771,8 +761,7 @@ CONTAINS
       INTEGER                                            :: stat, conf_nr
       CHARACTER(LEN=*), OPTIONAL                         :: header_info
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_pos_from_file', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_pos_from_file'
 
       CHARACTER(LEN=default_string_length)               :: c_tmp
       INTEGER                                            :: handle, i, i_tmp, status
@@ -847,8 +836,7 @@ CONTAINS
       TYPE(tmc_analysis_env), POINTER                    :: tmc_ana
       INTEGER                                            :: stat, conf_nr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_dipole_from_file', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_dipole_from_file'
 
       CHARACTER(LEN=250)                                 :: c_tmp
       INTEGER                                            :: handle, status
@@ -903,8 +891,7 @@ CONTAINS
       TYPE(tmc_analysis_env), POINTER                    :: tmc_ana
       INTEGER                                            :: stat, conf_nr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_cell_from_file', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_cell_from_file'
 
       CHARACTER(LEN=250)                                 :: c_tmp
       INTEGER                                            :: handle, status
@@ -969,8 +956,7 @@ CONTAINS
       INTEGER                                            :: stat
       INTEGER, OPTIONAL                                  :: dir_ind
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'analyse_files_open', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'analyse_files_open'
 
       CHARACTER(LEN=default_path_length)                 :: dir_name, file_name_act, file_name_temp
       INTEGER                                            :: handle
@@ -1068,8 +1054,7 @@ CONTAINS
    SUBROUTINE analyse_files_close(tmc_ana)
       TYPE(tmc_analysis_env), POINTER                    :: tmc_ana
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'analyse_files_close', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'analyse_files_close'
 
       INTEGER                                            :: handle
 

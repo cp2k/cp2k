@@ -166,8 +166,7 @@ CONTAINS
       TYPE(gle_type), POINTER                            :: gle
       INTEGER, INTENT(IN)                                :: mal_size
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'gle_thermo_create', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'gle_thermo_create'
 
       CHARACTER(LEN=40)                                  :: name
       INTEGER                                            :: i, ithermo, my_index

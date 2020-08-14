@@ -77,8 +77,7 @@ CONTAINS
       TYPE(atom_upfpot_type), OPTIONAL                   :: upf_pot
       REAL(KIND=dp), DIMENSION(3)                        :: error
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sgp_construction', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'sgp_construction'
 
       INTEGER                                            :: i, n
       LOGICAL                                            :: is_ecp, is_upf
@@ -191,8 +190,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input_section
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_sgp_construction', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_sgp_construction'
 
       INTEGER                                            :: i, n, ppot_type
       LOGICAL                                            :: do_transform, explicit, is_ecp, is_upf
@@ -758,8 +756,7 @@ CONTAINS
 
       TYPE(atom_sgp_potential_type)                      :: sgp_pot
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_sgp_release', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'atom_sgp_release'
 
       IF (ASSOCIATED(sgp_pot%a_nonlocal)) DEALLOCATE (sgp_pot%a_nonlocal)
       IF (ASSOCIATED(sgp_pot%h_nonlocal)) DEALLOCATE (sgp_pot%h_nonlocal)

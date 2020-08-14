@@ -1034,8 +1034,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: colvar_id
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: list
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_hydronium_colvars', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'setup_hydronium_colvars'
 
       INTEGER                                            :: i, idum, ii, n_hydrogens, n_oxygens, np
       INTEGER, DIMENSION(:), POINTER                     :: i_hydrogens, i_oxygens
@@ -1106,8 +1105,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: colvar_id
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: list
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_acid_hydronium_colvars', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'setup_acid_hydronium_colvars'
 
       INTEGER                                            :: i, idum, ii, n_hydrogens, &
                                                             n_oxygens_acid, n_oxygens_water, np
@@ -1809,8 +1807,7 @@ CONTAINS
       TYPE(colvar_type), POINTER                         :: colvar_out, colvar_in
       INTEGER, INTENT(IN)                                :: offset
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'colvar_clone_points', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'colvar_clone_points'
 
       INTEGER                                            :: i, natoms, npoints
 
@@ -1854,8 +1851,7 @@ CONTAINS
       TYPE(colvar_p_type), DIMENSION(:), POINTER         :: colvar_set
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'colvar_p_reallocate', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'colvar_p_reallocate'
 
       INTEGER                                            :: j, lb1, lb1_old, ub1, ub1_old
       TYPE(colvar_p_type), DIMENSION(:), POINTER         :: work
