@@ -170,6 +170,8 @@ CONTAINS
       CALL get_qs_env(qs_env, blacs_env=blacs_env, cell=cell, dft_control=dft_control, &
                       matrix_ks=matrix_ks, matrix_s=matrix_s, mos=mos, scf_env=scf_env)
       tddfpt_control => dft_control%tddfpt2_control
+      tddfpt_control%do_hfx = do_hfx
+      tddfpt_control%do_admm = do_admm
 
       CALL cite_reference(Iannuzzi2005)
       IF (tddfpt_control%kernel == tddfpt_kernel_stda) THEN
@@ -186,7 +188,7 @@ CONTAINS
       CALL tddfpt_init_mos(qs_env, gs_mos)
 
       ! obtain corrected KS-matrix
-      CALL tddfpt_oecorr(qs_env, gs_mos, matrix_ks_oep, do_hfx)
+      CALL tddfpt_oecorr(qs_env, gs_mos, matrix_ks_oep)
 
       NULLIFY (admm_env)
       IF (do_admm) CALL get_qs_env(qs_env, admm_env=admm_env)
@@ -226,7 +228,7 @@ CONTAINS
 
          ! allocate pools and work matrices
          nstates = tddfpt_control%nstates
-         CALL tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, do_hfx, qs_env, sub_env)
+         CALL tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, do_hfx, do_admm, qs_env, sub_env)
 
          CALL tddfpt_construct_ground_state_orb_density(rho_orb_struct=work_matrices%rho_orb_struct_sub, &
                                                         is_rks_triplets=tddfpt_control%rks_triplets, &
@@ -343,7 +345,7 @@ CONTAINS
          DO
             ! *** perform Davidson iterations ***
             conv = tddfpt_davidson_solver(evects=evects, evals=evals, S_evects=S_evects, gs_mos=gs_mos, &
-                                          do_hfx=do_hfx, tddfpt_control=tddfpt_control, &
+                                          tddfpt_control=tddfpt_control, &
                                           matrix_ks=matrix_ks, qs_env=qs_env, &
                                           kernel_env=kernel_env, &
                                           sub_env=sub_env, logger=logger, &
@@ -421,10 +423,6 @@ CONTAINS
             CPABORT("excited state potential energy surface")
          END IF
          !
-         IF (do_hfx .OR. do_admm) THEN
-            CALL cp_warn(__LOCATION__, "HFX or HFX/ADMM Kernel forces not implemented.")
-            CPABORT("excited state potential energy surface")
-         END IF
          ! energy
          ex_env%evalue = evals(ex_env%state)
          ! excitation vector
@@ -606,8 +604,8 @@ CONTAINS
             CALL section_vals_val_get(hfx_section, "FRACTION", r_val=C_hf)
             do_hfx = (C_hf /= 0.0_dp)
          END IF
-
          do_admm = do_hfx .AND. dft_control%do_admm
+
          IF (do_admm) THEN
             IF (explicit_xc) THEN
                ! 'admm_env%xc_section_primary' and 'admm_env%xc_section_aux' need to be redefined

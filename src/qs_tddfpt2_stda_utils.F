@@ -288,11 +288,13 @@ CONTAINS
                CALL dbcsr_get_block_p(matrix=gamma_matrix(imat)%matrix, &
                                       row=irow, col=icol, BLOCK=dgblock, found=found)
                IF (found) THEN
-                  i = imat - 1
-                  IF (irow == iatom) THEN
-                     dgblock(:, :) = dgblock(:, :) + dgb*rij(i)/dr
-                  ELSE
-                     dgblock(:, :) = dgblock(:, :) - dgb*rij(i)/dr
+                  IF (dr > 1.e-6) THEN
+                     i = imat - 1
+                     IF (irow == iatom) THEN
+                        dgblock(:, :) = dgblock(:, :) + dgb*rij(i)/dr
+                     ELSE
+                        dgblock(:, :) = dgblock(:, :) - dgb*rij(i)/dr
+                     END IF
                   END IF
                END IF
             END DO

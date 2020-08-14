@@ -204,17 +204,19 @@ CONTAINS
 !> \param nstates        number of excited states to converge
 !> \param do_hfx         flag that requested to allocate work matrices required for computation
 !>                       of exact-exchange terms
+!> \param do_admm ...
 !> \param qs_env         Quickstep environment
 !> \param sub_env        parallel group environment
 !> \par History
 !>    * 02.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, do_hfx, qs_env, sub_env)
+   SUBROUTINE tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, do_hfx, do_admm, &
+                                          qs_env, sub_env)
       TYPE(tddfpt_work_matrices), INTENT(out)            :: work_matrices
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       INTEGER, INTENT(in)                                :: nstates
-      LOGICAL, INTENT(in)                                :: do_hfx
+      LOGICAL, INTENT(in)                                :: do_hfx, do_admm
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
 
@@ -223,7 +225,6 @@ CONTAINS
       INTEGER                                            :: handle, igroup, ispin, istate, nao, &
                                                             nao_aux, ngroups, nspins
       INTEGER, DIMENSION(maxspins)                       :: nmo_occ, nmo_virt
-      LOGICAL                                            :: do_admm
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_p_type), DIMENSION(maxspins)     :: fm_struct_evects
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
@@ -256,8 +257,9 @@ CONTAINS
          nmo_virt(ispin) = SIZE(gs_mos(ispin)%evals_virt)
       END DO
 
-      do_admm = do_hfx .AND. ASSOCIATED(sub_env%admm_A)
       IF (do_admm) THEN
+         CPASSERT(do_hfx)
+         CPASSERT(ASSOCIATED(sub_env%admm_A))
          CALL get_qs_env(qs_env, matrix_s_aux_fit=matrix_s_aux_fit)
          CALL dbcsr_get_info(matrix_s_aux_fit(1)%matrix, nfullrows_total=nao_aux)
       END IF

@@ -47,12 +47,15 @@ MODULE qs_tddfpt2_fhxc_forces
                                               tb_spme_evaluate
    USE ewald_pw_types,                  ONLY: ewald_pw_type
    USE exstates_types,                  ONLY: excited_energy_type
+   USE hfx_energy_potential,            ONLY: integrate_four_center
+   USE hfx_types,                       ONLY: hfx_type
    USE input_constants,                 ONLY: tddfpt_kernel_full,&
                                               xc_kernel_method_analytic,&
                                               xc_kernel_method_best,&
                                               xc_kernel_method_numeric,&
                                               xc_none
-   USE input_section_types,             ONLY: section_vals_type,&
+   USE input_section_types,             ONLY: section_vals_get,&
+                                              section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: oorootpi
@@ -134,20 +137,23 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fhxc_force', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, iounit, ispin, myfun, nao, norb, &
-                                                            nspins
-      LOGICAL                                            :: do_analytic, do_numeric, is_rks_triplets
-      REAL(KIND=dp)                                      :: focc, total_rhox, xehartree
+      INTEGER                                            :: handle, iounit, ispin, mspin, myfun, &
+                                                            n_rep_hf, nao, norb, nspins
+      LOGICAL :: distribute_fock_matrix, do_admm, do_analytic, do_hfx, do_numeric, &
+         hfx_treat_lsd_in_core, is_rks_triplets, s_mstruct_changed
+      REAL(KIND=dp)                                      :: eh1, focc, total_rhox, xehartree
       REAL(KIND=dp), DIMENSION(3)                        :: fodeb
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: cpmos, evect
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, fm_struct_mat
       TYPE(cp_fm_type), POINTER                          :: cvcmat, mos, vcvec
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_fx, matrix_gx, matrix_hx, &
-                                                            matrix_p, matrix_px1, matrix_s, &
-                                                            matrix_wx1
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_fx, matrix_gx, matrix_hfx, &
+                                                            matrix_hx, matrix_p, matrix_px1, &
+                                                            matrix_s, matrix_wx1
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mhe, mpe
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -160,7 +166,7 @@ CONTAINS
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rhox
-      TYPE(section_vals_type), POINTER                   :: xc_section
+      TYPE(section_vals_type), POINTER                   :: hfx_section, xc_section
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
 
       CALL timeset(routineN, handle)
@@ -173,6 +179,8 @@ CONTAINS
       nspins = dft_control%nspins
       is_rks_triplets = tddfpt_control%rks_triplets .AND. (nspins == 1)
       CPASSERT(tddfpt_control%kernel == tddfpt_kernel_full)
+      do_hfx = tddfpt_control%do_hfx
+      do_admm = tddfpt_control%do_admm
 
       evect => ex_env%evect
       matrix_px1 => ex_env%matrix_px1
@@ -365,6 +373,48 @@ CONTAINS
          CALL pw_pool_give_back_pw(auxbas_pw_pool, xv_hartree_gspace%pw)
       END IF
 
+      ! HFX
+      IF (do_hfx) THEN
+         NULLIFY (matrix_hfx)
+         CALL dbcsr_allocate_matrix_set(matrix_hfx, nspins)
+         DO ispin = 1, nspins
+            ALLOCATE (matrix_hfx(ispin)%matrix)
+            CALL dbcsr_create(matrix_hfx(ispin)%matrix, template=matrix_s(1)%matrix)
+            CALL dbcsr_copy(matrix_hfx(ispin)%matrix, matrix_s(1)%matrix)
+            CALL dbcsr_set(matrix_hfx(ispin)%matrix, 0.0_dp)
+         END DO
+         !
+         xc_section => full_kernel%xc_section
+         CALL section_vals_val_get(xc_section, "HF")
+         CALL section_vals_get(hfx_section, n_repetition=n_rep_hf)
+         CPASSERT(n_rep_hf == 1)
+         CALL section_vals_val_get(hfx_section, "TREAT_LSD_IN_CORE", l_val=hfx_treat_lsd_in_core, &
+                                   i_rep_section=1)
+         mspin = 1
+         IF (hfx_treat_lsd_in_core) mspin = nspins
+         !
+         CALL get_qs_env(qs_env=qs_env, x_data=x_data, s_mstruct_changed=s_mstruct_changed)
+         distribute_fock_matrix = .TRUE.
+         !
+         IF (do_admm) THEN
+            CPABORT("NYA")
+         ELSE
+            NULLIFY (mpe, mhe)
+            ALLOCATE (mpe(nspins, 1), mhe(nspins, 1))
+            DO ispin = 1, nspins
+               mhe(ispin, 1)%matrix => matrix_hfx(ispin)%matrix
+               mpe(ispin, 1)%matrix => matrix_px1(ispin)%matrix
+            END DO
+            DO ispin = 1, mspin
+               eh1 = 0.0
+               CALL integrate_four_center(qs_env, x_data, mhe, eh1, mpe, hfx_section, &
+                                          para_env, s_mstruct_changed, 1, distribute_fock_matrix, &
+                                          ispin=ispin)
+            END DO
+            DEALLOCATE (mpe, mhe)
+         END IF
+      END IF
+
       CALL get_qs_env(qs_env, sab_orb=sab_orb)
       NULLIFY (matrix_wx1)
       CALL dbcsr_allocate_matrix_set(matrix_wx1, nspins)
@@ -427,6 +477,21 @@ CONTAINS
                                        ncol=norb, alpha=0.5_dp)
          END IF
          !
+         IF (do_hfx) THEN
+            CALL cp_dbcsr_sm_fm_multiply(matrix_hfx(ispin)%matrix, evect(ispin)%matrix, &
+                                         cpmos(ispin)%matrix, norb, alpha=focc, beta=1.0_dp)
+            CALL cp_dbcsr_sm_fm_multiply(matrix_hfx(ispin)%matrix, mos, vcvec, norb, alpha=1.0_dp, beta=0.0_dp)
+            CALL cp_gemm("T", "N", norb, norb, nao, 1.0_dp, mos, vcvec, 0.0_dp, cvcmat)
+            CALL cp_gemm("N", "N", nao, norb, norb, 1.0_dp, evect(ispin)%matrix, cvcmat, 0.0_dp, vcvec)
+            CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin)%matrix, &
+                                         norb, alpha=-focc, beta=1.0_dp)
+            !
+            CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=mos, matrix_g=vcvec, &
+                                       ncol=norb, alpha=1.0_dp)
+            CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=vcvec, matrix_g=mos, &
+                                       ncol=norb, alpha=1.0_dp)
+         END IF
+         !
          CALL cp_fm_release(vcvec)
          CALL cp_fm_release(cvcmat)
       END DO
@@ -439,6 +504,9 @@ CONTAINS
       IF (myfun /= xc_none) THEN
          CALL dbcsr_deallocate_matrix_set(matrix_fx)
          CALL dbcsr_deallocate_matrix_set(matrix_gx)
+      END IF
+      IF (do_hfx) THEN
+         CALL dbcsr_deallocate_matrix_set(matrix_hfx)
       END IF
 
       CALL timestop(handle)

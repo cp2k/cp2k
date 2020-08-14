@@ -54,6 +54,7 @@ CONTAINS
 !> \param is_rks_triplets       indicates that a triplet excited states calculation using
 !>                              spin-unpolarised molecular orbitals has been requested
 !> \param do_hfx                flag that activates computation of exact-exchange terms
+!> \param do_admm ...
 !> \param qs_env                Quickstep environment
 !> \param kernel_env            kernel environment
 !> \param kernel_env_admm_aux   kernel environment for ADMM correction
@@ -65,10 +66,10 @@ CONTAINS
 !>    * 04.2019 refactored [JHU]
 ! **************************************************************************************************
    SUBROUTINE fhxc_kernel(Aop_evects, evects, is_rks_triplets, &
-                          do_hfx, qs_env, kernel_env, kernel_env_admm_aux, &
+                          do_hfx, do_admm, qs_env, kernel_env, kernel_env_admm_aux, &
                           sub_env, work_matrices)
       TYPE(cp_fm_p_type), DIMENSION(:, :)                :: Aop_evects, evects
-      LOGICAL, INTENT(in)                                :: is_rks_triplets, do_hfx
+      LOGICAL, INTENT(in)                                :: is_rks_triplets, do_hfx, do_admm
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(full_kernel_env_type), POINTER                :: kernel_env, kernel_env_admm_aux
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
@@ -78,7 +79,6 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin, ivect, nao, nspins, nvects
       INTEGER, DIMENSION(maxspins)                       :: nactive
-      LOGICAL                                            :: do_admm
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ia_ao, rho_ia_ao_aux_fit
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_ia_g, rho_ia_g_aux_fit, rho_ia_r, &
                                                             rho_ia_r_aux_fit, tau_ia_r, &
@@ -88,7 +88,10 @@ CONTAINS
 
       nspins = SIZE(evects, 1)
       nvects = SIZE(evects, 2)
-      do_admm = ASSOCIATED(sub_env%admm_A)
+      IF (do_admm) THEN
+         CPASSERT(do_hfx)
+         CPASSERT(ASSOCIATED(sub_env%admm_A))
+      END IF
 
       CALL cp_fm_get_info(evects(1, 1)%matrix, nrow_global=nao)
       DO ispin = 1, nspins

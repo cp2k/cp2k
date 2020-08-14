@@ -291,7 +291,6 @@ CONTAINS
 !>                              in primary basis set
 !> \param gs_mos                molecular orbitals optimised for the ground state
 !> \param tddfpt_control        control section for tddfpt
-!> \param do_hfx                flag that activates computation of exact-exchange terms
 !> \param matrix_ks             Kohn-Sham matrix
 !> \param qs_env                Quickstep environment
 !> \param kernel_env            kernel environment
@@ -302,13 +301,12 @@ CONTAINS
 !>    * 03.2017 refactored [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE tddfpt_compute_Aop_evects(Aop_evects, evects, S_evects, gs_mos, tddfpt_control, &
-                                        do_hfx, matrix_ks, qs_env, kernel_env, &
+                                        matrix_ks, qs_env, kernel_env, &
                                         sub_env, work_matrices)
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: Aop_evects, evects, S_evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
-      LOGICAL, INTENT(in)                                :: do_hfx
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(in)       :: matrix_ks
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(kernel_env_type), INTENT(in)                  :: kernel_env
@@ -319,7 +317,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin, ivect, nspins, nvects
       INTEGER, DIMENSION(maxspins)                       :: nmo_occ
-      LOGICAL                                            :: do_admm, is_rks_triplets
+      LOGICAL                                            :: do_admm, do_hfx, is_rks_triplets
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(full_kernel_env_type), POINTER                :: full_kernel_env, kernel_env_admm_aux
 
@@ -329,7 +327,8 @@ CONTAINS
 
       nspins = SIZE(evects, 1)
       nvects = SIZE(evects, 2)
-      do_admm = ASSOCIATED(sub_env%admm_A)
+      do_hfx = tddfpt_control%do_hfx
+      do_admm = tddfpt_control%do_admm
       IF (do_admm) THEN
          kernel_env_admm_aux => kernel_env%admm_kernel
       ELSE
@@ -363,7 +362,7 @@ CONTAINS
 
          IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
             ! full TDDFPT kernel
-            CALL fhxc_kernel(Aop_evects, evects, is_rks_triplets, do_hfx, qs_env, &
+            CALL fhxc_kernel(Aop_evects, evects, is_rks_triplets, do_hfx, do_admm, qs_env, &
                              full_kernel_env, kernel_env_admm_aux, sub_env, work_matrices)
          ELSE IF (tddfpt_control%kernel == tddfpt_kernel_stda) THEN
             ! sTDA kernel
@@ -632,7 +631,6 @@ CONTAINS
 !> \param evals                 TDDFPT eigenvalues (modified on exit)
 !> \param S_evects              cached matrix product S * evects (modified on exit)
 !> \param gs_mos                molecular orbitals optimised for the ground state
-!> \param do_hfx                flag that activates computation of exact-exchange terms
 !> \param tddfpt_control        TDDFPT control parameters
 !> \param matrix_ks             Kohn-Sham matrix
 !> \param qs_env                Quickstep environment
@@ -650,7 +648,7 @@ CONTAINS
 !> \note Based on the subroutines apply_op() and iterative_solver() originally created by
 !>       Thomas Chassaing in 2002.
 ! **************************************************************************************************
-   FUNCTION tddfpt_davidson_solver(evects, evals, S_evects, gs_mos, do_hfx, tddfpt_control, &
+   FUNCTION tddfpt_davidson_solver(evects, evals, S_evects, gs_mos, tddfpt_control, &
                                    matrix_ks, qs_env, kernel_env, &
                                    sub_env, logger, iter_unit, energy_unit, &
                                    tddfpt_print_section, work_matrices) RESULT(conv)
@@ -659,7 +657,6 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(inout) :: S_evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
-      LOGICAL, INTENT(in)                                :: do_hfx
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -677,7 +674,7 @@ CONTAINS
                                                             max_krylov_vects, nspins, nstates, &
                                                             nstates_conv, nvects_exist, nvects_new
       INTEGER(kind=int_8)                                :: nstates_total
-      LOGICAL                                            :: is_nonortho
+      LOGICAL                                            :: do_hfx, is_nonortho
       REAL(kind=dp)                                      :: t1, t2
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals_last
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: Atilde
@@ -690,6 +687,7 @@ CONTAINS
       nspins = SIZE(gs_mos)
       nstates = tddfpt_control%nstates
       nstates_total = tddfpt_total_number_of_states(gs_mos)
+      do_hfx = tddfpt_control%do_hfx
 
       IF (debug_this_module) THEN
          CPASSERT(SIZE(evects, 1) == nspins)
@@ -749,7 +747,7 @@ CONTAINS
                                         evects=krylov_vects(:, nvects_exist + 1:nvects_exist + nvects_new), &
                                         S_evects=S_krylov(:, nvects_exist + 1:nvects_exist + nvects_new), &
                                         gs_mos=gs_mos, tddfpt_control=tddfpt_control, &
-                                        do_hfx=do_hfx, matrix_ks=matrix_ks, &
+                                        matrix_ks=matrix_ks, &
                                         qs_env=qs_env, kernel_env=kernel_env, &
                                         sub_env=sub_env, &
                                         work_matrices=work_matrices)
