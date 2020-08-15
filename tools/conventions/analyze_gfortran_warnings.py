@@ -28,7 +28,7 @@ lapack_re = re.compile(
 )
 
 warning_re = re.compile(r".*[Ww]arning: (.*)")
-warning_re_subst = re.compile(r"'\d+'")  # replace occurrences of '49' with *
+warning_re_subst = re.compile(r"‘\d+’")  # replace occurrences of '49' with *
 
 IGNORED_WARNINGS = (
     "-Wrealloc-lhs",
@@ -87,9 +87,9 @@ def check_warnings(fhandle):
             continue
 
         if "Unused" in warning:
-            if "'error'" in warning:
+            if "‘error’" in warning:
                 continue
-            if "'routinep'" in warning:
+            if "‘routinep’" in warning:
                 continue
             if loc_short == "cp_common_uses.f90":
                 continue
@@ -101,7 +101,7 @@ def check_warnings(fhandle):
         if "called with an implicit interface" in warning:
             parts = warning.split()
             assert parts[0] == "Procedure"
-            routine = parts[1].strip("'").upper()
+            routine = parts[1].strip("‘’").upper()
             if may_call_implicit(loc, routine):
                 continue
             print(
