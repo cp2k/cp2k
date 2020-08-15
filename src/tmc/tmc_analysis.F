@@ -883,7 +883,7 @@ CONTAINS
       TYPE(tmc_analysis_env), POINTER                    :: ana_env
 
       CHARACTER(LEN=*), PARAMETER :: fmt_my = '(T2,A,"| ",A,T41,A40)', plabel = "TMC_ANA", &
-         routineN = 'print_density_3d', routineP = moduleN//':'//routineN
+         routineN = 'print_density_3d'
 
       CHARACTER(LEN=default_path_length)                 :: file_name, file_name_vari
       INTEGER                                            :: bin_x, bin_y, bin_z, file_ptr_dens, &
@@ -1472,8 +1472,7 @@ CONTAINS
    SUBROUTINE print_dipole_analysis(ana_env)
       TYPE(tmc_analysis_env), POINTER                    :: ana_env
 
-      CHARACTER(LEN=*), PARAMETER :: fmt_my = '(T2,A,"| ",A,T41,A40)', plabel = "TMC_ANA", &
-         routineN = 'print_dipole_analysis', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: fmt_my = '(T2,A,"| ",A,T41,A40)', plabel = "TMC_ANA"
 
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: diel_const_scalar, kB
@@ -1621,8 +1620,7 @@ CONTAINS
    SUBROUTINE print_average_displacement(ana_env)
       TYPE(tmc_analysis_env), POINTER                    :: ana_env
 
-      CHARACTER(LEN=*), PARAMETER :: fmt_my = '(T2,A,"| ",A,T41,A40)', plabel = "TMC_ANA", &
-         routineN = 'print_average_displacement', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: fmt_my = '(T2,A,"| ",A,T41,A40)', plabel = "TMC_ANA"
 
       WRITE (ana_env%io_unit, FMT="(/,T2,A)") REPEAT("-", 79)
       WRITE (ana_env%io_unit, FMT="(T2,A,T35,A,T80,A)") "-", "average displacement", "-"

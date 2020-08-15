@@ -13,7 +13,6 @@
 #:set el_type = "TYPE("+name+"_type)"
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN = '${name}$_list_types'
   INTEGER, PRIVATE, SAVE :: last_${name}$_list_id = 0
 
   !API
@@ -73,9 +72,6 @@
      LOGICAL, INTENT(in), OPTIONAL :: owns_els
      INTEGER, INTENT(in), OPTIONAL :: n_els
 
-     CHARACTER(len=*), PARAMETER :: routineN = '${name}$_list_create', &
-                                    routineP = moduleN//':'//routineN
-
      CPASSERT(PRESENT(els_ptr) .OR. PRESENT(n_els))
 
      ALLOCATE (list)
@@ -109,9 +105,6 @@
   SUBROUTINE ${name}$_list_retain(list)
      TYPE(${name}$_list_type), POINTER :: list
 
-     CHARACTER(len=*), PARAMETER :: routineN = '${name}$_list_retain', &
-                                    routineP = moduleN//':'//routineN
-
      CPASSERT(ASSOCIATED(list))
      CPASSERT(list%ref_count > 0)
      list%ref_count = list%ref_count + 1
@@ -126,9 +119,6 @@
 ! **************************************************************************************************
   SUBROUTINE ${name}$_list_release(list)
      TYPE(${name}$_list_type), POINTER :: list
-
-     CHARACTER(len=*), PARAMETER :: routineN = '${name}$_list_release', &
-                                    routineP = moduleN//':'//routineN
 
      IF (ASSOCIATED(list)) THEN
         CPASSERT(list%ref_count > 0)

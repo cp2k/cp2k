@@ -21,9 +21,6 @@
       INTEGER, INTENT(IN)                                :: method
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'perdew_wang_init', &
-                                     routineP = moduleN//':'//routineN
-
       INTEGER                                            :: k
 
       CALL set_util(cutoff)

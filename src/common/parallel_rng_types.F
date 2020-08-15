@@ -59,8 +59,7 @@ MODULE parallel_rng_types
 
    ! Global parameters in this module
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'parallel_rng_types', &
-                                           rng_record_format = "(A40,I2,3L2,ES25.16,18F20.1)"
+   CHARACTER(LEN=*), PARAMETER, PRIVATE :: rng_record_format = "(A40,I2,3L2,ES25.16,18F20.1)"
    INTEGER, PARAMETER                   :: rng_record_length = 433
    INTEGER, PARAMETER                   :: rng_name_length = 40
 
@@ -438,8 +437,7 @@ CONTAINS
    SUBROUTINE check_seed(seed)
       REAL(KIND=dp), DIMENSION(3, 2), INTENT(IN)         :: seed
 
-      CHARACTER(LEN=*), PARAMETER :: fmtstr = "(A,I1,A,ES23.14,A,ES23.14)", &
-         routineN = 'check_seed', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: fmtstr = "(A,I1,A,ES23.14,A,ES23.14)"
 
       CHARACTER(LEN=default_string_length)               :: message
       INTEGER                                            :: i

@@ -494,8 +494,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                :: neig
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)   :: eigenvalues
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = "cp_fm_syevx", &
-                                     routineP = moduleN//":"//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = "cp_fm_syevx"
 
 #if defined(__SCALAPACK)
       REAL(KIND=dp), PARAMETER                     :: orfac = -1.0_dp

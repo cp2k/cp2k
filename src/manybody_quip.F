@@ -60,8 +60,6 @@ CONTAINS
       TYPE(cp_para_env_type), OPTIONAL, &
          POINTER                                :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: &
-         routineN = 'quip_energy_store_force_virial'
 #ifdef __QUIP
       CHARACTER(len=2), ALLOCATABLE            :: elem_symbol(:)
       INTEGER                                  :: i, iat, iat_use, ikind, &

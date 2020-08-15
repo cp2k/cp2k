@@ -11,9 +11,6 @@
      TYPE(dbcsr_p_type), DIMENSION(:)     :: matrix
      INTEGER                                 :: max_iter
 
-     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_arnoldi_data_${nametype1}$', &
-                                    routineP = moduleN//':'//routineN
-
      INTEGER                                           :: nrow_local
      TYPE(arnoldi_data_${nametype1}$_type), POINTER      :: ar_data
 
@@ -37,9 +34,6 @@
 ! **************************************************************************************************
   SUBROUTINE deallocate_arnoldi_data_${nametype1}$ (arnoldi_data)
      TYPE(arnoldi_data_type)                     :: arnoldi_data
-
-     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_arnoldi_data_${nametype1}$', &
-                                    routineP = moduleN//':'//routineN
 
      TYPE(arnoldi_data_${nametype1}$_type), POINTER            :: ar_data
 
@@ -66,9 +60,6 @@
      INTEGER                                  :: ind
      TYPE(dbcsr_type)                          :: matrix
      TYPE(dbcsr_type)                          :: vector
-
-     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_selected_ritz_vector_${nametype1}$', &
-                                    routineP = moduleN//':'//routineN
 
      TYPE(arnoldi_data_${nametype1}$_type), POINTER      :: ar_data
      INTEGER                                           :: vsize, myind, sspace_size, i
@@ -110,9 +101,6 @@
   SUBROUTINE set_initial_vector_${nametype1}$ (arnoldi_data, vector)
      TYPE(arnoldi_data_type)                 :: arnoldi_data
      TYPE(dbcsr_type)                          :: vector
-
-     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_initial_vector_${nametype1}$', &
-                                    routineP = moduleN//':'//routineN
 
      TYPE(arnoldi_data_${nametype1}$_type), POINTER     :: ar_data
      ${type_nametype1}$, DIMENSION(:), POINTER          :: data_vec

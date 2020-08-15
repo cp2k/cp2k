@@ -391,7 +391,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: shells
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian_low', &
-         routineNb = 'qmmm_elec_gaussian_low', routineP = moduleN//':'//routineN
+         routineNb = 'qmmm_elec_gaussian_low'
 
       INTEGER                                            :: handle, handle2, IGauss, ilevel, Imm, &
                                                             IndMM, IRadTyp, LIndMM, myind, &

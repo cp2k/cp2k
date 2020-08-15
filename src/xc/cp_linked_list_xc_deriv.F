@@ -31,8 +31,6 @@ MODULE cp_linked_list_xc_deriv
       type(xc_derivative_type), pointer :: el1, el2
       logical :: res
 
-      character(len=*), parameter :: routineN = 'cp_sll_deriv_less_q', routineP = moduleN//':'//routineN
-
       CPASSERT(associated(el1))
       CPASSERT(associated(el1%split_desc))
       CPASSERT(associated(el2))
