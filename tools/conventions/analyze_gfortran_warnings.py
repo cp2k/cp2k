@@ -6,7 +6,7 @@ import argparse
 import re
 import ast
 from os import path
-from argparse import RawTextHelpFormatter # enable newline
+from argparse import RawTextHelpFormatter  # enable newline
 
 blas_re = re.compile(
     r"[SDCZ]"
@@ -139,7 +139,8 @@ For generating the warn-files run gfortran with all warning flags and redirect t
 This can be achieved by putting
     FCLOGPIPE   = 2>&1 | tee $(notdir $<).warn
 in the cp2k arch-file.
-""", formatter_class=RawTextHelpFormatter
+""",
+        formatter_class=RawTextHelpFormatter,
     )
     parser.add_argument(
         "files",
