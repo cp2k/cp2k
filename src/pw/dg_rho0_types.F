@@ -72,8 +72,6 @@ CONTAINS
       REAL(KIND=dp), OPTIONAL, POINTER                   :: gcc(:), zet(:)
       TYPE(pw_p_type), OPTIONAL                          :: density
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dg_rho0_set'
-
       IF (PRESENT(grid)) dg_rho0%grid = grid
       IF (PRESENT(kind)) dg_rho0%kind = kind
       IF (PRESENT(density)) dg_rho0%density = density
@@ -104,8 +102,6 @@ CONTAINS
       REAL(KIND=dp), OPTIONAL, POINTER                   :: gcc(:), zet(:)
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: density
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dg_rho0_get'
-
       IF (PRESENT(grid)) grid = dg_rho0%grid
       IF (PRESENT(kind)) kind = dg_rho0%kind
       IF (PRESENT(density)) density = dg_rho0%density
@@ -123,8 +119,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dg_rho0_create(dg_rho0)
       TYPE(dg_rho0_type), POINTER                        :: dg_rho0
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dg_rho0_create'
 
       ALLOCATE (dg_rho0)
       NULLIFY (dg_rho0%gcc)
@@ -152,8 +146,6 @@ CONTAINS
    SUBROUTINE dg_rho0_retain(dg_rho0)
       TYPE(dg_rho0_type), POINTER                        :: dg_rho0
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dg_rho0_retain'
-
       CPASSERT(ASSOCIATED(dg_rho0))
       CPASSERT(dg_rho0%ref_count > 0)
       dg_rho0%ref_count = dg_rho0%ref_count + 1
@@ -170,8 +162,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dg_rho0_release(dg_rho0)
       TYPE(dg_rho0_type), POINTER                        :: dg_rho0
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dg_rho0_release'
 
       IF (ASSOCIATED(dg_rho0)) THEN
          CPASSERT(dg_rho0%ref_count > 0)
@@ -201,8 +191,6 @@ CONTAINS
       TYPE(dg_rho0_type), POINTER                        :: dg_rho0
       TYPE(pw_grid_type), POINTER                        :: pw_grid
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dg_rho0_init'
-
       CALL pw_release(dg_rho0%density%pw)
       SELECT CASE (dg_rho0%type)
       CASE (do_ewald_ewald)
@@ -227,7 +215,6 @@ CONTAINS
       TYPE(pw_p_type), INTENT(INOUT)                     :: dg_rho0
       REAL(KIND=dp), INTENT(IN)                          :: alpha
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dg_rho0_pme_gauss'
       INTEGER, PARAMETER                                 :: IMPOSSIBLE = 10000
 
       INTEGER                                            :: gpt, l0, ln, lp, m0, mn, mp, n0, nn, np

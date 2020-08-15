@@ -47,8 +47,6 @@ CONTAINS
    SUBROUTINE create_eip_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_eip_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
 
@@ -90,8 +88,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_eip_print_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_eip_print_section'
 
       TYPE(section_type), POINTER                        :: print_key
 

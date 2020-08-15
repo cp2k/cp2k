@@ -87,8 +87,6 @@ CONTAINS
    SUBROUTINE pw_poisson_cleanup(poisson_env)
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_cleanup'
-
       TYPE(pw_pool_type), POINTER                        :: pw_pool
 
       CPASSERT(ASSOCIATED(poisson_env))
@@ -110,8 +108,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_poisson_check(poisson_env)
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_poisson_check'
 
       LOGICAL                                            :: rebuild
       TYPE(greens_fn_type), POINTER                      :: green

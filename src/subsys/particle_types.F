@@ -67,8 +67,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       INTEGER, INTENT(IN)                                :: nparticle
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_particle_set'
-
       INTEGER                                            :: iparticle
 
       IF (ASSOCIATED(particle_set)) THEN
@@ -97,8 +95,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE deallocate_particle_set(particle_set)
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_particle_set'
 
       IF (ASSOCIATED(particle_set)) THEN
          DEALLOCATE (particle_set)

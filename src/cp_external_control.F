@@ -56,8 +56,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: comm, in_external_master_id
       INTEGER, INTENT(IN), OPTIONAL                      :: in_scf_energy_message_tag, in_exit_tag
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'set_external_comm'
-
       CPASSERT(in_external_master_id .GE. 0)
 
       external_comm = comm

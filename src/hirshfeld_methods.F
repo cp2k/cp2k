@@ -92,8 +92,6 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       INTEGER, INTENT(IN)                                :: unit_nr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_hirshfeld_charges'
-
       CHARACTER(len=2)                                   :: element_symbol
       INTEGER                                            :: iatom, ikind, natom, nspin
       REAL(KIND=dp)                                      :: refc, tc1, zeff
@@ -145,7 +143,6 @@ CONTAINS
       REAL(KIND=dp), OPTIONAL                            :: radius
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: radii_list
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_shape_function'
       INTEGER, PARAMETER                                 :: ngto = 8
 
       CHARACTER(len=2)                                   :: esym
@@ -235,8 +232,6 @@ CONTAINS
       TYPE(hirshfeld_type), POINTER                      :: hirshfeld_env
       REAL(KIND=dp), DIMENSION(:, :), INTENT(inout)      :: charges
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'comp_hirshfeld_charges'
-
       INTEGER                                            :: is
       LOGICAL                                            :: rho_r_valid
       REAL(KIND=dp)                                      :: tnfun
@@ -285,7 +280,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: fout
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: fun1, fun2
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'hfun_scale'
       REAL(KIND=dp), PARAMETER                           :: small = 1.0e-12_dp
 
       INTEGER                                            :: i1, i2, i3, n1, n2, n3
@@ -327,7 +321,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(inout)      :: charges
       INTEGER, INTENT(IN)                                :: ounit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'comp_hirshfeld_i_charges'
       INTEGER, PARAMETER                                 :: maxloop = 100
       REAL(KIND=dp), PARAMETER                           :: maxres = 1.0e-2_dp
 

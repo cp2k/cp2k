@@ -596,8 +596,6 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: dista, distb
       REAL(dp), DIMENSION(:)                             :: coc
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'add_vhxca_to_ks'
-
       INTEGER                                            :: i, ispin, j, k
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block, int_hard, int_soft
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: int_local_h, int_local_s
@@ -744,8 +742,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ldCPC
       REAL(KIND=dp), DIMENSION(:, :, :)                  :: PC_h, PC_s
       REAL(KIND=dp), DIMENSION(:, :)                     :: p_matrix
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'add_vhxca_forces'
 
       INTEGER                                            :: dir, ispin
       REAL(dp), DIMENSION(:, :), POINTER                 :: int_hard, int_soft

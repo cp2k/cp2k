@@ -87,8 +87,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_ri_matrices'
-
       CALL calculate_ri_integrals(lri_env, qs_env, calculate_forces)
 
    END SUBROUTINE build_ri_matrices

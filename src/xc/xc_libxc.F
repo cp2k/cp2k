@@ -114,8 +114,6 @@ CONTAINS
       INTEGER, INTENT(out), OPTIONAL           :: max_deriv
       LOGICAL, INTENT(IN), OPTIONAL            :: print_warn
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'libxc_lda_info'
-
 #if defined (__LIBXC)
       CHARACTER(LEN=128)                       :: s1, s2
       CHARACTER(LEN=default_string_length)     :: func_name
@@ -221,8 +219,6 @@ CONTAINS
       INTEGER, INTENT(out), OPTIONAL           :: max_deriv
       LOGICAL, INTENT(IN), OPTIONAL            :: print_warn
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'libxc_lsd_info'
-
 #if defined (__LIBXC)
       CHARACTER(LEN=128)                       :: s1, s2
       CHARACTER(LEN=default_string_length)     :: func_name
@@ -317,8 +313,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE libxc_version_info(version)
       CHARACTER(LEN=*), INTENT(OUT)      :: version ! the string that is output
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'libxc_version_info'
 
 #if defined (__LIBXC)
       CALL xc_libxc_wrap_version(version)
@@ -1162,8 +1156,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(in)                          :: sc
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), POINTER   :: params
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'libxc_lda_calc'
-
       INTEGER                                            :: func_id, ii
       LOGICAL                                            :: no_exc
       REAL(KIND=dp), DIMENSION(1) :: exc, my_tau, sigma, v2lapl2, v2lapltau, v2rho2, v2rholapl, &
@@ -1610,8 +1602,6 @@ CONTAINS
       CHARACTER(LEN=default_string_length), INTENT(IN)   :: func_name
       REAL(KIND=dp), INTENT(in)                          :: sc
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), POINTER   :: params
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'libxc_lsd_calc'
 
       INTEGER                                            :: func_id, ii
       LOGICAL                                            :: no_exc

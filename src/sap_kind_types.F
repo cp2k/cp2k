@@ -78,8 +78,6 @@ CONTAINS
 
       TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'release_sap_int'
-
       INTEGER                                            :: i, j, k
       TYPE(clist_type), POINTER                          :: clist
 
@@ -129,8 +127,6 @@ CONTAINS
       TYPE(sap_int_type), INTENT(IN)                     :: sap_int
       TYPE(alist_type), INTENT(OUT), POINTER             :: alist
       INTEGER, INTENT(IN)                                :: atom
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_alist'
 
       INTEGER                                            :: i
 
@@ -235,8 +231,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE sap_sort(sap_int)
       TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'sap_sort'
 
       INTEGER                                            :: iac, na
 

@@ -89,8 +89,6 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: input_path
       INTEGER, INTENT(in)                                :: worker_id, iw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'glbopt_worker_init'
-
       INTEGER                                            :: i
       REAL(kind=dp)                                      :: dist_in_angstrom
       TYPE(section_vals_type), POINTER                   :: glbopt_section
@@ -142,8 +140,6 @@ CONTAINS
       TYPE(glbopt_worker_type), INTENT(INOUT)            :: worker
       TYPE(swarm_message_type), INTENT(IN)               :: cmd
       TYPE(swarm_message_type), INTENT(INOUT)            :: report
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'glbopt_worker_execute'
 
       CHARACTER(len=default_string_length)               :: command
 
@@ -370,8 +366,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE glbopt_worker_finalize(worker)
       TYPE(glbopt_worker_type), INTENT(INOUT)            :: worker
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'glbopt_worker_finalize'
 
       INTEGER                                            :: ierr
 

@@ -540,8 +540,6 @@ CONTAINS
    SUBROUTINE release_local_fixd_list(lfixd_list)
       TYPE(local_fixd_constraint_type), POINTER          :: lfixd_list(:)
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'release_local_fixd_list'
-
       CPASSERT(ASSOCIATED(lfixd_list))
       DEALLOCATE (lfixd_list)
    END SUBROUTINE release_local_fixd_list

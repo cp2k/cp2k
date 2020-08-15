@@ -123,8 +123,6 @@ CONTAINS
       REAL(dp), DIMENSION(0:ldrr1-1, ldrr2, *), &
          INTENT(INOUT)                                   :: rr
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'os_rr_coul'
-
       INTEGER                                            :: ax, ay, az, bx, by, bz, coa, coa1x, &
                                                             coa1y, coa1z, coa2x, coa2y, coa2z, &
                                                             cob, cob1x, cob1y, cob1z, cob2x, &

@@ -123,8 +123,6 @@ CONTAINS
       INTEGER, DIMENSION(2, 3), INTENT(in)               :: local_bounds
       REAL(kind=dp), INTENT(in), OPTIONAL                :: rho_cutoff, drho_cutoff, tau_cutoff
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_rho_set_create'
-
       INTEGER                                            :: i
 
       CPASSERT(.NOT. ASSOCIATED(rho_set))
@@ -163,8 +161,6 @@ CONTAINS
    SUBROUTINE xc_rho_set_retain(rho_set)
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_rho_set_retain'
-
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
       rho_set%ref_count = rho_set%ref_count + 1
@@ -178,8 +174,6 @@ CONTAINS
    SUBROUTINE xc_rho_set_release(rho_set, pw_pool)
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
       TYPE(pw_pool_type), OPTIONAL, POINTER              :: pw_pool
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_release'
 
       INTEGER                                            :: i
 
@@ -332,8 +326,6 @@ CONTAINS
          POINTER                                         :: tau, tau_a, tau_b
       INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: local_bounds
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_rho_set_get'
-
       INTEGER                                            :: i
       LOGICAL                                            :: my_can_return_null
 
@@ -446,8 +438,6 @@ CONTAINS
    SUBROUTINE xc_rho_set_clean(rho_set, pw_pool)
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
       TYPE(pw_pool_type), POINTER                        :: pw_pool
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_rho_set_clean'
 
       INTEGER                                            :: idir
 
@@ -580,7 +570,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: xc_deriv_method_id, xc_rho_smooth_id
       TYPE(pw_pool_type), POINTER                        :: pw_pool
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_rho_set_update'
       REAL(KIND=dp), PARAMETER                           :: f13 = (1.0_dp/3.0_dp)
 
       INTEGER                                            :: i, idir, ispin, j, k, nspins

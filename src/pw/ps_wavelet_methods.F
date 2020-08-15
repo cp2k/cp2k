@@ -326,8 +326,6 @@ CONTAINS
       TYPE(ps_wavelet_type), POINTER                     :: wavelet
       TYPE(pw_grid_type), POINTER                        :: pw_grid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'z_slices_to_cp2k_distribution'
-
       INTEGER                                            :: dest, i, ii, iproc, j, k, l, &
                                                             local_z_dim, loz, m, m2, md2, nproc
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rcount, rdispl, scount, sdispl, tmp

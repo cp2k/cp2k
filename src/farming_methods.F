@@ -119,8 +119,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'farming_parse_input'
-
       CHARACTER(LEN=3)                                   :: text
       INTEGER                                            :: i, iunit, n_rep_val, num_slaves, &
                                                             output_unit, stat

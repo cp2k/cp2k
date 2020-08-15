@@ -106,8 +106,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iw
       LOGICAL, INTENT(IN), OPTIONAL                      :: rotate
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'neb_replica_distance'
-
       LOGICAL                                            :: my_rotate
 
       my_rotate = .FALSE.
@@ -665,8 +663,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: energies
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_tangent'
-
       REAL(KINd=dp)                                      :: distance0, distance1, distance2, DVmax, &
                                                             Dvmin
 
@@ -729,8 +725,6 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: tag
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Mmatrix
       INTEGER, INTENT(IN)                                :: iw
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_neb_force'
 
       INTEGER                                            :: j, my_tag, nsize_wrk
       REAL(KIND=dp)                                      :: distance1, distance2, fac, tmp
@@ -847,8 +841,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: array3
       REAL(KIND=dp)                                      :: value
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dot_product_band'
-
       INTEGER                                            :: nsize_int
       LOGICAL                                            :: check
 
@@ -886,8 +878,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iw
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: distances
       INTEGER, INTENT(IN)                                :: number_of_replica
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'reorient_images'
 
       INTEGER                                            :: i, k, kind
       LOGICAL                                            :: check
@@ -940,8 +930,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: smoothing
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: coords, sline
       REAL(KIND=dp), DIMENSION(:)                        :: distances
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'reparametrize_images'
 
       INTEGER                                            :: i, j
       REAL(KIND=dp)                                      :: avg_distance, xtmp
@@ -1003,8 +991,6 @@ CONTAINS
       TYPE(neb_type), POINTER                            :: neb_env
       TYPE(neb_var_type), POINTER                        :: Dcoords, forces
       LOGICAL                                            :: converged
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'check_convergence'
 
       CHARACTER(LEN=3), DIMENSION(4)                     :: labels
       INTEGER                                            :: iw

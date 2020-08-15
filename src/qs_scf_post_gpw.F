@@ -2517,8 +2517,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input_section
       INTEGER, INTENT(IN)                                :: unit_nr
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'hirshfeld_charges'
-
       INTEGER                                            :: i, iat, ikind, natom, nkind, nspin, &
                                                             radius_type, refc, shapef
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
@@ -2639,8 +2637,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: a, cb, b
       INTEGER, INTENT(IN)                                :: l
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'project_function_a'
-
       INTEGER                                            :: info, n
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ipiv
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: smat, tmat, v
@@ -2673,8 +2669,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: a, bfun
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       INTEGER, INTENT(IN)                                :: l
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'project_function_b'
 
       INTEGER                                            :: i, info, n, nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ipiv

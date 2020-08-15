@@ -710,8 +710,6 @@ CONTAINS
       TYPE(current_env_type)                             :: current_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'nmr_shift_print'
-
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=default_string_length)               :: name, title
       INTEGER                                            :: iatom, ir, n_nics, nat_print, natom, &

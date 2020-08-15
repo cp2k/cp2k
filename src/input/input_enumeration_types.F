@@ -68,8 +68,6 @@ CONTAINS
          OPTIONAL                                        :: desc
       LOGICAL, INTENT(in), OPTIONAL                      :: strict
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'enum_create'
-
       INTEGER                                            :: i, j, n
 
       CPASSERT(.NOT. ASSOCIATED(enum))
@@ -113,8 +111,6 @@ CONTAINS
    SUBROUTINE enum_retain(enum)
       TYPE(enumeration_type), POINTER                    :: enum
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'enum_retain'
-
       CPASSERT(ASSOCIATED(enum))
       CPASSERT(enum%ref_count > 0)
       enum%ref_count = enum%ref_count + 1
@@ -127,8 +123,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE enum_release(enum)
       TYPE(enumeration_type), POINTER                    :: enum
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'enum_release'
 
       INTEGER                                            :: i
 
@@ -159,8 +153,6 @@ CONTAINS
       TYPE(enumeration_type), POINTER                    :: enum
       INTEGER, INTENT(in)                                :: i
       CHARACTER(len=default_string_length)               :: res
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'enum_i2c'
 
       INTEGER                                            :: j
       LOGICAL                                            :: found
@@ -201,8 +193,6 @@ CONTAINS
       TYPE(enumeration_type), POINTER                    :: enum
       CHARACTER(len=*), INTENT(in)                       :: c
       INTEGER                                            :: res
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'enum_c2i'
 
       CHARACTER(len=default_string_length)               :: upc
       INTEGER                                            :: iostat, j

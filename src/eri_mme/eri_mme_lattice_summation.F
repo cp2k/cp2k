@@ -114,8 +114,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT), OPTIONAL :: G_rads_1, R_rads_2
       REAL(KIND=dp), DIMENSION(2), INTENT(OUT), OPTIONAL :: R_rads_3
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_3c_get_rads'
-
       REAL(KIND=dp)                                      :: alpha, alpha_R, beta, G_res, gamma, R_res
 
       ! exponents in G space
@@ -360,8 +358,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)          :: S_G
       REAL(KIND=dp), INTENT(IN)                          :: R, alpha, inv_lgth, G_c
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'pgf_sum_2c_gspace_1d'
-
       COMPLEX(KIND=dp)                                   :: exp_tot
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: S_G_c
       INTEGER                                            :: gg, l, l_max
@@ -517,8 +513,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)          :: S_R
       REAL(KIND=dp), INTENT(IN)                          :: R, alpha, lgth, R_c
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'pgf_sum_2c_rspace_1d'
-
       INTEGER                                            :: l, l_max, rr
       REAL(KIND=dp)                                      :: dR, exp_tot, R_pow_l, Rp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: h_to_c
@@ -663,8 +657,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: G_min, G_c
       REAL(KIND=dp), INTENT(IN)                          :: delta_l, prefactor
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'pgf_sum_2c_gspace_1d_deltal'
-
       INTEGER                                            :: k, k0, k1, l, l_max
       REAL(KIND=dp)                                      :: dG, exp_tot, G, prefac
 
@@ -743,8 +735,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(0:, 0:, 0:), INTENT(OUT)  :: S_G
       REAL(KIND=dp), INTENT(IN)                          :: RA, RB, RC, zeta, zetb, zetc, a_mm, lgth
       REAL(KIND=dp), DIMENSION(2), INTENT(IN)            :: R_bounds_3
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'pgf_sum_3c_1d'
 
       INTEGER                                            :: l_max, m_max, n_max
       INTEGER                                            :: nR1, nR2

@@ -59,8 +59,6 @@ CONTAINS
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(section_vals_type), POINTER                   :: xc_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_dispersion_env_set'
-
       LOGICAL                                            :: exfun, explicit
       REAL(dp), POINTER                                  :: params(:), scal(:)
       TYPE(section_vals_type), POINTER                   :: nl_section, pp_section, vdw_section, &
@@ -191,8 +189,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       INTEGER, INTENT(in), OPTIONAL                      :: ounit
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_write_dispersion'
 
       CHARACTER(LEN=2)                                   :: symbol
       INTEGER                                            :: i, ikind, nkind, output_unit

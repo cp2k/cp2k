@@ -357,8 +357,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(inout)                       :: scaling
       TYPE(section_vals_type), POINTER                   :: vdw_section
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_scaling_init'
-
       CHARACTER(LEN=default_string_length)               :: functional
 
       CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL", c_val=functional)
@@ -399,8 +397,6 @@ CONTAINS
    SUBROUTINE qs_scaling_dftd3(s6, sr6, s8, vdw_section)
       REAL(KIND=dp), INTENT(inout)                       :: s6, sr6, s8
       TYPE(section_vals_type), POINTER                   :: vdw_section
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_scaling_dftd3'
 
       CHARACTER(LEN=default_string_length)               :: functional
 
@@ -774,8 +770,6 @@ CONTAINS
    SUBROUTINE qs_scaling_dftd3bj(s6, a1, s8, a2, vdw_section)
       REAL(KIND=dp), INTENT(inout)                       :: s6, a1, s8, a2
       TYPE(section_vals_type), POINTER                   :: vdw_section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scaling_dftd3bj'
 
       CHARACTER(LEN=default_string_length)               :: functional
 
@@ -2129,8 +2123,6 @@ CONTAINS
       INTEGER, DIMENSION(3), INTENT(IN)                  :: cell, ncell
       INTEGER                                            :: hash
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cellhash'
-
       INTEGER                                            :: ix, iy, iz, nx, ny, nz
 
       CPASSERT(ALL(ABS(cell) <= ncell))
@@ -2168,7 +2160,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(inout)                       :: c6, r
       LOGICAL, INTENT(inout)                             :: found
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dftd2_param'
       REAL(KIND=dp), DIMENSION(54), PARAMETER :: c6val = (/0.14_dp, 0.08_dp, 1.61_dp, 1.61_dp, &
          3.13_dp, 1.75_dp, 1.23_dp, 0.70_dp, 0.75_dp, 0.63_dp, 5.71_dp, 5.71_dp, 10.79_dp, 9.23_dp,&
          7.84_dp, 5.57_dp, 5.07_dp, 4.61_dp, 10.80_dp, 10.80_dp, 10.80_dp, 10.80_dp, 10.80_dp, &
@@ -2218,8 +2209,6 @@ CONTAINS
       INTEGER, DIMENSION(:)                              :: maxci
       CHARACTER(LEN=*)                                   :: filename
       TYPE(cp_para_env_type), POINTER                    :: para_env
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dftd3_c6_param'
 
       INTEGER                                            :: funit, iadr, iat, jadr, jat, kk, nl, &
                                                             nlines, nn
@@ -3309,8 +3298,6 @@ CONTAINS
 
       TYPE(dcnum_type), DIMENSION(:)                     :: dcnum
       TYPE(cp_para_env_type), POINTER                    :: para_env
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dcnum_distribute'
 
       INTEGER                                            :: group, i, ia, ipe, jn, n, natom, ntmax, &
                                                             ntot

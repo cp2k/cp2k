@@ -53,8 +53,6 @@ CONTAINS
       TYPE(simpar_type), POINTER                         :: simpar
       TYPE(csvr_system_type), POINTER                    :: csvr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'csvr_to_barostat_mapping'
-
       INTEGER                                            :: i, ndeg
       TYPE(map_info_type), POINTER                       :: map_info
 
@@ -114,8 +112,6 @@ CONTAINS
       TYPE(csvr_system_type), POINTER                    :: csvr
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(global_constraint_type), POINTER              :: gci
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'csvr_to_particle_mapping'
 
       INTEGER                                            :: i, imap, j, natoms_local, &
                                                             sum_of_thermostats
@@ -207,8 +203,6 @@ CONTAINS
       TYPE(global_constraint_type), POINTER              :: gci
       LOGICAL, INTENT(IN), OPTIONAL                      :: shell
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_csvr_thermostat'
-
       INTEGER                                            :: nkind, number, region
       LOGICAL                                            :: do_shell
       TYPE(map_info_type), POINTER                       :: map_info
@@ -258,8 +252,6 @@ CONTAINS
       TYPE(csvr_system_type), POINTER                    :: csvr
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(global_constraint_type), POINTER              :: gci
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'csvr_to_shell_mapping'
 
       INTEGER                                            :: i, imap, j, nshell_local, &
                                                             sum_of_thermostats

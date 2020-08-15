@@ -405,8 +405,6 @@ CONTAINS
       TYPE(eip_environment_type), POINTER                :: eip_env
       INTEGER, INTENT(IN)                                :: output_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_energies'
-
 !   ------------------------------------------------------------------------
 
       IF (output_unit > 0) THEN
@@ -429,8 +427,6 @@ CONTAINS
    SUBROUTINE eip_print_energy_var(eip_env, output_unit)
       TYPE(eip_environment_type), POINTER                :: eip_env
       INTEGER, INTENT(IN)                                :: output_unit
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_energy_var'
 
       INTEGER                                            :: unit_nr
 
@@ -460,8 +456,6 @@ CONTAINS
    SUBROUTINE eip_print_forces(eip_env, output_unit)
       TYPE(eip_environment_type), POINTER                :: eip_env
       INTEGER, INTENT(IN)                                :: output_unit
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'eip_print_forces'
 
       INTEGER                                            :: iatom, natom, unit_nr
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -502,8 +496,6 @@ CONTAINS
       TYPE(eip_environment_type), POINTER                :: eip_env
       INTEGER, INTENT(IN)                                :: output_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_coord_avg'
-
       INTEGER                                            :: unit_nr
 
 !   ------------------------------------------------------------------------
@@ -533,8 +525,6 @@ CONTAINS
       TYPE(eip_environment_type), POINTER                :: eip_env
       INTEGER, INTENT(IN)                                :: output_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_coord_var'
-
       INTEGER                                            :: unit_nr
 
 !   ------------------------------------------------------------------------
@@ -563,8 +553,6 @@ CONTAINS
    SUBROUTINE eip_print_count(eip_env, output_unit)
       TYPE(eip_environment_type), POINTER                :: eip_env
       INTEGER, INTENT(IN)                                :: output_unit
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'eip_print_count'
 
       INTEGER                                            :: unit_nr
 

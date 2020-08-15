@@ -177,8 +177,6 @@ CONTAINS
    SUBROUTINE force_env_retain(force_env)
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'force_env_retain'
-
       CPASSERT(ASSOCIATED(force_env))
       CPASSERT(force_env%ref_count > 0)
       force_env%ref_count = force_env%ref_count + 1
@@ -195,8 +193,6 @@ CONTAINS
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE force_env_release(force_env)
       TYPE(force_env_type), POINTER                      :: force_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'force_env_release'
 
       INTEGER                                            :: i, my_group
       TYPE(cp_logger_type), POINTER                      :: my_logger
@@ -326,8 +322,6 @@ CONTAINS
       TYPE(section_vals_type), OPTIONAL, POINTER         :: root_section
       TYPE(mixed_environment_type), OPTIONAL, POINTER    :: mixed_env
       TYPE(embed_env_type), OPTIONAL, POINTER            :: embed_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'force_env_get'
 
       REAL(KIND=dp)                                      :: eip_kinetic_energy, eip_potential_energy
       TYPE(cp_subsys_type), POINTER                      :: subsys_tmp
@@ -481,8 +475,6 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       INTEGER                                            :: n_atom
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_get_natom'
-
       TYPE(cp_subsys_type), POINTER                      :: subsys
 
       n_atom = 0
@@ -503,8 +495,6 @@ CONTAINS
 
       TYPE(force_env_type), POINTER                      :: force_env
       INTEGER                                            :: n_particle
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_get_nparticle'
 
       TYPE(cp_subsys_type), POINTER                      :: subsys
 
@@ -621,8 +611,6 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: method_name_id
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: additional_potential
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'force_env_set'
-
       CPASSERT(ASSOCIATED(force_env))
       CPASSERT(force_env%ref_count > 0)
       IF (PRESENT(meta_env)) THEN
@@ -666,8 +654,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_sections, root_section
       INTEGER, DIMENSION(:), POINTER                     :: i_force_eval
       INTEGER                                            :: nforce_eval
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'multiple_fe_list'
 
       INTEGER                                            :: iforce_eval, main_force_eval
       INTEGER, DIMENSION(:), POINTER                     :: my_i_force_eval

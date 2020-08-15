@@ -166,8 +166,6 @@ CONTAINS
       TYPE(pw_grid_type), POINTER                        :: grid_s, grid_b
       REAL(KIND=dp), INTENT(OUT)                         :: cutoff
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dg_find_cutoff'
-
       INTEGER                                            :: nout(3)
       REAL(KIND=dp)                                      :: b_cell_deth, cell_lengths(3), dr(3)
       REAL(KIND=dp), DIMENSION(3, 3)                     :: b_cell_h_inv
@@ -363,8 +361,6 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: npts_s, npts_b
       INTEGER, DIMENSION(:), INTENT(OUT)                 :: centre
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: delta
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dg_get_delta'
 
       REAL(KIND=dp)                                      :: cell_deth
       REAL(KIND=dp), DIMENSION(3)                        :: grid_i, s
@@ -860,8 +856,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: charge1
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: ex1, ey1, ez1
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dg_get_patch_1'
-
       COMPLEX(KIND=dp)                                   :: za, zb
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: zs
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: cd
@@ -911,8 +905,6 @@ CONTAINS
       TYPE(pw_p_type), INTENT(INOUT)                     :: rhos1, rhos2
       REAL(KIND=dp), INTENT(IN)                          :: charge1, charge2
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: ex1, ey1, ez1, ex2, ey2, ez2
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dg_get_patch_2'
 
       COMPLEX(KIND=dp)                                   :: za, zb
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: zs

@@ -199,8 +199,6 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
       INTEGER, INTENT(IN)                                :: plan_style
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'init_fft'
-
       use_fftsg_sizes = fftsg_sizes
       alltoall_sgl = alltoall
       fft_pool_scratch_limit = pool_limit
@@ -228,8 +226,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'finalize_fft'
-
 ! release the FFT scratch pool
 
       CALL release_fft_scratch_pool()
@@ -255,7 +251,6 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: radix_out
       INTEGER, INTENT(IN)                                :: operation
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fft_radix_operations'
       INTEGER, PARAMETER                                 :: fft_type_sg = 1
 
       INTEGER                                            :: i, iloc, ldata
@@ -2549,8 +2544,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE init_fft_scratch_pool()
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_fft_scratch_pool'
-
       INTEGER                                            :: i
 
       CALL release_fft_scratch_pool()
@@ -2613,8 +2606,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE deallocate_fft_scratch_type(fft_scratch)
       TYPE(fft_scratch_type), INTENT(INOUT)    :: fft_scratch
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_fft_scratch_type'
 
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
       INTEGER                   :: ierr
@@ -2795,8 +2786,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE release_fft_scratch_pool()
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'release_fft_scratch_pool'
-
       TYPE(fft_scratch_pool_type), POINTER               :: fft_scratch, fft_scratch_current
 
       IF (init_fft_pool == 0) NULLIFY (fft_scratch_first)
@@ -2825,8 +2814,6 @@ CONTAINS
 !> \brief ...
 ! **************************************************************************************************
    SUBROUTINE resize_fft_scratch_pool()
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'resize_fft_scratch_pool'
 
       INTEGER                                            :: last_tick, nscratch
       TYPE(fft_scratch_pool_type), POINTER               :: fft_scratch_current, fft_scratch_old
@@ -3315,8 +3302,6 @@ CONTAINS
    SUBROUTINE release_fft_scratch(fft_scratch)
 
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'release_fft_scratch'
 
       INTEGER                                            :: scratch_id
       TYPE(fft_scratch_pool_type), POINTER               :: fft_scratch_current

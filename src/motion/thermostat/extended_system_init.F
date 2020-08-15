@@ -497,8 +497,6 @@ CONTAINS
       TYPE(lnhc_parameters_type), POINTER                :: nhc
       REAL(KIND=dp), INTENT(IN)                          :: dt
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_yoshida_coef'
-
       REAL(KIND=dp), DIMENSION(nhc%nyosh)                :: yosh_wt
 
       SELECT CASE (nhc%nyosh)

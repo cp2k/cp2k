@@ -128,8 +128,6 @@ CONTAINS
    SUBROUTINE deallocate_basis_optimization_type(opt_bas)
       TYPE(basis_optimization_type)                      :: opt_bas
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_basis_optimization_type'
-
       INTEGER                                            :: igroup, ikind
 
       IF (ASSOCIATED(opt_bas%group_partition)) DEALLOCATE (opt_bas%group_partition)
@@ -164,8 +162,6 @@ CONTAINS
 
    SUBROUTINE deallocate_kind_basis(kind)
       TYPE(kind_basis_type)                              :: kind
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_kind_basis'
 
       INTEGER                                            :: ibasis, icont, iinfo, iset
 

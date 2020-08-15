@@ -67,8 +67,6 @@ CONTAINS
    SUBROUTINE calc_c_mat_force(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_c_mat_force'
-
       IF (qs_env%rtp%linear_scaling) THEN
          CALL calc_c_mat_force_ls(qs_env)
       ELSE
@@ -285,8 +283,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: C_mat
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, atom_of_kind
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_forces'
-
       INTEGER                                            :: col_atom, i, ikind, kind_atom, row_atom
       LOGICAL                                            :: found
       REAL(dp), DIMENSION(:), POINTER                    :: block_values, block_values2
@@ -338,8 +334,6 @@ CONTAINS
    SUBROUTINE rt_admm_force(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rt_admm_force'
-
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos, mos_admm
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: KS_aux_im, KS_aux_re, matrix_s_aux_fit, &
@@ -379,8 +373,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: KS_aux_re, KS_aux_im, matrix_s_aux_fit, &
                                                             matrix_s_aux_fit_vs_orb
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_admm, mos
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rt_admm_forces_none'
 
       INTEGER                                            :: im, ispin, nao, natom, naux, nmo, re
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: admm_force

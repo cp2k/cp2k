@@ -272,8 +272,6 @@ CONTAINS
    LOGICAL FUNCTION xc_libxc_wrap_is_under_development(xc_info)
       TYPE(xc_f03_func_info_t)                           :: xc_info
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_is_under_development'
-
       IF (IAND(xc_f03_func_info_get_flags(xc_info), XC_FLAGS_DEVELOPMENT) == XC_FLAGS_DEVELOPMENT) THEN
          xc_libxc_wrap_is_under_development = .TRUE.
       ELSE

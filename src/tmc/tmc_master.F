@@ -100,8 +100,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(tmc_env_type), POINTER                        :: tmc_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cancel_calculations'
-
       INTEGER                                            :: i, stat, wg
       TYPE(elem_list_type), POINTER                      :: tmp_element
 
@@ -171,8 +169,6 @@ CONTAINS
       TYPE(elem_array_type), DIMENSION(:), POINTER       :: ana_worker_info
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(tmc_env_type), POINTER                        :: tmc_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'send_analysis_tasks'
 
       INTEGER                                            :: dest, stat, wg
       TYPE(elem_list_type), POINTER                      :: list_tmp
@@ -931,8 +927,6 @@ CONTAINS
    SUBROUTINE set_walltime_delay(time, walltime_delay)
       REAL(KIND=dp)                                      :: time
       INTEGER                                            :: walltime_delay
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_walltime_delay'
 
       CPASSERT(time .GE. 0.0_dp)
 

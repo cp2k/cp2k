@@ -87,8 +87,6 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: mao_coef, pmat, smat
       REAL(KIND=dp), INTENT(IN)                          :: eps1
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mao_initialization'
-
       INTEGER                                            :: group, i, iatom, info, jatom, lwork, m, &
                                                             n, nblk
       INTEGER, DIMENSION(:), POINTER                     :: mao_blk, row_blk, row_blk_sizes
@@ -205,8 +203,6 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: qmat, smat, binv
       LOGICAL, INTENT(IN)                                :: reuse
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'mao_function'
-
       REAL(KIND=dp)                                      :: convergence, threshold
       TYPE(dbcsr_type)                                   :: bmat, scmat, tmat
 
@@ -249,8 +245,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: fval
       TYPE(dbcsr_type)                                   :: mao_grad, qmat, smat, binv
       LOGICAL, INTENT(IN)                                :: reuse
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'mao_function_gradient'
 
       REAL(KIND=dp)                                      :: convergence, threshold
       TYPE(dbcsr_type)                                   :: bmat, scmat, t2mat, tmat
@@ -299,8 +293,6 @@ CONTAINS
    SUBROUTINE mao_orthogonalization(mao_coef, smat)
       TYPE(dbcsr_type)                                   :: mao_coef, smat
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mao_orthogonalization'
-
       INTEGER                                            :: i, iatom, info, jatom, lwork, m, n
       LOGICAL                                            :: found
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: w, work
@@ -346,8 +338,6 @@ CONTAINS
    SUBROUTINE mao_project_gradient(mao_coef, mao_grad, smat)
       TYPE(dbcsr_type)                                   :: mao_coef, mao_grad, smat
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mao_project_gradient'
-
       INTEGER                                            :: iatom, jatom, m, n
       LOGICAL                                            :: found
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: amat
@@ -384,8 +374,6 @@ CONTAINS
    FUNCTION mao_scalar_product(fmat1, fmat2) RESULT(spro)
       TYPE(dbcsr_type)                                   :: fmat1, fmat2
       REAL(KIND=dp)                                      :: spro
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'mao_scalar_product'
 
       INTEGER                                            :: group, iatom, jatom, m, n
       LOGICAL                                            :: found
@@ -428,8 +416,6 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER, INTENT(IN)                                :: nmos
       REAL(KIND=dp), INTENT(IN)                          :: occ
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'calculate_p_gamma'
 
       INTEGER                                            :: norb
       REAL(KIND=dp)                                      :: de
@@ -497,8 +483,6 @@ CONTAINS
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: mao_basis_set_list, orb_basis_set_list
       INTEGER, INTENT(IN), OPTIONAL                      :: iunit
       LOGICAL, INTENT(IN), OPTIONAL                      :: print_basis
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'mao_reference_basis'
 
       INTEGER                                            :: ikind, nbas, nkind, unit_nr
       REAL(KIND=dp)                                      :: eps_pgf_orb
@@ -612,8 +596,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mao_basis_analysis'
-
       CHARACTER(len=2)                                   :: element_symbol
       INTEGER                                            :: ia, iab, iatom, ikind, iset, ishell, &
                                                             ispin, l, lmax, lshell, m, ma, na, &
@@ -715,8 +697,6 @@ CONTAINS
          POINTER                                         :: matrix_ks
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: sab_orb
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'mao_build_q'
 
       INTEGER                                            :: im, ispin, nim, nocc, norb, nspin
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index

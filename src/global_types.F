@@ -94,8 +94,6 @@ CONTAINS
    SUBROUTINE globenv_create(globenv)
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'globenv_create'
-
       CPASSERT(.NOT. ASSOCIATED(globenv))
       ALLOCATE (globenv)
       globenv%ref_count = 1
@@ -120,8 +118,6 @@ CONTAINS
    SUBROUTINE globenv_retain(globenv)
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'globenv_retain'
-
       CPASSERT(ASSOCIATED(globenv))
       CPASSERT(globenv%ref_count > 0)
       globenv%ref_count = globenv%ref_count + 1
@@ -134,8 +130,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE globenv_release(globenv)
       TYPE(global_environment_type), POINTER             :: globenv
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'globenv_release'
 
       IF (ASSOCIATED(globenv)) THEN
          CPASSERT(globenv%ref_count > 0)

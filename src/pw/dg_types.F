@@ -54,8 +54,6 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: id_nr, grid_index
       TYPE(dg_rho0_type), OPTIONAL, POINTER              :: dg_rho0
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dg_get'
-
       IF (PRESENT(id_nr)) id_nr = dg%id_nr
       IF (PRESENT(grid_index)) grid_index = dg%grid_index
       IF (PRESENT(dg_rho0)) dg_rho0 => dg%dg_rho0
@@ -69,8 +67,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dg_create(dg)
       TYPE(dg_type), POINTER                             :: dg
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dg_create'
 
       TYPE(dg_rho0_type), POINTER                        :: dg_rho0
 
@@ -96,8 +92,6 @@ CONTAINS
    SUBROUTINE dg_retain(dg)
       TYPE(dg_type), POINTER                             :: dg
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dg_retain'
-
       CPASSERT(ASSOCIATED(dg))
       CPASSERT(dg%ref_count > 0)
       dg%ref_count = dg%ref_count + 1
@@ -114,8 +108,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dg_release(dg)
       TYPE(dg_type), POINTER                             :: dg
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dg_release'
 
       IF (ASSOCIATED(dg)) THEN
          CPASSERT(dg%ref_count > 0)
@@ -139,8 +131,6 @@ CONTAINS
       TYPE(dg_type), POINTER                             :: dg
       TYPE(dg_rho0_type), OPTIONAL, POINTER              :: dg_rho0
       INTEGER, OPTIONAL                                  :: grid_index
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dg_set'
 
       IF (PRESENT(dg_rho0)) THEN
          CALL dg_rho0_retain(dg_rho0)

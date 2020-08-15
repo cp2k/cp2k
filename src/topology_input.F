@@ -109,8 +109,6 @@ CONTAINS
       TYPE(colvar_p_type), DIMENSION(:), POINTER         :: colvar_p
       TYPE(section_vals_type), POINTER                   :: constraint_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_constraints_section'
-
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: tmpstringlist
       INTEGER                                            :: icolvar, ig, isize, isize_old, itype, &
@@ -581,8 +579,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: k0
       INTEGER, INTENT(IN), OPTIONAL                      :: i_rep_section
       CHARACTER(LEN=*), INTENT(IN)                       :: label
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'check_restraint'
 
       CHARACTER(LEN=default_string_length)               :: nlabel
       INTEGER                                            :: output_unit

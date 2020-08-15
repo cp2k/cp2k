@@ -1560,8 +1560,6 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: local_col_row_info
       INTEGER, INTENT(IN)                                :: my_B_virtual_end, my_B_virtual_start
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'grep_my_integrals'
-
       INTEGER                                            :: i_global, iiB, j_global, jjB, ncol_rec, &
                                                             nrow_rec, proc_receive, proc_send, &
                                                             proc_shift

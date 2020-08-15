@@ -613,8 +613,6 @@ CONTAINS
       TYPE(tree_type), POINTER                           :: tree_ptr
       INTEGER                                            :: counter
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'count_prepared_nodes_in_subtree'
-
       TYPE(tree_type), POINTER                           :: tmp_ptr
 
       NULLIFY (tmp_ptr)
@@ -717,8 +715,6 @@ CONTAINS
       TYPE(global_tree_type), INTENT(IN), POINTER        :: ptr
       INTEGER, INTENT(INOUT)                             :: counter
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'count_nodes_in_global_tree'
-
       CPASSERT(ASSOCIATED(ptr))
 
       counter = counter + 1
@@ -738,8 +734,6 @@ CONTAINS
    RECURSIVE SUBROUTINE count_nodes_in_tree(ptr, counter)
       TYPE(tree_type), POINTER                           :: ptr
       INTEGER                                            :: counter
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'count_nodes_in_tree'
 
       CPASSERT(ASSOCIATED(ptr))
 

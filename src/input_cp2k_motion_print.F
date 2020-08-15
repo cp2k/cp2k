@@ -50,8 +50,6 @@ CONTAINS
    SUBROUTINE create_motion_print_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_motion_print_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key
 
@@ -257,8 +255,6 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
       LOGICAL, INTENT(IN)                                :: pos
       CHARACTER(LEN=*), INTENT(IN)                       :: description
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'add_format_keyword'
 
       CPASSERT(ASSOCIATED(section))
       CPASSERT(.NOT. ASSOCIATED(keyword))

@@ -127,8 +127,6 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: name
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_create'
-
       INTEGER                                            :: ncol_local, npcol, nprow, nrow_local
       TYPE(cp_blacs_env_type), POINTER                   :: context
 
@@ -171,8 +169,6 @@ CONTAINS
    SUBROUTINE cp_cfm_retain(matrix)
       TYPE(cp_cfm_type), POINTER                         :: matrix
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_retain'
-
       CPASSERT(ASSOCIATED(matrix))
       CPASSERT(matrix%ref_count > 0)
       matrix%ref_count = matrix%ref_count + 1
@@ -184,8 +180,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_release(matrix)
       TYPE(cp_cfm_type), POINTER                         :: matrix
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_release'
 
       IF (ASSOCIATED(matrix)) THEN
          CPASSERT(matrix%ref_count > 0)
@@ -216,8 +210,6 @@ CONTAINS
       TYPE(cp_cfm_type), POINTER                         :: matrix
       COMPLEX(kind=dp), INTENT(in)                       :: alpha
       COMPLEX(kind=dp), INTENT(in), OPTIONAL             :: beta
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_set_all'
 
       INTEGER                                            :: irow_local, nrow_local
 #if defined(__SCALAPACK)
@@ -272,8 +264,6 @@ CONTAINS
       INTEGER, INTENT(in)                                :: irow_global, icol_global
       COMPLEX(kind=dp), INTENT(out)                      :: alpha
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_get_element'
-
 #if defined(__SCALAPACK)
       INTEGER                                            :: icol_local, ipcol, iprow, irow_local, &
                                                             mypcol, myprow, npcol, nprow
@@ -320,8 +310,6 @@ CONTAINS
       TYPE(cp_cfm_type), POINTER                         :: matrix
       INTEGER, INTENT(in)                                :: irow_global, icol_global
       COMPLEX(kind=dp), INTENT(in)                       :: alpha
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_set_element'
 
 #if defined(__SCALAPACK)
       INTEGER                                            :: icol_local, ipcol, iprow, irow_local, &
@@ -664,7 +652,6 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER, OPTIONAL :: matrix_struct
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER, OPTIONAL :: local_data
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_get_info'
       INTEGER i, nprow, npcol, myprow, mypcol
       TYPE(cp_blacs_env_type), POINTER :: ctxt
 #if defined(__SCALAPACK)
@@ -746,8 +733,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_to_cfm_matrix(source, destination)
       TYPE(cp_cfm_type), POINTER                         :: source, destination
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_to_cfm_matrix'
 
       INTEGER                                            :: npcol, nprow
 

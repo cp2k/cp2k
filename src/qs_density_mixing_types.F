@@ -118,8 +118,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: mixing_method
       REAL(dp), INTENT(IN)                               :: ecut
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixing_storage_create'
-
       REAL(dp)                                           :: alpha, eps, gcut
 
       CPASSERT(.NOT. ASSOCIATED(mixing_store))
@@ -229,8 +227,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mixing_storage_release(mixing_store)
       TYPE(mixing_storage_type), POINTER                 :: mixing_store
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixing_storage_release'
 
       INTEGER                                            :: i, j, k
 
@@ -496,8 +492,6 @@ CONTAINS
 
       TYPE(section_type), POINTER                        :: section
       LOGICAL, INTENT(IN), OPTIONAL                      :: ls_scf
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_mixing_section'
 
       CHARACTER(LEN=default_string_length)               :: section_name
       INTEGER                                            :: default_mix

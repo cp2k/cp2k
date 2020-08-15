@@ -209,8 +209,6 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: init_mpi
       INTEGER, INTENT(out)                               :: ierr
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'init_cp2k'
-
       INTEGER                                            :: mpi_comm_default, unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -291,8 +289,6 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: finalize_mpi
       INTEGER, INTENT(out)                               :: ierr
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'finalize_cp2k'
-
       INTEGER                                            :: ienv
 
 !sample peak memory
@@ -335,8 +331,6 @@ CONTAINS
    RECURSIVE SUBROUTINE f_env_dealloc(f_env)
       TYPE(f_env_type), POINTER                          :: f_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'f_env_dealloc'
-
       INTEGER                                            :: ierr
 
       CPASSERT(ASSOCIATED(f_env))
@@ -370,8 +364,6 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       CHARACTER(len=*), INTENT(in)                       :: old_dir
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'f_env_create'
-
       ALLOCATE (f_env)
       f_env%force_env => force_env
       CALL force_env_retain(f_env%force_env)
@@ -394,8 +386,6 @@ CONTAINS
    SUBROUTINE f_env_get_from_id(f_env_id, f_env)
       INTEGER, INTENT(in)                                :: f_env_id
       TYPE(f_env_type), POINTER                          :: f_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'f_env_get_from_id'
 
       INTEGER                                            :: f_env_pos
 
@@ -428,8 +418,6 @@ CONTAINS
       INTEGER, INTENT(in)                                :: f_env_id
       TYPE(f_env_type), POINTER                          :: f_env
       INTEGER, INTENT(out), OPTIONAL                     :: handle
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'f_env_add_defaults'
 
       INTEGER                                            :: f_env_pos, ierr
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -474,8 +462,6 @@ CONTAINS
       TYPE(f_env_type), POINTER                          :: f_env
       INTEGER, INTENT(out), OPTIONAL                     :: ierr
       INTEGER, INTENT(in), OPTIONAL                      :: handle
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'f_env_rm_defaults'
 
       INTEGER                                            :: ierr2
       TYPE(cp_logger_type), POINTER                      :: d_logger, logger
@@ -925,8 +911,6 @@ CONTAINS
       INTEGER, INTENT(out)                               :: ierr
       LOGICAL, INTENT(IN), OPTIONAL                      :: q_finalize
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'destroy_force_env'
-
       INTEGER                                            :: env_pos, i
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(f_env_type), POINTER                          :: f_env
@@ -972,8 +956,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: env_id
       INTEGER, INTENT(OUT)                               :: n_atom, ierr
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_natom'
-
       TYPE(f_env_type), POINTER                          :: f_env
 
       n_atom = 0
@@ -996,8 +978,6 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: env_id
       INTEGER, INTENT(OUT)                               :: n_particle, ierr
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_nparticle'
 
       TYPE(f_env_type), POINTER                          :: f_env
 
@@ -1023,8 +1003,6 @@ CONTAINS
       REAL(KIND=DP), DIMENSION(3, 3)                     :: cell
       INTEGER, DIMENSION(3), OPTIONAL                    :: per
       INTEGER, INTENT(OUT)                               :: ierr
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_cell'
 
       TYPE(cell_type), POINTER                           :: cell_full
       TYPE(f_env_type), POINTER                          :: f_env
@@ -1101,8 +1079,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(1:n_el)                   :: frc
       INTEGER, INTENT(OUT)                               :: ierr
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_force'
-
       TYPE(f_env_type), POINTER                          :: f_env
 
       NULLIFY (f_env)
@@ -1124,8 +1100,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: env_id
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: stress_tensor
       INTEGER, INTENT(OUT)                               :: ierr
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_stress_tensor'
 
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_subsys_type), POINTER                      :: subsys
@@ -1160,8 +1134,6 @@ CONTAINS
       REAL(KIND=DP), DIMENSION(1:n_el)                   :: pos
       INTEGER, INTENT(OUT)                               :: ierr
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_pos'
-
       TYPE(f_env_type), POINTER                          :: f_env
 
       NULLIFY (f_env)
@@ -1186,8 +1158,6 @@ CONTAINS
       REAL(KIND=DP), DIMENSION(1:n_el)                   :: vel
       INTEGER, INTENT(OUT)                               :: ierr
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_vel'
-
       TYPE(f_env_type), POINTER                          :: f_env
 
       NULLIFY (f_env)
@@ -1209,8 +1179,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: env_id
       REAL(KIND=DP), DIMENSION(3, 3)                     :: new_cell
       INTEGER, INTENT(OUT)                               :: ierr
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'set_cell'
 
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_subsys_type), POINTER                      :: subsys
@@ -1244,8 +1212,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(1:n_el)                   :: new_pos
       INTEGER, INTENT(OUT)                               :: ierr
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'set_pos'
-
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(f_env_type), POINTER                          :: f_env
 
@@ -1273,8 +1239,6 @@ CONTAINS
       REAL(kind=dp), DIMENSION(1:n_el)                   :: new_vel
       INTEGER, INTENT(OUT)                               :: ierr
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'set_vel'
-
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(f_env_type), POINTER                          :: f_env
 
@@ -1301,8 +1265,6 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: calc_force
       INTEGER, INTENT(out)                               :: ierr
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'calc_energy_force'
-
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(f_env_type), POINTER                          :: f_env
 
@@ -1327,8 +1289,6 @@ CONTAINS
       INTEGER, INTENT(in)                                :: env_id
       REAL(kind=dp), INTENT(out)                         :: e_pot
       INTEGER, INTENT(out)                               :: ierr
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_energy'
 
       TYPE(f_env_type), POINTER                          :: f_env
 
@@ -1424,8 +1384,6 @@ CONTAINS
       CHARACTER(len=default_path_length), &
          DIMENSION(:, :), INTENT(IN)                     :: initial_variables
       INTEGER, INTENT(out)                               :: ierr
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'check_input'
 
       INTEGER                                            :: unit_nr
       LOGICAL                                            :: my_echo_input

@@ -427,8 +427,6 @@ CONTAINS
       TYPE(tmc_atom_type), DIMENSION(:), POINTER         :: atoms
       INTEGER, INTENT(IN)                                :: nr_atoms
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_tmc_atom_type'
-
       CPASSERT(.NOT. ASSOCIATED(atoms))
       CPASSERT(nr_atoms .GT. 0)
 
@@ -447,8 +445,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE deallocate_tmc_atom_type(atoms)
       TYPE(tmc_atom_type), DIMENSION(:), POINTER         :: atoms
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_tmc_atom_type'
 
       CPASSERT(ASSOCIATED(atoms))
 

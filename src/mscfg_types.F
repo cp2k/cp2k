@@ -66,8 +66,6 @@ CONTAINS
       TYPE(molecular_scf_guess_env_type)                 :: env
       INTEGER, INTENT(IN)                                :: nfrags
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'molecular_scf_guess_env_init'
-
 ! check if the number of fragments is already set
 !IF (env%nfrags.ne.0) THEN
 !   ! do not allow re-initialization
@@ -94,8 +92,6 @@ CONTAINS
    SUBROUTINE molecular_scf_guess_env_destroy(env)
 
       TYPE(molecular_scf_guess_env_type)                 :: env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'molecular_scf_guess_env_destroy'
 
       INTEGER                                            :: ifrag, jfrag
 
@@ -198,8 +194,6 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(IN)                       :: submatrix_in
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_out
       INTEGER, DIMENSION(2), INTENT(IN)                  :: offset, submatrix_size, matrix_size
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'copy_submatrix_into_matrix'
 
       INTEGER                                            :: add_blocks_after, dimen, iblock_col, &
                                                             iblock_row, iblock_size, nblocks, &

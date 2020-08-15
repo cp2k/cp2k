@@ -347,8 +347,6 @@ CONTAINS
          DIMENSION(:), POINTER                           :: array
       INTEGER, INTENT(IN)                                :: output_unit, iw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'release_FF_missing_par'
-
       INTEGER                                            :: i
 
       IF (ASSOCIATED(array)) THEN
@@ -1241,8 +1239,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: var_values
       INTEGER, INTENT(IN), OPTIONAL                      :: size_variables, i_rep_sec
       CHARACTER(LEN=*), DIMENSION(:), OPTIONAL           :: input_variables
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_generic_info'
 
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: my_par, my_par_tmp, my_units, &

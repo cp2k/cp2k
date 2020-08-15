@@ -75,8 +75,6 @@ CONTAINS
 
       TYPE(rel_control_type), POINTER                    :: rel_control
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rel_c_create'
-
       ALLOCATE (rel_control)
 
       ! Load the default values
@@ -103,8 +101,6 @@ CONTAINS
 
       TYPE(rel_control_type), POINTER                    :: rel_control
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rel_c_retain'
-
       CPASSERT(ASSOCIATED(rel_control))
 
       CPASSERT(rel_control%ref_count > 0)
@@ -125,8 +121,6 @@ CONTAINS
    SUBROUTINE rel_c_release(rel_control)
 
       TYPE(rel_control_type), POINTER                    :: rel_control
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rel_c_release'
 
       IF (ASSOCIATED(rel_control)) THEN
          CPASSERT(rel_control%ref_count > 0)
@@ -154,8 +148,6 @@ CONTAINS
 
       TYPE(rel_control_type), POINTER                    :: rel_control
       TYPE(section_vals_type), POINTER                   :: dft_section
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rel_c_read_parameters'
 
       TYPE(section_vals_type), POINTER                   :: rel_section
 

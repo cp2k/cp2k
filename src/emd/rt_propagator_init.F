@@ -77,8 +77,6 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'init_propagators'
-
       INTEGER                                            :: i, imat, unit_nr
       REAL(KIND=dp)                                      :: dt, prefac
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new, mos_next, mos_old
@@ -416,8 +414,6 @@ CONTAINS
 
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'rt_initialize_rho_from_mos'
 
       INTEGER                                            :: ispin, ncol, re
       REAL(KIND=dp)                                      :: alpha

@@ -116,8 +116,6 @@ CONTAINS
    SUBROUTINE free_cancelation_list(cancel_list)
       TYPE(elem_list_type), POINTER                      :: cancel_list
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'free_cancelation_list'
-
       TYPE(elem_list_type), POINTER                      :: tmp_element
 
       cancel_elem_loop: DO WHILE (ASSOCIATED(cancel_list))

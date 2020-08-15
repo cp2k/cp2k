@@ -79,8 +79,6 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: compatibility
       TYPE(section_vals_type), POINTER                   :: print_section, qmmm_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_gaussian_initialize'
-
       INTEGER                                            :: i, ilevel, j, Ndim, num_geep_gauss, &
                                                             output_unit
       LOGICAL                                            :: Found, use_geep_lib

@@ -88,8 +88,6 @@ CONTAINS
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_read_restart'
-
       CHARACTER(LEN=default_string_length)               :: param
       INTEGER                                            :: iatom, ikind, natoms
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom2kind
@@ -191,8 +189,6 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: positions
       TYPE(pao_ioblock_type), ALLOCATABLE, DIMENSION(:)  :: xblocks
       INTEGER, DIMENSION(2), INTENT(OUT), OPTIONAL       :: ml_range
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_read_raw'
 
       CHARACTER(LEN=default_string_length)               :: label, str_in
       INTEGER                                            :: i1, i2, iatom, ikind, ipot, natoms, &
@@ -494,8 +490,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(dp)                                           :: energy
       INTEGER, INTENT(IN)                                :: unit_nr
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_restart_header'
 
       CHARACTER(LEN=default_string_length)               :: kindname
       INTEGER                                            :: iatom, ikind, ipot, nparams, &

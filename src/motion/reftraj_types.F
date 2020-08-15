@@ -87,8 +87,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: reftraj_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_reftraj'
-
       CHARACTER(LEN=default_path_length)                 :: filename
 
       CPASSERT(.NOT. ASSOCIATED(reftraj))
@@ -136,8 +134,6 @@ CONTAINS
 
       TYPE(reftraj_type), POINTER                        :: reftraj
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'retain_reftraj'
-
       IF (ASSOCIATED(reftraj)) THEN
          CPASSERT(reftraj%ref_count > 0)
          reftraj%ref_count = reftraj%ref_count + 1
@@ -155,8 +151,6 @@ CONTAINS
    SUBROUTINE release_reftraj(reftraj)
 
       TYPE(reftraj_type), POINTER                        :: reftraj
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'release_reftraj'
 
       IF (ASSOCIATED(reftraj)) THEN
          CPASSERT(reftraj%ref_count > 0)

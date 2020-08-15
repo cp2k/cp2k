@@ -334,8 +334,6 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: dimen_RI_red
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'decomp_mat_L'
-
       IF (do_svd) THEN
          CALL matrix_root_with_svd(fm_matrix_L, eps_svd, num_small_eigen, cond_num, do_inversion, para_env)
 

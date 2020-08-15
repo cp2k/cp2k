@@ -63,8 +63,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dftb_dispersion'
-
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(dftb_control_type), POINTER                   :: dftb_control
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env

@@ -152,7 +152,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'wannier90_files'
       INTEGER, PARAMETER                                 :: num_nnmax = 12
 
       CHARACTER(len=2)                                   :: asym

@@ -216,8 +216,6 @@ CONTAINS
    SUBROUTINE line_search_2d(energies, step_size)
       REAL(KIND=dp)                                      :: energies(6), step_size(2)
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'line_search_2d'
-
       INTEGER                                            :: info, unit_nr
       REAL(KIND=dp)                                      :: e_pred, param(6), s1, s1sq, s2, s2sq, &
                                                             sys_lin_eq(6, 6), tmp_e, v1, v2
@@ -271,8 +269,6 @@ CONTAINS
 
    SUBROUTINE line_search_3pnt(energies, step_size)
       REAL(KIND=dp)                                      :: energies(3), step_size(2)
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'line_search_3pnt'
 
       INTEGER                                            :: unit_nr
       REAL(KIND=dp)                                      :: a, b, c, e_pred, min_val, step1, tmp, &
@@ -477,8 +473,6 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: Ax, res, cg, deltp, tmp
       REAL(KIND=dp)                                      :: eps_filter
       LOGICAL                                            :: at_limit
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_cg_matrices'
 
       INTEGER                                            :: i, info
       REAL(KIND=dp)                                      :: alpha, beta, devi(3), fac, fac1, &
@@ -762,8 +756,6 @@ CONTAINS
    SUBROUTINE deallocate_curvy_data(curvy_data)
       TYPE(ls_scf_curvy_type)                            :: curvy_data
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_curvy_data'
-
       INTEGER                                            :: i, j
 
       CALL release_dbcsr_array(curvy_data%matrix_dp)
@@ -794,8 +786,6 @@ CONTAINS
    SUBROUTINE release_dbcsr_array(matrix)
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: matrix
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'release_dbcsr_array'
-
       INTEGER                                            :: i
 
       IF (ALLOCATED(matrix)) THEN
@@ -816,8 +806,6 @@ CONTAINS
       TYPE(ls_scf_curvy_type)                            :: curvy_data
       TYPE(dbcsr_type)                                   :: matrix_s
       INTEGER                                            :: nspins
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_curvy'
 
       INTEGER                                            :: ispin, j
 

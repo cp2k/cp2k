@@ -365,7 +365,6 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: scaling
       INTEGER, INTENT(in)                                :: msglen
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cube_to_pw_parallel'
       INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
       INTEGER, DIMENSION(3)                              :: lbounds, lbounds_local, npoints, &
@@ -626,7 +625,6 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: zero_tails
       INTEGER, INTENT(IN)                                :: msglen
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_to_cube_parallel'
       INTEGER, PARAMETER                                 :: entry_len = 13, header_len = 41, &
                                                             header_len_z = 53, num_entries_line = 6
 

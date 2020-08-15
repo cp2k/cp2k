@@ -87,8 +87,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: calc_forces
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_energies_init'
-
       INTEGER                                            :: img, ispin, nimg, nspin
       LOGICAL                                            :: has_unit_metric, molecule_only
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_w_mp2

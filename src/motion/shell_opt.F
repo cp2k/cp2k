@@ -189,8 +189,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(INOUT)                             :: optimize
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'check_shell_core_distance'
-
       INTEGER                                            :: ikind, iparticle, iparticle_local, &
                                                             itest, nkind, nparticle_local, &
                                                             shell_index

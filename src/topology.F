@@ -451,8 +451,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_topology_conn'
-
       CHARACTER(len=default_path_length)                 :: filename
       INTEGER                                            :: i_rep, imol, loc_conn_type, n_rep, nmol
       TYPE(section_vals_type), POINTER                   :: section
@@ -611,8 +609,6 @@ CONTAINS
       TYPE(colvar_p_type), DIMENSION(:), POINTER         :: colvar_p
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'topology_post_proc_colvar'
-
       INTEGER                                            :: i
 
       IF (ASSOCIATED(colvar_p)) THEN
@@ -633,8 +629,6 @@ CONTAINS
 
       TYPE(cell_type), POINTER                           :: cell_muc, cell
       TYPE(section_vals_type), POINTER                   :: subsys_section
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'setup_cell_muc'
 
       INTEGER, DIMENSION(:), POINTER                     :: multiple_unit_cell
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat_ref

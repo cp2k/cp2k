@@ -76,8 +76,6 @@ CONTAINS
          POINTER                                         :: mpole
       INTEGER, INTENT(IN)                                :: ndim
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_mpole_p_create'
-
       INTEGER                                            :: i
 
       CPASSERT(.NOT. ASSOCIATED(mpole))
@@ -98,8 +96,6 @@ CONTAINS
       TYPE(semi_empirical_mpole_p_type), DIMENSION(:), &
          POINTER                                         :: mpole
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_mpole_p_release'
-
       INTEGER                                            :: i
 
       IF (ASSOCIATED(mpole)) THEN
@@ -118,8 +114,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE semi_empirical_mpole_create(mpole)
       TYPE(semi_empirical_mpole_type), POINTER           :: mpole
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_mpole_create'
 
       CPASSERT(.NOT. ASSOCIATED(mpole))
       ALLOCATE (mpole)
@@ -143,8 +137,6 @@ CONTAINS
    SUBROUTINE semi_empirical_mpole_release(mpole)
       TYPE(semi_empirical_mpole_type), POINTER           :: mpole
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_mpole_release'
-
       IF (ASSOCIATED(mpole)) THEN
          DEALLOCATE (mpole)
       END IF
@@ -158,8 +150,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE nddo_mpole_create(nddo_mpole)
       TYPE(nddo_mpole_type), POINTER                     :: nddo_mpole
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'nddo_mpole_create'
 
       CPASSERT(.NOT. ASSOCIATED(nddo_mpole))
       ALLOCATE (nddo_mpole)
@@ -178,8 +168,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE nddo_mpole_release(nddo_mpole)
       TYPE(nddo_mpole_type), POINTER                     :: nddo_mpole
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'nddo_mpole_release'
 
       IF (ASSOCIATED(nddo_mpole)) THEN
          IF (ASSOCIATED(nddo_mpole%charge)) THEN

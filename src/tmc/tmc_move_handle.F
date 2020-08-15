@@ -71,8 +71,6 @@ CONTAINS
       TYPE(tmc_param_type), POINTER                      :: tmc_params
       TYPE(section_vals_type), POINTER                   :: tmc_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_init_move_types'
-
       CHARACTER(LEN=default_string_length)               :: inp_kind_name
       INTEGER                                            :: i, i_rep, i_tmp, ind, n_items, &
                                                             n_NMC_items, n_rep_val, nmc_steps
@@ -330,8 +328,6 @@ CONTAINS
       TYPE(tmc_move_type), POINTER                       :: move_types
       INTEGER, DIMENSION(:), POINTER                     :: mol_array
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_moves'
-
       INTEGER                                            :: atom_j, list_i, ref_k
       LOGICAL                                            :: found
 
@@ -408,8 +404,6 @@ CONTAINS
    SUBROUTINE finalize_mv_types(tmc_params)
       TYPE(tmc_param_type), POINTER                      :: tmc_params
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'finalize_mv_types'
-
       CPASSERT(ASSOCIATED(tmc_params))
       CALL move_types_release(tmc_params%move_types)
       IF (ASSOCIATED(tmc_params%nmc_move_types)) &
@@ -431,8 +425,6 @@ CONTAINS
       LOGICAL                                            :: init
       INTEGER                                            :: file_io
       TYPE(tmc_param_type), POINTER                      :: tmc_params
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'print_move_types'
 
       CHARACTER(LEN=10)                                  :: c_t
       CHARACTER(LEN=50)                                  :: FMT_c, FMT_i, FMT_r
@@ -824,8 +816,6 @@ CONTAINS
       INTEGER, DIMENSION(:, :), OPTIONAL                 :: mv_counter, acc_counter, subbox_counter, &
                                                             subbox_acc_counter
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'add_mv_prob'
-
       CPASSERT(ASSOCIATED(move_types))
       CPASSERT(PRESENT(mv_counter) .OR. PRESENT(subbox_counter))
 
@@ -854,8 +844,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE clear_move_probs(move_types)
       TYPE(tmc_move_type), POINTER                       :: move_types
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'clear_move_probs'
 
       CPASSERT(ASSOCIATED(move_types))
 

@@ -77,8 +77,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ldfc
       REAL(KIND=dp), DIMENSION(ldfc, *), INTENT(INOUT)   :: fcab
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'fermi_contact'
-
       INTEGER                                            :: ax, ay, az, bx, by, bz, coa, cob, i, &
                                                             ipgf, j, jpgf, la, lb, ma, mb, na, nb
       REAL(KIND=dp)                                      :: dac2, dbc2, f0, fax, fay, faz, fbx, fby, &

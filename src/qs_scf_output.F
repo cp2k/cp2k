@@ -85,8 +85,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: output_unit
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_print_summary'
-
       INTEGER                                            :: nelectron_total
       LOGICAL                                            :: gapw, gapw_xc, qmmm
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -119,8 +117,6 @@ CONTAINS
       INTEGER                                            :: output_unit
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(dft_control_type), POINTER                    :: dft_control
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_initial_info'
 
       INTEGER                                            :: homo, ispin, nao, nelectron_spin, nmo
 
@@ -162,8 +158,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: dft_section
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_scf_write_mos'
-
       IF (SIZE(mos) > 1) THEN
          CALL write_mo_set(mos(1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, 4, &
                            dft_section, spin="ALPHA", last=.FALSE.)
@@ -194,8 +188,6 @@ CONTAINS
       TYPE(qs_energy_type), POINTER                      :: energy
       INTEGER                                            :: total_steps
       LOGICAL, INTENT(IN)                                :: should_stop, outer_loop_converged
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_outer_loop_info'
 
       REAL(KIND=dp)                                      :: outer_loop_eps
 
@@ -234,8 +226,6 @@ CONTAINS
       LOGICAL                                            :: just_energy
       REAL(KIND=dp)                                      :: t1, t2
       TYPE(qs_energy_type), POINTER                      :: energy
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_scf_loop_info'
 
       IF ((output_unit > 0) .AND. scf_env%print_iter_line) THEN
          IF (just_energy) THEN
@@ -655,8 +645,6 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: should_stop, outer_loop_converged, &
                                                             cdft_loop
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_scf_cdft_info'
-
       REAL(KIND=dp)                                      :: outer_loop_eps
 
       IF (cdft_loop) THEN
@@ -690,8 +678,6 @@ CONTAINS
    SUBROUTINE qs_scf_cdft_initial_info(output_unit, cdft_control)
       INTEGER                                            :: output_unit
       TYPE(cdft_control_type), POINTER                   :: cdft_control
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_cdft_initial_info'
 
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(/,A)') &
@@ -834,8 +820,6 @@ CONTAINS
    SUBROUTINE qs_scf_cdft_constraint_info(output_unit, cdft_control)
       INTEGER                                            :: output_unit
       TYPE(cdft_control_type), POINTER                   :: cdft_control
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_cdft_constraint_info'
 
       INTEGER                                            :: igroup
 

@@ -886,8 +886,6 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: pnew, Lower_B, max_dev, max_rel_dev
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: exp_limits
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'reset_basis'
-
       INTEGER                                            :: am_max, iexpo, ikind, ipos, ipos_p, &
                                                             iset, la
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nf_per_l
@@ -1055,8 +1053,6 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Lai, Lai_beta
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'contract_integrals'
-
       INTEGER                                            :: a, b, i, ij_counter, j
       REAL(KIND=dp)                                      :: t_iajb, t_iajb_RI
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mat_ab
@@ -1115,8 +1111,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: elements_ij_proc
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ij_list_proc
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_elem_ij_proc'
 
       INTEGER                                            :: i, ij_counter, j
 

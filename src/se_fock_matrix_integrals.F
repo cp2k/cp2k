@@ -75,8 +75,6 @@ CONTAINS
       TYPE(se_taper_type), POINTER                       :: se_taper
       TYPE(semi_empirical_si_type), POINTER              :: store_int_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fock2_1el'
-
       INTEGER                                            :: i1, i1L, i2, j1, j1L
       REAL(KIND=dp), DIMENSION(45)                       :: e1b, e2a
 
@@ -154,8 +152,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(INOUT)         :: force
       REAL(KIND=dp), INTENT(IN)                          :: delta
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dfock2_1el'
-
       INTEGER                                            :: i1, i1L, i2, j1, j1L
       REAL(KIND=dp)                                      :: tmp
       REAL(KIND=dp), DIMENSION(3, 45)                    :: de1b, de2a
@@ -224,8 +220,6 @@ CONTAINS
          INTENT(IN)                                      :: p_mat
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: f_mat
       REAL(KIND=dp), INTENT(IN)                          :: factor
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'fock1_2el'
 
       INTEGER                                            :: i, ijw, ikw, iL, im, j, jL, jlw, jm, k, &
                                                             kL, klw, l, lL
@@ -303,8 +297,6 @@ CONTAINS
       TYPE(se_taper_type), POINTER                       :: se_taper
       TYPE(semi_empirical_si_type), POINTER              :: store_int_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fock2_1el_ew'
-
       INTEGER                                            :: i1, i1L, i2, j1, j1L, n
       REAL(KIND=dp), DIMENSION(45)                       :: e1b, e2a
 
@@ -360,8 +352,6 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
       TYPE(semi_empirical_si_type), POINTER              :: store_int_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'fock2C_ew'
 
       INTEGER                                            :: i, iL, j, jL, k, kL, kr, l, lL, natorb
       REAL(KIND=dp)                                      :: a, aa, bb
@@ -435,8 +425,6 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
       TYPE(semi_empirical_si_type), POINTER              :: store_int_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'fock2C'
 
       INTEGER                                            :: i, iL, j, jL, k, kL, kr, l, lL, natorb(2)
       REAL(KIND=dp)                                      :: a, aa, bb, irij(3)
@@ -525,8 +513,6 @@ CONTAINS
       TYPE(se_taper_type), POINTER                       :: se_taper
       REAL(KIND=dp), DIMENSION(3), INTENT(INOUT)         :: force
       REAL(KIND=dp), INTENT(IN)                          :: delta
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'dfock2C'
 
       INTEGER                                            :: i, iL, j, jL, k, kL, kr, l, lL, natorb(2)
       REAL(KIND=dp)                                      :: aa, bb, tmp
@@ -618,8 +604,6 @@ CONTAINS
       TYPE(se_taper_type), POINTER                       :: se_taper
       TYPE(semi_empirical_si_type), POINTER              :: store_int_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fock2E'
-
       INTEGER                                            :: i, iL, j, jL, k, kL, kr, l, lL, natorb(2)
       REAL(KIND=dp)                                      :: a, aa, bb, irij(3)
       REAL(KIND=dp), DIMENSION(2025)                     :: w
@@ -703,8 +687,6 @@ CONTAINS
       TYPE(se_taper_type), POINTER                       :: se_taper
       REAL(KIND=dp), DIMENSION(3), INTENT(INOUT)         :: force
       REAL(KIND=dp), INTENT(IN)                          :: delta
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'dfock2E'
 
       INTEGER                                            :: i, iL, j, jL, k, kL, kr, l, lL, natorb(2)
       REAL(KIND=dp)                                      :: aa, bb, tmp, tmp1, tmp2, tmp3, tmp4
@@ -804,8 +786,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(2), INTENT(INOUT)         :: ecore
       REAL(KIND=dp), INTENT(IN)                          :: rp
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fock2_1el_r3'
-
       INTEGER                                            :: i1, i1L, i2
 
 !
@@ -855,8 +835,6 @@ CONTAINS
          DIMENSION(sepj%natorb, sepj%natorb), INTENT(IN) :: pj_block
       REAL(KIND=dp), DIMENSION(3), INTENT(INOUT)         :: force
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: e1b, e2a
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'dfock2_1el_r3'
 
       INTEGER                                            :: i1, i1L, i2
       REAL(KIND=dp)                                      :: tmp
@@ -916,8 +894,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: factor
       REAL(KIND=dp), DIMENSION(81), INTENT(IN)           :: w
       REAL(KIND=dp), INTENT(IN)                          :: rp
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'fock2C_r3'
 
       INTEGER                                            :: i, iL, ind, j, k, kL, kr, natorb(2)
       REAL(KIND=dp)                                      :: a, w_l(81)
@@ -985,8 +961,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(81), INTENT(IN)           :: w
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: drp
       REAL(KIND=dp), DIMENSION(3), INTENT(INOUT)         :: force
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'dfock2C_r3'
 
       INTEGER                                            :: i, iL, ind, j, k, kL, kr, natorb(2)
       REAL(KIND=dp)                                      :: a(3), tmp, w_l(81)
@@ -1083,8 +1057,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: ptens11, ptens12, ptens13, ptens21, &
                                                             ptens22, ptens23, ptens31, ptens32, &
                                                             ptens33
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'se_coulomb_ij_interaction'
 
       INTEGER                                            :: a, b, c, d, e, i, j, k
       LOGICAL                                            :: do_efield0, do_efield1, do_efield2, &

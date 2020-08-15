@@ -62,8 +62,6 @@ CONTAINS
       TYPE(simpar_type), POINTER                         :: simpar
       TYPE(section_vals_type), POINTER                   :: section
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'al_init'
-
       NULLIFY (al%nvt)
       NULLIFY (al%map_info)
       al%loc_num_al = 0
@@ -84,8 +82,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE al_thermo_create(al)
       TYPE(al_system_type), POINTER                      :: al
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'al_thermo_create'
 
       INTEGER                                            :: i
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: seed
@@ -110,8 +106,6 @@ CONTAINS
    SUBROUTINE al_dealloc(al)
       TYPE(al_system_type), POINTER                      :: al
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'al_dealloc'
-
       IF (ASSOCIATED(al)) THEN
          CALL al_thermo_dealloc(al%nvt)
          CALL release_map_info_type(al%map_info)
@@ -127,8 +121,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE al_thermo_dealloc(nvt)
       TYPE(al_thermo_type), DIMENSION(:), POINTER        :: nvt
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'al_thermo_dealloc'
 
       IF (ASSOCIATED(nvt)) THEN
          DEALLOCATE (nvt)

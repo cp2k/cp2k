@@ -84,8 +84,6 @@ CONTAINS
       TYPE(tmc_move_type), POINTER                       :: move_types
       INTEGER                                            :: nr_temp
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'move_types_create'
-
       CPASSERT(.NOT. ASSOCIATED(move_types))
 
       ALLOCATE (move_types)
@@ -114,8 +112,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE move_types_release(move_types)
       TYPE(tmc_move_type), POINTER                       :: move_types
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'move_types_release'
 
       CPASSERT(ASSOCIATED(move_types))
 

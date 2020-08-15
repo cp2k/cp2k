@@ -3280,8 +3280,6 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: tag_label, name_atm_a
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: name_atm_b, name_atm_c, name_atm_d
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'issue_duplications'
-
       CHARACTER(LEN=default_string_length)               :: item
 
       item = "( "//TRIM(name_atm_a)
@@ -3317,8 +3315,6 @@ CONTAINS
       LOGICAL, INTENT(INOUT), OPTIONAL                   :: fatal
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: array
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'store_FF_missing_par'
 
       CHARACTER(LEN=10)                                  :: sfmt
       CHARACTER(LEN=4)                                   :: my_atm1, my_atm2, my_atm3, my_atm4

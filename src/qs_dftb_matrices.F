@@ -883,8 +883,6 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'setup_matrices1'
-
       CHARACTER(1)                                       :: symmetry_type
       CHARACTER(LEN=default_string_length)               :: matnames
       INTEGER                                            :: i, natom, neighbor_list_id, nkind, nmat, &
@@ -971,8 +969,6 @@ CONTAINS
       CHARACTER(LEN=*)                                   :: mnames
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'setup_matrices2'
 
       CHARACTER(1)                                       :: symmetry_type
       CHARACTER(LEN=default_string_length)               :: matnames

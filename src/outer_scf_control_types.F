@@ -102,8 +102,6 @@ CONTAINS
       TYPE(outer_scf_control_type)                       :: outer_scf
       TYPE(section_vals_type), POINTER                   :: outer_scf_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'outer_scf_read_parameters'
-
       LOGICAL                                            :: exists
 
       CALL section_vals_val_get(outer_scf_section, "_SECTION_PARAMETERS_", &

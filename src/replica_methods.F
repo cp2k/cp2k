@@ -98,8 +98,6 @@ CONTAINS
       INTEGER                                            :: nrep, prep
       LOGICAL, INTENT(in), OPTIONAL                      :: sync_v, keep_wf_history, row_force
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'rep_env_create'
-
       CHARACTER(len=default_path_length)                 :: input_file_path, output_file_path
       INTEGER :: comm_cart, comm_f, comm_inter_rep, forcedim, i, i0, ierr, ip, ir, irep, lp, &
          my_prep, new_env_id, nparticle, nrep_local, unit_nr
@@ -291,8 +289,6 @@ CONTAINS
       INTEGER, INTENT(in)                                :: rep_env_id
       INTEGER, INTENT(out)                               :: ierr
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'rep_env_init_low'
-
       INTEGER                                            :: i, in_use, stat
       LOGICAL                                            :: do_kpoints, has_unit_metric
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -406,8 +402,6 @@ CONTAINS
       INTEGER, INTENT(in)                                :: rep_env_id, calc_f
       INTEGER, INTENT(out)                               :: ierr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_calc_e_f_low'
-
       TYPE(f_env_type), POINTER                          :: f_env
       TYPE(replica_env_type), POINTER                    :: rep_env
 
@@ -432,8 +426,6 @@ CONTAINS
    SUBROUTINE rep_env_calc_e_f_int(rep_env, calc_f)
       TYPE(replica_env_type), POINTER                    :: rep_env
       LOGICAL, OPTIONAL                                  :: calc_f
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_calc_e_f_int'
 
       INTEGER                                            :: i, ierr, irep, md_iter, my_calc_f, ndim
       TYPE(cp_logger_type), POINTER                      :: logger

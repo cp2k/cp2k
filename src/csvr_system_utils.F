@@ -82,8 +82,6 @@ CONTAINS
       TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
       REAL(KIND=dp)                                      :: my_res
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'rescaling_factor'
-
       REAL(KIND=dp)                                      :: factor, resample, reverse, rr
 
       my_res = 0.0_dp
@@ -123,8 +121,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nn
       TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
       REAL(KIND=dp)                                      :: sum_gauss
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'sumnoises'
 
       INTEGER                                            :: i
 

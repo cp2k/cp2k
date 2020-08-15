@@ -93,8 +93,6 @@ CONTAINS
       LOGICAL                                            :: diis_step, energy_only, just_energy, &
                                                             exit_inner_loop
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_set_loop_flags'
-
 ! Some flags needed to be set at the beginning of the loop
 
       diis_step = .FALSE.
@@ -453,8 +451,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL                                            :: diis_step
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_density_mixing'
-
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
 
       NULLIFY (rho_ao_kp)
@@ -497,8 +493,6 @@ CONTAINS
       LOGICAL                                            :: should_stop, outer_loop_converged, &
                                                             exit_outer_loop
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_check_outer_exit'
-
       REAL(KIND=dp)                                      :: outer_loop_eps
 
       outer_loop_converged = .TRUE.
@@ -538,8 +532,6 @@ CONTAINS
                                                             inner_loop_converged
       INTEGER                                            :: output_unit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_check_inner_exit'
-
       inner_loop_converged = .FALSE.
       exit_inner_loop = .FALSE.
 
@@ -577,8 +569,6 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL                                            :: diis_step
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_undo_mixing'
 
       CHARACTER(len=default_string_length)               :: name
       INTEGER                                            :: ic, ispin, nc
@@ -628,8 +618,6 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       LOGICAL, INTENT(IN)                                :: mix_rho
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_scf_rho_update'
-
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       NULLIFY (para_env)
@@ -658,8 +646,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL                                            :: diis_step
       INTEGER, INTENT(IN)                                :: output_unit
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_inner_finalize'
 
       LOGICAL                                            :: do_kpoints
       TYPE(cp_para_env_type), POINTER                    :: para_env

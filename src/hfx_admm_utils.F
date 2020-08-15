@@ -200,8 +200,6 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_admm_gapw'
-
       INTEGER                                            :: ikind, nkind
       TYPE(admm_gapw_type), POINTER                      :: admm_gapw_env
       TYPE(admm_type), POINTER                           :: admm_env
@@ -608,7 +606,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(admm_type), POINTER                           :: admm_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_admm_xc_section'
       LOGICAL, PARAMETER                                 :: debug_functional = .FALSE.
 
       CHARACTER(LEN=20)                                  :: name_x_func

@@ -951,8 +951,6 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: eps_geometry
       INTEGER                                            :: direction_axis
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'contact_direction_axis'
-
       INTEGER                                            :: i, naxes
       REAL(kind=dp), DIMENSION(3)                        :: scaled
       TYPE(cell_type), POINTER                           :: cell

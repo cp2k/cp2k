@@ -45,8 +45,6 @@ CONTAINS
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'optx_lda_info'
-
       IF (PRESENT(reference)) THEN
          reference = "OPTX, Handy NC and Cohen AJ,  JCP 116, p. 5411 (2002) (LDA)"
       END IF
@@ -73,8 +71,6 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'optx_lsd_info'
 
       IF (PRESENT(reference)) THEN
          reference = "OPTX, Handy NC and Cohen AJ,  JCP 116, p. 5411 (2002), (LSD) "
@@ -107,8 +103,6 @@ CONTAINS
       TYPE(xc_derivative_set_type), POINTER              :: deriv_set
       INTEGER, INTENT(in)                                :: grad_deriv
       TYPE(section_vals_type), POINTER                   :: optx_params
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'optx_lda_eval'
 
       INTEGER                                            :: npoints
       INTEGER, DIMENSION(:, :), POINTER                  :: bo
@@ -171,8 +165,6 @@ CONTAINS
       TYPE(xc_derivative_set_type), POINTER              :: deriv_set
       INTEGER, INTENT(in)                                :: grad_deriv
       TYPE(section_vals_type), POINTER                   :: optx_params
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'optx_lsd_eval'
 
       INTEGER                                            :: ispin, npoints
       INTEGER, DIMENSION(:, :), POINTER                  :: bo

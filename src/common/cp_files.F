@@ -58,8 +58,6 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: file_name
       INTEGER, INTENT(IN)                                :: unit_number
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'assign_preconnection'
-
       INTEGER                                            :: ic, islot, nc
 
       IF ((unit_number < 1) .OR. (unit_number > max_unit_number)) THEN
@@ -119,8 +117,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit_number
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: file_status
       LOGICAL, INTENT(IN), OPTIONAL                      :: keep_preconnection
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'close_file'
 
       CHARACTER(LEN=2*default_path_length)               :: message
       CHARACTER(LEN=6)                                   :: status_string
@@ -203,8 +199,6 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: file_name
       INTEGER                                            :: unit_number
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'delete_preconnection'
-
       INTEGER                                            :: ic, nc
 
       nc = SIZE(preconnected)
@@ -273,8 +267,6 @@ CONTAINS
 !> \author Matthias Krack (MK)
 ! **************************************************************************************************
    SUBROUTINE init_preconnection_list()
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_preconnection_list'
 
       INTEGER                                            :: ic, nc
 
@@ -591,8 +583,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE print_preconnection_list(output_unit)
       INTEGER, INTENT(IN), OPTIONAL                      :: output_unit
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_preconnection_list'
 
       INTEGER                                            :: ic, nc, unit
 

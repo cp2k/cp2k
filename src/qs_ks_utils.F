@@ -715,8 +715,6 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: just_energy, calculate_forces
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
 
-      CHARACTER(*), PARAMETER                            :: routineN = 'calc_v_sic_rspace'
-
       INTEGER                                            :: i, nelec, nelec_a, nelec_b, nforce
       REAL(kind=dp)                                      :: ener, full_scaling, scaling
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: store_forces
@@ -966,8 +964,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(qs_energy_type), POINTER                      :: energy
       REAL(KIND=dp), INTENT(IN)                          :: mulliken_order_p
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_detailed_energy'
 
       INTEGER                                            :: bc, n, output_unit, psolver
       REAL(KIND=dp)                                      :: ddapc_order_p, implicit_ps_ehartree, &

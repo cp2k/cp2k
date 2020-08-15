@@ -821,8 +821,6 @@ CONTAINS
    SUBROUTINE helium_release(helium_env)
       TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'helium_release'
-
       INTEGER                                            :: k
 
       IF (ASSOCIATED(helium_env)) THEN
@@ -1186,7 +1184,6 @@ CONTAINS
          INTENT(INOUT), POINTER                          :: helium_env
       REAL(KIND=dp), INTENT(IN)                          :: initkT, solute_radius
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'helium_coord_init'
       REAL(KIND=dp), PARAMETER                           :: minHeHedst = 5.669177966_dp
 
       INTEGER                                            :: ia, ib, ic, id, iter, k
@@ -1437,8 +1434,6 @@ CONTAINS
    SUBROUTINE helium_coord_restore(helium_env)
       TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_coord_restore'
-
       CHARACTER(len=default_string_length)               :: err_str, stmp
       INTEGER                                            :: actlen, i, k, msglen, num_env_restart, &
                                                             off, offset
@@ -1516,8 +1511,6 @@ CONTAINS
 
       TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'helium_force_init'
-
       INTEGER                                            :: k
 
       DO k = 1, SIZE(helium_env)
@@ -1540,8 +1533,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE helium_force_restore(helium_env)
       TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_force_restore'
 
       CHARACTER(len=default_string_length)               :: err_str, stmp
       INTEGER                                            :: actlen, k, msglen
@@ -1605,8 +1596,6 @@ CONTAINS
    SUBROUTINE helium_perm_init(helium_env)
       TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'helium_perm_init'
-
       INTEGER                                            :: ia, k
 
       DO k = 1, SIZE(helium_env)
@@ -1634,8 +1623,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE helium_perm_restore(helium_env)
       TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_perm_restore'
 
       CHARACTER(len=default_string_length)               :: err_str, stmp
       INTEGER                                            :: actlen, i, ia, ic, k, msglen, &
@@ -1726,8 +1713,6 @@ CONTAINS
    SUBROUTINE helium_averages_restore(helium_env)
 
       TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_averages_restore'
 
       INTEGER                                            :: i, k, msglen, num_env_restart, off, &
                                                             offset
@@ -1867,8 +1852,6 @@ CONTAINS
    SUBROUTINE helium_rng_init(helium_env)
       TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'helium_rng_init'
-
       INTEGER                                            :: helium_seed, i, offset
       REAL(KIND=dp), DIMENSION(3, 2)                     :: initial_seed
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -1956,8 +1939,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE helium_rng_restore(helium_env)
       TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_rng_restore'
 
       CHARACTER(len=default_string_length)               :: err_str, stmp
       INTEGER                                            :: actlen, i, k, msglen, num_env_restart, &
@@ -2056,8 +2037,6 @@ CONTAINS
    SUBROUTINE helium_rdf_init(helium)
 
       TYPE(helium_solvent_type), POINTER                 :: helium
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'helium_rdf_init'
 
       CHARACTER(len=2*default_string_length)             :: err_str, stmp
       INTEGER                                            :: ii, ij
@@ -2193,8 +2172,6 @@ CONTAINS
 
       TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_rdf_restore'
-
       CHARACTER(len=default_string_length)               :: stmp1, stmp2
       CHARACTER(len=max_line_length)                     :: err_str
       INTEGER                                            :: ii, ij, itmp, k, msglen
@@ -2260,8 +2237,6 @@ CONTAINS
 
       TYPE(helium_solvent_type), POINTER                 :: helium
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_rdf_release'
-
       IF (helium%rdf_present) THEN
 
          DEALLOCATE ( &
@@ -2304,8 +2279,6 @@ CONTAINS
       TYPE(helium_solvent_type), POINTER                 :: helium
       CHARACTER(len=*)                                   :: prop
       LOGICAL                                            :: is_active
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_property_active'
 
       CHARACTER(len=default_string_length)               :: input_path
       INTEGER                                            :: print_level
@@ -2370,8 +2343,6 @@ CONTAINS
    SUBROUTINE helium_rho_property_init(helium)
 
       TYPE(helium_solvent_type), POINTER                 :: helium
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_rho_property_init'
 
       INTEGER                                            :: nc
 
@@ -2457,8 +2428,6 @@ CONTAINS
    SUBROUTINE helium_rho_init(helium)
 
       TYPE(helium_solvent_type), POINTER                 :: helium
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'helium_rho_init'
 
       INTEGER                                            :: ii, itmp, jtmp
       LOGICAL                                            :: explicit, ltmp
@@ -2629,8 +2598,6 @@ CONTAINS
 
       TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_rho_restore'
-
       CHARACTER(len=default_string_length)               :: stmp1, stmp2
       CHARACTER(len=max_line_length)                     :: err_str
       INTEGER                                            :: itmp, k, msglen
@@ -2694,8 +2661,6 @@ CONTAINS
       TYPE(helium_solvent_type), POINTER                 :: helium
       TYPE(pint_env_type), POINTER                       :: pint_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_set_solute_indices'
-
       INTEGER                                            :: iatom, natoms
       REAL(KIND=dp)                                      :: mass
       TYPE(cp_subsys_type), POINTER                      :: my_subsys
@@ -2741,8 +2706,6 @@ CONTAINS
    SUBROUTINE helium_set_solute_cell(helium, pint_env)
       TYPE(helium_solvent_type), POINTER                 :: helium
       TYPE(pint_env_type), POINTER                       :: pint_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_set_solute_cell'
 
       LOGICAL                                            :: my_orthorhombic
       TYPE(cell_type), POINTER                           :: my_cell

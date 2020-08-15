@@ -111,8 +111,6 @@ CONTAINS
       TYPE(qs_gcp_type), POINTER                         :: gcp_env
       TYPE(section_vals_type), POINTER                   :: xc_section
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_gcp_env_set'
-
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: tmpstringlist
       INTEGER                                            :: i_rep, n_rep
@@ -161,7 +159,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_gcp_type), POINTER                         :: gcp_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_gcp_init'
       REAL(KIND=dp), PARAMETER                           :: epsc = 1.e-6_dp
 
       CHARACTER(LEN=10)                                  :: aname

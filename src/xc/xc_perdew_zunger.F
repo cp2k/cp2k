@@ -68,8 +68,6 @@ CONTAINS
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pz_info'
-
       CHARACTER(len=4)                                   :: p_string
 
       SELECT CASE (method)
@@ -432,8 +430,6 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: method
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pz_init'
 
       CALL set_util(cutoff)
 

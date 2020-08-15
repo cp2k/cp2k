@@ -66,7 +66,6 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: compatibility
       TYPE(section_vals_type), POINTER                   :: print_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_potential_init'
       REAL(KIND=dp), PARAMETER                           :: dx = 0.05_dp
 
       CHARACTER(LEN=default_path_length)                 :: myFormat

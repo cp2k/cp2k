@@ -1934,8 +1934,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, DIMENSION(:, :)                           :: list_pair
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'eberlein'
-
       INTEGER                                            :: i, ii, jj, npair
 
       npair = (para_env%num_pe + 1)/2

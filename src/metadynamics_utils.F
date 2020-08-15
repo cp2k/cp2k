@@ -863,8 +863,6 @@ CONTAINS
       TYPE(meta_env_type), POINTER                       :: meta_env
       INTEGER, INTENT(OUT)                               :: iter_nr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_meta_iter_level'
-
       IF (meta_env%do_multiple_walkers) THEN
          iter_nr = meta_env%multiple_walkers%n_hills_local
       ELSE
@@ -882,8 +880,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE meta_walls(meta_env)
       TYPE(meta_env_type), POINTER                       :: meta_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'meta_walls'
 
       INTEGER                                            :: ih, iwall
       REAL(dp)                                           :: ddp, delta_s, dfunc, diff_ss, dp2, &

@@ -104,8 +104,6 @@ CONTAINS
 
       TYPE(pwdft_environment_type), POINTER              :: pwdft_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pwdft_env_retain'
-
 !   ------------------------------------------------------------------------
 
       CPASSERT(ASSOCIATED(pwdft_env))
@@ -123,8 +121,6 @@ CONTAINS
    SUBROUTINE pwdft_env_release(pwdft_env)
 
       TYPE(pwdft_environment_type), POINTER              :: pwdft_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pwdft_env_release'
 
 !   ------------------------------------------------------------------------
 
@@ -190,8 +186,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL           :: stress
       TYPE(C_PTR), OPTIONAL                              :: sctx, gs_handler, ks_handler
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pwdft_env_get'
-
 !   ------------------------------------------------------------------------
 
       CPASSERT(ASSOCIATED(pwdft_env))
@@ -252,8 +246,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL           :: stress
       TYPE(C_PTR), OPTIONAL                              :: sctx, gs_handler, ks_handler
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pwdft_env_set'
-
 !   ------------------------------------------------------------------------
 
       CPASSERT(ASSOCIATED(pwdft_env))
@@ -293,8 +285,6 @@ CONTAINS
 
       TYPE(pwdft_environment_type), POINTER              :: pwdft_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pwdft_env_clear'
-
 !   ------------------------------------------------------------------------
 
       CPASSERT(ASSOCIATED(pwdft_env))
@@ -328,8 +318,6 @@ CONTAINS
    SUBROUTINE pwdft_env_create(pwdft_env)
 
       TYPE(pwdft_environment_type), POINTER              :: pwdft_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pwdft_env_create'
 
       ALLOCATE (pwdft_env)
 

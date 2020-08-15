@@ -931,8 +931,6 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: uf_grid
       TYPE(section_vals_type), POINTER                   :: print_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_super_ref_grid'
-
       INTEGER                                            :: iounit, my_val, nn(3), no(3)
       LOGICAL                                            :: mt_s_grid
       REAL(KIND=dp)                                      :: mt_rel_cutoff, my_cutilev

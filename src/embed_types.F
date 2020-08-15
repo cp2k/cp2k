@@ -171,8 +171,6 @@ CONTAINS
       TYPE(cp_result_type), OPTIONAL, POINTER            :: results
       REAL(KIND=dp), OPTIONAL                            :: pot_energy
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_embed_env'
-
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_list_type), POINTER                  :: molecules
@@ -259,8 +257,6 @@ CONTAINS
       TYPE(cp_para_env_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: sub_para_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_embed_env'
-
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_list_type), POINTER                  :: molecules
@@ -331,8 +327,6 @@ CONTAINS
       TYPE(embed_env_type), POINTER                      :: embed_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'embed_env_create'
-
       ALLOCATE (embed_env)
       CALL init_embed_env(embed_env, para_env=para_env)
    END SUBROUTINE embed_env_create
@@ -344,8 +338,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE embed_env_retain(embed_env)
       TYPE(embed_env_type), POINTER                      :: embed_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'embed_env_retain'
 
       CPASSERT(ASSOCIATED(embed_env))
       CPASSERT(embed_env%ref_count > 0)
@@ -359,8 +351,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE embed_env_release(embed_env)
       TYPE(embed_env_type), POINTER                      :: embed_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'embed_env_release'
 
       INTEGER                                            :: i, ngroups
 

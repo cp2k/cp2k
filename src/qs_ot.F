@@ -68,8 +68,6 @@ CONTAINS
       TYPE(qs_ot_type)                                   :: qs_ot_env
       TYPE(preconditioner_type), POINTER                 :: preconditioner
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_new_preconditioner'
-
       INTEGER                                            :: ncoef
 
       qs_ot_env%preconditioner => preconditioner
@@ -464,8 +462,6 @@ CONTAINS
       !
       TYPE(qs_ot_type)                                   :: qs_ot_env1
       LOGICAL                                            :: update
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_ot_ref_update'
 
       update = .FALSE.
       SELECT CASE (qs_ot_env1%settings%ot_method)
@@ -1516,8 +1512,6 @@ CONTAINS
 
       REAL(KIND=dp), INTENT(IN)                          :: xa, ya
       REAL(KIND=dp)                                      :: qs_ot_sincf
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_ot_sincf'
 
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: a, b, rs, sf, x, xs, y, ybx, ybxs

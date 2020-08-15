@@ -79,8 +79,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: fscale
       LOGICAL, INTENT(IN), OPTIONAL                      :: trans
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'contraction_ab'
-
       INTEGER                                            :: lda, ldb, ldq, lds, ldw, mal, mbl, nal, &
                                                             nbl
       LOGICAL                                            :: my_trans
@@ -211,8 +209,6 @@ CONTAINS
          OPTIONAL                                        :: cc
       INTEGER, INTENT(IN), OPTIONAL                      :: nc, mc
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'contraction_abc'
-
       INTEGER                                            :: lda, ldb, ldc, mal, mbl, mcl, nal, nbl, &
                                                             ncl
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: work1, work2, work3, work4
@@ -325,8 +321,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nb, mb
       LOGICAL, INTENT(IN), OPTIONAL                      :: trans
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'decontraction_ab'
-
       INTEGER                                            :: lda, ldb, ldq, lds, ldw
       LOGICAL                                            :: my_trans
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
@@ -379,8 +373,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: na, nb, m
       LOGICAL, INTENT(IN), OPTIONAL                      :: trans
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'force_trace_ab'
-
       INTEGER                                            :: i
       LOGICAL                                            :: my_trans
 
@@ -426,8 +418,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: qab
       INTEGER, INTENT(IN)                                :: ia, ib
       LOGICAL, INTENT(IN), OPTIONAL                      :: trans
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'block_add_ab'
 
       INTEGER                                            :: ja, jb
       LOGICAL                                            :: my_trans

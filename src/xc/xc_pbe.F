@@ -64,8 +64,6 @@ CONTAINS
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pbe_lda_info'
-
       INTEGER                                            :: param
       REAL(kind=dp)                                      :: sc, sx
 
@@ -171,8 +169,6 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pbe_lsd_info'
 
       INTEGER                                            :: param
       REAL(kind=dp)                                      :: sc, sx
@@ -419,8 +415,6 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: epsilon_rho
       INTEGER, INTENT(in)                                :: param
       REAL(kind=dp), INTENT(in)                          :: scale_ec, scale_ex
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pbe_lda_calc'
 
       INTEGER                                            :: ii
       REAL(kind=dp) :: A, A1rho, A1rhorho, A2rho, A_1, alpha_1_1, Arho, Arho1rho, Arhorho, &
@@ -1509,8 +1503,6 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: epsilon_rho
       INTEGER, INTENT(in)                                :: param
       REAL(kind=dp), INTENT(in)                          :: scale_ec, scale_ex
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pbe_lsd_calc'
 
       INTEGER                                            :: ii
       REAL(kind=dp) :: A, A1rhoa, A1rhob, A_1, A_2, A_3, alpha_1_1, alpha_1_2, alpha_1_3, alpha_c, &

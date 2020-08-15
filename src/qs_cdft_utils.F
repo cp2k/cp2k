@@ -460,8 +460,6 @@ CONTAINS
       TYPE(cdft_control_type), INTENT(INOUT)             :: cdft_control
       TYPE(section_vals_type), POINTER                   :: becke_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_becke_section'
-
       INTEGER                                            :: j
       LOGICAL                                            :: exists
       REAL(KIND=dp), DIMENSION(:), POINTER               :: rtmplist
@@ -535,8 +533,6 @@ CONTAINS
 
       TYPE(cdft_control_type), INTENT(INOUT)             :: cdft_control
       TYPE(section_vals_type), INTENT(INOUT), POINTER    :: cdft_control_section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_constraint_definitions'
 
       INTEGER                                            :: i, j, jj, k, n_rep, natoms, nvar, &
                                                             tot_natoms
@@ -728,8 +724,6 @@ CONTAINS
       TYPE(qs_control_type), INTENT(INOUT)               :: qs_control
       TYPE(section_vals_type), POINTER                   :: cdft_control_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_cdft_control_section'
-
       LOGICAL                                            :: exists
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(section_vals_type), POINTER                   :: becke_constraint_section, &
@@ -806,8 +800,6 @@ CONTAINS
       TYPE(cdft_control_type), INTENT(INOUT)             :: cdft_control
       TYPE(section_vals_type), POINTER                   :: hirshfeld_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_hirshfeld_constraint_section'
-
       LOGICAL                                            :: exists
       REAL(KIND=dp), DIMENSION(:), POINTER               :: rtmplist
       TYPE(hirshfeld_constraint_type), POINTER           :: hirshfeld_control
@@ -855,7 +847,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: fun1, fun2
       LOGICAL, INTENT(IN)                                :: divide
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'hfun_scale'
       REAL(KIND=dp), PARAMETER                           :: small = 1.0e-12_dp
 
       INTEGER                                            :: i1, i2, i3, n1, n2, n3
@@ -907,8 +898,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: th
       LOGICAL                                            :: just_bounds
       INTEGER, OPTIONAL                                  :: bounds(2)
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'hfun_zero'
 
       INTEGER                                            :: i1, i2, i3, lb, n1, n2, n3, nzeroed, &
                                                             nzeroed_inner, ub
@@ -1105,8 +1094,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: electronic_charge
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cdft_constraint_print'
-
       CHARACTER(len=2)                                   :: element_symbol
       INTEGER                                            :: iatom, ikind, iw, jatom
       REAL(kind=dp)                                      :: tc(2), zeff
@@ -1267,8 +1254,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cdft_print_weight_function(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cdft_print_weight_function'
 
       CHARACTER(LEN=default_path_length)                 :: middle_name
       INTEGER                                            :: igroup, unit_nr

@@ -100,8 +100,6 @@ CONTAINS
    SUBROUTINE reassign_allocated_mos(mo_set_new, mo_set_old)
       TYPE(mo_set_type), POINTER                         :: mo_set_new, mo_set_old
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reassign_allocated_mos'
-
       INTEGER                                            :: nmo
 
       mo_set_new%maxocc = mo_set_old%maxocc
@@ -141,8 +139,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE duplicate_mo_set(mo_set_new, mo_set_old)
       TYPE(mo_set_type), POINTER                         :: mo_set_new, mo_set_old
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'duplicate_mo_set'
 
       INTEGER                                            :: nmo
 
@@ -204,8 +200,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nao, nmo, nelectron
       REAL(KIND=dp), INTENT(IN)                          :: n_el_f, maxocc, flexible_electron_count
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'allocate_mo_set'
-
       IF (ASSOCIATED(mo_set)) CALL deallocate_mo_set(mo_set)
 
       ALLOCATE (mo_set)
@@ -248,8 +242,6 @@ CONTAINS
       TYPE(cp_fm_pool_type), OPTIONAL, POINTER           :: fm_pool
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_ref
       CHARACTER(LEN=*), INTENT(in)                       :: name
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_mo_set'
 
       INTEGER                                            :: nao, nmo, nomo
 
@@ -351,8 +343,6 @@ CONTAINS
    SUBROUTINE deallocate_mo_set(mo_set)
 
       TYPE(mo_set_type), POINTER                         :: mo_set
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'deallocate_mo_set'
 
       IF (ASSOCIATED(mo_set)) THEN
          IF (ASSOCIATED(mo_set%eigenvalues)) THEN
@@ -457,8 +447,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: eigenvalues, occupation_numbers
       LOGICAL, INTENT(IN), OPTIONAL                      :: uniform_occupation
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: kTS, mu, flexible_electron_count
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'set_mo_set'
 
       IF (PRESENT(maxocc)) mo_set%maxocc = maxocc
       IF (PRESENT(homo)) mo_set%homo = homo

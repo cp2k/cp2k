@@ -1205,8 +1205,6 @@ CONTAINS
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
       INTEGER, INTENT(IN)                                :: iatom, ispin
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set2zero_rho_atom_rad'
-
       INTEGER                                            :: j
 
       rho_atom_set(iatom)%rho_rad_h(ispin)%r_coef = 0.0_dp

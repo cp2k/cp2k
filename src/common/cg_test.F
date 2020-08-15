@@ -38,7 +38,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE clebsch_gordon_test()
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'clebsch_gordon_test'
       INTEGER, PARAMETER                                 :: l = 7
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: a1, a2, a3

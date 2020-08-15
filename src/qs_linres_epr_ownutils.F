@@ -102,8 +102,6 @@ CONTAINS
       TYPE(epr_env_type)                                 :: epr_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'epr_g_print'
-
       CHARACTER(LEN=default_string_length)               :: title
       INTEGER                                            :: idir1, idir2, output_unit, unit_nr
       REAL(KIND=dp)                                      :: eigenv_g(3), g_sym(3, 3), gsum
@@ -226,8 +224,6 @@ CONTAINS
       TYPE(epr_env_type)                                 :: epr_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'epr_g_zke'
-
       INTEGER                                            :: i1, ispin, output_unit
       REAL(KIND=dp)                                      :: epr_g_zke_temp(2)
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -286,8 +282,6 @@ CONTAINS
       TYPE(current_env_type)                             :: current_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: iB
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'epr_g_so'
 
       INTEGER                                            :: aint_precond, ia, iat, iatom, idir1, &
                                                             idir2, idir3, ikind, ir, ispin, &
@@ -555,8 +549,6 @@ CONTAINS
       TYPE(current_env_type)                             :: current_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: iB
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'epr_g_soo'
 
       INTEGER                                            :: aint_precond, ia, iat, iatom, idir1, &
                                                             ikind, ir, iso, ispin, max_iter, &

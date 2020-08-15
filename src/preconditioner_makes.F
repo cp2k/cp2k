@@ -85,8 +85,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: energy_gap
       INTEGER                                            :: my_solver_type
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'make_preconditioner_matrix'
-
       INTEGER                                            :: precon_type
 
       precon_type = preconditioner_env%in_use

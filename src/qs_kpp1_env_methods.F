@@ -111,8 +111,6 @@ CONTAINS
    SUBROUTINE kpp1_create(kpp1_env)
       TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'kpp1_create'
-
       ALLOCATE (kpp1_env)
       NULLIFY (kpp1_env%v_rspace, kpp1_env%v_ao, kpp1_env%drho_r, &
                kpp1_env%rho_set, kpp1_env%deriv_set, kpp1_env%spin_pot, kpp1_env%grad_pot, &
@@ -508,8 +506,6 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho, rho1
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: diff
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_calc_k_p_p1_fdiff'
-
       INTEGER                                            :: ispin, nspins
       REAL(KIND=dp)                                      :: my_diff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_2, matrix_s, rho1_ao, rho_ao
@@ -593,8 +589,6 @@ CONTAINS
 
       TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_check_i_alloc'
 
       INTEGER                                            :: excitations, ispin, nspins, res_etype
       LOGICAL                                            :: explicit, lsd_singlets
@@ -701,8 +695,6 @@ CONTAINS
       LOGICAL, INTENT(in), OPTIONAL                      :: s_struct_changed, grid_changed, &
                                                             psi0_changed
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'kpp1_did_change'
-
       INTEGER                                            :: i
       LOGICAL                                            :: my_psi0_changed, my_s_struct_changed
 
@@ -761,8 +753,6 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho1
       TYPE(pw_p_type), INTENT(IN)                        :: rho1_tot_gspace
       INTEGER                                            :: output_unit
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'print_densities'
 
       REAL(KIND=dp)                                      :: total_rho_gspace
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho1_r

@@ -130,8 +130,6 @@ CONTAINS
    SUBROUTINE map_dm_projection(ks_env)
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'map_dm_projection'
-
       INTEGER                                            :: ispin
       LOGICAL                                            :: s_mstruct_changed
       REAL(KIND=dp)                                      :: threshold

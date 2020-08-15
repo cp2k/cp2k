@@ -140,8 +140,6 @@ CONTAINS
    SUBROUTINE xc_functionals_expand(functionals, xc_section)
       TYPE(section_vals_type), POINTER                   :: functionals, xc_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_functionals_expand'
-
       INTEGER                                            :: shortcut
 
       CALL section_vals_val_get(functionals, "_SECTION_PARAMETERS_", &
@@ -793,8 +791,6 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: restarted_infos
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_restart_info'
-
       INTEGER                                            :: isize
 
       isize = 0
@@ -819,8 +815,6 @@ CONTAINS
          DIMENSION(:), POINTER                           :: restarted_infos
       CHARACTER(LEN=*), INTENT(IN)                       :: r_file_path, binary_restart_file
       INTEGER, INTENT(IN)                                :: output_unit
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'release_restart_info'
 
       INTEGER                                            :: i, j
 
@@ -871,8 +865,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input_file, restart_file
       CHARACTER(LEN=*), INTENT(IN)                       :: path
       LOGICAL, INTENT(IN), OPTIONAL                      :: check
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'restart_thermostat'
 
       INTEGER                                            :: input_region, input_type, &
                                                             restart_region, restart_type

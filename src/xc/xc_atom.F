@@ -427,8 +427,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nspins
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bo
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_rho_set_atom_update'
-
       INTEGER                                            :: idir
 
       SELECT CASE (nspins)
@@ -593,7 +591,6 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: tau
       INTEGER, INTENT(IN)                                :: na, ir
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fill_rho_set'
       REAL(KIND=dp), PARAMETER                           :: f13 = (1.0_dp/3.0_dp)
 
       INTEGER                                            :: ia, idir, my_nspins

@@ -117,8 +117,6 @@ CONTAINS
    SUBROUTINE wfs_create(snapshot)
       TYPE(qs_wf_snapshot_type), POINTER                 :: snapshot
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'wfs_create'
-
       ALLOCATE (snapshot)
       last_wfs_id = last_wfs_id + 1
       snapshot%id_nr = last_wfs_id
@@ -394,8 +392,6 @@ CONTAINS
    SUBROUTINE wfi_create_for_kp(wf_history)
       TYPE(qs_wf_history_type), POINTER                  :: wf_history
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'wfi_create_for_kp'
-
       CPASSERT(ASSOCIATED(wf_history))
       IF (wf_history%store_rho_ao) THEN
          wf_history%store_rho_ao_kp = .TRUE.
@@ -425,8 +421,6 @@ CONTAINS
    FUNCTION wfi_get_method_label(method_nr) RESULT(res)
       INTEGER, INTENT(in)                                :: method_nr
       CHARACTER(len=30)                                  :: res
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'wfi_get_method_label'
 
       res = "unknown"
       SELECT CASE (method_nr)
@@ -999,8 +993,6 @@ CONTAINS
       TYPE(qs_wf_history_type), POINTER                  :: wf_history
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), INTENT(in)                          :: dt
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'wfi_update'
 
       CPASSERT(ASSOCIATED(wf_history))
       CPASSERT(wf_history%ref_count > 0)

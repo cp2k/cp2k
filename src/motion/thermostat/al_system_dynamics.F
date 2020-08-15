@@ -180,8 +180,6 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: vel(:, :)
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'al_OU_step'
-
       INTEGER :: first_atom, i, ii, ikind, imap, imol, imol_local, ipart, iparticle_kind, &
          iparticle_local, jj, last_atom, nmol_local, nparticle, nparticle_kind, nparticle_local
       LOGICAL                                            :: check, present_vel
@@ -269,8 +267,6 @@ CONTAINS
       TYPE(al_system_type), POINTER                      :: al
       TYPE(map_info_type), POINTER                       :: map_info
       LOGICAL, INTENT(in)                                :: set_half_step_vel_factors
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'al_NH_quarter_step'
 
       INTEGER                                            :: i, imap
       REAL(KIND=dp)                                      :: decay, delta_K

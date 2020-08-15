@@ -646,8 +646,6 @@ CONTAINS
       TYPE(atom_basis_type), INTENT(INOUT)               :: basis
       TYPE(atom_potential_type), INTENT(IN)              :: potential
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'upfint_setup'
-
       CHARACTER(len=4)                                   :: ptype
       INTEGER                                            :: i, j, k1, k2, la, lb, m, n
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: spot
@@ -726,8 +724,6 @@ CONTAINS
       TYPE(atom_integrals), INTENT(INOUT)                :: integrals
       TYPE(atom_basis_type), INTENT(INOUT)               :: basis
       TYPE(atom_potential_type), INTENT(IN)              :: potential
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'sgpint_setup'
 
       INTEGER                                            :: i, ia, j, l, m, n, na
       REAL(KIND=dp)                                      :: a, c, rc, zval
@@ -995,8 +991,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: order
       REAL(dp), DIMENSION(:, :, 0:)                      :: sp, tp, vp, pvp
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dkh_integrals'
-
       INTEGER                                            :: l, m, n
       REAL(dp), DIMENSION(:, :, :), POINTER              :: hdkh
 
@@ -1111,8 +1105,6 @@ CONTAINS
    SUBROUTINE atom_int_release(integrals)
       TYPE(atom_integrals), INTENT(INOUT)                :: integrals
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'atom_int_release'
-
       INTEGER                                            :: ll
 
       IF (ASSOCIATED(integrals%ovlp)) THEN
@@ -1150,8 +1142,6 @@ CONTAINS
    SUBROUTINE atom_ppint_release(integrals)
       TYPE(atom_integrals), INTENT(INOUT)                :: integrals
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_ppint_release'
-
       IF (ASSOCIATED(integrals%hnl)) THEN
          DEALLOCATE (integrals%hnl)
       END IF
@@ -1172,8 +1162,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE atom_relint_release(integrals)
       TYPE(atom_integrals), INTENT(INOUT)                :: integrals
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_relint_release'
 
       IF (ASSOCIATED(integrals%tzora)) THEN
          DEALLOCATE (integrals%tzora)
@@ -1197,8 +1185,6 @@ CONTAINS
       REAL(dp), DIMENSION(:), INTENT(INOUT)              :: modpot
       TYPE(grid_atom_type), INTENT(IN)                   :: grid
       REAL(dp), INTENT(IN)                               :: zcore
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_model_potential'
 
       INTEGER                                            :: i, ii, l, ll, n, z
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: pot, rho

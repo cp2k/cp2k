@@ -1038,8 +1038,6 @@ CONTAINS
          INTENT(IN)                                      :: tau_tj, tau_wj_work, x_values, y_values
       INTEGER, INTENT(IN)                                :: num_integ_points, num_x_nodes
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_max_error_fit_tau_grid_with_cosine'
-
       INTEGER                                            :: kkk
       REAL(KIND=dp)                                      :: func_val, func_val_temp, max_error_tmp
 
@@ -1084,8 +1082,6 @@ CONTAINS
          INTENT(IN)                                      :: tau_tj, tau_wj_work
       REAL(KIND=dp), INTENT(IN)                          :: omega
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_fit_func_tau_grid_cosine'
-
       INTEGER                                            :: iii
 
       func_val = 0.0_dp
@@ -1116,8 +1112,6 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: tau_tj, tau_wj_work
       REAL(KIND=dp), INTENT(IN)                          :: omega
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_fit_func_tau_grid_sine'
 
       INTEGER                                            :: iii
 
@@ -1150,8 +1144,6 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: tau_tj, tau_wj_work, x_values, y_values
       INTEGER, INTENT(IN)                                :: num_integ_points, num_x_nodes
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_max_error_fit_tau_grid_with_sine'
 
       INTEGER                                            :: kkk
       REAL(KIND=dp)                                      :: func_val, func_val_temp, max_error_tmp
@@ -1456,8 +1448,6 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: omega_tj, omega_wj_work
       REAL(KIND=dp), INTENT(IN)                          :: tau
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_fit_func_omega_grid_cosine'
 
       INTEGER                                            :: iii
       REAL(KIND=dp)                                      :: omega

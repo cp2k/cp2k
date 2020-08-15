@@ -62,8 +62,6 @@ CONTAINS
    SUBROUTINE create_pwdft_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_pwdft_section'
-
       TYPE(section_type), POINTER                        :: subsection
 
 !     ------------------------------------------------------------------------
@@ -111,8 +109,6 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
       CHARACTER(len=*), INTENT(in)                       :: section_name
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_sirius_section'
-
       INTEGER                                            :: length
 
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -136,8 +132,6 @@ CONTAINS
    SUBROUTINE fill_in_section(section, section_name)
       TYPE(section_type), POINTER                        :: section
       CHARACTER(len=*), INTENT(in)                       :: section_name
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'fill_in_section'
 
       CHARACTER(len=128)                                 :: name, name1, possible_values(1:16)
       CHARACTER(len=512)                                 :: default_string_val, description, usage
@@ -285,8 +279,6 @@ CONTAINS
    SUBROUTINE create_print_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_print_section'
-
       TYPE(section_type), POINTER                        :: print_key
 
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -308,8 +300,6 @@ CONTAINS
    SUBROUTINE create_dos_section(print_key)
 
       TYPE(section_type), POINTER                        :: print_key
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_dos_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 

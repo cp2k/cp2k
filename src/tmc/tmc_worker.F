@@ -813,8 +813,6 @@ CONTAINS
       TYPE(tmc_atom_type), DIMENSION(:), POINTER         :: atoms
       TYPE(cell_type), POINTER                           :: cell
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_atom_kinds_and_cell'
-
       INTEGER                                            :: iparticle, nr_atoms, nunits_tot
       TYPE(cell_type), POINTER                           :: cell_tmp
       TYPE(cp_subsys_type), POINTER                      :: subsys
@@ -858,8 +856,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: comm
       INTEGER                                            :: env_id
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_intermediate_info_comm'
-
       CHARACTER(LEN=default_string_length)               :: description
       REAL(KIND=dp), DIMENSION(3)                        :: values
       TYPE(cp_result_type), POINTER                      :: results
@@ -898,8 +894,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE remove_intermediate_info_comm(env_id)
       INTEGER                                            :: env_id
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_intermediate_info_comm'
 
       CHARACTER(LEN=default_string_length)               :: description
       TYPE(cp_result_type), POINTER                      :: results

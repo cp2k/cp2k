@@ -120,8 +120,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: virial_xc
       TYPE(pw_p_type), INTENT(INOUT), OPTIONAL           :: exc_r
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_vxc_pw_create1'
-
       INTEGER                                            :: f_routine
 
       CPASSERT(ASSOCIATED(rho_r))
@@ -179,7 +177,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(pw_pool_type), POINTER                        :: pw_pool
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create_test_lsd'
       LOGICAL, PARAMETER                                 :: compute_virial = .FALSE.
 
       CHARACTER(len=default_path_length)                 :: filename
@@ -518,7 +515,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(pw_pool_type), POINTER                        :: pw_pool
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create_debug'
       LOGICAL, PARAMETER                                 :: compute_virial = .FALSE.
 
       CHARACTER(len=default_path_length)                 :: filename
@@ -877,8 +873,6 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: e_0
       REAL(kind=dp), INTENT(in), OPTIONAL                :: e_0_scale_factor
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'smooth_cutoff'
 
       INTEGER                                            :: i, j, k
       INTEGER, DIMENSION(2, 3)                           :: bo
@@ -3080,8 +3074,6 @@ CONTAINS
       TYPE(xc_derivative_set_type), POINTER              :: deriv_set
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
       LOGICAL, INTENT(IN)                                :: lsd
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'divide_by_norm_drho'
 
       CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH)          :: desc
       CHARACTER(len=MAX_LABEL_LENGTH), DIMENSION(:), &

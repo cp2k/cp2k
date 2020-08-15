@@ -202,8 +202,6 @@ CONTAINS
       TYPE(lnhc_parameters_type), POINTER                :: nhc
       TYPE(map_info_type), POINTER                       :: map_info
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'do_nhc'
-
       INTEGER                                            :: imap, n
 
 ! Force on the first bead in every thermostat chain
@@ -239,8 +237,6 @@ CONTAINS
       TYPE(particle_type), POINTER                       :: particle_set(:)
       REAL(KIND=dp), INTENT(IN)                          :: com_vel(:, :)
       REAL(KIND=dp), INTENT(INOUT)                       :: shell_vel(:, :), core_vel(:, :)
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'shell_scale_comv'
 
       INTEGER                                            :: iparticle, iparticle_kind, &
                                                             iparticle_local, nparticle_kind, &
@@ -286,8 +282,6 @@ CONTAINS
    SUBROUTINE multiple_step_yoshida(nhc)
 
       TYPE(lnhc_parameters_type), POINTER                :: nhc
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'multiple_step_yoshida'
 
       INTEGER                                            :: imap, inc, inhc, iyosh, n, nx1, nx2
       REAL(KIND=dp)                                      :: scale

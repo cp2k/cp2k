@@ -52,8 +52,6 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: basis_type_a
       INTEGER                                            :: ldmem
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_memory_usage_a'
-
       INTEGER                                            :: maxc, maxl, maxs
 
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, &
@@ -78,8 +76,6 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: basis_type_a, basis_type_b
       INTEGER                                            :: ldmem
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_memory_usage_ab'
-
       INTEGER                                            :: lda, ldb
 
       lda = get_memory_usage_a(qs_kind_set, basis_type_a)
@@ -102,8 +98,6 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       CHARACTER(LEN=*), INTENT(IN)                       :: basis_type_a, basis_type_b, basis_type_c
       INTEGER                                            :: ldmem
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_memory_usage_abc'
 
       INTEGER                                            :: lda, ldb, ldc
 
@@ -131,8 +125,6 @@ CONTAINS
                                                             basis_type_c, basis_type_d
       INTEGER                                            :: ldmem
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_memory_usage_abcd'
-
       INTEGER                                            :: lda, ldb, ldc, ldd
 
       lda = get_memory_usage_a(qs_kind_set, basis_type_a)
@@ -156,8 +148,6 @@ CONTAINS
       TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_set_list
       CHARACTER(len=*), INTENT(IN)                       :: basis_type
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'basis_set_list_setup'
 
       INTEGER                                            :: ikind
       TYPE(gto_basis_set_type), POINTER                  :: basis_set

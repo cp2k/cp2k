@@ -758,8 +758,6 @@ CONTAINS
       TYPE(array1_list_type), DIMENSION(:), POINTER      :: ex_bond_list, ex_bond_list_w
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_exclusion_list'
-
       CHARACTER(LEN=default_string_length)               :: flag1, flag2
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: names

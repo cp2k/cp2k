@@ -64,8 +64,6 @@ CONTAINS
       INTEGER, INTENT(in)                                :: nspins
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: total_rho_core_rspace, total_rho_gspace
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_charges_create'
-
       ALLOCATE (qs_charges)
       qs_charges%total_rho_core_rspace = 0.0_dp
       IF (PRESENT(total_rho_core_rspace)) &
@@ -94,8 +92,6 @@ CONTAINS
    SUBROUTINE qs_charges_retain(qs_charges)
       TYPE(qs_charges_type), POINTER                     :: qs_charges
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_charges_retain'
-
       CPASSERT(ASSOCIATED(qs_charges))
       CPASSERT(qs_charges%ref_count > 0)
       qs_charges%ref_count = qs_charges%ref_count + 1
@@ -110,8 +106,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qs_charges_release(qs_charges)
       TYPE(qs_charges_type), POINTER                     :: qs_charges
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_charges_release'
 
       IF (ASSOCIATED(qs_charges)) THEN
          CPASSERT(qs_charges%ref_count > 0)

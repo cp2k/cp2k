@@ -58,8 +58,6 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: npgf
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: zet
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_aux_basis'
-
       INTEGER                                            :: i, ico, info, iset, ishell, j, l, &
                                                             lshell, m, maxco, maxpgf, maxshell, &
                                                             ncgf, ns, nsgf, nx

@@ -57,8 +57,6 @@ CONTAINS
       TYPE(oce_matrix_type), POINTER                     :: oce_set
       INTEGER, INTENT(IN)                                :: nkind
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'allocate_oce_set'
-
       INTEGER                                            :: i
 
       ALLOCATE (oce_set%intac(nkind*nkind))
@@ -78,8 +76,6 @@ CONTAINS
 
       TYPE(oce_matrix_type), POINTER                     :: oce_set
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_oce_set'
-
       IF (ASSOCIATED(oce_set)) CALL deallocate_oce_set(oce_set)
 
       ALLOCATE (oce_set)
@@ -97,8 +93,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE deallocate_oce_set(oce_set)
       TYPE(oce_matrix_type), POINTER                     :: oce_set
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_oce_set'
 
       IF (.NOT. ASSOCIATED(oce_set)) RETURN
 

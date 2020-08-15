@@ -85,7 +85,8 @@ RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
    LOGICAL, INTENT(IN), OPTIONAL            :: final_evaluation
    TYPE(cp_para_env_type), POINTER          :: para_env
 
-   CHARACTER(len=*), PARAMETER :: routineN = 'cp_eval_at', moduleN = 'gopt_f77_methods'
+   CHARACTER(len=*), PARAMETER :: routineN = 'cp_eval_at'
+
    INTEGER                                  :: ensemble, handle, idg, idir, ip, &
                                                nparticle, nsize, shell_index
    LOGICAL                                  :: explicit, my_final_evaluation

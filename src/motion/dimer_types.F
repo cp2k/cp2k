@@ -119,8 +119,6 @@ CONTAINS
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(section_vals_type), POINTER                   :: dimer_section
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dimer_env_create'
-
       INTEGER                                            :: i, isize, j, k, n_rep_val, natom, unit_nr
       LOGICAL                                            :: explicit
       REAL(KIND=dp)                                      :: norm, xval(3)
@@ -216,8 +214,6 @@ CONTAINS
    SUBROUTINE dimer_env_retain(dimer_env)
       TYPE(dimer_env_type), POINTER                      :: dimer_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dimer_env_retain'
-
       CPASSERT(ASSOCIATED(dimer_env))
       CPASSERT(dimer_env%ref_count > 0)
       dimer_env%ref_count = dimer_env%ref_count + 1
@@ -232,8 +228,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dimer_env_release(dimer_env)
       TYPE(dimer_env_type), POINTER                      :: dimer_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dimer_env_release'
 
       IF (ASSOCIATED(dimer_env)) THEN
          CPASSERT(dimer_env%ref_count > 0)
@@ -275,8 +269,6 @@ CONTAINS
    SUBROUTINE dimer_fixed_atom_control(vec, subsys)
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: vec
       TYPE(cp_subsys_type), POINTER                      :: subsys
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'dimer_fixed_atom_control'
 
       INTEGER                                            :: ii, ikind, ind, iparticle, nfixed_atoms, &
                                                             nkinds

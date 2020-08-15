@@ -65,8 +65,6 @@ CONTAINS
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cs1_lda_info'
-
       IF (PRESENT(reference)) THEN
          reference = "N.C. Handy and A.J. Cohen, J. Chem. Phys., 116, 5411 (2002)"// &
                      "{LDA version}"
@@ -95,8 +93,6 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cs1_lsd_info'
 
       IF (PRESENT(reference)) THEN
          reference = "N.C. Handy and A.J. Cohen, J. Chem. Phys., 116, 5411 (2002)"
@@ -603,8 +599,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)         :: e_0
       INTEGER, INTENT(in)                                :: npoints
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cs1_ss_0'
-
       INTEGER                                            :: ip
       REAL(KIND=dp)                                      :: F1a, F1b, F2a, F2b, ga, gb, oca, ocb, &
                                                             oda, odb, r3a, r3b, ra, rb, xa, xb
@@ -676,8 +670,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(*), INTENT(IN)            :: rhoa, rhob, grhoa, grhob, r13a, r13b
       REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)         :: e_rhoa, e_rhob, e_ndrhoa, e_ndrhob
       INTEGER, INTENT(in)                                :: npoints
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cs1_ss_1'
 
       INTEGER                                            :: ip
       REAL(KIND=dp)                                      :: dF1a, dF1b, dgF2a, dgF2b, drF2a, drF2b, &

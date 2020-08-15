@@ -67,8 +67,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:)                   :: matrix
       TYPE(arnoldi_data_type)                            :: arnoldi_data
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'arnoldi_ev'
-
       TYPE(arnoldi_control_type), POINTER                :: control
 
       control => get_control(arnoldi_data)
@@ -394,8 +392,6 @@ CONTAINS
       TYPE(arnoldi_data_type)                            :: arnoldi_data
       TYPE(dbcsr_p_type), DIMENSION(:)                   :: arnoldi_matrices
       TYPE(m_x_v_vectors_type)                           :: vectors
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'conjugate_gradient'
 
       INTEGER                                            :: iter, mpgrp, pcgrp
       REAL(KIND=dp)                                      :: alpha, beta, pap, rsnew, rsold

@@ -49,7 +49,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: hessian
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_scine'
       REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
       CHARACTER(LEN=20)                                  :: sunit

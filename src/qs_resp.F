@@ -258,8 +258,6 @@ CONTAINS
       TYPE(resp_type), POINTER                           :: resp_env
       TYPE(resp_p_type), DIMENSION(:), POINTER           :: rep_sys
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_resp_type'
-
       IF (ASSOCIATED(resp_env)) CALL resp_dealloc(resp_env, rep_sys)
       ALLOCATE (resp_env)
 
@@ -299,8 +297,6 @@ CONTAINS
       TYPE(resp_type), POINTER                           :: resp_env
       INTEGER, INTENT(IN)                                :: natom, nvar
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'resp_allocate'
-
       IF (.NOT. ASSOCIATED(resp_env%matrix)) THEN
          ALLOCATE (resp_env%matrix(nvar, nvar))
       ENDIF
@@ -324,8 +320,6 @@ CONTAINS
    SUBROUTINE resp_dealloc(resp_env, rep_sys)
       TYPE(resp_type), POINTER                           :: resp_env
       TYPE(resp_p_type), DIMENSION(:), POINTER           :: rep_sys
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'resp_dealloc'
 
       INTEGER                                            :: i
 
@@ -505,8 +499,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: sphere_section
       TYPE(cell_type), POINTER                           :: cell
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_parameter_molecular_sys'
 
       CHARACTER(LEN=2)                                   :: symbol
       CHARACTER(LEN=default_string_length)               :: missing_rmax, missing_rmin

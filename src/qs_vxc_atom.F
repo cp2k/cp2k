@@ -753,8 +753,6 @@ CONTAINS
       TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER     :: r_h_d, r_s_d
       REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: drho_h, drho_s
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_rho_angular'
-
       INTEGER                                            :: ia, iso, ispin, na
       REAL(KIND=dp)                                      :: rad, urad
 
@@ -867,8 +865,6 @@ CONTAINS
       TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER     :: trho_h, trho_s
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: tau_h, tau_s
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_tau_angular'
-
       INTEGER                                            :: ia, iso, ispin, na
 
       CPASSERT(ASSOCIATED(trho_h))
@@ -928,8 +924,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rho_h, rho_s
       REAL(KIND=dp), DIMENSION(:)                        :: drho_nlcc
       REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: drho_h, drho_s
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_rho_nlcc'
 
       INTEGER                                            :: ia, ispin, na
       REAL(KIND=dp)                                      :: drho, dx, dy, dz, rad, rho, urad, xsp

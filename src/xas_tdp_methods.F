@@ -214,8 +214,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xas_tdp_section
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'xas_tdp_core'
-
       CHARACTER(LEN=default_string_length)               :: kind_name
       INTEGER                                            :: current_state_index, iat, iatom, ikind, &
                                                             ispin, istate, output_unit, tmp_index
@@ -502,8 +500,6 @@ CONTAINS
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'xas_tdp_init'
 
       CHARACTER(LEN=default_string_length)               :: kind_name
       INTEGER                                            :: at_ind, i, ispin, j, k, kind_ind, &
@@ -823,8 +819,6 @@ CONTAINS
 
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'safety_check'
-
       !PB only available without exact exchange
       IF (xas_tdp_control%is_periodic .AND. xas_tdp_control%do_hfx &
           .AND. xas_tdp_control%x_potential%potential_type == do_potential_coulomb) THEN
@@ -891,8 +885,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ou
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'print_info'
 
       CHARACTER(LEN=2*default_string_length)             :: shortform
       CHARACTER(LEN=20)                                  :: tmpStr
@@ -1073,8 +1065,6 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'assign_mos_to_ex_atoms'
-
       INTEGER                                            :: at_index, iat, iat_memo, imo, ispin, &
                                                             n_atoms, n_search, nex_atoms, nspins
       INTEGER, DIMENSION(3)                              :: perd_init
@@ -1152,8 +1142,6 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_uks
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'reinit_qs_loc_env'
-
       INTEGER                                            :: i, nspins
       TYPE(localized_wfn_control_type), POINTER          :: loc_wfn_control
 
@@ -1203,8 +1191,6 @@ CONTAINS
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'diagonalize_assigned_mo_subset'
 
       INTEGER                                            :: i, iat, ilmo, ispin, nao, nlmo, nspins
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: evals
@@ -1304,8 +1290,6 @@ CONTAINS
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'assign_mos_to_donor_state'
 
       INTEGER                                            :: at_index, i, iat, imo, ispin, l, my_mo, &
                                                             n_search, n_states, nao, ndo_so, nj, &
@@ -1635,8 +1619,6 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'find_mo_centers'
-
       INTEGER                                            :: dim_op, i, ispin, j, n_centers, nao, &
                                                             nspins
       REAL(dp), DIMENSION(6)                             :: weights
@@ -1741,8 +1723,6 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'print_checks'
-
       CHARACTER(LEN=default_string_length)               :: kind_name
       INTEGER                                            :: current_state_index, iat, iatom, ikind, &
                                                             istate, output_unit, tmp_index
@@ -1828,8 +1808,6 @@ CONTAINS
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'compute_lenrep_multipole'
 
       INTEGER                                            :: i, order
       REAL(dp), DIMENSION(3)                             :: rc
@@ -2116,8 +2094,6 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mos_to_ex_atoms_association'
-
       CHARACTER(LEN=default_string_length)               :: kind_name
       INTEGER                                            :: at_index, imo, ispin, nmo, nspins, &
                                                             output_unit, tmp_index
@@ -2202,8 +2178,6 @@ CONTAINS
    SUBROUTINE perform_mulliken_on_donor_state(donor_state, qs_env)
       TYPE(donor_state_type), POINTER                    :: donor_state
       TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'perform_mulliken_on_donor_state'
 
       INTEGER                                            :: at_index, i, ispin, nao, natom, ndo_mo, &
                                                             ndo_so, nsgf, nspins, output_unit
@@ -2536,8 +2510,6 @@ CONTAINS
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(section_vals_type), POINTER                   :: xas_tdp_section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_xas_tdp_to_file'
 
       INTEGER                                            :: i, output_unit, xas_tdp_unit
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -2984,8 +2956,6 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN)                       :: rst_filename
       TYPE(section_vals_type), POINTER                   :: xas_tdp_section
       TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'restart_calculation'
 
       INTEGER                                            :: ex_type
       TYPE(donor_state_type), POINTER                    :: donor_state

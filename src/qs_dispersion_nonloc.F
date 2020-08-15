@@ -962,7 +962,6 @@ CONTAINS
       REAL(dp), INTENT(OUT)                              :: q0(:), dq0_drho(:), dq0_dgradrho(:)
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_q0_on_grid_vdw'
       INTEGER, PARAMETER                                 :: m_cut = 12
       REAL(dp), PARAMETER :: LDA_A = 0.031091_dp, LDA_a1 = 0.2137_dp, LDA_b1 = 7.5957_dp, &
          LDA_b2 = 3.5876_dp, LDA_b3 = 1.6382_dp, LDA_b4 = 0.49294_dp
@@ -1146,7 +1145,6 @@ CONTAINS
       REAL(dp), INTENT(OUT)                              :: q0(:)
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_q0_on_grid_eo_vdw'
       INTEGER, PARAMETER                                 :: m_cut = 12
       REAL(dp), PARAMETER :: LDA_A = 0.031091_dp, LDA_a1 = 0.2137_dp, LDA_b1 = 7.5957_dp, &
          LDA_b2 = 3.5876_dp, LDA_b3 = 1.6382_dp, LDA_b4 = 0.49294_dp
@@ -1418,8 +1416,6 @@ CONTAINS
       REAL(dp), INTENT(out)                              :: kernel_of_k(:, :)
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'interpolate_kernel'
-
       INTEGER                                            :: k_i, Nr_points, q1_i, q2_i
       REAL(dp)                                           :: A, B, C, const, D, dk, r_max
       REAL(dp), DIMENSION(:, :, :), POINTER              :: d2phi_dk2, kernel
@@ -1485,8 +1481,6 @@ CONTAINS
       REAL(dp), INTENT(in)                               :: k
       REAL(dp), INTENT(out)                              :: dkernel_of_dk(:, :)
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'interpolate_dkernel_dk'
 
       INTEGER                                            :: k_i, Nr_points, q1_i, q2_i
       REAL(dp)                                           :: A, B, dAdk, dBdk, dCdk, dDdk, dk, dk_6

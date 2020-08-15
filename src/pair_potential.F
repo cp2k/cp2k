@@ -287,8 +287,6 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_zbl
       REAL(KIND=dp), INTENT(IN)                          :: energy_cutoff, emax_spline
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_spline_cutoff'
-
       INTEGER                                            :: ilevel, jx
       REAL(KIND=dp)                                      :: dx2, e, locut_found, x
 
@@ -354,8 +352,6 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: found_locut, do_zbl
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       CHARACTER(LEN=*), INTENT(IN)                       :: nonbonded_type
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'generate_spline_low'
 
       CHARACTER(LEN=2*default_string_length)             :: message, tmp
       CHARACTER(LEN=default_path_length)                 :: file_name

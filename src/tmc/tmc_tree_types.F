@@ -179,8 +179,6 @@ CONTAINS
       TYPE(elem_list_type), POINTER                      :: list
       INTEGER, OPTIONAL                                  :: temp_ind, nr
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'add_to_list'
-
       TYPE(elem_list_type), POINTER                      :: last, list_elem_tmp
 
       NULLIFY (list_elem_tmp, last)
@@ -222,8 +220,6 @@ CONTAINS
    SUBROUTINE clean_list(list)
       TYPE(elem_list_type), POINTER                      :: list
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'clean_list'
-
       TYPE(elem_list_type), POINTER                      :: list_elem_tmp
 
       NULLIFY (list_elem_tmp)
@@ -245,8 +241,6 @@ CONTAINS
    SUBROUTINE write_subtree_elem_unformated(elem, io_unit)
       TYPE(tree_type), POINTER                           :: elem
       INTEGER                                            :: io_unit
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_subtree_elem_unformated'
 
       CPASSERT(ASSOCIATED(elem))
       CPASSERT(io_unit .GT. 0)
@@ -278,8 +272,6 @@ CONTAINS
       TYPE(tree_type), POINTER                           :: elem
       INTEGER                                            :: io_unit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_subtree_elem_unformated'
-
       CPASSERT(ASSOCIATED(elem))
       CPASSERT(io_unit .GT. 0)
 
@@ -309,8 +301,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: array
       INTEGER                                            :: io_unit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_subtree_elem_darray'
-
       WRITE (io_unit) ASSOCIATED(array)
       IF (ASSOCIATED(array)) THEN
          WRITE (io_unit) SIZE(array)
@@ -326,8 +316,6 @@ CONTAINS
    SUBROUTINE read_subtree_elem_darray(array, io_unit)
       REAL(KIND=dp), DIMENSION(:), POINTER               :: array
       INTEGER                                            :: io_unit
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_subtree_elem_darray'
 
       INTEGER                                            :: i_tmp
       LOGICAL                                            :: l_tmp

@@ -60,8 +60,6 @@ CONTAINS
 
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_parameter
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_dftb_atom_param'
-
       IF (ASSOCIATED(dftb_parameter)) &
          CALL deallocate_dftb_atom_param(dftb_parameter)
 
@@ -92,8 +90,6 @@ CONTAINS
    SUBROUTINE deallocate_dftb_atom_param(dftb_parameter)
 
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_parameter
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_dftb_atom_param'
 
       CPASSERT(ASSOCIATED(dftb_parameter))
       DEALLOCATE (dftb_parameter)
@@ -132,8 +128,6 @@ CONTAINS
       INTEGER, INTENT(OUT), OPTIONAL                     :: natorb, lmax
       REAL(KIND=dp), DIMENSION(0:3), OPTIONAL            :: skself, occupation, eta
       REAL(KIND=dp), OPTIONAL                            :: energy, cutoff, xi, di, rcdisp, dudq
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_dftb_atom_param'
 
       CPASSERT(ASSOCIATED(dftb_parameter))
 
@@ -189,8 +183,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(0:3), OPTIONAL            :: skself, occupation, eta
       REAL(KIND=dp), OPTIONAL                            :: energy, cutoff, xi, di, rcdisp, dudq
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_dftb_atom_param'
-
       CPASSERT(ASSOCIATED(dftb_parameter))
 
       IF (PRESENT(name)) dftb_parameter%name = name
@@ -221,8 +213,6 @@ CONTAINS
 
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_parameter
       TYPE(section_vals_type), POINTER                   :: subsys_section
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_dftb_atom_param'
 
       CHARACTER(LEN=default_string_length)               :: name, typ
       INTEGER                                            :: lmax, natorb, output_unit, z
@@ -283,8 +273,6 @@ CONTAINS
       INTEGER                                            :: ngrd, ngrdcut
       REAL(KIND=dp)                                      :: dgrd
       INTEGER                                            :: llm, lmaxi, lmaxj, irow, iatom
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_block_sk'
 
       REAL(KIND=dp)                                      :: dr
       REAL(KIND=dp), DIMENSION(20)                       :: skabij, skabji
@@ -457,8 +445,6 @@ CONTAINS
       REAL(dp), INTENT(inout)                  :: mat(:, :)
       REAL(dp), INTENT(in)                     :: skab1(:), skab2(:), dxv(3), dx
       INTEGER, INTENT(in)                      :: lmaxa, lmaxb
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'turnsk'
 
       INTEGER                                  :: lmaxab, minlmaxab
       REAL(dp)                                 :: rinv, rr(6), rr2(6)
@@ -849,8 +835,6 @@ CONTAINS
       INTEGER, INTENT(in)                                :: n
       REAL(dp), INTENT(in)                               :: ya(n), xa(n), x
       REAL(dp), INTENT(out)                              :: y, dy
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'polint'
 
       INTEGER                                            :: i, m, ns
       REAL(dp)                                           :: c(n), d(n), den, dif, dift, ho, hp, w

@@ -880,8 +880,6 @@ CONTAINS
       TYPE(mc_averages_type), INTENT(INOUT), POINTER     :: averages
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: zbuff
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'langevinVEC'
-
       INTEGER                                            :: iprint, ivar, nparticle, nparticle_kind, &
                                                             nstep, output_unit
       REAL(KIND=dp)                                      :: dt, gamma, mass, sigma

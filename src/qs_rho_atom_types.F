@@ -66,8 +66,6 @@ CONTAINS
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
       INTEGER, INTENT(IN)                                :: natom
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho_atom_set'
-
       INTEGER                                            :: iat
 
       IF (ASSOCIATED(rho_atom_set)) THEN
@@ -104,8 +102,6 @@ CONTAINS
    SUBROUTINE deallocate_rho_atom_set(rho_atom_set)
 
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_rho_atom_set'
 
       INTEGER                                            :: i, iat, j, n, natom
 
@@ -266,8 +262,6 @@ CONTAINS
                                                             trho_rad_s
       TYPE(rho_atom_coeff), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ga_Vlocal_gb_h, ga_Vlocal_gb_s
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_rho_atom'
 
       IF (ASSOCIATED(rho_atom)) THEN
          IF (PRESENT(cpc_h)) cpc_h => rho_atom%cpc_h

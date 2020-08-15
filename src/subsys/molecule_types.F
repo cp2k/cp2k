@@ -194,8 +194,6 @@ CONTAINS
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       INTEGER, INTENT(IN)                                :: nmolecule
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_molecule_set'
-
       INTEGER                                            :: imolecule
 
       IF (ASSOCIATED(molecule_set)) CALL deallocate_molecule_set(molecule_set)
@@ -224,8 +222,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE deallocate_molecule_set(molecule_set)
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_molecule_set'
 
       INTEGER                                            :: imolecule, j
 
@@ -305,8 +301,6 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: first_atom, last_atom, first_shell, &
                                                             last_shell
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_molecule'
-
       IF (ASSOCIATED(molecule)) THEN
 
          IF (PRESENT(first_atom)) first_atom = molecule%first_atom
@@ -372,8 +366,6 @@ CONTAINS
       TYPE(local_g4x6_constraint_type), OPTIONAL, &
          POINTER                                         :: lg4x6(:)
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_molecule'
-
       IF (ASSOCIATED(molecule)) THEN
 
          IF (PRESENT(molecule_kind)) molecule%molecule_kind => molecule_kind
@@ -420,8 +412,6 @@ CONTAINS
    SUBROUTINE set_molecule_set(molecule_set, first_atom, last_atom)
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: first_atom, last_atom
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_molecule_set'
 
       INTEGER                                            :: imolecule
 
@@ -472,8 +462,6 @@ CONTAINS
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       INTEGER, DIMENSION(:), INTENT(OUT)                 :: atom_to_mol
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'molecule_of_atom'
-
       INTEGER                                            :: first_atom, iatom, imol, last_atom
       TYPE(molecule_type), POINTER                       :: molecule
 
@@ -508,8 +496,6 @@ CONTAINS
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       INTEGER, DIMENSION(:), INTENT(OUT), OPTIONAL :: atom_to_mol, mol_to_first_atom, &
          mol_to_last_atom, mol_to_nelectrons, mol_to_nbasis, mol_to_charge, mol_to_multiplicity
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_molecule_set_info'
 
       INTEGER                                            :: first_atom, iatom, imol, last_atom, &
                                                             nbasis, nelec

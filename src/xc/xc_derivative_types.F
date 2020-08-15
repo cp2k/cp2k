@@ -66,8 +66,6 @@ CONTAINS
       CHARACTER(len=*), INTENT(in)                       :: desc
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: cr3d_ptr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_derivative_create'
-
       CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH)          :: my_desc
 
       ALLOCATE (derivative)
@@ -92,8 +90,6 @@ CONTAINS
    SUBROUTINE xc_derivative_retain(deriv)
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_derivative_retain'
-
       CPASSERT(ASSOCIATED(deriv))
       CPASSERT(deriv%ref_count > 0)
       deriv%ref_count = deriv%ref_count + 1
@@ -109,8 +105,6 @@ CONTAINS
 
       TYPE(xc_derivative_type), POINTER                  :: derivative
       TYPE(pw_pool_type), OPTIONAL, POINTER              :: pw_pool
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_derivative_release'
 
       CPASSERT(ASSOCIATED(derivative))
       CPASSERT(derivative%ref_count >= 1)
@@ -158,8 +152,6 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: deriv_data
       LOGICAL, INTENT(in), OPTIONAL                      :: accept_null_data
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_derivative_get'
 
       LOGICAL                                            :: my_accept_null_data
 

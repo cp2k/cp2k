@@ -63,8 +63,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
       TYPE(section_vals_type), POINTER                   :: vwn_params
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'vwn_init'
-
       INTEGER                                            :: TYPE
 
       CALL section_vals_val_get(vwn_params, "functional_type", i_val=TYPE)

@@ -62,8 +62,6 @@ CONTAINS
       TYPE(xc_rho_cflags_type), INTENT(out)              :: cflags
       LOGICAL, INTENT(in)                                :: value
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_cflags_setall'
-
       cflags%rho = value
       cflags%rho_spin = value
       cflags%drho = value
@@ -88,8 +86,6 @@ CONTAINS
    FUNCTION xc_rho_cflags_equal(cflags1, cflags2) RESULT(equal)
       TYPE(xc_rho_cflags_type), INTENT(in)               :: cflags1, cflags2
       LOGICAL                                            :: equal
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_cflags_equal'
 
       equal = ((cflags1%rho .EQV. cflags2%rho) .AND. &
                (cflags1%rho_spin .EQV. cflags2%rho_spin) .AND. &

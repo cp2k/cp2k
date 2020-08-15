@@ -49,8 +49,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input_section
       TYPE(fist_efield_type), POINTER                    :: efield
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_efield_section'
-
       REAL(KIND=dp), DIMENSION(:), POINTER               :: pp
       TYPE(section_vals_type), POINTER                   :: tmp_section
 

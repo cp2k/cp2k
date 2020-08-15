@@ -227,8 +227,6 @@ CONTAINS
       TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: preconditioner
       INTEGER, INTENT(IN)                                :: prec_type, nspins
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'restart_preconditioner'
-
       INTEGER                                            :: ispin
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env

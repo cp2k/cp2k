@@ -187,8 +187,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nspins
       LOGICAL, INTENT(IN), OPTIONAL                      :: centers_only
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'linres_localize'
-
       INTEGER                                            :: iounit, ispin, istate, nmoloc(2)
       LOGICAL                                            :: my_centers_only
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_localized
@@ -738,8 +736,6 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: c0, c1
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dm
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_dm_response'
-
       INTEGER                                            :: ispin, ncol, nspins
 
       CPASSERT(ASSOCIATED(c0))
@@ -821,8 +817,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: c0, v, Av
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_op_2'
 
       TYPE(dft_control_type), POINTER                    :: dft_control
 
@@ -1980,8 +1974,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: lr_triplet
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_check_i_alloc'
-
       INTEGER                                            :: ispin, nspins
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
@@ -2477,8 +2469,6 @@ CONTAINS
       TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(linres_control_type), POINTER                 :: linres_control
       INTEGER, INTENT(IN)                                :: nspins
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_p_env_init'
 
       INTEGER                                            :: ispin, ncol, nrow
 

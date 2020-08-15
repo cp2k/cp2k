@@ -101,8 +101,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pot_par
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: err_minimax
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_minimax_coeff_v_gspace'
-
       INTEGER                                            :: potential_prv
       REAL(KIND=dp)                                      :: dG, G_max, minimax_Rc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: a, w

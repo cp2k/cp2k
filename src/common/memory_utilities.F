@@ -88,7 +88,6 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_c1'
       COMPLEX(KIND=dp), PARAMETER                        :: zero = (0.0_dp, 0.0_dp)
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: work
@@ -113,7 +112,6 @@ $: reallocate(rank=1)
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_c2'
       COMPLEX(KIND=dp), PARAMETER                        :: zero = (0.0_dp, 0.0_dp)
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: work
@@ -141,7 +139,6 @@ $: reallocate(rank=2)
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new, &
                                                             lb3_new, ub3_new
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_c3'
       COMPLEX(KIND=dp), PARAMETER                        :: zero = (0.0_dp, 0.0_dp)
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: work
@@ -172,7 +169,6 @@ $: reallocate(rank=3)
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new, &
                                                             lb3_new, ub3_new, lb4_new, ub4_new
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_c4'
       COMPLEX(KIND=dp), PARAMETER                        :: zero = (0.0_dp, 0.0_dp)
 
       COMPLEX(KIND=dp), ALLOCATABLE, &
@@ -196,7 +192,6 @@ $: reallocate(rank=4)
       INTEGER, DIMENSION(:), POINTER                     :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_i1'
       INTEGER, PARAMETER                                 :: zero = 0
 
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: work
@@ -221,7 +216,6 @@ $: reallocate(rank=1)
       INTEGER, DIMENSION(:, :), POINTER                  :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_i2'
       INTEGER, PARAMETER                                 :: zero = 0
 
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: work
@@ -249,7 +243,6 @@ $: reallocate(rank=2)
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new, &
                                                             lb3_new, ub3_new
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_i3'
       INTEGER, PARAMETER                                 :: zero = 0
 
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: work
@@ -280,7 +273,6 @@ $: reallocate(rank=3)
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new, &
                                                             lb3_new, ub3_new, lb4_new, ub4_new
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_i4'
       INTEGER, PARAMETER                                 :: zero = 0
 
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: work
@@ -303,7 +295,6 @@ $: reallocate(rank=4)
       INTEGER(KIND=int_8), DIMENSION(:), POINTER         :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_8i1'
       INTEGER(KIND=int_8), PARAMETER                     :: zero = 0
 
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: work
@@ -328,7 +319,6 @@ $: reallocate(rank=1)
       INTEGER(kind=int_8), DIMENSION(:, :), POINTER      :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_8i2'
       INTEGER(KIND=int_8), PARAMETER                     :: zero = 0
 
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:, :)  :: work
@@ -351,7 +341,6 @@ $: reallocate(rank=2)
       REAL(KIND=dp), DIMENSION(:), POINTER               :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_r1'
       REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: work
@@ -376,7 +365,6 @@ $: reallocate(rank=1)
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_r2'
       REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
@@ -404,7 +392,6 @@ $: reallocate(rank=2)
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new, &
                                                             lb3_new, ub3_new
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_r3'
       REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: work
@@ -435,7 +422,6 @@ $: reallocate(rank=3)
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new, &
                                                             lb3_new, ub3_new, lb4_new, ub4_new
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_r4'
       REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: work
@@ -469,7 +455,6 @@ $: reallocate(rank=4)
                                                             lb3_new, ub3_new, lb4_new, ub4_new, &
                                                             lb5_new, ub5_new
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_r5'
       REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
       REAL(KIND=dp), ALLOCATABLE, &
@@ -493,7 +478,6 @@ $: reallocate(rank=5)
       LOGICAL, DIMENSION(:), POINTER                     :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_l1'
       LOGICAL, PARAMETER                                 :: zero = .FALSE.
 
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: work
@@ -522,8 +506,6 @@ $: reallocate(rank=1)
       INTEGER, INTENT(IN)                                :: lb_new, ub_new
       CHARACTER(LEN=default_path_length), DIMENSION(:), &
          OPTIONAL, POINTER                               :: p_long
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_s1'
 
       IF (PRESENT(p_short)) THEN
          CALL reallocate_ss1(p_short, lb_new, ub_new)
@@ -554,7 +536,6 @@ $: reallocate(rank=1)
          DIMENSION(:), POINTER                           :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_ss1'
       CHARACTER(LEN=default_string_length), PARAMETER    :: zero = ""
 
       CHARACTER(LEN=default_string_length), &
@@ -582,7 +563,6 @@ $: reallocate(rank=1)
          POINTER                                         :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_ls1'
       CHARACTER(LEN=default_path_length), PARAMETER      :: zero = ""
 
       CHARACTER(LEN=default_path_length), ALLOCATABLE, &

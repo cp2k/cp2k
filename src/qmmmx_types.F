@@ -42,8 +42,6 @@ CONTAINS
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: potential_energy, kinetic_energy
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qmmmx_env_get'
-
       CPASSERT(ASSOCIATED(qmmmx_env))
       CPASSERT(qmmmx_env%ref_count > 0)
 
@@ -64,8 +62,6 @@ CONTAINS
    SUBROUTINE qmmmx_env_retain(qmmmx_env)
       TYPE(qmmmx_env_type), POINTER                      :: qmmmx_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qmmmx_env_retain'
-
       CPASSERT(ASSOCIATED(qmmmx_env))
       CPASSERT(qmmmx_env%ref_count > 0)
       qmmmx_env%ref_count = qmmmx_env%ref_count + 1
@@ -78,8 +74,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qmmmx_env_release(qmmmx_env)
       TYPE(qmmmx_env_type), POINTER                      :: qmmmx_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qmmmx_env_release'
 
       IF (ASSOCIATED(qmmmx_env)) THEN
          CPASSERT(qmmmx_env%ref_count > 0)

@@ -133,8 +133,6 @@ CONTAINS
    SUBROUTINE swarm_message_free(msg)
       TYPE(swarm_message_type), INTENT(INOUT)            :: msg
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'swarm_message_free'
-
       TYPE(message_entry_type), POINTER                  :: ENTRY, old_entry
 
       ENTRY => msg%root
@@ -209,8 +207,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: group
       INTEGER, INTENT(INOUT)                             :: src, tag
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'swarm_message_mpi_recv'
-
       INTEGER                                            :: i, length
       TYPE(message_entry_type), POINTER                  :: new_entry
 
@@ -235,8 +231,6 @@ CONTAINS
    SUBROUTINE swarm_message_mpi_bcast(msg, src, group)
       TYPE(swarm_message_type), INTENT(INOUT)            :: msg
       INTEGER, INTENT(IN)                                :: src, group
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'swarm_message_mpi_bcast'
 
       INTEGER                                            :: i, length, mepos, num_pe
       TYPE(message_entry_type), POINTER                  :: curr_entry
@@ -325,8 +319,6 @@ CONTAINS
       TYPE(cp_parser_type), POINTER                      :: parser
       LOGICAL, INTENT(INOUT)                             :: at_end
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'swarm_message_file_read_low'
-
       CHARACTER(LEN=20)                                  :: label
       INTEGER                                            :: i, length
       TYPE(message_entry_type), POINTER                  :: new_entry
@@ -366,8 +358,6 @@ CONTAINS
    FUNCTION swarm_message_equal_oneway(msg1, msg2) RESULT(res)
       TYPE(swarm_message_type), INTENT(IN)               :: msg1, msg2
       LOGICAL                                            :: res
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'swarm_message_equal_oneway'
 
       LOGICAL                                            :: found
       TYPE(message_entry_type), POINTER                  :: entry1, entry2
@@ -449,8 +439,6 @@ CONTAINS
       TYPE(message_entry_type), INTENT(IN)               :: ENTRY
       INTEGER, INTENT(IN)                                :: group, dest, tag
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'swarm_message_entry_mpi_send'
-
       INTEGER, DIMENSION(default_string_length)          :: value_str_arr
       INTEGER, DIMENSION(key_length)                     :: key_arr
 
@@ -515,8 +503,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: group
       INTEGER, INTENT(INOUT)                             :: src, tag
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'swarm_message_entry_mpi_recv'
-
       INTEGER                                            :: datatype, s
       INTEGER, DIMENSION(default_string_length)          :: value_str_arr
       INTEGER, DIMENSION(key_length)                     :: key_arr
@@ -575,8 +561,6 @@ CONTAINS
    SUBROUTINE swarm_message_entry_mpi_bcast(ENTRY, src, group, mepos)
       TYPE(message_entry_type), INTENT(INOUT)            :: ENTRY
       INTEGER, INTENT(IN)                                :: src, group, mepos
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'swarm_message_entry_mpi_bcast'
 
       INTEGER                                            :: datasize, datatype
       INTEGER, DIMENSION(default_string_length)          :: value_str_arr
@@ -665,8 +649,6 @@ CONTAINS
       TYPE(message_entry_type), INTENT(IN)               :: ENTRY
       INTEGER, INTENT(IN)                                :: unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'swarm_message_entry_file_write'
-
       INTEGER                                            :: i
 
       WRITE (unit, "(A,A)") "key: ", entry%key
@@ -734,8 +716,6 @@ CONTAINS
       TYPE(message_entry_type), INTENT(INOUT)            :: ENTRY
       TYPE(cp_parser_type), POINTER                      :: parser
       LOGICAL, INTENT(INOUT)                             :: at_end
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'swarm_message_entry_file_read'
 
       CHARACTER(LEN=15)                                  :: datatype, label
       INTEGER                                            :: arr_size, i

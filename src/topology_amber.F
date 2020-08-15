@@ -1016,8 +1016,6 @@ CONTAINS
       INTEGER, DIMENSION(:)                              :: array1
       INTEGER, INTENT(IN)                                :: dim
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_i1'
-
       INTEGER                                            :: i
       LOGICAL                                            :: my_end
 
@@ -1052,8 +1050,6 @@ CONTAINS
       CHARACTER(LEN=default_string_length), INTENT(IN)   :: section
       INTEGER, DIMENSION(:)                              :: array1, array2, array3
       INTEGER, INTENT(IN)                                :: dim
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_i3'
 
       INTEGER                                            :: i
       LOGICAL                                            :: my_end
@@ -1101,8 +1097,6 @@ CONTAINS
       CHARACTER(LEN=default_string_length), INTENT(IN)   :: section
       INTEGER, DIMENSION(:)                              :: array1, array2, array3, array4
       INTEGER, INTENT(IN)                                :: dim
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_i4'
 
       INTEGER                                            :: i
       LOGICAL                                            :: my_end
@@ -1158,8 +1152,6 @@ CONTAINS
       INTEGER, DIMENSION(:)                              :: array1, array2, array3, array4, array5
       INTEGER, INTENT(IN)                                :: dim
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_i5'
-
       INTEGER                                            :: i
       LOGICAL                                            :: my_end
 
@@ -1214,8 +1206,6 @@ CONTAINS
       CHARACTER(LEN=default_string_length), DIMENSION(:) :: array1
       INTEGER, INTENT(IN)                                :: dim
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_c1'
-
       INTEGER                                            :: i
       LOGICAL                                            :: my_end
 
@@ -1249,8 +1239,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:)                        :: array1
       INTEGER, INTENT(IN)                                :: dim
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_r1'
-
       INTEGER                                            :: i
       LOGICAL                                            :: my_end
 
@@ -1281,8 +1269,6 @@ CONTAINS
       TYPE(cp_parser_type), POINTER                      :: parser
       CHARACTER(LEN=default_string_length), INTENT(OUT)  :: section, input_format
       LOGICAL                                            :: another_section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_section_parmtop'
 
       INTEGER                                            :: end_f, indflag, start_f
       LOGICAL                                            :: found, my_end
@@ -1320,8 +1306,6 @@ CONTAINS
       TYPE(cp_parser_type), POINTER                      :: parser
       INTEGER, INTENT(IN)                                :: output_unit
       LOGICAL                                            :: found_AMBER_V8
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'check_amber_8_std'
 
       CALL parser_search_string(parser, "%VERSION ", .TRUE., found_AMBER_V8, begin_line=.TRUE.)
       IF (.NOT. found_AMBER_V8) &

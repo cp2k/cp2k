@@ -123,8 +123,6 @@ CONTAINS
          DIMENSION(:), OPTIONAL, POINTER                 :: lc_vals_ptr
       TYPE(enumeration_type), OPTIONAL, POINTER          :: enum
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'val_create'
-
       INTEGER                                            :: i, len_c, narg, nVal
 
       CPASSERT(.NOT. ASSOCIATED(val))
@@ -277,8 +275,6 @@ CONTAINS
    SUBROUTINE val_release(val)
       TYPE(val_type), POINTER                            :: val
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'val_release'
-
       IF (ASSOCIATED(val)) THEN
          CPASSERT(val%ref_count > 0)
          val%ref_count = val%ref_count - 1
@@ -310,8 +306,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE val_retain(val)
       TYPE(val_type), POINTER                            :: val
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'val_retain'
 
       CPASSERT(ASSOCIATED(val))
       CPASSERT(val%ref_count > 0)
@@ -358,8 +352,6 @@ CONTAINS
          DIMENSION(:), OPTIONAL, POINTER                 :: c_vals
       INTEGER, INTENT(out), OPTIONAL                     :: len_c, type_of_var
       TYPE(enumeration_type), OPTIONAL, POINTER          :: enum
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'val_get'
 
       INTEGER                                            :: i, l_in, l_out
 
@@ -494,8 +486,6 @@ CONTAINS
       INTEGER, INTENT(in)                                :: unit_nr
       TYPE(cp_unit_type), OPTIONAL, POINTER              :: unit
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: unit_str, fmt
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'val_write'
 
       CHARACTER(len=default_string_length)               :: c_string, myfmt, rcval
       INTEGER                                            :: i, iend, item, j, l
@@ -655,8 +645,6 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(OUT)                      :: string
       TYPE(cp_unit_type), OPTIONAL, POINTER              :: unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'val_write_internal'
-
       CHARACTER(LEN=default_string_length)               :: enum_string
       INTEGER                                            :: i, ipos
       REAL(KIND=dp)                                      :: value
@@ -741,8 +729,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE val_duplicate(val_in, val_out)
       TYPE(val_type), POINTER                            :: val_in, val_out
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'val_duplicate'
 
       CPASSERT(ASSOCIATED(val_in))
       CPASSERT(.NOT. ASSOCIATED(val_out))

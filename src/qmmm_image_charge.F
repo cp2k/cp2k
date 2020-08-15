@@ -586,8 +586,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'conditional_calc_image_matrix'
-
       IF (.NOT. qmmm_env%image_charge_pot%coeff_iterative) THEN
          SELECT CASE (qmmm_env%image_charge_pot%state_image_matrix)
          CASE (calc_always)
@@ -1131,8 +1129,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: forces
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_gradients_image_atoms'
-
       INTEGER                                            :: atom_a, iatom, natom, output_unit
       REAL(KIND=dp), DIMENSION(3)                        :: sum_gradients
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -1183,8 +1179,6 @@ CONTAINS
 
       REAL(KIND=dp), DIMENSION(:), POINTER               :: image_coeff
       TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_image_coefficients'
 
       INTEGER                                            :: atom_a, iatom, natom, output_unit
       REAL(KIND=dp)                                      :: normalize_factor, sum_coeff
@@ -1247,8 +1241,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: en_vmetal_rhohartree, en_external, &
                                                             total_rho_metal
       TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_image_energy_terms'
 
       INTEGER                                            :: output_unit
       TYPE(cp_logger_type), POINTER                      :: logger

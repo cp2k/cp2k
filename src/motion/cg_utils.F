@@ -960,8 +960,6 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:)                        :: x, y, dy
       REAL(kind=dp)                                      :: res
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'FindMin'
-
       INTEGER                                            :: i, info, iwork(8*3), lwork, min_pos, np
       REAL(kind=dp)                                      :: diag(3), res1(3), res2(3), res3(3), &
                                                             spread, sum_x, sum_xx, tmpw(1), &

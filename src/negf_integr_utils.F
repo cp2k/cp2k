@@ -162,8 +162,6 @@ CONTAINS
       COMPLEX(kind=dp), INTENT(in)                       :: a, b
       REAL(kind=dp)                                      :: phi
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_arc_smallest_angle'
-
       COMPLEX(kind=dp) :: b_minus_a
       REAL(kind=dp)    :: delta2, l2
 
@@ -182,8 +180,6 @@ CONTAINS
    PURE FUNCTION get_axis_rotation_angle(a, b) RESULT(phi)
       COMPLEX(kind=dp), INTENT(in)                       :: a, b
       REAL(kind=dp)                                      :: phi
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_axis_rotation_angle'
 
       COMPLEX(kind=dp) :: b_minus_a
 
@@ -208,8 +204,6 @@ CONTAINS
       COMPLEX(kind=dp), INTENT(in)                       :: a, b
       COMPLEX(kind=dp), DIMENSION(:), INTENT(out)        :: xnodes
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rescale_nodes_arc'
-
       COMPLEX(kind=dp)                                   :: origin
       INTEGER                                            :: i
       REAL(kind=dp)                                      :: radius
@@ -233,8 +227,6 @@ CONTAINS
       INTEGER, INTENT(in)                                :: nnodes
       REAL(kind=dp), DIMENSION(nnodes), INTENT(inout)    :: tnodes
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rescale_nodes_cos'
-
       tnodes(:) = COS(0.5_dp*pi*(1.0_dp - tnodes(:)))
    END SUBROUTINE rescale_nodes_cos
 
@@ -253,8 +245,6 @@ CONTAINS
       REAL(kind=dp), DIMENSION(nnodes), INTENT(in)       :: tnodes
       COMPLEX(kind=dp), INTENT(in)                       :: a, b
       COMPLEX(kind=dp), DIMENSION(nnodes), INTENT(out)   :: xnodes
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'rescale_nodes_linear'
 
       COMPLEX(kind=dp)                                   :: half_len, median
 
@@ -278,8 +268,6 @@ CONTAINS
       COMPLEX(kind=dp), INTENT(in)                       :: a, b
       INTEGER, INTENT(in)                                :: nnodes
       REAL(kind=dp), DIMENSION(nnodes), INTENT(inout)    :: tnodes
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'rescale_nodes_pi_phi'
 
       REAL(kind=dp)                                      :: half_pi_minus_phi, phi
 

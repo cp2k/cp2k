@@ -58,8 +58,6 @@ CONTAINS
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'lyp_adiabatic_lda_info'
-
       IF (PRESENT(reference)) THEN
          reference = "C. Lee, W. Yang, R.G. Parr, Phys. Rev. B, 37, 785 (1988) {LDA version}"
       END IF
@@ -90,8 +88,6 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'lyp_adiabatic_lsd_info'
 
       IF (PRESENT(reference)) THEN
          reference = "C. Lee, W. Yang, R.G. Parr, Phys. Rev. B, 37, 785 (1988) {LSD version}"
@@ -210,8 +206,6 @@ CONTAINS
       REAL(kind=dp), DIMENSION(1:npoints), INTENT(inout) :: e_ndrho, e_rho, e_0
       REAL(kind=dp), DIMENSION(1:npoints), INTENT(in)    :: norm_drho, rho
       REAL(kind=dp), INTENT(in)                          :: epsilon_rho, lambda
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'lyp_adiabatic_lda_calc'
 
       INTEGER                                            :: ii
       REAL(kind=dp) :: cf, my_ndrho, my_rho, t10, t107, t11, t117, t12, t122, t125, t13, t14, t15, &
@@ -456,8 +450,6 @@ CONTAINS
       REAL(kind=dp), DIMENSION(*), INTENT(inout)         :: e_0, e_ra, e_rb, e_ndr, e_ndra, e_ndrb
       INTEGER, INTENT(in)                                :: grad_deriv, npoints
       REAL(kind=dp), INTENT(in)                          :: epsilon_rho, lambda
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'lyp_adiabatic_lsd_calc'
 
       INTEGER                                            :: ii
       REAL(KIND=dp) :: cf, my_ndrho, my_ndrhoa, my_ndrhob, my_rhoa, my_rhob, t1, t10, t100, t102, &

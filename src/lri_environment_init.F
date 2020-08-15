@@ -63,8 +63,6 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(section_vals_type), POINTER                   :: lri_section
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'lri_env_init'
-
       REAL(KIND=dp), DIMENSION(:), POINTER               :: radii
 
       NULLIFY (lri_env)
@@ -126,8 +124,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'lri_env_basis'
 
       INTEGER :: i, i1, i2, iat, ikind, ip, ipgf, iset, ishell, jp, l, lmax_ikind_orb, &
          lmax_ikind_ri, maxl_orb, maxl_ri, n1, n2, natom, nbas, nkind, nribas, nspin
@@ -335,8 +331,6 @@ CONTAINS
    SUBROUTINE lri_basis_init(lri_env)
       TYPE(lri_environment_type), POINTER                :: lri_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'lri_basis_init'
-
       INTEGER                                            :: ikind, nkind
       INTEGER, DIMENSION(:, :, :), POINTER               :: orb_index, ri_index
       REAL(KIND=dp)                                      :: delta
@@ -419,8 +413,6 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: basis
       REAL(dp), DIMENSION(:), POINTER                    :: norm
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'basis_norm_s_func'
-
       INTEGER                                            :: ipgf, iset, isgf, ishell, jpgf, l, nbas
       REAL(KIND=dp)                                      :: aai, aaj, cci, ccj, expa, ppl
 
@@ -463,8 +455,6 @@ CONTAINS
 
       TYPE(gto_basis_set_type), POINTER                  :: basis
       REAL(dp), DIMENSION(:), POINTER                    :: norm
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'basis_norm_radial'
 
       INTEGER                                            :: ipgf, iset, isgf, ishell, jpgf, l, nbas
       REAL(KIND=dp)                                      :: aai, aaj, cci, ccj, expa, ppl
@@ -509,8 +499,6 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: basis
       REAL(dp), DIMENSION(:), POINTER                    :: int_aux, norm
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'basis_int'
-
       INTEGER                                            :: ipgf, iset, isgf, ishell, l, nbas
       REAL(KIND=dp)                                      :: aa, cc, pp
 
@@ -549,8 +537,6 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: basis
       REAL(dp), DIMENSION(:, :), POINTER                 :: ovlp
       REAL(dp), DIMENSION(:), POINTER                    :: norm
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'basis_ovlp'
 
       INTEGER                                            :: ipgf, iset, isgf, ishell, jpgf, jset, &
                                                             jsgf, jshell, l, li, lj, m_i, m_j, nbas

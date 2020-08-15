@@ -45,8 +45,6 @@ CONTAINS
    SUBROUTINE create_embed_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_embed_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: sub2section, sub3section, subsection
 
@@ -184,8 +182,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_print_embed_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_print_embed_section'
 
       TYPE(section_type), POINTER                        :: print_key
 

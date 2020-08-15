@@ -1401,8 +1401,6 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: n_oxygens, n_hydrogens
       INTEGER, DIMENSION(:), POINTER                     :: i_oxygens, i_hydrogens
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_hydronium_colvars'
-
       INTEGER                                            :: k, n_var, ndim
       INTEGER, DIMENSION(:), POINTER                     :: iatms
 
@@ -1479,8 +1477,6 @@ CONTAINS
                                                             n_hydrogens
       INTEGER, DIMENSION(:), POINTER                     :: i_oxygens_water, i_oxygens_acid, &
                                                             i_hydrogens
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_acid_hydronium_colvars'
 
       INTEGER                                            :: k, n_var, ndim
       INTEGER, DIMENSION(:), POINTER                     :: iatms
@@ -1560,8 +1556,6 @@ CONTAINS
       TYPE(colvar_type), POINTER                         :: colvar
       TYPE(section_vals_type), POINTER                   :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'colvar_check_points'
-
       INTEGER                                            :: i, irep, natoms, npoints, nrep, nweights
       INTEGER, DIMENSION(:), POINTER                     :: atoms
       LOGICAL                                            :: explicit
@@ -1640,8 +1634,6 @@ CONTAINS
          OPTIONAL                                        :: pos
       TYPE(fixd_constraint_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: fixd_list
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'colvar_eval_mol_f'
 
       INTEGER                                            :: i, j
       LOGICAL                                            :: colvar_ok
@@ -1733,8 +1725,6 @@ CONTAINS
       INTEGER                                            :: icolvar
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'colvar_eval_glob_f'
-
       LOGICAL                                            :: colvar_ok
       TYPE(cell_type), POINTER                           :: cell
       TYPE(colvar_type), POINTER                         :: colvar
@@ -1821,8 +1811,6 @@ CONTAINS
       TYPE(colvar_type), POINTER                         :: colvar
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'colvar_recursive_eval'
 
 ! Initialize the content of the derivative
 
@@ -1960,8 +1948,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particles
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'xyz_diag_colvar'
-
       INTEGER                                            :: i
       REAL(dp)                                           :: fi(3), r, r0(3), ss(3), xi(3), xpi(3)
       TYPE(particle_list_type), POINTER                  :: particles_i
@@ -2066,8 +2052,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particles
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xyz_outerdiag_colvar'
-
       INTEGER                                            :: i, k, l
       REAL(dp)                                           :: fi(3, 2), r, r0(3), ss(3), xi(3, 2), &
                                                             xpi(3)
@@ -2147,8 +2131,6 @@ CONTAINS
    SUBROUTINE u_colvar(colvar, force_env)
       TYPE(colvar_type), POINTER                         :: colvar
       TYPE(force_env_type), OPTIONAL, POINTER            :: force_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'u_colvar'
 
       CHARACTER(LEN=default_path_length)                 :: coupling_function
       CHARACTER(LEN=default_string_length)               :: def_error, this_error
@@ -2319,8 +2301,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particles
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'plane_distance_colvar'
-
       INTEGER                                            :: i, j, k, l
       REAL(dp) :: a, b, dsdxpn(3), dxpndxi(3, 3), dxpndxj(3, 3), dxpndxk(3, 3), fi(3), fj(3), &
          fk(3), fl(3), r12, ri(3), rj(3), rk(3), rl(3), ss(3), xpij(3), xpkj(3), xpl(3), xpn(3)
@@ -2433,8 +2413,6 @@ CONTAINS
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particles
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'plane_plane_angle_colvar'
 
       INTEGER                                            :: i1, i2, j1, j2, k1, k2, np
       LOGICAL                                            :: check
@@ -2654,8 +2632,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particles
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'rotation_colvar'
-
       INTEGER                                            :: i, idum
       REAL(dp)                                           :: a, b, fmod, t0, t1, t2, t3, xdum(3), &
                                                             xij(3), xkj(3)
@@ -2740,8 +2716,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particles
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dfunct_colvar'
-
       INTEGER                                            :: i, j, k, l
       REAL(dp)                                           :: fi(3), fj(3), fk(3), fl(3), r12, r34, &
                                                             ss(3), xij(3), xkl(3), xpi(3), xpj(3), &
@@ -2812,8 +2786,6 @@ CONTAINS
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particles
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'angle_colvar'
 
       INTEGER                                            :: i, j, k
       REAL(dp)                                           :: a, b, fi(3), fj(3), fk(3), fmod, ri(3), &
@@ -2886,8 +2858,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particles
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dist_colvar'
-
       INTEGER                                            :: i, j
       REAL(dp)                                           :: fi(3), fj(3), r12, ss(3), xij(3), &
                                                             xpi(3), xpj(3)
@@ -2958,8 +2928,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particles
       LOGICAL, INTENT(IN), OPTIONAL                      :: no_riemann_sheet_op
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'torsion_colvar'
 
       INTEGER                                            :: i, ii
       LOGICAL                                            :: no_riemann_sheet
@@ -3115,8 +3083,6 @@ CONTAINS
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particles
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qparm_colvar'
 
       INTEGER                                            :: aa, bb, cc, i, idim, ii, j, jj, l, mm, &
                                                             n_atoms_from, n_atoms_to, ncells(3)
@@ -3407,8 +3373,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particles
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'hydronium_shell_colvar'
-
       INTEGER                                            :: i, ii, j, jj, n_hydrogens, n_oxygens, &
                                                             pm, poh, poo, qm, qoh, qoo
       REAL(dp)                                           :: drji, fscalar, invden, lambda, nh, num, &
@@ -3565,8 +3529,6 @@ CONTAINS
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particles
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'hydronium_dist_colvar'
 
       INTEGER                                            :: i, ii, j, jj, k, kk, n_hydrogens, &
                                                             n_oxygens, offsetH, pf, pm, poh, qf, &
@@ -3781,8 +3743,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particles
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'acid_hyd_dist_colvar'
-
       INTEGER                                            :: i, ii, j, jj, k, kk, n_hydrogens, &
                                                             n_oxygens_acid, n_oxygens_water, &
                                                             offsetH, offsetO, paoh, pcut, pwoh, &
@@ -3974,8 +3934,6 @@ CONTAINS
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particles
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'acid_hyd_shell_colvar'
 
       INTEGER :: i, ii, j, jj, k, kk, n_hydrogens, n_oxygens_acid, n_oxygens_water, offsetH, &
          offsetO, paoh, pcut, pm, poo, pwoh, qaoh, qcut, qm, qoo, qwoh, tt
@@ -4194,8 +4152,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particles
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'coord_colvar'
-
       INTEGER                                            :: i, ii, j, jj, k, kk, n_atoms_from, &
                                                             n_atoms_to_a, n_atoms_to_b, p_a, p_b, &
                                                             q_a, q_b
@@ -4324,8 +4280,6 @@ CONTAINS
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particles
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'mindist_colvar'
 
       INTEGER                                            :: i, ii, j, jj, n_coord_from, n_coord_to, &
                                                             n_dist_from, p, q
@@ -4492,8 +4446,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particles
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'combine_colvar'
-
       CHARACTER(LEN=default_string_length)               :: def_error, this_error
       CHARACTER(LEN=default_string_length), &
          ALLOCATABLE, DIMENSION(:)                       :: my_par
@@ -4592,8 +4544,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particles
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'reaction_path_colvar'
-
       TYPE(particle_list_type), POINTER                  :: particles_i
       TYPE(particle_type), DIMENSION(:), POINTER         :: my_particles
 
@@ -4629,8 +4579,6 @@ CONTAINS
       TYPE(colvar_type), POINTER                         :: colvar
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'rpath_colvar'
 
       INTEGER                                            :: i, iend, ii, istart, j, k, ncolv, nconf
       REAL(dp)                                           :: lambda, step_size
@@ -4714,8 +4662,6 @@ CONTAINS
    SUBROUTINE rpath_dist_rmsd(colvar, particles)
       TYPE(colvar_type), POINTER                         :: colvar
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'rpath_dist_rmsd'
 
       INTEGER                                            :: i, iat, ii, ik, natom, nconf, rmsd_atom
       INTEGER, DIMENSION(:), POINTER                     :: iatom
@@ -4828,8 +4774,6 @@ CONTAINS
    SUBROUTINE rpath_rmsd(colvar, particles)
       TYPE(colvar_type), POINTER                         :: colvar
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'rpath_rmsd'
 
       INTEGER                                            :: i, iat, ii, ik, natom, nconf, rmsd_atom
       INTEGER, DIMENSION(:), POINTER                     :: iatom
@@ -4953,8 +4897,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particles
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'distance_from_path_colvar'
-
       TYPE(particle_list_type), POINTER                  :: particles_i
       TYPE(particle_type), DIMENSION(:), POINTER         :: my_particles
 
@@ -4991,8 +4933,6 @@ CONTAINS
       TYPE(colvar_type), POINTER                         :: colvar
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dpath_colvar'
 
       INTEGER                                            :: i, iend, ii, istart, j, k, ncolv
       REAL(dp)                                           :: lambda, s1
@@ -5067,8 +5007,6 @@ CONTAINS
 
       TYPE(colvar_type), POINTER                         :: colvar
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dpath_dist_rmsd'
 
       INTEGER                                            :: i, iat, ii, ik, natom, nconf, rmsd_atom
       INTEGER, DIMENSION(:), POINTER                     :: iatom
@@ -5169,8 +5107,6 @@ CONTAINS
 
       TYPE(colvar_type), POINTER                         :: colvar
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dpath_rmsd'
 
       INTEGER                                            :: i, iat, ii, ik, natom, nconf, rmsd_atom
       INTEGER, DIMENSION(:), POINTER                     :: iatom
@@ -5282,8 +5218,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particles
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'population_colvar'
-
       INTEGER                                            :: i, ii, jj, n_atoms_from, n_atoms_to, &
                                                             ndcrd, nncrd
       REAL(dp) :: dfunc, dfunc_coord, ftmp(3), func, func_coord, inv_n_atoms_from, invden, n_0, &
@@ -5386,8 +5320,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particles
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'gyration_radius_colvar'
-
       INTEGER                                            :: i, ii, n_atoms
       REAL(dp)                                           :: dri2, func, gyration, inv_n, mass_tot, mi
       REAL(dp), DIMENSION(3)                             :: dfunc, dxi, ftmp, ss, xpcom, xpi
@@ -5465,8 +5397,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particles
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'rmsd_colvar'
-
       CALL rmsd_colvar_low(colvar, subsys, particles)
    END SUBROUTINE rmsd_colvar
 
@@ -5489,8 +5419,6 @@ CONTAINS
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particles
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'rmsd_colvar_low'
 
       INTEGER                                            :: i, ii, natom, nframes
       REAL(kind=dp)                                      :: cv_val, f1, ftmp(3)
@@ -5598,8 +5526,6 @@ CONTAINS
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particles
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'ring_puckering_colvar'
 
       INTEGER                                            :: i, ii, j, jj, m, nring
       REAL(KIND=dp)                                      :: a, at, b, da, db, ds, kr, rpxpp, svar
@@ -5854,8 +5780,6 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: r_ref
       INTEGER, INTENT(OUT)                               :: n_atoms
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_frames'
-
       CHARACTER(LEN=default_path_length)                 :: filename
       CHARACTER(LEN=default_string_length)               :: dummy_char
       INTEGER                                            :: i, j, natom
@@ -5936,8 +5860,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), &
          OPTIONAL, POINTER                      :: particles
       TYPE(qs_environment_type), POINTER, OPTIONAL       :: qs_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'Wc_colvar'
 
       INTEGER                                  :: Od, H, Oa
       REAL(dp)                                 :: rOd(3), rOa(3), rH(3), &
@@ -6049,8 +5971,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), &
          OPTIONAL, POINTER                      :: particles
       TYPE(qs_environment_type), POINTER, OPTIONAL       :: qs_env ! optional just because I am lazy... but I should get rid of it...
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'HBP_colvar'
 
       INTEGER                                  :: Od, H, Oa
       REAL(dp)                                 :: rOd(3), rOa(3), rH(3), &

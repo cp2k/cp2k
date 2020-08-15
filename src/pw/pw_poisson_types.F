@@ -192,8 +192,6 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       TYPE(pw_grid_type), POINTER                        :: mt_super_ref_pw_grid, dct_pw_grid
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_green_create'
-
       INTEGER                                            :: dim, i, ig, iz, n, nz
       REAL(KIND=dp)                                      :: g2, g3d, gg, gxy, gz, j0g, j1g, k0g, &
                                                             k1g, rlength, zlength
@@ -445,8 +443,6 @@ CONTAINS
    SUBROUTINE pw_green_retain(gftype)
       TYPE(greens_fn_type), POINTER                      :: gftype
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_green_retain'
-
       CPASSERT(ASSOCIATED(gftype))
       CPASSERT(gftype%ref_count > 0)
       gftype%ref_count = gftype%ref_count + 1
@@ -464,8 +460,6 @@ CONTAINS
    SUBROUTINE pw_green_release(gftype, pw_pool)
       TYPE(greens_fn_type), POINTER                      :: gftype
       TYPE(pw_pool_type), OPTIONAL, POINTER              :: pw_pool
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_green_release'
 
       LOGICAL                                            :: can_give_back
 
@@ -510,8 +504,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE influence_factor(gftype)
       TYPE(greens_fn_type), POINTER                      :: gftype
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'influence_factor'
 
       COMPLEX(KIND=dp)                                   :: b_m, exp_m, sum_m
       INTEGER                                            :: dim, j, k, l, n, pt
@@ -614,8 +606,6 @@ CONTAINS
 
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_poisson_create'
-
       CPASSERT(.NOT. ASSOCIATED(poisson_env))
       ALLOCATE (poisson_env)
       last_poisson_id = last_poisson_id + 1
@@ -643,8 +633,6 @@ CONTAINS
    SUBROUTINE pw_poisson_retain(poisson_env)
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_poisson_retain'
-
       CPASSERT(ASSOCIATED(poisson_env))
       CPASSERT(poisson_env%ref_count > 0)
       poisson_env%ref_count = poisson_env%ref_count + 1
@@ -660,8 +648,6 @@ CONTAINS
    SUBROUTINE pw_poisson_release(poisson_env)
 
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_release'
 
       IF (ASSOCIATED(poisson_env)) THEN
          CPASSERT(poisson_env%ref_count > 0)

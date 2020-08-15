@@ -90,8 +90,6 @@ CONTAINS
       TYPE(gopt_f_type), POINTER                         :: gopt_env
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x0
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'gopt_f_create_x0'
-
       INTEGER                                            :: i, idg, j, nparticle
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_subsys_type), POINTER                      :: subsys
@@ -187,8 +185,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: its
       REAL(KIND=dp)                                      :: used_time
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'gopt_f_io_init'
-
       REAL(KIND=dp)                                      :: pres_int
 
       SELECT CASE (gopt_env%type_id)
@@ -254,8 +250,6 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: conv
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pred, rat, step, rad
       REAL(KIND=dp)                                      :: used_time
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'gopt_f_io'
 
       REAL(KIND=dp)                                      :: pres_diff, pres_diff_constr, pres_int, &
                                                             pres_tol
@@ -345,8 +339,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: master, output_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_io_finalize'
-
       IF (gopt_env%eval_opt_geo) THEN
          IF (.NOT. gopt_env%dimer_rotation) THEN
             CALL write_final_info(output_unit, conv, its, gopt_env, x0, master, &
@@ -383,8 +375,6 @@ CONTAINS
                                                             pres_int
       CHARACTER(LEN=5), OPTIONAL                         :: wildcard
       REAL(KIND=dp), INTENT(IN)                          :: used_time
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_cycle_infos'
 
       REAL(KIND=dp)                                      :: tmp_r1
 
@@ -459,8 +449,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: used_time
       CHARACTER(LEN=5), OPTIONAL                         :: wildcard
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_rot_cycle_infos'
-
       IF (output_unit > 0) THEN
          WRITE (UNIT=output_unit, FMT="(/,T2,4('-'),A,I5,1X,5('-'))") &
             "  Informations at rotational step = ", it
@@ -512,8 +500,6 @@ CONTAINS
       LOGICAL, INTENT(OUT)                               :: conv
       TYPE(gopt_param_type), POINTER                     :: gopt_param
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pres_diff, pres_tol, pres_diff_constr
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_converg'
 
       INTEGER                                            :: indf
       LOGICAL                                            :: conv_dx, conv_g, conv_p, conv_rdx, &
@@ -672,8 +658,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: output_unit
       LOGICAL, INTENT(OUT)                               :: conv
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_rot_conv'
-
       conv = (ABS(dimer_env%rot%angle2) < dimer_env%rot%angle_tol)
       IF (output_unit > 0) THEN
          WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
@@ -731,8 +715,6 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(section_vals_type), POINTER                   :: motion_section, root_section
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_final_info'
-
       REAL(KIND=dp)                                      :: etot
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_subsys_type), POINTER                      :: subsys
@@ -774,8 +756,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: root_section
       INTEGER, INTENT(IN)                                :: it
       REAL(KIND=dp), INTENT(IN)                          :: etot
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_geo_traj'
 
       LOGICAL                                            :: shell_adiabatic, shell_present
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
@@ -833,8 +813,6 @@ CONTAINS
       TYPE(gopt_f_type), POINTER                         :: gopt_env
       INTEGER, INTENT(IN)                                :: output_unit
       CHARACTER(LEN=*), INTENT(IN)                       :: label
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_geo_opt_header'
 
       CHARACTER(LEN=default_string_length)               :: my_format, my_label
       INTEGER                                            :: ix
@@ -907,8 +885,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: its
       REAL(KIND=dp), INTENT(IN)                          :: opt_energy
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'geo_opt_io'
-
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -960,8 +936,6 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x
       LOGICAL, INTENT(IN)                                :: update_forces
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'apply_cell_change'
 
       INTEGER                                            :: i, iatom, idg, j, natom, nparticle, &
                                                             shell_index

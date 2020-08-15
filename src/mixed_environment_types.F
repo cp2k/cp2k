@@ -158,8 +158,6 @@ CONTAINS
       TYPE(cp_result_type), OPTIONAL, POINTER            :: results
       TYPE(mixed_cdft_type), OPTIONAL, POINTER           :: cdft_control
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_mixed_env'
-
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_list_type), POINTER                  :: molecules
@@ -260,8 +258,6 @@ CONTAINS
          POINTER                                         :: sub_para_env
       TYPE(mixed_cdft_type), OPTIONAL, POINTER           :: cdft_control
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_mixed_env'
-
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_list_type), POINTER                  :: molecules
@@ -334,8 +330,6 @@ CONTAINS
       TYPE(mixed_environment_type), POINTER              :: mixed_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'mixed_env_create'
-
       ALLOCATE (mixed_env)
       CALL init_mixed_env(mixed_env, para_env=para_env)
    END SUBROUTINE mixed_env_create
@@ -347,8 +341,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mixed_env_retain(mixed_env)
       TYPE(mixed_environment_type), POINTER              :: mixed_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'mixed_env_retain'
 
       CPASSERT(ASSOCIATED(mixed_env))
       CPASSERT(mixed_env%ref_count > 0)
@@ -362,8 +354,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mixed_env_release(mixed_env)
       TYPE(mixed_environment_type), POINTER              :: mixed_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'mixed_env_release'
 
       INTEGER                                            :: i, ngroups
 

@@ -59,8 +59,6 @@ CONTAINS
    SUBROUTINE apply_qmmm_walls(qmmm_env)
       TYPE(qmmm_env_type), POINTER                       :: qmmm_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_qmmm_walls'
-
       INTEGER                                            :: iwall_type
       LOGICAL                                            :: do_qmmm_force_mixing, explicit
       TYPE(section_vals_type), POINTER                   :: qmmmx_section, walls_section
@@ -97,8 +95,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE apply_qmmm_walls_reflective(force_env)
       TYPE(force_env_type), POINTER                      :: force_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'apply_qmmm_walls_reflective'
 
       INTEGER                                            :: ip, iwall_type, qm_index
       INTEGER, DIMENSION(:), POINTER                     :: qm_atom_index
@@ -213,8 +209,6 @@ CONTAINS
       TYPE(qmmm_env_type), POINTER                       :: qmmm_env
       TYPE(section_vals_type), POINTER                   :: walls_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'apply_qmmm_walls_quadratic'
-
       INTEGER                                            :: ip, qm_index
       INTEGER, DIMENSION(:), POINTER                     :: qm_atom_index
       LOGICAL                                            :: is_x(2), is_y(2), is_z(2)
@@ -317,8 +311,6 @@ CONTAINS
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: qm_atom_index
       REAL(dp), ALLOCATABLE                              :: saved_pos(:, :)
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_qmmm_wrap'
-
       INTEGER                                            :: i_dim, ip
       REAL(dp)                                           :: r_lat(3)
 
@@ -354,8 +346,6 @@ CONTAINS
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: qm_atom_index
       REAL(dp), ALLOCATABLE                              :: saved_pos(:, :)
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_qmmm_unwrap'
-
       INTEGER                                            :: ip
 
       DO ip = 1, subsys_mm%particles%n_els
@@ -381,8 +371,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE apply_qmmm_translate(qmmm_env)
       TYPE(qmmm_env_type), POINTER                       :: qmmm_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'apply_qmmm_translate'
 
       INTEGER                                            :: bigger_ip, i_dim, ip, max_ip, min_ip, &
                                                             smaller_ip, tmp_ip, unit_nr
@@ -628,8 +616,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(2), INTENT(IN)            :: spherical_cutoff
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rij
       REAL(KIND=dp), INTENT(OUT)                         :: factor
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'spherical_cutoff_factor'
 
       REAL(KIND=dp)                                      :: r, r0
 

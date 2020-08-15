@@ -247,8 +247,6 @@ CONTAINS
 
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_qs_kind_set'
-
       INTEGER                                            :: ikind, nkind
 
       IF (ASSOCIATED(qs_kind_set)) THEN
@@ -487,8 +485,6 @@ CONTAINS
       TYPE(pao_descriptor_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: pao_descriptors
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: nelec
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_qs_kind'
 
       CHARACTER(LEN=default_string_length)               :: my_basis_type
       INTEGER                                            :: l
@@ -819,8 +815,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: basis_rcut
       CHARACTER(len=*), OPTIONAL                         :: basis_type
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: total_zeff_corr
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_qs_kind_set'
 
       CHARACTER(len=default_string_length)               :: my_basis_type
       INTEGER                                            :: ikind, imax, lmax_rho0_kind, &
@@ -1240,8 +1234,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section
       LOGICAL, OPTIONAL                                  :: modify_qs_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_gapw_basis_set'
-
       INTEGER                                            :: ikind, nkind
       LOGICAL                                            :: gpw, my_mod_control, paw_atom
       REAL(dp)                                           :: max_rad_local_type, rc
@@ -1314,8 +1306,6 @@ CONTAINS
    SUBROUTINE init_gapw_nlcc(qs_kind_set)
 
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'init_gapw_nlcc'
 
       INTEGER                                            :: i, ic, ikind, n_nlcc, nc, nexp_nlcc, &
                                                             nkind, nr
@@ -2500,8 +2490,6 @@ CONTAINS
       TYPE(dft_control_type), INTENT(IN)                 :: dft_control
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_qs_kind'
-
       LOGICAL                                            :: defined
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_parameter
       TYPE(semi_empirical_type), POINTER                 :: se_parameter
@@ -2574,8 +2562,6 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: subsys_section
       TYPE(xtb_control_type), POINTER                    :: xtb_control
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_xtb_kab_param'
 
       CHARACTER(LEN=default_string_length)               :: aname, bname
       INTEGER                                            :: ikind, io_unit, jkind, nkind, za, zb
@@ -2656,8 +2642,6 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: elec_conf
       INTEGER, INTENT(IN), OPTIONAL                      :: pao_basis_size
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_qs_kind'
-
       IF (PRESENT(dftb_parameter)) qs_kind%dftb_parameter => dftb_parameter
       IF (PRESENT(xtb_parameter)) qs_kind%xtb_parameter => xtb_parameter
       IF (PRESENT(elec_conf)) THEN
@@ -2714,8 +2698,6 @@ CONTAINS
 
       TYPE(qs_kind_type), POINTER                        :: qs_kind
       INTEGER, INTENT(in)                                :: kind_number, output_unit
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'write_qs_kind'
 
       CHARACTER(LEN=3)                                   :: yon
       CHARACTER(LEN=default_string_length)               :: basis_type, bstring
@@ -2978,8 +2960,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(0:lmat, 10, 2), &
          INTENT(OUT)                                     :: edelta
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_atom_electronic_state'
-
       INTEGER                                            :: i, ii, is, l, ll, ne, nn, z
       INTEGER, DIMENSION(:), POINTER                     :: econf
       INTEGER, DIMENSION(:, :), POINTER                  :: addel, laddel, naddel
@@ -3110,8 +3090,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: z
       INTEGER, DIMENSION(0:lmat, 10), INTENT(OUT)        :: ncalc, ncore, nelem
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_pseudo_state'
-
       INTEGER                                            :: ii, l, ll, lx, nn
       INTEGER, DIMENSION(0:lmat)                         :: econfx
 
@@ -3193,8 +3171,6 @@ CONTAINS
 
       TYPE(qs_kind_type), DIMENSION(:)                   :: qs_kind_set
       LOGICAL                                            :: nlcc
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'has_nlcc'
 
       INTEGER                                            :: ikind
       LOGICAL                                            :: nlcc_present

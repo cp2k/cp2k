@@ -136,8 +136,6 @@ CONTAINS
       CHARACTER(LEN=*)                                   :: input_file_name
       CHARACTER(LEN=*), OPTIONAL                         :: wdir
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp2k_init'
-
       CHARACTER(LEN=10*default_string_length)            :: cp_flags
       CHARACTER(LEN=default_string_length)               :: dev_flag
       INTEGER                                            :: ilen, my_output_unit
@@ -232,8 +230,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: output_unit
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'echo_all_hosts'
-
       CHARACTER(LEN=default_string_length)               :: string
       INTEGER                                            :: ipe
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: all_pid
@@ -274,8 +270,6 @@ CONTAINS
    SUBROUTINE echo_all_process_host(para_env, output_unit)
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: output_unit
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'echo_all_process_host'
 
       CHARACTER(LEN=default_string_length)               :: string, string_sec
       INTEGER                                            :: ipe, jpe, nr_occu
@@ -339,8 +333,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp2k_read'
-
       CHARACTER(len=default_string_length)               :: c_val
       INTEGER                                            :: iw
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -395,8 +387,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cp2k_setup'
 
       INTEGER                                            :: iw, maxl
       INTEGER, DIMENSION(:), POINTER                     :: seed_vals
@@ -483,8 +473,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_global_section', &
-         start_section_label = "GLOBAL"
+      CHARACTER(LEN=6), PARAMETER                        :: start_section_label = "GLOBAL"
 
       CHARACTER(len=13)                                  :: tracing_string
       CHARACTER(len=6)                                   :: print_level_string
@@ -852,8 +841,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_cp2k_section'
-
       INTEGER                                            :: output_unit
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: global_section
@@ -887,8 +874,6 @@ CONTAINS
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(section_vals_type), POINTER                   :: global_section
       INTEGER, INTENT(IN)                                :: output_unit
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_setup_library'
 
       COMPLEX(KIND=dp), DIMENSION(4, 4, 4)               :: zz
       INTEGER                                            :: stat
@@ -977,8 +962,6 @@ CONTAINS
       TYPE(global_environment_type), POINTER             :: globenv
       INTEGER, INTENT(IN)                                :: output_unit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'diag_setup_library'
-
       LOGICAL                                            :: fallback_applied
 
       CALL diag_init(diag_lib=TRIM(globenv%diag_library), fallback_applied=fallback_applied, &
@@ -1004,8 +987,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fm_setup(glob_section)
       TYPE(section_vals_type), POINTER                   :: glob_section
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fm_setup'
 
       INTEGER                                            :: multiplication_type, ncb, nrb
       LOGICAL                                            :: force_me
@@ -1035,8 +1016,6 @@ CONTAINS
    SUBROUTINE fm_diag_rules_setup(glob_section)
       TYPE(section_vals_type), POINTER                   :: glob_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_diag_rules_setup'
-
       INTEGER                                            :: a, x
       LOGICAL                                            :: elpa_force_redistribute, should_print
       TYPE(section_vals_type), POINTER                   :: section
@@ -1064,8 +1043,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: section
       CHARACTER(len=*), INTENT(in)                       :: keyword_name
       REAL(KIND=dp), INTENT(out)                         :: walltime
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp2k_get_walltime'
 
       CHARACTER(LEN=1)                                   :: c1, c2
       CHARACTER(LEN=100)                                 :: txt
@@ -1111,8 +1088,6 @@ CONTAINS
       TYPE(global_environment_type), POINTER             :: globenv
       CHARACTER(LEN=*), OPTIONAL                         :: wdir
       LOGICAL, INTENT(IN), OPTIONAL                      :: q_finalize
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp2k_finalize'
 
       CHARACTER(LEN=default_path_length)                 :: cg_filename
       CHARACTER(LEN=default_string_length)               :: dev_flag

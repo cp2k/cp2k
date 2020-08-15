@@ -249,8 +249,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'test_input'
-
       TYPE(section_vals_type), POINTER                   :: test_section
 
 !
@@ -290,8 +288,6 @@ CONTAINS
       INTEGER                                            :: iw
 
       INTEGER                                            :: i, ierr, j, len, ntim, siz
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'copy_test'
-
       REAL(KIND=dp)                                      :: perf, t, tend, tstart
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ca, cb
 
@@ -353,8 +349,6 @@ CONTAINS
       INTEGER                                            :: iw
 
       INTEGER                                            :: i, ierr, j, len, ntim, siz
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'matmul_test'
-
       REAL(KIND=dp)                                      :: perf, t, tend, tstart, xdum
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ma, mb, mc
 
@@ -570,11 +564,10 @@ CONTAINS
       INTEGER                                            :: iw, fftw_plan_type
       CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
 
+      INTEGER, PARAMETER                                 :: ndate(3) = (/12, 48, 96/)
+
       INTEGER                                            :: iall, ierr, it, j, len, n(3), ntim, &
                                                             radix_in, radix_out, siz, stat
-      INTEGER, PARAMETER                                 :: ndate(3) = (/12, 48, 96/)
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fft_test'
-
       COMPLEX(KIND=dp), DIMENSION(4, 4, 4)               :: zz
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: ca, cb, cc
       CHARACTER(LEN=7)                                   :: method
@@ -825,7 +818,6 @@ CONTAINS
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(section_vals_type), POINTER                   :: pw_transfer_section
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_fft_test'
       REAL(KIND=dp), PARAMETER                           :: toler = 1.e-11_dp
 
       INTEGER                                            :: blocked_id, grid_span, i_layout, i_rep, &
@@ -1045,8 +1037,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: iw
       TYPE(section_vals_type), POINTER                   :: eigensolver_section
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'eigensolver_test'
 
       INTEGER                                            :: diag_method, group, i, i_loop, i_rep, &
                                                             init_method, j, n, n_loop, n_rep, &
@@ -1270,8 +1260,6 @@ CONTAINS
       INTEGER                                  :: iw
       TYPE(section_vals_type), POINTER         :: cp_fm_gemm_test_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_gemm_test'
-
       CHARACTER(LEN=1)                         :: transa, transb
       INTEGER :: i_loop, i_rep, k, m, n, N_loop, n_rep, ncol_block, &
                  ncol_block_actual, ncol_global, nrow_block, nrow_block_actual, &
@@ -1432,8 +1420,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: iw
       TYPE(section_vals_type), POINTER                   :: input_section
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cp_dbcsr_tests'
 
       CHARACTER, DIMENSION(3)                            :: types
       INTEGER                                            :: data_type, i_rep, k, m, n, N_loop, &

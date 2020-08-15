@@ -101,8 +101,6 @@ CONTAINS
    SUBROUTINE create_poisson_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_poisson_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
 
@@ -166,8 +164,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_multipole_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_multipole_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -233,8 +229,6 @@ CONTAINS
    SUBROUTINE create_mt_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_mt_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -273,8 +267,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_ewald_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_ewald_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection
@@ -456,8 +448,6 @@ CONTAINS
    SUBROUTINE create_gspace_interp_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_gspace_interp_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key
 
@@ -533,8 +523,6 @@ CONTAINS
    SUBROUTINE create_wavelet_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_wavelet_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -569,8 +557,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_implicit_ps_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_implicit_ps_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -650,8 +636,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_dielectric_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_dielectric_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -737,8 +721,6 @@ CONTAINS
    SUBROUTINE create_dielec_aa_cuboidal_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_dielec_aa_cuboidal_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -794,8 +776,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_dielec_xaa_annular_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_dielec_xaa_annular_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -853,8 +833,6 @@ CONTAINS
    SUBROUTINE create_dbc_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_dbc_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
 
@@ -900,8 +878,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_aa_planar_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_aa_planar_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -1012,8 +988,6 @@ CONTAINS
    SUBROUTINE create_planar_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_planar_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -1101,8 +1075,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_aa_cylindrical_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_aa_cylindrical_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -1223,8 +1195,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_aa_cuboidal_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_aa_cuboidal_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 

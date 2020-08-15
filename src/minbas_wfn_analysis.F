@@ -413,8 +413,6 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: quambo, smao
       INTEGER, DIMENSION(:, :), INTENT(INOUT)            :: ecount
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pm_extend'
-
       INTEGER                                            :: iatom, jatom, n
       LOGICAL                                            :: found
       REAL(KIND=dp)                                      :: wij
@@ -452,8 +450,6 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: mao, smao, sovl
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: prmao
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'project_mao'
-
       INTEGER                                            :: i, iatom, jatom, n
       LOGICAL                                            :: found
       REAL(KIND=dp)                                      :: wi
@@ -490,8 +486,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: print_section
       TYPE(cp_fm_type), POINTER                          :: minbas_coeff
       INTEGER, INTENT(IN)                                :: ispin
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'post_minbas_cubes'
 
       CHARACTER(LEN=default_path_length)                 :: filename, title
       INTEGER                                            :: i, i_rep, ivec, iw, j, n_rep, natom

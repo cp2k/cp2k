@@ -70,8 +70,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: se_section
       LOGICAL, INTENT(in), OPTIONAL                      :: compression
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_si_create'
-
       INTEGER                                            :: i
       TYPE(section_vals_type), POINTER                   :: se_mem_section
 
@@ -126,8 +124,6 @@ CONTAINS
    SUBROUTINE semi_empirical_si_release(store_int_env)
       TYPE(semi_empirical_si_type), POINTER              :: store_int_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_si_release'
-
       INTEGER                                            :: i
 
       IF (ASSOCIATED(store_int_env)) THEN
@@ -168,8 +164,6 @@ CONTAINS
    SUBROUTINE semi_empirical_si_initialize(store_int_env, geometry_did_change)
       TYPE(semi_empirical_si_type), POINTER              :: store_int_env
       LOGICAL, INTENT(IN)                                :: geometry_did_change
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_si_initialize'
 
       INTEGER                                            :: i
 
@@ -222,8 +216,6 @@ CONTAINS
    SUBROUTINE semi_empirical_si_finalize(store_int_env, geometry_did_change)
       TYPE(semi_empirical_si_type), POINTER              :: store_int_env
       LOGICAL, INTENT(IN)                                :: geometry_did_change
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_si_finalize'
 
       INTEGER                                            :: i
 

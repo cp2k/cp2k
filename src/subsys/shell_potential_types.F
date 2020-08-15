@@ -73,8 +73,6 @@ CONTAINS
                                                             mass_core, mass_shell, k2_spring, &
                                                             k4_spring, max_dist, shell_cutoff
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_shell'
-
       IF (ASSOCIATED(shell)) THEN
          IF (PRESENT(charge)) charge = shell%charge_core + shell%charge_shell
          IF (PRESENT(charge_core)) charge_core = shell%charge_core
@@ -96,8 +94,6 @@ CONTAINS
 
       TYPE(shell_kind_type), POINTER                     :: shell
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'shell_create'
-
       CPASSERT(.NOT. ASSOCIATED(shell))
       ALLOCATE (shell)
       shell%ref_count = 1
@@ -113,8 +109,6 @@ CONTAINS
 
       TYPE(shell_p_type), DIMENSION(:), POINTER          :: shell_list
       INTEGER, INTENT(IN)                                :: ndim
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'shell_p_create'
 
       INTEGER                                            :: i
 
@@ -137,8 +131,6 @@ CONTAINS
 
       TYPE(shell_kind_type), POINTER                     :: shell
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'shell_retain'
-
       CPASSERT(ASSOCIATED(shell))
       CPASSERT(shell%ref_count > 0)
       shell%ref_count = shell%ref_count + 1
@@ -152,8 +144,6 @@ CONTAINS
    SUBROUTINE shell_release(shell)
 
       TYPE(shell_kind_type), POINTER                     :: shell
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'shell_release'
 
       IF (ASSOCIATED(shell)) THEN
          CPASSERT(shell%ref_count > 0)
@@ -172,8 +162,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE shell_p_release(shell_list)
       TYPE(shell_p_type), DIMENSION(:), POINTER          :: shell_list
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'shell_p_release'
 
       INTEGER                                            :: i
 

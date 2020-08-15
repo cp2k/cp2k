@@ -75,8 +75,6 @@ CONTAINS
       TYPE(se_taper_type), POINTER                       :: se_taper
       TYPE(semi_empirical_si_type), POINTER              :: store_int_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'rotint'
-
       INTEGER                                            :: buffer_left, buffer_size, buffer_start, &
                                                             cache_size, memory_usage, nbits, &
                                                             new_size, nints
@@ -227,8 +225,6 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
       TYPE(semi_empirical_si_type), OPTIONAL, POINTER    :: store_int_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'rotnuc'
 
       INTEGER                                            :: buffer_left, buffer_size, buffer_start, &
                                                             cache_size, memory_usage, nbits, &
@@ -405,8 +401,6 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'corecore'
-
       enuc = 0.0_dp
       IF (se_int_control%integral_screening == do_se_IS_slater) THEN
          CALL corecore_gks(sepi, sepj, rij, enuc=enuc, se_int_control=se_int_control)
@@ -446,8 +440,6 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'corecore_el'
-
       enuc = 0.0_dp
       IF (anag) THEN
          CALL corecore_el_ana(sepi, sepj, rij, enuc=enuc, itype=itype, se_int_control=se_int_control, &
@@ -480,8 +472,6 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: anag
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'drotint'
 
       dw(:, :) = 0.0_dp
       IF (se_int_control%integral_screening == do_se_IS_slater) THEN
@@ -520,8 +510,6 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: anag
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'drotnuc'
 
       IF (PRESENT(de1b)) de1b(:, :) = 0.0_dp
       IF (PRESENT(de2a)) de2a(:, :) = 0.0_dp
@@ -564,8 +552,6 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dcorecore'
-
       denuc = 0.0_dp
       IF (se_int_control%integral_screening == do_se_IS_slater) THEN
          CALL corecore_gks(sepi, sepj, rij, denuc=denuc, se_int_control=se_int_control)
@@ -606,8 +592,6 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: anag
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dcorecore_el'
 
       denuc = 0.0_dp
       IF (anag) THEN

@@ -72,8 +72,6 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: nrows, ncols
       INTEGER, DIMENSION(:), INTENT(OUT)                 :: blk_row_start, blk_col_start
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_calc_size'
-
       INTEGER                                            :: ii, natoms_in_halo
       INTEGER, DIMENSION(:), POINTER                     :: col_block_size_data, halo_atoms, &
                                                             row_block_size_data

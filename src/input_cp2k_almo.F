@@ -63,8 +63,6 @@ CONTAINS
    SUBROUTINE create_almo_scf_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_almo_scf_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
 
@@ -577,8 +575,6 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
       INTEGER, INTENT(IN)                                :: optimizer_id
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_optimizer_section'
-
       INTEGER                                            :: optimizer_type
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -939,8 +935,6 @@ CONTAINS
 
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_almo_analysis_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
 
@@ -995,8 +989,6 @@ CONTAINS
    SUBROUTINE create_almo_print_section(section)
 
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_almo_print_section'
 
       TYPE(section_type), POINTER                        :: print_key
 

@@ -1158,8 +1158,6 @@ CONTAINS
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: Lag_nu_a_2
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_lagrangian_alpha_beta'
-
       ! first contract mat_munu with the half back transformed Gamma_i_nu
       ! in order to update Lag_mu_i_1
       CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, matrix_P_inu%matrix, &

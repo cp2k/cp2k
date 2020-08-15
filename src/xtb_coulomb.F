@@ -687,7 +687,6 @@ CONTAINS
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: kappab
       REAL(dp), INTENT(IN)                               :: etab, kg, rcut
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'gamma_rab_sr'
       REAL(KIND=dp), PARAMETER                           :: rsmooth = 1.0_dp
 
       INTEGER                                            :: i, j
@@ -758,7 +757,6 @@ CONTAINS
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: kappab
       REAL(dp), INTENT(IN)                               :: etab, kg, rcut
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dgamma_rab_sr'
       REAL(KIND=dp), PARAMETER                           :: rsmooth = 1.0_dp
 
       INTEGER                                            :: i, j

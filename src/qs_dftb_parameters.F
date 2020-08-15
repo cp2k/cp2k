@@ -85,8 +85,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: subsys_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_dftb_param_init'
-
       CHARACTER(LEN=2)                                   :: iel, jel
       CHARACTER(LEN=6)                                   :: cspline
       CHARACTER(LEN=default_path_length)                 :: file_name

@@ -599,8 +599,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(transport_env_type), INTENT(INOUT)            :: transport_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'transport_set_contact_params'
-
       INTEGER                                            :: i, iat, ikind, natom, nkind
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       REAL(KIND=dp)                                      :: zeff

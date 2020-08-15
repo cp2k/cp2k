@@ -1133,8 +1133,6 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_out
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix_in
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_dbcsr_copy_sparse_struct'
-
       INTEGER                                            :: iatom, iblk, jatom, nblkcols_total, &
                                                             nblkrows_total, nblks
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cols, rows

@@ -50,8 +50,6 @@ CONTAINS
    SUBROUTINE atprop_create(atprop_env)
       TYPE(atprop_type), POINTER                         :: atprop_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'atprop_create'
-
       CALL atprop_release(atprop_env)
       ALLOCATE (atprop_env)
       NULLIFY (atprop_env%atener, atprop_env%atstress)
@@ -70,8 +68,6 @@ CONTAINS
    SUBROUTINE atprop_init(atprop_env, natom)
       TYPE(atprop_type), POINTER                         :: atprop_env
       INTEGER, INTENT(IN)                                :: natom
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'atprop_init'
 
       CPASSERT(ASSOCIATED(atprop_env))
 
@@ -107,8 +103,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: atarray
       INTEGER, INTENT(IN)                                :: natom
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'atprop_array_init'
-
       IF (ASSOCIATED(atarray)) THEN
          CPASSERT(SIZE(atarray) == natom)
       ELSE
@@ -125,8 +119,6 @@ CONTAINS
    SUBROUTINE atprop_array_release(atarray)
       REAL(KIND=dp), DIMENSION(:), POINTER               :: atarray
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atprop_array_release'
-
       IF (ASSOCIATED(atarray)) THEN
          DEALLOCATE (atarray)
       END IF
@@ -140,8 +132,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE atprop_array_add(array_a, array_b)
       REAL(KIND=dp), DIMENSION(:), POINTER               :: array_a, array_b
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'atprop_array_add'
 
       IF (ASSOCIATED(array_b)) THEN
          CPASSERT(ASSOCIATED(array_a))
@@ -157,8 +147,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE atprop_release(atprop_env)
       TYPE(atprop_type), POINTER                         :: atprop_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'atprop_release'
 
       IF (ASSOCIATED(atprop_env)) THEN
          ! energy

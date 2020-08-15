@@ -111,8 +111,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: elpa_kernel
       LOGICAL, INTENT(IN)                                :: elpa_qr, elpa_print, elpa_qr_unsafe
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'diag_init'
-
       fallback_applied = .FALSE.
 
       IF (diag_lib .EQ. "SL") THEN
@@ -143,7 +141,6 @@ CONTAINS
 !> \brief Finalize the diagonalization library
 ! **************************************************************************************************
    SUBROUTINE diag_finalize()
-      CHARACTER(len=*), PARAMETER :: routineN = 'diag_finalize'
 #if defined (__ELPA)
       IF (diag_type == DIAG_TYPE_ELPA) &
          CALL finalize_elpa_library()
@@ -166,8 +163,6 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
       INTEGER, INTENT(OUT), OPTIONAL                     :: info
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'choose_eigv_solver'
 
       INTEGER                                            :: myinfo, nmo
 #if defined(__CHECK_DIAG)

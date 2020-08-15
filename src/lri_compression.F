@@ -41,8 +41,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: amax
       TYPE(int_container), INTENT(INOUT)                 :: cont
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'lri_comp'
-
       INTEGER                                            :: i, ia, ib, ii, na, nb, nc, nn
       REAL(KIND=dp)                                      :: xm
       TYPE(carray), POINTER                              :: ca
@@ -135,8 +133,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: aval
       TYPE(int_container), INTENT(INOUT)                 :: cont
       INTEGER                                            :: ival
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'lri_decomp_i'
 
       INTEGER                                            :: ia, ib, ii, na, nb, nn
       TYPE(carray), POINTER                              :: ca

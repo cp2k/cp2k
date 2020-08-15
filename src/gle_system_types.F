@@ -68,8 +68,6 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: dt, temp
       TYPE(section_vals_type), POINTER                   :: section
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'gle_init'
-
       INTEGER                                            :: i, ir, j, k, n_rep
       REAL(dp), DIMENSION(:), POINTER                    :: list
       REAL(KIND=dp)                                      :: a_scale
@@ -166,8 +164,6 @@ CONTAINS
       TYPE(gle_type), POINTER                            :: gle
       INTEGER, INTENT(IN)                                :: mal_size
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'gle_thermo_create'
-
       CHARACTER(LEN=40)                                  :: name
       INTEGER                                            :: i, ithermo, my_index
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: seed
@@ -217,8 +213,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE gle_dealloc(gle)
       TYPE(gle_type), POINTER                            :: gle
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'gle_dealloc'
 
       INTEGER                                            :: i
 

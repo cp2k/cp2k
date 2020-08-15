@@ -659,8 +659,6 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: excited_atoms
       TYPE(distribution_2d_type), OPTIONAL, POINTER      :: ext_dist2d
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_xas_tdp_ovlp_nl'
-
       INTEGER                                            :: ikind, nkind
       LOGICAL                                            :: my_restrictb
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: a_present, b_present
@@ -762,8 +760,6 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: excited_atoms
       REAL(dp), INTENT(IN), OPTIONAL                     :: x_range
       TYPE(distribution_2d_type), OPTIONAL, POINTER      :: ext_dist2d
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_xas_tdp_3c_nl'
 
       INTEGER                                            :: ikind, nkind
       LOGICAL                                            :: sort_atoms
@@ -1237,8 +1233,6 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'compute_ri_exchange2_int'
-
       INTEGER                                            :: egfp, egfq, maxl, ncop, ncoq, nset, &
                                                             nsgf, pset, qset, sgfp, sgfq, unit_id
       INTEGER, DIMENSION(:), POINTER                     :: lmax, lmin, npgf_set, nsgf_set
@@ -1398,8 +1392,6 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'compute_ri_coulomb2_int'
-
       INTEGER                                            :: nsgf
       TYPE(gto_basis_set_type), POINTER                  :: ri_basis
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -1443,8 +1435,6 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: ri_coul2
       TYPE(gto_basis_set_type), POINTER                  :: ri_basis
       TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'periodic_ri_coulomb2'
 
       INTEGER                                            :: maxco, ncop, ncoq, nset, op, oq, ppgf, &
                                                             pset, qpgf, qset, sgfp, sgfq

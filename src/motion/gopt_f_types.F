@@ -97,8 +97,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: geo_opt_section
       LOGICAL, INTENT(IN), OPTIONAL                      :: eval_opt_geo
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'gopt_f_create'
-
       INTEGER                                            :: natom, nshell
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(particle_list_type), POINTER                  :: particles, shell_particles
@@ -183,8 +181,6 @@ CONTAINS
    SUBROUTINE gopt_f_retain(gopt_env)
       TYPE(gopt_f_type), POINTER                         :: gopt_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'gopt_f_retain'
-
       CPASSERT(ASSOCIATED(gopt_env))
       CPASSERT(gopt_env%ref_count > 0)
       gopt_env%ref_count = gopt_env%ref_count + 1
@@ -198,8 +194,6 @@ CONTAINS
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE gopt_f_release(gopt_env)
       TYPE(gopt_f_type), POINTER                         :: gopt_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'gopt_f_release'
 
       IF (ASSOCIATED(gopt_env)) THEN
          CPASSERT(gopt_env%ref_count > 0)

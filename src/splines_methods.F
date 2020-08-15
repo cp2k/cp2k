@@ -47,8 +47,6 @@ CONTAINS
       TYPE(spline_data_type), POINTER                    :: spl
       INTEGER, INTENT(IN)                                :: nn
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'init_splinexy'
-
       spl%n = nn
 
       IF (ASSOCIATED(spl%y)) THEN
@@ -101,8 +99,6 @@ CONTAINS
       TYPE(spline_data_type), POINTER                    :: spl
       REAL(KIND=dp), INTENT(IN)                          :: dx
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: y1a, y1b
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'init_spline'
 
       INTEGER                                            :: i, n
       REAL(KIND=dp)                                      :: p, s

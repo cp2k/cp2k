@@ -59,8 +59,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          OPTIONAL                                        :: rot, drmsd3
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'rmsd3'
-
       INTEGER                                            :: i, ix, j, k, natom
       LOGICAL                                            :: my_rotate
       REAL(KIND=dp)                                      :: dm_r(4, 4, 3), lambda(4), loc_tr(3), &

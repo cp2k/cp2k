@@ -1489,8 +1489,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: pab
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: forcea, forceb
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dipole_force'
-
       INTEGER                                            :: i, imom, ipgf, j, jpgf, lda, lda_min, &
                                                             ldb, ldb_min, lmax, na, nb
       REAL(KIND=dp)                                      :: dab, rab(3), rab2

@@ -762,8 +762,6 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: is_core, is_shell, unit_charge
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: charges
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_patch_a'
-
       INTEGER                                            :: nbox
       LOGICAL                                            :: use_charge_array
       REAL(KIND=dp)                                      :: q
@@ -820,8 +818,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: rhos
       REAL(KIND=dp), DIMENSION(:), POINTER               :: charges
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_patch_b'
-
       INTEGER                                            :: nbox
       REAL(KIND=dp)                                      :: q
       REAL(KIND=dp), DIMENSION(3)                        :: delta, r
@@ -854,7 +850,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(-(n-1):n-1, 0:n-1), &
          INTENT(IN)                                      :: coeff
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'spme_get_patch'
       INTEGER, PARAMETER                                 :: nmax = 12
 
       INTEGER                                            :: i, i1, i2, i3, j, l
@@ -920,8 +915,6 @@ CONTAINS
       INTEGER, DIMENSION(3), INTENT(IN)                  :: npts
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: delta
       INTEGER, INTENT(IN)                                :: n
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_delta'
 
       INTEGER                                            :: mp
       INTEGER, DIMENSION(3)                              :: center

@@ -675,8 +675,6 @@ CONTAINS
                                                             npgfb
       INTEGER                                            :: nseta, nsetb
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'task_list_inner_loop'
-
       INTEGER                                            :: cube_center(3), igrid_level, ipgf, iset, &
                                                             jpgf, jset, lb_cube(3), ub_cube(3)
       REAL(KIND=dp)                                      :: dab, rab2, radius, zetp
@@ -772,8 +770,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: zetb
       INTEGER, INTENT(IN)                                :: lb_min
       REAL(KIND=dp), INTENT(IN)                          :: ra(3), rab(3), rab2, eps
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_pgf_properties'
 
       INTEGER                                            :: extent(3)
       INTEGER, DIMENSION(:), POINTER                     :: sphere_bounds
@@ -2109,8 +2105,6 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: send, symmetric
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), INTENT(IN) :: rs_descs
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_atom_pair'
-
       INTEGER                                            :: i, ilevel, iatom, jatom, npairs, virt_rank
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: indices
       TYPE(atom_pair_type), DIMENSION(:), ALLOCATABLE    :: atom_pair_tmp
@@ -2479,8 +2473,6 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: pair_offsets, rank_offsets, rank_sizes
       INTEGER, INTENT(INOUT)                             :: buffer_size
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_calc_offsets'
-
       INTEGER                                            :: acol, arow, i, block_size, total_size, k, prev_k
 
       IF (ASSOCIATED(pair_offsets)) DEALLOCATE (pair_offsets)
@@ -2579,8 +2571,6 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: pair_offsets
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: buffer
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_pack_matrix'
-
       INTEGER                                            :: acol, arow, img, i, offset, block_size
       LOGICAL                                            :: found
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block
@@ -2631,7 +2621,6 @@ CONTAINS
       INTEGER, DIMENSION(3), INTENT(IN)                  :: lb_cube, ub_cube
       INTEGER, INTENT(OUT)                               :: added_tasks
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_find_node'
       INTEGER, PARAMETER                                 :: add_tasks = 1000
       REAL(kind=dp), PARAMETER                           :: mult_tasks = 2.0_dp
 

@@ -465,8 +465,6 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: nchains
       TYPE(mc_input_file_type), POINTER                  :: mc_input_file
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_make_dat_file_new'
-
       CHARACTER(60)                                      :: cell_string, mol_string
       CHARACTER(default_string_length)                   :: line_text
       CHARACTER(default_string_length), DIMENSION(:), &

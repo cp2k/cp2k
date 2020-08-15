@@ -74,8 +74,6 @@ CONTAINS
 
       CHARACTER(len=*), INTENT(IN)                       :: line
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_write_line'
-
       CHARACTER(len=default_string_length)               :: my_label
       INTEGER                                            :: unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -419,8 +417,6 @@ CONTAINS
 
       TYPE(pint_env_type), POINTER                       :: pint_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_write_com'
-
       CHARACTER(len=default_string_length)               :: stmp1, stmp2
       INTEGER                                            :: ic, unit_nr
       LOGICAL                                            :: new_file, should_output
@@ -488,8 +484,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pint_write_ener(pint_env)
       TYPE(pint_env_type), POINTER                       :: pint_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_write_ener'
 
       INTEGER                                            :: ndof, unit_nr
       LOGICAL                                            :: file_is_new
@@ -571,8 +565,6 @@ CONTAINS
    SUBROUTINE pint_write_action(pint_env)
       TYPE(pint_env_type), POINTER                       :: pint_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_write_action'
-
       INTEGER                                            :: unit_nr
       LOGICAL                                            :: file_is_new
       REAL(kind=dp)                                      :: t
@@ -644,8 +636,6 @@ CONTAINS
    SUBROUTINE pint_write_step_info(pint_env)
       TYPE(pint_env_type), POINTER                       :: pint_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_step_info'
-
       CHARACTER(len=default_string_length)               :: msgstr, stmp, time_unit
       INTEGER                                            :: unit_nr
       REAL(kind=dp)                                      :: time_used
@@ -704,8 +694,6 @@ CONTAINS
    SUBROUTINE pint_write_rgyr(pint_env)
 
       TYPE(pint_env_type), POINTER                       :: pint_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_write_rgyr'
 
       CHARACTER(len=default_string_length)               :: unit_str
       INTEGER                                            :: ia, ib, ic, idim, unit_nr

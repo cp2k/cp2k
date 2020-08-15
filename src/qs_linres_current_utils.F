@@ -1345,8 +1345,6 @@ CONTAINS
       TYPE(current_env_type)                             :: current_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'current_env_cleanup'
-
       INTEGER                                            :: i, idir, ispin
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &

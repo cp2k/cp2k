@@ -82,8 +82,6 @@ CONTAINS
    SUBROUTINE qs_diis_b_retain(diis_buffer)
       TYPE(qs_diis_buffer_type), POINTER                 :: diis_buffer
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_diis_b_retain'
-
       CPASSERT(ASSOCIATED(diis_buffer))
       CPASSERT(diis_buffer%ref_count > 0)
       diis_buffer%ref_count = diis_buffer%ref_count + 1
@@ -98,8 +96,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qs_diis_b_release(diis_buffer)
       TYPE(qs_diis_buffer_type), POINTER                 :: diis_buffer
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_diis_b_release'
 
       INTEGER                                            :: i, j
 
@@ -141,8 +137,6 @@ CONTAINS
    SUBROUTINE qs_diis_b_release_sparse(diis_buffer)
 
       TYPE(qs_diis_buffer_type_sparse), POINTER          :: diis_buffer
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_diis_b_release_sparse'
 
       INTEGER                                            :: i, j
 

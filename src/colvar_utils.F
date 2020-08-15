@@ -381,8 +381,6 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: n_tot
       INTEGER, DIMENSION(:), POINTER                     :: map
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'eval_colv_int'
-
       TYPE(colvar_constraint_type), POINTER              :: colv_list(:)
       TYPE(fixd_constraint_type), DIMENSION(:), POINTER  :: fixd_list
       TYPE(local_colvar_constraint_type), POINTER        :: lcolv(:)
@@ -422,8 +420,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: offset
       INTEGER, INTENT(INOUT)                             :: n_tot
       INTEGER, DIMENSION(:), POINTER                     :: map
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'eval_colv_ext'
 
       TYPE(colvar_constraint_type), POINTER              :: colv_list(:)
       TYPE(fixd_constraint_type), DIMENSION(:), POINTER  :: fixd_list
@@ -468,8 +464,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: offset
       INTEGER, INTENT(INOUT)                             :: n_tot
       INTEGER, DIMENSION(:), POINTER                     :: map
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'eval_colv_low'
 
       INTEGER                                            :: iatm, iconst, ind, ival
 
@@ -519,8 +513,6 @@ CONTAINS
          OPTIONAL                                        :: forces, coords
       INTEGER, INTENT(IN)                                :: nsize_xyz, nsize_int
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: cvalues, Mmatrix
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_clv_force'
 
       INTEGER                                            :: i, j, k
       REAL(KIND=dp)                                      :: tmp
@@ -573,8 +565,6 @@ CONTAINS
       TYPE(colvar_type), POINTER                         :: colvar
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particles
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'post_process_colvar'
 
       CHARACTER(len=3)                                   :: name_kind
       INTEGER                                            :: i, ii, j, natoms, nkinds, nr_frame, stat

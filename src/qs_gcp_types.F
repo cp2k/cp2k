@@ -65,8 +65,6 @@ CONTAINS
 
       TYPE(qs_gcp_type), POINTER                         :: gcp_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_gcp_release'
-
       IF (ASSOCIATED(gcp_env)) THEN
 
          CALL release_neighbor_list_sets(gcp_env%sab_gcp)

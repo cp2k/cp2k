@@ -132,8 +132,6 @@ CONTAINS
 
       TYPE(cdft_opt_type), POINTER                       :: cdft_opt_control
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cdft_opt_type_release'
-
       IF (ASSOCIATED(cdft_opt_control)) THEN
          IF (ASSOCIATED(cdft_opt_control%jacobian_vector)) &
             DEALLOCATE (cdft_opt_control%jacobian_vector)
@@ -231,8 +229,6 @@ CONTAINS
    SUBROUTINE cdft_opt_type_write(cdft_opt_control, optimizer, output_unit)
       TYPE(cdft_opt_type), POINTER                       :: cdft_opt_control
       INTEGER                                            :: optimizer, output_unit
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cdft_opt_type_write'
 
       CPASSERT(ASSOCIATED(cdft_opt_control))
 

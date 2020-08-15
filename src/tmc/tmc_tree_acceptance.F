@@ -873,8 +873,6 @@ CONTAINS
       TYPE(tree_type), POINTER                           :: elem
       LOGICAL                                            :: ready
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ready_for_update_acc_prob'
-
       CPASSERT(ASSOCIATED(elem))
       ready = .FALSE.
       IF ((elem%scf_energies_count .GE. 4) &

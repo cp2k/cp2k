@@ -1460,8 +1460,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER, &
          INTENT(INOUT), OPTIONAL               :: eigval
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_invert'
-
       INTEGER                                  :: n
       INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
       REAL(KIND=dp)                            :: determinant, my_eps_svd

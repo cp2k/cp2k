@@ -92,7 +92,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       INTEGER                                            :: irep
 
-      CHARACTER(*), PARAMETER :: routineN = 'pw_hfx', routineP = moduleN//':'//routineN
+      CHARACTER(*), PARAMETER                            :: routineN = 'pw_hfx'
 
       INTEGER                                            :: blocksize, handle, ig, iloc, iorb, &
                                                             iorb_block, ispin, iw, jloc, jorb, &

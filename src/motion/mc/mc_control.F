@@ -349,8 +349,6 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: input_file_name
       TYPE(global_environment_type), OPTIONAL, POINTER   :: globenv_new
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_create_force_env'
-
       INTEGER                                            :: f_env_id, ierr, output_unit
       TYPE(f_env_type), POINTER                          :: f_env
 
@@ -403,8 +401,6 @@ CONTAINS
       TYPE(section_type), POINTER                        :: input_declaration
       TYPE(mc_input_file_type), POINTER                  :: mc_input_file
       LOGICAL, INTENT(IN)                                :: ionode
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_create_bias_force_env'
 
       IF (ionode) &
          CALL mc_make_dat_file_new(r(:, :), atom_symbols, nunits_tot, &

@@ -49,8 +49,6 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: estate
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: festate
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'Fermi'
-
       INTEGER                                            :: I, Nstate
       REAL(KIND=dp)                                      :: arg, occupation, term1, term2, tmp, &
                                                             tmp2, tmp3, tmp4, tmplog
@@ -121,8 +119,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: mu
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wk
       REAL(KIND=dp), INTENT(IN)                          :: t, maxocc
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'Fermi2'
 
       INTEGER                                            :: ik, is, nkp, nmo
       REAL(KIND=dp)                                      :: arg, beta, term1, term2, tmp, tmp2, &
@@ -205,8 +201,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: e(:), N, T, maxocc
       INTEGER, INTENT(IN), OPTIONAL                      :: estate
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: festate
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'FermiFixed'
 
       INTEGER                                            :: iter, my_estate
       REAL(KIND=dp)                                      :: mu_max, mu_min, mu_now, my_festate, &
@@ -291,7 +285,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wk
       REAL(KIND=dp), INTENT(IN)                          :: t, maxocc
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'Fermikp'
       REAL(KIND=dp), PARAMETER                           :: epsocc = 1.0e-12_dp
 
       INTEGER                                            :: iter
@@ -345,7 +338,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wk
       REAL(KIND=dp), INTENT(IN)                          :: t
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'Fermikp2'
       REAL(KIND=dp), PARAMETER                           :: epsocc = 1.0e-12_dp
 
       INTEGER                                            :: iter

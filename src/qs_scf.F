@@ -190,8 +190,6 @@ CONTAINS
    SUBROUTINE scf(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'scf'
-
       INTEGER                                            :: ihistory, max_scf_tmp
       LOGICAL                                            :: converged, outer_scf_loop, should_stop
       LOGICAL, SAVE                                      :: first_step_flag = .TRUE.
@@ -1152,8 +1150,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cdft_control_cleanup(cdft_control)
       TYPE(cdft_control_type), POINTER                   :: cdft_control
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cdft_control_cleanup'
 
       IF (ASSOCIATED(cdft_control%constraint%variables)) &
          DEALLOCATE (cdft_control%constraint%variables)

@@ -307,8 +307,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: e_self, e_neut
       REAL(KIND=dp), DIMENSION(:), POINTER               :: charges
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ewald_self'
-
       INTEGER                                            :: ewald_type, group, iparticle_kind, &
                                                             nparticle_kind, nparticle_local
       LOGICAL                                            :: is_shell
@@ -392,8 +390,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: e_self(:)
       REAL(KIND=dp), DIMENSION(:), POINTER               :: charges
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ewald_self_atom'
-
       INTEGER                                            :: ewald_type, ii, iparticle_kind, &
                                                             iparticle_local, nparticle_kind, &
                                                             nparticle_local
@@ -451,8 +447,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iw
       REAL(KIND=dp), INTENT(IN)                          :: pot_nonbond, e_gspace, e_self, e_neut, &
                                                             e_bonded
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ewald_print'
 
       IF (iw > 0) THEN
          WRITE (iw, '( A, A )') ' *********************************', &

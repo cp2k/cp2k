@@ -110,8 +110,6 @@ CONTAINS
       TYPE(epr_env_type)                                 :: epr_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'epr_nablavks'
-
       CHARACTER(LEN=default_string_length)               :: ext, filename
       COMPLEX(KIND=dp)                                   :: gtemp
       INTEGER                                            :: bo_atom(2), ia, iat, iatom, idir, iexp, &

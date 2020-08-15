@@ -899,8 +899,6 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: orbitals, op_sub
       INTEGER, INTENT(IN)                                :: n
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_subspace_matrix'
-
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
 
       CPASSERT(.NOT. ASSOCIATED(op_sub))
@@ -1223,8 +1221,6 @@ CONTAINS
       TYPE(greens_fn_type), POINTER                      :: green
       TYPE(eri_type)                                     :: eri_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_eri_green_create'
-
       INTEGER                                            :: ig
       REAL(KIND=dp)                                      :: a, ea, g2, g3d, ga, gg, rg, rlength
       TYPE(pw_grid_type), POINTER                        :: grid
@@ -1388,8 +1384,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mo_set_p_type), DIMENSION(:)                  :: mos
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_orbital_cubes'
-
       CHARACTER(LEN=default_path_length)                 :: filebody, filename, title
       INTEGER                                            :: i, imo, isp, nmo, str(3), unit_nr
       INTEGER, DIMENSION(:), POINTER                     :: alist, blist, istride
@@ -1491,8 +1485,6 @@ CONTAINS
       TYPE(active_space_type), POINTER                   :: active_space_env
       TYPE(section_vals_type), POINTER                   :: as_input
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'fcidump'
-
       INTEGER                                            :: i, i1, i2, i3, i4, isym, iw, nspins
       REAL(KIND=dp)                                      :: esub, mval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: fmat
@@ -1565,8 +1557,6 @@ CONTAINS
    SUBROUTINE subspace_fock_matrix(active_space_env)
 
       TYPE(active_space_type), POINTER                   :: active_space_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'subspace_fock_matrix'
 
       INTEGER                                            :: i1, i12, i12l, i2, i3, i34, i34l, i4, &
                                                             irange(2), irptr, is, nelec, nindex, &
@@ -1697,8 +1687,6 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: nshell
       CHARACTER(len=*), DIMENSION(:), INTENT(IN)         :: lnam
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_pro_basis'
-
       CHARACTER(len=6), DIMENSION(:), POINTER            :: sym
       INTEGER                                            :: i, l, nj
       INTEGER, DIMENSION(4, 7)                           :: ne
@@ -1821,8 +1809,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_sqrt(amat)
       TYPE(cp_fm_type), POINTER                          :: amat
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_sqrt'
 
       INTEGER                                            :: i, n
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigv

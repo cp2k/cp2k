@@ -1330,8 +1330,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: s, v, h, pVp
       INTEGER, INTENT(IN)                                :: n, dkh_order
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'DKH_atom_transformation'
-
       INTEGER                                            :: i, j, k
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: aa, e, ev0t, rr, tt
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aux, eig, ev1, ev1t, ev2, ev2t, ev3, &

@@ -97,8 +97,6 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'optimize_lri_basis'
-
       INTEGER                                            :: iunit, nkind
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -281,8 +279,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x, zet_init
       INTEGER, INTENT(IN)                                :: nkind, iunit
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_optimization'
-
       INTEGER                                            :: ikind, iset, ishell, n, nset
       INTEGER, DIMENSION(:), POINTER                     :: npgf, nshell
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zet
@@ -388,8 +384,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: lri_optbas_section
       TYPE(opt_state_type)                               :: opt_state
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_optimization_parameter'
-
       INTEGER                                            :: degree_freedom
       TYPE(section_vals_type), POINTER                   :: constrain_exp_section
 
@@ -455,8 +449,6 @@ CONTAINS
       TYPE(lri_opt_type), POINTER                        :: lri_opt
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x, zet_init
       INTEGER, INTENT(IN)                                :: nkind
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'update_exponents'
 
       INTEGER                                            :: ikind, iset, ishell, n, nset, nvar_exp
       INTEGER, DIMENSION(:), POINTER                     :: npgf, nshell
@@ -534,8 +526,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: zet, zet_init, zet_trans
       INTEGER, INTENT(IN)                                :: nvar
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'transfer_exp'
-
       REAL(KIND=dp)                                      :: a
       REAL(KIND=dp), DIMENSION(:), POINTER               :: zet_max, zet_min
 
@@ -564,8 +554,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: zet
       REAL(KIND=dp), INTENT(IN)                          :: zet_max, zet_min
       INTEGER, INTENT(IN)                                :: nexp
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'geometric_progression'
 
       INTEGER                                            :: i, n
       REAL(KIND=dp)                                      :: q
@@ -604,8 +592,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: pmatrix
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: nkind
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_lri_integrals_get_objective'
 
       INTEGER                                            :: ikind, nset
       INTEGER, DIMENSION(:), POINTER                     :: npgf
@@ -925,8 +911,6 @@ CONTAINS
       TYPE(lri_opt_type), POINTER                        :: lri_opt
       INTEGER, INTENT(IN)                                :: iunit
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_optimization_update'
-
       INTEGER                                            :: n10
 
       n10 = MAX(opt_state%maxfun/100, 1)
@@ -963,8 +947,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nkind
       TYPE(lri_opt_type), POINTER                        :: lri_opt
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_optimized_lri_basis'
 
       CHARACTER(LEN=default_path_length)                 :: filename
       INTEGER                                            :: cc_l, ikind, ipgf, iset, ishell, nset, &

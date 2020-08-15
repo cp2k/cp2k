@@ -62,8 +62,6 @@ CONTAINS
       TYPE(simpar_type), POINTER                         :: simpar
       TYPE(section_vals_type), POINTER                   :: motion_section, md_section
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_md_section'
-
       CHARACTER(LEN=default_path_length)                 :: filename
       INTEGER                                            :: iprint, iw
       REAL(kind=dp)                                      :: tmp_r1, tmp_r2, tmp_r3
@@ -265,8 +263,6 @@ CONTAINS
    SUBROUTINE read_md_low(simpar, motion_section, md_section)
       TYPE(simpar_type), POINTER                         :: simpar
       TYPE(section_vals_type), POINTER                   :: motion_section, md_section
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_md_low'
 
       LOGICAL                                            :: explicit
       TYPE(section_vals_type), POINTER                   :: tmp_section

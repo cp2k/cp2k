@@ -66,8 +66,6 @@ CONTAINS
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: this
       INTEGER, INTENT(IN)                                :: ngroups, dimen, pos
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_group_dist_d0'
-
       INTEGER, DIMENSION(2)                              :: itmp
 
       itmp = get_limit(dimen, ngroups, pos)
@@ -86,8 +84,6 @@ CONTAINS
    PURE SUBROUTINE create_group_dist_d1_i1(this, ngroups, dimen)
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: this
       INTEGER, INTENT(IN)                                :: ngroups, dimen
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_group_dist_d1_i1'
 
       INTEGER                                            :: iproc
       INTEGER, DIMENSION(2)                              :: itmp
@@ -116,8 +112,6 @@ CONTAINS
    PURE SUBROUTINE create_group_dist_d1_0(this, ngroups)
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: this
       INTEGER, INTENT(IN)                                :: ngroups
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_group_dist_d1_0'
 
       ALLOCATE (this%starts(0:ngroups - 1))
       this%starts = 0
@@ -213,8 +207,6 @@ CONTAINS
       TYPE(group_dist_d0_type), INTENT(IN)               :: this
       INTEGER, INTENT(OUT), OPTIONAL                     :: starts, ends, sizes
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_group_dist_d0'
-
       IF (PRESENT(starts)) starts = this%starts
       IF (PRESENT(ends)) ends = this%ends
       IF (PRESENT(sizes)) sizes = this%sizes
@@ -235,8 +227,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: pos
       INTEGER, INTENT(OUT), OPTIONAL                     :: starts, ends, sizes
       TYPE(group_dist_d0_type), INTENT(OUT), OPTIONAL    :: group_dist_ext
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_group_dist_d1'
 
       IF (PRESENT(starts)) starts = this%starts(pos)
       IF (PRESENT(ends)) ends = this%ends(pos)
@@ -263,8 +253,6 @@ CONTAINS
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: group_dist_ext
       INTEGER, INTENT(IN)                                :: pos_ext
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_group_dist_gd1'
-
       group_dist_ext%starts(pos_ext) = this%starts(pos)
       group_dist_ext%ends(pos_ext) = this%ends(pos)
       group_dist_ext%sizes(pos_ext) = this%sizes(pos)
@@ -277,8 +265,6 @@ CONTAINS
 ! **************************************************************************************************
    PURE SUBROUTINE release_group_dist_d1(this)
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: this
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'release_group_dist_d1'
 
       DEALLOCATE (this%starts)
       DEALLOCATE (this%ends)
@@ -294,8 +280,6 @@ CONTAINS
    ELEMENTAL FUNCTION maxsize(this) RESULT(res)
       TYPE(group_dist_d1_type), INTENT(IN)               :: this
       INTEGER                                            :: res
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'maxsize'
 
       res = MAXVAL(this%sizes)
 

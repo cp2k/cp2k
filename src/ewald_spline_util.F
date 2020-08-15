@@ -84,8 +84,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: print_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'Setup_Ewald_Spline'
-
       INTEGER                                            :: bo(2, 3), iounit
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger

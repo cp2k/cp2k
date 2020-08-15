@@ -52,8 +52,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: r
       REAL(KIND=dp)                                      :: r2
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_real_scaled_solid_harmonic'
-
       INTEGER                                            :: li, mi, prefac
       REAL(KIND=dp)                                      :: Rc, Rc_00, Rlm, Rmlm, Rplm, Rs, Rs_00, &
                                                             temp_c
@@ -147,8 +145,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(0:lmax, 0:lmax), &
          INTENT(INOUT)                                   :: A
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_Alm'
-
       INTEGER                                            :: l, m
       REAL(KIND=dp)                                      :: temp
 
@@ -178,8 +174,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: lmax
       REAL(KIND=dp), DIMENSION(0:lmax, 0:lmax), &
          INTENT(INOUT)                                   :: dA_p, dA_m, dA
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_dA_prefactors'
 
       INTEGER                                            :: l, m
       REAL(KIND=dp)                                      :: bm, bm_m, bm_p
@@ -218,8 +212,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(0:lmax, -2*lmax:2*lmax), &
          INTENT(IN)                                      :: Rc, Rs
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: Waux_mat
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_W_matrix'
 
       INTEGER                                            :: j, k, la, labmin, laj, lb, lbj, ma, &
                                                             ma_m, ma_p, mb, mb_m, mb_p, nla, nlb
@@ -323,8 +315,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: Waux_mat
       REAL(KIND=dp), DIMENSION(:, :, :, :), &
          INTENT(INOUT)                                   :: dWaux_mat
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_dW_matrix'
 
       INTEGER                                            :: ima, imam, imb, imbm, ipa, ipam, ipb, &
                                                             ipbm, j, jmax, la, labm, labmin, lamb, &
@@ -498,8 +488,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: swork_cont, Waux_mat
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: sab
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'construct_int_shg_ab'
-
       INTEGER                                            :: fnla, fnlb, fsgfa, fsgfb, ishella, j, &
                                                             jshellb, labmin, lai, lbj, lnla, lnlb, &
                                                             lsgfa, lsgfb, mai, mbj
@@ -558,8 +546,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: swork_cont, Waux_mat
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: dWaux_mat
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: dsab
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'construct_dev_shg_ab'
 
       INTEGER                                            :: fnla, fnlb, fsgfa, fsgfb, i, ishella, j, &
                                                             jshellb, labmin, lai, lbj, lnla, lnlb, &
@@ -630,8 +616,6 @@ CONTAINS
          INTENT(IN)                                      :: swork_cont
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Waux_mat
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: saba
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'construct_overlap_shg_aba'
 
       INTEGER :: ia, il, ilist, ishella, isoa1, isoa2, isoaa, j, jb, jshellb, ka, kshella, laa, &
          labmin, lai, lak, lbj, maa, mai, mak, mbj, nla, nlb, sgfa, sgfb, sgfca
@@ -720,8 +704,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: dWaux_mat
       REAL(KIND=dp), DIMENSION(:, :, :, :), &
          INTENT(INOUT)                                   :: dsaba
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'dev_overlap_shg_aba'
 
       INTEGER :: i, ia, il, ilist, ishella, isoa1, isoa2, isoaa, j, jb, jshellb, ka, kshella, laa, &
          labmin, lai, lak, lbj, maa, mai, mak, mbj, nla, nlb, sgfa, sgfb, sgfca
@@ -814,8 +796,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Waux_mat
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: sabb
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'construct_overlap_shg_abb'
-
       INTEGER :: ia, il, ilist, ishella, isob1, isob2, isobb, j, jb, jshellb, kb, kshellb, labmin, &
          lai, lbb, lbj, lbk, mai, mbb, mbj, mbk, nla, nlb, sgfa, sgfb, sgfcb
       REAL(KIND=dp)                                      :: prefac, stemp, tsign
@@ -906,8 +886,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: dWaux_mat
       REAL(KIND=dp), DIMENSION(:, :, :, :), &
          INTENT(INOUT)                                   :: dsabb
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'dev_overlap_shg_abb'
 
       INTEGER :: i, ia, il, ilist, ishella, isob1, isob2, isobb, j, jb, jshellb, kb, kshellb, &
          labmin, lai, lbb, lbj, lbk, mai, mbb, mbj, mbk, nla, nlb, sgfa, sgfb, sgfcb

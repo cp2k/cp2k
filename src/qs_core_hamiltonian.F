@@ -443,8 +443,6 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calculate_forces
       INTEGER, INTENT(IN)                                :: nder
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'core_matrices'
-
       INTEGER                                            :: nimages
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: all_present, ppl_present, ppnl_present, &
@@ -548,8 +546,6 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_atomic_relmat'
 
       INTEGER                                            :: blk, iatom, ikind, jatom, natom
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of

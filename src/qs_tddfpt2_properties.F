@@ -1243,8 +1243,6 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: append_cube
       TYPE(section_vals_type), POINTER                   :: print_section
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'print_nto_cubes'
-
       CHARACTER(LEN=default_path_length)                 :: filename, my_pos_cube, title
       INTEGER                                            :: i, iset, nmo, unit_nr
       LOGICAL                                            :: mpi_io

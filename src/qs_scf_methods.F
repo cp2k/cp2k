@@ -750,8 +750,6 @@ CONTAINS
       INTEGER, INTENT(in)                                :: homo, nmo
       REAL(kind=dp), INTENT(in)                          :: level_shift
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'correct_mo_eigenvalues'
-
       INTEGER                                            :: imo
 
       DO imo = homo + 1, nmo

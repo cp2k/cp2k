@@ -146,8 +146,6 @@ CONTAINS
       TYPE(distribution_2d_type), OPTIONAL, POINTER      :: dist_2d
       INTEGER, INTENT(IN), OPTIONAL                      :: pot_to_rad
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_2c_neighbor_lists'
-
       INTEGER                                            :: ikind, nkind, pot_to_rad_prv
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: i_present, j_present
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: pair_radius
@@ -463,8 +461,6 @@ CONTAINS
          INTENT(INOUT)                                   :: iterator
       INTEGER                                            :: iter_stat
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'neighbor_list_3c_iterate'
-
       INTEGER                                            :: iatom, iter_level, jatom, jatom_1, &
                                                             jatom_2, katom
       LOGICAL                                            :: skip_this
@@ -564,8 +560,6 @@ CONTAINS
                                                             jatom, katom
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT), OPTIONAL :: rij, rjk, rik
       INTEGER, DIMENSION(3), INTENT(OUT), OPTIONAL       :: cell_j, cell_k
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_3c_iterator_info'
 
       INTEGER, DIMENSION(2)                              :: atoms_1, atoms_2, kinds_1, kinds_2
       INTEGER, DIMENSION(3)                              :: cell_1, cell_2

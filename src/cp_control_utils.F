@@ -87,8 +87,6 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(section_vals_type), POINTER                   :: dft_section
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_dft_control'
-
       CHARACTER(len=default_path_length)                 :: basis_set_file_name, potential_file_name
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: tmpstringlist
@@ -1153,8 +1151,6 @@ CONTAINS
       TYPE(tddfpt_control_type)                          :: t_control
       TYPE(section_vals_type), POINTER                   :: dft_section
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_tddfpt_control'
-
       LOGICAL                                            :: kenergy_den
       TYPE(section_vals_type), POINTER                   :: sic_section, t_section
 
@@ -1804,8 +1800,6 @@ CONTAINS
       TYPE(qs_control_type), INTENT(INOUT)               :: qs_control
       TYPE(section_vals_type), OPTIONAL, POINTER         :: qs_section, ddapc_restraint_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_ddapc_section'
-
       INTEGER                                            :: i, j, jj, k, n_rep
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       REAL(KIND=dp), DIMENSION(:), POINTER               :: rtmplist
@@ -1908,8 +1902,6 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(section_vals_type), POINTER                   :: efield_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_efield_sections'
-
       CHARACTER(len=default_path_length)                 :: file_name
       INTEGER                                            :: i, io, j, n, unit_nr
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tmp_vals
@@ -1996,8 +1988,6 @@ CONTAINS
       TYPE(dft_control_type), INTENT(INOUT)              :: dft_control
       TYPE(section_vals_type), POINTER                   :: rtp_section
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_rtp_section'
-
       INTEGER, DIMENSION(:), POINTER                     :: tmp
 
       ALLOCATE (dft_control%rtp_control)
@@ -2047,8 +2037,6 @@ CONTAINS
    SUBROUTINE read_admm_block_list(admm_control, dft_section)
       TYPE(admm_control_type), POINTER                   :: admm_control
       TYPE(section_vals_type), POINTER                   :: dft_section
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_admm_block_list'
 
       INTEGER                                            :: irep, list_size, n_rep
       INTEGER, DIMENSION(:), POINTER                     :: tmplist

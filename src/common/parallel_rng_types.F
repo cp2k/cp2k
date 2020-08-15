@@ -280,8 +280,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: output_unit
       LOGICAL, INTENT(IN)                                :: ionode
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_rng'
-
       INTEGER                                            :: i, sumi
       REAL(KIND=dp)                                      :: sum, sum3
       REAL(KIND=dp), DIMENSION(3, 2)                     :: germe
@@ -513,8 +511,6 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: antithetic, extended_precision
       TYPE(rng_stream_type)                              :: rng_stream
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rng_stream_constructor'
-
       IF (LEN_TRIM(name) .GT. rng_name_length) &
          CPABORT("given random number generator name is too long")
 
@@ -566,8 +562,6 @@ CONTAINS
    FUNCTION rng_stream_type_from_record(rng_record) RESULT(rng_stream)
       CHARACTER(LEN=rng_record_length), INTENT(IN)       :: rng_record
       TYPE(rng_stream_type)                              :: rng_stream
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rng_stream_type_from_record'
 
       READ (UNIT=rng_record, FMT=rng_record_format) &
          rng_stream%name, &
@@ -791,8 +785,6 @@ CONTAINS
       CLASS(rng_stream_type), INTENT(INOUT)              :: self
       INTEGER, INTENT(IN)                                :: low, high
       INTEGER                                            :: u
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'next_integer_random_number'
 
       REAL(KIND=dp)                                      :: r
 

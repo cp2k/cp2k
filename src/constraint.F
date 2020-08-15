@@ -730,8 +730,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: log_unit, i, ishake_int
       REAL(KIND=dp), INTENT(IN)                          :: max_sigma
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'shake_int_info'
-
       IF (log_unit > 0) THEN
          ! Dump info if requested
          WRITE (log_unit, '("SHAKE_INFO|",2X,2(A,I6),A,F15.9)') &
@@ -756,8 +754,6 @@ CONTAINS
    SUBROUTINE shake_ext_info(log_unit, ishake_ext, max_sigma)
       INTEGER, INTENT(IN)                                :: log_unit, ishake_ext
       REAL(KIND=dp), INTENT(IN)                          :: max_sigma
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'shake_ext_info'
 
       IF (log_unit > 0) THEN
          ! Dump info if requested
@@ -785,8 +781,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: log_unit, i, irattle_int
       REAL(KIND=dp), INTENT(IN)                          :: max_sigma
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rattle_int_info'
-
       IF (log_unit > 0) THEN
          ! Dump info if requested
          WRITE (log_unit, '("RATTLE_INFO|",1X,2(A,I6),A,F15.9)') &
@@ -811,8 +805,6 @@ CONTAINS
    SUBROUTINE rattle_ext_info(log_unit, irattle_ext, max_sigma)
       INTEGER, INTENT(IN)                                :: log_unit, irattle_ext
       REAL(KIND=dp), INTENT(IN)                          :: max_sigma
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rattle_ext_info'
 
       IF (log_unit > 0) THEN
          ! Dump info if requested

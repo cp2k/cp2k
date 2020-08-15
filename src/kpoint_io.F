@@ -374,8 +374,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: natom, rst_unit
       LOGICAL, INTENT(OUT)                               :: natom_mismatch
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_kpoints_restart_low'
-
       INTEGER :: group, ic, image, ispin, nao, nao_read, natom_read, ni, nimages, nset_max, &
          nshell_max, nspin, nspin_read, source, version_read
       INTEGER, DIMENSION(3)                              :: cell

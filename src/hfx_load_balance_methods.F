@@ -1837,8 +1837,6 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: distribution_vector
       LOGICAL, INTENT(IN)                                :: do_randomize
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'optimize_distribution'
-
       INTEGER                                            :: i, itmp, j, nstep
       INTEGER(int_8), DIMENSION(:), POINTER              :: my_cost_cpu, tmp_cost, tmp_cpu_cost
       INTEGER, DIMENSION(:), POINTER                     :: tmp_cpu_index, tmp_index
@@ -2334,8 +2332,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(hfx_type), POINTER                            :: x_data
       INTEGER, INTENT(IN)                                :: iw, n_threads, i_thread, eval_type
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'collect_load_balance_info'
 
       INTEGER                                            :: i, j, k, my_rank, nbins, nranks, &
                                                             total_bins

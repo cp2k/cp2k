@@ -92,8 +92,6 @@ CONTAINS
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'ke_gga_info'
-
       IF (PRESENT(reference)) THEN
          SELECT CASE (functional)
          CASE (ke_ol1)
@@ -667,8 +665,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: fs
       INTEGER, INTENT(IN)                                :: m
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'efactor_ol1'
-
       INTEGER                                            :: ip
       REAL(KIND=dp)                                      :: t1, t2
 
@@ -710,8 +706,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: s
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: fs
       INTEGER, INTENT(IN)                                :: m
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'efactor_ol2'
 
       INTEGER                                            :: ip
       REAL(KIND=dp)                                      :: t1, t2, t3, y
@@ -759,8 +753,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: s
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: fs
       INTEGER, INTENT(IN)                                :: m
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'efactor_llp'
 
       INTEGER                                            :: ip
       REAL(KIND=dp) :: as, bs, p, q, sas, sbs, t1, t10, t11, t12, t133, t16, t17, t19, t2, t20, &
@@ -930,8 +922,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: m
       REAL(dp), OPTIONAL                                 :: f2_lsd
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'efactor_pw86'
-
       INTEGER                                            :: ip
       REAL(KIND=dp)                                      :: f15, ff, p0, p1, p15, p2, p3, s1, s2, &
                                                             s4, s6, t1, t2, t3
@@ -999,8 +989,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: s
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: fs
       INTEGER, INTENT(IN)                                :: m
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'efactor_t92'
 
       INTEGER                                            :: ip
       REAL(KIND=dp)                                      :: a1, a2, as, asp, asp2, asp3, bs, p, q, &
@@ -1096,7 +1084,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: m, pset
       REAL(dp), OPTIONAL                                 :: f2_lsd
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'efactor_pbex'
       REAL(KIND=dp), PARAMETER                           :: kappa1 = 0.804_dp, kappa2 = 1.245_dp, &
                                                             mu = 0.2195149727645171_dp
 

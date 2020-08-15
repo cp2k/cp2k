@@ -105,8 +105,6 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_lri_matrices'
-
       ! calculate the integrals needed to do the local (2-center) expansion
       ! of the (pair) densities
       CALL calculate_lri_integrals(lri_env, qs_env)
@@ -574,8 +572,6 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: lri_rho_struct
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_para_env_type), POINTER                    :: para_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_lri_densities'
 
       CALL calculate_avec_lri(lri_env, lri_density, pmatrix, cell_to_index)
       CALL distribute_lri_density_on_the_grid(lri_env, lri_density, qs_env, &
@@ -1171,8 +1167,6 @@ CONTAINS
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'v_int_ppl_update'
-
       INTEGER                                            :: ikind, natom, nfa, nkind
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: v_int
       TYPE(lri_environment_type), POINTER                :: lri_env
@@ -1205,8 +1199,6 @@ CONTAINS
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       REAL(KIND=dp), INTENT(INOUT)                       :: ecore_ppl_ri
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'v_int_ppl_energy'
-
       INTEGER                                            :: ikind, natom, nfa, nkind
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: v_int
       TYPE(lri_environment_type), POINTER                :: lri_env
@@ -1230,8 +1222,6 @@ CONTAINS
    SUBROUTINE lri_print_stat(qs_env)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'lri_print_stat'
 
       INTEGER                                            :: iunit
       REAL(KIND=dp) :: abai_mem, coef_mem, oint_mem, overlap_error, pairs_ff, pairs_sr, pairs_tt, &

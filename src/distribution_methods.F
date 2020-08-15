@@ -1167,8 +1167,6 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: icluster
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: fin_cluster_cost
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cluster_recurse'
-
       INTEGER                                            :: i, ibeg, iend, maxv(1), min_seed, &
                                                             natoms, nleft, nsplits, seed, tot_cost
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: ncluster_new

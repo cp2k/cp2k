@@ -181,8 +181,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: natoms
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'admm_env_create'
-
       INTEGER                                            :: i, iatom, iblock, ispin, j, jatom, &
                                                             nao_aux_fit, nao_orb, nmo, nspins
       TYPE(cp_fm_struct_type), POINTER :: fm_struct_aux_aux, fm_struct_aux_nmo, fm_struct_aux_orb, &
@@ -365,8 +363,6 @@ CONTAINS
    SUBROUTINE admm_env_release(admm_env)
       TYPE(admm_type), POINTER                           :: admm_env
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'admm_env_release'
-
       INTEGER                                            :: ispin
 
       CALL cp_fm_release(admm_env%S)
@@ -460,8 +456,6 @@ CONTAINS
    SUBROUTINE admm_gapw_env_release(admm_gapw_env)
 
       TYPE(admm_gapw_type), POINTER                      :: admm_gapw_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_gapw_env_release'
 
       IF (ASSOCIATED(admm_gapw_env%admm_kind_set)) THEN
          CALL deallocate_qs_kind_set(admm_gapw_env%admm_kind_set)

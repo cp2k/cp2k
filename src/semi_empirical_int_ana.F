@@ -94,8 +94,6 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'rotnuc_ana'
-
       INTEGER                                            :: i, idd, idp, ind1, ind2, ipp, j, &
                                                             last_orbital(2), m, n
       LOGICAL                                            :: invert, l_de1b, l_de2a, l_e1b, l_e2a, &
@@ -352,8 +350,6 @@ CONTAINS
       REAL(dp), DIMENSION(3), INTENT(OUT), OPTIONAL      :: denuc
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'corecore_ana'
 
       INTEGER                                            :: ig, nt
       LOGICAL                                            :: l_denuc, l_enuc
@@ -664,8 +660,6 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'corecore_el_ana'
-
       LOGICAL                                            :: l_denuc, l_enuc
       REAL(dp)                                           :: drij(3), dssss, dssss_sr, rij, ssss, &
                                                             ssss_sr, tmp, zz
@@ -718,8 +712,6 @@ CONTAINS
    SUBROUTINE invert_integral(sepi, sepj, int1el, int2el)
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(dp), DIMENSION(:), INTENT(INOUT), OPTIONAL    :: int1el, int2el
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'invert_integral'
 
       INTEGER                                            :: fdim, gind, gknd, i, imap, ind, j, jmap, &
                                                             jnd, k, kmap, knd, l, lmap, lnd, ndim, &
@@ -831,8 +823,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          OPTIONAL                                        :: dint1el, dint2el
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'invert_derivative'
-
       INTEGER                                            :: i, m
       REAL(KIND=dp)                                      :: tmp
 
@@ -896,8 +886,6 @@ CONTAINS
       TYPE(se_taper_type), POINTER                       :: se_taper
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       LOGICAL, INTENT(IN)                                :: lgrad
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dssss_nucint_ana'
 
       REAL(KIND=dp)                                      :: dft, ft
       TYPE(se_int_screen_type)                           :: se_int_screen
@@ -979,8 +967,6 @@ CONTAINS
       TYPE(se_taper_type), POINTER                       :: se_taper
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       LOGICAL, INTENT(IN)                                :: lgrad
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dcore_nucint_ana'
 
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: dft, ft
@@ -1089,8 +1075,6 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_int_screen_type), INTENT(IN)               :: se_int_screen
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dnucint_sp_ana'
-
       INTEGER                                            :: ij, kl
       LOGICAL                                            :: l_core, l_ssss, si, sj
 
@@ -1170,8 +1154,6 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_int_screen_type), INTENT(IN)               :: se_int_screen
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dnucint_d_ana'
-
       INTEGER                                            :: ij, kl
 
 ! Check if d-orbitals are present
@@ -1249,8 +1231,6 @@ CONTAINS
          OPTIONAL                                        :: dw
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_taper_type), POINTER                       :: se_taper
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'rotint_ana'
 
       INTEGER                                            :: i, i1, ii, ij, ij1, iminus, istep, &
                                                             iw_loc, j, j1, jj, k, kk, kl, l, &
@@ -1579,8 +1559,6 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       LOGICAL, INTENT(IN)                                :: lgrad
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dterep_ana'
-
       INTEGER                                            :: i, ij, j, k, kl, l, lasti, lastj, li, &
                                                             lj, lk, ll, numb
       REAL(KIND=dp)                                      :: dft, ft, ft1
@@ -1686,8 +1664,6 @@ CONTAINS
       TYPE(se_int_screen_type), INTENT(IN)               :: se_int_screen
       REAL(dp), INTENT(IN)                               :: ft, dft
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dterep_sp_ana'
-
       INTEGER                                            :: i, ij, j, k, kl, l, lasti, lastj, li, &
                                                             lj, lk, ll, nold, numb
       REAL(KIND=dp)                                      :: tmp
@@ -1749,8 +1725,6 @@ CONTAINS
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
       TYPE(se_int_screen_type), INTENT(IN)               :: se_int_screen
       REAL(dp), INTENT(IN)                               :: ft, dft
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dterep_d_ana'
 
       INTEGER                                            :: i, ij, j, k, kl, l, lasti, lastj, li, &
                                                             lj, lk, ll, nold, numb

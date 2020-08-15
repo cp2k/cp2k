@@ -226,8 +226,6 @@ CONTAINS
    SUBROUTINE cp_fm_retain(matrix)
       TYPE(cp_fm_type), POINTER                          :: matrix
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_retain'
-
       CPASSERT(ASSOCIATED(matrix))
       CPASSERT(matrix%ref_count > 0)
       matrix%ref_count = matrix%ref_count + 1
@@ -404,8 +402,6 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                  :: matrix
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: diag
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_get_diag'
-
       ! locals
       INTEGER :: i, nrow_global
 
@@ -537,8 +533,6 @@ CONTAINS
       INTEGER, INTENT(IN)                      :: irow_global, icol_global
       REAL(KIND=dp), INTENT(IN)                :: alpha
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_set_element'
-
       INTEGER                                  :: mypcol, myprow, npcol, nprow
       TYPE(cp_blacs_env_type), POINTER         :: context
 #if defined(__SCALAPACK)
@@ -608,8 +602,6 @@ CONTAINS
       INTEGER, INTENT(in), OPTIONAL                      :: start_row, start_col, n_rows, n_cols
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: alpha, beta
       LOGICAL, INTENT(in), OPTIONAL                      :: transpose
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_set_submatrix'
 
       INTEGER                                            :: i, i0, j, j0, ncol, ncol_block, &
                                                             ncol_global, ncol_local, nrow, &
@@ -870,8 +862,6 @@ CONTAINS
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: nrow_locals, ncol_locals
       TYPE(cp_fm_struct_type), OPTIONAL, POINTER         :: matrix_struct
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_get_info'
 
       IF (PRESENT(name)) name = matrix%name
       IF (PRESENT(context)) context => matrix%matrix_struct%context
@@ -2008,8 +1998,6 @@ CONTAINS
       INTEGER, INTENT(IN)                      :: irow_global, icol_global
       REAL(KIND=dp), INTENT(IN)                :: alpha
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_add_to_element'
-
       INTEGER                                  :: mypcol, myprow, npcol, nprow
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
       TYPE(cp_blacs_env_type), POINTER         :: context
@@ -2375,8 +2363,6 @@ CONTAINS
       INTEGER, INTENT(IN)                      :: INDXGLOB, NB, IPROC, ISRCPROC, NPROCS
       INTEGER                                  :: G2P
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_indxg2p'
-
 #if defined(__SCALAPACK)
       INTEGER, EXTERNAL :: indxg2p
 #endif
@@ -2435,8 +2421,6 @@ CONTAINS
    FUNCTION cp_fm_indxg2l(INDXGLOB, NB, IPROC, ISRCPROC, NPROCS) RESULT(G2L)
       INTEGER, INTENT(IN)                      :: INDXGLOB, NB, IPROC, ISRCPROC, NPROCS
       INTEGER                                  :: G2L
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_indxg2l'
 
 #if defined(__SCALAPACK)
       INTEGER, EXTERNAL :: indxg2l
@@ -2497,8 +2481,6 @@ CONTAINS
    FUNCTION cp_fm_indxl2g(INDXLOC, NB, IPROC, ISRCPROC, NPROCS) RESULT(L2G)
       INTEGER, INTENT(IN)                      :: INDXLOC, NB, IPROC, ISRCPROC, NPROCS
       INTEGER                                  :: L2G
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_indxl2g'
 
 #if defined(__SCALAPACK)
       INTEGER, EXTERNAL :: indxl2g
