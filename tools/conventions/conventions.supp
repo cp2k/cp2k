@@ -6,6 +6,10 @@ Flag FD_DEBUG not mentioned in INSTALL.md
 Flag FD_DEBUG not mentioned in cp2k_flags()
 Flag INTEL_MKL_VERSION not mentioned in INSTALL.md
 Flag INTEL_MKL_VERSION not mentioned in cp2k_flags()
+Flag LIBINT2_MAX_AM_eri not mentioned in INSTALL.md
+Flag LIBINT2_MAX_AM_eri not mentioned in cp2k_flags()
+Flag LIBINT_CONTRACTED_INTS not mentioned in INSTALL.md
+Flag LIBINT_CONTRACTED_INTS not mentioned in cp2k_flags()
 Flag XC_MAJOR_VERSION not mentioned in INSTALL.md
 Flag XC_MAJOR_VERSION not mentioned in cp2k_flags()
 Flag __CRAY_PM_FAKE_ENERGY not mentioned in INSTALL.md
@@ -30,10 +34,6 @@ Flag __PILAENV_BLOCKSIZE not mentioned in cp2k_flags()
 Flag __PW_CUDA_NO_HOSTALLOC not mentioned in INSTALL.md
 Flag __RELEASE_VERSION not mentioned in INSTALL.md
 Flag __RELEASE_VERSION not mentioned in cp2k_flags()
-Flag LIBINT2_MAX_AM_eri not mentioned in INSTALL.md
-Flag LIBINT2_MAX_AM_eri not mentioned in cp2k_flags()
-Flag LIBINT_CONTRACTED_INTS not mentioned in INSTALL.md
-Flag LIBINT_CONTRACTED_INTS not mentioned in cp2k_flags()
 al_system_dynamics.F: Found WRITE statement with hardcoded unit in "dump_vel"
 almo_scf.F: Found WRITE statement with hardcoded unit in "almo_scf_init"
 base_hooks.F: Found CALL m_abort in procedure "cp_abort"
@@ -45,7 +45,28 @@ base_hooks.F: Found WRITE statement with hardcoded unit in "cp_hint"
 base_hooks.F: Found WRITE statement with hardcoded unit in "cp_warn"
 beta_gamma_psi.F: Found GOTO statement in procedure "bratio"
 bfgs_optimizer.F: Found GOTO statement in procedure "rat_fun_opt"
+call_collocate.f90: Routine COLLOCATE_CORE_0 called with an implicit interface.
+call_collocate.f90: Routine COLLOCATE_CORE_1 called with an implicit interface.
+call_collocate.f90: Routine COLLOCATE_CORE_2 called with an implicit interface.
+call_collocate.f90: Routine COLLOCATE_CORE_3 called with an implicit interface.
+call_collocate.f90: Routine COLLOCATE_CORE_4 called with an implicit interface.
+call_collocate.f90: Routine COLLOCATE_CORE_5 called with an implicit interface.
+call_collocate.f90: Routine COLLOCATE_CORE_6 called with an implicit interface.
+call_collocate.f90: Routine COLLOCATE_CORE_7 called with an implicit interface.
+call_collocate.f90: Routine COLLOCATE_CORE_8 called with an implicit interface.
+call_collocate.f90: Routine COLLOCATE_CORE_9 called with an implicit interface.
+call_collocate.f90: Routine COLLOCATE_CORE_DEFAULT called with an implicit interface.
 cg_test.F: Found WRITE statement with hardcoded unit in "clebsch_gordon_test"
+cp_dbcsr_cholesky.F: Routine PDCOPY called with an implicit interface.
+cp_dbcsr_cholesky.F: Routine PDPOTRF called with an implicit interface.
+cp_dbcsr_cholesky.F: Routine PDPOTRI called with an implicit interface.
+cp_dbcsr_cholesky.F: Routine PDTRMM called with an implicit interface.
+cp_dbcsr_cholesky.F: Routine PDTRSM called with an implicit interface.
+cp_dbcsr_cholesky.F: Routine PSCOPY called with an implicit interface.
+cp_dbcsr_cholesky.F: Routine PSPOTRF called with an implicit interface.
+cp_dbcsr_cholesky.F: Routine PSPOTRI called with an implicit interface.
+cp_dbcsr_cholesky.F: Routine PSTRMM called with an implicit interface.
+cp_dbcsr_cholesky.F: Routine PSTRSM called with an implicit interface.
 cp_dbcsr_operations.F: Found CALL cp_fm_gemm in procedure "cp_dbcsr_plus_fm_fm_t"
 cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "cp_dbcsr_plus_fm_fm_t"
 cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "create_bl_distribution"
@@ -76,12 +97,21 @@ d3_poly.F: Found CALL RANDOM_NUMBER in procedure "poly_random"
 dkh_main.F: Found WRITE statement with hardcoded unit in "kintegral"
 dkh_main.F: Found WRITE statement with hardcoded unit in "kintegral_a"
 domain_submatrix_methods.F: Found WRITE statement with hardcoded unit in "print_submatrices"
+dumpdcd.F: Found CLOSE statement in procedure "dumpdcd"
+dumpdcd.F: Found OPEN statement in procedure "dumpdcd"
+dumpdcd.F: Found STOP statement in procedure "abort_program"
+dumpdcd.F: Found STOP statement in procedure "dumpdcd"
+dumpdcd.F: Found WRITE statement with hardcoded unit in "abort_program"
+dumpdcd.F: Found WRITE statement with hardcoded unit in "print_help"
 eip_silicon.F: Found OPEN statement in procedure "eip_bazant_silicon"
 eip_silicon.F: Found OPEN statement in procedure "eip_lenosky_silicon"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_bazant_silicon"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_lenosky_silicon"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_b"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_l"
+eri_mme_lattice_summation.F: ‘__var_14_matmul.dim[0].lbound’ is used uninitialized in this function [-Wuninitialized]
+eri_mme_lattice_summation.F: ‘__var_14_matmul.dim[0].ubound’ is used uninitialized in this function [-Wuninitialized]
+et_coupling_proj.F: Routine INFOG2L called with an implicit interface.
 extended_system_init.F: Found WRITE statement with hardcoded unit in "init_barostat_variables"
 farming_methods.F: Found CLOSE statement in procedure "farming_parse_input"
 farming_methods.F: Found OPEN statement in procedure "farming_parse_input"
@@ -106,6 +136,17 @@ graph_utils.F: Copyright banner malformed
 graph_utils.F: Found WRITE statement with hardcoded unit in "get_val_res"
 graphcon.F: Found GOTO statement in procedure "all_permutations"
 graphcon.F: Found WRITE statement with hardcoded unit in "reorder_graph"
+grid_integrate.F: Routine INTEGRATE_CORE_0 called with an implicit interface.
+grid_integrate.F: Routine INTEGRATE_CORE_1 called with an implicit interface.
+grid_integrate.F: Routine INTEGRATE_CORE_2 called with an implicit interface.
+grid_integrate.F: Routine INTEGRATE_CORE_3 called with an implicit interface.
+grid_integrate.F: Routine INTEGRATE_CORE_4 called with an implicit interface.
+grid_integrate.F: Routine INTEGRATE_CORE_5 called with an implicit interface.
+grid_integrate.F: Routine INTEGRATE_CORE_6 called with an implicit interface.
+grid_integrate.F: Routine INTEGRATE_CORE_7 called with an implicit interface.
+grid_integrate.F: Routine INTEGRATE_CORE_8 called with an implicit interface.
+grid_integrate.F: Routine INTEGRATE_CORE_9 called with an implicit interface.
+grid_integrate.F: Routine INTEGRATE_CORE_DEFAULT called with an implicit interface.
 hfx_compression_methods.F: Found READ with unchecked STAT in "hfx_decompress_cache"
 hfx_energy_potential.F: Found WRITE statement with hardcoded unit in "print_integrals"
 input_enumeration_types.F: Found WRITE statement with hardcoded unit in "enum_i2c"
@@ -114,6 +155,7 @@ library_tests.F: Found CALL RANDOM_NUMBER in procedure "copy_test"
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "cp_fm_gemm_test"
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "fft_test"
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "rs_pw_transfer_test"
+library_tests.F: Routine PILAENV called with an implicit interface.
 machine.F: Found OPEN statement in procedure "m_cpuinfo"
 machine_internal.F: Found CALL m_abort in procedure "m_getcwd"
 machine_internal.F: Found CALL m_abort in procedure "m_hostnm"
@@ -131,9 +173,21 @@ message_passing.F: Found CALL m_abort in procedure "mp_abort"
 message_passing.F: Found CLOSE statement in procedure "mp_file_close"
 message_passing.F: Found OPEN statement in procedure "mp_file_open"
 message_passing.F: Found STOP statement in procedure "mp_abort"
+message_passing.F: Rank mismatch between actual argument at (1) and actual argument at (2) (rank-1 and scalar)
+message_passing.F: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-2)
 message_passing.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+message_passing.f90: Rank mismatch between actual argument at (1) and actual argument at (2) (rank-1 and scalar)
+message_passing.f90: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-1)
+message_passing.f90: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-2)
+message_passing.f90: Type mismatch between actual argument at (1) and actual argument at (2) (COMPLEX(4)/REAL(8)).
+message_passing.f90: Type mismatch between actual argument at (1) and actual argument at (2) (COMPLEX(8)/COMPLEX(4)).
+message_passing.f90: Type mismatch between actual argument at (1) and actual argument at (2) (INTEGER(4)/REAL(8)).
 mltfftsg_tools.F: Found WRITE statement with hardcoded unit in "ctrig"
+mm_collocate_potential.F: Routine COLLOCATE_GF_NPBC called with an implicit interface.
+mm_collocate_potential.F: Routine INTEGRATE_GF_NPBC called with an implicit interface.
 mode_selective.F: Found READ with unchecked STAT in "bfgs_guess"
+mp2.F: Found lossy conversion real_4_r8 without KIND argument in "compute_vec_sigma_x_minus_vxc_gw"
+pao_param_exp.F: Found lossy conversion real_4_r8 without KIND argument in "zheevd_wrapper"
 parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "dump_reload_check"
 parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "parallel_rng_types_test"
 powell.F: Found GOTO statement in procedure "newuob"
@@ -163,6 +217,9 @@ qs_linres_current.F: Found WRITE statement with hardcoded unit in "box_atoms_new
 qs_linres_current.F: Found WRITE statement with hardcoded unit in "calculate_jrho_resp"
 qs_linres_current.F: Found WRITE statement with hardcoded unit in "collocate_gauge_new"
 qs_linres_issc_utils.F: Found WRITE statement with hardcoded unit in "issc_issc"
+qs_linres_op.F: Routine INDXL2G called with an implicit interface.
+qs_loc_utils.F: Routine PZROT called with an implicit interface.
+qs_localization_methods.F: Routine PZROT called with an implicit interface.
 qs_ot.F: Found WRITE statement with hardcoded unit in "qs_ot_generate_rotation"
 qs_rho_atom_methods.F: Found WRITE statement with hardcoded unit in "init_rho_atom"
 se_core_matrix.F: Found WRITE statement with hardcoded unit in "aa"
@@ -170,6 +227,7 @@ se_core_matrix.F: Found WRITE statement with hardcoded unit in "makeds"
 se_core_matrix.F: Found WRITE statement with hardcoded unit in "makes"
 se_fock_matrix_coulomb.F: Found WRITE statement with hardcoded unit in "build_fock_matrix_coulomb_lr"
 se_fock_matrix_dbg.F: Found WRITE statement with hardcoded unit in "dbg_energy_coulomb_lr"
+semi_empirical_int3_utils.F: Routine EVAL called with an implicit interface.
 semi_empirical_int_args.h: Copyright banner malformed
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_dcore_nucint_ana"
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_dcorecore_ana"
@@ -180,7 +238,9 @@ semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_rotmat_der"
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_value"
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "rot_2el_2c_first_debug"
+semi_empirical_int_debug.F: Routine CHECK_VALUE called with an implicit interface.
 semi_empirical_int_debug.h: Copyright banner malformed
+semi_empirical_int_utils.F: Routine EVAL called with an implicit interface.
 semi_empirical_mpole_methods.F: Found WRITE statement with hardcoded unit in "semi_empirical_mpole_p_setup"
 sockets.c: Copyright banner malformed
 spherical_harmonics.F: Found WRITE statement with hardcoded unit in "cgc"
@@ -221,12 +281,6 @@ xml_parser.F: Found WRITE statement with hardcoded unit in "xml_report_details_s
 xml_parser.F: Found WRITE statement with hardcoded unit in "xml_report_errors_extern_"
 xml_parser.F: Found WRITE statement with hardcoded unit in "xml_report_errors_int_"
 xml_parser.F: Found WRITE statement with hardcoded unit in "xml_report_errors_string_"
-dumpdcd.F: Found CLOSE statement in procedure "dumpdcd"
-dumpdcd.F: Found OPEN statement in procedure "dumpdcd"
-dumpdcd.F: Found STOP statement in procedure "abort_program"
-dumpdcd.F: Found STOP statement in procedure "dumpdcd"
-dumpdcd.F: Found WRITE statement with hardcoded unit in "abort_program"
-dumpdcd.F: Found WRITE statement with hardcoded unit in "print_help"
 xyz2dcd.F: Found CLOSE statement in procedure "xyz2dcd"
 xyz2dcd.F: Found OPEN statement in procedure "xyz2dcd"
 xyz2dcd.F: Found STOP statement in procedure "abort_program"
