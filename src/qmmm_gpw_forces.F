@@ -616,7 +616,7 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: shells
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_force_with_gaussian_low', &
-         routineNb = 'qmmm_forces_gaussian_low', routineP = moduleN//':'//routineN
+         routineNb = 'qmmm_forces_gaussian_low'
 
       INTEGER                                            :: handle, handle2, IGauss, ilevel, Imm, &
                                                             IndMM, IRadTyp, LIndMM, myind, &

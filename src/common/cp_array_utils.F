@@ -104,7 +104,6 @@ CONTAINS
       CHARACTER(len=*), INTENT(in), OPTIONAL :: el_format
 
       INTEGER :: iostat, i
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_1d_${nametype1}$_write'
       CHARACTER(len=*), PARAMETER :: defaultFormat = ${defaultFormatType1}$
 
       WRITE (unit=unit_nr, fmt="('( ')", advance="no", iostat=iostat)
@@ -154,7 +153,6 @@ CONTAINS
       CHARACTER(len=*), INTENT(in), OPTIONAL :: el_format
 
       INTEGER :: iostat, i
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_2d_${nametype1}$_write'
       CHARACTER(len=*), PARAMETER :: defaultFormat = ${defaultFormatType1}$
       CHARACTER(len=200) :: fmtstr
       CHARACTER(len=10) :: nRiga
@@ -194,7 +192,6 @@ CONTAINS
       ${type1}$, POINTER :: array(:)
       INTEGER, INTENT(in) :: n
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_1d_${nametype1}$_guarantee_size'
       CPASSERT(n >= 0)
       IF (ASSOCIATED(array)) THEN
          IF (SIZE(array) /= n) THEN
@@ -228,7 +225,6 @@ CONTAINS
       ${type1}$, POINTER :: array(:, :)
       INTEGER, INTENT(in) :: n_rows, n_cols
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_2d_${nametype1}$_guarantee_size'
       CPASSERT(n_cols >= 0)
       CPASSERT(n_rows >= 0)
       IF (ASSOCIATED(array)) THEN
@@ -265,7 +261,6 @@ CONTAINS
       INTEGER, INTENT(in), OPTIONAL :: l_index, u_index
       integer :: res
 
-      character(len=*), parameter :: routineN = 'cp_1d_${nametype1}$_bsearch'
       INTEGER :: lindex, uindex, aindex
 
       lindex = 1

@@ -992,8 +992,7 @@ CONTAINS
    SUBROUTINE tmc_print_params(tmc_env)
       TYPE(tmc_env_type), POINTER                        :: tmc_env
 
-      CHARACTER(LEN=*), PARAMETER :: fmt_my = '(T2,A,"| ",A,T41,A40)', plabel = "TMC", &
-         routineN = 'tmc_print_params', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: fmt_my = '(T2,A,"| ",A,T41,A40)', plabel = "TMC"
 
       CHARACTER(LEN=80)                                  :: c_tmp, fmt_tmp
       INTEGER                                            :: file_nr

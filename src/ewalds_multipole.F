@@ -1290,9 +1290,6 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
       INTEGER, INTENT(IN)                      :: iw
       LOGICAL, INTENT(IN)                      :: debug_r_space
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'debug_ewald_multipoles', &
-                                     routineP = "ewalds_multipole_debug"//':'//routineN
-
       INTEGER                                  :: nparticles
       LOGICAL, DIMENSION(3)                    :: task
       REAL(KIND=dp)                            :: e_neut, e_self, g_energy, &

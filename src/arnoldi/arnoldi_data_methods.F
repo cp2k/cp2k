@@ -34,8 +34,6 @@ MODULE arnoldi_data_methods
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'arnoldi_data_methods'
-
    PUBLIC :: select_evals, get_selected_ritz_val, arnoldi_is_converged, &
              arnoldi_data_type, get_nrestart, set_arnoldi_initial_vector, &
              setup_arnoldi_data, deallocate_arnoldi_data, get_selected_ritz_vector

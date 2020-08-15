@@ -122,7 +122,7 @@ MODULE message_passing
    INTEGER, PARAMETER, PUBLIC :: mpi_character_size = 1
    INTEGER, PARAMETER, PUBLIC :: mpi_integer_size = 4
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'message_passing'
+   CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = 'message_passing'
 
 #if defined(__parallel)
    ! internal reference counter used to debug communicator leaks
@@ -785,8 +785,7 @@ CONTAINS
       INTEGER, INTENT(out)                     :: mp_new_comm
       INTEGER, DIMENSION(:)                    :: ranks_order
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_reordering', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_reordering'
 
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
@@ -1217,8 +1216,7 @@ CONTAINS
                                                   task_coor(2)
       INTEGER, INTENT(IN)                      :: groupid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_environ_c', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_environ_c'
 
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
@@ -1292,8 +1290,7 @@ CONTAINS
       INTEGER, INTENT(INOUT)                   :: dims(:)
       INTEGER, INTENT(OUT)                     :: pos(:), comm_cart
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_cart_create', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_cart_create'
 
       INTEGER                                  :: handle, ierr, nodes
 #if defined(__parallel)
@@ -1383,8 +1380,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: comm1, comm2
       INTEGER, INTENT(OUT)                               :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_compare', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_compare'
 
       INTEGER                                            :: handle, ierr, iout
 
@@ -1517,8 +1513,7 @@ CONTAINS
       INTEGER, INTENT(IN)                      :: comm1, comm2
       INTEGER, DIMENSION(:), INTENT(OUT)       :: rank
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_rank_compare', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_rank_compare'
 
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
@@ -1668,8 +1663,7 @@ CONTAINS
    SUBROUTINE mp_waitall_1(requests)
       INTEGER, DIMENSION(:), INTENT(inout)     :: requests
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_waitall_1', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_waitall_1'
 
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
@@ -1703,8 +1697,7 @@ CONTAINS
    SUBROUTINE mp_waitall_2(requests)
       INTEGER, DIMENSION(:, :), INTENT(inout)  :: requests
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_waitall_2', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_waitall_2'
 
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
@@ -1764,8 +1757,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(inout)     :: requests
       INTEGER, INTENT(out)                     :: completed
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_waitany', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_waitany'
 
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
@@ -1864,9 +1856,6 @@ CONTAINS
       INTEGER, INTENT(out), OPTIONAL           :: completed
       LOGICAL, INTENT(out), OPTIONAL           :: flag
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_testany_1', &
-                                     routineP = moduleN//':'//routineN
-
       INTEGER                                  :: ierr
 #if defined(__parallel)
       INTEGER                                  :: completed_l, count
@@ -1903,9 +1892,6 @@ CONTAINS
       INTEGER, DIMENSION(:, :), INTENT(inout)   :: requests
       INTEGER, INTENT(out), OPTIONAL           :: completed
       LOGICAL, INTENT(out), OPTIONAL           :: flag
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_testany_2', &
-                                     routineP = moduleN//':'//routineN
 
       INTEGER                                  :: ierr
 #if defined(__parallel)
@@ -1970,8 +1956,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: color
       INTEGER, INTENT(in), OPTIONAL                      :: key
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_split_direct', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_split_direct'
 
       INTEGER                                            :: handle, ierr, my_key
 
@@ -2025,7 +2010,7 @@ CONTAINS
       INTEGER, DIMENSION(0:), OPTIONAL          :: group_partition
       INTEGER, OPTIONAL                        :: stride
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_split', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp_comm_split', &
                                      routineP = moduleN//':'//routineN
 
       INTEGER                                  :: handle, ierr, mepos, nnodes
@@ -2137,8 +2122,7 @@ CONTAINS
       INTEGER, INTENT(IN)                      :: comm
       INTEGER, INTENT(OUT)                     :: tag
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_probe', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_probe'
 
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
@@ -2259,8 +2243,7 @@ CONTAINS
       INTEGER, INTENT(out)                     :: request
       INTEGER, INTENT(in), OPTIONAL            :: tag
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_bv', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_bv'
 
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
@@ -2318,8 +2301,7 @@ CONTAINS
       INTEGER, INTENT(out)                     :: request
       INTEGER, INTENT(in), OPTIONAL            :: tag
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_bv', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_bv'
 
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
@@ -2377,8 +2359,7 @@ CONTAINS
       INTEGER, INTENT(out)                     :: request
       INTEGER, INTENT(in), OPTIONAL            :: tag
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_bm3', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_bm3'
 
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
@@ -2436,8 +2417,7 @@ CONTAINS
       INTEGER, INTENT(out)                     :: request
       INTEGER, INTENT(in), OPTIONAL            :: tag
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_bm3', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_bm3'
 
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
@@ -2485,8 +2465,7 @@ CONTAINS
       CHARACTER(LEN=*)                         :: msg
       INTEGER                                  :: source, gid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_av', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_av'
 
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
@@ -2538,8 +2517,7 @@ CONTAINS
       CHARACTER(LEN=*)                         :: msg(:)
       INTEGER                                  :: source, gid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_am', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_am'
 
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
@@ -2609,8 +2587,7 @@ CONTAINS
       REAL(kind=real_8), INTENT(INOUT)         :: msg(:)
       INTEGER, INTENT(IN)                      :: gid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_dv', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_dv'
 
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
@@ -2655,8 +2632,7 @@ CONTAINS
       INTEGER(KIND=int_4), INTENT(INOUT)       :: msg(:)
       INTEGER, INTENT(IN)                      :: gid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_iv', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_iv'
 
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
@@ -2699,8 +2675,7 @@ CONTAINS
       INTEGER(KIND=int_8), INTENT(INOUT)       :: msg(:)
       INTEGER, INTENT(IN)                      :: gid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_lv', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_lv'
 
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
@@ -2743,8 +2718,7 @@ CONTAINS
       REAL(kind=real_4), INTENT(INOUT)         :: msg(:)
       INTEGER, INTENT(IN)                      :: gid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_rv', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_rv'
 
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
@@ -2787,8 +2761,7 @@ CONTAINS
       REAL(kind=real_8), INTENT(INOUT)         :: msg(:)
       INTEGER, INTENT(IN)                      :: gid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_dv', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_dv'
 
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
@@ -2831,8 +2804,7 @@ CONTAINS
       INTEGER(KIND=int_4), INTENT(INOUT)       :: msg(:)
       INTEGER, INTENT(IN)                      :: gid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_iv', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_iv'
 
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
@@ -2875,8 +2847,7 @@ CONTAINS
       INTEGER(KIND=int_8), INTENT(INOUT)       :: msg(:)
       INTEGER, INTENT(IN)                      :: gid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_lv', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_lv'
 
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
@@ -2919,8 +2890,7 @@ CONTAINS
       REAL(kind=real_4), INTENT(INOUT)         :: msg(:)
       INTEGER, INTENT(IN)                      :: gid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_rv', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_rv'
 
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
@@ -3063,8 +3033,7 @@ CONTAINS
       CHARACTER(len=*), INTENT(OUT)                      :: version
       INTEGER, INTENT(OUT)                               :: resultlen
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_get_library_version', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_get_library_version'
 
       INTEGER                                            :: ierr
 
@@ -3277,8 +3246,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL              :: msglen
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_write_at_chv', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_write_at_chv'
 
 #if defined(__parallel)
       INTEGER                                    :: ierr, msg_len
@@ -3305,8 +3273,7 @@ CONTAINS
       INTEGER, INTENT(IN)                        :: fh
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_write_at_ch', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_write_at_ch'
 
 #if defined(__parallel)
       INTEGER                                    :: ierr
@@ -3335,8 +3302,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL              :: msglen
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_write_at_all_chv', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_write_at_all_chv'
 
 #if defined(__parallel)
       INTEGER                                    :: ierr, msg_len
@@ -3363,8 +3329,7 @@ CONTAINS
       INTEGER, INTENT(IN)                        :: fh
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_write_at_all_ch', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_write_at_all_ch'
 
 #if defined(__parallel)
       INTEGER                                    :: ierr
@@ -3394,8 +3359,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL              :: msglen
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_at_chv', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_at_chv'
 
 #if defined(__parallel)
       INTEGER                                    :: ierr, msg_len
@@ -3422,8 +3386,7 @@ CONTAINS
       INTEGER, INTENT(IN)                        :: fh
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_at_ch', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_at_ch'
 
 #if defined(__parallel)
       INTEGER                                    :: ierr
@@ -3452,8 +3415,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL              :: msglen
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_at_all_chv', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_at_all_chv'
 
 #if defined(__parallel)
       INTEGER                                    :: ierr, msg_len
@@ -3480,8 +3442,7 @@ CONTAINS
       INTEGER, INTENT(IN)                        :: fh
       INTEGER(kind=file_offset), INTENT(IN)      :: offset
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_at_all_ch', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_at_all_ch'
 
 #if defined(__parallel)
       INTEGER                                    :: ierr
@@ -3547,8 +3508,7 @@ CONTAINS
          INTENT(IN), OPTIONAL                   :: index_descriptor
       TYPE(mp_type_descriptor_type)            :: type_descriptor
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_type_make_struct', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_type_make_struct'
 
       INTEGER                                  :: i, ierr, n
 #if defined(__parallel)
@@ -3659,8 +3619,7 @@ CONTAINS
          DIMENSION(1:count), INTENT(in), TARGET :: displs
       TYPE(mp_file_descriptor_type)             :: type_descriptor
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_hindexed_make_chv', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_hindexed_make_chv'
 
       INTEGER :: ierr, handle
 
@@ -3701,8 +3660,7 @@ CONTAINS
       INTEGER(kind=file_offset), INTENT(IN)    :: offset
       TYPE(mp_file_descriptor_type)            :: type_descriptor
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_set_view_chv', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_set_view_chv'
 
       INTEGER                                   :: ierr, handle
 
@@ -3744,8 +3702,7 @@ CONTAINS
       TYPE(mp_file_descriptor_type), &
          INTENT(IN), OPTIONAL                   :: type_descriptor
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_all_chv', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_read_all_chv'
 
       INTEGER                                   :: ierr, handle, i
 
@@ -3796,8 +3753,7 @@ CONTAINS
       TYPE(mp_file_descriptor_type), &
          INTENT(IN), OPTIONAL                   :: type_descriptor
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_write_all_chv', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_write_all_chv'
 
       INTEGER                                   :: ierr, handle, i
 
@@ -3838,8 +3794,7 @@ CONTAINS
    SUBROUTINE mp_file_type_free(type_descriptor)
       TYPE(mp_file_descriptor_type)             :: type_descriptor
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_type_free', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_type_free'
 
       INTEGER                                   :: ierr, handle
 
@@ -3880,9 +3835,6 @@ CONTAINS
       LOGICAL, INTENT(INOUT)                             :: mpi_io, replace
       INTEGER, INTENT(OUT)                               :: amode
       CHARACTER(len=*), INTENT(IN)                       :: form, action, status, position
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_file_get_amode', &
-                                     routineP = moduleN//':'//routineN
 
       amode = -1
 #if defined(__parallel)
@@ -4016,8 +3968,7 @@ CONTAINS
       INTEGER, INTENT(out)                               :: request
       INTEGER, INTENT(in), OPTIONAL                      :: tag
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_custom', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_custom'
 
       INTEGER                                            :: ierr, my_tag
 
@@ -4056,8 +4007,7 @@ CONTAINS
       INTEGER, INTENT(out)                               :: request
       INTEGER, INTENT(in), OPTIONAL                      :: tag
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_custom', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_custom'
 
       INTEGER                                            :: ierr, my_tag
 
@@ -4116,8 +4066,7 @@ CONTAINS
    SUBROUTINE mp_win_flush_all(win)
       INTEGER, INTENT(IN)                                :: win
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_win_flush_all', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_win_flush_all'
 
       INTEGER                                            :: handle, ierr
 
@@ -4145,8 +4094,7 @@ CONTAINS
    SUBROUTINE mp_win_lock_all(win)
       INTEGER, INTENT(INOUT)                             :: win
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_win_lock_all', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_win_lock_all'
 
       INTEGER                                            :: handle, ierr
 
@@ -4177,8 +4125,7 @@ CONTAINS
    SUBROUTINE mp_win_unlock_all(win)
       INTEGER, INTENT(INOUT)                             :: win
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_win_unlock_all', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_win_unlock_all'
 
       INTEGER                                            :: handle, ierr
 
@@ -4218,9 +4165,6 @@ CONTAINS
    SUBROUTINE mpi_perf_test(comm, npow, output_unit)
 
       INTEGER, INTENT(IN)                      :: comm, npow, output_unit
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mpi_perf_test', &
-                                     routineP = moduleN//':'//routineN
 
 #if defined(__parallel)
 

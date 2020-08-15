@@ -49,7 +49,6 @@ CONTAINS
       INTEGER, INTENT(in)                                :: nnodes
       ${type1}$, DIMENSION(nnodes), INTENT(out)          :: xnodes
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'equidistant_${nametype1}$nodes_a_b'
       INTEGER                                            :: i
       ${type1}$                                          :: rscale
 

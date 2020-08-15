@@ -11,9 +11,6 @@
   SUBROUTINE select_evals_${nametype1}$ (arnoldi_data)
      TYPE(arnoldi_data_type)                :: arnoldi_data
 
-     CHARACTER(LEN=*), PARAMETER :: routineN = 'select_evals_${nametype1}$', &
-                                    routineP = moduleN//':'//routineN
-
      INTEGER                                  :: my_crit, last_el, my_ind, i
      REAL(${type_prec}$)                        :: convergence
      TYPE(arnoldi_data_${nametype1}$_type), POINTER   :: ar_data
@@ -62,9 +59,6 @@
      INTEGER, DIMENSION(:)                    :: selected_ind
      INTEGER                                  :: neval
 
-     CHARACTER(LEN=*), PARAMETER :: routineN = 'index_min_max_real_eval_${nametype1}$', &
-                                    routineP = moduleN//':'//routineN
-
      INTEGER, DIMENSION(current_step)         :: indexing
      REAL(${type_prec}$), DIMENSION(current_step)        :: tmp_array
      INTEGER                                   :: i
@@ -103,9 +97,6 @@
      INTEGER, DIMENSION(:)                    :: selected_ind
      INTEGER                                  :: neval
 
-     CHARACTER(LEN=*), PARAMETER :: routineN = 'index_nmax_real_eval_${nametype1}$', &
-                                    routineP = moduleN//':'//routineN
-
      INTEGER                                  :: i, nlimit
      INTEGER, DIMENSION(current_step)         :: indexing
      REAL(${type_prec}$), DIMENSION(current_step)        :: tmp_array
@@ -136,9 +127,6 @@
      INTEGER, INTENT(IN)                      :: current_step
      INTEGER, DIMENSION(:)                    :: selected_ind
      INTEGER                                  :: neval, nlimit
-
-     CHARACTER(LEN=*), PARAMETER :: routineN = 'index_nmin_real_eval_${nametype1}$', &
-                                    routineP = moduleN//':'//routineN
 
      INTEGER                                  :: i
      INTEGER, DIMENSION(current_step)         :: indexing

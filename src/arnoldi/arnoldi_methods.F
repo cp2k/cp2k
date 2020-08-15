@@ -311,7 +311,6 @@ CONTAINS
    SUBROUTINE compute_evals_${nametype1}$ (arnoldi_data)
       TYPE(arnoldi_data_type)                 :: arnoldi_data
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_evals_${nametype1}$'
       COMPLEX(${type_prec}$), DIMENSION(:, :), ALLOCATABLE   :: levec
       TYPE(arnoldi_data_${nametype1}$_type), POINTER            :: ar_data
       INTEGER                                  :: ndim
@@ -353,7 +352,6 @@ CONTAINS
       TYPE(m_x_v_vectors_type)                :: vectors
       TYPE(arnoldi_data_type)                 :: arnoldi_data
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_init_${nametype1}$'
       INTEGER                                  :: i, iseed(4), row_size, col_size, &
                                                   nrow_local, ncol_local, pcol_group, &
                                                   row, col
@@ -439,7 +437,6 @@ CONTAINS
    SUBROUTINE arnoldi_iram_${nametype1}$ (arnoldi_data)
       TYPE(arnoldi_data_type)                 :: arnoldi_data
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_iram_${nametype1}$'
       TYPE(arnoldi_data_${nametype1}$_type), POINTER            :: ar_data
       TYPE(arnoldi_control_type), POINTER                     :: control
       COMPLEX(${type_prec}$), DIMENSION(:, :), ALLOCATABLE  :: tmp_mat, safe_mat, Q, tmp_mat1
@@ -538,7 +535,6 @@ CONTAINS
       TYPE(m_x_v_vectors_type), TARGET        :: vectors
       TYPE(arnoldi_data_type)                 :: arnoldi_data
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_subspace_${nametype1}$'
       INTEGER                                  :: i, j, ncol_local, nrow_local
       REAL(${type_prec}$)                        :: rnorm
       TYPE(arnoldi_control_type), POINTER           :: control
@@ -759,7 +755,6 @@ CONTAINS
       TYPE(m_x_v_vectors_type)                :: vectors
       TYPE(arnoldi_data_type)                 :: arnoldi_data
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_init_${nametype1}$'
       INTEGER                                  :: iseed(4), row_size, col_size, &
                                                   nrow_local, ncol_local, pcol_group, &
                                                   row, col
@@ -850,7 +845,6 @@ CONTAINS
       TYPE(m_x_v_vectors_type)                :: vectors
       TYPE(arnoldi_data_type)                 :: arnoldi_data
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_subspace_${nametype1}$'
       INTEGER                                  :: j, ncol_local, nrow_local, pcol_group
       TYPE(arnoldi_control_type), POINTER           :: control
       TYPE(arnoldi_data_${nametype1}$_type), POINTER            :: ar_data
@@ -955,7 +949,6 @@ CONTAINS
       TYPE(m_x_v_vectors_type)                :: vectors
       TYPE(arnoldi_data_type)                 :: arnoldi_data
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'gev_update_data_${nametype1}$'
       TYPE(arnoldi_control_type), POINTER           :: control
       TYPE(arnoldi_data_${nametype1}$_type), POINTER            :: ar_data
       INTEGER                                  :: ncol_local, nrow_local, ind, i
