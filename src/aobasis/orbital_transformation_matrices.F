@@ -73,8 +73,6 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: maxl
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_spherical_harmonics'
-
       INTEGER                                            :: expo, i, ic, ic1, ic2, is, j, k, l, lx, &
                                                             lx1, lx2, ly, ly1, ly2, lz, lz1, lz2, &
                                                             m, ma, nc, ns
@@ -260,7 +258,6 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE deallocate_spherical_harmonics()
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_spherical_harmonics'
 
       INTEGER                                            :: l
 
@@ -303,8 +300,6 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: maxl
       INTEGER                                            :: output_unit
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_spherical_harmonics'
 
       CHARACTER(LEN=78)                                  :: headline
       INTEGER                                            :: l, nc, ns

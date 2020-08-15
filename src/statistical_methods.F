@@ -46,7 +46,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n
       REAL(KIND=dp), INTENT(OUT)                         :: w, pw
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'sw_test'
       REAL(KIND=dp), PARAMETER :: c1(6) = (/0.000000_dp, 0.221157_dp, -0.147981_dp, -2.071190_dp, &
          4.434685_dp, -2.706056_dp/), c2(6) = (/0.000000_dp, 0.042981_dp, -0.293762_dp, &
          -1.752461_dp, 5.682633_dp, -3.582633_dp/), &
@@ -356,8 +355,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: istart, n
       REAL(KIND=dp)                                      :: tau, z, prob
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'k_test'
-
       INTEGER                                            :: is, j, k, nt
       REAL(KIND=dp)                                      :: a1, var
 
@@ -400,8 +397,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n
       REAL(KIND=dp)                                      :: r, u, prob
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'vn_test'
-
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: q, s, var, x
 
@@ -443,8 +438,6 @@ CONTAINS
    SUBROUTINE tests(xdata, globenv)
       REAL(KIND=dp), DIMENSION(:), POINTER               :: xdata
       TYPE(global_environment_type), POINTER             :: globenv
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'tests'
 
       INTEGER                                            :: i, n
       REAL(KINd=dp)                                      :: prob, pw, r, tau, u, w, z

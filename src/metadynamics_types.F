@@ -149,8 +149,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: metadyn_section
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'metadyn_create'
-
       INTEGER                                            :: i
       LOGICAL                                            :: do_langevin
 
@@ -238,8 +236,6 @@ CONTAINS
       TYPE(meta_env_type), POINTER                       :: meta_env
       REAL(KIND=dp), OPTIONAL, POINTER                   :: time
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_meta_env'
-
       IF (ASSOCIATED(meta_env)) THEN
          IF (PRESENT(time)) THEN
             NULLIFY (meta_env%time)
@@ -256,8 +252,6 @@ CONTAINS
    SUBROUTINE meta_env_retain(meta_env)
       TYPE(meta_env_type), POINTER                       :: meta_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'meta_env_retain'
-
       CPASSERT(ASSOCIATED(meta_env))
       CPASSERT(meta_env%ref_count > 0)
       meta_env%ref_count = meta_env%ref_count + 1
@@ -270,8 +264,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE meta_env_release(meta_env)
       TYPE(meta_env_type), POINTER                       :: meta_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'meta_env_release'
 
       INTEGER                                            :: i
 
@@ -320,8 +312,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE hills_env_release(hills_env)
       TYPE(hills_env_type), POINTER                      :: hills_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'hills_env_release'
 
       IF (ASSOCIATED(hills_env)) THEN
          IF (ASSOCIATED(hills_env%ss_history)) THEN

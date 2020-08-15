@@ -45,8 +45,6 @@ CONTAINS
    SUBROUTINE allocate_fist_energy(fist_energy)
       TYPE(fist_energy_type), POINTER                    :: fist_energy
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_fist_energy'
-
       IF (.NOT. ASSOCIATED(fist_energy)) THEN
          ALLOCATE (fist_energy)
       END IF
@@ -64,8 +62,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE deallocate_fist_energy(fist_energy)
       TYPE(fist_energy_type), POINTER                    :: fist_energy
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_fist_energy'
 
       IF (ASSOCIATED(fist_energy)) THEN
          DEALLOCATE (fist_energy)
@@ -86,8 +82,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE init_fist_energy(fist_energy)
       TYPE(fist_energy_type), POINTER                    :: fist_energy
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'init_fist_energy'
 
       IF (ASSOCIATED(fist_energy)) THEN
          fist_energy%kin = 0.0_dp

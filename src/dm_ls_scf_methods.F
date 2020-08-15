@@ -1294,8 +1294,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: homo, lumo
       INTEGER                                            :: unit_nr
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_homo_lumo'
-
       LOGICAL                                            :: converged
       REAL(KIND=dp)                                      :: max_eig, min_eig, shift1, shift2
       TYPE(dbcsr_type)                                   :: tmp1, tmp2, tmp3

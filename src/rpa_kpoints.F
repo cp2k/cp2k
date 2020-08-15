@@ -836,8 +836,6 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_a, mat_b
       REAL(kind=dp), INTENT(IN)                          :: alpha, beta
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dbcsr_add_local'
-
       INTEGER                                            :: col, row
       LOGICAL                                            :: found
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block_to_compute, data_block

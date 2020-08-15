@@ -473,8 +473,6 @@ CONTAINS
       TYPE(tree_type), POINTER                           :: elem
       TYPE(tmc_env_type), POINTER                        :: tmc_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'tmc_read_ana_files_input'
-
       CHARACTER(len=default_string_length), &
          DIMENSION(:), POINTER                           :: directories
       INTEGER                                            :: env_id, ierr, nr_temp, t_act
@@ -569,8 +567,6 @@ CONTAINS
    SUBROUTINE tmc_preread_input(input, tmc_env)
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(tmc_env_type), POINTER                        :: tmc_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'tmc_preread_input'
 
       CHARACTER(LEN=default_path_length)                 :: c_tmp
       INTEGER                                            :: itmp
@@ -680,8 +676,6 @@ CONTAINS
    SUBROUTINE tmc_read_input(input, tmc_env)
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(tmc_env_type), POINTER                        :: tmc_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'tmc_read_input'
 
       INTEGER                                            :: itmp
       LOGICAL                                            :: explicit, flag
@@ -808,8 +802,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: ana_on_the_fly
       LOGICAL                                            :: success
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'tmc_redistributing_cores'
 
       INTEGER :: cc_group, cc_group_rank, comm_tmp, master_ana_group, master_ana_rank, &
          master_first_e_worker_g, master_first_e_worker_r, master_worker_group, &

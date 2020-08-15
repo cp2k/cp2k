@@ -75,8 +75,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: l1, m1, l2, m2
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: clm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'clebsch_gordon_complex'
-
       INTEGER                                            :: icase, ind, l, lm, lp, n
 
       l = l1 + l2
@@ -109,8 +107,6 @@ CONTAINS
    SUBROUTINE clebsch_gordon_real(l1, m1, l2, m2, rlm)
       INTEGER, INTENT(IN)                                :: l1, m1, l2, m2
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: rlm
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'clebsch_gordon_real'
 
       INTEGER                                            :: icase1, icase2, ind, l, lm, lp, mm(2), n
       REAL(KIND=dp)                                      :: xsi
@@ -299,8 +295,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: l1, m1, l2, m2, lp, mp
       REAL(KIND=dp)                                      :: cgc
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cgc'
-
       INTEGER                                            :: la, lb, ll, ma, mb, s, t, tmax, tmin, &
                                                             z1, z2, z3, z4, z5
       REAL(KIND=dp)                                      :: f1, f2, pref
@@ -418,8 +412,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: r
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: y
       INTEGER, INTENT(IN)                                :: l, m
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'rvy_lm'
 
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: cp, lmm, lpm, pf, plm, rxy, sp, t, z
@@ -552,8 +544,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: y
       INTEGER, INTENT(IN)                                :: l, m
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'rry_lm'
-
       REAL(KIND=dp)                                      :: cp, lmm, lpm, pf, plm, rxy, sp, t, z
 
       SELECT CASE (l)
@@ -680,8 +670,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: r
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(OUT)        :: y
       INTEGER, INTENT(IN)                                :: l, m
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cvy_lm'
 
       INTEGER                                            :: i, n
       REAL(KIND=dp)                                      :: cp, lmm, lpm, pf, plm, rxy, sp, t, ym, &
@@ -863,8 +851,6 @@ CONTAINS
       COMPLEX(KIND=dp), INTENT(OUT)                      :: y
       INTEGER, INTENT(IN)                                :: l, m
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'ccy_lm'
-
       REAL(KIND=dp)                                      :: cp, lmm, lpm, pf, plm, rxy, sp, t, ym, &
                                                             yp, z
 
@@ -1025,8 +1011,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(2), INTENT(OUT)           :: dy
       INTEGER, INTENT(IN)                                :: l, m
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dry_lm'
-
       REAL(KIND=dp)                                      :: cp, ct, dplm, lmm, lpm, p, pf, rxy, sp, &
                                                             st, t, tt, y, z
       REAL(KIND=dp), DIMENSION(3)                        :: r
@@ -1180,8 +1164,6 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(2), INTENT(OUT)        :: dy
       INTEGER, INTENT(IN)                                :: l, m
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dcy_lm'
-
       REAL(KIND=dp), DIMENSION(2)                        :: dd
 
       CPABORT("Not implemented")
@@ -1203,8 +1185,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: x
       INTEGER, INTENT(IN)                                :: l, m
       REAL(KIND=dp)                                      :: plm
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'legendre'
 
       INTEGER                                            :: il, im, mm
       REAL(KIND=dp)                                      :: fact, pll, pmm, pmmp1, somx2
@@ -1349,8 +1329,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: l, m
       REAL(KIND=dp)                                      :: dplm
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dlegendre'
-
       INTEGER                                            :: mm
 
       IF (ABS(x) > 1.0_dp) CPABORT("x value > 1")
@@ -1488,8 +1466,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: x
       INTEGER, INTENT(IN)                                :: l
       REAL(KIND=dp)                                      :: dPof1
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dPof1'
 
       IF (ABS(x) - 1.0_dp > EPSILON(1.0_dp)) THEN
          CPABORT("|x| is not 1")

@@ -78,8 +78,6 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: check_for_ref
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_cell'
-
       INTEGER                                            :: my_per
       INTEGER, DIMENSION(:), POINTER                     :: multiple_unit_cell
       LOGICAL                                            :: cell_read_a, cell_read_abc, cell_read_b, &
@@ -205,8 +203,6 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: check_this_section
       LOGICAL                                            :: res
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'parsed_cp2k_input'
-
       LOGICAL                                            :: my_check
       TYPE(section_vals_type), POINTER                   :: glob_section
 
@@ -237,8 +233,6 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       INTEGER, DIMENSION(:), POINTER                     :: multiple_unit_cell
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_multiple_unit_cell'
-
 ! Fail is one of the value is set to zero..
 
       IF (ANY(multiple_unit_cell <= 0)) &
@@ -265,8 +259,6 @@ CONTAINS
 
       TYPE(section_vals_type), POINTER                   :: cell_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_cell_from_external_file'
 
       CHARACTER(LEN=default_path_length)                 :: cell_file_name
       INTEGER                                            :: i, idum, j, my_format, n_rep
@@ -456,8 +448,6 @@ CONTAINS
       TYPE(cp_parser_type), POINTER                      :: parser
       REAL(KIND=dp), INTENT(OUT)                         :: r
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cif_get_real'
-
       CHARACTER(LEN=default_string_length)               :: s_tag
       INTEGER                                            :: iln
 
@@ -485,8 +475,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: subsys_section
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell_ref
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: label
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'write_cell'
 
       CHARACTER(LEN=default_string_length)               :: my_label, unit_str
       INTEGER                                            :: output_unit

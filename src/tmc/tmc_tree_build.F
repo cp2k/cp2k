@@ -1501,8 +1501,6 @@ CONTAINS
       LOGICAL                                            :: removed
       TYPE(tmc_env_type), POINTER                        :: tmc_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dealloc_whole_g_tree'
-
       LOGICAL                                            :: acc_removed, nacc_removed
       TYPE(global_tree_type), POINTER                    :: acc_ptr, nacc_ptr, tmp_ptr
 
@@ -1544,8 +1542,6 @@ CONTAINS
       LOGICAL                                            :: removed
       TYPE(tmc_param_type), POINTER                      :: tmc_params
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dealloc_whole_subtree'
-
       LOGICAL                                            :: acc_removed, nacc_removed
       TYPE(tree_type), POINTER                           :: acc_ptr, nacc_ptr, tmp_ptr
 
@@ -1583,8 +1579,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE finalize_trees(tmc_env)
       TYPE(tmc_env_type), POINTER                        :: tmc_env
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'finalize_trees'
 
       INTEGER                                            :: i
       LOGICAL                                            :: flag

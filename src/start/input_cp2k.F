@@ -154,8 +154,6 @@ CONTAINS
    SUBROUTINE create_test_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_test_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection
 
@@ -296,8 +294,6 @@ CONTAINS
    SUBROUTINE create_debug_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_debug_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key
 
@@ -379,8 +375,6 @@ CONTAINS
    SUBROUTINE create_multi_force_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_multi_force_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -415,8 +409,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_ext_restart_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_ext_restart_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -652,8 +644,6 @@ CONTAINS
    SUBROUTINE create_farming_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_farming_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, sub_section
 
@@ -811,8 +801,6 @@ CONTAINS
    SUBROUTINE create_rs_pw_transfer_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_rs_pw_transfer_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
 
@@ -862,8 +850,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_pw_transfer_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_pw_transfer_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -938,8 +924,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_cp_fm_gemm_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_cp_fm_gemm_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -1026,8 +1010,6 @@ CONTAINS
    SUBROUTINE create_eigensolver_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_eigensolver_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -1084,8 +1066,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_cp_dbcsr_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_cp_dbcsr_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 

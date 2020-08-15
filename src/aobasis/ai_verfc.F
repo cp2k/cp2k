@@ -153,8 +153,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL           :: vabc_plus, vnabc, pVp_sum, pVp
       LOGICAL, OPTIONAL                                  :: dkh_erfc
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'verfc'
-
       INTEGER :: ax, ay, az, bx, by, bz, coamx, coamy, coamz, coapx, coapy, coapz, cobmx, cobmy, &
          cobmz, cobpx, cobpy, cobpz, i, ipgf, j, jpgf, la, la_max, la_min, la_start, lb, lb_max, &
          lb_min, maxder_local, n, na, nap, nb, nmax, nxx, nxy, nxz, nyx, nyy, nyz, nzx, nzy, nzz, &

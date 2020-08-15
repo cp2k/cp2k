@@ -339,8 +339,6 @@ CONTAINS
       TYPE(rtp_control_type), POINTER                    :: rtp_control
       TYPE(rt_prop_type), POINTER                        :: rtp
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'compute_exponential'
-
       INTEGER                                            :: i, im, ispin, re
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: propagator_fm, propagator_matrix_fm
 

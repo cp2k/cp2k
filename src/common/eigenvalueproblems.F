@@ -57,7 +57,6 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: storageform
       REAL(KIND=dp), INTENT(OUT)                         :: eigenvalues(:), eigenvectors(:, :)
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'diagonalise_ssyev'
       CHARACTER, PARAMETER                               :: jobz = "V"
 
       CHARACTER                                          :: uplo
@@ -106,7 +105,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: eigenvalues(:)
       COMPLEX(KIND=dp), INTENT(OUT)                      :: eigenvectors(:, :)
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'diagonalise_chpev'
       CHARACTER, PARAMETER                               :: jobz = "V"
 
       CHARACTER                                          :: uplo
@@ -150,7 +148,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: mrow, ncol
       REAL(KIND=dp), INTENT(OUT)                         :: uvec(:, :), vtvec(:, :)
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp2k_sgesvd'
       CHARACTER, PARAMETER                               :: jobu = "A", jobvt = "A"
 
       INTEGER                                            :: info, lda, ldu, ldvt, lwork
@@ -185,7 +182,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: mrow, ncol
       COMPLEX(KIND=dp), INTENT(OUT)                      :: uvec(:, :), vtvec(:, :)
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp2k_cgesvd'
       CHARACTER, PARAMETER                               :: jobu = "A", jobvt = "A"
 
       INTEGER                                            :: info, lda, ldu, ldvt, lwork

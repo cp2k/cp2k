@@ -134,8 +134,6 @@ CONTAINS
       TYPE(scf_control_type), OPTIONAL, POINTER          :: scf_control
       TYPE(section_vals_type), OPTIONAL, POINTER         :: scf_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_env_initialize'
-
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(scf_control_type), POINTER                    :: my_scf_control
       TYPE(section_vals_type), POINTER                   :: dft_section, input, my_scf_section
@@ -192,8 +190,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_env_init_basic'
-
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: dft_section, input, scf_section
@@ -230,8 +226,6 @@ CONTAINS
    SUBROUTINE qs_scf_ensure_scf_env(qs_env, scf_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_ensure_scf_env'
 
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -271,8 +265,6 @@ CONTAINS
       TYPE(scf_control_type), POINTER                    :: scf_control
       INTEGER, OPTIONAL                                  :: nvar
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_ensure_outer_loop_vars'
-
       INTEGER                                            :: nhistory, nvariables
 
       IF (scf_control%outer_scf%have_scf) THEN
@@ -307,8 +299,6 @@ CONTAINS
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(scf_control_type), POINTER                    :: scf_control
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_ensure_cdft_loop_vars'
 
       INTEGER                                            :: nhistory, nvariables
       LOGICAL                                            :: do_kpoints
@@ -388,8 +378,6 @@ CONTAINS
    SUBROUTINE qs_scf_ensure_mixing_store(qs_env, scf_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_ensure_mixing_store'
 
       TYPE(dft_control_type), POINTER                    :: dft_control
 
@@ -728,8 +716,6 @@ CONTAINS
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(dft_control_type), POINTER                    :: dft_control
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_ensure_mixing'
-
       TYPE(section_vals_type), POINTER                   :: mixing_section
 
       SELECT CASE (scf_control%mixing_method)
@@ -792,8 +778,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(scf_control_type), POINTER                    :: scf_control
       LOGICAL                                            :: has_unit_metric
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_ensure_diagonalization'
 
       INTEGER                                            :: ispin, nao, nmo
       LOGICAL                                            :: do_kpoints, need_coeff_b, not_se_or_tb

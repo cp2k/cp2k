@@ -443,8 +443,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: zetp, zetq, zetw, rho, rac2, omega, &
                                                             r_cutoff
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cps_coulomb2'
-
       INTEGER                                            :: n
       REAL(KIND=dp)                                      :: f0, t
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: f
@@ -487,8 +485,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nmax
       REAL(KIND=dp), INTENT(IN)                          :: zetp, zetq, zetw, rho, rac2, omega, &
                                                             r_cutoff
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cps_verf2'
 
       INTEGER                                            :: n
       REAL(KIND=dp)                                      :: arg, comega, f0, t
@@ -534,8 +530,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nmax
       REAL(KIND=dp), INTENT(IN)                          :: zetp, zetq, zetw, rho, rac2, omega, &
                                                             r_cutoff
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cps_verfc2'
 
       INTEGER                                            :: n
       REAL(KIND=dp)                                      :: argerf, comega, f0, t
@@ -583,8 +577,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nmax
       REAL(KIND=dp), INTENT(IN)                          :: zetp, zetq, zetw, rho, rac2, omega, &
                                                             r_cutoff
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cps_vgauss2'
 
       INTEGER                                            :: j, n
       REAL(KIND=dp)                                      :: arg, dummy, eta, expT, f0, fsign, t, tau
@@ -642,8 +634,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: zetp, zetq, zetw, rho, rac2, omega, &
                                                             r_cutoff
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cps_gauss2'
-
       INTEGER                                            :: n
       REAL(KIND=dp)                                      :: dummy, expT, f0, t, tau
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: f
@@ -688,8 +678,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nmax
       REAL(KIND=dp), INTENT(IN)                          :: zetp, zetq, zetw, rho, rac2, omega, &
                                                             r_cutoff
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cps_truncated2'
 
       INTEGER                                            :: n
       LOGICAL                                            :: use_gamma

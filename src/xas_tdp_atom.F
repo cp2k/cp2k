@@ -234,8 +234,6 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_xc
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_xas_atom_grid_harmo'
-
       CHARACTER(LEN=default_string_length)               :: kind_name
       INTEGER :: igrid, ikind, il, iso, iso1, iso2, l1, l1l2, l2, la, lc1, lc2, lcleb, ll, llmax, &
          lp, m1, m2, max_s_harm, max_s_set, maxl, maxlgto, maxs, mm, mp, na, nr, quadrature, stat
@@ -399,8 +397,6 @@ CONTAINS
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       REAL(dp), INTENT(IN)                               :: max_radius
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'truncate_radial_grid'
-
       INTEGER                                            :: first_ir, ir, llmax_p1, na, new_nr, nr
 
       nr = grid_atom%nr
@@ -449,8 +445,6 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN)                       :: basis_type
       REAL(dp), DIMENSION(:, :), POINTER                 :: sphi_so
       TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'compute_sphi_so'
 
       INTEGER                                            :: ico, ipgf, iset, iso, l, lx, ly, lz, &
                                                             maxso, nset, sgfi, start_c, start_s
@@ -521,8 +515,6 @@ CONTAINS
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: all_neighbors
       TYPE(cp_1d_i_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: neighbor_set
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'find_neighbors'
 
       INTEGER                                            :: blk, i, iat, ibase, iblk, jblk, mepos, &
                                                             natom, nb, nbase
@@ -1661,8 +1653,6 @@ CONTAINS
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
       INTEGER, INTENT(IN)                                :: atom_kind
       TYPE(xas_atom_env_type), POINTER                   :: xas_atom_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'compute_norm_drho'
 
       INTEGER                                            :: dir, ia, ir, n, na, nr, nspins
 
@@ -2819,8 +2809,6 @@ CONTAINS
       TYPE(xas_atom_env_type), POINTER                   :: xas_atom_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'integrate_sc_fxc'
-
       INTEGER                                            :: i, maxso, na, nr, nset, nsotot, nspins, &
                                                             ri_nsgf, ub
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: fxc, int_so
@@ -2895,8 +2883,6 @@ CONTAINS
       TYPE(xc_derivative_set_type), POINTER              :: deriv_set
       TYPE(xas_atom_env_type), POINTER                   :: xas_atom_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'integrate_sf_fxc'
 
       INTEGER                                            :: ia, ir, maxso, na, nr, nset, nsotot, &
                                                             ri_nsgf
@@ -2985,8 +2971,6 @@ CONTAINS
       REAL(dp), DIMENSION(:, :)                          :: int_sgf, int_so
       TYPE(gto_basis_set_type), POINTER                  :: basis
       REAL(dp), DIMENSION(:, :)                          :: sphi_so
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'contract_so2sgf'
 
       INTEGER                                            :: iset, jset, maxso, nset, nsoi, nsoj, &
                                                             sgfi, sgfj, starti, startj
@@ -3173,8 +3157,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ikind
       TYPE(xas_atom_env_type), POINTER                   :: xas_atom_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'integrate_so_dxdy_prod'
 
       INTEGER                                            :: i, ipgf, iset, iso, j, jpgf, jset, jso, &
                                                             k, l, maxso, na, nr, nset, starti, &

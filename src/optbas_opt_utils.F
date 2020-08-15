@@ -44,8 +44,6 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: S_inv_orb, Q, tmp1
       REAL(KIND=dp)                                      :: energy
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'evaluate_energy'
-
       INTEGER                                            :: ispin, naux, nmo, norb
       REAL(KIND=dp)                                      :: tmp_energy
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, QS_inv, tmp, tmp2, work, &
@@ -96,8 +94,6 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: Q, Snew
       TYPE(admm_type), POINTER                           :: admm_env
       REAL(KIND=dp)                                      :: fval, S_cond_number
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'evaluate_fval'
 
       INTEGER                                            :: ispin, nao_aux_fit, nao_orb, nmo, nspins
       REAL(KIND=dp)                                      :: trace

@@ -81,8 +81,6 @@ CONTAINS
       TYPE(xc_rho_cflags_type), INTENT(INOUT), OPTIONAL  :: needs
       INTEGER, INTENT(OUT), OPTIONAL                     :: max_deriv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'sr_lda_info'
-
       CALL cite_reference(Toulouse2004)
       CALL cite_reference(Paziani2006)
       IF (PRESENT(reference)) THEN
@@ -387,8 +385,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: excsr, vxcsr
       REAL(KIND=dp), INTENT(IN)                          :: sx, sc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ldasr'
-
       REAL(KIND=dp)                                      :: ec, ecd, eclr, ex, exlr, vc, vclr, vx, &
                                                             vxlr
 
@@ -436,8 +432,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: rs, mu
       REAL(KIND=dp), INTENT(OUT)                         :: eclr, vclr
       REAL(KIND=dp), INTENT(IN)                          :: ec, ecd
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'ecorrlr_lda'
 
       REAL(KIND=dp) :: a1, a1rs, a2, a2rs, a3, a3rs, a4, a4rs, a5, a5rs, b0, coe2, coe2rs, coe3, &
                        coe3rs, coe4, coe4rs, coe5, coe5rs, d2anti, d2antid, d3anti, d3antid, eclrrs, x, z
@@ -510,8 +504,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: rs, mu
       REAL(KIND=dp), INTENT(OUT)                         :: exlr, vxlr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'exchangelr_lda'
-
       REAL(KIND=dp)                                      :: derrs, fx, fx1, y
 
       y = alpha/2._dp*mu*rs
@@ -558,8 +550,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: rs, z, mu
       REAL(KIND=dp), INTENT(OUT)                         :: excsr, vxcsrup, vxcsrdown
       REAL(KIND=dp), INTENT(IN)                          :: sx, sc
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'lsdsr'
 
       REAL(KIND=dp)                                      :: ec, ecd, eclr, ecz, ex, exlr, vcdown, &
                                                             vclrdown, vclrup, vcup, vxdown, &
@@ -617,8 +607,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: rs, z, mu
       REAL(KIND=dp), INTENT(OUT)                         :: eclr, vclrup, vclrdown
       REAL(KIND=dp), INTENT(IN)                          :: ec, ecd, ecz
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'ecorrlr_lsd'
 
       REAL(KIND=dp) :: a1, a1rs, a1z, a2, a2rs, a2z, a3, a3rs, a3z, a4, a4rs, a4z, a5, a5rs, a5z, &
                        b0, coe2, coe2rs, coe2z, coe3, coe3rs, coe3z, coe4, coe4rs, coe4z, coe5, coe5rs, coe5z, &
@@ -831,8 +819,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: rs, z, mu
       REAL(KIND=dp), INTENT(OUT)                         :: exlr, vxlrup, vxlrdown
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'exchangelr_lsd'
-
       REAL(KIND=dp)                                      :: derrs, derz, fx, fx1, x, y
 
       IF (z >= 1._dp) THEN
@@ -891,8 +877,6 @@ CONTAINS
    ELEMENTAL SUBROUTINE ecPW_lsd(rs, z, ec, ecd, ecz)
       REAL(KIND=dp), INTENT(IN)                          :: rs, z
       REAL(KIND=dp), INTENT(OUT)                         :: ec, ecd, ecz
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'ecPW_lsd'
 
       REAL(KIND=dp)                                      :: alfac(0:1), ec0(0:1), ec1(0:1), ff
 

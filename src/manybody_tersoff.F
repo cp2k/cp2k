@@ -59,8 +59,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: cell_v
       REAL(KIND=dp)                                      :: drij
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tersoff_energy'
-
       REAL(KIND=dp)                                      :: b_ij, f_A, f_C, f_R
 
       b_ij = ter_b_ij(tersoff, r_last_update_pbc, atom_a, atom_b, nloc_size, &
@@ -83,8 +81,6 @@ CONTAINS
       TYPE(tersoff_pot_type), POINTER                    :: tersoff
       REAL(KIND=dp), INTENT(IN)                          :: r
       REAL(KIND=dp)                                      :: ter_f_C
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ter_f_C'
 
       REAL(KIND=dp)                                      :: bigD, bigR, RmD, RpD
 
@@ -111,8 +107,6 @@ CONTAINS
       TYPE(tersoff_pot_type), POINTER                    :: tersoff
       REAL(KIND=dp), INTENT(IN)                          :: r
       REAL(KIND=dp)                                      :: ter_f_C_d
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ter_f_C_d'
 
       REAL(KIND=dp)                                      :: bigD, bigR, RmD, RpD
 
@@ -141,8 +135,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: r
       REAL(KIND=dp)                                      :: ter_f_R
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ter_f_R'
-
       REAL(KIND=dp)                                      :: A, lambda1
 
       A = tersoff%A
@@ -163,8 +155,6 @@ CONTAINS
       TYPE(tersoff_pot_type), POINTER                    :: tersoff
       REAL(KIND=dp), INTENT(IN)                          :: r
       REAL(KIND=dp)                                      :: ter_f_R_d
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ter_f_R_d'
 
       REAL(KIND=dp)                                      :: A, f_R, lambda1
 
@@ -188,8 +178,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: r
       REAL(KIND=dp)                                      :: ter_f_A
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ter_f_A'
-
       REAL(KIND=dp)                                      :: B, lambda2
 
       B = tersoff%B
@@ -211,8 +199,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: r
       REAL(KIND=dp)                                      :: ter_f_A_d
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ter_f_A_d'
-
       REAL(KIND=dp)                                      :: B, lambda2
 
       B = tersoff%B
@@ -231,8 +217,6 @@ CONTAINS
    FUNCTION ter_a_ij(tersoff)
       TYPE(tersoff_pot_type), POINTER                    :: tersoff
       REAL(KIND=dp)                                      :: ter_a_ij
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ter_a_ij'
 
       REAL(KIND=dp)                                      :: alpha, n
 
@@ -270,8 +254,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: rcutsq
       REAL(KIND=dp)                                      :: ter_b_ij
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ter_b_ij'
-
       REAL(KIND=dp)                                      :: beta, n, zeta_ij
 
       n = tersoff%n
@@ -307,8 +289,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: cell_v
       REAL(KIND=dp), INTENT(IN)                          :: rcutsq
       REAL(KIND=dp)                                      :: ter_b_ij_d
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ter_b_ij_d'
 
       REAL(KIND=dp)                                      :: beta, beta_n, n, zeta_ij, zeta_ij_n, &
                                                             zeta_ij_nm1
@@ -354,8 +334,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: cell_v
       REAL(KIND=dp), INTENT(IN)                          :: rcutsq
       REAL(KIND=dp)                                      :: ter_zeta_ij
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ter_zeta_ij'
 
       INTEGER                                            :: ilist, kparticle
       REAL(KIND=dp)                                      :: cell_v_2(3), costheta, drij, drik, &
@@ -420,8 +398,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: cell_v
       REAL(KIND=dp), INTENT(IN)                          :: rcutsq
       LOGICAL, INTENT(IN)                                :: use_virial
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ter_zeta_ij_d'
 
       INTEGER                                            :: ilist, kparticle, nparticle
       REAL(KIND=dp)                                      :: costheta, drij, drik, expterm, &
@@ -517,8 +493,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: costheta
       REAL(KIND=dp)                                      :: ter_g
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ter_g'
-
       REAL(KIND=dp)                                      :: c, c2, d, d2, h
 
       c = tersoff%c
@@ -542,8 +516,6 @@ CONTAINS
       TYPE(tersoff_pot_type), POINTER                    :: tersoff
       REAL(KIND=dp), INTENT(IN)                          :: costheta
       REAL(KIND=dp)                                      :: ter_g_d
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ter_g_d'
 
       REAL(KIND=dp)                                      :: c, c2, d, d2, h, hc, sintheta
 
@@ -827,8 +799,6 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: glob_loc_list
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: glob_cell_v
       INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'destroy_tersoff_arrays'
 
       IF (ASSOCIATED(glob_loc_list)) THEN
          DEALLOCATE (glob_loc_list)

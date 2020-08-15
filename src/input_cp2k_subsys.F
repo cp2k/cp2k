@@ -239,8 +239,6 @@ CONTAINS
    SUBROUTINE create_rng_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_rng_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -265,8 +263,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_subsys_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_subsys_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -352,8 +348,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_subsys_print_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_subsys_print_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key
@@ -594,8 +588,6 @@ CONTAINS
    SUBROUTINE create_multipole_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_multipole_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
 
@@ -641,8 +633,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_structure_data_section(print_key)
       TYPE(section_type), POINTER                        :: print_key
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_structure_data_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -703,8 +693,6 @@ CONTAINS
    SUBROUTINE create_velocity_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_velocity_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -741,8 +729,6 @@ CONTAINS
    SUBROUTINE create_shell_vel_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_shell_vel_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -770,8 +756,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_core_vel_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_core_vel_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -801,8 +785,6 @@ CONTAINS
    SUBROUTINE create_potential_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_potential_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
 
       CALL section_create(section, __LOCATION__, name="potential", &
@@ -825,8 +807,6 @@ CONTAINS
    SUBROUTINE create_kgpot_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_kgpot_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
 
       CALL section_create(section, __LOCATION__, name="kg_potential", &
@@ -848,8 +828,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_basis_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_basis_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -905,8 +883,6 @@ CONTAINS
    SUBROUTINE create_coord_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_coord_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -951,8 +927,6 @@ CONTAINS
    SUBROUTINE create_shell_coord_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_shell_coord_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -995,8 +969,6 @@ CONTAINS
    SUBROUTINE create_core_coord_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_core_coord_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -1038,8 +1010,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_kind_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_kind_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -1442,8 +1412,6 @@ CONTAINS
 
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_bs_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
 
@@ -1567,8 +1535,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_topology_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_topology_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection
@@ -1807,8 +1773,6 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
       CHARACTER(LEN=*), INTENT(IN)                       :: header
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_exclude_list_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -1836,8 +1800,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_center_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_center_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -1871,8 +1833,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_molset_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_molset_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection, subsubsection
@@ -1965,8 +1925,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_generate_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_generate_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -2160,8 +2118,6 @@ CONTAINS
    SUBROUTINE create_gen_print_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_gen_print_section'
-
       TYPE(section_type), POINTER                        :: print_key
 
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -2195,8 +2151,6 @@ CONTAINS
    SUBROUTINE connectivity_framework(section, default)
       TYPE(section_type), POINTER                        :: section
       INTEGER, INTENT(IN)                                :: default
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'connectivity_framework'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -2251,8 +2205,6 @@ CONTAINS
    SUBROUTINE create_dft_plus_u_section(section)
 
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_dft_plus_u_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection

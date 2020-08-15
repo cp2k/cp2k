@@ -138,8 +138,6 @@ CONTAINS
       LOGICAL, OPTIONAL, INTENT(in)                :: square_blocks
       LOGICAL, OPTIONAL, INTENT(in)                :: force_block
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_struct_create'
-
       INTEGER                                      :: dumblock
 #if defined(__SCALAPACK)
       INTEGER                                      :: iunit, stat
@@ -312,8 +310,6 @@ CONTAINS
    SUBROUTINE cp_fm_struct_retain(fmstruct)
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_retain'
-
       CPASSERT(ASSOCIATED(fmstruct))
       CPASSERT(fmstruct%ref_count > 0)
       fmstruct%ref_count = fmstruct%ref_count + 1
@@ -328,8 +324,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_struct_release(fmstruct)
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_release'
 
       IF (ASSOCIATED(fmstruct)) THEN
          CPASSERT(fmstruct%ref_count > 0)
@@ -368,8 +362,6 @@ CONTAINS
    FUNCTION cp_fm_struct_equivalent(fmstruct1, fmstruct2) RESULT(res)
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct1, fmstruct2
       LOGICAL                                            :: res
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_equivalent'
 
       INTEGER                                            :: i
 
@@ -431,7 +423,6 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER, OPTIONAL :: row_indices, col_indices, &
                                                   nrow_locals, ncol_locals
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_get'
       INTEGER i, nprow, npcol, myprow, mypcol
 #if defined(__SCALAPACK)
       INTEGER, EXTERNAL :: indxl2g
@@ -555,8 +546,6 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct, struct
       TYPE(cp_blacs_env_type), POINTER                   :: context
       LOGICAL, INTENT(in)                                :: col, row
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_double'
 
       INTEGER :: n_doubled_items_in_partially_filled_block, ncol_block, ncol_global, newdim_col, &
          newdim_row, nfilled_blocks, nfilled_blocks_remain, nprocs_col, nprocs_row, nrow_block, &

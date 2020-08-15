@@ -250,8 +250,6 @@ CONTAINS
       INTEGER, INTENT(in)                                :: method
       LOGICAL, INTENT(in)                                :: do_emd
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_nsquare_norder'
-
       INTEGER                                            :: cost, i, iscale, orders(3), p, &
                                                             prev_cost, q
       LOGICAL                                            :: new_scale

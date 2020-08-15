@@ -791,8 +791,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: spin
       REAL(KIND=dp), INTENT(IN)                          :: totene, temp, pressure
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_thch_values'
-
       INTEGER                                            :: i, natoms, sym_num
       REAL(KIND=dp) :: el_entropy, entropy, exp_min_one, fact, fact2, freq_arg, freq_arg2, &
          freqsum, Gibbs, heat_capacity, inertia_kg(3), mass_tot, one_min_exp, partition_function, &

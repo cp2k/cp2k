@@ -1680,8 +1680,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'construct_nlmos'
-
       INTEGER                                            :: ispin
 
       IF (almo_scf_env%construct_nlmos) THEN
@@ -1729,8 +1727,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
       LOGICAL, INTENT(IN)                                :: virtuals
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'construct_nlmos_wrapper'
 
       REAL(KIND=dp)                                      :: det_diff, prev_determinant
 
@@ -1792,8 +1788,6 @@ CONTAINS
    SUBROUTINE construct_virtuals(almo_scf_env)
 
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'construct_virtuals'
 
       INTEGER                                            :: ispin, n
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
@@ -1927,8 +1921,6 @@ CONTAINS
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: matrix
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'nlmo_compactification'
 
       INTEGER                                            :: iblock_col, iblock_col_size, iblock_row, &
                                                             iblock_row_size, icol, irow, ispin, &
@@ -2884,8 +2876,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE almo_post_scf_compute_properties(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'almo_post_scf_compute_properties'
 
       CALL qs_scf_compute_properties(qs_env)
 

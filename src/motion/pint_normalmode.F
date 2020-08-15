@@ -58,8 +58,6 @@ CONTAINS
       REAL(kind=dp), INTENT(in)                          :: kT
       INTEGER, INTENT(in)                                :: propagator
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_env_create'
-
       INTEGER                                            :: i, j, k, li
       REAL(kind=dp)                                      :: invsqrtp, pip, sqrt2p, twopip
 
@@ -166,8 +164,6 @@ CONTAINS
 
       TYPE(normalmode_env_type), POINTER                 :: normalmode_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_release'
-
       IF (ASSOCIATED(normalmode_env)) THEN
          CPASSERT(normalmode_env%ref_count > 0)
          normalmode_env%ref_count = normalmode_env%ref_count - 1
@@ -191,8 +187,6 @@ CONTAINS
    SUBROUTINE normalmode_retain(normalmode_env)
 
       TYPE(normalmode_env_type), POINTER                 :: normalmode_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'normalmode_retain'
 
       CPASSERT(ASSOCIATED(normalmode_env))
       CPASSERT(normalmode_env%ref_count > 0)
@@ -219,8 +213,6 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:, :), INTENT(out), &
          OPTIONAL                                        :: mass_beads, mass_fict
       REAL(kind=dp), DIMENSION(:), INTENT(out), OPTIONAL :: Q
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_init_masses'
 
       INTEGER                                            :: iat, ib
 
@@ -262,8 +254,6 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:, :), INTENT(out)        :: ux
       REAL(kind=dp), DIMENSION(:, :), INTENT(in)         :: x
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'normalmode_x2u'
-
       CPASSERT(ASSOCIATED(normalmode_env))
       CPASSERT(normalmode_env%ref_count > 0)
       CALL DGEMM('N', 'N', normalmode_env%p, SIZE(x, 2), normalmode_env%p, 1.0_dp, &
@@ -285,8 +275,6 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:, :), INTENT(in)         :: ux
       REAL(kind=dp), DIMENSION(:, :), INTENT(out)        :: x
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'normalmode_u2x'
-
       CPASSERT(ASSOCIATED(normalmode_env))
       CPASSERT(normalmode_env%ref_count > 0)
       CALL DGEMM('N', 'N', normalmode_env%p, SIZE(ux, 2), normalmode_env%p, 1.0_dp, &
@@ -306,8 +294,6 @@ CONTAINS
       TYPE(normalmode_env_type), POINTER                 :: normalmode_env
       REAL(kind=dp), DIMENSION(:, :), INTENT(out)        :: uf
       REAL(kind=dp), DIMENSION(:, :), INTENT(in)         :: f
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'normalmode_f2uf'
 
       CPASSERT(ASSOCIATED(normalmode_env))
       CPASSERT(normalmode_env%ref_count > 0)
@@ -330,8 +316,6 @@ CONTAINS
       TYPE(normalmode_env_type), POINTER                 :: normalmode_env
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: mass_beads, ux, uf_h
       REAL(KIND=dp), INTENT(OUT)                         :: e_h
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_calc_uf_h'
 
       INTEGER                                            :: ibead, idim
       REAL(kind=dp)                                      :: f

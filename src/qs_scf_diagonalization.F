@@ -147,8 +147,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: scf_section
       LOGICAL, INTENT(INOUT)                             :: diis_step
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'general_eigenproblem'
-
       INTEGER                                            :: ispin, nspin
       LOGICAL                                            :: do_level_shift, use_jacobi
       REAL(KIND=dp)                                      :: diis_error, eps_diis
@@ -290,8 +288,6 @@ CONTAINS
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: scf_section
       LOGICAL, INTENT(INOUT)                             :: diis_step
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'do_general_diag'
 
       INTEGER                                            :: ispin, nspin
       REAL(KIND=dp)                                      :: total_zeff_corr
@@ -992,8 +988,6 @@ CONTAINS
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: scf_section
       LOGICAL, INTENT(INOUT)                             :: diis_step
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'do_ot_diag'
 
       INTEGER                                            :: homo, ispin, nmo, nspin
       REAL(KIND=dp)                                      :: diis_error, eps_iter

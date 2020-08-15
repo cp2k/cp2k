@@ -59,8 +59,6 @@ CONTAINS
       REAL(dp), DIMENSION(45), INTENT(OUT), OPTIONAL     :: e1b, e2a
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'rotnuc_gks'
-
       INTEGER                                            :: i, mu, nu
       REAL(KIND=dp), DIMENSION(3)                        :: rab
       REAL(kind=dp), DIMENSION(45, 45)                   :: Coul
@@ -108,8 +106,6 @@ CONTAINS
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rij
       REAL(dp), DIMENSION(2025), INTENT(OUT), OPTIONAL   :: w
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'rotint_gks'
 
       INTEGER                                            :: i, ind1, ind2, lam, mu, nu, sig
       REAL(KIND=dp), DIMENSION(3)                        :: rab
@@ -160,8 +156,6 @@ CONTAINS
       REAL(dp), DIMENSION(3, 45), INTENT(OUT), OPTIONAL  :: de1b, de2a
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'drotnuc_gks'
-
       INTEGER                                            :: i, mu, nu
       REAL(KIND=dp), DIMENSION(3)                        :: rab
       REAL(kind=dp), DIMENSION(3, 45, 45)                :: dCoul
@@ -210,8 +204,6 @@ CONTAINS
       REAL(dp), DIMENSION(3, 2025), INTENT(OUT)          :: dw
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'drotint_gks'
-
       INTEGER                                            :: i, ind1, ind2, lam, mu, nu, sig
       REAL(KIND=dp), DIMENSION(3)                        :: rab
       REAL(kind=dp), DIMENSION(3, 45, 45)                :: dCoul
@@ -257,8 +249,6 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(kind=dp), DIMENSION(45, 45), INTENT(OUT)      :: Coul
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'makeCoul'
 
       INTEGER                                            :: iA, iB, imA, imB, jA, jB, k1, k2, k3, k4
       LOGICAL                                            :: shortrange
@@ -364,8 +354,6 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(kind=dp), DIMENSION(3, 45, 45), INTENT(OUT)   :: dCoul
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'makedCoul'
 
       INTEGER                                            :: iA, iB, imA, imB, jA, jB, k1, k2, k3, k4
       LOGICAL                                            :: shortrange
@@ -491,8 +479,6 @@ CONTAINS
       REAL(dp), DIMENSION(3), INTENT(OUT), OPTIONAL      :: denuc
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'corecore_gks'
-
       LOGICAL                                            :: l_denuc, l_enuc
       REAL(dp)                                           :: alpi, alpj, dscale, rij, scale, zz
       REAL(kind=dp), DIMENSION(3, 45, 45)                :: dCoul, dCoulE
@@ -572,8 +558,6 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(KIND=dp), DIMENSION(45, 45), INTENT(OUT)      :: Coul
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'makeCoulE'
 
       INTEGER                                            :: gpt, imA, imB, k1, k2, k3, k4, lp, mp, np
       INTEGER, DIMENSION(:, :), POINTER                  :: bds
@@ -790,8 +774,6 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       REAL(KIND=dp), DIMENSION(3, 45, 45), INTENT(OUT)   :: dCoul
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'makedCoulE'
 
       INTEGER                                            :: gpt, imA, imB, k1, k2, k3, k4, k5, lp, &
                                                             mp, np
@@ -1162,8 +1144,6 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sepi
       REAL(KIND=dp), DIMENSION(45, 45), INTENT(OUT)      :: Coul
       TYPE(se_int_control_type), INTENT(IN)              :: se_int_control
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'makeCoulE0'
 
       INTEGER                                            :: gpt, imA, imB, k1, k2, k3, k4, lp, mp, np
       INTEGER, DIMENSION(:, :), POINTER                  :: bds

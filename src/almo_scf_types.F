@@ -435,8 +435,6 @@ CONTAINS
       TYPE(optimizer_options_type), INTENT(IN)           :: optimizer
       INTEGER, INTENT(IN)                                :: unit_nr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_optimizer_options'
-
       CHARACTER(33)                                      :: conj_string, prec_string, type_string
 
       IF (unit_nr .GT. 0) THEN

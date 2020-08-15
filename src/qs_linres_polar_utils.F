@@ -286,8 +286,6 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'polar_print'
-
       CHARACTER(LEN=default_string_length)               :: description
       INTEGER                                            :: iounit, unit_p
       LOGICAL                                            :: do_raman, run_stopped
@@ -528,8 +526,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: time
       CHARACTER(LEN=default_string_length), INTENT(IN), &
          OPTIONAL                                        :: pos, act
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_polarisability_tensor'
 
       CHARACTER(LEN=default_string_length)               :: my_act, my_pos
       INTEGER                                            :: iounit

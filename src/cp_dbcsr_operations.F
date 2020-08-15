@@ -374,8 +374,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_copy_columns_hack'
-
       INTEGER                                            :: nfullcols_total, nfullrows_total
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_a, fm_matrix_b
@@ -832,8 +830,6 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: fm_in
       TYPE(dbcsr_type), INTENT(IN)                    :: template
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_to_dbcsr_row_template'
-
       INTEGER                                            :: k_in, data_type
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size_right_in, row_blk_size
       TYPE(dbcsr_distribution_type)                       :: tmpl_dist, dist_right_in
@@ -869,8 +865,6 @@ CONTAINS
       INTEGER                                            :: m, n
       CHARACTER, OPTIONAL                                :: sym
       INTEGER, OPTIONAL                                  :: data_type
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_m_by_n_from_template'
 
       CHARACTER                                          :: mysym
       INTEGER                                            :: my_data_type, nprows, npcols
@@ -922,8 +916,6 @@ CONTAINS
       INTEGER                                            :: n
       CHARACTER, OPTIONAL                                :: sym
       INTEGER, OPTIONAL                                  :: data_type
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_m_by_n_from_row_template'
 
       CHARACTER                                          :: mysym
       INTEGER                                            :: my_data_type, npcols
@@ -1072,8 +1064,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ncolumns
       INTEGER, DIMENSION(:), INTENT(OUT), POINTER        :: right_col_blk_sizes
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_dist_r_unrot'
-
       INTEGER                                            :: multiplicity, nimages, ncols, nprows, npcols
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: tmp_images
       INTEGER, DIMENSION(:), POINTER                     :: right_col_dist, right_row_dist, old_col_dist, dummy
@@ -1141,8 +1131,6 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(OUT)                 :: new_bins, images
       INTEGER, DIMENSION(:), INTENT(IN)                  :: source_bins
       INTEGER, INTENT(IN)                                :: nbins, multiplicity, nimages
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'rebin_distribution'
 
       INTEGER                                            :: bin, i, old_nbins, virtual_bin
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bin_multiplier
@@ -1268,8 +1256,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_set
       INTEGER, INTENT(IN)                                :: nmatrix
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_dbcsr_matrix_set_1d'
-
       INTEGER                                            :: imatrix
 
       IF (ASSOCIATED(matrix_set)) CALL dbcsr_deallocate_matrix_set(matrix_set)
@@ -1290,8 +1276,6 @@ CONTAINS
    SUBROUTINE allocate_dbcsr_matrix_set_2d(matrix_set, nmatrix, mmatrix)
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_set
       INTEGER, INTENT(IN)                                :: nmatrix, mmatrix
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_dbcsr_matrix_set_2d'
 
       INTEGER                                            :: imatrix, jmatrix
 
@@ -1316,8 +1300,6 @@ CONTAINS
    SUBROUTINE allocate_dbcsr_matrix_set_3d(matrix_set, nmatrix, mmatrix, pmatrix)
       TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: matrix_set
       INTEGER, INTENT(IN)                                :: nmatrix, mmatrix, pmatrix
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_dbcsr_matrix_set_3d'
 
       INTEGER                                            :: imatrix, jmatrix, kmatrix
 
@@ -1344,8 +1326,6 @@ CONTAINS
    SUBROUTINE allocate_dbcsr_matrix_set_4d(matrix_set, nmatrix, mmatrix, pmatrix, qmatrix)
       TYPE(dbcsr_p_type), DIMENSION(:, :, :, :), POINTER    :: matrix_set
       INTEGER, INTENT(IN)                                :: nmatrix, mmatrix, pmatrix, qmatrix
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_dbcsr_matrix_set_4d'
 
       INTEGER                                            :: imatrix, jmatrix, kmatrix, lmatrix
 
@@ -1375,8 +1355,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :, :, :, :), POINTER    :: matrix_set
       INTEGER, INTENT(IN)                                :: nmatrix, mmatrix, pmatrix, qmatrix, smatrix
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_dbcsr_matrix_set_5d'
-
       INTEGER                                            :: imatrix, jmatrix, kmatrix, lmatrix, hmatrix
 
       IF (ASSOCIATED(matrix_set)) CALL dbcsr_deallocate_matrix_set(matrix_set)
@@ -1404,8 +1382,6 @@ CONTAINS
 
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_set
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_dbcsr_matrix_set_1d'
-
       INTEGER                                            :: imatrix
 
       IF (ASSOCIATED(matrix_set)) THEN
@@ -1426,8 +1402,6 @@ CONTAINS
    SUBROUTINE deallocate_dbcsr_matrix_set_2d(matrix_set)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_set
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_dbcsr_matrix_set_2d'
 
       INTEGER                                            :: imatrix, jmatrix
 
@@ -1450,8 +1424,6 @@ CONTAINS
    SUBROUTINE deallocate_dbcsr_matrix_set_3d(matrix_set)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: matrix_set
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_dbcsr_matrix_set_3d'
 
       INTEGER                                            :: imatrix, jmatrix, kmatrix
 
@@ -1476,8 +1448,6 @@ CONTAINS
    SUBROUTINE deallocate_dbcsr_matrix_set_4d(matrix_set)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :, :, :), POINTER    :: matrix_set
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_dbcsr_matrix_set_4d'
 
       INTEGER                                            :: imatrix, jmatrix, kmatrix, lmatrix
 
@@ -1504,8 +1474,6 @@ CONTAINS
    SUBROUTINE deallocate_dbcsr_matrix_set_5d(matrix_set)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :, :, :, :), POINTER    :: matrix_set
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_dbcsr_matrix_set_5d'
 
       INTEGER                                            :: imatrix, jmatrix, kmatrix, hmatrix, lmatrix
 

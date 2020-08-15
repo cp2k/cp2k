@@ -70,8 +70,6 @@ CONTAINS
       CHARACTER&
          (len=default_path_length+default_string_length) :: res
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'parser_location'
-
       CPASSERT(ASSOCIATED(parser))
       CPASSERT(parser%ref_count > 0)
       res = ", File: '"//TRIM(parser%input_file_name)//"', Line: "// &
@@ -96,8 +94,6 @@ CONTAINS
 
       TYPE(cp_parser_type), POINTER                      :: parser
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_store_status'
-
       CPASSERT(ASSOCIATED(parser))
       CPASSERT(parser%ref_count > 0)
       CPASSERT(ASSOCIATED(parser%status))
@@ -121,8 +117,6 @@ CONTAINS
    SUBROUTINE parser_retrieve_status(parser)
 
       TYPE(cp_parser_type), POINTER                      :: parser
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_retrieve_status'
 
       CPASSERT(ASSOCIATED(parser))
       CPASSERT(parser%ref_count > 0)
@@ -213,8 +207,6 @@ CONTAINS
 
       TYPE(cp_parser_type), POINTER                      :: parser
       INTEGER, INTENT(OUT)                               :: istat
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_get_line_from_buffer'
 
       istat = 0
       ! Check buffer
@@ -391,8 +383,6 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: line
       LOGICAL                                            :: resval
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'is_comment_line'
-
       CHARACTER(LEN=1)                                   :: thischar
       INTEGER                                            :: icol
 
@@ -422,8 +412,6 @@ CONTAINS
       CHARACTER(LEN=1), INTENT(IN)                       :: testchar
       LOGICAL                                            :: resval
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'is_comment'
-
       resval = .FALSE.
       ! We are in a private function, and parser has been tested before...
       IF (ANY(parser%comment_character == testchar)) resval = .TRUE.
@@ -445,8 +433,6 @@ CONTAINS
       TYPE(cp_parser_type), POINTER                      :: parser
       INTEGER, INTENT(IN)                                :: nline
       LOGICAL, INTENT(out), OPTIONAL                     :: at_end
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'parser_get_next_line'
 
       LOGICAL                                            :: my_at_end
 
@@ -474,8 +460,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE parser_skip_space(parser)
       TYPE(cp_parser_type), POINTER                      :: parser
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'parser_skip_space'
 
       INTEGER                                            :: i
       LOGICAL                                            :: at_end
@@ -554,8 +538,6 @@ CONTAINS
 
       TYPE(cp_parser_type), POINTER                      :: parser
       INTEGER, INTENT(IN), OPTIONAL                      :: string_length
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'parser_next_token'
 
       CHARACTER(LEN=1)                                   :: token
       INTEGER                                            :: i, len_trim_inputline, length
@@ -726,8 +708,6 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: string_length
       CHARACTER(LEN=3)                                   :: test_result
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'parser_test_next_token'
-
       CHARACTER(LEN=max_line_length)                     :: error_message, string
       INTEGER                                            :: iz, n
       LOGICAL                                            :: ilist_in_use
@@ -827,8 +807,6 @@ CONTAINS
       LOGICAL, INTENT(OUT)                               :: found
       CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: line
       LOGICAL, INTENT(IN), OPTIONAL                      :: begin_line, search_from_begin_of_file
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_search_string'
 
       CHARACTER(LEN=LEN(string))                         :: pattern
       CHARACTER(LEN=max_line_length+1)                   :: current_line
@@ -998,8 +976,6 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: skip_lines, string_length
       LOGICAL, INTENT(out), OPTIONAL                     :: at_end
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_get_integer'
-
       CHARACTER(LEN=max_line_length)                     :: error_message
       INTEGER                                            :: nline
       LOGICAL                                            :: my_at_end
@@ -1087,8 +1063,6 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: skip_lines, string_length
       LOGICAL, INTENT(out), OPTIONAL                     :: at_end
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_get_logical'
-
       CHARACTER(LEN=max_line_length)                     :: input_string
       INTEGER                                            :: input_string_length, nline
       LOGICAL                                            :: my_at_end
@@ -1168,8 +1142,6 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: skip_lines, string_length
       LOGICAL, INTENT(out), OPTIONAL                     :: at_end
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'parser_get_real'
-
       CHARACTER(LEN=max_line_length)                     :: error_message
       INTEGER                                            :: nline
       LOGICAL                                            :: my_at_end
@@ -1239,8 +1211,6 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: lower_to_upper, newline
       INTEGER, INTENT(IN), OPTIONAL                      :: skip_lines, string_length
       LOGICAL, INTENT(out), OPTIONAL                     :: at_end
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'parser_get_string'
 
       INTEGER                                            :: input_string_length, nline
       LOGICAL                                            :: my_at_end

@@ -90,8 +90,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: mm_section
       INTEGER                                            :: do_ipol
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'fist_pol_evaluate'
-
       SELECT CASE (do_ipol)
       CASE (do_fist_pol_sc)
          CALL fist_pol_evaluate_sc(atomic_kind_set, multipoles, ewald_env, &

@@ -300,8 +300,6 @@ CONTAINS
    SUBROUTINE cp_opt_gopt_retain(optimizer)
       TYPE(cp_lbfgs_opt_gopt_type), POINTER              :: optimizer
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_retain'
-
       CPASSERT(ASSOCIATED(optimizer))
       CPASSERT(optimizer%ref_count > 0)
       optimizer%ref_count = optimizer%ref_count + 1
@@ -415,8 +413,6 @@ CONTAINS
       INTEGER, INTENT(out), OPTIONAL                     :: n_var, n_iter, status, max_f_per_iter
       LOGICAL, INTENT(out), OPTIONAL                     :: at_end, is_master
       REAL(kind=dp), INTENT(out), OPTIONAL               :: last_f, f
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_opt_gopt_get'
 
 !  call timeset(routineN,handle)
 
@@ -720,8 +716,6 @@ CONTAINS
       INTEGER, INTENT(out), OPTIONAL                     :: n_iter
       REAL(kind=dp), INTENT(inout), OPTIONAL             :: f, last_f, projected_gradient
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_bcast_res'
-
       REAL(kind=dp), DIMENSION(4)                        :: results
 
 !  call timeset(routineN,handle)
@@ -776,8 +770,6 @@ CONTAINS
       TYPE(gopt_param_type), POINTER                     :: gopt_param
       LOGICAL                                            :: res
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_opt_gopt_next'
-
 !call timeset(routineN,handle)
 
       CPASSERT(ASSOCIATED(optimizer))
@@ -802,8 +794,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_opt_gopt_stop(optimizer)
       TYPE(cp_lbfgs_opt_gopt_type), POINTER              :: optimizer
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_opt_gopt_stop'
 
 !  call timeset(routineN,handle)
 

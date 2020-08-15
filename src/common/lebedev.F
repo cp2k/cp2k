@@ -113,8 +113,6 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: l, n
       INTEGER                                            :: number_of_lebedev_grid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_number_of_lebedev_grid'
-
       INTEGER                                            :: i
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ll, nn
       INTEGER, DIMENSION(1)                              :: lgnum
@@ -161,8 +159,6 @@ CONTAINS
    SUBROUTINE load_sub_grid(subsystem, lgnum, np)
       CHARACTER(*), INTENT(IN)                           :: subsystem
       INTEGER, INTENT(IN)                                :: lgnum, np
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'load_sub_grid'
 
       INTEGER                                            :: i, j
       REAL(KIND=dp)                                      :: x, y, z

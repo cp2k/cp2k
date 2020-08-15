@@ -467,8 +467,6 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: path
       CHARACTER(LEN=*), INTENT(OUT)                      :: my_form, my_ext
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_output_format'
-
       INTEGER                                            :: output_format
 
       IF (PRESENT(path)) THEN
@@ -514,8 +512,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: time
       CHARACTER(LEN=default_string_length), INTENT(IN), &
          OPTIONAL                                        :: pos, act
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_stress_tensor'
 
       CHARACTER(LEN=default_string_length)               :: my_act, my_pos
       INTEGER                                            :: output_unit
@@ -587,8 +583,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: time
       CHARACTER(LEN=default_string_length), INTENT(IN), &
          OPTIONAL                                        :: pos, act
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_simulation_cell'
 
       CHARACTER(LEN=default_string_length)               :: my_act, my_pos
       INTEGER                                            :: output_unit

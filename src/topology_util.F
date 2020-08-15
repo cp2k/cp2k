@@ -464,8 +464,6 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: map_mol
       INTEGER, DIMENSION(:), POINTER                     :: atm_map1, atm_map2, atm_map3
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'setup_graph_set'
-
       INTEGER                                            :: ldim
       TYPE(graph_type), DIMENSION(:), POINTER            :: tmp_graph_set
 
@@ -495,8 +493,6 @@ CONTAINS
    SUBROUTINE allocate_graph_set(graph_set_in, graph_set_out, ldim_in, ldim_out)
       TYPE(graph_type), DIMENSION(:), POINTER            :: graph_set_in, graph_set_out
       INTEGER, INTENT(IN), OPTIONAL                      :: ldim_in, ldim_out
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_graph_set'
 
       INTEGER                                            :: b_dim, i, j, mydim_in, mydim_out, v_dim
 
@@ -554,8 +550,6 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: atm_map1, atm_map2
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: atm_map3
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'setup_graph'
-
       INTEGER                                            :: i, idim, ifirst, ilast, j, nbonds, &
                                                             nelement
 
@@ -601,8 +595,6 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: Ilist1
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: Ilist2, Ilist3, Ilist4
       INTEGER, INTENT(IN)                                :: nsize, ndim
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'reorder_list_array'
 
       INTEGER                                            :: i, iend, istart, ldim
       INTEGER, DIMENSION(:), POINTER                     :: tmp, wrk
@@ -667,8 +659,6 @@ CONTAINS
                                                ldim, istart, iend)
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: Ilist2, Ilist3, Ilist4
       INTEGER, INTENT(IN)                                :: nsize, ldim, istart, iend
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'reorder_list_array_low'
 
       INTEGER, DIMENSION(:), POINTER                     :: tmp_2, tmp_3, tmp_4
 
@@ -781,8 +771,6 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: list1, list2
       INTEGER, INTENT(IN)                                :: N
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'reorder_structure1d'
-
       INTEGER                                            :: I, index1, index2, Nsize
       INTEGER, DIMENSION(:), POINTER                     :: wrk_tmp
 
@@ -822,8 +810,6 @@ CONTAINS
          INTENT(INOUT)                                   :: work
       INTEGER, DIMENSION(:), INTENT(IN)                  :: list1, list2, list3
       INTEGER, INTENT(IN)                                :: N
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'reorder_structure2d'
 
       INTEGER                                            :: I, index1, index2, index3, Nsize
       INTEGER, DIMENSION(:), POINTER                     :: wrk_tmp
@@ -1148,8 +1134,6 @@ CONTAINS
       CHARACTER(len=default_string_length), INTENT(OUT)  :: element_out
       TYPE(section_vals_type), POINTER                   :: subsys_section
       LOGICAL                                            :: use_mm_map_first
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'check_subsys_element'
 
       CHARACTER(len=default_string_length)               :: atom_name, element_symbol, keyword
       INTEGER                                            :: i, i_rep, n_rep

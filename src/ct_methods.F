@@ -1365,8 +1365,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: minima
       INTEGER, INTENT(OUT)                               :: nmins
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'analytic_line_search'
-
       INTEGER                                            :: i, nroots
       REAL(KIND=dp)                                      :: DD, der, p, phi, pi, q, temp1, temp2, u, &
                                                             v, y1, y2, y2i, y2r, y3

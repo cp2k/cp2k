@@ -47,8 +47,6 @@ CONTAINS
       INTEGER, INTENT(in)                                :: p
       REAL(kind=dp), INTENT(in)                          :: kT
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'staging_env_create'
-
       CPASSERT(.NOT. ASSOCIATED(staging_env))
       ALLOCATE (staging_env)
       last_staging_id = last_staging_id + 1
@@ -77,8 +75,6 @@ CONTAINS
    SUBROUTINE staging_release(staging_env)
       TYPE(staging_env_type), POINTER                    :: staging_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'staging_release'
-
       IF (ASSOCIATED(staging_env)) THEN
          CPASSERT(staging_env%ref_count > 0)
          staging_env%ref_count = staging_env%ref_count - 1
@@ -97,8 +93,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE staging_retain(staging_env)
       TYPE(staging_env_type), POINTER                    :: staging_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'staging_retain'
 
       CPASSERT(ASSOCIATED(staging_env))
       CPASSERT(staging_env%ref_count > 0)
@@ -125,8 +119,6 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:, :), INTENT(out), &
          OPTIONAL                                        :: mass_beads, mass_fict
       REAL(kind=dp), DIMENSION(:), INTENT(out), OPTIONAL :: Q
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'staging_init_masses'
 
       INTEGER                                            :: i, iat, ib, iseg
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: scal
@@ -182,8 +174,6 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:, :), INTENT(out)        :: ux
       REAL(kind=dp), DIMENSION(:, :), INTENT(in)         :: x
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'staging_x2u'
-
       INTEGER                                            :: k, s
 
       CPASSERT(ASSOCIATED(staging_env))
@@ -212,8 +202,6 @@ CONTAINS
       TYPE(staging_env_type), POINTER                    :: staging_env
       REAL(kind=dp), DIMENSION(:, :), INTENT(in)         :: ux
       REAL(kind=dp), DIMENSION(:, :), INTENT(out)        :: x
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'staging_u2x'
 
       INTEGER                                            :: i, ist, j
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii, jjj
@@ -259,8 +247,6 @@ CONTAINS
       TYPE(staging_env_type), POINTER                    :: staging_env
       REAL(kind=dp), DIMENSION(:, :), INTENT(out)        :: uf
       REAL(kind=dp), DIMENSION(:, :), INTENT(in)         :: f
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'staging_f2uf'
 
       INTEGER                                            :: i, idim, ij, ist, k
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii, jjj, kkk
@@ -313,8 +299,6 @@ CONTAINS
       TYPE(staging_env_type), POINTER                    :: staging_env
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: mass_beads, ux, uf_h
       REAL(KIND=dp), INTENT(OUT)                         :: e_h
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'staging_calc_uf_h'
 
       INTEGER                                            :: idim, isg, ist
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii, jjj, kkk

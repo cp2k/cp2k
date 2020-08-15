@@ -399,8 +399,6 @@ CONTAINS
       TYPE(krylov_space_type), POINTER                   :: krylov_space
       TYPE(section_vals_type), POINTER                   :: scf_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'krylov_space_create'
-
       CPASSERT(.NOT. ASSOCIATED(krylov_space))
       ALLOCATE (krylov_space)
 
@@ -438,8 +436,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE krylov_space_release(krylov_space)
       TYPE(krylov_space_type), POINTER                   :: krylov_space
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'krylov_space_release'
 
       INTEGER                                            :: i
 
@@ -500,8 +496,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: scf_section
       REAL(dp), INTENT(IN)                               :: ecut
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'diag_subspace_env_create'
-
       LOGICAL                                            :: do_mixing
       TYPE(section_vals_type), POINTER                   :: mixing_section
 
@@ -548,8 +542,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE diag_subspace_env_release(subspace_env)
       TYPE(subspace_env_type), POINTER                   :: subspace_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'diag_subspace_env_release'
 
       INTEGER                                            :: i
 

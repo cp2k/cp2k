@@ -947,8 +947,6 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(cp_fm_type), POINTER                          :: hess_mat
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'construct_initial_hess'
-
       INTEGER                                            :: i, iat_col, iat_row, iglobal, iind, j, &
                                                             jat_row, jglobal, jind, k, natom, &
                                                             ncol_local, nrow_local, z

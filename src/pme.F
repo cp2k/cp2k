@@ -512,8 +512,6 @@ CONTAINS
          POINTER                                         :: core_particle_set
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: charges
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_patch'
-
       COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: ex1, ex2, ey1, ey2, ez1, ez2
       INTEGER, DIMENSION(:), POINTER                     :: center1, center2
       LOGICAL                                            :: my_is1_core, my_is1_shell, my_is2_core, &
@@ -654,8 +652,6 @@ CONTAINS
       TYPE(pw_p_type)                                    :: rhos1, rhos2
       LOGICAL, OPTIONAL                                  :: is1_core, is2_core, is1_shell, is2_shell
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: charges
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_patch_again'
 
       COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: ex1, ex2, ey1, ey2, ez1, ez2
       LOGICAL                                            :: my_is1_core, my_is1_shell, my_is2_core, &

@@ -1718,8 +1718,6 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: irep
       LOGICAL, INTENT(IN)                                :: skip_disk, skip_in_core_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'parse_memory_section'
-
       CHARACTER(LEN=512)                                 :: error_msg
       CHARACTER(LEN=default_path_length)                 :: char_val, filename, orig_wd
       INTEGER                                            :: int_val, stat
@@ -1805,8 +1803,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE hfx_release(x_data)
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_release'
 
       INTEGER                                            :: i, i_thread, irep, n_rep_hf, n_threads
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -1954,8 +1950,6 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: pbc_shells
       TYPE(cell_type), POINTER                           :: cell
       INTEGER, INTENT(IN)                                :: i_thread
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_create_neighbor_cells'
 
       CHARACTER(LEN=512)                                 :: error_msg
       CHARACTER(LEN=64)                                  :: char_nshells
@@ -2412,8 +2406,6 @@ CONTAINS
       INTEGER                                            :: memory_usage
       LOGICAL                                            :: do_disk_storage
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_init_container'
-
       TYPE(hfx_container_node), POINTER                  :: current, next
 
 !! DEALLOCATE memory
@@ -2458,8 +2450,6 @@ CONTAINS
       TYPE(hfx_distribution), DIMENSION(:), POINTER      :: ptr_to_distr
       TYPE(hfx_type), POINTER                            :: x_data
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_set_distr_energy'
-
       DEALLOCATE (x_data%distribution_energy)
 
       ALLOCATE (x_data%distribution_energy(SIZE(ptr_to_distr)))
@@ -2479,8 +2469,6 @@ CONTAINS
    SUBROUTINE hfx_set_distr_forces(ptr_to_distr, x_data)
       TYPE(hfx_distribution), DIMENSION(:), POINTER      :: ptr_to_distr
       TYPE(hfx_type), POINTER                            :: x_data
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_set_distr_forces'
 
       DEALLOCATE (x_data%distribution_forces)
 
@@ -2780,8 +2768,6 @@ CONTAINS
       TYPE(hfx_compression_type)                         :: data
       INTEGER                                            :: memory_usage
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dealloc_containers'
-
       INTEGER                                            :: bin, i
 
       DO bin = 1, SIZE(data%maxval_container)
@@ -2813,8 +2799,6 @@ CONTAINS
    SUBROUTINE alloc_containers(DATA, bin_size)
       TYPE(hfx_compression_type)                         :: data
       INTEGER, INTENT(IN)                                :: bin_size
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'alloc_containers'
 
       INTEGER                                            :: bin, i
 

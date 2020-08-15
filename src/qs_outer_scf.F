@@ -539,8 +539,6 @@ CONTAINS
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       INTEGER, INTENT(IN)                                :: dir
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'outer_loop_switch'
-
       INTEGER                                            :: nvariables
 
       SELECT CASE (dir)

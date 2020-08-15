@@ -375,7 +375,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: zval
       CHARACTER(LEN=2)                                   :: btyp
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'init_atom_basis'
       INTEGER, PARAMETER                                 :: nua = 40, nup = 16
       REAL(KIND=dp), DIMENSION(nua), PARAMETER :: ugbs = (/0.007299_dp, 0.013705_dp, 0.025733_dp, &
          0.048316_dp, 0.090718_dp, 0.170333_dp, 0.319819_dp, 0.600496_dp, 1.127497_dp, 2.117000_dp,&
@@ -705,7 +704,6 @@ CONTAINS
    SUBROUTINE init_atom_basis_default_pp(basis)
       TYPE(atom_basis_type), INTENT(INOUT)               :: basis
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_atom_basis_default_pp'
       INTEGER, PARAMETER                                 :: nua = 40, nup = 20
       REAL(KIND=dp), DIMENSION(nua), PARAMETER :: ugbs = (/0.007299_dp, 0.013705_dp, 0.025733_dp, &
          0.048316_dp, 0.090718_dp, 0.170333_dp, 0.319819_dp, 0.600496_dp, 1.127497_dp, 2.117000_dp,&
@@ -778,8 +776,6 @@ CONTAINS
       TYPE(atom_basis_type), INTENT(IN)                  :: basis
       TYPE(atom_basis_type), INTENT(INOUT)               :: gbasis
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r, rab
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_basis_gridrep'
 
       INTEGER                                            :: i, j, k, l, m, n1, n2, n3, ngp, nl, nr, &
                                                             quadtype
@@ -911,8 +907,6 @@ CONTAINS
    SUBROUTINE release_atom_basis(basis)
       TYPE(atom_basis_type), INTENT(INOUT)               :: basis
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'release_atom_basis'
-
       IF (ASSOCIATED(basis%am)) THEN
          DEALLOCATE (basis%am)
       END IF
@@ -947,8 +941,6 @@ CONTAINS
    SUBROUTINE create_atom_type(atom)
       TYPE(atom_type), POINTER                           :: atom
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_atom_type'
-
       CPASSERT(.NOT. ASSOCIATED(atom))
 
       ALLOCATE (atom)
@@ -972,8 +964,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE release_atom_type(atom)
       TYPE(atom_type), POINTER                           :: atom
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'release_atom_type'
 
       CPASSERT(ASSOCIATED(atom))
 
@@ -1027,8 +1017,6 @@ CONTAINS
                                                             exchange_integral_type
       TYPE(opmat_type), OPTIONAL, POINTER                :: fmat
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_atom'
-
       CPASSERT(ASSOCIATED(atom))
 
       IF (PRESENT(basis)) atom%basis => basis
@@ -1064,8 +1052,6 @@ CONTAINS
    SUBROUTINE create_atom_orbs(orbs, mbas, mo)
       TYPE(atom_orbitals), POINTER                       :: orbs
       INTEGER, INTENT(IN)                                :: mbas, mo
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_atom_orbs'
 
       CPASSERT(.NOT. ASSOCIATED(orbs))
 
@@ -1114,8 +1100,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE release_atom_orbs(orbs)
       TYPE(atom_orbitals), POINTER                       :: orbs
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'release_atom_orbs'
 
       CPASSERT(ASSOCIATED(orbs))
 
@@ -1186,8 +1170,6 @@ CONTAINS
       TYPE(atom_type), INTENT(IN), POINTER               :: atom
       TYPE(section_vals_type), POINTER                   :: xc_section
       INTEGER, INTENT(IN)                                :: extype
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'setup_hf_section'
 
       INTEGER                                            :: i, j, nr, nu, pot_type
       REAL(KIND=dp)                                      :: scale_coulomb, scale_longrange
@@ -1357,8 +1339,6 @@ CONTAINS
       INTEGER, DIMENSION(0:lmat), INTENT(IN)             :: n
       INTEGER, INTENT(IN), OPTIONAL                      :: lmax
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_opmat'
-
       INTEGER                                            :: lm, m
 
       m = MAXVAL(n)
@@ -1385,8 +1365,6 @@ CONTAINS
    SUBROUTINE release_opmat(opmat)
       TYPE(opmat_type), POINTER                          :: opmat
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'release_opmat'
-
       CPASSERT(ASSOCIATED(opmat))
 
       opmat%n = 0
@@ -1404,8 +1382,6 @@ CONTAINS
    SUBROUTINE create_opgrid(opgrid, grid)
       TYPE(opgrid_type), POINTER                         :: opgrid
       TYPE(grid_atom_type), POINTER                      :: grid
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_opgrid'
 
       INTEGER                                            :: nr
 
@@ -1429,8 +1405,6 @@ CONTAINS
    SUBROUTINE release_opgrid(opgrid)
       TYPE(opgrid_type), POINTER                         :: opgrid
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'release_opgrid'
-
       CPASSERT(ASSOCIATED(opgrid))
 
       NULLIFY (opgrid%grid)
@@ -1452,8 +1426,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: zval
       REAL(dp), INTENT(OUT)                              :: cval, aval
       INTEGER, DIMENSION(0:lmat), INTENT(OUT)            :: ngto, ival
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'Clementi_geobas'
 
       ngto = 0
       ival = 0
@@ -2215,7 +2187,6 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: basis_set_name, basis_set_file
       TYPE(section_vals_type), POINTER                   :: basis_section
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_basis_set'
       INTEGER, PARAMETER                                 :: maxpri = 40, maxset = 20
 
       CHARACTER(len=20*default_string_length)            :: line_att
@@ -2421,8 +2392,6 @@ CONTAINS
       TYPE(atom_optimization_type), INTENT(INOUT)        :: optimization
       TYPE(section_vals_type), POINTER                   :: opt_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_atom_opt_section'
-
       INTEGER                                            :: miter, ndiis
       REAL(KIND=dp)                                      :: damp, eps_diis, eps_scf
 
@@ -2449,8 +2418,6 @@ CONTAINS
       TYPE(atom_potential_type), INTENT(INOUT)           :: potential
       TYPE(section_vals_type), POINTER                   :: potential_section
       INTEGER, INTENT(IN)                                :: zval
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_atom_potential'
 
       CHARACTER(LEN=default_string_length)               :: pseudo_fn, pseudo_name
       INTEGER                                            :: ic
@@ -2550,8 +2517,6 @@ CONTAINS
    SUBROUTINE release_atom_potential(potential)
       TYPE(atom_potential_type), INTENT(INOUT)           :: potential
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'release_atom_potential'
-
       potential%confinement = .FALSE.
 
       CALL atom_release_upf(potential%upf_pot)
@@ -2572,8 +2537,6 @@ CONTAINS
       TYPE(atom_gthpot_type), INTENT(INOUT)              :: potential
       CHARACTER(LEN=*), INTENT(IN)                       :: pseudo_name, pseudo_file
       TYPE(section_vals_type), POINTER                   :: potential_section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_gth_potential'
 
       CHARACTER(LEN=240)                                 :: line
       CHARACTER(LEN=242)                                 :: line2
@@ -2876,8 +2839,6 @@ CONTAINS
       TYPE(atom_ecppot_type), INTENT(INOUT)              :: potential
       CHARACTER(LEN=*), INTENT(IN)                       :: pseudo_name, pseudo_file
       TYPE(section_vals_type), POINTER                   :: potential_section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_ecp_potential'
 
       CHARACTER(LEN=240)                                 :: line
       CHARACTER(len=5*default_string_length)             :: line_att

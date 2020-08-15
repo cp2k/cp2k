@@ -66,8 +66,6 @@ CONTAINS
       TYPE(rhoz_type), DIMENSION(:), POINTER             :: rhoz_set
       INTEGER                                            :: nkind
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'allocate_rhoz'
-
       INTEGER                                            :: ikind
 
       IF (ASSOCIATED(rhoz_set)) THEN
@@ -103,8 +101,6 @@ CONTAINS
       INTEGER                                            :: natom
       REAL(dp), INTENT(INOUT)                            :: rhoz_tot
       TYPE(harmonics_atom_type)                          :: harmonics
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'calculate_rhoz'
 
       INTEGER                                            :: ir, na, nr
       REAL(dp)                                           :: c1, c2, c3, prefactor1, prefactor2, &
@@ -149,8 +145,6 @@ CONTAINS
 
       TYPE(rhoz_type), DIMENSION(:), POINTER             :: rhoz_set
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'deallocate_rhoz'
-
       INTEGER                                            :: ikind, nkind
 
       nkind = SIZE(rhoz_set)
@@ -183,8 +177,6 @@ CONTAINS
       TYPE(rho0_mpole_type), OPTIONAL, POINTER           :: rho0_mpole
       TYPE(rhoz_type), DIMENSION(:), OPTIONAL, POINTER   :: rhoz_set
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_local_rho'
-
       IF (PRESENT(rho_atom_set)) rho_atom_set => local_rho_set%rho_atom_set
       IF (PRESENT(rho0_atom_set)) rho0_atom_set => local_rho_set%rho0_atom_set
       IF (PRESENT(rho0_mpole)) rho0_mpole => local_rho_set%rho0_mpole
@@ -199,8 +191,6 @@ CONTAINS
    SUBROUTINE local_rho_set_create(local_rho_set)
 
       TYPE(local_rho_type), POINTER                      :: local_rho_set
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'local_rho_set_create'
 
       ALLOCATE (local_rho_set)
 
@@ -218,8 +208,6 @@ CONTAINS
    SUBROUTINE local_rho_set_release(local_rho_set)
 
       TYPE(local_rho_type), POINTER                      :: local_rho_set
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'local_rho_set_release'
 
       IF (ASSOCIATED(local_rho_set)) THEN
          IF (ASSOCIATED(local_rho_set%rho_atom_set)) THEN
@@ -261,8 +249,6 @@ CONTAINS
          POINTER                                         :: rho0_atom_set
       TYPE(rho0_mpole_type), OPTIONAL, POINTER           :: rho0_mpole
       TYPE(rhoz_type), DIMENSION(:), OPTIONAL, POINTER   :: rhoz_set
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_local_rho'
 
       IF (PRESENT(rho_atom_set)) THEN
          IF (ASSOCIATED(local_rho_set%rho_atom_set)) THEN

@@ -122,8 +122,6 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: compatibility
       TYPE(section_vals_type), POINTER                   :: qmmm_section
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_mm_potential'
-
       CHARACTER(LEN=240)                                 :: line
       CHARACTER(LEN=default_string_length)               :: Ftarget, mm_potential_file_name, Units
       INTEGER                                            :: IRad, istart, Ival, j, Nog, Nval, &
@@ -233,8 +231,6 @@ CONTAINS
       TYPE(qmmm_gaussian_p_type), DIMENSION(:), POINTER  :: qmmm_gaussian_fns
       LOGICAL, INTENT(IN)                                :: compatibility
       INTEGER, INTENT(IN)                                :: num_geep_gauss
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_mm_potential_erf'
 
       INTEGER                                            :: IRad, istart, Nog, Nval
       REAL(KIND=dp)                                      :: my_radius, radius, rc
@@ -669,8 +665,6 @@ CONTAINS
                                      num_geep_gauss)
       TYPE(qmmm_gaussian_p_type), DIMENSION(:), POINTER  :: qmmm_gaussian_fns
       INTEGER, INTENT(IN)                                :: num_geep_gauss
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_mm_potential_swave'
 
       INTEGER                                            :: IRad, istart, Nog, Nval
       REAL(KIND=dp)                                      :: radius, rc

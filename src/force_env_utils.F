@@ -416,8 +416,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ndigits
       LOGICAL, INTENT(IN)                                :: numerical
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_stress_tensor'
-
       CHARACTER(LEN=15)                                  :: fmtstr3
       CHARACTER(LEN=16)                                  :: fmtstr4
       CHARACTER(LEN=22)                                  :: fmtstr2
@@ -498,8 +496,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(INOUT), &
          OPTIONAL                                        :: grand_total_force
       LOGICAL, INTENT(IN), OPTIONAL                      :: zero_force_core_shell_atom
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_forces'
 
       CHARACTER(LEN=23)                                  :: fmtstr3
       CHARACTER(LEN=36)                                  :: fmtstr2

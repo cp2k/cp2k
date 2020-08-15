@@ -66,8 +66,6 @@ CONTAINS
       TYPE(energy_correction_type), POINTER              :: ec_env
       TYPE(section_vals_type), POINTER                   :: dft_section
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'ec_env_create'
-
       CPASSERT(.NOT. ASSOCIATED(ec_env))
       ALLOCATE (ec_env)
       CALL init_ec_env(qs_env, ec_env, dft_section)
@@ -87,8 +85,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(energy_correction_type), POINTER              :: ec_env
       TYPE(section_vals_type), OPTIONAL, POINTER         :: dft_section
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_ec_env'
 
       INTEGER                                            :: ikind, maxlgto, nkind
       LOGICAL                                            :: explicit

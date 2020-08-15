@@ -36,8 +36,6 @@ CONTAINS
       TYPE(ilist_type), POINTER                          :: ilist
       CHARACTER(LEN=*)                                   :: token
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'ilist_setup'
-
       INTEGER                                            :: ind
 
       CPASSERT(ASSOCIATED(ilist))
@@ -64,8 +62,6 @@ CONTAINS
    SUBROUTINE ilist_update(ilist)
       TYPE(ilist_type), POINTER                          :: ilist
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'ilist_update'
-
       CPASSERT(ASSOCIATED(ilist))
       ilist%ipresent = ilist%ipresent + 1
       IF (ilist%ipresent > ilist%iend) THEN
@@ -81,8 +77,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE ilist_reset(ilist)
       TYPE(ilist_type), POINTER                          :: ilist
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'ilist_reset'
 
       CPASSERT(ASSOCIATED(ilist))
       IF (ilist%ipresent == ilist%iend) THEN

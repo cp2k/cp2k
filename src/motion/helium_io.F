@@ -192,8 +192,6 @@ CONTAINS
 
       TYPE(helium_solvent_type), POINTER                 :: helium
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_write_setup'
-
       CHARACTER(len=default_string_length)               :: msg_str, my_label, stmp, stmp1, stmp2, &
                                                             unit_str
       INTEGER                                            :: i, itmp, unit_nr
@@ -444,8 +442,6 @@ CONTAINS
    SUBROUTINE helium_write_line(line)
 
       CHARACTER(len=*), INTENT(IN)                       :: line
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'helium_write_line'
 
       CHARACTER(len=default_string_length)               :: my_label
       INTEGER                                            :: unit_nr

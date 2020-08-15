@@ -35,8 +35,6 @@ CONTAINS
    SUBROUTINE cp_fm_vect_dealloc(matrixes)
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: matrixes
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_vect_dealloc'
-
       INTEGER                                            :: i
 
       IF (ASSOCIATED(matrixes)) THEN
@@ -59,8 +57,6 @@ CONTAINS
    SUBROUTINE cp_fm_vect_copy(matrixes, copy)
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in)       :: matrixes
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: copy
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_vect_copy'
 
       INTEGER                                            :: i
 

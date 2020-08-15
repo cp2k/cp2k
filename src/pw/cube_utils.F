@@ -93,8 +93,6 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: lb(3), ub(3)
       REAL(KIND=dp), INTENT(IN)                          :: rp(3)
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'return_cube_nonortho'
-
       INTEGER                                            :: i, j, k
       REAL(KIND=dp)                                      :: point(3), res(3)
 
@@ -144,8 +142,6 @@ CONTAINS
       INTEGER                                            :: lb_cube(3), ub_cube(3)
       INTEGER, DIMENSION(:), POINTER                     :: sphere_bounds
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'return_cube'
-
       INTEGER                                            :: imr
 
       IF (info%orthorhombic) THEN
@@ -186,8 +182,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE destroy_cube_info(info)
       TYPE(cube_info_type)                               :: info
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'destroy_cube_info'
 
       INTEGER                                            :: i
 

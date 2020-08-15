@@ -49,8 +49,6 @@ CONTAINS
    SUBROUTINE create_negf_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_negf_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection
 
@@ -231,8 +229,6 @@ CONTAINS
    SUBROUTINE create_contact_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_contact_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection, subsection2
 
@@ -324,8 +320,6 @@ CONTAINS
       CHARACTER(len=*), INTENT(in)                       :: name, description
       LOGICAL, INTENT(in)                                :: repeats
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_atomlist_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -362,8 +356,6 @@ CONTAINS
    SUBROUTINE create_print_dos_section(section, name, description)
       TYPE(section_type), POINTER                        :: section
       CHARACTER(len=*), INTENT(in)                       :: name, description
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_print_dos_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 

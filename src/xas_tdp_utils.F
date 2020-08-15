@@ -668,8 +668,6 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: lr_coeffs
       TYPE(donor_state_type), POINTER                    :: donor_state
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_normal_scaling'
-
       INTEGER                                            :: nrow, nscal, nvals
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: diag
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -721,8 +719,6 @@ CONTAINS
       TYPE(donor_state_type), POINTER                    :: donor_state
       LOGICAL, INTENT(IN)                                :: do_os
       TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'compute_submat_dist_and_blk_size'
 
       INTEGER                                            :: group, i, nao, nblk_row, ndo_mo, nspins, &
                                                             scol_dist, srow_dist
@@ -2060,8 +2056,6 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: eps_filter
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_os_amew_op'
-
       INTEGER                                            :: dim_op, homo, i, isc, nao, ndo_mo, &
                                                             ndo_so, nex, nsc, nsf, ntot
       REAL(dp)                                           :: op
@@ -2294,8 +2288,6 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: eps_filter
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_rcs_amew_op'
-
       INTEGER                                            :: dim_op, homo, i, isg, nao, ndo_mo, nex, &
                                                             nsg, ntot, ntp
       REAL(dp)                                           :: op, sqrt2
@@ -2509,8 +2501,6 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: symmetric
       INTEGER, DIMENSION(2), OPTIONAL                    :: tracea_start, traceb_start
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'os_amew_soc_elements'
-
       INTEGER                                            :: blk, iex, jex, ndo_mo, ndo_so
       INTEGER, DIMENSION(2)                              :: tas, tbs
       LOGICAL                                            :: do_diags, found, my_symm
@@ -2597,8 +2587,6 @@ CONTAINS
       REAL(dp)                                           :: pref_trace, pref_overall
       REAL(dp), OPTIONAL                                 :: pref_diags
       LOGICAL, OPTIONAL                                  :: symmetric
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'rcs_amew_soc_elements'
 
       INTEGER                                            :: blk, iex, jex
       LOGICAL                                            :: do_diags, found, my_symm

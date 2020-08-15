@@ -139,8 +139,6 @@ CONTAINS
                                                             local_RI_size
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_BZ'
-
       INTEGER                                            :: i_Z_vector, LLL
 
       BZ(:, :, :) = 0.0_dp

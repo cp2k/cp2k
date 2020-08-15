@@ -286,8 +286,6 @@ CONTAINS
    SUBROUTINE smat_precon_diag(pmat)
       TYPE(dbcsr_type)                                   :: pmat
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'smat_precon_diag'
-
       INTEGER                                            :: iatom, info, jatom, n
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: sblock
       TYPE(dbcsr_iterator_type)                          :: dbcsr_iter

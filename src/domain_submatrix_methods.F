@@ -1636,8 +1636,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: row, col
       LOGICAL                                            :: qblk_exists
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qblk_exists'
-
       INTEGER                                            :: first, last, mid, ndomains
 
 !CALL timeset(routineN,handle)

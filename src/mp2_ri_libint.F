@@ -167,8 +167,6 @@ CONTAINS
       INTEGER                                            :: RI_dimen
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_S0
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'read_RI_basis_set'
-
       INTEGER :: co_counter, counter, i, iatom, ikind, ipgf, iset, j, k, la, max_am_kind, &
          max_coeff, max_nsgfl, max_pgf, max_pgf_kind, max_set, nl_count, nset, nseta, offset_a, &
          offset_a1, s_offset_nl_a, sgfa, so_counter
@@ -356,8 +354,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE release_RI_basis_set(RI_basis_parameter, basis_S0)
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: RI_basis_parameter, basis_S0
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'release_RI_basis_set'
 
       INTEGER                                            :: i
 

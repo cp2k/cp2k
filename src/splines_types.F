@@ -86,8 +86,6 @@ CONTAINS
    SUBROUTINE spline_env_release(spline_env)
       TYPE(spline_environment_type), POINTER             :: spline_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'spline_env_release'
-
       INTEGER                                            :: i
       TYPE(spline_data_p_type), DIMENSION(:), POINTER    :: spl_p
 
@@ -115,8 +113,6 @@ CONTAINS
    SUBROUTINE spline_data_release(spline_data)
       TYPE(spline_data_type), POINTER                    :: spline_data
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_release'
-
       IF (ASSOCIATED(spline_data)) THEN
          CPASSERT(spline_data%ref_count > 0)
          spline_data%ref_count = spline_data%ref_count - 1
@@ -139,8 +135,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE spline_data_p_release(spl_p)
       TYPE(spline_data_p_type), DIMENSION(:), POINTER    :: spl_p
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_p_release'
 
       INTEGER                                            :: i
       LOGICAL                                            :: release_kind
@@ -166,8 +160,6 @@ CONTAINS
    SUBROUTINE spline_data_retain(spline_data)
       TYPE(spline_data_type), POINTER                    :: spline_data
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_retain'
-
       CPASSERT(ASSOCIATED(spline_data))
       CPASSERT(spline_data%ref_count > 0)
       spline_data%ref_count = spline_data%ref_count + 1
@@ -180,8 +172,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE spline_data_p_retain(spl_p)
       TYPE(spline_data_p_type), DIMENSION(:), POINTER    :: spl_p
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_p_retain'
 
       INTEGER                                            :: i
 
@@ -200,8 +190,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE spline_env_retain(spline_env)
       TYPE(spline_environment_type), POINTER             :: spline_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'spline_env_retain'
 
       CPASSERT(ASSOCIATED(spline_env))
       CPASSERT(spline_env%ref_count > 0)
@@ -267,8 +255,6 @@ CONTAINS
    SUBROUTINE spline_data_p_copy(spl_p_source, spl_p_dest)
       TYPE(spline_data_p_type), DIMENSION(:), POINTER    :: spl_p_source, spl_p_dest
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_p_copy'
-
       INTEGER                                            :: i, nsized, nsizes
 
       CPASSERT(ASSOCIATED(spl_p_source))
@@ -299,8 +285,6 @@ CONTAINS
    SUBROUTINE spline_data_copy(spline_data_source, spline_data_dest)
       TYPE(spline_data_type), POINTER                    :: spline_data_source, spline_data_dest
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'spline_data_copy'
-
       CPASSERT(ASSOCIATED(spline_data_source))
       IF (.NOT. ASSOCIATED(spline_data_dest)) CALL spline_data_create(spline_data_dest)
 
@@ -330,8 +314,6 @@ CONTAINS
    SUBROUTINE spline_data_create(spline_data)
       TYPE(spline_data_type), POINTER                    :: spline_data
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_create'
-
       ALLOCATE (spline_data)
       spline_data%ref_count = 1
       last_spline_data_id_nr = last_spline_data_id_nr + 1
@@ -347,8 +329,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE spline_factor_release(spline_factor)
       TYPE(spline_factor_type), POINTER                  :: spline_factor
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'spline_factor_release'
 
       IF (ASSOCIATED(spline_factor)) THEN
          IF (ASSOCIATED(spline_factor%rscale)) THEN
@@ -372,8 +352,6 @@ CONTAINS
    SUBROUTINE spline_factor_create(spline_factor)
       TYPE(spline_factor_type), POINTER                  :: spline_factor
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'spline_factor_create'
-
       CPASSERT(.NOT. ASSOCIATED(spline_factor))
       ALLOCATE (spline_factor)
       ALLOCATE (spline_factor%rscale(1))
@@ -394,8 +372,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE spline_factor_copy(spline_factor_source, spline_factor_dest)
       TYPE(spline_factor_type), POINTER                  :: spline_factor_source, spline_factor_dest
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'spline_factor_copy'
 
       INTEGER                                            :: isize, jsize, ksize
 

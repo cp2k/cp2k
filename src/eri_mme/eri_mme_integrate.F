@@ -78,8 +78,6 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: potential
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pot_par
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_2c_integrate'
-
       INTEGER                                            :: ax, ay, az, bx, by, bz, grid, i_aw, &
                                                             i_xyz, ico, jco, l_max, la, lb, n_aw
       INTEGER(KIND=int_8), DIMENSION(2)                  :: n_sum_3d
@@ -280,8 +278,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: o1, o2, o3
       INTEGER, INTENT(INOUT), OPTIONAL                   :: GG_count, GR_count, RR_count
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_3c_integrate'
-
       CPASSERT(param%is_valid)
       IF (param%is_ortho) THEN
          CALL eri_mme_3c_integrate_ortho(param, la_min, la_max, lb_min, lb_max, lc_min, lc_max, zeta, zetb, zetc, RA, RB, RC, &
@@ -325,8 +321,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: habc
       INTEGER, INTENT(IN)                                :: o1, o2, o3
       INTEGER, INTENT(INOUT), OPTIONAL                   :: RR_count
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_3c_integrate_ortho'
 
       INTEGER                                            :: grid, i_aw, lmax_0, n_aw
       INTEGER(KIND=int_8), DIMENSION(3)                  :: n_sum_3d
@@ -445,8 +439,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: habc
       INTEGER, INTENT(IN)                                :: o1, o2, o3
       INTEGER, INTENT(INOUT), OPTIONAL                   :: GG_count, GR_count, RR_count
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_3c_integrate_nonortho'
 
       INTEGER                                            :: ax, ay, az, bx, by, bz, cx, cy, cz, &
                                                             grid, i_aw, ico, ir, jco, kco, la, lb, &

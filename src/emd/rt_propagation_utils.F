@@ -222,8 +222,6 @@ CONTAINS
    SUBROUTINE get_restart_wfn(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_restart_wfn'
-
       CHARACTER(LEN=default_path_length)                 :: file_name, project_name
       INTEGER                                            :: i, id_nr, im, ispin, ncol, nspin, re, &
                                                             unit_nr
@@ -465,8 +463,6 @@ CONTAINS
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p_im
       LOGICAL, OPTIONAL                                  :: keep_sparsity
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_P_imaginary'
 
       INTEGER                                            :: i, im, ncol, re
       LOGICAL                                            :: my_keep_sparsity

@@ -207,8 +207,6 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: work_v_xc
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_apply_xc'
-
       IF (kernel_env%deriv2_analytic) THEN
          CALL tddfpt_apply_xc_analytic(A_ia_rspace, kernel_env, rho_ia_struct, is_rks_triplets, &
                                        pw_env, work_v_xc)

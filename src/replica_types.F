@@ -199,8 +199,6 @@ CONTAINS
       INTEGER, INTENT(in)                                :: rep_env_id
       INTEGER, INTENT(out)                               :: ierr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_destroy_low'
-
       INTEGER                                            :: stat
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(f_env_type), POINTER                          :: f_env
@@ -290,8 +288,6 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: ierr
       TYPE(replica_env_type), POINTER                    :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rep_envs_get_rep_env'
-
       INTEGER                                            :: i
 
       NULLIFY (res)
@@ -316,8 +312,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rep_envs_add_rep_env(rep_env)
       TYPE(replica_env_type), POINTER                    :: rep_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'rep_envs_add_rep_env'
 
       INTEGER                                            :: i, stat
       TYPE(replica_env_p_type), DIMENSION(:), POINTER    :: new_rep_envs
@@ -353,8 +347,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rep_envs_rm_rep_env(rep_env)
       TYPE(replica_env_type), POINTER                    :: rep_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'rep_envs_rm_rep_env'
 
       INTEGER                                            :: i, ii
       TYPE(replica_env_p_type), DIMENSION(:), POINTER    :: new_rep_envs

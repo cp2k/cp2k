@@ -39,8 +39,6 @@ CONTAINS
    SUBROUTINE create_ilist_type(ilist)
       TYPE(ilist_type), POINTER                          :: ilist
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_ilist_type'
-
       CPASSERT(.NOT. ASSOCIATED(ilist))
       ALLOCATE (ilist)
       ilist%istart = HUGE(0)
@@ -59,8 +57,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE release_ilist_type(ilist)
       TYPE(ilist_type), POINTER                          :: ilist
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'release_ilist_type'
 
       CPASSERT(ASSOCIATED(ilist))
       DEALLOCATE (ilist)

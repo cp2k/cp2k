@@ -177,8 +177,6 @@ CONTAINS
       REAL(dp), INTENT(INOUT)                            :: rho(:)
       REAL(dp), INTENT(IN)                               :: fac
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_rho_eam'
-
       INTEGER                                            :: index
       REAL(dp)                                           :: qq, rab, rhoi, rhoj
 
@@ -225,8 +223,6 @@ CONTAINS
       TYPE(eam_type), INTENT(IN)                         :: eam_data(:)
       INTEGER, INTENT(IN)                                :: atom_a, atom_b
       REAL(dp), INTENT(OUT)                              :: f_eam
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_force_eam'
 
       INTEGER                                            :: index
       REAL(KIND=dp)                                      :: denspi, denspj, fcp, qq, rab

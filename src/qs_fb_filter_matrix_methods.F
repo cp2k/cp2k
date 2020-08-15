@@ -1412,8 +1412,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eigenvals
       REAL(KIND=dp), INTENT(IN)                          :: T, mu
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_fltrmat_fermi_dirac_mu'
-
       REAL(KIND=dp)                                      :: kTS, ne
 
 ! we want fermi function max at 1, so maxocc = 1 here
@@ -1435,8 +1433,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: f
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eigenvals
       REAL(KIND=dp), INTENT(IN)                          :: T, ne, maxocc
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_fltrmat_fermi_dirac_ne'
 
       REAL(KIND=dp)                                      :: kTS, mu
 

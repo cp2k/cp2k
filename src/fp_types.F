@@ -117,8 +117,6 @@ CONTAINS
    SUBROUTINE fp_env_retain(fp_env)
       TYPE(fp_type), POINTER                             :: fp_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'fp_env_retain'
-
       CPASSERT(ASSOCIATED(fp_env))
       fp_env%ref_count = fp_env%ref_count + 1
 

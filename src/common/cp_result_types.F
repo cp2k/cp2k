@@ -182,8 +182,6 @@ CONTAINS
    SUBROUTINE cp_result_retain(results)
       TYPE(cp_result_type), POINTER                      :: results
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_result_retain'
-
       CPASSERT(ASSOCIATED(results))
       CPASSERT(results%ref_count > 0)
       results%ref_count = results%ref_count + 1

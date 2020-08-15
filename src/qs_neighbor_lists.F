@@ -1417,8 +1417,6 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: mic, symmetric, molecular
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: operator_type
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_neighbor_list'
-
       CHARACTER(LEN=4)                                   :: otype
       INTEGER                                            :: ikind, nkind
       LOGICAL                                            :: my_mic, my_molecular, my_symmetric
@@ -1522,8 +1520,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ikind
       TYPE(local_atoms_type), DIMENSION(:), INTENT(IN)   :: atom
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'combine_lists'
-
       INTEGER                                            :: i, ib, na, nb
       INTEGER, DIMENSION(:), POINTER                     :: lista, listb
 
@@ -1573,8 +1569,6 @@ CONTAINS
       LOGICAL, DIMENSION(:), INTENT(IN)                  :: present_a, present_b
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: radius_a, radius_b
       REAL(dp), DIMENSION(:, :), INTENT(OUT)             :: pair_radius
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pair_radius_setup'
 
       INTEGER                                            :: i, j, nkind
 

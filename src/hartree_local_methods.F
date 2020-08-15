@@ -459,8 +459,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nchan_0, nspins, max_iso_not0
       REAL(dp), INTENT(IN)                               :: bfactor
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'Vh_1c_atom_potential'
-
       INTEGER                                            :: ir, iso, ispin, nr
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: vr_h, vr_s
 
@@ -530,8 +528,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nchan_0, nspins, max_iso_not0
       LOGICAL, INTENT(IN)                                :: atenergy
       REAL(dp), DIMENSION(:), POINTER                    :: ate1c
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'Vh_1c_atom_energy'
 
       INTEGER                                            :: iso, ispin, nr
       REAL(dp)                                           :: ecoul_1_0, ecoul_1_h, ecoul_1_s, &
@@ -623,8 +619,6 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: gsph
       REAL(dp), DIMENSION(:, 0:)                         :: g0_h_w
       REAL(dp), DIMENSION(:, :, :), POINTER              :: my_CG, Qlm_gg
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'Vh_1c_atom_integrals'
 
       INTEGER                                            :: icg, ipgf1, ipgf2, ir, is1, is2, iset1, &
                                                             iset2, iso, iso1, iso2, ispin, l_ang, &

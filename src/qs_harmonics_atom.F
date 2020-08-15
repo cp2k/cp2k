@@ -64,8 +64,6 @@ CONTAINS
 
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_harmonics_atom'
-
       IF (ASSOCIATED(harmonics)) CALL deallocate_harmonics_atom(harmonics)
 
       ALLOCATE (harmonics)
@@ -97,8 +95,6 @@ CONTAINS
    SUBROUTINE deallocate_harmonics_atom(harmonics)
 
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_harmonics_atom'
 
       IF (ASSOCIATED(harmonics)) THEN
 
@@ -494,8 +490,6 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(OUT), OPTIONAL       :: n_list
       INTEGER, INTENT(OUT)                               :: max_iso_not0
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_none0_cg_list4'
-
       INTEGER                                            :: iso, iso1, iso2, l1, l2, nlist
 
       CPASSERT(nsoset(lmax1) .LE. SIZE(cgc, 2))
@@ -553,8 +547,6 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), INTENT(OUT), OPTIONAL :: list
       INTEGER, DIMENSION(:), INTENT(OUT), OPTIONAL       :: n_list
       INTEGER, INTENT(OUT)                               :: max_iso_not0
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_none0_cg_list3'
 
       INTEGER                                            :: iso, iso1, iso2, l1, l2, nlist
 

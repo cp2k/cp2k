@@ -1202,8 +1202,6 @@ CONTAINS
       INTEGER, INTENT(IN)                      :: iB, idir, ispin, natm_gauge
       REAL(dp), INTENT(IN) :: ratom(:, :)
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_jrho_atom_ang'
-
       INTEGER                                  :: ia, idir2, iiB, iiiB, ir, &
                                                   iso, max_max_iso_not0, na, nr
       REAL(dp)                                 :: rad_part, scale
@@ -1409,8 +1407,6 @@ CONTAINS
       TYPE(current_env_type)                             :: current_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: iB, idir
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_atom'
 
       INTEGER                                            :: iat, iatom, ikind, ispin, jatom, &
                                                             natm_gauge, natm_tot, natom, nkind, &

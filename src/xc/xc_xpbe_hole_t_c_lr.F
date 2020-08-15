@@ -243,8 +243,6 @@ CONTAINS
       REAL(kind=dp), DIMENSION(1:npoints), INTENT(inout) :: rho, norm_drho, e_0, e_rho, e_ndrho
       REAL(kind=dp), INTENT(in)                          :: epsilon_rho, sx, R
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xpbe_hole_t_c_lr_lda_calc'
-
       INTEGER                                            :: ip
       REAL(dp)                                           :: my_ndrho, my_rho
       REAL(KIND=dp)                                      :: ss, ss2, sscale, t1, t2, t3, t4, t6, t7, &
@@ -411,8 +409,6 @@ CONTAINS
       INTEGER, INTENT(in)                                :: npoints, order
       REAL(kind=dp), DIMENSION(1:npoints), INTENT(inout) :: rho, norm_drho, e_0, e_rho, e_ndrho
       REAL(kind=dp), INTENT(in)                          :: epsilon_rho, sx, R
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'xpbe_hole_t_c_lr_lsd_calc'
 
       INTEGER                                            :: ip
       REAL(dp)                                           :: my_ndrho, my_rho

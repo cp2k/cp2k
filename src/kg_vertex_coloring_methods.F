@@ -282,8 +282,6 @@ CONTAINS
       TYPE(vertex_p_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: graph
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'kg_cp_heap_fill'
-
       INTEGER                                            :: i, nnodes
       INTEGER(kind=valt), ALLOCATABLE, DIMENSION(:)      :: values
 
@@ -310,8 +308,6 @@ CONTAINS
    SUBROUTINE kg_update_node(heap, node)
       TYPE(cp_heap_type)                                 :: heap
       TYPE(vertex), INTENT(IN), POINTER                  :: node
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'kg_update_node'
 
       INTEGER                                            :: degree, dsat, id
       INTEGER(KIND=valt)                                 :: value

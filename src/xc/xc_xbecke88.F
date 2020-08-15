@@ -52,8 +52,6 @@ CONTAINS
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'xb88_lda_info'
-
       IF (PRESENT(reference)) THEN
          reference = "A. Becke, Phys. Rev. A 38, 3098 (1988) {LDA version}"
       END IF
@@ -84,8 +82,6 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'xb88_lsd_info'
 
       IF (PRESENT(reference)) THEN
          reference = "A. Becke, Phys. Rev. A 38, 3098 (1988) {LSD version}"
@@ -259,8 +255,6 @@ CONTAINS
          e_ndrho, e_rho, e_0
       REAL(kind=dp), DIMENSION(1:npoints), INTENT(in)    :: norm_drho, rho_1_3, rho
       REAL(kind=dp), INTENT(in)                          :: epsilon_rho, sx
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'xb88_lda_calc'
 
       INTEGER                                            :: ii
       REAL(kind=dp) :: c, epsilon_rho43, my_rho, my_rho_1_3, t1, t10, t100, t104, t11, t12, t126, &
@@ -829,8 +823,6 @@ CONTAINS
          e_ndrho_ndrho_rho_spin, e_ndrho_ndrho_ndrho_spin
       INTEGER, INTENT(in)                                :: grad_deriv, npoints
       REAL(kind=dp), INTENT(in)                          :: epsilon_rho, sx
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'xb88_lsd_calc'
 
       INTEGER                                            :: ii
       REAL(kind=dp) :: c, epsilon_rho43, my_epsilon_rho, my_rho, t1, t103, t11, t12, t127, t133, &

@@ -72,8 +72,6 @@ CONTAINS
       INTEGER                                            :: mv_conf
       LOGICAL                                            :: new_subbox, move_rejected
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'change_pos'
-
       INTEGER                                            :: act_nr_elem_mv, counter, d, i, ind, &
                                                             ind_e, m, nr_molec, nr_sub_box_elem
       INTEGER, DIMENSION(:), POINTER                     :: mol_in_sb
@@ -368,8 +366,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: mol
       INTEGER, INTENT(OUT)                               :: start_ind, end_ind
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_mol_indeces'
-
       INTEGER                                            :: i
 
       start_ind = -1
@@ -546,8 +542,6 @@ CONTAINS
       TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
       INTEGER                                            :: dim_per_elem
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'do_mol_rot'
-
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: a1, a2, a3, q0, q1, q2, q3, rnd
       REAL(KIND=dp), DIMENSION(3, 3)                     :: rot
@@ -608,8 +602,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: phi, temp
       LOGICAL                                            :: rnd_sign_change
       TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'vel_change'
 
       INTEGER                                            :: d
       REAL(KIND=dp)                                      :: delta_vel, kB, rnd1, rnd2, rnd3, rnd_g
@@ -901,8 +893,6 @@ CONTAINS
       INTEGER                                            :: i_orig, i_neighbor
       TYPE(tmc_param_type), POINTER                      :: tmc_params
       INTEGER                                            :: donor_acceptor
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'check_donor_acceptor'
 
       REAL(KIND=dp), DIMENSION(4)                        :: distances
 
@@ -1240,8 +1230,6 @@ CONTAINS
       TYPE(tmc_move_type), POINTER                       :: move_types
       TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
       TYPE(tmc_param_type), POINTER                      :: tmc_params
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'swap_atoms'
 
       INTEGER                                            :: a_1, a_2, ind_1, ind_2
       LOGICAL                                            :: found

@@ -210,8 +210,6 @@ CONTAINS
       TYPE(csvr_system_type), POINTER                    :: csvr
       TYPE(map_info_type), POINTER                       :: map_info
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'do_csvr'
-
       INTEGER                                            :: i, imap, ndeg
       REAL(KIND=dp)                                      :: kin_energy, kin_target, taut
       TYPE(rng_stream_type), POINTER                     :: rng_stream
@@ -240,8 +238,6 @@ CONTAINS
    SUBROUTINE do_csvr_eval_energy(csvr, map_info)
       TYPE(csvr_system_type), POINTER                    :: csvr
       TYPE(map_info_type), POINTER                       :: map_info
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'do_csvr_eval_energy'
 
       INTEGER                                            :: i, imap
       REAL(KIND=dp)                                      :: kin_energy_ar, kin_energy_br

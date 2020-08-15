@@ -82,8 +82,6 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: virial_avg
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_averages'
-
       INTEGER                                            :: i, nint
       LOGICAL                                            :: do_colvars
 
@@ -147,8 +145,6 @@ CONTAINS
    SUBROUTINE retain_averages(averages)
       TYPE(average_quantities_type), POINTER             :: averages
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'retain_averages'
-
       CPASSERT(ASSOCIATED(averages))
       CPASSERT(averages%ref_count > 0)
       averages%ref_count = averages%ref_count + 1
@@ -161,8 +157,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE release_averages(averages)
       TYPE(average_quantities_type), POINTER             :: averages
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'release_averages'
 
       TYPE(section_vals_type), POINTER                   :: work_section
 
@@ -445,8 +439,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: add
       INTEGER, INTENT(IN)                                :: delta_t
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_averages_rs'
-
       avg = (avg*REAL(delta_t - 1, dp) + add)/REAL(delta_t, dp)
    END SUBROUTINE get_averages_rs
 
@@ -461,8 +453,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: avg
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: add
       INTEGER, INTENT(IN)                                :: delta_t
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_averages_rv'
 
       INTEGER                                            :: i
       LOGICAL                                            :: check
@@ -485,8 +475,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: avg
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: add
       INTEGER, INTENT(IN)                                :: delta_t
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_averages_rm'
 
       INTEGER                                            :: i, j
       LOGICAL                                            :: check

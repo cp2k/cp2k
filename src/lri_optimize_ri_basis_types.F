@@ -75,8 +75,6 @@ CONTAINS
 
       TYPE(lri_opt_type), POINTER                        :: lri_opt
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_lri_opt'
-
       ALLOCATE (lri_opt)
 
       NULLIFY (lri_opt%ri_gcc_orig)
@@ -102,8 +100,6 @@ CONTAINS
    SUBROUTINE deallocate_lri_opt(lri_opt)
 
       TYPE(lri_opt_type), POINTER                        :: lri_opt
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_lri_opt'
 
       INTEGER                                            :: i
 
@@ -143,8 +139,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc_orig
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
       TYPE(lri_opt_type), POINTER                        :: lri_opt
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_original_gcc'
 
       INTEGER                                            :: il, ipgf, iset, ishell, l, maxpgf, &
                                                             maxshell, nl, nset
@@ -208,8 +202,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
       TYPE(lri_opt_type), POINTER                        :: lri_opt
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'orthonormalize_gcc'
 
       INTEGER                                            :: il, iset, ishell, ishell1, ishell2, &
                                                             istart, nset

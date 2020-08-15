@@ -108,8 +108,6 @@ CONTAINS
    SUBROUTINE parser_retain(parser)
       TYPE(cp_parser_type), POINTER                      :: parser
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'parser_retain'
-
       CPASSERT(ASSOCIATED(parser))
       CPASSERT(parser%ref_count > 0)
       parser%ref_count = parser%ref_count + 1
@@ -124,8 +122,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE parser_release(parser)
       TYPE(cp_parser_type), POINTER                      :: parser
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'parser_release'
 
       IF (ASSOCIATED(parser)) THEN
          CPASSERT(parser%ref_count > 0)
@@ -179,8 +175,6 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: parse_white_lines
       CHARACTER(len=*), DIMENSION(:, :), OPTIONAL        :: initial_variables
       LOGICAL, INTENT(IN), OPTIONAL                      :: apply_preprocessing
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'parser_create'
 
       CPASSERT(.NOT. ASSOCIATED(parser))
       ALLOCATE (parser)
@@ -273,8 +267,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE parser_reset(parser)
       TYPE(cp_parser_type), POINTER                      :: parser
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'parser_reset'
 
       CPASSERT(ASSOCIATED(parser))
       ! Rewind units

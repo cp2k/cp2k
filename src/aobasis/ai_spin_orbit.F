@@ -86,8 +86,6 @@ CONTAINS
       REAL(dp), DIMENSION(0:ldrr1-1, ldrr2, *), &
          INTENT(INOUT)                                   :: rr
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pso'
-
       INTEGER :: ax, ay, az, bx, by, bz, coa, coam1x, coam1y, coam1z, coap1x, coap1y, coap1z, cob, &
          cobm1x, cobm1y, cobm1z, cobp1x, cobp1y, cobp1z, i, ipgf, j, jpgf, la, lb, ma, mb, na, nb
       REAL(dp)                                           :: dab, dum1, dum2, f0, rab2, xhi, zet, &

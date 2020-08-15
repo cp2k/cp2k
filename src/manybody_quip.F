@@ -195,8 +195,6 @@ CONTAINS
       TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
       REAL(KIND=dp)                            :: force(:, :), virial(3, 3)
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'quip_add_force_virial'
-
 #ifdef __QUIP
       INTEGER                                  :: iat, iat_use
       TYPE(quip_data_type), POINTER            :: quip_data

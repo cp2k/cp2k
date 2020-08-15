@@ -79,8 +79,6 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: worker_id
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'swarm_mpi_init'
-
       INTEGER                                            :: n_groups_created, pe_per_worker, &
                                                             subgroup, subgroup_rank, &
                                                             subgroup_size, worker_group
@@ -205,8 +203,6 @@ CONTAINS
       TYPE(swarm_mpi_type)                               :: swarm_mpi
       TYPE(section_vals_type), POINTER                   :: root_section
       INTEGER                                            :: worker_id
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'logger_init_worker'
 
       CHARACTER(LEN=default_path_length)                 :: output_path
       CHARACTER(len=default_string_length)               :: new_project_name, project_name, &

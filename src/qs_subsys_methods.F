@@ -76,8 +76,6 @@ CONTAINS
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell, cell_ref
       LOGICAL, INTENT(IN), OPTIONAL                      :: elkind
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_subsys_create'
-
       LOGICAL                                            :: use_ref_cell
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: my_cell, my_cell_ref
@@ -159,8 +157,6 @@ CONTAINS
 
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'num_ao_el_per_molecule'
 
       INTEGER                                            :: arbitrary_spin, iatom, ikind, imol, &
                                                             n_ao, natom, nmol_kind, nsgf, nspins, &

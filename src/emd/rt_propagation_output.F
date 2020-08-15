@@ -110,8 +110,6 @@ CONTAINS
       INTEGER, INTENT(in)                                :: run_type
       REAL(dp), INTENT(in), OPTIONAL                     :: delta_iter, used_time
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'rt_prop_output'
-
       INTEGER                                            :: n_electrons, nspin, output_unit, spin
       REAL(dp)                                           :: orthonormality, tot_rho_r
       REAL(KIND=dp), DIMENSION(:), POINTER               :: qs_tot_rho_r

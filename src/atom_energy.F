@@ -485,8 +485,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: delta
       INTEGER, INTENT(IN)                                :: nder, iw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_response_basis'
-
       INTEGER                                            :: i, ider, j, k, l, lhomo, m, n, nhomo, &
                                                             s1, s2
       REAL(KIND=dp)                                      :: dene, emax, expzet, fhomo, o, prefac, &
@@ -608,8 +606,6 @@ CONTAINS
 
       TYPE(atom_type), POINTER                           :: atom
       INTEGER, INTENT(IN)                                :: iw
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'atom_write_upf'
 
       CHARACTER(LEN=default_string_length)               :: string
       INTEGER                                            :: i, ibeta, j, k, l, lmax, nbeta, nr, &

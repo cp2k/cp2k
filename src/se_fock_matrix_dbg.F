@@ -46,8 +46,6 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calculate_forces
       TYPE(semi_empirical_si_type), POINTER              :: store_int_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dbg_energy_coulomb_lr'
-
       INTEGER                                            :: ispin
       REAL(KIND=dp)                                      :: ecoul
 

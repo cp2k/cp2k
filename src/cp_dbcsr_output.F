@@ -85,8 +85,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: output_unit
       LOGICAL, INTENT(IN), OPTIONAL                      :: omit_headers
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_fm_with_basis_info'
-
       CHARACTER(LEN=60)                                  :: matrix_name
       INTEGER                                            :: col1, col2, group, ncol_global, &
                                                             nrow_global, nsgf, row1, row2
@@ -173,8 +171,6 @@ CONTAINS
       REAL(dp), INTENT(IN), OPTIONAL                     :: scale
       INTEGER, INTENT(IN)                                :: output_unit
       LOGICAL, INTENT(IN), OPTIONAL                      :: omit_headers
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_write_sparse_matrix'
 
       CHARACTER(LEN=default_string_length)               :: matrix_name
       INTEGER                                            :: col1, col2, dim_col, dim_row, group, &
@@ -351,8 +347,6 @@ CONTAINS
                                                             last_col, output_unit
       LOGICAL, INTENT(IN)                                :: omit_headers
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_matrix_sym'
-
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=25)                                  :: fmtstr1
       CHARACTER(LEN=35)                                  :: fmtstr2
@@ -518,8 +512,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: first_row, last_row, first_col, &
                                                             last_col, output_unit
       LOGICAL, INTENT(IN)                                :: omit_headers
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_matrix_gen'
 
       CHARACTER(LEN=25)                                  :: fmtstr1
       CHARACTER(LEN=35)                                  :: fmtstr2

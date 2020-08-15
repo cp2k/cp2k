@@ -86,8 +86,6 @@ CONTAINS
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xbecke_roussel_lda_info'
-
       CALL cite_reference(BeckeRoussel1989)
       CALL cite_reference(Proynov2007)
       IF (PRESENT(reference)) THEN
@@ -124,8 +122,6 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
       TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'xbecke_roussel_lsd_info'
 
       CALL cite_reference(BeckeRoussel1989)
       CALL cite_reference(Proynov2007)
@@ -277,8 +273,6 @@ CONTAINS
       REAL(kind=dp), DIMENSION(1:npoints), INTENT(inout) :: e_laplace_rho, e_tau, e_ndrho, e_rho, e_0
       REAL(kind=dp), DIMENSION(1:npoints), INTENT(in)    :: tau, laplace_rho, norm_drho, rho
       REAL(kind=dp), INTENT(in)                          :: epsilon_rho, sx, R, gamma
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'xbecke_roussel_lda_calc'
 
       INTEGER                                            :: ip
       REAL(dp)                                           :: e_diff, e_old, my_laplace_rho, my_ndrho, &
@@ -508,8 +502,6 @@ CONTAINS
       REAL(kind=dp), DIMENSION(1:npoints), INTENT(in)    :: tau, laplace_rho, norm_drho, rho
       REAL(kind=dp), INTENT(in)                          :: epsilon_rho, sx, R, gamma
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xbecke_roussel_lsd_calc'
-
       INTEGER                                            :: ip
       REAL(dp)                                           :: my_laplace_rho, my_ndrho, my_rho, &
                                                             my_tau, t1, t15, t16, t2, t3, t4, t5, &
@@ -590,8 +582,6 @@ CONTAINS
       REAL(dp), INTENT(INOUT)                            :: e_0, e_rho, e_ndrho, e_tau, e_laplace_rho
       REAL(dp), INTENT(IN)                               :: sx, gamma
       INTEGER, INTENT(IN)                                :: grad_deriv
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'x_br_lsd_y_lte_0'
 
       REAL(KIND=dp) :: t1, t100, t101, t102, t108, t111, t113, t114, t117, t118, t120, t121, t122, &
          t129, t130, t134, t135, t138, t142, t143, t146, t147, t150, t152, t153, t157, t158, t16, &
@@ -836,8 +826,6 @@ CONTAINS
       REAL(dp), INTENT(INOUT)                            :: e_0, e_rho, e_ndrho, e_tau, e_laplace_rho
       REAL(dp), INTENT(IN)                               :: sx, gamma
       INTEGER, INTENT(IN)                                :: grad_deriv
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'x_br_lsd_y_gt_0'
 
       REAL(KIND=dp) :: t1, t102, t103, t104, t106, t107, t108, t109, t110, t111, t112, t115, t117, &
          t124, t131, t134, t137, t138, t142, t143, t154, t157, t158, t159, t16, t160, t162, t165, &
@@ -1097,8 +1085,6 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: sx, R, gamma
       INTEGER, INTENT(IN)                                :: grad_deriv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'x_br_lsd_y_lte_0_cutoff'
-
       REAL(KIND=dp)                                      :: brval, t1, t101, t11, t12, t18, t2, t20, &
                                                             t24, t25, t26, t3, t31, t33, t36, t38, &
                                                             t4, t41, t43, t47, t50, t54, t56, t6, &
@@ -1182,8 +1168,6 @@ CONTAINS
       REAL(dp), INTENT(INOUT)                            :: e_0, e_rho, e_ndrho, e_tau, e_laplace_rho
       REAL(dp), INTENT(IN)                               :: sx, R, gamma
       INTEGER, INTENT(IN)                                :: grad_deriv
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'x_br_lsd_y_lte_0_cutoff_R_gt_b'
 
       REAL(KIND=dp) :: t1, t10, t100, t101, t102, t103, t104, t106, t108, t109, t110, t114, t117, &
          t119, t120, t123, t124, t129, t132, t134, t135, t138, t139, t141, t142, t143, t149, t150, &
@@ -1523,8 +1507,6 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: sx, R, gamma
       INTEGER, INTENT(IN)                                :: grad_deriv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'x_br_lsd_y_lte_0_cutoff_R_lte_b'
-
       REAL(KIND=dp) :: t1, t10, t100, t101, t102, t103, t104, t106, t108, t109, t110, t111, t113, &
          t115, t116, t118, t119, t121, t123, t128, t131, t133, t134, t137, t138, t140, t141, t143, &
          t146, t153, t154, t157, t159, t16, t160, t163, t167, t168, t17, t171, t172, t175, t177, &
@@ -1861,8 +1843,6 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: sx, R, gamma
       INTEGER, INTENT(IN)                                :: grad_deriv
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'x_br_lsd_y_gt_0_cutoff'
-
       REAL(KIND=dp) :: brval, t1, t10, t103, t104, t11, t111, t116, t14, t15, t2, t21, t25, t26, &
          t28, t3, t31, t33, t37, t4, t44, t45, t46, t5, t50, t56, t58, t6, t62, t65, t69, t71, &
          t75, t77, t8, t81, t84, t85, t9
@@ -1952,8 +1932,6 @@ CONTAINS
       REAL(dp), INTENT(INOUT)                            :: e_0, e_rho, e_ndrho, e_tau, e_laplace_rho
       REAL(dp), INTENT(IN)                               :: sx, R, gamma
       INTEGER, INTENT(IN)                                :: grad_deriv
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'x_br_lsd_y_gt_0_cutoff_R_gt_b'
 
       REAL(KIND=dp) :: t1, t100, t101, t102, t103, t104, t105, t106, t108, t109, t110, t111, t112, &
          t114, t115, t116, t117, t118, t119, t12, t121, t123, t124, t125, t129, t13, t132, t134, &
@@ -2305,8 +2283,6 @@ CONTAINS
       REAL(dp), INTENT(INOUT)                            :: e_0, e_rho, e_ndrho, e_tau, e_laplace_rho
       REAL(dp), INTENT(IN)                               :: sx, R, gamma
       INTEGER, INTENT(IN)                                :: grad_deriv
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'x_br_lsd_y_gt_0_cutoff_R_lte_b'
 
       REAL(KIND=dp) :: t1, t100, t101, t102, t103, t104, t105, t106, t108, t109, t110, t111, t112, &
          t114, t115, t116, t117, t118, t119, t12, t121, t123, t124, t125, t126, t128, t13, t130, &

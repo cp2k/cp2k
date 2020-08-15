@@ -84,8 +84,6 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: write_binary_restart_file
       LOGICAL, OPTIONAL                                  :: respa
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'update_force_eval'
-
       INTEGER                                            :: i_subsys, iforce_eval, myid, nforce_eval
       INTEGER, DIMENSION(:), POINTER                     :: i_force_eval
       LOGICAL                                            :: multiple_subsys, skip_vel_section
@@ -202,8 +200,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: qmmm_section
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'update_qmmm'
-
       LOGICAL                                            :: explicit
       REAL(KIND=dp), DIMENSION(:), POINTER               :: work
 
@@ -232,8 +228,6 @@ CONTAINS
 
       TYPE(section_vals_type), POINTER                   :: rng_section
       TYPE(force_env_type), POINTER                      :: force_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'update_rng_particle'
 
       CHARACTER(LEN=rng_record_length)                   :: rng_record
       INTEGER                                            :: iparticle, iparticle_kind, &

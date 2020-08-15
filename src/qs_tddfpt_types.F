@@ -110,8 +110,6 @@ CONTAINS
 
       TYPE(tddfpt_env_type), INTENT(inout)               :: t_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_env_deallocate'
-
       INTEGER                                            :: i, spin
 
       DO spin = 1, SIZE(t_env%evecs, 2)

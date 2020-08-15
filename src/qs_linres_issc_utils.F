@@ -656,8 +656,6 @@ CONTAINS
       TYPE(issc_env_type)                                :: issc_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'issc_print'
-
       CHARACTER(LEN=2)                                   :: element_symbol_i, element_symbol_j
       CHARACTER(LEN=default_string_length)               :: name_i, name_j, title
       INTEGER                                            :: iatom, jatom, natom, output_unit, &
@@ -1041,8 +1039,6 @@ CONTAINS
    SUBROUTINE issc_env_cleanup(issc_env)
 
       TYPE(issc_env_type)                                :: issc_env
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'issc_env_cleanup'
 
       INTEGER                                            :: idir, ispin
 

@@ -68,8 +68,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iw2
       LOGICAL                                            :: accepted
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'accept_diis_step'
-
       CHARACTER(LEN=default_string_length)               :: line
       INTEGER                                            :: i, iend, ind, indi, indj, info, istart, &
                                                             iv, iw, j, jv, k, lwork, np, nv
@@ -228,8 +226,6 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: check_diis
       LOGICAL                                            :: accepted
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'check_diis_solution'
-
       REAL(KIND=dp)                                      :: costh, norm1, norm2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tmp
 
@@ -317,8 +313,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: distances
       TYPE(section_vals_type), POINTER                   :: diis_section
       INTEGER, INTENT(IN)                                :: iw2
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'neb_ls'
 
       INTEGER                                            :: i, np
       REAL(KIND=dp)                                      :: a, b, max_stepsize, xa, xb, xc_cray, ya, &

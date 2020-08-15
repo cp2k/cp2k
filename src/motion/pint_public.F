@@ -44,8 +44,6 @@ CONTAINS
       TYPE(pint_env_type), POINTER                       :: pint_env
       REAL(kind=dp), DIMENSION(3)                        :: com_r
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_com_pos'
-
       INTEGER                                            :: ia, ib, ic
       REAL(kind=dp)                                      :: tmass
 
@@ -81,8 +79,6 @@ CONTAINS
 
       TYPE(pint_env_type), POINTER                       :: pint_env
       REAL(kind=dp), DIMENSION(3)                        :: cntrd_r
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_cog_pos'
 
       INTEGER                                            :: ia, ib, ic, natoms
 
@@ -124,8 +120,6 @@ CONTAINS
       TYPE(rng_stream_type), INTENT(INOUT)               :: rng_gaussian
       REAL(kind=dp), DIMENSION(:), POINTER               :: x
       INTEGER, INTENT(OUT)                               :: nout
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_free_part_bead_x'
 
       INTEGER                                            :: dl, i1, i2, ib, ic, il, ip, j, nlevels, &
                                                             np
@@ -219,8 +213,6 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:), POINTER               :: x
       TYPE(rng_stream_type), INTENT(INOUT)               :: rng_gaussian
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_levy_walk'
-
       INTEGER                                            :: ib, ic
       REAL(kind=dp)                                      :: r, tau_i, tau_i1
       REAL(kind=dp), DIMENSION(3)                        :: cntrd_r
@@ -274,8 +266,6 @@ CONTAINS
    SUBROUTINE pint_calc_centroid(pint_env)
 
       TYPE(pint_env_type), POINTER                       :: pint_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_centroid'
 
       INTEGER                                            :: ia, ib
       REAL(KIND=dp)                                      :: invp

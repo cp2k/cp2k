@@ -137,8 +137,6 @@ CONTAINS
    SUBROUTINE pao_print_atom_info(pao)
       TYPE(pao_env_type), POINTER                        :: pao
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_print_atom_info'
-
       INTEGER                                            :: iatom, natoms
       INTEGER, DIMENSION(:), POINTER                     :: pao_basis, param_cols, param_rows, &
                                                             pri_basis
@@ -1007,8 +1005,6 @@ CONTAINS
       TYPE(ls_scf_env_type), TARGET                      :: ls_scf_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(dp)                                           :: energy
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'eval_point'
 
       REAL(dp)                                           :: old_Xij
 

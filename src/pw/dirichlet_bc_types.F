@@ -232,8 +232,6 @@ CONTAINS
 
       TYPE(dirichlet_bc_parameters), INTENT(INOUT)       :: dbc_params
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbc_parameters_dealloc'
-
       IF (ASSOCIATED(dbc_params%aa_planar_nprtn)) DEALLOCATE (dbc_params%aa_planar_nprtn)
       IF (ASSOCIATED(dbc_params%aa_planar_pplane)) DEALLOCATE (dbc_params%aa_planar_pplane)
       IF (ASSOCIATED(dbc_params%aa_planar_xxtnt)) DEALLOCATE (dbc_params%aa_planar_xxtnt)

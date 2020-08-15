@@ -649,8 +649,6 @@ CONTAINS
       CHARACTER(len=default_string_length), &
          INTENT(INOUT)                                   :: c_val
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_r_val'
-
       TYPE(cp_unit_type), POINTER                        :: my_unit
 
       NULLIFY (my_unit)

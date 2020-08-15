@@ -936,8 +936,6 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_virt
       INTEGER, INTENT(IN)                                :: nvirt, ispin
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'generate_virtual_mo'
-
       INTEGER                                            :: nmo, nrow_global
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp

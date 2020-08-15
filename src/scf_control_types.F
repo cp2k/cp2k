@@ -278,8 +278,6 @@ CONTAINS
 
       TYPE(scf_control_type), POINTER                    :: scf_control
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'scf_c_retain'
-
       CPASSERT(ASSOCIATED(scf_control))
 
       CPASSERT(scf_control%ref_count > 0)
@@ -299,8 +297,6 @@ CONTAINS
    SUBROUTINE scf_c_release(scf_control)
 
       TYPE(scf_control_type), POINTER                    :: scf_control
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'scf_c_release'
 
       IF (ASSOCIATED(scf_control)) THEN
          CPASSERT(scf_control%ref_count > 0)
@@ -503,8 +499,6 @@ CONTAINS
    SUBROUTINE init_smear(smear)
       TYPE(smear_type), POINTER                          :: smear
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'init_smear'
-
       CPASSERT(.NOT. ASSOCIATED(smear))
       ALLOCATE (smear)
       smear%do_smear = .FALSE.
@@ -524,8 +518,6 @@ CONTAINS
    SUBROUTINE read_smear_section(smear, smear_section)
       TYPE(smear_type), POINTER                          :: smear
       TYPE(section_vals_type), POINTER                   :: smear_section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_smear_section'
 
       REAL(KIND=dp), DIMENSION(:), POINTER               :: r_vals
 

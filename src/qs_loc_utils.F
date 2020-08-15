@@ -228,8 +228,6 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: vectors
       INTEGER                                            :: sweeps
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'jacobi_rotation_pipek'
-
       INTEGER                                            :: iatom, istate, jstate, natom, nstate
       REAL(KIND=dp)                                      :: aij, bij, ct, mii, mij, mjj, ratio, st, &
                                                             theta, tolerance
@@ -384,8 +382,6 @@ CONTAINS
 
       TYPE(cp_fm_p_type), DIMENSION(:, :)                :: zij_fm_set
       REAL(dp), INTENT(OUT)                              :: tolerance
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'check_tolerance_real'
 
       INTEGER                                            :: iatom, istate, jstate, natom, &
                                                             ncol_local, nrow_global, nrow_local
@@ -1209,8 +1205,6 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_xas
       INTEGER, INTENT(IN), OPTIONAL                      :: nloc_xas, spin_xas
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_control_init'
-
       TYPE(localized_wfn_control_type), POINTER          :: localized_wfn_control
 
       NULLIFY (localized_wfn_control)
@@ -1431,8 +1425,6 @@ CONTAINS
       LOGICAL, INTENT(OUT)                               :: localize
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_xas
       INTEGER, INTENT(IN), OPTIONAL                      :: nloc_xas, spin_channel_xas
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'read_loc_section'
 
       INTEGER                                            :: i, ind, ir, n_list, n_rep, n_state, &
                                                             nline, other_spin, output_unit, &
@@ -1700,8 +1692,6 @@ CONTAINS
       TYPE(localized_wfn_control_type)                   :: localized_wfn_control
       INTEGER, DIMENSION(2), INTENT(IN)                  :: nmoloc
       INTEGER, INTENT(IN)                                :: nspins
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_loc_centers'
 
       INTEGER                                            :: ispin
 

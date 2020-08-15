@@ -128,8 +128,6 @@ CONTAINS
       REAL(KIND=dp), OPTIONAL                            :: hmc_e_initial, hmc_e_final
       TYPE(mdctrl_type), OPTIONAL, POINTER               :: mdctrl
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_mol_dyn'
-
       LOGICAL                                            :: my_rm_restart_info
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(md_environment_type), POINTER                 :: md_env

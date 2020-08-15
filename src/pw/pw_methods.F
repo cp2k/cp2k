@@ -1853,8 +1853,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: use1, use2, space1
       CHARACTER(LEN=9)                                   :: mode
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'fftselect'
-
       IF (space1 == REALSPACE) THEN
          mode(1:3) = "FW_"
       ELSE IF (space1 == RECIPROCALSPACE) THEN
@@ -1904,8 +1902,6 @@ CONTAINS
    SUBROUTINE pw_write(pw, unit_nr)
       TYPE(pw_type), INTENT(in)                          :: pw
       INTEGER, INTENT(in)                                :: unit_nr
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_write'
 
       INTEGER                                            :: iostatus
 
@@ -1978,8 +1974,6 @@ CONTAINS
    FUNCTION pw_compatible(grida, gridb) RESULT(compat)
       TYPE(pw_grid_type), INTENT(IN)                     :: grida, gridb
       LOGICAL                                            :: compat
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_compatible'
 
       compat = .FALSE.
       IF (grida%id_nr == gridb%id_nr) THEN
@@ -2173,8 +2167,6 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: isign
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: oprt
       REAL(KIND=dp)                                      :: total_fun
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_integrate_function'
 
       INTEGER                                            :: iop
 

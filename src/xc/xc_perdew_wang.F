@@ -64,8 +64,6 @@ CONTAINS
       INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
       REAL(kind=dp), INTENT(in)                          :: scale
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'perdew_wang_info'
-
       CHARACTER(len=3)                                   :: p_string
 
       SELECT CASE (method)

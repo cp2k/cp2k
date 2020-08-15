@@ -123,8 +123,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: imin, ns
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'mix_charges_only'
-
       INTEGER                                            :: ia, ii
 
       charges = 0.0_dp
@@ -153,8 +151,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: charges
       INTEGER, INTENT(IN)                                :: inow, nvec, ns
       TYPE(cp_para_env_type), POINTER                    :: para_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'broyden_mixing'
 
       INTEGER                                            :: i, ia, ii, imin, j, nbuffer, nv
       REAL(KIND=dp)                                      :: alpha, maxw, minw, omega0, rskip, wdf, &

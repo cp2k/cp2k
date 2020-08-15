@@ -52,8 +52,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: base_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_basis_set_file'
-
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=default_string_length)               :: bname, filename
       INTEGER                                            :: ikind, iunit, nkind, ounit
@@ -147,8 +145,6 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: basis
       CHARACTER(LEN=*), INTENT(IN)                       :: element_symbol, bname
       INTEGER, INTENT(IN)                                :: iunit
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'basis_out'
 
       INTEGER                                            :: ipgf, iset, ishell, ll, nset
       INTEGER, DIMENSION(0:9)                            :: lset

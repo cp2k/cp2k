@@ -163,8 +163,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section, geo_section
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x0
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_geo_opt_low'
-
       CPASSERT(ASSOCIATED(force_env))
       CPASSERT(ASSOCIATED(globenv))
       CPASSERT(ASSOCIATED(gopt_param))

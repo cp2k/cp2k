@@ -65,8 +65,6 @@ CONTAINS
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       REAL(KIND=dp), DIMENSION(3, 3)                     :: cell_hmat
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_grid_update'
-
       INTEGER                                            :: ewald_type, o_spline
       REAL(dp)                                           :: alpha
       REAL(KIND=dp), DIMENSION(3, 3)                     :: old_cell_hmat
@@ -153,8 +151,6 @@ CONTAINS
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(dg_type), POINTER                             :: dg
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_rho0_setup'
 
       INTEGER                                            :: ewald_type, grid_index
       REAL(dp)                                           :: alpha

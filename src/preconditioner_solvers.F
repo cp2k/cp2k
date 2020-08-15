@@ -68,8 +68,6 @@ CONTAINS
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_s
       TYPE(dbcsr_type), POINTER                          :: matrix_h
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'solve_preconditioner'
-
       REAL(dp)                                           :: occ_matrix
 
 ! here comes the solver

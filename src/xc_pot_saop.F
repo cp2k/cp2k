@@ -128,8 +128,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: oe_corr
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'add_saop_pot'
-
       INTEGER                                            :: dft_method_id, homo, i, ispin, j, k, &
                                                             nspins, orb, xc_deriv_method_id, &
                                                             xc_rho_smooth_id
@@ -505,8 +503,6 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: oe_corr
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'gapw_add_atomic_saop_pot'
 
       INTEGER                                            :: ia, iat, iatom, ikind, ir, ispin, mepos, &
                                                             na, natom, nr, ns, nspins, num_pe, orb

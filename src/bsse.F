@@ -78,8 +78,6 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'do_bsse_calculation'
-
       INTEGER                                            :: i, istart, k, num_of_conf, Num_of_Frag
       INTEGER, DIMENSION(:, :), POINTER                  :: conf
       LOGICAL                                            :: explicit, should_stop
@@ -165,8 +163,6 @@ CONTAINS
       TYPE(global_environment_type), POINTER             :: globenv
       LOGICAL, INTENT(OUT)                               :: should_stop
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'eval_bsse_energy'
-
       INTEGER                                            :: i, j, k, Num_of_sub_conf, Num_of_sub_frag
       INTEGER, DIMENSION(:, :), POINTER                  :: conf_loc
       REAL(KIND=dp)                                      :: my_energy
@@ -230,8 +226,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: n_frags, root_section
       TYPE(global_environment_type), POINTER             :: globenv
       REAL(KIND=dp), INTENT(OUT)                         :: energy
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_bsse_energy_low'
 
       CHARACTER(LEN=default_string_length)               :: name
       CHARACTER(len=default_string_length), &
@@ -362,8 +356,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: bsse_section
       INTEGER, INTENT(IN)                                :: present_charge, present_multpl
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dump_bsse_info'
-
       INTEGER                                            :: i, istat, iw
       CHARACTER(len=20*SIZE(conf))                       :: conf_loc_s, conf_s
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -418,8 +410,6 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: conf, conf_loc
       TYPE(section_vals_type), POINTER                   :: bsse_section, dft_section
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'conf_info_setup'
-
       INTEGER                                            :: i, nconf
       INTEGER, DIMENSION(:), POINTER                     :: glb_conf, sub_conf
       LOGICAL                                            :: explicit
@@ -471,8 +461,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: Em
       INTEGER, INTENT(IN)                                :: num_of_frag
       TYPE(section_vals_type), POINTER                   :: bsse_section
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dump_bsse_results'
 
       INTEGER                                            :: i, iw
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -618,8 +606,6 @@ CONTAINS
    SUBROUTINE write_bsse_restart(bsse_section, root_section)
 
       TYPE(section_vals_type), POINTER                   :: bsse_section, root_section
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_bsse_restart'
 
       INTEGER                                            :: ires
       TYPE(cp_logger_type), POINTER                      :: logger

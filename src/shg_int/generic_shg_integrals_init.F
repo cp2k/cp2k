@@ -48,8 +48,6 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: basis
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: scon_shg
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'contraction_matrix_shg'
-
       INTEGER                                            :: ipgf, iset, ishell, l, maxpgf, maxshell, &
                                                             nset
       INTEGER, DIMENSION(:), POINTER                     :: npgf, nshell
@@ -95,8 +93,6 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: basis
       REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: norm
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'basis_norm_shg'
-
       INTEGER                                            :: ipgf, iset, ishell, jpgf, l
       REAL(KIND=dp)                                      :: aai, aaj, cci, ccj, expa, ppl
 
@@ -138,8 +134,6 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis, ri_basis
       INTEGER, DIMENSION(:, :, :), POINTER               :: orb_index, ri_index
       REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: scon_mix
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'contraction_matrix_shg_mix'
 
       INTEGER :: forb, fri, iil, il, ipgf, iset, ishell, jpgf, jset, jshell, l, l1, l2, lmax_orb, &
          lmax_ri, maxpgf_orb, maxpgf_ri, maxshell_orb, maxshell_ri, nf_orb, nf_ri, nl, nl_max, &
@@ -260,8 +254,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: scon_shg
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: scon_rx2m
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'contraction_matrix_shg_rx2m'
-
       INTEGER                                            :: ipgf, iset, ishell, j, l, maxpgf, &
                                                             maxshell, nset
       INTEGER, DIMENSION(:), POINTER                     :: npgf, nshell
@@ -316,8 +308,6 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: cg_none0_list
       INTEGER, DIMENSION(:, :), POINTER                  :: ncg_none0
       INTEGER, INTENT(IN)                                :: maxl1, maxl2
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_clebsch_gordon_coefficients'
 
       INTEGER                                            :: il, ilist, iso, iso1, iso2, l1, l1l2, &
                                                             l2, lc1, lc2, lp, m1, m2, maxl, mm, &

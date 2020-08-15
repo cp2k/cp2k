@@ -635,8 +635,6 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'polar_operators'
-
       LOGICAL                                            :: do_periodic
       TYPE(polar_env_type), POINTER                      :: polar_env
 

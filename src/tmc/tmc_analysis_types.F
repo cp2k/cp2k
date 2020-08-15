@@ -138,8 +138,6 @@ CONTAINS
    SUBROUTINE tmc_ana_env_create(tmc_ana)
       TYPE(tmc_analysis_env), POINTER                    :: tmc_ana
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_env_create'
-
       CPASSERT(.NOT. ASSOCIATED(tmc_ana))
 
       ALLOCATE (tmc_ana)
@@ -183,8 +181,6 @@ CONTAINS
    SUBROUTINE tmc_ana_env_release(tmc_ana)
       TYPE(tmc_analysis_env), POINTER                    :: tmc_ana
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_env_release'
-
       CPASSERT(ASSOCIATED(tmc_ana))
 
       IF (ASSOCIATED(tmc_ana%dirs)) &
@@ -222,8 +218,6 @@ CONTAINS
       TYPE(density_3d_type), POINTER                     :: ana_dens
       INTEGER, DIMENSION(3)                              :: nr_bins
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_density_create'
-
       CPASSERT(.NOT. ASSOCIATED(ana_dens))
 
       ALLOCATE (ana_dens)
@@ -252,8 +246,6 @@ CONTAINS
    SUBROUTINE tmc_ana_dens_release(ana_dens)
       TYPE(density_3d_type), POINTER                     :: ana_dens
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_dens_release'
-
       CPASSERT(ASSOCIATED(ana_dens))
 
       DEALLOCATE (ana_dens%sum_density)
@@ -276,8 +268,6 @@ CONTAINS
       TYPE(pair_correl_type), POINTER                    :: ana_pair_correl
       INTEGER                                            :: nr_bins
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_pair_correl_create'
-
       CPASSERT(.NOT. ASSOCIATED(ana_pair_correl))
       ALLOCATE (ana_pair_correl)
 
@@ -297,8 +287,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tmc_ana_pair_correl_release(ana_pair_correl)
       TYPE(pair_correl_type), POINTER                    :: ana_pair_correl
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_pair_correl_release'
 
       CPASSERT(ASSOCIATED(ana_pair_correl))
 
@@ -321,8 +309,6 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: n1, n2
       INTEGER, OPTIONAL                                  :: list_end
       INTEGER                                            :: ind
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'search_pair_in_list'
 
       INTEGER                                            :: last, list_nr
 
@@ -367,8 +353,6 @@ CONTAINS
       REAL(KIND=dp), POINTER                             :: charge(:)
       INTEGER                                            :: dim_per_elem
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_dipole_moment_create'
-
       INTEGER                                            :: i
 
       CPASSERT(.NOT. ASSOCIATED(ana_dip_mom))
@@ -397,8 +381,6 @@ CONTAINS
    SUBROUTINE tmc_ana_dipole_moment_release(ana_dip_mom)
       TYPE(dipole_moment_type), POINTER                  :: ana_dip_mom
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_dipole_moment_release'
-
       CPASSERT(ASSOCIATED(ana_dip_mom))
 
       IF (ASSOCIATED(ana_dip_mom%charges_inp)) DEALLOCATE (ana_dip_mom%charges_inp)
@@ -415,8 +397,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tmc_ana_dipole_analysis_create(ana_dip_ana)
       TYPE(dipole_analysis_type), POINTER                :: ana_dip_ana
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_dipole_analysis_create'
 
       CPASSERT(.NOT. ASSOCIATED(ana_dip_ana))
       ALLOCATE (ana_dip_ana)
@@ -443,8 +423,6 @@ CONTAINS
    SUBROUTINE tmc_ana_dipole_analysis_release(ana_dip_ana)
       TYPE(dipole_analysis_type), POINTER                :: ana_dip_ana
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_dipole_analysis_release'
-
       CPASSERT(ASSOCIATED(ana_dip_ana))
 
       DEALLOCATE (ana_dip_ana%mu_psv)
@@ -470,8 +448,6 @@ CONTAINS
       TYPE(displacement_type), POINTER                   :: ana_disp
       INTEGER                                            :: dim_per_elem
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_displacement_create'
-
       CPASSERT(.NOT. ASSOCIATED(ana_disp))
       CPASSERT(dim_per_elem .GT. 0)
       MARK_USED(dim_per_elem)
@@ -491,8 +467,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tmc_ana_displacement_release(ana_disp)
       TYPE(displacement_type), POINTER                   :: ana_disp
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_displacement_release'
 
       CPASSERT(ASSOCIATED(ana_disp))
 

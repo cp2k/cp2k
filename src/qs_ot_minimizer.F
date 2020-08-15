@@ -202,8 +202,6 @@ CONTAINS
    SUBROUTINE do_line_search(qs_ot_env)
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'do_line_search'
-
       SELECT CASE (qs_ot_env(1)%settings%line_search_method)
       CASE ("GOLD")
          CALL do_line_search_gold(qs_ot_env)
@@ -1155,8 +1153,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE ot_broyden_step(qs_ot_env)
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'ot_broyden_step'
 
       INTEGER                                            :: diis_bound, diis_m, i, ispin, itmp, j, &
                                                             k, n, nspin

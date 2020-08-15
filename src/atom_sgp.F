@@ -77,8 +77,6 @@ CONTAINS
       TYPE(atom_upfpot_type), OPTIONAL                   :: upf_pot
       REAL(KIND=dp), DIMENSION(3)                        :: error
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'sgp_construction'
-
       INTEGER                                            :: i, n
       LOGICAL                                            :: is_ecp, is_upf
       REAL(KIND=dp)                                      :: errcc, rcut
@@ -189,8 +187,6 @@ CONTAINS
       TYPE(atom_p_type), DIMENSION(:, :), POINTER        :: atom_info
       TYPE(section_vals_type), POINTER                   :: input_section
       INTEGER, INTENT(IN)                                :: iw
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_sgp_construction'
 
       INTEGER                                            :: i, n, ppot_type
       LOGICAL                                            :: do_transform, explicit, is_ecp, is_upf
@@ -346,8 +342,6 @@ CONTAINS
       TYPE(atom_sgp_potential_type)                      :: sgp_pot
       TYPE(atom_basis_type)                              :: basis
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'ecp_sgp_constr'
-
       INTEGER                                            :: i, ia, ir, j, k, l, n, na, nl, nr
       REAL(KIND=dp)                                      :: alpha, eee, ei
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: al, cl, cpot, pgauss
@@ -442,8 +436,6 @@ CONTAINS
       TYPE(atom_upfpot_type)                             :: upf_pot
       TYPE(atom_sgp_potential_type)                      :: sgp_pot
       TYPE(atom_basis_type)                              :: basis
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'upf_sgp_constr'
 
       CHARACTER(len=4)                                   :: ptype
       INTEGER                                            :: ia, ib, ipa, ipb, ir, la, lb, na, nl, &
@@ -756,8 +748,6 @@ CONTAINS
 
       TYPE(atom_sgp_potential_type)                      :: sgp_pot
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'atom_sgp_release'
-
       IF (ASSOCIATED(sgp_pot%a_nonlocal)) DEALLOCATE (sgp_pot%a_nonlocal)
       IF (ASSOCIATED(sgp_pot%h_nonlocal)) DEALLOCATE (sgp_pot%h_nonlocal)
       IF (ASSOCIATED(sgp_pot%c_nonlocal)) DEALLOCATE (sgp_pot%c_nonlocal)
@@ -785,8 +775,6 @@ CONTAINS
       TYPE(atom_upfpot_type)                             :: upf_pot
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: cutpotu
       REAL(KIND=dp), INTENT(IN)                          :: ac_local
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'upfints'
 
       CHARACTER(len=4)                                   :: ptype
       INTEGER                                            :: i, j, k1, k2, la, lb, m, n
@@ -884,8 +872,6 @@ CONTAINS
       TYPE(atom_basis_type), INTENT(INOUT)               :: basis
       TYPE(atom_ecppot_type)                             :: ecp_pot
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'ecpints'
-
       INTEGER                                            :: i, j, k, l, m, n
       REAL(KIND=dp)                                      :: alpha
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cpot
@@ -928,8 +914,6 @@ CONTAINS
       TYPE(atom_basis_type), INTENT(INOUT)               :: basis
       TYPE(atom_sgp_potential_type)                      :: sgp_pot
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: cutpots
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'sgpints'
 
       INTEGER                                            :: i, ia, j, l, m, n, na
       REAL(KIND=dp)                                      :: a, c, zval
@@ -1006,7 +990,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vlocal, r
       REAL(KIND=dp), INTENT(IN)                          :: z
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'erffit'
       REAL(KIND=dp), PARAMETER                           :: rcut = 1.4_dp
 
       INTEGER                                            :: i, j, m, m1
@@ -1075,8 +1058,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:)                        :: rad, ww
       INTEGER, INTENT(IN)                                :: method
       REAL(KIND=dp)                                      :: errloc
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pplocal_error'
 
       INTEGER                                            :: ia, ib, ir, ix, la, na
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tv

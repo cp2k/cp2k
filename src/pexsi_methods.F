@@ -80,8 +80,6 @@ CONTAINS
       TYPE(section_vals_type), INTENT(IN), POINTER       :: pexsi_section
       TYPE(lib_pexsi_env), INTENT(INOUT)                 :: pexsi_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'pexsi_init_read_input'
-
       INTEGER                                            :: isInertiaCount_int, maxPEXSIIter, &
                                                             min_ranks_per_pole, npSymbFact, &
                                                             numPole, ordering, rowOrdering, &

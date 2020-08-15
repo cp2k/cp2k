@@ -68,8 +68,6 @@ CONTAINS
       ! obj type will not be changed
       TYPE(fb_trial_fns_obj), INTENT(IN)                 :: trial_fns
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_retain'
-
       CPASSERT(ASSOCIATED(trial_fns%obj))
       CPASSERT(trial_fns%obj%ref_count > 0)
       trial_fns%obj%ref_count = trial_fns%obj%ref_count + 1
@@ -83,8 +81,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fb_trial_fns_release(trial_fns)
       TYPE(fb_trial_fns_obj), INTENT(INOUT)              :: trial_fns
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_release'
 
       IF (ASSOCIATED(trial_fns%obj)) THEN
          CPASSERT(trial_fns%obj%ref_count > 0)
@@ -113,8 +109,6 @@ CONTAINS
    SUBROUTINE fb_trial_fns_nullify(trial_fns)
       TYPE(fb_trial_fns_obj), INTENT(INOUT)              :: trial_fns
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_nullify'
-
       NULLIFY (trial_fns%obj)
    END SUBROUTINE fb_trial_fns_nullify
 
@@ -129,8 +123,6 @@ CONTAINS
       TYPE(fb_trial_fns_obj), INTENT(OUT)                :: a
       TYPE(fb_trial_fns_obj), INTENT(IN)                 :: b
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_associate'
-
       a%obj => b%obj
    END SUBROUTINE fb_trial_fns_associate
 
@@ -144,8 +136,6 @@ CONTAINS
       TYPE(fb_trial_fns_obj), INTENT(IN)                 :: trial_fns
       LOGICAL                                            :: res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_has_data'
-
       res = ASSOCIATED(trial_fns%obj)
    END FUNCTION fb_trial_fns_has_data
 
@@ -156,8 +146,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fb_trial_fns_create(trial_fns)
       TYPE(fb_trial_fns_obj), INTENT(INOUT)              :: trial_fns
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_create'
 
       CPASSERT(.NOT. ASSOCIATED(trial_fns%obj))
       ALLOCATE (trial_fns%obj)
@@ -175,8 +163,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fb_trial_fns_init(trial_fns)
       TYPE(fb_trial_fns_obj), INTENT(INOUT)              :: trial_fns
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'fb_trial_fns_init'
 
       CPASSERT(ASSOCIATED(trial_fns%obj))
       ! if halo_atoms are associated, then deallocate and de-associate
@@ -202,8 +188,6 @@ CONTAINS
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: nfunctions
       INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: functions
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'fb_trial_fns_get'
-
       CPASSERT(ASSOCIATED(trial_fns%obj))
       IF (PRESENT(nfunctions)) nfunctions => trial_fns%obj%nfunctions
       IF (PRESENT(functions)) functions => trial_fns%obj%functions
@@ -222,8 +206,6 @@ CONTAINS
       TYPE(fb_trial_fns_obj), INTENT(INOUT)              :: trial_fns
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: nfunctions
       INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: functions
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'fb_trial_fns_set'
 
       CPASSERT(ASSOCIATED(trial_fns%obj))
       IF (PRESENT(nfunctions)) THEN

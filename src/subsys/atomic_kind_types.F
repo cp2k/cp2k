@@ -86,8 +86,6 @@ CONTAINS
 
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_atomic_kind_set'
-
       INTEGER                                            :: ikind, nkind
 
       IF (ASSOCIATED(atomic_kind_set)) THEN
@@ -154,8 +152,6 @@ CONTAINS
       TYPE(shell_kind_type), OPTIONAL, POINTER           :: shell
       LOGICAL, INTENT(OUT), OPTIONAL                     :: shell_active
       TYPE(damping_p_type), OPTIONAL, POINTER            :: damping
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_atomic_kind'
 
       IF (PRESENT(fist_potential)) fist_potential => atomic_kind%fist_potential
       IF (PRESENT(element_symbol)) element_symbol = atomic_kind%element_symbol
@@ -239,8 +235,6 @@ CONTAINS
       LOGICAL, INTENT(OUT), OPTIONAL                     :: fist_potential_present, shell_present, &
                                                             shell_adiabatic, shell_check_distance, &
                                                             damping_present
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_atomic_kind_set'
 
       INTEGER                                            :: atom_a, iatom, ikind, nkind
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
@@ -345,8 +339,6 @@ CONTAINS
       TYPE(shell_kind_type), OPTIONAL, POINTER           :: shell
       LOGICAL, INTENT(IN), OPTIONAL                      :: shell_active
       TYPE(damping_p_type), OPTIONAL, POINTER            :: damping
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_atomic_kind'
 
       INTEGER                                            :: n
 

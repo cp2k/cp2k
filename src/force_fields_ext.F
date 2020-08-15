@@ -791,7 +791,6 @@ CONTAINS
       TYPE(cp_parser_type), POINTER                      :: parser
       INTEGER, INTENT(IN)                                :: nline
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'charmm_get_next_line'
       CHARACTER(LEN=1), PARAMETER                        :: continuation_char = "-"
 
       INTEGER                                            :: i, len_line

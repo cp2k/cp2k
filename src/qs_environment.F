@@ -253,8 +253,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section
       LOGICAL, INTENT(IN)                                :: use_motion_section
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_init'
-
       INTEGER                                            :: ikind, method_id, nelectron_total, nkind
       LOGICAL                                            :: do_admm_rpa, do_et, do_exx, do_hfx, &
                                                             do_kpoints, is_semi, mp2_present, &
@@ -1619,8 +1617,6 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: force_env_section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_total_numbers'
 
       INTEGER                                            :: maxlgto, maxlppl, maxlppnl, natom, ncgf, &
                                                             nkind, npgf, nset, nsgf, nshell, &

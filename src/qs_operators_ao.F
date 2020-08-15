@@ -312,8 +312,6 @@ CONTAINS
       REAL(dp), DIMENSION(0:ldrr-1, 0:ldrr-1, 3), &
          INTENT(INOUT)                                   :: rr
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'lin_mom'
-
       INTEGER                                            :: ax, ay, az, bx, by, bz, coa, cob, i, &
                                                             ipgf, j, jpgf, la, lb, ma, mb, na, nb
       REAL(dp)                                           :: dab, dumx, dumy, dumz, f0, rab2, xhi, zet
@@ -678,8 +676,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ldrr
       REAL(dp), DIMENSION(0:ldrr-1, 0:ldrr-1, 3), &
          INTENT(INOUT)                                   :: rr
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'ang_mom'
 
       INTEGER                                            :: ax, ay, az, bx, by, bz, coa, cob, i, &
                                                             ipgf, j, jpgf, la, lb, ma, mb, na, nb

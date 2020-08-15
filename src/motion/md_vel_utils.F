@@ -104,8 +104,6 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: is_fixed
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: rcom
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'compute_rcom'
-
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: denom, mass
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
@@ -143,8 +141,6 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: is_fixed
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: vcom
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: ecom
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'compute_vcom'
 
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: denom, mass
@@ -185,8 +181,6 @@ CONTAINS
    SUBROUTINE clone_core_shell_vel(part, shell_part, core_part)
       TYPE(particle_type), DIMENSION(:), POINTER         :: part, shell_part, core_part
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'clone_core_shell_vel'
-
       INTEGER                                            :: i
       LOGICAL                                            :: is_shell
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
@@ -217,8 +211,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: part
       INTEGER, INTENT(IN), OPTIONAL                      :: ireg
       REAL(KIND=dp)                                      :: ekin
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'compute_ekin'
 
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: mass
@@ -267,8 +259,6 @@ CONTAINS
          OPTIONAL                                        :: vcom
       INTEGER, INTENT(IN), OPTIONAL                      :: ireg, nfree
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: temp
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'rescale_vel'
 
       INTEGER                                            :: i, my_ireg, my_nfree
       REAL(KIND=dp)                                      :: factor, my_temp
@@ -326,8 +316,6 @@ CONTAINS
       TYPE(md_environment_type), POINTER                 :: md_env
       TYPE(simpar_type), POINTER                         :: simpar
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rescale_vel_region'
-
       INTEGER                                            :: ireg, nfree, nfree0, nfree_done
       REAL(KIND=dp)                                      :: ekin, temp
       TYPE(thermal_region_type), POINTER                 :: t_region
@@ -374,8 +362,6 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: is_fixed
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: vcom
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'subtract_vcom'
-
       INTEGER                                            :: i
 
       DO i = 1, SIZE(part)
@@ -417,8 +403,6 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: is_fixed
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rcom
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: vang
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'compute_vang'
 
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: mass, proj
@@ -485,8 +469,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: part
       INTEGER, DIMENSION(:), INTENT(IN)                  :: is_fixed
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rcom, vang
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'subtract_vang'
 
       INTEGER                                            :: i
       REAL(KIND=dp), DIMENSION(3)                        :: r
@@ -718,8 +700,6 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: is_fixed
       LOGICAL, INTENT(OUT)                               :: success
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_input_velocities'
-
       INTEGER                                            :: i, natoms, nshell, shell_index
       LOGICAL :: atomvel_explicit, atomvel_read, corevel_explicit, corevel_read, is_ok, &
          rescale_regions, shellvel_explicit, shellvel_read
@@ -901,8 +881,6 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: shell_present
       TYPE(particle_type), DIMENSION(:), POINTER         :: shell_particles, core_particles
       INTEGER, DIMENSION(:), INTENT(IN)                  :: is_fixed
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'generate_coords_vels_vib'
 
       INTEGER                                            :: dof, fixed_dof, iatom, ii, imode, &
                                                             my_dof, natoms, shell_index
@@ -1099,8 +1077,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: scale
       REAL(KIND=dp)                                      :: res
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dr_from_vib_data'
-
       INTEGER                                            :: imode, ind
 
       res = 0.0_dp
@@ -1157,8 +1133,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: scale
       REAL(KIND=dp)                                      :: res
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dv_from_vib_data'
-
       INTEGER                                            :: imode, ind
 
       res = 0.0_dp
@@ -1203,8 +1177,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: shell_part, core_part
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: is_fixed
       INTEGER, INTENT(IN)                                :: iw
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'generate_velocities'
 
       INTEGER                                            :: i, natoms
       REAL(KIND=dp)                                      :: mass
@@ -1274,8 +1246,6 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: is_fixed
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'soften_velocities'
-
       INTEGER                                            :: i, k
       REAL(KIND=dp), DIMENSION(SIZE(part), 3)            :: F, F_t, N, x0
 
@@ -1339,8 +1309,6 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(md_environment_type), POINTER                 :: md_env
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: is_fixed
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'normalize_velocities'
 
       REAL(KIND=dp)                                      :: ekin
       REAL(KIND=dp), DIMENSION(3)                        :: rcom, vang, vcom
@@ -1474,8 +1442,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: temp_expected, temp_tol
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'scale_velocity'
-
       REAL(KIND=dp)                                      :: ekin_old, scale, temp_old
 
       IF (ABS(temp_expected - md_ener%temp_part/kelvin) > temp_tol) THEN
@@ -1517,8 +1483,6 @@ CONTAINS
       TYPE(md_ener_type), POINTER                        :: md_ener
       TYPE(simpar_type), POINTER                         :: simpar
       INTEGER, INTENT(IN)                                :: iw
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_velocity_region'
 
       INTEGER                                            :: ireg, nfree, nfree_done, nregions
       REAL(KIND=dp)                                      :: ekin, ekin_old, ekin_total_new, fscale, &
@@ -1605,8 +1569,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: fscale
       INTEGER, INTENT(IN)                                :: ireg
       REAL(KIND=dp), INTENT(OUT)                         :: ekin, vcom(3)
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_velocity_low'
 
       INTEGER                                            :: atom, iatom, ikind, my_ireg, natom, &
                                                             shell_index
@@ -1709,8 +1671,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: temp_expected, temp_tol
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_velocity_internal'
-
       INTEGER                                            :: atom, iatom, ikind, natom, shell_index
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL                                            :: is_shell
@@ -1798,8 +1758,6 @@ CONTAINS
       TYPE(md_ener_type), POINTER                        :: md_ener
       REAL(KIND=dp), INTENT(IN)                          :: temp_expected, temp_tol
       INTEGER, INTENT(IN)                                :: iw
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_velocity_baro'
 
       INTEGER                                            :: i, j, nfree
       REAL(KIND=dp)                                      :: ekin_old, scale, temp_old

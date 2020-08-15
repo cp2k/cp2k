@@ -162,7 +162,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: epsabs, epsrel, rlow
       REAL(KIND=dp)                                      :: radius
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'exp_radius'
       INTEGER, PARAMETER                                 :: itermax = 5000, prec_exp = sp
       REAL(KIND=dp), PARAMETER                           :: contract(*) = (/0.38, 0.62/), &
                                                             mineps = 1.0E-12, next = 2.0, &
@@ -474,8 +473,6 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), INTENT(OUT)             :: CPC_so
       INTEGER                                            :: maxl, lm1, lm2
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'transform_c2s'
-
       INTEGER                                            :: ic1, ic2, is1, is2, l, lx, ly, lz
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: work
 
@@ -571,8 +568,6 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), INTENT(OUT)             :: CPC_so
       INTEGER                                            :: maxl
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'transform_c2s_new'
-
       INTEGER                                            :: iso, ldc, lds
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: work
 
@@ -607,8 +602,6 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), INTENT(IN)              :: matso
       REAL(dp), DIMENSION(:, :), INTENT(OUT)             :: matco
       INTEGER, INTENT(IN)                                :: maxl, lm1, lm2
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'transform_s2c'
 
       INTEGER                                            :: ic1, ic2, ico, is1, is2, iso, l, lx, ly, &
                                                             lz, nc1, nc2, ns1, ns2
@@ -682,8 +675,6 @@ CONTAINS
       INTEGER                                            :: ld_mat, sd_mat, n
       REAL(dp)                                           :: mat(ld_mat, sd_mat, n)
       INTEGER                                            :: lmax1, lmax2
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'sph2cart_mat'
 
       INTEGER                                            :: idx_l1, idx_l2
       REAL(dp) :: mat_aux(ncoset(lmax1), nsoset(lmax2), n)
@@ -864,8 +855,6 @@ CONTAINS
       INTEGER                                            :: ld_mat, sd_mat, n
       REAL(dp)                                           :: mat(ld_mat, sd_mat, n)
       INTEGER                                            :: lmax1, lmax2
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cart2sph_mat'
 
       INTEGER                                            :: idx_l2, idx_lm1
       REAL(dp) :: mat_aux(nsoset(lmax1), ncoset(lmax2), n)

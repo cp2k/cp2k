@@ -118,8 +118,6 @@ CONTAINS
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       REAL(dp), INTENT(OUT), OPTIONAL                    :: int_abc_ext
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'eri_3center'
-
       INTEGER :: a_mysize(1), a_offset, a_start, b_offset, b_start, c_offset, c_start, i, ipgf, j, &
          jpgf, k, kpgf, li, lj, lk, ncoa, ncob, ncoc, op, p1, p2, p3
       REAL(dp)                                           :: dr_ab, dr_ac, dr_bc, zeti, zetj, zetk
@@ -301,8 +299,6 @@ CONTAINS
       TYPE(libint_potential_type), INTENT(IN), OPTIONAL  :: potential_parameter
       TYPE(params_3c), OPTIONAL, POINTER                 :: params_in, params_out
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_params_3c'
-
       INTEGER                                            :: l
       LOGICAL                                            :: use_gamma
       REAL(dp)                                           :: gammaq, omega2, omega_corr, omega_corr2, &
@@ -432,8 +428,6 @@ CONTAINS
       TYPE(cp_libint_t), INTENT(INOUT)                   :: lib
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'eri_2center'
-
       INTEGER                                            :: a_mysize(1), a_offset, a_start, &
                                                             b_offset, b_start, i, ipgf, j, jpgf, &
                                                             li, lj, ncoa, ncob, p1, p2
@@ -509,8 +503,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: lj_max, lk_max
       REAL(dp), INTENT(IN)                               :: zetj, zetk
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_params_2c'
 
       INTEGER                                            :: l, op
       LOGICAL                                            :: use_gamma

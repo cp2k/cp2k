@@ -84,8 +84,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: tmc_ana_section
       TYPE(tmc_analysis_env), POINTER                    :: tmc_ana
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'tmc_read_ana_input'
-
       CHARACTER(LEN=default_path_length)                 :: c_tmp
       CHARACTER(LEN=default_string_length), POINTER      :: charge_atm(:)
       INTEGER                                            :: i_tmp, ntot
@@ -204,8 +202,6 @@ CONTAINS
       TYPE(tmc_analysis_env), POINTER                    :: ana_env
       INTEGER                                            :: nr_dim
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'analysis_init'
-
       CHARACTER(LEN=default_path_length)                 :: tmp_cell_file, tmp_dip_file, tmp_pos_file
 
       CPASSERT(ASSOCIATED(ana_env))
@@ -269,8 +265,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE analysis_restart_print(ana_env)
       TYPE(tmc_analysis_env), POINTER                    :: ana_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'analysis_restart_print'
 
       CHARACTER(LEN=default_path_length)                 :: file_name, file_name_tmp, &
                                                             restart_file_name
@@ -369,8 +363,6 @@ CONTAINS
    SUBROUTINE analysis_restart_read(ana_env, elem)
       TYPE(tmc_analysis_env), POINTER                    :: ana_env
       TYPE(tree_type), POINTER                           :: elem
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'analysis_restart_read'
 
       CHARACTER(LEN=default_path_length)                 :: file_name, file_name_tmp
       INTEGER                                            :: file_ptr
@@ -1298,8 +1290,6 @@ CONTAINS
    SUBROUTINE print_dipole_moment(ana_env)
       TYPE(tmc_analysis_env), POINTER                    :: ana_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_dipole_moment'
-
       IF (ana_env%print_test_output) &
          WRITE (*, *) "TMC|ANALYSIS_FINAL_CLASS_CELL_DIPOLE_MOMENT_X= ", &
          ana_env%dip_mom%last_dip_cl(:)
@@ -1317,8 +1307,6 @@ CONTAINS
       TYPE(tree_type), POINTER                           :: elem
       INTEGER                                            :: weight
       TYPE(tmc_analysis_env), POINTER                    :: ana_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_dipole_analysis'
 
       REAL(KIND=dp)                                      :: vol, weight_act
       REAL(KIND=dp), DIMENSION(3, 3)                     :: tmp_dip
@@ -1386,8 +1374,6 @@ CONTAINS
    SUBROUTINE print_act_dipole_analysis(elem, ana_env)
       TYPE(tree_type), POINTER                           :: elem
       TYPE(tmc_analysis_env), POINTER                    :: ana_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_act_dipole_analysis'
 
       CHARACTER(LEN=default_path_length)                 :: file_name, file_name_tmp
       INTEGER                                            :: counter_tmp, file_ptr

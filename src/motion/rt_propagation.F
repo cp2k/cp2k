@@ -96,8 +96,6 @@ CONTAINS
    SUBROUTINE rt_prop_setup(force_env)
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'rt_prop_setup'
-
       INTEGER                                            :: aspc_order
       LOGICAL                                            :: magnetic, vel_reprs
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -361,8 +359,6 @@ CONTAINS
       TYPE(md_environment_type), OPTIONAL, POINTER       :: md_env
       TYPE(force_env_type), POINTER                      :: force_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'rt_write_input_restart'
-
       TYPE(section_vals_type), POINTER                   :: motion_section, root_section, rt_section
 
       root_section => force_env%root_section
@@ -391,8 +387,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(rtp_control_type), POINTER                    :: rtp_control
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'rt_initial_guess'
 
       INTEGER                                            :: homo, ispin
       LOGICAL                                            :: energy_consistency

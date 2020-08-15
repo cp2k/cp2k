@@ -548,8 +548,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: a(:, :)
       INTEGER, INTENT(OUT)                               :: info
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'invmat'
-
       INTEGER                                            :: lwork, n
       INTEGER, ALLOCATABLE                               :: ipiv(:)
       REAL(KIND=dp), ALLOCATABLE                         :: work(:)
@@ -653,8 +651,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: eval_error
       CHARACTER(LEN=1), INTENT(IN), OPTIONAL             :: option
       LOGICAL, INTENT(IN), OPTIONAL                      :: improve
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'invert_matrix_d'
 
       CHARACTER(LEN=1)                                   :: norm, trans
       CHARACTER(LEN=default_string_length)               :: message
@@ -816,8 +812,6 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: a_inverse
       REAL(KIND=dp), INTENT(OUT)                         :: eval_error
       CHARACTER(LEN=1), INTENT(IN), OPTIONAL             :: option
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'invert_matrix_z'
 
       CHARACTER(LEN=1)                                   :: norm, trans
       CHARACTER(LEN=default_string_length)               :: message
@@ -1222,8 +1216,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: a
       CHARACTER(LEN=*), INTENT(IN)                       :: option
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'symmetrize_matrix'
-
       INTEGER                                            :: i, n
 
       n = MIN(SIZE(a, 1), SIZE(a, 2))
@@ -1363,7 +1355,6 @@ CONTAINS
    FUNCTION ei(x)
       REAL(dp)                                           :: x, ei
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'ei'
       INTEGER, PARAMETER                                 :: maxit = 100
       REAL(dp), PARAMETER                                :: eps = EPSILON(0.0_dp), &
                                                             fpmin = TINY(0.0_dp)
@@ -1492,7 +1483,6 @@ CONTAINS
       INTEGER                                            :: n
       REAL(dp)                                           :: x, expint
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'expint'
       INTEGER, PARAMETER                                 :: maxit = 100
       REAL(dp), PARAMETER :: eps = 6.e-14_dp, euler = 0.5772156649015328606065120_dp, &
          fpmin = TINY(0.0_dp)
@@ -1746,8 +1736,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE swap_vector(a, b)
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: a, b
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'swap_vector'
 
       INTEGER                                            :: i, n
       REAL(KIND=dp)                                      :: c

@@ -447,8 +447,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: nrep
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'bfgs_guess'
-
       CHARACTER(LEN=default_path_length)                 :: hes_filename
       INTEGER                                            :: hesunit, i, j, jj, k, natoms, ncoord, &
                                                             output_unit, stat
@@ -557,8 +555,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles
       INTEGER                                            :: nrep
       LOGICAL                                            :: calc_intens
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'rest_guess'
 
       CHARACTER(LEN=default_path_length)                 :: ms_filename
       INTEGER                                            :: hesunit, i, j, mat, natoms, ncoord, &
@@ -669,8 +665,6 @@ CONTAINS
       REAL(Kind=dp), DIMENSION(:)                        :: mass
       INTEGER                                            :: ncoord, nrep
       TYPE(cp_logger_type), POINTER                      :: logger
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'molden_guess'
 
       CHARACTER(LEN=2)                                   :: at_name
       CHARACTER(LEN=default_path_length)                 :: ms_filename
@@ -839,8 +833,6 @@ CONTAINS
       LOGICAL                                            :: calc_intens
       INTEGER                                            :: output_unit_ms
       TYPE(cp_logger_type), POINTER                      :: logger
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'evaluate_H_update_b'
 
       INTEGER                                            :: i, j, jj, k, natoms, ncoord
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ind
@@ -1015,8 +1007,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :)                     :: residuum
       REAL(KIND=dp), DIMENSION(2, nrep), OPTIONAL        :: criteria
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'select_vector'
-
       INTEGER                                            :: i, j, jj, k
       REAL(KIND=dp)                                      :: my_val, norm
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tmp
@@ -1145,8 +1135,6 @@ CONTAINS
       LOGICAL                                            :: calc_intens
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: intensities
       TYPE(cp_logger_type), POINTER                      :: logger
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'ms_out'
 
       INTEGER                                            :: i, j, msunit, stat
       REAL(KIND=dp)                                      :: crit_a, crit_b

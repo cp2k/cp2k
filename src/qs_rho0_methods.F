@@ -545,8 +545,6 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: eps_Vrho0
       REAL(dp), INTENT(INOUT)                            :: max_rpgf0_s
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'interaction_radii_g0'
-
       INTEGER                                            :: l, lmax
       REAL(dp)                                           :: r_h, z0_h
       REAL(dp), DIMENSION(:), POINTER                    :: ng0_h

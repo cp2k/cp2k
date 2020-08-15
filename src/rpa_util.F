@@ -538,8 +538,6 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: blk_size_new
       INTEGER, INTENT(IN)                                :: dimen_RI_red, nblk
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_equal_blk_size'
-
       INTEGER                                            :: col_per_blk, remainder
 
       NULLIFY (blk_size_new)

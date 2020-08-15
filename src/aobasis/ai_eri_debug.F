@@ -105,7 +105,6 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: mi
       REAL(dp)                                           :: IABCD
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'os'
       INTEGER, DIMENSION(3), PARAMETER                   :: i1 = (/1, 0, 0/), i2 = (/0, 1, 0/), &
                                                             i3 = (/0, 0, 1/)
 

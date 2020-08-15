@@ -153,8 +153,6 @@ CONTAINS
       ! Routine arguments
       TYPE(et_cpl), POINTER                              :: ec
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'release_ec_data'
-
       INTEGER                                            :: i, j, k
 
 ! Routine name for debug purposes
@@ -214,8 +212,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: et_proj_sec
       TYPE(et_cpl), POINTER                              :: ec
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_block_data'
 
       INTEGER                                            :: i, j, k, l, n, n_ao, n_atoms, n_set
       INTEGER, DIMENSION(:), POINTER                     :: atom_id, atom_nf, atom_ps, n_shell, t
@@ -385,8 +381,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: fa
       REAL(KIND=dp), OPTIONAL                            :: fb
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_fermi'
-
 ! Routine name for debug purposes
 
       NULLIFY (ec%fermi)
@@ -423,7 +417,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER             :: arr
 
       ! Routine name for debug purposes
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_fm_matrix_array'
 
       ! Local variables
       INTEGER                                            :: i, j
@@ -488,7 +481,6 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mat_w
 
       ! Routine name for debug purposes
-      CHARACTER(len=*), PARAMETER :: routineN = 'reorder_hamiltonian_matrix'
 
       ! Local variables
       INTEGER                                            :: ir, ic, jr, jc, kr, kc, nr, nc
@@ -584,8 +576,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), POINTER                          :: mat_t, mat_i, mat_w
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_s_half_inv_matrix'
-
       INTEGER                                            :: n_deps
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_s
       TYPE(scf_control_type), POINTER                    :: scf_cntrl
@@ -632,8 +622,6 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mat_t
       TYPE(cp_fm_type), POINTER                          :: mat_w
       INTEGER                                            :: n_ao, n_spins
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_block_hamiltonian'
 
       INTEGER                                            :: i
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_h
@@ -686,8 +674,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(et_cpl), POINTER                              :: ec
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mat_h
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'hamiltonian_block_diag'
 
       INTEGER                                            :: i, j, k, l, n_spins, spin
       REAL(KIND=dp), DIMENSION(:), POINTER               :: vec_e
@@ -842,7 +828,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: c2
 
       ! Routine name for debug purposes
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_mo_c2_sum'
 
       ! Local variables
       LOGICAL                                            :: found
@@ -921,8 +906,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(et_cpl), POINTER                              :: ec
       INTEGER                                            :: blk, n_spins
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'print_mo_coeff'
 
       INTEGER                                            :: j, k, l, m, n, n_ao, n_mo
       INTEGER, DIMENSION(:), POINTER                     :: list_at, list_mo
@@ -1046,8 +1029,6 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: mx_mo_a, mx_mo_b
       LOGICAL, OPTIONAL                                  :: fermi
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'print_states'
-
       INTEGER                                            :: i, mx_a, mx_b, n
       LOGICAL                                            :: prnt_fm
 
@@ -1139,7 +1120,6 @@ CONTAINS
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo
 
       ! Routine name for debug purposes
-      CHARACTER(len=*), PARAMETER :: routineN = 'print_couplings'
 
       ! Local variables
       CHARACTER(LEN=default_path_length)                 :: filename, my_pos, title
@@ -1314,8 +1294,6 @@ CONTAINS
       TYPE(mo_set_type), POINTER                         :: mo
       INTEGER                                            :: n_ao, n_mo
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'normalize_mo_vectors'
-
       REAL(KIND=dp), DIMENSION(:), POINTER               :: vec_t
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_s
@@ -1391,7 +1369,6 @@ CONTAINS
       INTEGER                                            :: n_mo
 
       ! Routine name for debug purposes
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_mo_coefficients'
 
       ! Local variables
       INTEGER                                            :: ir, ic, jr, jc, nr, nc
@@ -1498,8 +1475,6 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mat_u
       REAL(KIND=dp), DIMENSION(:), POINTER               :: vec_e
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_block_mo_set'
-
       INTEGER                                            :: n_ao, n_el, n_mo
       REAL(KIND=dp)                                      :: mx_occ
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -1601,8 +1576,6 @@ CONTAINS
       TYPE(mo_set_type), POINTER                         :: mo
       INTEGER                                            :: ib, im, is
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'save_mo_cube'
-
       CHARACTER(LEN=default_path_length)                 :: filename
       CHARACTER(LEN=default_string_length)               :: title
       INTEGER                                            :: unit_nr
@@ -1684,8 +1657,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(et_cpl), POINTER                              :: ec
       INTEGER                                            :: n_spins
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'save_el_states'
 
       INTEGER                                            :: i, j, k, l, n
       INTEGER, DIMENSION(:), POINTER                     :: list
@@ -1778,8 +1749,6 @@ CONTAINS
 
       ! Routine arguments
       TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'calc_et_coupling_proj'
 
       INTEGER                                            :: i, j, k, n_ao, n_atoms, output_unit
       LOGICAL                                            :: do_kp, master

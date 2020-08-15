@@ -95,7 +95,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: natom, natom_prev, nbond_prev
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: id_molname
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_molname'
       CHARACTER(LEN=default_string_length), PARAMETER    :: basename = "MOL"
 
       CHARACTER(LEN=default_string_length)               :: molname
@@ -146,8 +145,6 @@ CONTAINS
       TYPE(array1_list_type), DIMENSION(:)               :: atom_bond_list
       CHARACTER(LEN=default_string_length), INTENT(IN)   :: molname
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: id_molname
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'generate_molname_low'
 
       INTEGER                                            :: j, k
 
@@ -1080,8 +1077,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: output_unit
       LOGICAL, INTENT(IN), OPTIONAL                      :: is_impr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'connectivity_external_control'
-
       CHARACTER(LEN=8)                                   :: fmt
       INTEGER                                            :: do_action, do_it, i, j, k, n_rep, &
                                                             n_rep_val, natom, new_size, nsize
@@ -1597,8 +1592,6 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(INOUT), OPTIONAL     :: Ilist
       INTEGER, INTENT(IN), OPTIONAL                      :: it_levl
       INTEGER, INTENT(INOUT)                             :: nvar
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'match_iterative_path'
 
       INTEGER                                            :: i, ind, j, my_levl, natom
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: my_list

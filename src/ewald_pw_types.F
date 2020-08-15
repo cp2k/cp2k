@@ -78,8 +78,6 @@ CONTAINS
    SUBROUTINE ewald_pw_retain(ewald_pw)
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'ewald_pw_retain'
-
       CPASSERT(ASSOCIATED(ewald_pw))
       CPASSERT(ewald_pw%ref_count > 0)
       ewald_pw%ref_count = ewald_pw%ref_count + 1
@@ -98,8 +96,6 @@ CONTAINS
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(cell_type), POINTER                           :: cell, cell_ref
       TYPE(section_vals_type), POINTER                   :: print_section
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'ewald_pw_create'
 
       TYPE(dg_type), POINTER                             :: dg
 
@@ -368,8 +364,6 @@ CONTAINS
       TYPE(pw_poisson_type), OPTIONAL, POINTER           :: poisson_env
       TYPE(dg_type), OPTIONAL, POINTER                   :: dg
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ewald_pw_get'
-
       IF (PRESENT(poisson_env)) poisson_env => ewald_pw%poisson_env
       IF (PRESENT(pw_big_pool)) pw_big_pool => ewald_pw%pw_big_pool
       IF (PRESENT(pw_small_pool)) pw_small_pool => ewald_pw%pw_small_pool
@@ -398,8 +392,6 @@ CONTAINS
       TYPE(realspace_grid_desc_type), OPTIONAL, POINTER  :: rs_desc
       TYPE(dg_type), OPTIONAL, POINTER                   :: dg
       TYPE(pw_poisson_type), OPTIONAL, POINTER           :: poisson_env
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ewald_pw_set'
 
       IF (PRESENT(pw_big_pool)) THEN
          CALL pw_pool_retain(pw_big_pool)

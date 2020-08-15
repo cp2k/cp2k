@@ -76,8 +76,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ks_matrix, w_matrix
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_restraint'
-
       INTEGER                                            :: blk, iblock_col, iblock_row, ispin, &
                                                             nblock, nspin
       LOGICAL                                            :: found

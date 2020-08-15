@@ -432,8 +432,6 @@ CONTAINS
       LOGICAL, INTENT(INOUT)                             :: do_hfx, do_admm
       TYPE(section_vals_type), POINTER                   :: xc_section, tddfpt_print_section
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_input'
-
       CHARACTER(len=20)                                  :: nstates_str
       LOGICAL                                            :: explicit_xc
       REAL(kind=dp)                                      :: C_hf

@@ -45,8 +45,6 @@ CONTAINS
       TYPE(semi_empirical_control_type), POINTER         :: se_control
       INTEGER, INTENT(IN)                                :: method_id
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_expns3_setup'
-
       INTEGER                                            :: i, itype, j, nkinds
       LOGICAL                                            :: check
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
@@ -94,8 +92,6 @@ CONTAINS
    SUBROUTINE setup_c3_coeff(sepi, sepj, ikind, jkind, itype)
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
       INTEGER, INTENT(IN)                                :: ikind, jkind, itype
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'setup_c3_coeff'
 
       INTEGER                                            :: i, ij, j, kl, kr, li, lk
       REAL(KIND=dp)                                      :: core_core, e1b(9), e2a(9), r, zi, zj

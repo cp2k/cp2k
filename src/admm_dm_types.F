@@ -62,8 +62,6 @@ CONTAINS
       TYPE(admm_control_type), POINTER                   :: admm_control
       INTEGER, INTENT(IN)                                :: nspins, natoms
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'admm_dm_create'
-
       INTEGER                                            :: i, iatom, iblock, j, jatom
 
       ALLOCATE (admm_dm)
@@ -97,8 +95,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE admm_dm_release(admm_dm)
       TYPE(admm_dm_type), POINTER                        :: admm_dm
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'admm_dm_release'
 
       IF (.NOT. ASSOCIATED(admm_dm)) RETURN
 

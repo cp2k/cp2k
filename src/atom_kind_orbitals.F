@@ -106,8 +106,6 @@ CONTAINS
       TYPE(section_vals_type), OPTIONAL, POINTER         :: xc_section
       INTEGER, DIMENSION(:), OPTIONAL                    :: nocc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atomic_orbitals'
-
       INTEGER                                            :: i, ii, ipgf, j, k, k1, k2, l, ll, m, mb, &
                                                             mo, ngp, nj, nr, ns, nset, nsgf, nu, &
                                                             quadtype, z
@@ -569,7 +567,6 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: iunit
       LOGICAL, INTENT(IN), OPTIONAL                      :: allelectron, confine
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atomic_density'
       INTEGER, PARAMETER                                 :: num_gto = 40
 
       INTEGER                                            :: i, ii, k, l, ll, m, mb, mo, ngp, nn, nr, &
@@ -833,8 +830,6 @@ CONTAINS
       TYPE(qs_kind_type), INTENT(IN)                     :: qs_kind
       TYPE(rel_control_type), POINTER                    :: rel_control
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rtmat
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atomic_relkin'
 
       INTEGER                                            :: i, ii, ipgf, j, k, k1, k2, l, ll, m, n, &
                                                             ngp, nj, nn, nr, ns, nset, nsgf, &
@@ -1168,8 +1163,6 @@ CONTAINS
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(atom_gthpot_type)                             :: gth_atompot
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'gth_potential_conversion'
-
       INTEGER                                            :: i, j, l, lm, n, ne, nexp_lpot, nexp_lsd, &
                                                             nexp_nlcc
       INTEGER, DIMENSION(:), POINTER                     :: nct_lpot, nct_lsd, nct_nlcc, nppnl, &
@@ -1280,8 +1273,6 @@ CONTAINS
    SUBROUTINE sgp_potential_conversion(sgp_potential, sgp_atompot)
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
       TYPE(atom_sgppot_type)                             :: sgp_atompot
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'sgp_potential_conversion'
 
       INTEGER                                            :: lm, n
       INTEGER, DIMENSION(:), POINTER                     :: ppeconf

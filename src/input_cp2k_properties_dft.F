@@ -77,8 +77,6 @@ CONTAINS
    SUBROUTINE create_properties_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_properties_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
 
@@ -136,8 +134,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_linres_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_linres_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection
@@ -284,8 +280,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_current_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_current_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection
@@ -483,8 +477,6 @@ CONTAINS
    SUBROUTINE create_nmr_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_nmr_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection
 
@@ -631,8 +623,6 @@ CONTAINS
    SUBROUTINE create_spin_spin_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_spin_spin_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection
 
@@ -732,8 +722,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_epr_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_epr_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection, subsubsection
@@ -865,8 +853,6 @@ CONTAINS
 
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_polarizability_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection
 
@@ -930,8 +916,6 @@ CONTAINS
    SUBROUTINE create_et_coupling_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_et_coupling_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection
 
@@ -987,8 +971,6 @@ CONTAINS
       ! Routine arguments
       TYPE(section_type), POINTER                        :: section
       CHARACTER(len=*), INTENT(in)                       :: section_name
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_projection'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, section_block, section_print
@@ -1136,8 +1118,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_tddfpt2_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_tddfpt2_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection
@@ -1462,8 +1442,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_stda_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_stda_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 

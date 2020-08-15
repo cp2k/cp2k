@@ -63,8 +63,6 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN)                       :: info
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'atom_print_info'
-
       WRITE (iw, '(/," ",A,T40,A," [",A,"]",T62,"Atomic number:",T78,I3,/)') &
          ADJUSTL(TRIM(info)), TRIM(ptable(zval)%name), TRIM(ptable(zval)%symbol), zval
 
@@ -83,7 +81,6 @@ CONTAINS
       TYPE(atom_state)                                   :: state
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'atom_print_state'
       CHARACTER(LEN=1), DIMENSION(0:7), PARAMETER :: &
          label = (/"S", "P", "D", "F", "G", "H", "I", "K"/)
 
@@ -176,8 +173,6 @@ CONTAINS
       TYPE(atom_type)                                    :: atom
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_print_energies'
-
       INTEGER                                            :: i, l, n
       REAL(KIND=dp)                                      :: drho
 
@@ -253,8 +248,6 @@ CONTAINS
       TYPE(atom_type), INTENT(IN)                        :: atom
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_print_zmp_iteration'
-
       IF (iter == 1) THEN
          WRITE (iw, '(/," ",79("*"),/,T33,"Integral",T48,"Integral",/,T3,A,T16,A,T33,A,T46,A,T69,A/," ",79("*"))') &
             "Iteration", "Convergence", "rho diff.", "rho*v_xc[au]", "Energy[au]"
@@ -278,8 +271,6 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: deps, etot
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_print_iteration'
-
       IF (iter == 1) THEN
          WRITE (iw, '(/," ",79("*"),/,T19,A,T38,A,T70,A,/," ",79("*"))') &
             "Iteration", "Convergence", "Energy [au]"
@@ -300,8 +291,6 @@ CONTAINS
       TYPE(atom_basis_type)                              :: atom_basis
       INTEGER, INTENT(IN)                                :: iw
       CHARACTER(len=*)                                   :: title
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'atom_print_basis'
 
       INTEGER                                            :: i, j, l
 
@@ -392,8 +381,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE atom_print_basis_file(atom_basis)
       TYPE(atom_basis_type)                              :: atom_basis
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_print_basis_file'
 
       INTEGER                                            :: i, iw, l
 
@@ -487,8 +474,6 @@ CONTAINS
    SUBROUTINE atom_print_method(atom, iw)
       TYPE(atom_type)                                    :: atom
       INTEGER, INTENT(IN)                                :: iw
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'atom_print_method'
 
       CHARACTER(len=10*default_string_length)            :: reference
       CHARACTER(len=160)                                 :: shortform
@@ -642,8 +627,6 @@ CONTAINS
       TYPE(atom_potential_type)                          :: potential
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_print_potential'
-
       CHARACTER(len=60)                                  :: pline
       INTEGER                                            :: i, j, k, l
 
@@ -749,8 +732,6 @@ CONTAINS
       TYPE(atom_gthpot_type), INTENT(INOUT)              :: gthpot
       INTEGER, INTENT(IN), OPTIONAL                      :: iunit
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_write_pseudo_param'
-
       INTEGER                                            :: i, iw, j, k, n
 
       IF (PRESENT(iunit)) THEN
@@ -819,8 +800,6 @@ CONTAINS
       TYPE(atom_type), POINTER                           :: atom
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_print_orbitals'
-
       SELECT CASE (atom%method_type)
       CASE DEFAULT
          CPABORT("")
@@ -854,8 +833,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(INOUT)  :: wfn
       CHARACTER(len=*), INTENT(IN)                       :: description
       INTEGER, INTENT(IN)                                :: iw
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_print_orbitals_helper'
 
       INTEGER                                            :: b, l, maxl, nb, nv, v
 

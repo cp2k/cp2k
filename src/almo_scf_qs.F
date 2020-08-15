@@ -806,8 +806,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: energy, energy_singles_corr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_update_ks_energy'
-
       TYPE(qs_energy_type), POINTER                      :: qs_energy
 
       CALL get_qs_env(qs_env, energy=qs_energy)

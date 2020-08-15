@@ -340,8 +340,6 @@ CONTAINS
    SUBROUTINE diag_sqrt_invert(sortho)
       TYPE(dbcsr_type)                                   :: sortho
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'diag_sqrt_invert'
-
       INTEGER                                            :: i, iatom, info, jatom, lwork, n
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: w, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: amat, bmat

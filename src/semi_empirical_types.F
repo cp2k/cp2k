@@ -186,8 +186,6 @@ CONTAINS
    SUBROUTINE semi_empirical_create(sep)
       TYPE(semi_empirical_type), POINTER                 :: sep
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_create'
-
       CPASSERT(.NOT. ASSOCIATED(sep))
       ALLOCATE (sep)
       ALLOCATE (sep%beta(0:3))
@@ -208,8 +206,6 @@ CONTAINS
    SUBROUTINE semi_empirical_release(sep)
 
       TYPE(semi_empirical_type), POINTER                 :: sep
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_release'
 
       INTEGER                                            :: i
 
@@ -245,8 +241,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE zero_se_param(sep)
       TYPE(semi_empirical_type), POINTER                 :: sep
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'zero_se_param'
 
       CPASSERT(ASSOCIATED(sep))
       sep%defined = .FALSE.
@@ -382,8 +376,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(2), OPTIONAL              :: ppddg, dpddg
       INTEGER, INTENT(OUT), OPTIONAL                     :: ngauss
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_se_param'
-
       IF (ASSOCIATED(sep)) THEN
          IF (PRESENT(name)) name = sep%name
          IF (PRESENT(typ)) typ = sep%typ
@@ -481,8 +473,6 @@ CONTAINS
       REAL(dp), DIMENSION(2), OPTIONAL                   :: ppddg, dpddg
       INTEGER, INTENT(IN), OPTIONAL                      :: ngauss
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_se_param'
-
       IF (ASSOCIATED(sep)) THEN
          IF (PRESENT(name)) sep%name = name
          IF (PRESENT(typ)) sep%typ = typ
@@ -529,8 +519,6 @@ CONTAINS
    SUBROUTINE rotmat_create(rotmat)
       TYPE(rotmat_type), POINTER                         :: rotmat
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'rotmat_create'
-
       CPASSERT(.NOT. ASSOCIATED(rotmat))
       ALLOCATE (rotmat)
 
@@ -542,8 +530,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rotmat_release(rotmat)
       TYPE(rotmat_type), POINTER                         :: rotmat
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'rotmat_release'
 
       IF (ASSOCIATED(rotmat)) THEN
          DEALLOCATE (rotmat)
@@ -615,8 +601,6 @@ CONTAINS
                                                             range_exc, taper_scr, range_scr, &
                                                             taper_lrc, range_lrc
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'se_taper_create'
-
       CPASSERT(.NOT. ASSOCIATED(se_taper))
       ALLOCATE (se_taper)
       NULLIFY (se_taper%taper)
@@ -643,8 +627,6 @@ CONTAINS
    SUBROUTINE se_taper_release(se_taper)
       TYPE(se_taper_type), POINTER                       :: se_taper
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'se_taper_release'
-
       IF (ASSOCIATED(se_taper)) THEN
          CALL taper_release(se_taper%taper_cou)
          CALL taper_release(se_taper%taper_exc)
@@ -668,7 +650,6 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sep
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'write_se_param'
       CHARACTER(LEN=1), DIMENSION(0:3), PARAMETER :: orb_lab = (/"S", "P", "D", "F"/)
       CHARACTER(LEN=2), DIMENSION(0:3), PARAMETER :: z_lab = (/"ZS", "ZP", "ZD", "ZF"/)
       CHARACTER(LEN=3), DIMENSION(0:3), PARAMETER :: zeta_lab = (/"ZSN", "ZPN", "ZDN", "ZFN"/)

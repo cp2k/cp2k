@@ -253,8 +253,6 @@ CONTAINS
       TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'linres_init'
-
       INTEGER                                            :: iounit, ispin
       LOGICAL                                            :: do_it
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -394,8 +392,6 @@ CONTAINS
       LOGICAL                                            :: nmr_present, epr_present
       INTEGER                                            :: iounit
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'nmr_epr_linres'
-
       INTEGER                                            :: iB
       LOGICAL                                            :: do_qmmm
       TYPE(current_env_type)                             :: current_env
@@ -503,8 +499,6 @@ CONTAINS
       TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(dft_control_type), POINTER                    :: dft_control
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'issc_linres'
-
       INTEGER                                            :: iatom
       LOGICAL                                            :: do_qmmm
       TYPE(current_env_type)                             :: current_env
@@ -556,8 +550,6 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_p_env_type), POINTER                       :: p_env
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'polar_linres'
 
       CALL polar_env_init(qs_env)
       CALL polar_operators(qs_env)

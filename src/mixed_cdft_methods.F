@@ -409,8 +409,6 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calculate_forces
       INTEGER, INTENT(IN), OPTIONAL                      :: iforce_eval
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mixed_cdft_build_weight'
-
       TYPE(mixed_cdft_type), POINTER                     :: mixed_cdft
 
       NULLIFY (mixed_cdft)

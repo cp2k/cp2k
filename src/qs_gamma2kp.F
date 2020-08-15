@@ -47,8 +47,6 @@ CONTAINS
    SUBROUTINE create_kp_from_gamma(qs_env, qs_env_kp)
       TYPE(qs_environment_type), POINTER                 :: qs_env, qs_env_kp
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_kp_from_gamma'
-
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: cp_subsys
       TYPE(kpoint_type), POINTER                         :: kpoint

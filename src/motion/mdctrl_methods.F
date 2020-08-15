@@ -38,8 +38,6 @@ CONTAINS
       TYPE(md_environment_type), POINTER                 :: md_env
       LOGICAL, INTENT(inout)                             :: should_stop
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'mdctrl_callback'
-
       CPASSERT(ASSOCIATED(md_env))
       CPASSERT(ASSOCIATED(mdctrl))
 

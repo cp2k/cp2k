@@ -84,8 +84,6 @@ CONTAINS
       TYPE(gridlevel_info_type)                          :: gridlevel_info
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'destroy_gaussian_gridlevel'
-
       INTEGER                                            :: group, i, output_unit
       TYPE(cp_logger_type), POINTER                      :: logger
 

@@ -217,8 +217,6 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'coulomb'
-
       LOGICAL                                            :: quadrants(3)
       REAL(dp), DIMENSION(:, :), POINTER                 :: PQ
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: lhs_int, rhs_int
@@ -285,8 +283,6 @@ CONTAINS
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'sc_os_xc'
 
       INTEGER                                            :: ndo_mo, ri_atom
       LOGICAL                                            :: quadrants(3)
@@ -413,8 +409,6 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'ondiag_sf_os_xc'
-
       INTEGER                                            :: ndo_mo, ri_atom
       LOGICAL                                            :: quadrants(3)
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: lhs_int, rhs_int
@@ -502,8 +496,6 @@ CONTAINS
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'rcs_xc'
 
       INTEGER                                            :: nsgfp, ri_atom
       LOGICAL                                            :: quadrants(3)
@@ -672,8 +664,6 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'ondiag_ex'
-
       INTEGER                                            :: blk, iblk, iso, jblk, jso, nblk, ndo_mo, &
                                                             ndo_so, nsgfa, nsgfp, ri_atom, source
       INTEGER, DIMENSION(:), POINTER                     :: ri_blk_size
@@ -824,8 +814,6 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'offdiag_ex_sc'
-
       INTEGER                                            :: ndo_mo
       LOGICAL                                            :: do_roks, do_uks, quadrants(3)
       REAL(dp), DIMENSION(:, :), POINTER                 :: PQ
@@ -901,8 +889,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrices
       INTEGER, INTENT(IN)                                :: ri_atom
       TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'reserve_contraction_blocks'
 
       INTEGER                                            :: blk, i, iblk, jblk, n
       LOGICAL                                            :: found
@@ -1258,8 +1244,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:)                   :: contr_int
       REAL(dp), DIMENSION(:, :), INTENT(IN)              :: PQ
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'ri_all_blocks_mm'
-
       INTEGER                                            :: blk, iblk, imo, jblk, ndo_mo, s1, s2
       LOGICAL                                            :: found
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: work
@@ -1303,8 +1287,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: new_int
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: ref_int
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'copy_ri_contr_int'
-
       INTEGER                                            :: iso, ndo_so
 
       CPASSERT(SIZE(new_int) == SIZE(ref_int))
@@ -1339,8 +1321,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(dp), INTENT(IN), OPTIONAL                     :: eps_filter
       LOGICAL, INTENT(IN), OPTIONAL                      :: mo_transpose
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'ri_int_product'
 
       INTEGER                                            :: blk, i, iblk, iso, j, jblk, jso, nblk, &
                                                             ndo_so

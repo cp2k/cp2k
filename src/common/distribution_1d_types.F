@@ -101,8 +101,6 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(in), OPTIONAL        :: n_el
       INTEGER, INTENT(in), OPTIONAL                      :: n_lists
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_create'
-
       INTEGER                                            :: ilist, my_n_lists, stat
 
       my_n_lists = 1
@@ -155,8 +153,6 @@ CONTAINS
    SUBROUTINE distribution_1d_retain(distribution_1d)
       TYPE(distribution_1d_type), POINTER                :: distribution_1d
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_retain'
-
       CPASSERT(ASSOCIATED(distribution_1d))
       CPASSERT(distribution_1d%ref_count > 0)
       distribution_1d%ref_count = distribution_1d%ref_count + 1
@@ -171,8 +167,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE distribution_1d_release(distribution_1d)
       TYPE(distribution_1d_type), POINTER                :: distribution_1d
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_release'
 
       INTEGER                                            :: ilist, iparticle_kind, iparticle_local, &
                                                             nparticle_kind, nparticle_local

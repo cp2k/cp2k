@@ -594,8 +594,6 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in)       :: v
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(inout)    :: res
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'p_op_l1'
-
       INTEGER                                            :: n_spins, spin
       TYPE(dft_control_type), POINTER                    :: dft_control
 

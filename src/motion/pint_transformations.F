@@ -44,8 +44,6 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:, :), INTENT(in), &
          OPTIONAL, TARGET                                :: x
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_x2u'
-
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: my_ux, my_x
 
       CPASSERT(ASSOCIATED(pint_env))
@@ -80,8 +78,6 @@ CONTAINS
          OPTIONAL, TARGET                                :: ux
       REAL(kind=dp), DIMENSION(:, :), INTENT(out), &
          OPTIONAL, TARGET                                :: x
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_u2x'
 
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: my_ux, my_x
 
@@ -120,8 +116,6 @@ CONTAINS
          OPTIONAL, TARGET                                :: uf
       REAL(kind=dp), DIMENSION(:, :), INTENT(in), &
          OPTIONAL, TARGET                                :: f
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_f2uf'
 
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: my_f, my_uf
 

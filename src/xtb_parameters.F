@@ -186,8 +186,6 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: parameter_file_path, parameter_file_name
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xtb_parameters_init'
-
       CHARACTER(len=2)                                   :: enam, esym
       CHARACTER(len=default_string_length)               :: aname, filename
       INTEGER                                            :: i, ia, l
@@ -278,8 +276,6 @@ CONTAINS
       TYPE(xtb_atom_type), POINTER                       :: param
       CHARACTER(LEN=2), INTENT(IN)                       :: element_symbol
       TYPE(section_vals_type), POINTER                   :: xtb_section
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xtb_parameters_read'
 
       CHARACTER(LEN=2)                                   :: label
       CHARACTER(len=20*default_string_length)            :: line_att
@@ -407,8 +403,6 @@ CONTAINS
 
       TYPE(xtb_atom_type), POINTER                       :: param
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xtb_parameters_set'
-
       INTEGER                                            :: i, is, l, na
       REAL(KIND=dp), DIMENSION(5)                        :: kp
 
@@ -487,8 +481,6 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
       INTEGER, INTENT(IN)                                :: ngauss
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_xtb_basis'
-
       CHARACTER(LEN=6), DIMENSION(:), POINTER            :: symbol
       INTEGER                                            :: i, nshell
       INTEGER, DIMENSION(:), POINTER                     :: lq, nq
@@ -549,8 +541,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: za, zb
       TYPE(xtb_control_type), INTENT(IN), POINTER        :: xtb_control
       REAL(KIND=dp)                                      :: kab
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'xtb_set_kab'
 
       INTEGER                                            :: j, z
       LOGICAL                                            :: custom

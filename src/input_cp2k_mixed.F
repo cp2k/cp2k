@@ -59,8 +59,6 @@ CONTAINS
    SUBROUTINE create_mix_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_mix_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: sub2section, sub3section, subsection
 
@@ -514,8 +512,6 @@ CONTAINS
    SUBROUTINE create_print_mix_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_print_mix_section'
-
       TYPE(section_type), POINTER                        :: print_key
 
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -547,8 +543,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_print_mixed_cdft_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_print_mixed_cdft_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key
@@ -594,8 +588,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_mixed_cdft_block_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_mixed_cdft_block_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 

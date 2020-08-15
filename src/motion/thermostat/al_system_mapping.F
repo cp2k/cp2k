@@ -63,8 +63,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(global_constraint_type), POINTER              :: gci
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'al_to_particle_mapping'
-
       INTEGER                                            :: i, imap, j, natoms_local, &
                                                             sum_of_thermostats
       INTEGER, DIMENSION(:), POINTER                     :: deg_of_freedom, massive_atom_list
@@ -154,8 +152,6 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: sum_of_thermostats
       TYPE(global_constraint_type), POINTER              :: gci
       LOGICAL, INTENT(IN), OPTIONAL                      :: shell
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_al_thermostat'
 
       INTEGER                                            :: nkind, number, region
       LOGICAL                                            :: do_shell

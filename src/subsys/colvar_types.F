@@ -422,8 +422,6 @@ CONTAINS
       TYPE(colvar_type), POINTER                         :: colvar
       INTEGER, INTENT(in)                                :: colvar_id
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'colvar_create'
-
       CPASSERT(.NOT. ASSOCIATED(colvar))
       ALLOCATE (colvar)
       ! Nullify all available COLVAR types
@@ -531,8 +529,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE colvar_setup(colvar)
       TYPE(colvar_type), POINTER                         :: colvar
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'colvar_setup'
 
       INTEGER                                            :: i, idum, iend, ii, istart, j, np, stat
       INTEGER, DIMENSION(:), POINTER                     :: list
@@ -1034,8 +1030,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: colvar_id
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: list
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_hydronium_colvars'
-
       INTEGER                                            :: i, idum, ii, n_hydrogens, n_oxygens, np
       INTEGER, DIMENSION(:), POINTER                     :: i_hydrogens, i_oxygens
 
@@ -1104,8 +1098,6 @@ CONTAINS
       TYPE(colvar_type), POINTER                         :: colvar
       INTEGER, INTENT(IN)                                :: colvar_id
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: list
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'setup_acid_hydronium_colvars'
 
       INTEGER                                            :: i, idum, ii, n_hydrogens, &
                                                             n_oxygens_acid, n_oxygens_water, np
@@ -1212,8 +1204,6 @@ CONTAINS
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE colvar_release(colvar)
       TYPE(colvar_type), POINTER                         :: colvar
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'colvar_release'
 
       INTEGER                                            :: i
 
@@ -1392,8 +1382,6 @@ CONTAINS
    RECURSIVE SUBROUTINE colvar_clone(colvar_out, colvar_in, i_atom_offset)
       TYPE(colvar_type), POINTER                         :: colvar_out, colvar_in
       INTEGER, INTENT(IN), OPTIONAL                      :: i_atom_offset
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'colvar_clone'
 
       INTEGER                                            :: i, my_offset, ndim, ndim2, stat
 
@@ -1807,8 +1795,6 @@ CONTAINS
       TYPE(colvar_type), POINTER                         :: colvar_out, colvar_in
       INTEGER, INTENT(IN)                                :: offset
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'colvar_clone_points'
-
       INTEGER                                            :: i, natoms, npoints
 
       colvar_out%use_points = colvar_in%use_points
@@ -1850,8 +1836,6 @@ CONTAINS
    SUBROUTINE colvar_p_reallocate(colvar_set, lb1_new, ub1_new)
       TYPE(colvar_p_type), DIMENSION(:), POINTER         :: colvar_set
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'colvar_p_reallocate'
 
       INTEGER                                            :: j, lb1, lb1_old, ub1, ub1_old
       TYPE(colvar_p_type), DIMENSION(:), POINTER         :: work
@@ -2015,8 +1999,6 @@ CONTAINS
       TYPE(colvar_type), POINTER                         :: colvar
       REAL(KIND=dp), INTENT(IN)                          :: b
       REAL(KIND=dp)                                      :: diff
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'diff_colvar'
 
       diff = colvar%ss - b
       IF (colvar%type_id == torsion_colvar_id) THEN

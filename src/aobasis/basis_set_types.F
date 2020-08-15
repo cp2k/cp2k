@@ -153,8 +153,6 @@ CONTAINS
 
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_gto_basis_set'
-
       CALL deallocate_gto_basis_set(gto_basis_set)
 
       ALLOCATE (gto_basis_set)
@@ -201,8 +199,6 @@ CONTAINS
 
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_gto_basis_set'
-
       IF (ASSOCIATED(gto_basis_set)) THEN
          IF (ASSOCIATED(gto_basis_set%cgf_symbol)) THEN
             DEALLOCATE (gto_basis_set%cgf_symbol)
@@ -248,8 +244,6 @@ CONTAINS
       ! Copy a Gaussian-type orbital (GTO) basis set data set.
 
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_in, basis_set_out
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'copy_gto_basis_set'
 
       INTEGER                                            :: maxco, maxpgf, maxshell, ncgf, nset, nsgf
       TYPE(gto_basis_set_type), POINTER                  :: bin, bout
@@ -326,8 +320,6 @@ CONTAINS
       ! Create a primitives only basis set
 
       TYPE(gto_basis_set_type), POINTER                  :: basis_set, pbasis
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_primitive_basis_set'
 
       INTEGER                                            :: i, ico, ip, ipgf, iset, ishell, l, lm, &
                                                             lshell, m, maxco, mpgf, nc, ncgf, ns, &
@@ -496,8 +488,6 @@ CONTAINS
       ! Combine two Gaussian-type orbital (GTO) basis sets.
 
       TYPE(gto_basis_set_type), POINTER                  :: basis_set, basis_set_add
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'combine_basis_sets'
 
       CHARACTER(LEN=12), DIMENSION(:), POINTER           :: cgf_symbol
       CHARACTER(LEN=6), DIMENSION(:), POINTER            :: sgf_symbol
@@ -691,8 +681,6 @@ CONTAINS
                                                             nshell_sum
       INTEGER, INTENT(IN), OPTIONAL                      :: maxder
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: short_kind_radius
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_gto_basis_set'
 
       INTEGER                                            :: iset, nder
 
@@ -941,8 +929,6 @@ CONTAINS
       ! - Creation (07.12.2000,MK)
 
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'init_norm_cgf_aux'
 
       INTEGER                                            :: icgf, ico, ipgf, iset, ishell, jco, &
                                                             jpgf, ll, lmax, lmin, lx, ly, lz, n, &
@@ -1221,8 +1207,6 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: dft_section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_gto_basis_set1'
 
       CHARACTER(LEN=240)                                 :: line
       CHARACTER(LEN=242)                                 :: line2
@@ -1563,8 +1547,6 @@ CONTAINS
       INTEGER                                            :: irep
       TYPE(section_vals_type), OPTIONAL, POINTER         :: dft_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_gto_basis_set2'
-
       CHARACTER(len=20*default_string_length)            :: line_att
       CHARACTER(LEN=240)                                 :: line
       CHARACTER(LEN=242)                                 :: line2
@@ -1884,8 +1866,6 @@ CONTAINS
          POINTER                                         :: gcc
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: short_kind_radius
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_gto_basis_set'
-
 ! -------------------------------------------------------------------------
 
       IF (ASSOCIATED(gto_basis_set)) THEN
@@ -2067,8 +2047,6 @@ CONTAINS
 
       TYPE(sto_basis_set_type), POINTER                  :: sto_basis_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_sto_basis_set'
-
 ! -------------------------------------------------------------------------
 
       CALL deallocate_sto_basis_set(sto_basis_set)
@@ -2090,8 +2068,6 @@ CONTAINS
    SUBROUTINE deallocate_sto_basis_set(sto_basis_set)
 
       TYPE(sto_basis_set_type), POINTER                  :: sto_basis_set
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_sto_basis_set'
 
 ! -------------------------------------------------------------------------
 
@@ -2135,8 +2111,6 @@ CONTAINS
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: nq, lq
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: zet
       INTEGER, INTENT(OUT), OPTIONAL                     :: maxlq, numsto
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_sto_basis_set'
 
       INTEGER                                            :: iset
 
@@ -2183,8 +2157,6 @@ CONTAINS
       CHARACTER(LEN=6), DIMENSION(:), OPTIONAL, POINTER  :: symbol
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: nq, lq
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: zet
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'set_sto_basis_set'
 
       INTEGER                                            :: ns
 
@@ -2236,8 +2208,6 @@ CONTAINS
       TYPE(sto_basis_set_type), POINTER                  :: sto_basis_set
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: dft_section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_sto_basis_set'
 
       CHARACTER(LEN=10)                                  :: nlsym
       CHARACTER(LEN=2)                                   :: lsym
@@ -2406,7 +2376,6 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: ngauss
       LOGICAL, OPTIONAL                                  :: ortho
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_gto_from_sto_basis'
       INTEGER, PARAMETER                                 :: maxng = 6
 
       CHARACTER(LEN=default_string_length)               :: name, sng

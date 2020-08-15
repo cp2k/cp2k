@@ -240,8 +240,6 @@ CONTAINS
 
       TYPE(epr_env_type)                                 :: epr_env
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'epr_env_cleanup'
-
       INTEGER                                            :: i_B, idir, ispin
 
       epr_env%ref_count = epr_env%ref_count - 1

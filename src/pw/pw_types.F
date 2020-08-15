@@ -87,8 +87,6 @@ CONTAINS
    SUBROUTINE pw_retain(pw)
       TYPE(pw_type), POINTER                             :: pw
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_retain'
-
       CPASSERT(ASSOCIATED(pw))
       CPASSERT(pw%ref_count > 0)
       pw%ref_count = pw%ref_count + 1
@@ -105,8 +103,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_release(pw)
       TYPE(pw_type), POINTER                             :: pw
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_release'
 
       IF (ASSOCIATED(pw)) THEN
          CPASSERT(pw%ref_count > 0)

@@ -66,8 +66,6 @@ CONTAINS
    SUBROUTINE fist_neighbor_deallocate(fist_neighbor)
       TYPE(fist_neighbor_type), POINTER                  :: fist_neighbor
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_neighbor_deallocate'
-
       INTEGER                                            :: i
 
       IF (ASSOCIATED(fist_neighbor)) THEN
@@ -236,7 +234,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: ei_scale14, vdw_scale14
       TYPE(exclusion_type), DIMENSION(:), OPTIONAL       :: exclusions
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fist_neighbor_add'
       REAL(KIND=dp), PARAMETER :: eps_default = EPSILON(0.0_dp)*1.0E4_dp
 
       INTEGER                                            :: new_npairs, npairs, nscale, old_npairs

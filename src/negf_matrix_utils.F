@@ -784,8 +784,6 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       INTEGER                                            :: image
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_index_by_cell'
-
       IF (LBOUND(cell_to_index, 1) <= cell(1) .AND. UBOUND(cell_to_index, 1) >= cell(1) .AND. &
           LBOUND(cell_to_index, 2) <= cell(2) .AND. UBOUND(cell_to_index, 2) >= cell(2) .AND. &
           LBOUND(cell_to_index, 3) <= cell(3) .AND. UBOUND(cell_to_index, 3) >= cell(3)) THEN

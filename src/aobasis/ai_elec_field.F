@@ -88,8 +88,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(0:ldrr1-1, ldrr2, *), &
          INTENT(INOUT)                                   :: rr
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'efg'
-
       INTEGER :: ax, ay, az, bx, by, bz, coa, coam1x, coam1y, coam1z, coam2x, coam2y, coam2z, &
          coamxpy, coamxpz, coamxy, coamxz, coamypx, coamypz, coamyz, coamzpx, coamzpy, coap1x, &
          coap1y, coap1z, coap2x, coap2y, coap2z, coapxy, coapxz, coapyz, cob, cobm1x, cobm1y, &

@@ -801,8 +801,6 @@ CONTAINS
          POINTER                                         :: s_mat
       INTEGER                                            :: ihist
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'put_data_to_history'
-
       INTEGER                                            :: i
 
       IF (rtp%linear_scaling) THEN

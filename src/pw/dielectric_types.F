@@ -127,8 +127,6 @@ CONTAINS
 
       TYPE(dielectric_parameters), INTENT(INOUT)         :: dielec_params
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dielectric_parameters_dealloc'
-
       IF (ASSOCIATED(dielec_params%aa_cuboidal_xxtnt)) DEALLOCATE (dielec_params%aa_cuboidal_xxtnt)
       IF (ASSOCIATED(dielec_params%aa_cuboidal_yxtnt)) DEALLOCATE (dielec_params%aa_cuboidal_yxtnt)
       IF (ASSOCIATED(dielec_params%aa_cuboidal_zxtnt)) DEALLOCATE (dielec_params%aa_cuboidal_zxtnt)

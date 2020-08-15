@@ -44,8 +44,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: nvec, theta
       REAL(KIND=dp)                                      :: dt
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'rotate_dimer'
-
       INTEGER                                            :: output_unit
       LOGICAL                                            :: check
 
@@ -73,8 +71,6 @@ CONTAINS
    SUBROUTINE update_dimer_vec(dimer_env, motion_section)
       TYPE(dimer_env_type), POINTER                      :: dimer_env
       TYPE(section_vals_type), POINTER                   :: motion_section
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'update_dimer_vec'
 
       INTEGER                                            :: i, i_rep_val, isize, j, size_array
       REAL(KIND=dp), DIMENSION(:), POINTER               :: array
@@ -120,8 +116,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:)                        :: gradient
       TYPE(dimer_env_type), POINTER                      :: dimer_env
       REAL(KIND=dp), INTENT(OUT)                         :: norm
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_theta'
 
       gradient = gradient - DOT_PRODUCT(gradient, dimer_env%nvec)*dimer_env%nvec
       norm = SQRT(DOT_PRODUCT(gradient, gradient))

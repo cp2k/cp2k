@@ -62,8 +62,6 @@ CONTAINS
    SUBROUTINE create_mp2_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_mp2_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
 
@@ -159,8 +157,6 @@ CONTAINS
    SUBROUTINE create_mp2_details_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_mp2_details_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key
 
@@ -218,8 +214,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_ri_mp2(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_ri_mp2'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -282,8 +276,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_opt_ri_basis(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_opt_ri_basis'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -368,8 +360,6 @@ CONTAINS
    SUBROUTINE create_ri_laplace(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_ri_laplace'
-
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -415,8 +405,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_ri_rpa(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_ri_rpa'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -547,8 +535,6 @@ CONTAINS
    SUBROUTINE create_ri_axk(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_ri_axk'
-
       !TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -567,8 +553,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_ri_g0w0(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_ri_g0w0'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -838,8 +822,6 @@ CONTAINS
    SUBROUTINE create_print_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_print_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -867,8 +849,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_periodic_gw_correction_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_periodic_gw_correction_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -977,8 +957,6 @@ CONTAINS
    SUBROUTINE create_bse_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_bse_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -1023,8 +1001,6 @@ CONTAINS
    SUBROUTINE create_ic_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_ic_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -1060,8 +1036,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_low_scaling(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_low_scaling'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -1227,8 +1201,6 @@ CONTAINS
    SUBROUTINE create_wfc_gpw(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_wfc_gpw'
-
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -1300,8 +1272,6 @@ CONTAINS
    SUBROUTINE create_cphf(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_cphf'
-
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -1338,8 +1308,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_mp2_potential(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_mp2_potential'
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -1407,8 +1375,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_ri_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'create_ri_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
@@ -1500,8 +1466,6 @@ CONTAINS
    SUBROUTINE create_integrals_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_integrals_section'
-
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
 
@@ -1557,8 +1521,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_RI_metric_section(section)
       TYPE(section_type), POINTER                        :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_RI_metric_section'
 
       TYPE(keyword_type), POINTER                        :: keyword
 

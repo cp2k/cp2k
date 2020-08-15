@@ -992,8 +992,6 @@ CONTAINS
          POINTER                                         :: sab_nl
       LOGICAL, INTENT(IN)                                :: symmetric
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_sab_matrix_1d'
-
       CHARACTER(LEN=12)                                  :: cgfsym
       CHARACTER(LEN=32)                                  :: symmetry_string
       CHARACTER(LEN=default_string_length)               :: mname, name
@@ -1084,8 +1082,6 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       LOGICAL, INTENT(IN)                                :: symmetric
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_sab_matrix_2d'
 
       CHARACTER(LEN=12)                                  :: cgfsym
       CHARACTER(LEN=32)                                  :: symmetry_string

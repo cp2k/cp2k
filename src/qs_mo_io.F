@@ -671,8 +671,6 @@ CONTAINS
          POINTER                                         :: rt_mos
       LOGICAL, INTENT(OUT), OPTIONAL                     :: natom_mismatch
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mos_restart_low'
-
       INTEGER :: group, homo, homo_read, i, iatom, ikind, imat, irow, iset, iset_read, ishell, &
          ishell_read, iso, ispin, lfomo_read, lmax, lshell, my_mult, nao, nao_read, natom_read, &
          nelectron, nelectron_read, nmo, nmo_read, nnshell, nset, nset_max, nshell_max, nspin, &
@@ -991,8 +989,6 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: spin
       LOGICAL, INTENT(IN), OPTIONAL                      :: last
       INTEGER, INTENT(IN), OPTIONAL                      :: kpt
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_to_output_unit'
 
       CHARACTER(LEN=12)                                  :: symbol
       CHARACTER(LEN=12), DIMENSION(:), POINTER           :: bcgf_symbol

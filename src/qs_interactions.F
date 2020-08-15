@@ -373,8 +373,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps_pgf_orb
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_pgf_short
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_interaction_radii_orb_basis'
-
       INTEGER                                            :: ipgf, iset, ishell, l, nset
       INTEGER, DIMENSION(:), POINTER                     :: npgf, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: lshell
@@ -449,8 +447,6 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: subsys_section
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'init_se_nlradius'
 
       INTEGER                                            :: ikind, nkind
       REAL(KIND=dp)                                      :: kind_radius
@@ -609,8 +605,6 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: subsys_section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'write_pgf_orb_radii'
 
       CHARACTER(LEN=10)                                  :: bas
       CHARACTER(LEN=default_string_length)               :: name, unit_str

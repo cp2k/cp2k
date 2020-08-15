@@ -197,8 +197,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: scr
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: bond_orders
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'print_bond_orders'
-
       CHARACTER(LEN=2)                                   :: el1, el2
       INTEGER                                            :: iatom, jatom, natom
 

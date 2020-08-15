@@ -73,8 +73,6 @@ CONTAINS
       CHARACTER(LEN=*)                                   :: file_name, extra
       CHARACTER(LEN=default_path_length)                 :: result_file_name
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'expand_file_name_ending'
-
       INTEGER                                            :: ind
 
       CPASSERT(file_name .NE. "")
@@ -101,8 +99,6 @@ CONTAINS
    FUNCTION expand_file_name_char(file_name, extra) RESULT(result_file_name)
       CHARACTER(LEN=*)                                   :: file_name, extra
       CHARACTER(LEN=default_path_length)                 :: result_file_name
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'expand_file_name_char'
 
       INTEGER                                            :: ind
 
@@ -131,8 +127,6 @@ CONTAINS
       CHARACTER(LEN=*)                                   :: file_name
       REAL(KIND=dp)                                      :: rvalue
       CHARACTER(LEN=default_path_length)                 :: result_file_name
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'expand_file_name_temp'
 
       CHARACTER(LEN=18)                                  :: rval_to_string
       INTEGER                                            :: ind
@@ -170,8 +164,6 @@ CONTAINS
       CHARACTER(LEN=*)                                   :: file_name
       INTEGER                                            :: ivalue
       CHARACTER(LEN=default_path_length)                 :: result_file_name
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'expand_file_name_int'
 
       CHARACTER(LEN=18)                                  :: rval_to_string
       INTEGER                                            :: ind
@@ -214,8 +206,6 @@ CONTAINS
       TYPE(tmc_env_type), POINTER                        :: tmc_env
       INTEGER, DIMENSION(:)                              :: job_counts
       REAL(KIND=dp), DIMENSION(4)                        :: timings
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_restart_file'
 
       CHARACTER(LEN=default_path_length)                 :: c_tmp, file_name
       INTEGER                                            :: f_unit, i
@@ -286,8 +276,6 @@ CONTAINS
       INTEGER, DIMENSION(:)                              :: job_counts
       REAL(KIND=dp), DIMENSION(4)                        :: timings
       CHARACTER(LEN=*)                                   :: file_name
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'read_restart_file'
 
       INTEGER                                            :: file_ptr, i, temp_size
       LOGICAL                                            :: flag
@@ -584,8 +572,6 @@ CONTAINS
       INTEGER                                            :: conf_nr
       REAL(KIND=dp), DIMENSION(:), POINTER               :: dip
       CHARACTER(LEN=*), INTENT(in), OPTIONAL             :: file_ext
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_dipoles_in_file'
 
       CHARACTER(LEN=default_path_length)                 :: file_name_tmp
       INTEGER                                            :: file_ptr

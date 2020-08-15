@@ -97,8 +97,6 @@ CONTAINS
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: blacs2mpi, mpi2blacs
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_blacs_info'
-
       IF (.NOT. ASSOCIATED(blacs_env)) THEN
          CPABORT("No BLACS environment")
       END IF
@@ -134,8 +132,6 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL            :: blacs_repeatable, row_major
       INTEGER, DIMENSION(:), INTENT(IN), &
          OPTIONAL                               :: grid_2d
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_create'
 
       INTEGER                                  :: ipcol, iprow, stat
 #if defined(__parallel)
@@ -261,8 +257,6 @@ CONTAINS
    SUBROUTINE cp_blacs_env_retain(blacs_env)
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_retain'
-
       CPASSERT(ASSOCIATED(blacs_env))
       CPASSERT(blacs_env%ref_count > 0)
       blacs_env%ref_count = blacs_env%ref_count + 1
@@ -277,8 +271,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_blacs_env_release(blacs_env)
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_release'
 
       IF (ASSOCIATED(blacs_env)) THEN
          CPASSERT(blacs_env%ref_count > 0)
@@ -306,8 +298,6 @@ CONTAINS
    SUBROUTINE cp_blacs_env_write(blacs_env, unit_nr)
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       INTEGER, INTENT(in)                                :: unit_nr
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_write'
 
       INTEGER                                            :: iostat
 

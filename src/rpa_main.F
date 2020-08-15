@@ -780,7 +780,6 @@ CONTAINS
       INTEGER                                            :: my_ia_size, my_ia_start, my_ia_end, &
                                                             my_group_L_size
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_BIb_C_2D'
       INTEGER, PARAMETER                                 :: occ_chunk = 128
 
       INTEGER :: ia_global, iiB, itmp(2), jjB, my_B_size, my_B_virtual_start, occ_high, occ_low, &

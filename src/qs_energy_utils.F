@@ -317,8 +317,6 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_mulliken'
-
       INTEGER                                            :: ispin
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_h, matrix_ks, rho_ao
@@ -357,8 +355,6 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: amat, bmat
       REAL(kind=dp), INTENT(IN)                          :: factor
       REAL(KIND=dp), DIMENSION(:), POINTER               :: atrace
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'atom_trace'
 
       INTEGER                                            :: blk, iblock_col, iblock_row, nblock
       LOGICAL                                            :: found
@@ -401,8 +397,6 @@ CONTAINS
    SUBROUTINE qs_energies_mp2(qs_env, calc_forces)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: calc_forces
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_energies_mp2'
 
       LOGICAL                                            :: should_stop
 

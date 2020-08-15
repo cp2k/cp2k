@@ -92,8 +92,6 @@ CONTAINS
       TYPE(lnhc_parameters_type), POINTER                :: lnhc
       TYPE(section_vals_type), POINTER                   :: section
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'lnhc_init'
-
       NULLIFY (lnhc%dt_yosh)
       NULLIFY (lnhc%nvt)
       NULLIFY (lnhc%map_info)
@@ -117,8 +115,6 @@ CONTAINS
    SUBROUTINE create_map_info_type(map_info)
       TYPE(map_info_type), POINTER                       :: map_info
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_map_info_type'
-
       ALLOCATE (map_info)
       NULLIFY (map_info%index, map_info%map_index)
       NULLIFY (map_info%v_scale)
@@ -135,8 +131,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE release_map_info_type(map_info)
       TYPE(map_info_type), POINTER                       :: map_info
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'release_map_info_type'
 
       IF (ASSOCIATED(map_info)) THEN
          IF (ASSOCIATED(map_info%p_kin)) THEN
@@ -169,8 +163,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE lnhc_dealloc(lnhc)
       TYPE(lnhc_parameters_type), POINTER                :: lnhc
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'lnhc_dealloc'
 
       IF (ASSOCIATED(lnhc)) THEN
          IF (ASSOCIATED(lnhc%dt_yosh)) THEN

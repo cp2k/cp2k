@@ -916,8 +916,6 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       LOGICAL, INTENT(IN), OPTIONAL                      :: skip_nuclear_density
 
-      CHARACTER(*), PARAMETER :: routineN = 'calc_rho_tot_gspace'
-
       INTEGER                                            :: ispin
       LOGICAL                                            :: my_skip
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -971,8 +969,6 @@ CONTAINS
    SUBROUTINE calc_mo_derivatives(qs_env, ks_matrix, mo_derivs)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, mo_derivs
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_mo_derivatives'
 
       INTEGER                                            :: ispin
       LOGICAL                                            :: uniform_occupation
@@ -1452,8 +1448,6 @@ CONTAINS
 
    SUBROUTINE qs_ks_allocate_basics(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_allocate_basics'
 
       CHARACTER(LEN=default_string_length)               :: headline
       INTEGER                                            :: ic, ispin, nimg

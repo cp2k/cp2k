@@ -103,8 +103,6 @@ CONTAINS
          POINTER                                         :: pmat_ext
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: alpha
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'kg_ekin_subset'
-
       LOGICAL                                            :: lrigpw
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kg_environment_type), POINTER                 :: kg_env

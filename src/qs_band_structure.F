@@ -80,8 +80,6 @@ CONTAINS
    SUBROUTINE calculate_band_structure(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_band_structure'
-
       LOGICAL                                            :: do_kpoints, explicit
       TYPE(qs_environment_type), POINTER                 :: qs_env_kp
       TYPE(section_vals_type), POINTER                   :: bs_input
@@ -109,8 +107,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE do_calculate_band_structure(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'do_calculate_band_structure'
 
       CHARACTER(LEN=default_string_length)               :: filename, ustr
       CHARACTER(LEN=default_string_length), &
@@ -316,8 +312,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: kpgeneral
       INTEGER, INTENT(IN), OPTIONAL                      :: group_size_ext
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_kp_orbitals'
 
       INTEGER                                            :: i, ic, ik, ikk, ispin, ix, iy, iz, &
                                                             npoints

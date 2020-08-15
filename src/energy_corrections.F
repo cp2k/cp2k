@@ -302,8 +302,6 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calculate_forces
       INTEGER, INTENT(IN)                                :: unit_nr
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'harris_energy'
-
       REAL(KIND=dp)                                      :: exc
 
       IF (ec_env%should_update) THEN
@@ -354,8 +352,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(energy_correction_type), POINTER              :: ec_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ec_disp'
 
       REAL(KIND=dp)                                      :: edisp
 

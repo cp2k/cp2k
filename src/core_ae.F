@@ -512,8 +512,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zetb
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'verfc_force'
-
       INTEGER                                            :: ic_a, ic_b, icam1, icam2, icam3, icap1, &
                                                             icap2, icap3, icax, icbm1, icbm2, &
                                                             icbm3, icbx, icoa, icob, ipgfa, ipgfb, &

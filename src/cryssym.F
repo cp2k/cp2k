@@ -69,8 +69,6 @@ CONTAINS
    SUBROUTINE release_csym_type(csym)
       TYPE(csym_type)                                    :: csym
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'release_csym_type'
-
       IF (ALLOCATED(csym%rotations)) THEN
          DEALLOCATE (csym%rotations)
       END IF
@@ -476,8 +474,6 @@ CONTAINS
       TYPE(csym_type)                                    :: csym
       INTEGER, INTENT(IN)                                :: ir
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_rotation_coord'
-
       INTEGER                                            :: ia, ib, natom
       REAL(KIND=dp)                                      :: diff
       REAL(KIND=dp), DIMENSION(3)                        :: rb, ri, ro, tr
@@ -513,8 +509,6 @@ CONTAINS
    SUBROUTINE print_crys_symmetry(csym)
       TYPE(csym_type)                                    :: csym
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_crys_symmetry'
-
       INTEGER                                            :: i, iunit, j, plevel
 
       iunit = csym%punit
@@ -547,8 +541,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE print_kp_symmetry(csym)
       TYPE(csym_type), INTENT(IN)                        :: csym
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'print_kp_symmetry'
 
       INTEGER                                            :: i, iunit, plevel
 

@@ -106,8 +106,6 @@ CONTAINS
    SUBROUTINE qs_rho_create(rho)
       TYPE(qs_rho_type), POINTER                         :: rho
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_rho_create'
-
       IF (ASSOCIATED(rho)) CPABORT("rho already associated")
 
       ALLOCATE (rho)
@@ -128,8 +126,6 @@ CONTAINS
    SUBROUTINE qs_rho_retain(rho_struct)
       TYPE(qs_rho_type), POINTER                         :: rho_struct
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_rho_retain'
-
       CPASSERT(ASSOCIATED(rho_struct))
       CPASSERT(rho_struct%ref_count > 0)
       rho_struct%ref_count = rho_struct%ref_count + 1
@@ -146,8 +142,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qs_rho_release(rho_struct)
       TYPE(qs_rho_type), POINTER                         :: rho_struct
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_rho_release'
 
       IF (ASSOCIATED(rho_struct)) THEN
          CPASSERT(rho_struct%ref_count > 0)
@@ -169,8 +163,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qs_rho_clear(rho_struct)
       TYPE(qs_rho_type), POINTER                         :: rho_struct
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_rho_clear'
 
       INTEGER                                            :: i
 
@@ -272,8 +264,6 @@ CONTAINS
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: rho_r_sccs
       LOGICAL, INTENT(out), OPTIONAL                     :: soft_valid
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_rho_get'
-
       CPASSERT(ASSOCIATED(rho_struct))
       CPASSERT(rho_struct%ref_count > 0)
 
@@ -343,8 +333,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: tot_rho_r, tot_rho_g
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: rho_r_sccs
       LOGICAL, INTENT(in), OPTIONAL                      :: soft_valid
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_rho_set'
 
       CPASSERT(ASSOCIATED(rho_struct))
       CPASSERT(rho_struct%ref_count > 0)

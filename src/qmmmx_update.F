@@ -48,8 +48,6 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(section_vals_type), POINTER                   :: root_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'qmmmx_update_force_env'
-
       LOGICAL                                            :: force_mixing_active, labels_changed
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds, new_atomic_kinds
       TYPE(cp_subsys_type), POINTER                      :: subsys, subsys_new

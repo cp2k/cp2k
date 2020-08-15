@@ -588,8 +588,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: dft_section
       TYPE(cp_logger_type), POINTER                      :: logger
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'xas_env_init'
-
       CHARACTER(LEN=default_string_length)               :: name_sto
       INTEGER :: homo, i, iat, iatom, ik, ikind, ispin, j, l, lfomo, my_spin, n_mo(2), n_rep, nao, &
          natom, ncubes, nelectron, nexc_atoms, nexc_search, nj, nk, nkind, nmo, nmoloc(2), &
@@ -1035,8 +1033,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xas_section
       INTEGER, INTENT(IN)                                :: iatom, istate
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_calculate_spectrum'
-
       INTEGER                                            :: homo, i, lfomo, my_spin, nabs, nmo, &
                                                             nvirtual, output_unit, xas_estate
       LOGICAL                                            :: append_cube, length
@@ -1150,8 +1146,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iatom, state_to_be_excited, lfomo
       LOGICAL, INTENT(IN)                                :: length
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'xas_write'
-
       CHARACTER(LEN=default_string_length)               :: mittle_ab, mittle_em, my_act, my_pos
       INTEGER                                            :: i, istate, out_sp_ab, out_sp_em
       REAL(dp)                                           :: ene2
@@ -1230,8 +1224,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iatom
       LOGICAL, INTENT(IN)                                :: append_cube
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'xas_print_cubes'
-
       CHARACTER(LEN=default_string_length)               :: my_mittle, my_pos
       INTEGER                                            :: homo, istate0, my_spin, nspins, nstates
       REAL(dp), DIMENSION(:, :), POINTER                 :: centers
@@ -1283,8 +1275,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xas_section
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       INTEGER, INTENT(IN)                                :: iatom
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'xas_pdos'
 
       CHARACTER(LEN=default_string_length)               :: xas_mittle
       INTEGER                                            :: ispin
@@ -1339,8 +1329,6 @@ CONTAINS
       REAL(dp), DIMENSION(:), POINTER                    :: all_evals
       REAL(dp), DIMENSION(:, :), POINTER                 :: sp_em, sp_ab
       INTEGER, INTENT(IN)                                :: estate, nstate, my_spin
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'spectrum_dip_vel'
 
       INTEGER                                            :: homo, i, i_abs, istate, lfomo, nao, nmo
       REAL(dp)                                           :: dip(3), ene_f, ene_i
@@ -1405,8 +1393,6 @@ CONTAINS
 
       TYPE(gto_basis_set_type), POINTER                  :: base_a, base_b
       REAL(dp), DIMENSION(:, :), POINTER                 :: matrix
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_stogto_overlap'
 
       INTEGER                                            :: iset, jset, ldsab, maxcoa, maxcob, maxl, &
                                                             maxla, maxlb, na, nb, nseta, nsetb, &
@@ -1490,8 +1476,6 @@ CONTAINS
       TYPE(xas_environment_type), POINTER                :: xas_env
       TYPE(localized_wfn_control_type), POINTER          :: localized_wfn_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_assign_core_states'
 
       INTEGER                                            :: chosen_state, homo, i, iat, iatom, &
                                                             ikind, isgf, istate, j, my_kind, &

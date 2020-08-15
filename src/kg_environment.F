@@ -98,8 +98,6 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), OPTIONAL, POINTER         :: input
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'kg_env_create'
-
       ALLOCATE (kg_env)
       CALL init_kg_env(qs_env, kg_env, qs_kind_set, input)
    END SUBROUTINE kg_env_create

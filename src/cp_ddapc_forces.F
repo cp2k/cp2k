@@ -336,8 +336,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: charges
       REAL(KIND=dp), INTENT(INOUT)                       :: energy_res
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'evaluate_restraint_functional'
-
       INTEGER                                            :: I, ind
       REAL(KIND=dp)                                      :: dE, order_p
 
@@ -471,8 +469,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: dq
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: charges
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'solvation_ddapc_force'
 
       INTEGER                                            :: i, ip1, ip2, iparticle1, iparticle2, l, &
                                                             lmax, n_rep1, n_rep2, weight

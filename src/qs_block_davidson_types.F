@@ -57,8 +57,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nspins
       TYPE(section_vals_type), POINTER                   :: scf_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'block_davidson_env_create'
-
       INTEGER                                            :: ispin
 
       CPASSERT(.NOT. ASSOCIATED(bdav_env))
@@ -144,8 +142,6 @@ CONTAINS
 
       TYPE(davidson_type), DIMENSION(:), POINTER         :: bdav_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'block_davidson_deallocate'
-
       INTEGER                                            :: ispin, nspins
 
       IF (ASSOCIATED(bdav_env)) THEN
@@ -173,8 +169,6 @@ CONTAINS
    SUBROUTINE block_davidson_release(bdav_env)
 
       TYPE(davidson_type), DIMENSION(:), POINTER         :: bdav_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'block_davidson_release'
 
       INTEGER                                            :: ispin, nspins
 

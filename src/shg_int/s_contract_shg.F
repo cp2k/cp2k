@@ -62,8 +62,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: s
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 's_overlap_ab'
-
       INTEGER                                            :: ids, ipgfa, jpgfb, ndev
       REAL(KIND=dp)                                      :: a, b, rab2, xhi, zet
 
@@ -124,8 +122,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :, :, :), &
          INTENT(INOUT)                                   :: s
       LOGICAL, INTENT(IN)                                :: calculate_forces
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 's_overlap_abb'
 
       INTEGER                                            :: i, ids, il, ipgfa, j, jpgfb, kpgfb, &
                                                             lbb_max, lmax, n, ndev, nds, nfac, nl
@@ -357,8 +353,6 @@ CONTAINS
          INTENT(INOUT)                                   :: s
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 's_ra2m_ab'
-
       INTEGER                                            :: i, ids, il, ipgfa, j, jpgfb, n, ndev, &
                                                             nds, nfac
       REAL(KIND=dp)                                      :: a, b, dfsr_int, exp_rab2, k, pfac, &
@@ -560,8 +554,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nl
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: prefac
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_prefac_sabb'
-
       INTEGER                                            :: il, j, k
       REAL(KIND=dp)                                      :: sqrt_pi3, temp
 
@@ -601,8 +593,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: v
       LOGICAL, INTENT(IN)                                :: calculate_forces
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 's_coulomb_ab'
 
       INTEGER                                            :: ids, ipgfa, jpgfb, n, ndev, nmax
       REAL(KIND=dp)                                      :: a, b, dummy, prefac, rab2, T, xhi, zet
@@ -663,8 +653,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: v
       LOGICAL, INTENT(IN)                                :: calculate_forces
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 's_verf_ab'
 
       INTEGER                                            :: ids, ipgfa, jpgfb, n, ndev, nmax
       REAL(KIND=dp)                                      :: a, Arg, b, comega, prefac, rab2, T, xhi, &
@@ -728,8 +716,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: v
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 's_verfc_ab'
-
       INTEGER                                            :: ids, ipgfa, jpgfb, n, ndev, nmax
       REAL(KIND=dp)                                      :: a, b, comega, comegaT, prefac, rab2, T, &
                                                             xhi, zet
@@ -792,8 +778,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: v
       LOGICAL, INTENT(IN)                                :: calculate_forces
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 's_vgauss_ab'
 
       INTEGER                                            :: ids, ipgfa, j, jpgfb, n, ndev, nmax
       REAL(KIND=dp)                                      :: a, b, eta, etaT, expT, oeta, prefac, &
@@ -864,8 +848,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: v
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 's_gauss_ab'
-
       INTEGER                                            :: ids, ipgfa, jpgfb, n, ndev, nmax
       REAL(KIND=dp)                                      :: a, b, eta, expT, oeta, prefac, rab2, T, &
                                                             xhi, zet
@@ -931,8 +913,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: swork_cont
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'contract_sint_ab_clow'
-
       INTEGER                                            :: ids, ids_start, ipgfa, ishella, jpgfb, &
                                                             jshellb, lai, lbj, ndev, nds
 
@@ -986,8 +966,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: swork
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: swork_cont
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'contract_sint_ab_chigh'
-
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: work_pc
 
       swork_cont = 0.0_dp
@@ -1027,8 +1005,6 @@ CONTAINS
          INTENT(INOUT)                                   :: swork
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: swork_cont
       INTEGER, INTENT(IN)                                :: m, nds_max
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'contract_s_ra2m_ab'
 
       INTEGER                                            :: i, my_m
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: work_pc
@@ -1088,8 +1064,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, 0:, :, :, :), &
          INTENT(INOUT)                                   :: swork_cont
       LOGICAL, INTENT(IN)                                :: calculate_forces
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'contract_s_overlap_abb'
 
       INTEGER                                            :: forb, fri, ids, ids_start, iil, il, &
                                                             ishella, jpgfb, jshellb, kpgfb, &
@@ -1179,8 +1153,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, 0:, :, :, :), &
          INTENT(INOUT)                                   :: swork_cont
       LOGICAL, INTENT(IN)                                :: calculate_forces
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'contract_s_overlap_aba'
 
       INTEGER                                            :: forb, fri, ids, ids_start, iil, il, &
                                                             ipgfa, ishella, jshellb, kpgfa, &

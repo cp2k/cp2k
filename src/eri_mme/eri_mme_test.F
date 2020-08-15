@@ -69,8 +69,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pot_par
       INTEGER, INTENT(OUT), OPTIONAL                     :: G_count, R_count
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'eri_mme_2c_perf_acc_test'
-
       INTEGER                                            :: iab, irep, izet, l, nR, nzet
       LOGICAL                                            :: acc_check
       REAL(KIND=dp)                                      :: acc, t0, t1
@@ -198,8 +196,6 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: potential
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pot_par
       INTEGER, INTENT(OUT), OPTIONAL                     :: GG_count, GR_count, RR_count
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'eri_mme_3c_perf_acc_test'
 
       INTEGER                                            :: ira, irb, irc, irep, ixyz, izeta, izetb, &
                                                             izetc, la, lb, lc, nintg, nR, ns, nzet

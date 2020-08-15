@@ -48,8 +48,6 @@ CONTAINS
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
       INTEGER, INTENT(IN)                                :: ispin, nspins
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'wfc_to_molecule'
-
       INTEGER :: counter, first_atom, i, iatom, ikind, imol, imol_now, istate, k, local_location, &
          natom, natom_loc, natom_max, nkind, nmol, nstate
       INTEGER, POINTER                                   :: wfc_to_atom_map(:)

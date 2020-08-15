@@ -86,8 +86,6 @@ CONTAINS
    SUBROUTINE create_dbcsr_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_dbcsr_section'
-
       INTEGER                                            :: idefault
       LOGICAL                                            :: ldefault
       TYPE(keyword_type), POINTER                        :: keyword

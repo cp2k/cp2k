@@ -690,8 +690,6 @@ CONTAINS
    SUBROUTINE pint_retain(pint_env)
       TYPE(pint_env_type), POINTER                       :: pint_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_retain'
-
       CPASSERT(ASSOCIATED(pint_env))
       CPASSERT(pint_env%ref_count > 0)
       pint_env%ref_count = pint_env%ref_count + 1
@@ -707,8 +705,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pint_release(pint_env)
       TYPE(pint_env_type), POINTER                       :: pint_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_release'
 
       IF (ASSOCIATED(pint_env)) THEN
          CPASSERT(pint_env%ref_count > 0)
@@ -796,8 +792,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(section_type), POINTER                        :: input_declaration
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_test'
 
       INTEGER                                            :: i, ib, idim, unit_nr
       REAL(kind=dp)                                      :: c, e_h, err
@@ -1000,8 +994,6 @@ CONTAINS
 
       TYPE(pint_env_type), POINTER                       :: pint_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_init'
-
       CPASSERT(ASSOCIATED(pint_env))
       CPASSERT(pint_env%ref_count > 0)
 
@@ -1031,8 +1023,6 @@ CONTAINS
    SUBROUTINE pint_init_x(pint_env)
 
       TYPE(pint_env_type), POINTER                       :: pint_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_init_x'
 
       CHARACTER(len=default_string_length)               :: msg, tmp
       INTEGER                                            :: ia, ib, ic, idim, input_seed, n_rep_val
@@ -1204,8 +1194,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pint_init_v(pint_env)
       TYPE(pint_env_type), POINTER                       :: pint_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_init_v'
 
       CHARACTER(len=default_string_length)               :: msg, stmp, stmp1, stmp2, unit_str
       INTEGER                                            :: first_mode, i, ia, ib, ic, idim, ierr, &
@@ -1535,8 +1523,6 @@ CONTAINS
       TYPE(pint_env_type), POINTER                       :: pint_env
       REAL(kind=dp), INTENT(in), OPTIONAL                :: kT
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_init_t'
-
       INTEGER                                            :: ib, idim, ii, inos, n_rep_val
       LOGICAL                                            :: explicit, gle_restart
       REAL(kind=dp)                                      :: mykt
@@ -1638,8 +1624,6 @@ CONTAINS
       TYPE(helium_solvent_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: helium_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_init_f'
-
       INTEGER                                            :: ib, idim, inos
       REAL(kind=dp)                                      :: e_h
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -1730,8 +1714,6 @@ CONTAINS
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(helium_solvent_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: helium_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_do_run'
 
       INTEGER                                            :: k, step
       LOGICAL                                            :: should_stop
@@ -1841,8 +1823,6 @@ CONTAINS
    SUBROUTINE pint_run_scan(pint_env, helium_env)
       TYPE(pint_env_type), POINTER                       :: pint_env
       TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_run_scan'
 
       CHARACTER(len=default_string_length)               :: comment
       INTEGER                                            :: unit_nr
@@ -2487,8 +2467,6 @@ CONTAINS
 
       TYPE(pint_env_type), POINTER                       :: pint_env
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_calc_energy'
-
       REAL(KIND=dp)                                      :: e_h
 
       CALL pint_calc_e_kin_beads_u(pint_env)
@@ -2543,8 +2521,6 @@ CONTAINS
       TYPE(pint_env_type), POINTER                       :: pint_env
       REAL(KIND=dp), INTENT(OUT)                         :: e_h
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_calc_uf_h'
-
       IF (pint_env%transform == transformation_stage) THEN
          CALL staging_calc_uf_h(pint_env%staging_env, &
                                 pint_env%mass_beads, &
@@ -2583,8 +2559,6 @@ CONTAINS
          OPTIONAL, TARGET                                :: f
       REAL(kind=dp), DIMENSION(:), INTENT(out), &
          OPTIONAL, TARGET                                :: e
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_calc_f'
 
       INTEGER                                            :: ib, idim
       REAL(kind=dp), DIMENSION(:), POINTER               :: my_e
@@ -2630,8 +2604,6 @@ CONTAINS
          OPTIONAL, TARGET                                :: uv
       REAL(kind=dp), INTENT(out), OPTIONAL               :: e_k
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_e_kin_beads_u'
-
       INTEGER                                            :: ib, idim
       REAL(kind=dp)                                      :: res
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: my_uv
@@ -2664,8 +2636,6 @@ CONTAINS
    SUBROUTINE pint_calc_e_vir(pint_env, e_vir)
       TYPE(pint_env_type), POINTER                       :: pint_env
       REAL(kind=dp), INTENT(out), OPTIONAL               :: e_vir
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pint_calc_e_vir'
 
       INTEGER                                            :: ib, idim
       REAL(kind=dp)                                      :: res, xcentroid
@@ -2700,8 +2670,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pint_calc_nh_energy(pint_env)
       TYPE(pint_env_type), POINTER                       :: pint_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_nh_energy'
 
       INTEGER                                            :: ib, idim, inos
       REAL(kind=dp)                                      :: ekin, epot
@@ -2738,8 +2706,6 @@ CONTAINS
    FUNCTION pint_calc_total_link_action(pint_env) RESULT(link_action)
       TYPE(pint_env_type), POINTER                       :: pint_env
       REAL(KIND=dp)                                      :: link_action
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_total_link_action'
 
       INTEGER                                            :: iatom, ibead, idim, indx
       REAL(KIND=dp)                                      :: hb2m, tau, tmp_link_action
@@ -2786,8 +2752,6 @@ CONTAINS
       TYPE(pint_env_type), POINTER                       :: pint_env
       REAL(KIND=dp)                                      :: pot_action
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_total_pot_action'
-
       REAL(KIND=dp)                                      :: tau
 
       CPASSERT(ASSOCIATED(pint_env))
@@ -2807,8 +2771,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pint_calc_total_action(pint_env)
       TYPE(pint_env_type), POINTER                       :: pint_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_total_action'
 
       CPASSERT(ASSOCIATED(pint_env))
       CPASSERT(pint_env%ref_count > 0)

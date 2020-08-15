@@ -67,8 +67,6 @@ CONTAINS
       LOGICAL                                            :: exact_approx_pot
       TYPE(tmc_env_type), POINTER                        :: tmc_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_potential_energy'
-
       INTEGER                                            :: ierr
       LOGICAL                                            :: flag
       REAL(KIND=dp)                                      :: e_pot, rnd
@@ -158,8 +156,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT), OPTIONAL :: abc
       REAL(KIND=dp), DIMENSION(3), OPTIONAL              :: vec
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_scaled_cell'
-
       LOGICAL                                            :: new_scaled_cell
       TYPE(cell_type), POINTER                           :: tmp_cell
 
@@ -204,8 +200,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: scaled_hmat
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: box_scale
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_cell_scaling'
-
       REAL(KIND=dp), DIMENSION(3)                        :: abc_new, abc_orig
       TYPE(cell_type), POINTER                           :: tmp_cell
 
@@ -237,8 +231,6 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: box_scale
       REAL(KIND=dp)                                      :: res
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'nearest_distance'
 
       REAL(KIND=dp), DIMENSION(3)                        :: dist_vec
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tmp_box_scale
@@ -356,8 +348,6 @@ CONTAINS
       TYPE(rng_stream_type), INTENT(INOUT)               :: rng_stream
       REAL(KIND=dp), DIMENSION(3, 2, 3)                  :: rnd_seed
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_vel'
-
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: kB, mass_tmp, rnd1, rnd2
 
@@ -393,8 +383,6 @@ CONTAINS
       TYPE(tmc_atom_type), DIMENSION(:), POINTER         :: atoms
       REAL(KIND=dp)                                      :: ekin
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_e_kin'
-
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: mass_tmp
 
@@ -421,8 +409,6 @@ CONTAINS
    SUBROUTINE three_point_extrapolate(v1, v2, v3, extrapolate, res_err)
       REAL(KIND=dp)                            :: v1, v2, v3
       REAL(KIND=dp), INTENT(OUT)               :: extrapolate, res_err
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'three_point_extrapolate'
 
       REAL(KIND=dp)                            :: e1, e2, e3
       REAL(KIND=dp)                            :: a, b, c, d12, d23, ddd
@@ -612,8 +598,6 @@ CONTAINS
    SUBROUTINE get_subtree_efficiency(tmc_env, eff)
       TYPE(tmc_env_type), POINTER                        :: tmc_env
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eff
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_subtree_efficiency'
 
       INTEGER                                            :: i
 

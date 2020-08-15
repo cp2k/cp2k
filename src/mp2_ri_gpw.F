@@ -2928,8 +2928,6 @@ CONTAINS
          OPTIONAL                                        :: num_ijk_beta
       INTEGER, INTENT(OUT), OPTIONAL                     :: max_ijk_beta, my_ijk_beta
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'Find_quasi_degenerate_ij'
-
       INTEGER                                            :: iib, ijk_counter, jjb, kkb, my_homo, &
                                                             num_sing_ij, total_ijk
 

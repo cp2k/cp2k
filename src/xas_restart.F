@@ -445,8 +445,6 @@ CONTAINS
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'find_excited_core_orbital'
-
       INTEGER                                            :: i, ic_max, ir_max, m, my_spin, n, nao, &
                                                             nexc_search, nmo, xas_estate
       INTEGER, DIMENSION(:), POINTER                     :: col_indices

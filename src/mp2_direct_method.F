@@ -880,8 +880,6 @@ CONTAINS
          DIMENSION(dimen, Ni_occupied, Rsize, Ssize), &
          INTENT(INOUT)                                   :: BI1
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_occupied_orbitals_first'
-
       INTEGER                                            :: i, i_global, m, M_global, M_offset, &
                                                             M_start, n, N_global, N_offset, r, &
                                                             R_offset, R_start, s, S_offset

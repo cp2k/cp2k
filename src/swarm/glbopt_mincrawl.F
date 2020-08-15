@@ -324,8 +324,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: temp_in_au
       INTEGER                                            :: step
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'temp2tempstep'
-
       step = INT(LOG(temp_in_au*kelvin)/LOG(this%tempstep_base))
       !WRITE(*,*) "temp: ", temp_in_au*kelvin, this%tempstep_base
       !WRITE(*,*) "step: ", step
@@ -342,8 +340,6 @@ CONTAINS
    SUBROUTINE mincrawl_register_minima(this, report)
       TYPE(mincrawl_type)                                :: this
       TYPE(swarm_message_type)                           :: report
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'mincrawl_register_minima'
 
       INTEGER                                            :: new_mid, tempstep, wid
       LOGICAL                                            :: minima_known

@@ -3722,8 +3722,6 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: xpoints, coeff
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: z_value, m_value
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_z_and_m_value_pade'
-
       COMPLEX(KIND=dp)                                   :: denominator, dev_denominator, &
                                                             dev_numerator, dev_val, func_val, &
                                                             im_unit, numerator, re_unit

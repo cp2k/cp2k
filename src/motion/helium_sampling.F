@@ -77,8 +77,6 @@ CONTAINS
       TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
       TYPE(global_environment_type), POINTER             :: globenv
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'helium_do_run'
-
       INTEGER                                            :: k, num_steps, step, tot_steps
       LOGICAL                                            :: should_stop
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -182,8 +180,6 @@ CONTAINS
 
       TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
       TYPE(pint_env_type), POINTER                       :: pint_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'helium_sample'
 
       CHARACTER(len=default_string_length)               :: msg_str
       INTEGER                                            :: i, irot, iweight, k, nslices, nsteps, &
@@ -571,8 +567,6 @@ CONTAINS
       TYPE(helium_solvent_type), POINTER                 :: helium
       TYPE(pint_env_type), POINTER                       :: pint_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_try_permutations'
-
       CHARACTER(len=default_string_length)               :: err_str, stmp
       INTEGER                                            :: cyclen, ni
       LOGICAL                                            :: accepted, selected
@@ -740,8 +734,6 @@ CONTAINS
       TYPE(pint_env_type), POINTER                       :: pint_env
       INTEGER, INTENT(IN)                                :: cyclen
       LOGICAL                                            :: res
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'helium_slice_metro_cyclic'
 
       CHARACTER(len=default_string_length)               :: err_str, stmp
       INTEGER                                            :: c, ia, ib, ic, ifix, j, k, l, level, &
