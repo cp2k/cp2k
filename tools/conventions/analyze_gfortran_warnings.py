@@ -6,6 +6,7 @@ import argparse
 import re
 import ast
 from os import path
+from argparse import RawTextHelpFormatter # enable newline
 
 blas_re = re.compile(
     r"[SDCZ]"
@@ -41,7 +42,7 @@ IGNORED_WARNINGS = (
     "defined but not used",
     "Removing call to function",
     "Conversion from",
-    "Non-significant digits in 'REAL(8)'",
+    "Non-significant digits in ‘REAL(8)’",
     "POINTER-valued function appears on right-hand side",
     "style of line directive is a GCC extension",
 )
@@ -136,9 +137,9 @@ if __name__ == "__main__":
         epilog="""\
 For generating the warn-files run gfortran with all warning flags and redirect the output to a file.
 This can be achieved by putting
-    FCLOGPIPE = 2>$(notdir $<).warn
+    FCLOGPIPE   = 2>&1 | tee $(notdir $<).warn
 in the cp2k arch-file.
-""",
+""", formatter_class=RawTextHelpFormatter
     )
     parser.add_argument(
         "files",
