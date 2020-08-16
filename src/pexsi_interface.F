@@ -270,7 +270,9 @@ CONTAINS
       INTEGER(KIND=int_8)                      :: cp_pexsi_plan_initialize
 
 #ifdef  __LIBPEXSI
+      CHARACTER(LEN=*), PARAMETER              :: routineN = 'cp_pexsi_plan_initialize'
       INTEGER                                  :: info, handle
+
       CALL timeset(routineN, handle)
       cp_pexsi_plan_initialize = f_ppexsi_plan_initialize(comm, numProcRow, &
                                                           numProcCol, outputFileIndex, info)
@@ -315,6 +317,7 @@ CONTAINS
       REAL(KIND=real_8), INTENT(IN)            :: SnzvalLocal(*)
 
 #ifdef  __LIBPEXSI
+      CHARACTER(LEN=*), PARAMETER              :: routineN = 'cp_pexsi_load_real_symmetric_hs_matrix'
       INTEGER                                  :: handle, info
 
       CALL timeset(routineN, handle)
@@ -365,6 +368,7 @@ CONTAINS
                                                   numTotalPEXSIIter
 
 #ifdef  __LIBPEXSI
+      CHARACTER(LEN=*), PARAMETER              :: routineN = 'cp_pexsi_dft_driver'
       INTEGER                                  :: handle, info
 #if defined (__HAS_IEEE_EXCEPTIONS)
       LOGICAL, DIMENSION(5)                    :: halt
@@ -423,6 +427,7 @@ CONTAINS
                                         FDMnzvalLocal(*), totalEnergyH, totalEnergyS, totalFreeEnergy
 
 #ifdef  __LIBPEXSI
+      CHARACTER(LEN=*), PARAMETER              :: routineN = 'cp_pexsi_retrieve_real_symmetric_dft_matrix'
       INTEGER                                  :: handle, info
 
       CALL timeset(routineN, handle)
@@ -454,7 +459,9 @@ CONTAINS
       INTEGER(KIND=int_8), INTENT(IN)          :: plan
 
 #ifdef  __LIBPEXSI
+      CHARACTER(LEN=*), PARAMETER              :: routineN = 'cp_pexsi_plan_finalize'
       INTEGER                                  :: info, handle
+
       CALL timeset(routineN, handle)
       CALL f_ppexsi_plan_finalize(plan, info)
       IF (info .NE. 0) &
