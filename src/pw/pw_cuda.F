@@ -293,6 +293,8 @@ CONTAINS
       MARK_USED(pw2)
       MARK_USED(scale)
 #else
+      CHARACTER(len=*), PARAMETER              :: routineN = 'pw_cuda_r3dc1d_3d'
+
       INTEGER                                  :: handle, ngpts
       INTEGER                                  :: l1, l2, l3
       INTEGER, DIMENSION(:), POINTER           :: npts
@@ -300,6 +302,7 @@ CONTAINS
       REAL(KIND=dp), POINTER                   :: ptr_pwin
       COMPLEX(KIND=dp), POINTER                :: ptr_pwout
       INTEGER, POINTER                         :: ptr_ghatmap
+
       CALL timeset(routineN, handle)
 
       ngpts = SIZE(pw2%pw_grid%gsq)
@@ -341,6 +344,8 @@ CONTAINS
       MARK_USED(pw2)
       MARK_USED(scale)
 #else
+      CHARACTER(len=*), PARAMETER              :: routineN = 'pw_cuda_c1dr3d_3d'
+
       INTEGER                                  :: handle, ngpts, nmaps
       INTEGER                                  :: l1, l2, l3
       INTEGER, DIMENSION(:), POINTER           :: npts
@@ -391,6 +396,8 @@ CONTAINS
       MARK_USED(pw2)
       MARK_USED(scale)
 #else
+      CHARACTER(len=*), PARAMETER              :: routineN = 'pw_cuda_r3dc1d_3d_ps'
+
       INTEGER                                  :: handle
       INTEGER                                  :: ngpts, iout
       INTEGER                                  :: lg, mg, mmax, lmax, rp, mx2, mz2, n1, n2, nmax
@@ -577,6 +584,8 @@ CONTAINS
       MARK_USED(pw2)
       MARK_USED(scale)
 #else
+      CHARACTER(len=*), PARAMETER              :: routineN = 'pw_cuda_c1dr3d_3d_ps'
+
       INTEGER                                  :: handle
       INTEGER                                  :: ngpts, iout
       INTEGER                                  :: lg, mg, mmax, lmax, rp, mx2, mz2, n1, n2, nmax
@@ -765,6 +774,8 @@ CONTAINS
       MARK_USED(pw1)
       MARK_USED(pwbuf)
 #else
+      CHARACTER(len=*), PARAMETER              :: routineN = 'pw_cuda_cff'
+
       INTEGER                                  :: l1, l2, l3, handle
       INTEGER, DIMENSION(:), POINTER           :: npts
       REAL(KIND=dp), POINTER                   :: ptr_pwin
@@ -804,6 +815,8 @@ CONTAINS
       MARK_USED(pwbuf)
       MARK_USED(pw2)
 #else
+      CHARACTER(len=*), PARAMETER              :: routineN = 'pw_cuda_ffc'
+
       INTEGER                                  :: l1, l2, l3, handle
       INTEGER, DIMENSION(:), POINTER           :: npts
       COMPLEX(KIND=dp), POINTER                :: ptr_pwin
@@ -843,6 +856,8 @@ CONTAINS
       MARK_USED(pw1)
       MARK_USED(pwbuf)
 #else
+      CHARACTER(len=*), PARAMETER              :: routineN = 'pw_cuda_cf'
+
       INTEGER                                  :: l1, l2, l3, handle
       INTEGER, DIMENSION(:), POINTER           :: npts
       REAL(KIND=dp), POINTER                   :: ptr_pwin
@@ -882,6 +897,8 @@ CONTAINS
       MARK_USED(pwbuf)
       MARK_USED(pw2)
 #else
+      CHARACTER(len=*), PARAMETER              :: routineN = 'pw_cuda_fc'
+
       INTEGER                                  :: l1, l2, l3, handle
       INTEGER, DIMENSION(:), POINTER           :: npts
       COMPLEX(KIND=dp), POINTER                :: ptr_pwin
@@ -930,6 +947,8 @@ CONTAINS
       MARK_USED(n)
       MARK_USED(m)
 #else
+      CHARACTER(len=*), PARAMETER              :: routineN = 'pw_cuda_f'
+
       INTEGER                                  :: handle
       COMPLEX(KIND=dp), POINTER                :: ptr_pwin
       COMPLEX(KIND=dp), POINTER                :: ptr_pwout
@@ -966,6 +985,8 @@ CONTAINS
       MARK_USED(pw2)
       MARK_USED(scale)
 #else
+      CHARACTER(len=*), PARAMETER              :: routineN = 'pw_cuda_fg'
+
       INTEGER                                  :: mmax, mg, handle, ngpts
       INTEGER, DIMENSION(:), POINTER           :: npts
       COMPLEX(KIND=dp), POINTER                :: ptr_pwin
@@ -1014,6 +1035,8 @@ CONTAINS
       MARK_USED(pwbuf)
       MARK_USED(scale)
 #else
+      CHARACTER(len=*), PARAMETER              :: routineN = 'pw_cuda_sf'
+
       INTEGER                                  :: mmax, mg, ngpts, handle, nmaps
       INTEGER, DIMENSION(:), POINTER           :: npts
 
@@ -1046,4 +1069,3 @@ CONTAINS
 #endif
    END SUBROUTINE pw_cuda_sf
 END MODULE pw_cuda
-
