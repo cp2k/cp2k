@@ -2,9 +2,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-sirius_ver="6.5.6"
-sirius_sha256="c8120100bde4477545eae489ea7f9140d264a3f88696ec92728616d78f214cae"
-
+sirius_ver="7.0.0"
+sirius_sha256="da783df11e7b65668e29ba8d55c8a6827e2216ad6d88040f84f42ac20fd1bb99"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -132,11 +131,11 @@ case "$with_sirius" in
                   -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
                   -DCMAKE_CXX_COMPILER="${MPICXX}" \
                   -DCMAKE_C_COMPILER="${MPICC}" \
-		  -DBUILD_SHARED_LIBS=OFF \
-		  -DUSE_ELPA=OFF \
-		  ${COMPILATION_OPTIONS} .. > compile.log 2>&1
-            
-	    make -j $NPROCS -C src >> compile.log 2>&1 
+      -DBUILD_SHARED_LIBS=OFF \
+      -DUSE_ELPA=OFF \
+      ${COMPILATION_OPTIONS} .. > compile.log 2>&1
+
+      make -j $NPROCS -C src >> compile.log 2>&1
 
             install -d ${pkg_install_dir}/include >> install.log 2>&1
             install -d ${pkg_install_dir}/lib >> install.log 2>&1
@@ -156,9 +155,9 @@ case "$with_sirius" in
                       -DCMAKE_CXXFLAGS_RELEASE="${SIRIUS_OPT}" \
                       -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
                       -DUSE_CUDA=ON \
-		      -DUSE_ELPA=OFF \
+          -DUSE_ELPA=OFF \
                       -DGPU_MODEL=P100 \
-		      -DBUILD_SHARED_LIBS=OFF \
+          -DBUILD_SHARED_LIBS=OFF \
                       -DCMAKE_CXX_COMPILER="${MPICXX}" \
                       -DCMAKE_C_COMPILER="${MPICC}" ${COMPILATION_OPTIONS} .. >> compile.log 2>&1
                 make -j $NPROCS -C src >> compile.log 2>&1
