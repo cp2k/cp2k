@@ -139,8 +139,8 @@ CONTAINS
                                                             length, num_possible_values, vec_length
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ivec
       LOGICAL                                            :: lvecl(1:16)
-      LOGICAL(1)                                         :: dummy_l
-      LOGICAL(1), ALLOCATABLE, DIMENSION(:)              :: lvec
+      LOGICAL(4)                                         :: dummy_l
+      LOGICAL(4), ALLOCATABLE, DIMENSION(:)              :: lvec
       REAL(kind=dp)                                      :: dummy_r
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: rvec
       TYPE(keyword_type), POINTER                        :: keyword

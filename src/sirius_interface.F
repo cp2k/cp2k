@@ -11,8 +11,7 @@
 !***************************************************************************************************
 #if defined(__SIRIUS)
 MODULE sirius_interface
-   USE ISO_C_BINDING,                   ONLY: C_CHAR,&
-                                              C_DOUBLE,&
+   USE ISO_C_BINDING,                   ONLY: C_DOUBLE,&
                                               C_INT,&
                                               C_NULL_PTR,&
                                               C_PTR
@@ -58,7 +57,7 @@ MODULE sirius_interface
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
    USE sirius,                          ONLY: &
-        bool, sirius_add_atom, sirius_add_atom_type, sirius_add_atom_type_radial_function, &
+        sirius_add_atom, sirius_add_atom_type, sirius_add_atom_type_radial_function, &
         sirius_create_context, sirius_create_ground_state, sirius_create_kset_from_grid, &
         sirius_dump_runtime_setup, sirius_finalize, sirius_find_ground_state, &
         sirius_get_band_energies, sirius_get_band_occupancies, sirius_get_energy, &
@@ -68,8 +67,7 @@ MODULE sirius_interface
         sirius_option_add_string_to, sirius_option_get_length, sirius_option_get_name_and_type, &
         sirius_option_set_double, sirius_option_set_int, sirius_option_set_logical, &
         sirius_option_set_string, sirius_set_atom_position, sirius_set_atom_type_dion, &
-        sirius_set_atom_type_radial_grid, sirius_set_lattice_vectors, sirius_update_ground_state, &
-        string
+        sirius_set_atom_type_radial_grid, sirius_set_lattice_vectors, sirius_update_ground_state
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -95,7 +93,7 @@ CONTAINS
 !> \author JHU
 ! **************************************************************************************************
    SUBROUTINE cp_sirius_init()
-      CALL sirius_initialize(bool(.FALSE.))
+      CALL sirius_initialize(.FALSE.)
    END SUBROUTINE cp_sirius_init
 
 !***************************************************************************************************
@@ -106,7 +104,7 @@ CONTAINS
 !> \author JHU
 ! **************************************************************************************************
    SUBROUTINE cp_sirius_finalize()
-      CALL sirius_finalize(bool(.FALSE.), bool(.FALSE.), bool(.FALSE.))
+      CALL sirius_finalize(.FALSE., .FALSE., .FALSE.)
    END SUBROUTINE cp_sirius_finalize
 
 !***************************************************************************************************
@@ -160,7 +158,7 @@ CONTAINS
 ! create context of simulation
       CALL pwdft_env_get(pwdft_env, para_env=para_env)
       sirius_mpi_comm = para_env%group
-      sctx = sirius_create_context(sirius_mpi_comm)
+      CALL sirius_create_context(sirius_mpi_comm, sctx)
 
 !     the "fun" starts.
 
@@ -181,7 +179,7 @@ CONTAINS
                CALL section_vals_get(xc_fun, n_repetition=n)
                DO i = 1, n
                   CALL section_vals_val_get(xc_fun, "FUNCTIONAL", i_rep_section=i, c_val=section_name)
-                  CALL sirius_option_add_string_to(sctx, string('parameters'), string('xc_functionals'), string(section_name))
+                  CALL sirius_option_add_string_to(sctx, 'parameters', 'xc_functionals', section_name)
                END DO
             ENDIF
          END DO
@@ -190,13 +188,13 @@ CONTAINS
 !     import control section
       pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "control")
       IF (ASSOCIATED(pwdft_sub_section)) THEN
-         CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, string("control"))
+         CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, "control")
       ENDIF
 
 !     import parameters section
       pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "parameters")
       IF (ASSOCIATED(pwdft_sub_section)) THEN
-         CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, string("parameters"))
+         CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, "parameters")
          CALL section_vals_val_get(pwdft_sub_section, "ngridk", i_vals=kk)
          k_grid(1) = kk(1)
          k_grid(2) = kk(2)
@@ -213,16 +211,16 @@ CONTAINS
 !     import mixer section
       pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "mixer")
       IF (ASSOCIATED(pwdft_sub_section)) THEN
-         CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, string("mixer"))
+         CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, "mixer")
       ENDIF
 
       !     import solver section
       pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "iterative_solver")
       IF (ASSOCIATED(pwdft_sub_section)) THEN
-         CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, string("iterative_solver"))
+         CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, "iterative_solver")
       ENDIF
 
-      CALL sirius_dump_runtime_setup(sctx, string("runtime.json"))
+      CALL sirius_dump_runtime_setup(sctx, "runtime.json")
       CALL sirius_import_parameters(sctx)
 
 ! lattice vectors of the unit cell should be in [a.u.] (length is in [a.u.])
@@ -246,7 +244,7 @@ CONTAINS
          NULLIFY (upf_pot, gth_potential)
          CALL get_qs_kind(qs_kind_set(ikind), upf_potential=upf_pot, gth_potential=gth_potential)
          IF (ASSOCIATED(upf_pot)) THEN
-            CALL sirius_add_atom_type(sctx, string(label), fname=string(upf_pot%filename), &
+            CALL sirius_add_atom_type(sctx, label, fname=upf_pot%filename, &
                                       mass=REAL(mass, KIND=C_DOUBLE))
          ELSEIF (ASSOCIATED(gth_potential)) THEN
 !
@@ -269,16 +267,16 @@ CONTAINS
                END DO
             END IF
 ! add new atom type
-            CALL sirius_add_atom_type(sctx, string(label), &
+            CALL sirius_add_atom_type(sctx, label, &
                                       zn=NINT(zeff + 0.001d0), &
                                       mass=REAL(mass, KIND=C_DOUBLE), &
-                                      spin_orbit=bool(.FALSE.))
+                                      spin_orbit=.FALSE.)
 !
             ALLOCATE (gth_atompot)
             CALL gth_potential_conversion(gth_potential, gth_atompot)
 ! set radial grid
             fun(1:nmesh) = rp(1:nmesh)
-            CALL sirius_set_atom_type_radial_grid(sctx, string(label), nmesh, fun(1))
+            CALL sirius_set_atom_type_radial_grid(sctx, label, nmesh, fun(1))
 ! set beta-projectors
             ALLOCATE (ef(nmesh), beta(nmesh))
             ibeta = 0
@@ -294,8 +292,8 @@ CONTAINS
                   beta(:) = pf*rp**(l + 2*i - 2)*ef
                   ibeta = ibeta + 1
                   fun(1:nmesh) = beta(1:nmesh)*rp(1:nmesh)
-                  CALL sirius_add_atom_type_radial_function(sctx, string(label), &
-                                                            string("beta"), fun(1), nmesh, l=l)
+                  CALL sirius_add_atom_type_radial_function(sctx, label, &
+                                                            "beta", fun(1), nmesh, l=l)
                END DO
             END DO
             DEALLOCATE (ef, beta)
@@ -310,7 +308,7 @@ CONTAINS
                i = ibeta + gth_atompot%nl(l) - 1
                dion(ibeta:i, ibeta:i) = gth_atompot%hnl(1:gth_atompot%nl(l), 1:gth_atompot%nl(l), l)
             END DO
-            CALL sirius_set_atom_type_dion(sctx, string(label), nbeta, dion(1, 1))
+            CALL sirius_set_atom_type_dion(sctx, label, nbeta, dion(1, 1))
             DEALLOCATE (dion)
 
 ! set non-linear core correction
@@ -328,7 +326,7 @@ CONTAINS
                   END DO
                END DO
                fun(1:nmesh) = corden(1:nmesh)*rp(1:nmesh)
-               CALL sirius_add_atom_type_radial_function(sctx, string(label), string("ps_rho_core"), &
+               CALL sirius_add_atom_type_radial_function(sctx, label, "ps_rho_core", &
                                                          fun(1), nmesh)
                DEALLOCATE (corden, fe, rc)
             END IF
@@ -338,7 +336,7 @@ CONTAINS
             locpot(:) = 0.0_dp
             CALL atom_local_potential(locpot, gth_atompot, rp)
             fun(1:nmesh) = locpot(1:nmesh)
-            CALL sirius_add_atom_type_radial_function(sctx, string(label), string("vloc"), &
+            CALL sirius_add_atom_type_radial_function(sctx, label, "vloc", &
                                                       fun(1), nmesh)
             DEALLOCATE (locpot)
 !
@@ -359,7 +357,7 @@ CONTAINS
                   END DO
                END IF
                CALL sirius_add_atom_type_radial_function(sctx, &
-                                                         string(label), string("ps_atomic_wf"), &
+                                                         label, "ps_atomic_wf", &
                                                          fun(1), nmesh, l=l, occ=REAL(focc, KIND=C_DOUBLE), n=-1)
             END DO
 
@@ -371,7 +369,7 @@ CONTAINS
                   fun(i) = fourpi*density(nmesh - i + 1)*atom_grid%rad(nmesh - i + 1)**2
                END DO
             END IF
-            CALL sirius_add_atom_type_radial_function(sctx, string(label), string("ps_rho_total"), &
+            CALL sirius_add_atom_type_radial_function(sctx, label, "ps_rho_total", &
                                                       fun(1), nmesh)
 
             IF (ASSOCIATED(density)) DEALLOCATE (density)
@@ -412,7 +410,7 @@ CONTAINS
             v1(3) = zeff*magnetization
          ENDIF
          v2(1:3) = vs(1:3)
-         CALL sirius_add_atom(sctx, string(label), v2(1), v1(1))
+         CALL sirius_add_atom(sctx, label, v2(1), v1(1))
       ENDDO
 ! initialize global variables/indices/arrays/etc. of the simulation
       CALL sirius_initialize_context(sctx)
@@ -420,12 +418,12 @@ CONTAINS
       ! strictly speaking the parameter use_symmetry is initialized at the
       ! beginning but it does no harm to do it that way
       IF (use_symmetry) THEN
-         ks_handler = sirius_create_kset_from_grid(sctx, k_grid(1), k_shift(1), use_symmetry=bool(.TRUE.))
+         CALL sirius_create_kset_from_grid(sctx, k_grid(1), k_shift(1), use_symmetry=.TRUE., kset_handler=ks_handler)
       ELSE
-         ks_handler = sirius_create_kset_from_grid(sctx, k_grid(1), k_shift(1), use_symmetry=bool(.FALSE.))
+         CALL sirius_create_kset_from_grid(sctx, k_grid(1), k_shift(1), use_symmetry=.FALSE., kset_handler=ks_handler)
       ENDIF
 ! create ground-state class
-      gs_handler = sirius_create_ground_state(ks_handler)
+      CALL sirius_create_ground_state(ks_handler, gs_handler)
 
       CALL pwdft_env_set(pwdft_env, sctx=sctx, gs_handler=gs_handler, ks_handler=ks_handler)
    END SUBROUTINE cp_sirius_create_env
@@ -489,8 +487,7 @@ CONTAINS
    SUBROUTINE cp_sirius_fill_in_section(sctx, section, section_name)
       TYPE(C_PTR), INTENT(INOUT)                         :: sctx
       TYPE(section_vals_type), POINTER                   :: section
-      CHARACTER(len=1, kind=C_CHAR), DIMENSION(*), &
-         INTENT(IN)                                      :: section_name
+      CHARACTER(*), INTENT(in), TARGET                   :: section_name
 
       CHARACTER(len=256)                                 :: option_name, option_name1
       CHARACTER(len=80)                                  :: str
@@ -549,12 +546,12 @@ CONTAINS
                CASE (4)         ! string nightmare
                   CALL section_vals_val_get(section, option_name1, c_val=str)
                   str = TRIM(ADJUSTL(str))//CHAR(0)
-                  CALL sirius_option_set_string(sctx, section_name, option_name, string(str))
+                  CALL sirius_option_set_string(sctx, section_name, option_name, str)
                CASE (14)
                   CALL section_vals_val_get(section, option_name1, n_rep_val=length)
                   DO j = 1, length
                      CALL section_vals_val_get(section, option_name1, i_rep_val=j, c_vals=tmp)
-                     CALL sirius_option_add_string_to(sctx, section_name, option_name, string(str))
+                     CALL sirius_option_add_string_to(sctx, section_name, option_name, str)
                   END DO
                CASE DEFAULT
                END SELECT
@@ -598,7 +595,7 @@ CONTAINS
       CALL pwdft_env_get(pwdft_env=pwdft_env, energy=energy)
       etotal = 0.0_C_DOUBLE
 
-      CALL sirius_get_energy(gs_handler, string('total'), etotal)
+      CALL sirius_get_energy(gs_handler, 'total', etotal)
       energy%etotal = etotal
 
       IF (calculate_forces) THEN
@@ -608,7 +605,7 @@ CONTAINS
 
          ALLOCATE (cforces(n2, n1))
          cforces = 0.0_C_DOUBLE
-         CALL sirius_get_forces(gs_handler, string('total'), cforces(1, 1))
+         CALL sirius_get_forces(gs_handler, 'total', cforces(1, 1))
          ! Sirius computes the forces but cp2k use the gradient everywhere
          ! so a minus sign is needed.
          ! note also that sirius and cp2k store the forces transpose to each other
@@ -620,7 +617,7 @@ CONTAINS
 
       IF (calculate_stress_tensor) THEN
          cstress = 0.0_C_DOUBLE
-         CALL sirius_get_stress_tensor(gs_handler, string('total'), cstress(1, 1))
+         CALL sirius_get_stress_tensor(gs_handler, 'total', cstress(1, 1))
          stress(1:3, 1:3) = cstress(1:3, 1:3)
          CALL pwdft_env_set(pwdft_env=pwdft_env, stress=stress)
       ENDIF
