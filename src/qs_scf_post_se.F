@@ -464,7 +464,7 @@ CONTAINS
       INTEGER                                            :: i, iat, iatom, ikind, j, nat, natom, &
                                                             natorb, nkind, nspin, unit_nr
       LOGICAL                                            :: found
-      REAL(KIND=dp)                                      :: zeff
+      REAL(KIND=dp)                                      :: npe, zeff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: mcharge
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: charges
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pblock
@@ -490,6 +490,7 @@ CONTAINS
          unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%MULLIKEN", extension=".mulliken", log_filename=.FALSE.)
          CALL qs_rho_get(rho, rho_ao=matrix_p)
          nspin = SIZE(matrix_p)
+         npe = REAL(para_env%num_pe, KIND=dp)
          ALLOCATE (charges(natom, nspin), mcharge(natom))
          charges = 0.0_dp
          mcharge = 0.0_dp
@@ -510,7 +511,7 @@ CONTAINS
                      END DO
                   END IF
                END DO
-               mcharge(iat) = zeff - SUM(charges(iat, 1:nspin))
+               mcharge(iat) = zeff/npe - SUM(charges(iat, 1:nspin))
             END DO
          END DO
          !
