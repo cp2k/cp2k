@@ -8277,6 +8277,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="VELOCITY_GAUGE", &
+                          description="Perform propagation in the velocity gauge; only impulse at the moment (delta-pulse) "// &
+                          "only works for all-electron up to now."// &
+                          "uses DELTA_PULSE_SCALE and DELTA_PULSE_DIRECTION", &
+                          usage="VELOCITY_GAUGE T", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="COM_NL", &
                           description="Include non local commutator for periodic delta pulse.", &
                           usage="COM_NL", &

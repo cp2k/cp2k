@@ -127,6 +127,7 @@ MODULE qs_ks_methods
    USE qs_sccs,                         ONLY: sccs
    USE qs_vxc,                          ONLY: qs_vxc_create
    USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
+   USE rt_propagation_velocity_gauge,   ONLY: velocity_gauge_ks_matrix
    USE rtp_admm_methods,                ONLY: rtp_admm_calc_rho_aux,&
                                               rtp_admm_merge_ks_matrix
    USE se_fock_matrix,                  ONLY: build_se_fock_matrix
@@ -824,6 +825,12 @@ CONTAINS
 
       ! External field (nonperiodic case)
       CALL qs_efield_local_operator(qs_env, just_energy, calculate_forces)
+
+      IF (qs_env%run_rtp) THEN
+         IF (dft_control%rtp_control%velocity_gauge) THEN
+            CALL velocity_gauge_ks_matrix(qs_env)
+         ENDIF
+      ENDIF
 
       ! Right now we can compute the orbital derivative here, as it depends currently only on the available
       ! Kohn-Sham matrix. This might change in the future, in which case more pieces might need to be assembled
