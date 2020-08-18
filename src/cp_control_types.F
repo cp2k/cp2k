@@ -64,6 +64,7 @@ MODULE cp_control_types
       REAL(dp)                             :: mcweeny_eps
       INTEGER, DIMENSION(3)                :: delta_pulse_direction
       REAL(KIND=dp)                        :: delta_pulse_scale
+      LOGICAL                              :: velocity_gauge
    END TYPE rtp_control_type
 ! **************************************************************************************************
 ! \brief Control parameters for DFTB calculations
