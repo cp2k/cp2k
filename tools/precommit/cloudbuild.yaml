@@ -1,0 +1,28 @@
+# author: Ole Schuett
+
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: ["build", "--build-arg ", "REVISION=$SHORT_SHA", "-t", "img_cp2kprecommit", "."]
+
+- name: 'gcr.io/cloud-builders/docker'
+  args: ["tag", "img_cp2kprecommit", "gcr.io/$PROJECT_ID/img_cp2kprecommit:$SHORT_SHA"]
+
+- name: 'gcr.io/cloud-builders/docker'
+  args: ["push", "gcr.io/$PROJECT_ID/img_cp2kprecommit:$SHORT_SHA"]
+
+- name: 'gcr.io/cloud-builders/docker'
+  args: ["tag", "img_cp2kprecommit", "gcr.io/$PROJECT_ID/img_cp2kprecommit:latest"]
+
+- name: 'gcr.io/cloud-builders/docker'
+  args: ["push", "gcr.io/$PROJECT_ID/img_cp2kprecommit:latest"]
+
+- name: "gcr.io/cloud-builders/gcloud"
+  args:
+   - "run"
+   - "deploy"
+   - "cp2k-precommit"
+   - "--platform=managed"
+   - "--region=us-central1"
+   - "--image=gcr.io/$PROJECT_ID/img_cp2kprecommit:$SHORT_SHA"
+
+#EOF
