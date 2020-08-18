@@ -35,6 +35,7 @@ MODULE rpa_gw_im_time_util
         dbcsr_t_pgrid_type, dbcsr_t_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_alltoall,&
+                                              mp_dims_create,&
                                               mp_sum
    USE mp2_types,                       ONLY: integ_mat_buffer_type
    USE particle_methods,                ONLY: get_particle_set
@@ -107,8 +108,9 @@ CONTAINS
       INTEGER                                            :: handle, icol_global, imo, irow_global, &
                                                             min_bsize, min_bsize_mo, nkind, &
                                                             npcols, nprows, size_MO, unit_nr_prv
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: dist1, dist2, dist3, sizes_AO, sizes_AO_split, &
-         sizes_AO_split_1, sizes_MO, sizes_RI, sizes_RI_split, sizes_RI_split_1, tmp
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1, dist2, dist3, sizes_AO, &
+                                                            sizes_AO_split, sizes_MO, sizes_RI, &
+                                                            sizes_RI_split, tmp
       INTEGER, DIMENSION(2)                              :: pdims_2d
       INTEGER, DIMENSION(2, 1)                           :: bounds
       INTEGER, DIMENSION(3)                              :: pdims
@@ -191,8 +193,6 @@ CONTAINS
 
       CALL pgf_block_sizes(atomic_kind_set, basis_set_ao, min_bsize, sizes_AO_split)
       CALL pgf_block_sizes(atomic_kind_set, basis_set_ri_aux, min_bsize, sizes_RI_split)
-      CALL pgf_block_sizes(atomic_kind_set, basis_set_ao, 1, sizes_AO_split_1)
-      CALL pgf_block_sizes(atomic_kind_set, basis_set_ri_aux, 1, sizes_RI_split_1)
 
       DEALLOCATE (basis_set_ao, basis_set_ri_aux)
 
@@ -200,8 +200,11 @@ CONTAINS
       CALL dbcsr_t_pgrid_create(para_env%group, pdims, pgrid_AO, &
                                 tensor_dims=[SIZE(sizes_RI_split), SIZE(sizes_AO_split), SIZE(sizes_MO)])
 
+      pdims = [0, 0, 0]
+      CALL mp_dims_create(para_env%num_pe, pdims)
+
       ! we iterate over MO blocks for saving memory during contraction, thus we should not parallelize over MO dimension
-      pdims = [0, 0, 1]
+      pdims = [pdims(1), pdims(2)*pdims(3), 1]
       CALL dbcsr_t_pgrid_create(para_env%group, pdims, pgrid_MO, &
                                 tensor_dims=[SIZE(sizes_RI_split), SIZE(sizes_AO_split), SIZE(sizes_MO)])
 
@@ -218,11 +221,11 @@ CONTAINS
       DEALLOCATE (dist1, dist2, dist3)
 
       CALL create_3c_tensor(t_3c_overl_int_gw_RI, dist1, dist2, dist3, pgrid_MO, &
-                            sizes_RI_split, sizes_AO_split_1, sizes_MO, [1], [2, 3], name="(RI | AO MO)")
+                            sizes_RI_split, sizes_AO_split, sizes_MO, [1], [2, 3], name="(RI | AO MO)")
       DEALLOCATE (dist1, dist2, dist3)
 
       CALL create_3c_tensor(t_3c_overl_int_gw_AO, dist1, dist2, dist3, pgrid_MO, &
-                            sizes_AO_split, sizes_RI_split_1, sizes_MO, [1], [2, 3], name="(AO | RI MO)")
+                            sizes_AO_split, sizes_RI_split, sizes_MO, [1], [2, 3], name="(AO | RI MO)")
       DEALLOCATE (dist1, dist2, dist3)
 
       CALL dbcsr_t_pgrid_destroy(pgrid_AO)
