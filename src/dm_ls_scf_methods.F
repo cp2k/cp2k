@@ -1060,10 +1060,11 @@ CONTAINS
 
       ! init X = (eps_n*I - H)/(eps_n - eps_0)  ... H* = S^-1/2*H*S^-1/2
       CALL dbcsr_create(matrix_x, template=matrix_ks, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_create(matrix_xsq, template=matrix_ks, matrix_type=dbcsr_type_no_symmetry)
 
       CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_ks, &
-                          0.0_dp, matrix_x, filter_eps=threshold)
-      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_s_sqrt_inv, &
+                          0.0_dp, matrix_xsq, filter_eps=threshold)
+      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_xsq, matrix_s_sqrt_inv, &
                           0.0_dp, matrix_x, filter_eps=threshold)
 
       IF (unit_nr > 0) THEN
@@ -1086,7 +1087,6 @@ CONTAINS
       CALL dbcsr_add_on_diag(matrix_x, eps_max)
       CALL dbcsr_scale(matrix_x, 1/(eps_max - eps_min))
 
-      CALL dbcsr_create(matrix_xsq, template=matrix_ks, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_copy(matrix_xsq, matrix_x)
 
       CALL dbcsr_create(matrix_tmp, template=matrix_ks, matrix_type=dbcsr_type_no_symmetry)
