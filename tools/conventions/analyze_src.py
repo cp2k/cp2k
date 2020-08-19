@@ -111,15 +111,16 @@ def validate(cp2k_dir, filelist=None, excluded_dirs=DEFAULT_EXCLUDED_DIRS):
                 warnings += ["%s: Copyright banner malformed" % fn]
 
             # find all flags
+            line_continuation = False
             for line in content.split("\n"):
-                if len(line) == 0:
-                    continue
-                if line[0] != "#":
-                    continue
-                if line.split()[0] not in ("#if", "#ifdef", "#ifndef", "#elif"):
-                    continue
+                if not line_continuation:
+                    if len(line) == 0 or line[0] != "#":
+                        continue
+                    if line.split()[0] not in ("#if", "#ifdef", "#ifndef", "#elif"):
+                        continue
                 line = line.split("//", 1)[0]
-                line = re.sub("[|()!&><=*/+-]", " ", line)
+                line_continuation = line.strip().endswith("\\")
+                line = re.sub(r"[\\|()!&><=*/+-]", " ", line)
                 line = line.replace("defined", " ")
                 for m in line.split()[1:]:
                     if re.match("[0-9]+[ulUL]*", m):
