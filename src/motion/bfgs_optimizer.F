@@ -74,7 +74,7 @@ MODULE bfgs_optimizer
 
    IMPLICIT NONE
    PRIVATE
-#include "gopt_f77_methods.h"
+#include "gopt_f77_methods.f90"
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bfgs_optimizer'
    LOGICAL, PARAMETER                   :: debug_this_module = .TRUE.

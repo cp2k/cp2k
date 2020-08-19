@@ -40,7 +40,7 @@ MODULE cp_lbfgs_optimizer_gopt
 
    IMPLICIT NONE
    PRIVATE
-#include "gopt_f77_methods.h"
+#include "gopt_f77_methods.f90"
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_lbfgs_optimizer_gopt'
@@ -820,7 +820,7 @@ CONTAINS
    ! files are almost the same (multi-line use change it a bit)
    ! [template(type1,nametype1,USE,type1_retain,type1_release,type1_eval_at)]
 ! ARGS:
-!  INTERFACE = "#include "gopt_f77_methods.h""
+!  INTERFACE = "#include "gopt_f77_methods.f90""
 !  USE = "USE gopt_f_types, ONLY: gopt_f_type, gopt_f_release,gopt_f_retain"
 !  nametype1 = "gopt"
 !  type1 = "type(gopt_f_type)"

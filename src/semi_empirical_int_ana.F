@@ -53,8 +53,8 @@ MODULE semi_empirical_int_ana
 
    IMPLICIT NONE
    PRIVATE
-#include "semi_empirical_int_debug.h"
-#include "semi_empirical_int_args.h"
+#include "semi_empirical_int_debug.f90"
+#include "semi_empirical_int_args.f90"
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_ana'
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.

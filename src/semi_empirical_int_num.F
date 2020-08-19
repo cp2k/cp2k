@@ -47,7 +47,7 @@ MODULE semi_empirical_int_num
    IMPLICIT NONE
 
    PRIVATE
-#include "semi_empirical_int_args.h"
+#include "semi_empirical_int_args.f90"
 
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_num'

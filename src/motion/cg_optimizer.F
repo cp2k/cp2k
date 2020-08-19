@@ -38,7 +38,7 @@ MODULE cg_optimizer
 
    IMPLICIT NONE
    PRIVATE
-#include "gopt_f77_methods.h"
+#include "gopt_f77_methods.f90"
 
    PUBLIC :: geoopt_cg
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
