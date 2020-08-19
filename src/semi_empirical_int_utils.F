@@ -26,7 +26,7 @@ MODULE semi_empirical_int_utils
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
-#include "semi_empirical_int_debug.h"
+#include "semi_empirical_int_debug.f90"
 
    PRIVATE
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
