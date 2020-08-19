@@ -295,18 +295,6 @@ CONTAINS
 
       IF (do_im_time) THEN
 
-         IF (.NOT. mp2_env%ri_rpa_im_time%group_size_internal) THEN
-            ASSOCIATE (group_size_3c=>mp2_env%ri_rpa_im_time%group_size_3c, group_size_P=>mp2_env%ri_rpa_im_time%group_size_P)
-               DO WHILE (MOD(para_env%num_pe, group_size_3c) .NE. 0)
-                  group_size_3c = group_size_3c - 1
-               END DO
-
-               DO WHILE (MOD(para_env%num_pe, group_size_P) .NE. 0)
-                  group_size_P = group_size_P - 1
-               END DO
-            END ASSOCIATE
-         ENDIF
-
          IF (mp2_env%ri_metric%potential_type == ri_default) THEN
             IF (SUM(periodic) > 0) THEN
                mp2_env%ri_metric%potential_type = do_potential_id

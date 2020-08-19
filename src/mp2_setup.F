@@ -59,7 +59,6 @@ CONTAINS
                                                             do_ri_sos_mp2, do_rpa
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: eri_mme_section, gw_section, &
-                                                            im_time_test_section, &
                                                             low_scaling_section, mp2_section
 
       CALL timeset(routineN, handle)
@@ -203,21 +202,6 @@ CONTAINS
 
       CALL section_vals_val_get(low_scaling_section, "MIN_BLOCK_SIZE_MO", &
                                 i_val=mp2_env%ri_rpa_im_time%min_bsize_mo)
-
-      NULLIFY (im_time_test_section)
-      im_time_test_section => section_vals_get_subs_vals(low_scaling_section, "TEST")
-
-      CALL section_vals_val_get(im_time_test_section, "_SECTION_PARAMETERS_", &
-                                l_val=mp2_env%ri_rpa_im_time%group_size_internal)
-
-      mp2_env%ri_rpa_im_time%group_size_internal = .NOT. mp2_env%ri_rpa_im_time%group_size_internal
-
-      IF (.NOT. mp2_env%ri_rpa_im_time%group_size_internal) THEN
-         CALL section_vals_val_get(im_time_test_section, "GROUP_SIZE_3c", &
-                                   i_val=mp2_env%ri_rpa_im_time%group_size_3c)
-         CALL section_vals_val_get(im_time_test_section, "GROUP_SIZE_P", &
-                                   i_val=mp2_env%ri_rpa_im_time%group_size_P)
-      ENDIF
 
       CALL section_vals_val_get(mp2_section, "RI_SOS_MP2%_SECTION_PARAMETERS_", l_val=do_ri_sos_mp2)
       IF (do_ri_sos_mp2) THEN

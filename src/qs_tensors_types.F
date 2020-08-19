@@ -316,45 +316,22 @@ CONTAINS
 !> \param sizes_3 ...
 !> \param map1 ...
 !> \param map2 ...
-!> \param starts_array_block_1 ...
-!> \param ends_array_block_1 ...
-!> \param starts_array_block_2 ...
-!> \param ends_array_block_2 ...
-!> \param starts_array_block_3 ...
-!> \param ends_array_block_3 ...
 !> \param name ...
 ! **************************************************************************************************
-   SUBROUTINE create_3c_tensor(t3c, dist_1, dist_2, dist_3, pgrid, sizes_1, sizes_2, sizes_3, map1, map2, &
-                               starts_array_block_1, ends_array_block_1, &
-                               starts_array_block_2, ends_array_block_2, &
-                               starts_array_block_3, ends_array_block_3, &
-                               name)
+   SUBROUTINE create_3c_tensor(t3c, dist_1, dist_2, dist_3, pgrid, sizes_1, sizes_2, sizes_3, map1, map2, name)
       TYPE(dbcsr_t_type), INTENT(OUT)                    :: t3c
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: dist_1, dist_2, dist_3
       TYPE(dbcsr_t_pgrid_type), INTENT(IN)               :: pgrid
       INTEGER, DIMENSION(:), INTENT(IN)                  :: sizes_1, sizes_2, sizes_3, map1, map2
-      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL :: starts_array_block_1, ends_array_block_1, &
-         starts_array_block_2, ends_array_block_2, starts_array_block_3, ends_array_block_3
       CHARACTER(len=*), INTENT(IN)                       :: name
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'create_3c_tensor'
 
-      INTEGER                                            :: handle, imem, nbatches_1, nbatches_2, &
-                                                            nbatches_3, size_1, size_2, size_3, &
-                                                            size_cut
+      INTEGER                                            :: handle, size_1, size_2, size_3
       INTEGER, DIMENSION(3)                              :: pcoord, pdims
-      LOGICAL                                            :: mem_aware_1, mem_aware_2, mem_aware_3
       TYPE(dbcsr_t_distribution_type)                    :: dist
 
       CALL timeset(routineN, handle)
-
-      mem_aware_1 = PRESENT(starts_array_block_1) .AND. PRESENT(ends_array_block_1)
-      mem_aware_2 = PRESENT(starts_array_block_2) .AND. PRESENT(ends_array_block_2)
-      mem_aware_3 = PRESENT(starts_array_block_3) .AND. PRESENT(ends_array_block_3)
-
-      IF (mem_aware_1) nbatches_1 = SIZE(starts_array_block_1)
-      IF (mem_aware_2) nbatches_2 = SIZE(starts_array_block_2)
-      IF (mem_aware_3) nbatches_3 = SIZE(starts_array_block_3)
 
       CALL dbcsr_t_mp_environ_pgrid(pgrid, pdims, pcoord)
 
@@ -366,41 +343,9 @@ CONTAINS
       ALLOCATE (dist_2(size_2))
       ALLOCATE (dist_3(size_3))
 
-      IF (mem_aware_1) THEN
-         DO imem = 1, nbatches_1
-            size_cut = ends_array_block_1(imem) - starts_array_block_1(imem) + 1
-            CALL dbcsr_t_default_distvec( &
-               size_cut, pdims(1), &
-               sizes_1(starts_array_block_1(imem):ends_array_block_1(imem)), &
-               dist_1(starts_array_block_1(imem):ends_array_block_1(imem)))
-         ENDDO
-      ELSE
-         CALL dbcsr_t_default_distvec(size_1, pdims(1), sizes_1, dist_1)
-      ENDIF
-
-      IF (mem_aware_2) THEN
-         DO imem = 1, nbatches_2
-            size_cut = ends_array_block_2(imem) - starts_array_block_2(imem) + 1
-            CALL dbcsr_t_default_distvec( &
-               size_cut, pdims(2), &
-               sizes_2(starts_array_block_2(imem):ends_array_block_2(imem)), &
-               dist_2(starts_array_block_2(imem):ends_array_block_2(imem)))
-         ENDDO
-      ELSE
-         CALL dbcsr_t_default_distvec(size_2, pdims(2), sizes_2, dist_2)
-      ENDIF
-
-      IF (mem_aware_3) THEN
-         DO imem = 1, nbatches_3
-            size_cut = ends_array_block_3(imem) - starts_array_block_3(imem) + 1
-            CALL dbcsr_t_default_distvec( &
-               size_cut, pdims(3), &
-               sizes_3(starts_array_block_3(imem):ends_array_block_3(imem)), &
-               dist_3(starts_array_block_3(imem):ends_array_block_3(imem)))
-         ENDDO
-      ELSE
-         CALL dbcsr_t_default_distvec(size_3, pdims(3), sizes_3, dist_3)
-      ENDIF
+      CALL dbcsr_t_default_distvec(size_1, pdims(1), sizes_1, dist_1)
+      CALL dbcsr_t_default_distvec(size_2, pdims(2), sizes_2, dist_2)
+      CALL dbcsr_t_default_distvec(size_3, pdims(3), sizes_3, dist_3)
 
       CALL dbcsr_t_distribution_new(dist, pgrid, dist_1, dist_2, dist_3)
       CALL dbcsr_t_create(t3c, name, dist, map1, map2, dbcsr_type_real_8, sizes_1, &
