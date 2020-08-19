@@ -55,7 +55,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom] 6.0 6.0 6.0
+      ABC [angstrom] 5.0 5.0 5.0
       PERIODIC NONE
     &END
     &COORD
@@ -90,7 +90,7 @@
 &END GLOBAL
 &MOTION
   &GEO_OPT
-     MAX_ITER 3
+     MAX_ITER 1
   &END
 &END
 

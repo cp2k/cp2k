@@ -2,11 +2,8 @@
   METHOD Quickstep
   &PROPERTIES
     &TDDFPT
-       KERNEL sTDA
-       &sTDA
-          FRACTION 0.50
-       &END sTDA
-       NSTATES      5
+       KERNEL FULL
+       NSTATES      1
        MAX_ITER    50
        CONVERGENCE [eV] 1.0e-7
        RKS_TRIPLETS F
@@ -16,7 +13,14 @@
     &QS
       METHOD GPW
     &END QS
-    LSD
+    BASIS_SET_FILE_NAME BASIS_SET
+    BASIS_SET_FILE_NAME BASIS_ADMM
+    &AUXILIARY_DENSITY_MATRIX_METHOD
+      ADMM_PURIFICATION_METHOD NONE
+      EXCH_CORRECTION_FUNC NONE
+      EXCH_SCALING_MODEL NONE
+      METHOD BASIS_PROJECTION
+    &END
     &EXCITED_STATES T
        STATE 1
     &END EXCITED_STATES
@@ -28,18 +32,18 @@
       &END
       &OUTER_SCF
          MAX_SCF  10
-         EPS_SCF 1.0E-7
+         EPS_SCF 1.0E-6
       &END
       MAX_SCF  50
-      EPS_SCF 1.0E-7
+      EPS_SCF 1.0E-6
     &END SCF
     &XC
-      &XC_FUNCTIONAL PBE
+      &XC_FUNCTIONAL PBE0
       &END XC_FUNCTIONAL
     &END XC
     &MGRID
-       CUTOFF  280
-       REL_CUTOFF  60
+       CUTOFF  200
+       REL_CUTOFF  40
     &END
     &POISSON
        PERIODIC NONE
@@ -48,7 +52,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom] 6.0 6.0 6.0
+      ABC [angstrom] 4.0 4.0 4.0
       PERIODIC NONE
     &END
     &COORD
@@ -61,11 +65,13 @@
      &END
     &END
     &KIND H
-      BASIS_SET DZV-GTH-PADE
+      BASIS_SET ORB DZV-GTH-PADE
+      BASIS_SET AUX_FIT FIT3
       POTENTIAL GTH-PADE-q1
     &END KIND
     &KIND O
-      BASIS_SET DZVP-GTH-PADE
+      BASIS_SET ORB DZVP-GTH-PADE
+      BASIS_SET AUX_FIT FIT3
       POTENTIAL GTH-PADE-q6
     &END KIND
   &END SUBSYS
@@ -81,7 +87,7 @@
 &END GLOBAL
 &MOTION
   &GEO_OPT
-     MAX_ITER 2
+     MAX_ITER 1
   &END
 &END
 

@@ -3,10 +3,6 @@
   &PROPERTIES
     &TDDFPT
        KERNEL FULL
-       &XC
-         &XC_FUNCTIONAL PBE
-         &END XC_FUNCTIONAL
-       &END XC
        NSTATES      1
        MAX_ITER    50
        CONVERGENCE [eV] 1.0e-7
@@ -14,10 +10,10 @@
     &END TDDFPT
   &END PROPERTIES
   &DFT
-    LSD
     &QS
       METHOD GPW
     &END QS
+    BASIS_SET_FILE_NAME BASIS_SET
     &EXCITED_STATES T
        STATE 1
     &END EXCITED_STATES
@@ -29,18 +25,21 @@
       &END
       &OUTER_SCF
          MAX_SCF  10
-         EPS_SCF 1.0E-6
+         EPS_SCF 1.0E-7
       &END
       MAX_SCF  50
-      EPS_SCF 1.0E-6
+      EPS_SCF 1.0E-7
     &END SCF
     &XC
-      &XC_FUNCTIONAL PBE
+      &XC_FUNCTIONAL NONE
       &END XC_FUNCTIONAL
+      &HF
+        FRACTION 1.0
+      &END
     &END XC
     &MGRID
-       CUTOFF  200
-       REL_CUTOFF  40
+       CUTOFF  280
+       REL_CUTOFF  60
     &END
     &POISSON
        PERIODIC NONE
@@ -82,6 +81,7 @@
 &END GLOBAL
 &MOTION
   &GEO_OPT
-     MAX_ITER 1
+     MAX_ITER 2
   &END
 &END
+

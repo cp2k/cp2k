@@ -2,22 +2,21 @@
   METHOD Quickstep
   &PROPERTIES
     &TDDFPT
-       KERNEL FULL
-       &XC
-         &XC_FUNCTIONAL PBE
-         &END XC_FUNCTIONAL
-       &END XC
-       NSTATES      1
+       KERNEL sTDA
+       &sTDA
+          FRACTION 0.50
+       &END sTDA
+       NSTATES      5
        MAX_ITER    50
        CONVERGENCE [eV] 1.0e-7
        RKS_TRIPLETS F
     &END TDDFPT
   &END PROPERTIES
   &DFT
-    LSD
     &QS
       METHOD GPW
     &END QS
+    LSD
     &EXCITED_STATES T
        STATE 1
     &END EXCITED_STATES
@@ -49,7 +48,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom] 4.0 4.0 4.0
+      ABC [angstrom] 5.0 5.0 5.0
       PERIODIC NONE
     &END
     &COORD
@@ -85,3 +84,4 @@
      MAX_ITER 1
   &END
 &END
+

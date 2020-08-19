@@ -500,6 +500,17 @@ CONTAINS
                CALL dbcsr_copy(ex_env%matrix_px1(ispin)%matrix, matrix_s(1)%matrix)
                CALL dbcsr_set(ex_env%matrix_px1(ispin)%matrix, 0.0_dp)
             END DO
+            ! Kernel ADMM
+            IF (tddfpt_control%do_admm) THEN
+               CALL get_qs_env(qs_env, admm_env=admm_env, matrix_s_aux_fit=matrix_s_aux_fit)
+               CALL dbcsr_allocate_matrix_set(ex_env%matrix_px1_admm, nspins)
+               DO ispin = 1, nspins
+                  ALLOCATE (ex_env%matrix_px1_admm(ispin)%matrix)
+                  CALL dbcsr_create(ex_env%matrix_px1_admm(ispin)%matrix, template=matrix_s_aux_fit(1)%matrix)
+                  CALL dbcsr_copy(ex_env%matrix_px1_admm(ispin)%matrix, matrix_s_aux_fit(1)%matrix)
+                  CALL dbcsr_set(ex_env%matrix_px1_admm(ispin)%matrix, 0.0_dp)
+               END DO
+            END IF
             ! TDA forces
             CALL tddfpt_forces(qs_env, ex_env, gs_mos, kernel_env, sub_env, work_matrices)
             ! Rotate res vector cpmos into original frame of occupied orbitals

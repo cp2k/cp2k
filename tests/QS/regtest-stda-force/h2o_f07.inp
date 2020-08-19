@@ -6,7 +6,7 @@
        &sTDA
           FRACTION 0.50
        &END sTDA
-       NSTATES      5
+       NSTATES      1
        MAX_ITER    50
        CONVERGENCE [eV] 1.0e-7
        RKS_TRIPLETS F
@@ -37,7 +37,7 @@
       &END XC_FUNCTIONAL
     &END XC
     &MGRID
-       CUTOFF  280
+       CUTOFF  200
        REL_CUTOFF  60
     &END
     &POISSON
@@ -80,6 +80,6 @@
 &END GLOBAL
 &MOTION
   &GEO_OPT
-     MAX_ITER 2
+     MAX_ITER 1
   &END
 &END

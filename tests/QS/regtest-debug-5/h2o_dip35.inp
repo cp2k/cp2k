@@ -3,12 +3,6 @@
   &PROPERTIES
     &TDDFPT
        KERNEL FULL
-#       &XC
-#         &XC_FUNCTIONAL NONE
-#         &END XC_FUNCTIONAL
-#         &HF
-#         &END
-#       &END XC
        NSTATES      1
        MAX_ITER    50
        CONVERGENCE [eV] 1.0e-7
@@ -48,6 +42,10 @@
          REFERENCE COM
       &END
     &END
+    &POISSON
+       PERIODIC NONE
+       POISSON_SOLVER MT
+    &END
   &END DFT
   &SUBSYS
     &CELL
@@ -77,14 +75,5 @@
 &GLOBAL
   PRINT_LEVEL LOW
   PROJECT ec_dipole
-  RUN_TYPE DEBUG
+  RUN_TYPE ENERGY_FORCE
 &END GLOBAL
-
-&DEBUG
-   DEBUG_FORCES .FALSE.
-   DEBUG_STRESS_TENSOR .FALSE.
-   DEBUG_DIPOLE .TRUE.
-   DEBUG_POLARIZABILITY .FALSE.
-   DE 0.002
-&END
-

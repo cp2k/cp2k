@@ -37,7 +37,7 @@
       &END XC_FUNCTIONAL
     &END XC
     &MGRID
-       CUTOFF  280
+       CUTOFF  200
        REL_CUTOFF  40
     &END
     &POISSON
@@ -80,6 +80,6 @@
 &END GLOBAL
 &MOTION
   &GEO_OPT
-     MAX_ITER 2
+     MAX_ITER 1
   &END
 &END

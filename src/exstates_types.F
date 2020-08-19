@@ -45,6 +45,7 @@ MODULE exstates_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hz => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_pe_admm => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_px1 => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_px1_admm => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_wx1 => NULL()
       TYPE(pw_p_type), POINTER                           :: vh_rspace => NULL()
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rspace => NULL()
@@ -87,6 +88,8 @@ CONTAINS
          NULLIFY (ex_env%matrix_pe_admm)
          IF (ASSOCIATED(ex_env%matrix_px1)) CALL dbcsr_deallocate_matrix_set(ex_env%matrix_px1)
          NULLIFY (ex_env%matrix_px1)
+         IF (ASSOCIATED(ex_env%matrix_px1_admm)) CALL dbcsr_deallocate_matrix_set(ex_env%matrix_px1_admm)
+         NULLIFY (ex_env%matrix_px1_admm)
          IF (ASSOCIATED(ex_env%matrix_wx1)) CALL dbcsr_deallocate_matrix_set(ex_env%matrix_wx1)
          NULLIFY (ex_env%matrix_wx1)
          !

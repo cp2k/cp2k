@@ -2,24 +2,18 @@
   METHOD Quickstep
   &PROPERTIES
     &TDDFPT
-       KERNEL FULL
-       &XC
-         &XC_FUNCTIONAL PBE
-         &END XC_FUNCTIONAL
-       &END XC
-       NSTATES      1
+       KERNEL NONE
+       NSTATES      5
        MAX_ITER    50
        CONVERGENCE [eV] 1.0e-7
-       RKS_TRIPLETS F
     &END TDDFPT
   &END PROPERTIES
   &DFT
-    LSD
     &QS
       METHOD GPW
     &END QS
     &EXCITED_STATES T
-       STATE 1
+       STATE 4
     &END EXCITED_STATES
     &SCF
       SCF_GUESS ATOMIC 
@@ -35,7 +29,7 @@
       EPS_SCF 1.0E-6
     &END SCF
     &XC
-      &XC_FUNCTIONAL PBE
+      &XC_FUNCTIONAL PBE0
       &END XC_FUNCTIONAL
     &END XC
     &MGRID
@@ -85,3 +79,4 @@
      MAX_ITER 1
   &END
 &END
+

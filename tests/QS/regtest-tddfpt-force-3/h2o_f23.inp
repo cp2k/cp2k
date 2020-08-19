@@ -4,16 +4,17 @@
     &TDDFPT
        KERNEL FULL
        &XC
-         &XC_FUNCTIONAL PBE
+         &XC_FUNCTIONAL NONE
          &END XC_FUNCTIONAL
        &END XC
-       NSTATES      5
+       NSTATES      3
        MAX_ITER    50
        CONVERGENCE [eV] 1.0e-7
        RKS_TRIPLETS F
     &END TDDFPT
   &END PROPERTIES
   &DFT
+    LSD
     &QS
       METHOD GPW
     &END QS
@@ -21,7 +22,7 @@
     BASIS_SET_FILE_NAME BASIS_ADMM
     &AUXILIARY_DENSITY_MATRIX_METHOD
       ADMM_PURIFICATION_METHOD NONE
-      EXCH_CORRECTION_FUNC NONE
+      EXCH_CORRECTION_FUNC DEFAULT
       EXCH_SCALING_MODEL NONE
       METHOD BASIS_PROJECTION
     &END
@@ -36,18 +37,18 @@
       &END
       &OUTER_SCF
          MAX_SCF  10
-         EPS_SCF 1.0E-8
+         EPS_SCF 1.0E-6
       &END
       MAX_SCF  50
-      EPS_SCF 1.0E-8
+      EPS_SCF 1.0E-6
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE0
       &END XC_FUNCTIONAL
     &END XC
     &MGRID
-       CUTOFF  280
-       REL_CUTOFF  60
+       CUTOFF  200
+       REL_CUTOFF  40
     &END
     &POISSON
        PERIODIC NONE
@@ -91,7 +92,7 @@
 &END GLOBAL
 &MOTION
   &GEO_OPT
-     MAX_ITER 2
+     MAX_ITER 1
   &END
 &END
 

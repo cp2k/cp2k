@@ -30,4 +30,8 @@ h2o_dip25.inp                                          86      1e-09            
 #h2o_dip32.inp                                          86      1e-05             0.000000000000E+00    *EC - PADE - PADE HARRIS Basis
 #h2o_dip33.inp                                          86      1e-05             0.000000000000E+00    *EC - PADE - PADE HARRIS Basis
 #h2o_dip34.inp                                          86      1e-05             0.000000000000E+00    *EC - PADE - PADE HARRIS Basis
+h2o_dip35.inp                                          86      1e-05             0.159623722231E+00
+h2o_dip36.inp                                          86      1e-05             0.159624169779E+00
+h2o_dip37.inp                                          86      1e-05             0.145842142590E+00
+#h2o_dip38.inp                                         86      1e-05             0.000000000000E+00     ADMM/DEFAULT
 #EOF

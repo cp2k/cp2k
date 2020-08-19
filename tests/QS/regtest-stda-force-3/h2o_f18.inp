@@ -4,7 +4,7 @@
     &TDDFPT
        KERNEL sTDA
        &sTDA
-          FRACTION 0.00
+          FRACTION 0.50
        &END sTDA
        NSTATES      5
        MAX_ITER    50
@@ -19,7 +19,7 @@
     LSD
     CHARGE 1
     &EXCITED_STATES T
-       STATE 4
+       STATE 1
     &END EXCITED_STATES
     &SCF
       SCF_GUESS ATOMIC 
@@ -29,17 +29,17 @@
       &END
       &OUTER_SCF
          MAX_SCF  10
-         EPS_SCF 1.0E-7
+         EPS_SCF 1.0E-6
       &END
       MAX_SCF  50
-      EPS_SCF 1.0E-7
+      EPS_SCF 1.0E-6
     &END SCF
     &XC
       &XC_FUNCTIONAL PADE
       &END XC_FUNCTIONAL
     &END XC
     &MGRID
-       CUTOFF  280
+       CUTOFF  200
        REL_CUTOFF  60
     &END
     &POISSON
@@ -49,7 +49,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom] 6.0 6.0 6.0
+      ABC [angstrom] 5.0 5.0 5.0
       PERIODIC NONE
     &END
     &COORD
@@ -82,7 +82,7 @@
 &END GLOBAL
 &MOTION
   &GEO_OPT
-     MAX_ITER 2
+     MAX_ITER 1
   &END
 &END
 
