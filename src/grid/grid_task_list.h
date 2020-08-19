@@ -9,19 +9,18 @@
 
 // Opaque handles, internals are private.
 typedef struct {
-    void* internal;
+  void *internal;
 } grid_basis_set_t;
 
 typedef struct {
-    void* internal;
+  void *internal;
 } grid_task_list_t;
-
 
 //******************************************************************************
 // \brief Allocates a basis set which can be passed to grid_create_task_list.
 //
 // \param nset            Number of sets this basis is composed of.
-// \param nsgf            Size of contracted spherical basis, ie. the block size.
+// \param nsgf            Size of contracted spherical basis, ie. the block size
 // \param maxco           Maximum number of Cartesian functions across all sets.
 // \param maxpgf          Maximum number of primitive Gaussians across all sets.
 //
@@ -39,26 +38,19 @@ typedef struct {
 //
 // \author Ole Schuett
 //******************************************************************************
-void grid_create_basis_set(const int nset,
-                           const int nsgf,
-                           const int maxco,
-                           const int maxpgf,
-                           const int lmin[nset],
-                           const int lmax[nset],
-                           const int npgf[nset],
-                           const int nsgf_set[nset],
-                           const int first_sgf[nset],
+void grid_create_basis_set(const int nset, const int nsgf, const int maxco,
+                           const int maxpgf, const int lmin[nset],
+                           const int lmax[nset], const int npgf[nset],
+                           const int nsgf_set[nset], const int first_sgf[nset],
                            const double sphi[nsgf][maxco],
                            const double zet[nset][maxpgf],
-                           grid_basis_set_t* basis_set);
-
+                           grid_basis_set_t *basis_set);
 
 //******************************************************************************
 // \brief Deallocates given basis set.
 // \author Ole Schuett
 //******************************************************************************
 void grid_free_basis_set(grid_basis_set_t basis_set);
-
 
 //******************************************************************************
 // \brief Allocates a task list which can be passed to grid_collocate_task_list.
@@ -68,7 +60,7 @@ void grid_free_basis_set(grid_basis_set_t basis_set);
 // \param natoms           Number of atoms.
 // \param nkinds           Number of atomic kinds.
 // \param nblocks          Number of local matrix blocks.
-// \param buffer_size      Required buffer size to store all local matrix blocks.
+// \param buffer_size      Required buffer size to store all local matrix blocks
 // \param block_offsets    Offset of each block within the buffer (zero based).
 // \param atom_positions   Position of the atoms.
 // \param atom_kinds       Mapping from atom to atomic kind (one based).
@@ -83,9 +75,9 @@ void grid_free_basis_set(grid_basis_set_t basis_set);
 // \param jset_list        Index of second set (one based).
 // \param ipgf_list        Index of first expoenent (one based).
 // \param jpgf_list        Index of second expoenent (one based).
-// \param border_mask_list Bit-pattern determining which border regions to exclude.
+// \param border_mask_list Bit-pattern determining border regions to exclude.
 // \param block_num_list   Index into the block_offsets array (one based).
-// \param radius_list      Radius where Gaussian becomes smaller than threshold eps.
+// \param radius_list      Radius where Gaussian becomes smaller than threshold.
 // \param rab_list         Vector between atoms, encodes the virtual image.
 //
 // \param blocks_buffer    Allocate buffer ready to be filled with blocks.
@@ -93,37 +85,23 @@ void grid_free_basis_set(grid_basis_set_t basis_set);
 //
 // \author Ole Schuett
 //******************************************************************************
-void grid_create_task_list(const int ntasks,
-                           const int nlevels,
-                           const int natoms,
-                           const int nkinds,
-                           const int nblocks,
-                           const int buffer_size,
-                           const int block_offsets[nblocks],
-                           const double atom_positions[natoms][3],
-                           const int atom_kinds[natoms],
-                           const grid_basis_set_t basis_sets[nkinds],
-                           const int level_list[ntasks],
-                           const int iatom_list[ntasks],
-                           const int jatom_list[ntasks],
-                           const int iset_list[ntasks],
-                           const int jset_list[ntasks],
-                           const int ipgf_list[ntasks],
-                           const int jpgf_list[ntasks],
-                           const int border_mask_list[ntasks],
-                           const int block_num_list[ntasks],
-                           const double radius_list[ntasks],
-                           const double rab_list[ntasks][3],
-                           double **blocks_buffer,
-                           grid_task_list_t* task_list);
-
+void grid_create_task_list(
+    const int ntasks, const int nlevels, const int natoms, const int nkinds,
+    const int nblocks, const int buffer_size, const int block_offsets[nblocks],
+    const double atom_positions[natoms][3], const int atom_kinds[natoms],
+    const grid_basis_set_t basis_sets[nkinds], const int level_list[ntasks],
+    const int iatom_list[ntasks], const int jatom_list[ntasks],
+    const int iset_list[ntasks], const int jset_list[ntasks],
+    const int ipgf_list[ntasks], const int jpgf_list[ntasks],
+    const int border_mask_list[ntasks], const int block_num_list[ntasks],
+    const double radius_list[ntasks], const double rab_list[ntasks][3],
+    double **blocks_buffer, grid_task_list_t *task_list);
 
 //******************************************************************************
 // \brief Deallocates given task list, basis_sets have to be freed separately.
 // \author Ole Schuett
 //******************************************************************************
 void grid_free_task_list(grid_task_list_t task_list);
-
 
 //******************************************************************************
 // \brief Collocate all tasks of in given list onto given grids.
@@ -137,7 +115,7 @@ void grid_free_task_list(grid_task_list_t task_list);
 //
 // \param npts_global     Number of global grid points in each direction.
 // \param npts_local      Number of local grid points in each direction.
-// \param shift_local     Number of points the local grid is shifted wrt global grid.
+// \param shift_local     Number of points local grid is shifted wrt global grid
 // \param border_width    Width of halo region in grid points in each direction.
 // \param dh              Incremental grid matrix.
 // \param dh_inv          Inverse incremental grid matrix.
@@ -145,17 +123,12 @@ void grid_free_task_list(grid_task_list_t task_list);
 //
 // \author Ole Schuett
 //******************************************************************************
-void grid_collocate_task_list(const grid_task_list_t task_list,
-                              const bool orthorhombic,
-                              const int func,
-                              const int nlevels,
-                              const int npts_global[nlevels][3],
-                              const int npts_local[nlevels][3],
-                              const int shift_local[nlevels][3],
-                              const int border_width[nlevels][3],
-                              const double dh[nlevels][3][3],
-                              const double dh_inv[nlevels][3][3],
-                              double* grid[nlevels]);
+void grid_collocate_task_list(
+    const grid_task_list_t task_list, const bool orthorhombic, const int func,
+    const int nlevels, const int npts_global[nlevels][3],
+    const int npts_local[nlevels][3], const int shift_local[nlevels][3],
+    const int border_width[nlevels][3], const double dh[nlevels][3][3],
+    const double dh_inv[nlevels][3][3], double *grid[nlevels]);
 
 #endif
-//EOF
+// EOF
