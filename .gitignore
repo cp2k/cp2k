@@ -12,6 +12,8 @@
 # ensure people are not accidentally committing an old .svnignore when copying their stuff
 .svnignore
 
+# allow folks to create a .clang-format to hide their personal style settings
+.clang-format
 
 # Created by https://www.gitignore.io/api/python,fortran,c,c++,cuda,emacs,vim
 
