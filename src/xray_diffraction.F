@@ -691,12 +691,12 @@ CONTAINS
                               ison = o2nindex(iso)
                               json = o2nindex(jso)
                               CALL dgemm("N", "N", nso(la), nco(lb), nso(lb), 1.0_dp, &
-                                         delta_cpc(ison:, json), SIZE(delta_cpc, 1), &
+                                         delta_cpc(ison:ison + nso(la) - 1, json), SIZE(delta_cpc, 1), &
                                          orbtramat(lb)%slm, nso(lb), 0.0_dp, work, &
                                          maxso)
                               CALL dgemm("T", "N", nco(la), nco(lb), nso(la), 1.0_dp, &
                                          orbtramat(la)%slm, nso(la), work, maxso, &
-                                         0.0_dp, pab(ico:, jco), SIZE(pab, 1))
+                                         0.0_dp, pab(ico:ico + nco(la) - 1, jco), SIZE(pab, 1))
                               jco = jco + nco(lb)
                               jso = jso + nso(lb)
                            END DO ! next lb
