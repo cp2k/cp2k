@@ -7,6 +7,6 @@
 #define FFT_CUDA_UTILS_H
 #include <cufft.h>
 
-extern void cufft_error_check (cufftResult_t cufftError, int line);
+extern void cufft_error_check(cufftResult_t cufftError, int line);
 
 #endif

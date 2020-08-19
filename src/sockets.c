@@ -35,21 +35,21 @@ Functions:
 */
 #ifndef __NO_IPI_DRIVER
 
-#define _XOPEN_SOURCE 700   /* Enable POSIX 2008/13 */
+#define _XOPEN_SOURCE 700 /* Enable POSIX 2008/13 */
 
+#include <math.h>
+#include <netdb.h>
+#include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
-#include <time.h>
-#include <sys/types.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
+#include <sys/types.h>
 #include <sys/un.h>
-#include <netdb.h>
-#include <math.h>
+#include <time.h>
+#include <unistd.h>
 
-void open_socket(int *psockfd, int* inet, int* port, char* host)
+void open_socket(int *psockfd, int *inet, int *port, char *host)
 /* Opens a socket.
 
 Note that fortran passes an extra argument for the string length, but this is
@@ -66,54 +66,63 @@ Args:
 */
 
 {
-   int sockfd, ai_err;
+  int sockfd, ai_err;
 
-   if (*inet>0)
-   {  // creates an internet socket
+  if (*inet > 0) { // creates an internet socket
 
-      // fetches information on the host
-      struct addrinfo hints, *res;
-      char service[256];
+    // fetches information on the host
+    struct addrinfo hints, *res;
+    char service[256];
 
-      memset(&hints, 0, sizeof(hints));
-      hints.ai_socktype = SOCK_STREAM;
-      hints.ai_family = AF_INET;
-      hints.ai_flags = AI_PASSIVE;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_family = AF_INET;
+    hints.ai_flags = AI_PASSIVE;
 
-      sprintf(service,"%d",*port); // convert the port number to a string
-      ai_err = getaddrinfo(host, service, &hints, &res);
-      if (ai_err!=0) { perror("Error fetching host data. Wrong host name?"); exit(-1); }
+    sprintf(service, "%d", *port); // convert the port number to a string
+    ai_err = getaddrinfo(host, service, &hints, &res);
+    if (ai_err != 0) {
+      perror("Error fetching host data. Wrong host name?");
+      exit(-1);
+    }
 
-      // creates socket
-      sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-      if (sockfd < 0) { perror("Error opening socket"); exit(-1); }
+    // creates socket
+    sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    if (sockfd < 0) {
+      perror("Error opening socket");
+      exit(-1);
+    }
 
-      // makes connection
-      if (connect(sockfd, res->ai_addr, res->ai_addrlen) < 0) { perror("Error opening INET socket: wrong port or server unreachable"); exit(-1); }
-      freeaddrinfo(res);
-   }
-   else
-   {  // creates a unix socket
-      struct sockaddr_un serv_addr;
+    // makes connection
+    if (connect(sockfd, res->ai_addr, res->ai_addrlen) < 0) {
+      perror("Error opening INET socket: wrong port or server unreachable");
+      exit(-1);
+    }
+    freeaddrinfo(res);
+  } else { // creates a unix socket
+    struct sockaddr_un serv_addr;
 
-      // fills up details of the socket address
-      memset(&serv_addr, 0, sizeof(serv_addr));
-      serv_addr.sun_family = AF_UNIX;
-      strcpy(serv_addr.sun_path, "/tmp/ipi_");
-      strcpy(serv_addr.sun_path+9, host);
+    // fills up details of the socket address
+    memset(&serv_addr, 0, sizeof(serv_addr));
+    serv_addr.sun_family = AF_UNIX;
+    strcpy(serv_addr.sun_path, "/tmp/ipi_");
+    strcpy(serv_addr.sun_path + 9, host);
 
-      // creates the socket
-      sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
+    // creates the socket
+    sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
 
-      // connects
-      if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) { perror("Error opening UNIX socket: path unavailable, or already existing"); exit(-1); }
-   }
+    // connects
+    if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+      perror(
+          "Error opening UNIX socket: path unavailable, or already existing");
+      exit(-1);
+    }
+  }
 
-
-   *psockfd=sockfd;
+  *psockfd = sockfd;
 }
 
-void writebuffer(int *psockfd, char *data, int* plen)
+void writebuffer(int *psockfd, char *data, int *plen)
 /* Writes to a socket.
 
 Args:
@@ -123,16 +132,18 @@ Args:
 */
 
 {
-   int n;
-   int sockfd=*psockfd;
-   int len=*plen;
+  int n;
+  int sockfd = *psockfd;
+  int len = *plen;
 
-   n = write(sockfd,data,len);
-   if (n < 0) { perror("Error writing to socket: server has quit or connection broke"); exit(-1); }
+  n = write(sockfd, data, len);
+  if (n < 0) {
+    perror("Error writing to socket: server has quit or connection broke");
+    exit(-1);
+  }
 }
 
-
-void readbuffer(int *psockfd, char *data, int* plen)
+void readbuffer(int *psockfd, char *data, int *plen)
 /* Reads from a socket.
 
 Args:
@@ -142,16 +153,21 @@ Args:
 */
 
 {
-   int n, nr;
-   int sockfd=*psockfd;
-   int len=*plen;
+  int n, nr;
+  int sockfd = *psockfd;
+  int len = *plen;
 
-   n = nr = read(sockfd,data,len);
+  n = nr = read(sockfd, data, len);
 
-   while (nr>0 && n<len )
-   {  nr=read(sockfd,&data[n],len-n); n+=nr; }
+  while (nr > 0 && n < len) {
+    nr = read(sockfd, &data[n], len - n);
+    n += nr;
+  }
 
-   if (n == 0) { perror("Error reading from socket: server has quit or connection broke"); exit(-1); }
+  if (n == 0) {
+    perror("Error reading from socket: server has quit or connection broke");
+    exit(-1);
+  }
 }
 
 void uwait(double *dsec)
@@ -161,10 +177,10 @@ void uwait(double *dsec)
      dsec:  number of seconds to wait (float values accepted)
 */
 {
-   struct timespec wt, rem;
-   wt.tv_sec = floor(*dsec); wt.tv_nsec=(*dsec-wt.tv_sec)*1000000000;
-   nanosleep(&wt, &rem);
+  struct timespec wt, rem;
+  wt.tv_sec = floor(*dsec);
+  wt.tv_nsec = (*dsec - wt.tv_sec) * 1000000000;
+  nanosleep(&wt, &rem);
 }
 
 #endif
-

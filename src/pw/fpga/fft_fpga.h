@@ -5,10 +5,10 @@
 
 #ifndef FFT_FPGA_H
 #define FFT_FPGA_H
-/******************************************************************************
- *  Authors: Arjun Ramaswami
- *****************************************************************************/
-#if defined ( __PW_FPGA )
+//******************************************************************************
+// \author Arjun Ramaswami
+//******************************************************************************
+#if defined(__PW_FPGA)
 
 typedef struct {
   double x;
@@ -21,9 +21,9 @@ typedef struct {
 } float2;
 
 #ifdef __PW_FPGA_SP
-    typedef float2 cmplx;
+typedef float2 cmplx;
 #else
-    typedef double2 cmplx;
+typedef double2 cmplx;
 #endif
 
 // Initialize FPGA
