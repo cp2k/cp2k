@@ -90,6 +90,7 @@ CONTAINS
 
       INTEGER                                            :: idefault
       LOGICAL                                            :: ldefault
+      REAL(KIND=dp)                                      :: rdefault
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
 
@@ -225,6 +226,26 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      NULLIFY (subsection)
+      CALL section_create(subsection, __LOCATION__, name="TENSOR", &
+                          description="Configuration options for Tensors.", &
+                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+
+      CALL dbcsr_get_default_config(tas_split_factor=rdefault)
+      CALL keyword_create(keyword, __LOCATION__, name="TAS_SPLIT_FACTOR", &
+                          description="Parameter for hybrid DBCSR-TAS matrix-matrix multiplication algorithm: "// &
+                          "a TAS matrix is split into s submatrices with s = N_max/(N_min*f) with f "// &
+                          "given by this parameter and N_max/N_min the max/min occupancies of the matrices "// &
+                          "involved in a multiplication. A large value makes the multiplication Cannon-based "// &
+                          "(s=1) and a small value (> 0) makes the multiplication based on TAS algorithm "// &
+                          "(s=number of MPI ranks)", &
+                          default_r_val=rdefault)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       !---------------------------------------------------------------------------
       NULLIFY (subsection)
       CALL section_create(subsection, __LOCATION__, name="ACC", &
@@ -332,6 +353,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ival
       LOGICAL                                            :: lval
+      REAL(kind=real_8)                                  :: rval
       TYPE(section_vals_type), POINTER                   :: dbcsr_section
 
       CALL timeset(routineN, handle)
@@ -375,6 +397,9 @@ CONTAINS
 
       CALL section_vals_val_get(dbcsr_section, "use_mempools_cpu", l_val=lval)
       CALL dbcsr_set_config(use_mempools_cpu=lval)
+
+      CALL section_vals_val_get(dbcsr_section, "TENSOR%tas_split_factor", r_val=rval)
+      CALL dbcsr_set_config(tas_split_factor=rval)
 
       CALL section_vals_val_get(dbcsr_section, "ACC%priority_streams", i_val=ival)
       CALL dbcsr_set_config(accdrv_priority_streams=ival)

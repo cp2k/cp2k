@@ -43,9 +43,8 @@ MODULE mp2_integrals
         dbcsr_t_clear, dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_create, dbcsr_t_destroy, &
         dbcsr_t_distribution_destroy, dbcsr_t_distribution_new, dbcsr_t_distribution_type, &
         dbcsr_t_filter, dbcsr_t_get_block, dbcsr_t_get_stored_coordinates, &
-        dbcsr_t_mp_environ_pgrid, dbcsr_t_pgrid_create, dbcsr_t_pgrid_create_expert, &
-        dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, dbcsr_t_put_block, dbcsr_t_reserve_blocks, &
-        dbcsr_t_split_blocks, dbcsr_t_type
+        dbcsr_t_mp_environ_pgrid, dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, &
+        dbcsr_t_put_block, dbcsr_t_reserve_blocks, dbcsr_t_split_blocks, dbcsr_t_type
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
                                               group_dist_d1_type
@@ -63,7 +62,6 @@ MODULE mp2_integrals
    USE libint_2c_3c,                    ONLY: libint_potential_type
    USE machine,                         ONLY: m_flush
    USE message_passing,                 ONLY: mp_cart_create,&
-                                              mp_dims_create,&
                                               mp_environ,&
                                               mp_max,&
                                               mp_sendrecv,&
@@ -243,9 +241,8 @@ CONTAINS
          my_B_size_beta, my_B_virt_bse_end, my_B_virt_bse_size, my_B_virt_bse_start, &
          my_B_virtual_end, my_B_virtual_end_beta, my_B_virtual_start, my_B_virtual_start_beta, &
          my_group_L_end
-      INTEGER :: my_group_L_size, my_group_L_start, natom, ngroup, ngroup_im_time, &
-         ngroup_im_time_P, nimg, nkind, num_small_eigen, potential_type, ri_metric_type, virtual, &
-         virtual_beta
+      INTEGER :: my_group_L_size, my_group_L_start, natom, ngroup, nimg, nkind, num_small_eigen, &
+         potential_type, ri_metric_type, virtual, virtual_beta
       INTEGER, ALLOCATABLE, DIMENSION(:) :: dist_AO_1, dist_AO_2, dist_RI, &
          ends_array_mc_block_int, ends_array_mc_int, sizes_AO, sizes_AO_split, sizes_RI, &
          sizes_RI_split, starts_array_mc_block_int, starts_array_mc_int, sub_proc_map
@@ -254,7 +251,7 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: pcoord, pdims, pdims_t3c, periodic
       LOGICAL                                            :: do_alpha_beta, do_gpw, &
                                                             do_kpoints_from_Gamma, do_svd, &
-                                                            impose_split, memory_info
+                                                            memory_info
       REAL(KIND=dp)                                      :: cond_num, cutoff_old, eps_svd, &
                                                             mem_for_iaK, omega_pot, rc_ang, &
                                                             relative_cutoff_old
@@ -764,13 +761,6 @@ CONTAINS
          ! imag. time = low-scaling SOS-MP2, RPA, GW
       ELSE
 
-         impose_split = .NOT. qs_env%mp2_env%ri_rpa_im_time%group_size_internal
-
-         IF (impose_split) THEN
-            ngroup_im_time = para_env%num_pe/qs_env%mp2_env%ri_rpa_im_time%group_size_3c
-            ngroup_im_time_P = para_env%num_pe/qs_env%mp2_env%ri_rpa_im_time%group_size_p
-         ENDIF
-
          memory_info = qs_env%mp2_env%ri_rpa_im_time%memory_info
 
          ! we need 3 tensors:
@@ -781,12 +771,8 @@ CONTAINS
 
          CALL get_qs_env(qs_env, natom=natom, nkind=nkind, dft_control=dft_control)
 
-         IF (.NOT. impose_split) THEN
-            pdims_t3c = 0
-            CALL dbcsr_t_pgrid_create(para_env%group, pdims_t3c, pgrid_t3c_overl)
-         ELSE
-            pgrid_t3c_overl = get_pgrid_from_ngroup(para_env, ngroup_im_time, map1_2d=[1, 2], map2_2d=[3])
-         ENDIF
+         pdims_t3c = 0
+         CALL dbcsr_t_pgrid_create(para_env%group, pdims_t3c, pgrid_t3c_overl)
 
          ! set up basis
          ALLOCATE (sizes_RI(natom), sizes_AO(natom))
@@ -804,8 +790,6 @@ CONTAINS
 
          CALL create_3c_tensor(t_3c_overl_int_template, dist_RI, dist_AO_1, dist_AO_2, pgrid_t3c_overl, &
                                sizes_RI, sizes_AO, sizes_AO, map1=[1, 2], map2=[3], &
-                               starts_array_block_2=starts_array_mc_block_int, &
-                               ends_array_block_2=ends_array_mc_block_int, &
                                name="O (RI AO | AO)")
 
          CALL get_qs_env(qs_env, nkind=nkind, particle_set=particle_set)
@@ -848,12 +832,8 @@ CONTAINS
          CALL pgf_block_sizes(atomic_kind_set, basis_set_ao, min_bsize, sizes_AO_split)
          CALL pgf_block_sizes(atomic_kind_set, basis_set_ri_aux, min_bsize, sizes_RI_split)
 
-         IF (.NOT. impose_split) THEN
-            pdims_t3c = 0
-            CALL dbcsr_t_pgrid_create(para_env%group, pdims_t3c, pgrid_t3c_M)
-         ELSE
-            pgrid_t3c_M = get_pgrid_from_ngroup(para_env, ngroup_im_time_P, map1_2d=[1], map2_2d=[2, 3])
-         ENDIF
+         pdims_t3c = 0
+         CALL dbcsr_t_pgrid_create(para_env%group, pdims_t3c, pgrid_t3c_M)
 
          ASSOCIATE (cut_memory=>qs_env%mp2_env%ri_rpa_im_time%cut_memory)
             CALL create_tensor_batches(sizes_AO_split, cut_memory, starts_array_mc, ends_array_mc, &
@@ -864,10 +844,6 @@ CONTAINS
          CALL create_3c_tensor(t_3c_M, dist_RI, dist_AO_1, dist_AO_2, pgrid_t3c_M, &
                                sizes_RI_split, sizes_AO_split, sizes_AO_split, &
                                map1=[1], map2=[2, 3], &
-                               starts_array_block_2=starts_array_mc_block, &
-                               ends_array_block_2=ends_array_mc_block, &
-                               starts_array_block_3=starts_array_mc_block, &
-                               ends_array_block_3=ends_array_mc_block, &
                                name="M (RI | AO AO)")
 
          DEALLOCATE (dist_RI, dist_AO_1, dist_AO_2)
@@ -878,7 +854,6 @@ CONTAINS
          CALL create_3c_tensor(t_3c_O(1, 1), dist_RI, dist_AO_1, dist_AO_2, pgrid_t3c_overl, &
                                sizes_RI_split, sizes_AO_split, sizes_AO_split, &
                                map1=[1, 2], map2=[3], &
-                               starts_array_block_2=starts_array_mc_block, ends_array_block_2=ends_array_mc_block, &
                                name="O (RI AO | AO)")
          DEALLOCATE (dist_RI, dist_AO_1, dist_AO_2)
 
@@ -957,46 +932,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE mp2_ri_gpw_compute_in
-
-! **************************************************************************************************
-!> \brief heuristic to get a global 3d process grid that is consistent with a number of process subgroups
-!>        such that balanced (ideally square) 2d grids on subgroups are obtained
-!> \param para_env ...
-!> \param ngroup number of process groups
-!> \param map1_2d mapping of 3d grid to 2 dimensions (see dbcsr_t_pgrid_create)
-!> \param map2_2d mapping of 3d grid to 2 dimensions (see dbcsr_t_pgrid_create)
-!> \return process grid object compatible with DBCSR tensors
-! **************************************************************************************************
-   FUNCTION get_pgrid_from_ngroup(para_env, ngroup, map1_2d, map2_2d) RESULT(pgrid)
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
-      INTEGER, INTENT(IN)                                :: ngroup
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: map1_2d, map2_2d
-      TYPE(dbcsr_t_pgrid_type)                           :: pgrid
-
-      INTEGER                                            :: dimsplit, nproc_sub
-      INTEGER, DIMENSION(2)                              :: pdims_2_2d, pdims_sub_2d
-      INTEGER, DIMENSION(3)                              :: pdims_t3c
-
-      nproc_sub = para_env%num_pe/ngroup
-      pdims_sub_2d = 0
-      CALL mp_dims_create(nproc_sub, pdims_sub_2d)
-      pdims_2_2d = 0
-      CALL mp_dims_create(pdims_sub_2d(2)*ngroup, pdims_2_2d)
-      IF (SIZE(map1_2d) == 1) THEN
-         dimsplit = 2
-         pdims_t3c(map1_2d(1)) = pdims_sub_2d(1)
-         pdims_t3c(map2_2d) = pdims_2_2d
-      ELSEIF (SIZE(map2_2d) == 1) THEN
-         dimsplit = 1
-         pdims_t3c(map2_2d(1)) = pdims_sub_2d(1)
-         pdims_t3c(map1_2d) = pdims_2_2d
-      ELSE
-         CPABORT("map1_2d and map2_2d not compatible with a 3d grid")
-      ENDIF
-      CALL dbcsr_t_pgrid_create_expert(para_env%group, pdims_t3c, pgrid, &
-                                       map1_2d=map1_2d, map2_2d=map2_2d, &
-                                       nsplit=ngroup, dimsplit=dimsplit)
-   END FUNCTION
 
 ! **************************************************************************************************
 !> \brief Contract (P|ai) = (R|P) x (R|ai)

@@ -40,10 +40,10 @@ MODULE hfx_types
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE dbcsr_tensor_api,                ONLY: &
-        dbcsr_t_batched_contract_finalize, dbcsr_t_create, dbcsr_t_default_distvec, &
-        dbcsr_t_destroy, dbcsr_t_distribution_destroy, dbcsr_t_distribution_new, &
-        dbcsr_t_distribution_type, dbcsr_t_mp_dims_create, dbcsr_t_pgrid_create, &
-        dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, dbcsr_t_type
+        dbcsr_t_batched_contract_finalize, dbcsr_t_default_distvec, dbcsr_t_destroy, &
+        dbcsr_t_distribution_destroy, dbcsr_t_distribution_new, dbcsr_t_distribution_type, &
+        dbcsr_t_mp_dims_create, dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, &
+        dbcsr_t_type
    USE hfx_helpers,                     ONLY: count_cells_perd,&
                                               next_image_cell_perd
    USE input_constants,                 ONLY: &
@@ -1314,22 +1314,11 @@ CONTAINS
                                     ri_data%starts_array_RI_mem, ri_data%ends_array_RI_mem, &
                                     ri_data%starts_array_RI_mem_block, ri_data%ends_array_RI_mem_block)
 
-         ALLOCATE (ri_data%t_3c_int_ctr_1(ri_data%n_mem, ri_data%n_mem))
+         ALLOCATE (ri_data%t_3c_int_ctr_1(1, 1))
          CALL create_3c_tensor(ri_data%t_3c_int_ctr_1(1, 1), ri_data%dist1_ao_1, ri_data%dist1_ri, ri_data%dist1_ao_2, &
                                ri_data%pgrid, ri_data%bsizes_AO_split, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, &
                                [1, 2], [3], &
-                               starts_array_block_1=ri_data%starts_array_mem_block, &
-                               ends_array_block_1=ri_data%ends_array_mem_block, &
-                               starts_array_block_2=ri_data%starts_array_RI_mem_block, &
-                               ends_array_block_2=ri_data%ends_array_RI_mem_block, &
                                name="(AO RI | AO)")
-
-         DO i_mem = 1, ri_data%n_mem
-            DO j_mem = 1, ri_data%n_mem
-               IF (.NOT. (i_mem == 1 .AND. j_mem == 1)) &
-                  CALL dbcsr_t_create(ri_data%t_3c_int_ctr_1(1, 1), ri_data%t_3c_int_ctr_1(i_mem, j_mem))
-            ENDDO
-         ENDDO
 
          ALLOCATE (ri_data%blk_indices(ri_data%n_mem, ri_data%n_mem))
          ALLOCATE (ri_data%store_3c(ri_data%n_mem, ri_data%n_mem))
@@ -1343,20 +1332,12 @@ CONTAINS
          CALL create_3c_tensor(ri_data%t_3c_int_ctr_2(1, 1), ri_data%dist1_ao_1, ri_data%dist1_ri, ri_data%dist1_ao_2, &
                                ri_data%pgrid, ri_data%bsizes_AO_split, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, &
                                [1, 2], [3], &
-                               starts_array_block_2=ri_data%starts_array_RI_mem_block, &
-                               ends_array_block_2=ri_data%ends_array_RI_mem_block, &
-                               starts_array_block_3=ri_data%starts_array_mem_block, &
-                               ends_array_block_3=ri_data%ends_array_mem_block, &
                                name="(AO RI | AO)")
 
          ALLOCATE (ri_data%t_3c_int_ctr_3(1, 1))
          CALL create_3c_tensor(ri_data%t_3c_int_ctr_3(1, 1), ri_data%dist3_RI, ri_data%dist3_AO_1, ri_data%dist3_AO_2, &
                                ri_data%pgrid, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, ri_data%bsizes_AO_split, &
                                [1], [2, 3], &
-                               starts_array_block_1=ri_data%starts_array_RI_mem_block, &
-                               ends_array_block_1=ri_data%ends_array_RI_mem_block, &
-                               starts_array_block_2=ri_data%starts_array_mem_block, &
-                               ends_array_block_2=ri_data%ends_array_mem_block, &
                                name="(RI | AO AO)")
 
          ALLOCATE (ri_data%t_2c_int(1, 1))
@@ -1492,9 +1473,9 @@ CONTAINS
          DO i_mem = 1, ri_data%n_mem
          DO j_mem = 1, ri_data%n_mem
             CALL dealloc_containers(ri_data%store_3c(i_mem, j_mem), unused)
-            CALL dbcsr_t_destroy(ri_data%t_3c_int_ctr_1(i_mem, j_mem))
          ENDDO
          ENDDO
+         CALL dbcsr_t_destroy(ri_data%t_3c_int_ctr_1(1, 1))
          DEALLOCATE (ri_data%t_3c_int_ctr_1)
          CALL dbcsr_t_destroy(ri_data%t_3c_int_ctr_2(1, 1))
          DEALLOCATE (ri_data%t_3c_int_ctr_2)
@@ -1518,12 +1499,14 @@ CONTAINS
          DEALLOCATE (ri_data%t_3c_int_ctr_2)
 
          DO ispin = 1, SIZE(ri_data%t_3c_int_mo, 1)
+            CALL dbcsr_t_batched_contract_finalize(ri_data%t_2c_int(ispin, 1))
+            CALL dbcsr_t_batched_contract_finalize(ri_data%t_3c_int_mo(ispin, 1, 1))
+            CALL dbcsr_t_batched_contract_finalize(ri_data%t_3c_ctr_RI(ispin, 1, 1))
+            CALL dbcsr_t_destroy(ri_data%t_2c_int(ispin, 1))
             CALL dbcsr_t_destroy(ri_data%t_3c_int_mo(ispin, 1, 1))
             CALL dbcsr_t_destroy(ri_data%t_3c_ctr_RI(ispin, 1, 1))
             CALL dbcsr_t_destroy(ri_data%t_3c_ctr_KS(ispin, 1, 1))
             CALL dbcsr_t_destroy(ri_data%t_3c_ctr_KS_copy(ispin, 1, 1))
-            CALL dbcsr_t_batched_contract_finalize(ri_data%t_2c_int(ispin, 1))
-            CALL dbcsr_t_destroy(ri_data%t_2c_int(ispin, 1))
          ENDDO
          DEALLOCATE (ri_data%t_2c_int)
          DEALLOCATE (ri_data%t_3c_int_mo)

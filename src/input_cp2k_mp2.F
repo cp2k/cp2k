@@ -1040,7 +1040,6 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create( &
@@ -1160,39 +1159,6 @@ CONTAINS
          default_i_val=64)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-
-      NULLIFY (subsection)
-      CALL section_create(subsection, __LOCATION__, name="TEST", &
-                          description="Manually set performance-critical parameters that are otherwise automatically chosen. "// &
-                          "This section should not be "// &
-                          "placed except for testing/debugging.", &
-                          repeats=.FALSE.)
-
-      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
-                          description="Activates use of parameters in this section.", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="GROUP_SIZE_3c", &
-                          description= &
-                          "Group size used for "// &
-                          "the multiplication M^occ/virt(it)=(alpha beta P)*D^occ/virt.", &
-                          usage="GROUP_SIZE_3c 8", &
-                          default_i_val=1)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="GROUP_SIZE_P", &
-                          description= &
-                          "Group size used for the calculation of P(it)=(Mocc(it))^T*Mvirt(it). ", &
-                          usage="GROUP_SIZE_P 8", &
-                          default_i_val=1)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
 
    END SUBROUTINE
 
