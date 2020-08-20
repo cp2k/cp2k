@@ -874,7 +874,7 @@ CONTAINS
       LOGICAL                                            :: converged
       REAL(KIND=dp)                                      :: eps_max, eps_min, homo, lumo
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_type)                                   :: matrix_k, matrix_p
+      TYPE(dbcsr_type)                                   :: matrix_k, matrix_p, matrix_tmp
 
       CALL timeset(routineN, handle)
 
@@ -898,11 +898,13 @@ CONTAINS
 
       CALL dbcsr_create(matrix_k, template=ls_scf_env%matrix_p(1), matrix_type=dbcsr_type_no_symmetry)
 
+      CALL dbcsr_create(matrix_tmp, template=ls_scf_env%matrix_p(1), matrix_type=dbcsr_type_no_symmetry)
+
       DO ispin = 1, nspin
          ! ortho basis ks
          CALL dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt_inv, ls_scf_env%matrix_ks(ispin), &
-                             0.0_dp, matrix_k, filter_eps=ls_scf_env%eps_filter)
-         CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_k, ls_scf_env%matrix_s_sqrt_inv, &
+                             0.0_dp, matrix_tmp, filter_eps=ls_scf_env%eps_filter)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp, ls_scf_env%matrix_s_sqrt_inv, &
                              0.0_dp, matrix_k, filter_eps=ls_scf_env%eps_filter)
 
          ! extremal eigenvalues ks
@@ -911,8 +913,8 @@ CONTAINS
 
          ! ortho basis p
          CALL dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt, ls_scf_env%matrix_p(ispin), &
-                             0.0_dp, matrix_p, filter_eps=ls_scf_env%eps_filter)
-         CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_p, ls_scf_env%matrix_s_sqrt, &
+                             0.0_dp, matrix_tmp, filter_eps=ls_scf_env%eps_filter)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp, ls_scf_env%matrix_s_sqrt, &
                              0.0_dp, matrix_p, filter_eps=ls_scf_env%eps_filter)
          IF (nspin == 1) CALL dbcsr_scale(matrix_p, 0.5_dp)
 
@@ -924,6 +926,7 @@ CONTAINS
 
       CALL dbcsr_release(matrix_p)
       CALL dbcsr_release(matrix_k)
+      CALL dbcsr_release(matrix_tmp)
 
       CALL timestop(handle)
 

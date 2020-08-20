@@ -582,13 +582,12 @@ CONTAINS
                           0.0_dp, matrix_tmp, filter_eps=threshold)
       CALL dbcsr_add(matrix_tmp, matrix_p_ud, 1.0_dp, -1.0_dp)
       frob_matrix = dbcsr_frobenius_norm(matrix_tmp)
-      CALL dbcsr_release(matrix_tmp)
       IF (unit_nr > 0) WRITE (unit_nr, '(T2,A,F20.12)') "Deviation from idempotency: ", frob_matrix
 
       IF (sign_symmetric) THEN
          CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_p_ud, &
-                             0.0_dp, matrix_p, filter_eps=threshold)
-         CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_p, matrix_s_sqrt_inv, &
+                             0.0_dp, matrix_tmp, filter_eps=threshold)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp, matrix_s_sqrt_inv, &
                              0.0_dp, matrix_p, filter_eps=threshold)
       ELSE
 
@@ -597,6 +596,7 @@ CONTAINS
                              0.0_dp, matrix_p, filter_eps=threshold)
       ENDIF
       CALL dbcsr_release(matrix_p_ud)
+      CALL dbcsr_release(matrix_tmp)
 
       CALL timestop(handle)
 
@@ -692,14 +692,14 @@ CONTAINS
                           0.0_dp, matrix_tmp, filter_eps=threshold)
       CALL dbcsr_add(matrix_tmp, matrix_p_ud, 1.0_dp, -1.0_dp)
       frob_matrix = dbcsr_frobenius_norm(matrix_tmp)
-      CALL dbcsr_release(matrix_tmp)
       IF (unit_nr > 0) WRITE (unit_nr, '(T2,A,F20.12)') "Deviation from idempotency: ", frob_matrix
 
       CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_p_ud, &
-                          0.0_dp, matrix_p, filter_eps=threshold)
-      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_p, matrix_s_sqrt_inv, &
+                          0.0_dp, matrix_tmp, filter_eps=threshold)
+      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp, matrix_s_sqrt_inv, &
                           0.0_dp, matrix_p, filter_eps=threshold)
       CALL dbcsr_release(matrix_p_ud)
+      CALL dbcsr_release(matrix_tmp)
 
       CALL timestop(handle)
 
@@ -1196,14 +1196,14 @@ CONTAINS
       occ_matrix = dbcsr_get_occupation(matrix_x)
       IF (unit_nr > 0) WRITE (unit_nr, '(T6,A,I3,1X,1F10.8,1X,1F10.8)') 'Final TC2 iteration  ', i, occ_matrix, ABS(nu(i))
 
-      CALL dbcsr_release(matrix_xsq)
-      CALL dbcsr_release(matrix_tmp)
-
       ! output to matrix_p, P = inv(S)^0.5 X inv(S)^0.5
       CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_s_sqrt_inv, &
+                          0.0_dp, matrix_tmp, filter_eps=threshold)
+      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_tmp, &
                           0.0_dp, matrix_p, filter_eps=threshold)
-      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_p, &
-                          0.0_dp, matrix_p, filter_eps=threshold)
+
+      CALL dbcsr_release(matrix_xsq)
+      CALL dbcsr_release(matrix_tmp)
 
       ! ALGO 3 from. SIAM DOI. 10.1137/130911585
       X(1) = 1.0_dp

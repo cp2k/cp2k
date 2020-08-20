@@ -457,7 +457,7 @@ CONTAINS
 
          my_recalc_hfx_integrals = .FALSE.
          ! One more dbcsr multiplication and trace
-         CALL dbcsr_multiply("T", "N", 1.0_dp, mat_2d(1, 1)%matrix, dbcsr_Gamma_munu_P(aux)%matrix, &
+         CALL dbcsr_multiply("T", "N", 1.0_dp, mat_2d(1, 1)%matrix, rho_work_ao(1)%matrix, &
                              0.0_dp, dbcsr_Gamma_munu_P(aux)%matrix, filter_eps=eps_filter)
          CALL dbcsr_trace(dbcsr_Gamma_munu_P(aux)%matrix, e_axk_p)
          axk_corr = axk_corr + e_axk_P

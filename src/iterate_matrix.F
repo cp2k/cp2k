@@ -706,10 +706,10 @@ CONTAINS
       CALL dbcsr_create(tmp1, template=matrix_sign)
 
       CALL dbcsr_create(tmp2, template=matrix_sign)
-      IF (order .GE. 4) THEN
+      IF (ABS(order) .GE. 4) THEN
          CALL dbcsr_create(tmp3, template=matrix_sign)
       ENDIF
-      IF (order .GE. 7) THEN
+      IF (ABS(order) .GT. 4) THEN
          CALL dbcsr_create(tmp4, template=matrix_sign)
       ENDIF
 
@@ -819,13 +819,13 @@ CONTAINS
 
             CALL dbcsr_add(tmp1, tmp2, 1.0_dp, 48.0_dp/35.0_dp)
 
-            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, tmp3, 0.0_dp, tmp2, &
+            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, tmp3, 0.0_dp, tmp4, &
                                 filter_eps=threshold, flop=flops)
             floptot = floptot + flops
 
-            CALL dbcsr_add(tmp1, tmp2, 1.0_dp, 8.0_dp/7.0_dp)
+            CALL dbcsr_add(tmp1, tmp4, 1.0_dp, 8.0_dp/7.0_dp)
 
-            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, tmp3, 1.0_dp, tmp1, &
+            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp4, tmp3, 1.0_dp, tmp1, &
                                 filter_eps=threshold, flop=flops)
             floptot = floptot + flops
 
@@ -848,17 +848,18 @@ CONTAINS
             ! tmp3=z
             CALL dbcsr_copy(tmp3, tmp1)
             CALL dbcsr_add_on_diag(tmp3, a0)
-            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp3, tmp1, 0.0_dp, tmp3, &
+            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp3, tmp1, 0.0_dp, tmp2, &
                                 filter_eps=threshold, flop=flops)
             floptot = floptot + flops
-            CALL dbcsr_add_on_diag(tmp3, a1)
+            CALL dbcsr_add_on_diag(tmp2, a1)
 
             CALL dbcsr_add_on_diag(tmp1, a2)
-            CALL dbcsr_add(tmp1, tmp3, 1.0_dp, 1.0_dp)
-            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp1, tmp3, 0.0_dp, tmp1, &
+            CALL dbcsr_add(tmp1, tmp2, 1.0_dp, 1.0_dp)
+            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp1, tmp2, 0.0_dp, tmp3, &
                                 filter_eps=threshold, flop=flops)
             floptot = floptot + flops
-            CALL dbcsr_add_on_diag(tmp1, a3)
+            CALL dbcsr_add_on_diag(tmp3, a3)
+            CALL dbcsr_copy(tmp1, tmp3)
 
             prefactor = 35.0_dp/128.0_dp
          ELSE IF (order .EQ. 6) THEN
@@ -876,13 +877,13 @@ CONTAINS
 
             CALL dbcsr_add(tmp1, tmp2, 1.0_dp, 32.0_dp/21.0_dp)
 
-            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, tmp3, 0.0_dp, tmp2, &
+            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, tmp3, 0.0_dp, tmp4, &
                                 filter_eps=threshold, flop=flops)
             floptot = floptot + flops
 
-            CALL dbcsr_add(tmp1, tmp2, 1.0_dp, 80.0_dp/63.0_dp)
+            CALL dbcsr_add(tmp1, tmp4, 1.0_dp, 80.0_dp/63.0_dp)
 
-            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, tmp3, 0.0_dp, tmp2, &
+            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp4, tmp3, 0.0_dp, tmp2, &
                                 filter_eps=threshold, flop=flops)
             floptot = floptot + flops
 
@@ -911,22 +912,22 @@ CONTAINS
             ! tmp3=z
             CALL dbcsr_copy(tmp3, tmp1)
             CALL dbcsr_add_on_diag(tmp3, a0)
-            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp3, tmp1, 0.0_dp, tmp3, &
+            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp3, tmp1, 0.0_dp, tmp2, &
                                 filter_eps=threshold, flop=flops)
             floptot = floptot + flops
-            CALL dbcsr_add_on_diag(tmp3, a1)
+            CALL dbcsr_add_on_diag(tmp2, a1)
 
             ! tmp4=w
             CALL dbcsr_copy(tmp4, tmp1)
             CALL dbcsr_add_on_diag(tmp4, a2)
-            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp4, tmp3, 0.0_dp, tmp4, &
+            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp4, tmp2, 0.0_dp, tmp3, &
                                 filter_eps=threshold, flop=flops)
             floptot = floptot + flops
-            CALL dbcsr_add_on_diag(tmp4, a3)
+            CALL dbcsr_add_on_diag(tmp3, a3)
 
-            CALL dbcsr_add(tmp3, tmp4, 1.0_dp, 1.0_dp)
-            CALL dbcsr_add_on_diag(tmp3, a4)
-            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp3, tmp4, 0.0_dp, tmp1, &
+            CALL dbcsr_add(tmp2, tmp3, 1.0_dp, 1.0_dp)
+            CALL dbcsr_add_on_diag(tmp2, a4)
+            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, tmp3, 0.0_dp, tmp1, &
                                 filter_eps=threshold, flop=flops)
             floptot = floptot + flops
             CALL dbcsr_add_on_diag(tmp1, a5)
@@ -976,10 +977,10 @@ CONTAINS
 
       CALL dbcsr_release(tmp1)
       CALL dbcsr_release(tmp2)
-      IF (order .GE. 4) THEN
+      IF (ABS(order) .GE. 4) THEN
          CALL dbcsr_release(tmp3)
       ENDIF
-      IF (order .GE. 7) THEN
+      IF (ABS(order) .GT. 4) THEN
          CALL dbcsr_release(tmp4)
       ENDIF
 
@@ -1909,7 +1910,7 @@ CONTAINS
                                                             max_ev, min_ev, occ_matrix, scaling, &
                                                             t1, t2
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_type)                                   :: BK2A, matrixS, Rmat, tmp1, tmp2
+      TYPE(dbcsr_type)                                   :: BK2A, matrixS, Rmat, tmp1, tmp2, tmp3
 
       CALL cite_reference(Richters2018)
 
@@ -1934,6 +1935,7 @@ CONTAINS
       ! for stability symmetry can not be assumed
       CALL dbcsr_create(tmp1, template=matrix, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_create(tmp2, template=matrix, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_create(tmp3, template=matrix, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_create(Rmat, template=matrix, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_create(matrixS, template=matrix, matrix_type=dbcsr_type_no_symmetry)
 
@@ -1989,7 +1991,8 @@ CONTAINS
                   CALL dbcsr_copy(tmp2, Rmat)
                ELSE
                   f = 0
-                  CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, Rmat, 0.0_dp, tmp2, &
+                  CALL dbcsr_copy(tmp3, tmp2)
+                  CALL dbcsr_multiply("N", "N", 1.0_dp, tmp3, Rmat, 0.0_dp, tmp2, &
                                       filter_eps=threshold, flop=f)
                   flop3 = flop3 + f
                ENDIF
@@ -1997,9 +2000,9 @@ CONTAINS
             ENDDO
          ELSE
             CALL dbcsr_create(BK2A, template=matrix, matrix_type=dbcsr_type_no_symmetry)
-            CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_sqrt_inv, matrixS, 0.0_dp, BK2A, &
+            CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_sqrt_inv, matrixS, 0.0_dp, tmp3, &
                                 filter_eps=threshold, flop=flop1)
-            CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_sqrt_inv, BK2A, 0.0_dp, BK2A, &
+            CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_sqrt_inv, tmp3, 0.0_dp, BK2A, &
                                 filter_eps=threshold, flop=flop2)
             CALL dbcsr_copy(Rmat, BK2A)
             CALL dbcsr_add_on_diag(Rmat, -1.0_dp)
@@ -2017,7 +2020,8 @@ CONTAINS
                CALL dbcsr_add(tmp1, tmp2, 1.0_dp, -1.0_dp*(-1)**j*choose)
                IF (j .LT. order) THEN
                   f = 0
-                  CALL dbcsr_multiply("N", "N", 1.0_dp, tmp2, BK2A, 0.0_dp, tmp2, &
+                  CALL dbcsr_copy(tmp3, tmp2)
+                  CALL dbcsr_multiply("N", "N", 1.0_dp, tmp3, BK2A, 0.0_dp, tmp2, &
                                       filter_eps=threshold, flop=f)
                   flop3 = flop3 + f
                ENDIF
@@ -2025,7 +2029,8 @@ CONTAINS
             CALL dbcsr_release(BK2A)
          ENDIF
 
-         CALL dbcsr_multiply("N", "N", 0.5_dp, matrix_sqrt_inv, tmp1, 0.0_dp, matrix_sqrt_inv, &
+         CALL dbcsr_copy(tmp3, matrix_sqrt_inv)
+         CALL dbcsr_multiply("N", "N", 0.5_dp, tmp3, tmp1, 0.0_dp, matrix_sqrt_inv, &
                              filter_eps=threshold, flop=flop4)
 
          occ_matrix = dbcsr_get_occupation(matrix_sqrt_inv)
@@ -2103,6 +2108,7 @@ CONTAINS
 
       CALL dbcsr_release(tmp1)
       CALL dbcsr_release(tmp2)
+      CALL dbcsr_release(tmp3)
       CALL dbcsr_release(Rmat)
       CALL dbcsr_release(matrixS)
 

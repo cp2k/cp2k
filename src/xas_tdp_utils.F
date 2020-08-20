@@ -469,7 +469,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: c_diff, c_sum, lhs_matrix, lr_coeffs, &
                                                             rhs_matrix, work
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_type)                                   :: tmp_mat
+      TYPE(dbcsr_type)                                   :: tmp_mat, tmp_mat2
       TYPE(dbcsr_type), POINTER                          :: matrix_tdp
 
       CALL timeset(routineN, handle)
@@ -582,9 +582,10 @@ CONTAINS
 !        Need to multiply the current matrix_tdp with the auxiliary matrix
 !        tmp_mat =  (A-D+E)^0.5 * M * (A-D+E)^0.5
          CALL dbcsr_create(matrix=tmp_mat, template=matrix_tdp, matrix_type=dbcsr_type_no_symmetry)
+         CALL dbcsr_create(matrix=tmp_mat2, template=matrix_tdp, matrix_type=dbcsr_type_no_symmetry)
          CALL dbcsr_multiply('N', 'N', 1.0_dp, donor_state%matrix_aux, matrix_tdp, &
-                             0.0_dp, tmp_mat, filter_eps=xas_tdp_control%eps_filter)
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, tmp_mat, donor_state%matrix_aux, &
+                             0.0_dp, tmp_mat2, filter_eps=xas_tdp_control%eps_filter)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, tmp_mat2, donor_state%matrix_aux, &
                              0.0_dp, tmp_mat, filter_eps=xas_tdp_control%eps_filter)
 
 !        Get the matrix as a fm
@@ -620,8 +621,8 @@ CONTAINS
 !        Get c_sum = (c^+ + c^-), which appears in all transition density related expressions
 !        c_sum = -1/omega G^-1 * (A-D+E) * (c^+ - c^-)
          CALL dbcsr_multiply('N', 'N', 1.0_dp, donor_state%matrix_aux, donor_state%matrix_aux, &
-                             0.0_dp, tmp_mat, filter_eps=xas_tdp_control%eps_filter)
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, donor_state%metric(2)%matrix, tmp_mat, &
+                             0.0_dp, tmp_mat2, filter_eps=xas_tdp_control%eps_filter)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, donor_state%metric(2)%matrix, tmp_mat2, &
                              0.0_dp, tmp_mat, filter_eps=xas_tdp_control%eps_filter)
          CALL cp_dbcsr_sm_fm_multiply(tmp_mat, c_diff, c_sum, ncol=nrow)
          WHERE (tmp_evals .NE. 0) scaling = -1.0_dp/tmp_evals
@@ -630,6 +631,7 @@ CONTAINS
 !        Full TDDFT specific clean-up
          CALL cp_fm_release(c_diff)
          CALL dbcsr_release(tmp_mat)
+         CALL dbcsr_release(tmp_mat2)
          DEALLOCATE (scaling)
 
       END IF ! TDA
