@@ -37,7 +37,7 @@ def shellcheck():
 # ======================================================================================
 @app.route("/markdownlint", methods=["POST"])
 def markdownlint():
-    return run_tool(["mdl"])
+    return run_tool(["markdownlint"])
 
 
 # ======================================================================================

@@ -2,25 +2,30 @@ FROM ubuntu:20.04
 
 # author: Ole Schuett
 
-# Install Ubuntu packages.
+# Install clang-format, shellcheck, and other Ubuntu packages.
+# https://github.com/koalaman/shellcheck
+# https://clang.llvm.org/docs/ClangFormat.html
 RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
-    apt-get update && apt-get install -y --no-install-recommends \
+    apt-get update -qq && apt-get install -qq --no-install-recommends \
     clang-format \
     git \
     less \
+    npm \
     python3 \
     python3-pip \
     python3-wheel \
     python3-setuptools \
-    rubygems \
     shellcheck \
     vim \
   && rm -rf /var/lib/apt/lists/*
 
-# Install Markdownlint.
-RUN gem install mdl
+# Install MarkdownLint.
+# https://github.com/DavidAnson/markdownlint
+# https://github.com/igorshubovych/markdownlint-cli
+RUN npm install -g markdownlint-cli
 
 # Install Black Python Formatter.
+# https://github.com/psf/black
 RUN pip3 install black
 
 # Clone cp2k repository (needed for CI mode).
