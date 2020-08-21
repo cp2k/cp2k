@@ -401,11 +401,11 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER              :: routineN = 'cp_fm_syevd_base'
 
       CHARACTER(LEN=2*default_string_length)   :: message
-      INTEGER                                  :: handle
+      INTEGER                                  :: handle, myinfo
 #if defined(__SCALAPACK)
       TYPE(cp_blacs_env_type), POINTER         :: context
       INTEGER                                  :: liwork, lwork, &
-                                                  myinfo, mypcol, myprow, n
+                                                  mypcol, myprow, n
       INTEGER, DIMENSION(9)                    :: descm, descv
       INTEGER, DIMENSION(:), POINTER           :: iwork
       REAL(KIND=dp), DIMENSION(:), POINTER     :: work
