@@ -25,7 +25,7 @@ LIBXSMM_LIB = $(INTEL_PATH)/libxsmm/1.16.1/lib
 SPGLIB_INC  = $(INTEL_PATH)/spglib/1.16.0/include
 SPGLIB_LIB  = $(INTEL_PATH)/spglib/1.16.0/lib
 
-CFLAGS      = -O2 -g -qopenmp -traceback -xHost
+CFLAGS      = -O2 -funroll-loops -g -qopenmp -traceback -xHost
 
 DFLAGS      = -D__ELPA
 DFLAGS     += -D__FFTW3
@@ -45,9 +45,7 @@ FCFLAGS     = $(CFLAGS) $(DFLAGS)
 FCFLAGS    += -diag-disable=8291
 FCFLAGS    += -diag-disable=8293
 FCFLAGS    += -fpp
-FCFLAGS    += -fp-model precise
 FCFLAGS    += -free
-FCFLAGS    += -funroll-loops
 FCFLAGS    += -I$(MKLROOT)/include -I$(MKLROOT)/include/fftw
 FCFLAGS    += -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules
 FCFLAGS    += -I$(LIBINT_INC) -I$(LIBXC_INC) -I$(LIBXSMM_INC)
