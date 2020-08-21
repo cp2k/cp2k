@@ -1312,8 +1312,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ec_diag_solver'
 
-      INTEGER                                            :: handle, info, ispin, nmo(2), nsize, &
-                                                            nspins
+      INTEGER                                            :: handle, ispin, nmo(2), nsize, nspins
       REAL(KIND=dp)                                      :: eps_filter, focc(2)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -1384,8 +1383,7 @@ CONTAINS
                              0.0_dp, buf1_dbcsr, filter_eps=eps_filter)
          ! copy to fm format
          CALL copy_dbcsr_to_fm(buf1_dbcsr, fm_ks)
-         CALL choose_eigv_solver(fm_ks, fm_mo, eigenvalues, info)
-         CPASSERT(info == 0)
+         CALL choose_eigv_solver(fm_ks, fm_mo, eigenvalues)
          ! back transform of mos c = Z(T)*c
          CALL copy_fm_to_dbcsr(fm_mo, buf1_dbcsr)
          CALL dbcsr_multiply("N", "N", 1.0_dp, ortho_dbcsr, buf1_dbcsr, &
