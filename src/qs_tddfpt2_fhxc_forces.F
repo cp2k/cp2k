@@ -40,10 +40,10 @@ MODULE qs_tddfpt2_fhxc_forces
                                               cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_get_block_p, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_release, dbcsr_scale, &
-        dbcsr_set, dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_deallocate_matrix
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_filter, &
+        dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
+        dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry
    USE ewald_environment_types,         ONLY: ewald_env_get,&
                                               ewald_environment_type
    USE ewald_methods_tb,                ONLY: tb_ewald_overlap,&
@@ -87,9 +87,8 @@ MODULE qs_tddfpt2_fhxc_forces
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_force_types,                  ONLY: qs_force_type,&
-                                              add_qs_force,&
-                                              total_qs_force
+   USE qs_force_types,                  ONLY: add_qs_force,&
+                                              qs_force_type
    USE qs_fxc,                          ONLY: qs_fxc_create
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
    USE qs_kind_types,                   ONLY: qs_kind_type
@@ -478,7 +477,7 @@ CONTAINS
             ! forces
             ! ADMM Projection force
             IF (debug_forces) fodeb(1:3) = force(1)%overlap_admm(1:3, 1)
-            fval = 4.0_dp * REAL(nspins, KIND=dp)
+            fval = 4.0_dp*REAL(nspins, KIND=dp)
             CALL admm_projection_derivative(qs_env, admm_env, mhe, matrix_px1, fval)
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%overlap_admm(1:3, 1) - fodeb(1:3)
@@ -709,7 +708,7 @@ CONTAINS
          !
          CALL copy_fm_to_dbcsr(admm_env%work_aux_orb2, matrix_w_q, keep_sparsity=.TRUE.)
          CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, matrix_w_s, keep_sparsity=.TRUE.)
-         ! 
+         !
          CALL dbcsr_scale(matrix_w_q, -fval)
          CALL dbcsr_scale(matrix_w_s, fval)
          !
