@@ -898,7 +898,7 @@ CONTAINS
       INTEGER, PARAMETER                                 :: ntomax = 10
 
       CHARACTER(LEN=20), DIMENSION(2)                    :: nto_name
-      INTEGER                                            :: handle, i, ia, icg, info, iounit, ispin, &
+      INTEGER                                            :: handle, i, ia, icg, iounit, ispin, &
                                                             istate, nao, nmax, nmo, nnto, nspins, &
                                                             nstates
       INTEGER, DIMENSION(2)                              :: iv
@@ -988,8 +988,7 @@ CONTAINS
                CALL cp_dbcsr_sm_fm_multiply(matrix_s, ev, Sev, ncol=nmo, alpha=1.0_dp, beta=0.0_dp)
                CALL cp_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, ev, Sev, 0.0_dp, tmat)
 
-               CALL choose_eigv_solver(tmat, teig(ispin)%matrix, eigenvalues(1:nmo, ispin), info)
-               CPASSERT(info == 0)
+               CALL choose_eigv_solver(tmat, teig(ispin)%matrix, eigenvalues(1:nmo, ispin))
 
                CALL cp_fm_struct_release(fm_mo_struct)
                CALL cp_fm_release(tmat)
