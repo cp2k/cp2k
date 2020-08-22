@@ -797,10 +797,9 @@ CONTAINS
          IF (cpuid_static < cpuid) THEN
             ! base/machine_cpuid.c relies on the (same) target flags as the Fortran code
             CALL cp_hint(__LOCATION__, "The compiler target flags ("// &
-                         TRIM(m_cpuid_name(cpuid_static))//") used to build"//NEW_LINE("C")// &
-                         "   this binary cannot exploit all extensions of this CPU model ("// &
-                         TRIM(m_cpuid_name(cpuid))//")."//NEW_LINE("C")// &
-                         "   Consider compiler target flags as part of FCFLAGS and CFLAGS (ARCH file).")
+                         TRIM(m_cpuid_name(cpuid_static))//") used to build this binary cannot exploit "// &
+                         "all extensions of this CPU model ("//TRIM(m_cpuid_name(cpuid))//"). "// &
+                         "Consider compiler target flags as part of FCFLAGS and CFLAGS (ARCH file).")
          END IF
 
          WRITE (UNIT=output_unit, FMT="()")

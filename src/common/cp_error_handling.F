@@ -9,6 +9,7 @@
 ! **************************************************************************************************
 MODULE cp_error_handling
    USE base_hooks,                      ONLY: cp_abort_hook,&
+                                              cp_hint_hook,&
                                               cp_warn_hook
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE kinds,                           ONLY: dp
@@ -30,7 +31,7 @@ MODULE cp_error_handling
    PUBLIC :: cp_error_handling_setup
 
    !API (via pointer assignment to hook, PR67982, not meant to be called directly)
-   PUBLIC :: cp_abort_handler, cp_warn_handler
+   PUBLIC :: cp_abort_handler, cp_warn_handler, cp_hint_handler
 
    INTEGER, PUBLIC, SAVE :: warning_counter = 0
 
@@ -43,6 +44,7 @@ CONTAINS
    SUBROUTINE cp_error_handling_setup()
       cp_abort_hook => cp_abort_handler
       cp_warn_hook => cp_warn_handler
+      cp_hint_hook => cp_hint_handler
    END SUBROUTINE cp_error_handling_setup
 
 ! **************************************************************************************************
@@ -90,6 +92,24 @@ CONTAINS
          CALL m_flush(unit_nr)
       ENDIF
    END SUBROUTINE cp_warn_handler
+
+! **************************************************************************************************
+!> \brief Signal a hint
+!> \param location ...
+!> \param message ...
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE cp_hint_handler(location, message)
+      CHARACTER(len=*), INTENT(in)                       :: location, message
+
+      INTEGER                                            :: unit_nr
+
+      unit_nr = cp_logger_get_default_io_unit()
+      IF (unit_nr > 0) THEN
+         CALL print_message("HINT in "//TRIM(location)//' :: '//TRIM(ADJUSTL(message)), unit_nr, 1, 1, 1)
+         CALL m_flush(unit_nr)
+      ENDIF
+   END SUBROUTINE cp_hint_handler
 
 ! **************************************************************************************************
 !> \brief Delay non-master ranks/threads, used by cp_abort_handler()
