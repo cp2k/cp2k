@@ -166,7 +166,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'choose_eigv_solver'
 
-      INTEGER                                            :: nmo
+      INTEGER                                            :: myinfo, nmo
 #if defined(__CHECK_DIAG)
       CHARACTER(LEN=5), DIMENSION(2), PARAMETER          :: diag_driver = (/"SYEVD", &
                                                                             "ELPA "/)
@@ -179,6 +179,9 @@ CONTAINS
       INTEGER, DIMENSION(9)                              :: desca
 #endif
 #endif
+
+      myinfo = 0
+
       nmo = SIZE(eigenvalues, 1)
 
       ! Sample peak memory
@@ -188,7 +191,7 @@ CONTAINS
          CALL cp_fm_diag_elpa(matrix, eigenvectors, eigenvalues)
       ELSE IF (diag_type == DIAG_TYPE_SCALAPACK) THEN
          IF (PRESENT(info)) THEN
-            CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues, info=info)
+            CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues, info=myinfo)
          ELSE
             CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues)
          END IF
@@ -259,6 +262,8 @@ CONTAINS
       END DO
 #endif
 #endif
+
+      IF (PRESENT(info)) info = myinfo
 
    END SUBROUTINE choose_eigv_solver
 
@@ -483,21 +488,20 @@ CONTAINS
          END IF
       END IF
 
+      IF (PRESENT(info)) info = myinfo
+
       DEALLOCATE (work)
       DEALLOCATE (iwork)
 #else
       MARK_USED(matrix)
       MARK_USED(eigenvectors)
       MARK_USED(eigenvalues)
-      info = -1
-      IF (matrix%matrix_struct%para_env%ionode) THEN
-         message = "ERROR in "//TRIM(routineN)// &
-                   ": Matrix diagonalization using PDSYEVD requested without ScaLAPACK support"
-         CPABORT(TRIM(message))
-      END IF
-#endif
-
+      myinfo = -1
       IF (PRESENT(info)) info = myinfo
+      message = "ERROR in "//TRIM(routineN)// &
+                ": Matrix diagonalization using PDSYEVD requested without ScaLAPACK support"
+      CPABORT(TRIM(message))
+#endif
 
       CALL timestop(handle)
 
