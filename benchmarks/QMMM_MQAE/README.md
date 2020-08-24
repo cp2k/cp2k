@@ -3,17 +3,17 @@
 ## Description
 
 This benchmark performs a short QM/MM MD simulation of 5 steps.
-The MQAE system is a solute-solvent system consisting of a N-(6-methoxyquinolyl) 
-acetoethyl ester in solution. All 34 atoms of the ester are treated with QM whereas
- the remaining water atoms are treated with MM. The parameters for the organic molecule
- are created using the General Amber Force Field (GAFF) and the water molecules are 
-modelled using the SPCE model. The BLYP functional as the XC functional are used and an 
-energy cut-off of 400 Ry for the plane waves was found to be suitable.
-The QM/MM coupling is described with the Gaussian Expansion of the Electrostatic 
-Potential (GEEP) method, and the bonds between theQM and MM atoms are treated
- using the Generalized Hybrid Orbital (GHO) method.
+The MQAE system is a solute-solvent system consisting of a N-(6-methoxyquinolyl)
+acetoethyl ester in solution. All 34 atoms of the ester are treated with QM
+whereas the remaining water atoms are treated with MM. The parameters for the
+organic molecule are created using the General Amber Force Field (GAFF) and the
+water molecules are modelled using the SPCE model. The BLYP functional as the XC
+functional are used and an energy cut-off of 400 Ry for the plane waves was
+found to be suitable. The QM/MM coupling is described with the Gaussian Expansion
+of the Electrostatic Potential (GEEP) method, and the bonds between theQM and MM
+atoms are treated using the Generalized Hybrid Orbital (GHO) method.
 
-See also https://doi.org/10.1021/acs.jctc.9b00424
+See also <https://doi.org/10.1021/acs.jctc.9b00424>.
 
 ## Files description
 
@@ -27,8 +27,8 @@ the SPCE water model are used.
 ## Results
 
 ### MD Energy file
-
-```
+<!-- markdownlint-disable MD013 -->
+```cp2k-output
 #     Step Nr.          Time[fs]        Kin.[a.u.]          Temp[K]            Pot.[a.u.]        Cons Qty[a.u.]        UsedTime[s]
          0            0.000000        10.239105709       300.000000000      -191.999316391      -181.760210683         0.000000000
          1            1.000000         8.558243627       250.751692693      -189.793945191      -181.235701564        54.682023599
@@ -40,9 +40,9 @@ the SPCE water model are used.
 
 ### Best Configurations
 
-The best configurations are shown below. 
+The best configurations are shown below.
 
 | Machine Name | Architecture | Date       | Commit No. | Fastest time (s) | Number of Cores | Number of Threads                 |
 | ------------ | ------------ | ---------- | -----------| ---------------- | --------------- | --------------------------------- |
 | ARCHER       | Cray XC30    | 16/06/2020 | 6e0731f    | 72.439           |  384            | 6 OMP threads per MPI task        |
-
+<!-- markdownlint-enable MD013 -->

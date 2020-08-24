@@ -1,18 +1,19 @@
 # The CP2K Toolchain
 
-#### Options
+## Options
+
 To use the CP2K toolchain installer, you may want to first follow
 the instructions given in installer help message:
 
-```console
+```shell
 > ./install_cp2k_toolchain.sh --help
 ```
 
-#### Basic usage
+## Basic usage
 
 If you are new to CP2K, and want a basic CP2K binary, then just calling
 
-```console
+```shell
 > ./install_cp2k_toolchain.sh
 ```
 
@@ -21,26 +22,28 @@ existing) and build libint, libxc, fftw and openblas (MKL will be used
 instead if MKLROOT env variable is found) from scratch, and give you
 a set of arch files that allow you to compile CP2K.
 
-#### Complete toolchain build
+## Complete toolchain build
+
 For a complete toolchain build, with everything installed from
 scratch, use:
 
-```console
+```shell
 > ./install_cp2k_toolchain.sh --install-all
 ```
-##### Package settings
+
+### Package settings
 
 One can then change settings for some packages, by setting
 `--with-PKG` options after the `--install-all` option. e.g.:
 
-```console
+```shell
 > ./install_CP2K_toolchain.sh --install-all --with-mkl=system
 ```
 
 will set the script to look for a system MKL library to link, while
 compile other packages from scratch.
 
-##### MPI implementation choice
+### MPI implementation choice
 
 If you do not have a MPI installation, by default the `--install-all`
 option will install MPICH for you.  You can change this default
@@ -48,10 +51,10 @@ behavior by setting `--mpi-mode` after the `--install-all` option.
 
 ## Trouble Shooting
 
-Below are solutions to some of the common problems you may encounter when running
-this script.
+Below are solutions to some of the common problems you may encounter when
+running this script.
 
-##### The script terminated with an error message while installing a particular package.
+### The script terminated with an error message
 
 Look at the error message. If it does not indicate the reason for
 failure then it is likely that some error occurred during
@@ -64,12 +67,12 @@ parallel make processes were initiated.  By default the script
 tries to use all of the processors on you node. You can override
 this behavior using `-j` option.
 
-##### The script failed at a tarball downloading stage
+### The script failed at a tarball downloading stage
 
 Try run again with `--no-check-certificate` option. See the help
 section for this option for details.
 
-##### I have loaded libraries using module load XYZ, but --with-XYZ=system cannot find the XYZ library
+### I've used --with-XYZ=system cannot find the XYZ library
 
 The installation script in "system" mode will try to find a library
 in the following system PATHS: `LD_LIBRARY_PATH`, `LD_RUN_PATH`,
@@ -81,7 +84,7 @@ MKLROOT environment variable.
 
 You can use:
 
-```console
+```shell
 > module show XYZ
 ```
 
@@ -98,8 +101,13 @@ to look for the library.
 
 ## Licenses
 
-The toolchain only downloads and installs packages that are [compatible with the GPL](https://www.gnu.org/licenses/gpl-faq.html#WhatDoesCompatMean). The follow table list the licenses of all those packages. While the toolchain does support linking proprietary software packages, like e.g. MKL, these have to be installed separately by the user.
+The toolchain only downloads and installs packages that are
+[compatible with the GPL](https://www.gnu.org/licenses/gpl-faq.html#WhatDoesCompatMean).
+The following table list the licenses of all those packages. While the toolchain
+does support linking proprietary software packages, like e.g. MKL, these have to
+be installed separately by the user.
 
+<!-- markdownlint-disable MD013 -->
 | Package   | License                                                                                 | GPL Compatible |
 | --------- | --------------------------------------------------------------------------------------- | -------------- |
 | cmake     | [BSD 3-Clause](https://gitlab.kitware.com/cmake/cmake/raw/master/Copyright.txt)         | Yes            |
@@ -129,10 +137,11 @@ The toolchain only downloads and installs packages that are [compatible with the
 | spglib    | [BSD 3-Clause](https://github.com/atztogo/spglib/blob/master/COPYING)                   | Yes            |
 | superlu   | [BSD 3-Clause](https://github.com/xiaoyeli/superlu/blob/master/License.txt)             | Yes            |
 | valgrind  | [GPL](https://sourceware.org/git/?p=valgrind.git;a=blob_plain;f=COPYING;hb=HEAD)        | Yes            |
+<!-- markdownlint-enable MD013 -->
 
-# For Developers
+## For Developers
 
-## Structure of the toolchain scripts:
+### Structure of the toolchain scripts
 
 - `install_cp2k_toolchain.sh` is the main script that will call all
   other scripts.  It contains default flag settings, user input
@@ -180,22 +189,22 @@ The toolchain only downloads and installs packages that are [compatible with the
   all of `${VARIABLE}` items in `arch_base.tmpl` to give the cp2k arch
   files.
 
-## `enable-FEATURE` options
+### `enable-FEATURE` options
 
 The `enable-FEATURE` options control whether a FEATURE is enabled or disabled.
 Possible values are:
+
 - `yes` (equivalent to using the option-keyword alone)
 - `no`
 
-## `with_PKG` and `PKG_MODE` variables:
+### `with_PKG` and `PKG_MODE` variables
 
-The `with_PKG` options controls how a package is going to be
-installed:
+The `with_PKG` options controls how a package is going to be installed:
+
 - either compiled and installed from source downloaded
-(`install`, or the option-keyword alone),
+  (`install`, or the option-keyword alone),
 - or linked to locations provided by system search paths (`system`),
-- or linked to locations provided by the user
-(`<path>`, path to some directory),
+- or linked to locations provided by the user (`<path>`, path to some directory),
 - or that the installer won't be used (`no`).
 
 For most packages the `with_pkg` variables will act like a switch for
@@ -206,7 +215,7 @@ selector.  In this case, while `with_PKG` controls the installation
 method, the `PKG_MODE` variable picks which package to actually use.
 This provides more flexibility.
 
-## The IF_XYZ constructs
+### The IF_XYZ constructs
 
 Due to the fact that `install_cp2k_toolchain.sh` needs to produce
 several different versions of the arch files: `psmp`, `pdbg`,
@@ -215,7 +224,7 @@ different arch file versions.
 
 The solution used by this script is to use a syntax construct:
 
-```
+```shell
 IF_XYZ(A | B)
 ```
 
@@ -225,7 +234,7 @@ is not passed as command line option (python `parse_if.py` filename).
 
 The `IF_XYZ(A|B)` construct can be nested, so things like:
 
-```
+```shell
 IF_XYZ(IF_ABC(flag1|flag2) | flag3)
 ```
 
@@ -233,7 +242,7 @@ will parse to *flag1* if both *XYZ* and *ABC* are present in the command
 line arguments of `parser_if.py`, to *flag2* if only *XYZ* is present,
 and *flag3* if nothing is present.
 
-## To ensure portability:
+### To ensure portability
 
 - one should always pass compiler flags through the
   `allowed_gcc_flags` and `allowed_gfortran_flags` filters in
@@ -243,13 +252,13 @@ and *flag3* if nothing is present.
 - note that `allowed_gcc_flags` and `allowed_gfortran_flags` do not work
   with `IF_XYZ` constructs. So if you have something like:
 
-```
+```shell
 FCFLAGS="IF_XYZ(flag1 flag2 | flag3 flag4)"
 ```
 
 Then you should break this into:
 
-```
+```shell
 XYZ_TRUE_FLAGS="flags1 flags2"
 XYZ_FALSE_FLAGS="flags3 flags4"
 # do filtering
@@ -259,7 +268,7 @@ XYZ_FALSE_FLAGS="$(allowed_gcc_flags $XYZ_FALSE_FLAGS)"
 
 So that:
 
-```
+```shell
 FCFLAGS="IF_XYZ($XYZ_TRUE_FLAGS | $XYZ_FALSE_FLAGS)"
 ```
 
@@ -271,17 +280,17 @@ FCFLAGS="IF_XYZ($XYZ_TRUE_FLAGS | $XYZ_FALSE_FLAGS)"
 - Try to avoid as much hard coding as possible:
   e.g. instead of setting:
 
-```
+```shell
 ./configure --prefix=some_dir CC=mpicc FC=mpif90
 ```
 
 use the common variables:
 
-```
+```shell
 ./configure --prefix=some_dir CC=${MPICC} FC=${MPIFC}
 ```
 
-## To keep maintainability it is recommended that we follow the following practices:
+## To keep maintainability it is recommended that we follow these practices
 
 - Reuse as much functionality from the macros defined in the
   `script/toolkit.sh` as possible

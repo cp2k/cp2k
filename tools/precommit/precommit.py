@@ -167,7 +167,7 @@ def print_box(fn, message):
 def process_file(fn, allow_modifications):
     # Make a backup copy.
     orig_content = Path(fn).read_bytes()
-    bak_fn = SCRATCH_DIR / f"{Path(fn).name}_{int(time())}.bak"
+    bak_fn = SCRATCH_DIR / f"{Path(fn).name}_{time()}.bak"
     shutil.copy2(fn, bak_fn)
 
     if re.match(r".*\.(F|fypp)$", fn):

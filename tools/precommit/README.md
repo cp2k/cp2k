@@ -27,7 +27,7 @@ process each file individually, which makes them much more lightweight.
 
 The [precommit.py](./precommit.py) script can be readily installed as git hook:
 
-```
+```shell
 ln -fs ../../tools/precommit/precommit.py .git/hooks/pre-commit
 ```
 
@@ -39,7 +39,7 @@ tedious installation a remote server is used by default. It is hosted at
 
 The same server can also be started locally when Docker is available:
 
-```
+```shell
 ./start_local_server.sh
 ```
 
@@ -48,7 +48,7 @@ The server can also be installed without Docker by following the steps in the
 
 Once the server is up and running it can be used like this:
 
-```
+```shell
 $ export CP2K_PRECOMMIT_SERVER="http://127.0.0.1:8080"
 $ ./precommit.py
 Running precommit checks using 8 workers and server: http://127.0.0.1:8080
