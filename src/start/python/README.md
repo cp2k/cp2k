@@ -27,4 +27,4 @@ Python interpreter instances due to side effects in the library.
   depending on your MPI implementation/configuration. In that case MPI must be
   initialized first by using Mpi4py and the Fortran MPI communicator handler
   must be passed down the CP2K via the respective `...comm` functions.
-  The reason for this is documented here: https://github.com/jhedev/mpi_python
+  The reason for this is documented here: <https://github.com/jhedev/mpi_python>
