@@ -431,10 +431,13 @@ static void grid_collocate_ortho(const int lp, const double zetp,
     cmax = max(cmax, ub_cube[i]);
   }
 
-  double pol[3][lp + 1][2 * cmax + 1];
+  double pol_mutable[3][lp + 1][2 * cmax + 1];
   for (int i = 0; i < 3; i++) {
-    grid_fill_pol(dh[i][i], roffset[i], lb_cube[i], lp, cmax, zetp, pol[i]);
+    grid_fill_pol(dh[i][i], roffset[i], lb_cube[i], lp, cmax, zetp,
+                  pol_mutable[i]);
   }
+  const double(*pol)[lp + 1][2 * cmax + 1] =
+      (const double(*)[lp + 1][2 * cmax + 1]) pol_mutable;
 
   // Enable to run a much simpler, but also slower implementation.
   if (false) {
@@ -443,11 +446,12 @@ static void grid_collocate_ortho(const int lp, const double zetp,
                                npts_local, shift_local, grid);
   } else {
     // a mapping so that the ig corresponds to the right grid point
-    int map[3][2 * cmax + 1];
+    int map_mutable[3][2 * cmax + 1];
     for (int i = 0; i < 3; i++) {
       grid_fill_map(lb_cube[i], ub_cube[i], cubecenter[i], npts_global[i],
-                    shift_local[i], cmax, map[i]);
+                    shift_local[i], cmax, map_mutable[i]);
     }
+    const int(*map)[2 * cmax + 1] = (const int(*)[2 * cmax + 1]) map_mutable;
 
     grid_collocate_core(lp, cmax, coef_xyz, pol, map, lb_cube, dh, dh_inv,
                         disr_radius, npts_local, grid);
@@ -751,14 +755,15 @@ static void grid_collocate_internal(
   const int lb_min_prep = max(lb_min + lb_min_diff, 0);
   const int la_max_prep = la_max + la_max_diff;
   const int lb_max_prep = lb_max + lb_max_diff;
+  const int lp = la_max_prep + lb_max_prep;
 
   const int n1_prep = ncoset[la_max_prep];
   const int n2_prep = ncoset[lb_max_prep];
-  double pab_prep[n2_prep][n1_prep];
-  memset(pab_prep, 0, n2_prep * n1_prep * sizeof(double));
-
+  double pab_prep_mutable[n2_prep][n1_prep];
+  memset(pab_prep_mutable, 0, n2_prep * n1_prep * sizeof(double));
   grid_prepare_pab(func, o1, o2, la_max, la_min, lb_max, lb_min, zeta, zetb, n1,
-                   n2, pab, n1_prep, n2_prep, pab_prep);
+                   n2, pab, n1_prep, n2_prep, pab_prep_mutable);
+  const double(*pab_prep)[n1_prep] = (const double(*)[n1_prep])pab_prep_mutable;
 
   //   *** initialise the coefficient matrix, we transform the sum
   //
@@ -774,9 +779,10 @@ static void grid_collocate_internal(
   // (current implementation is l**7)
   //
 
-  double alpha[3][lb_max_prep + 1][la_max_prep + 1]
-              [la_max_prep + lb_max_prep + 1];
-  grid_prepare_alpha(ra, rb, rp, la_max_prep, lb_max_prep, alpha);
+  double alpha_mutable[3][lb_max_prep + 1][la_max_prep + 1][lp + 1];
+  grid_prepare_alpha(ra, rb, rp, la_max_prep, lb_max_prep, alpha_mutable);
+  const double(*alpha)[lb_max_prep + 1][la_max_prep + 1][lp + 1] =
+      (const double(*)[lb_max_prep + 1][la_max_prep + 1][lp + 1]) alpha_mutable;
 
   //
   //   compute P_{lxp,lyp,lzp} given P_{lxa,lya,lza,lxb,lyb,lzb} and
@@ -785,10 +791,11 @@ static void grid_collocate_internal(
   //   in collocate_fast.F
   //
 
-  const int lp = la_max_prep + lb_max_prep;
-  double coef_xyz[lp + 1][lp + 1][lp + 1];
+  double coef_xyz_mutable[lp + 1][lp + 1][lp + 1];
   grid_prepare_coef(la_max_prep, la_min_prep, lb_max_prep, lb_min_prep, lp,
-                    prefactor, alpha, pab_prep, coef_xyz);
+                    prefactor, alpha, pab_prep, coef_xyz_mutable);
+  const double(*coef_xyz)[lp + 1][lp + 1] =
+      (const double(*)[lp + 1][lp + 1]) coef_xyz_mutable;
 
   if (orthorhombic && border_mask == 0) {
     // Here we ignore bounds_owned and always collocate the entire cube,
