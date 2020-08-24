@@ -367,7 +367,7 @@ static void collocate_one_grid_level(
           /*o2=*/jpgf * ncosetb,
           /*n1=*/ncoa,
           /*n2=*/ncob,
-          /*pab=*/(double(*)[ncoa])pab,
+          /*pab=*/(const double(*)[ncoa])pab,
           /*grid=*/threadlocal_grid);
     } // end of task loop
 

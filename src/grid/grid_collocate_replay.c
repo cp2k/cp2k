@@ -204,22 +204,24 @@ static void create_dummy_basis_set(const int size, const int lmin,
                                    const int lmax, const double zet,
                                    grid_basis_set_t *basis_set) {
 
-  double sphi[size][size];
+  double sphi_mutable[size][size];
   for (int i = 0; i < size; i++) {
     for (int j = 0; j < size; j++) {
-      sphi[i][j] = (i == j) ? 1.0 : 0.0; // identity matrix
+      sphi_mutable[i][j] = (i == j) ? 1.0 : 0.0; // identity matrix
     }
   }
+  const double(*sphi)[size] = (const double(*)[size])sphi_mutable;
 
   const int npgf = size / ncoset[lmax];
   assert(size == npgf * ncoset[lmax]);
 
   const int first_sgf[1] = {1};
 
-  double zet_array[1][npgf];
+  double zet_array_mutable[1][npgf];
   for (int i = 0; i < npgf; i++) {
-    zet_array[0][i] = zet;
+    zet_array_mutable[0][i] = zet;
   }
+  const double(*zet_array)[npgf] = (const double(*)[npgf])zet_array_mutable;
 
   grid_create_basis_set(/*nset=*/1,
                         /*nsgf=*/size,
@@ -267,7 +269,7 @@ static void create_dummy_task_list(
   int iset_list[ntasks], jset_list[ntasks], ipgf_list[ntasks],
       jpgf_list[ntasks];
   int border_mask_list[ntasks], block_num_list[ntasks];
-  double radius_list[ntasks], rab_list[ntasks][3];
+  double radius_list[ntasks], rab_list_mutable[ntasks][3];
   for (int i = 0; i < cycles; i++) {
     level_list[i] = 1;
     iatom_list[i] = 1;
@@ -279,10 +281,11 @@ static void create_dummy_task_list(
     border_mask_list[i] = border_mask;
     block_num_list[i] = i / cycles_per_block + 1;
     radius_list[i] = radius;
-    rab_list[i][0] = rab[0];
-    rab_list[i][1] = rab[1];
-    rab_list[i][2] = rab[2];
+    rab_list_mutable[i][0] = rab[0];
+    rab_list_mutable[i][1] = rab[1];
+    rab_list_mutable[i][2] = rab[2];
   }
+  const double(*rab_list)[3] = (const double(*)[3])rab_list_mutable;
 
   double *blocks_buffer = NULL;
 
@@ -342,11 +345,13 @@ double grid_collocate_replay(const char *filename, const int cycles,
   const double zetb = parse_double("zetb", fp);
   const double rscale = parse_double("rscale", fp);
 
-  double dh[3][3], dh_inv[3][3], ra[3], rab[3];
-  parse_double3x3("dh", fp, dh);
-  parse_double3x3("dh_inv", fp, dh_inv);
+  double dh_mutable[3][3], dh_inv_mutable[3][3], ra[3], rab[3];
+  parse_double3x3("dh", fp, dh_mutable);
+  parse_double3x3("dh_inv", fp, dh_inv_mutable);
   parse_double3("ra", fp, ra);
   parse_double3("rab", fp, rab);
+  const double(*dh)[3] = (const double(*)[3])dh_mutable;
+  const double(*dh_inv)[3] = (const double(*)[3])dh_inv_mutable;
 
   int npts_global[3], npts_local[3], shift_local[3], border_width[3];
   parse_int3("npts_global", fp, npts_global);
@@ -360,14 +365,15 @@ double grid_collocate_replay(const char *filename, const int cycles,
   const int n1 = parse_int("n1", fp);
   const int n2 = parse_int("n2", fp);
 
-  double pab[n2][n1];
+  double pab_mutable[n2][n1];
   char format[100];
   for (int i = 0; i < n2; i++) {
     for (int j = 0; j < n1; j++) {
       sprintf(format, "%i %i %%le", i, j);
-      parse_next_line("pab", fp, format, 1, &pab[i][j]);
+      parse_next_line("pab", fp, format, 1, &pab_mutable[i][j]);
     }
   }
+  const double(*pab)[n1] = (const double(*)[n1])pab_mutable;
 
   const int npts_local_total = npts_local[0] * npts_local[1] * npts_local[2];
   const size_t sizeof_grid = sizeof(double) * npts_local_total;

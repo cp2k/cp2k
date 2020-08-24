@@ -1,4 +1,4 @@
-CFLAGS   = -fopenmp -g -O3 -std=c99 -march=native -Wall -Wextra
+CFLAGS   = -fopenmp -g -O3 -std=c99 -march=native -Wall -Wextra -Wpedantic
 
 all: grid_collocate_miniapp.x grid_collocate_unittest.x
 
