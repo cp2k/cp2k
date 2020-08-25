@@ -10,7 +10,8 @@ apt-get install -qq --no-install-recommends \
     make                                    \
     perl                                    \
     python3-{pip,setuptools,wheel,dev}      \
-    nodejs
+    nodejs                                  \
+    clang-format
 
 rm -rf /var/lib/apt/lists/*
 
