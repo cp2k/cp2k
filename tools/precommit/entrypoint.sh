@@ -22,7 +22,7 @@ else
     git --no-pager log -1 --pretty='%nCommitSHA: %H%nCommitTime: %ci%nCommitAuthor: %an%nCommitSubject: %s%n'
     echo -e "\n========== Running Precommit Checks =========="
     export CP2K_PRECOMMIT_SERVER="http://127.0.0.1:8080"
-    ./tools/precommit/precommit.py --no-cache --progressbar-wait=10 -j 4 || true
+    ./tools/precommit/precommit.py --no-cache --progressbar-wait=10 || true
 fi
 
 #EOF
