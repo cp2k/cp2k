@@ -47,7 +47,7 @@ def main():
         "-j",
         "--num_workers",
         type=int,
-        default=min(32, os.cpu_count() + 4),  # copied from ThreadPoolExecutor
+        default=min(16, os.cpu_count() + 2),
         help="number of parallel workers",
     )
     parser.add_argument(
@@ -235,7 +235,7 @@ def run_analyze_src(fn):
 
 
 # ======================================================================================
-def run_local_tool(*cmd, timeout=10):
+def run_local_tool(*cmd, timeout=20):
     p = subprocess.run(cmd, timeout=timeout, stdout=PIPE, stderr=STDOUT)
     if p.returncode != 0:
         raise Exception(p.stdout.decode("utf8"))
