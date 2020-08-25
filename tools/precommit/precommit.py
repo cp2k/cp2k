@@ -103,7 +103,9 @@ def main():
             candidate_file_list += [os.path.join(root, fn) for fn in files]
 
     # Find eligible files and sort by size as larger ones will take longer to process.
-    eligible_file_pattern = re.compile(r".*(_POTENTIALS|(\.(F|fypp|c|cu|h|py|md)))$")
+    eligible_file_pattern = re.compile(
+        r"(./data/.*POTENTIALS?)|(.*\.(F|fypp|c|cu|h|py|md))$"
+    )
     file_list = [fn for fn in candidate_file_list if eligible_file_pattern.match(fn)]
     file_list.sort(reverse=True, key=lambda fn: os.path.getsize(fn))
 
@@ -190,8 +192,8 @@ def process_file(fn, allow_modifications):
     elif re.match(r".*\.md$", fn):
         run_remote_tool("markdownlint", fn)
 
-    elif re.match(r".*_POTENTIALS$", fn):
-        run_local_tool("make", "data/POTENTIAL")
+    elif re.match(r"./data/.*POTENTIALS?$", fn):
+        check_data_files()
 
     else:
         raise Exception("Unknown file extension: " + fn)
@@ -232,6 +234,14 @@ def run_analyze_src(fn):
         "./tools/conventions/conventions.supp",
         fn,
     )
+
+
+# ======================================================================================
+def check_data_files():
+    potential_files = [f"./data/{x}_POTENTIALS" for x in ("GTH", "HF", "NLCC", "ALL")]
+    expected_content = "".join([Path(fn).read_text() for fn in potential_files])
+    if Path("./data/POTENTIAL").read_text() != expected_content:
+        raise Exception("The data files are out of sync - please run `make data`.")
 
 
 # ======================================================================================

@@ -10,14 +10,13 @@ RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
     clang-format \
     git \
     less \
+    nano \
     npm \
-    make \
     python3 \
     python3-pip \
     python3-wheel \
     python3-setuptools \
     shellcheck \
-    vim \
   && rm -rf /var/lib/apt/lists/*
 
 # Install MarkdownLint.
