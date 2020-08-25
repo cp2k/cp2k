@@ -304,7 +304,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="USE_EXP", &
                           description="Defines the exponent to be constraint. The two integers indicate "// &
-                          "the set number and i'th exponent. The value -1 can be used to mark all sets/expoenents in a set.", &
+                          "the set number and i'th exponent. The value -1 can be used to mark all sets/exponents in a set.", &
                           repeats=.FALSE., usage="USE_EXP SET IEXP", type_of_var=integer_t, n_var=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

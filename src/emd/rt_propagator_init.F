@@ -138,7 +138,7 @@ CONTAINS
       ! For ETRS this bit could be avoided but it drastically simplifies the workflow afterwards.
       ! If we compute the half propagated mos/exponential already here, we ensure everything is done
       ! with the correct S matrix and all information as during RTP/EMD are computed.
-      ! Therefore we might accept to compute an unnesscesary expoenential but understand the code afterwards
+      ! Therefore we might accept to compute an unnesscesary exponential but understand the code afterwards
       IF (rtp_control%propagator == do_etrs) THEN
          IF (rtp_control%mat_exp == do_arnoldi) THEN
             rtp%iter = 0
