@@ -2,8 +2,8 @@
  *  CP2K: A general program to perform molecular dynamics simulations        *
  *  Copyright (C) 2000 - 2020  CP2K developers group                         *
  *****************************************************************************/
-#ifndef GRID_COLLOCATE_CPU_H
-#define GRID_COLLOCATE_CPU_H
+#ifndef GRID_COLLOCATE_H
+#define GRID_COLLOCATE_H
 
 #include <stdbool.h>
 
@@ -41,7 +41,7 @@
 //
 // \author Ole Schuett
 //******************************************************************************
-void grid_collocate_pgf_product_cpu(
+void grid_collocate_pgf_product(
     const bool orthorhombic, const int border_mask, const int func,
     const int la_max, const int la_min, const int lb_max, const int lb_min,
     const double zeta, const double zetb, const double rscale,
@@ -52,4 +52,5 @@ void grid_collocate_pgf_product_cpu(
     const double pab[n2][n1], double *grid);
 
 #endif
+
 // EOF

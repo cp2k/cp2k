@@ -7,7 +7,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "common/grid_library.h"
 #include "grid_collocate_replay.h"
+
+void mpi_sum_func(long *number) {
+  *number += 0; // Nothing todo without MPI, pretend argument is used anyways.
+}
+
+void print_func(char *message) { printf("%s", message); }
 
 //******************************************************************************
 // \brief Stand-alone miniapp for running .task files.
@@ -44,8 +51,13 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  grid_library_init();
+
   const double max_diff =
       grid_collocate_replay(argv[iarg++], cycles, batch, cycles_per_block);
+
+  grid_library_print_stats(&mpi_sum_func, &print_func);
+  grid_library_finalize();
 
   if (max_diff > 1e-12 * cycles) {
     fprintf(stderr, "Error: Maximal difference is too large.\n");

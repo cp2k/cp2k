@@ -2,7 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations                              !
 !   Copyright (C) 2000 - 2020  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
-MODULE grid_collocate
+MODULE grid_collocate_legacy
    USE cell_types,                      ONLY: cell_type
    USE cube_utils,                      ONLY: compute_cube_center,&
                                               cube_info_type,&
@@ -28,7 +28,7 @@ MODULE grid_collocate
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'grid_collocate'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'grid_collocate_legacy'
 
    PUBLIC :: collocate_pgf_product
 
@@ -1009,4 +1009,4 @@ CONTAINS
 
    END SUBROUTINE collocate_pgf_product_part2
 
-END MODULE grid_collocate
+END MODULE grid_collocate_legacy

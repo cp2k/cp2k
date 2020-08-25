@@ -16,9 +16,9 @@
 #include <string.h>
 #include <time.h>
 
-#include "grid_collocate_cpu.h"
+#include "common/grid_common.h"
+#include "grid_collocate.h"
 #include "grid_collocate_replay.h"
-#include "grid_common.h"
 #include "grid_task_list.h"
 
 //******************************************************************************
@@ -202,7 +202,7 @@ static void parse_double3x3(const char key[], FILE *fp, double mat[3][3]) {
 //******************************************************************************
 static void create_dummy_basis_set(const int size, const int lmin,
                                    const int lmax, const double zet,
-                                   grid_basis_set_t *basis_set) {
+                                   grid_basis_set **basis_set) {
 
   double sphi_mutable[size][size];
   for (int i = 0; i < size; i++) {
@@ -242,11 +242,10 @@ static void create_dummy_basis_set(const int size, const int lmin,
 //******************************************************************************
 static void create_dummy_task_list(
     const int border_mask, const double rscale, const double ra[3],
-    const double rab[3], const double radius,
-    const grid_basis_set_t basis_set_a, const grid_basis_set_t basis_set_b,
-    const int n1, const int n2, const int o1, const int o2, const int la_max,
-    const int lb_max, const double pab[n2][n1], const int cycles,
-    const int cycles_per_block, grid_task_list_t *task_list) {
+    const double rab[3], const double radius, const grid_basis_set *basis_set_a,
+    const grid_basis_set *basis_set_b, const int n1, const int n2, const int o1,
+    const int o2, const int la_max, const int lb_max, const double pab[n2][n1],
+    const int cycles, const int cycles_per_block, grid_task_list **task_list) {
 
   const int ntasks = cycles;
   const int nlevels = 1;
@@ -259,7 +258,7 @@ static void create_dummy_task_list(
   const double atom_positions[2][3] = {
       {ra[0], ra[1], ra[2]}, {rab[0] + ra[0], rab[1] + ra[1], rab[2] + ra[2]}};
   const int atom_kinds[2] = {1, 2};
-  const grid_basis_set_t basis_sets[2] = {basis_set_a, basis_set_b};
+  const grid_basis_set *basis_sets[2] = {basis_set_a, basis_set_b};
   const int ipgf = o1 / ncoset[la_max] + 1;
   const int jpgf = o2 / ncoset[lb_max] + 1;
   assert(o1 == (ipgf - 1) * ncoset[la_max]);
@@ -401,10 +400,10 @@ double grid_collocate_replay(const char *filename, const int cycles,
   struct timespec start_time, end_time;
 
   if (batch) {
-    grid_basis_set_t basisa = {NULL}, basisb = {NULL};
+    grid_basis_set *basisa = NULL, *basisb = NULL;
     create_dummy_basis_set(n1, la_min, la_max, zeta, &basisa);
     create_dummy_basis_set(n2, lb_min, lb_max, zetb, &basisb);
-    grid_task_list_t task_list = {NULL};
+    grid_task_list *task_list = NULL;
     create_dummy_task_list(border_mask, rscale, ra, rab, radius, basisa, basisb,
                            n1, n2, o1, o2, la_max, lb_max, pab, cycles,
                            cycles_per_block, &task_list);
@@ -425,7 +424,7 @@ double grid_collocate_replay(const char *filename, const int cycles,
 
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
     for (int i = 0; i < cycles; i++) {
-      grid_collocate_pgf_product_cpu(
+      grid_collocate_pgf_product(
           orthorhombic, border_mask, func, la_max, la_min, lb_max, lb_min, zeta,
           zetb, rscale, dh, dh_inv, ra, rab, npts_global, npts_local,
           shift_local, border_width, radius, o1, o2, n1, n2, pab, grid_test);
