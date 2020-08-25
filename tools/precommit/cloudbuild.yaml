@@ -2,7 +2,7 @@
 
 steps:
 - name: 'gcr.io/cloud-builders/docker'
-  args: ["build", "--build-arg", "REVISION=$SHORT_SHA", "-t", "img_cp2kprecommit", "."]
+  args: ["build", "--build-arg", "REVISION=$SHORT_SHA", "-t", "img_cp2kprecommit", "./tools/precommit/"]
 
 - name: 'gcr.io/cloud-builders/docker'
   args: ["tag", "img_cp2kprecommit", "gcr.io/$PROJECT_ID/img_cp2kprecommit:$SHORT_SHA"]
