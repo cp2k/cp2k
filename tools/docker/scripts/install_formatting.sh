@@ -9,7 +9,8 @@ apt-get install -qq --no-install-recommends \
     build-essential                         \
     make                                    \
     perl                                    \
-    python3-{pip,setuptools,wheel,dev}
+    python3-{pip,setuptools,wheel,dev}      \
+    nodejs
 
 rm -rf /var/lib/apt/lists/*
 

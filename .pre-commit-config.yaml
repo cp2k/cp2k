@@ -18,6 +18,10 @@ repos:
             tools/prettify/fprettify/.|
             tools/build_utils/fypp|
           )$
+-   repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: master
+    hooks:
+    -   id: markdownlint
 -   repo: local
     hooks:
     -   id: doxify
