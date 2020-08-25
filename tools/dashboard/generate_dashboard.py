@@ -675,7 +675,7 @@ def parse_report(report_txt, log):
         report["git-sha"] = re.search("(^|\n)CommitSHA: (\w{40})\n", report_txt).group(
             2
         )
-        report["summary"] = re.findall("(^|\n)Summary: (.+)\n", report_txt)[-1][1]
+        report["summary"] = re.findall("(^|[\n\r])Summary: (.+)\n", report_txt)[-1][1]
         report["status"] = re.findall("(^|\n)Status: (.+)\n", report_txt)[-1][1]
         report["plots"] = [
             eval("dict(%s)" % m[1])
