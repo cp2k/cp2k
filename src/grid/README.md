@@ -11,6 +11,12 @@ Currently, this package offers the following main features:
 - Collocate a list of tasks, see `grid_collocate_task_list` in
   [grid_task_list.h](grid_task_list.h) for details.
 
+In order to support diverse hardware architectures different backends are available.
+Currently, the following backends exist:
+
+- [ref](./ref/): A reference implemenentations for documenation and validation purposes.
+- [cpu](./cpu/): A performance optimized implementatin for x86 CPUs.
+
 ## The .task files
 
 For debugging all collocations can be written to .task files. To enable this

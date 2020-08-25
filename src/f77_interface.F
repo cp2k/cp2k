@@ -72,6 +72,8 @@ MODULE f77_interface
                                               globenv_create,&
                                               globenv_release,&
                                               globenv_retain
+   USE grid_api,                        ONLY: grid_library_finalize,&
+                                              grid_library_init
    USE input_constants,                 ONLY: do_eip,&
                                               do_embed,&
                                               do_fist,&
@@ -270,6 +272,8 @@ CONTAINS
                              cp_abort_hook, cp_warn_hook, io_unit=unit_nr)
 
          CALL pw_cuda_init()
+
+         CALL grid_library_init()
       ELSE
          ierr = cp_failure_level
       END IF
@@ -303,6 +307,8 @@ CONTAINS
             CPASSERT(ierr == 0)
          END DO
          DEALLOCATE (f_envs)
+
+         CALL grid_library_finalize()
 
          ! Finalize the DBCSR configuration
          CALL dbcsr_finalize_lib()

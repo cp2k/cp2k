@@ -1,0 +1,4 @@
+{
+"description": "Optimized CPU backend",
+"requires": ["../common", "../ref"],
+}

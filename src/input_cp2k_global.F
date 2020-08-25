@@ -31,6 +31,9 @@ MODULE input_cp2k_global
                                               low_print_level,&
                                               medium_print_level,&
                                               silent_print_level
+   USE grid_api,                        ONLY: GRID_BACKEND_AUTO,&
+                                              GRID_BACKEND_CPU,&
+                                              GRID_BACKEND_REF
    USE input_constants,                 ONLY: &
         bsse_run, callgraph_all, callgraph_master, callgraph_none, cell_opt_run, debug_run, &
         do_atom, do_band, do_cp2k, do_dbcsr, do_diag_elpa, do_diag_sl, do_farming, do_fft_fftw3, &
@@ -559,6 +562,10 @@ CONTAINS
       CALL create_fm_diag_rules_section(sub_section)
       CALL section_add_subsection(section, sub_section)
       CALL section_release(sub_section)
+      ! Grid library
+      CALL create_grid_section(sub_section)
+      CALL section_add_subsection(section, sub_section)
+      CALL section_release(sub_section)
 
    END SUBROUTINE create_global_section
 
@@ -682,5 +689,43 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_fm_diag_rules_section
+
+! **************************************************************************************************
+!> \brief Creates the section for configuring the grid library
+!> \param section ...
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE create_grid_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="GRID", &
+                          description="Configuration options for the grid library, "// &
+                          "which performs e.g. the collocate and integrate of the GPW method.", &
+                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="BACKEND", &
+                          description="Selects the backed used by the grid library.", &
+                          default_i_val=GRID_BACKEND_AUTO, &
+                          enum_i_vals=(/GRID_BACKEND_AUTO, GRID_BACKEND_REF, GRID_BACKEND_CPU/), &
+                          enum_c_vals=s2a("AUTO", "REF", "CPU"), &
+                          enum_desc=s2a("Let the grid library pick the backend automatically", &
+                                        "Reference backend implementation", &
+                                        "Optimized CPU backend"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="VALIDATE", &
+                          description="When enabled the reference backend is run in shadow mode "// &
+                          "and its results are compared with those from the selected backend. "// &
+                          "If the two results differ by too much then the calculation is aborted.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_grid_section
 
 END MODULE input_cp2k_global

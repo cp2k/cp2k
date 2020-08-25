@@ -73,6 +73,8 @@ MODULE cp2k_runs
                                               globenv_create,&
                                               globenv_release,&
                                               globenv_retain
+   USE grid_api,                        ONLY: grid_library_print_stats,&
+                                              grid_library_set_config
    USE input_constants,                 ONLY: &
         bsse_run, cell_opt_run, debug_run, do_atom, do_band, do_cp2k, do_embed, do_farming, &
         do_fist, do_mixed, do_opt_basis, do_optimize_input, do_qmmm, do_qs, do_sirius, do_swarm, &
@@ -173,11 +175,11 @@ CONTAINS
       CHARACTER(len=default_path_length), &
          DIMENSION(:, :), INTENT(IN)                     :: initial_variables
 
-      INTEGER                                            :: f_env_handle, ierr, iter_level, &
-                                                            method_name_id, new_env_id, &
-                                                            prog_name_id, run_type_id
+      INTEGER                                            :: f_env_handle, grid_backend, ierr, &
+                                                            iter_level, method_name_id, &
+                                                            new_env_id, prog_name_id, run_type_id
       INTEGER(KIND=int_8)                                :: m_memory_max_mpi
-      LOGICAL                                            :: echo_input, I_was_ionode
+      LOGICAL                                            :: echo_input, grid_validate, I_was_ionode
       TYPE(cp_logger_type), POINTER                      :: logger, sublogger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -190,6 +192,7 @@ CONTAINS
       CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.)
 
       ! DBCSR sets the GPU device, make sure it is the first GPU call
+      CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit)
       CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit)
 
       CALL cuda_nvtx_init()
@@ -244,6 +247,11 @@ CONTAINS
          CALL dbcsr_print_config(unit_nr=output_unit)
          WRITE (UNIT=output_unit, FMT='()')
       ENDIF
+
+      ! Configure the grid library.
+      CALL section_vals_val_get(root_section, "GLOBAL%GRID%BACKEND", i_val=grid_backend)
+      CALL section_vals_val_get(root_section, "GLOBAL%GRID%VALIDATE", l_val=grid_validate)
+      CALL grid_library_set_config(backend=grid_backend, validate=grid_validate)
 
       SELECT CASE (prog_name_id)
       CASE (do_atom)
@@ -394,6 +402,8 @@ CONTAINS
       CALL pw_fpga_finalize()
 
       CALL dbcsr_print_statistics()
+
+      CALL grid_library_print_stats(mpi_comm=mpi_comm, output_unit=output_unit)
 
       m_memory_max_mpi = m_memory_max
       CALL mp_max(m_memory_max_mpi, mpi_comm)

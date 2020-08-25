@@ -10,10 +10,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "grid_collocate_cpu.h"
-#include "grid_collocate_replay.h"
-#include "grid_common.h"
-#include "grid_prepare_pab.h"
+#include "../common/grid_common.h"
+#include "../common/grid_library.h"
+#include "grid_ref_collocate.h"
+#include "grid_ref_prepare_pab.h"
 
 //******************************************************************************
 // \brief Computes the polynomial expansion coefficients:
@@ -21,10 +21,10 @@
 //        Results are passed to grid_prepare_coef.
 // \author Ole Schuett
 //******************************************************************************
-static void grid_prepare_alpha(
-    const double ra[3], const double rb[3], const double rp[3],
-    const int la_max, const int lb_max,
-    double alpha[3][lb_max + 1][la_max + 1][la_max + lb_max + 1]) {
+static void
+prepare_alpha(const double ra[3], const double rb[3], const double rp[3],
+              const int la_max, const int lb_max,
+              double alpha[3][lb_max + 1][la_max + 1][la_max + lb_max + 1]) {
 
   // Initialize with zeros.
   for (int iaxis = 0; iaxis < 3; iaxis++) {
@@ -63,15 +63,14 @@ static void grid_prepare_alpha(
 
 //******************************************************************************
 // \brief Compute coefficients for all combinations of angular momentum.
-//        Results are passed to grid_collocate_ortho and grid_collocate_general.
+//        Results are passed to collocate_ortho and collocate_general.
 // \author Ole Schuett
 //******************************************************************************
-static void
-grid_prepare_coef(const int la_max, const int la_min, const int lb_max,
-                  const int lb_min, const int lp, const double prefactor,
-                  const double alpha[3][lb_max + 1][la_max + 1][lp + 1],
-                  const double pab[ncoset[lb_max]][ncoset[la_max]],
-                  double coef_xyz[lp + 1][lp + 1][lp + 1]) {
+static void prepare_coef(const int la_max, const int la_min, const int lb_max,
+                         const int lb_min, const int lp, const double prefactor,
+                         const double alpha[3][lb_max + 1][la_max + 1][lp + 1],
+                         const double pab[ncoset[lb_max]][ncoset[la_max]],
+                         double coef_xyz[lp + 1][lp + 1][lp + 1]) {
 
   memset(coef_xyz, 0, (lp + 1) * (lp + 1) * (lp + 1) * sizeof(double));
 
@@ -127,10 +126,9 @@ grid_prepare_coef(const int la_max, const int la_min, const int lb_max,
 //        Used only in the orthorhombic case.
 // \author Ole Schuett
 //******************************************************************************
-static void grid_fill_map(const int lb_cube, const int ub_cube,
-                          const int cubecenter, const int npts_global,
-                          const int shift_local, const int cmax,
-                          int map[2 * cmax + 1]) {
+static void fill_map(const int lb_cube, const int ub_cube, const int cubecenter,
+                     const int npts_global, const int shift_local,
+                     const int cmax, int map[2 * cmax + 1]) {
 
   for (int i = 0; i < 2 * cmax + 1; i++) {
     map[i] = INT_MAX; // Safety net, will trigger out of bounds.
@@ -146,9 +144,9 @@ static void grid_fill_map(const int lb_cube, const int ub_cube,
 //        Used only in the orthorhombic case.
 // \author Ole Schuett
 //******************************************************************************
-static void grid_fill_pol(const double dr, const double roffset,
-                          const int lb_cube, const int lp, const int cmax,
-                          const double zetp, double pol[lp + 1][2 * cmax + 1]) {
+static void fill_pol(const double dr, const double roffset, const int lb_cube,
+                     const int lp, const int cmax, const double zetp,
+                     double pol[lp + 1][2 * cmax + 1]) {
 
   //  Reuse the result from the previous gridpoint to avoid to many exps:
   //  exp( -a*(x+d)**2) = exp(-a*x**2)*exp(-2*a*x*d)*exp(-a*d**2)
@@ -187,10 +185,10 @@ static void grid_fill_pol(const double dr, const double roffset,
 }
 
 //******************************************************************************
-// \brief  A much simpler but also slower implementation of grid_collocate_core.
+// \brief  A much simpler but also slower implementation of collocate_core.
 // \author Ole Schuett
 //******************************************************************************
-static void grid_collocate_core_simple(
+static void collocate_core_simple(
     const int lp, const int cmax, const double coef_xyz[lp + 1][lp + 1][lp + 1],
     const double pol[3][lp + 1][2 * cmax + 1], const int lb_cube[3],
     const int ub_cube[3], const double dh[3][3], const double dh_inv[3][3],
@@ -266,11 +264,13 @@ static void grid_collocate_core_simple(
 //        Used only in the orthorhombic case.
 // \author Ole Schuett
 //******************************************************************************
-static void grid_collocate_core(
-    const int lp, const int cmax, const double coef_xyz[lp + 1][lp + 1][lp + 1],
-    const double pol[3][lp + 1][2 * cmax + 1], const int map[3][2 * cmax + 1],
-    const int lb_cube[3], const double dh[3][3], const double dh_inv[3][3],
-    const double disr_radius, const int npts_local[3], double *grid) {
+static void collocate_core(const int lp, const int cmax,
+                           const double coef_xyz[lp + 1][lp + 1][lp + 1],
+                           const double pol[3][lp + 1][2 * cmax + 1],
+                           const int map[3][2 * cmax + 1], const int lb_cube[3],
+                           const double dh[3][3], const double dh_inv[3][3],
+                           const double disr_radius, const int npts_local[3],
+                           double *grid) {
 
   const int kgmin = ceil(-1e-8 - disr_radius * dh_inv[2][2]);
   for (int kg = kgmin; kg <= 0; kg++) {
@@ -375,14 +375,12 @@ static void grid_collocate_core(
 // \brief Collocate kernel for the orthorhombic case.
 // \author Ole Schuett
 //******************************************************************************
-static void grid_collocate_ortho(const int lp, const double zetp,
-                                 const double coef_xyz[lp + 1][lp + 1][lp + 1],
-                                 const double dh[3][3],
-                                 const double dh_inv[3][3], const double rp[3],
-                                 const int npts_global[3],
-                                 const int npts_local[3],
-                                 const int shift_local[3], const double radius,
-                                 double *grid) {
+static void collocate_ortho(const int lp, const double zetp,
+                            const double coef_xyz[lp + 1][lp + 1][lp + 1],
+                            const double dh[3][3], const double dh_inv[3][3],
+                            const double rp[3], const int npts_global[3],
+                            const int npts_local[3], const int shift_local[3],
+                            const double radius, double *grid) {
 
   // *** position of the gaussian product
   //
@@ -433,28 +431,27 @@ static void grid_collocate_ortho(const int lp, const double zetp,
 
   double pol_mutable[3][lp + 1][2 * cmax + 1];
   for (int i = 0; i < 3; i++) {
-    grid_fill_pol(dh[i][i], roffset[i], lb_cube[i], lp, cmax, zetp,
-                  pol_mutable[i]);
+    fill_pol(dh[i][i], roffset[i], lb_cube[i], lp, cmax, zetp, pol_mutable[i]);
   }
   const double(*pol)[lp + 1][2 * cmax + 1] =
       (const double(*)[lp + 1][2 * cmax + 1]) pol_mutable;
 
   // Enable to run a much simpler, but also slower implementation.
   if (false) {
-    grid_collocate_core_simple(lp, cmax, coef_xyz, pol, lb_cube, ub_cube, dh,
-                               dh_inv, disr_radius, cubecenter, npts_global,
-                               npts_local, shift_local, grid);
+    collocate_core_simple(lp, cmax, coef_xyz, pol, lb_cube, ub_cube, dh, dh_inv,
+                          disr_radius, cubecenter, npts_global, npts_local,
+                          shift_local, grid);
   } else {
     // a mapping so that the ig corresponds to the right grid point
     int map_mutable[3][2 * cmax + 1];
     for (int i = 0; i < 3; i++) {
-      grid_fill_map(lb_cube[i], ub_cube[i], cubecenter[i], npts_global[i],
-                    shift_local[i], cmax, map_mutable[i]);
+      fill_map(lb_cube[i], ub_cube[i], cubecenter[i], npts_global[i],
+               shift_local[i], cmax, map_mutable[i]);
     }
     const int(*map)[2 * cmax + 1] = (const int(*)[2 * cmax + 1]) map_mutable;
 
-    grid_collocate_core(lp, cmax, coef_xyz, pol, map, lb_cube, dh, dh_inv,
-                        disr_radius, npts_local, grid);
+    collocate_core(lp, cmax, coef_xyz, pol, map, lb_cube, dh, dh_inv,
+                   disr_radius, npts_local, grid);
   }
 }
 
@@ -462,12 +459,14 @@ static void grid_collocate_ortho(const int lp, const double zetp,
 // \brief Collocate kernel for general case, ie. non-ortho or with subpatches.
 // \author Ole Schuett
 //******************************************************************************
-static void grid_collocate_general(
-    const int border_mask, const int lp, const double zetp,
-    const double coef_xyz[lp + 1][lp + 1][lp + 1], const double dh[3][3],
-    const double dh_inv[3][3], const double rp[3], const int npts_global[3],
-    const int npts_local[3], const int shift_local[3],
-    const int border_width[3], const double radius, double *grid) {
+static void collocate_general(const int border_mask, const int lp,
+                              const double zetp,
+                              const double coef_xyz[lp + 1][lp + 1][lp + 1],
+                              const double dh[3][3], const double dh_inv[3][3],
+                              const double rp[3], const int npts_global[3],
+                              const int npts_local[3], const int shift_local[3],
+                              const int border_width[3], const double radius,
+                              double *grid) {
 
   int bounds[3][2] = {{0, npts_local[0] - 1}, // Default for border_mask == 0.
                       {0, npts_local[1] - 1},
@@ -715,11 +714,11 @@ static void grid_collocate_general(
 }
 
 //******************************************************************************
-// \brief Internal entry point. Runs common preparations before branching into
-//        the orthorhombic or general kernel.
+// \brief Collocates a single product of primitiv Gaussians.
+//        See grid_collocate.h for details.
 // \author Ole Schuett
 //******************************************************************************
-static void grid_collocate_internal(
+void grid_ref_collocate_pgf_product(
     const bool orthorhombic, const int border_mask, const int func,
     const int la_max, const int la_min, const int lb_max, const int lb_min,
     const double zeta, const double zetb, const double rscale,
@@ -748,8 +747,8 @@ static void grid_collocate_internal(
   }
 
   int la_min_diff, la_max_diff, lb_min_diff, lb_max_diff;
-  grid_prepare_get_ldiffs(func, &la_min_diff, &la_max_diff, &lb_min_diff,
-                          &lb_max_diff);
+  grid_ref_prepare_get_ldiffs(func, &la_min_diff, &la_max_diff, &lb_min_diff,
+                              &lb_max_diff);
 
   const int la_min_prep = max(la_min + la_min_diff, 0);
   const int lb_min_prep = max(lb_min + lb_min_diff, 0);
@@ -761,8 +760,8 @@ static void grid_collocate_internal(
   const int n2_prep = ncoset[lb_max_prep];
   double pab_prep_mutable[n2_prep][n1_prep];
   memset(pab_prep_mutable, 0, n2_prep * n1_prep * sizeof(double));
-  grid_prepare_pab(func, o1, o2, la_max, la_min, lb_max, lb_min, zeta, zetb, n1,
-                   n2, pab, n1_prep, n2_prep, pab_prep_mutable);
+  grid_ref_prepare_pab(func, o1, o2, la_max, la_min, lb_max, lb_min, zeta, zetb,
+                       n1, n2, pab, n1_prep, n2_prep, pab_prep_mutable);
   const double(*pab_prep)[n1_prep] = (const double(*)[n1_prep])pab_prep_mutable;
 
   //   *** initialise the coefficient matrix, we transform the sum
@@ -780,7 +779,7 @@ static void grid_collocate_internal(
   //
 
   double alpha_mutable[3][lb_max_prep + 1][la_max_prep + 1][lp + 1];
-  grid_prepare_alpha(ra, rb, rp, la_max_prep, lb_max_prep, alpha_mutable);
+  prepare_alpha(ra, rb, rp, la_max_prep, lb_max_prep, alpha_mutable);
   const double(*alpha)[lb_max_prep + 1][la_max_prep + 1][lp + 1] =
       (const double(*)[lb_max_prep + 1][la_max_prep + 1][lp + 1]) alpha_mutable;
 
@@ -792,66 +791,22 @@ static void grid_collocate_internal(
   //
 
   double coef_xyz_mutable[lp + 1][lp + 1][lp + 1];
-  grid_prepare_coef(la_max_prep, la_min_prep, lb_max_prep, lb_min_prep, lp,
-                    prefactor, alpha, pab_prep, coef_xyz_mutable);
+  prepare_coef(la_max_prep, la_min_prep, lb_max_prep, lb_min_prep, lp,
+               prefactor, alpha, pab_prep, coef_xyz_mutable);
   const double(*coef_xyz)[lp + 1][lp + 1] =
       (const double(*)[lp + 1][lp + 1]) coef_xyz_mutable;
 
   if (orthorhombic && border_mask == 0) {
     // Here we ignore bounds_owned and always collocate the entire cube,
     // thereby assuming that the cube fits into the local grid.
-    grid_collocate_ortho(lp, zetp, coef_xyz, dh, dh_inv, rp, npts_global,
-                         npts_local, shift_local, radius, grid);
+    grid_library_gather_stats((grid_library_stats){.ref_collocate_ortho = 1});
+    collocate_ortho(lp, zetp, coef_xyz, dh, dh_inv, rp, npts_global, npts_local,
+                    shift_local, radius, grid);
   } else {
-    grid_collocate_general(border_mask, lp, zetp, coef_xyz, dh, dh_inv, rp,
-                           npts_global, npts_local, shift_local, border_width,
-                           radius, grid);
-  }
-}
-
-//******************************************************************************
-// \brief Public entry point. A thin wrapper with the only purpose of calling
-//        grid_collocate_record when DUMP_TASKS = true.
-// \author Ole Schuett
-//******************************************************************************
-void grid_collocate_pgf_product_cpu(
-    const bool orthorhombic, const int border_mask, const int func,
-    const int la_max, const int la_min, const int lb_max, const int lb_min,
-    const double zeta, const double zetb, const double rscale,
-    const double dh[3][3], const double dh_inv[3][3], const double ra[3],
-    const double rab[3], const int npts_global[3], const int npts_local[3],
-    const int shift_local[3], const int border_width[3], const double radius,
-    const int o1, const int o2, const int n1, const int n2,
-    const double pab[n2][n1], double *grid) {
-
-  // Set this to true to write each task to a file.
-  const bool DUMP_TASKS = false;
-
-  double *grid_before = NULL;
-  const size_t npts_local_total = npts_local[0] * npts_local[1] * npts_local[2];
-
-  if (DUMP_TASKS) {
-    const size_t sizeof_grid = sizeof(double) * npts_local_total;
-    grid_before = malloc(sizeof_grid);
-    memcpy(grid_before, grid, sizeof_grid);
-    memset(grid, 0, sizeof_grid);
-  }
-
-  grid_collocate_internal(orthorhombic, border_mask, func, la_max, la_min,
-                          lb_max, lb_min, zeta, zetb, rscale, dh, dh_inv, ra,
-                          rab, npts_global, npts_local, shift_local,
-                          border_width, radius, o1, o2, n1, n2, pab, grid);
-
-  if (DUMP_TASKS) {
-    grid_collocate_record(orthorhombic, border_mask, func, la_max, la_min,
-                          lb_max, lb_min, zeta, zetb, rscale, dh, dh_inv, ra,
-                          rab, npts_global, npts_local, shift_local,
-                          border_width, radius, o1, o2, n1, n2, pab, grid);
-
-    for (size_t i = 0; i < npts_local_total; i++) {
-      grid[i] += grid_before[i];
-    }
-    free(grid_before);
+    grid_library_gather_stats((grid_library_stats){.ref_collocate_general = 1});
+    collocate_general(border_mask, lp, zetp, coef_xyz, dh, dh_inv, rp,
+                      npts_global, npts_local, shift_local, border_width,
+                      radius, grid);
   }
 }
 

@@ -8,18 +8,13 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE grid_api
-   USE ISO_C_BINDING,                   ONLY: C_ASSOCIATED,&
-                                              C_BOOL,&
-                                              C_DOUBLE,&
-                                              C_F_POINTER,&
-                                              C_INT,&
-                                              C_LOC,&
-                                              C_NULL_PTR,&
-                                              C_PTR
+   USE ISO_C_BINDING,                   ONLY: &
+        C_ASSOCIATED, C_BOOL, C_CHAR, C_DOUBLE, C_FUNLOC, C_FUNPTR, C_F_POINTER, C_INT, C_LOC, &
+        C_LONG, C_NULL_CHAR, C_NULL_PTR, C_PTR
    USE cell_types,                      ONLY: cell_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cube_utils,                      ONLY: cube_info_type
-   USE grid_collocate,                  ONLY: &
+   USE grid_collocate_legacy,           ONLY: &
         GRID_FUNC_AB, GRID_FUNC_ADBmDAB_X, GRID_FUNC_ADBmDAB_Y, GRID_FUNC_ADBmDAB_Z, &
         GRID_FUNC_ARDBmDARB_XX, GRID_FUNC_ARDBmDARB_XY, GRID_FUNC_ARDBmDARB_XZ, &
         GRID_FUNC_ARDBmDARB_YX, GRID_FUNC_ARDBmDARB_YY, GRID_FUNC_ARDBmDARB_YZ, &
@@ -30,6 +25,7 @@ MODULE grid_api
         collocate_pgf_product_legacy => collocate_pgf_product
    USE grid_integrate,                  ONLY: integrate_pgf_product
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_sum
    USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
                                               realspace_grid_type
 #include "../base/base_uses.f90"
@@ -69,6 +65,12 @@ MODULE grid_api
    PUBLIC :: GRID_FUNC_DYDY
    PUBLIC :: GRID_FUNC_DZDZ
 
+   INTEGER, PARAMETER, PUBLIC :: GRID_BACKEND_AUTO = 10
+   INTEGER, PARAMETER, PUBLIC :: GRID_BACKEND_REF = 11
+   INTEGER, PARAMETER, PUBLIC :: GRID_BACKEND_CPU = 12
+
+   PUBLIC :: grid_library_init, grid_library_finalize
+   PUBLIC :: grid_library_set_config, grid_library_print_stats
    PUBLIC :: collocate_pgf_product, integrate_pgf_product
    PUBLIC :: grid_basis_set_type, grid_create_basis_set, grid_free_basis_set
    PUBLIC :: grid_task_list_type, grid_create_task_list, grid_free_task_list
@@ -83,6 +85,16 @@ MODULE grid_api
       PRIVATE
       TYPE(C_PTR) :: c_ptr = C_NULL_PTR
    END TYPE grid_task_list_type
+
+   ! Can not place this into a subroutine because fpretty keeps removing it.
+   INTERFACE
+      SUBROUTINE grid_library_print_stats_c(mpi_sum_func, print_func) &
+         BIND(C, name="grid_library_print_stats")
+         IMPORT :: C_FUNPTR
+         TYPE(C_FUNPTR), VALUE                     :: mpi_sum_func
+         TYPE(C_FUNPTR), VALUE                     :: print_func
+      END SUBROUTINE grid_library_print_stats_c
+   END INTERFACE
 
 CONTAINS
 
@@ -141,14 +153,14 @@ CONTAINS
       REAL(KIND=dp)                                      :: diff, ref_value, rel_diff, tolerance
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grid, grid_before
       INTERFACE
-         SUBROUTINE grid_collocate_pgf_product_cpu(orthorhombic, &
-                                                   border_mask, func, &
-                                                   la_max, la_min, lb_max, lb_min, &
-                                                   zeta, zetb, rscale, dh, dh_inv, ra, rab, &
-                                                   npts_global, npts_local, shift_local, border_width, &
-                                                   radius, o1, o2, n1, n2, pab, &
-                                                   grid) &
-            BIND(C, name="grid_collocate_pgf_product_cpu")
+         SUBROUTINE grid_collocate_pgf_product_c(orthorhombic, &
+                                                 border_mask, func, &
+                                                 la_max, la_min, lb_max, lb_min, &
+                                                 zeta, zetb, rscale, dh, dh_inv, ra, rab, &
+                                                 npts_global, npts_local, shift_local, border_width, &
+                                                 radius, o1, o2, n1, n2, pab, &
+                                                 grid) &
+            BIND(C, name="grid_collocate_pgf_product")
             IMPORT :: C_PTR, C_INT, C_DOUBLE, C_BOOL
             LOGICAL(KIND=C_BOOL), VALUE               :: orthorhombic
             INTEGER(KIND=C_INT), VALUE                :: border_mask
@@ -175,7 +187,7 @@ CONTAINS
             INTEGER(KIND=C_INT), VALUE                :: n2
             TYPE(C_PTR), VALUE                        :: pab
             TYPE(C_PTR), VALUE                        :: grid
-         END SUBROUTINE grid_collocate_pgf_product_cpu
+         END SUBROUTINE grid_collocate_pgf_product_c
       END INTERFACE
 
       !TODO remove unused dummy arguments
@@ -223,31 +235,31 @@ CONTAINS
       CPASSERT(IS_CONTIGUOUS(grid))
 #endif
 
-      CALL grid_collocate_pgf_product_cpu(orthorhombic=orthorhombic, &
-                                          border_mask=border_mask, &
-                                          func=ga_gb_function, &
-                                          la_max=la_max, &
-                                          la_min=la_min, &
-                                          lb_max=lb_max, &
-                                          lb_min=lb_min, &
-                                          zeta=zeta, &
-                                          zetb=zetb, &
-                                          rscale=scale, &
-                                          dh=C_LOC(rsgrid%desc%dh(1, 1)), &
-                                          dh_inv=C_LOC(rsgrid%desc%dh_inv(1, 1)), &
-                                          ra=C_LOC(ra(1)), &
-                                          rab=C_LOC(rab(1)), &
-                                          npts_global=C_LOC(npts_global(1)), &
-                                          npts_local=C_LOC(npts_local(1)), &
-                                          shift_local=C_LOC(shift_local(1)), &
-                                          border_width=C_LOC(border_width(1)), &
-                                          radius=radius, &
-                                          o1=o1, &
-                                          o2=o2, &
-                                          n1=SIZE(pab, 1), &
-                                          n2=SIZE(pab, 2), &
-                                          pab=C_LOC(pab(1, 1)), &
-                                          grid=C_LOC(grid(1, 1, 1)))
+      CALL grid_collocate_pgf_product_c(orthorhombic=orthorhombic, &
+                                        border_mask=border_mask, &
+                                        func=ga_gb_function, &
+                                        la_max=la_max, &
+                                        la_min=la_min, &
+                                        lb_max=lb_max, &
+                                        lb_min=lb_min, &
+                                        zeta=zeta, &
+                                        zetb=zetb, &
+                                        rscale=scale, &
+                                        dh=C_LOC(rsgrid%desc%dh(1, 1)), &
+                                        dh_inv=C_LOC(rsgrid%desc%dh_inv(1, 1)), &
+                                        ra=C_LOC(ra(1)), &
+                                        rab=C_LOC(rab(1)), &
+                                        npts_global=C_LOC(npts_global(1)), &
+                                        npts_local=C_LOC(npts_local(1)), &
+                                        shift_local=C_LOC(shift_local(1)), &
+                                        border_width=C_LOC(border_width(1)), &
+                                        radius=radius, &
+                                        o1=o1, &
+                                        o2=o2, &
+                                        n1=SIZE(pab, 1), &
+                                        n2=SIZE(pab, 2), &
+                                        pab=C_LOC(pab(1, 1)), &
+                                        grid=C_LOC(grid(1, 1, 1)))
 
       IF (validate_collocate) THEN
          CALL collocate_pgf_product_legacy(la_max, zeta, la_min, &
@@ -771,5 +783,109 @@ CONTAINS
                                       grid=C_LOC(grid_pointers(1)))
 
    END SUBROUTINE grid_collocate_task_list
+
+! **************************************************************************************************
+!> \brief Initialize grid library
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE grid_library_init()
+      INTERFACE
+         SUBROUTINE grid_library_init_c() BIND(C, name="grid_library_init")
+         END SUBROUTINE grid_library_init_c
+      END INTERFACE
+
+      CALL grid_library_init_c()
+
+   END SUBROUTINE grid_library_init
+
+! **************************************************************************************************
+!> \brief Finalize grid library
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE grid_library_finalize()
+      INTERFACE
+         SUBROUTINE grid_library_finalize_c() BIND(C, name="grid_library_finalize")
+         END SUBROUTINE grid_library_finalize_c
+      END INTERFACE
+
+      CALL grid_library_finalize_c()
+
+   END SUBROUTINE grid_library_finalize
+
+! **************************************************************************************************
+!> \brief Configures the grid library
+!> \param backend ...
+!> \param validate ...
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE grid_library_set_config(backend, validate)
+      INTEGER, INTENT(IN)                                :: backend
+      LOGICAL, INTENT(IN)                                :: validate
+
+      INTERFACE
+         SUBROUTINE grid_library_set_config_c(backend, validate) &
+            BIND(C, name="grid_library_set_config")
+            IMPORT :: C_INT, C_BOOL
+            INTEGER(KIND=C_INT), VALUE                :: backend
+            LOGICAL(KIND=C_BOOL), VALUE               :: validate
+         END SUBROUTINE grid_library_set_config_c
+      END INTERFACE
+
+      CALL grid_library_set_config_c(backend=backend, validate=LOGICAL(validate, C_BOOL))
+
+   END SUBROUTINE grid_library_set_config
+
+! **************************************************************************************************
+!> \brief Print grid library statistics
+!> \param mpi_comm ...
+!> \param output_unit ...
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE grid_library_print_stats(mpi_comm, output_unit)
+      INTEGER, INTENT(IN)                             :: mpi_comm, output_unit
+
+      ! Interface is defined above, because fpretty kept removing it from here.
+
+      ! Since Fortran units and mpi groups can't be used from C, we pass function pointers instead.
+      CALL grid_library_print_stats_c(mpi_sum_func=C_FUNLOC(mpi_sum_func), &
+                                      print_func=C_FUNLOC(print_func))
+
+   CONTAINS
+
+! **************************************************************************************************
+!> \brief Closure to wrap a Fortran mpi communicator.
+!> \param number ...
+!> \author Ole Schuett
+! **************************************************************************************************
+      SUBROUTINE mpi_sum_func(number) BIND(C)
+      INTEGER(KIND=C_LONG), INTENT(INOUT)                :: number
+
+         CALL mp_sum(number, mpi_comm)
+      END SUBROUTINE mpi_sum_func
+
+! **************************************************************************************************
+!> \brief Closure to wrap a Fortran output unit.
+!> \param message ...
+!> \author Ole Schuett
+! **************************************************************************************************
+      SUBROUTINE print_func(message) BIND(C)
+      CHARACTER(LEN=1, KIND=C_CHAR), INTENT(IN)          :: message(*)
+
+      CHARACTER(LEN=1000)                                :: buffer
+      INTEGER                                            :: i
+
+         IF (output_unit > 0) THEN
+            ! Convert C char array into Fortran string.
+            buffer = ""
+            DO i = 1, LEN(buffer)
+               IF (message(i) == C_NULL_CHAR) EXIT
+               buffer(i:i) = message(i)
+            END DO
+            ! Print the message.
+            WRITE (output_unit, FMT="(A)", ADVANCE="NO") buffer(1:i - 1)
+         END IF
+      END SUBROUTINE print_func
+
+   END SUBROUTINE grid_library_print_stats
 
 END MODULE grid_api
