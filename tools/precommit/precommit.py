@@ -103,7 +103,7 @@ def main():
             candidate_file_list += [os.path.join(root, fn) for fn in files]
 
     # Find eligible files and sort by size as larger ones will take longer to process.
-    eligible_file_pattern = re.compile(r".*\.(F|fypp|c|cu|h|py|md)$")
+    eligible_file_pattern = re.compile(r".*(_POTENTIALS|(\.(F|fypp|c|cu|h|py|md)))$")
     file_list = [fn for fn in candidate_file_list if eligible_file_pattern.match(fn)]
     file_list.sort(reverse=True, key=lambda fn: os.path.getsize(fn))
 
@@ -189,6 +189,9 @@ def process_file(fn, allow_modifications):
 
     elif re.match(r".*\.md$", fn):
         run_remote_tool("markdownlint", fn)
+
+    elif re.match(r".*_POTENTIALS$", fn):
+        run_local_tool("make", "data/POTENTIAL")
 
     else:
         raise Exception("Unknown file extension: " + fn)
