@@ -469,24 +469,24 @@ static void grid_collocate_general(
     const int npts_local[3], const int shift_local[3],
     const int border_width[3], const double radius, double *grid) {
 
-  int mask[3][2] = {{0, npts_local[0] - 1}, // Default for border_mask == 0.
-                    {0, npts_local[1] - 1},
-                    {0, npts_local[2] - 1}};
+  int bounds[3][2] = {{0, npts_local[0] - 1}, // Default for border_mask == 0.
+                      {0, npts_local[1] - 1},
+                      {0, npts_local[2] - 1}};
 
   // See also rs_find_node() in task_list_methods.F.
   // If the bit is set then we need to exclude the border in that direction.
   if (border_mask & (1 << 0))
-    mask[0][0] += border_width[0];
+    bounds[0][0] += border_width[0];
   if (border_mask & (1 << 1))
-    mask[0][1] -= border_width[0];
+    bounds[0][1] -= border_width[0];
   if (border_mask & (1 << 2))
-    mask[1][0] += border_width[1];
+    bounds[1][0] += border_width[1];
   if (border_mask & (1 << 3))
-    mask[1][1] -= border_width[1];
+    bounds[1][1] -= border_width[1];
   if (border_mask & (1 << 4))
-    mask[2][0] += border_width[2];
+    bounds[2][0] += border_width[2];
   if (border_mask & (1 << 5))
-    mask[2][1] -= border_width[2];
+    bounds[2][1] -= border_width[2];
 
   // Translated from collocate_general_opt()
   //
@@ -608,7 +608,7 @@ static void grid_collocate_general(
   // go over the grid, but cycle if the point is not within the radius
   for (int k = index_min[2]; k <= index_max[2]; k++) {
     const int k_index = modulo(k - shift_local[2], npts_global[2]);
-    if (k_index < mask[2][0] || mask[2][1] < k_index) {
+    if (k_index < bounds[2][0] || bounds[2][1] < k_index) {
       continue;
     }
 
@@ -635,7 +635,7 @@ static void grid_collocate_general(
 
     for (int j = index_min[1]; j <= index_max[1]; j++) {
       const int j_index = modulo(j - shift_local[1], npts_global[1]);
-      if (j_index < mask[1][0] || mask[1][1] < j_index) {
+      if (j_index < bounds[1][0] || bounds[1][1] < j_index) {
         continue;
       }
 
@@ -690,7 +690,7 @@ static void grid_collocate_general(
 
       for (int i = ismin; i <= ismax; i++) {
         const int i_index = modulo(i - shift_local[0], npts_global[0]);
-        if (i_index < mask[0][0] || mask[0][1] < i_index) {
+        if (i_index < bounds[0][0] || bounds[0][1] < i_index) {
           continue;
         }
 
