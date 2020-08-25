@@ -17,7 +17,7 @@ source code:
     to format Python scripts.
 - [shellcheck](https://github.com/koalaman/shellcheck)
     to analyze Shell scripts.
-- [markdownlint](https://github.com/markdownlint/markdownlint)
+- [markdownlint](https://github.com/DavidAnson/markdownlint)
     to analyze Markdown files.
 
 In contrast to the [CP2K-CI](https://github.com/cp2k/cp2k-ci) these tools
@@ -25,7 +25,7 @@ process each file individually, which makes them much more lightweight.
 
 ## Install Git Hook
 
-The [precommit.py](./precommit.py) script can be readily installed as git hook:
+The [precommit.py](./precommit.py) script can be readily installed as a git hook:
 
 ```shell
 ln -fs ../../tools/precommit/precommit.py .git/hooks/pre-commit
@@ -57,7 +57,7 @@ Searching for files...
 
 ## Backups and Cache
 
-Before precommit run an external tool on a file it create a backup copy in
+Before precommit runs an external tool on a file it create a backup copy in
 `obj/precommit`. If the tool leaves the file unmodified then the backup copy is
 remove afterwards. If the tool modifies the file and precommit was invoked
 without `--allow-modifications` then the backup copy is used to restore the
