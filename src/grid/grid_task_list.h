@@ -73,8 +73,8 @@ void grid_free_basis_set(grid_basis_set_t basis_set);
 // \param jatom_list       Index of second atom (one based).
 // \param iset_list        Index of first set (one based).
 // \param jset_list        Index of second set (one based).
-// \param ipgf_list        Index of first expoenent (one based).
-// \param jpgf_list        Index of second expoenent (one based).
+// \param ipgf_list        Index of first exponent (one based).
+// \param jpgf_list        Index of second exponent (one based).
 // \param border_mask_list Bit-pattern determining border regions to exclude.
 // \param block_num_list   Index into the block_offsets array (one based).
 // \param radius_list      Radius where Gaussian becomes smaller than threshold.

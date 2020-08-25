@@ -450,7 +450,7 @@ CONTAINS
             ix = ix + 1
             subset%exps(iexp) = ABS(x(ix))
             IF (subset%exp_has_const(iexp)) THEN
-               !use a fermi function to keep expoenents in a given range around their initial value
+               !use a fermi function to keep exponents in a given range around their initial value
                fermi_f = 1.0_dp/(EXP((x(ix) - 1.0_dp)/0.5_dp) + 1.0_dp)
                subset%exps(iexp) = (2.0_dp*fermi_f - 1.0_dp)*subset%exp_const(iexp)%var_fac*subset%exp_const(iexp)%init + &
                                    subset%exp_const(iexp)%init
