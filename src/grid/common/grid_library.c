@@ -27,17 +27,18 @@ void grid_library_init() {
     printf("Error: Grid library was already initialized.\n");
     abort();
   }
+
+  per_thread_stats =
+      malloc(sizeof(grid_library_stats *) * omp_get_max_threads());
+
 // Using parallel regions to ensure memory is allocated near a thread's core.
-#pragma omp parallel
+#pragma omp parallel default(none) shared(per_thread_stats)
   {
-#pragma omp master
-    per_thread_stats =
-        malloc(sizeof(grid_library_stats *) * omp_get_num_threads());
-#pragma omp barrier
     const int ithread = omp_get_thread_num();
     per_thread_stats[ithread] = malloc(sizeof(grid_library_stats));
     memset(per_thread_stats[ithread], 0, sizeof(grid_library_stats));
   }
+
   library_initialized = true;
 }
 
@@ -51,8 +52,7 @@ void grid_library_finalize() {
     abort();
   }
 
-#pragma omp parallel master
-  for (int i = 0; i < omp_get_num_threads(); i++) {
+  for (int i = 0; i < omp_get_max_threads(); i++) {
     free(per_thread_stats[i]);
   }
   free(per_thread_stats);
@@ -124,8 +124,7 @@ void grid_library_print_stats(void (*mpi_sum_func)(long *),
   grid_library_stats totals;
   memset(&totals, 0, sizeof(grid_library_stats));
 
-#pragma omp parallel master
-  for (int i = 0; i < omp_get_num_threads(); i++) {
+  for (int i = 0; i < omp_get_max_threads(); i++) {
     sum_stats(*per_thread_stats[i], &totals);
   }
 
