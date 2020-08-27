@@ -1,4 +1,1 @@
-{
-"description": "FES tool for Metadynamics",
-"requires": ["../common", "../base" ]
-}
+{"description": "FES tool for Metadynamics", "requires": ["../common", "../base"]}

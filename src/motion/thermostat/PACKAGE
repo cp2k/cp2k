@@ -1,4 +1,11 @@
 {
-"description": "The thermostat and barostat",
-'requires': ["../..", "../../base", "../../common","../../mpiwrap", "../../input", "../../subsys"],
+    "description": "The thermostat and barostat",
+    "requires": [
+        "../..",
+        "../../base",
+        "../../common",
+        "../../mpiwrap",
+        "../../input",
+        "../../subsys",
+    ],
 }

@@ -1,5 +1,5 @@
 {
-"description": "Routines dealing with xc functionals in CP2K",
-"requires": ["../common", "../pw", "../input", "../base", "../mpiwrap"],
-"implicit": "XC_F90_.*",
+    "description": "Routines dealing with xc functionals in CP2K",
+    "requires": ["../common", "../pw", "../input", "../base", "../mpiwrap"],
+    "implicit": "XC_F90_.*",
 }

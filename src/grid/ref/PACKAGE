@@ -1,4 +1,4 @@
 {
-"description": "Reference backend implementation",
-"requires": ["../common"],
+    "description": "Reference backend implementation",
+    "requires": ["../common"],
 }

@@ -104,7 +104,7 @@ def main():
 
     # Find eligible files and sort by size as larger ones will take longer to process.
     eligible_file_pattern = re.compile(
-        r"(./data/.*POTENTIALS?)|(.*\.(F|fypp|c|cu|h|py|md))$"
+        r"(./data/.*POTENTIALS?)|(.*/PACKAGE)|(.*\.(F|fypp|c|cu|h|py|md))$"
     )
     file_list = [fn for fn in candidate_file_list if eligible_file_pattern.match(fn)]
     file_list.sort(reverse=True, key=lambda fn: os.path.getsize(fn))
@@ -181,7 +181,7 @@ def process_file(fn, allow_modifications):
         run_remote_tool("clangformat", fn)
         run_analyze_src(fn)
 
-    elif re.match(r".*\.py$", fn):
+    elif re.match(r"(.*/PACKAGE)|(.*\.py)$", fn):
         ast.parse(orig_content, filename=fn)
         run_remote_tool("black", fn)
         run_analyze_src(fn)
