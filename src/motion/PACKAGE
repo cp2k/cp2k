@@ -1,4 +1,17 @@
 {
-"description": "Methods for changing atomic coordinates",
-'requires': ["../", "../base", "../common", "../mpiwrap", "../input", "../fm", "../subsys", "../emd", "thermostat", "../pw", "../pw_env", "../pw/fft"],
+    "description": "Methods for changing atomic coordinates",
+    "requires": [
+        "../",
+        "../base",
+        "../common",
+        "../mpiwrap",
+        "../input",
+        "../fm",
+        "../subsys",
+        "../emd",
+        "thermostat",
+        "../pw",
+        "../pw_env",
+        "../pw/fft",
+    ],
 }

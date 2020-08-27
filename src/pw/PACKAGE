@@ -1,4 +1,4 @@
 {
-"description": "Real-Space and Plane-Wave Grids",
-"requires": [ "fpga", "fft", "../common", "cuda", "../base", "../mpiwrap"],
+    "description": "Real-Space and Plane-Wave Grids",
+    "requires": ["fpga", "fft", "../common", "cuda", "../base", "../mpiwrap"],
 }

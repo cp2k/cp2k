@@ -1,5 +1,15 @@
 {
-"description": "Efficient conversion between Gaussian and plane-wave basis",
-"requires": ["../base", "../pw", "../aobasis", "../common", "../subsys", "../mpiwrap", "./common", "./ref", "./cpu"],
-"public": ["grid_api.F"],
+    "description": "Efficient conversion between Gaussian and plane-wave basis",
+    "requires": [
+        "../base",
+        "../pw",
+        "../aobasis",
+        "../common",
+        "../subsys",
+        "../mpiwrap",
+        "./common",
+        "./ref",
+        "./cpu",
+    ],
+    "public": ["grid_api.F"],
 }

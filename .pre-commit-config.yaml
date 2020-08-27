@@ -12,6 +12,7 @@ repos:
     hooks:
     -   id: black
         name: Reformat Python files with the black code formatter
+        files: '^.*(/PACKAGE)|(\.py)$'
         exclude: >-
           (?x)^(
             exts/.*|

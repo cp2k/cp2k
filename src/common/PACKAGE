@@ -1,4 +1,4 @@
 {
-"description": "Basic routines which are conceptually independent from CP2K and its input",
-"requires": ["../mpiwrap", "../base"]
+    "description": "Basic routines which are conceptually independent from CP2K and its input",
+    "requires": ["../mpiwrap", "../base"],
 }

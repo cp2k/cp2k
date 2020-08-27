@@ -1,5 +1,5 @@
 {
-"description": "parameters for minimax approximations of 1/x",
-"requires": ["../base","../common"],
-"public": ["minimax_exp.F", "minimax_rpa.F", "minimax_exp_gw.F"]
+    "description": "parameters for minimax approximations of 1/x",
+    "requires": ["../base", "../common"],
+    "public": ["minimax_exp.F", "minimax_rpa.F", "minimax_exp_gw.F"],
 }

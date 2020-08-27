@@ -1,4 +1,4 @@
 {
-"description": "Dealing with the input, parsing files",
-"requires": ["../common", "../base", "../mpiwrap" ],
+    "description": "Dealing with the input, parsing files",
+    "requires": ["../common", "../base", "../mpiwrap"],
 }
