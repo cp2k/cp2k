@@ -65,6 +65,9 @@ CONTAINS
 !> \param t_3c_overl_int ...
 !> \param t_3c_overl_int_gw_RI ...
 !> \param t_3c_overl_int_gw_AO ...
+!> \param t_3c_overl_int_AO_AO ...
+!> \param t_3c_overl_int_AO_MO ...
+!> \param mo_coeff_gw_t ...
 !> \param mo_coeff ...
 !> \param matrix_s ...
 !> \param gw_corr_lev_occ ...
@@ -81,6 +84,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_tensor_3c_overl_int_gw(t_3c_overl_int, &
                                          t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
+                                         t_3c_overl_int_AO_AO, t_3c_overl_int_AO_MO, mo_coeff_gw_t, &
                                          mo_coeff, matrix_s, &
                                          gw_corr_lev_occ, gw_corr_lev_virt, homo, nmo, &
                                          para_env, &
@@ -90,7 +94,9 @@ CONTAINS
 
       TYPE(dbcsr_t_type), DIMENSION(:, :)                :: t_3c_overl_int
       TYPE(dbcsr_t_type)                                 :: t_3c_overl_int_gw_RI, &
-                                                            t_3c_overl_int_gw_AO
+                                                            t_3c_overl_int_gw_AO, &
+                                                            t_3c_overl_int_AO_AO, &
+                                                            t_3c_overl_int_ao_mo, mo_coeff_gw_t
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt, homo, &
@@ -122,8 +128,8 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: fm_mat_mo_coeff_gw
       TYPE(dbcsr_distribution_type)                      :: dist, dist_templ
       TYPE(dbcsr_t_pgrid_type)                           :: pgrid_2d, pgrid_AO, pgrid_ic, pgrid_MO
-      TYPE(dbcsr_t_type) :: mo_coeff_gw_t, mo_coeff_gw_t_tmp, t_3c_overl_int_ao_ao, &
-         t_3c_overl_int_ao_mo, t_3c_overl_int_mo_ao, t_3c_overl_int_mo_mo
+      TYPE(dbcsr_t_type)                                 :: mo_coeff_gw_t_tmp, t_3c_overl_int_mo_ao, &
+                                                            t_3c_overl_int_mo_mo
       TYPE(dbcsr_type)                                   :: mat_mo_coeff_gw_reflected_norm, &
                                                             mat_norm, mat_norm_diag, mat_work
       TYPE(dbcsr_type), POINTER                          :: mat_mo_coeff_gw, &
@@ -240,20 +246,21 @@ CONTAINS
 
       CALL dbcsr_t_copy(mo_coeff_gw_t_tmp, mo_coeff_gw_t)
 
-      bounds(1, 1) = homo - gw_corr_lev_occ + 1
-      bounds(2, 1) = homo + gw_corr_lev_virt
-
-      CALL dbcsr_t_contract(dbcsr_scalar(1.0_dp), mo_coeff_gw_t, t_3c_overl_int_ao_ao, dbcsr_scalar(0.0_dp), &
-                            t_3c_overl_int_ao_mo, contract_1=[1], notcontract_1=[2], &
-                            contract_2=[3], notcontract_2=[1, 2], map_1=[3], map_2=[1, 2], &
-                            bounds_2=bounds, move_data=.FALSE., unit_nr=unit_nr_prv)
-
-      CALL dbcsr_t_copy(t_3c_overl_int_ao_mo, t_3c_overl_int_gw_RI)
-      CALL dbcsr_t_copy(t_3c_overl_int_ao_mo, t_3c_overl_int_gw_AO, order=[2, 1, 3])
-
       CALL cp_fm_release(fm_mat_mo_coeff_gw)
 
       IF (do_ic_model) THEN
+
+         bounds(1, 1) = homo - gw_corr_lev_occ + 1
+         bounds(2, 1) = homo + gw_corr_lev_virt
+
+         CALL dbcsr_t_contract(dbcsr_scalar(1.0_dp), mo_coeff_gw_t, t_3c_overl_int_ao_ao, dbcsr_scalar(0.0_dp), &
+                               t_3c_overl_int_ao_mo, contract_1=[1], notcontract_1=[2], &
+                               contract_2=[3], notcontract_2=[1, 2], map_1=[3], map_2=[1, 2], &
+                               bounds_2=bounds, move_data=.FALSE., unit_nr=unit_nr_prv)
+
+         CALL dbcsr_t_copy(t_3c_overl_int_ao_mo, t_3c_overl_int_gw_RI)
+         CALL dbcsr_t_copy(t_3c_overl_int_ao_mo, t_3c_overl_int_gw_AO, order=[2, 1, 3])
+
          pdims = 0
          CALL dbcsr_t_pgrid_create(para_env%group, pdims, pgrid_ic, &
                                    tensor_dims=[SIZE(sizes_RI_split), SIZE(sizes_MO), SIZE(sizes_MO)])
@@ -359,10 +366,7 @@ CONTAINS
 
       CALL dbcsr_release_p(mat_mo_coeff_gw)
 
-      CALL dbcsr_t_destroy(t_3c_overl_int_ao_ao)
-      CALL dbcsr_t_destroy(mo_coeff_gw_t)
       CALL dbcsr_t_destroy(mo_coeff_gw_t_tmp)
-      CALL dbcsr_t_destroy(t_3c_overl_int_ao_mo)
 
       CALL timestop(handle)
 
