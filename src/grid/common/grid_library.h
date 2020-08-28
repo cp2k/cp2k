@@ -44,8 +44,8 @@ grid_library_config grid_library_get_config();
 // \brief Prints statistics gathered by the grid library.
 // \author Ole Schuett
 //******************************************************************************
-void grid_library_print_stats(void (*mpi_sum_func)(long *),
-                              void (*print_func)(char *));
+void grid_library_print_stats(void (*mpi_sum_func)(long *, int), int mpi_comm,
+                              void (*print_func)(char *, int), int output_unit);
 
 //******************************************************************************
 // \brief All exiting counters. When adding a counter also update functions

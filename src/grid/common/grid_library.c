@@ -101,25 +101,33 @@ void grid_library_gather_stats(const grid_library_stats increment) {
 // \brief Prints statistics gathered by the grid library.
 // \author Ole Schuett
 //******************************************************************************
-void grid_library_print_stats(void (*mpi_sum_func)(long *),
-                              void (*print_func)(char *)) {
+void grid_library_print_stats(void (*mpi_sum_func)(long *, int),
+                              const int mpi_comm,
+                              void (*print_func)(char *, int),
+                              const int output_unit) {
   if (!library_initialized) {
     printf("Error: Grid library is not initialized.\n");
     abort();
   }
-  print_func("\n");
+  print_func("\n", output_unit);
   print_func(" ----------------------------------------------------------------"
-             "---------------\n");
+             "---------------\n",
+             output_unit);
   print_func(" -                                                               "
-             "              -\n");
+             "              -\n",
+             output_unit);
   print_func(" -                                GRID STATISTICS                "
-             "              -\n");
+             "              -\n",
+             output_unit);
   print_func(" -                                                               "
-             "              -\n");
+             "              -\n",
+             output_unit);
   print_func(" ----------------------------------------------------------------"
-             "---------------\n");
+             "---------------\n",
+             output_unit);
   print_func(" COUNTER                                                         "
-             "          VALUE\n");
+             "          VALUE\n",
+             output_unit);
 
   grid_library_stats totals;
   memset(&totals, 0, sizeof(grid_library_stats));
@@ -129,18 +137,19 @@ void grid_library_print_stats(void (*mpi_sum_func)(long *),
   }
 
   char buffer[100];
-  mpi_sum_func(&totals.ref_collocate_ortho);
+  mpi_sum_func(&totals.ref_collocate_ortho, mpi_comm);
   snprintf(buffer, sizeof(buffer), " %-58s %20li\n", "ref_collocate_ortho",
            totals.ref_collocate_ortho);
-  print_func(buffer);
+  print_func(buffer, output_unit);
 
-  mpi_sum_func(&totals.ref_collocate_general);
+  mpi_sum_func(&totals.ref_collocate_general, mpi_comm);
   snprintf(buffer, sizeof(buffer), " %-58s %20li\n", "ref_collocate_general",
            totals.ref_collocate_general);
-  print_func(buffer);
+  print_func(buffer, output_unit);
 
   print_func(" ----------------------------------------------------------------"
-             "---------------\n");
+             "---------------\n",
+             output_unit);
 }
 
 // EOF

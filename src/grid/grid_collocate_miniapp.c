@@ -10,11 +10,15 @@
 #include "common/grid_library.h"
 #include "grid_collocate_replay.h"
 
-void mpi_sum_func(long *number) {
-  *number += 0; // Nothing todo without MPI, pretend argument is used anyways.
+void mpi_sum_func(long *number, int mpi_comm) {
+  *number += 0; // Nothing todo without MPI, pretend arguments are used anyways.
+  mpi_comm += 0;
 }
 
-void print_func(char *message) { printf("%s", message); }
+void print_func(char *message, int output_unit) {
+  output_unit += 0; // Pretent argument is used.
+  printf("%s", message);
+}
 
 //******************************************************************************
 // \brief Stand-alone miniapp for running .task files.
@@ -56,7 +60,7 @@ int main(int argc, char *argv[]) {
   const double max_diff =
       grid_collocate_replay(argv[iarg++], cycles, batch, cycles_per_block);
 
-  grid_library_print_stats(&mpi_sum_func, &print_func);
+  grid_library_print_stats(&mpi_sum_func, 0, &print_func, 0);
   grid_library_finalize();
 
   if (max_diff > 1e-12 * cycles) {
