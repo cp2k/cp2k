@@ -1,0 +1,20 @@
+{
+  "name": "cp2k-precommit",
+  "version": "1.0.0",
+  "description": "Tools used by the cp2k-precomit system",
+  "main": "index.js",
+  "repository": "",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+      "type": "git",
+      "url": ""
+   },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "markdownlint-cli": "^0.23.2"
+  }
+}
