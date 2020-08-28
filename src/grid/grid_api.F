@@ -86,16 +86,6 @@ MODULE grid_api
       TYPE(C_PTR) :: c_ptr = C_NULL_PTR
    END TYPE grid_task_list_type
 
-   ! Can not place this into a subroutine because fpretty keeps removing it.
-   INTERFACE
-      SUBROUTINE grid_library_print_stats_c(mpi_sum_func, print_func) &
-         BIND(C, name="grid_library_print_stats")
-         IMPORT :: C_FUNPTR
-         TYPE(C_FUNPTR), VALUE                     :: mpi_sum_func
-         TYPE(C_FUNPTR), VALUE                     :: print_func
-      END SUBROUTINE grid_library_print_stats_c
-   END INTERFACE
-
 CONTAINS
 
 ! **************************************************************************************************
@@ -842,50 +832,63 @@ CONTAINS
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE grid_library_print_stats(mpi_comm, output_unit)
-      INTEGER, INTENT(IN)                             :: mpi_comm, output_unit
+      INTEGER, INTENT(IN)                                :: mpi_comm, output_unit
 
-      ! Interface is defined above, because fpretty kept removing it from here.
+      INTERFACE
+         SUBROUTINE grid_library_print_stats_c(mpi_sum_func, mpi_comm, print_func, output_unit) &
+            BIND(C, name="grid_library_print_stats")
+            IMPORT :: C_FUNPTR, C_INT
+            TYPE(C_FUNPTR), VALUE                     :: mpi_sum_func
+            INTEGER(KIND=C_INT), VALUE                :: mpi_comm
+            TYPE(C_FUNPTR), VALUE                     :: print_func
+            INTEGER(KIND=C_INT), VALUE                :: output_unit
+         END SUBROUTINE grid_library_print_stats_c
+      END INTERFACE
 
       ! Since Fortran units and mpi groups can't be used from C, we pass function pointers instead.
       CALL grid_library_print_stats_c(mpi_sum_func=C_FUNLOC(mpi_sum_func), &
-                                      print_func=C_FUNLOC(print_func))
+                                      mpi_comm=mpi_comm, &
+                                      print_func=C_FUNLOC(print_func), &
+                                      output_unit=output_unit)
 
-   CONTAINS
+   END SUBROUTINE grid_library_print_stats
 
 ! **************************************************************************************************
-!> \brief Closure to wrap a Fortran mpi communicator.
+!> \brief Callback to run mpi_sum on a Fortran MPI communicator.
 !> \param number ...
+!> \param mpi_comm ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-      SUBROUTINE mpi_sum_func(number) BIND(C)
+   SUBROUTINE mpi_sum_func(number, mpi_comm) BIND(C)
       INTEGER(KIND=C_LONG), INTENT(INOUT)                :: number
+      INTEGER(KIND=C_INT), INTENT(IN), VALUE             :: mpi_comm
 
-         CALL mp_sum(number, mpi_comm)
-      END SUBROUTINE mpi_sum_func
+      CALL mp_sum(number, mpi_comm)
+   END SUBROUTINE mpi_sum_func
 
 ! **************************************************************************************************
-!> \brief Closure to wrap a Fortran output unit.
+!> \brief Callback to write to a Fortran output unit.
 !> \param message ...
+!> \param output_unit ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-      SUBROUTINE print_func(message) BIND(C)
+   SUBROUTINE print_func(message, output_unit) BIND(C)
       CHARACTER(LEN=1, KIND=C_CHAR), INTENT(IN)          :: message(*)
+      INTEGER(KIND=C_INT), INTENT(IN), VALUE             :: output_unit
 
       CHARACTER(LEN=1000)                                :: buffer
       INTEGER                                            :: i
 
-         IF (output_unit > 0) THEN
-            ! Convert C char array into Fortran string.
-            buffer = ""
-            DO i = 1, LEN(buffer)
-               IF (message(i) == C_NULL_CHAR) EXIT
-               buffer(i:i) = message(i)
-            END DO
-            ! Print the message.
-            WRITE (output_unit, FMT="(A)", ADVANCE="NO") buffer(1:i - 1)
-         END IF
-      END SUBROUTINE print_func
-
-   END SUBROUTINE grid_library_print_stats
+      IF (output_unit > 0) THEN
+         ! Convert C char array into Fortran string.
+         buffer = ""
+         DO i = 1, LEN(buffer)
+            IF (message(i) == C_NULL_CHAR) EXIT
+            buffer(i:i) = message(i)
+         END DO
+         ! Print the message.
+         WRITE (output_unit, FMT="(A)", ADVANCE="NO") buffer(1:i - 1)
+      END IF
+   END SUBROUTINE print_func
 
 END MODULE grid_api

@@ -10,11 +10,15 @@
 #include "common/grid_library.h"
 #include "grid_collocate_replay.h"
 
-void mpi_sum_func(long *number) {
-  *number += 0; // Nothing todo without MPI, pretend argument is used anyways.
+void mpi_sum_func(long *number, int mpi_comm) {
+  *number += 0; // Nothing todo without MPI, pretend arguments are used anyways.
+  mpi_comm += 0;
 }
 
-void print_func(char *message) { printf("%s", message); }
+void print_func(char *message, int output_unit) {
+  output_unit += 0; // Pretent argument is used.
+  printf("%s", message);
+}
 
 //******************************************************************************
 // \brief Unit test for the grid collocate code.
@@ -66,7 +70,7 @@ int main(int argc, char *argv[]) {
   errors += run_test(argv[1], "collocate_general_subpatch16.task");
   errors += run_test(argv[1], "collocate_ortho_non_periodic.task");
 
-  grid_library_print_stats(&mpi_sum_func, &print_func);
+  grid_library_print_stats(&mpi_sum_func, 0, &print_func, 0);
   grid_library_finalize();
 
   if (errors == 0) {
