@@ -69,7 +69,7 @@ def main():
 
     # Store candidate before changing base directory and creating scratch dir.
     candidate_file_list = [os.path.abspath(fn) for fn in args.files]
-    base_dir = Path(__file__).parent.parent.parent.resolve()
+    base_dir = Path(__file__).resolve().parent.parent.parent
     os.chdir(base_dir)
     SCRATCH_DIR.mkdir(parents=True, exist_ok=True)
 

@@ -30,7 +30,7 @@ RUN ln -s /opt/cp2k-precommit/node_modules/markdownlint-cli/markdownlint.js /usr
 # Install black, flask, gunicorn, and dependencies.
 # https://github.com/psf/black
 COPY requirements.txt .
-RUN pip3 install -r requirements.txt
+RUN pip3 install --quiet -r requirements.txt
 
 # Clone cp2k repository (needed for CI mode).
 RUN git clone --quiet --recursive --single-branch -b master https://github.com/cp2k/cp2k.git /workspace/cp2k
