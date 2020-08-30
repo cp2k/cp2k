@@ -1356,10 +1356,9 @@ CONTAINS
                                                             matrix_berry_re_mo_mo
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega, mat_P_omega_beta, &
                                                             mat_P_omega_kp
-      TYPE(dbcsr_t_type) :: mo_coeff_gw_t, mo_coeff_gw_t_beta, t_3c_overl_int_AO_AO, &
-         t_3c_overl_int_AO_MO, t_3c_overl_int_gw_AO, t_3c_overl_int_gw_AO_beta, &
-         t_3c_overl_int_gw_RI, t_3c_overl_int_gw_RI_beta, t_3c_overl_nnP_ic, &
-         t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected, t_3c_overl_nnP_ic_reflected_beta
+      TYPE(dbcsr_t_type) :: t_3c_overl_int_gw_AO, t_3c_overl_int_gw_AO_beta, t_3c_overl_int_gw_RI, &
+         t_3c_overl_int_gw_RI_beta, t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_beta, &
+         t_3c_overl_nnP_ic_reflected, t_3c_overl_nnP_ic_reflected_beta
       TYPE(dbcsr_type), POINTER                          :: mat_W, mat_work
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_rec_axk, &
@@ -1475,14 +1474,12 @@ CONTAINS
                                                     para_env, fm_mat_W, fm_mat_Q, &
                                                     mo_coeff, &
                                                     t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
-                                                    t_3c_overl_int_AO_AO, t_3c_overl_int_AO_MO, mo_coeff_gw_t, &
                                                     t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
                                                     matrix_s, mat_W, t_3c_O, &
                                                     qs_env, &
                                                     gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, homo_beta, &
                                                     mo_coeff_beta, &
                                                     t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta, &
-                                                    mo_coeff_gw_t_beta, &
                                                     t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected_beta)
                ELSE
                   CALL allocate_matrices_gw_im_time(gw_corr_lev_occ, gw_corr_lev_virt, homo, nmo, &
@@ -1491,7 +1488,6 @@ CONTAINS
                                                     para_env, fm_mat_W, fm_mat_Q, &
                                                     mo_coeff, &
                                                     t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
-                                                    t_3c_overl_int_AO_AO, t_3c_overl_int_AO_MO, mo_coeff_gw_t, &
                                                     t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
                                                     matrix_s, mat_W, t_3c_O, qs_env)
 
@@ -1909,15 +1905,13 @@ CONTAINS
                                         fm_mo_coeff_virt, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
                                         mo_coeff, fm_mat_W, para_env, para_env_RPA, mat_dm, mat_SinvVSinv, &
                                         t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
-                                        t_3c_overl_int_AO_AO, t_3c_overl_int_AO_MO, &
-                                        mo_coeff_gw_t, &
                                         matrix_berry_im_mo_mo, matrix_berry_re_mo_mo, mat_W, matrix_s, &
                                         kpoints, mp2_env, qs_env, &
                                         nkp_self_energy, do_kpoints_cubic_RPA, Eigenval_kp, Eigenval_scf_kp, &
                                         vec_Sigma_c_gw_beta, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, homo_beta, &
                                         e_fermi_beta, Eigenval_beta, Eigenval_last_beta, Eigenval_scf_beta, &
                                         vec_Sigma_x_gw_beta, ic_corr_list_beta, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
-                                        t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta, mo_coeff_gw_t_beta)
+                                        t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta)
             ELSE
                CALL compute_QP_energies(vec_Sigma_c_gw, count_ev_sc_GW, gw_corr_lev_occ, &
                                         gw_corr_lev_tot, gw_corr_lev_virt, homo, &
@@ -1932,10 +1926,7 @@ CONTAINS
                                         fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_mo_coeff_occ, &
                                         fm_mo_coeff_virt, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
                                         mo_coeff, fm_mat_W, para_env, para_env_RPA, mat_dm, mat_SinvVSinv, &
-                                        t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
-                                        t_3c_overl_int_AO_AO, t_3c_overl_int_AO_MO, &
-                                        mo_coeff_gw_t, &
-                                        matrix_berry_im_mo_mo, &
+                                        t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, matrix_berry_im_mo_mo, &
                                         matrix_berry_re_mo_mo, mat_W, matrix_s, &
                                         kpoints, mp2_env, qs_env, &
                                         nkp_self_energy, do_kpoints_cubic_RPA, Eigenval_kp, Eigenval_scf_kp)
@@ -2054,18 +2045,15 @@ CONTAINS
                CALL deallocate_matrices_gw_im_time(weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, do_ic_model, &
                                                    do_kpoints_cubic_RPA, fm_mat_W, &
                                                    t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
-                                                   t_3c_overl_int_ao_ao, t_3c_overl_int_ao_mo, mo_coeff_gw_t, &
                                                    t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
                                                    mat_W, &
                                                    ikp_local, cfm_mat_W_kp_tau, &
                                                    t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta, &
-                                                   mo_coeff_gw_t_beta, &
                                                    t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected_beta)
             ELSE
                CALL deallocate_matrices_gw_im_time(weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, do_ic_model, &
                                                    do_kpoints_cubic_RPA, fm_mat_W, &
                                                    t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
-                                                   t_3c_overl_int_ao_ao, t_3c_overl_int_ao_mo, mo_coeff_gw_t, &
                                                    t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
                                                    mat_W, &
                                                    ikp_local, cfm_mat_W_kp_tau)
