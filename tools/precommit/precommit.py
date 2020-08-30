@@ -220,7 +220,7 @@ def run_prettify(fn):
 
     # The prettify tool processes only about 1k lines of code per second.
     # Hence, setting a generous timeout as our largest file has 100k lines.
-    run_local_tool("./tools/prettify/prettify.py", fn, timeout=300)
+    run_local_tool("./tools/prettify/prettify.py", fn, timeout=600)
 
 
 # ======================================================================================
