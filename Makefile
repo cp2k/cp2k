@@ -29,6 +29,8 @@ MAINLIBDIR   := $(CP2KHOME)/lib
 MAINOBJDIR   := $(CP2KHOME)/obj
 MAINTSTDIR   := $(CP2KHOME)/regtesting
 PRECOMMITDIR := $(CP2KHOME)/obj/precommit
+PRETTYOBJDIR := $(CP2KHOME)/obj/prettified
+DOXIFYOBJDIR := $(CP2KHOME)/obj/doxified
 TOOLSRC      := $(CP2KHOME)/tools
 SRCDIR       := $(CP2KHOME)/src
 EXEDIR       := $(MAINEXEDIR)/$(ARCH)
@@ -76,33 +78,37 @@ endif
          dirs makedep default_target all \
          toolversions extversions extclean libcp2k cp2k_shell exts python-bindings \
          pretty precommit precommitclean doxygen/clean doxygen \
+         fpretty fprettyclean \
+         doxify doxifyclean \
          install clean realclean distclean mrproper help \
          test testbg testclean testrealclean \
          data \
 	 $(EXTSPACKAGES)
 
 # Discover files and directories ============================================
-ALL_SRC_DIRS := $(shell find $(SRCDIR) -type d | awk '{printf("%s:",$$1)}')
-ALL_PKG_FILES  = $(shell find $(SRCDIR) -name "PACKAGE")
-OBJ_SRC_FILES  = $(shell cd $(SRCDIR); find . -name "*.F")
-OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/python*" -name "*.c")
-OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . -name "*.cpp")
-OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . -name "*.cxx")
-OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . -name "*.cc")
+ALL_SRC_DIRS := $(shell find $(SRCDIR) -type d ! -name preprettify | awk '{printf("%s:",$$1)}')
+ALL_PREPRETTY_DIRS = $(shell find $(SRCDIR) -type d -name preprettify)
+
+ALL_PKG_FILES  = $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "PACKAGE")
+OBJ_SRC_FILES  = $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.F")
+OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" ! -path "*/python*" -name "*.c")
+OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cpp")
+OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cxx")
+OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cc")
 ifneq ($(NVCC),)
-OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . -name "*.cu")
+OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cu")
 endif
 
 # Included files used by Fypp preprocessor and standard includes
-INCLUDED_SRC_FILES = $(filter-out base_uses.f90, $(notdir $(shell find $(SRCDIR) -name "*.f90")))
+INCLUDED_SRC_FILES = $(filter-out base_uses.f90, $(notdir $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.f90")))
 
 # Include also source files which won't compile into an object file
 ALL_SRC_FILES  = $(strip $(subst $(NULL) .,$(NULL) $(SRCDIR),$(NULL) $(OBJ_SRC_FILES)))
-ALL_SRC_FILES += $(filter-out base_uses.f90, $(shell find $(SRCDIR) -name "*.f90"))
-ALL_SRC_FILES += $(shell find $(SRCDIR) -name "*.h")
-ALL_SRC_FILES += $(shell find $(SRCDIR) -name "*.hpp")
-ALL_SRC_FILES += $(shell find $(SRCDIR) -name "*.hxx")
-ALL_SRC_FILES += $(shell find $(SRCDIR) -name "*.hcc")
+ALL_SRC_FILES += $(filter-out base_uses.f90, $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.f90"))
+ALL_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.h")
+ALL_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.hpp")
+ALL_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.hxx")
+ALL_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.hcc")
 
 ALL_OBJECTS        = $(addsuffix .o, $(basename $(notdir $(OBJ_SRC_FILES))))
 ALL_EXE_OBJECTS    = $(addsuffix .o, $(EXE_NAMES))
@@ -325,9 +331,67 @@ OTHER_HELP += "testrealclean : Remove all LAST-* and TEST-* files for given ARCH
 #
 # Remove all files from previous builds
 #
-distclean: precommitclean testrealclean
+distclean: precommitclean fprettyclean doxifyclean testrealclean
 	rm -rf $(DOXYGENDIR) $(MAINEXEDIR) $(MAINOBJDIR) $(MAINLIBDIR) $(MAINTSTDIR)
 OTHER_HELP += "distclean : Remove all files from previous builds"
+
+# Prettyfier stuff ==========================================================
+vpath %.pretty $(PRETTYOBJDIR)
+
+fpretty: $(addprefix $(PRETTYOBJDIR)/, $(ALL_OBJECTS:.o=.pretty)) $(addprefix $(PRETTYOBJDIR)/, $(INCLUDED_SRC_FILES:.f90=.pretty_included))
+TOOL_HELP += "fpretty : Reformat all Fortran source files in a pretty way."
+
+fprettyclean:
+	-rm -rf $(PRETTYOBJDIR) $(ALL_PREPRETTY_DIRS)
+TOOL_HELP += "fprettyclean : Remove prettify marker files and preprettify directories"
+
+$(PRETTYOBJDIR)/%.pretty: %.F $(DOXIFYOBJDIR)/%.doxified
+	@mkdir -p $(PRETTYOBJDIR)
+	cd $(dir $<); $(TOOLSRC)/prettify/prettify.py --do-backup --backup-dir=$(PRETTYOBJDIR) $(notdir $<)
+	@touch $@
+
+$(PRETTYOBJDIR)/%.pretty_included: %.f90 $(DOXIFYOBJDIR)/%.doxified_included
+	@mkdir -p $(PRETTYOBJDIR)
+	cd $(dir $<); $(TOOLSRC)/prettify/prettify.py --do-backup --backup-dir=$(PRETTYOBJDIR) $(notdir $<)
+	@touch $@
+
+$(PRETTYOBJDIR)/%.pretty: %.c $(DOXIFYOBJDIR)/%.doxified
+#   TODO: call indent here?
+	@mkdir -p $(PRETTYOBJDIR)
+	@touch $@
+
+$(PRETTYOBJDIR)/%.pretty: %.cpp $(DOXIFYOBJDIR)/%.doxified
+#   TODO: call indent here?
+	@mkdir -p $(PRETTYOBJDIR)
+	@touch $@
+
+# Doxyifier stuff ===========================================================
+vpath %.doxified $(DOXIFYOBJDIR)
+
+doxify: $(addprefix $(DOXIFYOBJDIR)/, $(ALL_OBJECTS:.o=.doxified)) $(addprefix $(DOXIFYOBJDIR)/, $(INCLUDED_SRC_FILES:.f90=.doxified_included))
+TOOL_HELP += "doxify : Autogenerate doxygen headers for subroutines"
+
+doxifyclean:
+	-rm -rf $(DOXIFYOBJDIR)
+TOOL_HELP += "doxifyclean : Remove doxify marker files"
+
+$(DOXIFYOBJDIR)/%.doxified: %.F
+	$(TOOLSRC)/doxify/doxify.sh $<
+	@mkdir -p $(DOXIFYOBJDIR)
+	@touch $@
+
+$(DOXIFYOBJDIR)/%.doxified_included: %.f90
+	$(TOOLSRC)/doxify/doxify.sh $<
+	@mkdir -p $(DOXIFYOBJDIR)
+	@touch $@
+
+$(DOXIFYOBJDIR)/%.doxified: %.c
+	@mkdir -p $(DOXIFYOBJDIR)
+	@touch $@
+
+$(DOXIFYOBJDIR)/%.doxified: %.cpp
+	@mkdir -p $(DOXIFYOBJDIR)
+	@touch $@
 
 # doxygen stuff =============================================================
 doxygen/clean:
