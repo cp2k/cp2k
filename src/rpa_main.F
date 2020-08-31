@@ -425,31 +425,31 @@ CONTAINS
       END IF
 
       IF (unit_nr > 0 .AND. .NOT. do_im_time) THEN
-            IF (do_ri_sos_laplace_mp2) THEN
-               WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-                  "RI_INFO| Group size for laplace numerical integration:", integ_group_size*para_env_sub%num_pe
+         IF (do_ri_sos_laplace_mp2) THEN
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+               "RI_INFO| Group size for laplace numerical integration:", integ_group_size*para_env_sub%num_pe
+            WRITE (UNIT=unit_nr, FMT="(T3,A)") &
+               "INTEG_INFO| MINIMAX approximation"
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+               "INTEG_INFO| Number of integration points:", num_integ_points
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+               "INTEG_INFO| Number of integration points per Laplace group:", best_num_integ_point
+         ELSE
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+               "RI_INFO| Group size for frequency integration:", integ_group_size*para_env_sub%num_pe
+            IF (do_minimax_quad) THEN
                WRITE (UNIT=unit_nr, FMT="(T3,A)") &
-                  "INTEG_INFO| MINIMAX approximation"
-               WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-                  "INTEG_INFO| Number of integration points:", num_integ_points
-               WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-                  "INTEG_INFO| Number of integration points per Laplace group:", best_num_integ_point
+                  "INTEG_INFO| MINIMAX quadrature"
             ELSE
-               WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-                  "RI_INFO| Group size for frequency integration:", integ_group_size*para_env_sub%num_pe
-               IF (do_minimax_quad) THEN
-                  WRITE (UNIT=unit_nr, FMT="(T3,A)") &
-                     "INTEG_INFO| MINIMAX quadrature"
-               ELSE
-                  WRITE (UNIT=unit_nr, FMT="(T3,A)") &
-                     "INTEG_INFO| Clenshaw-Curtius quadrature"
-               END IF
-               WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-                  "INTEG_INFO| Number of integration points:", num_integ_points
-               WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-                  "INTEG_INFO| Number of integration points per RPA group:", best_num_integ_point
+               WRITE (UNIT=unit_nr, FMT="(T3,A)") &
+                  "INTEG_INFO| Clenshaw-Curtius quadrature"
             END IF
-            CALL m_flush(unit_nr)
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+               "INTEG_INFO| Number of integration points:", num_integ_points
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+               "INTEG_INFO| Number of integration points per RPA group:", best_num_integ_point
+         END IF
+         CALL m_flush(unit_nr)
       END IF
 
       num_integ_group = ngroup/integ_group_size

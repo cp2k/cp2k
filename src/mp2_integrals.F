@@ -505,7 +505,7 @@ CONTAINS
       IF (unit_nr > 0) THEN
          WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
             "RI_INFO| Number of auxiliary basis functions:", dimen_RI, &
-            "GENERAL_INFO| Number of basis functions:", homo+virtual, &
+            "GENERAL_INFO| Number of basis functions:", homo + virtual, &
             "GENERAL_INFO| Number of occupied orbitals:", homo, &
             "GENERAL_INFO| Number of virtual orbitals:", virtual
          IF (do_svd) THEN
@@ -517,12 +517,12 @@ CONTAINS
          IF (do_alpha_beta) mem_for_iaK = mem_for_iaK + &
                                           dimen_RI*REAL(homo_beta, KIND=dp)*(nmo - homo_beta)*8.0_dp/(1024_dp**2)
 
-         IF(.NOT. do_im_time) THEN
+         IF (.NOT. do_im_time) THEN
             WRITE (unit_nr, '(T3,A,T66,F11.2,A4)') 'RI_INFO| Total memory for (ia|K) integrals:', &
                mem_for_iaK, ' MiB'
             IF (my_do_gw .AND. .NOT. do_im_time) THEN
                mem_for_iaK = dimen_RI*REAL(nmo, KIND=dp)*gw_corr_lev_total*8.0_dp/(1024_dp**2)
-   
+
                WRITE (unit_nr, '(T3,A,T66,F11.2,A4)') 'RI_INFO| Total memory for G0W0-(nm|K) integrals:', &
                   mem_for_iaK, ' MiB'
             END IF

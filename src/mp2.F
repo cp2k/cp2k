@@ -296,7 +296,7 @@ CONTAINS
             WRITE (unit_nr, '(T3,A,T76,I5)') 'Requested number of processes per group:', mp2_env%mp2_num_proc
          mp2_env%mp2_num_proc = para_env%num_pe
       ENDIF
-      IF( .NOT. mp2_env%do_im_time) THEN
+      IF (.NOT. mp2_env%do_im_time) THEN
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T76,I5)') 'Used number of processes per group:', mp2_env%mp2_num_proc
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'Maximum allowed memory usage per MPI process:', &
             mp2_env%mp2_memory, ' MiB'

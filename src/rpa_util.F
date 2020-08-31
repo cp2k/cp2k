@@ -9,7 +9,6 @@
 !>      06.2019 Moved from rpa_ri_gpw.F [Frederick Stein]
 ! **************************************************************************************************
 MODULE rpa_util
-   USE qs_tensors,                      ONLY: get_tensor_occupancy
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
@@ -53,7 +52,8 @@ MODULE rpa_util
                                               dbcsr_t_type
    USE input_constants,                 ONLY: wfc_mm_style_gemm,&
                                               wfc_mm_style_syrk
-   USE kinds,                           ONLY: dp, int_8
+   USE kinds,                           ONLY: dp,&
+                                              int_8
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
    USE machine,                         ONLY: m_walltime
@@ -64,6 +64,7 @@ MODULE rpa_util
    USE mp2_types,                       ONLY: integ_mat_buffer_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_tensors,                      ONLY: get_tensor_occupancy
    USE rpa_communication,               ONLY: fm_redistribute
    USE rpa_gw_kpoints,                  ONLY: compute_wkp_W
 #include "./base/base_uses.f90"
@@ -128,6 +129,7 @@ CONTAINS
 !> \param mat_P_omega_kp ...
 !> \param mat_work ...
 !> \param mat_P_omega_beta ...
+!> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE alloc_im_time(qs_env, para_env, dimen_RI, dimen_RI_red, num_integ_points, &
                             fm_mat_Q, fm_mo_coeff_occ, fm_mo_coeff_virt, &
@@ -190,11 +192,11 @@ CONTAINS
 
       INTEGER                                            :: cell_grid_dm(3), first_ikp_local, &
                                                             handle, i_dim, periodic(3)
-INTEGER(int_8):: nze_O
+      INTEGER(int_8)                                     :: nze_O
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_size
+      REAL(KIND=dp)                                      :: occ_O
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, fm_struct_sub_kp
-      REAL(KIND=dp) :: occ_O
 
       CALL timeset(routineN, handle)
 
@@ -222,10 +224,10 @@ INTEGER(int_8):: nze_O
          cell_to_index_3c(0, 0, 0) = 1
          num_cells_dm = 1
          CALL get_tensor_occupancy(t_3c_O(1, 1), nze_O, occ_O)
-         IF(unit_nr>0) WRITE (unit_nr, '(T3,A,T71,F7.1,1X,A2)') &
-             'MEMORY_INFO| Memory of 3c integrals:', 8.0_dp*REAL(nze_O, dp)/1.0E9_dp, 'GB'
-         IF(unit_nr>0) WRITE (unit_nr, '(T3,A,T73,1X,F6.3,A1)') &
-             'MEMORY_INFO| Occupancy of 3c integrals:', occ_O*100, '%'
+         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T71,F7.1,1X,A2)') &
+            'MEMORY_INFO| Memory of 3c integrals:', 8.0_dp*REAL(nze_O, dp)/1.0E9_dp, 'GB'
+         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T73,1X,F6.3,A1)') &
+            'MEMORY_INFO| Occupancy of 3c integrals:', occ_O*100, '%'
       END IF
 
       IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
