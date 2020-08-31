@@ -1,0 +1,16 @@
+FROM ubuntu:20.04
+
+# author: Ole Schuett
+
+WORKDIR /workspace
+
+COPY ./scripts/install_basics.sh .
+RUN ./install_basics.sh
+
+COPY ./scripts/install_doxygen.sh .
+RUN ./install_doxygen.sh
+
+COPY ./scripts/ci_entrypoint.sh ./scripts/test_doxygen.sh ./
+CMD ["./ci_entrypoint.sh", "./test_doxygen.sh"]
+
+#EOF
