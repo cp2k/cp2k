@@ -1453,10 +1453,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="FRACTION", &
                           variants=(/"HFX_FRACTION"/), &
-                          description="The fraction of Hartree-Fock to add to the total energy. "// &
-                          "1.0 implies standard Hartree-Fock if used with XC_FUNCTIONAL NONE. "// &
-                          "NOTE: In a mixed potential calculation this should be set to 1.0, otherwise "// &
-                          "all parts are multiplied with this factor. ", &
+                          description="The fraction of TB Hartree-Fock exchange to use in the Kernel. "// &
+                          "0.0 implies no HFX part is used in the kernel. ", &
                           usage="FRACTION 0.0", default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
