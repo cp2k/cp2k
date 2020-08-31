@@ -734,8 +734,8 @@ CONTAINS
          ggamma = ggamma*zphase
          IF (ALL(REAL(ggamma, KIND=dp) /= 0.0_dp)) THEN
             tmp = AIMAG(ggamma)/REAL(ggamma, KIND=dp)
-            ci = ATAN(tmp)
-            dci = (1.0_dp/(1.0_dp + tmp**2))* &
+            ci = -ATAN(tmp)
+            dci = -(1.0_dp/(1.0_dp + tmp**2))* &
                   (AIMAG(dggamma)*REAL(ggamma, KIND=dp) - AIMAG(ggamma)*REAL(dggamma, KIND=dp))/(REAL(ggamma, KIND=dp))**2
             dipole = MATMUL(cell%hmat, ci)/twopi
             dipole_deriv = MATMUL(cell%hmat, dci)/twopi
@@ -746,8 +746,8 @@ CONTAINS
             ! no pbc(particle_set(i)%r(:),cell) so that the total dipole is the sum of the molecular dipoles
             ria = particle_set(i)%r(:)
             q = charges(i)
-            dipole = dipole - q*(ria - rcc)
-            dipole_deriv(:) = dipole_deriv(:) - q*(particle_set(i)%v(:) - drcc)
+            dipole = dipole + q*(ria - rcc)
+            dipole_deriv(:) = dipole_deriv(:) + q*(particle_set(i)%v(:) - drcc)
          END DO
       END IF
       CALL cp_results_erase(results=results, description=description)

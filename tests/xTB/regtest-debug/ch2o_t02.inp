@@ -1,0 +1,51 @@
+&FORCE_EVAL
+  &DFT
+    &QS
+      METHOD xTB
+      &xTB
+      &END XTB
+    &END QS
+    &SCF
+      SCF_GUESS MOPAC
+      MAX_SCF  100
+      EPS_SCF 1.e-8
+      &MIXING
+          METHOD DIRECT_P_MIXING
+          ALPHA   0.2
+      &END
+    &END SCF
+    &EFIELD
+    &END
+    &PRINT
+      &MOMENTS ON
+         PERIODIC .TRUE.
+         REFERENCE COM
+      &END
+    &END
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 20.0 20.0 20.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+     O     0.051368    0.000000    0.000000     
+     C     1.278612    0.000000    0.000000    
+     H     1.870460    0.939607    0.000000   
+     H     1.870460   -0.939607    0.000000  
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT CH2O
+  RUN_TYPE DEBUG
+  PRINT_LEVEL LOW
+&END GLOBAL
+&DEBUG
+   DEBUG_FORCES F
+   DEBUG_STRESS_TENSOR F
+   DEBUG_DIPOLE T
+   DEBUG_POLARIZABILITY F
+   STOP_ON_MISMATCH T
+   DE 0.0002
+&END

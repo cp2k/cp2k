@@ -220,7 +220,7 @@ CONTAINS
 
       IF (do_ewald) THEN
          ! add self charge interaction and background charge contribution
-         gmcharge(:, 1) = gmcharge(:, 1) - 2._dp*alpha*oorootpi*mcharge(:)
+         gmcharge(:, 1) = gmcharge(:, 1) - 2._dp*alpha*oorootpi*mcharge1(:)
          IF (ANY(periodic(:) == 1)) THEN
             gmcharge(:, 1) = gmcharge(:, 1) - pi/alpha**2/deth
          END IF
@@ -250,10 +250,10 @@ CONTAINS
             DO j = 1, nj
                la = laoa(i) + 1
                lb = laob(j) + 1
-               gcij(i, j) = 0.5_dp*(gchrg(irow, la, 1) + gchrg(icol, lb, 1))
+               gcij(i, j) = gchrg(irow, la, 1) + gchrg(icol, lb, 1)
             END DO
          END DO
-         gmij = 0.5_dp*(gmcharge(irow, 1) + gmcharge(icol, 1))
+         gmij = gmcharge(irow, 1) + gmcharge(icol, 1)
          DO is = 1, SIZE(ks_matrix)
             NULLIFY (ksblock)
             CALL dbcsr_get_block_p(matrix=ks_matrix(is)%matrix, &
@@ -335,7 +335,7 @@ CONTAINS
             CALL dbcsr_get_block_p(matrix=ks_matrix(is)%matrix, &
                                    row=irow, col=icol, block=ksblock, found=found)
             CPASSERT(found)
-            ksblock = ksblock + 0.5_dp*gmij*sblock
+            ksblock = ksblock + gmij*sblock
          END DO
       ENDDO
       CALL dbcsr_iterator_stop(iter)

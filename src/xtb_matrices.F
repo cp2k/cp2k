@@ -959,7 +959,7 @@ CONTAINS
                                                             nimg, nkind, ns, nsgf, nspins
       INTEGER, DIMENSION(25)                             :: lao
       INTEGER, DIMENSION(5)                              :: occ
-      LOGICAL                                            :: pass_check
+      LOGICAL                                            :: do_efield, pass_check
       REAL(KIND=dp)                                      :: achrg, chmax, pc_ener, qmmm_el
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: mcharge
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aocg, charges
@@ -1009,6 +1009,7 @@ CONTAINS
 
       energy%hartree = 0.0_dp
       energy%qmmm_el = 0.0_dp
+      energy%efield = 0.0_dp
 
       scf_section => section_vals_get_subs_vals(qs_env%input, "DFT%SCF")
       nspins = dft_control%nspins
@@ -1024,7 +1025,14 @@ CONTAINS
          END DO
       END DO
 
-      IF (dft_control%qs_control%xtb_control%coulomb_interaction) THEN
+      IF (dft_control%apply_period_efield .OR. dft_control%apply_efield .OR. &
+          dft_control%apply_efield_field) THEN
+         do_efield = .TRUE.
+      ELSE
+         do_efield = .FALSE.
+      END IF
+
+      IF (dft_control%qs_control%xtb_control%coulomb_interaction .OR. do_efield) THEN
          ! Mulliken charges
          CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, matrix_s_kp=matrix_s)
          CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
@@ -1056,7 +1064,6 @@ CONTAINS
             END DO
          END DO
          DEALLOCATE (aocg)
-
          ! charge mixing
          IF (dft_control%qs_control%do_ls_scf) THEN
             !
@@ -1069,12 +1076,18 @@ CONTAINS
          DO iatom = 1, natom
             mcharge(iatom) = SUM(charges(iatom, :))
          END DO
+      END IF
 
+      IF (dft_control%qs_control%xtb_control%coulomb_interaction) THEN
          CALL build_xtb_coulomb(qs_env, ks_matrix, rho, charges, mcharge, energy, &
                                 calculate_forces, just_energy)
+      END IF
 
+      IF (do_efield) THEN
          CALL efield_tb_matrix(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
+      END IF
 
+      IF (dft_control%qs_control%xtb_control%coulomb_interaction) THEN
          IF (dft_control%qs_control%xtb_control%check_atomic_charges) THEN
             pass_check = .TRUE.
             DO ikind = 1, nkind
@@ -1100,7 +1113,9 @@ CONTAINS
                CPABORT("xTB Charges")
             END IF
          END IF
+      END IF
 
+      IF (dft_control%qs_control%xtb_control%coulomb_interaction .OR. do_efield) THEN
          DEALLOCATE (mcharge, charges)
       END IF
 
