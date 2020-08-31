@@ -1,0 +1,10 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+ch2o_t01.inp                              86    1.0E-12               0.712276774819E+00
+ch2o_t02.inp                              86    1.0E-12               0.712276774819E+00
+ch2o_t03.inp                              86    1.0E-12               0.755534217819E+00
+ch2o_t04.inp                              86    1.0E-12               0.718756134707E+00
+#EOF

@@ -45,7 +45,9 @@ MODULE qs_linres_op
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_checksum, dbcsr_convert_offsets_to_sizes, dbcsr_copy, dbcsr_create, &
-        dbcsr_deallocate_matrix, dbcsr_distribution_type, dbcsr_p_type, dbcsr_set, dbcsr_type, &
+        dbcsr_deallocate_matrix, dbcsr_distribution_type, dbcsr_get_block_p, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_set, dbcsr_type, &
         dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
@@ -636,14 +638,23 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       LOGICAL                                            :: do_periodic
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(polar_env_type), POINTER                      :: polar_env
 
-      CALL get_qs_env(qs_env=qs_env, polar_env=polar_env)
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, polar_env=polar_env)
       CALL get_polar_env(polar_env=polar_env, do_periodic=do_periodic)
-      IF (do_periodic) THEN
-         CALL polar_operators_berry(qs_env)
+      IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
+         IF (do_periodic) THEN
+            CALL polar_tb_operators_berry(qs_env)
+         ELSE
+            CALL polar_tb_operators_local(qs_env)
+         END IF
       ELSE
-         CALL polar_operators_local(qs_env)
+         IF (do_periodic) THEN
+            CALL polar_operators_berry(qs_env)
+         ELSE
+            CALL polar_operators_local(qs_env)
+         END IF
       END IF
 
    END SUBROUTINE polar_operators
@@ -833,6 +844,108 @@ CONTAINS
 !> \par History
 !>      01.2013 created [SL]
 !>      06.2018 polar_env integrated into qs_env (MK)
+!>      08.2020 adapt for xTB/DFTB (JHU)
+!> \author SL
+! **************************************************************************************************
+
+   SUBROUTINE polar_tb_operators_berry(qs_env)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'polar_tb_operators_berry'
+
+      COMPLEX(dp)                                        :: zdeta
+      INTEGER                                            :: blk, handle, i, icol, idir, irow, ispin, &
+                                                            nmo, nspins
+      LOGICAL                                            :: do_raman, found
+      REAL(dp)                                           :: dd, fdir
+      REAL(dp), DIMENSION(3)                             :: kvec, ria, rib
+      REAL(dp), DIMENSION(3, 3)                          :: hmat
+      REAL(dp), DIMENSION(:, :), POINTER                 :: d_block, s_block
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: dBerry_psi0
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dipmat, matrix_s
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(polar_env_type), POINTER                      :: polar_env
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, &
+                      cell=cell, particle_set=particle_set, &
+                      polar_env=polar_env, mos=mos, matrix_s=matrix_s)
+
+      nspins = dft_control%nspins
+
+      CALL get_polar_env(polar_env=polar_env, &
+                         do_raman=do_raman, &
+                         dBerry_psi0=dBerry_psi0)
+
+      IF (do_raman) THEN
+
+         ALLOCATE (dipmat(3))
+         DO i = 1, 3
+            ALLOCATE (dipmat(i)%matrix)
+            CALL dbcsr_copy(dipmat(i)%matrix, matrix_s(1)%matrix, 'dipole')
+            CALL dbcsr_set(dipmat(i)%matrix, 0.0_dp)
+         END DO
+
+         hmat = cell%hmat(:, :)/twopi
+
+         CALL dbcsr_iterator_start(iter, matrix_s(1)%matrix)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            NULLIFY (s_block, d_block)
+            CALL dbcsr_iterator_next_block(iter, irow, icol, s_block, blk)
+            ria = particle_set(irow)%r
+            rib = particle_set(icol)%r
+            DO idir = 1, 3
+               kvec(:) = twopi*cell%h_inv(idir, :)
+               dd = SUM(kvec(:)*ria(:))
+               zdeta = CMPLX(COS(dd), SIN(dd), KIND=dp)
+               fdir = AIMAG(LOG(zdeta))
+               dd = SUM(kvec(:)*rib(:))
+               zdeta = CMPLX(COS(dd), SIN(dd), KIND=dp)
+               fdir = fdir + AIMAG(LOG(zdeta))
+               CALL dbcsr_get_block_p(matrix=dipmat(idir)%matrix, &
+                                      row=irow, col=icol, BLOCK=d_block, found=found)
+               CPASSERT(found)
+               d_block = d_block + 0.5_dp*fdir*s_block
+            END DO
+         ENDDO
+         CALL dbcsr_iterator_stop(iter)
+
+         ! Compute the derivative and add the result to mo_derivatives
+         DO ispin = 1, dft_control%nspins ! spin
+            CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
+            DO i = 1, 3
+               CALL cp_dbcsr_sm_fm_multiply(dipmat(i)%matrix, mo_coeff, &
+                                            dBerry_psi0(i, ispin)%matrix, ncol=nmo)
+            ENDDO !x/y/z-direction
+         END DO
+
+         DO i = 1, 3
+            CALL dbcsr_deallocate_matrix(dipmat(i)%matrix)
+         END DO
+         DEALLOCATE (dipmat)
+
+      ENDIF ! do_raman
+
+      CALL timestop(handle)
+   END SUBROUTINE polar_tb_operators_berry
+
+! **************************************************************************************************
+!> \brief Calculate the Berry phase operator in the AO basis and
+!>         then the derivative of the Berry phase operator with respect to
+!>         the ground state wave function (see paper Putrino et al., JCP, 13, 7102) for the AOs;
+!>        afterwards multiply with the ground state MO coefficients
+!>
+!> \param qs_env ...
+!> \par History
+!>      01.2013 created [SL]
+!>      06.2018 polar_env integrated into qs_env (MK)
 !> \author SL
 ! **************************************************************************************************
    SUBROUTINE polar_operators_local(qs_env)
@@ -894,6 +1007,97 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE polar_operators_local
+
+! **************************************************************************************************
+!> \brief Calculate the local dipole operator in the AO basis
+!>        afterwards multiply with the ground state MO coefficients
+!>
+!> \param qs_env ...
+!> \par History
+!>      01.2013 created [SL]
+!>      06.2018 polar_env integrated into qs_env (MK)
+!>      08.2020 TB version (JHU)
+!> \author SL
+! **************************************************************************************************
+   SUBROUTINE polar_tb_operators_local(qs_env)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'polar_tb_operators_local'
+
+      INTEGER                                            :: blk, handle, i, icol, irow, ispin, nmo, &
+                                                            nspins
+      LOGICAL                                            :: do_raman, found
+      REAL(dp)                                           :: fdir
+      REAL(dp), DIMENSION(3)                             :: ria, rib
+      REAL(dp), DIMENSION(:, :), POINTER                 :: d_block, s_block
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: dBerry_psi0
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dipmat, matrix_s
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(polar_env_type), POINTER                      :: polar_env
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, &
+                      cell=cell, particle_set=particle_set, &
+                      polar_env=polar_env, mos=mos, matrix_s=matrix_s)
+
+      nspins = dft_control%nspins
+
+      CALL get_polar_env(polar_env=polar_env, &
+                         do_raman=do_raman, &
+                         dBerry_psi0=dBerry_psi0)
+
+      IF (do_raman) THEN
+
+         ALLOCATE (dipmat(3))
+         DO i = 1, 3
+            ALLOCATE (dipmat(i)%matrix)
+            CALL dbcsr_copy(dipmat(i)%matrix, matrix_s(1)%matrix, 'dipole')
+         END DO
+
+         CALL dbcsr_iterator_start(iter, matrix_s(1)%matrix)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            NULLIFY (s_block, d_block)
+            CALL dbcsr_iterator_next_block(iter, irow, icol, s_block, blk)
+            ria = particle_set(irow)%r
+            ria = pbc(ria, cell)
+            rib = particle_set(icol)%r
+            rib = pbc(rib, cell)
+            DO i = 1, 3
+               CALL dbcsr_get_block_p(matrix=dipmat(i)%matrix, &
+                                      row=irow, col=icol, BLOCK=d_block, found=found)
+               CPASSERT(found)
+               fdir = 0.5_dp*(ria(i) + rib(i))
+               d_block = s_block*fdir
+            END DO
+         ENDDO
+         CALL dbcsr_iterator_stop(iter)
+
+         ! Compute the derivative and add the result to mo_derivatives
+         DO ispin = 1, dft_control%nspins ! spin
+            CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
+            DO i = 1, 3
+               CALL cp_dbcsr_sm_fm_multiply(dipmat(i)%matrix, mo_coeff, &
+                                            dBerry_psi0(i, ispin)%matrix, ncol=nmo)
+            ENDDO !x/y/z-direction
+         END DO
+
+         DO i = 1, 3
+            CALL dbcsr_deallocate_matrix(dipmat(i)%matrix)
+         END DO
+         DEALLOCATE (dipmat)
+
+      ENDIF ! do_raman
+
+      CALL timestop(handle)
+
+   END SUBROUTINE polar_tb_operators_local
 
 ! **************************************************************************************************
 !> \brief ...
