@@ -88,6 +88,8 @@ def main():
                 continue
             if root.startswith("./tools/autotune_grid"):
                 continue
+            if root.startswith("./doxygen"):
+                continue
             if root.startswith("./exts"):
                 continue
             if root.startswith("./obj"):

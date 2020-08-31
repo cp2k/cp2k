@@ -22,7 +22,6 @@ export VERSION=sopt
 
 MAKEFILE     := $(CP2KHOME)/Makefile
 ARCHDIR      := $(CP2KHOME)/arch
-DOXYGENDIR   := $(CP2KHOME)/doc/doxygen
 DATA_DIR     := $(CP2KHOME)/data
 MAINEXEDIR   := $(CP2KHOME)/exe
 MAINLIBDIR   := $(CP2KHOME)/lib
@@ -78,7 +77,7 @@ endif
          dirs makedep default_target all \
          toolversions extversions extclean libcp2k cp2k_shell exts python-bindings \
          pre-commit pre-commit-clean \
-         pretty precommit precommitclean doxygen/clean doxygen \
+         pretty precommit precommitclean doxygenclean doxygen \
          fpretty fprettyclean \
          doxify doxifyclean \
          install clean realclean distclean mrproper help \
@@ -395,24 +394,12 @@ $(DOXIFYOBJDIR)/%.doxified: %.cpp
 	@touch $@
 
 # doxygen stuff =============================================================
-doxygen/clean:
-	-rm -rf $(DOXYGENDIR)
-TOOL_HELP += "doxygen/clean : Remove the generated doxygen documentation"
+doxygenclean:
+	-rm -rf $(CP2KHOME)/doxygen
+TOOL_HELP += "doxygenclean : Remove the generated doxygen documentation"
 
-# Automatic source code documentation using Doxygen
-# Prerequisites:
-# - stable doxygen release 1.5.4 (Oct. 27, 2007)
-# - graphviz (2.16.1)
-# - webdot (2.16)
-#
-doxygen: doxygen/clean
-	@mkdir -p $(DOXYGENDIR)
-	@mkdir -p $(DOXYGENDIR)/html
-	@echo "<html><body>Sorry, the Doxygen documentation is currently being updated. Please try again in a few minutes.</body></html>" > $(DOXYGENDIR)/html/index.html
-	cp $(ALL_SRC_FILES) $(DOXYGENDIR)
-	@for i in $(DOXYGENDIR)/*.F ; do mv $${i}  $${i%%.*}.f90; done ;
-	@sed -e "s/#revision#/$(REVISION)/" $(TOOLSRC)/doxify/Doxyfile.template >$(DOXYGENDIR)/Doxyfile
-	cd $(DOXYGENDIR); doxygen ./Doxyfile 2>&1 | tee ./html/doxygen.out
+doxygen: doxygenclean
+	$(TOOLSRC)/doxify/generate_doxygen.sh
 TOOL_HELP += "doxygen : Generate the doxygen documentation"
 
 # Precommit stuff ===========================================================
