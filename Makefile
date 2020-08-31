@@ -77,6 +77,7 @@ endif
 .PHONY : $(VERSION) $(EXE_NAMES) \
          dirs makedep default_target all \
          toolversions extversions extclean libcp2k cp2k_shell exts python-bindings \
+         pre-commit pre-commit-clean \
          pretty precommit precommitclean doxygen/clean doxygen \
          fpretty fprettyclean \
          doxify doxifyclean \
@@ -425,6 +426,20 @@ TOOL_HELP += "precommit : Run precommit checks."
 precommitclean:
 	-rm -rf $(PRECOMMITDIR)
 TOOL_HELP += "precommitclean : Remove temporary files from precommit checks."
+
+# pre-commit script for manual execution ====================================
+
+pre-commit:
+	@$(TOOLSRC)/pre-commit-install.sh
+	@$(CP2KHOME)/.pre-commit-env/bin/pre-commit run -a
+
+TOOL_HELP += "pre-commit : Install pre-commit tools, register git hooks and run a full pre-commit check"
+
+pre-commit-clean:
+	-@$(CP2KHOME)/.pre-commit-env/bin/pre-commit uninstall
+	-@$(CP2KHOME)/.pre-commit-env/bin/pre-commit clean
+	-rm -rf $(CP2KHOME)/.pre-commit-env
+TOOL_HELP += "pre-commit-clean : Uninstall git hooks, drop the pre-commit tool cache and remove its environment"
 
 # data stuff ================================================================
 data: data/POTENTIAL

@@ -23,16 +23,11 @@ repos:
     rev: master
     hooks:
     -   id: markdownlint
--   repo: git://github.com/doublify/pre-commit-clang-format
-    rev: master
+-   repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.7.1.1
     hooks:
-    -   id: clang-format
-        args: ['--style=llvm']
-        exclude: >-
-          (?x)^(
-            tools/manual/collapsibleList.js|
-            tools/manual/toggle_folding.js|
-          )$
+    -   id: shellcheck
+        files: '^tools/pre-commit-install.sh$'
 -   repo: local
     hooks:
     -   id: doxify
@@ -61,3 +56,16 @@ repos:
         language: system
         files: 'data/*'
         pass_filenames: false
+    -   id: clang-format
+        name: clang-format
+        description: Format files with ClangFormat.
+        entry: clang-format
+        language: python
+        files: \.(c|cc|cxx|cpp|frag|glsl|h|hpp|hxx|ih|ispc|ipp|java|js|m|mm|proto|textproto|vert)$
+        args: ['-i', '-fallback-style=none', '--style=llvm']
+        additional_dependencies: ['clang-format']
+        exclude: >-
+          (?x)^(
+            tools/manual/collapsibleList.js|
+            tools/manual/toggle_folding.js|
+          )$
