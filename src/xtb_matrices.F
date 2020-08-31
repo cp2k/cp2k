@@ -1096,6 +1096,7 @@ CONTAINS
       CALL basis_set_list_setup(basis_set_list, "ORB", qs_kind_set)
 
       ! allocate overlap matrix
+      CALL get_qs_env(qs_env=qs_env, ks_env=ks_env)
       CALL dbcsr_allocate_matrix_set(matrix_s, maxder, nimg)
       CALL create_sab_matrix(ks_env, matrix_s, "xTB OVERLAP MATRIX", basis_set_list, basis_set_list, &
                              sab_orb, .TRUE.)

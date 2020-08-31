@@ -48,6 +48,7 @@ QS/regtest-debug-5                                          libint
 QS/regtest-stda-force                                       libint
 QS/regtest-stda-force-2                                     libint
 QS/regtest-stda-force-3                                     libint
+QS/regtest-stda-force-4                                     libint
 QS/regtest-tddfpt-force                                     libint
 QS/regtest-tddfpt-force-2                                   libint
 QS/regtest-tddfpt-force-3                                   libint

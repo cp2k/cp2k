@@ -413,7 +413,7 @@ CONTAINS
 
       INTEGER                                            :: handle, iounit, ispin, natom, norb, &
                                                             nspins
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ftot1, ftot2, ftot3
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ftot1, ftot2
       REAL(KIND=dp), DIMENSION(3)                        :: fodeb
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: evect
@@ -456,7 +456,7 @@ CONTAINS
       IF (debug_forces) THEN
          fodeb(1:3) = force(1)%all_potential(1:3, 1) - fodeb(1:3)
          CALL mp_sum(fodeb, para_env%group)
-         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pe*dT      ", fodeb
+         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pe*dHcore  ", fodeb
       END IF
       IF (nspins == 2) THEN
          CALL dbcsr_add(matrix_pe(1)%matrix, matrix_pe(2)%matrix, &
@@ -477,9 +477,9 @@ CONTAINS
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       !
       IF (debug_forces) THEN
-         ALLOCATE (ftot3(3, natom))
-         CALL total_qs_force(ftot3, force, atomic_kind_set)
-         fodeb(1:3) = ftot3(1:3, 1) - ftot2(1:3, 1)
+         ALLOCATE (ftot2(3, natom))
+         CALL total_qs_force(ftot2, force, atomic_kind_set)
+         fodeb(1:3) = ftot2(1:3, 1) - ftot1(1:3, 1)
          CALL mp_sum(fodeb, para_env%group)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T30,3F16.8)") "DEBUG:: Force Pin*V(rhoe)", fodeb
       END IF
@@ -579,7 +579,7 @@ CONTAINS
          fodeb(1:3) = ftot2(1:3, 1) - ftot1(1:3, 1)
          CALL mp_sum(fodeb, para_env%group)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T30,3F16.8)") "DEBUG:: Excitation Force", fodeb
-         DEALLOCATE (ftot1, ftot2, ftot3)
+         DEALLOCATE (ftot1, ftot2)
       END IF
 
       CALL timestop(handle)
