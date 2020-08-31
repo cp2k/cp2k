@@ -506,7 +506,7 @@ CONTAINS
          WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
             "RI_INFO| Number of auxiliary basis functions:", dimen_RI, &
             "GENERAL_INFO| Number of basis functions:", homo+virtual, &
-            "GENERAL_INFO| Number of occupied  orbitals:", homo, &
+            "GENERAL_INFO| Number of occupied orbitals:", homo, &
             "GENERAL_INFO| Number of virtual orbitals:", virtual
          IF (do_svd) THEN
             WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &

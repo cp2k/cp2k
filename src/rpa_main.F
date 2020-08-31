@@ -302,7 +302,7 @@ CONTAINS
             IF (.NOT. ANY(num_integ_points == (/26, 28, 30, 32, 34/))) THEN
                IF (unit_nr > 0) &
                   CALL cp_warn(__LOCATION__, &
-                               "Please use NUM_INTEG_POINTS 26, 28, 30, 32, or 34 for low-scaling GW to "// &
+                               "Please use NUM_INTEG_POINTS 30 for low-scaling GW to "// &
                                "achieve good accuracy.")
             END IF
             IF (num_integ_points > 34) THEN
@@ -424,11 +424,7 @@ CONTAINS
 
       END IF
 
-      IF (unit_nr > 0 ) THEN
-         IF(do_im_time) THEN
-               WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-                  "MINIMAX_INFO| Number of integration points:", num_integ_points
-         ELSE
+      IF (unit_nr > 0 .AND. .NOT. do_im_time) THEN
             IF (do_ri_sos_laplace_mp2) THEN
                WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
                   "RI_INFO| Group size for laplace numerical integration:", integ_group_size*para_env_sub%num_pe
@@ -454,7 +450,6 @@ CONTAINS
                   "INTEG_INFO| Number of integration points per RPA group:", best_num_integ_point
             END IF
             CALL m_flush(unit_nr)
-         END IF
       END IF
 
       num_integ_group = ngroup/integ_group_size
@@ -1457,7 +1452,7 @@ CONTAINS
                             fm_mo_coeff_virt_scaled, mat_dm, mat_L, mat_M_P_munu_occ, mat_M_P_munu_virt, mat_P_global_copy, &
                             mat_SinvVSinv, mat_P_omega, mat_P_omega_kp, &
                             mat_work, &
-                            mat_P_omega_beta)
+                            mat_P_omega_beta, unit_nr)
 
          IF (my_do_gw) THEN
 

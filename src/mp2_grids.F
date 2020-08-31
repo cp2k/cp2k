@@ -178,6 +178,8 @@ CONTAINS
          DEALLOCATE (x_tw)
 
          IF (unit_nr > 0 .AND. do_print) THEN
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+                "MINIMAX_INFO| Number of integration points:", num_integ_points
             WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
                "MINIMAX_INFO| Range for the minimax approximation:", E_Range
             WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") "MINIMAX_INFO| Minimax parameters:", "Weights", "Abscissas"
