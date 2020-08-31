@@ -458,16 +458,16 @@ CONTAINS
                WRITE (unit_nr, FMT="(T3,A,T72,A)") &
                   "RI_INFO| RI metric: ", "TRUNCATED"
                rc_ang = cp_unit_from_cp2k(ri_metric%cutoff_radius, "angstrom")
-               WRITE (unit_nr, '(T3,A,T61,F20.10)') &
+               WRITE (unit_nr, '(T3,A,T61,F20.2)') &
                   "RI_INFO| Cutoff Radius [angstrom]:     ", rc_ang
             END SELECT
          END ASSOCIATE
       ENDIF
 
-      IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-         "RI_INFO| Cholesky decomposition group size:", para_env_L%num_pe
-      IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-         "RI_INFO| Number of groups for auxiliary basis functions", ngroup
+      IF (unit_nr > 0 .AND. .NOT. do_im_time) THEN
+         WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") "RI_INFO| Cholesky decomposition group size:", para_env_L%num_pe
+         WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") "RI_INFO| Number of groups for auxiliary basis functions", ngroup
+      END IF
       IF (calc_PQ_cond_num .OR. do_svd) THEN
          IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T67,ES14.5)") &
             "RI_INFO| Condition number of the (P|Q):", cond_num
@@ -504,9 +504,10 @@ CONTAINS
 
       IF (unit_nr > 0) THEN
          WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-            "RI_INFO| Occupied  basis set size:", homo, &
-            "RI_INFO| Virtual   basis set size:", virtual, &
-            "RI_INFO| Auxiliary basis set size:", dimen_RI
+            "RI_INFO| Number of auxiliary basis functions:", dimen_RI, &
+            "GENERAL_INFO| Number of basis functions:", homo+virtual, &
+            "GENERAL_INFO| Number of occupied  orbitals:", homo, &
+            "GENERAL_INFO| Number of virtual orbitals:", virtual
          IF (do_svd) THEN
             WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
                "RI_INFO| Reduced auxiliary basis set size:", dimen_RI_red
@@ -516,13 +517,15 @@ CONTAINS
          IF (do_alpha_beta) mem_for_iaK = mem_for_iaK + &
                                           dimen_RI*REAL(homo_beta, KIND=dp)*(nmo - homo_beta)*8.0_dp/(1024_dp**2)
 
-         WRITE (unit_nr, '(T3,A,T66,F11.2,A4)') 'RI_INFO| Total memory for (ia|K) integrals:', &
-            mem_for_iaK, ' MiB'
-         IF (my_do_gw .AND. .NOT. do_im_time) THEN
-            mem_for_iaK = dimen_RI*REAL(nmo, KIND=dp)*gw_corr_lev_total*8.0_dp/(1024_dp**2)
-
-            WRITE (unit_nr, '(T3,A,T66,F11.2,A4)') 'RI_INFO| Total memory for G0W0-(nm|K) integrals:', &
+         IF(.NOT. do_im_time) THEN
+            WRITE (unit_nr, '(T3,A,T66,F11.2,A4)') 'RI_INFO| Total memory for (ia|K) integrals:', &
                mem_for_iaK, ' MiB'
+            IF (my_do_gw .AND. .NOT. do_im_time) THEN
+               mem_for_iaK = dimen_RI*REAL(nmo, KIND=dp)*gw_corr_lev_total*8.0_dp/(1024_dp**2)
+   
+               WRITE (unit_nr, '(T3,A,T66,F11.2,A4)') 'RI_INFO| Total memory for G0W0-(nm|K) integrals:', &
+                  mem_for_iaK, ' MiB'
+            END IF
          END IF
          CALL m_flush(unit_nr)
       ENDIF

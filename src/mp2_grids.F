@@ -179,8 +179,8 @@ CONTAINS
 
          IF (unit_nr > 0 .AND. do_print) THEN
             WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
-               "INTEG_INFO| Range for the minimax approximation:", E_Range
-            WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") "INTEG_INFO| Minimax parameters:", "Weights", "Abscissas"
+               "MINIMAX_INFO| Range for the minimax approximation:", E_Range
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") "MINIMAX_INFO| Minimax parameters:", "Weights", "Abscissas"
             DO jquad = 1, num_integ_points
                WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") wj(jquad), tj(jquad)
             END DO
@@ -228,12 +228,12 @@ CONTAINS
 
          IF (unit_nr > 0 .AND. do_print) THEN
             WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
-               "INTEG_INFO| Range for the minimax approximation:", E_Range
+               "MINIMAX_INFO| Range for the minimax approximation:", E_Range
             ! For testing the gap
             WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
-               "INTEG_INFO| Gap:", Emin
+               "MINIMAX_INFO| Gap:", Emin
             WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") &
-               "INTEG_INFO| Minimax parameters of the time grid:", "Weights", "Abscissas"
+               "MINIMAX_INFO| Minimax parameters of the time grid:", "Weights", "Abscissas"
             DO jquad = 1, num_integ_points
                WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") tau_wj(jquad), tau_tj(jquad)
             END DO
@@ -269,7 +269,7 @@ CONTAINS
 
                IF (unit_nr > 0) THEN
                   WRITE (UNIT=unit_nr, FMT="(T3,A,T66,ES15.2)") &
-                     "INTEG_INFO| Maximum deviation of the imag. time fit:", max_error_min
+                     "MINIMAX_INFO| Maximum deviation of the imag. time fit:", max_error_min
                END IF
             END IF
 

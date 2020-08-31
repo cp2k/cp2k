@@ -252,33 +252,6 @@ CONTAINS
          local_unit_nr = default_output_unit
       ENDIF
 
-      IF (unit_nr > 0) THEN
-         WRITE (UNIT=unit_nr, FMT="(T3,A,T71,F10.1)") &
-            "GPW_INFO| Density cutoff [a.u.]:", mp2_env%mp2_gpw%cutoff*0.5_dp
-         WRITE (UNIT=unit_nr, FMT="(T3,A,T71,F10.1)") &
-            "GPW_INFO| Relative density cutoff [a.u.]:", mp2_env%mp2_gpw%relative_cutoff*0.5_dp
-         CALL m_flush(unit_nr)
-      ENDIF
-
-      ! a logger
-      NULLIFY (logger_sub)
-      CALL cp_logger_create(logger_sub, para_env=para_env_sub, &
-                            default_global_unit_nr=local_unit_nr, close_global_unit_on_dealloc=.FALSE.)
-      CALL cp_logger_set(logger_sub, local_filename="MP2_localLog")
-      ! set to a custom print level (we could also have a different print level for para_env%source)
-      logger_sub%iter_info%print_level = mp2_env%mp2_gpw%print_level
-      CALL cp_add_default_logger(logger_sub)
-
-      ! a blacs_env (ignore the globenv stored defaults for now)
-      blacs_grid_layout = BLACS_GRID_SQUARE
-      blacs_repeatable = .TRUE.
-      NULLIFY (blacs_env_sub)
-      CALL cp_blacs_env_create(blacs_env_sub, para_env_sub, &
-                               blacs_grid_layout, &
-                               blacs_repeatable)
-
-      blacs_env_sub_mat_munu => blacs_env_sub
-
       ! get stuff
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
@@ -333,6 +306,33 @@ CONTAINS
          IF (mp2_env%ri_rpa_im_time%do_im_time_kpoints) mp2_env%eri_method = do_eri_os
       END IF
       eri_method = mp2_env%eri_method
+
+      IF (unit_nr > 0 .AND. mp2_env%eri_method == do_eri_gpw) THEN
+         WRITE (UNIT=unit_nr, FMT="(T3,A,T71,F10.1)") &
+            "GPW_INFO| Density cutoff [a.u.]:", mp2_env%mp2_gpw%cutoff*0.5_dp
+         WRITE (UNIT=unit_nr, FMT="(T3,A,T71,F10.1)") &
+            "GPW_INFO| Relative density cutoff [a.u.]:", mp2_env%mp2_gpw%relative_cutoff*0.5_dp
+         CALL m_flush(unit_nr)
+      ENDIF
+
+      ! a logger
+      NULLIFY (logger_sub)
+      CALL cp_logger_create(logger_sub, para_env=para_env_sub, &
+                            default_global_unit_nr=local_unit_nr, close_global_unit_on_dealloc=.FALSE.)
+      CALL cp_logger_set(logger_sub, local_filename="MP2_localLog")
+      ! set to a custom print level (we could also have a different print level for para_env%source)
+      logger_sub%iter_info%print_level = mp2_env%mp2_gpw%print_level
+      CALL cp_add_default_logger(logger_sub)
+
+      ! a blacs_env (ignore the globenv stored defaults for now)
+      blacs_grid_layout = BLACS_GRID_SQUARE
+      blacs_repeatable = .TRUE.
+      NULLIFY (blacs_env_sub)
+      CALL cp_blacs_env_create(blacs_env_sub, para_env_sub, &
+                               blacs_grid_layout, &
+                               blacs_repeatable)
+
+      blacs_env_sub_mat_munu => blacs_env_sub
 
       matrix_s(1:1) => matrix_s_kp(1:1, 1)
 
