@@ -64,6 +64,7 @@
             CROSSING_SEARCH       Z_SHOT
             FERMI_LEVEL_OFFSET    2.0E-2
             EV_GW_ITER            1
+            RI_SIGMA_X            FALSE
           &END GW
         &END RI_RPA
         MEMORY  200.

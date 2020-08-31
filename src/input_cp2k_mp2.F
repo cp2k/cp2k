@@ -699,7 +699,7 @@ CONTAINS
                           "This is only recommended in case exact exchange is very costly, e.g. when "// &
                           "using diffuse basis functions (seems not to work for periodic systems).", &
                           usage="RI_SIGMA_X", &
-                          default_l_val=.FALSE., &
+                          default_l_val=.TRUE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

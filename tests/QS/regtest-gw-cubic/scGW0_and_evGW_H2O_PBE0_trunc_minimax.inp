@@ -67,6 +67,7 @@
             CORR_MOS_VIRT         1
             CROSSING_SEARCH       BISECTION
             ANALYTIC_CONTINUATION PADE
+            RI_SIGMA_X            FALSE
             UPDATE_XC_ENERGY
           &END GW
         &END RI_RPA

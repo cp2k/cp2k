@@ -65,6 +65,7 @@
             FERMI_LEVEL_OFFSET    2.0E-2
             EV_GW_ITER            3
             UPDATE_XC_ENERGY
+            RI_SIGMA_X FALSE
             PERIODIC
             &PERIODIC
               KPOINTS 12 12 12
