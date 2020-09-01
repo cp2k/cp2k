@@ -975,7 +975,7 @@ CONTAINS
          END IF
          CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env_RPA, grid_2d=grid_2d)
 
-         IF (unit_nr > 0 .AND. .NOT. do_im_time) THEN
+         IF (unit_nr > 0 .AND. .NOT. my_do_im_time) THEN
             WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
                "MATRIX_INFO| Number row processes:", grid_2D(1)
             WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
