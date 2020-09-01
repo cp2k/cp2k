@@ -55,21 +55,16 @@ CONTAINS
       ub${i}$ = MIN(ub${i}$_new, ub${i}$_old)
 #:endfor
 
-#:set old_bounds = ','.join(['lb{0}:ub{0}'.format(i) for i in range(1, rank+1)])
-#:set old_size  = '*'.join(['(ub{0}-lb{0}+1)'.format(i) for i in range(1, rank+1)])
-
-      ALLOCATE (work(${old_bounds}$))
-      work(${old_bounds}$) = p(${old_bounds}$)
-      DEALLOCATE (p)
+      work => p
    END IF
 
+#:set old_bounds = ','.join(['lb{0}:ub{0}'.format(i) for i in range(1, rank+1)])
 #:set new_bounds = ','.join(['lb{0}_new:ub{0}_new'.format(i) for i in range(1, rank+1)])
-#:set new_size  = '*'.join(['(ub{0}_new-lb{0}_new+1)'.format(i) for i in range(1, rank+1)])
 
    ALLOCATE (p(${new_bounds}$))
    p = zero
 
-   IF (ASSOCIATED(p) .AND. ALLOCATED(work)) THEN
+   IF (ASSOCIATED(work)) THEN
       p(${old_bounds}$) = work(${old_bounds}$)
       DEALLOCATE (work)
    END IF
@@ -87,12 +82,12 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE reallocate_c1(p, lb1_new, ub1_new)
 
-      COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: p
+      COMPLEX(KIND=dp), DIMENSION(:), POINTER, INTENT(INOUT)            :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
 
       COMPLEX(KIND=dp), PARAMETER                        :: zero = (0.0_dp, 0.0_dp)
 
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: work
+      COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: work => NULL()
 
 $: reallocate(rank=1)
 
@@ -111,12 +106,12 @@ $: reallocate(rank=1)
 ! **************************************************************************************************
    SUBROUTINE reallocate_c2(p, lb1_new, ub1_new, lb2_new, ub2_new)
 
-      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: p
+      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER, INTENT(INOUT)         :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new
 
       COMPLEX(KIND=dp), PARAMETER                        :: zero = (0.0_dp, 0.0_dp)
 
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: work
+      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: work => NULL()
 
 $: reallocate(rank=2)
 
@@ -137,13 +132,13 @@ $: reallocate(rank=2)
 ! **************************************************************************************************
    SUBROUTINE reallocate_c3(p, lb1_new, ub1_new, lb2_new, ub2_new, lb3_new, ub3_new)
 
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: p
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER, INTENT(INOUT)      :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new, &
                                                             lb3_new, ub3_new
 
       COMPLEX(KIND=dp), PARAMETER                        :: zero = (0.0_dp, 0.0_dp)
 
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: work
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: work => NULL()
 
 $: reallocate(rank=3)
 
@@ -167,14 +162,14 @@ $: reallocate(rank=3)
    SUBROUTINE reallocate_c4(p, lb1_new, ub1_new, lb2_new, ub2_new, lb3_new, ub3_new, &
                             lb4_new, ub4_new)
 
-      COMPLEX(KIND=dp), DIMENSION(:, :, :, :), POINTER   :: p
+      COMPLEX(KIND=dp), DIMENSION(:, :, :, :), POINTER, INTENT(INOUT)   :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new, &
                                                             lb3_new, ub3_new, lb4_new, ub4_new
 
       COMPLEX(KIND=dp), PARAMETER                        :: zero = (0.0_dp, 0.0_dp)
 
-      COMPLEX(KIND=dp), ALLOCATABLE, &
-         DIMENSION(:, :, :, :)                           :: work
+      COMPLEX(KIND=dp), &
+         DIMENSION(:, :, :, :), POINTER                  :: work => NULL()
 
 $: reallocate(rank=4)
 
@@ -191,12 +186,12 @@ $: reallocate(rank=4)
 ! **************************************************************************************************
    SUBROUTINE reallocate_i1(p, lb1_new, ub1_new)
 
-      INTEGER, DIMENSION(:), POINTER                     :: p
+      INTEGER, DIMENSION(:), POINTER, INTENT(INOUT)                     :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
 
       INTEGER, PARAMETER                                 :: zero = 0
 
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: work
+      INTEGER, DIMENSION(:), POINTER                     :: work => NULL()
 
 $: reallocate(rank=1)
 
@@ -215,12 +210,12 @@ $: reallocate(rank=1)
 ! **************************************************************************************************
    SUBROUTINE reallocate_i2(p, lb1_new, ub1_new, lb2_new, ub2_new)
 
-      INTEGER, DIMENSION(:, :), POINTER                  :: p
+      INTEGER, DIMENSION(:, :), POINTER, INTENT(INOUT)                  :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new
 
       INTEGER, PARAMETER                                 :: zero = 0
 
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: work
+      INTEGER, DIMENSION(:, :), POINTER                  :: work => NULL()
 
 $: reallocate(rank=2)
 
@@ -241,13 +236,13 @@ $: reallocate(rank=2)
 ! **************************************************************************************************
    SUBROUTINE reallocate_i3(p, lb1_new, ub1_new, lb2_new, ub2_new, lb3_new, ub3_new)
 
-      INTEGER, DIMENSION(:, :, :), POINTER               :: p
+      INTEGER, DIMENSION(:, :, :), POINTER, INTENT(INOUT)               :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new, &
                                                             lb3_new, ub3_new
 
       INTEGER, PARAMETER                                 :: zero = 0
 
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: work
+      INTEGER, DIMENSION(:, :, :), POINTER               :: work => NULL()
 
 $: reallocate(rank=3)
 
@@ -271,13 +266,13 @@ $: reallocate(rank=3)
    SUBROUTINE reallocate_i4(p, lb1_new, ub1_new, lb2_new, ub2_new, lb3_new, ub3_new, &
                             lb4_new, ub4_new)
 
-      INTEGER, DIMENSION(:, :, :, :), POINTER            :: p
+      INTEGER, DIMENSION(:, :, :, :), POINTER, INTENT(INOUT)            :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new, &
                                                             lb3_new, ub3_new, lb4_new, ub4_new
 
       INTEGER, PARAMETER                                 :: zero = 0
 
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: work
+      INTEGER, DIMENSION(:, :, :, :), POINTER            :: work => NULL()
 
 $: reallocate(rank=4)
 
@@ -294,12 +289,12 @@ $: reallocate(rank=4)
 ! **************************************************************************************************
    SUBROUTINE reallocate_8i1(p, lb1_new, ub1_new)
 
-      INTEGER(KIND=int_8), DIMENSION(:), POINTER         :: p
+      INTEGER(KIND=int_8), DIMENSION(:), POINTER, INTENT(INOUT)         :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
 
       INTEGER(KIND=int_8), PARAMETER                     :: zero = 0
 
-      INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: work
+      INTEGER(KIND=int_8), DIMENSION(:), POINTER         :: work => NULL()
 
 $: reallocate(rank=1)
 
@@ -318,12 +313,12 @@ $: reallocate(rank=1)
 ! **************************************************************************************************
    SUBROUTINE reallocate_8i2(p, lb1_new, ub1_new, lb2_new, ub2_new)
 
-      INTEGER(kind=int_8), DIMENSION(:, :), POINTER      :: p
+      INTEGER(kind=int_8), DIMENSION(:, :), POINTER, INTENT(INOUT)      :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new
 
       INTEGER(KIND=int_8), PARAMETER                     :: zero = 0
 
-      INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:, :)  :: work
+      INTEGER(KIND=int_8), DIMENSION(:, :), POINTER      :: work => NULL()
 
 $: reallocate(rank=2)
 
@@ -340,12 +335,12 @@ $: reallocate(rank=2)
 ! **************************************************************************************************
    SUBROUTINE reallocate_r1(p, lb1_new, ub1_new)
 
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: p
+      REAL(KIND=dp), DIMENSION(:), POINTER, INTENT(INOUT)               :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
 
       REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: work
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: work => NULL()
 
 $: reallocate(rank=1)
 
@@ -364,12 +359,12 @@ $: reallocate(rank=1)
 ! **************************************************************************************************
    SUBROUTINE reallocate_r2(p, lb1_new, ub1_new, lb2_new, ub2_new)
 
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p
+      REAL(KIND=dp), DIMENSION(:, :), POINTER, INTENT(INOUT)            :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new
 
       REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: work => NULL()
 
 $: reallocate(rank=2)
 
@@ -390,13 +385,13 @@ $: reallocate(rank=2)
 ! **************************************************************************************************
    SUBROUTINE reallocate_r3(p, lb1_new, ub1_new, lb2_new, ub2_new, lb3_new, ub3_new)
 
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: p
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER, INTENT(INOUT)         :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new, &
                                                             lb3_new, ub3_new
 
       REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: work
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: work => NULL()
 
 $: reallocate(rank=3)
 
@@ -420,13 +415,13 @@ $: reallocate(rank=3)
    SUBROUTINE reallocate_r4(p, lb1_new, ub1_new, lb2_new, ub2_new, lb3_new, ub3_new, &
                             lb4_new, ub4_new)
 
-      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: p
+      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER, INTENT(INOUT)      :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new, &
                                                             lb3_new, ub3_new, lb4_new, ub4_new
 
       REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: work
+      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: work => NULL()
 
 $: reallocate(rank=4)
 
@@ -452,15 +447,15 @@ $: reallocate(rank=4)
    SUBROUTINE reallocate_r5(p, lb1_new, ub1_new, lb2_new, ub2_new, lb3_new, ub3_new, &
                             lb4_new, ub4_new, lb5_new, ub5_new)
 
-      REAL(KIND=dp), DIMENSION(:, :, :, :, :), POINTER   :: p
+      REAL(KIND=dp), DIMENSION(:, :, :, :, :), POINTER, INTENT(INOUT)   :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new, &
                                                             lb3_new, ub3_new, lb4_new, ub4_new, &
                                                             lb5_new, ub5_new
 
       REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
-      REAL(KIND=dp), ALLOCATABLE, &
-         DIMENSION(:, :, :, :, :)                        :: work
+      REAL(KIND=dp), &
+         DIMENSION(:, :, :, :, :), POINTER               :: work => NULL()
 
 $: reallocate(rank=5)
 
@@ -477,12 +472,12 @@ $: reallocate(rank=5)
 ! **************************************************************************************************
    SUBROUTINE reallocate_l1(p, lb1_new, ub1_new)
 
-      LOGICAL, DIMENSION(:), POINTER                     :: p
+      LOGICAL, DIMENSION(:), POINTER, INTENT(INOUT)                     :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
 
       LOGICAL, PARAMETER                                 :: zero = .FALSE.
 
-      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: work
+      LOGICAL, DIMENSION(:), POINTER                     :: work => NULL()
 
 $: reallocate(rank=1)
 
@@ -504,10 +499,10 @@ $: reallocate(rank=1)
    SUBROUTINE reallocate_s1(p_short, lb_new, ub_new, p_long)
 
       CHARACTER(LEN=default_string_length), &
-         DIMENSION(:), OPTIONAL, POINTER                 :: p_short
+         DIMENSION(:), OPTIONAL, POINTER, INTENT(INOUT)                 :: p_short
       INTEGER, INTENT(IN)                                :: lb_new, ub_new
       CHARACTER(LEN=default_path_length), DIMENSION(:), &
-         OPTIONAL, POINTER                               :: p_long
+         OPTIONAL, POINTER, INTENT(INOUT)                               :: p_long
 
       IF (PRESENT(p_short)) THEN
          CALL reallocate_ss1(p_short, lb_new, ub_new)
@@ -535,13 +530,13 @@ $: reallocate(rank=1)
    SUBROUTINE reallocate_ss1(p, lb1_new, ub1_new)
 
       CHARACTER(LEN=default_string_length), &
-         DIMENSION(:), POINTER                           :: p
+         DIMENSION(:), POINTER, INTENT(INOUT)                           :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
 
       CHARACTER(LEN=default_string_length), PARAMETER    :: zero = ""
 
       CHARACTER(LEN=default_string_length), &
-         ALLOCATABLE, DIMENSION(:)                       :: work
+         DIMENSION(:), POINTER                           :: work => NULL()
 
 $: reallocate(rank=1)
 
@@ -562,13 +557,13 @@ $: reallocate(rank=1)
    SUBROUTINE reallocate_ls1(p, lb1_new, ub1_new)
 
       CHARACTER(LEN=default_path_length), DIMENSION(:), &
-         POINTER                                         :: p
+         POINTER, INTENT(INOUT)                                         :: p
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
 
       CHARACTER(LEN=default_path_length), PARAMETER      :: zero = ""
 
-      CHARACTER(LEN=default_path_length), ALLOCATABLE, &
-         DIMENSION(:)                                    :: work
+      CHARACTER(LEN=default_path_length), &
+         DIMENSION(:), POINTER                           :: work => NULL()
 
 $: reallocate(rank=1)
 
