@@ -52,7 +52,8 @@ MODULE rpa_util
                                               dbcsr_t_type
    USE input_constants,                 ONLY: wfc_mm_style_gemm,&
                                               wfc_mm_style_syrk
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              int_8
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
    USE machine,                         ONLY: m_walltime
@@ -63,6 +64,7 @@ MODULE rpa_util
    USE mp2_types,                       ONLY: integ_mat_buffer_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_tensors,                      ONLY: get_tensor_occupancy
    USE rpa_communication,               ONLY: fm_redistribute
    USE rpa_gw_kpoints,                  ONLY: compute_wkp_W
 #include "./base/base_uses.f90"
@@ -127,6 +129,7 @@ CONTAINS
 !> \param mat_P_omega_kp ...
 !> \param mat_work ...
 !> \param mat_P_omega_beta ...
+!> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE alloc_im_time(qs_env, para_env, dimen_RI, dimen_RI_red, num_integ_points, &
                             fm_mat_Q, fm_mo_coeff_occ, fm_mo_coeff_virt, &
@@ -144,7 +147,7 @@ CONTAINS
                             fm_mo_coeff_virt_scaled, mat_dm, mat_L, mat_M_P_munu_occ, mat_M_P_munu_virt, mat_P_global_copy, &
                             mat_SinvVSinv, mat_P_omega, mat_P_omega_kp, &
                             mat_work, &
-                            mat_P_omega_beta)
+                            mat_P_omega_beta, unit_nr)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -183,12 +186,15 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega, mat_P_omega_kp
       TYPE(dbcsr_type), POINTER                          :: mat_work
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega_beta
+      INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'alloc_im_time'
 
       INTEGER                                            :: cell_grid_dm(3), first_ikp_local, &
                                                             handle, i_dim, periodic(3)
+      INTEGER(int_8)                                     :: nze_O
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_size
+      REAL(KIND=dp)                                      :: occ_O
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, fm_struct_sub_kp
 
@@ -217,6 +223,11 @@ CONTAINS
          ALLOCATE (cell_to_index_3c(0:0, 0:0, 0:0))
          cell_to_index_3c(0, 0, 0) = 1
          num_cells_dm = 1
+         CALL get_tensor_occupancy(t_3c_O(1, 1), nze_O, occ_O)
+         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T71,F7.1,1X,A2)') &
+            'MEMORY_INFO| Memory of 3c integrals:', 8.0_dp*REAL(nze_O, dp)/1.0E9_dp, 'GB'
+         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T73,1X,F6.3,A1)') &
+            'MEMORY_INFO| Occupancy of 3c integrals:', occ_O*100.0_dp, '%'
       END IF
 
       IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN

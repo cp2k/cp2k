@@ -58,6 +58,7 @@
           &GW
             CORR_MOS_OCC          10
             CORR_MOS_VIRT         10
+            RI_SIGMA_X            FALSE
           &END GW
         &END RI_RPA
       &END

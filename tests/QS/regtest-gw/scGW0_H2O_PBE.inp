@@ -63,8 +63,9 @@
             NUMB_POLES            2
             CROSSING_SEARCH       Z_SHOT 
             FERMI_LEVEL_OFFSET    2.0E-2
-            SC_GW0_ITER            3
+            SC_GW0_ITER           3
             UPDATE_XC_ENERGY
+            RI_SIGMA_X            FALSE
           &END GW 
         &END RI_RPA
         MEMORY  200.

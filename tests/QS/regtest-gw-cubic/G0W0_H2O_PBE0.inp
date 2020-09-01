@@ -66,6 +66,7 @@
             CORR_MOS_VIRT         10
             CROSSING_SEARCH       Z_SHOT
             ANALYTIC_CONTINUATION TWO_POLE
+            RI_SIGMA_X            FALSE
           &END GW
         &END RI_RPA
         MEMORY  200.

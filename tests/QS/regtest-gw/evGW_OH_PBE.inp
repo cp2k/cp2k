@@ -67,6 +67,7 @@
             FERMI_LEVEL_OFFSET    2.0E-2
             EV_GW_ITER            3
             UPDATE_XC_ENERGY
+            RI_SIGMA_X FALSE
           &END GW 
         &END RI_RPA
         MEMORY  200.
