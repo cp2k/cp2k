@@ -115,24 +115,18 @@ et_coupling_proj.F: Routine INFOG2L called with an implicit interface.
 extended_system_init.F: Found WRITE statement with hardcoded unit in "init_barostat_variables"
 farming_methods.F: Found CLOSE statement in procedure "farming_parse_input"
 farming_methods.F: Found OPEN statement in procedure "farming_parse_input"
-fparser.F: Copyright banner malformed
 fparser.F: Found WRITE statement with hardcoded unit in "parseerrmsg"
 free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_norm_sc"
 free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_norm_sc_low"
 free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_trend"
 glbopt_history.F: Found WRITE statement with hardcoded unit in "verify_history_lookup"
 glbopt_mincrawl.F: Found WRITE statement with hardcoded unit in "print_tempdist"
-glob_matching.F: Copyright banner malformed
-gopt_f77_methods.h: Copyright banner malformed
-graph.F: Copyright banner malformed
 graph.F: Found CALL RANDOM_SEED in procedure "graph"
 graph.F: Found WRITE statement with hardcoded unit in "graph"
-graph_methods.F: Copyright banner malformed
 graph_methods.F: Found OPEN statement in procedure "fes_cube_write"
 graph_methods.F: Found WRITE statement with hardcoded unit in "fes_cube_write"
 graph_methods.F: Found WRITE statement with hardcoded unit in "fes_min"
 graph_methods.F: Found WRITE statement with hardcoded unit in "fes_path"
-graph_utils.F: Copyright banner malformed
 graph_utils.F: Found WRITE statement with hardcoded unit in "get_val_res"
 graphcon.F: Found GOTO statement in procedure "all_permutations"
 graphcon.F: Found WRITE statement with hardcoded unit in "reorder_graph"
@@ -228,7 +222,6 @@ se_core_matrix.F: Found WRITE statement with hardcoded unit in "makes"
 se_fock_matrix_coulomb.F: Found WRITE statement with hardcoded unit in "build_fock_matrix_coulomb_lr"
 se_fock_matrix_dbg.F: Found WRITE statement with hardcoded unit in "dbg_energy_coulomb_lr"
 semi_empirical_int3_utils.F: Routine EVAL called with an implicit interface.
-semi_empirical_int_args.h: Copyright banner malformed
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_dcore_nucint_ana"
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_dcorecore_ana"
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_drotnuc_ana"
@@ -239,17 +232,13 @@ semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_value"
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "rot_2el_2c_first_debug"
 semi_empirical_int_debug.F: Routine CHECK_VALUE called with an implicit interface.
-semi_empirical_int_debug.h: Copyright banner malformed
 semi_empirical_int_utils.F: Routine EVAL called with an implicit interface.
 semi_empirical_mpole_methods.F: Found WRITE statement with hardcoded unit in "semi_empirical_mpole_p_setup"
-sockets.c: Copyright banner malformed
 spherical_harmonics.F: Found WRITE statement with hardcoded unit in "cgc"
 spherical_harmonics.F: Found WRITE statement with hardcoded unit in "get_factor"
 statistical_methods.F: Found WRITE statement with hardcoded unit in "tests"
 swarm_mpi.F: Found CLOSE statement in procedure "logger_init_master"
 swarm_mpi.F: Found OPEN statement in procedure "logger_finalize"
-t_c_g0.F: Copyright banner malformed
-t_sh_p_s_c.F: Copyright banner malformed
 task_list_methods.F: Found WRITE statement with hardcoded unit in "generate_qs_task_list"
 timings.F: Found WRITE statement with hardcoded unit in "timestop_handler"
 tmc_analysis.F: Found WRITE statement with hardcoded unit in "print_average_displacement"
@@ -274,7 +263,6 @@ xc.F: Found OPEN statement in procedure "xc_vxc_pw_create_debug"
 xc.F: Found OPEN statement in procedure "xc_vxc_pw_create_test_lsd"
 xc.F: Found WRITE statement with hardcoded unit in "xc_vxc_pw_create_debug"
 xc.F: Found WRITE statement with hardcoded unit in "xc_vxc_pw_create_test_lsd"
-xml_parser.F: Copyright banner malformed
 xml_parser.F: Found WRITE statement with hardcoded unit in "xml_put_element_"
 xml_parser.F: Found WRITE statement with hardcoded unit in "xml_report_details_int_"
 xml_parser.F: Found WRITE statement with hardcoded unit in "xml_report_details_string_"

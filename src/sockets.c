@@ -1,38 +1,41 @@
-/* A minimal wrapper for socket communication.
+/*----------------------------------------------------------------------------*/
+/*  CP2K: A general program to perform molecular dynamics simulations         */
+/*  Copyright 2000-2020 CP2K developers group <https://cp2k.org>              */
+/*                                                                            */
+/*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
+/*----------------------------------------------------------------------------*/
 
-Copyright (C) 2013, Joshua More and Michele Ceriotti
+/*----------------------------------------------------------------------------*/
+/*  Copyright (C) 2013, Joshua More and Michele Ceriotti                      */
+/*                                                                            */
+/*  Permission is hereby granted, free of charge, to any person obtaining     */
+/*  a copy of this software and associated documentation files (the           */
+/*  "Software"), to deal in the Software without restriction, including       */
+/*  without limitation the rights to use, copy, modify, merge, publish,       */
+/*  distribute, sublicense, and/or sell copies of the Software, and to        */
+/*  permit persons to whom the Software is furnished to do so, subject to     */
+/*  the following conditions:                                                 */
+/*                                                                            */
+/*  The above copyright notice and this permission notice shall be included   */
+/*  in all copies or substantial portions of the Software.                    */
+/*                                                                            */
+/*  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,           */
+/*  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF        */
+/*  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.    */
+/*  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY      */
+/*  CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,      */
+/*  TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE         */
+/*  SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                    */
+/*----------------------------------------------------------------------------*/
 
-Permission is hereby granted, free of charge, to any person obtaining
-a copy of this software and associated documentation files (the
-"Software"), to deal in the Software without restriction, including
-without limitation the rights to use, copy, modify, merge, publish,
-distribute, sublicense, and/or sell copies of the Software, and to
-permit persons to whom the Software is furnished to do so, subject to
-the following conditions:
-
-The above copyright notice and this permission notice shall be included
-in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-Contains both the functions that transmit data to the socket and read the data
-back out again once finished, and the function which opens the socket initially.
-Can be linked to a FORTRAN code that does not support sockets natively.
-
-Functions:
-   error: Prints an error message and then exits.
-   open_socket_: Opens a socket with the required host server, socket type and
-      port number.
-   write_buffer_: Writes a string to the socket.
-   read_buffer_: Reads data from the socket.
-*/
+/*******************************************************************************
+ * \brief A minimal wrapper for socket communication.
+ *        Contains both the functions that transmit data to the socket and read
+ *        the data back out again once finished, and the function which opens
+ *        the socket initially. Can be linked to a FORTRAN code that does not
+ *        support sockets natively.
+ * \author Joshua More and Michele Ceriotti
+ ******************************************************************************/
 #ifndef __NO_IPI_DRIVER
 
 #define _XOPEN_SOURCE 700 /* Enable POSIX 2008/13 */
@@ -49,23 +52,19 @@ Functions:
 #include <time.h>
 #include <unistd.h>
 
-void open_socket(int *psockfd, int *inet, int *port, char *host)
-/* Opens a socket.
-
-Note that fortran passes an extra argument for the string length, but this is
-ignored here for C compatibility.
-
-Args:
-   psockfd: The id of the socket that will be created.
-   inet: An integer that determines whether the socket will be an inet or unix
-      domain socket. Gives unix if 0, inet otherwise.
-   port: The port number for the socket to be created. Low numbers are often
-      reserved for important channels, so use of numbers of 4 or more digits is
-      recommended.
-   host: The name of the host server.
-*/
-
-{
+/*******************************************************************************
+ * \brief Opens a socket.
+ * \param psockfd The id of the socket that will be created.
+ * \param inet    An integer that determines whether the socket will be an inet
+ *                or unix domain socket. Gives unix if 0, inet otherwise.
+ * \param port    The port number for the socket to be created. Low numbers are
+ *                often reserved for important channels, so use of numbers of 4
+ *                or more digits is recommended.
+ * \param host    The name of the host server.
+ * \note  Fortran passes an extra argument for the string length, but this is
+ *        ignored here for C compatibility.
+ ******************************************************************************/
+void open_socket(int *psockfd, int *inet, int *port, char *host) {
   int sockfd, ai_err;
 
   if (*inet > 0) { // creates an internet socket
@@ -122,16 +121,13 @@ Args:
   *psockfd = sockfd;
 }
 
-void writebuffer(int *psockfd, char *data, int *plen)
-/* Writes to a socket.
-
-Args:
-   psockfd: The id of the socket that will be written to.
-   data: The data to be written to the socket.
-   plen: The length of the data in bytes.
-*/
-
-{
+/*******************************************************************************
+ * \brief Writes to a socket.
+ * \param psockfd The id of the socket that will be written to.
+ * \param data    The data to be written to the socket.
+ * \param plen    The length of the data in bytes.
+ ******************************************************************************/
+void writebuffer(int *psockfd, char *data, int *plen) {
   int n;
   int sockfd = *psockfd;
   int len = *plen;
@@ -143,16 +139,13 @@ Args:
   }
 }
 
-void readbuffer(int *psockfd, char *data, int *plen)
-/* Reads from a socket.
-
-Args:
-   psockfd: The id of the socket that will be read from.
-   data: The storage array for data read from the socket.
-   plen: The length of the data in bytes.
-*/
-
-{
+/*******************************************************************************
+ * \brief Reads from a socket.
+ * \param psockfd The id of the socket that will be read from.
+ * \param data    The storage array for data read from the socket.
+ * \param plen    The length of the data in bytes.
+ ******************************************************************************/
+void readbuffer(int *psockfd, char *data, int *plen) {
   int n, nr;
   int sockfd = *psockfd;
   int len = *plen;
@@ -170,13 +163,11 @@ Args:
   }
 }
 
-void uwait(double *dsec)
-/* mini-wrapper to nanosleep
-
-   Args:
-     dsec:  number of seconds to wait (float values accepted)
-*/
-{
+/*******************************************************************************
+ * \brief Mini-wrapper to nanosleep
+ * \param dsec number of seconds to wait (float values accepted)
+ ******************************************************************************/
+void uwait(double *dsec) {
   struct timespec wt, rem;
   wt.tv_sec = floor(*dsec);
   wt.tv_nsec = (*dsec - wt.tv_sec) * 1000000000;
