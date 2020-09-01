@@ -1,23 +1,20 @@
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright 2000-2020 CP2K developers group <https://cp2k.org>                                   !
+!                                                                                                  !
+!   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
+!--------------------------------------------------------------------------------------------------!
+
+! **************************************************************************************************
+!> \brief This public domain function parser module is intended for applications
+!>        where a set of mathematical expressions is specified at runtime and is
+!>        then evaluated for a large number of variable values. This is done by
+!>        compiling the set of function strings into byte code, which is interpreted
+!>        very efficiently for the various variable values.
+!>
+!> \author Roland Schmehl <Roland.Schmehl@mach.uni-karlsruhe.de>
 ! **************************************************************************************************
 MODULE fparser
-   !------- -------- --------- --------- --------- --------- --------- --------- -------
-   ! Fortran 90 function parser v1.1
-   !------- -------- --------- --------- --------- --------- --------- --------- -------
-   !
-   ! This public domain function parser module is intended for applications
-   ! where a set of mathematical expressions is specified at runtime and is
-   ! then evaluated for a large number of variable values. This is done by
-   ! compiling the set of function strings into byte code, which is interpreted
-   ! very efficiently for the various variable values.
-   !
-   ! The source code is available from:
-   ! http://www.its.uni-karlsruhe.de/~schmehl/opensource/fparser-v1.1.tar.gz
-   !
-   ! Please send comments, corrections or questions to the author:
-   ! Roland Schmehl <Roland.Schmehl@mach.uni-karlsruhe.de>
-   !
-   !------- -------- --------- --------- --------- --------- --------- --------- -------
-
    USE kinds,                           ONLY: default_string_length,&
                                               rn => dp
 #include "../base/base_uses.f90"

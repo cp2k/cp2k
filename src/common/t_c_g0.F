@@ -1,54 +1,59 @@
-!
-! * Copyright (c) 2008, 2009, Joost VandeVondele and Manuel Guidon
-! * All rights reserved.
-! *
-! * Redistribution and use in source and binary forms, with or without
-! * modification, are permitted provided that the following conditions are met:
-! *     * Redistributions of source code must retain the above copyright
-! *       notice, this list of conditions and the following disclaimer.
-! *     * Redistributions in binary form must reproduce the above copyright
-! *       notice, this list of conditions and the following disclaimer in the
-! *       documentation and/or other materials provided with the distribution.
-! *
-! * THIS SOFTWARE IS PROVIDED BY Joost VandeVondele and Manuel Guidon AS IS AND ANY
-! * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-! * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-! * DISCLAIMED. IN NO EVENT SHALL Joost VandeVondele or Manuel Guidon BE LIABLE FOR ANY
-! * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-! * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-! * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-! * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-! * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-!
-!
-!   This module computes the basic integrals for the
-!   truncated coulomb operator
-!
-!   res(1) =G_0(R,T)= ((2*erf(sqrt(t))+erf(R-sqrt(t))-erf(R+sqrt(t)))/sqrt(t))
-!
-!   and up to 21 derivatives with respect to T
-!
-!   res(n+1)=(-1)**n d^n/dT^n G_0(R,T)
-!
-!
-!   The function is only computed for values of R,T which fulfil
-!
-!   R**2 - 11.0_dp*R + 0.0_dp < T < R**2 + 11.0_dp*R + 50.0_dp
-!   where R>=0 T>=0
-!
-!   for T larger than the upper bound, 0 is returned
-!   (which is accurate at least up to 1.0E-16)
-!   while for T smaller than the lower bound, the caller is instructed
-!   to use the conventional gamma function instead
-!   (i.e. the limit of above expression for R to Infinity)
-!
-!   Joost VandeVondele and Manuel Guidon, Nov 2008.
-! instead of a module one could use: INTEGER, PARAMETER ::  dp=KIND(0.0D0)
-!
-! History: -05.2019 Added a get_maxl_init function to get current status of nderiv_init and moved
-!           the file to common (made it accessible from aobasis, same place as gamma.F) A. Bussy
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright 2000-2020 CP2K developers group <https://cp2k.org>                                   !
+!                                                                                                  !
+!   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
+!--------------------------------------------------------------------------------------------------!
 
+!--------------------------------------------------------------------------------------------------!
+!   Copyright (c) 2008, 2009, Joost VandeVondele and Manuel Guidon                                 !
+!   All rights reserved.                                                                           !
+!                                                                                                  !
+!   Redistribution and use in source and binary forms, with or without                             !
+!   modification, are permitted provided that the following conditions are met:                    !
+!       * Redistributions of source code must retain the above copyright                           !
+!         notice, this list of conditions and the following disclaimer.                            !
+!       * Redistributions in binary form must reproduce the above copyright                        !
+!         notice, this list of conditions and the following disclaimer in the                      !
+!         documentation and/or other materials provided with the distribution.                     !
+!                                                                                                  !
+!   THIS SOFTWARE IS PROVIDED BY Joost VandeVondele and Manuel Guidon AS IS AND ANY                !
+!   EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED                      !
+!   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE                         !
+!   DISCLAIMED. IN NO EVENT SHALL Joost VandeVondele or Manuel Guidon BE LIABLE FOR ANY            !
+!   DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES                     !
+!   (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;                   !
+!   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND                    !
+!   ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT                     !
+!   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS                  !
+!   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.                                   !
+!--------------------------------------------------------------------------------------------------!
+
+! **************************************************************************************************
+!> \brief This module computes the basic integrals for the truncated coulomb operator
+!>
+!>          res(1) =G_0(R,T)= ((2*erf(sqrt(t))+erf(R-sqrt(t))-erf(R+sqrt(t)))/sqrt(t))
+!>
+!>        and up to 21 derivatives with respect to T
+!>
+!>          res(n+1)=(-1)**n d^n/dT^n G_0(R,T)
+!>
+!>        The function is only computed for values of R,T which fulfil
+!>
+!>          R**2 - 11.0_dp*R + 0.0_dp < T < R**2 + 11.0_dp*R + 50.0_dp where R>=0 T>=0
+!>
+!>        for T larger than the upper bound, 0 is returned
+!>        (which is accurate at least up to 1.0E-16)
+!>        while for T smaller than the lower bound, the caller is instructed
+!>        to use the conventional gamma function instead
+!>        (i.e. the limit of above expression for R to Infinity)
+!>
+!> \author Joost VandeVondele and Manuel Guidon
+!> \par History
+!>      Nov 2008, 2009 Joost VandeVondele and Manuel Guidon
+!>      May 2019 A. Bussy: Added a get_maxl_init function to get current status of nderiv_init and
+!>                moved the file to common (made it accessible from aobasis, same place as gamma.F).
+! **************************************************************************************************
 MODULE t_c_g0
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_bcast
@@ -56,6 +61,7 @@ MODULE t_c_g0
 
    IMPLICIT NONE
    PRIVATE
+
    PUBLIC :: t_c_g0_n, init, free_C0, get_lmax_init
    REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE, SAVE :: C0
    INTEGER, PARAMETER :: degree = 13
@@ -63,7 +69,9 @@ MODULE t_c_g0
    INTEGER, PARAMETER :: nderiv_max = 21
    INTEGER, SAVE      :: nderiv_init = -1
    INTEGER, SAVE      :: patches = -1
+
 CONTAINS
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param RES ...
@@ -1337,12 +1345,11 @@ CONTAINS
          ENDIF
       ENDIF
    END SUBROUTINE t_c_g0_n
-! iunit contains the data file to initialize the table
-! Nder is the number of derivatives that will actually be used
+
 ! **************************************************************************************************
 !> \brief ...
-!> \param Nder ...
-!> \param iunit ...
+!> \param Nder the number of derivatives that will actually be used
+!> \param iunit contains the data file to initialize the table
 !> \param mepos ...
 !> \param group ...
 ! **************************************************************************************************
@@ -1371,6 +1378,7 @@ CONTAINS
       CALL mp_bcast(C0, 0, group)
 
    END SUBROUTINE init
+
 ! **************************************************************************************************
 !> \brief ...
 ! **************************************************************************************************
@@ -1378,6 +1386,7 @@ CONTAINS
       IF (ALLOCATED(C0)) DEALLOCATE (C0)
       nderiv_init = -1
    END SUBROUTINE free_C0
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param RES ...

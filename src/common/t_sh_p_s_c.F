@@ -1,30 +1,41 @@
-!
-! * Copyright (c) 2008, Joost VandeVondele and Manuel Guidon
-! * All rights reserved.
-! *
-! * Redistribution and use in source and binary forms, with or without
-! * modification, are permitted provided that the following conditions are met:
-! *     * Redistributions of source code must retain the above copyright
-! *       notice, this list of conditions and the following disclaimer.
-! *     * Redistributions in binary form must reproduce the above copyright
-! *       notice, this list of conditions and the following disclaimer in the
-! *       documentation and/or other materials provided with the distribution.
-! *
-! * THIS SOFTWARE IS PROVIDED BY Joost VandeVondele and Manuel Guidon AS IS AND ANY
-! * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-! * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-! * DISCLAIMED. IN NO EVENT SHALL Joost VandeVondele or Manuel Guidon BE LIABLE FOR ANY
-! * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-! * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-! * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-! * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-! * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-! * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-!
-!
-!   Joost VandeVondele and Manuel Guidon, Nov 2008.
-!
-! History: -09.2019 Moved the file to common (together with gamma.F and t_c_g0.F) A.Bussy
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright 2000-2020 CP2K developers group <https://cp2k.org>                                   !
+!                                                                                                  !
+!   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
+!--------------------------------------------------------------------------------------------------!
+
+!--------------------------------------------------------------------------------------------------!
+!   Copyright (c) 2008, Joost VandeVondele and Manuel Guidon                                       !
+!   All rights reserved.                                                                           !
+!                                                                                                  !
+!   Redistribution and use in source and binary forms, with or without                             !
+!   modification, are permitted provided that the following conditions are met:                    !
+!       * Redistributions of source code must retain the above copyright                           !
+!         notice, this list of conditions and the following disclaimer.                            !
+!       * Redistributions in binary form must reproduce the above copyright                        !
+!         notice, this list of conditions and the following disclaimer in the                      !
+!         documentation and/or other materials provided with the distribution.                     !
+!                                                                                                  !
+!   THIS SOFTWARE IS PROVIDED BY Joost VandeVondele and Manuel Guidon AS IS AND ANY                !
+!   EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED                      !
+!   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE                         !
+!   DISCLAIMED. IN NO EVENT SHALL Joost VandeVondele or Manuel Guidon BE LIABLE FOR ANY            !
+!   DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES                     !
+!   (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;                   !
+!   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND                    !
+!   ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT                     !
+!   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS                  !
+!   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.                                   !
+!--------------------------------------------------------------------------------------------------!
+
+! **************************************************************************************************
+!> \brief ...
+!> \author Joost VandeVondele and Manuel Guidon
+!> \par History
+!>      Nov 2008 Joost VandeVondele and Manuel Guidon
+!>      Sep 2019 A.Bussy: Moved the file to common (together with gamma.F and t_c_g0.F)
+! **************************************************************************************************
 MODULE t_sh_p_s_c
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_bcast
@@ -32,6 +43,7 @@ MODULE t_sh_p_s_c
 
    IMPLICIT NONE
    PRIVATE
+
    PUBLIC :: trunc_CS_poly_n20, init, free_C0
    REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE, SAVE :: C0
    INTEGER, PARAMETER :: degree = 15
@@ -39,7 +51,9 @@ MODULE t_sh_p_s_c
    INTEGER, PARAMETER :: nderiv_max = 21
    INTEGER, SAVE      :: nderiv_init = -1
    INTEGER, SAVE      :: patches = -1
+
 CONTAINS
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param RES ...
@@ -1087,12 +1101,10 @@ CONTAINS
       END IF
    END SUBROUTINE trunc_CS_poly_n20
 
-! iunit contains the data file to initialize the table
-! Nder is the number of derivatives that will actually be used
 ! **************************************************************************************************
 !> \brief ...
-!> \param Nder ...
-!> \param iunit ...
+!> \param Nder the number of derivatives that will actually be used
+!> \param iunit contains the data file to initialize the table
 !> \param mepos ...
 !> \param group ...
 ! **************************************************************************************************
@@ -1128,6 +1140,7 @@ CONTAINS
       IF (ALLOCATED(C0)) DEALLOCATE (C0)
       nderiv_init = -1
    END SUBROUTINE free_C0
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param RES ...
@@ -1198,4 +1211,5 @@ CONTAINS
          RES(K) = RES(K) + DOT_PRODUCT(T1(0:0), C0(136:136, K))*T2(15)
       ENDDO
    END SUBROUTINE PD2VAL
+
 END MODULE t_sh_p_s_c
