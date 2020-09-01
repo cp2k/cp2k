@@ -19,22 +19,28 @@ portable_filename_re = re.compile(r"^[a-zA-Z0-9._/#~=+-]*$")
 BANNER_F = """\
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - {:4}  CP2K developers group                                               !
+!   Copyright 2000-{:d} CP2K developers group <https://cp2k.org>                                   !
+!                                                                                                  !
+!   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 """
 
 BANNER_Fypp = """\
 #!-------------------------------------------------------------------------------------------------!
 #!   CP2K: A general program to perform molecular dynamics simulations                             !
-#!   Copyright (C) 2000 - {:4}  CP2K developers group                                              !
+#!   Copyright 2000-{:d} CP2K developers group <https://cp2k.org>                                  !
+#!                                                                                                 !
+#!   SPDX-License-Identifier: GPL-2.0-or-later                                                     !
 #!-------------------------------------------------------------------------------------------------!
 """
 
 BANNER_C = """\
-/*****************************************************************************
- *  CP2K: A general program to perform molecular dynamics simulations        *
- *  Copyright (C) 2000 - {:d}  CP2K developers group                         *
- *****************************************************************************/
+/*----------------------------------------------------------------------------*/
+/*  CP2K: A general program to perform molecular dynamics simulations         */
+/*  Copyright 2000-{:d} CP2K developers group <https://cp2k.org>              */
+/*                                                                            */
+/*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
+/*----------------------------------------------------------------------------*/
 """
 
 DEFAULT_EXCLUDED_DIRS = (
