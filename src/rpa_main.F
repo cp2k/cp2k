@@ -998,7 +998,7 @@ CONTAINS
             ncol_block_mat = MAX(ncol_block_mat, 1)
          END IF
 
-         IF (unit_nr > 0 .AND. .NOT. do_im_time) THEN
+         IF (unit_nr > 0 .AND. .NOT. my_do_im_time) THEN
             WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
                "MATRIX_INFO| Row block size:", nrow_block_mat
             WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
