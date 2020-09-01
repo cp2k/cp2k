@@ -227,7 +227,7 @@ CONTAINS
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T71,F7.1,1X,A2)') &
             'MEMORY_INFO| Memory of 3c integrals:', 8.0_dp*REAL(nze_O, dp)/1.0E9_dp, 'GB'
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T73,1X,F6.3,A1)') &
-            'MEMORY_INFO| Occupancy of 3c integrals:', occ_O*100, '%'
+            'MEMORY_INFO| Occupancy of 3c integrals:', occ_O*100.0_dp, '%'
       END IF
 
       IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
