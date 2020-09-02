@@ -40,18 +40,18 @@ static const double fac[] = {
     0.26525285981219105864E+33};
 
 //******************************************************************************
-// \brief Macros for minimum and maximum as they are missing from the C standard
+// \brief Minimum and maximum for integers (missing from the C standard)
 // \author Ole Schuett
 //******************************************************************************
-#define min(x, y) (((x) < (y)) ? x : y)
-#define max(x, y) (((x) > (y)) ? x : y)
+inline int imin(int x, int y) { return (x < y ? x : y); }
+inline int imax(int x, int y) { return (x > y ? x : y); }
 
 //******************************************************************************
 // \brief Equivalent of Fortran's MODULO, which always return a positive number.
 //        https://gcc.gnu.org/onlinedocs/gfortran/MODULO.html
 // \author Ole Schuett
 //******************************************************************************
-#define modulo(a, m) (((a) % (m) + (m)) % (m))
+inline int modulo(int a, int m) { return ((a % m + m) % m); }
 
 #endif // GRID_COMMON_H
 
