@@ -15,7 +15,6 @@
 ! **************************************************************************************************
 MODULE string_utilities
 
-   USE glob_matching,                   ONLY: pattern_match => string_match
    USE kinds,                           ONLY: default_blank_character
 
    IMPLICIT NONE
@@ -107,53 +106,64 @@ CONTAINS
 !> \return ...
 !> \par History
 !>      02.2006 created [Joost VandeVondele]
-!> \note
-!>     could maybe be made a bit smarter (levenstein distance ?)
+!>      09.2020 switch to Levenshtein distance [Ole Schuett]
 ! **************************************************************************************************
    FUNCTION typo_match(string, typo_string) RESULT(match)
       CHARACTER(LEN=*), INTENT(IN)                       :: string, typo_string
       INTEGER                                            :: match
 
-      CHARACTER(LEN=1)                                   :: kind
-      CHARACTER(LEN=LEN(string))                         :: tmp2
-      CHARACTER(LEN=LEN(typo_string))                    :: tmp
-      INTEGER                                            :: i, j
-
-      match = 0
-      IF (LEN_TRIM(typo_string) .LE. 4) THEN
-         kind = question
-      ELSE
-         kind = star
-      ENDIF
-      DO i = 1, LEN_TRIM(typo_string)
-         DO j = i, LEN_TRIM(typo_string)
-            tmp = typo_string
-            tmp(i:i) = kind
-            tmp(j:j) = kind
-            IF (i == j .AND. LEN_TRIM(tmp) > 2) tmp(i:i) = star
-            IF (pattern_match(string=string, pattern=tmp)) match = match + 1
-         ENDDO
-      ENDDO
-      IF (LEN_TRIM(string) .LE. 4) THEN
-         kind = question
-      ELSE
-         kind = star
-      ENDIF
-      DO i = 1, LEN_TRIM(string)
-         DO j = i, LEN_TRIM(string)
-            tmp2 = string
-            tmp2(i:i) = kind
-            tmp2(j:j) = kind
-            IF (i == j .AND. LEN_TRIM(tmp2) > 2) tmp2(i:i) = star
-            IF (pattern_match(string=typo_string, pattern=tmp2)) match = match + 1
-         ENDDO
-      ENDDO
-      IF (match > 0) THEN
-         ! bonus points for small differences in length
-         IF (ABS(LEN_TRIM(string) - LEN_TRIM(typo_string)) < 3) match = match + 2
-      ENDIF
+      match = MAX(0, 100 - levenshtein_distance(string, typo_string))
 
    END FUNCTION typo_match
+
+! **************************************************************************************************
+!> \brief Compute the Levenshtein edit distance between the two given strings.
+!> \param s source string
+!> \param t target string
+!> \return edit distance
+!> \author Ole Schuett
+! **************************************************************************************************
+   FUNCTION levenshtein_distance(s, t) RESULT(distance)
+
+      CHARACTER(LEN=*), INTENT(IN)                       :: s, t
+      INTEGER                                            :: distance
+
+      INTEGER                                            :: i, j, m, n, substitution_cost
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: d
+
+      m = LEN_TRIM(s)
+      n = LEN_TRIM(t)
+
+      ! distance between the first i characters of s and the first j characters of t
+      ALLOCATE (d(0:m, 0:n))
+      d(:, :) = 0
+
+      ! source prefixes can be transformed into empty string by dropping all characters
+      DO i = 1, m
+         d(i, 0) = i
+      END DO
+
+      ! target prefixes can be reached from empty source prefix by inserting every character
+      DO j = 1, n
+         d(0, j) = j
+      END DO
+
+      DO j = 1, n
+         DO i = 1, m
+            IF (s(i:i) == t(j:j)) THEN
+               substitution_cost = 0
+            ELSE
+               substitution_cost = 1
+            END IF
+            d(i, j) = MIN(d(i - 1, j) + 1, &                    ! deletion
+                          d(i, j - 1) + 1, &                    ! insertion
+                          d(i - 1, j - 1) + substitution_cost)  ! substitution
+         END DO
+      END DO
+
+      distance = d(m, n)
+
+   END FUNCTION levenshtein_distance
 
 ! **************************************************************************************************
 !> \brief Converts a character-array into a string
