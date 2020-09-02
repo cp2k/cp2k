@@ -18,7 +18,7 @@ void mpi_sum_func(long *number, int mpi_comm) {
 }
 
 void print_func(char *message, int output_unit) {
-  output_unit += 0; // Pretent argument is used.
+  output_unit += 0; // Pretend argument is used.
   printf("%s", message);
 }
 
@@ -54,7 +54,7 @@ static int run_test(const char cp2k_root_dir[], const char task_file[]) {
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {
-    printf("Usage: grid_base_ref_unittest.x <cp2k-root-dir>\n");
+    printf("Usage: grid_collocate_unittest.x <cp2k-root-dir>\n");
     return 1;
   }
 

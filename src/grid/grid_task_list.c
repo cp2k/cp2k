@@ -165,7 +165,7 @@ void grid_collocate_task_list(
                             j * npts_local[level][0] + i;
             const double ref_value = grid_ref[level][idx];
             const double diff = fabs(grid[level][idx] - ref_value);
-            const double rel_diff = diff / max(1.0, fabs(ref_value));
+            const double rel_diff = diff / fmax(1.0, fabs(ref_value));
             if (rel_diff > tolerance) {
               printf("Error: Grid validation failure\n");
               printf("   diff:     %le\n", diff);
