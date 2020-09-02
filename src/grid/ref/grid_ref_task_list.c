@@ -94,7 +94,8 @@ void grid_ref_create_task_list(
   // Find largest Cartesian subblock size.
   task_list->maxco = 0;
   for (int i = 0; i < nkinds; i++) {
-    task_list->maxco = LIBGRID_MAX(task_list->maxco, task_list->basis_sets[i]->maxco);
+    task_list->maxco =
+        LIBGRID_MAX(task_list->maxco, task_list->basis_sets[i]->maxco);
   }
 
   *blocks_buffer = task_list->blocks_buffer;

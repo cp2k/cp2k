@@ -40,8 +40,8 @@ static void prepare_pab_AB(const int o1, const int o2, const int la_max,
     for (int lxb = 0; lxb <= lb_max; lxb++) {
       for (int lya = 0; lya <= la_max - lxa; lya++) {
         for (int lyb = 0; lyb <= lb_max - lxb; lyb++) {
-          for (int lza = LIBGRID_MAX(la_min - lxa - lya, 0); lza <= la_max - lxa - lya;
-               lza++) {
+          for (int lza = LIBGRID_MAX(la_min - lxa - lya, 0);
+               lza <= la_max - lxa - lya; lza++) {
             for (int lzb = LIBGRID_MAX(lb_min - lxb - lyb, 0);
                  lzb <= lb_max - lxb - lyb; lzb++) {
               const int ico = coset(lxa, lya, lza);
@@ -76,8 +76,8 @@ static void prepare_pab_DADB(const int o1, const int o2, const int la_max,
     for (int lxb = 0; lxb <= lb_max; lxb++) {
       for (int lya = 0; lya <= la_max - lxa; lya++) {
         for (int lyb = 0; lyb <= lb_max - lxb; lyb++) {
-          for (int lza = LIBGRID_MAX(la_min - lxa - lya, 0); lza <= la_max - lxa - lya;
-               lza++) {
+          for (int lza = LIBGRID_MAX(la_min - lxa - lya, 0);
+               lza <= la_max - lxa - lya; lza++) {
             for (int lzb = LIBGRID_MAX(lb_min - lxb - lyb, 0);
                  lzb <= lb_max - lxb - lyb; lzb++) {
               const int ico = coset(lxa, lya, lza);
@@ -172,8 +172,8 @@ static void prepare_pab_ADBmDAB(
     for (int lxb = 0; lxb <= lb_max; lxb++) {
       for (int lya = 0; lya <= la_max - lxa; lya++) {
         for (int lyb = 0; lyb <= lb_max - lxb; lyb++) {
-          for (int lza = LIBGRID_MAX(la_min - lxa - lya, 0); lza <= la_max - lxa - lya;
-               lza++) {
+          for (int lza = LIBGRID_MAX(la_min - lxa - lya, 0);
+               lza <= la_max - lxa - lya; lza++) {
             for (int lzb = LIBGRID_MAX(lb_min - lxb - lyb, 0);
                  lzb <= lb_max - lxb - lyb; lzb++) {
               const int ico = coset(lxa, lya, lza);
@@ -257,8 +257,8 @@ static void prepare_pab_ARDBmDARB(
     for (int lxb = 0; lxb <= lb_max; lxb++) {
       for (int lya = 0; lya <= la_max - lxa; lya++) {
         for (int lyb = 0; lyb <= lb_max - lxb; lyb++) {
-          for (int lza = LIBGRID_MAX(la_min - lxa - lya, 0); lza <= la_max - lxa - lya;
-               lza++) {
+          for (int lza = LIBGRID_MAX(la_min - lxa - lya, 0);
+               lza <= la_max - lxa - lya; lza++) {
             for (int lzb = LIBGRID_MAX(lb_min - lxb - lyb, 0);
                  lzb <= lb_max - lxb - lyb; lzb++) {
               const int ico = coset(lxa, lya, lza);
@@ -416,8 +416,8 @@ static void prepare_pab_DABpADB(
     for (int lxb = 0; lxb <= lb_max; lxb++) {
       for (int lya = 0; lya <= la_max - lxa; lya++) {
         for (int lyb = 0; lyb <= lb_max - lxb; lyb++) {
-          for (int lza = LIBGRID_MAX(la_min - lxa - lya, 0); lza <= la_max - lxa - lya;
-               lza++) {
+          for (int lza = LIBGRID_MAX(la_min - lxa - lya, 0);
+               lza <= la_max - lxa - lya; lza++) {
             for (int lzb = LIBGRID_MAX(lb_min - lxb - lyb, 0);
                  lzb <= lb_max - lxb - lyb; lzb++) {
               const int ico = coset(lxa, lya, lza);
@@ -501,8 +501,8 @@ static void prepare_pab_Di(const int ider, const int o1, const int o2,
     for (int lxb = 0; lxb <= lb_max; lxb++) {
       for (int lya = 0; lya <= la_max - lxa; lya++) {
         for (int lyb = 0; lyb <= lb_max - lxb; lyb++) {
-          for (int lza = LIBGRID_MAX(la_min - lxa - lya, 0); lza <= la_max - lxa - lya;
-               lza++) {
+          for (int lza = LIBGRID_MAX(la_min - lxa - lya, 0);
+               lza <= la_max - lxa - lya; lza++) {
             for (int lzb = LIBGRID_MAX(lb_min - lxb - lyb, 0);
                  lzb <= lb_max - lxb - lyb; lzb++) {
               const int ico = coset(lxa, lya, lza);
@@ -644,8 +644,8 @@ static void prepare_pab_DiDj(const int ider1, const int ider2, const int o1,
     for (int lxb = 0; lxb <= lb_max; lxb++) {
       for (int lya = 0; lya <= la_max - lxa; lya++) {
         for (int lyb = 0; lyb <= lb_max - lxb; lyb++) {
-          for (int lza = LIBGRID_MAX(la_min - lxa - lya, 0); lza <= la_max - lxa - lya;
-               lza++) {
+          for (int lza = LIBGRID_MAX(la_min - lxa - lya, 0);
+               lza <= la_max - lxa - lya; lza++) {
             for (int lzb = LIBGRID_MAX(lb_min - lxb - lyb, 0);
                  lzb <= lb_max - lxb - lyb; lzb++) {
               const int ico = coset(lxa, lya, lza);
@@ -658,7 +658,8 @@ static void prepare_pab_DiDj(const int ider1, const int ider2, const int o1,
 
               if ((ider1 == 1 && ider2 == 2) || (ider1 == 2 && ider2 == 1)) {
                 // xy
-                ico_l = coset(LIBGRID_MAX(lxa - 1, 0), LIBGRID_MAX(lya - 1, 0), lza);
+                ico_l = coset(LIBGRID_MAX(lxa - 1, 0), LIBGRID_MAX(lya - 1, 0),
+                              lza);
                 func_a = lxa * lya * pab[o2 + jco][o1 + ico];
                 oneterm_dijdij(1, func_a, ico_l, lxb, lyb, lzb, zetb, n1_prep,
                                n2_prep, pab_prep);
@@ -677,7 +678,8 @@ static void prepare_pab_DiDj(const int ider1, const int ider2, const int o1,
               } else if ((ider1 == 2 && ider2 == 3) ||
                          (ider1 == 3 && ider2 == 2)) {
                 // yz
-                ico_l = coset(lxa, LIBGRID_MAX(lya - 1, 0), LIBGRID_MAX(lza - 1, 0));
+                ico_l = coset(lxa, LIBGRID_MAX(lya - 1, 0),
+                              LIBGRID_MAX(lza - 1, 0));
                 func_a = lya * lza * pab[o2 + jco][o1 + ico];
                 oneterm_dijdij(2, func_a, ico_l, lxb, lyb, lzb, zetb, n1_prep,
                                n2_prep, pab_prep);
@@ -696,7 +698,8 @@ static void prepare_pab_DiDj(const int ider1, const int ider2, const int o1,
               } else if ((ider1 == 3 && ider2 == 1) ||
                          (ider1 == 1 && ider2 == 3)) {
                 // zx
-                ico_l = coset(LIBGRID_MAX(lxa - 1, 0), lya, LIBGRID_MAX(lza - 1, 0));
+                ico_l = coset(LIBGRID_MAX(lxa - 1, 0), lya,
+                              LIBGRID_MAX(lza - 1, 0));
                 func_a = lza * lxa * pab[o2 + jco][o1 + ico];
                 oneterm_dijdij(3, func_a, ico_l, lxb, lyb, lzb, zetb, n1_prep,
                                n2_prep, pab_prep);
@@ -784,8 +787,8 @@ static void prepare_pab_Di2(const int ider, const int o1, const int o2,
     for (int lxb = 0; lxb <= lb_max; lxb++) {
       for (int lya = 0; lya <= la_max - lxa; lya++) {
         for (int lyb = 0; lyb <= lb_max - lxb; lyb++) {
-          for (int lza = LIBGRID_MAX(la_min - lxa - lya, 0); lza <= la_max - lxa - lya;
-               lza++) {
+          for (int lza = LIBGRID_MAX(la_min - lxa - lya, 0);
+               lza <= la_max - lxa - lya; lza++) {
             for (int lzb = LIBGRID_MAX(lb_min - lxb - lyb, 0);
                  lzb <= lb_max - lxb - lyb; lzb++) {
               const int ico = coset(lxa, lya, lza);

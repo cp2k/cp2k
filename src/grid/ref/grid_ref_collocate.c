@@ -92,8 +92,8 @@ static void prepare_coef(const int la_max, const int la_min, const int lb_max,
           for (int i = 0; i <= lxpm; i++) {
             coef_xtt[i] = 0.0;
           }
-          for (int lxb = LIBGRID_MAX(lb_min - lzb - lyb, 0); lxb <= lb_max - lzb - lyb;
-               lxb++) {
+          for (int lxb = LIBGRID_MAX(lb_min - lzb - lyb, 0);
+               lxb <= lb_max - lzb - lyb; lxb++) {
             for (int lxa = LIBGRID_MAX(la_min - lza - lya, 0);
                  lxa <= la_max - lza - lya; lxa++) {
               const int ico = coset(lxa, lya, lza);
@@ -233,21 +233,24 @@ static void collocate_core_simple(
   const int kgmin = ceil(-1e-8 - disr_radius * dh_inv[2][2]);
   for (int kg = kgmin; kg <= 1 - kgmin; kg++) {
     const int ka = cubecenter[2] + kg - shift_local[2];
-    const int k = LIBGRID_MOD(ka, npts_global[2]); // target location on the grid
-    const int kd = (2 * kg - 1) / 2; // distance from center in grid points
-    const double kr = kd * dh[2][2]; // distance from center in a.u.
+    const int k =
+        LIBGRID_MOD(ka, npts_global[2]); // target location on the grid
+    const int kd = (2 * kg - 1) / 2;     // distance from center in grid points
+    const double kr = kd * dh[2][2];     // distance from center in a.u.
     const double kremain = disr_radius * disr_radius - kr * kr;
     const int jgmin = ceil(-1e-8 - sqrt(fmax(0.0, kremain)) * dh_inv[1][1]);
     for (int jg = jgmin; jg <= 1 - jgmin; jg++) {
       const int ja = cubecenter[1] + jg - shift_local[1];
-      const int j = LIBGRID_MOD(ja, npts_global[1]); // target location on the grid
+      const int j =
+          LIBGRID_MOD(ja, npts_global[1]); // target location on the grid
       const int jd = (2 * jg - 1) / 2; // distance from center in grid points
       const double jr = jd * dh[1][1]; // distance from center in a.u.
       const double jremain = kremain - jr * jr;
       const int igmin = ceil(-1e-8 - sqrt(fmax(0.0, jremain)) * dh_inv[0][0]);
       for (int ig = igmin; ig <= 1 - igmin; ig++) {
         const int ia = cubecenter[0] + ig - shift_local[0];
-        const int i = LIBGRID_MOD(ia, npts_global[0]); // target location on the grid
+        const int i =
+            LIBGRID_MOD(ia, npts_global[0]); // target location on the grid
         const int grid_index =
             k * npts_local[1] * npts_local[0] + j * npts_local[0] + i;
         const int cube_index = (kg - lb_cube[2]) * ny * nx +
@@ -418,7 +421,8 @@ static void collocate_ortho(const int lp, const double zetp,
     // If grid is not period check that cube fits without wrapping.
     if (npts_global[i] != npts_local[i]) {
       const int offset =
-          LIBGRID_MOD(cubecenter[i] + lb_cube[i] - shift_local[i], npts_global[i]) -
+          LIBGRID_MOD(cubecenter[i] + lb_cube[i] - shift_local[i],
+                      npts_global[i]) -
           lb_cube[i];
       assert(offset + ub_cube[i] < npts_local[i]);
       assert(offset + lb_cube[i] >= 0);
