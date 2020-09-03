@@ -11,10 +11,10 @@
 
 #include "../common/grid_basis_set.h"
 
-//******************************************************************************
-// \brief Internal representation of a task.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Internal representation of a task.
+ * \author Ole Schuett
+ ******************************************************************************/
 typedef struct {
   int level;
   int iatom;
@@ -29,10 +29,10 @@ typedef struct {
   double rab[3];
 } grid_ref_task;
 
-//******************************************************************************
-// \brief Internal representation of a task list.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Internal representation of a task list.
+ * \author Ole Schuett
+ ******************************************************************************/
 typedef struct {
   int ntasks;
   int nlevels;
@@ -50,11 +50,11 @@ typedef struct {
   int maxco;
 } grid_ref_task_list;
 
-//******************************************************************************
-// \brief Allocates a task list which can be passed to grid_collocate_task_list.
-//        See grid_task_list.h for details.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Allocates a task list which can be passed to grid_collocate_task_list.
+ *        See grid_task_list.h for details.
+ * \author Ole Schuett
+ ******************************************************************************/
 void grid_ref_create_task_list(
     const int ntasks, const int nlevels, const int natoms, const int nkinds,
     const int nblocks, const int buffer_size, const int block_offsets[nblocks],
@@ -67,17 +67,17 @@ void grid_ref_create_task_list(
     const double radius_list[ntasks], const double rab_list[ntasks][3],
     double **blocks_buffer, grid_ref_task_list **task_list);
 
-//******************************************************************************
-// \brief Deallocates given task list, basis_sets have to be freed separately.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Deallocates given task list, basis_sets have to be freed separately.
+ * \author Ole Schuett
+ ******************************************************************************/
 void grid_ref_free_task_list(grid_ref_task_list *task_list);
 
-//******************************************************************************
-// \brief Collocate all tasks of in given list onto given grids.
-//        See grid_task_list.h for details.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Collocate all tasks of in given list onto given grids.
+ *        See grid_task_list.h for details.
+ * \author Ole Schuett
+ ******************************************************************************/
 void grid_ref_collocate_task_list(
     const grid_ref_task_list *task_list, const bool orthorhombic,
     const int func, const int nlevels, const int npts_global[nlevels][3],

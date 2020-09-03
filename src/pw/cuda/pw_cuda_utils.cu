@@ -7,12 +7,12 @@
 
 #if defined(__PW_CUDA)
 
-//******************************************************************************
-// \brief This file contains memory management routines for device memory.
-// \par History
-//      Revised: Sept. 2012, Andreas Gloess
-// \author Benjamin G Levine
-//******************************************************************************
+/*******************************************************************************
+ * \brief This file contains memory management routines for device memory.
+ * \par History
+ *      Revised: Sept. 2012, Andreas Gloess
+ * \author Benjamin G Levine
+ ******************************************************************************/
 
 // global dependencies
 #include <cuda_runtime.h>

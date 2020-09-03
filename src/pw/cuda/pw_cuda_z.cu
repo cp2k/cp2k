@@ -5,12 +5,12 @@
 /*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
 /*----------------------------------------------------------------------------*/
 
-//******************************************************************************
-// \author Benjamin G Levine, Andreas Gloess
-// \par History
-//  2012/05/18                 Refacturing - original files:
-//                              - cuda_tools/cuda_pw_cu.cu
-//******************************************************************************
+/*******************************************************************************
+ * \author Benjamin G Levine, Andreas Gloess
+ * \par History
+ *  2012/05/18                 Refacturing - original files:
+ *                              - cuda_tools/cuda_pw_cu.cu
+ ******************************************************************************/
 #if defined(__PW_CUDA)
 
 // global dependencies
@@ -70,18 +70,18 @@ void cudaStreamBarrier(cudaStream_t cuda_stream) {
 
 // --- CODE -------------------------------------------------------------------
 
-//******************************************************************************
-// \brief   Performs a out-of-place copy of a double precision vector (first
-//          half filled) into a double precision complex vector on the GPU.
-//          It requires a global double precision vector 'zout' of length '2n'.
-//          [memory (shared):  none Byte
-//           memory (private): 4 Byte
-//           memory (global):  16*n Byte]
-//          n - size of double precision input vector
-// \author  Andreas Gloess
-// \date    2013-03-07
-// \version 0.01
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Performs a out-of-place copy of a double precision vector (first
+ *          half filled) into a double precision complex vector on the GPU.
+ *          It requires a global double precision vector 'zout' of length '2n'.
+ *          [memory (shared):  none Byte
+ *           memory (private): 4 Byte
+ *           memory (global):  16*n Byte]
+ *          n - size of double precision input vector
+ * \author  Andreas Gloess
+ * \date    2013-03-07
+ * \version 0.01
+ ******************************************************************************/
 __global__ void pw_copy_rc_cu_z(const double *din, double *zout, const int n) {
   const int igpt =
       (gridDim.x * blockIdx.y + blockIdx.x) * blockDim.x + threadIdx.x;
@@ -92,18 +92,18 @@ __global__ void pw_copy_rc_cu_z(const double *din, double *zout, const int n) {
   }
 }
 
-//******************************************************************************
-// \brief   Performs a out-of-place copy of a double precision complex vector
-//          (real part) into a double precision vector on the GPU.
-//          It requires a global double precision vector 'dout' of length 'n'.
-//          [memory (shared):  none Byte
-//           memory (private): 4 Byte
-//           memory (global):  16*n Byte]
-//          n - size of double precision output vector
-// \author  Andreas Gloess
-// \date    2013-03-07
-// \version 0.01
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Performs a out-of-place copy of a double precision complex vector
+ *          (real part) into a double precision vector on the GPU.
+ *          It requires a global double precision vector 'dout' of length 'n'.
+ *          [memory (shared):  none Byte
+ *           memory (private): 4 Byte
+ *           memory (global):  16*n Byte]
+ *          n - size of double precision output vector
+ * \author  Andreas Gloess
+ * \date    2013-03-07
+ * \version 0.01
+ ******************************************************************************/
 __global__ void pw_copy_cr_cu_z(const double *zin, double *dout, const int n) {
   const int igpt =
       (gridDim.x * blockIdx.y + blockIdx.x) * blockDim.x + threadIdx.x;
@@ -113,12 +113,12 @@ __global__ void pw_copy_cr_cu_z(const double *zin, double *dout, const int n) {
   }
 }
 
-//******************************************************************************
-// \brief   Performs a (double precision complex) gather and scale on the GPU.
-// \author  Andreas Gloess
-// \date    2013-03-07
-// \version 0.01
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Performs a (double precision complex) gather and scale on the GPU.
+ * \author  Andreas Gloess
+ * \date    2013-03-07
+ * \version 0.01
+ ******************************************************************************/
 __global__ void pw_gather_cu_z(double *pwcc, const double *c,
                                const double scale, const int ngpts,
                                const int *ghatmap) {
@@ -132,12 +132,12 @@ __global__ void pw_gather_cu_z(double *pwcc, const double *c,
   }
 }
 
-//******************************************************************************
-// \brief   Performs a (double precision complex) scatter and scale on the GPU.
-// \author  Andreas Gloess
-// \date    2013-03-07
-// \version 0.01
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Performs a (double precision complex) scatter and scale on the GPU.
+ * \author  Andreas Gloess
+ * \date    2013-03-07
+ * \version 0.01
+ ******************************************************************************/
 __global__ void pw_scatter_cu_z(double *c, const double *pwcc,
                                 const double scale, const int ngpts,
                                 const int nmaps, const int *ghatmap) {
@@ -155,13 +155,13 @@ __global__ void pw_scatter_cu_z(double *c, const double *pwcc,
   }
 }
 
-//******************************************************************************
-// \brief   Performs a (double precision complex) FFT, followed by a (double
-//          precision complex) gather, on the GPU.
-// \author  Andreas Gloess
-// \date    2013-03-07
-// \version 0.01
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Performs a (double precision complex) FFT, followed by a (double
+ *          precision complex) gather, on the GPU.
+ * \author  Andreas Gloess
+ * \date    2013-03-07
+ * \version 0.01
+ ******************************************************************************/
 extern "C" void pw_cuda_cfffg_z_(const double *din, cuDoubleComplex *zout,
                                  const int *ghatmap, const int *npts,
                                  const int ngpts, const double scale) {
@@ -260,13 +260,13 @@ extern "C" void pw_cuda_cfffg_z_(const double *din, cuDoubleComplex *zout,
   pw_cuda_device_mem_free(&ghatmap_dev);
 }
 
-//******************************************************************************
-// \brief   Performs a (double precision complex) scatter, followed by a
-//          (double precision complex) FFT, on the GPU.
-// \author  Andreas Gloess
-// \date    2013-03-07
-// \version 0.01
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Performs a (double precision complex) scatter, followed by a
+ *          (double precision complex) FFT, on the GPU.
+ * \author  Andreas Gloess
+ * \date    2013-03-07
+ * \version 0.01
+ ******************************************************************************/
 extern "C" void pw_cuda_sfffc_z_(const cuDoubleComplex *zin, double *dout,
                                  const int *ghatmap, const int *npts,
                                  const int ngpts, const int nmaps,
@@ -363,13 +363,13 @@ extern "C" void pw_cuda_sfffc_z_(const cuDoubleComplex *zin, double *dout,
   pw_cuda_device_mem_free(&ghatmap_dev);
 }
 
-//******************************************************************************
-// \brief   Performs a (double to complex double) blow-up and a (double
-//          precision complex) 2D-FFT on the GPU.
-// \author  Andreas Gloess
-// \date    2013-03-07
-// \version 0.01
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Performs a (double to complex double) blow-up and a (double
+ *          precision complex) 2D-FFT on the GPU.
+ * \author  Andreas Gloess
+ * \date    2013-03-07
+ * \version 0.01
+ ******************************************************************************/
 extern "C" void pw_cuda_cff_z_(const double *din, cuDoubleComplex *zout,
                                const int *npts) {
   double *ptr_1, *ptr_2;
@@ -452,13 +452,13 @@ extern "C" void pw_cuda_cff_z_(const double *din, cuDoubleComplex *zout,
   pw_cuda_device_mem_free(&ptr_2);
 }
 
-//******************************************************************************
-// \brief   Performs a (double precision complex) 2D-FFT and a (double complex
-//          to double) shrink-down on the GPU.
-// \author  Andreas Gloess
-// \date    2013-03-07
-// \version 0.01
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Performs a (double precision complex) 2D-FFT and a (double complex
+ *          to double) shrink-down on the GPU.
+ * \author  Andreas Gloess
+ * \date    2013-03-07
+ * \version 0.01
+ ******************************************************************************/
 extern "C" void pw_cuda_ffc_z_(const cuDoubleComplex *zin, double *dout,
                                const int *npts) {
   double *ptr_1, *ptr_2;
@@ -540,13 +540,13 @@ extern "C" void pw_cuda_ffc_z_(const cuDoubleComplex *zin, double *dout,
   pw_cuda_device_mem_free(&ptr_2);
 }
 
-//******************************************************************************
-// \brief   Performs a (double to complex double) blow-up and a (double
-//          precision complex) 1D-FFT on the GPU.
-// \author  Andreas Gloess
-// \date    2013-03-07
-// \version 0.01
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Performs a (double to complex double) blow-up and a (double
+ *          precision complex) 1D-FFT on the GPU.
+ * \author  Andreas Gloess
+ * \date    2013-03-07
+ * \version 0.01
+ ******************************************************************************/
 extern "C" void pw_cuda_cf_z_(const double *din, cuDoubleComplex *zout,
                               const int *npts) {
   double *ptr_1, *ptr_2;
@@ -620,13 +620,13 @@ extern "C" void pw_cuda_cf_z_(const double *din, cuDoubleComplex *zout,
   pw_cuda_device_mem_free(&ptr_2);
 }
 
-//******************************************************************************
-// \brief   Performs a (double precision complex) 1D-FFT and a (double complex
-//          to double) shrink-down on the GPU.
-// \author  Andreas Gloess
-// \date    2013-03-07
-// \version 0.01
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Performs a (double precision complex) 1D-FFT and a (double complex
+ *          to double) shrink-down on the GPU.
+ * \author  Andreas Gloess
+ * \date    2013-03-07
+ * \version 0.01
+ ******************************************************************************/
 extern "C" void pw_cuda_fc_z_(const cuDoubleComplex *zin, double *dout,
                               const int *npts) {
   double *ptr_1, *ptr_2;
@@ -699,12 +699,12 @@ extern "C" void pw_cuda_fc_z_(const cuDoubleComplex *zin, double *dout,
   pw_cuda_device_mem_free(&ptr_2);
 }
 
-//******************************************************************************
-// \brief   Performs a (double precision complex) 1D-FFT on the GPU.
-// \author  Andreas Gloess
-// \date    2013-05-01
-// \version 0.01
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Performs a (double precision complex) 1D-FFT on the GPU.
+ * \author  Andreas Gloess
+ * \date    2013-05-01
+ * \version 0.01
+ ******************************************************************************/
 extern "C" void pw_cuda_f_z_(const cuDoubleComplex *zin, cuDoubleComplex *zout,
                              const int dir, const int n, const int m) {
   double *ptr_1, *ptr_2;
@@ -764,13 +764,13 @@ extern "C" void pw_cuda_f_z_(const cuDoubleComplex *zin, cuDoubleComplex *zout,
   pw_cuda_device_mem_free(&ptr_2);
 }
 
-//******************************************************************************
-// \brief   Performs a (double precision complex) 1D-FFT, followed by a (double
-//          precision complex) gather, on the GPU.
-// \author  Andreas Gloess
-// \date    2013-03-07
-// \version 0.01
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Performs a (double precision complex) 1D-FFT, followed by a (double
+ *          precision complex) gather, on the GPU.
+ * \author  Andreas Gloess
+ * \date    2013-03-07
+ * \version 0.01
+ ******************************************************************************/
 extern "C" void pw_cuda_fg_z_(const cuDoubleComplex *zin, cuDoubleComplex *zout,
                               const int *ghatmap, const int *npts,
                               const int mmax, const int ngpts,
@@ -852,13 +852,13 @@ extern "C" void pw_cuda_fg_z_(const cuDoubleComplex *zin, cuDoubleComplex *zout,
   pw_cuda_device_mem_free(&ghatmap_dev);
 }
 
-//******************************************************************************
-// \brief   Performs a (double precision complex) scatter, followed by a
-//          (double precision complex) 1D-FFT, on the GPU.
-// \author  Andreas Gloess
-// \date    2013-03-07
-// \version 0.01
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Performs a (double precision complex) scatter, followed by a
+ *          (double precision complex) 1D-FFT, on the GPU.
+ * \author  Andreas Gloess
+ * \date    2013-03-07
+ * \version 0.01
+ ******************************************************************************/
 extern "C" void pw_cuda_sf_z_(const cuDoubleComplex *zin, cuDoubleComplex *zout,
                               const int *ghatmap, const int *npts,
                               const int mmax, const int ngpts, const int nmaps,

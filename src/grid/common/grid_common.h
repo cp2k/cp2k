@@ -7,20 +7,20 @@
 #ifndef GRID_COMMON_H
 #define GRID_COMMON_H
 
-//******************************************************************************
-// \brief Number of Cartesian orbitals up to given angular momentum quantum.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Number of Cartesian orbitals up to given angular momentum quantum.
+ * \author Ole Schuett
+ ******************************************************************************/
 static const int ncoset[] = {1,  // l=0
                              4,  // l=1
                              10, // l=2 ...
                              20,  35,  56,  84,  120, 165, 220,  286,
                              364, 455, 560, 680, 816, 969, 1140, 1330};
 
-//******************************************************************************
-// \brief Tabulation of the Factorial function, e.g. 5! = fac[5] = 120.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Tabulation of the Factorial function, e.g. 5! = fac[5] = 120.
+ * \author Ole Schuett
+ ******************************************************************************/
 static const double fac[] = {
     0.10000000000000000000E+01, 0.10000000000000000000E+01,
     0.20000000000000000000E+01, 0.60000000000000000000E+01,
@@ -39,18 +39,18 @@ static const double fac[] = {
     0.30488834461171386050E+30, 0.88417619937397019545E+31,
     0.26525285981219105864E+33};
 
-//******************************************************************************
-// \brief Minimum and maximum for integers (missing from the C standard)
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Minimum and maximum for integers (missing from the C standard)
+ * \author Ole Schuett
+ ******************************************************************************/
 static inline int imin(int x, int y) { return (x < y ? x : y); }
 static inline int imax(int x, int y) { return (x > y ? x : y); }
 
-//******************************************************************************
-// \brief Equivalent of Fortran's MODULO, which always return a positive number.
-//        https://gcc.gnu.org/onlinedocs/gfortran/MODULO.html
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Equivalent of Fortran's MODULO, which always return a positive number.
+ *        https://gcc.gnu.org/onlinedocs/gfortran/MODULO.html
+ * \author Ole Schuett
+ ******************************************************************************/
 static inline int modulo(int a, int m) { return ((a % m + m) % m); }
 
 #endif // GRID_COMMON_H

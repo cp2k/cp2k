@@ -8,12 +8,12 @@
 #ifndef PW_CUDA_H
 #define PW_CUDA_H
 
-//******************************************************************************
-// \author Benjamin G Levine, Andreas Gloess
-// \par History
-//  2012/05/18                 Refacturing - original files:
-//                              - cuda_tools/cuda_pw_cu.cu
-//******************************************************************************
+/*******************************************************************************
+ * \author Benjamin G Levine, Andreas Gloess
+ * \par History
+ *  2012/05/18                 Refacturing - original files:
+ *                              - cuda_tools/cuda_pw_cu.cu
+ ******************************************************************************/
 #if defined(__PW_CUDA)
 
 /* Double precision complex procedures */

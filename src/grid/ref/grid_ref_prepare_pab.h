@@ -7,35 +7,35 @@
 #ifndef GRID_REF_PREPARE_PAB_H
 #define GRID_REF_PREPARE_PAB_H
 
-//******************************************************************************
-// \brief Maps three angular momentum components to a single zero based index.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Maps three angular momentum components to a single zero based index.
+ * \author Ole Schuett
+ ******************************************************************************/
 int coset(int lx, int ly, int lz);
 
-//******************************************************************************
-// \brief Returns block size changes due to transformation grid_prepare_pab.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Returns block size changes due to transformation grid_prepare_pab.
+ * \author Ole Schuett
+ ******************************************************************************/
 void grid_ref_prepare_get_ldiffs(const int func, int *la_min_diff,
                                  int *la_max_diff, int *lb_min_diff,
                                  int *lb_max_diff);
 
-//******************************************************************************
-// \brief Selects and transforms a sub-block of the given density matrix block.
-//
-// \param func          Transformation function to apply, one of GRID_FUNC_*.
-// \param o{1,2}        Offsets of the sub-block within the matrix block.
-// \param l{a,b}_max    Max angular momentum to collocate for give atom.
-// \param l{a,b}_min    Lowest angular momentum to collocate for give atom.
-// \param zet_{a,b}     Gaussian's exponent of given atom.
-// \param n{1,2}        Dimensions of input matrix block.
-// \param pab           Input matrix block.
-// \param n{1,2}_prep   Dimensions of the transformed matrix sub-block.
-// \param pab_prep      Resulting transformed matrix sub-block.
-//
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Selects and transforms a sub-block of the given density matrix block.
+ *
+ * \param func          Transformation function to apply, one of GRID_FUNC_*.
+ * \param o{1,2}        Offsets of the sub-block within the matrix block.
+ * \param l{a,b}_max    Max angular momentum to collocate for give atom.
+ * \param l{a,b}_min    Lowest angular momentum to collocate for give atom.
+ * \param zet_{a,b}     Gaussian's exponent of given atom.
+ * \param n{1,2}        Dimensions of input matrix block.
+ * \param pab           Input matrix block.
+ * \param n{1,2}_prep   Dimensions of the transformed matrix sub-block.
+ * \param pab_prep      Resulting transformed matrix sub-block.
+ *
+ * \author Ole Schuett
+ ******************************************************************************/
 void grid_ref_prepare_pab(const int func, const int o1, const int o2,
                           const int la_max, const int la_min, const int lb_max,
                           const int lb_min, const double zeta,

@@ -13,10 +13,10 @@
 #include "cpu/grid_cpu_task_list.h"
 #include "ref/grid_ref_task_list.h"
 
-//******************************************************************************
-// \brief Internal representation of a task list, abstracting various backends.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Internal representation of a task list, abstracting various backends.
+ * \author Ole Schuett
+ ******************************************************************************/
 typedef struct {
   int backend;
   bool validate;
@@ -25,39 +25,39 @@ typedef struct {
   // more backends to be added here
 } grid_task_list;
 
-//******************************************************************************
-// \brief Allocates a task list which can be passed to grid_collocate_task_list.
-//
-// \param ntasks           Number of tasks, ie. length of the task list.
-// \param nlevels          Number of grid levels.
-// \param natoms           Number of atoms.
-// \param nkinds           Number of atomic kinds.
-// \param nblocks          Number of local matrix blocks.
-// \param buffer_size      Required buffer size to store all local matrix blocks
-// \param block_offsets    Offset of each block within the buffer (zero based).
-// \param atom_positions   Position of the atoms.
-// \param atom_kinds       Mapping from atom to atomic kind (one based).
-// \param basis_sets       Mapping from atomic kind to basis sets.
-//
-//      The following params are given for each task:
-//
-// \param level_list       Index of grid level (one based).
-// \param iatom_list       Index of first atom (one based).
-// \param jatom_list       Index of second atom (one based).
-// \param iset_list        Index of first set (one based).
-// \param jset_list        Index of second set (one based).
-// \param ipgf_list        Index of first exponent (one based).
-// \param jpgf_list        Index of second exponent (one based).
-// \param border_mask_list Bit-pattern determining border regions to exclude.
-// \param block_num_list   Index into the block_offsets array (one based).
-// \param radius_list      Radius where Gaussian becomes smaller than threshold.
-// \param rab_list         Vector between atoms, encodes the virtual image.
-//
-// \param blocks_buffer    Allocate buffer ready to be filled with blocks.
-// \param task_list        Handle to the created task list.
-//
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Allocates a task list which can be passed to grid_collocate_task_list.
+ *
+ * \param ntasks           Number of tasks, ie. length of the task list.
+ * \param nlevels          Number of grid levels.
+ * \param natoms           Number of atoms.
+ * \param nkinds           Number of atomic kinds.
+ * \param nblocks          Number of local matrix blocks.
+ * \param buffer_size      Required buffer size to store all local matrix blocks
+ * \param block_offsets    Offset of each block within the buffer (zero based).
+ * \param atom_positions   Position of the atoms.
+ * \param atom_kinds       Mapping from atom to atomic kind (one based).
+ * \param basis_sets       Mapping from atomic kind to basis sets.
+ *
+ *      The following params are given for each task:
+ *
+ * \param level_list       Index of grid level (one based).
+ * \param iatom_list       Index of first atom (one based).
+ * \param jatom_list       Index of second atom (one based).
+ * \param iset_list        Index of first set (one based).
+ * \param jset_list        Index of second set (one based).
+ * \param ipgf_list        Index of first exponent (one based).
+ * \param jpgf_list        Index of second exponent (one based).
+ * \param border_mask_list Bit-pattern determining border regions to exclude.
+ * \param block_num_list   Index into the block_offsets array (one based).
+ * \param radius_list      Radius where Gaussian becomes smaller than threshold.
+ * \param rab_list         Vector between atoms, encodes the virtual image.
+ *
+ * \param blocks_buffer    Allocate buffer ready to be filled with blocks.
+ * \param task_list        Handle to the created task list.
+ *
+ * \author Ole Schuett
+ ******************************************************************************/
 void grid_create_task_list(
     const int ntasks, const int nlevels, const int natoms, const int nkinds,
     const int nblocks, const int buffer_size, const int block_offsets[nblocks],
@@ -70,32 +70,32 @@ void grid_create_task_list(
     const double radius_list[ntasks], const double rab_list[ntasks][3],
     double **blocks_buffer, grid_task_list **task_list);
 
-//******************************************************************************
-// \brief Deallocates given task list, basis_sets have to be freed separately.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Deallocates given task list, basis_sets have to be freed separately.
+ * \author Ole Schuett
+ ******************************************************************************/
 void grid_free_task_list(grid_task_list *task_list);
 
-//******************************************************************************
-// \brief Collocate all tasks of in given list onto given grids.
-//
-// \param task_list       Task list to collocate.
-// \param orthorhombic    Whether simulation box is orthorhombic.
-// \param func            Function to be collocated, see grid_prepare_pab.h
-// \param nlevels         Number of grid levels.
-//
-//      The remaining params are given for each grid level:
-//
-// \param npts_global     Number of global grid points in each direction.
-// \param npts_local      Number of local grid points in each direction.
-// \param shift_local     Number of points local grid is shifted wrt global grid
-// \param border_width    Width of halo region in grid points in each direction.
-// \param dh              Incremental grid matrix.
-// \param dh_inv          Inverse incremental grid matrix.
-// \param grid            The output grid array to collocate into.
-//
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Collocate all tasks of in given list onto given grids.
+ *
+ * \param task_list       Task list to collocate.
+ * \param orthorhombic    Whether simulation box is orthorhombic.
+ * \param func            Function to be collocated, see grid_prepare_pab.h
+ * \param nlevels         Number of grid levels.
+ *
+ *      The remaining params are given for each grid level:
+ *
+ * \param npts_global     Number of global grid points in each direction.
+ * \param npts_local      Number of local grid points in each direction.
+ * \param shift_local     Number of points local grid is shifted wrt global grid
+ * \param border_width    Width of halo region in grid points in each direction.
+ * \param dh              Incremental grid matrix.
+ * \param dh_inv          Inverse incremental grid matrix.
+ * \param grid            The output grid array to collocate into.
+ *
+ * \author Ole Schuett
+ ******************************************************************************/
 void grid_collocate_task_list(
     const grid_task_list *task_list, const bool orthorhombic, const int func,
     const int nlevels, const int npts_global[nlevels][3],
