@@ -27,6 +27,9 @@
     &PRINT
       &MO_MOLDEN ON
       &END MO_MOLDEN
+      &CHARGEMOL ON
+        PERIODIC
+      &END CHARGEMOL
     &END PRINT
   &END DFT
   &SUBSYS
