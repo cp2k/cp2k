@@ -43,15 +43,15 @@ static const double fac[] = {
 // \brief Minimum and maximum for integers (missing from the C standard)
 // \author Ole Schuett
 //******************************************************************************
-inline int imin(int x, int y) { return (x < y ? x : y); }
-inline int imax(int x, int y) { return (x > y ? x : y); }
+static inline int imin(int x, int y) { return (x < y ? x : y); }
+static inline int imax(int x, int y) { return (x > y ? x : y); }
 
 //******************************************************************************
 // \brief Equivalent of Fortran's MODULO, which always return a positive number.
 //        https://gcc.gnu.org/onlinedocs/gfortran/MODULO.html
 // \author Ole Schuett
 //******************************************************************************
-inline int modulo(int a, int m) { return ((a % m + m) % m); }
+static inline int modulo(int a, int m) { return ((a % m + m) % m); }
 
 #endif // GRID_COMMON_H
 
