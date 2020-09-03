@@ -129,6 +129,7 @@ MODULE qs_scf_post_gpw
                                               pw_p_type,&
                                               pw_type
    USE qs_active_space_methods,         ONLY: active_space_main
+   USE qs_chargemol,                    ONLY: write_wfx
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_commutators,                  ONLY: build_com_hr_matrix
    USE qs_core_energies,                ONLY: calculate_ptrace
@@ -1660,6 +1661,13 @@ CONTAINS
             CALL write_dm_binary_restart(mos, dft_section, ks_rmpv)
             sprint_section => section_vals_get_subs_vals(dft_section, "PRINT%MO_MOLDEN")
             CALL write_mos_molden(mos, qs_kind_set, particle_set, sprint_section)
+
+            ! Write Chargemol .wfx
+            IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                                 dft_section, "PRINT%CHARGEMOL"), cp_p_file)) THEN
+               CALL write_wfx(qs_env, dft_section)
+            END IF
+
          ELSE ! *** if we have k points, let's print the eigenvalues at each of them
             CALL get_qs_env(qs_env=qs_env, kpoints=kpoints)
 
