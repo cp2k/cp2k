@@ -91,13 +91,13 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: filename
       INTEGER :: handle, i, iatom, icgf, ico, ikind, iloop, imo, ipgf, irow, iset, isgf, ishell, &
          ispin, iwfx, lshell, max_l, ncgf, ncol_global, nelec_alpha, nelec_beta, noccup, &
-         nrow_global, nset, nsgf, nspins, num_atoms, output_unit, roks_high, roks_low, tot_npgf = 0
+         nrow_global, nset, nsgf, nspins, num_atoms, output_unit, roks_high, roks_low, tot_npgf
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, atomic_numbers, kind_of
       INTEGER, DIMENSION(:), POINTER                     :: lmax, npgf, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l
       LOGICAL                                            :: do_kpoints, newl, periodic
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: core_charges
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atoms_cart, cmatrix, smatrix
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: core_charges
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zet
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -114,8 +114,6 @@ CONTAINS
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: chargemol_section
-
-!REAL(KIND=dp), PARAMETER                           :: gcc_eps = EPSILON(1.0_dp)
 
       !--------------------------------------------------------------------------------------------!
 
@@ -839,7 +837,7 @@ CONTAINS
 
    END SUBROUTINE write_wfx
 
-! ********************************************************************************
+! **************************************************************************************************
 !> \brief Figure out type of cartesian primitive gaussian (S, PX, PY ... HXXXXX)
 !> \param l_symb ...
 !> \return ...
