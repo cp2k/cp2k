@@ -5,13 +5,13 @@
 /*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
 /*----------------------------------------------------------------------------*/
 
-//******************************************************************************
-// \author Benjamin G Levine, Andreas Gloess
-// \par History
-//  2012/05/18                 Refacturing - original files:
-//                              - cuda_tools/cufft.h
-//                              - cuda_tools/cufft.cu
-//******************************************************************************
+/*******************************************************************************
+ * \author Benjamin G Levine, Andreas Gloess
+ * \par History
+ *  2012/05/18                 Refacturing - original files:
+ *                              - cuda_tools/cufft.h
+ *                              - cuda_tools/cufft.cu
+ ******************************************************************************/
 #if defined(__PW_CUDA)
 
 // global dependencies
@@ -38,13 +38,13 @@ static int iplandims[max_plans][5];
 
 // --- CODE -------------------------------------------------------------------
 
-//******************************************************************************
-// \brief   Sets up and save a double precision complex 3D-FFT plan on the GPU.
-//          Saved plans are reused if they fit the requirements.
-// \author  Andreas Gloess
-// \date    2012-05-18
-// \version 0.01
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Sets up and save a double precision complex 3D-FFT plan on the GPU.
+ *          Saved plans are reused if they fit the requirements.
+ * \author  Andreas Gloess
+ * \date    2012-05-18
+ * \version 0.01
+ ******************************************************************************/
 void fftcu_plan3d_z(cufftHandle &plan, int &ioverflow, const int *n,
                     const cudaStream_t cuda_stream) {
 
@@ -88,13 +88,13 @@ void fftcu_plan3d_z(cufftHandle &plan, int &ioverflow, const int *n,
   ioverflow = 1;
 }
 
-//******************************************************************************
-// \brief   Sets up and save a double precision complex 2D-FFT plan on the GPU.
-//          Saved plans are reused if they fit the requirements.
-// \author  Andreas Gloess
-// \date    2012-07-16
-// \version 0.01
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Sets up and save a double precision complex 2D-FFT plan on the GPU.
+ *          Saved plans are reused if they fit the requirements.
+ * \author  Andreas Gloess
+ * \date    2012-07-16
+ * \version 0.01
+ ******************************************************************************/
 void fftcu_plan2dm_z(cufftHandle &plan, int &ioverflow, const int *n,
                      const int fsign, const cudaStream_t cuda_stream) {
 
@@ -161,13 +161,13 @@ void fftcu_plan2dm_z(cufftHandle &plan, int &ioverflow, const int *n,
   ioverflow = 1;
 }
 
-//******************************************************************************
-// \brief   Sets up and save a double precision complex 1D-FFT plan on the GPU.
-//          Saved plans are reused if they fit the requirements.
-// \author  Andreas Gloess
-// \date    2012-07-04
-// \version 0.01
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Sets up and save a double precision complex 1D-FFT plan on the GPU.
+ *          Saved plans are reused if they fit the requirements.
+ * \author  Andreas Gloess
+ * \date    2012-07-04
+ * \version 0.01
+ ******************************************************************************/
 void fftcu_plan1dm_z(cufftHandle &plan, int &ioverflow, const int n,
                      const int m, const int fsign,
                      const cudaStream_t cuda_stream) {
@@ -233,13 +233,13 @@ void fftcu_plan1dm_z(cufftHandle &plan, int &ioverflow, const int n,
   ioverflow = 1;
 }
 
-//******************************************************************************
-// \brief   Performs a scaled double precision complex 3D-FFT on the GPU.
-//          Input/output is a DEVICE pointer (data).
-// \author  Andreas Gloess
-// \date    2012-05-18
-// \version 0.01
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Performs a scaled double precision complex 3D-FFT on the GPU.
+ *          Input/output is a DEVICE pointer (data).
+ * \author  Andreas Gloess
+ * \date    2012-05-18
+ * \version 0.01
+ ******************************************************************************/
 extern "C" void fftcu_run_3d_z_(const int fsign, const int *n,
                                 const double scale, cufftDoubleComplex *data,
                                 const cudaStream_t cuda_stream) {
@@ -279,14 +279,14 @@ extern "C" void fftcu_run_3d_z_(const int fsign, const int *n,
   }
 }
 
-//******************************************************************************
-// \brief   Performs a scaled double precision complex 2D-FFT many times on
-//          the GPU.
-//          Input/output are DEVICE pointers (data_in, date_out).
-// \author  Andreas Gloess
-// \date    2012-07-16
-// \version 0.01
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Performs a scaled double precision complex 2D-FFT many times on
+ *          the GPU.
+ *          Input/output are DEVICE pointers (data_in, date_out).
+ * \author  Andreas Gloess
+ * \date    2012-07-16
+ * \version 0.01
+ ******************************************************************************/
 extern "C" void fftcu_run_2dm_z_(const int fsign, const int *n,
                                  const double scale,
                                  cufftDoubleComplex *data_in,
@@ -328,14 +328,14 @@ extern "C" void fftcu_run_2dm_z_(const int fsign, const int *n,
   }
 }
 
-//******************************************************************************
-// \brief   Performs a scaled double precision complex 1D-FFT many times on
-//          the GPU.
-//          Input/output are DEVICE pointers (data_in, date_out).
-// \author  Andreas Gloess
-// \date    2012-05-18
-// \version 0.01
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Performs a scaled double precision complex 1D-FFT many times on
+ *          the GPU.
+ *          Input/output are DEVICE pointers (data_in, date_out).
+ * \author  Andreas Gloess
+ * \date    2012-05-18
+ * \version 0.01
+ ******************************************************************************/
 extern "C" void fftcu_run_1dm_z_(const int fsign, const int n, const int m,
                                  const double scale,
                                  cufftDoubleComplex *data_in,
@@ -377,13 +377,13 @@ extern "C" void fftcu_run_1dm_z_(const int fsign, const int n, const int m,
   }
 }
 
-//******************************************************************************
-// \brief   Release all stored plans.
-//
-// \author  Andreas Gloess
-// \date    2013-04-23
-// \version 0.01
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Release all stored plans.
+ *
+ * \author  Andreas Gloess
+ * \date    2013-04-23
+ * \version 0.01
+ ******************************************************************************/
 extern "C" void fftcu_release_() {
   int i;
   cufftHandle plan;

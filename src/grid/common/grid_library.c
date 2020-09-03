@@ -20,10 +20,10 @@ static bool library_initialized = false;
 static grid_library_config config = {.backend = GRID_BACKEND_AUTO,
                                      .validate = false};
 
-//******************************************************************************
-// \brief Initializes the grid library.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Initializes the grid library.
+ * \author Ole Schuett
+ ******************************************************************************/
 void grid_library_init() {
   if (library_initialized) {
     printf("Error: Grid library was already initialized.\n");
@@ -44,10 +44,10 @@ void grid_library_init() {
   library_initialized = true;
 }
 
-//******************************************************************************
-// \brief Finalizes the grid library.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Finalizes the grid library.
+ * \author Ole Schuett
+ ******************************************************************************/
 void grid_library_finalize() {
   if (!library_initialized) {
     printf("Error: Grid library is not initialized.\n");
@@ -62,35 +62,35 @@ void grid_library_finalize() {
   library_initialized = false;
 }
 
-//******************************************************************************
-// \brief Configures the grid library.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Configures the grid library.
+ * \author Ole Schuett
+ ******************************************************************************/
 void grid_library_set_config(const int backend, const bool validate) {
   config.backend = backend;
   config.validate = validate;
 }
 
-//******************************************************************************
-// \brief Returns the library config.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Returns the library config.
+ * \author Ole Schuett
+ ******************************************************************************/
 grid_library_config grid_library_get_config() { return config; }
 
-//******************************************************************************
-// \brief Internal helper for summing two sets of counters.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Internal helper for summing two sets of counters.
+ * \author Ole Schuett
+ ******************************************************************************/
 static void sum_stats(const grid_library_stats increment,
                       grid_library_stats *accumulator) {
   accumulator->ref_collocate_ortho += increment.ref_collocate_ortho;
   accumulator->ref_collocate_general += increment.ref_collocate_general;
 }
 
-//******************************************************************************
-// \brief Increment global counters by given values.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Increment global counters by given values.
+ * \author Ole Schuett
+ ******************************************************************************/
 void grid_library_gather_stats(const grid_library_stats increment) {
   if (!library_initialized) {
     printf("Error: Grid library is not initialized.\n");
@@ -99,10 +99,10 @@ void grid_library_gather_stats(const grid_library_stats increment) {
   sum_stats(increment, per_thread_stats[omp_get_thread_num()]);
 }
 
-//******************************************************************************
-// \brief Prints statistics gathered by the grid library.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Prints statistics gathered by the grid library.
+ * \author Ole Schuett
+ ******************************************************************************/
 void grid_library_print_stats(void (*mpi_sum_func)(long *, int),
                               const int mpi_comm,
                               void (*print_func)(char *, int),

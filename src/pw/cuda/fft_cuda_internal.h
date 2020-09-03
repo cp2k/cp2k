@@ -7,21 +7,21 @@
 
 #ifndef FFT_CUDA_INTERNAL_H
 #define FFT_CUDA_INTERNAL_H
-//******************************************************************************
-// \author Benjamin G Levine, Andreas Gloess
-// \par History
-//  2012/05/18                 Refacturing - original files:
-//                              - cuda_tools/cufft.h
-//                              - cuda_tools/cufft.cu
-//******************************************************************************
+/*******************************************************************************
+ * \author Benjamin G Levine, Andreas Gloess
+ * \par History
+ *  2012/05/18                 Refacturing - original files:
+ *                              - cuda_tools/cufft.h
+ *                              - cuda_tools/cufft.cu
+ ******************************************************************************/
 #if defined(__PW_CUDA)
 
-//******************************************************************************
-// \brief   Sets up static data for FFT plan storage and reuse.
-// \author  Andreas Gloess
-// \date    2012-05-18
-// \version 0.01
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Sets up static data for FFT plan storage and reuse.
+ * \author  Andreas Gloess
+ * \date    2012-05-18
+ * \version 0.01
+ ******************************************************************************/
 static const int max_3d_plans = 30;
 static const int max_2d_plans = 0;
 static const int max_1d_plans = 30;

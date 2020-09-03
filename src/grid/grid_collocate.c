@@ -13,11 +13,11 @@
 #include "grid_collocate_replay.h"
 #include "ref/grid_ref_collocate.h"
 
-//******************************************************************************
-// \brief Public entry point. A thin wrapper with the only purpose of calling
-//        grid_collocate_record when DUMP_TASKS = true.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Public entry point. A thin wrapper with the only purpose of calling
+ *        grid_collocate_record when DUMP_TASKS = true.
+ * \author Ole Schuett
+ ******************************************************************************/
 void grid_collocate_pgf_product(
     const bool orthorhombic, const int border_mask, const int func,
     const int la_max, const int la_min, const int lb_max, const int lb_min,

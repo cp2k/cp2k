@@ -17,12 +17,12 @@
 #include "grid_ref_collocate.h"
 #include "grid_ref_prepare_pab.h"
 
-//******************************************************************************
-// \brief Computes the polynomial expansion coefficients:
-//        (x-a)**lxa (x-b)**lxb -> sum_{ls} alpha(ls,lxa,lxb,1)*(x-p)**ls
-//        Results are passed to grid_prepare_coef.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Computes the polynomial expansion coefficients:
+ *        (x-a)**lxa (x-b)**lxb -> sum_{ls} alpha(ls,lxa,lxb,1)*(x-p)**ls
+ *        Results are passed to grid_prepare_coef.
+ * \author Ole Schuett
+ ******************************************************************************/
 static void
 prepare_alpha(const double ra[3], const double rb[3], const double rp[3],
               const int la_max, const int lb_max,
@@ -63,11 +63,11 @@ prepare_alpha(const double ra[3], const double rb[3], const double rp[3],
   }
 }
 
-//******************************************************************************
-// \brief Compute coefficients for all combinations of angular momentum.
-//        Results are passed to collocate_ortho and collocate_general.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Compute coefficients for all combinations of angular momentum.
+ *        Results are passed to collocate_ortho and collocate_general.
+ * \author Ole Schuett
+ ******************************************************************************/
 static void prepare_coef(const int la_max, const int la_min, const int lb_max,
                          const int lb_min, const int lp, const double prefactor,
                          const double alpha[3][lb_max + 1][la_max + 1][lp + 1],
@@ -123,11 +123,11 @@ static void prepare_coef(const int la_max, const int la_min, const int lb_max,
   }
 }
 
-//******************************************************************************
-// \brief Computes mapping from cube to grid indices.
-//        Used only in the orthorhombic case.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Computes mapping from cube to grid indices.
+ *        Used only in the orthorhombic case.
+ * \author Ole Schuett
+ ******************************************************************************/
 static void fill_map(const int lb_cube, const int ub_cube, const int cubecenter,
                      const int npts_global, const int shift_local,
                      const int cmax, int map[2 * cmax + 1]) {
@@ -141,11 +141,11 @@ static void fill_map(const int lb_cube, const int ub_cube, const int cubecenter,
   }
 }
 
-//******************************************************************************
-// \brief Computes (x-xp)**lp*exp(..) for all cube points in one dimension.
-//        Used only in the orthorhombic case.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Computes (x-xp)**lp*exp(..) for all cube points in one dimension.
+ *        Used only in the orthorhombic case.
+ * \author Ole Schuett
+ ******************************************************************************/
 static void fill_pol(const double dr, const double roffset, const int lb_cube,
                      const int lp, const int cmax, const double zetp,
                      double pol[lp + 1][2 * cmax + 1]) {
@@ -186,10 +186,10 @@ static void fill_pol(const double dr, const double roffset, const int lb_cube,
   }
 }
 
-//******************************************************************************
-// \brief  A much simpler but also slower implementation of collocate_core.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief  A much simpler but also slower implementation of collocate_core.
+ * \author Ole Schuett
+ ******************************************************************************/
 static void collocate_core_simple(
     const int lp, const int cmax, const double coef_xyz[lp + 1][lp + 1][lp + 1],
     const double pol[3][lp + 1][2 * cmax + 1], const int lb_cube[3],
@@ -260,12 +260,12 @@ static void collocate_core_simple(
   free(cube);
 }
 
-//******************************************************************************
-// \brief Fills the 3D cube by taking the outer product of the 1D pol arrays.
-//        The majority of cpu cycles are spend in this routine.
-//        Used only in the orthorhombic case.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Fills the 3D cube by taking the outer product of the 1D pol arrays.
+ *        The majority of cpu cycles are spend in this routine.
+ *        Used only in the orthorhombic case.
+ * \author Ole Schuett
+ ******************************************************************************/
 static void collocate_core(const int lp, const int cmax,
                            const double coef_xyz[lp + 1][lp + 1][lp + 1],
                            const double pol[3][lp + 1][2 * cmax + 1],
@@ -373,10 +373,10 @@ static void collocate_core(const int lp, const int cmax,
   }
 }
 
-//******************************************************************************
-// \brief Collocate kernel for the orthorhombic case.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Collocate kernel for the orthorhombic case.
+ * \author Ole Schuett
+ ******************************************************************************/
 static void collocate_ortho(const int lp, const double zetp,
                             const double coef_xyz[lp + 1][lp + 1][lp + 1],
                             const double dh[3][3], const double dh_inv[3][3],
@@ -457,10 +457,10 @@ static void collocate_ortho(const int lp, const double zetp,
   }
 }
 
-//******************************************************************************
-// \brief Collocate kernel for general case, ie. non-ortho or with subpatches.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Collocate kernel for general case, ie. non-ortho or with subpatches.
+ * \author Ole Schuett
+ ******************************************************************************/
 static void collocate_general(const int border_mask, const int lp,
                               const double zetp,
                               const double coef_xyz[lp + 1][lp + 1][lp + 1],
@@ -715,11 +715,11 @@ static void collocate_general(const int border_mask, const int lp,
   }
 }
 
-//******************************************************************************
-// \brief Collocates a single product of primitiv Gaussians.
-//        See grid_collocate.h for details.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Collocates a single product of primitiv Gaussians.
+ *        See grid_collocate.h for details.
+ * \author Ole Schuett
+ ******************************************************************************/
 void grid_ref_collocate_pgf_product(
     const bool orthorhombic, const int border_mask, const int func,
     const int la_max, const int la_min, const int lb_max, const int lb_min,

@@ -35,15 +35,15 @@ int pw_fpga_initialize_() { return init(); }
 
 void pw_fpga_final_() { cleanup(); }
 
-//******************************************************************************
-// \brief  check whether FFT3d can be computed on the FPGA or not. This depends
-//         on the availability of bitstreams whose sizes are for now listed here
-//         If the fft sizes are found and the FPGA is not setup before,
-//         it is done
-// \param  data_path - path to the data directory
-// \param  N - integer pointer to the size of the FFT3d
-// \retval true if fft3d size supported
-//******************************************************************************
+/*******************************************************************************
+ * \brief  check whether FFT3d can be computed on the FPGA or not. This depends
+ *         on the availability of bitstreams whose sizes are for now listed here
+ *         If the fft sizes are found and the FPGA is not setup before,
+ *         it is done
+ * \param  data_path - path to the data directory
+ * \param  N - integer pointer to the size of the FFT3d
+ * \retval true if fft3d size supported
+ ******************************************************************************/
 int pw_fpga_check_bitstream_(char *data_path, int N[3]) {
   static int fft_size[3] = {0, 0, 0};
 
@@ -80,12 +80,12 @@ int pw_fpga_check_bitstream_(char *data_path, int N[3]) {
   }
 }
 
-//******************************************************************************
-// \brief   compute an in-place single precision complex 3D-FFT on the FPGA
-// \param   direction : direction - 1/forward, otherwise/backward FFT3d
-// \param   N   : integer pointer to size of FFT3d
-// \param   din : complex input/output single precision data pointer
-//******************************************************************************
+/*******************************************************************************
+ * \brief   compute an in-place single precision complex 3D-FFT on the FPGA
+ * \param   direction : direction - 1/forward, otherwise/backward FFT3d
+ * \param   N   : integer pointer to size of FFT3d
+ * \param   din : complex input/output single precision data pointer
+ ******************************************************************************/
 void pw_fpga_fft3d_sp_(int direction, int N[3], cmplx *din) {
   // setup device specific constructs
   if (direction == 1) {
@@ -95,12 +95,12 @@ void pw_fpga_fft3d_sp_(int direction, int N[3], cmplx *din) {
   }
 }
 
-//******************************************************************************
-// \brief   compute an in-place double precision complex 3D-FFT on the FPGA
-// \param   direction : direction - 1/forward, otherwise/backward FFT3d
-// \param   N   : integer pointer to size of FFT3d
-// \param   din : complex input/output single precision data pointer
-//******************************************************************************
+/*******************************************************************************
+ * \brief   compute an in-place double precision complex 3D-FFT on the FPGA
+ * \param   direction : direction - 1/forward, otherwise/backward FFT3d
+ * \param   N   : integer pointer to size of FFT3d
+ * \param   din : complex input/output single precision data pointer
+ ******************************************************************************/
 void pw_fpga_fft3d_dp_(int direction, int N[3], cmplx *din) {
   // setup device specific constructs
   if (direction == 1) {
@@ -110,12 +110,12 @@ void pw_fpga_fft3d_dp_(int direction, int N[3], cmplx *din) {
   }
 }
 
-//******************************************************************************
-// \brief   Execute a single precision complex FFT3d
-// \param   inverse : int
-// \param   N       : integer pointer to size of FFT3d
-// \param   din     : complex input/output single precision data pointer
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Execute a single precision complex FFT3d
+ * \param   inverse : int
+ * \param   N       : integer pointer to size of FFT3d
+ * \param   din     : complex input/output single precision data pointer
+ ******************************************************************************/
 void fftfpga_run_3d(int inverse, int N[3], cmplx *c_in) {
   cl_int status = 0;
   int inverse_int = inverse;
@@ -241,9 +241,9 @@ void fftfpga_run_3d(int inverse, int N[3], cmplx *c_in) {
     clReleaseKernel(transpose_kernel_2);
 }
 
-//******************************************************************************
-// \brief   Initialize the program - select device, create context and program
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Initialize the program - select device, create context and program
+ ******************************************************************************/
 void init_program(int N[3], char *data_path) {
   cl_int status = 0;
 
@@ -266,9 +266,9 @@ void init_program(int N[3], char *data_path) {
   checkError(status, "Failed to build program");
 }
 
-//******************************************************************************
-// \brief   Free resources allocated during program initialization
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Free resources allocated during program initialization
+ ******************************************************************************/
 void cleanup_program() {
   if (program)
     clReleaseProgram(program);
@@ -276,10 +276,10 @@ void cleanup_program() {
     clReleaseContext(context);
 }
 
-//******************************************************************************
-// \brief   Initialize the OpenCL FPGA environment - platform and devices
-// \retval  true if error in initialization
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Initialize the OpenCL FPGA environment - platform and devices
+ * \retval  true if error in initialization
+ ******************************************************************************/
 int init() {
   cl_int status = 0;
 
@@ -296,17 +296,17 @@ int init() {
   return 0;
 }
 
-//******************************************************************************
-// \brief   Free resources allocated during initialization - devices
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Free resources allocated during initialization - devices
+ ******************************************************************************/
 void cleanup() {
   cleanup_program();
   free(devices);
 }
 
-//******************************************************************************
-// \brief   Create a command queue for each kernel
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Create a command queue for each kernel
+ ******************************************************************************/
 void queue_setup() {
   cl_int status = 0;
   // Create one command queue for each kernel.
@@ -330,9 +330,9 @@ void queue_setup() {
   checkError(status, "Failed to create command queue6");
 }
 
-//******************************************************************************
-// \brief   Release all command queues
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Release all command queues
+ ******************************************************************************/
 void queue_cleanup() {
   if (queue1)
     clReleaseCommandQueue(queue1);

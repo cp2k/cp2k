@@ -8,13 +8,13 @@
 #ifndef FFT_CUDA_H
 #define FFT_CUDA_H
 
-//******************************************************************************
-// \author Benjamin G Levine, Andreas Gloess
-// \par History
-//  2012/05/18                 Refacturing - original files:
-//                              - cuda_tools/cufft.h
-//                              - cuda_tools/cufft.cu
-//******************************************************************************
+/*******************************************************************************
+ * \author Benjamin G Levine, Andreas Gloess
+ * \par History
+ *  2012/05/18                 Refacturing - original files:
+ *                              - cuda_tools/cufft.h
+ *                              - cuda_tools/cufft.cu
+ ******************************************************************************/
 #if defined(__PW_CUDA)
 #include <cufft.h>
 

@@ -10,10 +10,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-//******************************************************************************
-// \brief Unit test of the C-interface provided via libcp2k.h
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Unit test of the C-interface provided via libcp2k.h
+ * \author Ole Schuett
+ ******************************************************************************/
 int main() {
 
   printf("Unit test starts ...\n");

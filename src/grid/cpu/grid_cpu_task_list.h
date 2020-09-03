@@ -12,9 +12,9 @@
 #include "../common/grid_basis_set.h"
 #include "../ref/grid_ref_task_list.h"
 
-//******************************************************************************
-// \brief Internal representation of a task list.
-//******************************************************************************
+/*******************************************************************************
+ * \brief Internal representation of a task list.
+ ******************************************************************************/
 typedef struct {
   //
   // TODO: Replace with actual cpu backend implementation.
@@ -22,10 +22,10 @@ typedef struct {
   grid_ref_task_list *crutch;
 } grid_cpu_task_list;
 
-//******************************************************************************
-// \brief Allocates a task list which can be passed to grid_collocate_task_list.
-//        See grid_task_list.h for details.
-//******************************************************************************
+/*******************************************************************************
+ * \brief Allocates a task list which can be passed to grid_collocate_task_list.
+ *        See grid_task_list.h for details.
+ ******************************************************************************/
 void grid_cpu_create_task_list(
     const int ntasks, const int nlevels, const int natoms, const int nkinds,
     const int nblocks, const int buffer_size, const int block_offsets[nblocks],
@@ -38,15 +38,15 @@ void grid_cpu_create_task_list(
     const double radius_list[ntasks], const double rab_list[ntasks][3],
     double **blocks_buffer, grid_cpu_task_list **task_list);
 
-//******************************************************************************
-// \brief Deallocates given task list, basis_sets have to be freed separately.
-//******************************************************************************
+/*******************************************************************************
+ * \brief Deallocates given task list, basis_sets have to be freed separately.
+ ******************************************************************************/
 void grid_cpu_free_task_list(grid_cpu_task_list *task_list);
 
-//******************************************************************************
-// \brief Collocate all tasks of in given list onto given grids.
-//        See grid_task_list.h for details.
-//******************************************************************************
+/*******************************************************************************
+ * \brief Collocate all tasks of in given list onto given grids.
+ *        See grid_task_list.h for details.
+ ******************************************************************************/
 void grid_cpu_collocate_task_list(
     const grid_cpu_task_list *task_list, const bool orthorhombic,
     const int func, const int nlevels, const int npts_global[nlevels][3],

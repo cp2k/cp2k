@@ -9,11 +9,11 @@
 
 #include <stdbool.h>
 
-//******************************************************************************
-// \brief Collocates a single product of primitiv Gaussians.
-//        See grid_collocate.h for details.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Collocates a single product of primitiv Gaussians.
+ *        See grid_collocate.h for details.
+ * \author Ole Schuett
+ ******************************************************************************/
 void grid_ref_collocate_pgf_product(
     const bool orthorhombic, const int border_mask, const int func,
     const int la_max, const int la_min, const int lb_max, const int lb_min,

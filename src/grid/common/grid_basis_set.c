@@ -10,11 +10,11 @@
 
 #include "grid_basis_set.h"
 
-//******************************************************************************
-// \brief Allocates a basis set which can be passed to grid_create_task_list.
-//        See grid_task_list.h for details.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Allocates a basis set which can be passed to grid_create_task_list.
+ *        See grid_task_list.h for details.
+ * \author Ole Schuett
+ ******************************************************************************/
 void grid_create_basis_set(const int nset, const int nsgf, const int maxco,
                            const int maxpgf, const int lmin[nset],
                            const int lmax[nset], const int npgf[nset],
@@ -51,10 +51,10 @@ void grid_create_basis_set(const int nset, const int nsgf, const int maxco,
   *basis_set_out = basis_set;
 }
 
-//******************************************************************************
-// \brief Deallocates given basis set.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Deallocates given basis set.
+ * \author Ole Schuett
+ ******************************************************************************/
 void grid_free_basis_set(grid_basis_set *basis_set) {
   free(basis_set->lmin);
   free(basis_set->lmax);

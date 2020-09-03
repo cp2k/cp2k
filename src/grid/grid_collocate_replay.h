@@ -10,10 +10,10 @@
 
 #include <stdbool.h>
 
-//******************************************************************************
-// \brief Writes the given arguments into a .task file.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Writes the given arguments into a .task file.
+ * \author Ole Schuett
+ ******************************************************************************/
 void grid_collocate_record(
     const bool orthorhombic, const int border_mask, const int func,
     const int la_max, const int la_min, const int lb_max, const int lb_min,
@@ -24,18 +24,18 @@ void grid_collocate_record(
     const int o1, const int o2, const int n1, const int n2,
     const double pab[n2][n1], const double *grid);
 
-//******************************************************************************
-// \brief Reads a .task file, collocates it, and compares results to reference.
-//
-// \param filename          Name of the task file.
-// \param cycles            Number of times the task should be collocated.
-// \param batch             When false grid_collocate_pgf_product_cpu is called.
-//                          When true grid_collocate_task_list is called.
-// \param cycles_per_block  Number of cycles per matrix block decontraction.
-// \returns                 The maximum difference for an individual grid point.
-//
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Reads a .task file, collocates it, and compares results to reference.
+ *
+ * \param filename          Name of the task file.
+ * \param cycles            Number of times the task should be collocated.
+ * \param batch             When false grid_collocate_pgf_product_cpu is called.
+ *                          When true grid_collocate_task_list is called.
+ * \param cycles_per_block  Number of cycles per matrix block decontraction.
+ * \returns                 The maximum difference for an individual grid point.
+ *
+ * \author Ole Schuett
+ ******************************************************************************/
 double grid_collocate_replay(const char *filename, const int cycles,
                              const bool batch, const int cycles_per_block);
 

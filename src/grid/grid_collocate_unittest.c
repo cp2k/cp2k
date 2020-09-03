@@ -22,10 +22,10 @@ void print_func(char *message, int output_unit) {
   printf("%s", message);
 }
 
-//******************************************************************************
-// \brief Unit test for the grid collocate code.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Unit test for the grid collocate code.
+ * \author Ole Schuett
+ ******************************************************************************/
 static int run_test(const char cp2k_root_dir[], const char task_file[]) {
   if (strlen(cp2k_root_dir) > 512) {
     fprintf(stderr, "Error: cp2k_root_dir too long.\n");

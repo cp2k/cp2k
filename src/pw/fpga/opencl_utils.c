@@ -5,9 +5,9 @@
 /*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
 /*----------------------------------------------------------------------------*/
 
-//******************************************************************************
-// /author Arjun Ramaswami
-//******************************************************************************
+/*******************************************************************************
+ * /author Arjun Ramaswami
+ ******************************************************************************/
 
 #if defined(__PW_FPGA)
 
@@ -33,11 +33,11 @@ void queue_cleanup();
 
 // --- CODE -------------------------------------------------------------------
 
-//******************************************************************************
-// \brief   return the first platform id with the name passed as argument
-// \param   platform_name : search string
-// \retval  din : platform id
-//******************************************************************************
+/*******************************************************************************
+ * \brief   return the first platform id with the name passed as argument
+ * \param   platform_name : search string
+ * \retval  din : platform id
+ ******************************************************************************/
 cl_platform_id findPlatform(char *platform_name) {
   unsigned int i;
   cl_uint status;
@@ -98,13 +98,13 @@ cl_platform_id findPlatform(char *platform_name) {
   return NULL;
 }
 
-//******************************************************************************
-// \brief   returns the list of all devices for the specific platform
-// \param   platform id to search for devices
-// \param   specific type of device to search for
-// \param   total number of devices found for the given platform
-// \retval  array of device ids
-//******************************************************************************
+/*******************************************************************************
+ * \brief   returns the list of all devices for the specific platform
+ * \param   platform id to search for devices
+ * \param   specific type of device to search for
+ * \param   total number of devices found for the given platform
+ * \retval  array of device ids
+ ******************************************************************************/
 cl_device_id *getDevices(cl_platform_id pid, cl_device_type device_type,
                          cl_uint *num_devices) {
   cl_int status;
@@ -136,14 +136,14 @@ static int fileExists(char *filename) {
   }
 }
 
-//******************************************************************************
-// \brief   returns the list of all devices for the specific platform
-// \param   context created using device
-// \param   array of devices
-// \param   number of devices found
-// \param   size of FFT3d
-// \retval  created program or NULL if unsuccessful
-//******************************************************************************
+/*******************************************************************************
+ * \brief   returns the list of all devices for the specific platform
+ * \param   context created using device
+ * \param   array of devices
+ * \param   number of devices found
+ * \param   size of FFT3d
+ * \retval  created program or NULL if unsuccessful
+ ******************************************************************************/
 cl_program getProgramWithBinary(cl_context context, const cl_device_id *devices,
                                 unsigned num_device, int N[3],
                                 char *data_path) {
@@ -253,12 +253,12 @@ static size_t loadBinary(char *binary_path, char **buf) {
   return bin_size;
 }
 
-//******************************************************************************
-// \brief   Allocate host side buffers to be 64-byte aligned to make use of DMA
-//          transfer between host and global memory
-// \param   size in bytes : allocate size bytes multiples of 64
-// \retval  pointer to allocated memory on successful allocation otherwise NULL
-//******************************************************************************
+/*******************************************************************************
+ * \brief   Allocate host side buffers to be 64-byte aligned to make use of DMA
+ *          transfer between host and global memory
+ * \param   size in bytes : allocate size bytes multiples of 64
+ * \retval  pointer to allocated memory on successful allocation otherwise NULL
+ ******************************************************************************/
 const unsigned OPENCL_ALIGNMENT = 64;
 void *alignedMalloc(size_t size) {
   void *memptr = NULL;
@@ -373,11 +373,11 @@ void _checkError(const char *file, int line, const char *func, cl_int err,
   }
 }
 
-//******************************************************************************
-// \brief   converts a given null-terminated string to lowercase and stores in q
-// \param   p : null-terminated string
-// \param   q : string with (strlen(p)+1) length
-//******************************************************************************
+/*******************************************************************************
+ * \brief   converts a given null-terminated string to lowercase and stores in q
+ * \param   p : null-terminated string
+ * \param   q : string with (strlen(p)+1) length
+ ******************************************************************************/
 static void tolowercase(char *p, char *q) {
   int i;
   char a;

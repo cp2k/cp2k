@@ -22,10 +22,10 @@ void print_func(char *message, int output_unit) {
   printf("%s", message);
 }
 
-//******************************************************************************
-// \brief Stand-alone miniapp for running .task files.
-// \author Ole Schuett
-//******************************************************************************
+/*******************************************************************************
+ * \brief Stand-alone miniapp for running .task files.
+ * \author Ole Schuett
+ ******************************************************************************/
 int main(int argc, char *argv[]) {
   // Parsing of optional args.
   int iarg = 1;
