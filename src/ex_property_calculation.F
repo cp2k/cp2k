@@ -14,6 +14,7 @@ MODULE ex_property_calculation
                                               get_atomic_kind
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
+   USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -85,7 +86,7 @@ CONTAINS
       INTEGER                                            :: akind, handle, i, ia, iatom, idir, &
                                                             ikind, iounit, ispin, maxmom, nspins, &
                                                             reference, unit_nr
-      LOGICAL                                            :: magnetic, periodic
+      LOGICAL                                            :: magnetic, periodic, tb
       REAL(KIND=dp)                                      :: charge, dd, tmp
       REAL(KIND=dp), DIMENSION(3)                        :: cdip, pdip, pedip, rcc, rdip, ria, tdip
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
@@ -95,6 +96,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_result_type), POINTER                      :: results
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p, matrix_s, moments
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -106,6 +108,9 @@ CONTAINS
       rlab(1) = "X"
       rlab(2) = "Y"
       rlab(3) = "Z"
+
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
+      tb = (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb)
 
       logger => cp_get_default_logger()
       iounit = cp_logger_get_default_unit_nr(logger)
@@ -171,29 +176,34 @@ CONTAINS
                CALL get_qs_env(qs_env=qs_env, rho=rho, matrix_s=matrix_s)
                CALL qs_rho_get(rho, rho_ao=matrix_p)
                nspins = SIZE(matrix_p, 1)
-               NULLIFY (moments)
-               CALL dbcsr_allocate_matrix_set(moments, 4)
-               DO i = 1, 4
-                  ALLOCATE (moments(i)%matrix)
-                  CALL dbcsr_copy(moments(i)%matrix, matrix_s(1)%matrix, "Moments")
-                  CALL dbcsr_set(moments(i)%matrix, 0.0_dp)
-               END DO
-               CALL build_local_moment_matrix(qs_env, moments, 1, ref_point=rcc)
-               !
-               rdip = 0.0_dp
-               pdip = 0.0_dp
-               pedip = 0.0_dp
-               DO ispin = 1, nspins
-                  DO idir = 1, 3
-                     CALL dbcsr_dot(matrix_pe(ispin)%matrix, moments(idir)%matrix, tmp)
-                     pedip(idir) = pedip(idir) + tmp
-                     CALL dbcsr_dot(matrix_p(ispin)%matrix, moments(idir)%matrix, tmp)
-                     pdip(idir) = pdip(idir) + tmp
-                     CALL dbcsr_dot(p_env%p1(ispin)%matrix, moments(idir)%matrix, tmp)
-                     rdip(idir) = rdip(idir) + tmp
+               IF (tb) THEN
+                  CPABORT("TB not implemented")
+               ELSE
+                  ! KS-DFT
+                  NULLIFY (moments)
+                  CALL dbcsr_allocate_matrix_set(moments, 4)
+                  DO i = 1, 4
+                     ALLOCATE (moments(i)%matrix)
+                     CALL dbcsr_copy(moments(i)%matrix, matrix_s(1)%matrix, "Moments")
+                     CALL dbcsr_set(moments(i)%matrix, 0.0_dp)
                   END DO
-               END DO
-               CALL dbcsr_deallocate_matrix_set(moments)
+                  CALL build_local_moment_matrix(qs_env, moments, 1, ref_point=rcc)
+                  !
+                  rdip = 0.0_dp
+                  pdip = 0.0_dp
+                  pedip = 0.0_dp
+                  DO ispin = 1, nspins
+                     DO idir = 1, 3
+                        CALL dbcsr_dot(matrix_pe(ispin)%matrix, moments(idir)%matrix, tmp)
+                        pedip(idir) = pedip(idir) + tmp
+                        CALL dbcsr_dot(matrix_p(ispin)%matrix, moments(idir)%matrix, tmp)
+                        pdip(idir) = pdip(idir) + tmp
+                        CALL dbcsr_dot(p_env%p1(ispin)%matrix, moments(idir)%matrix, tmp)
+                        rdip(idir) = rdip(idir) + tmp
+                     END DO
+                  END DO
+                  CALL dbcsr_deallocate_matrix_set(moments)
+               END IF
                !
                IF (unit_nr > 0) THEN
                   tdip = -(rdip + pedip + pdip + cdip)

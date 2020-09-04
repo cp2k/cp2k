@@ -110,7 +110,6 @@ MODULE qs_tddfpt2_forces
                                               xc_rho_set_type,&
                                               xc_rho_set_update
    USE xtb_ehess,                       ONLY: xtb_coulomb_hessian
-   USE xtb_matrices,                    ONLY: xtb_hab_force
    USE xtb_types,                       ONLY: get_xtb_atom_param,&
                                               xtb_atom_type
 #include "./base/base_uses.f90"
@@ -177,38 +176,40 @@ CONTAINS
       CALL zero_qs_force(td_force)
       CALL set_qs_env(qs_env, force=td_force)
       !
-      vh_rspace => ex_env%vh_rspace
-      vxc_rspace => ex_env%vxc_rspace
-      vtau_rspace => ex_env%vtau_rspace
-      IF (ASSOCIATED(vh_rspace)) THEN
-         CALL pw_release(vh_rspace%pw)
-         DEALLOCATE (vh_rspace)
-      END IF
-      IF (ASSOCIATED(vxc_rspace)) THEN
-         DO iab = 1, SIZE(vxc_rspace)
-            CALL pw_release(vxc_rspace(iab)%pw)
-         END DO
-         DEALLOCATE (vxc_rspace)
-      END IF
-      IF (ASSOCIATED(vtau_rspace)) THEN
-         DO iab = 1, SIZE(vtau_rspace)
-            CALL pw_release(vtau_rspace(iab)%pw)
-         END DO
-         DEALLOCATE (vtau_rspace)
-      END IF
-      !
-      NULLIFY (vh_rspace, vxc_rspace, vtau_rspace)
-      IF (.NOT. dft_control%qs_control%xtb) THEN
-         CALL ks_ref_potential(qs_env, vh_rspace, vxc_rspace, vtau_rspace, ehartree, exc)
-      END IF
-      ex_env%vh_rspace => vh_rspace
-      ex_env%vxc_rspace => vxc_rspace
-      ex_env%vtau_rspace => vtau_rspace
-      !
       IF (dft_control%qs_control%xtb) THEN
-         CALL tddfpt_force_direct_xtb(qs_env, ex_env, gs_mos, kernel_env, sub_env, work_matrices, debug_forces)
+         CALL tddfpt_force_direct(qs_env, ex_env, gs_mos, kernel_env, sub_env, &
+                                  work_matrices, debug_forces)
       ELSE
-         CALL tddfpt_force_direct(qs_env, ex_env, gs_mos, kernel_env, sub_env, work_matrices, debug_forces)
+         vh_rspace => ex_env%vh_rspace
+         vxc_rspace => ex_env%vxc_rspace
+         vtau_rspace => ex_env%vtau_rspace
+         IF (ASSOCIATED(vh_rspace)) THEN
+            CALL pw_release(vh_rspace%pw)
+            DEALLOCATE (vh_rspace)
+         END IF
+         IF (ASSOCIATED(vxc_rspace)) THEN
+            DO iab = 1, SIZE(vxc_rspace)
+               CALL pw_release(vxc_rspace(iab)%pw)
+            END DO
+            DEALLOCATE (vxc_rspace)
+         END IF
+         IF (ASSOCIATED(vtau_rspace)) THEN
+            DO iab = 1, SIZE(vtau_rspace)
+               CALL pw_release(vtau_rspace(iab)%pw)
+            END DO
+            DEALLOCATE (vtau_rspace)
+         END IF
+         !
+         NULLIFY (vh_rspace, vxc_rspace, vtau_rspace)
+         IF (.NOT. dft_control%qs_control%xtb) THEN
+            CALL ks_ref_potential(qs_env, vh_rspace, vxc_rspace, vtau_rspace, ehartree, exc)
+         END IF
+         ex_env%vh_rspace => vh_rspace
+         ex_env%vxc_rspace => vxc_rspace
+         ex_env%vtau_rspace => vtau_rspace
+         !
+         CALL tddfpt_force_direct(qs_env, ex_env, gs_mos, kernel_env, sub_env, &
+                                  work_matrices, debug_forces)
       END IF
       !
       ! add TD and KS forces
@@ -385,208 +386,6 @@ CONTAINS
    END SUBROUTINE tddfpt_force_direct
 
 ! **************************************************************************************************
-!> \brief Calculate direct tddft forces
-!> \param qs_env ...
-!> \param ex_env ...
-!> \param gs_mos ...
-!> \param kernel_env ...
-!> \param sub_env ...
-!> \param work_matrices ...
-!> \param debug_forces ...
-!> \par History
-!>    * 01.2020 screated [JGH]
-! **************************************************************************************************
-   SUBROUTINE tddfpt_force_direct_xtb(qs_env, ex_env, gs_mos, kernel_env, sub_env, work_matrices, &
-                                      debug_forces)
-
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(excited_energy_type), POINTER                 :: ex_env
-      TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
-         POINTER                                         :: gs_mos
-      TYPE(tddfpt_kernel_env_type), INTENT(IN)           :: kernel_env
-      TYPE(tddfpt_subgroup_env_type)                     :: sub_env
-      TYPE(tddfpt_work_matrices)                         :: work_matrices
-      LOGICAL                                            :: debug_forces
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_force_direct_xtb', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, iounit, ispin, natom, norb, &
-                                                            nspins
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ftot1, ftot2
-      REAL(KIND=dp), DIMENSION(3)                        :: fodeb
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: evect
-      TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_pe, matrix_wx1, &
-                                                            matrix_wz, scrm
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb
-      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
-
-      CALL timeset(routineN, handle)
-
-      logger => cp_get_default_logger()
-      iounit = cp_logger_get_default_unit_nr(logger)
-
-      evect => ex_env%evect
-      matrix_pe => ex_env%matrix_pe
-
-      NULLIFY (ks_env, sab_orb)
-      CALL get_qs_env(qs_env=qs_env, ks_env=ks_env, para_env=para_env, &
-                      sab_orb=sab_orb, force=force)
-      IF (debug_forces) THEN
-         CALL get_qs_env(qs_env, natom=natom, atomic_kind_set=atomic_kind_set)
-         ALLOCATE (ftot1(3, natom))
-         CALL total_qs_force(ftot1, force, atomic_kind_set)
-      END IF
-
-      nspins = SIZE(matrix_pe, 1)
-      IF (nspins == 2) THEN
-         CALL dbcsr_add(matrix_pe(1)%matrix, matrix_pe(2)%matrix, &
-                        alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
-      END IF
-      ! Hcore energy matrix
-      NULLIFY (scrm)
-      IF (debug_forces) fodeb(1:3) = force(1)%all_potential(1:3, 1)
-      CALL xtb_hab_force(qs_env, matrix_pe(1)%matrix)
-      IF (debug_forces) THEN
-         fodeb(1:3) = force(1)%all_potential(1:3, 1) - fodeb(1:3)
-         CALL mp_sum(fodeb, para_env%group)
-         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pe*dHcore  ", fodeb
-      END IF
-      IF (nspins == 2) THEN
-         CALL dbcsr_add(matrix_pe(1)%matrix, matrix_pe(2)%matrix, &
-                        alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
-      END IF
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      ! V electrostatic
-      IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
-      !
-      NULLIFY (matrix_p)
-      !
-      IF (debug_forces) THEN
-         fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
-         CALL mp_sum(fodeb, para_env%group)
-         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pe*dVhxc   ", fodeb
-      END IF
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      !
-      IF (debug_forces) THEN
-         ALLOCATE (ftot2(3, natom))
-         CALL total_qs_force(ftot2, force, atomic_kind_set)
-         fodeb(1:3) = ftot2(1:3, 1) - ftot1(1:3, 1)
-         CALL mp_sum(fodeb, para_env%group)
-         IF (iounit > 0) WRITE (iounit, "(T3,A,T30,3F16.8)") "DEBUG:: Force Pin*V(rhoe)", fodeb
-      END IF
-
-      CALL tddfpt_kernel_force(qs_env, ex_env, gs_mos, kernel_env, sub_env, work_matrices, debug_forces)
-
-      ! Overlap matrix
-      matrix_wx1 => ex_env%matrix_wx1
-      CALL get_qs_env(qs_env=qs_env, matrix_s=scrm, matrix_ks=matrix_ks)
-      NULLIFY (matrix_wz)
-      CALL dbcsr_allocate_matrix_set(matrix_wz, nspins)
-      DO ispin = 1, nspins
-         ALLOCATE (matrix_wz(ispin)%matrix)
-         CALL dbcsr_create(matrix=matrix_wz(ispin)%matrix, template=scrm(1)%matrix)
-         CALL cp_dbcsr_alloc_block_from_nbl(matrix_wz(ispin)%matrix, sab_orb)
-         CALL dbcsr_set(matrix_wz(ispin)%matrix, 0.0_dp)
-         CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, ncol_global=norb)
-         CALL cp_dbcsr_plus_fm_fm_t(matrix_wz(ispin)%matrix, matrix_v=evect(ispin)%matrix, ncol=norb)
-         CALL dbcsr_scale(matrix_wz(ispin)%matrix, ex_env%evalue)
-         CALL calculate_wx_matrix(gs_mos(ispin)%mos_occ, evect(ispin)%matrix, matrix_ks(ispin)%matrix, &
-                                  matrix_wz(ispin)%matrix)
-      END DO
-      IF (nspins == 2) THEN
-         CALL dbcsr_add(matrix_wz(1)%matrix, matrix_wz(2)%matrix, &
-                        alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
-      END IF
-      NULLIFY (scrm)
-      IF (debug_forces) fodeb(1:3) = force(1)%overlap(1:3, 1)
-      CALL build_overlap_matrix(ks_env, matrix_s=scrm, &
-                                matrix_name="OVERLAP MATRIX", &
-                                basis_type_a="ORB", basis_type_b="ORB", &
-                                sab_nl=sab_orb, calculate_forces=.TRUE., &
-                                matrix_p=matrix_wz(1)%matrix)
-      CALL dbcsr_deallocate_matrix_set(scrm)
-      CALL dbcsr_deallocate_matrix_set(matrix_wz)
-      IF (debug_forces) THEN
-         fodeb(1:3) = force(1)%overlap(1:3, 1) - fodeb(1:3)
-         CALL mp_sum(fodeb, para_env%group)
-         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Wx*dS ", fodeb
-      END IF
-
-      ! Overlap matrix
-      CALL get_qs_env(qs_env=qs_env, matrix_s=scrm, matrix_ks=matrix_ks)
-      NULLIFY (matrix_wz)
-      CALL dbcsr_allocate_matrix_set(matrix_wz, nspins)
-      DO ispin = 1, nspins
-         ALLOCATE (matrix_wz(ispin)%matrix)
-         CALL dbcsr_create(matrix=matrix_wz(ispin)%matrix, template=scrm(1)%matrix)
-         CALL cp_dbcsr_alloc_block_from_nbl(matrix_wz(ispin)%matrix, sab_orb)
-         CALL dbcsr_set(matrix_wz(ispin)%matrix, 0.0_dp)
-         CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, ncol_global=norb)
-         CALL calculate_xwx_matrix(gs_mos(ispin)%mos_occ, evect(ispin)%matrix, scrm(1)%matrix, &
-                                   matrix_ks(ispin)%matrix, matrix_wz(ispin)%matrix, ex_env%evalue)
-      END DO
-      IF (nspins == 2) THEN
-         CALL dbcsr_add(matrix_wz(1)%matrix, matrix_wz(2)%matrix, &
-                        alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
-      END IF
-      NULLIFY (scrm)
-      IF (debug_forces) fodeb(1:3) = force(1)%overlap(1:3, 1)
-      CALL build_overlap_matrix(ks_env, matrix_s=scrm, &
-                                matrix_name="OVERLAP MATRIX", &
-                                basis_type_a="ORB", basis_type_b="ORB", &
-                                sab_nl=sab_orb, calculate_forces=.TRUE., &
-                                matrix_p=matrix_wz(1)%matrix)
-      CALL dbcsr_deallocate_matrix_set(scrm)
-      CALL dbcsr_deallocate_matrix_set(matrix_wz)
-      IF (debug_forces) THEN
-         fodeb(1:3) = force(1)%overlap(1:3, 1) - fodeb(1:3)
-         CALL mp_sum(fodeb, para_env%group)
-         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: xWx*dS ", fodeb
-      END IF
-
-      ! Overlap matrix
-      IF (ASSOCIATED(matrix_wx1)) THEN
-         IF (nspins == 2) THEN
-            CALL dbcsr_add(matrix_wx1(1)%matrix, matrix_wx1(2)%matrix, &
-                           alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
-         END IF
-         NULLIFY (scrm)
-         IF (debug_forces) fodeb(1:3) = force(1)%overlap(1:3, 1)
-         CALL build_overlap_matrix(ks_env, matrix_s=scrm, &
-                                   matrix_name="OVERLAP MATRIX", &
-                                   basis_type_a="ORB", basis_type_b="ORB", &
-                                   sab_nl=sab_orb, calculate_forces=.TRUE., &
-                                   matrix_p=matrix_wx1(1)%matrix)
-         CALL dbcsr_deallocate_matrix_set(scrm)
-         IF (debug_forces) THEN
-            fodeb(1:3) = force(1)%overlap(1:3, 1) - fodeb(1:3)
-            CALL mp_sum(fodeb, para_env%group)
-            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: WK*dS ", fodeb
-         END IF
-      END IF
-
-      IF (debug_forces) THEN
-         CALL total_qs_force(ftot2, force, atomic_kind_set)
-         fodeb(1:3) = ftot2(1:3, 1) - ftot1(1:3, 1)
-         CALL mp_sum(fodeb, para_env%group)
-         IF (iounit > 0) WRITE (iounit, "(T3,A,T30,3F16.8)") "DEBUG:: Excitation Force", fodeb
-         DEALLOCATE (ftot1, ftot2)
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE tddfpt_force_direct_xtb
-
-! **************************************************************************************************
 !> \brief ...
 !> \param evect ...
 !> \param mos_occ ...
@@ -680,55 +479,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE tddfpt_resvec1_admm
-
-! **************************************************************************************************
-!> \brief ...
-!> \param evect ...
-!> \param mos_occ ...
-!> \param admm_env ...
-!> \param matrix_pe_admm ...
-! **************************************************************************************************
-   SUBROUTINE tddfpt_admmX(evect, mos_occ, admm_env, matrix_pe_admm)
-
-      TYPE(cp_fm_type), POINTER                          :: evect, mos_occ
-      TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(dbcsr_type), POINTER                          :: matrix_pe_admm
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_admmX', routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, nao, nao_aux, norb
-      TYPE(cp_fm_type), POINTER                          :: work_aux_aux, work_aux_nmo, &
-                                                            work_aux_nmo2, work_nmo_nmo1, &
-                                                            work_orb_nmo
-
-      CALL timeset(routineN, handle)
-      !
-      CALL cp_fm_get_info(mos_occ, nrow_global=nao, ncol_global=norb)
-      nao_aux = admm_env%nao_aux_fit
-      !
-      work_orb_nmo => admm_env%work_orb_nmo(1)%matrix
-      work_nmo_nmo1 => admm_env%work_nmo_nmo1(1)%matrix
-      work_aux_nmo => admm_env%work_aux_nmo(1)%matrix
-      work_aux_nmo2 => admm_env%work_aux_nmo2(1)%matrix
-      work_aux_aux => admm_env%work_aux_aux
-      ! (A*X)*(A*X)^T
-      CALL cp_gemm('N', 'N', nao_aux, norb, nao, 1.0_dp, admm_env%A, evect, 0.0_dp, work_aux_nmo)
-      CALL cp_gemm('N', 'T', nao_aux, nao_aux, norb, 1.0_dp, work_aux_nmo, work_aux_nmo, 0.0_dp, work_aux_aux)
-      ! X^T*B*X
-      CALL cp_gemm('N', 'N', nao, norb, nao, 1.0_dp, admm_env%B, evect, 0.0_dp, work_orb_nmo)
-      CALL cp_gemm('T', 'N', norb, norb, nao, 1.0_dp, work_orb_nmo, evect, 0.0_dp, work_nmo_nmo1)
-      ! A*C
-      CALL cp_gemm('N', 'N', nao_aux, norb, nao, 1.0_dp, admm_env%A, mos_occ, 0.0_dp, work_aux_nmo)
-      ! A*C*XBX
-      CALL cp_gemm('N', 'N', nao_aux, norb, norb, 1.0_dp, work_aux_nmo, work_nmo_nmo1, 0.0_dp, work_aux_nmo2)
-      !
-      CALL cp_gemm('N', 'T', nao_aux, nao_aux, norb, -1.0_dp, work_aux_nmo2, work_aux_nmo, 1.0_dp, work_aux_aux)
-      !
-      CALL copy_fm_to_dbcsr(work_aux_aux, matrix_pe_admm, keep_sparsity=.TRUE.)
-      !
-      CALL timestop(handle)
-
-   END SUBROUTINE tddfpt_admmX
 
 ! **************************************************************************************************
 !> \brief ...

@@ -12,6 +12,7 @@
 MODULE excited_states
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
+   USE cp_control_types,                ONLY: dft_control_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -29,7 +30,8 @@ MODULE excited_states
    USE qs_p_env_types,                  ONLY: p_env_release,&
                                               qs_p_env_type
    USE response_solver,                 ONLY: response_equation,&
-                                              response_force
+                                              response_force,&
+                                              response_force_xtb
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -66,6 +68,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: natom_of_kind
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(excited_energy_type), POINTER                 :: ex_env
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: ks_force, lr_force
@@ -105,8 +108,18 @@ CONTAINS
             NULLIFY (p_env)
             CALL response_equation(qs_env, p_env, ex_env%cpmos)
             !
-            CALL response_force(qs_env, p_env, ex_env%vh_rspace, ex_env%vxc_rspace, ex_env%vtau_rspace, &
-                                ex_env%matrix_hz, ex_env)
+            CALL get_qs_env(qs_env, dft_control=dft_control)
+            IF (dft_control%qs_control%semi_empirical) THEN
+               CPABORT("Not available")
+            ELSEIF (dft_control%qs_control%dftb) THEN
+               CPABORT("Not available")
+            ELSEIF (dft_control%qs_control%xtb) THEN
+               CALL response_force_xtb(qs_env, p_env, ex_env%matrix_hz, ex_env)
+            ELSE
+               ! KS-DFT
+               CALL response_force(qs_env, p_env, ex_env%vh_rspace, ex_env%vxc_rspace, &
+                                   ex_env%vtau_rspace, ex_env%matrix_hz, ex_env)
+            END IF
             ! add TD and KS forces
             CALL get_qs_env(qs_env, force=lr_force)
             CALL sum_qs_force(ks_force, lr_force)

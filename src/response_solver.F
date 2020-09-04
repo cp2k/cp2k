@@ -16,7 +16,8 @@
 ! **************************************************************************************************
 MODULE response_solver
    USE admm_types,                      ONLY: admm_type
-   USE atomic_kind_types,               ONLY: atomic_kind_type
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind
    USE cell_types,                      ONLY: cell_type
    USE core_ppl,                        ONLY: build_core_ppl
    USE core_ppnl,                       ONLY: build_core_ppnl
@@ -69,6 +70,7 @@ MODULE response_solver
    USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: det_3x3
    USE message_passing,                 ONLY: mp_sum
+   USE mulliken,                        ONLY: ao_charges
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: pascal
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -105,7 +107,9 @@ MODULE response_solver
                                               total_qs_force
    USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                               integrate_v_rspace
-   USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              get_qs_kind_set,&
+                                              qs_kind_type
    USE qs_kinetic,                      ONLY: build_kinetic_matrix
    USE qs_ks_methods,                   ONLY: calc_rho_tot_gspace
    USE qs_ks_types,                     ONLY: qs_ks_env_type
@@ -136,8 +140,17 @@ MODULE response_solver
                                               xc_prep_2nd_deriv
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                               xc_dset_release
-   USE xc_rho_set_types,                ONLY: xc_rho_set_release,&
-                                              xc_rho_set_type
+   USE xc_derivatives,                  ONLY: xc_functionals_get_needs
+   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
+   USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
+                                              xc_rho_set_release,&
+                                              xc_rho_set_type,&
+                                              xc_rho_set_update
+   USE xtb_ehess,                       ONLY: xtb_coulomb_hessian
+   USE xtb_ehess_force,                 ONLY: calc_xtb_ehess_force
+   USE xtb_matrices,                    ONLY: xtb_hab_force
+   USE xtb_types,                       ONLY: get_xtb_atom_param,&
+                                              xtb_atom_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -151,8 +164,10 @@ MODULE response_solver
    LOGICAL, PARAMETER                   :: debug_stress = .FALSE.
    LOGICAL, PARAMETER                   :: debug_forces = .FALSE.
 
-   PUBLIC :: ks_ref_potential, response_calculation, &
-             response_equation, response_force, admm_projection_derivative
+   PUBLIC :: response_calculation, response_equation, response_force, response_force_xtb, &
+             ks_ref_potential, admm_projection_derivative
+
+! **************************************************************************************************
 
 CONTAINS
 
@@ -1580,6 +1595,207 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE response_force
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param p_env ...
+!> \param matrix_hz ...
+!> \param ex_env ...
+! **************************************************************************************************
+   SUBROUTINE response_force_xtb(qs_env, p_env, matrix_hz, ex_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hz
+      TYPE(excited_energy_type), OPTIONAL, POINTER       :: ex_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'response_force_xtb'
+
+      INTEGER                                            :: atom_a, handle, iatom, ikind, iounit, &
+                                                            is, ispin, na, natom, natorb, nimages, &
+                                                            nkind, ns, nsgf, nspins
+      INTEGER, DIMENSION(25)                             :: lao
+      INTEGER, DIMENSION(5)                              :: occ
+      LOGICAL                                            :: do_ex, use_virial
+      REAL(KIND=dp)                                      :: focc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: mcharge, mcharge1
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aocg, aocg1, charges, charges1, ftot1, &
+                                                            ftot2
+      REAL(KIND=dp), DIMENSION(3)                        :: fodeb
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_pz, matrix_wz, mpa, p_matrix, scrm
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
+      TYPE(dbcsr_type), POINTER                          :: s_matrix
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(xtb_atom_type), POINTER                       :: xtb_kind
+
+      CALL timeset(routineN, handle)
+
+      logger => cp_get_default_logger()
+      iounit = cp_logger_get_default_unit_nr(logger)
+
+      do_ex = .FALSE.
+      IF (PRESENT(ex_env)) do_ex = .TRUE.
+
+      NULLIFY (ks_env, sab_orb)
+      CALL get_qs_env(qs_env=qs_env, ks_env=ks_env, dft_control=dft_control, &
+                      sab_orb=sab_orb)
+      CALL get_qs_env(qs_env=qs_env, para_env=para_env, force=force)
+      nspins = dft_control%nspins
+
+      IF (debug_forces) THEN
+         CALL get_qs_env(qs_env, natom=natom, atomic_kind_set=atomic_kind_set)
+         ALLOCATE (ftot1(3, natom))
+         ALLOCATE (ftot2(3, natom))
+         CALL total_qs_force(ftot1, force, atomic_kind_set)
+      END IF
+
+      matrix_pz => p_env%p1
+      NULLIFY (mpa)
+      IF (do_ex) THEN
+         CALL dbcsr_allocate_matrix_set(mpa, nspins)
+         DO ispin = 1, nspins
+            ALLOCATE (mpa(ispin)%matrix)
+            CALL dbcsr_create(mpa(ispin)%matrix, template=matrix_pz(ispin)%matrix)
+            CALL dbcsr_copy(mpa(ispin)%matrix, matrix_pz(ispin)%matrix)
+            CALL dbcsr_add(mpa(ispin)%matrix, ex_env%matrix_pe(ispin)%matrix, 1.0_dp, 1.0_dp)
+            CALL dbcsr_set(matrix_hz(ispin)%matrix, 0.0_dp)
+         END DO
+      ELSE
+         mpa => p_env%p1
+      END IF
+      !
+      ! START OF Tr(P+Z)Hcore
+      !
+      IF (nspins == 2) THEN
+         CALL dbcsr_add(mpa(1)%matrix, mpa(2)%matrix, 1.0_dp, 1.0_dp)
+      END IF
+      ! Hcore  matrix
+      IF (debug_forces) fodeb(1:3) = force(1)%all_potential(1:3, 1)
+      CALL xtb_hab_force(qs_env, mpa(1)%matrix)
+      IF (debug_forces) THEN
+         fodeb(1:3) = force(1)%all_potential(1:3, 1) - fodeb(1:3)
+         CALL mp_sum(fodeb, para_env%group)
+         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*dHcore  ", fodeb
+      END IF
+      IF (nspins == 2) THEN
+         CALL dbcsr_add(mpa(1)%matrix, mpa(2)%matrix, 1.0_dp, -1.0_dp)
+      END IF
+      !
+      ! END OF Tr(P+Z)Hcore
+      !
+      use_virial = .FALSE.
+      nimages = 1
+      !
+      ! Hartree potential of response density
+      !
+      IF (dft_control%qs_control%xtb_control%coulomb_interaction) THEN
+         IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
+         ! Mulliken charges
+         CALL get_qs_env(qs_env, rho=rho, particle_set=particle_set, matrix_s_kp=matrix_s)
+         natom = SIZE(particle_set)
+         CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
+         ALLOCATE (mcharge(natom), charges(natom, 5))
+         ALLOCATE (mcharge1(natom), charges1(natom, 5))
+         charges = 0.0_dp
+         charges1 = 0.0_dp
+         CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set)
+         nkind = SIZE(atomic_kind_set)
+         CALL get_qs_kind_set(qs_kind_set, maxsgf=nsgf)
+         ALLOCATE (aocg(nsgf, natom))
+         aocg = 0.0_dp
+         ALLOCATE (aocg1(nsgf, natom))
+         aocg1 = 0.0_dp
+         p_matrix => matrix_p(:, 1)
+         s_matrix => matrix_s(1, 1)%matrix
+         CALL ao_charges(p_matrix, s_matrix, aocg, para_env)
+         CALL ao_charges(mpa, s_matrix, aocg1, para_env)
+         DO ikind = 1, nkind
+            CALL get_atomic_kind(atomic_kind_set(ikind), natom=na)
+            CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
+            CALL get_xtb_atom_param(xtb_kind, natorb=natorb, lao=lao, occupation=occ)
+            DO iatom = 1, na
+               atom_a = atomic_kind_set(ikind)%atom_list(iatom)
+               charges(atom_a, :) = REAL(occ(:), KIND=dp)
+               DO is = 1, natorb
+                  ns = lao(is) + 1
+                  charges(atom_a, ns) = charges(atom_a, ns) - aocg(is, atom_a)
+                  charges1(atom_a, ns) = charges1(atom_a, ns) - aocg1(is, atom_a)
+               END DO
+            END DO
+         END DO
+         DEALLOCATE (aocg, aocg1)
+         DO iatom = 1, natom
+            mcharge(iatom) = SUM(charges(iatom, :))
+            mcharge1(iatom) = SUM(charges1(iatom, :))
+         END DO
+         ! Coulomb Kernel
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+         CALL xtb_coulomb_hessian(qs_env, matrix_hz, charges1, mcharge1, mcharge)
+         CALL calc_xtb_ehess_force(qs_env, p_matrix, mpa, charges, mcharge, charges1, mcharge1)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+         !
+         DEALLOCATE (charges, mcharge, charges1, mcharge1)
+         !
+         IF (debug_forces) THEN
+            fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
+            CALL mp_sum(fodeb, para_env%group)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pin*dK*rhoz ", fodeb
+         END IF
+      END IF
+      ! Overlap matrix
+      ! H(drho+dz) + Wz
+      matrix_wz => p_env%w1
+      focc = 1.0_dp
+      IF (nspins == 1) focc = 2.0_dp
+      CALL get_qs_env(qs_env, mos=mos)
+      DO ispin = 1, nspins
+         CALL calculate_whz_matrix(mos(ispin)%mo_set%mo_coeff, matrix_hz(ispin)%matrix, &
+                                   matrix_wz(ispin)%matrix, focc)
+      END DO
+      IF (nspins == 2) THEN
+         CALL dbcsr_add(matrix_wz(1)%matrix, matrix_wz(2)%matrix, &
+                        alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+      END IF
+      IF (debug_forces) fodeb(1:3) = force(1)%overlap(1:3, 1)
+      NULLIFY (scrm)
+      CALL build_overlap_matrix(ks_env, matrix_s=scrm, &
+                                matrix_name="OVERLAP MATRIX", &
+                                basis_type_a="ORB", basis_type_b="ORB", &
+                                sab_nl=sab_orb, calculate_forces=.TRUE., &
+                                matrix_p=matrix_wz(1)%matrix)
+      IF (debug_forces) THEN
+         fodeb(1:3) = force(1)%overlap(1:3, 1) - fodeb(1:3)
+         CALL mp_sum(fodeb, para_env%group)
+         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Wz*dS ", fodeb
+      END IF
+      CALL dbcsr_deallocate_matrix_set(scrm)
+
+      IF (debug_forces) THEN
+         CALL total_qs_force(ftot2, force, atomic_kind_set)
+         fodeb(1:3) = ftot2(1:3, 1) - ftot1(1:3, 1)
+         CALL mp_sum(fodeb, para_env%group)
+         IF (iounit > 0) WRITE (iounit, "(T3,A,T30,3F16.8)") "DEBUG:: Response Force", fodeb
+         DEALLOCATE (ftot1, ftot2)
+      END IF
+
+      IF (do_ex) THEN
+         CALL dbcsr_deallocate_matrix_set(mpa)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE response_force_xtb
 
 ! **************************************************************************************************
 !> \brief ...
