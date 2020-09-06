@@ -924,7 +924,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nspins
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_update_ks_mo'
-      REAL(dp), PARAMETER                                :: lb_ratio = 0.1_dp
 
       INTEGER                                            :: bsize, bsum, comm_2d, handle, handle2, &
                                                             i_mem, iblock, iproc, ispin, n_mem, &
