@@ -139,6 +139,7 @@ CONTAINS
 
       ostate%state = 8
       CALL powell_optimize(ostate%nvar, x, ostate)
+      CALL density_fit(density, atom, num_gto, x(1), x(2), co, ostate%f)
 
       CALL release_opgrid(density)
 
