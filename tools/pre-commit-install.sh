@@ -7,7 +7,7 @@ set -o nounset
 
 PYTHON=$(command -v python3 || true)
 
-if [ x"${PYTHON}" = "x" ] ; then
+if [ -z "${PYTHON}" ] ; then
     echo "ERROR: the python3 executable could not be found, but is required for the complete build process"
     exit 1
 fi
@@ -39,18 +39,18 @@ ENVDIR=$(CDPATH='' cd -- "${ENVDIR}" && pwd)
 PYTHON=$(command -v python)
 PIP=$(command -v pip || true)
 
-if [ x"${PIP}" = "x" ] ; then
+if [ -z "${PIP}" ] ; then
     echo "Bootstrapping the pip command inside the virtual environment..."
 
     FETCHER="$(command -v curl || true)"
     FETCHER_OPTS=""
 
-    if [ x"${FETCHER}" = "x" ] ; then
+    if [ -z "${FETCHER}" ] ; then
         FETCHER="$(command -v wget || true)"
         FETCHER_OPTS="-O-"
     fi
 
-    if [ x"${FETCHER}" = "x" ] ; then
+    if [ -z "${FETCHER}" ] ; then
         echo "ERROR: neither wget nor curl seem to be available, please download"
         echo "    https://bootstrap.pypa.io/get-pip.py"
         echo "manually and run:"
