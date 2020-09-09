@@ -1,5 +1,5 @@
 #
-# make -j 16 sopt popt ssmp psmp
+# make -j 16 ssmp psmp
 #
 # will now perform a parallel build of 4 cp2k executables
 #
@@ -18,7 +18,7 @@ else
  ARCH         := local
 endif
 
-export VERSION=sopt
+export VERSION=ssmp
 
 MAKEFILE     := $(CP2KHOME)/Makefile
 ARCHDIR      := $(CP2KHOME)/arch
