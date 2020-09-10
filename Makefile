@@ -11,13 +11,7 @@ CP2KHOME     := $(abspath $(shell pwd))
 export CP2KHOME
 endif
 
-ifneq ($(SPACK_COMPILER_SPEC),)
- # SPACK_COMPILER_SPEC is set when running in a Spack build-env
- ARCH         := $(shell spack arch)-$(shell echo $${SPACK_COMPILER_SPEC%%@*})
-else
- ARCH         := local
-endif
-
+ARCH         := local
 export VERSION=ssmp
 
 MAKEFILE     := $(CP2KHOME)/Makefile
