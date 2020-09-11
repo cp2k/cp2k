@@ -7,7 +7,7 @@ argon-gle_r.inp                                        2    2.0E-11            -
 #new FF
 water_mm3.inp                                         11    1.0E-14              0.003534941656640
 #mol_set + amber
-lamol.inp                                              2    1.0E-14             0.734695738723E+00
+lamol.inp                                              2    1.0E-14             0.808816509404E+00
 #impropers read from input file section
 imp_test_11.inp                                       11    1.0E-14              0.804574647188983
 imp_test_12.inp                                       11    1.0E-14              0.804574647188983

@@ -439,7 +439,7 @@ CONTAINS
                                                             ntorsion
       INTEGER, DIMENSION(:), POINTER                     :: molecule_list
       INTEGER, POINTER                                   :: map_torsion_kind(:)
-      LOGICAL                                            :: found
+      LOGICAL                                            :: chk_reverse, found
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
       TYPE(molecule_type), POINTER                       :: molecule
@@ -447,6 +447,11 @@ CONTAINS
       TYPE(torsion_type), DIMENSION(:), POINTER          :: torsion_list
 
       CALL timeset(routineN, handle2)
+
+      ! Now decide whether we need to check D-C-B-A type combination in addtion to usual A-B-C-D
+      ! We don't need it for Amber FF
+      chk_reverse = (ff_type%ff_type /= do_ff_amber)
+
       DO i = 1, SIZE(molecule_kind_set)
          molecule_kind => molecule_kind_set(i)
          CALL get_molecule_kind(molecule_kind=molecule_kind, &
@@ -503,7 +508,8 @@ CONTAINS
                           ((name_atm_b) == (name_atm_b2)) .AND. &
                           ((name_atm_c) == (name_atm_c2)) .AND. &
                           ((name_atm_d) == (name_atm_d2))) .OR. &
-                         (((name_atm_a) == (name_atm_d2)) .AND. &
+                         (chk_reverse .AND. &
+                          ((name_atm_a) == (name_atm_d2)) .AND. &
                           ((name_atm_b) == (name_atm_c2)) .AND. &
                           ((name_atm_c) == (name_atm_b2)) .AND. &
                           ((name_atm_d) == (name_atm_a2)))) THEN
@@ -1263,8 +1269,10 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: ldum, name_atm_a, name_atm_b, &
                                                             name_atm_c, name_atm_d
       INTEGER                                            :: atm_a, atm_b, atm_c, atm_d, first, &
-                                                            handle2, i, imul, itype, j, k, last, &
-                                                            natom, ntorsion
+                                                            handle2, i, imul, itype, j, k, k_end, &
+                                                            k_start, last, natom, ntorsion, &
+                                                            raw_parm_id
+      INTEGER, DIMENSION(4)                              :: glob_atm_id
       INTEGER, DIMENSION(:), POINTER                     :: molecule_list
       LOGICAL                                            :: found, only_qm
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
@@ -1384,52 +1392,43 @@ CONTAINS
                END IF
 
                ! loop over params from AMBER
+               ! Assign real parameters from Amber PRMTOP file using global atom indices
+               ! Type-based assignment is prone to errors
                IF (ASSOCIATED(amb_info%torsion_a)) THEN
-                  DO k = 1, SIZE(amb_info%torsion_a)
-                     IF ((((amb_info%torsion_a(k)) == (name_atm_a)) .AND. &
-                          ((amb_info%torsion_b(k)) == (name_atm_b)) .AND. &
-                          ((amb_info%torsion_c(k)) == (name_atm_c)) .AND. &
-                          ((amb_info%torsion_d(k)) == (name_atm_d))) .OR. &
-                         (((amb_info%torsion_a(k)) == (name_atm_d)) .AND. &
-                          ((amb_info%torsion_b(k)) == (name_atm_c)) .AND. &
-                          ((amb_info%torsion_c(k)) == (name_atm_b)) .AND. &
-                          ((amb_info%torsion_d(k)) == (name_atm_a)))) THEN
+                  ! Get global atom indices
+                  glob_atm_id(1) = atm_a + first - 1
+                  glob_atm_id(2) = atm_b + first - 1
+                  glob_atm_id(3) = atm_c + first - 1
+                  glob_atm_id(4) = atm_d + first - 1
+
+                  ! Search sorted array of raw torsion parameters
+                  ! The array can be too long for linear lookup
+                  ! Use binary search for first atom index
+                  k_start = bsearch_leftmost_2d(amb_info%raw_torsion_id, glob_atm_id(1))
+                  k_end = UBOUND(amb_info%raw_torsion_id, DIM=2)
+
+                  ! If not found, skip the loop
+                  IF (k_start /= 0) THEN
+
+                     DO k = k_start, k_end
+                        IF (glob_atm_id(1) < amb_info%raw_torsion_id(1, k)) EXIT
+                        IF (ANY((glob_atm_id - amb_info%raw_torsion_id(1:4, k)) /= 0)) CYCLE
+
+                        raw_parm_id = amb_info%raw_torsion_id(5, k)
                         imul = torsion_list(j)%torsion_kind%nmul + 1
                         CALL reallocate(torsion_list(j)%torsion_kind%k, 1, imul)
                         CALL reallocate(torsion_list(j)%torsion_kind%m, 1, imul)
                         CALL reallocate(torsion_list(j)%torsion_kind%phi0, 1, imul)
                         torsion_list(j)%torsion_kind%id_type = do_ff_amber
-                        torsion_list(j)%torsion_kind%k(imul) = amb_info%torsion_k(k)
-                        torsion_list(j)%torsion_kind%m(imul) = amb_info%torsion_m(k)
-                        torsion_list(j)%torsion_kind%phi0(imul) = amb_info%torsion_phi0(k)
+                        torsion_list(j)%torsion_kind%k(imul) = amb_info%raw_torsion_k(raw_parm_id)
+                        torsion_list(j)%torsion_kind%m(imul) = NINT(amb_info%raw_torsion_m(raw_parm_id))
+                        torsion_list(j)%torsion_kind%phi0(imul) = amb_info%raw_torsion_phi0(raw_parm_id)
                         torsion_list(j)%torsion_kind%nmul = imul
                         found = .TRUE.
-                     END IF
-                  END DO
-
-                  IF (.NOT. found) THEN
-                     DO k = 1, SIZE(amb_info%torsion_a)
-                        IF ((((amb_info%torsion_a(k)) == ("X")) .AND. &
-                             ((amb_info%torsion_b(k)) == (name_atm_b)) .AND. &
-                             ((amb_info%torsion_c(k)) == (name_atm_c)) .AND. &
-                             ((amb_info%torsion_d(k)) == ("X"))) .OR. &
-                            (((amb_info%torsion_a(k)) == ("X")) .AND. &
-                             ((amb_info%torsion_b(k)) == (name_atm_c)) .AND. &
-                             ((amb_info%torsion_c(k)) == (name_atm_b)) .AND. &
-                             ((amb_info%torsion_d(k)) == ("X")))) THEN
-                           imul = torsion_list(j)%torsion_kind%nmul + 1
-                           CALL reallocate(torsion_list(j)%torsion_kind%k, 1, imul)
-                           CALL reallocate(torsion_list(j)%torsion_kind%m, 1, imul)
-                           CALL reallocate(torsion_list(j)%torsion_kind%phi0, 1, imul)
-                           torsion_list(j)%torsion_kind%id_type = do_ff_amber
-                           torsion_list(j)%torsion_kind%k(imul) = amb_info%torsion_k(k)
-                           torsion_list(j)%torsion_kind%m(imul) = amb_info%torsion_m(k)
-                           torsion_list(j)%torsion_kind%phi0(imul) = amb_info%torsion_phi0(k)
-                           torsion_list(j)%torsion_kind%nmul = imul
-                           found = .TRUE.
-                        END IF
                      END DO
+
                   END IF
+
                END IF
 
                ! always have the input param last to overwrite all the other ones
@@ -3454,6 +3453,42 @@ CONTAINS
       END IF
 
    END SUBROUTINE store_FF_missing_par
+
+! **************************************************************************************************
+!> \brief Search sorted 2d array of integers for a first occurence of value `val` in row `row`
+!> \param array 2d array of integers
+!> \param val value to search
+!> \param row row to search, default = 1
+!> \return column index if `val` is found in the row `row` of `array`; zero otherwise
+! **************************************************************************************************
+   FUNCTION bsearch_leftmost_2d(array, val, row) RESULT(res)
+      INTEGER, INTENT(IN)                                :: array(:, :), val
+      INTEGER, INTENT(IN), OPTIONAL                      :: row
+      INTEGER                                            :: res
+
+      INTEGER                                            :: left, locRow, mid, right
+
+      locRow = 1
+      IF (PRESENT(row)) locRow = row
+
+      left = 1
+      right = UBOUND(array, dim=2)
+
+      DO WHILE (left < right)
+         mid = (left + right)/2
+         IF (array(locRow, mid) < val) THEN
+            left = mid + 1
+         ELSE
+            right = mid
+         END IF
+      END DO
+
+      res = left
+
+      ! Not found:
+      IF (array(locRow, res) /= val) res = 0
+
+   END FUNCTION bsearch_leftmost_2d
 
 END MODULE force_fields_all
 

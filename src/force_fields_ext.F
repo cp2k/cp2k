@@ -762,6 +762,13 @@ CONTAINS
          amb_info%torsion_k(i) = cp_unit_to_cp2k(amb_info%torsion_k(i), "kcalmol")
       END DO
 
+      DO i = 1, SIZE(amb_info%raw_torsion_k)
+
+         ! Do some units conversion into internal atomic units
+         amb_info%raw_torsion_phi0(i) = cp_unit_to_cp2k(amb_info%raw_torsion_phi0(i), "rad")
+         amb_info%raw_torsion_k(i) = cp_unit_to_cp2k(amb_info%raw_torsion_k(i), "kcalmol")
+      END DO
+
       !-----------------------------------------------------------------------------
       ! 4. Converts all the Nonbonded info from the param file here
       !-----------------------------------------------------------------------------

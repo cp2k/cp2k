@@ -556,12 +556,24 @@ CONTAINS
             CASE ("DIHEDRAL_FORCE_CONSTANT")
                IF (.NOT. do_forcefield) CYCLE
                CALL rd_amber_section(parser, section, pk, nptra)
+               IF (nptra <= 0) CYCLE
+               ! Save raw values
+               IF (ASSOCIATED(amb_info%raw_torsion_k)) DEALLOCATE (amb_info%raw_torsion_k)
+               ALLOCATE (amb_info%raw_torsion_k(nptra), source=pk)
             CASE ("DIHEDRAL_PERIODICITY")
                IF (.NOT. do_forcefield) CYCLE
                CALL rd_amber_section(parser, section, pn, nptra)
+               IF (nptra <= 0) CYCLE
+               ! Save raw values
+               IF (ASSOCIATED(amb_info%raw_torsion_m)) DEALLOCATE (amb_info%raw_torsion_m)
+               ALLOCATE (amb_info%raw_torsion_m(nptra), source=pn)
             CASE ("DIHEDRAL_PHASE")
                IF (.NOT. do_forcefield) CYCLE
                CALL rd_amber_section(parser, section, phase, nptra)
+               IF (nptra <= 0) CYCLE
+               ! Save raw values
+               IF (ASSOCIATED(amb_info%raw_torsion_phi0)) DEALLOCATE (amb_info%raw_torsion_phi0)
+               ALLOCATE (amb_info%raw_torsion_phi0(nptra), source=phase)
             CASE ("LENNARD_JONES_ACOEF")
                IF (.NOT. do_forcefield) CYCLE
                CALL rd_amber_section(parser, section, cn1, ntypes*(ntypes + 1)/2)
@@ -620,6 +632,25 @@ CONTAINS
                ! Just Ignore other sections...
             END SELECT
          END DO
+         ! Save raw torsion info: atom indices and dihedral index
+         IF (do_forcefield .AND. (nphih + nphia > 0)) THEN
+            IF (ASSOCIATED(amb_info%raw_torsion_id)) DEALLOCATE (amb_info%raw_torsion_id)
+            ALLOCATE (amb_info%raw_torsion_id(5, nphih + nphia))
+            DO i = 1, nphih
+               amb_info%raw_torsion_id(1, i) = iph(i)
+               amb_info%raw_torsion_id(2, i) = jph(i)
+               amb_info%raw_torsion_id(3, i) = kph(i)
+               amb_info%raw_torsion_id(4, i) = lph(i)
+               amb_info%raw_torsion_id(5, i) = icph(i)
+            END DO
+            DO i = 1, nphia
+               amb_info%raw_torsion_id(1, nphih + i) = ip(i)
+               amb_info%raw_torsion_id(2, nphih + i) = jp(i)
+               amb_info%raw_torsion_id(3, nphih + i) = kp(i)
+               amb_info%raw_torsion_id(4, nphih + i) = lp(i)
+               amb_info%raw_torsion_id(5, nphih + i) = icp(i)
+            END DO
+         END IF
       END IF
 
       ! Extracts connectivity info from the AMBER topology file
@@ -831,6 +862,7 @@ CONTAINS
          ! Force Fields informations related to torsions
          ! in amb_info%phi0 we store PHI0
          ! ----------------------------------------------------------
+
          CALL reallocate(amb_info%torsion_a, 1, buffer_size)
          CALL reallocate(amb_info%torsion_b, 1, buffer_size)
          CALL reallocate(amb_info%torsion_c, 1, buffer_size)
@@ -857,6 +889,13 @@ CONTAINS
          CALL reallocate(amb_info%torsion_k, 1, nsize)
          CALL reallocate(amb_info%torsion_m, 1, nsize)
          CALL reallocate(amb_info%torsion_phi0, 1, nsize)
+
+         ! Sort dihedral metadata for faster lookup
+         IF (nphih + nphia /= 0) THEN
+            ALLOCATE (iwork(nphih + nphia))
+            CALL sort(amb_info%raw_torsion_id, 1, nphih + nphia, 1, 5, iwork)
+            DEALLOCATE (iwork)
+         END IF
 
          ! ----------------------------------------------------------
          ! Post process of LJ parameters
@@ -1585,7 +1624,7 @@ CONTAINS
          label_b(iphi) = work_label(2, 1)
          label_c(iphi) = work_label(3, 1)
          label_d(iphi) = work_label(4, 1)
-         k(iphi) = pk(icp(iwork(1)))*0.5_dp
+         k(iphi) = pk(icp(iwork(1)))
          m(iphi) = NINT(pn(icp(iwork(1))))
          IF (m(iphi) - pn(icp(iwork(1))) .GT. EPSILON(1.0_dp)) THEN
             ! non integer torsions not supported
@@ -1619,7 +1658,7 @@ CONTAINS
                label_b(iphi) = work_label(2, i)
                label_c(iphi) = work_label(3, i)
                label_d(iphi) = work_label(4, i)
-               k(iphi) = pk(icp(iwork(i)))*0.5_dp
+               k(iphi) = pk(icp(iwork(i)))
                m(iphi) = NINT(pn(icp(iwork(i))))
                IF (m(iphi) - pn(icp(iwork(i))) .GT. EPSILON(1.0_dp)) THEN
                   ! non integer torsions not supported
