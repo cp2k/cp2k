@@ -198,11 +198,11 @@ CONTAINS
 
       DEALLOCATE (basis_set_ao, basis_set_ri_aux)
 
-      pdims = [0, 0, 0]
-      CALL mp_dims_create(para_env%num_pe, pdims)
+      pdims_2d = 0
+      CALL mp_dims_create(para_env%num_pe, pdims_2d)
 
       ! we iterate over MO blocks for saving memory during contraction, thus we should not parallelize over MO dimension
-      pdims = [pdims(1), pdims(2)*pdims(3), 1]
+      pdims = [pdims_2d(1), pdims_2d(2), 1]
       CALL dbcsr_t_pgrid_create(para_env%group, pdims, pgrid_MO, &
                                 tensor_dims=[SIZE(sizes_RI_split), SIZE(sizes_AO_split), 1])
 
