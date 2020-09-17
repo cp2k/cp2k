@@ -58,6 +58,8 @@ MODULE mp2_gpw
                                               get_group_dist,&
                                               group_dist_d1_type,&
                                               release_group_dist
+   USE hfx_types,                       ONLY: block_ind_type,&
+                                              hfx_compression_type
    USE input_constants,                 ONLY: &
         do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
         do_potential_long, do_potential_truncated, eri_default, mp2_method_gpw, ri_default, &
@@ -163,6 +165,7 @@ CONTAINS
                                                             BIb_C_bse_ij, BIb_C_gw, BIb_C_gw_beta
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, mo_eigenvalues_beta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(block_ind_type), ALLOCATABLE, DIMENSION(:, :) :: t_3c_O_ind
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub, blacs_env_sub_mat_munu
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
@@ -180,6 +183,8 @@ CONTAINS
       TYPE(group_dist_d1_type)                           :: gd_array, gd_B_all, gd_B_occ_bse, &
                                                             gd_B_virt_bse, gd_B_virtual, &
                                                             gd_B_virtual_beta
+      TYPE(hfx_compression_type), ALLOCATABLE, &
+         DIMENSION(:, :)                                 :: t_3c_O_compressed
       TYPE(kpoint_type), POINTER                         :: kpoints, kpoints_from_DFT
       TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -400,7 +405,7 @@ CONTAINS
                do_bse, gd_B_all, starts_array_mc, ends_array_mc, starts_array_mc_block, ends_array_mc_block, &
                gw_corr_lev_occ, gw_corr_lev_virt, &
                do_im_time, do_kpoints_cubic_RPA, kpoints, &
-               t_3c_M, t_3c_O, &
+               t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                mp2_env%ri_metric, &
                gd_B_occ_bse, gd_B_virt_bse, &
                BIb_C_beta, BIb_C_gw_beta, gd_B_virtual_beta, &
@@ -420,7 +425,7 @@ CONTAINS
                                        starts_array_mc_block, ends_array_mc_block, &
                                        gw_corr_lev_occ, gw_corr_lev_virt, &
                                        do_im_time, do_kpoints_cubic_RPA, kpoints, &
-                                       t_3c_M, t_3c_O, &
+                                       t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                                        mp2_env%ri_metric, gd_B_occ_bse, gd_B_virt_bse)
 
          END IF
@@ -547,7 +552,7 @@ CONTAINS
                                    unit_nr, my_do_ri_sos_laplace_mp2, my_do_gw, do_im_time, do_bse, matrix_s, &
                                    mat_munu, &
                                    mat_P_global, &
-                                   t_3c_M, t_3c_O, &
+                                   t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                                    starts_array_mc, ends_array_mc, &
                                    starts_array_mc_block, ends_array_mc_block, &
                                    BIb_C_beta, homo_beta, Eigenval_beta, &
@@ -567,7 +572,7 @@ CONTAINS
                                    unit_nr, my_do_ri_sos_laplace_mp2, my_do_gw, do_im_time, do_bse, matrix_s, &
                                    mat_munu, &
                                    mat_P_global, &
-                                   t_3c_M, t_3c_O, &
+                                   t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                                    starts_array_mc, ends_array_mc, &
                                    starts_array_mc_block, ends_array_mc_block)
 

@@ -42,12 +42,16 @@ MODULE mp2_integrals
    USE dbcsr_tensor_api,                ONLY: &
         dbcsr_t_clear, dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_create, dbcsr_t_destroy, &
         dbcsr_t_distribution_destroy, dbcsr_t_distribution_new, dbcsr_t_distribution_type, &
-        dbcsr_t_filter, dbcsr_t_get_block, dbcsr_t_get_stored_coordinates, &
+        dbcsr_t_filter, dbcsr_t_get_block, dbcsr_t_get_num_blocks, dbcsr_t_get_stored_coordinates, &
         dbcsr_t_mp_environ_pgrid, dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, &
-        dbcsr_t_put_block, dbcsr_t_reserve_blocks, dbcsr_t_split_blocks, dbcsr_t_type
+        dbcsr_t_put_block, dbcsr_t_reserve_blocks, dbcsr_t_reserved_block_indices, &
+        dbcsr_t_split_blocks, dbcsr_t_type
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
                                               group_dist_d1_type
+   USE hfx_types,                       ONLY: alloc_containers,&
+                                              block_ind_type,&
+                                              hfx_compression_type
    USE input_constants,                 ONLY: do_eri_gpw,&
                                               do_eri_mme,&
                                               do_eri_os,&
@@ -85,6 +89,7 @@ MODULE mp2_integrals
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_tensors,                      ONLY: build_3c_integrals,&
                                               build_3c_neighbor_lists,&
+                                              compress_tensor,&
                                               neighbor_list_3c_destroy
    USE qs_tensors_types,                ONLY: create_3c_tensor,&
                                               create_tensor_batches,&
@@ -156,6 +161,8 @@ CONTAINS
 !> \param kpoints ...
 !> \param t_3c_M ...
 !> \param t_3c_O ...
+!> \param t_3c_O_compressed ...
+!> \param t_3c_O_ind ...
 !> \param ri_metric ...
 !> \param gd_B_occ_bse ...
 !> \param gd_B_virt_bse ...
@@ -181,7 +188,7 @@ CONTAINS
                                     starts_array_mc_block, ends_array_mc_block, &
                                     gw_corr_lev_occ, gw_corr_lev_virt, &
                                     do_im_time, do_kpoints_cubic_RPA, kpoints, &
-                                    t_3c_M, t_3c_O, &
+                                    t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                                     ri_metric, gd_B_occ_bse, gd_B_virt_bse, BIb_C_beta, BIb_C_gw_beta, &
                                     gd_B_virtual_beta, homo_beta, mo_coeff_o_beta, mo_coeff_v_beta, &
                                     mo_coeff_all_beta, mo_coeff_gw_beta)
@@ -222,6 +229,9 @@ CONTAINS
       TYPE(dbcsr_t_type), INTENT(OUT)                    :: t_3c_M
       TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: t_3c_O
+      TYPE(hfx_compression_type), ALLOCATABLE, &
+         DIMENSION(:, :), INTENT(INOUT)                  :: t_3c_O_compressed
+      TYPE(block_ind_type), ALLOCATABLE, DIMENSION(:, :) :: t_3c_O_ind
       TYPE(libint_potential_type), INTENT(IN)            :: ri_metric
       TYPE(group_dist_d1_type), INTENT(OUT)              :: gd_B_occ_bse, gd_B_virt_bse
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
@@ -851,6 +861,8 @@ CONTAINS
          CALL dbcsr_t_pgrid_destroy(pgrid_t3c_M)
 
          ALLOCATE (t_3c_O(SIZE(t_3c_overl_int, 1), SIZE(t_3c_overl_int, 2)))
+         ALLOCATE (t_3c_O_compressed(SIZE(t_3c_overl_int, 1), SIZE(t_3c_overl_int, 2)))
+         ALLOCATE (t_3c_O_ind(SIZE(t_3c_overl_int, 1), SIZE(t_3c_overl_int, 2)))
          CALL create_3c_tensor(t_3c_O(1, 1), dist_RI, dist_AO_1, dist_AO_2, pgrid_t3c_overl, &
                                sizes_RI_split, sizes_AO_split, sizes_AO_split, &
                                map1=[1, 2], map2=[3], &
@@ -917,6 +929,17 @@ CONTAINS
                CALL dbcsr_t_filter(t_3c_O(kcell, jcell), qs_env%mp2_env%ri_rpa_im_time%eps_filter)
             ENDDO
          ENDDO
+
+         DO i = 1, SIZE(t_3c_overl_int, 1)
+            DO j = 1, SIZE(t_3c_overl_int, 2)
+
+               ALLOCATE (t_3c_O_ind(i, j)%ind(dbcsr_t_get_num_blocks(t_3c_O(i, j)), 3))
+               CALL dbcsr_t_reserved_block_indices(t_3c_O(i, j), t_3c_O_ind(i, j)%ind)
+               CALL alloc_containers(t_3c_O_compressed(i, j), 1)
+               CALL compress_tensor(t_3c_O(i, j), t_3c_O_compressed(i, j), qs_env%mp2_env%ri_rpa_im_time%eps_compress)
+            ENDDO
+         ENDDO
+
          CALL dbcsr_t_destroy(t_3c_tmp)
 
          CALL timestop(handle4)
