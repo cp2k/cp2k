@@ -23,6 +23,7 @@ MODULE mp2_setup
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
+   USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: erfc_cutoff
    USE mp2_types,                       ONLY: mp2_method_direct,&
                                               mp2_method_gpw,&
@@ -188,6 +189,9 @@ CONTAINS
       CALL section_vals_val_get(low_scaling_section, "MEMORY_CUT", i_val=mp2_env%ri_rpa_im_time%cut_memory)
       CALL section_vals_val_get(low_scaling_section, "MEMORY_INFO", l_val=mp2_env%ri_rpa_im_time%memory_info)
       CALL section_vals_val_get(low_scaling_section, "EPS_FILTER", r_val=mp2_env%ri_rpa_im_time%eps_filter)
+      CALL section_vals_val_get(low_scaling_section, "EPS_STORAGE_SCALING", r_val=mp2_env%ri_rpa_im_time%eps_compress)
+      mp2_env%ri_rpa_im_time%eps_compress = mp2_env%ri_rpa_im_time%eps_compress*mp2_env%ri_rpa_im_time%eps_filter
+      mp2_env%ri_rpa_im_time%eps_compress = MAX(mp2_env%ri_rpa_im_time%eps_compress, 1.0E-16_dp)
       CALL section_vals_val_get(low_scaling_section, "EPS_FILTER_FACTOR", r_val=mp2_env%ri_rpa_im_time%eps_filter_factor)
 
       CALL section_vals_val_get(low_scaling_section, "DO_KPOINTS", &

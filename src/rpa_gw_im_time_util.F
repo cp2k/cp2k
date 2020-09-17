@@ -33,8 +33,11 @@ MODULE rpa_gw_im_time_util
         dbcsr_scalar, dbcsr_set_diag, dbcsr_type, dbcsr_type_no_symmetry
    USE dbcsr_tensor_api,                ONLY: &
         dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_copy_matrix_to_tensor, dbcsr_t_create, &
-        dbcsr_t_default_distvec, dbcsr_t_destroy, dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, &
-        dbcsr_t_pgrid_type, dbcsr_t_type
+        dbcsr_t_default_distvec, dbcsr_t_destroy, dbcsr_t_get_num_blocks, dbcsr_t_pgrid_create, &
+        dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, dbcsr_t_reserved_block_indices, dbcsr_t_type
+   USE hfx_types,                       ONLY: alloc_containers,&
+                                              block_ind_type,&
+                                              hfx_compression_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_alltoall,&
                                               mp_dims_create,&
@@ -46,6 +49,8 @@ MODULE rpa_gw_im_time_util
                                               qs_environment_type
    USE qs_integral_utils,               ONLY: basis_set_list_setup
    USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_tensors,                      ONLY: compress_tensor,&
+                                              decompress_tensor
    USE qs_tensors_types,                ONLY: create_2c_tensor,&
                                               create_3c_tensor,&
                                               pgf_block_sizes,&
@@ -65,6 +70,11 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param t_3c_overl_int ...
+!> \param t_3c_O_compressed ...
+!> \param t_3c_O_ind ...
+!> \param t_3c_overl_int_ao_mo ...
+!> \param t_3c_O_mo_compressed ...
+!> \param t_3c_O_mo_ind ...
 !> \param t_3c_overl_int_gw_RI ...
 !> \param t_3c_overl_int_gw_AO ...
 !> \param mo_coeff ...
@@ -81,7 +91,8 @@ CONTAINS
 !> \param unit_nr ...
 !> \param do_beta ...
 ! **************************************************************************************************
-   SUBROUTINE get_tensor_3c_overl_int_gw(t_3c_overl_int, &
+   SUBROUTINE get_tensor_3c_overl_int_gw(t_3c_overl_int, t_3c_O_compressed, t_3c_O_ind, &
+                                         t_3c_overl_int_ao_mo, t_3c_O_mo_compressed, t_3c_O_mo_ind, &
                                          t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
                                          mo_coeff, matrix_s, &
                                          gw_corr_lev_occ, gw_corr_lev_virt, homo, nmo, &
@@ -91,6 +102,11 @@ CONTAINS
                                          qs_env, unit_nr, do_beta)
 
       TYPE(dbcsr_t_type), DIMENSION(:, :)                :: t_3c_overl_int
+      TYPE(hfx_compression_type), DIMENSION(:, :)        :: t_3c_O_compressed
+      TYPE(block_ind_type), DIMENSION(:, :)              :: t_3c_O_ind
+      TYPE(dbcsr_t_type)                                 :: t_3c_overl_int_ao_mo
+      TYPE(hfx_compression_type)                         :: t_3c_O_mo_compressed
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: t_3c_O_mo_ind
       TYPE(dbcsr_t_type)                                 :: t_3c_overl_int_gw_RI, &
                                                             t_3c_overl_int_gw_AO
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
@@ -123,8 +139,10 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: fm_mat_mo_coeff_gw
       TYPE(dbcsr_distribution_type)                      :: dist, dist_templ
       TYPE(dbcsr_t_pgrid_type)                           :: pgrid_2d, pgrid_AO, pgrid_ic, pgrid_MO
-      TYPE(dbcsr_t_type) :: mo_coeff_gw_t, mo_coeff_gw_t_tmp, t_3c_overl_int_ao_ao, &
-         t_3c_overl_int_ao_mo, t_3c_overl_int_mo_ao, t_3c_overl_int_mo_mo
+      TYPE(dbcsr_t_type)                                 :: mo_coeff_gw_t, mo_coeff_gw_t_tmp, &
+                                                            t_3c_overl_int_ao_ao, &
+                                                            t_3c_overl_int_mo_ao, &
+                                                            t_3c_overl_int_mo_mo
       TYPE(dbcsr_type)                                   :: mat_mo_coeff_gw_reflected_norm, &
                                                             mat_norm, mat_norm_diag, mat_work
       TYPE(dbcsr_type), POINTER                          :: mat_mo_coeff_gw, &
@@ -218,7 +236,10 @@ CONTAINS
       CALL create_3c_tensor(t_3c_overl_int_ao_ao, dist1, dist2, dist3, pgrid_AO, &
                             sizes_RI_split, sizes_AO_split, sizes_AO_split, [1, 2], [3], name="(RI AO | AO)")
       DEALLOCATE (dist1, dist2, dist3)
-      CALL dbcsr_t_copy(t_3c_overl_int(1, 1), t_3c_overl_int_ao_ao)
+      CALL decompress_tensor(t_3c_overl_int(1, 1), t_3c_O_ind(1, 1)%ind, t_3c_O_compressed(1, 1), &
+                             qs_env%mp2_env%ri_rpa_im_time%eps_compress)
+
+      CALL dbcsr_t_copy(t_3c_overl_int(1, 1), t_3c_overl_int_ao_ao, move_data=.TRUE.)
       CALL create_3c_tensor(t_3c_overl_int_ao_mo, dist1, dist2, dist3, pgrid_AO, &
                             sizes_RI_split, sizes_AO_split, sizes_MO_1, [1, 2], [3], name="(RI AO | MO)")
       DEALLOCATE (dist1, dist2, dist3)
@@ -250,9 +271,6 @@ CONTAINS
                             t_3c_overl_int_ao_mo, contract_1=[1], notcontract_1=[2], &
                             contract_2=[3], notcontract_2=[1, 2], map_1=[3], map_2=[1, 2], &
                             bounds_2=bounds, move_data=.FALSE., unit_nr=unit_nr_prv)
-
-      CALL dbcsr_t_copy(t_3c_overl_int_ao_mo, t_3c_overl_int_gw_RI)
-      CALL dbcsr_t_copy(t_3c_overl_int_ao_mo, t_3c_overl_int_gw_AO, order=[2, 1, 3])
 
       CALL cp_fm_release(fm_mat_mo_coeff_gw)
 
@@ -360,12 +378,16 @@ CONTAINS
 
       ENDIF
 
+      CALL alloc_containers(t_3c_O_mo_compressed, 1)
+      ALLOCATE (t_3c_O_mo_ind(dbcsr_t_get_num_blocks(t_3c_overl_int_ao_mo), 3))
+      CALL dbcsr_t_reserved_block_indices(t_3c_overl_int_ao_mo, t_3c_O_mo_ind)
+      CALL compress_tensor(t_3c_overl_int_ao_mo, t_3c_O_mo_compressed, qs_env%mp2_env%ri_rpa_im_time%eps_compress)
+
       CALL dbcsr_release_p(mat_mo_coeff_gw)
 
       CALL dbcsr_t_destroy(t_3c_overl_int_ao_ao)
       CALL dbcsr_t_destroy(mo_coeff_gw_t)
       CALL dbcsr_t_destroy(mo_coeff_gw_t_tmp)
-      CALL dbcsr_t_destroy(t_3c_overl_int_ao_mo)
 
       CALL timestop(handle)
 

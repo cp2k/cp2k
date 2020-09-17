@@ -1096,6 +1096,16 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, &
+         name="EPS_STORAGE_SCALING", &
+         variants=(/"EPS_STORAGE"/), &
+         description="Scaling factor to scale EPS_FILTER. Storage threshold for compression "// &
+         "will be EPS_FILTER*EPS_STORAGE_SCALING.", &
+         default_r_val=1.0E-3_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
          name="DO_KPOINTS", &
          description="Besides in DFT, this keyword has to be switched on if one wants to do kpoints in. "// &
          "cubic RPA.", &

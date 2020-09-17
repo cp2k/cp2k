@@ -52,6 +52,9 @@ MODULE rpa_util
                                               dbcsr_type
    USE dbcsr_tensor_api,                ONLY: dbcsr_t_destroy,&
                                               dbcsr_t_type
+   USE hfx_types,                       ONLY: block_ind_type,&
+                                              dealloc_containers,&
+                                              hfx_compression_type
    USE input_constants,                 ONLY: wfc_mm_style_gemm,&
                                               wfc_mm_style_syrk
    USE kinds,                           ONLY: dp,&
@@ -1054,6 +1057,8 @@ CONTAINS
 !> \param mat_P_omega_kp ...
 !> \param t_3c_M ...
 !> \param t_3c_O ...
+!> \param t_3c_O_compressed ...
+!> \param t_3c_O_ind ...
 !> \param mat_work ...
 !> \param fm_mo_coeff_occ_beta ...
 !> \param fm_mo_coeff_virt_beta ...
@@ -1067,7 +1072,7 @@ CONTAINS
                               wkp_W, cfm_mat_Q, fm_mat_L, fm_mat_RI_global_work, fm_mat_work, &
                               fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, mat_dm, mat_L, &
                               mat_SinvVSinv, mat_P_omega, mat_P_omega_kp, &
-                              t_3c_M, t_3c_O, &
+                              t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                               mat_work, &
                               fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, mat_P_omega_beta)
 
@@ -1094,6 +1099,10 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega, mat_P_omega_kp
       TYPE(dbcsr_t_type)                                 :: t_3c_M
       TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_O
+      TYPE(hfx_compression_type), ALLOCATABLE, &
+         DIMENSION(:, :), INTENT(INOUT)                  :: t_3c_O_compressed
+      TYPE(block_ind_type), ALLOCATABLE, &
+         DIMENSION(:, :), INTENT(INOUT)                  :: t_3c_O_ind
       TYPE(dbcsr_type), POINTER                          :: mat_work
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_mo_coeff_occ_beta, &
                                                             fm_mo_coeff_virt_beta
@@ -1102,7 +1111,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dealloc_im_time'
 
-      INTEGER                                            :: handle, i_size, j_size
+      INTEGER                                            :: handle, i_size, j_size, unused
       LOGICAL                                            :: my_open_shell
 
       CALL timeset(routineN, handle)
@@ -1176,6 +1185,14 @@ CONTAINS
          CALL dbcsr_deallocate_matrix_set(mat_P_omega_kp)
          DEALLOCATE (wkp_W)
       END IF
+
+      DEALLOCATE (t_3c_O_ind)
+      DO i_size = 1, SIZE(t_3c_O_compressed, 1)
+         DO j_size = 1, SIZE(t_3c_O_compressed, 2)
+            CALL dealloc_containers(t_3c_O_compressed(i_size, j_size), unused)
+         ENDDO
+      ENDDO
+      DEALLOCATE (t_3c_O_compressed)
 
       CALL timestop(handle)
 

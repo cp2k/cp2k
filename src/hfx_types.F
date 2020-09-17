@@ -109,7 +109,7 @@ MODULE hfx_types
              hfx_pgf_product_list, hfx_block_range_type, &
              alloc_containers, dealloc_containers, hfx_task_list_type, init_t_c_g0_lmax, &
              hfx_create_neighbor_cells, hfx_create_basis_types, hfx_release_basis_types, &
-             hfx_ri_type, hfx_compression_type
+             hfx_ri_type, hfx_compression_type, block_ind_type
 
 #define CACHE_SIZE 1024
 #define BITS_MAX_VAL 6

@@ -38,6 +38,8 @@ MODULE rpa_im_time
         dbcsr_t_copy, dbcsr_t_copy_matrix_to_tensor, dbcsr_t_copy_tensor_to_matrix, &
         dbcsr_t_create, dbcsr_t_destroy, dbcsr_t_filter, dbcsr_t_get_info, dbcsr_t_nblks_total, &
         dbcsr_t_nd_mp_comm, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, dbcsr_t_type
+   USE hfx_types,                       ONLY: block_ind_type,&
+                                              hfx_compression_type
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -53,7 +55,8 @@ MODULE rpa_im_time
                                               mo_set_p_type,&
                                               mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE qs_tensors,                      ONLY: get_tensor_occupancy
+   USE qs_tensors,                      ONLY: decompress_tensor,&
+                                              get_tensor_occupancy
    USE qs_tensors_types,                ONLY: create_2c_tensor
 #include "./base/base_uses.f90"
 
@@ -84,6 +87,8 @@ CONTAINS
 !> \param ispin ...
 !> \param t_3c_M ...
 !> \param t_3c_O ...
+!> \param t_3c_O_compressed ...
+!> \param t_3c_O_ind ...
 !> \param starts_array_mc ...
 !> \param ends_array_mc ...
 !> \param starts_array_mc_block ...
@@ -116,7 +121,7 @@ CONTAINS
                                   mat_P_global, &
                                   matrix_s, &
                                   ispin, &
-                                  t_3c_M, t_3c_O, &
+                                  t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                                   starts_array_mc, ends_array_mc, &
                                   starts_array_mc_block, ends_array_mc_block, &
                                   weights_cos_tf_t_to_w, &
@@ -135,6 +140,10 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(dbcsr_t_type), INTENT(INOUT)                  :: t_3c_M
       TYPE(dbcsr_t_type), DIMENSION(:, :), INTENT(INOUT) :: t_3c_O
+      TYPE(hfx_compression_type), DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: t_3c_O_compressed
+      TYPE(block_ind_type), DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: t_3c_O_ind
       INTEGER, DIMENSION(:), INTENT(IN)                  :: starts_array_mc, ends_array_mc, &
                                                             starts_array_mc_block, &
                                                             ends_array_mc_block
@@ -207,11 +216,12 @@ CONTAINS
       first_cycle_im_time = .TRUE.
       DO i = 1, SIZE(t_3c_O, 1)
          DO j = 1, SIZE(t_3c_O, 2)
+            CALL decompress_tensor(t_3c_O(i, j), t_3c_O_ind(i, j)%ind, t_3c_O_compressed(i, j), &
+                                   qs_env%mp2_env%ri_rpa_im_time%eps_compress)
             CALL dbcsr_t_create(t_3c_O(i, j), t_3c_O_occ(i, j))
             CALL dbcsr_t_copy(t_3c_O(i, j), t_3c_O_occ(i, j))
             CALL dbcsr_t_create(t_3c_O(i, j), t_3c_O_virt(i, j))
-            CALL dbcsr_t_copy(t_3c_O(i, j), t_3c_O_virt(i, j))
-            !CALL dbcsr_t_clear(t_3c_O(i, j)) ! clearing t_3c_O is not safe because it may be used later
+            CALL dbcsr_t_copy(t_3c_O(i, j), t_3c_O_virt(i, j), move_data=.TRUE.)
          ENDDO
       ENDDO
 
