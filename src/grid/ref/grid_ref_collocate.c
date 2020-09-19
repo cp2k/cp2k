@@ -336,6 +336,11 @@ general_ci_to_grid(const int lp, const int j, const int jg, const int k,
   const int ismin = ceil((-b - sqrt_d) / (2.0 * a));
   const int ismax = floor((-b + sqrt_d) / (2.0 * a));
 
+  const double exp_ab = exp(-zetp * (a + b));
+  const double exp_2a = exp(-zetp * 2.0 * a);
+  double exp_2ai = exp(-zetp * 2.0 * a * ismin);
+  double res = exp(-zetp * ((a * ismin + b) * ismin + c));
+
   for (int i = ismin; i <= ismax; i++) {
     const int ig = map_i[i - index_min[0]];
     if (ig < bounds_i[0] || bounds_i[1] < ig) {
@@ -346,16 +351,17 @@ general_ci_to_grid(const int lp, const int j, const int jg, const int k,
     const int grid_index =
         kg * stride + jg * npts_local[0] + ig; // [kg, jg, ig]
 
-    // Could be done with a recursion, but would obfuscate code a lot.
-    const double res = exp(-zetp * ((a * i + b) * i + c));
-
     // polynomial terms
-    double dip = res;
+    double dip = res; // exp(-zetp * ((a * i + b) * i + c));
     const double di = i - gp[0];
     for (int il = 0; il <= lp; il++) {
       grid[grid_index] += ci[il] * dip;
       dip *= di;
     }
+
+    // update exponential term
+    res *= exp_2ai * exp_ab;
+    exp_2ai *= exp_2a;
   }
 }
 
