@@ -65,12 +65,13 @@ int main(int argc, char *argv[]) {
   errors += run_test(argv[1], "collocate_ortho_density_l2200.task");
   errors += run_test(argv[1], "collocate_ortho_density_l3300.task");
   errors += run_test(argv[1], "collocate_ortho_density_l3333.task");
+  errors += run_test(argv[1], "collocate_ortho_non_periodic.task");
   errors += run_test(argv[1], "collocate_ortho_tau.task");
   errors += run_test(argv[1], "collocate_general_density.task");
   errors += run_test(argv[1], "collocate_general_tau.task");
   errors += run_test(argv[1], "collocate_general_subpatch0.task");
   errors += run_test(argv[1], "collocate_general_subpatch16.task");
-  errors += run_test(argv[1], "collocate_ortho_non_periodic.task");
+  errors += run_test(argv[1], "collocate_general_overflow.task");
 
   grid_library_print_stats(&mpi_sum_func, 0, &print_func, 0);
   grid_library_finalize();

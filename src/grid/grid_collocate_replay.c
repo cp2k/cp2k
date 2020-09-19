@@ -8,6 +8,7 @@
 #define _XOPEN_SOURCE 700 /* Enable POSIX 2008/13 */
 
 #include <assert.h>
+#include <fenv.h>
 #include <float.h>
 #include <limits.h>
 #include <math.h>
@@ -452,6 +453,20 @@ double grid_collocate_replay(const char *filename, const int cycles,
 
   free(grid_ref);
   free(grid_test);
+
+  // Check floating point exceptions.
+  if (fetestexcept(FE_INVALID) != 0) {
+    fprintf(stderr, "Error: Floating point exception FE_INVALID.\n");
+    exit(1);
+  }
+  if (fetestexcept(FE_DIVBYZERO) != 0) {
+    fprintf(stderr, "Error: Floating point exception FE_DIVBYZERO.\n");
+    exit(1);
+  }
+  if (fetestexcept(FE_OVERFLOW) != 0) {
+    fprintf(stderr, "Error: Floating point exception FE_OVERFLOW.\n");
+    exit(1);
+  }
 
   return max_diff;
 }
