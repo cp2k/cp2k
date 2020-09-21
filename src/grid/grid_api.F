@@ -381,6 +381,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), TARGET :: sphi, zet
       TYPE(grid_basis_set_type), INTENT(INOUT)           :: basis_set
 
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'grid_create_basis_set'
+
+      INTEGER                                            :: handle
       INTEGER, DIMENSION(nset), TARGET                   :: my_first_sgf
       TYPE(C_PTR)                                        :: first_sgf_c, lmax_c, lmin_c, npgf_c, &
                                                             nsgf_set_c, sphi_c, zet_c
@@ -404,6 +407,8 @@ CONTAINS
             TYPE(C_PTR)                               :: basis_set
          END SUBROUTINE grid_create_basis_set_c
       END INTERFACE
+
+      CALL timeset(routineN, handle)
 
       CPASSERT(SIZE(lmin) == nset)
       CPASSERT(SIZE(lmin) == nset)
@@ -465,6 +470,7 @@ CONTAINS
                                    basis_set=basis_set%c_ptr)
       CPASSERT(C_ASSOCIATED(basis_set%c_ptr))
 
+      CALL timestop(handle)
    END SUBROUTINE grid_create_basis_set
 
 ! **************************************************************************************************
@@ -475,6 +481,9 @@ CONTAINS
    SUBROUTINE grid_free_basis_set(basis_set)
       TYPE(grid_basis_set_type), INTENT(INOUT)           :: basis_set
 
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'grid_free_basis_set'
+
+      INTEGER                                            :: handle
       INTERFACE
          SUBROUTINE grid_free_basis_set_c(basis_set) &
             BIND(C, name="grid_free_basis_set")
@@ -483,12 +492,15 @@ CONTAINS
          END SUBROUTINE grid_free_basis_set_c
       END INTERFACE
 
+      CALL timeset(routineN, handle)
+
       CPASSERT(C_ASSOCIATED(basis_set%c_ptr))
 
       CALL grid_free_basis_set_c(basis_set%c_ptr)
 
       basis_set%c_ptr = C_NULL_PTR
 
+      CALL timestop(handle)
    END SUBROUTINE grid_free_basis_set
 
 ! **************************************************************************************************
@@ -541,7 +553,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT), POINTER  :: blocks_buffer
       TYPE(grid_task_list_type), INTENT(INOUT)           :: task_list
 
-      INTEGER                                            :: ikind
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'grid_create_task_list'
+
+      INTEGER                                            :: handle, ikind
       TYPE(C_PTR)                                        :: blocks_buffer_c
       TYPE(C_PTR), ALLOCATABLE, DIMENSION(:), TARGET     :: basis_sets_c
       INTERFACE
@@ -578,6 +592,8 @@ CONTAINS
             TYPE(C_PTR)                               :: task_list
          END SUBROUTINE grid_create_task_list_c
       END INTERFACE
+
+      CALL timeset(routineN, handle)
 
       CPASSERT(SIZE(block_offsets) == nblocks)
       CPASSERT(SIZE(atom_positions, 1) == 3 .AND. SIZE(atom_positions, 2) == natoms)
@@ -657,6 +673,7 @@ CONTAINS
       CPASSERT(C_ASSOCIATED(task_list%c_ptr))
       CALL C_F_POINTER(blocks_buffer_c, blocks_buffer, shape=(/buffer_size/))
 
+      CALL timestop(handle)
    END SUBROUTINE grid_create_task_list
 
 ! **************************************************************************************************
@@ -667,6 +684,9 @@ CONTAINS
    SUBROUTINE grid_free_task_list(task_list)
       TYPE(grid_task_list_type), INTENT(INOUT)           :: task_list
 
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'grid_free_task_list'
+
+      INTEGER                                            :: handle
       INTERFACE
          SUBROUTINE grid_free_task_list_c(task_list) &
             BIND(C, name="grid_free_task_list")
@@ -675,12 +695,15 @@ CONTAINS
          END SUBROUTINE grid_free_task_list_c
       END INTERFACE
 
+      CALL timeset(routineN, handle)
+
       IF (C_ASSOCIATED(task_list%c_ptr)) THEN
          CALL grid_free_task_list_c(task_list%c_ptr)
       ENDIF
 
       task_list%c_ptr = C_NULL_PTR
 
+      CALL timestop(handle)
    END SUBROUTINE grid_free_task_list
 
 ! **************************************************************************************************
@@ -695,7 +718,9 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ga_gb_function
       TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_grids
 
-      INTEGER                                            :: ilevel, nlevels
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'grid_collocate_task_list'
+
+      INTEGER                                            :: handle, ilevel, nlevels
       INTEGER, ALLOCATABLE, DIMENSION(:, :), TARGET      :: border_width, npts_global, npts_local, &
                                                             shift_local
       LOGICAL(KIND=C_BOOL)                               :: orthorhombic
@@ -723,6 +748,8 @@ CONTAINS
             TYPE(C_PTR), VALUE                        :: grid
          END SUBROUTINE grid_collocate_task_list_c
       END INTERFACE
+
+      CALL timeset(routineN, handle)
 
       nlevels = SIZE(rs_grids)
       CPASSERT(nlevels > 0)
@@ -774,6 +801,7 @@ CONTAINS
                                       dh_inv=C_LOC(dh_inv(1, 1, 1)), &
                                       grid=C_LOC(grid_pointers(1)))
 
+      CALL timestop(handle)
    END SUBROUTINE grid_collocate_task_list
 
 ! **************************************************************************************************
