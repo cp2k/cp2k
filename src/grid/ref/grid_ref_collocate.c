@@ -18,6 +18,57 @@
 #include "grid_ref_prepare_pab.h"
 
 /*******************************************************************************
+ * \brief Collocates coefficients C_s onto the grid for orthorhombic case.
+ * \author Ole Schuett
+ ******************************************************************************/
+static inline void ortho_cs_to_grid(const int k, const int k2, const int j,
+                                    const int j2, const int i, const int i2,
+                                    const int npts_local[3], const double *cs,
+                                    double *grid) {
+
+  const int stride = npts_local[1] * npts_local[0];
+  const int grid_index_0 = k * stride + j * npts_local[0] + i;
+  const int grid_index_1 = k2 * stride + j * npts_local[0] + i;
+  const int grid_index_2 = k * stride + j2 * npts_local[0] + i;
+  const int grid_index_3 = k2 * stride + j2 * npts_local[0] + i;
+  const int grid_index_4 = k * stride + j * npts_local[0] + i2;
+  const int grid_index_5 = k2 * stride + j * npts_local[0] + i2;
+  const int grid_index_6 = k * stride + j2 * npts_local[0] + i2;
+  const int grid_index_7 = k2 * stride + j2 * npts_local[0] + i2;
+
+  grid[grid_index_0] += cs[0];
+  grid[grid_index_1] += cs[1];
+  grid[grid_index_2] += cs[2];
+  grid[grid_index_3] += cs[3];
+  grid[grid_index_4] += cs[4];
+  grid[grid_index_5] += cs[5];
+  grid[grid_index_6] += cs[6];
+  grid[grid_index_7] += cs[7];
+}
+
+/*******************************************************************************
+ * \brief Transforms coefficients C_x into C_s by fixing grid index i.
+ * \author Ole Schuett
+ ******************************************************************************/
+static inline void ortho_cx_to_cs(const int lp, const double pol_ig[lp + 1],
+                                  const double pol_ig2[lp + 1],
+                                  const double *cx, double *cs) {
+
+  for (int lxp = 0; lxp <= lp; lxp++) {
+    const double p1 = pol_ig[lxp];
+    const double p2 = pol_ig2[lxp];
+    cs[0] += cx[lxp * 4 + 0] * p1;
+    cs[1] += cx[lxp * 4 + 1] * p1;
+    cs[2] += cx[lxp * 4 + 2] * p1;
+    cs[3] += cx[lxp * 4 + 3] * p1;
+    cs[4] += cx[lxp * 4 + 0] * p2;
+    cs[5] += cx[lxp * 4 + 1] * p2;
+    cs[6] += cx[lxp * 4 + 2] * p2;
+    cs[7] += cx[lxp * 4 + 3] * p2;
+  }
+}
+
+/*******************************************************************************
  * \brief Collocates coefficients C_x onto the grid for orthorhombic case.
  * \author Ole Schuett
  ******************************************************************************/
@@ -40,28 +91,9 @@ ortho_cx_to_grid(const int lp, const int k, const int k2, const int jg,
     const int i = map[0][ig + cmax];
     const int i2 = map[0][ig2 + cmax];
 
-    const int stride = npts_local[1] * npts_local[0];
-    const int grid_index_1 = k * stride + j * npts_local[0] + i;
-    const int grid_index_2 = k2 * stride + j * npts_local[0] + i;
-    const int grid_index_3 = k * stride + j2 * npts_local[0] + i;
-    const int grid_index_4 = k2 * stride + j2 * npts_local[0] + i;
-    const int grid_index_5 = k * stride + j * npts_local[0] + i2;
-    const int grid_index_6 = k2 * stride + j * npts_local[0] + i2;
-    const int grid_index_7 = k * stride + j2 * npts_local[0] + i2;
-    const int grid_index_8 = k2 * stride + j2 * npts_local[0] + i2;
-
-    for (int lxp = 0; lxp <= lp; lxp++) {
-      const double p1 = pol[0][ig + cmax][lxp];
-      const double p2 = pol[0][ig2 + cmax][lxp];
-      grid[grid_index_1] += cx[lxp * 4 + 0] * p1;
-      grid[grid_index_2] += cx[lxp * 4 + 1] * p1;
-      grid[grid_index_3] += cx[lxp * 4 + 2] * p1;
-      grid[grid_index_4] += cx[lxp * 4 + 3] * p1;
-      grid[grid_index_5] += cx[lxp * 4 + 0] * p2;
-      grid[grid_index_6] += cx[lxp * 4 + 1] * p2;
-      grid[grid_index_7] += cx[lxp * 4 + 2] * p2;
-      grid[grid_index_8] += cx[lxp * 4 + 3] * p2;
-    }
+    double cs[8] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+    ortho_cx_to_cs(lp, pol[0][ig + cmax], pol[0][ig2 + cmax], cx, cs);
+    ortho_cs_to_grid(k, k2, j, j2, i, i2, npts_local, cs, grid);
   }
 }
 
