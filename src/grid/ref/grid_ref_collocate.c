@@ -229,13 +229,36 @@ ortho_cxyz_to_grid(const int lp, const double zetp, const double dh[3][3],
 
   // Precompute (x-xp)**lp*exp(..) for each direction.
   double pol_mutable[3][2 * cmax + 1][lp + 1];
-  for (int i = 0; i < 3; i++) {
-    for (int k = -cmax; k <= +cmax; k++) {
-      const double rpg = k * dh[i][i] - roffset[i];
-      double pow_l = exp(-zetp * rpg * rpg);
-      for (int l = 0; l <= lp; l++) {
-        pol_mutable[i][k + cmax][l] = pow_l; // exp(-zetp*rpg*rpg) * pow(rpg, l)
-        pow_l *= rpg;
+  for (int idir = 0; idir < 3; idir++) {
+    const double dr = dh[idir][idir];
+    const double ro = roffset[idir];
+    //  Reuse the result from the previous gridpoint to avoid to many exps:
+    //  exp( -a*(x+d)**2) = exp(-a*x**2)*exp(-2*a*x*d)*exp(-a*d**2)
+    //  exp(-2*a*(x+d)*d) = exp(-2*a*x*d)*exp(-2*a*d**2)
+    const double t_exp_1 = exp(-zetp * pow(dr, 2));
+    const double t_exp_2 = pow(t_exp_1, 2);
+    double t_exp_min_1 = exp(-zetp * pow(+dr - ro, 2));
+    double t_exp_min_2 = exp(-2 * zetp * (+dr - ro) * (-dr));
+    for (int ig = 0; ig >= lb_cube[idir]; ig--) {
+      const double rpg = ig * dr - ro;
+      t_exp_min_1 *= t_exp_min_2 * t_exp_1;
+      t_exp_min_2 *= t_exp_2;
+      double pg = t_exp_min_1;
+      for (int icoef = 0; icoef <= lp; icoef++) {
+        pol_mutable[idir][ig + cmax][icoef] = pg; // exp(-zetp*rpg**2)
+        pg *= rpg;
+      }
+    }
+    double t_exp_plus_1 = exp(-zetp * pow(-ro, 2));
+    double t_exp_plus_2 = exp(-2 * zetp * (-ro) * (+dr));
+    for (int ig = 0; ig >= lb_cube[idir]; ig--) {
+      const double rpg = (1 - ig) * dr - ro;
+      t_exp_plus_1 *= t_exp_plus_2 * t_exp_1;
+      t_exp_plus_2 *= t_exp_2;
+      double pg = t_exp_plus_1;
+      for (int icoef = 0; icoef <= lp; icoef++) {
+        pol_mutable[idir][1 - ig + cmax][icoef] = pg; // exp(-zetp*rpg**2)
+        pg *= rpg;
       }
     }
   }
