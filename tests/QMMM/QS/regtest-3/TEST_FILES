@@ -5,7 +5,7 @@
 #      for details see cp2k/tools/do_regtest
 # QM/MM links
 C4H10-qmmm-gauss-0.inp                                 1      4e-14            -27.99541166137045
-C4H10-qmmm-gauss-1.inp                                 1      2e-14            -27.99615935897715
+C4H10-qmmm-gauss-1.inp                                 1      5e-14            -27.99615935897715
 C4H10-qmmm-gauss-2.inp                                 7    1.0E-14            -14.5644203760
 C4H10-qmmm-gauss-3.inp                                 1      2e-13            -16.28646466174783
 C4H10-qmmm-gauss-4.inp                                 1      2e-13            -14.20640099562936

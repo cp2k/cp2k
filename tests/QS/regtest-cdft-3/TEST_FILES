@@ -14,8 +14,8 @@ HeH-mixed-cdft-3.inp                                  74      5e-10             
 # Coupling via Lowdin orthogonalization
 HeH-mixed-cdft-11.inp                                 76      5e-10               616.641603575543
 # These tests give identical values of energies/atomic forces
-HeH-mixed-cdft-4.inp                                  11      1e-13             -2.432588089626483
-HeH-mixed-cdft-5.inp                                  11      1e-13             -2.432588089626483
+HeH-mixed-cdft-4.inp                                  11      3e-13             -2.432588089626483
+HeH-mixed-cdft-5.inp                                  11      3e-13             -2.432588089626483
 # MD tests
 HeH-mixed-cdft-6.inp                                  11      2e-11             -2.438344396867783
 HeH-mixed-cdft-7.inp                                  11      2e-11             -2.438344396867765
@@ -25,11 +25,11 @@ HeH-mixed-cdft-12.inp                                 77      3e-12             
 # Electronic coupling and related
 HeH-mixed-cdft-8.inp                                  73      5e-10               509.054275709926
 # Energy/Force
-HeH-mixed-cdft-9.inp                                  11      2e-13             -2.432588089626460
+HeH-mixed-cdft-9.inp                                  11      3e-13             -2.432588089626460
 # MD
 HeH-mixed-cdft-10.inp                                 11      2e-12             -2.438344396867396
 # CDFT-CI
 HeH-mixed-cdft-13.inp                                 77      3e-12              -2.84548287253402
 # Calculation with 3 CDFT states (prints out a couple of warnings because the last two are identical)
-HeH-mixed-cdft-14.inp                                 11      2e-13             -2.432588089626441
+HeH-mixed-cdft-14.inp                                 11      3e-13             -2.432588089626441
 #EOF
