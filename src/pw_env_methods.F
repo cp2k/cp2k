@@ -54,8 +54,6 @@ MODULE pw_env_methods
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE lgrid_types,                     ONLY: lgrid_create,&
-                                              lgrid_release
    USE ps_implicit_types,               ONLY: MIXED_BC,&
                                               MIXED_PERIODIC_BC,&
                                               NEUMANN_BC,&
@@ -131,7 +129,7 @@ CONTAINS
       ALLOCATE (pw_env)
       NULLIFY (pw_env%pw_pools, pw_env%gridlevel_info, pw_env%poisson_env, &
                pw_env%cube_info, pw_env%rs_descs, pw_env%rs_grids, &
-               pw_env%xc_pw_pool, pw_env%vdw_pw_pool, pw_env%lgrid, &
+               pw_env%xc_pw_pool, pw_env%vdw_pw_pool, &
                pw_env%interp_section)
       pw_env%auxbas_grid = -1
       pw_env%ref_count = 1
@@ -230,7 +228,6 @@ CONTAINS
          END DO
          DEALLOCATE (pw_env%rs_grids)
       END IF
-      CALL lgrid_release(pw_env%lgrid)
       IF (ASSOCIATED(pw_env%gridlevel_info)) THEN
          CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info)
       ELSE
@@ -585,10 +582,6 @@ CONTAINS
       pw_env%rs_grids => rs_grids
 
       DEALLOCATE (radius)
-
-      ! Initialise the lgrids which may be used by OpenMP threads in QS routines
-      ! (but don't yet allocate the lgrid, in case we don't need it)
-      CALL lgrid_create(pw_env%lgrid, pw_env%rs_descs)
 
       ! Print grid information
 
