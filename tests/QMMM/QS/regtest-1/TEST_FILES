@@ -4,8 +4,8 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # QM/MM
-Ar-qmmm.inp                                            1      7e-12              -5.23877205327694
-H2O-qmmm-gauss-1.inp                                   1      5e-14             -16.70851092184132
+Ar-qmmm.inp                                            1      2e-11              -5.23877205327694
+H2O-qmmm-gauss-1.inp                                   1      9e-14             -16.70851092184132
 H2O-qmmm-gauss-2.inp                                   1      2e-13             -16.86188849951898
 H2O-qmmm-gauss-3.inp                                   1      2e-13             -16.83342020737120
 H2O-qmmm-gauss-4.inp                                   7    1.0E-14                 -16.8201504947
@@ -13,7 +13,7 @@ H2O-qmmm-gauss-5.inp                                   1      2e-13             
 H2O-qmmm-gauss-6.inp                                   1      2e-13             -16.78375982393304
 H2O-qmmm-gauss-7.inp                                   1      2e-13             -16.89896479548539
 H2O-qmmm-gauss-8.inp                                   1      2e-13             -16.87501328403041
-H2O-qmmm-gauss-9.inp                                   1      5e-14             -16.69361998788292
+H2O-qmmm-gauss-9.inp                                   1      9e-14             -16.69361998788292
 H2O-qmmm-gauss-10.inp                                  1      2e-13             -16.76034008277382
 H2O-qmmm-gauss-11.inp                                  7    1.0E-14                 -16.5977721447
 H2O-qmmm-gauss-12.inp                                  1      2e-13             -16.85836829399367
@@ -26,5 +26,5 @@ H2O-qmmm-gauss-17.inp                                  7    1.0E-14             
 H2O-qmmm-gauss-18.inp                                  7      6e-12                 -17.4328106395
 H2O-qmmm-gauss-19.inp                                  7      6e-12                 -17.4328106395
 H2O-qmmm-none-force-mixing-1.inp                       1      6e-13             -33.47241414134874
-H2O-qmmm-gauss-force-mixing-1.inp                      1      6e-13             -50.19552620361094
+H2O-qmmm-gauss-force-mixing-1.inp                      1      7e-13             -50.19552620361094
 #EOF
