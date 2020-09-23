@@ -19,8 +19,6 @@ MODULE pw_env_types
    USE input_section_types,             ONLY: section_vals_release,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
-   USE lgrid_types,                     ONLY: lgrid_release,&
-                                              lgrid_type
    USE pw_poisson_types,                ONLY: pw_poisson_release,&
                                               pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
@@ -51,7 +49,6 @@ MODULE pw_env_types
 !> \param pw_pools pools for multigrids
 !> \param rs_descs descriptors for the realspace grids
 !> \param rs_grids the realspace grids
-!> \param lgrid scratch space for OpenMP threads rs_grid operations
 !> \param xc_pw_pool the pool used for xc calculation on grid (might be the
 !>        same as the finest, or finer still).
 !> \param vdw_pw_pool the pool used for vdw-nl calculation on grid (might be the
@@ -82,7 +79,6 @@ MODULE pw_env_types
          DIMENSION(:), POINTER                    :: rs_descs
       TYPE(realspace_grid_p_type), &
          DIMENSION(:), POINTER                    :: rs_grids
-      TYPE(lgrid_type), POINTER                   :: lgrid
       TYPE(gridlevel_info_type), POINTER          :: gridlevel_info
       TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
       TYPE(pw_poisson_type), POINTER              :: poisson_env
@@ -105,7 +101,6 @@ CONTAINS
 !> \param auxbas_rs_grid ...
 !> \param rs_descs ...
 !> \param rs_grids ...
-!> \param lgrid ...
 !> \param xc_pw_pool ...
 !> \param vdw_pw_pool ...
 !> \param poisson_env ...
@@ -115,7 +110,7 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info, &
-                         auxbas_pw_pool, auxbas_grid, auxbas_rs_desc, auxbas_rs_grid, rs_descs, rs_grids, lgrid, &
+                         auxbas_pw_pool, auxbas_grid, auxbas_rs_desc, auxbas_rs_grid, rs_descs, rs_grids, &
                          xc_pw_pool, vdw_pw_pool, poisson_env, interp_section)
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), OPTIONAL, &
@@ -131,7 +126,6 @@ CONTAINS
          OPTIONAL, POINTER                               :: rs_descs
       TYPE(realspace_grid_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: rs_grids
-      TYPE(lgrid_type), OPTIONAL, POINTER                :: lgrid
       TYPE(pw_pool_type), OPTIONAL, POINTER              :: xc_pw_pool, vdw_pw_pool
       TYPE(pw_poisson_type), OPTIONAL, POINTER           :: poisson_env
       TYPE(section_vals_type), OPTIONAL, POINTER         :: interp_section
@@ -141,7 +135,6 @@ CONTAINS
       IF (PRESENT(pw_pools)) pw_pools => pw_env%pw_pools
       IF (PRESENT(rs_descs)) rs_descs => pw_env%rs_descs
       IF (PRESENT(rs_grids)) rs_grids => pw_env%rs_grids
-      IF (PRESENT(lgrid)) lgrid => pw_env%lgrid
       IF (PRESENT(cube_info)) cube_info => pw_env%cube_info
       IF (PRESENT(gridlevel_info)) gridlevel_info => pw_env%gridlevel_info
       IF (PRESENT(auxbas_pw_pool)) THEN
@@ -227,9 +220,6 @@ CONTAINS
                   CALL rs_grid_release(pw_env%rs_grids(i)%rs_grid)
                END DO
                DEALLOCATE (pw_env%rs_grids)
-            END IF
-            IF (ASSOCIATED(pw_env%lgrid)) THEN
-               CALL lgrid_release(pw_env%lgrid)
             END IF
             DEALLOCATE (pw_env)
          END IF
