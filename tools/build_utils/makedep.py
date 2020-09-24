@@ -181,7 +181,7 @@ $(EXEDIR)/{bfn}.$(ONEVERSION) : {bfn}.o {deps}
 
         makefile += "\n\n"
 
-    with open(out_fn, "w") as fhandle:
+    with open(out_fn, "w", encoding="utf8") as fhandle:
         fhandle.write(makefile)
         fhandle.close()
 
@@ -199,7 +199,7 @@ def parse_file(parsed_files, fn, src_dir):
     if fn in parsed_files:
         return
 
-    with open(fn) as fhandle:
+    with open(fn, encoding="utf8") as fhandle:
         content = fhandle.read()
 
     # re.IGNORECASE is horribly expensive. Converting to lower-case upfront
@@ -261,7 +261,7 @@ def read_pkg_manifest(project_name, packages, p):
     if not path.exists(fn):
         error("Could not open PACKAGE manifest: " + fn)
 
-    with open(fn) as fhandle:
+    with open(fn, encoding="utf8") as fhandle:
         content = fhandle.read()
 
     packages[p] = ast.literal_eval(content)

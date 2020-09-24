@@ -220,5 +220,5 @@ in the cp2k arch-file.
     for fn in args.files:
         assert fn.endswith(".ast")
 
-        with open(fn) as fhandle:
+        with open(fn, encoding="utf8") as fhandle:
             process_log_file(fhandle)

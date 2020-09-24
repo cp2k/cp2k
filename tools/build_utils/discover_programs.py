@@ -39,7 +39,7 @@ def main():
 
 # ============================================================================
 def is_fortran_program(fn):
-    f = open(fn)
+    f = open(fn, encoding="utf8")
     s = path.getsize(fn)
     f.seek(max(0, s - 100))
     tail = f.read()
@@ -50,7 +50,7 @@ def is_fortran_program(fn):
 
 # ============================================================================
 def has_main_function(fn):
-    f = open(fn)
+    f = open(fn, encoding="utf8")
     content = f.read()
     f.close()
     m = re_main.search(content)

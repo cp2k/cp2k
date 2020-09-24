@@ -122,7 +122,7 @@ def may_call_implicit(loc, routine):
 
     pkg = path.dirname(loc)
     manifest_fn = pkg + "/PACKAGE"
-    with open(manifest_fn) as fhandle:
+    with open(manifest_fn, encoding="utf8") as fhandle:
         manifest = ast.literal_eval(fhandle.read())
 
     if "implicit" not in manifest:
@@ -152,5 +152,5 @@ in the cp2k arch-file.
     args = parser.parse_args()
 
     for fn in args.files:
-        with open(fn) as fhandle:
+        with open(fn, encoding="utf8") as fhandle:
             check_warnings(fhandle)

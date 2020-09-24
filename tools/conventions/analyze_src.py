@@ -76,7 +76,7 @@ def validate(cp2k_dir, filelist=None, excluded_dirs=DEFAULT_EXCLUDED_DIRS):
 
     # also exclude any Git submodules
     if path.exists(path.join(cp2k_dir, ".gitmodules")):
-        with open(path.join(cp2k_dir, ".gitmodules"), "r") as fhandle:
+        with open(path.join(cp2k_dir, ".gitmodules"), encoding="utf8") as fhandle:
             excluded_dirs += [
                 path.join(cp2k_dir, l.split()[-1]) for l in fhandle if "path =" in l
             ]
@@ -99,7 +99,7 @@ def validate(cp2k_dir, filelist=None, excluded_dirs=DEFAULT_EXCLUDED_DIRS):
             if fn_ext in ("template", "instantiate"):
                 continue
 
-            with open(path.join(root, fn)) as fhandle:
+            with open(path.join(root, fn), encoding="utf8") as fhandle:
                 content = fhandle.read()
 
             # check banner
@@ -137,9 +137,9 @@ def validate(cp2k_dir, filelist=None, excluded_dirs=DEFAULT_EXCLUDED_DIRS):
 
     flags = [f for f in flags if not flag_exceptions_re.match(f)]
 
-    with open(path.join(cp2k_dir, "INSTALL.md")) as fhandle:
+    with open(path.join(cp2k_dir, "INSTALL.md"), encoding="utf8") as fhandle:
         install_txt = fhandle.read()
-    with open(path.join(cp2k_dir, "src/cp2k_info.F")) as fhandle:
+    with open(path.join(cp2k_dir, "src/cp2k_info.F"), encoding="utf8") as fhandle:
         cp2k_info = fhandle.read()
 
     flags_src = re.search(
