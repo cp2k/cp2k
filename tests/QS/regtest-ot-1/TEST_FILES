@@ -48,7 +48,7 @@ H2O-bs_input.inp                                       1      4e-14             
 H2O-broyden-1.inp                                      1      3e-14             -17.16150836032286
 H2O-broyden-2.inp                                      1      2e-05            -17.160495479573299
 #inverse_update_preconditioner solve
-H2O-inverse_up.inp                                     1    1.0E-14             -17.14017488222629
+H2O-inverse_up.inp                                     1      2e-14             -17.14017488222629
 #magnetic dipole moment
 H2O-magnetic.inp                                      17    1.0E-14                     0.00000000
 #EOF
