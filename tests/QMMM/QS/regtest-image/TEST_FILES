@@ -8,5 +8,5 @@ Cu-H2-qmmm-image-1.inp                                 1      4e-12             
 Cu-H2-qmmm-image-1-gpw.inp                             1      4e-12              -1.11673069976103
 Cu-H2-qmmm-image-2.inp                                 1      4e-12              -1.15440438005054
 Cu-H2-qmmm-image-3.inp                                 1      4e-12              -1.11673069976121
-Cu-H2-qmmm-image-4.inp                                 1      1e-13              -1.11520145054562
+Cu-H2-qmmm-image-4.inp                                 1      2e-13              -1.11520145054562
 #EOF

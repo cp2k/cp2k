@@ -4,7 +4,7 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # QM/MM links
-C4H10-qmmm-gauss-0.inp                                 1      4e-14            -27.99541166137045
+C4H10-qmmm-gauss-0.inp                                 1      5e-14            -27.99541166137045
 C4H10-qmmm-gauss-1.inp                                 1      5e-14            -27.99615935897715
 C4H10-qmmm-gauss-2.inp                                 7    1.0E-14            -14.5644203760
 C4H10-qmmm-gauss-3.inp                                 1      2e-13            -16.28646466174783
@@ -24,7 +24,7 @@ constr.inp                                             7      7e-12            -
 C4H10-qmmm-gauss-12.inp                                1      2E-13            -14.20640099562919
 # hbonds selective constraints on QM and MM subsystems
 constr_hb_mm.inp                                       1      2e-13            -30.72831524249530
-constr_hb_qm.inp                                       1      8e-14            -30.55019251858206
+constr_hb_qm.inp                                       1      9e-14            -30.55019251858206
 #constraints
 water_3_dist.inp                                       2    1.0E-14             -0.171314409828E+02
 #EOF
