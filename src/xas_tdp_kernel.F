@@ -18,11 +18,12 @@ MODULE xas_tdp_kernel
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
-        dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, &
-        dbcsr_get_info, dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_reserve_block2d, &
-        dbcsr_set, dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_release, &
+        dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, &
+        dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_reserve_block2d, dbcsr_set, &
+        dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE dbcsr_tensor_api,                ONLY: dbcsr_t_get_block,&
                                               dbcsr_t_iterator_blocks_left,&
                                               dbcsr_t_iterator_next_block,&
@@ -666,20 +667,22 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      INTEGER                                            :: blk, iblk, iso, jblk, jso, nblk, ndo_mo, &
-                                                            ndo_so, nsgfa, nsgfp, ri_atom, source
-      INTEGER, DIMENSION(:), POINTER                     :: ri_blk_size
+      INTEGER                                            :: blk, group, iblk, iso, jblk, jso, nblk, &
+                                                            ndo_mo, ndo_so, nsgfa, nsgfp, ri_atom, &
+                                                            source
+      INTEGER, DIMENSION(:), POINTER                     :: col_dist, col_dist_work, ri_blk_size, &
+                                                            row_dist, row_dist_work
+      INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
       LOGICAL                                            :: do_roks, do_uks, found
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: coeffs, ri_coeffs
       REAL(dp), DIMENSION(:, :), POINTER                 :: aIQ, pblock, PQ
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_distribution_type)                      :: opt_dbcsr_dist
+      TYPE(dbcsr_distribution_type)                      :: opt_dbcsr_dist, work_dbcsr_dist
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
-      TYPE(dbcsr_type)                                   :: abIJ, abIJ_std_dist, mats_desymm, &
-                                                            work_mat
+      TYPE(dbcsr_type)                                   :: abIJ, mats_desymm, work_mat
 
-      NULLIFY (para_env, matrix_s, pblock, aIQ)
+      NULLIFY (para_env, matrix_s, pblock, aIQ, row_dist, col_dist, row_dist_work, col_dist_work, pgrid)
 
       ! We want to compute (ab|I_sigma J_tau) = (ab|P) * (P|Q)^-1 * (Q|I_sigma J_tau)
       ! Already have (cJ_tau|P)  stored in contr1_int. Need to further contract the
@@ -709,11 +712,23 @@ CONTAINS
       CALL dbcsr_create(abIJ, template=mats_desymm, name="(ab|IJ)", dist=opt_dbcsr_dist)
       CALL dbcsr_complete_redistribute(mats_desymm, abIJ)
 
-      CALL dbcsr_create(abIJ_std_dist, template=mats_desymm)
-
       CALL dbcsr_release(mats_desymm)
 
-      CALL dbcsr_create(work_mat, name="WORK", matrix_type=dbcsr_type_no_symmetry, dist=dist, &
+      ! Create a work distribution based on opt_dbcsr_dist, but for full size matrices
+      CALL dbcsr_distribution_get(opt_dbcsr_dist, row_dist=row_dist, col_dist=col_dist, group=group, &
+                                  pgrid=pgrid)
+
+      ALLOCATE (row_dist_work(ndo_so*nblk))
+      ALLOCATE (col_dist_work(ndo_so*nblk))
+      DO iso = 1, ndo_so
+         row_dist_work((iso - 1)*nblk + 1:iso*nblk) = row_dist(:)
+         col_dist_work((iso - 1)*nblk + 1:iso*nblk) = col_dist(:)
+      END DO
+
+      CALL dbcsr_distribution_new(work_dbcsr_dist, group=group, pgrid=pgrid, row_dist=row_dist_work, &
+                                  col_dist=col_dist_work)
+
+      CALL dbcsr_create(work_mat, name="WORK", matrix_type=dbcsr_type_no_symmetry, dist=work_dbcsr_dist, &
                         row_blk_size=blk_size, col_blk_size=blk_size)
 
       ! Loop over donor spin-orbitals. End matrix is symmetric => span only upper half
@@ -748,16 +763,14 @@ CONTAINS
             CALL dbcsr_set(abIJ, 0.0_dp)
             CALL contract3_RI_to_doMOs(xas_tdp_env%ri_3c_ex, ri_coeffs(:, jso), abIJ, ri_atom)
 
-            ! Need (ab|IJ) in the standard dbcsr distribution
-            CALL dbcsr_complete_redistribute(abIJ, abIJ_std_dist)
-
-            CALL dbcsr_iterator_start(iter, abIJ_std_dist)
+            ! Loop over (ab|IJ) and copy into work. OK because dist are made to match
+            CALL dbcsr_iterator_start(iter, abIJ)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
 
                CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk, blk=blk)
                IF (iso == jso .AND. jblk < iblk) CYCLE
 
-               CALL dbcsr_get_block_p(abIJ_std_dist, iblk, jblk, pblock, found)
+               CALL dbcsr_get_block_p(abIJ, iblk, jblk, pblock, found)
 
                IF (found) THEN
                   CALL dbcsr_put_block(work_mat, (iso - 1)*nblk + iblk, (jso - 1)*nblk + jblk, pblock)
@@ -786,7 +799,8 @@ CONTAINS
       CALL dbcsr_release(work_mat)
       CALL dbcsr_release(abIJ)
       CALL dbcsr_distribution_release(opt_dbcsr_dist)
-      CALL dbcsr_release(abIJ_std_dist)
+      CALL dbcsr_distribution_release(work_dbcsr_dist)
+      DEALLOCATE (col_dist_work, row_dist_work)
 
    END SUBROUTINE ondiag_ex
 

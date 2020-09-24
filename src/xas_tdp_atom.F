@@ -29,18 +29,17 @@ MODULE xas_tdp_atom
                                               qs_control_type
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert
-   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_dist2d_to_dist,&
-                                              dbcsr_deallocate_matrix_set
+   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_para_env,                     ONLY: cp_para_env_create
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_complete_redistribute, dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, &
-        dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, &
-        dbcsr_get_block_p, dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_replicate_all, dbcsr_type, &
-        dbcsr_type_antisymmetric, dbcsr_type_symmetric
+        dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_release, &
+        dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, dbcsr_get_block_p, &
+        dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
+        dbcsr_put_block, dbcsr_release, dbcsr_replicate_all, dbcsr_type, dbcsr_type_antisymmetric, &
+        dbcsr_type_symmetric
    USE dbcsr_tensor_api,                ONLY: dbcsr_t_destroy,&
                                               dbcsr_t_get_block,&
                                               dbcsr_t_iterator_blocks_left,&
@@ -49,8 +48,6 @@ MODULE xas_tdp_atom
                                               dbcsr_t_iterator_stop,&
                                               dbcsr_t_iterator_type,&
                                               dbcsr_t_type
-   USE distribution_2d_types,           ONLY: distribution_2d_release,&
-                                              distribution_2d_type
    USE input_constants,                 ONLY: do_potential_id
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
@@ -63,7 +60,8 @@ MODULE xas_tdp_atom
    USE libint_2c_3c,                    ONLY: libint_potential_type
    USE mathconstants,                   ONLY: dfac,&
                                               pi
-   USE mathlib,                         ONLY: get_diag
+   USE mathlib,                         ONLY: get_diag,&
+                                              invmat_symm
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_comm_split_direct,&
                                               mp_irecv,&
@@ -108,8 +106,7 @@ MODULE xas_tdp_atom
    USE xas_tdp_integrals,               ONLY: build_xas_tdp_3c_nl,&
                                               build_xas_tdp_ovlp_nl,&
                                               create_pqX_tensor,&
-                                              fill_pqx_tensor,&
-                                              get_opt_3c_dist2d
+                                              fill_pqx_tensor
    USE xas_tdp_types,                   ONLY: batch_info_type,&
                                               get_proc_batch_sizes,&
                                               release_batch_info,&
@@ -782,7 +779,7 @@ CONTAINS
             CALL dbcsr_get_stored_coordinates(ri_sinv, inb, jnb, dest)
             is = is + 1
             send_buff(is)%array => block_whole
-            tag = natom*iat + jat
+            tag = natom*inb + jnb
             CALL mp_isend(msgin=send_buff(is)%array, dest=dest, comm=group, request=send_req(is), tag=tag)
 
          END IF
@@ -806,7 +803,7 @@ CONTAINS
          CALL dbcsr_get_stored_coordinates(whole_s, iat, jat, source)
          IF (para_env%mepos == source) CYCLE
 
-         tag = natom*iat + jat
+         tag = natom*inb + jnb
          ir = ir + 1
          recv_buff(ir)%array => block_risinv
          CALL mp_irecv(msgout=recv_buff(ir)%array, source=source, request=recv_req(ir), &
@@ -819,10 +816,20 @@ CONTAINS
       CALL mp_waitall(send_req(1:is))
       CALL mp_waitall(recv_req(1:ir))
 
-      !Invert
-      CALL cp_dbcsr_cholesky_decompose(ri_sinv, para_env=para_env, blacs_env=blacs_env)
-      CALL cp_dbcsr_cholesky_invert(ri_sinv, para_env=para_env, blacs_env=blacs_env, upper_to_full=.TRUE.)
-      CALL dbcsr_filter(ri_sinv, 1.E-10_dp) !make sure ri_sinv is sparse coming out of fm routines
+      !Invert. 2 cases: with or without neighbors. If no neighbors, easier to invert on one proc and
+      !avoid the whole fm to dbcsr to fm that is quite expensive
+      IF (nnb == 1) THEN
+
+         CALL dbcsr_get_block_p(ri_sinv, 1, 1, block_risinv, found_risinv)
+         IF (found_risinv) THEN
+            CALL invmat_symm(block_risinv)
+         END IF
+
+      ELSE
+         CALL cp_dbcsr_cholesky_decompose(ri_sinv, para_env=para_env, blacs_env=blacs_env)
+         CALL cp_dbcsr_cholesky_invert(ri_sinv, para_env=para_env, blacs_env=blacs_env, upper_to_full=.TRUE.)
+         CALL dbcsr_filter(ri_sinv, 1.E-10_dp) !make sure ri_sinv is sparse coming out of fm routines
+      END IF
       CALL dbcsr_replicate_all(ri_sinv)
 
       !clean-up
@@ -842,7 +849,6 @@ CONTAINS
 !>       In this case, with the partial RI projection, the RI basis is restricted to an excited atom
 !>       and its neighbors at a time. Leads to smaller overlap matrix to invert and less 3-center
 !>       overlap to compute. The procedure is repeated for each excited atom
-!>       This is a test implementation for tensors
 ! **************************************************************************************************
    SUBROUTINE calculate_density_coeffs(xas_atom_env, qs_env)
 
@@ -868,13 +874,12 @@ CONTAINS
                                                             sinv_blockt
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_distribution_type)                      :: opt_dbcsr_dist
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: overlap, rho_ao, rho_redist
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: overlap, rho_ao
       TYPE(dbcsr_t_iterator_type)                        :: iter
       TYPE(dbcsr_t_type)                                 :: pqX
       TYPE(dbcsr_type)                                   :: ri_sinv
       TYPE(dbcsr_type), POINTER                          :: ri_mats
-      TYPE(distribution_2d_type), POINTER                :: opt_dist2d
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_orb, basis_set_ri
       TYPE(libint_potential_type)                        :: pot
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -885,7 +890,7 @@ CONTAINS
 
       NULLIFY (qs_kind_set, basis_set_ri, basis_set_orb, ac_list, rho, rho_ao, sab_ri, ri_mats)
       NULLIFY (particle_set, para_env, all_ri_atoms, overlap, pmat_blockt)
-      NULLIFY (blacs_env, pmat_block, ab_list, opt_dist2d, rho_redist, sinv_block, sinv_blockt)
+      NULLIFY (blacs_env, pmat_block, ab_list, dbcsr_dist, sinv_block, sinv_blockt)
 
       !Idea: We don't do a full RI here as it would be too expensive in many ways (inversion of a
       !      large matrix, many 3-center overlaps, density coefficients for all atoms, etc...)
@@ -898,7 +903,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, nkind=nkind, qs_kind_set=qs_kind_set, rho=rho, &
-                      natom=natom, particle_set=particle_set, &
+                      natom=natom, particle_set=particle_set, dbcsr_dist=dbcsr_dist, &
                       para_env=para_env, blacs_env=blacs_env)
       nspins = xas_atom_env%nspins
       nex = SIZE(xas_atom_env%excited_atoms)
@@ -948,9 +953,8 @@ CONTAINS
             "---------------------------------"
       END IF
 
-      !We go atom by atom, first compute the optimal distribution for the integrals, then
-      !the integrals themselves that we put into a tensor, then the contraction with the
-      !density
+      !We go atom by atom, first computing the integrals themselves that we put into a tensor, then we do
+      !the contraction with the density. We do that in the original dist, which is optimized for overlap
 
       ALLOCATE (blk_size_orb(natom))
       CALL get_particle_set(particle_set, qs_kind_set, nsgf=blk_size_orb, basis=basis_set_orb)
@@ -977,34 +981,16 @@ CONTAINS
                exat, nnb
          END IF
 
-         !Get the optimal distribution_2d for the overlap integrals (abc), centers c on the current
+         !Get the neighbor lists for the overlap integrals (abc), centers c on the current
          !excited atom and its neighbors defined by RI_RADIUS
          CALL build_xas_tdp_ovlp_nl(ab_list, basis_set_orb, basis_set_orb, qs_env)
          CALL build_xas_tdp_3c_nl(ac_list, basis_set_orb, basis_set_ri, do_potential_id, &
                                   qs_env, excited_atoms=neighbors)
-         CALL get_opt_3c_dist2d(opt_dist2d, ab_list, ac_list, basis_set_orb, basis_set_orb, &
-                                basis_set_ri, qs_env)
-         CALL release_neighbor_list_sets(ab_list)
-         CALL release_neighbor_list_sets(ac_list)
-
-         !get the ab and ac neighbor lists based on the optimized distribution
-         CALL build_xas_tdp_ovlp_nl(ab_list, basis_set_orb, basis_set_orb, qs_env, ext_dist2d=opt_dist2d)
-         CALL build_xas_tdp_3c_nl(ac_list, basis_set_orb, basis_set_ri, do_potential_id, &
-                                  qs_env, excited_atoms=neighbors, ext_dist2d=opt_dist2d)
-
-         !get the AO density matrix in the optimized distribution
-         CALL cp_dbcsr_dist2d_to_dist(opt_dist2d, opt_dbcsr_dist)
-         ALLOCATE (rho_redist(nspins))
-         DO ispin = 1, nspins
-            ALLOCATE (rho_redist(ispin)%matrix)
-            CALL dbcsr_create(rho_redist(ispin)%matrix, template=rho_ao(ispin)%matrix, dist=opt_dbcsr_dist)
-            CALL dbcsr_complete_redistribute(rho_ao(ispin)%matrix, rho_redist(ispin)%matrix)
-         END DO
 
          !Compute the 3-center overlap integrals
          pot%potential_type = do_potential_id
 
-         CALL create_pqX_tensor(pqX, ab_list, ac_list, opt_dbcsr_dist, blk_size_orb, blk_size_orb, &
+         CALL create_pqX_tensor(pqX, ab_list, ac_list, dbcsr_dist, blk_size_orb, blk_size_orb, &
                                 blk_size_ri)
          CALL fill_pqX_tensor(pqX, ab_list, ac_list, basis_set_orb, basis_set_orb, basis_set_ri, &
                               pot, qs_env)
@@ -1014,20 +1000,19 @@ CONTAINS
          CALL get_exat_ri_sinv(ri_sinv, ri_mats, neighbors, idx_to_nb, basis_set_ri, qs_env)
 
          !Do the actual contraction: coeff_y = sum_pq sum_x P_pq (phi_p phi_q xi_x) S_xy^-1
-         !TODO: re-enable OMP parallelization once/if the tensor iterator becomes thread safe
 
-!!$OMP PARALLEL DEFAULT(NONE) &
-!!$OMP SHARED (pqX,nspins,blk_size_ri,nnb,neighbors,ri_sinv,factor,xas_atom_env,iex,rho_redist,idx_to_nb)&
-!!$OMP PRIVATE(iter,ind,blk,t_block,tensor_found,iatom,jatom,inb,prefac,ispin,work1,pmat_block, &
-!!$OMP         pmat_blockt,pmat_found,pmat_foundt,i,jnb,ri_at,sinv_block,sinv_blockt,sinv_found,&
-!!$OMP         sinv_foundt,work2,katom)
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED (pqX,nspins,blk_size_ri,nnb,neighbors,ri_sinv,factor,xas_atom_env,iex,rho_ao,idx_to_nb)&
+!$OMP PRIVATE(iter,ind,blk,t_block,tensor_found,iatom,jatom,inb,prefac,ispin,work1,pmat_block, &
+!$OMP         pmat_blockt,pmat_found,pmat_foundt,i,jnb,ri_at,sinv_block,sinv_blockt,sinv_found,&
+!$OMP         sinv_foundt,work2,katom)
 
          CALL dbcsr_t_iterator_start(iter, pqX)
          DO WHILE (dbcsr_t_iterator_blocks_left(iter))
             CALL dbcsr_t_iterator_next_block(iter, ind, blk)
-!!$OMP CRITICAL (get_t_block)
+!$OMP CRITICAL (get_t_block)
             CALL dbcsr_t_get_block(pqX, ind, t_block, tensor_found)
-!!$OMP END CRITICAL (get_t_block)
+!$OMP END CRITICAL (get_t_block)
 
             iatom = ind(1)
             jatom = ind(2)
@@ -1040,9 +1025,9 @@ CONTAINS
 
             DO ispin = 1, nspins
 
-               !rho_redist is symmetric, block can be in either location
-               CALL dbcsr_get_block_p(rho_redist(ispin)%matrix, iatom, jatom, pmat_block, pmat_found)
-               CALL dbcsr_get_block_p(rho_redist(ispin)%matrix, jatom, iatom, pmat_blockt, pmat_foundt)
+               !rho_ao is symmetric, block can be in either location
+               CALL dbcsr_get_block_p(rho_ao(ispin)%matrix, iatom, jatom, pmat_block, pmat_found)
+               CALL dbcsr_get_block_p(rho_ao(ispin)%matrix, jatom, iatom, pmat_blockt, pmat_foundt)
                IF ((.NOT. pmat_found) .AND. (.NOT. pmat_foundt)) CYCLE
 
                ALLOCATE (work1(blk_size_ri(katom), 1))
@@ -1083,10 +1068,10 @@ CONTAINS
                      END DO
                   END IF
 
-!!$OMP CRITICAL (ri_dcoeff_update)
+!$OMP CRITICAL (ri_dcoeff_update)
                   xas_atom_env%ri_dcoeff(ri_at, ispin, iex)%array(:) = &
                      xas_atom_env%ri_dcoeff(ri_at, ispin, iex)%array(:) + work2(:)
-!!$OMP END CRITICAL (ri_dcoeff_update)
+!$OMP END CRITICAL (ri_dcoeff_update)
 
                   DEALLOCATE (work2)
                END DO !jnb
@@ -1097,14 +1082,11 @@ CONTAINS
             DEALLOCATE (t_block)
          END DO !iter
          CALL dbcsr_t_iterator_stop(iter)
-!!$OMP END PARALLEL
+!$OMP END PARALLEL
 
          !clean-up
          CALL dbcsr_release(ri_sinv)
          CALL dbcsr_t_destroy(pqX)
-         CALL distribution_2d_release(opt_dist2d)
-         CALL dbcsr_deallocate_matrix_set(rho_redist)
-         CALL dbcsr_distribution_release(opt_dbcsr_dist)
          CALL release_neighbor_list_sets(ab_list)
          CALL release_neighbor_list_sets(ac_list)
          DEALLOCATE (neighbors, idx_to_nb)
@@ -1835,12 +1817,19 @@ CONTAINS
 
             l = indso(1, iso)
 
+            !The gaussian is g = r^l * Ylm * exp(-a*r^2)
+
             !radial part of the gaussian
             rexp(1:nr) = EXP(-zet(ipgf, iset)*grid_atom%rad2(1:nr))
             gr(1:nr, iso_proc) = grid_atom%rad(1:nr)**l*rexp(1:nr)
 
             !angular part of the gaussian
             ga(1:na, iso_proc) = slm(1:na, iso)
+
+            !For the gradient, devide in 2 parts: dg/dx = d/dx(r^l * Ylm) * exp(-a*r^2)
+            !                                            + r^l * Ylm *  d/dx(exp(-a*r^2))
+            !Note: we make this choice of separation because of cartesian coordinates, where
+            !      g = x^lx * y^ly * z^lz * exp(-a*r^2) and r^(l-1)*dslm_dxyz = d/dx(r^l * Ylm)
 
             IF (do_gga) THEN
                !radial part of the gradient => same in all three direction
@@ -3206,17 +3195,13 @@ CONTAINS
 !> \param intso the integral in terms of the spherical orbitals (well, their derivative)
 !> \param V the potential (put on the grid and weighted) to integrate
 !> \param ikind the atomic kind for which we integrate
-!> \param xas_atom_env ...
 !> \param qs_env ...
-!> \note The atomic grids are taken fron xas_atom_env and the orbitals are the normal ones. Ok since
-!>       the grid and spherical harmonics for those grids are at least as good as the GAPW ones
 ! **************************************************************************************************
-   SUBROUTINE integrate_so_dxdy_prod(intso, V, ikind, xas_atom_env, qs_env)
+   SUBROUTINE integrate_so_dxdy_prod(intso, V, ikind, qs_env)
 
       REAL(dp), DIMENSION(:, :, :), INTENT(INOUT)        :: intso
       REAL(dp), DIMENSION(:, :), INTENT(IN)              :: V
       INTEGER, INTENT(IN)                                :: ikind
-      TYPE(xas_atom_env_type), POINTER                   :: xas_atom_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       INTEGER                                            :: i, ipgf, iset, iso, j, jpgf, jset, jso, &
@@ -3234,12 +3219,9 @@ CONTAINS
 
       NULLIFY (grid_atom, harmonics, basis, qs_kind_set, dslm_dxyz, slm, lmin, lmax, npgf, zet)
 
-!  Getting what we need from the atom_env
-      harmonics => xas_atom_env%harmonics_atom_set(ikind)%harmonics_atom
-      grid_atom => xas_atom_env%grid_atom_set(ikind)%grid_atom
-
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
-      CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis, basis_type="ORB")
+      CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis, basis_type="ORB", harmonics=harmonics, &
+                       grid_atom=grid_atom)
 
       na = grid_atom%ng_sphere
       nr = grid_atom%nr
@@ -3391,7 +3373,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-      NULLIFY (int_soc, basis, qs_kind_set, sphi_so, matrix_s)
+      NULLIFY (int_soc, basis, qs_kind_set, sphi_so, matrix_s, grid)
       NULLIFY (particle_set)
 
       CALL timeset(routineN, handle)
@@ -3404,12 +3386,11 @@ CONTAINS
 !  Loop over the kinds to compute the integrals
       DO ikind = 1, nkind
 
-         CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis, basis_type="ORB", zeff=zeff)
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis, basis_type="ORB", zeff=zeff, grid_atom=grid)
          CALL get_gto_basis_set(basis, nset=nset, maxso=maxso)
          ALLOCATE (intso(nset*maxso, nset*maxso, 3))
 
          ! compute the model potential on the grid
-         grid => xas_atom_env%grid_atom_set(ikind)%grid_atom
          nr = grid%nr
          na = grid%ng_sphere
          ALLOCATE (Vr(nr))
@@ -3426,7 +3407,7 @@ CONTAINS
          DEALLOCATE (Vr)
 
          ! compute the integral <da_dx|...|db_dy> in terms of so
-         CALL integrate_so_dxdy_prod(intso, V, ikind, xas_atom_env, qs_env)
+         CALL integrate_so_dxdy_prod(intso, V, ikind, qs_env)
          DEALLOCATE (V)
 
          ! contract in terms of sgf

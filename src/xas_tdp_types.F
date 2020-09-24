@@ -1290,18 +1290,15 @@ CONTAINS
 !>        excited atom
 !> \param xas_tdp_env ...
 !> \param atom the index of the current excited atom
+!> \param end_of_batch whether batch specific quantities should be freed
 ! **************************************************************************************************
-   SUBROUTINE free_exat_memory(xas_tdp_env, atom)
+   SUBROUTINE free_exat_memory(xas_tdp_env, atom, end_of_batch)
 
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
       INTEGER, INTENT(IN)                                :: atom
+      LOGICAL                                            :: end_of_batch
 
       INTEGER                                            :: i
-
-      IF (ASSOCIATED(xas_tdp_env%ri_3c_ex)) THEN
-         CALL dbcsr_t_destroy(xas_tdp_env%ri_3c_ex)
-         DEALLOCATE (xas_tdp_env%ri_3c_ex)
-      END IF
 
       IF (ASSOCIATED(xas_tdp_env%ri_fxc)) THEN
          DO i = 1, SIZE(xas_tdp_env%ri_fxc, 2)
@@ -1311,9 +1308,15 @@ CONTAINS
          END DO
       END IF
 
-      !because we compute the exchange integrals for each excited atom
-      IF (ASSOCIATED(xas_tdp_env%opt_dist2d_ex)) THEN
-         CALL distribution_2d_release(xas_tdp_env%opt_dist2d_ex)
+      IF (end_of_batch) THEN
+         IF (ASSOCIATED(xas_tdp_env%opt_dist2d_ex)) THEN
+            CALL distribution_2d_release(xas_tdp_env%opt_dist2d_ex)
+         END IF
+
+         IF (ASSOCIATED(xas_tdp_env%ri_3c_ex)) THEN
+            CALL dbcsr_t_destroy(xas_tdp_env%ri_3c_ex)
+            DEALLOCATE (xas_tdp_env%ri_3c_ex)
+         END IF
       END IF
 
       xas_tdp_env%fxc_avail = .FALSE.

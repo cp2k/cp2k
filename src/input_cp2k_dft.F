@@ -8101,8 +8101,7 @@ CONTAINS
                           description="Whether spin-orbit coupling should be added. "// &
                           "Note: only applies for spin-restricted calculations with "// &
                           "singlet and triplet excitations OR spin-unrestricted "// &
-                          "calculations with both spin-conserving and spin-flip."// &
-                          "Only tested with CIS", &
+                          "calculations with both spin-conserving and spin-flip.", &
                           usage="SOC {logical}", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
@@ -8124,8 +8123,7 @@ CONTAINS
                           "a given atomic kind. This keyword can/should be repeated "// &
                           "for each excited kind. The default grid dimensions are "// &
                           "those set for the GAPW ground state calculation. These "// &
-                          "grids are used for the xc-kernel calculations and/or for "// &
-                          "spin-orbit coupling. "// &
+                          "grids are used for the xc-kernel integration. "// &
                           "Usage: GRID < KIND > < LEBEDEV_GRID > < RADIAL_GRID >", &
                           usage="GRID {string} {integer} {integer}", &
                           n_var=3, type_of_var=char_t, repeats=.TRUE.)

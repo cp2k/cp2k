@@ -1039,16 +1039,16 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Computes the RI exchange 3-center integrals (ab|c), where c is from the RI_XAS basis and
 !>        centered on excited atoms and kind. The operator used is that of the RI metric
-!> \param ex_atom the excited atom on which the third center is
+!> \param ex_atoms excited atoms on which the third center is located
 !> \param xas_tdp_env ...
 !> \param xas_tdp_control ...
 !> \param qs_env ...
 !> \note  This routine is called once for each excited atom. Because there are many different a,b
 !>        pairs involved, load balance is ok. This allows memory saving
 ! **************************************************************************************************
-   SUBROUTINE compute_ri_3c_exchange(ex_atom, xas_tdp_env, xas_tdp_control, qs_env)
+   SUBROUTINE compute_ri_3c_exchange(ex_atoms, xas_tdp_env, xas_tdp_control, qs_env)
 
-      INTEGER, INTENT(IN)                                :: ex_atom
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: ex_atoms
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -1083,7 +1083,7 @@ CONTAINS
       CALL build_xas_tdp_ovlp_nl(ab_list, basis_set_orb, basis_set_orb, qs_env)
       CALL build_xas_tdp_3c_nl(ac_list, basis_set_orb, basis_set_ri, &
                                xas_tdp_control%ri_m_potential%potential_type, qs_env, &
-                               excited_atoms=[ex_atom], x_range=xas_tdp_control%ri_m_potential%cutoff_radius)
+                               excited_atoms=ex_atoms, x_range=xas_tdp_control%ri_m_potential%cutoff_radius)
 
       CALL get_opt_3c_dist2d(xas_tdp_env%opt_dist2d_ex, ab_list, ac_list, basis_set_orb, &
                              basis_set_orb, basis_set_ri, qs_env)
@@ -1095,7 +1095,7 @@ CONTAINS
                                  ext_dist2d=xas_tdp_env%opt_dist2d_ex)
       CALL build_xas_tdp_3c_nl(ac_list, basis_set_orb, basis_set_ri, &
                                xas_tdp_control%ri_m_potential%potential_type, qs_env, &
-                               excited_atoms=[ex_atom], x_range=xas_tdp_control%ri_m_potential%cutoff_radius, &
+                               excited_atoms=ex_atoms, x_range=xas_tdp_control%ri_m_potential%cutoff_radius, &
                                ext_dist2d=xas_tdp_env%opt_dist2d_ex)
 
 !  Allocate, init and compute the integrals.
