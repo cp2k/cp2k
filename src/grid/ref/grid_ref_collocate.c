@@ -338,12 +338,14 @@ general_ci_to_grid(const int lp, const int j, const int jg, const int k,
 
   const double exp_ab = exp(-zetp * (a + b));
   const double exp_2a = exp(-zetp * 2.0 * a);
-  double exp_2ai = exp(-zetp * 2.0 * a * ismin);
-  double res = exp(-zetp * ((a * ismin + b) * ismin + c));
+  bool exp_is_invalid = true;
+  double exp_2ai = 0.0;
+  double exp_aiibic = 0.0;
 
   for (int i = ismin; i <= ismax; i++) {
     const int ig = map_i[i - index_min[0]];
     if (ig < bounds_i[0] || bounds_i[1] < ig) {
+      exp_is_invalid = true;
       continue;
     }
 
@@ -351,8 +353,14 @@ general_ci_to_grid(const int lp, const int j, const int jg, const int k,
     const int grid_index =
         kg * stride + jg * npts_local[0] + ig; // [kg, jg, ig]
 
+    if (exp_is_invalid) {
+      exp_2ai = exp(-zetp * 2.0 * a * i);
+      exp_aiibic = exp(-zetp * ((a * i + b) * i + c));
+      exp_is_invalid = false;
+    }
+
     // polynomial terms
-    double dip = res; // exp(-zetp * ((a * i + b) * i + c));
+    double dip = exp_aiibic; // exp(-zetp * ((a * i + b) * i + c));
     const double di = i - gp[0];
     for (int il = 0; il <= lp; il++) {
       grid[grid_index] += ci[il] * dip;
@@ -360,7 +368,7 @@ general_ci_to_grid(const int lp, const int j, const int jg, const int k,
     }
 
     // update exponential term
-    res *= exp_2ai * exp_ab;
+    exp_aiibic *= exp_2ai * exp_ab;
     exp_2ai *= exp_2a;
   }
 }
