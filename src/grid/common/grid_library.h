@@ -56,7 +56,9 @@ void grid_library_print_stats(void (*mpi_sum_func)(long *, int), int mpi_comm,
  ******************************************************************************/
 typedef struct {
   long ref_collocate_ortho;
+  long ref_integrate_ortho;
   long ref_collocate_general;
+  long ref_integrate_general;
 } grid_library_stats;
 
 /*******************************************************************************

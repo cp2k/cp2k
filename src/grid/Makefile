@@ -17,6 +17,7 @@ ALL_OBJECTS := grid_collocate_replay.o \
                cpu/grid_cpu_task_list.o \
                ref/grid_ref_task_list.o \
                ref/grid_ref_collocate.o \
+               ref/grid_ref_integrate.o \
                ref/grid_ref_prepare_pab.o
 
 %.o: %.c $(ALL_HEADERS)
