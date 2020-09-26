@@ -40,6 +40,19 @@ static const double fac[] = {
     0.26525285981219105864E+33};
 
 /*******************************************************************************
+ * \brief Maps three angular momentum components to a single zero based index.
+ * \author Ole Schuett
+ ******************************************************************************/
+static inline int coset(int lx, int ly, int lz) {
+  const int l = lx + ly + lz;
+  if (l == 0) {
+    return 0;
+  } else {
+    return ncoset[l - 1] + ((l - lx) * (l - lx + 1)) / 2 + lz;
+  }
+}
+
+/*******************************************************************************
  * \brief Minimum and maximum for integers (missing from the C standard)
  * \author Ole Schuett
  ******************************************************************************/
