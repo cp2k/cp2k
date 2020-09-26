@@ -8,12 +8,6 @@
 #define GRID_REF_PREPARE_PAB_H
 
 /*******************************************************************************
- * \brief Maps three angular momentum components to a single zero based index.
- * \author Ole Schuett
- ******************************************************************************/
-int coset(int lx, int ly, int lz);
-
-/*******************************************************************************
  * \brief Returns block size changes due to transformation grid_prepare_pab.
  * \author Ole Schuett
  ******************************************************************************/

@@ -14,19 +14,6 @@
 #include "grid_ref_prepare_pab.h"
 
 /*******************************************************************************
- * \brief Returns block size changes due to transformation grid_ref_prepare_pab.
- * \author Ole Schuett
- ******************************************************************************/
-int coset(int lx, int ly, int lz) {
-  const int l = lx + ly + lz;
-  if (l == 0) {
-    return 0;
-  } else {
-    return ncoset[l - 1] + ((l - lx) * (l - lx + 1)) / 2 + lz;
-  }
-}
-
-/*******************************************************************************
  * \brief Implementation of function GRID_FUNC_AB, ie. identity transformation.
  * \author Ole Schuett
  ******************************************************************************/
