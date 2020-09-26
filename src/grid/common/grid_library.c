@@ -84,7 +84,9 @@ grid_library_config grid_library_get_config() { return config; }
 static void sum_stats(const grid_library_stats increment,
                       grid_library_stats *accumulator) {
   accumulator->ref_collocate_ortho += increment.ref_collocate_ortho;
+  accumulator->ref_integrate_ortho += increment.ref_integrate_ortho;
   accumulator->ref_collocate_general += increment.ref_collocate_general;
+  accumulator->ref_integrate_general += increment.ref_integrate_general;
 }
 
 /*******************************************************************************
@@ -144,9 +146,19 @@ void grid_library_print_stats(void (*mpi_sum_func)(long *, int),
            totals.ref_collocate_ortho);
   print_func(buffer, output_unit);
 
+  mpi_sum_func(&totals.ref_integrate_ortho, mpi_comm);
+  snprintf(buffer, sizeof(buffer), " %-58s %20li\n", "ref_integrate_ortho",
+           totals.ref_integrate_ortho);
+  print_func(buffer, output_unit);
+
   mpi_sum_func(&totals.ref_collocate_general, mpi_comm);
   snprintf(buffer, sizeof(buffer), " %-58s %20li\n", "ref_collocate_general",
            totals.ref_collocate_general);
+  print_func(buffer, output_unit);
+
+  mpi_sum_func(&totals.ref_integrate_general, mpi_comm);
+  snprintf(buffer, sizeof(buffer), " %-58s %20li\n", "ref_integrate_general",
+           totals.ref_integrate_general);
   print_func(buffer, output_unit);
 
   print_func(" ----------------------------------------------------------------"

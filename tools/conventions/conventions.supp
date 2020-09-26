@@ -270,3 +270,5 @@ xyz2dcd.F: Found STOP statement in procedure "xyz2dcd"
 xyz2dcd.F: Found WRITE statement with hardcoded unit in "abort_program"
 xyz2dcd.F: Found WRITE statement with hardcoded unit in "print_help"
 xyz2dcd.F: Found WRITE statement with hardcoded unit in "xyz2dcd"
+Flag GRID_DO_COLLOCATE not mentioned in INSTALL.md
+Flag GRID_DO_COLLOCATE not mentioned in cp2k_flags()

@@ -5,17 +5,15 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 MODULE grid_integrate
+   USE ISO_C_BINDING,                   ONLY: C_BOOL,&
+                                              C_DOUBLE,&
+                                              C_INT,&
+                                              C_LOC,&
+                                              C_PTR
    USE cell_types,                      ONLY: cell_type
-   USE cube_utils,                      ONLY: compute_cube_center,&
-                                              cube_info_type,&
-                                              return_cube,&
-                                              return_cube_nonortho
-   USE d3_poly,                         ONLY: poly_d32cp2k
-   USE gauss_colloc,                    ONLY: integrateGaussFull
+   USE cube_utils,                      ONLY: cube_info_type
    USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: fac
    USE orbital_pointers,                ONLY: coset,&
-                                              current_maxl,&
                                               ncoset
    USE realspace_grid_types,            ONLY: realspace_grid_type
 #include "../base/base_uses.f90"
@@ -33,26 +31,191 @@ MODULE grid_integrate
 
    PUBLIC :: integrate_pgf_product
 
-   INTERFACE
-      SUBROUTINE call_to_xyz_to_vab(prefactor, coef_xyz, lp, la_max_local, lb_max_local, &
-                                    rp, ra, rab, vab, coset, la_min_local, lb_min_local, &
-                                    maxl, lvab, hvab)
-         IMPORT :: dp
-         REAL(KIND=dp), INTENT(in)                       :: prefactor
-         INTEGER, INTENT(in)                             :: lp
-         REAL(kind=dp), DIMENSION(((lp + 1)*(lp + 2)*(lp + 3))/6), &
-            INTENT(inout)                                :: coef_xyz
-         INTEGER, INTENT(in) :: la_max_local, lb_max_local, la_min_local, &
-                                lb_min_local, maxl, lvab, hvab
-         REAL(kind=dp), DIMENSION(3), INTENT(in)         :: rp, ra, rab
-         REAL(kind=dp), DIMENSION(lvab, hvab), &
-            INTENT(inout)                                :: vab
-         INTEGER, DIMENSION(-1:maxl, -1:maxl, -1:maxl), &
-            INTENT(in)                                   :: coset
-      END SUBROUTINE call_to_xyz_to_vab
-   END INTERFACE
-
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Low level integrate of primitive gaussian functions.
+!> \param la_max ...
+!> \param la_min ...
+!> \param zeta ...
+!> \param lb_max ...
+!> \param lb_min ...
+!> \param zetb ...
+!> \param rscale ...
+!> \param ra ...
+!> \param rab ...
+!> \param rsgrid ...
+!> \param radius ...
+!> \param vab ...
+!> \param use_subpatch ...
+!> \param subpatch_pattern ...
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE grid_integrate_vab(la_max, la_min, zeta, lb_max, lb_min, zetb, rscale, ra, rab, &
+                                 rsgrid, radius, vab, use_subpatch, subpatch_pattern)
+
+      INTEGER, INTENT(IN)                                :: la_max, la_min
+      REAL(KIND=dp), INTENT(IN)                          :: zeta
+      INTEGER, INTENT(IN)                                :: lb_max, lb_min
+      REAL(KIND=dp), INTENT(IN)                          :: zetb, rscale
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN), TARGET    :: ra, rab
+      TYPE(realspace_grid_type), INTENT(IN)              :: rsgrid
+      REAL(KIND=dp), INTENT(IN)                          :: radius
+      REAL(KIND=dp), DIMENSION(:, :), TARGET             :: vab
+      LOGICAL, OPTIONAL                                  :: use_subpatch
+      INTEGER, INTENT(IN), OPTIONAL                      :: subpatch_pattern
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'grid_integrate_vab', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: border_mask
+      INTEGER, DIMENSION(3), TARGET                      :: border_width, npts_global, npts_local, &
+                                                            shift_local
+      LOGICAL(KIND=C_BOOL)                               :: orthorhombic
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grid
+      INTERFACE
+         SUBROUTINE grid_ref_integrate_vab_c(orthorhombic, &
+                                             border_mask, &
+                                             la_max, la_min, lb_max, lb_min, &
+                                             zeta, zetb, rscale, dh, dh_inv, ra, rab, &
+                                             npts_global, npts_local, shift_local, border_width, &
+                                             radius, grid, vab) &
+            BIND(C, name="grid_ref_integrate_vab")
+            IMPORT :: C_PTR, C_INT, C_DOUBLE, C_BOOL
+            LOGICAL(KIND=C_BOOL), VALUE               :: orthorhombic
+            INTEGER(KIND=C_INT), VALUE                :: border_mask
+            INTEGER(KIND=C_INT), VALUE                :: la_max
+            INTEGER(KIND=C_INT), VALUE                :: la_min
+            INTEGER(KIND=C_INT), VALUE                :: lb_max
+            INTEGER(KIND=C_INT), VALUE                :: lb_min
+            REAL(KIND=C_DOUBLE), VALUE                :: zeta
+            REAL(KIND=C_DOUBLE), VALUE                :: zetb
+            REAL(KIND=C_DOUBLE), VALUE                :: rscale
+            TYPE(C_PTR), VALUE                        :: dh
+            TYPE(C_PTR), VALUE                        :: dh_inv
+            TYPE(C_PTR), VALUE                        :: ra
+            TYPE(C_PTR), VALUE                        :: rab
+            TYPE(C_PTR), VALUE                        :: npts_global
+            TYPE(C_PTR), VALUE                        :: npts_local
+            TYPE(C_PTR), VALUE                        :: shift_local
+            TYPE(C_PTR), VALUE                        :: border_width
+            REAL(KIND=C_DOUBLE), VALUE                :: radius
+            TYPE(C_PTR), VALUE                        :: grid
+            TYPE(C_PTR), VALUE                        :: vab
+         END SUBROUTINE grid_ref_integrate_vab_c
+      END INTERFACE
+
+      border_mask = 0
+      IF (PRESENT(use_subpatch)) THEN
+         IF (use_subpatch) THEN
+            CPASSERT(PRESENT(subpatch_pattern))
+            border_mask = IAND(63, NOT(subpatch_pattern))  ! invert last 6 bits
+         END IF
+      END IF
+
+      orthorhombic = LOGICAL(rsgrid%desc%orthorhombic, C_BOOL)
+
+      CALL get_rsgrid_properties(rsgrid, npts_global=npts_global, &
+                                 npts_local=npts_local, &
+                                 shift_local=shift_local, &
+                                 border_width=border_width)
+
+      grid(1:, 1:, 1:) => rsgrid%r(:, :, :)  ! pointer assignment
+
+      CPASSERT(LBOUND(vab, 1) == 1 .AND. LBOUND(vab, 2) == 1)
+
+#if __GNUC__ >= 9
+      CPASSERT(IS_CONTIGUOUS(rsgrid%desc%dh))
+      CPASSERT(IS_CONTIGUOUS(rsgrid%desc%dh_inv))
+      CPASSERT(IS_CONTIGUOUS(ra))
+      CPASSERT(IS_CONTIGUOUS(rab))
+      CPASSERT(IS_CONTIGUOUS(npts_global))
+      CPASSERT(IS_CONTIGUOUS(npts_local))
+      CPASSERT(IS_CONTIGUOUS(shift_local))
+      CPASSERT(IS_CONTIGUOUS(border_width))
+      CPASSERT(IS_CONTIGUOUS(grid))
+      CPASSERT(IS_CONTIGUOUS(vab))
+#endif
+
+      CALL grid_ref_integrate_vab_c(orthorhombic=orthorhombic, &
+                                    border_mask=border_mask, &
+                                    la_max=la_max, &
+                                    la_min=la_min, &
+                                    lb_max=lb_max, &
+                                    lb_min=lb_min, &
+                                    zeta=zeta, &
+                                    zetb=zetb, &
+                                    rscale=rscale, &
+                                    dh=C_LOC(rsgrid%desc%dh(1, 1)), &
+                                    dh_inv=C_LOC(rsgrid%desc%dh_inv(1, 1)), &
+                                    ra=C_LOC(ra(1)), &
+                                    rab=C_LOC(rab(1)), &
+                                    npts_global=C_LOC(npts_global(1)), &
+                                    npts_local=C_LOC(npts_local(1)), &
+                                    shift_local=C_LOC(shift_local(1)), &
+                                    border_width=C_LOC(border_width(1)), &
+                                    radius=radius, &
+                                    grid=C_LOC(grid(1, 1, 1)), &
+                                    vab=C_LOC(vab(1, 1)))
+
+   END SUBROUTINE grid_integrate_vab
+
+! **************************************************************************************************
+!> \brief Helper routines for getting rsgrid properties and asserting underlying assumptions.
+!> \param rsgrid ...
+!> \param npts_global ...
+!> \param npts_local ...
+!> \param shift_local ...
+!> \param border_width ...
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE get_rsgrid_properties(rsgrid, npts_global, npts_local, shift_local, border_width)
+      TYPE(realspace_grid_type), INTENT(IN)              :: rsgrid
+      INTEGER, DIMENSION(:)                              :: npts_global, npts_local, shift_local, &
+                                                            border_width
+
+      INTEGER                                            :: i
+
+      ! See rs_grid_create() in ./src/pw/realspace_grid_types.F.
+      CPASSERT(LBOUND(rsgrid%r, 1) == rsgrid%lb_local(1))
+      CPASSERT(UBOUND(rsgrid%r, 1) == rsgrid%ub_local(1))
+      CPASSERT(LBOUND(rsgrid%r, 2) == rsgrid%lb_local(2))
+      CPASSERT(UBOUND(rsgrid%r, 2) == rsgrid%ub_local(2))
+      CPASSERT(LBOUND(rsgrid%r, 3) == rsgrid%lb_local(3))
+      CPASSERT(UBOUND(rsgrid%r, 3) == rsgrid%ub_local(3))
+
+      ! While the rsgrid code assumes that the grid starts at rsgrid%lb,
+      ! the collocate code assumes that the grid starts at (1,1,1) in Fortran, or (0,0,0) in C.
+      ! So, a point rp(:) gets the following grid coordinates MODULO(rp(:)/dr(:),npts_global(:))
+
+      ! Number of global grid points in each direction.
+      npts_global = rsgrid%desc%ub - rsgrid%desc%lb + 1
+
+      ! Number of local grid points in each direction.
+      npts_local = rsgrid%ub_local - rsgrid%lb_local + 1
+
+      ! Number of points the local grid is shifted wrt global grid.
+      shift_local = rsgrid%lb_local - rsgrid%desc%lb
+
+      ! Convert rsgrid%desc%border and rsgrid%desc%perd into the more convenient border_width array.
+      DO i = 1, 3
+         IF (rsgrid%desc%perd(i) == 1) THEN
+            ! Periodic meaning the grid in this direction is entriely present on every processor.
+            CPASSERT(npts_local(i) == npts_global(i))
+            CPASSERT(shift_local(i) == 0)
+            ! No need for halo regions.
+            border_width(i) = 0
+         ELSE
+            ! Not periodic meaning the grid in this direction is distributed among processors.
+            CPASSERT(npts_local(i) <= npts_global(i))
+            ! Check bounds of grid section that is owned by this processor.
+            CPASSERT(rsgrid%lb_real(i) == rsgrid%lb_local(i) + rsgrid%desc%border)
+            CPASSERT(rsgrid%ub_real(i) == rsgrid%ub_local(i) - rsgrid%desc%border)
+            ! We have halo regions.
+            border_width(i) = rsgrid%desc%border
+         ENDIF
+      ENDDO
+   END SUBROUTINE get_rsgrid_properties
 
 ! **************************************************************************************************
 !> \brief low level function to compute matrix elements of primitive gaussian functions
@@ -95,58 +258,42 @@ CONTAINS
                                     use_virial, my_virial_a, &
                                     my_virial_b, a_hdab, use_subpatch, subpatch_pattern)
 
-      INTEGER, INTENT(IN)                      :: la_max
-      REAL(KIND=dp), INTENT(IN)                :: zeta
-      INTEGER, INTENT(IN)                      :: la_min, lb_max
-      REAL(KIND=dp), INTENT(IN)                :: zetb
-      INTEGER, INTENT(IN)                      :: lb_min
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ra, rab
-      TYPE(realspace_grid_type), POINTER       :: rsgrid
-      TYPE(cell_type), POINTER                 :: cell
-      TYPE(cube_info_type), INTENT(IN)         :: cube_info
-      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab
-      REAL(KIND=dp), DIMENSION(:, :), &
-         OPTIONAL, POINTER                      :: pab
-      INTEGER, INTENT(IN)                      :: o1, o2
-      REAL(KIND=dp), INTENT(IN)                :: radius
-      LOGICAL, INTENT(IN)                      :: calculate_forces
-      REAL(KIND=dp), DIMENSION(:, :, :), &
-         OPTIONAL, POINTER                      :: hdab, hadb
-      REAL(KIND=dp), DIMENSION(3), &
-         INTENT(INOUT), OPTIONAL                :: force_a, force_b
-      LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau
-      LOGICAL, INTENT(IN), OPTIONAL            :: use_virial
-      REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL  :: my_virial_a, my_virial_b
-      REAL(KIND=dp), DIMENSION(:, :, :, :), OPTIONAL, POINTER  :: a_hdab
-      LOGICAL, OPTIONAL                        :: use_subpatch
-      INTEGER, INTENT(IN), OPTIONAL            :: subpatch_pattern
+      INTEGER, INTENT(IN)                                :: la_max
+      REAL(KIND=dp), INTENT(IN)                          :: zeta
+      INTEGER, INTENT(IN)                                :: la_min, lb_max
+      REAL(KIND=dp), INTENT(IN)                          :: zetb
+      INTEGER, INTENT(IN)                                :: lb_min
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: ra, rab
+      TYPE(realspace_grid_type), POINTER                 :: rsgrid
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cube_info_type), INTENT(IN)                   :: cube_info
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: hab
+      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: pab
+      INTEGER, INTENT(IN)                                :: o1, o2
+      REAL(KIND=dp), INTENT(IN)                          :: radius
+      LOGICAL, INTENT(IN)                                :: calculate_forces
+      REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
+         POINTER                                         :: hdab, hadb
+      REAL(KIND=dp), DIMENSION(3), INTENT(INOUT), &
+         OPTIONAL                                        :: force_a, force_b
+      LOGICAL, INTENT(IN), OPTIONAL                      :: compute_tau, use_virial
+      REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL           :: my_virial_a, my_virial_b
+      REAL(KIND=dp), DIMENSION(:, :, :, :), OPTIONAL, &
+         POINTER                                         :: a_hdab
+      LOGICAL, OPTIONAL                                  :: use_subpatch
+      INTEGER, INTENT(IN), OPTIONAL                      :: subpatch_pattern
 
-      INTEGER :: ax, ay, az, bx, by, bz, cmax, coef_max, gridbounds(2, 3), i, &
-                 ico, icoef, ig, j, jco, la, la_max_local, la_min_local, lb, &
-                 lb_cube_min, lb_max_local, lb_min_local, length, lxa, lxb, lxy, &
-                 lxyz, lya, lyb, lza, lzb, offset, start, ub_cube_max
-      INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ng, &
-                                                  ub_cube
-      INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
-      LOGICAL                                  :: my_compute_tau, &
-                                                  my_use_virial, &
-                                                  subpatch_integrate
-      REAL(KIND=dp) :: axpm0, der_a(3), der_b(3), f, ftza, ftzb, pabval, pg, prefactor, rpg, zetp
-      REAL(KIND=dp), DIMENSION(3)              :: dr, rap, rb, roffset, rp
-      REAL(KIND=dp), DIMENSION(:, :, :), &
-         POINTER                                :: grid
+      INTEGER                                            :: ax, ay, az, bx, by, bz, ico, j, jco, la, &
+                                                            la_max_local, la_min_local, lb, &
+                                                            lb_max_local, lb_min_local
+      LOGICAL                                            :: my_compute_tau, my_use_virial, &
+                                                            subpatch_integrate
+      REAL(KIND=dp)                                      :: axpm0, der_a(3), der_b(3), ftza, ftzb, &
+                                                            pabval
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: vab
 
-      INTEGER :: lxp, lyp, lzp, lp, iaxis
-      INTEGER, ALLOCATABLE, DIMENSION(:, :) :: map
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xyz
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xyt
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xtt
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :, :) :: pol_z
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :, :) :: pol_y
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :) :: pol_x
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :) :: vab
-
-      REAL(KIND=dp) :: t_exp_1, t_exp_2, t_exp_min_1, t_exp_min_2, t_exp_plus_1, t_exp_plus_2
+      MARK_USED(cube_info)
+      MARK_USED(cell)
 
       subpatch_integrate = .FALSE.
 
@@ -194,34 +341,27 @@ CONTAINS
          lb_min_local = MAX(lb_min_local - 1, 0)
       ENDIF
 
-      coef_max = la_max_local + lb_max_local + 1
-      zetp = zeta + zetb
-      f = zetb/zetp
-      prefactor = EXP(-zeta*f*DOT_PRODUCT(rab, rab))
-!   *** position of the gaussian product
-      rap(:) = f*rab(:)
-      rp(:) = ra(:) + rap(:) ! this is the gaussian center in real coordinates
-      rb(:) = ra(:) + rab(:)
-
       IF (radius == 0.0_dp) THEN
          RETURN
       ENDIF
 
-      ng(:) = rsgrid%desc%npts(:)
-      grid => rsgrid%r(:, :, :)
       ALLOCATE (vab(ncoset(la_max_local), ncoset(lb_max_local)))
       vab = 0.0_dp
 
-      ! the likely call is integrate_ortho
-      IF (.NOT. subpatch_integrate) THEN
-         IF (rsgrid%desc%orthorhombic) THEN
-            CALL integrate_ortho()
-         ELSE
-            CALL integrate_general_wings()
-         END IF
-      ELSE
-         CALL integrate_general_subpatch()
-      END IF
+      CALL grid_integrate_vab(la_max=la_max_local, &
+                              la_min=la_min_local, &
+                              zeta=zeta, &
+                              lb_max=lb_max_local, &
+                              lb_min=lb_min_local, &
+                              zetb=zetb, &
+                              rscale=1.0_dp, &
+                              ra=ra, &
+                              rab=rab, &
+                              rsgrid=rsgrid, &
+                              radius=radius, &
+                              vab=vab, &
+                              use_subpatch=use_subpatch, &
+                              subpatch_pattern=subpatch_pattern)
 
 !   *** vab contains all the information needed to find the elements of hab
 !   *** and optionally of derivatives of these elements
@@ -378,510 +518,6 @@ CONTAINS
          END DO
       END DO
       DEALLOCATE (vab)
-
-   CONTAINS
-
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE integrate_ortho()
-
-         CALL return_cube(cube_info, radius, lb_cube, ub_cube, sphere_bounds)
-         cmax = MAXVAL(ub_cube)
-
-         dr(1) = rsgrid%desc%dh(1, 1)
-         dr(2) = rsgrid%desc%dh(2, 2)
-         dr(3) = rsgrid%desc%dh(3, 3)
-
-         gridbounds(1, 1) = LBOUND(GRID, 1)
-         gridbounds(2, 1) = UBOUND(GRID, 1)
-         gridbounds(1, 2) = LBOUND(GRID, 2)
-         gridbounds(2, 2) = UBOUND(GRID, 2)
-         gridbounds(1, 3) = LBOUND(GRID, 3)
-         gridbounds(2, 3) = UBOUND(GRID, 3)
-
-         CALL compute_cube_center(cubecenter, rsgrid%desc, zeta, zetb, ra, rab)
-         roffset(:) = rp(:) - REAL(cubecenter(:), dp)*dr(:)
-         lb_cube_min = MINVAL(lb_cube(:))
-         ub_cube_max = MAXVAL(ub_cube(:))
-
-!   *** a mapping so that the ig corresponds to the right grid point, also with pbc
-         ALLOCATE (map(-cmax:cmax, 3))
-         DO i = 1, 3
-            IF (rsgrid%desc%perd(i) == 1) THEN
-               start = lb_cube(i)
-               DO
-                  offset = MODULO(cubecenter(i) + start, ng(i)) + 1 - start
-                  length = MIN(ub_cube(i), ng(i) - offset) - start
-                  DO ig = start, start + length
-                     map(ig, i) = ig + offset
-                  END DO
-                  IF (start + length .GE. ub_cube(i)) EXIT
-                  start = start + length + 1
-               END DO
-            ELSE
-               ! this takes partial grid + border regions into account
-               offset = MODULO(cubecenter(i) + lb_cube(i) + rsgrid%desc%lb(i) - rsgrid%lb_local(i), ng(i)) + 1 - lb_cube(i)
-               ! check for out of bounds
-               IF (ub_cube(i) + offset > UBOUND(grid, i) .OR. lb_cube(i) + offset < LBOUND(grid, i)) THEN
-                  CPABORT("")
-               ENDIF
-               DO ig = lb_cube(i), ub_cube(i)
-                  map(ig, i) = ig + offset
-               END DO
-            END IF
-         ENDDO
-
-         lp = la_max_local + lb_max_local
-         ALLOCATE (coef_xyz(((lp + 1)*(lp + 2)*(lp + 3))/6))
-         ALLOCATE (pol_z(1:2, 0:lp, -cmax:0))
-         ALLOCATE (pol_y(1:2, 0:lp, -cmax:0))
-         ALLOCATE (pol_x(0:lp, -cmax:cmax))
-
-#include "prep.f90"
-
-         CALL call_integrate()
-
-         CALL call_to_xyz_to_vab(prefactor, coef_xyz, lp, la_max_local, lb_max_local, &
-                                 rp, ra, rab, vab, coset, la_min_local, &
-                                 lb_min_local, current_maxl, ncoset(la_max_local), ncoset(lb_max_local))
-
-         DEALLOCATE (coef_xyz)
-         DEALLOCATE (pol_z)
-         DEALLOCATE (pol_y)
-         DEALLOCATE (pol_x)
-         DEALLOCATE (map)
-      END SUBROUTINE integrate_ortho
-
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE call_integrate()
-
-         SELECT CASE (lp)
-         CASE (0)
-            CALL integrate_core_0(grid(1, 1, 1), coef_xyz(1), pol_x(0, -cmax), pol_y(1, 0, -cmax), pol_z(1, 0, -cmax), &
-                                  map(-cmax, 1), sphere_bounds(1), cmax, gridbounds(1, 1))
-         CASE (1)
-            CALL integrate_core_1(grid(1, 1, 1), coef_xyz(1), pol_x(0, -cmax), pol_y(1, 0, -cmax), pol_z(1, 0, -cmax), &
-                                  map(-cmax, 1), sphere_bounds(1), cmax, gridbounds(1, 1))
-         CASE (2)
-            CALL integrate_core_2(grid(1, 1, 1), coef_xyz(1), pol_x(0, -cmax), pol_y(1, 0, -cmax), pol_z(1, 0, -cmax), &
-                                  map(-cmax, 1), sphere_bounds(1), cmax, gridbounds(1, 1))
-         CASE (3)
-            CALL integrate_core_3(grid(1, 1, 1), coef_xyz(1), pol_x(0, -cmax), pol_y(1, 0, -cmax), pol_z(1, 0, -cmax), &
-                                  map(-cmax, 1), sphere_bounds(1), cmax, gridbounds(1, 1))
-         CASE (4)
-            CALL integrate_core_4(grid(1, 1, 1), coef_xyz(1), pol_x(0, -cmax), pol_y(1, 0, -cmax), pol_z(1, 0, -cmax), &
-                                  map(-cmax, 1), sphere_bounds(1), cmax, gridbounds(1, 1))
-         CASE (5)
-            CALL integrate_core_5(grid(1, 1, 1), coef_xyz(1), pol_x(0, -cmax), pol_y(1, 0, -cmax), pol_z(1, 0, -cmax), &
-                                  map(-cmax, 1), sphere_bounds(1), cmax, gridbounds(1, 1))
-         CASE (6)
-            CALL integrate_core_6(grid(1, 1, 1), coef_xyz(1), pol_x(0, -cmax), pol_y(1, 0, -cmax), pol_z(1, 0, -cmax), &
-                                  map(-cmax, 1), sphere_bounds(1), cmax, gridbounds(1, 1))
-         CASE (7)
-            CALL integrate_core_7(grid(1, 1, 1), coef_xyz(1), pol_x(0, -cmax), pol_y(1, 0, -cmax), pol_z(1, 0, -cmax), &
-                                  map(-cmax, 1), sphere_bounds(1), cmax, gridbounds(1, 1))
-         CASE (8)
-            CALL integrate_core_8(grid(1, 1, 1), coef_xyz(1), pol_x(0, -cmax), pol_y(1, 0, -cmax), pol_z(1, 0, -cmax), &
-                                  map(-cmax, 1), sphere_bounds(1), cmax, gridbounds(1, 1))
-         CASE (9)
-            CALL integrate_core_9(grid(1, 1, 1), coef_xyz(1), pol_x(0, -cmax), pol_y(1, 0, -cmax), pol_z(1, 0, -cmax), &
-                                  map(-cmax, 1), sphere_bounds(1), cmax, gridbounds(1, 1))
-         CASE DEFAULT
-            CALL integrate_core_default(grid(1, 1, 1), coef_xyz(1), pol_x(0, -cmax), pol_y(1, 0, -cmax), pol_z(1, 0, -cmax), &
-                                        map(-cmax, 1), sphere_bounds(1), lp, cmax, gridbounds(1, 1))
-         END SELECT
-
-      END SUBROUTINE call_integrate
-
-! **************************************************************************************************
-! general optimized routine, not called for orthogonal cells
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE integrate_general_opt()
-      INTEGER :: i, i_index, il, ilx, ily, ilz, index_max(3), index_min(3), ismax, ismin, j, &
-         j_index, jl, jlx, jly, jlz, k, k_index, kl, klx, kly, klz, lpx, lpy, lpz, lx, ly, lz, &
-         offset(3)
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: grid_map
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: coef_map
-      REAL(KIND=dp)                                      :: a, b, c, d, di, dip, dj, djp, dk, dkp, &
-                                                            exp0i, exp1i, exp2i, gp(3), gridval, &
-                                                            hmatgrid(3, 3), pointj(3), pointk(3), &
-                                                            v(3)
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: coef_ijk
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: hmatgridp
-
-!
-! transform P_{lxp,lyp,lzp} into a P_{lip,ljp,lkp} such that
-! sum_{lxp,lyp,lzp} P_{lxp,lyp,lzp} (x-x_p)**lxp (y-y_p)**lyp (z-z_p)**lzp =
-! sum_{lip,ljp,lkp} P_{lip,ljp,lkp} (i-i_p)**lip (j-j_p)**ljp (k-k_p)**lkp
-!
-
-         lp = la_max_local + lb_max_local
-         ALLOCATE (coef_xyz(((lp + 1)*(lp + 2)*(lp + 3))/6))
-         ALLOCATE (coef_ijk(((lp + 1)*(lp + 2)*(lp + 3))/6))
-         ALLOCATE (coef_xyt(((lp + 1)*(lp + 2))/2))
-         ALLOCATE (coef_xtt(0:lp))
-
-         ! aux mapping array to simplify life
-         ALLOCATE (coef_map(0:lp, 0:lp, 0:lp))
-         coef_map = HUGE(coef_map)
-         lxyz = 0
-         DO lzp = 0, lp
-         DO lyp = 0, lp - lzp
-         DO lxp = 0, lp - lzp - lyp
-            lxyz = lxyz + 1
-            coef_map(lxp, lyp, lzp) = lxyz
-         ENDDO
-         ENDDO
-         ENDDO
-
-         ! cell hmat in grid points
-         hmatgrid(:, 1) = cell%hmat(:, 1)/ng(1)
-         hmatgrid(:, 2) = cell%hmat(:, 2)/ng(2)
-         hmatgrid(:, 3) = cell%hmat(:, 3)/ng(3)
-
-         ! center in grid coords
-         gp = MATMUL(cell%h_inv, rp)*ng
-
-         ! added bt matt
-         cubecenter(:) = FLOOR(gp)
-
-         !t2=nanotime_ia32()
-         !write(*,*) t2-t1
-         !t1=nanotime_ia32()
-
-         CALL return_cube_nonortho(cube_info, radius, index_min, index_max, rp)
-
-         offset(:) = MODULO(index_min(:) + rsgrid%desc%lb(:) - rsgrid%lb_local(:), ng(:)) + 1
-
-         ALLOCATE (grid_map(index_min(1):index_max(1)))
-         DO i = index_min(1), index_max(1)
-            grid_map(i) = MODULO(i, ng(1)) + 1
-            IF (rsgrid%desc%perd(1) == 1) THEN
-               grid_map(i) = MODULO(i, ng(1)) + 1
-            ELSE
-               grid_map(i) = i - index_min(1) + offset(1)
-            ENDIF
-         ENDDO
-
-         coef_ijk = 0.0_dp
-
-         ! go over the grid, but cycle if the point is not within the radius
-         DO k = index_min(3), index_max(3)
-            dk = k - gp(3)
-            pointk = hmatgrid(:, 3)*dk
-
-            ! allow for generalised rs grids
-            IF (rsgrid%desc%perd(3) == 1) THEN
-               k_index = MODULO(k, ng(3)) + 1
-            ELSE
-               k_index = k - index_min(3) + offset(3)
-            ENDIF
-
-            coef_xyt = 0.0_dp
-
-            DO j = index_min(2), index_max(2)
-               dj = j - gp(2)
-               pointj = pointk + hmatgrid(:, 2)*dj
-               IF (rsgrid%desc%perd(2) == 1) THEN
-                  j_index = MODULO(j, ng(2)) + 1
-               ELSE
-                  j_index = j - index_min(2) + offset(2)
-               ENDIF
-
-               coef_xtt = 0.0_dp
-
-               ! find bounds for the inner loop
-               ! based on a quadratic equation in i
-               ! a*i**2+b*i+c=radius**2
-               v = pointj - gp(1)*hmatgrid(:, 1)
-               a = DOT_PRODUCT(hmatgrid(:, 1), hmatgrid(:, 1))
-               b = 2*DOT_PRODUCT(v, hmatgrid(:, 1))
-               c = DOT_PRODUCT(v, v)
-               d = b*b - 4*a*(c - radius**2)
-
-               IF (d < 0) THEN
-                  CYCLE
-               ELSE
-                  d = SQRT(d)
-                  ismin = CEILING((-b - d)/(2*a))
-                  ismax = FLOOR((-b + d)/(2*a))
-               ENDIF
-               ! prepare for computing -zetp*rsq
-               a = -zetp*a
-               b = -zetp*b
-               c = -zetp*c
-               i = ismin - 1
-               exp2i = EXP((a*i + b)*i + c)
-               exp1i = EXP(2*a*i + a + b)
-               exp0i = EXP(2*a)
-
-               coef_xtt = 0.0_dp
-
-               DO i = ismin, ismax
-                  di = i - gp(1)
-
-                  exp2i = exp2i*exp1i
-                  exp1i = exp1i*exp0i
-
-                  i_index = grid_map(i)
-                  gridval = grid(i_index, j_index, k_index)*exp2i
-
-                  dip = 1.0_dp
-                  DO il = 0, lp
-                     coef_xtt(il) = coef_xtt(il) + gridval*dip
-                     dip = dip*di
-                  ENDDO
-               ENDDO
-
-               lxy = 0
-               djp = 1.0_dp
-               DO jl = 0, lp
-                  DO il = 0, lp - jl
-                     lxy = lxy + 1
-                     coef_xyt(lxy) = coef_xyt(lxy) + coef_xtt(il)*djp
-                  ENDDO
-                  djp = djp*dj
-               ENDDO
-
-            ENDDO
-
-            lxyz = 0
-            dkp = 1.0_dp
-            DO kl = 0, lp
-               lxy = 0
-               DO jl = 0, lp - kl
-                  DO il = 0, lp - kl - jl
-                     lxyz = lxyz + 1; lxy = lxy + 1
-                     coef_ijk(lxyz) = coef_ijk(lxyz) + dkp*coef_xyt(lxy)
-                  ENDDO
-                  lxy = lxy + kl
-               ENDDO
-               dkp = dkp*dk
-            ENDDO
-
-         ENDDO
-
-         ! transform using multinomials
-         ALLOCATE (hmatgridp(3, 3, 0:lp))
-         hmatgridp(:, :, 0) = 1.0_dp
-         DO k = 1, lp
-            hmatgridp(:, :, k) = hmatgridp(:, :, k - 1)*hmatgrid(:, :)
-         ENDDO
-
-         coef_xyz = 0.0_dp
-         lpx = lp
-         DO klx = 0, lpx
-         DO jlx = 0, lpx - klx
-         DO ilx = 0, lpx - klx - jlx
-            lx = ilx + jlx + klx
-            lpy = lp - lx
-            DO kly = 0, lpy
-            DO jly = 0, lpy - kly
-            DO ily = 0, lpy - kly - jly
-               ly = ily + jly + kly
-               lpz = lp - lx - ly
-               DO klz = 0, lpz
-               DO jlz = 0, lpz - klz
-               DO ilz = 0, lpz - klz - jlz
-                  lz = ilz + jlz + klz
-
-                  il = ilx + ily + ilz
-                  jl = jlx + jly + jlz
-                  kl = klx + kly + klz
-                  coef_xyz(coef_map(lx, ly, lz)) = &
-                     coef_xyz(coef_map(lx, ly, lz)) + coef_ijk(coef_map(il, jl, kl))* &
-                     hmatgridp(1, 1, ilx)*hmatgridp(1, 2, jlx)*hmatgridp(1, 3, klx)* &
-                     hmatgridp(2, 1, ily)*hmatgridp(2, 2, jly)*hmatgridp(2, 3, kly)* &
-                     hmatgridp(3, 1, ilz)*hmatgridp(3, 2, jlz)*hmatgridp(3, 3, klz)* &
-                     fac(lx)*fac(ly)*fac(lz)/ &
-                     (fac(ilx)*fac(ily)*fac(ilz)*fac(jlx)*fac(jly)*fac(jlz)*fac(klx)*fac(kly)*fac(klz))
-               ENDDO
-               ENDDO
-               ENDDO
-            ENDDO
-            ENDDO
-            ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-
-         CALL call_to_xyz_to_vab(prefactor, coef_xyz, lp, la_max_local, lb_max_local, &
-                                 rp, ra, rab, vab, coset, la_min_local, &
-                                 lb_min_local, current_maxl, ncoset(la_max_local), &
-                                 ncoset(lb_max_local))
-
-         ! deallocation needed to pass around a pgi bug..
-         DEALLOCATE (hmatgridp)
-         DEALLOCATE (grid_map)
-         DEALLOCATE (coef_map)
-         DEALLOCATE (coef_xtt)
-         DEALLOCATE (coef_xyt)
-         DEALLOCATE (coef_ijk)
-         DEALLOCATE (coef_xyz)
-      END SUBROUTINE integrate_general_opt
-
-! **************************************************************************************************
-
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE integrate_general_subpatch()
-      INTEGER, DIMENSION(2, 3)                           :: local_b
-      INTEGER, DIMENSION(3)                              :: local_s, periodic
-      REAL(dp), DIMENSION((la_max_local+lb_max_local+1)*&
-         (la_max_local+lb_max_local+2)*(&
-         la_max_local+lb_max_local+3)/6)                 :: poly_d3
-
-         periodic = 1 ! cell%perd
-         lp = la_max_local + lb_max_local
-         local_b(1, :) = rsgrid%lb_real - rsgrid%desc%lb
-         local_b(2, :) = rsgrid%ub_real - rsgrid%desc%lb
-         local_s = rsgrid%lb_real - rsgrid%lb_local
-         IF (BTEST(subpatch_pattern, 0)) local_b(1, 1) = local_b(1, 1) - rsgrid%desc%border
-         IF (BTEST(subpatch_pattern, 1)) local_b(2, 1) = local_b(2, 1) + rsgrid%desc%border
-         IF (BTEST(subpatch_pattern, 2)) local_b(1, 2) = local_b(1, 2) - rsgrid%desc%border
-         IF (BTEST(subpatch_pattern, 3)) local_b(2, 2) = local_b(2, 2) + rsgrid%desc%border
-         IF (BTEST(subpatch_pattern, 4)) local_b(1, 3) = local_b(1, 3) - rsgrid%desc%border
-         IF (BTEST(subpatch_pattern, 5)) local_b(2, 3) = local_b(2, 3) + rsgrid%desc%border
-         IF (BTEST(subpatch_pattern, 0)) local_s(1) = local_s(1) - rsgrid%desc%border
-         IF (BTEST(subpatch_pattern, 2)) local_s(2) = local_s(2) - rsgrid%desc%border
-         IF (BTEST(subpatch_pattern, 4)) local_s(3) = local_s(3) - rsgrid%desc%border
-         CALL integrateGaussFull(h=cell%hmat, h_inv=cell%h_inv, &
-                                 grid=grid, poly=poly_d3, alphai=zetp, posi=rp, max_r2=radius*radius, &
-                                 periodic=periodic, gdim=ng, local_bounds=local_b, local_shift=local_s, &
-                                 scale=rsgrid%desc%ngpts/ABS(cell%deth))
-         ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
-         ALLOCATE (coef_xyz(((lp + 1)*(lp + 2)*(lp + 3))/6))
-         CALL poly_d32cp2k(coef_xyz, lp, poly_d3)
-         CALL call_to_xyz_to_vab(prefactor, coef_xyz, lp, la_max_local, lb_max_local, &
-                                 rp, ra, rab, vab, coset, la_min_local, lb_min_local, &
-                                 current_maxl, ncoset(la_max_local), &
-                                 ncoset(lb_max_local))
-
-         DEALLOCATE (coef_xyz)
-      END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE integrate_general_wings()
-      INTEGER                                            :: periodic(3)
-      INTEGER, DIMENSION(2, 3)                           :: local_b
-      REAL(dp), DIMENSION((la_max_local+lb_max_local+1)*&
-         (la_max_local+lb_max_local+2)*(&
-         la_max_local+lb_max_local+3)/6)                 :: poly_d3
-      REAL(dp), DIMENSION(3)                             :: local_shift, rShifted
-
-         periodic = 1 ! cell%perd
-         local_b(1, :) = 0
-         local_b(2, :) = MIN(rsgrid%desc%npts - 1, rsgrid%ub_local - rsgrid%lb_local)
-         local_shift = REAL(rsgrid%desc%lb - rsgrid%lb_local, dp)/REAL(rsgrid%desc%npts, dp)
-         rShifted(1) = rp(1) + cell%hmat(1, 1)*local_shift(1) &
-                       + cell%hmat(1, 2)*local_shift(2) &
-                       + cell%hmat(1, 3)*local_shift(3)
-         rShifted(2) = rp(2) + cell%hmat(2, 1)*local_shift(1) &
-                       + cell%hmat(2, 2)*local_shift(2) &
-                       + cell%hmat(2, 3)*local_shift(3)
-         rShifted(3) = rp(3) + cell%hmat(3, 1)*local_shift(1) &
-                       + cell%hmat(3, 2)*local_shift(2) &
-                       + cell%hmat(3, 3)*local_shift(3)
-         lp = la_max_local + lb_max_local
-         CALL integrateGaussFull(h=cell%hmat, h_inv=cell%h_inv, &
-                                 grid=grid, poly=poly_d3, alphai=zetp, posi=rShifted, &
-                                 max_r2=radius*radius, &
-                                 periodic=periodic, gdim=ng, local_bounds=local_b, &
-                                 scale=rsgrid%desc%ngpts/ABS(cell%deth))
-         ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
-         ALLOCATE (coef_xyz(((lp + 1)*(lp + 2)*(lp + 3))/6))
-         CALL poly_d32cp2k(coef_xyz, lp, poly_d3)
-         CALL call_to_xyz_to_vab(prefactor, coef_xyz, lp, la_max_local, lb_max_local, &
-                                 rp, ra, rab, vab, coset, la_min_local, lb_min_local, &
-                                 current_maxl, ncoset(la_max_local), ncoset(lb_max_local))
-
-         DEALLOCATE (coef_xyz)
-      END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE integrate_general()
-      INTEGER                                            :: i, index_max(3), index_min(3), &
-                                                            ipoint(3), j, k
-      REAL(KIND=dp)                                      :: gridval, point(3)
-
-         CALL return_cube_nonortho(cube_info, radius, index_min, index_max, rp)
-
-         ! go over the grid, but cycle if the point is not within the radius
-         DO k = index_min(3), index_max(3)
-         DO j = index_min(2), index_max(2)
-         DO i = index_min(1), index_max(1)
-            ! point in real space
-            point = MATMUL(cell%hmat, REAL((/i, j, k/), KIND=dp)/ng)
-            ! skip if outside of the sphere
-            IF (SUM((point - rp)**2) > radius**2) CYCLE
-            ! point on the grid (including pbc)
-            ipoint = MODULO((/i, j, k/), ng) + 1
-            ! integrate on the grid
-            gridval = grid(ipoint(1), ipoint(2), ipoint(3))
-            CALL primitive_integrate(point, gridval)
-         ENDDO
-         ENDDO
-         ENDDO
-      END SUBROUTINE integrate_general
-
-! **************************************************************************************************
-!> \brief ...
-!> \param point ...
-!> \param gridval ...
-! **************************************************************************************************
-      SUBROUTINE primitive_integrate(point, gridval)
-      REAL(KIND=dp)                                      :: point(3), gridval
-
-      REAL(KIND=dp)                                      :: dra(3), drap(3), drb(3), drbp(3), myexp
-
-         myexp = EXP(-zetp*SUM((point - rp)**2))*prefactor*gridval
-         dra = point - ra
-         drb = point - rb
-         drap(1) = 1.0_dp
-         DO lxa = 0, la_max_local
-            drbp(1) = 1.0_dp
-            DO lxb = 0, lb_max_local
-               drap(2) = 1.0_dp
-               DO lya = 0, la_max_local - lxa
-                  drbp(2) = 1.0_dp
-                  DO lyb = 0, lb_max_local - lxb
-                     drap(3) = 1.0_dp
-                     DO lza = 1, MAX(la_min_local - lxa - lya, 0)
-                        drap(3) = drap(3)*dra(3)
-                     ENDDO
-                     DO lza = MAX(la_min_local - lxa - lya, 0), la_max_local - lxa - lya
-                        drbp(3) = 1.0_dp
-                        DO lzb = 1, MAX(lb_min_local - lxb - lyb, 0)
-                           drbp(3) = drbp(3)*drb(3)
-                        ENDDO
-                        DO lzb = MAX(lb_min_local - lxb - lyb, 0), lb_max_local - lxb - lyb
-                           ico = coset(lxa, lya, lza)
-                           jco = coset(lxb, lyb, lzb)
-                           vab(ico, jco) = vab(ico, jco) + myexp*PRODUCT(drap)*PRODUCT(drbp)
-                           drbp(3) = drbp(3)*drb(3)
-                        ENDDO
-                        drap(3) = drap(3)*dra(3)
-                     ENDDO
-                     drbp(2) = drbp(2)*drb(2)
-                  ENDDO
-                  drap(2) = drap(2)*dra(2)
-               ENDDO
-               drbp(1) = drbp(1)*drb(1)
-            ENDDO
-            drap(1) = drap(1)*dra(1)
-         ENDDO
-
-      END SUBROUTINE
 
    END SUBROUTINE integrate_pgf_product
 

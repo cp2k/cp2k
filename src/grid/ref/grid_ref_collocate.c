@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define GRID_DO_COLLOCATE 1
 #include "../common/grid_common.h"
 #include "grid_ref_collint.h"
 #include "grid_ref_collocate.h"
