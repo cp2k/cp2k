@@ -358,7 +358,7 @@ CONTAINS
                                                             ra(3), rpgf0, scale, zet0
       REAL(dp), DIMENSION(:), POINTER                    :: hab_sph, norm_l, Qlm
       REAL(dp), DIMENSION(:, :), POINTER                 :: hab, hdab_sph, intloc, pab
-      REAL(dp), DIMENSION(:, :, :), POINTER              :: a_hdab_sph, hadb, hdab, Qlm_gg
+      REAL(dp), DIMENSION(:, :, :), POINTER              :: a_hdab_sph, hdab, Qlm_gg
       REAL(dp), DIMENSION(:, :, :, :), POINTER           :: a_hdab
       REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -499,12 +499,11 @@ CONTAINS
 
       !   *** Allocate work storage ***
 
-      NULLIFY (hab, hab_sph, hdab, hdab_sph, hadb, pab, a_hdab, a_hdab_sph)
+      NULLIFY (hab, hab_sph, hdab, hdab_sph, pab, a_hdab, a_hdab_sph)
       nch_max = ncoset(lmax0)
       CALL reallocate(hab, 1, nch_max, 1, 1)
       CALL reallocate(hab_sph, 1, nch_max)
       CALL reallocate(hdab, 1, 3, 1, nch_max, 1, 1)
-      CALL reallocate(hadb, 1, 3, 1, nch_max, 1, 1)
       CALL reallocate(hdab_sph, 1, 3, 1, nch_max)
       CALL reallocate(a_hdab, 1, 3, 1, 3, 1, nch_max, 1, 1)
       CALL reallocate(a_hdab_sph, 1, 3, 1, 3, 1, nch_max)
@@ -574,9 +573,8 @@ CONTAINS
                   cube_info(igrid), hab, pab, o1=0, o2=0, &
                   radius=rpgf0, &
                   calculate_forces=calculate_forces, &
-                  hdab=hdab, hadb=hadb, &
                   use_virial=use_virial, my_virial_a=my_virial_a, my_virial_b=my_virial_b, &
-                  a_hdab=a_hdab, use_subpatch=.TRUE., subpatch_pattern=0)
+                  hdab=hdab, a_hdab=a_hdab, use_subpatch=.TRUE., subpatch_pattern=0)
 
                ! Convert from cartesian to spherical
                DO lshell = 0, l0_ikind
@@ -696,7 +694,7 @@ CONTAINS
 
       CALL rs_grid_release(rs_v)
 
-      DEALLOCATE (hab, hdab, hadb, hab_sph, hdab_sph, pab, a_hdab, a_hdab_sph)
+      DEALLOCATE (hab, hdab, hab_sph, hdab_sph, pab, a_hdab, a_hdab_sph)
 
       CALL timestop(handle)
 
