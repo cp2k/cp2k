@@ -213,6 +213,7 @@ CONTAINS
          pab_required, use_subpatch, use_virial
       REAL(KIND=dp)                                      :: admm_scal_fac, eps_rho_rspace, f, &
                                                             prefactor, radius, scalef, zetp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: h_block_set, p_block_set
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra, rab, rab_inv, rb, &
                                                             rp
       REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b, pv_thread
@@ -469,8 +470,8 @@ CONTAINS
 !$OMP PRIVATE(img,brow,bcol,orb_basis_set,first_sgfa,la_max,la_min,npgfa,nseta,nsgfa), &
 !$OMP PRIVATE(rpgfa,set_radius_a,sphi_a,zeta,first_sgfb,lb_max,lb_min,npgfb), &
 !$OMP PRIVATE(nsetb,nsgfb,rpgfb,set_radius_b,sphi_b,zetb,found), &
-!$OMP PRIVATE(force_a,force_b,my_virial_a,my_virial_b,atom_pair_changed,h_block), &
-!$OMP PRIVATE(p_block,ncoa,sgfa,ncob,sgfb,rab,ra,rb,rp,zetp,f,prefactor,radius,igrid_level), &
+!$OMP PRIVATE(force_a,force_b,my_virial_a,my_virial_b,atom_pair_changed,h_block,h_block_set), &
+!$OMP PRIVATE(p_block,p_block_set,ncoa,sgfa,ncob,sgfb,rab,ra,rb,rp,zetp,f,prefactor,radius,igrid_level), &
 !$OMP PRIVATE(na1,na2,nb1,nb2,use_subpatch,rab_inv,new_set_pair_coming,atom_pair_done), &
 !$OMP PRIVATE(iset_new,jset_new,ipgf_new,jpgf_new,scalef), &
 !$OMP PRIVATE(itask,dist,has_threads) &
@@ -621,24 +622,21 @@ CONTAINS
                sgfa = first_sgfa(1, iset)
                ncob = npgfb(jset)*ncoset(lb_max(jset))
                sgfb = first_sgfb(1, jset)
+
+               IF (ALLOCATED(p_block_set)) DEALLOCATE (p_block_set)
+               ALLOCATE (p_block_set(nsgfa(iset), nsgfb(jset)))
                IF (pab_required) THEN
                   IF (iatom <= jatom) THEN
-                     work(1:ncoa, 1:nsgfb(jset)) = MATMUL(sphi_a(1:ncoa, sgfa:sgfa + nsgfa(iset) - 1), &
-                                                          p_block(sgfa:sgfa + nsgfa(iset) - 1, sgfb:sgfb + nsgfb(jset) - 1))
-                   pab(1:ncoa, 1:ncob) = MATMUL(work(1:ncoa, 1:nsgfb(jset)), TRANSPOSE(sphi_b(1:ncob, sgfb:sgfb + nsgfb(jset) - 1)))
+                     p_block_set(:, :) = p_block(sgfa:sgfa + nsgfa(iset) - 1, sgfb:sgfb + nsgfb(jset) - 1)
                   ELSE
-                     work(1:ncob, 1:nsgfa(iset)) = MATMUL(sphi_b(1:ncob, sgfb:sgfb + nsgfb(jset) - 1), &
-                                                          p_block(sgfb:sgfb + nsgfb(jset) - 1, sgfa:sgfa + nsgfa(iset) - 1))
-                   pab(1:ncob, 1:ncoa) = MATMUL(work(1:ncob, 1:nsgfa(iset)), TRANSPOSE(sphi_a(1:ncoa, sgfa:sgfa + nsgfa(iset) - 1)))
-                  END IF
+                     p_block_set(:, :) = TRANSPOSE(p_block(sgfb:sgfb + nsgfb(jset) - 1, sgfa:sgfa + nsgfa(iset) - 1))
+                  ENDIF
+                  work(1:ncoa, 1:nsgfb(jset)) = MATMUL(sphi_a(1:ncoa, sgfa:sgfa + nsgfa(iset) - 1), p_block_set)
+                  pab(1:ncoa, 1:ncob) = MATMUL(work(1:ncoa, 1:nsgfb(jset)), &
+                                               TRANSPOSE(sphi_b(1:ncob, sgfb:sgfb + nsgfb(jset) - 1)))
                END IF
 
-               IF (iatom <= jatom) THEN
-                  hab(1:ncoa, 1:ncob) = 0._dp
-               ELSE
-                  hab(1:ncob, 1:ncoa) = 0._dp
-               ENDIF
-
+               hab(1:ncoa, 1:ncob) = 0._dp
                iset_old = iset
                jset_old = jset
 
@@ -675,61 +673,30 @@ CONTAINS
             ENDIF
 
             IF (pab_required) THEN
-               IF (iatom <= jatom) THEN
-                  CALL integrate_pgf_product( &
-                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                     lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                     ra, rab, rs_v(igrid_level)%rs_grid, cell, &
-                     cube_info(igrid_level), &
-                     hab, pab=pab, o1=na1 - 1, o2=nb1 - 1, &
-                     radius=radius, &
-                     calculate_forces=calculate_forces, &
-                     force_a=force_a, force_b=force_b, &
-                     compute_tau=my_compute_tau, &
-                     use_virial=use_virial, my_virial_a=my_virial_a, &
-                     my_virial_b=my_virial_b, use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern)
-               ELSE
-                  rab_inv = -rab
-                  CALL integrate_pgf_product( &
-                     lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                     rb, rab_inv, rs_v(igrid_level)%rs_grid, cell, &
-                     cube_info(igrid_level), &
-                     hab, pab=pab, o1=nb1 - 1, o2=na1 - 1, &
-                     radius=radius, &
-                     calculate_forces=calculate_forces, &
-                     force_a=force_b, force_b=force_a, &
-                     compute_tau=my_compute_tau, &
-                     use_virial=use_virial, my_virial_a=my_virial_b, &
-                     my_virial_b=my_virial_a, use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern)
-               END IF
+               CALL integrate_pgf_product( &
+                  la_max(iset), zeta(ipgf, iset), la_min(iset), &
+                  lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
+                  ra, rab, rs_v(igrid_level)%rs_grid, cell, &
+                  cube_info(igrid_level), &
+                  hab, pab=pab, o1=na1 - 1, o2=nb1 - 1, &
+                  radius=radius, &
+                  calculate_forces=calculate_forces, &
+                  force_a=force_a, force_b=force_b, &
+                  compute_tau=my_compute_tau, &
+                  use_virial=use_virial, my_virial_a=my_virial_a, &
+                  my_virial_b=my_virial_b, use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern)
             ELSE
-               IF (iatom <= jatom) THEN
-                  CALL integrate_pgf_product( &
-                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                     lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                     ra, rab, rs_v(igrid_level)%rs_grid, cell, &
-                     cube_info(igrid_level), &
-                     hab, o1=na1 - 1, o2=nb1 - 1, &
-                     radius=radius, &
-                     calculate_forces=calculate_forces, &
-                     force_a=force_a, force_b=force_b, &
-                     compute_tau=my_compute_tau, &
-                     use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern)
-               ELSE
-                  rab_inv = -rab
-                  CALL integrate_pgf_product( &
-                     lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                     rb, rab_inv, rs_v(igrid_level)%rs_grid, cell, &
-                     cube_info(igrid_level), &
-                     hab, o1=nb1 - 1, o2=na1 - 1, &
-                     radius=radius, &
-                     calculate_forces=calculate_forces, &
-                     force_a=force_b, force_b=force_a, &
-                     compute_tau=my_compute_tau, &
-                     use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern)
-               END IF
+               CALL integrate_pgf_product( &
+                  la_max(iset), zeta(ipgf, iset), la_min(iset), &
+                  lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
+                  ra, rab, rs_v(igrid_level)%rs_grid, cell, &
+                  cube_info(igrid_level), &
+                  hab, o1=na1 - 1, o2=nb1 - 1, &
+                  radius=radius, &
+                  calculate_forces=calculate_forces, &
+                  force_a=force_a, force_b=force_b, &
+                  compute_tau=my_compute_tau, &
+                  use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern)
             END IF
 
             new_set_pair_coming = .FALSE.
@@ -754,16 +721,16 @@ CONTAINS
 
             ! contract the block into h if we're done with the current set pair
             IF (new_set_pair_coming) THEN
+               IF (ALLOCATED(h_block_set)) DEALLOCATE (h_block_set)
+               ALLOCATE (h_block_set(nsgfa(iset), nsgfb(jset)))
+               work(1:ncoa, 1:nsgfb(jset)) = MATMUL(hab(1:ncoa, 1:ncob), sphi_b(1:ncob, sgfb:sgfb + nsgfb(jset) - 1))
+               h_block_set(:, :) = MATMUL(TRANSPOSE(sphi_a(1:ncoa, sgfa:sgfa + nsgfa(iset) - 1)), work(1:ncoa, 1:nsgfb(jset)))
                IF (iatom <= jatom) THEN
-                  work(1:ncoa, 1:nsgfb(jset)) = MATMUL(hab(1:ncoa, 1:ncob), sphi_b(1:ncob, sgfb:sgfb + nsgfb(jset) - 1))
                   h_block(sgfa:sgfa + nsgfa(iset) - 1, sgfb:sgfb + nsgfb(jset) - 1) = &
-                     h_block(sgfa:sgfa + nsgfa(iset) - 1, sgfb:sgfb + nsgfb(jset) - 1) + &
-                     MATMUL(TRANSPOSE(sphi_a(1:ncoa, sgfa:sgfa + nsgfa(iset) - 1)), work(1:ncoa, 1:nsgfb(jset)))
+                     h_block(sgfa:sgfa + nsgfa(iset) - 1, sgfb:sgfb + nsgfb(jset) - 1) + h_block_set
                ELSE
-                  work(1:ncob, 1:nsgfa(iset)) = MATMUL(hab(1:ncob, 1:ncoa), sphi_a(1:ncoa, sgfa:sgfa + nsgfa(iset) - 1))
                   h_block(sgfb:sgfb + nsgfb(jset) - 1, sgfa:sgfa + nsgfa(iset) - 1) = &
-                     h_block(sgfb:sgfb + nsgfb(jset) - 1, sgfa:sgfa + nsgfa(iset) - 1) + &
-                     MATMUL(TRANSPOSE(sphi_b(1:ncob, sgfb:sgfb + nsgfb(jset) - 1)), work(1:ncob, 1:nsgfa(iset)))
+                     h_block(sgfb:sgfb + nsgfb(jset) - 1, sgfa:sgfa + nsgfa(iset) - 1) + TRANSPOSE(h_block_set)
                END IF
             END IF
 
