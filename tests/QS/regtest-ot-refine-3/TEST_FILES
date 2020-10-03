@@ -10,7 +10,7 @@ o2_ot_poly_on_the_fly_l1.inp                           1      2e-13             
 h2o_ot_refine_3.inp                                    1      3e-14             -17.08884672065213
 h2o_ot_refine_4.inp                                    1      2e-14             -17.11857283464189
 o2_ot_refine_3.inp                                     1      5e-13             -31.60858514412410
-o2_ot_refine_4.inp                                     1      4e-14             -31.58768162895743
+o2_ot_refine_4.inp                                     1      2e-13             -31.58768162895743
 h2o_ot_precond_1.inp                                   1      4e-14             -16.05766867329444
 h2o_ot_precond_2.inp                                   1      4e-14             -16.06790080254975
 h2o_ot_precond_3.inp                                   1      4e-14             -16.02559849783371
