@@ -14,9 +14,9 @@
 !
 ! This module acts as a common container for the routines from the low level
 ! modules
+!           grid_api
 !           qs_integrate_potential_product
 !           qs_integrate_potential_single
-!           grid_integrate
 !
 ! **************************************************************************************************
 MODULE qs_integrate_potential
@@ -47,7 +47,7 @@ MODULE qs_integrate_potential
              integrate_ppl_rspace, &
              integrate_rho_nlcc
 
-   ! included from grid_integrate
+   ! included from grid_api
    PUBLIC :: integrate_pgf_product
 
 END MODULE qs_integrate_potential
