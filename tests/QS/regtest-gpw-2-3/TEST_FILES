@@ -7,7 +7,7 @@ hcn_ts_fix_x.inp                                      63      1e-14             
 hcn_ts_fix_y.inp                                      64      1e-14                  -0.0003000000
 hcn_ts_fix_z.inp                                      65      1e-14                   0.0000000000
 # chain of two coordination numbers
-hcn_md.inp                                             1      3e-14             -16.50121471895406
+hcn_md.inp                                             1      6e-14             -16.50121471895406
 hcn_meta_coord.inp                                     1      4e-14             -16.65113632013810
 hcn_meta_chaincoord.inp                                1      9e-14             -16.64019903493714
 hcn_meta_chaincoord_kind.inp                           1      1e-13             -16.64019903493714
