@@ -375,6 +375,26 @@ ortho_cxyz_to_grid(const int lp, const double zetp, const double dh[3][3],
 }
 
 /*******************************************************************************
+ * \brief Collocates coefficients C_i into register reg for general case.
+ * \author Ole Schuett
+ ******************************************************************************/
+static inline void general_ci_to_reg(const int lp, const double exp_aiibic,
+                                     const double di,
+                                     GRID_CONST_WHEN_COLLOCATE double *ci,
+                                     GRID_CONST_WHEN_INTEGRATE double *reg) {
+  double dip = exp_aiibic;
+
+  for (int il = 0; il <= lp; il++) {
+#if (GRID_DO_COLLOCATE)
+    (*reg) += ci[il] * dip; // collocate
+#else
+    ci[il] += (*reg) * dip; // integrate
+#endif
+    dip *= di;
+  }
+}
+
+/*******************************************************************************
  * \brief Collocates coefficients C_i onto the grid for general case.
  * \author Ole Schuett
  ******************************************************************************/
@@ -434,6 +454,7 @@ general_ci_to_grid(const int lp, const int j, const int jg, const int k,
       continue;
     }
 
+    const double di = i - gp[0];
     const int stride = npts_local[1] * npts_local[0];
     const int grid_index =
         kg * stride + jg * npts_local[0] + ig; // [kg, jg, ig]
@@ -444,20 +465,21 @@ general_ci_to_grid(const int lp, const int j, const int jg, const int k,
       exp_is_invalid = false;
     }
 
-    // polynomial terms
-    double dip = exp_aiibic; // exp(-zetp * ((a * i + b) * i + c));
-    const double di = i - gp[0];
-    for (int il = 0; il <= lp; il++) {
+    // In all likelihood the compiler will keep this variable in a register.
+    double reg = 0.0;
+
 #if (GRID_DO_COLLOCATE)
-      grid[grid_index] += ci[il] * dip; // collocate
+    // collocate
+    general_ci_to_reg(lp, exp_aiibic, di, ci, &reg);
+    grid[grid_index] += reg;
 #else
-      ci[il] += grid[grid_index] * dip; // integrate
+    // integrate
+    reg += grid[grid_index];
+    general_ci_to_reg(lp, exp_aiibic, di, ci, &reg);
 #endif
-      dip *= di;
-    }
 
     // update exponential term
-    exp_aiibic *= exp_2ai * exp_ab;
+    exp_aiibic *= exp_2ai * exp_ab; // exp(-zetp * ((a * i + b) * i + c));
     exp_2ai *= exp_2a;
   }
 }
@@ -476,7 +498,7 @@ static inline void general_cij_to_ci(const int lp, const double dj,
 #if (GRID_DO_COLLOCATE)
       ci[il] += cij[cij_index] * djp; // collocate
 #else
-      cij[cij_index] += ci[il] * djp;   // integrate
+      cij[cij_index] += ci[il] * djp; // integrate
 #endif
     }
     djp *= dj;
