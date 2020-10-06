@@ -24,14 +24,14 @@
 #endif
 
 /*******************************************************************************
- * \brief Collocates coefficients C_s onto the grid for orthorhombic case.
+ * \brief Collocates registers reg onto the grid for orthorhombic case.
  * \author Ole Schuett
  ******************************************************************************/
-static inline void ortho_cs_to_grid(const int k, const int k2, const int j,
-                                    const int j2, const int i, const int i2,
-                                    const int npts_local[3],
-                                    GRID_CONST_WHEN_COLLOCATE double *cs,
-                                    GRID_CONST_WHEN_INTEGRATE double *grid) {
+static inline void ortho_reg_to_grid(const int k, const int k2, const int j,
+                                     const int j2, const int i, const int i2,
+                                     const int npts_local[3],
+                                     GRID_CONST_WHEN_COLLOCATE double *reg,
+                                     GRID_CONST_WHEN_INTEGRATE double *grid) {
 
   const int stride = npts_local[1] * npts_local[0];
   const int grid_index_0 = k * stride + j * npts_local[0] + i;
@@ -45,35 +45,35 @@ static inline void ortho_cs_to_grid(const int k, const int k2, const int j,
 
 #if (GRID_DO_COLLOCATE)
   // collocate
-  grid[grid_index_0] += cs[0];
-  grid[grid_index_1] += cs[1];
-  grid[grid_index_2] += cs[2];
-  grid[grid_index_3] += cs[3];
-  grid[grid_index_4] += cs[4];
-  grid[grid_index_5] += cs[5];
-  grid[grid_index_6] += cs[6];
-  grid[grid_index_7] += cs[7];
+  grid[grid_index_0] += reg[0];
+  grid[grid_index_1] += reg[1];
+  grid[grid_index_2] += reg[2];
+  grid[grid_index_3] += reg[3];
+  grid[grid_index_4] += reg[4];
+  grid[grid_index_5] += reg[5];
+  grid[grid_index_6] += reg[6];
+  grid[grid_index_7] += reg[7];
 #else
   // integrate
-  cs[0] += grid[grid_index_0];
-  cs[1] += grid[grid_index_1];
-  cs[2] += grid[grid_index_2];
-  cs[3] += grid[grid_index_3];
-  cs[4] += grid[grid_index_4];
-  cs[5] += grid[grid_index_5];
-  cs[6] += grid[grid_index_6];
-  cs[7] += grid[grid_index_7];
+  reg[0] += grid[grid_index_0];
+  reg[1] += grid[grid_index_1];
+  reg[2] += grid[grid_index_2];
+  reg[3] += grid[grid_index_3];
+  reg[4] += grid[grid_index_4];
+  reg[5] += grid[grid_index_5];
+  reg[6] += grid[grid_index_6];
+  reg[7] += grid[grid_index_7];
 #endif
 }
 
 /*******************************************************************************
- * \brief Transforms coefficients C_x into C_s by fixing grid index i.
+ * \brief Transforms coefficients C_x into registers reg by fixing grid index i.
  * \author Ole Schuett
  ******************************************************************************/
-static inline void ortho_cx_to_cs(const int lp, const double pol_ig[lp + 1],
-                                  const double pol_ig2[lp + 1],
-                                  GRID_CONST_WHEN_COLLOCATE double *cx,
-                                  GRID_CONST_WHEN_INTEGRATE double *cs) {
+static inline void ortho_cx_to_reg(const int lp, const double pol_ig[lp + 1],
+                                   const double pol_ig2[lp + 1],
+                                   GRID_CONST_WHEN_COLLOCATE double *cx,
+                                   GRID_CONST_WHEN_INTEGRATE double *reg) {
 
   for (int lxp = 0; lxp <= lp; lxp++) {
     const double p1 = pol_ig[lxp];
@@ -81,24 +81,24 @@ static inline void ortho_cx_to_cs(const int lp, const double pol_ig[lp + 1],
 
 #if (GRID_DO_COLLOCATE)
     // collocate
-    cs[0] += cx[lxp * 4 + 0] * p1;
-    cs[1] += cx[lxp * 4 + 1] * p1;
-    cs[2] += cx[lxp * 4 + 2] * p1;
-    cs[3] += cx[lxp * 4 + 3] * p1;
-    cs[4] += cx[lxp * 4 + 0] * p2;
-    cs[5] += cx[lxp * 4 + 1] * p2;
-    cs[6] += cx[lxp * 4 + 2] * p2;
-    cs[7] += cx[lxp * 4 + 3] * p2;
+    reg[0] += cx[lxp * 4 + 0] * p1;
+    reg[1] += cx[lxp * 4 + 1] * p1;
+    reg[2] += cx[lxp * 4 + 2] * p1;
+    reg[3] += cx[lxp * 4 + 3] * p1;
+    reg[4] += cx[lxp * 4 + 0] * p2;
+    reg[5] += cx[lxp * 4 + 1] * p2;
+    reg[6] += cx[lxp * 4 + 2] * p2;
+    reg[7] += cx[lxp * 4 + 3] * p2;
 #else
     // integrate
-    cx[lxp * 4 + 0] += cs[0] * p1;
-    cx[lxp * 4 + 1] += cs[1] * p1;
-    cx[lxp * 4 + 2] += cs[2] * p1;
-    cx[lxp * 4 + 3] += cs[3] * p1;
-    cx[lxp * 4 + 0] += cs[4] * p2;
-    cx[lxp * 4 + 1] += cs[5] * p2;
-    cx[lxp * 4 + 2] += cs[6] * p2;
-    cx[lxp * 4 + 3] += cs[7] * p2;
+    cx[lxp * 4 + 0] += reg[0] * p1;
+    cx[lxp * 4 + 1] += reg[1] * p1;
+    cx[lxp * 4 + 2] += reg[2] * p1;
+    cx[lxp * 4 + 3] += reg[3] * p1;
+    cx[lxp * 4 + 0] += reg[4] * p2;
+    cx[lxp * 4 + 1] += reg[5] * p2;
+    cx[lxp * 4 + 2] += reg[6] * p2;
+    cx[lxp * 4 + 3] += reg[7] * p2;
 #endif
   }
 }
@@ -126,16 +126,18 @@ ortho_cx_to_grid(const int lp, const int k, const int k2, const int jg,
     const int ig2 = 1 - ig;
     const int i = map[0][ig + cmax];
     const int i2 = map[0][ig2 + cmax];
-    double cs[8] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+
+    // In all likelihood the compiler will keep these variables in registers.
+    double reg[8] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
 #if (GRID_DO_COLLOCATE)
     // collocate
-    ortho_cx_to_cs(lp, pol[0][ig + cmax], pol[0][ig2 + cmax], cx, cs);
-    ortho_cs_to_grid(k, k2, j, j2, i, i2, npts_local, cs, grid);
+    ortho_cx_to_reg(lp, pol[0][ig + cmax], pol[0][ig2 + cmax], cx, reg);
+    ortho_reg_to_grid(k, k2, j, j2, i, i2, npts_local, reg, grid);
 #else
     // integrate
-    ortho_cs_to_grid(k, k2, j, j2, i, i2, npts_local, cs, grid);
-    ortho_cx_to_cs(lp, pol[0][ig + cmax], pol[0][ig2 + cmax], cx, cs);
+    ortho_reg_to_grid(k, k2, j, j2, i, i2, npts_local, reg, grid);
+    ortho_cx_to_reg(lp, pol[0][ig + cmax], pol[0][ig2 + cmax], cx, reg);
 #endif
   }
 }
