@@ -213,15 +213,16 @@ CONTAINS
          pab_required, use_subpatch, use_virial
       REAL(KIND=dp)                                      :: admm_scal_fac, eps_rho_rspace, f, &
                                                             prefactor, radius, scalef, zetp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: h_block_set, p_block_set
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra, rab, rab_inv, rb, &
                                                             rp
       REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b, pv_thread
       REAL(KIND=dp), DIMENSION(3, natom)                 :: force_thread
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block, hab, p_block, pab, rpgfa, &
-                                                            rpgfb, sphi_a, sphi_b, work, zeta, zetb
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: habt, hadb, hdab, pabt, workt
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block, h_block_set, hab, p_block, &
+                                                            p_block_set, pab, rpgfa, rpgfb, &
+                                                            sphi_a, sphi_b, work, zeta, zetb
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: h_block_sett, habt, hadb, hdab, &
+                                                            p_block_sett, pabt, workt
       REAL(kind=dp), DIMENSION(:, :, :, :), POINTER      :: hadbt, hdabt
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atom_pair_type), DIMENSION(:), POINTER        :: atom_pair_recv, atom_pair_send
@@ -420,11 +421,13 @@ CONTAINS
 !$    nthread = omp_get_max_threads()
 
       !   *** Allocate work storage ***
-      NULLIFY (pabt, habt, workt)
+      NULLIFY (habt, workt, h_block_sett, pabt, p_block_sett)
       CALL reallocate(habt, 1, maxco, 1, maxco, 0, nthread)
       CALL reallocate(workt, 1, maxco, 1, maxsgf_set, 0, nthread)
+      CALL reallocate(h_block_sett, 1, maxsgf_set, 1, maxsgf_set, 0, nthread)
       IF (pab_required) THEN
          CALL reallocate(pabt, 1, maxco, 1, maxco, 0, nthread)
+         CALL reallocate(p_block_sett, 1, maxsgf_set, 1, maxsgf_set, 0, nthread)
       ELSE
          CPASSERT(.NOT. calculate_forces)
       END IF
@@ -459,7 +462,8 @@ CONTAINS
       END IF
 
 !$OMP PARALLEL DEFAULT(NONE), &
-!$OMP SHARED(workt,habt,hdabt,hadbt,pabt,tasks,particle_set,natom,maxset), &
+!$OMP SHARED(workt,habt,hdabt,hadbt,pabt,h_block_sett, p_block_sett), &
+!$OMP SHARED(tasks,particle_set,natom,maxset), &
 !$OMP SHARED(maxpgf,my_basis_type,my_gapw,dhmat,deltap,use_virial,admm_scal_fac), &
 !$OMP SHARED(pab_required,calculate_forces,ncoset,rs_v,cube_info,my_compute_tau), &
 !$OMP SHARED(eps_rho_rspace,force,virial,cell), &
@@ -481,8 +485,10 @@ CONTAINS
 !$    ithread = omp_get_thread_num()
       work => workt(:, :, ithread)
       hab => habt(:, :, ithread)
+      h_block_set => h_block_sett(:, :, ithread)
       IF (pab_required) THEN
          pab => pabt(:, :, ithread)
+         p_block_set => p_block_sett(:, :, ithread)
       END IF
 
       iset_old = -1; jset_old = -1
@@ -623,15 +629,16 @@ CONTAINS
                ncob = npgfb(jset)*ncoset(lb_max(jset))
                sgfb = first_sgfb(1, jset)
 
-               IF (ALLOCATED(p_block_set)) DEALLOCATE (p_block_set)
-               ALLOCATE (p_block_set(nsgfa(iset), nsgfb(jset)))
                IF (pab_required) THEN
                   IF (iatom <= jatom) THEN
-                     p_block_set(:, :) = p_block(sgfa:sgfa + nsgfa(iset) - 1, sgfb:sgfb + nsgfb(jset) - 1)
+                     p_block_set(1:nsgfa(iset), 1:nsgfb(jset)) = &
+                        p_block(sgfa:sgfa + nsgfa(iset) - 1, sgfb:sgfb + nsgfb(jset) - 1)
                   ELSE
-                     p_block_set(:, :) = TRANSPOSE(p_block(sgfb:sgfb + nsgfb(jset) - 1, sgfa:sgfa + nsgfa(iset) - 1))
+                     p_block_set(1:nsgfa(iset), 1:nsgfb(jset)) = &
+                        TRANSPOSE(p_block(sgfb:sgfb + nsgfb(jset) - 1, sgfa:sgfa + nsgfa(iset) - 1))
                   ENDIF
-                  work(1:ncoa, 1:nsgfb(jset)) = MATMUL(sphi_a(1:ncoa, sgfa:sgfa + nsgfa(iset) - 1), p_block_set)
+                  work(1:ncoa, 1:nsgfb(jset)) = MATMUL(sphi_a(1:ncoa, sgfa:sgfa + nsgfa(iset) - 1), &
+                                                       p_block_set(1:nsgfa(iset), 1:nsgfb(jset)))
                   pab(1:ncoa, 1:ncob) = MATMUL(work(1:ncoa, 1:nsgfb(jset)), &
                                                TRANSPOSE(sphi_b(1:ncob, sgfb:sgfb + nsgfb(jset) - 1)))
                END IF
@@ -721,16 +728,17 @@ CONTAINS
 
             ! contract the block into h if we're done with the current set pair
             IF (new_set_pair_coming) THEN
-               IF (ALLOCATED(h_block_set)) DEALLOCATE (h_block_set)
-               ALLOCATE (h_block_set(nsgfa(iset), nsgfb(jset)))
                work(1:ncoa, 1:nsgfb(jset)) = MATMUL(hab(1:ncoa, 1:ncob), sphi_b(1:ncob, sgfb:sgfb + nsgfb(jset) - 1))
-               h_block_set(:, :) = MATMUL(TRANSPOSE(sphi_a(1:ncoa, sgfa:sgfa + nsgfa(iset) - 1)), work(1:ncoa, 1:nsgfb(jset)))
+               h_block_set(1:nsgfa(iset), 1:nsgfb(jset)) = &
+                  MATMUL(TRANSPOSE(sphi_a(1:ncoa, sgfa:sgfa + nsgfa(iset) - 1)), work(1:ncoa, 1:nsgfb(jset)))
                IF (iatom <= jatom) THEN
                   h_block(sgfa:sgfa + nsgfa(iset) - 1, sgfb:sgfb + nsgfb(jset) - 1) = &
-                     h_block(sgfa:sgfa + nsgfa(iset) - 1, sgfb:sgfb + nsgfb(jset) - 1) + h_block_set
+                     h_block(sgfa:sgfa + nsgfa(iset) - 1, sgfb:sgfb + nsgfb(jset) - 1) + &
+                     h_block_set(1:nsgfa(iset), 1:nsgfb(jset))
                ELSE
                   h_block(sgfb:sgfb + nsgfb(jset) - 1, sgfa:sgfa + nsgfa(iset) - 1) = &
-                     h_block(sgfb:sgfb + nsgfb(jset) - 1, sgfa:sgfa + nsgfa(iset) - 1) + TRANSPOSE(h_block_set)
+                     h_block(sgfb:sgfb + nsgfb(jset) - 1, sgfa:sgfa + nsgfa(iset) - 1) + &
+                     TRANSPOSE(h_block_set(1:nsgfa(iset), 1:nsgfb(jset)))
                END IF
             END IF
 
@@ -823,10 +831,10 @@ CONTAINS
 
       !   *** Release work storage ***
 
-      DEALLOCATE (habt, workt)
+      DEALLOCATE (habt, workt, h_block_sett)
 
       IF (pab_required) THEN
-         DEALLOCATE (pabt)
+         DEALLOCATE (pabt, p_block_sett)
       END IF
 
       IF (ASSOCIATED(rs_v)) THEN
