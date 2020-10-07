@@ -194,11 +194,11 @@ static inline void ortho_cxy_to_grid(
   const double kr = kd * dh[2][2]; // distance from center in a.u.
   const double kremain = disr_radius * disr_radius - kr * kr;
   const int jgmin = (int)ceil(-1e-8 - sqrt(fmax(0.0, kremain)) * dh_inv[1][1]);
+  const size_t cx_size = (lp + 1) * 4;
+  double cx[cx_size];
   for (int jg = jgmin; jg <= 0; jg++) {
     const int jg2 = 1 - jg;
 
-    const size_t cx_size = (lp + 1) * 4;
-    double cx[cx_size];
     memset(cx, 0, cx_size * sizeof(double));
 
 #if (GRID_DO_COLLOCATE)
@@ -351,11 +351,11 @@ ortho_cxyz_to_grid(const int lp, const double zetp, const double dh[3][3],
 
   // Loop over k dimension of the cube.
   const int kgmin = (int)ceil(-1e-8 - disr_radius * dh_inv[2][2]);
+  const size_t cxy_size = (lp + 1) * (lp + 1) * 2;
+  double cxy[cxy_size];
   for (int kg = kgmin; kg <= 0; kg++) {
     const int kg2 = 1 - kg;
 
-    const size_t cxy_size = (lp + 1) * (lp + 1) * 2;
-    double cxy[cxy_size];
     memset(cxy, 0, cxy_size * sizeof(double));
 
 #if (GRID_DO_COLLOCATE)
@@ -438,11 +438,14 @@ general_ci_to_grid(const int lp, const int j, const int jg, const int k,
     return;
   }
   const double sqrt_d = sqrt(d);
-  const int ismin = (int)ceil((-b - sqrt_d) / (2.0 * a));
-  const int ismax = (int)floor((-b + sqrt_d) / (2.0 * a));
+  const double a2 = 2.0 * a;
+  const double inva2 = 1.0 / a2;
+  const int ismin = (int)ceil((-b - sqrt_d) * inva2);
+  const int ismax = (int)floor((-b + sqrt_d) * inva2);
+  const int base = kg * npts_local[1] * npts_local[0] + jg * npts_local[0];
 
   const double exp_ab = exp(-zetp * (a + b));
-  const double exp_2a = exp(-zetp * 2.0 * a);
+  const double exp_2a = exp(-zetp * a2);
   bool exp_is_invalid = true;
   double exp_2ai = 0.0;
   double exp_aiibic = 0.0;
@@ -454,14 +457,12 @@ general_ci_to_grid(const int lp, const int j, const int jg, const int k,
       continue;
     }
 
-    const double di = i - gp[0];
-    const int stride = npts_local[1] * npts_local[0];
-    const int grid_index =
-        kg * stride + jg * npts_local[0] + ig; // [kg, jg, ig]
+    const double di = (double)i;
+    const int grid_index = base + ig; // [kg, jg, ig]
 
     if (exp_is_invalid) {
-      exp_2ai = exp(-zetp * 2.0 * a * i);
-      exp_aiibic = exp(-zetp * ((a * i + b) * i + c));
+      exp_2ai = exp(-zetp * a2 * di);
+      exp_aiibic = exp(-zetp * ((a * di + b) * di + c));
       exp_is_invalid = false;
     }
 
@@ -470,12 +471,12 @@ general_ci_to_grid(const int lp, const int j, const int jg, const int k,
 
 #if (GRID_DO_COLLOCATE)
     // collocate
-    general_ci_to_reg(lp, exp_aiibic, di, ci, &reg);
+    general_ci_to_reg(lp, exp_aiibic, di - gp[0], ci, &reg);
     grid[grid_index] += reg;
 #else
     // integrate
     reg += grid[grid_index];
-    general_ci_to_reg(lp, exp_aiibic, di, ci, &reg);
+    general_ci_to_reg(lp, exp_aiibic, di - gp[0], ci, &reg);
 #endif
 
     // update exponential term
@@ -517,6 +518,8 @@ static inline void general_cij_to_grid(
     const double radius, GRID_CONST_WHEN_COLLOCATE double *cij,
     GRID_CONST_WHEN_INTEGRATE double *grid) {
 
+  const size_t ci_size = lp + 1;
+  double ci[ci_size];
   for (int j = index_min[1]; j <= index_max[1]; j++) {
     const int jg = map_j[j - index_min[1]];
     if (jg < bounds_j[0] || bounds_j[1] < jg) {
@@ -524,8 +527,6 @@ static inline void general_cij_to_grid(
     }
     const double dj = j - gp[1];
 
-    const size_t ci_size = lp + 1;
-    double ci[ci_size];
     memset(ci, 0, ci_size * sizeof(double));
 
 #if (GRID_DO_COLLOCATE)
@@ -648,6 +649,8 @@ general_cijk_to_grid(const int border_mask, const int lp, const double zetp,
   }
 
   // go over the grid, but cycle if the point is not within the radius
+  const int cij_size = (lp + 1) * (lp + 1);
+  double cij[cij_size];
   for (int k = index_min[2]; k <= index_max[2]; k++) {
     const int kg = map_k[k - index_min[2]];
     if (kg < bounds_k[0] || bounds_k[1] < kg) {
@@ -656,8 +659,6 @@ general_cijk_to_grid(const int border_mask, const int lp, const double zetp,
     const double dk = k - gp[2];
 
     // zero coef_xyt
-    const int cij_size = (lp + 1) * (lp + 1);
-    double cij[cij_size];
     memset(cij, 0, cij_size * sizeof(double));
 
 #if (GRID_DO_COLLOCATE)
