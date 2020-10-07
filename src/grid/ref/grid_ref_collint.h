@@ -121,7 +121,7 @@ ortho_cx_to_grid(const int lp, const int k, const int k2, const int jg,
   const int jd = (2 * jg - 1) / 2; // distance from center in grid points
   const double jr = jd * dh[1][1]; // distance from center in a.u.
   const double jremain = kremain - jr * jr;
-  const int igmin = ceil(-1e-8 - sqrt(fmax(0.0, jremain)) * dh_inv[0][0]);
+  const int igmin = (int)ceil(-1e-8 - sqrt(fmax(0.0, jremain)) * dh_inv[0][0]);
   for (int ig = igmin; ig <= 0; ig++) {
     const int ig2 = 1 - ig;
     const int i = map[0][ig + cmax];
@@ -193,7 +193,7 @@ static inline void ortho_cxy_to_grid(
   const int kd = (2 * kg - 1) / 2; // distance from center in grid points
   const double kr = kd * dh[2][2]; // distance from center in a.u.
   const double kremain = disr_radius * disr_radius - kr * kr;
-  const int jgmin = ceil(-1e-8 - sqrt(fmax(0.0, kremain)) * dh_inv[1][1]);
+  const int jgmin = (int)ceil(-1e-8 - sqrt(fmax(0.0, kremain)) * dh_inv[1][1]);
   for (int jg = jgmin; jg <= 0; jg++) {
     const int jg2 = 1 - jg;
 
@@ -272,7 +272,7 @@ ortho_cxyz_to_grid(const int lp, const double zetp, const double dh[3][3],
     for (int j = 0; j < 3; j++) {
       dh_inv_rp += dh_inv[j][i] * rp[j];
     }
-    cubecenter[i] = floor(dh_inv_rp);
+    cubecenter[i] = (int)floor(dh_inv_rp);
   }
 
   double roffset[3];
@@ -286,7 +286,7 @@ ortho_cxyz_to_grid(const int lp, const double zetp, const double dh[3][3],
 
   int lb_cube[3], ub_cube[3];
   for (int i = 0; i < 3; i++) {
-    lb_cube[i] = ceil(-1e-8 - disr_radius * dh_inv[i][i]);
+    lb_cube[i] = (int)ceil(-1e-8 - disr_radius * dh_inv[i][i]);
     ub_cube[i] = 1 - lb_cube[i];
     // If grid is not period check that cube fits without wrapping.
     if (npts_global[i] != npts_local[i]) {
@@ -350,7 +350,7 @@ ortho_cxyz_to_grid(const int lp, const double zetp, const double dh[3][3],
   const int(*map)[2 * cmax + 1] = (const int(*)[2 * cmax + 1]) map_mutable;
 
   // Loop over k dimension of the cube.
-  const int kgmin = ceil(-1e-8 - disr_radius * dh_inv[2][2]);
+  const int kgmin = (int)ceil(-1e-8 - disr_radius * dh_inv[2][2]);
   for (int kg = kgmin; kg <= 0; kg++) {
     const int kg2 = 1 - kg;
 
@@ -438,8 +438,8 @@ general_ci_to_grid(const int lp, const int j, const int jg, const int k,
     return;
   }
   const double sqrt_d = sqrt(d);
-  const int ismin = ceil((-b - sqrt_d) / (2.0 * a));
-  const int ismax = floor((-b + sqrt_d) / (2.0 * a));
+  const int ismin = (int)ceil((-b - sqrt_d) / (2.0 * a));
+  const int ismax = (int)floor((-b + sqrt_d) / (2.0 * a));
 
   const double exp_ab = exp(-zetp * (a + b));
   const double exp_2a = exp(-zetp * 2.0 * a);
@@ -626,8 +626,8 @@ general_cijk_to_grid(const int border_mask, const int lp, const double zetp,
         for (int idir = 0; idir < 3; idir++) {
           const double resc =
               dh_inv[0][idir] * x + dh_inv[1][idir] * y + dh_inv[2][idir] * z;
-          index_min[idir] = imin(index_min[idir], floor(resc));
-          index_max[idir] = imax(index_max[idir], ceil(resc));
+          index_min[idir] = imin(index_min[idir], (int)floor(resc));
+          index_max[idir] = imax(index_max[idir], (int)ceil(resc));
         }
       }
     }
