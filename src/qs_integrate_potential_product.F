@@ -30,7 +30,6 @@
 ! **************************************************************************************************
 MODULE qs_integrate_potential_product
    USE admm_types,                      ONLY: admm_type
-   USE ao_util,                         ONLY: exp_radius_very_extended
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
@@ -211,8 +210,7 @@ CONTAINS
       LOGICAL :: atom_pair_changed, atom_pair_done, distributed_grids, do_kp, found, h_duplicated, &
          has_threads, my_compute_tau, my_force_adm, my_gapw, new_set_pair_coming, p_duplicated, &
          pab_required, use_subpatch, use_virial
-      REAL(KIND=dp)                                      :: admm_scal_fac, eps_rho_rspace, f, &
-                                                            prefactor, radius, scalef, zetp
+      REAL(KIND=dp)                                      :: admm_scal_fac, scalef
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra, rab, rab_inv, rb, &
                                                             rp
       REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b, pv_thread
@@ -353,9 +351,6 @@ CONTAINS
       pv_thread = 0.0_dp
       force_thread = 0.0_dp
 
-      ! needs to be consistent with rho_rspace
-      eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-
       pab_required = (PRESENT(pmat) .OR. PRESENT(pmat_kp)) .AND. calculate_forces
 
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, &
@@ -466,7 +461,7 @@ CONTAINS
 !$OMP SHARED(tasks,particle_set,natom,maxset), &
 !$OMP SHARED(maxpgf,my_basis_type,my_gapw,dhmat,deltap,use_virial,admm_scal_fac), &
 !$OMP SHARED(pab_required,calculate_forces,ncoset,rs_v,cube_info,my_compute_tau), &
-!$OMP SHARED(eps_rho_rspace,force,virial,cell), &
+!$OMP SHARED(force,virial,cell), &
 !$OMP SHARED(gridlevel_info,task_list,block_touched,nthread,qs_kind_set), &
 !$OMP SHARED(nimages,do_kp), &
 !$OMP PRIVATE(ithread,work,hab,hdab,hadb,pab,iset_old,jset_old), &
@@ -475,7 +470,7 @@ CONTAINS
 !$OMP PRIVATE(rpgfa,set_radius_a,sphi_a,zeta,first_sgfb,lb_max,lb_min,npgfb), &
 !$OMP PRIVATE(nsetb,nsgfb,rpgfb,set_radius_b,sphi_b,zetb,found), &
 !$OMP PRIVATE(force_a,force_b,my_virial_a,my_virial_b,atom_pair_changed,h_block,h_block_set), &
-!$OMP PRIVATE(p_block,p_block_set,ncoa,sgfa,ncob,sgfb,rab,ra,rb,rp,zetp,f,prefactor,radius,igrid_level), &
+!$OMP PRIVATE(p_block,p_block_set,ncoa,sgfa,ncob,sgfb,rab,ra,rb,rp,igrid_level), &
 !$OMP PRIVATE(na1,na2,nb1,nb2,use_subpatch,rab_inv,new_set_pair_coming,atom_pair_done), &
 !$OMP PRIVATE(iset_new,jset_new,ipgf_new,jpgf_new,scalef), &
 !$OMP PRIVATE(itask,dist,has_threads) &
@@ -651,16 +646,6 @@ CONTAINS
 
             rab = tasks(itask)%rab
             rb(:) = ra(:) + rab(:)
-            zetp = zeta(ipgf, iset) + zetb(jpgf, jset)
-
-            f = zetb(jpgf, jset)/zetp
-            rp(:) = ra(:) + f*rab(:)
-            prefactor = EXP(-zeta(ipgf, iset)*f*DOT_PRODUCT(rab, rab))
-            radius = exp_radius_very_extended(la_min=la_min(iset), la_max=la_max(iset), &
-                                              lb_min=lb_min(jset), lb_max=lb_max(jset), &
-                                              ra=ra, rb=rb, rp=rp, &
-                                              zetp=zetp, eps=eps_rho_rspace, &
-                                              prefactor=prefactor, cutoff=1.0_dp)
 
             na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
             na2 = ipgf*ncoset(la_max(iset))
@@ -686,7 +671,7 @@ CONTAINS
                   ra, rab, rs_v(igrid_level)%rs_grid, cell, &
                   cube_info(igrid_level), &
                   hab, pab=pab, o1=na1 - 1, o2=nb1 - 1, &
-                  radius=radius, &
+                  radius=tasks(itask)%radius, &
                   calculate_forces=calculate_forces, &
                   force_a=force_a, force_b=force_b, &
                   compute_tau=my_compute_tau, &
@@ -699,7 +684,7 @@ CONTAINS
                   ra, rab, rs_v(igrid_level)%rs_grid, cell, &
                   cube_info(igrid_level), &
                   hab, o1=na1 - 1, o2=nb1 - 1, &
-                  radius=radius, &
+                  radius=tasks(itask)%radius, &
                   calculate_forces=calculate_forces, &
                   force_a=force_a, force_b=force_b, &
                   compute_tau=my_compute_tau, &
