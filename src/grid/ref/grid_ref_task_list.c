@@ -6,6 +6,7 @@
 /*----------------------------------------------------------------------------*/
 
 #include <assert.h>
+#include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -127,25 +128,27 @@ static void collocate_one_grid_level(
     const int border_width[3], const double dh[3][3], const double dh_inv[3][3],
     double *grid) {
 
+  // Allocate memory for thread local copy of the grid.
+  const int nthreads = omp_get_max_threads();
+  const size_t npts_local_total = npts_local[0] * npts_local[1] * npts_local[2];
+  const size_t grid_size = npts_local_total * sizeof(double);
+  double(*const threadlocal_grid_pool)[npts_local_total] =
+      (double(*const)[npts_local_total])malloc(nthreads * grid_size);
+
 // Using default(shared) because with GCC 9 the behavior around const changed:
 // https://www.gnu.org/software/gcc/gcc-9/porting_to.html
 #pragma omp parallel default(shared)
   {
-
-    // Allocate thread local copy of the grid.
-    const size_t npts_local_total =
-        npts_local[0] * npts_local[1] * npts_local[2];
-    const size_t grid_size = npts_local_total * sizeof(double);
-    double *threadlocal_grid = malloc(grid_size);
+    // Clear thread local copy of the grid.
+    const int thread_num = omp_get_thread_num();
+    double *const threadlocal_grid = threadlocal_grid_pool[thread_num];
     memset(threadlocal_grid, 0, grid_size);
-
-    // Allocate pab matrix for re-use across tasks.
-    const size_t max_pab_size =
-        task_list->maxco * task_list->maxco * sizeof(double);
-    double *pab = malloc(max_pab_size);
 
     // Initialize variables to detect when a new subblock has to be fetched.
     int prev_block_num = -1, prev_iset = -1, prev_jset = -1;
+
+    // Matrix pab is re-used across tasks.
+    double pab[task_list->maxco * task_list->maxco];
 
 #pragma omp for schedule(static)
     for (int itask = first_task; itask <= last_task; itask++) {
@@ -194,17 +197,17 @@ static void collocate_one_grid_level(
         double work[nsgf_setb * ncoa];
         const double zero = 0.0, one = 1.0;
         if (iatom <= jatom) {
-          // work = MATMUL(ibasis->sphi, subblock)
+          // work[nsgf_setb][ncoa] = MATMUL(ibasis->sphi, subblock)
           dgemm_("N", "N", &ncoa, &nsgf_setb, &nsgf_seta, &one,
                  &ibasis->sphi[sgfa * maxcoa], &maxcoa,
                  &block[sgfb * nsgfa + sgfa], &nsgfa, &zero, work, &ncoa);
         } else {
-          // work = MATMUL(ibasis->sphi, TRANSPOSE(subblock))
+          // work[nsgf_setb][ncoa] = MATMUL(ibasis->sphi, TRANSPOSE(subblock))
           dgemm_("N", "T", &ncoa, &nsgf_setb, &nsgf_seta, &one,
                  &ibasis->sphi[sgfa * maxcoa], &maxcoa,
                  &block[sgfa * nsgfb + sgfb], &nsgfb, &zero, work, &ncoa);
         }
-        // double pab[ncob][ncoa] = MATMUL(work, TRANSPOSE(jbasis->sphi))
+        // pab[ncob][ncoa] = MATMUL(work, TRANSPOSE(jbasis->sphi))
         dgemm_("N", "T", &ncoa, &ncob, &nsgf_setb, &one, work, &ncoa,
                &jbasis->sphi[sgfb * maxcob], &maxcob, &zero, pab, &ncoa);
 
@@ -246,11 +249,9 @@ static void collocate_one_grid_level(
     for (size_t i = 0; i < npts_local_total; i++) {
       grid[i] += threadlocal_grid[i];
     }
-
-    free(pab);
-    free(threadlocal_grid);
-
   } // end of omp parallel
+
+  free(threadlocal_grid_pool);
 }
 
 /*******************************************************************************
