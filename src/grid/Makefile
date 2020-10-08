@@ -24,9 +24,9 @@ ALL_OBJECTS := grid_collocate_replay.o \
 	cd $(dir $<); $(CC) -c $(CFLAGS) $(notdir $<)
 
 grid_collocate_miniapp.x: grid_collocate_miniapp.o $(ALL_OBJECTS)
-	$(CC) $(CFLAGS) -o $@ $^ -lm
+	$(CC) $(CFLAGS) -o $@ $^ -lm -lblas
 
 grid_collocate_unittest.x: grid_collocate_unittest.o $(ALL_OBJECTS)
-	$(CC) $(CFLAGS) -o $@ $^ -lm
+	$(CC) $(CFLAGS) -o $@ $^ -lm -lblas
 
 #EOF

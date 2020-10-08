@@ -190,42 +190,24 @@ static void collocate_one_grid_level(
             task_list->block_offsets[block_num]; // zero based
         const double *block = &task_list->blocks_buffer[block_offset];
 
-        // Copy sub block for current sets and transpose it if needed.
-        double subblock[nsgf_setb][nsgf_seta];
+        // Decontract the sub block into pab.
+        double work[nsgf_setb * ncoa];
+        const double zero = 0.0, one = 1.0;
         if (iatom <= jatom) {
-          for (int i = 0; i < nsgf_setb; i++)
-            for (int j = 0; j < nsgf_seta; j++)
-              subblock[i][j] = block[(i + sgfb) * nsgfa + j + sgfa];
+          // work = MATMUL(ibasis->sphi, subblock)
+          dgemm_("N", "N", &ncoa, &nsgf_setb, &nsgf_seta, &one,
+                 &ibasis->sphi[sgfa * maxcoa], &maxcoa,
+                 &block[sgfb * nsgfa + sgfa], &nsgfa, &zero, work, &ncoa);
         } else {
-          for (int i = 0; i < nsgf_setb; i++)
-            for (int j = 0; j < nsgf_seta; j++)
-              subblock[i][j] =
-                  block[(j + sgfa) * nsgfb + i + sgfb]; // transposed
+          // work = MATMUL(ibasis->sphi, TRANSPOSE(subblock))
+          dgemm_("N", "T", &ncoa, &nsgf_setb, &nsgf_seta, &one,
+                 &ibasis->sphi[sgfa * maxcoa], &maxcoa,
+                 &block[sgfa * nsgfb + sgfb], &nsgfb, &zero, work, &ncoa);
         }
+        // double pab[ncob][ncoa] = MATMUL(work, TRANSPOSE(jbasis->sphi))
+        dgemm_("N", "T", &ncoa, &ncob, &nsgf_setb, &one, work, &ncoa,
+               &jbasis->sphi[sgfb * maxcob], &maxcob, &zero, pab, &ncoa);
 
-        // work = MATMUL(ibasis->sphi, subblock)
-        double work[nsgf_setb][ncoa];
-        memset(work, 0, sizeof(double) * nsgf_setb * ncoa);
-        for (int i = 0; i < nsgf_setb; i++) {
-          for (int j = 0; j < ncoa; j++) {
-            for (int k = 0; k < nsgf_seta; k++) {
-              work[i][j] +=
-                  subblock[i][k] * ibasis->sphi[(k + sgfa) * maxcoa + j];
-            }
-          }
-        }
-
-        // double pab[ncob][ncoa]
-        // pab = MATMUL(work, TRANSPOSE(jbasis->sphi))
-        memset(pab, 0, sizeof(double) * ncob * ncoa);
-        for (int i = 0; i < ncob; i++) {
-          for (int j = 0; j < ncoa; j++) {
-            for (int k = 0; k < nsgf_setb; k++) {
-              pab[i * ncoa + j] +=
-                  work[k][j] * jbasis->sphi[(k + sgfb) * maxcob + i];
-            }
-          }
-        }
       } // end of block loading
 
       const double zeta = ibasis->zet[iset * ibasis->maxpgf + ipgf];
