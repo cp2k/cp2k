@@ -247,18 +247,13 @@ static void collocate_one_grid_level(
           /*pab=*/(const double(*)[ncoa])pab,
           /*grid=*/threadlocal_grid);
     } // end of task loop
-  }   // end of omp parallel
 
-  // Merge thread local grids into shared grid.
-  for (size_t i = 0; i < npts_local_total; i++) {
-    double grid_val = 0;
-    for (int thread_num = 0; thread_num < nthreads; thread_num++) {
-      const uintptr_t aligned = grid_pool_aligned + thread_num * grid_size;
-      double *const threadlocal_grid = (double *)aligned;
-      grid_val += threadlocal_grid[i];
+    // Merge thread local grids into shared grid.
+#pragma omp critical
+    for (size_t i = 0; i < npts_local_total; i++) {
+      grid[i] += threadlocal_grid[i];
     }
-    grid[i] += grid_val;
-  }
+  } // end of omp parallel
 
   free(grid_pool);
 }
