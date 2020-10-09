@@ -143,15 +143,15 @@ static void collocate_one_grid_level(
 // https://www.gnu.org/software/gcc/gcc-9/porting_to.html
 #pragma omp parallel default(shared) num_threads(nthreads)
   {
-    // Clear thread local copy of the grid.
-    const int thread_num = omp_get_thread_num();
     // Initialize variables to detect when a new subblock has to be fetched.
     int prev_block_num = -1, prev_iset = -1, prev_jset = -1;
     // Matrix pab is re-used across tasks.
     double pab[task_list->maxco * task_list->maxco];
 
+    const int thread_num = omp_get_thread_num();
     const uintptr_t aligned = grid_pool_aligned + thread_num * grid_size;
     double *const threadlocal_grid = (double *)aligned;
+    // Clear thread local copy of the grid.
     memset(threadlocal_grid, 0, grid_size_unaligned);
 
 #pragma omp for schedule(static)
