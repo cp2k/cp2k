@@ -7,6 +7,7 @@
 
 #include <assert.h>
 #include <omp.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -130,25 +131,28 @@ static void collocate_one_grid_level(
 
   // Allocate memory for thread local copy of the grid.
   const int nthreads = omp_get_max_threads();
+  const unsigned int alignpage = (1 << 12); // 4K pages assumed
+  const uintptr_t align1 = alignpage - 1;
   const size_t npts_local_total = npts_local[0] * npts_local[1] * npts_local[2];
-  const size_t grid_size = npts_local_total * sizeof(double);
-  double(*const threadlocal_grid_pool)[npts_local_total] =
-      (double(*const)[npts_local_total])malloc(nthreads * grid_size);
+  const size_t grid_size_unaligned = npts_local_total * sizeof(double);
+  const size_t grid_size = (grid_size_unaligned + align1) & ~align1;
+  void *const grid_pool = malloc(grid_size * nthreads + align1);
+  const uintptr_t grid_pool_aligned = ((uintptr_t)grid_pool + align1) & ~align1;
 
 // Using default(shared) because with GCC 9 the behavior around const changed:
 // https://www.gnu.org/software/gcc/gcc-9/porting_to.html
-#pragma omp parallel default(shared)
+#pragma omp parallel default(shared) num_threads(nthreads)
   {
     // Clear thread local copy of the grid.
     const int thread_num = omp_get_thread_num();
-    double *const threadlocal_grid = threadlocal_grid_pool[thread_num];
-    memset(threadlocal_grid, 0, grid_size);
-
     // Initialize variables to detect when a new subblock has to be fetched.
     int prev_block_num = -1, prev_iset = -1, prev_jset = -1;
-
     // Matrix pab is re-used across tasks.
     double pab[task_list->maxco * task_list->maxco];
+
+    const uintptr_t aligned = grid_pool_aligned + thread_num * grid_size;
+    double *const threadlocal_grid = (double *)aligned;
+    memset(threadlocal_grid, 0, grid_size_unaligned);
 
 #pragma omp for schedule(static)
     for (int itask = first_task; itask <= last_task; itask++) {
@@ -243,15 +247,20 @@ static void collocate_one_grid_level(
           /*pab=*/(const double(*)[ncoa])pab,
           /*grid=*/threadlocal_grid);
     } // end of task loop
+  }   // end of omp parallel
 
-// Merge thread local grids into shared grid.
-#pragma omp critical
-    for (size_t i = 0; i < npts_local_total; i++) {
-      grid[i] += threadlocal_grid[i];
+  // Merge thread local grids into shared grid.
+  for (size_t i = 0; i < npts_local_total; i++) {
+    double grid_val = 0;
+    for (uintptr_t thread_num = 0; thread_num < nthreads; thread_num++) {
+      const uintptr_t aligned = grid_pool_aligned + thread_num * grid_size;
+      double *const threadlocal_grid = (double *)aligned;
+      grid_val += threadlocal_grid[i];
     }
-  } // end of omp parallel
+    grid[i] += grid_val;
+  }
 
-  free(threadlocal_grid_pool);
+  free(grid_pool);
 }
 
 /*******************************************************************************
