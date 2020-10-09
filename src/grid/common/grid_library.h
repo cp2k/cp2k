@@ -55,17 +55,17 @@ void grid_library_print_stats(void (*mpi_sum_func)(long *, int), int mpi_comm,
  * \author Ole Schuett
  ******************************************************************************/
 typedef struct {
-  long ref_collocate_ortho;
-  long ref_integrate_ortho;
-  long ref_collocate_general;
-  long ref_integrate_general;
+  long counters[20][2][2]; // [lp][kernel][operation]
 } grid_library_stats;
 
 /*******************************************************************************
- * \brief Increment global counters by given values.
+ * \brief Increment specified counter.
+ * \param lp    Total angular momentum: la_max + lb_max.
+ * \param kern  Kernel: 0=ortho, 1=general.
+ * \param op    Operation: 0=integrate, 1=collocate.
  * \author Ole Schuett
  ******************************************************************************/
-void grid_library_gather_stats(grid_library_stats increment);
+void grid_library_increment_counter(int collocate, int ortho, int lp);
 
 #endif // GRID_LIBRARY_H
 

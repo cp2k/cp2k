@@ -360,13 +360,11 @@ ortho_cxyz_to_grid(const int lp, const double zetp, const double dh[3][3],
 
 #if (GRID_DO_COLLOCATE)
     // collocate
-    grid_library_gather_stats((grid_library_stats){.ref_collocate_ortho = 1});
     ortho_cxyz_to_cxy(lp, pol[2][kg + cmax], pol[2][kg2 + cmax], cxyz, cxy);
     ortho_cxy_to_grid(lp, kg, kg2, cmax, pol, map, dh, dh_inv, disr_radius,
                       npts_local, cxy, grid);
 #else
     // integrate
-    grid_library_gather_stats((grid_library_stats){.ref_integrate_ortho = 1});
     ortho_cxy_to_grid(lp, kg, kg2, cmax, pol, map, dh, dh_inv, disr_radius,
                       npts_local, cxy, grid);
     ortho_cxyz_to_cxy(lp, pol[2][kg + cmax], pol[2][kg2 + cmax], cxyz, cxy);
@@ -767,14 +765,12 @@ general_cxyz_to_grid(const int border_mask, const int lp, const double zetp,
 
 #if (GRID_DO_COLLOCATE)
   // collocate
-  grid_library_gather_stats((grid_library_stats){.ref_collocate_general = 1});
   general_cxyz_to_cijk(lp, dh, cxyz, cijk);
   general_cijk_to_grid(border_mask, lp, zetp, dh, dh_inv, rp, npts_global,
                        npts_local, shift_local, border_width, radius, cijk,
                        grid);
 #else
   // integrate
-  grid_library_gather_stats((grid_library_stats){.ref_integrate_general = 1});
   general_cijk_to_grid(border_mask, lp, zetp, dh, dh_inv, rp, npts_global,
                        npts_local, shift_local, border_width, radius, cijk,
                        grid);
@@ -796,9 +792,11 @@ cxyz_to_grid(const bool orthorhombic, const int border_mask, const int lp,
              GRID_CONST_WHEN_INTEGRATE double *grid) {
 
   if (orthorhombic && border_mask == 0) {
+    grid_library_increment_counter(lp, 1, GRID_DO_COLLOCATE);
     ortho_cxyz_to_grid(lp, zetp, dh, dh_inv, rp, npts_global, npts_local,
                        shift_local, radius, cxyz, grid);
   } else {
+    grid_library_increment_counter(lp, 0, GRID_DO_COLLOCATE);
     general_cxyz_to_grid(border_mask, lp, zetp, dh, dh_inv, rp, npts_global,
                          npts_local, shift_local, border_width, radius, cxyz,
                          grid);

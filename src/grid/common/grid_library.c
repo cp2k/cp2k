@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "grid_common.h"
 #include "grid_constants.h"
 #include "grid_library.h"
 
@@ -83,22 +84,22 @@ grid_library_config grid_library_get_config() { return config; }
  ******************************************************************************/
 static void sum_stats(const grid_library_stats increment,
                       grid_library_stats *accumulator) {
-  accumulator->ref_collocate_ortho += increment.ref_collocate_ortho;
-  accumulator->ref_integrate_ortho += increment.ref_integrate_ortho;
-  accumulator->ref_collocate_general += increment.ref_collocate_general;
-  accumulator->ref_integrate_general += increment.ref_integrate_general;
+  for (int lp = 0; lp < 20; lp++) {
+    for (int kern = 0; kern < 2; kern++) {
+      for (int op = 0; op < 2; op++) {
+        accumulator->counters[lp][kern][op] += increment.counters[lp][kern][op];
+      }
+    }
+  }
 }
 
 /*******************************************************************************
- * \brief Increment global counters by given values.
+ * \brief Increment specified counter, see grid_library.h for details.
  * \author Ole Schuett
  ******************************************************************************/
-void grid_library_gather_stats(const grid_library_stats increment) {
-  if (!library_initialized) {
-    printf("Error: Grid library is not initialized.\n");
-    abort();
-  }
-  sum_stats(increment, per_thread_stats[omp_get_thread_num()]);
+void grid_library_increment_counter(int lp, int kern, int op) {
+  lp = imin(lp, 19);
+  per_thread_stats[omp_get_thread_num()]->counters[lp][kern][op]++;
 }
 
 /*******************************************************************************
@@ -113,6 +114,27 @@ void grid_library_print_stats(void (*mpi_sum_func)(long *, int),
     printf("Error: Grid library is not initialized.\n");
     abort();
   }
+
+  grid_library_stats totals;
+  memset(&totals, 0, sizeof(grid_library_stats));
+
+  // Sum across threads.
+  for (int i = 0; i < omp_get_max_threads(); i++) {
+    sum_stats(*per_thread_stats[i], &totals);
+  }
+
+  // Sum across mpi ranks.
+  double total_all = 0.0;
+  for (int lp = 0; lp < 20; lp++) {
+    for (int kern = 0; kern < 2; kern++) {
+      for (int op = 0; op < 2; op++) {
+        mpi_sum_func(&totals.counters[lp][kern][op], mpi_comm);
+        total_all += totals.counters[lp][kern][op];
+      }
+    }
+  }
+
+  // Print counters.
   print_func("\n", output_unit);
   print_func(" ----------------------------------------------------------------"
              "---------------\n",
@@ -129,37 +151,26 @@ void grid_library_print_stats(void (*mpi_sum_func)(long *, int),
   print_func(" ----------------------------------------------------------------"
              "---------------\n",
              output_unit);
-  print_func(" COUNTER                                                         "
-             "          VALUE\n",
+  print_func(" LP    KERNEL    OPERATION                                     "
+             "COUNT     PERCENT\n",
              output_unit);
 
-  grid_library_stats totals;
-  memset(&totals, 0, sizeof(grid_library_stats));
-
-  for (int i = 0; i < omp_get_max_threads(); i++) {
-    sum_stats(*per_thread_stats[i], &totals);
+  for (int lp = 0; lp < 20; lp++) {
+    for (int kern = 0; kern < 2; kern++) {
+      for (int op = 0; op < 2; op++) {
+        long count = totals.counters[lp][kern][op];
+        if (count == 0)
+          continue; // skip empty counters
+        const char *op_str = (op == 1) ? "collocate" : "integrate";
+        const char *kern_str = (kern == 1) ? "ortho" : "general";
+        char buffer[100];
+        double percent = 100.0 * count / total_all;
+        snprintf(buffer, sizeof(buffer), " %-5i %-9s %-12s %38li %10.2f%%\n",
+                 lp, kern_str, op_str, count, percent);
+        print_func(buffer, output_unit);
+      }
+    }
   }
-
-  char buffer[100];
-  mpi_sum_func(&totals.ref_collocate_ortho, mpi_comm);
-  snprintf(buffer, sizeof(buffer), " %-58s %20li\n", "ref_collocate_ortho",
-           totals.ref_collocate_ortho);
-  print_func(buffer, output_unit);
-
-  mpi_sum_func(&totals.ref_integrate_ortho, mpi_comm);
-  snprintf(buffer, sizeof(buffer), " %-58s %20li\n", "ref_integrate_ortho",
-           totals.ref_integrate_ortho);
-  print_func(buffer, output_unit);
-
-  mpi_sum_func(&totals.ref_collocate_general, mpi_comm);
-  snprintf(buffer, sizeof(buffer), " %-58s %20li\n", "ref_collocate_general",
-           totals.ref_collocate_general);
-  print_func(buffer, output_unit);
-
-  mpi_sum_func(&totals.ref_integrate_general, mpi_comm);
-  snprintf(buffer, sizeof(buffer), " %-58s %20li\n", "ref_integrate_general",
-           totals.ref_integrate_general);
-  print_func(buffer, output_unit);
 
   print_func(" ----------------------------------------------------------------"
              "---------------\n",
