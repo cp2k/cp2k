@@ -10,16 +10,26 @@ MODULE qs_tddfpt2_fhxc
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                              cp_fm_p_type
+                                              cp_fm_p_type, cp_fm_type, cp_fm_create, cp_fm_release
    USE cp_gemm_interface,               ONLY: cp_gemm
+   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
-                                              dbcsr_set
+                                              dbcsr_set, dbcsr_type, dbcsr_create, dbcsr_release,&
+                                              dbcsr_type_symmetric, dbcsr_get_info, dbcsr_copy, dbcsr_add
    USE kinds,                           ONLY: dp
+   USE pw_env_types,                    ONLY: pw_env_get
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_scale,&
                                               pw_zero
-   USE pw_types,                        ONLY: pw_p_type
-   USE qs_environment_types,            ONLY: qs_environment_type
+   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                              pw_pool_give_back_pw,&
+                                              pw_pool_type
+   USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                              REALDATA3D,&
+                                              REALSPACE,&
+                                              RECIPROCALSPACE,&
+                                              pw_p_type
+   USE qs_environment_types,            ONLY: qs_environment_type, get_qs_env
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
    USE qs_kernel_types,                 ONLY: full_kernel_env_type
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
@@ -60,6 +70,7 @@ CONTAINS
 !> \param kernel_env_admm_aux   kernel environment for ADMM correction
 !> \param sub_env               parallel (sub)group environment
 !> \param work_matrices         collection of work matrices (modified on exit)
+!> \param admm_symm             use symmetric definition of ADMM kernel correction
 !> \par History
 !>    * 06.2016 created [Sergey Chulkov]
 !>    * 03.2017 refactored [Sergey Chulkov]
@@ -67,22 +78,28 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fhxc_kernel(Aop_evects, evects, is_rks_triplets, &
                           do_hfx, do_admm, qs_env, kernel_env, kernel_env_admm_aux, &
-                          sub_env, work_matrices)
+                          sub_env, work_matrices, admm_symm)
       TYPE(cp_fm_p_type), DIMENSION(:, :)                :: Aop_evects, evects
       LOGICAL, INTENT(in)                                :: is_rks_triplets, do_hfx, do_admm
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(full_kernel_env_type), POINTER                :: kernel_env, kernel_env_admm_aux
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
       TYPE(tddfpt_work_matrices), INTENT(inout)          :: work_matrices
+      LOGICAL, INTENT(in)                                :: admm_symm
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fhxc_kernel'
 
-      INTEGER                                            :: handle, ispin, ivect, nao, nspins, nvects
+      INTEGER                                            :: handle, ispin, ivect, nao, nspins, nvects,&
+                                                            nao_aux
       INTEGER, DIMENSION(maxspins)                       :: nactive
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ia_ao, rho_ia_ao_aux_fit
+      INTEGER, DIMENSION(:), POINTER                     :: blk_sizes
+      TYPE(cp_fm_type), POINTER                          :: work_aux_orb, work_orb_orb
+      TYPE(dbcsr_type), POINTER                          :: dbwork
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ia_ao, rho_ia_ao_aux_fit, A_xc_munu_sub
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_ia_g, rho_ia_g_aux_fit, rho_ia_r, &
                                                             rho_ia_r_aux_fit, tau_ia_r, &
-                                                            tau_ia_r_aux_fit
+                                                            tau_ia_r_aux_fit, V_rspace_sub
 
       CALL timeset(routineN, handle)
 
@@ -169,11 +186,77 @@ CONTAINS
                                                   wfm_aux_orb=work_matrices%wfm_aux_orb_sub)
 
             ! - C_{HF} d^{2}E_{x, ADMM}^{DFT}[\hat{\rho}] / d\hat{\rho}^2
-            CALL tddfpt_apply_xc(A_ia_rspace=work_matrices%A_ia_rspace_sub, &
-                                 kernel_env=kernel_env_admm_aux, &
-                                 rho_ia_struct=work_matrices%rho_aux_fit_struct_sub, &
-                                 is_rks_triplets=is_rks_triplets, pw_env=sub_env%pw_env, &
-                                 work_v_xc=work_matrices%wpw_rspace_sub)
+            IF(admm_symm) THEN
+               CALL dbcsr_get_info(rho_ia_ao_aux_fit(1)%matrix, row_blk_size=blk_sizes)
+               ALLOCATE(A_xc_munu_sub(nspins))
+               DO ispin = 1, nspins
+                  ALLOCATE (A_xc_munu_sub(ispin)%matrix)
+                  CALL dbcsr_create(matrix=A_xc_munu_sub(ispin)%matrix, name="ADMM_XC", &
+                                    dist=sub_env%dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
+                                    row_blk_size=blk_sizes, col_blk_size=blk_sizes, nze=0)
+                  CALL cp_dbcsr_alloc_block_from_nbl(A_xc_munu_sub(ispin)%matrix, sub_env%sab_aux_fit)
+                  CALL dbcsr_set(A_xc_munu_sub(ispin)%matrix, 0.0_dp)
+               END DO
+
+               CALL pw_env_get(sub_env%pw_env, auxbas_pw_pool=auxbas_pw_pool)
+               ALLOCATE (V_rspace_sub(nspins))
+               DO ispin = 1, nspins
+                  NULLIFY (V_rspace_sub(ispin)%pw)
+                  CALL pw_pool_create_pw(auxbas_pw_pool, V_rspace_sub(ispin)%pw, &
+                                         use_data=REALDATA3D, in_space=REALSPACE)
+                  CALL pw_zero(V_rspace_sub(ispin)%pw)
+               END DO
+
+               CALL tddfpt_apply_xc(A_ia_rspace=V_rspace_sub, &
+                                    kernel_env=kernel_env_admm_aux, &
+                                    rho_ia_struct=work_matrices%rho_aux_fit_struct_sub, &
+                                    is_rks_triplets=is_rks_triplets, pw_env=sub_env%pw_env, &
+                                    work_v_xc=work_matrices%wpw_rspace_sub)
+               DO ispin = 1, nspins
+                  CALL pw_scale(V_rspace_sub(ispin)%pw, V_rspace_sub(ispin)%pw%pw_grid%dvol)
+                  CALL integrate_v_rspace(v_rspace=V_rspace_sub(ispin), &
+                                          hmat=A_xc_munu_sub(ispin), &
+                                          qs_env=qs_env, calculate_forces=.FALSE., &
+                                          pw_env_external=sub_env%pw_env, &
+                                          basis_type="AUX_FIT", &
+                                          task_list_external=sub_env%task_list_aux_fit)
+               END DO
+               ALLOCATE (dbwork)
+               CALL dbcsr_create(dbwork, template=work_matrices%A_ia_munu_sub(1)%matrix)
+               CALL cp_fm_create(work_aux_orb, &
+                                 matrix_struct=work_matrices%wfm_aux_orb_sub%matrix_struct)
+               CALL cp_fm_create(work_orb_orb, &
+                                 matrix_struct=work_matrices%rho_ao_orb_fm_sub%matrix_struct)
+               CALL cp_fm_get_info(work_aux_orb, nrow_global=nao_aux, ncol_global=nao)
+               DO ispin = 1, nspins
+                  CALL cp_dbcsr_sm_fm_multiply(A_xc_munu_sub(ispin)%matrix, sub_env%admm_A, &
+                                               work_aux_orb, nao)
+                  CALL cp_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, sub_env%admm_A, &
+                               work_aux_orb, 0.0_dp, work_orb_orb)
+                  CALL dbcsr_copy(dbwork, work_matrices%A_ia_munu_sub(1)%matrix)
+                  CALL dbcsr_set(dbwork, 0.0_dp)
+                  CALL copy_fm_to_dbcsr(work_orb_orb, dbwork, keep_sparsity=.TRUE.)
+                  CALL dbcsr_add(work_matrices%A_ia_munu_sub(ispin)%matrix, dbwork, 1.0_dp, 1.0_dp)
+               END DO
+               CALL dbcsr_release(dbwork)
+               DEALLOCATE (dbwork)
+               DO ispin = 1, nspins
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, V_rspace_sub(ispin)%pw)
+               END DO
+               DEALLOCATE (V_rspace_sub)
+               CALL cp_fm_release(work_aux_orb)
+               CALL cp_fm_release(work_orb_orb)
+               DO ispin = 1, nspins
+                  CALL dbcsr_release(A_xc_munu_sub(ispin)%matrix)
+               END DO
+               DEALLOCATE(A_xc_munu_sub)
+            ELSE
+               CALL tddfpt_apply_xc(A_ia_rspace=work_matrices%A_ia_rspace_sub, &
+                                    kernel_env=kernel_env_admm_aux, &
+                                    rho_ia_struct=work_matrices%rho_aux_fit_struct_sub, &
+                                    is_rks_triplets=is_rks_triplets, pw_env=sub_env%pw_env, &
+                                    work_v_xc=work_matrices%wpw_rspace_sub)
+            END IF
          END IF
 
          ! electron-hole Coulomb interaction

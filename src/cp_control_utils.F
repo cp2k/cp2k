@@ -1265,6 +1265,7 @@ CONTAINS
 
       CALL section_vals_val_get(t_section, "RESTART", l_val=t_control%is_restart)
       CALL section_vals_val_get(t_section, "RKS_TRIPLETS", l_val=t_control%rks_triplets)
+      CALL section_vals_val_get(t_section, "ADMM_KERNEL_CORRECTION_SYMMETRIC", l_val=t_control%admm_symm)
 
       IF (t_control%conv < 0) &
          t_control%conv = ABS(t_control%conv)

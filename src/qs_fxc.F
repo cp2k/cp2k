@@ -1,6 +1,8 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2020  CP2K developers group                                               !
+!   Copyright 2000-2020 CP2K developers group <https://cp2k.org>                                   !
+!                                                                                                  !
+!   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -41,7 +43,7 @@ MODULE qs_fxc
    PRIVATE
 
    ! *** Public subroutines ***
-   PUBLIC :: qs_fxc_create
+   PUBLIC :: qs_fxc_create, qs_fxc_release
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fxc'
 
@@ -177,5 +179,54 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE qs_fxc_create
+
+! **************************************************************************************************
+!> \brief ...
+!> \param ks_env ...
+!> \param fxc_rho ...
+!> \param fxc_tau ...
+!> \param gxc_rho ...
+!> \param gxc_tau ...
+! **************************************************************************************************
+   SUBROUTINE qs_fxc_release(ks_env, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: fxc_rho, fxc_tau, gxc_rho, gxc_tau
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_fxc_release', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: ispin
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+
+      CALL get_ks_env(ks_env, pw_env=pw_env)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+
+      IF (ASSOCIATED(fxc_rho)) THEN
+         DO ispin = 1, SIZE(fxc_rho)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, fxc_rho(ispin)%pw)
+         END DO
+         DEALLOCATE (fxc_rho)
+      END IF
+      IF (ASSOCIATED(fxc_tau)) THEN
+         DO ispin = 1, SIZE(fxc_tau)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, fxc_tau(ispin)%pw)
+         END DO
+         DEALLOCATE (fxc_tau)
+      END IF
+      IF (ASSOCIATED(gxc_rho)) THEN
+         DO ispin = 1, SIZE(gxc_rho)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, gxc_rho(ispin)%pw)
+         END DO
+         DEALLOCATE (gxc_rho)
+      END IF
+      IF (ASSOCIATED(gxc_tau)) THEN
+         DO ispin = 1, SIZE(gxc_tau)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, gxc_tau(ispin)%pw)
+         END DO
+         DEALLOCATE (gxc_tau)
+      END IF
+
+   END SUBROUTINE qs_fxc_release
 
 END MODULE qs_fxc

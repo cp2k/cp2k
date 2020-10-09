@@ -91,7 +91,8 @@ MODULE qs_tddfpt2_fhxc_forces
                                               qs_environment_type
    USE qs_force_types,                  ONLY: add_qs_force,&
                                               qs_force_type
-   USE qs_fxc,                          ONLY: qs_fxc_create
+   USE qs_fxc,                          ONLY: qs_fxc_create,&
+                                              qs_fxc_release
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
@@ -110,6 +111,7 @@ MODULE qs_tddfpt2_fhxc_forces
    USE qs_tddfpt2_types,                ONLY: full_kernel_env_type,&
                                               tddfpt_ground_state_mos,&
                                               tddfpt_work_matrices
+   USE task_list_types,                 ONLY: task_list_type
    USE util,                            ONLY: get_limit
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
@@ -151,7 +153,8 @@ CONTAINS
                                                             n_rep_hf, nao, nao_aux, norb, nspins
       LOGICAL :: distribute_fock_matrix, do_admm, do_analytic, do_hfx, do_numeric, &
          hfx_treat_lsd_in_core, is_rks_triplets, s_mstruct_changed, use_virial
-      REAL(KIND=dp)                                      :: eh1, focc, fval, total_rhox, xehartree
+      REAL(KIND=dp)                                      :: eh1, focc, fval, total_rhox, &
+                                                            total_rhox_aux, xehartree
       REAL(KIND=dp), DIMENSION(3)                        :: fodeb
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: cpmos, evect
@@ -161,7 +164,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_fx, matrix_gx, matrix_hfx, &
          matrix_hfx_admm, matrix_hx, matrix_p, matrix_px1, matrix_px1_admm, matrix_s, &
-         matrix_s_aux_fit, matrix_wx1, mdum
+         matrix_s_aux_fit, matrix_wx1, mdum, mfx, mgx, matrix_p_admm
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mhe, mpe
       TYPE(dbcsr_type), POINTER                          :: dbwork
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -172,13 +175,16 @@ CONTAINS
       TYPE(pw_p_type)                                    :: rhox_tot_gspace, xv_hartree_gspace, &
                                                             xv_hartree_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: fxc_rho, fxc_tau, gxc_rho, gxc_tau, &
-                                                            rhox_g, rhox_r
+                                                            rho_g_aux, rho_r_aux, rhox_g, &
+                                                            rhox_g_aux, rhox_r, rhox_r_aux, &
+                                                            tau_r_aux
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho, rhox
+      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit, rhox, rhox_aux
       TYPE(section_vals_type), POINTER                   :: hfx_section, xc_section
+      TYPE(task_list_type), POINTER                      :: task_list_aux_fit
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
 
       CALL timeset(routineN, handle)
@@ -365,40 +371,162 @@ CONTAINS
             CALL mp_sum(fodeb, para_env%group)
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dKg[X]   ", fodeb
          END IF
+         CALL qs_fxc_release(ks_env, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
 
          IF (do_admm) THEN
             IF (dft_control%admm_control%aux_exch_func == do_admm_aux_exch_func_none) THEN
                ! nothing to do
             ELSE
-               CPABORT("NYA")
+               IF(.NOT.tddfpt_control%admm_symm) THEN
+                  CALL cp_warn(__LOCATION__, "Forces need symmetric ADMM kernel corrections")
+                  CPABORT("ADMM KERNEL CORRECTION")
+               END IF
+               xc_section => admm_env%xc_section_aux
+               CALL get_qs_env(qs_env, admm_env=admm_env, rho_aux_fit=rho_aux_fit, &
+                               matrix_s_aux_fit=matrix_s_aux_fit, &
+                               task_list_aux_fit=task_list_aux_fit)
+               !
+               NULLIFY (mfx, mgx)
+               CALL dbcsr_allocate_matrix_set(mfx, nspins)
+               CALL dbcsr_allocate_matrix_set(mgx, nspins)
+               DO ispin = 1, nspins
+                  ALLOCATE (mfx(ispin)%matrix, mgx(ispin)%matrix)
+                  CALL dbcsr_create(mfx(ispin)%matrix, template=matrix_s_aux_fit(1)%matrix)
+                  CALL dbcsr_copy(mfx(ispin)%matrix, matrix_s_aux_fit(1)%matrix)
+                  CALL dbcsr_set(mfx(ispin)%matrix, 0.0_dp)
+                  CALL dbcsr_create(mgx(ispin)%matrix, template=matrix_s_aux_fit(1)%matrix)
+                  CALL dbcsr_copy(mgx(ispin)%matrix, matrix_s_aux_fit(1)%matrix)
+                  CALL dbcsr_set(mgx(ispin)%matrix, 0.0_dp)
+               END DO
+
+               NULLIFY (rho_g_aux, rho_r_aux, tau_r_aux, rhox_g_aux, rhox_r_aux)
+               CALL qs_rho_get(rho_aux_fit, rho_r=rho_r_aux, rho_g=rho_g_aux, tau_r=tau_r_aux)
+               CALL qs_rho_get(rho_aux_fit, rho_ao=matrix_p_admm)
+               ! rhox_aux
+               ALLOCATE (rhox_r_aux(nspins), rhox_g_aux(nspins))
+               DO ispin = 1, nspins
+                  NULLIFY (rhox_r_aux(ispin)%pw, rhox_g_aux(ispin)%pw)
+                  CALL pw_pool_create_pw(auxbas_pw_pool, rhox_r_aux(ispin)%pw, &
+                                         use_data=REALDATA3D, in_space=REALSPACE)
+                  CALL pw_pool_create_pw(auxbas_pw_pool, rhox_g_aux(ispin)%pw, &
+                                         use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+               ENDDO
+               DO ispin = 1, nspins
+                  CALL calculate_rho_elec(ks_env=ks_env, matrix_p=matrix_px1_admm(ispin)%matrix, &
+                                          rho=rhox_r_aux(ispin), rho_gspace=rhox_g_aux(ispin), &
+                                          total_rho=total_rhox_aux, basis_type="AUX_FIT", &
+                                          task_list_external=task_list_aux_fit)
+               END DO
+               !
+               NULLIFY (rhox_aux)
+               CALL qs_rho_create(rhox_aux)
+               CALL qs_rho_set(rho_struct=rhox_aux, rho_ao=matrix_px1_admm, &
+                               rho_r=rhox_r_aux, rho_g=rhox_g_aux, &
+                               rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
+               CALL qs_fxc_create(ks_env, rho_aux_fit, rhox_aux, xc_section, &
+                                  do_analytic, do_numeric, is_rks_triplets, &
+                                  fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+               CALL qs_rho_set(rho_struct=rhox_aux, rho_ao=NULL(), rho_r=NULL(), rho_g=NULL())
+               CALL qs_rho_release(rhox_aux)
+               DO ispin = 1, nspins
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, rhox_r_aux(ispin)%pw)
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, rhox_g_aux(ispin)%pw)
+               END DO
+               DEALLOCATE (rhox_r_aux, rhox_g_aux)
+               IF (nspins == 2) THEN
+                  DO ispin = 1, nspins
+                     CALL pw_scale(gxc_rho(ispin)%pw, 0.5_dp)
+                     IF (ASSOCIATED(gxc_tau)) CALL pw_scale(gxc_tau(ispin)%pw, 0.5_dp)
+                  END DO
+               END IF
+               !
+               IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
+               DO ispin = 1, nspins
+                  CALL pw_scale(fxc_rho(ispin)%pw, fxc_rho(ispin)%pw%pw_grid%dvol)
+                  CALL integrate_v_rspace(qs_env=qs_env, v_rspace=fxc_rho(ispin), &
+                                          hmat=mfx(ispin), &
+                                          pmat=matrix_px1_admm(ispin), &
+                                          basis_type="AUX_FIT", &
+                                          calculate_forces=.TRUE.,&
+                                          task_list_external=task_list_aux_fit)
+               END DO
+               IF (debug_forces) THEN
+                  fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
+                  CALL mp_sum(fodeb, para_env%group)
+                  IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Px*dKf[X]ADMM", fodeb
+               END IF
+
+               IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
+               DO ispin = 1, nspins
+                  CALL pw_scale(gxc_rho(ispin)%pw, gxc_rho(ispin)%pw%pw_grid%dvol)
+                  CALL pw_scale(gxc_rho(ispin)%pw, 0.5_dp)
+                  CALL integrate_v_rspace(qs_env=qs_env, v_rspace=gxc_rho(ispin), &
+                                          hmat=mgx(ispin), &
+                                          pmat=matrix_p_admm(ispin), &
+                                          basis_type="AUX_FIT", &
+                                          calculate_forces=.TRUE.,&
+                                          task_list_external=task_list_aux_fit)
+                  CALL dbcsr_scale(mgx(ispin)%matrix, 2.0_dp)
+               END DO
+               IF (debug_forces) THEN
+                  fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
+                  CALL mp_sum(fodeb, para_env%group)
+                  IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dKg[X]ADMM", fodeb
+               END IF
+               CALL qs_fxc_release(ks_env, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+               !
+               ! A' fx A - Forces
+               !
+               IF (debug_forces) fodeb(1:3) = force(1)%overlap_admm(1:3, 1)
+               fval = 4.0_dp*REAL(nspins, KIND=dp)
+               CALL admm_projection_derivative(qs_env, admm_env, mfx, matrix_px1, fval)
+               IF (debug_forces) THEN
+                  fodeb(1:3) = force(1)%overlap_admm(1:3, 1) - fodeb(1:3)
+                  CALL mp_sum(fodeb, para_env%group)
+                  IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dfXC(P)*S' ", fodeb
+               END IF
+               IF (debug_forces) fodeb(1:3) = force(1)%overlap_admm(1:3, 1)
+               fval = 1.0_dp*REAL(nspins, KIND=dp)
+               CALL admm_projection_derivative(qs_env, admm_env, mgx, matrix_p, fval)
+               IF (debug_forces) THEN
+                  fodeb(1:3) = force(1)%overlap_admm(1:3, 1) - fodeb(1:3)
+                  CALL mp_sum(fodeb, para_env%group)
+                  IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dgXC(P)*S' ", fodeb
+               END IF
+               !
+               ! Add ADMM fx/gx to the full basis fx/gx
+               nao = admm_env%nao_orb
+               nao_aux = admm_env%nao_aux_fit
+               ALLOCATE (dbwork)
+               CALL dbcsr_create(dbwork, template=matrix_fx(1)%matrix)
+               DO ispin = 1, nspins
+                  ! fx
+                  CALL cp_dbcsr_sm_fm_multiply(mfx(ispin)%matrix, admm_env%A, &
+                                               admm_env%work_aux_orb, nao)
+                  CALL cp_gemm('T', 'N', nao, nao, nao_aux, &
+                               1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, &
+                               admm_env%work_orb_orb)
+                  CALL dbcsr_copy(dbwork, matrix_fx(1)%matrix)
+                  CALL dbcsr_set(dbwork, 0.0_dp)
+                  CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, dbwork, keep_sparsity=.TRUE.)
+                  CALL dbcsr_add(matrix_fx(ispin)%matrix, dbwork, 1.0_dp, 1.0_dp)
+                  ! gx
+                  CALL cp_dbcsr_sm_fm_multiply(mgx(ispin)%matrix, admm_env%A, &
+                                               admm_env%work_aux_orb, nao)
+                  CALL cp_gemm('T', 'N', nao, nao, nao_aux, &
+                               1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, &
+                               admm_env%work_orb_orb)
+                  CALL dbcsr_set(dbwork, 0.0_dp)
+                  CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, dbwork, keep_sparsity=.TRUE.)
+                  CALL dbcsr_add(matrix_gx(ispin)%matrix, dbwork, 1.0_dp, 1.0_dp)
+               END DO
+               CALL dbcsr_release(dbwork)
+               DEALLOCATE (dbwork)
+               CALL dbcsr_deallocate_matrix_set(mfx)
+               CALL dbcsr_deallocate_matrix_set(mgx)
             END IF
          END IF
 
-      END IF
-
-      IF (ASSOCIATED(fxc_rho)) THEN
-         DO ispin = 1, nspins
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, fxc_rho(ispin)%pw)
-         END DO
-         DEALLOCATE (fxc_rho)
-      END IF
-      IF (ASSOCIATED(fxc_tau)) THEN
-         DO ispin = 1, nspins
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, fxc_tau(ispin)%pw)
-         END DO
-         DEALLOCATE (fxc_tau)
-      END IF
-      IF (ASSOCIATED(gxc_rho)) THEN
-         DO ispin = 1, nspins
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, gxc_rho(ispin)%pw)
-         END DO
-         DEALLOCATE (gxc_rho)
-      END IF
-      IF (ASSOCIATED(gxc_tau)) THEN
-         DO ispin = 1, nspins
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, gxc_tau(ispin)%pw)
-         END DO
-         DEALLOCATE (gxc_tau)
       END IF
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rhox_tot_gspace%pw)
@@ -464,7 +592,7 @@ CONTAINS
             ALLOCATE (dbwork)
             CALL dbcsr_create(dbwork, template=matrix_hfx(1)%matrix)
             DO ispin = 1, nspins
-               CALL cp_dbcsr_sm_fm_multiply(mhe(ispin, 1)%matrix, admm_env%A, &
+               CALL cp_dbcsr_sm_fm_multiply(matrix_hfx_admm(ispin)%matrix, admm_env%A, &
                                             admm_env%work_aux_orb, nao)
                CALL cp_gemm('T', 'N', nao, nao, nao_aux, &
                             1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, &
@@ -480,7 +608,7 @@ CONTAINS
             ! ADMM Projection force
             IF (debug_forces) fodeb(1:3) = force(1)%overlap_admm(1:3, 1)
             fval = 4.0_dp*REAL(nspins, KIND=dp)
-            CALL admm_projection_derivative(qs_env, admm_env, mhe, matrix_px1, fval)
+            CALL admm_projection_derivative(qs_env, admm_env, matrix_hfx_admm, matrix_px1, fval)
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%overlap_admm(1:3, 1) - fodeb(1:3)
                CALL mp_sum(fodeb, para_env%group)
@@ -645,7 +773,7 @@ CONTAINS
    SUBROUTINE admm_projection_derivative(qs_env, admm_env, matrix_hfx, matrix_pe, fval)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_hfx
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hfx
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_pe
       REAL(KIND=dp), INTENT(IN)                          :: fval
 
@@ -694,7 +822,7 @@ CONTAINS
       nao = admm_env%nao_orb
       naux = admm_env%nao_aux_fit
       DO ispin = 1, nspins
-         CALL copy_dbcsr_to_fm(matrix_hfx(ispin, 1)%matrix, admm_env%work_aux_aux)
+         CALL copy_dbcsr_to_fm(matrix_hfx(ispin)%matrix, admm_env%work_aux_aux)
 
          CALL cp_gemm("N", "N", naux, naux, naux, 1.0_dp, admm_env%s_inv, &
                       admm_env%work_aux_aux, 0.0_dp, admm_env%work_aux_aux2)

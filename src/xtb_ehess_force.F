@@ -54,11 +54,11 @@ MODULE xtb_ehess_force
                                               neighbor_list_iterator_p_type,&
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
-   USE qs_rho_types,                    ONLY: qs_rho_get,&
-                                              qs_rho_type
+   USE qs_rho_types,                    ONLY: qs_rho_type
    USE sap_kind_types,                  ONLY: sap_int_type
    USE virial_types,                    ONLY: virial_type
-   USE xtb_coulomb,                     ONLY: gamma_rab_sr, dgamma_rab_sr
+   USE xtb_coulomb,                     ONLY: dgamma_rab_sr,&
+                                              gamma_rab_sr
    USE xtb_types,                       ONLY: get_xtb_atom_param,&
                                               xtb_atom_type
 #include "./base/base_uses.f90"
@@ -96,9 +96,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calc_xtb_ehess_force'
 
-      INTEGER :: atom_i, atom_j, blk, ewald_type, handle, i, ia, iatom, icol, ikind, irow, &
-         j, jatom, jkind, la, lb, lmaxa, lmaxb, natom, natorb_a, natorb_b, ni, nimg, nj, &
-         nkind, nmat, za, zb
+      INTEGER :: atom_i, atom_j, blk, ewald_type, handle, i, ia, iatom, icol, ikind, irow, j, &
+         jatom, jkind, la, lb, lmaxa, lmaxb, natom, natorb_a, natorb_b, ni, nimg, nj, nkind, nmat, &
+         za, zb
       INTEGER, DIMENSION(25)                             :: laoa, laob
       INTEGER, DIMENSION(3)                              :: cellind, periodic
       INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind, kind_of
@@ -107,7 +107,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: alpha, deth, dr, etaa, etab, fi, gmij0, &
                                                             gmij1, kg, rcut, rcuta, rcutb
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: xgamma, zeffk
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gammab, gcij0, gcij1, gmcharge0, gmcharge1
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gammab, gcij0, gcij1, gmcharge0, &
+                                                            gmcharge1
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: gchrg0, gchrg1
       REAL(KIND=dp), DIMENSION(3)                        :: fij, rij
       REAL(KIND=dp), DIMENSION(5)                        :: kappaa, kappab
@@ -117,7 +118,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_iterator_type)                          :: iter
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s, ks_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(ewald_environment_type), POINTER              :: ewald_env
@@ -203,14 +204,14 @@ CONTAINS
             CALL dgamma_rab_sr(gammab, dr, ni, kappaa, etaa, nj, kappab, etab, kg, rcut)
             DO i = 1, 3
                gchrg0(iatom, 1:ni, i + 1) = gchrg0(iatom, 1:ni, i + 1) &
-                                           + MATMUL(gammab, charges0(jatom, 1:nj))*rij(i)/dr
+                                            + MATMUL(gammab, charges0(jatom, 1:nj))*rij(i)/dr
                gchrg1(iatom, 1:ni, i + 1) = gchrg1(iatom, 1:ni, i + 1) &
-                                           + MATMUL(gammab, charges1(jatom, 1:nj))*rij(i)/dr
+                                            + MATMUL(gammab, charges1(jatom, 1:nj))*rij(i)/dr
                IF (iatom /= jatom) THEN
                   gchrg0(jatom, 1:nj, i + 1) = gchrg0(jatom, 1:nj, i + 1) &
-                                              - MATMUL(charges0(iatom, 1:ni), gammab)*rij(i)/dr
+                                               - MATMUL(charges0(iatom, 1:ni), gammab)*rij(i)/dr
                   gchrg1(jatom, 1:nj, i + 1) = gchrg1(jatom, 1:nj, i + 1) &
-                                              - MATMUL(charges1(iatom, 1:ni), gammab)*rij(i)/dr
+                                               - MATMUL(charges1(iatom, 1:ni), gammab)*rij(i)/dr
                END IF
             END DO
          END IF

@@ -363,7 +363,8 @@ CONTAINS
          IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
             ! full TDDFPT kernel
             CALL fhxc_kernel(Aop_evects, evects, is_rks_triplets, do_hfx, do_admm, qs_env, &
-                             full_kernel_env, kernel_env_admm_aux, sub_env, work_matrices)
+                             full_kernel_env, kernel_env_admm_aux, sub_env, work_matrices, &
+                             tddfpt_control%admm_symm)
          ELSE IF (tddfpt_control%kernel == tddfpt_kernel_stda) THEN
             ! sTDA kernel
             CALL stda_kernel(Aop_evects, evects, is_rks_triplets, qs_env, tddfpt_control%stda_control, &

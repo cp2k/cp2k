@@ -461,6 +461,8 @@ MODULE cp_control_types
       LOGICAL                              :: is_restart
       !> compute triplet excited states using spin-unpolarised molecular orbitals
       LOGICAL                              :: rks_triplets
+      !> use symmetric definition of ADMM Kernel correction
+      LOGICAL                              :: admm_symm
       !
       ! DIPOLE_MOMENTS subsection
       !
