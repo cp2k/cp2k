@@ -1,10 +1,6 @@
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-#    &PRINT
-#       &DERIVATIVES
-#       &END
-#    &END
     BASIS_SET_FILE_NAME GTH_BASIS_SETS
     POTENTIAL_FILE_NAME GTH_POTENTIALS
     &MGRID
@@ -60,4 +56,3 @@
      MAX_ITER 2
   &END
 &END
-
