@@ -252,7 +252,7 @@ static void collocate_one_grid_level(
   // Merge thread local grids into shared grid.
   for (size_t i = 0; i < npts_local_total; i++) {
     double grid_val = 0;
-    for (uintptr_t thread_num = 0; thread_num < nthreads; thread_num++) {
+    for (int thread_num = 0; thread_num < nthreads; thread_num++) {
       const uintptr_t aligned = grid_pool_aligned + thread_num * grid_size;
       double *const threadlocal_grid = (double *)aligned;
       grid_val += threadlocal_grid[i];
