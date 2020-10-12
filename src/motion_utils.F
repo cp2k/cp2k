@@ -135,7 +135,7 @@ CONTAINS
          IF (PRESENT(inertia)) inertia = Ip_eigval
          iw = cp_print_key_unit_nr(logger, print_section, "ROTATIONAL_INFO", extension=".vibLog")
          IF (iw > 0) THEN
-            WRITE (iw, '(T2,A,3F12.6)') "ROT| Rotational Analysis Info "
+            WRITE (iw, '(/,T2,A,3F12.6)') "ROT| Rotational Analysis Info "
             WRITE (iw, '(T2,A)') "ROT| Principal axes and moments of inertia in atomic units:"
             WRITE (iw, '(T2,A,T27,3(3X,I9,6X))') "ROT|", 1, 2, 3
             WRITE (iw, '(T2,A,T27,3(3X,E15.9))') "ROT| EIGENVALUES", Ip_eigval
