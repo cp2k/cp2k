@@ -16,7 +16,7 @@
 #include "grid_constants.h"
 #include "grid_library.h"
 
-static grid_library_stats **per_thread_stats = NULL;
+static grid_library_globals **per_thread_globals = NULL;
 static bool library_initialized = false;
 static grid_library_config config = {.backend = GRID_BACKEND_AUTO,
                                      .validate = false};
@@ -31,15 +31,15 @@ void grid_library_init() {
     abort();
   }
 
-  per_thread_stats =
-      malloc(sizeof(grid_library_stats *) * omp_get_max_threads());
+  per_thread_globals =
+      malloc(sizeof(grid_library_globals *) * omp_get_max_threads());
 
 // Using parallel regions to ensure memory is allocated near a thread's core.
-#pragma omp parallel default(none) shared(per_thread_stats)
+#pragma omp parallel default(none) shared(per_thread_globals)
   {
     const int ithread = omp_get_thread_num();
-    per_thread_stats[ithread] = malloc(sizeof(grid_library_stats));
-    memset(per_thread_stats[ithread], 0, sizeof(grid_library_stats));
+    per_thread_globals[ithread] = malloc(sizeof(grid_library_globals));
+    memset(per_thread_globals[ithread], 0, sizeof(grid_library_globals));
   }
 
   library_initialized = true;
@@ -56,11 +56,20 @@ void grid_library_finalize() {
   }
 
   for (int i = 0; i < omp_get_max_threads(); i++) {
-    free(per_thread_stats[i]);
+    grid_sphere_cache_free(&per_thread_globals[i]->sphere_cache);
+    free(per_thread_globals[i]);
   }
-  free(per_thread_stats);
-  per_thread_stats = NULL;
+  free(per_thread_globals);
+  per_thread_globals = NULL;
   library_initialized = false;
+}
+
+/*******************************************************************************
+ * \brief Returns a pointer to the thread local sphere cache.
+ * \author Ole Schuett
+ ******************************************************************************/
+grid_sphere_cache *grid_library_get_sphere_cache() {
+  return &per_thread_globals[omp_get_thread_num()]->sphere_cache;
 }
 
 /*******************************************************************************
@@ -79,27 +88,12 @@ void grid_library_set_config(const int backend, const bool validate) {
 grid_library_config grid_library_get_config() { return config; }
 
 /*******************************************************************************
- * \brief Internal helper for summing two sets of counters.
- * \author Ole Schuett
- ******************************************************************************/
-static void sum_stats(const grid_library_stats increment,
-                      grid_library_stats *accumulator) {
-  for (int lp = 0; lp < 20; lp++) {
-    for (int kern = 0; kern < 2; kern++) {
-      for (int op = 0; op < 2; op++) {
-        accumulator->counters[lp][kern][op] += increment.counters[lp][kern][op];
-      }
-    }
-  }
-}
-
-/*******************************************************************************
  * \brief Increment specified counter, see grid_library.h for details.
  * \author Ole Schuett
  ******************************************************************************/
 void grid_library_increment_counter(int lp, int kern, int op) {
   lp = imin(lp, 19);
-  per_thread_stats[omp_get_thread_num()]->counters[lp][kern][op]++;
+  per_thread_globals[omp_get_thread_num()]->counters[lp][kern][op]++;
 }
 
 /*******************************************************************************
@@ -115,21 +109,18 @@ void grid_library_print_stats(void (*mpi_sum_func)(long *, int),
     abort();
   }
 
-  grid_library_stats totals;
-  memset(&totals, 0, sizeof(grid_library_stats));
-
-  // Sum across threads.
-  for (int i = 0; i < omp_get_max_threads(); i++) {
-    sum_stats(*per_thread_stats[i], &totals);
-  }
-
-  // Sum across mpi ranks.
-  double total_all = 0.0;
+  // Sum all counters across threads and mpi ranks.
+  long counters[20][2][2] = {0};
+  double total = 0.0;
   for (int lp = 0; lp < 20; lp++) {
     for (int kern = 0; kern < 2; kern++) {
       for (int op = 0; op < 2; op++) {
-        mpi_sum_func(&totals.counters[lp][kern][op], mpi_comm);
-        total_all += totals.counters[lp][kern][op];
+        for (int i = 0; i < omp_get_max_threads(); i++) {
+          counters[lp][kern][op] +=
+              per_thread_globals[i]->counters[lp][kern][op];
+        }
+        mpi_sum_func(&counters[lp][kern][op], mpi_comm);
+        total += counters[lp][kern][op];
       }
     }
   }
@@ -158,15 +149,14 @@ void grid_library_print_stats(void (*mpi_sum_func)(long *, int),
   for (int lp = 0; lp < 20; lp++) {
     for (int kern = 0; kern < 2; kern++) {
       for (int op = 0; op < 2; op++) {
-        long count = totals.counters[lp][kern][op];
-        if (count == 0)
+        if (counters[lp][kern][op] == 0)
           continue; // skip empty counters
         const char *op_str = (op == 1) ? "collocate" : "integrate";
         const char *kern_str = (kern == 1) ? "ortho" : "general";
         char buffer[100];
-        double percent = 100.0 * count / total_all;
+        double percent = 100.0 * counters[lp][kern][op] / total;
         snprintf(buffer, sizeof(buffer), " %-5i %-9s %-12s %38li %10.2f%%\n",
-                 lp, kern_str, op_str, count, percent);
+                 lp, kern_str, op_str, counters[lp][kern][op], percent);
         print_func(buffer, output_unit);
       }
     }

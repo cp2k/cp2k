@@ -7,6 +7,7 @@
 #ifndef GRID_LIBRARY_H
 #define GRID_LIBRARY_H
 
+#include "grid_sphere_cache.h"
 #include <stdbool.h>
 
 /*******************************************************************************
@@ -55,8 +56,15 @@ void grid_library_print_stats(void (*mpi_sum_func)(long *, int), int mpi_comm,
  * \author Ole Schuett
  ******************************************************************************/
 typedef struct {
+  grid_sphere_cache sphere_cache;
   long counters[20][2][2]; // [lp][kernel][operation]
-} grid_library_stats;
+} grid_library_globals;
+
+/*******************************************************************************
+ * \brief Returns a pointer to the thread local sphere cache.
+ * \author Ole Schuett
+ ******************************************************************************/
+grid_sphere_cache *grid_library_get_sphere_cache();
 
 /*******************************************************************************
  * \brief Increment specified counter.
