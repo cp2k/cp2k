@@ -14,6 +14,7 @@
 
 #include "../common/grid_common.h"
 #include "../common/grid_library.h"
+#include "../common/grid_sphere_cache.h"
 
 #if (GRID_DO_COLLOCATE)
 #define GRID_CONST_WHEN_COLLOCATE const
@@ -107,21 +108,18 @@ static inline void ortho_cx_to_reg(const int lp, const double pol_ig[lp + 1],
  * \brief Collocates coefficients C_x onto the grid for orthorhombic case.
  * \author Ole Schuett
  ******************************************************************************/
-static inline void
-ortho_cx_to_grid(const int lp, const int k, const int k2, const int jg,
-                 const int jg2, const int cmax, const double kremain,
-                 const double pol[3][2 * cmax + 1][lp + 1],
-                 const int map[3][2 * cmax + 1], const double dh[3][3],
-                 const double dh_inv[3][3], const int npts_local[3],
-                 GRID_CONST_WHEN_COLLOCATE double *cx,
-                 GRID_CONST_WHEN_INTEGRATE double *grid) {
+static inline void ortho_cx_to_grid(const int lp, const int k, const int k2,
+                                    const int jg, const int jg2, const int cmax,
+                                    const double pol[3][2 * cmax + 1][lp + 1],
+                                    const int map[3][2 * cmax + 1],
+                                    const int npts_local[3],
+                                    int **sphere_bounds_iter,
+                                    GRID_CONST_WHEN_COLLOCATE double *cx,
+                                    GRID_CONST_WHEN_INTEGRATE double *grid) {
 
   const int j = map[1][jg + cmax];
   const int j2 = map[1][jg2 + cmax];
-  const int jd = (2 * jg - 1) / 2; // distance from center in grid points
-  const double jr = jd * dh[1][1]; // distance from center in a.u.
-  const double jremain = kremain - jr * jr;
-  const int igmin = (int)ceil(-1e-8 - sqrt(fmax(0.0, jremain)) * dh_inv[0][0]);
+  const int igmin = *((*sphere_bounds_iter)++);
   for (int ig = igmin; ig <= 0; ig++) {
     const int ig2 = 1 - ig;
     const int i = map[0][ig + cmax];
@@ -176,12 +174,14 @@ static inline void ortho_cxy_to_cx(const int lp, const double pol_jg[lp + 1],
  * \brief Collocates coefficients C_xy onto the grid for orthorhombic case.
  * \author Ole Schuett
  ******************************************************************************/
-static inline void ortho_cxy_to_grid(
-    const int lp, const int kg, const int kg2, const int cmax,
-    const double pol[3][2 * cmax + 1][lp + 1], const int map[3][2 * cmax + 1],
-    const double dh[3][3], const double dh_inv[3][3], const double disr_radius,
-    const int npts_local[3], GRID_CONST_WHEN_COLLOCATE double *cxy,
-    GRID_CONST_WHEN_INTEGRATE double *grid) {
+static inline void ortho_cxy_to_grid(const int lp, const int kg, const int kg2,
+                                     const int cmax,
+                                     const double pol[3][2 * cmax + 1][lp + 1],
+                                     const int map[3][2 * cmax + 1],
+                                     const int npts_local[3],
+                                     int **sphere_bounds_iter,
+                                     GRID_CONST_WHEN_COLLOCATE double *cxy,
+                                     GRID_CONST_WHEN_INTEGRATE double *grid) {
 
   // The cube contains an even number of grid points in each direction and
   // collocation is always performed on a pair of two opposing grid points.
@@ -190,10 +190,7 @@ static inline void ortho_cxy_to_grid(
 
   const int k = map[2][kg + cmax];
   const int k2 = map[2][kg2 + cmax];
-  const int kd = (2 * kg - 1) / 2; // distance from center in grid points
-  const double kr = kd * dh[2][2]; // distance from center in a.u.
-  const double kremain = disr_radius * disr_radius - kr * kr;
-  const int jgmin = (int)ceil(-1e-8 - sqrt(fmax(0.0, kremain)) * dh_inv[1][1]);
+  const int jgmin = *((*sphere_bounds_iter)++);
   const size_t cx_size = (lp + 1) * 4;
   double cx[cx_size];
   for (int jg = jgmin; jg <= 0; jg++) {
@@ -204,12 +201,12 @@ static inline void ortho_cxy_to_grid(
 #if (GRID_DO_COLLOCATE)
     // collocate
     ortho_cxy_to_cx(lp, pol[1][jg + cmax], pol[1][jg2 + cmax], cxy, cx);
-    ortho_cx_to_grid(lp, k, k2, jg, jg2, cmax, kremain, pol, map, dh, dh_inv,
-                     npts_local, cx, grid);
+    ortho_cx_to_grid(lp, k, k2, jg, jg2, cmax, pol, map, npts_local,
+                     sphere_bounds_iter, cx, grid);
 #else
     // integrate
-    ortho_cx_to_grid(lp, k, k2, jg, jg2, cmax, kremain, pol, map, dh, dh_inv,
-                     npts_local, cx, grid);
+    ortho_cx_to_grid(lp, k, k2, jg, jg2, cmax, pol, map, npts_local,
+                     sphere_bounds_iter, cx, grid);
     ortho_cxy_to_cx(lp, pol[1][jg + cmax], pol[1][jg2 + cmax], cxy, cx);
 #endif
   }
@@ -280,10 +277,13 @@ ortho_cxyz_to_grid(const int lp, const double zetp, const double dh[3][3],
     roffset[i] = rp[i] - ((double)cubecenter[i]) * dh[i][i];
   }
 
-  // Historically, the radius gets discretized.
-  const double drmin = fmin(dh[0][0], fmin(dh[1][1], dh[2][2]));
-  const double disr_radius = drmin * fmax(1.0, ceil(radius / drmin));
+  // Lookup loop bounds for spherical cutoff.
+  int *sphere_bounds;
+  double disr_radius;
+  grid_sphere_cache_lookup(radius, dh, dh_inv, &sphere_bounds, &disr_radius);
+  int **sphere_bounds_iter = &sphere_bounds;
 
+  // Cube bounds.
   int lb_cube[3], ub_cube[3];
   for (int i = 0; i < 3; i++) {
     lb_cube[i] = (int)ceil(-1e-8 - disr_radius * dh_inv[i][i]);
@@ -350,7 +350,7 @@ ortho_cxyz_to_grid(const int lp, const double zetp, const double dh[3][3],
   const int(*map)[2 * cmax + 1] = (const int(*)[2 * cmax + 1]) map_mutable;
 
   // Loop over k dimension of the cube.
-  const int kgmin = (int)ceil(-1e-8 - disr_radius * dh_inv[2][2]);
+  const int kgmin = *((*sphere_bounds_iter)++);
   const size_t cxy_size = (lp + 1) * (lp + 1) * 2;
   double cxy[cxy_size];
   for (int kg = kgmin; kg <= 0; kg++) {
@@ -361,12 +361,12 @@ ortho_cxyz_to_grid(const int lp, const double zetp, const double dh[3][3],
 #if (GRID_DO_COLLOCATE)
     // collocate
     ortho_cxyz_to_cxy(lp, pol[2][kg + cmax], pol[2][kg2 + cmax], cxyz, cxy);
-    ortho_cxy_to_grid(lp, kg, kg2, cmax, pol, map, dh, dh_inv, disr_radius,
-                      npts_local, cxy, grid);
+    ortho_cxy_to_grid(lp, kg, kg2, cmax, pol, map, npts_local,
+                      sphere_bounds_iter, cxy, grid);
 #else
     // integrate
-    ortho_cxy_to_grid(lp, kg, kg2, cmax, pol, map, dh, dh_inv, disr_radius,
-                      npts_local, cxy, grid);
+    ortho_cxy_to_grid(lp, kg, kg2, cmax, pol, map, npts_local,
+                      sphere_bounds_iter, cxy, grid);
     ortho_cxyz_to_cxy(lp, pol[2][kg + cmax], pol[2][kg2 + cmax], cxyz, cxy);
 #endif
   }
