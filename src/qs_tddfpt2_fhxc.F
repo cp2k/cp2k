@@ -7,15 +7,18 @@
 
 MODULE qs_tddfpt2_fhxc
    USE cp_control_types,                ONLY: stda_control_type
+   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                               cp_dbcsr_sm_fm_multiply
-   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                              cp_fm_p_type, cp_fm_type, cp_fm_create, cp_fm_release
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_p_type,&
+                                              cp_fm_release,&
+                                              cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
-   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
-                                              dbcsr_set, dbcsr_type, dbcsr_create, dbcsr_release,&
-                                              dbcsr_type_symmetric, dbcsr_get_info, dbcsr_copy, dbcsr_add
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_p_type, dbcsr_release, &
+        dbcsr_set, dbcsr_type, dbcsr_type_symmetric
    USE kinds,                           ONLY: dp
    USE pw_env_types,                    ONLY: pw_env_get
    USE pw_methods,                      ONLY: pw_axpy,&
@@ -24,12 +27,10 @@ MODULE qs_tddfpt2_fhxc
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
+   USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
-                                              RECIPROCALSPACE,&
                                               pw_p_type
-   USE qs_environment_types,            ONLY: qs_environment_type, get_qs_env
+   USE qs_environment_types,            ONLY: qs_environment_type
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
    USE qs_kernel_types,                 ONLY: full_kernel_env_type
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
@@ -89,17 +90,18 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fhxc_kernel'
 
-      INTEGER                                            :: handle, ispin, ivect, nao, nspins, nvects,&
-                                                            nao_aux
-      INTEGER, DIMENSION(maxspins)                       :: nactive
+      INTEGER                                            :: handle, ispin, ivect, nao, nao_aux, &
+                                                            nspins, nvects
       INTEGER, DIMENSION(:), POINTER                     :: blk_sizes
+      INTEGER, DIMENSION(maxspins)                       :: nactive
       TYPE(cp_fm_type), POINTER                          :: work_aux_orb, work_orb_orb
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: A_xc_munu_sub, rho_ia_ao, &
+                                                            rho_ia_ao_aux_fit
       TYPE(dbcsr_type), POINTER                          :: dbwork
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ia_ao, rho_ia_ao_aux_fit, A_xc_munu_sub
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_ia_g, rho_ia_g_aux_fit, rho_ia_r, &
                                                             rho_ia_r_aux_fit, tau_ia_r, &
                                                             tau_ia_r_aux_fit, V_rspace_sub
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
 
       CALL timeset(routineN, handle)
 
@@ -186,9 +188,9 @@ CONTAINS
                                                   wfm_aux_orb=work_matrices%wfm_aux_orb_sub)
 
             ! - C_{HF} d^{2}E_{x, ADMM}^{DFT}[\hat{\rho}] / d\hat{\rho}^2
-            IF(admm_symm) THEN
+            IF (admm_symm) THEN
                CALL dbcsr_get_info(rho_ia_ao_aux_fit(1)%matrix, row_blk_size=blk_sizes)
-               ALLOCATE(A_xc_munu_sub(nspins))
+               ALLOCATE (A_xc_munu_sub(nspins))
                DO ispin = 1, nspins
                   ALLOCATE (A_xc_munu_sub(ispin)%matrix)
                   CALL dbcsr_create(matrix=A_xc_munu_sub(ispin)%matrix, name="ADMM_XC", &
@@ -249,7 +251,7 @@ CONTAINS
                DO ispin = 1, nspins
                   CALL dbcsr_release(A_xc_munu_sub(ispin)%matrix)
                END DO
-               DEALLOCATE(A_xc_munu_sub)
+               DEALLOCATE (A_xc_munu_sub)
             ELSE
                CALL tddfpt_apply_xc(A_ia_rspace=work_matrices%A_ia_rspace_sub, &
                                     kernel_env=kernel_env_admm_aux, &

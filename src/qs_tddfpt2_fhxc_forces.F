@@ -163,8 +163,8 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_fx, matrix_gx, matrix_hfx, &
-         matrix_hfx_admm, matrix_hx, matrix_p, matrix_px1, matrix_px1_admm, matrix_s, &
-         matrix_s_aux_fit, matrix_wx1, mdum, mfx, mgx, matrix_p_admm
+         matrix_hfx_admm, matrix_hx, matrix_p, matrix_p_admm, matrix_px1, matrix_px1_admm, &
+         matrix_s, matrix_s_aux_fit, matrix_wx1, mdum, mfx, mgx
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mhe, mpe
       TYPE(dbcsr_type), POINTER                          :: dbwork
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -377,7 +377,7 @@ CONTAINS
             IF (dft_control%admm_control%aux_exch_func == do_admm_aux_exch_func_none) THEN
                ! nothing to do
             ELSE
-               IF(.NOT.tddfpt_control%admm_symm) THEN
+               IF (.NOT. tddfpt_control%admm_symm) THEN
                   CALL cp_warn(__LOCATION__, "Forces need symmetric ADMM kernel corrections")
                   CPABORT("ADMM KERNEL CORRECTION")
                END IF
@@ -447,7 +447,7 @@ CONTAINS
                                           hmat=mfx(ispin), &
                                           pmat=matrix_px1_admm(ispin), &
                                           basis_type="AUX_FIT", &
-                                          calculate_forces=.TRUE.,&
+                                          calculate_forces=.TRUE., &
                                           task_list_external=task_list_aux_fit)
                END DO
                IF (debug_forces) THEN
@@ -464,7 +464,7 @@ CONTAINS
                                           hmat=mgx(ispin), &
                                           pmat=matrix_p_admm(ispin), &
                                           basis_type="AUX_FIT", &
-                                          calculate_forces=.TRUE.,&
+                                          calculate_forces=.TRUE., &
                                           task_list_external=task_list_aux_fit)
                   CALL dbcsr_scale(mgx(ispin)%matrix, 2.0_dp)
                END DO
@@ -478,7 +478,7 @@ CONTAINS
                ! A' fx A - Forces
                !
                IF (debug_forces) fodeb(1:3) = force(1)%overlap_admm(1:3, 1)
-               fval = 4.0_dp*REAL(nspins, KIND=dp)
+               fval = 2.0_dp*REAL(nspins, KIND=dp)
                CALL admm_projection_derivative(qs_env, admm_env, mfx, matrix_px1, fval)
                IF (debug_forces) THEN
                   fodeb(1:3) = force(1)%overlap_admm(1:3, 1) - fodeb(1:3)
@@ -486,7 +486,7 @@ CONTAINS
                   IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dfXC(P)*S' ", fodeb
                END IF
                IF (debug_forces) fodeb(1:3) = force(1)%overlap_admm(1:3, 1)
-               fval = 1.0_dp*REAL(nspins, KIND=dp)
+               fval = 2.0_dp*REAL(nspins, KIND=dp)
                CALL admm_projection_derivative(qs_env, admm_env, mgx, matrix_p, fval)
                IF (debug_forces) THEN
                   fodeb(1:3) = force(1)%overlap_admm(1:3, 1) - fodeb(1:3)
@@ -773,8 +773,7 @@ CONTAINS
    SUBROUTINE admm_projection_derivative(qs_env, admm_env, matrix_hfx, matrix_pe, fval)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hfx
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_pe
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hfx, matrix_pe
       REAL(KIND=dp), INTENT(IN)                          :: fval
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_projection_derivative', &
