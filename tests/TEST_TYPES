@@ -1,6 +1,6 @@
 90
 Total energy:!3
-POTENTIAL ENERGY!4
+MD| Potential energy!5
 Total energy \[eV\]:!4
 Ideal and single determinant!8
 BSSE-free interaction energy:!5
@@ -30,7 +30,7 @@ Total spin density (R-space)           :!6
 Heat of formation \[kcal/mol\]:!5
 HOMO - LUMO gap \[eV\]!7
 1/3 Trace(stress tensor):!4
-POTENTIAL ENERGY!5
+MD| Potential energy!6
 Dispersion energy:!3
 ISSC| all operator: CheckSum =!6
 Energy components!7
@@ -68,7 +68,7 @@ HF Etotal !3
 Energy Level: !9
 TDDFPT|[[:space:]]*1 !3
 Log(1-CN):!10
-\ TEMPERATURE \[K\]   !4
+MD| Temperature \[K\]   !4
 Current value of constraint !6
 SUM OF ATOMIC FORCES !8
 Diabatic electronic coupling (rotation!6
