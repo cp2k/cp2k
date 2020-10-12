@@ -557,9 +557,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_velocities'
 
-      CHARACTER(LEN=default_string_length)               :: my_format
       INTEGER                                            :: handle, i, ifixd, imolecule_kind, iw, &
-                                                            natoms, num_x
+                                                            natoms
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: is_fixed
       LOGICAL                                            :: success
       REAL(KIND=dp)                                      :: ecom, ekin, mass, mass_tot, temp, tmp_r1
@@ -583,9 +582,8 @@ CONTAINS
       logger => cp_get_default_logger()
       iw = cp_print_key_unit_nr(logger, print_section, "PROGRAM_RUN_INFO", extension=".log")
       IF (iw > 0) THEN
-         num_x = (79 - LEN_TRIM(ADJUSTL(label)) - 2)/2
-         WRITE (my_format, '(A,I0,A,I0,A)') '(1X,', num_x, '("*"),1X,A,1X,', num_x, '("*"))'
-         WRITE (iw, TRIM(my_format)) TRIM(ADJUSTL(label))
+         WRITE (iw, '(T2,A)') &
+            'MD_VEL| '//TRIM(ADJUSTL(label))
       END IF
 
       ! Build a list of all fixed atoms (if any)
@@ -652,18 +650,21 @@ CONTAINS
             temp = 2.0_dp*ekin/REAL(simpar%nfree, KIND=dp)
          END IF
          tmp_r1 = cp_unit_from_cp2k(temp, "K")
-         WRITE (iw, '( A, T61, F18.2, A2 )') ' Initial Temperature ', tmp_r1, " K"
-         WRITE (iw, '( A, T21, F20.12 , F20.12 , F20.12 )') ' COM velocity:', vcom(1), vcom(2), vcom(3)
+         WRITE (iw, '(T2,A,T61,F20.6)') &
+            'MD_VEL| Initial temperature [K]', tmp_r1
+         WRITE (iw, '(T2,A,T30,3(1X,F16.10))') &
+            'MD_VEL| COM velocity', vcom(1:3)
 
          ! compute and log rcom and vang if not periodic
          CALL force_env_get(force_env, cell=cell)
          IF (SUM(cell%perd(1:3)) == 0) THEN
             CALL compute_rcom(part, is_fixed, rcom)
             CALL compute_vang(part, is_fixed, rcom, vang)
-            WRITE (iw, '( A, T21, F20.12 , F20.12 , F20.12 )') ' COM position:', rcom(1), rcom(2), rcom(3)
-            WRITE (iw, '( A, T21, F20.12 , F20.12 , F20.12 )') ' Angular velocity:', vang(1), vang(2), vang(3)
+            WRITE (iw, '(T2,A,T30,3(1X,F16.10))') &
+               'MD_VEL| COM position', rcom(1:3)
+            WRITE (iw, '(T2,A,T30,3(1X,F16.10))') &
+               'MD_VEL| Angular velocity', vang(1:3)
          END IF
-         WRITE (iw, '( 1X,79("*"),/)')
       END IF
 
       DEALLOCATE (is_fixed)
@@ -1912,9 +1913,10 @@ CONTAINS
             CALL reset_vcom(subsys, md_ener, vsubtract=vcom_old)
             CALL scale_velocity(subsys, md_ener, temp_old, 0.0_dp, iw)
             IF (iw > 0) THEN
-               WRITE (UNIT=iw, FMT="(T2,'MD| ',A,3F16.10,A)") &
-                  "Old VCOM = ", vcom_old(1:3), " a.u.", &
-                  "New VCOM = ", md_ener%vcom(1:3), " a.u"
+               WRITE (UNIT=iw, FMT="(T2,A,T30,3(1X,F16.10))") &
+                  "MD| Old VCOM [a.u.] =", vcom_old(1:3)
+               WRITE (UNIT=iw, FMT="(T2,A,T30,3(1X,F16.10))") &
+                  "MD| New VCOM [a.u.] =", md_ener%vcom(1:3)
             END IF
          END IF
          CALL cp_print_key_finished_output(iw, logger, md_section, &
