@@ -135,18 +135,25 @@ CONTAINS
          IF (PRESENT(inertia)) inertia = Ip_eigval
          iw = cp_print_key_unit_nr(logger, print_section, "ROTATIONAL_INFO", extension=".vibLog")
          IF (iw > 0) THEN
-            WRITE (iw, '(/,T2,A,3F12.6)') "ROT| Rotational Analysis Info "
-            WRITE (iw, '(T2,A)') "ROT| Principal axes and moments of inertia in atomic units:"
-            WRITE (iw, '(T2,A,T27,3(3X,I9,6X))') "ROT|", 1, 2, 3
-            WRITE (iw, '(T2,A,T27,3(3X,E15.9))') "ROT| EIGENVALUES", Ip_eigval
-            WRITE (iw, '(T2,A,T27,3(3X,F15.9))') "ROT|      X", Ip(1, 1), Ip(1, 2), Ip(1, 3)
-            WRITE (iw, '(T2,A,T27,3(3X,F15.9))') "ROT|      Y", Ip(2, 1), Ip(2, 2), Ip(2, 3)
-            WRITE (iw, '(T2,A,T27,3(3X,F15.9))') "ROT|      Z", Ip(3, 1), Ip(3, 2), Ip(3, 3)
+            WRITE (iw, '(/,T2,A)') &
+               'ROT| Rotational analysis information'
+            WRITE (iw, '(T2,A)') &
+               'ROT| Principal axes and moments of inertia in [a.u.]'
+            WRITE (iw, '(T2,A,T16,3(1X,I18))') &
+               'ROT|', 1, 2, 3
+            WRITE (iw, '(T2,A,T24,3(1X,ES18.11))') &
+               'ROT| Eigenvalues', Ip_eigval(1:3)
+            WRITE (iw, '(T2,A,T24,3(1X,F18.12))') &
+               'ROT|      x', Ip(1, 1:3)
+            WRITE (iw, '(T2,A,T24,3(1X,F18.12))') &
+               'ROT|      y', Ip(2, 1:3)
+            WRITE (iw, '(T2,A,T24,3(1X,F18.12))') &
+               'ROT|      z', Ip(3, 1:3)
          END IF
          CALL cp_print_key_finished_output(iw, logger, print_section, "ROTATIONAL_INFO")
          iw = cp_print_key_unit_nr(logger, print_section, "ROTATIONAL_INFO/COORDINATES", extension=".vibLog")
          IF (iw > 0) THEN
-            WRITE (iw, '(/,T2,A)') "ROT| Standard Molecule Orientation - ANGSTROM "
+            WRITE (iw, '(/,T2,A)') 'ROT| Standard molecule orientation in Angstrom'
             DO iparticle = 1, natoms
                WRITE (iw, '(T2,"ROT|",T20,A,T27,3(3X,F15.9))') &
                   TRIM(particles(iparticle)%atomic_kind%name), &
@@ -221,9 +228,15 @@ CONTAINS
       dof = dof + COUNT(lrot == 1)
       iw = cp_print_key_unit_nr(logger, print_section, "ROTATIONAL_INFO", extension=".vibLog")
       IF (iw > 0) THEN
-         WRITE (iw, '(T2,A,I6)') "ROT| Number of Rotovibrational vectors:", dof
-         IF (dof == 5) WRITE (iw, '(T2,A)') "ROT| Linear Molecule detected.."
-         IF (dof == 3 .AND. (.NOT. keep_rotations)) WRITE (iw, '(T2,A)') "ROT| Single Atom detected.."
+         WRITE (iw, '(T2,A,T71,I10)') 'ROT| Number of rotovibrational vectors', dof
+         IF (dof == 5) THEN
+            WRITE (iw, '(T2,A)') &
+               'ROT| Linear molecule detected'
+         END IF
+         IF ((dof == 3) .AND. (.NOT. keep_rotations)) THEN
+            WRITE (iw, '(T2,A)') &
+               'ROT| Single atom detected'
+         END IF
       END IF
       CALL cp_print_key_finished_output(iw, logger, print_section, "ROTATIONAL_INFO")
       IF (present_mat) THEN
@@ -241,6 +254,7 @@ CONTAINS
       DEALLOCATE (Tr)
       DEALLOCATE (Rot)
       CALL timestop(handle)
+
    END SUBROUTINE rot_ana
 
 ! **************************************************************************************************
