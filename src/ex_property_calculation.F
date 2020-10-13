@@ -30,10 +30,14 @@ MODULE ex_property_calculation
    USE cp_result_methods,               ONLY: cp_results_erase,&
                                               put_results
    USE cp_result_types,                 ONLY: cp_result_type
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+   USE dbcsr_api,                       ONLY: dbcsr_add,&
+                                              dbcsr_copy,&
+                                              dbcsr_create,&
                                               dbcsr_dot,&
                                               dbcsr_p_type,&
-                                              dbcsr_set
+                                              dbcsr_release,&
+                                              dbcsr_set,&
+                                              dbcsr_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_lval,&
@@ -45,6 +49,7 @@ MODULE ex_property_calculation
                                               dp
    USE message_passing,                 ONLY: mp_sum
    USE moments_utils,                   ONLY: get_reference_point
+   USE mulliken,                        ONLY: mulliken_charges
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: debye
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -86,10 +91,11 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: filename
       CHARACTER(LEN=default_string_length)               :: description
       INTEGER                                            :: akind, handle, i, ia, iatom, idir, &
-                                                            ikind, iounit, ispin, maxmom, nspins, &
-                                                            reference, unit_nr
+                                                            ikind, iounit, ispin, maxmom, natom, &
+                                                            nspins, reference, unit_nr
       LOGICAL                                            :: magnetic, periodic, tb
-      REAL(KIND=dp)                                      :: charge, dd, tmp
+      REAL(KIND=dp)                                      :: charge, dd, q, tmp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: mcharge
       REAL(KIND=dp), DIMENSION(3)                        :: cdip, pdip, pedip, rcc, rdip, ria, tdip
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
@@ -98,6 +104,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_result_type), POINTER                      :: results
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p, matrix_s, moments
+      TYPE(dbcsr_type), POINTER                          :: matrix_pall
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -179,7 +186,33 @@ CONTAINS
                CALL qs_rho_get(rho, rho_ao=matrix_p)
                nspins = SIZE(matrix_p, 1)
                IF (tb) THEN
-                  CPABORT("TB not implemented")
+                  ALLOCATE (matrix_pall)
+                  CALL dbcsr_create(matrix_pall, template=matrix_s(1)%matrix)
+                  CALL dbcsr_copy(matrix_pall, matrix_s(1)%matrix, "Moments")
+                  CALL dbcsr_set(matrix_pall, 0.0_dp)
+                  DO ispin = 1, nspins
+                     CALL dbcsr_add(matrix_pall, matrix_p(ispin)%matrix, 1.0_dp, 1.0_dp)
+                     CALL dbcsr_add(matrix_pall, matrix_pe(ispin)%matrix, 1.0_dp, 1.0_dp)
+                     CALL dbcsr_add(matrix_pall, p_env%p1(ispin)%matrix, 1.0_dp, 1.0_dp)
+                  END DO
+                  CALL get_qs_env(qs_env=qs_env, natom=natom)
+                  ! Mulliken charges
+                  ALLOCATE (mcharge(natom))
+                  !
+                  CALL mulliken_charges(matrix_pall, matrix_s(1)%matrix, para_env, mcharge)
+                  !
+                  rdip = 0.0_dp
+                  pdip = 0.0_dp
+                  pedip = 0.0_dp
+                  DO i = 1, SIZE(particle_set)
+                     ria = pbc(particle_set(i)%r - rcc, cell) + rcc
+                     ria = ria - rcc
+                     q = mcharge(i)
+                     rdip = rdip + q*ria
+                  END DO
+                  CALL dbcsr_release(matrix_pall)
+                  DEALLOCATE (matrix_pall)
+                  DEALLOCATE (mcharge)
                ELSE
                   ! KS-DFT
                   NULLIFY (moments)
