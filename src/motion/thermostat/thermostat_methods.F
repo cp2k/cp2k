@@ -463,39 +463,44 @@ CONTAINS
       ! Total Tehrmostat Energy
       CALL get_thermostat_energies(thermostat, pot_energy, kin_energy, para_env)
       IF (iw > 0) THEN
-         WRITE (iw, '( /,A )') ' THERMOSTAT| Thermostat Info for '//TRIM(label)
+         WRITE (iw, '(/,T2,A)') &
+            'THERMOSTAT| Thermostat information for '//TRIM(label)
          SELECT CASE (thermostat%type_of_thermostat)
          CASE (do_thermo_nose)
-            WRITE (iw, '( A,T63,A )') ' THERMOSTAT| Type of thermostat', 'Nose-Hoover-Chains'
-            WRITE (iw, '( A,T77,I4 )') ' THERMOSTAT| Nose-Hoover-Chain length ', thermostat%nhc%nhc_len
-            tmp = cp_unit_from_cp2k(thermostat%nhc%tau_nhc, "fs")
-            WRITE (iw, '( A,A4,A,T71,F10.2 )') &
-               ' THERMOSTAT| Nose-Hoover-Chain time constant [', 'fs', '] ', tmp
-            WRITE (iw, '( A,T77,I4 )') ' THERMOSTAT| Order of Yoshida integrator ', &
-               thermostat%nhc%nyosh
-            WRITE (iw, '( A,T77,I4 )') ' THERMOSTAT| Number of multiple time steps', &
-               thermostat%nhc%nc
-            WRITE (iw, '( A,T69,F12.6 )') ' THERMOSTAT| Initial Potential Energy', &
-               pot_energy
-            WRITE (iw, '( A,T69,F12.6 )') ' THERMOSTAT| Initial Kinetic Energy', &
-               kin_energy
+            WRITE (iw, '(T2,A,T63,A)') &
+               'THERMOSTAT| Type of thermostat', 'Nose-Hoover-Chains'
+            WRITE (iw, '(T2,A,T71,I10)') &
+               'THERMOSTAT| Nose-Hoover-Chain length', thermostat%nhc%nhc_len
+            tmp = cp_unit_from_cp2k(thermostat%nhc%tau_nhc, 'fs')
+            WRITE (iw, '(T2,A,T61,F20.6)') &
+               'THERMOSTAT| Nose-Hoover-Chain time constant [fs]', tmp
+            WRITE (iw, '(T2,A,T71,I10)') &
+               'THERMOSTAT| Order of Yoshida integrator', thermostat%nhc%nyosh
+            WRITE (iw, '(T2,A,T71,I10)') &
+               'THERMOSTAT| Number of multiple time steps', thermostat%nhc%nc
+            WRITE (iw, '(T2,A,T61,E20.12)') &
+               'THERMOSTAT| Initial potential energy', pot_energy, &
+               'THERMOSTAT| Initial kinetic energy', kin_energy
          CASE (do_thermo_csvr)
-            WRITE (iw, '( A,T44,A )') ' THERMOSTAT| Type of thermostat', 'Canonical Sampling/Velocity Rescaling'
-            tmp = cp_unit_from_cp2k(thermostat%csvr%tau_csvr, "fs")*0.5_dp*simpar%dt
-            WRITE (iw, '( A,A4,A,T71,F10.2 )') &
-               ' THERMOSTAT| CSVR time constant [', 'fs', '] ', tmp
-            WRITE (iw, '( A,T69,F12.6 )') &
-               ' THERMOSTAT| Initial Kinetic Energy ', kin_energy
+            WRITE (iw, '(T2,A,T44,A)') &
+               'THERMOSTAT| Type of thermostat', 'Canonical Sampling/Velocity Rescaling'
+            tmp = cp_unit_from_cp2k(thermostat%csvr%tau_csvr, 'fs')*0.5_dp*simpar%dt
+            WRITE (iw, '(T2,A,T61,F20.6)') &
+               'THERMOSTAT| CSVR time constant [fs]', tmp
+            WRITE (iw, '(T2,A,T61,E20.12)') &
+               'THERMOSTAT| Initial kinetic energy', kin_energy
          CASE (do_thermo_al)
-            WRITE (iw, '( A,T44,A )') ' THERMOSTAT| Type of thermostat', 'Adaptive Langevin'
-            tmp = cp_unit_from_cp2k(thermostat%al%tau_nh, "fs")
-            WRITE (iw, '( A,A4,A,T71,F10.2 )') &
-               ' THERMOSTAT| AD_LANGEVIN NH time constant [', 'fs', '] ', tmp
-            tmp = cp_unit_from_cp2k(thermostat%al%tau_langevin, "fs")
-            WRITE (iw, '( A,A4,A,T71,F10.2 )') &
-               ' THERMOSTAT| AD_LANGEVIN Langevin time constant [', 'fs', '] ', tmp
+            WRITE (iw, '(T2,A,T44,A)') &
+               'THERMOSTAT| Type of thermostat', 'Adaptive Langevin'
+            tmp = cp_unit_from_cp2k(thermostat%al%tau_nh, 'fs')
+            WRITE (iw, '(T2,A,T61,F20.6)') &
+               'THERMOSTAT| Time constant of Nose-Hoover part [fs]', tmp
+            tmp = cp_unit_from_cp2k(thermostat%al%tau_langevin, 'fs')
+            WRITE (iw, '(T2,A,T61,F20.6)') &
+               'THERMOSTAT| Time constant of Langevin part [fs]', tmp
          END SELECT
-         WRITE (iw, '( A,/ )') ' THERMOSTAT| End of Thermostat Info for '//TRIM(label)
+         WRITE (iw, '(T2,A)') &
+            'THERMOSTAT| End of thermostat information for '//TRIM(label)
       END IF
       CALL cp_print_key_finished_output(iw, logger, section, "PRINT%THERMOSTAT_INFO")
 
