@@ -228,7 +228,7 @@ CONTAINS
       dipole_deriv = 0.0_dp
       dipole = 0.0_dp
       IF (do_berry) THEN
-         dipole_type = "[BERRY PHASE]"
+         dipole_type = "periodic (Berry phase)"
          rcc = pbc(rcc, cell)
          charge_tot = 0._dp
          IF (use_charges) THEN
@@ -283,7 +283,7 @@ CONTAINS
          CALL cp_results_erase(results, description)
          CALL put_results(results, description, dipole)
       ELSE
-         dipole_type = "[Non Periodic]"
+         dipole_type = "non-periodic"
          DO i = 1, SIZE(particle_set)
             atomic_kind => particle_set(i)%atomic_kind
             ria = particle_set(i)%r(:) ! no pbc(particle_set(i)%r(:),cell) so that the total dipole
@@ -298,9 +298,14 @@ CONTAINS
          CALL put_results(results, description, dipole)
       END IF
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(1X,A,T48,3F16.6)') "MM DIPOLE "//TRIM(dipole_type)//"(A.U.)|", dipole
-         WRITE (unit_nr, '(1X,A,T48,3F16.6)') "MM DIPOLE "//TRIM(dipole_type)//"(Debye)|", dipole*debye
-         WRITE (unit_nr, '(1X,A,T48,3F16.6)') "MM DIPOLE "//TRIM(dipole_type)//" DERIVATIVE(A.U.)|", dipole_deriv
+         WRITE (unit_nr, '(/,T2,A,T31,A50)') &
+            'MM_DIPOLE| Dipole type', ADJUSTR(TRIM(dipole_type))
+         WRITE (unit_nr, '(T2,A,T30,3(1X,F16.8))') &
+            'MM_DIPOLE| Moment [a.u.]', dipole(1:3)
+         WRITE (unit_nr, '(T2,A,T30,3(1X,F16.8))') &
+            'MM_DIPOLE| Moment [Debye]', dipole(1:3)*debye
+         WRITE (unit_nr, '(T2,A,T30,3(1X,F16.8))') &
+            'MM_DIPOLE| Derivative [a.u.]', dipole_deriv(1:3)
       END IF
 
    END SUBROUTINE fist_dipole
