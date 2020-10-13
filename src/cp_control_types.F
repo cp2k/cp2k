@@ -117,6 +117,7 @@ MODULE cp_control_types
       LOGICAL                              :: xb_interaction
       LOGICAL                              :: do_nonbonded
       LOGICAL                              :: coulomb_interaction
+      LOGICAL                              :: coulomb_lr
       LOGICAL                              :: tb3_interaction
       LOGICAL                              :: check_atomic_charges
       !

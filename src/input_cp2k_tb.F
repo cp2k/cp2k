@@ -184,6 +184,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="COULOMB_LR", &
+                          description="Use Coulomb LR (1/r) interaction terms; for debug only", &
+                          usage="COULOMB_LR T", default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="TB3_INTERACTION", &
                           description="Use TB3 interaction terms; for debug only", &
                           usage="TB3_INTERACTION T", default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)

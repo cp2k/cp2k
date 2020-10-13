@@ -255,52 +255,54 @@ CONTAINS
 
       ! 1/R contribution
 
-      do_ewald = dft_control%qs_control%xtb_control%do_ewald
-      IF (do_ewald) THEN
-         ! Ewald sum
-         NULLIFY (ewald_env, ewald_pw)
-         CALL get_qs_env(qs_env=qs_env, &
-                         ewald_env=ewald_env, ewald_pw=ewald_pw)
-         CALL get_cell(cell=cell, periodic=periodic, deth=deth)
-         CALL ewald_env_get(ewald_env, alpha=alpha, ewald_type=ewald_type)
-         CALL get_qs_env(qs_env=qs_env, sab_tbe=n_list)
-         CALL tb_ewald_overlap(gmcharge, mcharge, alpha, n_list, virial, use_virial, atprop)
-         SELECT CASE (ewald_type)
-         CASE DEFAULT
-            CPABORT("Invalid Ewald type")
-         CASE (do_ewald_none)
-            CPABORT("Not allowed with DFTB")
-         CASE (do_ewald_ewald)
-            CPABORT("Standard Ewald not implemented in DFTB")
-         CASE (do_ewald_pme)
-            CPABORT("PME not implemented in DFTB")
-         CASE (do_ewald_spme)
-            CALL tb_spme_evaluate(ewald_env, ewald_pw, particle_set, cell, &
-                                  gmcharge, mcharge, calculate_forces, virial, use_virial, atprop)
-         END SELECT
-      ELSE
-         ! direct sum
-         CALL get_qs_env(qs_env=qs_env, &
-                         local_particles=local_particles)
-         DO ikind = 1, SIZE(local_particles%n_el)
-            DO ia = 1, local_particles%n_el(ikind)
-               iatom = local_particles%list(ikind)%array(ia)
-               DO jatom = 1, iatom - 1
-                  rij = particle_set(iatom)%r - particle_set(jatom)%r
-                  rij = pbc(rij, cell)
-                  dr = SQRT(SUM(rij(:)**2))
-                  IF (dr > 1.e-6_dp) THEN
-                     gmcharge(iatom, 1) = gmcharge(iatom, 1) + mcharge(jatom)/dr
-                     gmcharge(jatom, 1) = gmcharge(jatom, 1) + mcharge(iatom)/dr
-                     DO i = 2, nmat
-                        gmcharge(iatom, i) = gmcharge(iatom, i) + rij(i - 1)*mcharge(jatom)/dr**3
-                        gmcharge(jatom, i) = gmcharge(jatom, i) - rij(i - 1)*mcharge(iatom)/dr**3
-                     END DO
-                  END IF
+      IF (dft_control%qs_control%xtb_control%coulomb_lr) THEN
+         do_ewald = dft_control%qs_control%xtb_control%do_ewald
+         IF (do_ewald) THEN
+            ! Ewald sum
+            NULLIFY (ewald_env, ewald_pw)
+            CALL get_qs_env(qs_env=qs_env, &
+                            ewald_env=ewald_env, ewald_pw=ewald_pw)
+            CALL get_cell(cell=cell, periodic=periodic, deth=deth)
+            CALL ewald_env_get(ewald_env, alpha=alpha, ewald_type=ewald_type)
+            CALL get_qs_env(qs_env=qs_env, sab_tbe=n_list)
+            CALL tb_ewald_overlap(gmcharge, mcharge, alpha, n_list, virial, use_virial, atprop)
+            SELECT CASE (ewald_type)
+            CASE DEFAULT
+               CPABORT("Invalid Ewald type")
+            CASE (do_ewald_none)
+               CPABORT("Not allowed with DFTB")
+            CASE (do_ewald_ewald)
+               CPABORT("Standard Ewald not implemented in DFTB")
+            CASE (do_ewald_pme)
+               CPABORT("PME not implemented in DFTB")
+            CASE (do_ewald_spme)
+               CALL tb_spme_evaluate(ewald_env, ewald_pw, particle_set, cell, &
+                                     gmcharge, mcharge, calculate_forces, virial, use_virial, atprop)
+            END SELECT
+         ELSE
+            ! direct sum
+            CALL get_qs_env(qs_env=qs_env, &
+                            local_particles=local_particles)
+            DO ikind = 1, SIZE(local_particles%n_el)
+               DO ia = 1, local_particles%n_el(ikind)
+                  iatom = local_particles%list(ikind)%array(ia)
+                  DO jatom = 1, iatom - 1
+                     rij = particle_set(iatom)%r - particle_set(jatom)%r
+                     rij = pbc(rij, cell)
+                     dr = SQRT(SUM(rij(:)**2))
+                     IF (dr > 1.e-6_dp) THEN
+                        gmcharge(iatom, 1) = gmcharge(iatom, 1) + mcharge(jatom)/dr
+                        gmcharge(jatom, 1) = gmcharge(jatom, 1) + mcharge(iatom)/dr
+                        DO i = 2, nmat
+                           gmcharge(iatom, i) = gmcharge(iatom, i) + rij(i - 1)*mcharge(jatom)/dr**3
+                           gmcharge(jatom, i) = gmcharge(jatom, i) - rij(i - 1)*mcharge(iatom)/dr**3
+                        END DO
+                     END IF
+                  END DO
                END DO
             END DO
-         END DO
-         CPASSERT(.NOT. use_virial)
+            CPASSERT(.NOT. use_virial)
+         END IF
       END IF
 
       ! global sum of gamma*p arrays
@@ -310,11 +312,13 @@ CONTAINS
       CALL mp_sum(gmcharge(:, 1), para_env%group)
       CALL mp_sum(gchrg(:, :, 1), para_env%group)
 
-      IF (do_ewald) THEN
-         ! add self charge interaction and background charge contribution
-         gmcharge(:, 1) = gmcharge(:, 1) - 2._dp*alpha*oorootpi*mcharge(:)
-         IF (ANY(periodic(:) == 1)) THEN
-            gmcharge(:, 1) = gmcharge(:, 1) - pi/alpha**2/deth
+      IF (dft_control%qs_control%xtb_control%coulomb_lr) THEN
+         IF (do_ewald) THEN
+            ! add self charge interaction and background charge contribution
+            gmcharge(:, 1) = gmcharge(:, 1) - 2._dp*alpha*oorootpi*mcharge(:)
+            IF (ANY(periodic(:) == 1)) THEN
+               gmcharge(:, 1) = gmcharge(:, 1) - pi/alpha**2/deth
+            END IF
          END IF
       END IF
 

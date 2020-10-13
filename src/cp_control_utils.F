@@ -1157,6 +1157,8 @@ CONTAINS
          ! For debug purposes
          CALL section_vals_val_get(xtb_section, "COULOMB_INTERACTION", &
                                    l_val=qs_control%xtb_control%coulomb_interaction)
+         CALL section_vals_val_get(xtb_section, "COULOMB_LR", &
+                                   l_val=qs_control%xtb_control%coulomb_lr)
          CALL section_vals_val_get(xtb_section, "TB3_INTERACTION", &
                                    l_val=qs_control%xtb_control%tb3_interaction)
          ! Check for bad atomic charges
