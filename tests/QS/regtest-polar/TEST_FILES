@@ -3,11 +3,11 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-h2o_LRraman.inp                                       60      2e-05                        0.00613
-h2o_LRraman_loc.inp                                   60      2e-05                        0.00915
-h2o_LRraman_noort.inp                                 60      2e-05                        0.02330
-H2O_md_polar.inp                                      60      4e-04                        0.63555
-xTB_LRraman.inp                                       60      2e-05                        0.80485
-xTB_LRraman_loc.inp                                   60      2e-05                        0.80485
-h2o_LRraman_LRI.inp                                   60      2e-05                        0.00426
+h2o_LRraman.inp                                       60      2e-05                 0.006125121412
+h2o_LRraman_loc.inp                                   60      2e-05                 0.009153812508
+h2o_LRraman_noort.inp                                 60      2e-05                 0.023303680948
+H2O_md_polar.inp                                      60      4e-04                 0.635317998131
+xTB_LRraman.inp                                       60      2e-05                 0.804852847403
+xTB_LRraman_loc.inp                                   60      2e-05                 0.804852847403
+h2o_LRraman_LRI.inp                                   60      2e-05                 0.004262309795
 #EOF
