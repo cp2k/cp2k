@@ -195,21 +195,19 @@ CONTAINS
       iw = cp_print_key_unit_nr(logger, print_section, "PROGRAM_RUN_INFO", &
                                 extension=".log")
       IF (iw > 0) THEN
-         WRITE (iw, '( /, A )') ' Calculation of degrees of freedom'
-         WRITE (iw, '( T48, A, T71, I10 )') '       Number of atoms:', natom
-         WRITE (iw, '( T33, A, T71, I10 )') &
-            ' Number of Intramolecular constraints:', nconstraint_int
-         WRITE (iw, '( T33, A, T71, I10 )') &
-            ' Number of Intermolecular constraints:', nconstraint_ext
-         WRITE (iw, '( T34, A, T71, I10 )') &
-            ' Invariants(translation + rotations):', roto_trasl_dof
-         WRITE (iw, '( T48, A, T71, I10 )') '    Degrees of freedom:', simpar%nfree
-         WRITE (iw, '()')
-         WRITE (iw, '( /, A )') ' Restraints Information'
-         WRITE (iw, '( T33, A, T71, I10 )') &
-            '  Number of Intramolecular restraints:', nrestraints_int
-         WRITE (iw, '( T33, A, T71, I10 )') &
-            '  Number of Intermolecular restraints:', gci%nrestraint
+         WRITE (iw, '(/,T2,A)') &
+            'DOF| Calculation of degrees of freedom'
+         WRITE (iw, '(T2,A,T71,I10)') &
+            'DOF| Number of atoms', natom, &
+            'DOF| Number of intramolecular constraints', nconstraint_int, &
+            'DOF| Number of intermolecular constraints', nconstraint_ext, &
+            'DOF| Invariants (translations + rotations)', roto_trasl_dof, &
+            'DOF| Degrees of freedom', simpar%nfree
+         WRITE (iw, '(/,T2,A)') &
+            'DOF| Restraints information'
+         WRITE (iw, '(T2,A,T71,I10)') &
+            'DOF| Number of intramolecular restraints', nrestraints_int, &
+            'DOF| Number of intermolecular restraints', gci%nrestraint
       END IF
       CALL cp_print_key_finished_output(iw, logger, print_section, &
                                         "PROGRAM_RUN_INFO")
