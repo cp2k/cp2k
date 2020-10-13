@@ -581,10 +581,6 @@ CONTAINS
       ! Logging
       logger => cp_get_default_logger()
       iw = cp_print_key_unit_nr(logger, print_section, "PROGRAM_RUN_INFO", extension=".log")
-      IF (iw > 0) THEN
-         WRITE (iw, '(T2,A)') &
-            'MD_VEL| '//TRIM(ADJUSTL(label))
-      END IF
 
       ! Build a list of all fixed atoms (if any)
       ALLOCATE (is_fixed(natoms))
@@ -640,6 +636,8 @@ CONTAINS
       END IF
 
       IF (iw > 0) THEN
+         WRITE (iw, '(/,T2,A)') &
+            'MD_VEL| '//TRIM(ADJUSTL(label))
          ! Recompute vcom, ecom and ekin for IO
          CALL compute_vcom(part, is_fixed, vcom, ecom)
          ekin = compute_ekin(part) - ecom
@@ -1462,12 +1460,15 @@ CONTAINS
             md_ener%temp_part = 2.0_dp*md_ener%ekin/REAL(md_ener%nfree, KIND=dp)*kelvin
          END IF
          md_ener%constant = md_ener%constant - ekin_old + md_ener%ekin
-
          IF (iw > 0) THEN
-            WRITE (UNIT=iw, FMT="(/,T2,A,F10.2,A,F10.2,A)") "Temperature scaled to requested temperature:", &
-               temp_old, " K  ->", md_ener%temp_part, " K"
+            WRITE (UNIT=iw, FMT='(/,T2,A)') &
+               'MD_VEL| Temperature scaled to requested temperature'
+            WRITE (UNIT=iw, FMT='(T2,A,T61,F20.6)') &
+               'MD_VEL| Old temperature [K]', temp_old, &
+               'MD_VEL| New temperature [K]', md_ener%temp_part
          END IF
       END IF
+
    END SUBROUTINE scale_velocity
 
 ! **************************************************************************************************
@@ -1546,13 +1547,17 @@ CONTAINS
          md_ener%temp_part = 2.0_dp*md_ener%ekin/REAL(md_ener%nfree, KIND=dp)*kelvin
       END IF
       md_ener%constant = md_ener%constant - ekin_old + md_ener%ekin
-
-      DO ireg = 0, nregions
-         IF (iw > 0 .AND. temp_new(ireg) > 0.0_dp) THEN
-            WRITE (UNIT=iw, FMT="(/,T2,A,I5, A,F10.2,A,F10.2,A)") "Temperature region ", ireg, &
-               " rescaled from:", temp_old(ireg), " K  to ", temp_new(ireg), " K"
-         END IF
-      END DO
+      IF (iw > 0) THEN
+         DO ireg = 0, nregions
+            IF (temp_new(ireg) > 0.0_dp) THEN
+               WRITE (UNIT=iw, FMT='(/,T2,A,I0,A)') &
+                  'MD_VEL| Temperature region ', ireg, ' scaled to requested temperature'
+               WRITE (UNIT=iw, FMT='(T2,A,T61,F20.6)') &
+                  'MD_VEL| Old temperature [K]', temp_old(ireg), &
+                  'MD_VEL| New temperature [K]', temp_new(ireg)
+            END IF
+         END DO
+      END IF
       DEALLOCATE (temp_new, temp_old)
 
    END SUBROUTINE scale_velocity_region
@@ -1737,13 +1742,15 @@ CONTAINS
             md_ener%temp_shell = 2.0_dp*md_ener%ekin_shell/REAL(md_ener%nfree_shell, KIND=dp)*kelvin
          END IF
          md_ener%constant = md_ener%constant - ekin_shell_old + md_ener%ekin_shell
-
          IF (iw > 0) THEN
-            WRITE (UNIT=iw, FMT="(/,T2,A,F10.2,A,F10.2,A)") &
-               "Temperature  shell internal motion scaled to requested temperature:", &
-               temp_shell_old, " K  ->", md_ener%temp_shell, " K"
+            WRITE (UNIT=iw, FMT='(/,T2,A)') &
+               'MD_VEL| Temperature of shell internal motion scaled to requested temperature'
+            WRITE (UNIT=iw, FMT='(T2,A,T61,F20.6)') &
+               'MD_VEL| Old temperature [K]', temp_shell_old, &
+               'MD_VEL| New temperature [K]', md_ener%temp_shell
          END IF
-      ENDIF
+      END IF
+
    END SUBROUTINE scale_velocity_internal
 
 ! **************************************************************************************************
@@ -1788,15 +1795,17 @@ CONTAINS
                END DO
             END DO
          END IF
-
          nfree = SIZE(npt, 1)*SIZE(npt, 2)
          md_ener%temp_baro = 2.0_dp*md_ener%baro_kin/REAL(nfree, dp)*kelvin
          IF (iw > 0) THEN
-            WRITE (UNIT=iw, FMT="(/,T2,A,F10.2,A,F10.2,A)") &
-               "Temperature  of barostat motion scaled to requested temperature:", &
-               temp_old, " K  ->", md_ener%temp_baro, " K"
+            WRITE (UNIT=iw, FMT='(/,T2,A)') &
+               'MD_VEL| Temperature of barostat motion scaled to requested temperature'
+            WRITE (UNIT=iw, FMT='(T2,A,T61,F20.6)') &
+               'MD_VEL| Old temperature [K]', temp_old, &
+               'MD_VEL| New temperature [K]', md_ener%temp_baro
          END IF
       END IF
+
    END SUBROUTINE scale_velocity_baro
 
 ! **************************************************************************************************
@@ -1893,8 +1902,10 @@ CONTAINS
       ! Print COMVEL and COM Position
       iw = cp_print_key_unit_nr(logger, md_section, "PRINT%CENTER_OF_MASS", extension=".mdLog")
       IF (iw > 0) THEN
-         WRITE (UNIT=iw, FMT="(/,T2,A,(T58,A3,F20.10))") &
-            "Centre of mass motion (COM):", "x =", md_ener%vcom(1), "y =", md_ener%vcom(2), "z =", md_ener%vcom(3)
+         WRITE (UNIT=iw, FMT="(/,T2,A)") &
+            "MD_VEL| Centre of mass motion (COM)"
+         WRITE (UNIT=iw, FMT="(T2,A,T30,3(1X,F16.10))") &
+            "MD_VEL| VCOM [a.u.]", md_ener%vcom(1:3)
       END IF
       CALL cp_print_key_finished_output(iw, logger, md_section, "PRINT%CENTER_OF_MASS")
 
@@ -1914,9 +1925,9 @@ CONTAINS
             CALL scale_velocity(subsys, md_ener, temp_old, 0.0_dp, iw)
             IF (iw > 0) THEN
                WRITE (UNIT=iw, FMT="(T2,A,T30,3(1X,F16.10))") &
-                  "MD| Old VCOM [a.u.] =", vcom_old(1:3)
+                  "MD_VEL| Old VCOM [a.u.]", vcom_old(1:3)
                WRITE (UNIT=iw, FMT="(T2,A,T30,3(1X,F16.10))") &
-                  "MD| New VCOM [a.u.] =", md_ener%vcom(1:3)
+                  "MD_VEL| New VCOM [a.u.]", md_ener%vcom(1:3)
             END IF
          END IF
          CALL cp_print_key_finished_output(iw, logger, md_section, &
@@ -2002,9 +2013,10 @@ CONTAINS
                CALL scale_velocity(subsys, md_ener, temp_old, 0.0_dp, iw)
                CALL compute_vang(particles%els, is_fixed, rcom, vang_new)
                IF (iw > 0) THEN
-                  WRITE (UNIT=iw, FMT="(T2,'MD| ',A,3F16.10,A)") &
-                     "Old VANG = ", vang(1:3), " a.u.", &
-                     "New VANG = ", vang_new(1:3), " a.u"
+                  WRITE (UNIT=iw, FMT="(T2,A,T30,3(1X,F16.10))") &
+                     'MD_VEL| Old VANG [a.u.]', vang(1:3)
+                  WRITE (UNIT=iw, FMT="(T2,A,T30,3(1X,F16.10))") &
+                     'MD_VEL| New VANG [a.u.]', vang_new(1:3)
                END IF
             END IF
 
@@ -2238,7 +2250,7 @@ CONTAINS
 
          IF (iw > 0) THEN
             ekin = cp_unit_from_cp2k(energy, "keV")
-            WRITE (UNIT=iw, FMT="(T2,A,T61,F20.6)") &
+            WRITE (UNIT=iw, FMT="(/,T2,A,T61,F20.6)") &
                "CASCADE| Energy [keV]", ekin
             WRITE (UNIT=iw, FMT="(T2,A)") &
                "CASCADE|"
@@ -2350,8 +2362,8 @@ CONTAINS
                "CASCADE|"
             WRITE (UNIT=iw, FMT="(T2,A,T61,F18.2,A2)") &
                "CASCADE| Temperature after cascade initialization", temperature, " K"
-            WRITE (UNIT=iw, FMT="(T2,A,T30,3(1X,ES16.8),/)") &
-               "CASCADE| COM velocity: ", vcom(1:3)
+            WRITE (UNIT=iw, FMT="(T2,A,T30,3(1X,ES16.8))") &
+               "CASCADE| COM velocity", vcom(1:3)
 !MK          ! compute and log rcom and vang if not periodic
 !MK          CALL force_env_get(force_env,cell=cell)
 !MK          IF (SUM(cell%perd(1:3)) == 0) THEN

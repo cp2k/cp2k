@@ -627,7 +627,7 @@ CONTAINS
          CALL keyword_get(keyword, enum=enum)
          IF (init) THEN
             ! Write initial values of quantities of interest
-            WRITE (iw, '(T2,A)') 'MD_INI| MD initialization'
+            WRITE (iw, '(/,T2,A)') 'MD_INI| MD initialization'
             WRITE (iw, '(T2,A,T61,E20.12)') &
                'MD_INI| Potential energy [hartree]', md_ener%epot
             IF (simpar%ensemble /= reftraj_ensemble) THEN
@@ -681,9 +681,9 @@ CONTAINS
                'MD_INI| Cell angles [deg]', cell_angle(3), cell_angle(2), cell_angle(1)
          ELSE
             ! Write seuquential values of quantities of interest
-            !MK WRITE (iw, '(T2,A)') 'MD| '//REPEAT('*', 75)
-            !MK WRITE (iw, '(T2,A,T61,A20)') &
-            !MK   'MD| Ensemble type', ADJUSTR(TRIM(enum_i2c(enum, simpar%ensemble)))
+            WRITE (iw, '(/,T2,A)') 'MD| '//REPEAT('*', 75)
+!MK         WRITE (iw, '(T2,A,T61,A20)') &
+!MK            'MD| Ensemble type', ADJUSTR(TRIM(enum_i2c(enum, simpar%ensemble)))
             WRITE (iw, '(T2,A,T71,I10)') &
                'MD| Step number', itimes
             IF (simpar%variable_dt) THEN
@@ -769,7 +769,7 @@ CONTAINS
                   END IF
                END IF
             END IF
-            !MK WRITE (iw, '(T2,A)') 'MD| '//REPEAT('*', 75)
+            WRITE (iw, '(T2,A)') 'MD| '//REPEAT('*', 75)
          END IF
       END IF
       CALL section_release(section)
