@@ -344,22 +344,26 @@ CONTAINS
                      polar(3, 1)*angstrom**3, polar(3, 2)*angstrom**3
                   CALL cp_print_key_finished_output(unit_p, logger, polar_section, &
                                                     "PRINT%POLAR_MATRIX")
-               ENDIF
-            ENDIF
-         ENDIF
+               END IF
+            END IF
+         END IF
          IF (iounit > 0) THEN
-            WRITE (iounit, *)
-            WRITE (iounit, '(T2,A)') 'POLAR| POLARIZABILITY TENSOR (atomic units):'
-            WRITE (iounit, '(T2,A,3F15.5)') "POLAR| xx,yy,zz", polar(1, 1), polar(2, 2), polar(3, 3)
-            WRITE (iounit, '(T2,A,3F15.5)') "POLAR| xy,xz,yz", polar(1, 2), polar(1, 3), polar(2, 3)
-            WRITE (iounit, '(T2,A,3F15.5)') "POLAR| yx,zx,zy", polar(2, 1), polar(3, 1), polar(3, 2)
-            WRITE (iounit, '(T2,A)') 'POLAR| POLARIZABILITY TENSOR (Angstrom^3):'
-            WRITE (iounit, '(T2,A,3F15.5)') "POLAR| xx,yy,zz", polar(1, 1)*angstrom**3, &
-               polar(2, 2)*angstrom**3, polar(3, 3)*angstrom**3
-            WRITE (iounit, '(T2,A,3F15.5)') "POLAR| xy,xz,yz", polar(1, 2)*angstrom**3, &
-               polar(1, 3)*angstrom**3, polar(2, 3)*angstrom**3
-            WRITE (iounit, '(T2,A,3F15.5)') "POLAR| yx,zx,zy", polar(2, 1)*angstrom**3, &
-               polar(3, 1)*angstrom**3, polar(3, 2)*angstrom**3
+            WRITE (iounit, '(/,T2,A)') &
+               'POLAR| Polarizability tensor [a.u.]'
+            WRITE (iounit, '(T2,A,T24,3(1X,F18.12))') &
+               'POLAR| xx,yy,zz', polar(1, 1), polar(2, 2), polar(3, 3)
+            WRITE (iounit, '(T2,A,T24,3(1X,F18.12))') &
+               'POLAR| xy,xz,yz', polar(1, 2), polar(1, 3), polar(2, 3)
+            WRITE (iounit, '(T2,A,T24,3(1X,F18.12))') &
+               'POLAR| yx,zx,zy', polar(2, 1), polar(3, 1), polar(3, 2)
+            WRITE (iounit, '(/,T2,A)') &
+               'POLAR| Polarizability tensor [ang^3]'
+            WRITE (iounit, '(T2,A,T24,3(1X,F18.12))') &
+               'POLAR| xx,yy,zz', polar(1, 1)*angstrom**3, polar(2, 2)*angstrom**3, polar(3, 3)*angstrom**3
+            WRITE (iounit, '(T2,A,T24,3(1X,F18.12))') &
+               'POLAR| xy,xz,yz', polar(1, 2)*angstrom**3, polar(1, 3)*angstrom**3, polar(2, 3)*angstrom**3
+            WRITE (iounit, '(T2,A,T24,3(1X,F18.12))') &
+               'POLAR| yx,zx,zy', polar(2, 1)*angstrom**3, polar(3, 1)*angstrom**3, polar(3, 2)*angstrom**3
          END IF
       END IF
 
