@@ -118,7 +118,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_iterator_type)                          :: iter
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(ewald_environment_type), POINTER              :: ewald_env
@@ -224,9 +224,6 @@ CONTAINS
       IF (dft_control%qs_control%xtb_control%coulomb_lr) THEN
          do_ewald = dft_control%qs_control%xtb_control%do_ewald
          IF (do_ewald) THEN
-!deb
-            CPABORT("SPME not implemented in DFTB")
-!deb
             ! Ewald sum
             NULLIFY (ewald_env, ewald_pw)
             CALL get_qs_env(qs_env=qs_env, &
@@ -288,9 +285,6 @@ CONTAINS
 
       IF (dft_control%qs_control%xtb_control%coulomb_lr) THEN
          IF (do_ewald) THEN
-!deb
-            CPABORT("SPME not implemented in DFTB")
-!deb
             ! add self charge interaction and background charge contribution
             gmcharge0(:, 1) = gmcharge0(:, 1) - 2._dp*alpha*oorootpi*mcharge0(:)
             IF (ANY(periodic(:) == 1)) THEN
@@ -408,9 +402,9 @@ CONTAINS
             CALL get_xtb_atom_param(xtb_kind, xgamma=xgamma(ikind), zeff=zeffk(ikind))
          END DO
          ! Diagonal 3rd order correction (DFTB3)
-         CPABORT("TB3")
-         CALL build_dftb3_diagonal(qs_env, ks_matrix, rho, mcharge0, energy, xgamma, zeffk, &
-                                   sap_int, calculate_forces, just_energy)
+         NULLIFY(sap_int)
+!deb     CALL build_dftb3_diagonal(qs_env, ks_matrix, rho, mcharge0, energy, xgamma, zeffk, &
+!deb                               sap_int, calculate_forces, just_energy)
          DEALLOCATE (zeffk, xgamma)
       END IF
 

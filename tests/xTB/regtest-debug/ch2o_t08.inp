@@ -15,7 +15,7 @@
     &QS
       METHOD xTB
       &xTB
-        DO_EWALD F
+        DO_EWALD T
       &END XTB
     &END QS
     &EXCITED_STATES T
