@@ -174,7 +174,7 @@ CONTAINS
          ! Conversion factor to GPa
          fconv = 1.0E-9_dp*pascal/cell%deth
          WRITE (UNIT=iw, FMT='(/,T2,A)') &
-            'STRESS| Stress tensor components (GPW/GAPW)'
+            'STRESS| Stress tensor components (GPW/GAPW) [GPa]'
          WRITE (UNIT=iw, FMT='(T2,A,T52,A,T70,A)') &
             'STRESS|', '1/3 Trace', 'Determinant'
          pv = fconv*virial%pv_ekin
