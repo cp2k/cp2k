@@ -73,8 +73,7 @@ MODULE force_env_methods
         use_eip_force, use_embed, use_fist_force, use_mixed_force, use_prog_name, use_pwdft_force, &
         use_qmmm, use_qmmmx, use_qs_force
    USE force_env_utils,                 ONLY: rescale_forces,&
-                                              write_forces,&
-                                              write_stress_tensor
+                                              write_forces
    USE force_fields_util,               ONLY: get_generic_info
    USE fp_methods,                      ONLY: fp_eval
    USE fparser,                         ONLY: EvalErrType,&
@@ -163,7 +162,8 @@ MODULE force_env_methods
    USE restraint,                       ONLY: restraint_control
    USE scine_utils,                     ONLY: write_scine
    USE string_utilities,                ONLY: compress
-   USE virial_methods,                  ONLY: write_stress_components
+   USE virial_methods,                  ONLY: write_stress_tensor,&
+                                              write_stress_tensor_components
    USE virial_types,                    ONLY: cp_virial,&
                                               sym_virial,&
                                               virial_create,&
@@ -216,10 +216,8 @@ CONTAINS
                                                             nfixed_atoms_total, nkind, &
                                                             output_unit, print_forces, print_grrm, &
                                                             print_scine
-      LOGICAL                                            :: calculate_forces, &
-                                                            calculate_stress_tensor, &
-                                                            energy_consistency, eval_ef, &
-                                                            linres_run, my_skip
+      LOGICAL :: calculate_forces, calculate_stress_tensor, energy_consistency, eval_ef, &
+         linres_run, my_skip, print_components
       REAL(KIND=dp)                                      :: checksum, e_pot, sum_energy, &
                                                             sum_pv_virial, sum_stress_tensor
       REAL(KIND=dp), DIMENSION(3)                        :: grand_total_force, total_force
@@ -392,12 +390,14 @@ CONTAINS
             output_unit = cp_print_key_unit_nr(logger, force_env%force_env_section, "PRINT%STRESS_TENSOR", &
                                                extension=".stress_tensor")
             IF (output_unit > 0) THEN
-               CALL section_vals_val_get(force_env%force_env_section, "PRINT%STRESS_TENSOR%NDIGITS", &
-                                         i_val=ndigits)
-               CALL write_stress_tensor(virial%pv_virial, output_unit, cell, ndigits, virial%pv_numer)
-               IF ((.NOT. virial%pv_numer) .AND. (force_env%in_use == use_qs_force)) THEN
-                  CALL write_stress_components(virial, output_unit)
+               CALL section_vals_val_get(force_env%force_env_section, "PRINT%STRESS_TENSOR%COMPONENTS", &
+                                         l_val=print_components)
+               IF (print_components) THEN
+                  IF ((.NOT. virial%pv_numer) .AND. (force_env%in_use == use_qs_force)) THEN
+                     CALL write_stress_tensor_components(virial, output_unit, cell)
+                  END IF
                END IF
+               CALL write_stress_tensor(virial%pv_virial, output_unit, cell, virial%pv_numer)
             END IF
             CALL cp_print_key_finished_output(output_unit, logger, force_env%force_env_section, &
                                               "PRINT%STRESS_TENSOR")
@@ -553,8 +553,8 @@ CONTAINS
 
       REAL(kind=dp), PARAMETER                           :: default_dx = 0.001_dp
 
-      INTEGER                                            :: i, ip, iq, j, k, natom, ncore, ndigits, &
-                                                            nshell, output_unit
+      INTEGER                                            :: i, ip, iq, j, k, natom, ncore, nshell, &
+                                                            output_unit
       REAL(KIND=dp)                                      :: dx_w
       REAL(KIND=dp), DIMENSION(2)                        :: numer_energy
       REAL(KIND=dp), DIMENSION(3)                        :: s
@@ -700,9 +700,7 @@ CONTAINS
 
       IF (output_unit > 0) THEN
          IF (globenv%run_type_id == debug_run) THEN
-            CALL section_vals_val_get(force_env%force_env_section, "PRINT%STRESS_TENSOR%NDIGITS", &
-                                      i_val=ndigits)
-            CALL write_stress_tensor(virial%pv_virial, output_unit, cell, ndigits, virial%pv_numer)
+            CALL write_stress_tensor(virial%pv_virial, output_unit, cell, virial%pv_numer)
          END IF
          WRITE (output_unit, '(/,A,/)') ' **************************** '// &
             'NUMERICAL STRESS END *****************************'

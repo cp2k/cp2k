@@ -14,22 +14,26 @@ MODULE virial_methods
    USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
+   USE cell_types,                      ONLY: cell_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: dp
-   USE mathlib,                         ONLY: det_3x3
+   USE mathlib,                         ONLY: det_3x3,&
+                                              jacobi
    USE message_passing,                 ONLY: mp_sum
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
+   USE physcon,                         ONLY: pascal
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
 
    PRIVATE
-   PUBLIC:: virial_evaluate, virial_pair_force, virial_update, write_stress_components
+   PUBLIC:: virial_evaluate, virial_pair_force, virial_update, &
+            write_stress_tensor, write_stress_tensor_components
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'virial_methods'
 
@@ -150,50 +154,141 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param virial ...
-!> \param iounit ...
+!> \param iw ...
+!> \param cell ...
+!> \author JGH (revised 14.10.2020, MK)
 ! **************************************************************************************************
-   SUBROUTINE write_stress_components(virial, iounit)
-      TYPE(virial_type), INTENT(IN)                      :: virial
-      INTEGER, INTENT(IN)                                :: iounit
+   SUBROUTINE write_stress_tensor_components(virial, iw, cell)
 
+      TYPE(virial_type), INTENT(IN)                      :: virial
+      INTEGER, INTENT(IN)                                :: iw
+      TYPE(cell_type), POINTER                           :: cell
+
+      CHARACTER(LEN=*), PARAMETER :: fmt = '(T2,A,T41,2(1X,ES19.11))'
+
+      REAL(KIND=dp)                                      :: fconv
       REAL(KIND=dp), DIMENSION(3, 3)                     :: pv
 
-      WRITE (UNIT=iounit, FMT="(/,T3,A)") REPEAT("=", 78)
-      WRITE (UNIT=iounit, FMT="(T4,A)") "Stress Tensor Components (GPW/GAPW)"
-      WRITE (UNIT=iounit, FMT="(T42,A,T64,A)") "       1/3 Trace", "     Determinant"
-      pv = virial%pv_ekin
-      WRITE (UNIT=iounit, FMT="(T4,A,T42,F16.8,T64,F16.8)") "Kinetic Energy Stress", &
-         (pv(1, 1) + pv(2, 2) + pv(3, 3))/3.0_dp, det_3x3(pv)
-      pv = virial%pv_overlap
-      WRITE (UNIT=iounit, FMT="(T4,A,T42,F16.8,T64,F16.8)") "Basis Overlap Stress", &
-         (pv(1, 1) + pv(2, 2) + pv(3, 3))/3.0_dp, det_3x3(pv)
-      pv = virial%pv_hartree + virial%pv_exc
-      WRITE (UNIT=iounit, FMT="(T4,A,T42,F16.8,T64,F16.8)") "ES + XC Stress", &
-         (pv(1, 1) + pv(2, 2) + pv(3, 3))/3.0_dp, det_3x3(pv)
-      pv = virial%pv_vdw
-      WRITE (UNIT=iounit, FMT="(T4,A,T42,F16.8,T64,F16.8)") "vdW correction (ff) Stress", &
-         (pv(1, 1) + pv(2, 2) + pv(3, 3))/3.0_dp, det_3x3(pv)
-      pv = virial%pv_ppl
-      WRITE (UNIT=iounit, FMT="(T4,A,T42,F16.8,T64,F16.8)") "Local Pseudopotential/Core Stress", &
-         (pv(1, 1) + pv(2, 2) + pv(3, 3))/3.0_dp, det_3x3(pv)
-      pv = virial%pv_ppnl
-      WRITE (UNIT=iounit, FMT="(T4,A,T42,F16.8,T64,F16.8)") "Nonlocal Pseudopotential Stress", &
-         (pv(1, 1) + pv(2, 2) + pv(3, 3))/3.0_dp, det_3x3(pv)
-      pv = -virial%pv_fock_4c
-      WRITE (UNIT=iounit, FMT="(T4,A,T42,F16.8,T64,F16.8)") "Exact Exchange Stress", &
-         (pv(1, 1) + pv(2, 2) + pv(3, 3))/3.0_dp, det_3x3(pv)
-      !
-      pv = virial%pv_ekin + virial%pv_overlap + virial%pv_hartree + virial%pv_exc + virial%pv_vdw + &
-           virial%pv_ppl + virial%pv_ppnl - virial%pv_fock_4c
-      WRITE (UNIT=iounit, FMT="(T4,A,T42,F16.8,T64,F16.8)") "Sum of Parts Stress", &
-         (pv(1, 1) + pv(2, 2) + pv(3, 3))/3.0_dp, det_3x3(pv)
-      !
-      pv = virial%pv_virial
-      WRITE (UNIT=iounit, FMT="(T4,A,T42,F16.8,T64,F16.8)") "Total Stress", &
-         (pv(1, 1) + pv(2, 2) + pv(3, 3))/3.0_dp, det_3x3(pv)
-      WRITE (UNIT=iounit, FMT="(T3,A)") REPEAT("=", 78)
+      IF (iw > 0) THEN
+         CPASSERT(ASSOCIATED(cell))
+         ! Conversion factor to GPa
+         fconv = 1.0E-9_dp*pascal/cell%deth
+         WRITE (UNIT=iw, FMT='(/,T2,A)') &
+            'STRESS| Stress tensor components (GPW/GAPW)'
+         WRITE (UNIT=iw, FMT='(T2,A,T52,A,T70,A)') &
+            'STRESS|', '1/3 Trace', 'Determinant'
+         pv = fconv*virial%pv_ekin
+         WRITE (UNIT=iw, FMT=fmt) &
+            'STRESS| Kinetic energy', one_third_sum_diag(pv), det_3x3(pv)
+         pv = fconv*virial%pv_overlap
+         WRITE (UNIT=iw, FMT=fmt) &
+            'STRESS| Basis overlap', one_third_sum_diag(pv), det_3x3(pv)
+         pv = fconv*(virial%pv_hartree + virial%pv_exc)
+         WRITE (UNIT=iw, FMT=fmt) &
+            'STRESS| ES + XC', one_third_sum_diag(pv), det_3x3(pv)
+         pv = fconv*virial%pv_vdw
+         WRITE (UNIT=iw, FMT=fmt) &
+            'STRESS| vdW correction (ff)', one_third_sum_diag(pv), det_3x3(pv)
+         pv = fconv*virial%pv_ppl
+         WRITE (UNIT=iw, FMT=fmt) &
+            'STRESS| Local pseudopotential/core', one_third_sum_diag(pv), det_3x3(pv)
+         pv = fconv*virial%pv_ppnl
+         WRITE (UNIT=iw, FMT=fmt) &
+            'STRESS| Nonlocal pseudopotential', one_third_sum_diag(pv), det_3x3(pv)
+         pv = -fconv*virial%pv_fock_4c
+         WRITE (UNIT=iw, FMT=fmt) &
+            'STRESS| Exact exchange (EXX)', one_third_sum_diag(pv), det_3x3(pv)
+         pv = fconv*(virial%pv_ekin + virial%pv_overlap + virial%pv_hartree + virial%pv_exc + &
+                     virial%pv_vdw + virial%pv_ppl + virial%pv_ppnl - virial%pv_fock_4c)
+         WRITE (UNIT=iw, FMT=fmt) &
+            'STRESS| Sum of components', one_third_sum_diag(pv), det_3x3(pv)
+         pv = fconv*virial%pv_virial
+         WRITE (UNIT=iw, FMT=fmt) &
+            'STRESS| Total', one_third_sum_diag(pv), det_3x3(pv)
+      END IF
 
-   END SUBROUTINE write_stress_components
+   END SUBROUTINE write_stress_tensor_components
+
+! **************************************************************************************************
+!> \brief ...
+!> \param a ...
+!> \return ...
+! **************************************************************************************************
+   PURE FUNCTION one_third_sum_diag(a) RESULT(p)
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: a
+      REAL(KIND=dp)                                      :: p
+
+      p = (a(1, 1) + a(2, 2) + a(3, 3))/3.0_dp
+   END FUNCTION one_third_sum_diag
+
+! **************************************************************************************************
+!> \brief Print stress tensor to output file
+!>
+!> \param pv_virial ...
+!> \param iw ...
+!> \param cell ...
+!> \param numerical ...
+!> \author MK (26.08.2010)
+! **************************************************************************************************
+   SUBROUTINE write_stress_tensor(pv_virial, iw, cell, numerical)
+
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: pv_virial
+      INTEGER, INTENT(IN)                                :: iw
+      TYPE(cell_type), POINTER                           :: cell
+      LOGICAL, INTENT(IN)                                :: numerical
+
+      REAL(KIND=dp), DIMENSION(3)                        :: eigval
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: eigvec, stress_tensor
+
+      IF (iw > 0) THEN
+         CPASSERT(ASSOCIATED(cell))
+         stress_tensor(:, :) = pv_virial(:, :)/cell%deth*pascal*1.0E-9_dp
+         IF (numerical) THEN
+            WRITE (UNIT=iw, FMT='(/,T2,A)') &
+               'STRESS| Numerical stress tensor [GPa]'
+         ELSE
+            WRITE (UNIT=iw, FMT='(/,T2,A)') &
+               'STRESS| Analytical stress tensor [GPa]'
+         END IF
+         WRITE (UNIT=iw, FMT='(T2,A,T14,3(19X,A1))') &
+            'STRESS|', 'x', 'y', 'z'
+         WRITE (UNIT=iw, FMT='(T2,A,T21,3(1X,ES19.11))') &
+            'STRESS|      x', stress_tensor(1, 1:3)
+         WRITE (UNIT=iw, FMT='(T2,A,T21,3(1X,ES19.11))') &
+            'STRESS|      y', stress_tensor(2, 1:3)
+         WRITE (UNIT=iw, FMT='(T2,A,T21,3(1X,ES19.11))') &
+            'STRESS|      z', stress_tensor(3, 1:3)
+         WRITE (UNIT=iw, FMT='(T2,A,T61,ES20.11)') &
+            'STRESS| 1/3 Trace', (stress_tensor(1, 1) + &
+                                  stress_tensor(2, 2) + &
+                                  stress_tensor(3, 3))/3.0_dp
+         WRITE (UNIT=iw, FMT='(T2,A,T61,ES20.11)') &
+            'STRESS| Determinant', det_3x3(stress_tensor(1:3, 1), &
+                                           stress_tensor(1:3, 2), &
+                                           stress_tensor(1:3, 3))
+         eigval(:) = 0.0_dp
+         eigvec(:, :) = 0.0_dp
+         CALL jacobi(stress_tensor, eigval, eigvec)
+         IF (numerical) THEN
+            WRITE (UNIT=iw, FMT='(/,T2,A)') &
+               'STRESS| Eigenvectors and eigenvalues of the numerical stress tensor [GPa]'
+         ELSE
+            WRITE (UNIT=iw, FMT='(/,T2,A)') &
+               'STRESS| Eigenvectors and eigenvalues of the analytical stress tensor [GPa]'
+         END IF
+         WRITE (UNIT=iw, FMT='(T2,A,T14,3(1X,I19))') &
+            'STRESS|', 1, 2, 3
+         WRITE (UNIT=iw, FMT='(T2,A,T21,3(1X,ES19.11))') &
+            'STRESS| Eigenvalues', eigval(1:3)
+         WRITE (UNIT=iw, FMT='(T2,A,T21,3(1X,F19.12))') &
+            'STRESS|      x', eigvec(1, 1:3)
+         WRITE (UNIT=iw, FMT='(T2,A,T21,3(1X,F19.12))') &
+            'STRESS|      y', eigvec(2, 1:3)
+         WRITE (UNIT=iw, FMT='(T2,A,T21,3(1X,F19.12))') &
+            'STRESS|      z', eigvec(3, 1:3)
+      END IF
+
+   END SUBROUTINE write_stress_tensor
 
 END MODULE virial_methods
 
