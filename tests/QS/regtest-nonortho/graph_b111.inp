@@ -2,18 +2,19 @@
   METHOD Quickstep
   &PRINT
     &STRESS_TENSOR
+      COMPONENTS
       &EACH
         GEO_OPT 1
-      &END
+      &END EACH
 !      FILENAME =graph_b111_gpw_pade.stress
-    &END
+    &END STRESS_TENSOR
     &FORCES ON
       &EACH
         QS_SCF 0
-      &END
+      &END EACH
 !      FILENAME =graph_b111_gpw_pade.forces
       ADD_LAST NUMERIC
-    &END
+    &END FORCES
 
   &END
 
