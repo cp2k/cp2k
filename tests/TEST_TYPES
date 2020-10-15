@@ -29,7 +29,7 @@ Total electronic charge (R-space):!5
 Total spin density (R-space)           :!6
 Heat of formation \[kcal/mol\]:!5
 HOMO - LUMO gap \[eV\]!7
-1/3 Trace(stress tensor):!4
+STRESS| 1/3 Trace!4
 MD| Potential energy!6
 Dispersion energy:!3
 ISSC| all operator: CheckSum =!6
