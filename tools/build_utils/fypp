@@ -2836,7 +2836,7 @@ def _shiftinds(inds, shift):
 
 def _open_input_file(inpfile):
     try:
-        inpfp = open(inpfile, 'r')
+        inpfp = open(inpfile, 'r', encoding='utf-8')
     except IOError as exc:
         msg = "Failed to open file '{0}' for read".format(inpfile)
         raise FyppFatalError(msg, cause=exc)
@@ -2855,7 +2855,7 @@ def _open_output_file(outfile, create_parents=False):
                         .format(parentdir)
                     raise FyppFatalError(msg, cause=exc)
     try:
-        outfp = open(outfile, 'w')
+        outfp = open(outfile, 'w', encoding='utf-8')
     except IOError as exc:
         msg = "Failed to open file '{0}' for write".format(outfile)
         raise FyppFatalError(msg, cause=exc)
