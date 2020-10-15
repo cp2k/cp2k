@@ -26,14 +26,11 @@ MODULE force_env_utils
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE mathlib,                         ONLY: det_3x3,&
-                                              jacobi
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_list_types,             ONLY: molecule_list_type
    USE molecule_types,                  ONLY: global_constraint_type
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: update_particle_set
-   USE physcon,                         ONLY: pascal
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -45,7 +42,6 @@ MODULE force_env_utils
    PUBLIC :: force_env_shake, &
              force_env_rattle, &
              rescale_forces, &
-             write_stress_tensor, &
              write_forces
 
 CONTAINS
@@ -401,85 +397,10 @@ CONTAINS
    END SUBROUTINE rescale_forces
 
 ! **************************************************************************************************
-!> \brief Variable precision output of the stress tensor
-!>
-!> \param pv_virial ...
-!> \param output_unit ...
-!> \param cell ...
-!> \param ndigits ...
-!> \param numerical ...
-!> \author MK (26.08.2010)
-! **************************************************************************************************
-   SUBROUTINE write_stress_tensor(pv_virial, output_unit, cell, ndigits, numerical)
-
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: pv_virial
-      INTEGER, INTENT(IN)                                :: output_unit
-      TYPE(cell_type), POINTER                           :: cell
-      INTEGER, INTENT(IN)                                :: ndigits
-      LOGICAL, INTENT(IN)                                :: numerical
-
-      CHARACTER(LEN=15)                                  :: fmtstr3
-      CHARACTER(LEN=16)                                  :: fmtstr4
-      CHARACTER(LEN=22)                                  :: fmtstr2
-      CHARACTER(LEN=27)                                  :: fmtstr5
-      CHARACTER(LEN=31)                                  :: fmtstr1
-      INTEGER                                            :: n
-      REAL(KIND=dp), DIMENSION(3)                        :: eigval
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: eigvec, stress_tensor
-
-      IF (output_unit > 0) THEN
-         CPASSERT(ASSOCIATED(cell))
-         stress_tensor(:, :) = pv_virial(:, :)/cell%deth*pascal*1.0E-9_dp
-         n = MIN(MAX(1, ndigits), 20)
-         fmtstr1 = "(/,T2,A,/,/,T13,A1,2(  X,A1))"
-         WRITE (UNIT=fmtstr1(22:23), FMT="(I2)") n + 7
-         fmtstr2 = "(T3,A,T5,3(1X,F  .  ))"
-         WRITE (UNIT=fmtstr2(16:17), FMT="(I2)") n + 7
-         WRITE (UNIT=fmtstr2(19:20), FMT="(I2)") n
-         fmtstr3 = "(/,T3,A,F  .  )"
-         WRITE (UNIT=fmtstr3(10:11), FMT="(I2)") n + 8
-         WRITE (UNIT=fmtstr3(13:14), FMT="(I2)") n
-         IF (numerical) THEN
-            WRITE (UNIT=output_unit, FMT=fmtstr1) &
-               "NUMERICAL STRESS TENSOR [GPa]", "X", "Y", "Z"
-         ELSE
-            WRITE (UNIT=output_unit, FMT=fmtstr1) &
-               "STRESS TENSOR [GPa]", "X", "Y", "Z"
-         END IF
-         WRITE (UNIT=output_unit, FMT=fmtstr2) "X", stress_tensor(1, 1:3)
-         WRITE (UNIT=output_unit, FMT=fmtstr2) "Y", stress_tensor(2, 1:3)
-         WRITE (UNIT=output_unit, FMT=fmtstr2) "Z", stress_tensor(3, 1:3)
-         fmtstr4 = "(/,T3,A,ES  .  )"
-         WRITE (UNIT=fmtstr4(11:12), FMT="(I2)") n + 8
-         WRITE (UNIT=fmtstr4(14:15), FMT="(I2)") n
-         WRITE (UNIT=output_unit, FMT=fmtstr4) &
-            "1/3 Trace(stress tensor): ", (stress_tensor(1, 1) + &
-                                           stress_tensor(2, 2) + &
-                                           stress_tensor(3, 3))/3.0_dp, &
-            "Det(stress tensor)      : ", det_3x3(stress_tensor(:, 1), &
-                                                  stress_tensor(:, 2), &
-                                                  stress_tensor(:, 3))
-         eigval(:) = 0.0_dp
-         eigvec(:, :) = 0.0_dp
-         CALL jacobi(stress_tensor, eigval, eigvec)
-         fmtstr5 = "(/,/,T2,A,/,/,T5,3F  .  ,/)"
-         WRITE (UNIT=fmtstr5(20:21), FMT="(I2)") n + 8
-         WRITE (UNIT=fmtstr5(23:24), FMT="(I2)") n
-         WRITE (UNIT=output_unit, FMT=fmtstr5) &
-            "EIGENVECTORS AND EIGENVALUES OF THE STRESS TENSOR", &
-            eigval(1:3)
-         WRITE (UNIT=output_unit, FMT=fmtstr2) " ", eigvec(1, 1:3)
-         WRITE (UNIT=output_unit, FMT=fmtstr2) " ", eigvec(2, 1:3)
-         WRITE (UNIT=output_unit, FMT=fmtstr2) " ", eigvec(3, 1:3)
-      END IF
-
-   END SUBROUTINE write_stress_tensor
-
-! **************************************************************************************************
 !> \brief Write forces
 !>
 !> \param particles ...
-!> \param output_unit ...
+!> \param iw ...
 !> \param label ...
 !> \param ndigits ...
 !> \param total_force ...
@@ -487,11 +408,11 @@ CONTAINS
 !> \param zero_force_core_shell_atom ...
 !> \author MK (06.09.2010)
 ! **************************************************************************************************
-   SUBROUTINE write_forces(particles, output_unit, label, ndigits, total_force, &
+   SUBROUTINE write_forces(particles, iw, label, ndigits, total_force, &
                            grand_total_force, zero_force_core_shell_atom)
 
       TYPE(particle_list_type), POINTER                  :: particles
-      INTEGER, INTENT(IN)                                :: output_unit
+      INTEGER, INTENT(IN)                                :: iw
       CHARACTER(LEN=*), INTENT(IN)                       :: label
       INTEGER, INTENT(IN)                                :: ndigits
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: total_force
@@ -506,7 +427,7 @@ CONTAINS
       LOGICAL                                            :: zero_force
       REAL(KIND=dp), DIMENSION(3)                        :: f
 
-      IF (output_unit > 0) THEN
+      IF (iw > 0) THEN
          CPASSERT(ASSOCIATED(particles))
          n = MIN(MAX(1, ndigits), 20)
          fmtstr1 = "(/,T2,A,/,/,T2,A,T11,A,T18,A,T35,A1,2(  X,A1))"
@@ -522,7 +443,7 @@ CONTAINS
          ELSE
             zero_force = .FALSE.
          END IF
-         WRITE (UNIT=output_unit, FMT=fmtstr1) &
+         WRITE (UNIT=iw, FMT=fmtstr1) &
             label//" FORCES in [a.u.]", "# Atom", "Kind", "Element", "X", "Y", "Z"
          total_force(1:3) = 0.0_dp
          DO iparticle = 1, particles%n_els
@@ -537,18 +458,18 @@ CONTAINS
             ELSE
                f(1:3) = particles%els(iparticle)%f(1:3)
             END IF
-            WRITE (UNIT=output_unit, FMT=fmtstr2) &
+            WRITE (UNIT=iw, FMT=fmtstr2) &
                i, ikind, particles%els(iparticle)%atomic_kind%element_symbol, f(1:3)
             total_force(1:3) = total_force(1:3) + f(1:3)
          END DO
-         WRITE (UNIT=output_unit, FMT=fmtstr3) &
+         WRITE (UNIT=iw, FMT=fmtstr3) &
             "SUM OF "//label//" FORCES", total_force(1:3), SQRT(SUM(total_force(:)**2))
       END IF
 
       IF (PRESENT(grand_total_force)) THEN
          grand_total_force(1:3) = grand_total_force(1:3) + total_force(1:3)
-         WRITE (UNIT=output_unit, FMT="(A)") ""
-         WRITE (UNIT=output_unit, FMT=fmtstr3) &
+         WRITE (UNIT=iw, FMT="(A)") ""
+         WRITE (UNIT=iw, FMT=fmtstr3) &
             "GRAND TOTAL FORCE", grand_total_force(1:3), SQRT(SUM(grand_total_force(:)**2))
       END IF
 

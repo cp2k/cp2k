@@ -135,27 +135,27 @@ CONTAINS
          IF (PRESENT(inertia)) inertia = Ip_eigval
          iw = cp_print_key_unit_nr(logger, print_section, "ROTATIONAL_INFO", extension=".vibLog")
          IF (iw > 0) THEN
-            WRITE (iw, '(/,T2,A)') &
+            WRITE (UNIT=iw, FMT='(/,T2,A)') &
                'ROT| Rotational analysis information'
-            WRITE (iw, '(T2,A)') &
-               'ROT| Principal axes and moments of inertia in [a.u.]'
-            WRITE (iw, '(T2,A,T16,3(1X,I18))') &
+            WRITE (UNIT=iw, FMT='(T2,A)') &
+               'ROT| Principal axes and moments of inertia [a.u.]'
+            WRITE (UNIT=iw, FMT='(T2,A,T14,3(1X,I19))') &
                'ROT|', 1, 2, 3
-            WRITE (iw, '(T2,A,T24,3(1X,ES18.11))') &
+            WRITE (UNIT=iw, FMT='(T2,A,T21,3(1X,ES19.11))') &
                'ROT| Eigenvalues', Ip_eigval(1:3)
-            WRITE (iw, '(T2,A,T24,3(1X,F18.12))') &
+            WRITE (UNIT=iw, FMT='(T2,A,T21,3(1X,F19.12))') &
                'ROT|      x', Ip(1, 1:3)
-            WRITE (iw, '(T2,A,T24,3(1X,F18.12))') &
+            WRITE (UNIT=iw, FMT='(T2,A,T21,3(1X,F19.12))') &
                'ROT|      y', Ip(2, 1:3)
-            WRITE (iw, '(T2,A,T24,3(1X,F18.12))') &
+            WRITE (UNIT=iw, FMT='(T2,A,T21,3(1X,F19.12))') &
                'ROT|      z', Ip(3, 1:3)
          END IF
          CALL cp_print_key_finished_output(iw, logger, print_section, "ROTATIONAL_INFO")
          iw = cp_print_key_unit_nr(logger, print_section, "ROTATIONAL_INFO/COORDINATES", extension=".vibLog")
          IF (iw > 0) THEN
-            WRITE (iw, '(/,T2,A)') 'ROT| Standard molecule orientation in Angstrom'
+            WRITE (UNIT=iw, FMT='(/,T2,A)') 'ROT| Standard molecule orientation in Angstrom'
             DO iparticle = 1, natoms
-               WRITE (iw, '(T2,"ROT|",T20,A,T27,3(3X,F15.9))') &
+               WRITE (UNIT=iw, FMT='(T2,"ROT|",T20,A,T27,3(3X,F15.9))') &
                   TRIM(particles(iparticle)%atomic_kind%name), &
                   MATMUL(particles(iparticle)%r, Ip)*angstrom
             END DO

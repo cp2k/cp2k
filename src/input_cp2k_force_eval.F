@@ -332,7 +332,7 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "DISTRIBUTION2D", &
-                                       description="Controls the printing of the distribution of matrix blocks,...", &
+                                       description="Controls the printing of the distribution of matrix blocks, ...", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
@@ -347,12 +347,11 @@ CONTAINS
                                        description="Controls the printing of the stress tensor", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL keyword_create(keyword, __LOCATION__, &
-                          name="NDIGITS", &
-                          description="Specifies the number of digits used "// &
-                          "for the printing of the stress tensor", &
-                          usage="NDIGITS 6", &
-                          default_i_val=8, &
-                          repeats=.FALSE.)
+                          name="COMPONENTS", &
+                          description="Print all GPW/GAPW components contributing to the stress tensor", &
+                          usage="COMPONENTS", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(section, print_key)

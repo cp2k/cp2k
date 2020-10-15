@@ -2360,8 +2360,8 @@ CONTAINS
             temperature = cp_unit_from_cp2k(temp, "K")
             WRITE (UNIT=iw, FMT="(T2,A)") &
                "CASCADE|"
-            WRITE (UNIT=iw, FMT="(T2,A,T61,F18.2,A2)") &
-               "CASCADE| Temperature after cascade initialization", temperature, " K"
+            WRITE (UNIT=iw, FMT="(T2,A,T61,F20.6)") &
+               "CASCADE| Temperature after cascade initialization [K]", temperature
             WRITE (UNIT=iw, FMT="(T2,A,T30,3(1X,ES16.8))") &
                "CASCADE| COM velocity", vcom(1:3)
 !MK          ! compute and log rcom and vang if not periodic

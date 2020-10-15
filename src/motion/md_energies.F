@@ -652,7 +652,7 @@ CONTAINS
                 (simpar%ensemble == npt_f_ensemble) .OR. &
                 (simpar%ensemble == npe_i_ensemble) .OR. &
                 (simpar%ensemble == npe_f_ensemble)) THEN
-               WRITE (iw, '(T2,A,T61,F20.3)') &
+               WRITE (iw, '(T2,A,T61,F20.6)') &
                   'MD_INI| Barostat temperature [K]', md_ener%temp_baro
             END IF
             IF (virial%pv_availability) THEN
