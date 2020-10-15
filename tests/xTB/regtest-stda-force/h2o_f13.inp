@@ -17,6 +17,9 @@
        METHOD xTB
        &xTB
          DO_EWALD F
+         COULOMB_INTERACTION  T
+         COULOMB_LR           T
+         TB3_INTERACTION      T
        &END
     &END QS
     &EXCITED_STATES T

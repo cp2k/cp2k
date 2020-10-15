@@ -1700,7 +1700,6 @@ CONTAINS
       ! Hartree potential of response density
       !
       IF (dft_control%qs_control%xtb_control%coulomb_interaction) THEN
-         IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
          ! Mulliken charges
          CALL get_qs_env(qs_env, rho=rho, particle_set=particle_set, matrix_s_kp=matrix_s)
          natom = SIZE(particle_set)
@@ -1740,24 +1739,17 @@ CONTAINS
             mcharge1(iatom) = SUM(charges1(iatom, :))
          END DO
          ! Coulomb Kernel
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
          CALL xtb_coulomb_hessian(qs_env, matrix_hz, charges1, mcharge1, mcharge)
-         CALL calc_xtb_ehess_force(qs_env, p_matrix, mpa, charges, mcharge, charges1, mcharge1)
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+         CALL calc_xtb_ehess_force(qs_env, p_matrix, mpa, charges, mcharge, charges1, &
+                                   mcharge1, debug_forces)
          !
          DEALLOCATE (charges, mcharge, charges1, mcharge1)
-         !
-         IF (debug_forces) THEN
-            fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
-            CALL mp_sum(fodeb, para_env%group)
-            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pin*dK*rhoz ", fodeb
-         END IF
       END IF
       ! Overlap matrix
       ! H(drho+dz) + Wz
       matrix_wz => p_env%w1
-      focc = 1.0_dp
-      IF (nspins == 1) focc = 2.0_dp
+      focc = 0.5_dp
+      IF (nspins == 1) focc = 1.0_dp
       CALL get_qs_env(qs_env, mos=mos)
       DO ispin = 1, nspins
          CALL calculate_whz_matrix(mos(ispin)%mo_set%mo_coeff, matrix_hz(ispin)%matrix, &

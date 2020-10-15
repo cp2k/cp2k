@@ -17,20 +17,18 @@ MODULE xtb_ehess_force
                                               get_cell,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_unit_nr,&
+                                              cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
-                                              dbcsr_get_block_p,&
-                                              dbcsr_iterator_blocks_left,&
-                                              dbcsr_iterator_next_block,&
-                                              dbcsr_iterator_start,&
-                                              dbcsr_iterator_stop,&
-                                              dbcsr_iterator_type,&
-                                              dbcsr_p_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE ewald_environment_types,         ONLY: ewald_env_get,&
                                               ewald_environment_type
    USE ewald_methods_tb,                ONLY: tb_ewald_overlap,&
-                                              tb_spme_evaluate
+                                              tb_spme_zforce
    USE ewald_pw_types,                  ONLY: ewald_pw_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: oorootpi,&
@@ -41,7 +39,6 @@ MODULE xtb_ehess_force
                                               do_ewald_none,&
                                               do_ewald_pme,&
                                               do_ewald_spme
-   USE qs_dftb3_methods,                ONLY: build_dftb3_diagonal
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -55,7 +52,6 @@ MODULE xtb_ehess_force
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
    USE qs_rho_types,                    ONLY: qs_rho_type
-   USE sap_kind_types,                  ONLY: sap_int_type
    USE virial_types,                    ONLY: virial_type
    USE xtb_coulomb,                     ONLY: dgamma_rab_sr,&
                                               gamma_rab_sr
@@ -84,8 +80,10 @@ CONTAINS
 !> \param mcharge0 ...
 !> \param charges1 ...
 !> \param mcharge1 ...
+!> \param debug_forces ...
 ! **************************************************************************************************
-   SUBROUTINE calc_xtb_ehess_force(qs_env, matrix_p0, matrix_p1, charges0, mcharge0, charges1, mcharge1)
+   SUBROUTINE calc_xtb_ehess_force(qs_env, matrix_p0, matrix_p1, charges0, mcharge0, &
+                                   charges1, mcharge1, debug_forces)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p0, matrix_p1
@@ -93,12 +91,13 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(in)            :: mcharge0
       REAL(KIND=dp), DIMENSION(:, :), INTENT(in)         :: charges1
       REAL(KIND=dp), DIMENSION(:), INTENT(in)            :: mcharge1
+      LOGICAL, INTENT(IN)                                :: debug_forces
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calc_xtb_ehess_force'
 
-      INTEGER :: atom_i, atom_j, blk, ewald_type, handle, i, ia, iatom, icol, ikind, irow, j, &
-         jatom, jkind, la, lb, lmaxa, lmaxb, natom, natorb_a, natorb_b, ni, nimg, nj, nkind, nmat, &
-         za, zb
+      INTEGER :: atom_i, atom_j, blk, ewald_type, handle, i, ia, iatom, icol, ikind, iounit, irow, &
+         j, jatom, jkind, la, lb, lmaxa, lmaxb, natom, natorb_a, natorb_b, ni, nimg, nj, nkind, &
+         nmat, za, zb
       INTEGER, DIMENSION(25)                             :: laoa, laob
       INTEGER, DIMENSION(3)                              :: cellind, periodic
       INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind, kind_of
@@ -106,16 +105,17 @@ CONTAINS
                                                             found, just_energy, use_virial
       REAL(KIND=dp)                                      :: alpha, deth, dr, etaa, etab, fi, gmij0, &
                                                             gmij1, kg, rcut, rcuta, rcutb
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: xgamma, zeffk
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: xgamma
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gammab, gcij0, gcij1, gmcharge0, &
                                                             gmcharge1
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: gchrg0, gchrg1
-      REAL(KIND=dp), DIMENSION(3)                        :: fij, rij
+      REAL(KIND=dp), DIMENSION(3)                        :: fij, fodeb, rij
       REAL(KIND=dp), DIMENSION(5)                        :: kappaa, kappab
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dsblock, pblock0, pblock1, sblock
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
@@ -132,11 +132,13 @@ CONTAINS
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
       TYPE(virial_type), POINTER                         :: virial
       TYPE(xtb_atom_type), POINTER                       :: xtb_atom_a, xtb_atom_b, xtb_kind
 
       CALL timeset(routineN, handle)
+
+      logger => cp_get_default_logger()
+      iounit = cp_logger_get_default_unit_nr(logger)
 
       CPASSERT(ASSOCIATED(matrix_p1))
 
@@ -232,6 +234,7 @@ CONTAINS
             CALL ewald_env_get(ewald_env, alpha=alpha, ewald_type=ewald_type)
             CALL get_qs_env(qs_env=qs_env, sab_tbe=n_list)
             CALL tb_ewald_overlap(gmcharge0, mcharge0, alpha, n_list, virial, use_virial, atprop)
+            CALL tb_ewald_overlap(gmcharge1, mcharge1, alpha, n_list, virial, use_virial, atprop)
             SELECT CASE (ewald_type)
             CASE DEFAULT
                CPABORT("Invalid Ewald type")
@@ -242,8 +245,8 @@ CONTAINS
             CASE (do_ewald_pme)
                CPABORT("PME not implemented in DFTB")
             CASE (do_ewald_spme)
-               CALL tb_spme_evaluate(ewald_env, ewald_pw, particle_set, cell, &
-                                     gmcharge0, mcharge0, calculate_forces, virial, use_virial, atprop)
+               CALL tb_spme_zforce(ewald_env, ewald_pw, particle_set, cell, gmcharge0, mcharge0)
+               CALL tb_spme_zforce(ewald_env, ewald_pw, particle_set, cell, gmcharge1, mcharge1)
             END SELECT
          ELSE
             ! direct sum
@@ -290,6 +293,10 @@ CONTAINS
             IF (ANY(periodic(:) == 1)) THEN
                gmcharge0(:, 1) = gmcharge0(:, 1) - pi/alpha**2/deth
             END IF
+            gmcharge1(:, 1) = gmcharge1(:, 1) - 2._dp*alpha*oorootpi*mcharge1(:)
+            IF (ANY(periodic(:) == 1)) THEN
+               gmcharge1(:, 1) = gmcharge1(:, 1) - pi/alpha**2/deth
+            END IF
          END IF
       END IF
 
@@ -298,27 +305,37 @@ CONTAINS
                                kind_of=kind_of, &
                                atom_of_kind=atom_of_kind)
 
+      IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
       DO iatom = 1, natom
          ikind = kind_of(iatom)
          atom_i = atom_of_kind(iatom)
          CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
          CALL get_xtb_atom_param(xtb_kind, lmax=ni)
-         ! short range
          ni = ni + 1
+         ! short range
+         fij = 0.0_dp
          DO i = 1, 3
-            fij(i) = SUM(charges0(iatom, 1:ni)*gchrg1(iatom, 1:ni, i + 1))
+            fij(i) = SUM(charges0(iatom, 1:ni)*gchrg1(iatom, 1:ni, i + 1)) + &
+                     SUM(charges1(iatom, 1:ni)*gchrg0(iatom, 1:ni, i + 1))
          END DO
          force(ikind)%rho_elec(1, atom_i) = force(ikind)%rho_elec(1, atom_i) - fij(1)
          force(ikind)%rho_elec(2, atom_i) = force(ikind)%rho_elec(2, atom_i) - fij(2)
          force(ikind)%rho_elec(3, atom_i) = force(ikind)%rho_elec(3, atom_i) - fij(3)
          ! long range
+         fij = 0.0_dp
          DO i = 1, 3
-            fij(i) = gmcharge1(iatom, i + 1)*mcharge0(iatom)
+            fij(i) = gmcharge1(iatom, i + 1)*mcharge0(iatom) + &
+                     gmcharge0(iatom, i + 1)*mcharge1(iatom)
          END DO
          force(ikind)%rho_elec(1, atom_i) = force(ikind)%rho_elec(1, atom_i) - fij(1)
          force(ikind)%rho_elec(2, atom_i) = force(ikind)%rho_elec(2, atom_i) - fij(2)
          force(ikind)%rho_elec(3, atom_i) = force(ikind)%rho_elec(3, atom_i) - fij(3)
       END DO
+      IF (debug_forces) THEN
+         fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
+         CALL mp_sum(fodeb, para_env%group)
+         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dH[Pz]    ", fodeb
+      END IF
 
       CALL get_qs_env(qs_env=qs_env, matrix_s_kp=matrix_s)
 
@@ -330,6 +347,7 @@ CONTAINS
       END IF
 
       ! no k-points; all matrices have been transformed to periodic bsf
+      IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
       CALL dbcsr_iterator_start(iter, matrix_s(1, 1)%matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, irow, icol, sblock, blk)
@@ -371,41 +389,48 @@ CONTAINS
             CALL dbcsr_get_block_p(matrix=matrix_s(1 + i, 1)%matrix, &
                                    row=irow, col=icol, block=dsblock, found=found)
             CPASSERT(found)
-            fij(i) = 0.0_dp
             ! short range
-            fi = -1.0_dp*SUM(pblock0*dsblock*gcij1) - 1.0_dp*SUM(pblock1*dsblock*gcij0)
+            fi = -2.0_dp*SUM(pblock0*dsblock*gcij1) - 2.0_dp*SUM(pblock1*dsblock*gcij0)
             force(ikind)%rho_elec(i, atom_i) = force(ikind)%rho_elec(i, atom_i) + fi
             force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j) - fi
-            fij(i) = fij(i) + fi
             ! long range
-            fi = -1.0_dp*gmij1*SUM(pblock0*dsblock) - 1.0_dp*gmij0*SUM(pblock1*dsblock)
+            fi = -2.0_dp*gmij1*SUM(pblock0*dsblock) - 2.0_dp*gmij0*SUM(pblock1*dsblock)
             force(ikind)%rho_elec(i, atom_i) = force(ikind)%rho_elec(i, atom_i) + fi
             force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j) - fi
-            fij(i) = fij(i) + fi
          END DO
          DEALLOCATE (gcij0, gcij1)
       ENDDO
       CALL dbcsr_iterator_stop(iter)
+      IF (debug_forces) THEN
+         fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
+         CALL mp_sum(fodeb, para_env%group)
+         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*H[P]*dS  ", fodeb
+      END IF
+
+      IF (dft_control%qs_control%xtb_control%tb3_interaction) THEN
+         CALL get_qs_env(qs_env, nkind=nkind)
+         ALLOCATE (xgamma(nkind))
+         DO ikind = 1, nkind
+            CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
+            CALL get_xtb_atom_param(xtb_kind, xgamma=xgamma(ikind))
+         END DO
+         ! Diagonal 3rd order correction (DFTB3)
+         IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
+         CALL dftb3_diagonal_hessian_force(qs_env, mcharge0, mcharge1, &
+                                           matrix_p0(1)%matrix, matrix_p1(1)%matrix, xgamma)
+         IF (debug_forces) THEN
+            fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
+            CALL mp_sum(fodeb, para_env%group)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*H3[P]    ", fodeb
+         END IF
+         DEALLOCATE (xgamma)
+      END IF
 
       IF (SIZE(matrix_p0) == 2) THEN
          CALL dbcsr_add(matrix_p0(1)%matrix, matrix_p0(2)%matrix, &
                         alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
          CALL dbcsr_add(matrix_p1(1)%matrix, matrix_p1(2)%matrix, &
                         alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
-      END IF
-
-      IF (dft_control%qs_control%xtb_control%tb3_interaction) THEN
-         CALL get_qs_env(qs_env, nkind=nkind)
-         ALLOCATE (zeffk(nkind), xgamma(nkind))
-         DO ikind = 1, nkind
-            CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
-            CALL get_xtb_atom_param(xtb_kind, xgamma=xgamma(ikind), zeff=zeffk(ikind))
-         END DO
-         ! Diagonal 3rd order correction (DFTB3)
-         NULLIFY(sap_int)
-!deb     CALL build_dftb3_diagonal(qs_env, ks_matrix, rho, mcharge0, energy, xgamma, zeffk, &
-!deb                               sap_int, calculate_forces, just_energy)
-         DEALLOCATE (zeffk, xgamma)
       END IF
 
       ! QMMM
@@ -419,6 +444,82 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE calc_xtb_ehess_force
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param mcharge0 ...
+!> \param mcharge1 ...
+!> \param matrixp0 ...
+!> \param matrixp1 ...
+!> \param xgamma ...
+! **************************************************************************************************
+   SUBROUTINE dftb3_diagonal_hessian_force(qs_env, mcharge0, mcharge1, &
+                                           matrixp0, matrixp1, xgamma)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(dp), DIMENSION(:)                             :: mcharge0, mcharge1
+      TYPE(dbcsr_type), POINTER                          :: matrixp0, matrixp1
+      REAL(dp), DIMENSION(:)                             :: xgamma
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'dftb3_diagonal_hessian_force'
+
+      INTEGER                                            :: atom_i, atom_j, blk, handle, i, icol, &
+                                                            ikind, irow, jkind, natom
+      INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind, kind_of
+      LOGICAL                                            :: found
+      REAL(KIND=dp)                                      :: fi, gmijp, gmijq, ui, uj
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dsblock, p0block, p1block, sblock
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+
+      CALL timeset(routineN, handle)
+      CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, natom=natom)
+      ALLOCATE (atom_of_kind(natom), kind_of(natom))
+      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set)
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
+                               kind_of=kind_of, atom_of_kind=atom_of_kind)
+      CALL get_qs_env(qs_env=qs_env, force=force)
+      ! no k-points; all matrices have been transformed to periodic bsf
+      CALL dbcsr_iterator_start(iter, matrix_s(1)%matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, irow, icol, sblock, blk)
+         ikind = kind_of(irow)
+         atom_i = atom_of_kind(irow)
+         ui = xgamma(ikind)
+         jkind = kind_of(icol)
+         atom_j = atom_of_kind(icol)
+         uj = xgamma(jkind)
+         !
+         gmijp = ui*mcharge0(irow)*mcharge1(irow) + uj*mcharge0(icol)*mcharge1(icol)
+         gmijq = 0.5_dp*ui*mcharge0(irow)**2 + 0.5_dp*uj*mcharge0(icol)**2
+         !
+         NULLIFY (p0block)
+         CALL dbcsr_get_block_p(matrix=matrixp0, &
+                                row=irow, col=icol, block=p0block, found=found)
+         CPASSERT(found)
+         NULLIFY (p1block)
+         CALL dbcsr_get_block_p(matrix=matrixp1, &
+                                row=irow, col=icol, block=p1block, found=found)
+         CPASSERT(found)
+         DO i = 1, 3
+            NULLIFY (dsblock)
+            CALL dbcsr_get_block_p(matrix=matrix_s(1 + i)%matrix, &
+                                   row=irow, col=icol, block=dsblock, found=found)
+            CPASSERT(found)
+            fi = gmijp*SUM(p0block*dsblock) + gmijq*SUM(p1block*dsblock)
+            force(ikind)%rho_elec(i, atom_i) = force(ikind)%rho_elec(i, atom_i) + fi
+            force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j) - fi
+         END DO
+      ENDDO
+      CALL dbcsr_iterator_stop(iter)
+      DEALLOCATE (atom_of_kind, kind_of)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE dftb3_diagonal_hessian_force
 
 END MODULE xtb_ehess_force
 

@@ -9,17 +9,15 @@
        NSTATES      5
        MAX_ITER    50
        CONVERGENCE [eV] 1.0e-7
-       RKS_TRIPLETS F
+       RKS_TRIPLETS T
     &END TDDFPT
   &END PROPERTIES
   &DFT
+    LSD
     &QS
        METHOD xTB
        &xTB
-         DO_EWALD F
-         COULOMB_INTERACTION  F
-         COULOMB_LR           F
-         TB3_INTERACTION      F
+         DO_EWALD T
        &END
     &END QS
     &EXCITED_STATES T
@@ -42,7 +40,6 @@
   &SUBSYS
     &CELL
       ABC [angstrom] 6.0 6.0 6.0
-      PERIODIC NONE
     &END
     &COORD
     O   0.000000    0.000000    0.000000

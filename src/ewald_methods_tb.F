@@ -65,7 +65,7 @@ MODULE ewald_methods_tb
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewald_methods_tb'
 
-   PUBLIC :: tb_spme_evaluate, tb_ewald_overlap
+   PUBLIC :: tb_spme_evaluate, tb_ewald_overlap, tb_spme_zforce
 
 CONTAINS
 
@@ -407,6 +407,174 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE tb_ewald_overlap
+
+! **************************************************************************************************
+!> \brief ...
+!> \param ewald_env ...
+!> \param ewald_pw ...
+!> \param particle_set ...
+!> \param box ...
+!> \param gmcharge ...
+!> \param mcharge ...
+! **************************************************************************************************
+   SUBROUTINE tb_spme_zforce(ewald_env, ewald_pw, particle_set, box, gmcharge, mcharge)
+
+      TYPE(ewald_environment_type), POINTER              :: ewald_env
+      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
+      TYPE(cell_type), POINTER                           :: box
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(inout)      :: gmcharge
+      REAL(KIND=dp), DIMENSION(:), INTENT(in)            :: mcharge
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'tb_spme_zforce'
+
+      INTEGER                                            :: group, handle, i, ipart, n, npart, &
+                                                            o_spline, p1
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: center
+      INTEGER, DIMENSION(3)                              :: npts
+      REAL(KIND=dp)                                      :: alpha, dvols, fat(3), fint, vgc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rhos
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(greens_fn_type), POINTER                      :: green
+      TYPE(pw_grid_type), POINTER                        :: grid_spme
+      TYPE(pw_p_type), DIMENSION(3)                      :: dphi_g
+      TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      TYPE(pw_pool_type), POINTER                        :: pw_pool
+      TYPE(pw_type), POINTER                             :: phi_g, rhob_g, rhob_r
+      TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
+      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: drpot
+      TYPE(realspace_grid_type), POINTER                 :: rden, rpot
+
+      CALL timeset(routineN, handle)
+      !-------------- INITIALISATION ---------------------
+      CALL ewald_env_get(ewald_env, alpha=alpha, o_spline=o_spline, group=group, &
+                         para_env=para_env)
+      NULLIFY (green, poisson_env, pw_pool)
+      CALL ewald_pw_get(ewald_pw, pw_big_pool=pw_pool, rs_desc=rs_desc, &
+                        poisson_env=poisson_env)
+      CALL pw_poisson_rebuild(poisson_env)
+      green => poisson_env%green_fft
+      grid_spme => pw_pool%pw_grid
+
+      CALL get_pw_grid_info(grid_spme, dvol=dvols, npts=npts)
+
+      npart = SIZE(particle_set)
+
+      n = o_spline
+      ALLOCATE (rhos(n, n, n))
+
+      CALL rs_grid_create(rden, rs_desc)
+      CALL rs_grid_set_box(grid_spme, rs=rden)
+      CALL rs_grid_zero(rden)
+
+      ALLOCATE (center(3, npart))
+      CALL get_center(particle_set, box, center, npts, n)
+
+      !-------------- DENSITY CALCULATION ----------------
+      ipart = 0
+      DO
+         CALL set_list(particle_set, npart, center, p1, rden, ipart)
+         IF (p1 == 0) EXIT
+
+         ! calculate function on small boxes
+         CALL get_patch(particle_set, box, green, npts, p1, rhos, is_core=.FALSE., &
+                        is_shell=.FALSE., unit_charge=.TRUE.)
+         rhos(:, :, :) = rhos(:, :, :)*mcharge(p1)
+
+         ! add boxes to real space grid (big box)
+         CALL dg_sum_patch(rden, rhos, center(:, p1))
+      END DO
+
+      CALL pw_pool_create_pw(pw_pool, rhob_r, use_data=REALDATA3D, &
+                             in_space=REALSPACE)
+
+      CALL rs_pw_transfer(rden, rhob_r, rs2pw)
+
+      ! transform density to G space and add charge function
+      CALL pw_pool_create_pw(pw_pool, rhob_g, use_data=COMPLEXDATA1D, &
+                             in_space=RECIPROCALSPACE)
+      CALL pw_transfer(rhob_r, rhob_g)
+      ! update charge function
+      rhob_g%cc = rhob_g%cc*green%p3m_charge%cr
+
+      !-------------- ELECTROSTATIC CALCULATION -----------
+
+      ! allocate intermediate arrays
+      DO i = 1, 3
+         NULLIFY (dphi_g(i)%pw)
+         CALL pw_pool_create_pw(pw_pool, dphi_g(i)%pw, &
+                                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      END DO
+      CALL pw_pool_create_pw(pw_pool, phi_g, &
+                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL pw_poisson_solve(poisson_env, rhob_g, vgc, phi_g, dphi_g)
+
+      CALL rs_grid_create(rpot, rs_desc)
+      CALL rs_grid_set_box(grid_spme, rs=rpot)
+
+      CALL pw_pool_give_back_pw(pw_pool, rhob_g)
+
+      CALL rs_grid_zero(rpot)
+      phi_g%cc = phi_g%cc*green%p3m_charge%cr
+      CALL pw_transfer(phi_g, rhob_r)
+      CALL pw_pool_give_back_pw(pw_pool, phi_g)
+      CALL rs_pw_transfer(rpot, rhob_r, pw2rs)
+
+      !---------- END OF ELECTROSTATIC CALCULATION --------
+
+      ! move derivative of potential to real space grid and
+      ! multiply by charge function in g-space
+      ALLOCATE (drpot(1:3))
+      DO i = 1, 3
+         CALL rs_grid_create(drpot(i)%rs_grid, rs_desc)
+         CALL rs_grid_set_box(grid_spme, rs=drpot(i)%rs_grid)
+         dphi_g(i)%pw%cc = dphi_g(i)%pw%cc*green%p3m_charge%cr
+         CALL pw_transfer(dphi_g(i)%pw, rhob_r)
+         CALL pw_pool_give_back_pw(pw_pool, dphi_g(i)%pw)
+         CALL rs_pw_transfer(drpot(i)%rs_grid, rhob_r, pw2rs)
+      END DO
+      CALL pw_pool_give_back_pw(pw_pool, rhob_r)
+
+      !----------------- FORCE CALCULATION ----------------
+
+      ipart = 0
+      DO
+
+         CALL set_list(particle_set, npart, center, p1, rden, ipart)
+         IF (p1 == 0) EXIT
+
+         ! calculate function on small boxes
+         CALL get_patch(particle_set, box, green, npts, p1, rhos, is_core=.FALSE., &
+                        is_shell=.FALSE., unit_charge=.TRUE.)
+
+         CALL dg_sum_patch_force_1d(rpot, rhos, center(:, p1), fint)
+         gmcharge(p1, 1) = gmcharge(p1, 1) + fint*dvols
+
+         CALL dg_sum_patch_force_3d(drpot, rhos, center(:, p1), fat)
+         gmcharge(p1, 2) = gmcharge(p1, 2) - fat(1)*dvols
+         gmcharge(p1, 3) = gmcharge(p1, 3) - fat(2)*dvols
+         gmcharge(p1, 4) = gmcharge(p1, 4) - fat(3)*dvols
+
+      END DO
+
+      !--------------END OF FORCE CALCULATION -------------
+
+      !------------------CLEANING UP ----------------------
+
+      CALL rs_grid_release(rden)
+      CALL rs_grid_release(rpot)
+      IF (ASSOCIATED(drpot)) THEN
+         DO i = 1, 3
+            CALL rs_grid_release(drpot(i)%rs_grid)
+         END DO
+         DEALLOCATE (drpot)
+      END IF
+      DEALLOCATE (rhos)
+      DEALLOCATE (center)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE tb_spme_zforce
 
 END MODULE ewald_methods_tb
 
