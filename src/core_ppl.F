@@ -123,7 +123,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: hab, pab
       REAL(KIND=dp), DIMENSION(1:10)                     :: aloc, bloc
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, rab, rac, rbc
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_loc, pv_thread
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_thread
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: ap_iterator
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
@@ -191,9 +191,6 @@ CONTAINS
          END IF
       END DO
 
-      IF (use_virial) THEN
-         pv_loc = virial%pv_virial
-      END IF
       pv_thread = 0.0_dp
 
       nthread = 1
@@ -537,8 +534,8 @@ CONTAINS
       END IF
 
       IF (calculate_forces .AND. use_virial) THEN
+         virial%pv_ppl = virial%pv_ppl + pv_thread
          virial%pv_virial = virial%pv_virial + pv_thread
-         virial%pv_ppl = virial%pv_virial - pv_loc
       END IF
 
       CALL timestop(handle)
@@ -800,8 +797,8 @@ CONTAINS
       DEALLOCATE (atom_of_kind, kind_of)
 
       IF (calculate_forces .AND. use_virial) THEN
+         virial%pv_ppl = virial%pv_ppl + pv_thread
          virial%pv_virial = virial%pv_virial + pv_thread
-         virial%pv_ppl = pv_thread
       END IF
 
       DEALLOCATE (basis_set_list)

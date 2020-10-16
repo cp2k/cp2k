@@ -197,7 +197,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: owork, pmat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: oint
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, rab
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_loc, pv_thread
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_thread
       REAL(KIND=dp), DIMENSION(3, natom)                 :: force_thread
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, rpgfa, rpgfb, scon_a, scon_b, &
@@ -282,8 +282,8 @@ CONTAINS
       IF (do_forces) THEN
          CALL get_ks_env(ks_env=ks_env, force=force, virial=virial)
          use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
-         pv_loc = virial%pv_virial
       END IF
+
       force_thread = 0.0_dp
       pv_thread = 0.0_dp
 
@@ -516,8 +516,8 @@ CONTAINS
          DEALLOCATE (atom_of_kind, kind_of)
       END IF
       IF (do_forces .AND. use_virial) THEN
+         virial%pv_overlap = virial%pv_overlap + pv_thread
          virial%pv_virial = virial%pv_virial + pv_thread
-         virial%pv_overlap = virial%pv_virial - pv_loc
       ENDIF
 
       IF (dokp) THEN

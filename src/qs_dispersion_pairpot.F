@@ -2104,7 +2104,7 @@ CONTAINS
       END IF
 
       IF (calculate_forces .AND. use_virial) THEN
-         virial%pv_vdw = virial%pv_virial - pv_loc
+         virial%pv_vdw = virial%pv_vdw + (virial%pv_virial - pv_loc)
       END IF
 
       IF (ASSOCIATED(dispersion_env%dftd_section)) THEN

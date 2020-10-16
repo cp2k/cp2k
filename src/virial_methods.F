@@ -78,7 +78,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE virial_evaluate(atomic_kind_set, particle_set, local_particles, &
                               virial, igroup)
-
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(distribution_1d_type), POINTER                :: local_particles
@@ -120,7 +119,7 @@ CONTAINS
          virial%pv_total = virial%pv_virial + virial%pv_kinetic + virial%pv_constraint
 
          CALL timestop(handle)
-      ENDIF
+      END IF
 
    END SUBROUTINE virial_evaluate
 
@@ -136,7 +135,6 @@ CONTAINS
 !> \author JGH
 ! **************************************************************************************************
    PURE SUBROUTINE virial_pair_force(pv_virial, f0, force, rab)
-
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: pv_virial
       REAL(KIND=dp), INTENT(IN)                          :: f0
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: force, rab
@@ -156,10 +154,11 @@ CONTAINS
 !> \param virial ...
 !> \param iw ...
 !> \param cell ...
-!> \author JGH (revised 14.10.2020, MK)
+!> \par History
+!>      - Revised virial components (14.10.2020, MK)
+!> \author JGH
 ! **************************************************************************************************
    SUBROUTINE write_stress_tensor_components(virial, iw, cell)
-
       TYPE(virial_type), INTENT(IN)                      :: virial
       INTEGER, INTENT(IN)                                :: iw
       TYPE(cell_type), POINTER                           :: cell
@@ -177,29 +176,36 @@ CONTAINS
             'STRESS| Stress tensor components (GPW/GAPW) [GPa]'
          WRITE (UNIT=iw, FMT='(T2,A,T52,A,T70,A)') &
             'STRESS|', '1/3 Trace', 'Determinant'
-         pv = fconv*virial%pv_ekin
-         WRITE (UNIT=iw, FMT=fmt) &
-            'STRESS| Kinetic energy', one_third_sum_diag(pv), det_3x3(pv)
          pv = fconv*virial%pv_overlap
          WRITE (UNIT=iw, FMT=fmt) &
-            'STRESS| Basis overlap', one_third_sum_diag(pv), det_3x3(pv)
-         pv = fconv*(virial%pv_hartree + virial%pv_exc)
+            'STRESS| Overlap', one_third_sum_diag(pv), det_3x3(pv)
+         pv = fconv*virial%pv_ekinetic
          WRITE (UNIT=iw, FMT=fmt) &
-            'STRESS| ES + XC', one_third_sum_diag(pv), det_3x3(pv)
-         pv = fconv*virial%pv_vdw
-         WRITE (UNIT=iw, FMT=fmt) &
-            'STRESS| vdW correction (ff)', one_third_sum_diag(pv), det_3x3(pv)
+            'STRESS| Kinetic energy', one_third_sum_diag(pv), det_3x3(pv)
          pv = fconv*virial%pv_ppl
          WRITE (UNIT=iw, FMT=fmt) &
             'STRESS| Local pseudopotential/core', one_third_sum_diag(pv), det_3x3(pv)
          pv = fconv*virial%pv_ppnl
          WRITE (UNIT=iw, FMT=fmt) &
             'STRESS| Nonlocal pseudopotential', one_third_sum_diag(pv), det_3x3(pv)
+         pv = fconv*virial%pv_ecore_overlap
+         WRITE (UNIT=iw, FMT=fmt) &
+            'STRESS| Core charge overlap', one_third_sum_diag(pv), det_3x3(pv)
+         pv = fconv*virial%pv_ehartree
+         WRITE (UNIT=iw, FMT=fmt) &
+            'STRESS| Hartree', one_third_sum_diag(pv), det_3x3(pv)
+         pv = fconv*virial%pv_exc
+         WRITE (UNIT=iw, FMT=fmt) &
+            'STRESS| Exchange-correlation', one_third_sum_diag(pv), det_3x3(pv)
          pv = -fconv*virial%pv_fock_4c
          WRITE (UNIT=iw, FMT=fmt) &
             'STRESS| Exact exchange (EXX)', one_third_sum_diag(pv), det_3x3(pv)
-         pv = fconv*(virial%pv_ekin + virial%pv_overlap + virial%pv_hartree + virial%pv_exc + &
-                     virial%pv_vdw + virial%pv_ppl + virial%pv_ppnl - virial%pv_fock_4c)
+         pv = fconv*virial%pv_vdw
+         WRITE (UNIT=iw, FMT=fmt) &
+            'STRESS| vdW correction', one_third_sum_diag(pv), det_3x3(pv)
+         pv = fconv*(virial%pv_overlap + virial%pv_ekinetic + virial%pv_ppl + virial%pv_ppnl + &
+                     virial%pv_ecore_overlap + virial%pv_ehartree + virial%pv_exc - &
+                     virial%pv_fock_4c + virial%pv_vdw)
          WRITE (UNIT=iw, FMT=fmt) &
             'STRESS| Sum of components', one_third_sum_diag(pv), det_3x3(pv)
          pv = fconv*virial%pv_virial

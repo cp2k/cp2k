@@ -166,7 +166,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: f0, ff, rab2, tab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: kab, pab, qab
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, rab
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_loc, pv_thread
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_thread
       REAL(KIND=dp), DIMENSION(3, natom)                 :: force_thread
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: k_block, p_block, rpgfa, rpgfb, scon_a, &
@@ -238,7 +238,6 @@ CONTAINS
          ! if forces -> maybe virial too
          CALL get_ks_env(ks_env=ks_env, force=force, virial=virial)
          use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
-         pv_loc = virial%pv_virial
          ! we need density matrix for forces
          IF (dokp) THEN
             CPASSERT(PRESENT(matrixkp_p))
@@ -246,6 +245,7 @@ CONTAINS
             CPASSERT(PRESENT(matrix_p))
          END IF
       END IF
+
       force_thread = 0.0_dp
       pv_thread = 0.0_dp
 
@@ -448,8 +448,8 @@ CONTAINS
          DEALLOCATE (atom_of_kind, kind_of)
       END IF
       IF (do_forces .AND. use_virial) THEN
+         virial%pv_ekinetic = virial%pv_ekinetic + pv_thread
          virial%pv_virial = virial%pv_virial + pv_thread
-         virial%pv_ekin = virial%pv_virial - pv_loc
       END IF
 
       IF (dokp) THEN

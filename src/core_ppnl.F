@@ -118,7 +118,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: ai_work
       REAL(KIND=dp), DIMENSION(1)                        :: rprjc, zetc
       REAL(KIND=dp), DIMENSION(3)                        :: fa, fb, rab, rac, rbc
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_loc, pv_thread
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_thread
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set
       TYPE(gth_potential_type), POINTER                  :: gth_potential
@@ -166,10 +166,6 @@ CONTAINS
                                  alpha_scalar=-2.0_dp, beta_scalar=1.0_dp)
                END DO
             END IF
-         END IF
-
-         IF (use_virial) THEN
-            pv_loc = virial%pv_virial
          END IF
 
          maxder = ncoset(nder)
@@ -428,6 +424,7 @@ CONTAINS
          CALL sap_sort(sap_int)
          ! *** All integrals needed have been calculated and stored in sap_int
          ! *** We now calculate the Hamiltonian matrix elements
+
          force_thread = 0.0_dp
          pv_thread = 0.0_dp
 
@@ -598,8 +595,8 @@ CONTAINS
          END IF
 
          IF (calculate_forces .AND. use_virial) THEN
+            virial%pv_ppnl = virial%pv_ppnl + pv_thread
             virial%pv_virial = virial%pv_virial + pv_thread
-            virial%pv_ppnl = virial%pv_virial - pv_loc
          END IF
 
          IF (calculate_forces) THEN

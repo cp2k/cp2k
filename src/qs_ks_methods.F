@@ -215,8 +215,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix'
 
       CHARACTER(len=default_string_length)               :: name
-      INTEGER                                            :: handle, iatom, idir, img, ispin, &
-                                                            nimages, ns, nspins
+      INTEGER                                            :: handle, iatom, img, ispin, nimages, ns, &
+                                                            nspins
       LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_hfx, do_ppl, gapw, gapw_xc, &
          hfx_treat_lsd_in_core, just_energy_xc, lrigpw, my_print, rigpw, use_virial
       REAL(KIND=dp)                                      :: ecore_ppl, edisp, ee_ener, ekin_mol, &
@@ -419,8 +419,8 @@ CONTAINS
          IF (use_virial .AND. calculate_forces) THEN
             CALL sccs(qs_env, rho_tot_gspace%pw, v_hartree_gspace%pw, v_sccs_rspace%pw, &
                       h_stress=h_stress)
+            virial%pv_ehartree = virial%pv_ehartree + h_stress/REAL(para_env%num_pe, dp)
             virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env%num_pe, dp)
-            virial%pv_hartree = virial%pv_hartree + h_stress/REAL(para_env%num_pe, dp)
          ELSE
             CALL sccs(qs_env, rho_tot_gspace%pw, v_hartree_gspace%pw, v_sccs_rspace%pw)
          END IF
@@ -432,8 +432,8 @@ CONTAINS
             CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, energy%hartree, &
                                   v_hartree_gspace%pw, h_stress=h_stress, &
                                   rho_core=rho_core)
+            virial%pv_ehartree = virial%pv_ehartree + h_stress/REAL(para_env%num_pe, dp)
             virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env%num_pe, dp)
-            virial%pv_hartree = virial%pv_hartree + h_stress/REAL(para_env%num_pe, dp)
          ELSE
             CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, energy%hartree, &
                                   v_hartree_gspace%pw, rho_core=rho_core)
@@ -577,8 +577,9 @@ CONTAINS
          NULLIFY (rho_struct)
 
          IF (use_virial .AND. calculate_forces) THEN
+            virial%pv_exc = virial%pv_exc - virial%pv_xc
             virial%pv_virial = virial%pv_virial - virial%pv_xc
-            ! ** virial%pv_xc will be zeroed in the xc routines
+            ! virial%pv_xc will be zeroed in the xc routines
          END IF
          xc_section => admm_env%xc_section_primary
       ELSE
@@ -628,18 +629,9 @@ CONTAINS
 
       NULLIFY (rho_struct)
       IF (use_virial .AND. calculate_forces) THEN
+         virial%pv_exc = virial%pv_exc - virial%pv_xc
          virial%pv_virial = virial%pv_virial - virial%pv_xc
-         virial%pv_exc = -virial%pv_xc
-         DO idir = 1, 3
-            virial%pv_exc(idir, idir) = virial%pv_exc(idir, idir) - energy%exc
-            virial%pv_hartree(idir, idir) = virial%pv_hartree(idir, idir) - 2.0_dp*energy%hartree
-         END DO
-         IF (dft_control%do_admm) THEN
-            DO idir = 1, 3
-               virial%pv_exc(idir, idir) = virial%pv_exc(idir, idir) - energy%exc_aux_fit
-            END DO
-         END IF
-      ENDIF
+      END IF
 
       ! *** Add Hartree-Fock contribution if required ***
       IF (do_hfx) THEN
@@ -714,7 +706,7 @@ CONTAINS
                                    cdft_control, calculate_forces)
 
          IF (use_virial .AND. calculate_forces) THEN
-            virial%pv_hartree = virial%pv_hartree + (virial%pv_virial - pv_loc)
+            virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - pv_loc)
          END IF
          IF (dft_control%qs_control%do_kg) THEN
             CPASSERT(.NOT. (gapw .OR. gapw_xc))
@@ -725,6 +717,7 @@ CONTAINS
             energy%exc = energy%exc - ekin_mol
             ! virial corrections
             IF (use_virial .AND. calculate_forces) THEN
+               virial%pv_exc = virial%pv_exc + virial%pv_xc
                virial%pv_virial = virial%pv_virial + virial%pv_xc
                virial%pv_xc = 0.0_dp
             END IF
