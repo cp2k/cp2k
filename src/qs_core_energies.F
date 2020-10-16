@@ -320,8 +320,8 @@ CONTAINS
          DEALLOCATE (atom_of_kind)
       END IF
       IF (calculate_forces .AND. use_virial) THEN
+         virial%pv_ecore_overlap = virial%pv_ecore_overlap + pv_loc
          virial%pv_virial = virial%pv_virial + pv_loc
-         virial%pv_hartree = virial%pv_hartree + pv_loc
       END IF
 
       CALL mp_sum(ecore_overlap, group)

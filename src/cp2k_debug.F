@@ -276,7 +276,7 @@ CONTAINS
                particles(ip)%r(k) = std_value
                numer_forces(ip, k) = -0.5_dp*(numer_energy(1) - numer_energy(2))/dx
                IF (iw > 0) THEN
-                  WRITE (UNIT=iw, FMT="(T2,A,T17,A,F7.4,A,T34,A,F7.4,A,T52,A,T68,A)") &
+                  WRITE (UNIT=iw, FMT="(/,T2,A,T17,A,F7.4,A,T34,A,F7.4,A,T52,A,T68,A)") &
                      "DEBUG| Atom", "E("//ACHAR(119 + k)//" +", dx, ")", &
                      "E("//ACHAR(119 + k)//" -", dx, ")", &
                      "f(numerical)", "f(analytical)"

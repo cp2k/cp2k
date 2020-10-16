@@ -165,7 +165,7 @@ MODULE force_env_methods
    USE virial_methods,                  ONLY: write_stress_tensor,&
                                               write_stress_tensor_components
    USE virial_types,                    ONLY: cp_virial,&
-                                              sym_virial,&
+                                              symmetrize_virial,&
                                               virial_create,&
                                               virial_p_type,&
                                               virial_release,&
@@ -301,7 +301,7 @@ CONTAINS
          ELSE
             IF (calculate_forces) THEN
                ! Symmetrize analytical stress tensor
-               CALL sym_virial(virial)
+               CALL symmetrize_virial(virial)
             ELSE
                IF (calculate_stress_tensor) THEN
                   CALL cp_warn(__LOCATION__, "The calculation of the stress tensor "// &

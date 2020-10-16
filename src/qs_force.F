@@ -78,7 +78,8 @@ MODULE qs_force
                                               rt_admm_force
    USE se_core_core,                    ONLY: se_core_core_interaction
    USE se_core_matrix,                  ONLY: build_se_core_matrix
-   USE virial_types,                    ONLY: virial_type
+   USE virial_types,                    ONLY: symmetrize_virial,&
+                                              virial_type
    USE xtb_matrices,                    ONLY: build_xtb_matrices
 #include "./base/base_uses.f90"
 
@@ -131,7 +132,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_forces'
 
-      INTEGER                                            :: after, dir, handle, i, iatom, ic, ikind, &
+      INTEGER                                            :: after, handle, i, iatom, ic, ikind, &
                                                             ispin, iw, natom, nkind, nspin, &
                                                             output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, natom_of_kind
@@ -403,23 +404,35 @@ CONTAINS
 
       NULLIFY (virial, energy)
       CALL get_qs_env(qs_env=qs_env, virial=virial, energy=energy)
-      !   *** distribute virial ***
       IF (virial%pv_availability) THEN
+         CALL mp_sum(virial%pv_overlap, para_env%group)
+         CALL mp_sum(virial%pv_ekinetic, para_env%group)
+         CALL mp_sum(virial%pv_ppl, para_env%group)
+         CALL mp_sum(virial%pv_ppnl, para_env%group)
+         CALL mp_sum(virial%pv_ecore_overlap, para_env%group)
+         CALL mp_sum(virial%pv_ehartree, para_env%group)
+         CALL mp_sum(virial%pv_exc, para_env%group)
+         CALL mp_sum(virial%pv_fock_4c, para_env%group)
+         CALL mp_sum(virial%pv_vdw, para_env%group)
          CALL mp_sum(virial%pv_virial, para_env%group)
-         !  *** add the volume terms of the virial ***
+         CALL symmetrize_virial(virial)
+         ! Add the volume terms of the virial
          IF ((.NOT. virial%pv_numer) .AND. &
              (.NOT. (dft_control%qs_control%dftb .OR. &
                      dft_control%qs_control%xtb .OR. &
                      dft_control%qs_control%semi_empirical))) THEN
-            DO dir = 1, 3
-               virial%pv_virial(dir, dir) = virial%pv_virial(dir, dir) - energy%exc &
-                                            - 2.0_dp*(energy%hartree + energy%sccs_pol)
+            DO i = 1, 3
+               virial%pv_virial(i, i) = virial%pv_virial(i, i) - energy%exc - &
+                                        2.0_dp*(energy%hartree + energy%sccs_pol)
+               virial%pv_ehartree(i, i) = virial%pv_ehartree(i, i) - 2.0_dp*(energy%hartree + energy%sccs_pol)
+               virial%pv_exc(i, i) = virial%pv_exc(i, i) - energy%exc
                IF (dft_control%do_admm) THEN
-                  virial%pv_virial(dir, dir) = virial%pv_virial(dir, dir) - energy%exc_aux_fit
+                  virial%pv_exc(i, i) = virial%pv_exc(i, i) - energy%exc_aux_fit
+                  virial%pv_virial(i, i) = virial%pv_virial(i, i) - energy%exc_aux_fit
                END IF
                ! The factor 2 is a hack. It compensates the plus sign in h_stress/pw_poisson_solve.
                ! The sign in pw_poisson_solve is correct for FIST, but not for QS.
-               ! There should be a more elegant solution to that...
+               ! There should be a more elegant solution to that ...
             END DO
          END IF
       END IF
