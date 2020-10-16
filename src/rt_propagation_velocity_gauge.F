@@ -1,6 +1,8 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2020  CP2K developers group                                               !
+!   Copyright 2000-2020 CP2K developers group <https://cp2k.org>                                   !
+!                                                                                                  !
+!   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -17,8 +19,10 @@ MODULE rt_propagation_velocity_gauge
                                               dbcsr_create,&
                                               dbcsr_init_p,&
                                               dbcsr_p_type,&
+                                              dbcsr_print,&
                                               dbcsr_set,&
-                                              dbcsr_type_antisymmetric
+                                              dbcsr_type_antisymmetric,&
+                                              dbcsr_type_no_symmetry
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
@@ -57,28 +61,29 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: vec_pot
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_im, matrix_s, &
-                                                            momentum
+                                                            momentum, nl_term
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb
+         POINTER                                         :: sab_all, sab_orb
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (dft_control)
+      NULLIFY (dft_control, matrix_s, sab_orb, sab_all, matrix_ks)
       CALL get_qs_env(qs_env, &
-                      dft_control=dft_control)
+                      dft_control=dft_control, &
+                      sab_all=sab_all, &
+                      sab_orb=sab_orb, &
+                      matrix_s=matrix_s, &
+                      matrix_ks=matrix_ks)
 
       IF (dft_control%qs_control%gapw) THEN
 
-         NULLIFY (cell, input, matrix_s, matrix_ks, matrix_ks_im, sab_orb)
+         NULLIFY (cell, input, matrix_ks_im)
          CALL get_qs_env(qs_env, &
                          cell=cell, &
                          input=input, &
-                         matrix_s=matrix_s, &
-                         matrix_ks=matrix_ks, &
-                         matrix_ks_im=matrix_ks_im, &
-                         sab_orb=sab_orb)
+                         matrix_ks_im=matrix_ks_im)
 
          !get vector potential
          CALL get_vector_potential(dft_control, cell, vec_pot)
@@ -100,13 +105,13 @@ CONTAINS
          hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%HF")
          CALL section_vals_get(hfx_sections, explicit=do_hfx)
          IF (.NOT. do_hfx) THEN
-            DO ispin = 1, SIZE(matrix_ks_im)
+            DO ispin = 1, dft_control%nspins
                CALL dbcsr_set(matrix_ks_im(ispin)%matrix, zero)
             ENDDO
          ENDIF
 
          ! add linear term in vector potential to imaginary part of KS-matrix
-         DO ispin = 1, SIZE(matrix_ks_im)
+         DO ispin = 1, dft_control%nspins
             DO idir = 1, 3
                CALL dbcsr_add(matrix_ks_im(ispin)%matrix, momentum(idir)%matrix, one, -2.0_dp*vec_pot(idir))
             ENDDO
@@ -115,13 +120,26 @@ CONTAINS
          CALL dbcsr_deallocate_matrix_set(momentum)
 
          ! add quadratic term to real part of KS matrix
-         DO ispin = 1, SIZE(matrix_ks)
+         DO ispin = 1, dft_control%nspins
             DO idir = 1, 3
                CALL dbcsr_add(matrix_ks(ispin)%matrix, matrix_s(1)%matrix, one, vec_pot(idir)**2/c_light_au)
             ENDDO
          ENDDO
 
       ELSE
+         NULLIFY (nl_term)
+         CALL dbcsr_allocate_matrix_set(nl_term, dft_control%nspins)
+         DO ispin = 1, dft_control%nspins
+            CALL dbcsr_init_p(nl_term(ispin)%matrix)
+            CALL dbcsr_create(nl_term(ispin)%matrix, template=matrix_s(1)%matrix, &
+                              matrix_type=dbcsr_type_no_symmetry)
+            CALL cp_dbcsr_alloc_block_from_nbl(nl_term(ispin)%matrix, sab_all)
+            CALL dbcsr_set(nl_term(ispin)%matrix, zero)
+         ENDDO
+
+         CALL velocity_gauge_nl_term(qs_env, nl_term)
+
+         CALL dbcsr_deallocate_matrix_set(nl_term)
          CPABORT(" Not implemented for GPW yet!")
       ENDIF
 
@@ -151,5 +169,21 @@ CONTAINS
       vec_pot = vec_pot*twopi*dft_control%rtp_control%delta_pulse_scale
 
    END SUBROUTINE get_vector_potential
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param nl_term ...
+! **************************************************************************************************
+   SUBROUTINE velocity_gauge_nl_term(qs_env, nl_term)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT), &
+         POINTER                                         :: nl_term
+
+      CALL get_qs_env(qs_env)
+
+      CALL dbcsr_print(nl_term(1)%matrix)
+
+   END SUBROUTINE velocity_gauge_nl_term
 
 END MODULE rt_propagation_velocity_gauge
