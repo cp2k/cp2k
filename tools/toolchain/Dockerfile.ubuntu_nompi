@@ -9,26 +9,13 @@ USER root
 # Installs lean toolchain without MPI and relying mostly on Ubuntu packages.
 
 # Install Ubuntu packages.
+COPY ./install_requirements_ubuntu.sh .
+RUN ./install_requirements_ubuntu.sh
+
+# Install some more Ubuntu packages.
 RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
     apt-get update -qq && apt-get install -qq --no-install-recommends \
-    autoconf \
-    autogen \
-    automake \
-    autotools-dev \
-    ca-certificates \
     cmake \
-    g++ \
-    git \
-    less \
-    libtool \
-    make \
-    nano \
-    pkg-config \
-    python \
-    python3 \
-    unzip \
-    wget \
-    zlib1g-dev \
     gcc-${GCC_VERSION} \
     g++-${GCC_VERSION} \
     gfortran-${GCC_VERSION} \
