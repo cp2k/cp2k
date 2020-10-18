@@ -16,6 +16,7 @@ apt-get install -qq --no-install-recommends \
     autogen                                 \
     automake                                \
     autotools-dev                           \
+    bzip2                                   \
     ca-certificates                         \
     g++                                     \
     git                                     \
