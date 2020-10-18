@@ -2,7 +2,7 @@
 
 # author: Ole Schuett
 
-if grep -q "Ubuntu" /etc/os-release ; then
+if grep -q -e "Ubuntu" -e "Debian" /etc/os-release ; then
     echo -n "Installing Ubuntu packages... "
     apt-get update -qq
     apt-get install -qq --no-install-recommends \
