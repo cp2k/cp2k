@@ -1201,7 +1201,7 @@ EOF
    if (( n_leaks > 0 )); then
        REPORT_SUMMARY+=$(printf "; memleaks: %d" ${n_leaks})
    fi
-   REPORT_SUMMARY+=$(python -c "print('; %.0fmin'%(${full_timing_all}/60.0))")
+   REPORT_SUMMARY+=$(python3 -c "print('; %.0fmin'%(${full_timing_all}/60.0))")
    echo -e "\nSummary: ${REPORT_SUMMARY}"
 
    if ((n_wrong_results > 0)) || ((n_runtime_error > 0)) || ((n_leaks > 0)); then
