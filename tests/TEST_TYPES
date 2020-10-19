@@ -40,7 +40,7 @@ ISSC| CheckSum K =!5
 X=!2
 HELIUM| Total energy = !5
 Total charge and spin!9
-Sum of differences:!5
+DEBUG| Sum of differences!5
 SUM OF CORE FORCES !8
 SUM OF SHELL FORCES !8
 PRM01!2
