@@ -91,6 +91,9 @@ dkms.conf
 
 # Executables
 
+# fortran-language-server
+.fortls
+
 ### CUDA ###
 *.i
 *.ii
