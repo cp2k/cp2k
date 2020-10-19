@@ -30,14 +30,14 @@
     BASIS_SET_FILE_NAME ./LiH.qbf
     POTENTIAL_FILE_NAME ./LiH.qpf
     &MGRID
-      CUTOFF 280
+      CUTOFF 200
     &END MGRID
     &PRINT
       &DFT_CONTROL_PARAMETERS
       &END DFT_CONTROL_PARAMETERS
     &END PRINT
     &QS
-      EPS_DEFAULT 1.0E-10
+      EPS_DEFAULT 1.0E-8
       EXTRAPOLATION use_prev_p
     &END QS
     &SCF
@@ -52,11 +52,9 @@
          DISPERSION_FUNCTIONAL PAIR_POTENTIAL
          &PAIR_POTENTIAL
             TYPE DFTD3
-            CALCULATE_C9_TERM yes
-            REFERENCE_C9_TERM yes
-            LONG_RANGE_CORRECTION yes
             PARAMETER_FILE_NAME dftd3.dat
             VERBOSE_OUTPUT
+            R_CUTOFF 3.0
             REFERENCE_FUNCTIONAL PBE
          &END PAIR_POTENTIAL
       &END vdW_POTENTIAL
