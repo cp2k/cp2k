@@ -15,8 +15,6 @@ USER root
 COPY ./install_requirements*.sh ./
 RUN ./install_requirements.sh ${BASE_IMAGE}
 
-ENV LANG en_US.UTF-8
-
 # copy helper scripts
 WORKDIR /opt/cp2k-toolchain
 RUN mkdir scripts
