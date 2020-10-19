@@ -80,7 +80,7 @@ def read_file(filename, field, special_keys, stats_keys):
         dict_values = {}
         dict_stats = {}
         nameout = ["", ""]
-        with open(filename, "r") as f:
+        with open(filename, "r", encoding="utf8") as f:
             for line in f:
                 # start reading
                 if "NAMEOUT=" in line:

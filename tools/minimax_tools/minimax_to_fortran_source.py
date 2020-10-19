@@ -9,7 +9,7 @@ import os.path
 
 reldir = r"www.mis.mpg.de/scicomp/EXP_SUM/1_x/"
 
-txt = open(reldir + "tabelle", "r")
+txt = open(reldir + "tabelle", "r", encoding="utf8")
 
 re_header = re.compile("k =  \| *(?P<kval>([\d]+ *)+)")
 re_body = re.compile("(?P<Rc>\dE\d\d) \|(?P<err>[\w\.\- ]+)")
@@ -73,7 +73,7 @@ for l, line in enumerate(txt.readlines()):
                         continue
 
                     # read parameters
-                    txt2 = open(filename, "r")
+                    txt2 = open(filename, "r", encoding="utf8")
                     ww = []
                     aa = []
                     for l2, line2 in enumerate(txt2.readlines()):
@@ -130,7 +130,7 @@ k_p.append(len(k) + 1)
 # 3) generate fortran file #
 ############################
 
-out = open("../../src/minimax/minimax_exp_k53.F", "w")
+out = open("../../src/minimax/minimax_exp_k53.F", "w", encoding="utf8")
 out.write(
     "!--------------------------------------------------------------------------------------------------!\n\
 !   CP2K: A general program to perform molecular dynamics simulations                              !\n\

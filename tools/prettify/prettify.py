@@ -272,7 +272,7 @@ def prettifyInplace(filename, backupdir=None, stdout=False, **kwargs):
         infile.write(sys.stdin.read())
         infile.seek(0)
     else:
-        infile = open(filename, "r")
+        infile = open(filename, "r", encoding="utf8")
 
     outfile = prettifyFile(infile=infile, filename=filename, **kwargs)
 
@@ -299,13 +299,13 @@ def prettifyInplace(filename, backupdir=None, stdout=False, **kwargs):
         if backupdir:
             bkName = path.join(backupdir, path.basename(filename))
 
-            with open(bkName, "w") as fhandle:
+            with open(bkName, "w", encoding="utf8") as fhandle:
                 infile.seek(0)
                 fhandle.write(infile.read())
 
         infile.close()  # close it here since we're going to overwrite it
 
-        with open(filename, "w") as fhandle:
+        with open(filename, "w", encoding="utf8") as fhandle:
             outfile.seek(0)
             fhandle.write(outfile.read())
 

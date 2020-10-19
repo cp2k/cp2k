@@ -110,7 +110,7 @@ def run_cp2k(exe_dir, inp_fn, out_fn, nranks, nthreads, version):
 
 # ===============================================================================
 def parse_output(out_fn, ref_energy):
-    output = open(out_fn).read()
+    output = open(out_fn, encoding="utf8").read()
 
     # check final energy
     energy = float(re.findall("\n\s+Total energy:(.*)\n", output)[-1].strip())

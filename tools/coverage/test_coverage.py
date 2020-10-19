@@ -20,7 +20,7 @@ def main():
     print("Git Commit: {}".format(git_rev))
 
     ref_fn, lcov_fn = sys.argv[1:]
-    content = open(lcov_fn).read()
+    content = open(lcov_fn, encoding="utf8").read()
     lines = content.split("\n")
 
     assert lines[2] == "=" * 80
@@ -37,12 +37,12 @@ def main():
         coverage[parts[0]] = (float(rate[:-1]), int(nlines))
 
     if not path.exists(ref_fn):
-        open(ref_fn, "w").write(pformat(coverage))
+        open(ref_fn, "w", encoding="utf8").write(pformat(coverage))
         print("Summary: Wrote new reference file")
         print("Status: UNKNOWN")
         sys.exit(0)
 
-    ref_coverage = eval(open(ref_fn).read())
+    ref_coverage = eval(open(ref_fn, encoding="utf8").read())
 
     issues = 0
     new_ref_coverage = dict()
@@ -81,7 +81,7 @@ def main():
     )
     print("Status: " + ("OK" if (issues == 0) else "FAILED"))
 
-    open(ref_fn, "w").write(pformat(new_ref_coverage))
+    open(ref_fn, "w", encoding="utf8").write(pformat(new_ref_coverage))
 
 
 # ===============================================================================

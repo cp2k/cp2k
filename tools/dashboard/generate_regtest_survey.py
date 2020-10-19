@@ -41,7 +41,8 @@ def main():
         return config.getint(s, "sortkey")
 
     for tname in sorted(config.sections(), key=get_sortkey):
-        list_recent = open(outdir + "archive/%s/list_recent.txt" % tname).readlines()
+        fn = outdir + "archive/%s/list_recent.txt" % tnam
+        list_recent = open(fn, encoding="utf8").readlines()
         if not list_recent:
             continue  # list_recent is empty
         latest_report_url = list_recent[0].strip()
@@ -212,7 +213,7 @@ def main():
 
     # write output file
     fn = outdir + "regtest_survey.html"
-    f = open(fn, "w")
+    f = open(fn, "w", encoding="utf8")
     f.write(output)
     f.close()
     print("Wrote: " + fn)
@@ -223,7 +224,7 @@ def parse_test_files():
     test_defs = dict()
 
     tests_root = "../../tests/"
-    test_dir_lines = open(tests_root + "TEST_DIRS").readlines()
+    test_dir_lines = open(tests_root + "TEST_DIRS", encoding="utf8").readlines()
     for dline in test_dir_lines:
         dline = dline.strip()
         if len(dline) == 0:
@@ -233,7 +234,7 @@ def parse_test_files():
         d = dline.split()[0]
         flags = dline.split()[1:]  # flags requiremented by this test_dir
         fn = tests_root + d + "/TEST_FILES"
-        content = open(fn).read()
+        content = open(fn, encoding="utf8").read()
         for line in content.strip().split("\n"):
             if line[0] == "#":
                 continue
@@ -258,7 +259,7 @@ def parse_test_files():
 # ===============================================================================
 def parse_test_types():
     test_types = [None]
-    lines = open("../../tests/TEST_TYPES").readlines()
+    lines = open("../../tests/TEST_TYPES", encoding="utf8").readlines()
     ntypes = int(lines[0])
     for i in range(1, ntypes + 1):
         test_types.append(lines[i])

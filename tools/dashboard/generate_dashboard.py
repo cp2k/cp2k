@@ -83,7 +83,7 @@ def main():
 # ===============================================================================
 def gen_frontpage(config, log, status_fn, outdir):
     if path.exists(status_fn):
-        status = eval(open(status_fn).read())
+        status = eval(open(status_fn, encoding="utf8").read())
     else:
         status = dict()
 
@@ -289,7 +289,7 @@ def gen_url_list(config, outdir):
             fn = outdir + "archive/%s/%s" % (s, postfix)
             if not path.exists(fn):
                 continue
-            url_list += open(fn).read()
+            url_list += open(fn, encoding="utf8").read()
         write_file(outdir + "archive/" + postfix, url_list)
 
 
