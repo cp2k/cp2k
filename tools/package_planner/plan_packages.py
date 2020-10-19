@@ -22,7 +22,7 @@ def main():
         print("Usage: plan_packages.py <plan_file>")
         sys.exit(1)
 
-    planned_pkgs = eval(open(sys.argv[1]).read())
+    planned_pkgs = eval(open(sys.argv[1], encoding="utf8").read())
 
     srcdir = "../../src"
     abs_srcdir = abspath(srcdir)
@@ -133,7 +133,7 @@ def parse_file(parsed_files, fn):
     if fn in parsed_files:
         return
 
-    content = open(fn).read()
+    content = open(fn, encoding="utf8").read()
 
     # re.IGNORECASE is horribly expensive. Converting to lower-case upfront
     content_lower = content.lower()
@@ -173,7 +173,7 @@ def read_manifest(packages, p):
     if not path.exists(fn):
         error("Could not open PACKAGE manifest: " + fn)
 
-    content = open(fn).read()
+    content = open(fn, encoding="utf8").read()
     packages[p] = eval(content)
     packages[p]["problems"] = []
 

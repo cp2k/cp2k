@@ -12,7 +12,7 @@ def main():
         sys.exit(1)
 
     filename = sys.argv[1]
-    with open(filename) as fhandle:
+    with open(filename, encoding="utf8") as fhandle:
         timings = sorted(float(line.split()[0]) for line in fhandle.readlines())
 
     print('Plot: name="timings", title="Timing Distribution", ylabel="time [s]"')

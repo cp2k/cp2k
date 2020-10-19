@@ -37,7 +37,7 @@ import sys
 
 def load_template(template_filename):
     """ Load the routine template string from a file and return the object """
-    # template_str = "\n".join([e.rstrip() for e in open(template_filename).readlines()])
+    # template_str = "\n".join([e.rstrip() for e in open(template_filename, encoding="utf8").readlines()])
     return pyratemp.Template(filename=template_filename)
 
 
@@ -80,7 +80,7 @@ if __name__ == "__main__":
         lb_max_local=lb_max_local_end,
         pairs=l,
     )
-    source_file = open(output_file_name, "w+")
+    source_file = open(output_file_name, "w+", encoding="utf8")
     print(source_str, file=source_file)
 
     source_file.close()

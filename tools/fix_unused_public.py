@@ -55,7 +55,7 @@ def main():
 
 # =============================================================================
 def clean_publics(fn, unused):
-    content = open(fn).read()
+    content = open(fn, encoding="utf8").read()
     new_content = ""
     active = False
     protected = False
@@ -107,14 +107,14 @@ def clean_publics(fn, unused):
 
     if new_content != content:
         print("Fixed: ", fn)
-        f = open(fn, "w")
+        f = open(fn, "w", encoding="utf8")
         f.write(new_content)
 
 
 # =============================================================================
 def parse_file(fn):
     # print("parsing "+fn)
-    content = open(fn).read()
+    content = open(fn, encoding="utf8").read()
     # re.IGNORECASE is horribly expensive. Converting to lower-case upfront
     content = content.lower()
     content = re.sub("!.*\n", "\n", content)

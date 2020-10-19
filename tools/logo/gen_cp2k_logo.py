@@ -64,7 +64,7 @@ def gen_povray():
         output += "  }\n"
         output += "}\n"
 
-    f = open("logo.pov", "w")
+    f = open("logo.pov", "w", encoding="utf8")
     f.write(output)
     f.close()
 

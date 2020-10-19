@@ -312,7 +312,7 @@ def parseRoutine(inFile, logger):
         m = INCLUDE_RE.match(lines[0])
         if m:
             try:
-                subF = open(m.group("file"), "r")
+                subF = open(m.group("file"), "r", encoding="utf8")
                 subStream = InputStream(subF)
                 while True:
                     (subjline, _, sublines) = subStream.nextFortranLine()
@@ -476,7 +476,7 @@ def parseRoutine(inFile, logger):
         m = INCLUDE_RE.match(lines[0])
         if m:
             try:
-                subF = open(m.group("file"), "r")
+                subF = open(m.group("file"), "r", encoding="utf8")
                 subStream = InputStream(subF)
                 while True:
                     (subjline, _, sublines) = subStream.nextFortranLine()
@@ -1291,7 +1291,7 @@ def rewriteFortranFile(
             inc_fn = COMMON_USES_RE.match(modulesDict["commonUses"]).group(1)
             inc_absfn = os.path.join(os.path.dirname(orig_filename), inc_fn)
             try:
-                with open(inc_absfn, "r") as fhandle:
+                with open(inc_absfn, "r", encoding="utf8") as fhandle:
                     implicitUsesRaw = parseUse(fhandle)
                 implicitUses = prepareImplicitUses(implicitUsesRaw["modules"])
             except:

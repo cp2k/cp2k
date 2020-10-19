@@ -40,6 +40,7 @@ it will always add in the header lines.
 
 use strict;
 use warnings;
+use open qw(:std :utf8);
 use Pod::Usage qw(pod2usage);
 use Getopt::Long;
 

@@ -35,6 +35,7 @@ to both FUNCTIONs and SUBROUTINEs.
 
 use strict;
 use warnings;
+use open qw(:std :utf8);
 use FindBin;
 use lib "$FindBin::RealBin/lib";
 use Pod::Usage qw(pod2usage);
