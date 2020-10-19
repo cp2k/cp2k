@@ -81,6 +81,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
 
       CHARACTER(LEN=3*default_string_length)             :: message
+      CHARACTER(LEN=60)                                  :: line
       CHARACTER(LEN=default_string_length)               :: description
       INTEGER                                            :: i, ip, iw, j, k, np, stress_tensor
       LOGICAL                                            :: check_failed, debug_dipole, &
@@ -186,34 +187,51 @@ CONTAINS
             ! Print results
             IF (iw > 0) THEN
                WRITE (UNIT=iw, FMT="((T2,A))") &
-                  "DEBUG| Numerical pv_virial"
-               WRITE (UNIT=iw, FMT="((T2,A,3F16.10))") &
+                  "DEBUG| Numerical pv_virial [a.u.]"
+               WRITE (UNIT=iw, FMT="((T2,A,T21,3(1X,F19.12)))") &
                   ("DEBUG|", virial_numerical%pv_virial(i, 1:3), i=1, 3)
                WRITE (UNIT=iw, FMT="(/,(T2,A))") &
-                  "DEBUG| Analytical pv_virial"
-               WRITE (UNIT=iw, FMT="((T2,A,3F16.10))") &
+                  "DEBUG| Analytical pv_virial [a.u.]"
+               WRITE (UNIT=iw, FMT="((T2,A,T21,3(1X,F19.12)))") &
                   ("DEBUG|", virial_analytical%pv_virial(i, 1:3), i=1, 3)
                WRITE (UNIT=iw, FMT="(/,(T2,A))") &
-                  "DEBUG| Difference pv_virial"
-               WRITE (UNIT=iw, FMT="((T2,A,3F16.10))") &
+                  "DEBUG| Difference pv_virial [a.u.]"
+               WRITE (UNIT=iw, FMT="((T2,A,T21,3(1X,F19.12)))") &
                   ("DEBUG|", virial_numerical%pv_virial(i, 1:3) - virial_analytical%pv_virial(i, 1:3), i=1, 3)
-               WRITE (UNIT=iw, FMT="(T2,A,T40,F16.10,/)") &
-                  "DEBUG| Sum of differences:", &
+               WRITE (UNIT=iw, FMT="(T2,A,T61,F20.12)") &
+                  "DEBUG| Sum of differences", &
                   SUM(ABS(virial_numerical%pv_virial(:, :) - virial_analytical%pv_virial(:, :)))
             END IF
 
             ! Check and abort on failure
             check_failed = .FALSE.
+            IF (iw > 0) THEN
+               WRITE (UNIT=iw, FMT="(/T2,A)") &
+                  "DEBUG| Relative error pv_virial"
+               WRITE (UNIT=iw, FMT="(T2,A,T61,ES20.8)") &
+                  "DEBUG| Threshold value for error check [a.u.]", eps_no_error_check
+            END IF
             DO i = 1, 3
                err(:) = 0.0_dp
                DO k = 1, 3
                   IF (ABS(virial_analytical%pv_virial(i, k)) >= eps_no_error_check) THEN
                      err(k) = 100.0_dp*(virial_numerical%pv_virial(i, k) - virial_analytical%pv_virial(i, k))/ &
                               virial_analytical%pv_virial(i, k)
+                     WRITE (UNIT=line(20*(k - 1) + 1:20*k), FMT="(1X,F17.2,A2)") err(k), " %"
+                  ELSE
+                     WRITE (UNIT=line(20*(k - 1) + 1:20*k), FMT="(17X,A3)") "- %"
                   END IF
                END DO
+               IF (iw > 0) THEN
+                  WRITE (UNIT=iw, FMT="(T2,A,T21,A60)") &
+                     "DEBUG|", line
+               END IF
                IF (ANY(ABS(err(1:3)) > maxerr)) check_failed = .TRUE.
             END DO
+            IF (iw > 0) THEN
+               WRITE (UNIT=iw, FMT="(T2,A,T61,F18.2,A2)") &
+                  "DEBUG| Maximum accepted error", maxerr, " %"
+            END IF
             CALL virial_release(virial_analytical)
             CALL virial_release(virial_numerical)
             IF (check_failed) THEN
