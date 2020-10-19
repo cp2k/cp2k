@@ -10,7 +10,9 @@
 # command line argument passing
 #
 ###################################################################################
-export LC_ALL=en_US.UTF-8
+
+# ensure error messages are in English
+export LC_ALL=C
 
 # init
 dir_base=$PWD
