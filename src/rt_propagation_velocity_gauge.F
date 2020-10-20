@@ -10,9 +10,11 @@
 ! **************************************************************************************************
 
 MODULE rt_propagation_velocity_gauge
+   USE ai_moments,                      ONLY: cossin
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
-   USE cell_types,                      ONLY: cell_type
+   USE cell_types,                      ONLY: cell_type,&
+                                              pbc
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
@@ -37,7 +39,9 @@ MODULE rt_propagation_velocity_gauge
                                               twopi,&
                                               zero
    USE orbital_pointers,                ONLY: init_orbital_pointers,&
+                                              nco,&
                                               ncoset
+   USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: c_light_au
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -83,24 +87,24 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (dft_control, matrix_s, sab_orb, sab_all, matrix_ks)
+      NULLIFY (dft_control, matrix_s, sab_orb, sab_all, matrix_ks, cell)
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
                       sab_all=sab_all, &
                       sab_orb=sab_orb, &
                       matrix_s=matrix_s, &
-                      matrix_ks=matrix_ks)
+                      matrix_ks=matrix_ks, &
+                      cell=cell)
+
+      !get vector potential
+      CALL get_vector_potential(dft_control, cell, vec_pot)
 
       IF (dft_control%qs_control%gapw) THEN
 
-         NULLIFY (cell, input, matrix_ks_im)
+         NULLIFY (input, matrix_ks_im)
          CALL get_qs_env(qs_env, &
-                         cell=cell, &
                          input=input, &
                          matrix_ks_im=matrix_ks_im)
-
-         !get vector potential
-         CALL get_vector_potential(dft_control, cell, vec_pot)
 
          ! allocate and build matrices for linear momentum term
          NULLIFY (momentum)
@@ -151,7 +155,7 @@ CONTAINS
             CALL dbcsr_set(nl_term(ispin)%matrix, zero)
          ENDDO
 
-         CALL velocity_gauge_nl_term(qs_env, nl_term)
+         CALL velocity_gauge_nl_term(qs_env, nl_term, vec_pot)
 
          CALL dbcsr_deallocate_matrix_set(nl_term)
          ! CPABORT(" Not implemented for GPW yet!")
@@ -188,17 +192,21 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param nl_term ...
+!> \param vec_pot ...
 ! **************************************************************************************************
-   SUBROUTINE velocity_gauge_nl_term(qs_env, nl_term)
+   SUBROUTINE velocity_gauge_nl_term(qs_env, nl_term, vec_pot)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT), &
          POINTER                                         :: nl_term
+      REAL(KIND=dp), DIMENSION(3), INTENT(in)            :: vec_pot
 
       CHARACTER(len=*), PARAMETER :: routiuneN = "velocity_gauge_nl_term"
 
       INTEGER                                            :: handle, i, maxl, maxlgto, maxlppnl, nkind
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sap_ppnl
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int_cos, sap_int_sin
 
@@ -209,9 +217,11 @@ CONTAINS
                       sap_ppnl=sap_ppnl)
 
       IF (ASSOCIATED(sap_ppnl)) THEN
-         NULLIFY (qs_kind_set)
+         NULLIFY (qs_kind_set, particle_set, cell)
          CALL get_qs_env(qs_env, &
-                         qs_kind_set=qs_kind_set)
+                         qs_kind_set=qs_kind_set, &
+                         particle_set=particle_set, &
+                         cell=cell)
 
          nkind = SIZE(qs_kind_set)
 
@@ -233,7 +243,8 @@ CONTAINS
          ENDDO
 
          ! calculate exponential integrals
-         CALL build_sap_exp_ints(sap_int_cos, sap_int_sin, sap_ppnl, qs_kind_set)
+         CALL build_sap_exp_ints(sap_int_cos, sap_int_sin, sap_ppnl, qs_kind_set, particle_set, &
+                                 cell, kvec=vec_pot)
 
          CALL release_sap_int(sap_int_cos)
          CALL release_sap_int(sap_int_sin)
@@ -244,25 +255,48 @@ CONTAINS
    END SUBROUTINE velocity_gauge_nl_term
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief calculate <a|sin/cos|p> integrals and store in sap_int_type
+!>        adapted from build_sap_ints
+!>        Do this on each MPI task as the integrals need to be available globally.
+!>        Might be faster than communicating as the integrals are obtained analytically.
 !> \param sap_int_cos ...
 !> \param sap_int_sin ...
 !> \param sap_ppnl ...
 !> \param qs_kind_set ...
+!> \param particle_set ...
+!> \param cell ...
+!> \param kvec ...
 ! **************************************************************************************************
-   SUBROUTINE build_sap_exp_ints(sap_int_cos, sap_int_sin, sap_ppnl, qs_kind_set)
+   SUBROUTINE build_sap_exp_ints(sap_int_cos, sap_int_sin, sap_ppnl, qs_kind_set, particle_set, cell, kvec)
       TYPE(sap_int_type), DIMENSION(:), INTENT(INOUT), &
          POINTER                                         :: sap_int_cos, sap_int_sin
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          INTENT(IN), POINTER                             :: sap_ppnl
       TYPE(qs_kind_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: qs_kind_set
+      TYPE(particle_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: particle_set
+      TYPE(cell_type), INTENT(IN), POINTER               :: cell
+      REAL(KIND=dp), DIMENSION(3), INTENT(in)            :: kvec
 
       CHARACTER(len=*), PARAMETER :: routiuneN = "build_sap_exp_ints"
 
-      INTEGER :: handle, i, iac, iatom, ikind, ilist, katom, kkind, ldai, ldsab, maxco, maxl, &
-         maxlgto, maxlppnl, maxsgf, nkind, nlist, nneighbor, slot
-      TYPE(clist_type), POINTER                          :: clist
+      INTEGER :: handle, i, iac, iatom, ikind, ilist, iset, jneighbor, katom, kkind, l, lc_max, &
+         lc_min, ldai, ldints, lppnl, maxco, maxl, maxlgto, maxlppnl, maxsgf, na, nb, ncoa, ncoc, &
+         nkind, nlist, nneighbor, np, nppnl, nprjc, nseta, nsgfa, prjc, sgfa, slot
+      INTEGER, DIMENSION(3)                              :: cell_c
+      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nprj_ppnl, &
+                                                            nsgf_seta
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
+      LOGICAL                                            :: dogth
+      REAL(KIND=dp)                                      :: dac, ppnl_radius
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ai_work_cos, ai_work_sin, ints, &
+                                                            work_cos, work_sin
+      REAL(KIND=dp), DIMENSION(1)                        :: rprjc, zetc
+      REAL(KIND=dp), DIMENSION(3)                        :: ra, rac, rc
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: alpha_ppnl, set_radius_a
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cprj, rpgfa, sphi_a, vprj_ppnl, zeta
+      TYPE(clist_type), POINTER                          :: clist, clist_sin
       TYPE(gth_potential_p_type), DIMENSION(:), POINTER  :: gpotential
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
@@ -282,7 +316,7 @@ CONTAINS
 
       ! maximum dimensions for allocations
       maxl = MAX(maxlppnl, maxlgto)
-      ldsab = MAX(maxco, ncoset(maxlppnl), maxsgf, maxlppnl)
+      ldints = MAX(maxco, ncoset(maxlppnl), maxsgf, maxlppnl)
       ldai = ncoset(maxl + 1)
 
       !set up direct access to basis and potential
@@ -368,6 +402,140 @@ CONTAINS
             END DO
          END IF
       END DO
+
+      ! actual calculation of the integrals <a|cos|p> and <a|sin|p>
+      ! allocate temporary storage using maximum dimensions
+      ALLOCATE (ints(ldints, ldints), work_cos(ldints, ldints), work_sin(ldints, ldints))
+      ALLOCATE (ai_work_cos(ldai, ldai), ai_work_sin(ldai, ldai))
+      ints = 0.0_dp
+      work_cos = 0.0_dp
+      work_sin = 0.0_dp
+      ai_work_cos = 0.0_dp
+      ai_work_sin = 0.0_dp
+      dogth = .FALSE.
+
+      NULLIFY (first_sgfa, la_max, la_min, npgfa, nsgf_seta, rpgfa, set_radius_a, sphi_a, zeta)
+      NULLIFY (alpha_ppnl, cprj, nprj_ppnl, vprj_ppnl)
+      NULLIFY (clist, clist_sin)
+      DO slot = 1, sap_ppnl(1)%nl_size
+         ikind = sap_ppnl(1)%nlist_task(slot)%ikind
+         kkind = sap_ppnl(1)%nlist_task(slot)%jkind
+         iatom = sap_ppnl(1)%nlist_task(slot)%iatom
+         katom = sap_ppnl(1)%nlist_task(slot)%jatom
+         nlist = sap_ppnl(1)%nlist_task(slot)%nlist
+         ilist = sap_ppnl(1)%nlist_task(slot)%ilist
+         nneighbor = sap_ppnl(1)%nlist_task(slot)%nnode
+         jneighbor = sap_ppnl(1)%nlist_task(slot)%inode
+         cell_c(:) = sap_ppnl(1)%nlist_task(slot)%cell(:)
+         rac(1:3) = sap_ppnl(1)%nlist_task(slot)%r(1:3)
+         dac = NORM2(rac)
+
+         iac = ikind + nkind*(kkind - 1)
+         IF (.NOT. ASSOCIATED(basis_set(ikind)%gto_basis_set)) CYCLE
+         ! get definition of gto basis set
+         first_sgfa => basis_set(ikind)%gto_basis_set%first_sgf
+         la_max => basis_set(ikind)%gto_basis_set%lmax
+         la_min => basis_set(ikind)%gto_basis_set%lmin
+         npgfa => basis_set(ikind)%gto_basis_set%npgf
+         nseta = basis_set(ikind)%gto_basis_set%nset
+         nsgfa = basis_set(ikind)%gto_basis_set%nsgf
+         nsgf_seta => basis_set(ikind)%gto_basis_set%nsgf_set
+         rpgfa => basis_set(ikind)%gto_basis_set%pgf_radius
+         set_radius_a => basis_set(ikind)%gto_basis_set%set_radius
+         sphi_a => basis_set(ikind)%gto_basis_set%sphi
+         zeta => basis_set(ikind)%gto_basis_set%zet
+
+         IF (ASSOCIATED(gpotential(kkind)%gth_potential)) THEN
+            ! GTH potential
+            dogth = .TRUE.
+            alpha_ppnl => gpotential(kkind)%gth_potential%alpha_ppnl
+            cprj => gpotential(kkind)%gth_potential%cprj
+            lppnl = gpotential(kkind)%gth_potential%lppnl
+            nppnl = gpotential(kkind)%gth_potential%nppnl
+            nprj_ppnl => gpotential(kkind)%gth_potential%nprj_ppnl
+            ppnl_radius = gpotential(kkind)%gth_potential%ppnl_radius
+            vprj_ppnl => gpotential(kkind)%gth_potential%vprj_ppnl
+         ELSE
+            CYCLE
+         ENDIF
+
+         clist => sap_int_cos(iac)%alist(ilist)%clist(jneighbor)
+         clist_sin => sap_int_sin(iac)%alist(ilist)%clist(jneighbor)
+
+         clist%catom = katom
+         clist%cell = cell_c
+         clist%rac = rac
+         clist_sin%catom = katom
+         clist_sin%cell = cell_c
+         clist_sin%rac = rac
+
+         ALLOCATE (clist%acint(nsgfa, nppnl, 1), clist%achint(nsgfa, nppnl, 1))
+         clist%acint = 0.0_dp
+         clist%achint = 0.0_dp
+         clist%nsgf_cnt = 0
+
+         ALLOCATE (clist_sin%acint(nsgfa, nppnl, 1), clist_sin%achint(nsgfa, nppnl, 1))
+         clist_sin%acint = 0.0_dp
+         clist_sin%achint = 0.0_dp
+         clist_sin%nsgf_cnt = 0
+
+         ra(:) = pbc(particle_set(iatom)%r(:), cell)
+         rc(:) = ra + rac
+
+         DO iset = 1, nseta
+            ncoa = npgfa(iset)*ncoset(la_max(iset))
+            sgfa = first_sgfa(1, iset)
+            IF (dogth) THEN
+               prjc = 1
+               work_cos = 0.0_dp
+               work_sin = 0.0_dp
+               DO l = 0, lppnl
+                  nprjc = nprj_ppnl(l)*nco(l)
+                  IF (nprjc == 0) CYCLE
+                  rprjc(1) = ppnl_radius
+                  IF (set_radius_a(iset) + rprjc(1) < dac) CYCLE
+                  lc_max = l + 2*(nprj_ppnl(l) - 1)
+                  lc_min = l
+                  zetc(1) = alpha_ppnl(l)
+                  ncoc = ncoset(lc_max)
+
+                  CALL cossin(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
+                              lc_max, 1, zetc, rprjc, lc_min, ra, rc, kvec, ai_work_cos, ai_work_sin)
+
+                  ! projector functions: Cartesian -> spherical
+                  work_cos(1:ncoa, :prjc + nprjc - 1) = &
+                     MATMUL(ai_work_cos(1:ncoa, 1:ncoc), cprj(1:ncoc, prjc:prjc + nprjc - 1))
+                  work_sin(1:ncoa, :prjc + nprjc - 1) = &
+                     MATMUL(ai_work_sin(1:ncoa, 1:ncoc), cprj(1:ncoc, prjc:prjc + nprjc - 1))
+
+                  prjc = prjc + nprjc
+               ENDDO
+
+               ! contract gto basis set into acint
+               na = nsgf_seta(iset)
+               nb = nppnl
+               np = ncoa
+               clist%acint(sgfa:sgfa + na - 1, 1:nb, 1) = &
+                  MATMUL(TRANSPOSE(sphi_a(1:np, sgfa:sgfa + na - 1)), work_cos(1:np, 1:nb - 1))
+               clist_sin%acint(sgfa:sgfa + na - 1, 1:nb, 1) = &
+                  MATMUL(TRANSPOSE(sphi_a(1:np, sgfa:sgfa + na - 1)), work_sin(1:np, 1:nb - 1))
+
+               ! multiply with interaction matrix h_ij of the nl pp
+               clist%achint(sgfa:sgfa + na - 1, 1:nb, 1) = &
+                  MATMUL(clist%acint(sgfa:sgfa + na - 1, 1:nb, 1), vprj_ppnl(1:nb, 1:nb))
+               clist_sin%achint(sgfa:sgfa + na - 1, 1:nb, 1) = &
+                  MATMUL(clist_sin%acint(sgfa:sgfa + na - 1, 1:nb, 1), vprj_ppnl(1:nb, 1:nb))
+
+            ENDIF
+
+         ENDDO
+         clist%maxac = MAXVAL(ABS(clist%acint(:, :, 1)))
+         clist%maxach = MAXVAL(ABS(clist%achint(:, :, 1)))
+         clist_sin%maxac = MAXVAL(ABS(clist_sin%acint(:, :, 1)))
+         clist_sin%maxach = MAXVAL(ABS(clist_sin%achint(:, :, 1)))
+      ENDDO
+
+      DEALLOCATE (ints, work_cos, work_sin, ai_work_cos, ai_work_sin)
 
       DEALLOCATE (basis_set, gpotential, spotential)
 
