@@ -109,8 +109,8 @@ eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_bazant_silicon"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_lenosky_silicon"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_b"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_l"
-eri_mme_lattice_summation.F: ‘__var_14_matmul.dim[0].lbound’ is used uninitialized in this function [-Wuninitialized]
-eri_mme_lattice_summation.F: ‘__var_14_matmul.dim[0].ubound’ is used uninitialized in this function [-Wuninitialized]
+eri_mme_lattice_summation.F: '__var_14_matmul.dim[0].lbound' is used uninitialized in this function [-Wuninitialized]
+eri_mme_lattice_summation.F: '__var_14_matmul.dim[0].ubound' is used uninitialized in this function [-Wuninitialized]
 et_coupling_proj.F: Routine INFOG2L called with an implicit interface.
 extended_system_init.F: Found WRITE statement with hardcoded unit in "init_barostat_variables"
 farming_methods.F: Found CLOSE statement in procedure "farming_parse_input"
@@ -130,17 +130,6 @@ graph_methods.F: Found WRITE statement with hardcoded unit in "fes_path"
 graph_utils.F: Found WRITE statement with hardcoded unit in "get_val_res"
 graphcon.F: Found GOTO statement in procedure "all_permutations"
 graphcon.F: Found WRITE statement with hardcoded unit in "reorder_graph"
-grid_integrate.F: Routine INTEGRATE_CORE_0 called with an implicit interface.
-grid_integrate.F: Routine INTEGRATE_CORE_1 called with an implicit interface.
-grid_integrate.F: Routine INTEGRATE_CORE_2 called with an implicit interface.
-grid_integrate.F: Routine INTEGRATE_CORE_3 called with an implicit interface.
-grid_integrate.F: Routine INTEGRATE_CORE_4 called with an implicit interface.
-grid_integrate.F: Routine INTEGRATE_CORE_5 called with an implicit interface.
-grid_integrate.F: Routine INTEGRATE_CORE_6 called with an implicit interface.
-grid_integrate.F: Routine INTEGRATE_CORE_7 called with an implicit interface.
-grid_integrate.F: Routine INTEGRATE_CORE_8 called with an implicit interface.
-grid_integrate.F: Routine INTEGRATE_CORE_9 called with an implicit interface.
-grid_integrate.F: Routine INTEGRATE_CORE_DEFAULT called with an implicit interface.
 hfx_compression_methods.F: Found READ with unchecked STAT in "hfx_decompress_cache"
 hfx_energy_potential.F: Found WRITE statement with hardcoded unit in "print_integrals"
 input_enumeration_types.F: Found WRITE statement with hardcoded unit in "enum_i2c"
