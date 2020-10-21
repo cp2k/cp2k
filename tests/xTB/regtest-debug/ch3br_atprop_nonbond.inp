@@ -10,8 +10,7 @@
   &DFT
     &QS
       METHOD xTB
-      EPS_DEFAULT 1.0E-10
-      EPS_PGF_ORB 1.0E-20
+      EPS_DEFAULT 1.0E-12
     &xTB
      DO_EWALD T
      CHECK_ATOMIC_CHARGES OFF
@@ -29,15 +28,15 @@
     &END QS
     &SCF
       SCF_GUESS RESTART
-      EPS_SCF 1.0E-5
-      MAX_SCF 100
+      EPS_SCF 1.0E-7
+      MAX_SCF 50
       &OT
         MINIMIZER DIIS
         PRECONDITIONER FULL_S_INVERSE
       &END
       &OUTER_SCF
-         EPS_SCF 1.0E-5
-         MAX_SCF 900
+         EPS_SCF 1.0E-7
+         MAX_SCF 10
       &END
     &END SCF
   &END DFT
