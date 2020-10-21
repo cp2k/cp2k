@@ -87,7 +87,8 @@ MODULE qs_neighbor_lists
         get_iterator_task, neighbor_list_iterate, neighbor_list_iterator_create, &
         neighbor_list_iterator_p_type, neighbor_list_iterator_release, neighbor_list_p_type, &
         neighbor_list_set_p_type, neighbor_list_set_type, release_neighbor_list_sets
-   USE string_utilities,                ONLY: compress
+   USE string_utilities,                ONLY: compress,&
+                                              uppercase
    USE subcell_types,                   ONLY: allocate_subcell,&
                                               deallocate_subcell,&
                                               give_ijk_subcell,&
@@ -295,15 +296,16 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_qs_neighbor_lists'
 
+      CHARACTER(LEN=2)                                   :: element_symbol, element_symbol2
       CHARACTER(LEN=default_string_length)               :: print_key_path
-      INTEGER                                            :: handle, ikind, iw, maxatom, nkind, &
-                                                            numshells, zat
+      INTEGER                                            :: handle, ikind, ingp, iw, jkind, maxatom, &
+                                                            ngp, nkind, numshells, zat
       LOGICAL :: all_potential_present, almo, dftb, do_hfx, dokp, explicit, gth_potential_present, &
          lri_optbas, lrigpw, mic, molecule_only, nddo, paw_atom, paw_atom_present, rigpw, &
          sgp_potential_present, xtb
       LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, aux_fit_present, aux_present, &
-         core_present, default_present, oce_present, orb_present, ppl_present, ppnl_present, &
-         ri_present, xb1_atom, xb2_atom
+         core_present, default_present, nonbond1_atom, nonbond2_atom, oce_present, orb_present, &
+         ppl_present, ppnl_present, ri_present, xb1_atom, xb2_atom
       REAL(dp)                                           :: almo_rcov, almo_rvdw, rcut, roperator, &
                                                             subcells
       REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_pot_rad, aux_fit_radius, c_radius, calpha, &
@@ -325,8 +327,8 @@ CONTAINS
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: saa_list, sab_all, sab_almo, &
          sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_cn, sab_core, sab_gcp, sab_kp, &
-         sab_lrc, sab_orb, sab_scp, sab_se, sab_tbe, sab_vdw, sab_xb, sac_ae, sac_lri, sac_ppl, &
-         sap_oce, sap_ppnl, soa_list, soo_list
+         sab_lrc, sab_orb, sab_scp, sab_se, sab_tbe, sab_vdw, sab_xb, sab_xtb_nonbond, sac_ae, &
+         sac_lri, sac_ppl, sap_oce, sap_ppnl, soa_list, soo_list
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_atom
@@ -356,6 +358,7 @@ CONTAINS
       NULLIFY (sab_tbe)
       NULLIFY (sab_core)
       NULLIFY (sab_xb)
+      NULLIFY (sab_xtb_nonbond)
       NULLIFY (sab_all)
       NULLIFY (sab_vdw)
       NULLIFY (sab_cn)
@@ -401,6 +404,7 @@ CONTAINS
                       sab_tbe=sab_tbe, &
                       sab_core=sab_core, &
                       sab_xb=sab_xb, &
+                      sab_xtb_nonbond=sab_xtb_nonbond, &
                       sab_scp=sab_scp, &
                       sab_all=sab_all, &
                       sab_almo=sab_almo, &
@@ -801,6 +805,40 @@ CONTAINS
          CALL build_neighbor_lists(sab_xb, particle_set, atom2d, cell, pair_radius, &
                                    symmetric=.FALSE., subcells=subcells, operator_type="PP", nlname="sab_xb")
          CALL set_ks_env(ks_env=ks_env, sab_xb=sab_xb)
+         CALL write_neighbor_lists(sab_xb, particle_set, cell, para_env, neighbor_list_section, &
+                                   "/SAB_XB", "sab_xb", "XB bonding")
+
+         ! nonbonded interactions list
+         IF (dft_control%qs_control%xtb_control%do_nonbonded) THEN
+            ngp = SIZE(dft_control%qs_control%xtb_control%nonbonded%pot)
+            ALLOCATE (nonbond1_atom(nkind), nonbond2_atom(nkind))
+            nonbond1_atom = .FALSE.
+            nonbond2_atom = .FALSE.
+            DO ingp = 1, ngp
+               DO ikind = 1, nkind
+                  rcut = SQRT(dft_control%qs_control%xtb_control%nonbonded%pot(ingp)%pot%rcutsq)
+                  c_radius = rcut
+                  CALL get_atomic_kind(atomic_kind_set(ikind), element_symbol=element_symbol)
+                  CALL uppercase(element_symbol)
+                  IF (TRIM(dft_control%qs_control%xtb_control%nonbonded%pot(ingp)%pot%at1) == TRIM(element_symbol)) THEN
+                     nonbond1_atom(ikind) = .TRUE.
+                     DO jkind = 1, nkind
+                        CALL get_atomic_kind(atomic_kind_set(jkind), element_symbol=element_symbol2)
+                        CALL uppercase(element_symbol2)
+                        IF (TRIM(dft_control%qs_control%xtb_control%nonbonded%pot(ingp)%pot%at2) == TRIM(element_symbol2)) THEN
+                           nonbond2_atom(jkind) = .TRUE.
+                        ENDIF
+                     ENDDO
+                  END IF
+               END DO
+               CALL pair_radius_setup(nonbond1_atom, nonbond2_atom, c_radius, c_radius, pair_radius)
+               CALL build_neighbor_lists(sab_xtb_nonbond, particle_set, atom2d, cell, pair_radius, &
+                                         symmetric=.FALSE., subcells=subcells, operator_type="PP", nlname="sab_xtb_nonbond")
+               CALL set_ks_env(ks_env=ks_env, sab_xtb_nonbond=sab_xtb_nonbond)
+               CALL write_neighbor_lists(sab_xtb_nonbond, particle_set, cell, para_env, neighbor_list_section, &
+                                         "/SAB_XTB_NONBOND", "sab_xtb_nonbond", "XTB NONBONDED INTERACTIONS")
+            END DO
+         ENDIF
       END IF
 
       ! Build the neighbor lists for the vdW pair potential

@@ -16,6 +16,8 @@ MODULE cp_control_types
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
+   USE pair_potential_types,            ONLY: pair_potential_p_release,&
+                                              pair_potential_p_type
    USE qs_cdft_types,                   ONLY: cdft_control_create,&
                                               cdft_control_release,&
                                               cdft_control_type
@@ -113,6 +115,7 @@ MODULE cp_control_types
       REAL(KIND=dp)                        :: kxr, kx2
       !
       LOGICAL                              :: xb_interaction
+      LOGICAL                              :: do_nonbonded
       LOGICAL                              :: coulomb_interaction
       LOGICAL                              :: tb3_interaction
       LOGICAL                              :: check_atomic_charges
@@ -124,6 +127,8 @@ MODULE cp_control_types
       INTEGER, DIMENSION(:, :), POINTER    :: kab_types
       INTEGER                              :: kab_nval
       REAL, DIMENSION(:), POINTER          :: kab_vals
+      !
+      TYPE(pair_potential_p_type), POINTER :: nonbonded
    END TYPE xtb_control_type
 
 ! **************************************************************************************************
@@ -1052,6 +1057,7 @@ CONTAINS
       NULLIFY (xtb_control%kab_param)
       NULLIFY (xtb_control%kab_vals)
       NULLIFY (xtb_control%kab_types)
+      NULLIFY (xtb_control%nonbonded)
 
    END SUBROUTINE xtb_control_create
 
@@ -1071,6 +1077,9 @@ CONTAINS
          END IF
          IF (ASSOCIATED(xtb_control%kab_types)) THEN
             DEALLOCATE (xtb_control%kab_types)
+         END IF
+         IF (ASSOCIATED(xtb_control%nonbonded)) THEN
+            CALL pair_potential_p_release(xtb_control%nonbonded)
          END IF
          DEALLOCATE (xtb_control)
       END IF

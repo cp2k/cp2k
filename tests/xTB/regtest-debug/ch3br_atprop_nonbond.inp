@@ -1,0 +1,82 @@
+&FORCE_EVAL
+  STRESS_TENSOR ANALYTICAL
+  &PROPERTIES
+     &ATOMIC
+        ENERGY 
+        PRESSURE
+     &END ATOMIC
+  &END PROPERTIES
+  METHOD Quickstep
+  &DFT
+    &QS
+      METHOD xTB
+      EPS_DEFAULT 1.0E-10
+      EPS_PGF_ORB 1.0E-20
+    &xTB
+     DO_EWALD T
+     CHECK_ATOMIC_CHARGES OFF
+      DO_NONBONDED T
+        &NONBONDED
+         &GENPOT
+          ATOMS Br Xe
+          FUNCTION Aparam*exp(-Bparam*r)-Cparam/r**8 
+          PARAMETERS Aparam Bparam Cparam 
+          VALUES 49.507 1.441 6703.192
+          VARIABLES r
+         &END GENPOT
+        &END NONBONDED
+    &END XTB
+    &END QS
+    &SCF
+      SCF_GUESS RESTART
+      EPS_SCF 1.0E-5
+      MAX_SCF 100
+      &OT
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_S_INVERSE
+      &END
+      &OUTER_SCF
+         EPS_SCF 1.0E-5
+         MAX_SCF 900
+      &END
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 20 20 20
+    &END CELL
+    &COORD
+      C -0.000001   -1.540826   -0.000000
+      H  1.041396   -1.871752   -0.000000
+      H -0.520681   -1.871772    0.901873
+      H -0.520681   -1.871772   -0.901873
+      Br -0.000001    0.424579    0.000000
+      Xe -0.000000   3.0   -0.000000
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT  CH3Br-Xe
+  PRINT_LEVEL LOW
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NPT_I
+    STEPS 3
+    TIMESTEP 0.48
+    TEMPERATURE 330.0
+    &THERMOSTAT
+      &NOSE
+        LENGTH 3
+        YOSHIDA 3
+        TIMECON [wavenumber_t] 2000
+        MTS 2
+      &END NOSE
+    &END
+    &BAROSTAT
+      PRESSURE 1.0
+      TIMECON 300
+    &END BAROSTAT
+  &END MD
+&END MOTION
