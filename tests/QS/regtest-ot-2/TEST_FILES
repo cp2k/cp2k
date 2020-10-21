@@ -28,10 +28,10 @@ H2O-1.inp                                              1      5e-14             
 # outer scf with FULL_ALL
 H2O.inp                                                1      4e-13             -17.16150637179184
 # different parallel distributions
-H2O-dist-1.inp                                         1      7e-14             -34.28553811389267
-H2O-dist-2.inp                                         1      7e-14             -34.28553811389267
-H2O-dist-3.inp                                         1      7e-14             -34.28553811389267
-H2O-dist-4.inp                                         1      7e-14             -34.28553811389267
+H2O-dist-1.inp                                         1      8e-14             -34.28553811389267
+H2O-dist-2.inp                                         1      8e-14             -34.28553811389267
+H2O-dist-3.inp                                         1      8e-14             -34.28553811389267
+H2O-dist-4.inp                                         1      8e-14             -34.28553811389267
 H2O-dist-8.inp                                         1      9e-14             -33.47012389900991
 H2_trip.inp                                            1      2e-12              -0.71619563505473
 C-sic-1.inp                                            1      5e-13              -5.25260234791279

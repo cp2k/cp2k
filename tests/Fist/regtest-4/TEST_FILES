@@ -21,8 +21,8 @@ H2O-restraint.inp                                      2    1.0E-14             
 ethene-restraint.inp                                   2      1e-10         0.00081393113312400005
 ethene-restraint2.inp                                  2      1e-10             0.813931133125E-03
 #next two are a double crossed check
-ethene-no-restraint.inp                                2      4e-12         0.00080042617086399995
-ethene-ck-restraint.inp                                2      4e-12         0.00080042617086399995
+ethene-no-restraint.inp                                2      7e-12         0.00080042617086399995
+ethene-ck-restraint.inp                                2      7e-12         0.00080042617086399995
 #restraint 3x3
 H2O-restraint_3x3.inp                                  2      3e-12             0.769155421056E-03
 #restraint 4x6
