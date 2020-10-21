@@ -23,6 +23,8 @@
           VALUES 49.507 1.441 6703.192
           VARIABLES r
          &END GENPOT
+         DX 0.0001
+         ERROR_LIMIT 0.0000001
         &END NONBONDED
     &END XTB
     &END QS
