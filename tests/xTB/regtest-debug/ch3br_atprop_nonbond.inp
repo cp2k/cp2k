@@ -10,7 +10,12 @@
   &DFT
     &QS
       METHOD xTB
+<<<<<<< HEAD
       EPS_DEFAULT 1.0E-12
+=======
+      EPS_DEFAULT 1.0E-10
+      EPS_PGF_ORB 1.0E-20
+>>>>>>> 02971f418... xTB pairpotential (A. Hehn)
     &xTB
      DO_EWALD T
      CHECK_ATOMIC_CHARGES OFF
@@ -23,28 +28,45 @@
           VALUES 49.507 1.441 6703.192
           VARIABLES r
          &END GENPOT
+<<<<<<< HEAD
          DX 0.0001
          ERROR_LIMIT 0.0000001
+=======
+>>>>>>> 02971f418... xTB pairpotential (A. Hehn)
         &END NONBONDED
     &END XTB
     &END QS
     &SCF
       SCF_GUESS RESTART
+<<<<<<< HEAD
       EPS_SCF 1.0E-8
       MAX_SCF 50
+=======
+      EPS_SCF 1.0E-5
+      MAX_SCF 100
+>>>>>>> 02971f418... xTB pairpotential (A. Hehn)
       &OT
         MINIMIZER DIIS
         PRECONDITIONER FULL_S_INVERSE
       &END
       &OUTER_SCF
+<<<<<<< HEAD
          EPS_SCF 1.0E-8
          MAX_SCF 10
+=======
+         EPS_SCF 1.0E-5
+         MAX_SCF 900
+>>>>>>> 02971f418... xTB pairpotential (A. Hehn)
       &END
     &END SCF
   &END DFT
   &SUBSYS
     &CELL
+<<<<<<< HEAD
       ABC 20.0 20.0 20.0
+=======
+      ABC 20 20 20
+>>>>>>> 02971f418... xTB pairpotential (A. Hehn)
     &END CELL
     &COORD
       C -0.000001   -1.540826   -0.000000
@@ -63,9 +85,28 @@
 &END GLOBAL
 &MOTION
   &MD
+<<<<<<< HEAD
     ENSEMBLE NVE
     STEPS 3
     TIMESTEP 0.48
     TEMPERATURE 330.0
+=======
+    ENSEMBLE NPT_I
+    STEPS 3
+    TIMESTEP 0.48
+    TEMPERATURE 330.0
+    &THERMOSTAT
+      &NOSE
+        LENGTH 3
+        YOSHIDA 3
+        TIMECON [wavenumber_t] 2000
+        MTS 2
+      &END NOSE
+    &END
+    &BAROSTAT
+      PRESSURE 1.0
+      TIMECON 300
+    &END BAROSTAT
+>>>>>>> 02971f418... xTB pairpotential (A. Hehn)
   &END MD
 &END MOTION
