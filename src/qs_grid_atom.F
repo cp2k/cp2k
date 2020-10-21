@@ -248,7 +248,6 @@ CONTAINS
                END IF
                grid_atom%cos_azi(ia) = COS(grid_atom%azi(ia))
                pol = ACOS(cosia)
-               IF (grid_atom%sin_pol(ia) < 0.0_dp) pol = -pol
                grid_atom%pol(ia) = pol
                grid_atom%sin_pol(ia) = SIN(grid_atom%pol(ia))
 

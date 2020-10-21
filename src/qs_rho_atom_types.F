@@ -34,7 +34,7 @@ MODULE qs_rho_atom_types
       TYPE(rho_atom_coeff), DIMENSION(:, :), &
          POINTER  :: rho_rad_h_d, &
                      rho_rad_s_d
-      TYPE(rho_atom_coeff), DIMENSION(:, :), &
+      TYPE(rho_atom_coeff), DIMENSION(:, :, :), &
          POINTER  :: trho_rad_h, &
                      trho_rad_s
 
@@ -105,7 +105,7 @@ CONTAINS
 
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
 
-      INTEGER                                            :: i, iat, j, n, natom
+      INTEGER                                            :: dir, i, iat, j, n, natom
 
       IF (ASSOCIATED(rho_atom_set)) THEN
 
@@ -194,24 +194,28 @@ CONTAINS
             ENDIF
 
             IF (ASSOCIATED(rho_atom_set(iat)%trho_rad_h)) THEN
-               IF (ASSOCIATED(rho_atom_set(iat)%trho_rad_h(1, 1)%r_coef)) THEN
-                  n = SIZE(rho_atom_set(iat)%trho_rad_h, 2)
+               IF (ASSOCIATED(rho_atom_set(iat)%trho_rad_h(1, 1, 1)%r_coef)) THEN
+                  n = SIZE(rho_atom_set(iat)%trho_rad_h, 3)
                   DO i = 1, n
-                     DEALLOCATE (rho_atom_set(iat)%trho_rad_h(1, i)%r_coef)
-                     DEALLOCATE (rho_atom_set(iat)%trho_rad_h(2, i)%r_coef)
-                     DEALLOCATE (rho_atom_set(iat)%trho_rad_h(3, i)%r_coef)
+                     DO dir = 1, 3
+                        DEALLOCATE (rho_atom_set(iat)%trho_rad_h(1, dir, i)%r_coef)
+                        DEALLOCATE (rho_atom_set(iat)%trho_rad_h(2, dir, i)%r_coef)
+                        DEALLOCATE (rho_atom_set(iat)%trho_rad_h(3, dir, i)%r_coef)
+                     ENDDO
                   ENDDO
                ENDIF
                DEALLOCATE (rho_atom_set(iat)%trho_rad_h)
             ENDIF
 
             IF (ASSOCIATED(rho_atom_set(iat)%trho_rad_s)) THEN
-               IF (ASSOCIATED(rho_atom_set(iat)%trho_rad_s(1, 1)%r_coef)) THEN
-                  n = SIZE(rho_atom_set(iat)%trho_rad_s, 2)
+               IF (ASSOCIATED(rho_atom_set(iat)%trho_rad_s(1, 1, 1)%r_coef)) THEN
+                  n = SIZE(rho_atom_set(iat)%trho_rad_s, 3)
                   DO i = 1, n
-                     DEALLOCATE (rho_atom_set(iat)%trho_rad_s(1, i)%r_coef)
-                     DEALLOCATE (rho_atom_set(iat)%trho_rad_s(2, i)%r_coef)
-                     DEALLOCATE (rho_atom_set(iat)%trho_rad_s(3, i)%r_coef)
+                     DO dir = 1, 3
+                        DEALLOCATE (rho_atom_set(iat)%trho_rad_s(1, dir, i)%r_coef)
+                        DEALLOCATE (rho_atom_set(iat)%trho_rad_s(2, dir, i)%r_coef)
+                        DEALLOCATE (rho_atom_set(iat)%trho_rad_s(3, dir, i)%r_coef)
+                     ENDDO
                   ENDDO
                ENDIF
                DEALLOCATE (rho_atom_set(iat)%trho_rad_s)
@@ -260,8 +264,9 @@ CONTAINS
                                                             drho_rad_h, drho_rad_s, vrho_rad_h, &
                                                             vrho_rad_s
       TYPE(rho_atom_coeff), DIMENSION(:, :), OPTIONAL, &
-         POINTER                                         :: rho_rad_h_d, rho_rad_s_d, trho_rad_h, &
-                                                            trho_rad_s
+         POINTER                                         :: rho_rad_h_d, rho_rad_s_d
+      TYPE(rho_atom_coeff), DIMENSION(:, :, :), &
+         OPTIONAL, POINTER                               :: trho_rad_h, trho_rad_s
       TYPE(rho_atom_coeff), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ga_Vlocal_gb_h, ga_Vlocal_gb_s
 
