@@ -16,7 +16,7 @@ multipole_charge_quadrupole.inp                       11    1.0E-14             
 multipole_dipole.inp                                  11    1.0E-14             -0.010818588952921
 multipole_dipole_quadrupole.inp                       11    1.0E-14             -0.002019442612467
 multipole_quadrupole.inp                              11    1.0E-14             -0.001005395772078
-multipole_zero.inp                                    11    1.0E-14               0.11389003560341
+multipole_zero.inp                                    11    2.0E-14               0.11389003560341
 # @INCLUDE regtest
 deca_ala_include.inp                                   2    1.0E-14            -1.0361509045299999
 # multipoles forces

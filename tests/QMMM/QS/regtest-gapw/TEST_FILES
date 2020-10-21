@@ -6,6 +6,6 @@
 # QM/MM
 C11H24-qmmmgapwall-gauss-0.inp                         1      2e-13            -156.88271046728136
 C11H24-qmmmgapw-gauss-0.inp                            7      7e-12            -28.042197352500001
-H2O-qmmm-gapw-fdbg.inp                                 1      7e-14             -16.93909155475008
+H2O-qmmm-gapw-fdbg.inp                                 1      1e-13             -16.93909155475008
 H2O-qmmm-hfx.inp                                       2      1e-11                 -17.6043379384
 #EOF

@@ -1,10 +1,10 @@
 # runs are executed in the same order as in this file
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
-base1.inp                                             1    1.0E-12              -4.08611632954554
-base2.inp                                             1    1.0E-12              -4.08611630192434
-base3.inp                                             1    1.0E-12              -4.08519715577319
-str1.inp                                              1    1.0E-12              -4.08612900850098
-str2.inp                                              1    1.0E-12             -32.67544573650541
-str3.inp                                              1    1.0E-12              -4.08521550626912
+base1.inp                                             1      5e-12              -4.08611632954554
+base2.inp                                             1      5e-12              -4.08611630192434
+base3.inp                                             1      5e-12              -4.08519715577319
+str1.inp                                              1      5e-12              -4.08612900850098
+str2.inp                                              1      5e-12             -32.67544573650541
+str3.inp                                              1      5e-12              -4.08521550626912
 #EOF
