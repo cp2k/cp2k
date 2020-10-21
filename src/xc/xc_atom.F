@@ -291,16 +291,23 @@ CONTAINS
             END IF ! lsd
 !  Derivative with respect to tau
             IF (lsd) THEN
-               deriv_att => xc_dset_get_derivative(deriv_set, "(taua)")
+               deriv_att => xc_dset_get_derivative(deriv_set, "(tau_a)")
                IF (ASSOCIATED(deriv_att)) THEN
                   CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
                   vtau(:, :, 1) = deriv_data(:, :, 1)*w(:, :)*my_adiabatic_rescale_factor
                   NULLIFY (deriv_data)
                END IF
-               deriv_att => xc_dset_get_derivative(deriv_set, "(taub)")
+               deriv_att => xc_dset_get_derivative(deriv_set, "(tau_b)")
                IF (ASSOCIATED(deriv_att)) THEN
                   CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
                   vtau(:, :, 2) = deriv_data(:, :, 1)*w(:, :)*my_adiabatic_rescale_factor
+                  NULLIFY (deriv_data)
+               END IF
+               deriv_att => xc_dset_get_derivative(deriv_set, "(tau)")
+               IF (ASSOCIATED(deriv_att)) THEN
+                  CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
+                  vtau(:, :, 1) = vtau(:, :, 1) + deriv_data(:, :, 1)*w(:, :)*my_adiabatic_rescale_factor
+                  vtau(:, :, 2) = vtau(:, :, 2) + deriv_data(:, :, 1)*w(:, :)*my_adiabatic_rescale_factor
                   NULLIFY (deriv_data)
                END IF
             ELSE
