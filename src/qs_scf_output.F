@@ -372,6 +372,12 @@ CONTAINS
                "Electronic energy:                             ", energy%hartree, &
                "DFTB3 3rd order energy:                        ", energy%dftb3, &
                "Dispersion energy:                             ", energy%dispersion
+            IF (dft_control%qs_control%xtb_control%xb_interaction) &
+               WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
+               "Correction for halogen bonding:                ", energy%xtb_xb_inter
+            IF (dft_control%qs_control%xtb_control%do_nonbonded) &
+               WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
+               "Correction for nonbonded interactions:         ", energy%xtb_nonbonded
             IF (energy%efield /= 0.0_dp) &
                WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
                "Electric field interaction energy:          ", energy%efield

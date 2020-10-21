@@ -1141,6 +1141,15 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, &
+                          name="sab_xtb_nonbond", &
+                          description="Activates the printing of nonbonded interaction from (xTB) "// &
+                          "neighbor lists ", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="soo_list", &
                           description="Activates the printing of RI orbital-orbital "// &
                           "neighbor lists ", &

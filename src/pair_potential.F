@@ -62,7 +62,8 @@ MODULE pair_potential
    INTEGER, PARAMETER, PRIVATE          :: MAX_POINTS = 2000000
 
    PUBLIC :: spline_nonbond_control, &
-             get_nonbond_storage
+             get_nonbond_storage, &
+             init_genpot
 
 CONTAINS
 

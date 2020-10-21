@@ -70,7 +70,9 @@ MODULE qs_energy_types
                        kinetic, & !total kinetic energy [rk]
                        s_square, &
                        surf_dipole, &
-                       embed_corr ! correction for embedding potential
+                       embed_corr, & ! correction for embedding potential
+                       xtb_xb_inter, & ! correction for halogen bonding within GFN1-xTB
+                       xtb_nonbonded ! correction for nonbonded interactions within GFN1-xTB
       REAL(KIND=dp), DIMENSION(:), POINTER :: ddapc_restraint
    END TYPE qs_energy_type
 

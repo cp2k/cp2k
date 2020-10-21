@@ -364,6 +364,7 @@ CONTAINS
 !> \param sab_tbe ...
 !> \param sab_core ...
 !> \param sab_xb ...
+!> \param sab_xtb_nonbond ...
 !> \param sab_almo ...
 !> \param sab_kp ...
 !> \param particle_set ...
@@ -506,7 +507,7 @@ CONTAINS
    SUBROUTINE get_qs_env(qs_env, atomic_kind_set, qs_kind_set, cell, super_cell, cell_ref, use_ref_cell, kpoints, &
                          dft_control, mos, mos_aux_fit, sab_orb, sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, &
                          sab_all, qmmm, qmmm_periodic, sac_ae, sac_ppl, sac_lri, sap_ppnl, sab_vdw, sab_scp, sap_oce, sab_lrc, &
-                         sab_se, sab_tbe, sab_core, sab_xb, sab_almo, sab_kp, particle_set, energy, force, &
+                         sab_se, sab_tbe, sab_core, sab_xb, sab_xtb_nonbond, sab_almo, sab_kp, particle_set, energy, force, &
                          matrix_h, matrix_ks, matrix_ks_im, matrix_vxc, run_rtp, rtp, &
                          matrix_h_kp, matrix_ks_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, matrix_w_kp, matrix_s_RI_aux_kp, &
                          matrix_ks_aux_fit, matrix_ks_aux_fit_im, matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, &
@@ -547,7 +548,7 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: qmmm, qmmm_periodic
       TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sac_ae, sac_ppl, sac_lri, &
          sap_ppnl, sab_vdw, sab_scp, sap_oce, sab_lrc, sab_se, sab_tbe, sab_core, sab_xb, &
-         sab_almo, sab_kp
+         sab_xtb_nonbond, sab_almo, sab_kp
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particle_set
       TYPE(qs_energy_type), OPTIONAL, POINTER            :: energy
@@ -830,6 +831,7 @@ CONTAINS
                       sab_tbe=sab_tbe, &
                       sab_core=sab_core, &
                       sab_xb=sab_xb, &
+                      sab_xtb_nonbond=sab_xtb_nonbond, &
                       sab_almo=sab_almo, &
                       sab_kp=sab_kp, &
                       task_list=task_list, &

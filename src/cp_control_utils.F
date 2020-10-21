@@ -26,6 +26,7 @@ MODULE cp_control_utils
                                               cp_print_key_unit_nr
    USE cp_units,                        ONLY: cp_unit_from_cp2k,&
                                               cp_unit_to_cp2k
+   USE force_fields_input,              ONLY: read_gp_section
    USE input_constants,                 ONLY: &
         constant_env, custom_env, do_admm_basis_projection, do_admm_blocked_projection, &
         do_admm_blocking_purify_full, do_admm_charge_constrained_projection, &
@@ -54,6 +55,7 @@ MODULE cp_control_utils
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
+   USE pair_potential_types,            ONLY: pair_potential_reallocate
    USE periodic_table,                  ONLY: get_ptable_info
    USE qs_cdft_utils,                   ONLY: read_cdft_control_section
    USE string_utilities,                ONLY: uppercase
@@ -613,21 +615,21 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: clist
       INTEGER                                            :: handle, itmp, j, jj, k, n_rep, n_var, &
-                                                            ngauss, nrep
+                                                            ngauss, ngp, nrep
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL                                            :: explicit, was_present
       REAL(dp)                                           :: tmp, tmpsqrt, value
       REAL(dp), POINTER                                  :: scal(:)
       TYPE(section_vals_type), POINTER :: cdft_control_section, ddapc_restraint_section, &
-         dftb_parameter, dftb_section, lri_optbas_section, mull_section, s2_restraint_section, &
-         se_section, xtb_parameter, xtb_section
+         dftb_parameter, dftb_section, genpot_section, lri_optbas_section, mull_section, &
+         nonbonded_section, s2_restraint_section, se_section, xtb_parameter, xtb_section
 
       CALL timeset(routineN, handle)
 
       was_present = .FALSE.
       NULLIFY (mull_section, ddapc_restraint_section, s2_restraint_section, &
                se_section, dftb_section, xtb_section, dftb_parameter, xtb_parameter, lri_optbas_section, &
-               cdft_control_section)
+               cdft_control_section, genpot_section)
 
       mull_section => section_vals_get_subs_vals(qs_section, "MULLIKEN_RESTRAINT")
       ddapc_restraint_section => section_vals_get_subs_vals(qs_section, "DDAPC_RESTRAINT")
@@ -639,6 +641,8 @@ CONTAINS
       xtb_parameter => section_vals_get_subs_vals(xtb_section, "PARAMETER")
       lri_optbas_section => section_vals_get_subs_vals(qs_section, "OPTIMIZE_LRI_BASIS")
       cdft_control_section => section_vals_get_subs_vals(qs_section, "CDFT")
+      nonbonded_section => section_vals_get_subs_vals(xtb_section, "NONBONDED")
+      genpot_section => section_vals_get_subs_vals(nonbonded_section, "GENPOT")
 
       ! Setup all defaults values and overwrite input parameters
       ! EPS_DEFAULT should set the target accuracy in the total energy (~per electron) or a closely related value
@@ -1106,6 +1110,18 @@ CONTAINS
          CALL section_vals_val_get(xtb_parameter, "HALOGEN_BINDING", r_vals=scal)
          qs_control%xtb_control%kxr = scal(1)
          qs_control%xtb_control%kx2 = scal(2)
+         ! NONBONDED interactions
+         CALL section_vals_val_get(xtb_section, "DO_NONBONDED", &
+                                   l_val=qs_control%xtb_control%do_nonbonded)
+         CALL section_vals_get(nonbonded_section, explicit=explicit)
+         IF (explicit .AND. qs_control%xtb_control%do_nonbonded) THEN
+            CALL section_vals_get(genpot_section, explicit=explicit, n_repetition=ngp)
+            IF (explicit) THEN
+               CALL pair_potential_reallocate(qs_control%xtb_control%nonbonded, 1, ngp, gp=.TRUE.)
+               CALL read_gp_section(qs_control%xtb_control%nonbonded, genpot_section, 0)
+            END IF
+         END IF !nonbonded
+
          ! XB_radius
          CALL section_vals_val_get(xtb_parameter, "XB_RADIUS", r_val=qs_control%xtb_control%xb_radius)
          ! Kab
@@ -1557,6 +1573,8 @@ CONTAINS
             "xTB| Halogen interaction potential", xtb_control%xb_interaction
          WRITE (UNIT=output_unit, FMT="(T2,A,T71,F10.3)") &
             "xTB| Halogen interaction potential cutoff radius", xtb_control%xb_radius
+         WRITE (UNIT=output_unit, FMT="(T2,A,T71,L10)") &
+            "xTB| Nonbonded interactions", xtb_control%do_nonbonded
          WRITE (UNIT=output_unit, FMT="(T2,A,T31,A50)") &
             "xTB| D3 Dispersion: Parameter file", ADJUSTR(TRIM(xtb_control%dispersion_parameter_file))
          WRITE (UNIT=output_unit, FMT="(T2,A,T51,3F10.3)") &

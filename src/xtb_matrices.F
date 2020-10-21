@@ -32,7 +32,8 @@ MODULE xtb_matrices
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
-                                              cp_logger_type
+                                              cp_logger_type,&
+                                              cp_to_string
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
@@ -42,16 +43,31 @@ MODULE xtb_matrices
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_dot, dbcsr_finalize, dbcsr_get_block_p, &
         dbcsr_multiply, dbcsr_p_type, dbcsr_type
    USE efield_tb_methods,               ONLY: efield_tb_matrix
+   USE ewald_environment_types,         ONLY: ewald_env_get,&
+                                              ewald_environment_type
+   USE fparser,                         ONLY: evalfd,&
+                                              finalizef
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
    USE message_passing,                 ONLY: mp_minloc,&
                                               mp_sum
    USE mulliken,                        ONLY: ao_charges
    USE orbital_pointers,                ONLY: ncoset
+   USE pair_potential,                  ONLY: init_genpot
+   USE pair_potential_types,            ONLY: not_initialized,&
+                                              pair_potential_p_type,&
+                                              pair_potential_pp_create,&
+                                              pair_potential_pp_release,&
+                                              pair_potential_pp_type,&
+                                              pair_potential_single_clean,&
+                                              pair_potential_single_copy,&
+                                              pair_potential_single_type
+   USE pair_potential_util,             ONLY: ener_pot
    USE particle_types,                  ONLY: particle_type
    USE qs_charge_mixing,                ONLY: charge_mixing
    USE qs_condnum,                      ONLY: overlap_condnum
@@ -83,6 +99,8 @@ MODULE xtb_matrices
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_scf_types,                    ONLY: qs_scf_env_type
+   USE string_utilities,                ONLY: compress,&
+                                              uppercase
    USE virial_methods,                  ONLY: virial_pair_force
    USE virial_types,                    ONLY: virial_type
    USE xtb_coulomb,                     ONLY: build_xtb_coulomb
@@ -132,14 +150,13 @@ CONTAINS
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: defined, diagblock, floating_a, found, &
-                                                            ghost_a, norml1, norml2, omit_headers, &
-                                                            use_arnoldi, use_virial, xb_inter
+      LOGICAL :: defined, diagblock, do_nonbonded, floating_a, found, ghost_a, norml1, norml2, &
+         omit_headers, use_arnoldi, use_virial, xb_inter
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: floating, ghost
-      REAL(KIND=dp) :: alphaa, alphab, derepij, dfp, dhij, dr, drk, drx, ena, enb, erep, erepij, &
-         etaa, etab, exb, f0, f1, fen, fhua, fhub, fhud, foab, hij, k2sh, kab, kcnd, kcnp, kcns, &
-         kd, ken, kf, kg, kia, kjb, kp, ks, ksp, kx2, kxr, rcova, rcovab, rcovb, rrab, zneffa, &
-         zneffb
+      REAL(KIND=dp) :: alphaa, alphab, derepij, dfp, dhij, dr, drk, drx, ena, enb, enonbonded, &
+         erep, erepij, etaa, etab, exb, f0, f1, fen, fhua, fhub, fhud, foab, hij, k2sh, kab, kcnd, &
+         kcnp, kcns, kd, ken, kf, kg, kia, kjb, kp, ks, ksp, kx2, kxr, rcova, rcovab, rcovb, rrab, &
+         zneffa, zneffb
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cnumbers, kx
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dfblock, huckel, kcnlk, owork, rcab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: oint, sint
@@ -168,7 +185,7 @@ CONTAINS
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb, sab_xb
+         POINTER                                         :: sab_orb, sab_xb, sab_xtb_nonbond
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -179,6 +196,8 @@ CONTAINS
       TYPE(virial_type), POINTER                         :: virial
       TYPE(xtb_atom_type), POINTER                       :: xtb_atom_a, xtb_atom_b
       TYPE(xtb_control_type), POINTER                    :: xtb_control
+
+!, na1
 
       CALL timeset(routineN, handle)
 
@@ -202,11 +221,15 @@ CONTAINS
       nkind = SIZE(atomic_kind_set)
       xtb_control => dft_control%qs_control%xtb_control
       xb_inter = xtb_control%xb_interaction
+      do_nonbonded = xtb_control%do_nonbonded
       nimg = dft_control%nimages
       nderivatives = 0
       IF (calculate_forces) nderivatives = 1
       IF (dft_control%tddfpt2_control%enabled) nderivatives = 1
       maxder = ncoset(nderivatives)
+
+      IF (xb_inter) energy%xtb_xb_inter = 0.0_dp
+      IF (do_nonbonded) energy%xtb_nonbonded = 0.0_dp
 
       ! global parameters (Table 2 from Ref.)
       ks = xtb_control%ks
@@ -842,8 +865,19 @@ CONTAINS
          CALL xb_interaction(exb, neighbor_atoms, atom_of_kind, kind_of, sab_xb, kx, kx2, rcab, &
                              calculate_forces, use_virial, force, virial, atprop)
       END IF
+
+      enonbonded = 0.0_dp
+      IF (do_nonbonded) THEN
+         ! nonbonded interactions
+         NULLIFY (sab_xtb_nonbond)
+         CALL get_qs_env(qs_env=qs_env, sab_xtb_nonbond=sab_xtb_nonbond)
+         CALL nonbonded_correction(enonbonded, force, qs_env, xtb_control, sab_xtb_nonbond, &
+                                   atomic_kind_set, calculate_forces, use_virial, virial, atprop, atom_of_kind)
+      ENDIF
       ! set repulsive energy
-      erep = erep + exb
+      erep = erep + exb + enonbonded
+      IF (xb_inter) energy%xtb_xb_inter = exb
+      IF (do_nonbonded) energy%xtb_nonbonded = enonbonded
       CALL mp_sum(erep, para_env%group)
       energy%repulsive = erep
 
@@ -1148,6 +1182,12 @@ CONTAINS
             "Zeroth order Hamiltonian energy:               ", energy%core, &
             "Charge fluctuation energy:                     ", energy%hartree, &
             "London dispersion energy:                      ", energy%dispersion
+         IF (dft_control%qs_control%xtb_control%xb_interaction) &
+            WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
+            "Correction for halogen bonding:                ", energy%xtb_xb_inter
+         IF (dft_control%qs_control%xtb_control%do_nonbonded) &
+            WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
+            "Correction for nonbonded interactions:         ", energy%xtb_nonbonded
          IF (ABS(energy%efield) > 1.e-12_dp) THEN
             WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
                "Electric field interaction energy:             ", energy%efield
@@ -1227,6 +1267,233 @@ CONTAINS
       END DO
 
    END SUBROUTINE xb_neighbors
+! **************************************************************************************************
+!> \brief  Computes a correction for nonbonded interactions based on a generic potential
+!>
+!> \param enonbonded energy contribution
+!> \param force ...
+!> \param qs_env ...
+!> \param xtb_control ...
+!> \param sab_xtb_nonbond ...
+!> \param atomic_kind_set ...
+!> \param calculate_forces ...
+!> \param use_virial ...
+!> \param virial ...
+!> \param atprop ...
+!> \param atom_of_kind ..
+!> \par History
+!>      12.2018 JGH
+!> \version 1.1
+! **************************************************************************************************
+   SUBROUTINE nonbonded_correction(enonbonded, force, qs_env, xtb_control, sab_xtb_nonbond, &
+                                   atomic_kind_set, calculate_forces, use_virial, virial, atprop, atom_of_kind)
+      REAL(dp), INTENT(INOUT)                            :: enonbonded
+      TYPE(qs_force_type), DIMENSION(:), INTENT(INOUT), &
+         POINTER                                         :: force
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(xtb_control_type), POINTER                    :: xtb_control
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         INTENT(IN), POINTER                             :: sab_xtb_nonbond
+      TYPE(atomic_kind_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: atomic_kind_set
+      LOGICAL, INTENT(IN)                                :: calculate_forces, use_virial
+      TYPE(virial_type), INTENT(IN), POINTER             :: virial
+      TYPE(atprop_type), INTENT(IN), POINTER             :: atprop
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: atom_of_kind
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'nonbonded_correction'
+
+      CHARACTER(LEN=default_string_length)               :: def_error, this_error
+      INTEGER                                            :: atom_i, atom_j, handle, iatom, ikind, &
+                                                            jatom, jkind, kk, ntype
+      INTEGER, DIMENSION(3)                              :: cell
+      LOGICAL                                            :: do_ewald
+      REAL(KIND=dp)                                      :: dedf, dr, dx, energy_cutoff, err, lerr, &
+                                                            rcut
+      REAL(KIND=dp), DIMENSION(3)                        :: fij, rij
+      TYPE(ewald_environment_type), POINTER              :: ewald_env
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: nl_iterator
+      TYPE(pair_potential_p_type), POINTER               :: nonbonded
+      TYPE(pair_potential_pp_type), POINTER              :: potparm
+      TYPE(pair_potential_single_type), POINTER          :: pot
+      TYPE(section_vals_type), POINTER                   :: nonbonded_section
+
+!
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (nonbonded)
+      NULLIFY (potparm)
+      NULLIFY (ewald_env)
+      nonbonded => xtb_control%nonbonded
+      do_ewald = xtb_control%do_ewald
+      CALL get_qs_env(qs_env=qs_env, ewald_env=ewald_env)
+
+      ntype = SIZE(atomic_kind_set)
+      CALL pair_potential_pp_create(potparm, ntype)
+      !Assign input and potential info to potparm_nonbond
+      CALL force_field_pack_nonbond_pot_correction(atomic_kind_set, nonbonded, potparm, ewald_env, do_ewald)
+      !Initialize genetic potential
+      CALL init_genpot(potparm, ntype)
+
+      NULLIFY (pot)
+      enonbonded = 0._dp
+      energy_cutoff = 0._dp
+
+      CALL neighbor_list_iterator_create(nl_iterator, sab_xtb_nonbond)
+      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
+                                iatom=iatom, jatom=jatom, r=rij, cell=cell)
+         pot => potparm%pot(ikind, jkind)%pot
+         dr = SQRT(rij(1)**2 + rij(2)**2 + rij(3)**2)
+         rcut = SQRT(pot%rcutsq)
+         IF (dr <= rcut) THEN
+! splines not implemented
+            enonbonded = enonbonded + ener_pot(pot, dr, energy_cutoff)
+            IF (atprop%energy) THEN
+               atprop%atecc(iatom) = atprop%atecc(iatom) + 0.5_dp*ener_pot(pot, dr, energy_cutoff)
+               atprop%atecc(jatom) = atprop%atecc(jatom) + 0.5_dp*ener_pot(pot, dr, energy_cutoff)
+            END IF
+         ENDIF
+
+         IF (calculate_forces) THEN
+
+            kk = SIZE(pot%type)
+            IF (kk /= 1) THEN
+               CALL cp_warn(__LOCATION__, "Generic potential with type > 1 not implemented.")
+               CPABORT("pot type")
+            ENDIF
+! rmin and rmax and rcut
+            IF ((pot%set(kk)%rmin /= not_initialized) .AND. (dr < pot%set(kk)%rmin)) CYCLE
+            ! An upper boundary for the potential definition was defined
+            IF ((pot%set(kk)%rmax /= not_initialized) .AND. (dr >= pot%set(kk)%rmax)) CYCLE
+            ! If within limits let's compute the potential...
+            IF (dr <= rcut) THEN
+
+               NULLIFY (nonbonded_section)
+               nonbonded_section => section_vals_get_subs_vals(qs_env%input, "DFT%QS%xTB%NONBONDED")
+               CALL section_vals_val_get(nonbonded_section, "DX", r_val=dx)
+               CALL section_vals_val_get(nonbonded_section, "ERROR_LIMIT", r_val=lerr)
+
+               dedf = evalfd(pot%set(kk)%gp%myid, 1, pot%set(kk)%gp%values, dx, err)
+               IF (ABS(err) > lerr) THEN
+                  WRITE (this_error, "(A,G12.6,A)") "(", err, ")"
+                  WRITE (def_error, "(A,G12.6,A)") "(", lerr, ")"
+                  CALL compress(this_error, .TRUE.)
+                  CALL compress(def_error, .TRUE.)
+                  CALL cp_warn(__LOCATION__, &
+                               'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)// &
+                               ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'// &
+                               TRIM(def_error)//' .')
+               END IF
+!
+               atom_i = atom_of_kind(iatom)
+               atom_j = atom_of_kind(jatom)
+!
+               fij(1:3) = dedf*rij(1:3)/pot%set(kk)%gp%values(1)
+
+               force(ikind)%repulsive(:, atom_i) = force(ikind)%repulsive(:, atom_i) - fij(:)
+               force(jkind)%repulsive(:, atom_j) = force(jkind)%repulsive(:, atom_j) + fij(:)
+
+               IF (use_virial) THEN
+                  CALL virial_pair_force(virial%pv_virial, -1._dp, fij, rij)
+                  IF (atprop%stress) THEN
+                     CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fij, rij)
+                     CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp, fij, rij)
+                  END IF
+               END IF
+
+            END IF
+         END IF
+         NULLIFY (pot)
+      END DO
+      CALL neighbor_list_iterator_release(nl_iterator)
+      CALL finalizef()
+
+      IF (ASSOCIATED(potparm)) THEN
+         CALL pair_potential_pp_release(potparm)
+      ENDIF
+
+      CALL timestop(handle)
+!
+   END SUBROUTINE nonbonded_correction
+! **************************************************************************************************
+!> \brief ...
+!> \param atomic_kind_set ...
+!> \param nonbonded ...
+!> \param potparm ...
+!> \param ewald_env ...
+!> \param do_ewald ...
+! **************************************************************************************************
+   SUBROUTINE force_field_pack_nonbond_pot_correction(atomic_kind_set, nonbonded, potparm, ewald_env, do_ewald)
+
+! routine based on force_field_pack_nonbond
+      TYPE(atomic_kind_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: atomic_kind_set
+      TYPE(pair_potential_p_type), INTENT(IN), POINTER   :: nonbonded
+      TYPE(pair_potential_pp_type), INTENT(INOUT), &
+         POINTER                                         :: potparm
+      TYPE(ewald_environment_type), INTENT(IN), POINTER  :: ewald_env
+      LOGICAL, INTENT(IN)                                :: do_ewald
+
+      CHARACTER(LEN=default_string_length)               :: name_atm_a, name_atm_a_local, &
+                                                            name_atm_b, name_atm_b_local
+      INTEGER                                            :: ikind, ingp, iw, jkind
+      LOGICAL                                            :: found
+      REAL(KIND=dp)                                      :: ewald_rcut
+      TYPE(atomic_kind_type), POINTER                    :: atomic_kind
+      TYPE(pair_potential_single_type), POINTER          :: pot
+
+      NULLIFY (pot)
+      DO ikind = 1, SIZE(atomic_kind_set)
+         atomic_kind => atomic_kind_set(ikind)
+         CALL get_atomic_kind(atomic_kind=atomic_kind, name=name_atm_a_local)
+         DO jkind = ikind, SIZE(atomic_kind_set)
+            atomic_kind => atomic_kind_set(jkind)
+            CALL get_atomic_kind(atomic_kind=atomic_kind, name=name_atm_b_local)
+            found = .FALSE.
+            name_atm_a = name_atm_a_local
+            name_atm_b = name_atm_b_local
+            CALL uppercase(name_atm_a)
+            CALL uppercase(name_atm_b)
+            pot => potparm%pot(ikind, jkind)%pot
+            IF (ASSOCIATED(nonbonded)) THEN
+               DO ingp = 1, SIZE(nonbonded%pot)
+                  IF ((TRIM(nonbonded%pot(ingp)%pot%at1) == "*") .OR. &
+                      (TRIM(nonbonded%pot(ingp)%pot%at2) == "*")) CYCLE
+
+                  IF (iw > 0) WRITE (iw, *) "TESTING ", TRIM(name_atm_a), TRIM(name_atm_b), &
+                     " with ", TRIM(nonbonded%pot(ingp)%pot%at1), &
+                     TRIM(nonbonded%pot(ingp)%pot%at2)
+                  IF ((((name_atm_a) == (nonbonded%pot(ingp)%pot%at1)) .AND. &
+                       ((name_atm_b) == (nonbonded%pot(ingp)%pot%at2))) .OR. &
+                      (((name_atm_b) == (nonbonded%pot(ingp)%pot%at1)) .AND. &
+                       ((name_atm_a) == (nonbonded%pot(ingp)%pot%at2)))) THEN
+                     CALL pair_potential_single_copy(nonbonded%pot(ingp)%pot, pot)
+                     ! multiple potential not implemented, simply overwriting
+                     IF (found) &
+                        CALL cp_warn(__LOCATION__, &
+                                     "Multiple NONBONDED declaration: "//TRIM(name_atm_a)// &
+                                     " and "//TRIM(name_atm_b)//" OVERWRITING! ")
+                  END IF
+                  IF (iw > 0) WRITE (iw, *) "    FOUND ", TRIM(name_atm_a), " ", TRIM(name_atm_b)
+                  found = .TRUE.
+               END DO
+            ENDIF
+            IF (.NOT. found) THEN
+               CALL pair_potential_single_clean(pot)
+            ENDIF
+         ENDDO !jkind
+      ENDDO !ikind
+
+      ! Cutoff is defined always as the maximum between the FF and Ewald
+      IF (do_ewald) THEN
+         CALL ewald_env_get(ewald_env, rcut=ewald_rcut)
+         pot%rcutsq = MAX(pot%rcutsq, ewald_rcut*ewald_rcut)
+      ENDIF
+
+   END SUBROUTINE force_field_pack_nonbond_pot_correction
 ! **************************************************************************************************
 !> \brief  Computes the interaction term between Br/I/At and donor atoms
 !>
