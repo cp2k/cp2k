@@ -28,21 +28,21 @@
     &END QS
     &SCF
       SCF_GUESS RESTART
-      EPS_SCF 1.0E-7
+      EPS_SCF 1.0E-8
       MAX_SCF 50
       &OT
         MINIMIZER DIIS
         PRECONDITIONER FULL_S_INVERSE
       &END
       &OUTER_SCF
-         EPS_SCF 1.0E-7
+         EPS_SCF 1.0E-8
          MAX_SCF 10
       &END
     &END SCF
   &END DFT
   &SUBSYS
     &CELL
-      ABC 20 20 20
+      ABC 20.0 20.0 20.0
     &END CELL
     &COORD
       C -0.000001   -1.540826   -0.000000
@@ -61,21 +61,9 @@
 &END GLOBAL
 &MOTION
   &MD
-    ENSEMBLE NPT_I
+    ENSEMBLE NVE
     STEPS 3
     TIMESTEP 0.48
     TEMPERATURE 330.0
-    &THERMOSTAT
-      &NOSE
-        LENGTH 3
-        YOSHIDA 3
-        TIMECON [wavenumber_t] 2000
-        MTS 2
-      &END NOSE
-    &END
-    &BAROSTAT
-      PRESSURE 1.0
-      TIMECON 300
-    &END BAROSTAT
   &END MD
 &END MOTION

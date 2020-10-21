@@ -11,5 +11,5 @@ ch2o_t05.inp                              87    1.0E-12               0.22684365
 ch2o_t06.inp                              87    1.0E-12               0.230117849452E+02
 ch3br_nonbond_2.inp                        1    1.0E-12             -11.78062819229165  
 ch3br_nonbond.inp                          1    1.0E-12             -11.78062802267188
-ch3br_atprop_nonbond.inp                   1    1.0E-12             -11.77897657053485 
+ch3br_atprop_nonbond.inp                   1    1.0E-10             -11.78102028559446
 #EOF
