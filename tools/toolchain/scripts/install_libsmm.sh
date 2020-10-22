@@ -120,9 +120,8 @@ export CP_LIBS="IF_VALGRIND(|${LIBSMM_LIBS}) \${CP_LIBS}"
 EOF
 fi
 
-# update toolchain environment
 load "${BUILDDIR}/setup_libsmm"
-export -p > "${INSTALLDIR}/toolchain.env"
+write_toolchain_env "${INSTALLDIR}"
 
 cd "${ROOTDIR}"
 report_timing "libsmm"

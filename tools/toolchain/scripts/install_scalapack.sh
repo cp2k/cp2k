@@ -106,8 +106,7 @@ cat <<EOF >> ${INSTALLDIR}/lsan.supp
 leak:pdpotrf_
 EOF
 
-# update toolchain environment
 load "${BUILDDIR}/setup_scalapack"
-export -p > "${INSTALLDIR}/toolchain.env"
+write_toolchain_env "${INSTALLDIR}"
 
 report_timing "scalapack"

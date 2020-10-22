@@ -108,9 +108,8 @@ EOF
     fi
 fi
 
-# update toolchain environment
 load "${BUILDDIR}/setup_reflapack"
-export -p > "${INSTALLDIR}/toolchain.env"
+write_toolchain_env "${INSTALLDIR}"
 
 cd "${ROOTDIR}"
 report_timing "reflapack"

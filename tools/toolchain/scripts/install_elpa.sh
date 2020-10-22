@@ -176,9 +176,8 @@ export ELPAVERSION="${elpa_ver}"
 EOF
 fi
 
-# update toolchain environment
 load "${BUILDDIR}/setup_elpa"
-export -p > "${INSTALLDIR}/toolchain.env"
+write_toolchain_env "${INSTALLDIR}"
 
 cd "${ROOTDIR}"
 report_timing "elpa"

@@ -895,8 +895,7 @@ case $GPUVER in
         "--gpu-ver currently only supports K20X, K40, K80, P100, V100 as options"
 esac
 
-# write toolchain environment
-export -p > "${INSTALLDIR}"/toolchain.env
+write_toolchain_env "${INSTALLDIR}"
 
 # write toolchain config
 echo "tool_list=\"${tool_list}\"" > "${INSTALLDIR}"/toolchain.conf

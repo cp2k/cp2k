@@ -59,9 +59,8 @@ export FAST_MATH_LIBS="\${FAST_MATH_LIBS} ${ACML_LIBS}"
 EOF
 fi
 
-# update toolchain environment
 load "${BUILDDIR}/setup_acml"
-export -p > "${INSTALLDIR}/toolchain.env"
+write_toolchain_env "${INSTALLDIR}"
 
 cd "${ROOTDIR}"
 report_timing "acml"

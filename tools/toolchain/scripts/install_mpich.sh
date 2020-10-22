@@ -117,9 +117,8 @@ export CP_LIBS="\${CP_LIBS} IF_MPI(${MPICH_LIBS}|)"
 EOF
 fi
 
-# update toolchain environment
 load "${BUILDDIR}/setup_mpich"
-export -p > "${INSTALLDIR}/toolchain.env"
+write_toolchain_env "${INSTALLDIR}"
 
 cd "${ROOTDIR}"
 report_timing "mpich"

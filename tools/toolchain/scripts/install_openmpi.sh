@@ -193,8 +193,7 @@ leak:progress_engine
 leak:__GI___strdup
 EOF
 
-# update toolchain environment
 load "${BUILDDIR}/setup_openmpi"
-export -p > "${INSTALLDIR}/toolchain.env"
+write_toolchain_env "${INSTALLDIR}"
 
 report_timing "openmpi"

@@ -122,8 +122,7 @@ EOF
 fi
 cd "${ROOTDIR}"
 
-# update toolchain environment
 load "${BUILDDIR}/setup_libxsmm"
-export -p > "${INSTALLDIR}/toolchain.env"
+write_toolchain_env "${INSTALLDIR}"
 
 report_timing "libxsmm"

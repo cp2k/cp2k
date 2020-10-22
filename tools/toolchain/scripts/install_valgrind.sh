@@ -94,8 +94,7 @@ cat <<EOF >> ${SETUPFILE}
 export VALGRIND_OPTIONS="--suppressions=${INSTALLDIR}/valgrind.supp --max-stackframe=2168152 --error-exitcode=42"
 EOF
 
-# update toolchain environment
 load "${BUILDDIR}/setup_valgrind"
-export -p > "${INSTALLDIR}/toolchain.env"
+write_toolchain_env "${INSTALLDIR}"
 
 report_timing "valgrind"

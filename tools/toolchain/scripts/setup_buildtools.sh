@@ -37,7 +37,6 @@ export LDFLAGS="${TSANFLAGS}"
 # get system arch information using OpenBLAS prebuild
 "${SCRIPTDIR}"/get_openblas_arch.sh; load "${BUILDDIR}/openblas_arch"
 
-# update toolchain environment
-export -p > "${INSTALLDIR}/toolchain.env"
+write_toolchain_env "${INSTALLDIR}"
 
 #EOF

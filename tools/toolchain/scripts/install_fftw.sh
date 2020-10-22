@@ -117,8 +117,7 @@ cat <<EOF >> ${INSTALLDIR}/valgrind.supp
 }
 EOF
 
-# update toolchain environment
 load "${BUILDDIR}/setup_fftw"
-export -p > "${INSTALLDIR}/toolchain.env"
+write_toolchain_env "${INSTALLDIR}"
 
 report_timing "fftw"

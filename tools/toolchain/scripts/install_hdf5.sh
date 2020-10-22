@@ -92,9 +92,8 @@ EOF
     cat "${BUILDDIR}/setup_hdf5" >> $SETUPFILE
 fi
 
-# update toolchain environment
 load "${BUILDDIR}/setup_hdf5"
-export -p > "${INSTALLDIR}/toolchain.env"
+write_toolchain_env "${INSTALLDIR}"
 
 cd "${ROOTDIR}"
 report_timing "hdf5"

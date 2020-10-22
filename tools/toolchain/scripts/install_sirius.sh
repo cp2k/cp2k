@@ -250,9 +250,8 @@ export CP_LIBS="IF_MPI("\${SIRIUS_LIBS}"|) \${CP_LIBS}"
 EOF
 fi
 
-# update toolchain environment
 load "${BUILDDIR}/setup_sirius"
-export -p > "${INSTALLDIR}/toolchain.env"
+write_toolchain_env "${INSTALLDIR}"
 
 cd "${ROOTDIR}"
 report_timing "sirius"

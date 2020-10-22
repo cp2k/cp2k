@@ -104,9 +104,8 @@ export CP_LIBS="IF_MPI(${SCOTCH_LIBS}|) \${CP_LIBS}"
 EOF
 fi
 
-# update toolchain environment
 load "${BUILDDIR}/setup_ptscotch"
-export -p > "${INSTALLDIR}/toolchain.env"
+write_toolchain_env "${INSTALLDIR}"
 
 cd "${ROOTDIR}"
 report_timing "ptscotch"

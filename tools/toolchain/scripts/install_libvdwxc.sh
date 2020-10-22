@@ -130,9 +130,8 @@ EOF
         cat "${BUILDDIR}/setup_libvdwxc" >> $SETUPFILE
 fi
 
-# update toolchain environment
 load "${BUILDDIR}/setup_libvdwxc"
-export -p > "${INSTALLDIR}/toolchain.env"
+write_toolchain_env "${INSTALLDIR}"
 
 cd "${ROOTDIR}"
 report_timing "libvdwxc"
