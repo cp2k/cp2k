@@ -135,9 +135,8 @@ export FAST_MATH_LIBS="\${FAST_MATH_LIBS} ${OPENBLAS_LIBS}"
 EOF
 fi
 
-# update toolchain environment
 load "${BUILDDIR}/setup_openblas"
-export -p > "${INSTALLDIR}/toolchain.env"
+write_toolchain_env "${INSTALLDIR}"
 
 cd "${ROOTDIR}"
 report_timing "openblas"

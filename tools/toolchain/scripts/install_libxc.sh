@@ -86,9 +86,8 @@ export LIBXCROOT="$pkg_install_dir"
 EOF
 fi
 
-# update toolchain environment
 load "${BUILDDIR}/setup_libxc"
-export -p > "${INSTALLDIR}/toolchain.env"
+write_toolchain_env "${INSTALLDIR}"
 
 cd "${ROOTDIR}"
 report_timing "libxc"

@@ -674,3 +674,23 @@ write_checksums() {
 
    ${__shasum_command} "${VERSION_FILE}" "$@" >"${__checksum_file}"
 }
+
+# generate a filtered toolchain.env
+write_toolchain_env() {
+    local __installdir=$1
+
+    # we do not need to achieve complete filtering, it is sufficient to
+    # remove problematic variables (TERM/TERMCAP/COLORTERM) which may trigger
+    # 'too many arguments' (since the environment vars are stored in the same memory block as command line arguments)
+    # or which may not be valid anymore the next time the user runs the toolchain scripts,
+    # like the proxy vars which may affect fetching tarballs
+    export -p | sed \
+        -e '/^\(declare -[rx]\+ \)\?\(COLORTERM\|DISPLAY\|EDITOR\|LESS\|LESSOPEN\|LOGNAME\|LS_COLORS\|PAGER\)=/d' \
+        -e '/^\(declare -[rx]\+ \)\?\(TERM\|TERMCAP\|USER\)=/d' \
+        -e '/^\(declare -[rx]\+ \)\?\(ftp\|http\|no\)_proxy=/d' \
+        -e '/^\(declare -[rx]\+ \)\?\(GPG_AGENT_INFO\|SSH_AGENT_PID\|SSH_AUTH_SOCK\)=/d' \
+        -e '/^\(declare -[rx]\+ \)\?LS_\(COLORS\|OPTIONS\)=/d' \
+        -e '/^\(declare -[rx]\+ \)\?\(STY\|WINDOW\|XAUTHORITY\)=/d' \
+        -e '/^\(declare -[rx]\+ \)\?XDG_/d' \
+        > "${__installdir}/toolchain.env"
+}

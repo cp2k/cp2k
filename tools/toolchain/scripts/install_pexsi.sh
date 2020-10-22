@@ -124,9 +124,8 @@ export CP_LIBS="IF_MPI(${PEXSI_LIBS}|) \${CP_LIBS}"
 EOF
 fi
 
-# update toolchain environment
 load "${BUILDDIR}/setup_pexsi"
-export -p > "${INSTALLDIR}/toolchain.env"
+write_toolchain_env "${INSTALLDIR}"
 
 cd "${ROOTDIR}"
 report_timing "pexsi"

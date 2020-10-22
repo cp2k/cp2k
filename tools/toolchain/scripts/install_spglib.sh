@@ -94,9 +94,8 @@ EOF
         cat "${BUILDDIR}/setup_spglib" >> $SETUPFILE
 fi
 
-# update toolchain environment
 load "${BUILDDIR}/setup_spglib"
-export -p > "${INSTALLDIR}"/toolchain.env
+write_toolchain_env "${INSTALLDIR}"
 
 cd "${ROOTDIR}"
 report_timing "spglib"
