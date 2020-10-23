@@ -41,7 +41,7 @@ def main():
         return config.getint(s, "sortkey")
 
     for tname in sorted(config.sections(), key=get_sortkey):
-        fn = outdir + "archive/%s/list_recent.txt" % tnam
+        fn = outdir + "archive/%s/list_recent.txt" % tname
         list_recent = open(fn, encoding="utf8").readlines()
         if not list_recent:
             continue  # list_recent is empty
