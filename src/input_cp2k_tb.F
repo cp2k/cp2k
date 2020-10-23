@@ -426,6 +426,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="DX", &
                           description="Parameter used for computing the derivative with the Ridders' method.", &
                           usage="DX <REAL>", default_r_val=0.1_dp, unit_str="bohr")
