@@ -290,7 +290,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: dogth
       REAL(KIND=dp)                                      :: dac, ppnl_radius
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ai_work_cos, ai_work_sin, ints, &
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ai_work_cos, ai_work_sin, &
                                                             work_cos, work_sin
       REAL(KIND=dp), DIMENSION(1)                        :: rprjc, zetc
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rac, rc
@@ -405,9 +405,19 @@ CONTAINS
 
       ! actual calculation of the integrals <a|cos|p> and <a|sin|p>
       ! allocate temporary storage using maximum dimensions
-      ALLOCATE (ints(ldints, ldints), work_cos(ldints, ldints), work_sin(ldints, ldints))
+
+!$OMP PARALLEL &
+!$OMP DEFAULT (NONE) &
+!$OMP SHARED (basis_set, gpotential, ncoset, sap_ppnl, sap_int_cos, sap_int_sin, nkind, &
+!$OMP         ldints, ldai, nco, cell, particle_set, kvec) &
+!$OMP PRIVATE (slot, ikind, kkind, iatom, katom, nlist, ilist, nneighbor, jneighbor, &
+!$OMP          cell_c, rac, dac, iac, first_sgfa, la_max, la_min, npgfa, nseta, nsgfa, nsgf_seta,&
+!$OMP          rpgfa, set_radius_a, sphi_a, zeta, alpha_ppnl, cprj, lppnl, nppnl, nprj_ppnl,&
+!$OMP          ppnl_radius, vprj_ppnl, clist, clist_sin, ra, rc, ncoa, sgfa, prjc, work_cos, work_sin,&
+!$OMP          nprjc, rprjc, lc_max, lc_min, zetc, ncoc, ai_work_sin, ai_work_cos, na, nb, np, dogth)
+
+      ALLOCATE (work_cos(ldints, ldints), work_sin(ldints, ldints))
       ALLOCATE (ai_work_cos(ldai, ldai), ai_work_sin(ldai, ldai))
-      ints = 0.0_dp
       work_cos = 0.0_dp
       work_sin = 0.0_dp
       ai_work_cos = 0.0_dp
@@ -417,6 +427,8 @@ CONTAINS
       NULLIFY (first_sgfa, la_max, la_min, npgfa, nsgf_seta, rpgfa, set_radius_a, sphi_a, zeta)
       NULLIFY (alpha_ppnl, cprj, nprj_ppnl, vprj_ppnl)
       NULLIFY (clist, clist_sin)
+
+!$OMP DO SCHEDULE(GUIDED)      
       DO slot = 1, sap_ppnl(1)%nl_size
          ikind = sap_ppnl(1)%nlist_task(slot)%ikind
          kkind = sap_ppnl(1)%nlist_task(slot)%jkind
@@ -535,7 +547,9 @@ CONTAINS
          clist_sin%maxach = MAXVAL(ABS(clist_sin%achint(:, :, 1)))
       ENDDO
 
-      DEALLOCATE (ints, work_cos, work_sin, ai_work_cos, ai_work_sin)
+      DEALLOCATE (work_cos, work_sin, ai_work_cos, ai_work_sin)
+
+!$OMP END PARALLEL
 
       DEALLOCATE (basis_set, gpotential, spotential)
 
