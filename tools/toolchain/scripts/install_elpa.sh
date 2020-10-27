@@ -4,6 +4,10 @@ SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
 elpa_ver="2020.05.001"
 elpa_sha256="66ff1cf332ce1c82075dc7b5587ae72511d2bcb3a45322c94af6b01996439ce5"
+patches=(
+    "${SCRIPT_DIR}/files/elpa-${elpa_ver}-no-LDFLAGS-for-NVCC-compile.patch"
+    )
+
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -58,11 +62,17 @@ case "$with_elpa" in
             # elpa expect FC to be an mpi fortran compiler that is happy
             # with long lines, and that a bunch of libs can be found
             cd elpa-${elpa_ver}
+
+            for patch in "${patches[@]}" ; do
+                patch -p1 < "${patch}"
+            done
+
             # specific settings needed on CRAY Linux Environment
             if [ "$ENABLE_CRAY" = "__TRUE__" ] ; then
                 # extra LDFLAGS needed
                 cray_ldflags="-dynamic"
             fi
+
             # ELPA-2017xxxx enables AVX2 by default, switch off if machine doesn't support it.
             has_AVX=`grep '\bavx\b' /proc/cpuinfo 1>/dev/null && echo 'yes' || echo 'no'`
             [ "${has_AVX}" == "yes" ] && AVX_flag="-mavx" || AVX_flag=""
