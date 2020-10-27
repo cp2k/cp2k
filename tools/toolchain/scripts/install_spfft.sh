@@ -37,31 +37,42 @@ case "$with_spfft" in
             cd SpFFT-${spfft_ver}
             mkdir build-cpu
             cd build-cpu
-            cmake -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=TRUE -DSPFFT_OMP=ON -DSPFFT_MPI=ON -DSPFFT_INSTALL=ON .. > cmake.log 2>&1
+            cmake \
+                -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+                -DCMAKE_INSTALL_LIBDIR=lib \
+                -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=TRUE \
+                -DSPFFT_OMP=ON \
+                -DSPFFT_MPI=ON \
+                -DSPFFT_INSTALL=ON \
+                .. > cmake.log 2>&1
             make -j $NPROCS > make.log 2>&1
             make -j $NPROCS install > install.log 2>&1
             cd ..
-            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
+
             if [ "$ENABLE_CUDA" = "__TRUE__" ] ; then
                 [ -d build-cuda ] && rm -rf "build-cuda"
                 mkdir build-cuda
                 cd build-cuda
-                cmake -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=TRUE -DSPFFT_OMP=ON -DSPFFT_MPI=ON -DSPFFT_INSTALL=ON -DSPFFT_GPU_BACKEND=CUDA .. > cmake.log 2>&1
+                cmake \
+                    -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+                    -DCMAKE_INSTALL_LIBDIR=lib \
+                    -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=TRUE \
+                    -DSPFFT_OMP=ON \
+                    -DSPFFT_MPI=ON \
+                    -DSPFFT_INSTALL=ON \
+                    -DSPFFT_GPU_BACKEND=CUDA \
+                    .. > cmake.log 2>&1
                 make -j $NPROCS > make.log 2>&1
                 install -d ${pkg_install_dir}/lib/cuda
                 [ -f src/libspfft.a ] && install -m 644 src/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
-                [ -f src/libspfft.a ] && install -m 644 src/*.so ${pkg_install_dir}/lib/cuda >> install.log 2>&1
+                [ -f src/libspfft.so ] && install -m 644 src/*.so ${pkg_install_dir}/lib/cuda >> install.log 2>&1
             fi
+            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
         SPFFT_ROOT="${pkg_install_dir}"
         SPFFT_CFLAGS="-I'${pkg_install_dir}/include'"
         SPFFT_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
         SPFFT_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath='${pkg_install_dir}/lib/cuda'"
-        if [ -d "${SPFFT_ROOT}/lib64" ]; then
-           cd ${SPFFT_ROOT}
-           ln -sf lib64 lib
-           cd ${BUILDDIR}
-        fi
         ;;
     __SYSTEM__)
         echo "==================== Finding psfft from system paths ===================="
@@ -74,10 +85,15 @@ case "$with_spfft" in
     *)
         echo "==================== Linking psfft to user paths ===================="
         pkg_install_dir="$with_spfft"
-        check_dir "$pkg_install_dir/lib"
-        check_dir "$pkg_install_dir/include"
+
+        # use the lib64 directory if present (multi-abi distros may link lib/ to lib32/ instead)
+        SPFFT_LIBDIR="${pkg_install_dir}/lib"
+        [ -d  "${pkg_install_dir}/lib64" ] && SPFFT_LIBDIR="${pkg_install_dir}/lib64"
+
+        check_dir "${SPFFT_LIBDIR}"
+        check_dir "${pkg_install_dir}/include"
         SPFFT_CFLAGS="-I'${pkg_install_dir}/include'"
-        SPFFT_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+        SPFFT_LDFLAGS="-L'${SPFFT_LIBDIR}' -Wl,-rpath='${SPFFT_LIBDIR}'"
         ;;
 esac
 if [ "$with_spfft" != "__DONTUSE__" ] ; then
