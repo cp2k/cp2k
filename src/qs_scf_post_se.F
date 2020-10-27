@@ -532,8 +532,7 @@ CONTAINS
                   " # Atom   Element   Kind        Atomic population", " Net charge"
                DO ikind = 1, nkind
                   CALL get_atomic_kind(atomic_kind_set(ikind), natom=nat)
-                  CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind)
-                  CALL get_se_param(se_kind, name=aname)
+                  CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind, element_symbol=aname)
                   ana = ADJUSTR(TRIM(ADJUSTL(aname)))
                   DO iatom = 1, nat
                      iat = atomic_kind_set(ikind)%atom_list(iatom)
@@ -550,8 +549,7 @@ CONTAINS
                   "# Atom  Element  Kind  Atomic population (alpha,beta)   Net charge  Spin moment"
                DO ikind = 1, nkind
                   CALL get_atomic_kind(atomic_kind_set(ikind), natom=nat)
-                  CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind)
-                  CALL get_se_param(se_kind, name=aname)
+                  CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind, element_symbol=aname)
                   ana = ADJUSTR(TRIM(ADJUSTL(aname)))
                   DO iatom = 1, nat
                      iat = atomic_kind_set(ikind)%atom_list(iatom)
