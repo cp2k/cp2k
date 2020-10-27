@@ -44,7 +44,9 @@ case "$with_cosma" in
             cd build-cpu
             case "$FAST_MATH_MODE" in
                 mkl)
-                    cmake -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+                    cmake \
+                          -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+                          -DCMAKE_INSTALL_LIBDIR=lib \
                           -DCOSMA_BLAS=MKL \
                           -DCOSMA_SCALAPACK=MKL \
                           -DCOSMA_WITH_TESTS=NO \
@@ -52,7 +54,9 @@ case "$with_cosma" in
                           -DCOSMA_WITH_BENCHMARKS=NO .. > cmake.log 2>&1
                     ;;
                 *)
-                    cmake -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+                    cmake \
+                          -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+                          -DCMAKE_INSTALL_LIBDIR=lib \
                           -DCOSMA_BLAS=OPENBLAS \
                           -DCOSMA_SCALAPACK=CUSTOM \
                           -DCOSMA_WITH_TESTS=NO \
@@ -71,7 +75,9 @@ case "$with_cosma" in
                 cd build-cuda
                 case "$FAST_MATH_MODE" in
                     mkl)
-                        cmake -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+                        cmake \
+                              -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+                              -DCMAKE_INSTALL_LIBDIR=lib \
                               -DCOSMA_BLAS=CUDA \
                               -DCOSMA_SCALAPACK=MKL \
                               -DCOSMA_WITH_TESTS=NO \
@@ -79,7 +85,9 @@ case "$with_cosma" in
                               -DCOSMA_WITH_APPS=NO .. > cmake.log 2>&1
                         ;;
                     *)
-                        cmake -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+                        cmake \
+                              -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+                              -DCMAKE_INSTALL_LIBDIR=lib \
                               -DCOSMA_BLAS=CUDA \
                               -DCOSMA_SCALAPACK=CUSTOM \
                               -DCOSMA_WITH_TESTS=NO \
@@ -102,9 +110,6 @@ case "$with_cosma" in
 
         # check if cosma is compiled with 64bits and set up COSMA_LIBDIR accordingly
         COSMA_LIBDIR="${pkg_install_dir}/lib"
-
-        [ -d  ${pkg_install_dir}/lib64 ] && COSMA_LIBDIR="${pkg_install_dir}/lib64"
-
         COSMA_LDFLAGS="-L'${COSMA_LIBDIR}' -Wl,-rpath='${COSMA_LIBDIR}'"
         COSMA_CUDA_LDFLAGS="-L'${COSMA_LIBDIR}/cuda' -Wl,-rpath='${COSMA_LIBDIR}/cuda'"
         ;;
@@ -119,14 +124,13 @@ case "$with_cosma" in
     *)
         echo "==================== Linking cosma to user paths ===================="
         pkg_install_dir="$with_cosma"
+
+        # use the lib64 directory if present (multi-abi distros may link lib/ to lib32/ instead)
+        COSMA_LIBDIR="${pkg_install_dir}/lib"
+        [ -d  "${pkg_install_dir}/lib64" ] && COSMA_LIBDIR="${pkg_install_dir}/lib64"
+
         check_dir "$pkg_install_dir/lib"
         check_dir "$pkg_install_dir/include"
-
-
-        # check if cosma is compiled with 64bits and set up COSMA_LIBDIR accordingly
-        COSMA_LIBDIR="${pkg_install_dir}/lib"
-
-        [ -d  ${pkg_install_dir}/lib64 ] && COSMA_LIBDIR="${pkg_install_dir}/lib64"
 
         COSMA_CFLAGS="-I'${pkg_install_dir}/include'"
         COSMA_LDFLAGS="-L'${COSMA_LIBDIR}' -Wl,-rpath='${COSMA_LIBDIR}'"
