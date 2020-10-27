@@ -23,6 +23,7 @@ case "$with_cosma" in
         echo "==================== Installing cosma ===================="
         pkg_install_dir="${INSTALLDIR}/cosma-${cosma_ver}"
         install_lock_file="$pkg_install_dir/install_successful"
+
         if verify_checksums "${install_lock_file}" ; then
             echo "cosma-${cosma_ver} is already installed, skipping it."
         else
@@ -63,7 +64,7 @@ case "$with_cosma" in
             make -j $NPROCS > make.log 2>&1
             make -j $NPROCS install > install.log 2>&1
             cd ..
-            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
+
             if [ "$ENABLE_CUDA" = "__TRUE__" ] ; then
                 [ -d build-cuda ] && rm -rf "build-cuda"
                 mkdir build-cuda
@@ -93,6 +94,8 @@ case "$with_cosma" in
                 install -m 644 src/cosma/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
                 [ -f libs/Tiled-MM/src/Tiled-MM/*.a ] && install -m 644 libs/Tiled-MM/src/Tiled-MM/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
             fi
+
+            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/$(basename ${SCRIPT_NAME})"
         fi
         COSMA_ROOT="${pkg_install_dir}"
         COSMA_CFLAGS="-I'${pkg_install_dir}/include'"
