@@ -460,11 +460,16 @@ $: "#endif"
 
       CALL elpa_obj%set("solver", elpa_solver_2stage, success)
 
-      IF (elpa_kernel .GE. 1) &
-         CALL elpa_obj%set("real_kernel", elpa_kernel, success)
-
+      ! enabling the GPU must happen before setting the kernel
       IF (elpa_use_gpu) &
          CALL elpa_obj%set("gpu", 1, success)
+
+      IF (elpa_kernel .GE. 1) THEN
+         CALL elpa_obj%set("real_kernel", elpa_kernel, success)
+         IF (success /= elpa_ok) THEN
+            CPABORT("Setting the ELPA real_kernel failed")
+         ENDIF
+      ENDIF
 
       IF (use_qr) &
          CALL elpa_obj%set("qr", 1, success)
