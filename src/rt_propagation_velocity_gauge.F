@@ -19,14 +19,9 @@ MODULE rt_propagation_velocity_gauge
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
-                                              dbcsr_create,&
-                                              dbcsr_init_p,&
-                                              dbcsr_p_type,&
-                                              dbcsr_print,&
-                                              dbcsr_set,&
-                                              dbcsr_type_antisymmetric,&
-                                              dbcsr_type_no_symmetry
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_create, dbcsr_get_block_p, dbcsr_init_p, dbcsr_p_type, dbcsr_print, &
+        dbcsr_set, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
    USE external_potential_types,        ONLY: gth_potential_p_type,&
                                               gth_potential_type,&
                                               sgp_potential_p_type,&
@@ -50,9 +45,14 @@ MODULE rt_propagation_velocity_gauge
                                               qs_kind_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_operators_ao,                 ONLY: build_lin_mom_matrix
-   USE sap_kind_types,                  ONLY: clist_type,&
+   USE sap_kind_types,                  ONLY: alist_type,&
+                                              clist_type,&
+                                              get_alist,&
                                               release_sap_int,&
-                                              sap_int_type
+                                              sap_int_type,&
+                                              sap_sort
+
+!$ use OMP_LIB, ONLY: omp_get_thread_num
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -146,16 +146,19 @@ CONTAINS
 
       ELSE
          NULLIFY (nl_term)
-         CALL dbcsr_allocate_matrix_set(nl_term, dft_control%nspins)
-         DO ispin = 1, dft_control%nspins
+         CALL dbcsr_allocate_matrix_set(nl_term, 2)
+         DO ispin = 1, 2 ! 1: real part, 2: imaginary part
             CALL dbcsr_init_p(nl_term(ispin)%matrix)
             CALL dbcsr_create(nl_term(ispin)%matrix, template=matrix_s(1)%matrix, &
                               matrix_type=dbcsr_type_no_symmetry)
             CALL cp_dbcsr_alloc_block_from_nbl(nl_term(ispin)%matrix, sab_all)
             CALL dbcsr_set(nl_term(ispin)%matrix, zero)
          ENDDO
-
+         WRITE (*, *) 'calc nl term'
          CALL velocity_gauge_nl_term(qs_env, nl_term, vec_pot)
+
+         CALL dbcsr_print(nl_term(1)%matrix)
+         CALL dbcsr_print(nl_term(2)%matrix)
 
          CALL dbcsr_deallocate_matrix_set(nl_term)
          ! CPABORT(" Not implemented for GPW yet!")
@@ -202,28 +205,48 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routiuneN = "velocity_gauge_nl_term"
 
-      INTEGER                                            :: handle, i, maxl, maxlgto, maxlppnl, nkind
+      INTEGER                                            :: handle, i, iac, iatom, ibc, icol, ikind, &
+                                                            irow, jatom, jkind, kac, kbc, kkind, &
+                                                            maxl, maxlgto, maxlppnl, na, nb, &
+                                                            nkind, np, slot
+      INTEGER, DIMENSION(3)                              :: cell_b
+      LOGICAL                                            :: found
+      REAL(dp)                                           :: eps_ppnl
+      REAL(KIND=dp), DIMENSION(3)                        :: rab
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: imag_block, real_block
+      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: achint_cos, achint_sin, acint_cos, &
+                                                            acint_sin, bchint_cos, bchint_sin, &
+                                                            bcint_cos, bcint_sin
+      TYPE(alist_type), POINTER                          :: alist_cos_ac, alist_cos_bc, &
+                                                            alist_sin_ac, alist_sin_bc
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(gto_basis_set_p_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: basis_set
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sap_ppnl
+         POINTER                                         :: sab_all, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int_cos, sap_int_sin
 
       CALL timeset(routiuneN, handle)
 
-      NULLIFY (sap_ppnl)
+      NULLIFY (sap_ppnl, sab_all)
       CALL get_qs_env(qs_env, &
-                      sap_ppnl=sap_ppnl)
+                      sap_ppnl=sap_ppnl, &
+                      sab_all=sab_all)
 
       IF (ASSOCIATED(sap_ppnl)) THEN
-         NULLIFY (qs_kind_set, particle_set, cell)
+         NULLIFY (qs_kind_set, particle_set, cell, dft_control)
          CALL get_qs_env(qs_env, &
+                         dft_control=dft_control, &
                          qs_kind_set=qs_kind_set, &
                          particle_set=particle_set, &
                          cell=cell)
 
          nkind = SIZE(qs_kind_set)
+         eps_ppnl = dft_control%qs_control%eps_ppnl
 
          CALL get_qs_kind_set(qs_kind_set, &
                               maxlgto=maxlgto, &
@@ -242,14 +265,114 @@ CONTAINS
             sap_int_sin(i)%nalist = 0
          ENDDO
 
+         ! get basis set
+         ALLOCATE (basis_set(nkind))
+         DO ikind = 1, nkind
+            CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
+            IF (ASSOCIATED(orb_basis_set)) THEN
+               basis_set(ikind)%gto_basis_set => orb_basis_set
+            ELSE
+               NULLIFY (basis_set(ikind)%gto_basis_set)
+            END IF
+         ENDDO
+
          ! calculate exponential integrals
          CALL build_sap_exp_ints(sap_int_cos, sap_int_sin, sap_ppnl, qs_kind_set, particle_set, &
-                                 cell, kvec=vec_pot)
+                                 cell, kvec=vec_pot, basis_set=basis_set)
+
+         CALL sap_sort(sap_int_cos)
+         CALL sap_sort(sap_int_sin)
+
+         ! assemble the integrals for the gauge term
+
+         NULLIFY (real_block, imag_block)
+         NULLIFY (acint_cos, achint_cos, achint_cos, bchint_cos)
+         NULLIFY (acint_sin, achint_sin, achint_sin, bchint_sin)
+         ! loop over atom pairs
+         DO slot = 1, sab_all(1)%nl_size
+            ikind = sab_all(1)%nlist_task(slot)%ikind
+            jkind = sab_all(1)%nlist_task(slot)%jkind
+            iatom = sab_all(1)%nlist_task(slot)%iatom
+            jatom = sab_all(1)%nlist_task(slot)%jatom
+            cell_b(:) = sab_all(1)%nlist_task(slot)%cell
+            rab(1:3) = sab_all(1)%nlist_task(slot)%r(1:3)
+
+            IF (.NOT. ASSOCIATED(basis_set(ikind)%gto_basis_set)) CYCLE
+            IF (.NOT. ASSOCIATED(basis_set(jkind)%gto_basis_set)) CYCLE
+
+            irow = iatom
+            icol = jatom
+
+            CALL dbcsr_get_block_p(nl_term(1)%matrix, irow, icol, real_block, found)
+            CALL dbcsr_get_block_p(nl_term(2)%matrix, irow, icol, imag_block, found)
+
+            IF (ASSOCIATED(real_block) .AND. ASSOCIATED(imag_block)) THEN
+               ! loop over the <gto_a|ppln_c>h_ij<ppnl_c|gto_b> pairs
+               DO kkind = 1, nkind
+                  iac = ikind + nkind*(kkind - 1)
+                  ibc = jkind + nkind*(kkind - 1)
+                  IF (.NOT. ASSOCIATED(sap_int_cos(iac)%alist)) CYCLE
+                  IF (.NOT. ASSOCIATED(sap_int_cos(ibc)%alist)) CYCLE
+                  IF (.NOT. ASSOCIATED(sap_int_sin(iac)%alist)) CYCLE
+                  IF (.NOT. ASSOCIATED(sap_int_sin(ibc)%alist)) CYCLE
+                  CALL get_alist(sap_int_cos(iac), alist_cos_ac, iatom)
+                  CALL get_alist(sap_int_cos(ibc), alist_cos_bc, jatom)
+                  CALL get_alist(sap_int_sin(iac), alist_sin_ac, iatom)
+                  CALL get_alist(sap_int_sin(ibc), alist_sin_bc, jatom)
+                  IF (.NOT. ASSOCIATED(alist_cos_ac)) CYCLE
+                  IF (.NOT. ASSOCIATED(alist_cos_bc)) CYCLE
+                  IF (.NOT. ASSOCIATED(alist_sin_ac)) CYCLE
+                  IF (.NOT. ASSOCIATED(alist_sin_bc)) CYCLE
+
+                  ! only use cos for indexing, as cos and sin integrals are constructed by the same routine
+                  ! in the same way
+                  DO kac = 1, alist_cos_ac%nclist
+                     DO kbc = 1, alist_cos_bc%nclist
+                        ! the next two ifs should be the same for sine integrals
+                        IF (alist_cos_ac%clist(kac)%catom /= alist_cos_bc%clist(kbc)%catom) CYCLE
+                        IF (ALL(cell_b + alist_cos_bc%clist(kbc)%cell - alist_cos_ac%clist(kac)%cell == 0)) THEN
+                           ! screening
+                           ! IF (alist_cos_ac%clist(kac)%maxac*alist_cos_bc%clist(kbc)%maxach < eps_ppnl &
+                           !     .AND. alist_cos_ac%clist(kac)%maxac*alist_sin_bc%clist(kbc)%maxach < eps_ppnl &
+                           !     .AND. alist_sin_ac%clist(kac)%maxac*alist_cos_bc%clist(kbc)%maxach < eps_ppnl &
+                           !     .AND. alist_sin_ac%clist(kac)%maxac*alist_sin_bc%clist(kbc)%maxach < eps_ppnl) CYCLE
+
+                           acint_cos => alist_cos_ac%clist(kac)%acint
+                           bcint_cos => alist_cos_bc%clist(kbc)%acint
+                           achint_cos => alist_cos_ac%clist(kac)%achint
+                           bchint_cos => alist_cos_bc%clist(kbc)%achint
+                           acint_sin => alist_sin_ac%clist(kac)%acint
+                           bcint_sin => alist_sin_bc%clist(kbc)%acint
+                           achint_sin => alist_sin_ac%clist(kac)%achint
+                           bchint_sin => alist_sin_bc%clist(kbc)%achint
+
+                           na = SIZE(acint_cos, 1)
+                           np = SIZE(acint_cos, 2)
+                           nb = SIZE(bcint_cos, 1)
+
+                           ! cos*cos + sin*sin
+                           real_block(1:na, 1:nb) = real_block(1:na, 1:nb) + &
+                              MATMUL(achint_cos(1:na, 1:np, 1), TRANSPOSE(bcint_cos(1:nb, 1:np, 1))) + &
+                              MATMUL(achint_sin(1:na, 1:np, 1), TRANSPOSE(bcint_sin(1:nb, 1:np, 1)))
+                           ! sin * cos - cos * sin
+                           imag_block(1:na, 1:nb) = imag_block(1:na, 1:nb) + &
+                                                    MATMUL(achint_sin(1:na, 1:np, 1), TRANSPOSE(bcint_cos(1:nb, 1:np, 1))) - &
+                                                    MATMUL(achint_cos(1:na, 1:np, 1), TRANSPOSE(bcint_sin(1:nb, 1:np, 1)))
+                           EXIT
+                        ENDIF
+                     ENDDO
+                  ENDDO
+               ENDDO
+            ENDIF
+
+         ENDDO
 
          CALL release_sap_int(sap_int_cos)
          CALL release_sap_int(sap_int_sin)
+
+         DEALLOCATE (basis_set)
       ENDIF
-      CALL dbcsr_print(nl_term(1)%matrix)
+
       CALL timestop(handle)
 
    END SUBROUTINE velocity_gauge_nl_term
@@ -266,8 +389,9 @@ CONTAINS
 !> \param particle_set ...
 !> \param cell ...
 !> \param kvec ...
+!> \param basis_set ...
 ! **************************************************************************************************
-   SUBROUTINE build_sap_exp_ints(sap_int_cos, sap_int_sin, sap_ppnl, qs_kind_set, particle_set, cell, kvec)
+   SUBROUTINE build_sap_exp_ints(sap_int_cos, sap_int_sin, sap_ppnl, qs_kind_set, particle_set, cell, kvec, basis_set)
       TYPE(sap_int_type), DIMENSION(:), INTENT(INOUT), &
          POINTER                                         :: sap_int_cos, sap_int_sin
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -278,6 +402,8 @@ CONTAINS
          POINTER                                         :: particle_set
       TYPE(cell_type), INTENT(IN), POINTER               :: cell
       REAL(KIND=dp), DIMENSION(3), INTENT(in)            :: kvec
+      TYPE(gto_basis_set_p_type), DIMENSION(:), &
+         INTENT(IN)                                      :: basis_set
 
       CHARACTER(len=*), PARAMETER :: routiuneN = "build_sap_exp_ints"
 
@@ -290,8 +416,8 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: dogth
       REAL(KIND=dp)                                      :: dac, ppnl_radius
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ai_work_cos, ai_work_sin, &
-                                                            work_cos, work_sin
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ai_work_cos, ai_work_sin, work_cos, &
+                                                            work_sin
       REAL(KIND=dp), DIMENSION(1)                        :: rprjc, zetc
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rac, rc
       REAL(KIND=dp), DIMENSION(:), POINTER               :: alpha_ppnl, set_radius_a
@@ -299,9 +425,6 @@ CONTAINS
       TYPE(clist_type), POINTER                          :: clist, clist_sin
       TYPE(gth_potential_p_type), DIMENSION(:), POINTER  :: gpotential
       TYPE(gth_potential_type), POINTER                  :: gth_potential
-      TYPE(gto_basis_set_p_type), ALLOCATABLE, &
-         DIMENSION(:)                                    :: basis_set
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(sgp_potential_p_type), DIMENSION(:), POINTER  :: spotential
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
@@ -321,14 +444,8 @@ CONTAINS
 
       !set up direct access to basis and potential
       NULLIFY (gpotential, spotential)
-      ALLOCATE (basis_set(nkind), gpotential(nkind), spotential(nkind))
+      ALLOCATE (gpotential(nkind), spotential(nkind))
       DO ikind = 1, nkind
-         CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
-         IF (ASSOCIATED(orb_basis_set)) THEN
-            basis_set(ikind)%gto_basis_set => orb_basis_set
-         ELSE
-            NULLIFY (basis_set(ikind)%gto_basis_set)
-         END IF
          CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential, sgp_potential=sgp_potential)
          NULLIFY (gpotential(ikind)%gth_potential)
          NULLIFY (spotential(ikind)%sgp_potential)
@@ -428,7 +545,7 @@ CONTAINS
       NULLIFY (alpha_ppnl, cprj, nprj_ppnl, vprj_ppnl)
       NULLIFY (clist, clist_sin)
 
-!$OMP DO SCHEDULE(GUIDED)      
+!$OMP DO SCHEDULE(GUIDED)
       DO slot = 1, sap_ppnl(1)%nl_size
          ikind = sap_ppnl(1)%nlist_task(slot)%ikind
          kkind = sap_ppnl(1)%nlist_task(slot)%jkind
@@ -551,7 +668,7 @@ CONTAINS
 
 !$OMP END PARALLEL
 
-      DEALLOCATE (basis_set, gpotential, spotential)
+      DEALLOCATE (gpotential, spotential)
 
       CALL timestop(handle)
 
