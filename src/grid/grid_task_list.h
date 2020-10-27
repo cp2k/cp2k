@@ -11,6 +11,7 @@
 
 #include "common/grid_basis_set.h"
 #include "cpu/grid_cpu_task_list.h"
+#include "gpu/grid_gpu_task_list.h"
 #include "ref/grid_ref_task_list.h"
 
 /*******************************************************************************
@@ -22,6 +23,9 @@ typedef struct {
   bool validate;
   grid_ref_task_list *ref;
   grid_cpu_task_list *cpu;
+#ifdef __GRID_CUDA
+  grid_gpu_task_list *gpu;
+#endif
   // more backends to be added here
 } grid_task_list;
 

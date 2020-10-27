@@ -274,6 +274,10 @@ CONTAINS
       flags = TRIM(flags)//" check_diag"
 #endif
 
+#if defined __GRID_CUDA
+      flags = TRIM(flags)//" grid_cuda"
+#endif
+
    END FUNCTION cp2k_flags
 
 ! **************************************************************************************************

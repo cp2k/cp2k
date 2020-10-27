@@ -1,0 +1,5 @@
+{
+    "description": "Optimized GPU backend",
+    "requires": ["../common",],
+    "archive": "libcp2kgridgpu",
+}

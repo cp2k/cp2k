@@ -25,6 +25,8 @@ typedef struct {
   double *zet;
 } grid_basis_set;
 
+#ifndef __cplusplus
+
 /*******************************************************************************
  * \brief Allocates a basis set which can be passed to grid_create_task_list.
  *
@@ -60,6 +62,8 @@ void grid_create_basis_set(const int nset, const int nsgf, const int maxco,
  * \author Ole Schuett
  ******************************************************************************/
 void grid_free_basis_set(grid_basis_set *basis_set);
+
+#endif
 
 #endif
 
