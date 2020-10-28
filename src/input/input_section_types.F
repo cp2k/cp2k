@@ -230,9 +230,7 @@ CONTAINS
       INTEGER                                            :: i
 
       IF (ASSOCIATED(section)) THEN
-         IF (section%ref_count < 1) THEN
-            CPWARN("Release counter for input section is smaller than one. Check the code!")
-         END IF
+         CPASSERT(section%ref_count > 0)
          section%ref_count = section%ref_count - 1
          IF (section%ref_count == 0) THEN
             IF (ASSOCIATED(section%citations)) THEN
