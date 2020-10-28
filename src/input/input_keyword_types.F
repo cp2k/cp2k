@@ -425,7 +425,9 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       IF (ASSOCIATED(keyword)) THEN
-         CPASSERT(keyword%ref_count > 0)
+         IF (keyword%ref_count < 1) THEN
+            CPWARN("Release counter for input keyword is smaller than one. Check the code!")
+         END IF
          keyword%ref_count = keyword%ref_count - 1
          IF (keyword%ref_count == 0) THEN
             DEALLOCATE (keyword%names)
