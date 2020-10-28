@@ -129,7 +129,9 @@ CONTAINS
       INTEGER                                            :: i
 
       IF (ASSOCIATED(enum)) THEN
-         CPASSERT(enum%ref_count > 0)
+         IF (enum%ref_count < 1) THEN
+            CPWARN("Release counter for input key enumeration is smaller than one. Check the code!")
+         END IF
          enum%ref_count = enum%ref_count - 1
          IF (enum%ref_count == 0) THEN
             DEALLOCATE (enum%c_vals)

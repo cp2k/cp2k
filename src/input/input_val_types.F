@@ -278,7 +278,9 @@ CONTAINS
       TYPE(val_type), POINTER                            :: val
 
       IF (ASSOCIATED(val)) THEN
-         CPASSERT(val%ref_count > 0)
+         IF (val%ref_count < 1) THEN
+            CPWARN("Release counter for input key value is smaller than one. Check the code!")
+         END IF
          val%ref_count = val%ref_count - 1
          IF (val%ref_count == 0) THEN
             IF (ASSOCIATED(val%l_val)) THEN
