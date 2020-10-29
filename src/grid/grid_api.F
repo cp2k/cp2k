@@ -14,17 +14,7 @@ MODULE grid_api
         C_ASSOCIATED, C_BOOL, C_CHAR, C_DOUBLE, C_FUNLOC, C_FUNPTR, C_F_POINTER, C_INT, C_LOC, &
         C_LONG, C_NULL_CHAR, C_NULL_PTR, C_PTR
    USE cell_types,                      ONLY: cell_type
-   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cube_utils,                      ONLY: cube_info_type
-   USE grid_collocate_legacy,           ONLY: &
-        GRID_FUNC_AB, GRID_FUNC_ADBmDAB_X, GRID_FUNC_ADBmDAB_Y, GRID_FUNC_ADBmDAB_Z, &
-        GRID_FUNC_ARDBmDARB_XX, GRID_FUNC_ARDBmDARB_XY, GRID_FUNC_ARDBmDARB_XZ, &
-        GRID_FUNC_ARDBmDARB_YX, GRID_FUNC_ARDBmDARB_YY, GRID_FUNC_ARDBmDARB_YZ, &
-        GRID_FUNC_ARDBmDARB_ZX, GRID_FUNC_ARDBmDARB_ZY, GRID_FUNC_ARDBmDARB_ZZ, &
-        GRID_FUNC_DABpADB_X, GRID_FUNC_DABpADB_Y, GRID_FUNC_DABpADB_Z, GRID_FUNC_DADB, &
-        GRID_FUNC_DX, GRID_FUNC_DXDX, GRID_FUNC_DXDY, GRID_FUNC_DY, GRID_FUNC_DYDY, &
-        GRID_FUNC_DYDZ, GRID_FUNC_DZ, GRID_FUNC_DZDX, GRID_FUNC_DZDZ, &
-        collocate_pgf_product_legacy => collocate_pgf_product
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
    USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
@@ -37,34 +27,32 @@ MODULE grid_api
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'grid_api'
 
-   LOGICAL, PARAMETER, PRIVATE :: validate_collocate = .FALSE.
-
-   PUBLIC :: GRID_FUNC_AB
-   PUBLIC :: GRID_FUNC_DADB
-   PUBLIC :: GRID_FUNC_ADBmDAB_X
-   PUBLIC :: GRID_FUNC_ADBmDAB_Y
-   PUBLIC :: GRID_FUNC_ADBmDAB_Z
-   PUBLIC :: GRID_FUNC_ARDBmDARB_XX
-   PUBLIC :: GRID_FUNC_ARDBmDARB_XY
-   PUBLIC :: GRID_FUNC_ARDBmDARB_XZ
-   PUBLIC :: GRID_FUNC_ARDBmDARB_YX
-   PUBLIC :: GRID_FUNC_ARDBmDARB_YY
-   PUBLIC :: GRID_FUNC_ARDBmDARB_YZ
-   PUBLIC :: GRID_FUNC_ARDBmDARB_ZX
-   PUBLIC :: GRID_FUNC_ARDBmDARB_ZY
-   PUBLIC :: GRID_FUNC_ARDBmDARB_ZZ
-   PUBLIC :: GRID_FUNC_DABpADB_X
-   PUBLIC :: GRID_FUNC_DABpADB_Y
-   PUBLIC :: GRID_FUNC_DABpADB_Z
-   PUBLIC :: GRID_FUNC_DX
-   PUBLIC :: GRID_FUNC_DY
-   PUBLIC :: GRID_FUNC_DZ
-   PUBLIC :: GRID_FUNC_DXDY
-   PUBLIC :: GRID_FUNC_DYDZ
-   PUBLIC :: GRID_FUNC_DZDX
-   PUBLIC :: GRID_FUNC_DXDX
-   PUBLIC :: GRID_FUNC_DYDY
-   PUBLIC :: GRID_FUNC_DZDZ
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_AB = 100
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DADB = 200
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ADBmDAB_X = 301
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ADBmDAB_Y = 302
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ADBmDAB_Z = 303
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ARDBmDARB_XX = 411
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ARDBmDARB_XY = 412
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ARDBmDARB_XZ = 413
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ARDBmDARB_YX = 421
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ARDBmDARB_YY = 422
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ARDBmDARB_YZ = 423
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ARDBmDARB_ZX = 431
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ARDBmDARB_ZY = 432
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ARDBmDARB_ZZ = 433
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DABpADB_X = 501
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DABpADB_Y = 502
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DABpADB_Z = 503
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DX = 601
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DY = 602
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DZ = 603
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DXDY = 701
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DYDZ = 702
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DZDX = 703
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DXDX = 801
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DYDY = 802
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DZDZ = 803
 
    INTEGER, PARAMETER, PUBLIC :: GRID_BACKEND_AUTO = 10
    INTEGER, PARAMETER, PUBLIC :: GRID_BACKEND_REF = 11
@@ -136,13 +124,11 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: use_subpatch
       INTEGER, INTENT(IN), OPTIONAL                      :: subpatch_pattern
 
-      INTEGER                                            :: border_mask, i, iw, j, k, my_pos
+      INTEGER                                            :: border_mask
       INTEGER, DIMENSION(3), TARGET                      :: border_width, npts_global, npts_local, &
                                                             shift_local
-      INTEGER, SAVE                                      :: counter = 0
       LOGICAL(KIND=C_BOOL)                               :: orthorhombic
-      REAL(KIND=dp)                                      :: diff, ref_value, rel_diff, tolerance
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grid, grid_before
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grid
       INTERFACE
          SUBROUTINE grid_collocate_pgf_product_c(orthorhombic, &
                                                  border_mask, func, &
@@ -203,15 +189,7 @@ CONTAINS
                                  shift_local=shift_local, &
                                  border_width=border_width)
 
-      IF (validate_collocate) THEN
-         ALLOCATE (grid(SIZE(rsgrid%r, 1), SIZE(rsgrid%r, 2), SIZE(rsgrid%r, 3)))
-         ALLOCATE (grid_before(SIZE(rsgrid%r, 1), SIZE(rsgrid%r, 2), SIZE(rsgrid%r, 3)))
-         grid_before = rsgrid%r ! copy
-         grid = 0.0_dp
-         rsgrid%r = 0.0_dp
-      ELSE
-         grid(1:, 1:, 1:) => rsgrid%r(:, :, :)  ! pointer assignment
-      ENDIF
+      grid(1:, 1:, 1:) => rsgrid%r(:, :, :)  ! pointer assignment
 
 #if __GNUC__ >= 9
       CPASSERT(IS_CONTIGUOUS(rsgrid%desc%dh))
@@ -251,50 +229,6 @@ CONTAINS
                                         n2=SIZE(pab, 2), &
                                         pab=C_LOC(pab(1, 1)), &
                                         grid=C_LOC(grid(1, 1, 1)))
-
-      IF (validate_collocate) THEN
-         CALL collocate_pgf_product_legacy(la_max, zeta, la_min, &
-                                           lb_max, zetb, lb_min, &
-                                           ra, rab, scale, pab, o1, o2, &
-                                           rsgrid, cell, cube_info, &
-                                           ga_gb_function, radius, &
-                                           use_subpatch, subpatch_pattern)
-         IF (orthorhombic .AND. border_mask == 0) THEN
-            tolerance = 6e-14
-         ELSE
-            tolerance = 2e-10
-         END IF
-         counter = counter + 1
-         my_pos = rsgrid%desc%my_pos
-         DO i = 1, SIZE(rsgrid%r, 1)
-         DO j = 1, SIZE(rsgrid%r, 2)
-         DO k = 1, SIZE(rsgrid%r, 3)
-            ref_value = rsgrid%r(i - 1 + LBOUND(rsgrid%r, 1), j - 1 + LBOUND(rsgrid%r, 2), k - 1 + LBOUND(rsgrid%r, 3))
-            diff = ABS(grid(i, j, k) - ref_value)
-            rel_diff = diff/MAX(1.0_dp, ABS(ref_value))
-            !IF ((ref_value==0.0_dp) .NEQV. (grid(i, j, k)==0.0_dp)) THEN
-            IF (rel_diff > tolerance) THEN
-               iw = cp_logger_get_default_io_unit()
-               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "diff: ", diff
-               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "rel. diff: ", rel_diff
-               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "value:", grid(i, j, k), "ref_value:", ref_value
-               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "ijk:", i - 1, j - 1, k - 1
-               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "npts_global:", npts_global
-               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "npts_local:", npts_local
-               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "shift_local:", shift_local
-               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "orthorhombic:", orthorhombic
-               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "ga_gb_function:", ga_gb_function
-               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "border_mask:", border_mask
-               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "border_width:", border_width
-               WRITE (iw, *) "counter: ", counter, "my_pos: ", my_pos, "distributed:", rsgrid%desc%distributed
-               CPABORT("Collocate validation failed.")
-            END IF
-         ENDDO
-         ENDDO
-         ENDDO
-         rsgrid%r = rsgrid%r + grid_before
-         DEALLOCATE (grid, grid_before)
-      ENDIF
 
    END SUBROUTINE collocate_pgf_product
 
