@@ -49,9 +49,7 @@ static inline orbital down(const int i, const orbital a) {
  * \brief Return coset index of given orbital angular momentum.
  * \author Ole Schuett
  ******************************************************************************/
-static inline int index(const orbital a) {
-  return coset(a.l[0], a.l[1], a.l[2]);
-}
+static inline int idx(const orbital a) { return coset(a.l[0], a.l[1], a.l[2]); }
 
 /*******************************************************************************
  * \brief Contracts given matrix elements to obtain the forces for atom a.
@@ -63,8 +61,8 @@ static inline void update_force_a(const orbital a, const orbital b,
                                   const double vab[m2][m1], double force_a[3]) {
 
   for (int i = 0; i < 3; i++) {
-    const double aip1 = vab[index(b)][index(up(i, a))];
-    const double aim1 = vab[index(b)][index(down(i, a))];
+    const double aip1 = vab[idx(b)][idx(up(i, a))];
+    const double aim1 = vab[idx(b)][idx(down(i, a))];
     force_a[i] += pab * (ftza * aip1 - a.l[i] * aim1);
   }
 }
@@ -79,10 +77,10 @@ static inline void update_force_b(const orbital a, const orbital b,
                                   const int m2, const double vab[m2][m1],
                                   double force_b[3]) {
 
-  const double axpm0 = vab[index(b)][index(a)];
+  const double axpm0 = vab[idx(b)][idx(a)];
   for (int i = 0; i < 3; i++) {
-    const double aip1 = vab[index(b)][index(up(i, a))];
-    const double bim1 = vab[index(down(i, b))][index(a)];
+    const double aip1 = vab[idx(b)][idx(up(i, a))];
+    const double bim1 = vab[idx(down(i, b))][idx(a)];
     force_b[i] += pab * (ftzb * (aip1 - rab[i] * axpm0) - b.l[i] * bim1);
   }
 }
@@ -99,8 +97,8 @@ static inline void update_virial_a(const orbital a, const orbital b,
 
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
-      virial_a[i][j] += pab * ftza * vab[index(b)][index(up(i, up(j, a)))] -
-                        pab * a.l[j] * vab[index(b)][index(up(i, down(j, a)))];
+      virial_a[i][j] += pab * ftza * vab[idx(b)][idx(up(i, up(j, a)))] -
+                        pab * a.l[j] * vab[idx(b)][idx(up(i, down(j, a)))];
     }
   }
 }
@@ -118,11 +116,11 @@ static inline void update_virial_b(const orbital a, const orbital b,
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
       virial_b[i][j] += pab * ftzb *
-                            (vab[index(b)][index(up(i, up(j, a)))] -
-                             vab[index(b)][index(up(i, a))] * rab[j] -
-                             vab[index(b)][index(up(j, a))] * rab[i] +
-                             vab[index(b)][index(a)] * rab[j] * rab[i]) -
-                        pab * b.l[j] * vab[index(up(i, down(j, b)))][index(a)];
+                            (vab[idx(b)][idx(up(i, up(j, a)))] -
+                             vab[idx(b)][idx(up(i, a))] * rab[j] -
+                             vab[idx(b)][idx(up(j, a))] * rab[i] +
+                             vab[idx(b)][idx(a)] * rab[j] * rab[i]) -
+                        pab * b.l[j] * vab[idx(up(i, down(j, b)))][idx(a)];
     }
   }
 }
@@ -137,7 +135,7 @@ static void update_all(const orbital a, const orbital b, const double f,
                        const double vab[m2][m1], const double pab, double *hab,
                        double forces[2][3], double virials[2][3][3]) {
 
-  *hab += f * vab[index(b)][index(a)];
+  *hab += f * vab[idx(b)][idx(a)];
 
   if (forces != NULL) {
     update_force_a(a, b, f * pab, ftza, m1, m2, vab, forces[0]);
@@ -238,9 +236,9 @@ void grid_ref_integrate_pgf_product(
               const int bz = lb - bx - by;
               const orbital b = {{bx, by, bz}};
 
-              double *habval = &hab[o2 + index(b)][o1 + index(a)];
+              double *habval = &hab[o2 + idx(b)][o1 + idx(a)];
               const double pabval =
-                  (pab == NULL) ? 0.0 : pab[o2 + index(b)][o1 + index(a)];
+                  (pab == NULL) ? 0.0 : pab[o2 + idx(b)][o1 + idx(a)];
 
               // Fill hab, forces, and virials.
               if (compute_tau) {
@@ -255,12 +253,12 @@ void grid_ref_integrate_pgf_product(
               if (hdab != NULL) {
                 assert(!compute_tau);
                 update_force_a(a, b, 1.0, ftza, m1, m2, vab,
-                               hdab[o2 + index(b)][o1 + index(a)]);
+                               hdab[o2 + idx(b)][o1 + idx(a)]);
               }
               if (a_hdab != NULL) {
                 assert(!compute_tau);
                 update_virial_a(a, b, 1.0, ftza, m1, m2, vab,
-                                a_hdab[o2 + index(b)][o1 + index(a)]);
+                                a_hdab[o2 + idx(b)][o1 + idx(a)]);
               }
             }
           }
