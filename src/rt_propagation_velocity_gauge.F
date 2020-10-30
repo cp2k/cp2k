@@ -154,7 +154,7 @@ CONTAINS
             CALL cp_dbcsr_alloc_block_from_nbl(nl_term(ispin)%matrix, sab_all)
             CALL dbcsr_set(nl_term(ispin)%matrix, zero)
          ENDDO
-         WRITE (*, *) 'calc nl term'
+         ! WRITE (*, *) 'calc nl term'
          CALL velocity_gauge_nl_term(qs_env, nl_term, vec_pot)
 
          CALL dbcsr_print(nl_term(1)%matrix)
@@ -408,8 +408,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routiuneN = "build_sap_exp_ints"
 
       INTEGER :: handle, i, iac, iatom, ikind, ilist, iset, jneighbor, katom, kkind, l, lc_max, &
-         lc_min, ldai, ldints, lppnl, maxco, maxl, maxlgto, maxlppnl, maxsgf, na, nb, ncoa, ncoc, &
-         nkind, nlist, nneighbor, np, nppnl, nprjc, nseta, nsgfa, prjc, sgfa, slot
+         lc_min, ldai, ldints, lppnl, maxco, maxl, maxlgto, maxlppnl, maxppnl, maxsgf, na, nb, &
+         ncoa, ncoc, nkind, nlist, nneighbor, np, nppnl, nprjc, nseta, nsgfa, prjc, sgfa, slot
       INTEGER, DIMENSION(3)                              :: cell_c
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nprj_ppnl, &
                                                             nsgf_seta
@@ -434,12 +434,13 @@ CONTAINS
       CALL get_qs_kind_set(qs_kind_set, &
                            maxco=maxco, &
                            maxlppnl=maxlppnl, &
+                           maxppnl=maxppnl, &
                            maxsgf=maxsgf, &
                            maxlgto=maxlgto)
 
       ! maximum dimensions for allocations
       maxl = MAX(maxlppnl, maxlgto)
-      ldints = MAX(maxco, ncoset(maxlppnl), maxsgf, maxlppnl)
+      ldints = MAX(maxco, ncoset(maxlppnl), maxsgf, maxppnl)
       ldai = ncoset(maxl + 1)
 
       !set up direct access to basis and potential
@@ -632,10 +633,13 @@ CONTAINS
                               lc_max, 1, zetc, rprjc, lc_min, ra, rc, kvec, ai_work_cos, ai_work_sin)
 
                   ! projector functions: Cartesian -> spherical
-                  work_cos(1:ncoa, :prjc + nprjc - 1) = &
-                     MATMUL(ai_work_cos(1:ncoa, 1:ncoc), cprj(1:ncoc, prjc:prjc + nprjc - 1))
-                  work_sin(1:ncoa, :prjc + nprjc - 1) = &
-                     MATMUL(ai_work_sin(1:ncoa, 1:ncoc), cprj(1:ncoc, prjc:prjc + nprjc - 1))
+                  na = ncoa
+                  nb = nprjc
+                  np = ncoc
+                  work_cos(1:na, prjc:prjc + nb - 1) = &
+                     MATMUL(ai_work_cos(1:na, 1:np), cprj(1:np, prjc:prjc + nb - 1))
+                  work_sin(1:na, prjc:prjc + nb - 1) = &
+                     MATMUL(ai_work_sin(1:na, 1:np), cprj(1:np, prjc:prjc + nb - 1))
 
                   prjc = prjc + nprjc
                ENDDO
@@ -645,9 +649,9 @@ CONTAINS
                nb = nppnl
                np = ncoa
                clist%acint(sgfa:sgfa + na - 1, 1:nb, 1) = &
-                  MATMUL(TRANSPOSE(sphi_a(1:np, sgfa:sgfa + na - 1)), work_cos(1:np, 1:nb - 1))
+                  MATMUL(TRANSPOSE(sphi_a(1:np, sgfa:sgfa + na - 1)), work_cos(1:np, 1:nb))
                clist_sin%acint(sgfa:sgfa + na - 1, 1:nb, 1) = &
-                  MATMUL(TRANSPOSE(sphi_a(1:np, sgfa:sgfa + na - 1)), work_sin(1:np, 1:nb - 1))
+                  MATMUL(TRANSPOSE(sphi_a(1:np, sgfa:sgfa + na - 1)), work_sin(1:np, 1:nb))
 
                ! multiply with interaction matrix h_ij of the nl pp
                clist%achint(sgfa:sgfa + na - 1, 1:nb, 1) = &
