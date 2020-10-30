@@ -34,7 +34,8 @@ MODULE rt_propagation_velocity_gauge
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              int_8
    USE mathconstants,                   ONLY: one,&
                                               twopi,&
                                               zero
@@ -57,7 +58,9 @@ MODULE rt_propagation_velocity_gauge
                                               sap_int_type,&
                                               sap_sort
 
-!$ use OMP_LIB, ONLY: omp_get_thread_num
+!$ USE OMP_LIB, ONLY: omp_lock_kind, &
+!$                    omp_init_lock, omp_set_lock, &
+!$                    omp_unset_lock, omp_destroy_lock
 
 #include "./base/base_uses.f90"
 
@@ -212,8 +215,8 @@ CONTAINS
 
       INTEGER                                            :: handle, i, iac, iatom, ibc, icol, ikind, &
                                                             irow, jatom, jkind, kac, kbc, kkind, &
-                                                            maxl, maxlgto, maxlppnl, na, nb, &
-                                                            nkind, np, slot
+                                                            maxl, maxlgto, maxlppnl, na, natom, &
+                                                            nb, nkind, np, slot
       INTEGER, DIMENSION(3)                              :: cell_b
       LOGICAL                                            :: found
       REAL(dp)                                           :: eps_ppnl
@@ -235,6 +238,14 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int_cos, sap_int_sin
 
+!$    INTEGER(kind=omp_lock_kind), &
+!$       ALLOCATABLE, DIMENSION(:) :: locks
+!$    INTEGER(KIND=int_8)                                :: iatom8
+!$    INTEGER                                            :: lock_num, hash
+!$    INTEGER, PARAMETER                                 :: nlock = 501
+
+      MARK_USED(int_8)
+
       CALL timeset(routiuneN, handle)
 
       NULLIFY (sap_ppnl, sab_orb)
@@ -251,6 +262,7 @@ CONTAINS
                          cell=cell)
 
          nkind = SIZE(qs_kind_set)
+         natom = SIZE(particle_set)
          eps_ppnl = dft_control%qs_control%eps_ppnl
 
          CALL get_qs_kind_set(qs_kind_set, &
@@ -289,11 +301,30 @@ CONTAINS
          CALL sap_sort(sap_int_sin)
 
          ! assemble the integrals for the gauge term
+!$OMP PARALLEL &
+!$OMP DEFAULT (NONE) &
+!$OMP SHARED (basis_set, nl_term, sab_orb, sap_int_cos, sap_int_sin, eps_ppnl, locks, nkind, natom) &
+!$OMP PRIVATE (real_block, imag_block, acint_cos, achint_cos, bcint_cos, bchint_cos, acint_sin,&
+!$OMP          achint_sin, bcint_sin, bchint_sin, slot, ikind, jkind, iatom, jatom, cell_b, rab, irow, icol,&
+!$OMP          found, kkind, iac, ibc, alist_cos_ac, alist_cos_bc, alist_sin_ac, alist_sin_bc, kac, kbc, &
+!$OMP          na, np, nb, iatom8, hash)
+
+!$OMP SINGLE
+!$       ALLOCATE (locks(nlock))
+!$OMP END SINGLE
+
+!$OMP DO
+!$       DO lock_num = 1, nlock
+!$          call omp_init_lock(locks(lock_num))
+!$       END DO
+!$OMP END DO
 
          NULLIFY (real_block, imag_block)
          NULLIFY (acint_cos, achint_cos, achint_cos, bchint_cos)
          NULLIFY (acint_sin, achint_sin, achint_sin, bchint_sin)
+
          ! loop over atom pairs
+!$OMP DO SCHEDULE(GUIDED)
          DO slot = 1, sab_orb(1)%nl_size
             ikind = sab_orb(1)%nlist_task(slot)%ikind
             jkind = sab_orb(1)%nlist_task(slot)%jkind
@@ -359,7 +390,9 @@ CONTAINS
                            na = SIZE(acint_cos, 1)
                            np = SIZE(acint_cos, 2)
                            nb = SIZE(bcint_cos, 1)
-
+!$                         iatom8 = INT(iatom - 1, int_8)*INT(natom, int_8) + INT(jatom, int_8)
+!$                         hash = INT(MOD(iatom8, INT(nlock, int_8)) + 1)
+!$                         CALL omp_set_lock(locks(hash))
                            IF (iatom <= jatom) THEN
                               ! cos*cos + sin*sin
                               real_block(1:na, 1:nb) = real_block(1:na, 1:nb) + &
@@ -380,6 +413,7 @@ CONTAINS
                                                        MATMUL(bchint_cos(1:nb, 1:np, 1), TRANSPOSE(acint_sin(1:na, 1:np, 1)))
 
                            ENDIF
+!$                         CALL omp_unset_lock(locks(hash))
                            EXIT
                         ENDIF
                      ENDDO
@@ -389,6 +423,17 @@ CONTAINS
 
          ENDDO
 
+!$OMP DO
+!$       DO lock_num = 1, nlock
+!$          call omp_destroy_lock(locks(lock_num))
+!$       END DO
+!$OMP END DO
+
+!$OMP SINGLE
+!$       DEALLOCATE (locks)
+!$OMP END SINGLE NOWAIT
+
+!$OMP END PARALLEL
          CALL release_sap_int(sap_int_cos)
          CALL release_sap_int(sap_int_sin)
 
