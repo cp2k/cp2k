@@ -2,9 +2,9 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-plumed_ver="2.6.1"
-plumed_pkg="plumed-src-${plumed_ver}.tgz"
-plumed_sha256="b76dd05e81b11e996744ecd83f2f7f15bc0960e1fb1b945ca904baf3554928aa"
+plumed_ver="2.6.2"
+plumed_pkg="plumed-${plumed_ver}.tgz"
+plumed_sha256="1ab3153db2010406852b30201ed94112e25eca4c4c8c4b41a29c22a7a3303f96"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -32,7 +32,7 @@ case "$with_plumed" in
                 echo "${plumed_pkg} is found"
             else
                 download_pkg ${DOWNLOADER_FLAGS} ${plumed_sha256} \
-                             https://www.cp2k.org/static/downloads/${plumed_pkg}
+                    "https://www.cp2k.org/static/downloads/${plumed_pkg}"
             fi
 
             [ -d plumed-${plumed_ver} ] && rm -rf plumed-${plumed_ver}
