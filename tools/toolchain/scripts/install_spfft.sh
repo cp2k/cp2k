@@ -2,8 +2,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-spfft_ver="0.9.12"
-spfft_sha256="4bf879c6b3914bf5e462ef04a43656be559a8402755180301d99a080834d8fb3"
+spfft_ver="0.9.13"
+spfft_sha256="621543658991782dd184948082c7eea474b6759140f796bb55da2e2f654d3558"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
