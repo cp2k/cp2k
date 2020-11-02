@@ -1,0 +1,5 @@
+{
+    "description": "GPU backend implementation",
+    "requires": ["../common", "../cpu", "../ref"],
+    "archive": "libcp2kgridgpu",
+}

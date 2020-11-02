@@ -1,0 +1,45 @@
+#ifndef __GRID_TASK_LIST_CPU_H__
+#define __GRID_TASK_LIST_CPU_H__
+
+#include "../common/grid_basis_set.h"
+void *create_grid_context_cpu(
+    const int ntasks, const int nlevels, const int natoms, const int nkinds,
+    const int nblocks, const int buffer_size, const int *block_offsets,
+    const double atom_positions[natoms][3], const int *const atom_kinds,
+    const grid_basis_set **const basis_sets, const int *const level_list,
+    const int *const iatom_list, const int *jatom_list,
+    const int *const iset_list, const int *const jset_list,
+    const int *const ipgf_list, const int *const jpgf_list,
+    const int *const border_mask_list, const int *block_num_list,
+    const double *const radius_list, const double rab_list[ntasks][3],
+    double **blocks_buffer);
+
+void update_grid_context_cpu(
+    const int ntasks, const int nlevels, const int natoms, const int nkinds,
+    const int nblocks, const int buffer_size, const int *block_offsets,
+    const double atom_positions[natoms][3], const int *const atom_kinds,
+    const grid_basis_set **const basis_sets, const int *const level_list,
+    const int *const iatom_list, const int *jatom_list,
+    const int *const iset_list, const int *const jset_list,
+    const int *const ipgf_list, const int *const jpgf_list,
+    const int *const border_mask_list, const int *block_num_list,
+    const double *const radius_list, const double rab_list[ntasks][3],
+    double **blocks_buffer, void *ptr);
+
+void initialize_grid_context_on_gpu(void *ptr,
+                                    const int number_of_devices,
+                                    const int *device_id);
+
+void destroy_grid_context_cpu(void *ptr);
+
+void apply_cutoff(void *ptr);
+void extract_grid_context_block_buffer(const void *const ptr, void *block_buffer);
+void update_queue_length(void *const ptr, const int queue_length);
+void grid_collocate_task_list_cpu(
+    void *const ptr, const bool orthorhombic,
+    const int func, const int nlevels,
+    const int npts_global[nlevels][3], const int npts_local[nlevels][3],
+    const int shift_local[nlevels][3], const int border_width[nlevels][3],
+    const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
+    double *grid[nlevels]);
+#endif

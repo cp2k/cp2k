@@ -47,6 +47,7 @@ MODULE cp2k_runs
                                               dbcsr_init_lib,&
                                               dbcsr_print_config,&
                                               dbcsr_print_statistics
+   USE dbcsr_config,                    ONLY: get_accdrv_active_device_id
    USE environment,                     ONLY: cp2k_finalize,&
                                               cp2k_init,&
                                               cp2k_read,&
@@ -179,9 +180,11 @@ CONTAINS
 
       INTEGER                                            :: f_env_handle, grid_backend, ierr, &
                                                             iter_level, method_name_id, &
-                                                            new_env_id, prog_name_id, run_type_id
+                                                            new_env_id, prog_name_id, run_type_id, &
+                                                            grid_queue_length
       INTEGER(KIND=int_8)                                :: m_memory_max_mpi
-      LOGICAL                                            :: echo_input, grid_validate, I_was_ionode
+      LOGICAL                                            :: echo_input, grid_validate, I_was_ionode, &
+                                                            grid_apply_cutoff
       TYPE(cp_logger_type), POINTER                      :: logger, sublogger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -253,7 +256,13 @@ CONTAINS
       ! Configure the grid library.
       CALL section_vals_val_get(root_section, "GLOBAL%GRID%BACKEND", i_val=grid_backend)
       CALL section_vals_val_get(root_section, "GLOBAL%GRID%VALIDATE", l_val=grid_validate)
-      CALL grid_library_set_config(backend=grid_backend, validate=grid_validate)
+      CALL section_vals_val_get(root_section, "GLOBAL%GRID%APPLY_CUTOFF", l_val=grid_apply_cutoff)
+      CALL section_vals_val_get(root_section, "GLOBAL%GRID%QUEUE_LENGTH", i_val=grid_queue_length)
+      CALL grid_library_set_config(backend=grid_backend, &
+                                   device_id = get_accdrv_active_device_id(), &
+                                   validate=grid_validate, &
+                                   apply_cutoff = grid_apply_cutoff, &
+                                   queue_length = grid_queue_length)
 
       SELECT CASE (prog_name_id)
       CASE (do_atom)

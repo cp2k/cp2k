@@ -10,7 +10,6 @@
 #include <stdbool.h>
 
 #include "common/grid_basis_set.h"
-#include "cpu/grid_cpu_task_list.h"
 #include "ref/grid_ref_task_list.h"
 
 /*******************************************************************************
@@ -19,9 +18,12 @@
  ******************************************************************************/
 typedef struct {
   int backend;
+  int device_id;
   bool validate;
+  bool apply_cutoff;
   grid_ref_task_list *ref;
-  grid_cpu_task_list *cpu;
+  void *cpu;
+  void *gpu;
   // more backends to be added here
 } grid_task_list;
 

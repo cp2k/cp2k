@@ -19,7 +19,10 @@
 static grid_library_globals **per_thread_globals = NULL;
 static bool library_initialized = false;
 static grid_library_config config = {.backend = GRID_BACKEND_AUTO,
-                                     .validate = false};
+    .device_id = -1,
+    .validate = false,
+    .apply_cutoff=false,
+    .queue_length = 8192};
 
 /*******************************************************************************
  * \brief Initializes the grid library.
@@ -76,9 +79,11 @@ grid_sphere_cache *grid_library_get_sphere_cache() {
  * \brief Configures the grid library.
  * \author Ole Schuett
  ******************************************************************************/
-void grid_library_set_config(const int backend, const bool validate) {
+void grid_library_set_config(const int backend, const int device_id, const bool validate, const bool apply_cutoff) {
   config.backend = backend;
+  config.device_id = device_id;
   config.validate = validate;
+  config.apply_cutoff = apply_cutoff;
 }
 
 /*******************************************************************************
