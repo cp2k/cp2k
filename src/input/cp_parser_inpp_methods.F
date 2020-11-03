@@ -178,7 +178,7 @@ CONTAINS
          inpp%io_stack_level = inpp%io_stack_level + 1
          CALL reallocate(inpp%io_stack_channel, 1, inpp%io_stack_level)
          CALL reallocate(inpp%io_stack_lineno, 1, inpp%io_stack_level)
-         CALL reallocate(p_long=inpp%io_stack_filename, lb_new=1, ub_new=inpp%io_stack_level)
+         CALL reallocate(inpp%io_stack_filename, 1, inpp%io_stack_level)
 
          inpp%io_stack_channel(inpp%io_stack_level) = input_unit
          inpp%io_stack_lineno(inpp%io_stack_level) = input_line_number
@@ -268,7 +268,7 @@ CONTAINS
          inpp%io_stack_level = inpp%io_stack_level + 1
          CALL reallocate(inpp%io_stack_channel, 1, inpp%io_stack_level)
          CALL reallocate(inpp%io_stack_lineno, 1, inpp%io_stack_level)
-         CALL reallocate(p_long=inpp%io_stack_filename, lb_new=1, ub_new=inpp%io_stack_level)
+         CALL reallocate(inpp%io_stack_filename, 1, inpp%io_stack_level)
 
          inpp%io_stack_channel(inpp%io_stack_level) = input_unit
          inpp%io_stack_lineno(inpp%io_stack_level) = input_line_number
@@ -324,8 +324,8 @@ CONTAINS
          IF (indi == 0) THEN
             ! create new variable
             inpp%num_variables = inpp%num_variables + 1
-            CALL reallocate(p_long=inpp%variable_name, lb_new=1, ub_new=inpp%num_variables)
-            CALL reallocate(p_long=inpp%variable_value, lb_new=1, ub_new=inpp%num_variables)
+            CALL reallocate(inpp%variable_name, 1, inpp%num_variables)
+            CALL reallocate(inpp%variable_value, 1, inpp%num_variables)
             inpp%variable_name(inpp%num_variables) = varname
             inpp%variable_value(inpp%num_variables) = value
             IF (debug_this_module .AND. output_unit > 0) THEN
@@ -532,7 +532,7 @@ CONTAINS
          inpp%io_stack_level = inpp%io_stack_level - 1
          CALL reallocate(inpp%io_stack_channel, 1, inpp%io_stack_level)
          CALL reallocate(inpp%io_stack_lineno, 1, inpp%io_stack_level)
-         CALL reallocate(p_long=inpp%io_stack_filename, lb_new=1, ub_new=inpp%io_stack_level)
+         CALL reallocate(inpp%io_stack_filename, 1, inpp%io_stack_level)
       ENDIF
 
    END SUBROUTINE inpp_end_include
