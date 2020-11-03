@@ -50,13 +50,14 @@ PROGRAM example_prog
    USE example, ONLY: dp, test_routine, test_function, test_type, str_function
 
    IMPLICIT NONE
-   INTEGER :: r, i, j, k, l, my_integer, m
+   INTEGER :: r, i, j, k, l, my_integer, m, saved_var = 10
    INTEGER, DIMENSION(5) :: arr
    INTEGER, DIMENSION(20) :: big_arr
    INTEGER :: ENDIF
    TYPE(test_type) :: t
    REAL(KIND=dp) :: r1, r2, r3, r4, r5, r6
    INTEGER, POINTER :: point
+   INTEGER, POINTER :: point_init => NULL()
 
    point => NULL()
 

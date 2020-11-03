@@ -46,7 +46,7 @@ VAR_RE = re.compile(
     rf"""
 \s*(?P<var>{VALID_NAME})
 \s*(?P<rest>(:?\((?P<param>{NESTED_PAREN_1TO3_CONTENTS})\))?
-\s*(?:=\s*(?P<value>(?:
+\s*(?:(?P<assignment>=>?)\s*(?P<value>(?:
 {NOT_PUNC_COMMA}+|
 {BRAC_OPEN}(?:{NOT_PUNC}|{BRAC_OPEN}{NOT_PUNC}*{BRAC_CLOSE}|{QUOTED})*{BRAC_CLOSE}|
 {QUOTED})+))?)?
@@ -402,7 +402,7 @@ def parseRoutine(inFile, logger):
                     if m2.group("param"):
                         var += "(" + m2.group("param") + ")"
                     if m2.group("value"):
-                        var += " = "
+                        var += " {} ".format(m2["assignment"])
                         var += m2.group("value")
                     decl["vars"].append(var)
                     str = str[m2.span()[1] :]
