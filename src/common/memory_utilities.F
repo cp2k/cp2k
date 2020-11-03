@@ -39,534 +39,79 @@ CONTAINS
 #! *************************************************************************************************
 #!> \brief Fypp macro for common subroutine body
 #!> \author Ole Schuett
+#!> \author Tiziano Müller
 #! *************************************************************************************************
-#:def reallocate(rank)
+#:def reallocate(suffix, rank, type, zero, worktype=None)
+#:set bounds_vars = ','.join("lb{0}_new,ub{0}_new".format(i+1) for i in range(rank))
+#:set old_bounds = ','.join(['lb{0}:ub{0}'.format(i+1) for i in range(rank)])
+#:set new_bounds = ','.join(['lb{0}_new:ub{0}_new'.format(i+1) for i in range(rank)])
+#:set arr_exp = ','.join(':'*rank)
+! **************************************************************************************************
+!> \brief (Re)Allocate a ${rank}$D vector of type ${type}$ with new dimensions (but same shape)
+!> \param p pointer to the existing data, if NULL() calling this is equivalent to an ALLOCATE(...)
+#:for i in range(1, rank+1)
+!> \param lb${i}$_new new lower bound for dimension ${i}$
+!> \param ub${i}$_new new upper bound for dimension ${i}$
+#:endfor
+! **************************************************************************************************
+   SUBROUTINE reallocate_${suffix}$${rank}$ (p, ${bounds_vars}$)
+      ${type}$, &
+         DIMENSION(${arr_exp}$), &
+         POINTER, INTENT(INOUT) :: p
+
+      INTEGER, INTENT(IN) :: &
+         ${bounds_vars}$
 
 #:for i in range(1, rank+1)
-   INTEGER :: lb${i}$, lb${i}$_old, ub${i}$, ub${i}$_old
+      INTEGER :: lb${i}$, lb${i}$_old, ub${i}$, ub${i}$_old
 #:endfor
 
-   IF (ASSOCIATED(p)) THEN
+#:if worktype
+      ${worktype}$, &
+         #:else
+         ${type}$, &
+         #:endif
+         DIMENSION(${arr_exp}$), &
+         POINTER :: work
+      work => NULL()
 
+      IF (ASSOCIATED(p)) THEN
 #:for i in range(1, rank+1)
-      lb${i}$_old = LBOUND(p, ${i}$)
-      ub${i}$_old = UBOUND(p, ${i}$)
-      lb${i}$ = MAX(lb${i}$_new, lb${i}$_old)
-      ub${i}$ = MIN(ub${i}$_new, ub${i}$_old)
+         lb${i}$_old = LBOUND(p, ${i}$)
+         ub${i}$_old = UBOUND(p, ${i}$)
+         lb${i}$ = MAX(lb${i}$_new, lb${i}$_old)
+         ub${i}$ = MIN(ub${i}$_new, ub${i}$_old)
 #:endfor
-
-      work => p
-   END IF
-
-#:set old_bounds = ','.join(['lb{0}:ub{0}'.format(i) for i in range(1, rank+1)])
-#:set new_bounds = ','.join(['lb{0}_new:ub{0}_new'.format(i) for i in range(1, rank+1)])
-
-   ALLOCATE (p(${new_bounds}$))
-   p = zero
-
-   IF (ASSOCIATED(work)) THEN
-      p(${old_bounds}$) = work(${old_bounds}$)
-      DEALLOCATE (work)
-   END IF
-
-#:enddef
-
-! **************************************************************************************************
-!> \brief (Re)Allocate a complex vector with a new dimension
-!> \param p ...
-!> \param lb1_new ...
-!> \param ub1_new ...
-!> \par History
-!>      none
-!> \author Matthias Krack (28.11.2005,MK)
-! **************************************************************************************************
-   SUBROUTINE reallocate_c1(p, lb1_new, ub1_new)
-
-      COMPLEX(KIND=dp), DIMENSION(:), POINTER, INTENT(INOUT)            :: p
-      INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
-
-      COMPLEX(KIND=dp), PARAMETER                        :: zero = (0.0_dp, 0.0_dp)
-
-      COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: work => NULL()
-
-$: reallocate(rank=1)
-
-   END SUBROUTINE reallocate_c1
-
-! **************************************************************************************************
-!> \brief (Re)Allocate a complex array 2D with a new dimension
-!> \param p ...
-!> \param lb1_new ...
-!> \param ub1_new ...
-!> \param lb2_new ...
-!> \param ub2_new ...
-!> \par History
-!>      none
-!> \author Matthias Krack (28.11.2005,MK)
-! **************************************************************************************************
-   SUBROUTINE reallocate_c2(p, lb1_new, ub1_new, lb2_new, ub2_new)
-
-      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER, INTENT(INOUT)         :: p
-      INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new
-
-      COMPLEX(KIND=dp), PARAMETER                        :: zero = (0.0_dp, 0.0_dp)
-
-      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: work => NULL()
-
-$: reallocate(rank=2)
-
-   END SUBROUTINE reallocate_c2
-
-! **************************************************************************************************
-!> \brief (Re)Allocate a complex array 3D with a new dimension
-!> \param p ...
-!> \param lb1_new ...
-!> \param ub1_new ...
-!> \param lb2_new ...
-!> \param ub2_new ...
-!> \param lb3_new ...
-!> \param ub3_new ...
-!> \par History
-!>      none
-!> \author Matthias Krack (28.11.2005,MK)
-! **************************************************************************************************
-   SUBROUTINE reallocate_c3(p, lb1_new, ub1_new, lb2_new, ub2_new, lb3_new, ub3_new)
-
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER, INTENT(INOUT)      :: p
-      INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new, &
-                                                            lb3_new, ub3_new
-
-      COMPLEX(KIND=dp), PARAMETER                        :: zero = (0.0_dp, 0.0_dp)
-
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: work => NULL()
-
-$: reallocate(rank=3)
-
-   END SUBROUTINE reallocate_c3
-
-! **************************************************************************************************
-!> \brief (Re)Allocate a complex array 4D with a new dimension
-!> \param p ...
-!> \param lb1_new ...
-!> \param ub1_new ...
-!> \param lb2_new ...
-!> \param ub2_new ...
-!> \param lb3_new ...
-!> \param ub3_new ...
-!> \param lb4_new ...
-!> \param ub4_new ...
-!> \par History
-!>      none
-!> \author Matthias Krack (28.11.2005,MK)
-! **************************************************************************************************
-   SUBROUTINE reallocate_c4(p, lb1_new, ub1_new, lb2_new, ub2_new, lb3_new, ub3_new, &
-                            lb4_new, ub4_new)
-
-      COMPLEX(KIND=dp), DIMENSION(:, :, :, :), POINTER, INTENT(INOUT)   :: p
-      INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new, &
-                                                            lb3_new, ub3_new, lb4_new, ub4_new
-
-      COMPLEX(KIND=dp), PARAMETER                        :: zero = (0.0_dp, 0.0_dp)
-
-      COMPLEX(KIND=dp), &
-         DIMENSION(:, :, :, :), POINTER                  :: work => NULL()
-
-$: reallocate(rank=4)
-
-   END SUBROUTINE reallocate_c4
-
-! **************************************************************************************************
-!> \brief (Re)Allocate an integer vector with a new dimension.
-!> \param p ...
-!> \param lb1_new ...
-!> \param ub1_new ...
-!> \par History
-!>      none
-!> \author Matthias Krack (18.07.2002,MK)
-! **************************************************************************************************
-   SUBROUTINE reallocate_i1(p, lb1_new, ub1_new)
-
-      INTEGER, DIMENSION(:), POINTER, INTENT(INOUT)                     :: p
-      INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
-
-      INTEGER, PARAMETER                                 :: zero = 0
-
-      INTEGER, DIMENSION(:), POINTER                     :: work => NULL()
-
-$: reallocate(rank=1)
-
-   END SUBROUTINE reallocate_i1
-
-! **************************************************************************************************
-!> \brief (Re)Allocate an integer array with a new dimension.
-!> \param p ...
-!> \param lb1_new ...
-!> \param ub1_new ...
-!> \param lb2_new ...
-!> \param ub2_new ...
-!> \par History
-!>      none
-!> \author Matthias Krack (18.07.2002,MK)
-! **************************************************************************************************
-   SUBROUTINE reallocate_i2(p, lb1_new, ub1_new, lb2_new, ub2_new)
-
-      INTEGER, DIMENSION(:, :), POINTER, INTENT(INOUT)                  :: p
-      INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new
-
-      INTEGER, PARAMETER                                 :: zero = 0
-
-      INTEGER, DIMENSION(:, :), POINTER                  :: work => NULL()
-
-$: reallocate(rank=2)
-
-   END SUBROUTINE reallocate_i2
-
-! **************************************************************************************************
-!> \brief (Re)Allocate an integer array 3D with a new dimension.
-!> \param p ...
-!> \param lb1_new ...
-!> \param ub1_new ...
-!> \param lb2_new ...
-!> \param ub2_new ...
-!> \param lb3_new ...
-!> \param ub3_new ...
-!> \par History
-!>      none
-!> \author Matthias Krack (18.07.2002,MK)
-! **************************************************************************************************
-   SUBROUTINE reallocate_i3(p, lb1_new, ub1_new, lb2_new, ub2_new, lb3_new, ub3_new)
-
-      INTEGER, DIMENSION(:, :, :), POINTER, INTENT(INOUT)               :: p
-      INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new, &
-                                                            lb3_new, ub3_new
-
-      INTEGER, PARAMETER                                 :: zero = 0
-
-      INTEGER, DIMENSION(:, :, :), POINTER               :: work => NULL()
-
-$: reallocate(rank=3)
-
-   END SUBROUTINE reallocate_i3
-
-! **************************************************************************************************
-!> \brief (Re)Allocate an integer array 3D with a new dimension.
-!> \param p ...
-!> \param lb1_new ...
-!> \param ub1_new ...
-!> \param lb2_new ...
-!> \param ub2_new ...
-!> \param lb3_new ...
-!> \param ub3_new ...
-!> \param lb4_new ...
-!> \param ub4_new ...
-!> \par History
-!>      none
-!> \author Matthias Krack (04.10.2002,MK)
-! **************************************************************************************************
-   SUBROUTINE reallocate_i4(p, lb1_new, ub1_new, lb2_new, ub2_new, lb3_new, ub3_new, &
-                            lb4_new, ub4_new)
-
-      INTEGER, DIMENSION(:, :, :, :), POINTER, INTENT(INOUT)            :: p
-      INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new, &
-                                                            lb3_new, ub3_new, lb4_new, ub4_new
-
-      INTEGER, PARAMETER                                 :: zero = 0
-
-      INTEGER, DIMENSION(:, :, :, :), POINTER            :: work => NULL()
-
-$: reallocate(rank=4)
-
-   END SUBROUTINE reallocate_i4
-
-! **************************************************************************************************
-!> \brief (Re)Allocate an integer (int_8) vector with a new dimension.
-!> \param p ...
-!> \param lb1_new ...
-!> \param ub1_new ...
-!> \par History
-!>      none
-!> \author Matthias Krack (18.07.2002,MK)
-! **************************************************************************************************
-   SUBROUTINE reallocate_8i1(p, lb1_new, ub1_new)
-
-      INTEGER(KIND=int_8), DIMENSION(:), POINTER, INTENT(INOUT)         :: p
-      INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
-
-      INTEGER(KIND=int_8), PARAMETER                     :: zero = 0
-
-      INTEGER(KIND=int_8), DIMENSION(:), POINTER         :: work => NULL()
-
-$: reallocate(rank=1)
-
-   END SUBROUTINE reallocate_8i1
-
-! **************************************************************************************************
-!> \brief (Re)Allocate an integer (int_8) array with a new dimension.
-!> \param p ...
-!> \param lb1_new ...
-!> \param ub1_new ...
-!> \param lb2_new ...
-!> \param ub2_new ...
-!> \par History
-!>      none
-!> \author Matthias Krack (18.07.2002,MK)
-! **************************************************************************************************
-   SUBROUTINE reallocate_8i2(p, lb1_new, ub1_new, lb2_new, ub2_new)
-
-      INTEGER(kind=int_8), DIMENSION(:, :), POINTER, INTENT(INOUT)      :: p
-      INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new
-
-      INTEGER(KIND=int_8), PARAMETER                     :: zero = 0
-
-      INTEGER(KIND=int_8), DIMENSION(:, :), POINTER      :: work => NULL()
-
-$: reallocate(rank=2)
-
-   END SUBROUTINE reallocate_8i2
-
-! **************************************************************************************************
-!> \brief (Re)Allocate an real vector with a new dimension.
-!> \param p ...
-!> \param lb1_new ...
-!> \param ub1_new ...
-!> \par History
-!>      none
-!> \author Matthias Krack (18.07.2002,MK)
-! **************************************************************************************************
-   SUBROUTINE reallocate_r1(p, lb1_new, ub1_new)
-
-      REAL(KIND=dp), DIMENSION(:), POINTER, INTENT(INOUT)               :: p
-      INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
-
-      REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
-
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: work => NULL()
-
-$: reallocate(rank=1)
-
-   END SUBROUTINE reallocate_r1
-
-! **************************************************************************************************
-!> \brief (Re)Allocate an real array with new dimensions.
-!> \param p ...
-!> \param lb1_new ...
-!> \param ub1_new ...
-!> \param lb2_new ...
-!> \param ub2_new ...
-!> \par History
-!>      none
-!> \author Matthias Krack (18.07.2002,MK)
-! **************************************************************************************************
-   SUBROUTINE reallocate_r2(p, lb1_new, ub1_new, lb2_new, ub2_new)
-
-      REAL(KIND=dp), DIMENSION(:, :), POINTER, INTENT(INOUT)            :: p
-      INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new
-
-      REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
-
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: work => NULL()
-
-$: reallocate(rank=2)
-
-   END SUBROUTINE reallocate_r2
-
-! **************************************************************************************************
-!> \brief (Re)Allocate an real array 3D with new dimensions.
-!> \param p ...
-!> \param lb1_new ...
-!> \param ub1_new ...
-!> \param lb2_new ...
-!> \param ub2_new ...
-!> \param lb3_new ...
-!> \param ub3_new ...
-!> \par History
-!>      none
-!> \author Matthias Krack (18.07.2002,MK)
-! **************************************************************************************************
-   SUBROUTINE reallocate_r3(p, lb1_new, ub1_new, lb2_new, ub2_new, lb3_new, ub3_new)
-
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER, INTENT(INOUT)         :: p
-      INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new, &
-                                                            lb3_new, ub3_new
-
-      REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
-
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: work => NULL()
-
-$: reallocate(rank=3)
-
-   END SUBROUTINE reallocate_r3
-
-! **************************************************************************************************
-!> \brief (Re)Allocate an real array 4D with new dimensions.
-!> \param p ...
-!> \param lb1_new ...
-!> \param ub1_new ...
-!> \param lb2_new ...
-!> \param ub2_new ...
-!> \param lb3_new ...
-!> \param ub3_new ...
-!> \param lb4_new ...
-!> \param ub4_new ...
-!> \par History
-!>      none
-!> \author Matthias Krack (04.10.2002,MK)
-! **************************************************************************************************
-   SUBROUTINE reallocate_r4(p, lb1_new, ub1_new, lb2_new, ub2_new, lb3_new, ub3_new, &
-                            lb4_new, ub4_new)
-
-      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER, INTENT(INOUT)      :: p
-      INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new, &
-                                                            lb3_new, ub3_new, lb4_new, ub4_new
-
-      REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
-
-      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: work => NULL()
-
-$: reallocate(rank=4)
-
-   END SUBROUTINE reallocate_r4
-
-! **************************************************************************************************
-!> \brief (Re)Allocate an real array 5D with new dimensions.
-!> \param p ...
-!> \param lb1_new ...
-!> \param ub1_new ...
-!> \param lb2_new ...
-!> \param ub2_new ...
-!> \param lb3_new ...
-!> \param ub3_new ...
-!> \param lb4_new ...
-!> \param ub4_new ...
-!> \param lb5_new ...
-!> \param ub5_new ...
-!> \par History
-!>      none
-!> \author Matthias Krack (04.10.2002,MK)
-! **************************************************************************************************
-   SUBROUTINE reallocate_r5(p, lb1_new, ub1_new, lb2_new, ub2_new, lb3_new, ub3_new, &
-                            lb4_new, ub4_new, lb5_new, ub5_new)
-
-      REAL(KIND=dp), DIMENSION(:, :, :, :, :), POINTER, INTENT(INOUT)   :: p
-      INTEGER, INTENT(IN)                                :: lb1_new, ub1_new, lb2_new, ub2_new, &
-                                                            lb3_new, ub3_new, lb4_new, ub4_new, &
-                                                            lb5_new, ub5_new
-
-      REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
-
-      REAL(KIND=dp), &
-         DIMENSION(:, :, :, :, :), POINTER               :: work => NULL()
-
-$: reallocate(rank=5)
-
-   END SUBROUTINE reallocate_r5
-
-! **************************************************************************************************
-!> \brief (Re)Allocate a logical vector with a new dimension.
-!> \param p ...
-!> \param lb1_new ...
-!> \param ub1_new ...
-!> \par History
-!>      none
-!> \author Matthias Krack (18.07.2002,MK)
-! **************************************************************************************************
-   SUBROUTINE reallocate_l1(p, lb1_new, ub1_new)
-
-      LOGICAL, DIMENSION(:), POINTER, INTENT(INOUT)                     :: p
-      INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
-
-      LOGICAL, PARAMETER                                 :: zero = .FALSE.
-
-      LOGICAL, DIMENSION(:), POINTER                     :: work => NULL()
-
-$: reallocate(rank=1)
-
-   END SUBROUTINE reallocate_l1
-
-! **************************************************************************************************
-!> \brief (Re)Allocate a vector of string variables
-!> \param p_short ...
-!> \param lb_new ...
-!> \param ub_new ...
-!> \param p_long ...
-!> \par History
-!>      none
-!> \author Matthias Krack (18.07.2002,MK)
-!> \note
-!>      (Maybe outdated) This routine doesnt work on SUN/Solaris!!!
-!>                       It should probably not be used. (Thomas Chassaing)
-! **************************************************************************************************
-   SUBROUTINE reallocate_s1(p_short, lb_new, ub_new, p_long)
-
-      CHARACTER(LEN=default_string_length), &
-         DIMENSION(:), OPTIONAL, POINTER, INTENT(INOUT)                 :: p_short
-      INTEGER, INTENT(IN)                                :: lb_new, ub_new
-      CHARACTER(LEN=default_path_length), DIMENSION(:), &
-         OPTIONAL, POINTER, INTENT(INOUT)                               :: p_long
-
-      IF (PRESENT(p_short)) THEN
-         CALL reallocate_ss1(p_short, lb_new, ub_new)
-      ELSE IF (PRESENT(p_long)) THEN
-         CALL reallocate_ls1(p_long, lb_new, ub_new)
-      ELSE
-         CPABORT("At least one of the two optional arguments is required")
+         work => p
       END IF
 
-   END SUBROUTINE reallocate_s1
+      ALLOCATE (p(${new_bounds}$))
+      p = ${zero}$
 
-! **************************************************************************************************
-!> \brief (Re)Allocate a vector of string variables of default string length.
-!> \param p ...
-!> \param lb1_new ...
-!> \param ub1_new ...
-!> \par History
-!>      none
-!> \author Thomas Chassaing
-!> \author Matthias Krack (18.07.2002,MK)
-!> \note
-!>      (Maybe outdated) This routine doesnt work on SUN/Solaris!!!
-!>                       It should probably not be used. (Thomas Chassaing)
-! **************************************************************************************************
-   SUBROUTINE reallocate_ss1(p, lb1_new, ub1_new)
+      IF (ASSOCIATED(work)) THEN
+         p(${old_bounds}$) = work(${old_bounds}$)
+         DEALLOCATE (work)
+      END IF
 
-      CHARACTER(LEN=default_string_length), &
-         DIMENSION(:), POINTER, INTENT(INOUT)                           :: p
-      INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
+   END SUBROUTINE reallocate_${suffix}$${rank}$
+#:enddef
 
-      CHARACTER(LEN=default_string_length), PARAMETER    :: zero = ""
-
-      CHARACTER(LEN=default_string_length), &
-         DIMENSION(:), POINTER                           :: work => NULL()
-
-$: reallocate(rank=1)
-
-   END SUBROUTINE reallocate_ss1
-
-! **************************************************************************************************
-!> \brief (Re)Allocate a vector of string variables of default path length.
-!> \param p ...
-!> \param lb1_new ...
-!> \param ub1_new ...
-!> \par History
-!>      none
-!> \author Matthias Krack (18.07.2002,MK)
-!> \note
-!>      (Maybe outdated) This routine doesnt work on SUN/Solaris!!!
-!>                       It should probably not be used. (Thomas Chassaing)
-! **************************************************************************************************
-   SUBROUTINE reallocate_ls1(p, lb1_new, ub1_new)
-
-      CHARACTER(LEN=default_path_length), DIMENSION(:), &
-         POINTER, INTENT(INOUT)                                         :: p
-      INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
-
-      CHARACTER(LEN=default_path_length), PARAMETER      :: zero = ""
-
-      CHARACTER(LEN=default_path_length), &
-         DIMENSION(:), POINTER                           :: work => NULL()
-
-$: reallocate(rank=1)
-
-   END SUBROUTINE reallocate_ls1
+$: reallocate(suffix="c",  rank=1, type="COMPLEX(KIND=dp)", zero="(0.0_dp, 0.0_dp)")
+$: reallocate(suffix="c",  rank=2, type="COMPLEX(KIND=dp)", zero="(0.0_dp, 0.0_dp)")
+$: reallocate(suffix="c",  rank=3, type="COMPLEX(KIND=dp)", zero="(0.0_dp, 0.0_dp)")
+$: reallocate(suffix="c",  rank=4, type="COMPLEX(KIND=dp)", zero="(0.0_dp, 0.0_dp)")
+$: reallocate(suffix="i",  rank=1, type="INTEGER", zero="0")
+$: reallocate(suffix="i",  rank=2, type="INTEGER", zero="0")
+$: reallocate(suffix="i",  rank=3, type="INTEGER", zero="0")
+$: reallocate(suffix="i",  rank=4, type="INTEGER", zero="0")
+$: reallocate(suffix="8i", rank=1, type="INTEGER(KIND=int_8)", zero="0")
+$: reallocate(suffix="8i", rank=2, type="INTEGER(KIND=int_8)", zero="0")
+$: reallocate(suffix="r",  rank=1, type="REAL(KIND=dp)", zero="0.0_dp")
+$: reallocate(suffix="r",  rank=2, type="REAL(KIND=dp)", zero="0.0_dp")
+$: reallocate(suffix="r",  rank=3, type="REAL(KIND=dp)", zero="0.0_dp")
+$: reallocate(suffix="r",  rank=4, type="REAL(KIND=dp)", zero="0.0_dp")
+$: reallocate(suffix="r",  rank=5, type="REAL(KIND=dp)", zero="0.0_dp")
+$: reallocate(suffix="l",  rank=1, type="LOGICAL", zero=".FALSE.")
+$: reallocate(suffix="s",  rank=1, type="CHARACTER(LEN=*)", zero='""', worktype="CHARACTER(LEN=LEN(p))")
 
 END MODULE memory_utilities
