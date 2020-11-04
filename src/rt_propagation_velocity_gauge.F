@@ -43,7 +43,6 @@ MODULE rt_propagation_velocity_gauge
                                               nco,&
                                               ncoset
    USE particle_types,                  ONLY: particle_type
-   USE physcon,                         ONLY: c_light_au
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -85,6 +84,7 @@ CONTAINS
 
       INTEGER                                            :: handle, idir, ispin
       LOGICAL                                            :: do_hfx
+      REAL(KIND=dp)                                      :: factor
       REAL(KIND=dp), DIMENSION(3)                        :: vec_pot
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_im, matrix_s, &
@@ -107,6 +107,7 @@ CONTAINS
                       matrix_ks_im=matrix_ks_im)
 
       !get vector potential
+      vec_pot(:) = 0._dp
       CALL get_vector_potential(dft_control, cell, vec_pot)
 
       ! allocate and build matrices for linear momentum term
@@ -141,10 +142,12 @@ CONTAINS
       CALL dbcsr_deallocate_matrix_set(momentum)
 
       ! add quadratic term to real part of KS matrix
+      factor = 0._dp
+      DO idir = 1, 3
+         factor + = vec_pot(idir)**2
+      ENDDO
       DO ispin = 1, dft_control%nspins
-         DO idir = 1, 3
-            CALL dbcsr_add(matrix_ks(ispin)%matrix, matrix_s(1)%matrix, one, vec_pot(idir)**2/c_light_au)
-         ENDDO
+         CALL dbcsr_add(matrix_ks(ispin)%matrix, matrix_s(1)%matrix, one, factor)
       ENDDO
 
       IF (dft_control%qs_control%gpw) THEN
