@@ -144,7 +144,7 @@ CONTAINS
       ! add quadratic term to real part of KS matrix
       factor = 0._dp
       DO idir = 1, 3
-         factor + = vec_pot(idir)**2
+         factor = factor + vec_pot(idir)**2
       ENDDO
       DO ispin = 1, dft_control%nspins
          CALL dbcsr_add(matrix_ks(ispin)%matrix, matrix_s(1)%matrix, one, factor)
