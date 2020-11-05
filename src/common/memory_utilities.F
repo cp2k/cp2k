@@ -13,9 +13,7 @@
 ! **************************************************************************************************
 MODULE memory_utilities
 
-   USE kinds, ONLY: default_path_length, &
-                    default_string_length, &
-                    dp, int_8
+   USE kinds, ONLY: dp, int_8
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -73,7 +71,8 @@ CONTAINS
          #:endif
          DIMENSION(${arr_exp}$), &
          POINTER :: work
-      work => NULL()
+
+      NULLIFY (work)
 
       IF (ASSOCIATED(p)) THEN
 #:for i in range(1, rank+1)

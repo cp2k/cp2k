@@ -17,6 +17,8 @@ PROGRAM memory_utilities_TEST
    CALL check_real_rank2_allocated()
    CALL check_real_rank2_unallocated()
 
+   CALL check_string_rank1_allocated()
+   CALL check_string_rank1_unallocated()
 CONTAINS
 ! **************************************************************************************************
 !> \brief Check that an allocated r1 array can be extended
@@ -47,7 +49,7 @@ CONTAINS
    SUBROUTINE check_real_rank1_unallocated()
       REAL(KIND=dp), DIMENSION(:), POINTER               :: real_arr
 
-      real_arr => NULL()
+      NULLIFY (real_arr)
 
       CALL reallocate(real_arr, 1, 20)
 
@@ -88,7 +90,7 @@ CONTAINS
    SUBROUTINE check_real_rank2_unallocated()
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: real_arr
 
-      real_arr => NULL()
+      NULLIFY (real_arr)
 
       CALL reallocate(real_arr, 1, 10, 1, 5)
 
@@ -99,5 +101,47 @@ CONTAINS
 
       PRINT *, "check_real_rank2_unallocated: OK"
    END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Check that an allocated string array can be extended
+! **************************************************************************************************
+   SUBROUTINE check_string_rank1_allocated()
+      CHARACTER(LEN=12), DIMENSION(:), POINTER           :: str_arr
+      INTEGER                                            :: idx
+
+      ALLOCATE (str_arr(10))
+      str_arr = [("hello, there", idx=1, 10)]
+
+      CALL reallocate(str_arr, 1, 20)
+
+      IF (.NOT. ALL(str_arr(1:10) == [("hello, there", idx=1, 10)])) &
+         ERROR STOP "check_string_rank1_allocated: reallocating changed the initial values"
+
+      IF (.NOT. ALL(str_arr(11:20) == "")) &
+         ERROR STOP "check_string_rank1_allocated: reallocation failed to initialise new values with ''."
+
+      DEALLOCATE (str_arr)
+
+      PRINT *, "check_string_rank1_allocated: OK"
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Check that an unallocated string array can be extended
+! **************************************************************************************************
+   SUBROUTINE check_string_rank1_unallocated()
+      CHARACTER(LEN=12), DIMENSION(:), POINTER           :: str_arr
+
+      NULLIFY (str_arr)
+
+      CALL reallocate(str_arr, 1, 20)
+
+      IF (.NOT. ALL(str_arr(1:20) == "")) &
+         ERROR STOP "check_string_rank1_allocated: reallocation failed to initialise new values with ''."
+
+      DEALLOCATE (str_arr)
+
+      PRINT *, "check_string_rank1_unallocated: OK"
+   END SUBROUTINE
+
 END PROGRAM
 ! vim: set ts=3 sw=3 tw=132 :
