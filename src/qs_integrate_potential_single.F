@@ -262,8 +262,8 @@ CONTAINS
                force(ikind)%gth_ppl(:, iatom) + force_a(:)*rho_rspace%pw%pw_grid%dvol
 
             IF (use_virial) THEN
-               virial%pv_virial = virial%pv_virial + my_virial_a*rho_rspace%pw%pw_grid%dvol
                virial%pv_ppl = virial%pv_ppl + my_virial_a*rho_rspace%pw%pw_grid%dvol
+               virial%pv_virial = virial%pv_virial + my_virial_a*rho_rspace%pw%pw_grid%dvol
                CPABORT("Virial not debuged for CORE_PPL")
             END IF
          END DO
@@ -462,8 +462,8 @@ CONTAINS
                   force(ikind)%gth_nlcc(:, iatom) + force_a(:)*rho_rspace%pw%pw_grid%dvol
 
                IF (use_virial) THEN
+                  virial%pv_nlcc = virial%pv_nlcc + my_virial_a*rho_rspace%pw%pw_grid%dvol
                   virial%pv_virial = virial%pv_virial + my_virial_a*rho_rspace%pw%pw_grid%dvol
-                  virial%pv_exc = virial%pv_exc + my_virial_a*rho_rspace%pw%pw_grid%dvol
                END IF
             END DO
 
@@ -862,6 +862,7 @@ CONTAINS
             IF (calculate_forces) THEN
                int_res(ikind)%v_dfdr(iatom, :) = int_res(ikind)%v_dfdr(iatom, :) + force_a(:)
                IF (use_virial) THEN
+                  virial%pv_lrigpw = virial%pv_lrigpw + my_virial_a
                   virial%pv_virial = virial%pv_virial + my_virial_a
                ENDIF
             ENDIF
@@ -1113,6 +1114,7 @@ CONTAINS
                force(ikind)%rho_elec(:, iatom) = force(ikind)%rho_elec(:, iatom) + 2.0_dp*force_a(:)
                IF (use_virial) THEN
                   IF (use_virial .AND. calculate_forces) THEN
+                     virial%pv_lrigpw = virial%pv_lrigpw + 2.0_dp*my_virial_a
                      virial%pv_virial = virial%pv_virial + 2.0_dp*my_virial_a
                   END IF
                END IF

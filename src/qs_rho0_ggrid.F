@@ -678,6 +678,7 @@ CONTAINS
                   DO iso = 1, nsoset(l0_ikind)
                      DO ii = 1, 3
                      DO i = 1, 3
+                        virial%pv_gapw(i, ii) = virial%pv_gapw(i, ii) + Qlm(iso)*a_hdab_sph(i, ii, iso)
                         virial%pv_virial(i, ii) = virial%pv_virial(i, ii) + Qlm(iso)*a_hdab_sph(i, ii, iso)
                      END DO
                      END DO

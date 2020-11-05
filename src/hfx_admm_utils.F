@@ -557,6 +557,7 @@ CONTAINS
          END DO
       END DO
       IF (use_virial .AND. calculate_forces) THEN
+         virial%pv_exx = virial%pv_exx - virial%pv_fock_4c
          virial%pv_virial = virial%pv_virial - virial%pv_fock_4c
          virial%pv_calculate = .FALSE.
       ENDIF

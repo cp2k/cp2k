@@ -197,15 +197,28 @@ CONTAINS
          pv = fconv*virial%pv_exc
          WRITE (UNIT=iw, FMT=fmt) &
             'STRESS| Exchange-correlation', one_third_sum_diag(pv), det_3x3(pv)
-         pv = -fconv*virial%pv_fock_4c
+         pv = fconv*virial%pv_exx
          WRITE (UNIT=iw, FMT=fmt) &
             'STRESS| Exact exchange (EXX)', one_third_sum_diag(pv), det_3x3(pv)
          pv = fconv*virial%pv_vdw
          WRITE (UNIT=iw, FMT=fmt) &
             'STRESS| vdW correction', one_third_sum_diag(pv), det_3x3(pv)
+         pv = fconv*virial%pv_mp2
+         WRITE (UNIT=iw, FMT=fmt) &
+            'STRESS| Moller-Plesset (MP2)', one_third_sum_diag(pv), det_3x3(pv)
+         pv = fconv*virial%pv_nlcc
+         WRITE (UNIT=iw, FMT=fmt) &
+            'STRESS| Nonlinear core correction (NLCC)', one_third_sum_diag(pv), det_3x3(pv)
+         pv = fconv*virial%pv_gapw
+         WRITE (UNIT=iw, FMT=fmt) &
+            'STRESS| Local atomic parts (GAPW)', one_third_sum_diag(pv), det_3x3(pv)
+         pv = fconv*virial%pv_lrigpw
+         WRITE (UNIT=iw, FMT=fmt) &
+            'STRESS| Resolution-of-the-identity (LRI)', one_third_sum_diag(pv), det_3x3(pv)
          pv = fconv*(virial%pv_overlap + virial%pv_ekinetic + virial%pv_ppl + virial%pv_ppnl + &
-                     virial%pv_ecore_overlap + virial%pv_ehartree + virial%pv_exc - &
-                     virial%pv_fock_4c + virial%pv_vdw)
+                     virial%pv_ecore_overlap + virial%pv_ehartree + virial%pv_exc + &
+                     virial%pv_exx + virial%pv_vdw + virial%pv_mp2 + virial%pv_nlcc + &
+                     virial%pv_gapw + virial%pv_lrigpw)
          WRITE (UNIT=iw, FMT=fmt) &
             'STRESS| Sum of components', one_third_sum_diag(pv), det_3x3(pv)
          pv = fconv*virial%pv_virial

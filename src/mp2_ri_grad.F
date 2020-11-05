@@ -611,6 +611,7 @@ CONTAINS
                force(ikind)%rho_elec(:, atom_a) = &
                   force(ikind)%rho_elec(:, atom_a) + force_a(:) + force_b
                IF (use_virial) THEN
+                  virial%pv_mp2 = virial%pv_mp2 + my_virial_a + my_virial_b
                   virial%pv_virial = virial%pv_virial + my_virial_a + my_virial_b
                END IF
             END DO
@@ -678,6 +679,7 @@ CONTAINS
                      h_stress(beta, alpha) = h_stress(alpha, beta)
                   END DO
                END DO
+               virial%pv_mp2 = virial%pv_mp2 + h_stress/REAL(para_env_sub%num_pe, dp)
                virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env_sub%num_pe, dp)
                CALL timestop(handle3)
             END IF
@@ -718,6 +720,7 @@ CONTAINS
                      h_stress(beta, alpha) = h_stress(alpha, beta)
                   END DO
                END DO
+               virial%pv_mp2 = virial%pv_mp2 + h_stress/REAL(para_env_sub%num_pe, dp)
                virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env_sub%num_pe, dp)
                CALL timestop(handle3)
             END IF
@@ -862,6 +865,7 @@ CONTAINS
                force(ikind)%rho_elec(:, atom_a) = &
                   force(ikind)%rho_elec(:, atom_a) + force_a(:) + force_b(:)
                IF (use_virial) THEN
+                  virial%pv_mp2 = virial%pv_mp2 + my_virial_a + my_virial_b
                   virial%pv_virial = virial%pv_virial + my_virial_a + my_virial_b
                END IF
             END DO

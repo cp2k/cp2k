@@ -543,6 +543,7 @@ CONTAINS
 !$OMP END PARALLEL
 
       IF (use_virial) THEN
+         virial%pv_gapw(1:3, 1:3) = virial%pv_gapw(1:3, 1:3) + pv_virial_thread(1:3, 1:3)
          virial%pv_virial(1:3, 1:3) = virial%pv_virial(1:3, 1:3) + pv_virial_thread(1:3, 1:3)
       END IF
 
