@@ -251,3 +251,5 @@ memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check
 memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank1_unallocated"
 memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank2_allocated"
 memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank2_unallocated"
+memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_string_rank1_allocated"
+memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_string_rank1_unallocated"
