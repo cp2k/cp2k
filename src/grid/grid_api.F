@@ -130,14 +130,14 @@ CONTAINS
       LOGICAL(KIND=C_BOOL)                               :: orthorhombic
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grid
       INTERFACE
-         SUBROUTINE grid_collocate_pgf_product_c(orthorhombic, &
-                                                 border_mask, func, &
-                                                 la_max, la_min, lb_max, lb_min, &
-                                                 zeta, zetb, rscale, dh, dh_inv, ra, rab, &
-                                                 npts_global, npts_local, shift_local, border_width, &
-                                                 radius, o1, o2, n1, n2, pab, &
-                                                 grid) &
-            BIND(C, name="grid_collocate_pgf_product")
+         SUBROUTINE grid_ref_collocate_pgf_product_c(orthorhombic, &
+                                                     border_mask, func, &
+                                                     la_max, la_min, lb_max, lb_min, &
+                                                     zeta, zetb, rscale, dh, dh_inv, ra, rab, &
+                                                     npts_global, npts_local, shift_local, border_width, &
+                                                     radius, o1, o2, n1, n2, pab, &
+                                                     grid) &
+            BIND(C, name="grid_ref_collocate_pgf_product")
             IMPORT :: C_PTR, C_INT, C_DOUBLE, C_BOOL
             LOGICAL(KIND=C_BOOL), VALUE               :: orthorhombic
             INTEGER(KIND=C_INT), VALUE                :: border_mask
@@ -164,7 +164,7 @@ CONTAINS
             INTEGER(KIND=C_INT), VALUE                :: n2
             TYPE(C_PTR), VALUE                        :: pab
             TYPE(C_PTR), VALUE                        :: grid
-         END SUBROUTINE grid_collocate_pgf_product_c
+         END SUBROUTINE grid_ref_collocate_pgf_product_c
       END INTERFACE
 
       !TODO remove unused dummy arguments
@@ -204,31 +204,33 @@ CONTAINS
       CPASSERT(IS_CONTIGUOUS(grid))
 #endif
 
-      CALL grid_collocate_pgf_product_c(orthorhombic=orthorhombic, &
-                                        border_mask=border_mask, &
-                                        func=ga_gb_function, &
-                                        la_max=la_max, &
-                                        la_min=la_min, &
-                                        lb_max=lb_max, &
-                                        lb_min=lb_min, &
-                                        zeta=zeta, &
-                                        zetb=zetb, &
-                                        rscale=scale, &
-                                        dh=C_LOC(rsgrid%desc%dh(1, 1)), &
-                                        dh_inv=C_LOC(rsgrid%desc%dh_inv(1, 1)), &
-                                        ra=C_LOC(ra(1)), &
-                                        rab=C_LOC(rab(1)), &
-                                        npts_global=C_LOC(npts_global(1)), &
-                                        npts_local=C_LOC(npts_local(1)), &
-                                        shift_local=C_LOC(shift_local(1)), &
-                                        border_width=C_LOC(border_width(1)), &
-                                        radius=radius, &
-                                        o1=o1, &
-                                        o2=o2, &
-                                        n1=SIZE(pab, 1), &
-                                        n2=SIZE(pab, 2), &
-                                        pab=C_LOC(pab(1, 1)), &
-                                        grid=C_LOC(grid(1, 1, 1)))
+      ! For collocating single pgf products there is only the reference implementation.
+
+      CALL grid_ref_collocate_pgf_product_c(orthorhombic=orthorhombic, &
+                                            border_mask=border_mask, &
+                                            func=ga_gb_function, &
+                                            la_max=la_max, &
+                                            la_min=la_min, &
+                                            lb_max=lb_max, &
+                                            lb_min=lb_min, &
+                                            zeta=zeta, &
+                                            zetb=zetb, &
+                                            rscale=scale, &
+                                            dh=C_LOC(rsgrid%desc%dh(1, 1)), &
+                                            dh_inv=C_LOC(rsgrid%desc%dh_inv(1, 1)), &
+                                            ra=C_LOC(ra(1)), &
+                                            rab=C_LOC(rab(1)), &
+                                            npts_global=C_LOC(npts_global(1)), &
+                                            npts_local=C_LOC(npts_local(1)), &
+                                            shift_local=C_LOC(shift_local(1)), &
+                                            border_width=C_LOC(border_width(1)), &
+                                            radius=radius, &
+                                            o1=o1, &
+                                            o2=o2, &
+                                            n1=SIZE(pab, 1), &
+                                            n2=SIZE(pab, 2), &
+                                            pab=C_LOC(pab(1, 1)), &
+                                            grid=C_LOC(grid(1, 1, 1)))
 
    END SUBROUTINE collocate_pgf_product
 

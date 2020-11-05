@@ -11,7 +11,6 @@ ALL_HEADERS := $(shell find . -name "*.h")
 
 ALL_OBJECTS := grid_collocate_replay.o \
                grid_task_list.o \
-               grid_collocate.o \
                common/grid_library.o \
                common/grid_basis_set.o \
                common/grid_sphere_cache.o \
