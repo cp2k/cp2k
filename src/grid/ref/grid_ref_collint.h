@@ -28,21 +28,22 @@
  * \brief Collocates registers reg onto the grid for orthorhombic case.
  * \author Ole Schuett
  ******************************************************************************/
-static inline void ortho_reg_to_grid(const int k, const int k2, const int j,
-                                     const int j2, const int i, const int i2,
+static inline void ortho_reg_to_grid(const int kg1, const int kg2,
+                                     const int jg1, const int jg2,
+                                     const int ig1, const int ig2,
                                      const int npts_local[3],
                                      GRID_CONST_WHEN_COLLOCATE double *reg,
                                      GRID_CONST_WHEN_INTEGRATE double *grid) {
 
   const int stride = npts_local[1] * npts_local[0];
-  const int grid_index_0 = k * stride + j * npts_local[0] + i;
-  const int grid_index_1 = k2 * stride + j * npts_local[0] + i;
-  const int grid_index_2 = k * stride + j2 * npts_local[0] + i;
-  const int grid_index_3 = k2 * stride + j2 * npts_local[0] + i;
-  const int grid_index_4 = k * stride + j * npts_local[0] + i2;
-  const int grid_index_5 = k2 * stride + j * npts_local[0] + i2;
-  const int grid_index_6 = k * stride + j2 * npts_local[0] + i2;
-  const int grid_index_7 = k2 * stride + j2 * npts_local[0] + i2;
+  const int grid_index_0 = kg1 * stride + jg1 * npts_local[0] + ig1;
+  const int grid_index_1 = kg2 * stride + jg1 * npts_local[0] + ig1;
+  const int grid_index_2 = kg1 * stride + jg2 * npts_local[0] + ig1;
+  const int grid_index_3 = kg2 * stride + jg2 * npts_local[0] + ig1;
+  const int grid_index_4 = kg1 * stride + jg1 * npts_local[0] + ig2;
+  const int grid_index_5 = kg2 * stride + jg1 * npts_local[0] + ig2;
+  const int grid_index_6 = kg1 * stride + jg2 * npts_local[0] + ig2;
+  const int grid_index_7 = kg2 * stride + jg2 * npts_local[0] + ig2;
 
 #if (GRID_DO_COLLOCATE)
   // collocate
@@ -71,14 +72,14 @@ static inline void ortho_reg_to_grid(const int k, const int k2, const int j,
  * \brief Transforms coefficients C_x into registers reg by fixing grid index i.
  * \author Ole Schuett
  ******************************************************************************/
-static inline void ortho_cx_to_reg(const int lp, const double pol_ig[lp + 1],
-                                   const double pol_ig2[lp + 1],
+static inline void ortho_cx_to_reg(const int lp, const double pol_i1[lp + 1],
+                                   const double pol_i2[lp + 1],
                                    GRID_CONST_WHEN_COLLOCATE double *cx,
                                    GRID_CONST_WHEN_INTEGRATE double *reg) {
 
   for (int lxp = 0; lxp <= lp; lxp++) {
-    const double p1 = pol_ig[lxp];
-    const double p2 = pol_ig2[lxp];
+    const double p1 = pol_i1[lxp];
+    const double p2 = pol_i2[lxp];
 
 #if (GRID_DO_COLLOCATE)
     // collocate
@@ -108,34 +109,31 @@ static inline void ortho_cx_to_reg(const int lp, const double pol_ig[lp + 1],
  * \brief Collocates coefficients C_x onto the grid for orthorhombic case.
  * \author Ole Schuett
  ******************************************************************************/
-static inline void ortho_cx_to_grid(const int lp, const int k, const int k2,
-                                    const int jg, const int jg2, const int cmax,
-                                    const double pol[3][2 * cmax + 1][lp + 1],
-                                    const int map[3][2 * cmax + 1],
-                                    const int npts_local[3],
-                                    int **sphere_bounds_iter,
-                                    GRID_CONST_WHEN_COLLOCATE double *cx,
-                                    GRID_CONST_WHEN_INTEGRATE double *grid) {
+static inline void
+ortho_cx_to_grid(const int lp, const int kg1, const int kg2, const int jg1,
+                 const int jg2, const int cmax,
+                 const double pol[3][2 * cmax + 1][lp + 1],
+                 const int map[3][2 * cmax + 1], const int npts_local[3],
+                 int **sphere_bounds_iter, GRID_CONST_WHEN_COLLOCATE double *cx,
+                 GRID_CONST_WHEN_INTEGRATE double *grid) {
 
-  const int j = map[1][jg + cmax];
-  const int j2 = map[1][jg2 + cmax];
-  const int igmin = *((*sphere_bounds_iter)++);
-  for (int ig = igmin; ig <= 0; ig++) {
-    const int ig2 = 1 - ig;
-    const int i = map[0][ig + cmax];
-    const int i2 = map[0][ig2 + cmax];
+  const int istart = *((*sphere_bounds_iter)++);
+  for (int i1 = istart; i1 <= 0; i1++) {
+    const int i2 = 1 - i1;
+    const int ig1 = map[0][i1 + cmax];
+    const int ig2 = map[0][i2 + cmax];
 
     // In all likelihood the compiler will keep these variables in registers.
     double reg[8] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
 #if (GRID_DO_COLLOCATE)
     // collocate
-    ortho_cx_to_reg(lp, pol[0][ig + cmax], pol[0][ig2 + cmax], cx, reg);
-    ortho_reg_to_grid(k, k2, j, j2, i, i2, npts_local, reg, grid);
+    ortho_cx_to_reg(lp, pol[0][i1 + cmax], pol[0][i2 + cmax], cx, reg);
+    ortho_reg_to_grid(kg1, kg2, jg1, jg2, ig1, ig2, npts_local, reg, grid);
 #else
     // integrate
-    ortho_reg_to_grid(k, k2, j, j2, i, i2, npts_local, reg, grid);
-    ortho_cx_to_reg(lp, pol[0][ig + cmax], pol[0][ig2 + cmax], cx, reg);
+    ortho_reg_to_grid(kg1, kg2, jg1, jg2, ig1, ig2, npts_local, reg, grid);
+    ortho_cx_to_reg(lp, pol[0][i1 + cmax], pol[0][i2 + cmax], cx, reg);
 #endif
   }
 }
@@ -144,8 +142,8 @@ static inline void ortho_cx_to_grid(const int lp, const int k, const int k2,
  * \brief Transforms coefficients C_xy into C_x by fixing grid index j.
  * \author Ole Schuett
  ******************************************************************************/
-static inline void ortho_cxy_to_cx(const int lp, const double pol_jg[lp + 1],
-                                   const double pol_jg2[lp + 1],
+static inline void ortho_cxy_to_cx(const int lp, const double pol_j1[lp + 1],
+                                   const double pol_j2[lp + 1],
                                    GRID_CONST_WHEN_COLLOCATE double *cxy,
                                    GRID_CONST_WHEN_INTEGRATE double *cx) {
 
@@ -155,16 +153,16 @@ static inline void ortho_cxy_to_cx(const int lp, const double pol_jg[lp + 1],
 
 #if (GRID_DO_COLLOCATE)
       // collocate
-      cx[lxp * 4 + 0] += cxy[cxy_index + 0] * pol_jg[lyp];
-      cx[lxp * 4 + 1] += cxy[cxy_index + 1] * pol_jg[lyp];
-      cx[lxp * 4 + 2] += cxy[cxy_index + 0] * pol_jg2[lyp];
-      cx[lxp * 4 + 3] += cxy[cxy_index + 1] * pol_jg2[lyp];
+      cx[lxp * 4 + 0] += cxy[cxy_index + 0] * pol_j1[lyp];
+      cx[lxp * 4 + 1] += cxy[cxy_index + 1] * pol_j1[lyp];
+      cx[lxp * 4 + 2] += cxy[cxy_index + 0] * pol_j2[lyp];
+      cx[lxp * 4 + 3] += cxy[cxy_index + 1] * pol_j2[lyp];
 #else
       // integrate
-      cxy[cxy_index + 0] += cx[lxp * 4 + 0] * pol_jg[lyp];
-      cxy[cxy_index + 1] += cx[lxp * 4 + 1] * pol_jg[lyp];
-      cxy[cxy_index + 0] += cx[lxp * 4 + 2] * pol_jg2[lyp];
-      cxy[cxy_index + 1] += cx[lxp * 4 + 3] * pol_jg2[lyp];
+      cxy[cxy_index + 0] += cx[lxp * 4 + 0] * pol_j1[lyp];
+      cxy[cxy_index + 1] += cx[lxp * 4 + 1] * pol_j1[lyp];
+      cxy[cxy_index + 0] += cx[lxp * 4 + 2] * pol_j2[lyp];
+      cxy[cxy_index + 1] += cx[lxp * 4 + 3] * pol_j2[lyp];
 #endif
     }
   }
@@ -174,7 +172,7 @@ static inline void ortho_cxy_to_cx(const int lp, const double pol_jg[lp + 1],
  * \brief Collocates coefficients C_xy onto the grid for orthorhombic case.
  * \author Ole Schuett
  ******************************************************************************/
-static inline void ortho_cxy_to_grid(const int lp, const int kg, const int kg2,
+static inline void ortho_cxy_to_grid(const int lp, const int kg1, const int kg2,
                                      const int cmax,
                                      const double pol[3][2 * cmax + 1][lp + 1],
                                      const int map[3][2 * cmax + 1],
@@ -188,26 +186,26 @@ static inline void ortho_cxy_to_grid(const int lp, const int kg, const int kg2,
   // Hence, the points with index 0 and 1 are both assigned distance zero via
   // the formular distance=(2*index-1)/2.
 
-  const int k = map[2][kg + cmax];
-  const int k2 = map[2][kg2 + cmax];
-  const int jgmin = *((*sphere_bounds_iter)++);
+  const int jstart = *((*sphere_bounds_iter)++);
   const size_t cx_size = (lp + 1) * 4;
   double cx[cx_size];
-  for (int jg = jgmin; jg <= 0; jg++) {
-    const int jg2 = 1 - jg;
+  for (int j1 = jstart; j1 <= 0; j1++) {
+    const int j2 = 1 - j1;
+    const int jg1 = map[1][j1 + cmax];
+    const int jg2 = map[1][j2 + cmax];
 
     memset(cx, 0, cx_size * sizeof(double));
 
 #if (GRID_DO_COLLOCATE)
     // collocate
-    ortho_cxy_to_cx(lp, pol[1][jg + cmax], pol[1][jg2 + cmax], cxy, cx);
-    ortho_cx_to_grid(lp, k, k2, jg, jg2, cmax, pol, map, npts_local,
+    ortho_cxy_to_cx(lp, pol[1][j1 + cmax], pol[1][j2 + cmax], cxy, cx);
+    ortho_cx_to_grid(lp, kg1, kg2, jg1, jg2, cmax, pol, map, npts_local,
                      sphere_bounds_iter, cx, grid);
 #else
     // integrate
-    ortho_cx_to_grid(lp, k, k2, jg, jg2, cmax, pol, map, npts_local,
+    ortho_cx_to_grid(lp, kg1, kg2, jg1, jg2, cmax, pol, map, npts_local,
                      sphere_bounds_iter, cx, grid);
-    ortho_cxy_to_cx(lp, pol[1][jg + cmax], pol[1][jg2 + cmax], cxy, cx);
+    ortho_cxy_to_cx(lp, pol[1][j1 + cmax], pol[1][j2 + cmax], cxy, cx);
 #endif
   }
 }
@@ -216,8 +214,8 @@ static inline void ortho_cxy_to_grid(const int lp, const int kg, const int kg2,
  * \brief Transforms coefficients C_xyz into C_xz by fixing grid index k.
  * \author Ole Schuett
  ******************************************************************************/
-static inline void ortho_cxyz_to_cxy(const int lp, const double pol_kg[lp + 1],
-                                     const double pol_kg2[lp + 1],
+static inline void ortho_cxyz_to_cxy(const int lp, const double pol_k1[lp + 1],
+                                     const double pol_k2[lp + 1],
                                      GRID_CONST_WHEN_COLLOCATE double *cxyz,
                                      GRID_CONST_WHEN_INTEGRATE double *cxy) {
 
@@ -230,12 +228,12 @@ static inline void ortho_cxyz_to_cxy(const int lp, const double pol_kg[lp + 1],
 
 #if (GRID_DO_COLLOCATE)
         // collocate
-        cxy[cxy_index + 0] += cxyz[cxyz_index] * pol_kg[lzp];
-        cxy[cxy_index + 1] += cxyz[cxyz_index] * pol_kg2[lzp];
+        cxy[cxy_index + 0] += cxyz[cxyz_index] * pol_k1[lzp];
+        cxy[cxy_index + 1] += cxyz[cxyz_index] * pol_k2[lzp];
 #else
         // integrate
-        cxyz[cxyz_index] += cxy[cxy_index + 0] * pol_kg[lzp];
-        cxyz[cxyz_index] += cxy[cxy_index + 1] * pol_kg2[lzp];
+        cxyz[cxyz_index] += cxy[cxy_index + 0] * pol_k1[lzp];
+        cxyz[cxyz_index] += cxy[cxy_index + 1] * pol_k2[lzp];
 #endif
       }
     }
@@ -350,24 +348,26 @@ ortho_cxyz_to_grid(const int lp, const double zetp, const double dh[3][3],
   const int(*map)[2 * cmax + 1] = (const int(*)[2 * cmax + 1]) map_mutable;
 
   // Loop over k dimension of the cube.
-  const int kgmin = *((*sphere_bounds_iter)++);
+  const int kstart = *((*sphere_bounds_iter)++);
   const size_t cxy_size = (lp + 1) * (lp + 1) * 2;
   double cxy[cxy_size];
-  for (int kg = kgmin; kg <= 0; kg++) {
-    const int kg2 = 1 - kg;
+  for (int k1 = kstart; k1 <= 0; k1++) {
+    const int k2 = 1 - k1;
+    const int kg1 = map[2][k1 + cmax];
+    const int kg2 = map[2][k2 + cmax];
 
     memset(cxy, 0, cxy_size * sizeof(double));
 
 #if (GRID_DO_COLLOCATE)
     // collocate
-    ortho_cxyz_to_cxy(lp, pol[2][kg + cmax], pol[2][kg2 + cmax], cxyz, cxy);
-    ortho_cxy_to_grid(lp, kg, kg2, cmax, pol, map, npts_local,
+    ortho_cxyz_to_cxy(lp, pol[2][k1 + cmax], pol[2][k2 + cmax], cxyz, cxy);
+    ortho_cxy_to_grid(lp, kg1, kg2, cmax, pol, map, npts_local,
                       sphere_bounds_iter, cxy, grid);
 #else
     // integrate
-    ortho_cxy_to_grid(lp, kg, kg2, cmax, pol, map, npts_local,
+    ortho_cxy_to_grid(lp, kg1, kg2, cmax, pol, map, npts_local,
                       sphere_bounds_iter, cxy, grid);
-    ortho_cxyz_to_cxy(lp, pol[2][kg + cmax], pol[2][kg2 + cmax], cxyz, cxy);
+    ortho_cxyz_to_cxy(lp, pol[2][k1 + cmax], pol[2][k2 + cmax], cxyz, cxy);
 #endif
   }
 }
