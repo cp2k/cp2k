@@ -389,8 +389,10 @@ CONTAINS
                   !periodic self-pairs aa' contribute only with factor 0.5
 !$OMP CRITICAL(addvirial)
                   IF (iatom == jatom) THEN
+                     CALL virial_pair_force(virial%pv_lrigpw, 0.5_dp, force_a, rab)
                      CALL virial_pair_force(virial%pv_virial, 0.5_dp, force_a, rab)
                   ELSE
+                     CALL virial_pair_force(virial%pv_lrigpw, 1.0_dp, force_a, rab)
                      CALL virial_pair_force(virial%pv_virial, 1.0_dp, force_a, rab)
                   ENDIF
 !$OMP END CRITICAL(addvirial)
@@ -642,8 +644,10 @@ CONTAINS
                   !periodic self-pairs aa' contribute only with factor 0.5
 !$OMP CRITICAL(addvirial)
                   IF (iatom == jatom) THEN
+                     CALL virial_pair_force(virial%pv_lrigpw, 0.5_dp, force_a, rab)
                      CALL virial_pair_force(virial%pv_virial, 0.5_dp, force_a, rab)
                   ELSE
+                     CALL virial_pair_force(virial%pv_lrigpw, 1.0_dp, force_a, rab)
                      CALL virial_pair_force(virial%pv_virial, 1.0_dp, force_a, rab)
                   ENDIF
 !$OMP END CRITICAL(addvirial)
@@ -835,6 +839,8 @@ CONTAINS
             ! to be debugged
             fscal = 1.0_dp
             IF (iatom == jatom) fscal = 1.0_dp
+            CALL virial_pair_force(virial%pv_lrigpw, 1.0_dp, force_a, rik)
+            CALL virial_pair_force(virial%pv_lrigpw, 1.0_dp, force_b, rjk)
             CALL virial_pair_force(virial%pv_virial, 1.0_dp, force_a, rik)
             CALL virial_pair_force(virial%pv_virial, 1.0_dp, force_b, rjk)
          ENDIF

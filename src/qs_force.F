@@ -412,8 +412,12 @@ CONTAINS
          CALL mp_sum(virial%pv_ecore_overlap, para_env%group)
          CALL mp_sum(virial%pv_ehartree, para_env%group)
          CALL mp_sum(virial%pv_exc, para_env%group)
-         CALL mp_sum(virial%pv_fock_4c, para_env%group)
+         CALL mp_sum(virial%pv_exx, para_env%group)
          CALL mp_sum(virial%pv_vdw, para_env%group)
+         CALL mp_sum(virial%pv_mp2, para_env%group)
+         CALL mp_sum(virial%pv_nlcc, para_env%group)
+         CALL mp_sum(virial%pv_gapw, para_env%group)
+         CALL mp_sum(virial%pv_lrigpw, para_env%group)
          CALL mp_sum(virial%pv_virial, para_env%group)
          CALL symmetrize_virial(virial)
          ! Add the volume terms of the virial
@@ -422,9 +426,8 @@ CONTAINS
                      dft_control%qs_control%xtb .OR. &
                      dft_control%qs_control%semi_empirical))) THEN
             DO i = 1, 3
-               virial%pv_virial(i, i) = virial%pv_virial(i, i) - energy%exc - &
-                                        2.0_dp*(energy%hartree + energy%sccs_pol)
                virial%pv_ehartree(i, i) = virial%pv_ehartree(i, i) - 2.0_dp*(energy%hartree + energy%sccs_pol)
+               virial%pv_virial(i, i) = virial%pv_virial(i, i) - energy%exc - 2.0_dp*(energy%hartree + energy%sccs_pol)
                virial%pv_exc(i, i) = virial%pv_exc(i, i) - energy%exc
                IF (dft_control%do_admm) THEN
                   virial%pv_exc(i, i) = virial%pv_exc(i, i) - energy%exc_aux_fit

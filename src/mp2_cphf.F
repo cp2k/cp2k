@@ -849,6 +849,7 @@ CONTAINS
                h_stress(beta, alpha) = h_stress(alpha, beta)
             END DO
          END DO
+         virial%pv_mp2 = virial%pv_mp2 + h_stress/REAL(para_env%num_pe, dp)
          virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env%num_pe, dp)
 
          ! free stuff

@@ -31,6 +31,7 @@ MODULE virial_types
                                         pv_kinetic, &
                                         pv_virial, &
                                         pv_xc, &
+                                        pv_fock_4c, &
                                         pv_constraint
       REAL(KIND=dp), DIMENSION(3, 3) :: pv_overlap, &
                                         pv_ekinetic, &
@@ -39,8 +40,12 @@ MODULE virial_types
                                         pv_ecore_overlap, &
                                         pv_ehartree, &
                                         pv_exc, &
-                                        pv_fock_4c, &
-                                        pv_vdw
+                                        pv_exx, &
+                                        pv_vdw, &
+                                        pv_mp2, &
+                                        pv_nlcc, &
+                                        pv_gapw, &
+                                        pv_lrigpw
       LOGICAL                        :: pv_availability, &
                                         pv_calculate, &
                                         pv_numer, &
@@ -69,6 +74,7 @@ CONTAINS
       virial_out%pv_kinetic = virial_in%pv_kinetic
       virial_out%pv_virial = virial_in%pv_virial
       virial_out%pv_xc = virial_in%pv_xc
+      virial_out%pv_fock_4c = virial_in%pv_fock_4c
       virial_out%pv_constraint = virial_in%pv_constraint
 
       virial_out%pv_overlap = virial_in%pv_overlap
@@ -78,8 +84,12 @@ CONTAINS
       virial_out%pv_ecore_overlap = virial_in%pv_ecore_overlap
       virial_out%pv_ehartree = virial_in%pv_ehartree
       virial_out%pv_exc = virial_in%pv_exc
-      virial_out%pv_fock_4c = virial_in%pv_fock_4c
+      virial_out%pv_exx = virial_in%pv_exx
       virial_out%pv_vdw = virial_in%pv_vdw
+      virial_out%pv_mp2 = virial_in%pv_mp2
+      virial_out%pv_nlcc = virial_in%pv_nlcc
+      virial_out%pv_gapw = virial_in%pv_gapw
+      virial_out%pv_lrigpw = virial_in%pv_lrigpw
 
       virial_out%pv_availability = virial_in%pv_availability
       virial_out%pv_calculate = virial_in%pv_calculate
@@ -108,6 +118,8 @@ CONTAINS
             virial%pv_virial(i, j) = virial%pv_virial(j, i)
             virial%pv_xc(j, i) = 0.5_dp*(virial%pv_xc(i, j) + virial%pv_xc(j, i))
             virial%pv_xc(i, j) = virial%pv_xc(j, i)
+            virial%pv_fock_4c(j, i) = 0.5_dp*(virial%pv_fock_4c(i, j) + virial%pv_fock_4c(j, i))
+            virial%pv_fock_4c(i, j) = virial%pv_fock_4c(j, i)
             virial%pv_constraint(j, i) = 0.5_dp*(virial%pv_constraint(i, j) + virial%pv_constraint(j, i))
             virial%pv_constraint(i, j) = virial%pv_constraint(j, i)
             ! Virial components
@@ -125,10 +137,18 @@ CONTAINS
             virial%pv_ehartree(i, j) = virial%pv_ehartree(j, i)
             virial%pv_exc(j, i) = 0.5_dp*(virial%pv_exc(i, j) + virial%pv_exc(j, i))
             virial%pv_exc(i, j) = virial%pv_exc(j, i)
-            virial%pv_fock_4c(j, i) = 0.5_dp*(virial%pv_fock_4c(i, j) + virial%pv_fock_4c(j, i))
-            virial%pv_fock_4c(i, j) = virial%pv_fock_4c(j, i)
+            virial%pv_exx(j, i) = 0.5_dp*(virial%pv_exx(i, j) + virial%pv_exx(j, i))
+            virial%pv_exx(i, j) = virial%pv_exx(j, i)
             virial%pv_vdw(j, i) = 0.5_dp*(virial%pv_vdw(i, j) + virial%pv_vdw(j, i))
             virial%pv_vdw(i, j) = virial%pv_vdw(j, i)
+            virial%pv_mp2(j, i) = 0.5_dp*(virial%pv_mp2(i, j) + virial%pv_mp2(j, i))
+            virial%pv_mp2(i, j) = virial%pv_mp2(j, i)
+            virial%pv_nlcc(j, i) = 0.5_dp*(virial%pv_nlcc(i, j) + virial%pv_nlcc(j, i))
+            virial%pv_nlcc(i, j) = virial%pv_nlcc(j, i)
+            virial%pv_gapw(j, i) = 0.5_dp*(virial%pv_gapw(i, j) + virial%pv_gapw(j, i))
+            virial%pv_gapw(i, j) = virial%pv_gapw(j, i)
+            virial%pv_lrigpw(j, i) = 0.5_dp*(virial%pv_lrigpw(i, j) + virial%pv_lrigpw(j, i))
+            virial%pv_lrigpw(i, j) = virial%pv_lrigpw(j, i)
          END DO
       END DO
 
@@ -152,6 +172,7 @@ CONTAINS
       virial%pv_kinetic = 0.0_dp
       virial%pv_virial = 0.0_dp
       virial%pv_xc = 0.0_dp
+      virial%pv_fock_4c = 0.0_dp
       virial%pv_constraint = 0.0_dp
 
       virial%pv_overlap = 0.0_dp
@@ -161,8 +182,12 @@ CONTAINS
       virial%pv_ecore_overlap = 0.0_dp
       virial%pv_ehartree = 0.0_dp
       virial%pv_exc = 0.0_dp
-      virial%pv_fock_4c = 0.0_dp
+      virial%pv_exx = 0.0_dp
       virial%pv_vdw = 0.0_dp
+      virial%pv_mp2 = 0.0_dp
+      virial%pv_nlcc = 0.0_dp
+      virial%pv_gapw = 0.0_dp
+      virial%pv_lrigpw = 0.0_dp
 
       IF (my_reset) THEN
          virial%pv_availability = .FALSE.
@@ -180,6 +205,7 @@ CONTAINS
 !> \param pv_kinetic ...
 !> \param pv_virial ...
 !> \param pv_xc ...
+!> \param pv_fock_4c ...
 !> \param pv_constraint ...
 !> \param pv_overlap ...
 !> \param pv_ekinetic ...
@@ -188,22 +214,26 @@ CONTAINS
 !> \param pv_ecore_overlap ...
 !> \param pv_ehartree ...
 !> \param pv_exc ...
-!> \param pv_fock_4c ...
+!> \param pv_exx ...
 !> \param pv_vdw ...
+!> \param pv_mp2 ...
+!> \param pv_nlcc ...
+!> \param pv_gapw ...
+!> \param pv_lrigpw ...
 !> \param pv_availability ...
 !> \param pv_calculate ...
 !> \param pv_numer ...
 !> \param pv_diagonal ...
 ! **************************************************************************************************
-   SUBROUTINE virial_set(virial, pv_total, pv_kinetic, pv_virial, pv_xc, pv_constraint, &
+   SUBROUTINE virial_set(virial, pv_total, pv_kinetic, pv_virial, pv_xc, pv_fock_4c, pv_constraint, &
                          pv_overlap, pv_ekinetic, pv_ppl, pv_ppnl, pv_ecore_overlap, pv_ehartree, &
-                         pv_exc, pv_fock_4c, pv_vdw, pv_availability, pv_calculate, pv_numer, &
-                         pv_diagonal)
+                         pv_exc, pv_exx, pv_vdw, pv_mp2, pv_nlcc, pv_gapw, pv_lrigpw, &
+                         pv_availability, pv_calculate, pv_numer, pv_diagonal)
 
       TYPE(virial_type), POINTER                         :: virial
       REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: pv_total, pv_kinetic, pv_virial, pv_xc, &
-         pv_constraint, pv_overlap, pv_ekinetic, pv_ppl, pv_ppnl, pv_ecore_overlap, pv_ehartree, &
-         pv_exc, pv_fock_4c, pv_vdw
+         pv_fock_4c, pv_constraint, pv_overlap, pv_ekinetic, pv_ppl, pv_ppnl, pv_ecore_overlap, &
+         pv_ehartree, pv_exc, pv_exx, pv_vdw, pv_mp2, pv_nlcc, pv_gapw, pv_lrigpw
       LOGICAL, OPTIONAL                                  :: pv_availability, pv_calculate, pv_numer, &
                                                             pv_diagonal
 
@@ -211,6 +241,7 @@ CONTAINS
       IF (PRESENT(pv_kinetic)) virial%pv_kinetic = pv_kinetic
       IF (PRESENT(pv_virial)) virial%pv_virial = pv_virial
       IF (PRESENT(pv_xc)) virial%pv_xc = pv_xc
+      IF (PRESENT(pv_fock_4c)) virial%pv_fock_4c = pv_fock_4c
       IF (PRESENT(pv_constraint)) virial%pv_constraint = pv_constraint
 
       IF (PRESENT(pv_overlap)) virial%pv_overlap = pv_overlap
@@ -220,8 +251,12 @@ CONTAINS
       IF (PRESENT(pv_ecore_overlap)) virial%pv_ecore_overlap = pv_ecore_overlap
       IF (PRESENT(pv_ehartree)) virial%pv_ehartree = pv_ehartree
       IF (PRESENT(pv_exc)) virial%pv_exc = pv_exc
-      IF (PRESENT(pv_fock_4c)) virial%pv_fock_4c = pv_fock_4c
+      IF (PRESENT(pv_exx)) virial%pv_exx = pv_exx
       IF (PRESENT(pv_vdw)) virial%pv_vdw = pv_vdw
+      IF (PRESENT(pv_mp2)) virial%pv_mp2 = pv_mp2
+      IF (PRESENT(pv_nlcc)) virial%pv_nlcc = pv_nlcc
+      IF (PRESENT(pv_gapw)) virial%pv_gapw = pv_gapw
+      IF (PRESENT(pv_lrigpw)) virial%pv_lrigpw = pv_lrigpw
 
       IF (PRESENT(pv_availability)) virial%pv_availability = pv_availability
       IF (PRESENT(pv_calculate)) virial%pv_calculate = pv_calculate
