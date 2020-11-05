@@ -247,3 +247,7 @@ xyz2dcd.F: Found WRITE statement with hardcoded unit in "print_help"
 xyz2dcd.F: Found WRITE statement with hardcoded unit in "xyz2dcd"
 Flag GRID_DO_COLLOCATE not mentioned in INSTALL.md
 Flag GRID_DO_COLLOCATE not mentioned in cp2k_flags()
+memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank1_allocated"
+memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank1_unallocated"
+memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank2_allocated"
+memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank2_unallocated"

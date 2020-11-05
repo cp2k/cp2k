@@ -19,7 +19,7 @@ PROGRAM memory_utilities_TEST
 
 CONTAINS
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Check that an allocated r1 array can be extended
 ! **************************************************************************************************
    SUBROUTINE check_real_rank1_allocated()
       INTEGER                                            :: idx
@@ -42,10 +42,12 @@ CONTAINS
    END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Check that an unallocated and unassociated (null) r1 array can be extended
 ! **************************************************************************************************
    SUBROUTINE check_real_rank1_unallocated()
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: real_arr => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: real_arr
+
+      real_arr => NULL()
 
       CALL reallocate(real_arr, 1, 20)
 
@@ -58,7 +60,7 @@ CONTAINS
    END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Check that an allocated r2 array can be extended
 ! **************************************************************************************************
    SUBROUTINE check_real_rank2_allocated()
       INTEGER                                            :: idx
@@ -81,10 +83,12 @@ CONTAINS
    END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Check that an unallocated and unassociated (null) r2 array can be extended
 ! **************************************************************************************************
    SUBROUTINE check_real_rank2_unallocated()
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: real_arr => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: real_arr
+
+      real_arr => NULL()
 
       CALL reallocate(real_arr, 1, 10, 1, 5)
 
