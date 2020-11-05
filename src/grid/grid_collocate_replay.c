@@ -5,11 +5,11 @@
 /*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
 /*----------------------------------------------------------------------------*/
 
+// needed for struct timespec
 #define _XOPEN_SOURCE 700 /* Enable POSIX 2008/13 */
 
 #include <assert.h>
 #include <fenv.h>
-#include <float.h>
 #include <limits.h>
 #include <math.h>
 #include <stdarg.h>
@@ -20,100 +20,9 @@
 #include <time.h>
 
 #include "common/grid_common.h"
-#include "grid_collocate.h"
 #include "grid_collocate_replay.h"
 #include "grid_task_list.h"
-
-/*******************************************************************************
- * \brief Writes the given arguments into a .task file.
- *        See grid_collocate_replay.h for details.
- * \author Ole Schuett
- ******************************************************************************/
-void grid_collocate_record(
-    const bool orthorhombic, const int border_mask, const int func,
-    const int la_max, const int la_min, const int lb_max, const int lb_min,
-    const double zeta, const double zetb, const double rscale,
-    const double dh[3][3], const double dh_inv[3][3], const double ra[3],
-    const double rab[3], const int npts_global[3], const int npts_local[3],
-    const int shift_local[3], const int border_width[3], const double radius,
-    const int o1, const int o2, const int n1, const int n2,
-    const double pab[n2][n1], const double *grid) {
-
-  static int counter = 1;
-  int my_number;
-
-#pragma omp critical
-  my_number = counter++;
-
-  char filename[100];
-  snprintf(filename, sizeof(filename), "grid_collocate_%05i.task", my_number);
-
-  const int D = DECIMAL_DIG; // In C11 we could use DBL_DECIMAL_DIG.
-  FILE *fp = fopen(filename, "w+");
-  fprintf(fp, "#Grid collocate task v9\n");
-  fprintf(fp, "orthorhombic %i\n", orthorhombic);
-  fprintf(fp, "border_mask %i\n", border_mask);
-  fprintf(fp, "func %i\n", func);
-  fprintf(fp, "la_max %i\n", la_max);
-  fprintf(fp, "la_min %i\n", la_min);
-  fprintf(fp, "lb_max %i\n", lb_max);
-  fprintf(fp, "lb_min %i\n", lb_min);
-  fprintf(fp, "zeta %.*e\n", D, zeta);
-  fprintf(fp, "zetb %.*e\n", D, zetb);
-  fprintf(fp, "rscale %.*e\n", D, rscale);
-  for (int i = 0; i < 3; i++)
-    fprintf(fp, "dh %i %.*e %.*e %.*e\n", i, D, dh[i][0], D, dh[i][1], D,
-            dh[i][2]);
-  for (int i = 0; i < 3; i++)
-    fprintf(fp, "dh_inv %i %.*e %.*e %.*e\n", i, D, dh_inv[i][0], D,
-            dh_inv[i][1], D, dh_inv[i][2]);
-  fprintf(fp, "ra %.*e %.*e %.*e\n", D, ra[0], D, ra[1], D, ra[2]);
-  fprintf(fp, "rab %.*e %.*e %.*e\n", D, rab[0], D, rab[1], D, rab[2]);
-  fprintf(fp, "npts_global %i %i %i\n", npts_global[0], npts_global[1],
-          npts_global[2]);
-  fprintf(fp, "npts_local %i %i %i\n", npts_local[0], npts_local[1],
-          npts_local[2]);
-  fprintf(fp, "shift_local %i %i %i\n", shift_local[0], shift_local[1],
-          shift_local[2]);
-  fprintf(fp, "border_width %i %i %i\n", border_width[0], border_width[1],
-          border_width[2]);
-  fprintf(fp, "radius %.*e\n", D, radius);
-  fprintf(fp, "o1 %i\n", o1);
-  fprintf(fp, "o2 %i\n", o2);
-  fprintf(fp, "n1 %i\n", n1);
-  fprintf(fp, "n2 %i\n", n2);
-
-  for (int i = 0; i < n2; i++) {
-    for (int j = 0; j < n1; j++) {
-      fprintf(fp, "pab %i %i %.*e\n", i, j, D, pab[i][j]);
-    }
-  }
-
-  const int npts_local_total = npts_local[0] * npts_local[1] * npts_local[2];
-
-  int ngrid_nonzero = 0;
-  for (int i = 0; i < npts_local_total; i++) {
-    if (grid[i] != 0.0) {
-      ngrid_nonzero++;
-    }
-  }
-  fprintf(fp, "ngrid_nonzero %i\n", ngrid_nonzero);
-
-  for (int k = 0; k < npts_local[2]; k++) {
-    for (int j = 0; j < npts_local[1]; j++) {
-      for (int i = 0; i < npts_local[0]; i++) {
-        const double val =
-            grid[k * npts_local[1] * npts_local[0] + j * npts_local[0] + i];
-        if (val != 0.0) {
-          fprintf(fp, "grid %i %i %i %.*e\n", i, j, k, D, val);
-        }
-      }
-    }
-  }
-  fprintf(fp, "#THE_END\n");
-  fclose(fp);
-  printf("Wrote %s\n", filename);
-}
+#include "ref/grid_ref_collocate.h"
 
 /*******************************************************************************
  * \brief Reads next line from given filehandle and handles errors.
@@ -427,7 +336,7 @@ double grid_collocate_replay(const char *filename, const int cycles,
 
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
     for (int i = 0; i < cycles; i++) {
-      grid_collocate_pgf_product(
+      grid_ref_collocate_pgf_product(
           orthorhombic, border_mask, func, la_max, la_min, lb_max, lb_min, zeta,
           zetb, rscale, dh, dh_inv, ra, rab, npts_global, npts_local,
           shift_local, border_width, radius, o1, o2, n1, n2, pab, grid_test);
