@@ -55,6 +55,7 @@ MODULE cp_control_utils
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
+   USE mathconstants,                   ONLY: fourpi
    USE pair_potential_types,            ONLY: pair_potential_reallocate
    USE periodic_table,                  ONLY: get_ptable_info
    USE qs_cdft_utils,                   ONLY: read_cdft_control_section
@@ -445,6 +446,8 @@ CONTAINS
                                    l_val=dft_control%do_sccs)
          IF (dft_control%do_sccs) THEN
             CALL sccs_control_create(dft_control%sccs_control)
+            CALL section_vals_val_get(sccs_section, "RELATIVE_PERMITTIVITY", &
+                                      r_val=dft_control%sccs_control%epsilon_solvent)
             CALL section_vals_val_get(sccs_section, "ALPHA", &
                                       r_val=dft_control%sccs_control%alpha_solvent)
             CALL section_vals_val_get(sccs_section, "BETA", &
@@ -455,8 +458,6 @@ CONTAINS
                                       i_val=dft_control%sccs_control%derivative_method)
             CALL section_vals_val_get(sccs_section, "METHOD", &
                                       i_val=dft_control%sccs_control%method_id)
-            CALL section_vals_val_get(sccs_section, "DIELECTRIC_CONSTANT", &
-                                      r_val=dft_control%sccs_control%epsilon_solvent)
             CALL section_vals_val_get(sccs_section, "EPS_SCCS", &
                                       r_val=dft_control%sccs_control%eps_sccs)
             CALL section_vals_val_get(sccs_section, "EPS_SCF", &
@@ -1473,14 +1474,19 @@ CONTAINS
             END IF
             WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
                "SCCS| Self-consistent continuum solvation model"
+            WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.6)") &
+               "SCCS| Relative permittivity of the solvent (medium)", &
+               dft_control%sccs_control%epsilon_solvent, &
+               "SCCS| Absolute permittivity [a.u.]", &
+               dft_control%sccs_control%epsilon_solvent/fourpi
             SELECT CASE (dft_control%sccs_control%method_id)
             CASE (sccs_andreussi)
-               WRITE (UNIT=output_unit, FMT="(T2,A,/,(T2,A,T69,ES12.3))") &
+               WRITE (UNIT=output_unit, FMT="(T2,A,/,(T2,A,T61,ES20.6))") &
                   "SCCS| Dielectric function proposed by Andreussi et al.", &
                   "SCCS|  rho_max", dft_control%sccs_control%rho_max, &
                   "SCCS|  rho_min", dft_control%sccs_control%rho_min
             CASE (sccs_fattebert_gygi)
-               WRITE (UNIT=output_unit, FMT="(T2,A,/,(T2,A,T69,ES12.3))") &
+               WRITE (UNIT=output_unit, FMT="(T2,A,/,(T2,A,T61,ES20.6))") &
                   "SCCS| Dielectric function proposed by Fattebert and Gygi", &
                   "SCCS|  beta", dft_control%sccs_control%beta, &
                   "SCCS|  rho_zero", dft_control%sccs_control%rho_zero
@@ -1489,44 +1495,48 @@ CONTAINS
             END SELECT
             SELECT CASE (dft_control%sccs_control%derivative_method)
             CASE (sccs_derivative_fft)
-               WRITE (UNIT=output_unit, FMT="(T2,A,T46,A35)") "SCCS| Numerical derivative calculation", &
+               WRITE (UNIT=output_unit, FMT="(T2,A,T46,A35)") &
+                  "SCCS| Numerical derivative calculation", &
                   ADJUSTR("FFT")
             CASE (sccs_derivative_cd3)
-               WRITE (UNIT=output_unit, FMT="(T2,A,T46,A35)") "SCCS| Numerical derivative calculation", &
+               WRITE (UNIT=output_unit, FMT="(T2,A,T46,A35)") &
+                  "SCCS| Numerical derivative calculation", &
                   ADJUSTR("3-point stencil central differences")
             CASE (sccs_derivative_cd5)
-               WRITE (UNIT=output_unit, FMT="(T2,A,T46,A35)") "SCCS| Numerical derivative calculation", &
+               WRITE (UNIT=output_unit, FMT="(T2,A,T46,A35)") &
+                  "SCCS| Numerical derivative calculation", &
                   ADJUSTR("5-point stencil central differences")
             CASE (sccs_derivative_cd7)
-               WRITE (UNIT=output_unit, FMT="(T2,A,T46,A35)") "SCCS| Numerical derivative calculation", &
+               WRITE (UNIT=output_unit, FMT="(T2,A,T46,A35)") &
+                  "SCCS| Numerical derivative calculation", &
                   ADJUSTR("7-point stencil central differences")
             CASE DEFAULT
                CALL cp_abort(__LOCATION__, &
                              "Invalid derivative method specified for SCCS model. "// &
                              "Please, check your input!")
             END SELECT
-            WRITE (UNIT=output_unit, FMT="(T2,A,T69,F12.3)") &
+            WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.6)") &
                "SCCS| Repulsion parameter alpha [mN/m] = [dyn/cm]", &
                cp_unit_from_cp2k(dft_control%sccs_control%alpha_solvent, "mN/m")
-            WRITE (UNIT=output_unit, FMT="(T2,A,T69,F12.3)") &
+            WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.6)") &
                "SCCS| Dispersion parameter beta [GPa]", &
                cp_unit_from_cp2k(dft_control%sccs_control%beta_solvent, "GPa")
-            WRITE (UNIT=output_unit, FMT="(T2,A,T69,F12.3)") &
+            WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.6)") &
                "SCCS| Surface tension gamma [mN/m] = [dyn/cm]", &
                cp_unit_from_cp2k(dft_control%sccs_control%gamma_solvent, "mN/m")
-            WRITE (UNIT=output_unit, FMT="(T2,A,T69,F12.3)") &
+            WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.6)") &
                "SCCS| Mixing parameter applied during the iteration cycle", &
                dft_control%sccs_control%mixing
-            WRITE (UNIT=output_unit, FMT="(T2,A,T69,ES12.3)") &
+            WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.6)") &
                "SCCS| Tolerance for the convergence of the SCCS iteration cycle", &
                dft_control%sccs_control%eps_sccs
-            WRITE (UNIT=output_unit, FMT="(T2,A,T69,I12)") &
+            WRITE (UNIT=output_unit, FMT="(T2,A,T61,I20)") &
                "SCCS| Maximum number of iteration steps", &
                dft_control%sccs_control%max_iter
-            WRITE (UNIT=output_unit, FMT="(T2,A,T69,ES12.3)") &
+            WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.6)") &
                "SCCS| SCF convergence threshold for starting the SCCS iteration", &
                dft_control%sccs_control%eps_scf
-            WRITE (UNIT=output_unit, FMT="(T2,A,T69,ES12.3)") &
+            WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.6)") &
                "SCCS| Numerical increment for the cavity surface calculation", &
                dft_control%sccs_control%delta_rho
          END IF

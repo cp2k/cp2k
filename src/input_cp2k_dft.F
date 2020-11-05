@@ -8867,14 +8867,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, &
-                          name="DIELECTRIC_CONSTANT", &
-                          variants=(/"EPSILON_SOLVENT"/), &
-                          description="Dielectric constant of the solvent", &
+                          name="RELATIVE_PERMITTIVITY", &
+                          variants=s2a("DIELECTRIC_CONSTANT", "EPSILON_RELATIVE", "EPSILON_SOLVENT"), &
+                          description="Relative permittivity (dielectric constant) of the solvent (medium)", &
                           repeats=.FALSE., &
                           n_var=1, &
                           type_of_var=real_t, &
                           default_r_val=80.0_dp, &
-                          usage="DIELECTRIC_CONSTANT 78.36")
+                          usage="RELATIVE_PERMITTIVITY 78.36")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
