@@ -594,10 +594,10 @@ CONTAINS
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
       LOGICAL, INTENT(IN)                                :: lsd
       INTEGER, INTENT(IN)                                :: nspins
-      TYPE(xc_rho_cflags_type), INTENT(in)               :: needs
-      REAL(dp), DIMENSION(:, :), POINTER                 :: rho
-      REAL(dp), DIMENSION(:, :, :, :), POINTER           :: drho
-      REAL(dp), DIMENSION(:, :), POINTER                 :: tau
+      TYPE(xc_rho_cflags_type), INTENT(IN)               :: needs
+      REAL(dp), DIMENSION(:, :), INTENT(IN)              :: rho
+      REAL(dp), DIMENSION(:, :, :, :), INTENT(IN)        :: drho
+      REAL(dp), DIMENSION(:, :), INTENT(IN)              :: tau
       INTEGER, INTENT(IN)                                :: na, ir
 
       REAL(KIND=dp), PARAMETER                           :: f13 = (1.0_dp/3.0_dp)
@@ -831,7 +831,6 @@ CONTAINS
 
       ! tau part
       IF (needs%tau .OR. needs%tau_spin) THEN
-         CPASSERT(ASSOCIATED(tau))
          CPASSERT(SIZE(tau, 2) == my_nspins)
       END IF
       IF (needs%tau) THEN
