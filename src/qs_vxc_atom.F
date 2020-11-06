@@ -26,8 +26,9 @@ MODULE qs_vxc_atom
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_sum
    USE orbital_pointers,                ONLY: indso,&
-                                              nsoset,&
-                                              soset
+                                              nsoset
+   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
+                                              paw_proj_set_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -109,9 +110,9 @@ CONTAINS
                                                             paw_atom, tau_f
       REAL(dp)                                           :: density_cut, exc_h, exc_s, gradient_cut, &
                                                             my_adiabatic_rescale_factor, tau_cut
-      REAL(dp), DIMENSION(:, :), POINTER                 :: rho_h, rho_nlcc, rho_s, tau_h, tau_s, &
-                                                            weight
-      REAL(dp), DIMENSION(:, :, :), POINTER              :: vtau_h, vtau_s, vxc_h, vxc_s
+      REAL(dp), DIMENSION(:, :), POINTER                 :: rho_h, rho_nlcc, rho_s, weight
+      REAL(dp), DIMENSION(:, :, :), POINTER              :: tau_h, tau_s, vtau_h, vtau_s, vxc_h, &
+                                                            vxc_s
       REAL(dp), DIMENSION(:, :, :, :), POINTER           :: drho_h, drho_s, vxg_h, vxg_s
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -122,7 +123,6 @@ CONTAINS
       TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: dr_h, dr_s, r_h, r_s
       TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER     :: r_h_d, r_s_d
-      TYPE(rho_atom_coeff), DIMENSION(:, :, :), POINTER  :: trho_h, trho_s
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: my_rho_atom_set
       TYPE(rho_atom_type), POINTER                       :: rho_atom
       TYPE(section_vals_type), POINTER                   :: input, my_xc_section, xc_fun_section
@@ -133,8 +133,6 @@ CONTAINS
 ! -------------------------------------------------------------------------
 
       CALL timeset(routineN, handle)
-
-      !TODO: make sure we use the right xc_section
 
       NULLIFY (atom_list)
       NULLIFY (my_kind_set)
@@ -267,8 +265,8 @@ CONTAINS
             END IF
 
             IF (tau_f) THEN
-               CALL reallocate(tau_h, 1, na, 1, nspins)
-               CALL reallocate(tau_s, 1, na, 1, nspins)
+               CALL reallocate(tau_h, 1, na, 1, nr, 1, nspins)
+               CALL reallocate(tau_s, 1, na, 1, nr, 1, nspins)
                CALL reallocate(vtau_h, 1, na, 1, nr, 1, nspins)
                CALL reallocate(vtau_s, 1, na, 1, nr, 1, nspins)
             END IF
@@ -307,24 +305,20 @@ CONTAINS
                   CALL get_rho_atom(rho_atom=rho_atom, rho_rad_h=r_h, rho_rad_s=r_s)
                END IF
                IF (tau_f) THEN
-                  NULLIFY (trho_h, trho_s)
-                  CALL get_rho_atom(rho_atom=rho_atom, trho_rad_h=trho_h, trho_rad_s=trho_s)
+                  !compute tau on the grid all at once
+                  CALL calc_tau_atom(tau_h, tau_s, rho_atom, my_kind_set(ikind), nspins)
                END IF
 
                DO ir = 1, nr
                   CALL calc_rho_angular(grid_atom, harmonics, nspins, gradient_f, &
                                         ir, r_h, r_s, rho_h, rho_s, dr_h, dr_s, &
                                         r_h_d, r_s_d, drho_h, drho_s)
-                  IF (tau_f) THEN
-                     CALL calc_tau_angular(grid_atom, harmonics, nspins, ir, &
-                                           trho_h, trho_s, tau_h, tau_s)
-                  END IF
                   IF (donlcc) THEN
                      CALL calc_rho_nlcc(grid_atom, nspins, gradient_f, &
                                         ir, rho_nlcc(:, 1), rho_h, rho_s, rho_nlcc(:, 2), drho_h, drho_s)
                   END IF
-                  CALL fill_rho_set(rho_set_h, lsd, nspins, needs, rho_h, drho_h, tau_h, na, ir)
-                  CALL fill_rho_set(rho_set_s, lsd, nspins, needs, rho_s, drho_s, tau_s, na, ir)
+                  CALL fill_rho_set(rho_set_h, lsd, nspins, needs, rho_h, drho_h, tau_h(:, ir, :), na, ir)
+                  CALL fill_rho_set(rho_set_s, lsd, nspins, needs, rho_s, drho_s, tau_s(:, ir, :), na, ir)
                END DO
 
                !-------------------!
@@ -848,71 +842,227 @@ CONTAINS
       END IF
 
    END SUBROUTINE calc_rho_angular
+
 ! **************************************************************************************************
-!> \brief ...
-!> \param grid_atom ...
-!> \param harmonics ...
+!> \brief Computes tau hard and soft on the atomic grids for meta-GGA calculations
+!> \param tau_h the hard part of tau
+!> \param tau_s the soft part of tau
+!> \param rho_atom ...
+!> \param qs_kind ...
 !> \param nspins ...
-!> \param ir ...
-!> \param trho_h ...
-!> \param trho_s ...
-!> \param tau_h ...
-!> \param tau_s ...
+!> \note This is a rewrite to correct a meta-GGA GAPW bug. This is more brute force than the original,
+!>       which was done along in qs_rho_atom_methods.F, but makes sure that no corner is cut in
+!>       terms of accuracy (A. Bussy)
 ! **************************************************************************************************
-   SUBROUTINE calc_tau_angular(grid_atom, harmonics, nspins, ir, &
-                               trho_h, trho_s, tau_h, tau_s)
+   SUBROUTINE calc_tau_atom(tau_h, tau_s, rho_atom, qs_kind, nspins)
 
+      REAL(dp), DIMENSION(:, :, :), INTENT(INOUT)        :: tau_h, tau_s
+      TYPE(rho_atom_type), POINTER                       :: rho_atom
+      TYPE(qs_kind_type), INTENT(IN)                     :: qs_kind
+      INTEGER, INTENT(IN)                                :: nspins
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'calc_tau_atom'
+
+      INTEGER                                            :: dir, handle, ia, ip, ipgf, ir, iset, &
+                                                            iso, ispin, jp, jpgf, jset, jso, l, &
+                                                            maxso, na, nr, nset, starti, startj
+      INTEGER, DIMENSION(:), POINTER                     :: lmax, lmin, npgf, o2nindex
+      REAL(dp)                                           :: cpc_h, cpc_s
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: fga, fgr, r1, r2
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: a1, a2
+      REAL(dp), DIMENSION(:, :), POINTER                 :: slm, zet
+      REAL(dp), DIMENSION(:, :, :), POINTER              :: dslm_dxyz
       TYPE(grid_atom_type), POINTER                      :: grid_atom
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
-      INTEGER, INTENT(IN)                                :: nspins, ir
-      TYPE(rho_atom_coeff), DIMENSION(:, :, :), POINTER  :: trho_h, trho_s
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: tau_h, tau_s
+      TYPE(paw_proj_set_type), POINTER                   :: paw_proj
 
-      INTEGER                                            :: dir, ia, iso, ispin, na
+      NULLIFY (harmonics, grid_atom, orb_basis, lmax, lmin, npgf, zet, slm, dslm_dxyz, o2nindex, paw_proj)
 
-      CPASSERT(ASSOCIATED(trho_h))
-      CPASSERT(ASSOCIATED(trho_s))
-      CPASSERT(ASSOCIATED(tau_h))
-      CPASSERT(ASSOCIATED(tau_s))
+      CALL timeset(routineN, handle)
 
+      !We need to put 0.5* grad_g1 dot grad_gw on the grid
+      !For this we need grid info, basis info, and projector info
+      CALL get_qs_kind(qs_kind, basis_set=orb_basis, grid_atom=grid_atom, &
+                       harmonics=harmonics, paw_proj_set=paw_proj)
+
+      nr = grid_atom%nr
       na = grid_atom%ng_sphere
+
+      slm => harmonics%slm
+      dslm_dxyz => harmonics%dslm_dxyz
+
+      CALL get_paw_proj_set(paw_proj_set=paw_proj, o2nindex=o2nindex)
+
+      !zeroing tau, assuming it is already allocated
       tau_h = 0.0_dp
       tau_s = 0.0_dp
 
-      !Here we multiply the different radial parts of tau by the angular parts (x^2, x or 1)
-      !and we take the cartesian dot product
+      CALL get_gto_basis_set(gto_basis_set=orb_basis, lmax=lmax, lmin=lmin, npgf=npgf, &
+                             nset=nset, zet=zet, maxso=maxso)
 
-      DO ispin = 1, nspins
-         DO iso = 1, harmonics%max_iso_not0
-            DO ia = 1, na
+      !Separate the functions into purely r and purely angular parts, precompute them all
+      ALLOCATE (a1(na, nset*maxso, 3), a2(na, nset*maxso, 3))
+      ALLOCATE (r1(nr, nset*maxso), r2(nr, nset*maxso))
+      a1 = 0.0_dp; a2 = 0.0_dp
+      r1 = 0.0_dp; r2 = 0.0_dp
+
+      DO iset = 1, nset
+         DO ipgf = 1, npgf(iset)
+            starti = (iset - 1)*maxso + (ipgf - 1)*nsoset(lmax(iset))
+            DO iso = nsoset(lmin(iset) - 1) + 1, nsoset(lmax(iset))
+               l = indso(1, iso)
+
+               ! The x derivative of the spherical orbital, divided in angular and radial parts
+               ! Two of each are needed because d/dx(r^l Y_lm) * exp(-al*r^2) + r^l Y_lm * ! d/dx(exp-al*r^2)
+
+               ! the purely radial part of d/dx(r^l Y_lm) * exp(-al*r^2) (same for y, z)
+               r1(1:nr, starti + iso) = grid_atom%rad(1:nr)**(l - 1)*EXP(-zet(ipgf, iset)*grid_atom%rad2(1:nr))
+
+               ! the purely radial part of r^l Y_lm * d/dx(exp-al*r^2) (same for y, z)
+               r2(1:nr, starti + iso) = -2.0_dp*zet(ipgf, iset)*grid_atom%rad(1:nr)**(l + 1) &
+                                        *EXP(-zet(ipgf, iset)*grid_atom%rad2(1:nr))
 
                DO dir = 1, 3
+                  ! the purely angular part of d/dx(r^l Y_lm) * exp(-al*r^2)
+                  a1(1:na, starti + iso, dir) = dslm_dxyz(dir, 1:na, iso)
 
-                  !part to be multiplied by x^2
-                  tau_h(ia, ispin) = tau_h(ia, ispin) + &
-                                     trho_h(1, dir, ispin)%r_coef(ir, iso)*harmonics%slm(ia, iso)*harmonics%a(dir, ia)**2
-                  tau_s(ia, ispin) = tau_s(ia, ispin) + &
-                                     trho_s(1, dir, ispin)%r_coef(ir, iso)*harmonics%slm(ia, iso)*harmonics%a(dir, ia)**2
+                  ! the purely angular part of r^l Y_lm * d/dx(exp-al*r^2)
+                  a2(1:na, starti + iso, dir) = harmonics%a(dir, 1:na)*slm(1:na, iso)
+               END DO
 
-                  !part to be multiplied by x
-                  tau_h(ia, ispin) = tau_h(ia, ispin) + &
-                                     trho_h(2, dir, ispin)%r_coef(ir, iso)*harmonics%slm(ia, iso)*harmonics%a(dir, ia)
-                  tau_s(ia, ispin) = tau_s(ia, ispin) + &
-                                     trho_s(2, dir, ispin)%r_coef(ir, iso)*harmonics%slm(ia, iso)*harmonics%a(dir, ia)
+            END DO !iso
+         END DO !ipgf
+      END DO !iset
 
-                  !part to be multiplied by 1
-                  tau_h(ia, ispin) = tau_h(ia, ispin) + &
-                                     trho_h(3, dir, ispin)%r_coef(ir, iso)*harmonics%slm(ia, iso)
-                  tau_s(ia, ispin) = tau_s(ia, ispin) + &
-                                     trho_s(3, dir, ispin)%r_coef(ir, iso)*harmonics%slm(ia, iso)
+      !Compute the matrix products
+      ALLOCATE (fga(na, 1))
+      ALLOCATE (fgr(nr, 1))
+      fga = 0.0_dp; fgr = 0.0_dp
 
-               END DO !dir
+      DO iset = 1, nset
+         DO jset = 1, nset
+            DO ipgf = 1, npgf(iset)
+               starti = (iset - 1)*maxso + (ipgf - 1)*nsoset(lmax(iset))
+               DO jpgf = 1, npgf(jset)
+                  startj = (jset - 1)*maxso + (jpgf - 1)*nsoset(lmax(jset))
 
-            END DO !ia
-         END DO !iso
-      END DO !ispin
+                  DO iso = nsoset(lmin(iset) - 1) + 1, nsoset(lmax(iset))
+                     DO jso = nsoset(lmin(jset) - 1) + 1, nsoset(lmax(jset))
 
-   END SUBROUTINE calc_tau_angular
+                        ip = o2nindex(starti + iso)
+                        jp = o2nindex(startj + jso)
+
+                        !Two component per function => 4 terms in total
+
+                        ! take r1*a1(dir) *  r1*a1(dir)
+                        fgr(1:nr, 1) = r1(1:nr, starti + iso)*r1(1:nr, startj + jso)
+                        DO dir = 1, 3
+                           fga(1:na, 1) = a1(1:na, starti + iso, dir)*a1(1:na, startj + jso, dir)
+
+                           DO ispin = 1, nspins
+                              !get the projectors
+                              cpc_h = rho_atom%cpc_h(ispin)%r_coef(ip, jp)
+                              cpc_s = rho_atom%cpc_s(ispin)%r_coef(ip, jp)
+
+                              !compute contribution to tau
+                              DO ir = 1, nr
+                                 DO ia = 1, na
+                                    tau_h(ia, ir, ispin) = tau_h(ia, ir, ispin) + 0.5_dp*cpc_h* &
+                                                           fgr(ir, 1)*fga(ia, 1)
+
+                                    tau_s(ia, ir, ispin) = tau_s(ia, ir, ispin) + 0.5_dp*cpc_s* &
+                                                           fgr(ir, 1)*fga(ia, 1)
+                                 END DO
+                              END DO
+
+                           END DO !ispin
+                        END DO !dir
+
+                        ! add r1*a1(dir) * r2*a2(dir)
+                        fgr(1:nr, 1) = r1(1:nr, starti + iso)*r2(1:nr, startj + jso)
+                        DO dir = 1, 3
+                           fga(1:na, 1) = a1(1:na, starti + iso, dir)*a2(1:na, startj + jso, dir)
+
+                           DO ispin = 1, nspins
+                              !get the projectors
+                              cpc_h = rho_atom%cpc_h(ispin)%r_coef(ip, jp)
+                              cpc_s = rho_atom%cpc_s(ispin)%r_coef(ip, jp)
+
+                              !compute contribution to tau
+                              DO ir = 1, nr
+                                 DO ia = 1, na
+                                    tau_h(ia, ir, ispin) = tau_h(ia, ir, ispin) + 0.5_dp*cpc_h* &
+                                                           fgr(ir, 1)*fga(ia, 1)
+
+                                    tau_s(ia, ir, ispin) = tau_s(ia, ir, ispin) + 0.5_dp*cpc_s* &
+                                                           fgr(ir, 1)*fga(ia, 1)
+                                 END DO
+                              END DO
+
+                           END DO !ispin
+                        END DO !dir
+
+                        ! add r2*a2(dir) * V * r1*a1(dir)
+                        fgr(1:nr, 1) = r2(1:nr, starti + iso)*r1(1:nr, startj + jso)
+                        DO dir = 1, 3
+                           fga(1:na, 1) = a2(1:na, starti + iso, dir)*a1(1:na, startj + jso, dir)
+
+                           DO ispin = 1, nspins
+                              !get the projectors
+                              cpc_h = rho_atom%cpc_h(ispin)%r_coef(ip, jp)
+                              cpc_s = rho_atom%cpc_s(ispin)%r_coef(ip, jp)
+
+                              !compute contribution to tau
+                              DO ir = 1, nr
+                                 DO ia = 1, na
+                                    tau_h(ia, ir, ispin) = tau_h(ia, ir, ispin) + 0.5_dp*cpc_h* &
+                                                           fgr(ir, 1)*fga(ia, 1)
+
+                                    tau_s(ia, ir, ispin) = tau_s(ia, ir, ispin) + 0.5_dp*cpc_s* &
+                                                           fgr(ir, 1)*fga(ia, 1)
+                                 END DO
+                              END DO
+
+                           END DO !ispin
+                        END DO !dir
+
+                        ! add the last term: r2*a2(dir) * r2*a2(dir)
+                        fgr(1:nr, 1) = r2(1:nr, starti + iso)*r2(1:nr, startj + jso)
+                        DO dir = 1, 3
+                           fga(1:na, 1) = a2(1:na, starti + iso, dir)*a2(1:na, startj + jso, dir)
+
+                           DO ispin = 1, nspins
+                              !get the projectors
+                              cpc_h = rho_atom%cpc_h(ispin)%r_coef(ip, jp)
+                              cpc_s = rho_atom%cpc_s(ispin)%r_coef(ip, jp)
+
+                              !compute contribution to tau
+                              DO ir = 1, nr
+                                 DO ia = 1, na
+                                    tau_h(ia, ir, ispin) = tau_h(ia, ir, ispin) + 0.5_dp*cpc_h* &
+                                                           fgr(ir, 1)*fga(ia, 1)
+
+                                    tau_s(ia, ir, ispin) = tau_s(ia, ir, ispin) + 0.5_dp*cpc_s* &
+                                                           fgr(ir, 1)*fga(ia, 1)
+                                 END DO
+                              END DO
+
+                           END DO !ispin
+                        END DO !dir
+
+                     END DO !jso
+                  END DO !iso
+
+               END DO !jpgf
+            END DO !ipgf
+         END DO !jset
+      END DO !iset
+
+      CALL timestop(handle)
+
+   END SUBROUTINE calc_tau_atom
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param grid_atom ...
@@ -1185,8 +1335,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'gaVxcgb_GC'
 
-      INTEGER :: dmax_iso_not0, dmax_iso_not0_local, handle, ia, ic, icg, ipgf1, ipgf2, ir, iset1, &
-         iset2, iso, iso1, iso2, ispin, l, lmax12, lmax_expansion, lmin12, m1, m2, max_iso_not0, &
+      INTEGER :: dmax_iso_not0_local, handle, ia, ic, icg, ipgf1, ipgf2, ir, iset1, iset2, iso, &
+         iso1, iso2, ispin, l, lmax12, lmax_expansion, lmin12, m1, m2, max_iso_not0, &
          max_iso_not0_local, max_s_harm, maxl, maxso, n1, n2, na, ngau1, ngau2, nngau1, nr, nset, &
          size1
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cg_n_list, dcg_n_list
@@ -1223,7 +1373,6 @@ CONTAINS
       my_CG => harmonics%my_CG
       my_CG_dxyz => harmonics%my_CG_dxyz
       max_iso_not0 = harmonics%max_iso_not0
-      dmax_iso_not0 = harmonics%dmax_iso_not0
       lmax_expansion = indso(1, max_iso_not0)
       max_s_harm = harmonics%max_s_harm
 
@@ -1254,7 +1403,6 @@ CONTAINS
                CPASSERT(max_iso_not0_local .LE. max_iso_not0)
                CALL get_none0_cg_list(my_CG_dxyz, lmin(iset1), lmax(iset1), lmin(iset2), lmax(iset2), &
                                       max_s_harm, lmax_expansion, dcg_list, dcg_n_list, dmax_iso_not0_local)
-               !CPASSERT(dmax_iso_not0_local.LE.dmax_iso_not0)
 
                n2 = nsoset(lmax(iset2))
                DO ipgf1 = 1, npgf(iset1)
@@ -1431,12 +1579,14 @@ CONTAINS
    END SUBROUTINE gaVxcgb_GC
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param vtau_h ...
-!> \param vtau_s ...
+!> \brief Integrates 0.5 * grad_ga .dot. (V_tau * grad_gb) on the atomic grid for meta-GGA
+!> \param vtau_h the har tau potential
+!> \param vtau_s the soft tau potential
 !> \param qs_kind ...
 !> \param rho_atom ...
 !> \param nspins ...
+!> \note This is a rewrite to correct meat-GGA GAPW bug. This is more brute force than the original
+!>       but makes sure that no corner is cut in terms of accuracy (A. Bussy)
 ! **************************************************************************************************
    SUBROUTINE dgaVtaudgb(vtau_h, vtau_s, qs_kind, rho_atom, nspins)
 
@@ -1447,228 +1597,179 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'dgaVtaudgb'
 
-      INTEGER :: ddmax_iso_not0_local, dir, dmax_iso_not0_local, handle, ic, icg, ipgf1, ipgf2, &
-         iset1, iset2, iso, iso1, iso2, isom1, isom2, ispin, l1, l2, lmax12, lmax_expansion, &
-         lmin12, m1, m2, max_iso_not0, max_iso_not0_local, max_s_harm, maxiso, maxl, maxso, mm1, &
-         mm2, n1, n2, na, ngau1, ngau2, nngau1, nr, nset, size1
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cg_n_list, dcg_n_list, ddcg_n_list
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cg_list, dcg_list, ddcg_list
+      INTEGER                                            :: dir, handle, ipgf, iset, iso, ispin, &
+                                                            jpgf, jset, jso, l, maxso, na, nr, &
+                                                            nset, starti, startj
       INTEGER, DIMENSION(:), POINTER                     :: lmax, lmin, npgf
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: g1, g2, gr, ww
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: matso_h, matso_s
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: ddvth, ddvts, dvth, dvts, gg, vth, vts
-      REAL(dp), DIMENSION(:, :), POINTER                 :: zet
-      REAL(dp), DIMENSION(:, :, :), POINTER              :: my_CG
-      REAL(dp), DIMENSION(:, :, :, :), POINTER           :: my_dCG, my_ddCG
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: fga, fgr, r1, r2, work
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: a1, a2, intso_h, intso_s
+      REAL(dp), DIMENSION(:, :), POINTER                 :: slm, zet
+      REAL(dp), DIMENSION(:, :, :), POINTER              :: dslm_dxyz
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: int_hh, int_ss
 
-! -------------------------------------------------------------------------
+      NULLIFY (zet, slm, dslm_dxyz, harmonics, grid_atom, orb_basis, lmax, lmin, npgf, int_hh, int_ss)
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (harmonics, grid_atom)
       CALL get_qs_kind(qs_kind, basis_set=orb_basis, &
                        harmonics=harmonics, grid_atom=grid_atom)
 
-      NULLIFY (lmin, lmax, npgf, zet)
       CALL get_gto_basis_set(gto_basis_set=orb_basis, lmax=lmax, lmin=lmin, &
-                             maxso=maxso, maxl=maxl, npgf=npgf, &
-                             nset=nset, zet=zet)
+                             maxso=maxso, npgf=npgf, nset=nset, zet=zet)
 
-      my_CG => harmonics%my_CG
-      my_dCG => harmonics%my_dCG
-      my_ddCG => harmonics%my_ddCG
-      max_iso_not0 = harmonics%max_iso_not0
-      lmax_expansion = indso(1, max_iso_not0)
-      max_s_harm = harmonics%max_s_harm
-
-      nr = grid_atom%nr
       na = grid_atom%ng_sphere
-      ALLOCATE (g1(nr), g2(nr), ww(na), gr(nr))
-      ALLOCATE (gg(nr, 0:maxl, 0:maxl))
+      nr = grid_atom%nr
 
-      ALLOCATE (cg_list(2, nsoset(maxl)**2, max_s_harm), cg_n_list(max_s_harm), &
-                dcg_list(2, nsoset(maxl)**2, max_s_harm), dcg_n_list(max_s_harm), &
-                ddcg_list(2, nsoset(maxl)**2, max_s_harm), ddcg_n_list(max_s_harm))
+      slm => harmonics%slm
+      dslm_dxyz => harmonics%dslm_dxyz
 
-      ALLOCATE (matso_h(nsoset(maxl), nsoset(maxl)), &
-                matso_s(nsoset(maxl), nsoset(maxl)))
+      ! Separate the functions into purely r and purely angular parts and precompute them all
+      ! Not meory intensive since 1D arrays
+      ALLOCATE (a1(na, nset*maxso, 3), a2(na, nset*maxso, 3))
+      ALLOCATE (r1(nr, nset*maxso), r2(nr, nset*maxso))
+      a1 = 0.0_dp; a2 = 0.0_dp
+      r1 = 0.0_dp; r2 = 0.0_dp
 
+      DO iset = 1, nset
+         DO ipgf = 1, npgf(iset)
+            starti = (iset - 1)*maxso + (ipgf - 1)*nsoset(lmax(iset))
+            DO iso = nsoset(lmin(iset) - 1) + 1, nsoset(lmax(iset))
+               l = indso(1, iso)
+
+               ! The x derivative of the spherical orbital, divided in angular and radial parts
+               ! Two of each are needed because d/dx(r^l Y_lm) * exp(-al*r^2) + r^l Y_lm *  d/dx(exp-al*r^2)
+
+               ! the purely radial part of d/dx(r^l Y_lm) * exp(-al*r^2) (same for y,z)
+               r1(1:nr, starti + iso) = grid_atom%rad(1:nr)**(l - 1)*EXP(-zet(ipgf, iset)*grid_atom%rad2(1:nr))
+
+               ! the purely radial part of r^l Y_lm * d/dx(exp-al*r^2) (same for y,z)
+               r2(1:nr, starti + iso) = -2.0_dp*zet(ipgf, iset)*grid_atom%rad(1:nr)**(l + 1) &
+                                        *EXP(-zet(ipgf, iset)*grid_atom%rad2(1:nr))
+
+               DO dir = 1, 3
+                  ! the purely angular part of d/dx(r^l Y_lm) * exp(-al*r^2)
+                  a1(1:na, starti + iso, dir) = dslm_dxyz(dir, 1:na, iso)
+
+                  ! the purely angular part of r^l Y_lm * d/dx(exp-al*r^2)
+                  a2(1:na, starti + iso, dir) = harmonics%a(dir, 1:na)*slm(1:na, iso)
+               END DO
+
+            END DO !iso
+         END DO !ipgf
+      END DO !iset
+
+      !Do the integration in terms of matrix-matrix multiplications
+      ALLOCATE (intso_h(nset*maxso, nset*maxso, nspins))
+      ALLOCATE (intso_s(nset*maxso, nset*maxso, nspins))
+      intso_h = 0.0_dp; intso_s = 0.0_dp
+
+      ALLOCATE (fga(na, 1))
+      ALLOCATE (fgr(nr, 1))
+      ALLOCATE (work(na, 1))
+      fga = 0.0_dp; fgr = 0.0_dp; work = 0.0_dp
+
+      DO iset = 1, nset
+         DO jset = 1, nset
+            DO ipgf = 1, npgf(iset)
+               starti = (iset - 1)*maxso + (ipgf - 1)*nsoset(lmax(iset))
+               DO jpgf = 1, npgf(jset)
+                  startj = (jset - 1)*maxso + (jpgf - 1)*nsoset(lmax(jset))
+
+                  DO iso = nsoset(lmin(iset) - 1) + 1, nsoset(lmax(iset))
+                     DO jso = nsoset(lmin(jset) - 1) + 1, nsoset(lmax(jset))
+
+                        !Two component per function => 4 terms in total
+
+                        ! take 0.5*r1*a1(dir) * V * r1*a1(dir)
+                        fgr(1:nr, 1) = r1(1:nr, starti + iso)*r1(1:nr, startj + jso)
+                        DO dir = 1, 3
+                           fga(1:na, 1) = a1(1:na, starti + iso, dir)*a1(1:na, startj + jso, dir)
+
+                           DO ispin = 1, nspins
+                              CALL dgemm('N', 'N', na, 1, nr, 0.5_dp, vtau_h(:, :, ispin), na, fgr, &
+                                         nr, 0.0_dp, work, na)
+                              CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, fga, na, 1.0_dp, &
+                                         intso_h(starti + iso:, startj + jso, ispin), 1)
+
+                              CALL dgemm('N', 'N', na, 1, nr, 0.5_dp, vtau_s(:, :, ispin), na, fgr, &
+                                         nr, 0.0_dp, work, na)
+                              CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, fga, na, 1.0_dp, &
+                                         intso_s(starti + iso:, startj + jso, ispin), 1)
+                           END DO
+                        END DO !dir
+
+                        ! add 0.5*r1*a1(dir) * V * r2*a2(dir)
+                        fgr(1:nr, 1) = r1(1:nr, starti + iso)*r2(1:nr, startj + jso)
+                        DO dir = 1, 3
+                           fga(1:na, 1) = a1(1:na, starti + iso, dir)*a2(1:na, startj + jso, dir)
+
+                           DO ispin = 1, nspins
+                              CALL dgemm('N', 'N', na, 1, nr, 0.5_dp, vtau_h(:, :, ispin), na, fgr, &
+                                         nr, 0.0_dp, work, na)
+                              CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, fga, na, 1.0_dp, &
+                                         intso_h(starti + iso:, startj + jso, ispin), 1)
+
+                              CALL dgemm('N', 'N', na, 1, nr, 0.5_dp, vtau_s(:, :, ispin), na, fgr, &
+                                         nr, 0.0_dp, work, na)
+                              CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, fga, na, 1.0_dp, &
+                                         intso_s(starti + iso:, startj + jso, ispin), 1)
+                           END DO
+                        END DO !dir
+
+                        ! add 0.5*r2*a2(dir) * V * r1*a1(dir)
+                        fgr(1:nr, 1) = r2(1:nr, starti + iso)*r1(1:nr, startj + jso)
+                        DO dir = 1, 3
+                           fga(1:na, 1) = a2(1:na, starti + iso, dir)*a1(1:na, startj + jso, dir)
+
+                           DO ispin = 1, nspins
+                              CALL dgemm('N', 'N', na, 1, nr, 0.5_dp, vtau_h(:, :, ispin), na, fgr, &
+                                         nr, 0.0_dp, work, na)
+                              CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, fga, na, 1.0_dp, &
+                                         intso_h(starti + iso:, startj + jso, ispin), 1)
+
+                              CALL dgemm('N', 'N', na, 1, nr, 0.5_dp, vtau_s(:, :, ispin), na, fgr, &
+                                         nr, 0.0_dp, work, na)
+                              CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, fga, na, 1.0_dp, &
+                                         intso_s(starti + iso:, startj + jso, ispin), 1)
+                           END DO
+                        END DO !dir
+
+                        ! add the last term: 0.5*r2*a2(dir) * V * r2*a2(dir)
+                        fgr(1:nr, 1) = r2(1:nr, starti + iso)*r2(1:nr, startj + jso)
+                        DO dir = 1, 3
+                           fga(1:na, 1) = a2(1:na, starti + iso, dir)*a2(1:na, startj + jso, dir)
+
+                           DO ispin = 1, nspins
+                              CALL dgemm('N', 'N', na, 1, nr, 0.5_dp, vtau_h(:, :, ispin), na, fgr, &
+                                         nr, 0.0_dp, work, na)
+                              CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, fga, na, 1.0_dp, &
+                                         intso_h(starti + iso:, startj + jso, ispin), 1)
+
+                              CALL dgemm('N', 'N', na, 1, nr, 0.5_dp, vtau_s(:, :, ispin), na, fgr, &
+                                         nr, 0.0_dp, work, na)
+                              CALL dgemm('T', 'N', 1, 1, na, 1.0_dp, work, na, fga, na, 1.0_dp, &
+                                         intso_s(starti + iso:, startj + jso, ispin), 1)
+                           END DO
+                        END DO !dir
+
+                     END DO !jso
+                  END DO !iso
+
+               END DO !jpgf
+            END DO !ipgf
+         END DO !jset
+      END DO !iset
+
+      ! Put the integrals in the rho_atom data structure
       NULLIFY (int_hh, int_ss)
       CALL get_rho_atom(rho_atom=rho_atom, ga_Vlocal_gb_h=int_hh, ga_Vlocal_gb_s=int_ss)
-
-      vtau_h = 0.5_dp*vtau_h
-      vtau_s = 0.5_dp*vtau_s
-
       DO ispin = 1, nspins
-         maxiso = SIZE(harmonics%slm, 2)
-         ALLOCATE (vth(nr, 3, maxiso), vts(nr, 3, maxiso))
-         ALLOCATE (dvth(nr, 3, maxiso), dvts(nr, 3, maxiso))
-         ALLOCATE (ddvth(nr, 3, maxiso), ddvts(nr, 3, maxiso))
-         DO iso = 1, maxiso
-            DO dir = 1, 3
-               !term in Ylm*Ylm, to be multiplied by x^2
-               ww(1:na) = harmonics%slm(1:na, iso)*harmonics%a(dir, 1:na)**2
-               vth(1:nr, dir, iso) = MATMUL(ww(1:na), vtau_h(1:na, 1:nr, ispin))
-               vts(1:nr, dir, iso) = MATMUL(ww(1:na), vtau_s(1:na, 1:nr, ispin))
-
-               !term in Ylm * dYlm/dx, to be multiplied by x
-               ww(1:na) = harmonics%slm(1:na, iso)*harmonics%a(dir, 1:na)
-               dvth(1:nr, dir, iso) = MATMUL(ww(1:na), vtau_h(1:na, 1:nr, ispin))
-               dvts(1:nr, dir, iso) = MATMUL(ww(1:na), vtau_s(1:na, 1:nr, ispin))
-
-               !term in dYlm/dx * dYlm/dx, to be multiplied by 1
-               ww(1:na) = harmonics%slm(1:na, iso)
-               ddvth(1:nr, dir, iso) = MATMUL(ww(1:na), vtau_h(1:na, 1:nr, ispin))
-               ddvts(1:nr, dir, iso) = MATMUL(ww(1:na), vtau_s(1:na, 1:nr, ispin))
-            END DO
-         END DO
-         m1 = 0
-         DO iset1 = 1, nset
-            n1 = nsoset(lmax(iset1))
-            m2 = 0
-            DO iset2 = 1, nset
-               CALL get_none0_cg_list(my_CG, lmin(iset1), lmax(iset1), lmin(iset2), lmax(iset2), &
-                                      max_s_harm, lmax_expansion, cg_list, cg_n_list, max_iso_not0_local)
-               CPASSERT(max_iso_not0_local .LE. max_iso_not0)
-               CALL get_none0_cg_list(my_dCG, lmin(iset1), lmax(iset1), lmin(iset2), lmax(iset2), &
-                                      max_s_harm, lmax_expansion, dcg_list, dcg_n_list, dmax_iso_not0_local)
-               CALL get_none0_cg_list(my_ddCG, lmin(iset1), lmax(iset1), lmin(iset2), lmax(iset2), &
-                                      max_s_harm, lmax_expansion, ddcg_list, ddcg_n_list, ddmax_iso_not0_local)
-
-               n2 = nsoset(lmax(iset2))
-               DO ipgf1 = 1, npgf(iset1)
-                  ngau1 = n1*(ipgf1 - 1) + m1
-                  size1 = nsoset(lmax(iset1)) - nsoset(lmin(iset1) - 1)
-                  nngau1 = nsoset(lmin(iset1) - 1) + ngau1
-                  g1(1:nr) = EXP(-zet(ipgf1, iset1)*grid_atom%rad2(1:nr))
-                  DO ipgf2 = 1, npgf(iset2)
-                     ngau2 = n2*(ipgf2 - 1) + m2
-                     g2(1:nr) = EXP(-zet(ipgf2, iset2)*grid_atom%rad2(1:nr))
-                     lmin12 = lmin(iset1) + lmin(iset2)
-                     lmax12 = lmax(iset1) + lmax(iset2)
-
-                     IF (lmin12 .LE. lmax_expansion) THEN
-                        gg = 0.0_dp
-                        DO l1 = 0, maxl
-                           DO l2 = 0, maxl
-                              IF (l1 + l2 > lmax_expansion) CYCLE
-                              IF (l1 + l2 > 0) THEN
-                                 gg(1:nr, l1, l2) = g1(1:nr)*g2(1:nr)*grid_atom%rad2l(1:nr, l1 + l2)
-                              ELSE
-                                 gg(1:nr, l1, l2) = g1(1:nr)*g2(1:nr)
-                              END IF
-                           END DO
-                        END DO
-                     END IF
-
-                     matso_h = 0.0_dp
-                     matso_s = 0.0_dp
-                     IF (lmin12 .LE. lmax_expansion) THEN
-                        DO iso = 1, max_iso_not0_local
-                           DO icg = 1, cg_n_list(iso)
-                              iso1 = cg_list(1, icg, iso)
-                              iso2 = cg_list(2, icg, iso)
-
-                              l1 = indso(1, iso1)
-                              l2 = indso(1, iso2)
-                              mm1 = indso(2, iso1)
-                              mm2 = indso(2, iso2)
-                              isom1 = soset(l1, -mm1)
-                              isom2 = soset(l2, -mm2)
-
-                              IF (l1 + l2 > lmax_expansion) CYCLE
-
-                              !The term in Ylm*Ylm
-                              gr(1:nr) = 4.0_dp*zet(ipgf1, iset1)*zet(ipgf2, iset2)* &
-                                         gg(1:nr, l1, l2)*grid_atom%rad2(1:nr)
-
-                              DO dir = 1, 3
-                                 matso_h(iso1, iso2) = matso_h(iso1, iso2) + my_CG(iso1, iso2, iso)* &
-                                                       DOT_PRODUCT(vth(1:nr, dir, iso), gr(1:nr))
-                                 matso_s(iso1, iso2) = matso_s(iso1, iso2) + my_CG(iso1, iso2, iso)* &
-                                                       DOT_PRODUCT(vts(1:nr, dir, iso), gr(1:nr))
-                              END DO
-
-                           END DO
-                        END DO
-                     END IF
-
-                     DO iso = 1, dmax_iso_not0_local
-                        DO icg = 1, dcg_n_list(iso)
-                           iso1 = dcg_list(1, icg, iso)
-                           iso2 = dcg_list(2, icg, iso)
-
-                           l1 = indso(1, iso1)
-                           l2 = indso(1, iso2)
-
-                           !The term in Yl1m1 * dYl2m2/dx
-                           gr(1:nr) = -2.0_dp*zet(ipgf1, iset1)*gg(1:nr, l1, l2)
-                           DO dir = 1, 3
-                              matso_h(iso1, iso2) = matso_h(iso1, iso2) + my_dCG(dir, iso1, iso2, iso)* &
-                                                    DOT_PRODUCT(dvth(1:nr, dir, iso), gr(1:nr))
-                              matso_s(iso1, iso2) = matso_s(iso1, iso2) + my_dCG(dir, iso1, iso2, iso)* &
-                                                    DOT_PRODUCT(dvts(1:nr, dir, iso), gr(1:nr))
-                           END DO
-
-                           !The term in dYl1m1/dx * Yl2m2
-                           gr(1:nr) = -2.0_dp*zet(ipgf2, iset2)*gg(1:nr, l1, l2)
-                           DO dir = 1, 3
-                              matso_h(iso1, iso2) = matso_h(iso1, iso2) + my_dCG(dir, iso2, iso1, iso)* &
-                                                    DOT_PRODUCT(dvth(1:nr, dir, iso), gr(1:nr))
-                              matso_s(iso1, iso2) = matso_s(iso1, iso2) + my_dCG(dir, iso2, iso1, iso)* &
-                                                    DOT_PRODUCT(dvts(1:nr, dir, iso), gr(1:nr))
-                           END DO
-
-                        END DO
-                     END DO
-
-                     DO iso = 1, ddmax_iso_not0_local
-                        DO icg = 1, ddcg_n_list(iso)
-                           iso1 = ddcg_list(1, icg, iso)
-                           iso2 = ddcg_list(2, icg, iso)
-
-                           l1 = indso(1, iso1)
-                           l2 = indso(1, iso2)
-
-                           !The term in dYlm/dx * dYlm/dx
-                           gr(1:nr) = gg(1:nr, l1, l2)/grid_atom%rad2(1:nr)
-                           DO dir = 1, 3
-                              matso_h(iso1, iso2) = matso_h(iso1, iso2) + my_ddCG(dir, iso1, iso2, iso)* &
-                                                    DOT_PRODUCT(ddvth(1:nr, dir, iso), gr(1:nr))
-                              matso_s(iso1, iso2) = matso_s(iso1, iso2) + my_ddCG(dir, iso1, iso2, iso)* &
-                                                    DOT_PRODUCT(ddvts(1:nr, dir, iso), gr(1:nr))
-                           END DO
-
-                        END DO
-                     END DO
-
-                     ! Write in the global matrix
-                     DO ic = nsoset(lmin(iset2) - 1) + 1, nsoset(lmax(iset2))
-                        iso1 = nsoset(lmin(iset1) - 1) + 1
-                        iso2 = ngau2 + ic
-                        CALL daxpy(size1, 1.0_dp, matso_h(iso1, ic), 1, int_hh(ispin)%r_coef(nngau1 + 1, iso2), 1)
-                        CALL daxpy(size1, 1.0_dp, matso_s(iso1, ic), 1, int_ss(ispin)%r_coef(nngau1 + 1, iso2), 1)
-                     END DO
-
-                  END DO ! ipfg2
-               END DO ! ipfg1
-               m2 = m2 + maxso
-            END DO ! iset2
-            m1 = m1 + maxso
-         END DO ! iset1
-         DEALLOCATE (vth, vts, dvth, dvts, ddvth, ddvts)
-      END DO ! ispin
-
-      DEALLOCATE (matso_h, matso_s)
-      DEALLOCATE (g1, g2, gg, gr, ww)
-      DEALLOCATE (cg_list, cg_n_list, dcg_list, dcg_n_list)
-
-      vtau_h = 2._dp*vtau_h
-      vtau_s = 2._dp*vtau_s
+         int_hh(ispin)%r_coef(:, :) = int_hh(ispin)%r_coef(:, :) + intso_h(:, :, ispin)
+         int_ss(ispin)%r_coef(:, :) = int_ss(ispin)%r_coef(:, :) + intso_s(:, :, ispin)
+      END DO
 
       CALL timestop(handle)
 

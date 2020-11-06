@@ -29,8 +29,7 @@ MODULE qs_rho_atom_methods
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_sum
    USE orbital_pointers,                ONLY: indso,&
-                                              nsoset,&
-                                              soset
+                                              nsoset
    USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
                                               paw_proj_set_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -113,15 +112,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_atom'
 
-      INTEGER :: damax_iso_not0_local, dbmax_iso_not0_local, dcmax_iso_not0_local, dir, &
-         dmax_iso_not0, handle, i, i1, i2, iat, iatom, icg, ipgf1, ipgf2, ir, iset1, iset2, iso, &
-         iso1, iso1_first, iso1_last, iso2, iso2_first, iso2_last, isom1, isom2, istat, j, l, l1, &
-         l2, l_iso, l_sub, l_sum, lmax12, lmax_expansion, lmin12, m1, m1s, m2, m2s, max_iso_not0, &
+      INTEGER :: damax_iso_not0_local, handle, i, i1, i2, iat, iatom, icg, ipgf1, ipgf2, ir, &
+         iset1, iset2, iso, iso1, iso1_first, iso1_last, iso2, iso2_first, iso2_last, istat, j, l, &
+         l1, l2, l_iso, l_sub, l_sum, lmax12, lmax_expansion, lmin12, m1s, m2s, max_iso_not0, &
          max_iso_not0_local, max_s_harm, maxl, maxso, mepos, n1s, n2s, nr, nset, num_pe, size1, &
          size2
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cg_n_list, dacg_n_list, dbcg_n_list, &
-                                                            dccg_n_list
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cg_list, dacg_list, dbcg_list, dccg_list
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cg_n_list, dacg_n_list
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cg_list, dacg_list
       INTEGER, DIMENSION(2)                              :: bo
       INTEGER, DIMENSION(:), POINTER                     :: lmax, lmin, npgf, o2nindex
       LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: done_vgg
@@ -131,7 +128,7 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: vgg
       REAL(dp), DIMENSION(:, :), POINTER                 :: coeff, zet
       REAL(dp), DIMENSION(:, :, :), POINTER              :: my_CG
-      REAL(dp), DIMENSION(:, :, :, :), POINTER           :: my_CG_dxyz, my_dCG, my_ddCG
+      REAL(dp), DIMENSION(:, :, :, :), POINTER           :: my_CG_dxyz
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
@@ -139,13 +136,11 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      !Note on tau funtionals: need to take the Cartesian dot product of the gradient of 2 Gaussians
-      !     => we keep track of the direction (x,y,z) and separate the different cross terms
-      !        depending on their angular part dependencies. That is 3x3=9 terms in total
+      !Note: tau is taken care of separately in qs_vxc_atom.F
 
       NULLIFY (orb_basis)
       NULLIFY (harmonics, grid_atom)
-      NULLIFY (lmin, lmax, npgf, zet, my_CG, my_dCG, my_CG_dxyz, coeff, my_ddCG)
+      NULLIFY (lmin, lmax, npgf, zet, my_CG, my_CG_dxyz, coeff)
 
       CALL get_qs_kind(qs_kind, basis_set=orb_basis, grid_atom=grid_atom, &
                        paw_proj_set=paw_proj, harmonics=harmonics)
@@ -157,7 +152,6 @@ CONTAINS
       CALL get_paw_proj_set(paw_proj_set=paw_proj, o2nindex=o2nindex)
 
       max_iso_not0 = harmonics%max_iso_not0
-      dmax_iso_not0 = harmonics%dmax_iso_not0
       max_s_harm = harmonics%max_s_harm
 
       nr = grid_atom%nr
@@ -168,8 +162,6 @@ CONTAINS
       bo = get_limit(natom, num_pe, mepos)
 
       my_CG => harmonics%my_CG
-      my_dCG => harmonics%my_dCG
-      my_ddCG => harmonics%my_ddCG
       my_CG_dxyz => harmonics%my_CG_dxyz
 
       ALLOCATE (CPCH_sphere(nsoset(maxl), nsoset(maxl)))
@@ -180,8 +172,6 @@ CONTAINS
       ALLOCATE (int1(nr), int2(nr))
       ALLOCATE (cg_list(2, nsoset(maxl)**2, max_s_harm), cg_n_list(max_s_harm), &
                 dacg_list(2, nsoset(maxl)**2, max_s_harm), dacg_n_list(max_s_harm), &
-                dbcg_list(2, nsoset(maxl)**2, max_s_harm), dbcg_n_list(max_s_harm), &
-                dccg_list(2, nsoset(maxl)**2, max_s_harm), dccg_n_list(max_s_harm), &
                 STAT=istat)
       CPASSERT(istat == 0)
 
@@ -206,10 +196,6 @@ CONTAINS
             CPASSERT(max_iso_not0_local .LE. max_iso_not0)
             CALL get_none0_cg_list(my_CG_dxyz, lmin(iset1), lmax(iset1), lmin(iset2), lmax(iset2), &
                                    max_s_harm, lmax_expansion, dacg_list, dacg_n_list, damax_iso_not0_local)
-            CALL get_none0_cg_list(my_dCG, lmin(iset1), lmax(iset1), lmin(iset2), lmax(iset2), &
-                                   max_s_harm, lmax_expansion, dbcg_list, dbcg_n_list, dbmax_iso_not0_local)
-            CALL get_none0_cg_list(my_ddCG, lmin(iset1), lmax(iset1), lmin(iset2), lmax(iset2), &
-                                   max_s_harm, lmax_expansion, dccg_list, dccg_n_list, dcmax_iso_not0_local)
             n1s = nsoset(lmax(iset1))
 
             DO ipgf1 = 1, npgf(iset1)
@@ -326,10 +312,6 @@ CONTAINS
 
                               l1 = indso(1, iso1)
                               l2 = indso(1, iso2)
-                              m1 = indso(2, iso1)
-                              m2 = indso(2, iso2)
-                              isom1 = soset(l1, -m1)
-                              isom2 = soset(l2, -m2)
 
                               l = indso(1, iso1) + indso(1, iso2)
                               CPASSERT(l <= lmax_expansion)
@@ -358,19 +340,6 @@ CONTAINS
                                  rho_atom_set(iatom)%vrho_rad_s(i)%r_coef(1:nr, iso) + &
                                  vgg(1:nr, l, l_iso)*CPCS_sphere(iso1, iso2)*my_CG(iso1, iso2, iso)
 
-                              !tau functionals, terms in Ylm*Ylm, to be multiplied by x^2 comp. of unit vector
-                              DO dir = 1, 3
-                                 rho_atom_set(iatom)%trho_rad_h(1, dir, i)%r_coef(1:nr, iso) = &
-                                    rho_atom_set(iatom)%trho_rad_h(1, dir, i)%r_coef(1:nr, iso) + &
-                                    2.0_dp*zet(ipgf1, iset1)*zet(ipgf2, iset2)*grid_atom%rad2(1:nr)* &
-                                    gg(1:nr, l)*CPCH_sphere(iso1, iso2)*my_CG(iso1, iso2, iso)
-
-                                 rho_atom_set(iatom)%trho_rad_s(1, dir, i)%r_coef(1:nr, iso) = &
-                                    rho_atom_set(iatom)%trho_rad_s(1, dir, i)%r_coef(1:nr, iso) + &
-                                    2.0_dp*zet(ipgf1, iset1)*zet(ipgf2, iset2)*grid_atom%rad2(1:nr)* &
-                                    gg(1:nr, l)*CPCS_sphere(iso1, iso2)*my_CG(iso1, iso2, iso)
-                              END DO
-
                            ENDDO ! icg
 
                         ENDDO ! iso
@@ -394,64 +363,6 @@ CONTAINS
                            END DO ! icg
 
                         ENDDO ! iso
-
-                        !tau functionals, terms in Ylm * dYlm/dx, to be multiplied by x comp. of unit vector
-                        DO iso = 1, max_iso_not0
-                           l_iso = indso(1, iso)
-                           DO icg = 1, dbcg_n_list(iso)
-                              iso1 = dbcg_list(1, icg, iso)
-                              iso2 = dbcg_list(2, icg, iso)
-
-                              l = indso(1, iso1) + indso(1, iso2)
-
-                              DO dir = 1, 3
-
-                                 !Yl1m1 * dYl2m2/dx
-                                 rho_atom_set(iatom)%trho_rad_h(2, dir, i)%r_coef(1:nr, iso) = &
-                                    rho_atom_set(iatom)%trho_rad_h(2, dir, i)%r_coef(1:nr, iso) - &
-                                    zet(ipgf1, iset1)*gg(1:nr, l)*CPCH_sphere(iso1, iso2)*my_dCG(dir, iso1, iso2, iso)
-
-                                 rho_atom_set(iatom)%trho_rad_s(2, dir, i)%r_coef(1:nr, iso) = &
-                                    rho_atom_set(iatom)%trho_rad_s(2, dir, i)%r_coef(1:nr, iso) - &
-                                    zet(ipgf1, iset1)*gg(1:nr, l)*CPCS_sphere(iso1, iso2)*my_dCG(dir, iso1, iso2, iso)
-
-                                 !dYl1m1/dx * Yl2m2
-                                 rho_atom_set(iatom)%trho_rad_h(2, dir, i)%r_coef(1:nr, iso) = &
-                                    rho_atom_set(iatom)%trho_rad_h(2, dir, i)%r_coef(1:nr, iso) - &
-                                    zet(ipgf2, iset2)*gg(1:nr, l)*CPCH_sphere(iso1, iso2)*my_dCG(dir, iso2, iso1, iso)
-
-                                 rho_atom_set(iatom)%trho_rad_s(2, dir, i)%r_coef(1:nr, iso) = &
-                                    rho_atom_set(iatom)%trho_rad_s(2, dir, i)%r_coef(1:nr, iso) - &
-                                    zet(ipgf2, iset2)*gg(1:nr, l)*CPCS_sphere(iso1, iso2)*my_dCG(dir, iso2, iso1, iso)
-
-                              ENDDO !dir
-                           ENDDO !icg
-                        ENDDO !iso
-
-                        !tau functionals, terms in dYlm/dx * dYlm/dx, to be multiplied by 1
-                        DO iso = 1, max_iso_not0
-                           l_iso = indso(1, iso)
-                           DO icg = 1, dccg_n_list(iso)
-                              iso1 = dccg_list(1, icg, iso)
-                              iso2 = dccg_list(2, icg, iso)
-
-                              l = indso(1, iso1) + indso(1, iso2)
-
-                              DO dir = 1, 3
-
-                                 rho_atom_set(iatom)%trho_rad_h(3, dir, i)%r_coef(1:nr, iso) = &
-                                    rho_atom_set(iatom)%trho_rad_h(3, dir, i)%r_coef(1:nr, iso) + &
-                                    0.5_dp*gg(1:nr, l)/grid_atom%rad2(1:nr)* &
-                                    CPCH_sphere(iso1, iso2)*my_ddCG(dir, iso1, iso2, iso)
-
-                                 rho_atom_set(iatom)%trho_rad_s(3, dir, i)%r_coef(1:nr, iso) = &
-                                    rho_atom_set(iatom)%trho_rad_s(3, dir, i)%r_coef(1:nr, iso) + &
-                                    0.5_dp*gg(1:nr, l)/grid_atom%rad2(1:nr)* &
-                                    CPCS_sphere(iso1, iso2)*my_ddCG(dir, iso1, iso2, iso)
-
-                              ENDDO !dir
-                           ENDDO !icg
-                        ENDDO !iso
 
                      ENDDO ! i
                   ENDDO ! iat
@@ -485,7 +396,7 @@ CONTAINS
 
       DEALLOCATE (CPCH_sphere, CPCS_sphere)
       DEALLOCATE (g1, g2, gg0, gg, gg_lm1, dgg, vgg, done_vgg, erf_zet12, int1, int2)
-      DEALLOCATE (cg_list, cg_n_list, dacg_list, dacg_n_list, dbcg_list, dbcg_n_list, dccg_list, dccg_n_list)
+      DEALLOCATE (cg_list, cg_n_list, dacg_list, dacg_n_list)
 
       CALL timestop(handle)
 
@@ -1031,10 +942,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho_atom_internals'
 
-      INTEGER                                            :: bo(2), dir, handle, iat, iatom, ikind, &
-                                                            ispin, istat, j, max_iso_not0, mepos, &
-                                                            nat, natom, nsatbas, nsotot, nspins, &
-                                                            num_pe
+      INTEGER                                            :: bo(2), handle, iat, iatom, ikind, ispin, &
+                                                            istat, j, max_iso_not0, mepos, nat, &
+                                                            natom, nsatbas, nsotot, nspins, num_pe
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL                                            :: paw_atom
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
@@ -1089,8 +999,6 @@ CONTAINS
                       rho_atom_set(iatom)%cpc_s(nspins), &
                       rho_atom_set(iatom)%drho_rad_h(nspins), &
                       rho_atom_set(iatom)%drho_rad_s(nspins), &
-                      rho_atom_set(iatom)%trho_rad_h(3, 3, nspins), &
-                      rho_atom_set(iatom)%trho_rad_s(3, 3, nspins), &
                       rho_atom_set(iatom)%rho_rad_h_d(3, nspins), &
                       rho_atom_set(iatom)%rho_rad_s_d(3, nspins), &
                       STAT=istat)
@@ -1100,14 +1008,7 @@ CONTAINS
                DO ispin = 1, nspins
                   NULLIFY (rho_atom_set(iatom)%drho_rad_h(ispin)%r_coef, &
                            rho_atom_set(iatom)%drho_rad_s(ispin)%r_coef)
-                  DO dir = 1, 3
-                     NULLIFY (rho_atom_set(iatom)%trho_rad_h(1, dir, ispin)%r_coef, &
-                              rho_atom_set(iatom)%trho_rad_h(2, dir, ispin)%r_coef, &
-                              rho_atom_set(iatom)%trho_rad_h(3, dir, ispin)%r_coef, &
-                              rho_atom_set(iatom)%trho_rad_s(1, dir, ispin)%r_coef, &
-                              rho_atom_set(iatom)%trho_rad_s(2, dir, ispin)%r_coef, &
-                              rho_atom_set(iatom)%trho_rad_s(3, dir, ispin)%r_coef)
-                  END DO
+
                   ALLOCATE (rho_atom_set(iatom)%cpc_h(ispin)%r_coef(1:nsatbas, 1:nsatbas), &
                             rho_atom_set(iatom)%cpc_s(ispin)%r_coef(1:nsatbas, 1:nsatbas), &
                             STAT=istat)
@@ -1125,10 +1026,6 @@ CONTAINS
                   NULLIFY (rho_atom_set(iatom)%drho_rad_s(ispin)%r_coef)
 
                   DO j = 1, 3
-                     DO dir = 1, 3
-                        NULLIFY (rho_atom_set(iatom)%trho_rad_h(j, dir, ispin)%r_coef)
-                        NULLIFY (rho_atom_set(iatom)%trho_rad_s(j, dir, ispin)%r_coef)
-                     END DO
                      NULLIFY (rho_atom_set(iatom)%rho_rad_h_d(j, ispin)%r_coef)
                      NULLIFY (rho_atom_set(iatom)%rho_rad_s_d(j, ispin)%r_coef)
                   END DO
@@ -1189,7 +1086,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho_atom_rad'
 
-      INTEGER                                            :: dir, handle, istat, j
+      INTEGER                                            :: handle, istat, j
 
       CALL timeset(routineN, handle)
 
@@ -1211,17 +1108,6 @@ CONTAINS
       CPASSERT(istat == 0)
       rho_atom_set(iatom)%drho_rad_h(ispin)%r_coef = 0.0_dp
       rho_atom_set(iatom)%drho_rad_s(ispin)%r_coef = 0.0_dp
-
-      DO dir = 1, 3
-         DO j = 1, 3
-            ALLOCATE (rho_atom_set(iatom)%trho_rad_h(j, dir, ispin)%r_coef(nr, max_iso_not0), &
-                      rho_atom_set(iatom)%trho_rad_s(j, dir, ispin)%r_coef(nr, max_iso_not0), &
-                      STAT=istat)
-            CPASSERT(istat == 0)
-            rho_atom_set(iatom)%trho_rad_h(j, dir, ispin)%r_coef = 0.0_dp
-            rho_atom_set(iatom)%trho_rad_s(j, dir, ispin)%r_coef = 0.0_dp
-         END DO
-      END DO
 
       DO j = 1, 3
          NULLIFY (rho_atom_set(iatom)%rho_rad_h_d(j, ispin)%r_coef, &
@@ -1249,7 +1135,7 @@ CONTAINS
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
       INTEGER, INTENT(IN)                                :: iatom, ispin
 
-      INTEGER                                            :: dir, j
+      INTEGER                                            :: j
 
       rho_atom_set(iatom)%rho_rad_h(ispin)%r_coef = 0.0_dp
       rho_atom_set(iatom)%rho_rad_s(ispin)%r_coef = 0.0_dp
@@ -1260,13 +1146,9 @@ CONTAINS
       rho_atom_set(iatom)%drho_rad_h(ispin)%r_coef = 0.0_dp
       rho_atom_set(iatom)%drho_rad_s(ispin)%r_coef = 0.0_dp
 
-      DO dir = 1, 3
-         DO j = 1, 3
-            rho_atom_set(iatom)%trho_rad_h(j, dir, ispin)%r_coef = 0.0_dp
-            rho_atom_set(iatom)%trho_rad_s(j, dir, ispin)%r_coef = 0.0_dp
-            rho_atom_set(iatom)%rho_rad_h_d(j, ispin)%r_coef = 0.0_dp
-            rho_atom_set(iatom)%rho_rad_s_d(j, ispin)%r_coef = 0.0_dp
-         END DO
+      DO j = 1, 3
+         rho_atom_set(iatom)%rho_rad_h_d(j, ispin)%r_coef = 0.0_dp
+         rho_atom_set(iatom)%rho_rad_s_d(j, ispin)%r_coef = 0.0_dp
       END DO
 
    END SUBROUTINE set2zero_rho_atom_rad
