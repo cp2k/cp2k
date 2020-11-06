@@ -1,3 +1,10 @@
+/*----------------------------------------------------------------------------*/
+/*  CP2K: A general program to perform molecular dynamics simulations         */
+/*  Copyright 2000-2020 CP2K developers group <https://cp2k.org>              */
+/*                                                                            */
+/*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
+/*----------------------------------------------------------------------------*/
+
 #include <assert.h>
 #include <malloc.h>
 #include <stdio.h>
@@ -7,9 +14,9 @@
 #include <libxsmm.h>
 #endif
 #include "../common/grid_common.h"
-#include "tensor_local.h"
 #include "coefficients.h"
 #include "private_header.h"
+#include "tensor_local.h"
 
 void transform_xyz_to_triangular(const tensor *const coef,
                                  double *const coef_xyz) {
@@ -63,9 +70,9 @@ void transform_triangular_to_xyz(const double *const coef_xyz,
 // *****************************************************************************
 void grid_prepare_coef_dgemm(
     const int *lmin, const int *lmax, const int lp, const double prefactor,
-    const tensor *const alpha,  // [3][lb_max+1][la_max+1][lp+1]
+    const tensor *const alpha, // [3][lb_max+1][la_max+1][lp+1]
     const tensor *const pab,
-    tensor *coef_xyz)  //[lp+1][lp+1][lp+1]
+    tensor *coef_xyz) //[lp+1][lp+1][lp+1]
 {
   /* can be done with dgemms as well, since it is a change of basis from (x -
    * x1) (x - x2) to (x - x12)^alpha */
@@ -190,7 +197,8 @@ void grid_transform_coef_xzy_to_ikj(const double dh[3][3],
 
   coef_ijk.data = grid_allocate_scratch(sizeof(double) * coef_ijk.alloc_size_);
 
-  if (coef_ijk.data == NULL) abort();
+  if (coef_ijk.data == NULL)
+    abort();
 
   memset(coef_ijk.data, 0, sizeof(double) * coef_ijk.alloc_size_);
   initialize_tensor_3(&hmatgridp, coef_xyz->size[0], 3, 3);
@@ -280,7 +288,8 @@ void grid_transform_coef_jik_to_yxz(const double dh[3][3],
                       coef_xyz->size[2]);
 
   coef_ijk.data = grid_allocate_scratch(sizeof(double) * coef_ijk.alloc_size_);
-  if (coef_ijk.data == NULL) abort();
+  if (coef_ijk.data == NULL)
+    abort();
 
   memset(coef_ijk.data, 0, sizeof(double) * coef_ijk.alloc_size_);
   initialize_tensor_3(&hmatgridp, coef_xyz->size[0], 3, 3);

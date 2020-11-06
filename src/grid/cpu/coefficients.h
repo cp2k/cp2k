@@ -1,3 +1,10 @@
+/*----------------------------------------------------------------------------*/
+/*  CP2K: A general program to perform molecular dynamics simulations         */
+/*  Copyright 2000-2020 CP2K developers group <https://cp2k.org>              */
+/*                                                                            */
+/*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
+/*----------------------------------------------------------------------------*/
+
 #ifndef COEFFICIENTS_H
 #define COEFFICIENTS_H
 #include <stdbool.h>
@@ -33,8 +40,9 @@ extern void transform_xyz_to_triangular(const tensor *const coef,
                                         double *const coef_xyz);
 extern void transform_yxz_to_triangular(const tensor *const coef,
                                         double *const coef_xyz);
-extern void grid_transform_coef_ijk_to_xyz_cp2k(
-    const int lp, const double dh[3][3], const double *__restrict coef_ijk,
-    double *__restrict coef_xyz);
+extern void
+grid_transform_coef_ijk_to_xyz_cp2k(const int lp, const double dh[3][3],
+                                    const double *__restrict coef_ijk,
+                                    double *__restrict coef_xyz);
 
 #endif

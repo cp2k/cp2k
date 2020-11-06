@@ -1023,11 +1023,13 @@ CONTAINS
 !> \param device_id ...
 !> \param validate ...
 !> \param apply_cutoff ...
+!> \param queue_length ...
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE grid_library_set_config(backend, device_id, validate, apply_cutoff, queue_length)
-      INTEGER, INTENT(IN)                                :: backend, device_id, queue_length
+      INTEGER, INTENT(IN)                                :: backend, device_id
       LOGICAL, INTENT(IN)                                :: validate, apply_cutoff
+      INTEGER, INTENT(IN)                                :: queue_length
 
       INTERFACE
          SUBROUTINE grid_library_set_config_c(backend, device_id, validate, apply_cutoff, queue_length) &

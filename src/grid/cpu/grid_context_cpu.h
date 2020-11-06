@@ -1,5 +1,12 @@
-#ifndef __GRID_TASK_LIST_CPU_H__
-#define __GRID_TASK_LIST_CPU_H__
+/*----------------------------------------------------------------------------*/
+/*  CP2K: A general program to perform molecular dynamics simulations         */
+/*  Copyright 2000-2020 CP2K developers group <https://cp2k.org>              */
+/*                                                                            */
+/*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
+/*----------------------------------------------------------------------------*/
+
+#ifndef GRID_CONTEXT_CPU_H
+#define GRID_CONTEXT_CPU_H
 
 #include "../common/grid_basis_set.h"
 void *create_grid_context_cpu(
@@ -26,18 +33,17 @@ void update_grid_context_cpu(
     const double *const radius_list, const double rab_list[ntasks][3],
     double **blocks_buffer, void *ptr);
 
-void initialize_grid_context_on_gpu(void *ptr,
-                                    const int number_of_devices,
+void initialize_grid_context_on_gpu(void *ptr, const int number_of_devices,
                                     const int *device_id);
 
 void destroy_grid_context_cpu(void *ptr);
 
 void apply_cutoff(void *ptr);
-void extract_grid_context_block_buffer(const void *const ptr, void *block_buffer);
+void extract_grid_context_block_buffer(const void *const ptr,
+                                       void *block_buffer);
 void update_queue_length(void *const ptr, const int queue_length);
 void grid_collocate_task_list_cpu(
-    void *const ptr, const bool orthorhombic,
-    const int func, const int nlevels,
+    void *const ptr, const bool orthorhombic, const int func, const int nlevels,
     const int npts_global[nlevels][3], const int npts_local[nlevels][3],
     const int shift_local[nlevels][3], const int border_width[nlevels][3],
     const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],

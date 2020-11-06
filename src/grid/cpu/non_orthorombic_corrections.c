@@ -1,3 +1,10 @@
+/*----------------------------------------------------------------------------*/
+/*  CP2K: A general program to perform molecular dynamics simulations         */
+/*  Copyright 2000-2020 CP2K developers group <https://cp2k.org>              */
+/*                                                                            */
+/*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
+/*----------------------------------------------------------------------------*/
+
 #include "non_orthorombic_corrections.h"
 
 #include <malloc.h>
@@ -10,9 +17,11 @@
 
 double exp_recursive(const double c_exp, const double c_exp_minus_1,
                      const int index) {
-  if (index == -1) return c_exp_minus_1;
+  if (index == -1)
+    return c_exp_minus_1;
 
-  if (index == 1) return c_exp;
+  if (index == 1)
+    return c_exp;
 
   double res = 1.0;
 
@@ -40,7 +49,7 @@ void exp_i(const double alpha, const int imin, const int imax,
   res[0] = exp(imin * alpha);
   for (int i = 1; i < (imax - imin); i++) {
     res[i] = res[i - 1] *
-             c_exp_co;  // exp_recursive(c_exp_co, 1.0 / c_exp_co, i + imin);
+             c_exp_co; // exp_recursive(c_exp_co, 1.0 / c_exp_co, i + imin);
   }
 }
 
@@ -99,7 +108,8 @@ void calculate_non_orthorombic_corrections_tensor(
    */
 
   /* we have a orthorombic case */
-  if (plane[0] && plane[1] && plane[2]) return;
+  if (plane[0] && plane[1] && plane[2])
+    return;
 
   tensor exp_tmp;
   double *x1, *x2;
@@ -173,7 +183,8 @@ void calculate_non_orthorombic_corrections_tensor_blocked(
    */
 
   /* we have a orthorombic case */
-  if (plane[0] && plane[1] && plane[2]) return;
+  if (plane[0] && plane[1] && plane[2])
+    return;
 
   tensor exp_blocked;
   double *x1, *x2;
@@ -181,10 +192,10 @@ void calculate_non_orthorombic_corrections_tensor_blocked(
   initialize_tensor_2(&exp_blocked, imax(block_size[0], block_size[1]),
                       imax(block_size[1], block_size[2]));
 
-  const int cube_size[3] = {
-      (upper_corner[0] - lower_corner[0]) * block_size[0],
-      (upper_corner[1] - lower_corner[1]) * block_size[1],
-      (upper_corner[2] - lower_corner[2]) * block_size[2]};
+  const int cube_size[3] = {(upper_corner[0] - lower_corner[0]) * block_size[0],
+                            (upper_corner[1] - lower_corner[1]) * block_size[1],
+                            (upper_corner[2] - lower_corner[2]) *
+                                block_size[2]};
 
   const int max_elem = imax(imax(cube_size[0], cube_size[1]), cube_size[2]);
   x1 = memalign(64, sizeof(double) * max_elem);
@@ -247,7 +258,8 @@ void apply_non_orthorombic_corrections(const bool *__restrict plane,
                                        tensor *const cube) {
   // Well we should never call non orthorombic corrections if everything is
   // orthorombic
-  if (plane[0] && plane[1] && plane[2]) return;
+  if (plane[0] && plane[1] && plane[2])
+    return;
 
   /*k and i are orthogonal, k and j as well */
   if (plane[0] && plane[1]) {

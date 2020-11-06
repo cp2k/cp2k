@@ -1,3 +1,10 @@
+/*----------------------------------------------------------------------------*/
+/*  CP2K: A general program to perform molecular dynamics simulations         */
+/*  Copyright 2000-2020 CP2K developers group <https://cp2k.org>              */
+/*                                                                            */
+/*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
+/*----------------------------------------------------------------------------*/
+
 #ifdef __COLLOCATE_GPU
 
 #include <assert.h>
@@ -8,7 +15,8 @@
 
 extern "C" void reset_list_gpu(pgf_list_gpu *lst);
 extern "C" void return_dh(void *const ptr, const int level, double *const dh);
-extern "C" void return_dh_inv(void *const ptr, const int level, double *const dh);
+extern "C" void return_dh_inv(void *const ptr, const int level,
+                              double *const dh);
 extern "C" int return_num_devs(void *const ptr);
 extern "C" int return_device_id(void *const ptr, const int device_id);
 extern "C" int is_grid_orthorhombic(void *const ptr);
@@ -112,9 +120,9 @@ __device__ void compute_cube_properties(const double radius,
     roffset->z /= dr.z;
 
     // Symetric interval
-    ub_cube.x =  - lb_cube->x;
-    ub_cube.y =  - lb_cube->y;
-    ub_cube.z =  - lb_cube->z;
+    ub_cube.x = -lb_cube->x;
+    ub_cube.y = -lb_cube->y;
+    ub_cube.z = -lb_cube->z;
 
   } else {
 
@@ -258,19 +266,19 @@ __global__ void compute_collocation_gpu_spherical_cutoff_(
         }
 
         if (radius * radius >= (r3.x * r3.x + r3.y * r3.y + r3.z * r3.z)) {
-            res *= exp_factor;
+          res *= exp_factor;
 
-            /* this operationm is the limiting factor of this code. AtomicAdd
-             * act at the thread level while actually we do not need to act at
-             * that level but at the grid level. Update of each block should be
-             * sequential but not within the block */
+          /* this operationm is the limiting factor of this code. AtomicAdd
+           * act at the thread level while actually we do not need to act at
+           * that level but at the grid level. Update of each block should be
+           * sequential but not within the block */
 #if __CUDA_ARCH__ < 600
-            /* kepler does not have hardware atomic operations on double */
-            atomicAdd1(&grid_gpu_[(z2 * grid_size_.y + y2) * grid_size_.x + x2],
-                       res);
+          /* kepler does not have hardware atomic operations on double */
+          atomicAdd1(&grid_gpu_[(z2 * grid_size_.y + y2) * grid_size_.x + x2],
+                     res);
 #else
-            atomicAdd(&grid_gpu_[(z2 * grid_size_.y + y2) * grid_size_.x + x2],
-                      res);
+          atomicAdd(&grid_gpu_[(z2 * grid_size_.y + y2) * grid_size_.x + x2],
+                    res);
 #endif
         }
       }
@@ -512,90 +520,94 @@ extern "C" void compute_collocation_gpu(pgf_list_gpu *handler) {
   thread.z = 4;
 
   if (handler->apply_cutoff) {
-      compute_collocation_gpu_spherical_cutoff_<<<block, thread,
-          (handler->lmax + 1) * (handler->lmax + 1) *
-          (handler->lmax + 1) * sizeof(double),
-          handler->stream>>>(
-              handler->grid_size, handler->grid_lower_corner_position,
-              handler->grid_full_size, handler->window_shift, handler->window_size,
-              handler->lmax_gpu_, handler->zeta_gpu_, handler->rp_gpu_,
-              handler->radius_gpu_, handler->coef_offset_gpu_, handler->coef_gpu_,
-              handler->data_gpu_);
-  }  else {
-      compute_collocation_gpu_<<<block, thread,
-        (handler->lmax + 1) * (handler->lmax + 1) *
-        (handler->lmax + 1) * sizeof(double),
+    compute_collocation_gpu_spherical_cutoff_<<<
+        block, thread,
+        (handler->lmax + 1) * (handler->lmax + 1) * (handler->lmax + 1) *
+            sizeof(double),
         handler->stream>>>(
-            handler->grid_size, handler->grid_lower_corner_position,
-            handler->grid_full_size, handler->window_shift, handler->window_size,
-            handler->lmax_gpu_, handler->zeta_gpu_, handler->rp_gpu_,
-            handler->radius_gpu_, handler->coef_offset_gpu_, handler->coef_gpu_,
-            handler->data_gpu_);
-}
+        handler->grid_size, handler->grid_lower_corner_position,
+        handler->grid_full_size, handler->window_shift, handler->window_size,
+        handler->lmax_gpu_, handler->zeta_gpu_, handler->rp_gpu_,
+        handler->radius_gpu_, handler->coef_offset_gpu_, handler->coef_gpu_,
+        handler->data_gpu_);
+  } else {
+    compute_collocation_gpu_<<<block, thread,
+                               (handler->lmax + 1) * (handler->lmax + 1) *
+                                   (handler->lmax + 1) * sizeof(double),
+                               handler->stream>>>(
+        handler->grid_size, handler->grid_lower_corner_position,
+        handler->grid_full_size, handler->window_shift, handler->window_size,
+        handler->lmax_gpu_, handler->zeta_gpu_, handler->rp_gpu_,
+        handler->radius_gpu_, handler->coef_offset_gpu_, handler->coef_gpu_,
+        handler->data_gpu_);
+  }
 }
 
 extern "C" void
 initialize_grid_parameters_on_gpu(collocation_integration *const handler) {
-    for (int worker = 0; worker < handler->worker_list_size; worker++) {
-      assert(handler->worker_list[worker].device_id >= 0);
-      cudaSetDevice(handler->worker_list[worker].device_id);
+  for (int worker = 0; worker < handler->worker_list_size; worker++) {
+    assert(handler->worker_list[worker].device_id >= 0);
+    cudaSetDevice(handler->worker_list[worker].device_id);
 
-      handler->worker_list[worker].grid_size.x = handler->grid.size[2];
-      handler->worker_list[worker].grid_size.y = handler->grid.size[1];
-      handler->worker_list[worker].grid_size.z = handler->grid.size[0];
+    handler->worker_list[worker].grid_size.x = handler->grid.size[2];
+    handler->worker_list[worker].grid_size.y = handler->grid.size[1];
+    handler->worker_list[worker].grid_size.z = handler->grid.size[0];
 
-      handler->worker_list[worker].grid_full_size.x = handler->grid.full_size[2];
-      handler->worker_list[worker].grid_full_size.y = handler->grid.full_size[1];
-      handler->worker_list[worker].grid_full_size.z = handler->grid.full_size[0];
+    handler->worker_list[worker].grid_full_size.x = handler->grid.full_size[2];
+    handler->worker_list[worker].grid_full_size.y = handler->grid.full_size[1];
+    handler->worker_list[worker].grid_full_size.z = handler->grid.full_size[0];
 
-      handler->worker_list[worker].window_size.x = handler->grid.window_size[2];
-      handler->worker_list[worker].window_size.y = handler->grid.window_size[1];
-      handler->worker_list[worker].window_size.z = handler->grid.window_size[0];
+    handler->worker_list[worker].window_size.x = handler->grid.window_size[2];
+    handler->worker_list[worker].window_size.y = handler->grid.window_size[1];
+    handler->worker_list[worker].window_size.z = handler->grid.window_size[0];
 
-      handler->worker_list[worker].window_shift.x = handler->grid.window_shift[2];
-      handler->worker_list[worker].window_shift.y = handler->grid.window_shift[1];
-      handler->worker_list[worker].window_shift.z = handler->grid.window_shift[0];
+    handler->worker_list[worker].window_shift.x = handler->grid.window_shift[2];
+    handler->worker_list[worker].window_shift.y = handler->grid.window_shift[1];
+    handler->worker_list[worker].window_shift.z = handler->grid.window_shift[0];
 
-      handler->worker_list[worker].grid_lower_corner_position.x =
-          handler->grid.lower_corner[2];
-      handler->worker_list[worker].grid_lower_corner_position.y =
-          handler->grid.lower_corner[1];
-      handler->worker_list[worker].grid_lower_corner_position.z =
-          handler->grid.lower_corner[0];
+    handler->worker_list[worker].grid_lower_corner_position.x =
+        handler->grid.lower_corner[2];
+    handler->worker_list[worker].grid_lower_corner_position.y =
+        handler->grid.lower_corner[1];
+    handler->worker_list[worker].grid_lower_corner_position.z =
+        handler->grid.lower_corner[0];
 
-      if (handler->worker_list[worker].data_gpu_ == NULL) {
-          cudaMalloc(&handler->worker_list[worker].data_gpu_,
-                     sizeof(double) * handler->grid.alloc_size_);
-          handler->worker_list[worker].data_gpu_old_size_ = handler->grid.alloc_size_;
-      } else {
-          if (handler->worker_list[worker].data_gpu_old_size_ < handler->grid.alloc_size_) {
-              cudaFree(handler->worker_list[worker].data_gpu_);
-              cudaMalloc(&handler->worker_list[worker].data_gpu_,
-                         sizeof(double) * handler->grid.alloc_size_);
-              handler->worker_list[worker].data_gpu_old_size_ = handler->grid.alloc_size_;
-          }
-      }
-
-      cudaMemset(handler->worker_list[worker].data_gpu_, 0,
+    if (handler->worker_list[worker].data_gpu_ == NULL) {
+      cudaMalloc(&handler->worker_list[worker].data_gpu_,
                  sizeof(double) * handler->grid.alloc_size_);
-      reset_list_gpu(handler->worker_list + worker);
+      handler->worker_list[worker].data_gpu_old_size_ =
+          handler->grid.alloc_size_;
+    } else {
+      if (handler->worker_list[worker].data_gpu_old_size_ <
+          handler->grid.alloc_size_) {
+        cudaFree(handler->worker_list[worker].data_gpu_);
+        cudaMalloc(&handler->worker_list[worker].data_gpu_,
+                   sizeof(double) * handler->grid.alloc_size_);
+        handler->worker_list[worker].data_gpu_old_size_ =
+            handler->grid.alloc_size_;
+      }
+    }
+
+    cudaMemset(handler->worker_list[worker].data_gpu_, 0,
+               sizeof(double) * handler->grid.alloc_size_);
+    reset_list_gpu(handler->worker_list + worker);
   }
 }
 
-extern "C" void initialize_grid_parameters_on_gpu_step1(void *const  ctx, const int level) {
-    double dh[9], dh_inv[9];
+extern "C" void initialize_grid_parameters_on_gpu_step1(void *const ctx,
+                                                        const int level) {
+  double dh[9], dh_inv[9];
 
-    return_dh(ctx, level, dh);
-    return_dh_inv(ctx, level, dh_inv);
+  return_dh(ctx, level, dh);
+  return_dh_inv(ctx, level, dh_inv);
 
-    int orthorhombic = is_grid_orthorhombic(ctx);
-    for (int device = 0; device < return_num_devs(ctx); device++) {
-        cudaSetDevice(return_device_id(ctx, device));
-        cudaMemcpyToSymbol(dh_, dh, sizeof(double) * 9);
-        cudaMemcpyToSymbol(dh_inv_, dh_inv, sizeof(double) * 9);
-        cudaMemcpyToSymbol(is_orthorhombic_, &orthorhombic, sizeof(int));
-    }
+  int orthorhombic = is_grid_orthorhombic(ctx);
+  for (int device = 0; device < return_num_devs(ctx); device++) {
+    cudaSetDevice(return_device_id(ctx, device));
+    cudaMemcpyToSymbol(dh_, dh, sizeof(double) * 9);
+    cudaMemcpyToSymbol(dh_inv_, dh_inv, sizeof(double) * 9);
+    cudaMemcpyToSymbol(is_orthorhombic_, &orthorhombic, sizeof(int));
+  }
 }
-
 
 #endif

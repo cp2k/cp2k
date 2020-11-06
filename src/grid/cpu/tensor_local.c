@@ -1,49 +1,56 @@
+/*----------------------------------------------------------------------------*/
+/*  CP2K: A general program to perform molecular dynamics simulations         */
+/*  Copyright 2000-2020 CP2K developers group <https://cp2k.org>              */
+/*                                                                            */
+/*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
+/*----------------------------------------------------------------------------*/
+
+#include "tensor_local.h"
 #include "../common/grid_common.h"
 #include "utils.h"
-#include "tensor_local.h"
 
 size_t realloc_tensor(tensor *t) {
-    assert(t);
+  assert(t);
 
-    if (t->alloc_size_ == 0) {
-        /* there is a mistake somewhere. We can not have t->old_alloc_size_ != 0 and
-         * no allocation */
-        abort();
-    }
+  if (t->alloc_size_ == 0) {
+    /* there is a mistake somewhere. We can not have t->old_alloc_size_ != 0 and
+     * no allocation */
+    abort();
+  }
 
-    if ((t->old_alloc_size_ >= t->alloc_size_) && (t->data != NULL))
-        return t->alloc_size_;
-
-    if ((t->old_alloc_size_ < t->alloc_size_) && (t->data != NULL)) {
-        free(t->data);
-    }
-
-    t->data = NULL;
-
-    if (t->data == NULL) {
-        t->data = memalign(4096, sizeof(double) * t->alloc_size_);
-        if (!t->data) abort();
-        t->old_alloc_size_ = t->alloc_size_;
-    }
-
+  if ((t->old_alloc_size_ >= t->alloc_size_) && (t->data != NULL))
     return t->alloc_size_;
+
+  if ((t->old_alloc_size_ < t->alloc_size_) && (t->data != NULL)) {
+    free(t->data);
+  }
+
+  t->data = NULL;
+
+  if (t->data == NULL) {
+    t->data = memalign(4096, sizeof(double) * t->alloc_size_);
+    if (!t->data)
+      abort();
+    t->old_alloc_size_ = t->alloc_size_;
+  }
+
+  return t->alloc_size_;
 }
 
 void alloc_tensor(tensor *t) {
-    if (t == NULL) {
-        abort();
-    }
+  if (t == NULL) {
+    abort();
+  }
 
-    t->data = memalign(4096, sizeof(double) * t->alloc_size_);
-  if (!t->data) abort();
+  t->data = memalign(4096, sizeof(double) * t->alloc_size_);
+  if (!t->data)
+    abort();
   t->old_alloc_size_ = t->alloc_size_;
 }
 
-void tensor_copy(tensor *const b, const tensor *const a)
-{
-    memcpy(b, a, sizeof(tensor));
+void tensor_copy(tensor *const b, const tensor *const a) {
+  memcpy(b, a, sizeof(tensor));
 }
-
 
 void compute_block_dimensions(const int *const grid_size, int *const blockDim) {
   int block_size_test[8] = {2, 3, 4, 5, 6, 7, 8, 10};
@@ -126,7 +133,7 @@ void decompose_grid_to_blocked_grid(const tensor *gr,
                                                  block_grid->blockDim[2]);
 
         extract_sub_grid(lower_corner, upper_corner, NULL,
-                         gr,  // original grid
+                         gr, // original grid
                          &tmp);
       }
     }
@@ -304,27 +311,28 @@ void initialize_tensor_blocked(struct tensor_ *a, const int dim,
   memset(a->block, 0, sizeof(struct tensor_));
 
   switch (dim) {
-    case 4:
-      initialize_tensor_4((struct tensor_ *)a->block, blockDim[0], blockDim[1],
-                          blockDim[2], blockDim[3]);
-      break;
-    case 3:
-      initialize_tensor_3((struct tensor_ *)a->block, blockDim[0], blockDim[1],
-                          blockDim[2]);
-      break;
-    case 2:
-      initialize_tensor_2((struct tensor_ *)a->block, blockDim[0], blockDim[1]);
-      break;
-    default:
-      printf("We should not be here");
-      assert(0);
-      break;
+  case 4:
+    initialize_tensor_4((struct tensor_ *)a->block, blockDim[0], blockDim[1],
+                        blockDim[2], blockDim[3]);
+    break;
+  case 3:
+    initialize_tensor_3((struct tensor_ *)a->block, blockDim[0], blockDim[1],
+                        blockDim[2]);
+    break;
+  case 2:
+    initialize_tensor_2((struct tensor_ *)a->block, blockDim[0], blockDim[1]);
+    break;
+  default:
+    printf("We should not be here");
+    assert(0);
+    break;
   }
 
   assert(a->block->alloc_size_ != 0);
   a->dim_ = dim + 1;
 
-  for (int d = 0; d < dim; d++) a->blockDim[d] = blockDim[d];
+  for (int d = 0; d < dim; d++)
+    a->blockDim[d] = blockDim[d];
 
   for (int d = 0; d < a->dim_ - 1; d++) {
     a->size[d] = sizes[d] / a->blockDim[d] + (sizes[d] % a->blockDim[d] != 0);
@@ -336,28 +344,28 @@ void initialize_tensor_blocked(struct tensor_ *a, const int dim,
   /* a->ld_ = (sizes[a->dim_ - 1] / 32 + 1) * 32; */
   a->ld_ = a->block->alloc_size_;
   switch (a->dim_) {
-    case 5: {
-      a->offsets[0] = a->ld_ * a->size[1] * a->size[2] * a->size[3];
-      a->offsets[1] = a->ld_ * a->size[1] * a->size[2];
-      a->offsets[2] = a->ld_ * a->size[2];
-      a->offsets[3] = a->ld_;
-      break;
-    }
-    case 4: {
-      a->offsets[0] = a->ld_ * a->size[1] * a->size[2];
-      a->offsets[1] = a->ld_ * a->size[2];
-      a->offsets[2] = a->ld_;
-      break;
-    }
-    case 3: {
-      a->offsets[0] = a->ld_ * a->size[1];
-      a->offsets[1] = a->ld_;
-    } break;
-    case 2: {  // matrix case
-      a->offsets[0] = a->ld_;
-    } break;
-    case 1:
-      break;
+  case 5: {
+    a->offsets[0] = a->ld_ * a->size[1] * a->size[2] * a->size[3];
+    a->offsets[1] = a->ld_ * a->size[1] * a->size[2];
+    a->offsets[2] = a->ld_ * a->size[2];
+    a->offsets[3] = a->ld_;
+    break;
+  }
+  case 4: {
+    a->offsets[0] = a->ld_ * a->size[1] * a->size[2];
+    a->offsets[1] = a->ld_ * a->size[2];
+    a->offsets[2] = a->ld_;
+    break;
+  }
+  case 3: {
+    a->offsets[0] = a->ld_ * a->size[1];
+    a->offsets[1] = a->ld_;
+  } break;
+  case 2: { // matrix case
+    a->offsets[0] = a->ld_;
+  } break;
+  case 1:
+    break;
   }
 
   a->alloc_size_ = a->offsets[0] * a->size[0];

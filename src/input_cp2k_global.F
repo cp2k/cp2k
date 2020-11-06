@@ -731,12 +731,12 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="APPLY_CUTOFF", &
-                         description="When enabled the cpu and gpu backends "// &
-                         " apply a spherical cutoff on the top of the cube. "// &
-                         " There is a performance penalty using it in "//&
-                         "combination with the cpu backend but it is on by "//&
-                         "default for the regtests", default_l_val=.TRUE.,&
-                         lone_keyword_l_val=.TRUE.)
+                          description="When enabled the cpu and gpu backends "// &
+                          " apply a spherical cutoff on the top of the cube. "// &
+                          " There is a performance penalty using it in "// &
+                          "combination with the cpu backend but it is on by "// &
+                          "default for the regtests", default_l_val=.TRUE., &
+                          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -745,7 +745,6 @@ CONTAINS
                           default_i_val=8192)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-
 
    END SUBROUTINE create_grid_section
 

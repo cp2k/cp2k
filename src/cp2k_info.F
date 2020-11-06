@@ -274,6 +274,10 @@ CONTAINS
       flags = TRIM(flags)//" check_diag"
 #endif
 
+#if defined __COLLOCATE_GPU
+      flags = TRIM(flags)//" collocate_gpu"
+#endif
+
    END FUNCTION cp2k_flags
 
 ! **************************************************************************************************

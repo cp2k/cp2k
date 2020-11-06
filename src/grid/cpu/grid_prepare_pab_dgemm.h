@@ -1,9 +1,12 @@
-/*****************************************************************************
- *  CP2K: A general program to perform molecular dynamics simulations        *
- *  Copyright (C) 2000 - 2020  CP2K developers group                         *
- *****************************************************************************/
-#ifndef GRID_PREPARE_PAB_H
-#define GRID_PREPARE_PAB_H
+/*----------------------------------------------------------------------------*/
+/*  CP2K: A general program to perform molecular dynamics simulations         */
+/*  Copyright 2000-2020 CP2K developers group <https://cp2k.org>              */
+/*                                                                            */
+/*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
+/*----------------------------------------------------------------------------*/
+
+#ifndef GRID_PREPARE_PAB_DGEMM_H
+#define GRID_PREPARE_PAB_DGEMM_H
 
 #include "../common/grid_constants.h"
 #include "tensor_local.h"

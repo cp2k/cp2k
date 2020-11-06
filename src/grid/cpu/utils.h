@@ -1,5 +1,12 @@
-#ifndef UTILS_H_
-#define UTILS_H_
+/*----------------------------------------------------------------------------*/
+/*  CP2K: A general program to perform molecular dynamics simulations         */
+/*  Copyright 2000-2020 CP2K developers group <https://cp2k.org>              */
+/*                                                                            */
+/*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
+/*----------------------------------------------------------------------------*/
+
+#ifndef UTILS_H
+#define UTILS_H
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -17,11 +24,7 @@
 #include "../common/grid_common.h"
 #include "tensor_local.h"
 
-
-//******************************************************************************
-// \brief Tabulation of the inverse Factorial function, e.g. 1 / 5! = 1 / fac[5]
-// = inv_fac[5] = 1 / 120. \author Ole Schuett
-//******************************************************************************
+/* inverse of the factorials */
 static const double inv_fac[] = {1.0,
                                  1.0,
                                  0.5,
@@ -94,16 +97,16 @@ void dgemm_(const char *transa, const char *transb, const int *m, const int *n,
             const double *b, const int *ldb, const double *beta, double *c,
             const int *ldc);
 
-extern void extract_sub_grid(const int* lower_corner, const int* upper_corner,
-                             const int* position, const tensor* const grid,
-                             tensor* const subgrid);
-extern void add_sub_grid(const int* lower_corner, const int* upper_corner,
-                         const int* position, const tensor* subgrid,
-                         tensor* grid);
-extern void return_cube_position(const int* grid_size, const int* lb_grid,
-                                 const int* cube_center,
-                                 const int* lower_boundaries_cube,
-                                 const int* period, int* const position);
+extern void extract_sub_grid(const int *lower_corner, const int *upper_corner,
+                             const int *position, const tensor *const grid,
+                             tensor *const subgrid);
+extern void add_sub_grid(const int *lower_corner, const int *upper_corner,
+                         const int *position, const tensor *subgrid,
+                         tensor *grid);
+extern void return_cube_position(const int *grid_size, const int *lb_grid,
+                                 const int *cube_center,
+                                 const int *lower_boundaries_cube,
+                                 const int *period, int *const position);
 
 extern void verify_orthogonality(const double dh[3][3], bool *orthogonal);
 
@@ -143,4 +146,37 @@ static inline void grid_free_scratch(void *ptr) {
 #endif
 }
 
+/* even openblas has cblas versions of lapack and blas. */
+#ifndef __MKL
+enum CBLAS_LAYOUT { CblasRowMajor = 101, CblasColMajor = 102 };
+enum CBLAS_TRANSPOSE {
+  CblasNoTrans = 111,
+  CblasTrans = 112,
+  CblasConjTrans = 113
+};
+enum CBLAS_UPLO { CblasUpper = 121, CblasLower = 122 };
+enum CBLAS_DIAG { CblasNonUnit = 131, CblasUnit = 132 };
+enum CBLAS_SIDE { CblasLeft = 141, CblasRight = 142 };
+
+typedef enum CBLAS_LAYOUT CBLAS_LAYOUT;
+typedef enum CBLAS_TRANSPOSE CBLAS_TRANSPOSE;
+typedef enum CBLAS_UPLO CBLAS_UPLO;
+typedef enum CBLAS_DIAG CBLAS_DIAG;
+
+double cblas_ddot(const int N, const double *X, const int incX, const double *Y,
+                  const int incY);
+
+void cblas_dger(const CBLAS_LAYOUT Layout, const int M, const int N,
+                const double alpha, const double *X, const int incX,
+                const double *Y, const int incY, double *A, const int lda);
+
+void cblas_daxpy(const int N, const double alpha, const double *X,
+                 const int incX, double *Y, const int incY);
+
+void cblas_dgemv(const CBLAS_LAYOUT Layout, const CBLAS_TRANSPOSE TransA,
+                 const int M, const int N, const double alpha, const double *A,
+                 const int lda, const double *X, const int incX,
+                 const double beta, double *Y, const int incY);
+
+#endif
 #endif

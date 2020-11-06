@@ -1,5 +1,12 @@
-#ifndef __COLLOCATION_INTEGRATION_H
-#define __COLLOCATION_INTEGRATION_H
+/*----------------------------------------------------------------------------*/
+/*  CP2K: A general program to perform molecular dynamics simulations         */
+/*  Copyright 2000-2020 CP2K developers group <https://cp2k.org>              */
+/*                                                                            */
+/*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
+/*----------------------------------------------------------------------------*/
+
+#ifndef COLLOCATION_INTEGRATION_H
+#define COLLOCATION_INTEGRATION_H
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,8 +47,23 @@ typedef struct pgf_list_gpu_ {
   /* size of the previously allocated coefficent table */
   size_t coef_previous_alloc_size_;
 
-    /* size of the previously allocated grid */
-    size_t data_gpu_old_size_;
+  /* size of the different cubes */
+  size_t *cube_size_gpu_;
+
+  /* amount of memory allocated for storing all cubes */
+  size_t max_cube_alloc_size_;
+
+  /* amount of memory to be allocated for storing all cubes */
+  size_t cube_alloc_size_;
+
+  /* offset for the different cubes */
+  size_t *cube_offset_gpu_;
+
+  /* memory where the cube data are stored */
+  double *cube_data_gpu_;
+
+  /* size of the previously allocated grid */
+  size_t data_gpu_old_size_;
 
   double *coef_cpu_;
   double *coef_gpu_;
@@ -144,13 +166,13 @@ typedef struct collocation_integration_ {
   int lmax_diff[2];
 
 #ifdef __COLLOCATE_GPU
-    pgf_list_gpu *worker_list;
-    int worker_list_size;
+  pgf_list_gpu *worker_list;
+  int worker_list_size;
 #endif
 
 } collocation_integration;
 
-    extern struct collocation_integration_ *collocate_create_handle();
+extern struct collocation_integration_ *collocate_create_handle();
 extern void collocate_synchronize(void *gaussian_handler);
 extern void collocate_destroy_handle(void *gaussian_handle);
 extern void calculate_collocation(void *const in);

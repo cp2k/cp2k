@@ -1,3 +1,10 @@
+/*----------------------------------------------------------------------------*/
+/*  CP2K: A general program to perform molecular dynamics simulations         */
+/*  Copyright 2000-2020 CP2K developers group <https://cp2k.org>              */
+/*                                                                            */
+/*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
+/*----------------------------------------------------------------------------*/
+
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -8,10 +15,10 @@
 #endif
 
 #include "../common/grid_common.h"
-#include "utils.h"
-#include "tensor_local.h"
 #include "collocation_integration.h"
 #include "non_orthorombic_corrections.h"
+#include "tensor_local.h"
+#include "utils.h"
 
 struct collocation_integration_ *collocate_create_handle() {
   struct collocation_integration_ *handle = NULL;
@@ -56,9 +63,11 @@ struct collocation_integration_ *collocate_create_handle() {
 void collocate_destroy_handle(void *gaussian_handle) {
   struct collocation_integration_ *handle =
       (struct collocation_integration_ *)gaussian_handle;
-  if (handle->Exp.data) free(handle->Exp.data);
+  if (handle->Exp.data)
+    free(handle->Exp.data);
 
-  if (handle->grid.data) free(handle->grid.data);
+  if (handle->grid.data)
+    free(handle->grid.data);
 
   free(handle->scratch);
   free(handle->pol.data);
@@ -94,10 +103,12 @@ void initialize_W_and_T(collocation_integration *const handler,
       (handler->scratch == NULL)) {
     handler->scratch_alloc_size = mem_alloc_size_;
 
-    if (handler->scratch) free(handler->scratch);
+    if (handler->scratch)
+      free(handler->scratch);
     handler->scratch =
         memalign(64, sizeof(double) * handler->scratch_alloc_size);
-    if (handler->scratch == NULL) abort();
+    if (handler->scratch == NULL)
+      abort();
   }
 }
 
@@ -123,10 +134,12 @@ void initialize_W_and_T_integrate(collocation_integration *const handler,
       (handler->scratch == NULL)) {
     handler->scratch_alloc_size = mem_alloc_size_;
 
-    if (handler->scratch) free(handler->scratch);
+    if (handler->scratch)
+      free(handler->scratch);
     handler->scratch =
         memalign(64, sizeof(double) * handler->scratch_alloc_size);
-    if (handler->scratch == NULL) abort();
+    if (handler->scratch == NULL)
+      abort();
   }
 }
 

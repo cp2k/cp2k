@@ -1,7 +1,9 @@
-/*****************************************************************************
- *  CP2K: A general program to perform molecular dynamics simulations        *
- *  Copyright (C) 2000 - 2020  CP2K developers group                         *
- *****************************************************************************/
+/*----------------------------------------------------------------------------*/
+/*  CP2K: A general program to perform molecular dynamics simulations         */
+/*  Copyright 2000-2020 CP2K developers group <https://cp2k.org>              */
+/*                                                                            */
+/*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
+/*----------------------------------------------------------------------------*/
 
 #include <assert.h>
 #include <limits.h>
@@ -11,25 +13,20 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(__MKL) || defined(HAVE_MKL)
-#include <mkl.h>
-#include <mkl_cblas.h>
-#else
-#include "openblas.h"
-#endif
-
 #include <omp.h>
 
 #ifdef __LIBXSMM
 #include <libxsmm.h>
 #endif
+
 #include "../common/grid_common.h"
-#include "tensor_local.h"
 #include "coefficients.h"
 #include "collocation_integration.h"
 #include "grid_collocate_dgemm.h"
 #include "non_orthorombic_corrections.h"
 #include "private_header.h"
+#include "tensor_local.h"
+#include "utils.h"
 
 /* It is a sub-optimal version of the mapping in case of a cubic cutoff. But is
  * very general and does not depend on the orthorombic nature of the grid. for
@@ -140,13 +137,13 @@ void extract_cube(struct collocation_integration_ *handler,
               /* the function will internally take care of the local vx global
                * grid */
               extract_sub_grid(
-                  lower_corner,  // lower corner of the portion of cube (in the
-                                 // full grid)
-                  upper_corner,  // upper corner of the portion of cube (in the
-                                 // full grid)
-                  position1,     // starting position subblock inside the cube
+                  lower_corner, // lower corner of the portion of cube (in the
+                                // full grid)
+                  upper_corner, // upper corner of the portion of cube (in the
+                                // full grid)
+                  position1,    // starting position subblock inside the cube
                   &handler->grid,
-                  &handler->cube);  // the grid to add data from
+                  &handler->cube); // the grid to add data from
 
               update_loop_index(lower_corner[2], upper_corner[2],
                                 handler->grid.full_size[2], &x_offset, &x, &x1);
@@ -186,7 +183,8 @@ double integrate_l0_z(double *scratch, const int z0,
 void grid_integrate(collocation_integration *const handler,
                     const bool use_ortho, const double zetp, const double rp[3],
                     const double radius) {
-  if (handler == NULL) abort();
+  if (handler == NULL)
+    abort();
 
   const int lp = handler->coef.size[0] - 1;
   // *** position of the gaussian product
@@ -346,7 +344,8 @@ void grid_integrate(collocation_integration *const handler,
   }
 
   /* go from ijk -> xyz */
-  if (!use_ortho) grid_transform_coef_jik_to_yxz(handler->dh, &handler->coef);
+  if (!use_ortho)
+    grid_transform_coef_jik_to_yxz(handler->dh, &handler->coef);
 }
 
 // *****************************************************************************
@@ -354,9 +353,8 @@ void grid_integrate_pgf_product_dgemm(
     void *const handle, const bool use_ortho, const int lp, const double zeta,
     const double zetb, const double dh[3][3], const double dh_inv[3][3],
     const double ra[3], const double rab[3], const int grid_global_size[3],
-    const int grid_local_size[3], const int shift_local[3],
-    const bool periodic[3], const double radius, double *const grid_,
-    double *const coef) {
+    const int grid_local_size[3], const int shift_local[3], const double radius,
+    double *const grid_, double *const coef) {
   if (!handle) {
     abort();
   }
