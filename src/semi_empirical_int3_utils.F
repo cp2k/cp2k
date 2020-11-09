@@ -26,6 +26,24 @@ MODULE semi_empirical_int3_utils
 
    PUBLIC ::   ijkl_low_3, charg_int_3, dcharg_int_3, coeff_int_3
 
+   ABSTRACT INTERFACE
+! **************************************************************************************************
+!> \brief ...
+!> \param r ...
+!> \param l1 ...
+!> \param l2 ...
+!> \param add ...
+!> \return ...
+! **************************************************************************************************
+      FUNCTION eval_func(r, l1, l2, add) RESULT(res)
+         USE kinds, ONLY: dp
+      REAL(KIND=dp), INTENT(IN)                          :: r
+      INTEGER, INTENT(IN)                                :: l1, l2
+      REAL(KIND=dp), INTENT(IN)                          :: add
+      REAL(KIND=dp)                                      :: res
+
+      END FUNCTION eval_func
+   END INTERFACE
 CONTAINS
 
 ! **************************************************************************************************
@@ -42,16 +60,21 @@ CONTAINS
 !> \param lk ...
 !> \param ll ...
 !> \param ic ...
+!> \param r ...
 !> \param itype ...
 !> \param eval ...
 !> \return ...
 !> \date 11.2008 [tlaino]
 !> \author Teodoro Laino [tlaino]
 ! **************************************************************************************************
-   FUNCTION ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, itype, eval) RESULT(res)
+   FUNCTION ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, itype, eval) RESULT(res)
       TYPE(semi_empirical_type), POINTER                 :: sepi, sepj
-      INTEGER, INTENT(IN)                                :: ij, kl, li, lj, lk, ll, ic, itype
-      REAL(KIND=dp)                                      :: eval, res
+      INTEGER, INTENT(IN)                                :: ij, kl, li, lj, lk, ll, ic
+      REAL(KIND=dp), INTENT(IN)                          :: r
+      INTEGER, INTENT(IN)                                :: itype
+
+      PROCEDURE(eval_func)                               :: eval
+      REAL(KIND=dp)                                      :: res
 
       INTEGER                                            :: l1, l2, lij, lkl
       REAL(KIND=dp)                                      :: add, ccc, chrg, pij, pkl, sum
@@ -96,7 +119,7 @@ CONTAINS
          END IF
          ccc = clm_d(ij, l1, 0)*clm_d(kl, l2, 0)
          IF (ABS(ccc) > EPSILON(0.0_dp)) THEN
-            chrg = eval(l1, l2, add)
+            chrg = eval(r, l1, l2, add)
             sum = chrg
          END IF
       END IF
@@ -144,6 +167,7 @@ CONTAINS
 !>        l2   -  Quantum numbers for multipole of configuration 2
 !>        add  -  additive term
 !>
+!> \param r ...
 !> \param l1 ...
 !> \param l2 ...
 !> \param add ...
@@ -151,10 +175,13 @@ CONTAINS
 !> \date 11.2008 [tlaino]
 !> \author Teodoro Laino [tlaino]
 ! **************************************************************************************************
-   FUNCTION coeff_int_3(l1, l2, add) RESULT(coeff)
+   FUNCTION coeff_int_3(r, l1, l2, add) RESULT(coeff)
+      REAL(KIND=dp), INTENT(in)                          :: r
       INTEGER, INTENT(in)                                :: l1, l2
       REAL(KIND=dp), INTENT(in)                          :: add
       REAL(KIND=dp)                                      :: coeff
+
+      MARK_USED(r)  ! dummy arg to be compatible with the interface
 
 ! Computing only residual Integral Values
 

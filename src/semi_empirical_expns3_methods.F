@@ -106,32 +106,32 @@ CONTAINS
       ij = indexa(1, 1)
       zi = -sepi%zeff
       zj = -sepj%zeff
-      core_core = ijkl_low_3(sepi, sepj, ij, ij, 0, 0, 0, 0, -1, itype, coeff_int_3)*zi*zj
+      core_core = ijkl_low_3(sepi, sepj, ij, ij, 0, 0, 0, 0, -1, r, itype, coeff_int_3)*zi*zj
 
       ! Electron(i)-Nuclei(j)   contribution
       kl = indexa(1, 1)
-      e1b(1) = ijkl_low_3(sepi, sepj, kl, ij, 0, 0, 0, 0, 2, itype, coeff_int_3)*zj
+      e1b(1) = ijkl_low_3(sepi, sepj, kl, ij, 0, 0, 0, 0, 2, r, itype, coeff_int_3)*zj
       IF (sepi%natorb > 1) THEN
          kl = indexa(2, 2)
-         e1b(2) = ijkl_low_3(sepi, sepj, kl, ij, 1, 1, 0, 0, 2, itype, coeff_int_3)*zj
+         e1b(2) = ijkl_low_3(sepi, sepj, kl, ij, 1, 1, 0, 0, 2, r, itype, coeff_int_3)*zj
          kl = indexa(3, 3)
-         e1b(3) = ijkl_low_3(sepi, sepj, kl, ij, 1, 1, 0, 0, 2, itype, coeff_int_3)*zj
+         e1b(3) = ijkl_low_3(sepi, sepj, kl, ij, 1, 1, 0, 0, 2, r, itype, coeff_int_3)*zj
          kl = indexa(4, 4)
-         e1b(4) = ijkl_low_3(sepi, sepj, kl, ij, 1, 1, 0, 0, 2, itype, coeff_int_3)*zj
+         e1b(4) = ijkl_low_3(sepi, sepj, kl, ij, 1, 1, 0, 0, 2, r, itype, coeff_int_3)*zj
          ! Consistency check
          CPASSERT(e1b(2) == e1b(3))
          CPASSERT(e1b(3) == e1b(4))
          IF (sepi%dorb) THEN
             kl = indexa(5, 5)
-            e1b(5) = ijkl_low_3(sepi, sepj, kl, ij, 2, 2, 0, 0, 2, itype, coeff_int_3)*zj
+            e1b(5) = ijkl_low_3(sepi, sepj, kl, ij, 2, 2, 0, 0, 2, r, itype, coeff_int_3)*zj
             kl = indexa(6, 6)
-            e1b(6) = ijkl_low_3(sepi, sepj, kl, ij, 2, 2, 0, 0, 2, itype, coeff_int_3)*zj
+            e1b(6) = ijkl_low_3(sepi, sepj, kl, ij, 2, 2, 0, 0, 2, r, itype, coeff_int_3)*zj
             kl = indexa(7, 7)
-            e1b(7) = ijkl_low_3(sepi, sepj, kl, ij, 2, 2, 0, 0, 2, itype, coeff_int_3)*zj
+            e1b(7) = ijkl_low_3(sepi, sepj, kl, ij, 2, 2, 0, 0, 2, r, itype, coeff_int_3)*zj
             kl = indexa(8, 8)
-            e1b(8) = ijkl_low_3(sepi, sepj, kl, ij, 2, 2, 0, 0, 2, itype, coeff_int_3)*zj
+            e1b(8) = ijkl_low_3(sepi, sepj, kl, ij, 2, 2, 0, 0, 2, r, itype, coeff_int_3)*zj
             kl = indexa(9, 9)
-            e1b(9) = ijkl_low_3(sepi, sepj, kl, ij, 2, 2, 0, 0, 2, itype, coeff_int_3)*zj
+            e1b(9) = ijkl_low_3(sepi, sepj, kl, ij, 2, 2, 0, 0, 2, r, itype, coeff_int_3)*zj
             ! Consistency check
             CPASSERT(e1b(5) == e1b(6))
             CPASSERT(e1b(6) == e1b(7))
@@ -142,28 +142,28 @@ CONTAINS
 
       ! Electron(j)-Nuclei(i)   contribution
       kl = indexa(1, 1)
-      e2a(1) = ijkl_low_3(sepi, sepj, ij, kl, 0, 0, 0, 0, 1, itype, coeff_int_3)*zi
+      e2a(1) = ijkl_low_3(sepi, sepj, ij, kl, 0, 0, 0, 0, 1, r, itype, coeff_int_3)*zi
       IF (sepj%natorb > 1) THEN
          kl = indexa(2, 2)
-         e2a(2) = ijkl_low_3(sepi, sepj, ij, kl, 0, 0, 1, 1, 1, itype, coeff_int_3)*zi
+         e2a(2) = ijkl_low_3(sepi, sepj, ij, kl, 0, 0, 1, 1, 1, r, itype, coeff_int_3)*zi
          kl = indexa(3, 3)
-         e2a(3) = ijkl_low_3(sepi, sepj, ij, kl, 0, 0, 1, 1, 1, itype, coeff_int_3)*zi
+         e2a(3) = ijkl_low_3(sepi, sepj, ij, kl, 0, 0, 1, 1, 1, r, itype, coeff_int_3)*zi
          kl = indexa(4, 4)
-         e2a(4) = ijkl_low_3(sepi, sepj, ij, kl, 0, 0, 1, 1, 1, itype, coeff_int_3)*zi
+         e2a(4) = ijkl_low_3(sepi, sepj, ij, kl, 0, 0, 1, 1, 1, r, itype, coeff_int_3)*zi
          ! Consistency check
          CPASSERT(e2a(2) == e2a(3))
          CPASSERT(e2a(3) == e2a(4))
          IF (sepj%dorb) THEN
             kl = indexa(5, 5)
-            e2a(5) = ijkl_low_3(sepi, sepj, ij, kl, 0, 0, 2, 2, 1, itype, coeff_int_3)*zi
+            e2a(5) = ijkl_low_3(sepi, sepj, ij, kl, 0, 0, 2, 2, 1, r, itype, coeff_int_3)*zi
             kl = indexa(6, 6)
-            e2a(6) = ijkl_low_3(sepi, sepj, ij, kl, 0, 0, 2, 2, 1, itype, coeff_int_3)*zi
+            e2a(6) = ijkl_low_3(sepi, sepj, ij, kl, 0, 0, 2, 2, 1, r, itype, coeff_int_3)*zi
             kl = indexa(7, 7)
-            e2a(7) = ijkl_low_3(sepi, sepj, ij, kl, 0, 0, 2, 2, 1, itype, coeff_int_3)*zi
+            e2a(7) = ijkl_low_3(sepi, sepj, ij, kl, 0, 0, 2, 2, 1, r, itype, coeff_int_3)*zi
             kl = indexa(8, 8)
-            e2a(8) = ijkl_low_3(sepi, sepj, ij, kl, 0, 0, 2, 2, 1, itype, coeff_int_3)*zi
+            e2a(8) = ijkl_low_3(sepi, sepj, ij, kl, 0, 0, 2, 2, 1, r, itype, coeff_int_3)*zi
             kl = indexa(9, 9)
-            e2a(9) = ijkl_low_3(sepi, sepj, ij, kl, 0, 0, 2, 2, 1, itype, coeff_int_3)*zi
+            e2a(9) = ijkl_low_3(sepi, sepj, ij, kl, 0, 0, 2, 2, 1, r, itype, coeff_int_3)*zi
             ! Consistency check
             CPASSERT(e2a(5) == e2a(6))
             CPASSERT(e2a(6) == e2a(7))
@@ -191,7 +191,7 @@ CONTAINS
             kl = indexa(j, j)
             kr = kr + 1
             sepi%expns3_int(jkind)%expns3%w(kr) = &
-               ijkl_low_3(sepi, sepj, ij, kl, li, li, lk, lk, 0, do_method_undef, coeff_int_3)
+               ijkl_low_3(sepi, sepj, ij, kl, li, li, lk, lk, 0, r, do_method_undef, coeff_int_3)
          END DO
       END DO
 
@@ -205,7 +205,7 @@ CONTAINS
             kl = indexa(j, j)
             kr = kr + 1
             sepj%expns3_int(ikind)%expns3%w(kr) = &
-               ijkl_low_3(sepj, sepi, ij, kl, li, li, lk, lk, 0, do_method_undef, coeff_int_3)
+               ijkl_low_3(sepj, sepi, ij, kl, li, li, lk, lk, 0, r, do_method_undef, coeff_int_3)
          END DO
       END DO
 
