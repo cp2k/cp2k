@@ -66,9 +66,9 @@ CONTAINS
 
 #:if worktype
       ${worktype}$, &
-         #:else
+#:else
          ${type}$, &
-         #:endif
+#:endif
          DIMENSION(${arr_exp}$), &
          POINTER :: work
 
