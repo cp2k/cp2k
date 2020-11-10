@@ -101,7 +101,7 @@ LIBS="${CP_LIBS} -lstdc++"
 
 # CUDA handling
 CUDA_LIBS="-lcudart -lnvrtc -lcuda -lcufft -lcublas -lrt IF_DEBUG(-lnvToolsExt|)"
-CUDA_DFLAGS="-D__COLLOCATE_GPU -D__ACC -D__DBCSR_ACC -D__PW_CUDA IF_DEBUG(-D__CUDA_PROFILING|)"
+CUDA_DFLAGS="-D__GRID_CUDA -D__ACC -D__DBCSR_ACC -D__PW_CUDA IF_DEBUG(-D__CUDA_PROFILING|)"
 if [ "${ENABLE_CUDA}" = __TRUE__ ] && [ "${GPUVER}" != no ] ; then
     LIBS="${LIBS} IF_CUDA(${CUDA_LIBS}|)"
     DFLAGS="IF_CUDA(${CUDA_DFLAGS}|) ${DFLAGS}"
@@ -160,6 +160,7 @@ gen_arch_file() {
 #
 CXX         = \${CC}
 CXXFLAGS    = \${CXXFLAGS} -I\\\${CUDA_PATH}/include -std=c++11 -fopenmp
+CFLAGS      = \${CFLAGS} -I\\\${CUDA_PATH}/include 
 GPUVER      = \${GPUVER}
 NVCC        = \${NVCC}
 NVFLAGS     = \${NVFLAGS}

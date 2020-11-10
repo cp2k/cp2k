@@ -17,8 +17,8 @@
 #include "common/grid_library.h"
 #include "cpu/grid_context_cpu.h"
 #include "cpu/private_header.h"
-#include "gpu/grid_collocate_gpu.h"
 #include "grid_task_list.h"
+#include "hybrid/grid_collocate_hybrid.h"
 
 /*******************************************************************************
  * \brief Allocates a task list which can be passed to grid_collocate_task_list.
@@ -44,12 +44,14 @@ void grid_create_task_list(
     (*task_list)->ref = NULL;
     (*task_list)->cpu = NULL;
     (*task_list)->gpu = NULL;
+    (*task_list)->hybrid = NULL;
     (*task_list)->validate = config.validate;
   }
 
   switch (config.backend) {
-#ifndef __COLLOCATE_GPU
+#ifndef __GRID_CUDA
   case GRID_BACKEND_GPU:
+  case GRID_BACKEND_HYBRID:
 #endif
   case GRID_BACKEND_CPU: {
     if (!(*task_list)->cpu) {
@@ -69,10 +71,11 @@ void grid_create_task_list(
     }
     (*task_list)->backend = GRID_BACKEND_CPU;
   } break;
-#ifdef __COLLOCATE_GPU
+#ifdef __GRID_CUDA
   case GRID_BACKEND_GPU:
-    if (!(*task_list)->gpu) {
-      (*task_list)->gpu = create_grid_context_cpu(
+  case GRID_BACKEND_HYBRID:
+    if (!(*task_list)->hybrid) {
+      (*task_list)->hybrid = create_grid_context_cpu(
           ntasks, nlevels, natoms, nkinds, nblocks, buffer_size, block_offsets,
           atom_positions, atom_kinds, basis_sets, level_list, iatom_list,
           jatom_list, iset_list, jset_list, ipgf_list, jpgf_list,
@@ -84,17 +87,18 @@ void grid_create_task_list(
           atom_positions, atom_kinds, basis_sets, level_list, iatom_list,
           jatom_list, iset_list, jset_list, ipgf_list, jpgf_list,
           border_mask_list, block_num_list, radius_list, rab_list,
-          blocks_buffer, (*task_list)->gpu);
+          blocks_buffer, (*task_list)->hybrid);
     }
 
     /* does not allocate anything on the GPU. */
     /* allocation only occurs when the collocate (or integrate) function is
      * called. Resources are released before exiting the function */
-    int device_id = 0;
-    initialize_grid_context_on_gpu((*task_list)->gpu, 1 /* number of devices */,
-                                   &device_id);
-    update_queue_length((*task_list)->gpu, config.queue_length);
-    (*task_list)->backend = GRID_BACKEND_GPU;
+
+    /* I do *not* store the address of config.device_id */
+    initialize_grid_context_on_gpu(
+        (*task_list)->hybrid, 1 /* number of devices */, &config.device_id);
+    update_queue_length((*task_list)->hybrid, config.queue_length);
+    (*task_list)->backend = GRID_BACKEND_HYBRID;
     break;
 #endif
   case GRID_BACKEND_AUTO:
@@ -117,7 +121,7 @@ void grid_create_task_list(
     if ((*task_list)->cpu) {
       apply_cutoff((*task_list)->cpu);
     } else {
-      apply_cutoff((*task_list)->gpu);
+      apply_cutoff((*task_list)->hybrid);
     }
   }
 
@@ -144,7 +148,7 @@ void grid_free_task_list(grid_task_list *task_list) {
     destroy_grid_context_cpu(task_list->cpu);
     task_list->cpu = NULL;
     break;
-#ifdef __COLLOCATE_GPU
+#ifdef __GRID_CUDA
   case GRID_BACKEND_GPU:
     destroy_grid_context_cpu(task_list->gpu);
     task_list->gpu = NULL;
@@ -186,11 +190,12 @@ void grid_collocate_task_list(
                                  npts_global, npts_local, shift_local,
                                  border_width, dh, dh_inv, grid);
     break;
-#ifdef __COLLOCATE_GPU
+#ifdef __GRID_CUDA
   case GRID_BACKEND_GPU:
-    grid_collocate_task_list_gpu(task_list->gpu, orthorhombic, func, nlevels,
-                                 npts_global, npts_local, shift_local,
-                                 border_width, dh, dh_inv, grid);
+  case GRID_BACKEND_HYBRID:
+    grid_collocate_task_list_hybrid(
+        task_list->hybrid, orthorhombic, func, nlevels, npts_global, npts_local,
+        shift_local, border_width, dh, dh_inv, grid);
     break;
 #endif
   default:
@@ -216,9 +221,10 @@ void grid_collocate_task_list(
       extract_grid_context_block_buffer(task_list->cpu,
                                         task_list->ref->blocks_buffer);
       break;
-#ifdef __COLLOCATE_GPU
+#ifdef __GRID_CUDA
     case GRID_BACKEND_GPU:
-      extract_grid_context_block_buffer(task_list->gpu,
+    case GRID_BACKEND_HYBRID:
+      extract_grid_context_block_buffer(task_list->hybrid,
                                         task_list->ref->blocks_buffer);
       break;
 #endif

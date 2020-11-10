@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifdef __COLLOCATE_GPU
+#ifdef __GRID_CUDA
 #include <cublas_v2.h>
 #include <cuda.h>
 #endif

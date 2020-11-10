@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef __COLLOCATE_GPU
+#ifdef __GRID_CUDA
 #include <cublas_v2.h>
 #include <cuda.h>
 #endif
@@ -22,8 +22,11 @@ extern "C" {
 #endif
 
 #include "../cpu/tensor_local.h"
-#ifdef __COLLOCATE_GPU
+#ifdef __GRID_CUDA
 typedef struct pgf_list_gpu_ {
+  /* number of replicated grids */
+  int number_of_replicas;
+
   /* number of devices */
   int number_of_devices;
 
@@ -94,6 +97,8 @@ typedef struct pgf_list_gpu_ {
   int3 grid_size, grid_lower_corner_position, grid_full_size, window_shift,
       window_size;
 
+  int cmax;
+
   struct pgf_list_gpu_ *next;
   /* if true, the grid on the gpu should be reallocated */
   bool durty;
@@ -153,7 +158,6 @@ typedef struct collocation_integration_ {
   int lmax;
   /* for the spherical cutoff */
   int **map;
-  int cmax;
   void *scratch;
 
   bool durty;
@@ -165,7 +169,9 @@ typedef struct collocation_integration_ {
   int lmin_diff[2];
   int lmax_diff[2];
 
-#ifdef __COLLOCATE_GPU
+  int cmax;
+
+#ifdef __GRID_CUDA
   pgf_list_gpu *worker_list;
   int worker_list_size;
 #endif

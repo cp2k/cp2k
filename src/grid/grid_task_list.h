@@ -24,6 +24,7 @@ typedef struct {
   grid_ref_task_list *ref;
   void *cpu;
   void *gpu;
+  void *hybrid;
   // more backends to be added here
 } grid_task_list;
 

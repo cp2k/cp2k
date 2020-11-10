@@ -189,8 +189,9 @@ version of CP2K (ssmp or psmp), the FFTW3 threading library libfftw3_threads
 - Use `-D__CUDA_PROFILING` to turn on Nvidia Tools Extensions.
   It requires to link `-lnvToolsExt`.
 - Link to a blas/scalapack library that accelerates large DGEMMs (e.g. libsci_acc)
-- Use the `-D__COLLOCATE_GPU` flag to compile the gpu backend for collocate. It
-  should be activated manually by adding the BACKEND GPU option in the grid section.
+- Use the `-D__GRID_CUDA` flag to compile the gpu backend for collocate. It
+  should be activated manually by adding the BACKEND GPU and/or HYBRID option in
+  the grid section.
 
 ### 2k. libxc (optional, wider choice of xc functionals)
 

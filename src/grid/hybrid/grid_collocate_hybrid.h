@@ -5,10 +5,10 @@
 /*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
 /*----------------------------------------------------------------------------*/
 
-#ifndef GRID_COLLOCATE_GPU_H
-#define GRID_COLLOCATE_GPU_H
+#ifndef GRID_COLLOCATE_HYBRID_H
+#define GRID_COLLOCATE_HYBRID_H
 
-void grid_collocate_task_list_gpu(
+void grid_collocate_task_list_hybrid(
     void *const ptr, const bool orthorhombic, const int func, const int nlevels,
     const int npts_global[nlevels][3], const int npts_local[nlevels][3],
     const int shift_local[nlevels][3], const int border_width[nlevels][3],

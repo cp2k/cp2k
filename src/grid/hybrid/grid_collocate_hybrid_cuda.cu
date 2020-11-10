@@ -5,7 +5,7 @@
 /*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
 /*----------------------------------------------------------------------------*/
 
-#ifdef __COLLOCATE_GPU
+#ifdef __GRID_CUDA
 
 #include <assert.h>
 #include <cooperative_groups.h>
@@ -167,128 +167,10 @@ __device__ void compute_cube_properties(const double radius,
   cube_size->z = ub_cube.z - lb_cube->z + 1;
 }
 
-__global__ void compute_collocation_gpu_spherical_cutoff_(
-    const int3 grid_size_, const int3 grid_lower_corner_pos_,
-    const int3 period_, const int3 window_shift, const int3 window_size,
-    const int *__restrict__ lmax_gpu_, const double *__restrict__ zeta_gpu,
-    const double3 *__restrict__ rp, const double *__restrict__ radius_gpu_,
-    const int *__restrict__ coef_offset_gpu_,
-    const double *__restrict__ coef_gpu_, double *__restrict__ grid_gpu_) {
-  /* the period is sotred in constant memory */
-  /* the displacement vectors as well */
-
-  int lmax = lmax_gpu_[blockIdx.x];
-
-  int3 position;
-
-  int3 cube_size, cube_center, lb_cube;
-
-  double3 roffset;
-  double disr_radius = 0;
-  const double radius = radius_gpu_[blockIdx.x];
-
-  compute_cube_properties(radius, rp + blockIdx.x, &disr_radius, &roffset,
-                          &cube_center, &lb_cube, &cube_size);
-
-  return_cube_position(&cube_center, &lb_cube, period_, &position);
-
-  const double *__restrict__ coef = coef_gpu_ + coef_offset_gpu_[blockIdx.x];
-
-  const double zeta = zeta_gpu[blockIdx.x];
-
-  double *coefs_ = (double *)array;
-
-  int id = (threadIdx.z * blockDim.y + threadIdx.y) * blockDim.x + threadIdx.x;
-
-  for (int i = id; i < ((lmax + 1) * (lmax + 1) * (lmax + 1));
-       i += (blockDim.x * blockDim.y * blockDim.z))
-    coefs_[i] = coef[i];
-  __syncthreads();
-
-  for (int z = threadIdx.z; z <= cube_size.z; z += blockDim.z) {
-    const double z1 = z - (cube_size.z / 2) - roffset.z;
-    const int z2 = (z + position.z + 32 * period_.z) % period_.z -
-                   grid_lower_corner_pos_.z;
-
-    /* check if the point is within the window */
-    // if ((z2 < (window_shift.z - grid_lower_corner_pos_.z)) || (z2 >=
-    // window_size.z)) {
-    //     continue;
-    // }
-
-    for (int y = threadIdx.y; y <= cube_size.y; y += blockDim.y) {
-      double y1 = y - (cube_size.y / 2) - roffset.y;
-      const int y2 = (y + position.y + 32 * period_.y) % period_.y -
-                     grid_lower_corner_pos_.y;
-
-      /* check if the point is within the window */
-      // if ((y2 < window_shift.y - grid_lower_corner_pos_.y) || (y2 >=
-      // window_size.y)) {
-      //     continue;
-      // }
-
-      for (int x = threadIdx.x; x <= cube_size.x; x += blockDim.x) {
-        const double x1 = x - (cube_size.x / 2) - roffset.x;
-        const int x2 = (x + position.x + 32 * period_.x) % period_.x -
-                       grid_lower_corner_pos_.x;
-
-        /* check if the point is within the window */
-        // if ((x2 < (window_shift.x - grid_lower_corner_pos_.x)) || (x2 >=
-        // window_size.x)) {
-        //      continue;
-        // }
-
-        double3 r3;
-        r3.x = z1 * dh_[6] + y1 * dh_[3] + x1 * dh_[0];
-        r3.y = z1 * dh_[7] + y1 * dh_[4] + x1 * dh_[1];
-        r3.z = z1 * dh_[8] + y1 * dh_[5] + x1 * dh_[2];
-        /* compute the coordinates of the point in atomic coordinates */
-        double exp_factor =
-            exp(-(r3.x * r3.x + r3.y * r3.y + r3.z * r3.z) * zeta);
-
-        double res = 0.0;
-        double dx = 1.0;
-
-        /* NOTE: the coefficients are stored as lx,lz,ly */
-
-        for (int alpha = 0; alpha <= lmax; alpha++) {
-          double dz = 1;
-          for (int gamma = 0; gamma <= lmax; gamma++) {
-            double dy = dx * dz;
-            const int off = (alpha * (lmax + 1) + gamma) * (lmax + 1);
-            for (int beta = 0; beta <= lmax; beta++) {
-              res += coefs_[off + beta] * dy;
-              dy *= r3.y;
-            }
-            dz *= r3.z;
-          }
-          dx *= r3.x;
-        }
-
-        if (radius * radius >= (r3.x * r3.x + r3.y * r3.y + r3.z * r3.z)) {
-          res *= exp_factor;
-
-          /* this operationm is the limiting factor of this code. AtomicAdd
-           * act at the thread level while actually we do not need to act at
-           * that level but at the grid level. Update of each block should be
-           * sequential but not within the block */
-#if __CUDA_ARCH__ < 600
-          /* kepler does not have hardware atomic operations on double */
-          atomicAdd1(&grid_gpu_[(z2 * grid_size_.y + y2) * grid_size_.x + x2],
-                     res);
-#else
-          atomicAdd(&grid_gpu_[(z2 * grid_size_.y + y2) * grid_size_.x + x2],
-                    res);
-#endif
-        }
-      }
-    }
-  }
-}
-
 __global__ void compute_collocation_gpu_(
-    const int3 grid_size_, const int3 grid_lower_corner_pos_,
-    const int3 period_, const int3 window_shift, const int3 window_size,
+    const int apply_cutoff, const int3 grid_size_,
+    const int3 grid_lower_corner_pos_, const int3 period_,
+    const int3 window_shift, const int3 window_size,
     const int *__restrict__ lmax_gpu_, const double *__restrict__ zeta_gpu,
     const double3 *__restrict__ rp, const double *__restrict__ radius_gpu_,
     const int *__restrict__ coef_offset_gpu_,
@@ -375,10 +257,10 @@ __global__ void compute_collocation_gpu_(
 
         for (int alpha = 0; alpha <= lmax; alpha++) {
           double dz = 1;
-          for (int gamma = 0; gamma <= lmax; gamma++) {
+          for (int gamma = 0; gamma <= (lmax - alpha); gamma++) {
             double dy = dx * dz;
             const int off = (alpha * (lmax + 1) + gamma) * (lmax + 1);
-            for (int beta = 0; beta <= lmax; beta++) {
+            for (int beta = 0; beta <= (lmax - alpha - gamma); beta++) {
               res += coefs_[off + beta] * dy;
               dy *= r3.y;
             }
@@ -389,27 +271,38 @@ __global__ void compute_collocation_gpu_(
 
         res *= exp_factor;
 
+        if (apply_cutoff) {
+          if ((radius * radius) >= (r3.x * r3.x + r3.y * r3.y + r3.z * r3.z)) {
 #if __CUDA_ARCH__ < 600
-        atomicAdd1(&grid_gpu_[(z2 * grid_size_.y + y2) * grid_size_.x + x2],
-                   res);
+            atomicAdd1(&grid_gpu_[(z2 * grid_size_.y + y2) * grid_size_.x + x2],
+                       res);
 #else
-        atomicAdd(&grid_gpu_[(z2 * grid_size_.y + y2) * grid_size_.x + x2],
-                  res);
+            atomicAdd(&grid_gpu_[(z2 * grid_size_.y + y2) * grid_size_.x + x2],
+                      res);
 #endif
+          }
+        } else {
+
+#if __CUDA_ARCH__ < 600
+          atomicAdd1(&grid_gpu_[(z2 * grid_size_.y + y2) * grid_size_.x + x2],
+                     res);
+#else
+          atomicAdd(&grid_gpu_[(z2 * grid_size_.y + y2) * grid_size_.x + x2],
+                    res);
+#endif
+        }
       }
     }
   }
 }
 
-__global__ void
-compute_integration_gpu_(const int3 grid_size, const int3 grid_lower_corner_pos,
-                         const int3 period, const int *__restrict__ lmax_gpu_,
-                         const double *__restrict__ zeta_gpu,
-                         const int *cube_size_gpu_, const int *cube_position_,
-                         const double *__restrict__ roffset_gpu_,
-                         const int *__restrict__ coef_offset_gpu_,
-                         const double *__restrict__ grid_gpu_,
-                         const double *__restrict__ coef_gpu_) {
+__global__ void compute_integration_gpu_(
+    const int3 grid_size, const int3 grid_lower_corner_pos, const int3 period,
+    const int *__restrict__ lmax_gpu_, const double *__restrict__ zeta_gpu,
+    const int *cube_size_gpu_, const int *cube_position_,
+    const double *__restrict__ roffset_gpu_,
+    const int *__restrict__ coef_offset_gpu_,
+    const double *__restrict__ grid_gpu_, double *__restrict__ coef_gpu_) {
   /* the period is stored in constant memory */
   /* the displacement vectors as well */
 
@@ -426,17 +319,16 @@ compute_integration_gpu_(const int3 grid_size, const int3 grid_lower_corner_pos,
   const double roffset[3] = {roffset_gpu_[3 * blockIdx.x],
                              roffset_gpu_[3 * blockIdx.x + 1],
                              roffset_gpu_[3 * blockIdx.x + 2]};
-  const double *__restrict__ coef = coef_gpu_ + coef_offset_gpu_[blockIdx.x];
 
   const double zeta = zeta_gpu[blockIdx.x];
 
-  double *coefs_ = (double *)array;
+  double *coefs_shared = (double *)array;
 
   int id = (threadIdx.z * blockDim.y + threadIdx.y) * blockDim.x + threadIdx.x;
 
   for (int i = id; i < ((lmax + 1) * (lmax + 1) * (lmax + 1));
        i += (blockDim.x * blockDim.y * blockDim.z))
-    coefs_[i] = 0.0;
+    coefs_shared[i] = 0.0;
   __syncthreads();
 
   for (int z = threadIdx.z; z < cube_size[0]; z += blockDim.z) {
@@ -456,7 +348,6 @@ compute_integration_gpu_(const int3 grid_size, const int3 grid_lower_corner_pos,
         r3.z = z1 * dh_[8] + y1 * dh_[5] + x1 * dh_[2];
         double exp_factor =
             exp(-(r3.x * r3.x + r3.y * r3.y + r3.z * r3.z) * zeta);
-        double res = 0.0;
         double dx = 1;
         const double grid_value =
             grid_gpu_[(z2 * grid_size.y + y2) * grid_size.x + x2] * exp_factor;
@@ -468,7 +359,11 @@ compute_integration_gpu_(const int3 grid_size, const int3 grid_lower_corner_pos,
             double dy = dx * dz;
             const int off = (alpha * (lmax + 1) + gamma) * (lmax + 1);
             for (int beta = 0; beta <= lmax; beta++) {
-              coefs_[off + beta] += grid_value * dy;
+#if __CUDA_ARCH__ < 600
+              atomicAdd1(&coefs_shared[off + beta], grid_value * dy);
+#else
+              atomicAdd(&coefs_shared[off + beta], grid_value * dy);
+#endif
               dy *= r3.y;
             }
             dz *= r3.z;
@@ -478,11 +373,24 @@ compute_integration_gpu_(const int3 grid_size, const int3 grid_lower_corner_pos,
       }
     }
   }
+
+  double *__restrict__ coef = coef_gpu_ + coef_offset_gpu_[blockIdx.x];
+  for (int i = id; i < ((lmax + 1) * (lmax + 1) * (lmax + 1));
+       i += (blockDim.x * blockDim.y * blockDim.z))
+    coef[i] = coefs_shared[i];
 }
 
 extern "C" void compute_collocation_gpu(pgf_list_gpu *handler) {
   cudaSetDevice(handler->device_id);
   cudaStreamSynchronize(handler->stream);
+
+  if (handler->durty) {
+    cudaFree(handler->coef_gpu_);
+    cudaMalloc(&handler->coef_gpu_,
+               sizeof(double) * handler->coef_alloc_size_gpu_);
+    handler->durty = false;
+  }
+
   cudaMemcpyAsync(handler->rp_gpu_, handler->rp_cpu_,
                   sizeof(double3) * handler->list_length,
                   cudaMemcpyHostToDevice, handler->stream);
@@ -499,13 +407,6 @@ extern "C" void compute_collocation_gpu(pgf_list_gpu *handler) {
                   sizeof(int) * handler->list_length, cudaMemcpyHostToDevice,
                   handler->stream);
 
-  if (handler->durty) {
-    cudaFree(handler->coef_gpu_);
-    cudaMalloc(&handler->coef_gpu_,
-               sizeof(double) * handler->coef_alloc_size_gpu_);
-    handler->durty = false;
-  }
-
   cudaMemcpyAsync(handler->coef_gpu_, handler->coef_cpu_,
                   sizeof(double) * handler->coef_dynamic_alloc_size_gpu_,
                   cudaMemcpyHostToDevice, handler->stream);
@@ -519,79 +420,15 @@ extern "C" void compute_collocation_gpu(pgf_list_gpu *handler) {
   thread.y = 4;
   thread.z = 4;
 
-  if (handler->apply_cutoff) {
-    compute_collocation_gpu_spherical_cutoff_<<<
-        block, thread,
-        (handler->lmax + 1) * (handler->lmax + 1) * (handler->lmax + 1) *
-            sizeof(double),
-        handler->stream>>>(
-        handler->grid_size, handler->grid_lower_corner_position,
-        handler->grid_full_size, handler->window_shift, handler->window_size,
-        handler->lmax_gpu_, handler->zeta_gpu_, handler->rp_gpu_,
-        handler->radius_gpu_, handler->coef_offset_gpu_, handler->coef_gpu_,
-        handler->data_gpu_);
-  } else {
-    compute_collocation_gpu_<<<block, thread,
-                               (handler->lmax + 1) * (handler->lmax + 1) *
-                                   (handler->lmax + 1) * sizeof(double),
-                               handler->stream>>>(
-        handler->grid_size, handler->grid_lower_corner_position,
-        handler->grid_full_size, handler->window_shift, handler->window_size,
-        handler->lmax_gpu_, handler->zeta_gpu_, handler->rp_gpu_,
-        handler->radius_gpu_, handler->coef_offset_gpu_, handler->coef_gpu_,
-        handler->data_gpu_);
-  }
-}
-
-extern "C" void
-initialize_grid_parameters_on_gpu(collocation_integration *const handler) {
-  for (int worker = 0; worker < handler->worker_list_size; worker++) {
-    assert(handler->worker_list[worker].device_id >= 0);
-    cudaSetDevice(handler->worker_list[worker].device_id);
-
-    handler->worker_list[worker].grid_size.x = handler->grid.size[2];
-    handler->worker_list[worker].grid_size.y = handler->grid.size[1];
-    handler->worker_list[worker].grid_size.z = handler->grid.size[0];
-
-    handler->worker_list[worker].grid_full_size.x = handler->grid.full_size[2];
-    handler->worker_list[worker].grid_full_size.y = handler->grid.full_size[1];
-    handler->worker_list[worker].grid_full_size.z = handler->grid.full_size[0];
-
-    handler->worker_list[worker].window_size.x = handler->grid.window_size[2];
-    handler->worker_list[worker].window_size.y = handler->grid.window_size[1];
-    handler->worker_list[worker].window_size.z = handler->grid.window_size[0];
-
-    handler->worker_list[worker].window_shift.x = handler->grid.window_shift[2];
-    handler->worker_list[worker].window_shift.y = handler->grid.window_shift[1];
-    handler->worker_list[worker].window_shift.z = handler->grid.window_shift[0];
-
-    handler->worker_list[worker].grid_lower_corner_position.x =
-        handler->grid.lower_corner[2];
-    handler->worker_list[worker].grid_lower_corner_position.y =
-        handler->grid.lower_corner[1];
-    handler->worker_list[worker].grid_lower_corner_position.z =
-        handler->grid.lower_corner[0];
-
-    if (handler->worker_list[worker].data_gpu_ == NULL) {
-      cudaMalloc(&handler->worker_list[worker].data_gpu_,
-                 sizeof(double) * handler->grid.alloc_size_);
-      handler->worker_list[worker].data_gpu_old_size_ =
-          handler->grid.alloc_size_;
-    } else {
-      if (handler->worker_list[worker].data_gpu_old_size_ <
-          handler->grid.alloc_size_) {
-        cudaFree(handler->worker_list[worker].data_gpu_);
-        cudaMalloc(&handler->worker_list[worker].data_gpu_,
-                   sizeof(double) * handler->grid.alloc_size_);
-        handler->worker_list[worker].data_gpu_old_size_ =
-            handler->grid.alloc_size_;
-      }
-    }
-
-    cudaMemset(handler->worker_list[worker].data_gpu_, 0,
-               sizeof(double) * handler->grid.alloc_size_);
-    reset_list_gpu(handler->worker_list + worker);
-  }
+  compute_collocation_gpu_<<<block, thread,
+                             (handler->lmax + 1) * (handler->lmax + 1) *
+                                 (handler->lmax + 1) * sizeof(double),
+                             handler->stream>>>(
+      handler->apply_cutoff, handler->grid_size,
+      handler->grid_lower_corner_position, handler->grid_full_size,
+      handler->window_shift, handler->window_size, handler->lmax_gpu_,
+      handler->zeta_gpu_, handler->rp_gpu_, handler->radius_gpu_,
+      handler->coef_offset_gpu_, handler->coef_gpu_, handler->data_gpu_);
 }
 
 extern "C" void initialize_grid_parameters_on_gpu_step1(void *const ctx,

@@ -396,7 +396,7 @@ grid_prepare_pab_ARDBmDARB(struct pab_computation_struct_ *const tp) {
                 case 'Y': {
                   ico_l = coset(lxa, lya, lza);
                   jco_l = coset(lxb, (lyb + 1), imax(lzb - 1, 0));
-                  idx2(tp->pab_prep[0], jco_l, ico_l) += +lzb * pab;
+                  idx2(tp->pab_prep[0], jco_l, ico_l) += lzb * pab;
 
                   ico_l = coset(lxa, lya, lza);
                   jco_l = coset(lxb, (lyb + 1), (lzb + 1));
@@ -405,31 +405,31 @@ grid_prepare_pab_ARDBmDARB(struct pab_computation_struct_ *const tp) {
 
                   ico_l = coset(lxa, lya, imax(lza - 1, 0));
                   jco_l = coset(lxb, (lyb + 1), lzb);
-                  idx2(tp->pab_prep[0], jco_l, ico_l) += -lza * pab;
+                  idx2(tp->pab_prep[0], jco_l, ico_l) -= lza * pab;
 
                   ico_l = coset(lxa, lya, (lza + 1));
                   jco_l = coset(lxb, (lyb + 1), lzb);
                   idx2(tp->pab_prep[0], jco_l, ico_l) +=
-                      +2.0 * tp->zeta[0] * pab;
+                      2.0 * tp->zeta[0] * pab;
                 } break;
                 case 'Z': {
                   ico_l = coset(lxa, lya, lza);
                   jco_l = coset(lxb, lyb, lzb);
-                  idx2(tp->pab_prep[0], jco_l, ico_l) += +lzb * pab;
+                  idx2(tp->pab_prep[0], jco_l, ico_l) += lzb * pab;
 
                   ico_l = coset(lxa, lya, lza);
                   jco_l = coset(lxb, lyb, (lzb + 2));
-                  idx2(tp->pab_prep[0], jco_l, ico_l) +=
-                      -2.0 * tp->zeta[1] * pab;
+                  idx2(tp->pab_prep[0], jco_l, ico_l) -=
+                      2.0 * tp->zeta[1] * pab;
 
                   ico_l = coset(lxa, lya, imax(lza - 1, 0));
                   jco_l = coset(lxb, lyb, (lzb + 1));
-                  idx2(tp->pab_prep[0], jco_l, ico_l) += -lza * pab;
+                  idx2(tp->pab_prep[0], jco_l, ico_l) -= lza * pab;
 
                   ico_l = coset(lxa, lya, (lza + 1));
                   jco_l = coset(lxb, lyb, (lzb + 1));
                   idx2(tp->pab_prep[0], jco_l, ico_l) +=
-                      +2.0 * tp->zeta[0] * pab;
+                      2.0 * tp->zeta[0] * pab;
                 } break;
                 default:
                   break;

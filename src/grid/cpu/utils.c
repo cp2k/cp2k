@@ -21,8 +21,8 @@
 #include "utils.h"
 
 void convert_to_lattice_coordinates(const double dh_inv_[3][3],
-                                    const double *__restrict__ const rp,
-                                    double *__restrict__ rp_c) {
+                                    const double *restrict const rp,
+                                    double *restrict rp_c) {
   rp_c[0] =
       dh_inv_[0][0] * rp[0] + dh_inv_[1][0] * rp[1] + dh_inv_[0][0] * rp[2];
   rp_c[1] =
@@ -218,11 +218,11 @@ void extract_sub_grid(const int *lower_corner, const int *upper_corner,
   for (int z = 0; z < sizez; z++) {
     /* maybe use matcopy from libxsmm if possible */
     for (int y = 0; y < sizey; y++) {
-      double *__restrict__ src =
+      double *restrict src =
           &idx3(grid[0], lower_corner[0] + z - grid->window_shift[0],
                 lower_corner[1] + y - grid->window_shift[1],
                 lower_corner[2] - grid->window_shift[2]);
-      double *__restrict__ dst =
+      double *restrict dst =
           &idx3(subgrid[0], position1[0] + z, position1[1] + y, position1[2]);
 #ifdef __LIBXSMM
       LIBXSMM_PRAGMA_SIMD
@@ -274,11 +274,11 @@ void add_sub_grid(const int *lower_corner, const int *upper_corner,
   const int sizez = upper_corner[0] - lower_corner[0];
 
   for (int z = 0; z < sizez; z++) {
-    double *__restrict__ dst =
+    double *restrict dst =
         &idx3(grid[0], lower_corner[0] + z - grid->lower_corner[0],
               lower_corner[1] - grid->lower_corner[1],
               lower_corner[2] - grid->lower_corner[2]);
-    double *__restrict__ src =
+    double *restrict src =
         &idx3(subgrid[0], position1[0] + z, position1[1], position1[2]);
     for (int y = 0; y < sizey - 1; y++) {
       //__builtin_prefetch(dst + grid->ld_);
@@ -514,14 +514,14 @@ void cblas_dger(const CBLAS_LAYOUT Layout, const int M, const int N,
     for (int i = 0; i < M; i++) {
       const double x = alpha * X[i + incX];
       if (incY == 1) {
-        double *__restrict__ dst = &A[i * lda];
-        const double *__restrict__ y = Y;
+        double *restrict dst = &A[i * lda];
+        const double *restrict y = Y;
         for (int k = 0; k < N; k++) {
           dst[k] += y[k] * x;
         }
       } else {
-        double *__restrict__ dst = &A[i * lda];
-        const double *__restrict__ y = Y;
+        double *restrict dst = &A[i * lda];
+        const double *restrict y = Y;
         for (int k = 0; k < N; k++) {
           dst[k] += y[k + incY] * x;
         }
@@ -531,14 +531,14 @@ void cblas_dger(const CBLAS_LAYOUT Layout, const int M, const int N,
     for (int j = 0; j < N; j++) {
       const double y = alpha * Y[j + incY];
       if (incX == 1) {
-        double *__restrict__ dst = &A[j * lda];
-        const double *__restrict__ x = X;
+        double *restrict dst = &A[j * lda];
+        const double *restrict x = X;
         for (int k = 0; k < M; k++) {
           dst[k] += x[k] * y;
         }
       } else {
-        double *__restrict__ dst = &A[j * lda];
-        const double *__restrict__ x = X;
+        double *restrict dst = &A[j * lda];
+        const double *restrict x = X;
         for (int k = 0; k < M; k++) {
           dst[k] += x[k + incX] * y;
         }

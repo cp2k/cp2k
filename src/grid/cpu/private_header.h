@@ -123,4 +123,11 @@ extern void collocate_one_grid_level_dgemm(grid_context *const ctx,
                                            const int *const, const int *const,
                                            const int func, const int level);
 
+extern double compute_coefficients(grid_context *const ctx,
+                                   struct collocation_integration_ *handler,
+                                   const _task *task, tensor *const pab,
+                                   tensor *const work, tensor *const pab_prep,
+                                   int *const prev_block_num,
+                                   int *const prev_iset, int *const prev_jset,
+                                   double *rp);
 #endif

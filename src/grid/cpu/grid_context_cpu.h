@@ -39,9 +39,12 @@ void initialize_grid_context_on_gpu(void *ptr, const int number_of_devices,
 void destroy_grid_context_cpu(void *ptr);
 
 void apply_cutoff(void *ptr);
+
 void extract_grid_context_block_buffer(const void *const ptr,
                                        void *block_buffer);
+
 void update_queue_length(void *const ptr, const int queue_length);
+
 void grid_collocate_task_list_cpu(
     void *const ptr, const bool orthorhombic, const int func, const int nlevels,
     const int npts_global[nlevels][3], const int npts_local[nlevels][3],
