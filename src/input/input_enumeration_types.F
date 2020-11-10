@@ -175,7 +175,7 @@ CONTAINS
             DO j = 1, SIZE(enum%desc)
                PRINT *, TRIM(a2s(enum%desc(j)%chars))
                PRINT *, TRIM(enum%c_vals(j))
-            ENDDO
+            END DO
             PRINT *, enum%i_vals
          END IF
          IF (enum%strict) &

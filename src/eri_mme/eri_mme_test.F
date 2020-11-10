@@ -86,7 +86,7 @@ CONTAINS
 
       IF (PRESENT(potential)) THEN
          CALL eri_mme_set_potential(param, potential, pot_par)
-      ENDIF
+      END IF
 
       ! Calculate reference values (Exact expression in G space converged to high precision)
       IF (test_accuracy) THEN
@@ -101,9 +101,9 @@ CONTAINS
                                          I_ref(:, :, iab, izet), 0, 0, &
                                          normalize=.TRUE., potential=potential, pot_par=pot_par)
 
-            ENDDO
-         ENDDO
-      ENDIF
+            END DO
+         END DO
+      END IF
 
       ! test performance and accuracy of MME method
       ALLOCATE (I_test(ncoset(l_max), ncoset(l_max), nR, nzet))
@@ -119,18 +119,18 @@ CONTAINS
                                             I_test(:, :, iab, izet), 0, 0, &
                                             G_count=G_count, R_count=R_count, &
                                             normalize=.TRUE.)
-               ENDDO
-            ENDDO
+               END DO
+            END DO
             CALL CPU_TIME(t1)
             time(l, izet) = t1 - t0
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       CALL mp_sum(time, para_env%group)
 
       IF (test_accuracy) THEN
          I_diff(:, :, :, :) = ABS(I_test - I_ref)
-      ENDIF
+      END IF
 
       IF (iw > 0) THEN
          WRITE (iw, '(T2, A)') "ERI_MME| Test results for 2c cpu time"
@@ -142,12 +142,12 @@ CONTAINS
                   acc = MAXVAL(I_diff(ncoset(l - 1) + 1:ncoset(l), ncoset(l - 1) + 1:ncoset(l), :, izet))
                ELSE
                   acc = 0.0_dp
-               ENDIF
+               END IF
 
                WRITE (iw, '(T11, I1, 1X, ES9.2, 1X, ES9.2, 1X, ES9.2)') &
                   l, zet(izet), time(l, izet)/nrep, acc
-            ENDDO
-         ENDDO
+            END DO
+         END DO
 
          IF (test_accuracy) THEN
             WRITE (iw, '(/T2, A, 47X, ES9.2)') "ERI_MME| Maximum error:", &
@@ -157,13 +157,13 @@ CONTAINS
                acc_check = param%err_mm + param%err_c .GE. MAXVAL(I_diff)
             ELSE
                acc_check = .TRUE.
-            ENDIF
+            END IF
 
             IF (.NOT. acc_check) &
                CPABORT("Actual error greater than upper bound estimate.")
 
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
    END SUBROUTINE eri_mme_2c_perf_acc_test
 
@@ -216,7 +216,7 @@ CONTAINS
 
       IF (PRESENT(potential)) THEN
          CALL eri_mme_set_potential(param, potential, pot_par)
-      ENDIF
+      END IF
 
       IF (param%debug) THEN
          DO izeta = 1, nzet
@@ -226,12 +226,12 @@ CONTAINS
                DO ixyz = 1, 3
                   CALL overlap_dist_expansion_test(l_max, l_max, zet(izeta), zet(izetb), &
                                                    rabc(ixyz, ira), rabc(ixyz, irb), 0.0_dp, param%debug_delta)
-               ENDDO
-            ENDDO
-            ENDDO
-         ENDDO
-         ENDDO
-      ENDIF
+               END DO
+            END DO
+            END DO
+         END DO
+         END DO
+      END IF
 
       IF (iw > 0) THEN
          IF (PRESENT(potential)) THEN
@@ -245,10 +245,10 @@ CONTAINS
             END SELECT
          ELSE
             WRITE (iw, '(/T2, A)') "ERI_MME| Potential: Coulomb"
-         ENDIF
+         END IF
          WRITE (iw, '(T2, A)') "ERI_MME| Test results for 3c cpu time"
          WRITE (iw, '(T11, A)') "la, lb, lc, zeta, zetb, zetc, cpu time"
-      ENDIF
+      END IF
 
       ALLOCATE (I_test(ncoset(l_max), ncoset(l_max), ncoset(l_max)))
 
@@ -270,24 +270,24 @@ CONTAINS
                      CALL eri_mme_3c_integrate(param, 0, la, 0, lb, 0, lc, zet(izeta), zet(izetb), zet(izetc), &
                                                rabc(:, ira), rabc(:, irb), rabc(:, irc), I_test, 0, 0, 0, &
                                                GG_count, GR_count, RR_count)
-                  ENDDO
-                  ENDDO
-                  ENDDO
-               ENDDO
+                  END DO
+                  END DO
+                  END DO
+               END DO
                CALL CPU_TIME(t1)
                time = t1 - t0
                CALL mp_sum(time, para_env%group)
                IF (iw > 0) THEN
                   WRITE (iw, '(T11, I1, 1X, I1, 1X, I1, 1X, ES9.2, 1X, ES9.2, 1X, ES9.2, 1X, ES9.2)') &
                      la, lb, lc, zet(izeta), zet(izetb), zet(izetc), time/nrep
-               ENDIF
-            ENDIF
-         ENDDO
-         ENDDO
-         ENDDO
-      ENDDO
-      ENDDO
-      ENDDO
+               END IF
+            END IF
+         END DO
+         END DO
+         END DO
+      END DO
+      END DO
+      END DO
 
    END SUBROUTINE eri_mme_3c_perf_acc_test
 
@@ -337,14 +337,14 @@ CONTAINS
 
       DO t = 0, l_max + m_max
          C_ol(t) = (r - Rp)**t*EXP(-zetp*(r - Rp)**2)
-      ENDDO
+      END DO
 
       DO l = 0, l_max
          C1(l) = (r - R1)**l*EXP(-zeta*(r - R1)**2)
-      ENDDO
+      END DO
       DO m = 0, m_max
          C2(m) = (r - R2)**m*EXP(-zetb*(r - R2)**2)
-      ENDDO
+      END DO
 
       H1(:) = MATMUL(TRANSPOSE(h_to_c_1(0:, 0:)), C1)
       H2(:) = MATMUL(TRANSPOSE(h_to_c_2(0:, 0:)), C2)
@@ -359,9 +359,9 @@ CONTAINS
             DO t = 0, l + m
                C_prod_test(l, m) = C_prod_test(l, m) + E_C(t, l, m)*H_ol(t)
                H_prod_test(l, m) = H_prod_test(l, m) + E_H(t, l, m)*H_ol(t)
-            ENDDO
-         ENDDO
-      ENDDO
+            END DO
+         END DO
+      END DO
 
       C_prod_err = MAXVAL(ABS(C_prod_test - C_prod_ref)/(0.5_dp*(ABS(C_prod_test) + ABS(C_prod_ref)) + 1.0_dp))
       H_prod_err = MAXVAL(ABS(H_prod_test - H_prod_ref)/(0.5_dp*(ABS(C_prod_test) + ABS(C_prod_ref)) + 1.0_dp))

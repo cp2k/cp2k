@@ -438,8 +438,8 @@ CONTAINS
                IF (qmmm_env%image_charge) THEN
                   IF (qmmm_env%image_charge_pot%image_matrix_method .EQ. do_eri_mme) THEN
                      CALL cp_eri_mme_finalize(qmmm_env%image_charge_pot%eri_mme_param)
-                  ENDIF
-               ENDIF
+                  END IF
+               END IF
                CALL qmmm_image_charge_dealloc(qmmm_env%image_charge_pot)
             END IF
             IF (ASSOCIATED(qmmm_env%ewald_env)) THEN

@@ -83,7 +83,7 @@ CONTAINS
             number = 9
          ELSE
             number = 1
-         ENDIF
+         END IF
 
          CALL init_baro_map_info(map_info, number, nhc%loc_num_nhc)
 

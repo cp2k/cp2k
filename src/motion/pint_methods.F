@@ -458,7 +458,7 @@ CONTAINS
             CPASSERT(stat == 0)
             DO itmp = 1, pint_env%gle%loc_num_gle
                pint_env%gle%map_info%index(itmp) = itmp
-            ENDDO
+            END DO
             CALL gle_thermo_create(pint_env%gle, pint_env%gle%loc_num_gle)
 
             ! here we should have read a_mat and c_mat;

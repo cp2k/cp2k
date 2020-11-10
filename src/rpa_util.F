@@ -1161,8 +1161,8 @@ CONTAINS
       DO i_size = 1, SIZE(t_3c_O, 1)
          DO j_size = 1, SIZE(t_3c_O, 2)
             CALL dbcsr_t_destroy(t_3c_O(i_size, j_size))
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       DEALLOCATE (t_3c_O)
       CALL dbcsr_t_destroy(t_3c_M)
@@ -1183,9 +1183,9 @@ CONTAINS
          DO j_size = 1, SIZE(t_3c_O_compressed, 2)
             DO i_mem = 1, cut_memory
                CALL dealloc_containers(t_3c_O_compressed(i_size, j_size, i_mem), unused)
-            ENDDO
-         ENDDO
-      ENDDO
+            END DO
+         END DO
+      END DO
       DEALLOCATE (t_3c_O_compressed)
 
       CALL timestop(handle)

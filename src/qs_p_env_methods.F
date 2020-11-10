@@ -741,8 +741,8 @@ CONTAINS
          ! hack to avoid crashes in ep regs
          IF (.NOT. ASSOCIATED(rho1_ao(ispin)%matrix, p1(ispin)%matrix)) THEN
             CALL dbcsr_copy(rho1_ao(ispin)%matrix, p1(ispin)%matrix)
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       IF (ASSOCIATED(p_env%local_rho_set)) THEN
          CALL qs_rho_update_rho(rho_struct=p_env%rho1, qs_env=qs_env, local_rho_set=p_env%local_rho_set)

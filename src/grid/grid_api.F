@@ -364,7 +364,7 @@ CONTAINS
 
       IF (radius == 0.0_dp) THEN
          RETURN
-      ENDIF
+      END IF
 
       border_mask = 0
       IF (PRESENT(use_subpatch)) THEN
@@ -379,13 +379,13 @@ CONTAINS
          my_compute_tau = LOGICAL(compute_tau, C_BOOL)
       ELSE
          my_compute_tau = .FALSE.
-      ENDIF
+      END IF
 
       IF (PRESENT(use_virial)) THEN
          my_use_virial = use_virial
       ELSE
          my_use_virial = .FALSE.
-      ENDIF
+      END IF
 
       IF (calculate_forces) THEN
          CPASSERT(PRESENT(pab))
@@ -395,27 +395,27 @@ CONTAINS
       ELSE
          pab_cptr = C_NULL_PTR
          forces_cptr = C_NULL_PTR
-      ENDIF
+      END IF
 
       IF (calculate_forces .AND. my_use_virial) THEN
          virials(:, :, :) = 0.0_dp
          virials_cptr = C_LOC(virials(1, 1, 1))
       ELSE
          virials_cptr = C_NULL_PTR
-      ENDIF
+      END IF
 
       IF (calculate_forces .AND. PRESENT(hdab)) THEN
          hdab(:, :, :) = 0.0_dp
          hdab_cptr = C_LOC(hdab(1, 1, 1))
       ELSE
          hdab_cptr = C_NULL_PTR
-      ENDIF
+      END IF
 
       IF (calculate_forces .AND. my_use_virial .AND. PRESENT(a_hdab)) THEN
          a_hdab_cptr = C_LOC(a_hdab(1, 1, 1, 1))
       ELSE
          a_hdab_cptr = C_NULL_PTR
-      ENDIF
+      END IF
 
       orthorhombic = LOGICAL(rsgrid%desc%orthorhombic, C_BOOL)
 
@@ -441,13 +441,13 @@ CONTAINS
       CPASSERT(IS_CONTIGUOUS(virials))
       IF (PRESENT(pab)) THEN
          CPASSERT(IS_CONTIGUOUS(pab))
-      ENDIF
+      END IF
       IF (PRESENT(hdab)) THEN
          CPASSERT(IS_CONTIGUOUS(hdab))
-      ENDIF
+      END IF
       IF (PRESENT(a_hdab)) THEN
          CPASSERT(IS_CONTIGUOUS(a_hdab))
-      ENDIF
+      END IF
 #endif
 
       CALL grid_ref_integrate_pgf_product_c(orthorhombic=orthorhombic, &
@@ -544,8 +544,8 @@ CONTAINS
             CPASSERT(rsgrid%ub_real(i) == rsgrid%ub_local(i) - rsgrid%desc%border)
             ! We have halo regions.
             border_width(i) = rsgrid%desc%border
-         ENDIF
-      ENDDO
+         END IF
+      END DO
    END SUBROUTINE get_rsgrid_properties
 
 ! **************************************************************************************************
@@ -710,17 +710,17 @@ CONTAINS
          lmax_c = C_LOC(lmax(1))
          npgf_c = C_LOC(npgf(1))
          nsgf_set_c = C_LOC(nsgf_set(1))
-      ENDIF
+      END IF
       IF (SIZE(first_sgf) > 0) THEN
          my_first_sgf(:) = first_sgf(1, :)  ! make a contiguous copy
          first_sgf_c = C_LOC(my_first_sgf(1))
-      ENDIF
+      END IF
       IF (SIZE(sphi) > 0) THEN
          sphi_c = C_LOC(sphi(1, 1))
-      ENDIF
+      END IF
       IF (SIZE(zet) > 0) THEN
          zet_c = C_LOC(zet(1, 1))
-      ENDIF
+      END IF
 
       CALL grid_create_basis_set_c(nset=nset, &
                                    nsgf=nsgf, &
@@ -922,7 +922,7 @@ CONTAINS
                                       radius_list=C_LOC(radius_list(1)), &
                                       rab_list=C_LOC(rab_list(1, 1)), &
                                       task_list=task_list%c_ptr)
-      ENDIF
+      END IF
 
       CPASSERT(C_ASSOCIATED(task_list%c_ptr))
 
@@ -952,7 +952,7 @@ CONTAINS
 
       IF (C_ASSOCIATED(task_list%c_ptr)) THEN
          CALL grid_free_task_list_c(task_list%c_ptr)
-      ENDIF
+      END IF
 
       task_list%c_ptr = C_NULL_PTR
 

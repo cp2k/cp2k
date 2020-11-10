@@ -313,7 +313,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       mp_group = logger%para_env%group
       CALL mp_environ(numnodes, mynode, mp_group)
@@ -513,7 +513,7 @@ CONTAINS
       csr_interop_mat%nze_local = csr_mat%nze_local
       IF (csr_mat%nze_total > HUGE(csr_interop_mat%nze_total)) THEN
          CPABORT("overflow in nze")
-      ENDIF
+      END IF
       csr_interop_mat%nze_total = INT(csr_mat%nze_total, KIND=KIND(csr_interop_mat%nze_total))
       csr_interop_mat%nrows_local = csr_mat%nrows_local
       csr_interop_mat%data_type = csr_mat%nzval_local%data_type

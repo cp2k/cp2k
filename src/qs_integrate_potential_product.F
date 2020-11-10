@@ -362,8 +362,8 @@ CONTAINS
       DO igrid_level = 1, gridlevel_info%ngrid_levels
          IF (rs_v(igrid_level)%rs_grid%desc%distributed) THEN
             distributed_grids = .TRUE.
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       ! initialize the working hmat structures
       h_duplicated = .FALSE.
@@ -450,7 +450,7 @@ CONTAINS
          CALL rs_distribute_matrix(rs_descs=rs_descs, pmats=deltap, &
                                    atom_pair_send=atom_pair_send, atom_pair_recv=atom_pair_recv, &
                                    nimages=nimages, scatter=.TRUE.)
-      ENDIF
+      END IF
 
       IF (debug_this_module) THEN
          ALLOCATE (block_touched(natom, natom))
@@ -556,7 +556,7 @@ CONTAINS
                                          set_radius=set_radius_a, &
                                          sphi=sphi_a, &
                                          zet=zeta)
-               ENDIF
+               END IF
 
                IF (jkind .NE. jkind_old) THEN
                   CALL get_qs_kind(qs_kind_set(jkind), &
@@ -574,7 +574,7 @@ CONTAINS
                                          sphi=sphi_b, &
                                          zet=zetb)
 
-               ENDIF
+               END IF
 
                IF (debug_this_module) THEN
 !$OMP CRITICAL (block_touched_critical)
@@ -600,11 +600,11 @@ CONTAINS
                IF (calculate_forces) THEN
                   force_a(:) = 0.0_dp
                   force_b(:) = 0.0_dp
-               ENDIF
+               END IF
                IF (use_virial) THEN
                   my_virial_a = 0.0_dp
                   my_virial_b = 0.0_dp
-               ENDIF
+               END IF
 
                ikind_old = ikind
                jkind_old = jkind
@@ -615,7 +615,7 @@ CONTAINS
 
                atom_pair_changed = .FALSE.
 
-            ENDIF
+            END IF
 
             IF (atom_pair_changed .OR. iset_old .NE. iset .OR. jset_old .NE. jset) THEN
 
@@ -631,7 +631,7 @@ CONTAINS
                   ELSE
                      p_block_set(1:nsgfa(iset), 1:nsgfb(jset)) = &
                         TRANSPOSE(p_block(sgfb:sgfb + nsgfb(jset) - 1, sgfa:sgfa + nsgfa(iset) - 1))
-                  ENDIF
+                  END IF
                   work(1:ncoa, 1:nsgfb(jset)) = MATMUL(sphi_a(1:ncoa, sgfa:sgfa + nsgfa(iset) - 1), &
                                                        p_block_set(1:nsgfa(iset), 1:nsgfb(jset)))
                   pab(1:ncoa, 1:ncob) = MATMUL(work(1:ncoa, 1:nsgfb(jset)), &
@@ -642,7 +642,7 @@ CONTAINS
                iset_old = iset
                jset_old = jset
 
-            ENDIF
+            END IF
 
             rab = tasks(itask)%rab
             rb(:) = ra(:) + rab(:)
@@ -659,10 +659,10 @@ CONTAINS
                   use_subpatch = .TRUE.
                ELSE
                   use_subpatch = .FALSE.
-               ENDIF
+               END IF
             ELSE
                use_subpatch = .FALSE.
-            ENDIF
+            END IF
 
             IF (pab_required) THEN
                CALL integrate_pgf_product( &
@@ -704,12 +704,12 @@ CONTAINS
                jpgf_new = tasks(itask + 1)%jpgf
                IF (iset_new .NE. iset .OR. jset_new .NE. jset) THEN
                   new_set_pair_coming = .TRUE.
-               ENDIF
+               END IF
             ELSE
                ! do not forget the last block
                new_set_pair_coming = .TRUE.
                atom_pair_done = .TRUE.
-            ENDIF
+            END IF
 
             ! contract the block into h if we're done with the current set pair
             IF (new_set_pair_coming) THEN
@@ -736,14 +736,14 @@ CONTAINS
                IF (calculate_forces) THEN
                   force_thread(:, iatom) = force_thread(:, iatom) + scalef*admm_scal_fac*force_a(:)
                   force_thread(:, jatom) = force_thread(:, jatom) + scalef*admm_scal_fac*force_b(:)
-               ENDIF
+               END IF
                IF (use_virial) THEN
                   IF (use_virial .AND. calculate_forces) THEN
                      pv_thread = pv_thread + scalef*admm_scal_fac*my_virial_a
                      pv_thread = pv_thread + scalef*admm_scal_fac*my_virial_b
                   END IF
                END IF
-            ENDIF
+            END IF
          END DO loop_tasks
          END DO loop_pairs
 !$OMP END DO

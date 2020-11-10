@@ -756,7 +756,7 @@ CONTAINS
          ELSE
             my_middle_name = ""
          END IF
-      ENDIF
+      END IF
 
       IF (.NOT. has_root) THEN
          root = TRIM(logger%iter_info%project_name)//TRIM(my_middle_name)
@@ -1058,7 +1058,7 @@ CONTAINS
             unit_nr = -1
          ELSE
             unit_nr = -1
-         ENDIF
+         END IF
       END IF
       CPASSERT(unit_nr == -1)
       unit_nr = -1

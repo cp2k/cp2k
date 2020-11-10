@@ -609,7 +609,7 @@ CONTAINS
                              atomic_kind_set=atomic_kind_set, mm_section=mm_section, &
                              forces_local=fg_coulomb, forces_glob=f_nonbond, &
                              pv_local=pv_g, pv_glob=pv_nonbond)
-      ENDIF
+      END IF
       pot_nonbond = pot_nonbond + pot_nonbond_local
       CALL mp_sum(pot_nonbond_local, logger%para_env%group)
 

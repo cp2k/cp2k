@@ -153,8 +153,8 @@ CONTAINS
       IF (nboxes .GT. 1) THEN
          DO ibox = 2, nboxes
             CALL get_mc_par(mc_par(ibox)%mc_par, diff=diff(ibox))
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
 ! allocate some stuff
       ALLOCATE (subsys_bias(1:nboxes))
@@ -171,7 +171,7 @@ CONTAINS
                             subsys=subsys(ibox)%subsys)
          CALL cp_subsys_get(subsys(ibox)%subsys, &
                             particles=particles(ibox)%list)
-      ENDDO
+      END DO
 
 ! calculate the new energy of the system...if we're biasing,
 ! force_env hasn't changed but bias_env has
@@ -187,7 +187,7 @@ CONTAINS
                DO iparticle = 1, nunits_tot(ibox)
                   particles(ibox)%list%els(iparticle)%r(1:3) = &
                      particles_bias(ibox)%list%els(iparticle)%r(1:3)
-               ENDDO
+               END DO
 
                CALL force_env_calc_energy_force(force_env(ibox)%force_env, &
                                                 calc_force=.FALSE.)
@@ -199,13 +199,13 @@ CONTAINS
                                                    calc_force=.FALSE.)
                   CALL force_env_get(force_env(ibox)%force_env, &
                                      potential_energy=new_energy(ibox))
-               ENDIF
-            ENDIF
+               END IF
+            END IF
          ELSE
             new_energy(ibox) = old_energy(ibox)
-         ENDIF
+         END IF
 
-      ENDDO
+      END DO
 
 ! accept or reject the move based on Metropolis or the Iftimie rule
       IF (ionode) THEN
@@ -222,10 +222,10 @@ CONTAINS
                      particles(ibox)%list%els, &
                      diff(ibox), dump_xmol, 'POS', 'TRIAL', &
                      unit_conv=unit_conv)
-               ENDIF
-            ENDDO
-         ENDIF
-      ENDIF
+               END IF
+            END DO
+         END IF
+      END IF
 
       IF (.NOT. lreject) THEN
          IF (lbias) THEN
@@ -237,15 +237,15 @@ CONTAINS
                   start_mol = 1
                   DO jbox = 1, ibox - 1
                      start_mol = start_mol + SUM(nchains(:, jbox))
-                  ENDDO
+                  END DO
                   end_mol = start_mol + SUM(nchains(:, ibox)) - 1
                   CALL check_for_overlap(bias_env(ibox)%force_env, &
                                          nchains(:, ibox), nunits(:), loverlap, mol_type(start_mol:end_mol))
                   IF (loverlap) &
                      CPABORT('Quickstep move found an overlap in the old config')
-               ENDIF
+               END IF
                bias_energy_old(ibox) = last_bias_energy(ibox)
-            ENDDO
+            END DO
 
             energies = -BETA*((SUM(new_energy(:)) - SUM(bias_energy_new(:))) &
                               - (SUM(old_energy(:)) - SUM(bias_energy_old(:))))
@@ -257,15 +257,15 @@ CONTAINS
                w = 0.0_dp
             ELSE
                w = EXP(energies)
-            ENDIF
+            END IF
 
             IF (ionode) THEN
                DO ibox = 1, nboxes
                   WRITE (diff(ibox), *) nnstep, new_energy(ibox) - &
                      old_energy(ibox), &
                      bias_energy_new(ibox) - bias_energy_old(ibox)
-               ENDDO
-            ENDIF
+               END DO
+            END IF
          ELSE
             energies = -BETA*(SUM(new_energy(:)) - SUM(old_energy(:)))
 ! used to prevent over and underflows
@@ -275,18 +275,18 @@ CONTAINS
                w = 0.0_dp
             ELSE
                w = EXP(energies)
-            ENDIF
-         ENDIF
+            END IF
+         END IF
       ELSE
          w = 0.0E0_dp
-      ENDIF
+      END IF
       IF (w .GE. 1.0E0_dp) THEN
          w = 1.0E0_dp
          rand = 0.0E0_dp
       ELSE
          IF (ionode) rand = rng_stream%next()
          CALL mp_bcast(rand, source, group)
-      ENDIF
+      END IF
 
       IF (rand .LT. w) THEN
 
@@ -304,8 +304,8 @@ CONTAINS
 ! reset the counters
                   CALL move_q_reinit(moves(itype, ibox)%moves, .TRUE.)
                   CALL move_q_reinit(move_updates(itype, ibox)%moves, .TRUE.)
-               ENDDO
-            ENDIF
+               END DO
+            END IF
 
             DO itype = 1, nmol_types
 ! we need to record all accepted moves since last Quickstep calculation
@@ -315,20 +315,20 @@ CONTAINS
 ! reset the counters
                CALL move_q_reinit(moves(itype, ibox)%moves, .FALSE.)
                CALL move_q_reinit(move_updates(itype, ibox)%moves, .FALSE.)
-            ENDDO
+            END DO
 
 ! update energies
             energy_check(ibox) = energy_check(ibox) + &
                                  (new_energy(ibox) - old_energy(ibox))
             old_energy(ibox) = new_energy(ibox)
 
-         ENDDO
+         END DO
 
          IF (lbias) THEN
             DO ibox = 1, nboxes
                last_bias_energy(ibox) = bias_energy_new(ibox)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
 
 ! update coordinates
          DO ibox = 1, nboxes
@@ -336,9 +336,9 @@ CONTAINS
                DO iparticle = 1, nunits_tot(ibox)
                   r_old(1:3, iparticle, ibox) = &
                      particles(ibox)%list%els(iparticle)%r(1:3)
-               ENDDO
-            ENDIF
-         ENDDO
+               END DO
+            END IF
+         END DO
 
       ELSE
 
@@ -351,10 +351,10 @@ CONTAINS
 ! reset the counters
                   CALL move_q_reinit(moves(itype, ibox)%moves, .TRUE.)
                   CALL move_q_reinit(move_updates(itype, ibox)%moves, .TRUE.)
-               ENDIF
-            ENDDO
+               END IF
+            END DO
 
-         ENDDO
+         END DO
 
          IF (.NOT. ionode) r_old(:, :, :) = 0.0E0_dp
 
@@ -369,17 +369,17 @@ CONTAINS
                IF (lbias .AND. box_flag(ibox) == 1) &
                   particles_bias(ibox)%list%els(iparticle)%r(1:3) = &
                   r_old(1:3, iparticle, ibox)
-            ENDDO
-         ENDDO
+            END DO
+         END DO
 
 ! need to reset the energies of the biasing potential
          IF (lbias) THEN
             DO ibox = 1, nboxes
                bias_energy_new(ibox) = last_bias_energy(ibox)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
 
-      ENDIF
+      END IF
 
 ! make sure the coordinates are transferred
       DO ibox = 1, nboxes
@@ -388,7 +388,7 @@ CONTAINS
          IF (lbias .AND. box_flag(ibox) == 1) &
             CALL cp_subsys_set(subsys_bias(ibox)%subsys, &
                                particles=particles_bias(ibox)%list)
-      ENDDO
+      END DO
 
       ! deallocate some stuff
       DEALLOCATE (subsys_bias)
@@ -507,7 +507,7 @@ CONTAINS
                             subsys=oldsys(ibox)%subsys)
          CALL cp_subsys_get(oldsys(ibox)%subsys, &
                             particles=particles_old(ibox)%list)
-      ENDDO
+      END DO
 
 !     choose a direction to swap
       IF (ionode) rand = rng_stream%next()
@@ -519,7 +519,7 @@ CONTAINS
       ELSE
          remove_box = 2
          insert_box = 1
-      ENDIF
+      END IF
 
 ! now assign the eta values for the insert and remove boxes
       CALL get_mc_par(mc_par(remove_box)%mc_par, eta=eta_remove)
@@ -536,8 +536,8 @@ CONTAINS
          IF (rand .LT. pmswap_mol(itype)) THEN
             molecule_type = itype
             EXIT
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
 ! record the attempt for the box the particle is to be inserted into
       moves(molecule_type, insert_box)%moves%swap%attempts = &
@@ -562,14 +562,14 @@ CONTAINS
                EXIT
             ELSE
                start_atom_rem = start_atom_rem + nchains(itype, remove_box)*nunits(itype)
-            ENDIF
-         ENDDO
+            END IF
+         END DO
 
 ! check for overlap
          start_mol = 1
          DO jbox = 1, remove_box - 1
             start_mol = start_mol + SUM(nchains(:, jbox))
-         ENDDO
+         END DO
          end_mol = start_mol + SUM(nchains(:, remove_box)) - 1
          CALL check_for_overlap(force_env(remove_box)%force_env, &
                                 nchains(:, remove_box), nunits, loverlap, mol_type(start_mol:end_mol))
@@ -578,20 +578,20 @@ CONTAINS
          start_mol = 1
          DO jbox = 1, insert_box - 1
             start_mol = start_mol + SUM(nchains(:, jbox))
-         ENDDO
+         END DO
          end_mol = start_mol + SUM(nchains(:, insert_box)) - 1
          CALL check_for_overlap(force_env(insert_box)%force_env, &
                                 nchains(:, insert_box), nunits, loverlap, mol_type(start_mol:end_mol))
          IF (loverlap) CALL cp_abort(__LOCATION__, &
                                      'CBMC swap move found an overlap in the old insert config')
-      ENDIF
+      END IF
 
       IF (loverlap) THEN
          DEALLOCATE (oldsys)
          DEALLOCATE (particles_old)
          CALL timestop(handle)
          RETURN
-      ENDIF
+      END IF
 
 ! figure out how many atoms will be in each box after the move
       ins_atoms = nunits_tot(insert_box) + nunits(molecule_type)
@@ -604,7 +604,7 @@ CONTAINS
       ELSE
          ALLOCATE (remove_coords(1:3, 1:rem_atoms))
          ALLOCATE (atom_names_remove(1:rem_atoms))
-      ENDIF
+      END IF
       ALLOCATE (insert_coords(1:3, 1:ins_atoms))
       ALLOCATE (atom_names_insert(1:ins_atoms))
 
@@ -619,7 +619,7 @@ CONTAINS
                             cell=cell_insert)
          CALL force_env_get(force_env(remove_box)%force_env, &
                             cell=cell_remove)
-      ENDIF
+      END IF
       CALL get_cell(cell_remove, abc=abc_remove, deth=vol_remove)
       CALL get_cell(cell_insert, abc=abc_insert, deth=vol_insert)
 
@@ -628,8 +628,8 @@ CONTAINS
          DO idim = 1, 3
             rand = rng_stream%next()
             pos_insert(idim) = rand*abc_insert(idim)
-         ENDDO
-      ENDIF
+         END DO
+      END IF
       CALL mp_bcast(pos_insert, source, group)
 
 ! allocate some arrays we'll be using
@@ -640,7 +640,7 @@ CONTAINS
          r_insert_mol(1:3, iiatom) = &
             particles_old(remove_box)%list%els(iatom)%r(1:3)
          iiatom = iiatom + 1
-      ENDDO
+      END DO
 
 !     find the center of mass of the molecule
       CALL get_center_of_mass(r_insert_mol(:, :), nunits(molecule_type), &
@@ -651,7 +651,7 @@ CONTAINS
       DO iatom = 1, nunits(molecule_type)
          r_insert_mol(1:3, iatom) = r_insert_mol(1:3, iatom) + &
                                     displace_molecule(1:3)
-      ENDDO
+      END DO
 
 ! prepare the insertion coordinates to be written to the .dat file so
 ! we can create a new force environment...remember there is still a particle
@@ -661,7 +661,7 @@ CONTAINS
             insert_coords(1:3, iatom) = r_insert_mol(1:3, iatom)
             atom_names_insert(iatom) = &
                particles_old(remove_box)%list%els(start_atom_rem + iatom - 1)%atomic_kind%name
-         ENDDO
+         END DO
          start_atom_ins = 1
       ELSE
 ! the problem is I can't just tack the new molecule on to the end,
@@ -674,33 +674,33 @@ CONTAINS
             start_atom_ins = start_atom_ins + &
                              nchains(itype, insert_box)*nunits(itype)
             IF (itype == molecule_type) EXIT
-         ENDDO
+         END DO
 
          DO iatom = 1, start_atom_ins - 1
             insert_coords(1:3, iatom) = &
                particles_old(insert_box)%list%els(iatom)%r(1:3)
             atom_names_insert(iatom) = &
                particles_old(insert_box)%list%els(iatom)%atomic_kind%name
-         ENDDO
+         END DO
          iiatom = 1
          DO iatom = start_atom_ins, start_atom_ins + nunits(molecule_type) - 1
             insert_coords(1:3, iatom) = r_insert_mol(1:3, iiatom)
             atom_names_insert(iatom) = atom_names(iiatom, molecule_type)
             iiatom = iiatom + 1
-         ENDDO
+         END DO
          DO iatom = start_atom_ins + nunits(molecule_type), ins_atoms
             insert_coords(1:3, iatom) = &
                particles_old(insert_box)%list%els(iatom - nunits(molecule_type))%r(1:3)
             atom_names_insert(iatom) = &
                particles_old(insert_box)%list%els(iatom - nunits(molecule_type))%atomic_kind%name
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
 ! fold the coordinates into the box and check for overlaps
       start_mol = 1
       DO jbox = 1, insert_box - 1
          start_mol = start_mol + SUM(nchains(:, jbox))
-      ENDDO
+      END DO
       end_mol = start_mol + SUM(nchains(:, insert_box)) - 1
 
 ! make the .dat file
@@ -717,17 +717,17 @@ CONTAINS
             CALL mc_make_dat_file_new(insert_coords(:, :), atom_names_insert(:), ins_atoms, &
                                       abc_insert(:), dat_file(insert_box), nchains(:, insert_box), &
                                       mc_input_file)
-         ENDIF
+         END IF
          nchains(molecule_type, insert_box) = nchains(molecule_type, insert_box) - 1
 
-      ENDIF
+      END IF
 
 ! now do the same for the removal box...be careful not to make an empty box
       IF (rem_atoms == 0) THEN
          DO iatom = 1, nunits(molecule_type)
             remove_coords(1:3, iatom) = r_insert_mol(1:3, iatom)
             atom_names_remove(iatom) = atom_names(iatom, molecule_type)
-         ENDDO
+         END DO
 
 ! need to adjust nchains, because otherwise if we are removing a molecule type
 ! that is not the first molecule, the dat file will have two molecules in it but
@@ -744,9 +744,9 @@ CONTAINS
                CALL mc_make_dat_file_new(remove_coords(:, :), atom_names_remove(:), rem_atoms, &
                                          abc_remove(:), dat_file(remove_box), nchains(:, remove_box), &
                                          mc_input_file)
-            ENDIF
+            END IF
 
-         ENDIF
+         END IF
          nchains(molecule_type, remove_box) = nchains(molecule_type, remove_box) + 1
 
       ELSE
@@ -755,13 +755,13 @@ CONTAINS
                particles_old(remove_box)%list%els(iatom)%r(1:3)
             atom_names_remove(iatom) = &
                particles_old(remove_box)%list%els(iatom)%atomic_kind%name
-         ENDDO
+         END DO
          DO iatom = start_atom_rem + nunits(molecule_type), nunits_tot(remove_box)
             remove_coords(1:3, iatom - nunits(molecule_type)) = &
                particles_old(remove_box)%list%els(iatom)%r(1:3)
             atom_names_remove(iatom - nunits(molecule_type)) = &
                particles_old(remove_box)%list%els(iatom)%atomic_kind%name
-         ENDDO
+         END DO
 
 ! make the .dat file
          IF (ionode) THEN
@@ -776,11 +776,11 @@ CONTAINS
                CALL mc_make_dat_file_new(remove_coords(:, :), atom_names_remove(:), rem_atoms, &
                                          abc_remove(:), dat_file(remove_box), nchains(:, remove_box), &
                                          mc_input_file)
-            ENDIF
+            END IF
             nchains(molecule_type, remove_box) = nchains(molecule_type, remove_box) + 1
 
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
 ! deallocate r_insert_mol
       DEALLOCATE (r_insert_mol)
@@ -806,7 +806,7 @@ CONTAINS
                                          box_number=remove_box)
       ELSE
          CALL mc_determine_molecule_info(test_env, mc_molecule_info_test)
-      ENDIF
+      END IF
       CALL get_mc_molecule_info(mc_molecule_info_test, nchains=nchains_test, &
                                 mol_type=mol_type_test)
 
@@ -815,7 +815,7 @@ CONTAINS
       start_mol = 1
       DO jbox = 1, insert_box - 1
          start_mol = start_mol + SUM(nchains_test(:, jbox))
-      ENDDO
+      END DO
       end_mol = start_mol + SUM(nchains_test(:, insert_box)) - 1
 
       IF (lbias) THEN
@@ -839,7 +839,7 @@ CONTAINS
                                         nunits(molecule_type), mass(:, molecule_type), loverlap_ins, new_energy(insert_box), &
                                         old_energy(insert_box), ionode, .FALSE., mol_type_test(start_mol:end_mol), &
                                         nchains_test(:, insert_box), source, group, rng_stream)
-      ENDIF
+      END IF
 
       CALL force_env_get(test_env(insert_box)%force_env, &
                          subsys=insert_sys)
@@ -848,7 +848,7 @@ CONTAINS
 
       DO iatom = 1, ins_atoms
          r_cbmc(1:3, iatom) = particles_insert%els(iatom)%r(1:3)
-      ENDDO
+      END DO
 
 ! make sure there is no overlap
 
@@ -866,7 +866,7 @@ CONTAINS
          DEALLOCATE (test_env)
          CALL timestop(handle)
          RETURN
-      ENDIF
+      END IF
 
 ! broadcast the chosen coordinates to all processors
 
@@ -878,7 +878,7 @@ CONTAINS
       DO iatom = 1, ins_atoms
          particles_insert%els(iatom)%r(1:3) = &
             r_cbmc(1:3, iatom)
-      ENDDO
+      END DO
 
 ! if we made it this far, we have no overlaps
       moves(molecule_type, insert_box)%moves%grown = &
@@ -934,7 +934,7 @@ CONTAINS
                                              calc_force=.FALSE.)
             CALL force_env_get(test_env_bias(remove_box)%force_env, &
                                potential_energy=bias_energy_new(remove_box))
-         ENDIF
+         END IF
       ELSE
          IF (SUM(nchains_test(:, remove_box)) == 0) THEN
             new_energy(remove_box) = 0.0E0_dp
@@ -943,8 +943,8 @@ CONTAINS
                                              calc_force=.FALSE.)
             CALL force_env_get(test_env(remove_box)%force_env, &
                                potential_energy=new_energy(remove_box))
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
 ! now we need to figure out the rosenbluth weight for the old configuration...
 ! we wait until now to do that because we need the energy of the box that
@@ -954,7 +954,7 @@ CONTAINS
       start_mol = 1
       DO jbox = 1, remove_box - 1
          start_mol = start_mol + SUM(nchains(:, jbox))
-      ENDDO
+      END DO
       end_mol = start_mol + SUM(nchains(:, remove_box)) - 1
       IF (lbias) THEN
          CALL generate_cbmc_swap_config(bias_env(remove_box)%force_env, &
@@ -970,7 +970,7 @@ CONTAINS
                                         nunits(:), nunits(molecule_type), mass(:, molecule_type), loverlap_rem, rdum, &
                                         new_energy(remove_box), ionode, .TRUE., mol_type(start_mol:end_mol), &
                                         nchains(:, remove_box), source, group, rng_stream)
-      ENDIF
+      END IF
 
 ! figure out the prefactor to the boltzmann weight in the acceptance
 ! rule, based on numbers of particles and volumes
@@ -993,7 +993,7 @@ CONTAINS
             del_quickstep_energy = min_val
          ELSE
             del_quickstep_energy = EXP(del_quickstep_energy)
-         ENDIF
+         END IF
          w = prefactor*del_quickstep_energy*weight_new/weight_old &
              *EXP(BETA*(eta_remove(molecule_type) - eta_insert(molecule_type)))
 
@@ -1001,7 +1001,7 @@ CONTAINS
          w = prefactor*weight_new/weight_old &
              *EXP(BETA*(eta_remove(molecule_type) - eta_insert(molecule_type)))
 
-      ENDIF
+      END IF
 
 ! check if the move is accepted
       IF (w .GE. 1.0E0_dp) THEN
@@ -1009,7 +1009,7 @@ CONTAINS
       ELSE
          IF (ionode) rand = rng_stream%next()
          CALL mp_bcast(rand, source, group)
-      ENDIF
+      END IF
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       IF (rand .LT. w) THEN
@@ -1025,7 +1025,7 @@ CONTAINS
          IF (.NOT. lbias) THEN
             new_energy(insert_box) = new_energy(insert_box) + &
                                      old_energy(insert_box)
-         ENDIF
+         END IF
 
          DO ibox = 1, 2
 ! update energies
@@ -1036,9 +1036,9 @@ CONTAINS
             IF (lbias) THEN
                last_bias_energy(ibox) = bias_energy_new(ibox)
                bias_energy_old(ibox) = bias_energy_new(ibox)
-            ENDIF
+            END IF
 
-         ENDDO
+         END DO
 
 ! change particle numbers...basically destroy the old mc_molecule_info and attach
 ! the new stuff to the mc_pars
@@ -1054,14 +1054,14 @@ CONTAINS
                             particles=particles_insert)
          DO ipart = 1, ins_atoms
             r_old(1:3, ipart, insert_box) = particles_insert%els(ipart)%r(1:3)
-         ENDDO
+         END DO
          CALL force_env_get(test_env(remove_box)%force_env, &
                             subsys=remove_sys)
          CALL cp_subsys_get(remove_sys, &
                             particles=particles_remove)
          DO ipart = 1, rem_atoms
             r_old(1:3, ipart, remove_box) = particles_remove%els(ipart)%r(1:3)
-         ENDDO
+         END DO
 
          ! insertion box
          CALL force_env_release(force_env(insert_box)%force_env)
@@ -1078,7 +1078,7 @@ CONTAINS
             CALL force_env_release(bias_env(remove_box)%force_env)
             bias_env(remove_box)%force_env => test_env_bias(remove_box)%force_env
             DEALLOCATE (test_env_bias)
-         ENDIF
+         END IF
 
       ELSE
 
@@ -1090,8 +1090,8 @@ CONTAINS
             CALL force_env_release(test_env_bias(insert_box)%force_env)
             CALL force_env_release(test_env_bias(remove_box)%force_env)
             DEALLOCATE (test_env_bias)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
 ! deallocate some stuff
       DEALLOCATE (insert_coords)
@@ -1198,8 +1198,8 @@ CONTAINS
          lempty(ibox) = .FALSE.
          IF (SUM(nchains(:, ibox)) == 0) THEN
             lempty(ibox) = .TRUE.
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
 ! record the attempt
       DO ibox = 1, 2
@@ -1207,7 +1207,7 @@ CONTAINS
             moves(1, ibox)%moves%volume%attempts + 1
          move_updates(1, ibox)%moves%volume%attempts = &
             move_updates(1, ibox)%moves%volume%attempts + 1
-      ENDDO
+      END DO
 
 ! now let's grab the cell length and particle positions
       DO ibox = 1, 2
@@ -1223,16 +1223,16 @@ CONTAINS
 ! find the old cell length
          old_cell_length(1:3, ibox) = abc(1:3, ibox)
 
-      ENDDO
+      END DO
 
       DO ibox = 1, 2
 
 ! save the old coordinates
          DO iatom = 1, nunits_tot(ibox)
             r(1:3, iatom, ibox) = particles_old(ibox)%list%els(iatom)%r(1:3)
-         ENDDO
+         END DO
 
-      ENDDO
+      END DO
 
 ! call a random number to figure out how far we're moving
       IF (ionode) rand = rng_stream%next()
@@ -1253,7 +1253,7 @@ CONTAINS
                                       vol_dis)**(1.0E0_dp/3.0E0_dp)
          new_cell_length(iside, 2) = (old_cell_length(1, 2)**3 - &
                                       vol_dis)**(1.0E0_dp/3.0E0_dp)
-      ENDDO
+      END DO
 
 ! now we need to make the new cells
       DO ibox = 1, 2
@@ -1266,14 +1266,14 @@ CONTAINS
                           periodic=cell(ibox)%cell%perd)
          CALL force_env_get(force_env(ibox)%force_env, subsys=subsys)
          CALL cp_subsys_set(subsys, cell=cell_test(ibox)%cell)
-      ENDDO
+      END DO
 
       DO ibox = 1, 2
 
 ! save the coords
          DO iatom = 1, nunits_tot(ibox)
             r(1:3, iatom, ibox) = particles_old(ibox)%list%els(iatom)%r(1:3)
-         ENDDO
+         END DO
 
 ! now we need to scale the coordinates of all the molecules by the
 ! center of mass
@@ -1282,12 +1282,12 @@ CONTAINS
          DO jbox = 1, ibox - 1
             IF (jbox == ibox) EXIT
             molecule_index = molecule_index + SUM(nchains(:, jbox))
-         ENDDO
+         END DO
          DO imolecule = 1, SUM(nchains(:, ibox))
             molecule_type = mol_type(imolecule + molecule_index - 1)
             IF (imolecule .NE. 1) THEN
                start_atom = start_atom + nunits(mol_type(imolecule + molecule_index - 2))
-            ENDIF
+            END IF
             end_atom = start_atom + nunits(molecule_type) - 1
 
 ! now find the center of mass
@@ -1304,22 +1304,22 @@ CONTAINS
                DO jatom = start_atom, end_atom
                   particles_old(ibox)%list%els(jatom)%r(j) = &
                      particles_old(ibox)%list%els(jatom)%r(j) + diff(j)
-               ENDDO
+               END DO
 
-            ENDDO
-         ENDDO
+            END DO
+         END DO
 
 ! check for any overlaps we might have
          start_mol = 1
          DO jbox = 1, ibox - 1
             start_mol = start_mol + SUM(nchains(:, jbox))
-         ENDDO
+         END DO
          end_mol = start_mol + SUM(nchains(:, ibox)) - 1
          CALL check_for_overlap(force_env(ibox)%force_env, &
                                 nchains(:, ibox), nunits, loverlap(ibox), mol_type(start_mol:end_mol), &
                                 cell_length=new_cell_length(:, ibox))
 
-      ENDDO
+      END DO
 
 ! determine the overall energy difference
 
@@ -1335,8 +1335,8 @@ CONTAINS
             CALL force_env_get(force_env(ibox)%force_env, &
                                potential_energy=new_energy(ibox))
 
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
 ! accept or reject the move
       DO ibox = 1, 2
@@ -1344,7 +1344,7 @@ CONTAINS
                             new_cell_length(2, ibox)*new_cell_length(3, ibox)
          volume_old(ibox) = old_cell_length(1, ibox)* &
                             old_cell_length(2, ibox)*old_cell_length(3, ibox)
-      ENDDO
+      END DO
       prefactor = (volume_new(1)/volume_old(1))**(SUM(nchains(:, 1)))* &
                   (volume_new(2)/volume_old(2))**(SUM(nchains(:, 2)))
 
@@ -1355,7 +1355,7 @@ CONTAINS
                            (new_energy(1) + new_energy(2) - &
                             old_energy(1) - old_energy(2)))
 
-      ENDIF
+      END IF
 
       IF (w .GE. 1.0E0_dp) THEN
          w = 1.0E0_dp
@@ -1363,7 +1363,7 @@ CONTAINS
       ELSE
          IF (ionode) rand = rng_stream%next()
          CALL mp_bcast(rand, source, group)
-      ENDIF
+      END IF
 
       IF (rand .LT. w) THEN
 
@@ -1376,7 +1376,7 @@ CONTAINS
             WRITE (cl, *) nnstep, new_energy(1), &
                old_energy(1), new_energy(2), old_energy(2)
             WRITE (cl, *) prefactor, w
-         ENDIF
+         END IF
 
          DO ibox = 1, 2
 ! accept the move
@@ -1394,9 +1394,9 @@ CONTAINS
             DO iatom = 1, nunits_tot(ibox)
                r_old(1:3, iatom, ibox) = &
                   particles_old(ibox)%list%els(iatom)%r(1:3)
-            ENDDO
+            END DO
 
-         ENDDO
+         END DO
       ELSE
 
 ! reject the move
@@ -1410,7 +1410,7 @@ CONTAINS
                old_energy(1), new_energy(2), old_energy(2)
             WRITE (cl, *) prefactor, w
 
-         ENDIF
+         END IF
 
 ! reset the cell and particle positions
          DO ibox = 1, 2
@@ -1418,16 +1418,16 @@ CONTAINS
             CALL cp_subsys_set(subsys, cell=cell_old(ibox)%cell)
             DO iatom = 1, nunits_tot(ibox)
                particles_old(ibox)%list%els(iatom)%r(1:3) = r_old(1:3, iatom, ibox)
-            ENDDO
-         ENDDO
+            END DO
+         END DO
 
-      ENDIF
+      END IF
 
 ! free up some memory
       DO ibox = 1, 2
          CALL cell_release(cell_test(ibox)%cell)
          CALL cell_release(cell_old(ibox)%cell)
-      ENDDO
+      END DO
       DEALLOCATE (r)
       DEALLOCATE (oldsys)
       DEALLOCATE (particles_old)

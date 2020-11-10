@@ -511,7 +511,7 @@ CONTAINS
 
       IF (iterator%inode == 0) THEN
          CALL nl_set_sub_iterator(iter_sub, kind_ref, MAX(kind_sub, 1), atom_ref)
-      ENDIF
+      END IF
       iter_stat = nl_sub_iterate(iter_sub)
       IF (iter_stat == 0) RETURN
 
@@ -524,7 +524,7 @@ CONTAINS
          kind_sub = kind_sub + 1
          CALL nl_set_sub_iterator(iter_sub, kind_ref, kind_sub, atom_ref)
          iter_stat = nl_sub_iterate_ref(iter_sub, iter_ref)
-      ENDIF
+      END IF
 
    END FUNCTION
 
@@ -610,7 +610,7 @@ CONTAINS
                                 inode=task%inode, nnode=task%nnode, &
                                 iatom=task%iatom, jatom=task%jatom, &
                                 r=task%r, cell=task%cell)
-      ENDIF
+      END IF
 
       NULLIFY (task%next)
 

@@ -179,7 +179,7 @@ CONTAINS
                      ip = 0
                   END IF
                END IF
-            ENDIF
+            END IF
             ! Setup of Exclusion Types
             pot%no_pp = .TRUE.
             pot%no_mb = .TRUE.
@@ -312,7 +312,7 @@ CONTAINS
             x = x - dx2
          END DO
          x = x + dx2
-      ENDDO
+      END DO
       locut = locut_found
 
    END SUBROUTINE get_spline_cutoff
@@ -378,7 +378,7 @@ CONTAINS
          fixed_spline_points = .FALSE.
          npoints = 20
          IF (.NOT. found_locut) npoints = 2
-      ENDIF
+      END IF
       spline_data => spl_p(1)%spline_data
       DO WHILE (.TRUE.)
          CALL init_splinexy(spline_data, npoints + 1)
@@ -999,7 +999,7 @@ CONTAINS
          pot%spl_f%rcutsq_f = 1.0_dp
          pot%spl_f%rscale = 1.0_dp
          pot%spl_f%fscale = 1.0_dp
-      ENDDO
+      END DO
 
       IF (ANY(potential_single_allocation == pot_target)) THEN
          DO i = 1, nvalues
@@ -1027,7 +1027,7 @@ CONTAINS
                   pot%spl_f%fscale(1) = l_epsilon/m_epsilon
                END IF
             END IF
-         ENDDO
+         END DO
       END IF
 
       DO i = 1, nvalues

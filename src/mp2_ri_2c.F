@@ -541,7 +541,7 @@ CONTAINS
          nimg = dft_control%nimages
       ELSE
          nimg = 1
-      ENDIF
+      END IF
 
       ALLOCATE (mat_2c(nimg))
       CALL dbcsr_create(mat_2c(1), "(RI|RI)", dbcsr_dist, dbcsr_type_symmetric, &
@@ -549,7 +549,7 @@ CONTAINS
 
       DO img = 2, nimg
          CALL dbcsr_create(mat_2c(img), template=mat_2c(1))
-      ENDDO
+      END DO
 
       CALL build_2c_integrals(mat_2c, 0.0_dp, qs_env, sab_RI, basis_set_RI, basis_set_RI, &
                               ri_metric, do_kpoints=do_kpoints)
@@ -561,7 +561,7 @@ CONTAINS
       DO img = 1, nimg
          ALLOCATE (matrix_s_RI_aux_transl(1, img)%matrix)
          matrix_s_RI_aux_transl(1, img)%matrix = mat_2c(img)
-      ENDDO
+      END DO
 
       CALL set_ks_env(qs_env%ks_env, matrix_s_RI_aux_kp=matrix_s_RI_aux_transl)
 
@@ -796,7 +796,7 @@ CONTAINS
 
       ELSE
          CPABORT("unknown ERI method")
-      ENDIF
+      END IF
 
       CALL timestop(handle2)
 

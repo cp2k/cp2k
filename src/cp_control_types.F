@@ -617,7 +617,7 @@ CONTAINS
          mulliken_restraint_control%target = 0.0_dp
          mulliken_restraint_control%natoms = 0
          DEALLOCATE (mulliken_restraint_control)
-      ENDIF
+      END IF
    END SUBROUTINE mulliken_control_release
 
 ! **************************************************************************************************
@@ -680,7 +680,7 @@ CONTAINS
          ddapc_restraint_control%target = 0.0_dp
          ddapc_restraint_control%natoms = 0
          DEALLOCATE (ddapc_restraint_control)
-      ENDIF
+      END IF
    END SUBROUTINE ddapc_control_release
 
 ! **************************************************************************************************
@@ -733,7 +733,7 @@ CONTAINS
          s2_restraint_control%strength = 0.0_dp
          s2_restraint_control%target = 0.0_dp
          DEALLOCATE (s2_restraint_control)
-      ENDIF
+      END IF
    END SUBROUTINE s2_control_release
 
 ! **************************************************************************************************

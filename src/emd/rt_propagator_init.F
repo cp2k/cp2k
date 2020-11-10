@@ -121,9 +121,9 @@ CONTAINS
          IF (logger%para_env%ionode) THEN
             unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
             WRITE (unit_nr, *) "linear_scaling currently does not support pade exponentials, switching to taylor"
-         ENDIF
+         END IF
          rtp_control%mat_exp = do_taylor
-      ENDIF
+      END IF
       ! We have no clue yet about next H so we use initial H for t and t+dt
       ! Due to different nature of the propagator the prefactor has to be adopted
       SELECT CASE (rtp_control%propagator)
@@ -166,7 +166,7 @@ CONTAINS
          CALL get_rtp(rtp=rtp, rho_old=rho_old)
       ELSE
          CALL get_rtp(rtp=rtp, mos_old=mos_old)
-      ENDIF
+      END IF
       CALL put_data_to_history(rtp, mos=mos_old, s_mat=s_mat, ihist=1, rho=rho_old)
 
    END SUBROUTINE init_propagators

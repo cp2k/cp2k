@@ -191,9 +191,9 @@ CONTAINS
                                  pmax_tmp = MAX(pmax_tmp, ABS(full_density_beta(i, img)))
                               END IF
                               i = i + 1
-                           ENDDO
-                        ENDDO
-                     ENDDO
+                           END DO
+                        END DO
+                     END DO
                      IF (pmax_tmp == 0.0_dp) THEN
                         pmax_tmp = log_zero
                      ELSE
@@ -216,9 +216,9 @@ CONTAINS
                                  pmax_tmp = MAX(pmax_tmp, ABS(full_density_beta(i, img)))
                               END IF
                               i = i + nsgfc(kset)
-                           ENDDO
-                        ENDDO
-                     ENDDO
+                           END DO
+                        END DO
+                     END DO
                      IF (pmax_tmp == 0.0_dp) THEN
                         pmax_tmp = log_zero
                      ELSE
@@ -868,7 +868,7 @@ CONTAINS
          opt_state%state = 8
          CALL powell_optimize(opt_state%nvar, x, opt_state)
 
-      ENDDO
+      END DO
 
    END SUBROUTINE optimize_it
 

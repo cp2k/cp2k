@@ -127,11 +127,11 @@ CONTAINS
                      vab(i, j, 4) = 0.0_dp
                      vab(i, j, 5) = 0.0_dp
                      vab(i, j, 6) = 0.0_dp
-                  ENDDO
-               ENDDO
+                  END DO
+               END DO
                nb = nb + ncoset(lb_max)
                CYCLE
-            ENDIF
+            END IF
 
             ! *** Calculate some prefactors ***
 
@@ -302,21 +302,21 @@ CONTAINS
                   vab(ma, mb, 4) = (2.0_dp*dumyy - dumzz - dumxx)/3.0_dp !yy
                   vab(ma, mb, 5) = dumyz !yz
                   vab(ma, mb, 6) = (2.0_dp*dumzz - dumxx - dumyy)/3.0_dp !zz
-               ENDDO
-               ENDDO
-               ENDDO !la
+               END DO
+               END DO
+               END DO !la
 
-            ENDDO
-            ENDDO
-            ENDDO !lb
+            END DO
+            END DO
+            END DO !lb
 
             nb = nb + ncoset(lb_max)
 
-         ENDDO
+         END DO
 
          na = na + ncoset(la_max)
 
-      ENDDO
+      END DO
 
    END SUBROUTINE efg
 

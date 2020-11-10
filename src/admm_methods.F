@@ -191,8 +191,8 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          IF (mos(ispin)%mo_set%use_mo_coeff_b) THEN
             CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b, mos(ispin)%mo_set%mo_coeff)
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       ! fit mo coeffcients
       CALL admm_fit_mo_coeffs(admm_env, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, &
@@ -220,7 +220,7 @@ CONTAINS
                                          density_matrix_large=rho_ao(ispin)%matrix, &
                                          ispin=ispin)
 
-         ENDIF
+         END IF
 
          IF (admm_env%purification_method == do_admm_purify_cauchy) &
             CALL purify_dm_cauchy(admm_env, &
@@ -609,7 +609,7 @@ CONTAINS
             CALL dbcsr_iterator_stop(iter)
             CALL copy_dbcsr_to_fm(matrix_s_tilde, admm_env%S_inv)
             CALL dbcsr_deallocate_matrix(matrix_s_tilde)
-         ENDIF
+         END IF
 
          CALL cp_fm_upper_to_full(admm_env%S_inv, admm_env%work_aux_aux)
          CALL cp_fm_to_fm(admm_env%S_inv, admm_env%S)
@@ -635,7 +635,7 @@ CONTAINS
             CALL cp_gemm('T', 'N', nao_orb, nao_orb, nao_aux_fit, &
                          1.0_dp, admm_env%Q, admm_env%A, 0.0_dp, &
                          admm_env%B)
-         ENDIF
+         END IF
       END IF
 
       CALL timestop(handle)
@@ -859,7 +859,7 @@ CONTAINS
          CALL cp_gemm('N', 'T', nao_aux_fit, nao_aux_fit, nmo, &
                       1.0_dp, mo_coeff_aux_fit, mo_coeff_aux_fit, 0.0_dp, &
                       admm_env%P_to_be_purified(ispin)%matrix)
-      ENDIF
+      END IF
 
       CALL cp_fm_to_fm(admm_env%S, admm_env%work_aux_aux)
       CALL cp_fm_to_fm(admm_env%P_to_be_purified(ispin)%matrix, admm_env%work_aux_aux2)
@@ -963,7 +963,7 @@ CONTAINS
                          1.0_dp, admm_env%work_aux_orb2, admm_env%A, 0.0_dp, &
                          admm_env%P_to_be_purified(ispin)%matrix)
 
-         ENDIF
+         END IF
 
          CALL cp_fm_to_fm(admm_env%S, admm_env%work_aux_aux)
          CALL cp_fm_to_fm(admm_env%P_to_be_purified(ispin)%matrix, admm_env%work_aux_aux2)
@@ -1057,7 +1057,7 @@ CONTAINS
                END IF
             END DO
             CALL dbcsr_iterator_stop(iter)
-         ENDIF
+         END IF
 
          CALL dbcsr_add(matrix_ks(ispin)%matrix, matrix_k_tilde, 1.0_dp, 1.0_dp)
 
@@ -1201,7 +1201,7 @@ CONTAINS
 
          CALL dbcsr_deallocate_matrix(matrix_k_tilde)
 
-      ENDDO !spin loop
+      END DO !spin loop
       CALL timestop(handle)
 
    END SUBROUTINE merge_ks_matrix_cauchy_subspace
@@ -1506,7 +1506,7 @@ CONTAINS
                   admm_env%lambda_merlot(ispin) = 2.0_dp*(admm_env%gsi(ispin))**2* &
                                                   (energy%ex + energy%exc_aux_fit + energy%exc1_aux_fit) &
                                                   /(admm_env%n_large_basis(ispin))
-               ENDIF
+               END IF
 
             ELSE IF (admm_env%charge_constrain .AND. &
                      (admm_env%scaling_model == do_admm_exch_scaling_merlot)) THEN
@@ -1574,8 +1574,8 @@ CONTAINS
 
             CALL dbcsr_deallocate_matrix(matrix_k_tilde)
 
-         ENDIF
-      ENDDO !spin loop
+         END IF
+      END DO !spin loop
 
       ! Scale energy for ADMMP and ADMMS
       IF (admm_env%scaling_model == do_admm_exch_scaling_merlot) THEN
@@ -2024,12 +2024,12 @@ CONTAINS
       ! *** forces are only implemented for mo_diag or none and basis_projection ***
       IF (admm_env%block_dm) THEN
          CPABORT("")
-      ENDIF
+      END IF
 
       IF (.NOT. (admm_env%purification_method == do_admm_purify_mo_diag .OR. &
                  admm_env%purification_method == do_admm_purify_none)) THEN
          CPABORT("")
-      ENDIF
+      END IF
 
       ! *** Create sparse work matrices
 
@@ -2271,7 +2271,7 @@ CONTAINS
                                               "DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT")
          END IF
 
-      ENDDO !spin loop
+      END DO !spin loop
 
       ! *** Deallocated weighted density matrices
       CALL dbcsr_deallocate_matrix(matrix_w_s)
@@ -2335,7 +2335,7 @@ CONTAINS
                                     matrix_g=admm_env%work_aux_nmo2(ispin)%matrix, &
                                     ncol=mo_set%homo, &
                                     alpha=alpha)
-      ENDIF
+      END IF
 
       !  The following IF checks whether gsi needs to be calculated. This is the case if
       !   the auxiliary density matrix gets scaled
@@ -2357,9 +2357,9 @@ CONTAINS
          IF (admm_env%charge_constrain) THEN
             ! multiply aux. DM with gsi to get the scaled DM (Merlot, Eq. 21)
             CALL dbcsr_scale(density_matrix, admm_env%gsi(ispin))
-         ENDIF
+         END IF
 
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 

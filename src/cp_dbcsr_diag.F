@@ -162,7 +162,7 @@ CONTAINS
          CALL cp_fm_release(fm_eigenvectors)
       ELSE
          CALL cp_fm_syevx(fm_matrix, eigenvalues=eigenvalues, neig=neig, work_syevx=work_syevx)
-      ENDIF
+      END IF
 
       CALL cp_fm_struct_release(fm_struct)
       CALL cp_fm_release(fm_matrix)

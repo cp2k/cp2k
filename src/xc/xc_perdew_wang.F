@@ -15,7 +15,7 @@
 !> \see functionals_utilities
 ! **************************************************************************************************
 MODULE xc_perdew_wang
-#:include "xc_perdew_wang.fypp"
+   #:include "xc_perdew_wang.fypp"
 
    USE kinds, ONLY: dp
    USE xc_derivative_set_types, ONLY: xc_derivative_set_type, &
@@ -37,7 +37,7 @@ MODULE xc_perdew_wang
    IMPLICIT NONE
    PRIVATE
 
-@: global_var_pw92()
+   @: global_var_pw92()
    REAL(KIND=dp), PARAMETER :: &
       epsilon = 5.E-13_dp, &
       fpp = 0.584822362263464620726223866376013788782_dp ! d^2f(0)/dz^2
@@ -117,7 +117,7 @@ CONTAINS
 
    END SUBROUTINE perdew_wang_info
 
-@: init_pw92()
+   @: init_pw92()
 
 ! **************************************************************************************************
 !> \brief Calculate the correlation energy and its derivatives
@@ -422,7 +422,7 @@ CONTAINS
 
    END SUBROUTINE perdew_wang_lsd_calc
 
-@:calc_g()
+   @:calc_g()
 
 ! **************************************************************************************************
 !> \brief ...

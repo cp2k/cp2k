@@ -279,7 +279,7 @@ CONTAINS
             nl_table_key = natom*task%iatom + task%jatom
          ELSE
             nl_table_key = natom*task%jatom + task%iatom
-         ENDIF
+         END IF
          CALL nl_hash_table_add(nl_hash_table, nl_table_key, task)
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
@@ -504,7 +504,7 @@ CONTAINS
                      END DO ! kbc
                   END DO ! kac
 
-               ENDDO ! kkind
+               END DO ! kkind
 
                next_task => task%next
                ! We are done with this task, we can deallocate it
@@ -516,7 +516,7 @@ CONTAINS
 
          ELSE
             ! NO KEY/VALUE
-         ENDIF
+         END IF
       END DO
 !$OMP END DO
 

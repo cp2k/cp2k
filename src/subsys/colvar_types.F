@@ -556,16 +556,16 @@ CONTAINS
          DO ii = 1, colvar%coord_param%n_atoms_from
             i = colvar%coord_param%i_at_from(ii)
             colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
-         ENDDO
+         END DO
          DO ii = 1, colvar%coord_param%n_atoms_to
             i = colvar%coord_param%i_at_to(ii)
             colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
-         ENDDO
+         END DO
          IF (colvar%coord_param%n_atoms_to_b /= 0) THEN
             DO ii = 1, colvar%coord_param%n_atoms_to_b
                i = colvar%coord_param%i_at_to_b(ii)
                colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
-            ENDDO
+            END DO
          END IF
          ! Create a List of points...
          ALLOCATE (list(np))
@@ -574,18 +574,18 @@ CONTAINS
             idum = idum + 1
             i = colvar%coord_param%i_at_from(ii)
             list(idum) = i
-         ENDDO
+         END DO
          DO ii = 1, colvar%coord_param%n_atoms_to
             idum = idum + 1
             i = colvar%coord_param%i_at_to(ii)
             list(idum) = i
-         ENDDO
+         END DO
          IF (colvar%coord_param%n_atoms_to_b /= 0) THEN
             DO ii = 1, colvar%coord_param%n_atoms_to_b
                idum = idum + 1
                i = colvar%coord_param%i_at_to_b(ii)
                list(idum) = i
-            ENDDO
+            END DO
          END IF
          CPASSERT(idum == np)
       CASE (population_colvar_id)
@@ -595,11 +595,11 @@ CONTAINS
          DO ii = 1, colvar%population_param%n_atoms_from
             i = colvar%population_param%i_at_from(ii)
             colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
-         ENDDO
+         END DO
          DO ii = 1, colvar%population_param%n_atoms_to
             i = colvar%population_param%i_at_to(ii)
             colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
-         ENDDO
+         END DO
          ! Create a List of points...
          ALLOCATE (list(np))
          idum = 0
@@ -607,12 +607,12 @@ CONTAINS
             idum = idum + 1
             i = colvar%population_param%i_at_from(ii)
             list(idum) = i
-         ENDDO
+         END DO
          DO ii = 1, colvar%population_param%n_atoms_to
             idum = idum + 1
             i = colvar%population_param%i_at_to(ii)
             list(idum) = i
-         ENDDO
+         END DO
          CPASSERT(idum == np)
       CASE (gyration_colvar_id)
          np = colvar%gyration_param%n_atoms
@@ -621,7 +621,7 @@ CONTAINS
          DO ii = 1, colvar%gyration_param%n_atoms
             i = colvar%gyration_param%i_at(ii)
             colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
-         ENDDO
+         END DO
          ! Create a List of points...
          ALLOCATE (list(np))
          idum = 0
@@ -629,7 +629,7 @@ CONTAINS
             idum = idum + 1
             i = colvar%gyration_param%i_at(ii)
             list(idum) = i
-         ENDDO
+         END DO
          CPASSERT(idum == np)
       CASE (angle_colvar_id)
          np = 3
@@ -638,7 +638,7 @@ CONTAINS
          DO ii = 1, 3
             i = colvar%angle_param%i_at_angle(ii)
             colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
-         ENDDO
+         END DO
          ! Create a List of points...
          ALLOCATE (list(np))
          idum = 0
@@ -646,7 +646,7 @@ CONTAINS
             idum = idum + 1
             i = colvar%angle_param%i_at_angle(ii)
             list(idum) = i
-         ENDDO
+         END DO
          CPASSERT(idum == np)
       CASE (torsion_colvar_id)
          np = 4
@@ -655,7 +655,7 @@ CONTAINS
          DO ii = 1, 4
             i = colvar%torsion_param%i_at_tors(ii)
             colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
-         ENDDO
+         END DO
          ! Create a List of points...
          ALLOCATE (list(np))
          idum = 0
@@ -663,7 +663,7 @@ CONTAINS
             idum = idum + 1
             i = colvar%torsion_param%i_at_tors(ii)
             list(idum) = i
-         ENDDO
+         END DO
          CPASSERT(idum == np)
       CASE (plane_distance_colvar_id)
          np = 4
@@ -672,7 +672,7 @@ CONTAINS
          DO ii = 1, 3
             i = colvar%plane_distance_param%plane(ii)
             colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
-         ENDDO
+         END DO
          i = colvar%plane_distance_param%point
          colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
          ! Create a List of points...
@@ -682,7 +682,7 @@ CONTAINS
             idum = idum + 1
             i = colvar%plane_distance_param%plane(ii)
             list(idum) = i
-         ENDDO
+         END DO
          i = colvar%plane_distance_param%point
          list(4) = i
          idum = idum + 1
@@ -704,13 +704,13 @@ CONTAINS
             DO ii = 1, 3
                i = colvar%plane_plane_angle_param%plane1%points(ii)
                colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
-            ENDDO
+            END DO
          END IF
          IF (colvar%plane_plane_angle_param%plane2%type_of_def == plane_def_atoms) THEN
             DO ii = 1, 3
                i = colvar%plane_plane_angle_param%plane2%points(ii)
                colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
-            ENDDO
+            END DO
          END IF
 
          ! Create a List of points...
@@ -721,14 +721,14 @@ CONTAINS
                idum = idum + 1
                i = colvar%plane_plane_angle_param%plane1%points(ii)
                list(idum) = i
-            ENDDO
+            END DO
          END IF
          IF (colvar%plane_plane_angle_param%plane2%type_of_def == plane_def_atoms) THEN
             DO ii = 1, 3
                idum = idum + 1
                i = colvar%plane_plane_angle_param%plane2%points(ii)
                list(idum) = i
-            ENDDO
+            END DO
          END IF
          CPASSERT(idum == np)
       CASE (dfunct_colvar_id)
@@ -738,7 +738,7 @@ CONTAINS
          DO ii = 1, 4
             i = colvar%dfunct_param%i_at_dfunct(ii)
             colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
-         ENDDO
+         END DO
          ! Create a List of points...
          ALLOCATE (list(np))
          idum = 0
@@ -746,7 +746,7 @@ CONTAINS
             idum = idum + 1
             i = colvar%dfunct_param%i_at_dfunct(ii)
             list(idum) = i
-         ENDDO
+         END DO
          CPASSERT(idum == np)
       CASE (rotation_colvar_id)
          np = 4
@@ -777,11 +777,11 @@ CONTAINS
          DO ii = 1, colvar%qparm_param%n_atoms_from
             i = colvar%qparm_param%i_at_from(ii)
             colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
-         ENDDO
+         END DO
          DO ii = 1, colvar%qparm_param%n_atoms_to
             i = colvar%qparm_param%i_at_to(ii)
             colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
-         ENDDO
+         END DO
          ! Create a List of points...
          ALLOCATE (list(np))
          idum = 0
@@ -789,12 +789,12 @@ CONTAINS
             idum = idum + 1
             i = colvar%qparm_param%i_at_from(ii)
             list(idum) = i
-         ENDDO
+         END DO
          DO ii = 1, colvar%qparm_param%n_atoms_to
             idum = idum + 1
             i = colvar%qparm_param%i_at_to(ii)
             list(idum) = i
-         ENDDO
+         END DO
          CPASSERT(idum == np)
       CASE (hydronium_shell_colvar_id)
          np = colvar%hydronium_shell_param%n_oxygens + colvar%hydronium_shell_param%n_hydrogens
@@ -823,7 +823,7 @@ CONTAINS
          DO ii = 1, colvar%rmsd_param%n_atoms
             i = colvar%rmsd_param%i_rmsd(ii)
             colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
-         ENDDO
+         END DO
          ! Create a List of points...
          ALLOCATE (list(np))
          idum = 0
@@ -892,7 +892,7 @@ CONTAINS
          DO ii = 1, 3
             i = colvar%Wc%ids(ii)
             colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
-         ENDDO
+         END DO
          ! Create a List of points...
          ALLOCATE (list(np))
          idum = 0
@@ -900,7 +900,7 @@ CONTAINS
             idum = idum + 1
             i = colvar%Wc%ids(ii)
             list(idum) = i
-         ENDDO
+         END DO
          CPASSERT(idum == np)
       CASE (HBP_colvar_id)
          np = 3*colvar%HBP%nPoints
@@ -910,8 +910,8 @@ CONTAINS
             DO ii = 1, 3
                i = colvar%HBP%ids(j, ii)
                colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
-            ENDDO
-         ENDDO
+            END DO
+         END DO
          ! Create a List of points...
          ALLOCATE (list(np))
          idum = 0
@@ -920,8 +920,8 @@ CONTAINS
                idum = idum + 1
                i = colvar%HBP%ids(j, ii)
                list(idum) = i
-            ENDDO
-         ENDDO
+            END DO
+         END DO
          CPASSERT(idum == np)
       CASE (ring_puckering_colvar_id)
          np = colvar%ring_puckering_param%nring
@@ -930,7 +930,7 @@ CONTAINS
          DO ii = 1, colvar%ring_puckering_param%nring
             i = colvar%ring_puckering_param%atoms(ii)
             colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
-         ENDDO
+         END DO
          ! Create a List of points...
          ALLOCATE (list(np))
          idum = 0
@@ -938,7 +938,7 @@ CONTAINS
             idum = idum + 1
             i = colvar%ring_puckering_param%atoms(ii)
             list(idum) = i
-         ENDDO
+         END DO
          CPASSERT(idum == np)
       CASE (mindist_colvar_id)
          np = colvar%mindist_param%n_dist_from + &
@@ -948,15 +948,15 @@ CONTAINS
          DO ii = 1, colvar%mindist_param%n_dist_from
             i = colvar%mindist_param%i_dist_from(ii)
             colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
-         ENDDO
+         END DO
          DO ii = 1, colvar%mindist_param%n_coord_from
             i = colvar%mindist_param%i_coord_from(ii)
             colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
-         ENDDO
+         END DO
          DO ii = 1, colvar%mindist_param%n_coord_to
             i = colvar%mindist_param%i_coord_to(ii)
             colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
-         ENDDO
+         END DO
          ! Create a List of points...
          ALLOCATE (list(np))
          idum = 0
@@ -964,17 +964,17 @@ CONTAINS
             idum = idum + 1
             i = colvar%mindist_param%i_dist_from(ii)
             list(idum) = i
-         ENDDO
+         END DO
          DO ii = 1, colvar%mindist_param%n_coord_from
             idum = idum + 1
             i = colvar%mindist_param%i_coord_from(ii)
             list(idum) = i
-         ENDDO
+         END DO
          DO ii = 1, colvar%mindist_param%n_coord_to
             idum = idum + 1
             i = colvar%mindist_param%i_coord_to(ii)
             list(idum) = i
-         ENDDO
+         END DO
          CPASSERT(idum == np)
       CASE (combine_colvar_id)
          colvar%n_atom_s = 0
@@ -1056,11 +1056,11 @@ CONTAINS
       DO ii = 1, n_oxygens
          i = i_oxygens(ii)
          colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
-      ENDDO
+      END DO
       DO ii = 1, n_hydrogens
          i = i_hydrogens(ii)
          colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
-      ENDDO
+      END DO
       idum = 0
       DO ii = 1, n_oxygens
          idum = idum + 1
@@ -1068,12 +1068,12 @@ CONTAINS
          list(idum) = i
          IF (ANY(i_hydrogens == i)) &
             CPABORT("COLVAR: atoms doubled in OXYGENS and HYDROGENS list")
-      ENDDO
+      END DO
       DO ii = 1, n_hydrogens
          idum = idum + 1
          i = i_hydrogens(ii)
          list(idum) = i
-      ENDDO
+      END DO
       CPASSERT(idum == np)
       DO i = 1, np
          DO ii = i + 1, np
@@ -1082,9 +1082,9 @@ CONTAINS
                   CPABORT("atoms doubled in OXYGENS list")
                IF (i > n_oxygens) &
                   CPABORT("atoms doubled in HYDROGENS list")
-            ENDIF
-         ENDDO
-      ENDDO
+            END IF
+         END DO
+      END DO
 
    END SUBROUTINE setup_hydronium_colvars
 
@@ -1131,15 +1131,15 @@ CONTAINS
       DO ii = 1, n_oxygens_water
          i = i_oxygens_water(ii)
          colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
-      ENDDO
+      END DO
       DO ii = 1, n_oxygens_acid
          i = i_oxygens_acid(ii)
          colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
-      ENDDO
+      END DO
       DO ii = 1, n_hydrogens
          i = i_hydrogens(ii)
          colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
-      ENDDO
+      END DO
       idum = 0
       DO ii = 1, n_oxygens_water
          idum = idum + 1
@@ -1149,19 +1149,19 @@ CONTAINS
             CPABORT("COLVAR: atoms doubled in OXYGENS_WATER and HYDROGENS list")
          IF (ANY(i_oxygens_acid == i)) &
             CPABORT("COLVAR: atoms doubled in OXYGENS_WATER and OXYGENS_ACID list")
-      ENDDO
+      END DO
       DO ii = 1, n_oxygens_acid
          idum = idum + 1
          i = i_oxygens_acid(ii)
          list(idum) = i
          IF (ANY(i_hydrogens == i)) &
             CPABORT("COLVAR: atoms doubled in OXYGENS_ACID and HYDROGENS list")
-      ENDDO
+      END DO
       DO ii = 1, n_hydrogens
          idum = idum + 1
          i = i_hydrogens(ii)
          list(idum) = i
-      ENDDO
+      END DO
       CPASSERT(idum == np)
       DO i = 1, np
          DO ii = i + 1, np
@@ -1172,9 +1172,9 @@ CONTAINS
                   CPABORT("atoms doubled in OXYGENS_ACID list")
                IF (i > n_oxygens_water + n_oxygens_acid) &
                   CPABORT("atoms doubled in HYDROGENS list")
-            ENDIF
-         ENDDO
-      ENDDO
+            END IF
+         END DO
+      END DO
 
    END SUBROUTINE setup_acid_hydronium_colvars
 
@@ -1898,7 +1898,7 @@ CONTAINS
          DO i = 1, SIZE(colvar_p)
             IF (ASSOCIATED(colvar_p(i)%colvar)) &
                CALL colvar_release(colvar_p(i)%colvar)
-         ENDDO
+         END DO
          DEALLOCATE (colvar_p)
       END IF
    END SUBROUTINE colvar_p_release

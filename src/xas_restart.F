@@ -189,7 +189,7 @@ CONTAINS
                CALL cp_abort(__LOCATION__, &
                              " READ XAS RESTART: restart with different excited atoms "// &
                              " is not possible. Start instead a new XAS run with the new set of atoms. ")
-         ENDIF
+         END IF
 
          CALL mp_bcast(xas_estate_read, source, group)
          CALL set_xas_env(xas_env=xas_env, xas_estate=xas_estate_read)
@@ -223,7 +223,7 @@ CONTAINS
 
                END IF
                DEALLOCATE (eig_read, occ_read)
-            ENDIF
+            END IF
             CALL mp_bcast(eigenvalues, source, group)
             CALL mp_bcast(occupation_numbers, source, group)
 
@@ -334,7 +334,7 @@ CONTAINS
             WRITE (rst_unit) xas_method
             WRITE (rst_unit) nexc_search, nexc_atoms, occ_estate, xas_nelectron
             WRITE (rst_unit) xas_estate
-         ENDIF
+         END IF
          DO ispin = 1, SIZE(mos)
             CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo, &
                             eigenvalues=eigenvalues, occupation_numbers=occupation_numbers)
@@ -489,7 +489,7 @@ CONTAINS
             ic_max = i
 
             b_max = a_max
-         ENDIF
+         END IF
       END DO
 
       IF (ic_max /= xas_estate) THEN

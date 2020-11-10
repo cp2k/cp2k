@@ -143,7 +143,7 @@ CONTAINS
                   ! Charges of the wfc involved
                   DO istate = 1, SIZE(molecule_set(imol_now)%lmi(ispin)%states)
                      charge_set(imol_now) = charge_set(imol_now) - zwfc
-                  ENDDO
+                  END DO
 
                   charge_tot = charge_set(imol_now)
                   ria = twopi*MATMUL(cell%h_inv, rcc)
@@ -180,7 +180,7 @@ CONTAINS
                         zeta = CMPLX(COS(theta), SIN(theta), KIND=dp)**(-zwfc)
                         ggamma(j) = ggamma(j)*zeta
                      END DO
-                  ENDDO
+                  END DO
 
                   ggamma = ggamma*zphase
                   ci = AIMAG(LOG(ggamma))/twopi
@@ -207,11 +207,11 @@ CONTAINS
                      ria = pbc(center(1:3, i), cell)
                      dipole = dipole - zwfc*(ria - rcc)
                      charge_set(imol_now) = charge_set(imol_now) - zwfc
-                  ENDDO
+                  END DO
                END IF
                dipole_set(:, imol_now) = dipole_set(:, imol_now) + dipole ! a.u.
-            ENDDO
-         ENDDO
+            END DO
+         END DO
       END DO
       CALL mp_sum(dipole_set, para_env%group)
       CALL mp_sum(charge_set, para_env%group)
@@ -225,9 +225,9 @@ CONTAINS
          DO I = 1, SIZE(dipole_set, 2)
             WRITE (UNIT=iounit, FMT='(T8,I6,T21,5F12.6)') I, charge_set(I), dipole_set(1:3, I), &
                SQRT(DOT_PRODUCT(dipole_set(1:3, I), dipole_set(1:3, I)))
-         ENDDO
+         END DO
          WRITE (UNIT=iounit, FMT="(T2,A,T61,E20.12)") ' DIPOLE : CheckSum  =', SUM(dipole_set)
-      ENDIF
+      END IF
       CALL cp_print_key_finished_output(iounit, logger, loc_print_key, &
                                         "MOLECULAR_DIPOLES")
 

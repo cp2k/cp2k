@@ -159,9 +159,9 @@ CONTAINS
                               matrix_type=dbcsr_type_antisymmetric)
             CALL cp_dbcsr_alloc_block_from_nbl(matrix_rv(idir)%matrix, sab_orb)
             CALL dbcsr_set(matrix_rv(idir)%matrix, 0._dp)
-         ENDDO
+         END DO
          CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_rv=matrix_rv)
-      ENDIF
+      END IF
 
       DO ispin = 1, SIZE(matrix_ks)
          ALLOCATE (eigenvalues(nrow_global))
@@ -209,9 +209,9 @@ CONTAINS
                   CALL cp_dbcsr_sm_fm_multiply(matrix_rv(idir)%matrix, mos_old(2*ispin - 1)%matrix, &
                                                mos_old(2*ispin)%matrix, ncol=nmo)
                   CALL cp_fm_scale_and_add(1.0_dp, mos_new(2*ispin - 1)%matrix, factor, mos_old(2*ispin)%matrix)
-               ENDIF
-            ENDIF
-         ENDDO
+               END IF
+            END IF
+         END DO
 
          CALL cp_gemm('T', 'N', nvirt, nmo, nao, 1.0_dp, virtuals, mos_new(2*ispin - 1)%matrix, 0.0_dp, momentum)
 
@@ -222,8 +222,8 @@ CONTAINS
             DO irow = 1, nrow_local
                factor = 1/(eigenvalues(col_indices(icol)) - eigenvalues(nmo + row_indices(irow)))
                local_data(irow, icol) = factor*local_data(irow, icol)
-            ENDDO
-         ENDDO
+            END DO
+         END DO
          CALL cp_fm_release(mat_tmp)
          DEALLOCATE (eigenvalues)
 

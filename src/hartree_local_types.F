@@ -89,12 +89,12 @@ CONTAINS
       DO iat = 1, natom
          IF (ASSOCIATED(ecoul_1c(iat)%Vh1_h%r_coef)) THEN
             DEALLOCATE (ecoul_1c(iat)%Vh1_h%r_coef)
-         ENDIF
+         END IF
          DEALLOCATE (ecoul_1c(iat)%Vh1_h)
 
          IF (ASSOCIATED(ecoul_1c(iat)%Vh1_s%r_coef)) THEN
             DEALLOCATE (ecoul_1c(iat)%Vh1_s%r_coef)
-         ENDIF
+         END IF
          DEALLOCATE (ecoul_1c(iat)%Vh1_s)
 
       END DO

@@ -61,12 +61,12 @@ CONTAINS
             current = start
          ELSE
             current = current + 1
-         ENDIF
+         END IF
          IF (current > END) THEN
             todo = do_nothing
          ELSE
             todo = MODULO(current - 1, farming_env%njobs) + 1
-         ENDIF
+         END IF
       ELSE
          ! find a pending job
          itry = start
@@ -83,10 +83,10 @@ CONTAINS
                         IF (farming_env%job(icheck)%id == farming_env%job(itry)%dependencies(idep)) THEN
                            dep_ok = .FALSE.
                            EXIT dep
-                        ENDIF
-                     ENDIF
-                  ENDDO
-               ENDDO dep
+                        END IF
+                     END IF
+                  END DO
+               END DO dep
 
                ! if there are pending jobs, the slave can not be told to stop
                ! at least wait if there are unresolved dependencies
@@ -95,19 +95,19 @@ CONTAINS
                   EXIT
                ELSE
                   todo = do_wait
-               ENDIF
-            ENDIF
-         ENDDO
+               END IF
+            END IF
+         END DO
          ! If we have to wait, but there are no running jobs we are deadlocked
          ! which we signal
          IF (todo == do_wait) THEN
             dep_OK = .FALSE.
             DO itry = start, END
                IF (farming_env%job(itry)%status .EQ. job_running) dep_OK = .TRUE.
-            ENDDO
+            END DO
             IF (.NOT. dep_OK) todo = do_deadlock
-         ENDIF
-      ENDIF
+         END IF
+      END IF
    END SUBROUTINE get_next_job
 
 ! **************************************************************************************************
@@ -214,7 +214,7 @@ CONTAINS
          ELSE
             CALL section_vals_val_get(jobs_section, i_rep_section=i, &
                                       keyword_name="JOB_ID", i_val=farming_env%Job(i)%id)
-         ENDIF
+         END IF
 
          ! get dependencies
          CALL section_vals_val_get(jobs_section, i_rep_section=i, &
@@ -227,13 +227,13 @@ CONTAINS
             ALLOCATE (farming_env%Job(i)%dependencies(SIZE(dependencies, 1)))
             farming_env%Job(i)%dependencies = dependencies
             IF (SIZE(dependencies, 1) .NE. 0) has_dep = .TRUE.
-         ENDIF
+         END IF
       END DO
 
       IF (has_dep) THEN
          CPASSERT(farming_env%master_slave)
          CPASSERT(.NOT. farming_env%cycle)
-      ENDIF
+      END IF
 
       output_unit = cp_print_key_unit_nr(logger, farming_section, "PROGRAM_RUN_INFO", &
                                          extension=".log")
@@ -242,12 +242,12 @@ CONTAINS
       IF (para_env%num_pe == 1) THEN
          farming_env%master_slave = .FALSE.
          WRITE (output_unit, FMT="(T2,A)") "FARMING| Master-slave setup not support for serial runs"
-      ENDIF
+      END IF
       IF (farming_env%master_slave) THEN
          num_slaves = para_env%num_pe - 1
       ELSE
          num_slaves = para_env%num_pe
-      ENDIF
+      END IF
 
       IF (output_unit > 0) THEN
          WRITE (output_unit, FMT="(T2,A,T71,I10)") "FARMING| Number of jobs found", farming_env%njobs
@@ -266,25 +266,25 @@ CONTAINS
                      num_slaves, SUM(farming_env%group_partition)
                   WRITE (output_unit, FMT="(T2,A)") "FARMING|          partition data ignored" ! any better idea ??
                   DEALLOCATE (farming_env%group_partition)
-               ENDIF
-            ENDIF
-         ENDIF
+               END IF
+            END IF
+         END IF
          IF (farming_env%group_size_wish_set) THEN
             WRITE (output_unit, FMT="(T2,A,T71,I10)") "FARMING| Group size wish:", &
                farming_env%group_size_wish
-         ENDIF
+         END IF
          WRITE (output_unit, FMT="(T2,A,T71,I10)") "FARMING| Max steps      :", farming_env%max_steps
          IF (farming_env%cycle) THEN
             text = "YES"
          ELSE
             text = " NO"
-         ENDIF
+         END IF
          WRITE (output_unit, FMT="(T2,A,T78,A3)") "FARMING| Cyclic jobs execution:", text
          IF (farming_env%restart) THEN
             text = "YES"
          ELSE
             text = " NO"
-         ENDIF
+         END IF
          WRITE (output_unit, FMT="(T2,A,T78,A3)") "FARMING| Restarting farm:", text
          farming_env%restart_n = 1
          IF (farming_env%restart) THEN
@@ -300,17 +300,17 @@ CONTAINS
                      "FARMING| restarting from ("//TRIM(farming_env%restart_file_name)//")"
                   WRITE (output_unit, "(T2,A,T71,I10)") &
                      "FARMING| restarting at ", farming_env%restart_n
-               ENDIF
+               END IF
             ELSE
                WRITE (output_unit, "(T2,A)") &
                   "FARMING| ---- WARNING ---- failed to open ("//TRIM(farming_env%restart_file_name)//"), starting at 1"
-            ENDIF
+            END IF
             CLOSE (iunit, IOSTAT=stat)
-         ENDIF
+         END IF
 
          CALL cp_print_key_finished_output(output_unit, logger, farming_section, &
                                            "PROGRAM_RUN_INFO")
-      ENDIF
+      END IF
       CALL mp_bcast(farming_env%restart_n, para_env%source, para_env%group)
 
    END SUBROUTINE

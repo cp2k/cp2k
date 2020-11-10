@@ -652,7 +652,7 @@ CONTAINS
       IF (PRESENT(jrho1_atom_set)) THEN
          IF (ASSOCIATED(current_env%jrho1_atom_set)) THEN
             CALL deallocate_jrho_atom_set(current_env%jrho1_atom_set)
-         ENDIF
+         END IF
          current_env%jrho1_atom_set => jrho1_atom_set
       END IF
 
@@ -749,14 +749,14 @@ CONTAINS
             END DO
          END IF
          epr_env%nablavks_set => nablavks_set
-      ENDIF
+      END IF
 
       IF (PRESENT(nablavks_atom_set)) THEN
          IF (ASSOCIATED(epr_env%nablavks_atom_set)) THEN
             CALL deallocate_nablavks_atom_set(epr_env%nablavks_atom_set)
-         ENDIF
+         END IF
          epr_env%nablavks_atom_set => nablavks_atom_set
-      ENDIF
+      END IF
 
    END SUBROUTINE set_epr_env
 
@@ -777,7 +777,7 @@ CONTAINS
       DO iat = 1, natom
          NULLIFY (nablavks_atom_set(iat)%nablavks_vec_rad_h)
          NULLIFY (nablavks_atom_set(iat)%nablavks_vec_rad_s)
-      ENDDO
+      END DO
    END SUBROUTINE allocate_nablavks_atom_set
 
 ! **************************************************************************************************
@@ -801,13 +801,13 @@ CONTAINS
                   DO idir = 1, 3
                      DEALLOCATE (nablavks_atom_set(iat)%nablavks_vec_rad_h(idir, i)%r_coef)
                      DEALLOCATE (nablavks_atom_set(iat)%nablavks_vec_rad_s(idir, i)%r_coef)
-                  ENDDO
-               ENDDO
-            ENDIF
+                  END DO
+               END DO
+            END IF
             DEALLOCATE (nablavks_atom_set(iat)%nablavks_vec_rad_h)
             DEALLOCATE (nablavks_atom_set(iat)%nablavks_vec_rad_s)
-         ENDIF
-      ENDDO
+         END IF
+      END DO
       DEALLOCATE (nablavks_atom_set)
    END SUBROUTINE deallocate_nablavks_atom_set
 
@@ -850,7 +850,7 @@ CONTAINS
          NULLIFY (jrho_atom_set(iat)%jrho_a_s_iii)
          NULLIFY (jrho_atom_set(iat)%jrho_b_h_iii)
          NULLIFY (jrho_atom_set(iat)%jrho_b_s_iii)
-      ENDDO
+      END DO
    END SUBROUTINE allocate_jrho_atom_set
 
 ! **************************************************************************************************
@@ -942,7 +942,7 @@ CONTAINS
                                  jrho_atom_set(iat)%jrho_vec_rad_s(idir, i)%r_coef)
                   END DO
                END DO
-            ENDIF
+            END IF
             DEALLOCATE (jrho_atom_set(iat)%jrho_vec_rad_h, &
                         jrho_atom_set(iat)%jrho_vec_rad_s)
          END IF
@@ -977,7 +977,7 @@ CONTAINS
                    jrho1_atom%jrho_vec_rad_s(idir, ispin)%r_coef(nr, na))
          jrho1_atom%jrho_vec_rad_h(idir, ispin)%r_coef = 0.0_dp
          jrho1_atom%jrho_vec_rad_s(idir, ispin)%r_coef = 0.0_dp
-      ENDDO
+      END DO
 
       ALLOCATE (jrho1_atom%jrho_h(ispin)%r_coef(nr, max_iso_not0), &
                 jrho1_atom%jrho_s(ispin)%r_coef(nr, max_iso_not0), &
@@ -1082,7 +1082,7 @@ CONTAINS
          jrho1_atom_set(iatom)%cjc_ii_s(i)%r_coef = 0.0_dp
          jrho1_atom_set(iatom)%cjc_iii_h(i)%r_coef = 0.0_dp
          jrho1_atom_set(iatom)%cjc_iii_s(i)%r_coef = 0.0_dp
-      ENDDO
+      END DO
       CALL timestop(handle)
    END SUBROUTINE allocate_jrho_coeff
 
@@ -1113,7 +1113,7 @@ CONTAINS
                      jrho1_atom_set(iatom)%cjc_ii_s(i)%r_coef, &
                      jrho1_atom_set(iatom)%cjc_iii_h(i)%r_coef, &
                      jrho1_atom_set(iatom)%cjc_iii_s(i)%r_coef)
-      ENDDO
+      END DO
       CALL timestop(handle)
    END SUBROUTINE deallocate_jrho_coeff
 
@@ -1248,7 +1248,7 @@ CONTAINS
                NULLIFY (jrho1_atom_set(iatom)%cjc_iii_h(ispin)%r_coef)
                NULLIFY (jrho1_atom_set(iatom)%cjc_iii_s(ispin)%r_coef)
 
-            ENDDO ! ispin
+            END DO ! ispin
 
          END DO ! iat
 
@@ -1437,27 +1437,27 @@ CONTAINS
          IF (polar_env%ref_count < 1) THEN
             IF (ASSOCIATED(polar_env%polar)) THEN
                DEALLOCATE (polar_env%polar)
-            ENDIF
+            END IF
             IF (ASSOCIATED(polar_env%dBerry_psi0)) THEN
                DO idir = 1, SIZE(polar_env%dBerry_psi0, 1)
                   DO ispin = 1, SIZE(polar_env%dBerry_psi0, 2)
                      CALL cp_fm_release(polar_env%dBerry_psi0(idir, ispin)%matrix)
-                  ENDDO
-               ENDDO
+                  END DO
+               END DO
                DEALLOCATE (polar_env%dBerry_psi0)
-            ENDIF
+            END IF
             IF (ASSOCIATED(polar_env%psi1_dBerry)) THEN
                DO idir = 1, SIZE(polar_env%psi1_dBerry, 1)
                   DO ispin = 1, SIZE(polar_env%psi1_dBerry, 2)
                      CALL cp_fm_release(polar_env%psi1_dBerry(idir, ispin)%matrix)
-                  ENDDO
-               ENDDO
+                  END DO
+               END DO
                DEALLOCATE (polar_env%psi1_dBerry)
-            ENDIF
-         ENDIF
+            END IF
+         END IF
          DEALLOCATE (polar_env)
          NULLIFY (polar_env)
-      ENDIF
+      END IF
 
    END SUBROUTINE polar_env_release
 

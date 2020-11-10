@@ -130,7 +130,7 @@ CONTAINS
       IF (output_unit > 0) THEN
          CALL tmc_header(output_unit)
          CALL m_flush(output_unit)
-      ENDIF
+      END IF
       ! ugly, we need to know the output unit on source, everywhere, in particular
       ! the tmc master
       IF (output_unit .NE. default_output_unit .AND. output_unit .GT. 0) THEN
@@ -207,7 +207,7 @@ CONTAINS
                               file_action="WRITE", file_position="APPEND", &
                               unit_number=tmc_env%m_env%io_unit)
                CALL tmc_header(tmc_env%m_env%io_unit)
-            ENDIF
+            END IF
             ! print the intresting parameters and starting values
             CALL tmc_print_params(tmc_env)
             CALL print_move_types(init=.TRUE., file_io=tmc_env%m_env%io_unit, &
@@ -216,7 +216,7 @@ CONTAINS
 
             IF (bcast_output_unit .NE. tmc_env%m_env%io_unit) THEN
                CALL close_file(unit_number=tmc_env%m_env%io_unit)
-            ENDIF
+            END IF
 
             CALL cp_rm_default_logger()
             CALL cp_logger_release(logger_sub)
@@ -287,7 +287,7 @@ CONTAINS
                               file_action="WRITE", file_position="APPEND", &
                               unit_number=output_unit)
                CALL tmc_ana_header(output_unit)
-            ENDIF
+            END IF
 
             ALLOCATE (tmc_ana_env_list(tmc_env%params%nr_temp))
             tmc_ana_section => section_vals_get_subs_vals(root_section, "MOTION%TMC%TMC_ANALYSIS")
@@ -304,7 +304,7 @@ CONTAINS
             DEALLOCATE (tmc_ana_env_list)
             IF (bcast_output_unit .NE. output_unit) THEN
                CALL close_file(unit_number=tmc_env%m_env%io_unit)
-            ENDIF
+            END IF
             CALL cp_rm_default_logger()
             CALL cp_logger_release(logger_sub)
 
@@ -932,7 +932,7 @@ CONTAINS
                                        group=comm_tmp)
             ELSE
                CALL mp_comm_free(comm_tmp)
-            ENDIF
+            END IF
 
             ! worker master communication
             CALL mp_comm_split_direct(my_mpi_world, comm_tmp, master_worker_group, master_worker_rank)
@@ -943,7 +943,7 @@ CONTAINS
                                        group=comm_tmp)
             ELSE
                CALL mp_comm_free(comm_tmp)
-            ENDIF
+            END IF
 
             ! communicator only for first energy worker master and global master
             CALL mp_comm_split_direct(my_mpi_world, comm_tmp, master_first_e_worker_g, master_first_e_worker_r)
@@ -954,7 +954,7 @@ CONTAINS
                                        group=comm_tmp)
             ELSE
                CALL mp_comm_free(comm_tmp)
-            ENDIF
+            END IF
 
             ! communicator only for analysis worker and global master
             CALL mp_comm_split_direct(my_mpi_world, comm_tmp, master_ana_group, master_ana_rank)
@@ -964,7 +964,7 @@ CONTAINS
                                        group=comm_tmp)
             ELSE
                CALL mp_comm_free(comm_tmp)
-            ENDIF
+            END IF
 
             ! communicator for master only to handle external control
             master_ana_group = my_mpi_undefined
@@ -980,7 +980,7 @@ CONTAINS
                                        group=comm_tmp)
             ELSE
                CALL mp_comm_free(comm_tmp)
-            ENDIF
+            END IF
          END IF
          CALL mp_comm_free(my_mpi_world)
       END IF

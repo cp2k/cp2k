@@ -80,7 +80,7 @@ CONTAINS
          ALLOCATE (env%energy_of_frag(nfrags))
          ALLOCATE (env%nmosets_of_frag(nfrags))
          ALLOCATE (env%mos_of_frag(nfrags, mscfg_max_moset_size))
-      ENDIF
+      END IF
 
    END SUBROUTINE molecular_scf_guess_env_init
 
@@ -101,10 +101,10 @@ CONTAINS
          DO ifrag = 1, SIZE(env%mos_of_frag, 1)
             DO jfrag = 1, env%nmosets_of_frag(ifrag)
                CALL dbcsr_release(env%mos_of_frag(ifrag, jfrag))
-            ENDDO
-         ENDDO
+            END DO
+         END DO
          DEALLOCATE (env%mos_of_frag)
-      ENDIF
+      END IF
       IF (ALLOCATED(env%energy_of_frag)) DEALLOCATE (env%energy_of_frag)
       IF (ALLOCATED(env%nmosets_of_frag)) DEALLOCATE (env%nmosets_of_frag)
 
@@ -164,7 +164,7 @@ CONTAINS
          offset(1) = offset(1) + submatrix_size(1)
          offset(2) = offset(2) + submatrix_size(2)
 
-      ENDDO
+      END DO
 
       ! Check that the accumulated size of submatrices
       ! is exactly the same as the size of the big matrix
@@ -221,10 +221,10 @@ CONTAINS
          IF (offset(dimen) .GT. 0) THEN
             add_blocks_before(dimen) = add_blocks_before(dimen) + 1
             start_index = 2
-         ENDIF
+         END IF
          IF (trailing_size .GT. 0) THEN
             add_blocks_after = add_blocks_after + 1
-         ENDIF
+         END IF
 
          IF (dimen == 1) THEN !rows
             CALL dbcsr_distribution_get(dist_qs, row_dist=blk_distr)
@@ -232,7 +232,7 @@ CONTAINS
          ELSE !columns
             CALL dbcsr_distribution_get(dist_qs, col_dist=blk_distr)
             CALL dbcsr_get_info(submatrix_in, col_blk_size=blk_sizes)
-         ENDIF
+         END IF
          nblocks = SIZE(blk_sizes) ! number of blocks in the small matrix
 
          nblocks_new = nblocks + add_blocks_before(dimen) + add_blocks_after
@@ -247,7 +247,7 @@ CONTAINS
             !IF (ASSOCIATED(cluster_distr)) THEN
             !cluster_distr_new(1) = 0
             !END IF
-         ENDIF
+         END IF
          block_sizes_new(start_index:nblocks + start_index - 1) = blk_sizes(1:nblocks)
          distr_new_array(start_index:nblocks + start_index - 1) = blk_distr(1:nblocks)
          !IF (ASSOCIATED(cluster_distr)) THEN
@@ -259,7 +259,7 @@ CONTAINS
             !IF (ASSOCIATED(cluster_distr)) THEN
             !cluster_distr_new(nblocks_new) = 0
             !END IF
-         ENDIF
+         END IF
 
          ! create final arrays
          IF (dimen == 1) THEN !rows
@@ -270,8 +270,8 @@ CONTAINS
             col_sizes_new => block_sizes_new
             col_distr_new => distr_new_array
             !col_cluster_new => cluster_distr_new
-         ENDIF
-      ENDDO ! both rows and columns are done
+         END IF
+      END DO ! both rows and columns are done
 
       ! Create the distribution
       CALL dbcsr_distribution_new(dist_new, template=dist_qs, &
@@ -315,7 +315,7 @@ CONTAINS
 
          p_new_block(:, :) = data_p(:, :)
 
-      ENDDO
+      END DO
       CALL dbcsr_iterator_stop(iter)
 
       CALL dbcsr_finalize(matrix_new)

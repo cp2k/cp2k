@@ -66,14 +66,14 @@ CONTAINS
       END IF
       IF (PRESENT(subsys)) THEN
          CALL fist_env_get(qmmm_env%fist_env, subsys=subsys)
-      ENDIF
+      END IF
       IF (PRESENT(potential_energy)) THEN
          ! get the underlying energies from primary subsys.  This is the only subsys
          ! for conventional QM/MM, and force-mixing knows to put relevant energy there.
          CALL fist_env_get(qmmm_env%fist_env, thermo=thermo)
          CALL get_qs_env(qmmm_env%qs_env, energy=qs_energy)
          potential_energy = thermo%pot + qs_energy%total
-      ENDIF
+      END IF
    END SUBROUTINE qmmm_env_get
 
 ! **************************************************************************************************

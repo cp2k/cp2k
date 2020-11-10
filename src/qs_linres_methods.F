@@ -232,7 +232,7 @@ CONTAINS
          localized_wfn_control%set_of_states = state_loc_all
          localized_wfn_control%localization_method = do_loc_none
          localized_wfn_control%operator_type = op_loc_berry
-      ENDIF
+      END IF
 
       CALL qs_loc_init(qs_env, qs_loc_env, loc_section, mos_localized=mos_localized, &
                        do_homo=.TRUE.)
@@ -334,7 +334,7 @@ CONTAINS
          maxnmo = MAX(maxnmo, ncol)
          CALL cp_fm_get_info(psi0_order(ispin)%matrix, ncol_global=ncol)
          maxnmo_o = MAX(maxnmo_o, ncol)
-      ENDDO
+      END DO
       !
       CALL check_p_env_init(p_env, linres_control, nspins)
       !
@@ -344,7 +344,7 @@ CONTAINS
       DO ispin = 1, nspins
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff)
          mo_coeff_array(ispin)%matrix => mo_coeff
-      ENDDO
+      END DO
       !
       DO ispin = 1, nspins
          NULLIFY (r(ispin)%matrix, p(ispin)%matrix, z(ispin)%matrix, Ap(ispin)%matrix)
@@ -352,7 +352,7 @@ CONTAINS
          CALL cp_fm_create(p(ispin)%matrix, psi1(ispin)%matrix%matrix_struct)
          CALL cp_fm_create(z(ispin)%matrix, psi1(ispin)%matrix%matrix_struct)
          CALL cp_fm_create(Ap(ispin)%matrix, psi1(ispin)%matrix%matrix_struct)
-      ENDDO
+      END DO
       !
       ! compute S*C0, C0_order'*H*C0_order (this should be done once for all)
       ALLOCATE (chc(nspins), Sc(nspins))
@@ -365,7 +365,7 @@ CONTAINS
                                   context=mo_coeff%matrix_struct%context)
          CALL cp_fm_create(chc(ispin)%matrix, tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
-      ENDDO
+      END DO
       !
       DO ispin = 1, nspins
          !
@@ -381,7 +381,7 @@ CONTAINS
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff)
          CALL cp_fm_get_info(mo_coeff, ncol_global=ncol)
          CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, mo_coeff, Sc(ispin)%matrix, ncol)
-      ENDDO
+      END DO
       !
       !
       !
@@ -390,7 +390,7 @@ CONTAINS
          WRITE (iounit, "(/,T3,A,T16,A,T25,A,T38,A,T52,A,T72,A,/,T3,A)") &
             "Iteration", "Method", "Restart", "Stepsize", "Convergence", "Time", &
             REPEAT("-", 78)
-      ENDIF
+      END IF
       !
       ! orthogonalize x with respect to the psi0
       CALL preortho(psi1, mo_coeff_array, Sc)
@@ -412,10 +412,10 @@ CONTAINS
                                            matrix_ks(ispin)%matrix, matrix_s(1)%matrix, matrix_x, &
                                            mos(ispin)%mo_set, linres_control%energy_gap)
                END IF
-            ENDDO
+            END DO
             p_env%new_preconditioner = .FALSE.
-         ENDIF
-      ENDIF
+         END IF
+      END IF
       !
       ! initialization of the linear solver
       !
@@ -427,7 +427,7 @@ CONTAINS
       DO ispin = 1, nspins
          CALL cp_fm_to_fm(h1_psi0(ispin)%matrix, r(ispin)%matrix)
          CALL cp_fm_scale_and_add(-1.0_dp, r(ispin)%matrix, -1.0_dp, Ap(ispin)%matrix)
-      ENDDO
+      END DO
       !
       ! proj r
       CALL postortho(r, mo_coeff_array, Sc)
@@ -439,7 +439,7 @@ CONTAINS
          ! z_0 = r_0
          DO ispin = 1, nspins
             CALL cp_fm_to_fm(r(ispin)%matrix, z(ispin)%matrix)
-         ENDDO
+         END DO
          linres_control%flag = "CG"
       ELSE
          !
@@ -447,9 +447,9 @@ CONTAINS
          DO ispin = 1, nspins
             CALL apply_preconditioner(p_env%preconditioner(ispin), r(ispin)%matrix, &
                                       z(ispin)%matrix)
-         ENDDO
+         END DO
          linres_control%flag = "PCG"
-      ENDIF
+      END IF
       !
       norm_res = 0.0_dp
       DO ispin = 1, nspins
@@ -461,7 +461,7 @@ CONTAINS
          CALL cp_fm_trace(r(ispin)%matrix, z(ispin)%matrix, tr_rz0(ispin))
          IF (tr_rz0(ispin) .LT. 0.0_dp) CPABORT("tr(r_j*z_j) < 0")
          norm_res = MAX(norm_res, ABS(tr_rz0(ispin))/SQRT(REAL(nao*maxnmo_o, dp)))
-      ENDDO
+      END DO
       !
       alpha(:) = 0.0_dp
       restart = .FALSE.
@@ -472,7 +472,7 @@ CONTAINS
          linres_control%converged = .FALSE.
          IF (norm_res .LT. linres_control%eps) THEN
             linres_control%converged = .TRUE.
-         ENDIF
+         END IF
          !
          t2 = m_walltime()
          IF (iter .EQ. 1 .OR. MOD(iter, 1) .EQ. 0 .OR. linres_control%converged .OR. restart .OR. should_stop) THEN
@@ -480,14 +480,14 @@ CONTAINS
                WRITE (iounit, "(T5,I5,T18,A3,T28,L1,T38,1E8.2,T48,F16.10,T68,F8.2)") &
                   iter, linres_control%flag, restart, MAXVAL(alpha), norm_res, t2 - t1
                CALL m_flush(iounit)
-            ENDIF
-         ENDIF
+            END IF
+         END IF
          !
          IF (linres_control%converged) THEN
             IF (iounit > 0) THEN
                WRITE (iounit, "(/,T2,A,I4,A,/)") "The linear solver converged in ", iter, " iterations."
                CALL m_flush(iounit)
-            ENDIF
+            END IF
             EXIT iteration
          ELSE IF (should_stop) THEN
             IF (iounit > 0) THEN
@@ -495,7 +495,7 @@ CONTAINS
                CALL m_flush(iounit)
             END IF
             EXIT iteration
-         ENDIF
+         END IF
          !
          ! Max number of iteration reached
          IF (iter == linres_control%max_iter) THEN
@@ -503,9 +503,9 @@ CONTAINS
                WRITE (iounit, "(/,T2,A/)") &
                   "The linear solver didnt converge! Maximum number of iterations reached."
                CALL m_flush(iounit)
-            ENDIF
+            END IF
             linres_control%converged = .FALSE.
-         ENDIF
+         END IF
          !
          ! Apply the operators that do not depend on the perturbation
          CALL apply_op(qs_env, p_env, psi0_order, p, Ap, chc)
@@ -542,11 +542,11 @@ CONTAINS
                alpha(ispin) = 1.0_dp
             ELSE
                alpha(ispin) = tr_rz0(ispin)/tr_pAp(ispin)
-            ENDIF
+            END IF
             !
             ! x_j+1 = x_j + alpha * p_j
             CALL cp_fm_scale_and_add(1.0_dp, psi1(ispin)%matrix, alpha(ispin), p(ispin)%matrix)
-         ENDDO
+         END DO
          !
          ! need to recompute the residue
          restart = .FALSE.
@@ -559,7 +559,7 @@ CONTAINS
                CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff)
                CALL cp_fm_to_fm(h1_psi0(ispin)%matrix, r(ispin)%matrix)
                CALL cp_fm_scale_and_add(-1.0_dp, r(ispin)%matrix, -1.0_dp, Ap(ispin)%matrix)
-            ENDDO
+            END DO
             CALL postortho(r, mo_coeff_array, Sc)
             !
             restart = .TRUE.
@@ -570,9 +570,9 @@ CONTAINS
             ! r_j+1 = r_j - alpha * Ap_j
             DO ispin = 1, nspins
                CALL cp_fm_scale_and_add(1.0_dp, r(ispin)%matrix, -alpha(ispin), Ap(ispin)%matrix)
-            ENDDO
+            END DO
             restart = .FALSE.
-         ENDIF
+         END IF
          !
          ! preconditioner
          linres_control%flag = ""
@@ -581,7 +581,7 @@ CONTAINS
             ! z_j+1 = r_j+1
             DO ispin = 1, nspins
                CALL cp_fm_to_fm(r(ispin)%matrix, z(ispin)%matrix)
-            ENDDO
+            END DO
             linres_control%flag = "CG"
          ELSE
             !
@@ -589,9 +589,9 @@ CONTAINS
             DO ispin = 1, nspins
                CALL apply_preconditioner(p_env%preconditioner(ispin), r(ispin)%matrix, &
                                          z(ispin)%matrix)
-            ENDDO
+            END DO
             linres_control%flag = "PCG"
-         ENDIF
+         END IF
          !
          norm_res = 0.0_dp
          DO ispin = 1, nspins
@@ -606,19 +606,19 @@ CONTAINS
                beta(ispin) = 0.0_dp
             ELSE
                beta(ispin) = tr_rz1(ispin)/tr_rz0(ispin)
-            ENDIF
+            END IF
             !
             ! p_j+1 = z_j+1 + beta * p_j
             CALL cp_fm_scale_and_add(beta(ispin), p(ispin)%matrix, 1.0_dp, z(ispin)%matrix)
             tr_rz00(ispin) = tr_rz0(ispin)
             tr_rz0(ispin) = tr_rz1(ispin)
-         ENDDO
+         END DO
 
          ! Can we exit the SCF loop?
          CALL external_control(should_stop, "LINRES", target_time=qs_env%target_time, &
                                start_time=qs_env%start_time)
 
-      ENDDO iteration
+      END DO iteration
       !
       ! proj psi1
       CALL preortho(psi1, mo_coeff_array, Sc)
@@ -632,7 +632,7 @@ CONTAINS
          !
          CALL cp_fm_release(Sc(ispin)%matrix)
          CALL cp_fm_release(chc(ispin)%matrix)
-      ENDDO
+      END DO
       DEALLOCATE (alpha, beta, tr_pAp, tr_rz0, tr_rz00, tr_rz1, r, p, z, Ap, Sc, chc, mo_coeff_array)
       !
       CALL timestop(handle)
@@ -682,23 +682,23 @@ CONTAINS
       DO ispin = 1, nspins
          CALL apply_op_1(v(ispin)%matrix, Av(ispin)%matrix, matrix_ks(ispin)%matrix, &
                          matrix_s(1)%matrix, chc(ispin)%matrix)
-      ENDDO
+      END DO
 
       IF (linres_control%do_kernel) THEN
 
          ! build DM, refill p1, build_dm_response keeps sparse structure
          DO ispin = 1, nspins
             CALL dbcsr_copy(p_env%p1(ispin)%matrix, matrix_s(1)%matrix)
-         ENDDO
+         END DO
          CALL build_dm_response(c0, v, p_env%p1)
          DO ispin = 1, nspins
             CALL dbcsr_filter(p_env%p1(ispin)%matrix, linres_control%eps_filter)
-         ENDDO
+         END DO
 
          chksum = 0.0_dp
          DO ispin = 1, nspins
             chksum = chksum + dbcsr_checksum(p_env%p1(ispin)%matrix)
-         ENDDO
+         END DO
 
          ! skip the kernel if the DM is very small
          IF (chksum .GT. 1.0E-14_dp) THEN
@@ -708,7 +708,7 @@ CONTAINS
             CALL qs_rho_get(p_env%rho1, rho_ao=rho1_ao)
             DO ispin = 1, nspins
                CALL dbcsr_copy(rho1_ao(ispin)%matrix, p_env%p1(ispin)%matrix)
-            ENDDO
+            END DO
 
             CALL qs_rho_update_rho(rho_struct=p_env%rho1, &
                                    local_rho_set=p_env%local_rho_set, &
@@ -719,9 +719,9 @@ CONTAINS
 
             CALL apply_op_2(qs_env, p_env, c0, v, Av)
 
-         ENDIF
+         END IF
 
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -757,7 +757,7 @@ CONTAINS
                                     matrix_v=c1(ispin)%matrix, &
                                     matrix_g=c0(ispin)%matrix, &
                                     ncol=ncol, alpha=1.0_dp)
-      ENDDO
+      END DO
 
    END SUBROUTINE build_dm_response
 
@@ -923,7 +923,7 @@ CONTAINS
                          lri_env=lri_env, &
                          lri_density=lri_density, &
                          atomic_kind_set=atomic_kind_set)
-      ENDIF
+      END IF
 
       CALL qs_rho_get(rho, rho_ao=rho_ao)
 
@@ -980,7 +980,7 @@ CONTAINS
                                energy_hartree, &
                                v_hartree_gspace%pw)
          CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw)
-      ENDIF
+      END IF
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho1_tot_gspace%pw)
 
@@ -1243,14 +1243,14 @@ CONTAINS
                IF (.NOT. (lr_triplet)) THEN
                   v_rspace_new(1)%pw%cr3d = 2.0_dp*v_rspace_new(1)%pw%cr3d
 
-               ENDIF
+               END IF
 
                ! add hartree only for SINGLETS
                !IF (res_etype == tddfpt_singlet) THEN
                IF (.NOT. lr_triplet) THEN
                   v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d* &
                                              v_hartree_rspace%pw%pw_grid%dvol
-                  v_rspace_new(1)%pw%cr3d = v_rspace_new(1)%pw%cr3d+ &
+                  v_rspace_new(1)%pw%cr3d = v_rspace_new(1)%pw%cr3d + &
                                             2.0_dp*v_hartree_rspace%pw%cr3d
                END IF
             ELSE
@@ -1258,7 +1258,7 @@ CONTAINS
                   v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d* &
                                              v_hartree_rspace%pw%pw_grid%dvol
                END IF
-               v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d+ &
+               v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d + &
                                              v_hartree_rspace%pw%cr3d
             END IF
 
@@ -1358,7 +1358,7 @@ CONTAINS
                                       c0(ispin)%matrix, &
                                       Av(ispin)%matrix, &
                                       ncol=ncol, alpha=1.0_dp, beta=1.0_dp)
-      ENDDO
+      END DO
 
       CALL timestop(handle)
 
@@ -1432,7 +1432,7 @@ CONTAINS
 
       DO ispin = 1, nspins
          CALL dbcsr_set(p_env%kpp1(ispin)%matrix, 0.0_dp)
-      ENDDO
+      END DO
 
       IF (dft_control%qs_control%xtb_control%coulomb_interaction) THEN
          ! Mulliken charges
@@ -1486,7 +1486,7 @@ CONTAINS
                                       c0(ispin)%matrix, &
                                       Av(ispin)%matrix, &
                                       ncol=ncol, alpha=1.0_dp, beta=1.0_dp)
-      ENDDO
+      END DO
 
       CALL timestop(handle)
 
@@ -1580,7 +1580,7 @@ CONTAINS
                                           ncol=ncol, alpha=1.0_dp)
                CALL cp_dbcsr_plus_fm_fm_t(rho1_ao(ispin)%matrix, matrix_v=tc0, matrix_g=tv, &
                                           ncol=ncol, alpha=1.0_dp)
-            ENDDO
+            END DO
          ELSE
             NULLIFY (work, rho1_ao)
             CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
@@ -1892,7 +1892,7 @@ CONTAINS
                                     ncol=ncol, alpha=1.0_dp)
          CALL cp_dbcsr_plus_fm_fm_t(rho1_ao(ispin)%matrix, matrix_v=tc0, matrix_g=tc1, &
                                     ncol=ncol, alpha=1.0_dp)
-      ENDDO
+      END DO
 
       DO ispin = 1, nspins
          CALL calculate_rho_elec(matrix_p=rho1_ao(ispin)%matrix, &
@@ -2047,9 +2047,9 @@ CONTAINS
 
          DO ispin = 1, SIZE(my_rho_r)
             CALL pw_release(my_rho_r(ispin)%pw)
-         ENDDO
+         END DO
          DEALLOCATE (my_rho_r)
-      ENDIF
+      END IF
 
       ! ADMM Correction
       IF (dft_control%do_admm) THEN
@@ -2117,7 +2117,7 @@ CONTAINS
          CALL cp_gemm('N', 'T', nv, mv, mp, -1.0_dp, psi0(ispin)%matrix, buf, 1.0_dp, v(ispin)%matrix)
          !
          CALL cp_fm_release(buf)
-      ENDDO
+      END DO
       !
       CALL timestop(handle)
       !
@@ -2172,7 +2172,7 @@ CONTAINS
          CALL cp_gemm('N', 'T', nv, mv, mp, -1.0_dp, S_psi0(ispin)%matrix, buf, 1.0_dp, v(ispin)%matrix)
          !
          CALL cp_fm_release(buf)
-      ENDDO
+      END DO
       !
       CALL timestop(handle)
       !
@@ -2278,15 +2278,15 @@ CONTAINS
                ! restarts with a different number of CPUs
                DO j = 1, i_block
                   IF (rst_unit > 0) WRITE (rst_unit) vecbuffer(1:nao, j)
-               ENDDO
-            ENDDO
-         ENDDO
+               END DO
+            END DO
+         END DO
 
          DEALLOCATE (vecbuffer)
 
          CALL cp_print_key_finished_output(rst_unit, logger, linres_section, &
                                            "PRINT%RESTART")
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -2362,7 +2362,7 @@ CONTAINS
             print_key => section_vals_get_subs_vals(linres_section, "PRINT%RESTART")
             filename = cp_print_key_generate_filename(logger, print_key, &
                                                       extension=".lr", middle_name=TRIM(my_middle), my_local=.FALSE.)
-         ENDIF
+         END IF
          INQUIRE (FILE=filename, exist=file_exists)
          !
          ! open file
@@ -2379,8 +2379,8 @@ CONTAINS
          ELSE
             IF (iounit > 0) WRITE (iounit, "(T2,A)") &
                "LINRES| Restart file  <"//TRIM(ADJUSTL(filename))//"> not found"
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       CALL mp_bcast(file_exists, source, group)
 
@@ -2431,28 +2431,28 @@ CONTAINS
                   i_block = MIN(max_block, nmo - i + 1)
                   DO j = 1, i_block
                      IF (rst_unit > 0) READ (rst_unit) vecbuffer(1:nao, j)
-                  ENDDO
+                  END DO
                   IF (iv .EQ. ivec_tmp) THEN
                      CALL mp_bcast(vecbuffer, source, group)
                      CALL cp_fm_set_submatrix(vec(ispin)%matrix, vecbuffer, 1, i, nao, i_block)
-                  ENDIF
-               ENDDO
-            ENDDO
+                  END IF
+               END DO
+            END DO
             IF (ivec .EQ. ivec_tmp) EXIT
-         ENDDO
+         END DO
 
          IF (iostat /= 0) THEN
             IF (iounit > 0) WRITE (iounit, "(T2,A)") &
                "LINRES| Restart file <"//TRIM(ADJUSTL(filename))//"> not found"
-         ENDIF
+         END IF
 
          DEALLOCATE (vecbuffer)
 
-      ENDIF
+      END IF
 
       IF (para_env%ionode) THEN
          IF (file_exists) CALL close_file(unit_number=rst_unit)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -2489,8 +2489,8 @@ CONTAINS
             CALL cp_fm_get_info(p_env%PS_psi0(ispin)%matrix, nrow_global=nrow, ncol_global=ncol)
             CPASSERT(nrow == p_env%n_ao(ispin))
             CPASSERT(ncol == p_env%n_mo(ispin))
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
    END SUBROUTINE check_p_env_init
 

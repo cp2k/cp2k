@@ -150,7 +150,7 @@ CONTAINS
          CALL timeset(routineN//"_forces", handle)
       ELSE
          CALL timeset(routineN, handle)
-      ENDIF
+      END IF
 
       nkind = SIZE(atomic_kind_set)
       natom = SIZE(particle_set)
@@ -332,7 +332,7 @@ CONTAINS
                                                               TRANSPOSE(sphi_b(1:ncob, sgfb:sgfb + nsgfb(jset) - 1)))
                   END DO
                END DO
-            ENDIF
+            END IF
          END IF
 
          hab = 0._dp
@@ -608,7 +608,7 @@ CONTAINS
          CALL timeset(routineN//"_forces", handle)
       ELSE
          CALL timeset(routineN, handle)
-      ENDIF
+      END IF
 
       nkind = SIZE(atomic_kind_set)
       natom = SIZE(particle_set)

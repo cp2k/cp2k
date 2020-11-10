@@ -1044,14 +1044,14 @@ CONTAINS
 
             DO jb = 1, nb
                fmat(ib, jb) = fmat(jb, ib)
-            ENDDO
+            END DO
 
             DO jb = 1, nb
                a(jb, jb) = weight(jb, ispin)*weight(jb, ispin)*fmat(jb, jb)
                DO kb = 1, jb - 1
                   a(jb, kb) = weight(jb, ispin)*weight(kb, ispin)*fmat(jb, kb)
                   a(kb, jb) = weight(jb, ispin)*weight(kb, ispin)*fmat(kb, jb)
-               ENDDO
+               END DO
             END DO
             IF (.TRUE.) THEN
                b = 0.0_dp
@@ -1073,9 +1073,9 @@ CONTAINS
                      aval(kb) = 0.0_dp
                   ELSE
                      aval(kb) = 1.0_dp/aval(kb)
-                  ENDIF
+                  END IF
                   av(kb, :) = av(kb, :)*aval(kb)
-               ENDDO
+               END DO
                CALL DGEMM('T', 'T', ib - 1, ib - 1, ib - 1, 1.0_dp, av, ib - 1, au, ib - 1, 0.0_dp, b, ib - 1)
                DEALLOCATE (iwork, aval, au, av, work_dgesdd, work)
             END IF

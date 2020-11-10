@@ -169,9 +169,9 @@ CONTAINS
             CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control, &
                                     para_env, matrix_s(1, 1)%matrix, rho_ao, energy=energy%mulliken, &
                                     ks_matrix=ksmat, order_p=mulliken_order_p)
-         ENDIF
+         END IF
 
-      ENDIF
+      END IF
 
    END SUBROUTINE qs_ks_mulliken_restraint
 
@@ -217,7 +217,7 @@ CONTAINS
             CALL get_mo_set(mo_set=mo_array(i)%mo_set, mo_coeff=mo_coeff) !fm->dbcsr
             CALL cp_fm_create(fm_mo_derivs(i)%matrix, mo_coeff%matrix_struct) !fm->dbcsr
             CALL copy_dbcsr_to_fm(mo_derivs(i)%matrix, fm_mo_derivs(i)%matrix) !fm->dbcsr
-         ENDDO !fm->dbcsr
+         END DO !fm->dbcsr
 
          smat => matrix_s(:, 1)
          CALL s2_restraint(mo_array, smat, fm_mo_derivs, energy%s2_restraint, &
@@ -225,12 +225,12 @@ CONTAINS
 
          DO i = 1, SIZE(mo_derivs, 1) !fm->dbcsr
             CALL copy_fm_to_dbcsr(fm_mo_derivs(i)%matrix, mo_derivs(i)%matrix) !fm->dbcsr
-         ENDDO !fm->dbcsr
+         END DO !fm->dbcsr
          DEALLOCATE (fm_mo_derivs) !fm->dbcsr
 
       ELSE
          energy%s2_restraint = 0.0_dp
-      ENDIF
+      END IF
    END SUBROUTINE qs_ks_s2_restraint
 
 END MODULE qs_ks_apply_restraints

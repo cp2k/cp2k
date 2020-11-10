@@ -324,11 +324,11 @@ CONTAINS
                      np = np + 1
                   END IF
                END DO
-            ENDIF
-         ENDDO
+            END IF
+         END DO
          maxnprj = MAX(maxnprj, np)
          paw_proj%nprj(lshell) = np
-      ENDDO ! lshell
+      END DO ! lshell
 
       !   *** Allocate exponents and coefficients ***
       ALLOCATE (paw_proj%zetprj(maxnprj, 0:maxl))
@@ -375,8 +375,8 @@ CONTAINS
                      notprj = notprj + 1
                   END IF
                END DO
-            ENDIF
-         ENDDO ! iset
+            END IF
+         END DO ! iset
 
          !     *** Smallest exp. due to eps_iso: concerned as an isolated projector ***
          paw_proj%zisomin(lshell) = gauss_exponent(lshell, rc, eps_iso, 1.0_dp)
@@ -417,8 +417,8 @@ CONTAINS
             IF (.NOT. isoprj(ip)) THEN
                zetp(ip) = zetval
                zetval = x*zetval
-            ENDIF
-         ENDDO
+            END IF
+         END DO
 
          paw_proj%zprjisomin(lshell) = zetval
 
@@ -428,8 +428,8 @@ CONTAINS
                zetp(ip) = zetval
                zetval = x*zetval
                nisop = nisop + 1
-            ENDIF
-         ENDDO
+            END IF
+         END DO
 
          !     *** Build the overlap matrix: <projector|primitive> ***
          prefac = 0.5_dp**(lshell + 2)*rootpi*dfac(2*lshell + 1)
@@ -442,10 +442,10 @@ CONTAINS
                DO jp = 1, np
                   IF (.NOT. isoprj(jp)) THEN
                      smat(ip, jp) = prefac/(zetp(ip) + zet(jp))**expzet
-                  ENDIF
-               ENDDO
-            ENDIF
-         ENDDO
+                  END IF
+               END DO
+            END IF
+         END DO
 
          !     FIXME ... catch the case where np == 0
          CPASSERT(np > 0)
@@ -469,19 +469,19 @@ CONTAINS
                   S(k) = 0.0_dp
                ELSE
                   S(k) = 1.0_dp/S(k)
-               ENDIF
+               END IF
                VT(k, :) = VT(k, :)*S(k)
-            ENDDO
+            END DO
             CALL DGEMM('T', 'T', np, np, np, 1.0_dp, VT, np, U, np, 0.0_dp, gcc, np)
             DEALLOCATE (iwork, S, U, VT, work_dgesdd)
-         ENDIF
+         END IF
 
          !     *** Set the coefficient of the isolated projectors to 0 ***
          DO ip = 1, np
             IF (isoprj(ip)) THEN
                gcc(ip, ip) = 0.0_dp
-            ENDIF
-         ENDDO
+            END IF
+         END DO
 
          !     *** Transfer data from local to global variables ***
 
@@ -501,8 +501,8 @@ CONTAINS
                      paw_proj%gccprj(1:np, ip, lshell, iset) = 0.0_dp
                   END IF
                END DO
-            ENDIF
-         ENDDO ! iset
+            END IF
+         END DO ! iset
 
          !     *** Print exponents and coefficients of the projectors ***
          IF (output_unit > 0) THEN
@@ -520,16 +520,16 @@ CONTAINS
                         "exp gto: ", orb_basis%zet(jp, iset), &
                         "coeff.:  ", (paw_proj%gccprj(ip, jp, &
                                                       lshell, iset), ip=1, np)
-                  ENDDO
-               ENDIF
-            ENDDO ! iset
+                  END DO
+               END IF
+            END DO ! iset
          END IF
 
          !   *** Release the working storage for the current value lshell ***
          DEALLOCATE (isoprj)
          DEALLOCATE (gcc, zet, zetp, smat, work)
 
-      ENDDO ! lshell
+      END DO ! lshell
       CALL cp_print_key_finished_output(output_unit, logger, force_env_section, &
                                         "DFT%PRINT%GAPW%PROJECTORS")
 
@@ -543,7 +543,7 @@ CONTAINS
       DO lshell = 0, maxl
          paw_proj%ncgauprj = paw_proj%ncgauprj + nco(lshell)*paw_proj%nprj(lshell)
          paw_proj%nsgauprj = paw_proj%nsgauprj + nso(lshell)*paw_proj%nprj(lshell)
-      ENDDO
+      END DO
 
       ncgauprj = paw_proj%ncgauprj
       nsgauprj = paw_proj%nsgauprj
@@ -571,14 +571,14 @@ CONTAINS
                paw_proj%lx(ncgauprj) = indco(1, ico)
                paw_proj%ly(ncgauprj) = indco(2, ico)
                paw_proj%lz(ncgauprj) = indco(3, ico)
-            ENDDO ! ico
+            END DO ! ico
             DO iso = nsoset(lshell - 1) + 1, nsoset(lshell)
                nsgauprj = nsgauprj + 1
                paw_proj%ll(nsgauprj) = indso(1, iso)
                paw_proj%m(nsgauprj) = indso(2, iso)
-            ENDDO
-         ENDDO ! ip
-      ENDDO ! lshell
+            END DO
+         END DO ! ip
+      END DO ! lshell
 
       ms = 0
       DO iset = 1, orb_basis%nset
@@ -595,12 +595,12 @@ CONTAINS
                      iso = iso + (ipgf - 1)*ns + ms
                      paw_proj%cprj_s(iprjs, iso) = &
                         paw_proj%gccprj(ip, ipgf, lshell, iset)
-                  ENDDO ! iprjs
-               ENDDO ! ip
-            ENDDO ! ipgf
-         ENDDO ! lshell
+                  END DO ! iprjs
+               END DO ! ip
+            END DO ! ipgf
+         END DO ! lshell
          ms = ms + maxso
-      ENDDO ! iset
+      END DO ! iset
 
       ms = 0
       DO iset = 1, orb_basis%nset
@@ -623,14 +623,14 @@ CONTAINS
                                                       orbtramat(lshell)%s2c(ic, il)*paw_proj%cprj_s(iprjs, iso)* &
                                                       SQRT(dfac(2*lshell + 1)/(4.0_dp*pi)/ &
                                                            dfac(2*lx - 1)*dfac(2*ly - 1)*dfac(2*lz - 1))
-                        ENDDO ! ic
-                     ENDDO ! il
-                  ENDDO ! ip
-               ENDDO ! lshell
-            ENDDO ! iso
-         ENDDO ! ipgf
+                        END DO ! ic
+                     END DO ! il
+                  END DO ! ip
+               END DO ! lshell
+            END DO ! iso
+         END DO ! ipgf
          ms = ms + maxso
-      ENDDO ! iset
+      END DO ! iset
 
       !   local coefficients for the one center expansions : oce
       !   the coefficients are calculated for the full and soft expansions
@@ -668,11 +668,11 @@ CONTAINS
                   ELSE
                      paw_proj%local_oce_cphi_s(icomin:icomax, icgf) = &
                         cphi(icomin:icomax, icgf)
-                  ENDIF
+                  END IF
                END DO
-            ENDDO ! ishell
-         ENDDO ! ipgf
-      ENDDO ! iset
+            END DO ! ishell
+         END DO ! ipgf
+      END DO ! iset
 
       DO iset = 1, nset
          n = ncoset(lmax(iset))
@@ -693,11 +693,11 @@ CONTAINS
                   ELSE
                      paw_proj%sphi_s(icomin:icomax, isgf) = &
                         sphi(icomin:icomax, isgf)
-                  ENDIF
+                  END IF
                END DO
-            ENDDO ! ishell
-         ENDDO ! ipgf
-      ENDDO ! iset
+            END DO ! ishell
+         END DO ! ipgf
+      END DO ! iset
 
       DO iset = 1, nset
          n = ncoset(lmax(iset))
@@ -835,7 +835,7 @@ CONTAINS
 
       ELSE
          CPABORT("The pointer  paw_proj_set is not associated")
-      ENDIF
+      END IF
 
    END SUBROUTINE get_paw_proj_set
 

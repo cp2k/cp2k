@@ -305,7 +305,7 @@ CONTAINS
                ! so the dot_product is the sum over all elements of the hamand product, that I need
                force(ikind)%ehrenfest(i, kind_atom) = force(ikind)%ehrenfest(i, kind_atom) + &
                                                       2.0_dp*DOT_PRODUCT(block_values, block_values2)
-            ENDIF
+            END IF
          END DO
          CALL dbcsr_iterator_stop(iter)
 
@@ -322,7 +322,7 @@ CONTAINS
                ! the sum over all elements of the hamand product, that I need
                force(ikind)%ehrenfest(i, kind_atom) = force(ikind)%ehrenfest(i, kind_atom) + &
                                                       2.0_dp*DOT_PRODUCT(block_values, block_values2)
-            ENDIF
+            END IF
          END DO
          CALL dbcsr_iterator_stop(iter)
       END DO

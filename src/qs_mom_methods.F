@@ -94,7 +94,7 @@ CONTAINS
             CPABORT("MOM: all molecular orbital indices must be positive integer numbers")
 
          DEALLOCATE (tmp_iarr)
-      ENDIF
+      END IF
 
       is_unique = .TRUE.
 
@@ -154,14 +154,14 @@ CONTAINS
             ELSE
                iorb = occ_orb_set(norbs)
                str_prefix = ''
-            ENDIF
+            END IF
             CALL integer_to_string(iorb, str_iorb)
 
             CALL cp_abort(__LOCATION__, "Unable to "//TRIM(str_prefix)//"occupy "// &
                           TRIM(spin)//" orbital No. "//TRIM(str_iorb)// &
                           " since its index exceeds the number of atomic orbital functions available ("// &
                           TRIM(str_norbs)//"). Please consider using a larger basis set.")
-         ENDIF
+         END IF
 
          IF (deocc_orb_set(norbs) > nmo .OR. occ_orb_set(norbs) > nmo) THEN
             ! STOP: one of the molecular orbital index exceeds the number of constructed molecular orbitals
@@ -169,7 +169,7 @@ CONTAINS
                iorb = deocc_orb_set(norbs)
             ELSE
                iorb = occ_orb_set(norbs)
-            ENDIF
+            END IF
 
             IF (iorb - nmo > 1) THEN
                CALL integer_to_string(iorb - nmo, str_iorb)
@@ -177,7 +177,7 @@ CONTAINS
             ELSE
                str_iorb = 'an'
                str_prefix = ''
-            ENDIF
+            END IF
 
             CALL integer_to_string(nmo, str_norbs)
 
@@ -185,7 +185,7 @@ CONTAINS
                           ") is not enough to perform MOM calculation. Please add "// &
                           TRIM(str_iorb)//" extra orbital"//TRIM(str_prefix)// &
                           " using the ADDED_MOS keyword in the SCF section of your input file.")
-         ENDIF
+         END IF
 
          DO iorb = 1, norbs
             ! swap occupation numbers between two adjoint molecular orbitals
@@ -194,35 +194,35 @@ CONTAINS
 
                CALL cp_abort(__LOCATION__, "The "//TRIM(spin)//" orbital No. "// &
                              TRIM(str_iorb)//" is not occupied thus it cannot be deoccupied.")
-            ENDIF
+            END IF
 
             IF (occ_nums(occ_orb_set(iorb)) > 0.0_dp) THEN
                CALL integer_to_string(occ_orb_set(iorb), str_iorb)
 
                CALL cp_abort(__LOCATION__, "The "//TRIM(spin)//" orbital No. "// &
                              TRIM(str_iorb)//" is already occupied thus it cannot be reoccupied.")
-            ENDIF
+            END IF
 
             occ_nums(occ_orb_set(iorb)) = occ_nums(deocc_orb_set(iorb))
             occ_nums(deocc_orb_set(iorb)) = 0.0_dp
-         ENDDO
+         END DO
 
          ! locate the lowest non-maxocc occupied orbital
          DO lfomo = 1, nmo
             IF (occ_nums(lfomo) /= maxocc) EXIT
-         ENDDO
+         END DO
 
          ! locate the highest occupied orbital
          DO homo = nmo, 1, -1
             IF (occ_nums(homo) > 0.0_dp) EXIT
-         ENDDO
+         END DO
 
          CALL set_mo_set(mo_set=mo_set, homo=homo, lfomo=lfomo)
 
       ELSE IF (deocc_orb_set(1) /= 0 .OR. occ_orb_set(1) /= 0) THEN
          CALL cp_abort(__LOCATION__, &
                        "Incorrect multiplicity of the MOM reference electronic state")
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -276,7 +276,7 @@ CONTAINS
 
          CALL cp_warn(__LOCATION__, "Maximum overlap method will"// &
                       " ignore beta orbitals since neither UKS nor ROKS calculation is performed")
-      ENDIF
+      END IF
 
       ! compute the change in multiplicity and number of electrons
       IF (SIZE(scf_control%diagonalization%mom_deoccA) /= &
@@ -287,7 +287,7 @@ CONTAINS
 
          CALL cp_abort(__LOCATION__, "Incorrect multiplicity of the MOM reference"// &
                        " electronic state or inconsistent number of electrons")
-      ENDIF
+      END IF
 
       is_mo = .FALSE.
       ! by default activate MOM at the second SCF iteration as the
@@ -305,8 +305,8 @@ CONTAINS
             ! activate MOM immediately if the input keyword START_ITER is not given
             scf_iter = 1
             EXIT
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       ! proceed alpha orbitals
       IF (nspins >= 1) &
@@ -326,8 +326,8 @@ CONTAINS
       IF (is_mo) THEN
          DO ispin = 1, nspins
             CALL calculate_density_matrix(mos(ispin)%mo_set, p_rmpv(ispin)%matrix)
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       ! adjust the start SCF iteration number if needed
       IF (scf_control%diagonalization%mom_start < scf_iter) THEN
@@ -338,7 +338,7 @@ CONTAINS
             CALL cp_warn(__LOCATION__, &
                          "The maximum overlap method will be activated at the SCF iteration No. "// &
                          TRIM(str_iter)//" due to the SCF guess method used.")
-         ENDIF
+         END IF
          scf_control%diagonalization%mom_start = scf_iter
       ELSE IF (scf_control%diagonalization%mom_start > scf_iter .AND. &
                (scf_control%diagonalization%mom_occA(1) > 0 .OR. scf_control%diagonalization%mom_occB(1) > 0)) THEN
@@ -348,7 +348,7 @@ CONTAINS
                       "The maximum overlap method will be activated at the SCF iteration No. "// &
                       TRIM(str_iter)//" because an excited state calculation has been requested")
          scf_control%diagonalization%mom_start = scf_iter
-      ENDIF
+      END IF
 
       ! MOM is now initialised properly
       scf_control%diagonalization%mom_didguess = .TRUE.
@@ -503,7 +503,7 @@ CONTAINS
             ! reorder occupation numbers according to overlap projections
             DO iproj = 1, nmo
                occ_nums(inds(iproj)) = tmp_occ_nums(iproj)
-            ENDDO
+            END DO
 
             DEALLOCATE (tmp_occ_nums)
             DEALLOCATE (inds)
@@ -512,16 +512,16 @@ CONTAINS
             ! locate the lowest non-fully occupied orbital
             DO lfomo = 1, nmo
                IF (occ_nums(lfomo) /= maxocc) EXIT
-            ENDDO
+            END DO
 
             ! locate the highest occupied orbital
             DO homo = nmo, 1, -1
                IF (occ_nums(homo) > 0.0_dp) EXIT
-            ENDDO
+            END DO
 
             CALL set_mo_set(mo_set=mos(ispin)%mo_set, homo=homo, lfomo=lfomo)
          END DO
-      ENDIF
+      END IF
 
       ! recompute density matrix
       DO ispin = 1, nspins

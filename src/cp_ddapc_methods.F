@@ -137,7 +137,7 @@ CONTAINS
          g2 = rho_tot_g%pw_grid%gsq(ig)
          IF (g2 > gcut2) EXIT
          igmax = ig
-      ENDDO
+      END DO
       IF (igmax .GE. s_dim) THEN
          ALLOCATE (my_bv(s_dim:igmax))
          ALLOCATE (my_bvw(s_dim:igmax))
@@ -218,7 +218,7 @@ CONTAINS
          g2 = rho_tot_g%pw_grid%gsq(ig)
          IF (g2 > gcut2) EXIT
          igmax = ig
-      ENDDO
+      END DO
       IF (igmax .GE. s_dim) THEN
          ALLOCATE (my_Am(s_dim:igmax))
          ALLOCATE (my_Amw(s_dim:igmax))
@@ -303,7 +303,7 @@ CONTAINS
          g2 = rho_tot_g%pw_grid%gsq(ig)
          IF (g2 > gcut2) EXIT
          igmax = ig
-      ENDDO
+      END DO
       IF (igmax .GE. s_dim) THEN
          ALLOCATE (my_dbv(3, s_dim:igmax))
          ALLOCATE (my_dbvw(s_dim:igmax))
@@ -399,7 +399,7 @@ CONTAINS
          g2 = rho_tot_g%pw_grid%gsq(ig)
          IF (g2 > gcut2) EXIT
          igmax = ig
-      ENDDO
+      END DO
 
       Nr = SIZE(radii)
       Np = SIZE(particle_set)
@@ -451,7 +451,7 @@ CONTAINS
                   lhs((ipp - 1)*Nr + 1:(ipp - 1)*Nr + Nr, ig - s_dim + 1) = w(ig)*rho_tot_g%pw_grid%g(icomp, ig)*gfunc(ig, 1:Nr)* &
                                                                             g_dot_rvec_sin(ig - s_dim + 1, iparticle1)
                END DO
-            ENDDO
+            END DO
             ! do main multiply
             CALL DGEMM('N', 'N', nparticles*Nr, Np*Nr, Ng, 1.0D0, lhs(1, 1), nparticles*Nr, rhs(1, 1), &
                        Ng, 1.0D0, dAm((iparticle0 - 1)*Nr + 1, 1, icomp), Np*Nr)
@@ -506,7 +506,7 @@ CONTAINS
          g2 = rho_tot_g%pw_grid%gsq(ig)
          IF (g2 > gcut2) EXIT
          igmax = ig
-      ENDDO
+      END DO
 
       IF (igmax .GE. s_dim) THEN
          ALLOCATE (g_dot_rvec_sin(1:igmax - s_dim + 1, SIZE(particle_set)))

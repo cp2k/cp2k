@@ -97,7 +97,7 @@ CONTAINS
       nspin = SIZE(qs_ot_env)
       DO ispin = 2, nspin
          qs_ot_env(ispin)%settings = qs_ot_env(1)%settings
-      ENDDO
+      END DO
 
       CALL timestop(handle)
 
@@ -155,7 +155,7 @@ CONTAINS
 
       IF (qs_ot_env(1)%settings%do_ener) THEN
          ALLOCATE (expectation_values(nspin))
-      ENDIF
+      END IF
 
       DO ispin = 1, nspin
          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, occupation_numbers=occupation_numbers(ispin)%array)
@@ -163,17 +163,17 @@ CONTAINS
          scaling_factor(ispin)%array = 2.0_dp*occupation_numbers(ispin)%array
          IF (qs_ot_env(1)%settings%do_ener) THEN
             ALLOCATE (expectation_values(ispin)%array(SIZE(occupation_numbers(ispin)%array)))
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       ! optimizing orbital energies somehow implies non-equivalent orbitals
       IF (qs_ot_env(1)%settings%do_ener) THEN
          CPASSERT(qs_ot_env(1)%settings%do_rotation)
-      ENDIF
+      END IF
       ! add_nondiag_energy requires do_ener
       IF (qs_ot_env(1)%settings%add_nondiag_energy) THEN
          CPASSERT(qs_ot_env(1)%settings%do_ener)
-      ENDIF
+      END IF
 
       ! get a rotational force
       IF (.NOT. energy_only) THEN
@@ -189,7 +189,7 @@ CONTAINS
                ! create the derivative of the energy wrt to rot_mat_u
                CALL dbcsr_multiply('N', 'N', 1.0_dp, qs_ot_env(ispin)%rot_mat_u, qs_ot_env(ispin)%matrix_buf1, &
                                    0.0_dp, qs_ot_env(ispin)%rot_mat_dedu)
-            ENDDO
+            END DO
 
             ! here we construct the derivative of the free energy with respect to the evals
             ! (note that this requires the diagonal elements of chc)
@@ -200,8 +200,8 @@ CONTAINS
                   qs_ot_env(ispin)%ener_gx = expectation_values(ispin)%array
                   CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set, &
                                          smear=smear, eval_deriv=qs_ot_env(ispin)%ener_gx)
-               ENDDO
-            ENDIF
+               END DO
+            END IF
 
             ! chc only needs to be stored in u independent form if we require add_nondiag_energy,
             ! which will use it in non-selfconsistent form for e.g. the linesearch
@@ -213,10 +213,10 @@ CONTAINS
                                       0.0_dp, qs_ot_env(ispin)%matrix_buf1)
                   CALL dbcsr_multiply('N', 'T', 1.0_dp, qs_ot_env(ispin)%matrix_buf1, qs_ot_env(ispin)%rot_mat_u, &
                                       0.0_dp, qs_ot_env(ispin)%rot_mat_chc)
-               ENDDO
-            ENDIF
-         ENDIF
-      ENDIF
+               END DO
+            END IF
+         END IF
+      END IF
 
       ! evaluate non-diagonal energy contribution
       ener_nondiag = 0.0_dp
@@ -250,9 +250,9 @@ CONTAINS
                CALL dbcsr_multiply('N', 'N', 2.0_dp*qs_ot_env(1)%settings%nondiag_energy_strength, &
                                    qs_ot_env(ispin)%matrix_buf1, qs_ot_env(ispin)%matrix_buf2, &
                                    1.0_dp, qs_ot_env(ispin)%rot_mat_dedu)
-            ENDIF
-         ENDDO
-      ENDIF
+            END IF
+         END DO
+      END IF
 
       ! this is kind of a hack so far (costly memory wise), we locally recreate the scaled matrix_hc, and
       ! use it in the following, eventually, as occupations numbers get more integrated, it should become possible
@@ -266,9 +266,9 @@ CONTAINS
          ! for the convergence criterion, maybe take it back out
          IF (qs_ot_env(1)%settings%occupation_preconditioner) THEN
             scaling_factor(ispin)%array = 2.0_dp
-         ENDIF
+         END IF
          CALL dbcsr_scale_by_vector(matrix_dedc_scaled(ispin)%matrix, alpha=scaling_factor(ispin)%array, side='right')
-      ENDDO
+      END DO
 
       ! notice we use qs_ot_env(1) for driving all output and the minimization in case of LSD
       qs_ot_env(1)%etotal = energy + ener_nondiag
@@ -289,7 +289,7 @@ CONTAINS
                                    0.0_dp, qs_ot_env(ispin)%matrix_sx)
             ELSE
                CALL dbcsr_copy(qs_ot_env(ispin)%matrix_sx, qs_ot_env(ispin)%matrix_x)
-            ENDIF
+            END IF
             CALL qs_ot_get_p(qs_ot_env(ispin)%matrix_x, qs_ot_env(ispin)%matrix_sx, qs_ot_env(ispin))
             CALL qs_ot_get_orbitals(mo_coeff, qs_ot_env(ispin)%matrix_x, qs_ot_env(ispin))
          CASE ("REF")
@@ -299,11 +299,11 @@ CONTAINS
          CASE DEFAULT
             CPABORT("Algorithm not yet implemented")
          END SELECT
-      ENDDO
+      END DO
 
       IF (qs_ot_env(1)%restricted) THEN
          CALL mo_set_restrict(mo_array, convert_dbcsr=.TRUE.)
-      ENDIF
+      END IF
       !
       ! obtain the new set of OT eigenvalues and set the occupations accordingly
       !
@@ -312,25 +312,25 @@ CONTAINS
             mo_array(ispin)%mo_set%eigenvalues = qs_ot_env(ispin)%ener_x
             CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set, &
                                    smear=smear)
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       ! cleanup
       DO ispin = 1, SIZE(scaling_factor)
          DEALLOCATE (scaling_factor(ispin)%array)
-      ENDDO
+      END DO
       DEALLOCATE (scaling_factor)
       IF (qs_ot_env(1)%settings%do_ener) THEN
          DO ispin = 1, SIZE(expectation_values)
             DEALLOCATE (expectation_values(ispin)%array)
-         ENDDO
+         END DO
          DEALLOCATE (expectation_values)
-      ENDIF
+      END IF
       DEALLOCATE (occupation_numbers)
       DO ispin = 1, SIZE(matrix_dedc_scaled)
          CALL dbcsr_release(matrix_dedc_scaled(ispin)%matrix)
          DEALLOCATE (matrix_dedc_scaled(ispin)%matrix)
-      ENDDO
+      END DO
       DEALLOCATE (matrix_dedc_scaled)
 
       CALL timestop(handle)
@@ -374,13 +374,13 @@ CONTAINS
             CALL cp_dbcsr_m_by_n_from_row_template(mo_array(ispin)%mo_set%mo_coeff_b, template=matrix_ks, &
                                                    n=mo_array(ispin)%mo_set%nmo, &
                                                    sym=dbcsr_type_no_symmetry)
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       ! *** set a history for broyden
       DO ispin = 1, SIZE(qs_ot_env)
          qs_ot_env(ispin)%broyden_adaptive_sigma = broyden_adaptive_sigma
-      ENDDO
+      END DO
 
       ! **** SCP
       ! **** SCP
@@ -405,7 +405,7 @@ CONTAINS
                                 0.0_dp, qs_ot_env(ispin)%matrix_sc0)
          ELSE
             CALL dbcsr_copy(qs_ot_env(ispin)%matrix_sc0, qs_ot_env(ispin)%matrix_c0)
-         ENDIF
+         END IF
 
          ! init
          CALL qs_ot_init(qs_ot_env(ispin))
@@ -416,13 +416,13 @@ CONTAINS
 
          IF (qs_ot_env(ispin)%settings%do_rotation) THEN
             CALL dbcsr_set(qs_ot_env(ispin)%rot_mat_x, 0.0_dp)
-         ENDIF
+         END IF
 
          IF (qs_ot_env(ispin)%settings%do_ener) THEN
             is_equal = SIZE(qs_ot_env(ispin)%ener_x) == SIZE(mo_array(ispin)%mo_set%eigenvalues)
             CPASSERT(is_equal)
             qs_ot_env(ispin)%ener_x = mo_array(ispin)%mo_set%eigenvalues
-         ENDIF
+         END IF
 
          SELECT CASE (qs_ot_env(1)%settings%ot_algorithm)
          CASE ("TOD")

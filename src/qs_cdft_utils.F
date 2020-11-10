@@ -360,11 +360,11 @@ CONTAINS
                      IF (MODULO(iatom, rs_cavity%desc%group_size) == rs_cavity%desc%my_pos) THEN
                         npme = npme + 1
                         cores(npme) = iatom
-                     ENDIF
+                     END IF
                   ELSE
                      npme = npme + 1
                      cores(npme) = iatom
-                  ENDIF
+                  END IF
                END DO
                DO j = 1, npme
                   iatom = cores(j)
@@ -387,7 +387,7 @@ CONTAINS
                                                 pab, 0, 0, rs_cavity, cell, pw_env%cube_info(1), &
                                                 radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                                 use_subpatch=.TRUE., subpatch_pattern=0)
-                  ENDIF
+                  END IF
                END DO
             END DO
             DEALLOCATE (cores)

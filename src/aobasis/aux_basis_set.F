@@ -204,7 +204,7 @@ CONTAINS
                   sgf_symbol(aux_basis%n(ishell, iset), lshell, m)
             END DO
          END DO
-      ENDDO
+      END DO
 
       ! orbital radii (initialize later)
       aux_basis%kind_radius = 0.0_dp

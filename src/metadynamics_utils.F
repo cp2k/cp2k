@@ -114,7 +114,7 @@ CONTAINS
          IF (id_method /= do_fe_meta) THEN
             CALL timestop(handle)
             RETURN
-         ENDIF
+         END IF
          metadyn_section => section_vals_get_subs_vals(fe_section, "METADYN")
          CPASSERT(.NOT. ASSOCIATED(meta_env))
 
@@ -141,11 +141,11 @@ CONTAINS
          CALL section_vals_val_get(metadyn_section, "TAMCSteps", i_val=meta_env%TAMCSteps)
          IF (meta_env%TAMCSteps < 0) THEN
             CPABORT("TAMCSteps must be positive!")
-         ENDIF
+         END IF
          CALL section_vals_val_get(metadyn_section, "Timestep", r_val=meta_env%zdt)
          IF (meta_env%zdt <= 0.0_dp) THEN
             CPABORT("Timestep must be positive!")
-         ENDIF
+         END IF
          CALL section_vals_val_get(metadyn_section, "WW", r_val=meta_env%hills_env%ww)
          CALL section_vals_val_get(metadyn_section, "NT_HILLS", i_val=meta_env%hills_env%nt_hills)
          CALL section_vals_val_get(metadyn_section, "MIN_NT_HILLS", i_val=meta_env%hills_env%min_nt_hills)
@@ -198,7 +198,7 @@ CONTAINS
             IF (meta_env%hills_env%min_disp > 0.0_dp) &
                CALL cp_abort(__LOCATION__, &
                              "Well-Tempered metadynamics not possible with Adaptive hills.")
-         ENDIF
+         END IF
 
          CALL section_vals_val_get(metadyn_section, "COLVAR_AVG_TEMPERATURE_RESTART", &
                                    r_val=meta_env%avg_temp)
@@ -315,7 +315,7 @@ CONTAINS
                WRITE (iw, '(A,T71)') ' METADYN| Langevin Thermostat in use for COLVAR '
                WRITE (iw, '(A,T71,F10.4)') ' METADYN| Langevin Thermostat. Target Temperature = ', &
                   meta_env%temp_wanted*kelvin
-            ENDIF
+            END IF
             WRITE (iw, '(A,T71,F10.4)') ' METADYN| COLVARS restarted average temperature ', &
                meta_env%avg_temp
          END IF
@@ -409,7 +409,7 @@ CONTAINS
                END DO
             END IF
             WRITE (iw, '( A )') '          '//'----------------------------------------------------------------------'
-         ENDDO
+         END DO
       END IF
       CALL section_release(section)
       CALL cp_print_key_finished_output(iw, logger, metadyn_section, "PRINT%PROGRAM_RUN_INFO")
@@ -489,7 +489,7 @@ CONTAINS
          IF (langevin) THEN
             CALL section_vals_val_get(metavar_section, "GAMMA", i_rep_section=icol, r_val=metavar%gamma)
          END IF
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -574,7 +574,7 @@ CONTAINS
 
             IF (para_env%ionode) THEN
                INQUIRE (FILE=TRIM(filename), EXIST=exist)
-            ENDIF
+            END IF
             CALL mp_bcast(exist, para_env%source, para_env%group)
             DO WHILE (exist)
                ! Read information from the walker's file
@@ -591,14 +591,14 @@ CONTAINS
                   END DO
                   IF (hills_env%wtcontrol) READ (unit_nr, *) delta_s_ss0_buf(2, 0)
                   CALL close_file(unit_nr)
-               ENDIF
+               END IF
                CALL mp_bcast(delta_s_ss0_buf, para_env%source, para_env%group)
                ww = delta_s_ss0_buf(1, 0)
                IF (hills_env%wtcontrol) invdt = delta_s_ss0_buf(2, 0)
                DO ih = 1, n_colvar
                   colvars(ih)%ss0 = delta_s_ss0_buf(1, ih)
                   colvars(ih)%delta_s = delta_s_ss0_buf(2, ih)
-               ENDDO
+               END DO
 
                ! Add this hill to the history dependent terms
                IF (hills_env%wtcontrol) THEN
@@ -612,7 +612,7 @@ CONTAINS
                           TRIM(ADJUSTL(cp_to_string(i_hills)))
                IF (para_env%ionode) THEN
                   INQUIRE (FILE=TRIM(filename), EXIST=exist)
-               ENDIF
+               END IF
                CALL mp_bcast(exist, para_env%source, para_env%group)
             END DO
 
@@ -677,7 +677,7 @@ CONTAINS
          DEALLOCATE (hills_env%ss_history)
          hills_env%ss_history => tmp
          NULLIFY (tmp)
-      ENDIF
+      END IF
       IF (SIZE(hills_env%delta_s_history, 2) < n_hills + 1) THEN
          ALLOCATE (tmp(n_colvar, n_hills + 100))
          tmp(:, :n_hills) = hills_env%delta_s_history
@@ -685,7 +685,7 @@ CONTAINS
          DEALLOCATE (hills_env%delta_s_history)
          hills_env%delta_s_history => tmp
          NULLIFY (tmp)
-      ENDIF
+      END IF
       IF (SIZE(hills_env%ww_history) < n_hills + 1) THEN
          ALLOCATE (tnp(n_hills + 100))
          tnp(1:n_hills) = hills_env%ww_history
@@ -693,7 +693,7 @@ CONTAINS
          DEALLOCATE (hills_env%ww_history)
          hills_env%ww_history => tnp
          NULLIFY (tnp)
-      ENDIF
+      END IF
       IF (wtcontrol) THEN
          IF (SIZE(hills_env%invdt_history) < n_hills + 1) THEN
             ALLOCATE (tnp(n_hills + 100))
@@ -702,14 +702,14 @@ CONTAINS
             DEALLOCATE (hills_env%invdt_history)
             hills_env%invdt_history => tnp
             NULLIFY (tnp)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
       n_hills = n_hills + 1
       ! Now add the hill
       DO i = 1, n_colvar
          hills_env%ss_history(i, n_hills) = colvars(i)%ss0
          hills_env%delta_s_history(i, n_hills) = colvars(i)%delta_s
-      ENDDO
+      END DO
       hills_env%ww_history(n_hills) = ww
       IF (wtcontrol) hills_env%invdt_history(n_hills) = invdt
 
@@ -762,7 +762,7 @@ CONTAINS
          DEALLOCATE (ww_history)
          IF (wtcontrol) THEN
             DEALLOCATE (invdt_history)
-         ENDIF
+         END IF
          !
          CPASSERT(n_hills == ndum)
          ALLOCATE (ss_history(n_colvar, n_hills))
@@ -770,7 +770,7 @@ CONTAINS
          ALLOCATE (ww_history(n_hills))
          IF (wtcontrol) THEN
             ALLOCATE (invdt_history(n_hills))
-         ENDIF
+         END IF
          !
          DO i = 1, n_hills
             CALL section_vals_val_get(hills_history, "_DEFAULT_KEYWORD_", &
@@ -849,7 +849,7 @@ CONTAINS
                              " Cannot restart metadynamics from well-tempered MetaD runs. ")
             END IF
          END IF
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -956,7 +956,7 @@ CONTAINS
                END SELECT
             END DO
          END IF
-      ENDDO
+      END DO
    END SUBROUTINE meta_walls
 
 END MODULE metadynamics_utils

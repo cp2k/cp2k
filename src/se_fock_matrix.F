@@ -247,12 +247,12 @@ CONTAINS
                                mo_coeff_b=mo_coeff, occupation_numbers=occupation_numbers)
                IF (.NOT. mo_array(ispin)%mo_set%use_mo_coeff_b) THEN
                   CPABORT("")
-               ENDIF
+               END IF
                CALL dbcsr_get_info(mo_coeff, nfullcols_total=ncol_global)
                CALL dbcsr_multiply('n', 'n', 1.0_dp, ks_matrix(ispin)%matrix, mo_coeff, &
                                    0.0_dp, mo_derivs(ispin)%matrix)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
 
       END SELECT
 

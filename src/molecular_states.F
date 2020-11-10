@@ -152,7 +152,7 @@ CONTAINS
          ALLOCATE (eval_range(2))
          eval_range(1) = -HUGE(0.0_dp)
          eval_range(2) = +HUGE(0.0_dp)
-      ENDIF
+      END IF
       CALL section_vals_val_get(loc_print_section, "MOLECULAR_STATES%MARK_STATES", &
                                 n_rep_val=n_rep)
       IF (n_rep .GT. 0) THEN
@@ -179,8 +179,8 @@ CONTAINS
          WRITE (unit_report, *) SIZE(mo_eigenvalues), " number of states "
          DO i = 1, SIZE(mo_eigenvalues)
             WRITE (unit_report, *) mo_eigenvalues(i)
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
@@ -206,7 +206,7 @@ CONTAINS
             nstates(1) = molecule_set(imol)%lmi(ispin)%nstates
          ELSE
             nstates(1) = 0
-         ENDIF
+         END IF
          nstates(2) = para_env%mepos
 
          CALL mp_maxloc(nstates, para_env%group)
@@ -278,8 +278,8 @@ CONTAINS
             WRITE (unit_report, *) imol, ns, " imol, number of states"
             DO k = 1, ns
                WRITE (unit_report, *) evals(k)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
 
          CALL cp_gemm('N', 'N', nrow_global, ns, ns, 1.0_dp, &
                       b, e_vectors, 0.0_dp, rot_e_vectors)
@@ -303,11 +303,11 @@ CONTAINS
                   CALL cp_fm_get_element(D_igk, i, k, tmp)
                   IF (unit_report > 0) THEN
                      WRITE (unit_report, *) tmp**2
-                  ENDIF
-               ENDDO
-            ENDDO
+                  END IF
+               END DO
+            END DO
             CALL cp_fm_release(D_igk)
-         ENDIF
+         END IF
 
          IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
                                               "MOLECULAR_STATES%CUBES"), cp_p_file)) THEN
@@ -340,7 +340,7 @@ CONTAINS
                CALL cp_print_key_finished_output(unit_nr, logger, loc_print_section, &
                                                  "MOLECULAR_STATES%CUBES", mpi_io=mpi_io)
             END DO
-         ENDIF
+         END IF
 
          DEALLOCATE (evals)
          CALL cp_fm_release(b)

@@ -249,7 +249,7 @@ CONTAINS
          moves%hmc%qsuccesses = 0
          moves%qtrans_dis = 0.0E0_dp
          moves%qcltrans_dis = 0.0E0_dp
-      ENDIF
+      END IF
 
       ! end the timing
       CALL timestop(handle)
@@ -323,7 +323,7 @@ CONTAINS
 
          moves%trans_dis = moves%trans_dis + moves%qtrans_dis
          moves%cltrans_dis = moves%cltrans_dis + moves%qcltrans_dis
-      ENDIF
+      END IF
 
 ! end the timing
       CALL timestop(handle)
@@ -482,7 +482,7 @@ CONTAINS
                IF (test_ratio .GT. 2.0E0_dp) test_ratio = 2.0E0_dp
                IF (test_ratio .LT. 0.5E0_dp) test_ratio = 0.5E0_dp
                rmbond(molecule_type) = rmbond(molecule_type)*test_ratio
-            ENDIF
+            END IF
 
 ! update and clear the counters
             move_updates%bias_bond%attempts = 0
@@ -492,7 +492,7 @@ CONTAINS
             IF (ionode) WRITE (rm, *) nnstep, ' rmbond = ', &
                rmbond(molecule_type)*angstrom, ' angstroms'
 
-         ENDIF
+         END IF
 
 ! update the maximum displacement for bond angle change
          IF (move_updates%bias_angle%attempts .GT. 0) THEN
@@ -510,7 +510,7 @@ CONTAINS
                IF (test_ratio .GT. 2.0E0_dp) test_ratio = 2.0E0_dp
                IF (test_ratio .LT. 0.5E0_dp) test_ratio = 0.5E0_dp
                rmangle(molecule_type) = rmangle(molecule_type)*test_ratio
-            ENDIF
+            END IF
 
 ! more than pi changes meaningless
             IF (rmangle(molecule_type) .GT. pi) rmangle(molecule_type) = pi
@@ -522,7 +522,7 @@ CONTAINS
 ! write the new displacement to a file
             IF (ionode) WRITE (rm, *) nnstep, ' rmangle = ', &
                rmangle(molecule_type)/pi*180.0E0_dp, ' degrees'
-         ENDIF
+         END IF
 
 ! update the maximum displacement for a dihedral change
          IF (move_updates%bias_dihedral%attempts .GT. 0) THEN
@@ -540,7 +540,7 @@ CONTAINS
                IF (test_ratio .GT. 2.0E0_dp) test_ratio = 2.0E0_dp
                IF (test_ratio .LT. 0.5E0_dp) test_ratio = 0.5E0_dp
                rmdihedral(molecule_type) = rmdihedral(molecule_type)*test_ratio
-            ENDIF
+            END IF
 
 ! more than pi changes meaningless
             IF (rmdihedral(molecule_type) .GT. pi) rmdihedral(molecule_type) = pi
@@ -552,7 +552,7 @@ CONTAINS
 ! write the new displacement to a file
             IF (ionode) WRITE (rm, *) nnstep, ' rmdihedral = ', &
                rmdihedral(molecule_type)/pi*180.0E0_dp, ' degrees'
-         ENDIF
+         END IF
 
 ! update the maximum displacement for molecule translation
          IF (move_updates%bias_trans%attempts .GT. 0) THEN
@@ -570,7 +570,7 @@ CONTAINS
                IF (test_ratio .GT. 2.0E0_dp) test_ratio = 2.0E0_dp
                IF (test_ratio .LT. 0.5E0_dp) test_ratio = 0.5E0_dp
                rmtrans(molecule_type) = rmtrans(molecule_type)*test_ratio
-            ENDIF
+            END IF
 
             ! make an upper bound...10 a.u.
             IF (rmtrans(molecule_type) .GT. 10.0E0_dp) &
@@ -583,7 +583,7 @@ CONTAINS
 ! write the new displacement to a file
             IF (ionode) WRITE (rm, *) nnstep, ' rmtrans = ', &
                rmtrans(molecule_type)*angstrom, ' angstroms'
-         ENDIF
+         END IF
 
 ! update the maximum displacement for cluster translation
          IF (move_updates%bias_cltrans%attempts .GT. 0) THEN
@@ -601,7 +601,7 @@ CONTAINS
                IF (test_ratio .GT. 2.0E0_dp) test_ratio = 2.0E0_dp
                IF (test_ratio .LT. 0.5E0_dp) test_ratio = 0.5E0_dp
                rmcltrans = rmcltrans*test_ratio
-            ENDIF
+            END IF
 
             ! make an upper bound...10 a.u.
             IF (rmcltrans .GT. 10.0E0_dp) &
@@ -614,7 +614,7 @@ CONTAINS
 ! write the new displacement to a file
             IF (ionode) WRITE (rm, *) nnstep, ' rmcltrans = ', &
                rmcltrans*angstrom, ' angstroms'
-         ENDIF
+         END IF
 
 ! update the maximum displacement for molecule rotation
          IF (move_updates%bias_rot%attempts .GT. 0) THEN
@@ -643,7 +643,7 @@ CONTAINS
 ! more than pi rotation is meaningless
                IF (rmrot(molecule_type) .GT. pi) rmrot(molecule_type) = pi
 
-            ENDIF
+            END IF
 
 ! clear the counters
             move_updates%bias_rot%attempts = 0
@@ -652,7 +652,7 @@ CONTAINS
 ! write the new displacement to a file
             IF (ionode) WRITE (rm, *) nnstep, ' rmrot = ', &
                rmrot(molecule_type)/pi*180.0E0_dp, ' degrees'
-         ENDIF
+         END IF
 
       CASE ("volume")
 
@@ -674,7 +674,7 @@ CONTAINS
                IF (test_ratio .LT. 0.5E0_dp) test_ratio = 0.5E0_dp
                rmvolume = rmvolume*test_ratio
 
-            ENDIF
+            END IF
 
 ! clear the counters
             move_updates%volume%attempts = 0
@@ -684,7 +684,7 @@ CONTAINS
             IF (ionode) WRITE (rm, *) nnstep, ' rmvolume = ', &
                rmvolume*angstrom**3, ' angstroms^3'
 
-         ENDIF
+         END IF
 
       END SELECT
 

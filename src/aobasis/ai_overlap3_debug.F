@@ -122,9 +122,9 @@ CONTAINS
                       0.5_dp*(an(3) - 1)/(xsi + xc)*os_overlap3(an - i3 - i3, cn, bn)
             ELSE
                CPABORT("I(0000)")
-            ENDIF
-         ENDIF
-      ENDIF
+            END IF
+         END IF
+      END IF
 
    END FUNCTION os_overlap3
 

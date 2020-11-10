@@ -123,8 +123,8 @@ CONTAINS
             ELSE
                CALL calculate_image_matrix(image_matrix=qs_env%image_matrix, &
                                            qs_env=qs_env, qmmm_env=qmmm_env)
-            ENDIF
-         ENDIF
+            END IF
+         END IF
          CALL calc_image_coeff_iterative(v_hartree_rspace=v_hartree_rspace, &
                                          coeff=qs_env%image_coeff, qmmm_env=qmmm_env, &
                                          qs_env=qs_env)
@@ -133,7 +133,7 @@ CONTAINS
          CALL calc_image_coeff_gaussalgorithm(v_hartree_rspace=v_hartree_rspace, &
                                               coeff=qs_env%image_coeff, qmmm_env=qmmm_env, &
                                               qs_env=qs_env)
-      ENDIF
+      END IF
 
       ! calculate the image/metal potential with the optimized coefficients
       CALL calculate_potential_metal(v_metal_rspace= &
@@ -180,7 +180,7 @@ CONTAINS
       ALLOCATE (pot_const(natom))
       IF (.NOT. ASSOCIATED(coeff)) THEN
          ALLOCATE (coeff(natom))
-      ENDIF
+      END IF
       coeff = 0.0_dp
 
       CALL integrate_potential_ga_rspace(v_hartree_rspace, qmmm_env, qs_env, &
@@ -245,7 +245,7 @@ CONTAINS
       ALLOCATE (Ad(natom))
       IF (.NOT. ASSOCIATED(coeff)) THEN
          ALLOCATE (coeff(natom))
-      ENDIF
+      END IF
 
       CALL integrate_potential_ga_rspace(v_hartree_rspace, qmmm_env, qs_env, &
                                          pot_const)
@@ -298,7 +298,7 @@ CONTAINS
          d = z + rsnew/rsold*d
          rsold = rsnew
          CALL pw_release(auxpot_Ad_rspace%pw)
-      ENDDO
+      END DO
 
       ! print iteration info
       CALL get_qs_env(qs_env=qs_env, &
@@ -315,7 +315,7 @@ CONTAINS
          qs_env%calc_image_preconditioner = .FALSE.
       ELSE
          qs_env%calc_image_preconditioner = .TRUE.
-      ENDIF
+      END IF
 
       CALL pw_release(v_metal_rspace_guess%pw)
       DEALLOCATE (pot_const)
@@ -396,11 +396,11 @@ CONTAINS
             IF (MODULO(iatom, rs_v%desc%group_size) == rs_v%desc%my_pos) THEN
                npme = npme + 1
                cores(npme) = iatom
-            ENDIF
+            END IF
          ELSE
             npme = npme + 1
             cores(npme) = iatom
-         ENDIF
+         END IF
       END DO
 
       DO j = 1, npme
@@ -418,7 +418,7 @@ CONTAINS
 
          ELSE
             ra(:) = pbc(qmmm_env%image_charge_pot%particles_all(atom_a)%r, cell)
-         ENDIF
+         END IF
 
          hab(1, 1) = 0.0_dp
 
@@ -515,7 +515,7 @@ CONTAINS
 
       IF (.NOT. ASSOCIATED(forces)) THEN
          ALLOCATE (forces(3, natom))
-      ENDIF
+      END IF
 
       forces(:, :) = 0.0_dp
 
@@ -529,11 +529,11 @@ CONTAINS
             IF (MODULO(iatom, rs_v%desc%group_size) == rs_v%desc%my_pos) THEN
                npme = npme + 1
                cores(npme) = iatom
-            ENDIF
+            END IF
          ELSE
             npme = npme + 1
             cores(npme) = iatom
-         ENDIF
+         END IF
       END DO
 
       DO j = 1, npme
@@ -609,7 +609,7 @@ CONTAINS
          CASE DEFAULT
             CPABORT("No initialization for image charges available?")
          END SELECT
-      ENDIF
+      END IF
 
    END SUBROUTINE conditional_calc_image_matrix
 
@@ -642,13 +642,13 @@ CONTAINS
 
       IF (.NOT. ASSOCIATED(image_matrix)) THEN
          ALLOCATE (image_matrix(natom, natom))
-      ENDIF
+      END IF
       IF (PRESENT(ipiv)) THEN
          IF (.NOT. ASSOCIATED(ipiv)) THEN
             ALLOCATE (ipiv(natom))
-         ENDIF
+         END IF
          ipiv = 0
-      ENDIF
+      END IF
 
       CALL get_qs_env(qs_env, input=input)
       !print info
@@ -661,7 +661,7 @@ CONTAINS
       ELSE
          IF (output_unit > 0) WRITE (UNIT=output_unit, FMT="(T2,A)") &
             "Calculating image matrix"
-      ENDIF
+      END IF
       CALL cp_print_key_finished_output(output_unit, logger, input, &
                                         "QMMM%PRINT%PROGRAM_RUN_INFO")
 
@@ -684,16 +684,16 @@ CONTAINS
          DO j = 1, natom
             DO k = j + 1, natom
                qs_env%image_matrix(j, k) = qs_env%image_matrix(k, j)
-            ENDDO
-         ENDDO
+            END DO
+         END DO
          CALL write_image_matrix(qs_env%image_matrix, qs_env)
       ELSE
          !pivoting prior to DGETRS (Gaussian elimination)
          IF (PRESENT(ipiv)) THEN
             CALL DGETRF(natom, natom, image_matrix, natom, ipiv, stat)
             CPASSERT(stat == 0)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       CALL timestop(handle)
 
@@ -805,7 +805,7 @@ CONTAINS
       DO iatom = 1, natom
          atom_a = qmmm_env%image_charge_pot%image_mm_list(iatom)
          ra(:, iatom) = qmmm_env%image_charge_pot%particles_all(atom_a)%r(:)
-      ENDDO
+      END DO
 
       CALL get_qs_env(qs_env, para_env=para_env)
 
@@ -857,7 +857,7 @@ CONTAINS
          rab(:) = ra(:, ipgf) - rb(:, jpgf)
          CALL eri_mme_2c_integrate(param%par, 0, 0, 0, 0, zeta(ipgf), &
                                    zetb(jpgf), rab, hab, ipgf - 1, jpgf - 1, G_count=G_count, R_count=R_count)
-      ENDDO
+      END DO
 
       CALL cp_eri_mme_update_local_counts(param, para_env, G_count_2c=G_count, R_count_2c=R_count)
       CALL mp_sum(hab, para_env%group)
@@ -934,7 +934,7 @@ CONTAINS
          energy%image_charge = en_vmetal_rhohartree - 0.5_dp*en_external
          CALL print_image_energy_terms(en_vmetal_rhohartree, en_external, &
                                        total_rho_metal, qs_env)
-      ENDIF
+      END IF
 
       CALL pw_zero(v_metal_rspace%pw)
       CALL pw_transfer(v_metal_gspace%pw, v_metal_rspace%pw)
@@ -970,7 +970,7 @@ CONTAINS
       logger => cp_get_default_logger()
 
       !add image charge potential
-      v_hartree%pw%cr3d = v_hartree%pw%cr3d+v_metal%pw%cr3d
+      v_hartree%pw%cr3d = v_hartree%pw%cr3d + v_metal%pw%cr3d
 
       ! print info
       CALL get_qs_env(qs_env=qs_env, &
@@ -1035,11 +1035,11 @@ CONTAINS
 
          IF (rst_unit > 0) THEN
             WRITE (rst_unit) image_matrix
-         ENDIF
+         END IF
 
          CALL cp_print_key_finished_output(rst_unit, logger, qmmm_section, &
                                            "QMMM%PRINT%IMAGE_CHARGE_RESTART")
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -1078,7 +1078,7 @@ CONTAINS
 
       IF (.NOT. ASSOCIATED(image_matrix)) THEN
          ALLOCATE (image_matrix(natom, natom))
-      ENDIF
+      END IF
 
       image_matrix = 0.0_dp
 
@@ -1099,7 +1099,7 @@ CONTAINS
                            unit_number=rst_unit)
 
             READ (rst_unit) qs_env%image_matrix
-         ENDIF
+         END IF
 
          CALL mp_bcast(qs_env%image_matrix, para_env%source, para_env%group)
 
@@ -1112,7 +1112,7 @@ CONTAINS
             "Restarted image matrix"
       ELSE
          CPABORT("Restart file for image matrix not found")
-      ENDIF
+      END IF
 
       qmmm_env%image_charge_pot%image_restart = .FALSE.
 
@@ -1144,7 +1144,7 @@ CONTAINS
 
       DO iatom = 1, natom
          sum_gradients(:) = sum_gradients(:) + forces(:, iatom)
-      ENDDO
+      END DO
 
       CALL get_qs_env(qs_env=qs_env, input=input)
 
@@ -1165,7 +1165,7 @@ CONTAINS
          WRITE (unit=output_unit, fmt="(T2,A,T22,ES12.5,T45,ES12.5,T69,ES12.5)") &
             "sum gradients:", sum_gradients
          WRITE (unit=output_unit, fmt="(/)")
-      ENDIF
+      END IF
 
       CALL cp_print_key_finished_output(output_unit, logger, input, &
                                         "QMMM%PRINT%DERIVATIVES")
@@ -1196,7 +1196,7 @@ CONTAINS
 
       DO iatom = 1, natom
          sum_coeff = sum_coeff + image_coeff(iatom)
-      ENDDO
+      END DO
 
       CALL get_qs_env(qs_env=qs_env, input=input)
 
@@ -1216,12 +1216,12 @@ CONTAINS
             !the opposite sign
             WRITE (unit=output_unit, fmt="(T2,I6,T65,ES16.9)") &
                atom_a, -image_coeff(iatom)/normalize_factor
-         ENDDO
+         END DO
 
          WRITE (unit=output_unit, fmt="(T2,A)") REPEAT("-", 79)
          WRITE (unit=output_unit, fmt="(T2,A,T65,ES16.9)") &
             "sum image charges:", -sum_coeff/normalize_factor
-      ENDIF
+      END IF
 
       CALL cp_print_key_finished_output(output_unit, logger, input, &
                                         "QMMM%PRINT%IMAGE_CHARGE_INFO")
@@ -1266,7 +1266,7 @@ CONTAINS
             "External potential energy term [a.u.]:", -0.5_dp*en_external
          WRITE (unit=output_unit, fmt="(T3,A,T56,F25.14)") &
             "Total image charge energy [a.u.]:", en_vmetal_rhohartree - 0.5_dp*en_external
-      ENDIF
+      END IF
 
       CALL cp_print_key_finished_output(output_unit, logger, input, &
                                         "QMMM%PRINT%IMAGE_CHARGE_INFO")

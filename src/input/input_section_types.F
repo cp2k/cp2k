@@ -193,7 +193,7 @@ CONTAINS
       IF (PRESENT(citations)) THEN
          ALLOCATE (section%citations(SIZE(citations)))
          section%citations = citations
-      ENDIF
+      END IF
 
       ALLOCATE (section%keywords(-1:my_n_keywords))
       DO i = -1, my_n_keywords
@@ -235,7 +235,7 @@ CONTAINS
          IF (section%ref_count == 0) THEN
             IF (ASSOCIATED(section%citations)) THEN
                DEALLOCATE (section%citations)
-            ENDIF
+            END IF
             IF (ASSOCIATED(section%keywords)) THEN
                DO i = -1, UBOUND(section%keywords, 1)
                   CALL keyword_release(section%keywords(i)%keyword)
@@ -273,8 +273,8 @@ CONTAINS
       IF (length > 0) THEN
          IF (section%description(length) /= ".") THEN
             message = "."
-         ENDIF
-      ENDIF
+         END IF
+      END IF
       IF (section%repeats) THEN
          message = TRIM(message)//" This section can be repeated."
       ELSE
@@ -514,7 +514,7 @@ CONTAINS
                                    "trying to add a keyword with a name ("// &
                                    TRIM(keyword%names(k))//") that was already used in section " &
                                    //TRIM(section%name))
-                  ENDIF
+                  END IF
                END DO
             END DO
          END DO
@@ -728,7 +728,7 @@ CONTAINS
          is_path = .TRUE.
          irep = 1
          my_index = my_index - 1
-      ENDIF
+      END IF
 
       CPASSERT(irep <= SIZE(section_vals%subs_vals, 2))
 
@@ -741,7 +741,7 @@ CONTAINS
       IF (is_path .AND. ASSOCIATED(res)) THEN
          res => section_vals_get_subs_vals(res, subsection_name(my_index + 2:LEN_TRIM(subsection_name)), &
                                            i_rep_section, can_return_null)
-      ENDIF
+      END IF
 
    END FUNCTION section_vals_get_subs_vals
 
@@ -1609,20 +1609,20 @@ CONTAINS
             irank = imax + 1
             DO I = imax, 1, -1
                IF (imatch > matching_rank(I)) irank = i
-            ENDDO
+            END DO
             IF (irank <= imax) THEN
                matching_rank(irank + 1:imax) = matching_rank(irank:imax - 1)
                matching_string(irank + 1:imax) = matching_string(irank:imax - 1)
                matching_rank(irank) = imatch
                matching_string(irank) = line
-            ENDIF
+            END IF
          END IF
 
          IF (section_name == section%name) THEN
             newbonus = 10
          ELSE
             newbonus = 0
-         ENDIF
+         END IF
 
          DO i = -1, section%n_keywords
             IF (ASSOCIATED(section%keywords(i)%keyword)) THEN

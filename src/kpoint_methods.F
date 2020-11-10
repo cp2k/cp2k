@@ -330,7 +330,7 @@ CONTAINS
                nkp_grp = npe/igr
                IF (MOD(nkp, nkp_grp) .NE. 0) CYCLE
                ngr = igr
-            ENDDO
+            END DO
          ELSE IF (kpoint%parallel_group_size == 0) THEN
             ! no parallelization over kpoints
             ngr = npe

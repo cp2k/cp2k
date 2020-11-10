@@ -197,7 +197,7 @@ CONTAINS
          qmmm_env_qm%center_qm_subsys0 = .TRUE.
       ELSE
          CPABORT("Unknown type of CENTER! ")
-      ENDIF
+      END IF
 
       CALL section_vals_val_get(qmmm_section, "CENTER_TYPE", i_val=center_i)
       qmmm_env_qm%center_qm_subsys_pbc_aware = (center_i == do_qmmm_center_pbc_aware)
@@ -275,7 +275,7 @@ CONTAINS
          IF (qmmm_env_qm%image_charge) THEN
             WRITE (iw, '(A,I8)') " Number of MM atoms with image charge: ", &
                qmmm_env_qm%num_image_mm_atoms
-         ENDIF
+         END IF
          WRITE (iw, '(A)') " QM cell ::"
          CALL write_cell(qm_cell_small, subsys_section)
       END IF
@@ -285,7 +285,7 @@ CONTAINS
       IF (qmmm_env_qm%image_charge) THEN
          IF (ANY(ABS(abc_mm - abc_qm) > 1.0E-12)) &
             CPABORT("QM and MM box need to have the same size when using image charges")
-      ENDIF
+      END IF
 
       ! Assign charges and mm_el_pot_radius from fist_topology
       CALL fist_env_get(fist_env, fist_nonbond_env=fist_nonbond_env)
@@ -335,7 +335,7 @@ CONTAINS
                               qmmm_env_qm%added_shells, qmmm_section, nocompatibility, shell_model)
       IF (qmmm_env_qm%image_charge) THEN
          CALL print_image_charge_info(qmmm_env_qm, qmmm_section)
-      ENDIF
+      END IF
 
       CALL section_vals_val_get(qmmm_section, "DELTA_CHARGE", i_val=delta_charge)
       CALL section_vals_val_get(force_env_section, "DFT%CHARGE", i_val=orig_charge)

@@ -196,7 +196,7 @@ CONTAINS
       IF (stack_pointer + 1 > max_stack_pointer) THEN
          CALL cp_abort(__LOCATION__, routineP// &
                        "too many default loggers, increase max_stack_pointer in "//moduleN)
-      ENDIF
+      END IF
 
       stack_pointer = stack_pointer + 1
       NULLIFY (default_logger_stack(stack_pointer)%cp_default_logger)
@@ -216,7 +216,7 @@ CONTAINS
       IF (stack_pointer - 1 < 0) THEN
          CALL cp_abort(__LOCATION__, moduleN//":cp_rm_default_logger"// &
                        "can not destroy default logger "//moduleN)
-      ENDIF
+      END IF
 
       CALL cp_logger_release(default_logger_stack(stack_pointer)%cp_default_logger)
       NULLIFY (default_logger_stack(stack_pointer)%cp_default_logger)
@@ -392,8 +392,8 @@ CONTAINS
          IF (logger%para_env%ionode) THEN
             logger%default_local_unit_nr = logger%default_global_unit_nr
             logger%close_local_unit_on_dealloc = .FALSE.
-         ENDIF
-      ENDIF
+         END IF
+      END IF
       IF (PRESENT(iter_info)) logger%iter_info => iter_info
       IF (ASSOCIATED(logger%iter_info)) THEN
          CALL cp_iteration_info_retain(logger%iter_info)
@@ -535,7 +535,7 @@ CONTAINS
          RETURN
       ELSE
          local_logger => cp_get_default_logger()
-      ENDIF
+      END IF
 
       res = cp_logger_get_default_unit_nr(local_logger, local=.FALSE., skip_not_ionode=.TRUE.)
    END FUNCTION cp_logger_get_default_io_unit
@@ -595,7 +595,7 @@ CONTAINS
          lggr => logger
       ELSE
          NULLIFY (lggr)
-      ENDIF
+      END IF
       IF (.NOT. ASSOCIATED(lggr)) lggr => cp_get_default_logger()
       IF (lggr%ref_count < 1) &
          CPABORT(routineP//" logger%ref_count<1")

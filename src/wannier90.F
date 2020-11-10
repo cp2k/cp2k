@@ -384,14 +384,14 @@ CONTAINS
                      counter = counter + 1 ! count the multiplicity of the shell
                   END IF
                END IF
-            ENDDO
-         ENDDO
+            END DO
+         END DO
          IF (dnn1 .LT. eta - kmesh_tol) ndnntot = ndnntot + 1
          dnn(nlist) = dnn1
          multi(nlist) = counter
          dnn0 = dnn1
          dnn1 = eta
-      ENDDO
+      END DO
 
       WRITE (stdout, '(1x,a)') '+----------------------------------------------------------------------------+'
       WRITE (stdout, '(1x,a)') '|                    Distance to Nearest-Neighbour Shells                    |'
@@ -400,7 +400,7 @@ CONTAINS
       WRITE (stdout, '(1x,a)') '|          -----             ------------------         ------------         |'
       DO ndnn = 1, ndnntot
          WRITE (stdout, '(1x,a,11x,i3,17x,f10.6,19x,i4,12x,a)') '|', ndnn, dnn(ndnn)/lenconfac, multi(ndnn), '|'
-      ENDDO
+      END DO
       WRITE (stdout, '(1x,a)') '+----------------------------------------------------------------------------+'
 
       ! Get the shell weights to satisfy the B1 condition
@@ -412,11 +412,11 @@ CONTAINS
             WRITE (stdout, '(i3,1x)', advance='no') shell_list(ndnn)
          ELSE
             WRITE (stdout, '(i3,",")', advance='no') shell_list(ndnn)
-         ENDIF
-      ENDDO
+         END IF
+      END DO
       DO l = 1, 11 - num_shells
          WRITE (stdout, '(4x)', advance='no')
-      ENDDO
+      END DO
       WRITE (stdout, '("|")')
 
       nntot = 0
@@ -494,11 +494,11 @@ CONTAINS
                      nncell(2, nkp, nnx) = m
                      nncell(3, nkp, nnx) = n
                      bk_local(:, nnx, nkp) = vkpp(:) - kpt_cart(:, nkp)
-                  ENDIF
+                  END IF
                   !if we have the right number of neighbours we can exit
                   IF (nnshell(nkp, ndnn) == multi(ndnn)) CYCLE ok
-               ENDDO
-            ENDDO
+               END DO
+            END DO
             ! check to see if too few neighbours here
          END DO ok
 
@@ -521,14 +521,14 @@ CONTAINS
                DO i = 1, 3
                   bb1 = bb1 + bk_local(i, nnx, 1)*bk_local(i, nnx, 1)
                   bbn = bbn + bk_local(i, nnx, nkp)*bk_local(i, nnx, nkp)
-               ENDDO
+               END DO
                IF (ABS(SQRT(bb1) - SQRT(bbn)) .GT. kmesh_tol) THEN
                   WRITE (stdout, '(1x,2f10.6)') bb1, bbn
                   CPABORT('Non-symmetric k-point neighbours!')
-               ENDIF
-            ENDDO
-         ENDDO
-      ENDDO
+               END IF
+            END DO
+         END DO
+      END DO
 
       ! now check that the completeness relation is satisfied for every kpoint
       ! We know it is true for kpt=1; but we check the rest to be safe.
@@ -544,19 +544,19 @@ CONTAINS
                   DO nnsh = 1, nnshell(1, ndnn)
                      nnx = nnx + 1
                      ddelta = ddelta + wb_local(nnx)*bk_local(i, nnx, nkp)*bk_local(j, nnx, nkp)
-                  ENDDO
-               ENDDO
+                  END DO
+               END DO
                IF ((i .EQ. j) .AND. (ABS(ddelta - 1.0_dp) .GT. kmesh_tol)) THEN
                   WRITE (stdout, '(1x,2i3,f12.8)') i, j, ddelta
                   CPABORT('Eq. (B1) not satisfied in kmesh_get (1)')
-               ENDIF
+               END IF
                IF ((i .NE. j) .AND. (ABS(ddelta) .GT. kmesh_tol)) THEN
                   WRITE (stdout, '(1x,2i3,f12.8)') i, j, ddelta
                   CPABORT('Eq. (B1) not satisfied in kmesh_get (2)')
-               ENDIF
-            ENDDO
-         ENDDO
-      ENDDO
+               END IF
+            END DO
+         END DO
+      END DO
 
       WRITE (stdout, '(1x,a)') '| Completeness relation is fully satisfied [Eq. (B1), PRB 56, 12847 (1997)]  |'
       WRITE (stdout, '(1x,"+",76("-"),"+")')
@@ -569,8 +569,8 @@ CONTAINS
          DO nnsh = 1, nnshell(1, ndnn)
             nnx = nnx + 1
             wbtot = wbtot + wb_local(nnx)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       nnh = nntot/2
       ! make list of bka vectors from neighbours of first k-point
@@ -582,16 +582,16 @@ CONTAINS
             DO nap = 1, na
                CALL utility_compar(bka(1, nap), bk_local(1, nn, 1), ispos, isneg)
                IF (isneg) ifound = 1
-            ENDDO
-         ENDIF
+            END DO
+         END IF
          IF (ifound .EQ. 0) THEN
             !         found new vector to add to set
             na = na + 1
             bka(1, na) = bk_local(1, nn, 1)
             bka(2, na) = bk_local(2, nn, 1)
             bka(3, na) = bk_local(3, nn, 1)
-         ENDIF
-      ENDDO
+         END IF
+      END DO
       IF (na .NE. nnh) CPABORT('Did not find right number of bk directions')
 
       WRITE (stdout, '(1x,a)') '|                 b_k Vectors (Bohr^-1) and Weights (Bohr^2)                 |'
@@ -601,7 +601,7 @@ CONTAINS
       DO i = 1, nntot
          WRITE (stdout, '(1x,"|",11x,i3,5x,3f12.6,3x,f10.6,8x,"|")') &
             i, (bk_local(j, i, 1)/lenconfac, j=1, 3), wb_local(i)*lenconfac**2
-      ENDDO
+      END DO
       WRITE (stdout, '(1x,"+",76("-"),"+")')
       WRITE (stdout, '(1x,a)') '|                           b_k Directions (Bohr^-1)                         |'
       WRITE (stdout, '(1x,a)') '|                           ------------------------                         |'
@@ -609,7 +609,7 @@ CONTAINS
       WRITE (stdout, '(1x,a)') '|            ---        --------------------------------                     |'
       DO i = 1, nnh
          WRITE (stdout, '(1x,"|",11x,i3,5x,3f12.6,21x,"|")') i, (bka(j, i)/lenconfac, j=1, 3)
-      ENDDO
+      END DO
       WRITE (stdout, '(1x,"+",76("-"),"+")')
       WRITE (stdout, *) ' '
 
@@ -622,14 +622,14 @@ CONTAINS
             DO nn = 1, nntot
                CALL utility_compar(bka(1, na), bk_local(1, nn, nkp), ispos, isneg)
                IF (ispos) neigh(nkp, na) = nn
-            ENDDO
+            END DO
             ! check found
             IF (neigh(nkp, na) .EQ. 0) THEN
                WRITE (stdout, *) ' nkp,na=', nkp, na
                CPABORT('kmesh_get: failed to find neighbours for this kpoint')
-            ENDIF
-         ENDDO
-      ENDDO
+            END IF
+         END DO
+      END DO
 
       !fill in the global arrays from the local ones
       DO loop = 1, nntot
@@ -718,7 +718,7 @@ CONTAINS
          IF (ABS(dist(loop) - dist(guess(1))) < eps8) THEN
             counter = counter + 1
             list(counter) = loop
-         ENDIF
+         END IF
       END DO
       ! and always return the lowest index
       internal_maxloc = MINVAL(list(1:counter))
@@ -931,11 +931,11 @@ CONTAINS
             IF ((dist .GE. shell_dist*(1.0_dp - kmesh_tol)) .AND. dist .LE. shell_dist*(1.0_dp + kmesh_tol)) THEN
                num_bvec = num_bvec + 1
                bvector(:, num_bvec) = vkpp(:) - kpt_cart(:, kpt)
-            ENDIF
+            END IF
             !if we have the right number of neighbours we can exit
             IF (num_bvec == multi) CYCLE ok
-         ENDDO
-      ENDDO ok
+         END DO
+      END DO ok
 
       IF (num_bvec < multi) CPABORT('kmesh_get_bvector: Not enough bvectors found')
 

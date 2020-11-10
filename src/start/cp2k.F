@@ -123,7 +123,7 @@ PROGRAM cp2k
    l = LEN_TRIM(command)
    IF (command(l - 4:l) == ".sopt" .OR. command(l - 4:l) == ".popt") THEN
       CALL omp_set_num_threads(1)
-   ENDIF
+   END IF
 
    i_arg = 0
    arg_loop: DO WHILE (i_arg < COMMAND_ARGUMENT_COUNT())
@@ -166,7 +166,7 @@ PROGRAM cp2k
                "ERROR: The input file name"//TRIM(arg_att)//" starts with -"
             command_line_error = .TRUE.
             EXIT arg_loop
-         ENDIF
+         END IF
       CASE ("-E", "--set")
          i_arg = i_arg + 1
          CALL GET_COMMAND_ARGUMENT(i_arg, arg_att, status=ierr)
@@ -178,7 +178,7 @@ PROGRAM cp2k
             WRITE (output_unit, "(/,T2,A)") "ERROR: Invalid initializer for preprocessor variable: "//TRIM(arg_att)
             command_line_error = .TRUE.
             EXIT arg_loop
-         ENDIF
+         END IF
 
          DO inp_var_idx = 1, SIZE(initial_variables, 2)
             ! check whether the variable was already set, in this case, overwrite
@@ -191,7 +191,7 @@ PROGRAM cp2k
             ALLOCATE (initial_variables_tmp(2, SIZE(initial_variables, 2) + 1))
             initial_variables_tmp(:, 1:SIZE(initial_variables, 2)) = initial_variables
             CALL MOVE_ALLOC(initial_variables_tmp, initial_variables)
-         ENDIF
+         END IF
 
          initial_variables(1, inp_var_idx) = arg_att(:var_set_sep - 1)
          initial_variables(2, inp_var_idx) = arg_att(var_set_sep + 1:)
@@ -207,7 +207,7 @@ PROGRAM cp2k
                "ERROR: The output file name"//TRIM(arg_att)//" starts with -"
             command_line_error = .TRUE.
             EXIT arg_loop
-         ENDIF
+         END IF
       CASE ("--xml")
          xml = .TRUE.
          run_it = .FALSE.
@@ -301,8 +301,8 @@ PROGRAM cp2k
          IF (print_license) THEN
             IF (default_para_env%ionode) THEN
                CALL print_cp2k_license(output_unit)
-            ENDIF
-         ENDIF
+            END IF
+         END IF
 
          IF (xml) THEN
             IF (default_para_env%ionode) THEN
@@ -321,24 +321,24 @@ PROGRAM cp2k
                      WRITE (output_unit, "(A)") "SUCCESS, the input could be parsed correctly."
                      WRITE (output_unit, "(A)") "         This does not guarantee that this input is meaningful"
                      WRITE (output_unit, "(A)") "         or will run successfully"
-                  ENDIF
+                  END IF
                ELSE
                   WRITE (output_unit, "(A)") "ERROR,   the input could *NOT* be parsed correctly."
                   WRITE (output_unit, "(A)") "         Please, check and correct it"
                END IF
             END IF
-         ENDIF
+         END IF
 
          IF (shell_mode) THEN
             CALL launch_cp2k_shell(input_declaration)
-         ENDIF
+         END IF
 
          IF (run_it .OR. force_run) THEN
             CALL run_input(input_declaration, input_file_name, output_file_name, initial_variables)
          END IF
 
          CALL section_release(input_declaration)
-      ENDIF
+      END IF
    ELSE
       WRITE (UNIT=output_unit, FMT="(/,A)") "initial setup (MPI ?) error"
    END IF

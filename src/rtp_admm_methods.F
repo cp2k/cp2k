@@ -455,7 +455,7 @@ CONTAINS
             CPWARN("only purification NONE possible with RTP/EMD at the moment")
          END SELECT
 
-      ENDDO !spin loop
+      END DO !spin loop
       CALL timestop(handle)
 
    END SUBROUTINE rtp_admm_merge_ks_matrix

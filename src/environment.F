@@ -284,7 +284,7 @@ CONTAINS
       IF (m_procrun(r_pid) .EQ. 1) THEN
          CALL string_to_ascii(r_host_name, all_host(:, para_env%mepos + 1))
          CALL mp_sum(all_host, para_env%group)
-      ENDIF
+      END IF
 
       IF (output_unit > 0) THEN
          ALLOCATE (all_pid(para_env%num_pe))
@@ -300,7 +300,7 @@ CONTAINS
                   IF (string .EQ. string_sec) THEN
                      nr_occu = nr_occu + 1
                      all_pid(jpe) = -1
-                  ENDIF
+                  END IF
                END DO
                WRITE (UNIT=output_unit, FMT="(T2,A,T63,I8,A)") &
                   TRIM(r_user_name)//"@"//TRIM(string)// &
@@ -538,7 +538,7 @@ CONTAINS
          CALL section_vals_val_get(global_section, "TRACE_ROUTINES", c_vals=trace_routines)
       ELSE
          NULLIFY (trace_routines)
-      ENDIF
+      END IF
       CALL section_vals_val_get(global_section, "FLUSH_SHOULD_FLUSH", l_val=flush_should_flush)
       CALL section_vals_val_get(global_section, "ECHO_ALL_HOSTS", l_val=do_echo_all_hosts)
       report_maxloc = section_get_lval(global_section, "TIMINGS%REPORT_MAXLOC")
@@ -562,7 +562,7 @@ CONTAINS
          ELSE
             CALL timings_setup_tracing(trace_max, unit_nr, tracing_string)
          END IF
-      ENDIF
+      END IF
 
       CALL section_vals_val_get(global_section, "TIMINGS%TIME_MPI", l_val=mp_collect_timings)
 
@@ -613,7 +613,7 @@ CONTAINS
 
       IF (globenv%prog_name_id == do_farming .AND. globenv%run_type_id /= none_run) THEN
          CPABORT("FARMING program supports only NONE as run type")
-      ENDIF
+      END IF
 
       IF (globenv%prog_name_id == do_test .AND. globenv%run_type_id /= none_run) &
          CPABORT("TEST program supports only NONE as run type")
@@ -678,7 +678,7 @@ CONTAINS
 
          ! *** Print the number of processes per host ***
          CALL echo_all_process_host(para_env, output_unit)
-      ENDIF
+      END IF
 
       num_threads = 1
 !$    num_threads = omp_get_max_threads()
@@ -894,7 +894,7 @@ CONTAINS
          try_fftw = .FALSE.
       ELSE
          try_fftw = .TRUE.
-      ENDIF
+      END IF
 
       !   *** Initialize FFT library with the user's preferred FFT library ***
       CALL init_fft(fftlib=TRIM(globenv%default_fft_library), &
@@ -913,7 +913,7 @@ CONTAINS
                WRITE (output_unit, '(A,A,T55,A)') &
                   " WARNING : FFT library "//TRIM(globenv%default_fft_library)// &
                   " is not available ", " Trying FFTW3"
-            ENDIF
+            END IF
             globenv%default_fft_library = "FFTW3"
             CALL init_fft(fftlib=TRIM(globenv%default_fft_library), &
                           alltoall=section_get_lval(global_section, "ALLTOALL_SGL"), &
@@ -923,7 +923,7 @@ CONTAINS
                           plan_style=globenv%fftw_plan_type)
 
             CALL fft3d(1, n, zz, status=stat)
-         ENDIF
+         END IF
 
          IF (stat /= 0) THEN
 
@@ -931,7 +931,7 @@ CONTAINS
                WRITE (output_unit, '(A,A,T55,A)') &
                   " WARNING : FFT library "//TRIM(globenv%default_fft_library)// &
                   " is not available ", " Trying FFTSG as a default"
-            ENDIF
+            END IF
 
             globenv%default_fft_library = "FFTSG"
             CALL init_fft(fftlib=TRIM(globenv%default_fft_library), &
@@ -944,9 +944,9 @@ CONTAINS
             CALL fft3d(1, n, zz, status=stat)
             IF (stat /= 0) THEN
                CPABORT("FFTSG not functional....")
-            ENDIF
+            END IF
 
-         ENDIF
+         END IF
 
       END IF
 
@@ -976,7 +976,7 @@ CONTAINS
             WRITE (output_unit, '(A,A,T55,A)') &
                " WARNING : DIAGONALIZATION library "//TRIM(globenv%diag_library)// &
                " is not available, fallback to SCALAPACK"
-         ENDIF
+         END IF
 
       END IF
 
@@ -1117,7 +1117,7 @@ CONTAINS
          CALL diag_finalize()
          ! finalize the fft (i.e. writes the wisdom if FFTW3 )
          CALL finalize_fft(para_env, globenv%fftw_wisdom_file_name)
-      ENDIF
+      END IF
 
       ! Write message passing performance info
 
@@ -1143,7 +1143,7 @@ CONTAINS
 
          CALL print_all_references(sorted=.TRUE., cited_only=.TRUE., &
                                    FORMAT=print_format_journal, unit=iw)
-      ENDIF
+      END IF
       CALL cp_print_key_finished_output(iw, logger, root_section, &
                                         "GLOBAL%REFERENCES")
 
@@ -1156,7 +1156,7 @@ CONTAINS
       report_maxloc = section_get_lval(root_section, "GLOBAL%TIMINGS%REPORT_MAXLOC")
       IF (m_energy() .NE. 0.0_dp) THEN
          CALL timings_report_print(iw, r_timings, sort_by_self_time, cost_type_energy, report_maxloc, para_env)
-      ENDIF
+      END IF
       CALL timings_report_print(iw, r_timings, sort_by_self_time, cost_type_time, report_maxloc, para_env)
 
       !Write the callgraph, if desired by user
@@ -1170,7 +1170,7 @@ CONTAINS
             WRITE (UNIT=iw, FMT="(T2,3X,A)") "Writing callgraph to: "//TRIM(cg_filename)//".callgraph"
             WRITE (UNIT=iw, FMT="()")
             WRITE (UNIT=iw, FMT="(T2,A)") "-------------------------------------------------------------------------------"
-         ENDIF
+         END IF
          IF (cg_mode == CALLGRAPH_ALL .OR. para_env%ionode) &
             CALL timings_report_callgraph(TRIM(cg_filename)//".callgraph")
       END IF
@@ -1205,7 +1205,7 @@ CONTAINS
             WRITE (iw, "(T2,A,I0)") "The number of warnings for this run is : ", warning_counter
             WRITE (iw, *) ""
             WRITE (UNIT=iw, FMT="(T2,A)") REPEAT("-", 79)
-         ENDIF
+         END IF
 
          ! update the runtime environment variables
          CALL get_runtime_info()

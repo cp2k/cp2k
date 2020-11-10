@@ -77,7 +77,7 @@ CONTAINS
          debug_flag = debug
       ELSE
          debug_flag = .FALSE.
-      ENDIF
+      END IF
 
    END SUBROUTINE p86_init
 

@@ -613,7 +613,7 @@ CONTAINS
          CALL DGEMV('N', data_size, n_tiles_tot, 1.0_dp, Bt, data_size, lambda_old, 1, 0.0_dp, Btxlambda_old, 1)
       END IF
       CALL convert_1dto3d(ps_implicit_env%idx_1dto3d, Btxlambda_old, Btxlambda_old3D)
-      res_old%cr3d = res_old%cr3d-Btxlambda_old3D
+      res_old%cr3d = res_old%cr3d - Btxlambda_old3D
 
 ! evaluate \Delta^-1(res_old)
       CALL apply_inv_laplace_operator_fft(pw_pool, green, res_old, QAinvxres)
@@ -646,7 +646,7 @@ CONTAINS
          eta = lambda_newNeta(n_tiles_tot + 1)
 
 ! v_new = v_bar + 1 * \eta
-         v_new%cr3d = v_new%cr3d+eta/ngpts
+         v_new%cr3d = v_new%cr3d + eta/ngpts
 
 ! evaluate B^t * \lambda_new
          IF (data_size .NE. 0) THEN
@@ -660,7 +660,7 @@ CONTAINS
          CALL apply_P_operator(pw_pool, dielectric, QAinvxres, PxQAinvxres)
          CALL pw_axpy(PxQAinvxres, res_new, -1.0_dp)
          CALL pw_axpy(res_old, res_new, 1.0_dp - omega)
-         res_new%cr3d = res_new%cr3d+Btxlambda_old3D-Btxlambda_new3D
+         res_new%cr3d = res_new%cr3d + Btxlambda_old3D - Btxlambda_new3D
 
 ! compute the error
          CALL ps_implicit_compute_error_fft(pw_pool, green, res_new, v_old, v_new, QAinvxres, &
@@ -898,7 +898,7 @@ CONTAINS
          CALL DGEMV('N', data_size, n_tiles_tot, 1.0_dp, Bt, data_size, lambda_old, 1, 0.0_dp, Btxlambda_old, 1)
       END IF
       CALL convert_1dto3d(ps_implicit_env%idx_1dto3d, Btxlambda_old, Btxlambda_old3D)
-      res_old%cr3d = res_old%cr3d-Btxlambda_old3D
+      res_old%cr3d = res_old%cr3d - Btxlambda_old3D
 
 ! evaluate \Delta^-1(res_old)
       CALL apply_inv_laplace_operator_dct(pw_pool_xpndd, green, res_old, QAinvxres)
@@ -931,7 +931,7 @@ CONTAINS
          eta = lambda_newNeta(n_tiles_tot + 1)
 
 ! v_new = v_bar + 1 * \eta
-         v_new_xpndd%cr3d = v_new_xpndd%cr3d+eta/ngpts
+         v_new_xpndd%cr3d = v_new_xpndd%cr3d + eta/ngpts
 
 ! evaluate B^t * \lambda_new
          IF (data_size .NE. 0) THEN
@@ -945,7 +945,7 @@ CONTAINS
          CALL apply_P_operator(pw_pool_xpndd, dielectric, QAinvxres, PxQAinvxres)
          CALL pw_axpy(PxQAinvxres, res_new, -1.0_dp)
          CALL pw_axpy(res_old, res_new, 1.0_dp - omega)
-         res_new%cr3d = res_new%cr3d-Btxlambda_new3D+Btxlambda_old3D
+         res_new%cr3d = res_new%cr3d - Btxlambda_new3D + Btxlambda_old3D
 
 ! compute the error
          CALL ps_implicit_compute_error_dct(pw_pool_xpndd, green, res_new, v_old, v_new_xpndd, QAinvxres, &
@@ -1108,7 +1108,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       SELECT CASE (poisson_params%ps_implicit_params%boundary_condition)
       CASE (MIXED_BC)
@@ -1435,8 +1435,8 @@ CONTAINS
       END DO
 
       CALL derive_fft(v, dv, pw_pool)
-      Pxv%cr3d = -(dv(1)%pw%cr3d*dln_eps(1)%pw%cr3d+ &
-                   dv(2)%pw%cr3d*dln_eps(2)%pw%cr3d+ &
+      Pxv%cr3d = -(dv(1)%pw%cr3d*dln_eps(1)%pw%cr3d + &
+                   dv(2)%pw%cr3d*dln_eps(2)%pw%cr3d + &
                    dv(3)%pw%cr3d*dln_eps(3)%pw%cr3d)
 
       DO i = 1, 3
@@ -1911,7 +1911,7 @@ CONTAINS
 
 ! normalized absolute error :
 ! nabs_error := \frac{\| v_old - v_new \|}{volume}
-      nabs_error = accurate_sum(ABS(v_old%cr3d-v_new%cr3d)**2)
+      nabs_error = accurate_sum(ABS(v_old%cr3d - v_new%cr3d)**2)
       CALL mp_sum(nabs_error, pw_pool%pw_grid%para%group)
       nabs_error = SQRT(nabs_error)/vol
 
@@ -1962,7 +1962,7 @@ CONTAINS
 
 ! normalized absolute error :
 ! nabs_error := \frac{\| v_old - v_new \|}{volume}
-      nabs_error = accurate_sum(ABS(v_old%cr3d-v_new%cr3d)**2)
+      nabs_error = accurate_sum(ABS(v_old%cr3d - v_new%cr3d)**2)
       CALL mp_sum(nabs_error, pw_pool%pw_grid%para%group)
       nabs_error = SQRT(nabs_error)/vol
 
@@ -1999,7 +1999,7 @@ CONTAINS
          outp_unit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          outp_unit = -1
-      ENDIF
+      END IF
 
       IF (logger%iter_info%print_level .GT. low_print_level) THEN
          IF ((outp_unit .GT. 0) .AND. (iter .EQ. 1)) THEN

@@ -232,7 +232,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
       s1 = 0.5_dp*step_size(1); s2 = step_size(1); s1sq = s1**2; s2sq = s2**2
       sys_lin_eq = 0.0_dp; sys_lin_eq(:, 6) = 1.0_dp
       sys_lin_eq(2, 1) = s1sq; sys_lin_eq(2, 2) = s1sq; sys_lin_eq(2, 3) = s1sq; sys_lin_eq(2, 4) = s1; sys_lin_eq(2, 5) = s1
@@ -286,7 +286,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
       step1 = 0.5_dp*step_size(1)
       c = energies(1)
       a = (energies(3) + c - 2.0_dp*energies(2))/(2.0_dp*step1**2)
@@ -305,7 +305,7 @@ CONTAINS
       IF (unit_nr .GT. 0) THEN
          WRITE (unit_nr, "(t3,a,f16.8,a,F20.9)") "Line Search: Step Size", step_size(1), " Predicted energy", e_pred
          CALL m_flush(unit_nr)
-      ENDIF
+      END IF
    END SUBROUTINE line_search_3pnt
 
 ! **************************************************************************************************
@@ -349,7 +349,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
       CALL timeset(routineN, handle)
       nspin = SIZE(matrix_p)
 
@@ -417,7 +417,7 @@ CONTAINS
             IF (unit_nr .GT. 0) THEN
                WRITE (unit_nr, "(T3,A,F12.6)") "Convergence of Newton iteration ", maxel
                CALL m_flush(unit_nr)
-            ENDIF
+            END IF
             at_limit = at_limit .OR. (old_conv/maxel .LT. 1.01_dp)
             old_conv = maxel
             IF (i == ncyc .AND. maxel/conv_val .GT. 5.0_dp) THEN
@@ -638,7 +638,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       CALL dbcsr_create(matrix, template=matrix_p_in(1), matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_create(matrix_tmp, template=matrix_p_in(1), matrix_type=dbcsr_type_no_symmetry)

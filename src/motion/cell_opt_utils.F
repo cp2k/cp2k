@@ -220,11 +220,11 @@ CONTAINS
          pres_ext_tens = MATMUL(TRANSPOSE(rot), pres_ext_tens)
          DO i = 1, 3
             pres_ext = pres_ext + pres_ext_tens(i, i)
-         ENDDO
+         END DO
          pres_ext = pres_ext/3.0_dp
          DO i = 1, 3
             pres_ext_tens(i, i) = pres_ext_tens(i, i) - pres_ext
-         ENDDO
+         END DO
       ELSE
          pres_ext = pvals(1)
       END IF
@@ -284,7 +284,7 @@ CONTAINS
       pres_int = 0.0_dp
       DO i = 1, 3
          pres_int = pres_int + ptens(i, i)
-      ENDDO
+      END DO
       pres_int = pres_int/3.0_dp
 
       SELECT CASE (my_constraint_id)

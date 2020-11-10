@@ -138,7 +138,7 @@ CONTAINS
             CALL calculate_rho0_atom(gapw_control, rho_atom_set, rho0_atom_set, rho0_mpole, &
                                      atom_list, natom, ikind, my_kind_set(ikind), rho0_h_tot)
 
-      ENDDO
+      END DO
 
       !Do not mess with charges if using a non-default kind_set
       IF (.NOT. extern) THEN

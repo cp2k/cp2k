@@ -161,7 +161,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       ! get basic quantities from the qs_env
       CALL get_qs_env(qs_env, nelectron_total=ls_scf_env%nelectron_total, &
@@ -189,7 +189,7 @@ CONTAINS
       IF (ALLOCATED(ls_scf_env%matrix_p)) THEN
          DO ispin = 1, SIZE(ls_scf_env%matrix_p)
             CALL dbcsr_release(ls_scf_env%matrix_p(ispin))
-         ENDDO
+         END DO
       ELSE
          ALLOCATE (ls_scf_env%matrix_p(nspin))
       END IF
@@ -197,13 +197,13 @@ CONTAINS
       DO ispin = 1, nspin
          CALL dbcsr_create(ls_scf_env%matrix_p(ispin), template=ls_scf_env%matrix_s, &
                            matrix_type=dbcsr_type_no_symmetry)
-      ENDDO
+      END DO
 
       ALLOCATE (ls_scf_env%matrix_ks(nspin))
       DO ispin = 1, nspin
          CALL dbcsr_create(ls_scf_env%matrix_ks(ispin), template=ls_scf_env%matrix_s, &
                            matrix_type=dbcsr_type_no_symmetry)
-      ENDDO
+      END DO
 
       ! set up matrix S, and needed functions of S
       CALL ls_scf_init_matrix_s(matrix_s(1)%matrix, ls_scf_env)
@@ -213,11 +213,11 @@ CONTAINS
 
       IF (ls_scf_env%do_rho_mixing) THEN
          CALL rho_mixing_ls_init(qs_env, ls_scf_env)
-      ENDIF
+      END IF
 
       IF (ls_scf_env%do_pexsi) THEN
          CALL pexsi_init_scf(ks_env, ls_scf_env%pexsi, matrix_s(1)%matrix)
-      ENDIF
+      END IF
 
       IF (qs_env%do_transport) THEN
          CALL transport_initialize(ks_env, qs_env%transport_env, matrix_s(1)%matrix)
@@ -261,7 +261,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       IF (unit_nr > 0) WRITE (unit_nr, '()')
       ! if there is no history go for the atomic guess, otherwise extrapolate the dm history
@@ -270,10 +270,10 @@ CONTAINS
             initial_guess_type = restart_guess
          ELSE
             initial_guess_type = atomic_guess
-         ENDIF
+         END IF
       ELSE
          initial_guess_type = aspc_guess
-      ENDIF
+      END IF
 
       ! how to get the initial guess
       SELECT CASE (initial_guess_type)
@@ -288,8 +288,8 @@ CONTAINS
             cs_pos = dbcsr_checksum(ls_scf_env%matrix_p(ispin), pos=.TRUE.)
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T2,A,E20.8)') "Read restart DM "//TRIM(file_name)//" with checksum: ", cs_pos
-            ENDIF
-         ENDDO
+            END IF
+         END DO
 
          ! directly go to computing the corresponding energy and ks matrix
          CALL ls_scf_dm_to_ks(qs_env, ls_scf_env, ls_scf_env%energy_init, iscf=0)
@@ -305,8 +305,8 @@ CONTAINS
                        binomial(2*naspc, naspc - iaspc)/binomial(2*naspc - 2, naspc - 1)
                istore = MOD(ls_scf_env%scf_history%istore - iaspc, ls_scf_env%scf_history%nstore) + 1
                CALL dbcsr_add(ls_scf_env%matrix_p(ispin), ls_scf_env%scf_history%matrix(ispin, istore), 1.0_dp, alpha)
-            ENDDO
-         ENDDO
+            END DO
+         END DO
       END SELECT
 
       ! which cases need getting purified and non-orthogonal ?
@@ -339,10 +339,10 @@ CONTAINS
                   IF (ls_scf_env%has_s_preconditioner) THEN
                      CALL apply_matrix_preconditioner(ls_scf_env%matrix_p(ispin), "forward", &
                                                       ls_scf_env%matrix_bs_sqrt, ls_scf_env%matrix_bs_sqrt_inv)
-                  ENDIF
-               ENDIF
-            ENDDO
-         ENDIF
+                  END IF
+               END IF
+            END DO
+         END IF
 
          ! compute corresponding energy and ks matrix
          CALL ls_scf_dm_to_ks(qs_env, ls_scf_env, ls_scf_env%energy_init, iscf=0)
@@ -351,7 +351,7 @@ CONTAINS
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A,F20.9)') "Energy with the initial guess:", ls_scf_env%energy_init
          WRITE (unit_nr, '()')
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -383,7 +383,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       IF (ls_scf_env%restart_write) THEN
          DO ispin = 1, SIZE(ls_scf_env%matrix_p)
@@ -392,7 +392,7 @@ CONTAINS
             cs_pos = dbcsr_checksum(ls_scf_env%matrix_p(ispin), pos=.TRUE.)
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T2,A,E20.8)') "Writing restart DM "//TRIM(file_name)//" with checksum: ", cs_pos
-            ENDIF
+            END IF
             IF (ls_scf_env%do_transport .OR. ls_scf_env%do_pexsi) THEN
                IF (unit_nr > 0) THEN
                   WRITE (unit_nr, '(T6,A)') "The restart DM "//TRIM(file_name)//" has the sparsity of S, therefore,"
@@ -400,7 +400,7 @@ CONTAINS
                END IF
             END IF
             CALL dbcsr_binary_write(ls_scf_env%matrix_p(ispin), file_name)
-         ENDDO
+         END DO
       END IF
 
       IF (ls_scf_env%scf_history%nstore > 0) THEN
@@ -419,17 +419,17 @@ CONTAINS
                IF (ls_scf_env%has_s_preconditioner) THEN
                   CALL apply_matrix_preconditioner(ls_scf_env%scf_history%matrix(ispin, istore), "backward", &
                                                    ls_scf_env%matrix_bs_sqrt, ls_scf_env%matrix_bs_sqrt_inv)
-               ENDIF
+               END IF
                CALL dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt, ls_scf_env%scf_history%matrix(ispin, istore), &
                                    0.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter)
                CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp1, ls_scf_env%matrix_s_sqrt, &
                                    0.0_dp, ls_scf_env%scf_history%matrix(ispin, istore), &
                                    filter_eps=ls_scf_env%eps_filter)
                CALL dbcsr_release(matrix_tmp1)
-            ENDIF
+            END IF
 
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       CALL timestop(handle)
 
@@ -470,7 +470,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       nspin = ls_scf_env%nspins
 
@@ -481,7 +481,7 @@ CONTAINS
 
          CALL dbcsr_create(matrix_ks_deviation(ispin), template=ls_scf_env%matrix_ks(ispin))
          CALL dbcsr_set(matrix_ks_deviation(ispin), 0.0_dp)
-      ENDDO
+      END DO
       ls_scf_env%homo_spin(:) = 0.0_dp
       ls_scf_env%lumo_spin(:) = 0.0_dp
 
@@ -525,13 +525,13 @@ CONTAINS
                IF (maxscf_reached) THEN
                   IF (unit_nr > 0) WRITE (unit_nr, '(T2,A)') "SCF not converged! "
                   EXIT
-               ENDIF
+               END IF
             END IF
          ELSE
             IF (should_stop .OR. iscf >= ls_scf_env%max_scf) THEN
                IF (unit_nr > 0) WRITE (unit_nr, '(T2,A)') "SCF not converged! "
                EXIT
-            ENDIF
+            END IF
          END IF
 
          t1 = m_walltime()
@@ -545,9 +545,9 @@ CONTAINS
             IF (ls_scf_env%has_s_preconditioner) THEN
                CALL apply_matrix_preconditioner(ls_scf_env%matrix_ks(ispin), "forward", &
                                                 ls_scf_env%matrix_bs_sqrt, ls_scf_env%matrix_bs_sqrt_inv)
-            ENDIF
+            END IF
             CALL dbcsr_filter(ls_scf_env%matrix_ks(ispin), ls_scf_env%eps_filter)
-         ENDDO
+         END DO
          ! run curvy steps if required. Needs an idempotent DM (either perification or restart)
          IF ((iscf > 1 .OR. ls_scf_env%scf_history%istore > 0) .AND. ls_scf_env%curvy_steps) THEN
             CALL dm_ls_curvy_optimization(ls_scf_env, energy_old, check_convergence)
@@ -573,7 +573,7 @@ CONTAINS
                                  " KS_nw= DIIS-Linear-Combination-Previous KS matrices"
                               WRITE (unit_nr, '(61A)') &
                                  "*************************************************************"
-                           ENDIF
+                           END IF
                            CALL dbcsr_copy(matrix_mixing_old(ispin), & ! out
                                            ls_scf_env%matrix_ks(ispin)) ! in
                         ELSE
@@ -588,13 +588,13 @@ CONTAINS
                                  1.0_dp - ls_scf_env%mixing_fraction, "*KS_old"
                               WRITE (unit_nr, '(A57)') &
                                  "*********************************************************"
-                           ENDIF
+                           END IF
                            ! perform the mixing of ks matrices
                            CALL dbcsr_add(matrix_mixing_old(ispin), &
                                           ls_scf_env%matrix_ks(ispin), &
                                           1.0_dp - ls_scf_env%mixing_fraction, &
                                           ls_scf_env%mixing_fraction)
-                        ENDIF
+                        END IF
                      ELSE ! otherwise
                         IF (unit_nr > 0) THEN
                            WRITE (unit_nr, '(A57)') &
@@ -607,15 +607,15 @@ CONTAINS
                               1.0_dp - ls_scf_env%mixing_fraction, "*KS_old"
                            WRITE (unit_nr, '(A57)') &
                               "*********************************************************"
-                        ENDIF
+                        END IF
                         ! perform the mixing of ks matrices
                         CALL dbcsr_add(matrix_mixing_old(ispin), &
                                        ls_scf_env%matrix_ks(ispin), &
                                        1.0_dp - ls_scf_env%mixing_fraction, &
                                        ls_scf_env%mixing_fraction)
-                     ENDIF ! ------- IF-DIIS+MIX--- END
-                  ENDIF
-               ENDIF
+                     END IF ! ------- IF-DIIS+MIX--- END
+                  END IF
+               END IF
 
                ! compute the density matrix that matches it
                ! we need the proper number of states
@@ -671,12 +671,12 @@ CONTAINS
                IF (ls_scf_env%has_s_preconditioner) THEN
                   CALL apply_matrix_preconditioner(ls_scf_env%matrix_p(ispin), "forward", &
                                                    ls_scf_env%matrix_bs_sqrt, ls_scf_env%matrix_bs_sqrt_inv)
-               ENDIF
+               END IF
                CALL dbcsr_filter(ls_scf_env%matrix_p(ispin), ls_scf_env%eps_filter)
 
                IF (ls_scf_env%nspins == 1) CALL dbcsr_scale(ls_scf_env%matrix_p(ispin), 2.0_dp)
 
-            ENDDO
+            END DO
          END IF
 
          ! compute the corresponding new energy KS matrix and new energy
@@ -684,7 +684,7 @@ CONTAINS
 
          IF (ls_scf_env%do_pexsi) THEN
             CALL pexsi_to_qs(ls_scf_env, qs_env, kTS=ls_scf_env%pexsi%kTS)
-         ENDIF
+         END IF
 
          ! report current SCF loop
          energy_diff = energy_new - energy_old
@@ -696,7 +696,7 @@ CONTAINS
             WRITE (unit_nr, '(T2,A,I6,F20.9,F20.9,F12.6)') "SCF", iscf, energy_new, energy_diff, t2 - t1
             WRITE (unit_nr, *)
             CALL m_flush(unit_nr)
-         ENDIF
+         END IF
 
          IF (do_transport) THEN
             scf_converged = check_convergence .AND. ABS(energy_diff) < ls_scf_env%eps_scf*ls_scf_env%nelectron_total
@@ -719,7 +719,7 @@ CONTAINS
             CALL qs_diis_b_step_4lscf(diis_buffer, qs_env, ls_scf_env, unit_nr, &
                                       iscf, diis_step, eps_diis, nmixing, matrix_s(1)%matrix, &
                                       ls_scf_env%eps_filter)
-         ENDIF
+         END IF
 
          IF (ls_scf_env%do_pexsi) THEN
             CALL pexsi_set_convergence_tolerance(ls_scf_env%pexsi, energy_diff, &
@@ -727,18 +727,18 @@ CONTAINS
                                                  ! initialize in second scf step of first SCF cycle:
                                                  (iscf .EQ. 2) .AND. (ls_scf_env%scf_history%istore .EQ. 0), &
                                                  check_convergence)
-         ENDIF
+         END IF
 
-      ENDDO
+      END DO
 
       ! free storage
       IF (ls_scf_env%ls_diis) THEN
          CALL qs_diis_b_release_sparse(diis_buffer)
-      ENDIF
+      END IF
       DO ispin = 1, nspin
          CALL dbcsr_release(matrix_mixing_old(ispin))
          CALL dbcsr_release(matrix_ks_deviation(ispin))
-      ENDDO
+      END DO
       DEALLOCATE (matrix_mixing_old, matrix_ks_deviation)
 
       CALL timestop(handle)
@@ -776,7 +776,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       ! store the matrix for a next scf run
       IF (.NOT. ls_scf_env%do_pao) &
@@ -791,8 +791,8 @@ CONTAINS
          DO ispin = 1, ls_scf_env%nspins
             occ = dbcsr_get_occupation(ls_scf_env%matrix_p(ispin))
             IF (unit_nr > 0) WRITE (unit_nr, '(T2,A,F20.12)') "Density matrix (P) occupation ", occ
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       ! compute the matrix_w if associated
       IF (ls_scf_env%calculate_forces) THEN
@@ -802,8 +802,8 @@ CONTAINS
             CALL pexsi_to_qs(ls_scf_env, qs_env, matrix_w=ls_scf_env%pexsi%matrix_w)
          ELSE
             CALL calculate_w_matrix(matrix_w, ls_scf_env)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       ! compute properties
 
@@ -837,20 +837,20 @@ CONTAINS
       IF (ls_scf_env%has_s_preconditioner) THEN
          CALL dbcsr_release(ls_scf_env%matrix_bs_sqrt)
          CALL dbcsr_release(ls_scf_env%matrix_bs_sqrt_inv)
-      ENDIF
+      END IF
 
       IF (ls_scf_env%needs_s_inv) THEN
          CALL dbcsr_release(ls_scf_env%matrix_s_inv)
-      ENDIF
+      END IF
 
       IF (ls_scf_env%use_s_sqrt) THEN
          CALL dbcsr_release(ls_scf_env%matrix_s_sqrt)
          CALL dbcsr_release(ls_scf_env%matrix_s_sqrt_inv)
-      ENDIF
+      END IF
 
       DO ispin = 1, SIZE(ls_scf_env%matrix_ks)
          CALL dbcsr_release(ls_scf_env%matrix_ks(ispin))
-      ENDDO
+      END DO
       DEALLOCATE (ls_scf_env%matrix_ks)
 
       IF (ls_scf_env%do_pexsi) &
@@ -886,7 +886,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       IF (unit_nr > 0) WRITE (unit_nr, '(T2,A)') ""
 
@@ -924,7 +924,7 @@ CONTAINS
          CALL compute_homo_lumo(matrix_k, matrix_p, eps_min, eps_max, ls_scf_env%eps_filter, &
                                 ls_scf_env%max_iter_lanczos, ls_scf_env%eps_lanczos, homo, lumo, unit_nr)
 
-      ENDDO
+      END DO
 
       CALL dbcsr_release(matrix_p)
       CALL dbcsr_release(matrix_k)
@@ -960,7 +960,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       nspin = ls_scf_env%nspins
 
@@ -985,13 +985,13 @@ CONTAINS
                                               ls_scf_env%matrix_s, ls_scf_env%matrix_s_inv, &
                                               ls_scf_env%eps_filter, ls_scf_env%sign_symmetric, &
                                               ls_scf_env%submatrix_sign_method, ls_scf_env%matrix_s_sqrt_inv)
-         ENDDO
+         END DO
 
          t2 = m_walltime()
 
          IF (unit_nr > 0) WRITE (unit_nr, *) " obtained ", mu, trace, t2 - t1
 
-      ENDDO
+      END DO
 
       CALL dbcsr_release(matrix_p)
 
@@ -1025,7 +1025,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       nspin = ls_scf_env%nspins
 
@@ -1033,7 +1033,7 @@ CONTAINS
          WRITE (unit_nr, '()')
          WRITE (unit_nr, '(T2,A,E17.3)') "Sparsity reports for eps_filter: ", ls_scf_env%eps_filter
          WRITE (unit_nr, '()')
-      ENDIF
+      END IF
 
       CALL report_matrix_sparsity(ls_scf_env%matrix_s, unit_nr, "overlap matrix (S)", &
                                   ls_scf_env%eps_filter)
@@ -1042,7 +1042,7 @@ CONTAINS
          WRITE (title, '(A,I3)') "Kohn-Sham matrix (H) for spin ", ispin
          CALL report_matrix_sparsity(ls_scf_env%matrix_ks(ispin), unit_nr, title, &
                                      ls_scf_env%eps_filter)
-      ENDDO
+      END DO
 
       CALL dbcsr_create(matrix_tmp1, template=ls_scf_env%matrix_s, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_create(matrix_tmp2, template=ls_scf_env%matrix_s, matrix_type=dbcsr_type_no_symmetry)
@@ -1062,7 +1062,7 @@ CONTAINS
                              0.0_dp, matrix_tmp2, filter_eps=ls_scf_env%eps_filter)
          WRITE (title, '(A,I3,A)') "S * P(", ispin, ") * S"
          CALL report_matrix_sparsity(matrix_tmp2, unit_nr, title, ls_scf_env%eps_filter)
-      ENDDO
+      END DO
 
       IF (ls_scf_env%needs_s_inv) THEN
          CALL report_matrix_sparsity(ls_scf_env%matrix_s_inv, unit_nr, "inv(S)", &
@@ -1073,8 +1073,8 @@ CONTAINS
 
             WRITE (title, '(A,I3,A)') "inv(S) * H(", ispin, ")"
             CALL report_matrix_sparsity(matrix_tmp1, unit_nr, title, ls_scf_env%eps_filter)
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       IF (ls_scf_env%use_s_sqrt) THEN
 
@@ -1090,7 +1090,7 @@ CONTAINS
                                 0.0_dp, matrix_tmp2, filter_eps=ls_scf_env%eps_filter)
             WRITE (title, '(A,I3,A)') "inv(sqrt(S)) * H(", ispin, ") * inv(sqrt(S))"
             CALL report_matrix_sparsity(matrix_tmp2, unit_nr, title, ls_scf_env%eps_filter)
-         ENDDO
+         END DO
 
          DO ispin = 1, nspin
             CALL dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt, ls_scf_env%matrix_p(ispin), &
@@ -1099,9 +1099,9 @@ CONTAINS
                                 0.0_dp, matrix_tmp2, filter_eps=ls_scf_env%eps_filter)
             WRITE (title, '(A,I3,A)') "sqrt(S) * P(", ispin, ") * sqrt(S)"
             CALL report_matrix_sparsity(matrix_tmp2, unit_nr, title, ls_scf_env%eps_filter)
-         ENDDO
+         END DO
 
-      ENDIF
+      END IF
 
       CALL dbcsr_release(matrix_tmp1)
       CALL dbcsr_release(matrix_tmp2)
@@ -1139,7 +1139,7 @@ CONTAINS
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A)') "Sparsity for : "//TRIM(title)
-      ENDIF
+      END IF
 
       eps_local = MAX(eps, 10E-14_dp)
       DO
@@ -1148,7 +1148,7 @@ CONTAINS
          occ = dbcsr_get_occupation(matrix_tmp)
          IF (unit_nr > 0) WRITE (unit_nr, '(T2,F16.12,A3,F16.12)') eps_local, " : ", occ
          eps_local = eps_local*10
-      ENDDO
+      END DO
 
       CALL dbcsr_release(matrix_tmp)
 
@@ -1184,7 +1184,7 @@ CONTAINS
          scaling = 0.5_dp
       ELSE
          scaling = 1.0_dp
-      ENDIF
+      END IF
 
       DO ispin = 1, ls_scf_env%nspins
 
@@ -1192,7 +1192,7 @@ CONTAINS
          IF (ls_scf_env%has_s_preconditioner) THEN
             CALL apply_matrix_preconditioner(matrix_tmp3, "backward", &
                                              ls_scf_env%matrix_bs_sqrt, ls_scf_env%matrix_bs_sqrt_inv)
-         ENDIF
+         END IF
          CALL dbcsr_filter(matrix_tmp3, ls_scf_env%eps_filter)
 
          CALL dbcsr_multiply("N", "N", scaling, ls_scf_env%matrix_p(ispin), matrix_tmp3, &
@@ -1200,7 +1200,7 @@ CONTAINS
          CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp1, ls_scf_env%matrix_p(ispin), &
                              0.0_dp, matrix_tmp2, filter_eps=ls_scf_env%eps_filter)
          CALL matrix_ls_to_qs(matrix_w(ispin)%matrix, matrix_tmp2, ls_scf_env%ls_mstruct, covariant=.FALSE.)
-      ENDDO
+      END DO
 
       CALL dbcsr_release(matrix_tmp1)
       CALL dbcsr_release(matrix_tmp2)
@@ -1231,7 +1231,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE post_scf_experiment

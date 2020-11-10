@@ -72,7 +72,7 @@ CONTAINS
             ndeg = 9
          ELSE
             ndeg = 1
-         ENDIF
+         END IF
 
          CALL init_baro_map_info(map_info, ndeg, csvr%loc_num_csvr)
          CALL csvr_thermo_create(csvr)

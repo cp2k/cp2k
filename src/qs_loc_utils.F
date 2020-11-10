@@ -125,15 +125,15 @@ CONTAINS
          ALLOCATE (mo_loc_history(SIZE(mo_loc)))
          DO i = 1, SIZE(mo_loc_history)
             CALL cp_fm_create(mo_loc_history(i)%matrix, mo_loc(i)%matrix%matrix_struct)
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       DO i = 1, SIZE(mo_loc_history)
          CALL cp_fm_get_info(mo_loc_history(i)%matrix, ncol_global=ncol_hist)
          CALL cp_fm_get_info(mo_loc(i)%matrix, ncol_global=ncol_loc)
          CPASSERT(ncol_hist == ncol_loc)
          CALL cp_fm_to_fm(mo_loc(i)%matrix, mo_loc_history(i)%matrix)
-      ENDDO
+      END DO
 
       CALL timestop(handle)
 
@@ -569,8 +569,8 @@ CONTAINS
                IF (localized_wfn_control%use_history .AND. ASSOCIATED(mo_loc_history)) THEN
                   CALL rotate_state_to_ref(moloc_coeff(ispin)%matrix, &
                                            mo_loc_history(ispin)%matrix, matrix_s(1)%matrix)
-               ENDIF
-            ENDIF
+               END IF
+            END IF
 
          END DO
 
@@ -600,7 +600,7 @@ CONTAINS
                   CALL dbcsr_copy(qs_loc_env%op_sm_set(j, i)%matrix, matrix_s(1)%matrix, &
                                   name="qs_loc_env%op_sm_"//TRIM(ADJUSTL(cp_to_string(j)))//"-"//TRIM(ADJUSTL(cp_to_string(i))))
                   CALL dbcsr_set(qs_loc_env%op_sm_set(j, i)%matrix, 0.0_dp)
-               ENDDO
+               END DO
             END DO
 
          ELSEIF (localized_wfn_control%operator_type == op_loc_pipek) THEN
@@ -621,7 +621,7 @@ CONTAINS
             END DO ! ispin
          ELSE
             CPABORT("Type of operator not implemented")
-         ENDIF
+         END IF
          CALL cp_fm_struct_release(tmp_fm_struct)
 
          IF (localized_wfn_control%operator_type == op_loc_berry) THEN
@@ -635,7 +635,7 @@ CONTAINS
             !!    here we don't have to do anything
             !!    CALL get_pipek_mezey_operator ( qs_loc_env, qs_env )
 
-         ENDIF
+         END IF
 
          qs_loc_env%molecular_states = .FALSE.
          qs_loc_env%wannier_states = .FALSE.
@@ -1386,8 +1386,8 @@ CONTAINS
                         END IF
                      END DO
                   END IF
-               ENDIF
-            ENDDO ! ispin
+               END IF
+            END DO ! ispin
             n_mos(:) = nao - n_mo(:)
             IF (my_do_homo) n_mos = n_mo
             CALL set_loc_wfn_lists(localized_wfn_control, nmoloc, n_mos, nspin)

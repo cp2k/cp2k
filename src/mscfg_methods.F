@@ -335,7 +335,7 @@ CONTAINS
                               matrix_type=dbcsr_type_no_symmetry)
             CALL dbcsr_copy(mscfg_env%mos_of_frag(ifrag, imo), &
                             mos_of_frag(imo)%mo_set%mo_coeff_b)
-         ENDDO
+         END DO
          !
          ! Clean up
          !
@@ -385,7 +385,7 @@ CONTAINS
          iw = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          iw = -1
-      ENDIF
+      END IF
 
       IF (iw > 0) THEN
 
@@ -483,10 +483,10 @@ CONTAINS
                is_fast_dirty = .FALSE.
                IF (frz_term_type .EQ. almo_frz_crystal) THEN
                   is_crystal = .TRUE.
-               ENDIF
-            ENDIF
+               END IF
+            END IF
 
-         ENDIF
+         END IF
 
          mscfg_env%is_fast_dirty = is_fast_dirty
          mscfg_env%is_crystal = is_crystal

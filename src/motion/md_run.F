@@ -150,7 +150,7 @@ CONTAINS
                              hmc_e_initial=hmc_e_initial, hmc_e_final=hmc_e_final)
       ELSE
          CALL qs_mol_dyn_low(md_env, md_section, motion_section, force_env, globenv, mdctrl=mdctrl)
-      ENDIF
+      END IF
       CALL md_env_release(md_env)
 
       ! Clean restartable sections..
@@ -287,7 +287,7 @@ CONTAINS
       ! Set V0 if needed
       IF (simpar%ensemble == nph_uniaxial_ensemble .OR. simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
          IF (simpar%v0 == 0._dp) simpar%v0 = cell%deth
-      ENDIF
+      END IF
 
       ! Initialize velocities possibly applying constraints at the zeroth MD step
       CALL section_vals_val_get(motion_section, "PRINT%RESTART%SPLIT_RESTART_FILE", &
@@ -383,7 +383,7 @@ CONTAINS
             ELSE
                IF (force_env%meta_env%langevin) THEN
                   CALL create_wiener_process_cv(force_env%meta_env)
-               ENDIF
+               END IF
                IF (force_env%meta_env%well_tempered) THEN
                   force_env%meta_env%wttemperature = simpar%temp_ext
                   IF (force_env%meta_env%wtgamma > EPSILON(1._dp)) THEN
@@ -396,17 +396,17 @@ CONTAINS
                                          " please, verify that DELTA_T=(WTGAMMA-1)*TEMPERATURE")
                      ELSE
                         force_env%meta_env%delta_t = dummy
-                     ENDIF
+                     END IF
                   ELSE
                      force_env%meta_env%wtgamma = 1._dp &
                                                   + force_env%meta_env%delta_t/force_env%meta_env%wttemperature
-                  ENDIF
+                  END IF
                   force_env%meta_env%invdt = 1._dp/force_env%meta_env%delta_t
-               ENDIF
+               END IF
                CALL metadyn_forces(force_env)
                CALL metadyn_write_colvar(force_env)
             END IF
-         ENDIF
+         END IF
 
          IF (simpar%do_respa) THEN
             CALL force_env_calc_energy_force(force_env%sub_force_env(1)%force_env, &
@@ -515,7 +515,7 @@ CONTAINS
                CALL md_output(md_env, md_section, force_env%root_section, .FALSE.)
             ELSE
                CALL md_output(md_env, md_section, force_env%root_section, should_stop)
-            ENDIF
+            END IF
             EXIT
          END IF
 

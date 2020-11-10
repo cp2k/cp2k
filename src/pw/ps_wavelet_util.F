@@ -282,7 +282,7 @@ CONTAINS
       md3 = n3
       DO WHILE (nproc*(md2/nproc) .LT. n2)
          md2 = md2 + 1
-      ENDDO
+      END DO
 
       !dimensions of the kernel, 1/8 of the total volume,
       !compatible with nproc
@@ -291,7 +291,7 @@ CONTAINS
       nd3 = n3/2 + 1
       DO WHILE (MODULO(nd3, nproc) .NE. 0)
          nd3 = nd3 + 1
-      ENDDO
+      END DO
 
    END SUBROUTINE P_FFT_dimensions
 
@@ -382,7 +382,7 @@ CONTAINS
       md3 = n3/2
       DO WHILE (nproc*(md2/nproc) .LT. n2)
          md2 = md2 + 1
-      ENDDO
+      END DO
 
       !dimensions of the kernel, 1/8 of the total volume,
       !compatible with nproc
@@ -394,7 +394,7 @@ CONTAINS
       nd3 = n3/2 + 1
       DO WHILE (MODULO(nd3, nproc) .NE. 0)
          nd3 = nd3 + 1
-      ENDDO
+      END DO
       CALL timestop(handle)
 
    END SUBROUTINE S_FFT_dimensions
@@ -484,7 +484,7 @@ CONTAINS
       md3 = n3/2
       DO WHILE (nproc*(md2/nproc) .LT. n2/2)
          md2 = md2 + 1
-      ENDDO
+      END DO
 
       !dimensions of the kernel, 1/8 of the total volume,
       !compatible with nproc
@@ -494,7 +494,7 @@ CONTAINS
 
       DO WHILE (MODULO(nd3, nproc) .NE. 0)
          nd3 = nd3 + 1
-      ENDDO
+      END DO
 
    END SUBROUTINE F_FFT_dimensions
 
@@ -551,7 +551,7 @@ CONTAINS
          END DO
       ELSE
          zf = 0._dp
-      ENDIF
+      END IF
       CALL timestop(handle)
 
    END SUBROUTINE scale_and_distribute

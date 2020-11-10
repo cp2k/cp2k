@@ -178,7 +178,7 @@ CONTAINS
       IF (beta) THEN
          CALL cp_fm_create(fm_P_mu_nu_beta, fm_struct_tmp, name="P_mu_nu_beta")
          CALL cp_fm_set_all(fm_P_mu_nu_beta, 0.0_dp)
-      ENDIF
+      END IF
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       NULLIFY (fm_X_mo, fm_XC_mo, fm_struct_tmp)
@@ -193,7 +193,7 @@ CONTAINS
          CALL cp_fm_create(fm_XC_mo_beta, fm_struct_tmp, name="f_XC_mo")
          CALL cp_fm_set_all(fm_X_mo_beta, 0.0_dp)
          CALL cp_fm_set_all(fm_XC_mo_beta, 0.0_dp)
-      ENDIF
+      END IF
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       NULLIFY (fm_ao)
@@ -236,14 +236,14 @@ CONTAINS
                                     fm_ao, fm_X_mo, fm_ao_mo, &
                                     mp2_env%ri_mp2%free_hfx_buffer, &
                                     fm_X_mo_beta, fm_P_mu_nu_beta, mo_coeff_beta)
-      ENDIF
+      END IF
 
       ! Calculate DFT exchange-correlation contribution
       IF (.NOT. beta) THEN
          CALL xc_contribution(qs_env, fm_ao, fm_ao_mo, fm_XC_mo, mo_coeff, dimen)
       ELSE
          CALL xc_contribution(qs_env, fm_ao, fm_ao_mo, fm_XC_mo, mo_coeff, dimen, fm_XC_mo_beta, mo_coeff_beta)
-      ENDIF
+      END IF
 
       ! Compute the correction matrix: it is stored in fm_X_mo
       CALL cp_fm_scale_and_add(1.0_dp, fm_X_mo, -1.0_dp, fm_XC_mo)
@@ -282,7 +282,7 @@ CONTAINS
             IF ((i_global .LE. homo) .AND. (j_global .GT. homo)) THEN
                rse_corr = rse_corr + fm_X_mo%local_data(iib, jjb)**2.0_dp/ &
                           (eigenval(i_global) - eigenval(j_global) - diag_diff(i_global) + diag_diff(j_global))
-            ENDIF
+            END IF
          END DO
       END DO
 !$OMP END PARALLEL DO
@@ -324,13 +324,13 @@ CONTAINS
                IF ((i_global .LE. homo_beta) .AND. (j_global .GT. homo_beta)) THEN
                   rse_corr_beta = rse_corr_beta + fm_X_mo_beta%local_data(iib, jjb)**2.0_dp/ &
                                   (eigenval_beta(i_global) - eigenval_beta(j_global) - diag_diff(i_global) + diag_diff(j_global))
-               ENDIF
+               END IF
             END DO
          END DO
 !$OMP END PARALLEL DO
          CALL mp_sum(rse_corr_beta, para_env%group)
          rse_corr = 0.5_dp*(rse_corr + rse_corr_beta)
-      ENDIF
+      END IF
 
       mp2_env%ri_rpa%rse_corr_diag = rse_corr
 
@@ -340,7 +340,7 @@ CONTAINS
       ELSE
          CALL non_diag_rse(fm_X_mo, eigenval, dimen, homo, para_env, blacs_env, rse_corr, &
                            fm_X_mo_beta, eigenval_beta, homo_beta)
-      ENDIF
+      END IF
 
       mp2_env%ri_rpa%rse_corr = rse_corr
 
@@ -354,13 +354,13 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          CALL dbcsr_release(mat_mu_nu(ispin)%matrix)
          DEALLOCATE (mat_mu_nu(ispin)%matrix)
-      ENDDO
+      END DO
       DEALLOCATE (mat_mu_nu)
       IF (beta) THEN
          CALL cp_fm_release(fm_X_mo_beta)
          CALL cp_fm_release(fm_XC_mo_beta)
          CALL cp_fm_release(fm_P_mu_nu_beta)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -429,7 +429,7 @@ CONTAINS
          CALL dbcsr_create(P_mu_nu(is)%matrix, template=rho_work_ao(1)%matrix)
          CALL dbcsr_copy(P_mu_nu(is)%matrix, rho_work_ao(1)%matrix)
          CALL dbcsr_set(P_mu_nu(is)%matrix, 0.0_dp)
-      ENDDO
+      END DO
 
       ! copy fm into DBCSR
       CALL copy_fm_to_dbcsr(fm_P_mu_nu, P_mu_nu(1)%matrix, keep_sparsity=.TRUE.)
@@ -484,13 +484,13 @@ CONTAINS
          CALL cp_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
                       fm_X_ao_mo, mo_coeff_beta, 1.0_dp, fm_X_mo_beta)
 
-      ENDIF
+      END IF
 
       ! Release dbcsr objects
       DO is = 1, SIZE(P_mu_nu)
          CALL dbcsr_release(P_mu_nu(is)%matrix)
          DEALLOCATE (P_mu_nu(is)%matrix)
-      ENDDO
+      END DO
       DEALLOCATE (P_mu_nu)
 
       CALL timestop(handle)
@@ -547,7 +547,7 @@ CONTAINS
 
       DO i = 1, SIZE(v_rspace)
          CALL pw_release(v_rspace(i)%pw)
-      ENDDO
+      END DO
       DEALLOCATE (v_rspace)
 
       ! First index
@@ -572,12 +572,12 @@ CONTAINS
          CALL cp_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
                       fm_XC_ao_mo, mo_coeff_beta, 1.0_dp, fm_XC_mo_beta)
 
-      ENDIF
+      END IF
 
       DO i = 1, SIZE(matrix_vxc)
          CALL dbcsr_release(matrix_vxc(i)%matrix)
          DEALLOCATE (matrix_vxc(i)%matrix)
-      ENDDO
+      END DO
       DEALLOCATE (matrix_vxc)
 
       CALL timestop(handle)
@@ -643,7 +643,7 @@ CONTAINS
             IF (i_global .EQ. j_global) THEN
                fm_F_mo%local_data(iib, jjb) = &
                   fm_F_mo%local_data(iib, jjb) + eigenval(i_global)
-            ENDIF
+            END IF
          END DO
       END DO
 !$OMP END PARALLEL DO
@@ -667,7 +667,7 @@ CONTAINS
             END DO
          END DO
 !$OMP END PARALLEL DO
-      ENDIF
+      END IF
 
       ! Create the occupied-occupied and virtual-virtual blocks, eigenvectors
       NULLIFY (fm_F_oo, fm_O, fm_struct_tmp)
@@ -878,7 +878,7 @@ CONTAINS
 
          rse_corr = 0.5_dp*(rse_corr + rse_corr_beta)
 
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 

@@ -460,7 +460,7 @@ CONTAINS
                   END DO
                END IF
                DEALLOCATE (gcij)
-            ENDDO
+            END DO
             CALL dbcsr_iterator_stop(iter)
             ! stress tensor (needs recalculation of overlap integrals)
             IF (do_gamma_stress) THEN

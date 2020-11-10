@@ -138,11 +138,11 @@ CONTAINS
             DO ispin = 1, SIZE(mo_array)
                IF (.NOT. ASSOCIATED(mo_array(ispin)%mo_set%mo_coeff_b)) THEN
                   CPASSERT(.FALSE.)
-               ENDIF
+               END IF
                CALL copy_dbcsr_to_fm(mo_array(ispin)%mo_set%mo_coeff_b, &
                                      mo_array(ispin)%mo_set%mo_coeff) !fm->dbcsr
-            ENDDO
-         ENDIF
+            END DO
+         END IF
 
          DO ikey = 1, SIZE(keys)
 
@@ -194,7 +194,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       project_name = logger%iter_info%project_name
       CALL section_vals_val_get(dft_section, "SCF%PRINT%DM_RESTART_WRITE", l_val=do_dm_restart)
@@ -215,11 +215,11 @@ CONTAINS
             cs_pos = dbcsr_checksum(matrix_p_tmp, pos=.TRUE.)
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T2,A,E20.8)') "Writing restart DM "//TRIM(file_name)//" with checksum: ", cs_pos
-            ENDIF
+            END IF
             CALL dbcsr_binary_write(matrix_p_tmp, file_name)
 
             CALL dbcsr_release(matrix_p_tmp)
-         ENDDO
+         END DO
          DEALLOCATE (matrix_p_tmp)
       END IF
 
@@ -474,7 +474,7 @@ CONTAINS
             filename = cp_print_key_generate_filename(logger, print_key, &
                                                       extension=".wfn", my_local=.FALSE.)
          END IF
-      ENDIF
+      END IF
       IF (.NOT. my_xas) THEN
          INQUIRE (FILE=filename, exist=exist)
       END IF
@@ -554,8 +554,8 @@ CONTAINS
             IF (para_env%ionode) CALL close_file(unit_number=restart_unit)
             CALL timestop(handle)
             RETURN
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       ! Close restart file
       IF (para_env%ionode) CALL close_file(unit_number=restart_unit)
@@ -711,7 +711,7 @@ CONTAINS
             ! this case needs fixing of homo/lfomo/nelec/occupations ...
             IF (nspin_read > nspin) THEN
                CPABORT("Reducing nspin is not possible. ")
-            ENDIF
+            END IF
          END IF
 
          natom_match = (natom_read == natom)
@@ -761,8 +761,8 @@ CONTAINS
             RETURN
          ELSE
             CPABORT("Incorrect number of atoms in restart file. ")
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       CALL mp_bcast(nspin_read, source, group)
 

@@ -166,7 +166,7 @@ CONTAINS
          unit_nr_prv = unit_nr
       ELSE
          unit_nr_prv = 0
-      ENDIF
+      END IF
 
       my_do_beta = .FALSE.
       IF (PRESENT(do_beta)) my_do_beta = do_beta
@@ -297,7 +297,7 @@ CONTAINS
                                contract_2=[3], notcontract_2=[1, 2], map_1=[3], map_2=[1, 2], &
                                bounds_2=ibounds, move_data=.FALSE., unit_nr=unit_nr_prv)
 
-      ENDDO
+      END DO
 
       CALL cp_fm_release(fm_mat_mo_coeff_gw)
 
@@ -368,7 +368,7 @@ CONTAINS
 
          DO imo = bounds(1, 1), bounds(2, 1)
             norm(imo) = 1.0_dp/SQRT(norm(imo))
-         ENDDO
+         END DO
 
          CALL dbcsr_create(mat_norm_diag, template=mat_norm)
          CALL dbcsr_release(mat_norm)
@@ -403,7 +403,7 @@ CONTAINS
 
          CALL dbcsr_release_p(mat_mo_coeff_gw_reflected)
 
-      ENDIF
+      END IF
 
       CALL alloc_containers(t_3c_O_mo_compressed, 1)
       ALLOCATE (t_3c_O_mo_ind(dbcsr_t_get_num_blocks(t_3c_overl_int_ao_mo), 3))

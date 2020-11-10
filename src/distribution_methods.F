@@ -145,8 +145,8 @@ CONTAINS
          IF (ASSOCIATED(prev_local_molecules) .AND. &
              ASSOCIATED(prev_molecule_kind_set)) THEN
             has_prev_subsys_info = .TRUE.
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       logger => cp_get_default_logger()
 
@@ -209,7 +209,7 @@ CONTAINS
                           1:prev_local_molecules%n_el(imolecule_prev_kind)) == molecule_list(imolecule))) THEN
                      ! molecule used to be local
                      nmolecule_local(imolecule_kind) = nmolecule_local(imolecule_kind) + 1
-                  ENDIF
+                  END IF
                END DO
             ELSE
                CALL cp_heap_get_first(bin_heap_count, bin, bin_price, found)
@@ -260,7 +260,7 @@ CONTAINS
 
                workload_fill(ipe) = workload_fill(ipe) + nload
                is_local = (ipe == mype)
-            ENDIF
+            END IF
             IF (is_local) THEN
                imolecule_local = imolecule_local + 1
                molecule_a = molecule_list(imolecule)
@@ -560,7 +560,7 @@ CONTAINS
             nclusters = nmolecule
          ELSE
             nclusters = natom
-         ENDIF
+         END IF
 
          ALLOCATE (cluster_list(nclusters))
          ALLOCATE (cluster_prices(nclusters))
@@ -590,7 +590,7 @@ CONTAINS
                   cluster_price = 8 + (MAXVAL(lmax_basis)**2)
                END SELECT
                cluster_prices(iatom) = cluster_price
-            ENDDO
+            END DO
          ELSE
             imol = 0
             DO imolecule_kind = 1, nmolecule_kind
@@ -616,11 +616,11 @@ CONTAINS
                         CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
                         cluster_price = cluster_price + 8 + (MAXVAL(lmax_basis)**2)
                      END SELECT
-                  ENDDO
+                  END DO
                   cluster_prices(imol) = cluster_price
-               ENDDO
-            ENDDO
-         ENDIF
+               END DO
+            END DO
+         END IF
 
          ! And distribute
          IF (basic_optimization) THEN
@@ -634,7 +634,7 @@ CONTAINS
                DO iatom = 1, natom
                   CALL real_to_scaled(pbc_scaled_coords(:, iatom), pbc(particle_set(iatom)%r(:), cell), cell)
                   coords(:, iatom) = pbc(particle_set(iatom)%r(:), cell)
-               ENDDO
+               END DO
                CALL make_cluster_distribution(coords, pbc_scaled_coords, cell, cluster_prices, &
                                               nprow, cluster_row_distribution, npcol, cluster_col_distribution)
             ELSE ! basic_spatial_optimization
@@ -643,7 +643,7 @@ CONTAINS
                   ! just scaled coords
                   DO iatom = 1, natom
                      CALL real_to_scaled(pbc_scaled_coords(:, iatom), pbc(particle_set(iatom)%r(:), cell), cell)
-                  ENDDO
+                  END DO
                ELSE
                   ! use scaled coords of geometric center, folding when appropriate
                   imol = 0
@@ -658,19 +658,19 @@ CONTAINS
                            iatom = molecule_set(molecule_list(imolecule))%first_atom + iatom_mol - 1
                            center = center + &
                                    pbc(particle_set(iatom)%r(:) - particle_set(iatom_one)%r(:), cell) + particle_set(iatom_one)%r(:)
-                        ENDDO
+                        END DO
                         center = center/natom_mol
                         CALL real_to_scaled(pbc_scaled_coords(:, imol), pbc(center, cell), cell)
-                     ENDDO
-                  ENDDO
-               ENDIF
+                     END DO
+                  END DO
+               END IF
 
                CALL make_basic_spatial_distribution(pbc_scaled_coords, cluster_prices, &
                                                     nprow, cluster_row_distribution(:, 1), npcol, cluster_col_distribution(:, 1))
 
                DEALLOCATE (pbc_scaled_coords)
             END IF
-         ENDIF
+         END IF
 
          ! And assign back
          IF (.NOT. molecular_distribution) THEN
@@ -687,10 +687,10 @@ CONTAINS
                      iatom = molecule_set(molecule_list(imolecule))%first_atom + iatom_mol - 1
                      row_distribution(iatom, :) = cluster_row_distribution(imol, :)
                      col_distribution(iatom, :) = cluster_col_distribution(imol, :)
-                  ENDDO
-               ENDDO
-            ENDDO
-         ENDIF
+                  END DO
+               END DO
+            END DO
+         END IF
 
          ! cleanup
          DEALLOCATE (cluster_list)
@@ -701,7 +701,7 @@ CONTAINS
       ELSE
          ! expects nothing else
          CPABORT("")
-      ENDIF
+      END IF
 
       ! prepare the lists of local particles
 
@@ -712,7 +712,7 @@ CONTAINS
          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, kind_number=kind_a)
          IF (row_distribution(iatom, 1) == myprow) nparticle_local_row(kind_a) = nparticle_local_row(kind_a) + 1
          IF (col_distribution(iatom, 1) == mypcol) nparticle_local_col(kind_a) = nparticle_local_col(kind_a) + 1
-      ENDDO
+      END DO
 
       ! allocate space
       DO iparticle_kind = 1, nparticle_kind
@@ -721,7 +721,7 @@ CONTAINS
 
          n = nparticle_local_col(iparticle_kind)
          ALLOCATE (local_particle_col(iparticle_kind)%array(n))
-      ENDDO
+      END DO
 
       ! store
       nparticle_local_col = 0
@@ -731,12 +731,12 @@ CONTAINS
          IF (row_distribution(iatom, 1) == myprow) THEN
             nparticle_local_row(kind_a) = nparticle_local_row(kind_a) + 1
             local_particle_row(kind_a)%array(nparticle_local_row(kind_a)) = iatom
-         ENDIF
+         END IF
          IF (col_distribution(iatom, 1) == mypcol) THEN
             nparticle_local_col(kind_a) = nparticle_local_col(kind_a) + 1
             local_particle_col(kind_a)%array(nparticle_local_col(kind_a)) = iatom
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
 !   *** Generate the 2d distribution structure  but take care of the zero offsets required
       row_distribution(:, 1) = row_distribution(:, 1) - 1
@@ -817,7 +817,7 @@ CONTAINS
                                     local=.TRUE., &
                                     long_description=.TRUE.)
 
-      ENDIF
+      END IF
 
 !   *** Release work storage ***
 
@@ -887,7 +887,7 @@ CONTAINS
          cluster_price = cluster_prices(cluster_index)
          bin_price = bin_price + cluster_price
          CALL cp_heap_reset_first(bin_heap, bin_price)
-      ENDDO
+      END DO
       CALL cp_heap_release(bin_heap)
       CALL timestop(timing_handle)
    END SUBROUTINE make_basic_distribution
@@ -934,7 +934,7 @@ CONTAINS
       DO iatom = 1, natoms
          row_distribution(iatom) = (distribution(iatom) - 1)*pgrid_gcd/npcols + 1
          col_distribution(iatom) = (distribution(iatom) - 1)*pgrid_gcd/nprows + 1
-      ENDDO
+      END DO
 
       DEALLOCATE (bin_costs, distribution)
 
@@ -983,7 +983,7 @@ CONTAINS
             ! WRITE(100, '(A, I0, 3F12.6)') "A", permutation(ibin), pbc_scaled_coords(:, atom_permutation(iatom))
             bin_costs(permutation(ibin)) = bin_costs(permutation(ibin)) + atom_costs_sorted(iatom)
             distribution(indices(atom_permutation(iatom))) = permutation(ibin)
-         ENDDO
+         END DO
          DEALLOCATE (bin_costs_sorted, permutation, atom_costs_sorted, atom_permutation)
       ELSE
          ! divide atoms in two subsets, sorting according to their coordinates, alternatively x, y, z
@@ -996,7 +996,7 @@ CONTAINS
          CALL spatial_recurse(pbc_scaled_coords(:, permutation(nhalf + 1:)), costs(permutation(nhalf + 1:)), &
                               indices(permutation(nhalf + 1:)), bin_costs, distribution, level + 1)
          DEALLOCATE (coord, permutation)
-      ENDIF
+      END IF
 
    END SUBROUTINE spatial_recurse
 
@@ -1079,14 +1079,14 @@ CONTAINS
       DO i = 1, natom
          cluster_count(atom_to_cluster(i)) = cluster_count(atom_to_cluster(i)) + 1
          cluster_center(:, atom_to_cluster(i)) = coords(:, i)
-      ENDDO
+      END DO
       cluster_low = HUGE(0.0_dp)/2
       cluster_high = -HUGE(0.0_dp)/2
       DO i = 1, natom
          fold = pbc(coords(:, i) - cluster_center(:, atom_to_cluster(i)), cell) + cluster_center(:, atom_to_cluster(i))
          cluster_low(:, atom_to_cluster(i)) = MIN(cluster_low(:, atom_to_cluster(i)), fold(:))
          cluster_high(:, atom_to_cluster(i)) = MAX(cluster_high(:, atom_to_cluster(i)), fold(:))
-      ENDDO
+      END DO
       IF (output_unit > 0) THEN
          WRITE (output_unit, *)
          WRITE (output_unit, '(T2,A)') "Cluster distribution information"
@@ -1103,7 +1103,7 @@ CONTAINS
          WRITE (output_unit, '(T2,A,T48,F8.3,I8)') "Largest cartesian extend [a.u.]/cluster z=", &
             MAXVAL(cluster_high(3, :) - cluster_low(3, :), MASK=(cluster_count > 0)), &
             MAXLOC(cluster_high(3, :) - cluster_low(3, :), MASK=(cluster_count > 0))
-      ENDIF
+      END IF
 
       DEALLOCATE (atom_to_cluster, cluster_cost, cluster_to_row, cluster_to_col, sorted_cost, piv_cost, proc_cost)
       CALL timestop(handle)
@@ -1183,7 +1183,7 @@ CONTAINS
          nsplits = 1
       ELSE
          nsplits = MIN(INT(MIN(INT(MAX(6, INT(60.00/LOG(REAL(natoms, KIND=dp)))), KIND=int_8), ncluster)), natoms)
-      ENDIF
+      END IF
       IF (nsplits == 1) THEN
          icluster = icluster + 1
          cluster_inds = icluster

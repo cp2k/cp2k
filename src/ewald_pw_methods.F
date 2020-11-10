@@ -168,7 +168,7 @@ CONTAINS
 
       IF (.NOT. ASSOCIATED(zet)) THEN
          ALLOCATE (zet(1))
-      ENDIF
+      END IF
 
 ! No contracted Gaussians are used here
       NULLIFY (gcc)

@@ -309,7 +309,7 @@ CONTAINS
       IF ((ri_metric%potential_type == do_potential_short .OR. ri_metric%potential_type == do_potential_truncated) &
           .AND. .NOT. do_im_time) THEN
          CPABORT("TRUNCATED and SHORTRANGE RI metrics not yet implemented")
-      ENDIF
+      END IF
 
       virtual = nmo - homo
       gw_corr_lev_total = gw_corr_lev_virt + gw_corr_lev_occ
@@ -426,7 +426,7 @@ CONTAINS
       IF (qs_env%mp2_env%eri_method .EQ. do_eri_mme) THEN
          ! cell might have changed, so we need to reset parameters
          CALL cp_eri_mme_set_params(eri_param, cell, qs_kind_set, basis_type_1="ORB", basis_type_2="RI_AUX", para_env=para_env)
-      ENDIF
+      END IF
 
       CALL get_cell(cell=cell, periodic=periodic)
       ! for minimax Ewald summation, full periodicity is required
@@ -448,7 +448,7 @@ CONTAINS
                             qs_kind_set, sab_orb_sub)
 
       IF (unit_nr > 0) THEN
-         ASSOCIATE (ri_metric=>qs_env%mp2_env%ri_metric)
+         ASSOCIATE (ri_metric => qs_env%mp2_env%ri_metric)
             SELECT CASE (ri_metric%potential_type)
             CASE (do_potential_coulomb)
                WRITE (unit_nr, FMT="(/T3,A,T74,A)") &
@@ -477,7 +477,7 @@ CONTAINS
                   "RI_INFO| Cutoff Radius [angstrom]:     ", rc_ang
             END SELECT
          END ASSOCIATE
-      ENDIF
+      END IF
 
       IF (unit_nr > 0 .AND. .NOT. do_im_time) THEN
          WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") "RI_INFO| Cholesky decomposition group size:", para_env_L%num_pe
@@ -543,7 +543,7 @@ CONTAINS
             END IF
          END IF
          CALL m_flush(unit_nr)
-      ENDIF
+      END IF
 
       CALL mp_sync(para_env%group) ! sync to see memory output
 
@@ -601,7 +601,7 @@ CONTAINS
                ALLOCATE (mat_munu_local_L(LLL)%matrix)
                CALL dbcsr_copy(mat_munu_local_L(LLL)%matrix, mat_munu%matrix)
                CALL dbcsr_set(mat_munu_local_L(LLL)%matrix, 0.0_dp)
-            ENDDO
+            END DO
             CALL mp2_eri_3c_integrate(eri_param, ri_metric%potential_type, ri_metric%omega, para_env_sub, qs_env, &
                                       first_c=my_group_L_start, last_c=my_group_L_end, &
                                       mat_ab=mat_munu_local_L, &
@@ -614,7 +614,7 @@ CONTAINS
                                          fm_BIb_jb, BIb_C(LLL, 1:my_B_size, 1:homo), &
                                          mo_coeff_o, mo_coeff_v, eps_filter, max_row_col_local, sub_proc_map, &
                                          local_col_row_info, my_B_virtual_end, my_B_virtual_start, "alpha")
-            ENDDO
+            END DO
             CALL contract_B_L(BIb_C, my_Lrows, gd_B_virtual%sizes, gd_array%sizes, qs_env%mp2_env%eri_blksize, &
                               ngroup, color_sub, para_env%group, para_env_sub)
 
@@ -625,11 +625,11 @@ CONTAINS
                                             fm_BIb_jb_beta, BIb_C_beta(LLL, 1:my_B_size_beta, 1:homo_beta), &
                                             mo_coeff_o_beta, mo_coeff_v_beta, eps_filter, max_row_col_local_beta, sub_proc_map, &
                                             local_col_row_info_beta, my_B_virtual_end_beta, my_B_virtual_start_beta, "beta")
-               ENDDO
+               END DO
                CALL contract_B_L(BIb_C_beta, my_Lrows, gd_B_virtual_beta%sizes, gd_array%sizes, qs_env%mp2_env%eri_blksize, &
                                  ngroup, color_sub, para_env%group, para_env_sub)
 
-            ENDIF
+            END IF
 
             IF (my_do_gw) THEN
 
@@ -638,7 +638,7 @@ CONTAINS
                                             fm_BIb_gw, BIb_C_gw(LLL, 1:my_B_all_size, 1:gw_corr_lev_total), &
                                             mo_coeff_gw, mo_coeff_all, eps_filter, max_row_col_local_gw, sub_proc_map, &
                                             local_col_row_info_gw, my_B_all_end, my_B_all_start, "gw_alpha")
-               ENDDO
+               END DO
                CALL contract_B_L(BIb_C_gw, my_Lrows, gd_B_all%sizes, gd_array%sizes, qs_env%mp2_env%eri_blksize, &
                                  ngroup, color_sub, para_env%group, para_env_sub)
 
@@ -649,12 +649,12 @@ CONTAINS
                                                fm_BIb_gw_beta, BIb_C_gw_beta(LLL, 1:my_B_all_size, 1:gw_corr_lev_total), &
                                                mo_coeff_gw_beta, mo_coeff_all_beta, eps_filter, max_row_col_local_gw, &
                                                sub_proc_map, local_col_row_info_gw, my_B_all_end, my_B_all_start, "gw_beta")
-                  ENDDO
+                  END DO
                   CALL contract_B_L(BIb_C_gw_beta, my_Lrows, gd_B_all%sizes, gd_array%sizes, qs_env%mp2_env%eri_blksize, &
                                     ngroup, color_sub, para_env%group, para_env_sub)
 
-               ENDIF
-            ENDIF
+               END IF
+            END IF
 
             IF (do_bse) THEN
 
@@ -664,7 +664,7 @@ CONTAINS
                                             fm_BIb_bse_ab, BIb_C_bse_ab(LLL, 1:my_B_virt_bse_size, 1:virtual), &
                                             mo_coeff_v, mo_coeff_v, eps_filter, max_row_col_local_virt_bse, &
                                             sub_proc_map, local_col_row_info_virt_bse, my_B_all_end, my_B_all_start, "bse_ab")
-               ENDDO
+               END DO
                CALL contract_B_L(BIb_C_bse_ab, my_Lrows, gd_B_virt_bse%sizes, gd_array%sizes, qs_env%mp2_env%eri_blksize, &
                                  ngroup, color_sub, para_env%group, para_env_sub)
 
@@ -675,7 +675,7 @@ CONTAINS
                                             mo_coeff_o, mo_coeff_o, eps_filter, max_row_col_local_occ_bse, &
                                             sub_proc_map, local_col_row_info_occ_bse, &
                                             my_B_occ_bse_end, my_B_occ_bse_start, "bse_ij")
-               ENDDO
+               END DO
                CALL contract_B_L(BIb_C_bse_ij, my_Lrows, gd_B_occ_bse%sizes, gd_array%sizes, qs_env%mp2_env%eri_blksize, &
                                  ngroup, color_sub, para_env%group, para_env_sub)
 
@@ -683,7 +683,7 @@ CONTAINS
 
             DO LLL = 1, my_group_L_size
                CALL dbcsr_release_p(mat_munu_local_L(LLL)%matrix)
-            ENDDO
+            END DO
             DEALLOCATE (mat_munu_local_L)
 
          ELSE IF (do_gpw) THEN
@@ -708,7 +708,7 @@ CONTAINS
                                             mo_coeff_o_beta, mo_coeff_v_beta, eps_filter, max_row_col_local_beta, sub_proc_map, &
                                             local_col_row_info_beta, my_B_virtual_end_beta, my_B_virtual_start_beta, "beta")
 
-               ENDIF
+               END IF
 
                IF (my_do_gw) THEN
                   ! transform (K|mu nu) to (K|nm), n corresponds to corrected GW levels, m is in nmo
@@ -830,15 +830,15 @@ CONTAINS
             nimg = dft_control%nimages
          ELSE
             nimg = 1
-         ENDIF
+         END IF
 
          ALLOCATE (t_3c_overl_int(nimg, nimg))
 
          DO i = 1, SIZE(t_3c_overl_int, 1)
             DO j = 1, SIZE(t_3c_overl_int, 2)
                CALL dbcsr_t_create(t_3c_overl_int_template, t_3c_overl_int(i, j))
-            ENDDO
-         ENDDO
+            END DO
+         END DO
 
          CALL dbcsr_t_destroy(t_3c_overl_int_template)
 
@@ -851,7 +851,7 @@ CONTAINS
          pdims_t3c = 0
          CALL dbcsr_t_pgrid_create(para_env%group, pdims_t3c, pgrid_t3c_M)
 
-         ASSOCIATE (cut_memory=>qs_env%mp2_env%ri_rpa_im_time%cut_memory)
+         ASSOCIATE (cut_memory => qs_env%mp2_env%ri_rpa_im_time%cut_memory)
             CALL create_tensor_batches(sizes_AO_split, cut_memory, starts_array_mc, ends_array_mc, &
                                        starts_array_mc_block, ends_array_mc_block)
          END ASSOCIATE
@@ -879,8 +879,8 @@ CONTAINS
          DO i = 1, SIZE(t_3c_O, 1)
             DO j = 1, SIZE(t_3c_O, 2)
                IF (i > 1 .OR. j > 1) CALL dbcsr_t_create(t_3c_O(1, 1), t_3c_O(i, j))
-            ENDDO
-         ENDDO
+            END DO
+         END DO
 
          ! build integrals in batches and copy to optimized format
          ! note: integrals are stored in terms of atomic blocks. To avoid a memory bottleneck,
@@ -905,17 +905,17 @@ CONTAINS
                                     summation=.TRUE., move_data=.TRUE.)
                   CALL dbcsr_t_clear(t_3c_overl_int(i, j))
                   CALL dbcsr_t_filter(t_3c_O(i, j), qs_env%mp2_env%ri_rpa_im_time%eps_filter/2)
-               ENDDO
-            ENDDO
+               END DO
+            END DO
 
             CALL timestop(handle4)
-         ENDDO
+         END DO
 
          DO i = 1, SIZE(t_3c_overl_int, 1)
             DO j = 1, SIZE(t_3c_overl_int, 2)
                CALL dbcsr_t_destroy(t_3c_overl_int(i, j))
-            ENDDO
-         ENDDO
+            END DO
+         END DO
          DEALLOCATE (t_3c_overl_int)
 
          CALL timeset(routineN//"_copy_3c", handle4)
@@ -926,15 +926,15 @@ CONTAINS
                CALL dbcsr_t_copy(t_3c_O(jcell, kcell), t_3c_tmp)
                CALL dbcsr_t_copy(t_3c_tmp, t_3c_O(kcell, jcell), order=[1, 3, 2], summation=.TRUE., move_data=.TRUE.)
                CALL dbcsr_t_filter(t_3c_O(kcell, jcell), qs_env%mp2_env%ri_rpa_im_time%eps_filter)
-            ENDDO
-         ENDDO
+            END DO
+         END DO
          DO jcell = 1, nimg
             DO kcell = jcell + 1, nimg
                CALL dbcsr_t_copy(t_3c_O(jcell, kcell), t_3c_tmp)
                CALL dbcsr_t_copy(t_3c_tmp, t_3c_O(kcell, jcell), order=[1, 3, 2], summation=.FALSE., move_data=.TRUE.)
                CALL dbcsr_t_filter(t_3c_O(kcell, jcell), qs_env%mp2_env%ri_rpa_im_time%eps_filter)
-            ENDDO
-         ENDDO
+            END DO
+         END DO
 
          CALL dbcsr_t_get_info(t_3c_O(1, 1), nfull_total=bounds_3c)
          CALL get_tensor_occupancy(t_3c_O(1, 1), nze, occ)
@@ -953,10 +953,10 @@ CONTAINS
                   CALL alloc_containers(t_3c_O_compressed(i, j, i_mem), 1)
                   CALL compress_tensor(t_3c_tmp, t_3c_O_compressed(i, j, i_mem), &
                                        qs_env%mp2_env%ri_rpa_im_time%eps_compress, memory_3c)
-               ENDDO
+               END DO
                CALL dbcsr_t_clear(t_3c_O(i, j))
-            ENDDO
-         ENDDO
+            END DO
+         END DO
 
          CALL mp_sum(memory_3c, para_env%group)
 
@@ -1086,7 +1086,7 @@ CONTAINS
          ! check that tensor distribution is correct
          CALL dbcsr_t_get_stored_coordinates(tB_in, [loc_P, loc_a, 1], check_proc)
          CPASSERT(check_proc .EQ. iproc_glob)
-      ENDIF
+      END IF
 
       ! reserve (R|ai) block
       CALL dbcsr_t_reserve_blocks(tB_in, [loc_P], [loc_a], [1])
@@ -1105,8 +1105,8 @@ CONTAINS
             ii = ii + 1
             block_ind_L_R(ii) = i
             block_ind_L_P(ii) = loc_P
-         ENDIF
-      ENDDO
+         END IF
+      END DO
       CALL dbcsr_t_reserve_blocks(tL, block_ind_L_R(1:ii), block_ind_L_P(1:ii))
 
       ! insert (R|ai) block
@@ -1120,8 +1120,8 @@ CONTAINS
          CALL dbcsr_t_get_stored_coordinates(tL, [i, loc_P], check_proc)
          IF (check_proc == iproc_glob) THEN
             CALL dbcsr_t_put_block(tL, [i, loc_P], [sizes_L(i), sizes_L(loc_P)], my_Lrows(istart:iend, :))
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       CALL dbcsr_t_split_blocks(tB_in, tB_in_split, [blk_size(2), blk_size(1), blk_size(1)])
       CALL dbcsr_t_split_blocks(tL, tL_split, [blk_size(2), blk_size(2)])

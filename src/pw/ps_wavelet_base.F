@@ -116,15 +116,15 @@ CONTAINS
       DO j = 1, n1
          ftrig1(1, j) = btrig1(1, j)
          ftrig1(2, j) = -btrig1(2, j)
-      ENDDO
+      END DO
       DO j = 1, n2
          ftrig2(1, j) = btrig2(1, j)
          ftrig2(2, j) = -btrig2(2, j)
-      ENDDO
+      END DO
       DO j = 1, n3
          ftrig3(1, j) = btrig3(1, j)
          ftrig3(2, j) = -btrig3(2, j)
-      ENDDO
+      END DO
 
       ! transform along z axis
       lot = ncache/(4*n3)
@@ -134,7 +134,7 @@ CONTAINS
             'least one 1-d FFT of this size even though this will'// &
             'reduce the performance for shorter transform lengths'
          CPABORT("")
-      ENDIF
+      END IF
       DO j2 = 1, md2/nproc
          !this condition ensures that we manage only the interesting part for the FFT
          IF (iproc*(md2/nproc) + j2 .LE. n2) THEN
@@ -152,7 +152,7 @@ CONTAINS
                   CALL fftstp(lot, nfft, n3, lot, n3, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               btrig3, after3(i), now3(i), before3(i), 1)
                   inzee = 3 - inzee
-               ENDDO
+               END DO
 
                !output: I1,i3,J2,(Jp2)
                !exchanging components
@@ -168,7 +168,7 @@ CONTAINS
       IF (nproc .GT. 1) THEN
          !communication scheduling
          CALL mp_alltoall(zmpi2, zmpi1, 2*n1*(md2/nproc)*(nd3/nproc), mpi_group)
-      ENDIF
+      END IF
       !output: I1,J2,j3,Jp2,(jp3)
 
       !now each process perform complete convolution of its planes
@@ -188,7 +188,7 @@ CONTAINS
                   'least one 1-d FFT of this size even though this will'// &
                   'reduce the performance for shorter transform lengths'
                CPABORT("")
-            ENDIF
+            END IF
 
             DO j = 1, n2, lot
                ma = j
@@ -201,7 +201,7 @@ CONTAINS
                   CALL P_mpiswitch_upcorn(j3, nfft, Jp2stb, J2stb, lot, n1, md2, nd3, nproc, zmpi2, zw(1, 1, 1))
                ELSE
                   CALL P_mpiswitch_upcorn(j3, nfft, Jp2stb, J2stb, lot, n1, md2, nd3, nproc, zmpi1, zw(1, 1, 1))
-               ENDIF
+               END IF
                !output: J2,Jp2,I1,j3,(jp3)
 
                !performing FFT
@@ -211,7 +211,7 @@ CONTAINS
                   CALL fftstp(lot, nfft, n1, lot, n1, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               btrig1, after1(i), now1(i), before1(i), 1)
                   inzee = 3 - inzee
-               ENDDO
+               END DO
 
                !storing the last step into zt array
                i = ic1
@@ -228,7 +228,7 @@ CONTAINS
                   'least one 1-d FFT of this size even though this will'// &
                   'reduce the performance for shorter transform lengths'
                CPABORT("")
-            ENDIF
+            END IF
 
             DO j = 1, n1, lot
                ma = j
@@ -247,7 +247,7 @@ CONTAINS
                   CALL fftstp(lot, nfft, n2, lot, n2, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               btrig2, after2(i), now2(i), before2(i), 1)
                   inzee = 3 - inzee
-               ENDDO
+               END DO
                !output: i1,i2,j3,(jp3)
 
                !Multiply with kernel in fourier space
@@ -262,7 +262,7 @@ CONTAINS
                   CALL fftstp(lot, nfft, n2, lot, n2, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               ftrig2, after2(i), now2(i), before2(i), -1)
                   inzee = 3 - inzee
-               ENDDO
+               END DO
 
                !reverse ordering
                !input: i1,I2,j3,(jp3)
@@ -288,7 +288,7 @@ CONTAINS
                   CALL fftstp(lot, nfft, n1, lot, n1, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               ftrig1, after1(i), now1(i), before1(i), -1)
                   inzee = 3 - inzee
-               ENDDO
+               END DO
                !output: I2,I1,j3,(jp3)
 
                !reverse ordering
@@ -297,10 +297,10 @@ CONTAINS
                   CALL P_unmpiswitch_downcorn(j3, nfft, Jp2stf, J2stf, lot, n1, md2, nd3, nproc, zw(1, 1, inzee), zmpi2)
                ELSE
                   CALL P_unmpiswitch_downcorn(j3, nfft, Jp2stf, J2stf, lot, n1, md2, nd3, nproc, zw(1, 1, inzee), zmpi1)
-               ENDIF
+               END IF
                ! output: I1,J2,j3,Jp2,(jp3)
             END DO
-         ENDIF
+         END IF
       END DO
 
       !Interprocessor data transposition
@@ -308,7 +308,7 @@ CONTAINS
       IF (nproc .GT. 1) THEN
          !communication scheduling
          CALL mp_alltoall(zmpi1, zmpi2, 2*n1*(md2/nproc)*(nd3/nproc), mpi_group)
-      ENDIF
+      END IF
       !output: I1,J2,j3,jp3,(Jp2)
       !transform along z axis
       !input: I1,J2,i3,(Jp2)
@@ -333,14 +333,14 @@ CONTAINS
                   CALL fftstp(lot, nfft, n3, lot, n3, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               ftrig3, after3(i), now3(i), before3(i), -1)
                   inzee = 3 - inzee
-               ENDDO
+               END DO
                !output: I1,I3,J2,(Jp2)
 
                !rebuild the output array
                CALL P_unfill_downcorn(md1, md3, lot, nfft, n3, zw(1, 1, inzee), zf(i1, 1, j2), scal)
 
             END DO
-         ENDIF
+         END IF
       END DO
 
       !De-allocations
@@ -920,15 +920,15 @@ CONTAINS
       DO j = 1, n1
          ftrig1(1, j) = btrig1(1, j)
          ftrig1(2, j) = -btrig1(2, j)
-      ENDDO
+      END DO
       DO j = 1, n2
          ftrig2(1, j) = btrig2(1, j)
          ftrig2(2, j) = -btrig2(2, j)
-      ENDDO
+      END DO
       DO j = 1, n3/2
          ftrig3(1, j) = btrig3(1, j)
          ftrig3(2, j) = -btrig3(2, j)
-      ENDDO
+      END DO
 
       !Calculating array of phases for HalFFT decoding
       twopion = 8._dp*ATAN(1._dp)/REAL(n3, KIND=dp)
@@ -948,7 +948,7 @@ CONTAINS
             'least one 1-d FFT of this size even though this will'// &
             'reduce the performance for shorter transform lengths', n1, n2, n3, nd1, nd2, nd3, md1, md2, md3, nproc, iproc
          CPABORT("")
-      ENDIF
+      END IF
 
       DO j2 = 1, md2/nproc
          !this condition ensures that we manage only the interesting part for the FFT
@@ -968,7 +968,7 @@ CONTAINS
                   CALL fftstp(lot, nfft, n3/2, lot, n3/2, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               btrig3, after3(i), now3(i), before3(i), 1)
                   inzee = 3 - inzee
-               ENDDO
+               END DO
                !output: I1,i3,J2,(Jp2)
                !unpacking FFT in order to restore correct result,
                !while exchanging components
@@ -982,7 +982,7 @@ CONTAINS
       !input: I1,J2,j3,jp3,(Jp2)
       IF (nproc .GT. 1) THEN
          CALL mp_alltoall(zmpi2, zmpi1, 2*n1*(md2/nproc)*(nd3/nproc), mpi_group)
-      ENDIF
+      END IF
       !output: I1,J2,j3,Jp2,(jp3)
 
       !now each process perform complete convolution of its planes
@@ -1002,7 +1002,7 @@ CONTAINS
                   'least one 1-d FFT of this size even though this will'// &
                   'reduce the performance for shorter transform lengths'
                CPABORT("")
-            ENDIF
+            END IF
 
             DO j = 1, n2, lot
                ma = j
@@ -1015,7 +1015,7 @@ CONTAINS
                   CALL S_mpiswitch_upcorn(j3, nfft, Jp2stb, J2stb, lot, n1, md2, nd3, nproc, zmpi2, zw(1, 1, 1))
                ELSE
                   CALL S_mpiswitch_upcorn(j3, nfft, Jp2stb, J2stb, lot, n1, md2, nd3, nproc, zmpi1, zw(1, 1, 1))
-               ENDIF
+               END IF
                !output: J2,Jp2,I1,j3,(jp3)
 
                !performing FFT
@@ -1025,7 +1025,7 @@ CONTAINS
                   CALL fftstp(lot, nfft, n1, lot, n1, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               btrig1, after1(i), now1(i), before1(i), 1)
                   inzee = 3 - inzee
-               ENDDO
+               END DO
 
                !storing the last step into zt array
                i = ic1
@@ -1042,7 +1042,7 @@ CONTAINS
                   'least one 1-d FFT of this size even though this will'// &
                   'reduce the performance for shorter transform lengths'
                CPABORT("")
-            ENDIF
+            END IF
 
             DO j = 1, n1, lot
                ma = j
@@ -1061,7 +1061,7 @@ CONTAINS
                   CALL fftstp(lot, nfft, n2, lot, n2, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               btrig2, after2(i), now2(i), before2(i), 1)
                   inzee = 3 - inzee
-               ENDDO
+               END DO
                !output: i1,i2,j3,(jp3)
 
                !Multiply with kernel in fourier space
@@ -1075,7 +1075,7 @@ CONTAINS
                   CALL fftstp(lot, nfft, n2, lot, n2, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               ftrig2, after2(i), now2(i), before2(i), -1)
                   inzee = 3 - inzee
-               ENDDO
+               END DO
 
                !reverse ordering
                !input: i1,I2,j3,(jp3)
@@ -1101,7 +1101,7 @@ CONTAINS
                   CALL fftstp(lot, nfft, n1, lot, n1, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               ftrig1, after1(i), now1(i), before1(i), -1)
                   inzee = 3 - inzee
-               ENDDO
+               END DO
                !output: I2,I1,j3,(jp3)
 
                !reverse ordering
@@ -1110,10 +1110,10 @@ CONTAINS
                   CALL S_unmpiswitch_downcorn(j3, nfft, Jp2stf, J2stf, lot, n1, md2, nd3, nproc, zw(1, 1, inzee), zmpi2)
                ELSE
                   CALL S_unmpiswitch_downcorn(j3, nfft, Jp2stf, J2stf, lot, n1, md2, nd3, nproc, zw(1, 1, inzee), zmpi1)
-               ENDIF
+               END IF
                ! output: I1,J2,j3,Jp2,(jp3)
             END DO
-         ENDIF
+         END IF
       END DO
 
       !Interprocessor data transposition
@@ -1121,7 +1121,7 @@ CONTAINS
       IF (nproc .GT. 1) THEN
          !communication scheduling
          CALL mp_alltoall(zmpi1, zmpi2, 2*n1*(md2/nproc)*(nd3/nproc), mpi_group)
-      ENDIF
+      END IF
 
       !output: I1,J2,j3,jp3,(Jp2)
 
@@ -1148,7 +1148,7 @@ CONTAINS
                   CALL fftstp(lot, nfft, n3/2, lot, n3/2, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               ftrig3, after3(i), now3(i), before3(i), -1)
                   inzee = 3 - inzee
-               ENDDO
+               END DO
                !output: I1,I3,J2,(Jp2)
 
                !rebuild the output array
@@ -1158,7 +1158,7 @@ CONTAINS
                !integrate local pieces together
                !ehartree=ehartree+0.5_dp*ehartreetmp*hx*hy*hz
             END DO
-         ENDIF
+         END IF
       END DO
 
       !De-allocations
@@ -1368,7 +1368,7 @@ CONTAINS
             pot1 = scal*zw(2, i1, i3)
             !ehartreetmp =ehartreetmp + pot1* zf(i1,2*i3)
             zf(i1, 2*i3) = pot1
-         ENDDO
+         END DO
       END DO
    END SUBROUTINE unfill_downcorn
 
@@ -1401,7 +1401,7 @@ CONTAINS
          DO i1 = 1, nfft
             zw(1, i1, i3) = zf(i1, 2*i3 - 1 - n3/2)
             zw(2, i1, i3) = zf(i1, 2*i3 - n3/2)
-         ENDDO
+         END DO
       END DO
 
    END SUBROUTINE halfill_upcorn
@@ -1658,15 +1658,15 @@ CONTAINS
       DO j = 1, n1
          ftrig1(1, j) = btrig1(1, j)
          ftrig1(2, j) = -btrig1(2, j)
-      ENDDO
+      END DO
       DO j = 1, n2
          ftrig2(1, j) = btrig2(1, j)
          ftrig2(2, j) = -btrig2(2, j)
-      ENDDO
+      END DO
       DO j = 1, n3
          ftrig3(1, j) = btrig3(1, j)
          ftrig3(2, j) = -btrig3(2, j)
-      ENDDO
+      END DO
 
       !Calculating array of phases for HalFFT decoding
       twopion = 8._dp*ATAN(1._dp)/REAL(n3, KIND=dp)
@@ -1683,7 +1683,7 @@ CONTAINS
             'least one 1-d FFT of this size even though this will'// &
             'reduce the performance for shorter transform lengths'
          CPABORT("")
-      ENDIF
+      END IF
 
       DO j2 = 1, md2/nproc
          !this condition ensures that we manage only the interesting part for the FFT
@@ -1703,7 +1703,7 @@ CONTAINS
                   CALL fftstp(lot, nfft, n3/2, lot, n3/2, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               btrig3, after3(i), now3(i), before3(i), 1)
                   inzee = 3 - inzee
-               ENDDO
+               END DO
                !output: I1,i3,J2,(Jp2)
 
                !unpacking FFT in order to restore correct result,
@@ -1712,7 +1712,7 @@ CONTAINS
                CALL scramble_unpack(i1, j2, lot, nfft, n1/2, n3, md2, nproc, nd3, zw(1, 1, inzee), zmpi2, cosinarr)
                !output: I1,J2,i3,(Jp2)
             END DO
-         ENDIF
+         END IF
       END DO
 
       !Interprocessor data transposition
@@ -1720,7 +1720,7 @@ CONTAINS
       IF (nproc .GT. 1) THEN
          !communication scheduling
          CALL mp_alltoall(zmpi2, zmpi1, n1*(md2/nproc)*(nd3/nproc), mpi_group)
-      ENDIF
+      END IF
       !output: I1,J2,j3,Jp2,(jp3)
 
       !now each process perform complete convolution of its planes
@@ -1740,7 +1740,7 @@ CONTAINS
                   'least one 1-d FFT of this size even though this will'// &
                   'reduce the performance for shorter transform lengths'
                CPABORT("")
-            ENDIF
+            END IF
 
             DO j = 1, n2/2, lot
                ma = j
@@ -1753,7 +1753,7 @@ CONTAINS
                   CALL mpiswitch_upcorn(j3, nfft, Jp2stb, J2stb, lot, n1, md2, nd3, nproc, zmpi2, zw(1, 1, 1))
                ELSE
                   CALL mpiswitch_upcorn(j3, nfft, Jp2stb, J2stb, lot, n1, md2, nd3, nproc, zmpi1, zw(1, 1, 1))
-               ENDIF
+               END IF
                !output: J2,Jp2,I1,j3,(jp3)
 
                !performing FFT
@@ -1763,7 +1763,7 @@ CONTAINS
                   CALL fftstp(lot, nfft, n1, lot, n1, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               btrig1, after1(i), now1(i), before1(i), 1)
                   inzee = 3 - inzee
-               ENDDO
+               END DO
 
                !storing the last step into zt array
                i = ic1
@@ -1780,7 +1780,7 @@ CONTAINS
                   'least one 1-d FFT of this size even though this will'// &
                   'reduce the performance for shorter transform lengths'
                CPABORT("")
-            ENDIF
+            END IF
 
             DO j = 1, n1, lot
                ma = j
@@ -1799,7 +1799,7 @@ CONTAINS
                   CALL fftstp(lot, nfft, n2, lot, n2, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               btrig2, after2(i), now2(i), before2(i), 1)
                   inzee = 3 - inzee
-               ENDDO
+               END DO
                !output: i1,i2,j3,(jp3)
 
                !Multiply with kernel in fourier space
@@ -1813,7 +1813,7 @@ CONTAINS
                   CALL fftstp(lot, nfft, n2, lot, n2, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               ftrig2, after2(i), now2(i), before2(i), -1)
                   inzee = 3 - inzee
-               ENDDO
+               END DO
 
                !reverse ordering
                !input: i1,I2,j3,(jp3)
@@ -1839,7 +1839,7 @@ CONTAINS
                   CALL fftstp(lot, nfft, n1, lot, n1, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               ftrig1, after1(i), now1(i), before1(i), -1)
                   inzee = 3 - inzee
-               ENDDO
+               END DO
                !output: I2,I1,j3,(jp3)
 
                !reverse ordering
@@ -1848,10 +1848,10 @@ CONTAINS
                   CALL unmpiswitch_downcorn(j3, nfft, Jp2stf, J2stf, lot, n1, md2, nd3, nproc, zw(1, 1, inzee), zmpi2)
                ELSE
                   CALL unmpiswitch_downcorn(j3, nfft, Jp2stf, J2stf, lot, n1, md2, nd3, nproc, zw(1, 1, inzee), zmpi1)
-               ENDIF
+               END IF
                ! output: I1,J2,j3,Jp2,(jp3)
             END DO
-         ENDIF
+         END IF
       END DO
 
       !Interprocessor data transposition
@@ -1860,7 +1860,7 @@ CONTAINS
          !communication scheduling
          CALL mp_alltoall(zmpi1, zmpi2, n1*(md2/nproc)*(nd3/nproc), mpi_group)
          !output: I1,J2,j3,jp3,(Jp2)
-      ENDIF
+      END IF
 
       !transform along z axis
       !input: I1,J2,i3,(Jp2)
@@ -1885,7 +1885,7 @@ CONTAINS
                   CALL fftstp(lot, nfft, n3/2, lot, n3/2, zw(1, 1, inzee), zw(1, 1, 3 - inzee), &
                               ftrig3, after3(i), now3(i), before3(i), -1)
                   inzee = 3 - inzee
-               ENDDO
+               END DO
                !output: I1,I3,J2,(Jp2)
 
                !calculates the exchange correlation terms locally and rebuild the output array
@@ -1895,7 +1895,7 @@ CONTAINS
                !integrate local pieces together
                !ehartree=ehartree+0.5_dp*ehartreetmp*hgrid**3
             END DO
-         ENDIF
+         END IF
       END DO
 
       !De-allocations
@@ -1989,7 +1989,7 @@ CONTAINS
                Jp2stb = Jp2
                J2stb = J2
                EXIT Main
-            ENDIF
+            END IF
             DO I1 = 1, n1/2
                zw(1, mfft, I1) = 0._dp
                zw(2, mfft, I1) = 0._dp
@@ -2064,7 +2064,7 @@ CONTAINS
                Jp2stf = Jp2
                J2stf = J2
                EXIT Main
-            ENDIF
+            END IF
             DO I1 = 1, n1/2
                zmpi1(1, I1, J2, j3, Jp2) = zw(1, mfft, I1)
                zmpi1(2, I1, J2, j3, Jp2) = zw(2, mfft, I1)
@@ -2119,7 +2119,7 @@ CONTAINS
             pot1 = scal*zw(2, i1, i3)
             ehartreetmp = ehartreetmp + pot1*zf(i1, 2*i3)
             zf(i1, 2*i3) = pot1
-         ENDDO
+         END DO
       END DO
    END SUBROUTINE F_unfill_downcorn
 

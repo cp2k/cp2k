@@ -79,15 +79,15 @@ CONTAINS
                c = (t - ks) - y
                ks = t
             END IF
-         ENDDO
+         END DO
       ELSE
          DO i1 = 1, SIZE(array, 1)
             y = array(i1) - c
             t = ks + y
             c = (t - ks) - y
             ks = t
-         ENDDO
-      ENDIF
+         END DO
+      END IF
    END FUNCTION kahan_sum_s1
 
 ! **************************************************************************************************
@@ -114,15 +114,15 @@ CONTAINS
                c = (t - ks) - y
                ks = t
             END IF
-         ENDDO
+         END DO
       ELSE
          DO i1 = 1, SIZE(array, 1)
             y = array(i1) - c
             t = ks + y
             c = (t - ks) - y
             ks = t
-         ENDDO
-      ENDIF
+         END DO
+      END IF
    END FUNCTION kahan_sum_d1
 
 ! **************************************************************************************************
@@ -173,15 +173,15 @@ CONTAINS
                c = (t - ks) - y
                ks = t
             END IF
-         ENDDO
+         END DO
       ELSE
          DO i1 = 1, SIZE(array, 1)
             y = array(i1) - c
             t = ks + y
             c = (t - ks) - y
             ks = t
-         ENDDO
-      ENDIF
+         END DO
+      END IF
    END FUNCTION kahan_sum_c1
 
 ! **************************************************************************************************
@@ -208,15 +208,15 @@ CONTAINS
                c = (t - ks) - y
                ks = t
             END IF
-         ENDDO
+         END DO
       ELSE
          DO i1 = 1, SIZE(array, 1)
             y = array(i1) - c
             t = ks + y
             c = (t - ks) - y
             ks = t
-         ENDDO
-      ENDIF
+         END DO
+      END IF
    END FUNCTION kahan_sum_z1
 
 ! **************************************************************************************************
@@ -244,8 +244,8 @@ CONTAINS
                c = (t - ks) - y
                ks = t
             END IF
-         ENDDO
-         ENDDO
+         END DO
+         END DO
       ELSE
          DO i2 = 1, SIZE(array, 2)
          DO i1 = 1, SIZE(array, 1)
@@ -253,9 +253,9 @@ CONTAINS
             t = ks + y
             c = (t - ks) - y
             ks = t
-         ENDDO
-         ENDDO
-      ENDIF
+         END DO
+         END DO
+      END IF
    END FUNCTION kahan_sum_s2
 
 ! **************************************************************************************************
@@ -310,8 +310,8 @@ CONTAINS
                c = (t - ks) - y
                ks = t
             END IF
-         ENDDO
-         ENDDO
+         END DO
+         END DO
       ELSE
          DO i2 = 1, SIZE(array, 2)
          DO i1 = 1, SIZE(array, 1)
@@ -319,9 +319,9 @@ CONTAINS
             t = ks + y
             c = (t - ks) - y
             ks = t
-         ENDDO
-         ENDDO
-      ENDIF
+         END DO
+         END DO
+      END IF
    END FUNCTION kahan_sum_d2
 
 ! **************************************************************************************************
@@ -376,8 +376,8 @@ CONTAINS
                c = (t - ks) - y
                ks = t
             END IF
-         ENDDO
-         ENDDO
+         END DO
+         END DO
       ELSE
          DO i2 = 1, SIZE(array, 2)
          DO i1 = 1, SIZE(array, 1)
@@ -385,9 +385,9 @@ CONTAINS
             t = ks + y
             c = (t - ks) - y
             ks = t
-         ENDDO
-         ENDDO
-      ENDIF
+         END DO
+         END DO
+      END IF
    END FUNCTION kahan_sum_c2
 
 ! **************************************************************************************************
@@ -415,8 +415,8 @@ CONTAINS
                c = (t - ks) - y
                ks = t
             END IF
-         ENDDO
-         ENDDO
+         END DO
+         END DO
       ELSE
          DO i2 = 1, SIZE(array, 2)
          DO i1 = 1, SIZE(array, 1)
@@ -424,9 +424,9 @@ CONTAINS
             t = ks + y
             c = (t - ks) - y
             ks = t
-         ENDDO
-         ENDDO
-      ENDIF
+         END DO
+         END DO
+      END IF
    END FUNCTION kahan_sum_z2
 
 ! **************************************************************************************************
@@ -482,9 +482,9 @@ CONTAINS
                c = (t - ks) - y
                ks = t
             END IF
-         ENDDO
-         ENDDO
-         ENDDO
+         END DO
+         END DO
+         END DO
       ELSE
          DO i3 = 1, SIZE(array, 3)
          DO i2 = 1, SIZE(array, 2)
@@ -493,10 +493,10 @@ CONTAINS
             t = ks + y
             c = (t - ks) - y
             ks = t
-         ENDDO
-         ENDDO
-         ENDDO
-      ENDIF
+         END DO
+         END DO
+         END DO
+      END IF
    END FUNCTION kahan_sum_s3
 
 ! **************************************************************************************************
@@ -525,9 +525,9 @@ CONTAINS
                c = (t - ks) - y
                ks = t
             END IF
-         ENDDO
-         ENDDO
-         ENDDO
+         END DO
+         END DO
+         END DO
       ELSE
          DO i3 = 1, SIZE(array, 3)
          DO i2 = 1, SIZE(array, 2)
@@ -536,10 +536,10 @@ CONTAINS
             t = ks + y
             c = (t - ks) - y
             ks = t
-         ENDDO
-         ENDDO
-         ENDDO
-      ENDIF
+         END DO
+         END DO
+         END DO
+      END IF
    END FUNCTION kahan_sum_d3
 
 ! **************************************************************************************************
@@ -601,9 +601,9 @@ CONTAINS
             c = (t - ks) - y
             ks = t
          END IF
-      ENDDO
-      ENDDO
-      ENDDO
+      END DO
+      END DO
+      END DO
    END FUNCTION kahan_dot_product_masked_d3
 
 ! **************************************************************************************************
@@ -632,9 +632,9 @@ CONTAINS
                c = (t - ks) - y
                ks = t
             END IF
-         ENDDO
-         ENDDO
-         ENDDO
+         END DO
+         END DO
+         END DO
       ELSE
          DO i3 = 1, SIZE(array, 3)
          DO i2 = 1, SIZE(array, 2)
@@ -643,10 +643,10 @@ CONTAINS
             t = ks + y
             c = (t - ks) - y
             ks = t
-         ENDDO
-         ENDDO
-         ENDDO
-      ENDIF
+         END DO
+         END DO
+         END DO
+      END IF
    END FUNCTION kahan_sum_c3
 
 ! **************************************************************************************************
@@ -675,9 +675,9 @@ CONTAINS
                c = (t - ks) - y
                ks = t
             END IF
-         ENDDO
-         ENDDO
-         ENDDO
+         END DO
+         END DO
+         END DO
       ELSE
          DO i3 = 1, SIZE(array, 3)
          DO i2 = 1, SIZE(array, 2)
@@ -686,10 +686,10 @@ CONTAINS
             t = ks + y
             c = (t - ks) - y
             ks = t
-         ENDDO
-         ENDDO
-         ENDDO
-      ENDIF
+         END DO
+         END DO
+         END DO
+      END IF
    END FUNCTION kahan_sum_z3
 
 ! **************************************************************************************************
@@ -720,10 +720,10 @@ CONTAINS
                c = (t - ks) - y
                ks = t
             END IF
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
+         END DO
+         END DO
+         END DO
+         END DO
       ELSE
          DO i4 = 1, SIZE(array, 4)
          DO i3 = 1, SIZE(array, 3)
@@ -733,11 +733,11 @@ CONTAINS
             t = ks + y
             c = (t - ks) - y
             ks = t
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-      ENDIF
+         END DO
+         END DO
+         END DO
+         END DO
+      END IF
    END FUNCTION kahan_sum_s4
 
 ! **************************************************************************************************
@@ -768,10 +768,10 @@ CONTAINS
                c = (t - ks) - y
                ks = t
             END IF
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
+         END DO
+         END DO
+         END DO
+         END DO
       ELSE
          DO i4 = 1, SIZE(array, 4)
          DO i3 = 1, SIZE(array, 3)
@@ -781,11 +781,11 @@ CONTAINS
             t = ks + y
             c = (t - ks) - y
             ks = t
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-      ENDIF
+         END DO
+         END DO
+         END DO
+         END DO
+      END IF
    END FUNCTION kahan_sum_d4
 
 ! **************************************************************************************************
@@ -817,10 +817,10 @@ CONTAINS
                c = (t - ks) - y
                ks = t
             END IF
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
+         END DO
+         END DO
+         END DO
+         END DO
       ELSE
          DO i4 = 1, SIZE(array, 4)
          DO i3 = 1, SIZE(array, 3)
@@ -830,11 +830,11 @@ CONTAINS
             t = ks + y
             c = (t - ks) - y
             ks = t
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-      ENDIF
+         END DO
+         END DO
+         END DO
+         END DO
+      END IF
    END FUNCTION kahan_sum_c4
 
 ! **************************************************************************************************
@@ -866,10 +866,10 @@ CONTAINS
                c = (t - ks) - y
                ks = t
             END IF
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
+         END DO
+         END DO
+         END DO
+         END DO
       ELSE
          DO i4 = 1, SIZE(array, 4)
          DO i3 = 1, SIZE(array, 3)
@@ -879,11 +879,11 @@ CONTAINS
             t = ks + y
             c = (t - ks) - y
             ks = t
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-      ENDIF
+         END DO
+         END DO
+         END DO
+         END DO
+      END IF
    END FUNCTION kahan_sum_z4
 
 ! **************************************************************************************************
@@ -916,11 +916,11 @@ CONTAINS
                c = (t - ks) - y
                ks = t
             END IF
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
       ELSE
          DO i5 = 1, SIZE(array, 5)
          DO i4 = 1, SIZE(array, 4)
@@ -931,12 +931,12 @@ CONTAINS
             t = ks + y
             c = (t - ks) - y
             ks = t
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-      ENDIF
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+      END IF
    END FUNCTION kahan_sum_s5
 
 ! **************************************************************************************************
@@ -969,11 +969,11 @@ CONTAINS
                c = (t - ks) - y
                ks = t
             END IF
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
       ELSE
          DO i5 = 1, SIZE(array, 5)
          DO i4 = 1, SIZE(array, 4)
@@ -984,12 +984,12 @@ CONTAINS
             t = ks + y
             c = (t - ks) - y
             ks = t
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-      ENDIF
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+      END IF
    END FUNCTION kahan_sum_d5
 
 ! **************************************************************************************************
@@ -1022,11 +1022,11 @@ CONTAINS
                c = (t - ks) - y
                ks = t
             END IF
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
       ELSE
          DO i5 = 1, SIZE(array, 5)
          DO i4 = 1, SIZE(array, 4)
@@ -1037,12 +1037,12 @@ CONTAINS
             t = ks + y
             c = (t - ks) - y
             ks = t
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-      ENDIF
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+      END IF
    END FUNCTION kahan_sum_c5
 
 ! **************************************************************************************************
@@ -1075,11 +1075,11 @@ CONTAINS
                c = (t - ks) - y
                ks = t
             END IF
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
       ELSE
          DO i5 = 1, SIZE(array, 5)
          DO i4 = 1, SIZE(array, 4)
@@ -1090,12 +1090,12 @@ CONTAINS
             t = ks + y
             c = (t - ks) - y
             ks = t
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-      ENDIF
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+      END IF
    END FUNCTION kahan_sum_z5
 
 ! **************************************************************************************************
@@ -1129,12 +1129,12 @@ CONTAINS
                c = (t - ks) - y
                ks = t
             END IF
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
       ELSE
          DO i6 = 1, SIZE(array, 6)
          DO i5 = 1, SIZE(array, 5)
@@ -1146,13 +1146,13 @@ CONTAINS
             t = ks + y
             c = (t - ks) - y
             ks = t
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-      ENDIF
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+      END IF
    END FUNCTION kahan_sum_s6
 
 ! **************************************************************************************************
@@ -1186,12 +1186,12 @@ CONTAINS
                c = (t - ks) - y
                ks = t
             END IF
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
       ELSE
          DO i6 = 1, SIZE(array, 6)
          DO i5 = 1, SIZE(array, 5)
@@ -1203,13 +1203,13 @@ CONTAINS
             t = ks + y
             c = (t - ks) - y
             ks = t
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-      ENDIF
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+      END IF
    END FUNCTION kahan_sum_d6
 
 ! **************************************************************************************************
@@ -1243,12 +1243,12 @@ CONTAINS
                c = (t - ks) - y
                ks = t
             END IF
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
       ELSE
          DO i6 = 1, SIZE(array, 6)
          DO i5 = 1, SIZE(array, 5)
@@ -1260,13 +1260,13 @@ CONTAINS
             t = ks + y
             c = (t - ks) - y
             ks = t
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-      ENDIF
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+      END IF
    END FUNCTION kahan_sum_c6
 
 ! **************************************************************************************************
@@ -1300,12 +1300,12 @@ CONTAINS
                c = (t - ks) - y
                ks = t
             END IF
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
       ELSE
          DO i6 = 1, SIZE(array, 6)
          DO i5 = 1, SIZE(array, 5)
@@ -1317,13 +1317,13 @@ CONTAINS
             t = ks + y
             c = (t - ks) - y
             ks = t
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-      ENDIF
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+      END IF
    END FUNCTION kahan_sum_z6
 
 ! **************************************************************************************************
@@ -1358,13 +1358,13 @@ CONTAINS
                c = (t - ks) - y
                ks = t
             END IF
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
       ELSE
          DO i7 = 1, SIZE(array, 7)
          DO i6 = 1, SIZE(array, 6)
@@ -1377,14 +1377,14 @@ CONTAINS
             t = ks + y
             c = (t - ks) - y
             ks = t
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-      ENDIF
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+      END IF
    END FUNCTION kahan_sum_s7
 
 ! **************************************************************************************************
@@ -1419,13 +1419,13 @@ CONTAINS
                c = (t - ks) - y
                ks = t
             END IF
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
       ELSE
          DO i7 = 1, SIZE(array, 7)
          DO i6 = 1, SIZE(array, 6)
@@ -1438,14 +1438,14 @@ CONTAINS
             t = ks + y
             c = (t - ks) - y
             ks = t
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-      ENDIF
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+      END IF
    END FUNCTION kahan_sum_d7
 
 ! **************************************************************************************************
@@ -1480,13 +1480,13 @@ CONTAINS
                c = (t - ks) - y
                ks = t
             END IF
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
       ELSE
          DO i7 = 1, SIZE(array, 7)
          DO i6 = 1, SIZE(array, 6)
@@ -1499,14 +1499,14 @@ CONTAINS
             t = ks + y
             c = (t - ks) - y
             ks = t
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-      ENDIF
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+      END IF
    END FUNCTION kahan_sum_c7
 
 ! **************************************************************************************************
@@ -1541,13 +1541,13 @@ CONTAINS
                c = (t - ks) - y
                ks = t
             END IF
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
       ELSE
          DO i7 = 1, SIZE(array, 7)
          DO i6 = 1, SIZE(array, 6)
@@ -1560,14 +1560,14 @@ CONTAINS
             t = ks + y
             c = (t - ks) - y
             ks = t
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-         ENDDO
-      ENDIF
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+         END DO
+      END IF
    END FUNCTION kahan_sum_z7
 
 END MODULE kahan_sum

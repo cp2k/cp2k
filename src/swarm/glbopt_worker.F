@@ -181,7 +181,7 @@ CONTAINS
       IF (iframe > 1) THEN
          CALL swarm_message_get(cmd, "positions", positions)
          CALL unpack_subsys_particles(worker%subsys, r=positions)
-      ENDIF
+      END IF
 
       ! setup mdctrl callback
       ALLOCATE (mdctrl_data%epot_history(worker%bump_steps_downwards + worker%bump_steps_upwards + 1))

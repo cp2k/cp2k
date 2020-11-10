@@ -110,7 +110,7 @@ CONTAINS
       ALLOCATE (atom_bond_list(natom))
       DO I = 1, natom
          ALLOCATE (atom_bond_list(I)%array1(0))
-      ENDDO
+      END DO
       N = 0
       IF (ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a) - nbond_prev
       CALL reorder_structure(atom_bond_list, conn_info%bond_a(nbond_prev + 1:) - natom_prev, &
@@ -128,7 +128,7 @@ CONTAINS
       END DO
       DO I = 1, natom
          DEALLOCATE (atom_bond_list(I)%array1)
-      ENDDO
+      END DO
       DEALLOCATE (atom_bond_list)
 
    END SUBROUTINE topology_generate_molname
@@ -289,14 +289,14 @@ CONTAINS
       ALLOCATE (atom_bond_list(natom))
       DO I = 1, natom
          ALLOCATE (atom_bond_list(I)%array1(0))
-      ENDDO
+      END DO
       N = 0
       IF (ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a)
       CALL reorder_structure(atom_bond_list, conn_info%bond_a, conn_info%bond_b, N)
       CALL find_molecule(atom_bond_list, atom_info%map_mol_num, atom_info%id_molname)
       DO I = 1, natom
          DEALLOCATE (atom_bond_list(I)%array1)
-      ENDDO
+      END DO
       DEALLOCATE (atom_bond_list)
       IF (iw > 0) WRITE (iw, '(/,T2,A)') "End of molecule generation"
 
@@ -711,7 +711,7 @@ CONTAINS
       DO I = 1, natom
          ALLOCATE (bond_list(I)%array1(0))
          ALLOCATE (bond_list(I)%array2(0))
-      ENDDO
+      END DO
       CALL reorder_structure(bond_list, bond_a, bond_b, map_nb, SIZE(bond_a))
       DEALLOCATE (bond_a)
       DEALLOCATE (bond_b)
@@ -870,7 +870,7 @@ CONTAINS
       DO I = 1, natom
          DEALLOCATE (bond_list(I)%array1)
          DEALLOCATE (bond_list(I)%array2)
-      ENDDO
+      END DO
       DEALLOCATE (bond_list)
       DEALLOCATE (pbc_coord)
       DEALLOCATE (radius)
@@ -950,7 +950,7 @@ CONTAINS
       ALLOCATE (bond_list(natom))
       DO I = 1, natom
          ALLOCATE (bond_list(I)%array1(0))
-      ENDDO
+      END DO
       CALL reorder_structure(bond_list, bond_a, bond_b, SIZE(bond_a))
       ALLOCATE (mol_map(natom))
       ALLOCATE (mol_map_o(natom))
@@ -1050,7 +1050,7 @@ CONTAINS
       DEALLOCATE (wrk)
       DO I = 1, natom
          DEALLOCATE (bond_list(I)%array1)
-      ENDDO
+      END DO
       DEALLOCATE (bond_list)
       CALL timestop(handle)
    END FUNCTION check_generate_mol
@@ -1358,7 +1358,7 @@ CONTAINS
       ! if nothing there stay within bounds
       IF (istart <= ndim) THEN
          IF (Ilist1(istart) > tmp(1) .AND. (istart /= 1)) istart = istart - 1
-      ENDIF
+      END IF
       DO iend = istart, ndim
          IF (Ilist1(iend) /= tmp(1)) EXIT
       END DO
@@ -1523,7 +1523,7 @@ CONTAINS
          ALLOCATE (bond_list(natom))
          DO I = 1, natom
             ALLOCATE (bond_list(I)%array1(0))
-         ENDDO
+         END DO
          CALL reorder_structure(bond_list, conn_info%bond_a, conn_info%bond_b, nbond)
          ! All the dirty job is handled by this routine.. for bends it_levl is equal 3
          CALL timeset(routineN//"_1", handle2)
@@ -1537,7 +1537,7 @@ CONTAINS
          CALL timestop(handle2)
          DO I = 1, natom
             DEALLOCATE (bond_list(I)%array1)
-         ENDDO
+         END DO
          DEALLOCATE (bond_list)
          IF (output_unit > 0) THEN
             WRITE (output_unit, '(T2,"GENERATE|",1X,A,T71,I10)') " Preliminary Number of Bends generated:", &
@@ -1797,7 +1797,7 @@ CONTAINS
          ALLOCATE (bond_list(natom))
          DO I = 1, natom
             ALLOCATE (bond_list(I)%array1(0))
-         ENDDO
+         END DO
          CALL reorder_structure(bond_list, conn_info%bond_a, conn_info%bond_b, nbond)
          ! All the dirty job is handled by this routine.. for torsions it_levl is equal 4
          CALL match_iterative_path(Iarray1=bond_list, &
@@ -1811,7 +1811,7 @@ CONTAINS
                                    Oarray4=conn_info%phi_d)
          DO I = 1, natom
             DEALLOCATE (bond_list(I)%array1)
-         ENDDO
+         END DO
          DEALLOCATE (bond_list)
          IF (output_unit > 0) THEN
             WRITE (output_unit, '(T2,"GENERATE|",1X,A,T71,I10)') " Preliminary Number of Torsions generated:", &
@@ -1886,7 +1886,7 @@ CONTAINS
          ALLOCATE (bond_list(natom))
          DO I = 1, natom
             ALLOCATE (bond_list(I)%array1(0))
-         ENDDO
+         END DO
          CALL reorder_structure(bond_list, conn_info%bond_a, conn_info%bond_b, nbond)
          DO I = 1, natom
             ! Count all atoms with three bonds
@@ -1922,7 +1922,7 @@ CONTAINS
          END DO
          DO I = 1, natom
             DEALLOCATE (bond_list(I)%array1)
-         ENDDO
+         END DO
          DEALLOCATE (bond_list)
          ! External defined impropers (useful for complex connectivity)
          impr_section => section_vals_get_subs_vals(subsys_section, "TOPOLOGY%GENERATE%IMPROPER")
@@ -1982,7 +1982,7 @@ CONTAINS
       ALLOCATE (bond_list(natom))
       DO i = 1, natom
          ALLOCATE (bond_list(i)%array1(0))
-      ENDDO
+      END DO
       nbond = SIZE(conn_info%bond_a)
       CALL reorder_structure(bond_list, conn_info%bond_a, conn_info%bond_b, nbond)
 
@@ -1990,7 +1990,7 @@ CONTAINS
       ALLOCATE (theta_list(natom))
       DO i = 1, natom
          ALLOCATE (theta_list(i)%array1(0))
-      ENDDO
+      END DO
       ntheta = SIZE(conn_info%theta_a)
       CALL reorder_structure(theta_list, conn_info%theta_a, conn_info%theta_c, ntheta)
 
@@ -1998,7 +1998,7 @@ CONTAINS
       ALLOCATE (phi_list(natom))
       DO i = 1, natom
          ALLOCATE (phi_list(i)%array1(0))
-      ENDDO
+      END DO
       nphi = SIZE(conn_info%phi_a)
       CALL reorder_structure(phi_list, conn_info%phi_a, conn_info%phi_d, nphi)
 
@@ -2031,17 +2031,17 @@ CONTAINS
       ! Deallocate bond_list
       DO i = 1, natom
          DEALLOCATE (bond_list(i)%array1)
-      ENDDO
+      END DO
       DEALLOCATE (bond_list)
       ! Deallocate theta_list
       DO i = 1, natom
          DEALLOCATE (theta_list(i)%array1)
-      ENDDO
+      END DO
       DEALLOCATE (theta_list)
       ! Deallocate phi_list
       DO i = 1, natom
          DEALLOCATE (phi_list(i)%array1)
-      ENDDO
+      END DO
       DEALLOCATE (phi_list)
 
       ! Final output

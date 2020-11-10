@@ -457,11 +457,11 @@ CONTAINS
                   IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
                      npme = npme + 1
                      cores(npme) = iatom
-                  ENDIF
+                  END IF
                ELSE
                   npme = npme + 1
                   cores(npme) = iatom
-               ENDIF
+               END IF
             END DO
             DO j = 1, npme
                iatom = cores(j)
@@ -491,7 +491,7 @@ CONTAINS
       IF (ASSOCIATED(fnorm)) THEN
          CALL pw_release(fnorm%pw)
          DEALLOCATE (fnorm)
-      ENDIF
+      END IF
       ALLOCATE (fnorm)
       CALL pw_pool_create_pw(auxbas_pw_pool, fnorm%pw, use_data=REALDATA3D)
       fnorm%pw%in_space = REALSPACE
@@ -581,11 +581,11 @@ CONTAINS
                   IF (MODULO(iatom, rs_v%desc%group_size) == rs_v%desc%my_pos) THEN
                      npme = npme + 1
                      cores(npme) = iatom
-                  ENDIF
+                  END IF
                ELSE
                   npme = npme + 1
                   cores(npme) = iatom
-               ENDIF
+               END IF
             END DO
 
             DO j = 1, npme

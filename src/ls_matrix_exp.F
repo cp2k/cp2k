@@ -403,8 +403,8 @@ CONTAINS
             IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="((T3,A,I2,A))") &
                "BCH converged after ", i, " steps"
             EXIT
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       CALL dbcsr_filter(density_re, filter_eps)
       CALL dbcsr_filter(density_im, filter_eps)
@@ -493,8 +493,8 @@ CONTAINS
             IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="((T3,A,I2,A))") &
                "BCH converged after ", i, " steps"
             EXIT
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       CALL dbcsr_filter(density_re, filter_eps)
       CALL dbcsr_filter(density_im, filter_eps)

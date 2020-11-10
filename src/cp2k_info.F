@@ -200,7 +200,7 @@ CONTAINS
 #endif
       IF (INDEX(flags, " smm_") > 0) THEN
          flags = TRIM(flags)//" smm"
-      ENDIF
+      END IF
 
 #if defined __LIBXSMM
       flags = TRIM(flags)//" xsmm"

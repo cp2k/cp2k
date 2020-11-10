@@ -242,7 +242,7 @@ CONTAINS
          CALL create_colvar_comb_section(subsection)
          CALL section_add_subsection(section, subsection)
          CALL section_release(subsection)
-      ENDIF
+      END IF
 
    END SUBROUTINE create_colvar_var_section
 

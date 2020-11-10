@@ -176,7 +176,7 @@ CONTAINS
       IF (PRESENT(grid_2d)) THEN
          nprow = grid_2d(1)
          npcol = grid_2d(2)
-      ENDIF
+      END IF
 
       IF (nprow*npcol .NE. npe) THEN
          ! hard code for the time being the grid layout
@@ -195,8 +195,8 @@ CONTAINS
                   nprow = ipe
                   npcol = jpe
                   gcd_max = gcd(ipe, jpe)
-               ENDIF
-            ENDDO
+               END IF
+            END DO
          CASE (BLACS_GRID_ROW)
             nprow = 1
             npcol = npe
@@ -204,7 +204,7 @@ CONTAINS
             nprow = npe
             npcol = 1
          END SELECT
-      ENDIF
+      END IF
 
       ! blacs_env%group will be set to the blacs context for this blacs env, this is not the same as the MPI context
       blacs_env%group = para_env%group
@@ -214,7 +214,7 @@ CONTAINS
          CALL cp_blacs_gridinit(blacs_env%group, "Row-major", nprow, npcol)
       ELSE
          CALL cp_blacs_gridinit(blacs_env%group, "Col-major", nprow, npcol)
-      ENDIF
+      END IF
 
       my_blacs_repeatable = .FALSE.
       IF (PRESENT(blacs_repeatable)) my_blacs_repeatable = blacs_repeatable

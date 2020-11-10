@@ -171,7 +171,7 @@ CONTAINS
                                                  lri_env%cg_shg%cg_none0_list, &
                                                  lri_env%cg_shg%ncg_none0, &
                                                  maxl_orb, maxl_ri)
-         ENDIF
+         END IF
          CALL lri_basis_init(lri_env)
          ! distant pair approximation
          IF (lri_env%distant_pair_approximation) THEN
@@ -576,7 +576,7 @@ CONTAINS
                                     ovlp(isgf, jsgf) = ovlp(isgf, jsgf) + norm_i*norm_j*ppl*cci*ccj*oo
                                  END DO
                               END DO
-                           ENDIF
+                           END IF
                         END DO
                      END DO
                   END IF

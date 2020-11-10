@@ -147,7 +147,7 @@ CONTAINS
 
       IF (ASSOCIATED(kg_env%tnadd_mat)) THEN
          CALL dbcsr_deallocate_matrix_set(kg_env%tnadd_mat)
-      ENDIF
+      END IF
 
       DO isub = 1, kg_env%nsubsets
          CALL release_neighbor_list_sets(kg_env%subset(isub)%sab_orb)

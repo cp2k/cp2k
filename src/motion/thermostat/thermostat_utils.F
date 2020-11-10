@@ -1414,7 +1414,7 @@ CONTAINS
             CPASSERT(SIZE(array_pot) == number)
          ELSE
             ALLOCATE (array_pot(number))
-         ENDIF
+         END IF
          array_pot = vpot
       END IF
       IF (PRESENT(array_kin)) THEN
@@ -1422,7 +1422,7 @@ CONTAINS
             CPASSERT(SIZE(array_kin) == number)
          ELSE
             ALLOCATE (array_kin(number))
-         ENDIF
+         END IF
          array_kin = akin
       END IF
       DEALLOCATE (akin)
@@ -1478,7 +1478,7 @@ CONTAINS
             CPASSERT(SIZE(array_pot) == number)
          ELSE
             ALLOCATE (array_pot(number))
-         ENDIF
+         END IF
          array_pot = 0.0_dp
       END IF
       IF (PRESENT(array_kin)) THEN
@@ -1486,7 +1486,7 @@ CONTAINS
             CPASSERT(SIZE(array_kin) == number)
          ELSE
             ALLOCATE (array_kin(number))
-         ENDIF
+         END IF
          array_kin = akin
       END IF
       DEALLOCATE (akin)
@@ -1551,7 +1551,7 @@ CONTAINS
             CPASSERT(SIZE(array_temp) == number)
          ELSE
             ALLOCATE (array_temp(number))
-         ENDIF
+         END IF
          DO i = 1, number
             array_temp(i) = akin(i)/deg_of_free(i)
             array_temp(i) = cp_unit_from_cp2k(array_temp(i), "K_temp")

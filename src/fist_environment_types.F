@@ -334,12 +334,12 @@ CONTAINS
          CALL ewald_env_retain(ewald_env)
          CALL ewald_env_release(fist_env%ewald_env)
          fist_env%ewald_env => ewald_env
-      ENDIF
+      END IF
       IF (PRESENT(ewald_pw)) THEN
          CALL ewald_pw_retain(ewald_pw)
          CALL ewald_pw_release(fist_env%ewald_pw)
          fist_env%ewald_pw => ewald_pw
-      ENDIF
+      END IF
       IF (PRESENT(cell_ref)) THEN
          CALL cell_retain(cell_ref)
          CALL cell_release(fist_env%cell_ref)
@@ -349,7 +349,7 @@ CONTAINS
          CALL fist_nonbond_env_retain(fist_nonbond_env)
          CALL fist_nonbond_env_release(fist_env%fist_nonbond_env)
          fist_env%fist_nonbond_env => fist_nonbond_env
-      ENDIF
+      END IF
       IF (PRESENT(input)) THEN
          CALL section_vals_retain(input)
          CALL section_vals_release(fist_env%input)

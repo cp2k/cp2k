@@ -882,7 +882,7 @@ CONTAINS
 
          CALL cp_fm_release(vectors)
 
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -914,7 +914,7 @@ CONTAINS
          CALL cp_fm_create(op_sub, fm_struct, name="Subspace operator")
          CALL cp_fm_struct_release(fm_struct)
 
-      ENDIF
+      END IF
 
    END SUBROUTINE create_subspace_matrix
 
@@ -1366,7 +1366,7 @@ CONTAINS
          CALL reallocate(csr_mat%nzerow_local, 1, irow)
          DO k = nrow + 1, irow
             csr_mat%nzerow_local(k) = csr_mat%rowptr_local(k + 1) - csr_mat%rowptr_local(k)
-         ENDDO
+         END DO
          csr_mat%nrows_local = irow
          csr_mat%nze_local = csr_mat%nze_local + nnz
       END IF
@@ -1468,8 +1468,8 @@ CONTAINS
             IF (para_env%ionode) THEN
                CALL close_file(unit_nr)
             END IF
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g%pw)
@@ -1501,9 +1501,9 @@ CONTAINS
          !
          nspins = active_space_env%nspins
          IF (nspins == 1) THEN
-            ASSOCIATE (norb=>active_space_env%eri%norb, &
-                       ms2=>0, & ! active_space_env%multiplicity ?
-                       nelec=>active_space_env%nactive)
+            ASSOCIATE (norb => active_space_env%eri%norb, &
+                       ms2 => 0, & ! active_space_env%multiplicity ?
+                       nelec => active_space_env%nactive)
 
                IF (iw > 0) THEN
                   WRITE (iw, "(A,A,I4,A,I4,A,I2,A)") "&FCI", " NORB=", norb, ",NELEC=", nelec, ",MS2=", ms2, ","

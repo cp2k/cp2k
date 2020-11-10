@@ -174,7 +174,7 @@ CONTAINS
             ELSE
                CALL dbcsr_copy(rho_next(re)%matrix, rho_old(re)%matrix)
                CALL dbcsr_copy(rho_next(im)%matrix, rho_old(im)%matrix)
-            ENDIF
+            END IF
          END IF
          CALL cp_complex_dbcsr_gemm_3("N", "N", one, exp_H_new(re)%matrix, exp_H_new(im)%matrix, &
                                       rho_next(re)%matrix, rho_next(im)%matrix, zero, tmp_re, tmp_im, filter_eps=rtp%filter_eps)
@@ -306,7 +306,7 @@ CONTAINS
                   CALL bch_expansion_complex_propagator( &
                      exp_H_old(re)%matrix, exp_H_old(im)%matrix, rho_next(re)%matrix, rho_next(im)%matrix, &
                      rtp%filter_eps, rtp%filter_eps_small, rtp_control%eps_exp)
-               ENDIF
+               END IF
             END IF
          END IF
          CALL dbcsr_copy(rho_new(re)%matrix, rho_next(re)%matrix)
@@ -319,7 +319,7 @@ CONTAINS
             CALL bch_expansion_complex_propagator( &
                propagator_matrix(re)%matrix, propagator_matrix(im)%matrix, rho_new(re)%matrix, rho_new(im)%matrix, &
                rtp%filter_eps, rtp%filter_eps_small, rtp_control%eps_exp)
-         ENDIF
+         END IF
 
       END DO
 

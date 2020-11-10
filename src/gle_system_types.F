@@ -236,14 +236,14 @@ CONTAINS
                DEALLOCATE (gle%nvt(i)%s)
             END DO
             DEALLOCATE (gle%nvt)
-         ENDIF
+         END IF
          IF (ASSOCIATED(gle%mal)) THEN
             DEALLOCATE (gle%mal)
          END IF
 
          CALL release_map_info_type(gle%map_info)
          DEALLOCATE (gle)
-      ENDIF
+      END IF
 
    END SUBROUTINE gle_dealloc
 

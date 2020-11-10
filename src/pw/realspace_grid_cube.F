@@ -96,7 +96,7 @@ CONTAINS
                WRITE (unit_nr, *) TRIM(title)
             ELSE
                WRITE (unit_nr, *) "No Title"
-            ENDIF
+            END IF
 
             CPASSERT(PRESENT(particles_z) .EQV. PRESENT(particles_r))
             np = 0
@@ -124,7 +124,7 @@ CONTAINS
                   WRITE (unit_nr, '(I5,4f12.6)') particles_z(iat), 0._dp, particles_r(:, iat)
                END DO
             END IF
-         ENDIF
+         END IF
 
          ! shortcut
          L1 = pw%pw_grid%bounds(1, 1)
@@ -141,8 +141,8 @@ CONTAINS
          num_pe = pw%pw_grid%para%group_size
          tag = 1
 
-         rank(1) = unit_nr
-         rank(2) = my_rank
+         rank (1) = unit_nr
+         rank (2) = my_rank
          checksum = 0
          IF (unit_nr > 0) checksum = 1
 
@@ -162,25 +162,25 @@ CONTAINS
                      IF (pw%pw_grid%para%bo(1, 1, ip, 1) <= I1 - L1 + 1 .AND. pw%pw_grid%para%bo(2, 1, ip, 1) >= I1 - L1 + 1 .AND. &
                          pw%pw_grid%para%bo(1, 2, ip, 1) <= I2 - L2 + 1 .AND. pw%pw_grid%para%bo(2, 2, ip, 1) >= I2 - L2 + 1) THEN
                         source = ip
-                     ENDIF
-                  ENDDO
+                     END IF
+                  END DO
                ELSE
                   source = dest
-               ENDIF
+               END IF
 
                IF (source == dest) THEN
                   IF (my_rank == source) THEN
                      buf(:) = pw%cr3d(I1, I2, :)
-                  ENDIF
+                  END IF
                ELSE
                   IF (my_rank == source) THEN
                      buf(:) = pw%cr3d(I1, I2, :)
                      CALL mp_send(buf, dest, tag, gid)
-                  ENDIF
+                  END IF
                   IF (my_rank == dest) THEN
                      CALL mp_recv(buf, source, tag, gid)
-                  ENDIF
-               ENDIF
+                  END IF
+               END IF
 
                IF (unit_nr > 0) THEN
                   IF (my_zero_tails) THEN
@@ -189,7 +189,7 @@ CONTAINS
                      END DO
                   END IF
                   WRITE (unit_nr, '(6E13.5)') (buf(I3), I3=L3, U3, my_stride(3))
-               ENDIF
+               END IF
 
                ! this double loop generates so many messages that it can overload
                ! the message passing system, e.g. on XT3
@@ -199,8 +199,8 @@ CONTAINS
                ! more complicated rewrite
                CALL mp_sync(gid)
 
-            ENDDO
-         ENDDO
+            END DO
+         END DO
 
          DEALLOCATE (buf)
       ELSE
@@ -287,7 +287,7 @@ CONTAINS
             !skip header comments
             DO i = 1, 2
                READ (extunit, *)
-            ENDDO
+            END DO
             READ (extunit, *) nat, rdum
             DO i = 1, 3
                READ (extunit, *) ndum, rdum
@@ -296,13 +296,13 @@ CONTAINS
                   WRITE (output_unit, *) "Restart from density | ERROR! | CUBE FILE NOT COINCIDENT WITH INTERNAL GRID ", i
                   WRITE (output_unit, *) "Restart from density | ", ndum, " DIFFERS FROM ", npoints(i)
                   WRITE (output_unit, *) "Restart from density | ", rdum, " DIFFERS FROM ", dr(i)
-               ENDIF
-            ENDDO
+               END IF
+            END DO
             !ignore atomic position data - read from coord or topology instead
             DO i = 1, nat
                READ (extunit, *)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
 
          !master sends all data to everyone
          DO i = lbounds(1), ubounds(1)
@@ -312,12 +312,12 @@ CONTAINS
                   IF (num_pe .GT. 1) THEN
                      DO ip = 1, num_pe - 1
                         CALL mp_send(buffer(lbounds(3):ubounds(3)), ip, tag, gid)
-                     ENDDO
-                  ENDIF
+                     END DO
+                  END IF
                ELSE
                   master = 0
                   CALL mp_recv(buffer(lbounds(3):ubounds(3)), master, tag, gid)
-               ENDIF
+               END IF
                CALL mp_sync(gid)
 
                !only use data that is local to me - i.e. in slice of pencil I own
@@ -325,10 +325,10 @@ CONTAINS
                    .AND. (j .LE. ubounds_local(2))) THEN
                   !allow scaling of external potential values by factor 'scaling' (SCALING_FACTOR in input file)
                   grid%cr3d(i, j, lbounds(3):ubounds(3)) = buffer(lbounds(3):ubounds(3))*scaling
-               ENDIF
+               END IF
 
-            ENDDO
-         ENDDO
+            END DO
+         END DO
 
          IF (my_rank == 0) CALL close_file(unit_number=extunit)
 
@@ -423,7 +423,7 @@ CONTAINS
          !skip header comments
          DO i = 1, 2
             READ (extunit, *)
-         ENDDO
+         END DO
          READ (extunit, *) nat, rdum
          DO i = 1, 3
             READ (extunit, *) ndum, rdum
@@ -432,16 +432,16 @@ CONTAINS
                WRITE (output_unit, *) "Restart from density | ERROR! | CUBE FILE NOT COINCIDENT WITH INTERNAL GRID ", i
                WRITE (output_unit, *) "Restart from density | ", ndum, " DIFFERS FROM ", npoints(i)
                WRITE (output_unit, *) "Restart from density | ", rdum, " DIFFERS FROM ", dr(i)
-            ENDIF
-         ENDDO
+            END IF
+         END DO
          !ignore atomic position data - read from coord or topology instead
          DO i = 1, nat
             READ (extunit, *)
-         ENDDO
+         END DO
          ! Get byte offset
          INQUIRE (extunit, POS=offset_global)
          CALL close_file(unit_number=extunit)
-      ENDIF
+      END IF
       ! Sync offset and start parallel read
       CALL mp_bcast(offset_global, grid%pw_grid%para%group_head_id, gid)
       BOF = offset_global
@@ -548,7 +548,7 @@ CONTAINS
             !skip header comments
             DO i = 1, 2
                READ (extunit, *)
-            ENDDO
+            END DO
             READ (extunit, *) nat, rdum
             DO i = 1, 3
                READ (extunit, *) ndum, rdum
@@ -557,13 +557,13 @@ CONTAINS
                   WRITE (output_unit, *) "Restart from density | ERROR! | CUBE FILE NOT COINCIDENT WITH INTERNAL GRID ", i
                   WRITE (output_unit, *) "Restart from density | ", ndum, " DIFFERS FROM ", npoints(i)
                   WRITE (output_unit, *) "Restart from density | ", rdum, " DIFFERS FROM ", dr(i)
-               ENDIF
-            ENDDO
+               END IF
+            END DO
             !ignore atomic position data - read from coord or topology instead
             DO i = 1, nat
                READ (extunit, *)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
 
          !master sends all data to everyone
          DO i = lbounds(1), ubounds(1)
@@ -573,12 +573,12 @@ CONTAINS
                   IF (num_pe .GT. 1) THEN
                      DO ip = 1, num_pe - 1
                         CALL mp_send(buffer(lbounds(3):ubounds(3)), ip, tag, gid)
-                     ENDDO
-                  ENDIF
+                     END DO
+                  END IF
                ELSE
                   master = 0
                   CALL mp_recv(buffer(lbounds(3):ubounds(3)), master, tag, gid)
-               ENDIF
+               END IF
                CALL mp_sync(gid)
 
                !only use data that is local to me - i.e. in slice of pencil I own
@@ -588,10 +588,10 @@ CONTAINS
                   IF (ANY(grid%cr3d(i, j, lbounds(3):ubounds(3)) /= buffer(lbounds(3):ubounds(3))*scaling)) &
                      CALL cp_abort(__LOCATION__, &
                                    "Error in parallel read of input cube file.")
-               ENDIF
+               END IF
 
-            ENDDO
-         ENDDO
+            END DO
+         END DO
 
          IF (my_rank == 0) CALL close_file(unit_number=extunit)
 
@@ -694,7 +694,7 @@ CONTAINS
          ELSE
             CALL mp_file_write_at(unit_nr, BOF, "No Title"//NEW_LINE("C"))
             BOF = BOF + LEN("No Title"//NEW_LINE("C"))*mpi_character_size
-         ENDIF
+         END IF
 
          CPASSERT(PRESENT(particles_z) .EQV. PRESENT(particles_r))
          np = 0
@@ -734,7 +734,7 @@ CONTAINS
                BOF = BOF + LEN(header_z//NEW_LINE("C"))*mpi_character_size
             END DO
          END IF
-      ENDIF
+      END IF
       ! Sync offset
       CALL mp_bcast(BOF, grid%pw_grid%para%group_head_id, gid)
       ! Determine byte offsets for each grid z-slice which are local to a process
@@ -871,8 +871,8 @@ CONTAINS
       num_pe = pw%pw_grid%para%group_size
       tag = 1
 
-      rank(1) = unit_nr
-      rank(2) = my_rank
+      rank (1) = unit_nr
+      rank (2) = my_rank
       checksum = 0
       IF (unit_nr > 0) checksum = 1
 
@@ -892,17 +892,17 @@ CONTAINS
                   IF (pw%pw_grid%para%bo(1, 1, ip, 1) <= I1 - L1 + 1 .AND. pw%pw_grid%para%bo(2, 1, ip, 1) >= I1 - L1 + 1 .AND. &
                       pw%pw_grid%para%bo(1, 2, ip, 1) <= I2 - L2 + 1 .AND. pw%pw_grid%para%bo(2, 2, ip, 1) >= I2 - L2 + 1) THEN
                      source = ip
-                  ENDIF
-               ENDDO
+                  END IF
+               END DO
             ELSE
                source = dest
-            ENDIF
+            END IF
 
             IF (source == dest) THEN
                IF (my_rank == source) THEN
                   buf(:) = pw%cr3d(I1, I2, :)
                   IF (DOUBLE) buf2(:) = pw2%cr3d(I1, I2, :)
-               ENDIF
+               END IF
             ELSE
                IF (my_rank == source) THEN
                   buf(:) = pw%cr3d(I1, I2, :)
@@ -910,13 +910,13 @@ CONTAINS
                   IF (DOUBLE) THEN
                      buf2(:) = pw2%cr3d(I1, I2, :)
                      CALL mp_send(buf2, dest, tag, gid)
-                  ENDIF
-               ENDIF
+                  END IF
+               END IF
                IF (my_rank == dest) THEN
                   CALL mp_recv(buf, source, tag, gid)
                   IF (DOUBLE) CALL mp_recv(buf2, source, tag, gid)
-               ENDIF
-            ENDIF
+               END IF
+            END IF
 
             IF (.NOT. DOUBLE) THEN
                DO I3 = L3, U3, my_stride(3)
@@ -934,8 +934,8 @@ CONTAINS
 
                   IF (unit_nr > 0) THEN
                      WRITE (unit_nr, '(6E13.5, 6E13.5, 6E13.5, 6E13.5)') x, y, z, buf(I3)
-                  ENDIF
-               ENDDO
+                  END IF
+               END DO
 
             ELSE
 
@@ -954,10 +954,10 @@ CONTAINS
 
                   IF (unit_nr > 0) THEN
                      WRITE (unit_nr, '(6E13.5, 6E13.5, 6E13.5, 6E13.5)') x, y, z, buf(I3), buf2(I3)
-                  ENDIF
-               ENDDO
+                  END IF
+               END DO
 
-            ENDIF ! Double
+            END IF ! Double
 
             ! this double loop generates so many messages that it can overload
             ! the message passing system, e.g. on XT3
@@ -967,8 +967,8 @@ CONTAINS
             ! more complicated rewrite
             CALL mp_sync(gid)
 
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       DEALLOCATE (buf)
       IF (DOUBLE) DEALLOCATE (buf2)

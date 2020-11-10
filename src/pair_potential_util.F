@@ -74,7 +74,7 @@ CONTAINS
             ELSE
                ! use a linear potential
                lvalue = pot%set(j)%ipbv%m*r + pot%set(j)%ipbv%b
-            ENDIF
+            END IF
             lvalue = lvalue
          ELSE IF (pot%type(j) == wl_type) THEN
             lvalue = pot%set(j)%willis%a*EXP(-pot%set(j)%willis%b*r) - pot%set(j)%willis%c/r**6
@@ -94,13 +94,13 @@ CONTAINS
                xf = xf*damp*r
                factorial = factorial*REAL(i, KIND=dp)
                dampsum = dampsum + xf/factorial
-            ENDDO
+            END DO
             f6 = 1.0_dp - dampexp*dampsum
             DO i = 7, 8
                xf = xf*damp*r
                factorial = factorial*REAL(i, KIND=dp)
                dampsum = dampsum + xf/factorial
-            ENDDO
+            END DO
             f8 = 1.0_dp - dampexp*dampsum
             lvalue = pot%set(j)%ftd%a*EXP(-pot%set(j)%ftd%b*r) - f6*pot%set(j)%ftd%c/r**6 - f8*pot%set(j)%ftd%d/r**8
          ELSE IF (pot%type(j) == ea_type) THEN
@@ -109,7 +109,7 @@ CONTAINS
                index = pot%set(j)%eam%npoints
             ELSEIF (index < 1) THEN
                index = 1
-            ENDIF
+            END IF
             qq = r - pot%set(j)%eam%rval(index)
             pp = pot%set(j)%eam%phi(index) + &
                  qq*pot%set(j)%eam%phip(index)

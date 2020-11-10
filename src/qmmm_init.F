@@ -757,7 +757,7 @@ CONTAINS
 
       ELSE
          CPABORT("QMMM section not present in input file!")
-      ENDIF
+      END IF
       !
       ! Build MM atoms list
       !
@@ -830,7 +830,7 @@ CONTAINS
                                        l_max=0, &
                                        para_env=para_env)
 
-         ENDIF
+         END IF
       END IF
 
    END SUBROUTINE setup_qmmm_vars_qm
@@ -1435,7 +1435,7 @@ CONTAINS
          qmmm_env%utrasl = dr
       ELSE
          qmmm_env%utrasl = 1.0_dp
-      ENDIF
+      END IF
       CALL section_vals_val_get(qmmm_section, "INITIAL_TRANSLATION_VECTOR", r_vals=vec)
       qmmm_env%transl_v = vec
    END SUBROUTINE setup_origin_mm_cell
@@ -1505,13 +1505,13 @@ CONTAINS
          atom_a = qmmm_env%image_charge_pot%image_mm_list(i)
          IF (ANY(qm_atom_index == atom_a)) THEN
             CPABORT("Image atom list must only contain MM atoms")
-         ENDIF
+         END IF
          DO j = i + 1, num_image_mm_atom
             atom_b = qmmm_env%image_charge_pot%image_mm_list(j)
             IF (atom_a == atom_b) &
                CPABORT("There are atoms doubled in image list.")
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       ! check if molecules in list carry constraints
       num_const_atom = 0
@@ -1531,13 +1531,13 @@ CONTAINS
                         IF (molecule_kind(i)%fixd_list(j)%itype /= use_perd_xyz) THEN
                            fix_xyz = .FALSE.
                            EXIT
-                        ENDIF
-                     ENDIF
-                  ENDDO
-               ENDDO
-            ENDDO
-         ENDIF
-      ENDIF
+                        END IF
+                     END IF
+                  END DO
+               END DO
+            END DO
+         END IF
+      END IF
 
       ! if all image atoms are constrained, calculate image matrix only
       ! once for the first MD or GEO_OPT step (for non-iterative case)
@@ -1545,7 +1545,7 @@ CONTAINS
          qmmm_env%image_charge_pot%state_image_matrix = calc_once
       ELSE
          qmmm_env%image_charge_pot%state_image_matrix = calc_always
-      ENDIF
+      END IF
 
    END SUBROUTINE setup_image_atom_list
 

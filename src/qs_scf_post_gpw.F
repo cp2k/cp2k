@@ -293,8 +293,8 @@ CONTAINS
             WRITE (UNIT=output_unit, FMT='(/,(T1,A))') REPEAT("-", 40)
             WRITE (UNIT=output_unit, FMT='(/,(T3,A,T19,A,T25,A))') "Properties from ", wf_type, " density"
             WRITE (UNIT=output_unit, FMT='(/,(T1,A))') REPEAT("-", 40)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       ! Writes the data that is already available in qs_env
       CALL get_qs_env(qs_env, scf_env=scf_env)
@@ -348,7 +348,7 @@ CONTAINS
                                         extension=".Log")
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T3,A,T55,F25.14)') "Electronic kinetic energy:", e_kin
-         ENDIF
+         END IF
          CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                            "DFT%PRINT%KINETIC_ENERGY")
       END IF
@@ -475,8 +475,8 @@ CONTAINS
                CALL qs_scf_post_occ_cubes(input, dft_section, dft_control, logger, qs_env, &
                                           mo_coeff, wf_g, wf_r, particles, homo, ispin)
             END DO
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       ! Initialize the localization environment, needed e.g. for wannier functions and molecular states
       ! Gets localization info for the occupied orbs
@@ -515,7 +515,7 @@ CONTAINS
             IF (qs_loc_env_homo%localized_wfn_control%use_history) THEN
                CALL retain_history(mo_loc_history, homo_localized)
                CALL set_qs_env(qs_env, mo_loc_history=mo_loc_history)
-            ENDIF
+            END IF
 
             !write restart for localization of occupied orbitals
             CALL loc_write_restart(qs_loc_env_homo, loc_print_section, mos, &
@@ -528,7 +528,7 @@ CONTAINS
                CALL loc_dipole(input, dft_control, qs_loc_env_homo, logger, qs_env)
             END IF
          END IF
-      ENDIF
+      END IF
 
       ! Gets the lumos, and eigenvalues for the lumos, and localize them if requested
       IF (do_kpoints) THEN
@@ -628,7 +628,7 @@ CONTAINS
                                       evals=unoccupied_evals)
                lumo_ptr => lumo_localized
             END IF
-         ENDIF
+         END IF
 
          IF (has_homo .AND. has_lumo) THEN
             IF (output_unit > 0) WRITE (output_unit, *) " "
@@ -638,9 +638,9 @@ CONTAINS
                   IF (output_unit > 0) WRITE (output_unit, '(T2,A,F12.6)') &
                      "HOMO - LUMO gap [eV] :", gap*evolt
                END IF
-            ENDDO
-         ENDIF
-      ENDIF
+            END DO
+         END IF
+      END IF
 
       ! Deallocate grids needed to compute wavefunctions
       IF (((do_mo_cubes .OR. do_wannier_cubes) .AND. (nlumo /= 0 .OR. nhomo /= 0)) .OR. p_loc) THEN
@@ -674,13 +674,13 @@ CONTAINS
                DEALLOCATE (unoccupied_evals(ispin)%array)
                IF (.NOT. dft_control%do_tddfpt_calculation) &
                   CALL cp_fm_release(unoccupied_orbs(ispin)%matrix)
-            ENDDO
+            END DO
             DEALLOCATE (unoccupied_evals)
             IF (.NOT. dft_control%do_tddfpt_calculation) THEN
                DEALLOCATE (unoccupied_orbs)
             END IF
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       !stm images
       IF (do_stm) THEN
@@ -701,7 +701,7 @@ CONTAINS
                DO ispin = 1, dft_control%nspins
                   DEALLOCATE (unoccupied_evals_stm(ispin)%array)
                   CALL cp_fm_release(unoccupied_orbs_stm(ispin)%matrix)
-               ENDDO
+               END DO
                DEALLOCATE (unoccupied_evals_stm)
                DEALLOCATE (unoccupied_orbs_stm)
             END IF
@@ -811,8 +811,8 @@ CONTAINS
             ! this one can for sure not be right (as it has to match a given C0)
             IF (local_preconditioner%in_use == ot_precond_full_all) THEN
                NULLIFY (local_preconditioner)
-            ENDIF
-         ENDIF
+            END IF
+         END IF
 
          ! ** If we do ADMM, we add have to modify the kohn-sham matrix
          IF (dft_control%do_admm) THEN
@@ -992,7 +992,7 @@ CONTAINS
             CALL cp_pw_to_cube(wf_r%pw, unit_nr, title, particles=particles, &
                                stride=section_get_ivals(dft_section, "PRINT%MO_CUBES%STRIDE"), mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MO_CUBES", mpi_io=mpi_io)
-         ENDDO
+         END DO
          IF (ASSOCIATED(list_index)) DEALLOCATE (list_index)
       END IF
 
@@ -1077,8 +1077,8 @@ CONTAINS
             CALL cp_pw_to_cube(wf_r%pw, unit_nr, title, particles=particles, &
                                stride=section_get_ivals(dft_section, "PRINT%MO_CUBES%STRIDE"), mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MO_CUBES", mpi_io=mpi_io)
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       CALL timestop(handle)
 
@@ -1191,7 +1191,7 @@ CONTAINS
             END IF
             CALL cp_print_key_finished_output(unit_nr=unit_nr, logger=logger, &
                                               basis_section=input, print_key_path="DFT%PRINT%MOMENTS")
-         ENDIF
+         END IF
 
       END IF
 
@@ -1504,7 +1504,7 @@ CONTAINS
             ! optimizations
             WRITE (unit_nr, '(T2,A28,2A25)') "", "Tot. Ener.", "S Cond. Numb."
             WRITE (unit_nr, '(T2,A28,2E25.17)') "BASIS_MOLOPT_QUANTITIES", energy%total, S_cond_number
-         ENDIF
+         END IF
 
          CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                            "DFT%PRINT%BASIS_MOLOPT_QUANTITIES")
@@ -1698,8 +1698,8 @@ CONTAINS
             ELSE
                CALL get_qs_env(qs_env, mos=mos)
                CALL calculate_dos(mos, qs_env, dft_section)
-            ENDIF
-         ENDIF
+            END IF
+         END IF
 
          ! *** at the end of scf print out the projected dos per kind
          IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%PDOS") &
@@ -1724,7 +1724,7 @@ CONTAINS
                            mo_coeff_deriv => qs_env%mo_derivs(ispin)%matrix
                         ELSE
                            mo_coeff_deriv => NULL()
-                        ENDIF
+                        END IF
 
                         CALL calculate_subspace_eigenvalues(mo_coeff, ks_rmpv(ispin)%matrix, mo_eigenvalues, &
                                                             do_rotation=.TRUE., &
@@ -1747,8 +1747,8 @@ CONTAINS
                   END IF
 
                END DO
-            ENDIF
-         ENDIF
+            END IF
+         END IF
       END IF
 
       !   *** Integrated absolute spin density and spin contamination ***
@@ -1800,8 +1800,8 @@ CONTAINS
                   "Ideal and single determinant S**2 : ", s_square_ideal, s_square
                energy%s_square = s_square
             END IF
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       CALL timestop(handle)
 
@@ -2008,7 +2008,7 @@ CONTAINS
                   ELSE
                      nr = 0
                      niso = 0
-                  ENDIF
+                  END IF
                   CALL mp_sum(nr, para_env%group)
                   CALL mp_sum(niso, para_env%group)
 
@@ -2244,7 +2244,7 @@ CONTAINS
       IF (BTEST(cp_print_key_should_output(logger%iter_info, &
                                            dft_section, "PRINT%ENERGY_WINDOWS"), cp_p_file) .AND. .NOT. do_kpoints) THEN
          CALL energy_windows(qs_env)
-      ENDIF
+      END IF
 
       ! Print the hartree potential
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
@@ -2280,7 +2280,7 @@ CONTAINS
                                            "DFT%PRINT%V_HARTREE_CUBE", mpi_io=mpi_io)
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
-      ENDIF
+      END IF
 
       ! Print the external potential
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
@@ -2311,8 +2311,8 @@ CONTAINS
                                               "DFT%PRINT%EXTERNAL_POTENTIAL_CUBE", mpi_io=mpi_io)
 
             CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       ! Print the Electrical Field Components
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
@@ -2935,7 +2935,7 @@ CONTAINS
                                            "DFT%PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE", mpi_io=mpi_io)
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
-      ENDIF
+      END IF
 
       ! Write Dirichlet constraint charges into a cube file
       do_cstr_charge_cube = BTEST(cp_print_key_should_output(logger%iter_info, input, &
@@ -2983,7 +2983,7 @@ CONTAINS
                                            "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_CSTR_CHARGE_CUBE", mpi_io=mpi_io)
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
-      ENDIF
+      END IF
 
       ! Write Dirichlet type constranits into cube files
       do_dirichlet_bc_cube = BTEST(cp_print_key_should_output(logger%iter_info, input, &
@@ -3058,7 +3058,7 @@ CONTAINS
          END IF
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -3154,7 +3154,7 @@ CONTAINS
             interact_adjm((ind - 1)*4 + 2) = colind
             interact_adjm((ind - 1)*4 + 3) = ikind
             interact_adjm((ind - 1)*4 + 4) = jkind
-         ENDDO
+         END DO
 
          CALL mp_sum(interact_adjm, para_env%group)
 
@@ -3230,7 +3230,7 @@ CONTAINS
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace%pw)
-      ENDIF
+      END IF
 
    END SUBROUTINE update_hartree_with_mp2
 

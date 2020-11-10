@@ -496,14 +496,14 @@ CONTAINS
          END IF
          IF (PRESENT(ierr)) THEN
             ierr = 0
-         ENDIF
+         END IF
          CALL cp_rm_default_logger()
          CALL rm_timer_env()
          CALL rm_mp_perf_env()
       ELSE
          IF (PRESENT(ierr)) THEN
             ierr = 0
-         ENDIF
+         END IF
       END IF
    END SUBROUTINE f_env_rm_defaults
 
@@ -638,7 +638,7 @@ CONTAINS
             input_file => read_input(input_declaration, input_path, initial_variables, para_env=para_env)
          ELSE
             input_file => read_input(input_declaration, input_path, empty_initial_variables, para_env=para_env)
-         ENDIF
+         END IF
       ELSE
          CALL section_vals_retain(input_file)
       END IF
@@ -725,7 +725,7 @@ CONTAINS
                my_logger => force_env%mixed_env%sub_logger(my_group + 1)%p
                CALL cp_rm_default_logger()
                CALL cp_add_default_logger(my_logger)
-            ENDIF
+            END IF
             IF (method_name_id .EQ. do_embed) THEN
                check = ASSOCIATED(force_env%embed_env%sub_para_env)
                CPASSERT(check)
@@ -738,7 +738,7 @@ CONTAINS
                my_logger => force_env%embed_env%sub_logger(my_group + 1)%p
                CALL cp_rm_default_logger()
                CALL cp_add_default_logger(my_logger)
-            ENDIF
+            END IF
          ELSE
             my_para_env => para_env
          END IF
@@ -761,7 +761,7 @@ CONTAINS
             CALL section_vals_get(qmmmx_section, explicit=do_qmmm_force_mixing)
             IF (do_qmmm_force_mixing) &
                method_name_id = do_qmmmx ! QMMM Force-Mixing has its own (hidden) method_id
-         ENDIF
+         END IF
 
          SELECT CASE (method_name_id)
          CASE (do_fist)
@@ -1129,7 +1129,7 @@ CONTAINS
       CALL cp_subsys_get(subsys, virial=virial)
       IF (virial%pv_availability) THEN
          stress_tensor(:, :) = virial%pv_virial(:, :)/cell%deth
-      ENDIF
+      END IF
       CALL f_env_rm_defaults(f_env, ierr)
 
    END SUBROUTINE get_stress_tensor

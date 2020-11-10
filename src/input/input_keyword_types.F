@@ -236,7 +236,7 @@ CONTAINS
          keyword%citations = citations
       ELSE
          NULLIFY (keyword%citations)
-      ENDIF
+      END IF
 
       keyword%repeats = .FALSE.
       IF (PRESENT(repeats)) keyword%repeats = repeats
@@ -352,8 +352,8 @@ CONTAINS
                   END DO
                   IF (.NOT. check) &
                      CPABORT("default value not in enumeration : "//keyword%names(1))
-               ENDIF
-            ENDIF
+               END IF
+            END IF
          END IF
       END IF
 
@@ -372,7 +372,7 @@ CONTAINS
                END DO
                IF (.NOT. check) &
                   CPABORT("default value not in enumeration : "//keyword%names(1))
-            ENDIF
+            END IF
             keyword%n_var = SIZE(keyword%default_value%i_val)
          CASE (real_t)
             keyword%n_var = SIZE(keyword%default_value%r_val)
@@ -436,7 +436,7 @@ CONTAINS
             CALL cp_unit_release(keyword%unit)
             IF (ASSOCIATED(keyword%citations)) THEN
                DEALLOCATE (keyword%citations)
-            ENDIF
+            END IF
             DEALLOCATE (keyword)
          END IF
       END IF
@@ -615,7 +615,7 @@ CONTAINS
                   WRITE (unit_nr, "(a,' ')", advance="NO") keyword%names(i)
                END DO
                WRITE (unit_nr, "()")
-            ENDIF
+            END IF
          END IF
       END IF
    END SUBROUTINE keyword_describe
@@ -841,13 +841,13 @@ CONTAINS
             irank = imax + 1
             DO k = imax, 1, -1
                IF (imatch > matching_rank(k)) irank = k
-            ENDDO
+            END DO
             IF (irank <= imax) THEN
                matching_rank(irank + 1:imax) = matching_rank(irank:imax - 1)
                matching_string(irank + 1:imax) = matching_string(irank:imax - 1)
                matching_rank(irank) = imatch
                matching_string(irank) = line
-            ENDIF
+            END IF
          END IF
 
          IF (keyword%type_of_var == enum_t) THEN
@@ -862,17 +862,17 @@ CONTAINS
                   irank = imax + 1
                   DO k = imax, 1, -1
                      IF (imatch > matching_rank(k)) irank = k
-                  ENDDO
+                  END DO
                   IF (irank <= imax) THEN
                      matching_rank(irank + 1:imax) = matching_rank(irank:imax - 1)
                      matching_string(irank + 1:imax) = matching_string(irank:imax - 1)
                      matching_rank(irank) = imatch
                      matching_string(irank) = line
-                  ENDIF
+                  END IF
                END IF
             END DO
          END IF
-      ENDDO
+      END DO
 
    END SUBROUTINE keyword_typo_match
 

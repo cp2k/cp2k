@@ -162,7 +162,7 @@ CONTAINS
          pot_to_rad_prv = pot_to_rad
       ELSE
          pot_to_rad_prv = 1
-      ENDIF
+      END IF
 
       CALL get_qs_env(qs_env, &
                       nkind=nkind, &
@@ -207,7 +207,7 @@ CONTAINS
             IF (ASSOCIATED(basis_i(ikind)%gto_basis_set)) THEN
                i_present(ikind) = .TRUE.
                IF (pot_to_rad_prv == 1) i_radius(ikind) = 1000000.0_dp
-            ENDIF
+            END IF
             IF (ASSOCIATED(basis_j(ikind)%gto_basis_set)) THEN
                j_present(ikind) = .TRUE.
                IF (pot_to_rad_prv == 2) j_radius(ikind) = 1000000.0_dp
@@ -291,7 +291,7 @@ CONTAINS
          op_pos_prv = op_pos
       ELSE
          op_pos_prv = 1
-      ENDIF
+      END IF
 
       SELECT CASE (op_pos_prv)
       CASE (1)
@@ -317,33 +317,33 @@ CONTAINS
          IF (sym_ij) THEN
             ijk_list%sym = symmetric_ij
             sym_level = sym_level + 1
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       IF (PRESENT(sym_jk)) THEN
          IF (sym_jk) THEN
             ijk_list%sym = symmetric_jk
             sym_level = sym_level + 1
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       IF (PRESENT(sym_ik)) THEN
          IF (sym_ik) THEN
             ijk_list%sym = symmetrik_ik
             sym_level = sym_level + 1
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       IF (sym_level >= 2) THEN
          ijk_list%sym = symmetric_ijk
-      ENDIF
+      END IF
 
       ijk_list%dist_3d = dist_3d
       IF (PRESENT(own_dist)) THEN
          ijk_list%owns_dist = own_dist
       ELSE
          ijk_list%owns_dist = .FALSE.
-      ENDIF
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE
@@ -378,7 +378,7 @@ CONTAINS
 
       IF (ijk_list%owns_dist) THEN
          CALL distribution_3d_destroy(ijk_list%dist_3d)
-      ENDIF
+      END IF
 
    END SUBROUTINE
 
@@ -468,7 +468,7 @@ CONTAINS
 
          IF (iter_stat /= 0) THEN
             RETURN
-         ENDIF
+         END IF
 
          CALL get_iterator_info(iterator%iter_ij, iatom=iatom, jatom=jatom)
          skip_this = .FALSE.
@@ -480,9 +480,9 @@ CONTAINS
          IF (skip_this) THEN
             iter_stat = neighbor_list_3c_iterate(iterator)
             RETURN
-         ENDIF
+         END IF
 
-      ENDIF
+      END IF
       iter_stat = nl_sub_iterate(iterator%iter_jk, iterator%iter_ij)
       IF (iter_stat /= 0) THEN
          iterator%iter_level = 0
@@ -490,7 +490,7 @@ CONTAINS
          RETURN
       ELSE
          iterator%iter_level = 1
-      ENDIF
+      END IF
 
       CPASSERT(iter_stat == 0)
       CPASSERT(iterator%iter_level == 1)
@@ -507,7 +507,7 @@ CONTAINS
       IF (skip_this) THEN
          iter_stat = neighbor_list_3c_iterate(iterator)
          RETURN
-      ENDIF
+      END IF
 
       SELECT CASE (iterator%ijk_nl%sym)
       CASE (symmetric_none)
@@ -527,7 +527,7 @@ CONTAINS
       IF (skip_this) THEN
          iter_stat = neighbor_list_3c_iterate(iterator)
          RETURN
-      ENDIF
+      END IF
 
    END FUNCTION
 
@@ -641,7 +641,7 @@ CONTAINS
          do_kpoints_prv = do_kpoints
       ELSE
          do_kpoints_prv = .FALSE.
-      ENDIF
+      END IF
 
       dr_ij = 0.0_dp; dr_jk = 0.0_dp; dr_ik = 0.0_dp
 
@@ -651,7 +651,7 @@ CONTAINS
          op_pos_prv = op_pos
       ELSE
          op_pos_prv = 1
-      ENDIF
+      END IF
 
       SELECT CASE (op_pos_prv)
       CASE (1)
@@ -666,7 +666,7 @@ CONTAINS
       ELSEIF (op_ij == do_potential_coulomb) THEN
          dr_ij = 1000000.0_dp
          dr_ik = 1000000.0_dp
-      ENDIF
+      END IF
 
       IF (op_jk == do_potential_truncated .OR. op_jk == do_potential_short) THEN
          dr_jk = potential_parameter%cutoff_radius*cutoff_screen_factor
@@ -674,7 +674,7 @@ CONTAINS
       ELSEIF (op_jk == do_potential_coulomb) THEN
          dr_jk = 1000000.0_dp
          dr_ik = 1000000.0_dp
-      ENDIF
+      END IF
 
       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, natom=natom, &
                       dft_control=dft_control, kpoints=kpoints, para_env=para_env)
@@ -693,7 +693,7 @@ CONTAINS
       IF (do_kpoints_prv) THEN
          kp_index_lbounds = LBOUND(cell_to_index)
          kp_index_ubounds = UBOUND(cell_to_index)
-      ENDIF
+      END IF
 
       CALL neighbor_list_3c_iterator_create(nl_3c_iter, nl_3c)
       DO WHILE (neighbor_list_3c_iterate(nl_3c_iter) == 0)
@@ -735,9 +735,9 @@ CONTAINS
          ! of the blocks (since neighborlist is symmetric). After filling the blocks,
          ! tensor will be added to its transposed
 
-         ASSOCIATE (ai=>alloc_i(jcell, kcell))
-            ASSOCIATE (aj=>alloc_j(jcell, kcell))
-               ASSOCIATE (ak=>alloc_k(jcell, kcell))
+         ASSOCIATE (ai => alloc_i(jcell, kcell))
+            ASSOCIATE (aj => alloc_j(jcell, kcell))
+               ASSOCIATE (ak => alloc_k(jcell, kcell))
 
                   new_block = .TRUE.
                   IF (ALLOCATED(aj%array)) THEN
@@ -747,9 +747,9 @@ CONTAINS
                             ak%array(iblk) == katom) THEN
                            new_block = .FALSE.
                            EXIT
-                        ENDIF
-                     ENDDO
-                  ENDIF
+                        END IF
+                     END DO
+                  END IF
                   IF (.NOT. new_block) CYCLE
 
                   IF (ALLOCATED(ai%array)) THEN
@@ -763,7 +763,7 @@ CONTAINS
                   ELSE
                      ALLOCATE (ai%array(1))
                      ai%array(1) = iatom
-                  ENDIF
+                  END IF
 
                   IF (ALLOCATED(aj%array)) THEN
                      tmp(:) = aj%array(:)
@@ -774,7 +774,7 @@ CONTAINS
                   ELSE
                      ALLOCATE (aj%array(1))
                      aj%array(1) = jatom
-                  ENDIF
+                  END IF
 
                   IF (ALLOCATED(ak%array)) THEN
                      tmp(:) = ak%array(:)
@@ -785,13 +785,13 @@ CONTAINS
                   ELSE
                      ALLOCATE (ak%array(1))
                      ak%array(1) = katom
-                  ENDIF
+                  END IF
 
                   IF (ALLOCATED(tmp)) DEALLOCATE (tmp)
                END ASSOCIATE
             END ASSOCIATE
          END ASSOCIATE
-      ENDDO
+      END DO
 
       CALL neighbor_list_3c_iterator_destroy(nl_3c_iter)
 
@@ -804,15 +804,15 @@ CONTAINS
                                                        alloc_k(i_img, j_img)%array(i)], &
                                                       iproc)
                   CPASSERT(iproc .EQ. para_env%mepos)
-               ENDDO
+               END DO
 
                CALL dbcsr_t_reserve_blocks(t3c(i_img, j_img), &
                                            alloc_i(i_img, j_img)%array, &
                                            alloc_j(i_img, j_img)%array, &
                                            alloc_k(i_img, j_img)%array)
-            ENDIF
-         ENDDO
-      ENDDO
+            END IF
+         END DO
+      END DO
 
       CALL timestop(handle)
 
@@ -904,13 +904,13 @@ CONTAINS
          do_kpoints_prv = do_kpoints
       ELSE
          do_kpoints_prv = .FALSE.
-      ENDIF
+      END IF
 
       IF (PRESENT(desymmetrize)) THEN
          desymmetrize_prv = desymmetrize
       ELSE
          desymmetrize_prv = .TRUE.
-      ENDIF
+      END IF
 
       op_ij = do_potential_id; op_jk = do_potential_id
 
@@ -918,7 +918,7 @@ CONTAINS
          op_pos_prv = op_pos
       ELSE
          op_pos_prv = 1
-      ENDIF
+      END IF
 
       SELECT CASE (op_pos_prv)
       CASE (1)
@@ -935,7 +935,7 @@ CONTAINS
       ELSEIF (op_ij == do_potential_coulomb) THEN
          dr_ij = 1000000.0_dp
          dr_ik = 1000000.0_dp
-      ENDIF
+      END IF
 
       IF (op_jk == do_potential_truncated .OR. op_jk == do_potential_short) THEN
          dr_jk = potential_parameter%cutoff_radius*cutoff_screen_factor
@@ -943,7 +943,7 @@ CONTAINS
       ELSEIF (op_jk == do_potential_coulomb) THEN
          dr_jk = 1000000.0_dp
          dr_ik = 1000000.0_dp
-      ENDIF
+      END IF
 
       NULLIFY (qs_kind_set, atomic_kind_set)
 
@@ -1071,7 +1071,7 @@ CONTAINS
       IF (do_kpoints_prv) THEN
          kp_index_lbounds = LBOUND(cell_to_index)
          kp_index_ubounds = UBOUND(cell_to_index)
-      ENDIF
+      END IF
 
       DO WHILE (neighbor_list_3c_iterate(nl_3c_iter) == 0)
          CALL get_3c_iterator_info(nl_3c_iter, ikind=ikind, jkind=jkind, kkind=kkind, &
@@ -1087,10 +1087,10 @@ CONTAINS
                prefac = 0.5_dp
             ELSE
                prefac = 1.0_dp
-            ENDIF
+            END IF
          ELSE
             prefac = 1.0_dp
-         ENDIF
+         END IF
 
          IF (do_kpoints_prv) THEN
 
@@ -1135,21 +1135,21 @@ CONTAINS
          DO iset = 1, nseti
             sgfi = first_sgf_i(1, iset)
             max_contraction_i(iset) = MAXVAL((/(SUM(ABS(sphi_i(:, i))), i=sgfi, sgfi + nsgfi(iset) - 1)/))
-         ENDDO
+         END DO
 
          ALLOCATE (max_contraction_j(nsetj))
          max_contraction_j = 0.0_dp
          DO jset = 1, nsetj
             sgfj = first_sgf_j(1, jset)
             max_contraction_j(jset) = MAXVAL((/(SUM(ABS(sphi_j(:, i))), i=sgfj, sgfj + nsgfj(jset) - 1)/))
-         ENDDO
+         END DO
 
          ALLOCATE (max_contraction_k(nsetk))
          max_contraction_k = 0.0_dp
          DO kset = 1, nsetk
             sgfk = first_sgf_k(1, kset)
             max_contraction_k(kset) = MAXVAL((/(SUM(ABS(sphi_k(:, i))), i=sgfk, sgfk + nsgfk(kset) - 1)/))
-         ENDDO
+         END DO
 
          CALL dbcsr_t_blk_sizes(t3c(jcell, kcell), [iatom, jatom, katom], blk_size)
 
@@ -1197,7 +1197,7 @@ CONTAINS
                            DEALLOCATE (sijk)
                            CYCLE
                         END IF
-                     ENDIF
+                     END IF
 
                      block_not_zero = .TRUE.
 
@@ -1238,7 +1238,7 @@ CONTAINS
                CALL dbcsr_t_get_block(t3c(jcell, kcell), &
                                       [iatom, jatom, katom], dummy_block_t, found=found)
                CPASSERT(found)
-            ENDIF
+            END IF
             sp = SHAPE(block_t)
 
             sp([2, 3, 1]) = sp
@@ -1247,7 +1247,7 @@ CONTAINS
                                    [iatom, jatom, katom], sp, RESHAPE(block_t, SHAPE=sp, ORDER=[2, 3, 1]), summation=.TRUE.)
 
             CALL timestop(handle2)
-         ENDIF
+         END IF
 
          DEALLOCATE (block_t)
 
@@ -1263,8 +1263,8 @@ CONTAINS
             DO kcell = 1, nimg
                ! need half of filter eps because afterwards we add transposed tensor
                CALL dbcsr_t_filter(t3c(jcell, kcell), filter_eps/2)
-            ENDDO
-         ENDDO
+            END DO
+         END DO
 
          IF (desymmetrize_prv) THEN
             ! add transposed of overlap integrals
@@ -1274,26 +1274,26 @@ CONTAINS
                   CALL dbcsr_t_copy(t3c(jcell, kcell), t_3c_tmp)
                   CALL dbcsr_t_copy(t_3c_tmp, t3c(kcell, jcell), order=[1, 3, 2], summation=.TRUE., move_data=.TRUE.)
                   CALL dbcsr_t_filter(t3c(kcell, jcell), filter_eps)
-               ENDDO
-            ENDDO
+               END DO
+            END DO
             DO jcell = 1, nimg
                DO kcell = jcell + 1, nimg
                   CALL dbcsr_t_copy(t3c(jcell, kcell), t_3c_tmp)
                   CALL dbcsr_t_copy(t_3c_tmp, t3c(kcell, jcell), order=[1, 3, 2], summation=.FALSE., move_data=.TRUE.)
                   CALL dbcsr_t_filter(t3c(kcell, jcell), filter_eps)
-               ENDDO
-            ENDDO
+               END DO
+            END DO
             CALL dbcsr_t_destroy(t_3c_tmp)
-         ENDIF
+         END IF
       ELSEIF (nl_3c%sym == symmetric_none) THEN
          DO jcell = 1, nimg
             DO kcell = 1, nimg
                CALL dbcsr_t_filter(t3c(jcell, kcell), filter_eps)
-            ENDDO
-         ENDDO
+            END DO
+         END DO
       ELSE
          CPABORT("requested symmetric case not implemented")
-      ENDIF
+      END IF
 
       DO iset = 1, max_nset
          DO ibasis = 1, nbasis
@@ -1367,7 +1367,7 @@ CONTAINS
          do_kpoints_prv = do_kpoints
       ELSE
          do_kpoints_prv = .FALSE.
-      ENDIF
+      END IF
 
       op_prv = potential_parameter%potential_type
 
@@ -1393,16 +1393,16 @@ CONTAINS
       IF (do_symmetric) THEN
          DO img = 1, nimg
             CPASSERT(dbcsr_has_symmetry(t2c(img)))
-         ENDDO
+         END DO
       ELSE
          DO img = 1, nimg
             CPASSERT(.NOT. dbcsr_has_symmetry(t2c(img)))
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       DO img = 1, nimg
          CALL cp_dbcsr_alloc_block_from_nbl(t2c(img), nl_2c)
-      ENDDO
+      END DO
 
       maxli = 0
       DO ibasis = 1, SIZE(basis_i)
@@ -1436,7 +1436,7 @@ CONTAINS
       IF (op_prv /= do_potential_id) THEN
          CALL cp_libint_init_2eri(lib, MAX(maxli, maxlj))
          CALL cp_libint_set_contrdepth(lib, 1)
-      ENDIF
+      END IF
 
       CALL neighbor_list_iterator_create(nl_iterator, nl_2c)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
@@ -1522,7 +1522,7 @@ CONTAINS
                      CALL ab_contract(sij_contr, sij, &
                                       sphi_i(:, sgfi:), sphi_j(:, sgfj:), &
                                       ncoi, ncoj, nsgfi(iset), nsgfj(jset))
-                  ENDIF
+                  END IF
 
                   DEALLOCATE (sij)
                   IF (trans) THEN
@@ -1531,7 +1531,7 @@ CONTAINS
                   ELSE
                      ALLOCATE (sij_rs(nsgfi(iset), nsgfj(jset)))
                      sij_rs(:, :) = sij_contr
-                  ENDIF
+                  END IF
 
                   DEALLOCATE (sij_contr)
 
@@ -1539,20 +1539,20 @@ CONTAINS
                                  nsgfi(iset), nsgfj(jset), block_t%block, &
                                  sgfi, sgfj, trans=trans)
                   DEALLOCATE (sij_rs)
-               ENDIF
+               END IF
             END DO
          END DO
-      ENDDO
+      END DO
 
       IF (op_prv /= do_potential_id) THEN
          CALL cp_libint_cleanup_2eri(lib)
-      ENDIF
+      END IF
 
       CALL neighbor_list_iterator_release(nl_iterator)
       DO img = 1, nimg
          CALL dbcsr_finalize(t2c(img))
          CALL dbcsr_filter(t2c(img), filter_eps)
-      ENDDO
+      END DO
 
       CALL timestop(handle)
 
@@ -1623,7 +1623,7 @@ CONTAINS
          IF (nbits > 64) THEN
             CALL cp_abort(__LOCATION__, &
                           "Overflow during tensor compression. Please use a larger EPS_FILTER or EPS_STORAGE_SCALING")
-         ENDIF
+         END IF
 
          buffer_left = nints
          buffer_start = 1
@@ -1639,10 +1639,10 @@ CONTAINS
                                              .FALSE.)
             buffer_left = buffer_left - buffer_size
             buffer_start = buffer_start + buffer_size
-         ENDDO
+         END DO
 
          NULLIFY (blk_data_1d); DEALLOCATE (blk_data)
-      ENDDO
+      END DO
       CALL dbcsr_t_iterator_stop(iter)
 
       CALL dbcsr_t_clear(tensor)
@@ -1707,7 +1707,7 @@ CONTAINS
       DO i = 1, 64
          CALL hfx_decompress_first_cache(i, integral_caches(i), integral_containers(i), &
                                          memory_usage, .FALSE.)
-      ENDDO
+      END DO
 
       CALL dbcsr_t_reserve_blocks(tensor, blk_indices)
       CALL dbcsr_t_iterator_start(iter, tensor)
@@ -1738,12 +1738,12 @@ CONTAINS
                                              .FALSE.)
             buffer_left = buffer_left - buffer_size
             buffer_start = buffer_start + buffer_size
-         ENDDO
+         END DO
 
          blk_data_3d(1:blk_size(1), 1:blk_size(2), 1:blk_size(3)) => blk_data
          CALL dbcsr_t_put_block(tensor, ind, blk_size, blk_data_3d)
          NULLIFY (blk_data_3d); DEALLOCATE (blk_data)
-      ENDDO
+      END DO
 
       CALL dbcsr_t_iterator_stop(iter)
 

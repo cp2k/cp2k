@@ -293,7 +293,7 @@ CONTAINS
          !NB parallelization
       ELSE ! no work for this node, just zero contribution
          grid%cr3d(gbo(1, 1):nxlim, gbo(1, 2):nylim, gbo(1, 3):nzlim) = 0.0_dp
-      ENDIF ! NLg_loc > 0
+      END IF ! NLg_loc > 0
 
       CALL mp_sum(grid%cr3d(gbo(1, 1):nxlim, gbo(1, 2):nylim, gbo(1, 3):nzlim), grid%pw_grid%para%group)
 

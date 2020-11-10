@@ -110,7 +110,7 @@ CONTAINS
          IF (thebib(i)%ref%is_cited) t = 1
          CALL mp_max(t, para_env%group)
          thebib(i)%ref%is_cited = (t == 1)
-      ENDDO
+      END DO
 
    END SUBROUTINE collect_citations_from_ranks
 
@@ -173,8 +173,8 @@ CONTAINS
             ires = ires + 1
             tmp = citation_key(i:i)
             citation_key(ires:ires) = tmp
-         ENDIF
-      ENDDO
+         END IF
+      END DO
       citation_key(ires + 1:) = ""
 
       ! avoid duplicates, search through the list for matches
@@ -182,7 +182,7 @@ CONTAINS
       match = 0
       DO I = 1, nbib - 1
          IF (thebib(I)%ref%citation_key(1:mylen) == citation_key(1:mylen)) match = match + 1
-      ENDDO
+      END DO
       IF (match > 0) citation_key = citation_key(1:mylen)//CHAR(ICHAR('a') + match)
 
       ! finally store it
@@ -203,7 +203,7 @@ CONTAINS
          thebib(i)%ref%DOI = ""
 
          DEALLOCATE (thebib(i)%ref)
-      ENDDO
+      END DO
    END SUBROUTINE remove_all_references
 !****f* reference_manager/print_all_references *
 
@@ -235,7 +235,7 @@ CONTAINS
          nref = SIZE(list)
       ELSE
          nref = nbib
-      ENDIF
+      END IF
 
       ALLOCATE (ival(nref))
       ALLOCATE (irank(nref))
@@ -246,22 +246,22 @@ CONTAINS
       ELSE
          DO I = 1, nref
             indx(I) = I
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       DO I = 1, nref
          irank(I) = I
-      ENDDO
+      END DO
 
       IF (sorted) THEN
          DO I = 1, nref
             ival(I) = -get_epoch(thebib(indx(I))%ref%ISI_record)
-         ENDDO
+         END DO
       ELSE
          DO I = 1, nref
             ival(I) = indx(I)
-         ENDDO
-      ENDIF
+         END DO
+      END IF
       CALL sort(ival, nref, irank)
 
       SELECT CASE (FORMAT)
@@ -297,11 +297,11 @@ CONTAINS
             CASE DEFAULT
                CPABORT("print_reference: wrong format")
             END SELECT
-         ENDIF
-      ENDDO
+         END IF
+      END DO
       IF (FORMAT .EQ. print_format_html) THEN
          WRITE (unit, '(A)') "</TABLE>"
-      ENDIF
+      END IF
 
    END SUBROUTINE print_all_references
 !****f* reference_manager/print_reference *
@@ -325,7 +325,7 @@ CONTAINS
       CASE (print_format_isi)
          DO I = 1, SIZE(thebib(key)%ref%ISI_record)
             WRITE (unit, '(T2,A)') TRIM(thebib(key)%ref%ISI_record(I))
-         ENDDO
+         END DO
       CASE (print_format_journal)
          CALL print_reference_journal(key, unit)
       CASE (print_format_html)
@@ -364,15 +364,15 @@ CONTAINS
          ELSE
             IF (iauthor .NE. 1) WRITE (unit, '(A)', ADVANCE="NO") "; "
             ipos_line = ipos_line + 2
-         ENDIF
+         END IF
          WRITE (unit, '(A)', ADVANCE="NO") TRIM(author)
          ipos_line = ipos_line + LEN_TRIM(author)
          author = get_next_author(thebib(key)%ref%ISI_record, line)
-      ENDDO
+      END DO
       IF (iauthor > 0) THEN
          WRITE (unit, '(A)', ADVANCE="NO") ". "
          ipos_line = ipos_line + 2
-      ENDIF
+      END IF
 
       ! Journal, volume (issue), pages (year).
       journal = TRIM(get_source(thebib(key)%ref%ISI_record))
@@ -380,17 +380,17 @@ CONTAINS
          journal = TRIM(journal)//", "//get_volume(thebib(key)%ref%ISI_record)
          IF (get_issue(thebib(key)%ref%ISI_record) .NE. "") THEN
             journal = TRIM(journal)//" ("//TRIM(get_issue(thebib(key)%ref%ISI_record))//")"
-         ENDIF
+         END IF
       END IF
       journal = TRIM(journal)//", "//get_pages(thebib(key)%ref%ISI_record)
       IF (get_year(thebib(key)%ref%ISI_record) .NE. "") THEN
          journal = TRIM(journal)//" ("//TRIM(get_year(thebib(key)%ref%ISI_record))//")."
-      ENDIF
+      END IF
       IF (ipos_line + LEN_TRIM(journal) > 71) THEN
          WRITE (unit, '(A)') ""
          WRITE (unit, '(T2,A)', ADVANCE="NO") ""
          ipos_line = 2
-      ENDIF
+      END IF
       IF (ipos_line + LEN_TRIM(journal) > 71) THEN
          WRITE (unit, '(A)') TRIM(journal(1:69))
          WRITE (unit, '(A)', ADVANCE="NO") TRIM(journal(69:))
@@ -407,13 +407,13 @@ CONTAINS
          IF (ititle .NE. 1) WRITE (unit, '(A)') ""
          WRITE (unit, '(T2,A)', ADVANCE="NO") TRIM(title)
          title = get_next_title(thebib(key)%ref%ISI_record, line)
-      ENDDO
+      END DO
       IF (ititle > 0) WRITE (unit, '(A)') "."
 
       ! DOI
       IF (thebib(key)%ref%DOI .NE. "") THEN
          WRITE (unit, '(T2,A)') "https://doi.org/"//TRIM(thebib(key)%ref%DOI)
-      ENDIF
+      END IF
 
    END SUBROUTINE print_reference_journal
 
@@ -443,29 +443,29 @@ CONTAINS
          IF (iauthor .NE. 1) WRITE (unit, '(A)', ADVANCE="NO") "; "
          WRITE (unit, '(A)', ADVANCE="NO") TRIM(author)
          author = get_next_author(thebib(key)%ref%ISI_record, line)
-      ENDDO
+      END DO
       IF (iauthor > 0) WRITE (unit, '(A)') ".<br>"
 
       ! DOI
       IF (thebib(key)%ref%DOI .NE. "") THEN
          WRITE (unit, '(T2,A)', ADVANCE="NO") '<A HREF="https://doi.org/'//TRIM(thebib(key)%ref%DOI)//'">'
-      ENDIF
+      END IF
       ! Journal, volume (issue), pages (year).
       journal = TRIM(get_source(thebib(key)%ref%ISI_record))
       IF (get_volume(thebib(key)%ref%ISI_record) .NE. "") THEN
          journal = TRIM(journal)//", "//get_volume(thebib(key)%ref%ISI_record)
          IF (get_issue(thebib(key)%ref%ISI_record) .NE. "") THEN
             journal = TRIM(journal)//" ("//TRIM(get_issue(thebib(key)%ref%ISI_record))//")"
-         ENDIF
+         END IF
       END IF
       journal = TRIM(journal)//", "//get_pages(thebib(key)%ref%ISI_record)
       IF (get_year(thebib(key)%ref%ISI_record) .NE. "") THEN
          journal = TRIM(journal)//" ("//TRIM(get_year(thebib(key)%ref%ISI_record))//")."
-      ENDIF
+      END IF
       WRITE (unit, '(A)', ADVANCE="NO") TRIM(journal)
       IF (thebib(key)%ref%DOI .NE. "") THEN
          WRITE (unit, '(A)', ADVANCE="NO") '</A>'
-      ENDIF
+      END IF
       WRITE (unit, '(A)') "</A><br>"
 
       ! Title
@@ -476,7 +476,7 @@ CONTAINS
          IF (ititle .NE. 1) WRITE (unit, '(A)') ""
          WRITE (unit, '(T2,A)', ADVANCE="NO") TRIM(title)
          title = get_next_title(thebib(key)%ref%ISI_record, line)
-      ENDDO
+      END DO
       IF (ititle > 0) WRITE (unit, '(A)') "."
 
    END SUBROUTINE print_reference_html
@@ -512,9 +512,9 @@ CONTAINS
                iline_start = I + 1
                res = ISI_record(I) (4:)
                EXIT line_loop
-            ENDIF
-         ENDIF
-      ENDDO line_loop
+            END IF
+         END IF
+      END DO line_loop
 
       ! We might want to fixup the initials, adding a dot after each of them
 
@@ -547,9 +547,9 @@ CONTAINS
                iline_start = I + 1
                res = ISI_record(I) (4:)
                EXIT line_loop
-            ENDIF
-         ENDIF
-      ENDDO line_loop
+            END IF
+         END IF
+      END DO line_loop
 
    END FUNCTION get_next_title
 
@@ -574,11 +574,11 @@ CONTAINS
                   res = TRIM(res)//" "//ISI_record(J) (4:)
                ELSE
                   EXIT
-               ENDIF
-            ENDDO
+               END IF
+            END DO
             EXIT
-         ENDIF
-      ENDDO
+         END IF
+      END DO
    END FUNCTION get_source
 
 ! **************************************************************************************************
@@ -596,7 +596,7 @@ CONTAINS
       res = ""
       DO I = 1, N
          IF (ISI_record(I) (1:3) == "PY ") res = ISI_record(I) (4:)
-      ENDDO
+      END DO
    END FUNCTION get_year
 
 ! **************************************************************************************************
@@ -614,7 +614,7 @@ CONTAINS
       res = ""
       DO I = 1, N
          IF (ISI_record(I) (1:3) == "PD ") res = ISI_record(I) (4:6)
-      ENDDO
+      END DO
    END FUNCTION get_month
 
 ! **************************************************************************************************
@@ -632,7 +632,7 @@ CONTAINS
       res = ""
       DO I = 1, N
          IF (ISI_record(I) (1:3) == "PD ") res = ISI_record(I) (7:)
-      ENDDO
+      END DO
       ! PD can be e.g. OCT-NOV or OCT or OCT 27
       ! if res can't be read as an integer, it is not a day, and we bail out
       READ (res, *, ERR=998, END=998) D
@@ -658,7 +658,7 @@ CONTAINS
       res = ""
       DO I = 1, N
          IF (ISI_record(I) (1:3) == "VL ") res = ISI_record(I) (4:)
-      ENDDO
+      END DO
    END FUNCTION get_volume
 
 ! **************************************************************************************************
@@ -676,7 +676,7 @@ CONTAINS
       res = ""
       DO I = 1, N
          IF (ISI_record(I) (1:3) == "IS ") res = ISI_record(I) (4:)
-      ENDDO
+      END DO
    END FUNCTION get_issue
 
 ! **************************************************************************************************
@@ -701,11 +701,11 @@ CONTAINS
          IF (ISI_record(I) (1:3) == "BP ") bp = ISI_record(I) (4:)
          IF (ISI_record(I) (1:3) == "EP ") ep = ISI_record(I) (4:)
          IF (ISI_record(I) (1:3) == "AR ") ar = ISI_record(I) (4:)
-      ENDDO
+      END DO
       IF (bp .NE. "") THEN
          res = bp
          IF (ep .NE. "") res = TRIM(res)//"-"//ep
-      ENDIF
+      END IF
       IF (res .EQ. "" .AND. ar .NE. "") res = ar
    END FUNCTION get_pages
 

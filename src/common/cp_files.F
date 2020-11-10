@@ -573,7 +573,7 @@ CONTAINS
          joined_path = TRIM(path1)//path2
       ELSE
          joined_path = TRIM(path1)//'/'//path2
-      ENDIF
+      END IF
    END FUNCTION join_paths
 
 ! **************************************************************************************************
@@ -592,7 +592,7 @@ CONTAINS
          unit = output_unit
       ELSE
          unit = default_output_unit
-      ENDIF
+      END IF
 
       nc = SIZE(preconnected)
 

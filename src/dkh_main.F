@@ -1038,8 +1038,8 @@ CONTAINS
       DO j = 1, ncol_local
          DO i = 1, nrow_local
             matrix_aux%local_data(i, j) = 1/(e(row_indices(i)) + e(col_indices(j)))
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       CALL cp_fm_schur_product(matrix_p, matrix_aux, matrix_pp)
 
@@ -2227,8 +2227,8 @@ CONTAINS
       DO i = 1, n
          DO j = 1, n
             p(i, j) = p(i, j)/(e(i) + e(j))
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       RETURN
    END SUBROUTINE mat_1_over_h_a
@@ -2261,8 +2261,8 @@ CONTAINS
       DO i = 1, n
          DO j = 1, n
             p(i, j) = p(i, j)*a(i)*a(j)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       RETURN
    END SUBROUTINE mat_axa_a
@@ -2297,8 +2297,8 @@ CONTAINS
       DO i = 1, n
          DO j = 1, n
             p(i, j) = p(i, j)*a(i)*a(j)*r(i)*r(j)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       RETURN
    END SUBROUTINE mat_arxra_a
@@ -2347,8 +2347,8 @@ CONTAINS
       DO i = 1, n
          DO j = 1, n
             qtemp(i, j) = q(i, j)*2.0_dp*t(j)*rr(j)*rr(j)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       CALL dgemm("N", "N", n, n, n, alpha, qtemp, n, r, n, beta, p, n)
       RETURN
@@ -2399,8 +2399,8 @@ CONTAINS
       DO i = 1, n
          DO j = 1, n
             qtemp(i, j) = q(i, j)*0.5_dp/(t(j)*rr(j)*rr(j))
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       CALL dgemm("N", "N", n, n, n, alpha, qtemp, n, r, n, beta, p, n)
 
@@ -2449,8 +2449,8 @@ CONTAINS
       DO i = 1, n
          DO j = 1, n
             p(i, j) = alpha*p(i, j) + beta*r(i, j)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       RETURN
    END SUBROUTINE mat_add2
@@ -2500,8 +2500,8 @@ CONTAINS
       DO i = 1, n
          DO j = 1, n
             p(i, j) = alpha*q(i, j) + beta*r(i, j)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       RETURN
    END SUBROUTINE mat_add

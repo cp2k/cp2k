@@ -857,7 +857,7 @@ CONTAINS
             CALL dbcsr_finalize(matrix_h(i, img)%matrix)
             CALL dbcsr_finalize(matrix_s(i, img)%matrix)
          END DO
-      ENDDO
+      END DO
 
       exb = 0.0_dp
       IF (xb_inter) THEN
@@ -873,7 +873,7 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, sab_xtb_nonbond=sab_xtb_nonbond)
          CALL nonbonded_correction(enonbonded, force, qs_env, xtb_control, sab_xtb_nonbond, &
                                    atomic_kind_set, calculate_forces, use_virial, virial, atprop, atom_of_kind)
-      ENDIF
+      END IF
       ! set repulsive energy
       erep = erep + exb + enonbonded
       IF (xb_inter) energy%xtb_xb_inter = exb
@@ -1209,11 +1209,11 @@ CONTAINS
             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, mo_coeff_b=mo_coeff)
             IF (.NOT. mo_array(ispin)%mo_set%use_mo_coeff_b) THEN
                CPABORT("")
-            ENDIF
+            END IF
             CALL dbcsr_multiply('n', 'n', 1.0_dp, ks_matrix(ispin, 1)%matrix, mo_coeff, &
                                 0.0_dp, mo_derivs(ispin)%matrix)
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       CALL timestop(handle)
 
@@ -1355,7 +1355,7 @@ CONTAINS
                atprop%atecc(iatom) = atprop%atecc(iatom) + 0.5_dp*ener_pot(pot, dr, energy_cutoff)
                atprop%atecc(jatom) = atprop%atecc(jatom) + 0.5_dp*ener_pot(pot, dr, energy_cutoff)
             END IF
-         ENDIF
+         END IF
 
          IF (calculate_forces) THEN
 
@@ -1363,7 +1363,7 @@ CONTAINS
             IF (kk /= 1) THEN
                CALL cp_warn(__LOCATION__, "Generic potential with type > 1 not implemented.")
                CPABORT("pot type")
-            ENDIF
+            END IF
 ! rmin and rmax and rcut
             IF ((pot%set(kk)%rmin /= not_initialized) .AND. (dr < pot%set(kk)%rmin)) CYCLE
             ! An upper boundary for the potential definition was defined
@@ -1413,7 +1413,7 @@ CONTAINS
 
       IF (ASSOCIATED(potparm)) THEN
          CALL pair_potential_pp_release(potparm)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 !
@@ -1480,18 +1480,18 @@ CONTAINS
                   IF (iw > 0) WRITE (iw, *) "    FOUND ", TRIM(name_atm_a), " ", TRIM(name_atm_b)
                   found = .TRUE.
                END DO
-            ENDIF
+            END IF
             IF (.NOT. found) THEN
                CALL pair_potential_single_clean(pot)
-            ENDIF
-         ENDDO !jkind
-      ENDDO !ikind
+            END IF
+         END DO !jkind
+      END DO !ikind
 
       ! Cutoff is defined always as the maximum between the FF and Ewald
       IF (do_ewald) THEN
          CALL ewald_env_get(ewald_env, rcut=ewald_rcut)
          pot%rcutsq = MAX(pot%rcutsq, ewald_rcut*ewald_rcut)
-      ENDIF
+      END IF
 
    END SUBROUTINE force_field_pack_nonbond_pot_correction
 ! **************************************************************************************************

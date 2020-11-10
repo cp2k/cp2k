@@ -586,7 +586,7 @@ CONTAINS
                      ELSE IF (new_clv_target <= limit) THEN
                         new_clv_target = limit
                      END IF
-                  ENDIF
+                  END IF
                END IF
                IF (do_update_colvar) THEN
                   CALL section_vals_val_set(collective_sections, "TARGET", r_val=new_clv_target, &

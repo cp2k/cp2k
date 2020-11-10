@@ -750,7 +750,7 @@ CONTAINS
                IF (PRESENT(ddab)) ddab(ma + 1:ma + na, mb + 1:mb + nb, 1:6) = 0.0_dp
                mb = mb + nb
                CYCLE
-            ENDIF
+            END IF
 
             ! Calculate some prefactors
             a = zeta(ipgf)
@@ -918,12 +918,12 @@ CONTAINS
                                        + 2.0_dp*b*REAL(az, dp)*ambp - REAL(az, dp)*REAL(bz, dp)*ambm
                   END IF
                   !
-               ENDDO
-               ENDDO
-               ENDDO !la
-            ENDDO
-            ENDDO
-            ENDDO !lb
+               END DO
+               END DO
+               END DO !la
+            END DO
+            END DO
+            END DO !lb
 
             mb = mb + nb
          END DO
@@ -1053,7 +1053,7 @@ CONTAINS
                   IF (PRESENT(daba)) daba(ma1 + 1:ma1 + na1, mb + 1:mb + nb, ma2 + 1:ma2 + na2, 1:3) = 0.0_dp
                   mb = mb + nb
                   CYCLE
-               ENDIF
+               END IF
 
                ! Calculate some prefactors
                a = zeta1(i1pgf) + zeta2(i2pgf)
@@ -1132,15 +1132,15 @@ CONTAINS
                            daba(ia1, ib, ia2, 3) = f0*rr(ax, bx, 1)*rr(ay, by, 2)*dumz
                         END IF
                         !
-                     ENDDO
-                     ENDDO
-                     ENDDO !la1
-                  ENDDO
-                  ENDDO
-                  ENDDO !la2
-               ENDDO
-               ENDDO
-               ENDDO !lb
+                     END DO
+                     END DO
+                     END DO !la1
+                  END DO
+                  END DO
+                  END DO !la2
+               END DO
+               END DO
+               END DO !lb
 
                mb = mb + nb
             END DO
@@ -1253,7 +1253,7 @@ CONTAINS
                   IF (PRESENT(dabb)) dabb(ma + 1:ma + na, mb1 + 1:mb1 + nb1, mb2 + 1:mb2 + nb2, 1:3) = 0.0_dp
                   mb2 = mb2 + nb2
                   CYCLE
-               ENDIF
+               END IF
 
                ! Calculate some prefactors
                a = zeta(ipgf)
@@ -1311,15 +1311,15 @@ CONTAINS
                            dabb(ia, ib1, ib2, 3) = f0*rr(ax, bx, 1)*rr(ay, by, 2)*dumz
                         END IF
                         !
-                     ENDDO
-                     ENDDO
-                     ENDDO !la
-                  ENDDO
-                  ENDDO
-                  ENDDO !lb1
-               ENDDO
-               ENDDO
-               ENDDO !lb2
+                     END DO
+                     END DO
+                     END DO !la
+                  END DO
+                  END DO
+                  END DO !lb1
+               END DO
+               END DO
+               END DO !lb2
 
                mb2 = mb2 + nb2
             END DO
@@ -1446,7 +1446,7 @@ CONTAINS
                     IF (PRESENT(daaab)) daaab(ma1 + 1:ma1 + na1, ma2 + 1:ma2 + na2, ma3 + 1:ma3 + na3, mb + 1:mb + nb, 1:3) = 0.0_dp
                      mb = mb + nb
                      CYCLE
-                  ENDIF
+                  END IF
 
                   ! Calculate some prefactors
                   a = zeta1(i1pgf) + zeta2(i2pgf) + zeta3(i3pgf)
@@ -1511,18 +1511,18 @@ CONTAINS
                                  daaab(ia1, ia2, ia3, ib, 3) = f0*rr(ax, bx, 1)*rr(ay, by, 2)*dumz
                               END IF
                               !
-                           ENDDO
-                           ENDDO
-                           ENDDO !la1
-                        ENDDO
-                        ENDDO
-                        ENDDO !la2
-                     ENDDO
-                     ENDDO
-                     ENDDO !la3
-                  ENDDO
-                  ENDDO
-                  ENDDO !lb
+                           END DO
+                           END DO
+                           END DO !la1
+                        END DO
+                        END DO
+                        END DO !la2
+                     END DO
+                     END DO
+                     END DO !la3
+                  END DO
+                  END DO
+                  END DO !lb
 
                   mb = mb + nb
                END DO
@@ -1651,7 +1651,7 @@ CONTAINS
                  IF (PRESENT(daabb)) daabb(ma1 + 1:ma1 + na1, ma2 + 1:ma2 + na2, mb1 + 1:mb1 + nb1, mb2 + 1:mb2 + nb2, 1:3) = 0.0_dp
                      mb2 = mb2 + nb2
                      CYCLE
-                  ENDIF
+                  END IF
 
                   ! Calculate some prefactors
                   a = zeta1(i1pgf) + zeta2(i2pgf)
@@ -1719,18 +1719,18 @@ CONTAINS
                                  daabb(ia1, ia2, ib1, ib2, 3) = f0*rr(ax, bx, 1)*rr(ay, by, 2)*dumz
                               END IF
                               !
-                           ENDDO
-                           ENDDO
-                           ENDDO !la1
-                        ENDDO
-                        ENDDO
-                        ENDDO !la2
-                     ENDDO
-                     ENDDO
-                     ENDDO !lb1
-                  ENDDO
-                  ENDDO
-                  ENDDO !lb2
+                           END DO
+                           END DO
+                           END DO !la1
+                        END DO
+                        END DO
+                        END DO !la2
+                     END DO
+                     END DO
+                     END DO !lb1
+                  END DO
+                  END DO
+                  END DO !lb2
 
                   mb2 = mb2 + nb2
                END DO
@@ -1858,7 +1858,7 @@ CONTAINS
                     IF (PRESENT(dabbb)) dabbb(ma + 1:ma + na, mb1 + 1:mb1 + nb1, mb2 + 1:mb2 + nb2, mb3 + 1:mb3 + nb3, 1:3) = 0.0_dp
                      mb3 = mb3 + nb3
                      CYCLE
-                  ENDIF
+                  END IF
 
                   ! Calculate some prefactors
                   a = zeta(ipgf)
@@ -1923,18 +1923,18 @@ CONTAINS
                                  dabbb(ia, ib1, ib2, ib3, 3) = f0*rr(ax, bx, 1)*rr(ay, by, 2)*dumz
                               END IF
                               !
-                           ENDDO
-                           ENDDO
-                           ENDDO !la
-                        ENDDO
-                        ENDDO
-                        ENDDO !lb1
-                     ENDDO
-                     ENDDO
-                     ENDDO !lb2
-                  ENDDO
-                  ENDDO
-                  ENDDO !lb3
+                           END DO
+                           END DO
+                           END DO !la
+                        END DO
+                        END DO
+                        END DO !lb1
+                     END DO
+                     END DO
+                     END DO !lb2
+                  END DO
+                  END DO
+                  END DO !lb3
 
                   mb3 = mb3 + nb3
                END DO

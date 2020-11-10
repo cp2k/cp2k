@@ -101,35 +101,35 @@ CONTAINS
 
          IF (ASSOCIATED(harmonics%slm)) THEN
             DEALLOCATE (harmonics%slm)
-         ENDIF
+         END IF
 
          IF (ASSOCIATED(harmonics%dslm)) THEN
             DEALLOCATE (harmonics%dslm)
-         ENDIF
+         END IF
 
          IF (ASSOCIATED(harmonics%dslm_dxyz)) THEN
             DEALLOCATE (harmonics%dslm_dxyz)
-         ENDIF
+         END IF
 
          IF (ASSOCIATED(harmonics%slm_int)) THEN
             DEALLOCATE (harmonics%slm_int)
-         ENDIF
+         END IF
 
          IF (ASSOCIATED(harmonics%my_CG)) THEN
             DEALLOCATE (harmonics%my_CG)
-         ENDIF
+         END IF
 
          IF (ASSOCIATED(harmonics%my_CG_dxyz)) THEN
             DEALLOCATE (harmonics%my_CG_dxyz)
-         ENDIF
+         END IF
 
          IF (ASSOCIATED(harmonics%my_CG_dxyz_asym)) THEN
             DEALLOCATE (harmonics%my_CG_dxyz_asym)
-         ENDIF
+         END IF
 
          IF (ASSOCIATED(harmonics%a)) THEN
             DEALLOCATE (harmonics%a)
-         ENDIF
+         END IF
 
          DEALLOCATE (harmonics)
       ELSE
@@ -475,7 +475,7 @@ CONTAINS
       CPASSERT(max_s_harm .LE. SIZE(cgc, 4))
       IF (PRESENT(n_list) .AND. PRESENT(list)) THEN
          CPASSERT(max_s_harm .LE. SIZE(list, 3))
-      ENDIF
+      END IF
       max_iso_not0 = 0
       IF (PRESENT(n_list) .AND. PRESENT(list)) n_list = 0
       DO iso = 1, max_s_harm
@@ -492,15 +492,15 @@ CONTAINS
                         IF (PRESENT(n_list) .AND. PRESENT(list)) THEN
                            list(1, nlist, iso) = iso1
                            list(2, nlist, iso) = iso2
-                        ENDIF
+                        END IF
                         max_iso_not0 = MAX(max_iso_not0, iso)
-                     ENDIF
-                  ENDDO
-               ENDDO
-            ENDDO
-         ENDDO
+                     END IF
+                  END DO
+               END DO
+            END DO
+         END DO
          IF (PRESENT(n_list) .AND. PRESENT(list)) n_list(iso) = nlist
-      ENDDO
+      END DO
    END SUBROUTINE get_none0_cg_list4
 
 ! **************************************************************************************************
@@ -533,7 +533,7 @@ CONTAINS
       CPASSERT(max_s_harm .LE. SIZE(cgc, 3))
       IF (PRESENT(n_list) .AND. PRESENT(list)) THEN
          CPASSERT(max_s_harm .LE. SIZE(list, 3))
-      ENDIF
+      END IF
       max_iso_not0 = 0
       IF (PRESENT(n_list) .AND. PRESENT(list)) n_list = 0
       DO iso = 1, max_s_harm
@@ -548,15 +548,15 @@ CONTAINS
                         IF (PRESENT(n_list) .AND. PRESENT(list)) THEN
                            list(1, nlist, iso) = iso1
                            list(2, nlist, iso) = iso2
-                        ENDIF
+                        END IF
                         max_iso_not0 = MAX(max_iso_not0, iso)
-                     ENDIF
-                  ENDDO
-               ENDDO
-            ENDDO
-         ENDDO
+                     END IF
+                  END DO
+               END DO
+            END DO
+         END DO
          IF (PRESENT(n_list) .AND. PRESENT(list)) n_list(iso) = nlist
-      ENDDO
+      END DO
    END SUBROUTINE get_none0_cg_list3
 
 END MODULE qs_harmonics_atom

@@ -179,7 +179,7 @@ CONTAINS
          iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          iounit = -1
-      ENDIF
+      END IF
 
       ! initialized linres_control
       NULLIFY (linres_control)
@@ -224,7 +224,7 @@ CONTAINS
          NULLIFY (psi1(ispin)%matrix)
          CALL cp_fm_create(psi1(ispin)%matrix, fm_struct)
          CALL cp_fm_set_all(psi1(ispin)%matrix, 0.0_dp)
-      ENDDO
+      END DO
 
       CALL get_qs_env(qs_env, matrix_s=matrix_s, sab_orb=sab_orb)
       CALL dbcsr_allocate_matrix_set(p_env%p1, nspins)
@@ -280,10 +280,10 @@ CONTAINS
       DO ispin = 1, nspins
          CALL calculate_wz_matrix(mos(ispin)%mo_set, psi1(ispin)%matrix, matrix_ks(ispin)%matrix, &
                                   p_env%w1(ispin)%matrix)
-      ENDDO
+      END DO
       DO ispin = 1, nspins
          CALL cp_fm_release(psi1(ispin)%matrix)
-      ENDDO
+      END DO
       DEALLOCATE (psi0, psi1)
       CALL linres_control_release(linres_control)
 
@@ -511,7 +511,7 @@ CONTAINS
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_g(ispin)%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      ENDDO
+      END DO
       CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_tot_gspace%pw, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, zv_hartree_rspace%pw, &
@@ -690,7 +690,7 @@ CONTAINS
                                       use_data=REALDATA3D, in_space=REALSPACE)
                CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_g_aux(ispin)%pw, &
                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-            ENDDO
+            END DO
             DO ispin = 1, nspins
                CALL calculate_rho_elec(ks_env=ks_env, matrix_p=mpz(ispin, 1)%matrix, &
                                        rho=rhoz_r_aux(ispin), rho_gspace=rhoz_g_aux(ispin), &
@@ -1246,7 +1246,7 @@ CONTAINS
             IF (ASSOCIATED(v_tau_rspace)) THEN
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace(ispin)%pw)
             END IF
-         ENDDO
+         END DO
          DEALLOCATE (v_rspace)
       END IF
       IF (ASSOCIATED(v_tau_rspace)) DEALLOCATE (v_tau_rspace)

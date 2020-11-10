@@ -157,8 +157,8 @@ CONTAINS
                                     name="SCF DENSITY", matrix_type=dbcsr_type_symmetric, nze=0)
                   CALL cp_dbcsr_alloc_block_from_nbl(p_mix_new(i, ic)%matrix, sab_orb)
                   CALL dbcsr_set(p_mix_new(i, ic)%matrix, 0.0_dp)
-               ENDDO
-            ENDDO
+               END DO
+            END DO
          END IF
       END IF
 
@@ -174,8 +174,8 @@ CONTAINS
                                        name="SCF DENSITY", matrix_type=dbcsr_type_symmetric, nze=0)
                      CALL cp_dbcsr_alloc_block_from_nbl(p_delta(i, ic)%matrix, sab_orb)
                      CALL dbcsr_set(p_delta(i, ic)%matrix, 0.0_dp)
-                  ENDDO
-               ENDDO
+                  END DO
+               END DO
             END IF
             CPASSERT(ASSOCIATED(mixing_store))
          END IF
@@ -257,7 +257,7 @@ CONTAINS
                                           name="SCF DENSITY", matrix_type=dbcsr_type_symmetric, nze=0)
                         CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_in(i, ic)%matrix, sab_orb)
                         CALL dbcsr_set(mixing_store%rho_ao_in(i, ic)%matrix, 0.0_dp)
-                     ENDDO
+                     END DO
                   END DO
                END IF
                IF (.NOT. ASSOCIATED(mixing_store%rho_ao_mix)) THEN
@@ -325,7 +325,7 @@ CONTAINS
                            CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_in_buffer(ispin, ic, i)%matrix, sab_orb)
                            CALL dbcsr_set(mixing_store%rho_ao_in_buffer(ispin, ic, i)%matrix, 0.0_dp)
                         END DO
-                     ENDDO
+                     END DO
                   END DO
                END IF
                IF (dft_control%qs_control%gapw) THEN
@@ -385,7 +385,7 @@ CONTAINS
                                           name="SCF DENSITY", matrix_type=dbcsr_type_symmetric, nze=0)
                         CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_in_old(i, ic)%matrix, sab_orb)
                         CALL dbcsr_set(mixing_store%rho_ao_in_old(i, ic)%matrix, 0.0_dp)
-                     ENDDO
+                     END DO
                   END DO
                END IF
 
@@ -398,7 +398,7 @@ CONTAINS
                                           name="SCF DENSITY", matrix_type=dbcsr_type_symmetric, nze=0)
                         CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_lastres(i, ic)%matrix, sab_orb)
                         CALL dbcsr_set(mixing_store%rho_ao_lastres(i, ic)%matrix, 0.0_dp)
-                     ENDDO
+                     END DO
                   END DO
                END IF
 
@@ -447,7 +447,7 @@ CONTAINS
                            CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_res_buffer(ispin, ic, i)%matrix, sab_orb)
                            CALL dbcsr_set(mixing_store%rho_ao_res_buffer(ispin, ic, i)%matrix, 0.0_dp)
                         END DO
-                     ENDDO
+                     END DO
                   END DO
                END IF
             END IF

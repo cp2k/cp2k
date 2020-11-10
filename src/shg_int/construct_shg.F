@@ -73,7 +73,7 @@ CONTAINS
          Rlm_s(1, 1) = Rs
          Rlm_c(1, -1) = -Rc
          Rlm_s(1, -1) = Rs
-      ENDIF
+      END IF
       DO li = 2, l
          temp_c = (-r(1)*Rc + r(2)*Rs)/(REAL(2*(li - 1) + 2, dp))
          Rs = (-r(2)*Rc - r(1)*Rs)/(REAL(2*(li - 1) + 2, dp))
@@ -86,8 +86,8 @@ CONTAINS
          ELSE
             Rlm_c(li, -li) = Rc
             Rlm_s(li, -li) = -Rs
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       DO mi = 0, l - 1
          Rmlm = Rlm_c(mi, mi)
@@ -97,7 +97,7 @@ CONTAINS
             Rlm_c(mi + 1, -mi) = -Rlm
          ELSE
             Rlm_c(mi + 1, -mi) = Rlm
-         ENDIF
+         END IF
          DO li = mi + 2, l
             prefac = (li + mi)*(li - mi)
             Rplm = (REAL(2*li - 1, dp)*r(3)*Rlm - r2*Rmlm)/REAL(prefac, dp)
@@ -108,9 +108,9 @@ CONTAINS
                Rlm_c(li, -mi) = -Rlm
             ELSE
                Rlm_c(li, -mi) = Rlm
-            ENDIF
-         ENDDO
-      ENDDO
+            END IF
+         END DO
+      END DO
       DO mi = 1, l - 1
          Rmlm = Rlm_s(mi, mi)
          Rlm = r(3)*Rlm_s(mi, mi)
@@ -119,7 +119,7 @@ CONTAINS
             Rlm_s(mi + 1, -mi) = Rlm
          ELSE
             Rlm_s(mi + 1, -mi) = -Rlm
-         ENDIF
+         END IF
          DO li = mi + 2, l
             prefac = (li + mi)*(li - mi)
             Rplm = (REAL(2*li - 1, dp)*r(3)*Rlm - r2*Rmlm)/REAL(prefac, dp)
@@ -130,9 +130,9 @@ CONTAINS
                Rlm_s(li, -mi) = Rlm
             ELSE
                Rlm_s(li, -mi) = -Rlm
-            ENDIF
-         ENDDO
-      ENDDO
+            END IF
+         END DO
+      END DO
 
    END SUBROUTINE get_real_scaled_solid_harmonic
 
@@ -156,8 +156,8 @@ CONTAINS
             IF (MODULO(m, 2) /= 0) temp = -temp
             IF (m /= 0) temp = temp*SQRT(2.0_dp)
             A(l, m) = temp
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
    END SUBROUTINE get_Alm
 
@@ -192,8 +192,8 @@ CONTAINS
             dA_m(l, m) = -bm/bm_m*SQRT(REAL((l + m)*(l + m - 1), dp))
             dA(l, m) = 2.0_dp*SQRT(REAL((l + m)*(l - m), dp))
             IF (m == 0) dA_p(l, m) = 2.0_dp*dA_p(l, m)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
    END SUBROUTINE get_dA_prefactors
 
 ! **************************************************************************************************
@@ -259,7 +259,7 @@ CONTAINS
                            sign_fac = -1.0_dp
                         ELSE
                            sign_fac = 1.0_dp
-                        ENDIF
+                        END IF
                         Rca_m = Rc(laj, ma_m)
                         Rsa_m = Rs(laj, ma_m)
                         Rca_p = Rc(laj, ma_p)
@@ -277,25 +277,25 @@ CONTAINS
                            Wb(3) = delta_k*(Rsb_m + sign_fac*Rsb_p)
                            Wb(4) = Rcb_m - sign_fac*Rcb_p
                            Wmat(2) = Wmat(2) + prefac/A_jk*(Wa(1)*Wb(3) + Wa(2)*Wb(4))
-                        ENDIF
+                        END IF
                         IF (ma > 0) THEN
                            Wa(3) = delta_k*(Rsa_m + sign_fac*Rsa_p)
                            Wa(4) = Rca_m - sign_fac*Rca_p
                            Wmat(3) = Wmat(3) + prefac/A_jk*(Wa(3)*Wb(1) + Wa(4)*Wb(2))
-                        ENDIF
+                        END IF
                         IF (ma > 0 .AND. mb > 0) THEN
                            Wmat(4) = Wmat(4) + prefac/A_jk*(Wa(3)*Wb(3) + Wa(4)*Wb(4))
-                        ENDIF
-                     ENDDO
+                        END IF
+                     END DO
                      Waux_mat(j + 1, nla + la + 1 + ma, nlb + lb + 1 + mb) = Wmat(1)
                      IF (mb > 0) Waux_mat(j + 1, nla + la + 1 + ma, nlb + lb + 1 - mb) = Wmat(2)
                      IF (ma > 0) Waux_mat(j + 1, nla + la + 1 - ma, nlb + lb + 1 + mb) = Wmat(3)
                      IF (ma > 0 .AND. mb > 0) Waux_mat(j + 1, nla + la + 1 - ma, nlb + lb + 1 - mb) = Wmat(4)
-                  ENDDO
-               ENDDO
-            ENDDO
-         ENDDO
-      ENDDO
+                  END DO
+               END DO
+            END DO
+         END DO
+      END DO
 
       DEALLOCATE (A)
 
@@ -372,21 +372,21 @@ CONTAINS
                      IF (mb > 0) Wam(0:lamb, 2) = Waux_mat(1:lamb + 1, ipam, imb)
                      IF (ma > 0) Wam(0:lamb, 3) = Waux_mat(1:lamb + 1, imam, ipb)
                      IF (ma > 0 .AND. mb > 0) Wam(0:lamb, 4) = Waux_mat(1:lamb + 1, imam, imb)
-                  ENDIF
+                  END IF
                   !*** Wamm: la-1, ma-1
                   IF (ma - 1 >= 0) THEN
                      Wamm(0:lamb, 1) = Waux_mat(1:lamb + 1, ipam - 1, ipb)
                      IF (mb > 0) Wamm(0:lamb, 2) = Waux_mat(1:lamb + 1, ipam - 1, imb)
                      IF (ma - 1 > 0) Wamm(0:lamb, 3) = Waux_mat(1:lamb + 1, imam + 1, ipb) !order: e.g. -1 0 1, if < 0 |m|, -1 means  -m+1
                      IF (ma - 1 > 0 .AND. mb > 0) Wamm(0:lamb, 4) = Waux_mat(1:lamb + 1, imam + 1, imb)
-                  ENDIF
+                  END IF
                   !*** Wamp: la-1, ma+1
                   IF (ma + 1 <= la - 1) THEN
                      Wamp(0:lamb, 1) = Waux_mat(1:lamb + 1, ipam + 1, ipb)
                      IF (mb > 0) Wamp(0:lamb, 2) = Waux_mat(1:lamb + 1, ipam + 1, imb)
                      IF (ma + 1 > 0) Wamp(0:lamb, 3) = Waux_mat(1:lamb + 1, imam - 1, ipb)
                      IF (ma + 1 > 0 .AND. mb > 0) Wamp(0:lamb, 4) = Waux_mat(1:lamb + 1, imam - 1, imb)
-                  ENDIF
+                  END IF
                   Wbm(:, :) = 0.0_dp
                   Wbmm(:, :) = 0.0_dp
                   Wbmp(:, :) = 0.0_dp
@@ -396,21 +396,21 @@ CONTAINS
                      IF (mb > 0) Wbm(0:labm, 2) = Waux_mat(1:labm + 1, ipa, imbm)
                      IF (ma > 0) Wbm(0:labm, 3) = Waux_mat(1:labm + 1, ima, ipbm)
                      IF (ma > 0 .AND. mb > 0) Wbm(0:labm, 4) = Waux_mat(1:labm + 1, ima, imbm)
-                  ENDIF
+                  END IF
                   !*** Wbmm: lb-1, mb-1
                   IF (mb - 1 >= 0) THEN
                      Wbmm(0:labm, 1) = Waux_mat(1:labm + 1, ipa, ipbm - 1)
                      IF (mb - 1 > 0) Wbmm(0:labm, 2) = Waux_mat(1:labm + 1, ipa, imbm + 1)
                      IF (ma > 0) Wbmm(0:labm, 3) = Waux_mat(1:labm + 1, ima, ipbm - 1)
                      IF (ma > 0 .AND. mb - 1 > 0) Wbmm(0:labm, 4) = Waux_mat(1:labm + 1, ima, imbm + 1)
-                  ENDIF
+                  END IF
                   !*** Wbmp: lb-1, mb+1
                   IF (mb + 1 <= lb - 1) THEN
                      Wbmp(0:labm, 1) = Waux_mat(1:labm + 1, ipa, ipbm + 1)
                      IF (mb + 1 > 0) Wbmp(0:labm, 2) = Waux_mat(1:labm + 1, ipa, imbm - 1)
                      IF (ma > 0) Wbmp(0:labm, 3) = Waux_mat(1:labm + 1, ima, ipbm + 1)
                      IF (ma > 0 .AND. mb + 1 > 0) Wbmp(0:labm, 4) = Waux_mat(1:labm + 1, ima, imbm - 1)
-                  ENDIF
+                  END IF
                   DO j = 0, labmin
                      !*** x component
                      dWaux_mat(1, j + 1, ipa, ipb) = dAa_p*Wamp(j, 1) - dAa_m*Wamm(j, 1) &
@@ -418,15 +418,15 @@ CONTAINS
                      IF (mb > 0) THEN
                         dWaux_mat(1, j + 1, ipa, imb) = dAa_p*Wamp(j, 2) - dAa_m*Wamm(j, 2) &
                                                         - dAb_p*Wbmp(j, 2) + dAb_m*Wbmm(j, 2)
-                     ENDIF
+                     END IF
                      IF (ma > 0) THEN
                         dWaux_mat(1, j + 1, ima, ipb) = dAa_p*Wamp(j, 3) - dAa_m*Wamm(j, 3) &
                                                         - dAb_p*Wbmp(j, 3) + dAb_m*Wbmm(j, 3)
-                     ENDIF
+                     END IF
                      IF (ma > 0 .AND. mb > 0) THEN
                         dWaux_mat(1, j + 1, ima, imb) = dAa_p*Wamp(j, 4) - dAa_m*Wamm(j, 4) &
                                                         - dAb_p*Wbmp(j, 4) + dAb_m*Wbmm(j, 4)
-                     ENDIF
+                     END IF
 
                      !**** y component
                      dWaux_mat(2, j + 1, ipa, ipb) = dAa_p*Wamp(j, 3) + dAa_m*Wamm(j, 3) &
@@ -434,32 +434,32 @@ CONTAINS
                      IF (mb > 0) THEN
                         dWaux_mat(2, j + 1, ipa, imb) = dAa_p*Wamp(j, 4) + dAa_m*Wamm(j, 4) &
                                                         + dAb_p*Wbmp(j, 1) + dAb_m*Wbmm(j, 1)
-                     ENDIF
+                     END IF
                      IF (ma > 0) THEN
                         dWaux_mat(2, j + 1, ima, ipb) = -dAa_p*Wamp(j, 1) - dAa_m*Wamm(j, 1) &
                                                         - dAb_p*Wbmp(j, 4) - dAb_m*Wbmm(j, 4)
-                     ENDIF
+                     END IF
                      IF (ma > 0 .AND. mb > 0) THEN
                         dWaux_mat(2, j + 1, ima, imb) = -dAa_p*Wamp(j, 2) - dAa_m*Wamm(j, 2) &
                                                         + dAb_p*Wbmp(j, 3) + dAb_m*Wbmm(j, 3)
-                     ENDIF
+                     END IF
                      !**** z compnent
                      dWaux_mat(3, j + 1, ipa, ipb) = dAa*Wam(j, 1) - dAb*Wbm(j, 1)
                      IF (mb > 0) THEN
                         dWaux_mat(3, j + 1, ipa, imb) = dAa*Wam(j, 2) - dAb*Wbm(j, 2)
-                     ENDIF
+                     END IF
                      IF (ma > 0) THEN
                         dWaux_mat(3, j + 1, ima, ipb) = dAa*Wam(j, 3) - dAb*Wbm(j, 3)
-                     ENDIF
+                     END IF
                      IF (ma > 0 .AND. mb > 0) THEN
                         dWaux_mat(3, j + 1, ima, imb) = dAa*Wam(j, 4) - dAb*Wbm(j, 4)
-                     ENDIF
+                     END IF
 
-                  ENDDO
-               ENDDO
-            ENDDO
-         ENDDO
-      ENDDO
+                  END DO
+               END DO
+            END DO
+         END DO
+      END DO
 
       DEALLOCATE (Wam, Wamm, Wamp)
       DEALLOCATE (Wbm, Wbmm, Wbmp)
@@ -514,11 +514,11 @@ CONTAINS
                      prefac = swork_cont(lai + lbj - j + 1, ishella, jshellb)
                      sab(fsgfa + mai, fsgfb + mbj) = sab(fsgfa + mai, fsgfb + mbj) &
                                                      + prefac*Waux_mat(j + 1, fnla + mai, fnlb + mbj)
-                  ENDDO
-               ENDDO
-            ENDDO
-         ENDDO
-      ENDDO
+                  END DO
+               END DO
+            END DO
+         END DO
+      END DO
 
    END SUBROUTINE construct_int_shg_ab
 
@@ -575,10 +575,10 @@ CONTAINS
                   dsab(fsgfa:lsgfa, fsgfb:lsgfb, i) = dsab(fsgfa:lsgfa, fsgfb:lsgfb, i) &
                                                       + rabx2(i)*dprefac*Waux_mat(j + 1, fnla:lnla, fnlb:lnlb) &
                                                       + prefac*dWaux_mat(i, j + 1, fnla:lnla, fnlb:lnlb)
-               ENDDO
-            ENDDO
-         ENDDO
-      ENDDO
+               END DO
+            END DO
+         END DO
+      END DO
 
    END SUBROUTINE construct_dev_shg_ab
 
@@ -652,15 +652,15 @@ CONTAINS
                            DO j = 0, labmin
                               prefac = swork_cont(laa + lbj - j + 1, il, ishella, jshellb, kshella)
                               stemp = stemp + prefac*Waux_mat(j + 1, nla + maa, nlb + mbj)
-                           ENDDO
+                           END DO
                        saba(ia + mai, jb + mbj, ka + mak) = saba(ia + mai, jb + mbj, ka + mak) + cg_coeff(isoa1, isoa2, isoaa)*stemp
-                        ENDDO
-                     ENDDO
-                  ENDDO
-               ENDDO
-            ENDDO
-         ENDDO
-      ENDDO
+                        END DO
+                     END DO
+                  END DO
+               END DO
+            END DO
+         END DO
+      END DO
 
    END SUBROUTINE construct_overlap_shg_aba
 
@@ -745,19 +745,19 @@ CONTAINS
                               DO i = 1, 3
                                  dtemp(i) = dtemp(i) + rabx2(i)*dprefac*Waux_mat(j + 1, nla + maa, nlb + mbj) &
                                             + prefac*dWaux_mat(i, j + 1, nla + maa, nlb + mbj)
-                              ENDDO
-                           ENDDO
+                              END DO
+                           END DO
                            DO i = 1, 3
                               dsaba(ia + mai, jb + mbj, ka + mak, i) = dsaba(ia + mai, jb + mbj, ka + mak, i) &
                                                                        + cg_coeff(isoa1, isoa2, isoaa)*dtemp(i)
-                           ENDDO
-                        ENDDO
-                     ENDDO
-                  ENDDO
-               ENDDO
-            ENDDO
-         ENDDO
-      ENDDO
+                           END DO
+                        END DO
+                     END DO
+                  END DO
+               END DO
+            END DO
+         END DO
+      END DO
 
    END SUBROUTINE dev_overlap_shg_aba
 
@@ -834,15 +834,15 @@ CONTAINS
                            DO j = 0, labmin
                               prefac = swork_cont(lai + lbb - j + 1, il, ishella, jshellb, kshellb)
                               stemp = stemp + prefac*Waux_mat(j + 1, nlb + mbb, nla + mai)
-                           ENDDO
+                           END DO
                  sabb(ia + mai, jb + mbj, kb + mbk) = sabb(ia + mai, jb + mbj, kb + mbk) + tsign*cg_coeff(isob1, isob2, isobb)*stemp
-                        ENDDO
-                     ENDDO
-                  ENDDO
-               ENDDO
-            ENDDO
-         ENDDO
-      ENDDO
+                        END DO
+                     END DO
+                  END DO
+               END DO
+            END DO
+         END DO
+      END DO
 
    END SUBROUTINE construct_overlap_shg_abb
 
@@ -931,19 +931,19 @@ CONTAINS
                               DO i = 1, 3
                                  dtemp(i) = dtemp(i) + rabx2(i)*dprefac*Waux_mat(j + 1, nlb + mbb, nla + mai) &
                                             + prefac*dWaux_mat(i, j + 1, nlb + mbb, nla + mai)
-                              ENDDO
-                           ENDDO
+                              END DO
+                           END DO
                            DO i = 1, 3
                               dsabb(ia + mai, jb + mbj, kb + mbk, i) = dsabb(ia + mai, jb + mbj, kb + mbk, i) &
                                                                        + tsign*cg_coeff(isob1, isob2, isobb)*dtemp(i)
-                           ENDDO
-                        ENDDO
-                     ENDDO
-                  ENDDO
-               ENDDO
-            ENDDO
-         ENDDO
-      ENDDO
+                           END DO
+                        END DO
+                     END DO
+                  END DO
+               END DO
+            END DO
+         END DO
+      END DO
 
    END SUBROUTINE dev_overlap_shg_abb
 

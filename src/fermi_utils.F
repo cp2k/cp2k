@@ -228,8 +228,8 @@ CONTAINS
             mu_min = mu_min - T
          ELSE
             EXIT
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       mu_max = MAXVAL(e)
       iter = 0
@@ -240,8 +240,8 @@ CONTAINS
             mu_max = mu_max + T
          ELSE
             EXIT
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       ! now bisect
       iter = 0
@@ -255,13 +255,13 @@ CONTAINS
             mu_min = mu_now
          ELSE
             mu_max = mu_now
-         ENDIF
+         END IF
 
          IF (iter > BISECT_MAX_ITER) THEN
             CPWARN("Maximum number of iterations reached while finding the Fermi energy")
             EXIT
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       mu = (mu_max + mu_min)/2.0_dp
       CALL Fermi(f, N_now, kTS, e, mu, T, maxocc, my_estate, my_festate)
@@ -309,13 +309,13 @@ CONTAINS
             mu_min = mu
          ELSE
             mu_max = mu
-         ENDIF
+         END IF
 
          IF (iter > BISECT_MAX_ITER) THEN
             CPWARN("Maximum number of iterations reached while finding the Fermi energy")
             EXIT
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       mu = (mu_max + mu_min)/2.0_dp
       CALL Fermi2(f, N_now, kTS, e, mu, wk, t, maxocc)
@@ -368,13 +368,13 @@ CONTAINS
             mu_min = mu
          ELSE
             mu_max = mu
-         ENDIF
+         END IF
 
          IF (iter > BISECT_MAX_ITER) THEN
             CPWARN("Maximum number of iterations reached while finding the Fermi energy")
             EXIT
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       mu = (mu_max + mu_min)/2.0_dp
       CALL Fermi2(f(:, :, 1), na, kTSa, e(:, :, 1), mu, wk, t, 1.0_dp)
@@ -451,7 +451,7 @@ CONTAINS
          ex(i) = e(i) - h
          CALL FermiFixed(fx, mux, kTS, ex, N, T, maxocc, my_estate, my_festate)
          dfde(:, I) = (dfde(:, I) - fx)/(2.0_dp*h)
-      ENDDO
+      END DO
       DEALLOCATE (ex, fx)
 
       CALL FermiFixed(f, mu, kTS, e, N, T, maxocc, my_estate, my_festate)

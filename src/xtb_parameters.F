@@ -374,7 +374,7 @@ CONTAINS
                   CALL remove_word(line_att)
                   READ (line_att, *) param%zeta(k)
                   CALL remove_word(line_att)
-               ENDIF
+               END IF
             END IF
          END DO
          IF (found) THEN

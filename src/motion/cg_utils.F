@@ -594,7 +594,7 @@ CONTAINS
          dum = fb
          fb = fa
          fa = dum
-      ENDIF
+      END IF
       cx = bx + gold*(bx - ax)
       IF (hist) THEN
          histpoint(3, 1) = cx
@@ -633,7 +633,7 @@ CONTAINS
                cx = u
                fc = fu
                EXIT
-            ENDIF
+            END IF
             u = cx + gold*(cx - bx)
             IF (hist) THEN
                odim = SIZE(histpoint, 1)
@@ -672,7 +672,7 @@ CONTAINS
                   fu = cg_eval1d(gopt_env, u, pcom, xicom)
                END IF
                loc_iter = loc_iter + 1
-            ENDIF
+            END IF
          ELSE IF ((u - ulim)*(ulim - cx) .GE. 0.) THEN
             u = ulim
             IF (hist) THEN
@@ -697,7 +697,7 @@ CONTAINS
                fu = cg_eval1d(gopt_env, u, pcom, xicom)
             END IF
             loc_iter = loc_iter + 1
-         ENDIF
+         END IF
          ax = bx
          bx = cx
          cx = u
@@ -800,12 +800,12 @@ CONTAINS
                   d = d1
                ELSE
                   d = d2
-               ENDIF
+               END IF
             ELSE IF (ok1) THEN
                d = d1
             ELSE
                d = d2
-            ENDIF
+            END IF
             IF (.NOT. skip0) THEN
                IF (ABS(d) .GT. ABS(0.5_dp*olde)) skip0 = .TRUE.
                IF (.NOT. skip0) THEN
@@ -814,13 +814,13 @@ CONTAINS
                   skip1 = .TRUE.
                END IF
             END IF
-         ENDIF
+         END IF
          IF (.NOT. skip1) THEN
             IF (dx .GE. 0.0_dp) THEN
                e = a - x
             ELSE
                e = b - x
-            ENDIF
+            END IF
             d = 0.5_dp*e
          END IF
          IF (ABS(d) .GE. tol1) THEN
@@ -832,13 +832,13 @@ CONTAINS
             du = cg_deval1d(gopt_env, u, pcom, xicom, fu)
             loc_iter = loc_iter + 1
             IF (fu .GT. fx) EXIT
-         ENDIF
+         END IF
          IF (fu .LE. fx) THEN
             IF (u .GE. x) THEN
                a = x
             ELSE
                b = x
-            ENDIF
+            END IF
             v = w; fv = fw; dv = dw; w = x
             fw = fx; dw = dx; x = u; fx = fu; dx = du
          ELSE
@@ -846,7 +846,7 @@ CONTAINS
                a = u
             ELSE
                b = u
-            ENDIF
+            END IF
             IF (fu .LE. fw .OR. w .EQ. x) THEN
                v = w; fv = fw; dv = dw
                w = u; fw = fu; dw = du
@@ -854,8 +854,8 @@ CONTAINS
                v = u
                fv = fu
                dv = du
-            ENDIF
-         ENDIF
+            END IF
+         END IF
       END DO
       IF (output_unit > 0) THEN
          WRITE (UNIT=output_unit, FMT="(/,T2,A)") REPEAT("*", 79)

@@ -322,7 +322,7 @@ CONTAINS
                      dggamma(j) = dggamma(j)*zeta + ggamma(j)*dzeta
                      ggamma(j) = ggamma(j)*zeta
                   END DO
-               ENDDO
+               END DO
             END DO
             dggamma = dggamma*zphase + ggamma*dzphase
             ggamma = ggamma*zphase
@@ -653,7 +653,7 @@ CONTAINS
       IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%PDOS") &
                 , cp_p_file)) THEN
          CPWARN("PDOS not implemented for Semi-Empirical calculations!!")
-      ENDIF
+      END IF
 
       ! Print the total density (electronic + core charge)
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
@@ -683,13 +683,13 @@ CONTAINS
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
                                            "DFT%PRINT%V_HARTREE_CUBE"), cp_p_file)) THEN
          CPWARN("V_HARTREE_CUBE not implemented for Semi-Empirical calculations!!")
-      ENDIF
+      END IF
 
       ! Print the XC potential
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
                                            "DFT%PRINT%V_XC_CUBE"), cp_p_file)) THEN
          CPWARN("V_XC_CUBE not available for Semi-Empirical calculations!!")
-      ENDIF
+      END IF
 
       ! Write the density matrix
       CALL section_vals_val_get(input, "DFT%PRINT%AO_MATRICES%OMIT_HEADERS", l_val=omit_headers)

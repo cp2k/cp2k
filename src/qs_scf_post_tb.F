@@ -393,9 +393,9 @@ CONTAINS
             ELSE
                CALL get_qs_env(qs_env, mos=mos)
                CALL calculate_dos(mos, qs_env, dft_section)
-            ENDIF
-         ENDIF
-      ENDIF
+            END IF
+         END IF
+      END IF
 
       ! PDOS
       IF (.NOT. no_mos) THEN
@@ -413,7 +413,7 @@ CONTAINS
                         mo_coeff_deriv => qs_env%mo_derivs(ispin)%matrix
                      ELSE
                         mo_coeff_deriv => NULL()
-                     ENDIF
+                     END IF
                      CALL calculate_subspace_eigenvalues(mo_coeff, ks_rmpv(ispin)%matrix, mo_eigenvalues, &
                                                          do_rotation=.TRUE., &
                                                          co_rotate_dbcsr=mo_coeff_deriv)
@@ -426,8 +426,8 @@ CONTAINS
                      CALL calculate_projected_dos(mos(ispin)%mo_set, atomic_kind_set, &
                                                   qs_kind_set, particle_set, qs_env, dft_section)
                   END IF
-               ENDDO
-            ENDIF
+               END DO
+            END IF
          END IF
       END IF
 
@@ -459,7 +459,7 @@ CONTAINS
          ELSE
             CPWARN("Energy Windows not implemented for TB methods.")
          END IF
-      ENDIF
+      END IF
 
       ! DENSITY CUBE FILE
       print_key => section_vals_get_subs_vals(print_section, "E_DENSITY_CUBE")
@@ -585,7 +585,7 @@ CONTAINS
                      DO ispin = 1, dft_control%nspins
                         DEALLOCATE (unoccupied_evals_stm(ispin)%array)
                         CALL cp_fm_release(unoccupied_orbs_stm(ispin)%matrix)
-                     ENDDO
+                     END DO
                      DEALLOCATE (unoccupied_evals_stm)
                      DEALLOCATE (unoccupied_orbs_stm)
                   END IF
@@ -730,7 +730,7 @@ CONTAINS
                   dggamma(j) = dggamma(j)*zeta + ggamma(j)*dzeta
                   ggamma(j) = ggamma(j)*zeta
                END DO
-            ENDDO
+            END DO
          END DO
          dggamma = dggamma*zphase + ggamma*dzphase
          ggamma = ggamma*zphase
@@ -998,8 +998,8 @@ CONTAINS
             ! this one can for sure not be right (as it has to match a given C0)
             IF (local_preconditioner%in_use == ot_precond_full_all) THEN
                NULLIFY (local_preconditioner)
-            ENDIF
-         ENDIF
+            END IF
+         END IF
 
          CALL ot_eigensolver(matrix_h=ks_rmpv(ispin)%matrix, matrix_s=matrix_s(1)%matrix, &
                              matrix_c_fm=unoccupied_orbs(ispin)%matrix, &
@@ -1038,7 +1038,7 @@ CONTAINS
          CALL pw_env_create(new_pw_env)
          CALL set_ks_env(ks_env, pw_env=new_pw_env)
          CALL pw_env_release(new_pw_env)
-      ENDIF
+      END IF
       CALL get_qs_env(qs_env, pw_env=new_pw_env, dft_control=dft_control, cell=cell)
 
       new_pw_env%cell_hmat = cell%hmat
@@ -1049,7 +1049,7 @@ CONTAINS
       IF (.NOT. ASSOCIATED(task_list)) THEN
          CALL allocate_task_list(task_list)
          CALL set_ks_env(ks_env, task_list=task_list)
-      ENDIF
+      END IF
       skip_load_balance_distributed = dft_control%qs_control%skip_load_balance_distributed
       CALL generate_qs_task_list(ks_env, task_list, &
                                  reorder_rs_grid_ranks=.TRUE., soft_valid=.FALSE., &
@@ -1615,10 +1615,10 @@ CONTAINS
                   CALL cp_pw_to_cube(wf_r%pw, unit_nr, title, particles=particles, &
                                      stride=section_get_ivals(cube_section, "STRIDE"), mpi_io=mpi_io)
                   CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
-               ENDDO
-            ENDIF
+               END DO
+            END IF
          END DO
-      ENDIF
+      END IF
 
       IF (nlumo /= 0) THEN
          DO ispin = 1, dft_control%nspins
@@ -1645,7 +1645,7 @@ CONTAINS
                   CALL cp_pw_to_cube(wf_r%pw, unit_nr, title, particles=particles, &
                                      stride=section_get_ivals(cube_section, "STRIDE"), mpi_io=mpi_io)
                   CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
-               ENDDO
+               END DO
             END IF
          END DO
       END IF

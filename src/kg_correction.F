@@ -474,7 +474,7 @@ CONTAINS
       IF (calc_force) THEN
          pmat(1:nspins, 1:1) => density_matrix(1:nspins)
          CALL calculate_lri_forces(lri_env, lri_density, qs_env, pmat, atomic_kind_set)
-      ENDIF
+      END IF
       DEALLOCATE (atomlist, ksmat)
 
       ! clean up rho_struct
@@ -634,7 +634,7 @@ CONTAINS
       END DO
       IF (calc_force) THEN
          CALL calculate_lri_forces(lri_env, lri_density, qs_env, density_matrix, atomic_kind_set)
-      ENDIF
+      END IF
       DEALLOCATE (atomlist, ksmat)
 
       ! clean up rho_struct

@@ -107,7 +107,7 @@ CONTAINS
          CALL check_range_k15(k, Rc, ierr)
       ELSE
          IF (k .GT. k_max) ierr = -1
-      ENDIF
+      END IF
 
    END SUBROUTINE check_exp_minimax_range
 
@@ -141,13 +141,13 @@ CONTAINS
             CPASSERT(ierr .EQ. 0)
             CALL get_minimax_coeff_k15(k, Rc, aw, mm_error)
             IF (PRESENT(which_coeffs)) which_coeffs = mm_k15
-         ENDIF
+         END IF
       ELSEIF (k .LE. 53) THEN
          CALL get_minimax_coeff_k53(k, Rc, aw, mm_error)
          IF (PRESENT(which_coeffs)) which_coeffs = mm_k53
       ELSE
          CPABORT("No minimax approximations available for k = "//cp_to_string(k))
-      ENDIF
+      END IF
    END SUBROUTINE get_exp_minimax_coeff
 
 ! **************************************************************************************************
@@ -197,7 +197,7 @@ CONTAINS
       i_k = 1
       DO WHILE (k_mm(k_p(i_k)) .LT. k)
          i_k = i_k + 1
-      ENDDO
+      END DO
       CPASSERT(k_mm(k_p(i_k)) .EQ. k)
 
       R_k_min = R_mm(k_p(i_k))
@@ -211,7 +211,7 @@ CONTAINS
          i = k_p(i_k)
          DO WHILE (Rc .GT. R_mm(i))
             i = i + 1
-         ENDDO
+         END DO
          i_r = i ! pointer to closest R_mm >= Rc
          i_l = i - 1 ! pointer to closest R_mm < Rc
 
@@ -219,8 +219,8 @@ CONTAINS
             IF (ge_Rc) THEN
                i_mm = i_r
                RETURN
-            ENDIF
-         ENDIF
+            END IF
+         END IF
 
          ALLOCATE (aw(2*k_mm(i_r)))
          CALL get_minimax_coeff_low(i_r, aw)
@@ -231,7 +231,7 @@ CONTAINS
          error_r = get_minimax_numerical_error(Rc, aw)
          DEALLOCATE (aw)
          i_mm = MERGE(i_r, i_l, error_l .LE. error_r)
-      ENDIF
+      END IF
 
    END SUBROUTINE get_best_minimax_approx_k53
 
@@ -254,7 +254,7 @@ CONTAINS
          WRITE (iw, '(//T2,A)') &
             "Unit tests for minimax 1/x ~ SUM_{i}^{K} w_i EXP(-a_i * x) for x belonging to [1:Rc]"
          WRITE (iw, '(T2,84("*"))')
-      ENDIF
+      END IF
 
       IF (iw > 0) THEN
          WRITE (iw, '(/T2,A)') &
@@ -262,7 +262,7 @@ CONTAINS
          WRITE (iw, '(/T2,A)') &
             "which coeffs, K, Rc, num. error, ref. error, rel. diff (num. error - ref. error)/(ref. error)"
          WRITE (iw, '(T2,54("-"))')
-      ENDIF
+      END IF
       DO i_mm = 1, n_approx
          R = R_mm(i_mm)
          k = k_mm(i_mm)
@@ -278,7 +278,7 @@ CONTAINS
             CPASSERT(mm_error .LE. ref_error*1.05_dp + 1.0E-15_dp)
          ELSE
             IF (iw > 0) WRITE (iw, '(T2,A4, I3, ES10.1, 3X, A)') "k15", k, R, "missing"
-         ENDIF
+         END IF
 
          IF (k .LE. 15) THEN
             ALLOCATE (aw(2*k))
@@ -289,9 +289,9 @@ CONTAINS
                "k53", k, R, mm_error, ref_error, (mm_error - ref_error)/ref_error
             IF (mm_error .GT. ref_error*1.05_dp + 1.0E-15_dp) THEN
                CPABORT("Test 1 failed: numerical error is larger than tabulated error")
-            ENDIF
-         ENDIF
-      ENDDO
+            END IF
+         END IF
+      END DO
 
       IF (iw > 0 .AND. n_R .GT. 0) THEN
          WRITE (iw, '(T2,54("-"))')
@@ -301,7 +301,7 @@ CONTAINS
          WRITE (iw, '(/T2,A)') &
             "which coeffs, K, Rc, num. error, ref. error, rel. diff (num. error - ref. error)/(ref. error)"
          WRITE (iw, '(T2,54("-"))')
-      ENDIF
+      END IF
       dR = R_max**(1.0_dp/n_R)
 
       DO k = 1, k_max
@@ -314,22 +314,22 @@ CONTAINS
             IF (R .GT. R_mm(i_mm)) THEN
                R = R_max
                do_exit = .TRUE.
-            ENDIF
+            END IF
             ref_error = err_mm(i_mm)
             IF (iw > 0) WRITE (iw, '(T2, A4, I3, ES10.1, ES12.3, ES12.3, ES12.3)') &
                MERGE("k15", "k53", which_coeffs .EQ. mm_k15), k, R, &
                mm_error, ref_error, (mm_error - ref_error)/ref_error
             IF (mm_error .GT. ref_error*1.05_dp + 1.0E-15_dp) THEN
                CPABORT("Test 2 failed: numerical error is larger than tabulated error")
-            ENDIF
+            END IF
             IF (do_exit) EXIT
-         ENDDO
+         END DO
          DEALLOCATE (aw)
-      ENDDO
+      END DO
       IF (iw > 0) THEN
          WRITE (iw, '(T2,54("-"))')
          WRITE (iw, '(/T2,A)') "Test 2 OK"
-      ENDIF
+      END IF
    END SUBROUTINE validate_exp_minimax
 
 END MODULE minimax_exp

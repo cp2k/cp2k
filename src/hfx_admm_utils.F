@@ -175,7 +175,7 @@ CONTAINS
          IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) &
             CALL init_admm_gapw(qs_env)
 
-      ENDIF
+      END IF
 
       IF (admm_env%do_gapw .AND. dft_control%do_admm_dm) THEN
          CPABORT("GAPW ADMM not implemented for MCWEENY or NONE_DM purification.")
@@ -188,7 +188,7 @@ CONTAINS
       IF (dft_control%do_admm_dm .AND. .NOT. ASSOCIATED(admm_dm)) THEN
          CALL admm_dm_create(admm_dm, dft_control%admm_control, nspins=nspins, natoms=natoms)
          CALL set_ks_env(ks_env, admm_dm=admm_dm)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -366,7 +366,7 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, mos_aux_fit=mo_array)
       ELSE
          CALL get_qs_env(qs_env=qs_env, mos=mo_array)
-      ENDIF
+      END IF
 
       nspins = dft_control%nspins
       nimages = dft_control%nimages
@@ -432,7 +432,7 @@ CONTAINS
 
          IF (x_data(irep, 1)%do_hfx_ri .AND. calculate_forces) THEN
             CPABORT("RI forces not yet implemented in HFX")
-         ENDIF
+         END IF
 
          IF (x_data(irep, 1)%do_hfx_ri) THEN
             CALL hfx_ri_update_ks(qs_env, x_data(irep, 1)%ri_data, matrix_ks_orb, ehfx, &
@@ -444,7 +444,7 @@ CONTAINS
                DO ispin = 1, mspin
                   CALL dbcsr_copy(matrix_ks_aux_fit_hfx(ispin)%matrix, matrix_ks_orb(ispin, 1)%matrix, &
                                   name="HF exch. part of matrix_ks_aux_fit for ADMMS")
-               ENDDO
+               END DO
             END IF
          ELSE
 
@@ -454,7 +454,7 @@ CONTAINS
                                           ispin=ispin)
                ehfx = ehfx + eh1
             END DO
-         ENDIF
+         END IF
 
          IF (calculate_forces .AND. .NOT. do_adiabatic_rescaling) THEN
             !Scale auxiliary density matrix for ADMMP (see Merlot2014) with gsi(ispin) to scale force
@@ -514,7 +514,7 @@ CONTAINS
                   DO ispin = 1, mspin
                      CALL dbcsr_copy(matrix_ks_aux_fit_hfx(ispin)%matrix, matrix_ks_orb(ispin, 1)%matrix, &
                                      name="HF exch. part of matrix_ks_aux_fit for ADMMS")
-                  ENDDO
+                  END DO
                END IF
 
             ELSE
@@ -524,7 +524,7 @@ CONTAINS
                                              ispin=ispin)
                   ehfxrt = ehfxrt + eh1
                END DO
-            ENDIF
+            END IF
 
             IF (calculate_forces .AND. .NOT. do_adiabatic_rescaling) THEN
                NULLIFY (rho_ao_resp)
@@ -560,7 +560,7 @@ CONTAINS
          virial%pv_exx = virial%pv_exx - virial%pv_fock_4c
          virial%pv_virial = virial%pv_virial - virial%pv_fock_4c
          virial%pv_calculate = .FALSE.
-      ENDIF
+      END IF
 
       !! If we perform adiabatic rescaling we are now able to rescale the xc-potential
       IF (do_adiabatic_rescaling) THEN

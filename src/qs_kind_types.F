@@ -264,14 +264,14 @@ CONTAINS
             END IF
             IF (ASSOCIATED(qs_kind_set(ikind)%gth_potential)) THEN
                CALL deallocate_potential(qs_kind_set(ikind)%gth_potential)
-            ENDIF
+            END IF
             IF (ASSOCIATED(qs_kind_set(ikind)%sgp_potential)) THEN
                CALL deallocate_potential(qs_kind_set(ikind)%sgp_potential)
-            ENDIF
+            END IF
             IF (ASSOCIATED(qs_kind_set(ikind)%upf_potential)) THEN
                CALL atom_release_upf(qs_kind_set(ikind)%upf_potential)
                DEALLOCATE (qs_kind_set(ikind)%upf_potential)
-            ENDIF
+            END IF
             IF (ASSOCIATED(qs_kind_set(ikind)%se_parameter)) THEN
                CALL semi_empirical_release(qs_kind_set(ikind)%se_parameter)
             END IF
@@ -914,12 +914,12 @@ CONTAINS
             IF (PRESENT(maxco_proj) .AND. ASSOCIATED(paw_proj_set)) THEN
                CALL get_paw_proj_set(paw_proj_set=paw_proj_set, ncgauprj=imax)
                maxco_proj = MAX(maxco_proj, imax)
-            ENDIF
+            END IF
 
             IF (PRESENT(maxlprj) .AND. ASSOCIATED(paw_proj_set)) THEN
                CALL get_paw_proj_set(paw_proj_set=paw_proj_set, maxl=imax)
                maxlprj = MAX(maxlprj, imax)
-            ENDIF
+            END IF
 
             IF (PRESENT(maxppnl) .AND. ASSOCIATED(gth_potential)) THEN
                CALL get_potential(potential=gth_potential, nppnl=imax)
@@ -1128,11 +1128,11 @@ CONTAINS
 
             IF (PRESENT(max_ngrid_rad)) THEN
                max_ngrid_rad = MAX(max_ngrid_rad, ngrid_rad)
-            ENDIF
+            END IF
 
             IF (PRESENT(max_sph_harm)) THEN
                max_sph_harm = MAX(max_sph_harm, max_s_harm)
-            ENDIF
+            END IF
 
             IF (PRESENT(maxg_iso_not0)) THEN
                maxg_iso_not0 = MAX(maxg_iso_not0, max_iso_not0)
@@ -1211,7 +1211,7 @@ CONTAINS
 
       IF (.NOT. ASSOCIATED(qs_kind_set)) THEN
          CPABORT("init_qs_kind_set: The pointer qs_kind_set is not associated")
-      ENDIF
+      END IF
 
       DO ikind = 1, SIZE(qs_kind_set)
          qs_kind => qs_kind_set(ikind)
@@ -1589,7 +1589,7 @@ CONTAINS
                                       r_val=qs_kind%pao_potentials(ipaopot)%beta)
             CALL section_vals_val_get(pao_pot_section, keyword_name="WEIGHT", i_rep_section=ipaopot, &
                                       r_val=qs_kind%pao_potentials(ipaopot)%weight)
-         ENDDO
+         END DO
 
          ! parse PAO_DESCRIPTOR sections
          pao_desc_section => section_vals_get_subs_vals(kind_section, "PAO_DESCRIPTOR", i_rep_section=k_rep)
@@ -1602,7 +1602,7 @@ CONTAINS
                                       r_val=qs_kind%pao_descriptors(ipaodesc)%screening)
             CALL section_vals_val_get(pao_desc_section, keyword_name="WEIGHT", i_rep_section=ipaodesc, &
                                       r_val=qs_kind%pao_descriptors(ipaodesc)%weight)
-         ENDDO
+         END DO
 
          ! parse ELEC_CONF
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
@@ -1611,7 +1611,7 @@ CONTAINS
             CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                       keyword_name="ELEC_CONF", i_vals=elec_conf)
             CALL set_qs_kind(qs_kind, elec_conf=elec_conf)
-         ENDIF
+         END IF
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="CORE_CORRECTION", r_val=zeff_correction)
          ! parse POTENTIAL
@@ -1656,11 +1656,11 @@ CONTAINS
                qs_kind%hard_radius = 1.2_dp
             ELSE
                qs_kind%hard_radius = 0.8_dp*bohr
-            ENDIF
+            END IF
          ELSE
             CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                       keyword_name="HARD_EXP_RADIUS", r_val=qs_kind%hard_radius)
-         ENDIF
+         END IF
 
          ! assign atom dependent defaults, only H special case
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, n_rep_val=i, &
@@ -1670,7 +1670,7 @@ CONTAINS
          ELSE
             CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                       keyword_name="RHO0_EXP_RADIUS", r_val=qs_kind%hard0_radius)
-         ENDIF
+         END IF
          IF (qs_kind%hard_radius < qs_kind%hard0_radius) &
             CPABORT("rc0 should be <= rc")
 
@@ -2414,7 +2414,7 @@ CONTAINS
          j = SCAN(string(i + 2:), "- ")
          READ (string(i + 2:i + j), '(I3)', iostat=istat) n
          IF (istat == 0) RETURN
-      ENDDO
+      END DO
       n = -1 ! valence electron number not found
    END FUNCTION
 
@@ -2649,10 +2649,10 @@ CONTAINS
       IF (PRESENT(elec_conf)) THEN
          IF (ASSOCIATED(qs_kind%elec_conf)) THEN
             DEALLOCATE (qs_kind%elec_conf)
-         ENDIF
+         END IF
          ALLOCATE (qs_kind%elec_conf(0:SIZE(elec_conf) - 1))
          qs_kind%elec_conf(:) = elec_conf(:)
-      ENDIF
+      END IF
       IF (PRESENT(paw_atom)) qs_kind%paw_atom = paw_atom
       IF (PRESENT(hard_radius)) qs_kind%hard_radius = hard_radius
       IF (PRESENT(hard0_radius)) qs_kind%hard0_radius = hard0_radius
@@ -3190,7 +3190,7 @@ CONTAINS
             CALL get_potential(potential=sgp_potential, has_nlcc=nlcc_present)
             nlcc = nlcc .OR. nlcc_present
          END IF
-      ENDDO
+      END DO
 
    END FUNCTION has_nlcc
 

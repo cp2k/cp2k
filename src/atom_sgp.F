@@ -692,8 +692,8 @@ CONTAINS
             CALL release_atom_basis(gbasis)
             DEALLOCATE (pgauss, pproa, pprob)
             DEALLOCATE (al, cl, smat, sinv, tmat, cmat)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       IF (upf_pot%core_correction) THEN
          sgp_pot%has_nlcc = .TRUE.
@@ -1116,7 +1116,7 @@ CONTAINS
          sinv = 0.0_dp
          CALL get_pseudo_inverse_diag(smat(1:nl, 1:nl), sinv(1:nl, 1:nl), 1.e-12_dp)
          cl(1:nl) = MATMUL(sinv(1:nl, 1:nl), tv(1:nl))
-      ENDIF
+      END IF
       !
       vgauss = 0.0_dp
       DO ir = 1, nl

@@ -157,7 +157,7 @@ CONTAINS
          CALL cp_fm_set_all(opt_dmfet%dm_subsys_beta, 0.0_dp)
          CALL cp_fm_set_all(opt_dmfet%dm_total_beta, 0.0_dp)
          CALL cp_fm_set_all(opt_dmfet%dm_diff_beta, 0.0_dp)
-      ENDIF
+      END IF
 
       ! Release structure and context
       CALL cp_fm_struct_release(fm_struct)
@@ -192,7 +192,7 @@ CONTAINS
          CALL cp_fm_release(opt_dmfet%dm_subsys_beta)
          CALL cp_fm_release(opt_dmfet%dm_total_beta)
          CALL cp_fm_release(opt_dmfet%dm_diff_beta)
-      ENDIF
+      END IF
 
       DEALLOCATE (opt_dmfet%w_func)
       DEALLOCATE (opt_dmfet%max_diff)
@@ -247,14 +247,14 @@ CONTAINS
                       k=homo, alpha=coeff, &
                       matrix_a=mo_coeff, matrix_b=mo_coeff, &
                       beta=0.0_dp, matrix_c=dm_beta)
-      ENDIF
+      END IF
 
       ! If embedding is open shell, but subsystem is not, copy alpha-spin DM intou beta-spin DM
       IF (open_shell_embed .AND. (.NOT. open_shell)) THEN
          CALL get_qs_env(qs_env=qs_env, para_env=para_env)
          CALL cp_fm_copy_general(dm, dm_beta, para_env)
 
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -302,7 +302,7 @@ CONTAINS
 
          CALL dbcsr_trace(dm_s, trace)
 
-      ENDIF
+      END IF
 
       ! Release dbcsr objects
       CALL dbcsr_release(diff_dbcsr)
@@ -312,7 +312,7 @@ CONTAINS
       CALL cp_fm_maxabsval(opt_dmfet%dm_diff, max_diff)
       IF (opt_dmfet%open_shell_embed) THEN
          CALL cp_fm_maxabsval(opt_dmfet%dm_diff_beta, max_diff_beta)
-      ENDIF
+      END IF
 
    END SUBROUTINE check_dmfet
 

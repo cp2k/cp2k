@@ -283,18 +283,18 @@ CONTAINS
       IF (z < zero) THEN
          up = .NOT. up
          z = -z
-      ENDIF
+      END IF
       IF (.NOT. (z <= ltone .OR. up .AND. z <= utzero)) THEN
          fn_val = zero
          IF (.NOT. up) fn_val = one - fn_val
          RETURN
-      ENDIF
+      END IF
       y = half*z*z
       IF (z <= con) THEN
          fn_val = r*EXP(-y)/(z + c1 + d1/(z + c2 + d2/(z + c3 + d3/(z + c4 + d4/(z + c5 + d5/(z + c6))))))
       ELSE
          fn_val = half - z*(p - q*y/(y + a1 + b1/(y + a2 + b2/(y + a3))))
-      ENDIF
+      END IF
       IF (.NOT. up) fn_val = one - fn_val
 
    END FUNCTION alnorm
@@ -327,7 +327,7 @@ CONTAINS
       IF (nord == 2) THEN
          fn_val = fn_val + p
          RETURN
-      ENDIF
+      END IF
       n2 = nord - 2
       j = n2 + 1
       DO i = 1, n2

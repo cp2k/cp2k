@@ -172,7 +172,7 @@ CONTAINS
          DO i = 1, inn
             i0 = ilist(i)
             blk_out(i, j) = blk_in(i0, j0)
-         ENDDO
+         END DO
          DO i = inn1, in, 4
             i0 = ilist(i)
             i1 = ilist(i + 1)
@@ -182,8 +182,8 @@ CONTAINS
             blk_out(i + 1, j) = blk_in(i1, j0)
             blk_out(i + 2, j) = blk_in(i2, j0)
             blk_out(i + 3, j) = blk_in(i3, j0)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
    END SUBROUTINE alist_pre_align_blk
 
 ! **************************************************************************************************
@@ -213,7 +213,7 @@ CONTAINS
          DO i = 1, inn
             i0 = ilist(i)
             blk_out(i0, j0) = blk_out(i0, j0) + blk_in(i, j)
-         ENDDO
+         END DO
          DO i = inn1, in, 4
             i0 = ilist(i)
             i1 = ilist(i + 1)
@@ -223,8 +223,8 @@ CONTAINS
             blk_out(i1, j0) = blk_out(i1, j0) + blk_in(i + 1, j)
             blk_out(i2, j0) = blk_out(i2, j0) + blk_in(i + 2, j)
             blk_out(i3, j0) = blk_out(i3, j0) + blk_in(i + 3, j)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
    END SUBROUTINE alist_post_align_blk
 
 ! **************************************************************************************************
@@ -318,14 +318,14 @@ CONTAINS
       my_momentmode = .FALSE.
       IF (PRESENT(moment_mode)) THEN
          my_momentmode = moment_mode
-      ENDIF
+      END IF
 
       my_ref = .FALSE.
       IF (PRESENT(refpoint)) THEN
          CPASSERT((PRESENT(cell) .AND. PRESENT(particle_set))) ! need these as well if refpoint is provided
          rf = refpoint
          my_ref = .TRUE.
-      ENDIF
+      END IF
 
       CALL get_qs_kind_set(qs_kind_set, &
                            maxco=maxco, &
@@ -484,7 +484,7 @@ CONTAINS
          ELSE
             raf(:) = -rac
             rcf(:) = (/0._dp, 0._dp, 0._dp/)
-         ENDIF
+         END IF
 
          dac = NORM2(rac)
          clist => sap_int(iac)%alist(ilist)%clist(jneighbor)
@@ -522,7 +522,7 @@ CONTAINS
                   ELSE
                      CALL overlap(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
                                   lc_max, lc_min, 1, rprjc, zetc, rac, dac, sab, nder, .TRUE., ai_work, ldai)
-                  ENDIF
+                  END IF
                   IF (my_momentmode .AND. nder >= 1) THEN
                      CALL moment(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
                                  lc_max, 1, zetc, rprjc, nder, raf, rcf, ai_work)
@@ -532,8 +532,8 @@ CONTAINS
                      DO i = 1, maxder - 1
                         first_col = i*ldsab
                         sab(1:na, first_col + 1:first_col + np) = ai_work(1:na, 1:np, i)
-                     ENDDO
-                  ENDIF
+                     END DO
+                  END IF
 
                   ! *** Transformation step projector functions (cartesian->spherical) ***
                   na = ncoa
@@ -570,7 +570,7 @@ CONTAINS
                ELSE
                   CALL overlap(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
                                lppnl, 0, nnl, radp, a_nl, rac, dac, sab, nder, .TRUE., ai_work, ldai)
-               ENDIF
+               END IF
                IF (my_momentmode .AND. nder >= 1) THEN
                   CALL moment(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
                               lppnl, nnl, a_nl, radp, nder, raf, rcf, ai_work)
@@ -579,8 +579,8 @@ CONTAINS
                   DO i = 1, maxder - 1
                      first_col = i*ldsab
                      sab(1:na, first_col:first_col + nprjc - 1) = ai_work(1:na, 1:nprjc, i)
-                  ENDDO
-               ENDIF
+                  END DO
+               END IF
 
                na = nsgf_seta(iset)
                nb = nppnl
@@ -606,7 +606,7 @@ CONTAINS
          clist%maxach = MAXVAL(ABS(clist%achint(:, :, 1)))
          IF (.NOT. dogth) DEALLOCATE (radp)
 
-      ENDDO
+      END DO
 
       DEALLOCATE (sab, ai_work, work)
 

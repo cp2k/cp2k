@@ -347,7 +347,7 @@ CONTAINS
                END DO
             END DO
          END DO
-      ENDIF
+      END IF
 
       NULLIFY (admm_env%admm_gapw_env)
       admm_env%do_gapw = .FALSE.

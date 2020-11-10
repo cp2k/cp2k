@@ -210,7 +210,7 @@ CONTAINS
       line = TRIM(line)
       DO i = 1, LEN_TRIM(line)
          IF (line(i:i) == ' ') EXIT
-      ENDDO
+      END DO
       cmd = line(1:i)
       CALL uppercase(cmd)
       line = ADJUSTL(line(i:)) ! shift
@@ -218,14 +218,14 @@ CONTAINS
       ! extract first arg
       DO i = 1, LEN_TRIM(line)
          IF (line(i:i) == ' ') EXIT
-      ENDDO
+      END DO
       arg1 = line(1:i)
       line = ADJUSTL(line(i:)) ! shift
 
       ! extract second arg
       DO i = 1, LEN_TRIM(line)
          IF (line(i:i) == ' ') EXIT
-      ENDDO
+      END DO
       arg2 = line(1:i)
 
       ! ignore remaining line
@@ -251,11 +251,11 @@ CONTAINS
             shell%env_id = -1
             success = .FALSE.
             CALL print_error("parse_env_id failed", shell)
-         ENDIF
+         END IF
       ELSE IF (shell%env_id < 1) THEN
          CALL print_error("last env_id not set", shell)
          success = .FALSE.
-      ENDIF
+      END IF
       ! fallback: reuse last env_id
    END FUNCTION parse_env_id
 
@@ -275,7 +275,7 @@ CONTAINS
       success = condition
       IF (.NOT. success) THEN
          CALL print_error(message, shell)
-      ENDIF
+      END IF
    END FUNCTION my_assert
 
 ! **************************************************************************************************
@@ -483,7 +483,7 @@ CONTAINS
       IF (ierr /= 0) THEN
          shell%env_id = -1
          CALL print_error("create_force_env failed", shell)
-      ENDIF
+      END IF
    END SUBROUTINE bg_load_command
 
 ! **************************************************************************************************

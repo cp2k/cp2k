@@ -107,7 +107,7 @@ CONTAINS
          my_beta = 1.0_dp
       ELSE
          my_beta = 0.0_dp
-      ENDIF
+      END IF
       IF (PRESENT(beta)) my_beta = beta
       NULLIFY (a, b)
 
@@ -134,15 +134,15 @@ CONTAINS
          size_a = SIZE(a_sp, 1)*SIZE(a_sp, 2)
       ELSE
          size_a = SIZE(a, 1)*SIZE(a, 2)
-      ENDIF
+      END IF
 
       IF (alpha /= 1.0_dp) THEN
          IF (matrix_a%use_sp) THEN
             CALL sscal(size_a, REAL(alpha, sp), a_sp, 1)
          ELSE
             CALL dscal(size_a, alpha, a, 1)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
       IF (my_beta .NE. 0.0_dp) THEN
          IF (matrix_a%matrix_struct%context%group /= matrix_b%matrix_struct%context%group) &
             CPABORT("matrixes must be in the same blacs context")
@@ -161,7 +161,7 @@ CONTAINS
                CALL daxpy(size_a, my_beta, REAL(b_sp, dp), 1, a, 1)
             ELSE
                CALL daxpy(size_a, my_beta, b, 1, a, 1)
-            ENDIF
+            END IF
 
          ELSE
 #ifdef __SCALAPACK
@@ -306,11 +306,11 @@ CONTAINS
       diag(:) = 0.0_dp
       DO i = 1, n
          CALL cp_fm_get_element(matrix_a, i, i, diag(i)) !  not completely optimal in speed i would say
-      ENDDO
+      END DO
       determinant = 1.0_dp
       DO i = 1, n
          determinant = determinant*diag(i)
-      ENDDO
+      END DO
       DEALLOCATE (diag)
 #else
       lda = SIZE(a, 1)
@@ -327,7 +327,7 @@ CONTAINS
       ELSE
          DO i = 1, n
             determinant = determinant*a(i, i)
-         ENDDO
+         END DO
       END IF
 #endif
       ! info is allowed to be zero
@@ -448,7 +448,7 @@ CONTAINS
 
       ELSE
          CPABORT("Mixed precision gemm NYI")
-      ENDIF
+      END IF
 #else
 
       IF (matrix_a%use_sp .AND. matrix_b%use_sp .AND. matrix_c%use_sp) THEN
@@ -470,7 +470,7 @@ CONTAINS
 
       ELSE
          CPABORT("Mixed precision gemm NYI")
-      ENDIF
+      END IF
 
 #endif
       CALL timestop(handle)
@@ -744,7 +744,7 @@ CONTAINS
       ELSE
          trace = accurate_sum(a(1:nrow_local, 1:ncol_local)* &
                               b(1:nrow_local, 1:ncol_local))
-      ENDIF
+      END IF
 
       CALL mp_sum(trace, group)
 
@@ -1182,8 +1182,8 @@ CONTAINS
       DO j = 1, ncol_global
          DO i = 1, nrow_global
             c(j, i) = a(i, j)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 #endif
       CALL timestop(handle)
 
@@ -1264,13 +1264,13 @@ CONTAINS
                   c_sp(irow_local, icol_local) = 0.0_sp
                ELSE
                   c(irow_local, icol_local) = 0.0_dp
-               ENDIF
+               END IF
             ELSE IF (irow_global == icol_global) THEN
                IF (matrix%use_sp) THEN
                   c_sp(irow_local, icol_local) = 0.5_sp*c_sp(irow_local, icol_local)
                ELSE
                   c(irow_local, icol_local) = 0.5_dp*c(irow_local, icol_local)
-               ENDIF
+               END IF
             END IF
          END DO
       END DO
@@ -1281,15 +1281,15 @@ CONTAINS
             a_sp(irow_local, icol_local) = c_sp(irow_local, icol_local)
          ELSE
             a(irow_local, icol_local) = c(irow_local, icol_local)
-         ENDIF
-      ENDDO
-      ENDDO
+         END IF
+      END DO
+      END DO
 
       IF (matrix%use_sp) THEN
          CALL pstran(nrow_global, ncol_global, 1.0_sp, a_sp(1, 1), 1, 1, desca, 1.0_sp, c_sp(1, 1), 1, 1, descc)
       ELSE
          CALL pdtran(nrow_global, ncol_global, 1.0_dp, a(1, 1), 1, 1, desca, 1.0_dp, c(1, 1), 1, 1, descc)
-      ENDIF
+      END IF
 
 #else
 
@@ -1301,9 +1301,9 @@ CONTAINS
                a_sp(icol_global, irow_global) = a_sp(irow_global, icol_global)
             ELSE
                a(icol_global, irow_global) = a(irow_global, icol_global)
-            ENDIF
-         ENDDO
-      ENDDO
+            END IF
+         END DO
+      END DO
 
 #endif
       CALL timestop(handle)
@@ -1350,7 +1350,7 @@ CONTAINS
          n = SIZE(a_sp, 1)
       ELSE
          n = SIZE(a, 1)
-      ENDIF
+      END IF
       k = MIN(SIZE(scaling), ncol_global)
 
 #if defined(__SCALAPACK)
@@ -1364,17 +1364,17 @@ CONTAINS
                CALL SSCAL(n, REAL(scaling(icol_global), sp), a_sp(:, icol_local), 1)
             ELSE
                CALL DSCAL(n, scaling(icol_global), a(:, icol_local), 1)
-            ENDIF
+            END IF
          END IF
-      ENDDO
+      END DO
 #else
       DO i = 1, k
          IF (matrixa%use_sp) THEN
             CALL SSCAL(n, REAL(scaling(i), sp), a_sp(:, i), 1)
          ELSE
             CALL DSCAL(n, scaling(i), a(:, i), 1)
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 #endif
    END SUBROUTINE cp_fm_column_scale
 
@@ -1411,7 +1411,7 @@ CONTAINS
       ELSE
          n = SIZE(a, 1)
          m = SIZE(a, 2)
-      ENDIF
+      END IF
 
 #if defined(__SCALAPACK)
       DO icol = 1, ncol_local
@@ -1425,18 +1425,18 @@ CONTAINS
                irow_global = row_indices(irow)
                a(irow, icol) = scaling(irow_global)*a(irow, icol)
             END DO
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 #else
       IF (matrixa%use_sp) THEN
          DO j = 1, m
             a_sp(1:n, j) = REAL(scaling(1:n), sp)*a_sp(1:n, j)
-         ENDDO
+         END DO
       ELSE
          DO j = 1, m
             a(1:n, j) = scaling(1:n)*a(1:n, j)
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 #endif
    END SUBROUTINE cp_fm_row_scale
 ! **************************************************************************************************
@@ -1507,7 +1507,7 @@ CONTAINS
             diag(:) = 0.0_dp
             DO i = 1, n
                CALL cp_fm_get_element(matrix_lu, i, i, diag(i)) !  not completely optimal in speed i would say
-            ENDDO
+            END DO
 
             exponent_of_minus_one = 0
             determinant = 1.0_dp
@@ -1516,7 +1516,7 @@ CONTAINS
                IF (ipivot(i) .NE. i) THEN
                   exponent_of_minus_one = exponent_of_minus_one + 1
                END IF
-            ENDDO
+            END DO
             IF (PRESENT(eigval)) THEN
                CPASSERT(.NOT. ASSOCIATED(eigval))
                ALLOCATE (eigval(n))
@@ -1582,7 +1582,7 @@ CONTAINS
             ELSE
                determinant = determinant*diag(i)
                diag(i) = 1.0_dp/diag(i)
-            ENDIF
+            END IF
             CALL cp_fm_set_element(sigma, i, i, diag(i))
          END DO
          DEALLOCATE (diag)

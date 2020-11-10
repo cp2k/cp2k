@@ -522,7 +522,7 @@ CONTAINS
          ipbv%a(15) = -79705131323.98_dp
       ELSE
          CPABORT("IPBV only for WATER")
-      ENDIF
+      END IF
    END SUBROUTINE set_IPBV_ff
 
 ! **************************************************************************************************
@@ -552,7 +552,7 @@ CONTAINS
          ft%d = cp_unit_to_cp2k(145.427_dp, "eV*angstrom^8")
       ELSE
          CPABORT("BMHFT only for NaCl")
-      ENDIF
+      END IF
 
    END SUBROUTINE set_BMHFT_ff
 
@@ -1518,7 +1518,7 @@ CONTAINS
 
       IF (n_damp > 0) THEN
          ALLOCATE (damping_list(1:n_damp))
-      ENDIF
+      END IF
 
 ! *** Reads DIPOLE sections *****
       start_damp = 0
@@ -1856,11 +1856,11 @@ CONTAINS
             IF (torsion_phi0(start + isec) .NE. 0.0_dp) THEN
                CALL cp_warn(__LOCATION__, "PHI0 parameter was non-zero "// &
                             "for an OPLS-type TORSION.  It will be ignored.")
-            ENDIF
+            END IF
             IF (MODULO(torsion_m(start + isec), 2) .EQ. 0) THEN
                ! For even M, negate the cosine using a Pi phase factor
                torsion_phi0(start + isec) = pi
-            ENDIF
+            END IF
             ! the K parameter appears as K/2 in the OPLS parameterisation
             torsion_k(start + isec) = torsion_k(start + isec)*0.5_dp
          END IF

@@ -122,7 +122,7 @@ MODULE transport_env_types
       TYPE(C_PTR)    :: colind_local
       TYPE(C_PTR)    :: nzerow_local
       TYPE(C_PTR)    :: nzvals_local
-   ENDTYPE cp2k_csr_interop_type
+   END TYPE cp2k_csr_interop_type
 
    PUBLIC :: csr_interop_nullify, &
              csr_interop_matrix_get_info

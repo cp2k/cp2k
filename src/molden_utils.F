@@ -107,11 +107,11 @@ CONTAINS
             DO ispin = 1, SIZE(mos)
                IF (.NOT. ASSOCIATED(mos(ispin)%mo_set%mo_coeff_b)) THEN
                   CPASSERT(.FALSE.)
-               ENDIF
+               END IF
                CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b, &
                                      mos(ispin)%mo_set%mo_coeff) !fm->dbcsr
-            ENDDO
-         ENDIF
+            END DO
+         END IF
 
          IF (iw > 0) THEN
             WRITE (iw, '(T2,A)') "[Molden Format]"

@@ -270,8 +270,8 @@ CONTAINS
                DEALLOCATE (distribution_2d%n_local_cols)
             END IF
             DEALLOCATE (distribution_2d)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
       NULLIFY (distribution_2d)
    END SUBROUTINE distribution_2d_release
 

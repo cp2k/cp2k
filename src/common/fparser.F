@@ -211,7 +211,7 @@ CONTAINS
          CASE (cAdd); Comp(i)%Stack(SP - 1) = Comp(i)%Stack(SP - 1) + Comp(i)%Stack(SP); SP = SP - 1
          CASE (cSub); Comp(i)%Stack(SP - 1) = Comp(i)%Stack(SP - 1) - Comp(i)%Stack(SP); SP = SP - 1
          CASE (cMul); Comp(i)%Stack(SP - 1) = Comp(i)%Stack(SP - 1)*Comp(i)%Stack(SP); SP = SP - 1
-         CASE (cDiv); IF (Comp(i)%Stack(SP) == 0._rn) THEN; EvalErrType = 1; res = zero; RETURN; ENDIF
+         CASE (cDiv); IF (Comp(i)%Stack(SP) == 0._rn) THEN; EvalErrType = 1; res = zero; RETURN; END IF
             Comp(i)%Stack(SP - 1) = Comp(i)%Stack(SP - 1)/Comp(i)%Stack(SP); SP = SP - 1
          CASE (cPow)
             ! Fixing for possible Negative floating-point value raised to a real power
@@ -228,11 +228,11 @@ CONTAINS
             SP = SP - 1
          CASE (cAbs); Comp(i)%Stack(SP) = ABS(Comp(i)%Stack(SP))
          CASE (cExp); Comp(i)%Stack(SP) = EXP(Comp(i)%Stack(SP))
-         CASE (cLog10); IF (Comp(i)%Stack(SP) <= 0._rn) THEN; EvalErrType = 3; res = zero; RETURN; ENDIF
+         CASE (cLog10); IF (Comp(i)%Stack(SP) <= 0._rn) THEN; EvalErrType = 3; res = zero; RETURN; END IF
             Comp(i)%Stack(SP) = LOG10(Comp(i)%Stack(SP))
-         CASE (cLog); IF (Comp(i)%Stack(SP) <= 0._rn) THEN; EvalErrType = 3; res = zero; RETURN; ENDIF
+         CASE (cLog); IF (Comp(i)%Stack(SP) <= 0._rn) THEN; EvalErrType = 3; res = zero; RETURN; END IF
             Comp(i)%Stack(SP) = LOG(Comp(i)%Stack(SP))
-         CASE (cSqrt); IF (Comp(i)%Stack(SP) < 0._rn) THEN; EvalErrType = 3; res = zero; RETURN; ENDIF
+         CASE (cSqrt); IF (Comp(i)%Stack(SP) < 0._rn) THEN; EvalErrType = 3; res = zero; RETURN; END IF
             Comp(i)%Stack(SP) = SQRT(Comp(i)%Stack(SP))
          CASE (cSinh); Comp(i)%Stack(SP) = SINH(Comp(i)%Stack(SP))
          CASE (cCosh); Comp(i)%Stack(SP) = COSH(Comp(i)%Stack(SP))
@@ -241,10 +241,10 @@ CONTAINS
          CASE (cCos); Comp(i)%Stack(SP) = COS(Comp(i)%Stack(SP))
          CASE (cTan); Comp(i)%Stack(SP) = TAN(Comp(i)%Stack(SP))
          CASE (cAsin); IF ((Comp(i)%Stack(SP) < -1._rn) .OR. (Comp(i)%Stack(SP) > 1._rn)) THEN
-               EvalErrType = 4; res = zero; RETURN; ENDIF
+               EvalErrType = 4; res = zero; RETURN; END IF
             Comp(i)%Stack(SP) = ASIN(Comp(i)%Stack(SP))
          CASE (cAcos); IF ((Comp(i)%Stack(SP) < -1._rn) .OR. (Comp(i)%Stack(SP) > 1._rn)) THEN
-               EvalErrType = 4; res = zero; RETURN; ENDIF
+               EvalErrType = 4; res = zero; RETURN; END IF
             Comp(i)%Stack(SP) = ACOS(Comp(i)%Stack(SP))
          CASE (cAtan); Comp(i)%Stack(SP) = ATAN(Comp(i)%Stack(SP))
          CASE (cErf); Comp(i)%Stack(SP) = ERF(Comp(i)%Stack(SP))
@@ -367,7 +367,7 @@ CONTAINS
          msg = ''
       ELSE
          msg = m(EvalErrType)
-      ENDIF
+      END IF
    END FUNCTION EvalErrMsg
    !
 ! **************************************************************************************************
@@ -751,7 +751,7 @@ CONTAINS
                   RETURN
                END IF
             END IF
-         ENDIF
+         END IF
       END IF
       !----- -------- --------- --------- --------- --------- --------- --------- -------
       ! Check for operator in substring: check only base level (k=0), exclude expr. in ()
@@ -837,7 +837,7 @@ CONTAINS
                      EXIT !   * EXIT: 2nd appearance of '.'
                   ELSE
                      Pflag = .TRUE. !   * mark 1st appearance of '.'
-                  ENDIF
+                  END IF
                ELSE
                   EXIT !   * all other characters
                END IF
@@ -899,13 +899,13 @@ CONTAINS
                InExp = .TRUE.; Eflag = .FALSE. ! - at beginning of exponent
             ELSE
                EXIT ! - otherwise STOP
-            ENDIF
+            END IF
          CASE ('0':'9') ! Mark
             IF (Bflag) THEN
                InMan = .TRUE.; Bflag = .FALSE. ! - beginning of mantissa
             ELSEIF (Eflag) THEN
                InExp = .TRUE.; Eflag = .FALSE. ! - beginning of exponent
-            ENDIF
+            END IF
             IF (InMan) DInMan = .TRUE. ! Mantissa contains digit
             IF (InExp) DInExp = .TRUE. ! Exponent contains digit
          CASE ('.')
@@ -922,7 +922,7 @@ CONTAINS
                Eflag = .TRUE.; InMan = .FALSE. ! - following mantissa
             ELSE
                EXIT ! - otherwise STOP
-            ENDIF
+            END IF
          CASE DEFAULT
             EXIT ! STOP at all other characters
          END SELECT
@@ -1017,7 +1017,7 @@ CONTAINS
                IF (errt .LE. err) THEN
                   err = errt
                   derivative = a(j, i)
-               ENDIF
+               END IF
             END DO
             IF (ABS(a(i, i) - a(i - 1, i - 1)) .GE. safe*err) RETURN
          END DO

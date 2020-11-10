@@ -13,7 +13,7 @@
 !> \see functionals_utilities
 ! **************************************************************************************************
 MODULE xc_sr_lda
-#:include "xc_perdew_wang.fypp"
+   #:include "xc_perdew_wang.fypp"
 
    USE bibliography, ONLY: Paziani2006, &
                            Toulouse2004, &
@@ -40,7 +40,7 @@ MODULE xc_sr_lda
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_sr_lda'
 
-@:global_var_pw92()
+   @:global_var_pw92()
    REAL(KIND=dp), PARAMETER, PRIVATE :: &
       Acoul = 2._dp*(LOG(2._dp) - 1._dp)/pi**2, &
       aQ2 = 5.84605_dp, &
@@ -103,7 +103,7 @@ CONTAINS
 
    END SUBROUTINE sr_lda_info
 
-@:init_pw92()
+   @:init_pw92()
 
 ! **************************************************************************************************
 !> \brief Calculate the correlation energy and its derivatives
@@ -864,7 +864,7 @@ CONTAINS
 
          vxlrup = exlr - vxlrup
          vxlrdown = exlr - vxlrdown
-      ENDIF
+      END IF
 
    END SUBROUTINE
 
@@ -912,6 +912,6 @@ CONTAINS
 
    END SUBROUTINE
 
-@:calc_g()
+   @:calc_g()
 
 END MODULE xc_sr_lda

@@ -133,8 +133,8 @@ CONTAINS
             t = EXP(-0.5*d2)
             matrix(i, j) = t
             matrix(j, i) = t
-         ENDDO
-      ENDDO
+         END DO
+      END DO
       !TODO: call dsyv through cp2k wrappers
       !TODO: do we need to store lower triangle of matrix?
       ALLOCATE (res(N))
@@ -201,7 +201,7 @@ CONTAINS
          history%entries(1:n) = tmp(:)
          DEALLOCATE (tmp)
          n = n + history_grow_unit
-      ENDIF
+      END IF
 
       k = interpolation_search(history, fingerprint%Epot)
 
@@ -227,7 +227,7 @@ CONTAINS
                   CPABORT("history_add: history in wrong order")
             END IF
          END DO
-      ENDIF
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE history_add
@@ -261,11 +261,11 @@ CONTAINS
 
          DO k_min = k - 1, 1, -1
             IF (history%entries(k_min)%p%Epot < Epot - history%E_precision) EXIT
-         ENDDO
+         END DO
 
          DO k_max = k, history%length
             IF (history%entries(k_max)%p%Epot > Epot + history%E_precision) EXIT
-         ENDDO
+         END DO
 
          k_min = MAX(k_min + 1, 1)
          k_max = MIN(k_max - 1, history%length)
@@ -281,7 +281,7 @@ CONTAINS
                IF (PRESENT(id)) id = history%entries(i)%id
                IF (debug) found_i = i
             END IF
-         ENDDO
+         END DO
 
          IF (debug) CALL verify_history_lookup(history, fingerprint, found_i)
       END IF
@@ -355,12 +355,12 @@ CONTAINS
             best_fp_match = fp_dist
             found_i = i
          END IF
-      ENDDO
+      END DO
 
       IF (found_i /= found_i_ref) THEN
          WRITE (*, *) found_i, found_i_ref
          CPABORT("verify_history_lookup failed")
-      ENDIF
+      END IF
 
    END SUBROUTINE verify_history_lookup
 

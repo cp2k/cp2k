@@ -160,7 +160,7 @@ CONTAINS
                gridinfo(forcedim, i), ")"
          END DO
          WRITE (unit_nr, *)
-      ENDIF
+      END IF
       DEALLOCATE (gridinfo)
       IF (ASSOCIATED(rep_env)) THEN
          last_rep_env_id = last_rep_env_id + 1

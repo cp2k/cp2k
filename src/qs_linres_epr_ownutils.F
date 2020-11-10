@@ -209,7 +209,7 @@ CONTAINS
          CALL cp_print_key_finished_output(unit_nr, logger, lr_section,&
               &                            "EPR%PRINT%G_TENSOR")
 
-      ENDIF
+      END IF
 
    END SUBROUTINE epr_g_print
 
@@ -823,8 +823,8 @@ CONTAINS
                                    use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
             CALL pw_zero(shift_pw_gspace(idir, ispin)%pw)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
       CALL pw_pool_create_pw(auxbas_pw_pool, shift_pw_rspace%pw, &
                              use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_zero(shift_pw_rspace%pw)
@@ -841,7 +841,7 @@ CONTAINS
          DO idir3 = 1, 3
             ! set to zero for the calculation of the shift
             CALL pw_zero(shift_pw_gspace(idir3, ispin)%pw)
-         ENDDO
+         END DO
          DO idir = 1, 3
             CALL qs_rho_get(current_env%jrho1_set(idir)%rho, rho_g=jrho1_g)
             rho_gspace => jrho1_g(ispin)
@@ -858,18 +858,18 @@ CONTAINS
                   scale_fac = fac_vecp(idir3, idir2, idir)
                   CALL pw_scale(pw_gspace_work%pw, scale_fac)
                   CALL pw_axpy(pw_gspace_work%pw, shift_pw_gspace(idir3, ispin)%pw)
-               ENDIF
-            ENDDO
+               END IF
+            END DO
             !
-         ENDDO ! idir
-      ENDDO ! ispin
+         END DO ! idir
+      END DO ! ispin
 
       ! Store the total soft induced magnetic field (corrected for sic)
       IF (dft_control%nspins == 2) THEN
          DO idir = 1, 3
             CALL qs_rho_get(epr_env%bind_set(idir, iB)%rho, rho_r=epr_rho_r)
             CALL pw_transfer(shift_pw_gspace(idir, 2)%pw, epr_rho_r(1)%pw)
-         ENDDO
+         END DO
       END IF
       !
       ! Dellocate grids for the calculation of jrho and the shift
@@ -877,8 +877,8 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          DO idir = 1, 3
             CALL pw_pool_give_back_pw(auxbas_pw_pool, shift_pw_gspace(idir, ispin)%pw)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
       DEALLOCATE (shift_pw_gspace)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, shift_pw_rspace%pw)
       !

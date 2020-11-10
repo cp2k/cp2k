@@ -1388,7 +1388,7 @@ CONTAINS
             ! this leads to wrong CP2K results (e.g. parsing force fields).
             WRITE (fmtstr, FMT='(A,I0,A)') '(I', iop - 1, ')'
             READ (UNIT=string(i:i + iop - 2), FMT=fmtstr, IOSTAT=istat) iz8
-         ENDIF
+         END IF
          IF (istat /= 0) THEN
             error_message = "An integer type object was expected, found <"// &
                             string(i:i + iop - 2)//">"

@@ -296,8 +296,8 @@ CONTAINS
             wfn_calc_best = wfn_calc
             p_best = p
             q_best = q
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       max_batch_size_I = (homo + p_best - 1)/p_best
       max_batch_size_A = (virtual + q_best - 1)/q_best
@@ -307,7 +307,7 @@ CONTAINS
             "MP2_GPW| max. batch size for the occupied states:", max_batch_size_I
          WRITE (UNIT=unit_nr, FMT="(T3,A,T77,i4)") &
             "MP2_GPW| max. batch size for the virtual states:", max_batch_size_A
-      ENDIF
+      END IF
 
       CALL get_vector_batch(vector_batch_I_size_group, p_best, max_batch_size_I, homo)
       CALL get_vector_batch(vector_batch_A_size_group, q_best, max_batch_size_A, virtual)
@@ -488,9 +488,9 @@ CONTAINS
                   ! Compute the coulomb MP2 energy
                   Emp2_Cou = Emp2_Cou - 2.0_dp*data_block(j, b)**2/ &
                              (Eigenval(a) + Eigenval(homo + col_offset + b - 1) - Eigenval(i) - Eigenval(row_offset + j - 1))
-               ENDDO
-               ENDDO
-            ENDDO
+               END DO
+               END DO
+            END DO
             CALL dbcsr_iterator_stop(iter)
             IF (do_alpha_beta) THEN
                ! Compute the coulomb only= SO = MP2 alpha-beta  MP2 energy component
@@ -504,9 +504,9 @@ CONTAINS
                      ! Compute the coulomb MP2 energy alpha beta case
                      Emp2_AB = Emp2_AB - data_block(j, b)**2/ &
                      (Eigenval(a) + Eigenval_beta(homo_beta + col_offset + b - 1) - Eigenval(i) - Eigenval_beta(row_offset + j - 1))
-                  ENDDO
-                  ENDDO
-               ENDDO
+                  END DO
+                  END DO
+               END DO
                CALL dbcsr_iterator_stop(iter)
             END IF
             CALL timestop(handle3)
@@ -575,7 +575,7 @@ CONTAINS
             CALL timestop(handle3)
          END IF
 
-      ENDDO
+      END DO
       CALL timestop(handle2)
 
       CALL mp_sum(Emp2_Cou, para_env%group)
@@ -848,7 +848,7 @@ CONTAINS
                END DO
             END IF
          END DO
-      ENDDO
+      END DO
       CALL dbcsr_iterator_stop(iter)
 
       CALL mp_sum(my_Cocc, para_env_sub%group)
@@ -868,7 +868,7 @@ CONTAINS
                END DO
             END IF
          END DO
-      ENDDO
+      END DO
       CALL dbcsr_iterator_stop(iter)
 
       CALL mp_sum(my_Cvirt, para_env_sub%group)

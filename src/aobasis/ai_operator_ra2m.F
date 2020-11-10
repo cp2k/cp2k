@@ -173,17 +173,17 @@ CONTAINS
                         dumz = 2.0_dp*a*rr(az + 2*k + 1, bz, 3)
                         IF (az + 2*k > 0) dumz = dumz - REAL(az + 2*k, dp)*rr(az + 2*k - 1, bz, 3)
                         dsab(ia, ib, 3) = dsab(ia, ib, 3) + prefac*f0*rr(ax + 2*i, bx, 1)*rr(ay + 2*j, by, 2)*dumz
-                     ENDIF
-                  ENDDO
-                  ENDDO
-                  ENDDO
+                     END IF
+                  END DO
+                  END DO
+                  END DO
                   !
-               ENDDO
-               ENDDO
-               ENDDO !la
-            ENDDO
-            ENDDO
-            ENDDO !lb
+               END DO
+               END DO
+               END DO !la
+            END DO
+            END DO
+            END DO !lb
 
             mb = mb + nb
          END DO

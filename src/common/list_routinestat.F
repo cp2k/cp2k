@@ -22,6 +22,6 @@
 MODULE list_routinestat
    USE timings_base_type, ONLY: ${uselist(usetimingsbase)}$
 
-$:list_body(valuetype[n_inst], valuetype_in[n_inst], valuetype_out[n_inst], value_assign[n_inst])
+   $:list_body(valuetype[n_inst], valuetype_in[n_inst], valuetype_out[n_inst], value_assign[n_inst])
 
 END MODULE list_routinestat

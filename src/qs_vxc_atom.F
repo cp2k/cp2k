@@ -534,7 +534,7 @@ CONTAINS
                                    l_val=lsd_singlets)
          CALL section_vals_val_get(input, "DFT%TDDFPT%RES_ETYPE", &
                                    i_val=res_etype)
-      ENDIF
+      END IF
       xc_fun_section => section_vals_get_subs_vals(xc_section, &
                                                    "XC_FUNCTIONAL")
       IF (lsd) THEN
@@ -560,9 +560,9 @@ CONTAINS
          IF (PRESENT(do_triplet)) THEN
             IF (nspins == 1 .AND. do_triplet) THEN
                lsd = .TRUE.
-            ENDIF
-         ENDIF
-      ENDIF
+            END IF
+         END IF
+      END IF
 
 !  Here starts the loop over all the atoms
       DO ikind = 1, SIZE(atomic_kind_set)
@@ -691,7 +691,7 @@ CONTAINS
             ELSE
                CALL gaVxcgb_noGC(vxc_h, vxc_s, qs_kind_set(ikind), &
                                  rho1_atom, nspins)
-            ENDIF
+            END IF
 
             NULLIFY (r_h, r_s, dr_h, dr_s)
 
@@ -1491,9 +1491,9 @@ CONTAINS
                                                      vxg_s(3, ia, ir, ispin)* &
                                                      gg(ir, l)*urad
 
-                              ENDDO ! ir
-                           ENDDO ! ia
-                        ENDDO ! l
+                              END DO ! ir
+                           END DO ! ia
+                        END DO ! l
 
                         matso_h = 0.0_dp
                         matso_s = 0.0_dp

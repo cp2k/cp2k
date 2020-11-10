@@ -646,7 +646,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       CALL timeset(routineN, handle)
 
@@ -687,7 +687,7 @@ CONTAINS
             WRITE (unit_nr, '()')
             CALL print_subsets(graph, ncolors, unit_nr)
             WRITE (unit_nr, '()')
-         ENDIF
+         END IF
          WRITE (unit_nr, '(T2, A16,50X,I6,1X,A6)') 'Number of colors', ncolors, 'colors'
          IF (valid) WRITE (unit_nr, '(T2, A17,59X,A3)') 'Coloring verified', 'yes'
          WRITE (unit_nr, '(T2,A)') REPEAT("-", 79)

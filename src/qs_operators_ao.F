@@ -198,7 +198,7 @@ CONTAINS
                CALL dbcsr_get_block_p(matrix=matrix(i)%matrix, &
                                       row=irow, col=icol, BLOCK=integral(i)%block, found=found)
                CPASSERT(ASSOCIATED(INTEGRAL(i)%block))
-            ENDDO
+            END DO
          END IF
 
          rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
@@ -249,13 +249,13 @@ CONTAINS
                                 1.0_dp, integral(i)%block(sgfb, sgfa), &
                                 SIZE(integral(i)%block, 1))
 
-                  ENDIF
+                  END IF
 
-               ENDDO
+               END DO
 
-            ENDDO
+            END DO
 
-         ENDDO
+         END DO
 
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
@@ -342,11 +342,11 @@ CONTAINS
                      intab(i, j, 1) = 0.0_dp
                      intab(i, j, 2) = 0.0_dp
                      intab(i, j, 3) = 0.0_dp
-                  ENDDO
-               ENDDO
+                  END DO
+               END DO
                nb = nb + ncoset(lb_max)
                CYCLE
-            ENDIF
+            END IF
 
             ! *** Calculate some prefactors ***
             zet = zeta(ipgf) + zetb(jpgf)
@@ -390,21 +390,21 @@ CONTAINS
                   IF (az .GT. 0) dumz = dumz - REAL(az, dp)*rr(az - 1, bz, 3)
                   intab(ma, mb, 3) = f0*rr(ax, bx, 1)*rr(ay, by, 2)*dumz
                   !
-               ENDDO
-               ENDDO
-               ENDDO !la
+               END DO
+               END DO
+               END DO !la
 
-            ENDDO
-            ENDDO
-            ENDDO !lb
+            END DO
+            END DO
+            END DO !lb
 
             nb = nb + ncoset(lb_max)
 
-         ENDDO
+         END DO
 
          na = na + ncoset(la_max)
 
-      ENDDO
+      END DO
 
    END SUBROUTINE lin_mom
 
@@ -552,7 +552,7 @@ CONTAINS
                CALL dbcsr_get_block_p(matrix=matrix(i)%matrix, &
                                       row=irow, col=icol, BLOCK=INTEGRAL(i)%block, found=found)
                CPASSERT(ASSOCIATED(INTEGRAL(i)%block))
-            ENDDO
+            END DO
          END IF
 
          rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
@@ -615,11 +615,11 @@ CONTAINS
                   !
                   !ENDIF
 
-               ENDDO
+               END DO
 
-            ENDDO
+            END DO
 
-         ENDDO
+         END DO
 
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
@@ -707,11 +707,11 @@ CONTAINS
                      intab(i, j, 1) = 0.0_dp
                      intab(i, j, 2) = 0.0_dp
                      intab(i, j, 3) = 0.0_dp
-                  ENDDO
-               ENDDO
+                  END DO
+               END DO
                nb = nb + ncoset(lb_max)
                CYCLE
-            ENDIF
+            END IF
 
             ! *** Calculate some prefactors ***
             zet = zeta(ipgf) + zetb(jpgf)
@@ -762,21 +762,21 @@ CONTAINS
                        &  (rr(ax + 1, bx, 1) + rac(1)*rr(ax, bx, 1))*dumy &
                        & - (rr(ay + 1, by, 2) + rac(2)*rr(ay, by, 2))*dumx)
                   !
-               ENDDO
-               ENDDO
-               ENDDO !la
+               END DO
+               END DO
+               END DO !la
 
-            ENDDO
-            ENDDO
-            ENDDO !lb
+            END DO
+            END DO
+            END DO !lb
 
             nb = nb + ncoset(lb_max)
 
-         ENDDO
+         END DO
 
          na = na + ncoset(la_max)
 
-      ENDDO
+      END DO
 
    END SUBROUTINE ang_mom
 

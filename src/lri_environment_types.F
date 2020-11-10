@@ -507,7 +507,7 @@ CONTAINS
                DEALLOCATE (lri_env%cg_shg%ncg_none0)
             END IF
             DEALLOCATE (lri_env%cg_shg)
-         ENDIF
+         END IF
          ! RI
          IF (ASSOCIATED(lri_env%ob_smat)) CALL dbcsr_deallocate_matrix_set(lri_env%ob_smat)
          IF (ASSOCIATED(lri_env%ri_smat)) CALL dbcsr_deallocate_matrix_set(lri_env%ri_smat)
@@ -671,7 +671,7 @@ CONTAINS
             e1c = lri_env%exact_1c_terms
          ELSE
             e1c = .FALSE.
-         ENDIF
+         END IF
 
          IF (.NOT. e1c) THEN
             ALLOCATE (lrii%abascr(nfa))
@@ -718,7 +718,7 @@ CONTAINS
                ELSE
                   ALLOCATE (lrii%sinv(nn, nn))
                   lri_env%stat%oint_mem = lri_env%stat%oint_mem + nn*nn
-               ENDIF
+               END IF
                lrii%sinv = 0._dp
 
                IF (iatom == jatom .AND. dab < lri_env%delta) THEN
@@ -727,14 +727,14 @@ CONTAINS
                ELSE
                   ALLOCATE (lrii%n(nn), lrii%sn(nn))
                   lri_env%stat%oint_mem = lri_env%stat%oint_mem + 2.*nn
-               ENDIF
+               END IF
                lrii%n = 0._dp
                lrii%sn = 0._dp
             END IF
          ELSE
             NULLIFY (lrii%n, lrii%sn)
             NULLIFY (lrii%sinv)
-         ENDIF
+         END IF
 
          ! far field approximation
          IF (lrii%lriff) THEN
@@ -758,7 +758,7 @@ CONTAINS
          ELSE
             NULLIFY (lrii%na, lrii%sna)
             NULLIFY (lrii%nb, lrii%snb)
-         ENDIF
+         END IF
 
          lrii%dmax_ab = 0._dp
          lrii%dmax_oo = 0._dp
@@ -767,7 +767,7 @@ CONTAINS
 
          lrii%calc_force_pair = .FALSE.
 
-      ENDDO
+      END DO
 
       CALL neighbor_list_iterator_release(nl_iterator)
 
@@ -832,7 +832,7 @@ CONTAINS
       DO i = 1, nkind*nkind
          NULLIFY (lri_ints_rho%lri_atom(i)%lri_node)
          lri_ints_rho%lri_atom(i)%natom = 0
-      ENDDO
+      END DO
 
       CALL neighbor_list_iterator_create(nl_iterator, lri_env%soo_list)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
@@ -871,7 +871,7 @@ CONTAINS
          lriir%soaabb = 0._dp
          lriir%dmax_aabb = 0._dp
 
-      ENDDO
+      END DO
 
       CALL neighbor_list_iterator_release(nl_iterator)
 
@@ -968,7 +968,7 @@ CONTAINS
                   ALLOCATE (lrho%avec(nn))
                   ALLOCATE (lrho%tvec(nn))
                   lri_env%stat%rhos_mem = lri_env%stat%rhos_mem + 2*nn
-               ENDIF
+               END IF
             END IF
             NULLIFY (lrho%aveca, lrho%tveca)
             NULLIFY (lrho%avecb, lrho%tvecb)
@@ -980,11 +980,11 @@ CONTAINS
                lri_env%stat%rhos_mem = lri_env%stat%rhos_mem + 2*(nfa + nfb)
             END IF
 
-         ENDDO
+         END DO
 
          CALL neighbor_list_iterator_release(nl_iterator)
 
-      ENDDO
+      END DO
 
    END SUBROUTINE allocate_lri_rhos
 
@@ -1036,7 +1036,7 @@ CONTAINS
             !
             lri_env%stat%coef_mem = lri_env%stat%coef_mem + 2._dp*natom*(nsgf + 3)
          END DO
-      ENDDO
+      END DO
 
    END SUBROUTINE allocate_lri_coefs
 
@@ -1362,17 +1362,17 @@ CONTAINS
             DO j = 1, SIZE(lri_coefs(i)%lri_kinds)
                IF (ASSOCIATED(lri_coefs(i)%lri_kinds(j)%acoef)) THEN
                   DEALLOCATE (lri_coefs(i)%lri_kinds(j)%acoef)
-               ENDIF
+               END IF
                IF (ASSOCIATED(lri_coefs(i)%lri_kinds(j)%v_int)) THEN
                   DEALLOCATE (lri_coefs(i)%lri_kinds(j)%v_int)
-               ENDIF
+               END IF
                IF (ASSOCIATED(lri_coefs(i)%lri_kinds(j)%v_dadr)) THEN
                   DEALLOCATE (lri_coefs(i)%lri_kinds(j)%v_dadr)
-               ENDIF
+               END IF
                IF (ASSOCIATED(lri_coefs(i)%lri_kinds(j)%v_dfdr)) THEN
                   DEALLOCATE (lri_coefs(i)%lri_kinds(j)%v_dfdr)
-               ENDIF
-            ENDDO
+               END IF
+            END DO
             DEALLOCATE (lri_coefs(i)%lri_kinds)
          END DO
          DEALLOCATE (lri_coefs)
@@ -1393,21 +1393,21 @@ CONTAINS
 
          IF (ASSOCIATED(lri_force%st)) THEN
             DEALLOCATE (lri_force%st)
-         ENDIF
+         END IF
          IF (ASSOCIATED(lri_force%dssn)) THEN
             DEALLOCATE (lri_force%dssn)
-         ENDIF
+         END IF
          IF (ASSOCIATED(lri_force%dsst)) THEN
             DEALLOCATE (lri_force%dsst)
-         ENDIF
+         END IF
          IF (ASSOCIATED(lri_force%dtvec)) THEN
             DEALLOCATE (lri_force%dtvec)
-         ENDIF
+         END IF
 
          DEALLOCATE (lri_force)
 
          NULLIFY (lri_force)
-      ENDIF
+      END IF
 
    END SUBROUTINE deallocate_lri_force_components
 

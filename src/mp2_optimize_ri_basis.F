@@ -242,7 +242,7 @@ CONTAINS
          local_unit_nr = cp_logger_get_default_unit_nr(logger, local=.FALSE.)
       ELSE
          local_unit_nr = default_output_unit
-      ENDIF
+      END IF
       NULLIFY (logger_sub)
       CALL cp_logger_create(logger_sub, para_env=para_env_sub, &
                             default_global_unit_nr=local_unit_nr, close_global_unit_on_dealloc=.FALSE.)

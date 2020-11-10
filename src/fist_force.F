@@ -204,7 +204,7 @@ CONTAINS
       nparticle_kind = SIZE(atomic_kind_set)
       DO ikind = 1, nparticle_kind
          nlocal_particles = nlocal_particles + local_particles%n_el(ikind)
-      ENDDO
+      END DO
 
       ALLOCATE (f_nonbond(3, natoms))
       f_nonbond = 0.0_dp
@@ -242,7 +242,7 @@ CONTAINS
          particle_set(i)%f(1) = 0.0_dp
          particle_set(i)%f(2) = 0.0_dp
          particle_set(i)%f(3) = 0.0_dp
-      ENDDO
+      END DO
       IF (nshell > 0) THEN
          DO i = 1, nshell
             shell_particle_set(i)%f(1) = 0.0_dp
@@ -252,7 +252,7 @@ CONTAINS
             core_particle_set(i)%f(2) = 0.0_dp
             core_particle_set(i)%f(3) = 0.0_dp
          END DO
-      ENDIF
+      END IF
 
       IF (use_virial) THEN
          pv_bc = 0.0_dp
@@ -657,7 +657,7 @@ CONTAINS
                   debug%f_g(1, ii) = debug%f_g(1, ii) + fg_coulomb(1, node)
                   debug%f_g(2, ii) = debug%f_g(2, ii) + fg_coulomb(2, node)
                   debug%f_g(3, ii) = debug%f_g(3, ii) + fg_coulomb(3, node)
-               ENDIF
+               END IF
                IF (atprop_env%energy) THEN
                   atprop_env%atener(ii) = atprop_env%atener(ii) + e_coulomb(node)
                END IF

@@ -338,7 +338,7 @@ CONTAINS
                i1 = ic
             ELSE
                i2 = ic
-            ENDIF
+            END IF
          END DO
       END IF
    END FUNCTION

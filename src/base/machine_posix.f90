@@ -78,7 +78,7 @@
         run_on = 1 ! no error, process exists
      ELSE
         run_on = 0 ! error, process probably does not exist
-     ENDIF
+     END IF
 #endif
   END FUNCTION m_procrun
 
@@ -118,7 +118,7 @@
      OPEN (121245, FILE="/proc/self/statm", ACTION="READ", STATUS="OLD", ACCESS="STREAM")
      DO I = 1, 80
         READ (121245, END=999) DATA(I:I)
-     ENDDO
+     END DO
 999  CLOSE (121245)
      DATA(I:80) = ""
      ! m1 = total
@@ -136,7 +136,7 @@
         mem_local = m2
 #endif
         mem_local = mem_local*getpagesize()
-     ENDIF
+     END IF
 #endif
 
      m_memory_max = MAX(mem_local, m_memory_max)
@@ -182,7 +182,7 @@
         i = i + 1
         IF (i > Nbuffer) EXIT
         READ (8123, END=900, ERR=900) meminfo(i:i)
-     ENDDO
+     END DO
 900  CONTINUE
      meminfo(i:Nbuffer) = ""
 901  CONTINUE
@@ -217,8 +217,8 @@
               ! XXXXXXX convert from Kb to bytes XXXXXXXX
               get_field_value_in_bytes = value*1024
 999           CONTINUE
-           ENDIF
-        ENDIF
+           END IF
+        END IF
      END FUNCTION
   END SUBROUTINE m_memory_details
 
@@ -252,7 +252,7 @@
      IF (TARGET == source) THEN
         WRITE (*, *) "Warning: m_mov ", TRIM(TARGET), " equals ", TRIM(source)
         RETURN
-     ENDIF
+     END IF
 
      ! first remove target (needed on windows / mingw)
      istat = unlink(TRIM(TARGET)//c_null_char)
@@ -265,7 +265,7 @@
         WRITE (*, *) "rename returned status: ", istat
         WRITE (*, *) "Problem moving file"
         CALL m_abort()
-     ENDIF
+     END IF
   END SUBROUTINE m_mov
 
 ! **************************************************************************************************
@@ -295,7 +295,7 @@
      IF (istat /= 0) THEN
         WRITE (*, *) "m_hostnm failed"
         CALL m_abort()
-     ENDIF
+     END IF
      i = INDEX(buf, c_null_char) - 1
      hname = buf(1:i)
 #endif
@@ -324,7 +324,7 @@
      IF (.NOT. C_ASSOCIATED(stat)) THEN
         WRITE (*, *) "m_getcwd failed"
         CALL m_abort()
-     ENDIF
+     END IF
      i = INDEX(tmp, c_null_char) - 1
      curdir = tmp(1:i)
   END SUBROUTINE m_getcwd

@@ -200,11 +200,11 @@ CONTAINS
                IF (MODULO(nat, rs_grid%desc%group_size) == rs_grid%desc%my_pos) THEN
                   npme = npme + 1
                   cores(npme) = iat
-               ENDIF
+               END IF
             ELSE
                npme = npme + 1
                cores(npme) = iat
-            ENDIF
+            END IF
 
          END DO
 

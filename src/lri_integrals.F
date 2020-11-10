@@ -90,7 +90,7 @@ CONTAINS
       ELSE
          CALL lri_int_os(lri_env, lrii, rab, obasa, obasb, fbasa, fbasb, &
                          iatom, jatom, ikind, calculate_forces)
-      ENDIF
+      END IF
 
    END SUBROUTINE lri_int
 
@@ -182,8 +182,8 @@ CONTAINS
                                                lri_env%cg_shg%cg_coeff, lri_env%cg_shg%cg_none0_list, &
                                                lri_env%cg_shg%ncg_none0, &
                                                Waux_mat, dWaux_mat, .TRUE., .FALSE.)
-               ENDIF
-            ENDIF
+               END IF
+            END IF
             DEALLOCATE (Waux_mat, dWaux_mat)
          ELSE
             !*** (fa,fb)
@@ -206,8 +206,8 @@ CONTAINS
                CALL int_overlap_abb_os(lriint%abbint, dummy2, rab, obasa, obasb, fbasb, &
                                        .FALSE., lri_env%debug, lrii%dmax_abb)
             END IF
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
    END SUBROUTINE lri_int2
 
@@ -244,7 +244,7 @@ CONTAINS
       ELSE
          CALL lri_int_os(lri_env, lrii, rab, obasa, obasb, fbasa, fbasb, &
                          iatom, jatom, ikind, calculate_forces)
-      ENDIF
+      END IF
 
    END SUBROUTINE lri_dint
 
@@ -337,8 +337,8 @@ CONTAINS
                                                   lri_env%cg_shg%cg_coeff, lri_env%cg_shg%cg_none0_list, &
                                                   lri_env%cg_shg%ncg_none0, &
                                                   Waux_mat, dWaux_mat, .FALSE., .TRUE.)
-                  ENDIF
-               ENDIF
+                  END IF
+               END IF
                DEALLOCATE (Waux_mat, dWaux_mat)
 
             ELSE
@@ -371,9 +371,9 @@ CONTAINS
                                           .TRUE., lri_env%debug, lrii%dmax_abb)
                   DEALLOCATE (dummy2)
                END IF
-            ENDIF
-         ENDIF
-      ENDIF
+            END IF
+         END IF
+      END IF
 
    END SUBROUTINE lri_dint2
 
@@ -450,7 +450,7 @@ CONTAINS
          !*** (a,b,fb)
          CALL int_overlap_abb_os(lrii%abbint, lrii%dabbint, rab, obasa, obasb, fbasb, &
                                  do_force, lri_env%debug, lrii%dmax_abb)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -556,10 +556,10 @@ CONTAINS
                                          lri_env%cg_shg%cg_coeff, lri_env%cg_shg%cg_none0_list, &
                                          lri_env%cg_shg%ncg_none0, &
                                          Waux_mat, dWaux_mat, .TRUE., do_force)
-         ENDIF
+         END IF
 
          DEALLOCATE (Waux_mat, dWaux_mat)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 

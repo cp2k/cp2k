@@ -151,7 +151,7 @@ CONTAINS
       this%tempdist_init = 0.0
       DO i = 1, this%tempstep_max
          this%tempdist_init(i) = 1.0/(1.0 + EXP((this%tempstep_init - i)/this%tempdist_init_width))
-      ENDDO
+      END DO
 
       this%rng_stream = rng_stream_type(name="mincrawl")
    END SUBROUTINE mincrawl_init
@@ -180,7 +180,7 @@ CONTAINS
          CALL swarm_message_add(cmd, "iframe", 1)
          CALL swarm_message_add(cmd, "temperature", tempstep2temp(this, this%workers(wid)%tempstep))
          RETURN
-      ENDIF
+      END IF
 
       IF (TRIM(status) == "ok") &
          CALL mincrawl_register_minima(this, report)
@@ -193,7 +193,7 @@ CONTAINS
          CALL swarm_message_add(cmd, "command", "wait")
          !WRITE(this%iw,*) " MINCRAWL| Waiting until new minima become available"
          RETURN
-      ENDIF
+      END IF
 
       best_minima%n_active = best_minima%n_active + 1
       best_minima%n_sampled = best_minima%n_sampled + 1
@@ -213,7 +213,7 @@ CONTAINS
          WRITE (this%iw, '(1X,A,I10,A,A,T71,F10.3)') &
             "MINCRAWL| Temperature  (step ", this%workers(wid)%tempstep, " ) ", &
             "[Kelvin]", kelvin*tempstep2temp(this, this%workers(wid)%tempstep)
-      ENDIF
+      END IF
 
    END SUBROUTINE mincrawl_steer
 
@@ -241,7 +241,7 @@ CONTAINS
          IF (score < score_best) THEN
             score_best = score
             minima => this%minimas(i)%p
-         ENDIF
+         END IF
       END DO
    END FUNCTION choose_promising_minima
 
@@ -296,7 +296,7 @@ CONTAINS
 
       DO i = 1, SIZE(minima%tempdist)
          WRITE (*, *) "tempstep: ", i, minima%tempdist(i)
-      ENDDO
+      END DO
    END SUBROUTINE print_tempdist
 
 ! **************************************************************************************************
@@ -375,9 +375,9 @@ CONTAINS
             CALL update_tempdist(this, start_minima%tempdist, tempstep, +1)
             start_minima%escape_hist(:) = EOSHIFT(start_minima%escape_hist, 1)
             start_minima%escape_hist(1) = report_Epot
-         ENDIF
+         END IF
 
-      ENDIF
+      END IF
 
       IF (.NOT. minima_known) THEN
          this%n_minima = this%n_minima + 1
@@ -388,7 +388,7 @@ CONTAINS
             ALLOCATE (this%minimas(SIZE(minimas_tmp) + 1000))
             this%minimas(:SIZE(minimas_tmp)) = minimas_tmp
             DEALLOCATE (minimas_tmp)
-         ENDIF
+         END IF
 
          new_mid = this%n_minima
          ALLOCATE (this%minimas(new_mid)%p)
@@ -403,7 +403,7 @@ CONTAINS
             new_minima%tempdist(:) = start_minima%tempdist ! inherit tempdist
          ELSE
             new_minima%tempdist(:) = this%tempdist_init
-         ENDIF
+         END IF
 
          new_minima%Epot = report_Epot
          new_minima%fp = report_fp
@@ -415,15 +415,15 @@ CONTAINS
                start_minima%disabled = .TRUE.
                IF (this%iw > 0) WRITE (this%iw, '(1X,A,T71,I10)') &
                   "MINCRAWL| Disabling minimum with id", start_minima%id
-            ENDIF
-         ENDIF
+            END IF
+         END IF
 
          IF (this%iw > 0) WRITE (this%iw, '(1X,A,T71,I10)') &
             "MINCRAWL| Adding new minima with id", new_mid
 
          CALL history_add(this%history, report_fp, id=new_mid)
          CALL write_minima_traj(this, wid, new_mid, report_Epot, report_positions)
-      ENDIF
+      END IF
       DEALLOCATE (report_positions)
    END SUBROUTINE mincrawl_register_minima
 
@@ -447,7 +447,7 @@ CONTAINS
          tempdist(i) = tempdist(i) + this%tempdist_update_height &
                        *REAL(direction, KIND=dp)*EXP(-((center - i)/this%tempdist_update_width)**2)
          tempdist(i) = MAX(0.0_dp, MIN(1.0_dp, tempdist(i)))
-      ENDDO
+      END DO
    END SUBROUTINE update_tempdist
 
 ! **************************************************************************************************
@@ -503,7 +503,7 @@ CONTAINS
       DO i = 1, this%n_minima
          !WRITE (*,*) "Minima: ", i, " n_sampled: ",this%minimas(i)%n_sampled
          DEALLOCATE (this%minimas(i)%p)
-      ENDDO
+      END DO
 
       logger => cp_get_default_logger()
       CALL cp_print_key_finished_output(this%minima_traj_unit, logger, &

@@ -107,7 +107,7 @@ CONTAINS
             CALL rs_grid_create(rs_rho_ext(igrid_level)%rs_grid, &
                                 rs_descs(igrid_level)%rs_desc)
             CALL rs_grid_zero(rs_rho_ext(igrid_level)%rs_grid)
-         ENDDO
+         END DO
 
          igrid_level = igrid_level - 1
 
@@ -153,7 +153,7 @@ CONTAINS
 
                DO i = 1, 2
                   READ (extunit, *)
-               ENDDO
+               END DO
                READ (extunit, *) nat, rdum
                DO i = 1, 3
                   READ (extunit, *) ndum, rdum
@@ -161,12 +161,12 @@ CONTAINS
                      WRITE (*, *) "ZMP | ERROR! | CUBE FILE NOT COINCIDENT WITH INTERNAL GRID ", i
                      WRITE (*, *) "ZMP | ", ndum, " DIFFERS FROM ", npoints(i)
                      WRITE (*, *) "ZMP | ", rdum, " DIFFERS FROM ", dr(i)
-                  ENDIF
-               ENDDO
+                  END IF
+               END DO
                DO i = 1, nat
                   READ (extunit, *)
-               ENDDO
-            ENDIF
+               END DO
+            END IF
 
             DO i = lbounds(1), ubounds(1)
                DO j = lbounds(2), ubounds(2)
@@ -176,35 +176,35 @@ CONTAINS
                         DO ip = 1, num_pe - 1
                            CALL mp_send(buffer(lbounds(3):ubounds(3)), ip, tag, gid)
 !                  WRITE(*,*) my_rank," sending to : ",ip
-                        ENDDO
+                        END DO
 !                CALL mp_sync(gid)
-                     ENDIF
+                     END IF
                   ELSE
                      master = 0
                      CALL mp_recv(buffer(lbounds(3):ubounds(3)), master, tag, gid)
 !               WRITE(*,*) my_rank," receiving from master"
-                  ENDIF
+                  END IF
                   CALL mp_sync(gid)
 
                   IF ((lbounds_local(1) .LE. i) .AND. (i .LE. ubounds_local(1)) .AND. (lbounds_local(2) .LE. j) &
                       .AND. (j .LE. ubounds_local(2))) THEN
                      rs_rho_ext(igrid_level)%rs_grid%r(i, j, lbounds(3):ubounds(3)) = buffer(lbounds(3):ubounds(3))
-                  ENDIF
+                  END IF
 
-               ENDDO
-            ENDDO
+               END DO
+            END DO
             IF (my_rank == 0) CALL close_file(unit_number=extunit)
-         ENDIF
+         END IF
 
          CALL density_rs2pw(pw_env, rs_rho_ext, rho=rho_ext_r(1), rho_gspace=rho_ext_g(1))
          tot_rho_r_ext(1) = pw_integrate_function(rho_ext_r(1)%pw, isign=1)
          IF (my_rank == 0) THEN
             WRITE (*, FMT="(T3,A,T61,F20.10)") "ZMP| Total external charge:                    ", &
                tot_rho_r_ext(1)
-         ENDIF
+         END IF
          DEALLOCATE (buffer, rs_rho_ext)
          CALL mp_sync(gid)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 

@@ -87,7 +87,7 @@ CONTAINS
                END DO
             END DO
          END DO
-      ENDIF
+      END IF
    END SUBROUTINE admm_dm_create
 
 ! **************************************************************************************************
@@ -103,7 +103,7 @@ CONTAINS
       IF (ASSOCIATED(admm_dm%matrix_a)) THEN
          CALL dbcsr_release(admm_dm%matrix_a)
          DEALLOCATE (admm_dm%matrix_a)
-      ENDIF
+      END IF
 
       IF (ASSOCIATED(admm_dm%block_map)) &
          DEALLOCATE (admm_dm%block_map)

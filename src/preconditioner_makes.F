@@ -120,7 +120,7 @@ CONTAINS
       CASE (ot_precond_full_all)
          IF (my_solver_type .NE. ot_precond_solver_default) THEN
             CPABORT("Only PRECOND_SOLVER DEFAULT for the moment")
-         ENDIF
+         END IF
          IF (PRESENT(matrix_s)) THEN
             CALL make_full_all(preconditioner_env, mo_coeff, matrix_h, matrix_s, &
                                eigenvalues_ot, energy_gap)
@@ -228,7 +228,7 @@ CONTAINS
 
       IF (ASSOCIATED(fm)) THEN
          CALL cp_fm_release(fm)
-      ENDIF
+      END IF
       CALL dbcsr_get_info(matrix_h, nfullrows_total=n)
       ALLOCATE (evals(n))
 
@@ -268,13 +268,13 @@ CONTAINS
                                         invert_tr=.FALSE., uplo_tr="U", n_rows=n, n_cols=n, alpha=1.0_dp)
          DO i = 1, n
             evals(i) = 1.0_dp/MAX(evals(i) - energy_homo, energy_gap)
-         ENDDO
+         END DO
          CALL cp_fm_to_fm(fm, fm_h)
       CASE (cholesky_reduce)
          CALL cp_fm_cholesky_restore(fm, n, fm_s, fm_h, "SOLVE")
          DO i = 1, n
             evals(i) = 1.0_dp/MAX(evals(i) - energy_homo, energy_gap)
-         ENDDO
+         END DO
          CALL cp_fm_to_fm(fm_h, fm)
       END SELECT
 
@@ -317,7 +317,7 @@ CONTAINS
 
       IF (ASSOCIATED(fm)) THEN
          CALL cp_fm_release(fm)
-      ENDIF
+      END IF
       CALL dbcsr_get_info(matrix_h, nfullrows_total=n)
       ALLOCATE (evals(n))
 
@@ -334,7 +334,7 @@ CONTAINS
       CALL choose_eigv_solver(fm_h, fm, evals)
       DO i = 1, n
          evals(i) = 1.0_dp/MAX(evals(i) - energy_homo, energy_gap)
-      ENDDO
+      END DO
       CALL cp_fm_to_fm(fm, fm_h)
       CALL cp_fm_column_scale(fm, evals)
       CALL cp_gemm('N', 'T', n, n, n, 1.0_dp, fm, fm_h, 0.0_dp, fm_s)
@@ -510,7 +510,7 @@ CONTAINS
          DEALLOCATE (norms)
          CALL cp_fm_release(matrix_s1)
          CALL cp_fm_release(matrix_s2)
-      ENDIF
+      END IF
 
       ! 3) replace the lowest k evals and evecs with what they should be
       preconditioner_env%occ_evals = c0_evals
@@ -641,7 +641,7 @@ CONTAINS
          DEALLOCATE (norms)
          CALL cp_fm_release(matrix_s1)
          CALL cp_fm_release(matrix_s2)
-      ENDIF
+      END IF
 
       ! 3) replace the lowest k evals and evecs with what they should be
       preconditioner_env%occ_evals = c0_evals

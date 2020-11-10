@@ -246,8 +246,8 @@ CONTAINS
          dum = 1.0_dp/MAX(preconditioner_env%energy_gap, &
                           preconditioner_env%full_evals(row_indices(i)) - preconditioner_env%occ_evals(col_indices(j)))
          local_data(i, j) = local_data(i, j)*dum
-      ENDDO
-      ENDDO
+      END DO
+      END DO
 
       ! mult back
       CALL cp_gemm('N', 'N', n, k, n, 1.0_dp, preconditioner_env%fm, &
@@ -296,9 +296,9 @@ CONTAINS
                              preconditioner_env%full_evals(row_offset + i - 1) &
                              - preconditioner_env%occ_evals(col_offset + j - 1))
             DATA(i, j) = DATA(i, j)*dum
-         ENDDO
-         ENDDO
-      ENDDO
+         END DO
+         END DO
+      END DO
       CALL dbcsr_iterator_stop(iter)
 
       ! mult back

@@ -249,7 +249,7 @@ CONTAINS
           cp_logger_would_log(logger, cp_note_level)) THEN
          CALL dbcsr_print_config(unit_nr=output_unit)
          WRITE (UNIT=output_unit, FMT='()')
-      ENDIF
+      END IF
 
       ! Configure the grid library.
       CALL section_vals_val_get(root_section, "GLOBAL%GRID%BACKEND", i_val=grid_backend)
@@ -421,7 +421,7 @@ CONTAINS
          WRITE (output_unit, *)
          WRITE (output_unit, '(T2,"MEMORY| Estimated peak process memory [MiB]",T73,I8)') &
             (m_memory_max_mpi + (1024*1024) - 1)/(1024*1024)
-      ENDIF
+      END IF
 
       IF (prog_name_id == do_cp2k) THEN
          f_env%force_env => force_env ! for mc
@@ -530,14 +530,14 @@ CONTAINS
             CPASSERT(num_slaves == 1)
             num_slaves = para_env%num_pe - 1
             slave_rank = -1
-         ENDIF
+         END IF
          CPASSERT(num_slaves == para_env%num_pe - 1)
       ELSE
          ! all processes are slaves
          IF (output_unit > 0) WRITE (output_unit, FMT="(T2,A)") "FARMING| using a slave-only setup"
          CALL mp_comm_dup(para_env%group, slave_group)
          CALL mp_environ(num_slaves, slave_rank, slave_group)
-      ENDIF
+      END IF
       IF (output_unit > 0) WRITE (output_unit, FMT="(T2,A,I0)") "FARMING| number of slaves ", num_slaves
 
       ! keep track of which para_env rank is which slave/master
@@ -549,7 +549,7 @@ CONTAINS
       primus_slave = 0
       DO i = 1, para_env%num_pe - 1
          IF (slave_distribution(i) == 0) primus_slave = i
-      ENDDO
+      END DO
 
       ! split the current communicator for the slaves
       ! in a new_group, new_size and new_rank according to the number of groups required according to the input
@@ -568,12 +568,12 @@ CONTAINS
             ELSE
                CALL mp_comm_split(slave_group, new_group, ngroups, group_distribution, &
                                   n_subgroups=farming_env%ngroup_wish, stride=farming_env%stride)
-            ENDIF
+            END IF
          ELSE
             CPABORT("must set either group_size_wish or ngroup_wish")
-         ENDIF
+         END IF
          CALL mp_environ(new_size, new_rank, new_group)
-      ENDIF
+      END IF
 
       ! transfer the info about the slave group distribution to the master
       IF (farming_env%master_slave) THEN
@@ -582,14 +582,14 @@ CONTAINS
             CALL mp_send(group_distribution, 0, tag, para_env%group)
             tag = 2
             CALL mp_send(ngroups, 0, tag, para_env%group)
-         ENDIF
+         END IF
          IF (para_env%mepos == 0) THEN
             tag = 1
             CALL mp_recv(group_distribution, primus_slave, tag, para_env%group)
             tag = 2
             CALL mp_recv(ngroups, primus_slave, tag, para_env%group)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       ! write info on group distribution
       IF (output_unit > 0) THEN
@@ -602,7 +602,7 @@ CONTAINS
          END DO
          WRITE (output_unit, *)
          CALL m_flush(output_unit)
-      ENDIF
+      END IF
 
       ! protect about too many jobs being run in single go. Not more jobs are allowed than the number in the input file
       ! and determine the future restart point
@@ -613,14 +613,14 @@ CONTAINS
          n_jobs_to_run = MIN(farming_env%njobs, farming_env%max_steps*ngroups)
          n_jobs_to_run = MIN(n_jobs_to_run, farming_env%njobs - farming_env%restart_n + 1)
          i_job_to_restart = n_jobs_to_run + farming_env%restart_n
-      ENDIF
+      END IF
 
       ! and write the restart now, that's the point where the next job starts, even if this one is running
       iunit = cp_print_key_unit_nr(logger, root_section, "FARMING%RESTART", &
                                    extension=".restart")
       IF (iunit > 0) THEN
          WRITE (iunit, *) i_job_to_restart
-      ENDIF
+      END IF
       CALL cp_print_key_finished_output(iunit, logger, root_section, "FARMING%RESTART")
 
       ! this is the job range to be executed.
@@ -631,7 +631,7 @@ CONTAINS
          WRITE (output_unit, FMT="(T2,A)") "FARMING| is the cycle keyword required ?"
          WRITE (output_unit, FMT="(T2,A)") "FARMING| or is a stray RESTART file present ?"
          WRITE (output_unit, FMT="(T2,A)") "FARMING| or is the group_size requested smaller than the number of CPUs?"
-      ENDIF
+      END IF
 
       ! actual executions of the jobs in two different modes
       IF (farming_env%master_slave) THEN
@@ -655,7 +655,7 @@ CONTAINS
                   CALL mp_bcast(todo, 0, new_group)
                ELSE
                   CALL mp_bcast(todo, 0, new_group)
-               ENDIF
+               END IF
 
                ! if the todo is do_nothing we are flagged to quit. Otherwise it is the job number
                SELECT CASE (todo)
@@ -665,13 +665,13 @@ CONTAINS
                   DO
                      t2 = m_walltime()
                      IF (t2 - t1 > farming_env%wait_time) EXIT
-                  ENDDO
+                  END DO
                CASE (do_nothing)
                   EXIT
                CASE (1:)
                   CALL execute_job(todo)
                END SELECT
-            ENDDO
+            END DO
          ELSE ! master
             ALLOCATE (slave_status(0:ngroups - 1))
             slave_status = slave_status_wait
@@ -689,8 +689,8 @@ CONTAINS
                   IF (output_unit > 0) THEN
                      WRITE (output_unit, FMT=*) "Job finished: ", todo
                      CALL m_flush(output_unit)
-                  ENDIF
-               ENDIF
+                  END IF
+               END IF
 
                ! get the next job in line, this could be do_nothing, if we're finished
                CALL get_next_job(farming_env, ijob_start, ijob_end, ijob_current, todo)
@@ -704,31 +704,31 @@ CONTAINS
                      WRITE (output_unit, FMT=*) "Job: ", todo, " Dir: ", TRIM(farming_env%Job(todo)%cwd), &
                         " assigned to group ", group_distribution(slave_distribution(dest))
                      CALL m_flush(output_unit)
-                  ENDIF
+                  END IF
                ELSE
                   IF (todo == do_nothing) THEN
                      slave_status(group_distribution(slave_distribution(dest))) = slave_status_done
                      IF (output_unit > 0) THEN
                         WRITE (output_unit, FMT=*) "group done: ", group_distribution(slave_distribution(dest))
                         CALL m_flush(output_unit)
-                     ENDIF
-                  ENDIF
+                     END IF
+                  END IF
                   IF (todo == do_deadlock) THEN
                      IF (output_unit > 0) THEN
                         WRITE (output_unit, FMT=*) ""
                         WRITE (output_unit, FMT=*) "FARMING JOB DEADLOCKED ... CIRCULAR DEPENDENCIES"
                         WRITE (output_unit, FMT=*) ""
                         CALL m_flush(output_unit)
-                     ENDIF
+                     END IF
                      CPASSERT(todo .NE. do_deadlock)
-                  ENDIF
-               ENDIF
+                  END IF
+               END IF
 
-            ENDDO
+            END DO
 
             DEALLOCATE (slave_status)
 
-         ENDIF
+         END IF
       ELSE
          ! this is the non-master-slave mode way of executing the jobs
          ! the i-th job in the input is always executed by the MODULO(i-1,ngroups)-th group
@@ -740,10 +740,10 @@ CONTAINS
                   i = MODULO(ijob - 1, farming_env%njobs) + 1
                   WRITE (output_unit, FMT=*) "Job: ", i, " Dir: ", TRIM(farming_env%Job(i)%cwd), " Input: ", &
                      TRIM(farming_env%Job(i)%input), " MPI group:", MODULO(i - 1, ngroups)
-               ENDDO
-            ENDIF
+               END DO
+            END IF
             CALL m_flush(output_unit)
-         ENDIF
+         END IF
 
          DO ijob = ijob_start, ijob_end
             i = MODULO(ijob - 1, farming_env%njobs) + 1
@@ -753,15 +753,15 @@ CONTAINS
                   WRITE (output_unit, FMT="(T2,A,I5.5,A)", ADVANCE="NO") " Running Job ", i, &
                      " in "//TRIM(farming_env%Job(i)%cwd)//"."
                   CALL m_flush(output_unit)
-               ENDIF
+               END IF
                CALL execute_job(i)
                IF (output_unit > 0) THEN
                   WRITE (output_unit, FMT="(A)") " Done, output in "//TRIM(output_file)
                   CALL m_flush(output_unit)
-               ENDIF
-            ENDIF
-         ENDDO
-      ENDIF
+               END IF
+            END IF
+         END DO
+      END IF
 
       ! keep information about how long each process has to wait
       ! i.e. the load imbalance
@@ -778,9 +778,9 @@ CONTAINS
             WRITE (output_unit, FMT='(A2,I6,A3,F8.3,A1)', ADVANCE="NO") &
                " (", i, " : ", waittime(i), ")"
             IF (MOD(i + 1, 4) == 0) WRITE (output_unit, '(A)') ""
-         ENDDO
+         END DO
          CALL m_flush(output_unit)
-      ENDIF
+      END IF
       DEALLOCATE (waittime)
 
       ! give back the communicators of the split groups
@@ -840,7 +840,7 @@ CONTAINS
                CALL parser_release(my_parser)
             ELSE
                output_file = farming_env%Job(i)%output
-            ENDIF
+            END IF
 
             CALL open_file(file_name=TRIM(output_file), &
                            file_action="WRITE", &
@@ -852,7 +852,7 @@ CONTAINS
             ! start writing output (to the same file, adding to confusion).
             ! error handling should be careful, asking for a local output unit if required
             new_output_unit = -1
-         ENDIF
+         END IF
 
          CALL cp2k_run(input_declaration, TRIM(farming_env%Job(i)%input), new_output_unit, new_group, initial_variables)
 

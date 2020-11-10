@@ -334,7 +334,7 @@ CONTAINS
                CALL apply_preconditioner(preconditioner, c_z, c_pz)
             ELSE
                CALL cp_fm_to_fm(c_z, c_pz)
-            ENDIF
+            END IF
          ELSE
             CALL cp_fm_to_fm(c_z, c_pz)
          END IF

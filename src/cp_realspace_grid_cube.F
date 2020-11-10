@@ -95,7 +95,7 @@ CONTAINS
          CALL pw_to_simple_volumetric(pw, unit_nr, stride)
       ELSE
          CALL pw_to_simple_volumetric(pw, unit_nr, stride, pw2)
-      ENDIF
+      END IF
 
    END SUBROUTINE cp_pw_to_simple_volumetric
 

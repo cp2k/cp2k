@@ -188,8 +188,8 @@ CONTAINS
                     - 1.0_dp/(eigenval(iib)*(eigenval(iib) + 1.0_dp)))
          ELSE
             eigenval(iib) = 0.707_dp
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       CALL cp_fm_column_scale(fm_mat_U, eigenval)
 
@@ -321,7 +321,7 @@ CONTAINS
                            matrix_type=dbcsr_type_no_symmetry)
          CALL dbcsr_copy(dbcsr_Gamma_munu_P(L_counter)%matrix, mat_munu%matrix)
          CALL dbcsr_set(dbcsr_Gamma_munu_P(L_counter)%matrix, 0.0_dp)
-      ENDDO
+      END DO
 
       !! Loup over auxiliary basis functions: multiplication
       L_counter = 0
@@ -336,7 +336,7 @@ CONTAINS
                              0.0_dp, dbcsr_Gamma_munu_P(L_counter)%matrix, filter_eps=eps_filter)
          !
          CALL dbcsr_trace(dbcsr_Gamma_munu_P(L_counter)%matrix, trace_corr)
-      ENDDO
+      END DO
 
       ! Gamma_3 not needed anymore
       L_counter = 0
@@ -344,7 +344,7 @@ CONTAINS
          L_counter = L_counter + 1
          CALL dbcsr_release(dbcsr_Gamma_3(L_counter)%matrix)
          DEALLOCATE (dbcsr_Gamma_3(L_counter)%matrix)
-      ENDDO
+      END DO
       DEALLOCATE (dbcsr_Gamma_3)
 
       ! Contract DM with exchange integrals
@@ -365,7 +365,7 @@ CONTAINS
          CALL dbcsr_release(dbcsr_Gamma_munu_P(L_counter)%matrix)
          DEALLOCATE (dbcsr_Gamma_inu_P(L_counter)%matrix)
          DEALLOCATE (dbcsr_Gamma_munu_P(L_counter)%matrix)
-      ENDDO
+      END DO
       DEALLOCATE (dbcsr_Gamma_inu_P)
       DEALLOCATE (dbcsr_Gamma_munu_P)
 
@@ -463,7 +463,7 @@ CONTAINS
                              0.0_dp, dbcsr_Gamma_munu_P(aux)%matrix, filter_eps=eps_filter)
          CALL dbcsr_trace(dbcsr_Gamma_munu_P(aux)%matrix, e_axk_p)
          axk_corr = axk_corr + e_axk_P
-      ENDDO
+      END DO
 
       CALL dbcsr_release(mat_2d(1, 1)%matrix)
       ! release rho stuff

@@ -245,11 +245,11 @@ CONTAINS
 
       IF (mp2_env%ri_rpa%do_ri_axk) THEN
          CALL cite_reference(Bates2013)
-      ENDIF
+      END IF
       IF (mp2_env%ri_rpa%do_rse) THEN
          CALL cite_reference(Ren2011)
          CALL cite_reference(Ren2013)
-      ENDIF
+      END IF
 
       IF (my_do_gw) THEN
          CALL cite_reference(Wilhelm2016a)
@@ -750,7 +750,7 @@ CONTAINS
          DEALLOCATE (mp2_env%ri_rpa%mo_coeff_o)
          CALL dbcsr_release(mp2_env%ri_rpa%mo_coeff_v)
          DEALLOCATE (mp2_env%ri_rpa%mo_coeff_v)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -847,7 +847,7 @@ CONTAINS
                   END IF
                END DO
             END DO
-         ENDDO
+         END DO
 
          DEALLOCATE (BIb_C_rec)
       END DO
@@ -1565,7 +1565,7 @@ CONTAINS
             CALL initialize_buffer(fm_mat_Q, fm_mat_Q_gemm, RPA_proc_map, buffer_rec_axk, buffer_send_axk, &
                                    number_of_rec_axk, number_of_send_axk, &
                                    map_send_size_axk, map_rec_size_axk, local_size_source_axk, para_env_RPA)
-         ENDIF
+         END IF
       END IF
 
       ! This array is needed for RPA
@@ -1816,7 +1816,7 @@ CONTAINS
 
                ! Evaluate the final AXK energy correction
                e_axk = e_axk + e_axk_corr*wj(jquad)
-            ENDIF ! do_ri_axk
+            END IF ! do_ri_axk
 
             IF (do_ri_sos_laplace_mp2) THEN
                IF (my_open_shell) THEN
@@ -1886,7 +1886,7 @@ CONTAINS
             E_axk = E_axk/(pi*2.0_dp)
             IF (do_minimax_quad) E_axk = E_axk/2.0_dp
             mp2_env%ri_rpa%ener_axk = E_axk
-         ENDIF
+         END IF
 
          IF (do_im_time) THEN
 
@@ -2012,7 +2012,7 @@ CONTAINS
          CALL release_buffer(RPA_proc_map, buffer_rec_axk, buffer_send_axk, &
                              number_of_rec_axk, number_of_send_axk, &
                              map_send_size_axk, map_rec_size_axk, local_size_source_axk)
-      ENDIF
+      END IF
 
       IF (my_open_shell) THEN
          CALL release_buffer(RPA_proc_map, buffer_rec_beta, buffer_send_beta, &

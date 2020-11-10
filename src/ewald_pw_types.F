@@ -399,22 +399,22 @@ CONTAINS
          CALL pw_pool_retain(pw_big_pool)
          CALL pw_pool_release(ewald_pw%pw_big_pool)
          ewald_pw%pw_big_pool => pw_big_pool
-      ENDIF
+      END IF
       IF (PRESENT(pw_small_pool)) THEN
          CALL pw_pool_retain(pw_small_pool)
          CALL pw_pool_release(ewald_pw%pw_small_pool)
          ewald_pw%pw_small_pool => pw_small_pool
-      ENDIF
+      END IF
       IF (PRESENT(rs_desc)) THEN
          CALL rs_grid_retain_descriptor(rs_desc)
          CALL rs_grid_release_descriptor(ewald_pw%rs_desc)
          ewald_pw%rs_desc => rs_desc
-      ENDIF
+      END IF
       IF (PRESENT(dg)) THEN
          CALL dg_retain(dg)
          CALL dg_release(ewald_pw%dg)
          ewald_pw%dg => dg
-      ENDIF
+      END IF
       IF (PRESENT(poisson_env)) THEN
          IF (ASSOCIATED(poisson_env)) &
             CALL pw_poisson_retain(poisson_env)

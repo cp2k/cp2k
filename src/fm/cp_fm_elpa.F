@@ -194,54 +194,54 @@ CONTAINS
    SUBROUTINE set_elpa_kernel(kernel)
       INTEGER, INTENT(IN) :: kernel
 
-#:def pick_macro(kernel_const)
-#! use Fypp's eval directive to hide ELPA flags from convention checker
-$: "#if defined(__ELPA)"
-$: "   elpa_kernel = ELPA_2STAGE_REAL_" + kernel_const
-$: "#else"
-$: "   CPABORT('ELPA is not available')"
-$: "#endif"
-#:enddef
+      #:def pick_macro(kernel_const)
+         #! use Fypp's eval directive to hide ELPA flags from convention checker
+         $: "#if defined(__ELPA)"
+         $: "   elpa_kernel = ELPA_2STAGE_REAL_" + kernel_const
+         $: "#else"
+         $: "   CPABORT('ELPA is not available')"
+         $: "#endif"
+      #:enddef
 
       SELECT CASE (kernel)
       CASE (1)
          elpa_kernel = -1 ! auto
       CASE (2)
-@:        pick_macro(GENERIC)
+         @:        pick_macro(GENERIC)
       CASE (3)
-@:        pick_macro(GENERIC_SIMPLE)
+         @:        pick_macro(GENERIC_SIMPLE)
       CASE (4)
-@:        pick_macro(BGP)
+         @:        pick_macro(BGP)
       CASE (5)
-@:        pick_macro(BGQ)
+         @:        pick_macro(BGQ)
       CASE (6)
-@:        pick_macro(SSE_ASSEMBLY)
+         @:        pick_macro(SSE_ASSEMBLY)
       CASE (7)
-@:        pick_macro(SSE_BLOCK2)
+         @:        pick_macro(SSE_BLOCK2)
       CASE (8)
-@:        pick_macro(SSE_BLOCK4)
+         @:        pick_macro(SSE_BLOCK4)
       CASE (9)
-@:        pick_macro(SSE_BLOCK6)
+         @:        pick_macro(SSE_BLOCK6)
       CASE (10)
-@:        pick_macro(AVX_BLOCK2)
+         @:        pick_macro(AVX_BLOCK2)
       CASE (11)
-@:        pick_macro(AVX_BLOCK4)
+         @:        pick_macro(AVX_BLOCK4)
       CASE (12)
-@:        pick_macro(AVX_BLOCK6)
+         @:        pick_macro(AVX_BLOCK6)
       CASE (13)
-@:        pick_macro(AVX2_BLOCK2)
+         @:        pick_macro(AVX2_BLOCK2)
       CASE (14)
-@:        pick_macro(AVX2_BLOCK4)
+         @:        pick_macro(AVX2_BLOCK4)
       CASE (15)
-@:        pick_macro(AVX2_BLOCK6)
+         @:        pick_macro(AVX2_BLOCK6)
       CASE (16)
-@:        pick_macro(AVX512_BLOCK2)
+         @:        pick_macro(AVX512_BLOCK2)
       CASE (17)
-@:        pick_macro(AVX512_BLOCK4)
+         @:        pick_macro(AVX512_BLOCK4)
       CASE (18)
-@:        pick_macro(AVX512_BLOCK6)
+         @:        pick_macro(AVX512_BLOCK6)
       CASE (19)
-@:        pick_macro(GPU)
+         @:        pick_macro(GPU)
          elpa_use_gpu = .TRUE.
       CASE DEFAULT
          CPABORT("Invalid ELPA kernel selected")
@@ -468,8 +468,8 @@ $: "#endif"
          CALL elpa_obj%set("real_kernel", elpa_kernel, success)
          IF (success /= elpa_ok) THEN
             CPABORT("Setting the ELPA real_kernel failed")
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       IF (use_qr) &
          CALL elpa_obj%set("qr", 1, success)

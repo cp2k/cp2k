@@ -844,7 +844,7 @@ CONTAINS
             atoms(iparticle)%mass = particles%els(iparticle)%atomic_kind%mass
          END DO
          CPASSERT(iparticle - 1 .EQ. nr_atoms)
-      ENDIF
+      END IF
    END SUBROUTINE get_atom_kinds_and_cell
 
 ! **************************************************************************************************

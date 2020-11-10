@@ -136,7 +136,7 @@ CONTAINS
          CALL timeset(routineN//"_forces", handle)
       ELSE
          CALL timeset(routineN, handle)
-      ENDIF
+      END IF
 
       nkind = SIZE(atomic_kind_set)
       natom = SIZE(particle_set)

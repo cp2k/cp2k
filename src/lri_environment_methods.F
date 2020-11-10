@@ -222,8 +222,8 @@ CONTAINS
                   lrii%calc_force_pair = .FALSE.
                ELSE
                   lrii%calc_force_pair = .TRUE.
-               ENDIF
-            ENDIF
+               END IF
+            END IF
 
             IF (e1c .AND. lri_env%exact_1c_terms) THEN
                ! nothing to do
@@ -279,7 +279,7 @@ CONTAINS
                      CALL dgemv("N", nn, nn, 1.0_dp, lrii%sinv(1, 1), nn, &
                                 lrii%n(1), 1, 0.0_dp, lrii%sn, 1)
                      lrii%nsn = SUM(lrii%sn(1:nn)*lrii%n(1:nn))
-                  ENDIF
+                  END IF
                   IF (lri_env%store_integrals) THEN
                      IF (ALLOCATED(lrii%sab)) DEALLOCATE (lrii%sab)
                      ALLOCATE (lrii%sab(nfa, nfb))
@@ -321,7 +321,7 @@ CONTAINS
 
          IF (lri_env%debug) THEN
             CALL output_debug_info(lri_env, qs_env, lri_ints, soo_list)
-         ENDIF
+         END IF
 
       END IF
 
@@ -371,7 +371,7 @@ CONTAINS
          CALL calculate_lri_rho_elec(rho_g(ispin), rho_r(ispin), qs_env, &
                                      lri_density%lri_coefs(ispin)%lri_kinds, tot_rho_r(ispin), &
                                      "LRI_AUX", lri_env%exact_1c_terms, pmat=pmat_diag, atomlist=atomlist)
-      ENDDO
+      END DO
 
       CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
 
@@ -545,7 +545,7 @@ CONTAINS
 
          CALL neighbor_list_iterator_release(nl_iterator)
 
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -707,13 +707,13 @@ CONTAINS
                         CALL lri_decomp_i(int3, lrii%cabbi, i)
                         lrho%tvec(nfa + i) = SUM(pab(1:nba, 1:nbb)*int3(1:nba, 1:nbb))
                      END DO
-                  ENDIF
+                  END IF
                   !
                   IF (iatom == jatom .AND. dab < lri_env%delta) THEN
                      lrho%nst = SUM(lrho%tvec(1:nfa)*lrii%sn(1:nfa))
                   ELSE
                      lrho%nst = SUM(lrho%tvec(1:nn)*lrii%sn(1:nn))
-                  ENDIF
+                  END IF
                   lrho%lambda = (lrho%charge - lrho%nst)/lrii%nsn
                   !
                   ! solve the linear system of equations
@@ -727,9 +727,9 @@ CONTAINS
                      m(1:nn) = lrho%tvec(1:nn) + lrho%lambda*lrii%n(1:nn)
                      CALL dgemv("N", nn, nn, 1.0_dp, lrii%sinv(1, 1), nn, &
                                 m(1), 1, 0.0_dp, lrho%avec, 1)
-                  ENDIF
+                  END IF
                   DEALLOCATE (m)
-               ENDIF
+               END IF
 
                IF (lrii%lriff) THEN
                   ! distant pair approximations
@@ -775,7 +775,7 @@ CONTAINS
                   DEALLOCATE (m)
                   !
                   DEALLOCATE (paa, pbb)
-               ENDIF
+               END IF
 
                DEALLOCATE (pab, int3)
 
@@ -890,24 +890,24 @@ CONTAINS
                      ELSE
                         !pairs ab
                         fw = 2.0_dp*lrii%wsr
-                     ENDIF
+                     END IF
                      aci(1:nfa) = aci(1:nfa) + fw*lrho%avec(1:nfa)
                      acj(1:nfb) = acj(1:nfb) + fw*lrho%avec(nfa + 1:nfa + nfb)
                      lri_env%stat%rho_sr = lri_env%stat%rho_sr + fw*SUM(lrho%avec(:)*lrii%n(:))
-                  ENDIF
-               ENDIF
+                  END IF
+               END IF
                !
                IF (lrii%lriff) THEN
                   IF (iatom == jatom) THEN
                      fw = lrii%wff
                   ELSE
                      fw = 2.0_dp*lrii%wff
-                  ENDIF
+                  END IF
                   aci(1:nfa) = aci(1:nfa) + fw*lrho%aveca(1:nfa)
                   acj(1:nfb) = acj(1:nfb) + fw*lrho%avecb(1:nfb)
                   lri_env%stat%rho_sr = lri_env%stat%rho_sr + fw*SUM(lrho%aveca(:)*lrii%na(:))
                   lri_env%stat%rho_sr = lri_env%stat%rho_sr + fw*SUM(lrho%avecb(:)*lrii%nb(:))
-               ENDIF
+               END IF
 
             END DO
             CALL neighbor_list_iterator_release(nl_iterator)
@@ -947,7 +947,7 @@ CONTAINS
             lri_env%stat%rho_tt = lri_env%stat%rho_tt + tot_rho_r(ispin)
             !
             IF (lri_env%exact_1c_terms) CALL dbcsr_release(pmat_diag)
-         ENDDO
+         END DO
 
          DEALLOCATE (atom_of_kind)
 
@@ -1015,12 +1015,12 @@ CONTAINS
             CALL dpocon('U', n, sinv, n, anorm, rcond, work, iwork, info)
             IF (info /= 0) THEN
                CPABORT("DPOCON failed")
-            ENDIF
+            END IF
             IF (LOG(1._dp/rcond) > lri_env%cond_max) THEN
                CALL get_pseudo_inverse_svd(s, sinv, rskip)
             ELSE
                CALL invmat_symm(sinv, "U")
-            ENDIF
+            END IF
          ELSE
             CALL get_pseudo_inverse_svd(s, sinv, rskip)
          END IF
@@ -1120,7 +1120,7 @@ CONTAINS
          IF (dft_control%qs_control%lri_optbas) THEN
             lriir => lri_env%lri_ints_rho%lri_atom(iac)%lri_node(ilist)%lri_int_rho(jneighbor)
             dmax_aabb = MAX(dmax_aabb, lriir%dmax_aabb)
-         ENDIF
+         END IF
 
       END DO
 
@@ -1149,8 +1149,8 @@ CONTAINS
             WRITE (iunit, FMT="(T2,A,T69,ES12.5,/)") "Maximal deviation of integrals "// &
                "[aa|bb]; orbital basis", &
                dmax_aabb
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       CALL cp_print_key_finished_output(iunit, logger, input, &
                                         "PRINT%PROGRAM_RUN_INFO")

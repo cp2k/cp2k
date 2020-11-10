@@ -202,7 +202,7 @@ CONTAINS
          IF (nmr_present .OR. epr_present) THEN
             CALL nmr_epr_linres(linres_control, qs_env, p_env, dft_control, &
                                 nmr_present, epr_present, iounit)
-         ENDIF
+         END IF
 
          ! We do the indirect spin-spin coupling calculation
          prop_section => section_vals_get_subs_vals(lr_section, "SPINSPIN")
@@ -210,7 +210,7 @@ CONTAINS
 
          IF (issc_present) THEN
             CALL issc_linres(linres_control, qs_env, p_env, dft_control)
-         ENDIF
+         END IF
 
          ! We do the polarizability calculation
          prop_section => section_vals_get_subs_vals(lr_section, "POLAR")
@@ -295,7 +295,7 @@ CONTAINS
 
          DO ispin = 1, dft_control%nspins
             CALL calculate_density_matrix(mos(ispin)%mo_set, rho_ao(ispin)%matrix)
-         ENDDO
+         END DO
          ! ** update qs_env%rho
          CALL qs_rho_update_rho(rho, qs_env=qs_env)
       END IF
@@ -410,10 +410,10 @@ CONTAINS
                        "shift without localized psi0?")
          CALL linres_localize(qs_env, linres_control, &
                               dft_control%nspins, centers_only=.TRUE.)
-      ENDIF
+      END IF
       IF (dft_control%nspins /= 2 .AND. epr_present) THEN
          CPABORT("LSD is needed to perform a g tensor calculation!")
-      ENDIF
+      END IF
       !
       !Initialize the current environment
       do_qmmm = .FALSE.
@@ -430,7 +430,7 @@ CONTAINS
          IF (nmr_present) THEN
             nmr_env%ref_count = 0
             CALL nmr_env_init(nmr_env, qs_env)
-         ENDIF
+         END IF
          !
          !Initialize the epr environment
          IF (epr_present) THEN
@@ -438,7 +438,7 @@ CONTAINS
             CALL epr_env_init(epr_env, qs_env)
             CALL epr_g_zke(epr_env, qs_env)
             CALL epr_nablavks(epr_env, qs_env)
-         ENDIF
+         END IF
          !
          ! Build the rs_gauge if needed
          !CALL current_set_gauge(current_env,qs_env)
@@ -453,27 +453,27 @@ CONTAINS
             ! Compute NMR shift
             IF (nmr_present) THEN
                CALL nmr_shift(nmr_env, current_env, qs_env, iB)
-            ENDIF
+            END IF
             !
             ! Compute EPR
             IF (epr_present) THEN
                CALL epr_ind_magnetic_field(epr_env, current_env, qs_env, iB)
                CALL epr_g_so(epr_env, current_env, qs_env, iB)
                CALL epr_g_soo(epr_env, current_env, qs_env, iB)
-            ENDIF
-         ENDDO
+            END IF
+         END DO
          !
          ! Finalized the nmr environment
          IF (nmr_present) THEN
             CALL nmr_shift_print(nmr_env, current_env, qs_env)
             CALL nmr_env_cleanup(nmr_env)
-         ENDIF
+         END IF
          !
          ! Finalized the epr environment
          IF (epr_present) THEN
             CALL epr_g_print(epr_env, qs_env)
             CALL epr_env_cleanup(epr_env)
-         ENDIF
+         END IF
          !
       ELSE
          IF (iounit > 0) THEN
@@ -513,7 +513,7 @@ CONTAINS
                        "shift without localized psi0?")
          CALL linres_localize(qs_env, linres_control, &
                               dft_control%nspins, centers_only=.TRUE.)
-      ENDIF
+      END IF
       !
       !Initialize the current environment
       do_qmmm = .FALSE.
@@ -533,7 +533,7 @@ CONTAINS
          CALL issc_operators(issc_env, qs_env, iatom)
          CALL issc_response(issc_env, p_env, qs_env)
          CALL issc_issc(issc_env, qs_env, iatom)
-      ENDDO
+      END DO
       !
       ! Finalized the issc environment
       CALL issc_print(issc_env, qs_env)

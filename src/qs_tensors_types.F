@@ -112,7 +112,7 @@ CONTAINS
          dist_3d%owns_comm = own_comm
       ELSE
          dist_3d%owns_comm = .FALSE.
-      ENDIF
+      END IF
 
       CALL mp_cart_sub(mp_comm_3d, [.TRUE., .TRUE., .FALSE.], comm_2d_1)
       CALL mp_cart_sub(mp_comm_3d, [.FALSE., .TRUE., .TRUE.], comm_2d_2)
@@ -278,7 +278,7 @@ CONTAINS
          nel_split = nel_div
          IF (ibin <= nel_rem) THEN
             nel_split = nel_split + 1
-         ENDIF
+         END IF
          el_start = el_end + 1
          el_end = el_start
          w_partialsum = w_partialsum + weights(el_end)
@@ -288,19 +288,19 @@ CONTAINS
             el_end = el_end + 1
             w_partialsum = w_partialsum + weights(el_end)
             IF (el_end == nel) EXIT
-         ENDDO
+         END DO
 
          IF (PRESENT(dist)) dist(el_start:el_end) = ibin - 1
          lim_s(ibin) = el_start
          lim_e(ibin) = el_end
 
          IF (el_end == nel) EXIT
-      ENDDO
+      END DO
 
       IF (PRESENT(limits_start) .AND. PRESENT(limits_end)) THEN
          ALLOCATE (limits_start(ibin)); limits_start(:ibin) = lim_s(:ibin)
          ALLOCATE (limits_end(ibin)); limits_end(:ibin) = lim_e(:ibin)
-      ENDIF
+      END IF
 
       nbin = ibin
 
@@ -388,7 +388,7 @@ CONTAINS
          order_in = order
       ELSE
          order_in = [1, 2]
-      ENDIF
+      END IF
 
       CALL dbcsr_t_mp_environ_pgrid(pgrid, pdims, pcoord)
 
@@ -426,7 +426,7 @@ CONTAINS
       DO i = 1, SIZE(blk_sizes)
          nsplit = (blk_sizes(i) + max_size - 1)/max_size
          isplit_sum = isplit_sum + nsplit
-      ENDDO
+      END DO
 
       ALLOCATE (blk_sizes_split(isplit_sum))
 
@@ -438,8 +438,8 @@ CONTAINS
             isplit_sum = isplit_sum + 1
             blk_sizes_split(isplit_sum) = MIN(max_size, blk_remainder)
             blk_remainder = blk_remainder - max_size
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
    END SUBROUTINE split_block_sizes
 
@@ -471,7 +471,7 @@ CONTAINS
          ikind = kind_of(iatom)
          CALL get_gto_basis_set(basis(ikind)%gto_basis_set, nset=nset)
          nblk = nblk + nset
-      ENDDO
+      END DO
 
       ALLOCATE (pgf_blk_sizes_tmp(nblk)); pgf_blk_sizes_tmp = 0
 
@@ -487,14 +487,14 @@ CONTAINS
                blk_count = blk_count + 1
                pgf_blk_sizes_tmp(blk_count) = pgf_blk_sizes_tmp(blk_count) + blk_size
                blk_size = 0
-            ENDIF
-         ENDDO
+            END IF
+         END DO
          IF (blk_size > 0) THEN
             IF (blk_count == blk_count_prev) blk_count = blk_count + 1
             pgf_blk_sizes_tmp(blk_count) = pgf_blk_sizes_tmp(blk_count) + blk_size
             blk_size = 0
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       ALLOCATE (pgf_blk_sizes(blk_count))
       pgf_blk_sizes(:) = pgf_blk_sizes_tmp(:blk_count)
@@ -530,7 +530,7 @@ CONTAINS
          starts_array(imem) = bsum + 1
          bsum = bsum + SUM(sizes(starts_array_block(imem):ends_array_block(imem)))
          ends_array(imem) = bsum
-      ENDDO
+      END DO
    END SUBROUTINE
 
 END MODULE

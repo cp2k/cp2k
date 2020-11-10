@@ -390,7 +390,7 @@ CONTAINS
          IF (ASSOCIATED(rtp%rho%new)) &
             CALL dbcsr_deallocate_matrix_set(rtp%rho%new)
          DEALLOCATE (rtp%rho)
-      ENDIF
+      END IF
       IF (ASSOCIATED(rtp%mos)) THEN
          IF (ASSOCIATED(rtp%mos%old)) &
             CALL cp_fm_vect_dealloc(rtp%mos%old)

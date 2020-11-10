@@ -637,7 +637,7 @@ CONTAINS
 
          DO mu = 1, 4
             S(mu, mu) = 1.0_dp
-         ENDDO
+         END DO
 
       ELSE
 
@@ -656,10 +656,10 @@ CONTAINS
                   ELSE
                      WRITE (*, *) 'nra= ', nra
                      RETURN
-                  ENDIF
-               ENDIF
-            ENDIF
-         ENDIF
+                  END IF
+               END IF
+            END IF
+         END IF
          IF (nrb == 1) THEN
             fac1 = fac1*2.0_dp
          ELSE
@@ -674,10 +674,10 @@ CONTAINS
                   ELSE
                      WRITE (*, *) 'nrb= ', nrb
                      RETURN
-                  ENDIF
-               ENDIF
-            ENDIF
-         ENDIF
+                  END IF
+               END IF
+            END IF
+         END IF
 
          ct = -v(3)/rr
          IF (ABS(ct) < 1.0_dp) THEN
@@ -703,7 +703,7 @@ CONTAINS
             Arot(3, 1) = 0.0_dp
             Arot(3, 2) = 0.0_dp
             Arot(3, 3) = ct
-         ENDIF
+         END IF
 
          za = ZSA
          zb = ZSB
@@ -714,7 +714,7 @@ CONTAINS
          J = 0.0_dp
          DO k = 1, nc1(nra, nrb)
             J = J + REAL(c1(nra, nrb, k), dp)*AA(ma1(nra, nrb, k), xx)*BB(mb1(nra, nrb, k), yy)
-         ENDDO
+         END DO
          J = J*rr**(nra + nrb + 1)
          J = J/2.0_dp**(nra + nrb + 2)
 
@@ -729,14 +729,14 @@ CONTAINS
          Jc = 0.0_dp
          DO k = 1, nc2(nra, nrb)
             Jc = Jc + REAL(c2(nra, nrb, k), dp)*AA(ma2(nra, nrb, k), xx)*BB(mb2(nra, nrb, k), yy)
-         ENDDO
+         END DO
          Jc = Jc*rr**(nra + nrb + 1)
          Jc = Jc/2.0_dp**(nra + nrb + 2)
 
          DO k1 = 1, 3
             S(k1 + 1, 1) = S(k1 + 1, 1) &
          &          + SQRT(3.0_dp)*Arot(k1, 3)*fac1*fac2*Jc
-         ENDDO
+         END DO
 
          za = ZSA
          zb = ZPB
@@ -747,14 +747,14 @@ CONTAINS
          Jc = 0.0_dp
          DO k = 1, nc3(nra, nrb)
             Jc = Jc + REAL(c3(nra, nrb, k), dp)*AA(ma3(nra, nrb, k), xx)*BB(mb3(nra, nrb, k), yy)
-         ENDDO
+         END DO
          Jc = Jc*rr**(nra + nrb + 1)
          Jc = Jc/2.0_dp**(nra + nrb + 2)
 
          DO k1 = 1, 3
             S(1, k1 + 1) = S(1, k1 + 1) &
          &          - SQRT(3.0_dp)*Arot(k1, 3)*fac1*fac2*Jc
-         ENDDO
+         END DO
 
          za = ZPA
          zb = ZPB
@@ -765,14 +765,14 @@ CONTAINS
          Jss = 0.0_dp
          DO k = 1, nc4(nra, nrb)
             Jss = Jss + REAL(c4(nra, nrb, k), dp)*AA(ma4(nra, nrb, k), xx)*BB(mb4(nra, nrb, k), yy)
-         ENDDO
+         END DO
          Jss = Jss*rr**(nra + nrb + 1)
          Jss = Jss/2.0_dp**(nra + nrb + 2)
 
          Jcc = 0.0_dp
          DO k = 1, nc5(nra, nrb)
             Jcc = Jcc + REAL(c5(nra, nrb, k), dp)*AA(ma5(nra, nrb, k), xx)*BB(mb5(nra, nrb, k), yy)
-         ENDDO
+         END DO
          Jcc = Jcc*rr**(nra + nrb + 1)
          Jcc = Jcc/2.0_dp**(nra + nrb + 2)
 
@@ -782,10 +782,10 @@ CONTAINS
           &            + 1.5_dp*Arot(k1, 1)*Arot(k2, 1)*fac1*fac2*Jss &
           &            + 1.5_dp*Arot(k1, 2)*Arot(k2, 2)*fac1*fac2*Jss &
           &            - 3.0_dp*Arot(k1, 3)*Arot(k2, 3)*fac1*fac2*Jcc
-            ENDDO
-         ENDDO
+            END DO
+         END DO
 
-      ENDIF
+      END IF
 
    END SUBROUTINE makeS
 
@@ -1015,7 +1015,7 @@ CONTAINS
 
          DO mu = 1, 4
             dS(mu, mu, :) = 0.0_dp
-         ENDDO
+         END DO
 
       ELSE
 
@@ -1034,10 +1034,10 @@ CONTAINS
                   ELSE
                      WRITE (*, *) 'nra= ', nra
                      RETURN
-                  ENDIF
-               ENDIF
-            ENDIF
-         ENDIF
+                  END IF
+               END IF
+            END IF
+         END IF
          IF (nrb == 1) THEN
             fac1 = fac1*2.0_dp
          ELSE
@@ -1052,10 +1052,10 @@ CONTAINS
                   ELSE
                      WRITE (*, *) 'nrb= ', nrb
                      RETURN
-                  ENDIF
-               ENDIF
-            ENDIF
-         ENDIF
+                  END IF
+               END IF
+            END IF
+         END IF
 
          ct = -v(3)/rr
          IF (ABS(ct) >= 1.0_dp) THEN
@@ -1120,7 +1120,7 @@ CONTAINS
             dArot(3, 2, :) = 0.0_dp
             dArot(3, 3, :) = dct(:)
 
-         ENDIF
+         END IF
 
          za = ZSA
          zb = ZSB
@@ -1138,7 +1138,7 @@ CONTAINS
             w = w + REAL(c1(nra, nrb, k), dp)*AA(ma1(nra, nrb, k), xx)*BB(mb1(nra, nrb, k), yy)
             w1 = w1 + REAL(c1(nra, nrb, k), dp)*AA(ma1(nra, nrb, k) + 1, xx)*BB(mb1(nra, nrb, k), yy)
             w2 = w2 + REAL(c1(nra, nrb, k), dp)*AA(ma1(nra, nrb, k), xx)*BB(mb1(nra, nrb, k) + 1, yy)
-         ENDDO
+         END DO
          J = f*w
          dJ = f*REAL(nra + nrb + 1, dp)*w/rr
          dJ = dJ - dxx*f*w1
@@ -1162,7 +1162,7 @@ CONTAINS
             w = w + REAL(c2(nra, nrb, k), dp)*AA(ma2(nra, nrb, k), xx)*BB(mb2(nra, nrb, k), yy)
             w1 = w1 + REAL(c2(nra, nrb, k), dp)*AA(ma2(nra, nrb, k) + 1, xx)*BB(mb2(nra, nrb, k), yy)
             w2 = w2 + REAL(c2(nra, nrb, k), dp)*AA(ma2(nra, nrb, k), xx)*BB(mb2(nra, nrb, k) + 1, yy)
-         ENDDO
+         END DO
          Jc = f*w
          dJc = f*REAL(nra + nrb + 1, dp)*w/rr
          dJc = dJc - dxx*f*w1
@@ -1172,7 +1172,7 @@ CONTAINS
             dS(k1 + 1, 1, :) = dS(k1 + 1, 1, :) &
          &          + SQRT(3.0_dp)*Arot(k1, 3)*fac1*fac2*dJc*v(:)/rr &
          &          + SQRT(3.0_dp)*dArot(k1, 3, :)*fac1*fac2*Jc
-         ENDDO
+         END DO
 
          za = ZSA
          zb = ZPB
@@ -1190,7 +1190,7 @@ CONTAINS
             w = w + REAL(c3(nra, nrb, k), dp)*AA(ma3(nra, nrb, k), xx)*BB(mb3(nra, nrb, k), yy)
             w1 = w1 + REAL(c3(nra, nrb, k), dp)*AA(ma3(nra, nrb, k) + 1, xx)*BB(mb3(nra, nrb, k), yy)
             w2 = w2 + REAL(c3(nra, nrb, k), dp)*AA(ma3(nra, nrb, k), xx)*BB(mb3(nra, nrb, k) + 1, yy)
-         ENDDO
+         END DO
          Jc = f*w
          dJc = f*REAL(nra + nrb + 1, dp)*w/rr
          dJc = dJc - dxx*f*w1
@@ -1200,7 +1200,7 @@ CONTAINS
             dS(1, k1 + 1, :) = dS(1, k1 + 1, :) &
          &          - SQRT(3.0_dp)*Arot(k1, 3)*fac1*fac2*dJc*v(:)/rr &
          &          - SQRT(3.0_dp)*dArot(k1, 3, :)*fac1*fac2*Jc
-         ENDDO
+         END DO
 
          za = ZPA
          zb = ZPB
@@ -1218,7 +1218,7 @@ CONTAINS
             w = w + REAL(c4(nra, nrb, k), dp)*AA(ma4(nra, nrb, k), xx)*BB(mb4(nra, nrb, k), yy)
             w1 = w1 + REAL(c4(nra, nrb, k), dp)*AA(ma4(nra, nrb, k) + 1, xx)*BB(mb4(nra, nrb, k), yy)
             w2 = w2 + REAL(c4(nra, nrb, k), dp)*AA(ma4(nra, nrb, k), xx)*BB(mb4(nra, nrb, k) + 1, yy)
-         ENDDO
+         END DO
          Jss = f*w
          dJss = f*REAL(nra + nrb + 1, dp)*w/rr
          dJss = dJss - dxx*f*w1
@@ -1232,7 +1232,7 @@ CONTAINS
             w = w + REAL(c5(nra, nrb, k), dp)*AA(ma5(nra, nrb, k), xx)*BB(mb5(nra, nrb, k), yy)
             w1 = w1 + REAL(c5(nra, nrb, k), dp)*AA(ma5(nra, nrb, k) + 1, xx)*BB(mb5(nra, nrb, k), yy)
             w2 = w2 + REAL(c5(nra, nrb, k), dp)*AA(ma5(nra, nrb, k), xx)*BB(mb5(nra, nrb, k) + 1, yy)
-         ENDDO
+         END DO
          Jcc = f*w
          dJcc = f*REAL(nra + nrb + 1, dp)*w/rr
          dJcc = dJcc - dxx*f*w1
@@ -1250,10 +1250,10 @@ CONTAINS
           &            - 3.0_dp*Arot(k1, 3)*Arot(k2, 3)*fac1*fac2*dJcc*v(:)/rr &
           &            - 3.0_dp*dArot(k1, 3, :)*Arot(k2, 3)*fac1*fac2*Jcc &
           &            - 3.0_dp*Arot(k1, 3)*dArot(k2, 3, :)*fac1*fac2*Jcc
-            ENDDO
-         ENDDO
+            END DO
+         END DO
 
-      ENDIF
+      END IF
 
    END SUBROUTINE makedS
 
@@ -1350,17 +1350,17 @@ CONTAINS
                                     ELSE
                                        p = 1.0_dp
                                        WRITE (*, *) ' n= ', n, ' in AA(n,x) '
-                                    ENDIF
-                                 ENDIF
-                              ENDIF
-                           ENDIF
-                        ENDIF
-                     ENDIF
-                  ENDIF
-               ENDIF
-            ENDIF
-         ENDIF
-      ENDIF
+                                    END IF
+                                 END IF
+                              END IF
+                           END IF
+                        END IF
+                     END IF
+                  END IF
+               END IF
+            END IF
+         END IF
+      END IF
 
       AA = EXP(-x)*p/x**(n + 1)
 
@@ -1384,8 +1384,8 @@ CONTAINS
             BB = 2.0_dp/REAL(n + 1, dp)
          ELSE
             BB = -y*2.0_dp/REAL(n + 2, dp)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
    END FUNCTION BB
 

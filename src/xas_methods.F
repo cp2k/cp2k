@@ -475,14 +475,14 @@ CONTAINS
                      CALL get_xas_env(xas_env=xas_env, scf_env=scf_env)
                   ELSE
                      CALL qs_scf_env_initialize(qs_env, scf_env, scf_control, scf_section)
-                  ENDIF
+                  END IF
 
                   DO ispin = 1, SIZE(mos)
                      IF (ASSOCIATED(mos(ispin)%mo_set%mo_coeff_b)) THEN !fm->dbcsr
                         CALL copy_fm_to_dbcsr(mos(ispin)%mo_set%mo_coeff, &
                                               mos(ispin)%mo_set%mo_coeff_b) !fm->dbcsr
-                     ENDIF !fm->dbcsr
-                  ENDDO !fm->dbcsr
+                     END IF !fm->dbcsr
+                  END DO !fm->dbcsr
 
                   IF (.NOT. scf_env%skip_diis) THEN
                      IF (.NOT. ASSOCIATED(scf_env%scf_diis_buffer)) THEN
@@ -508,7 +508,7 @@ CONTAINS
                DO ispin = 1, nspins
                   CALL write_mo_set(mos(ispin)%mo_set, atomic_kind_set, qs_kind_set, particle_set, 4, &
                                     dft_section)
-               ENDDO
+               END DO
 
             ELSE
                ! Core level spectroscopy by TDDFT is not yet implemented
@@ -740,7 +740,7 @@ CONTAINS
          occ_estate = REAL(xas_control%xas_core_occupation, dp)
          IF (nele < 0.0_dp) nele = REAL(nelectron, dp) - (1.0_dp - occ_estate)
          occ_homo = 1.0_dp
-      ENDIF
+      END IF
       CALL set_xas_env(xas_env=xas_env, occ_estate=occ_estate, xas_nelectron=nele, &
                        nvirtual2=nvirtual2, nvirtual=nvirtual, homo_occ=occ_homo)
 
@@ -790,7 +790,7 @@ CONTAINS
          END IF
       ELSE
          NULLIFY (xas_control%list_cubes)
-      ENDIF
+      END IF
 
       NULLIFY (tmp_fm_struct)
       ALLOCATE (xas_env%groundstate_coeff(nspins))

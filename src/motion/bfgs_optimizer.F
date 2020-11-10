@@ -234,7 +234,7 @@ CONTAINS
             CALL cp_fm_to_fm(eigvec_mat, hess_tmp)
             CALL cp_fm_column_scale(eigvec_mat, eigval)
             CALL cp_gemm("N", "T", ndf, ndf, ndf, one, hess_tmp, eigvec_mat, zero, hess_mat)
-         ENDIF
+         END IF
       ELSE
          CALL cp_fm_set_all(hess_mat, alpha=zero, beta=one)
       END IF
@@ -300,8 +300,8 @@ CONTAINS
                !Possibly dump the Hessian file
                IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
                   CALL write_bfgs_hessian(geo_section, hess_mat, logger)
-               ENDIF
-            ENDIF
+               END IF
+            END IF
          END IF
 
          ! Setting the present positions & gradients as old
@@ -547,7 +547,7 @@ CONTAINS
 
          IF (.NOT. set) THEN
             work(1:ndf) = one
-         ENDIF
+         END IF
 
          DO indf = 1, ndf
             eigval(indf) = eigval(indf) - ln
@@ -768,7 +768,7 @@ CONTAINS
             WRITE (unit=output_unit, FMT="(/,T2,A,F8.5)") &
                " Step is scaled; Scaling factor = ", rat
             CALL m_flush(output_unit)
-         ENDIF
+         END IF
       END IF
       CALL timestop(handle)
 

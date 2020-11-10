@@ -314,7 +314,7 @@ CONTAINS
                   "Total dipole moment perpendicular to ", &
                   "the slab [electrons-Angstroem]: ", &
                   qs_env%surface_dipole_moment
-            ENDIF
+            END IF
 
             IF (gapw) THEN
                tot1_h = qs_charges%total_rho1_hard(1)
@@ -465,7 +465,7 @@ CONTAINS
             IF (qs_env%qmmm_env_qm%image_charge) THEN
                WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
                   "QM/MM image charge energy:                ", energy%image_charge
-            ENDIF
+            END IF
          END IF
          IF (dft_control%qs_control%mulliken_restraint) THEN
             WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
@@ -485,8 +485,8 @@ CONTAINS
          IF (qmmm) THEN
             IF (qs_env%qmmm_env_qm%image_charge) THEN
                CALL print_image_coefficients(qs_env%image_coeff, qs_env)
-            ENDIF
-         ENDIF
+            END IF
+         END IF
          CALL m_flush(output_unit)
       END IF
 
@@ -567,7 +567,7 @@ CONTAINS
                                               "PRINT%AO_MATRICES/KOHN_SHAM_MATRIX")
          END IF
 
-      ENDDO
+      END DO
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info, &
                                            scf_section, "PRINT%MO_ORTHONORMALITY"), cp_p_file)) THEN
@@ -577,7 +577,7 @@ CONTAINS
             IF (iw > 0) THEN
                WRITE (iw, '(T8,A)') &
                   " K-points: Maximum deviation from MO S-orthonormality not determined"
-            ENDIF
+            END IF
             CALL cp_print_key_finished_output(iw, logger, scf_section, &
                                               "PRINT%MO_ORTHONORMALITY")
          ELSE
@@ -593,11 +593,11 @@ CONTAINS
             IF (iw > 0) THEN
                WRITE (iw, '(T8,A,T61,E20.4)') &
                   " Maximum deviation from MO S-orthonormality", orthonormality
-            ENDIF
+            END IF
             CALL cp_print_key_finished_output(iw, logger, scf_section, &
                                               "PRINT%MO_ORTHONORMALITY")
          END IF
-      ENDIF
+      END IF
       IF (BTEST(cp_print_key_should_output(logger%iter_info, &
                                            scf_section, "PRINT%MO_MAGNITUDE"), cp_p_file)) THEN
          IF (do_kpoints) THEN
@@ -606,7 +606,7 @@ CONTAINS
             IF (iw > 0) THEN
                WRITE (iw, '(T8,A)') &
                   " K-points: Minimum/Maximum MO magnitude not determined"
-            ENDIF
+            END IF
             CALL cp_print_key_finished_output(iw, logger, scf_section, &
                                               "PRINT%MO_MAGNITUDE")
          ELSE
@@ -617,11 +617,11 @@ CONTAINS
             IF (iw > 0) THEN
                WRITE (iw, '(T8,A,T41,2E20.4)') &
                   " Minimum/Maximum MO magnitude ", mo_mag_min, mo_mag_max
-            ENDIF
+            END IF
             CALL cp_print_key_finished_output(iw, logger, scf_section, &
                                               "PRINT%MO_MAGNITUDE")
          END IF
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 

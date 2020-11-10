@@ -211,7 +211,7 @@ CONTAINS
             NULLIFY (fcint(1)%block)
             CALL dbcsr_get_block_p(matrix=matrix_fc(1)%matrix, &
                                    row=irow, col=icol, BLOCK=fcint(1)%block, found=found)
-         ENDIF
+         END IF
 
          DO iset = 1, nseta
 
@@ -256,11 +256,11 @@ CONTAINS
                              1.0_dp, fcint(1)%block(sgfb, sgfa), &
                              SIZE(fcint(1)%block, 1))
 
-               ENDIF
+               END IF
 
-            ENDDO
+            END DO
 
-         ENDDO
+         END DO
 
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)

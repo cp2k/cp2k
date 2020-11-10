@@ -221,7 +221,7 @@ CONTAINS
             unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
          ELSE
             unit_nr = -1
-         ENDIF
+         END IF
 
          IF (ec_env%should_update) THEN
             ec_env%etotal = 0.0_dp
@@ -523,7 +523,7 @@ CONTAINS
                            template=ec_env%matrix_s(1, 1)%matrix, matrix_type=dbcsr_type_symmetric)
          CALL cp_dbcsr_alloc_block_from_nbl(ec_env%matrix_ks(ispin, 1)%matrix, ec_env%sab_orb)
          CALL dbcsr_set(ec_env%matrix_ks(ispin, 1)%matrix, 0.0_dp)
-      ENDDO
+      END DO
 
       NULLIFY (pw_env)
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
@@ -541,7 +541,7 @@ CONTAINS
             CALL pw_pool_create_pw(auxbas_pw_pool, v_rspace(ispin)%pw, &
                                    use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_zero(v_rspace(ispin)%pw)
-         ENDDO
+         END DO
       END IF
 
       evhxc = 0.0_dp
@@ -585,7 +585,7 @@ CONTAINS
          IF (ASSOCIATED(v_tau_rspace)) THEN
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace(ispin)%pw)
          END IF
-      ENDDO
+      END DO
       DEALLOCATE (v_rspace)
 
       ! energies
@@ -860,7 +860,7 @@ CONTAINS
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, rhoout_g(ispin)%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      ENDDO
+      END DO
       CALL pw_pool_create_pw(auxbas_pw_pool, dv_hartree_rspace%pw, &
                              use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, vtot_rspace%pw, &
@@ -1022,7 +1022,7 @@ CONTAINS
             CALL pw_pool_create_pw(auxbas_pw_pool, v_rspace(ispin)%pw, &
                                    use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_zero(v_rspace(ispin)%pw)
-         ENDDO
+         END DO
       END IF
 
       CALL qs_rho_get(rho, rho_r=rho_r)
@@ -1070,7 +1070,7 @@ CONTAINS
          IF (ASSOCIATED(v_tau_rspace)) THEN
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace(ispin)%pw)
          END IF
-      ENDDO
+      END DO
 
       ! Core overlap
       IF (debug_forces) fodeb(1:3) = force(1)%core_overlap(1:3, 1)
@@ -1153,7 +1153,7 @@ CONTAINS
          smat => ec_env%matrix_s
          pmat => ec_env%matrix_p
          wmat => ec_env%matrix_w
-      ENDIF
+      END IF
 
       SELECT CASE (ec_env%ks_solver)
       CASE (ec_diagonalization)
@@ -1166,7 +1166,7 @@ CONTAINS
 
       IF (ec_env%mao) THEN
          CALL mao_release_matrices(ec_env, ksmat, smat, pmat, wmat)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -1567,7 +1567,7 @@ CONTAINS
                              0.0_dp, matrix_tmp, filter_eps=eps_filter)
          CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp, matrix_p(ispin, 1)%matrix, &
                              0.0_dp, matrix_w(ispin, 1)%matrix, filter_eps=eps_filter)
-      ENDDO
+      END DO
       CALL dbcsr_release(matrix_tmp)
 
       IF (nspins == 1) THEN
@@ -1902,7 +1902,7 @@ CONTAINS
                   WRITE (unit_nr, "(T5,3(A,A,F14.8,1X),T60,A,T67,F14.8)") &
                      (TRIM(rlab(i)), "=", tdip(i)*debye, i=1, 3), "Total=", dd
                END IF
-            ENDIF
+            END IF
          END IF
 
          CALL cp_print_key_finished_output(unit_nr=unit_nr, logger=logger, &

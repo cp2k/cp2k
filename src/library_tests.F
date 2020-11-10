@@ -179,37 +179,37 @@ CONTAINS
       CALL section_vals_get(rs_pw_transfer_section, explicit=explicit)
       IF (explicit) THEN
          CALL rs_pw_transfer_test(para_env, iw, globenv, rs_pw_transfer_section)
-      ENDIF
+      END IF
 
       pw_transfer_section => section_vals_get_subs_vals(root_section, "TEST%PW_TRANSFER")
       CALL section_vals_get(pw_transfer_section, explicit=explicit)
       IF (explicit) THEN
          CALL pw_fft_test(para_env, iw, globenv, pw_transfer_section)
-      ENDIF
+      END IF
 
       cp_fm_gemm_test_section => section_vals_get_subs_vals(root_section, "TEST%CP_FM_GEMM")
       CALL section_vals_get(cp_fm_gemm_test_section, explicit=explicit)
       IF (explicit) THEN
          CALL cp_fm_gemm_test(para_env, iw, cp_fm_gemm_test_section)
-      ENDIF
+      END IF
 
       eigensolver_section => section_vals_get_subs_vals(root_section, "TEST%EIGENSOLVER")
       CALL section_vals_get(eigensolver_section, explicit=explicit)
       IF (explicit) THEN
          CALL eigensolver_test(para_env, iw, eigensolver_section)
-      ENDIF
+      END IF
 
       eri_mme_test_section => section_vals_get_subs_vals(root_section, "TEST%ERI_MME_TEST")
       CALL section_vals_get(eri_mme_test_section, explicit=explicit)
       IF (explicit) THEN
          CALL cp_eri_mme_perf_acc_test(para_env, iw, eri_mme_test_section)
-      ENDIF
+      END IF
 
       shg_integrals_test_section => section_vals_get_subs_vals(root_section, "TEST%SHG_INTEGRALS_TEST")
       CALL section_vals_get(shg_integrals_test_section, explicit=explicit)
       IF (explicit) THEN
          CALL shg_integrals_perf_acc_test(iw, shg_integrals_test_section)
-      ENDIF
+      END IF
 
       ! DBCSR tests
       ! matrix_multiplication
@@ -218,7 +218,7 @@ CONTAINS
       CALL section_vals_get(cp_dbcsr_test_section, explicit=explicit)
       IF (explicit) THEN
          CALL cp_dbcsr_tests(para_env, iw, cp_dbcsr_test_section)
-      ENDIF
+      END IF
 
       CALL cp_print_key_finished_output(iw, logger, root_section, "TEST%PROGRAM_RUN_INFO")
 
@@ -447,7 +447,7 @@ CONTAINS
             DEALLOCATE (mb)
             DEALLOCATE (mc)
          END DO
-      ENDIF
+      END IF
 
       ! test for matrix multpies
       IF (test_dgemm) THEN
@@ -544,7 +544,7 @@ CONTAINS
             DEALLOCATE (mb)
             DEALLOCATE (mc)
          END DO
-      ENDIF
+      END IF
 
       CALL mp_sync(para_env%group)
 
@@ -770,7 +770,7 @@ CONTAINS
          dir = rs2pw
       ELSE
          dir = pw2rs
-      ENDIF
+      END IF
 
       ! go for the real loops, sync to get max timings
       IF (para_env%ionode) THEN
@@ -778,7 +778,7 @@ CONTAINS
          WRITE (iw, '(T2,A)') "Timing rs_pw_transfer routine"
          WRITE (iw, '(T2,A)') ""
          WRITE (iw, '(T2,A)') "iteration      time[s]"
-      ENDIF
+      END IF
       DO i_loop = 1, N_loop
          CALL mp_sync(para_env%group)
          tstart = m_walltime()
@@ -787,8 +787,8 @@ CONTAINS
          tend = m_walltime()
          IF (para_env%ionode) THEN
             WRITE (iw, '(T2,I9,1X,F12.6)') i_loop, tend - tstart
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       !cleanup
       CALL rs_grid_release(rs_grid)
@@ -878,8 +878,8 @@ CONTAINS
                q = para_env%num_pe/p
                IF (p*q == para_env%num_pe) THEN
                   itmp = itmp + 1
-               ENDIF
-            ENDDO
+               END IF
+            END DO
             ! build list
             ALLOCATE (layouts(2, itmp))
             itmp = 0
@@ -888,13 +888,13 @@ CONTAINS
                IF (p*q == para_env%num_pe) THEN
                   itmp = itmp + 1
                   layouts(:, itmp) = (/p, q/)
-               ENDIF
-            ENDDO
+               END IF
+            END DO
          ELSE
             CALL section_vals_val_get(pw_transfer_section, "PW_GRID_LAYOUT", i_rep_section=i_rep, i_vals=i_vals)
             ALLOCATE (layouts(2, 1))
             layouts(:, 1) = i_vals
-         ENDIF
+         END IF
 
          DO i_layout = 1, SIZE(layouts, 2)
 
@@ -1002,7 +1002,7 @@ CONTAINS
                CPWARN("The FFT results are not accurate ... starting debug pw_transfer")
                CALL pw_transfer(ca%pw, cb%pw, .TRUE.)
                CALL pw_transfer(cb%pw, cc%pw, .TRUE.)
-            ENDIF
+            END IF
 
             ! done with these grids
             CALL pw_release(ca%pw)
@@ -1017,7 +1017,7 @@ CONTAINS
          DEALLOCATE (t_start)
          DEALLOCATE (t_end)
 
-      ENDDO
+      END DO
 
       ! cleanup
       CALL cell_release(box)
@@ -1100,7 +1100,7 @@ CONTAINS
             CASE DEFAULT
                ! stop
             END SELECT
-         ENDIF
+         END IF
 
          ! create matrix struct type
          NULLIFY (fmstruct)
@@ -1228,7 +1228,7 @@ CONTAINS
             END SELECT
             t2 = m_walltime()
             IF (iw > 0) WRITE (iw, *) "Timing for loop ", i_loop, " : ", t2 - t1
-         ENDDO
+         END DO
 
          IF (iw > 0) THEN
             WRITE (iw, *) "Eigenvalues: "
@@ -1244,7 +1244,7 @@ CONTAINS
          CALL cp_fm_release(matrix=matrix)
          CALL cp_fm_struct_release(fmstruct=fmstruct)
 
-      ENDDO
+      END DO
 
       CALL cp_blacs_env_release(blacs_env=blacs_env)
 
@@ -1307,12 +1307,12 @@ CONTAINS
                WRITE (iw, '(A)', ADVANCE="NO") "TRANSPOSE(A) x"
             ELSE
                WRITE (iw, '(A)', ADVANCE="NO") "A x "
-            ENDIF
+            END IF
             IF (transb_p) THEN
                WRITE (iw, '(A)') "TRANSPOSE(B) "
             ELSE
                WRITE (iw, '(A)') "B "
-            ENDIF
+            END IF
             WRITE (iw, '(T2,A,T50,I5,A,I5)') 'requested block size', nrow_block, ' by ', ncol_block
             WRITE (iw, '(T2,A,T50,I5)') 'number of repetitions of cp_fm_gemm ', n_loop
             WRITE (iw, '(T2,A,T50,L5)') 'Row Major', row_major
@@ -1322,7 +1322,7 @@ CONTAINS
 #if defined(__SCALAPACK)
             WRITE (iw, '(T2,A,T50,I5)') 'PILAENV blocksize', pilaenv(0, 'D')
 #endif
-         ENDIF
+         END IF
 
          NULLIFY (blacs_env)
          CALL cp_blacs_env_create(blacs_env=blacs_env, &
@@ -1335,7 +1335,7 @@ CONTAINS
             nrow_global = m; ncol_global = k
          ELSE
             nrow_global = k; ncol_global = m
-         ENDIF
+         END IF
          CALL cp_fm_struct_create(fmstruct=fmstruct_a, para_env=para_env, context=blacs_env, &
                                   nrow_global=nrow_global, ncol_global=ncol_global, &
                                   nrow_block=nrow_block, ncol_block=ncol_block, force_block=force_blocksize)
@@ -1347,7 +1347,7 @@ CONTAINS
             nrow_global = n; ncol_global = m
          ELSE
             nrow_global = m; ncol_global = n
-         ENDIF
+         END IF
          NULLIFY (fmstruct_b)
          CALL cp_fm_struct_create(fmstruct=fmstruct_b, para_env=para_env, context=blacs_env, &
                                   nrow_global=nrow_global, ncol_global=ncol_global, &
@@ -1387,8 +1387,8 @@ CONTAINS
             IF (iw > 0) THEN
                WRITE (iw, '(T2,A,T50,F12.6)') "cp_fm_gemm timing: ", (t4 - t3)
                CALL m_flush(iw)
-            ENDIF
-         ENDDO
+            END IF
+         END DO
          t2 = m_walltime()
 
          IF (iw > 0) THEN
@@ -1396,8 +1396,8 @@ CONTAINS
             IF (t2 > t1) THEN
                WRITE (iw, '(T2,A,T50,F12.6)') "cp_fm_gemm Gflops per MPI task: ", &
                   2*REAL(m, kind=dp)*REAL(n, kind=dp)*REAL(k, kind=dp)*N_loop/MAX(0.001_dp, t2 - t1)/1.0E9_dp/para_env%num_pe
-            ENDIF
-         ENDIF
+            END IF
+         END IF
 
          CALL cp_fm_release(matrix=matrix_a)
          CALL cp_fm_release(matrix=matrix_b)
@@ -1407,7 +1407,7 @@ CONTAINS
          CALL cp_fm_struct_release(fmstruct=fmstruct_c)
          CALL cp_blacs_env_release(blacs_env=blacs_env)
 
-      ENDDO
+      END DO
 
    END SUBROUTINE cp_fm_gemm_test
 

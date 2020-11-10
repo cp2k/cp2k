@@ -146,7 +146,7 @@ CONTAINS
          CALL timeset(routineN//"_forces", handle)
       ELSE
          CALL timeset(routineN, handle)
-      ENDIF
+      END IF
 
       ppnl_present = ASSOCIATED(sap_ppnl)
 
@@ -555,14 +555,14 @@ CONTAINS
                                     CALL virial_pair_force(pv_thread, f0, fa, rac)
                                     CALL virial_pair_force(pv_thread, f0, fb, rbc)
                                  END IF
-                              ENDIF
+                              END IF
                            END IF
                            EXIT ! We have found a match and there can be only one single match
                         END IF
                      END DO
                   END DO
                END DO
-            ENDIF
+            END IF
          END DO
 
 !$OMP DO

@@ -181,7 +181,7 @@ CONTAINS
                ELSE ! Open-shell beta-beta component
                   Gamma_2D(ia_global - my_ia_start + 1, 1:my_group_L_size) = &
                      mp2_env%ri_grad%Gamma_P_ia_beta(iiB, jjB, 1:my_group_L_size)
-               ENDIF
+               END IF
             END IF
          END DO
       END DO
@@ -203,7 +203,7 @@ CONTAINS
             CALL mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia_beta, proc_send, &
                              BIb_C_rec, proc_receive, &
                              para_env_sub%group)
-         ENDIF
+         END IF
 
          DO iiB = 1, homo
             DO jjB = 1, rec_B_size
@@ -220,7 +220,7 @@ CONTAINS
          DEALLOCATE (mp2_env%ri_grad%Gamma_P_ia)
       ELSE
          DEALLOCATE (mp2_env%ri_grad%Gamma_P_ia_beta)
-      ENDIF
+      END IF
 
       ! create the processor map and size arrays
       CALL create_group_dist(gd_ia_new, para_env%num_pe)
@@ -292,7 +292,7 @@ CONTAINS
                        gd_P_new, gd_array_new, &
                        group_grid_2_mepos, para_env_sub%num_pe, ngroup, &
                        PQ_half)
-      ENDIF
+      END IF
 
       CALL cp_fm_struct_release(fm_struct)
       CALL release_group_dist(gd_P_new)
@@ -379,7 +379,7 @@ CONTAINS
                        sizes, group_grid_2_mepos, mepos_2_grid_group, &
                        para_env_sub%num_pe, ngroup, &
                        fm_Gamma_PQ)
-      ENDIF
+      END IF
 
       ! create the Gamma_ia_P in DBCSR style
       CALL create_dbcsr_gamma(Gamma_2D, homo, virtual, dimen_ia, para_env_sub, sub_proc_map, &
@@ -1237,7 +1237,7 @@ CONTAINS
          NULLIFY (mp2_env%ri_grad%G_P_ia_beta)
          CALL dbcsr_allocate_matrix_set(mp2_env%ri_grad%G_P_ia_beta, &
                                         my_group_L_size)
-      ENDIF
+      END IF
 
       ! create sub blacs env
       NULLIFY (blacs_env)
@@ -1511,7 +1511,7 @@ CONTAINS
                                                template=mp2_env%ri_grad%mo_coeff_o_beta, &
                                                m=homo, n=virtual, sym=dbcsr_type_no_symmetry)
             CALL copy_fm_to_dbcsr(fm_ia, mp2_env%ri_grad%G_P_ia_beta(kkB)%matrix, keep_sparsity=.FALSE.)
-         ENDIF
+         END IF
 
       END DO
 
@@ -1598,7 +1598,7 @@ CONTAINS
          ! and the opposite, from the global pos to the grid pos
          mepos_2_grid_group(i, 1) = pos_sub
          mepos_2_grid_group(i, 2) = pos_group
-      ENDDO
+      END DO
 
       IF (PRESENT(fm_mat_Gamma) .AND. PRESENT(sizes)) THEN
          CALL cp_fm_get_info(matrix=fm_mat_Gamma, &

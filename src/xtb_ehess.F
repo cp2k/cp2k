@@ -265,7 +265,7 @@ CONTAINS
             ksblock = ksblock - gmij*sblock
          END DO
          DEALLOCATE (gcij)
-      ENDDO
+      END DO
       CALL dbcsr_iterator_stop(iter)
 
       IF (dft_control%qs_control%xtb_control%tb3_interaction) THEN
@@ -339,7 +339,7 @@ CONTAINS
             CPASSERT(found)
             ksblock = ksblock + gmij*sblock
          END DO
-      ENDDO
+      END DO
       CALL dbcsr_iterator_stop(iter)
       DEALLOCATE (kind_of)
 

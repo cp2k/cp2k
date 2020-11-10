@@ -195,7 +195,7 @@ CONTAINS
          maxl = MAX(maxla + 1, maxlb)
       ELSE
          maxl = MAX(maxla, maxlb)
-      ENDIF
+      END IF
       lds = ncoset(maxl)
 
       rab2 = SUM(rab*rab)
@@ -233,7 +233,7 @@ CONTAINS
                DO i = 1, 3
                   CALL ab_contract(dvab(sgfa:m1, sgfb:m2, i), devab(:, :, i), sphi_a(:, sgfa:), &
                                    sphi_b(:, sgfb:), ncoa, ncob, nsgfa(iset), nsgfb(jset))
-               ENDDO
+               END DO
 
             ELSE
                ALLOCATE (vwork(ncoa, ncob, la_max(iset) + lb_max(jset) + 1), &
@@ -243,7 +243,7 @@ CONTAINS
                CALL operator2(cps_operator2, la_max(iset), npgfa(iset), zeta(:, iset), la_min(iset), &
                               lb_max(jset), npgfb(jset), zetb(:, jset), lb_min(jset), &
                               omega, r_cutoff, rab, rab2, vac, vwork)
-            ENDIF
+            END IF
 
             CALL ab_contract(vab(sgfa:m1, sgfb:m2), vac(1:ncoa, 1:ncob), sphi_a(:, sgfa:), sphi_b(:, sgfb:), &
                              ncoa, ncob, nsgfa(iset), nsgfb(jset))
@@ -356,7 +356,7 @@ CONTAINS
                                lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
                                rab, sint)
 
-            ENDIF
+            END IF
 
             ! debug if requested
             IF (debug) THEN
@@ -365,7 +365,7 @@ CONTAINS
                CALL overlap_ab_test(la_max(iset), la_min(iset), npgfa(iset), zeta(:, iset), &
                                     lb_max(jset), lb_min(jset), npgfb(jset), zetb(:, jset), &
                                     ra, rb, sint, dmax)
-            ENDIF
+            END IF
 
             CALL ab_contract(sab(sgfa:m1, sgfb:m2), sint(1:ncoa, 1:ncob), scon_a(:, sgfa:), scon_b(:, sgfb:), &
                              ncoa, ncob, nsgfa(iset), nsgfb(jset))
@@ -373,8 +373,8 @@ CONTAINS
                DO i = 1, 3
                   CALL ab_contract(dsab(sgfa:m1, sgfb:m2, i), dsint(1:ncoa, 1:ncob, i), scon_a(:, sgfa:), &
                                    scon_b(:, sgfb:), ncoa, ncob, nsgfa(iset), nsgfb(jset))
-               ENDDO
-            ENDIF
+               END DO
+            END IF
          END DO
       END DO
 
@@ -478,8 +478,8 @@ CONTAINS
                DO i = 1, 3
                   CALL ab_contract(dsab(sgfa:m1, sgfb:m2, i), dsint(:, :, i), scon_a(:, sgfa:), &
                                    scon_b(:, sgfb:), ncoa, ncob, nsgfa(iset), nsgfb(jset))
-               ENDDO
-            ENDIF
+               END DO
+            END IF
          END DO
       END DO
 
@@ -619,7 +619,7 @@ CONTAINS
                         CALL abc_contract(dabdaint(sgfa:m1, sgfb:m2, sgfc:m3, i), sdaba(1:ncoa, 1:ncob, 1:ncoc, i), &
                                           scon_a(:, sgfa:), scon_b(:, sgfb:), scon_ca(:, sgfc:), &
                                           ncoa, ncob, ncoc, nsgfa(iset), nsgfb(jset), nsgfca(kaset))
-                     ENDDO
+                     END DO
 
                      DEALLOCATE (sdaba)
                   ELSE
@@ -628,7 +628,7 @@ CONTAINS
                                       lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
                                       rab, saba=saba)
 
-                  ENDIF
+                  END IF
                   ! debug if requested
                   IF (debug) THEN
                      ra = 0.0_dp
@@ -637,7 +637,7 @@ CONTAINS
                                            lb_max(jset), npgfb(jset), zetb(:, jset), lb_min(jset), &
                                            lca_max(kaset), npgfca(kaset), zetca(:, kaset), lca_min(kaset), &
                                            ra, rb, ra, saba, dmax)
-                  ENDIF
+                  END IF
                   CALL abc_contract(abaint(sgfa:m1, sgfb:m2, sgfc:m3), saba(1:ncoa, 1:ncob, 1:ncoc), &
                                     scon_a(:, sgfa:), scon_b(:, sgfb:), scon_ca(:, sgfc:), &
                                     ncoa, ncob, ncoc, nsgfa(iset), nsgfb(jset), nsgfca(kaset))
@@ -779,14 +779,14 @@ CONTAINS
                         CALL abc_contract(dabbint(sgfa:m1, sgfb:m2, sgfc:m3, i), sdabb(1:ncoa, 1:ncob, 1:ncoc, i), &
                                           scon_a(:, sgfa:), scon_b(:, sgfb:), scon_cb(:, sgfc:), &
                                           ncoa, ncob, ncoc, nsgfa(iset), nsgfb(jset), nsgfcb(kbset))
-                     ENDDO
+                     END DO
                      DEALLOCATE (sdabb)
                   ELSE
                      CALL overlap_abb(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
                                       lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
                                       lcb_max(kbset), lcb_min(kbset), npgfcb(kbset), rpgfcb(:, kbset), zetcb(:, kbset), &
                                       rab, sabb)
-                  ENDIF
+                  END IF
                   ! debug if requested
                   IF (debug) THEN
                      ra = 0.0_dp
@@ -795,13 +795,13 @@ CONTAINS
                                            lb_max(jset), npgfb(jset), zetb(:, jset), lb_min(jset), &
                                            lcb_max(kbset), npgfcb(kbset), zetcb(:, kbset), lcb_min(kbset), &
                                            ra, rb, rb, sabb, dmax)
-                  ENDIF
+                  END IF
 
                   CALL abc_contract(abbint(sgfa:m1, sgfb:m2, sgfc:m3), sabb(1:ncoa, 1:ncob, 1:ncoc), &
                                     scon_a(:, sgfa:), scon_b(:, sgfb:), scon_cb(:, sgfc:), &
                                     ncoa, ncob, ncoc, nsgfa(iset), nsgfb(jset), nsgfcb(kbset))
                   DEALLOCATE (sabb)
-               ENDIF
+               END IF
             END DO
 
          END DO
@@ -929,7 +929,7 @@ CONTAINS
                                             lb_max(kset), lb_min(kset), npgfb(kset), zetb(:, kset), &
                                             lb_max(lset), lb_min(lset), npgfb(lset), zetb(:, lset), &
                                             ra, rb, sint, dmax)
-                  ENDIF
+                  END IF
 
                   CALL abcd_contract(saabb(sgfa1:m1, sgfa2:m2, sgfb1:m3, sgfb2:m4), sint, sphi_a(:, sgfa1:), &
                                      sphi_a(:, sgfa2:), sphi_b(:, sgfb1:), sphi_b(:, sgfb2:), ncoa1, ncoa2, &

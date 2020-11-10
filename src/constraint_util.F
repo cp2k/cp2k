@@ -158,7 +158,7 @@ CONTAINS
          DO iconst = 1, SIZE(colv_list)
             CALL colvar_eval_mol_f(lcolv(iconst)%colvar_old, cell, &
                                    particles=particle_set, fixd_list=fixd_list)
-         ENDDO
+         END DO
       END IF
       ! 3x3 constraints
       DO iconst = 1, n3x3con
@@ -168,7 +168,7 @@ CONTAINS
          lg3x3(iconst)%rb_old = particle_set(index)%r
          index = g3x3_list(iconst)%c + first_atom - 1
          lg3x3(iconst)%rc_old = particle_set(index)%r
-      ENDDO
+      END DO
       ! 4x6 constraints
       DO iconst = 1, n4x6con
          index = g4x6_list(iconst)%a + first_atom - 1
@@ -179,7 +179,7 @@ CONTAINS
          lg4x6(iconst)%rc_old = particle_set(index)%r
          index = g4x6_list(iconst)%d + first_atom - 1
          lg4x6(iconst)%rd_old = particle_set(index)%r
-      ENDDO
+      END DO
 
    END SUBROUTINE getold_low
 

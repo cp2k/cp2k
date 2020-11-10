@@ -163,7 +163,7 @@ CONTAINS
          IF (icpu .NE. ncpu - 1) THEN
             CALL mp_isendrecv(sendbuffer, dest, recbuffer, source, &
                               para_env%group, req(1), req(2), 13)
-         ENDIF
+         END IF
          data_from = MODULO(mepos - icpu, ncpu)
          source_cpu = MODULO(data_from, ncpu) + 1
          block_size = block_offset(source_cpu + 1) - block_offset(source_cpu)
@@ -171,11 +171,11 @@ CONTAINS
 
          IF (icpu .NE. ncpu - 1) THEN
             CALL mp_waitall(req)
-         ENDIF
+         END IF
          swapbuffer => sendbuffer
          sendbuffer => recbuffer
          recbuffer => swapbuffer
-      ENDDO
+      END DO
       DEALLOCATE (sendbuffer, recbuffer)
       ! sync before/after a ring of isendrecv
       CALL mp_sync(para_env%group)
@@ -250,7 +250,7 @@ CONTAINS
          swapbuffer => sendbuffer
          sendbuffer => recbuffer
          recbuffer => swapbuffer
-      ENDDO
+      END DO
       ! sync before/after a ring of isendrecv
       CALL mp_sync(para_env%group)
 
@@ -501,7 +501,7 @@ CONTAINS
       rdispl(1) = 0
       DO icpu = 2, para_env%num_pe
          rdispl(icpu) = rdispl(icpu - 1) + rcount(icpu - 1)
-      ENDDO
+      END DO
       CALL mp_allgather(buffer_in, buffer_out, rcount, rdispl, para_env%group)
 
       DO ibuf = 0, number_of_p_blocks*para_env%num_pe*3 - 3, 3
@@ -513,8 +513,8 @@ CONTAINS
             jatom = buffer_out(ibuf + 2)
             is_assoc_atomic_block(iatom, jatom) = itask
             is_assoc_atomic_block(jatom, iatom) = itask
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       IF (ASSOCIATED(map_atoms_to_cpus)) THEN
          DO icpu = 1, para_env%num_pe

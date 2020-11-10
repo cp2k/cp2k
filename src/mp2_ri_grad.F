@@ -233,7 +233,7 @@ CONTAINS
          mo_coeff_o_beta => mp2_env%ri_grad%mo_coeff_o_beta
          mo_coeff_v_beta => mp2_env%ri_grad%mo_coeff_v_beta
          G_P_ia_beta => mp2_env%ri_grad%G_P_ia_beta
-      ENDIF
+      END IF
 
       itmp = get_limit(dimen_RI, para_env_sub%num_pe, para_env_sub%mepos)
       my_P_start = itmp(1)
@@ -247,11 +247,11 @@ CONTAINS
       ELSE
          G_PQ_local(my_P_start:my_P_end, 1:my_group_L_size) = &
             0.50_dp*(mp2_env%ri_grad%Gamma_PQ + mp2_env%ri_grad%Gamma_PQ_beta)
-      ENDIF
+      END IF
       DEALLOCATE (mp2_env%ri_grad%Gamma_PQ)
       IF (alpha_beta) THEN
          DEALLOCATE (mp2_env%ri_grad%Gamma_PQ_beta)
-      ENDIF
+      END IF
       CALL mp_sum(G_PQ_local, para_env_sub%group)
 
       ! deallocate here PQ_half, maybe useful in the future
@@ -264,7 +264,7 @@ CONTAINS
       IF (alpha_beta) THEN
          ALLOCATE (matrix_P_inu_beta%matrix)
          CALL dbcsr_create(matrix_P_inu_beta%matrix, template=mo_coeff_o_beta)
-      ENDIF
+      END IF
 
       ! non symmetric matrix
       ALLOCATE (matrix_P_munu_nosym%matrix)
@@ -279,7 +279,7 @@ CONTAINS
          ALLOCATE (Lag_mu_i_1_beta%matrix)
          CALL dbcsr_create(Lag_mu_i_1_beta%matrix, template=mo_coeff_o_beta)
          CALL dbcsr_set(Lag_mu_i_1_beta%matrix, 0.0_dp)
-      ENDIF
+      END IF
 
       ALLOCATE (Lag_nu_a_2%matrix)
       CALL dbcsr_create(Lag_nu_a_2%matrix, template=mo_coeff_v)
@@ -288,7 +288,7 @@ CONTAINS
          ALLOCATE (Lag_nu_a_2_beta%matrix)
          CALL dbcsr_create(Lag_nu_a_2_beta%matrix, template=mo_coeff_v_beta)
          CALL dbcsr_set(Lag_nu_a_2_beta%matrix, 0.0_dp)
-      ENDIF
+      END IF
 
       ! get forces
       NULLIFY (force, virial)
@@ -319,8 +319,8 @@ CONTAINS
                CALL G_P_transform_MO_to_AO(matrix_P_munu_local(L_counter), matrix_P_munu_nosym, mat_munu, &
                                            G_P_ia(L_counter), matrix_P_inu, &
                                            mo_coeff_v, mo_coeff_o, eps_filter)
-            ENDIF
-         ENDDO
+            END IF
+         END DO
 
          ALLOCATE (I_tmp2(dimen_RI, my_group_L_size))
          I_tmp2(:, :) = 0.0_dp
@@ -346,7 +346,7 @@ CONTAINS
             IF (alpha_beta) THEN
                CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v_beta, G_P_ia_beta(L_counter)%matrix, &
                                    0.0_dp, matrix_P_inu_beta%matrix, filter_eps=eps_filter)
-            ENDIF
+            END IF
 
             IF (alpha_beta) THEN
                CALL update_lagrangian(mat_munu_local(L_counter), matrix_P_inu, Lag_mu_i_1, &
@@ -358,8 +358,8 @@ CONTAINS
                                       G_P_ia(L_counter), mo_coeff_o, Lag_nu_a_2, &
                                       eps_filter)
 
-            ENDIF
-         ENDDO
+            END IF
+         END DO
 
          DO ikind = 1, SIZE(force)
             force(ikind)%mp2_non_sep(:, :) = -4.0_dp*force_2c(ikind)%forces(:, :) + &
@@ -399,7 +399,7 @@ CONTAINS
             CALL pw_pool_create_pw(auxbas_pw_pool, psi_L_beta%pw, &
                                    use_data=REALDATA3D, &
                                    in_space=REALSPACE)
-         ENDIF
+         END IF
 
          ! check if we want to calculate the virial
          use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
@@ -441,7 +441,7 @@ CONTAINS
                                            matrix_P_inu, &
                                            mo_coeff_v, mo_coeff_o, &
                                            eps_filter)
-            ENDIF
+            END IF
 
             ! calculate potential associted to the single aux function
             CALL timeset(routineN//"_wf_pot", handle3)
@@ -459,8 +459,8 @@ CONTAINS
                                            qs_kind_set, cell, dft_control, particle_set, &
                                            pw_env_sub, basis_type='RI_AUX', &
                                            external_vector=wf_vector)
-               rho_r%pw%cr3d = 0.50_dp*(rho_r%pw%cr3d+psi_L_beta%pw%cr3d)
-            ENDIF
+               rho_r%pw%cr3d = 0.50_dp*(rho_r%pw%cr3d + psi_L_beta%pw%cr3d)
+            END IF
 
             CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_type, omega)
             CALL timestop(handle3)
@@ -550,19 +550,19 @@ CONTAINS
                         ELSE
                            lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)
                            ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)
-                        ENDIF
+                        END IF
                         ! distributed grid, only map if it is local to the grid
                         location(dir) = tp(dir) + rs_v(igrid_level)%rs_grid%desc%lb(dir)
-                     ENDDO
+                     END DO
                      IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
                          lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
                          lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
                         map_it_here = .TRUE.
-                     ENDIF
+                     END IF
                   ELSE
                      ! not distributed, just a round-robin distribution over the full set of CPUs
                      IF (MODULO(offset, para_env_sub%num_pe) == para_env_sub%mepos) map_it_here = .TRUE.
-                  ENDIF
+                  END IF
 
                   offset = offset + nsgfa(iset)
 
@@ -645,7 +645,7 @@ CONTAINS
                                       G_P_ia(L_counter), mo_coeff_o, Lag_nu_a_2, &
                                       eps_filter)
 
-            ENDIF
+            END IF
 
             IF (use_virial) THEN
                ! add the volume contribution to the virial due to
@@ -807,19 +807,19 @@ CONTAINS
                         ELSE
                            lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)
                            ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)
-                        ENDIF
+                        END IF
                         ! distributed grid, only map if it is local to the grid
                         location(dir) = tp(dir) + rs_v(igrid_level)%rs_grid%desc%lb(dir)
-                     ENDDO
+                     END DO
                      IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
                          lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
                          lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
                         map_it_here = .TRUE.
-                     ENDIF
+                     END IF
                   ELSE
                      ! not distributed, just a round-robin distribution over the full set of CPUs
                      IF (MODULO(offset, para_env_sub%num_pe) == para_env_sub%mepos) map_it_here = .TRUE.
-                  ENDIF
+                  END IF
 
                   offset = offset + nsgfa(iset)
 
@@ -884,7 +884,7 @@ CONTAINS
 
          IF (alpha_beta) THEN
             CALL pw_pool_give_back_pw(auxbas_pw_pool, psi_L_beta%pw)
-         ENDIF
+         END IF
 
          IF (use_virial) THEN
             CALL pw_pool_give_back_pw(auxbas_pw_pool, temp_pw_g%pw)
@@ -899,7 +899,7 @@ CONTAINS
          CALL dbcsr_release(matrix_P_munu%matrix)
          DEALLOCATE (matrix_P_munu%matrix)
 
-      ENDIF
+      END IF
 
       DEALLOCATE (G_PQ_local)
 
@@ -917,7 +917,7 @@ CONTAINS
          CALL dbcsr_release(matrix_P_inu_beta%matrix)
          DEALLOCATE (matrix_P_inu_beta%matrix)
          DEALLOCATE (G_P_ia_beta)
-      ENDIF
+      END IF
 
       ! move the forces in the correct place
       IF (eri_method .EQ. do_eri_gpw) THEN
@@ -925,7 +925,7 @@ CONTAINS
             force(ikind)%mp2_non_sep(:, :) = force(ikind)%rho_elec(:, :)
             force(ikind)%rho_elec(:, :) = 0.0_dp
          END DO
-      ENDIF
+      END IF
 
       ! Now we move from the local matrices to the global ones
       ! defined over all MPI tasks
@@ -982,7 +982,7 @@ CONTAINS
          ! release Lag_nu_a_2
          CALL dbcsr_release(Lag_nu_a_2_beta%matrix)
          DEALLOCATE (Lag_nu_a_2_beta%matrix)
-      ENDIF
+      END IF
 
       ! Set the factor to multiply P_ij (depends on the open or closed shell)
       factor = 1.0_dp
@@ -995,7 +995,7 @@ CONTAINS
          CALL create_W_P(qs_env, mp2_env, mo_coeff_beta, homo_beta, virtual_beta, dimen, para_env, &
                          para_env_sub, Eigenval_beta, L1_mu_i_beta, L2_nu_a_beta, &
                          factor, .TRUE.)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -1041,7 +1041,7 @@ CONTAINS
       IF (alpha_beta) THEN
          CALL G_P_transform_alpha_beta(G_P_ia_beta, G_P_inu_beta, G_P_munu_nosym, mo_coeff_v_beta, mo_coeff_o_beta, &
                                        [0.5_dp, 0.5_dp], eps_filter)
-      ENDIF
+      END IF
 
       ! symmetrize
       CALL timeset(routineN//"_symmetrize", handle)
@@ -1139,7 +1139,7 @@ CONTAINS
       IF (alpha_beta) THEN
          CALL update_lagrangian_alpha_beta(mat_munu, matrix_P_inu_beta, Lag_mu_i_1_beta, &
                                            G_P_ia_beta, mo_coeff_o_beta, Lag_nu_a_2_beta, eps_filter)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -1807,7 +1807,7 @@ CONTAINS
             ELSE
                mp2_env%ri_grad%P_ij_beta(i_global, j_global) = &
                   factor*fm_P_ij%local_data(iiB, jjB)/(Eigenval(j_global) - Eigenval(i_global))
-            ENDIF
+            END IF
          END DO
       END DO
       ! release fm_P_ij
@@ -1817,7 +1817,7 @@ CONTAINS
          CALL mp_sum(mp2_env%ri_grad%P_ij, para_env%group)
       ELSE
          CALL mp_sum(mp2_env%ri_grad%P_ij_beta, para_env%group)
-      ENDIF
+      END IF
       CALL timestop(handle2)
 
       ! Now create and fill the P matrix (MO)
@@ -1836,7 +1836,7 @@ CONTAINS
                                   nrow_global=dimen, ncol_global=dimen)
          CALL cp_fm_create(mp2_env%ri_grad%P_mo_beta, fm_struct_tmp, name="P_MP2_MO")
          CALL cp_fm_set_all(mp2_env%ri_grad%P_mo_beta, 0.0_dp)
-      ENDIF
+      END IF
 
       ! start with the (easy) occ-occ block and locally held P_ab elements
       itmp = get_limit(virtual, para_env_sub%num_pe, para_env_sub%mepos)
@@ -1867,7 +1867,7 @@ CONTAINS
          mypcol = mp2_env%ri_grad%P_mo_beta%matrix_struct%context%mepos(2)
          nprow = mp2_env%ri_grad%P_mo_beta%matrix_struct%context%num_pe(1)
          npcol = mp2_env%ri_grad%P_mo_beta%matrix_struct%context%num_pe(2)
-      ENDIF
+      END IF
 
       DO jjB = 1, ncol_local
          j_global = col_indices(jjB)
@@ -1889,7 +1889,7 @@ CONTAINS
                   mp2_env%ri_grad%P_mo_beta%local_data(iiB, jjB) = &
                      mp2_env%ri_grad%P_ab_beta(i_global - homo - my_B_virtual_start + 1, j_global - homo)
                END IF
-            ENDIF
+            END IF
          END DO
       END DO
       ! deallocate the local P_ij
@@ -1897,7 +1897,7 @@ CONTAINS
          DEALLOCATE (mp2_env%ri_grad%P_ij)
       ELSE
          DEALLOCATE (mp2_env%ri_grad%P_ij_beta)
-      ENDIF
+      END IF
 
       ! send around the sub_group the local data and check if we
       ! have to update our block with external elements
@@ -1941,14 +1941,14 @@ CONTAINS
                ELSE
                   j_global = cp_fm_indxl2g(jjB, ncol_block, send_pcol, &
                                            mp2_env%ri_grad%P_mo_beta%matrix_struct%first_p_pos(2), npcol)
-               ENDIF
+               END IF
                IF (j_global <= homo) CYCLE
                j_global = j_global - homo
                IF (.NOT. alpha_beta) THEN
                   ab_send(iiB, jjB) = mp2_env%ri_grad%P_ab(i_global - my_B_virtual_start + 1, j_global)
                ELSE
                   ab_send(iiB, jjB) = mp2_env%ri_grad%P_ab_beta(i_global - my_B_virtual_start + 1, j_global)
-               ENDIF
+               END IF
             END DO
          END DO
 
@@ -1964,7 +1964,7 @@ CONTAINS
             mp2_env%ri_grad%P_mo_beta%local_data(1:nrow_local, 1:ncol_local) = &
                mp2_env%ri_grad%P_mo_beta%local_data(1:nrow_local, 1:ncol_local) + &
                ab_rec(1:nrow_local, 1:ncol_local)
-         ENDIF
+         END IF
 
          DEALLOCATE (ab_send)
       END DO
@@ -1977,7 +1977,7 @@ CONTAINS
          DEALLOCATE (mp2_env%ri_grad%P_ab)
       ELSE
          DEALLOCATE (mp2_env%ri_grad%P_ab_beta)
-      ENDIF
+      END IF
       CALL timestop(handle2)
 
       ! create also W_MP2_MO
@@ -2052,7 +2052,7 @@ CONTAINS
                       b_first_row=1, &
                       c_first_col=homo + 1, &
                       c_first_row=1)
-      ENDIF
+      END IF
       CALL timestop(handle2)
 
       ! Calculate occ-virt block of the lagrangian in MO
@@ -2109,7 +2109,7 @@ CONTAINS
                       b_first_row=1, &
                       c_first_col=1, &
                       c_first_row=1)
-      ENDIF
+      END IF
       ! finally release L_mu_q
       CALL cp_fm_release(L_mu_q)
       CALL timestop(handle2)

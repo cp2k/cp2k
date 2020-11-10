@@ -75,8 +75,8 @@ CONTAINS
       DO ishell = 1, basis_set%nshell(iset)
          ishell_abs = SUM(basis_set%nshell(1:iset - 1)) + ishell
          shell_l(ishell_abs) = basis_set%l(ishell, iset)
-      ENDDO
-      ENDDO
+      END DO
+      END DO
 
       nterms = 0
 
@@ -94,18 +94,18 @@ CONTAINS
             lmax = shell_l(max_shell)
             IF (lmin == 0 .AND. lmax == 0) CYCLE ! covered by central terms
             nterms = nterms + 1
-         ENDDO
-         ENDDO
-         ENDDO
-      ENDDO
+         END DO
+         END DO
+         END DO
+      END DO
 
       ! spherical symmetric terms on central atom
       DO max_shell = 1, nshells
       DO min_shell = 1, max_shell
          IF (shell_l(min_shell) /= shell_l(max_shell)) CYCLE ! need quadratic block
          nterms = nterms + 1
-      ENDDO
-      ENDDO
+      END DO
+      END DO
 
       CALL timestop(handle)
 
@@ -235,9 +235,9 @@ CONTAINS
                   DO ic = ncoset(lpot - 1) + 1, ncoset(lpot)
                      coeff = multinomial(lpot/2, indco(:, ic)/2)
                      saal(:, :, lpot/2 + 1) = saal(:, :, lpot/2 + 1) + saab(:, :, ic)*coeff*pot_weight/SQRT(norm2)
-                  ENDDO
-               ENDDO
-            ENDDO ! jatom
+                  END DO
+               END DO
+            END DO ! jatom
 
             ! find bounds of set-pair and setup transformation matrices
             sgfa1 = basis_set%first_sgf(1, iset)
@@ -253,10 +253,10 @@ CONTAINS
                V21 => block_V_full(sgfa2:sgla2, sgfa1:sgla1, lpot/2 + 1)
                V12 = MATMUL(TRANSPOSE(T1), MATMUL(saal(:, :, lpot/2 + 1), T2))
                V21 = TRANSPOSE(V12)
-            ENDDO
+            END DO
             DEALLOCATE (saab, saal)
-         ENDDO ! jset
-         ENDDO ! iset
+         END DO ! jset
+         END DO ! iset
          DEALLOCATE (rpgfb, zetb)
 
          ! block_V_full is ready -------------------------------------------------------------------
@@ -281,13 +281,13 @@ CONTAINS
                V_blocks(:, :, kterm) = 0.0_dp
                V_blocks(sgfa1:sgla1, sgfa2:sgla2, kterm) = block_V_full(sgfa1:sgla1, sgfa2:sgla2, lpot/2 + 1)
                V_blocks(sgfa2:sgla2, sgfa1:sgla1, kterm) = block_V_full(sgfa2:sgla2, sgfa1:sgla1, lpot/2 + 1)
-            ENDDO ! lpot
-         ENDDO ! jshell
-         ENDDO ! ishell
-         ENDDO ! jset
-         ENDDO ! iset
+            END DO ! lpot
+         END DO ! jshell
+         END DO ! ishell
+         END DO ! jset
+         END DO ! iset
          DEALLOCATE (block_V_full)
-      ENDDO ! ipot
+      END DO ! ipot
 
       ! terms on central atom ----------------------------------------------------------------------
 
@@ -309,13 +309,13 @@ CONTAINS
          DO i = 1, sgla1 - sgfa1 + 1 ! set diagonal of sub-block
             V_blocks(sgfa1 - 1 + i, sgfa2 - 1 + i, kterm) = 1.0_dp
             V_blocks(sgfa2 - 1 + i, sgfa1 - 1 + i, kterm) = 1.0_dp
-         ENDDO
+         END DO
          norm2 = SUM(V_blocks(:, :, kterm)**2)
          V_blocks(:, :, kterm) = V_blocks(:, :, kterm)/SQRT(norm2) ! normalize
-      ENDDO ! jshell
-      ENDDO ! ishell
-      ENDDO ! jset
-      ENDDO ! iset
+      END DO ! jshell
+      END DO ! ishell
+      END DO ! jset
+      END DO ! iset
 
       CPASSERT(SIZE(V_blocks, 3) == kterm) ! ensure we generated all terms
 
@@ -394,11 +394,11 @@ CONTAINS
                   kterm = kterm + 1
                   block_M_full(sgfa1:sgla1, sgfa2:sgla2, lpot/2 + 1) = M_blocks(sgfa1:sgla1, sgfa2:sgla2, kterm)
                   block_M_full(sgfa2:sgla2, sgfa1:sgla1, lpot/2 + 1) = M_blocks(sgfa2:sgla2, sgfa1:sgla1, kterm)
-               ENDDO ! lpot
-            ENDDO ! jshell
-            ENDDO ! ishell
-         ENDDO ! jset
-         ENDDO ! iset
+               END DO ! lpot
+            END DO ! jshell
+            END DO ! ishell
+         END DO ! jset
+         END DO ! iset
 
          ! setup description of potential
          lb_min = 0
@@ -481,7 +481,7 @@ CONTAINS
                      norm2 = (2.0_dp*pot_beta)**(-0.5_dp - lpot)*gamma1(lpot)
                      coeff = multinomial(lpot/2, indco(:, ic)/2)
                      dab = dab + coeff*daab(:, :, ic, :)*pot_weight/SQRT(norm2)
-                  ENDDO
+                  END DO
                   DO i = 1, 3
                      ! transform into primary basis
                      block_D = 0.0_dp
@@ -491,14 +491,14 @@ CONTAINS
                      f = SUM(block_M_full(:, :, lpot/2 + 1)*block_D)
                      forces(iatom, i) = forces(iatom, i) - f
                      forces(jatom, i) = forces(jatom, i) + f
-                  ENDDO
-               ENDDO ! lpot
-            ENDDO ! jatom
+                  END DO
+               END DO ! lpot
+            END DO ! jatom
             DEALLOCATE (dab, daab)
-         ENDDO ! jset
-         ENDDO ! iset
+         END DO ! jset
+         END DO ! iset
          DEALLOCATE (rpgfb, zetb, block_M_full)
-      ENDDO ! ipot
+      END DO ! ipot
       DEALLOCATE (block_D)
 
       CALL timestop(handle)

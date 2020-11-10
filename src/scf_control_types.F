@@ -306,7 +306,7 @@ CONTAINS
          IF (scf_control%ref_count < 1) THEN
             IF (ASSOCIATED(scf_control%smear%list)) THEN
                DEALLOCATE (scf_control%smear%list)
-            ENDIF
+            END IF
             DEALLOCATE (scf_control%smear)
 
             IF (ASSOCIATED(scf_control%outer_scf%cdft_opt_control)) &
@@ -619,7 +619,7 @@ CONTAINS
             IF (scf_control%diagonalization%mom) THEN
                ! TODO extend the output with further parameters
                WRITE (UNIT=output_unit, FMT="(T25,A)") "MOM enabled"
-            ENDIF
+            END IF
 
             IF (scf_control%mixing_method > 0 .AND. .NOT. scf_control%use_ot) THEN
                keyword => section_get_keyword(section, "MIXING%METHOD")

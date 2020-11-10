@@ -84,51 +84,51 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       ! check if all input is in place and flags are consistent
       IF (cts_env%update_q .AND. (.NOT. cts_env%update_p)) THEN
          CPABORT("q-update is possible only with p-update")
-      ENDIF
+      END IF
 
       IF (cts_env%tensor_type .EQ. tensor_up_down) THEN
          CPABORT("riccati is not implemented for biorthogonal basis")
-      ENDIF
+      END IF
 
       IF (.NOT. ASSOCIATED(cts_env%matrix_ks)) THEN
          CPABORT("KS matrix is not associated")
-      ENDIF
+      END IF
 
       IF (cts_env%use_virt_orbs .AND. (.NOT. cts_env%use_occ_orbs)) THEN
          CPABORT("virtual orbs can be used only with occupied orbs")
-      ENDIF
+      END IF
 
       IF (cts_env%use_occ_orbs) THEN
          IF (.NOT. ASSOCIATED(cts_env%matrix_t)) THEN
             CPABORT("T matrix is not associated")
-         ENDIF
+         END IF
          IF (.NOT. ASSOCIATED(cts_env%matrix_qp_template)) THEN
             CPABORT("QP template is not associated")
-         ENDIF
+         END IF
          IF (.NOT. ASSOCIATED(cts_env%matrix_pq_template)) THEN
             CPABORT("PQ template is not associated")
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       IF (cts_env%use_virt_orbs) THEN
          IF (.NOT. ASSOCIATED(cts_env%matrix_v)) THEN
             CPABORT("V matrix is not associated")
-         ENDIF
+         END IF
       ELSE
          IF (.NOT. ASSOCIATED(cts_env%matrix_p)) THEN
             CPABORT("P matrix is not associated")
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       IF (cts_env%tensor_type .NE. tensor_up_down .AND. &
           cts_env%tensor_type .NE. tensor_orthogonal) THEN
          CPABORT("illegal tensor flag")
-      ENDIF
+      END IF
 
       ! start real calculations
       IF (cts_env%use_occ_orbs) THEN
@@ -183,11 +183,11 @@ CONTAINS
                                    cts_env%p_index_up, 0.0_dp, &
                                    cts_env%matrix_x, &
                                    filter_eps=cts_env%eps_filter)
-            ENDIF
+            END IF
          ELSE
             ! set amplitudes to zero
             CALL dbcsr_set(cts_env%matrix_x, 0.0_dp)
-         ENDIF
+         END IF
 
          !SELECT CASE (cts_env%preconditioner_type)
          !CASE (prec_eigenvector_blocks,prec_eigenvector_full)
@@ -210,7 +210,7 @@ CONTAINS
                DEALLOCATE (evals)
             ELSE
                CALL diagonalize_diagonal_blocks(matrix_pp, u_pp)
-            ENDIF
+            END IF
             ! and now qq
             CALL dbcsr_create(u_qq, template=matrix_qq, &
                               matrix_type=dbcsr_type_no_symmetry)
@@ -223,7 +223,7 @@ CONTAINS
                DEALLOCATE (evals)
             ELSE
                CALL diagonalize_diagonal_blocks(matrix_qq, u_qq)
-            ENDIF
+            END IF
 
             ! apply the transformation to all matrices
             CALL matrix_forward_transform(matrix_pp, u_pp, u_pp, &
@@ -262,15 +262,15 @@ CONTAINS
                   !ENDIF
                ELSE
                   CPABORT("RICCATI: CG algorithm has NOT converged")
-               ENDIF
+               END IF
 
-            ENDIF
+            END IF
 
             IF (cts_env%calculate_energy_corr) THEN
 
                CALL dbcsr_dot(matrix_qp, cts_env%matrix_x, cts_env%energy_correction)
 
-            ENDIF
+            END IF
 
             CALL dbcsr_release(matrix_pp)
             CALL dbcsr_release(matrix_qp)
@@ -378,15 +378,15 @@ CONTAINS
                   !ENDIF
                ELSE
                   CPABORT("RICCATI: CG algorithm has NOT converged")
-               ENDIF
+               END IF
 
-            ENDIF
+            END IF
 
             IF (cts_env%calculate_energy_corr) THEN
 
                CALL dbcsr_dot(matrix_qp_save, cts_env%matrix_x, cts_env%energy_correction)
 
-            ENDIF
+            END IF
             CALL dbcsr_release(matrix_qp_save)
 
             CALL dbcsr_release(matrix_pp)
@@ -405,7 +405,7 @@ CONTAINS
 
             IF (cts_env%tensor_type .EQ. tensor_up_down) THEN
                CPABORT("orbital update is NYI for this tensor type")
-            ENDIF
+            END IF
 
             ! transform occupied orbitals
             ! in a way that preserves the overlap metric
@@ -466,7 +466,7 @@ CONTAINS
             ELSE
                CALL dbcsr_add(cts_env%matrix_t, cts_env%matrix_x, &
                               1.0_dp, 1.0_dp)
-            ENDIF
+            END IF
             ! adjust T so the metric is preserved: T=(T+X).(1+tr(X).X)^(-1/2)
             CALL dbcsr_multiply("N", "N", 1.0_dp, cts_env%matrix_t, oo1_sqrt, &
                                 0.0_dp, t_corr, filter_eps=cts_env%eps_filter)
@@ -490,13 +490,13 @@ CONTAINS
                                    cts_env%matrix_x, &
                                    filter_eps=cts_env%eps_filter)
                CALL dbcsr_release(matrix_qp)
-            ENDIF
+            END IF
 
-         ENDIF
+         END IF
 
       ELSE
          CPABORT("illegal occ option")
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -634,7 +634,7 @@ CONTAINS
                                    filter_eps=eps_filter)
                CALL dbcsr_copy(qp, no)
                CALL dbcsr_release(no)
-            ENDIF
+            END IF
          END SELECT
 
          ! qq=spf*tr(sp)
@@ -684,7 +684,7 @@ CONTAINS
          CALL dbcsr_release(sp)
          CALL dbcsr_release(spf)
 
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -753,7 +753,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       t1 = m_walltime()
 
@@ -834,7 +834,7 @@ CONTAINS
             ELSE
                CALL dbcsr_multiply("N", "N", +1.0_dp, qq, x, 1.0_dp, res, &
                                    filter_eps=eps_filter)
-            ENDIF
+            END IF
             IF (present_vv) THEN
                CALL dbcsr_multiply("N", "N", -1.0_dp, x, pp, 0.0_dp, res_trial, &
                                    filter_eps=eps_filter)
@@ -843,7 +843,7 @@ CONTAINS
             ELSE
                CALL dbcsr_multiply("N", "N", -1.0_dp, x, pp, 1.0_dp, res, &
                                    filter_eps=eps_filter)
-            ENDIF
+            END IF
             IF (quadratic_term) THEN
                IF (present_oo) THEN
                   CALL dbcsr_multiply("N", "N", +1.0_dp, pq, x, 0.0_dp, oo1, &
@@ -853,7 +853,7 @@ CONTAINS
                ELSE
                   CALL dbcsr_multiply("N", "N", +1.0_dp, pq, x, 0.0_dp, oo2, &
                                       filter_eps=eps_filter)
-               ENDIF
+               END IF
                IF (present_vv) THEN
                   CALL dbcsr_multiply("N", "N", -1.0_dp, x, oo2, 0.0_dp, res_trial, &
                                       filter_eps=eps_filter)
@@ -862,20 +862,20 @@ CONTAINS
                ELSE
                   CALL dbcsr_multiply("N", "N", -1.0_dp, x, oo2, 1.0_dp, res, &
                                       filter_eps=eps_filter)
-               ENDIF
-            ENDIF
+               END IF
+            END IF
             CALL dbcsr_norm(res, dbcsr_norm_maxabsnorm, norm_scalar=best_norm)
          ELSE
             CALL dbcsr_add(res, m, 1.0_dp, best_step_size)
             CALL dbcsr_add(res, n, 1.0_dp, -best_step_size*best_step_size)
             CALL dbcsr_filter(res, eps_filter)
-         ENDIF
+         END IF
 
          ! check convergence and other exit criteria
          converged = (best_norm .LT. eps_convergence)
          IF (converged .OR. (iteration .GE. max_iter)) THEN
             prepare_to_exit = .TRUE.
-         ENDIF
+         END IF
 
          IF (.NOT. prepare_to_exit) THEN
 
@@ -890,7 +890,7 @@ CONTAINS
                   ELSE
                      CALL dbcsr_multiply("N", "N", -1.0_dp, pq, x, 1.0_dp, aux1, &
                                          filter_eps=eps_filter)
-                  ENDIF
+                  END IF
                   IF (present_vv) THEN
                      CALL dbcsr_multiply("N", "N", -1.0_dp, vv, x, 0.0_dp, res_trial, &
                                          filter_eps=eps_filter)
@@ -899,7 +899,7 @@ CONTAINS
                   ELSE
                      CALL dbcsr_multiply("N", "N", -1.0_dp, x, pq, 1.0_dp, aux2, &
                                          filter_eps=eps_filter)
-                  ENDIF
+                  END IF
                ELSE
                   IF (present_oo) THEN
                      CALL dbcsr_multiply("N", "N", -best_step_size, pq, step_oo, 1.0_dp, aux1, &
@@ -907,16 +907,16 @@ CONTAINS
                   ELSE
                      CALL dbcsr_multiply("N", "N", -best_step_size, pq, step, 1.0_dp, aux1, &
                                          filter_eps=eps_filter)
-                  ENDIF
+                  END IF
                   IF (present_vv) THEN
                      CALL dbcsr_multiply("N", "N", -best_step_size, vv_step, pq, 1.0_dp, aux2, &
                                          filter_eps=eps_filter)
                   ELSE
                      CALL dbcsr_multiply("N", "N", -best_step_size, step, pq, 1.0_dp, aux2, &
                                          filter_eps=eps_filter)
-                  ENDIF
-               ENDIF
-            ENDIF
+                  END IF
+               END IF
+            END IF
 
             ! recompute the gradient, do not update it yet
             ! use m matrix as a temporary storage
@@ -929,7 +929,7 @@ CONTAINS
             ELSE
                CALL dbcsr_multiply("N", "T", 1.0_dp, res, aux1, 0.0_dp, m, &
                                    filter_eps=eps_filter)
-            ENDIF
+            END IF
             IF (present_oo) THEN
                CALL dbcsr_multiply("T", "N", 1.0_dp, aux1, res, 0.0_dp, res_trial, &
                                    filter_eps=eps_filter)
@@ -938,7 +938,7 @@ CONTAINS
             ELSE
                CALL dbcsr_multiply("T", "N", 1.0_dp, aux2, res, 1.0_dp, m, &
                                    filter_eps=eps_filter)
-            ENDIF
+            END IF
 
             ! compute preconditioner
             !IF (iteration.eq.0.OR.(mod(iteration,update_prec_freq).eq.0)) THEN
@@ -947,7 +947,7 @@ CONTAINS
                !restart_conjugator=.TRUE.
 !CALL dbcsr_set(prec,1.0_dp)
 !CALL dbcsr_print(prec)
-            ENDIF
+            END IF
 
             ! compute the conjugation coefficient - beta
             IF ((iteration .EQ. 0) .OR. restart_conjugator) THEN
@@ -1006,7 +1006,7 @@ CONTAINS
                CASE DEFAULT
                   CPABORT("illegal conjugator")
                END SELECT
-            ENDIF ! iteration.eq.0
+            END IF ! iteration.eq.0
 
             ! move the current gradient to its storage
             CALL dbcsr_copy(grad, m)
@@ -1053,7 +1053,7 @@ CONTAINS
             ELSE
                CALL dbcsr_multiply("N", "N", 1.0_dp, step, aux1, 0.0_dp, m, &
                                    filter_eps=eps_filter)
-            ENDIF
+            END IF
             IF (present_oo) THEN
                CALL dbcsr_multiply("N", "N", 1.0_dp, step, oo, 0.0_dp, step_oo, &
                                    filter_eps=eps_filter)
@@ -1062,7 +1062,7 @@ CONTAINS
             ELSE
                CALL dbcsr_multiply("N", "N", 1.0_dp, aux2, step, 1.0_dp, m, &
                                    filter_eps=eps_filter)
-            ENDIF
+            END IF
 
             IF (quadratic_term) THEN
                ! n=step.pq.step
@@ -1074,7 +1074,7 @@ CONTAINS
                ELSE
                   CALL dbcsr_multiply("N", "N", 1.0_dp, pq, step, 0.0_dp, oo2, &
                                       filter_eps=eps_filter)
-               ENDIF
+               END IF
                IF (present_vv) THEN
                   CALL dbcsr_multiply("N", "N", 1.0_dp, step, oo2, 0.0_dp, res_trial, &
                                       filter_eps=eps_filter)
@@ -1083,11 +1083,11 @@ CONTAINS
                ELSE
                   CALL dbcsr_multiply("N", "N", 1.0_dp, step, oo2, 0.0_dp, n, &
                                       filter_eps=eps_filter)
-               ENDIF
+               END IF
 
             ELSE
                CALL dbcsr_set(n, 0.0_dp)
-            ENDIF
+            END IF
 
             ! calculate coefficients of the cubic eq for alpha - step size
             c0 = 2.0_dp*(dbcsr_frobenius_norm(n))**2
@@ -1105,7 +1105,7 @@ CONTAINS
 
             IF (nsteps .EQ. 0) THEN
                CPABORT("no step sizes!")
-            ENDIF
+            END IF
             ! if we have several possible step sizes
             ! choose one with the lowest objective function
             best_norm = 1.0E+100_dp
@@ -1123,10 +1123,10 @@ CONTAINS
                IF (obj_function .LT. best_norm) THEN
                   best_norm = obj_function
                   best_step_size = step_size(istep)
-               ENDIF
-            ENDDO
+               END IF
+            END DO
 
-         ENDIF
+         END IF
 
          ! update X along the line
          CALL dbcsr_add(x, step, 1.0_dp, best_step_size)
@@ -1141,7 +1141,7 @@ CONTAINS
          converged = (best_norm .LT. eps_convergence)
          IF (converged .OR. (iteration .GE. max_iter)) THEN
             prepare_to_exit = .TRUE.
-         ENDIF
+         END IF
 
          t2 = m_walltime()
 
@@ -1150,7 +1150,7 @@ CONTAINS
                "RICCATI iter ", iteration, best_norm, t2 - t1
             !WRITE(unit_nr,'(T6,A,1X,I4,1X,F15.9,F15.9,E12.3,F8.3)') &
             !   "RICCATI iter ",iteration,ecorr,change_ecorr,best_norm,t2-t1
-         ENDIF
+         END IF
 
          t1 = m_walltime()
 
@@ -1158,7 +1158,7 @@ CONTAINS
 
          IF (prepare_to_exit) EXIT
 
-      ENDDO
+      END DO
 
       CALL dbcsr_release(aux1)
       CALL dbcsr_release(aux2)
@@ -1241,9 +1241,9 @@ CONTAINS
                CALL dbcsr_reserve_block2d(tmp, iblock_row, iblock_col, p_new_block)
                CPASSERT(ASSOCIATED(p_new_block))
                p_new_block(:, :) = 1.0_dp
-            ENDIF ! mynode
-         ENDDO
-      ENDDO
+            END IF ! mynode
+         END DO
+      END DO
       CALL dbcsr_finalize(tmp)
 
       ! copy diagonal elements of pp into cols of a matrix
@@ -1386,7 +1386,7 @@ CONTAINS
                ! Linear equation with one root.
                nroots = 1
                x(1) = -d/c
-            ENDIF
+            END IF
          ELSE
             ! Quadratic equation with max two roots.
             DD = c*c - 4.0_dp*b*d
@@ -1399,8 +1399,8 @@ CONTAINS
             ELSE
                nroots = 1
                x(1) = -c/2.0_dp/b
-            ENDIF
-         ENDIF
+            END IF
+         END IF
       ELSE
          ! Cubic equation with max three roots
          ! Calculate p and q
@@ -1428,7 +1428,7 @@ CONTAINS
             y1 = u + v
             y2r = -(u + v)/2.0_dp
             y2i = (u - v)*SQRT(3.0_dp)/2.0_dp
-         ENDIF
+         END IF
 
          ! Final transformation
          temp1 = b/a/3.0_dp
@@ -1453,9 +1453,9 @@ CONTAINS
             x(1) = y1
             !x(2) = cmplx(y2r, y2i)
             !x(3) = cmplx(y2r,-y2i)
-         ENDIF
+         END IF
 
-      ENDIF
+      END IF
 
 !write(*,'(i2,a)') nroots, ' real root(s)'
       nmins = 0
@@ -1467,8 +1467,8 @@ CONTAINS
             nmins = nmins + 1
             minima(nmins) = x(i)
 !write(*,'(a,i2,a,f10.5)') 'Minimum ', i, ', value: ', x(i)
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
 !    CALL timestop(handle)
 
@@ -1506,7 +1506,7 @@ CONTAINS
          do_eigenvalues = .TRUE.
       ELSE
          do_eigenvalues = .FALSE.
-      ENDIF
+      END IF
 
       ! create a matrix for eigenvectors
       CALL dbcsr_work_create(c, work_mutable=.TRUE.)
@@ -1557,16 +1557,16 @@ CONTAINS
                p_new_block(:, :) = 0.0_dp
                DO orbital = 1, iblock_size
                   p_new_block(orbital, orbital) = eigenvalues(orbital)
-               ENDDO
-            ENDIF
+               END DO
+            END IF
 
             DEALLOCATE (WORK)
             DEALLOCATE (data_copy)
             DEALLOCATE (eigenvalues)
 
-         ENDIF
+         END IF
 
-      ENDDO
+      END DO
 
       CALL dbcsr_iterator_stop(iter)
 

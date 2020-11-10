@@ -524,7 +524,7 @@ CONTAINS
             ALLOCATE (cols((blk_cnt + nadd)*2))
             cols(1:blk_cnt) = tmp(1:blk_cnt)
             DEALLOCATE (tmp)
-         ENDIF
+         END IF
          IF (alloc_full) THEN
             blk_cnt = blk_cnt + 1
             rows(blk_cnt) = iatom
@@ -717,19 +717,19 @@ CONTAINS
                                  ELSE
                                     screen_blk(jsgf + 1:jsgf + nso(l_b(jshell, jset)), &
                                                isgf + 1:isgf + nso(l_a(ishell, iset))) = 1.0_dp
-                                 ENDIF
+                                 END IF
                                  EXIT gto_loop
-                              ENDIF
-                           ENDIF
-                        ENDDO
-                     ENDDO gto_loop
+                              END IF
+                           END IF
+                        END DO
+                     END DO gto_loop
                      jsgf = jsgf + nso(l_b(jshell, jset))
-                  ENDDO
-               ENDDO
+                  END DO
+               END DO
                isgf = isgf + nso(l_a(ishell, iset))
-            ENDDO
-         ENDDO
-      ENDDO
+            END DO
+         END DO
+      END DO
 
       CALL neighbor_list_iterator_release(nl_iterator)
       DEALLOCATE (basis_set_list_a, basis_set_list_b)

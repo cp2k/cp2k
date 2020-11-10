@@ -926,7 +926,7 @@ CONTAINS
          ELSE
             sym%point_group_symbol = "C1"
          END IF
-      ENDIF
+      END IF
 
    END SUBROUTINE get_point_group_symbol
 

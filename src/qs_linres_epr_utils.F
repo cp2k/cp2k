@@ -132,7 +132,7 @@ CONTAINS
       IF (output_unit > 0) THEN
          WRITE (output_unit, "(/,T20,A,/)") "*** Start EPR g tensor calculation ***"
          WRITE (output_unit, "(T10,A,/)") "Initialization of the EPR environment"
-      ENDIF
+      END IF
 
       CALL epr_env_create(epr_env)
 
@@ -158,7 +158,7 @@ CONTAINS
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(A)') &
             ' To get EPR parameters within PBC you need localized zero order orbitals '
-      ENDIF
+      END IF
       gapw = dft_control%qs_control%gapw
       nspins = dft_control%nspins
       natom = SIZE(particle_set, 1)
@@ -182,7 +182,7 @@ CONTAINS
          CALL init_nablavks_atom_set(nablavks_atom_set, atomic_kind_set, qs_kind_set, nspins)
          CALL set_epr_env(epr_env=epr_env, &
                           nablavks_atom_set=nablavks_atom_set)
-      ENDIF
+      END IF
       !
       ! Bind
       ALLOCATE (epr_env%bind_set(3, 3))
@@ -252,8 +252,8 @@ CONTAINS
             DO idir = 1, SIZE(epr_env%nablavks_set, 1)
                CALL qs_rho_clear(epr_env%nablavks_set(idir, ispin)%rho)
                DEALLOCATE (epr_env%nablavks_set(idir, ispin)%rho)
-            ENDDO
-            ENDDO
+            END DO
+            END DO
             DEALLOCATE (epr_env%nablavks_set)
          END IF
          ! nablavks_atom_set
@@ -270,8 +270,8 @@ CONTAINS
             DO idir = 1, SIZE(epr_env%bind_set, 1)
                CALL qs_rho_clear(epr_env%bind_set(idir, i_B)%rho)
                DEALLOCATE (epr_env%bind_set(idir, i_B)%rho)
-            ENDDO
-            ENDDO
+            END DO
+            END DO
             DEALLOCATE (epr_env%bind_set)
          END IF
          ! bind_atom_set

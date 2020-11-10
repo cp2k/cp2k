@@ -220,7 +220,7 @@ CONTAINS
             CALL get_qs_env(qs_env=qs_env, scf_env=scf_env)
          ELSE
             CALL qs_scf_env_initialize(qs_env, scf_env)
-         ENDIF
+         END IF
 
          IF ((scf_control%density_guess .EQ. history_guess) .AND. (first_step_flag)) THEN
             max_scf_tmp = scf_control%max_scf
@@ -392,7 +392,7 @@ CONTAINS
          CALL get_qs_env(qs_env, mos_last_converged=mos_last_converged)
          DO ispin = 1, dft_control%nspins
             CALL reassign_allocated_mos(mos(ispin)%mo_set, mos_last_converged(ispin)%mo_set)
-         ENDDO
+         END DO
          IF (output_unit > 0) WRITE (UNIT=output_unit, FMT="(/,/,T2,A)") &
             "COPIED mos_last_converged ---> mos"
       END IF
@@ -444,8 +444,8 @@ CONTAINS
                dft_control%surf_dip_correct_switch = .FALSE.
                IF (output_unit > 0) WRITE (UNIT=output_unit, FMT="(/,/,T2,A)") &
                   "SURFACE DIPOLE CORRECTION switched off"
-            ENDIF
-         ENDIF
+            END IF
+         END IF
          scf_loop: DO
 
             CALL timeset(routineN//"_inner_loop", handle2)
@@ -552,11 +552,11 @@ CONTAINS
                 (dft_control%surf_dip_correct_switch)) THEN
                DO ispin = 1, dft_control%nspins
                   CALL reassign_allocated_mos(mos_last_converged(ispin)%mo_set, mos(ispin)%mo_set)
-               ENDDO
+               END DO
                IF (output_unit > 0) WRITE (UNIT=output_unit, FMT="(/,/,T2,A)") &
                   "COPIED mos ---> mos_last_converged"
-            ENDIF
-         ENDIF
+            END IF
+         END IF
 
          IF (exit_outer_loop) EXIT scf_outer_loop
 
@@ -587,8 +587,8 @@ CONTAINS
                CPABORT("mo_coeff_b is not allocated") !fm->dbcsr
             CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b, & !fm->dbcsr
                                   mos(ispin)%mo_set%mo_coeff) !fm -> dbcsr
-         ENDIF !fm->dbcsr
-      ENDDO !fm -> dbcsr
+         END IF !fm->dbcsr
+      END DO !fm -> dbcsr
 
       CALL cp_rm_iter_level(logger%iter_info, level_name="QS_SCF")
       CALL timestop(handle)
@@ -640,8 +640,8 @@ CONTAINS
       DO ispin = 1, SIZE(mos) !fm->dbcsr
          IF (mos(1)%mo_set%use_mo_coeff_b) THEN !fm->dbcsr
             CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b, mos(ispin)%mo_set%mo_coeff) !fm->dbcsr
-         ENDIF !fm->dbcsr
-      ENDDO !fm->dbcsr
+         END IF !fm->dbcsr
+      END DO !fm->dbcsr
 
       ! this just guarantees that all mo_occupations match the eigenvalues, if smear
       DO ispin = 1, dft_control%nspins
@@ -649,7 +649,7 @@ CONTAINS
          IF (.NOT. scf_control%diagonalization%mom) &
             CALL set_mo_occupation(mo_set=mos(ispin)%mo_set, &
                                    smear=scf_control%smear)
-      ENDDO
+      END DO
 
       SELECT CASE (scf_env%method)
       CASE DEFAULT
@@ -722,13 +722,13 @@ CONTAINS
                         CALL make_basis_simple(mo_coeff, nmo)
                      ELSE
                         CALL make_basis_sm(mo_coeff, nmo, matrix_s(1)%matrix)
-                     ENDIF
-                  ENDDO
-               ENDIF
-            ENDIF
+                     END IF
+                  END DO
+               END IF
+            END IF
          ELSE
             ! dont need any dirty trick for the numerically stable irac algorithm.
-         ENDIF
+         END IF
 
          IF (.NOT. ASSOCIATED(scf_env%qs_ot_env)) THEN
 
@@ -751,7 +751,7 @@ CONTAINS
                                 "activate the OT%ROTATION keyword!")
             ELSE
                scf_env%qs_ot_env(:)%restricted = .FALSE.
-            ENDIF
+            END IF
 
             ! might need the KS matrix to init properly
             CALL qs_ks_update_qs_env(qs_env, just_energy=.FALSE., &
@@ -772,7 +772,7 @@ CONTAINS
                NULLIFY (orthogonality_metric)
             ELSE
                orthogonality_metric => matrix_s(1)%matrix
-            ENDIF
+            END IF
 
             IF (.NOT. reuse_precond) &
                CALL prepare_preconditioner(qs_env, mos, matrix_ks, matrix_s, scf_env%ot_preconditioner, &
@@ -799,27 +799,27 @@ CONTAINS
                DO ispin = 1, SIZE(scf_env%qs_ot_env)
                   CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin), &
                                                 scf_env%ot_preconditioner(ispin)%preconditioner)
-               ENDDO
+               END DO
             CASE (ot_precond_s_inverse, ot_precond_full_single)
                DO ispin = 1, SIZE(scf_env%qs_ot_env)
                   CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin), &
                                                 scf_env%ot_preconditioner(1)%preconditioner)
-               ENDDO
+               END DO
             CASE DEFAULT
                DO ispin = 1, SIZE(scf_env%qs_ot_env)
                   CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin), &
                                                 scf_env%ot_preconditioner(1)%preconditioner)
-               ENDDO
+               END DO
             END SELECT
-         ENDIF
+         END IF
 
          ! if we have non-uniform occupations we should be using rotation
          do_rotation = scf_env%qs_ot_env(1)%settings%do_rotation
          DO ispin = 1, SIZE(mos)
             IF (.NOT. mos(ispin)%mo_set%uniform_occupation) THEN
                CPASSERT(do_rotation)
-            ENDIF
-         ENDDO
+            END IF
+         END DO
       END SELECT
 
       ! another safety check
@@ -827,7 +827,7 @@ CONTAINS
          CPASSERT(scf_env%method == ot_method_nr)
          do_rotation = scf_env%qs_ot_env(1)%settings%do_rotation
          CPASSERT(do_rotation)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -858,9 +858,9 @@ CONTAINS
       IF (ASSOCIATED(scf_env%scf_work1)) THEN
          DO ispin = 1, SIZE(scf_env%scf_work1)
             CALL cp_fm_release(scf_env%scf_work1(ispin)%matrix)
-         ENDDO
+         END DO
          DEALLOCATE (scf_env%scf_work1)
-      ENDIF
+      END IF
       IF (ASSOCIATED(scf_env%scf_work2)) CALL cp_fm_release(scf_env%scf_work2)
       IF (ASSOCIATED(scf_env%ortho)) CALL cp_fm_release(scf_env%ortho)
       IF (ASSOCIATED(scf_env%ortho_m1)) CALL cp_fm_release(scf_env%ortho_m1)
@@ -904,20 +904,20 @@ CONTAINS
 
       IF (ASSOCIATED(scf_env%outer_scf%variables)) THEN
          DEALLOCATE (scf_env%outer_scf%variables)
-      ENDIF
+      END IF
       IF (ASSOCIATED(scf_env%outer_scf%count)) THEN
          DEALLOCATE (scf_env%outer_scf%count)
-      ENDIF
+      END IF
       IF (ASSOCIATED(scf_env%outer_scf%gradient)) THEN
          DEALLOCATE (scf_env%outer_scf%gradient)
-      ENDIF
+      END IF
       IF (ASSOCIATED(scf_env%outer_scf%energy)) THEN
          DEALLOCATE (scf_env%outer_scf%energy)
-      ENDIF
+      END IF
       IF (ASSOCIATED(scf_env%outer_scf%inv_jacobian) .AND. &
           scf_env%outer_scf%deallocate_jacobian) THEN
          DEALLOCATE (scf_env%outer_scf%inv_jacobian)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 

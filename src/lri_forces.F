@@ -137,9 +137,9 @@ CONTAINS
 
                END DO
             END DO
-         ENDDO
+         END DO
 
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -312,7 +312,7 @@ CONTAINS
                         dtvec(nfa + i, k) = SUM(pab(1:nba, 1:nbb)*lridint%dabbint(1:nba, 1:nbb, i, k))
                      END IF
                   END DO
-               ENDDO
+               END DO
 
                DEALLOCATE (pab)
 
@@ -327,7 +327,7 @@ CONTAINS
                   ai = isn/lrii%nsn*dcharge(k)
                   force_a(k) = 2.0_dp*fw*ai
                   force_b(k) = -2.0_dp*fw*ai
-               ENDDO
+               END DO
 
                ! derivative of S (overlap) matrix dS
                !dS: dsaa and dsbb are zero, only work with ab blocks in following
@@ -340,20 +340,20 @@ CONTAINS
                   dssn(nfa + 1:nn, k) = MATMUL(lrii%sn(1:nfa), lridint%dsabint(1:nfa, 1:nfb, k))
                   nsdssn(k) = SUM(lrii%sn(1:nn)*dssn(1:nn, k))
                   nsdt(k) = SUM(dtvec(1:nn, k)*lrii%sn(1:nn))
-               ENDDO
+               END DO
                ! dlambda/dRa
                DO k = 1, 3
                   dlambda(k) = (nsdsst(k) - nsdt(k))/lrii%nsn &
                                + (lrho%charge - lrho%nst)*nsdssn(k)/(lrii%nsn*lrii%nsn)
-               ENDDO
+               END DO
                DO k = 1, 3
                   force_a(k) = force_a(k) + 2.0_dp*fw*isn*dlambda(k)
                   force_b(k) = force_b(k) - 2.0_dp*fw*isn*dlambda(k)
-               ENDDO
+               END DO
                DO k = 1, 3
                   st(1:nn) = dtvec(1:nn, k) - dsst(1:nn, k) - lrho%lambda*dssn(1:nn, k)
                   idav(k) = SUM(vint(1:nn)*MATMUL(lrii%sinv(1:nn, 1:nn), st(1:nn)))
-               ENDDO
+               END DO
 
                ! deallocate derivative integrals
                CALL deallocate_int_type(lridint=lridint)
@@ -363,14 +363,14 @@ CONTAINS
                   ai = 2.0_dp*fw*idav(k)
                   force_a(k) = force_a(k) + ai
                   force_b(k) = force_b(k) - ai
-               ENDDO
+               END DO
                IF (ABS(dfw) > 0.0_dp) THEN
                   dab = SQRT(SUM(rab(1:3)*rab(1:3)))
                   ai = 2.0_dp*dfw/dab*SUM(lrho%avec(1:nn)*vint(1:nn))
                   DO k = 1, 3
                      force_a(k) = force_a(k) - ai*rab(k)
                      force_b(k) = force_b(k) + ai*rab(k)
-                  ENDDO
+                  END DO
                END IF
 
                DEALLOCATE (vint)
@@ -381,7 +381,7 @@ CONTAINS
                DO k = 1, 3
                   v_dadra(k) = v_dadra(k) + force_a(k)
                   v_dadrb(k) = v_dadrb(k) + force_b(k)
-               ENDDO
+               END DO
 !$OMP END CRITICAL(addforces)
 
                ! contribution to virial
@@ -394,9 +394,9 @@ CONTAINS
                   ELSE
                      CALL virial_pair_force(virial%pv_lrigpw, 1.0_dp, force_a, rab)
                      CALL virial_pair_force(virial%pv_virial, 1.0_dp, force_a, rab)
-                  ENDIF
+                  END IF
 !$OMP END CRITICAL(addvirial)
-               ENDIF
+               END IF
 
                CALL deallocate_lri_force_components(lri_force)
 
@@ -405,11 +405,11 @@ CONTAINS
 
             CALL neighbor_list_iterator_release(nl_iterator)
 
-         ENDDO
+         END DO
 
          DEALLOCATE (atom_of_kind)
 
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -586,7 +586,7 @@ CONTAINS
                         dtvecb(i, k) = SUM(wbb(1:nba, 1:nbb)*pab(1:nba, 1:nbb)*lridint%dabbint(1:nba, 1:nbb, i, k))
                      END IF
                   END DO
-               ENDDO
+               END DO
 
                DEALLOCATE (pab, wab, wbb)
 
@@ -601,14 +601,14 @@ CONTAINS
                   ai = isna/lrii%nsna*dchargea(k) + isnb/lrii%nsnb*dchargeb(k)
                   force_a(k) = 2.0_dp*fw*ai
                   force_b(k) = -2.0_dp*fw*ai
-               ENDDO
+               END DO
 
                DO k = 1, 3
                   sta(1:nfa) = MATMUL(lrii%asinv(1:nfa, 1:nfa), dtveca(1:nfa, k))
                   idava(k) = SUM(vinta(1:nfa)*sta(1:nfa)) - isna/lrii%nsna*SUM(lrii%na(1:nfa)*sta(1:nfa))
                   stb(1:nfb) = MATMUL(lrii%bsinv(1:nfb, 1:nfb), dtvecb(1:nfb, k))
                   idavb(k) = SUM(vintb(1:nfb)*stb(1:nfb)) - isnb/lrii%nsnb*SUM(lrii%nb(1:nfb)*stb(1:nfb))
-               ENDDO
+               END DO
 
                ! deallocate derivative integrals
                CALL deallocate_int_type(lridint=lridint)
@@ -618,7 +618,7 @@ CONTAINS
                   ai = 2.0_dp*fw*(idava(k) + idavb(k))
                   force_a(k) = force_a(k) + ai
                   force_b(k) = force_b(k) - ai
-               ENDDO
+               END DO
                IF (ABS(dfw) > 0.0_dp) THEN
                   dab = SQRT(SUM(rab(1:3)*rab(1:3)))
                   ai = 2.0_dp*dfw/dab* &
@@ -627,7 +627,7 @@ CONTAINS
                   DO k = 1, 3
                      force_a(k) = force_a(k) - ai*rab(k)
                      force_b(k) = force_b(k) + ai*rab(k)
-                  ENDDO
+                  END DO
                END IF
                v_dadra => lri_coef(ikind)%v_dadr(atom_a, :)
                v_dadrb => lri_coef(jkind)%v_dadr(atom_b, :)
@@ -636,7 +636,7 @@ CONTAINS
                DO k = 1, 3
                   v_dadra(k) = v_dadra(k) + force_a(k)
                   v_dadrb(k) = v_dadrb(k) + force_b(k)
-               ENDDO
+               END DO
 !$OMP END CRITICAL(addforces)
 
                ! contribution to virial
@@ -649,9 +649,9 @@ CONTAINS
                   ELSE
                      CALL virial_pair_force(virial%pv_lrigpw, 1.0_dp, force_a, rab)
                      CALL virial_pair_force(virial%pv_virial, 1.0_dp, force_a, rab)
-                  ENDIF
+                  END IF
 !$OMP END CRITICAL(addvirial)
-               ENDIF
+               END IF
 
                CALL deallocate_lri_force_components(lri_force_a)
                CALL deallocate_lri_force_components(lri_force_b)
@@ -661,11 +661,11 @@ CONTAINS
 
             CALL neighbor_list_iterator_release(nl_iterator)
 
-         ENDDO
+         END DO
 
          DEALLOCATE (atom_of_kind)
 
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -727,7 +727,7 @@ CONTAINS
 
             END DO
          END DO
-      ENDDO
+      END DO
 
       CALL timestop(handle)
 
@@ -843,7 +843,7 @@ CONTAINS
             CALL virial_pair_force(virial%pv_lrigpw, 1.0_dp, force_b, rjk)
             CALL virial_pair_force(virial%pv_virial, 1.0_dp, force_a, rik)
             CALL virial_pair_force(virial%pv_virial, 1.0_dp, force_b, rjk)
-         ENDIF
+         END IF
 !$OMP END CRITICAL(addforce)
       END DO
 !$OMP END PARALLEL

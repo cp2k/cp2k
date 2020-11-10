@@ -264,7 +264,7 @@ CONTAINS
       IF (PRESENT(colvar_p)) THEN
          CPASSERT(.NOT. ASSOCIATED(subsys%colvar_p))
          subsys%colvar_p => colvar_p
-      ENDIF
+      END IF
       IF (PRESENT(shell_particles)) THEN
          IF (ASSOCIATED(shell_particles)) THEN
             CALL particle_list_retain(shell_particles)
@@ -282,7 +282,7 @@ CONTAINS
       IF (PRESENT(gci)) THEN
          CPASSERT(.NOT. ASSOCIATED(subsys%gci))
          subsys%gci => gci
-      ENDIF
+      END IF
       IF (PRESENT(results)) THEN
          IF (ASSOCIATED(results)) THEN
             CALL cp_result_retain(results)

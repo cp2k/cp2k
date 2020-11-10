@@ -165,7 +165,7 @@ CONTAINS
             map_full_sys => section_vals_get_subs_vals(mapping_section, "FORCE_EVAL_MIXED")
          ELSE
             map_full_sys => section_vals_get_subs_vals(mapping_section, "FORCE_EVAL_EMBED")
-         ENDIF
+         END IF
          map_force_ev => section_vals_get_subs_vals(mapping_section, "FORCE_EVAL")
          CALL section_vals_get(map_full_sys, explicit=explicit)
          CPASSERT(explicit)

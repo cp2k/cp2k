@@ -871,7 +871,7 @@ CONTAINS
          INQUIRE (UNIT=unit_number, EXIST=file_exists)
       ELSE
          file_exists = .FALSE.
-      ENDIF
+      END IF
       IF (file_exists) THEN
          INQUIRE (UNIT=unit_number, NAME=file_name)
          WRITE (UNIT=message, FMT="(A)") &

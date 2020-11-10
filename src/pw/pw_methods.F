@@ -255,7 +255,7 @@ CONTAINS
                         " grid 2 :", pw2%pw_grid%id_nr, &
                         " spherical :", pw2%pw_grid%spherical, &
                         " reference :", pw2%pw_grid%reference
-                  ENDIF
+                  END IF
                   CPABORT("Incompatible grids")
                END IF
 
@@ -275,7 +275,7 @@ CONTAINS
                   " grid 2 :", pw2%pw_grid%id_nr, &
                   " spherical :", pw2%pw_grid%spherical, &
                   " reference :", pw2%pw_grid%reference
-            ENDIF
+            END IF
             CPABORT("Incompatible grids")
          END IF
 
@@ -842,14 +842,14 @@ CONTAINS
             IF (my_alpha == 1.0_dp) THEN
 !$OMP PARALLEL DEFAULT(NONE) SHARED(pw1, pw2)
 !$OMP WORKSHARE
-               pw2%cr3d = pw2%cr3d+pw1%cr3d
+               pw2%cr3d = pw2%cr3d + pw1%cr3d
 !$OMP END WORKSHARE
 !$OMP END PARALLEL
                flop = REAL(SIZE(pw2%cr3d), KIND=dp)
             ELSE
 !$OMP PARALLEL DEFAULT(NONE) SHARED(pw1, pw2, my_alpha)
 !$OMP WORKSHARE
-               pw2%cr3d = pw2%cr3d+my_alpha*pw1%cr3d
+               pw2%cr3d = pw2%cr3d + my_alpha*pw1%cr3d
 !$OMP END WORKSHARE
 !$OMP END PARALLEL
                flop = REAL(2*SIZE(pw2%cr3d), KIND=dp)
@@ -859,14 +859,14 @@ CONTAINS
             IF (my_alpha == 1.0_dp) THEN
 !$OMP PARALLEL DEFAULT(NONE) SHARED(pw1, pw2)
 !$OMP WORKSHARE
-               pw2%cc3d = pw2%cc3d+pw1%cc3d
+               pw2%cc3d = pw2%cc3d + pw1%cc3d
 !$OMP END WORKSHARE
 !$OMP END PARALLEL
                flop = REAL(2*SIZE(pw2%cc3d), KIND=dp)
             ELSE
 !$OMP PARALLEL DEFAULT(NONE) SHARED(pw1, pw2, my_alpha)
 !$OMP WORKSHARE
-               pw2%cc3d = pw2%cc3d+my_alpha*pw1%cc3d
+               pw2%cc3d = pw2%cc3d + my_alpha*pw1%cc3d
 !$OMP END WORKSHARE
 !$OMP END PARALLEL
                flop = REAL(4*SIZE(pw2%cc3d), KIND=dp)
@@ -973,7 +973,7 @@ CONTAINS
                      " grid 2 :", pw2%pw_grid%id_nr, &
                      " sperical :", pw2%pw_grid%spherical, &
                      " reference :", pw2%pw_grid%reference
-               ENDIF
+               END IF
                CPABORT("Grids not compatible")
 
             END IF
@@ -992,7 +992,7 @@ CONTAINS
                " grid 2 :", pw2%pw_grid%id_nr, &
                " sperical :", pw2%pw_grid%spherical, &
                " reference :", pw2%pw_grid%reference
-         ENDIF
+         END IF
          CPABORT("Grids not compatible")
 
       END IF
@@ -1074,14 +1074,14 @@ CONTAINS
             IF (my_alpha == 1.0_dp) THEN
 !$OMP PARALLEL DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
 !$OMP WORKSHARE
-               pw_out%cr3d = pw_out%cr3d+pw1%cr3d*pw2%cr3d
+               pw_out%cr3d = pw_out%cr3d + pw1%cr3d*pw2%cr3d
 !$OMP END WORKSHARE
 !$OMP END PARALLEL
                flop = REAL(2*SIZE(pw2%cr3d), KIND=dp)
             ELSE
 !$OMP PARALLEL DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
 !$OMP WORKSHARE
-               pw_out%cr3d = pw_out%cr3d+my_alpha*pw1%cr3d*pw2%cr3d
+               pw_out%cr3d = pw_out%cr3d + my_alpha*pw1%cr3d*pw2%cr3d
 !$OMP END WORKSHARE
 !$OMP END PARALLEL
                flop = REAL(3*SIZE(pw2%cr3d), KIND=dp)
@@ -1092,14 +1092,14 @@ CONTAINS
             IF (my_alpha == 1.0_dp) THEN
 !$OMP PARALLEL DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
 !$OMP WORKSHARE
-               pw_out%cc3d = pw_out%cc3d+pw1%cc3d*pw2%cc3d
+               pw_out%cc3d = pw_out%cc3d + pw1%cc3d*pw2%cc3d
 !$OMP END WORKSHARE
 !$OMP END PARALLEL
                flop = REAL(3*SIZE(pw2%cc3d), KIND=dp)
             ELSE
 !$OMP PARALLEL DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
 !$OMP WORKSHARE
-               pw_out%cc3d = pw_out%cc3d+my_alpha*pw1%cc3d*pw2%cc3d
+               pw_out%cc3d = pw_out%cc3d + my_alpha*pw1%cc3d*pw2%cc3d
 !$OMP END WORKSHARE
 !$OMP END PARALLEL
                flop = REAL(6*SIZE(pw2%cc3d), KIND=dp)
@@ -1144,7 +1144,7 @@ CONTAINS
 
       IF (pw%in_use /= COMPLEXDATA1D) THEN
          CPABORT("Data field has to be COMPLEXDATA1D")
-      ENDIF
+      END IF
 
       ! after the gather we are in g-space
       pw%in_space = RECIPROCALSPACE
@@ -1212,11 +1212,11 @@ CONTAINS
 
       IF (pw%in_use /= COMPLEXDATA1D) THEN
          CPABORT("Data field has to be COMPLEXDATA1D")
-      ENDIF
+      END IF
 
       IF (pw%pw_grid%para%mode /= PW_MODE_DISTRIBUTED) THEN
          CPABORT("This grid type is not distributed")
-      ENDIF
+      END IF
 
       ! after the gather we are in g-space
       pw%in_space = RECIPROCALSPACE
@@ -1293,11 +1293,11 @@ CONTAINS
 
       IF (pw%in_use /= COMPLEXDATA1D) THEN
          CPABORT("Data field has to be COMPLEXDATA1D")
-      ENDIF
+      END IF
 
       IF (pw%in_space /= RECIPROCALSPACE) THEN
          CPABORT("Data has to be in RECIPROCALSPACE")
-      ENDIF
+      END IF
 
       mapl => pw%pw_grid%mapl%pos
       mapm => pw%pw_grid%mapm%pos
@@ -1399,15 +1399,15 @@ CONTAINS
 
       IF (pw%in_use /= COMPLEXDATA1D) THEN
          CPABORT("Data field has to be COMPLEXDATA1D")
-      ENDIF
+      END IF
 
       IF (pw%in_space /= RECIPROCALSPACE) THEN
          CPABORT("Data has to be in RECIPROCALSPACE")
-      ENDIF
+      END IF
 
       IF (pw%pw_grid%para%mode /= PW_MODE_DISTRIBUTED) THEN
          CPABORT("This grid type is not distributed")
-      ENDIF
+      END IF
 
       mapl => pw%pw_grid%mapl%pos
       mapm => pw%pw_grid%mapm%pos
@@ -1628,7 +1628,7 @@ CONTAINS
                CALL copy_rc(pw1%cr3d, c_out)
                CALL fft3d(dir, n, c_out, scale=norm, debug=test)
                CALL pw_gather(pw2, c_out)
-            ENDIF
+            END IF
             DEALLOCATE (c_out)
 #else
             ALLOCATE (c_out(n(1), n(2), n(3)))
@@ -2049,7 +2049,7 @@ CONTAINS
          integral_value = integral_value*pw1%pw_grid%dvol
       ELSE
          integral_value = integral_value*pw1%pw_grid%vol
-      ENDIF
+      END IF
       IF (pw1%in_use == COMPLEXDATA1D) THEN
          IF (pw1%pw_grid%grid_span == HALFSPACE) THEN
             integral_value = 2.0_dp*integral_value

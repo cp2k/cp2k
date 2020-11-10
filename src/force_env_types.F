@@ -463,8 +463,8 @@ CONTAINS
       IF (ASSOCIATED(force_env%fp_env) .AND. PRESENT(potential_energy)) THEN
          IF (force_env%fp_env%use_fp) THEN
             potential_energy = potential_energy + force_env%fp_env%energy
-         ENDIF
-      ENDIF
+         END IF
+      END IF
       IF (PRESENT(potential_energy)) THEN
          potential_energy = potential_energy + force_env%additional_potential
       END IF

@@ -134,7 +134,7 @@ CONTAINS
             IF (my_id == do_spin_density .OR. ddapc_restraint_is_spin) ddapc_restraint_is_spin = .TRUE.
          END DO
          et_coupling_calc = dft_control%qs_control%et_coupling_calc
-      ENDIF
+      END IF
 
       explicit_potential = ddapc_restraint_is_spin .OR. et_coupling_calc
       dft_control%qs_control%ddapc_explicit_potential = explicit_potential
@@ -145,7 +145,7 @@ CONTAINS
          CALL pw_zero(v_spin_ddapc_rest_g%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, v_spin_ddapc_rest_r%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
-      ENDIF
+      END IF
 
       IF (calculate_forces) CALL reset_ch_pulay(qs_env)
 
@@ -199,12 +199,12 @@ CONTAINS
                   END IF
                END IF
             END IF
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       IF (explicit_potential) THEN
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_spin_ddapc_rest_g%pw)
-      ENDIF
+      END IF
       CALL timestop(handle)
 
    END SUBROUTINE qs_ks_ddapc
@@ -431,7 +431,7 @@ CONTAINS
             CALL restraint_functional_potential(v_hartree_gspace, density_fit_section, &
                                                 particle_set, qs_env%cp_ddapc_env%AmI, radii, charges, &
                                                 ddapc_restraint_control, energy_res)
-         ENDIF
+         END IF
 
          IF (need_f) THEN
             CALL restraint_functional_force(qs_env, &

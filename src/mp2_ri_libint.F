@@ -1063,11 +1063,11 @@ CONTAINS
       l_max = 0
       DO ikind = 1, nkind
          l_max = MAX(l_max, MAXVAL(qs_env%x_data(1, 1)%basis_parameter(ikind)%lmax))
-      ENDDO
+      END DO
       IF (PRESENT(RI_basis_parameter)) THEN
          DO ikind = 1, nkind
             l_max = MAX(l_max, MAXVAL(RI_basis_parameter(ikind)%lmax))
-         ENDDO
+         END DO
       END IF
       l_max = 4*l_max
       CALL init_md_ftable(l_max)
@@ -1249,8 +1249,8 @@ CONTAINS
          DO iset = 1, nseta
             ncos_max = MAX(ncos_max, ncoset(la_max(iset)))
             nsgf_max = MAX(nsgf_max, nsgfa(iset))
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
    END SUBROUTINE get_ncos_and_ncsgf
 
@@ -1297,8 +1297,8 @@ CONTAINS
             ! the maximum value after multiplication with sphi_b
             max_contraction(jset, jatom) = MAXVAL((/(SUM(ABS(sphi_b(1:ncob, i))), i=sgfb, sgfb + nsgfb(jset) - 1)/))
             max_pgf = MAX(max_pgf, npgfb(jset))
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
    END SUBROUTINE get_max_contraction
 

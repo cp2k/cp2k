@@ -284,12 +284,12 @@ CONTAINS
                   com(2) = com(2) + msd%ref0_pos(2, iatom)*mass
                   com(3) = com(3) + msd%ref0_pos(3, iatom)*mass
                   mass_mol = mass_mol + mass
-               ENDDO  ! iatom
+               END DO  ! iatom
                msd%ref0_com_molecule(1, molecule_kind%molecule_list(imol)) = com(1)/mass_mol
                msd%ref0_com_molecule(2, molecule_kind%molecule_list(imol)) = com(2)/mass_mol
                msd%ref0_com_molecule(3, molecule_kind%molecule_list(imol)) = com(3)/mass_mol
             END DO  ! imol
-         ENDDO ! ikind
+         END DO ! ikind
       END IF
 
       IF (msd%msd_region) THEN
@@ -411,7 +411,7 @@ CONTAINS
                reftraj%msd%val_msd_kind(1:4, ikind)/REAL(natom_kind, KIND=dp)
 
          END DO  ! ikind
-      ENDIF
+      END IF
       CALL mp_sum(reftraj%msd%val_msd_kind, para_env%group)
       CALL mp_sum(reftraj%msd%num_disp_atom, para_env%group)
       CALL mp_sum(reftraj%msd%disp_atom_dr, para_env%group)
@@ -443,7 +443,7 @@ CONTAINS
                   com(2) = com(2) + particle_set(iatom)%r(2)*mass
                   com(3) = com(3) + particle_set(iatom)%r(3)*mass
                   mass_mol = mass_mol + mass
-               ENDDO  ! iatom
+               END DO  ! iatom
                com(1) = com(1)/mass_mol
                com(2) = com(2)/mass_mol
                com(3) = com(3)/mass_mol
@@ -458,7 +458,7 @@ CONTAINS
                msd_mkind(2) = msd_mkind(2) + diff2_com(2)
                msd_mkind(3) = msd_mkind(3) + diff2_com(3)
                msd_mkind(4) = msd_mkind(4) + diff2_com(4)
-            ENDDO ! imol
+            END DO ! imol
 
             reftraj%msd%val_msd_molecule(1, ikind) = msd_mkind(1)/REAL(nmolecule, KIND=dp)
             reftraj%msd%val_msd_molecule(2, ikind) = msd_mkind(2)/REAL(nmolecule, KIND=dp)
@@ -567,11 +567,11 @@ CONTAINS
                         reftraj%msd%disp_atom_dr(3, iat)*angstrom
                   END IF
                END DO
-            ENDIF
+            END IF
             CALL cp_print_key_finished_output(out_msd, logger, reftraj_section, &
                                               "PRINT%DISPLACED_ATOM")
          END IF
-      ENDIF ! msd
+      END IF ! msd
       reftraj%init = .FALSE.
 
    END SUBROUTINE write_output_reftraj

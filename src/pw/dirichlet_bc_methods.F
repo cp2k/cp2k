@@ -100,7 +100,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       dr = pw_pool%pw_grid%dr
       npts = pw_pool%pw_grid%npts
@@ -308,7 +308,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       SELECT CASE (dirichlet_bc%dbc_geom)
       CASE (PLANAR)
@@ -478,7 +478,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       xlb = x_xtnt(1); xub = x_xtnt(2)
       ylb = y_xtnt(1); yub = y_xtnt(2)
@@ -582,7 +582,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       forb_xtnt1 = x_xtnt(1) .LT. cell_xtnts(1, 1)
       forb_xtnt2 = x_xtnt(2) .GT. cell_xtnts(2, 1)
@@ -676,7 +676,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       D = A + (C - B)
       AB = B - A; AC = C - A; AD = D - A; BC = C - B
@@ -825,7 +825,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       Lx = cell_xtnts(2, 1) - cell_xtnts(1, 1)
       Ly = cell_xtnts(2, 2) - cell_xtnts(1, 2)

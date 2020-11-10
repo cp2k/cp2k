@@ -267,7 +267,7 @@ CONTAINS
          CALL fft_get_lengths(fft_type_sg, DATA, ldata)
       ELSE
          CALL fft_get_lengths(fft_type, DATA, ldata)
-      ENDIF
+      END IF
 
       iloc = 0
       DO i = 1, ldata
@@ -424,7 +424,7 @@ CONTAINS
 
       IF (test) THEN
          in_sum = SUM(ABS(zin))
-      ENDIF
+      END IF
 
       ld(1) = SIZE(zin, 1)
       ld(2) = SIZE(zin, 2)
@@ -443,13 +443,13 @@ CONTAINS
             CALL fft_3d(fft_scratch%fft_plan(1), norm, zin, zoptr, stat)
          ELSE
             CALL fft_3d(fft_scratch%fft_plan(2), norm, zin, zoptr, stat)
-         ENDIF
+         END IF
       ELSE
          IF (fsign == FWFFT) THEN
             CALL fft_3d(fft_scratch%fft_plan(3), norm, zin, zout, stat)
          ELSE
             CALL fft_3d(fft_scratch%fft_plan(4), norm, zin, zout, stat)
-         ENDIF
+         END IF
       END IF
 
       CALL release_fft_scratch(fft_scratch)
@@ -808,7 +808,7 @@ CONTAINS
 
             CPABORT("Illegal fsign parameter.")
 
-         ENDIF
+         END IF
 
          CALL release_fft_scratch(fft_scratch)
 
@@ -926,11 +926,11 @@ CONTAINS
             END IF
          ELSE
             CPABORT("Illegal fsign parameter.")
-         ENDIF
+         END IF
 
          CALL release_fft_scratch(fft_scratch)
 
-      ENDIF
+      END IF
 
       DEALLOCATE (p2p)
 
@@ -1348,7 +1348,7 @@ CONTAINS
 
          ELSE
             CPABORT("Illegal fsign parameter.")
-         ENDIF
+         END IF
 
          CALL release_fft_scratch(fft_scratch)
 
@@ -2835,13 +2835,13 @@ CONTAINS
                IF (fft_scratch_current%fft_scratch%last_tick < last_tick) THEN
                   last_tick = fft_scratch_current%fft_scratch%last_tick
                   fft_scratch_old => fft_scratch_current
-               ENDIF
-            ENDIF
+               END IF
+            END IF
             fft_scratch_current => fft_scratch_current%fft_scratch_next
          ELSE
             EXIT
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       ! we should delete a scratch
       IF (nscratch > fft_pool_scratch_limit) THEN
@@ -2862,16 +2862,16 @@ CONTAINS
 
                   ELSE
                      fft_scratch_current => fft_scratch_current%fft_scratch_next
-                  ENDIF
+                  END IF
                ELSE
                   EXIT
-               ENDIF
-            ENDDO
+               END IF
+            END DO
 
          ELSE
             CPWARN("The number of the scratches exceeded the limit, but none could be deallocated")
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
    END SUBROUTINE resize_fft_scratch_pool
 
@@ -2944,7 +2944,7 @@ CONTAINS
                   fft_scratch_last => fft_scratch_current
                   fft_scratch_current => fft_scratch_current%fft_scratch_next
                   CYCLE
-               ENDIF
+               END IF
             END IF
             ! Success
             fft_scratch => fft_scratch_current%fft_scratch

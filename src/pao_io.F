@@ -128,7 +128,7 @@ CONTAINS
          ! check kinds
          DO ikind = 1, SIZE(kinds)
             CALL pao_kinds_ensure_equal(pao, qs_env, ikind, kinds(ikind))
-         ENDDO
+         END DO
 
          ! check number of atoms
          IF (SIZE(positions, 1) /= natoms) &
@@ -138,17 +138,17 @@ CONTAINS
          DO iatom = 1, natoms
             IF (atom2kind(iatom) /= particle_set(iatom)%atomic_kind%kind_number) &
                CPABORT("Restart atomic kinds do not match.")
-         ENDDO
+         END DO
 
          ! check positions, warning only
          diff = 0.0_dp
          DO iatom = 1, natoms
             diff = MAX(diff, MAXVAL(ABS(positions(iatom, :) - particle_set(iatom)%r)))
-         ENDDO
+         END DO
          IF (diff > 1e-10) &
             CPWARN("Restarting from different atom positions")
 
-      ENDIF
+      END IF
 
       ! scatter xblocks across ranks to fill pao%matrix_X
       ! this could probably be done more efficiently
@@ -159,13 +159,13 @@ CONTAINS
             CPASSERT(row_blk_sizes(iatom) == SIZE(xblocks(iatom)%p, 1))
             CPASSERT(col_blk_sizes(iatom) == SIZE(xblocks(iatom)%p, 2))
             buffer = xblocks(iatom)%p
-         ENDIF
+         END IF
          CALL mp_bcast(buffer, para_env%source, para_env%group)
          CALL dbcsr_get_block_p(matrix=pao%matrix_X, row=iatom, col=iatom, block=block_X, found=found)
          IF (ASSOCIATED(block_X)) &
             block_X = buffer
          DEALLOCATE (buffer)
-      ENDDO
+      END DO
 
       ! ALLOCATABLEs deallocate themselves
 
@@ -288,7 +288,7 @@ CONTAINS
             CPASSERT(ALLOCATED(kinds))
             DO ikind = 1, nkinds
                IF (TRIM(kinds(ikind)%name) .EQ. TRIM(str_in)) EXIT
-            ENDDO
+            END DO
             CPASSERT(ALLOCATED(atom2kind) .AND. ALLOCATED(positions))
             atom2kind(iatom) = ikind
             positions(iatom, :) = pos_in/angstrom
@@ -310,7 +310,7 @@ CONTAINS
          ELSE
             !CPWARN("Skipping restart header with label: "//TRIM(label))
             READ (unit_nr, fmt=*) label ! just read again and ignore
-         ENDIF
+         END IF
       END DO
       CALL close_file(unit_number=unit_nr)
 
@@ -376,7 +376,7 @@ CONTAINS
             CPWARN("PAO_POT_BETA does not match")
          IF (pao_kind%pao_potentials(ipot)%weight /= pao_potentials(ipot)%weight) &
             CPWARN("PAO_POT_WEIGHT does not match")
-      ENDDO
+      END DO
 
    END SUBROUTINE pao_kinds_ensure_equal
 
@@ -424,7 +424,7 @@ CONTAINS
 
          CALL pao_write_diagonal_blocks(para_env, pao%matrix_X, "Xblock", unit_nr)
 
-      ENDIF
+      END IF
 
       ! close file
       IF (unit_nr > 0) WRITE (unit_nr, '(A)') "THE_END"
@@ -465,15 +465,15 @@ CONTAINS
                mpi_buffer(:, :) = local_block(:, :)
          ELSE
             mpi_buffer(:, :) = 0.0_dp
-         ENDIF
+         END IF
 
          CALL mp_sum(mpi_buffer, para_env%group)
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, fmt="(A,1X,I10,1X)", advance='no') label, iatom
             WRITE (unit_nr, *) mpi_buffer
-         ENDIF
+         END IF
          DEALLOCATE (mpi_buffer)
-      ENDDO
+      END DO
 
       ! flush
       IF (unit_nr > 0) FLUSH (unit_nr)
@@ -534,8 +534,8 @@ CONTAINS
             WRITE (unit_nr, "(1X,I3)", advance='no') pao_potentials(ipot)%max_projector
             WRITE (unit_nr, "(1X,F20.16)", advance='no') pao_potentials(ipot)%beta
             WRITE (unit_nr, "(1X,F20.16)") pao_potentials(ipot)%weight
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       ! write cell
       WRITE (unit_nr, fmt="(A,5X)", advance='no') "Cell"
@@ -547,7 +547,7 @@ CONTAINS
          kindname = particle_set(iatom)%atomic_kind%name
          WRITE (unit_nr, fmt="(A,5X,I10,5X,A,1X)", advance='no') "Atom ", iatom, TRIM(kindname)
          WRITE (unit_nr, *) particle_set(iatom)%r*angstrom
-      ENDDO
+      END DO
 
    END SUBROUTINE write_restart_header
 

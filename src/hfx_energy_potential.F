@@ -295,7 +295,7 @@ CONTAINS
       l_max = 0
       DO ikind = 1, nkind
          l_max = MAX(l_max, MAXVAL(x_data(1, 1)%basis_parameter(ikind)%lmax))
-      ENDDO
+      END DO
       l_max = 4*l_max
       CALL init_md_ftable(l_max)
 
@@ -475,9 +475,9 @@ CONTAINS
                do_p_screening = ((qs_env%mp2_env%p_screen) .AND. (qs_env%mp2_env%not_last_hfx))
             ELSE
                do_p_screening = .FALSE.
-            ENDIF
-         ENDIF
-      ENDIF
+            END IF
+         END IF
+      END IF
       max_set = basis_info%max_set
       natom = SIZE(particle_set, 1)
 
@@ -502,8 +502,8 @@ CONTAINS
          DO iset = 1, nseta
             ncos_max = MAX(ncos_max, ncoset(la_max(iset)))
             nsgf_max = MAX(nsgf_max, nsgfa(iset))
-         ENDDO
-      ENDDO
+         END DO
+      END DO
       !! Allocate the arrays for the integrals.
       ALLOCATE (primitive_integrals(nsgf_max**4))
       primitive_integrals = 0.0_dp
@@ -544,8 +544,8 @@ CONTAINS
             ! the maximum value after multiplication with sphi_b
             max_contraction(jset, jatom) = MAXVAL((/(SUM(ABS(sphi_b(1:ncob, i))), i=sgfb, sgfb + nsgfb(jset) - 1)/))
             max_pgf = MAX(max_pgf, npgfb(jset))
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       ! ** Allocate buffers for pgf_lists
       nneighbors = SIZE(actual_x_data%neighbor_cells)
@@ -1076,7 +1076,7 @@ CONTAINS
             actual_x_data%distribution_energy(bin)%time_other_scf = 0.0_dp
             actual_x_data%distribution_energy(bin)%time_forces = 0.0_dp
          END DO
-      ENDIF
+      END IF
 !$OMP END MASTER
 !$OMP BARRIER
 
@@ -1108,7 +1108,7 @@ CONTAINS
                   maxval_container => x_data(irep, my_thread_id)%store_ints%maxval_container(my_bin_id)
                   integral_caches => x_data(irep, my_thread_id)%store_ints%integral_caches(:, my_bin_id)
                   integral_containers => x_data(irep, my_thread_id)%store_ints%integral_containers(:, my_bin_id)
-               ENDIF
+               END IF
                distribution_energy => x_data(irep, my_thread_id)%distribution_energy(my_bin_id)
                do_it = .TRUE.
                bins_left = .TRUE.
@@ -1672,7 +1672,7 @@ CONTAINS
                            CALL print_integrals( &
                               iatom, jatom, katom, latom, shm_set_offset, shm_atomic_block_offset, &
                               iset, jset, kset, lset, nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), primitive_integrals)
-                        ENDIF
+                        END IF
                         IF (.NOT. is_anti_symmetric) THEN
                            !! Update Kohn-Sham matrix
                            CALL update_fock_matrix( &
@@ -1728,7 +1728,7 @@ CONTAINS
          ELSE
             distribution_energy%time_other_scf = &
                distribution_energy%time_other_scf + bintime_stop - bintime_start
-         ENDIF
+         END IF
 !$OMP MASTER
          CALL timestop(handle_bin)
 !$OMP END MASTER

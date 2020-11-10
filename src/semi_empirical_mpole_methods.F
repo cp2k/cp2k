@@ -158,7 +158,7 @@ CONTAINS
 
             DO mu = 1, se_parameter%natorb
                M0(indexb(mu, mu)) = 1.0_dp
-            ENDDO
+            END DO
 
             ZS = se_parameter%sto_exponents(0)
             ZP = se_parameter%sto_exponents(1)
@@ -167,14 +167,14 @@ CONTAINS
             ws = REAL((2*nr + 2)*(2*nr + 1), dp)/(24.0_dp*ZS**2)
             DO k = 1, 3
                M2(k, k, indexb(1, 1)) = ws
-            ENDDO
+            END DO
 
             IF (ZP > 0._dp) THEN
                zt = SQRT(ZS*ZP)
                zb = 0.5_dp*(ZS + ZP)
                DO k = 1, 3
                   M1(k, indexb(1, 1 + k)) = (zt/zb)**(2*nr + 1)*REAL(2*nr + 1, dp)/(2.0*zb*SQRT(3.0_dp))
-               ENDDO
+               END DO
 
                wp = REAL((2*nr + 2)*(2*nr + 1), dp)/(40.0_dp*ZP**2)
                DO k1 = 1, 3
@@ -183,16 +183,16 @@ CONTAINS
                         M2(k2, k2, indexb(1 + k1, 1 + k1)) = 3.0_dp*wp
                      ELSE
                         M2(k2, k2, indexb(1 + k1, 1 + k1)) = wp
-                     ENDIF
-                  ENDDO
-               ENDDO
+                     END IF
+                  END DO
+               END DO
                M2(1, 2, indexb(1 + 1, 1 + 2)) = wp
                M2(2, 1, indexb(1 + 1, 1 + 2)) = wp
                M2(2, 3, indexb(1 + 2, 1 + 3)) = wp
                M2(3, 2, indexb(1 + 2, 1 + 3)) = wp
                M2(3, 1, indexb(1 + 3, 1 + 1)) = wp
                M2(1, 3, indexb(1 + 3, 1 + 1)) = wp
-            ENDIF
+            END IF
 
             DO i = 1, natorb
                DO j = 1, i

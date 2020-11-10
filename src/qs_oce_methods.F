@@ -134,7 +134,7 @@ CONTAINS
       calculate_forces = .FALSE.
       IF (nder > 0) THEN
          calculate_forces = .TRUE.
-      ENDIF
+      END IF
 
       lm = MAX(maxlb, maxlprj)
       lds = ncoset(lm + nder + 1)
@@ -159,7 +159,7 @@ CONTAINS
             DO jc = isgfb, lsgfb
                nsgf_cnt = nsgf_cnt + 1
                sgf_list(nsgf_cnt) = jc
-            ENDDO
+            END DO
 
             ! check if this function is hard
             radius = exp_radius(lb_max(jset), MAXVAL(zetb(1:npgfb(jset), jset)), eps_fit, 1.0_dp)
@@ -190,8 +190,8 @@ CONTAINS
                      lz = indco(3, ico + ncoset(lprj - 1))
                      c2s(iso, ico) = orbtramat(lprj)%c2s(iso, ico)/SQRT((4.0_dp*pi)/dfac(2*lprj + 1)* &
                                                                         dfac(2*lx - 1)*dfac(2*ly - 1)*dfac(2*lz - 1))
-                  ENDDO
-               ENDDO
+                  END DO
+               END DO
                DO ider = 1, maxder
                   is = (ider - 1)*SIZE(spa_tmp, 1)
                   isp = (ider - 1)*maxcob*nsetb
@@ -208,10 +208,10 @@ CONTAINS
                         ovs(m:m + nso(lprj) - 1, igau:igau + n - 1) = &
                            MATMUL(c2s(1:nso(lprj), 1:nco(lprj)), &
                                   spa_tmp(lpoint:lpoint + nco(lprj) - 1, ig1:ig1 + n - 1))
-                     ENDDO
-                  ENDDO
-               ENDDO
-            ENDDO
+                     END DO
+                  END DO
+               END DO
+            END DO
 
             IF (paw_atom_b) THEN
                CALL get_paw_proj_set(paw_proj_set=paw_proj_b, zisomin=zisominb)
@@ -223,11 +223,11 @@ CONTAINS
                            is = maxcob*(ider - 1)
                            isp = (ider - 1)*maxcob*nsetb
                            ovs(:, igau + 1 + isp + m1:igau + nco(lshell) + isp + m1) = 0.0_dp
-                        ENDDO
-                     ENDIF
-                  ENDDO
+                        END DO
+                     END IF
+                  END DO
                END DO
-            ENDIF
+            END IF
 
             ! *** Contraction step (integrals and derivatives)
             DO ider = 1, maxder
@@ -248,11 +248,11 @@ CONTAINS
                   oces(ider)%block(1:nsatbas, isgfb_cnt:isgfb_cnt + nsgfb(jset) - 1) + &
                   MATMUL(TRANSPOSE(csprj(1:np_sph, 1:nsatbas)), &
                          spa_sb(1:np_sph, isgfb:isgfb + nsgfb(jset) - 1))
-            ENDDO
+            END DO
             isgfb_cnt = isgfb_cnt + nsgfb(jset)
          END IF ! radius
          m1 = m1 + maxcob
-      ENDDO !jset
+      END DO !jset
 
       ! check if the screened functions are all soft
       sgf_soft_only = .FALSE.
@@ -315,12 +315,12 @@ CONTAINS
          DO jc = isgfa, lsgfa
             nsgf_cnt = nsgf_cnt + 1
             sgf_list(nsgf_cnt) = jc
-         ENDDO
+         END DO
          n = maxsoa*(iset - 1)
 
          prjloc_h(n + 1:n + maxsoa, isgfa:lsgfa) = local_oce_h(1:maxsoa, isgfa:lsgfa)
          prjloc_s(n + 1:n + maxsoa, isgfa:lsgfa) = local_oce_s(1:maxsoa, isgfa:lsgfa)
-      ENDDO
+      END DO
 
       DO i = 1, nsgfa
          DO j = 1, nsatbas
@@ -387,7 +387,7 @@ CONTAINS
          CALL timeset(routineN//"_forces", handle)
       ELSE
          CALL timeset(routineN, handle)
-      ENDIF
+      END IF
 
       IF (ASSOCIATED(sap_oce)) THEN
 
@@ -560,7 +560,7 @@ CONTAINS
                   clist%maxac = MAXVAL(ABS(clist%acint(:, :, 1)))
                   clist%maxach = 0._dp
                   clist%sgf_list(1:nsgf_cnt) = sgf_list(1:nsgf_cnt)
-               ENDIF
+               END IF
                DO i = 1, maxder
                   DEALLOCATE (oceh(i)%block, oces(i)%block)
                END DO
@@ -582,7 +582,7 @@ CONTAINS
                   clist%maxac = MAXVAL(ABS(clist%acint(:, :, 1)))
                   clist%maxach = 0._dp
                   clist%sgf_list(1:nsgf_cnt) = sgf_list(1:nsgf_cnt)
-               ENDIF
+               END IF
                DO i = 1, maxder
                   DEALLOCATE (oces(i)%block)
                END DO
@@ -666,8 +666,8 @@ CONTAINS
             ! soft
             CALL dgemm('N', 'N', na, nso, nb, fac, blk(1, 1), ldb, s_b(1, 1), nb, 0.0_dp, buf1(1), na)
             CALL dgemm('T', 'N', nso, nso, na, 1.0_dp, s_a(1, 1), na, buf1(1), na, 1.0_dp, proj_s(1, 1), nso)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
    END SUBROUTINE proj_blk
 

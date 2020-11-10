@@ -677,11 +677,11 @@ CONTAINS
 
       IF (PRESENT(nrow_local)) THEN
          nrow_local = matrix%matrix_struct%nrow_locals(myprow)
-      ENDIF
+      END IF
 
       IF (PRESENT(ncol_local)) THEN
          ncol_local = matrix%matrix_struct%ncol_locals(mypcol)
-      ENDIF
+      END IF
 
       IF (PRESENT(row_indices)) THEN
          row_indices => matrix%matrix_struct%row_indices
@@ -694,14 +694,14 @@ CONTAINS
                row_indices(i) = &
                   indxl2g(i, matrix%matrix_struct%nrow_block, myprow, &
                           matrix%matrix_struct%first_p_pos(1), nprow)
-            ENDDO
+            END DO
 #else
             DO i = 1, SIZE(row_indices)
                row_indices(i) = i
-            ENDDO
+            END DO
 #endif
          END IF
-      ENDIF
+      END IF
 
       IF (PRESENT(col_indices)) THEN
          col_indices => matrix%matrix_struct%col_indices
@@ -714,14 +714,14 @@ CONTAINS
                col_indices(i) = &
                   indxl2g(i, matrix%matrix_struct%ncol_block, mypcol, &
                           matrix%matrix_struct%first_p_pos(2), npcol)
-            ENDDO
+            END DO
 #else
             DO i = 1, SIZE(col_indices)
                col_indices(i) = i
-            ENDDO
+            END DO
 #endif
          END IF
-      ENDIF
+      END IF
 
       IF (PRESENT(para_env)) para_env => matrix%matrix_struct%para_env
 

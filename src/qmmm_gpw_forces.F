@@ -203,7 +203,7 @@ CONTAINS
          IF (need_f) THEN
             Forces(:, :) = Forces(:, :)/REAL(para_env%num_pe, KIND=dp)
             Forces_added_charges(:, :) = Forces_added_charges(:, :)/REAL(para_env%num_pe, KIND=dp)
-         ENDIF
+         END IF
       ELSE
          ! GPW/GAPW
          CALL pw_env_get(pw_env=pw_env, &
@@ -310,7 +310,7 @@ CONTAINS
                                       interp_section=interp_section, &
                                       mm_cell=mm_cell)
             END IF
-         ENDIF
+         END IF
       END IF
       ! Give back rho_tot_t to auxbas_pool only for GPW/GAPW
       IF ((.NOT. dft_control%qs_control%semi_empirical) .AND. &
@@ -338,9 +338,9 @@ CONTAINS
                   IF (image_IndMM .EQ. IndMM) THEN
                      Forces(:, Imm) = Forces(:, Imm) &
                                       + qmmm_env%image_charge_pot%image_forcesMM(:, iatom)
-                  ENDIF
-               ENDDO
-            ENDIF
+                  END IF
+               END DO
+            END IF
 
             ! Hack: In Forces there the gradients indeed...
             ! Minux sign to take care of this misunderstanding...
@@ -1548,13 +1548,13 @@ CONTAINS
 
       IF (ASSOCIATED(xdat)) THEN
          DEALLOCATE (xdat)
-      ENDIF
+      END IF
       IF (ASSOCIATED(ydat)) THEN
          DEALLOCATE (ydat)
-      ENDIF
+      END IF
       IF (ASSOCIATED(zdat)) THEN
          DEALLOCATE (zdat)
-      ENDIF
+      END IF
 
       CALL pw_pools_give_back_pws(aug_pools, grids)
       CALL timestop(handle)

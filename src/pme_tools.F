@@ -82,14 +82,14 @@ CONTAINS
                IF (part(ipart)%shell_index /= 0 .AND. PRESENT(core_center)) THEN
                   IF (in_slice(core_center(:, part(ipart)%shell_index), lb, ub)) THEN
                      p1 = ipart
-                  ENDIF
+                  END IF
                ELSE
                   IF (in_slice(center(:, ipart), lb, ub)) THEN
                      p1 = ipart
                      EXIT
                   END IF
                END IF
-            ENDIF
+            END IF
          ELSE
             p1 = ipart
             EXIT

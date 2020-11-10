@@ -220,7 +220,7 @@ CONTAINS
 
       IF (dft_control%switch_surf_dip) THEN
          CALL get_qs_env(qs_env, mos_last_converged=mos_last_converged)
-      ENDIF
+      END IF
 
       ! just initialize the first image, the other density are set to zero
       DO ispin = 1, dft_control%nspins
@@ -248,8 +248,8 @@ CONTAINS
       IF (ASSOCIATED(x_data)) THEN
          IF (x_data(1, 1)%do_hfx_ri) THEN
             IF (x_data(1, 1)%ri_data%flavor == ri_mo) do_hfx_ri_mo = .TRUE.
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       IF (ASSOCIATED(scf_env%krylov_space)) do_std_diag = (scf_env%krylov_space%eps_std_diag > 0.0_dp)
 
@@ -302,7 +302,7 @@ CONTAINS
             IF (para_env%ionode) THEN
                CALL wfn_restart_file_name(file_name, exist, dft_section, logger)
             END IF
-         ENDIF
+         END IF
          CALL mp_bcast(exist, para_env%source, para_env%group)
          CALL mp_bcast(file_name, para_env%source, para_env%group)
          IF (.NOT. exist) THEN
@@ -316,7 +316,7 @@ CONTAINS
       ELSE IF (density_guess == history_guess) THEN
          IF (do_kpoints) THEN
             CPABORT("calculate_first_density_matrix: history_guess not implemented for k-points")
-         ENDIF
+         END IF
          IF (para_env%ionode) &
             CALL wfn_restart_file_name(file_name, exist, dft_section, logger)
          CALL mp_bcast(exist, para_env%source, para_env%group)
@@ -366,8 +366,8 @@ CONTAINS
                          "It is always advisable to perform SURFACE_DIPOLE_CORRECTION "// &
                          "after a simulation without the surface dipole correction "// &
                          "and using the ensuing wavefunction restart file. ")
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       IF (density_guess == restart_guess) THEN
 
@@ -403,10 +403,10 @@ CONTAINS
                   ELSE
                      ! ortho so that one can restart for different positions (basis sets?)
                      CALL make_basis_sm(mo_coeff, homo, s_sparse(1)%matrix)
-                  ENDIF
+                  END IF
                   ! only alpha spin is kept for restricted
                   IF (dft_control%restricted) EXIT
-               ENDDO
+               END DO
                IF (dft_control%restricted) CALL mo_set_restrict(mo_array)
 
                IF (.NOT. scf_control%diagonalization%mom) THEN
@@ -416,30 +416,30 @@ CONTAINS
                                                tot_zeff_corr=tot_corr_zeff)
                      ELSE
                         CALL set_mo_occupation(mo_array, smear=qs_env%scf_control%smear)
-                     ENDIF
+                     END IF
                   ELSE
                      CALL set_mo_occupation(mo_array, smear=qs_env%scf_control%smear)
-                  ENDIF
-               ENDIF
+                  END IF
+               END IF
 
                DO ispin = 1, nspin
 
                   IF (scf_control%use_ot .OR. scf_env%method == ot_diag_method_nr) THEN !fm->dbcsr
                      CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff, &
                                            mo_array(ispin)%mo_set%mo_coeff_b) !fm->dbcsr
-                  ENDIF !fm->dbcsr
+                  END IF !fm->dbcsr
 
                   CALL calculate_density_matrix(mo_array(ispin)%mo_set, &
                                                 p_rmpv(ispin)%matrix)
-               ENDDO
-            ENDIF ! natom_mismatch
+               END DO
+            END IF ! natom_mismatch
 
          END IF
 
          ! Maximum Overlap Method
          IF (scf_control%diagonalization%mom) THEN
             CALL do_mom_guess(nspin, mo_array, scf_control, p_rmpv)
-         ENDIF
+         END IF
 
          did_guess = .TRUE.
       END IF
@@ -466,7 +466,7 @@ CONTAINS
                   ELSE
                      ! ortho so that one can restart for different positions (basis sets?)
                      CALL make_basis_sm(mo_coeff, homo, s_sparse(1)%matrix)
-                  ENDIF
+                  END IF
                   ! only alpha spin is kept for restricted
                   IF (dft_control%restricted) EXIT
                END DO
@@ -475,7 +475,7 @@ CONTAINS
                DO ispin = 1, nspin
                   CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set, &
                                          smear=qs_env%scf_control%smear)
-               ENDDO
+               END DO
 
                DO ispin = 1, nspin
                   IF (scf_control%use_ot .OR. scf_env%method == ot_diag_method_nr) THEN !fm->dbcsr
@@ -483,7 +483,7 @@ CONTAINS
                                            mo_array(ispin)%mo_set%mo_coeff_b) !fm->dbcsr
                   END IF !fm->dbcsr
                   CALL calculate_density_matrix(mo_array(ispin)%mo_set, p_rmpv(ispin)%matrix)
-               ENDDO
+               END DO
 
                ! Write to extrapolation pipeline
                CALL wfi_update(wf_history=qs_env%wf_history, qs_env=qs_env, dt=1.0_dp)
@@ -503,26 +503,26 @@ CONTAINS
                CALL make_basis_simple(mo_coeff, nmo)
             ELSE
                CALL make_basis_sm(mo_coeff, nmo, s_sparse(1)%matrix)
-            ENDIF
+            END IF
             ! only alpha spin is kept for restricted
             IF (dft_control%restricted) EXIT
-         ENDDO
+         END DO
          IF (dft_control%restricted) CALL mo_set_restrict(mo_array)
 
          DO ispin = 1, nspin
             CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set, &
                                    smear=qs_env%scf_control%smear)
-         ENDDO
+         END DO
 
          DO ispin = 1, nspin
 
             IF (scf_control%use_ot .OR. scf_env%method == ot_diag_method_nr) THEN !fm->dbcsr
                CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff, &
                                      mo_array(ispin)%mo_set%mo_coeff_b) !fm->dbcsr
-            ENDIF !fm->dbcsr
+            END IF !fm->dbcsr
 
             CALL calculate_density_matrix(mo_array(ispin)%mo_set, p_rmpv(ispin)%matrix)
-         ENDDO
+         END DO
 
          did_guess = .TRUE.
       END IF
@@ -531,7 +531,7 @@ CONTAINS
 
          IF (do_kpoints) THEN
             CPABORT("calculate_first_density_matrix: core_guess not implemented for k-points")
-         ENDIF
+         END IF
 
          IF (.NOT. ASSOCIATED(work1)) THEN
             need_wm = .TRUE.
@@ -709,9 +709,9 @@ CONTAINS
 
                         CALL calculate_density_matrix(mo_array(ispin)%mo_set, &
                                                       p_rmpv(ispin)%matrix)
-                     ENDIF
-                  ENDIF
-               ENDIF
+                     END IF
+                  END IF
+               END IF
 
             END IF
 
@@ -734,7 +734,7 @@ CONTAINS
 
          IF (scf_control%diagonalization%mom) THEN
             CALL do_mom_guess(nspin, mo_array, scf_control, p_rmpv)
-         ENDIF
+         END IF
 
          CALL cp_print_key_finished_output(ounit, logger, subsys_section, &
                                            "PRINT%KINDS")
@@ -748,7 +748,7 @@ CONTAINS
          IF (.NOT. scf_control%use_ot) CPABORT("OT needed!")
          IF (do_kpoints) THEN
             CPABORT("calculate_first_density_matrix: sparse_guess not implemented for k-points")
-         ENDIF
+         END IF
 
          eps = 1.0E-5_dp
 
@@ -800,7 +800,7 @@ CONTAINS
                                    pmat(ikind)%mat(:, :, 2)*rscale
                   END IF
                END IF
-            ENDDO
+            END DO
             CALL dbcsr_iterator_stop(iter)
 
             !CALL dbcsr_verify_matrix(p_rmpv(ispin)%matrix)
@@ -850,7 +850,7 @@ CONTAINS
                   CALL get_qs_kind(qs_kind, nsgf=nsgf, elec_conf=elec_conf, &
                                    basis_set=orb_basis_set, zeff=zeff)
                   nelec_kind(ikind) = SUM(elec_conf)
-               ENDDO
+               END DO
                CALL sort(nelec_kind, size_atomic_kind_set, sort_kind)
                !
                ! a -very- naive sparse guess
@@ -880,12 +880,12 @@ CONTAINS
                      END IF
                      DO j = 1, n_cols
                         CALL dlarnv(1, iseed, n_rows, buff(1, j))
-                     ENDDO
+                     END DO
                      CALL cp_fm_set_submatrix(mo_coeff, buff, istart_row, istart_col, &
                                               n_rows, n_cols)
                      istart_col = istart_col + n_cols
-                  ENDDO
-               ENDDO
+                  END DO
+               END DO
 
                IF (istart_col .LE. nmo) THEN
                   CPABORT("Wrong2!")
@@ -899,7 +899,7 @@ CONTAINS
                      CALL cp_fm_get_submatrix(mo_coeff, buff, 1, i, nao, 1)
                      IF (SUM(buff**2) .LT. 1E-10_dp) THEN
                         WRITE (*, *) 'wrong', i, SUM(buff**2)
-                     ENDIF
+                     END IF
                      length = SQRT(DOT_PRODUCT(buff(:, 1), buff(:, 1)))
                      buff(:, :) = buff(:, :)/length
                      DO j = i + 1, nmo
@@ -911,18 +911,18 @@ CONTAINS
                            DO ikind = 1, nao
                               IF (ABS(mo_coeff%local_data(ikind, i)) .GT. 1e-10_dp) THEN
                                  WRITE (*, *) 'c1', ikind, mo_coeff%local_data(ikind, i)
-                              ENDIF
+                              END IF
                               IF (ABS(mo_coeff%local_data(ikind, j)) .GT. 1e-10_dp) THEN
                                  WRITE (*, *) 'c2', ikind, mo_coeff%local_data(ikind, j)
-                              ENDIF
-                           ENDDO
+                              END IF
+                           END DO
                            CPABORT("")
-                        ENDIF
-                     ENDDO
-                  ENDDO
+                        END IF
+                     END DO
+                  END DO
                   DEALLOCATE (buff, buff2)
 
-               ENDIF
+               END IF
                !
                CALL cp_fm_to_dbcsr_row_template(mo_dbcsr, mo_coeff, s_sparse(1)%matrix)
                !CALL dbcsr_verify_matrix(mo_dbcsr)
@@ -1054,8 +1054,8 @@ CONTAINS
          DO ispin = 1, nspin
             CALL reassign_allocated_mos(mos_last_converged(ispin)%mo_set, &
                                         mo_array(ispin)%mo_set)
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       IF (density_guess == no_guess) THEN
          did_guess = .TRUE.
@@ -1156,7 +1156,7 @@ CONTAINS
                END IF
                nocc(ispin) = nocc(ispin) + nok(ispin, ikind)
             END IF
-         ENDDO
+         END DO
          CALL dbcsr_iterator_stop(iter)
 
          CALL dbcsr_dot(matrix_p, matrix_s, trps1)
@@ -1266,7 +1266,7 @@ CONTAINS
          CALL dbcsr_iterator_next_block(iter, irow, icol, block)
          ikind = kind_of(irow)
          IF (icol .EQ. irow) block(:, :) = fmat(ikind)%mat(:, :, 1)
-      ENDDO
+      END DO
       CALL dbcsr_iterator_stop(iter)
 
       ! cleanup
@@ -1343,7 +1343,7 @@ CONTAINS
          maxocc = 2.0_dp
       ELSE
          maxocc = 1.0_dp
-      ENDIF
+      END IF
 
       ALLOCATE (first_sgf(natom))
 

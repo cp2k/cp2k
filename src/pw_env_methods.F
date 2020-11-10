@@ -251,7 +251,7 @@ CONTAINS
       IF (PRESENT(external_para_env)) THEN
          para_env => external_para_env
          CPASSERT(ASSOCIATED(para_env))
-      ENDIF
+      END IF
       ! interpolation section
       pw_env%interp_section => section_vals_get_subs_vals(input, "DFT%MGRID%INTERPOLATOR")
 
@@ -281,7 +281,7 @@ CONTAINS
          ncommensurate = ngrid_level
       ELSE
          ncommensurate = 0
-      ENDIF
+      END IF
       !
       ! If Tuckerman is present let's perform the set-up of the super-reference-grid
       !
@@ -356,14 +356,14 @@ CONTAINS
       CALL section_vals_get(linres_section, explicit=linres_present)
       IF (linres_present) THEN
          smooth_required = smooth_required .OR. .TRUE.
-      ENDIF
+      END IF
 
       efg_section => section_vals_get_subs_vals(section_vals=input, &
                                                 subsection_name="DFT%PRINT%ELECTRIC_FIELD_GRADIENT")
       CALL section_vals_get(efg_section, explicit=efg_present)
       IF (efg_present) THEN
          smooth_required = smooth_required .OR. .TRUE.
-      ENDIF
+      END IF
 
       DO igrid_level = 1, ngrid_level
          CALL pw_grid_create(pw_grid, para_env%group)
@@ -380,13 +380,13 @@ CONTAINS
          ! FIXME ... check if a plane distributed lower grid is sufficient
          IF (qs_env%qmmm) THEN
             distribution_layout = (/para_env%num_pe, 1/)
-         ENDIF
+         END IF
 
          ! If splines are required
          ! FIXME.... should only be true for the highest grid
          IF (smooth_required) THEN
             distribution_layout = (/para_env%num_pe, 1/)
-         ENDIF
+         END IF
 
          IF (igrid_level == 1) THEN
             IF (ASSOCIATED(old_pw_grid)) THEN
@@ -493,7 +493,7 @@ CONTAINS
       IF (use_ref_cell) THEN
          DO igrid_level = 1, SIZE(pw_pools)
             CALL pw_grid_change(cell%hmat, pw_pools(igrid_level)%pool%pw_grid)
-         ENDDO
+         END DO
          IF (set_vdw_pool) CALL pw_grid_change(cell%hmat, pw_env%vdw_pw_pool%pw_grid)
          CALL pw_poisson_read_parameters(poisson_section, poisson_params)
          CALL pw_poisson_set(pw_env%poisson_env, cell_hmat=cell%hmat, pw_pools=pw_env%pw_pools, &
@@ -808,7 +808,7 @@ CONTAINS
                maxradius = MAX(maxradius, exp_radius(0, alpha, eps_rho, core_charge, rlow=maxradius))
                ! forces
                maxradius = MAX(maxradius, exp_radius(1, alpha, eps_rho, core_charge, rlow=maxradius))
-            ENDIF
+            END IF
          END DO
 
          ! loop over basis sets that are used in grid collocation directly (no product)
@@ -830,7 +830,7 @@ CONTAINS
                         lgrid_level = gaussian_gridlevel(pw_env%gridlevel_info, zetp)
                         IF (lgrid_level .EQ. igrid_level) THEN
                            maxradius = MAX(maxradius, exp_radius(la, zetp, eps_rho, 1.0_dp, rlow=maxradius))
-                        ENDIF
+                        END IF
                      END DO
                   END DO
                END DO
@@ -873,7 +873,7 @@ CONTAINS
                            maxradius = MAX(maxradius, exp_radius(lb, zetp, eps_gvg, 2.0_dp, rlow=maxradius))
                            ! forces
                            maxradius = MAX(maxradius, exp_radius(lb + 1, zetp, eps_gvg, 2.0_dp, rlow=maxradius))
-                        ENDIF
+                        END IF
                      END DO
                      END DO
                      END DO

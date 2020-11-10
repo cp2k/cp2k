@@ -619,7 +619,7 @@ CONTAINS
       IF (ires > 0) THEN
          CALL write_restart_header(ires)
          CALL section_vals_write(root_section, unit_nr=ires, hide_root=.TRUE.)
-      ENDIF
+      END IF
 
       CALL cp_print_key_finished_output(ires, logger, bsse_section, &
                                         "PRINT%RESTART")

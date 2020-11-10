@@ -3,7 +3,7 @@
     IF (j == 1) THEN
        DO i = 1, isize
           INDEX(i) = i
-       ENDDO
+       END DO
     END IF
 
     ! Allocate scratch arrays

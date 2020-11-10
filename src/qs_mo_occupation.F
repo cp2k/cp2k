@@ -226,7 +226,7 @@ CONTAINS
                CALL set_mo_occupation_1(mo_set_a, smear=smear, tot_zeff_corr=tot_zeff_corr)
             ELSE
                CALL set_mo_occupation_1(mo_set_a, smear=smear)
-            ENDIF
+            END IF
          END IF
          CALL timestop(handle)
          RETURN
@@ -243,7 +243,7 @@ CONTAINS
                             "correction compared to the reference system. "// &
                             "Use FIXED_MAGNETIC_MOMENT >= 0.0 if using SMEAR keyword "// &
                             "to correct the electron density")
-            ENDIF
+            END IF
             IF (smear%fixed_mag_mom /= -1.0_dp) THEN
                CPASSERT(.NOT. (PRESENT(eval_deriv)))
                CALL set_mo_occupation_3(mo_array, smear=smear)
@@ -263,7 +263,7 @@ CONTAINS
             ELSE
                CALL set_mo_occupation_1(mo_set_a, smear=smear)
                CALL set_mo_occupation_1(mo_set_b, smear=smear)
-            ENDIF
+            END IF
          END IF
       END IF
 
@@ -279,7 +279,7 @@ CONTAINS
             ELSE
                CALL set_mo_occupation_1(mo_set_a, smear=smear)
                CALL set_mo_occupation_1(mo_set_b, smear=smear)
-            ENDIF
+            END IF
          END IF
          CALL timestop(handle)
          RETURN
@@ -369,7 +369,7 @@ CONTAINS
          ELSE
             CALL set_mo_occupation_1(mo_set_a, smear=smear)
             CALL set_mo_occupation_1(mo_set_b, smear=smear)
-         ENDIF
+         END IF
       END IF
 
       CALL timestop(handle)
@@ -473,8 +473,8 @@ CONTAINS
                         mo_set%occupation_numbers(nomo - ir) = -delectron
                      ELSE
                         mo_set%occupation_numbers(nomo - ir) = 0.0_dp
-                     ENDIF
-                  ENDDO
+                     END IF
+                  END DO
                   nomo = nomo - irmo
                   IF (mo_set%occupation_numbers(nomo) == 0.0_dp) nomo = nomo - 1
                ELSEIF (delectron < 0.0_dp) THEN
@@ -482,7 +482,7 @@ CONTAINS
                ELSE
                   mo_set%occupation_numbers(nomo) = 0.0_dp
                   nomo = nomo - 1
-               ENDIF
+               END IF
             ELSEIF (total_zeff_corr > 0.0_dp) THEN
 ! add electron density to the mos
                delectron = total_zeff_corr - REAL(mo_set%maxocc, KIND=dp)
@@ -496,15 +496,15 @@ CONTAINS
                         mo_set%occupation_numbers(nomo + ir) = delectron + REAL(mo_set%maxocc, KIND=dp)
                      ELSE
                         mo_set%occupation_numbers(nomo + ir) = REAL(mo_set%maxocc, KIND=dp)
-                     ENDIF
-                  ENDDO
+                     END IF
+                  END DO
                   nomo = nomo + irmo
                ELSE
                   mo_set%occupation_numbers(nomo + 1) = total_zeff_corr
                   nomo = nomo + 1
-               ENDIF
-            ENDIF
-         ENDIF
+               END IF
+            END IF
+         END IF
       END IF
       nmo = SIZE(mo_set%eigenvalues)
 

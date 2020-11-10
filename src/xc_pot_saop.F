@@ -270,13 +270,13 @@ CONTAINS
                              compute_virial=.FALSE., virial_xc=virial_xc_tmp)
 
       DO ispin = 1, nspins
-         vxc_LB(ispin)%pw%cr3d = vxc_LB(ispin)%pw%cr3d+alpha*vxc_tmp(ispin)%pw%cr3d
+         vxc_LB(ispin)%pw%cr3d = vxc_LB(ispin)%pw%cr3d + alpha*vxc_tmp(ispin)%pw%cr3d
       END DO
 
       DO ispin = 1, nspins
          dummy => vxc_tmp(ispin)%pw%cr3d
          CALL add_lb_pot(dummy, rho_set, lsd, ispin)
-         vxc_LB(ispin)%pw%cr3d = vxc_LB(ispin)%pw%cr3d-vxc_tmp(ispin)%pw%cr3d
+         vxc_LB(ispin)%pw%cr3d = vxc_LB(ispin)%pw%cr3d - vxc_tmp(ispin)%pw%cr3d
       END DO
       NULLIFY (dummy)
 
@@ -353,7 +353,7 @@ CONTAINS
                                     rho=orbital, rho_gspace=orbital_g, &
                                     total_rho=tot_rho_psi, ks_env=ks_env)
 
-            vxc_tmp(ispin)%pw%cr3d = vxc_tmp(ispin)%pw%cr3d+ &
+            vxc_tmp(ispin)%pw%cr3d = vxc_tmp(ispin)%pw%cr3d + &
                                      efac*orbital%pw%cr3d
 
          END DO
@@ -372,7 +372,7 @@ CONTAINS
             END DO
          END DO
 
-         vxc_GLLB(ispin)%pw%cr3d = vxc_GLLB(ispin)%pw%cr3d+vxc_tmp(ispin)%pw%cr3d
+         vxc_GLLB(ispin)%pw%cr3d = vxc_GLLB(ispin)%pw%cr3d + vxc_tmp(ispin)%pw%cr3d
 
       END DO
 
@@ -402,7 +402,7 @@ CONTAINS
                we_GLLB = 2.0_dp*we_GLLB
             END IF
 
-            vxc_tmp(ispin)%pw%cr3d = we_LB*vxc_LB(ispin)%pw%cr3d+ &
+            vxc_tmp(ispin)%pw%cr3d = we_LB*vxc_LB(ispin)%pw%cr3d + &
                                      we_GLLB*vxc_GLLB(ispin)%pw%cr3d
 
             CALL cp_fm_set_all(single_mo_coeff(ispin)%matrix, 0.0_dp)
@@ -425,7 +425,7 @@ CONTAINS
 !TC          CALL calculate_wavefunction(mo_coeff,orb,orbital2,orbital2_g,qs_env)
 !TC          write (*,*) orb, maxval(abs(orbital2%pw%cr3d-orbital%pw%cr3d))
 
-            vxc_SAOP(ispin)%pw%cr3d = vxc_SAOP(ispin)%pw%cr3d+ &
+            vxc_SAOP(ispin)%pw%cr3d = vxc_SAOP(ispin)%pw%cr3d + &
                                       orbital%pw%cr3d*vxc_tmp(ispin)%pw%cr3d
 
          END DO

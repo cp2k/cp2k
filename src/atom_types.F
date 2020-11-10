@@ -434,7 +434,7 @@ CONTAINS
                nu = nup
             ELSE
                nu = nua
-            ENDIF
+            END IF
             basis%nbas = nu
             basis%nprim = nu
             ALLOCATE (basis%am(nu, 0:lmat))
@@ -524,7 +524,7 @@ CONTAINS
             ELSE
                ! use the Clementi extra large basis
                CALL Clementi_geobas(zval, cval, aval, basis%nbas, starti)
-            ENDIF
+            END IF
             basis%nprim = basis%nbas
          ELSE
             basis%nbas = 0
@@ -1041,7 +1041,7 @@ CONTAINS
       IF (PRESENT(fmat)) THEN
          IF (ASSOCIATED(atom%fmat)) CALL release_opmat(atom%fmat)
          atom%fmat => fmat
-      ENDIF
+      END IF
 
    END SUBROUTINE set_atom
 

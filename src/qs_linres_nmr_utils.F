@@ -122,7 +122,7 @@ CONTAINS
       IF (output_unit > 0) THEN
          WRITE (output_unit, "(/,T20,A,/)") "*** Start NMR Chemical Shift Calculation ***"
          WRITE (output_unit, "(T10,A,/)") "Inizialization of the NMR environment"
-      ENDIF
+      END IF
 
       CALL nmr_env_create(nmr_env)
       !
@@ -150,9 +150,9 @@ CONTAINS
             nmr_env%r_nics(3, j) = cp_unit_to_cp2k(nmr_env%r_nics(3, j), "angstrom")
             CALL parser_get_next_line(parser, 1, at_end=my_end)
             IF (my_end) EXIT
-         ENDDO
+         END DO
          CALL parser_release(parser)
-      ENDIF
+      END IF
 
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
@@ -197,15 +197,15 @@ CONTAINS
          IF (nmr_env%do_nics) THEN
             WRITE (output_unit, "(T2,A,T50,I5,A)") "NMR| NICS computed in ", nmr_env%n_nics, " additional points"
             WRITE (output_unit, "(T2,A,T60,A)") "NMR| NICS coordinates read on file ", TRIM(nics_file_name)
-         ENDIF
+         END IF
          WRITE (output_unit, "(T2,A,T65,ES15.6)") "NMR| Shift factor (ppm)", nmr_env%shift_factor
          IF (gapw) THEN
             WRITE (output_unit, "(T2,A,T65,ES15.6)") "NMR| Shift factor gapw (ppm)", nmr_env%shift_factor_gapw
-         ENDIF
+         END IF
          WRITE (output_unit, "(T2,A,T65,ES15.6)") "NMR| Chi factor (SI)", nmr_env%chi_factor
          WRITE (output_unit, "(T2,A,T65,ES15.6)") "NMR| Conversion Chi (ppm/cgs)", nmr_env%chi_SI2ppmcgs
          WRITE (output_unit, "(T2,A,T65,ES15.6)") "NMR| Conversion Chi to Shift", nmr_env%chi_SI2shiftppm
-      ENDIF
+      END IF
 
       ALLOCATE (nmr_env%do_calc_cs_atom(natom))
       nmr_env%do_calc_cs_atom = 0
@@ -224,8 +224,8 @@ CONTAINS
             DO ir = 1, nat_print
                nmr_env%cs_atom_list(ir) = bounds(1) + (ir - 1)
                nmr_env%do_calc_cs_atom(bounds(1) + (ir - 1)) = 1
-            ENDDO
-         ENDIF
+            END DO
+         END IF
 
          IF (.NOT. ASSOCIATED(nmr_env%cs_atom_list)) THEN
             CALL section_vals_val_get(nmr_section, "PRINT%SHIELDING_TENSOR%ATOMS_LIST", &
@@ -240,36 +240,36 @@ CONTAINS
                   DO ini = 1, SIZE(list)
                      nmr_env%cs_atom_list(ini + nat_print) = list(ini)
                      nmr_env%do_calc_cs_atom(list(ini)) = 1
-                  ENDDO
+                  END DO
                   nat_print = nat_print + SIZE(list)
-               ENDIF
-            ENDDO ! ir
-         ENDIF
+               END IF
+            END DO ! ir
+         END IF
 
          IF (.NOT. ASSOCIATED(nmr_env%cs_atom_list)) THEN
             ALLOCATE (nmr_env%cs_atom_list(natom))
             DO ir = 1, natom
                nmr_env%cs_atom_list(ir) = ir
-            ENDDO
+            END DO
             nmr_env%do_calc_cs_atom = 1
-         ENDIF
+         END IF
          !
          ! check the list
          CPASSERT(ASSOCIATED(nmr_env%cs_atom_list))
          DO ir = 1, SIZE(nmr_env%cs_atom_list, 1)
             IF (nmr_env%cs_atom_list(ir) .LT. 1 .OR. nmr_env%cs_atom_list(ir) .GT. natom) THEN
                CPABORT("Unknown atom(s)")
-            ENDIF
+            END IF
             DO j = 1, SIZE(nmr_env%cs_atom_list, 1)
                IF (j .EQ. ir) CYCLE
                IF (nmr_env%cs_atom_list(ir) .EQ. nmr_env%cs_atom_list(j)) THEN
                   CPABORT("Duplicate atoms")
-               ENDIF
-            ENDDO
-         ENDDO
+               END IF
+            END DO
+         END DO
       ELSE
          NULLIFY (nmr_env%cs_atom_list)
-      ENDIF
+      END IF
 
       IF (output_unit > 0) THEN
          IF (ASSOCIATED(nmr_env%cs_atom_list)) THEN
@@ -278,8 +278,8 @@ CONTAINS
          ELSE
             WRITE (output_unit, "(T2,A,T50)")&
                  & "NMR| Shielding tensor not computed at the atomic positions"
-         ENDIF
-      ENDIF
+         END IF
+      END IF
       !
       ! Initialize the chemical shift tensor
       ALLOCATE (nmr_env%chemical_shift(3, 3, natom), &
@@ -291,7 +291,7 @@ CONTAINS
                    nmr_env%chemical_shift_nics(3, 3, nmr_env%n_nics))
          nmr_env%chemical_shift_nics_loc = 0.0_dp
          nmr_env%chemical_shift_nics = 0.0_dp
-      ENDIF
+      END IF
 
       CALL cp_print_key_finished_output(output_unit, logger, lr_section,&
            &                            "PRINT%PROGRAM_RUN_INFO")

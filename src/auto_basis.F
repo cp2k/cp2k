@@ -90,7 +90,7 @@ CONTAINS
          CALL get_qs_kind(qs_kind, basis_set=orb_basis_set, basis_type="ORB")
       ELSE
          CALL get_qs_kind(qs_kind, basis_set=orb_basis_set, basis_type=basis_type)
-      ENDIF
+      END IF
       IF (ASSOCIATED(orb_basis_set)) THEN
          CALL get_basis_keyfigures(orb_basis_set, lmax, zmin, zmax, zeff)
          !Note: RI basis coud require lmax up to 2*orb_lmax. This ensures that all orbital pointers
@@ -205,7 +205,7 @@ CONTAINS
 
          IF (PRESENT(basis_sort)) THEN
             CALL sort_gto_basis_set(ri_aux_basis_set, basis_sort)
-         ENDIF
+         END IF
 
       END IF
 

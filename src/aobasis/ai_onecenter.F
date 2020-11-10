@@ -1034,7 +1034,7 @@ CONTAINS
             DO k = 1, SIZE(r)
                upmat(ip, iq) = upmat(ip, iq) + &
                                (wr(k)*ra(k, ip)*rb(k, iq)*erf(a*r(k))/r(k))
-            ENDDO
+            END DO
          END DO
       END DO
 

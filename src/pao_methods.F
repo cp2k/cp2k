@@ -118,17 +118,17 @@ CONTAINS
          IF (pao_basis_size < 1) THEN
             ! pao disabled for ikind, set pao_basis_size to size of primary basis
             CALL set_qs_kind(qs_kind_set(ikind), pao_basis_size=basis_set%nsgf)
-         ENDIF
+         END IF
 
          ! initialize radii of Gaussians to speedup screeing later on
          DO i = 1, SIZE(pao_potentials)
             pao_potentials(i)%beta_radius = exp_radius(0, pao_potentials(i)%beta, pao%eps_pgf, 1.0_dp)
-         ENDDO
+         END DO
          DO i = 1, SIZE(pao_descriptors)
             pao_descriptors(i)%beta_radius = exp_radius(0, pao_descriptors(i)%beta, pao%eps_pgf, 1.0_dp)
             pao_descriptors(i)%screening_radius = exp_radius(0, pao_descriptors(i)%screening, pao%eps_pgf, 1.0_dp)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
       CALL timestop(handle)
    END SUBROUTINE pao_init_kinds
 
@@ -157,8 +157,8 @@ CONTAINS
                " prim_basis: ", pri_basis(iatom), &
                " pao_basis: ", pao_basis(iatom), &
                " pao_params: ", (param_cols(iatom)*param_rows(iatom))
-         ENDDO
-      ENDIF
+         END DO
+      END IF
    END SUBROUTINE pao_print_atom_info
 
 ! **************************************************************************************************
@@ -220,9 +220,9 @@ CONTAINS
                DO j = 1, N
                   block_N(i, j) = block_N(i, j) + w*A(i, k)*A(j, k)
                   block_N_inv(i, j) = block_N_inv(i, j) + v*A(i, k)*A(j, k)
-               ENDDO
-            ENDDO
-         ENDDO
+               END DO
+            END DO
+         END DO
          DEALLOCATE (A, evals)
       END DO
       CALL dbcsr_iterator_stop(iter)
@@ -277,7 +277,7 @@ CONTAINS
          IF (blk_sizes_pri(iatom) < M) &
             CPABORT("PAO basis size exceeds primary basis size.")
          blk_sizes_aux(iatom) = M
-      ENDDO
+      END DO
 
       CALL dbcsr_create(pao%matrix_Y, &
                         template=matrix_s(1)%matrix, &
@@ -298,7 +298,7 @@ CONTAINS
          block_Y = 0.0_dp
          DO i = 1, M
             block_Y(i, i) = 1.0_dp
-         ENDDO
+         END DO
       END DO
       CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
@@ -336,7 +336,7 @@ CONTAINS
       DO iatom = 1, natoms
          diag_row_dist(iatom) = MOD(iatom - 1, pgrid_rows)
          diag_col_dist(iatom) = MOD((iatom - 1)/pgrid_rows, pgrid_cols)
-      ENDDO
+      END DO
 
       ! instanciate distribution object
       CALL dbcsr_distribution_new(pao%diag_distribution, template=main_dist, &
@@ -374,7 +374,7 @@ CONTAINS
       DO iatom = 1, natoms
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
          CALL pao_param_count(pao, qs_env, ikind, nparams=row_blk_size(iatom))
-      ENDDO
+      END DO
 
       ! build actual matrix_X
       CALL dbcsr_create(pao%matrix_X, &
@@ -467,7 +467,7 @@ CONTAINS
             loop_eps, &
             pao%linesearch%step_size, & !prev step, which let to the current energy
             time_diff
-      ENDIF
+      END IF
    END SUBROUTINE pao_test_convergence
 
 ! **************************************************************************************************
@@ -504,7 +504,7 @@ CONTAINS
       DO ispin = 1, ls_scf_env%nspins
          CALL dbcsr_dot(ls_scf_env%matrix_p(ispin), ls_scf_env%matrix_ks(ispin), trace_PH)
          energy = energy + trace_PH
-      ENDDO
+      END DO
 
       ! add penalty term
       energy = energy + penalty
@@ -512,7 +512,7 @@ CONTAINS
       IF (pao%iw > 0) THEN
          WRITE (pao%iw, *) ""
          WRITE (pao%iw, *) "PAO| energy:", energy, "penalty:", penalty
-      ENDIF
+      END IF
       CALL timestop(handle)
    END SUBROUTINE pao_calc_energy
 
@@ -537,7 +537,7 @@ CONTAINS
       DO ispin = 1, ls_scf_env%nspins
          CALL dbcsr_dot(ls_scf_env%matrix_p(ispin), matrix_S_desym, tmp)
          trace_PS = trace_PS + tmp
-      ENDDO
+      END DO
 
       CALL dbcsr_release(matrix_S_desym)
 
@@ -588,7 +588,7 @@ CONTAINS
             TRIM(pao%preopt_dm_file)//" with checksum: ", cs_pos
          CALL dbcsr_copy_into_existing(rho_ao(ispin)%matrix, matrix_tmp)
          CALL dbcsr_release(matrix_tmp)
-      ENDDO
+      END DO
 
       ! calculate corresponding ks matrix
       CALL qs_rho_update_rho(rho, qs_env=qs_env)
@@ -664,7 +664,7 @@ CONTAINS
                                   max_iter_lanczos=ls_scf_env%max_iter_lanczos, &
                                   eps_lanczos=ls_scf_env%eps_lanczos)
          IF (.NOT. converged) CPABORT("TRS4 did not converge")
-      ENDDO
+      END DO
 
       IF (nspin == 1) CALL dbcsr_scale(ls_scf_env%matrix_p(1), 2.0_dp)
 
@@ -941,7 +941,7 @@ CONTAINS
          IF (ASSOCIATED(block_X)) THEN !only one node actually has the block
             CALL dbcsr_get_block_p(matrix=pao%matrix_G, row=iatom, col=iatom, block=block_G, found=found)
             CPASSERT(ASSOCIATED(block_G))
-         ENDIF
+         END IF
 
          DO i = 1, blk_sizes_row(iatom)
             DO j = 1, blk_sizes_col(iatom)
@@ -975,9 +975,9 @@ CONTAINS
                   delta = ABS(Gij_num - block_G(i, j))
                   delta_max = MAX(delta_max, delta)
                   !WRITE (*,*) "gradient check", iatom, i, j, Gij_num, block_G(i,j), delta
-               ENDIF
-            ENDDO
-         ENDDO
+               END IF
+            END DO
+         END DO
       END DO
 
       CALL mp_max(delta_max, para_env%group)
@@ -1013,7 +1013,7 @@ CONTAINS
       IF (ASSOCIATED(block_X)) THEN
          old_Xij = block_X(i, j) ! backup old block_X
          block_X(i, j) = block_X(i, j) + eps ! add perturbation
-      ENDIF
+      END IF
 
       ! calculate energy
       CALL pao_calc_energy(pao, qs_env, ls_scf_env, energy)
@@ -1021,7 +1021,7 @@ CONTAINS
       ! restore old block_X
       IF (ASSOCIATED(block_X)) THEN
          block_X(i, j) = old_Xij
-      ENDIF
+      END IF
 
    END FUNCTION eval_point
 
@@ -1056,8 +1056,8 @@ CONTAINS
       IF (ls_scf_env%scf_history%istore <= ls_scf_env%scf_history%nstore) THEN
          DO ispin = 1, dft_control%nspins
             CALL dbcsr_create(ls_scf_env%scf_history%matrix(ispin, istore), template=matrix_s(1)%matrix)
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       ! We are storing the density matrix in the non-orthonormal primary basis.
       ! While the orthonormal basis would yield better extrapolations,
@@ -1066,7 +1066,7 @@ CONTAINS
          ! transform into primary basis
          CALL matrix_ls_to_qs(ls_scf_env%scf_history%matrix(ispin, istore), ls_scf_env%matrix_p(ispin), &
                               ls_scf_env%ls_mstruct, covariant=.FALSE., keep_sparsity=.FALSE.)
-      ENDDO
+      END DO
 
       CALL timestop(handle)
    END SUBROUTINE pao_store_P
@@ -1101,8 +1101,8 @@ CONTAINS
             IF (pao%iw > 0) WRITE (pao%iw, '(A,F20.9)') &
                " PAO| Energy from initial atomic guess:", ls_scf_env%energy_init
             pao%need_initial_scf = .TRUE.
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       CALL timestop(handle)
 
@@ -1148,11 +1148,11 @@ CONTAINS
                     binomial(2*naspc, naspc - iaspc)/binomial(2*naspc - 2, naspc - 1)
             istore = MOD(ls_scf_env%scf_history%istore - iaspc, ls_scf_env%scf_history%nstore) + 1
             CALL dbcsr_add(matrix_P, ls_scf_env%scf_history%matrix(ispin, istore), 1.0_dp, alpha)
-         ENDDO
+         END DO
 
          ! transform back from primary basis into pao basis
          CALL matrix_qs_to_ls(ls_scf_env%matrix_p(ispin), matrix_P, ls_scf_env%ls_mstruct, covariant=.FALSE.)
-      ENDDO
+      END DO
 
       CALL dbcsr_release(matrix_P)
 
@@ -1165,7 +1165,7 @@ CONTAINS
          ! TODO : 10 iterations is a conservative upper bound, figure out when it fails
          CALL purify_mcweeny(ls_scf_env%matrix_p(ispin:ispin), ls_scf_env%matrix_s, ls_scf_env%eps_filter, 10)
          IF (dft_control%nspins == 1) CALL dbcsr_scale(ls_scf_env%matrix_p(ispin), 2.0_dp)
-      ENDDO
+      END DO
 
       CALL pao_check_trace_PS(ls_scf_env) ! sanity check
 
@@ -1205,7 +1205,7 @@ CONTAINS
             CPABORT("PAO forces require LINPOT_REGULARIZATION_STRENGTH or MAX_PAO set to zero")
          IF (pao%regularization /= 0.0_dp) &
             CPABORT("PAO forces require REGULARIZATION or MAX_PAO set to zero")
-      ENDIF
+      END IF
 
       CALL get_qs_env(qs_env, &
                       para_env=para_env, &
@@ -1224,7 +1224,7 @@ CONTAINS
       CALL mp_sum(forces, para_env%group)
       DO iatom = 1, natoms
          particle_set(iatom)%f = particle_set(iatom)%f + forces(iatom, :)
-      ENDDO
+      END DO
 
       DEALLOCATE (forces)
 

@@ -112,7 +112,7 @@ CONTAINS
          CALL al_thermo_dealloc(al%nvt)
          CALL release_map_info_type(al%map_info)
          DEALLOCATE (al)
-      ENDIF
+      END IF
 
    END SUBROUTINE al_dealloc
 
@@ -126,7 +126,7 @@ CONTAINS
 
       IF (ASSOCIATED(nvt)) THEN
          DEALLOCATE (nvt)
-      ENDIF
+      END IF
    END SUBROUTINE al_thermo_dealloc
 
 END MODULE al_system_types

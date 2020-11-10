@@ -279,11 +279,11 @@ CONTAINS
                   IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
                      npme = npme + 1
                      cores(npme) = iatom
-                  ENDIF
+                  END IF
                ELSE
                   npme = npme + 1
                   cores(npme) = iatom
-               ENDIF
+               END IF
             END DO
 
             DO j = 1, npme
@@ -454,11 +454,11 @@ CONTAINS
                IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
                   npme = npme + 1
                   cores(npme) = iatom
-               ENDIF
+               END IF
             ELSE
                npme = npme + 1
                cores(npme) = iatom
-            ENDIF
+            END IF
          END DO
 
          IF (npme .GT. 0) THEN
@@ -483,7 +483,7 @@ CONTAINS
                                           use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
 
             END DO
-         ENDIF
+         END IF
 
          DEALLOCATE (pab)
 
@@ -642,19 +642,19 @@ CONTAINS
                         ELSE
                            lb(dir) = rs_grid%lb_local(dir)
                            ub(dir) = rs_grid%ub_local(dir)
-                        ENDIF
+                        END IF
                         ! distributed grid, only map if it is local to the grid
                         location(dir) = tp(dir) + rs_grid%desc%lb(dir)
-                     ENDDO
+                     END DO
                      IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
                          lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
                          lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
                         map_it(ipgf) = .TRUE.
-                     ENDIF
+                     END IF
                   ELSE
                      ! not distributed, just a round-robin distribution over the full set of CPUs
                      IF (MODULO(offset, group_size) == my_pos) map_it(ipgf) = .TRUE.
-                  ENDIF
+                  END IF
                END DO
                offset = offset + 1
 
@@ -692,7 +692,7 @@ CONTAINS
                                                    cube_info=cube_info(igrid_level), &
                                                    radius=radius, &
                                                    ga_gb_function=GRID_FUNC_AB)
-                     ENDIF
+                     END IF
                   END DO
                   DEALLOCATE (work)
                END IF
@@ -745,19 +745,19 @@ CONTAINS
                                  ELSE
                                     lb(dir) = rs_grid%lb_local(dir)
                                     ub(dir) = rs_grid%ub_local(dir)
-                                 ENDIF
+                                 END IF
                                  ! distributed grid, only map if it is local to the grid
                                  location(dir) = tp(dir) + rs_grid%desc%lb(dir)
-                              ENDDO
+                              END DO
                               IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
                                   lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
                                   lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
                                  map_it2(ipgf, jpgf) = .TRUE.
-                              ENDIF
+                              END IF
                            ELSE
                               ! not distributed, just a round-robin distribution over the full set of CPUs
                               IF (MODULO(offset, group_size) == my_pos) map_it2(ipgf, jpgf) = .TRUE.
-                           ENDIF
+                           END IF
                         END DO
                      END DO
                      offset = offset + 1
@@ -920,11 +920,11 @@ CONTAINS
                IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
                   npme = npme + 1
                   cores(npme) = iatom
-               ENDIF
+               END IF
             ELSE
                npme = npme + 1
                cores(npme) = iatom
-            ENDIF
+            END IF
          END DO
 
          IF (npme .GT. 0) THEN
@@ -947,7 +947,7 @@ CONTAINS
                                           use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
 
             END DO
-         ENDIF
+         END IF
 
       END DO
 
@@ -1024,10 +1024,10 @@ CONTAINS
       IF (rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
          IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
             npme = npme + 1
-         ENDIF
+         END IF
       ELSE
          npme = npme + 1
-      ENDIF
+      END IF
 
       IF (npme .GT. 0) THEN
          atom_a = qs_env%qmmm_env_qm%image_charge_pot%image_mm_list(iatom)
@@ -1045,7 +1045,7 @@ CONTAINS
                                     0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, rs_rho, &
                                     cell, pw_env%cube_info(1), radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                     use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
-      ENDIF
+      END IF
 
       DEALLOCATE (pab)
 
@@ -1125,12 +1125,12 @@ CONTAINS
             IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
                npme = npme + 1
                cores(npme) = iatom
-            ENDIF
+            END IF
          ELSE
             npme = npme + 1
             cores(npme) = iatom
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       IF (npme .GT. 0) THEN
          DO j = 1, npme
@@ -1151,8 +1151,8 @@ CONTAINS
                0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), coeff(iatom), pab, 0, 0, rs_rho, &
                cell, pw_env%cube_info(1), radius=radius, ga_gb_function=GRID_FUNC_AB, &
                use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       DEALLOCATE (pab, cores)
 
@@ -1229,10 +1229,10 @@ CONTAINS
       IF (rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
          IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
             npme = npme + 1
-         ENDIF
+         END IF
       ELSE
          npme = npme + 1
-      ENDIF
+      END IF
 
       IF (npme .GT. 0) THEN
          ra(:) = pbc(particle_set(iatom)%r, cell)
@@ -1248,7 +1248,7 @@ CONTAINS
                                     (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, rs_rho, &
                                     cell, pw_env%cube_info(1), radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                     use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
-      ENDIF
+      END IF
 
       DEALLOCATE (pab)
 
@@ -1330,12 +1330,12 @@ CONTAINS
             IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
                npme = npme + 1
                cores(npme) = iatom
-            ENDIF
+            END IF
          ELSE
             npme = npme + 1
             cores(npme) = iatom
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       IF (npme .GT. 0) THEN
          DO j = 1, npme
@@ -1354,8 +1354,8 @@ CONTAINS
                0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), coeff(iatom), pab, 0, 0, rs_rho, &
                cell, pw_env%cube_info(1), radius=radius, ga_gb_function=GRID_FUNC_AB, &
                use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       DEALLOCATE (pab, cores)
 
@@ -1476,7 +1476,7 @@ CONTAINS
          END SELECT
       ELSE
          ga_gb_function = GRID_FUNC_AB
-      ENDIF
+      END IF
 
       ! Figure out which basis_type to use.
       my_basis_type = "ORB"  ! by default, the full density is calculated
@@ -1493,7 +1493,7 @@ CONTAINS
          task_list => task_list_external
       ELSE
          CALL get_ks_env(ks_env, task_list=task_list)
-      ENDIF
+      END IF
       CPASSERT(ASSOCIATED(task_list))
 
       ! Figure out which pw_env to use.
@@ -1501,7 +1501,7 @@ CONTAINS
          pw_env => pw_env_external
       ELSE
          CALL get_ks_env(ks_env, pw_env=pw_env)
-      ENDIF
+      END IF
       CPASSERT(ASSOCIATED(pw_env))
 
       ! Get grids.
@@ -1519,7 +1519,7 @@ CONTAINS
       any_distributed = .FALSE.
       DO ilevel = 1, nlevels
          any_distributed = any_distributed .OR. rs_rho(ilevel)%rs_grid%desc%distributed
-      ENDDO
+      END DO
 
       ! Gather all matrix images in a single array.
       CALL get_ks_env(ks_env, dft_control=dft_control)
@@ -1540,7 +1540,7 @@ CONTAINS
          CALL rs_scatter_matrix(task_list, group, matrix_images)
       ELSE
          CALL rs_copy_matrix(task_list, matrix_images)
-      ENDIF
+      END IF
       DEALLOCATE (matrix_images)
 
       ! Map all tasks onto the grids
@@ -1719,14 +1719,14 @@ CONTAINS
          ELSE
             deltap(1)%matrix => matrix_p
          END IF
-      ENDIF
+      END IF
 
       ! distribute the matrix
       IF (distributed_rs_grids) THEN
          CALL rs_distribute_matrix(rs_descs=rs_descs, pmats=deltap, &
                                    atom_pair_send=atom_pair_send, atom_pair_recv=atom_pair_recv, &
                                    nimages=nimages, scatter=.TRUE.)
-      ENDIF
+      END IF
 
       ! map all tasks on the grids
 
@@ -1781,7 +1781,7 @@ CONTAINS
                                          nsgf_set=nsgfa, &
                                          sphi=sphi_a, &
                                          zet=zeta)
-               ENDIF
+               END IF
 
                IF (jkind .NE. jkind_old) THEN
                   CALL get_qs_kind(qs_kind_set(jkind), softb=my_soft, &
@@ -1795,7 +1795,7 @@ CONTAINS
                                          nsgf_set=nsgfb, &
                                          sphi=sphi_b, &
                                          zet=zetb)
-               ENDIF
+               END IF
 
                CALL dbcsr_get_block_p(matrix=deltap(img)%matrix, &
                                       row=brow, col=bcol, BLOCK=p_block, found=found)
@@ -1812,7 +1812,7 @@ CONTAINS
 
                atom_pair_changed = .FALSE.
 
-            ENDIF
+            END IF
 
             IF (atom_pair_changed .OR. iset_old .NE. iset .OR. jset_old .NE. jset) THEN
 
@@ -1844,7 +1844,7 @@ CONTAINS
                iset_old = iset
                jset_old = jset
 
-            ENDIF
+            END IF
 
             rab(:) = tasks(itask)%rab
             rb(:) = ra(:) + rab(:)
@@ -1878,10 +1878,10 @@ CONTAINS
                   use_subpatch = .TRUE.
                ELSE
                   use_subpatch = .FALSE.
-               ENDIF
+               END IF
             ELSE
                use_subpatch = .FALSE.
-            ENDIF
+            END IF
 
             SELECT CASE (idir)
             CASE (1)
@@ -1933,7 +1933,7 @@ CONTAINS
             NULLIFY (deltap(img)%matrix)
          END DO
          DEALLOCATE (deltap)
-      ENDIF
+      END IF
 
       DEALLOCATE (pabt, workt)
 
@@ -2024,8 +2024,8 @@ CONTAINS
          ALLOCATE (eigenvector(nao))
          DO i = 1, nao
             CALL cp_fm_get_element(mo_vectors, i, ivector, eigenvector(i), local)
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       ! *** set up the pw multi-grids
       CPASSERT(ASSOCIATED(pw_env))
@@ -2084,7 +2084,7 @@ CONTAINS
 
             DO i = 1, nsgfa(iset)
                work(i, 1) = eigenvector(offset + i)
-            ENDDO
+            END DO
 
             CALL dgemm("N", "N", ncoa, 1, nsgfa(iset), &
                        1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
@@ -2112,19 +2112,19 @@ CONTAINS
                      ELSE
                         lb(dir) = rs_rho(igrid_level)%rs_grid%lb_local(dir)
                         ub(dir) = rs_rho(igrid_level)%rs_grid%ub_local(dir)
-                     ENDIF
+                     END IF
                      ! distributed grid, only map if it is local to the grid
                      location(dir) = tp(dir) + rs_rho(igrid_level)%rs_grid%desc%lb(dir)
-                  ENDDO
+                  END DO
                   IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
                       lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
                       lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
                      map_it_here = .TRUE.
-                  ENDIF
+                  END IF
                ELSE
                   ! not distributed, just a round-robin distribution over the full set of CPUs
                   IF (MODULO(offset, group_size) == my_pos) map_it_here = .TRUE.
-               ENDIF
+               END IF
 
                IF (map_it_here) THEN
                   radius = exp_radius_very_extended(la_min=la_min(iset), la_max=la_max(iset), &
@@ -2138,7 +2138,7 @@ CONTAINS
                                              scale, pab, na1 - 1, 0, rs_rho(igrid_level)%rs_grid, &
                                              cell, cube_info(igrid_level), &
                                              radius=radius, ga_gb_function=GRID_FUNC_AB)
-               ENDIF
+               END IF
 
             END DO
 
@@ -2152,7 +2152,7 @@ CONTAINS
          CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid, &
                              mgrid_rspace(igrid_level)%pw, rs2pw)
          CALL rs_grid_release(rs_rho(igrid_level)%rs_grid)
-      ENDDO
+      END DO
 
       CALL pw_zero(rho_gspace%pw)
       DO igrid_level = 1, gridlevel_info%ngrid_levels

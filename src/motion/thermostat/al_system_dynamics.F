@@ -109,7 +109,7 @@ CONTAINS
                          particle_set, local_molecules, local_particles, vel)
          IF (debug_this_module) &
             CALL dump_vel(molecule_kind_set, molecule_set, local_molecules, particle_set, vel, "post 2nd OU")
-      ENDIF
+      END IF
 
       ! Recompute the final kinetic energy for the region to thermostat
       CALL ke_region_particles(map_info, particle_set, molecule_kind_set, &
@@ -151,7 +151,7 @@ CONTAINS
                ELSE
                   WRITE (unit=*, fmt='("PARTICLE_SET%VEL ",A20," IPART ",I6," V ",3F20.10)') TRIM(label), &
                      ipart, particle_set(ipart)%v(:)
-               ENDIF
+               END IF
             END DO
          END DO
       END DO
@@ -202,7 +202,7 @@ CONTAINS
          ELSE
             map_info%v_scale(imap) = 1.0_dp
             map_info%s_kin(imap) = 0.0_dp
-         ENDIF
+         END IF
          ! magnitude of random force, not including 1/sqrt(mass) part
       END DO
 
@@ -249,7 +249,7 @@ CONTAINS
                      particle_set(ipart)%v(jj) = particle_set(ipart)%v(jj)*map_info%p_scale(jj, ii)%point + &
                                                  map_info%p_kin(jj, ii)%point/SQRT(mass)*w(jj, ipart)
                   END DO
-               ENDIF
+               END IF
             END DO
          END DO
       END DO
@@ -283,13 +283,13 @@ CONTAINS
             IF (set_half_step_vel_factors) THEN
                decay = EXP(-0.5_dp*al%dt*al%nvt(i)%chi)
                map_info%v_scale(imap) = decay
-            ENDIF
+            END IF
          ELSE
             al%nvt(i)%chi = 0.0_dp
             IF (set_half_step_vel_factors) THEN
                map_info%v_scale(imap) = 1.0_dp
-            ENDIF
-         ENDIF
+            END IF
+         END IF
       END DO
 
    END SUBROUTINE al_NH_quarter_step

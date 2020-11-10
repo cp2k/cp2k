@@ -145,7 +145,7 @@ CONTAINS
             calc_args_str=TRIM(quip%calc_args), &
             calc_args_str_len=LEN_TRIM(quip%calc_args), &
             energy=pot_quip, force=force, virial=virial, output_unit=output_unit)
-      ENDIF
+      END IF
       ! convert units
       pot_quip = pot_quip/evolt
       force = force/(evolt/angstrom)
@@ -160,12 +160,12 @@ CONTAINS
          ALLOCATE (quip_data)
          CALL fist_nonbond_env_set(fist_nonbond_env, quip_data=quip_data)
          NULLIFY (quip_data%use_indices, quip_data%force)
-      ENDIF
+      END IF
       IF (ASSOCIATED(quip_data%force)) THEN
          IF (SIZE(quip_data%force, 2) /= n_atoms_use) THEN
             DEALLOCATE (quip_data%force, quip_data%use_indices)
          END IF
-      ENDIF
+      END IF
       IF (.NOT. ASSOCIATED(quip_data%force)) THEN
          ALLOCATE (quip_data%force(3, n_atoms_use))
          ALLOCATE (quip_data%use_indices(n_atoms_use))
@@ -176,7 +176,7 @@ CONTAINS
          IF (use_atom(iat)) THEN
             iat_use = iat_use + 1
             quip_data%use_indices(iat_use) = iat
-         ENDIF
+         END IF
       END DO
       quip_data%force = force
       quip_data%virial = virial

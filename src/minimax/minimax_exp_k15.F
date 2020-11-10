@@ -113,9 +113,9 @@ CONTAINS
          mm = 0.0_dp
          DO j = 1, k
             mm = mm + aw(j + k)*EXP(-aw(j)*x)
-         ENDDO
+         END DO
          numerr = MAX(numerr, ABS(mm - 1.0_dp/x))
-      ENDDO
+      END DO
 
    END FUNCTION get_minimax_numerical_error
 

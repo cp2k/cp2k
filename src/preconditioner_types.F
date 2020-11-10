@@ -128,32 +128,32 @@ CONTAINS
       IF (ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
          CALL dbcsr_deallocate_matrix(preconditioner_env%sparse_matrix)
          NULLIFY (preconditioner_env%sparse_matrix)
-      ENDIF
+      END IF
 
       IF (ASSOCIATED(preconditioner_env%fm)) THEN
          CALL cp_fm_release(preconditioner_env%fm)
-      ENDIF
+      END IF
       IF (ASSOCIATED(preconditioner_env%dbcsr_matrix)) THEN
          CALL dbcsr_release_p(preconditioner_env%dbcsr_matrix)
-      ENDIF
+      END IF
       IF (ASSOCIATED(preconditioner_env%max_ev_vector)) THEN
          CALL dbcsr_release_p(preconditioner_env%max_ev_vector)
-      ENDIF
+      END IF
       IF (ASSOCIATED(preconditioner_env%min_ev_vector)) THEN
          CALL dbcsr_release_p(preconditioner_env%min_ev_vector)
-      ENDIF
+      END IF
       IF (ASSOCIATED(preconditioner_env%occ_evals)) THEN
          DEALLOCATE (preconditioner_env%occ_evals)
-      ENDIF
+      END IF
       IF (ASSOCIATED(preconditioner_env%full_evals)) THEN
          DEALLOCATE (preconditioner_env%full_evals)
-      ENDIF
+      END IF
       IF (ASSOCIATED(preconditioner_env%inverse_history)) THEN
          DO i = 1, SIZE(preconditioner_env%inverse_history)
             CALL dbcsr_release_p(preconditioner_env%inverse_history(i)%matrix)
          END DO
          DEALLOCATE (preconditioner_env%inverse_history)
-      ENDIF
+      END IF
       CALL cp_para_env_release(preconditioner_env%para_env)
       CALL cp_blacs_env_release(preconditioner_env%ctxt)
 

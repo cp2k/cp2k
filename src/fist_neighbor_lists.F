@@ -147,7 +147,7 @@ CONTAINS
       ! for the local particles are needed, which would imply a huge memory savings for fist
       IF (PRESENT(exclusions)) THEN
          CPASSERT(present_local_particles)
-      ENDIF
+      END IF
 
       ! Allocate work storage
       nkind = SIZE(atomic_kind_set)
@@ -373,11 +373,11 @@ CONTAINS
                      neighbor_kind_pair%cell_vector(1) = icell
                      neighbor_kind_pair%cell_vector(2) = jcell
                      neighbor_kind_pair%cell_vector(3) = kcell
-                  ENDIF
-               ENDDO
-            ENDDO
-         ENDDO
-      ENDDO
+                  END IF
+               END DO
+            END DO
+         END DO
+      END DO
       ! Mapping the spherical interaction between subcells
       ALLOCATE (sphcub(-isubcell(1):isubcell(1), &
                        -isubcell(2):isubcell(2), &

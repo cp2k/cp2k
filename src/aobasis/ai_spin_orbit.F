@@ -117,11 +117,11 @@ CONTAINS
                      vab(i, j, 1) = 0.0_dp
                      vab(i, j, 2) = 0.0_dp
                      vab(i, j, 3) = 0.0_dp
-                  ENDDO
-               ENDDO
+                  END DO
+               END DO
                nb = nb + ncoset(lb_max)
                CYCLE
-            ENDIF
+            END IF
 
             ! *** Calculate some prefactors ***
 
@@ -219,21 +219,21 @@ CONTAINS
                   IF (ay .GT. 0 .AND. bx .GT. 0) dum2 = dum2 + REAL(ay, dp)*REAL(bx, dp)*rr(0, coam1y, cobm1x)
                   vab(ma, mb, 3) = f0*(dum1 - dum2)
                   !
-               ENDDO
-               ENDDO
-               ENDDO !la
+               END DO
+               END DO
+               END DO !la
 
-            ENDDO
-            ENDDO
-            ENDDO !lb
+            END DO
+            END DO
+            END DO !lb
 
             nb = nb + ncoset(lb_max)
 
-         ENDDO
+         END DO
 
          na = na + ncoset(la_max)
 
-      ENDDO
+      END DO
 
    END SUBROUTINE pso
 

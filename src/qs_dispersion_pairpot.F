@@ -179,7 +179,7 @@ CONTAINS
                dum = 0.5_dp*dispersion_env%r2r4(i)*REAL(i, dp)**0.5_dp
                ! store it as sqrt because the geom. av. is taken
                dispersion_env%r2r4(i) = SQRT(dum)
-            ENDDO
+            END DO
             ! parameters
             dispersion_env%k1 = 16.0_dp
             dispersion_env%k2 = 4._dp/3._dp
@@ -1364,7 +1364,7 @@ CONTAINS
             DO imol = 1, SIZE(molecule_set)
                DO iat = molecule_set(imol)%first_atom, molecule_set(imol)%last_atom
                   atom2mol(iat) = imol
-               ENDDO
+               END DO
             END DO
          END IF
          ! damping type
@@ -2248,7 +2248,7 @@ CONTAINS
          c6ab(jat, iat, jadr, iadr, 2) = pars(kk + 4)
          c6ab(jat, iat, jadr, iadr, 3) = pars(kk + 3)
          kk = (nn*5) + 1
-      ENDDO
+      END DO
 
       DEALLOCATE (pars)
 
@@ -2272,13 +2272,13 @@ CONTAINS
       DO WHILE (iat .GT. 100)
          iat = iat - 100
          iadr = iadr + 1
-      ENDDO
+      END DO
 
       i = 100
       DO WHILE (jat .GT. 100)
          jat = jat - 100
          jadr = jadr + 1
-      ENDDO
+      END DO
    END SUBROUTINE limit
 
 ! **************************************************************************************************
@@ -3068,8 +3068,8 @@ CONTAINS
             k = k + 1
             rout(i, j) = r0ab(k)*bohr
             rout(j, i) = r0ab(k)*bohr
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       ! covalent radii (taken from Pyykko and Atsumi, Chem. Eur. J. 15, 2009, 188-197)
       ! values for metals decreased by 10 %
@@ -3263,7 +3263,7 @@ CONTAINS
                IF (r < rsave) THEN
                   rsave = r
                   c6mem = c6
-               ENDIF
+               END IF
                tmp1 = EXP(k3*r)
                dtmpa = -2.0_dp*k3*(cn1 - nci)*tmp1
                dtmpb = -2.0_dp*k3*(cn2 - ncj)*tmp1
@@ -3273,9 +3273,9 @@ CONTAINS
                dwa = dwa + dtmpa
                dzb = dzb + dtmpb*c6
                dwb = dwb + dtmpb
-            ENDIF
-         ENDDO
-      ENDDO
+            END IF
+         END DO
+      END DO
 
       IF (c6 == 0.0_dp) c6mem = 0.0_dp
 
@@ -3287,7 +3287,7 @@ CONTAINS
          c6 = c6mem
          dc6a = 0._dp
          dc6b = 0._dp
-      ENDIF
+      END IF
 
    END SUBROUTINE getc6
 

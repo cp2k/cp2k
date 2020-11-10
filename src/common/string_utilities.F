@@ -180,7 +180,7 @@ CONTAINS
 
       DO i = 1, SIZE(array)
          string(i:i) = array(i)
-      ENDDO
+      END DO
    END FUNCTION a2s
 
 ! **************************************************************************************************

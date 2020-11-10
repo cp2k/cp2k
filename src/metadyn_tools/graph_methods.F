@@ -427,7 +427,7 @@ CONTAINS
 
       ELSE
          pos = mep_input_data%minima
-      ENDIF
+      END IF
 
       ! Compute value and derivative in all replicas
       DO irep = 1, nreplica

@@ -203,7 +203,7 @@ CONTAINS
          use_virial = virial%pv_calculate .AND. (.NOT. virial%pv_numer)
       ELSE
          use_virial = .FALSE.
-      ENDIF
+      END IF
       IF (use_virial) THEN
          CPASSERT(.NOT. energy_only)
       END IF
@@ -844,7 +844,7 @@ CONTAINS
                   prefactor = u_vdW(i_grid, P_i)*const*tmp_3_4*dP_dq0*dq0_dgradrho(i_grid)
                ELSE
                   prefactor = 0.0_dp
-               ENDIF
+               END IF
             END SELECT
             IF (q0(i_grid) .NE. q_mesh(nqs)) THEN
                h_prefactor(i_grid) = h_prefactor(i_grid) + prefactor
@@ -861,8 +861,8 @@ CONTAINS
                DO l = 1, 3
                   DO m = 1, l
                      virial_thread(l, m) = virial_thread(l, m) - prefactor*drho(i_grid, l)*drho(i_grid, m)
-                  ENDDO
-               ENDDO
+                  END DO
+               END DO
             END IF
 
          END DO ! P_i = 1, nqs
@@ -877,10 +877,10 @@ CONTAINS
             DO m = 1, (l - 1)
                virial%pv_xc(l, m) = virial%pv_xc(l, m) + virial_thread(l, m)
                virial%pv_xc(m, l) = virial%pv_xc(l, m)
-            ENDDO
+            END DO
             m = l
             virial%pv_xc(l, m) = virial%pv_xc(l, m) + virial_thread(l, m)
-         ENDDO
+         END DO
       END IF
 
       CALL timestop(handle)
@@ -1128,7 +1128,7 @@ CONTAINS
 
             dq0_drho(i_grid) = dq0_dq*1.0_dp/(k**2.0)*(dw0_dn*k - dk_dn*w0)
             dq0_dgradrho(i_grid) = dq0_dq*1.0_dp/(2.0_dp*k*w0)*4.0_dp*wg2/gmod2
-         ENDIF
+         END IF
 
       END DO
 
@@ -1267,7 +1267,7 @@ CONTAINS
                q0(i_grid) = q_min
             END IF
 
-         ENDIF
+         END IF
 
       END DO
 

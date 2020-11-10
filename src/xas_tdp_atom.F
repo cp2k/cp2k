@@ -300,7 +300,7 @@ CONTAINS
                         iso = nsoset(lp - 1) + lp + 1 - ABS(mp)
                      END IF
                      my_CG(iso1, iso2, iso) = rga(il, 1)
-                     ENDIF
+                     END IF
                      IF (mp /= mm .AND. ABS(mm) <= lp) THEN
                      IF (mm >= 0) THEN
                         iso = nsoset(lp - 1) + lp + 1 + mm
@@ -308,12 +308,12 @@ CONTAINS
                         iso = nsoset(lp - 1) + lp + 1 - ABS(mm)
                      END IF
                      my_CG(iso1, iso2, iso) = rga(il, 2)
-                     ENDIF
+                     END IF
                   END DO
-               ENDDO ! iso2
-            ENDDO ! lc2
-         ENDDO ! iso1
-      ENDDO ! lc1
+               END DO ! iso2
+            END DO ! lc2
+         END DO ! iso1
+      END DO ! lc1
       DEALLOCATE (rga)
       CALL clebsch_gordon_deallocate()
 

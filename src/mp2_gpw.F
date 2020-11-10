@@ -223,7 +223,7 @@ CONTAINS
 
       IF (do_kpoints_cubic_RPA .AND. mp2_env%ri_rpa%do_ri_g0w0) THEN
          CPABORT("Full RPA k-points (DO_KPOINTS in LOW_SCALING section) not implemented with GW")
-      ENDIF
+      END IF
 
       ! Get the number of spins
       nspins = SIZE(mos_mp2)
@@ -242,7 +242,7 @@ CONTAINS
          CALL get_mo_set(mo_set=mos_mp2(2)%mo_set, nelectron=nelectron_beta, &
                          eigenvalues=mo_eigenvalues_beta, homo=homo_beta, &
                          mo_coeff=mo_coeff_beta)
-      ENDIF
+      END IF
 
       CALL get_mo_set(mo_set=mos(1)%mo_set)
 
@@ -258,7 +258,7 @@ CONTAINS
          local_unit_nr = cp_logger_get_default_unit_nr(logger, local=.FALSE.)
       ELSE
          local_unit_nr = default_output_unit
-      ENDIF
+      END IF
 
       ! get stuff
       CALL get_qs_env(qs_env, &
@@ -281,8 +281,8 @@ CONTAINS
                mp2_env%ri_metric%potential_type = do_potential_id
             ELSE
                mp2_env%ri_metric%potential_type = do_potential_truncated
-            ENDIF
-         ENDIF
+            END IF
+         END IF
 
          ! statically initialize libint
          CALL cp_libint_static_init()
@@ -309,7 +309,7 @@ CONTAINS
          WRITE (UNIT=unit_nr, FMT="(T3,A,T71,F10.1)") &
             "GPW_INFO| Relative density cutoff [a.u.]:", mp2_env%mp2_gpw%relative_cutoff*0.5_dp
          CALL m_flush(unit_nr)
-      ENDIF
+      END IF
 
       ! a logger
       NULLIFY (logger_sub)
@@ -366,7 +366,7 @@ CONTAINS
       IF (nspins == 2) THEN
          ALLOCATE (Eigenval_beta(dimen))
          Eigenval_beta(:) = mo_eigenvalues_beta(:)
-      ENDIF
+      END IF
 
       ! for imag. time, we do not need this
       IF (.NOT. do_im_time) THEN
@@ -482,7 +482,7 @@ CONTAINS
             NULLIFY (mp2_env%ri_grad%mo_coeff_v_beta)
             CALL dbcsr_init_p(mp2_env%ri_grad%mo_coeff_v_beta)
             CALL dbcsr_copy(mp2_env%ri_grad%mo_coeff_v_beta, mo_coeff_v_beta, name="mo_coeff_v_b")
-         ENDIF
+         END IF
          CALL get_group_dist(gd_array, color_sub, my_group_L_start, my_group_L_end, my_group_L_size)
       END IF
       ! Copy mo coeffs for RPA AXK
@@ -493,7 +493,7 @@ CONTAINS
          NULLIFY (mp2_env%ri_rpa%mo_coeff_v)
          CALL dbcsr_init_p(mp2_env%ri_rpa%mo_coeff_v)
          CALL dbcsr_copy(mp2_env%ri_rpa%mo_coeff_v, mo_coeff_v, name="mo_coeff_v")
-      ENDIF
+      END IF
 
       IF (.NOT. do_im_time) THEN
 
@@ -527,7 +527,7 @@ CONTAINS
 
             CALL release_neighbor_list_sets(sab_orb_sub)
 
-         ENDIF
+         END IF
 
       END IF
 
@@ -649,7 +649,7 @@ CONTAINS
                                           my_group_L_start, my_group_L_end, my_group_L_size, &
                                           sab_orb_sub, mat_munu, &
                                           blacs_env_sub)
-               ENDIF
+               END IF
 
                CALL dbcsr_release(mp2_env%ri_grad%mo_coeff_o)
                DEALLOCATE (mp2_env%ri_grad%mo_coeff_o)
@@ -663,7 +663,7 @@ CONTAINS
 
                   CALL dbcsr_release(mp2_env%ri_grad%mo_coeff_v_beta)
                   DEALLOCATE (mp2_env%ri_grad%mo_coeff_v_beta)
-               ENDIF
+               END IF
 
                CALL dbcsr_release(mat_munu%matrix)
                DEALLOCATE (mat_munu%matrix)
@@ -724,7 +724,7 @@ CONTAINS
          ELSE
             CALL solve_z_vector_eq(qs_env, mp2_env, para_env, dft_control, &
                                    atomic_kind_set, mo_coeff, nmo, homo, Eigenval, unit_nr)
-         ENDIF
+         END IF
       END IF
 
       DEALLOCATE (Eigenval)
@@ -1007,10 +1007,10 @@ CONTAINS
                DO j = 1, col_size
                   j_global = col_offset + j - 1
                   data_block(i, j) = Cread(i_global - my_mu_start + 1, col_offset + j - 1)
-               ENDDO
+               END DO
             END IF
-         ENDDO
-      ENDDO
+         END DO
+      END DO
       CALL dbcsr_iterator_stop(iter)
 
       ! start ring communication in the subgroup for collecting the data from the other
@@ -1039,10 +1039,10 @@ CONTAINS
                   DO j = 1, col_size
                      j_global = col_offset + j - 1
                      data_block(i, j) = rec_C(i_global - rec_mu_start + 1, col_offset + j - 1)
-                  ENDDO
+                  END DO
                END IF
-            ENDDO
-         ENDDO
+            END DO
+         END DO
          CALL dbcsr_iterator_stop(iter)
 
          DEALLOCATE (rec_C)
@@ -1193,7 +1193,7 @@ CONTAINS
          ELSE
             orb_present(ikind) = .FALSE.
             orb_radius(ikind) = 0.0_dp
-         ENDIF
+         END IF
       END DO
 
       CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius)

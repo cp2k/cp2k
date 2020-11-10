@@ -379,7 +379,7 @@ CONTAINS
                CALL cp_dbcsr_sm_fm_multiply(sinmat, mo_coeff_tmp(ispin)%matrix, opvec(2, ispin)%matrix, ncol=nmo)
                CALL cp_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff_tmp(ispin)%matrix, opvec(2, ispin)%matrix, 0.0_dp, &
                             op_fm_set(2, ispin)%matrix)
-            ENDDO
+            END DO
             !second step invert C^T S_berry C
             zdet = z_one
             DO ispin = 1, dft_control%nspins
@@ -862,7 +862,7 @@ CONTAINS
             CALL cp_dbcsr_sm_fm_multiply(sinmat, mo_coeff_tmp(ispin)%matrix, opvec(2, ispin)%matrix, ncol=nmo)
             CALL cp_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff_tmp(ispin)%matrix, opvec(2, ispin)%matrix, 0.0_dp, &
                          op_fm_set(2, ispin)%matrix)
-         ENDDO
+         END DO
          !second step invert C^T S_berry C
          zdet = z_one
          DO ispin = 1, dft_control%nspins

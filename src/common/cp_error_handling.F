@@ -92,7 +92,7 @@ CONTAINS
       IF (unit_nr > 0) THEN
          CALL print_message("WARNING in "//TRIM(location)//' :: '//TRIM(ADJUSTL(message)), unit_nr, 1, 1, 1)
          CALL m_flush(unit_nr)
-      ENDIF
+      END IF
    END SUBROUTINE cp_warn_handler
 
 ! **************************************************************************************************
@@ -110,7 +110,7 @@ CONTAINS
       IF (unit_nr > 0) THEN
          CALL print_message("HINT in "//TRIM(location)//' :: '//TRIM(ADJUSTL(message)), unit_nr, 1, 1, 1)
          CALL m_flush(unit_nr)
-      ENDIF
+      END IF
    END SUBROUTINE cp_hint_handler
 
 ! **************************************************************************************************
@@ -136,8 +136,8 @@ CONTAINS
          t1 = m_walltime()
          DO
             IF (m_walltime() - t1 > wait_time .OR. t1 < 0) EXIT
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
    END SUBROUTINE delay_non_master
 
@@ -168,7 +168,7 @@ CONTAINS
          b = next_linebreak(message, a, txt_width)
          a = b + 1
          msg_height = msg_height + 1
-      ENDDO
+      END DO
 
       ! calculate message and image starting lines
       IF (img_height > msg_height) THEN
@@ -177,7 +177,7 @@ CONTAINS
       ELSE
          msg_start = 1
          img_start = msg_height - img_height + 2
-      ENDIF
+      END IF
 
       ! print empty line
       WRITE (UNIT=output_unit, FMT="(A)") ""
@@ -194,7 +194,7 @@ CONTAINS
          ELSE
             WRITE (UNIT=output_unit, FMT="(A)", advance='no') img(c:c + img_width - 1)
             c = c + img_width
-         ENDIF
+         END IF
          IF (i < msg_start) THEN
             WRITE (UNIT=output_unit, FMT="(A)", advance='no') REPEAT(" ", txt_width + 2)
          ELSE
@@ -206,9 +206,9 @@ CONTAINS
             WRITE (UNIT=output_unit, FMT="(A)", advance='no') REPEAT(" ", indent)
             WRITE (UNIT=output_unit, FMT="(A)", advance='no') TRIM(msg_line)
             WRITE (UNIT=output_unit, FMT="(A)", advance='no') REPEAT(" ", fill)
-         ENDIF
+         END IF
          WRITE (UNIT=output_unit, FMT="(A)", advance='yes') "*"
-      ENDDO
+      END DO
 
       ! print location line
       WRITE (UNIT=output_unit, FMT="(A)", advance='no') " *"
@@ -250,8 +250,8 @@ CONTAINS
             ibreak = pos + rowlen - 1 ! no space found, break mid-word
          ELSE
             ibreak = pos + i ! break at space closest to rowlen
-         ENDIF
-      ENDIF
+         END IF
+      END IF
    END FUNCTION next_linebreak
 
 END MODULE cp_error_handling

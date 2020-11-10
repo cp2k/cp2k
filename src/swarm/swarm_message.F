@@ -818,7 +818,7 @@ CONTAINS
 
       DO i = 1, LEN(str)
          arr(i) = ICHAR(str(i:i))
-      ENDDO
+      END DO
    END FUNCTION str2iarr
 
 ! **************************************************************************************************
@@ -835,20 +835,20 @@ CONTAINS
 
       DO i = 1, SIZE(arr)
          str(i:i) = CHAR(arr(i))
-      ENDDO
+      END DO
    END FUNCTION iarr2str
 
-#:set instances = {'str'   : 'CHARACTER(LEN=*)', &
-                   'i4'    : 'INTEGER(KIND=int_4)', &
-                   'i8'    : 'INTEGER(KIND=int_8)', &
-                   'r4'    : 'REAL(KIND=real_4)', &
-                   'r8'    : 'REAL(KIND=real_8)', &
-                   '1d_i4' : 'INTEGER(KIND=int_4), DIMENSION(:)', &
-                   '1d_i8' : 'INTEGER(KIND=int_8), DIMENSION(:)', &
-                   '1d_r4' : 'REAL(KIND=real_4), DIMENSION(:)', &
-                   '1d_r8' : 'REAL(KIND=real_8), DIMENSION(:)' }
+   #:set instances = {'str'   : 'CHARACTER(LEN=*)', &
+      'i4'    : 'INTEGER(KIND=int_4)', &
+      'i8'    : 'INTEGER(KIND=int_8)', &
+      'r4'    : 'REAL(KIND=real_4)', &
+      'r8'    : 'REAL(KIND=real_8)', &
+      '1d_i4' : 'INTEGER(KIND=int_4), DIMENSION(:)', &
+      '1d_i8' : 'INTEGER(KIND=int_8), DIMENSION(:)', &
+      '1d_r4' : 'REAL(KIND=real_4), DIMENSION(:)', &
+      '1d_r8' : 'REAL(KIND=real_8), DIMENSION(:)' }
 
-#:for label, type in instances.items()
+   #:for label, type in instances.items()
 
 ! **************************************************************************************************
 !> \brief Addes an entry from a swarm-message.
@@ -857,37 +857,37 @@ CONTAINS
 !> \param value ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE swarm_message_add_${label}$ (msg, key, value)
-      TYPE(swarm_message_type), INTENT(INOUT)   :: msg
-      CHARACTER(LEN=*), INTENT(IN)              :: key
-      ${type}$, INTENT(IN)                      :: value
+      SUBROUTINE swarm_message_add_${label}$ (msg, key, value)
+         TYPE(swarm_message_type), INTENT(INOUT)   :: msg
+         CHARACTER(LEN=*), INTENT(IN)              :: key
+         ${type}$, INTENT(IN)                      :: value
 
-      TYPE(message_entry_type), POINTER :: new_entry
+         TYPE(message_entry_type), POINTER :: new_entry
 
-      IF (swarm_message_haskey(msg, key)) &
-         CPABORT("swarm_message_add_${label}$: key already exists: "//TRIM(key))
+         IF (swarm_message_haskey(msg, key)) &
+            CPABORT("swarm_message_add_${label}$: key already exists: "//TRIM(key))
 
-      ALLOCATE (new_entry)
-      new_entry%key = key
+         ALLOCATE (new_entry)
+         new_entry%key = key
 
-#:if label.startswith("1d_")
-      ALLOCATE (new_entry%value_${label}$ (SIZE(value)))
-#:else
-      ALLOCATE (new_entry%value_${label}$)
-#:endif
+         #:if label.startswith("1d_")
+            ALLOCATE (new_entry%value_${label}$ (SIZE(value)))
+         #:else
+            ALLOCATE (new_entry%value_${label}$)
+         #:endif
 
-      new_entry%value_${label}$ = value
+         new_entry%value_${label}$ = value
 
-      !WRITE (*,*) "swarm_message_add_${label}$: key=",key, " value=",new_entry%value_${label}$
+         !WRITE (*,*) "swarm_message_add_${label}$: key=",key, " value=",new_entry%value_${label}$
 
-      IF (.NOT. ASSOCIATED(msg%root)) THEN
-         msg%root => new_entry
-      ELSE
-         new_entry%next => msg%root
-         msg%root => new_entry
-      ENDIF
+         IF (.NOT. ASSOCIATED(msg%root)) THEN
+            msg%root => new_entry
+         ELSE
+            new_entry%next => msg%root
+            msg%root => new_entry
+         END IF
 
-   END SUBROUTINE swarm_message_add_${label}$
+      END SUBROUTINE swarm_message_add_${label}$
 
 ! **************************************************************************************************
 !> \brief Returns an entry from a swarm-message.
@@ -896,43 +896,43 @@ CONTAINS
 !> \param value ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE swarm_message_get_${label}$ (msg, key, value)
-      TYPE(swarm_message_type), INTENT(IN)  :: msg
-      CHARACTER(LEN=*), INTENT(IN)          :: key
+      SUBROUTINE swarm_message_get_${label}$ (msg, key, value)
+         TYPE(swarm_message_type), INTENT(IN)  :: msg
+         CHARACTER(LEN=*), INTENT(IN)          :: key
 
-#:if label=="str"
-      CHARACTER(LEN=default_string_length)  :: value
-#:elif label.startswith("1d_")
-      ${type}$, POINTER                     :: value
-#:else
-      ${type}$, INTENT(OUT)                 :: value
-#:endif
+         #:if label=="str"
+            CHARACTER(LEN=default_string_length)  :: value
+         #:elif label.startswith("1d_")
+            ${type}$, POINTER                     :: value
+         #:else
+            ${type}$, INTENT(OUT)                 :: value
+         #:endif
 
-      TYPE(message_entry_type), POINTER :: curr_entry
-      !WRITE (*,*) "swarm_message_get_${label}$: key=",key
+         TYPE(message_entry_type), POINTER :: curr_entry
+         !WRITE (*,*) "swarm_message_get_${label}$: key=",key
 
-#:if label.startswith("1d_")
-      IF (ASSOCIATED(value)) CPABORT("swarm_message_get_${label}$: value already associated")
-#:endif
+         #:if label.startswith("1d_")
+            IF (ASSOCIATED(value)) CPABORT("swarm_message_get_${label}$: value already associated")
+         #:endif
 
-      curr_entry => msg%root
-      DO WHILE (ASSOCIATED(curr_entry))
-         IF (TRIM(curr_entry%key) == TRIM(key)) THEN
-            IF (.NOT. ASSOCIATED(curr_entry%value_${label}$)) &
-               CPABORT("swarm_message_get_${label}$: value not associated key: "//TRIM(key))
-#:if label.startswith("1d_")
-            ALLOCATE (value(SIZE(curr_entry%value_${label}$)))
-#:endif
-            value = curr_entry%value_${label}$
-            !WRITE (*,*) "swarm_message_get_${label}$: value=",value
-            RETURN
-         ENDIF
-         curr_entry => curr_entry%next
-      END DO
-      CPABORT("swarm_message_get: key not found: "//TRIM(key))
-   END SUBROUTINE swarm_message_get_${label}$
+         curr_entry => msg%root
+         DO WHILE (ASSOCIATED(curr_entry))
+            IF (TRIM(curr_entry%key) == TRIM(key)) THEN
+               IF (.NOT. ASSOCIATED(curr_entry%value_${label}$)) &
+                  CPABORT("swarm_message_get_${label}$: value not associated key: "//TRIM(key))
+               #:if label.startswith("1d_")
+                  ALLOCATE (value(SIZE(curr_entry%value_${label}$)))
+               #:endif
+               value = curr_entry%value_${label}$
+               !WRITE (*,*) "swarm_message_get_${label}$: value=",value
+               RETURN
+            END IF
+            curr_entry => curr_entry%next
+         END DO
+         CPABORT("swarm_message_get: key not found: "//TRIM(key))
+      END SUBROUTINE swarm_message_get_${label}$
 
-#:endfor
+   #:endfor
 
 END MODULE swarm_message
 

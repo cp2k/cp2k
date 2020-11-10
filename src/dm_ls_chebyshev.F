@@ -133,7 +133,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       ncheb = ls_scf_env%chebyshev%n_chebyshev
       ninte = 2*ncheb
@@ -154,7 +154,7 @@ CONTAINS
          nwindow = SIZE(ls_scf_env%chebyshev%min_energy)
       ELSE
          nwindow = 0
-      ENDIF
+      END IF
 
       ALLOCATE (ev1(1:nwindow))
       ALLOCATE (ev2(1:nwindow))
@@ -171,7 +171,7 @@ CONTAINS
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '()')
          WRITE (unit_nr, '(T2,A)') "STARTING CHEBYSHEV CALCULATION"
-      ENDIF
+      END IF
 
       ! create 3 temporary matrices
       CALL dbcsr_create(matrix_tmp1, template=ls_scf_env%matrix_s, matrix_type=dbcsr_type_no_symmetry)
@@ -200,7 +200,7 @@ CONTAINS
          IF (nwindow > 0) THEN
             IF (unit_nr > 0) WRITE (unit_nr, '(T2,A,1000F16.8)') "requested interval-min_energy", ev1(:)
             IF (unit_nr > 0) WRITE (unit_nr, '(T2,A,1000F16.8)') "requested interval-max_energy", ev2(:)
-         ENDIF
+         END IF
          interval_a = (max_ev - min_ev)*scale_evals/2
          interval_b = (max_ev + min_ev)/2
 
@@ -297,16 +297,16 @@ CONTAINS
                ELSE
                   WRITE (unit_nr, '(T2,A,I5,1X,A,1X,F8.3,1X,A,1X,F8.6)') &
                      "Iter.", icheb, "time=", t2 - t1, "occ=", occ
-               ENDIF
-            ENDIF
-         ENDDO
+               END IF
+            END IF
+         END DO
 
          DO iwindow = 1, nwindow
             IF (SIZE(ls_scf_env%matrix_ks) == 1) THEN
                orbital_occ = 2.0_dp
             ELSE
                orbital_occ = 1.0_dp
-            ENDIF
+            END IF
             CALL dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt_inv, matrix_dummy2(iwindow), &
                                 0.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter)
             CALL dbcsr_multiply("N", "N", orbital_occ, matrix_tmp1, ls_scf_env%matrix_s_sqrt_inv, &
@@ -319,7 +319,7 @@ CONTAINS
                CALL dbcsr_add(matrix_tmp1, ls_scf_env%matrix_p(ispin), 1.0_dp, -1.0_dp) !comparison
                frob_matrix = dbcsr_frobenius_norm(matrix_tmp1)
                IF (unit_nr > 0) WRITE (unit_nr, *) "Difference between Chebyshev DM and LS DM", frob_matrix
-            ENDIF
+            END IF
          END DO
 
          write_cubes = BTEST(cp_print_key_should_output(logger%iter_info, &
@@ -335,9 +335,9 @@ CONTAINS
                                          section_get_ivals(ls_scf_env%chebyshev%print_key_cube, "STRIDE"))
                CALL cp_print_key_finished_output(unit_cube, logger, ls_scf_env%chebyshev%print_key_cube, "")
             END DO
-         ENDIF
+         END IF
 
-      ENDDO
+      END DO
 
       ! Chebyshev expansion with calculated coefficient
       ! grid construction and rescaling (by J)
@@ -372,7 +372,7 @@ CONTAINS
             WRITE (unit_dos, '(1000F16.8)') chev_E(igrid), dos(igrid), gdensity(igrid, :)
          END DO
          DEALLOCATE (chev_Es_dos, chev_E, dos, gdensity)
-      ENDIF
+      END IF
       CALL cp_print_key_finished_output(unit_dos, logger, ls_scf_env%chebyshev%print_key_dos, "")
 
       ! free the matrices

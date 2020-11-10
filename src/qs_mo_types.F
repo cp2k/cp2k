@@ -168,7 +168,7 @@ CONTAINS
       IF (ASSOCIATED(mo_set_old%mo_coeff_b)) THEN
          CALL dbcsr_init_p(mo_set_new%mo_coeff_b)
          CALL dbcsr_copy(mo_set_new%mo_coeff_b, mo_set_old%mo_coeff_b)
-      ENDIF
+      END IF
       mo_set_new%use_mo_coeff_b = mo_set_old%use_mo_coeff_b
 
       ALLOCATE (mo_set_new%eigenvalues(nmo))
@@ -329,7 +329,7 @@ CONTAINS
                                       blacs_env=mo_array(1)%mo_set%mo_coeff%matrix_struct%context) !fm->dbcsr
       ELSE !fm->dbcsr
          CALL cp_fm_to_fm(mo_array(1)%mo_set%mo_coeff, mo_array(2)%mo_set%mo_coeff, mo_array(2)%mo_set%nmo)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 

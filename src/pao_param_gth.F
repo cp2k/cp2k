@@ -85,7 +85,7 @@ CONTAINS
          CALL get_qs_kind(qs_kind_set(ikind), pao_potentials=pao_potentials)
          CPASSERT(SIZE(pao_potentials) == 1)
          maxl = MAX(maxl, pao_potentials(1)%maxl)
-      ENDDO
+      END DO
       CALL init_orbital_pointers(maxl) ! needs to be called before gth_calc_term()
 
       ! allocate matrix_V_terms
@@ -115,9 +115,9 @@ CONTAINS
                idx = SUM(nterms(1:jatom - 1)) + iterm
                block_V_term(1:n, 1:n) => vec_V_terms(:, idx) ! map column into matrix
                CALL gth_calc_term(qs_env, block_V_term, iatom, jatom, iterm)
-            ENDDO
-         ENDDO
-      ENDDO
+            END DO
+         END DO
+      END DO
       CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
 
@@ -139,7 +139,7 @@ CONTAINS
       IF (pao%precondition) THEN
          CALL dbcsr_release(pao%matrix_precon)
          CALL dbcsr_release(pao%matrix_precon_inv)
-      ENDIF
+      END IF
 
    END SUBROUTINE pao_param_finalize_gth
 
@@ -198,9 +198,9 @@ CONTAINS
             DO i = 1, n
             DO j = 1, m
                block(i, j) = block(i, j) + SUM(block_V_term(:, ioffset + i)*block_V_term(:, joffset + j))
-            ENDDO
-            ENDDO
-         ENDDO
+            END DO
+            END DO
+         END DO
          CALL dbcsr_iterator_stop(iter)
 
          CALL mp_sum(block, group)
@@ -210,8 +210,8 @@ CONTAINS
             block_overlap = block
 
          DEALLOCATE (block)
-      ENDDO
-      ENDDO
+      END DO
+      END DO
 
       !TODO: good setting for arnoldi?
       CALL arnoldi_extremal(matrix_gth_overlap, eval_max, eval_min, max_iter=100, &
@@ -279,7 +279,7 @@ CONTAINS
          iatom = arow; CPASSERT(arow == acol)
          idx = SUM(nterms(1:iatom - 1))
          world_X(idx + 1:idx + nterms(iatom)) = block_X(:, 1)
-      ENDDO
+      END DO
       CALL dbcsr_iterator_stop(iter)
       CALL mp_sum(world_X, group) ! sync world view across MPI ranks
 
@@ -298,7 +298,7 @@ CONTAINS
          DO iterm = 1, SIZE(world_X)
             block_V_term(1:n, 1:n) => vec_V_terms(:, iterm) ! map column into matrix
             block_V = block_V + world_X(iterm)*block_V_term
-         ENDDO
+         END DO
 
          ! calculate gradient block of i'th atom
          IF (.NOT. PRESENT(matrix_G)) THEN
@@ -313,11 +313,11 @@ CONTAINS
             DO iterm = 1, SIZE(world_G)
                block_V_term(1:n, 1:n) => vec_V_terms(:, iterm) ! map column into matrix
                world_G(iterm) = world_G(iterm) + SUM(block_V_term*block_M2)
-            ENDDO
+            END DO
             DEALLOCATE (block_M2)
-         ENDIF
+         END IF
          DEALLOCATE (block_V)
-      ENDDO
+      END DO
       CALL dbcsr_iterator_stop(iter)
 
       ! distribute world_G across atomic blocks
@@ -329,9 +329,9 @@ CONTAINS
             iatom = arow; CPASSERT(arow == acol)
             idx = SUM(nterms(1:iatom - 1))
             block_G(:, 1) = world_G(idx + 1:idx + nterms(iatom))
-         ENDDO
+         END DO
          CALL dbcsr_iterator_stop(iter)
-      ENDIF
+      END IF
 
       DEALLOCATE (world_X, world_G)
 
@@ -344,14 +344,14 @@ CONTAINS
       IF (pao%iw_gap > 0) THEN
          DO iatom = 1, natoms
             WRITE (pao%iw_gap, *) "PAO| atom:", iatom, " fock gap:", gaps(iatom)
-         ENDDO
+         END DO
          CALL m_flush(pao%iw_gap)
-      ENDIF
+      END IF
 
       ! one-line summary
       IF (pao%iw > 0) THEN
          WRITE (pao%iw, "(A,E20.10,A,T71,I10)") " PAO| min_gap:", MINVAL(gaps), " for atom:", MINLOC(gaps)
-      ENDIF
+      END IF
 
       DEALLOCATE (gaps)
       CALL timestop(handle)
@@ -438,9 +438,9 @@ CONTAINS
          DO min_l = 0, max_l
             c = c + 1
             IF (c == kterm) EXIT outer
-         ENDDO
-         ENDDO
-      ENDDO outer
+         END DO
+         END DO
+      END DO outer
 
       ! get basis-set of central atom
       CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
@@ -478,7 +478,7 @@ CONTAINS
          ! a simplistic guess, which at least makes the atom visible to others
          block_X = 0.0_dp
          block_X(1, 1) = 0.01_dp
-      ENDDO
+      END DO
       CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
 

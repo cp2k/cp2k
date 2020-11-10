@@ -109,8 +109,8 @@ CONTAINS
             DO ipgf = orb_basis%npgf(iset) - 1, 1, -1
                IF (orb_basis%zet(ipgf, iset) < minzet) THEN
                   minzet = orb_basis%zet(ipgf, iset)
-               ENDIF
-            ENDDO
+               END IF
+            END DO
             radius = exp_radius(orb_basis%lmax(iset), minzet, eps_fit, 1.0_dp)
 
             !      The soft basis contains this set
@@ -124,11 +124,11 @@ CONTAINS
             DO ishell = 1, nshell(iset_s)
                n(ishell, iset_s) = orb_basis%n(ishell, iset)
                l(ishell, iset_s) = orb_basis%l(ishell, iset)
-            ENDDO
+            END DO
 
             IF (nshell(iset_s) > maxshell_s) THEN
                maxshell_s = nshell(iset_s)
-            ENDIF
+            END IF
 
             IF (radius < rc) THEN
                ! The soft basis does not contain this set
@@ -139,7 +139,7 @@ CONTAINS
                paw_atom = .TRUE.
                npgf(iset_s) = 0
                CYCLE
-            ENDIF
+            END IF
 
             ipgf_s = 0
             DO ipgf = 1, orb_basis%npgf(iset) ! ipgf
@@ -147,7 +147,7 @@ CONTAINS
                   ! The soft basis does not contain this exponent
                   paw_atom = .TRUE.
                   CYCLE
-               ENDIF
+               END IF
 
                radius = exp_radius(orb_basis%lmax(iset), orb_basis%zet(ipgf, iset), &
                                    eps_fit, 1.0_dp)
@@ -155,7 +155,7 @@ CONTAINS
                   ! The soft basis does not contain this exponent
                   paw_atom = .TRUE.
                   CYCLE
-               ENDIF
+               END IF
 
                ! The soft basis contains this exponent
                ipgf_s = ipgf_s + 1
@@ -170,20 +170,20 @@ CONTAINS
                   ELSE
                      lshell_old = lshell
                      radius = exp_radius(lshell_old, zet(ipgf_s, iset_s), eps_fit, 1.0_dp)
-                  ENDIF
+                  END IF
                   IF (radius < rc) THEN
                      gcc(ipgf_s, ishell, iset_s) = 0.0_dp
                      paw_atom = .TRUE.
                   ELSE
                      gcc(ipgf_s, ishell, iset_s) = orb_basis%gcc(ipgf, ishell, iset)
-                  ENDIF
-               ENDDO
-            ENDDO
+                  END IF
+               END DO
+            END DO
             npgf(iset_s) = ipgf_s
             IF (ipgf_s > maxpgf_s) THEN
                maxpgf_s = ipgf_s
-            ENDIF
-         ENDDO
+            END IF
+         END DO
          nset_s = iset_s
          IF (paw_atom) THEN
             soft_basis%nset = nset_s
@@ -284,14 +284,14 @@ CONTAINS
                         sgf_symbol(n(ishell, iset), lshell, m)
                   END DO
                END DO
-            ENDDO
+            END DO
 
             ! *** Normalization factor of the contracted Gaussians ***
             soft_basis%norm_type = orb_basis%norm_type
             soft_basis%norm_cgf = orb_basis%norm_cgf
             ! *** Initialize the transformation matrices ***
             CALL init_cphi_and_sphi(soft_basis)
-         ENDIF
+         END IF
 
          DEALLOCATE (gcc, l, lmax, lmin, n, npgf, nshell, zet, iset_s2h)
       END IF

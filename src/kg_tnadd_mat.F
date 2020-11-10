@@ -131,12 +131,12 @@ CONTAINS
          CALL timeset(routineN//"_forces", handle)
       ELSE
          CALL timeset(routineN, handle)
-      ENDIF
+      END IF
 
       NULLIFY (matrix_kg)
       IF (ASSOCIATED(kg_env%tnadd_mat)) THEN
          CALL dbcsr_deallocate_matrix_set(kg_env%tnadd_mat)
-      ENDIF
+      END IF
       sac_kin => kg_env%sac_kin
       atom_to_molecule => kg_env%atom_to_molecule
 
@@ -336,7 +336,7 @@ CONTAINS
                                    0.0_dp, pab(1, 1, iset, jset), SIZE(pab, 1))
                      END DO
                   END DO
-               ENDIF
+               END IF
             END IF
             END IF
          END IF
@@ -478,7 +478,7 @@ CONTAINS
 
       DO i = 1, SIZE(matrix_kg)
          CALL dbcsr_finalize(matrix_kg(i)%matrix)
-      ENDDO
+      END DO
       kg_env%tnadd_mat => matrix_kg
 
       DEALLOCATE (atom_of_kind, basis_set_list)

@@ -529,7 +529,7 @@ CONTAINS
                   Npq%local_data(:, k) = Npq%local_data(:, k) + scaleN*CMPLX(rzero, T2%local_data(:, k), dp)
                   Dpq%local_data(:, k) = Dpq%local_data(:, k) + scaleD*CMPLX(rzero, T2%local_data(:, k), dp)
                END DO
-            ENDIF
+            END IF
          END DO
       END IF
 

@@ -175,19 +175,19 @@ CONTAINS
 
       IF (l .LT. 0) THEN
          CPABORT("The angular momentum quantum number is negative")
-      ENDIF
+      END IF
 
       IF (alpha .EQ. 0.0_dp) THEN
          CPABORT("The Gaussian function exponent is zero")
       ELSE
          a = ABS(alpha)
-      ENDIF
+      END IF
 
       IF (threshold .NE. 0.0_dp) THEN
          t = ABS(threshold)
       ELSE
          CPABORT("The requested threshold is zero")
-      ENDIF
+      END IF
 
       radius = 0.0_dp
       IF (PRESENT(rlow)) radius = rlow
@@ -210,7 +210,7 @@ CONTAINS
          g(1) = d*EXP(REAL(-a*radius*radius, KIND=prec_exp))*radius**l
          IF (g(1) .LT. t) EXIT
          r = radius; radius = r*next + step
-      ENDDO
+      END DO
 
       ! consider absolute and relative accuracy (interval width)
       IF (PRESENT(epsabs)) THEN
@@ -219,7 +219,7 @@ CONTAINS
          eps = mineps
       ELSE
          eps = HUGE(eps)
-      ENDIF
+      END IF
       IF (PRESENT(epsrel)) eps = MIN(eps, epsrel*r)
 
       dr = 0.0_dp
@@ -235,13 +235,13 @@ CONTAINS
                EXIT
             ELSE
                r = s(j) ! interval [sj, radius)
-            ENDIF
-         ENDDO
+            END IF
+         END DO
          dr = rd
-      ENDDO
+      END DO
       IF (i .GE. itermax) THEN
          CPABORT("Maximum number of iterations reached")
-      ENDIF
+      END IF
 
    END FUNCTION exp_radius
 
@@ -305,16 +305,16 @@ CONTAINS
                   ico = coset(lxa, lya, lza)
                   jco = coset(lxb, lyb, lzb)
                   prefactor_local = MAX(ABS(pab(o1 + ico, o2 + jco)), prefactor_local)
-               ENDDO
-               ENDDO
-            ENDDO
-            ENDDO
-         ENDDO
-         ENDDO
+               END DO
+               END DO
+            END DO
+            END DO
+         END DO
+         END DO
          prefactor_local = prefactor*prefactor_local
       ELSE
          prefactor_local = prefactor*MAX(1.0_dp, cutoff)
-      ENDIF
+      END IF
 
       !
       ! assumes that we can compute the radius for the case where
@@ -337,21 +337,21 @@ CONTAINS
                coef(lxa + lxb - i - j) = coef(lxa + lxb - i - j) + bini*binj*s1*s2
                binj = (binj*(lxb - j))/(j + 1)
                s2 = s2*(rad_b)
-            ENDDO
+            END DO
             bini = (bini*(lxa - i))/(i + 1)
             s1 = s1*(rad_a)
-         ENDDO
+         END DO
          DO i = 0, lxa + lxb
             polycoef(i) = MAX(polycoef(i), coef(i))
-         ENDDO
-      ENDDO
-      ENDDO
+         END DO
+      END DO
+      END DO
 
       polycoef(0:la_max + lb_max) = polycoef(0:la_max + lb_max)*prefactor_local
       radius = 0.0_dp
       DO i = 0, la_max + lb_max
          radius = MAX(radius, exp_radius(i, zetp, eps, polycoef(i), epsin_local, rlow=radius))
-      ENDDO
+      END DO
 
    END FUNCTION exp_radius_very_extended
 
@@ -379,7 +379,7 @@ CONTAINS
       ELSE
          !odd l:
          gaussint_sph = 0.5_dp*fac((l + 1)/2)/SQRT(alpha)**(l + 3)
-      ENDIF
+      END IF
 
    END FUNCTION gaussint_sph
 
@@ -418,8 +418,8 @@ CONTAINS
                t2 = t2 + A(i1 + 1, i2)*B(i1 + 1, i2)
                t3 = t3 + A(i1 + 2, i2)*B(i1 + 2, i2)
                t4 = t4 + A(i1 + 3, i2)*B(i1 + 3, i2)
-            ENDDO
-         ENDDO
+            END DO
+         END DO
       CASE (1)
          mminus3 = m - 3
          DO i2 = 1, n
@@ -428,9 +428,9 @@ CONTAINS
                t2 = t2 + A(i1 + 1, i2)*B(i1 + 1, i2)
                t3 = t3 + A(i1 + 2, i2)*B(i1 + 2, i2)
                t4 = t4 + A(i1 + 3, i2)*B(i1 + 3, i2)
-            ENDDO
+            END DO
             t1 = t1 + A(m, i2)*B(m, i2)
-         ENDDO
+         END DO
       CASE (2)
          mminus3 = m - 3
          DO i2 = 1, n
@@ -439,10 +439,10 @@ CONTAINS
                t2 = t2 + A(i1 + 1, i2)*B(i1 + 1, i2)
                t3 = t3 + A(i1 + 2, i2)*B(i1 + 2, i2)
                t4 = t4 + A(i1 + 3, i2)*B(i1 + 3, i2)
-            ENDDO
+            END DO
             t1 = t1 + A(m - 1, i2)*B(m - 1, i2)
             t2 = t2 + A(m, i2)*B(m, i2)
-         ENDDO
+         END DO
       CASE (3)
          mminus3 = m - 3
          DO i2 = 1, n
@@ -451,11 +451,11 @@ CONTAINS
                t2 = t2 + A(i1 + 1, i2)*B(i1 + 1, i2)
                t3 = t3 + A(i1 + 2, i2)*B(i1 + 2, i2)
                t4 = t4 + A(i1 + 3, i2)*B(i1 + 3, i2)
-            ENDDO
+            END DO
             t1 = t1 + A(m - 2, i2)*B(m - 2, i2)
             t2 = t2 + A(m - 1, i2)*B(m - 1, i2)
             t3 = t3 + A(m, i2)*B(m, i2)
-         ENDDO
+         END DO
       END SELECT
       trace_r_AxB = t1 + t2 + t3 + t4
 
@@ -530,10 +530,10 @@ CONTAINS
                      SQRT(fourpi/dfac(2*l + 1)* &
                           dfac(2*lx - 1)*dfac(2*ly - 1)*dfac(2*lz - 1))
                   !         write(*,*) 'dfac 1', dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)
-               ENDDO
-            ENDDO
-         ENDDO
-      ENDDO
+               END DO
+            END DO
+         END DO
+      END DO
 
       DO is2 = 1, nsoset(lm2)
          DO l = 0, lm1
@@ -549,10 +549,10 @@ CONTAINS
                      SQRT(fourpi/dfac(2*l + 1)* &
                           dfac(2*lx - 1)*dfac(2*ly - 1)*dfac(2*lz - 1))
                   !          write(*,*) 'dfac 2', dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)
-               ENDDO
-            ENDDO
-         ENDDO
-      ENDDO
+               END DO
+            END DO
+         END DO
+      END DO
 
       DEALLOCATE (work)
 
@@ -636,10 +636,10 @@ CONTAINS
                                     matso(is1, is2)*orbtramat(l)%s2c(iso, ico)* &
                                     SQRT((fourpi)/dfac(2*l + 1)* &
                                          dfac(2*lx - 1)*dfac(2*ly - 1)*dfac(2*lz - 1))
-               ENDDO ! iso
-            ENDDO ! ico
-         ENDDO ! l
-      ENDDO ! is1
+               END DO ! iso
+            END DO ! ico
+         END DO ! l
+      END DO ! is1
 
       !   Calculate C
       DO ic2 = 1, nc2
@@ -655,10 +655,10 @@ CONTAINS
                                     matsc(is1, ic2)*orbtramat(l)%s2c(iso, ico)* &
                                     SQRT((fourpi)/dfac(2*l + 1)* &
                                          dfac(2*lx - 1)*dfac(2*ly - 1)*dfac(2*lz - 1))
-               ENDDO ! iso
-            ENDDO ! ico
-         ENDDO ! l
-      ENDDO ! ic2
+               END DO ! iso
+            END DO ! ico
+         END DO ! l
+      END DO ! ic2
 
       DEALLOCATE (matsc)
 
@@ -683,7 +683,7 @@ CONTAINS
 
       IF (lmax1 > 3 .OR. lmax2 > 3) THEN
          CPABORT("l>3 not implemented")
-      ENDIF
+      END IF
       DO idx_l2 = 1, nsoset(lmax2)
 
          mat_aux(1, idx_l2, :) &
@@ -760,7 +760,7 @@ CONTAINS
          mat_aux(20, idx_l2, :) &
             = s_2root7o16pi*mat(13, idx_l2, :)
 
-      ENDDO
+      END DO
 
       DO idx_l1 = 1, ncoset(lmax1)
 
@@ -838,7 +838,7 @@ CONTAINS
          mat(idx_l1, 20, :) &
             = s_2root7o16pi*mat_aux(idx_l1, 13, :)
 
-      ENDDO
+      END DO
 
    END SUBROUTINE sph2cart_mat
 
@@ -863,7 +863,7 @@ CONTAINS
 
       IF ((lmax1 > 3) .OR. (lmax2 > 3)) THEN
          CPABORT("l > 3 not implemented")
-      ENDIF
+      END IF
 
       DO idx_l2 = 1, ncoset(lmax2)
 
@@ -933,7 +933,7 @@ CONTAINS
             = -s_root35o32pi*mat(11, idx_l2, :) &
               + s_3root35o32pi*mat(13, idx_l2, :)
 
-      ENDDO
+      END DO
 
       DO idx_lm1 = 1, nsoset(lmax1)
 
@@ -1003,7 +1003,7 @@ CONTAINS
             = -s_root35o32pi*mat_aux(idx_lm1, 11, :) &
               + s_3root35o32pi*mat_aux(idx_lm1, 13, :)
 
-      ENDDO
+      END DO
 
    END SUBROUTINE cart2sph_mat
 

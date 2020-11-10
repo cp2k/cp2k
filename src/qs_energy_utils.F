@@ -380,12 +380,12 @@ CONTAINS
             mult = 0.5_dp ! avoid double counting of diagonal blocks
          ELSE
             mult = 1.0_dp
-         ENDIF
+         END IF
          btr = factor*mult*SUM(a_block*b_block)
          atrace(iblock_row) = atrace(iblock_row) + btr
          atrace(iblock_col) = atrace(iblock_col) + btr
 
-      ENDDO
+      END DO
       CALL dbcsr_iterator_stop(iter)
 
    END SUBROUTINE atom_trace
@@ -410,7 +410,7 @@ CONTAINS
                                start_time=qs_env%start_time)
 
          CALL mp2_main(qs_env=qs_env, calc_forces=calc_forces)
-      ENDIF
+      END IF
 
    END SUBROUTINE qs_energies_mp2
 

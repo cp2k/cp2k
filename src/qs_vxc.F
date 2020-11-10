@@ -218,7 +218,7 @@ CONTAINS
             sic_scaling_b_zero = .TRUE.
          ELSE
             sic_scaling_b_zero = .FALSE.
-         ENDIF
+         END IF
 
          IF (PRESENT(pw_env_external)) &
             pw_env => pw_env_external
@@ -287,8 +287,8 @@ CONTAINS
             DO ispin = 1, dft_control%nspins
                CALL pw_axpy(rho_nlcc%pw, rho_r(ispin)%pw, factor)
                CALL pw_axpy(rho_nlcc_g%pw, rho_g(ispin)%pw, factor)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
 
          !
          ! here the rho_r, rho_g, tau is what it should be
@@ -314,8 +314,8 @@ CONTAINS
             DO ispin = 1, dft_control%nspins
                CALL pw_axpy(rho_nlcc%pw, rho_r(ispin)%pw, factor)
                CALL pw_axpy(rho_nlcc_g%pw, rho_g(ispin)%pw, factor)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
 
          ! calclulate non-local vdW functional
          ! only if this XC_SECTION has it
@@ -352,14 +352,14 @@ CONTAINS
             IF (ASSOCIATED(my_vxc_rho)) THEN
                DO ispin = 1, SIZE(my_vxc_rho)
                   my_vxc_rho(ispin)%pw%cr3d = my_vxc_rho(ispin)%pw%cr3d*my_scaling
-               ENDDO
-            ENDIF
+               END DO
+            END IF
             IF (ASSOCIATED(my_vxc_tau)) THEN
                DO ispin = 1, SIZE(my_vxc_tau)
                   my_vxc_tau(ispin)%pw%cr3d = my_vxc_tau(ispin)%pw%cr3d*my_scaling
-               ENDDO
-            ENDIF
-         ENDIF
+               END DO
+            END IF
+         END IF
 
          ! we have pw data for the xc, qs_ks requests coeff structure, here we transfer
          ! pw -> coeff
@@ -425,23 +425,23 @@ CONTAINS
 
             ! and take care of the potential only vxc_rho is taken into account
             IF (.NOT. my_just_energy) THEN
-               vxc_rho(1)%pw%cr3d = vxc_rho(1)%pw%cr3d-dft_control%sic_scaling_b* &
+               vxc_rho(1)%pw%cr3d = vxc_rho(1)%pw%cr3d - dft_control%sic_scaling_b* &
                                     my_vxc_rho(1)%pw%cr3d
-               vxc_rho(2)%pw%cr3d = vxc_rho(2)%pw%cr3d+dft_control%sic_scaling_b* &
+               vxc_rho(2)%pw%cr3d = vxc_rho(2)%pw%cr3d + dft_control%sic_scaling_b* &
                                     my_vxc_rho(1)%pw%cr3d ! 1=m
                CALL pw_release(my_vxc_rho(1)%pw)
                CALL pw_release(my_vxc_rho(2)%pw)
                DEALLOCATE (my_vxc_rho)
-            ENDIF
+            END IF
 
             DO ispin = 1, 2
                CALL pw_pool_give_back_pw(xc_pw_pool, rho_m_rspace(ispin)%pw)
                CALL pw_pool_give_back_pw(xc_pw_pool, rho_m_gspace(ispin)%pw)
-            ENDDO
+            END DO
             DEALLOCATE (rho_m_rspace)
             DEALLOCATE (rho_m_gspace)
 
-         ENDIF
+         END IF
 
          ! now we have - sum_s N_s * Exc(rho_s/N_s,0)
          IF (dft_control%sic_method_id .EQ. sic_ad .AND. .NOT. sic_scaling_b_zero) THEN
@@ -457,7 +457,7 @@ CONTAINS
                CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(ispin)%pw, &
                                       use_data=REALDATA3D, &
                                       in_space=REALSPACE)
-            ENDDO
+            END DO
 
             rho_g(1)%pw => rho_m_gspace(1)%pw
             rho_g(2)%pw => rho_m_gspace(2)%pw
@@ -470,7 +470,7 @@ CONTAINS
                ELSE
                   ! does it matter if there are no electrons with this spin (H) ?
                   nelec_s_inv = 0.0_dp
-               ENDIF
+               END IF
                CALL pw_copy(rho_struct_r(ispin)%pw, rho_m_rspace(1)%pw)
                CALL pw_copy(rho_struct_g(ispin)%pw, rho_m_gspace(1)%pw)
                CALL pw_scale(rho_m_rspace(1)%pw, nelec_s_inv)
@@ -497,22 +497,22 @@ CONTAINS
 
                ! and take care of the potential only vxc_rho is taken into account
                IF (.NOT. my_just_energy) THEN
-                  vxc_rho(ispin)%pw%cr3d = vxc_rho(ispin)%pw%cr3d-dft_control%sic_scaling_b* &
+                  vxc_rho(ispin)%pw%cr3d = vxc_rho(ispin)%pw%cr3d - dft_control%sic_scaling_b* &
                                            my_vxc_rho(1)%pw%cr3d
                   CALL pw_release(my_vxc_rho(1)%pw)
                   CALL pw_release(my_vxc_rho(2)%pw)
                   DEALLOCATE (my_vxc_rho)
-               ENDIF
-            ENDDO
+               END IF
+            END DO
 
             DO ispin = 1, 2
                CALL pw_pool_give_back_pw(xc_pw_pool, rho_m_rspace(ispin)%pw)
                CALL pw_pool_give_back_pw(xc_pw_pool, rho_m_gspace(ispin)%pw)
-            ENDDO
+            END DO
             DEALLOCATE (rho_m_rspace)
             DEALLOCATE (rho_m_gspace)
 
-         ENDIF
+         END IF
 
          ! compute again the xc but now for Exc(n_down,n_down)
          IF (dft_control%sic_method_id .EQ. sic_mauri_us .AND. .NOT. sic_scaling_b_zero) THEN
@@ -521,7 +521,7 @@ CONTAINS
             IF (rho_g_valid) THEN
                rho_g(1)%pw => rho_struct_g(2)%pw
                rho_g(2)%pw => rho_struct_g(2)%pw
-            ENDIF
+            END IF
 
             IF (my_just_energy) THEN
                exc_m = xc_exc_calc(rho_r=rho_r, tau=tau, &
@@ -543,14 +543,14 @@ CONTAINS
             ! and take care of the potential
             IF (.NOT. my_just_energy) THEN
                ! both go to minority spin
-               vxc_rho(2)%pw%cr3d = vxc_rho(2)%pw%cr3d+ &
+               vxc_rho(2)%pw%cr3d = vxc_rho(2)%pw%cr3d + &
                                     2.0_dp*dft_control%sic_scaling_b*my_vxc_rho(1)%pw%cr3d
                CALL pw_release(my_vxc_rho(1)%pw)
                CALL pw_release(my_vxc_rho(2)%pw)
                DEALLOCATE (my_vxc_rho)
-            ENDIF
+            END IF
 
-         ENDIF
+         END IF
 
          !
          ! cleanups
@@ -705,8 +705,8 @@ CONTAINS
             DO ispin = 1, nspins
                CALL pw_axpy(rho_nlcc%pw, rho_r(ispin)%pw, factor)
                CALL pw_axpy(rho_nlcc_g%pw, rho_g(ispin)%pw, factor)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
          NULLIFY (vxc_rho, vxc_tau, exc_r%pw)
          CALL xc_vxc_pw_create1(vxc_rho=vxc_rho, vxc_tau=vxc_tau, rho_r=rho_r, &
                                 rho_g=rho_g, tau=tau_r, exc=exc, &
@@ -721,8 +721,8 @@ CONTAINS
             DO ispin = 1, dft_control%nspins
                CALL pw_axpy(rho_nlcc%pw, rho_r(ispin)%pw, factor)
                CALL pw_axpy(rho_nlcc_g%pw, rho_g(ispin)%pw, factor)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
          !
          ovol = 1.0_dp/xc_den%pw%pw_grid%dvol
          CALL pw_copy(exc_r%pw, xc_den%pw)

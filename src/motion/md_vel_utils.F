@@ -282,7 +282,7 @@ CONTAINS
          factor = my_temp/(2.0_dp*ekin)*REAL(my_nfree, KIND=dp)
       ELSE
          factor = 0.0_dp
-      ENDIF
+      END IF
       ! Note:
       ! this rescaling is still wrong, it should take the masses into account
       ! rescaling is generally not correct, so needs fixing
@@ -1224,7 +1224,7 @@ CONTAINS
       ! copied so that the initial relative core-shell velocity is zero.
       IF (shell_present) THEN
          CALL optimize_shell_core(force_env, part, shell_part, core_part, globenv)
-      ENDIF
+      END IF
    END SUBROUTINE generate_velocities
 
 ! **************************************************************************************************

@@ -378,7 +378,7 @@ CONTAINS
          fn_val = 0.5e0_dp + (0.5e0_dp - x*(top/bot))
          IF (ind /= 0) fn_val = EXP(t)*fn_val
          RETURN
-      ENDIF
+      END IF
 
 !                  0.5 < ABS(X) <= 4
 
@@ -397,19 +397,19 @@ CONTAINS
             fn_val = 2.0e0_dp
             IF (ind /= 0) fn_val = 2.0e0_dp*EXP(x*x)
             RETURN
-         ENDIF
+         END IF
          IF (ind == 0 .AND. (x > 100.0e0_dp .OR. x*x > -dxparg(1))) THEN
             !             LIMIT VALUE FOR LARGE POSITIVE X
             !                       WHEN IND = 0
             fn_val = 0.0e0_dp
             RETURN
-         ENDIF
+         END IF
 
          t = (1.0e0_dp/x)**2
          top = (((r(1)*t + r(2))*t + r(3))*t + r(4))*t + r(5)
          bot = (((s(1)*t + s(2))*t + s(3))*t + s(4))*t + 1.0e0_dp
          fn_val = (c - t*top/bot)/ax
-      ENDIF
+      END IF
 
 !                      FINAL ASSEMBLY
 
@@ -572,11 +572,11 @@ CONTAINS
             fn_val = (EXP(x) - 0.5e0_dp) - 0.5e0_dp
          ELSE
             fn_val = -1.0e0_dp
-         ENDIF
+         END IF
       ELSE
          e = EXP(x)
          fn_val = e*(0.5e0_dp + (0.5e0_dp - 1.0e0_dp/e))
-      ENDIF
+      END IF
 
    END FUNCTION rexp
 
@@ -616,13 +616,13 @@ CONTAINS
          lnx = LOG(x)
       ELSE
          lnx = alnrel(-y)
-      ENDIF
+      END IF
       z = -nu*lnx
       IF (b*z == zero) THEN
          !               THE EXPANSION CANNOT BE COMPUTED
          ierr = 1
          RETURN
-      ENDIF
+      END IF
 
 !                 COMPUTATION OF THE EXPANSION
 !                 SET R = EXP(-Z)*Z**B/GAMMA(B)
@@ -635,7 +635,7 @@ CONTAINS
          !               THE EXPANSION CANNOT BE COMPUTED
          ierr = 1
          RETURN
-      ENDIF
+      END IF
       CALL grat1(b, z, r, q=q, eps=eps)
 
       tol = 15.0e0_dp*eps
@@ -661,7 +661,7 @@ CONTAINS
                s = s + coef*c(i)*d(n - i)
                coef = coef + b
             END DO
-         ENDIF
+         END IF
          d(n) = bm1*cn + s/n
          dj = d(n)*j
          sum = sum + dj
@@ -669,7 +669,7 @@ CONTAINS
             !               THE EXPANSION CANNOT BE COMPUTED
             ierr = 1
             RETURN
-         ENDIF
+         END IF
          IF (ABS(dj) <= tol*(sum + l)) EXIT
       END DO
 
@@ -712,11 +712,11 @@ CONTAINS
          ELSE
             pp = one
             qq = zero
-         ENDIF
+         END IF
          IF (PRESENT(p)) p = pp
          IF (PRESENT(q)) q = qq
          RETURN
-      ENDIF
+      END IF
       IF (a == half) THEN
       IF (x < quarter) THEN
          pp = erf1(SQRT(x))
@@ -728,7 +728,7 @@ CONTAINS
       IF (PRESENT(p)) p = pp
       IF (PRESENT(q)) q = qq
       RETURN
-      ENDIF
+      END IF
       IF (x < 1.1e0_dp) THEN
          !             TAYLOR SERIES FOR P(A,X)/X**A
 
@@ -759,12 +759,12 @@ CONTAINS
                qq = zero
             ELSE
                pp = half + (half - qq)
-            ENDIF
+            END IF
          ELSE
             w = EXP(z)
             pp = w*g*(half + (half - j))
             qq = half + (half - pp)
-         ENDIF
+         END IF
       ELSE
          !              CONTINUED FRACTION EXPANSION
 
@@ -789,7 +789,7 @@ CONTAINS
 
          qq = r*a2n
          pp = half + (half - qq)
-      ENDIF
+      END IF
 
       IF (PRESENT(p)) p = pp
       IF (PRESENT(q)) q = qq
@@ -819,7 +819,7 @@ CONTAINS
          ELSE
             w = mu + x
             fn_val = EXP(w)
-         ENDIF
+         END IF
       ELSE
          IF (mu < 0 .OR. mu + x < 0.0_dp) THEN
             w = mu
@@ -827,8 +827,8 @@ CONTAINS
          ELSE
             w = mu + x
             fn_val = EXP(w)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
    END FUNCTION esum
 
@@ -857,7 +857,7 @@ CONTAINS
          w = (x + 0.5e0_dp) + 0.5e0_dp
          fn_val = x - LOG(w)
          RETURN
-      ENDIF
+      END IF
 
 !                 ARGUMENT REDUCTION
 
@@ -874,7 +874,7 @@ CONTAINS
          u = x
          up2 = u + 2.0e0_dp
          w1 = 0.0e0_dp
-      ENDIF
+      END IF
 
 !                  SERIES EXPANSION
 
@@ -928,7 +928,7 @@ CONTAINS
          t = (1.0e0_dp/a)**2
          w = (((((c5*t + c4)*t + c3)*t + c2)*t + c1)*t + c0)/a
          fn_val = (d + w) + (a - 0.5e0_dp)*(LOG(a) - 1.0e0_dp)
-      ENDIF
+      END IF
 
    END FUNCTION gamln
 
@@ -966,7 +966,7 @@ CONTAINS
          w = (((((r5*x + r4)*x + r3)*x + r2)*x + r1)*x + r0)/ &
              (((((s5*x + s4)*x + s3)*x + s2)*x + s1)*x + 1.0e0_dp)
          fn_val = x*w
-      ENDIF
+      END IF
 
    END FUNCTION gamln1
 
@@ -1050,7 +1050,7 @@ CONTAINS
                !     ERROR RETURN
                fn_val = 0.0e0_dp
                RETURN
-            ENDIF
+            END IF
 !---------------------------------------------------------------------
 !     0 .LT. ABS(X) .LE. XSMALL.  USE 1/X AS A SUBSTITUTE
 !     FOR  PI*COTAN(PI*X)
@@ -1066,7 +1066,7 @@ CONTAINS
             IF (w <= 0.0e0_dp) THEN
                w = -w
                sgn = -sgn
-            ENDIF
+            END IF
 !---------------------------------------------------------------------
 !     MAKE AN ERROR EXIT IF X .LE. -XMAX1
 !---------------------------------------------------------------------
@@ -1074,7 +1074,7 @@ CONTAINS
                !     ERROR RETURN
                fn_val = 0.0e0_dp
                RETURN
-            ENDIF
+            END IF
             nq = INT(w)
             w = w - nq
             nq = INT(w*4.0e0_dp)
@@ -1105,16 +1105,16 @@ CONTAINS
                   !     ERROR RETURN
                   fn_val = 0.0e0_dp
                   RETURN
-               ENDIF
+               END IF
 !---------------------------------------------------------------------
 !     USE COS/SIN AS A SUBSTITUTE FOR COTAN, AND
 !     SIN/COS AS A SUBSTITUTE FOR TAN
 !---------------------------------------------------------------------
                aug = sgn*((COS(z)/SIN(z))*4.0e0_dp)
-            ENDIF
+            END IF
             x = 1.0e0_dp - x
-         ENDIF
-      ENDIF
+         END IF
+      END IF
       IF (x <= 3.0e0_dp) THEN
 !---------------------------------------------------------------------
 !     0.5 .LE. X .LE. 3.0
@@ -1131,7 +1131,7 @@ CONTAINS
          xmx0 = x - dx0
          fn_val = den*xmx0 + aug
          RETURN
-      ENDIF
+      END IF
 !---------------------------------------------------------------------
 !     IF X .GE. XMAX1, PSI = LN(X)
 !---------------------------------------------------------------------
@@ -1149,7 +1149,7 @@ CONTAINS
          END DO
 
          aug = upper/(den + q2(4)) - 0.5e0_dp/x + aug
-      ENDIF
+      END IF
       fn_val = aug + LOG(x)
 
    END FUNCTION psi
@@ -1191,7 +1191,7 @@ CONTAINS
             fn_val = (((-0.5e0_dp*LOG(b) + e) + w) - v) - u
          ELSE
             fn_val = (((-0.5e0_dp*LOG(b) + e) + w) - u) - v
-         ENDIF
+         END IF
 !-----------------------------------------------------------------------
 !                   PROCEDURE WHEN A .LT. 1
 !-----------------------------------------------------------------------
@@ -1200,7 +1200,7 @@ CONTAINS
             fn_val = gamln(a) + (gamln(b) - gamln(a + b))
          ELSE
             fn_val = gamln(a) + algdiv(a, b)
-         ENDIF
+         END IF
 !-----------------------------------------------------------------------
 !                PROCEDURE WHEN 1 .LE. A .LT. 8
 !-----------------------------------------------------------------------
@@ -1208,7 +1208,7 @@ CONTAINS
          IF (b <= 2.0e0_dp) THEN
             fn_val = gamln(a) + gamln(b) - gsumln(a, b)
             RETURN
-         ENDIF
+         END IF
          w = 0.0e0_dp
          IF (b < 8.0e0_dp) THEN
             !                 REDUCTION OF B WHEN B .LT. 8
@@ -1221,7 +1221,7 @@ CONTAINS
             END DO
             fn_val = w + LOG(z) + (gamln(a) + (gamln(b) - gsumln(a, b)))
             RETURN
-         ENDIF
+         END IF
          fn_val = gamln(a) + algdiv(a, b)
 !                REDUCTION OF A WHEN B .LE. 1000
       ELSEIF (b <= 1000.0e0_dp) THEN
@@ -1236,7 +1236,7 @@ CONTAINS
          IF (b >= 8.0e0_dp) THEN
             fn_val = w + gamln(a) + algdiv(a, b)
             RETURN
-         ENDIF
+         END IF
 
          !                 REDUCTION OF B WHEN B .LT. 8
 
@@ -1257,7 +1257,7 @@ CONTAINS
             w = w*(a/(1.0e0_dp + a/b))
          END DO
          fn_val = (LOG(w) - n*LOG(b)) + (gamln(a) + algdiv(a, b))
-      ENDIF
+      END IF
 
    END FUNCTION betaln
 
@@ -1284,7 +1284,7 @@ CONTAINS
          fn_val = gamln1(x) + alnrel(x)
       ELSE
          fn_val = gamln1(x - 1.0e0_dp) + LOG(x*(1.0e0_dp + x))
-      ENDIF
+      END IF
    END FUNCTION gsumln
 
 ! **************************************************************************************************
@@ -1401,24 +1401,24 @@ CONTAINS
       IF (a < 0.0e0_dp .OR. b < 0.0e0_dp) THEN
          ierr = 1
          RETURN
-      ENDIF
+      END IF
       IF (a == 0.0e0_dp .AND. b == 0.0e0_dp) THEN
          ierr = 2
          RETURN
-      ENDIF
+      END IF
       IF (x < 0.0e0_dp .OR. x > 1.0e0_dp) THEN
          ierr = 3
          RETURN
-      ENDIF
+      END IF
       IF (y < 0.0e0_dp .OR. y > 1.0e0_dp) THEN
          ierr = 4
          RETURN
-      ENDIF
+      END IF
       z = ((x + y) - 0.5e0_dp) - 0.5e0_dp
       IF (ABS(z) > 3.0e0_dp*eps) THEN
          ierr = 5
          RETURN
-      ENDIF
+      END IF
 
       ierr = 0
 
@@ -1428,9 +1428,9 @@ CONTAINS
          ELSE
             w = 0.0e0_dp
             w1 = 1.0e0_dp
-         ENDIF
+         END IF
          RETURN
-      ENDIF
+      END IF
 
       IF (y == 0.0e0_dp .OR. b == 0.0e0_dp) THEN
          IF (y == 0.0e0_dp .AND. b == 0.0e0_dp) THEN
@@ -1438,9 +1438,9 @@ CONTAINS
          ELSE
             w = 1.0e0_dp
             w1 = 0.0e0_dp
-         ENDIF
+         END IF
          RETURN
-      ENDIF
+      END IF
 
       eps = MAX(eps, 1.e-15_dp)
       IF (MAX(a, b) < 1.e-3_dp*eps) THEN
@@ -1448,7 +1448,7 @@ CONTAINS
          w = b/(a + b)
          w1 = a/(a + b)
          RETURN
-      ENDIF
+      END IF
 
       ind = 0
       a0 = a
@@ -1465,7 +1465,7 @@ CONTAINS
          b0 = a
          x0 = y
          y0 = x
-      ENDIF
+      END IF
 
       IF (b0 < MIN(eps, eps*a0)) GO TO 80
       IF (a0 < MIN(eps, eps*b0) .AND. b0*x0 <= 1.0e0_dp) GO TO 90
@@ -1489,7 +1489,7 @@ CONTAINS
          lambda = (a + b)*y - b
       ELSE
          lambda = a - (a + b)*x
-      ENDIF
+      END IF
 
       IF (lambda < 0.0e0_dp) THEN
          ind = 1
@@ -1498,7 +1498,7 @@ CONTAINS
          x0 = y
          y0 = x
          lambda = ABS(lambda)
-      ENDIF
+      END IF
 
       IF (b0 < 40.0e0_dp .AND. b0*x0 <= 0.7e0_dp) GO TO 100
       IF (b0 < 40.0e0_dp) GO TO 140
@@ -1601,7 +1601,7 @@ CONTAINS
          t = a*LOG(x)
          IF (t < dxparg(1)) RETURN
          fn_val = EXP(t)
-      ENDIF
+      END IF
 
 !                NOTE THAT 1/B(A,B) = B
 
@@ -1619,7 +1619,7 @@ CONTAINS
          t = x*t
          c = t/an
          s = s + c
-      ENDDO
+      END DO
 
       fn_val = fn_val*(1.0e0_dp + a*s)
 
@@ -1652,7 +1652,7 @@ CONTAINS
          c = LOG(bx) + g + t
       ELSE
          c = LOG(x) + psi(b) + g + t
-      ENDIF
+      END IF
 
       tol = 5.0e0_dp*eps*ABS(c)
       j = 1.0e0_dp
@@ -1665,7 +1665,7 @@ CONTAINS
          t = t*(x - bx/j)
          aj = t/j
          s = s + aj
-      ENDDO
+      END DO
 
       fn_val = -a*(c + s)
 
@@ -1716,7 +1716,7 @@ CONTAINS
                c = c*(b0/(a0 + b0))
             END DO
             u = LOG(c) + u
-         ENDIF
+         END IF
 
          z = a*LOG(x) - u
          b0 = b0 - 1.0e0_dp
@@ -1726,7 +1726,7 @@ CONTAINS
             t = (1.0e0_dp + gam1(u))/apb
          ELSE
             t = 1.0e0_dp + gam1(apb)
-         ENDIF
+         END IF
          fn_val = EXP(z)*(a0/a)*(1.0e0_dp + gam1(b0))/t
       ELSE
 
@@ -1741,11 +1741,11 @@ CONTAINS
             z = (1.0e0_dp + gam1(u))/apb
          ELSE
             z = 1.0e0_dp + gam1(apb)
-         ENDIF
+         END IF
 
          c = (1.0e0_dp + gam1(a))*(1.0e0_dp + gam1(b))/z
          fn_val = fn_val*c*(b/apb)
-      ENDIF
+      END IF
 
 !            PROCEDURE FOR A0 .LT. 1 AND B0 .GE. 8
 
@@ -1807,7 +1807,7 @@ CONTAINS
          IF (k < mu) mu = k
          t = mu
          d = EXP(-t)
-      ENDIF
+      END IF
 
       fn_val = brcmp1(mu, a, b, x, y)/a
       IF (n == 1 .OR. fn_val == 0.0e0_dp) RETURN
@@ -1828,7 +1828,7 @@ CONTAINS
             IF (k == nm1) THEN
                fn_val = fn_val*w
                RETURN
-            ENDIF
+            END IF
          ELSE
             r = (b - 1.0e0_dp)*x/y - a
             IF (r >= 1.0e0_dp) THEN
@@ -1846,10 +1846,10 @@ CONTAINS
                IF (k == nm1) THEN
                   fn_val = fn_val*w
                   RETURN
-               ENDIF
-            ENDIF
-         ENDIF
-      ENDIF
+               END IF
+            END IF
+         END IF
+      END IF
 
 !          ADD THE REMAINING TERMS OF THE SERIES
 
@@ -1917,7 +1917,7 @@ CONTAINS
 !                 TERMINATION
             fn_val = fn_val*r
             RETURN
-         ENDIF
+         END IF
          e = (1.0e0_dp + t)/(c1 + t + t)
          beta = n + w/s + e*(c + n*yp1)
          p = 1.0e0_dp + t
@@ -1937,7 +1937,7 @@ CONTAINS
 !                 TERMINATION
             fn_val = fn_val*r
             RETURN
-         ENDIF
+         END IF
 
 !        RESCALE AN, BN, ANP1, AND BNP1
 
@@ -1945,7 +1945,7 @@ CONTAINS
          bn = bn/bnp1
          anp1 = r
          bnp1 = 1.0e0_dp
-      ENDDO
+      END DO
 
    END FUNCTION bfrac
 
@@ -1991,26 +1991,26 @@ CONTAINS
             x0 = h/(1.0e0_dp + h)
             y0 = 1.0e0_dp/(1.0e0_dp + h)
             lambda = a - (a + b)*x
-         ENDIF
+         END IF
 
          e = -lambda/a
          IF (ABS(e) > 0.6e0_dp) THEN
             u = e - LOG(x/x0)
          ELSE
             u = rlog1(e)
-         ENDIF
+         END IF
 
          e = lambda/b
          IF (ABS(e) > 0.6e0_dp) THEN
             v = e - LOG(y/y0)
          ELSE
             v = rlog1(e)
-         ENDIF
+         END IF
 
          z = EXP(-(a*u + b*v))
          fn_val = const*SQRT(b*x0)*z*EXP(-bcorr(a, b))
          RETURN
-      ENDIF
+      END IF
 
       IF (x > 0.375e0_dp) THEN
          IF (y > 0.375e0_dp) THEN
@@ -2019,18 +2019,18 @@ CONTAINS
          ELSE
             lnx = alnrel(-y)
             lny = LOG(y)
-         ENDIF
+         END IF
       ELSE
          lnx = LOG(x)
          lny = alnrel(-x)
-      ENDIF
+      END IF
 
       z = a*lnx + b*lny
       IF (a0 >= 1.0e0_dp) THEN
          z = z - betaln(a, b)
          fn_val = EXP(z)
          RETURN
-      ENDIF
+      END IF
 !-----------------------------------------------------------------------
 !              PROCEDURE FOR A .LT. 1 OR B .LT. 1
 !-----------------------------------------------------------------------
@@ -2039,7 +2039,7 @@ CONTAINS
 !                   ALGORITHM FOR B0 .GE. 8
          u = gamln1(a0) + algdiv(a0, b0)
          fn_val = a0*EXP(z - u)
-      ENDIF
+      END IF
       IF (b0 <= 1.0e0_dp) THEN
 
 !                   ALGORITHM FOR B0 .LE. 1
@@ -2053,12 +2053,12 @@ CONTAINS
             z = (1.0e0_dp + gam1(u))/apb
          ELSE
             z = 1.0e0_dp + gam1(apb)
-         ENDIF
+         END IF
 
          c = (1.0e0_dp + gam1(a))*(1.0e0_dp + gam1(b))/z
          fn_val = fn_val*(a0*c)/(1.0e0_dp + a0/b0)
          RETURN
-      ENDIF
+      END IF
 
 !                ALGORITHM FOR 1 .LT. B0 .LT. 8
 
@@ -2071,7 +2071,7 @@ CONTAINS
             c = c*(b0/(a0 + b0))
          END DO
          u = LOG(c) + u
-      ENDIF
+      END IF
 
       z = z - u
       b0 = b0 - 1.0e0_dp
@@ -2081,7 +2081,7 @@ CONTAINS
          t = (1.0e0_dp + gam1(u))/apb
       ELSE
          t = 1.0e0_dp + gam1(apb)
-      ENDIF
+      END IF
       fn_val = a0*EXP(z)*(1.0e0_dp + gam1(b0))/t
 
    END FUNCTION brcomp
@@ -2123,7 +2123,7 @@ CONTAINS
             x0 = 1.0e0_dp/(1.0e0_dp + h)
             y0 = h/(1.0e0_dp + h)
             lambda = (a + b)*y - b
-         ENDIF
+         END IF
          h = a/b
          x0 = h/(1.0e0_dp + h)
          y0 = 1.0e0_dp/(1.0e0_dp + h)
@@ -2134,18 +2134,18 @@ CONTAINS
             u = e - LOG(x/x0)
          ELSE
             u = rlog1(e)
-         ENDIF
+         END IF
 
          e = lambda/b
          IF (ABS(e) <= 0.6e0_dp) THEN
             v = rlog1(e)
          ELSE
             v = e - LOG(y/y0)
-         ENDIF
+         END IF
 
          z = esum(mu, -(a*u + b*v))
          fn_val = const*SQRT(b*x0)*z*EXP(-bcorr(a, b))
-      ENDIF
+      END IF
 
       IF (x > 0.375e0_dp) THEN
          IF (y > 0.375e0_dp) THEN
@@ -2154,17 +2154,17 @@ CONTAINS
          ELSE
             lnx = alnrel(-y)
             lny = LOG(y)
-         ENDIF
+         END IF
       ELSE
          lnx = LOG(x)
          lny = alnrel(-x)
-      ENDIF
+      END IF
       z = a*lnx + b*lny
       IF (a0 >= 1.0e0_dp) THEN
          z = z - betaln(a, b)
          fn_val = esum(mu, z)
          RETURN
-      ENDIF
+      END IF
 !-----------------------------------------------------------------------
 !              PROCEDURE FOR A .LT. 1 OR B .LT. 1
 !-----------------------------------------------------------------------
@@ -2175,7 +2175,7 @@ CONTAINS
          u = gamln1(a0) + algdiv(a0, b0)
          fn_val = a0*esum(mu, z - u)
          RETURN
-      ENDIF
+      END IF
       IF (b0 <= 1.0e0_dp) THEN
 
 !                   ALGORITHM FOR B0 .LE. 1
@@ -2189,12 +2189,12 @@ CONTAINS
             z = (1.0e0_dp + gam1(u))/apb
          ELSE
             z = 1.0e0_dp + gam1(apb)
-         ENDIF
+         END IF
 
          c = (1.0e0_dp + gam1(a))*(1.0e0_dp + gam1(b))/z
          fn_val = fn_val*(a0*c)/(1.0e0_dp + a0/b0)
          RETURN
-      ENDIF
+      END IF
 
 !                ALGORITHM FOR 1 .LT. B0 .LT. 8
 
@@ -2207,7 +2207,7 @@ CONTAINS
             c = c*(b0/(a0 + b0))
          END DO
          u = LOG(c) + u
-      ENDIF
+      END IF
 
       z = z - u
       b0 = b0 - 1.0e0_dp
@@ -2217,7 +2217,7 @@ CONTAINS
          t = (1.0e0_dp + gam1(u))/apb
       ELSE
          t = 1.0e0_dp + gam1(apb)
-      ENDIF
+      END IF
       fn_val = a0*esum(mu, z)*(1.0e0_dp + gam1(b0))/t
 
    END FUNCTION brcmp1
@@ -2270,7 +2270,7 @@ CONTAINS
          r0 = 1.0e0_dp/(1.0e0_dp + h)
          r1 = (b - a)/b
          w0 = 1.0e0_dp/SQRT(a*(1.0e0_dp + h))
-      ENDIF
+      END IF
 
 20    f = a*rlog1(-lambda/a) + b*rlog1(lambda/b)
       t = EXP(-f)

@@ -182,8 +182,8 @@ CONTAINS
                                           typo_matching_rank, typo_matching_line, bonus=0)
                   DO imatch = 1, SIZE(typo_matching_rank)
                      WRITE (output_unit, '(T2,A,1X,I0)') TRIM(typo_matching_line(imatch))//" score: ", typo_matching_rank(imatch)
-                  ENDDO
-               ENDIF
+                  END DO
+               END IF
                CALL cp_abort(__LOCATION__, &
                              "unknown subsection "//TRIM(token(2:))//" of section " &
                              //TRIM(section%name))
@@ -243,8 +243,8 @@ CONTAINS
                         DO imatch = 1, SIZE(typo_matching_rank)
                            WRITE (output_unit, '(T2,A,1X,I0)') &
                               TRIM(typo_matching_line(imatch))//" score: ", typo_matching_rank(imatch)
-                        ENDDO
-                     ENDIF
+                        END DO
+                     END IF
                      CALL cp_abort(__LOCATION__, &
                                    "found an unknown keyword "//TRIM(token)// &
                                    " in section "//TRIM(section%name))
@@ -292,7 +292,7 @@ CONTAINS
                            last_val => previous_last
                         ELSE
                            previous_list => last_val
-                        ENDIF
+                        END IF
                         DO WHILE (ASSOCIATED(last_val%rest))
                            last_val => last_val%rest
                         END DO
@@ -628,7 +628,7 @@ CONTAINS
          CALL parser_get_object(parser, info)
          CALL cp_abort(__LOCATION__, &
                        "found unexpected extra argument "//TRIM(info)//" at "//location)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 

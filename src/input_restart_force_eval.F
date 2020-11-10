@@ -128,8 +128,8 @@ CONTAINS
                                                              i_rep_section=i_force_eval(iforce_eval))
                CALL update_subsys(subsys_section, force_env, skip_vel_section, &
                                   write_binary_restart_file)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
       END IF
 
       rng_section => section_vals_get_subs_vals(subsys_section, "RNG_INIT")
@@ -412,7 +412,7 @@ CONTAINS
       IF (use_ref_cell) THEN
          work_section => section_vals_get_subs_vals(subsys_section, "CELL%CELL_REF")
          CALL update_cell_section(cell, cell_section=work_section)
-      ENDIF
+      END IF
 
       ! Updating multipoles
       IF (ASSOCIATED(multipoles)) THEN

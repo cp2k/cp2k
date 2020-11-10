@@ -464,13 +464,13 @@ CONTAINS
       END DO Radius
       IF (ASSOCIATED(xdat)) THEN
          DEALLOCATE (xdat)
-      ENDIF
+      END IF
       IF (ASSOCIATED(ydat)) THEN
          DEALLOCATE (ydat)
-      ENDIF
+      END IF
       IF (ASSOCIATED(zdat)) THEN
          DEALLOCATE (zdat)
-      ENDIF
+      END IF
       CALL timestop(handle2)
       CALL timeset(routineNb//"_R", handle2)
       IF (periodic) THEN

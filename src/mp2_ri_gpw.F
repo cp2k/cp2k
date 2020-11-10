@@ -147,10 +147,10 @@ CONTAINS
                IF ((.NOT. ALLOCATED(mp2_env%ri_grad%P_ij_beta)) &
                    .AND. (.NOT. ALLOCATED(mp2_env%ri_grad%P_ab_beta))) THEN
                   my_beta_beta_case = .TRUE.
-               ENDIF
-            ENDIF
-         ENDIF
-      ENDIF
+               END IF
+            END IF
+         END IF
+      END IF
 
       my_alpha_beta_case = .FALSE.
       IF (PRESENT(BIb_C_beta) .AND. &
@@ -159,7 +159,7 @@ CONTAINS
           PRESENT(Eigenval_beta)) THEN
          my_alpha_beta_case = .TRUE.
          my_alpha_alpha_case = .FALSE.
-      ENDIF
+      END IF
 
       IF (my_alpha_beta_case) amp_fac = 1.0_dp
 
@@ -225,7 +225,7 @@ CONTAINS
                               local_j_aL, calc_forces, Y_i_aP, Y_j_aP_beta, &
                               my_alpha_beta_case, &
                               my_beta_beta_case, local_ba, virtual_beta)
-      ENDIF
+      END IF
 
       CALL timeset(routineN//"_RI_loop", handle2)
       null_mat_rec = 0.0_dp
@@ -395,7 +395,7 @@ CONTAINS
                   local_ab = 0.0_dp
                   IF ((my_alpha_beta_case) .AND. (calc_forces)) THEN
                      local_ba = 0.0_dp
-                  ENDIF
+                  END IF
                   t_start = m_walltime()
                   CALL dgemm('T', 'N', my_B_size, my_B_size_beta, dimen_RI, 1.0_dp, &
                              local_i_aL(:, :, iiB), dimen_RI, local_j_aL(:, :, jjB), dimen_RI, &
@@ -414,7 +414,7 @@ CONTAINS
                      actual_flop_rate = 2.0_dp*my_B_size*my_B_size_beta*REAL(dimen_RI, KIND=dp)/(MAX(0.01_dp, t_end - t_start))
                      my_flop_rate = my_flop_rate + actual_flop_rate
                      my_num_dgemm_call = my_num_dgemm_call + 1
-                  ENDIF
+                  END IF
                   ! ... and from the other of my subgroup
                   DO proc_shift = 1, para_env_sub%num_pe - 1
                      proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
@@ -462,7 +462,7 @@ CONTAINS
                         my_num_dgemm_call = my_num_dgemm_call + 1
 
                         DEALLOCATE (external_i_aL)
-                     ENDIF
+                     END IF
 
                   END DO
                   CALL timestop(handle3)
@@ -564,7 +564,7 @@ CONTAINS
                                                 my_beta_beta_case, Y_i_aP, Y_j_aP_beta, Eigenval_beta, homo_beta, my_B_size_beta, &
                                                 gd_B_virtual_beta, &
                                                 my_B_virtual_start_beta, my_B_virtual_end_beta, virtual_beta, local_ba)
-                     ENDIF
+                     END IF
 
                   END IF
 
@@ -636,7 +636,7 @@ CONTAINS
                                            ij_map, ranges_info_array, Y_i_aP, Y_j_aP_beta, para_env_exchange, &
                                            null_mat_rec, null_mat_send, gd_array%sizes, my_alpha_alpha_case, my_beta_beta_case, &
                                            my_alpha_beta_case, my_open_shell_ss, my_B_size_beta)
-            ENDIF
+            END IF
          END IF
 
       END DO
@@ -653,14 +653,14 @@ CONTAINS
             DEALLOCATE (Y_j_aP)
          ELSE
             DEALLOCATE (Y_j_aP_beta)
-         ENDIF
+         END IF
          IF (ALLOCATED(t_ab)) THEN
             DEALLOCATE (t_ab)
-         ENDIF
+         END IF
          ! Deallocate additional integrals: alpha_beta case with forces
          IF (ALLOCATED(local_ba)) THEN
             DEALLOCATE (local_ba)
-         ENDIF
+         END IF
 
          ! here we check if there are almost degenerate ij
          ! pairs and we update P_ij with these contribution.
@@ -687,7 +687,7 @@ CONTAINS
                sub_proc_map, integ_group_pos2color_sub, local_ab, BIb_C_beta, my_B_size_beta, &
                gd_B_virtual_beta, my_B_virtual_start_beta, &
                virtual_beta, homo_beta, Eigenval_beta, my_B_virtual_end_beta)
-         ENDIF
+         END IF
 
       END IF
 
@@ -711,7 +711,7 @@ CONTAINS
             IF (my_alpha_beta_case) CALL mp_sum(mp2_env%ri_grad%P_ab_beta, para_env_P%group)
             ! release para_env_P
             CALL cp_para_env_release(para_env_P)
-         ENDIF
+         END IF
 
          ! recover original information (before replication)
          DEALLOCATE (gd_array%sizes)
@@ -740,7 +740,7 @@ CONTAINS
                END DO
             END DO
             DEALLOCATE (BIb_C_beta)
-         ENDIF
+         END IF
 
          ! sum Gamma and dereplicate
          ALLOCATE (BIb_C(homo, my_B_size, my_group_L_size))
@@ -760,20 +760,20 @@ CONTAINS
                                 proc_send, BIb_C, proc_receive, para_env_rep%group)
                mp2_env%ri_grad%Gamma_P_ia(1:homo, 1:my_B_size, 1:my_group_L_size) = &
                   mp2_env%ri_grad%Gamma_P_ia(1:homo, 1:my_B_size, 1:my_group_L_size) + BIb_C
-            ENDIF
+            END IF
             ! Beta-beta
             IF (my_beta_beta_case) THEN
                CALL mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia_beta(1:homo, 1:my_B_size, start_point:end_point), &
                                 proc_send, BIb_C, proc_receive, para_env_rep%group)
                mp2_env%ri_grad%Gamma_P_ia_beta(1:homo, 1:my_B_size, 1:my_group_L_size) = &
                   mp2_env%ri_grad%Gamma_P_ia_beta(1:homo, 1:my_B_size, 1:my_group_L_size) + BIb_C
-            ENDIF
+            END IF
             IF (my_alpha_beta_case) THEN ! Beta-beta part of alpha-beta case
                CALL mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia_beta(1:homo_beta, 1:my_B_size_beta, start_point:end_point), &
                                 proc_send, BIb_C_beta, proc_receive, para_env_rep%group)
                mp2_env%ri_grad%Gamma_P_ia_beta(1:homo_beta, 1:my_B_size_beta, 1:my_group_L_size) = &
                   mp2_env%ri_grad%Gamma_P_ia_beta(1:homo_beta, 1:my_B_size_beta, 1:my_group_L_size) + BIb_C_beta
-            ENDIF
+            END IF
 
          END DO
          IF (.NOT. my_open_shell_ss) THEN
@@ -788,13 +788,13 @@ CONTAINS
                ALLOCATE (mp2_env%ri_grad%Gamma_P_ia_beta(homo_beta, my_B_size_beta, my_group_L_size))
                mp2_env%ri_grad%Gamma_P_ia_beta(:, :, :) = BIb_C_beta
                DEALLOCATE (BIb_C_beta)
-            ENDIF
-         ENDIF
+            END IF
+         END IF
          ! For open shell systems, we need to pass Bib_C through the subroutine in alpha-alpha and beta-beta case.
          ! Only for forces, as IF suggests! Here we deallocate it, but restore after complete_gamma
          IF (my_open_shell_ss) THEN
             DEALLOCATE (BIb_C)
-         ENDIF
+         END IF
 
          IF (.NOT. my_open_shell_ss) THEN
             CALL complete_gamma(mp2_env, B_ia_Q, dimen_RI, homo, virtual, para_env, para_env_sub, ngroup, &
@@ -807,8 +807,8 @@ CONTAINS
                                    ngroup, my_group_L_size, my_group_L_start, my_group_L_end, &
                                    my_B_size_beta, my_B_virtual_start_beta, &
                                    gd_array, gd_B_virtual_beta, sub_proc_map, .FALSE.)
-            ENDIF
-         ENDIF
+            END IF
+         END IF
          ! Here we restore BIb_C
          IF (my_open_shell_ss) THEN
             ALLOCATE (BIb_C(my_group_L_size, my_B_size, homo))
@@ -820,7 +820,7 @@ CONTAINS
                      B_ia_Q(jjB, iiB, 1:my_group_L_size)
                END DO
             END DO
-         ENDIF
+         END IF
 
       END IF
 
@@ -1083,15 +1083,15 @@ CONTAINS
                mp2_env%ri_grad%P_ab_beta = 0.0_dp
                ALLOCATE (mp2_env%ri_grad%Gamma_P_ia_beta(homo, my_B_size_beta, my_group_L_size))
                mp2_env%ri_grad%Gamma_P_ia_beta = 0.0_dp
-            ENDIF
-         ENDIF
+            END IF
+         END IF
          IF (.NOT. alpha_beta) THEN
             ! For non-alpha-beta case we need amplitudes
             ALLOCATE (t_ab(virtual, my_B_size_beta))
          ELSE
             ! We need more integrals
             ALLOCATE (local_ba(virtual_beta, my_B_size))
-         ENDIF
+         END IF
       END IF
       !
 
@@ -1597,7 +1597,7 @@ CONTAINS
          factor = 1.0_dp
       ELSE
          factor = 2.0_dp
-      ENDIF
+      END IF
       ! divide the (ia|jb) integrals by Delta_ij^ab
       IF (.NOT. alpha_beta) THEN
          DO b = 1, my_B_size
@@ -1627,7 +1627,7 @@ CONTAINS
                (Eigenval_beta(homo_beta + a) + Eigenval(homo + b_global) - Eigenval(my_i + iiB - 1) - Eigenval_beta(my_j + jjB - 1))
             END DO
          END DO
-      ENDIF
+      END IF
 
       ! P_ab and add diagonal part of P_ij
 
@@ -1638,7 +1638,7 @@ CONTAINS
                     1.0_dp, mp2_env%ri_grad%P_ab(1:my_B_size, my_B_virtual_start:my_B_virtual_end), my_B_size)
          mp2_env%ri_grad%P_ij(my_i + iiB - 1, my_i + iiB - 1) = &
             mp2_env%ri_grad%P_ij(my_i + iiB - 1, my_i + iiB - 1) + P_ij_diag
-      ENDIF
+      END IF
       ! Beta_beta case
       IF (beta_beta) THEN
          CALL dgemm('T', 'N', my_B_size, my_B_size, virtual, 1.0_dp, &
@@ -1646,7 +1646,7 @@ CONTAINS
                     1.0_dp, mp2_env%ri_grad%P_ab_beta(1:my_B_size, my_B_virtual_start:my_B_virtual_end), my_B_size)
          mp2_env%ri_grad%P_ij_beta(my_i + iiB - 1, my_i + iiB - 1) = &
             mp2_env%ri_grad%P_ij_beta(my_i + iiB - 1, my_i + iiB - 1) + P_ij_diag
-      ENDIF
+      END IF
       ! Alpha_beta case
       IF (alpha_beta) THEN
          CALL dgemm('T', 'N', my_B_size, my_B_size, virtual_beta, 1.0_dp, &
@@ -1661,7 +1661,7 @@ CONTAINS
                                               my_B_virtual_end_beta), my_B_size_beta)
          mp2_env%ri_grad%P_ij_beta(my_j + jjB - 1, my_j + jjB - 1) = &
             mp2_env%ri_grad%P_ij_beta(my_j + jjB - 1, my_j + jjB - 1) + P_ij_diag
-      ENDIF
+      END IF
       ! The summation is over unique pairs. In alpha-beta case, all pairs are unique: subroutine is called for
       ! both i^alpha,j^beta and i^beta,j^alpha. Formally, my_i can be equal to my_j, but they are different
       ! due to spin in alpha-beta case.
@@ -1674,7 +1674,7 @@ CONTAINS
                        1.0_dp, mp2_env%ri_grad%P_ab(1:my_B_size, 1:virtual), my_B_size)
             mp2_env%ri_grad%P_ij(my_j + jjB - 1, my_j + jjB - 1) = &
                mp2_env%ri_grad%P_ij(my_j + jjB - 1, my_j + jjB - 1) + P_ij_diag
-         ENDIF
+         END IF
          ! Beta_beta_case
          IF (beta_beta) THEN
             CALL dgemm('N', 'T', my_B_size, virtual, my_B_size, 1.0_dp, &
@@ -1683,7 +1683,7 @@ CONTAINS
                        1.0_dp, mp2_env%ri_grad%P_ab_beta(1:my_B_size, 1:virtual), my_B_size)
             mp2_env%ri_grad%P_ij_beta(my_j + jjB - 1, my_j + jjB - 1) = &
                mp2_env%ri_grad%P_ij_beta(my_j + jjB - 1, my_j + jjB - 1) + P_ij_diag
-         ENDIF
+         END IF
       END IF
       DO proc_shift = 1, para_env_sub%num_pe - 1
          proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
@@ -1695,7 +1695,7 @@ CONTAINS
          ELSE ! Alpha-beta case
             CALL get_group_dist(gd_B_virtual_beta, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
             CALL get_group_dist(gd_B_virtual_beta, proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
-         ENDIF
+         END IF
 
          ALLOCATE (external_ab(virtual, rec_B_size))
          external_ab = 0.0_dp
@@ -1708,7 +1708,7 @@ CONTAINS
             CALL mp_sendrecv(local_ab(1:virtual, 1:my_B_size_beta), proc_send, &
                              external_ab(1:virtual, 1:rec_B_size), proc_receive, &
                              para_env_sub%group)
-         ENDIF
+         END IF
 
          ! Alpha-alpha or closed-shell case
          IF (((.NOT. open_ss) .AND. (.NOT. alpha_beta)) .OR. alpha_alpha) &
@@ -1745,7 +1745,7 @@ CONTAINS
             CALL dgemm('T', 'N', my_B_size, rec_B_size, virtual_beta, 1.0_dp, &
                        local_ba(:, :), virtual_beta, external_ab(:, :), virtual_beta, &
                        1.0_dp, mp2_env%ri_grad%P_ab(1:my_B_size, rec_B_virtual_start:rec_B_virtual_end), my_B_size)
-         ENDIF
+         END IF
 
          DEALLOCATE (external_ab)
 
@@ -1798,7 +1798,7 @@ CONTAINS
                     local_i_aL(1:dimen_RI, 1:my_B_size, jjB), dimen_RI, &
                     1.0_dp, Y_j_aP(1:my_B_size_beta, 1:dimen_RI, jjB), my_B_size_beta)
 
-      ENDIF
+      END IF
 
       ALLOCATE (external_ab(my_B_size, dimen_RI))
       external_ab = 0.0_dp
@@ -1837,7 +1837,7 @@ CONTAINS
             Y_i_aP(1:my_B_size, 1:dimen_RI, iiB) = &
                Y_i_aP(1:my_B_size, 1:dimen_RI, iiB) + external_ab
             DEALLOCATE (send_ab)
-         ENDIF
+         END IF
       END DO
       DEALLOCATE (external_ab)
 
@@ -1864,7 +1864,7 @@ CONTAINS
 
          END DO
          DEALLOCATE (external_ab)
-      ENDIF
+      END IF
 
       IF ((my_i /= my_j) .AND. (.NOT. alpha_beta)) THEN
          ! Alpha-alpha, beta-beta and closed shell
@@ -1985,12 +1985,12 @@ CONTAINS
                      mp2_env%ri_grad%Gamma_P_ia(my_i + iiB - 1, 1:my_B_size, kkk) = &
                         mp2_env%ri_grad%Gamma_P_ia(my_i + iiB - 1, 1:my_B_size, kkk) + &
                         Y_i_aP(1:my_B_size, lll, iiB)
-                  ENDIF
+                  END IF
                   IF (beta_beta) THEN
                      mp2_env%ri_grad%Gamma_P_ia_beta(my_i + iiB - 1, 1:my_B_size, kkk) = &
                         mp2_env%ri_grad%Gamma_P_ia_beta(my_i + iiB - 1, 1:my_B_size, kkk) + &
                         Y_i_aP(1:my_B_size, lll, iiB)
-                  ENDIF
+                  END IF
                END DO
 !$OMP           END PARALLEL DO
             END DO
@@ -2006,12 +2006,12 @@ CONTAINS
                         mp2_env%ri_grad%Gamma_P_ia(my_j + jjB - 1, 1:my_B_size, kkk) = &
                            mp2_env%ri_grad%Gamma_P_ia(my_j + jjB - 1, 1:my_B_size, kkk) + &
                            Y_j_aP(1:my_B_size, lll, jjB)
-                     ENDIF
+                     END IF
                      IF (beta_beta) THEN
                         mp2_env%ri_grad%Gamma_P_ia_beta(my_j + jjB - 1, 1:my_B_size, kkk) = &
                            mp2_env%ri_grad%Gamma_P_ia_beta(my_j + jjB - 1, 1:my_B_size, kkk) + &
                            Y_j_aP(1:my_B_size, lll, jjB)
-                     ENDIF
+                     END IF
                   END DO
 !$OMP              END PARALLEL DO
                ELSE
@@ -2023,9 +2023,9 @@ CONTAINS
                      mp2_env%ri_grad%Gamma_P_ia_beta(my_j + jjB - 1, 1:my_B_size_beta, kkk) = &
                         mp2_env%ri_grad%Gamma_P_ia_beta(my_j + jjB - 1, 1:my_B_size_beta, kkk) + &
                         Y_j_aP(1:my_B_size_beta, lll, jjB)
-                  ENDDO
+                  END DO
 !$OMP              END PARALLEL DO
-               ENDIF
+               END IF
             END DO
          END DO
          CALL timestop(handle2)
@@ -2042,7 +2042,7 @@ CONTAINS
             ELSE
                ALLOCATE (BI_C_send(my_block_size, my_B_size, send_L_size))
                ALLOCATE (BI_C_send_beta(my_block_size, my_B_size_beta, send_L_size))
-            ENDIF
+            END IF
             CALL timeset(routineN//"_comm2_w", handle2)
             BI_C_send = 0.0_dp
             IF (alpha_beta) BI_C_send_beta = 0.0_dp
@@ -2080,7 +2080,7 @@ CONTAINS
                         BI_C_send_beta(jjB, 1:my_B_size_beta, kkk) = Y_j_aP(1:my_B_size_beta, lll, jjB)
                      END DO
 !$OMP                END PARALLEL DO
-                  ENDIF
+                  END IF
                END DO
             END DO
             CALL timestop(handle2)
@@ -2101,7 +2101,7 @@ CONTAINS
                ELSE
                   ALLOCATE (BI_C_rec(rec_block_size, my_B_size, my_group_L_size))
                   ALLOCATE (BI_C_rec_beta(rec_block_size, my_B_size_beta, my_group_L_size))
-               ENDIF
+               END IF
 
                BI_C_rec = 0.0_dp
                IF (alpha_beta) BI_C_rec_beta = 0.0_dp
@@ -2113,7 +2113,7 @@ CONTAINS
                   CALL mp_sendrecv(BI_C_send_beta, proc_send, &
                                    BI_C_rec_beta, proc_receive, &
                                    para_env_exchange%group)
-               ENDIF
+               END IF
 
                CALL timeset(routineN//"_comm2_w", handle2)
                DO irep = 0, num_integ_group - 1
@@ -2131,12 +2131,12 @@ CONTAINS
                            mp2_env%ri_grad%Gamma_P_ia(rec_i + iiB - 1, 1:my_B_size, kkk) = &
                               mp2_env%ri_grad%Gamma_P_ia(rec_i + iiB - 1, 1:my_B_size, kkk) + &
                               BI_C_rec(iiB, 1:my_B_size, kkk)
-                        ENDIF
+                        END IF
                         IF (beta_beta) THEN
                            mp2_env%ri_grad%Gamma_P_ia_beta(rec_i + iiB - 1, 1:my_B_size, kkk) = &
                               mp2_env%ri_grad%Gamma_P_ia_beta(rec_i + iiB - 1, 1:my_B_size, kkk) + &
                               BI_C_rec(iiB, 1:my_B_size, kkk)
-                        ENDIF
+                        END IF
                      END DO
 !$OMP               END PARALLEL DO
                   END DO
@@ -2151,12 +2151,12 @@ CONTAINS
                               mp2_env%ri_grad%Gamma_P_ia(rec_j + jjB - 1, 1:my_B_size, kkk) = &
                                  mp2_env%ri_grad%Gamma_P_ia(rec_j + jjB - 1, 1:my_B_size, kkk) + &
                                  BI_C_rec(jjB + rec_block_size, 1:my_B_size, kkk)
-                           ENDIF
+                           END IF
                            IF (beta_beta) THEN
                               mp2_env%ri_grad%Gamma_P_ia_beta(rec_j + jjB - 1, 1:my_B_size, kkk) = &
                                  mp2_env%ri_grad%Gamma_P_ia_beta(rec_j + jjB - 1, 1:my_B_size, kkk) + &
                                  BI_C_rec(jjB + rec_block_size, 1:my_B_size, kkk)
-                           ENDIF
+                           END IF
                         END DO
 !$OMP                   END PARALLEL DO
                      ELSE
@@ -2169,7 +2169,7 @@ CONTAINS
                               BI_C_rec_beta(jjB, 1:my_B_size_beta, kkk)
                         END DO
 !$OMP                   END PARALLEL DO
-                     ENDIF
+                     END IF
                   END DO
                END DO
                CALL timestop(handle2)
@@ -2187,7 +2187,7 @@ CONTAINS
                   CALL mp_sendrecv(BI_C_send_beta, proc_send, &
                                    null_mat_rec, proc_receive, &
                                    para_env_exchange%group)
-               ENDIF
+               END IF
 
             END IF
 
@@ -2216,7 +2216,7 @@ CONTAINS
                ELSE
                   ALLOCATE (BI_C_rec(rec_block_size, my_B_size, my_group_L_size))
                   ALLOCATE (BI_C_rec_beta(rec_block_size, my_B_size_beta, my_group_L_size))
-               ENDIF
+               END IF
 
                BI_C_rec = 0.0_dp
                IF (alpha_beta) BI_C_rec_beta = 0.0_dp
@@ -2228,7 +2228,7 @@ CONTAINS
                   CALL mp_sendrecv(null_mat_send, proc_send, &
                                    BI_C_rec_beta, proc_receive, &
                                    para_env_exchange%group)
-               ENDIF
+               END IF
 
                CALL timeset(routineN//"_comm2_w", handle2)
                DO irep = 0, num_integ_group - 1
@@ -2246,12 +2246,12 @@ CONTAINS
                            mp2_env%ri_grad%Gamma_P_ia(rec_i + iiB - 1, 1:my_B_size, kkk) = &
                               mp2_env%ri_grad%Gamma_P_ia(rec_i + iiB - 1, 1:my_B_size, kkk) + &
                               BI_C_rec(iiB, 1:my_B_size, kkk)
-                        ENDIF
+                        END IF
                         IF (beta_beta) THEN
                            mp2_env%ri_grad%Gamma_P_ia_beta(rec_i + iiB - 1, 1:my_B_size, kkk) = &
                               mp2_env%ri_grad%Gamma_P_ia_beta(rec_i + iiB - 1, 1:my_B_size, kkk) + &
                               BI_C_rec(iiB, 1:my_B_size, kkk)
-                        ENDIF
+                        END IF
                      END DO
 !$OMP               END PARALLEL DO
                   END DO
@@ -2266,12 +2266,12 @@ CONTAINS
                               mp2_env%ri_grad%Gamma_P_ia(rec_j + jjB - 1, 1:my_B_size, kkk) = &
                                  mp2_env%ri_grad%Gamma_P_ia(rec_j + jjB - 1, 1:my_B_size, kkk) + &
                                  BI_C_rec(jjB + rec_block_size, 1:my_B_size, kkk)
-                           ENDIF
+                           END IF
                            IF (beta_beta) THEN
                               mp2_env%ri_grad%Gamma_P_ia_beta(rec_j + jjB - 1, 1:my_B_size, kkk) = &
                                  mp2_env%ri_grad%Gamma_P_ia_beta(rec_j + jjB - 1, 1:my_B_size, kkk) + &
                                  BI_C_rec(jjB + rec_block_size, 1:my_B_size, kkk)
-                           ENDIF
+                           END IF
                         END DO
 !$OMP                  END PARALLEL DO
                      ELSE
@@ -2284,7 +2284,7 @@ CONTAINS
                               BI_C_rec_beta(jjB, 1:my_B_size_beta, kkk)
                         END DO
 !$OMP                  END PARALLEL DO
-                     ENDIF
+                     END IF
                   END DO
                END DO
                CALL timestop(handle2)
@@ -2301,7 +2301,7 @@ CONTAINS
                   CALL mp_sendrecv(null_mat_send, proc_send, &
                                    null_mat_rec, proc_receive, &
                                    para_env_exchange%group)
-               ENDIF
+               END IF
 
             END IF
          END DO
@@ -2418,7 +2418,7 @@ CONTAINS
          CALL Find_quasi_degenerate_ij(my_ijk, homo, Eigenval, mp2_env, ijk_map, unit_nr, ngroup, &
                                        beta_beta, alpha_beta, para_env_exchange, num_ijk, max_ijk, color_sub, &
                                        Eigenval_beta, homo_beta, ijk_map_beta, num_ijk_beta, max_ijk_beta, my_ijk_beta)
-      ENDIF
+      END IF
 
       ! Set amplitude factor
       amp_fac = 2.0_dp
@@ -2435,14 +2435,14 @@ CONTAINS
                size_B_k = my_B_size_beta
             ELSE
                size_B_k = my_B_size
-            ENDIF
+            END IF
          ELSE
             size_B_i = my_B_size_beta
             size_B_j = my_B_size_beta
             size_B_k = my_B_size
             my_virtual = virtual_beta
             max_ijk_loop = max_ijk_beta
-         ENDIF
+         END IF
 
          ALLOCATE (local_i_aL(dimen_RI, size_B_i, 1))
          ALLOCATE (local_j_aL(dimen_RI, size_B_j, 1))
@@ -2462,7 +2462,7 @@ CONTAINS
                   my_i = ijk_map_beta(ijk_counter, 1)
                   my_j = ijk_map_beta(ijk_counter, 2)
                   my_k = ijk_map_beta(ijk_counter, 3)
-               ENDIF
+               END IF
 
                local_i_aL = 0.0_dp
                local_j_al = 0.0_dp
@@ -2486,8 +2486,8 @@ CONTAINS
                         local_i_aL(Lstart_pos:Lend_pos, 1:size_B_i, 1) = BIb_C_beta(start_point:end_point, 1:size_B_i, my_i)
                         local_j_aL(Lstart_pos:Lend_pos, 1:size_B_j, 1) = BIb_C_beta(start_point:end_point, 1:size_B_j, my_j)
                         local_k_aL(Lstart_pos:Lend_pos, 1:size_B_k, 1) = BIb_C(start_point:end_point, 1:size_B_k, my_k)
-                     ENDIF
-                  ENDIF
+                     END IF
+                  END IF
                END DO
 
                DO proc_shift = 1, para_env_exchange%num_pe - 1
@@ -2512,7 +2512,7 @@ CONTAINS
                         send_i = ijk_map_beta(ijk_counter_send, 1)
                         send_j = ijk_map_beta(ijk_counter_send, 2)
                         send_k = ijk_map_beta(ijk_counter_send, 3)
-                     ENDIF
+                     END IF
                   END IF
 
                   ! occupied i
@@ -2526,7 +2526,7 @@ CONTAINS
                         CALL mp_sendrecv(BIb_C_beta(1:my_group_L_size, 1:size_B_i, send_i), proc_send, &
                                          BI_C_rec(1:rec_L_size, 1:size_B_i, 1), proc_receive, &
                                          para_env_exchange%group)
-                     ENDIF
+                     END IF
                   ELSE
                      ! nothing to send
                      CALL mp_sendrecv(null_mat_send, proc_send, &
@@ -2553,7 +2553,7 @@ CONTAINS
                         CALL mp_sendrecv(BIb_C_beta(1:my_group_L_size, 1:size_B_j, send_j), proc_send, &
                                          BI_C_rec(1:rec_L_size, 1:size_B_j, 1), proc_receive, &
                                          para_env_exchange%group)
-                     ENDIF
+                     END IF
                   ELSE
                      ! nothing to send
                      CALL mp_sendrecv(null_mat_send, proc_send, &
@@ -2584,13 +2584,13 @@ CONTAINS
                            CALL mp_sendrecv(BIb_C_beta(1:my_group_L_size, 1:size_B_k, send_k), proc_send, &
                                             BI_C_rec(1:rec_L_size, 1:size_B_k, 1), proc_receive, &
                                             para_env_exchange%group)
-                        ENDIF
+                        END IF
                      ELSE ! For beta_beta density, the size is different now
                         BI_C_rec = 0.0_dp
                         CALL mp_sendrecv(BIb_C(1:my_group_L_size, 1:size_B_k, send_k), proc_send, &
                                          BI_C_rec(1:rec_L_size, 1:size_B_k, 1), proc_receive, &
                                          para_env_exchange%group)
-                     ENDIF
+                     END IF
                   ELSE
                      ! nothing to send
                      BI_C_rec = 0.0_dp
@@ -2624,7 +2624,7 @@ CONTAINS
                   CALL dgemm('T', 'N', size_B_i, size_B_k, dimen_RI, 1.0_dp, &
                              local_i_aL(:, :, 1), dimen_RI, local_k_aL(:, :, 1), dimen_RI, &
                              0.0_dp, local_ab(my_B_virtual_start:my_B_virtual_end, 1:size_B_k), size_B_i)
-               ENDIF
+               END IF
                DO proc_shift = 1, para_env_sub%num_pe - 1
                   proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
                   proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
@@ -2633,7 +2633,7 @@ CONTAINS
                      CALL get_group_dist(gd_B_virtual, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
                   ELSE
                      CALL get_group_dist(gd_B_virtual_beta, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
-                  ENDIF
+                  END IF
 
                   ALLOCATE (external_i_aL(dimen_RI, rec_B_size))
                   external_i_aL = 0.0_dp
@@ -2684,8 +2684,8 @@ CONTAINS
                                                 Eigenval(homo + b_global))
                         END DO
                      END DO
-                  ENDIF
-               ENDIF
+                  END IF
+               END IF
 
                IF (.NOT. alpha_beta) THEN
                   DO proc_shift = 1, para_env_sub%num_pe - 1
@@ -2710,7 +2710,7 @@ CONTAINS
 
                      DEALLOCATE (external_ab)
                   END DO
-               ENDIF
+               END IF
                CALL timestop(handle2)
 
                ! Expand the second set of integrals
@@ -2725,7 +2725,7 @@ CONTAINS
                   CALL dgemm('T', 'N', size_B_j, size_B_k, dimen_RI, 1.0_dp, &
                              local_j_aL(:, :, 1), dimen_RI, local_k_aL(:, :, 1), dimen_RI, &
                              0.0_dp, local_ab(my_B_virtual_start:my_B_virtual_end, 1:size_B_k), size_B_j)
-               ENDIF
+               END IF
 
                DO proc_shift = 1, para_env_sub%num_pe - 1
                   proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
@@ -2735,7 +2735,7 @@ CONTAINS
                      CALL get_group_dist(gd_B_virtual, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
                   ELSE
                      CALL get_group_dist(gd_B_virtual_beta, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
-                  ENDIF
+                  END IF
 
                   ALLOCATE (external_i_aL(dimen_RI, rec_B_size))
                   external_i_aL = 0.0_dp
@@ -2784,20 +2784,20 @@ CONTAINS
                                                     Eigenval(homo + b_global))
                         END DO
                      END DO
-                  ENDIF
-               ENDIF
+                  END IF
+               END IF
                !
                P_ij_elem = SUM(local_ab*t_ab)
                IF ((.NOT. open_shell) .AND. (.NOT. alpha_beta)) THEN
                   P_ij_elem = P_ij_elem*2.0_dp
-               ENDIF
+               END IF
                IF ((beta_beta) .OR. (iloops .EQ. 2)) THEN
                   mp2_env%ri_grad%P_ij_beta(my_i, my_j) = mp2_env%ri_grad%P_ij_beta(my_i, my_j) - P_ij_elem
                   mp2_env%ri_grad%P_ij_beta(my_j, my_i) = mp2_env%ri_grad%P_ij_beta(my_j, my_i) - P_ij_elem
                ELSE
                   mp2_env%ri_grad%P_ij(my_i, my_j) = mp2_env%ri_grad%P_ij(my_i, my_j) - P_ij_elem
                   mp2_env%ri_grad%P_ij(my_j, my_i) = mp2_env%ri_grad%P_ij(my_j, my_i) - P_ij_elem
-               ENDIF
+               END IF
                CALL timestop(handle2)
             ELSE
                ! no work to be done, possible messeges to be exchanged
@@ -2820,7 +2820,7 @@ CONTAINS
                         send_i = ijk_map_beta(ijk_counter_send, 1)
                         send_j = ijk_map_beta(ijk_counter_send, 2)
                         send_k = ijk_map_beta(ijk_counter_send, 3)
-                     ENDIF
+                     END IF
                      ! occupied i
                      IF (iloops .EQ. 1) THEN
                         CALL mp_sendrecv(BIb_C(1:my_group_L_size, 1:size_B_i, send_i:send_i), proc_send, &
@@ -2828,7 +2828,7 @@ CONTAINS
                      ELSE
                         CALL mp_sendrecv(BIb_C_beta(1:my_group_L_size, 1:size_B_i, send_i:send_i), proc_send, &
                                          null_mat_rec, proc_receive, para_env_exchange%group)
-                     ENDIF
+                     END IF
                      ! occupied j
                      IF (iloops .EQ. 1) THEN
                         CALL mp_sendrecv(BIb_C(1:my_group_L_size, 1:size_B_j, send_j:send_j), proc_send, &
@@ -2836,7 +2836,7 @@ CONTAINS
                      ELSE ! For beta_beta density, the size is different now
                         CALL mp_sendrecv(BIb_C_beta(1:my_group_L_size, 1:size_B_j, send_j:send_j), proc_send, &
                                          null_mat_rec, proc_receive, para_env_exchange%group)
-                     ENDIF
+                     END IF
                      ! occupied k
                      IF (iloops .EQ. 1) THEN
                         IF (.NOT. alpha_beta) THEN
@@ -2845,11 +2845,11 @@ CONTAINS
                         ELSE
                            CALL mp_sendrecv(BIb_C_beta(1:my_group_L_size, 1:size_B_k, send_k:send_k), proc_send, &
                                             null_mat_rec, proc_receive, para_env_exchange%group)
-                        ENDIF
+                        END IF
                      ELSE ! For beta_beta density, the size is different now
                         CALL mp_sendrecv(BIb_C(1:my_group_L_size, 1:size_B_k, send_k:send_k), proc_send, &
                                          null_mat_rec, proc_receive, para_env_exchange%group)
-                     ENDIF
+                     END IF
 
                   ELSE
                      ! nothing to send
@@ -2874,13 +2874,13 @@ CONTAINS
          DEALLOCATE (local_j_aL)
          DEALLOCATE (local_k_aL)
          DEALLOCATE (t_ab)
-      ENDDO ! over number of loops (iloop)
+      END DO ! over number of loops (iloop)
       !
       DEALLOCATE (ijk_map)
       DEALLOCATE (num_ijk)
       IF (alpha_beta) THEN
          DEALLOCATE (ijk_map_beta, num_ijk_beta)
-      ENDIF
+      END IF
       CALL timestop(handle)
 
    END SUBROUTINE Quasi_degenerate_P_ij
@@ -2937,7 +2937,7 @@ CONTAINS
          my_homo = homo_beta
       ELSE
          my_homo = homo
-      ENDIF
+      END IF
 
       ! General case
       num_sing_ij = 0
@@ -2958,7 +2958,7 @@ CONTAINS
             WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
                "MO_INFO| Number of ij pairs (spin beta) below EPS_CANONICAL:", num_sing_ij
          END IF
-      ENDIF
+      END IF
       total_ijk = my_homo*num_sing_ij
       ALLOCATE (ijk_map(total_ijk, 3))
       ijk_map = 0
@@ -3019,7 +3019,7 @@ CONTAINS
          num_ijk_beta(para_env_exchange%mepos) = my_ijk_beta
          CALL mp_sum(num_ijk_beta, para_env_exchange%group)
          max_ijk_beta = MAXVAL(num_ijk_beta)
-      ENDIF
+      END IF
 
    END SUBROUTINE Find_quasi_degenerate_ij
 

@@ -82,7 +82,7 @@ CONTAINS
             "# TITLE ", "Basis set file created by "//TRIM(cp2k_version)//" (revision "//TRIM(compile_revision)//")", &
             "# AUTHOR", TRIM(r_user_name)//"@"//TRIM(r_host_name)//" "//r_datx(1:19)
 
-      ENDIF
+      END IF
 
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, nkind=nkind)
       DO ikind = 1, nkind
@@ -124,13 +124,13 @@ CONTAINS
             IF (ASSOCIATED(ri_hfx_basis)) THEN
                bname = "local_ri_hfx"
                CALL basis_out(ri_hfx_basis, element_symbol, bname, iunit)
-            ENDIF
-         ENDIF
+            END IF
+         END IF
       END DO
 
       IF (ounit > 0) THEN
          CALL close_file(iunit)
-      ENDIF
+      END IF
 
    END SUBROUTINE print_basis_set_file
 

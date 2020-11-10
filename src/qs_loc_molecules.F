@@ -85,7 +85,7 @@ CONTAINS
                DO k = 1, nspins
                   NULLIFY (molecule_set(i)%lmi(k)%states)
                END DO
-            ENDIF
+            END IF
             molecule_set(i)%lmi(ispin)%nstates = 0
             IF (ASSOCIATED(molecule_set(i)%lmi(ispin)%states)) THEN
                DEALLOCATE (molecule_set(i)%lmi(ispin)%states)

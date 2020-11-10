@@ -122,8 +122,8 @@ CONTAINS
          DO j = 1, ncol_local
          DO i = 1, nrow_local
             tmp = tmp + local_data(i, j)**2
-         ENDDO
-         ENDDO
+         END DO
+         END DO
          CALL mp_sum(tmp, para_env%group)
          s_square = s_square_ideal + nb - tmp
          IF (PRESENT(mo_derivs)) THEN
@@ -144,7 +144,7 @@ CONTAINS
          ELSE
             CALL cp_fm_release(matrix_sc_b)
             CALL cp_fm_release(matrix_overlap)
-         ENDIF
+         END IF
       CASE DEFAULT
          CPABORT("alpha, beta, what else ?")
       END SELECT
@@ -188,7 +188,7 @@ CONTAINS
          ELSE
             CALL compute_s_square(mos, matrix_s, s_square, s_square_ideal, &
                                   mo_derivs, s2_restraint_control%strength)
-         ENDIF
+         END IF
          energy = s2_restraint_control%strength*(s_square - s2_restraint_control%target)
          s2_restraint_control%s2_order_p = s_square
       CASE (do_s2_restraint) ! not yet implemented

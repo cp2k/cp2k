@@ -284,19 +284,19 @@ CONTAINS
                      ELSE
                         lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)
                         ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)
-                     ENDIF
+                     END IF
                      ! distributed grid, only map if it is local to the grid
                      location(dir) = tp(dir) + rs_v(igrid_level)%rs_grid%desc%lb(dir)
-                  ENDDO
+                  END DO
                   IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
                       lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
                       lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
                      map_it_here = .TRUE.
-                  ENDIF
+                  END IF
                ELSE
                   ! not distributed, just a round-robin distribution over the full set of CPUs
                   IF (MODULO(offset, para_env_sub%num_pe) == para_env_sub%mepos) map_it_here = .TRUE.
-               ENDIF
+               END IF
 
                offset = offset + nsgfa(iset)
 

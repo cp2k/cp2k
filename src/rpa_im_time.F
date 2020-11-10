@@ -207,7 +207,7 @@ CONTAINS
          unit_nr_dbcsr = unit_nr
       ELSE
          unit_nr_dbcsr = 0
-      ENDIF
+      END IF
 
       do_kpoints_cubic_RPA = qs_env%mp2_env%ri_rpa_im_time%do_im_time_kpoints
       do_Gamma_RPA = .NOT. do_kpoints_cubic_RPA
@@ -218,8 +218,8 @@ CONTAINS
          DO j = 1, SIZE(t_3c_O, 2)
             CALL dbcsr_t_create(t_3c_O(i, j), t_3c_O_occ(i, j))
             CALL dbcsr_t_create(t_3c_O(i, j), t_3c_O_virt(i, j))
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       CALL dbcsr_t_create(t_3c_M, t_3c_M_occ, name="M occ (RI | AO AO)")
       CALL dbcsr_t_create(t_3c_M, t_3c_M_virt, name="M virt (RI | AO AO)")
@@ -273,7 +273,7 @@ CONTAINS
             CALL dbcsr_t_copy(t_dm_tmp, t_dm_occ(i_cell), move_data=.TRUE.)
             CALL dbcsr_t_destroy(t_dm_tmp)
             CALL dbcsr_clear(mat_dm_occ_global(jquad, i_cell)%matrix)
-         ENDDO
+         END DO
 
          CALL get_tensor_occupancy(t_dm_occ(1), nze_dm_occ, occ_dm_occ)
          CALL get_tensor_occupancy(t_dm_virt(1), nze_dm_virt, occ_dm_virt)
@@ -291,13 +291,13 @@ CONTAINS
          DO i = 1, SIZE(t_3c_O_occ, 1)
             DO j = 1, SIZE(t_3c_O_occ, 2)
                CALL dbcsr_t_batched_contract_init(t_3c_O_occ(i, j), batch_range_2=mc_ranges, batch_range_3=mc_ranges)
-            ENDDO
-         ENDDO
+            END DO
+         END DO
          DO i = 1, SIZE(t_3c_O_virt, 1)
             DO j = 1, SIZE(t_3c_O_virt, 2)
                CALL dbcsr_t_batched_contract_init(t_3c_O_virt(i, j), batch_range_2=mc_ranges, batch_range_3=mc_ranges)
-            ENDDO
-         ENDDO
+            END DO
+         END DO
          CALL dbcsr_t_batched_contract_init(t_3c_M_occ_tmp, batch_range_2=mc_ranges, batch_range_3=mc_ranges)
          CALL dbcsr_t_batched_contract_init(t_3c_M_virt_tmp, batch_range_2=mc_ranges, batch_range_3=mc_ranges)
          CALL dbcsr_t_batched_contract_init(t_3c_M_occ, batch_range_2=mc_ranges, batch_range_3=mc_ranges)
@@ -316,7 +316,7 @@ CONTAINS
                occ_M_virt = 0.0_dp
                occ_M_occ = 0.0_dp
                occ_O = 0.0_dp
-            ENDIF
+            END IF
 
             DO j_mem = 1, cut_memory
 
@@ -388,8 +388,8 @@ CONTAINS
 
                               dbcsr_nflop = dbcsr_nflop + flops_1_occ
 
-                           ENDIF
-                        ENDDO
+                           END IF
+                        END DO
 
                         IF (do_Gamma_RPA) CALL dbcsr_t_batched_contract_finalize(t_dm_occ(1))
 
@@ -405,7 +405,7 @@ CONTAINS
                            CALL get_tensor_occupancy(t_3c_M_occ, nze, occ)
                            nze_M_occ = nze_M_occ + nze
                            occ_M_occ = occ_M_occ + occ
-                        ENDIF
+                        END IF
 
                         DO i_cell_S = 1, num_cells_dm
                            CALL get_diff_diff_index_3c(i_cell_R_2, i_cell_S, i_cell_T, i_cell_R_2_minus_S_minus_T, &
@@ -438,8 +438,8 @@ CONTAINS
 
                               dbcsr_nflop = dbcsr_nflop + flops_1_virt
 
-                           ENDIF
-                        ENDDO
+                           END IF
+                        END DO
 
                         CALL timeset(routineN//"_copy_M_virt_t", handle3)
                         CALL dbcsr_t_copy(t_3c_M_virt_tmp, t_3c_M_virt, move_data=.TRUE.)
@@ -450,7 +450,7 @@ CONTAINS
                            CALL get_tensor_occupancy(t_3c_M_virt, nze, occ)
                            nze_M_virt = nze_M_virt + nze
                            occ_M_virt = occ_M_virt + occ
-                        ENDIF
+                        END IF
 
                         flops_2 = 0
 
@@ -475,11 +475,11 @@ CONTAINS
                         IF (jquad == 1 .AND. flops_2 == 0) &
                            has_mat_P_blocks(i_cell_T, i_mem, j_mem, i_cell_R_1, i_cell_R_2) = .FALSE.
 
-                     ENDDO
-                  ENDDO
-               ENDDO
+                     END DO
+                  END DO
+               END DO
                IF (do_Gamma_RPA) CALL dbcsr_t_batched_contract_finalize(t_dm_virt(1))
-            ENDDO
+            END DO
 
             CALL dbcsr_t_batched_contract_finalize(t_P, unit_nr=unit_nr_dbcsr)
 
@@ -524,9 +524,9 @@ CONTAINS
                END DO
 
                CALL timestop(handle3)
-            ENDIF
+            END IF
 
-         ENDDO
+         END DO
 
          CALL timestop(handle2)
 
@@ -538,20 +538,20 @@ CONTAINS
          DO i = 1, SIZE(t_3c_O_occ, 1)
             DO j = 1, SIZE(t_3c_O_occ, 2)
                CALL dbcsr_t_batched_contract_finalize(t_3c_O_occ(i, j))
-            ENDDO
-         ENDDO
+            END DO
+         END DO
 
          DO i = 1, SIZE(t_3c_O_virt, 1)
             DO j = 1, SIZE(t_3c_O_virt, 2)
                CALL dbcsr_t_batched_contract_finalize(t_3c_O_virt(i, j))
-            ENDDO
-         ENDDO
+            END DO
+         END DO
 
          CALL dbcsr_t_destroy(t_P)
          DO i_cell = 1, num_cells_dm
             CALL dbcsr_t_destroy(t_dm_virt(i_cell))
             CALL dbcsr_t_destroy(t_dm_occ(i_cell))
-         ENDDO
+         END DO
 
          CALL dbcsr_t_destroy(t_3c_M_occ_tmp)
          CALL dbcsr_t_destroy(t_3c_M_virt_tmp)
@@ -579,9 +579,9 @@ CONTAINS
                   'Occupancy of M occ:', REAL(nze_M_occ, dp), '/', occ_M_occ*100, '%'
                WRITE (unit_nr, '(T6,A,T63,ES7.1,1X,A1,1X,F7.3,A1)') &
                   'Occupancy of M virt:', REAL(nze_M_virt, dp), '/', occ_M_virt*100, '%'
-            ENDIF
+            END IF
             WRITE (unit_nr, *)
-         ENDIF
+         END IF
 
       END DO ! time points
 
@@ -592,8 +592,8 @@ CONTAINS
          DO j = 1, SIZE(t_3c_O, 2)
             CALL dbcsr_t_destroy(t_3c_O_occ(i, j))
             CALL dbcsr_t_destroy(t_3c_O_virt(i, j))
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       CALL clean_up(mat_dm_occ_global, mat_dm_virt_global)
 

@@ -896,7 +896,7 @@ CONTAINS
       IF (number /= 0) THEN
          temp = 2.0_dp*akin/REAL(number, KIND=dp)
          IF (temp > 0.0_dp) temp = SQRT(temp_ext/temp)
-      ENDIF
+      END IF
       DO i = 1, SIZE(npt, 1)
          DO j = i, SIZE(npt, 2)
             npt(j, i)%v = temp*npt(j, i)%v

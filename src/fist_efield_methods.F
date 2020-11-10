@@ -124,7 +124,7 @@ CONTAINS
                ggamma(j) = ggamma(j)*zeta
             END DO
             qforce(1:3, ii) = q
-         ENDDO
+         END DO
       END DO
 
       IF (ALL(REAL(ggamma, KIND=dp) /= 0.0_dp)) THEN
@@ -266,7 +266,7 @@ CONTAINS
                   dggamma(j) = dggamma(j)*zeta + ggamma(j)*dzeta
                   ggamma(j) = ggamma(j)*zeta
                END DO
-            ENDDO
+            END DO
          END DO
          dggamma = dggamma*zphase + ggamma*dzphase
          ggamma = ggamma*zphase

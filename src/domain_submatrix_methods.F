@@ -162,8 +162,8 @@ CONTAINS
       DO idomain = 1, ndomains
          IF (original(idomain)%domain .GT. 0) THEN
             CALL copy_submatrix(original(idomain), copy(idomain), copy_data)
-         ENDIF
-      ENDDO ! loop over domains
+         END IF
+      END DO ! loop over domains
 
       CALL timestop(handle)
 
@@ -204,48 +204,48 @@ CONTAINS
             IF (SIZE(copy%dbcsr_row) .NE. SIZE(original%dbcsr_row)) THEN
                DEALLOCATE (copy%dbcsr_row)
                ALLOCATE (copy%dbcsr_row(original%nbrows))
-            ENDIF
-         ENDIF
+            END IF
+         END IF
          IF (.NOT. ALLOCATED(copy%dbcsr_col)) THEN
             ALLOCATE (copy%dbcsr_col(original%nbcols))
          ELSE
             IF (SIZE(copy%dbcsr_col) .NE. SIZE(original%dbcsr_col)) THEN
                DEALLOCATE (copy%dbcsr_col)
                ALLOCATE (copy%dbcsr_col(original%nbcols))
-            ENDIF
-         ENDIF
+            END IF
+         END IF
          IF (.NOT. ALLOCATED(copy%size_brow)) THEN
             ALLOCATE (copy%size_brow(original%nbrows))
          ELSE
             IF (SIZE(copy%size_brow) .NE. SIZE(original%size_brow)) THEN
                DEALLOCATE (copy%size_brow)
                ALLOCATE (copy%size_brow(original%nbrows))
-            ENDIF
-         ENDIF
+            END IF
+         END IF
          IF (.NOT. ALLOCATED(copy%size_bcol)) THEN
             ALLOCATE (copy%size_bcol(original%nbcols))
          ELSE
             IF (SIZE(copy%size_bcol) .NE. SIZE(original%size_bcol)) THEN
                DEALLOCATE (copy%size_bcol)
                ALLOCATE (copy%size_bcol(original%nbcols))
-            ENDIF
-         ENDIF
+            END IF
+         END IF
 
          DO irow = 1, original%nbrows
             copy%dbcsr_row(irow) = original%dbcsr_row(irow)
             copy%size_brow(irow) = original%size_brow(irow)
-         ENDDO
+         END DO
 
          DO icol = 1, original%nbcols
             copy%dbcsr_col(icol) = original%dbcsr_col(icol)
             copy%size_bcol(icol) = original%size_bcol(icol)
-         ENDDO
+         END DO
 
          IF (copy_data) THEN
             CALL copy_submatrix_data(original%mdata, copy)
-         ENDIF
+         END IF
 
-      ENDIF ! do not copy empty submatrix
+      END IF ! do not copy empty submatrix
 
       CALL timestop(handle)
 
@@ -280,8 +280,8 @@ CONTAINS
          IF ((ds1 .NE. ms1) .OR. (ds2 .NE. ms2)) THEN
             DEALLOCATE (copy%mdata)
             ALLOCATE (copy%mdata(ds1, ds2))
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       copy%mdata(:, :) = array(:, :)
 
@@ -310,8 +310,8 @@ CONTAINS
       DO idomain = 1, ndomains
          IF (submatrices(idomain)%domain .GT. 0) THEN
             CALL set_submatrix(submatrices(idomain), scalar)
-         ENDIF
-      ENDDO ! loop over domains
+         END IF
+      END DO ! loop over domains
 
       CALL timestop(handle)
 
@@ -348,8 +348,8 @@ CONTAINS
          IF ((ds1 .NE. ms1) .OR. (ds2 .NE. ms2)) THEN
             DEALLOCATE (submatrix%mdata)
             ALLOCATE (submatrix%mdata(ds1, ds2))
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       submatrix%mdata(:, :) = scalar
 
@@ -375,7 +375,7 @@ CONTAINS
       ndomains = SIZE(subm)
       DO idomain = 1, ndomains
          CALL release_submatrix(subm(idomain))
-      ENDDO ! loop over domains
+      END DO ! loop over domains
 
       CALL timestop(handle)
 
@@ -405,19 +405,19 @@ CONTAINS
 
       IF (ALLOCATED(subm%dbcsr_row)) THEN
          DEALLOCATE (subm%dbcsr_row)
-      ENDIF
+      END IF
       IF (ALLOCATED(subm%dbcsr_col)) THEN
          DEALLOCATE (subm%dbcsr_col)
-      ENDIF
+      END IF
       IF (ALLOCATED(subm%size_brow)) THEN
          DEALLOCATE (subm%size_brow)
-      ENDIF
+      END IF
       IF (ALLOCATED(subm%size_bcol)) THEN
          DEALLOCATE (subm%size_bcol)
-      ENDIF
+      END IF
       IF (ALLOCATED(subm%mdata)) THEN
          DEALLOCATE (subm%mdata)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -468,7 +468,7 @@ CONTAINS
          M = A%ncols
          K = A%nrows
          Mblocks = A%nbcols
-      ENDIF
+      END IF
 
       IF (NOTB) THEN
          K1 = B%nrows
@@ -478,7 +478,7 @@ CONTAINS
          K1 = B%ncols
          N = B%nrows
          Nblocks = B%nbrows
-      ENDIF
+      END IF
 
       ! these checks are for debugging only
       CPASSERT(K .EQ. K1)
@@ -490,19 +490,19 @@ CONTAINS
       C%nbcols = Nblocks
       IF (ALLOCATED(C%dbcsr_row)) THEN
          DEALLOCATE (C%dbcsr_row)
-      ENDIF
+      END IF
       ALLOCATE (C%dbcsr_row(C%nbrows))
       IF (ALLOCATED(C%dbcsr_col)) THEN
          DEALLOCATE (C%dbcsr_col)
-      ENDIF
+      END IF
       ALLOCATE (C%dbcsr_col(C%nbcols))
       IF (ALLOCATED(C%size_brow)) THEN
          DEALLOCATE (C%size_brow)
-      ENDIF
+      END IF
       ALLOCATE (C%size_brow(C%nbrows))
       IF (ALLOCATED(C%size_bcol)) THEN
          DEALLOCATE (C%size_bcol)
-      ENDIF
+      END IF
       ALLOCATE (C%size_bcol(C%nbcols))
 
       DO irow = 1, C%nbrows
@@ -512,8 +512,8 @@ CONTAINS
          ELSE
             C%dbcsr_row(irow) = A%dbcsr_col(irow)
             C%size_brow(irow) = A%size_bcol(irow)
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       DO icol = 1, C%nbcols
          IF (NOTB) THEN
@@ -522,8 +522,8 @@ CONTAINS
          ELSE
             C%dbcsr_col(icol) = B%dbcsr_row(icol)
             C%size_bcol(icol) = B%size_brow(icol)
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       IF (.NOT. ALLOCATED(C%mdata)) THEN
          !!! cannot use non-zero beta if C is not allocated
@@ -537,8 +537,8 @@ CONTAINS
             CPASSERT(beta .EQ. 0.0_dp)
             DEALLOCATE (C%mdata)
             ALLOCATE (C%mdata(C%nrows, C%ncols))
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       LDC = C%nrows
 
@@ -597,9 +597,9 @@ CONTAINS
          ! check if the submatrix exists
          IF (idomainA .GT. 0) THEN
             CALL multiply_submatrices_once(transA, transB, alpha, A(idomain), B(idomain), beta, C(idomain))
-         ENDIF ! submatrix for the domain exists
+         END IF ! submatrix for the domain exists
 
-      ENDDO ! loop over domains
+      END DO ! loop over domains
 
       CALL timestop(handle)
 
@@ -643,7 +643,7 @@ CONTAINS
       ELSE
          R2 = B%ncols
          C2 = B%nrows
-      ENDIF
+      END IF
 
       ! these checks are for debugging only
       CPASSERT(C1 .EQ. C2)
@@ -652,12 +652,12 @@ CONTAINS
       IF (NOTB) THEN
          DO icol = 1, C1
             A%mdata(:, icol) = alpha*A%mdata(:, icol) + beta*B%mdata(:, icol)
-         ENDDO
+         END DO
       ELSE
          DO icol = 1, C1
             A%mdata(:, icol) = alpha*A%mdata(:, icol) + beta*B%mdata(icol, :)
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       CALL timestop(handle)
 
@@ -703,9 +703,9 @@ CONTAINS
          ! check if the submatrix exists
          IF (idomainA .GT. 0) THEN
             CALL add_submatrices_once(alpha, A(idomain), beta, B(idomain), transB)
-         ENDIF ! submatrix for the domain exists
+         END IF ! submatrix for the domain exists
 
-      ENDDO ! loop over domains
+      END DO ! loop over domains
 
       CALL timestop(handle)
 
@@ -743,9 +743,9 @@ CONTAINS
          IF (submatrices(idomain)%domain .GT. 0) THEN
             curr_norm = MAXVAL(ABS(submatrices(idomain)%mdata))
             IF (curr_norm .GT. send_norm) send_norm = curr_norm
-         ENDIF
+         END IF
 
-      ENDDO ! loop over domains
+      END DO ! loop over domains
 
       ! communicate local norm to the other nodes
       ALLOCATE (recv_norm(submatrices(1)%nnodes))
@@ -806,9 +806,9 @@ CONTAINS
             curr_trace = SUM(A(idomain)%mdata(:, :)*B(idomain)%mdata(:, :))
             send_trace = send_trace + curr_trace
 
-         ENDIF
+         END IF
 
-      ENDDO ! loop over domains
+      END DO ! loop over domains
 
       ! communicate local norm to the other nodes
       ALLOCATE (recv_trace(A(1)%nnodes))
@@ -910,7 +910,7 @@ CONTAINS
                ! fake loop
                index_sc = 1 ! index start col
                index_ec = 1 ! index end col
-            ENDIF
+            END IF
 
             DO index_col = index_sc, index_ec
 
@@ -918,7 +918,7 @@ CONTAINS
                   col = domain_map%pairs(index_col, 1)
                ELSE
                   col = idomain
-               ENDIF
+               END IF
 
                transp = .FALSE.
                CALL dbcsr_get_stored_coordinates(matrix, &
@@ -929,14 +929,14 @@ CONTAINS
                      send_descriptor(1, dest_node + 1) = send_descriptor(1, dest_node + 1) + 1
                      send_descriptor(2, dest_node + 1) = send_descriptor(2, dest_node + 1) + &
                                                          row_size*col_size
-                  ENDIF
-               ENDIF
+                  END IF
+               END IF
 
-            ENDDO ! loop over columns
+            END DO ! loop over columns
 
-         ENDDO ! loop over rows
+         END DO ! loop over rows
 
-      ENDDO
+      END DO
 
       ! simple but quadratically scaling procedure
       ! loop over local blocks
@@ -975,7 +975,7 @@ CONTAINS
          send_size_cpu(iNode) = send_descriptor(2, iNode)
          send_offset_cpu(iNode) = send_offset_cpu(iNode - 1) + &
                                   send_size_cpu(iNode - 1)
-      ENDDO
+      END DO
       send_size_total = send_offset_cpu(nNodes) + send_size_cpu(nNodes)
 
       ALLOCATE (recv_size_cpu(nNodes), recv_offset_cpu(nNodes))
@@ -985,7 +985,7 @@ CONTAINS
          recv_size_cpu(iNode) = recv_descriptor(2, iNode)
          recv_offset_cpu(iNode) = recv_offset_cpu(iNode - 1) + &
                                   recv_size_cpu(iNode - 1)
-      ENDDO
+      END DO
       recv_size_total = recv_offset_cpu(nNodes) + recv_size_cpu(nNodes)
 
       ALLOCATE (send_size2_cpu(nNodes), send_offset2_cpu(nNodes))
@@ -995,7 +995,7 @@ CONTAINS
          send_size2_cpu(iNode) = 2*send_descriptor(1, iNode)
          send_offset2_cpu(iNode) = send_offset2_cpu(iNode - 1) + &
                                    send_size2_cpu(iNode - 1)
-      ENDDO
+      END DO
       send_size2_total = send_offset2_cpu(nNodes) + send_size2_cpu(nNodes)
 
       ALLOCATE (recv_size2_cpu(nNodes), recv_offset2_cpu(nNodes))
@@ -1005,7 +1005,7 @@ CONTAINS
          recv_size2_cpu(iNode) = 2*recv_descriptor(1, iNode)
          recv_offset2_cpu(iNode) = recv_offset2_cpu(iNode - 1) + &
                                    recv_size2_cpu(iNode - 1)
-      ENDDO
+      END DO
       recv_size2_total = recv_offset2_cpu(nNodes) + recv_size2_cpu(nNodes)
 
       DEALLOCATE (send_descriptor)
@@ -1043,7 +1043,7 @@ CONTAINS
                ! fake loop
                index_sc = 1 ! index start col
                index_ec = 1 ! index end col
-            ENDIF
+            END IF
 
             DO index_col = index_sc, index_ec
 
@@ -1051,7 +1051,7 @@ CONTAINS
                   col = domain_map%pairs(index_col, 1)
                ELSE
                   col = idomain
-               ENDIF
+               END IF
 
                transp = .FALSE.
                CALL dbcsr_get_stored_coordinates(matrix, &
@@ -1080,14 +1080,14 @@ CONTAINS
                      send_data2(send_offset2_cpu(dest_node + 1) + &
                                 offset2_block(dest_node + 1) + 2) = col
                      offset2_block(dest_node + 1) = offset2_block(dest_node + 1) + 2
-                  ENDIF
-               ENDIF
+                  END IF
+               END IF
 
-            ENDDO ! loop over columns
+            END DO ! loop over columns
 
-         ENDDO ! loop over rows
+         END DO ! loop over rows
 
-      ENDDO
+      END DO
       ! more simple but quadratically scaling version
       !CALL dbcsr_iterator_start(iter,matrix)
       !DO WHILE (dbcsr_iterator_blocks_left(iter))
@@ -1150,7 +1150,7 @@ CONTAINS
       ndomains2 = SIZE(submatrix)
       IF (ndomains2 .NE. ndomains) THEN
          CPABORT("wrong submatrix size")
-      ENDIF
+      END IF
       CALL release_submatrices(submatrix)
       submatrix(:)%nnodes = nNodes
       submatrix(:)%groupID = GroupID
@@ -1182,7 +1182,7 @@ CONTAINS
                submatrix(idomain)%nrows = submatrix(idomain)%nrows + row_blk_size(row)
                submatrix(idomain)%nbrows = submatrix(idomain)%nbrows + 1
                !   ENDIF
-            ENDDO
+            END DO
             ALLOCATE (submatrix(idomain)%dbcsr_row(submatrix(idomain)%nbrows))
             ALLOCATE (submatrix(idomain)%size_brow(submatrix(idomain)%nbrows))
             smrow = 1
@@ -1198,7 +1198,7 @@ CONTAINS
                submatrix(idomain)%size_brow(smrow) = row_blk_size(row)
                smrow = smrow + 1
                !   ENDIF
-            ENDDO
+            END DO
 
             ! loop over the necessary columns
             first_col(:) = -1
@@ -1211,13 +1211,13 @@ CONTAINS
                ! fake loop
                index_sc = 1 ! index start col
                index_ec = 1 ! index end col
-            ENDIF
+            END IF
             DO index_col = index_sc, index_ec
                IF (job_type == select_row_col) THEN
                   col = domain_map%pairs(index_col, 1)
                ELSE
                   col = idomain
-               ENDIF
+               END IF
                !DO col = 1, nblkcols_tot
                !   IF (job_type==select_row_col) THEN
                !      domain_needs_block=(qblk_exists(domain_map,col,idomain))
@@ -1229,7 +1229,7 @@ CONTAINS
                submatrix(idomain)%ncols = submatrix(idomain)%ncols + col_blk_size(col)
                submatrix(idomain)%nbcols = submatrix(idomain)%nbcols + 1
                !   ENDIF
-            ENDDO
+            END DO
 
             ALLOCATE (submatrix(idomain)%dbcsr_col(submatrix(idomain)%nbcols))
             ALLOCATE (submatrix(idomain)%size_bcol(submatrix(idomain)%nbcols))
@@ -1245,20 +1245,20 @@ CONTAINS
                ! fake loop
                index_sc = 1 ! index start col
                index_ec = 1 ! index end col
-            ENDIF
+            END IF
             DO index_col = index_sc, index_ec
                IF (job_type == select_row_col) THEN
                   col = domain_map%pairs(index_col, 1)
                ELSE
                   col = idomain
-               ENDIF
+               END IF
                !DO col = 1, nblkcols_tot
                !   IF (first_col(col).ne.-1) THEN
                submatrix(idomain)%dbcsr_col(smcol) = col
                submatrix(idomain)%size_bcol(smcol) = col_blk_size(col)
                smcol = smcol + 1
                !   ENDIF
-            ENDDO
+            END DO
 
             ALLOCATE (submatrix(idomain)%mdata( &
                       submatrix(idomain)%nrows, &
@@ -1280,7 +1280,7 @@ CONTAINS
                                                  first_col(col) + icol) = &
                            recv_data(start_data:start_data + row_blk_size(row) - 1)
                         start_data = start_data + row_blk_size(row)
-                     ENDDO
+                     END DO
                      IF (job_type == select_row_col) THEN
                         IF (matrix_type == dbcsr_type_symmetric .OR. &
                             matrix_type == dbcsr_type_antisymmetric) THEN
@@ -1288,7 +1288,7 @@ CONTAINS
                            antifactor = 1.0_dp
                            IF (matrix_type == dbcsr_type_antisymmetric) THEN
                               antifactor = -1.0_dp
-                           ENDIF
+                           END IF
                            start_data = recv_offset_cpu(iNode) + block_offset + 1
                            DO icol = 0, col_blk_size(col) - 1
                               submatrix(idomain)%mdata(first_row(col) + icol, &
@@ -1297,18 +1297,18 @@ CONTAINS
                                  antifactor*recv_data(start_data: &
                                                       start_data + row_blk_size(row) - 1)
                               start_data = start_data + row_blk_size(row)
-                           ENDDO
+                           END DO
                         ELSE IF (matrix_type == dbcsr_type_no_symmetry) THEN
                         ELSE
                            CPABORT("matrix type is NYI")
-                        ENDIF
-                     ENDIF
-                  ENDIF
+                        END IF
+                     END IF
+                  END IF
                   block_offset = block_offset + col_blk_size(col)*row_blk_size(row)
-               ENDDO
-            ENDDO
-         ENDIF ! mynode.eq.dest_node
-      ENDDO ! loop over domains
+               END DO
+            END DO
+         END IF ! mynode.eq.dest_node
+      END DO ! loop over domains
 
       DEALLOCATE (recv_size_cpu, recv_offset_cpu)
       DEALLOCATE (recv_size2_cpu, recv_offset2_cpu)
@@ -1364,7 +1364,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       nblkrows_tot = dbcsr_nblkrows_total(matrix)
       nblkcols_tot = dbcsr_nblkcols_total(matrix)
@@ -1374,7 +1374,7 @@ CONTAINS
 
       IF (ndomains .NE. ndomains2) THEN
          CPABORT("domain mismatch")
-      ENDIF
+      END IF
 
       CALL dbcsr_get_info(distr_pattern, distribution=pattern_dist)
       CALL dbcsr_distribution_get(pattern_dist, numnodes=nNodes, group=GroupID, mynode=myNode)
@@ -1382,14 +1382,14 @@ CONTAINS
       matrix_type = dbcsr_get_matrix_type(matrix)
       IF (matrix_type .NE. dbcsr_type_no_symmetry) THEN
          CPABORT("only non-symmetric matrices so far")
-      ENDIF
+      END IF
 
       ! remove all blocks from the dbcsr matrix
       CALL dbcsr_iterator_start(iter, matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, row, col, block_p)
          block_p(:, :) = 0.0_dp
-      ENDDO
+      END DO
       CALL dbcsr_iterator_stop(iter)
       CALL dbcsr_filter(matrix, 0.1_dp)
 
@@ -1409,14 +1409,14 @@ CONTAINS
 
                IF (submatrix(idomain)%nbcols .NE. 1) THEN
                   CPABORT("corrupt submatrix structure")
-               ENDIF
+               END IF
 
                row = submatrix(idomain)%dbcsr_row(irow_subm)
                col = submatrix(idomain)%dbcsr_col(1)
 
                IF (col .NE. idomain) THEN
                   CPABORT("corrupt submatrix structure")
-               ENDIF
+               END IF
 
                transp = .FALSE.
                CALL dbcsr_get_stored_coordinates(distr_pattern, &
@@ -1427,11 +1427,11 @@ CONTAINS
                                                    submatrix(idomain)%size_brow(irow_subm)* &
                                                    submatrix(idomain)%size_bcol(1)
 
-            ENDDO ! loop over submatrix blocks
+            END DO ! loop over submatrix blocks
 
-         ENDIF
+         END IF
 
-      ENDDO ! loop over domains
+      END DO ! loop over domains
 
       ! communicate number of blocks and their sizes to the other nodes
       CALL mp_alltoall(send_descriptor, recv_descriptor, ldesc, GroupID)
@@ -1443,7 +1443,7 @@ CONTAINS
          send_size_cpu(iNode) = send_descriptor(2, iNode)
          send_offset_cpu(iNode) = send_offset_cpu(iNode - 1) + &
                                   send_size_cpu(iNode - 1)
-      ENDDO
+      END DO
       send_size_total = send_offset_cpu(nNodes) + send_size_cpu(nNodes)
 
       ALLOCATE (recv_size_cpu(nNodes), recv_offset_cpu(nNodes))
@@ -1453,7 +1453,7 @@ CONTAINS
          recv_size_cpu(iNode) = recv_descriptor(2, iNode)
          recv_offset_cpu(iNode) = recv_offset_cpu(iNode - 1) + &
                                   recv_size_cpu(iNode - 1)
-      ENDDO
+      END DO
       recv_size_total = recv_offset_cpu(nNodes) + recv_size_cpu(nNodes)
 
       ALLOCATE (send_size2_cpu(nNodes), send_offset2_cpu(nNodes))
@@ -1463,7 +1463,7 @@ CONTAINS
          send_size2_cpu(iNode) = 2*send_descriptor(1, iNode)
          send_offset2_cpu(iNode) = send_offset2_cpu(iNode - 1) + &
                                    send_size2_cpu(iNode - 1)
-      ENDDO
+      END DO
       send_size2_total = send_offset2_cpu(nNodes) + send_size2_cpu(nNodes)
 
       ALLOCATE (recv_size2_cpu(nNodes), recv_offset2_cpu(nNodes))
@@ -1473,7 +1473,7 @@ CONTAINS
          recv_size2_cpu(iNode) = 2*recv_descriptor(1, iNode)
          recv_offset2_cpu(iNode) = recv_offset2_cpu(iNode - 1) + &
                                    recv_size2_cpu(iNode - 1)
-      ENDDO
+      END DO
       recv_size2_total = recv_offset2_cpu(nNodes) + recv_size2_cpu(nNodes)
 
       DEALLOCATE (send_descriptor)
@@ -1515,7 +1515,7 @@ CONTAINS
                   send_data(start_data + 1:start_data + rowsize) = &
                      submatrix(idomain)%mdata(smroff + 1:smroff + rowsize, icol)
                   col_offset = col_offset + rowsize
-               ENDDO
+               END DO
                offset_block(dest_node + 1) = offset_block(dest_node + 1) + &
                                              colsize*rowsize
                ! fill out row,col information
@@ -1527,11 +1527,11 @@ CONTAINS
 
                smroff = smroff + rowsize
 
-            ENDDO
+            END DO
 
-         ENDIF
+         END IF
 
-      ENDDO ! loop over domains
+      END DO ! loop over domains
 
       ! send-receive all blocks
       CALL mp_alltoall(send_data, send_size_cpu, send_offset_cpu, &
@@ -1567,10 +1567,10 @@ CONTAINS
                block_p(:, icol) = &
                   recv_data(start_data:start_data + row_blk_size(row) - 1)
                start_data = start_data + row_blk_size(row)
-            ENDDO
+            END DO
             block_offset = block_offset + col_blk_size(col)*row_blk_size(row)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       DEALLOCATE (recv_size_cpu, recv_offset_cpu)
       DEALLOCATE (recv_size2_cpu, recv_offset2_cpu)
@@ -1613,10 +1613,10 @@ CONTAINS
             nrows = SIZE(submatrices(i)%mdata, 1)
             DO irow = 1, nrows
                WRITE (*, formatstr) submatrices(i)%mdata(irow, :)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
          CALL mp_sync(mpgroup)
-      ENDDO
+      END DO
 
       CALL timestop(handle)
 

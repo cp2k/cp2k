@@ -20,7 +20,7 @@ MODULE libint_wrapper
 #endif
 
 ! maximum angular momentum to be supported in CP2K-LIBINT interface
-#:set libint_max_am_supported = 8
+   #:set libint_max_am_supported = 8
 
    USE ISO_C_BINDING, ONLY: C_F_POINTER, &
                             C_F_PROCPOINTER, &
@@ -124,14 +124,14 @@ CONTAINS
       libint%prv(1)%roz(1) = Rho*ZetaInv
       libint%prv(1)%roe(1) = Rho*EtaInv
 
-#:for m_max in range(0, 4*libint_max_am_supported)
+      #:for m_max in range(0, 4*libint_max_am_supported)
 #if 4*LIBINT2_MAX_AM_eri > ${m_max}$ - 1
-      IF (${m_max}$ .LE. m_max) &
-         libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$ (1) &
-         = F(${m_max}$+1)
+         IF (${m_max}$ .LE. m_max) &
+            libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$ (1) &
+            = F(${m_max}$+1)
 
 #endif
-#:endfor
+      #:endfor
 
 #else
       MARK_USED(libint)
@@ -219,13 +219,13 @@ CONTAINS
       libint%prv(1)%roz(1) = Rho*ZetaInv
       libint%prv(1)%roe(1) = Rho*EtaInv
 
-#:for m_max in range(0, 4*libint_max_am_supported)
+      #:for m_max in range(0, 4*libint_max_am_supported)
 #if 4*LIBINT2_MAX_AM_eri > ${m_max}$ - 1
-      IF (${m_max}$ .LE. m_max) &
-         libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$ (1) & ! ERROR: __LIBINT_MAX_AM is too large
-         = F(${m_max}$+1)
+         IF (${m_max}$ .LE. m_max) &
+            libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$ (1) & ! ERROR: __LIBINT_MAX_AM is too large
+            = F(${m_max}$+1)
 #endif
-#:endfor
+      #:endfor
 
 #else
       MARK_USED(libint)
@@ -290,14 +290,14 @@ CONTAINS
       libint%prv(1)%roz(1) = Rho*ZetaInv
       libint%prv(1)%roe(1) = Rho*EtaInv
 
-#:for m_max in range(0, 4*libint_max_am_supported)
+      #:for m_max in range(0, 4*libint_max_am_supported)
 #if 4*LIBINT2_MAX_AM_eri > ${m_max}$ - 1
 
-      IF (${m_max}$ .LE. m_max) &
-         libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$ (1) & ! ERROR: __LIBINT_MAX_AM is too large
-         = F(${m_max}$+1)
+         IF (${m_max}$ .LE. m_max) &
+            libint%prv(1)%f_aB_s___0__s___1___TwoPRep_s___0__s___1___Ab__up_${m_max}$ (1) & ! ERROR: __LIBINT_MAX_AM is too large
+            = F(${m_max}$+1)
 #endif
-#:endfor
+      #:endfor
 
 #else
       MARK_USED(libint)
@@ -454,8 +454,8 @@ CONTAINS
          CALL C_F_POINTER(lib%prv(1)%targets(k), p_work, SHAPE=a_mysize)
          DO i = 1, a_mysize(1)
             work_forces(i, k) = p_work(i)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 #else
       MARK_USED(n_d)
       MARK_USED(n_c)

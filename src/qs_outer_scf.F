@@ -228,14 +228,14 @@ CONTAINS
                            ilow = i
                            ihigh = j
                            interval = tmp
-                        ENDIF
-                     ENDIF
-                  ENDDO
-               ENDDO
+                        END IF
+                     END IF
+                  END DO
+               END DO
                IF (ilow == -1) THEN ! we didn't bracket a minimum yet, try something else
                   optimizer_type = outer_scf_optimizer_diis
                   CYCLE
-               ENDIF
+               END IF
                scf_env%outer_scf%count(ilow) = scf_env%outer_scf%count(ilow) + 1
                scf_env%outer_scf%count(ihigh) = scf_env%outer_scf%count(ihigh) + 1
                scf_env%outer_scf%variables(:, ihistory + 1) = 0.5_dp*(scf_env%outer_scf%variables(:, ilow) + &
@@ -264,8 +264,8 @@ CONTAINS
                         b(I, J) = DOT_PRODUCT(scf_env%outer_scf%gradient(:, ibuf), &
                                               scf_env%outer_scf%gradient(:, jbuf))
                         b(J, I) = b(I, J)
-                     ENDDO
-                  ENDDO
+                     END DO
+                  END DO
                   b(nb + 1, :) = -1.0_dp
                   b(:, nb + 1) = -1.0_dp
                   b(nb + 1, nb + 1) = 0.0_dp
@@ -277,7 +277,7 @@ CONTAINS
                         a(:, I) = 0.0_dp
                      ELSE
                         a(:, I) = a(:, I)/ev(I)
-                     ENDIF
+                     END IF
                   END DO
                   ev(:) = -MATMUL(a, b(nb + 1, :))
 
@@ -286,9 +286,9 @@ CONTAINS
                      ibuf = ihistory - nb + i
                      scf_env%outer_scf%variables(:, ihistory + 1) = scf_env%outer_scf%variables(:, ihistory + 1) + &
                                                                     ev(i)*scf_env%outer_scf%variables(:, ibuf)
-                  ENDDO
+                  END DO
                   DEALLOCATE (a, b, ev)
-               ENDIF
+               END IF
             CASE (outer_scf_optimizer_secant)
                CPASSERT(SIZE(scf_env%outer_scf%gradient, 2) >= 3)
                CPASSERT(SIZE(scf_env%outer_scf%gradient, 1) == 1)
@@ -368,7 +368,7 @@ CONTAINS
                CPABORT("")
             END SELECT
             EXIT
-         ENDDO
+         END DO
       END IF
 
       CALL timestop(handle)
@@ -501,7 +501,7 @@ CONTAINS
          alpha = -1.0_dp*alpha*REAL(nvec - ihis + 1, dp)/REAL(ihis, dp)
          ivec = 1 + MODULO(outer_scf_ihistory - ihis, nhistory)
          extrapolation(:) = extrapolation + alpha*outer_scf_history(:, ivec)
-      ENDDO
+      END DO
 
       ! update qs_env to use this extrapolation
       SELECT CASE (scf_control%outer_scf%type)

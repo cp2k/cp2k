@@ -1255,7 +1255,7 @@ CONTAINS
             ELSE
                potential%description(2) = "Full atomic charge"
             END IF
-         ENDIF
+         END IF
       END IF
 
    END SUBROUTINE init_all_potential
@@ -1830,7 +1830,7 @@ CONTAINS
                   match = .TRUE.
                   i = i + 1 + INDEX(line2(i + 1:), " ")
                   potential%aliases = line2(i:) ! copy all names into aliases field
-               ENDIF
+               END IF
             END IF
             IF (match) THEN
                !         *** Read the electronic configuration ***
@@ -2599,10 +2599,10 @@ CONTAINS
          IF (PRESENT(elec_conf)) THEN
             IF (ASSOCIATED(potential%elec_conf)) THEN
                DEALLOCATE (potential%elec_conf)
-            ENDIF
+            END IF
             ALLOCATE (potential%elec_conf(0:SIZE(elec_conf) - 1))
             potential%elec_conf(:) = elec_conf(:)
-         ENDIF
+         END IF
          IF (PRESENT(nprj_ppnl)) potential%nprj_ppnl => nprj_ppnl
          IF (PRESENT(cprj)) potential%cprj => cprj
          IF (PRESENT(cprj_ppnl)) potential%cprj_ppnl => cprj_ppnl
@@ -2699,10 +2699,10 @@ CONTAINS
          IF (PRESENT(elec_conf)) THEN
             IF (ASSOCIATED(potential%elec_conf)) THEN
                DEALLOCATE (potential%elec_conf)
-            ENDIF
+            END IF
             ALLOCATE (potential%elec_conf(0:SIZE(elec_conf) - 1))
             potential%elec_conf(:) = elec_conf(:)
-         ENDIF
+         END IF
 
          IF (PRESENT(z)) potential%z = z
          IF (PRESENT(zeff)) potential%zeff = zeff

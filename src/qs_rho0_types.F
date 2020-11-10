@@ -150,7 +150,7 @@ CONTAINS
       DO iat = 1, natom
          NULLIFY (rho0_set(iat)%rho0_rad_h)
          NULLIFY (rho0_set(iat)%vrho0_rad_h)
-      ENDDO
+      END DO
 
    END SUBROUTINE allocate_rho0_atom
 
@@ -338,12 +338,12 @@ CONTAINS
             IF (ASSOCIATED(rho0_atom_set(iat)%rho0_rad_h)) THEN
                DEALLOCATE (rho0_atom_set(iat)%rho0_rad_h%r_coef)
                DEALLOCATE (rho0_atom_set(iat)%rho0_rad_h)
-            ENDIF
+            END IF
             IF (ASSOCIATED(rho0_atom_set(iat)%vrho0_rad_h)) THEN
                DEALLOCATE (rho0_atom_set(iat)%vrho0_rad_h%r_coef)
                DEALLOCATE (rho0_atom_set(iat)%vrho0_rad_h)
-            ENDIF
-         ENDDO
+            END IF
+         END DO
 
          DEALLOCATE (rho0_atom_set)
       ELSE
@@ -378,13 +378,13 @@ CONTAINS
          IF (ASSOCIATED(rho0%rho0_s_rs)) THEN
             CALL pw_release(rho0%rho0_s_rs%pw)
             DEALLOCATE (rho0%rho0_s_rs)
-         ENDIF
+         END IF
 
          IF (ASSOCIATED(rho0%rho0_s_gs)) THEN
             CALL pw_release(rho0%rho0_s_gs%pw)
             DEALLOCATE (rho0%rho0_s_gs)
 
-         ENDIF
+         END IF
          DEALLOCATE (rho0)
       ELSE
          CALL cp_abort(__LOCATION__, &

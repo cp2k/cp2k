@@ -285,7 +285,7 @@ CONTAINS
          !CALL dbcsr_copy(copy_matrix_x(ispin),env%matrix_x(ispin))
          CALL dbcsr_copy(copy_matrix_x, env%matrix_x)
          !ENDDO
-      ENDIF
+      END IF
       !IF (PRESENT(matrix_x)) matrix_x => env%matrix_x
       IF (PRESENT(energy_correction)) energy_correction = env%energy_correction
       IF (PRESENT(converged)) converged = env%converged

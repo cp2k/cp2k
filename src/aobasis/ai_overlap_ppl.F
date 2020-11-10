@@ -458,7 +458,7 @@ CONTAINS
          choose = REAL(NINT(fac(n)/(fac(k)*fac(n - k))), KIND=dp)
       ELSE
          choose = 0.0_dp
-      ENDIF
+      END IF
 
    END FUNCTION choose
 ! **************************************************************************************************

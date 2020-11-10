@@ -121,7 +121,7 @@ CONTAINS
          CASE DEFAULT
             CPABORT("got unknown behavior")
          END SELECT
-      ENDIF
+      END IF
 
       IF (.NOT. swarm_message_haskey(report, "status")) &
          CALL swarm_message_add(report, "status", "ok")

@@ -257,7 +257,7 @@ CONTAINS
          WRITE (iunit, *) "ncol_locals", fmstruct%ncol_locals
          WRITE (iunit, *) "nrow_locals", fmstruct%nrow_locals
          CALL m_flush(iunit)
-      ENDIF
+      END IF
 
       IF (SUM(fmstruct%ncol_locals) .NE. fmstruct%ncol_global) &
          CPABORT("sum of local cols not equal global cols")
@@ -335,7 +335,7 @@ CONTAINS
             CALL cp_para_env_release(fmstruct%para_env)
             IF (ASSOCIATED(fmstruct%row_indices)) THEN
                DEALLOCATE (fmstruct%row_indices)
-            ENDIF
+            END IF
             IF (ASSOCIATED(fmstruct%col_indices)) THEN
                DEALLOCATE (fmstruct%col_indices)
             END IF
@@ -465,14 +465,14 @@ CONTAINS
             DO i = 1, SIZE(row_indices)
                row_indices(i) = &
                   indxl2g(i, fmstruct%nrow_block, myprow, fmstruct%first_p_pos(1), nprow)
-            ENDDO
+            END DO
 #else
             DO i = 1, SIZE(row_indices)
                row_indices(i) = i
-            ENDDO
+            END DO
 #endif
          END IF
-      ENDIF
+      END IF
 
       IF (PRESENT(col_indices)) THEN
          col_indices => fmstruct%col_indices
@@ -483,15 +483,15 @@ CONTAINS
             DO i = 1, SIZE(col_indices)
                col_indices(i) = &
                   indxl2g(i, fmstruct%ncol_block, mypcol, fmstruct%first_p_pos(2), npcol)
-            ENDDO
+            END DO
 #else
             DO i = 1, SIZE(col_indices)
                col_indices(i) = i
-            ENDDO
+            END DO
 #endif
          END IF
 
-      ENDIF
+      END IF
    END SUBROUTINE cp_fm_struct_get
 
 ! **************************************************************************************************

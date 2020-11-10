@@ -226,7 +226,7 @@ CONTAINS
          rho0_mp%mp_rho(iatom)%Qlm_tot(1) = rho0_mp%mp_rho(iatom)%Qlm_z
          rho0_mp%mp_rho(iatom)%Q0 = 0.0_dp
          rho0_mp%mp_rho(iatom)%Qlm_car = 0.0_dp
-      ENDDO
+      END DO
 
       IF (.NOT. (.NOT. paw_atom .AND. gapw_control%nopaw_as_gpw)) THEN
          DO iat = 1, natom
@@ -287,7 +287,7 @@ CONTAINS
                DO ir = 1, nr
                   sum1 = sum1 + g_atom%wr(ir)* &
                          rho0_atom_set(iatom)%rho0_rad_h%r_coef(ir, iso)
-               ENDDO
+               END DO
                rho0_h_tot = rho0_h_tot + sum1*harmonics%slm_int(iso)
             END DO ! iso
             IF (paw_atom) THEN

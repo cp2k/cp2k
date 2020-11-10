@@ -109,7 +109,7 @@ CONTAINS
 
          block_A = MATMUL(MATMUL(block_N_inv, block_U), block_Y)
          block_B = MATMUL(MATMUL(block_N, block_U), block_Y)
-      ENDDO
+      END DO
       CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
 
@@ -247,7 +247,7 @@ CONTAINS
          CALL dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_precon, matrix_tmp, &
                              0.0_dp, pao%matrix_X, retain_sparsity=.TRUE.)
          CALL dbcsr_release(matrix_tmp)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -329,7 +329,7 @@ CONTAINS
          tmp2 = MATMUL(TRANSPOSE(tmp1), tmp1)
          DO i = 1, M
             tmp2(i, i) = tmp2(i, i) - 1.0_dp
-         ENDDO
+         END DO
 
 !$OMP ATOMIC
          delta_max = MAX(delta_max, MAXVAL(ABS(tmp2)))
