@@ -250,8 +250,7 @@ void add_sub_grid(const int *lower_corner, const int *upper_corner,
   for (int d = 0; d < 3; d++) {
     if ((lower_corner[d] < grid->window_shift[d]) || (lower_corner[d] < 0) ||
         (lower_corner[d] >= upper_corner[d]) ||
-        (upper_corner[d] > (grid->window_shift[d] + grid->window_size[d])) ||
-        (upper_corner[d] <= 0) ||
+        (upper_corner[d] > (grid->window_size[d])) || (upper_corner[d] <= 0) ||
         (upper_corner[d] - lower_corner[d] > subgrid->size[d]) ||
         (grid == NULL) || (subgrid == NULL)) {
       printf("Error : invalid parameters. Values of the given parameters along "
@@ -275,9 +274,7 @@ void add_sub_grid(const int *lower_corner, const int *upper_corner,
 
   for (int z = 0; z < sizez; z++) {
     double *restrict dst =
-        &idx3(grid[0], lower_corner[0] + z - grid->lower_corner[0],
-              lower_corner[1] - grid->lower_corner[1],
-              lower_corner[2] - grid->lower_corner[2]);
+        &idx3(grid[0], lower_corner[0] + z, lower_corner[1], lower_corner[2]);
     double *restrict src =
         &idx3(subgrid[0], position1[0] + z, position1[1], position1[2]);
     for (int y = 0; y < sizey - 1; y++) {
@@ -396,19 +393,16 @@ int compute_cube_properties(const bool ortho, const double radius,
   return cmax;
 }
 
-void return_cube_position(const int *grid_size, const int *lb_grid,
-                          const int *cube_center,
-                          const int *lower_boundaries_cube, const int *period,
-                          int *const position) {
+void return_cube_position(const int *const grid_size, const int *const lb_grid,
+                          const int *const cube_center,
+                          const int *const lower_boundaries_cube,
+                          const int *const period, int *const position) {
   for (int i = 0; i < 3; i++)
-    position[i] = modulo(lb_grid[i] + cube_center[i] + lower_boundaries_cube[i],
+    position[i] = modulo(cube_center[i] - lb_grid[i] + lower_boundaries_cube[i],
                          period[i]);
 
-  if ((position[0] >= grid_size[0]) || (position[1] >= grid_size[1]) ||
-      (position[2] >= grid_size[2])) {
-    printf("the lower corner of the cube is outside the grid\n");
-    abort();
-  }
+  assert(!(position[0] >= grid_size[0]) || (position[1] >= grid_size[1]) ||
+         (position[2] >= grid_size[2]));
 }
 
 void verify_orthogonality(const double dh[3][3], bool orthogonal[3]) {
@@ -624,3 +618,30 @@ void cblas_dgemv(const CBLAS_LAYOUT order, const CBLAS_TRANSPOSE TransA,
 #undef OFFSET
 }
 #endif
+
+int compute_interval(const int full_size, const int size, const int cube_size,
+                     const int x1, int *x, int *const lower_corner,
+                     int *const upper_corner, const Interval window) {
+  if (size == full_size) {
+    /* we have the full grid in that direction */
+    /* lower boundary is within the window */
+    *lower_corner = x1;
+    /* now compute the upper corner */
+    /* needs to be as large as possible. basically I take [x1..
+     * min(grid.full_size, cube_size - x)] */
+
+    *upper_corner = compute_next_boundaries(x1, *x, full_size, cube_size);
+
+    {
+      Interval tz = create_interval(*lower_corner, *upper_corner);
+      Interval res = intersection_interval(tz, window);
+      *lower_corner = res.xmin;
+      *upper_corner = res.xmax;
+    }
+  } else {
+    *lower_corner = x1;
+    *upper_corner = x1 + 1;
+  }
+
+  return imax(*lower_corner - x1, 0);
+}

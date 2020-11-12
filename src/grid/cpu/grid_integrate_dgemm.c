@@ -41,120 +41,134 @@ void extract_cube(struct collocation_integration_ *handler,
                        cube_center, lower_boundaries_cube,
                        handler->grid.full_size, position);
 
-  int z1 = position[0];
-  int z_offset = 0;
-
   int lower_corner[3];
   int upper_corner[3];
   int diff[3];
 
+  const Interval zwindow = {.xmin = handler->grid.window_shift[0],
+                            .xmax = handler->grid.window_shift[0] +
+                                    handler->grid.window_size[0] - 1};
+  const Interval ywindow = {.xmin = handler->grid.window_shift[1],
+                            .xmax = handler->grid.window_shift[1] +
+                                    handler->grid.window_size[1] - 1};
+  const Interval xwindow = {.xmin = handler->grid.window_shift[2],
+                            .xmax = handler->grid.window_shift[2] +
+                                    handler->grid.window_size[2] - 1};
+
   memset(handler->cube.data, 0, sizeof(double) * handler->cube.alloc_size_);
 
-  for (int z = 0; (z < handler->cube.size[0]); z++, z1++) {
+  for (int z = 0; (z < handler->cube.size[0]); z++) {
+    const int z1 = (z + position[0]) % handler->grid.full_size[0];
     /* lower boundary is within the window */
     lower_corner[0] = z1;
     /* now compute the upper corner */
     /* needs to be as large as possible but still within the region of interest
      */
-    upper_corner[0] = compute_next_boundaries(
-        &z1, z, handler->grid.full_size[0], handler->cube.size[0]);
+    upper_corner[0] = compute_next_boundaries(z1, z, handler->grid.full_size[0],
+                                              handler->cube.size[0]);
 
-    /* now check if the intersection between this interval and the window is
-     * empty or not */
-    if ((upper_corner[0] < handler->grid.window_shift[0]) ||
-        (lower_corner[0] >=
-         (handler->grid.window_shift[0] + handler->grid.window_size[0]))) {
-      update_loop_index(lower_corner[0], upper_corner[0],
-                        handler->grid.full_size[0], &z_offset, &z, &z1);
-      continue;
+    {
+      Interval tz = create_interval(lower_corner[0], upper_corner[0] - 1);
+      /* now check if the intersection between this interval and the window is
+       * empty or not */
+      if (intersection_interval_is_empty(tz, zwindow)) {
+        update_loop_index(handler->grid.full_size[0], z1, &z);
+        continue;
+      }
+
+      diff[0] = imax(handler->grid.window_shift[0] - lower_corner[0], 0);
+
+      Interval res = intersection_interval(tz, zwindow);
+      lower_corner[0] = res.xmin;
+      /* the +1 is important here because I do interval operations on
+       * closed intervals while the result should be half open
+       * intervals */
+      upper_corner[0] = res.xmax + 1;
     }
 
-    diff[0] = imax(handler->grid.window_shift[0] - lower_corner[0], 0);
-    lower_corner[0] = imax(lower_corner[0], handler->grid.window_shift[0]);
-    upper_corner[0] = imin(upper_corner[0], handler->grid.window_shift[0] +
-                                                handler->grid.window_size[0]);
-
     /* // We have a full plane. */
-    if ((upper_corner[0] - lower_corner[0]) <= handler->grid.window_size[0]) {
-      int y1 = position[1];
-      int y_offset = 0;
-      for (int y = 0; y < handler->cube.size[1]; y1++, y++) {
+    if (upper_corner[0] - lower_corner[0]) {
+      for (int y = 0; y < handler->cube.size[1]; y++) {
+        const int y1 = (y + position[1]) % handler->grid.full_size[1];
         /* lower boundary is within the window */
         lower_corner[1] = y1;
         /* now compute the upper corner */
         /* needs to be as large as possible but still within the region of
          * interest */
         upper_corner[1] = compute_next_boundaries(
-            &y1, y, handler->grid.full_size[1], handler->cube.size[1]);
+            y1, y, handler->grid.full_size[1], handler->cube.size[1]);
 
-        /* now check if the intersection between this interval and the window is
-         * empty or not */
-        if ((upper_corner[1] < handler->grid.window_shift[1]) ||
-            (lower_corner[1] >=
-             (handler->grid.window_shift[1] + handler->grid.window_size[1]))) {
-          update_loop_index(lower_corner[1], upper_corner[1],
-                            handler->grid.full_size[1], &y_offset, &y, &y1);
-          continue;
+        {
+          Interval tz = create_interval(lower_corner[1], upper_corner[1] - 1);
+          /* now check if the intersection between this interval and the window
+           * is empty or not */
+          if (intersection_interval_is_empty(tz, ywindow)) {
+            update_loop_index(handler->grid.full_size[1], y1, &y);
+            continue;
+          }
+          diff[1] = imax(handler->grid.window_shift[1] - lower_corner[1], 0);
+
+          Interval res = intersection_interval(tz, ywindow);
+          lower_corner[1] = res.xmin;
+          /* the +1 is important here because I do interval operations on
+           * closed intervals while the result should be half open
+           * intervals */
+          upper_corner[1] = res.xmax + 1;
         }
-        diff[1] = imax(handler->grid.window_shift[1] - lower_corner[1], 0);
-        lower_corner[1] = imax(lower_corner[1], handler->grid.window_shift[1]);
-        upper_corner[1] =
-            imin(upper_corner[1],
-                 handler->grid.window_shift[1] + handler->grid.window_size[1]);
 
         if (upper_corner[1] - lower_corner[1]) {
-          int x1 = position[2];
-          int x_offset = 0;
-          for (int x = 0; x < handler->cube.size[2]; x1++, x++) {
+          for (int x = 0; x < handler->cube.size[2]; x++) {
+            const int x1 = (position[2] + x) % handler->grid.full_size[2];
             /* lower boundary is within the window */
             lower_corner[2] = x1;
             /* now compute the upper corner */
             /* needs to be as large as possible but still within the region of
              * interest */
             upper_corner[2] = compute_next_boundaries(
-                &x1, x, handler->grid.full_size[2], handler->cube.size[2]);
+                x1, x, handler->grid.full_size[2], handler->cube.size[2]);
 
-            /* now check if the intersection between this interval and the
-             * window is empty or not */
-            if ((upper_corner[2] < handler->grid.window_shift[2]) ||
-                (lower_corner[2] >= (handler->grid.window_shift[2] +
-                                     handler->grid.window_size[2]))) {
-              update_loop_index(lower_corner[2], upper_corner[2],
-                                handler->grid.full_size[2], &x_offset, &x, &x1);
-              continue;
+            {
+              Interval tz =
+                  create_interval(lower_corner[2], upper_corner[2] - 1);
+              /* now check if the intersection between this interval and the
+               * window is empty or not */
+              if (intersection_interval_is_empty(tz, xwindow)) {
+                update_loop_index(handler->grid.full_size[2], x1, &x);
+                continue;
+              }
+
+              diff[2] =
+                  imax(handler->grid.window_shift[2] - lower_corner[2], 0);
+
+              Interval res = intersection_interval(tz, xwindow);
+              lower_corner[2] = res.xmin;
+              /* the +1 is important here because I do interval operations on
+               * closed intervals while the result should be half open
+               * intervals */
+              upper_corner[2] = res.xmax + 1;
             }
 
-            diff[2] = imax(handler->grid.window_shift[2] - lower_corner[2], 0);
-            lower_corner[2] =
-                imax(lower_corner[2], handler->grid.window_shift[2]);
-            upper_corner[2] =
-                imin(upper_corner[2], handler->grid.window_shift[2] +
-                                          handler->grid.window_size[2]);
-
-            if (upper_corner[2] - lower_corner[2]) {
+            if (upper_corner[2] - lower_corner[2]) { // should be non zero
               const int position1[3] = {z + diff[0], y + diff[1], x + diff[2]};
 
               /* the function will internally take care of the local vx global
                * grid */
               extract_sub_grid(
                   lower_corner, // lower corner of the portion of cube (in the
-                                // full grid)
+                  // full grid)
                   upper_corner, // upper corner of the portion of cube (in the
-                                // full grid)
-                  position1,    // starting position subblock inside the cube
+                  // full grid)
+                  position1, // starting position subblock inside the cube
                   &handler->grid,
                   &handler->cube); // the grid to add data from
 
-              update_loop_index(lower_corner[2], upper_corner[2],
-                                handler->grid.full_size[2], &x_offset, &x, &x1);
+              update_loop_index(handler->grid.full_size[2], x1, &x);
             }
           }
-          update_loop_index(lower_corner[1], upper_corner[1],
-                            handler->grid.full_size[1], &y_offset, &y, &y1);
+          update_loop_index(handler->grid.full_size[1], y1, &y);
         }
       }
-      update_loop_index(lower_corner[0], upper_corner[0],
-                        handler->grid.full_size[0], &z_offset, &z, &z1);
+      update_loop_index(handler->grid.full_size[0], z1, &z);
     }
   }
 }

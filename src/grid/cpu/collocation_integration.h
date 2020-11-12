@@ -60,6 +60,9 @@ typedef struct pgf_list_gpu_ {
   size_t cube_alloc_size_;
 
   /* offset for the different cubes */
+  size_t *cube_offset_cpu_;
+
+  /* offset for the different cubes */
   size_t *cube_offset_gpu_;
 
   /* memory where the cube data are stored */
@@ -98,6 +101,13 @@ typedef struct pgf_list_gpu_ {
       window_size;
 
   int cmax;
+  bool zeroing_grid;
+
+  /* size of the halo when the grid is split over multiple mpi ranks */
+  int *border_mask_cpu_;
+  int *border_mask_gpu_;
+
+  int3 border_width;
 
   struct pgf_list_gpu_ *next;
   /* if true, the grid on the gpu should be reallocated */

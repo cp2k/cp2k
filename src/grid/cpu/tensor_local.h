@@ -86,16 +86,6 @@ inline void initialize_tensor(struct tensor_ *a, const int dim,
   return;
 }
 
-/* inline void allocate_tensor_on_gpu(struct tensor_ *a) */
-/* { */
-/* #ifdef __USE_GPU */
-/*     cudaMalloc((void**)&a->data_gpu_, sizeof(double) * a->alloc_size_); */
-/* #else */
-/*     printf("GPU support is off\n"); */
-/*     a->data_gpu_ = NULL; */
-/* #endif */
-/* } */
-
 /* initialize a tensor structure for a tensor of dimension dim = 2 */
 
 inline void initialize_tensor_2(struct tensor_ *a, int n1, int n2) {
@@ -276,27 +266,24 @@ inline void setup_grid_window(tensor *const grid, const int *const shift_local,
                               const int border_mask) {
   for (int d = 0; d < grid->dim_; d++) {
     grid->lower_corner[d] = shift_local[grid->dim_ - d - 1];
-    grid->window_shift[d] = shift_local[grid->dim_ - d - 1];
+    grid->window_shift[d] = 0;
     grid->window_size[d] = grid->size[d];
+    if (grid->size[d] != grid->full_size[d]) {
+      grid->window_size[d]--;
+    }
   }
 
   if (border_width) {
-    if (border_mask & (1 << 0)) {
+    if (border_mask & (1 << 0))
       grid->window_shift[2] += border_width[0];
-      grid->window_size[2] -= border_width[0];
-    }
     if (border_mask & (1 << 1))
       grid->window_size[2] -= border_width[0];
-    if (border_mask & (1 << 2)) {
+    if (border_mask & (1 << 2))
       grid->window_shift[1] += border_width[1];
-      grid->window_size[1] -= border_width[1];
-    }
     if (border_mask & (1 << 3))
       grid->window_size[1] -= border_width[1];
-    if (border_mask & (1 << 4)) {
+    if (border_mask & (1 << 4))
       grid->window_shift[0] += border_width[2];
-      grid->window_size[0] -= border_width[2];
-    }
     if (border_mask & (1 << 5))
       grid->window_size[0] -= border_width[2];
   }

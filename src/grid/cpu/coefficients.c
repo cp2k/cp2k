@@ -224,7 +224,7 @@ void grid_transform_coef_xzy_to_ikj(const double dh[3][3],
         const int lpy = lp - lx;
         const double tx = idx3(hmatgridp, ilx, 0, 0) *
                           idx3(hmatgridp, jlx, 1, 0) *
-                          idx3(hmatgridp, klx, 2, 0) * fac[lx] * inv_fac[klx] *
+                          idx3(hmatgridp, klx, 2, 0) * fac(lx) * inv_fac[klx] *
                           inv_fac[jlx] * inv_fac[ilx];
 
         for (int kly = 0; kly <= lpy; kly++) {
@@ -234,7 +234,7 @@ void grid_transform_coef_xzy_to_ikj(const double dh[3][3],
               const int lpz = lp - lx - ly;
               const double ty = tx * idx3(hmatgridp, ily, 0, 1) *
                                 idx3(hmatgridp, jly, 1, 1) *
-                                idx3(hmatgridp, kly, 2, 1) * fac[ly] *
+                                idx3(hmatgridp, kly, 2, 1) * fac(ly) *
                                 inv_fac[kly] * inv_fac[jly] * inv_fac[ily];
               for (int klz = 0; klz <= lpz; klz++) {
                 for (int jlz = 0; jlz <= lpz - klz; jlz++) {
@@ -251,7 +251,7 @@ void grid_transform_coef_xzy_to_ikj(const double dh[3][3],
                         idx3(coef_xyz[0], lx, lz, ly) * ty *
                         idx3(hmatgridp, ilz, 0, 2) *
                         idx3(hmatgridp, jlz, 1, 2) *
-                        idx3(hmatgridp, klz, 2, 2) * fac[lz] * inv_fac[klz] *
+                        idx3(hmatgridp, klz, 2, 2) * fac(lz) * inv_fac[klz] *
                         inv_fac[jlz] * inv_fac[ilz];
                   }
                 }
@@ -339,10 +339,10 @@ void grid_transform_coef_jik_to_yxz(const double dh[3][3],
                         idx3(hmatgridp, kly, 2, 1) *
                         idx3(hmatgridp, ilz, 0, 2) *
                         idx3(hmatgridp, jlz, 1, 2) *
-                        idx3(hmatgridp, klz, 2, 2) * fac[lx] * fac[ly] *
-                        fac[lz] /
-                        (fac[ilx] * fac[ily] * fac[ilz] * fac[jlx] * fac[jly] *
-                         fac[jlz] * fac[klx] * fac[kly] * fac[klz]);
+                        idx3(hmatgridp, klz, 2, 2) * fac(lx) * fac(ly) *
+                        fac(lz) /
+                        (fac(ilx) * fac(ily) * fac(ilz) * fac(jlx) * fac(jly) *
+                         fac(jlz) * fac(klx) * fac(kly) * fac(klz));
                   }
                 }
               }

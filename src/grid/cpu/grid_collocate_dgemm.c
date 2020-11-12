@@ -54,8 +54,8 @@ void rotate_to_cartesian_harmonics(const grid_basis_set *ibasis,
   const int sgfb = jbasis->first_sgf[jset] - 1;
   const int maxcoa = ibasis->maxco;
   const int maxcob = jbasis->maxco;
-  const int ncoseta = ncoset[ibasis->lmax[iset]];
-  const int ncosetb = ncoset[jbasis->lmax[jset]];
+  const int ncoseta = ncoset(ibasis->lmax[iset]);
+  const int ncosetb = ncoset(jbasis->lmax[jset]);
   const int ncoa = ibasis->npgf[iset] * ncoseta; // size of carthesian set
   const int ncob = jbasis->npgf[jset] * ncosetb;
 
@@ -261,13 +261,21 @@ void apply_sphere_bound_cutoff(struct collocation_integration_ *const handler,
   }
 
   const int kgmin = ceil(-1e-8 - disr_radius * handler->dh_inv[2][2]);
+  const Interval zwindow = {.xmin = handler->grid.window_shift[0],
+                            .xmax = handler->grid.window_size[0]};
+  const Interval ywindow = {.xmin = handler->grid.window_shift[1],
+                            .xmax = handler->grid.window_size[1]};
+  const Interval xwindow = {.xmin = handler->grid.window_shift[2],
+                            .xmax = handler->grid.window_size[2]};
 
   for (int kg = kgmin; kg <= (1 - kgmin); kg++) {
     const int k = map[0][kg - lb_cube[0]];
     const int kd = (2 * kg - 1) / 2; // distance from center in grid points
     const double kr = kd * handler->dh[2][2]; // distance from center in a.u.
     const double kremain = disr_radius * disr_radius - kr * kr;
-    if (kremain >= 0.0) {
+
+    if ((kremain >= 0.0) && is_point_in_interval(k, zwindow)) {
+
       const int jgmin = ceil(-1e-8 - sqrt(kremain) * handler->dh_inv[1][1]);
       for (int jg = jgmin; jg <= (1 - jgmin); jg++) {
         const int j = map[1][jg - lb_cube[1]];
@@ -277,42 +285,43 @@ void apply_sphere_bound_cutoff(struct collocation_integration_ *const handler,
         const double jr = ((2 * jg - 1) >> 1) *
                           handler->dh[1][1]; // distance from center in a.u.
         const double jremain = kremain - jr * jr;
-        if (jremain >= 0.0) {
+        if ((jremain >= 0.0) && is_point_in_interval(j, ywindow)) {
           const int xmin = ceil(-1e-8 - sqrt(jremain) * handler->dh_inv[0][0]);
           const int xmax = 1 - xmin;
-          int x1 = map[2][xmin - lb_cube[2]];
+
           int lower_corner[3] = {k, j, xmin};
           int upper_corner[3] = {k + 1, j + 1, xmin};
-          int x_offset = 0;
 
           // printf("xmin %d, xmax %d\n", xmin, xmax);
           for (int x = xmin - lb_cube[2];
-               x < imin((xmax - lb_cube[2]), handler->cube.size[2]);
-               x1++, x++) {
+               x < imin((xmax - lb_cube[2]), handler->cube.size[2]); x++) {
+            const int x1 = map[2][x];
             /* lower boundary is within the window */
-            lower_corner[2] = x1;
+            lower_corner[2] = map[2][x];
             /* now compute the upper corner */
             /* needs to be as large as possible but still within the region of
              * interest */
             upper_corner[2] = compute_next_boundaries(
-                &x1, x, handler->grid.full_size[2], handler->cube.size[2]);
+                x1, x, handler->grid.full_size[2], handler->cube.size[2]);
+            int diff = 0;
+            {
+              Interval tz = create_interval(lower_corner[2], upper_corner[2]);
+              /* now check if the intersection between this interval and the
+               * window is empty or not */
+              if (intersection_interval_is_empty(tz, xwindow)) {
+                update_loop_index(handler->grid.full_size[2], x1, &x);
+                continue;
+              }
 
-            /* now check if the intersection between this interval and the
-             * window is empty or not */
-            if ((upper_corner[2] < handler->grid.window_shift[2]) ||
-                (lower_corner[2] >= (handler->grid.window_shift[2] +
-                                     handler->grid.window_size[2]))) {
-              update_loop_index(lower_corner[2], upper_corner[2],
-                                handler->grid.full_size[2], &x_offset, &x, &x1);
-              continue;
+              diff = imax(lower_corner[2] - x1, 0);
+
+              Interval res = intersection_interval(tz, xwindow);
+              lower_corner[2] = res.xmin;
+              /* the +1 is important here because I do interval operations on
+               * closed intervals while the result should be half open
+               * intervals */
+              upper_corner[2] = res.xmax + 1;
             }
-
-            int diff = imax(handler->grid.window_shift[2] - lower_corner[2], 0);
-            lower_corner[2] =
-                imax(lower_corner[2], handler->grid.window_shift[2]);
-            upper_corner[2] =
-                imin(upper_corner[2], handler->grid.window_shift[2] +
-                                          handler->grid.window_size[2]);
 
             if (upper_corner[2] - lower_corner[2]) {
               const int position1[3] = {kg - lb_cube[0], jg - lb_cube[1],
@@ -335,8 +344,7 @@ void apply_sphere_bound_cutoff(struct collocation_integration_ *const handler,
                 dst[x] += src[x];
               }
 
-              update_loop_index(lower_corner[2], upper_corner[2],
-                                handler->grid.full_size[2], &x_offset, &x, &x1);
+              update_loop_index(handler->grid.full_size[2], x1, &x);
             }
           }
         }
@@ -363,30 +371,36 @@ void apply_spherical_cutoff_generic(
   for (int i = 0; i < 3; i++) {
     for (int ig = lb_cube[i]; ig <= ub_cube[i]; ig++) {
       map[i][ig - lb_cube[i]] =
-          modulo(cube_center[i] + ig - handler->grid.window_shift[i],
+          modulo(cube_center[i] + ig - handler->grid.lower_corner[i],
                  handler->grid.full_size[i]);
     }
   }
 
+  const Interval zwindow = {.xmin = handler->grid.window_shift[0],
+                            .xmax = handler->grid.window_size[0] - 1};
+  const Interval ywindow = {.xmin = handler->grid.window_shift[1],
+                            .xmax = handler->grid.window_size[1] - 1};
+  const Interval xwindow = {.xmin = handler->grid.window_shift[2],
+                            .xmax = handler->grid.window_size[2] - 1};
+
   for (int k = lb_cube[0]; k <= ub_cube[0]; k++) {
+    const int iz = map[0][k - lb_cube[0]];
+
+    if (!is_point_in_interval(iz, zwindow))
+      continue;
+
     const double z[3] = {(k - roffset[0]) * handler->dh[2][0],
                          (k - roffset[0]) * handler->dh[2][1],
                          (k - roffset[0]) * handler->dh[2][2]};
-    const int iz = map[0][k - lb_cube[0]];
-
-    if ((iz < handler->grid.window_shift[0]) ||
-        (iz >= (handler->grid.window_shift[0] + handler->grid.window_size[0])))
-      continue;
 
     for (int j = lb_cube[1]; j <= ub_cube[1]; j++) {
+      const int iy = map[1][j - lb_cube[1]];
+      if (!is_point_in_interval(iy, ywindow))
+        continue;
+
       const double y[3] = {z[0] + (j - roffset[1]) * handler->dh[1][0],
                            z[1] + (j - roffset[1]) * handler->dh[1][1],
                            z[2] + (j - roffset[1]) * handler->dh[1][2]};
-      const int iy = map[1][j - lb_cube[1]];
-      if ((iy < handler->grid.window_shift[1]) ||
-          (iy >=
-           (handler->grid.window_shift[1] + handler->grid.window_size[1])))
-        continue;
 
       /* Sqrt[(-2 x1 \[Alpha] - 2 y1 \[Beta] - 2 z1 \[Gamma])^2 - */
       /*                                            4 (x1^2 + y1^2 + z1^2)
@@ -415,37 +429,28 @@ void apply_spherical_cutoff_generic(
       const int xmin = imax(ceil((-b - delta) * 0.5 * a_inv), lb_cube[2]);
       const int xmax = imin(floor((-b + delta) * 0.5 * a_inv), ub_cube[2]);
 
-      int x1 = map[2][xmin - lb_cube[2]];
       int lower_corner[3] = {iz, iy, xmin};
       int upper_corner[3] = {iz + 1, iy + 1, xmin};
-      int x_offset = 0;
 
-      // printf("xmin %d, xmax %d\n", xmin, xmax);
       for (int x = xmin - lb_cube[2];
-           x < imin((xmax - lb_cube[2]), handler->cube.size[2]); x1++, x++) {
+           x < imin((xmax - lb_cube[2]), handler->cube.size[2]); x++) {
+        const int x1 = map[2][x];
         /* lower boundary is within the window */
         lower_corner[2] = x1;
         /* now compute the upper corner */
         /* needs to be as large as possible but still within the region of
          * interest */
         upper_corner[2] = compute_next_boundaries(
-            &x1, x, handler->grid.full_size[2], handler->cube.size[2]);
-
+            x1, x, handler->grid.full_size[2], handler->cube.size[2]);
+        Interval t = create_interval(lower_corner[2], upper_corner[2]);
         /* now check if the intersection between this interval and the
          * window is empty or not */
-        if ((upper_corner[2] < handler->grid.window_shift[2]) ||
-            (lower_corner[2] >=
-             (handler->grid.window_shift[2] + handler->grid.window_size[2]))) {
-          update_loop_index(lower_corner[2], upper_corner[2],
-                            handler->grid.full_size[2], &x_offset, &x, &x1);
+        if (intersection_interval_is_empty(t, xwindow)) {
+          update_loop_index(handler->grid.full_size[2], x1, &x);
           continue;
         }
 
-        int diff = imax(handler->grid.window_shift[2] - lower_corner[2], 0);
-        lower_corner[2] = imax(lower_corner[2], handler->grid.window_shift[2]);
-        upper_corner[2] =
-            imin(upper_corner[2],
-                 handler->grid.window_shift[2] + handler->grid.window_size[2]);
+        int diff = imax(lower_corner[2] - x1, 0);
 
         if (upper_corner[2] - lower_corner[2]) {
           const int position1[3] = {k - lb_cube[0], j - lb_cube[1], x + diff};
@@ -453,10 +458,8 @@ void apply_spherical_cutoff_generic(
           /* the function will internally take care of the local vs global
            * grid */
 
-          double *__restrict__ dst = &idx3(
-              handler->grid, lower_corner[0] - handler->grid.lower_corner[0],
-              lower_corner[1] - handler->grid.lower_corner[1],
-              lower_corner[2] - handler->grid.lower_corner[2]);
+          double *__restrict__ dst = &idx3(handler->grid, lower_corner[0],
+                                           lower_corner[1], lower_corner[2]);
           double *__restrict__ src =
               &idx3(handler->cube, position1[0], position1[1], position1[2]);
 
@@ -466,8 +469,7 @@ void apply_spherical_cutoff_generic(
             dst[x] += src[x];
           }
 
-          update_loop_index(lower_corner[2], upper_corner[2],
-                            handler->grid.full_size[2], &x_offset, &x, &x1);
+          update_loop_index(handler->grid.full_size[2], x1, &x);
         }
       }
     }
@@ -660,102 +662,163 @@ void tensor_reduction_for_collocate_integrate(
  * orthorombic cases, it is faster to apply PCB directly on the polynomials. */
 
 void apply_mapping_cubic(struct collocation_integration_ *handler,
-                         const int *lower_boundaries_cube,
-                         const int *cube_center) {
-  int position[3];
-  /* return the cube position in global coordinates */
+                         const int cmax, const int *const lower_boundaries_cube,
+                         const int *const cube_center) {
 
-  return_cube_position(handler->grid.size, handler->grid.window_shift,
-                       cube_center, lower_boundaries_cube,
-                       handler->grid.full_size, position);
-
-  int z1 = position[0];
-  int z_offset = 0;
+  // a mapping so that the ig corresponds to the right grid point
+  int **map = handler->map;
+  map[1] = map[0] + 2 * cmax + 1;
+  map[2] = map[1] + 2 * cmax + 1;
+  memset(map[0], 0xff, sizeof(int) * 3 * (2 * cmax + 1));
+  for (int i = 0; i < 3; i++) {
+    for (int ig = 0; ig < handler->cube.size[i]; ig++) {
+      map[i][ig] = modulo(cube_center[i] + ig + lower_boundaries_cube[i] -
+                              handler->grid.lower_corner[i],
+                          handler->grid.full_size[i]);
+    }
+  }
 
   int lower_corner[3];
   int upper_corner[3];
   int diff[3];
 
-  for (int z = 0; (z < handler->cube.size[0]); z++, z1++) {
-    /* lower boundary is within the window */
-    lower_corner[0] = z1;
-    /* now compute the upper corner */
-    /* needs to be as large as possible but still within the region of interest
-     */
-    upper_corner[0] = compute_next_boundaries(
-        &z1, z, handler->grid.full_size[0], handler->cube.size[0]);
+  const Interval zwindow = {.xmin = handler->grid.window_shift[0],
+                            .xmax = handler->grid.window_size[0]};
+  const Interval ywindow = {.xmin = handler->grid.window_shift[1],
+                            .xmax = handler->grid.window_size[1]};
+  const Interval xwindow = {.xmin = handler->grid.window_shift[2],
+                            .xmax = handler->grid.window_size[2]};
 
-    /* now check if the intersection between this interval and the window is
-     * empty or not */
-    if ((upper_corner[0] < handler->grid.window_shift[0]) ||
-        (lower_corner[0] >=
-         (handler->grid.window_shift[0] + handler->grid.window_size[0]))) {
-      update_loop_index(lower_corner[0], upper_corner[0],
-                        handler->grid.full_size[0], &z_offset, &z, &z1);
+  /* this code makes a decomposition of the cube such that we can add block of
+   * datas in a vectorized way. */
+
+  /* the decomposition depends unfortunately on the way the grid is split over
+   * mpi ranks. If each mpi rank has the full grid then it is simple. A 1D
+   * example of the decomposition will explain it better. We have an interval
+   * [x1, x1 + cube_size - 1] (and a second index x [0, cube_size -1]) and a
+   * grid that goes from [0.. grid_size - 1].
+   *
+   * We start from x1 and compute the largest interval [x1.. x1 + diff] that fit
+   * to [0.. grid_size - 1]. Computing the difference diff is simply
+   * min(grid_size - x1, cube_size - x). then we add the result in a vectorized
+   * fashion. we itterate the processus by reducing the interval [x1, x1 +
+   * cube_size - 1] until it is empty. */
+
+  for (int z = 0; (z < handler->cube.size[0]); z++) {
+    const int z1 = map[0][z];
+
+    if (!is_point_in_interval(z1, zwindow))
       continue;
-    }
 
-    diff[0] = imax(handler->grid.window_shift[0] - lower_corner[0], 0);
-    lower_corner[0] = imax(lower_corner[0], handler->grid.window_shift[0]);
-    upper_corner[0] = imin(upper_corner[0], handler->grid.window_shift[0] +
-                                                handler->grid.window_size[0]);
+    if (handler->grid.size[0] == handler->grid.full_size[0]) {
+      /* lower boundary is within the window */
+      lower_corner[0] = z1;
 
-    /* // We have a full plane. */
-    if ((upper_corner[0] - lower_corner[0]) <= handler->grid.window_size[0]) {
-      int y1 = position[1];
-      int y_offset = 0;
-      for (int y = 0; y < handler->cube.size[1]; y1++, y++) {
-        /* lower boundary is within the window */
-        lower_corner[1] = y1;
-        /* now compute the upper corner */
-        /* needs to be as large as possible but still within the region of
-         * interest */
-        upper_corner[1] = compute_next_boundaries(
-            &y1, y, handler->grid.full_size[1], handler->cube.size[1]);
+      /* now compute the upper corner */
+      /* needs to be as large as possible but still within [0 .. period) */
 
+      upper_corner[0] = compute_next_boundaries(
+          z1, z, handler->grid.full_size[0], handler->cube.size[0]);
+      {
+        Interval tz = create_interval(lower_corner[0], upper_corner[0]);
         /* now check if the intersection between this interval and the window is
-         * empty or not */
-        if ((upper_corner[1] < handler->grid.window_shift[1]) ||
-            (lower_corner[1] >=
-             (handler->grid.window_shift[1] + handler->grid.window_size[1]))) {
-          update_loop_index(lower_corner[1], upper_corner[1],
-                            handler->grid.full_size[1], &y_offset, &y, &y1);
+         * empty or not. It should never be empty actually */
+        if (intersection_interval_is_empty(tz, zwindow)) {
+          update_loop_index(handler->grid.full_size[0], z1, &z);
           continue;
         }
-        diff[1] = imax(handler->grid.window_shift[1] - lower_corner[1], 0);
-        lower_corner[1] = imax(lower_corner[1], handler->grid.window_shift[1]);
-        upper_corner[1] =
-            imin(upper_corner[1],
-                 handler->grid.window_shift[1] + handler->grid.window_size[1]);
 
-        if (upper_corner[1] - lower_corner[1]) {
-          int x1 = position[2];
-          int x_offset = 0;
-          for (int x = 0; x < handler->cube.size[2]; x1++, x++) {
-            /* lower boundary is within the window */
-            lower_corner[2] = x1;
-            /* now compute the upper corner */
-            /* needs to be as large as possible but still within the region of
-             * interest */
-            upper_corner[2] = compute_next_boundaries(
-                &x1, x, handler->grid.full_size[2], handler->cube.size[2]);
+        Interval res = intersection_interval(tz, zwindow);
+        lower_corner[0] = res.xmin;
+        upper_corner[0] = res.xmax;
+      }
+    } else {
+      // it should be possible to take larger intervals
+      lower_corner[0] = z1;
+      upper_corner[0] = z1 + 1;
+    }
+    diff[0] = imax(lower_corner[0] - z1, 0);
 
+    /* // We have a full plane. */
+    if (upper_corner[0] - lower_corner[0]) {
+      for (int y = 0; y < handler->cube.size[1]; y++) {
+        const int y1 = map[1][y];
+
+        // this check is completely irrelevant when running without MPI.
+        if (!is_point_in_interval(y1, ywindow))
+          continue;
+
+        if (handler->grid.size[1] == handler->grid.full_size[1]) {
+          /* lower boundary is within the window */
+          lower_corner[1] = y1;
+          /* now compute the upper corner */
+          /* needs to be as large as possible but still within the region of
+           * interest */
+          upper_corner[1] = compute_next_boundaries(
+              y1, y, handler->grid.full_size[1], handler->cube.size[1]);
+
+          {
+            Interval tz = create_interval(lower_corner[1], upper_corner[1]);
             /* now check if the intersection between this interval and the
              * window is empty or not */
-            if ((upper_corner[2] < handler->grid.window_shift[2]) ||
-                (lower_corner[2] >= (handler->grid.window_shift[2] +
-                                     handler->grid.window_size[2]))) {
-              update_loop_index(lower_corner[2], upper_corner[2],
-                                handler->grid.full_size[2], &x_offset, &x, &x1);
+            if (intersection_interval_is_empty(tz, ywindow)) {
+              update_loop_index(handler->grid.full_size[1], y1, &y);
               continue;
             }
 
-            diff[2] = imax(handler->grid.window_shift[2] - lower_corner[2], 0);
-            lower_corner[2] =
-                imax(lower_corner[2], handler->grid.window_shift[2]);
-            upper_corner[2] =
-                imin(upper_corner[2], handler->grid.window_shift[2] +
-                                          handler->grid.window_size[2]);
+            Interval res = intersection_interval(tz, ywindow);
+            // printf("Intersection %d %d\n", res.xmin, res.xmax);
+            lower_corner[1] = res.xmin;
+            /* the +1 is important here because I do interval operations on
+             * closed intervals while the result should be half open
+             * intervals */
+            upper_corner[1] = res.xmax;
+          }
+        } else {
+          lower_corner[1] = y1;
+          upper_corner[1] = y1 + 1;
+        }
+
+        diff[1] = imax(lower_corner[1] - y1, 0);
+
+        if (upper_corner[1] - lower_corner[1]) {
+          for (int x = 0; x < handler->cube.size[2]; x++) {
+            const int x1 = map[2][x];
+
+            /* if (!is_point_in_interval(x1, xwindow)) */
+            /*     continue; */
+
+            if (handler->grid.size[2] == handler->grid.full_size[2]) {
+              /* lower boundary is within the window */
+              lower_corner[2] = x1;
+              /* now compute the upper corner */
+              /* needs to be as large as possible. basically I take [x1..
+               * min(grid.full_size, cube_size - x)] */
+
+              upper_corner[2] = compute_next_boundaries(
+                  x1, x, handler->grid.full_size[2], handler->cube.size[2]);
+
+              {
+                Interval tz = create_interval(lower_corner[2], upper_corner[2]);
+
+                /* now check if the intersection between this interval and the
+                 * window is empty or not */
+
+                if (intersection_interval_is_empty(tz, xwindow)) {
+                  update_loop_index(handler->grid.full_size[2], x1, &x);
+                  continue;
+                }
+
+                Interval res = intersection_interval(tz, xwindow);
+                lower_corner[2] = res.xmin;
+                upper_corner[2] = res.xmax;
+              }
+            } else {
+              lower_corner[2] = x1;
+              upper_corner[2] = x1 + 1;
+            }
+
+            diff[2] = imax(lower_corner[2] - x1, 0);
 
             if (upper_corner[2] - lower_corner[2]) {
               const int position1[3] = {z + diff[0], y + diff[1], x + diff[2]};
@@ -770,18 +833,17 @@ void apply_mapping_cubic(struct collocation_integration_ *handler,
                   position1,       // starting position subblock inside the cube
                   &handler->cube,  // the cube to extract data from
                   &handler->grid); // the grid to add data from
-
-              update_loop_index(lower_corner[2], upper_corner[2],
-                                handler->grid.full_size[2], &x_offset, &x, &x1);
             }
+            if (handler->grid.size[2] == handler->grid.full_size[2])
+              update_loop_index(handler->grid.full_size[2], x1, &x);
           }
-          update_loop_index(lower_corner[1], upper_corner[1],
-                            handler->grid.full_size[1], &y_offset, &y, &y1);
         }
+        if (handler->grid.size[1] == handler->grid.full_size[1])
+          update_loop_index(handler->grid.full_size[1], y1, &y);
       }
-      update_loop_index(lower_corner[0], upper_corner[0],
-                        handler->grid.full_size[0], &z_offset, &z, &z1);
     }
+    if (handler->grid.size[0] == handler->grid.full_size[0])
+      update_loop_index(handler->grid.full_size[0], z1, &z);
   }
 }
 
@@ -881,7 +943,7 @@ void grid_collocate(collocation_integration *const handler,
     }
     return;
   }
-  apply_mapping_cubic(handler, lb_cube, cubecenter);
+  apply_mapping_cubic(handler, cmax, lb_cube, cubecenter);
 }
 
 //******************************************************************************
@@ -949,8 +1011,8 @@ void grid_collocate_pgf_product_cpu_dgemm(
   lmax_prep[0] = lmax[0] + lmax_diff[0];
   lmax_prep[1] = lmax[1] + lmax_diff[1];
 
-  const int n1_prep = ncoset[lmax_prep[0]];
-  const int n2_prep = ncoset[lmax_prep[1]];
+  const int n1_prep = ncoset(lmax_prep[0]);
+  const int n2_prep = ncoset(lmax_prep[1]);
 
   /* I really do not like this. This will disappear */
   tensor pab_prep;
@@ -1026,8 +1088,8 @@ double compute_coefficients(grid_context *const ctx,
   const int jkind = ctx->atom_kinds[jatom] - 1;
   const grid_basis_set *ibasis = ctx->basis_sets[ikind];
   const grid_basis_set *jbasis = ctx->basis_sets[jkind];
-  const int ncoseta = ncoset[ibasis->lmax[iset]];
-  const int ncosetb = ncoset[jbasis->lmax[jset]];
+  const int ncoseta = ncoset(ibasis->lmax[iset]);
+  const int ncosetb = ncoset(jbasis->lmax[jset]);
   /* const int ncoa = ibasis->npgf[iset] * ncoseta;  // size of carthesian
    * set */
   /* const int ncob = jbasis->npgf[jset] * ncosetb; */
@@ -1085,8 +1147,8 @@ double compute_coefficients(grid_context *const ctx,
   lmax_prep[0] = lmax[0] + handler->lmax_diff[0];
   lmax_prep[1] = lmax[1] + handler->lmax_diff[1];
 
-  const int n1_prep = ncoset[lmax_prep[0]];
-  const int n2_prep = ncoset[lmax_prep[1]];
+  const int n1_prep = ncoset(lmax_prep[0]);
+  const int n2_prep = ncoset(lmax_prep[1]);
 
   /* we do not reallocate memory. We initialized the structure with the
    * maximum lmax of the all list already.
@@ -1206,6 +1268,9 @@ void collocate_one_grid_level_dgemm(grid_context *const ctx,
       if ((handler->grid.size[0] != handler->grid.full_size[0]) ||
           (handler->grid.size[1] != handler->grid.full_size[1]) ||
           (handler->grid.size[1] != handler->grid.full_size[2])) {
+        /* unfortunately the window where the gaussian should be added depends
+         * on the bounds. So I have to adjust the window all the time. */
+
         setup_grid_window(&handler->grid, shift_local, border_width,
                           task->border_mask);
       }

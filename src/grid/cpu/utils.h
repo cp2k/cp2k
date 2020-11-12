@@ -22,6 +22,7 @@
 #endif
 
 #include "../common/grid_common.h"
+#include "private_header.h"
 #include "tensor_local.h"
 
 /* inverse of the factorials */
@@ -179,4 +180,9 @@ void cblas_dgemv(const CBLAS_LAYOUT Layout, const CBLAS_TRANSPOSE TransA,
                  const double beta, double *Y, const int incY);
 
 #endif
+
+extern int compute_interval(const int full_size, const int size,
+                            const int cube_size, const int x1, int *x,
+                            int *const lower_corner, int *const upper_corner,
+                            Interval window);
 #endif

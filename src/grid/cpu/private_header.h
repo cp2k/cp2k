@@ -18,6 +18,10 @@
 enum checksum_ { task_checksum = 0x2384989, ctx_checksum = 0x2356734 };
 
 typedef struct {
+  int xmin, xmax;
+} Interval;
+
+typedef struct {
   int level;
   int iatom;
   int jatom;
@@ -66,23 +70,43 @@ typedef struct {
   enum checksum_ checksum;
 } grid_context;
 
-static inline void update_loop_index(const int xmin, const int xmax,
-                                     const int global_grid_size,
-                                     int *const x_offset, int *const x,
-                                     int *const x1) {
-  *x += xmax - xmin - 1;
-  *x_offset += (xmax - xmin);
-
-  if (*x1 == global_grid_size) {
-    *x1 = -1;
-  }
+static inline void update_loop_index(const int global_grid_size, int x1,
+                                     int *const x) {
+  *x += global_grid_size - x1 - 1;
 }
 
-static inline int compute_next_boundaries(int *y1, int y,
-                                          const int global_grid_size,
+static inline Interval create_interval(const int xmin, const int xmax) {
+  assert(xmax >= xmin);
+
+  Interval t = {.xmin = xmin, .xmax = xmax};
+  return t;
+}
+
+static inline bool is_point_in_interval(const int value, Interval x) {
+  return (value >= x.xmin) && (value <= x.xmax);
+}
+
+static inline bool intersection_interval_is_empty(const Interval x,
+                                                  const Interval y) {
+  /* return true if the intersection is empty */
+  if ((x.xmin > y.xmax) || (x.xmax < y.xmin))
+    return true;
+  else
+    return false;
+}
+
+static inline Interval intersection_interval(const Interval x,
+                                             const Interval y) {
+  Interval z;
+  z.xmin = imax(x.xmin, y.xmin);
+  z.xmax = imin(x.xmax, y.xmax);
+  return z;
+}
+
+static inline int compute_next_boundaries(const int y1, const int y,
+                                          const int grid_size,
                                           const int cube_size) {
-  *y1 += imin(cube_size - y, global_grid_size - *y1);
-  return *y1;
+  return y1 + imin(cube_size - y, grid_size - y1);
 }
 
 extern void grid_transform_coef_jik_to_yxz(const double dh[3][3],
