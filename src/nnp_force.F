@@ -179,7 +179,7 @@ CONTAINS
 
       ! calculate energy:
       CALL mp_sum(nnp%atomic_energy(:, :), logger%para_env%group)
-      nnp%committee_energy = SUM(nnp%atomic_energy, 1)
+      nnp%committee_energy(:) = SUM(nnp%atomic_energy, 1)
       nnp%nnp_potential_energy = SUM(nnp%committee_energy)/REAL(nnp%n_committee, dp)
 
       IF (calc_forces) THEN
@@ -190,7 +190,7 @@ CONTAINS
             END DO
          END DO
          CALL mp_sum(nnp%committee_forces, logger%para_env%group)
-         nnp%nnp_forces = SUM(nnp%committee_forces, DIM=3)/REAL(nnp%n_committee, dp)
+         nnp%nnp_forces(:, :) = SUM(nnp%committee_forces, DIM=3)/REAL(nnp%n_committee, dp)
          DO j = 1, nnp%num_atoms
             particle_set(j)%f(:) = nnp%nnp_forces(:, j)
          END DO
@@ -271,12 +271,12 @@ CONTAINS
             ! nabla(dE_i) = nabla(E_i) - nabla(<E>)
             pref = nnp%bias_kb*(1.0_dp - nnp%bias_sigma0/sigma)
             DO i = 1, nnp%n_committee
-               nnp%bias_forces = nnp%bias_forces + &
-                                 (nnp%committee_energy(i) - avrg)* &
-                                 (nnp%committee_forces(:, :, i) - nnp%nnp_forces(:, :))
+               nnp%bias_forces(:, :) = nnp%bias_forces(:, :) + &
+                                       (nnp%committee_energy(i) - avrg)* &
+                                       (nnp%committee_forces(:, :, i) - nnp%nnp_forces(:, :))
             END DO
             pref = pref/REAL(nnp%n_committee, dp)
-            nnp%bias_forces = nnp%bias_forces*pref
+            nnp%bias_forces(:, :) = nnp%bias_forces(:, :)*pref
          END IF
       END IF
 

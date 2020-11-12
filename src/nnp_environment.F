@@ -732,7 +732,7 @@ CONTAINS
             ALLOCATE (nnp_env%bias_e_avrg(nnp_env%n_committee))
             CALL section_vals_val_get(bias_section, "SIGMA_0", r_val=nnp_env%bias_sigma0)
             CALL section_vals_val_get(bias_section, "K_B", r_val=nnp_env%bias_kb)
-            nnp_env%bias_e_avrg = 0.0_dp
+            nnp_env%bias_e_avrg(:) = 0.0_dp
             CALL section_vals_val_get(bias_section, "ALIGN_NNP_ENERGIES", explicit=explicit)
             nnp_env%bias_align = explicit
             IF (explicit) THEN
@@ -742,7 +742,7 @@ CONTAINS
                   err_str = "ALIGN_NNP_ENERGIES size mismatch wrt committee size."
                   CPABORT(err_str)
                END IF
-               nnp_env%bias_e_avrg = work
+               nnp_env%bias_e_avrg(:) = work
                IF (logger%para_env%ionode) THEN
                   WRITE (unit_nr, *) "NNP| Biasing is aligned by shifting the energy prediction of the C-NNP members"
                END IF

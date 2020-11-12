@@ -569,7 +569,7 @@ CONTAINS
       IF (PRESENT(nnp_potential_energy)) THEN
          nnp_env%nnp_potential_energy = nnp_potential_energy
       END IF
-      IF (PRESENT(nnp_forces)) nnp_env%nnp_forces = nnp_forces
+      IF (PRESENT(nnp_forces)) nnp_env%nnp_forces(:, :) = nnp_forces
 
       IF (PRESENT(subsys)) THEN
          CALL cp_subsys_retain(subsys)
