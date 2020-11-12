@@ -26,6 +26,7 @@ MODULE input_restart_force_eval
                                               force_env_type,&
                                               multiple_fe_list,&
                                               use_eip_force,&
+                                              use_nnp_force,&
                                               use_qmmm,&
                                               use_qs_force
    USE input_constants,                 ONLY: do_coord_cp2k,&
@@ -51,6 +52,7 @@ MODULE input_restart_force_eval
    USE molecule_types,                  ONLY: get_molecule,&
                                               molecule_type
    USE multipole_types,                 ONLY: multipole_type
+   USE nnp_environment_types,           ONLY: nnp_env_get
    USE parallel_rng_types,              ONLY: rng_record_length
    USE particle_list_types,             ONLY: particle_list_type
    USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
@@ -404,6 +406,8 @@ CONTAINS
          CALL get_qs_env(force_env%qs_env, cell_ref=cell, use_ref_cell=use_ref_cell)
       CASE (use_eip_force)
          CALL eip_env_get(force_env%eip_env, cell_ref=cell, use_ref_cell=use_ref_cell)
+      CASE (use_nnp_force)
+         CALL nnp_env_get(force_env%nnp_env, cell_ref=cell, use_ref_cell=use_ref_cell)
       END SELECT
       IF (use_ref_cell) THEN
          work_section => section_vals_get_subs_vals(subsys_section, "CELL%CELL_REF")

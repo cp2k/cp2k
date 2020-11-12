@@ -89,7 +89,8 @@ MODULE bibliography
                             Grimme2017, Kondov2007, Clabaut2020, &
                             Ren2011, Ren2013, Cohen2000, Rogers2002, Filippetti2000, Paziani2006, &
                             Toulouse2004, Limpanuparb2011, Martin2003, Yin2017, Goerigk2017, &
-                            Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, Lass2018, cp2kqs2020
+                            Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, Lass2018, cp2kqs2020, &
+                            Behler2007, Behler2011, Schran2020a, Schran2020b
 
 CONTAINS
 
@@ -3735,6 +3736,57 @@ CONTAINS
                          "PY 2016", &
                          "ER "), &
                          DOI="10.1002/9781118670712.ch8")
+
+      CALL add_reference(key=Schran2020a, ISI_record=s2a( &
+                         "PT J", &
+                         "AU Schran, C", &
+                         "   Behler, J", &
+                         "   Marx, D", &
+                         "TI Automated Fitting of Neural Network Potentials", &
+                         "   at Coupled Cluster Accuracy: Protonated Water Clusters", &
+                         "   as Testing Ground", &
+                         "SO Journal of Chemical Theory and Computation", &
+                         "PY 2020", &
+                         "VL 16", &
+                         "IS 1", &
+                         "ER"), &
+                         DOI="10.1021/acs.jctc.9b00805")
+
+      CALL add_reference(key=Schran2020b, ISI_record=s2a( &
+                         "PT J", &
+                         "AU Schran, C", &
+                         "   Brezina, K", &
+                         "   Marsalek, O", &
+                         "TI Committee neural network potentials control", &
+                         "   generalization errors and enable active learning", &
+                         "SO JOURNAL OF CHEMICAL PHYSICS", &
+                         "PY 2020", &
+                         "VL 153", &
+                         "IS 10", &
+                         "ER"), &
+                         DOI="10.1063/5.0016004")
+
+      CALL add_reference(key=Behler2007, ISI_record=s2a( &
+                         "AU Behler, J", &
+                         "   Parrinello, M", &
+                         "TI Generalized neural-network representation of high-dimensional potential-energy surfaces", &
+                         "SO PHYSICAL REVIEW LETTERS", &
+                         "PY 2007", &
+                         "VL 98", &
+                         "IS 14", &
+                         "AR 146401", &
+                         "ER"), &
+                         DOI="10.1103/PhysRevLett.98.146401")
+
+      CALL add_reference(key=Behler2011, ISI_record=s2a( &
+                         "AU Behler, J", &
+                         "TI Atom-centered symmetry functions for constructing high-dimensional neural network potentials ", &
+                         "SO JOURNAL OF CHEMICAL PHYSICS", &
+                         "PY 2011", &
+                         "VL 134", &
+                         "IS 7", &
+                         "ER"), &
+                         DOI="10.1063/1.3553717")
 
       CALL add_reference(key=Lu2004, ISI_record=s2a( &
                          "PT J", &
