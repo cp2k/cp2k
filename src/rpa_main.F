@@ -194,9 +194,9 @@ CONTAINS
       TYPE(dbcsr_t_type)                                 :: t_3c_M
       TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_O
       TYPE(hfx_compression_type), ALLOCATABLE, &
-         DIMENSION(:, :), INTENT(INOUT)                  :: t_3c_O_compressed
+         DIMENSION(:, :, :), INTENT(INOUT)               :: t_3c_O_compressed
       TYPE(block_ind_type), ALLOCATABLE, &
-         DIMENSION(:, :), INTENT(INOUT)                  :: t_3c_O_ind
+         DIMENSION(:, :, :), INTENT(INOUT)               :: t_3c_O_ind
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: starts_array_mc, ends_array_mc, &
                                                             starts_array_mc_block, &
                                                             ends_array_mc_block
@@ -1303,9 +1303,9 @@ CONTAINS
       TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: t_3c_O
       TYPE(hfx_compression_type), ALLOCATABLE, &
-         DIMENSION(:, :), INTENT(INOUT)                  :: t_3c_O_compressed
+         DIMENSION(:, :, :), INTENT(INOUT)               :: t_3c_O_compressed
       TYPE(block_ind_type), ALLOCATABLE, &
-         DIMENSION(:, :), INTENT(INOUT)                  :: t_3c_O_ind
+         DIMENSION(:, :, :), INTENT(INOUT)               :: t_3c_O_ind
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: starts_array_mc, ends_array_mc, &
                                                             starts_array_mc_block, &
                                                             ends_array_mc_block
@@ -1336,9 +1336,8 @@ CONTAINS
       INTEGER(int_8)                                     :: dbcsr_nflop
       INTEGER, ALLOCATABLE, DIMENSION(:) :: ikp_local, map_rec_size, map_rec_size_axk, &
          map_rec_size_beta, map_send_size, map_send_size_axk, map_send_size_beta, RPA_proc_map
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c, local_size_source, &
-                                                            local_size_source_axk, &
-                                                            local_size_source_beta, t_3c_O_mo_ind
+      INTEGER, ALLOCATABLE, DIMENSION(:, :) :: index_to_cell_3c, local_size_source, &
+         local_size_source_axk, local_size_source_beta, t_3c_O_mo_ind, t_3c_O_mo_ind_beta
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cell_to_index_3c
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, prim_blk_sizes, &
                                                             RI_blk_sizes
@@ -1376,7 +1375,8 @@ CONTAINS
          t_3c_overl_int_gw_RI, t_3c_overl_int_gw_RI_beta, t_3c_overl_nnP_ic, &
          t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected, t_3c_overl_nnP_ic_reflected_beta
       TYPE(dbcsr_type), POINTER                          :: mat_W, mat_work
-      TYPE(hfx_compression_type)                         :: t_3c_O_mo_compressed
+      TYPE(hfx_compression_type)                         :: t_3c_O_mo_compressed, &
+                                                            t_3c_O_mo_compressed_beta
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_rec_axk, &
                                                             buffer_rec_beta, buffer_send, &
@@ -1492,13 +1492,15 @@ CONTAINS
                                                     mo_coeff, &
                                                     t_3c_overl_int_ao_mo, t_3c_O_mo_compressed, t_3c_O_mo_ind, &
                                                     t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
+                                                    starts_array_mc, ends_array_mc, &
                                                     t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
                                                     matrix_s, mat_W, t_3c_O, &
                                                     t_3c_O_compressed, t_3c_O_ind, &
                                                     qs_env, &
                                                     gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, homo_beta, &
                                                     mo_coeff_beta, &
-                                                    t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta, &
+                                                    t_3c_O_mo_compressed_beta, t_3c_O_mo_ind_beta, t_3c_overl_int_gw_RI_beta, &
+                                                    t_3c_overl_int_gw_AO_beta, &
                                                     t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected_beta)
                ELSE
                   CALL allocate_matrices_gw_im_time(gw_corr_lev_occ, gw_corr_lev_virt, homo, nmo, &
@@ -1508,6 +1510,7 @@ CONTAINS
                                                     mo_coeff, &
                                                     t_3c_overl_int_ao_mo, t_3c_O_mo_compressed, t_3c_O_mo_ind, &
                                                     t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
+                                                    starts_array_mc, ends_array_mc, &
                                                     t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
                                                     matrix_s, mat_W, t_3c_O, &
                                                     t_3c_O_compressed, t_3c_O_ind, &
@@ -1928,6 +1931,7 @@ CONTAINS
                                         vec_Sigma_c_gw_beta, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, homo_beta, &
                                         e_fermi_beta, Eigenval_beta, Eigenval_last_beta, Eigenval_scf_beta, &
                                         vec_Sigma_x_gw_beta, ic_corr_list_beta, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
+                                        t_3c_O_mo_compressed_beta, t_3c_O_mo_ind_beta, &
                                         t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta)
             ELSE
                CALL compute_QP_energies(vec_Sigma_c_gw, count_ev_sc_GW, gw_corr_lev_occ, &
@@ -2067,6 +2071,7 @@ CONTAINS
                                                    t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
                                                    mat_W, &
                                                    ikp_local, cfm_mat_W_kp_tau, &
+                                                   t_3c_O_mo_compressed_beta, t_3c_O_mo_ind_beta, &
                                                    t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta, &
                                                    t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected_beta)
             ELSE

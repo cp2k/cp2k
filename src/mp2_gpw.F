@@ -165,7 +165,8 @@ CONTAINS
                                                             BIb_C_bse_ij, BIb_C_gw, BIb_C_gw_beta
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, mo_eigenvalues_beta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(block_ind_type), ALLOCATABLE, DIMENSION(:, :) :: t_3c_O_ind
+      TYPE(block_ind_type), ALLOCATABLE, &
+         DIMENSION(:, :, :)                              :: t_3c_O_ind
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub, blacs_env_sub_mat_munu
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
@@ -184,7 +185,7 @@ CONTAINS
                                                             gd_B_virt_bse, gd_B_virtual, &
                                                             gd_B_virtual_beta
       TYPE(hfx_compression_type), ALLOCATABLE, &
-         DIMENSION(:, :)                                 :: t_3c_O_compressed
+         DIMENSION(:, :, :)                              :: t_3c_O_compressed
       TYPE(kpoint_type), POINTER                         :: kpoints, kpoints_from_DFT
       TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos

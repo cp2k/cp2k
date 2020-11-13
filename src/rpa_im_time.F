@@ -140,9 +140,9 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(dbcsr_t_type), INTENT(INOUT)                  :: t_3c_M
       TYPE(dbcsr_t_type), DIMENSION(:, :), INTENT(INOUT) :: t_3c_O
-      TYPE(hfx_compression_type), DIMENSION(:, :), &
+      TYPE(hfx_compression_type), DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: t_3c_O_compressed
-      TYPE(block_ind_type), DIMENSION(:, :), &
+      TYPE(block_ind_type), DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: t_3c_O_ind
       INTEGER, DIMENSION(:), INTENT(IN)                  :: starts_array_mc, ends_array_mc, &
                                                             starts_array_mc_block, &
@@ -216,12 +216,8 @@ CONTAINS
       first_cycle_im_time = .TRUE.
       DO i = 1, SIZE(t_3c_O, 1)
          DO j = 1, SIZE(t_3c_O, 2)
-            CALL decompress_tensor(t_3c_O(i, j), t_3c_O_ind(i, j)%ind, t_3c_O_compressed(i, j), &
-                                   qs_env%mp2_env%ri_rpa_im_time%eps_compress)
             CALL dbcsr_t_create(t_3c_O(i, j), t_3c_O_occ(i, j))
-            CALL dbcsr_t_copy(t_3c_O(i, j), t_3c_O_occ(i, j))
             CALL dbcsr_t_create(t_3c_O(i, j), t_3c_O_virt(i, j))
-            CALL dbcsr_t_copy(t_3c_O(i, j), t_3c_O_virt(i, j), move_data=.TRUE.)
          ENDDO
       ENDDO
 
@@ -362,6 +358,13 @@ CONTAINS
                            IF (R_1_minus_S_needed) THEN
 
                               CALL timeset(routineN//"_calc_M_occ_t", handle3)
+                              CALL decompress_tensor(t_3c_O(i_cell_R_1_minus_S, i_cell_R_2), &
+                                                     t_3c_O_ind(i_cell_R_1_minus_S, i_cell_R_2, j_mem)%ind, &
+                                                     t_3c_O_compressed(i_cell_R_1_minus_S, i_cell_R_2, j_mem), &
+                                                     qs_env%mp2_env%ri_rpa_im_time%eps_compress)
+
+                              CALL dbcsr_t_copy(t_3c_O(i_cell_R_1_minus_S, i_cell_R_2), &
+                                                t_3c_O_occ(i_cell_R_1_minus_S, i_cell_R_2), move_data=.TRUE.)
 
                               CALL dbcsr_t_contract(alpha=dbcsr_scalar(1.0_dp), &
                                                     tensor_1=t_3c_O_occ(i_cell_R_1_minus_S, i_cell_R_2), &
@@ -403,6 +406,13 @@ CONTAINS
                                                        R_2_minus_S_minus_T_needed, do_kpoints_cubic_RPA)
 
                            IF (R_1_minus_T_needed .AND. R_2_minus_S_minus_T_needed) THEN
+                              CALL decompress_tensor(t_3c_O(i_cell_R_2_minus_S_minus_T, i_cell_R_1_minus_T), &
+                                                     t_3c_O_ind(i_cell_R_2_minus_S_minus_T, i_cell_R_1_minus_T, i_mem)%ind, &
+                                                     t_3c_O_compressed(i_cell_R_2_minus_S_minus_T, i_cell_R_1_minus_T, i_mem), &
+                                                     qs_env%mp2_env%ri_rpa_im_time%eps_compress)
+
+                              CALL dbcsr_t_copy(t_3c_O(i_cell_R_2_minus_S_minus_T, i_cell_R_1_minus_T), &
+                                                t_3c_O_virt(i_cell_R_2_minus_S_minus_T, i_cell_R_1_minus_T), move_data=.TRUE.)
 
                               CALL timeset(routineN//"_calc_M_virt_t", handle3)
                               CALL dbcsr_t_contract(alpha=dbcsr_scalar(alpha/2.0_dp), &
