@@ -11,6 +11,7 @@
 
 MODULE rt_propagation_velocity_gauge
    USE ai_moments,                      ONLY: cossin
+   USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
@@ -230,6 +231,7 @@ CONTAINS
                                                             bcint_cos, bcint_sin
       TYPE(alist_type), POINTER                          :: alist_cos_ac, alist_cos_bc, &
                                                             alist_sin_ac, alist_sin_bc
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
@@ -262,9 +264,10 @@ CONTAINS
                          dft_control=dft_control, &
                          qs_kind_set=qs_kind_set, &
                          particle_set=particle_set, &
-                         cell=cell)
+                         cell=cell, &
+                         atomic_kind_set=atomic_kind_set)
 
-         nkind = SIZE(qs_kind_set)
+         nkind = SIZE(atomic_kind_set)
          natom = SIZE(particle_set)
          eps_ppnl = dft_control%qs_control%eps_ppnl
 
@@ -298,7 +301,7 @@ CONTAINS
 
          ! calculate exponential integrals
          CALL build_sap_exp_ints(sap_int_cos, sap_int_sin, sap_ppnl, qs_kind_set, particle_set, &
-                                 cell, kvec=vec_pot, basis_set=basis_set)
+                                 cell, kvec=vec_pot, basis_set=basis_set, nkind=nkind)
 
          CALL sap_sort(sap_int_cos)
          CALL sap_sort(sap_int_sin)
@@ -460,8 +463,9 @@ CONTAINS
 !> \param cell ...
 !> \param kvec ...
 !> \param basis_set ...
+!> \param nkind ...
 ! **************************************************************************************************
-   SUBROUTINE build_sap_exp_ints(sap_int_cos, sap_int_sin, sap_ppnl, qs_kind_set, particle_set, cell, kvec, basis_set)
+   SUBROUTINE build_sap_exp_ints(sap_int_cos, sap_int_sin, sap_ppnl, qs_kind_set, particle_set, cell, kvec, basis_set, nkind)
       TYPE(sap_int_type), DIMENSION(:), INTENT(INOUT), &
          POINTER                                         :: sap_int_cos, sap_int_sin
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -474,12 +478,13 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(in)            :: kvec
       TYPE(gto_basis_set_p_type), DIMENSION(:), &
          INTENT(IN)                                      :: basis_set
+      INTEGER, INTENT(IN)                                :: nkind
 
       CHARACTER(len=*), PARAMETER :: routiuneN = "build_sap_exp_ints"
 
       INTEGER :: handle, i, iac, iatom, ikind, ilist, iset, jneighbor, katom, kkind, l, lc_max, &
          lc_min, ldai, ldints, lppnl, maxco, maxl, maxlgto, maxlppnl, maxppnl, maxsgf, na, nb, &
-         ncoa, ncoc, nkind, nlist, nneighbor, np, nppnl, nprjc, nseta, nsgfa, prjc, sgfa, slot
+         ncoa, ncoc, nlist, nneighbor, np, nppnl, nprjc, nseta, nsgfa, prjc, sgfa, slot
       INTEGER, DIMENSION(3)                              :: cell_c
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nprj_ppnl, &
                                                             nsgf_seta
@@ -500,7 +505,6 @@ CONTAINS
 
       CALL timeset(routiuneN, handle)
 
-      nkind = SIZE(qs_kind_set)
       CALL get_qs_kind_set(qs_kind_set, &
                            maxco=maxco, &
                            maxlppnl=maxlppnl, &
