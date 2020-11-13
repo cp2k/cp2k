@@ -328,6 +328,11 @@ CONTAINS
          IF (nnp_env%ref_count < 1) THEN
             IF (ASSOCIATED(nnp_env%rad)) THEN
                DO i = 1, nnp_env%n_ele
+                  DO j = 1, nnp_env%rad(i)%n_symfgrp
+                     DEALLOCATE (nnp_env%rad(i)%symfgrp(j)%symf, &
+                                 nnp_env%rad(i)%symfgrp(j)%ele, &
+                                 nnp_env%rad(i)%symfgrp(j)%ele_ind)
+                  END DO
                   DEALLOCATE (nnp_env%rad(i)%y, &
                               nnp_env%rad(i)%funccut, &
                               nnp_env%rad(i)%eta, &
@@ -336,13 +341,19 @@ CONTAINS
                               nnp_env%rad(i)%loc_max, &
                               nnp_env%rad(i)%loc_av, &
                               nnp_env%rad(i)%ele, &
-                              nnp_env%rad(i)%nuc_ele)
+                              nnp_env%rad(i)%nuc_ele, &
+                              nnp_env%rad(i)%symfgrp)
                END DO
                DEALLOCATE (nnp_env%rad)
             END IF
 
             IF (ASSOCIATED(nnp_env%ang)) THEN
                DO i = 1, nnp_env%n_ele
+                  DO j = 1, nnp_env%ang(i)%n_symfgrp
+                     DEALLOCATE (nnp_env%ang(i)%symfgrp(j)%symf, &
+                                 nnp_env%ang(i)%symfgrp(j)%ele, &
+                                 nnp_env%ang(i)%symfgrp(j)%ele_ind)
+                  END DO
                   DEALLOCATE (nnp_env%ang(i)%y, &
                               nnp_env%ang(i)%funccut, &
                               nnp_env%ang(i)%eta, &
@@ -355,7 +366,8 @@ CONTAINS
                               nnp_env%ang(i)%ele1, &
                               nnp_env%ang(i)%ele2, &
                               nnp_env%ang(i)%nuc_ele1, &
-                              nnp_env%ang(i)%nuc_ele2)
+                              nnp_env%ang(i)%nuc_ele2, &
+                              nnp_env%ang(i)%symfgrp)
                END DO
                DEALLOCATE (nnp_env%ang)
             END IF
