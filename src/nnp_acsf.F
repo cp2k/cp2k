@@ -19,8 +19,7 @@ MODULE nnp_acsf
                                               cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: default_string_length,&
-                                              dp,&
-                                              max_line_length
+                                              dp
    USE mathconstants,                   ONLY: pi
    USE nnp_environment_types,           ONLY: nnp_acsf_ang_type,&
                                               nnp_acsf_rad_type,&
@@ -127,7 +126,7 @@ CONTAINS
                      rvect2 = neighbor%dist_ang1(1:3, k, s)
                      r2 = neighbor%dist_ang1(4, k, s)
                      rvect3 = rvect2 - rvect1
-                     r3 = SQRT(rvect3(1)**2 + rvect3(2)**2 + rvect3(3)**2)
+                     r3 = NORM2(rvect3(:))
                      IF (r3 < nnp%ang(ind)%symfgrp(s)%cutoff) THEN
                         jj = neighbor%ind_ang1(j, s)
                         kk = neighbor%ind_ang1(k, s)
@@ -157,7 +156,7 @@ CONTAINS
                      rvect2 = neighbor%dist_ang2(1:3, k, s)
                      r2 = neighbor%dist_ang2(4, k, s)
                      rvect3 = rvect2 - rvect1
-                     r3 = SQRT(rvect3(1)**2 + rvect3(2)**2 + rvect3(3)**2)
+                     r3 = NORM2(rvect3(:))
                      IF (r3 < nnp%ang(ind)%symfgrp(s)%cutoff) THEN
                         jj = neighbor%ind_ang1(j, s)
                         kk = neighbor%ind_ang1(k, s)
@@ -200,7 +199,6 @@ CONTAINS
                CALL nnp_calc_rad(nnp, ind, s, rvect1, r1, symtmp)
                DO sf = 1, nnp%rad(ind)%symfgrp(s)%n_symf
                   m = nnp%rad(ind)%symfgrp(s)%symf(sf)
-                  ! update forces into dsymdxyz
                   nnp%rad(ind)%y(m) = nnp%rad(ind)%y(m) + symtmp(sf)
                END DO
             END DO
@@ -221,7 +219,7 @@ CONTAINS
                      rvect2 = neighbor%dist_ang1(1:3, k, s)
                      r2 = neighbor%dist_ang1(4, k, s)
                      rvect3 = rvect2 - rvect1
-                     r3 = SQRT(rvect3(1)**2 + rvect3(2)**2 + rvect3(3)**2)
+                     r3 = NORM2(rvect3(:))
                      IF (r3 < nnp%ang(ind)%symfgrp(s)%cutoff) THEN
                         CALL nnp_calc_ang(nnp, ind, s, rvect1, rvect2, rvect3, r1, r2, r3, symtmp)
                         DO sf = 1, nnp%ang(ind)%symfgrp(s)%n_symf
@@ -239,7 +237,7 @@ CONTAINS
                      rvect2 = neighbor%dist_ang2(1:3, k, s)
                      r2 = neighbor%dist_ang2(4, k, s)
                      rvect3 = rvect2 - rvect1
-                     r3 = SQRT(rvect3(1)**2 + rvect3(2)**2 + rvect3(3)**2)
+                     r3 = NORM2(rvect3(:))
                      IF (r3 < nnp%ang(ind)%symfgrp(s)%cutoff) THEN
                         CALL nnp_calc_ang(nnp, ind, s, rvect1, rvect2, rvect3, r1, r2, r3, symtmp)
                         !loop over associated sym fncts
@@ -267,8 +265,6 @@ CONTAINS
 
       CALL nnp_neighbor_release(neighbor)
       CALL timestop(handle)
-
-      RETURN
 
    END SUBROUTINE nnp_calc_acsf
 
@@ -403,7 +399,7 @@ CONTAINS
 
    END SUBROUTINE nnp_scale_acsf
 
-! ***************************************************************************
+! **************************************************************************************************
 !> \brief Calculate radial symmetry function and gradient (optinal)
 !>        for given displacment vecotr rvect of atom i and j
 !> \param nnp ...
@@ -426,9 +422,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT), &
          OPTIONAL                                        :: force
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_calc_rad', routineP = moduleN//':'//routineN
-
-      CHARACTER(len=max_line_length)                     :: msg_str
       INTEGER                                            :: k, sf
       REAL(KIND=dp)                                      :: dfcutdr, dsymdr, eta, fcut, funccut, rs, &
                                                             tmp
@@ -455,8 +448,7 @@ CONTAINS
             dfcutdr = (-3.0_dp/funccut)*(tmp**2 - tmp**4)
          END IF
       CASE DEFAULT
-         msg_str = "NNP| Cutoff function unknown"
-         CPABORT(msg_str)
+         CPABORT("NNP| Cutoff function unknown")
       END SELECT
 
       IF (PRESENT(force)) drdx(:) = rvect(:)/r
@@ -483,7 +475,7 @@ CONTAINS
 
    END SUBROUTINE nnp_calc_rad
 
-! ***************************************************************************
+! **************************************************************************************************
 !> \brief Calculate angular symmetry function and gradient (optinal)
 !>        for given displacment vectors rvect1,2,3 of atom i,j and k
 !> \param nnp ...
@@ -510,9 +502,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT), &
          OPTIONAL                                        :: force
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_calc_ang', routineP = moduleN//':'//routineN
-
-      CHARACTER(len=max_line_length)                     :: msg_str
       INTEGER                                            :: i, m, sf
       REAL(KIND=dp) :: angular, costheta, dfcutdr1, dfcutdr2, dfcutdr3, dsymdr1, dsymdr2, dsymdr3, &
          eta, f, fcut, fcut1, fcut2, fcut3, ftot, g, lam, pref, prefzeta, rsqr1, rsqr2, rsqr3, &
@@ -576,8 +565,7 @@ CONTAINS
             dfcutdr3 = pref*(tmp3**2 - tmp3**4)*fcut1*fcut2
          END IF
       CASE DEFAULT
-         msg_str = "NNP| Cutoff function unknown"
-         CPABORT(msg_str)
+         CPABORT("NNP| Cutoff function unknown")
       END SELECT
 
       IF (PRESENT(force)) THEN
@@ -671,7 +659,7 @@ CONTAINS
 
    END SUBROUTINE nnp_calc_ang
 
-! ***************************************************************************
+! **************************************************************************************************
 !> \brief Sort element array according to atomic number
 !> \param ele ...
 !> \param nuc_ele ...
@@ -679,10 +667,8 @@ CONTAINS
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
    SUBROUTINE nnp_sort_ele(ele, nuc_ele)
-      CHARACTER(len=2), ALLOCATABLE, DIMENSION(:)        :: ele
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nuc_ele
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_sort_ele', routineP = moduleN//':'//routineN
+      CHARACTER(len=2), DIMENSION(:), INTENT(INOUT)      :: ele
+      INTEGER, DIMENSION(:), INTENT(INOUT)               :: nuc_ele
 
       CHARACTER(len=2)                                   :: tmp_ele
       INTEGER                                            :: i, j, loc, minimum, tmp_nuc_ele
@@ -714,16 +700,14 @@ CONTAINS
 
    END SUBROUTINE nnp_sort_ele
 
-! ***************************************************************************
+! **************************************************************************************************
 !> \brief Sort symmetry functions according to different criteria
 !> \param nnp ...
 !> \date   2020-10-10
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
    SUBROUTINE nnp_sort_acsf(nnp)
-      TYPE(nnp_type), POINTER                            :: nnp
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_sort_acsf', routineP = moduleN//':'//routineN
+      TYPE(nnp_type), INTENT(INOUT)                      :: nnp
 
       INTEGER                                            :: i, j, k, loc
 
@@ -883,7 +867,7 @@ CONTAINS
 
    END SUBROUTINE nnp_sort_acsf
 
-! ***************************************************************************
+! **************************************************************************************************
 !> \brief Swap two radial symmetry functions
 !> \param rad ...
 !> \param i ...
@@ -892,8 +876,8 @@ CONTAINS
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
    SUBROUTINE nnp_swaprad(rad, i, j)
-      TYPE(nnp_acsf_rad_type), INTENT(inout)             :: rad
-      INTEGER, INTENT(in)                                :: i, j
+      TYPE(nnp_acsf_rad_type), INTENT(INOUT)             :: rad
+      INTEGER, INTENT(IN)                                :: i, j
 
       CHARACTER(len=2)                                   :: tmpc
       INTEGER                                            :: tmpi
@@ -921,7 +905,7 @@ CONTAINS
 
    END SUBROUTINE nnp_swaprad
 
-! ***************************************************************************
+! **************************************************************************************************
 !> \brief Swap two angular symmetry functions
 !> \param ang ...
 !> \param i ...
@@ -930,8 +914,8 @@ CONTAINS
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
    SUBROUTINE nnp_swapang(ang, i, j)
-      TYPE(nnp_acsf_ang_type), INTENT(inout)             :: ang
-      INTEGER, INTENT(in)                                :: i, j
+      TYPE(nnp_acsf_ang_type), INTENT(INOUT)             :: ang
+      INTEGER, INTENT(IN)                                :: i, j
 
       CHARACTER(len=2)                                   :: tmpc
       INTEGER                                            :: tmpi
@@ -983,7 +967,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE nnp_init_acsf_groups(nnp)
 
-      TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp
+      TYPE(nnp_type), INTENT(INOUT)                      :: nnp
 
       INTEGER                                            :: ang, i, j, k, rad, s
       REAL(KIND=dp)                                      :: funccut
@@ -1115,7 +1099,7 @@ CONTAINS
 
    END SUBROUTINE nnp_init_acsf_groups
 
-! ***************************************************************************
+! **************************************************************************************************
 !> \brief Write symmetry function information
 !> \param nnp ...
 !> \param para_env ...
@@ -1123,10 +1107,8 @@ CONTAINS
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
    SUBROUTINE nnp_write_acsf(nnp, para_env)
-      TYPE(nnp_type), POINTER                            :: nnp
+      TYPE(nnp_type), INTENT(INOUT)                      :: nnp
       TYPE(cp_para_env_type), POINTER                    :: para_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_write_acsf', routineP = moduleN//':'//routineN
 
       CHARACTER(len=default_string_length)               :: my_label
       INTEGER                                            :: i, j, unit_nr
@@ -1156,8 +1138,6 @@ CONTAINS
             END DO
          END DO
       END IF
-
-      RETURN
 
    END SUBROUTINE nnp_write_acsf
 
@@ -1249,7 +1229,7 @@ CONTAINS
                   dr(:) = nnp%coord(:, i) - nnp%coord(:, j)
                   !Apply pbc, but subtract nl boxes from periodic image
                   dr = pbc(dr, nnp%cell_ref, nl)
-                  norm = SQRT(dr(1)**2 + dr(2)**2 + dr(3)**2)
+                  norm = NORM2(dr(:))
                   DO s = 1, nnp%rad(ind)%n_symfgrp
                      IF (nnp%ele_ind(j) == nnp%rad(ind)%symfgrp(s)%ele_ind(1)) THEN
                         IF (norm < nnp%rad(ind)%symfgrp(s)%cutoff) THEN
@@ -1302,17 +1282,17 @@ CONTAINS
       axb(1) = cell%hmat(2, 1)*cell%hmat(3, 2) - cell%hmat(3, 1)*cell%hmat(2, 2)
       axb(2) = cell%hmat(3, 1)*cell%hmat(1, 2) - cell%hmat(1, 1)*cell%hmat(3, 2)
       axb(3) = cell%hmat(1, 1)*cell%hmat(2, 2) - cell%hmat(2, 1)*cell%hmat(1, 2)
-      axb(:) = axb(:)/SQRT(SUM(axb(:)**2))
+      axb(:) = axb(:)/NORM2(axb(:))
 
       axc(1) = cell%hmat(2, 1)*cell%hmat(3, 3) - cell%hmat(3, 1)*cell%hmat(2, 3)
       axc(2) = cell%hmat(3, 1)*cell%hmat(1, 3) - cell%hmat(1, 1)*cell%hmat(3, 3)
       axc(3) = cell%hmat(1, 1)*cell%hmat(2, 3) - cell%hmat(2, 1)*cell%hmat(1, 3)
-      axc(:) = axc(:)/SQRT(SUM(axc(:)**2))
+      axc(:) = axc(:)/NORM2(axc(:))
 
       bxc(1) = cell%hmat(2, 2)*cell%hmat(3, 3) - cell%hmat(3, 2)*cell%hmat(2, 3)
       bxc(2) = cell%hmat(3, 2)*cell%hmat(1, 3) - cell%hmat(1, 2)*cell%hmat(3, 3)
       bxc(3) = cell%hmat(1, 2)*cell%hmat(2, 3) - cell%hmat(2, 2)*cell%hmat(1, 3)
-      bxc(:) = bxc(:)/SQRT(SUM(bxc(:)**2))
+      bxc(:) = bxc(:)/NORM2(bxc(:))
 
       proja = ABS(SUM(cell%hmat(:, 1)*bxc(:)))*0.5_dp
       projb = ABS(SUM(cell%hmat(:, 2)*axc(:)))*0.5_dp

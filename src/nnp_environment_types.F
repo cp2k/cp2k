@@ -271,9 +271,7 @@ CONTAINS
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
    SUBROUTINE nnp_env_create(nnp_env)
-      TYPE(nnp_type), POINTER                            :: nnp_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_env_create', routineP = moduleN//':'//routineN
+      TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp_env
 
       NULLIFY (nnp_env)
       ALLOCATE (nnp_env)
@@ -298,9 +296,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE nnp_env_retain(nnp_env)
 
-      TYPE(nnp_type), POINTER                            :: nnp_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_env_retain', routineP = moduleN//':'//routineN
+      TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp_env
 
       CPASSERT(ASSOCIATED(nnp_env))
       CPASSERT(nnp_env%ref_count > 0)
@@ -315,10 +311,7 @@ CONTAINS
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
    SUBROUTINE nnp_env_release(nnp_env)
-      TYPE(nnp_type), POINTER                            :: nnp_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_env_release', &
-         routineP = moduleN//':'//routineN
+      TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp_env
 
       INTEGER                                            :: i, j
 
@@ -462,7 +455,7 @@ CONTAINS
                           nnp_input, force_env_input, cell, cell_ref, &
                           use_ref_cell, nnp_potential_energy, virial)
 
-      TYPE(nnp_type), POINTER                            :: nnp_env
+      TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp_env
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: nnp_forces
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
       TYPE(atomic_kind_type), DIMENSION(:), OPTIONAL, &
@@ -480,8 +473,6 @@ CONTAINS
       LOGICAL, INTENT(OUT), OPTIONAL                     :: use_ref_cell
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: nnp_potential_energy
       TYPE(virial_type), OPTIONAL, POINTER               :: virial
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_env_get', routineP = moduleN//':'//routineN
 
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
@@ -550,7 +541,7 @@ CONTAINS
                           nnp_input, force_env_input, cell_ref, &
                           use_ref_cell, nnp_potential_energy)
 
-      TYPE(nnp_type), POINTER                            :: nnp_env
+      TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp_env
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: nnp_forces
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
       TYPE(atomic_kind_type), DIMENSION(:), OPTIONAL, &
@@ -567,8 +558,6 @@ CONTAINS
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell_ref
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_ref_cell
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: nnp_potential_energy
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_env_set', routineP = moduleN//':'//routineN
 
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds

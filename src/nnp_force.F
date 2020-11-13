@@ -61,8 +61,8 @@ CONTAINS
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
    SUBROUTINE nnp_calc_energy_force(nnp, calc_forces)
-      TYPE(nnp_type), POINTER                            :: nnp
-      LOGICAL                                            :: calc_forces
+      TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp
+      LOGICAL, INTENT(IN)                                :: calc_forces
 
       CHARACTER(len=*), PARAMETER :: routineN = 'nnp_calc_energy_force', &
          routineP = moduleN//':'//routineN
@@ -218,8 +218,6 @@ CONTAINS
 
       CALL timestop(handle)
 
-      RETURN
-
    END SUBROUTINE nnp_calc_energy_force
 
 ! **************************************************************************************************
@@ -230,7 +228,7 @@ CONTAINS
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
    SUBROUTINE nnp_bias_sigma(nnp, calc_forces)
-      TYPE(nnp_type)                                     :: nnp
+      TYPE(nnp_type), INTENT(INOUT)                      :: nnp
       LOGICAL, INTENT(IN)                                :: calc_forces
 
       CHARACTER(len=*), PARAMETER :: routineN = 'nnp_bias_sigma', routineP = moduleN//':'//routineN
@@ -282,8 +280,6 @@ CONTAINS
 
       CALL timestop(handle)
 
-      RETURN
-
    END SUBROUTINE nnp_bias_sigma
 
 ! **************************************************************************************************
@@ -294,8 +290,8 @@ CONTAINS
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
    SUBROUTINE nnp_print(nnp, print_section)
-      TYPE(nnp_type), POINTER                            :: nnp
-      TYPE(section_vals_type), POINTER                   :: print_section
+      TYPE(nnp_type), INTENT(INOUT)                      :: nnp
+      TYPE(section_vals_type), INTENT(IN), POINTER       :: print_section
 
       INTEGER                                            :: unit_nr
       LOGICAL                                            :: file_is_new
@@ -309,20 +305,20 @@ CONTAINS
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
          unit_nr = cp_print_key_unit_nr(logger, print_key, extension=".data", &
                                         middle_name="nnp-energies", is_new_file=file_is_new)
-         CALL nnp_print_energies(nnp, unit_nr, file_is_new)
+         IF (unit_nr > 0) CALL nnp_print_energies(nnp, unit_nr, file_is_new)
          CALL cp_print_key_finished_output(unit_nr, logger, print_key)
       END IF
 
       print_key => section_vals_get_subs_vals(print_section, "FORCES")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         CALL nnp_print_forces(nnp, print_key)
+         IF (unit_nr > 0) CALL nnp_print_forces(nnp, print_key)
       END IF
 
       print_key => section_vals_get_subs_vals(print_section, "FORCES_SIGMA")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
          unit_nr = cp_print_key_unit_nr(logger, print_key, extension=".xyz", &
                                         middle_name="nnp-forces-std")
-         CALL nnp_print_force_sigma(nnp, unit_nr)
+         IF (unit_nr > 0) CALL nnp_print_force_sigma(nnp, unit_nr)
          CALL cp_print_key_finished_output(unit_nr, logger, print_key)
       END IF
 
@@ -333,7 +329,7 @@ CONTAINS
          IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
             unit_nr = cp_print_key_unit_nr(logger, print_key, extension=".xyz", &
                                            middle_name="nnp-extrapolation")
-            CALL nnp_print_expol(nnp, unit_nr)
+            IF (unit_nr > 0) CALL nnp_print_expol(nnp, unit_nr)
             CALL cp_print_key_finished_output(unit_nr, logger, print_key)
          END IF
       END IF
@@ -342,7 +338,7 @@ CONTAINS
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
          unit_nr = cp_print_key_unit_nr(logger, print_key, extension=".dat", &
                                         middle_name="nnp-sumforce", is_new_file=file_is_new)
-         CALL nnp_print_sumforces(nnp, print_section, unit_nr, file_is_new)
+         IF (unit_nr > 0) CALL nnp_print_sumforces(nnp, print_section, unit_nr, file_is_new)
          CALL cp_print_key_finished_output(unit_nr, logger, print_key)
       END IF
 
@@ -357,34 +353,29 @@ CONTAINS
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
    SUBROUTINE nnp_print_energies(nnp, unit_nr, file_is_new)
-      TYPE(nnp_type), POINTER                            :: nnp
+      TYPE(nnp_type), INTENT(INOUT)                      :: nnp
       INTEGER, INTENT(IN)                                :: unit_nr
       LOGICAL, INTENT(IN)                                :: file_is_new
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_print_energies', &
-         routineP = moduleN//':'//routineN
 
       CHARACTER(len=default_path_length)                 :: fmt_string
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: std
 
-      IF (unit_nr > 0) THEN
-         IF (file_is_new) THEN
-            WRITE (unit_nr, "(A1,1X,A20)", ADVANCE='no') "#", "NNP Average [a.u.],"
-            WRITE (unit_nr, "(A20)", ADVANCE='no') "NNP sigma [a.u.]"
-            DO i = 1, nnp%n_committee
-               WRITE (unit_nr, "(A17,I3)", ADVANCE='no') "NNP", i
-            END DO
-            WRITE (unit_nr, "(A)") ""
-         END IF
-
-         fmt_string = "(2X,2(F20.9))"
-         WRITE (fmt_string, "(A,I3,A)") "(2X", nnp%n_committee + 2, "(F20.9))"
-         std = SUM((SUM(nnp%atomic_energy, 1) - nnp%nnp_potential_energy)**2)
-         std = std/REAL(nnp%n_committee, dp)
-         std = SQRT(std)
-         WRITE (unit_nr, fmt_string) nnp%nnp_potential_energy, std, SUM(nnp%atomic_energy, 1)
+      IF (file_is_new) THEN
+         WRITE (unit_nr, "(A1,1X,A20)", ADVANCE='no') "#", "NNP Average [a.u.],"
+         WRITE (unit_nr, "(A20)", ADVANCE='no') "NNP sigma [a.u.]"
+         DO i = 1, nnp%n_committee
+            WRITE (unit_nr, "(A17,I3)", ADVANCE='no') "NNP", i
+         END DO
+         WRITE (unit_nr, "(A)") ""
       END IF
+
+      fmt_string = "(2X,2(F20.9))"
+      WRITE (fmt_string, "(A,I3,A)") "(2X", nnp%n_committee + 2, "(F20.9))"
+      std = SUM((SUM(nnp%atomic_energy, 1) - nnp%nnp_potential_energy)**2)
+      std = std/REAL(nnp%n_committee, dp)
+      std = SQRT(std)
+      WRITE (unit_nr, fmt_string) nnp%nnp_potential_energy, std, SUM(nnp%atomic_energy, 1)
 
    END SUBROUTINE nnp_print_energies
 
@@ -396,11 +387,8 @@ CONTAINS
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
    SUBROUTINE nnp_print_forces(nnp, print_key)
-      TYPE(nnp_type), POINTER                            :: nnp
-      TYPE(section_vals_type), POINTER                   :: print_key
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_print_forces', &
-         routineP = moduleN//':'//routineN
+      TYPE(nnp_type), INTENT(INOUT)                      :: nnp
+      TYPE(section_vals_type), INTENT(IN), POINTER       :: print_key
 
       CHARACTER(len=default_path_length)                 :: fmt_string, middle_name
       INTEGER                                            :: i, j, unit_nr
@@ -417,8 +405,8 @@ CONTAINS
                                         middle_name=TRIM(middle_name))
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, *) nnp%num_atoms
-            WRITE (unit_nr, "(A,1X,A,A,F20.9)") "NNP forces [a.u.] of committee member", ADJUSTL(TRIM(fmt_string)), &
-               "energy [a.u.]=", nnp%committee_energy(i)
+            WRITE (unit_nr, "(A,1X,A,A,F20.9)") "NNP forces [a.u.] of committee member", &
+               ADJUSTL(TRIM(fmt_string)), "energy [a.u.]=", nnp%committee_energy(i)
 
             fmt_string = "(A4,1X,3F20.10)"
             DO j = 1, nnp%num_atoms
@@ -438,13 +426,9 @@ CONTAINS
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
    SUBROUTINE nnp_print_force_sigma(nnp, unit_nr)
-      TYPE(nnp_type), POINTER                            :: nnp
+      TYPE(nnp_type), INTENT(INOUT)                      :: nnp
       INTEGER, INTENT(IN)                                :: unit_nr
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_print_force_sigma', &
-         routineP = moduleN//':'//routineN
-
-      CHARACTER(len=default_path_length)                 :: fmt_string
       INTEGER                                            :: i, j
       REAL(KIND=dp), DIMENSION(3)                        :: var
 
@@ -452,7 +436,6 @@ CONTAINS
          WRITE (unit_nr, *) nnp%num_atoms
          WRITE (unit_nr, "(A,1X,A)") "NNP sigma of forces [a.u.]"
 
-         fmt_string = "(A4,1X,3F20.10)"
          DO i = 1, nnp%num_atoms
             var = 0.0_dp
             DO j = 1, nnp%n_committee
@@ -460,7 +443,7 @@ CONTAINS
             END DO
             var = var/REAL(nnp%n_committee)
             var = SQRT(var)
-            WRITE (unit_nr, fmt_string) nnp%atoms(nnp%sort_inv(i)), var
+            WRITE (unit_nr, "(A4,1X,3F20.10)") nnp%atoms(nnp%sort_inv(i)), var
          END DO
       END IF
 
@@ -474,48 +457,43 @@ CONTAINS
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
    SUBROUTINE nnp_print_expol(nnp, unit_nr)
-      TYPE(nnp_type), POINTER                            :: nnp
+      TYPE(nnp_type), INTENT(INOUT)                      :: nnp
       INTEGER, INTENT(IN)                                :: unit_nr
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_print_expol', &
-         routineP = moduleN//':'//routineN
 
       CHARACTER(len=default_path_length)                 :: fmt_string
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: mass, unit_conv
       REAL(KIND=dp), DIMENSION(3)                        :: com
 
-      IF (unit_nr > 0) THEN
-         nnp%expol = nnp%expol + 1
-         WRITE (unit_nr, *) nnp%num_atoms
-         WRITE (unit_nr, "(A,1X,I6)") "NNP extrapolation point N =", nnp%expol
+      nnp%expol = nnp%expol + 1
+      WRITE (unit_nr, *) nnp%num_atoms
+      WRITE (unit_nr, "(A,1X,I6)") "NNP extrapolation point N =", nnp%expol
 
-         ! move to COM of solute and wrap the box
-         ! coord not needed afterwards, therefore manipulation ok
-         com = 0.0_dp
-         mass = 0.0_dp
-         DO i = 1, nnp%num_atoms
-            CALL get_ptable_info(nnp%atoms(i), amass=unit_conv)
-            com(:) = com(:) + nnp%coord(:, i)*unit_conv
-            mass = mass + unit_conv
-         END DO
-         com(:) = com(:)/mass
+      ! move to COM of solute and wrap the box
+      ! coord not needed afterwards, therefore manipulation ok
+      com = 0.0_dp
+      mass = 0.0_dp
+      DO i = 1, nnp%num_atoms
+         CALL get_ptable_info(nnp%atoms(i), amass=unit_conv)
+         com(:) = com(:) + nnp%coord(:, i)*unit_conv
+         mass = mass + unit_conv
+      END DO
+      com(:) = com(:)/mass
 
-         DO i = 1, nnp%num_atoms
-            nnp%coord(:, i) = nnp%coord(:, i) - com(:)
-         END DO
+      DO i = 1, nnp%num_atoms
+         nnp%coord(:, i) = nnp%coord(:, i) - com(:)
+      END DO
 
-         ! write out coordinates
-         unit_conv = cp_unit_from_cp2k(1.0_dp, TRIM("angstrom"))
-         fmt_string = "(A4,1X,3F20.10)"
-         DO i = 1, nnp%num_atoms
-            WRITE (unit_nr, fmt_string) &
-               nnp%atoms(nnp%sort_inv(i)), &
-               nnp%coord(1, nnp%sort_inv(i))*unit_conv, &
-               nnp%coord(2, nnp%sort_inv(i))*unit_conv, &
-               nnp%coord(3, nnp%sort_inv(i))*unit_conv
-         END DO
-      END IF
+      ! write out coordinates
+      unit_conv = cp_unit_from_cp2k(1.0_dp, TRIM("angstrom"))
+      fmt_string = "(A4,1X,3F20.10)"
+      DO i = 1, nnp%num_atoms
+         WRITE (unit_nr, fmt_string) &
+            nnp%atoms(nnp%sort_inv(i)), &
+            nnp%coord(1, nnp%sort_inv(i))*unit_conv, &
+            nnp%coord(2, nnp%sort_inv(i))*unit_conv, &
+            nnp%coord(3, nnp%sort_inv(i))*unit_conv
+      END DO
 
    END SUBROUTINE nnp_print_expol
 
@@ -527,8 +505,8 @@ CONTAINS
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
    SUBROUTINE nnp_print_bias(nnp, print_section)
-      TYPE(nnp_type), POINTER                            :: nnp
-      TYPE(section_vals_type), POINTER                   :: print_section
+      TYPE(nnp_type), INTENT(INOUT)                      :: nnp
+      TYPE(section_vals_type), INTENT(IN), POINTER       :: print_section
 
       INTEGER                                            :: unit_nr
       LOGICAL                                            :: file_is_new
@@ -542,7 +520,7 @@ CONTAINS
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
          unit_nr = cp_print_key_unit_nr(logger, print_key, extension=".data", &
                                         middle_name="nnp-bias-energy", is_new_file=file_is_new)
-         CALL nnp_print_bias_energy(nnp, unit_nr, file_is_new)
+         IF (unit_nr > 0) CALL nnp_print_bias_energy(nnp, unit_nr, file_is_new)
          CALL cp_print_key_finished_output(unit_nr, logger, print_key)
       END IF
 
@@ -550,7 +528,7 @@ CONTAINS
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
          unit_nr = cp_print_key_unit_nr(logger, print_key, extension=".xyz", &
                                         middle_name="nnp-bias-forces")
-         CALL nnp_print_bias_forces(nnp, unit_nr)
+         IF (unit_nr > 0) CALL nnp_print_bias_forces(nnp, unit_nr)
          CALL cp_print_key_finished_output(unit_nr, logger, print_key)
       END IF
 
@@ -565,34 +543,29 @@ CONTAINS
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
    SUBROUTINE nnp_print_bias_energy(nnp, unit_nr, file_is_new)
-      TYPE(nnp_type), POINTER                            :: nnp
+      TYPE(nnp_type), INTENT(INOUT)                      :: nnp
       INTEGER, INTENT(IN)                                :: unit_nr
       LOGICAL, INTENT(IN)                                :: file_is_new
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_print_bias_energy', &
-         routineP = moduleN//':'//routineN
 
       CHARACTER(len=default_path_length)                 :: fmt_string
       INTEGER                                            :: i
 
-      IF (unit_nr > 0) THEN
-         IF (file_is_new) THEN
-            WRITE (unit_nr, "(A1)", ADVANCE='no') "#"
-            WRITE (unit_nr, "(2(2X,A19))", ADVANCE='no') "Sigma [a.u.]", "Bias energy [a.u.]"
-            DO i = 1, nnp%n_committee
-               IF (nnp%bias_align) THEN
-                  WRITE (unit_nr, "(2X,A16,I3)", ADVANCE='no') "shifted E_NNP", i
-               ELSE
-                  WRITE (unit_nr, "(2X,A16,I3)", ADVANCE='no') "E_NNP", i
-               END IF
-            END DO
-            WRITE (unit_nr, "(A)") ""
+      IF (file_is_new) THEN
+         WRITE (unit_nr, "(A1)", ADVANCE='no') "#"
+         WRITE (unit_nr, "(2(2X,A19))", ADVANCE='no') "Sigma [a.u.]", "Bias energy [a.u.]"
+         DO i = 1, nnp%n_committee
+            IF (nnp%bias_align) THEN
+               WRITE (unit_nr, "(2X,A16,I3)", ADVANCE='no') "shifted E_NNP", i
+            ELSE
+               WRITE (unit_nr, "(2X,A16,I3)", ADVANCE='no') "E_NNP", i
+            END IF
+         END DO
+         WRITE (unit_nr, "(A)") ""
 
-         END IF
-
-         WRITE (fmt_string, "(A,I3,A)") "(2X,", nnp%n_committee + 2, "(F20.9,1X))"
-         WRITE (unit_nr, fmt_string) nnp%bias_sigma, nnp%bias_energy, nnp%committee_energy
       END IF
+
+      WRITE (fmt_string, "(A,I3,A)") "(2X,", nnp%n_committee + 2, "(F20.9,1X))"
+      WRITE (unit_nr, fmt_string) nnp%bias_sigma, nnp%bias_energy, nnp%committee_energy
 
    END SUBROUTINE nnp_print_bias_energy
 
@@ -604,25 +577,20 @@ CONTAINS
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
    SUBROUTINE nnp_print_bias_forces(nnp, unit_nr)
-      TYPE(nnp_type), POINTER                            :: nnp
+      TYPE(nnp_type), INTENT(INOUT)                      :: nnp
       INTEGER, INTENT(IN)                                :: unit_nr
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_print_bias_forces', &
-         routineP = moduleN//':'//routineN
 
       CHARACTER(len=default_path_length)                 :: fmt_string
       INTEGER                                            :: i
 
       ! TODO use write_particle_coordinates from particle_methods.F
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, *) nnp%num_atoms
-         WRITE (unit_nr, "(A,F20.9)") "NNP bias forces [a.u.] for bias energy [a.u]=", nnp%bias_energy
+      WRITE (unit_nr, *) nnp%num_atoms
+      WRITE (unit_nr, "(A,F20.9)") "NNP bias forces [a.u.] for bias energy [a.u]=", nnp%bias_energy
 
-         fmt_string = "(A4,1X,3F20.10)"
-         DO i = 1, nnp%num_atoms
-            WRITE (unit_nr, fmt_string) nnp%atoms(nnp%sort_inv(i)), nnp%bias_forces(:, i)
-         END DO
-      END IF
+      fmt_string = "(A4,1X,3F20.10)"
+      DO i = 1, nnp%num_atoms
+         WRITE (unit_nr, fmt_string) nnp%atoms(nnp%sort_inv(i)), nnp%bias_forces(:, i)
+      END DO
 
    END SUBROUTINE nnp_print_bias_forces
 
@@ -636,13 +604,10 @@ CONTAINS
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
    SUBROUTINE nnp_print_sumforces(nnp, print_section, unit_nr, file_is_new)
-      TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp
-      TYPE(section_vals_type), POINTER                   :: print_section
+      TYPE(nnp_type), INTENT(INOUT)                      :: nnp
+      TYPE(section_vals_type), INTENT(IN), POINTER       :: print_section
       INTEGER, INTENT(IN)                                :: unit_nr
       LOGICAL, INTENT(IN)                                :: file_is_new
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_print_sumforces', &
-         routineP = moduleN//':'//routineN
 
       CHARACTER(len=default_path_length)                 :: fmt_string
       CHARACTER(LEN=default_string_length), &
@@ -651,31 +616,29 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: rvec
 
       NULLIFY (atomlist)
-      IF (unit_nr > 0) THEN
-         IF (file_is_new) THEN
-            WRITE (unit_nr, "(A)") "# Summed forces [a.u.]"
-         END IF
-
-         rvec = 0.0_dp
-
-         ! get atoms to sum over:
-         CALL section_vals_val_get(print_section, "SUM_FORCE%ATOM_LIST", &
-                                   c_vals=atomlist)
-         IF (ASSOCIATED(atomlist)) THEN
-            n = SIZE(atomlist)
-            DO i = 1, nnp%num_atoms
-               DO j = 1, n
-                  ig = nnp%sort_inv(i)
-                  IF (TRIM(ADJUSTL(atomlist(j))) == TRIM(ADJUSTL(nnp%atoms(ig)))) THEN
-                     rvec(:) = rvec(:) + nnp%nnp_forces(:, i)
-                  END IF
-               END DO
-            END DO
-         END IF
-
-         fmt_string = "(3(F20.10,1X))"
-         WRITE (unit_nr, fmt_string) rvec
+      IF (file_is_new) THEN
+         WRITE (unit_nr, "(A)") "# Summed forces [a.u.]"
       END IF
+
+      rvec = 0.0_dp
+
+      ! get atoms to sum over:
+      CALL section_vals_val_get(print_section, "SUM_FORCE%ATOM_LIST", &
+                                c_vals=atomlist)
+      IF (ASSOCIATED(atomlist)) THEN
+         n = SIZE(atomlist)
+         DO i = 1, nnp%num_atoms
+            DO j = 1, n
+               ig = nnp%sort_inv(i)
+               IF (TRIM(ADJUSTL(atomlist(j))) == TRIM(ADJUSTL(nnp%atoms(ig)))) THEN
+                  rvec(:) = rvec(:) + nnp%nnp_forces(:, i)
+               END IF
+            END DO
+         END DO
+      END IF
+
+      fmt_string = "(3(F20.10,1X))"
+      WRITE (unit_nr, fmt_string) rvec
 
    END SUBROUTINE nnp_print_sumforces
 

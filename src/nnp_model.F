@@ -17,8 +17,7 @@ MODULE nnp_model
                                               cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: default_string_length,&
-                                              dp,&
-                                              max_line_length
+                                              dp
    USE nnp_environment_types,           ONLY: &
         nnp_actfnct_cos, nnp_actfnct_exp, nnp_actfnct_gaus, nnp_actfnct_invsig, nnp_actfnct_lin, &
         nnp_actfnct_quad, nnp_actfnct_sig, nnp_actfnct_softplus, nnp_actfnct_tanh, nnp_arc_type, &
@@ -38,16 +37,14 @@ MODULE nnp_model
 
 CONTAINS
 
-! ***************************************************************************
+! **************************************************************************************************
 !> \brief Write neural network architecture information
 !> \param nnp ...
 !> \param para_env ...
 ! **************************************************************************************************
    SUBROUTINE nnp_write_arc(nnp, para_env)
-      TYPE(nnp_type), POINTER                            :: nnp
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'nnp_write_arc', routineP = moduleN//':'//routineN
+      TYPE(nnp_type), INTENT(IN)                         :: nnp
+      TYPE(cp_para_env_type), POINTER, INTENT(IN)        :: para_env
 
       CHARACTER(len=default_string_length)               :: my_label
       INTEGER                                            :: i, j, unit_nr
@@ -69,11 +66,9 @@ CONTAINS
          END DO
       END IF
 
-      RETURN
-
    END SUBROUTINE nnp_write_arc
 
-! ***************************************************************************
+! **************************************************************************************************
 !> \brief Predict energy by evaluating neural network
 !> \param arc ...
 !> \param nnp ...
@@ -86,7 +81,6 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'nnp_predict', routineP = moduleN//':'//routineN
 
-      CHARACTER(len=max_line_length)                     :: msg_str
       INTEGER                                            :: handle, i, j
       REAL(KIND=dp)                                      :: norm
 
@@ -152,18 +146,15 @@ CONTAINS
          CASE (nnp_actfnct_quad)
             arc%layer(i)%node(:) = arc%layer(i)%node(:)**2
          CASE DEFAULT
-            msg_str = "NNP| Error: Unknown activation function"
-            CPABORT(msg_str)
+            CPABORT("NNP| Error: Unknown activation function")
          END SELECT
       END DO
 
       CALL timestop(handle)
 
-      RETURN
-
    END SUBROUTINE nnp_predict
 
-! ***************************************************************************
+! **************************************************************************************************
 !> \brief Calculate gradients of neural network
 !> \param arc ...
 !> \param nnp ...
@@ -171,14 +162,13 @@ CONTAINS
 !> \param denergydsym ...
 ! **************************************************************************************************
    SUBROUTINE nnp_gradients(arc, nnp, i_com, denergydsym)
-      TYPE(nnp_arc_type)                                 :: arc
-      TYPE(nnp_type)                                     :: nnp
+      TYPE(nnp_arc_type), INTENT(INOUT)                  :: arc
+      TYPE(nnp_type), INTENT(INOUT)                      :: nnp
       INTEGER, INTENT(IN)                                :: i_com
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: denergydsym
 
       CHARACTER(len=*), PARAMETER :: routineN = 'nnp_gradients', routineP = moduleN//':'//routineN
 
-      CHARACTER(len=max_line_length)                     :: msg_str
       INTEGER                                            :: handle, i, j, k
       REAL(KIND=dp)                                      :: norm
 
@@ -212,8 +202,7 @@ CONTAINS
          CASE (nnp_actfnct_quad)
             arc%layer(i)%node_grad(j) = 2.0_dp*arc%layer(i)%node_grad(j)
          CASE DEFAULT
-            msg_str = "NNP| Error: Unknown activation function"
-            CPABORT(msg_str)
+            CPABORT("NNP| Error: Unknown activation function")
          END SELECT
          ! Normalize by number of nodes in previous layer if requested
          IF (nnp%normnodes) THEN
@@ -267,8 +256,6 @@ CONTAINS
       END DO
 
       CALL timestop(handle)
-
-      RETURN
 
    END SUBROUTINE nnp_gradients
 

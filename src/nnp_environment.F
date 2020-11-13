@@ -45,7 +45,6 @@ MODULE nnp_environment
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
-                                              default_string_length,&
                                               dp
    USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                               write_molecule_kind_set
@@ -77,7 +76,7 @@ MODULE nnp_environment
 
 CONTAINS
 
-! ***************************************************************************
+! **************************************************************************************************
 !> \brief Read and initialize all the information for neural network potentials
 !> \param nnp_env ...
 !> \param root_section ...
@@ -90,15 +89,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE nnp_init(nnp_env, root_section, para_env, force_env_section, subsys_section, &
                        use_motion_section)
-      TYPE(nnp_type), POINTER                            :: nnp_env
-      TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section
+      TYPE(nnp_type), POINTER, INTENT(INOUT)             :: nnp_env
+      TYPE(section_vals_type), POINTER, INTENT(IN)       :: root_section
+      TYPE(cp_para_env_type), POINTER, INTENT(IN)        :: para_env
+      TYPE(section_vals_type), POINTER, INTENT(INOUT)    :: force_env_section, subsys_section
       LOGICAL, INTENT(IN)                                :: use_motion_section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'nnp_init', routineP = moduleN//':'//routineN
 
-      CHARACTER(len=default_string_length)               :: err_str
       INTEGER                                            :: handle
       LOGICAL                                            :: explicit, use_ref_cell
       REAL(KIND=dp), DIMENSION(3)                        :: abc
@@ -123,8 +121,7 @@ CONTAINS
       nnp_section => section_vals_get_subs_vals(force_env_section, "NNP")
       CALL section_vals_get(nnp_section, explicit=explicit)
       IF (.NOT. explicit) THEN
-         err_str = "NNP section not explicitly stated. Using default file names."
-         CPWARN(err_str)
+         CPWARN("NNP section not explicitly stated. Using default file names.")
       END IF
 
       CALL nnp_env_set(nnp_env=nnp_env, nnp_input=nnp_section, &
@@ -151,7 +148,7 @@ CONTAINS
 
    END SUBROUTINE nnp_init
 
-! ***************************************************************************
+! **************************************************************************************************
 !> \brief Read and initialize all the information for neural network potentials
 !> \param nnp_env ...
 !> \param subsys ...
@@ -163,11 +160,11 @@ CONTAINS
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
    SUBROUTINE nnp_init_subsys(nnp_env, subsys, cell, cell_ref, use_ref_cell, subsys_section)
-      TYPE(nnp_type), POINTER                            :: nnp_env
-      TYPE(cp_subsys_type), POINTER                      :: subsys
-      TYPE(cell_type), POINTER                           :: cell, cell_ref
-      LOGICAL, INTENT(in)                                :: use_ref_cell
-      TYPE(section_vals_type), POINTER                   :: subsys_section
+      TYPE(nnp_type), POINTER, INTENT(INOUT)             :: nnp_env
+      TYPE(cp_subsys_type), POINTER, INTENT(IN)          :: subsys
+      TYPE(cell_type), POINTER, INTENT(INOUT)            :: cell, cell_ref
+      LOGICAL, INTENT(IN)                                :: use_ref_cell
+      TYPE(section_vals_type), POINTER, INTENT(IN)       :: subsys_section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'nnp_init_subsys', &
          routineP = moduleN//':'//routineN
@@ -249,7 +246,7 @@ CONTAINS
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
    SUBROUTINE nnp_init_model(nnp_env)
-      TYPE(nnp_type), POINTER                            :: nnp_env
+      TYPE(nnp_type), POINTER, INTENT(INOUT)             :: nnp_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'nnp_init_model', routineP = moduleN//':'//routineN
       INTEGER, PARAMETER                                 :: def_str_len = 256, &
@@ -259,7 +256,6 @@ CONTAINS
       CHARACTER(len=2)                                   :: ele
       CHARACTER(len=def_str_len)                         :: dummy, line
       CHARACTER(len=default_path_length)                 :: base_name, file_name
-      CHARACTER(LEN=default_string_length)               :: err_str
       INTEGER                                            :: handle, i, i_com, iweight, j, k, l, &
                                                             n_weight, nele, nuc_ele, symfnct_type, &
                                                             unit_nr
@@ -313,8 +309,7 @@ CONTAINS
       IF (found) THEN
          READ (line, *) dummy, nnp_env%n_ele
       ELSE
-         err_str = "NNP| number of elements missing in NNP_INPUT_FILE"
-         CPABORT(err_str)
+         CPABORT("NNP| number of elements missing in NNP_INPUT_FILE")
       END IF
 
       CALL parser_search_string(parser, "scale_symmetry_functions", .TRUE., found, &
@@ -323,10 +318,7 @@ CONTAINS
 
       CALL parser_search_string(parser, "scale_symmetry_functions_sigma", .TRUE., found, &
                                 search_from_begin_of_file=.TRUE.)
-      IF (found) THEN
-         err_str = "NNP| Option scale_symmetry_functions_sigma not yet supported."
-         CPABORT(err_str)
-      END IF
+      IF (found) CPABORT("NNP| Option scale_symmetry_functions_sigma not yet supported.")
 
       CALL parser_search_string(parser, "scale_min_short_atomic", .TRUE., found, line, &
                                 search_from_begin_of_file=.TRUE.)
@@ -349,8 +341,7 @@ CONTAINS
       IF (found) THEN
          READ (line, *) dummy, nnp_env%cut_type
       ELSE
-         err_str = "NNP| no cutoff type specified in NNP_INPUT_FILE"
-         CPABORT(err_str)
+         CPABORT("NNP| no cutoff type specified in NNP_INPUT_FILE")
       END IF
 
       CALL parser_search_string(parser, "global_hidden_layers_short", .TRUE., found, line, &
@@ -358,8 +349,7 @@ CONTAINS
       IF (found) THEN
          READ (line, *) dummy, nnp_env%n_hlayer
       ELSE
-         err_str = "NNP| number of hidden layers missing in NNP_INPUT_FILE"
-         CPABORT(err_str)
+         CPABORT("NNP| number of hidden layers missing in NNP_INPUT_FILE")
       END IF
       nnp_env%n_layer = nnp_env%n_hlayer + 2
 
@@ -393,8 +383,7 @@ CONTAINS
                EXIT
             END IF
          ELSE
-            err_str = "NNP| elements not specified in NNP_INPUT_FILE"
-            CPABORT(err_str)
+            CPABORT("NNP| elements not specified in NNP_INPUT_FILE")
          END IF
       END DO
 
@@ -416,8 +405,7 @@ CONTAINS
                END DO
                IF (i == nele) EXIT
             ELSE
-               err_str = "NNP| atom energies are not specified"
-               CPABORT(err_str)
+               CPABORT("NNP| atom energies are not specified")
             END IF
          END DO
       END IF
@@ -427,8 +415,7 @@ CONTAINS
       IF (found) THEN
          READ (line, *) dummy, nnp_env%n_hnodes(:)
       ELSE
-         err_str = "NNP| global_nodes_short not specified in NNP_INPUT_FILE"
-         CPABORT(err_str)
+         CPABORT("NNP| global_nodes_short not specified in NNP_INPUT_FILE")
       END IF
 
       CALL parser_search_string(parser, "global_activation_short", .TRUE., found, line, &
@@ -436,8 +423,7 @@ CONTAINS
       IF (found) THEN
          READ (line, *) dummy, cactfnct(:)
       ELSE
-         err_str = "NNP| global_activation_short not specified in NNP_INPUT_FILE"
-         CPABORT(err_str)
+         CPABORT("NNP| global_activation_short not specified in NNP_INPUT_FILE")
       END IF
 
       DO i = 1, nnp_env%n_hlayer + 1
@@ -461,6 +447,7 @@ CONTAINS
          CASE ("h")
             nnp_env%actfnct(i) = nnp_actfnct_quad
          CASE DEFAULT
+            CPABORT("NNP| Activation function unkown")
          END SELECT
       END DO
 
@@ -484,17 +471,13 @@ CONTAINS
                   ELSE IF (symfnct_type .EQ. 3) THEN
                      nnp_env%n_ang(i) = nnp_env%n_ang(i) + 1
                   ELSE
-                     err_str = "NNP| Symmetry function type not supported"
-                     CPABORT(err_str)
+                     CPABORT("NNP| Symmetry function type not supported")
                   END IF
                END IF
             END DO
             first = .FALSE.
          ELSE
-            IF (first) THEN
-               err_str = "NNP| no symfunction_short specified in NNP_INPUT_FILE"
-               CPABORT(err_str)
-            END IF
+            IF (first) CPABORT("NNP| no symfunction_short specified in NNP_INPUT_FILE")
             ! no additional symfnct found
             EXIT
          END IF
@@ -589,17 +572,13 @@ CONTAINS
                         nnp_env%max_cut = nnp_env%ang(i)%funccut(nnp_env%n_ang(i))
                      END IF
                   ELSE
-                     err_str = "NNP| Symmetry function type not supported"
-                     CPABORT(err_str)
+                     CPABORT("NNP| Symmetry function type not supported")
                   END IF
                END IF
             END DO
             first = .FALSE.
          ELSE
-            IF (first) THEN
-               err_str = "NNP| no symfunction_short specified in NNP_INPUT_FILE"
-               CPABORT(err_str)
-            END IF
+            IF (first) CPABORT("NNP| no symfunction_short specified in NNP_INPUT_FILE")
             ! no additional symfnct found
             EXIT
          END IF
@@ -739,8 +718,7 @@ CONTAINS
                NULLIFY (work)
                CALL section_vals_val_get(bias_section, "ALIGN_NNP_ENERGIES", r_vals=work)
                IF (SIZE(work) .NE. nnp_env%n_committee) THEN
-                  err_str = "ALIGN_NNP_ENERGIES size mismatch wrt committee size."
-                  CPABORT(err_str)
+                  CPABORT("ALIGN_NNP_ENERGIES size mismatch wrt committee size.")
                END IF
                nnp_env%bias_e_avrg(:) = work
                IF (logger%para_env%ionode) THEN
@@ -748,8 +726,7 @@ CONTAINS
                END IF
             END IF
          ELSE
-            err_str = "NNP committee size is 1, BIAS section is ignored."
-            CPWARN(err_str)
+            CPWARN("NNP committee size is 1, BIAS section is ignored.")
          END IF
       END IF
 
@@ -758,8 +735,6 @@ CONTAINS
       END IF
 
       CALL timestop(handle)
-
-      RETURN
 
    END SUBROUTINE nnp_init_model
 
