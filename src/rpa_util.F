@@ -1100,9 +1100,9 @@ CONTAINS
       TYPE(dbcsr_t_type)                                 :: t_3c_M
       TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_O
       TYPE(hfx_compression_type), ALLOCATABLE, &
-         DIMENSION(:, :), INTENT(INOUT)                  :: t_3c_O_compressed
+         DIMENSION(:, :, :), INTENT(INOUT)               :: t_3c_O_compressed
       TYPE(block_ind_type), ALLOCATABLE, &
-         DIMENSION(:, :), INTENT(INOUT)                  :: t_3c_O_ind
+         DIMENSION(:, :, :), INTENT(INOUT)               :: t_3c_O_ind
       TYPE(dbcsr_type), POINTER                          :: mat_work
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_mo_coeff_occ_beta, &
                                                             fm_mo_coeff_virt_beta
@@ -1111,7 +1111,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dealloc_im_time'
 
-      INTEGER                                            :: handle, i_size, j_size, unused
+      INTEGER                                            :: cut_memory, handle, i_mem, i_size, &
+                                                            j_size, unused
       LOGICAL                                            :: my_open_shell
 
       CALL timeset(routineN, handle)
@@ -1186,10 +1187,14 @@ CONTAINS
          DEALLOCATE (wkp_W)
       END IF
 
+      cut_memory = SIZE(t_3c_O_compressed, 3)
+
       DEALLOCATE (t_3c_O_ind)
       DO i_size = 1, SIZE(t_3c_O_compressed, 1)
          DO j_size = 1, SIZE(t_3c_O_compressed, 2)
-            CALL dealloc_containers(t_3c_O_compressed(i_size, j_size), unused)
+            DO i_mem = 1, cut_memory
+               CALL dealloc_containers(t_3c_O_compressed(i_size, j_size, i_mem), unused)
+            ENDDO
          ENDDO
       ENDDO
       DEALLOCATE (t_3c_O_compressed)
