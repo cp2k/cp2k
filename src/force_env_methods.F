@@ -70,8 +70,8 @@ MODULE force_env_methods
    USE fist_force,                      ONLY: fist_calc_energy_force
    USE force_env_types,                 ONLY: &
         force_env_get, force_env_get_natom, force_env_p_type, force_env_set, force_env_type, &
-        use_eip_force, use_embed, use_fist_force, use_mixed_force, use_prog_name, use_pwdft_force, &
-        use_qmmm, use_qmmmx, use_qs_force
+        use_eip_force, use_embed, use_fist_force, use_mixed_force, use_nnp_force, use_prog_name, &
+        use_pwdft_force, use_qmmm, use_qmmmx, use_qs_force
    USE force_env_utils,                 ONLY: rescale_forces,&
                                               write_forces
    USE force_fields_util,               ONLY: get_generic_info
@@ -115,6 +115,9 @@ MODULE force_env_methods
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                               molecule_kind_type
+   USE nnp_environment_types,           ONLY: nnp_env_retain,&
+                                              nnp_type
+   USE nnp_force,                       ONLY: nnp_calc_energy_force
    USE optimize_dmfet_potential,        ONLY: build_full_dm,&
                                               check_dmfet,&
                                               prepare_dmfet_opt,&
@@ -287,6 +290,9 @@ CONTAINS
                                          require_consistent_energy_force=require_consistent_energy_force)
          CASE (use_mixed_force)
             CALL mixed_energy_forces(force_env, calculate_forces)
+         CASE (use_nnp_force)
+            CALL nnp_calc_energy_force(force_env%nnp_env, &
+                                       calculate_forces)
          CASE (use_embed)
             CALL embed_energy(force_env)
          CASE default
@@ -741,13 +747,14 @@ CONTAINS
 !> \param force_env_section ...
 !> \param mixed_env ...
 !> \param embed_env ...
+!> \param nnp_env ...
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE force_env_create(force_env, root_section, para_env, globenv, fist_env, &
                                qs_env, meta_env, sub_force_env, qmmm_env, qmmmx_env, eip_env, pwdft_env, force_env_section, &
-                               mixed_env, embed_env)
+                               mixed_env, embed_env, nnp_env)
 
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(section_vals_type), POINTER                   :: root_section
@@ -765,6 +772,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section
       TYPE(mixed_environment_type), OPTIONAL, POINTER    :: mixed_env
       TYPE(embed_env_type), OPTIONAL, POINTER            :: embed_env
+      TYPE(nnp_type), OPTIONAL, POINTER                  :: nnp_env
 
       ALLOCATE (force_env)
       NULLIFY (force_env%fist_env, force_env%qs_env, &
@@ -772,7 +780,8 @@ CONTAINS
                force_env%meta_env, force_env%sub_force_env, &
                force_env%qmmm_env, force_env%qmmmx_env, force_env%fp_env, &
                force_env%force_env_section, force_env%eip_env, force_env%mixed_env, &
-               force_env%embed_env, force_env%pwdft_env, force_env%root_section)
+               force_env%embed_env, force_env%pwdft_env, force_env%nnp_env, &
+               force_env%root_section)
       last_force_env_id = last_force_env_id + 1
       force_env%id_nr = last_force_env_id
       force_env%ref_count = 1
@@ -846,6 +855,13 @@ CONTAINS
          force_env%in_use = use_embed
          force_env%embed_env => embed_env
          CALL embed_env_retain(embed_env)
+      END IF
+      IF (PRESENT(nnp_env)) THEN
+         CPASSERT(ASSOCIATED(nnp_env))
+         CPASSERT(force_env%in_use == 0)
+         force_env%in_use = use_nnp_force
+         force_env%nnp_env => nnp_env
+         CALL nnp_env_retain(nnp_env)
       END IF
       CPASSERT(force_env%in_use /= 0)
 

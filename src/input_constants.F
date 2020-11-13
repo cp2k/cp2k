@@ -51,7 +51,8 @@ MODULE input_constants
                                                do_eip = 5, &
                                                do_mixed = 6, &
                                                do_embed = 7, &
-                                               do_sirius = 8
+                                               do_sirius = 8, &
+                                               do_nnp = 9
 
    ! QMMM
    REAL(KIND=dp), PARAMETER, PUBLIC         :: RADIUS_QMMM_DEFAULT = 0.80_dp, & ! Angstrom
@@ -310,7 +311,11 @@ MODULE input_constants
 
    ! helium-solute interaction potentials
    INTEGER, PARAMETER, PUBLIC               :: helium_solute_intpot_none = 0, &
-                                               helium_solute_intpot_mwater = 1
+                                               helium_solute_intpot_mwater = 1, &
+                                               helium_solute_intpot_ch5 = 2, &
+                                               helium_solute_intpot_runner_io = 3, &
+                                               helium_solute_intpot_nnp = 4, &
+                                               helium_solute_intpot_cubetable = 5
 
    ! helium force selection
    INTEGER, PARAMETER, PUBLIC               :: helium_forces_average = 0, &

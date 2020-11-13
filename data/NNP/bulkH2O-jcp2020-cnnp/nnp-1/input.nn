@@ -1,0 +1,165 @@
+###############################################################################
+# GENERAL NNP SETTINGS
+###############################################################################
+# These keywords are (almost) always required.
+number_of_elements              2              # Number of elements.
+elements                        O H            # Specification of elements.
+atom_energy                    O -74.94518524  # free atom reference energy (atomic zora)
+atom_energy                    H  -0.45890771  # free atom reference energy (atomic zora)
+cutoff_type                     2              # Cutoff type (optional argument: shift parameter alpha).
+scale_symmetry_functions                       # Scale all symmetry functions with min/max values.
+#scale_symmetry_functions_sigma                 # Scale all symmetry functions with sigma.
+scale_min_short                 0.0            # Minimum value for scaling.
+scale_max_short                 1.0            # Maximum value for scaling.
+center_symmetry_functions                      # Center all symmetry functions, i.e. subtract mean value.
+global_hidden_layers_short      2              # Number of hidden layers.
+global_nodes_short              20 20          # Number of nodes in each hidden layer.
+global_activation_short         t t l          # Activation function for each hidden layer and output layer.
+#normalize_nodes                                # Normalize input of nodes.
+
+###############################################################################
+# ADDITIONAL SETTINGS FOR DATASET TOOLS
+###############################################################################
+# These keywords are used only by some tools handling data sets:
+# nnp-comp2, nnp-scaling, nnp-dataset, nnp-train.
+#use_short_forces                               # Use forces. Disable - repeated below.
+random_seed                     0           # Random number generator seed.
+
+###############################################################################
+# ADDITIONAL SETTINGS FOR TRAINING
+###############################################################################
+# These keywords are solely used for training with nnp-train.
+epochs                          100            # Number of training epochs.
+updater_type                    1              # Weight update method (0 = Gradient Descent, 1 = Kalman filter).
+parallel_mode                   1              # Training parallelization used (0 = Parallel (rank 0 update), 1 = Parallel (all update)).
+jacobian_mode                   2              # Jacobian computation mode (0 = Summation to single gradient, 1 = Per-task summed gradient, 2 = Full Jacobian).
+update_strategy                 0              # Update strategy (0 = Combined, 1 = Per-element).
+selection_mode                  2              # Update candidate selection mode (0 = Random, 1 = Sort, 2 = Threshold).
+task_batch_size_energy          1              # Number of energy update candidates prepared per task for each update (0 = Entire training set).
+task_batch_size_force           1              # Number of force update candidates prepared per task for each update (0 = Entire training set).
+memorize_symfunc_results                       # Keep symmetry function results in memory.
+test_fraction                   0.1            # Fraction of structures kept for testing.
+use_short_forces                               # Use forces for training.
+force_weight                    2.0            # Weight of force updates relative to energy updates.
+short_energy_fraction           1.0            # Fraction of energy updates per epoch.
+short_force_fraction            0.05           # Fraction of force updates per epoch.
+short_energy_error_threshold    0.8            # RMSE threshold for energy update candidates.
+short_force_error_threshold     1.0            # RMSE threshold for force update candidates.
+rmse_threshold_trials           3              # Maximum number of RMSE threshold trials.
+#use_old_weights_short                          # Restart fitting with old weight parameters.
+weights_min                     -1.0           # Minimum value for initial random weights.
+weights_max                     1.0            # Maximum value for initial random weights.
+#precondition_weights                           # Precondition weights with initial energies.
+nguyen_widrow_weights_short                    # Initialize neural network weights according to Nguyen-Widrow scheme.
+write_trainpoints               0              # Write energy comparison every this many epochs.
+write_trainforces               0              # Write force comparison every this many epochs.
+write_weights_epoch             1              # Write weights every this many epochs.
+write_neuronstats               0              # Write neuron statistics every this many epochs.
+#write_trainlog                                # Write training log file.
+
+############################
+# KALMAN FILTER (STANDARD) #
+############################
+kalman_type                     0              # Kalman filter type (0 = Standard, 1 = Fading memory).
+kalman_epsilon                  1.0E-2         # General Kalman filter parameter epsilon (sigmoidal: 0.01, linear: 0.001).
+kalman_q0                       0.01           # General Kalman filter parameter q0 ("large").
+kalman_qtau                     2.302          # General Kalman filter parameter qtau (2.302 => 1 order of magnitude per epoch).
+kalman_qmin                     1.0E-6         # General Kalman filter parameter qmin (typ. 1.0E-6).
+kalman_eta                      0.01           # Standard Kalman filter parameter eta (0.001-1.0).
+kalman_etatau                   2.302          # Standard Kalman filter parameter etatau (2.302 => 1 order of magnitude per epoch).
+kalman_etamax                   1.0            # Standard Kalman filter parameter etamax (1.0+).
+
+# Are these only for fading Kalman?
+kalman_lambda_short 0.98000
+kalman_nue_short 0.99870
+
+
+
+###############################################################################
+# SYMMETRY FUNCTIONS
+###############################################################################
+
+# INFO: symfunction format: reference atom, type, neighbor element 1 (and neighbor element 2), symfunction parameters
+
+
+#
+# radial
+#
+
+# central_atom type neighbor_atom eta rshift funccutoff
+
+# H H
+symfunction_short H 2 H 0.001 0.0 12.00
+symfunction_short H 2 H 0.01  0.0 12.00
+symfunction_short H 2 H 0.03  0.0 12.00
+symfunction_short H 2 H 0.06  0.0 12.00
+symfunction_short H 2 H 0.15  1.9 12.00
+symfunction_short H 2 H 0.30  1.9 12.00
+symfunction_short H 2 H 0.60  1.9 12.00
+symfunction_short H 2 H 1.50  1.9 12.00
+
+# H O / O H
+symfunction_short H 2 O 0.001 0.0 12.00
+symfunction_short H 2 O 0.01  0.0 12.00
+symfunction_short H 2 O 0.03  0.0 12.00
+symfunction_short H 2 O 0.06  0.0 12.00
+symfunction_short H 2 O 0.15  0.9 12.00
+symfunction_short H 2 O 0.30  0.9 12.00
+symfunction_short H 2 O 0.60  0.9 12.00
+symfunction_short H 2 O 1.50  0.9 12.00
+symfunction_short O 2 H 0.001 0.0 12.00
+symfunction_short O 2 H 0.01  0.0 12.00
+symfunction_short O 2 H 0.03  0.0 12.00
+symfunction_short O 2 H 0.06  0.0 12.00
+symfunction_short O 2 H 0.15  0.9 12.00
+symfunction_short O 2 H 0.30  0.9 12.00
+symfunction_short O 2 H 0.60  0.9 12.00
+symfunction_short O 2 H 1.50  0.9 12.00
+
+# O O
+symfunction_short O 2 O 0.001 0.0 12.00
+symfunction_short O 2 O 0.01  0.0 12.00
+symfunction_short O 2 O 0.03  0.0 12.00
+symfunction_short O 2 O 0.06  0.0 12.00
+symfunction_short O 2 O 0.15  4.0 12.00
+symfunction_short O 2 O 0.30  4.0 12.00
+symfunction_short O 2 O 0.60  4.0 12.00
+symfunction_short O 2 O 1.50  4.0 12.00
+
+#
+# angular
+#
+
+# central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+
+symfunction_short H 3 O H 0.2  1.0 1.0  12.00000
+
+symfunction_short O 3 H H 0.07  1.0 1.0  12.00000
+symfunction_short H 3 O H 0.07  1.0 1.0  12.00000
+symfunction_short O 3 H H 0.07 -1.0 1.0  12.00000
+symfunction_short H 3 O H 0.07 -1.0 1.0  12.00000
+
+symfunction_short O 3 H H 0.03  1.0 1.0  12.00000
+symfunction_short H 3 O H 0.03  1.0 1.0  12.00000
+symfunction_short O 3 H H 0.03 -1.0 1.0  12.00000
+symfunction_short H 3 O H 0.03 -1.0 1.0  12.00000
+
+symfunction_short O 3 H H 0.01  1.0 4.0  12.00000
+symfunction_short H 3 O H 0.01  1.0 4.0  12.00000
+symfunction_short O 3 H H 0.01 -1.0 4.0  12.00000
+symfunction_short H 3 O H 0.01 -1.0 4.0  12.00000
+
+symfunction_short O 3 O H 0.03  1.0 1.0   12.00000
+symfunction_short O 3 O H 0.03 -1.0 1.0   12.00000
+symfunction_short O 3 O H 0.001  1.0 4.0  12.00000
+symfunction_short O 3 O H 0.001 -1.0 4.0  12.00000
+
+symfunction_short H 3 O O 0.03  1.0 1.0   12.00000
+symfunction_short H 3 O O 0.03 -1.0 1.0   12.00000
+symfunction_short H 3 O O 0.001  1.0 4.0  12.00000
+symfunction_short H 3 O O 0.001 -1.0 4.0  12.00000
+
+symfunction_short O 3 O O 0.03  1.0 1.0   12.00000
+symfunction_short O 3 O O 0.03 -1.0 1.0   12.00000
+symfunction_short O 3 O O 0.001  1.0 4.0  12.00000
+symfunction_short O 3 O O 0.001 -1.0 4.0  12.00000

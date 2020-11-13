@@ -1,0 +1,84 @@
+&GLOBAL
+  PROJECT H2O_C-NNP_MD
+  RUN_TYPE MD
+  PRINT_LEVEL LOW
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD  NNP
+  &NNP
+    NNP_INPUT_FILE_NAME NNP/bulkH2O-jcp2020-cnnp/nnp-1/input.nn
+    SCALE_FILE_NAME     NNP/bulkH2O-jcp2020-cnnp/nnp-1/scaling.data
+    &MODEL
+       WEIGHTS          NNP/bulkH2O-jcp2020-cnnp/nnp-1/weights
+    &END MODEL
+    &MODEL
+       WEIGHTS          NNP/bulkH2O-jcp2020-cnnp/nnp-2/weights
+    &END MODEL
+    &MODEL
+       WEIGHTS          NNP/bulkH2O-jcp2020-cnnp/nnp-3/weights
+    &END MODEL
+    &MODEL
+       WEIGHTS          NNP/bulkH2O-jcp2020-cnnp/nnp-4/weights
+    &END MODEL
+    &MODEL
+       WEIGHTS          NNP/bulkH2O-jcp2020-cnnp/nnp-5/weights
+    &END MODEL
+    &MODEL
+       WEIGHTS          NNP/bulkH2O-jcp2020-cnnp/nnp-6/weights
+    &END MODEL
+    &MODEL
+       WEIGHTS          NNP/bulkH2O-jcp2020-cnnp/nnp-7/weights
+    &END MODEL
+    &MODEL
+       WEIGHTS          NNP/bulkH2O-jcp2020-cnnp/nnp-8/weights
+    &END MODEL
+    &PRINT
+       &EXTRAPOLATION
+          &EACH
+             MD 1
+          &END EACH
+       &END EXTRAPOLATION
+       &ENERGIES
+          &EACH
+             MD 1
+          &END EACH
+       &END ENERGIES
+    &END PRINT
+  &END NNP
+  &SUBSYS
+    &COORD
+       O  1.78547e+01  1.48936e+01  4.30373e+00
+       H  1.88171e+01  1.48191e+01  4.30668e+00
+       H  1.76046e+01  1.40681e+01  4.71635e+00
+    &END COORD
+    &CELL
+      ABC [angstrom] 12.42 12.42 12.42
+      PERIODIC NONE
+    &END CELL
+  &END SUBSYS
+&END FORCE_EVAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TIMESTEP 0.5
+    TEMPERATURE 300
+    &PRINT
+      FORCE_LAST
+      &ENERGY
+        &EACH
+          MD 1
+        &END EACH
+      &END ENERGY
+    &END PRINT
+  &END MD
+  &PRINT
+    &TRAJECTORY
+      &EACH
+        MD 1
+      &END EACH
+    &END TRAJECTORY
+  &END PRINT
+&END MOTION
