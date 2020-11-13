@@ -157,7 +157,7 @@ def validate(cp2k_dir, filelist=None, excluded_dirs=DEFAULT_EXCLUDED_DIRS):
         data_files = set()
         for _, _, files in os.walk(path.join(cp2k_dir, "data")):
             data_files.update(files)
-        data_files.remove("README")
+        data_files.remove("README.md")
         for root, _, files in os.walk(path.join(cp2k_dir, "tests")):
             d = path.relpath(root, cp2k_dir)
             for c in data_files.intersection(files):
