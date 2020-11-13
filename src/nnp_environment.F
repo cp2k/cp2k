@@ -89,10 +89,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE nnp_init(nnp_env, root_section, para_env, force_env_section, subsys_section, &
                        use_motion_section)
-      TYPE(nnp_type), POINTER, INTENT(INOUT)             :: nnp_env
-      TYPE(section_vals_type), POINTER, INTENT(IN)       :: root_section
-      TYPE(cp_para_env_type), POINTER, INTENT(IN)        :: para_env
-      TYPE(section_vals_type), POINTER, INTENT(INOUT)    :: force_env_section, subsys_section
+      TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp_env
+      TYPE(section_vals_type), INTENT(IN), POINTER       :: root_section
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
+      TYPE(section_vals_type), INTENT(INOUT), POINTER    :: force_env_section, subsys_section
       LOGICAL, INTENT(IN)                                :: use_motion_section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'nnp_init', routineP = moduleN//':'//routineN
@@ -160,11 +160,11 @@ CONTAINS
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
    SUBROUTINE nnp_init_subsys(nnp_env, subsys, cell, cell_ref, use_ref_cell, subsys_section)
-      TYPE(nnp_type), POINTER, INTENT(INOUT)             :: nnp_env
-      TYPE(cp_subsys_type), POINTER, INTENT(IN)          :: subsys
-      TYPE(cell_type), POINTER, INTENT(INOUT)            :: cell, cell_ref
+      TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp_env
+      TYPE(cp_subsys_type), INTENT(IN), POINTER          :: subsys
+      TYPE(cell_type), INTENT(INOUT), POINTER            :: cell, cell_ref
       LOGICAL, INTENT(IN)                                :: use_ref_cell
-      TYPE(section_vals_type), POINTER, INTENT(IN)       :: subsys_section
+      TYPE(section_vals_type), INTENT(IN), POINTER       :: subsys_section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'nnp_init_subsys', &
          routineP = moduleN//':'//routineN
@@ -246,7 +246,7 @@ CONTAINS
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
    SUBROUTINE nnp_init_model(nnp_env)
-      TYPE(nnp_type), POINTER, INTENT(INOUT)             :: nnp_env
+      TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'nnp_init_model', routineP = moduleN//':'//routineN
       INTEGER, PARAMETER                                 :: def_str_len = 256, &

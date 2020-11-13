@@ -44,7 +44,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE nnp_write_arc(nnp, para_env)
       TYPE(nnp_type), INTENT(IN)                         :: nnp
-      TYPE(cp_para_env_type), POINTER, INTENT(IN)        :: para_env
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
 
       CHARACTER(len=default_string_length)               :: my_label
       INTEGER                                            :: i, j, unit_nr
