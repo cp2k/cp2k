@@ -3432,7 +3432,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'continuation_pade'
 
       CHARACTER(len=default_path_length)                 :: filename
-      COMPLEX(KIND=dp)                                   :: im_unit, re_unit, sigma_c_pade,sigma_c_pade_im_freq
+      COMPLEX(KIND=dp)                                   :: im_unit, re_unit, sigma_c_pade, &
+                                                            sigma_c_pade_im_freq
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: coeff_pade, omega_points_pade, &
                                                             Sigma_c_gw_reorder
       INTEGER                                            :: handle, i_omega, iunit, jquad, &
@@ -3596,7 +3597,7 @@ CONTAINS
          END DO
 
          WRITE (iunit, "(A51,A39)") " w (eV)  Re(Sigma(i*w)) (eV)   Im(Sigma(i*w)) (eV) ", &
-                       "  Re(Fit(i*w)) (eV)    Im(Fit(iw)) (eV)"
+            "  Re(Fit(i*w)) (eV)    Im(Fit(iw)) (eV)"
 
          DO jquad = 1, num_fit_points
 
@@ -3605,10 +3606,10 @@ CONTAINS
                                         coeff_pade, sigma_c_pade_im_freq, do_imag_freq=.TRUE.)
 
             WRITE (iunit, "(F12.2,4F17.5)") vec_omega_fit_gw_sign_reorder(jquad)*evolt, &
-                                            REAL(Sigma_c_gw_reorder(jquad)*evolt), &
-                                            AIMAG(Sigma_c_gw_reorder(jquad)*evolt), &
-                                            REAL(sigma_c_pade_im_freq*evolt), &
-                                            AIMAG(sigma_c_pade_im_freq*evolt)
+               REAL(Sigma_c_gw_reorder(jquad)*evolt), &
+               AIMAG(Sigma_c_gw_reorder(jquad)*evolt), &
+               REAL(sigma_c_pade_im_freq*evolt), &
+               AIMAG(sigma_c_pade_im_freq*evolt)
 
          END DO
 
@@ -3698,7 +3699,6 @@ CONTAINS
 !> \param coeff pade coefficients
 !> \param func_val function value
 !> \param do_imag_freq ...
-!> \param e_fermi ...
 ! **************************************************************************************************
    SUBROUTINE evaluate_pade_function(x_val, nparam, xpoints, coeff, func_val, do_imag_freq)
 
@@ -3706,18 +3706,18 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nparam
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: xpoints, coeff
       COMPLEX(KIND=dp), INTENT(OUT)                      :: func_val
-      LOGICAL, OPTIONAL, INTENT(IN)                      :: do_imag_freq
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_imag_freq
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'evaluate_pade_function'
 
       COMPLEX(KIND=dp)                                   :: im_unit, re_unit
       INTEGER                                            :: handle, iparam
-      LOGICAL :: my_do_imag_freq
+      LOGICAL                                            :: my_do_imag_freq
 
       CALL timeset(routineN, handle)
 
       my_do_imag_freq = .FALSE.
-      IF(PRESENT(do_imag_freq)) my_do_imag_freq = do_imag_freq
+      IF (PRESENT(do_imag_freq)) my_do_imag_freq = do_imag_freq
 
       im_unit = (0.0_dp, 1.0_dp)
       re_unit = (1.0_dp, 0.0_dp)
@@ -3725,9 +3725,9 @@ CONTAINS
       func_val = re_unit
       DO iparam = nparam, 2, -1
          IF (my_do_imag_freq) THEN
-         func_val = re_unit + coeff(iparam)*(im_unit*x_val - xpoints(iparam - 1))/func_val
+            func_val = re_unit + coeff(iparam)*(im_unit*x_val - xpoints(iparam - 1))/func_val
          ELSE
-         func_val = re_unit + coeff(iparam)*(re_unit*x_val - xpoints(iparam - 1))/func_val
+            func_val = re_unit + coeff(iparam)*(re_unit*x_val - xpoints(iparam - 1))/func_val
          END IF
       ENDDO
 
