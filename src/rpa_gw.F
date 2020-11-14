@@ -3597,12 +3597,13 @@ CONTAINS
 
          WRITE (iunit, "(A62)") " omega (eV)  Re(Sigma(i*omega)) (eV)   Im(Sigma(i*omega)) (eV)"
 
+         PRINT *, "e_fermi =", e_fermi*evolt
+
          DO jquad = 1, num_fit_points
 
             CALL evaluate_pade_function(vec_omega_fit_gw_sign_reorder(jquad), &
                                         nparam_pade, omega_points_pade, &
-                                        coeff_pade, sigma_c_pade_im_freq, do_imag_freq=.TRUE., &
-                                        e_fermi=e_fermi)
+                                        coeff_pade, sigma_c_pade_im_freq, do_imag_freq=.TRUE.)
 
             WRITE (iunit, "(F12.2,4F17.5)") vec_omega_fit_gw_sign_reorder(jquad)*evolt, &
                                             REAL(Sigma_c_gw_reorder(jquad)*evolt), &
@@ -3700,14 +3701,13 @@ CONTAINS
 !> \param do_imag_freq ...
 !> \param e_fermi ...
 ! **************************************************************************************************
-   SUBROUTINE evaluate_pade_function(x_val, nparam, xpoints, coeff, func_val, do_imag_freq, e_fermi)
+   SUBROUTINE evaluate_pade_function(x_val, nparam, xpoints, coeff, func_val, do_imag_freq)
 
       REAL(KIND=dp), INTENT(IN)                          :: x_val
       INTEGER, INTENT(IN)                                :: nparam
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: xpoints, coeff
       COMPLEX(KIND=dp), INTENT(OUT)                      :: func_val
       LOGICAL, OPTIONAL, INTENT(IN)                      :: do_imag_freq
-      REAL(KIND=dp), OPTIONAL,  INTENT(IN)               :: e_fermi
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'evaluate_pade_function'
 
@@ -3726,7 +3726,7 @@ CONTAINS
       func_val = re_unit
       DO iparam = nparam, 2, -1
          IF (my_do_imag_freq) THEN
-         func_val = re_unit + coeff(iparam)*(re_unit*e_fermi + im_unit*x_val - xpoints(iparam - 1))/func_val
+         func_val = re_unit + coeff(iparam)*(im_unit*x_val - xpoints(iparam - 1))/func_val
          ELSE
          func_val = re_unit + coeff(iparam)*(re_unit*x_val - xpoints(iparam - 1))/func_val
          END IF
