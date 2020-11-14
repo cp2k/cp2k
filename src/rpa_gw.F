@@ -3595,9 +3595,8 @@ CONTAINS
 
          END DO
 
-         WRITE (iunit, "(A62)") " omega (eV)  Re(Sigma(i*omega)) (eV)   Im(Sigma(i*omega)) (eV)"
-
-         PRINT *, "e_fermi =", e_fermi*evolt
+         WRITE (iunit, "(A51,A39)") " w (eV)  Re(Sigma(i*w)) (eV)   Im(Sigma(i*w)) (eV) ", &
+                       "  Re(Fit(i*w)) (eV)    Im(Fit(iw)) (eV)"
 
          DO jquad = 1, num_fit_points
 
