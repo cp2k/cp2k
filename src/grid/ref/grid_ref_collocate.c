@@ -42,8 +42,8 @@ static void collocate_internal(
   const int lb_min_cab = imax(lb_min + lb_min_diff, 0);
   const int la_max_cab = la_max + la_max_diff;
   const int lb_max_cab = lb_max + lb_max_diff;
-  const int n1_cab = ncoset[la_max_cab];
-  const int n2_cab = ncoset[lb_max_cab];
+  const int n1_cab = ncoset(la_max_cab);
+  const int n2_cab = ncoset(lb_max_cab);
 
   const size_t cab_size = n2_cab * n1_cab;
   double cab[cab_size];

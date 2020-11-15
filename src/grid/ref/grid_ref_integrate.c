@@ -18,40 +18,6 @@
 #include "grid_ref_integrate.h"
 
 /*******************************************************************************
- * \brief Orbital angular momentum.
- * \author Ole Schuett
- ******************************************************************************/
-typedef struct {
-  int l[3];
-} orbital;
-
-/*******************************************************************************
- * \brief Increase i'th component of given orbital angular momentum.
- * \author Ole Schuett
- ******************************************************************************/
-static inline orbital up(const int i, const orbital a) {
-  orbital b = a;
-  b.l[i] += 1;
-  return b;
-}
-
-/*******************************************************************************
- * \brief Decrease i'th component of given orbital angular momentum.
- * \author Ole Schuett
- ******************************************************************************/
-static inline orbital down(const int i, const orbital a) {
-  orbital b = a;
-  b.l[i] = imax(0, a.l[i] - 1);
-  return b;
-}
-
-/*******************************************************************************
- * \brief Return coset index of given orbital angular momentum.
- * \author Ole Schuett
- ******************************************************************************/
-static inline int idx(const orbital a) { return coset(a.l[0], a.l[1], a.l[2]); }
-
-/*******************************************************************************
  * \brief Contracts given matrix elements to obtain the forces for atom a.
  * \author Ole Schuett
  ******************************************************************************/
@@ -207,8 +173,8 @@ void grid_ref_integrate_pgf_product(
   la_min_local = imax(la_min_local, 0);
   lb_min_local = imax(lb_min_local, 0);
 
-  const int m1 = ncoset[la_max_local];
-  const int m2 = ncoset[lb_max_local];
+  const int m1 = ncoset(la_max_local);
+  const int m2 = ncoset(lb_max_local);
   double vab_mutable[m2 * m1];
   memset(vab_mutable, 0, m2 * m1 * sizeof(double));
 

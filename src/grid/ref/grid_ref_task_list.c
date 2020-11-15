@@ -119,6 +119,15 @@ void grid_ref_free_task_list(grid_ref_task_list *task_list) {
 }
 
 /*******************************************************************************
+ * \brief Prototype for BLAS dgemm.
+ * \author Ole Schuett
+ ******************************************************************************/
+void dgemm_(const char *transa, const char *transb, const int *m, const int *n,
+            const int *k, const double *alpha, const double *a, const int *lda,
+            const double *b, const int *ldb, const double *beta, double *c,
+            const int *ldc);
+
+/*******************************************************************************
  * \brief Collocate a range of tasks which are destined for the same grid level.
  * \author Ole Schuett
  ******************************************************************************/
@@ -168,8 +177,8 @@ static void collocate_one_grid_level(
       const int jkind = task_list->atom_kinds[jatom] - 1;
       const grid_basis_set *ibasis = task_list->basis_sets[ikind];
       const grid_basis_set *jbasis = task_list->basis_sets[jkind];
-      const int ncoseta = ncoset[ibasis->lmax[iset]];
-      const int ncosetb = ncoset[jbasis->lmax[jset]];
+      const int ncoseta = ncoset(ibasis->lmax[iset]);
+      const int ncosetb = ncoset(jbasis->lmax[jset]);
       const int ncoa = ibasis->npgf[iset] * ncoseta; // size of carthesian set
       const int ncob = jbasis->npgf[jset] * ncosetb;
       const int block_num = task->block_num - 1;

@@ -124,8 +124,8 @@ static void create_dummy_basis_set(const int size, const int lmin,
   }
   const double(*sphi)[size] = (const double(*)[size])sphi_mutable;
 
-  const int npgf = size / ncoset[lmax];
-  assert(size == npgf * ncoset[lmax]);
+  const int npgf = size / ncoset(lmax);
+  assert(size == npgf * ncoset(lmax));
 
   const int first_sgf[1] = {1};
 
@@ -171,10 +171,10 @@ static void create_dummy_task_list(
       {ra[0], ra[1], ra[2]}, {rab[0] + ra[0], rab[1] + ra[1], rab[2] + ra[2]}};
   const int atom_kinds[2] = {1, 2};
   const grid_basis_set *basis_sets[2] = {basis_set_a, basis_set_b};
-  const int ipgf = o1 / ncoset[la_max] + 1;
-  const int jpgf = o2 / ncoset[lb_max] + 1;
-  assert(o1 == (ipgf - 1) * ncoset[la_max]);
-  assert(o2 == (jpgf - 1) * ncoset[lb_max]);
+  const int ipgf = o1 / ncoset(la_max) + 1;
+  const int jpgf = o2 / ncoset(lb_max) + 1;
+  assert(o1 == (ipgf - 1) * ncoset(la_max));
+  assert(o2 == (jpgf - 1) * ncoset(lb_max));
 
   int level_list[ntasks], iatom_list[ntasks], jatom_list[ntasks];
   int iset_list[ntasks], jset_list[ntasks], ipgf_list[ntasks],

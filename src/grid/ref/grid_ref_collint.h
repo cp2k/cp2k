@@ -727,9 +727,9 @@ general_cxyz_to_cijk(const int lp, const double dh[3][3],
                         hmatgridp[klx][2][0] * hmatgridp[ily][0][1] *
                         hmatgridp[jly][1][1] * hmatgridp[kly][2][1] *
                         hmatgridp[ilz][0][2] * hmatgridp[jlz][1][2] *
-                        hmatgridp[klz][2][2] * fac[lx] * fac[ly] * fac[lz] /
-                        (fac[ilx] * fac[ily] * fac[ilz] * fac[jlx] * fac[jly] *
-                         fac[jlz] * fac[klx] * fac[kly] * fac[klz]);
+                        hmatgridp[klz][2][2] * fac(lx) * fac(ly) * fac(lz) /
+                        (fac(ilx) * fac(ily) * fac(ilz) * fac(jlx) * fac(jly) *
+                         fac(jlz) * fac(klx) * fac(kly) * fac(klz));
 #if (GRID_DO_COLLOCATE)
                     cijk[cijk_index] += cxyz[cxyz_index] * p; // collocate
 #else
@@ -867,7 +867,7 @@ static inline void cab_to_cxyz(const int la_max, const int la_min,
             for (int lxa = lxa_min; lxa <= la_max - lza - lya; lxa++) {
               const int ico = coset(lxa, lya, lza);
               const int jco = coset(lxb, lyb, lzb);
-              const int cab_index = jco * ncoset[la_max] + ico; // [jco, ico]
+              const int cab_index = jco * ncoset(la_max) + ico; // [jco, ico]
               for (int lzp = 0; lzp <= lza + lzb; lzp++) {
                 for (int lyp = 0; lyp <= lp - lza - lzb; lyp++) {
                   for (int lxp = 0; lxp <= lp - lza - lzb - lyp; lxp++) {
