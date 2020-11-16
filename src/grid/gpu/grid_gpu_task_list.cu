@@ -30,7 +30,7 @@
   }
 
 /*******************************************************************************
- * \brief Allocates a task list which can be passed to grid_collocate_task_list.
+ * \brief Allocates a task list for the GPU backend.
  *        See grid_task_list.h for details.
  * \author Ole Schuett
  ******************************************************************************/
