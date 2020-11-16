@@ -122,8 +122,10 @@ PROGRAM parallel_rng_types_TEST
          "Time [s]:", tend - tstart
    END IF
 
-   IF (ionode) &
+   IF (ionode) THEN
       CALL dump_reload_check()
+      CALL shuffle_check()
+   END IF
 
    CALL mp_world_finalize()
 
@@ -191,5 +193,54 @@ CONTAINS
 
    END SUBROUTINE
 
+! **************************************************************************************************
+!> \brief ...
+! **************************************************************************************************
+   SUBROUTINE shuffle_check()
+      TYPE(rng_stream_type)              :: rng_stream
+
+      INTEGER, PARAMETER                 :: sz = 20
+      INTEGER, DIMENSION(1:sz)           :: arr, arr2, orig
+      LOGICAL, DIMENSION(1:sz)           :: mask
+      INTEGER :: idx
+      REAL(KIND=dp), DIMENSION(3, 2), PARAMETER :: ig = 12.0_dp
+
+      WRITE (UNIT=default_output_unit, FMT="(/,/,T2,A)", ADVANCE="no") &
+         "Checking shuffle()"
+
+      rng_stream = rng_stream_type(name="shuffle() check", seed=ig)
+      orig = [(idx, idx=1, sz)]
+
+      arr = orig
+      CALL rng_stream%shuffle(arr)
+
+      IF (ALL(arr == orig)) &
+         ERROR STOP "shuffle failed: array was left untouched"
+      WRITE (UNIT=default_output_unit, FMT="(A)", ADVANCE="no") "."
+
+      IF (ANY(arr /= orig(arr))) &
+         ERROR STOP "shuffle failed: the shuffled original is not the shuffled original"
+      WRITE (UNIT=default_output_unit, FMT="(A)", ADVANCE="no") "."
+
+      ! sort and compare to orig
+      mask = .TRUE.
+      DO idx = 1, size(orig)
+         IF (MINVAL(arr, mask) /= orig(idx)) &
+            ERROR STOP "shuffle failed: there is at least one unknown index"
+         mask(MINLOC(arr, mask)) = .FALSE.
+      END DO
+      WRITE (UNIT=default_output_unit, FMT="(A)", ADVANCE="no") "."
+
+      arr2 = orig
+      CALL rng_stream%reset()
+      CALL rng_stream%shuffle(arr2)
+
+      IF (ANY(arr2 /= arr)) &
+         ERROR STOP "shuffle failed: array was shuffled differently with same rng state"
+      WRITE (UNIT=default_output_unit, FMT="(A)", ADVANCE="no") "."
+
+      WRITE (UNIT=default_output_unit, FMT="(T4,A)") &
+         " successful"
+   END SUBROUTINE
 END PROGRAM parallel_rng_types_TEST
 ! vim: set ts=3 sw=3 tw=132 :

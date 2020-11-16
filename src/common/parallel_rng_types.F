@@ -185,6 +185,7 @@ MODULE parallel_rng_types
       PROCEDURE, PASS(self), PUBLIC :: reset
       PROCEDURE, PASS(self), PUBLIC :: reset_to_substream
       PROCEDURE, PASS(self), PUBLIC :: reset_to_next_substream
+      PROCEDURE, PASS(self), PUBLIC :: shuffle
    END TYPE rng_stream_type
 
    INTERFACE rng_stream_type
@@ -1178,5 +1179,24 @@ CONTAINS
          "Component 1:", self%cg(:, 1), &
          "Component 2:", self%cg(:, 2)
    END SUBROUTINE write
+
+! **************************************************************************************************
+!> \brief Shuffle an array of integers (using the Fisher-Yates shuffle)
+!> \param self ...
+!> \param arr the integer array to be shuffled
+! **************************************************************************************************
+   SUBROUTINE shuffle(self, arr)
+      CLASS(rng_stream_type), INTENT(INOUT)              :: self
+      INTEGER, DIMENSION(:), INTENT(INOUT)               :: arr
+
+      INTEGER                                            :: idxa, idxb, tmp
+
+      DO idxa = UBOUND(arr, 1), LBOUND(arr, 1) + 1, -1
+         idxb = self%next(LBOUND(arr, 1), idxa)
+         tmp = arr(idxa)
+         arr(idxa) = arr(idxb)
+         arr(idxb) = tmp
+      END DO
+   END SUBROUTINE
 
 END MODULE parallel_rng_types
