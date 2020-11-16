@@ -35,12 +35,15 @@ void grid_create_task_list(
 
   if (*task_list == NULL) {
     *task_list = malloc(sizeof(grid_task_list));
-    (*task_list)->ref = NULL;
-    (*task_list)->cpu = NULL;
+    memset(*task_list, 0, sizeof(grid_task_list));
     const grid_library_config config = grid_library_get_config();
     (*task_list)->validate = config.validate;
     if (config.backend == GRID_BACKEND_AUTO) {
-      (*task_list)->backend = GRID_BACKEND_CPU;
+#ifdef __GRID_CUDA
+      (*task_list)->backend = GRID_BACKEND_GPU;
+#else
+      (*task_list)->backend = GRID_BACKEND_REF;
+#endif
     } else {
       (*task_list)->backend = config.backend;
     }
@@ -56,6 +59,20 @@ void grid_create_task_list(
         jatom_list, iset_list, jset_list, ipgf_list, jpgf_list,
         border_mask_list, block_num_list, radius_list, rab_list, blocks_buffer,
         &(*task_list)->cpu);
+
+  } else if ((*task_list)->backend == GRID_BACKEND_GPU) {
+#ifdef __GRID_CUDA
+    grid_gpu_create_task_list(
+        ntasks, nlevels, natoms, nkinds, nblocks, buffer_size, block_offsets,
+        atom_positions, atom_kinds, basis_sets, level_list, iatom_list,
+        jatom_list, iset_list, jset_list, ipgf_list, jpgf_list,
+        border_mask_list, block_num_list, radius_list, rab_list, blocks_buffer,
+        &(*task_list)->gpu);
+#else
+    fprintf(stderr, "Error: The GPU grid backend is not available. "
+                    "Please re-compile with -D__GRID_CUDA.");
+    abort();
+#endif // __GRID_CUDA
   } else if ((*task_list)->backend == GRID_BACKEND_REF) {
     grid_ref_create_task_list(
         ntasks, nlevels, natoms, nkinds, nblocks, buffer_size, block_offsets,
@@ -90,6 +107,11 @@ void grid_free_task_list(grid_task_list *task_list) {
   if (task_list->cpu != NULL) {
     grid_cpu_free_task_list(task_list->cpu);
   }
+#ifdef __GRID_CUDA
+  if (task_list->gpu != NULL) {
+    grid_gpu_free_task_list(task_list->gpu);
+  }
+#endif // __GRID_CUDA
   free(task_list);
 }
 
@@ -126,6 +148,12 @@ void grid_collocate_task_list(
     grid_cpu_collocate_task_list(task_list->cpu, orthorhombic, func, nlevels,
                                  npts_global, npts_local, shift_local,
                                  border_width, dh, dh_inv, grid);
+#ifdef __GRID_CUDA
+  } else if (task_list->backend == GRID_BACKEND_GPU) {
+    grid_gpu_collocate_task_list(task_list->gpu, orthorhombic, func, nlevels,
+                                 npts_global, npts_local, shift_local,
+                                 border_width, dh, dh_inv, grid);
+#endif // __GRID_CUDA
   } else {
     printf("Error: Unknown grid backend: %i.\n", task_list->backend);
     abort();
@@ -146,6 +174,11 @@ void grid_collocate_task_list(
       memcpy(task_list->ref->blocks_buffer,
              task_list->cpu->crutch->blocks_buffer,
              task_list->ref->buffer_size * sizeof(double));
+#ifdef __GRID_CUDA
+    } else if (task_list->backend == GRID_BACKEND_GPU) {
+      memcpy(task_list->ref->blocks_buffer, task_list->gpu->blocks_buffer_host,
+             task_list->ref->buffer_size * sizeof(double));
+#endif // __GRID_CUDA
     } else if (task_list->backend != GRID_BACKEND_REF) {
       printf("Error: Unknown grid backend: %i.\n", task_list->backend);
       abort();
@@ -156,7 +189,7 @@ void grid_collocate_task_list(
                                  border_width, dh, dh_inv, grid_ref);
 
     // Compare results.
-    const double tolerance = 1e-14; // TODO: tune to a reasonable value.
+    const double tolerance = 1e-12;
     for (int level = 0; level < nlevels; level++) {
       for (int i = 0; i < npts_local[level][0]; i++) {
         for (int j = 0; j < npts_local[level][1]; j++) {
@@ -167,18 +200,20 @@ void grid_collocate_task_list(
             const double diff = fabs(grid[level][idx] - ref_value);
             const double rel_diff = diff / fmax(1.0, fabs(ref_value));
             if (rel_diff > tolerance) {
-              printf("Error: Grid validation failure\n");
-              printf("   diff:     %le\n", diff);
-              printf("   rel_diff: %le\n", rel_diff);
-              printf("   value:    %le\n", ref_value);
-              printf("   level:    %i\n", level);
-              printf("   ijk:      %i  %i  %i\n", i, j, k);
+              fprintf(stderr, "Error: Grid validation failure\n");
+              fprintf(stderr, "   diff:     %le\n", diff);
+              fprintf(stderr, "   rel_diff: %le\n", rel_diff);
+              fprintf(stderr, "   value:    %le\n", ref_value);
+              fprintf(stderr, "   level:    %i\n", level);
+              fprintf(stderr, "   idx:      %i\n", idx);
+              fprintf(stderr, "   ijk:      %i  %i  %i\n", i, j, k);
               abort();
             }
             grid[level][idx] += grid_before[level][idx];
           }
         }
       }
+
       free(grid_before[level]);
       free(grid_ref[level]);
     }

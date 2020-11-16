@@ -57,6 +57,7 @@ MODULE grid_api
    INTEGER, PARAMETER, PUBLIC :: GRID_BACKEND_AUTO = 10
    INTEGER, PARAMETER, PUBLIC :: GRID_BACKEND_REF = 11
    INTEGER, PARAMETER, PUBLIC :: GRID_BACKEND_CPU = 12
+   INTEGER, PARAMETER, PUBLIC :: GRID_BACKEND_GPU = 13
 
    PUBLIC :: grid_library_init, grid_library_finalize
    PUBLIC :: grid_library_set_config, grid_library_print_stats

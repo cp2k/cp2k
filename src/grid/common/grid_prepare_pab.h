@@ -251,7 +251,13 @@ GRID_DEVICE static void prepare_pab_Di2(const int ider, const orbital a,
 }
 
 /*******************************************************************************
- * \brief TODO
+ * \brief Transforms a given element of the density matrix according to func.
+ * \param func          Transformation function to apply, one of GRID_FUNC_*.
+ * \param {a,b}         Orbital angular momenta.
+ * \param zet_{a,b}     Gaussian exponents.
+ * \param pab_val       Input matrix element of pab.
+ * \param n             Leading dimensions of output matrix cab.
+ * \param cab           Output matrix.
  * \author Ole Schuett
  ******************************************************************************/
 GRID_DEVICE static void prepare_pab(const int func, const orbital a,
