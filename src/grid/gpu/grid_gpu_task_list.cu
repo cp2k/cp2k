@@ -279,8 +279,7 @@ void grid_gpu_collocate_task_list(const grid_gpu_task_list *task_list,
     CHECK(cudaMemsetAsync(task_list->grid_dev[level], 0, grid_size, stream));
 
     // launch kernel, but only after blocks have arrived
-    CHECK(cudaStreamWaitEvent(stream, blocks_uploaded_event,
-                              cudaEventWaitDefault));
+    CHECK(cudaStreamWaitEvent(stream, blocks_uploaded_event, 0));
     grid_gpu_collocate_one_grid_level(
         task_list, first_task, last_task, orthorhombic, func,
         npts_global[level], npts_local[level], shift_local[level],
