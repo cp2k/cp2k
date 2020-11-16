@@ -4,6 +4,9 @@
 /*                                                                            */
 /*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
 /*----------------------------------------------------------------------------*/
+
+#ifdef __GRID_CUDA
+
 #include <algorithm>
 #include <assert.h>
 #include <cuda.h>
@@ -782,4 +785,5 @@ void grid_gpu_collocate_one_grid_level(
   }
 }
 
+#endif // __GRID_CUDA
 // EOF

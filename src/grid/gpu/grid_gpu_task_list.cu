@@ -5,6 +5,8 @@
 /*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
 /*----------------------------------------------------------------------------*/
 
+#ifdef __GRID_CUDA
+
 #include <cuda_runtime.h>
 
 #include <assert.h>
@@ -305,4 +307,5 @@ void grid_gpu_collocate_task_list(const grid_gpu_task_list *task_list,
   CHECK(cudaDeviceSynchronize());
 }
 
+#endif // __GRID_CUDA
 // EOF
