@@ -60,6 +60,9 @@ void grid_gpu_create_task_list(
   task_list->nblocks = nblocks;
   task_list->buffer_length = buffer_length;
 
+  // With size 0 cudaMallocHost doesn't null the pointer and cudaFreeHost fails.
+  task_list->blocks_buffer_host = NULL;
+
   size_t size = buffer_length * sizeof(double);
   CHECK(cudaMallocHost(&task_list->blocks_buffer_host, size));
   CHECK(cudaMalloc(&task_list->blocks_buffer_dev, size));
