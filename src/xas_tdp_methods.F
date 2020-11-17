@@ -55,7 +55,6 @@ MODULE xas_tdp_methods
    USE dbcsr_api,                       ONLY: &
         dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_finalize, dbcsr_get_info, &
         dbcsr_get_occupation, dbcsr_multiply, dbcsr_p_type, dbcsr_set, dbcsr_type_no_symmetry
-   USE hfx_load_balance_methods,        ONLY: reshuffle
    USE input_constants,                 ONLY: &
         do_admm_purify_cauchy_subspace, do_admm_purify_mo_diag, do_admm_purify_none, do_loc_none, &
         do_potential_coulomb, do_potential_id, do_potential_short, do_potential_truncated, &
@@ -891,7 +890,7 @@ CONTAINS
 
       !We shuffle those atoms to spread them
       rng_stream = rng_stream_type(name="uniform_rng", distribution_type=UNIFORM)
-      CALL reshuffle(nex_atom, ex_atoms_of_kind, rng_stream)
+      CALL rng_stream%shuffle(ex_atoms_of_kind(1:nex_atom))
 
       nbatch = nex_atom/batch_size
       IF (nbatch*batch_size .NE. nex_atom) nbatch = nbatch + 1

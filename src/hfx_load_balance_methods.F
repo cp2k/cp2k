@@ -43,7 +43,7 @@ MODULE hfx_load_balance_methods
    PRIVATE
 
    PUBLIC :: hfx_load_balance, &
-             hfx_update_load_balance, reshuffle, &
+             hfx_update_load_balance, &
              collect_load_balance_info, cost_model, p1_energy, p2_energy, p3_energy
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_load_balance_methods'
@@ -1871,7 +1871,7 @@ CONTAINS
          tmp_cpu_cost = my_cost_cpu
          CALL sort(tmp_cpu_cost, INT(number_of_processes), tmp_cpu_index)
          IF (do_randomize) THEN
-            CALL reshuffle(MIN(i, nstep), tmp_cpu_index(1:MIN(i, nstep)), rng_stream)
+            CALL rng_stream%shuffle(tmp_cpu_index(1:MIN(i, nstep)))
          END IF
          DO j = 1, MIN(i, nstep)
             itmp = tmp_cpu_index(j)
@@ -2511,33 +2511,6 @@ CONTAINS
 !$OMP BARRIER
 
    END SUBROUTINE collect_load_balance_info
-
-! **************************************************************************************************
-!> \brief ...
-!> \param size ...
-!> \param array ...
-!> \param rng_stream ...
-! **************************************************************************************************
-   SUBROUTINE reshuffle(size, array, rng_stream)
-      INTEGER                                            :: size
-      INTEGER, DIMENSION(size)                           :: array
-      TYPE(rng_stream_type)                              :: rng_stream
-
-      INTEGER                                            :: i, idx1, idx2, tmp
-      REAL(dp)                                           :: x
-
-      DO i = 1, size*10
-         x = rng_stream%next()
-         idx1 = INT(x*(size + 1 - 1)) + 1
-         x = rng_stream%next()
-         idx2 = INT(x*(size + 1 - 1)) + 1
-
-         tmp = array(idx1)
-         array(idx1) = array(idx2)
-         array(idx2) = tmp
-      END DO
-
-   END SUBROUTINE
 
 #include "hfx_get_pmax_val.f90"
 
