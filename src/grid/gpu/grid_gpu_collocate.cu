@@ -89,7 +89,7 @@ typedef struct {
   int smem_alpha_offset;
   int smem_cxyz_offset;
   int first_task;
-  int func;
+  enum grid_func func;
   prepare_ldiffs ldiffs;
   bool orthorhombic;
   int npts_global[3];
@@ -712,7 +712,7 @@ __global__ static void collocate_kernel_anyfunc(const kernel_params params) {
  ******************************************************************************/
 void grid_gpu_collocate_one_grid_level(
     const grid_gpu_task_list *task_list, const int first_task,
-    const int last_task, const bool orthorhombic, const int func,
+    const int last_task, const bool orthorhombic, const enum grid_func func,
     const int npts_global[3], const int npts_local[3], const int shift_local[3],
     const int border_width[3], const double dh[3][3], const double dh_inv[3][3],
     const cudaStream_t stream, double *grid_dev) {

@@ -58,6 +58,7 @@ MODULE grid_api
    INTEGER, PARAMETER, PUBLIC :: GRID_BACKEND_REF = 11
    INTEGER, PARAMETER, PUBLIC :: GRID_BACKEND_CPU = 12
    INTEGER, PARAMETER, PUBLIC :: GRID_BACKEND_GPU = 13
+   INTEGER, PARAMETER, PUBLIC :: GRID_BACKEND_HYBRID = 14
 
    PUBLIC :: grid_library_init, grid_library_finalize
    PUBLIC :: grid_library_set_config, grid_library_print_stats
@@ -1019,27 +1020,37 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Configures the grid library
-!> \param backend ...
-!> \param validate ...
+!> \param backend : backend to be used for collocate/integrate, possible values are REF, CPU, GPU, HYBRID
+!> \param device_id : GPU id returned by dbcsr
+!> \param validate : if set to true, compare the results of all backend to the reference backend
+!> \param apply_cutoff : apply a spherical cutoff before collocating or integrating. Only relevant for CPU and HYBRID backends
+!> \param queue_length : queue length for the hybrid backend
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE grid_library_set_config(backend, validate)
-      INTEGER, INTENT(IN)                                :: backend
-      LOGICAL, INTENT(IN)                                :: validate
+   SUBROUTINE grid_library_set_config(backend, device_id, validate, apply_cutoff, queue_length)
+      INTEGER, INTENT(IN)                                :: backend, device_id
+      LOGICAL, INTENT(IN)                                :: validate, apply_cutoff
+      INTEGER, INTENT(IN)                                :: queue_length
 
       INTERFACE
-         SUBROUTINE grid_library_set_config_c(backend, validate) &
+         SUBROUTINE grid_library_set_config_c(backend, device_id, validate, apply_cutoff, queue_length) &
             BIND(C, name="grid_library_set_config")
             IMPORT :: C_INT, C_BOOL
             INTEGER(KIND=C_INT), VALUE                :: backend
+            INTEGER(KIND=C_INT), VALUE                :: device_id
             LOGICAL(KIND=C_BOOL), VALUE               :: validate
+            LOGICAL(KIND=C_BOOL), VALUE               :: apply_cutoff
+            INTEGER(KIND=C_INT), VALUE                :: queue_length
          END SUBROUTINE grid_library_set_config_c
       END INTERFACE
 
-      CALL grid_library_set_config_c(backend=backend, validate=LOGICAL(validate, C_BOOL))
+      CALL grid_library_set_config_c(backend=backend, &
+                                     device_id=device_id, &
+                                     validate=LOGICAL(validate, C_BOOL), &
+                                     apply_cutoff=LOGICAL(apply_cutoff, C_BOOL), &
+                                     queue_length=queue_length)
 
    END SUBROUTINE grid_library_set_config
-
 ! **************************************************************************************************
 !> \brief Print grid library statistics
 !> \param mpi_comm ...
