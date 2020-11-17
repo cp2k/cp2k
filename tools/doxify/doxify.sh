@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -eo pipefail
+
 ARGS=${ARGS:-} # Set to "-v" for debugging
 SCRIPTDIR=$(cd $(dirname "$0"); pwd) # Pick up full path to scripts from wherever doxify.sh lives
 

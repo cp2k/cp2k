@@ -20,6 +20,8 @@ dnf -qy install                             \
     make                                    \
     nano                                    \
     patch                                   \
+    perl-open                               \
+    perl-FindBin                            \
     pkg-config                              \
     python                                  \
     python-numpy                            \
