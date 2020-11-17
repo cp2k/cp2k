@@ -21,8 +21,8 @@
     &XAS_TDP
       &DONOR_STATES
          DEFINE_EXCITED BY_INDEX
-         ATOM_LIST 1 2 3 4
-         STATE_TYPES 1s 1s 1s 1s
+         ATOM_LIST 1 4
+         STATE_TYPES 1s 1s
          N_SEARCH 32
          LOCALIZE
       &END DONOR_STATES

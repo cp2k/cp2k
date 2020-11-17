@@ -231,7 +231,7 @@ CONTAINS
          nbatch, nex_atom, output_unit, tmp_index
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: batch_atoms, ex_atoms_of_kind
       INTEGER, DIMENSION(:), POINTER                     :: atoms_of_kind
-      LOGICAL                                            :: do_os, end_of_batch
+      LOGICAL                                            :: do_os, end_of_batch, unique
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
@@ -380,6 +380,7 @@ CONTAINS
                iatom = iatom + 1
                batch_atoms(iatom) = ex_atoms_of_kind(iat)
             END DO
+            CALL sort_unique(batch_atoms, unique)
 
             !compute RI 3c exchange integrals on batch, if so required
             IF (xas_tdp_control%do_hfx) THEN
@@ -393,8 +394,8 @@ CONTAINS
             END IF
 
 !           Loop over atoms of batch
-            DO iat = bo(1), bo(2)
-               iatom = ex_atoms_of_kind(iat)
+            DO iat = 1, batch_size
+               iatom = batch_atoms(iat)
 
                tmp_index = locate(xas_tdp_env%ex_atom_indices, iatom)
 
@@ -494,7 +495,7 @@ CONTAINS
                END DO ! state type
 
                end_of_batch = .FALSE.
-               IF (iat == bo(2)) end_of_batch = .TRUE.
+               IF (iat == batch_size) end_of_batch = .TRUE.
                CALL free_exat_memory(xas_tdp_env, iatom, end_of_batch)
             END DO ! atom of batch
             DEALLOCATE (batch_atoms)
