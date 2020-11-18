@@ -159,6 +159,7 @@ mp2.F: Found lossy conversion real_4_r8 without KIND argument in "compute_vec_si
 pao_param_exp.F: Found lossy conversion real_4_r8 without KIND argument in "zheevd_wrapper"
 parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "dump_reload_check"
 parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "parallel_rng_types_test"
+parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "shuffle_check"
 powell.F: Found GOTO statement in procedure "newuob"
 preconditioner_makes.F: Found WRITE statement with hardcoded unit in "make_full_all"
 preconditioner_makes.F: Found WRITE statement with hardcoded unit in "make_full_all_ortho"
@@ -196,7 +197,6 @@ se_core_matrix.F: Found WRITE statement with hardcoded unit in "makeds"
 se_core_matrix.F: Found WRITE statement with hardcoded unit in "makes"
 se_fock_matrix_coulomb.F: Found WRITE statement with hardcoded unit in "build_fock_matrix_coulomb_lr"
 se_fock_matrix_dbg.F: Found WRITE statement with hardcoded unit in "dbg_energy_coulomb_lr"
-semi_empirical_int3_utils.F: Routine EVAL called with an implicit interface.
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_dcore_nucint_ana"
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_dcorecore_ana"
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_drotnuc_ana"
@@ -207,7 +207,6 @@ semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_value"
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "rot_2el_2c_first_debug"
 semi_empirical_int_debug.F: Routine CHECK_VALUE called with an implicit interface.
-semi_empirical_int_utils.F: Routine EVAL called with an implicit interface.
 semi_empirical_mpole_methods.F: Found WRITE statement with hardcoded unit in "semi_empirical_mpole_p_setup"
 spherical_harmonics.F: Found WRITE statement with hardcoded unit in "cgc"
 spherical_harmonics.F: Found WRITE statement with hardcoded unit in "get_factor"

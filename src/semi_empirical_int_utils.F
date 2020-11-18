@@ -37,6 +37,30 @@ MODULE semi_empirical_int_utils
    PUBLIC ::   ijkl_sp, ijkl_d, rotmat, rot_2el_2c_first, store_2el_2c_diag, &
              d_ijkl_sp, d_ijkl_d
 
+   ABSTRACT INTERFACE
+! **************************************************************************************************
+!> \brief ...
+!> \param r ...
+!> \param l1_i ...
+!> \param l2_i ...
+!> \param m1_i ...
+!> \param m2_i ...
+!> \param da_i ...
+!> \param db_i ...
+!> \param add0 ...
+!> \param fact_screen ...
+!> \return ...
+! **************************************************************************************************
+      FUNCTION eval_func(r, l1_i, l2_i, m1_i, m2_i, da_i, db_i, add0, fact_screen) RESULT(charg)
+         USE kinds, ONLY: dp
+      REAL(KIND=dp), INTENT(IN)                          :: r
+      INTEGER, INTENT(IN)                                :: l1_i, l2_i, m1_i, m2_i
+      REAL(KIND=dp), INTENT(IN)                          :: da_i, db_i, add0, fact_screen
+      REAL(KIND=dp)                                      :: charg
+
+      END FUNCTION eval_func
+   END INTERFACE
+
 CONTAINS
 
 ! **************************************************************************************************
@@ -201,7 +225,9 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iscreen
       LOGICAL, INTENT(IN)                                :: shortrange, pc_coulomb_int
       INTEGER, INTENT(IN)                                :: max_multipole, itype
-      REAL(KIND=dp)                                      :: eval, res
+
+      PROCEDURE(eval_func)                               :: eval
+      REAL(KIND=dp)                                      :: res
 
       INTEGER                                            :: ccc, l1, l1max, l1min, l2, l2max, l2min, &
                                                             lij, lkl, lmin, m
