@@ -83,6 +83,7 @@ void grid_create_task_list(
     (*task_list)->backend = GRID_BACKEND_CPU;
   } break;
 #ifdef __GRID_CUDA
+  case GRID_BACKEND_AUTO:
   case GRID_BACKEND_GPU:
     grid_gpu_create_task_list(
         ntasks, nlevels, natoms, nkinds, nblocks, buffer_size, block_offsets,
@@ -119,8 +120,9 @@ void grid_create_task_list(
     update_queue_length((*task_list)->hybrid, config.queue_length);
     (*task_list)->backend = GRID_BACKEND_HYBRID;
   } break;
-#endif
+#else
   case GRID_BACKEND_AUTO:
+#endif
   case GRID_BACKEND_REF:
     (*task_list)->backend = GRID_BACKEND_REF;
     grid_ref_create_task_list(
@@ -188,9 +190,9 @@ void grid_free_task_list(grid_task_list *task_list) {
     break;
   }
 
-  task_list->ref = NULL;
   if ((task_list->backend != GRID_BACKEND_REF) && task_list->validate)
     grid_ref_free_task_list(task_list->ref);
+  task_list->ref = NULL;
 
   free(task_list);
 }
@@ -241,7 +243,6 @@ void grid_collocate_task_list(
 
   // Perform validation if enabled.
   if (task_list->validate) {
-
     // Create empty reference grid array.
     double *grid_ref[nlevels];
     for (int level = 0; level < nlevels; level++) {
@@ -275,7 +276,7 @@ void grid_collocate_task_list(
                                  border_width, dh, dh_inv, grid_ref);
 
     // Compare results.
-    const double tolerance = 1e-14; // TODO: tune to a reasonable value.
+    const double tolerance = 1e-12; // TODO: tune to a reasonable value.
     for (int level = 0; level < nlevels; level++) {
       for (int i = 0; i < npts_local[level][0]; i++) {
         for (int j = 0; j < npts_local[level][1]; j++) {
@@ -286,12 +287,12 @@ void grid_collocate_task_list(
             const double diff = fabs(grid[level][idx] - ref_value);
             const double rel_diff = diff / fmax(1.0, fabs(ref_value));
             if (rel_diff > tolerance) {
-              printf("Error: Grid validation failure\n");
-              printf("   diff:     %le\n", diff);
-              printf("   rel_diff: %le\n", rel_diff);
-              printf("   value:    %le\n", ref_value);
-              printf("   level:    %i\n", level);
-              printf("   ijk:      %i  %i  %i\n", i, j, k);
+              fprintf(stderr, "Error: Grid validation failure\n");
+              fprintf(stderr, "   diff:     %le\n", diff);
+              fprintf(stderr, "   rel_diff: %le\n", rel_diff);
+              fprintf(stderr, "   value:    %le\n", ref_value);
+              fprintf(stderr, "   level:    %i\n", level);
+              fprintf(stderr, "   ijk:      %i  %i  %i\n", i, j, k);
               abort();
             }
           }

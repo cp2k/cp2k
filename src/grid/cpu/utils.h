@@ -181,8 +181,8 @@ void cblas_dgemv(const CBLAS_LAYOUT Layout, const CBLAS_TRANSPOSE TransA,
 
 #endif
 
-extern int compute_interval(const int full_size, const int size,
-                            const int cube_size, const int x1, int *x,
-                            int *const lower_corner, int *const upper_corner,
-                            Interval window);
+extern int compute_interval(const int *const map, const int full_size,
+                            const int size, const int cube_size, const int x1,
+                            int *x, int *const lower_corner,
+                            int *const upper_corner, Interval window);
 #endif

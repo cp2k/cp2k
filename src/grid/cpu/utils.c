@@ -249,8 +249,7 @@ void add_sub_grid(const int *lower_corner, const int *upper_corner,
   }
   for (int d = 0; d < 3; d++) {
     if ((lower_corner[d] < grid->window_shift[d]) || (lower_corner[d] < 0) ||
-        (lower_corner[d] >= upper_corner[d]) ||
-        (upper_corner[d] > (grid->window_size[d])) || (upper_corner[d] <= 0) ||
+        (lower_corner[d] >= upper_corner[d]) || (upper_corner[d] <= 0) ||
         (upper_corner[d] - lower_corner[d] > subgrid->size[d]) ||
         (grid == NULL) || (subgrid == NULL)) {
       printf("Error : invalid parameters. Values of the given parameters along "
@@ -619,9 +618,10 @@ void cblas_dgemv(const CBLAS_LAYOUT order, const CBLAS_TRANSPOSE TransA,
 }
 #endif
 
-int compute_interval(const int full_size, const int size, const int cube_size,
-                     const int x1, int *x, int *const lower_corner,
-                     int *const upper_corner, const Interval window) {
+int compute_interval(const int *const map, const int full_size, const int size,
+                     const int cube_size, const int x1, int *x,
+                     int *const lower_corner, int *const upper_corner,
+                     const Interval window) {
   if (size == full_size) {
     /* we have the full grid in that direction */
     /* lower boundary is within the window */
@@ -641,7 +641,20 @@ int compute_interval(const int full_size, const int size, const int cube_size,
   } else {
     *lower_corner = x1;
     *upper_corner = x1 + 1;
+
+    // the map is always increasing by 1 except when we cross the boundaries of
+    // the grid and pbc are applied. Since we are only interested in by a
+    // subwindow of the full table we check that the next point is inside the
+    // window of interest and is also equal to the previous point + 1. The last
+    // check is pointless in practice.
+
+    for (int i = *x + 2; (i < size) && ((*upper_corner + 1) == map[i]) &&
+                         is_point_in_interval(map[i], window);
+         i++) {
+      (*upper_corner)++;
+    }
+    return (*upper_corner) - (*lower_corner);
   }
 
-  return imax(*lower_corner - x1, 0);
+  return imax(*lower_corner - *upper_corner, 0);
 }

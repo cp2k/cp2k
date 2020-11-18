@@ -294,7 +294,7 @@ void apply_sphere_cutoff_ortho(struct collocation_integration_ *const handler,
             const int x1 = map[2][x];
 
             int diff = compute_interval(
-                handler->grid.full_size[2], handler->grid.size[2],
+                map[2], handler->grid.full_size[2], handler->grid.size[2],
                 handler->cube.size[2], x1, &x, lower_corner + 2,
                 upper_corner + 2, xwindow);
 
@@ -321,6 +321,8 @@ void apply_sphere_cutoff_ortho(struct collocation_integration_ *const handler,
 
             if (handler->grid.size[2] == handler->grid.full_size[2])
               update_loop_index(handler->grid.full_size[2], x1, &x);
+            else
+              x += upper_corner[2] - lower_corner[2] - 1;
           }
         }
       }
@@ -413,9 +415,9 @@ void apply_spherical_cutoff_generic(
            x < imin((xmax - lb_cube[2]), handler->cube.size[2]); x++) {
         const int x1 = map[2][x];
         int diff =
-            compute_interval(handler->grid.full_size[2], handler->grid.size[2],
-                             handler->cube.size[2], x1, &x, lower_corner + 2,
-                             upper_corner + 2, xwindow);
+            compute_interval(map[2], handler->grid.full_size[2],
+                             handler->grid.size[2], handler->cube.size[2], x1,
+                             &x, lower_corner + 2, upper_corner + 2, xwindow);
 
         if (upper_corner[2] - lower_corner[2]) {
           const int position1[3] = {k, j, x + diff};
@@ -436,6 +438,8 @@ void apply_spherical_cutoff_generic(
 
           if (handler->grid.size[0] == handler->grid.full_size[0])
             update_loop_index(handler->grid.full_size[2], x1, &x);
+          else
+            x += upper_corner[2] - lower_corner[2] - 1;
         }
       }
     }
@@ -676,7 +680,7 @@ void apply_mapping_cubic(struct collocation_integration_ *handler,
     if (!is_point_in_interval(z1, zwindow))
       continue;
 
-    diff[0] = compute_interval(handler->grid.full_size[0],
+    diff[0] = compute_interval(map[0], handler->grid.full_size[0],
                                handler->grid.size[0], handler->cube.size[0], z1,
                                &z, lower_corner, upper_corner, zwindow);
 
@@ -690,9 +694,9 @@ void apply_mapping_cubic(struct collocation_integration_ *handler,
           continue;
 
         diff[1] =
-            compute_interval(handler->grid.full_size[1], handler->grid.size[1],
-                             handler->cube.size[1], y1, &y, lower_corner + 1,
-                             upper_corner + 1, ywindow);
+            compute_interval(map[1], handler->grid.full_size[1],
+                             handler->grid.size[1], handler->cube.size[1], y1,
+                             &y, lower_corner + 1, upper_corner + 1, ywindow);
 
         if (upper_corner[1] - lower_corner[1]) {
           for (int x = 0; x < handler->cube.size[2]; x++) {
@@ -702,7 +706,7 @@ void apply_mapping_cubic(struct collocation_integration_ *handler,
               continue;
 
             diff[2] = compute_interval(
-                handler->grid.full_size[2], handler->grid.size[2],
+                map[2], handler->grid.full_size[2], handler->grid.size[2],
                 handler->cube.size[2], x1, &x, lower_corner + 2,
                 upper_corner + 2, xwindow);
 
@@ -721,14 +725,20 @@ void apply_mapping_cubic(struct collocation_integration_ *handler,
                   &handler->grid); // the grid to add data from
               if (handler->grid.size[2] == handler->grid.full_size[2])
                 update_loop_index(handler->grid.full_size[2], x1, &x);
+              else
+                x += upper_corner[2] - lower_corner[2] - 1;
             }
           }
           if (handler->grid.size[1] == handler->grid.full_size[1])
             update_loop_index(handler->grid.full_size[1], y1, &y);
+          else
+            y += upper_corner[1] - lower_corner[1] - 1;
         }
       }
       if (handler->grid.size[0] == handler->grid.full_size[0])
         update_loop_index(handler->grid.full_size[0], z1, &z);
+      else
+        z += upper_corner[0] - lower_corner[0] - 1;
     }
   }
 }
@@ -1153,7 +1163,7 @@ void collocate_one_grid_level_dgemm(grid_context *const ctx,
       /* the grid is divided over several ranks or not periodic */
       if ((handler->grid.size[0] != handler->grid.full_size[0]) ||
           (handler->grid.size[1] != handler->grid.full_size[1]) ||
-          (handler->grid.size[1] != handler->grid.full_size[2])) {
+          (handler->grid.size[2] != handler->grid.full_size[2])) {
         /* unfortunately the window where the gaussian should be added depends
          * on the bounds. So I have to adjust the window all the time. */
 
