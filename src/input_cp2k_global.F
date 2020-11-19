@@ -744,7 +744,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="QUEUE_LENGTH", &
-                          description="Number of gaussians that the gpu backend treats in one round", &
+                          description="Number of gaussians that the hybrid backend treats in one round", &
                           default_i_val=4096)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

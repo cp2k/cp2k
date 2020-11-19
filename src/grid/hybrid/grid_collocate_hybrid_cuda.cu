@@ -255,6 +255,10 @@ __global__ void compute_collocation_gpu_(
   int *map_y = map_z + cmax;
   int *map_x = map_y + cmax;
 
+  double *exp_z = (double *)(map_x + cmax);
+  double *exp_y = exp_z + cmax;
+  double *exp_x = exp_y + cmax;
+
   for (int i = block.thread_rank(); i < cube_size.z; i += block.size()) {
     map_z[i] = (i + cube_center.z - grid_lower_corner_pos_.z + 32 * period_.z) %
                period_.z;
@@ -268,6 +272,23 @@ __global__ void compute_collocation_gpu_(
   for (int i = block.thread_rank(); i < cube_size.x; i += block.size()) {
     map_x[i] = (i + cube_center.x - grid_lower_corner_pos_.x + 32 * period_.x) %
                period_.x;
+  }
+
+  if (is_orthorhombic_[0]) {
+    for (int z = threadIdx.z; z < cube_size.z; z += blockDim.z) {
+      const double z1 = (z + lb_cube.z - roffset.z) * dh_[8];
+      exp_z[z] = exp(-z1 * z1 * zeta);
+    }
+
+    for (int y = threadIdx.y; y < cube_size.y; y += blockDim.y) {
+      const double y1 = (y + lb_cube.y - roffset.y) * dh_[4];
+      exp_y[y] = exp(-y1 * y1 * zeta);
+    }
+
+    for (int x = threadIdx.x; x < cube_size.x; x += blockDim.x) {
+      const double x1 = (x + lb_cube.x - roffset.x) * dh_[0];
+      exp_x[x] = exp(-x1 * x1 * zeta);
+    }
   }
 
   __syncthreads();
@@ -348,7 +369,11 @@ __global__ void compute_collocation_gpu_(
           break;
         }
 
-        res *= exp(-(r3.x * r3.x + r3.y * r3.y + r3.z * r3.z) * zeta);
+        if (is_orthorhombic_[0]) {
+          res *= exp_x[x] * exp_y[y] * exp_z[z];
+        } else {
+          res *= exp(-(r3.x * r3.x + r3.y * r3.y + r3.z * r3.z) * zeta);
+        }
 
 #if __CUDA_ARCH__ < 600
         atomicAdd1(&grid_gpu_[(z2 * grid_size_.y + y2) * grid_size_.x + x2],
@@ -528,7 +553,7 @@ extern "C" void compute_collocation_gpu(pgf_list_gpu *handler) {
   const int shared_mem = ((handler->lmax + 1) * (handler->lmax + 2) *
                           (handler->lmax + 3) * sizeof(double)) /
                              6 +
-                         3 * handler->cmax * sizeof(int);
+                         3 * handler->cmax * (sizeof(int) + sizeof(double));
   compute_collocation_gpu_<<<gridSize, blockSize, shared_mem,
                              handler->stream>>>(
       handler->apply_cutoff, handler->cmax, handler->grid_size,
