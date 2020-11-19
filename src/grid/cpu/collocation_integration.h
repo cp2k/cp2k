@@ -24,9 +24,6 @@ extern "C" {
 #include "../cpu/tensor_local.h"
 #ifdef __GRID_CUDA
 typedef struct pgf_list_gpu_ {
-  /* number of replicated grids */
-  int number_of_replicas;
-
   /* number of devices */
   int number_of_devices;
 
@@ -49,24 +46,6 @@ typedef struct pgf_list_gpu_ {
 
   /* size of the previously allocated coefficent table */
   size_t coef_previous_alloc_size_;
-
-  /* size of the different cubes */
-  size_t *cube_size_gpu_;
-
-  /* amount of memory allocated for storing all cubes */
-  size_t max_cube_alloc_size_;
-
-  /* amount of memory to be allocated for storing all cubes */
-  size_t cube_alloc_size_;
-
-  /* offset for the different cubes */
-  size_t *cube_offset_cpu_;
-
-  /* offset for the different cubes */
-  size_t *cube_offset_gpu_;
-
-  /* memory where the cube data are stored */
-  double *cube_data_gpu_;
 
   /* size of the previously allocated grid */
   size_t data_gpu_old_size_;

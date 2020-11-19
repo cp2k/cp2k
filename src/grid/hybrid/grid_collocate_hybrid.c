@@ -62,7 +62,6 @@ static void my_worker_is_running(pgf_list_gpu *const my_worker) {
 }
 
 static void add_orbital_to_list(pgf_list_gpu *const list, const int cmax,
-                                const int *const cube_size_,
                                 const int border_mask, const int lp,
                                 const double rp[3], const double radius,
                                 const double zetp, const tensor *const coef) {
@@ -102,16 +101,6 @@ static void add_orbital_to_list(pgf_list_gpu *const list, const int cmax,
   transform_xyz_to_triangular(
       coef, list->coef_cpu_ + list->coef_offset_cpu_[list->list_length]);
 
-  /* memcpy(list->coef_cpu_ + list->coef_offset_cpu_[list->list_length], */
-  /*        coef->data, sizeof(double) * coef->alloc_size_); */
-
-  list->cube_offset_cpu_[0] = 0;
-  if (list->list_length > 0) {
-    list->cube_offset_cpu_[list->list_length] =
-        list->cube_offset_cpu_[list->list_length - 1] +
-        ((cube_size_[0] * cube_size_[1] * cube_size_[2]) / 32 + 1) * 32;
-  }
-
   list->cmax = imax(list->cmax, cmax);
   list->border_mask_cpu_[list->list_length] = border_mask;
   list->list_length++;
@@ -135,8 +124,6 @@ static pgf_list_gpu *create_worker_list(const int number_of_workers,
     list[i].rp_cpu_ = (double3 *)malloc(sizeof(double3) * list->batch_size);
     list[i].radius_cpu_ = (double *)malloc(sizeof(double) * list->batch_size);
     list[i].zeta_cpu_ = (double *)malloc(sizeof(double) * list->batch_size);
-    list[i].cube_offset_cpu_ =
-        (size_t *)malloc(sizeof(size_t) * list->batch_size);
     list[i].border_mask_cpu_ = (int *)malloc(sizeof(int) * list->batch_size);
 
     list[i].coef_cpu_ =
@@ -152,14 +139,9 @@ static pgf_list_gpu *create_worker_list(const int number_of_workers,
     cudaMalloc((void **)&list[i].zeta_gpu_, sizeof(double) * list->batch_size);
     cudaMalloc((void **)&list[i].coef_gpu_,
                sizeof(double) * list->coef_alloc_size_gpu_);
-    cudaMalloc((void **)&list[i].cube_offset_gpu_,
-               sizeof(size_t) * list->batch_size);
-
     cudaMalloc((void **)&list[i].border_mask_gpu_,
                sizeof(int) * list->batch_size);
 
-    /* we replicate the grid 4 times */
-    list[i].number_of_replicas = 1;
     cudaStreamCreate(&list[i].stream);
     cublasCreate(&list[i].blas_handle);
     cublasSetStream(list[i].blas_handle, list[i].stream);
@@ -182,7 +164,6 @@ static void destroy_worker_list(pgf_list_gpu *const lst) {
   cudaFree(lst->rp_gpu_);
   cudaFree(lst->zeta_gpu_);
   cudaFree(lst->coef_gpu_);
-  cudaFree(lst->cube_offset_gpu_);
   cudaFree(lst->data_gpu_);
   cudaFree(lst->border_mask_gpu_);
   cudaStreamDestroy(lst->stream);
@@ -194,7 +175,6 @@ static void destroy_worker_list(pgf_list_gpu *const lst) {
   free(lst->radius_cpu_);
   free(lst->zeta_cpu_);
   free(lst->coef_cpu_);
-  free(lst->cube_offset_cpu_);
   free(lst->border_mask_cpu_);
 }
 
@@ -237,8 +217,7 @@ initialize_grid_parameters_on_gpu(collocation_integration *const handler) {
           handler->grid.alloc_size_) {
         cudaFree(handler->worker_list[worker].data_gpu_);
         cudaMalloc((void **)&handler->worker_list[worker].data_gpu_,
-                   sizeof(double) * handler->grid.alloc_size_ *
-                       handler->worker_list[worker].number_of_replicas);
+                   sizeof(double) * handler->grid.alloc_size_);
         handler->worker_list[worker].data_gpu_old_size_ =
             handler->grid.alloc_size_;
       }
@@ -246,8 +225,7 @@ initialize_grid_parameters_on_gpu(collocation_integration *const handler) {
     }
 
     cudaMemsetAsync(handler->worker_list[worker].data_gpu_, 0,
-                    sizeof(double) * handler->grid.alloc_size_ *
-                        handler->worker_list[worker].number_of_replicas,
+                    sizeof(double) * handler->grid.alloc_size_,
                     handler->worker_list[worker].stream);
     reset_list_gpu(handler->worker_list + worker);
   }
@@ -379,7 +357,7 @@ static void collocate_one_grid_level_gpu(grid_context *const ctx,
             task->radius, handler->dh, handler->dh_inv, rp, &disr_radius,
             roffset, cubecenter, lb_cube, ub_cube, cube_size);
 
-        add_orbital_to_list(current_worker, cmax, cube_size, task->border_mask,
+        add_orbital_to_list(current_worker, cmax, task->border_mask,
                             handler->coef.size[2] - 1, rp, task->radius, zetp,
                             &handler->coef);
       }
