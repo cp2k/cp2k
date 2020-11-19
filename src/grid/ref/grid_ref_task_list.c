@@ -133,7 +133,7 @@ void dgemm_(const char *transa, const char *transb, const int *m, const int *n,
  ******************************************************************************/
 static void collocate_one_grid_level(
     const grid_ref_task_list *task_list, const int first_task,
-    const int last_task, const bool orthorhombic, const int func,
+    const int last_task, const bool orthorhombic, const enum grid_func func,
     const int npts_global[3], const int npts_local[3], const int shift_local[3],
     const int border_width[3], const double dh[3][3], const double dh_inv[3][3],
     double *grid) {
@@ -274,10 +274,11 @@ static void collocate_one_grid_level(
  ******************************************************************************/
 void grid_ref_collocate_task_list(
     const grid_ref_task_list *task_list, const bool orthorhombic,
-    const int func, const int nlevels, const int npts_global[nlevels][3],
-    const int npts_local[nlevels][3], const int shift_local[nlevels][3],
-    const int border_width[nlevels][3], const double dh[nlevels][3][3],
-    const double dh_inv[nlevels][3][3], double *grid[nlevels]) {
+    const enum grid_func func, const int nlevels,
+    const int npts_global[nlevels][3], const int npts_local[nlevels][3],
+    const int shift_local[nlevels][3], const int border_width[nlevels][3],
+    const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
+    double *grid[nlevels]) {
 
   assert(task_list->nlevels == nlevels);
 

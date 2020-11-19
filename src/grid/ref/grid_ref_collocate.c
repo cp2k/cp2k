@@ -25,7 +25,7 @@
  * \author Ole Schuett
  ******************************************************************************/
 static void collocate_internal(
-    const bool orthorhombic, const int border_mask, const int func,
+    const bool orthorhombic, const int border_mask, const enum grid_func func,
     const int la_max, const int la_min, const int lb_max, const int lb_min,
     const double zeta, const double zetb, const double rscale,
     const double dh[3][3], const double dh_inv[3][3], const double ra[3],
@@ -62,7 +62,7 @@ static void collocate_internal(
  * \author Ole Schuett
  ******************************************************************************/
 static void record_collocate(
-    const bool orthorhombic, const int border_mask, const int func,
+    const bool orthorhombic, const int border_mask, const enum grid_func func,
     const int la_max, const int la_min, const int lb_max, const int lb_min,
     const double zeta, const double zetb, const double rscale,
     const double dh[3][3], const double dh_inv[3][3], const double ra[3],
@@ -153,7 +153,7 @@ static void record_collocate(
  * \author Ole Schuett
  ******************************************************************************/
 void grid_ref_collocate_pgf_product(
-    const bool orthorhombic, const int border_mask, const int func,
+    const bool orthorhombic, const int border_mask, const enum grid_func func,
     const int la_max, const int la_min, const int lb_max, const int lb_min,
     const double zeta, const double zetb, const double rscale,
     const double dh[3][3], const double dh_inv[3][3], const double ra[3],

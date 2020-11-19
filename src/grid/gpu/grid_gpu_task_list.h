@@ -14,6 +14,7 @@ extern "C" {
 #endif
 
 #include "../common/grid_basis_set.h"
+#include "../common/grid_constants.h"
 #include <cuda_runtime.h>
 #include <stdbool.h>
 
@@ -88,14 +89,12 @@ void grid_gpu_free_task_list(grid_gpu_task_list *task_list);
  *        See grid_task_list.h for details.
  * \author Ole Schuett
  ******************************************************************************/
-void grid_gpu_collocate_task_list(const grid_gpu_task_list *task_list,
-                                  const bool orthorhombic, const int func,
-                                  const int nlevels, const int npts_global[][3],
-                                  const int npts_local[][3],
-                                  const int shift_local[][3],
-                                  const int border_width[][3],
-                                  const double dh[][3][3],
-                                  const double dh_inv[][3][3], double *grid[]);
+void grid_gpu_collocate_task_list(
+    const grid_gpu_task_list *task_list, const bool orthorhombic,
+    const enum grid_func func, const int nlevels, const int npts_global[][3],
+    const int npts_local[][3], const int shift_local[][3],
+    const int border_width[][3], const double dh[][3][3],
+    const double dh_inv[][3][3], double *grid[]);
 
 #ifdef __cplusplus
 }

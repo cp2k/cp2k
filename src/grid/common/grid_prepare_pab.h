@@ -260,7 +260,7 @@ GRID_DEVICE static void prepare_pab_Di2(const int ider, const orbital a,
  * \param cab           Output matrix.
  * \author Ole Schuett
  ******************************************************************************/
-GRID_DEVICE static void prepare_pab(const int func, const orbital a,
+GRID_DEVICE static void prepare_pab(const enum grid_func func, const orbital a,
                                     const orbital b, const double zeta,
                                     const double zetb, const double pab_val,
                                     const int n, double *cab) {
@@ -365,7 +365,7 @@ typedef struct {
  * \brief Returns difference in angular momentum range for given func.
  * \author Ole Schuett
  ******************************************************************************/
-static prepare_ldiffs prepare_get_ldiffs(const int func) {
+static prepare_ldiffs prepare_get_ldiffs(const enum grid_func func) {
   prepare_ldiffs ldiffs;
 
   switch (func) {

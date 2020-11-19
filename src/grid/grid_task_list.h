@@ -10,7 +10,6 @@
 #include <stdbool.h>
 
 #include "common/grid_basis_set.h"
-#include "cpu/grid_cpu_task_list.h"
 #include "gpu/grid_gpu_task_list.h"
 #include "ref/grid_ref_task_list.h"
 
@@ -22,9 +21,10 @@ typedef struct {
   int backend;
   bool validate;
   grid_ref_task_list *ref;
-  grid_cpu_task_list *cpu;
+  void *cpu;
 #ifdef __GRID_CUDA
   grid_gpu_task_list *gpu;
+  void *hybrid;
 #endif
   // more backends to be added here
 } grid_task_list;
@@ -101,11 +101,12 @@ void grid_free_task_list(grid_task_list *task_list);
  * \author Ole Schuett
  ******************************************************************************/
 void grid_collocate_task_list(
-    const grid_task_list *task_list, const bool orthorhombic, const int func,
-    const int nlevels, const int npts_global[nlevels][3],
-    const int npts_local[nlevels][3], const int shift_local[nlevels][3],
-    const int border_width[nlevels][3], const double dh[nlevels][3][3],
-    const double dh_inv[nlevels][3][3], double *grid[nlevels]);
+    const grid_task_list *task_list, const bool orthorhombic,
+    const enum grid_func func, const int nlevels,
+    const int npts_global[nlevels][3], const int npts_local[nlevels][3],
+    const int shift_local[nlevels][3], const int border_width[nlevels][3],
+    const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
+    double *grid[nlevels]);
 
 #endif
 
