@@ -78,9 +78,7 @@ MODULE xc_derivatives
                                               thomas_fermi_lda_eval,&
                                               thomas_fermi_lsd_eval
    USE xc_tpss,                         ONLY: tpss_lda_eval,&
-                                              tpss_lda_info,&
-                                              tpss_lsd_eval,&
-                                              tpss_lsd_info
+                                              tpss_lda_info
    USE xc_vwn,                          ONLY: vwn_lda_eval,&
                                               vwn_lda_info,&
                                               vwn_lsd_eval
@@ -282,7 +280,7 @@ CONTAINS
                           xa_parameter=r_param)
       CASE ("TPSS")
          IF (lsd) THEN
-            CALL tpss_lsd_info(functional, reference, shortform, needs, max_deriv)
+            CPABORT("TPSS functional not implemented with LSD. Use the LIBXC version instead.")
          ELSE
             CALL tpss_lda_info(functional, reference, shortform, needs, max_deriv)
          END IF
@@ -504,7 +502,7 @@ CONTAINS
          END IF
       CASE ("TPSS")
          IF (lsd) THEN
-            CALL tpss_lsd_eval(rho_set, deriv_set, deriv_order, functional)
+            CPABORT("TPSS functional not implemented with LSD. Use the LIBXC version instead.")
          ELSE
             CALL tpss_lda_eval(rho_set, deriv_set, deriv_order, functional)
          END IF
