@@ -13,7 +13,7 @@
 ! **************************************************************************************************
 MODULE task_list_methods
    USE grid_api, ONLY: &
-      grid_create_basis_set, grid_create_task_list
+      grid_create_basis_set, grid_create_task_list, grid_create_buffer
    USE ao_util, ONLY: exp_radius_very_extended
    USE basis_set_types, ONLY: get_gto_basis_set, &
                               gto_basis_set_p_type, &
@@ -603,7 +603,6 @@ CONTAINS
                                  natoms=natoms, &
                                  nkinds=nkinds, &
                                  nblocks=SIZE(task_list%pair_offsets_recv), &
-                                 buffer_size=task_list%buffer_size_recv, &
                                  block_offsets=task_list%pair_offsets_recv, &
                                  atom_positions=atom_positions, &
                                  atom_kinds=atom_kinds, &
@@ -619,8 +618,9 @@ CONTAINS
                                  block_num_list=block_num_list, &
                                  radius_list=radius_list, &
                                  rab_list=rab_list, &
-                                 blocks_buffer=task_list%buffer_recv, &
                                  task_list=task_list%grid_task_list)
+
+      CALL grid_create_buffer(task_list%buffer_size_recv, task_list%buffer_recv)
 
    END SUBROUTINE create_grid_task_list
 
@@ -2540,7 +2540,7 @@ CONTAINS
 
       ! mpi all-to-all communication, receiving directly into blocks_recv%buffer.
       CALL mp_alltoall(buffer_send, task_list%rank_sizes_send, task_list%rank_offsets_send, &
-                       task_list%buffer_recv, task_list%rank_sizes_recv, task_list%rank_offsets_recv, &
+                       task_list%buffer_recv%host_buffer, task_list%rank_sizes_recv, task_list%rank_offsets_recv, &
                        group)
 
       DEALLOCATE (buffer_send)
@@ -2559,7 +2559,7 @@ CONTAINS
       CALL rs_pack_matrix(pmats, &
                           atom_pair=task_list%atom_pair_recv, &
                           pair_offsets=task_list%pair_offsets_recv, &
-                          buffer=task_list%buffer_recv)
+                          buffer=task_list%buffer_recv%host_buffer)
 
    END SUBROUTINE rs_copy_matrix
 

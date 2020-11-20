@@ -970,7 +970,8 @@ double compute_coefficients(grid_context *const ctx,
                             const _task *task, tensor *const pab,
                             tensor *const work, tensor *const pab_prep,
                             int *const prev_block_num, int *const prev_iset,
-                            int *const prev_jset, double *rp) {
+                            int *const prev_jset, const grid_buffer *pab_blocks,
+                            double *rp) {
   const int iatom = task->iatom - 1;
   const int jatom = task->jatom - 1;
   const int iset = task->iset - 1;
@@ -1003,7 +1004,7 @@ double compute_coefficients(grid_context *const ctx,
     // else than a basis change and it done with two dgemm.
 
     const int block_offset = ctx->block_offsets[block_num]; // zero based
-    double *const block = &ctx->blocks_buffer[block_offset];
+    double *const block = &pab_blocks->host_buffer[block_offset];
 
     rotate_to_cartesian_harmonics(ibasis, jbasis, iatom, jatom, iset, jset,
                                   block, work, pab);
@@ -1097,7 +1098,8 @@ double compute_coefficients(grid_context *const ctx,
 void collocate_one_grid_level_dgemm(grid_context *const ctx,
                                     const int *const border_width,
                                     const int *const shift_local,
-                                    const int func, const int level) {
+                                    const int func, const int level,
+                                    const grid_buffer *pab_blocks) {
   tensor *const grid = &ctx->grid[level];
   // Using default(shared) because with GCC 9 the behavior around const changed:
   // https://www.gnu.org/software/gcc/gcc-9/porting_to.html
@@ -1169,9 +1171,9 @@ void collocate_one_grid_level_dgemm(grid_context *const ctx,
       }
 
       double rp[3];
-      double zetp =
-          compute_coefficients(ctx, handler, task, &pab, &work, &pab_prep,
-                               &prev_block_num, &prev_iset, &prev_jset, rp);
+      double zetp = compute_coefficients(ctx, handler, task, &pab, &work,
+                                         &pab_prep, &prev_block_num, &prev_iset,
+                                         &prev_jset, pab_blocks, rp);
 
       grid_collocate(handler, ctx->orthorhombic, zetp, rp, task->radius);
     }

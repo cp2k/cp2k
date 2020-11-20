@@ -262,7 +262,8 @@ static void initialize_worker_list_on_gpu(collocation_integration *handle,
 static void collocate_one_grid_level_gpu(grid_context *const ctx,
                                          const int *border_width,
                                          const enum grid_func func,
-                                         const int level) {
+                                         const int level,
+                                         const grid_buffer *pab_blocks) {
   // how many threads have participated in the omp region
   tensor *const grid = &ctx->grid[level];
   const int max_threads = omp_get_max_threads();
@@ -339,9 +340,9 @@ static void collocate_one_grid_level_gpu(grid_context *const ctx,
         abort();
       }
       double rp[3];
-      double zetp =
-          compute_coefficients(ctx, handler, task, &pab, &work, &pab_prep,
-                               &prev_block_num, &prev_iset, &prev_jset, rp);
+      double zetp = compute_coefficients(ctx, handler, task, &pab, &work,
+                                         &pab_prep, &prev_block_num, &prev_iset,
+                                         &prev_jset, pab_blocks, rp);
 
       {
         int cubecenter[3];
@@ -464,7 +465,8 @@ void grid_collocate_task_list_hybrid(
     const int nlevels, const int npts_global[nlevels][3],
     const int npts_local[nlevels][3], const int shift_local[nlevels][3],
     const int border_width[nlevels][3], const double dh[nlevels][3][3],
-    const double dh_inv[nlevels][3][3], double *grid[nlevels]) {
+    const double dh_inv[nlevels][3][3], const grid_buffer *pab_blocks,
+    double *grid[nlevels]) {
   assert(ptr != NULL);
   grid_context *const ctx = (grid_context *const)ptr;
   const int max_threads = omp_get_max_threads();
@@ -535,7 +537,8 @@ void grid_collocate_task_list_hybrid(
     else
       ctx->orthorhombic = false;
     initialize_grid_parameters_on_gpu_step1(ctx, level);
-    collocate_one_grid_level_gpu(ctx, border_width[level], func, level);
+    collocate_one_grid_level_gpu(ctx, border_width[level], func, level,
+                                 pab_blocks);
   }
 
   /* data is *not* allocated when I create the ctx so need to set it up to null.

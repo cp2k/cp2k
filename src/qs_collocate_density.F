@@ -1546,6 +1546,7 @@ CONTAINS
       ! Map all tasks onto the grids
       CALL grid_collocate_task_list(task_list=task_list%grid_task_list, &
                                     ga_gb_function=ga_gb_function, &
+                                    pab_blocks=task_list%buffer_recv, &
                                     rs_grids=rs_rho)
 
       ! Merge realspace multi-grids into single planewave grid.

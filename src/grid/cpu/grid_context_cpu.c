@@ -86,27 +86,6 @@ void update_block_offsets(const int nblocks, const int *const block_offsets,
     memcpy(data->block_offsets, block_offsets, nblocks * sizeof(int));
 }
 
-void allocate_buffer(const size_t buffer_size, grid_context *data) {
-  assert(data != NULL);
-
-  if (buffer_size == 0)
-    return;
-
-  if (data->block_buffer_size == 0) {
-    data->block_buffer_size = buffer_size;
-
-    data->blocks_buffer = memalign(4096, buffer_size * sizeof(double));
-  } else {
-    if (data->block_buffer_size < buffer_size) {
-      free(data->blocks_buffer);
-      data->blocks_buffer = memalign(4096, buffer_size * sizeof(double));
-      data->block_buffer_size = buffer_size;
-    }
-  }
-  data->block_buffer_size_alloc =
-      imax(data->block_buffer_size_alloc, buffer_size);
-}
-
 void update_basis_set(const int nkinds, const grid_basis_set **const basis_sets,
                       grid_context *data) {
   if (nkinds > data->nkinds_total) {
@@ -218,15 +197,14 @@ void update_grid(const int nlevels, grid_context *ctx) {
 
 void *create_grid_context_cpu(
     const int ntasks, const int nlevels, const int natoms, const int nkinds,
-    const int nblocks, const int buffer_size, const int *block_offsets,
+    const int nblocks, const int *block_offsets,
     const double atom_positions[natoms][3], const int *const atom_kinds,
     const grid_basis_set **const basis_sets, const int *const level_list,
     const int *const iatom_list, const int *jatom_list,
     const int *const iset_list, const int *const jset_list,
     const int *const ipgf_list, const int *const jpgf_list,
     const int *const border_mask_list, const int *block_num_list,
-    const double *const radius_list, const double rab_list[ntasks][3],
-    double **blocks_buffer) {
+    const double *const radius_list, const double rab_list[ntasks][3]) {
 
   grid_context *ctx = malloc(sizeof(grid_context));
 
@@ -236,14 +214,12 @@ void *create_grid_context_cpu(
   update_block_offsets(nblocks, block_offsets, ctx);
   update_atoms_position(natoms, atom_positions, ctx);
   update_atoms_kinds(natoms, atom_kinds, ctx);
-  allocate_buffer(buffer_size, ctx);
   update_basis_set(nkinds, basis_sets, ctx);
   update_task_lists(nlevels, ntasks, level_list, iatom_list, jatom_list,
                     iset_list, jset_list, ipgf_list, jpgf_list,
                     border_mask_list, block_num_list, radius_list, rab_list,
                     ctx);
   update_grid(nlevels, ctx);
-  *blocks_buffer = ctx->blocks_buffer;
 
   const int max_threads = omp_get_max_threads();
 
@@ -261,7 +237,7 @@ void *create_grid_context_cpu(
 
 void update_grid_context_cpu(
     const int ntasks, const int nlevels, const int natoms, const int nkinds,
-    const int nblocks, const int buffer_size, const int *block_offsets,
+    const int nblocks, const int *block_offsets,
     const double atom_positions[natoms][3], const int *const atom_kinds,
     const grid_basis_set **const basis_sets, const int *const level_list,
     const int *const iatom_list, const int *jatom_list,
@@ -269,7 +245,7 @@ void update_grid_context_cpu(
     const int *const ipgf_list, const int *const jpgf_list,
     const int *const border_mask_list, const int *block_num_list,
     const double *const radius_list, const double rab_list[ntasks][3],
-    double **blocks_buffer, void *ptr) {
+    void *ptr) {
 
   assert(ptr != NULL);
   grid_context *ctx = (grid_context *)ptr;
@@ -278,7 +254,6 @@ void update_grid_context_cpu(
   update_block_offsets(nblocks, block_offsets, ctx);
   update_atoms_position(natoms, atom_positions, ctx);
   update_atoms_kinds(natoms, atom_kinds, ctx);
-  allocate_buffer(buffer_size, ctx);
   update_basis_set(nkinds, basis_sets, ctx);
   update_task_lists(nlevels, ntasks, level_list, iatom_list, jatom_list,
                     iset_list, jset_list, ipgf_list, jpgf_list,
@@ -291,8 +266,6 @@ void update_grid_context_cpu(
   for (int i = 0; i < nkinds; i++) {
     ctx->maxco = imax(ctx->maxco, ctx->basis_sets[i]->maxco);
   }
-
-  *blocks_buffer = ctx->blocks_buffer;
 }
 
 void initialize_grid_context_on_gpu(void *ptr, const int number_of_devices,
@@ -319,7 +292,6 @@ void destroy_grid_context_cpu(void *ptr) {
   assert(ptr);
   grid_context *ctx = (grid_context *)ptr;
   assert(ctx->checksum == ctx_checksum);
-  free(ctx->blocks_buffer);
   free(ctx->block_offsets);
   free(ctx->atom_positions);
   free(ctx->atom_kinds);
@@ -414,19 +386,6 @@ void set_grid_parameters(
   }
 }
 
-void extract_grid_context_block_buffer(const void *const ptr,
-                                       void *block_buffer) {
-  assert(ptr != NULL);
-  assert(block_buffer != NULL);
-
-  const grid_context *const ctx = (const grid_context *const)ptr;
-
-  assert(ctx->checksum == ctx_checksum);
-
-  memcpy(block_buffer, ctx->blocks_buffer,
-         sizeof(double) * ctx->block_buffer_size);
-}
-
 /* this will have to be revised when the internal module interface is clean from
  * the mess. We should have one task_list associated to one grid, have the grid
  * informations available there, etc.... */
@@ -436,7 +395,7 @@ void grid_collocate_task_list_cpu(
     const int npts_global[nlevels][3], const int npts_local[nlevels][3],
     const int shift_local[nlevels][3], const int border_width[nlevels][3],
     const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
-    double *grid[nlevels]) {
+    const grid_buffer *pab_blocks, double *grid[nlevels]) {
   grid_context *const ctx = (grid_context *const)ptr;
 
   assert(ctx->checksum == ctx_checksum);
@@ -472,7 +431,7 @@ void grid_collocate_task_list_cpu(
 
   for (int level = 0; level < ctx->nlevels; level++) {
     collocate_one_grid_level_dgemm(ctx, border_width[level], shift_local[level],
-                                   func, level);
+                                   func, level, pab_blocks);
   }
 
   free(ctx->scratch);

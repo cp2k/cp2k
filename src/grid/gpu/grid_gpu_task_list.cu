@@ -39,14 +39,14 @@
  ******************************************************************************/
 void grid_gpu_create_task_list(
     const int ntasks, const int nlevels, const int natoms, const int nkinds,
-    const int nblocks, const int buffer_length, const int block_offsets[],
+    const int nblocks, const int block_offsets[],
     const double atom_positions[][3], const int atom_kinds[],
     const grid_basis_set *basis_sets[], const int level_list[],
     const int iatom_list[], const int jatom_list[], const int iset_list[],
     const int jset_list[], const int ipgf_list[], const int jpgf_list[],
     const int border_mask_list[], const int block_num_list[],
     const double radius_list[], const double rab_list[][3],
-    double **blocks_buffer, grid_gpu_task_list **task_list_out) {
+    grid_gpu_task_list **task_list_out) {
 
   if (*task_list_out != NULL) {
     // This is actually an opportunity to reuse some buffers.
@@ -61,16 +61,8 @@ void grid_gpu_create_task_list(
   task_list->natoms = natoms;
   task_list->nkinds = nkinds;
   task_list->nblocks = nblocks;
-  task_list->buffer_length = buffer_length;
 
-  // With size 0 cudaMallocHost doesn't null the pointer and cudaFreeHost fails.
-  task_list->blocks_buffer_host = NULL;
-
-  size_t size = buffer_length * sizeof(double);
-  CHECK(cudaMallocHost(&task_list->blocks_buffer_host, size));
-  CHECK(cudaMalloc(&task_list->blocks_buffer_dev, size));
-
-  size = nblocks * sizeof(int);
+  size_t size = nblocks * sizeof(int);
   CHECK(cudaMalloc(&task_list->block_offsets_dev, size));
   CHECK(cudaMemcpy(task_list->block_offsets_dev, block_offsets, size,
                    cudaMemcpyHostToDevice));
@@ -185,8 +177,7 @@ void grid_gpu_create_task_list(
   task_list->grid_dev_size = (size_t *)malloc(size);
   memset(task_list->grid_dev_size, 0, size);
 
-  // return newly created buffer and task list
-  *blocks_buffer = task_list->blocks_buffer_host;
+  // return newly created task list
   *task_list_out = task_list;
 }
 
@@ -218,9 +209,6 @@ void grid_gpu_free_task_list(grid_gpu_task_list *task_list) {
   CHECK(cudaFree(task_list->atom_kinds_dev));
   CHECK(cudaFree(task_list->tasks_dev));
 
-  CHECK(cudaFreeHost(task_list->blocks_buffer_host));
-  CHECK(cudaFree(task_list->blocks_buffer_dev));
-
   for (int i = 0; i < task_list->nlevels; i++) {
     CHECK(cudaStreamDestroy(task_list->streams[i]));
   }
@@ -248,14 +236,14 @@ void grid_gpu_collocate_task_list(
     const enum grid_func func, const int nlevels, const int npts_global[][3],
     const int npts_local[][3], const int shift_local[][3],
     const int border_width[][3], const double dh[][3][3],
-    const double dh_inv[][3][3], double *grid[]) {
+    const double dh_inv[][3][3], const grid_buffer *pab_blocks,
+    double *grid[]) {
   assert(task_list->nlevels == nlevels);
 
   // Upload blocks buffer using the first level's stream
-  const size_t buffer_size = task_list->buffer_length * sizeof(double);
-  CHECK(cudaMemcpyAsync(task_list->blocks_buffer_dev,
-                        task_list->blocks_buffer_host, buffer_size,
-                        cudaMemcpyHostToDevice, task_list->streams[0]));
+  CHECK(cudaMemcpyAsync(pab_blocks->device_buffer, pab_blocks->host_buffer,
+                        pab_blocks->size, cudaMemcpyHostToDevice,
+                        task_list->streams[0]));
 
   // record an event so the other streams can wait for the blocks to be uploaded
   cudaEvent_t blocks_uploaded_event;
@@ -287,7 +275,7 @@ void grid_gpu_collocate_task_list(
         task_list, first_task, last_task, orthorhombic, func,
         npts_global[level], npts_local[level], shift_local[level],
         border_width[level], dh[level], dh_inv[level], stream,
-        task_list->grid_dev[level]);
+        pab_blocks->device_buffer, task_list->grid_dev[level]);
 
     first_task = last_task + 1;
   }

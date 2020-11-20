@@ -10,6 +10,7 @@
 #include <stdbool.h>
 
 #include "common/grid_basis_set.h"
+#include "common/grid_buffer.h"
 #include "gpu/grid_gpu_task_list.h"
 #include "ref/grid_ref_task_list.h"
 
@@ -37,7 +38,6 @@ typedef struct {
  * \param natoms           Number of atoms.
  * \param nkinds           Number of atomic kinds.
  * \param nblocks          Number of local matrix blocks.
- * \param buffer_size      Required buffer size to store all local matrix blocks
  * \param block_offsets    Offset of each block within the buffer (zero based).
  * \param atom_positions   Position of the atoms.
  * \param atom_kinds       Mapping from atom to atomic kind (one based).
@@ -57,14 +57,13 @@ typedef struct {
  * \param radius_list      Radius where Gaussian becomes smaller than threshold.
  * \param rab_list         Vector between atoms, encodes the virtual image.
  *
- * \param blocks_buffer    Allocate buffer ready to be filled with blocks.
  * \param task_list        Handle to the created task list.
  *
  * \author Ole Schuett
  ******************************************************************************/
 void grid_create_task_list(
     const int ntasks, const int nlevels, const int natoms, const int nkinds,
-    const int nblocks, const int buffer_size, const int block_offsets[nblocks],
+    const int nblocks, const int block_offsets[nblocks],
     const double atom_positions[natoms][3], const int atom_kinds[natoms],
     const grid_basis_set *basis_sets[nkinds], const int level_list[ntasks],
     const int iatom_list[ntasks], const int jatom_list[ntasks],
@@ -72,7 +71,7 @@ void grid_create_task_list(
     const int ipgf_list[ntasks], const int jpgf_list[ntasks],
     const int border_mask_list[ntasks], const int block_num_list[ntasks],
     const double radius_list[ntasks], const double rab_list[ntasks][3],
-    double **blocks_buffer, grid_task_list **task_list);
+    grid_task_list **task_list);
 
 /*******************************************************************************
  * \brief Deallocates given task list, basis_sets have to be freed separately.
@@ -96,6 +95,7 @@ void grid_free_task_list(grid_task_list *task_list);
  * \param border_width    Width of halo region in grid points in each direction.
  * \param dh              Incremental grid matrix.
  * \param dh_inv          Inverse incremental grid matrix.
+ * \param pab_blocks      Buffer that contains the density matrix blocks.
  * \param grid            The output grid array to collocate into.
  *
  * \author Ole Schuett
@@ -106,7 +106,7 @@ void grid_collocate_task_list(
     const int npts_global[nlevels][3], const int npts_local[nlevels][3],
     const int shift_local[nlevels][3], const int border_width[nlevels][3],
     const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
-    double *grid[nlevels]);
+    const grid_buffer *pab_blocks, double *grid[nlevels]);
 
 #endif
 

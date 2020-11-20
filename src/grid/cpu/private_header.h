@@ -13,6 +13,7 @@
 #include <stdbool.h>
 /* everything here is specific to the cpu and gpu backends*/
 #include "../common/grid_basis_set.h"
+#include "../common/grid_buffer.h"
 #include "../common/grid_common.h"
 
 enum checksum_ { task_checksum = 0x2384989, ctx_checksum = 0x2356734 };
@@ -46,10 +47,6 @@ typedef struct {
   int nkinds_total;
   int nlevels_total;
   int ntasks_total;
-
-  double *blocks_buffer;
-  size_t block_buffer_size;
-  size_t block_buffer_size_alloc;
   int *block_offsets;
   double *atom_positions;
   int *atom_kinds;
@@ -145,7 +142,8 @@ extern void set_grid_parameters(
 
 extern void collocate_one_grid_level_dgemm(grid_context *const ctx,
                                            const int *const, const int *const,
-                                           const int func, const int level);
+                                           const int func, const int level,
+                                           const grid_buffer *pab_blocks);
 
 extern double compute_coefficients(grid_context *const ctx,
                                    struct collocation_integration_ *handler,
@@ -153,5 +151,5 @@ extern double compute_coefficients(grid_context *const ctx,
                                    tensor *const work, tensor *const pab_prep,
                                    int *const prev_block_num,
                                    int *const prev_iset, int *const prev_jset,
-                                   double *rp);
+                                   const grid_buffer *pab_blocks, double *rp);
 #endif

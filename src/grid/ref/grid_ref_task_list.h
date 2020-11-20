@@ -10,6 +10,7 @@
 #include <stdbool.h>
 
 #include "../common/grid_basis_set.h"
+#include "../common/grid_buffer.h"
 #include "../common/grid_constants.h"
 
 /*******************************************************************************
@@ -40,8 +41,6 @@ typedef struct {
   int natoms;
   int nkinds;
   int nblocks;
-  int buffer_size;
-  double *blocks_buffer;
   int *block_offsets;
   double *atom_positions;
   int *atom_kinds;
@@ -58,7 +57,7 @@ typedef struct {
  ******************************************************************************/
 void grid_ref_create_task_list(
     const int ntasks, const int nlevels, const int natoms, const int nkinds,
-    const int nblocks, const int buffer_size, const int block_offsets[nblocks],
+    const int nblocks, const int block_offsets[nblocks],
     const double atom_positions[natoms][3], const int atom_kinds[natoms],
     const grid_basis_set *basis_sets[nkinds], const int level_list[ntasks],
     const int iatom_list[ntasks], const int jatom_list[ntasks],
@@ -66,7 +65,7 @@ void grid_ref_create_task_list(
     const int ipgf_list[ntasks], const int jpgf_list[ntasks],
     const int border_mask_list[ntasks], const int block_num_list[ntasks],
     const double radius_list[ntasks], const double rab_list[ntasks][3],
-    double **blocks_buffer, grid_ref_task_list **task_list);
+    grid_ref_task_list **task_list);
 
 /*******************************************************************************
  * \brief Deallocates given task list, basis_sets have to be freed separately.
@@ -85,7 +84,7 @@ void grid_ref_collocate_task_list(
     const int npts_global[nlevels][3], const int npts_local[nlevels][3],
     const int shift_local[nlevels][3], const int border_width[nlevels][3],
     const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
-    double *grid[nlevels]);
+    const grid_buffer *pab_blocks, double *grid[nlevels]);
 
 #endif
 

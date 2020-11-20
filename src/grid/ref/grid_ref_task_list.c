@@ -23,7 +23,7 @@
  ******************************************************************************/
 void grid_ref_create_task_list(
     const int ntasks, const int nlevels, const int natoms, const int nkinds,
-    const int nblocks, const int buffer_size, const int block_offsets[nblocks],
+    const int nblocks, const int block_offsets[nblocks],
     const double atom_positions[natoms][3], const int atom_kinds[natoms],
     const grid_basis_set *basis_sets[nkinds], const int level_list[ntasks],
     const int iatom_list[ntasks], const int jatom_list[ntasks],
@@ -31,7 +31,7 @@ void grid_ref_create_task_list(
     const int ipgf_list[ntasks], const int jpgf_list[ntasks],
     const int border_mask_list[ntasks], const int block_num_list[ntasks],
     const double radius_list[ntasks], const double rab_list[ntasks][3],
-    double **blocks_buffer, grid_ref_task_list **task_list_out) {
+    grid_ref_task_list **task_list_out) {
 
   if (*task_list_out != NULL) {
     // This is actually an opportunity to reuse some buffers.
@@ -45,12 +45,8 @@ void grid_ref_create_task_list(
   task_list->natoms = natoms;
   task_list->nkinds = nkinds;
   task_list->nblocks = nblocks;
-  task_list->buffer_size = buffer_size;
 
-  size_t size = buffer_size * sizeof(double);
-  task_list->blocks_buffer = malloc(size);
-
-  size = nblocks * sizeof(int);
+  size_t size = nblocks * sizeof(int);
   task_list->block_offsets = malloc(size);
   memcpy(task_list->block_offsets, block_offsets, size);
 
@@ -99,7 +95,6 @@ void grid_ref_create_task_list(
     task_list->maxco = imax(task_list->maxco, task_list->basis_sets[i]->maxco);
   }
 
-  *blocks_buffer = task_list->blocks_buffer;
   *task_list_out = task_list;
 }
 
@@ -108,7 +103,6 @@ void grid_ref_create_task_list(
  * \author Ole Schuett
  ******************************************************************************/
 void grid_ref_free_task_list(grid_ref_task_list *task_list) {
-  free(task_list->blocks_buffer);
   free(task_list->block_offsets);
   free(task_list->atom_positions);
   free(task_list->atom_kinds);
@@ -136,7 +130,7 @@ static void collocate_one_grid_level(
     const int last_task, const bool orthorhombic, const enum grid_func func,
     const int npts_global[3], const int npts_local[3], const int shift_local[3],
     const int border_width[3], const double dh[3][3], const double dh_inv[3][3],
-    double *grid) {
+    const double *pab_blocks, double *grid) {
 
   // Allocate memory for thread local copy of the grid.
   const int nthreads = omp_get_max_threads();
@@ -204,7 +198,7 @@ static void collocate_one_grid_level(
         // Locate current matrix block within the buffer.
         const int block_offset =
             task_list->block_offsets[block_num]; // zero based
-        const double *block = &task_list->blocks_buffer[block_offset];
+        const double *block = &pab_blocks[block_offset];
 
         // Decontract the sub block into pab.
         double work[nsgf_setb * ncoa];
@@ -278,7 +272,7 @@ void grid_ref_collocate_task_list(
     const int npts_global[nlevels][3], const int npts_local[nlevels][3],
     const int shift_local[nlevels][3], const int border_width[nlevels][3],
     const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
-    double *grid[nlevels]) {
+    const grid_buffer *pab_blocks, double *grid[nlevels]) {
 
   assert(task_list->nlevels == nlevels);
 
@@ -289,7 +283,8 @@ void grid_ref_collocate_task_list(
     collocate_one_grid_level(task_list, first_task, last_task, orthorhombic,
                              func, npts_global[level], npts_local[level],
                              shift_local[level], border_width[level], dh[level],
-                             dh_inv[level], grid[level]);
+                             dh_inv[level], pab_blocks->host_buffer,
+                             grid[level]);
 
     first_task = last_task + 1;
   }
