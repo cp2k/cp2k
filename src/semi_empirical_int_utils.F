@@ -51,14 +51,37 @@ MODULE semi_empirical_int_utils
 !> \param fact_screen ...
 !> \return ...
 ! **************************************************************************************************
-      FUNCTION eval_func(r, l1_i, l2_i, m1_i, m2_i, da_i, db_i, add0, fact_screen) RESULT(charg)
+      FUNCTION eval_func_sp(r, l1_i, l2_i, m1_i, m2_i, da_i, db_i, add0, fact_screen) RESULT(charg)
          USE kinds, ONLY: dp
       REAL(KIND=dp), INTENT(IN)                          :: r
       INTEGER, INTENT(IN)                                :: l1_i, l2_i, m1_i, m2_i
       REAL(KIND=dp), INTENT(IN)                          :: da_i, db_i, add0, fact_screen
       REAL(KIND=dp)                                      :: charg
 
-      END FUNCTION eval_func
+      END FUNCTION eval_func_sp
+   END INTERFACE
+
+   ABSTRACT INTERFACE
+! **************************************************************************************************
+!> \brief ...
+!> \param r ...
+!> \param l1_i ...
+!> \param l2_i ...
+!> \param m ...
+!> \param da_i ...
+!> \param db_i ...
+!> \param add0 ...
+!> \param fact_screen ...
+!> \return ...
+! **************************************************************************************************
+      FUNCTION eval_func_d(r, l1_i, l2_i, m, da_i, db_i, add0, fact_screen) RESULT(charg)
+         USE kinds, ONLY: dp
+      REAL(KIND=dp), INTENT(IN)                          :: r
+      INTEGER, INTENT(IN)                                :: l1_i, l2_i, m
+      REAL(KIND=dp), INTENT(IN)                          :: da_i, db_i, add0, fact_screen
+      REAL(KIND=dp)                                      :: charg
+
+      END FUNCTION eval_func_d
    END INTERFACE
 
 CONTAINS
@@ -226,7 +249,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: shortrange, pc_coulomb_int
       INTEGER, INTENT(IN)                                :: max_multipole, itype
 
-      PROCEDURE(eval_func)                               :: eval
+      PROCEDURE(eval_func_sp)                               :: eval
       REAL(KIND=dp)                                      :: res
 
       INTEGER                                            :: ccc, l1, l1max, l1min, l2, l2max, l2min, &
@@ -1125,7 +1148,9 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iscreen
       LOGICAL, INTENT(IN)                                :: shortrange, pc_coulomb_int
       INTEGER, INTENT(IN)                                :: max_multipole, itype
-      REAL(KIND=dp)                                      :: eval, res
+
+      PROCEDURE(eval_func_d)                               :: eval
+      REAL(KIND=dp)                                      :: res
 
       INTEGER                                            :: l1, l1max, l1min, l2, l2max, l2min, lij, &
                                                             lkl, lmin, m, mm
