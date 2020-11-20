@@ -397,10 +397,11 @@ static inline void general_ci_to_reg(const int lp, const double exp_aiibic,
  * \author Ole Schuett
  ******************************************************************************/
 static inline void
-general_ci_to_grid(const int lp, const int j, const int jg, const int k, const int kg,
-                   const int ismin, const int ismax, const int npts_local[3],
-                   const int bounds_i[2], const int index_min[3], const int map_i[],
-                   const double zetp, const double a, const double b, const double c,
+general_ci_to_grid(const int lp, const int j, const int jg, const int k,
+                   const int kg, const int ismin, const int ismax,
+                   const int npts_local[3], const int bounds_i[2],
+                   const int index_min[3], const int map_i[], const double zetp,
+                   const double a, const double b, const double c,
                    const double d, const double exp_ab, const double exp_2a,
                    const double dh[3][3], const double gp[3],
                    const double radius, GRID_CONST_WHEN_COLLOCATE double *ci,
@@ -502,7 +503,8 @@ static inline void general_cij_to_grid(
   const double u0 = (0 - gp[0]) * dh[0][0] + (k - gp[2]) * dh[2][0];
   const double u1 = (0 - gp[0]) * dh[0][1] + (k - gp[2]) * dh[2][1];
   const double u2 = (0 - gp[0]) * dh[0][2] + (k - gp[2]) * dh[2][2];
-  const double a = dh[0][0] * dh[0][0] + dh[0][1] * dh[0][1] + dh[0][2] * dh[0][2];
+  const double a =
+      dh[0][0] * dh[0][0] + dh[0][1] * dh[0][1] + dh[0][2] * dh[0][2];
   const double inva2 = 0.5 / a, exp_2a = exp(-zetp * (a + a));
   double ci[lp + 1];
 
@@ -524,12 +526,14 @@ static inline void general_cij_to_grid(
 #if (GRID_DO_COLLOCATE)
         // collocate
         general_cij_to_ci(lp, dj, cij, ci);
-        general_ci_to_grid(lp, j, jg, k, kg, ismin, ismax, npts_local, bounds_i, index_min, map_i,
-                           zetp, a, b, c, d, exp_ab, exp_2a, dh, gp, radius, ci, grid);
+        general_ci_to_grid(lp, j, jg, k, kg, ismin, ismax, npts_local, bounds_i,
+                           index_min, map_i, zetp, a, b, c, d, exp_ab, exp_2a,
+                           dh, gp, radius, ci, grid);
 #else
         // integrate
-        general_ci_to_grid(lp, j, jg, k, kg, ismin, ismax, npts_local, bounds_i, index_min, map_i,
-                           zetp, a, b, c, d, exp_ab, exp_2a, dh, gp, radius, ci, grid);
+        general_ci_to_grid(lp, j, jg, k, kg, ismin, ismax, npts_local, bounds_i,
+                           index_min, map_i, zetp, a, b, c, d, exp_ab, exp_2a,
+                           dh, gp, radius, ci, grid);
         general_cij_to_ci(lp, dj, cij, ci);
 #endif
       }
