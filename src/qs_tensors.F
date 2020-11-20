@@ -1563,15 +1563,19 @@ CONTAINS
 !> \param tensor tensor with data. Data is cleared after compression.
 !> \param compressed compressed tensor data
 !> \param eps all entries < eps are discarded
+!> \param memory ...
 ! **************************************************************************************************
-   SUBROUTINE compress_tensor(tensor, compressed, eps)
+   SUBROUTINE compress_tensor(tensor, compressed, eps, memory)
       TYPE(dbcsr_t_type), INTENT(INOUT)                  :: tensor
       TYPE(hfx_compression_type), INTENT(INOUT)          :: compressed
       REAL(dp), INTENT(IN)                               :: eps
+      REAL(dp), INTENT(INOUT)                            :: memory
 
       INTEGER                                            :: blk, buffer_left, buffer_size, &
-                                                            buffer_start, i, nbits, nints, unused
-      INTEGER(int_8)                                     :: estimate_to_store_int
+                                                            buffer_start, i, memory_usage, nbits, &
+                                                            nints
+      INTEGER(int_8)                                     :: estimate_to_store_int, &
+                                                            storage_counter_integrals
       INTEGER, DIMENSION(3)                              :: ind
       LOGICAL                                            :: found
       REAL(dp)                                           :: spherical_estimate
@@ -1583,15 +1587,15 @@ CONTAINS
       TYPE(hfx_container_type), DIMENSION(:), POINTER    :: integral_containers
       TYPE(hfx_container_type), POINTER                  :: maxval_container
 
-      CALL dealloc_containers(compressed, unused)
+      CALL dealloc_containers(compressed, memory_usage)
       CALL alloc_containers(compressed, 1)
 
       maxval_container => compressed%maxval_container(1)
       integral_containers => compressed%integral_containers(:, 1)
 
-      CALL hfx_init_container(maxval_container, unused, .FALSE.)
+      CALL hfx_init_container(maxval_container, memory_usage, .FALSE.)
       DO i = 1, 64
-         CALL hfx_init_container(integral_containers(i), unused, .FALSE.)
+         CALL hfx_init_container(integral_containers(i), memory_usage, .FALSE.)
       END DO
 
       maxval_cache => compressed%maxval_cache(1)
@@ -1610,7 +1614,7 @@ CONTAINS
          estimate_to_store_int = MAX(estimate_to_store_int, -15_int_8)
 
          CALL hfx_add_single_cache_element(estimate_to_store_int, 6, &
-                                           maxval_cache, maxval_container, unused, &
+                                           maxval_cache, maxval_container, memory_usage, &
                                            .FALSE.)
 
          spherical_estimate = SET_EXPONENT(1.0_dp, estimate_to_store_int + 1)
@@ -1631,7 +1635,7 @@ CONTAINS
                                              integral_caches(nbits), &
                                              integral_containers(nbits), &
                                              eps, 1.0_dp, &
-                                             unused, &
+                                             memory_usage, &
                                              .FALSE.)
             buffer_left = buffer_left - buffer_size
             buffer_start = buffer_start + buffer_size
@@ -1643,17 +1647,22 @@ CONTAINS
 
       CALL dbcsr_t_clear(tensor)
 
-      CALL hfx_flush_last_cache(6, maxval_cache, maxval_container, unused, &
+      storage_counter_integrals = memory_usage*cache_size
+      memory = memory + REAL(storage_counter_integrals, dp)/1024/128
+      !WRITE (UNIT=iw, FMT="((T3,A,T60,I21))") &
+      !   "HFX_MEM_INFO| Total memory consumption ERI's RAM [MiB]:            ", memory
+
+      CALL hfx_flush_last_cache(6, maxval_cache, maxval_container, memory_usage, &
                                 .FALSE.)
       DO i = 1, 64
          CALL hfx_flush_last_cache(i, integral_caches(i), integral_containers(i), &
-                                   unused, .FALSE.)
+                                   memory_usage, .FALSE.)
       END DO
 
-      CALL hfx_reset_cache_and_container(maxval_cache, maxval_container, unused, .FALSE.)
+      CALL hfx_reset_cache_and_container(maxval_cache, maxval_container, memory_usage, .FALSE.)
       DO i = 1, 64
          CALL hfx_reset_cache_and_container(integral_caches(i), integral_containers(i), &
-                                            unused, .FALSE.)
+                                            memory_usage, .FALSE.)
       END DO
 
    END SUBROUTINE
@@ -1673,7 +1682,8 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: eps
 
       INTEGER                                            :: blk, buffer_left, buffer_size, &
-                                                            buffer_start, i, nbits, nints, unused
+                                                            buffer_start, i, memory_usage, nbits, &
+                                                            nints
       INTEGER(int_8)                                     :: estimate_to_store_int
       INTEGER, DIMENSION(3)                              :: blk_size, ind
       REAL(dp)                                           :: spherical_estimate
@@ -1690,13 +1700,13 @@ CONTAINS
       integral_caches => compressed%integral_caches(:, 1)
       integral_containers => compressed%integral_containers(:, 1)
 
-      unused = 0
+      memory_usage = 0
 
-      CALL hfx_decompress_first_cache(6, maxval_cache, maxval_container, unused, .FALSE.)
+      CALL hfx_decompress_first_cache(6, maxval_cache, maxval_container, memory_usage, .FALSE.)
 
       DO i = 1, 64
          CALL hfx_decompress_first_cache(i, integral_caches(i), integral_containers(i), &
-                                         unused, .FALSE.)
+                                         memory_usage, .FALSE.)
       ENDDO
 
       CALL dbcsr_t_reserve_blocks(tensor, blk_indices)
@@ -1706,7 +1716,7 @@ CONTAINS
          nints = PRODUCT(blk_size)
          CALL hfx_get_single_cache_element( &
             estimate_to_store_int, 6, &
-            maxval_cache, maxval_container, unused, &
+            maxval_cache, maxval_container, memory_usage, &
             .FALSE.)
 
          spherical_estimate = SET_EXPONENT(1.0_dp, estimate_to_store_int + 1)
@@ -1724,7 +1734,7 @@ CONTAINS
                                              integral_caches(nbits), &
                                              integral_containers(nbits), &
                                              eps, 1.0_dp, &
-                                             unused, &
+                                             memory_usage, &
                                              .FALSE.)
             buffer_left = buffer_left - buffer_size
             buffer_start = buffer_start + buffer_size
@@ -1737,10 +1747,10 @@ CONTAINS
 
       CALL dbcsr_t_iterator_stop(iter)
 
-      CALL hfx_reset_cache_and_container(maxval_cache, maxval_container, unused, .FALSE.)
+      CALL hfx_reset_cache_and_container(maxval_cache, maxval_container, memory_usage, .FALSE.)
       DO i = 1, 64
          CALL hfx_reset_cache_and_container(integral_caches(i), integral_containers(i), &
-                                            unused, .FALSE.)
+                                            memory_usage, .FALSE.)
       END DO
    END SUBROUTINE
 
