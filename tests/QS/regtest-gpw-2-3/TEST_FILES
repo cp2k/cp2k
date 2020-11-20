@@ -21,5 +21,5 @@ Au13ico_mtd.inp                                        1      5e-13            -
 Au12_rmsd_AB_mtd.inp                                   1      3e-11            -397.79481882168199
 Au12_rmsd_A_mtd.inp                                    1      2e-11            -397.77606915975093
 # tpss new input
-H2O-tpss_lsd.inp                                       1      3e-13             -34.34058398103720
+H2O-tpss_lsd.inp                                       1      3e-13             -34.34060245665712
 #EOF
