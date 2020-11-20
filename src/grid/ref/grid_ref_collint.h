@@ -404,25 +404,6 @@ static inline void general_ci_to_grid(
     const double gp[3], GRID_CONST_WHEN_COLLOCATE double *ci,
     GRID_CONST_WHEN_INTEGRATE double *grid) {
 
-  //--------------------------------------------------------------------
-  // Find bounds for the inner loop based on a quadratic equation in i.
-  //
-  // The real-space vector from the center of the gaussian to the
-  // grid point i,j,k is given by:
-  //   r = (i-gp[0])*dh[0,:] + (j-gp[1])*dh[1,:] + (k-gp[2])*dh[2,:]
-  //
-  // Separating the term that depends on i:
-  //   r = i*dh[0,:] - gp[0]*dh[0,:] + (j-gp[1])*dh[1,:] + (k-gp[2])*dh[2,:]
-  //     = i*dh[0,:] + v
-  //
-  // The squared distance works out to:
-  //   r**2 = dh[0,:]**2 * i**2  +  2 * v * dh[0,:] * i  +  v**2
-  //        = a * i**2           +  b * i                +  c
-  //
-  // Solving r**2==radius**2 for i yields:
-  //    d =  b**2  -  4 * a * (c - radius**2)
-  //    i = (-b \pm sqrt(d)) / (2*a)
-  //
   const int base = kg * npts_local[1] * npts_local[0] + jg * npts_local[0];
   double exp_aiibic = 0.0;
   double exp_2ai = 0.0;
@@ -515,6 +496,25 @@ static inline void general_cij_to_grid(
       const double c = (v0 * v0 + v1 * v1 + v2 * v2);
       const double d = b * b - 4.0 * a * (c - radius * radius);
 
+      //--------------------------------------------------------------------
+      // Find bounds for the inner loop based on a quadratic equation in i.
+      //
+      // The real-space vector from the center of the gaussian to the
+      // grid point i,j,k is given by:
+      //   r = (i-gp[0])*dh[0,:] + (j-gp[1])*dh[1,:] + (k-gp[2])*dh[2,:]
+      //
+      // Separating the term that depends on i:
+      //   r = i*dh[0,:] - gp[0]*dh[0,:] + (j-gp[1])*dh[1,:] + (k-gp[2])*dh[2,:]
+      //     = i*dh[0,:] + v
+      //
+      // The squared distance works out to:
+      //   r**2 = dh[0,:]**2 * i**2  +  2 * v * dh[0,:] * i  +  v**2
+      //        = a * i**2           +  b * i                +  c
+      //
+      // Solving r**2==radius**2 for i yields:
+      //    d =  b**2  -  4 * a * (c - radius**2)
+      //    i = (-b \pm sqrt(d)) / (2*a)
+      //
       if (0.0 < d) {
         const double exp_ab = exp(-zetp * (a + b)), sqrt_d = sqrt(d);
         const int ismin = (int)ceil((-b - sqrt_d) * inva2);
