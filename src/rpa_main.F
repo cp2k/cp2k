@@ -1469,7 +1469,7 @@ CONTAINS
                             fm_mo_coeff_virt_scaled, mat_dm, mat_L, mat_M_P_munu_occ, mat_M_P_munu_virt, mat_P_global_copy, &
                             mat_SinvVSinv, mat_P_omega, mat_P_omega_kp, &
                             mat_work, &
-                            mat_P_omega_beta, unit_nr)
+                            mat_P_omega_beta)
 
          IF (my_do_gw) THEN
 

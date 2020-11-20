@@ -60,7 +60,8 @@ MODULE mp2_integrals
                                               do_potential_long,&
                                               do_potential_short,&
                                               do_potential_truncated
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              int_8
    USE kpoint_methods,                  ONLY: kpoint_init_cell_index
    USE kpoint_types,                    ONLY: kpoint_type
    USE libint_2c_3c,                    ONLY: libint_potential_type
@@ -69,6 +70,7 @@ MODULE mp2_integrals
                                               mp_environ,&
                                               mp_max,&
                                               mp_sendrecv,&
+                                              mp_sum,&
                                               mp_sync
    USE mp2_eri,                         ONLY: mp2_eri_3c_integrate
    USE mp2_eri_gpw,                     ONLY: cleanup_gpw,&
@@ -90,6 +92,7 @@ MODULE mp2_integrals
    USE qs_tensors,                      ONLY: build_3c_integrals,&
                                               build_3c_neighbor_lists,&
                                               compress_tensor,&
+                                              get_tensor_occupancy,&
                                               neighbor_list_3c_destroy
    USE qs_tensors_types,                ONLY: create_3c_tensor,&
                                               create_tensor_batches,&
@@ -254,6 +257,7 @@ CONTAINS
          my_group_L_end
       INTEGER :: my_group_L_size, my_group_L_start, natom, ngroup, nimg, nkind, num_small_eigen, &
          potential_type, ri_metric_type, virtual, virtual_beta
+      INTEGER(int_8)                                     :: nze
       INTEGER, ALLOCATABLE, DIMENSION(:) :: dist_AO_1, dist_AO_2, dist_RI, &
          ends_array_mc_block_int, ends_array_mc_int, sizes_AO, sizes_AO_split, sizes_RI, &
          sizes_RI_split, starts_array_mc_block_int, starts_array_mc_int, sub_proc_map
@@ -265,9 +269,8 @@ CONTAINS
       LOGICAL                                            :: do_alpha_beta, do_gpw, &
                                                             do_kpoints_from_Gamma, do_svd, &
                                                             memory_info
-      REAL(KIND=dp)                                      :: cond_num, cutoff_old, eps_svd, &
-                                                            mem_for_iaK, omega_pot, rc_ang, &
-                                                            relative_cutoff_old
+      REAL(KIND=dp) :: compression_factor, cond_num, cutoff_old, eps_svd, mem_for_iaK, memory_3c, &
+         occ, omega_pot, rc_ang, relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
@@ -934,6 +937,9 @@ CONTAINS
          ENDDO
 
          CALL dbcsr_t_get_info(t_3c_O(1, 1), nfull_total=bounds_3c)
+         CALL get_tensor_occupancy(t_3c_O(1, 1), nze, occ)
+         memory_3c = 0.0_dp
+
          bounds(:, 1) = [1, bounds_3c(1)]
          bounds(:, 3) = [1, bounds_3c(3)]
          DO i = 1, SIZE(t_3c_O, 1)
@@ -945,11 +951,24 @@ CONTAINS
                   ALLOCATE (t_3c_O_ind(i, j, i_mem)%ind(dbcsr_t_get_num_blocks(t_3c_tmp), 3))
                   CALL dbcsr_t_reserved_block_indices(t_3c_tmp, t_3c_O_ind(i, j, i_mem)%ind)
                   CALL alloc_containers(t_3c_O_compressed(i, j, i_mem), 1)
-                  CALL compress_tensor(t_3c_tmp, t_3c_O_compressed(i, j, i_mem), qs_env%mp2_env%ri_rpa_im_time%eps_compress)
+                  CALL compress_tensor(t_3c_tmp, t_3c_O_compressed(i, j, i_mem), &
+                                       qs_env%mp2_env%ri_rpa_im_time%eps_compress, memory_3c)
                ENDDO
                CALL dbcsr_t_clear(t_3c_O(i, j))
             ENDDO
          ENDDO
+
+         CALL mp_sum(memory_3c, para_env%group)
+
+         compression_factor = REAL(nze, dp)*1.0E-06*8.0_dp/memory_3c
+
+         IF (unit_nr > 0) THEN
+            WRITE (UNIT=unit_nr, FMT="((T3,A,T66,F11.2,A4))") &
+               "MEMORY_INFO| Memory for 3-center integrals (compressed):", memory_3c, ' MiB'
+
+            WRITE (UNIT=unit_nr, FMT="((T3,A,T60,F21.2))") &
+               "MEMORY_INFO| Compression factor:                  ", compression_factor
+         END IF
 
          CALL dbcsr_t_destroy(t_3c_tmp)
 

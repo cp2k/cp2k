@@ -277,7 +277,6 @@ CONTAINS
 
          CALL get_tensor_occupancy(t_dm_occ(1), nze_dm_occ, occ_dm_occ)
          CALL get_tensor_occupancy(t_dm_virt(1), nze_dm_virt, occ_dm_virt)
-         IF (do_Gamma_RPA) CALL get_tensor_occupancy(t_3c_O(1, 1), nze_O, occ_O)
 
          CALL dbcsr_t_destroy(t_dm)
 
@@ -311,10 +310,12 @@ CONTAINS
             CALL dbcsr_t_batched_contract_init(t_P)
 
             IF (do_Gamma_RPA) THEN
+               nze_O = 0
                nze_M_virt = 0
                nze_M_occ = 0
                occ_M_virt = 0.0_dp
                occ_M_occ = 0.0_dp
+               occ_O = 0.0_dp
             ENDIF
 
             DO j_mem = 1, cut_memory
@@ -362,6 +363,12 @@ CONTAINS
                                                      t_3c_O_ind(i_cell_R_1_minus_S, i_cell_R_2, j_mem)%ind, &
                                                      t_3c_O_compressed(i_cell_R_1_minus_S, i_cell_R_2, j_mem), &
                                                      qs_env%mp2_env%ri_rpa_im_time%eps_compress)
+
+                              IF (do_Gamma_RPA .AND. i_mem == 1) THEN
+                                 CALL get_tensor_occupancy(t_3c_O(1, 1), nze, occ)
+                                 nze_O = nze_O + nze
+                                 occ_O = occ_O + occ
+                              END IF
 
                               CALL dbcsr_t_copy(t_3c_O(i_cell_R_1_minus_S, i_cell_R_2), &
                                                 t_3c_O_occ(i_cell_R_1_minus_S, i_cell_R_2), move_data=.TRUE.)

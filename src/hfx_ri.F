@@ -547,11 +547,12 @@ CONTAINS
 
       INTEGER                                            :: handle, handle2, i_mem, j_mem, &
                                                             n_dependent, unit_nr, unit_nr_dbcsr
-      INTEGER(int_8)                                     :: nflop
+      INTEGER(int_8)                                     :: nflop, nze, nze_O
       INTEGER, DIMENSION(2, 1)                           :: bounds_i
       INTEGER, DIMENSION(2, 2)                           :: bounds_j
       INTEGER, DIMENSION(3)                              :: dims_3c
-      REAL(KIND=dp)                                      :: threshold
+      REAL(KIND=dp)                                      :: compression_factor, memory_3c, occ, &
+                                                            threshold
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_t_type)                                 :: t_3c_2
@@ -630,6 +631,9 @@ CONTAINS
 
       CALL dbcsr_t_get_info(ri_data%t_3c_int_ctr_3(1, 1), nfull_total=dims_3c)
 
+      memory_3c = 0.0_dp
+      nze_O = 0
+
       DO i_mem = 1, ri_data%n_mem
          bounds_i(:, 1) = [ri_data%starts_array_RI_mem(i_mem), ri_data%ends_array_RI_mem(i_mem)]
          CALL dbcsr_t_batched_contract_init(ri_data%t_2c_int(1, 1))
@@ -655,10 +659,14 @@ CONTAINS
             CALL timeset(routineN//"_copy_2", handle2)
             CALL dbcsr_t_copy(t_3c_2, ri_data%t_3c_int_ctr_1(1, 1), order=[2, 1, 3], move_data=.TRUE.)
 
+            CALL get_tensor_occupancy(ri_data%t_3c_int_ctr_1(1, 1), nze, occ)
+            nze_O = nze_O + nze
+
             IF (ALLOCATED(ri_data%blk_indices(j_mem, i_mem)%ind)) DEALLOCATE (ri_data%blk_indices(j_mem, i_mem)%ind)
             ALLOCATE (ri_data%blk_indices(j_mem, i_mem)%ind(dbcsr_t_get_num_blocks(ri_data%t_3c_int_ctr_1(1, 1)), 3))
             CALL dbcsr_t_reserved_block_indices(ri_data%t_3c_int_ctr_1(1, 1), ri_data%blk_indices(j_mem, i_mem)%ind)
-            CALL compress_tensor(ri_data%t_3c_int_ctr_1(1, 1), ri_data%store_3c(j_mem, i_mem), ri_data%filter_eps_storage)
+            CALL compress_tensor(ri_data%t_3c_int_ctr_1(1, 1), ri_data%store_3c(j_mem, i_mem), ri_data%filter_eps_storage, &
+                                 memory_3c)
 
             CALL timestop(handle2)
          ENDDO
@@ -666,6 +674,17 @@ CONTAINS
          CALL dbcsr_t_batched_contract_finalize(ri_data%t_3c_int_ctr_3(1, 1))
          CALL dbcsr_t_batched_contract_finalize(t_3c_2)
       ENDDO
+
+      CALL mp_sum(memory_3c, para_env%group)
+      compression_factor = REAL(nze_O, dp)*1.0E-06*8.0_dp/memory_3c
+
+      IF (unit_nr > 0) THEN
+         WRITE (UNIT=unit_nr, FMT="((T3,A,T66,F11.2,A4))") &
+            "MEMORY_INFO| Memory for 3-center integrals (compressed):", memory_3c, ' MiB'
+
+         WRITE (UNIT=unit_nr, FMT="((T3,A,T60,F21.2))") &
+            "MEMORY_INFO| Compression factor:                  ", compression_factor
+      END IF
 
       CALL dbcsr_t_clear(ri_data%t_2c_int(1, 1))
       CALL dbcsr_t_destroy(t_3c_2)
@@ -1286,8 +1305,9 @@ CONTAINS
       INTEGER, DIMENSION(2, 2)                           :: bounds_ij, bounds_j
       INTEGER, DIMENSION(2, 3)                           :: bounds_3c
       INTEGER, DIMENSION(3)                              :: dims_3c
-      REAL(dp)                                           :: occ, occ_3c, occ_3c_1, occ_3c_2, occ_ks, &
-                                                            occ_rho, t1, t2
+      REAL(dp)                                           :: memory_3c, occ, occ_3c, occ_3c_1, &
+                                                            occ_3c_2, occ_ks, occ_rho, t1, t2, &
+                                                            unused
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_t_type)                                 :: ks_t, ks_tmp, rho_ao_t, rho_ao_tmp, &
                                                             t_3c_1, t_3c_3, tensor_old
@@ -1343,6 +1363,7 @@ CONTAINS
       batch_ranges_AO(:ri_data%n_mem) = ri_data%starts_array_mem_block(:)
       batch_ranges_AO(ri_data%n_mem + 1) = ri_data%ends_array_mem_block(ri_data%n_mem) + 1
 
+      memory_3c = 0.0_dp
       DO ispin = 1, nspins
 
          CALL get_tensor_occupancy(ri_data%t_3c_int_ctr_2(1, 1), nze_3c, occ_3c)
@@ -1452,7 +1473,10 @@ CONTAINS
                   ALLOCATE (blk_indices%ind(dbcsr_t_get_num_blocks(t_3c), 3))
 
                   CALL dbcsr_t_reserved_block_indices(t_3c, blk_indices%ind)
-                  CALL compress_tensor(t_3c, ri_data%store_3c(i_mem, j_mem), ri_data%filter_eps_storage)
+
+                  unused = 0
+                  CALL compress_tensor(t_3c, ri_data%store_3c(i_mem, j_mem), ri_data%filter_eps_storage, &
+                                       unused)
                END ASSOCIATE
             ENDDO
          ENDDO

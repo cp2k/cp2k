@@ -39,7 +39,8 @@ MODULE rpa_gw_im_time_util
    USE hfx_types,                       ONLY: alloc_containers,&
                                               block_ind_type,&
                                               hfx_compression_type
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              int_8
    USE message_passing,                 ONLY: mp_alltoall,&
                                               mp_dims_create,&
                                               mp_sum
@@ -51,7 +52,8 @@ MODULE rpa_gw_im_time_util
    USE qs_integral_utils,               ONLY: basis_set_list_setup
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_tensors,                      ONLY: compress_tensor,&
-                                              decompress_tensor
+                                              decompress_tensor,&
+                                              get_tensor_occupancy
    USE qs_tensors_types,                ONLY: create_2c_tensor,&
                                               create_3c_tensor,&
                                               pgf_block_sizes,&
@@ -130,6 +132,7 @@ CONTAINS
 
       INTEGER :: cut_memory, handle, i_mem, icol_global, imo, irow_global, min_bsize, &
          min_bsize_mo, nkind, nmo_blk_gw, npcols, nprows, size_MO, unit_nr_prv
+      INTEGER(int_8)                                     :: nze
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1, dist2, dist3, sizes_AO, &
                                                             sizes_AO_split, sizes_MO, sizes_MO_1, &
                                                             sizes_RI, sizes_RI_split, tmp
@@ -140,6 +143,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: distp_1, distp_2, sizes_MO_blocked, &
                                                             sizes_MO_p1, sizes_MO_p2
       LOGICAL                                            :: memory_info, my_do_beta
+      REAL(dp)                                           :: compression_factor, memory_3c, occ
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: norm
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_type), POINTER                          :: fm_mat_mo_coeff_gw
@@ -404,7 +408,20 @@ CONTAINS
       CALL alloc_containers(t_3c_O_mo_compressed, 1)
       ALLOCATE (t_3c_O_mo_ind(dbcsr_t_get_num_blocks(t_3c_overl_int_ao_mo), 3))
       CALL dbcsr_t_reserved_block_indices(t_3c_overl_int_ao_mo, t_3c_O_mo_ind)
-      CALL compress_tensor(t_3c_overl_int_ao_mo, t_3c_O_mo_compressed, qs_env%mp2_env%ri_rpa_im_time%eps_compress)
+
+      CALL get_tensor_occupancy(t_3c_overl_int_ao_mo, nze, occ)
+      memory_3c = 0.0_dp
+      CALL compress_tensor(t_3c_overl_int_ao_mo, t_3c_O_mo_compressed, qs_env%mp2_env%ri_rpa_im_time%eps_compress, memory_3c)
+      CALL mp_sum(memory_3c, para_env%group)
+      compression_factor = REAL(nze, dp)*1.0E-06*8.0_dp/memory_3c
+
+      IF (unit_nr > 0) THEN
+         WRITE (UNIT=unit_nr, FMT="((T3,A,T66,F11.2,A4))") &
+            "MEMORY_INFO| Memory for MO-contracted integral tensor (compressed):", memory_3c, ' MiB'
+
+         WRITE (UNIT=unit_nr, FMT="((T3,A,T60,F21.2))") &
+            "MEMORY_INFO| Compression factor:                  ", compression_factor
+      END IF
 
       CALL dbcsr_release_p(mat_mo_coeff_gw)
 
