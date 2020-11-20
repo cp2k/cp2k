@@ -41,8 +41,10 @@ void dgemm_simplified(dgemm_params *const m, const bool use_libxsmm) {
   if (use_libxsmm && m->op2 == 'N') {
     /* we are in row major but xsmm is in column major */
     m->prefetch = LIBXSMM_PREFETCH_AUTO;
-    /* in the future, more flags can be or'd together (like NONE | TRANS_B, etc.)*/
-    m->flags = (m->op1 != 'T' ? LIBXSMM_GEMM_FLAG_NONE : LIBXSMM_GEMM_FLAG_TRANS_B);
+    /* in the future, more flags can be or'd together (like NONE | TRANS_B,
+     * etc.)*/
+    m->flags =
+        (m->op1 != 'T' ? LIBXSMM_GEMM_FLAG_NONE : LIBXSMM_GEMM_FLAG_TRANS_B);
 
     if (m->kernel == NULL) {
       m->kernel =
@@ -105,8 +107,10 @@ void batched_dgemm_simplified(dgemm_params *const m, const int batch_size,
   if (use_libxsmm && m->op2 == 'N') {
     /* we are in row major but xsmm is in column major */
     m->prefetch = LIBXSMM_PREFETCH_AUTO;
-    /* in the future, more flags can be or'd together (like NONE | TRANS_B, etc.)*/
-    m->flags = (m->op1 != 'T' ? LIBXSMM_GEMM_FLAG_NONE : LIBXSMM_GEMM_FLAG_TRANS_B);
+    /* in the future, more flags can be or'd together (like NONE | TRANS_B,
+     * etc.)*/
+    m->flags =
+        (m->op1 != 'T' ? LIBXSMM_GEMM_FLAG_NONE : LIBXSMM_GEMM_FLAG_TRANS_B);
 
     if (m->kernel == NULL) {
       m->kernel =
