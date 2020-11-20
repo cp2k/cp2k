@@ -95,10 +95,7 @@ void rotate_to_cartesian_harmonics(const grid_basis_set *ibasis,
     m1.ldc = work->ld_;
   }
 
-  // curiously libxsmm gives me a wrong result if is use it here. To try
-  // replace false with true.
-
-  dgemm_simplified(&m1, false);
+  dgemm_simplified(&m1, true);
 
   m2.op1 = 'T';
   m2.op2 = 'N';
@@ -114,7 +111,7 @@ void rotate_to_cartesian_harmonics(const grid_basis_set *ibasis,
   m2.c = pab->data;
   m2.ldc = pab->ld_;
 
-  dgemm_simplified(&m2, false);
+  dgemm_simplified(&m2, true);
 }
 
 void tensor_reduction_for_collocate_integrate(
