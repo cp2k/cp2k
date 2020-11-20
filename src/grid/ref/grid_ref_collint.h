@@ -397,9 +397,11 @@ static inline void general_ci_to_reg(const int lp, const double exp_aiibic,
  * \author Ole Schuett
  ******************************************************************************/
 static inline void
-general_ci_to_grid(const int lp, const int j, const int jg, const int k,
-                   const int kg, const int npts_local[3], const int bounds_i[2],
-                   const int index_min[3], const int map_i[], const double zetp,
+general_ci_to_grid(const int lp, const int j, const int jg, const int k, const int kg,
+                   const int ismin, const int ismax, const int npts_local[3],
+                   const int bounds_i[2], const int index_min[3], const int map_i[],
+                   const double zetp, const double a, const double b, const double c,
+                   const double d, const double exp_ab, const double exp_2a,
                    const double dh[3][3], const double gp[3],
                    const double radius, GRID_CONST_WHEN_COLLOCATE double *ci,
                    GRID_CONST_WHEN_INTEGRATE double *grid) {
@@ -423,30 +425,10 @@ general_ci_to_grid(const int lp, const int j, const int jg, const int k,
   //    d =  b**2  -  4 * a * (c - radius**2)
   //    i = (-b \pm sqrt(d)) / (2*a)
   //
-  double a = 0.0, b = 0.0, c = 0.0;
-  for (int i = 0; i < 3; i++) {
-    const double v = (0 - gp[0]) * dh[0][i] + (j - gp[1]) * dh[1][i] +
-                     (k - gp[2]) * dh[2][i];
-    a += dh[0][i] * dh[0][i];
-    b += 2.0 * v * dh[0][i];
-    c += v * v;
-  }
-  const double d = b * b - 4.0 * a * (c - radius * radius);
-  if (d <= 0.0) {
-    return;
-  }
-  const double sqrt_d = sqrt(d);
-  const double a2 = 2.0 * a;
-  const double inva2 = 1.0 / a2;
-  const int ismin = (int)ceil((-b - sqrt_d) * inva2);
-  const int ismax = (int)floor((-b + sqrt_d) * inva2);
   const int base = kg * npts_local[1] * npts_local[0] + jg * npts_local[0];
-
-  const double exp_ab = exp(-zetp * (a + b));
-  const double exp_2a = exp(-zetp * a2);
-  bool exp_is_invalid = true;
-  double exp_2ai = 0.0;
   double exp_aiibic = 0.0;
+  double exp_2ai = 0.0;
+  bool exp_is_invalid = true;
 
   for (int i = ismin; i <= ismax; i++) {
     const int ig = map_i[i - index_min[0]];
@@ -459,7 +441,7 @@ general_ci_to_grid(const int lp, const int j, const int jg, const int k,
     const int grid_index = base + ig; // [kg, jg, ig]
 
     if (exp_is_invalid) {
-      exp_2ai = exp(-zetp * a2 * di);
+      exp_2ai = exp(-zetp * (a + a) * di);
       exp_aiibic = exp(-zetp * ((a * di + b) * di + c));
       exp_is_invalid = false;
     }
@@ -516,28 +498,42 @@ static inline void general_cij_to_grid(
     const double radius, GRID_CONST_WHEN_COLLOCATE double *cij,
     GRID_CONST_WHEN_INTEGRATE double *grid) {
 
-  const size_t ci_size = lp + 1;
-  double ci[ci_size];
+  const double d0 = dh[1][0], d1 = dh[1][1], d2 = dh[1][2];
+  const double u0 = (0 - gp[0]) * dh[0][0] + (k - gp[2]) * dh[2][0];
+  const double u1 = (0 - gp[0]) * dh[0][1] + (k - gp[2]) * dh[2][1];
+  const double u2 = (0 - gp[0]) * dh[0][2] + (k - gp[2]) * dh[2][2];
+  const double a = dh[0][0] * dh[0][0] + dh[0][1] * dh[0][1] + dh[0][2] * dh[0][2];
+  const double inva2 = 0.5 / a, exp_2a = exp(-zetp * (a + a));
+  double ci[lp + 1];
+
   for (int j = index_min[1]; j <= index_max[1]; j++) {
     const int jg = map_j[j - index_min[1]];
-    if (jg < bounds_j[0] || bounds_j[1] < jg) {
-      continue;
-    }
-    const double dj = j - gp[1];
 
-    memset(ci, 0, ci_size * sizeof(double));
+    if (bounds_j[0] <= jg && jg <= bounds_j[1]) {
+      const double dj = (double)j - gp[1];
+      const double v0 = u0 + d0 * dj, v1 = u1 + d1 * dj, v2 = u2 + d2 * dj;
+      const double b = (v0 * dh[0][0] + v1 * dh[0][1] + v2 * dh[0][2]) * 2.0;
+      const double c = (v0 * v0 + v1 * v1 + v2 * v2);
+      const double d = b * b - 4.0 * a * (c - radius * radius);
 
+      if (0.0 < d) {
+        const double exp_ab = exp(-zetp * (a + b)), sqrt_d = sqrt(d);
+        const int ismin = (int)ceil((-b - sqrt_d) * inva2);
+        const int ismax = (int)floor((-b + sqrt_d) * inva2);
+        memset(ci, 0, sizeof(ci));
 #if (GRID_DO_COLLOCATE)
-    // collocate
-    general_cij_to_ci(lp, dj, cij, ci);
-    general_ci_to_grid(lp, j, jg, k, kg, npts_local, bounds_i, index_min, map_i,
-                       zetp, dh, gp, radius, ci, grid);
+        // collocate
+        general_cij_to_ci(lp, dj, cij, ci);
+        general_ci_to_grid(lp, j, jg, k, kg, ismin, ismax, npts_local, bounds_i, index_min, map_i,
+                           zetp, a, b, c, d, exp_ab, exp_2a, dh, gp, radius, ci, grid);
 #else
-    // integrate
-    general_ci_to_grid(lp, j, jg, k, kg, npts_local, bounds_i, index_min, map_i,
-                       zetp, dh, gp, radius, ci, grid);
-    general_cij_to_ci(lp, dj, cij, ci);
+        // integrate
+        general_ci_to_grid(lp, j, jg, k, kg, ismin, ismax, npts_local, bounds_i, index_min, map_i,
+                           zetp, a, b, c, d, exp_ab, exp_2a, dh, gp, radius, ci, grid);
+        general_cij_to_ci(lp, dj, cij, ci);
 #endif
+      }
+    }
   }
 }
 
@@ -654,14 +650,13 @@ general_cijk_to_grid(const int border_mask, const int lp, const double zetp,
     if (kg < bounds_k[0] || bounds_k[1] < kg) {
       continue;
     }
-    const double dk = k - gp[2];
 
     // zero coef_xyt
     memset(cij, 0, cij_size * sizeof(double));
 
 #if (GRID_DO_COLLOCATE)
     // collocate
-    general_cijk_to_cij(lp, dk, cijk, cij);
+    general_cijk_to_cij(lp, (double)k - gp[2], cijk, cij);
     general_cij_to_grid(lp, k, kg, npts_local, bounds_i, bounds_j, index_min,
                         index_max, map_i, map_j, zetp, dh, gp, radius, cij,
                         grid);
@@ -670,7 +665,7 @@ general_cijk_to_grid(const int border_mask, const int lp, const double zetp,
     general_cij_to_grid(lp, k, kg, npts_local, bounds_i, bounds_j, index_min,
                         index_max, map_i, map_j, zetp, dh, gp, radius, cij,
                         grid);
-    general_cijk_to_cij(lp, dk, cijk, cij);
+    general_cijk_to_cij(lp, (double)k - gp[2], cijk, cij);
 #endif
   }
 }
