@@ -92,10 +92,10 @@ CONTAINS
          enum_i_vals=(/xc_funct_b3lyp, xc_funct_pbe0, xc_funct_blyp, xc_funct_bp, xc_funct_pade, xc_funct_pade, xc_funct_pbe, &
                        xc_funct_tpss, xc_funct_hcth120, xc_funct_olyp, xc_funct_beefvdw, xc_funct_no_shortcut, xc_none/), &
          enum_desc=s2a("B3LYP", &
-                       "PBE0. See note in section XC/XC_FUNCTIONAL/PBE.", &
+                       "PBE0 (see note in section XC/XC_FUNCTIONAL/PBE)", &
                        "BLYP", "BP", "PADE", "Alias for PADE", &
-                       "PBE. See note in section XC/XC_FUNCTIONAL/PBE.", &
-                       "TPSS", "HCTH120", "OLYP", &
+                       "PBE (see note in section XC/XC_FUNCTIONAL/PBE)", &
+                       "TPSS (not available with LSD, use LIBXC version instead)", "HCTH120", "OLYP", &
                        "BEEFVDW", "NO_SHORTCUT", "NONE"), &
          default_i_val=xc_funct_no_shortcut, &
          lone_keyword_i_val=xc_funct_no_shortcut)
@@ -497,11 +497,12 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL section_create(subsection, __LOCATION__, name="TPSS", &
-                          description="Uses the TPSS functional", &
+                          description="Uses the TPSS functional. Note, that there is no LSD version available. "// &
+                          "In such cases, use the LIBXC version instead.", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
                           citations=(/Tao2003/))
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
-                          description="activates the functional", &
+                          description="Activates the functional", &
                           lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
