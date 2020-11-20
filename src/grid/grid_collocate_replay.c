@@ -19,6 +19,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "common/grid_buffer.h"
 #include "common/grid_common.h"
 #include "grid_collocate_replay.h"
 #include "grid_task_list.h"
@@ -157,13 +158,13 @@ static void create_dummy_task_list(
     const double rab[3], const double radius, const grid_basis_set *basis_set_a,
     const grid_basis_set *basis_set_b, const int n1, const int n2, const int o1,
     const int o2, const int la_max, const int lb_max, const double pab[n2][n1],
-    const int cycles, const int cycles_per_block, grid_task_list **task_list) {
+    const int cycles, const int cycles_per_block, grid_buffer **pab_blocks,
+    grid_task_list **task_list) {
 
   const int ntasks = cycles;
   const int nlevels = 1;
   const int natoms = 2;
   const int nkinds = 2;
-  const int buffer_size = n1 * n2;
   const int nblocks = cycles / cycles_per_block + 1;
   int block_offsets[nblocks];
   memset(block_offsets, 0, nblocks * sizeof(int)); // all point to same data
@@ -198,17 +199,16 @@ static void create_dummy_task_list(
   }
   const double(*rab_list)[3] = (const double(*)[3])rab_list_mutable;
 
-  double *blocks_buffer = NULL;
+  grid_create_task_list(ntasks, nlevels, natoms, nkinds, nblocks, block_offsets,
+                        atom_positions, atom_kinds, basis_sets, level_list,
+                        iatom_list, jatom_list, iset_list, jset_list, ipgf_list,
+                        jpgf_list, border_mask_list, block_num_list,
+                        radius_list, rab_list, task_list);
 
-  grid_create_task_list(
-      ntasks, nlevels, natoms, nkinds, nblocks, buffer_size, block_offsets,
-      atom_positions, atom_kinds, basis_sets, level_list, iatom_list,
-      jatom_list, iset_list, jset_list, ipgf_list, jpgf_list, border_mask_list,
-      block_num_list, radius_list, rab_list, &blocks_buffer, task_list);
-
+  grid_create_buffer(n1 * n2, pab_blocks);
   for (int i = 0; i < n1; i++) {
     for (int j = 0; j < n2; j++) {
-      blocks_buffer[j * n1 + i] = rscale / 2.0 * pab[j][i];
+      (*pab_blocks)->host_buffer[j * n1 + i] = rscale / 2.0 * pab[j][i];
     }
   }
 }
@@ -316,9 +316,10 @@ double grid_collocate_replay(const char *filename, const int cycles,
     create_dummy_basis_set(n1, la_min, la_max, zeta, &basisa);
     create_dummy_basis_set(n2, lb_min, lb_max, zetb, &basisb);
     grid_task_list *task_list = NULL;
+    grid_buffer *pab_blocks = NULL;
     create_dummy_task_list(border_mask, rscale, ra, rab, radius, basisa, basisb,
                            n1, n2, o1, o2, la_max, lb_max, pab, cycles,
-                           cycles_per_block, &task_list);
+                           cycles_per_block, &pab_blocks, &task_list);
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
     double *grids_array[1] = {grid_test};
     const int nlevels = 1;
@@ -326,11 +327,12 @@ double grid_collocate_replay(const char *filename, const int cycles,
         task_list, orthorhombic, func, nlevels, (const int(*)[3])npts_global,
         (const int(*)[3])npts_local, (const int(*)[3])shift_local,
         (const int(*)[3])border_width, (const double(*)[3][3])dh,
-        (const double(*)[3][3])dh_inv, grids_array);
+        (const double(*)[3][3])dh_inv, pab_blocks, grids_array);
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end_time);
     grid_free_basis_set(basisa);
     grid_free_basis_set(basisb);
     grid_free_task_list(task_list);
+    grid_free_buffer(pab_blocks);
 
   } else {
 

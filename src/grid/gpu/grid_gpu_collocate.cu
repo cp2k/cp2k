@@ -106,7 +106,7 @@ typedef struct {
   const int *atom_kinds;
   const grid_basis_set *basis_sets;
   const int *block_offsets;
-  const double *blocks_buffer;
+  const double *pab_blocks;
   const double *atom_positions;
   double *grid;
 } kernel_params;
@@ -649,10 +649,10 @@ __device__ static void fill_smem_task(const kernel_params *params,
     task->block_transposed = (iatom > jatom);
     if (task->block_transposed) {
       task->block =
-          &params->blocks_buffer[block_offset + sgfa * task->nsgfb + sgfb];
+          &params->pab_blocks[block_offset + sgfa * task->nsgfb + sgfb];
     } else {
       task->block =
-          &params->blocks_buffer[block_offset + sgfb * task->nsgfa + sgfa];
+          &params->pab_blocks[block_offset + sgfb * task->nsgfa + sgfa];
     }
   }
   __syncthreads(); // because of concurrent writes to task
@@ -718,7 +718,7 @@ void grid_gpu_collocate_one_grid_level(
     const int last_task, const bool orthorhombic, const enum grid_func func,
     const int npts_global[3], const int npts_local[3], const int shift_local[3],
     const int border_width[3], const double dh[3][3], const double dh_inv[3][3],
-    const cudaStream_t stream, double *grid_dev) {
+    const cudaStream_t stream, const double *pab_blocks_dev, double *grid_dev) {
 
   const int ntasks = last_task - first_task + 1;
   if (ntasks == 0) {
@@ -764,7 +764,7 @@ void grid_gpu_collocate_one_grid_level(
   params.basis_sets = task_list->basis_sets_dev;
   params.block_offsets = task_list->block_offsets_dev;
   params.atom_positions = task_list->atom_positions_dev;
-  params.blocks_buffer = task_list->blocks_buffer_dev;
+  params.pab_blocks = pab_blocks_dev;
   memcpy(params.dh, dh, 9 * sizeof(double));
   memcpy(params.dh_inv, dh_inv, 9 * sizeof(double));
   memcpy(params.npts_global, npts_global, 3 * sizeof(int));
