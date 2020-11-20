@@ -17,8 +17,12 @@
       DENSITY_SMOOTH_CUTOFF_RANGE 0
       FUNCTIONAL_ROUTINE NEW
       &XC_FUNCTIONAL
-        &TPSS
-        &END TPSS
+        &LIBXC
+          FUNCTIONAL MGGA_X_TPSS
+        &END LIBXC
+        &LIBXC
+          FUNCTIONAL MGGA_C_TPSS
+        &END LIBXC
       &END XC_FUNCTIONAL
       &XC_GRID
         XC_DERIV NN50_SMOOTH
