@@ -396,16 +396,13 @@ static inline void general_ci_to_reg(const int lp, const double exp_aiibic,
  * \brief Collocates coefficients C_i onto the grid for general case.
  * \author Ole Schuett
  ******************************************************************************/
-static inline void
-general_ci_to_grid(const int lp, const int j, const int jg, const int k,
-                   const int kg, const int ismin, const int ismax,
-                   const int npts_local[3], const int bounds_i[2],
-                   const int index_min[3], const int map_i[], const double zetp,
-                   const double a, const double b, const double c,
-                   const double d, const double exp_ab, const double exp_2a,
-                   const double dh[3][3], const double gp[3],
-                   const double radius, GRID_CONST_WHEN_COLLOCATE double *ci,
-                   GRID_CONST_WHEN_INTEGRATE double *grid) {
+static inline void general_ci_to_grid(
+    const int lp, const int jg, const int kg, const int ismin, const int ismax,
+    const int npts_local[3], const int bounds_i[2], const int index_min[3],
+    const int map_i[], const double zetp, const double a, const double b,
+    const double c, const double exp_ab, const double exp_2a,
+    const double gp[3], GRID_CONST_WHEN_COLLOCATE double *ci,
+    GRID_CONST_WHEN_INTEGRATE double *grid) {
 
   //--------------------------------------------------------------------
   // Find bounds for the inner loop based on a quadratic equation in i.
@@ -526,14 +523,14 @@ static inline void general_cij_to_grid(
 #if (GRID_DO_COLLOCATE)
         // collocate
         general_cij_to_ci(lp, dj, cij, ci);
-        general_ci_to_grid(lp, j, jg, k, kg, ismin, ismax, npts_local, bounds_i,
-                           index_min, map_i, zetp, a, b, c, d, exp_ab, exp_2a,
-                           dh, gp, radius, ci, grid);
+        general_ci_to_grid(lp, jg, kg, ismin, ismax, npts_local, bounds_i,
+                           index_min, map_i, zetp, a, b, c, exp_ab, exp_2a, gp,
+                           ci, grid);
 #else
         // integrate
-        general_ci_to_grid(lp, j, jg, k, kg, ismin, ismax, npts_local, bounds_i,
-                           index_min, map_i, zetp, a, b, c, d, exp_ab, exp_2a,
-                           dh, gp, radius, ci, grid);
+        general_ci_to_grid(lp, jg, kg, ismin, ismax, npts_local, bounds_i,
+                           index_min, map_i, zetp, a, b, c, exp_ab, exp_2a, gp,
+                           ci, grid);
         general_cij_to_ci(lp, dj, cij, ci);
 #endif
       }
