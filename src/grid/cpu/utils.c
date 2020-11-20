@@ -38,24 +38,11 @@ void dgemm_simplified(dgemm_params *const m, const bool use_libxsmm) {
     abort();
 
 #if defined(__LIBXSMM)
-  if (use_libxsmm) {
+  if (use_libxsmm && m->op2 == 'N') {
     /* we are in row major but xsmm is in column major */
     m->prefetch = LIBXSMM_PREFETCH_AUTO;
-    if ((m->op1 == 'N') && (m->op2 == 'N')) {
-      m->flags = LIBXSMM_GEMM_FLAG_NONE;
-    }
-
-    if ((m->op1 == 'T') && (m->op2 == 'N')) {
-      m->flags = LIBXSMM_GEMM_FLAG_TRANS_B;
-    }
-
-    if ((m->op1 == 'N') && (m->op2 == 'T')) {
-      m->flags = LIBXSMM_GEMM_FLAG_TRANS_A;
-    }
-
-    if ((m->op1 == 'T') && (m->op2 == 'T')) {
-      m->flags = LIBXSMM_GEMM_FLAG_TRANS_A | LIBXSMM_GEMM_FLAG_TRANS_B;
-    }
+    /* in the future, more flags can be or'd together (like NONE | TRANS_B, etc.)*/
+    m->flags = (m->op1 != 'T' ? LIBXSMM_GEMM_FLAG_NONE : LIBXSMM_GEMM_FLAG_TRANS_B);
 
     if (m->kernel == NULL) {
       m->kernel =
@@ -115,27 +102,11 @@ void batched_dgemm_simplified(dgemm_params *const m, const int batch_size,
   assert(batch_size > 0);
 
 #if defined(__LIBXSMM)
-
-  if (use_libxsmm) {
-    libxsmm_dmmfunction kernel;
-
+  if (use_libxsmm && m->op2 == 'N') {
     /* we are in row major but xsmm is in column major */
     m->prefetch = LIBXSMM_PREFETCH_AUTO;
-    if ((m->op1 == 'N') && (m->op2 == 'N')) {
-      m->flags = LIBXSMM_GEMM_FLAG_NONE;
-    }
-
-    if ((m->op1 == 'T') && (m->op2 == 'N')) {
-      m->flags = LIBXSMM_GEMM_FLAG_TRANS_B;
-    }
-
-    if ((m->op1 == 'N') && (m->op2 == 'T')) {
-      m->flags = LIBXSMM_GEMM_FLAG_TRANS_A;
-    }
-
-    if ((m->op1 == 'T') && (m->op2 == 'T')) {
-      m->flags = LIBXSMM_GEMM_FLAG_TRANS_A | LIBXSMM_GEMM_FLAG_TRANS_B;
-    }
+    /* in the future, more flags can be or'd together (like NONE | TRANS_B, etc.)*/
+    m->flags = (m->op1 != 'T' ? LIBXSMM_GEMM_FLAG_NONE : LIBXSMM_GEMM_FLAG_TRANS_B);
 
     if (m->kernel == NULL) {
       m->kernel =
@@ -143,14 +114,12 @@ void batched_dgemm_simplified(dgemm_params *const m, const int batch_size,
                               &m->alpha, &m->beta, &m->flags, &m->prefetch);
     }
 
-    kernel = m->kernel;
-
-    if (kernel) {
+    if (m->kernel) {
       for (int s = 0; s < batch_size - 1; s++) {
-        kernel(m[s].b, m[s].a, m[s].c, m[s + 1].b, m[s + 1].a, m[s + 1].c);
+        m->kernel(m[s].b, m[s].a, m[s].c, m[s + 1].b, m[s + 1].a, m[s + 1].c);
       }
-      kernel(m[batch_size - 1].b, m[batch_size - 1].a, m[batch_size - 1].c,
-             m[batch_size - 1].b, m[batch_size - 1].a, m[batch_size - 1].c);
+      m->kernel(m[batch_size - 1].b, m[batch_size - 1].a, m[batch_size - 1].c,
+                m[batch_size - 1].b, m[batch_size - 1].a, m[batch_size - 1].c);
       return;
     }
   }
