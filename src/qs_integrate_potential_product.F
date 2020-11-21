@@ -40,9 +40,9 @@ MODULE qs_integrate_potential_product
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cube_utils,                      ONLY: cube_info_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add_block_node, dbcsr_copy, dbcsr_create, dbcsr_distribution_get, &
-        dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_p_type, &
-        dbcsr_type, dbcsr_work_create
+        dbcsr_add_block_node, dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_type, &
+        dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_p_type, dbcsr_type, &
+        dbcsr_work_create
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
    USE grid_api,                        ONLY: integrate_pgf_product
    USE input_constants,                 ONLY: do_admm_exch_scaling_merlot
@@ -65,7 +65,9 @@ MODULE qs_integrate_potential_product
                                               rs_grid_release,&
                                               rs_grid_retain
    USE rs_pw_interface,                 ONLY: potential_pw2rs
-   USE task_list_methods,               ONLY: rs_distribute_matrix
+   USE task_list_methods,               ONLY: rs_copy_matrix,&
+                                              rs_distribute_matrix,&
+                                              rs_scatter_matrix
    USE task_list_types,                 ONLY: atom_pair_type,&
                                               task_list_type,&
                                               task_type
@@ -198,29 +200,31 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_rspace_low'
 
       CHARACTER(len=default_string_length)               :: my_basis_type
-      INTEGER :: atom_a, bcol, brow, handle, i, iatom, igrid_level, ikind, ikind_old, ilevel, img, &
-         ipair, ipgf, ipgf_new, iset, iset_new, iset_old, itask, ithread, jatom, jkind, jkind_old, &
-         jpgf, jpgf_new, jset, jset_new, jset_old, maxco, maxpgf, maxset, maxsgf_set, na1, na2, &
-         nb1, nb2, ncoa, ncob, nimages, nkind, nseta, nsetb, nthread, offs_dv, sgfa, sgfb
+      INTEGER :: atom_a, bcol, block_size, brow, group, handle, i, iatom, igrid_level, ikind, &
+         ikind_old, ilevel, img, ipair, ipgf, ipgf_new, iset, iset_new, iset_old, itask, ithread, &
+         jatom, jkind, jkind_old, jpgf, jpgf_new, jset, jset_new, jset_old, maxco, maxpgf, maxset, &
+         maxsgf_set, na1, na2, nb1, nb2, ncoa, ncob, nimages, nkind, nseta, nsetb, nsgfa, nsgfb, &
+         nthread, offs_dv, offset, pair_index, sgfa, sgfb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: block_touched
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
-                                                            npgfb, nsgfa, nsgfb
+                                                            npgfb, nsgf_seta, nsgf_setb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL :: atom_pair_changed, atom_pair_done, distributed_grids, do_kp, found, h_duplicated, &
-         has_threads, my_compute_tau, my_force_adm, my_gapw, new_set_pair_coming, p_duplicated, &
-         pab_required, use_subpatch, use_virial
+         has_threads, my_compute_tau, my_force_adm, my_gapw, new_set_pair_coming, pab_required, &
+         use_subpatch, use_virial
       REAL(KIND=dp)                                      :: admm_scal_fac, scalef
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: p_block_set
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra, rab, rab_inv, rb, &
                                                             rp
       REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b, pv_thread
       REAL(KIND=dp), DIMENSION(3, natom)                 :: force_thread
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block, h_block_set, hab, p_block, &
-                                                            p_block_set, pab, rpgfa, rpgfb, &
-                                                            sphi_a, sphi_b, work, zeta, zetb
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: h_block_sett, habt, hadb, hdab, &
-                                                            p_block_sett, pabt, workt
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block, h_block_set, hab, p_block, pab, &
+                                                            rpgfa, rpgfb, sphi_a, sphi_b, work, &
+                                                            zeta, zetb
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: h_block_sett, habt, hadb, hdab, pabt, &
+                                                            workt
       REAL(kind=dp), DIMENSION(:, :, :, :), POINTER      :: hadbt, hdabt
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atom_pair_type), DIMENSION(:), POINTER        :: atom_pair_recv, atom_pair_send
@@ -335,6 +339,9 @@ CONTAINS
          CALL rs_grid_retain(rs_v(i)%rs_grid)
       END DO
 
+      ! get mpi group from rs_v
+      group = rs_v(1)%rs_grid%desc%group
+
       ! assign from pw_env
       gridlevel_info => pw_env%gridlevel_info
       cube_info => pw_env%cube_info
@@ -385,7 +392,6 @@ CONTAINS
          END DO
       END IF
 
-      p_duplicated = .FALSE.
       IF (pab_required) THEN
          ! initialize the working pmat structures
          ALLOCATE (deltap(nimages))
@@ -396,33 +402,26 @@ CONTAINS
          ELSE
             deltap(1)%matrix => pmat%matrix
          END IF
+
+         ! Distribute matrix blocks.
          IF (distributed_grids) THEN
-            p_duplicated = .TRUE.
-            DO img = 1, nimages
-               NULLIFY (deltap(img)%matrix)
-               ALLOCATE (deltap(img)%matrix)
-            END DO
-            IF (do_kp) THEN
-               DO img = 1, nimages
-                  CALL dbcsr_copy(deltap(img)%matrix, pmat_kp(img)%matrix, name="LocalP")
-               END DO
-            ELSE
-               CALL dbcsr_copy(deltap(1)%matrix, pmat%matrix, name="LocalP")
-            END IF
-         END IF
+            CALL rs_scatter_matrix(task_list, group, deltap)
+         ELSE
+            CALL rs_copy_matrix(task_list, deltap)
+         ENDIF
+         DEALLOCATE (deltap)
       END IF
 
       nthread = 1
 !$    nthread = omp_get_max_threads()
 
       !   *** Allocate work storage ***
-      NULLIFY (habt, workt, h_block_sett, pabt, p_block_sett)
+      NULLIFY (habt, workt, h_block_sett, pabt)
       CALL reallocate(habt, 1, maxco, 1, maxco, 0, nthread)
       CALL reallocate(workt, 1, maxco, 1, maxsgf_set, 0, nthread)
       CALL reallocate(h_block_sett, 1, maxsgf_set, 1, maxsgf_set, 0, nthread)
       IF (pab_required) THEN
          CALL reallocate(pabt, 1, maxco, 1, maxco, 0, nthread)
-         CALL reallocate(p_block_sett, 1, maxsgf_set, 1, maxsgf_set, 0, nthread)
       ELSE
          CPASSERT(.NOT. calculate_forces)
       END IF
@@ -446,29 +445,23 @@ CONTAINS
          maxpgf = MAX(MAXVAL(npgfa), maxpgf)
       END DO
 
-      IF (distributed_grids .AND. pab_required) THEN
-         CALL rs_distribute_matrix(rs_descs=rs_descs, pmats=deltap, &
-                                   atom_pair_send=atom_pair_send, atom_pair_recv=atom_pair_recv, &
-                                   nimages=nimages, scatter=.TRUE.)
-      ENDIF
-
       IF (debug_this_module) THEN
          ALLOCATE (block_touched(natom, natom))
       END IF
 
 !$OMP PARALLEL DEFAULT(NONE), &
-!$OMP SHARED(workt,habt,hdabt,hadbt,pabt,h_block_sett, p_block_sett), &
+!$OMP SHARED(workt,habt,hdabt,hadbt,pabt,h_block_sett), &
 !$OMP SHARED(tasks,particle_set,natom,maxset), &
-!$OMP SHARED(maxpgf,my_basis_type,my_gapw,dhmat,deltap,use_virial,admm_scal_fac), &
+!$OMP SHARED(maxpgf,my_basis_type,my_gapw,dhmat,use_virial,admm_scal_fac), &
 !$OMP SHARED(pab_required,calculate_forces,ncoset,rs_v,cube_info,my_compute_tau), &
 !$OMP SHARED(force,virial,cell), &
 !$OMP SHARED(gridlevel_info,task_list,block_touched,nthread,qs_kind_set), &
 !$OMP SHARED(nimages,do_kp), &
 !$OMP PRIVATE(ithread,work,hab,hdab,hadb,pab,iset_old,jset_old), &
 !$OMP PRIVATE(ikind_old,jkind_old,iatom,jatom,iset,jset,ikind,jkind,ilevel,ipgf,jpgf), &
-!$OMP PRIVATE(img,brow,bcol,orb_basis_set,first_sgfa,la_max,la_min,npgfa,nseta,nsgfa), &
+!$OMP PRIVATE(img,brow,bcol,orb_basis_set,first_sgfa,la_max,la_min,npgfa,nseta,nsgfa,nsgf_seta), &
 !$OMP PRIVATE(rpgfa,set_radius_a,sphi_a,zeta,first_sgfb,lb_max,lb_min,npgfb), &
-!$OMP PRIVATE(nsetb,nsgfb,rpgfb,set_radius_b,sphi_b,zetb,found), &
+!$OMP PRIVATE(nsetb,nsgfb,nsgf_setb,rpgfb,set_radius_b,sphi_b,zetb,found,pair_index,offset,block_size), &
 !$OMP PRIVATE(force_a,force_b,my_virial_a,my_virial_b,atom_pair_changed,h_block,h_block_set), &
 !$OMP PRIVATE(p_block,p_block_set,ncoa,sgfa,ncob,sgfb,rab,ra,rb,rp,igrid_level), &
 !$OMP PRIVATE(na1,na2,nb1,nb2,use_subpatch,rab_inv,new_set_pair_coming,atom_pair_done), &
@@ -483,7 +476,6 @@ CONTAINS
       h_block_set => h_block_sett(:, :, ithread)
       IF (pab_required) THEN
          pab => pabt(:, :, ithread)
-         p_block_set => p_block_sett(:, :, ithread)
       END IF
 
       iset_old = -1; jset_old = -1
@@ -522,6 +514,7 @@ CONTAINS
             jset = tasks(itask)%jset
             ipgf = tasks(itask)%ipgf
             jpgf = tasks(itask)%jpgf
+            pair_index = tasks(itask)%pair_index
             CPASSERT(img == 1 .OR. do_kp)
 
             ! At the start of a block of tasks, get atom data (and kind data, if needed)
@@ -551,9 +544,10 @@ CONTAINS
                                          lmin=la_min, &
                                          npgf=npgfa, &
                                          nset=nseta, &
-                                         nsgf_set=nsgfa, &
+                                         nsgf_set=nsgf_seta, &
                                          pgf_radius=rpgfa, &
                                          set_radius=set_radius_a, &
+                                         nsgf=nsgfa, &
                                          sphi=sphi_a, &
                                          zet=zeta)
                ENDIF
@@ -568,9 +562,10 @@ CONTAINS
                                          lmin=lb_min, &
                                          npgf=npgfb, &
                                          nset=nsetb, &
-                                         nsgf_set=nsgfb, &
+                                         nsgf_set=nsgf_setb, &
                                          pgf_radius=rpgfb, &
                                          set_radius=set_radius_b, &
+                                         nsgf=nsgfb, &
                                          sphi=sphi_b, &
                                          zet=zetb)
 
@@ -592,9 +587,15 @@ CONTAINS
                END IF
 
                IF (pab_required) THEN
-                  CALL dbcsr_get_block_p(matrix=deltap(img)%matrix, &
-                                         row=brow, col=bcol, BLOCK=p_block, found=found)
-                  CPASSERT(found)
+                  ! fetch block from buffer
+                  block_size = nsgfa*nsgfb
+                  offset = task_list%pair_offsets_recv(pair_index)
+                  IF (iatom <= jatom) THEN
+                     p_block(1:nsgfa, 1:nsgfb) => task_list%buffer_recv%host_buffer(offset + 1:offset + block_size)
+                  ELSE
+                     !iatom / jatom swapped
+                     p_block(1:nsgfb, 1:nsgfa) => task_list%buffer_recv%host_buffer(offset + 1:offset + block_size)
+                  ENDIF
                END IF
 
                IF (calculate_forces) THEN
@@ -625,17 +626,17 @@ CONTAINS
                sgfb = first_sgfb(1, jset)
 
                IF (pab_required) THEN
+                  IF (ALLOCATED(p_block_set)) DEALLOCATE (p_block_set)
+                  ALLOCATE (p_block_set(nsgf_seta(iset), nsgf_setb(jset)))
                   IF (iatom <= jatom) THEN
-                     p_block_set(1:nsgfa(iset), 1:nsgfb(jset)) = &
-                        p_block(sgfa:sgfa + nsgfa(iset) - 1, sgfb:sgfb + nsgfb(jset) - 1)
+                     p_block_set(:, :) = p_block(sgfa:sgfa + nsgf_seta(iset) - 1, sgfb:sgfb + nsgf_setb(jset) - 1)
                   ELSE
-                     p_block_set(1:nsgfa(iset), 1:nsgfb(jset)) = &
-                        TRANSPOSE(p_block(sgfb:sgfb + nsgfb(jset) - 1, sgfa:sgfa + nsgfa(iset) - 1))
+                     p_block_set(:, :) = TRANSPOSE(p_block(sgfb:sgfb + nsgf_setb(jset) - 1, sgfa:sgfa + nsgf_seta(iset) - 1))
                   ENDIF
-                  work(1:ncoa, 1:nsgfb(jset)) = MATMUL(sphi_a(1:ncoa, sgfa:sgfa + nsgfa(iset) - 1), &
-                                                       p_block_set(1:nsgfa(iset), 1:nsgfb(jset)))
-                  pab(1:ncoa, 1:ncob) = MATMUL(work(1:ncoa, 1:nsgfb(jset)), &
-                                               TRANSPOSE(sphi_b(1:ncob, sgfb:sgfb + nsgfb(jset) - 1)))
+
+                  work(1:ncoa, 1:nsgf_setb(jset)) = MATMUL(sphi_a(1:ncoa, sgfa:sgfa + nsgf_seta(iset) - 1), p_block_set)
+                  pab(1:ncoa, 1:ncob) = MATMUL(work(1:ncoa, 1:nsgf_setb(jset)), &
+                                               TRANSPOSE(sphi_b(1:ncob, sgfb:sgfb + nsgf_setb(jset) - 1)))
                END IF
 
                hab(1:ncoa, 1:ncob) = 0._dp
@@ -713,17 +714,17 @@ CONTAINS
 
             ! contract the block into h if we're done with the current set pair
             IF (new_set_pair_coming) THEN
-               work(1:ncoa, 1:nsgfb(jset)) = MATMUL(hab(1:ncoa, 1:ncob), sphi_b(1:ncob, sgfb:sgfb + nsgfb(jset) - 1))
-               h_block_set(1:nsgfa(iset), 1:nsgfb(jset)) = &
-                  MATMUL(TRANSPOSE(sphi_a(1:ncoa, sgfa:sgfa + nsgfa(iset) - 1)), work(1:ncoa, 1:nsgfb(jset)))
+               work(1:ncoa, 1:nsgf_setb(jset)) = MATMUL(hab(1:ncoa, 1:ncob), sphi_b(1:ncob, sgfb:sgfb + nsgf_setb(jset) - 1))
+               h_block_set(1:nsgf_seta(iset), 1:nsgf_setb(jset)) = &
+                  MATMUL(TRANSPOSE(sphi_a(1:ncoa, sgfa:sgfa + nsgf_seta(iset) - 1)), work(1:ncoa, 1:nsgf_setb(jset)))
                IF (iatom <= jatom) THEN
-                  h_block(sgfa:sgfa + nsgfa(iset) - 1, sgfb:sgfb + nsgfb(jset) - 1) = &
-                     h_block(sgfa:sgfa + nsgfa(iset) - 1, sgfb:sgfb + nsgfb(jset) - 1) + &
-                     h_block_set(1:nsgfa(iset), 1:nsgfb(jset))
+                  h_block(sgfa:sgfa + nsgf_seta(iset) - 1, sgfb:sgfb + nsgf_setb(jset) - 1) = &
+                     h_block(sgfa:sgfa + nsgf_seta(iset) - 1, sgfb:sgfb + nsgf_setb(jset) - 1) + &
+                     h_block_set(1:nsgf_seta(iset), 1:nsgf_setb(jset))
                ELSE
-                  h_block(sgfb:sgfb + nsgfb(jset) - 1, sgfa:sgfa + nsgfa(iset) - 1) = &
-                     h_block(sgfb:sgfb + nsgfb(jset) - 1, sgfa:sgfa + nsgfa(iset) - 1) + &
-                     TRANSPOSE(h_block_set(1:nsgfa(iset), 1:nsgfb(jset)))
+                  h_block(sgfb:sgfb + nsgf_setb(jset) - 1, sgfa:sgfa + nsgf_seta(iset) - 1) = &
+                     h_block(sgfb:sgfb + nsgf_setb(jset) - 1, sgfa:sgfa + nsgf_seta(iset) - 1) + &
+                     TRANSPOSE(h_block_set(1:nsgf_seta(iset), 1:nsgf_setb(jset)))
                END IF
             END IF
 
@@ -803,23 +804,12 @@ CONTAINS
          DEALLOCATE (dhmat)
       END IF
 
-      IF (pab_required) THEN
-         IF (p_duplicated) THEN
-            CALL dbcsr_deallocate_matrix_set(deltap)
-         ELSE
-            DO img = 1, nimages
-               NULLIFY (deltap(img)%matrix)
-            END DO
-            DEALLOCATE (deltap)
-         END IF
-      END IF
-
       !   *** Release work storage ***
 
       DEALLOCATE (habt, workt, h_block_sett)
 
       IF (pab_required) THEN
-         DEALLOCATE (pabt, p_block_sett)
+         DEALLOCATE (pabt)
       END IF
 
       IF (ASSOCIATED(rs_v)) THEN
