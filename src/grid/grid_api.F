@@ -585,11 +585,9 @@ CONTAINS
       CALL grid_create_buffer_C(length=length, buffer=buffer%c_ptr)
       CPASSERT(C_ASSOCIATED(buffer%c_ptr))
 
-      IF (length > 0) THEN
-         host_buffer_c = grid_buffer_get_host_pointer_c(buffer%c_ptr)
-         CPASSERT(C_ASSOCIATED(host_buffer_c))
-         CALL C_F_POINTER(host_buffer_c, buffer%host_buffer, shape=(/length/))
-      ENDIF
+      host_buffer_c = grid_buffer_get_host_pointer_c(buffer%c_ptr)
+      CPASSERT(C_ASSOCIATED(host_buffer_c) .OR. length == 0)
+      CALL C_F_POINTER(host_buffer_c, buffer%host_buffer, shape=(/length/))
 
       CALL timestop(handle)
    END SUBROUTINE grid_create_buffer
