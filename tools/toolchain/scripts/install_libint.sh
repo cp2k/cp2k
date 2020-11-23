@@ -8,21 +8,21 @@ source "${SCRIPT_DIR}"/signal_trap.sh
 source "${INSTALLDIR}"/toolchain.conf
 source "${INSTALLDIR}"/toolchain.env
 
-libint_ver="2.7.0-beta.2"
+libint_ver="2.7.0-beta.5"
 libint_pkg="libint-v${libint_ver}-cp2k-lmax-${LIBINT_LMAX}.tgz"
 
 case "$LIBINT_LMAX" in
     4)
-        libint_sha256="5717515af65e805c3808d889d91c4effa8d84dcbdc02a31e6f4d9027e3444261"
+        libint_sha256="149cc8e773de29405b26348f2545ea51546b44cf502dd60a0143a8b427b01197"
         ;;
     5)
-        libint_sha256="0c9606b64bd4ebf3f40528437b1618b54677b04475f87e5d4dc6fe28a68bf69f"
+        libint_sha256="735d0dc6b1bd920df6abd6b8bfda381dacb2f8aa83c02fe353c03f1c9b4f413f"
         ;;
     6)
-        libint_sha256="75047b9114e04ada4dbe8ec4990427571ea3ae9b5b26d77b0d80e8cc28e00669"
+        libint_sha256="cc23d73b9170e0d1d1e068c11e4ba4c21ffb402ad5c5d43c5b4e63e6c8a5ce5e"
         ;;
     7)
-        libint_sha256="8357102a9de1c577264a20d3d2d7baeb414d73ef08fb2cee16d394fd32d4ce33"
+        libint_sha256="523e93da19652ae78ebaaa7c646dd2cd2f93809ca0c5a1f325e80f1d264af8e1"
         ;;
     *)
        report_error "Unsupported value --libint-lmax=${LIBINT_LMAX}."
