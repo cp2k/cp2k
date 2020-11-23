@@ -70,7 +70,7 @@ case "$with_libint" in
                     -DCXXFLAGS="$LIBINT_CXXFLAGS" \
                     -DREQUIRE_CXX_API=OFF
 
-            make -j $NPROCS > make.log 2>&1
+            make -j $NPROCS
             make install > install.log 2>&1
 
             cd ..
