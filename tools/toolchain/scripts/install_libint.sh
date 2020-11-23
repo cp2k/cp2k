@@ -67,7 +67,8 @@ case "$with_libint" in
                     -DCMAKE_CXX_COMPILER="$CXX" \
                     -DLIBINT2_INSTALL_LIBDIR="${pkg_install_dir}/lib" \
                     -DENABLE_FORTRAN=ON \
-                    -DCXXFLAGS="$LIBINT_CXXFLAGS"
+                    -DCXXFLAGS="$LIBINT_CXXFLAGS" \
+                    -DREQUIRE_CXX_API=OFF
 
             make -j $NPROCS > make.log 2>&1
             make install > install.log 2>&1
