@@ -22,7 +22,7 @@ fi
 # Switch to stable DBCSR version if requested.
 if [ -n "${USE_STABLE_DBCSR}" ] ; then
     echo "Switching to stable DBCSR version..."
-    if ! git -C cp2k/exts/dbcsr checkout -b v2.1.0-rc16 6c52382 ; then
+    if ! git -C cp2k/exts/dbcsr checkout v2.1.0-rc16 ; then
         echo -e "\nSummary: Could not checkout stable DBCSR version."
         echo -e "Status: FAILED\n"
         exit 0
