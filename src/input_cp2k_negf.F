@@ -13,7 +13,11 @@ MODULE input_cp2k_negf
    USE bibliography,                    ONLY: Bailey2006,&
                                               Papior2017
    USE cp_output_handling,              ONLY: cp_print_key_section_create,&
-                                              high_print_level
+                                              debug_print_level,&
+                                              high_print_level,&
+                                              low_print_level,&
+                                              medium_print_level,&
+                                              silent_print_level
    USE input_constants,                 ONLY: negfint_method_cc,&
                                               negfint_method_simpson
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -206,14 +210,18 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! PRINT subsection
-      CALL section_create(subsection, __LOCATION__, "PRINT", "Print properties for the scattering region.", &
+      CALL section_create(subsection, __LOCATION__, "PRINT", "Printing of information during the NEGF.", &
                           repeats=.FALSE.)
 
-      CALL create_print_dos_section(print_key, "DOS", "the Density of States (DOS)")
+      CALL create_print_program_run_info_section(print_key)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL create_print_dos_section(print_key, "TRANSMISSION", "the Transmission Coefficient")
+      CALL create_print_dos_section(print_key, "DOS", "the Density of States (DOS) in the scattering region")
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
+      CALL create_print_dos_section(print_key, "TRANSMISSION", "the transmission coefficient")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
@@ -346,6 +354,52 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
    END SUBROUTINE create_atomlist_section
+
+! **************************************************************************************************
+!> \brief Create the PROGRAM_RUN_INFO print section.
+!> \param section              section to create
+!> \par History
+!>    * 11.2020 created [Dmitry Ryndyk]
+! **************************************************************************************************
+   SUBROUTINE create_print_program_run_info_section(section)
+
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CALL cp_print_key_section_create(section, __LOCATION__, "PROGRAM_RUN_INFO", &
+                                       description="Controls the printing of basic information during the NEGF.", &
+                                       print_level=low_print_level, filename="__STD_OUT__")
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+                          description="Level starting at which this property is printed", &
+                          usage="_SECTION_PARAMETERS_", &
+                          default_i_val=low_print_level, lone_keyword_i_val=low_print_level, &
+                          enum_c_vals=s2a("on", "off", "silent", "low", "medium", "high", "debug"), &
+                          enum_i_vals=(/silent_print_level - 1, debug_print_level + 1, &
+                                        silent_print_level, low_print_level, &
+                                        medium_print_level, high_print_level, debug_print_level/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="PRINT_LEVEL", &
+                          variants=(/"IOLEVEL"/), &
+                          description="Determines the verbose level for this section "// &
+                          "additionally to GLOBAL%PRINT_LEVEL and SECTION_PARAMETERS, "// &
+                          "which switch on printing.", &
+                          usage="PRINT_LEVEL HIGH", &
+                          default_i_val=low_print_level, enum_c_vals= &
+                          s2a("SILENT", "LOW", "MEDIUM", "HIGH", "DEBUG"), &
+                          enum_desc=s2a("No output", &
+                                        "Little output", "Quite some output", "Lots of output", &
+                                        "Everything is written out, useful for debugging purposes only"), &
+                          enum_i_vals=(/silent_print_level, low_print_level, medium_print_level, &
+                                        high_print_level, debug_print_level/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_print_program_run_info_section
 
 ! **************************************************************************************************
 !> \brief Create the DOS print section.
