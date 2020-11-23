@@ -33,12 +33,12 @@ void convert_to_lattice_coordinates(const double dh_inv_[3][3],
 
 /* DO NOT CHANGE THIS. */
 
-void dgemm_simplified(dgemm_params *const m, const bool use_libxsmm) {
+void dgemm_simplified(dgemm_params *const m) {
   if (m == NULL)
     abort();
 
 #if defined(__LIBXSMM)
-  if (use_libxsmm && m->op2 == 'N') {
+  if (m->use_libxsmm && m->op2 == 'N') {
     /* we are in row major but xsmm is in column major */
     m->prefetch = LIBXSMM_PREFETCH_AUTO;
     /* in the future, more flags can be or'd together (like NONE | TRANS_B,
@@ -98,13 +98,12 @@ void dgemm_simplified(dgemm_params *const m, const bool use_libxsmm) {
 #endif
 }
 
-void batched_dgemm_simplified(dgemm_params *const m, const int batch_size,
-                              const bool use_libxsmm) {
+void batched_dgemm_simplified(dgemm_params *const m, const int batch_size) {
   assert(m != NULL);
   assert(batch_size > 0);
 
 #if defined(__LIBXSMM)
-  if (use_libxsmm && m->op2 == 'N') {
+  if (m->use_libxsmm && m->op2 == 'N') {
     /* we are in row major but xsmm is in column major */
     m->prefetch = LIBXSMM_PREFETCH_AUTO;
     /* in the future, more flags can be or'd together (like NONE | TRANS_B,

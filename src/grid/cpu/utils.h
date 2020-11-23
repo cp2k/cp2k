@@ -77,6 +77,7 @@ typedef struct dgemm_params_ {
   int m, n, k, lda, ldb, ldc;
   int x, y, z;
   int x1, y1, z1;
+  bool use_libxsmm;
 #if defined(__LIBXSMM)
   libxsmm_dmmfunction kernel;
   int prefetch;
@@ -84,10 +85,9 @@ typedef struct dgemm_params_ {
 #endif
 } dgemm_params;
 
-extern void dgemm_simplified(dgemm_params *const m, const bool use_libxsmm);
+extern void dgemm_simplified(dgemm_params *const m);
 extern void batched_dgemm_simplified(dgemm_params *const m,
-                                     const int batch_size,
-                                     const bool use_libxsmm);
+                                     const int batch_size);
 
 /*******************************************************************************
  * \brief Prototype for BLAS dgemm.

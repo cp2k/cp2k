@@ -94,8 +94,8 @@ void rotate_to_cartesian_harmonics(const grid_basis_set *ibasis,
     m1.c = work->data;
     m1.ldc = work->ld_;
   }
-
-  dgemm_simplified(&m1, true);
+  m1.use_libxsmm = true;
+  dgemm_simplified(&m1);
 
   m2.op1 = 'T';
   m2.op2 = 'N';
@@ -110,8 +110,8 @@ void rotate_to_cartesian_harmonics(const grid_basis_set *ibasis,
   m2.ldb = work->ld_;
   m2.c = pab->data;
   m2.ldc = pab->ld_;
-
-  dgemm_simplified(&m2, true);
+  m2.use_libxsmm = true;
+  dgemm_simplified(&m2);
 }
 
 void tensor_reduction_for_collocate_integrate(
@@ -532,7 +532,7 @@ void tensor_reduction_for_collocate_integrate(
     m1.ldb = p_alpha_beta_reduced_->ld_;
     m1.c = T.data; // T_{\alpha, \gamma, j} = T(alpha, gamma, j)
     m1.ldc = T.ld_;
-
+    m1.use_libxsmm = true;
     /*
      * the next step is a reduction along the alpha index.
      *
@@ -558,7 +558,7 @@ void tensor_reduction_for_collocate_integrate(
     m2.ldb = p_alpha_beta_reduced_->ld_;
     m2.c = W.data; // W_{\gamma, j, i}
     m2.ldc = W.ld_;
-
+    m2.use_libxsmm = true;
     /* the final step is again a reduction along the gamma indice. It can
      * again be done with one dgemm. The operation is simply
      *
@@ -580,9 +580,9 @@ void tensor_reduction_for_collocate_integrate(
     m3.ldb = W.size[1] * W.ld_;
     m3.c = &idx3(cube[0], 0, 0, 0); // cube_{kji}
     m3.ldc = cube->ld_ * cube->size[1];
-
-    dgemm_simplified(&m1, true);
-    dgemm_simplified(&m2, true);
+    m3.use_libxsmm = true;
+    dgemm_simplified(&m1);
+    dgemm_simplified(&m2);
 
     // apply the non orthorombic corrections in the xy plane
     if (Exp && !orthogonal[2]) {
@@ -592,7 +592,7 @@ void tensor_reduction_for_collocate_integrate(
       apply_non_orthorombic_corrections_xy_blocked(&exp_xy, &W);
     }
 
-    dgemm_simplified(&m3, true);
+    dgemm_simplified(&m3);
   } else {
     if (Exp && !orthogonal[2]) {
       tensor exp_xy;
