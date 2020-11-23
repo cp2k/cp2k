@@ -11,6 +11,7 @@ RUN ./install_basics.sh
 COPY ./scripts/install_regtest.sh .
 RUN ./install_regtest.sh local pdbg
 
+ENV USE_STABLE_DBCSR=1
 COPY ./scripts/ci_entrypoint.sh ./scripts/test_regtest.sh ./
 CMD ["./ci_entrypoint.sh", "./test_regtest.sh", "local", "pdbg"]
 
