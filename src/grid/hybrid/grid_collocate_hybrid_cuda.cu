@@ -212,89 +212,109 @@ __global__ void compute_collocation_gpu_(
     const double3 *__restrict__ rp, const double *__restrict__ radius_gpu_,
     const int *__restrict__ coef_offset_gpu_,
     const double *__restrict__ coef_gpu_, double *__restrict__ grid_gpu_) {
-  /* the period is sotred in constant memory */
-  /* the displacement vectors as well */
-  cg::thread_block block = cg::this_thread_block();
-  const int lmax = lmax_gpu_[blockIdx.x];
+    /* the period is sotred in constant memory */
+    /* the displacement vectors as well */
+    cg::thread_block block = cg::this_thread_block();
+    const int lmax = lmax_gpu_[blockIdx.x];
 
-  int3 cube_size, cube_center, lb_cube, window_size, window_shift;
+    int3 cube_size, cube_center, lb_cube, window_size, window_shift;
 
-  double3 roffset;
-  // double disr_radius = 0;
-  const double radius = radius_gpu_[blockIdx.x];
+    double3 roffset;
+    // double disr_radius = 0;
+    const double radius = radius_gpu_[blockIdx.x];
 
-  compute_cube_properties(radius, rp + blockIdx.x, &roffset, &cube_center,
-                          &lb_cube, &cube_size);
+    compute_cube_properties(radius, rp + blockIdx.x, &roffset, &cube_center,
+                            &lb_cube, &cube_size);
 
-  compute_window_size(&grid_size_, &grid_lower_corner_pos_,
-                      &period_, /* also full size of the grid */
-                      border_mask[blockIdx.x], &border_width, &window_size,
-                      &window_shift);
+    compute_window_size(&grid_size_, &grid_lower_corner_pos_,
+                        &period_, /* also full size of the grid */
+                        border_mask[blockIdx.x], &border_width, &window_size,
+                        &window_shift);
 
-  const double *__restrict__ coef = coef_gpu_ + coef_offset_gpu_[blockIdx.x];
+    const double *__restrict__ coef = coef_gpu_ + coef_offset_gpu_[blockIdx.x];
 
-  const double zeta = zeta_gpu[blockIdx.x];
+    const double zeta = zeta_gpu[blockIdx.x];
 
-  double *coefs_ = (double *)array;
+    double *coefs_ = (double *)array;
 
-  if (lmax == 0) {
-    if (block.thread_rank() == 0)
-      coefs_[0] = coef[0];
-  } else {
-    for (int i = block.thread_rank();
-         i < ((lmax + 1) * (lmax + 2) * (lmax + 3)) / 6; i += block.size())
-      coefs_[i] = coef[i];
-  }
-  __syncthreads();
+    if (lmax == 0) {
+        if (block.thread_rank() == 0)
+            coefs_[0] = coef[0];
+    } else {
+        for (int i = block.thread_rank();
+             i < ((lmax + 1) * (lmax + 2) * (lmax + 3)) / 6; i += block.size())
+            coefs_[i] = coef[i];
+    }
+    __syncthreads();
 
-  cube_center.z += lb_cube.z;
-  cube_center.y += lb_cube.y;
-  cube_center.x += lb_cube.x;
+    cube_center.z += lb_cube.z;
+    cube_center.y += lb_cube.y;
+    cube_center.x += lb_cube.x;
 
-  int *map_z = (int *)(coefs_ + (lmax + 1) * (lmax + 2) * (lmax + 3) / 6);
-  int *map_y = map_z + cmax;
-  int *map_x = map_y + cmax;
+    int *map_z = (int *)(coefs_ + (lmax + 1) * (lmax + 2) * (lmax + 3) / 6);
+    int *map_y = map_z + cmax;
+    int *map_x = map_y + cmax;
 
-  double *exp_z = (double *)(map_x + cmax);
-  double *exp_y = exp_z + cmax;
-  double *exp_x = exp_y + cmax;
 
-  for (int i = block.thread_rank(); i < cube_size.z; i += block.size()) {
-    map_z[i] = (i + cube_center.z - grid_lower_corner_pos_.z + 32 * period_.z) %
-               period_.z;
-  }
 
-  for (int i = block.thread_rank(); i < cube_size.y; i += block.size()) {
-    map_y[i] = (i + cube_center.y - grid_lower_corner_pos_.y + 32 * period_.y) %
-               period_.y;
-  }
+    double *rz = (double *)(map_x + cmax);
+    double *ry = rz + cmax;
+    double *rx = ry + cmax;
 
-  for (int i = block.thread_rank(); i < cube_size.x; i += block.size()) {
-    map_x[i] = (i + cube_center.x - grid_lower_corner_pos_.x + 32 * period_.x) %
-               period_.x;
-  }
+    double *exp_z = rx + cmax;
+    double *exp_y = exp_z + cmax;
+    double *exp_x = exp_y + cmax;
 
-  if (is_orthorhombic_[0]) {
+    for (int i = block.thread_rank(); i < cube_size.z; i += block.size()) {
+        map_z[i] = (i + cube_center.z - grid_lower_corner_pos_.z + 32 * period_.z) %
+            period_.z;
+    }
+
+    for (int i = block.thread_rank(); i < cube_size.y; i += block.size()) {
+        map_y[i] = (i + cube_center.y - grid_lower_corner_pos_.y + 32 * period_.y) %
+            period_.y;
+    }
+
+    for (int i = block.thread_rank(); i < cube_size.x; i += block.size()) {
+        map_x[i] = (i + cube_center.x - grid_lower_corner_pos_.x + 32 * period_.x) %
+            period_.x;
+    }
+
     for (int z = threadIdx.z; z < cube_size.z; z += blockDim.z) {
-      const double z1 = (z + lb_cube.z - roffset.z) * dh_[8];
-      exp_z[z] = exp(-z1 * z1 * zeta);
+        double z1 = z + lb_cube.z - roffset.z;
+        if (is_orthorhombic_[0]) {
+            z1 *= dh_[0];
+            exp_z[z] = exp(-z1 * z1 * zeta);
+        }
+        rz[z] = z1;
     }
 
     for (int y = threadIdx.y; y < cube_size.y; y += blockDim.y) {
-      const double y1 = (y + lb_cube.y - roffset.y) * dh_[4];
-      exp_y[y] = exp(-y1 * y1 * zeta);
+        double y1 = y + lb_cube.y - roffset.y;
+        if (is_orthorhombic_[0]) {
+            y1 *= dh_[4];
+            exp_y[y] = exp(-y1 * y1 * zeta);
+        }
+        ry[y] = y1;
     }
 
     for (int x = threadIdx.x; x < cube_size.x; x += blockDim.x) {
-      const double x1 = (x + lb_cube.x - roffset.x) * dh_[0];
-      exp_x[x] = exp(-x1 * x1 * zeta);
+        double x1 = (x + lb_cube.x - roffset.x);
+        if (is_orthorhombic_[0]) {
+            x1 *= dh_[8];
+            exp_x[x] = exp(-x1 * x1 * zeta);
+        }
+        rx[x] = x1;
     }
-  }
 
-  __syncthreads();
 
-  for (int z = threadIdx.z; z < cube_size.z; z += blockDim.z) {
-    const double z1 = z + lb_cube.z - roffset.z;
+    __syncthreads();
+
+
+    const double4 coefs__ = make_double4(coefs_[0], coefs_[1], coefs_[2], coefs_[3]);
+
+    for (int z = threadIdx.z; z < cube_size.z; z += blockDim.z) {
+        const double z1 = rz[z];
     const int z2 = map_z[z];
 
     /* check if the point is within the window */
@@ -303,7 +323,7 @@ __global__ void compute_collocation_gpu_(
     }
 
     for (int y = threadIdx.y; y < cube_size.y; y += blockDim.y) {
-      double y1 = y + lb_cube.y - roffset.y;
+      double y1 = ry[y];
       const int y2 = map_y[y];
 
       /* check if the point is within the window */
@@ -312,7 +332,7 @@ __global__ void compute_collocation_gpu_(
       }
 
       for (int x = threadIdx.x; x < cube_size.x; x += blockDim.x) {
-        const double x1 = x + lb_cube.x - roffset.x;
+        const double x1 = rx[x];
         const int x2 = map_x[x];
 
         /* check if the point is within the window */
@@ -322,14 +342,14 @@ __global__ void compute_collocation_gpu_(
 
         /* compute the coordinates of the point in atomic coordinates */
         double3 r3;
-        if (is_orthorhombic_[0]) {
-          r3.x = x1 * dh_[0];
-          r3.y = y1 * dh_[4];
-          r3.z = z1 * dh_[8];
-        } else {
+        if (!is_orthorhombic_[0]) {
           r3.x = z1 * dh_[6] + y1 * dh_[3] + x1 * dh_[0];
           r3.y = z1 * dh_[7] + y1 * dh_[4] + x1 * dh_[1];
           r3.z = z1 * dh_[8] + y1 * dh_[5] + x1 * dh_[2];
+        } else {
+            r3.x = x1;
+            r3.y = y1;
+            r3.z = z1;
         }
 
         if (apply_cutoff &&
@@ -345,11 +365,11 @@ __global__ void compute_collocation_gpu_(
          * could be treated with tensor cores */
         switch (lmax) {
         case 0:
-          res = coefs_[0];
+          res = coefs__.x;
           break;
         case 1:
-          res = coefs_[0] + coefs_[1] * r3.y + coefs_[2] * r3.z +
-                coefs_[3] * r3.x;
+          res = coefs__.x + coefs__.y * r3.y + coefs__.z * r3.z +
+                coefs__.w * r3.x;
           break;
         default:
           int off = 0;
@@ -553,7 +573,7 @@ extern "C" void compute_collocation_gpu(pgf_list_gpu *handler) {
   const int shared_mem = ((handler->lmax + 1) * (handler->lmax + 2) *
                           (handler->lmax + 3) * sizeof(double)) /
                              6 +
-                         3 * handler->cmax * (sizeof(int) + sizeof(double));
+                         3 * handler->cmax * (sizeof(int) + 2 * sizeof(double));
   compute_collocation_gpu_<<<gridSize, blockSize, shared_mem,
                              handler->stream>>>(
       handler->apply_cutoff, handler->cmax, handler->grid_size,
