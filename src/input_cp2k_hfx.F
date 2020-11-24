@@ -559,7 +559,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="2C_MATRIX_FUNCTIONS", &
                           description="Methods for matrix inverse and matrix square root.", &
-                          default_i_val=hfx_ri_do_2c_diag, &
+                          default_i_val=hfx_ri_do_2c_cholesky, &
                           enum_c_vals=s2a("DIAG", "CHOLESKY", "ITER"), &
                           enum_desc=s2a("Diagonalization with eigenvalue quenching: stable", &
                                         "Cholesky: not stable in case of ill-conditioned RI basis", &
