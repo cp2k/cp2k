@@ -37,12 +37,9 @@ MODULE qs_integrate_potential_product
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cube_utils,                      ONLY: cube_info_type
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_add_block_node, dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_type, &
-        dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_p_type, dbcsr_type, &
-        dbcsr_work_create
+   USE dbcsr_api,                       ONLY: dbcsr_distribution_type,&
+                                              dbcsr_p_type
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
    USE grid_api,                        ONLY: integrate_pgf_product
    USE input_constants,                 ONLY: do_admm_exch_scaling_merlot
@@ -65,9 +62,10 @@ MODULE qs_integrate_potential_product
                                               rs_grid_release,&
                                               rs_grid_retain
    USE rs_pw_interface,                 ONLY: potential_pw2rs
-   USE task_list_methods,               ONLY: rs_copy_matrix,&
-                                              rs_distribute_matrix,&
-                                              rs_scatter_matrix
+   USE task_list_methods,               ONLY: rs_copy_to_buffer,&
+                                              rs_copy_to_matrices,&
+                                              rs_gather_matrices,&
+                                              rs_scatter_matrices
    USE task_list_types,                 ONLY: atom_pair_type,&
                                               task_list_type,&
                                               task_type
@@ -210,9 +208,9 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgf_seta, nsgf_setb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
-      LOGICAL :: atom_pair_changed, atom_pair_done, distributed_grids, do_kp, found, h_duplicated, &
-         has_threads, my_compute_tau, my_force_adm, my_gapw, new_set_pair_coming, pab_required, &
-         use_subpatch, use_virial
+      LOGICAL :: atom_pair_changed, atom_pair_done, distributed_grids, do_kp, found, has_threads, &
+         my_compute_tau, my_force_adm, my_gapw, new_set_pair_coming, pab_required, use_subpatch, &
+         use_virial
       REAL(KIND=dp)                                      :: admm_scal_fac, scalef
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: p_block_set
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra, rab, rab_inv, rb, &
@@ -232,8 +230,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
       TYPE(dbcsr_distribution_type)                      :: dist
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: deltap, dhmat, htemp
-      TYPE(dbcsr_type), POINTER                          :: href
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: deltap, dhmat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
@@ -373,24 +370,7 @@ CONTAINS
       ENDDO
 
       ! initialize the working hmat structures
-      h_duplicated = .FALSE.
-      ALLOCATE (dhmat(nimages))
-      IF (do_kp) THEN
-         DO img = 1, nimages
-            dhmat(img)%matrix => hmat_kp(img)%matrix
-         END DO
-      ELSE
-         dhmat(1)%matrix => hmat%matrix
-      END IF
-      IF (distributed_grids) THEN
-         h_duplicated = .TRUE.
-         href => dhmat(1)%matrix
-         DO img = 1, nimages
-            NULLIFY (dhmat(img)%matrix)
-            ALLOCATE (dhmat(img)%matrix)
-            CALL dbcsr_create(dhmat(img)%matrix, template=href, name='LocalH')
-         END DO
-      END IF
+      task_list%hab_buffer%host_buffer(:) = 0.0_dp
 
       IF (pab_required) THEN
          ! initialize the working pmat structures
@@ -405,9 +385,9 @@ CONTAINS
 
          ! Distribute matrix blocks.
          IF (distributed_grids) THEN
-            CALL rs_scatter_matrix(task_list, group, deltap)
+            CALL rs_scatter_matrices(deltap, task_list%pab_buffer, task_list, group)
          ELSE
-            CALL rs_copy_matrix(task_list, deltap)
+            CALL rs_copy_to_buffer(deltap, task_list%pab_buffer, task_list)
          ENDIF
          DEALLOCATE (deltap)
       END IF
@@ -452,7 +432,7 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE), &
 !$OMP SHARED(workt,habt,hdabt,hadbt,pabt,h_block_sett), &
 !$OMP SHARED(tasks,particle_set,natom,maxset), &
-!$OMP SHARED(maxpgf,my_basis_type,my_gapw,dhmat,use_virial,admm_scal_fac), &
+!$OMP SHARED(maxpgf,my_basis_type,my_gapw,use_virial,admm_scal_fac), &
 !$OMP SHARED(pab_required,calculate_forces,ncoset,rs_v,cube_info,my_compute_tau), &
 !$OMP SHARED(force,virial,cell), &
 !$OMP SHARED(gridlevel_info,task_list,block_touched,nthread,qs_kind_set), &
@@ -487,13 +467,6 @@ CONTAINS
       ! by a single thread for each grid level
       loop_gridlevels: DO igrid_level = 1, gridlevel_info%ngrid_levels
 
-         DO img = 1, nimages
-            CALL dbcsr_work_create(dhmat(img)%matrix, work_mutable=.TRUE., n=nthread)
-            CALL dbcsr_get_info(dhmat(img)%matrix, distribution=dist)
-            CALL dbcsr_distribution_get(dist, has_threads=has_threads)
-!$          IF (.NOT. has_threads) &
-!$             CPABORT("No thread distribution defined.")
-         END DO
 !$OMP BARRIER
 
          IF (debug_this_module) THEN
@@ -580,21 +553,23 @@ CONTAINS
 !$OMP END CRITICAL (block_touched_critical)
                END IF
 
-               NULLIFY (h_block)
-               CALL dbcsr_get_block_p(dhmat(img)%matrix, brow, bcol, h_block, found)
-               IF (.NOT. ASSOCIATED(h_block)) THEN
-                  CALL dbcsr_add_block_node(dhmat(img)%matrix, brow, bcol, h_block)
-               END IF
+               ! fetch hab block from buffer
+               block_size = nsgfa*nsgfb
+               offset = task_list%pair_offsets_recv(pair_index)
+               IF (iatom <= jatom) THEN
+                  h_block(1:nsgfa, 1:nsgfb) => task_list%hab_buffer%host_buffer(offset + 1:offset + block_size)
+               ELSE
+                  !iatom / jatom swapped
+                  h_block(1:nsgfb, 1:nsgfa) => task_list%hab_buffer%host_buffer(offset + 1:offset + block_size)
+               ENDIF
 
+               ! fetch pab block from buffer
                IF (pab_required) THEN
-                  ! fetch block from buffer
-                  block_size = nsgfa*nsgfb
-                  offset = task_list%pair_offsets_recv(pair_index)
                   IF (iatom <= jatom) THEN
-                     p_block(1:nsgfa, 1:nsgfb) => task_list%buffer_recv%host_buffer(offset + 1:offset + block_size)
+                     p_block(1:nsgfa, 1:nsgfb) => task_list%pab_buffer%host_buffer(offset + 1:offset + block_size)
                   ELSE
                      !iatom / jatom swapped
-                     p_block(1:nsgfb, 1:nsgfa) => task_list%buffer_recv%host_buffer(offset + 1:offset + block_size)
+                     p_block(1:nsgfb, 1:nsgfa) => task_list%pab_buffer%host_buffer(offset + 1:offset + block_size)
                   ENDIF
                END IF
 
@@ -749,10 +724,6 @@ CONTAINS
          END DO loop_pairs
 !$OMP END DO
 
-         DO img = 1, nimages
-            CALL dbcsr_finalize(dhmat(img)%matrix)
-         END DO
-
       END DO loop_gridlevels
 
 !$OMP END PARALLEL
@@ -778,31 +749,26 @@ CONTAINS
          virial%pv_virial = virial%pv_virial + pv_thread
       END IF
 
-      IF (h_duplicated) THEN
-         ! Reconstruct H matrix if using distributed RS grids
-         ! note send and recv direction reversed WRT collocate
-         IF (do_kp) THEN
-            CALL rs_distribute_matrix(rs_descs=rs_descs, pmats=dhmat, &
-                                      atom_pair_send=atom_pair_recv, atom_pair_recv=atom_pair_send, &  ! swapped
-                                      nimages=nimages, scatter=.FALSE., hmats=hmat_kp)
-         ELSE
-            ALLOCATE (htemp(1))
-            htemp(1)%matrix => hmat%matrix
-
-            CALL rs_distribute_matrix(rs_descs=rs_descs, pmats=dhmat, &
-                                      atom_pair_send=atom_pair_recv, atom_pair_recv=atom_pair_send, &  ! swapped
-                                      nimages=nimages, scatter=.FALSE., hmats=htemp)
-
-            NULLIFY (htemp(1)%matrix)
-            DEALLOCATE (htemp)
-         END IF
-         CALL dbcsr_deallocate_matrix_set(dhmat)
-      ELSE
+      ! Gather all matrix images into a single array.
+      ALLOCATE (dhmat(nimages))
+      IF (PRESENT(hmat_kp)) THEN
+         CPASSERT(.NOT. PRESENT(hmat))
          DO img = 1, nimages
-            NULLIFY (dhmat(img)%matrix)
+            dhmat(img)%matrix => hmat_kp(img)%matrix
          END DO
-         DEALLOCATE (dhmat)
+      ELSE
+         CPASSERT(PRESENT(hmat) .AND. nimages == 1)
+         dhmat(1)%matrix => hmat%matrix
       END IF
+
+      ! Distribute matrix blocks.
+      IF (distributed_grids) THEN
+         CALL rs_gather_matrices(task_list%hab_buffer, dhmat, task_list, group)
+      ELSE
+         CALL rs_copy_to_matrices(task_list%hab_buffer, dhmat, task_list)
+      ENDIF
+
+      DEALLOCATE (dhmat)
 
       !   *** Release work storage ***
 

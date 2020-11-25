@@ -13,7 +13,7 @@
 ! **************************************************************************************************
 MODULE task_list_methods
    USE grid_api, ONLY: &
-      grid_create_basis_set, grid_create_task_list, grid_create_buffer
+      grid_create_basis_set, grid_create_task_list, grid_create_buffer, grid_buffer_type
    USE ao_util, ONLY: exp_radius_very_extended
    USE basis_set_types, ONLY: get_gto_basis_set, &
                               gto_basis_set_p_type, &
@@ -72,7 +72,7 @@ MODULE task_list_methods
    USE util, ONLY: sort
 
 !$ USE OMP_LIB, ONLY: omp_destroy_lock, omp_get_num_threads, omp_init_lock, &
-!$                    omp_lock_kind, omp_set_lock, omp_unset_lock
+!$                    omp_lock_kind, omp_set_lock, omp_unset_lock, omp_get_max_threads
 #include "./base/base_uses.f90"
 
 #:include './common/array_sort.fypp'
@@ -89,8 +89,10 @@ MODULE task_list_methods
              task_list_inner_loop
    PUBLIC :: distribute_tasks, &
              rs_distribute_matrix, &
-             rs_scatter_matrix, &
-             rs_copy_matrix
+             rs_scatter_matrices, &
+             rs_gather_matrices, &
+             rs_copy_to_buffer, &
+             rs_copy_to_matrices
 
 CONTAINS
 
@@ -620,7 +622,8 @@ CONTAINS
                                  rab_list=rab_list, &
                                  task_list=task_list%grid_task_list)
 
-      CALL grid_create_buffer(task_list%buffer_size_recv, task_list%buffer_recv)
+      CALL grid_create_buffer(task_list%buffer_size_recv, task_list%pab_buffer)
+      CALL grid_create_buffer(task_list%buffer_size_recv, task_list%hab_buffer)
 
    END SUBROUTINE create_grid_task_list
 
@@ -2515,15 +2518,16 @@ CONTAINS
    END SUBROUTINE rs_calc_offsets
 
 ! **************************************************************************************************
-!> \brief Scatters dbcsr matrix blocks and receives them into a buffer as needed for collocation.
+!> \brief Scatters dbcsr matrix blocks and receives them into a buffer as needed before collocation.
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE rs_scatter_matrix(task_list, group, pmats)
-      TYPE(task_list_type), INTENT(INOUT)                :: task_list
+   SUBROUTINE rs_scatter_matrices(src_matrices, dest_buffer, task_list, group)
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: src_matrices
+      TYPE(grid_buffer_type), INTENT(INOUT)              :: dest_buffer
+      TYPE(task_list_type), INTENT(IN)                   :: task_list
       INTEGER, INTENT(IN)                                :: group
-      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: pmats
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_scatter_matrix'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_scatter_matrices'
 
       INTEGER                                            :: handle
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: buffer_send
@@ -2533,68 +2537,175 @@ CONTAINS
 
       ! pack dbcsr blocks into send buffer
       CPASSERT(ASSOCIATED(task_list%atom_pair_send))
-      CALL rs_pack_matrix(pmats, &
+      CALL rs_pack_buffer(src_matrices=src_matrices, &
+                          dest_buffer=buffer_send, &
                           atom_pair=task_list%atom_pair_send, &
-                          pair_offsets=task_list%pair_offsets_send, &
-                          buffer=buffer_send)
+                          pair_offsets=task_list%pair_offsets_send)
 
       ! mpi all-to-all communication, receiving directly into blocks_recv%buffer.
       CALL mp_alltoall(buffer_send, task_list%rank_sizes_send, task_list%rank_offsets_send, &
-                       task_list%buffer_recv%host_buffer, task_list%rank_sizes_recv, task_list%rank_offsets_recv, &
-                       group)
+                       dest_buffer%host_buffer, &
+                       task_list%rank_sizes_recv, task_list%rank_offsets_recv, group)
 
       DEALLOCATE (buffer_send)
       CALL timestop(handle)
 
-   END SUBROUTINE rs_scatter_matrix
+   END SUBROUTINE rs_scatter_matrices
+
+! **************************************************************************************************
+!> \brief Gather the dbcsr matrix blocks and receives them into a buffer as needed after integration.
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE rs_gather_matrices(src_buffer, dest_matrices, task_list, group)
+      TYPE(grid_buffer_type), INTENT(IN)                 :: src_buffer
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: dest_matrices
+      TYPE(task_list_type), INTENT(IN)                   :: task_list
+      INTEGER, INTENT(IN)                                :: group
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_gather_matrices'
+
+      INTEGER                                            :: handle
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: buffer_send
+
+      CALL timeset(routineN, handle)
+
+      ! Caution: The meaning of send and recv are reversed in this routine.
+      ALLOCATE (buffer_send(task_list%buffer_size_send)) ! e.g. this is actually used for receiving
+
+      ! mpi all-to-all communication
+      CALL mp_alltoall(src_buffer%host_buffer, task_list%rank_sizes_recv, task_list%rank_offsets_recv, &
+                       buffer_send, task_list%rank_sizes_send, task_list%rank_offsets_send, group)
+
+      ! unpack dbcsr blocks from send buffer
+      CPASSERT(ASSOCIATED(task_list%atom_pair_send))
+      CALL rs_unpack_buffer(src_buffer=buffer_send, &
+                            dest_matrices=dest_matrices, &
+                            atom_pair=task_list%atom_pair_send, &
+                            pair_offsets=task_list%pair_offsets_send)
+
+      DEALLOCATE (buffer_send)
+      CALL timestop(handle)
+
+   END SUBROUTINE rs_gather_matrices
 
 ! **************************************************************************************************
 !> \brief Copies the DBCSR blocks into buffer, replaces rs_scatter_matrix for non-distributed grids.
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE rs_copy_matrix(task_list, pmats)
-      TYPE(task_list_type), INTENT(INOUT)                :: task_list
-      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: pmats
+   SUBROUTINE rs_copy_to_buffer(src_matrices, dest_buffer, task_list)
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: src_matrices
+      TYPE(grid_buffer_type), INTENT(INOUT)              :: dest_buffer
+      TYPE(task_list_type), INTENT(IN)                   :: task_list
 
-      CALL rs_pack_matrix(pmats, &
+      CALL rs_pack_buffer(src_matrices=src_matrices, &
+                          dest_buffer=dest_buffer%host_buffer, &
                           atom_pair=task_list%atom_pair_recv, &
-                          pair_offsets=task_list%pair_offsets_recv, &
-                          buffer=task_list%buffer_recv%host_buffer)
+                          pair_offsets=task_list%pair_offsets_recv)
 
-   END SUBROUTINE rs_copy_matrix
+   END SUBROUTINE rs_copy_to_buffer
 
 ! **************************************************************************************************
-!> \brief Helper routine for rs_scatter_matrix and rs_copy_matrix.
+!> \brief Copies from buffer into DBCSR matrics, replaces rs_gather_matrix for non-distributed grids.
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE rs_pack_matrix(pmats, atom_pair, pair_offsets, buffer)
-      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: pmats
+   SUBROUTINE rs_copy_to_matrices(src_buffer, dest_matrices, task_list)
+      TYPE(grid_buffer_type), INTENT(IN)                 :: src_buffer
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: dest_matrices
+      TYPE(task_list_type), INTENT(IN)                   :: task_list
+
+      CALL rs_unpack_buffer(src_buffer=src_buffer%host_buffer, &
+                            dest_matrices=dest_matrices, &
+                            atom_pair=task_list%atom_pair_recv, &
+                            pair_offsets=task_list%pair_offsets_recv)
+
+   END SUBROUTINE rs_copy_to_matrices
+
+! **************************************************************************************************
+!> \brief Helper routine for rs_scatter_matrix and rs_copy_to_buffer.
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE rs_pack_buffer(src_matrices, dest_buffer, atom_pair, pair_offsets)
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: src_matrices
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: dest_buffer
       TYPE(atom_pair_type), DIMENSION(:), INTENT(IN)     :: atom_pair
       INTEGER, DIMENSION(:), INTENT(IN)                  :: pair_offsets
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: buffer
 
       INTEGER                                            :: acol, arow, img, i, offset, block_size
       LOGICAL                                            :: found
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
 
 !$OMP PARALLEL DEFAULT(NONE), &
-!$OMP          SHARED(pmats,atom_pair,pair_offsets,buffer), &
-!$OMP          PRIVATE(acol,arow,img,i,offset,block_size,found,p_block)
+!$OMP          SHARED(src_matrices,atom_pair,pair_offsets,dest_buffer), &
+!$OMP          PRIVATE(acol,arow,img,i,offset,block_size,found,block)
 !$OMP DO schedule(guided)
       DO i = 1, SIZE(atom_pair)
          arow = atom_pair(i)%row
          acol = atom_pair(i)%col
          img = atom_pair(i)%image
-         CALL dbcsr_get_block_p(matrix=pmats(img)%matrix, row=arow, col=acol, block=p_block, found=found)
+         CALL dbcsr_get_block_p(matrix=src_matrices(img)%matrix, row=arow, col=acol, &
+                                block=block, found=found)
          CPASSERT(found)
-         block_size = SIZE(p_block)
+         block_size = SIZE(block)
          offset = pair_offsets(i)
-         buffer(offset + 1:offset + block_size) = RESHAPE(p_block, shape=(/block_size/))
+         dest_buffer(offset + 1:offset + block_size) = RESHAPE(block, shape=(/block_size/))
       ENDDO
 !$OMP END DO
 !$OMP END PARALLEL
 
-   END SUBROUTINE rs_pack_matrix
+   END SUBROUTINE rs_pack_buffer
+
+! **************************************************************************************************
+!> \brief Helper routine for rs_gather_matrix and rs_copy_to_matrices.
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE rs_unpack_buffer(src_buffer, dest_matrices, atom_pair, pair_offsets)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: src_buffer
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: dest_matrices
+      TYPE(atom_pair_type), DIMENSION(:), INTENT(IN)     :: atom_pair
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: pair_offsets
+
+      INTEGER                                            :: acol, arow, img, i, offset, &
+                                                            nrows, ncols, lock_num
+      LOGICAL                                            :: found
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
+      INTEGER(kind=omp_lock_kind), ALLOCATABLE, DIMENSION(:) :: locks
+
+      ! initialize locks
+      ALLOCATE (locks(10*omp_get_max_threads()))
+      DO i = 1, SIZE(locks)
+         CALL omp_init_lock(locks(i))
+      END DO
+
+!$OMP PARALLEL DEFAULT(NONE), &
+!$OMP          SHARED(src_buffer,atom_pair,pair_offsets,dest_matrices,locks), &
+!$OMP          PRIVATE(acol,arow,img,i,offset,nrows,ncols,lock_num,found,block)
+!$OMP DO schedule(guided)
+      DO i = 1, SIZE(atom_pair)
+         arow = atom_pair(i)%row
+         acol = atom_pair(i)%col
+         img = atom_pair(i)%image
+         CALL dbcsr_get_block_p(matrix=dest_matrices(img)%matrix, row=arow, col=acol, &
+                                block=block, found=found)
+         CPASSERT(found)
+         nrows = SIZE(block, 1)
+         ncols = SIZE(block, 2)
+         offset = pair_offsets(i)
+         lock_num = MODULO(arow, SIZE(locks)) + 1  ! map matrix rows round-robin to available locks
+
+         CALL omp_set_lock(locks(lock_num))
+         block = block + RESHAPE(src_buffer(offset + 1:offset + nrows*ncols), shape=(/nrows, ncols/))
+         CALL omp_unset_lock(locks(lock_num))
+      ENDDO
+!$OMP END DO
+!$OMP END PARALLEL
+
+      ! destroy locks
+      DO i = 1, SIZE(locks)
+         CALL omp_destroy_lock(locks(i))
+      END DO
+      DEALLOCATE (locks)
+
+   END SUBROUTINE rs_unpack_buffer
 
 ! **************************************************************************************************
 !> \brief determines the rank of the processor who's real rs grid contains point
