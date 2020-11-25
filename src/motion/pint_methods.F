@@ -1478,7 +1478,7 @@ CONTAINS
          IF (pint_env%logger%para_env%ionode) THEN
             DO i = 1, nparticle
                DO j = 1, 3
-                  particle_set(i)%r(j) = pint_env%x(1, j + (i -1)*3)/factor
+                  particle_set(i)%r(j) = pint_env%x(1, j + (i - 1)*3)/factor
                   vel(j, i) = pint_env%uv(1, j + (i - 1)*3)/factor
                END DO
             END DO
