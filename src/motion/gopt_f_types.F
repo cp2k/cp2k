@@ -27,6 +27,10 @@ MODULE gopt_f_types
                                               force_env_release,&
                                               force_env_retain,&
                                               force_env_type
+   USE cp_subsys_types,                 ONLY: cp_subsys_get, &
+                                              cp_subsys_type, &
+                                              pack_subsys_particles, &
+                                              unpack_subsys_particles
    USE global_types,                    ONLY: global_environment_type
    USE gopt_param_types,                ONLY: gopt_param_read,&
                                               gopt_param_release,&

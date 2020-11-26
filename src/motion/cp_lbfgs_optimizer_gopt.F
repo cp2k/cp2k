@@ -29,7 +29,8 @@ MODULE cp_lbfgs_optimizer_gopt
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_retain
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE force_env_types,                 ONLY: force_env_type
+   USE force_env_types,                 ONLY: force_env_get,&
+                                              force_env_type
    USE gopt_f_methods,                  ONLY: gopt_f_io
    USE gopt_f_types,                    ONLY: gopt_f_release,&
                                               gopt_f_retain,&
@@ -39,6 +40,8 @@ MODULE cp_lbfgs_optimizer_gopt
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_bcast
+   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                              cp_subsys_type
    USE space_groups,                    ONLY: spgr_type,&
                                               spgr_apply_rotations_coord,&
                                               spgr_apply_rotations_force,&
@@ -507,6 +510,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: t_diff, t_now, t_old
       REAL(KIND=dp), DIMENSION(:), POINTER               :: xold
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(spgr_type), OPTIONAL                          :: spgr
 
       NULLIFY (logger, xold)
@@ -516,6 +520,9 @@ CONTAINS
       is_master = optimizer%master == optimizer%para_env%mepos
       IF (PRESENT(converged)) converged = optimizer%status == 4
       ALLOCATE (xold(SIZE(optimizer%x)))
+
+      ! [pcazade] collecting subsys
+      CALL force_env_get(force_env, subsys=subsys)
       
       keep_sg = .FALSE.
       IF(PRESENT(spgr)) keep_sg = .TRUE.
@@ -673,11 +680,19 @@ CONTAINS
          SELECT CASE (optimizer%status)
          CASE (1)
             !op=1 evaluate f and g
-            CALL cp_eval_at(optimizer%obj_funct, x=optimizer%x, &
-                            f=optimizer%f, &
-                            gradient=optimizer%gradient, &
-                            final_evaluation=.FALSE., &
-                            master=optimizer%master, para_env=optimizer%para_env)
+            IF (keep_sg) THEN
+              CALL cp_eval_at(optimizer%obj_funct, x=optimizer%x, &
+                              f=optimizer%f, &
+                              gradient=optimizer%gradient, &
+                              final_evaluation=.FALSE., &
+                              master=optimizer%master, para_env=optimizer%para_env, spgr=spgr)
+            ELSE
+              CALL cp_eval_at(optimizer%obj_funct, x=optimizer%x, &
+                              f=optimizer%f, &
+                              gradient=optimizer%gradient, &
+                              final_evaluation=.FALSE., &
+                              master=optimizer%master, para_env=optimizer%para_env)
+            END IF
             ! do not use keywords?
             IF (is_master) THEN
                ! [pcazade] applies rotation matrices to coordinates and forces
@@ -771,6 +786,7 @@ CONTAINS
          END IF
          justEntred = .FALSE.
       END DO
+      
       CALL mp_bcast(optimizer%x, optimizer%master, &
                     optimizer%para_env%group)
       CALL cp_opt_gopt_bcast_res(optimizer, &

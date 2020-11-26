@@ -61,12 +61,7 @@ MODULE bfgs_optimizer
                                               print_geo_opt_nc
    USE gopt_f_types,                    ONLY: gopt_f_type
    USE gopt_param_types,                ONLY: gopt_param_type
-   USE input_constants,                 ONLY: default_cell_direct_id,&
-                                              default_cell_geo_opt_id,&
-                                              default_cell_md_id,&
-                                              default_cell_method_id,&
-                                              default_minimization_method_id,&
-                                              default_shellcore_method_id,&
+   USE input_constants,                 ONLY: default_cell_method_id,&
                                               default_ts_method_id
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -280,37 +275,27 @@ CONTAINS
       dr(:) = 0.0_dp
 
       ! [pcazade] find space_group
-      keep_sg=.FALSE.
       CALL section_vals_val_get(geo_section, "KEEP_SPACE_GROUP", l_val=keep_sg)
       IF (keep_sg) THEN
-         SELECT CASE (gopt_env%type_id)
-            CASE (default_minimization_method_id, default_ts_method_id)
-            CALL identify_space_group(spgr, subsys%particles%els, subsys%cell, geo_section, gopt_env, output_unit)
-            CALL spgr_apply_rotations_coord(spgr, x0)
-            CALL print_spgr(spgr)
-         CASE (default_cell_method_id)
-            SELECT CASE (gopt_env%cell_method_id)
-            CASE (default_cell_direct_id)
-               CALL identify_space_group(spgr, subsys%particles%els, subsys%cell, geo_section, gopt_env, output_unit)
-               CALL spgr_apply_rotations_coord(spgr, x0)
-               CALL print_spgr(spgr)
-            CASE (default_cell_geo_opt_id, default_cell_md_id)
-               keep_sg=.FALSE.
-            CASE DEFAULT
-               keep_sg=.FALSE.
-            END SELECT
-         CASE DEFAULT
-            keep_sg=.FALSE.
-         END SELECT
+         CALL identify_space_group(spgr, subsys, subsys%cell, geo_section, gopt_env, output_unit)
+         CALL spgr_apply_rotations_coord(spgr, x0)
+         CALL print_spgr(spgr)
       END IF
 
       ! Geometry optimization starts now
       CALL cp_iterate(logger%iter_info, increment=0, iter_nr_out=iter_nr)
       CALL print_geo_opt_header(gopt_env, output_unit, wildcard)
 
-      ! Calculate Energy & Gradients
-      CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
-                      .FALSE., gopt_env%force_env%para_env)
+      ! [pcazade] Symmetrize forces and stress tensor
+      IF (keep_sg) THEN
+        ! Calculate Energy & Gradients
+        CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
+                        .FALSE., gopt_env%force_env%para_env, spgr=spgr)
+      ELSE
+        ! Calculate Energy & Gradients
+        CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
+                        .FALSE., gopt_env%force_env%para_env)
+      END IF
 
       ! [pcazade] Symmetrize coordinates and forces
       IF (keep_sg) THEN
@@ -342,8 +327,6 @@ CONTAINS
             IF ((its - iter_nr) > 1) THEN
                ! [pcazade] Symmetrize old coordinates and old forces
                IF (keep_sg) THEN
-                  CALL spgr_apply_rotations_coord(spgr, x0)
-                  CALL spgr_apply_rotations_force(spgr, g)
                   CALL spgr_apply_rotations_coord(spgr, xold)
                   CALL spgr_apply_rotations_force(spgr, gold)
                END IF
@@ -417,9 +400,17 @@ CONTAINS
          CALL energy_predict(ndf, work, hess_mat, dr, g, conv, pred, para_env)
          eold = etot
 
-         ! Energy & Gradients at new step
-         CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
-                         .FALSE., gopt_env%force_env%para_env)
+         ! [pcazade] Symmetrize forces and stress tensor
+         IF (keep_sg) THEN
+           ! Energy & Gradients at new step
+           CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
+                           .FALSE., gopt_env%force_env%para_env, spgr=spgr)
+         ELSE
+           ! Energy & Gradients at new step
+           CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
+                           .FALSE., gopt_env%force_env%para_env)
+         END IF
+
          ediff = etot - eold
 
          ! [pcazade] Symmetrize forces

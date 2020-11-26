@@ -873,10 +873,10 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       
-      ! [pcazade] collects keywords related to precision for finding equivalent atoms
+      ! [pcazade] collects keywords related to precision for finding the space group
       CALL keyword_create( &
          keyword, __LOCATION__, name="EPS_GEO", &
-                          description="Accuracy required for equivalent atoms detection", &
+                          description="Accuracy required for symmetry detection", &
                           usage="EPS_GEO {REAL}", &
                           default_r_val=1.e-4_dp, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
@@ -888,6 +888,24 @@ CONTAINS
                           description="Accuracy required for symmetry detection", &
                           usage="EPS_SPGR {REAL}", &
                           default_r_val=1.e-4_dp, repeats=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! [pcazade] collects keywords related to reduction of symmetry due to an external field
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="SYMM_REDUCTION", &
+                          description="Polarisation vector of electric field for symmetry reduction", &
+                          usage="SYMM_REDUCTION  0.0 0.0 0.0", &
+                          repeats=.FALSE., n_var=3, &
+                          type_of_var=real_t, default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! [pcazade] collects keywords related to ranges of atoms to symmetrize
+      CALL keyword_create(&
+         keyword, __LOCATION__, name="SYMM_EXCLUDE_RANGE", &
+                          description="Range of atoms to exclude from symmetry. This keyword can be repeated.", &
+                          repeats=.TRUE., usage="SYMM_EXCLUDE_RANGE {Int} {Int}", type_of_var=integer_t, n_var=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

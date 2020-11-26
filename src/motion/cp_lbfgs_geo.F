@@ -33,13 +33,7 @@ MODULE cp_lbfgs_geo
                                               print_geo_opt_nc
    USE gopt_f_types,                    ONLY: gopt_f_type
    USE gopt_param_types,                ONLY: gopt_param_type
-   USE input_constants,                 ONLY: default_cell_direct_id,&
-                                              default_cell_geo_opt_id,&
-                                              default_cell_md_id,&
-                                              default_cell_method_id,&
-                                              default_minimization_method_id,&
-                                              default_shellcore_method_id,&
-                                              default_ts_method_id
+   USE input_constants,                 ONLY: default_ts_method_id
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get,&
                                               section_vals_val_set
@@ -120,29 +114,12 @@ CONTAINS
                                          extension=".geoLog")
       CALL print_geo_opt_header(gopt_env, output_unit, "L-BFGS")
 
-      ! [pcazade] find space_group
-      keep_sg=.FALSE.
+      ! [pcazade] finds space group
       CALL section_vals_val_get(geo_section, "KEEP_SPACE_GROUP", l_val=keep_sg)
       IF (keep_sg) THEN
-         SELECT CASE (gopt_env%type_id)
-            CASE (default_minimization_method_id, default_ts_method_id)
-            CALL identify_space_group(spgr, subsys%particles%els, subsys%cell, geo_section, gopt_env, output_unit)
-            CALL spgr_apply_rotations_coord(spgr, x0)
-            CALL print_spgr(spgr)
-         CASE (default_cell_method_id)
-            SELECT CASE (gopt_env%cell_method_id)
-            CASE (default_cell_direct_id)
-               CALL identify_space_group(spgr, subsys%particles%els, subsys%cell, geo_section, gopt_env, output_unit)
-               CALL spgr_apply_rotations_coord(spgr, x0)
-               CALL print_spgr(spgr)
-            CASE (default_cell_geo_opt_id, default_cell_md_id)
-               keep_sg=.FALSE.
-            CASE DEFAULT
-               keep_sg=.FALSE.
-            END SELECT
-         CASE DEFAULT
-            keep_sg=.FALSE.
-         END SELECT
+        CALL identify_space_group(spgr, subsys, subsys%cell, geo_section, gopt_env, output_unit)
+        CALL spgr_apply_rotations_coord(spgr, x0)
+        CALL print_spgr(spgr)
       END IF
 
       ! Stop if not implemented

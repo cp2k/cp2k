@@ -110,20 +110,21 @@ CONTAINS
       CALL print_geo_opt_header(gopt_env, output_unit, "CONJUGATE GRADIENTS")
 
       ! [pcazade] find space_group
+      CALL force_env_get(force_env, subsys=subsys)
       keep_sg=.FALSE.
       CALL section_vals_val_get(geo_section, "KEEP_SPACE_GROUP", l_val=keep_sg)
       IF (keep_sg) THEN
          SELECT CASE (gopt_env%type_id)
             CASE (default_minimization_method_id, default_ts_method_id)
             CALL force_env_get(force_env, subsys=subsys)
-            CALL identify_space_group(spgr, subsys%particles%els, subsys%cell, geo_section, gopt_env, output_unit)
+            CALL identify_space_group(spgr, subsys, subsys%cell, geo_section, gopt_env, output_unit)
             CALL spgr_apply_rotations_coord(spgr, x0)
             CALL print_spgr(spgr)
          CASE (default_cell_method_id)
             SELECT CASE (gopt_env%cell_method_id)
             CASE (default_cell_direct_id)
                CALL force_env_get(force_env, subsys=subsys)
-               CALL identify_space_group(spgr, subsys%particles%els, subsys%cell, geo_section, gopt_env, output_unit)
+               CALL identify_space_group(spgr, subsys, subsys%cell, geo_section, gopt_env, output_unit)
                CALL spgr_apply_rotations_coord(spgr, x0)
                CALL print_spgr(spgr)
             CASE (default_cell_geo_opt_id, default_cell_md_id)
@@ -194,6 +195,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: root_section
+      TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(spgr_type), OPTIONAL                          :: spgr
 
       CALL timeset(routineN, handle)
@@ -210,7 +212,7 @@ CONTAINS
       ALLOCATE (h(SIZE(x0)))
       ALLOCATE (xi(SIZE(x0)))
       ALLOCATE (xold(SIZE(x0)))
-      CALL force_env_get(force_env, cell=cell)
+      CALL force_env_get(force_env, cell=cell, subsys=subsys)
 
       keep_sg = .FALSE.
       IF(PRESENT(spgr)) keep_sg = .TRUE.
@@ -223,8 +225,15 @@ CONTAINS
       ![NB] consistent energies and forces not required for CG, but some line minimizers might set it
       save_consistent_energy_force = gopt_env%require_consistent_energy_force
       gopt_env%require_consistent_energy_force = .FALSE.
-      CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos, &
-                      .FALSE., gopt_env%force_env%para_env)
+
+      ! [pcazade] Symmetrize coordinates and forces
+      IF (keep_sg) THEN
+        CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos, &
+                        .FALSE., gopt_env%force_env%para_env, spgr=spgr)
+      ELSE
+        CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos, &
+                        .FALSE., gopt_env%force_env%para_env)
+      END IF
       gopt_env%require_consistent_energy_force = save_consistent_energy_force
 
       ! [pcazade] Symmetrize coordinates and forces
@@ -286,8 +295,14 @@ CONTAINS
          save_consistent_energy_force = gopt_env%require_consistent_energy_force
          gopt_env%require_consistent_energy_force = .FALSE.
 
-         CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos, &
-                         .FALSE., gopt_env%force_env%para_env)
+         ! [pcazade] Symmetrize coordinates and forces
+         IF (keep_sg) THEN
+           CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos, &
+                           .FALSE., gopt_env%force_env%para_env, spgr=spgr)
+         ELSE
+           CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos, &
+                           .FALSE., gopt_env%force_env%para_env)
+         END IF
          gopt_env%require_consistent_energy_force = save_consistent_energy_force
 
          ! [pcazade] Symmetrize coordinates and forces
@@ -317,10 +332,11 @@ CONTAINS
          g = -xi
          xi = h
       END DO
+
       IF (its == maxiter .AND. (.NOT. conv)) THEN
          CALL print_geo_opt_nc(gopt_env, output_unit)
       END IF
-
+      
       ! Write final particle information and restart, if converged
       IF (PRESENT(do_update)) do_update = conv
       CALL cp_iterate(logger%iter_info, last=.TRUE., increment=0)

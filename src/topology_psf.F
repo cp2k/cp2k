@@ -129,7 +129,7 @@ CONTAINS
          CASE ("EXT")
             IF (psf_type == do_conn_psf) THEN
                ! EXTEnded CHARMM31 format
-               psf_format = '(I10,T12,A7,T21,I8,T30,A7,T39,A6,T47,A6,T53,F10.6,T69,F8.3,T88,I1)'
+               psf_format = '(I10,T12,A7,T21,I8,T30,A7,T39,A6,T48,A6,T55,F10.6,T69,F10.4,T90,I1)'
                c_int = 'I10'
             ELSE
                CPABORT("PSF_INFO| "//field(1:3)//" :: not available for UPSF format!")
