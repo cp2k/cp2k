@@ -28,6 +28,84 @@
 #include "tensor_local.h"
 #include "utils.h"
 
+void update_force_pair(orbital a,
+                       orbital b,
+                       const double pab,
+                       const double ftz[2],
+                       const double *const rab,
+                       const tensor *const vab,
+                       tensor *force)
+{
+    const double axpm0 = idx2(vab[0], idx(b), idx(a));
+    for (int i = 0; i < 3; i++) {
+        const double aip1 = idx2(vab[0], idx(b), idx(up(i, a)));
+        const double aim1 = idx2(vab[0], idx(b), idx(down(i, a)));
+        const double bim1 = idx2(vab[0], idx(down(i, b)), idx(a));
+        idx2(force[0], 0, i) += pab * (ftz[0] * aip1 - a.l[i] * aim1);
+        idx2(force[0], 1, i) += pab * (ftz[1] * (aip1 - rab[i] * axpm0) - b.l[i] * bim1);
+    }
+}
+
+void update_virial_pair(orbital a, orbital b, const double pab,
+                        const double ftz[2],
+                        const double *const rab,
+                        const tensor *const vab,
+                        tensor *virial)
+{
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            idx3(virial[0], 0, i, j) += pab * ftz[0] * idx2(vab[0], idx(b), idx(up(i, up(j, a)))) -
+                pab * a.l[j] * idx2(vab[0], idx(b), idx(up(i, down(j, a))));
+        }
+    }
+
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            idx3(virial[0], 1, i, j) += pab * ftz[1] *
+                (idx2(vab[0], idx(b), idx(up(i, up(j, a)))) -
+                 idx2(vab[0], idx(b), idx(up(i, a))) * rab[j] -
+                 idx2(vab[0], idx(b), idx(up(j, a))) * rab[i] +
+                 idx2(vab[0], idx(b), idx(a)) * rab[j] * rab[i]) -
+                pab * b.l[j] * idx2(vab[0], idx(up(i, down(j, b))), idx(a));
+        }
+    }
+}
+
+void update_all(const orbital a, const orbital b, const double f,
+                const double *const ftz,
+                const double *rab,
+                const tensor *vab, const double pab, double *hab,
+                tensor *forces, tensor *virials) {
+
+    *hab += f * idx2(vab[0], idx(b), idx(a));
+
+    if (forces != NULL) {
+        update_force_pair(a, b, f * pab, ftz, rab, vab, forces);
+    }
+
+    if (virials != NULL) {
+        update_virial_pair(a, b, f * pab, ftz, rab, vab, virials);
+    }
+}
+
+static void update_tau(const orbital a, const orbital b, const double ftz[2],
+                       const double *const rab, const tensor *const vab,
+                       const double pab,
+                       double *const hab, tensor *forces,
+                       tensor *virials) {
+
+  for (int i = 0; i < 3; i++) {
+    update_all(down(i, a), down(i, b), 0.5 * a.l[i] * b.l[i], ftz, rab,
+               vab, pab, hab, forces, virials);
+    update_all(up(i, a), down(i, b), -0.5 * ftz[0] * b.l[i], ftz, rab,
+               vab, pab, hab, forces, virials);
+    update_all(down(i, a), up(i, b), -0.5 * a.l[i] * ftz[1], ftz, rab,
+               vab, pab, hab, forces, virials);
+    update_all(up(i, a), up(i, b), 0.5 * ftz[0] * ftz[1], ftz, rab,
+               vab, pab, hab, forces, virials);
+  }
+}
+
 /* It is a sub-optimal version of the mapping in case of a cubic cutoff. But is
  * very general and does not depend on the orthorombic nature of the grid. for
  * orthorombic cases, it is faster to apply PCB directly on the polynomials. */
@@ -386,7 +464,6 @@ void grid_integrate_pgf_product_dgemm(
 
   handler->grid.ld_ = grid_local_size[0];
   handler->grid.data = grid_;
-  handler->blocked_grid.blocked_decomposition = false;
 
   setup_global_grid_size(&handler->grid, (const int *const)grid_global_size);
 
@@ -405,12 +482,9 @@ void grid_integrate_pgf_product_dgemm(
 
   grid_integrate(handler, use_ortho, zetp, rp, radius);
 
-  /* I need to transpose the coefficients because they are computed as ly, lx,
-   * lz while we want them in the format lz, ly, lx. Fortunately it is a
-   * single transpose. So either I include it in the next tranformation or I
-   * do it separately. */
+  /* the coefficients are computed and stored as coef[y][x][z], so computing cab
+   * should reflect this. Fortunately it is simply a loop reordering to do  */
 
-  transform_yxz_to_triangular(&handler->coef, coef);
   handler->grid.data = NULL;
   /* Return the result to cp2k for now */
 }

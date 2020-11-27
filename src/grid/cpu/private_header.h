@@ -33,7 +33,18 @@ typedef struct {
   int border_mask;
   int block_num;
   double radius;
+  double zetp;
+  double zeta[2];
+  double ra[3];
+  double rb[3];
+  double rp[3];
+  int lmax[2];
+  int lmin[2];
+  int l1_plus_l2_;
+  int offset[2];
+  bool update_block_;
   double rab[3];
+  double prefactor;
   enum checksum_ checksum;
 } _task;
 
@@ -145,11 +156,9 @@ extern void collocate_one_grid_level_dgemm(grid_context *const ctx,
                                            const int func, const int level,
                                            const grid_buffer *pab_blocks);
 
-extern double compute_coefficients(grid_context *const ctx,
-                                   struct collocation_integration_ *handler,
-                                   const _task *task, tensor *const pab,
-                                   tensor *const work, tensor *const pab_prep,
-                                   int *const prev_block_num,
-                                   int *const prev_iset, int *const prev_jset,
-                                   const grid_buffer *pab_blocks, double *rp);
+extern void compute_coefficients(grid_context *const ctx,
+                                 struct collocation_integration_ *handler,
+                                 const _task *task,
+                                 const grid_buffer *pab_blocks, tensor *const pab,
+                                 tensor *const work, tensor *const pab_prep);
 #endif

@@ -17,19 +17,15 @@
 typedef struct tensor_ {
   int dim_;
   int size[4];
-  struct tensor_ *block;
   size_t alloc_size_;
   size_t old_alloc_size_;
   int offsets[4];
-  int blockDim[3];
   double *data;
   int ld_;
-  int unblocked_size[4];
   int window_shift[4]; /* lower corner of the window. Should be between lower
                         * corner and upper corner of the local grid */
   int window_size[4];  /* size of the window where computations should be
                         * done */
-  bool blocked_decomposition;
   int full_size[4];    /* size of the global grid */
   int lower_corner[4]; /* coordinates of the lower corner of the local part of
                         * the grid. It can be different from the window where
@@ -44,10 +40,6 @@ typedef struct tensor_ {
 
 extern void tensor_copy(tensor *const b, const tensor *const a);
 
-extern void initialize_tensor_blocked(struct tensor_ *a, const int dim,
-                                      const int *const sizes,
-                                      const int *const blockDim);
-
 /* initialize a tensor structure for a tensor of dimension dim <= 4 */
 
 static inline void initialize_tensor(struct tensor_ *a, const int dim,
@@ -55,7 +47,6 @@ static inline void initialize_tensor(struct tensor_ *a, const int dim,
   if (a == NULL)
     return;
 
-  a->block = NULL;
   a->dim_ = dim;
   for (int d = 0; d < dim; d++)
     a->size[d] = sizes[d];
@@ -82,7 +73,6 @@ static inline void initialize_tensor(struct tensor_ *a, const int dim,
   }
 
   a->alloc_size_ = a->offsets[0] * a->size[0];
-  a->blocked_decomposition = false;
   return;
 }
 
@@ -118,40 +108,6 @@ static inline void initialize_tensor_4(struct tensor_ *a, int n1, int n2,
 
 /* initialize a tensor structure for a tensor of dimension dim = 2 */
 
-static inline void initialize_tensor_blocked_2(struct tensor_ *a, int n1,
-                                               int n2, int *blockdim) {
-  if (a == NULL)
-    return;
-
-  int size_[2] = {n1, n2};
-
-  initialize_tensor_blocked(a, 2, size_, blockdim);
-}
-
-/* initialize a tensor structure for a tensor of dimension dim = 2 */
-
-static inline void initialize_tensor_blocked_3(struct tensor_ *a, int n1,
-                                               int n2, int n3, int *blockdim) {
-  if (a == NULL)
-    return;
-  int size_[3] = {n1, n2, n3};
-
-  initialize_tensor_blocked(a, 3, size_, blockdim);
-}
-
-/* initialize a tensor structure for a tensor of dimension dim = 2 */
-
-static inline void initialize_tensor_blocked_4(struct tensor_ *a, int n1,
-                                               int n2, int n3, int n4,
-                                               int *blockdim) {
-  if (a == NULL)
-    return;
-  int size_[4] = {n1, n2, n3, n4};
-  initialize_tensor_blocked(a, 4, size_, blockdim);
-}
-
-/* initialize a tensor structure for a tensor of dimension dim = 2 */
-
 static inline tensor *create_tensor(const int dim, const int *sizes) {
   tensor *a = (tensor *)malloc(sizeof(struct tensor_));
 
@@ -168,9 +124,6 @@ static inline tensor *create_tensor(const int dim, const int *sizes) {
 
 /* destroy a tensor created with the function above */
 static inline void destroy_tensor(tensor *a) {
-  if (a->block != NULL)
-    free(a->block);
-
   if (a->data)
     free(a->data);
   free(a);
@@ -305,14 +258,4 @@ extern void alloc_tensor(tensor *t);
 
 extern void compute_block_dimensions(const int *const grid_size,
                                      int *const blockDim);
-
-extern void
-add_transpose_blocked_tensor_to_tensor(const struct tensor_ *block_grid,
-                                       tensor *gr);
-
-extern void add_blocked_tensor_to_tensor(const struct tensor_ *block_grid,
-                                         tensor *gr);
-
-extern void decompose_grid_to_blocked_grid(const tensor *gr,
-                                           struct tensor_ *block_grid);
 #endif

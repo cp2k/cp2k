@@ -151,6 +151,10 @@ void update_task_lists(const int nlevels, const int ntasks,
     ctx->tasks[i] = ctx->tasks[i - 1] + ctx->tasks_per_level[i - 1];
   }
 
+  int prev_block_num = -1;
+  int prev_iset = -1;
+  int prev_jset = -1;
+
   _task *task = ctx->tasks[0];
   for (int i = 0; i < ntasks; i++) {
     task->level = level_list[i] - 1;
@@ -166,6 +170,57 @@ void update_task_lists(const int nlevels, const int ntasks,
     task->rab[0] = rab_list[i][0];
     task->rab[1] = rab_list[i][1];
     task->rab[2] = rab_list[i][2];
+    const int iatom = task->iatom - 1;
+    const int jatom = task->jatom - 1;
+    const int iset = task->iset - 1;
+    const int jset = task->jset - 1;
+    const int ipgf = task->ipgf - 1;
+    const int jpgf = task->jpgf - 1;
+    const int ikind = ctx->atom_kinds[iatom] - 1;
+    const int jkind = ctx->atom_kinds[jatom] - 1;
+    const grid_basis_set *ibasis = ctx->basis_sets[ikind];
+    const grid_basis_set *jbasis = ctx->basis_sets[jkind];
+    const int ncoseta = ncoset(ibasis->lmax[iset]);
+    const int ncosetb = ncoset(jbasis->lmax[jset]);
+
+    task->zeta[0] = ibasis->zet[iset * ibasis->maxpgf + ipgf];
+    task->zeta[1] = jbasis->zet[jset * jbasis->maxpgf + jpgf];
+
+    const double *ra = &ctx->atom_positions[3 * iatom];
+    const double zetp = task->zeta[0] + task->zeta[1];
+    const double f = task->zeta[1] / zetp;
+    const double rab2 = task->rab[0] * task->rab[0] +
+        task->rab[1] * task->rab[1] + task->rab[2] * task->rab[2];
+
+    task->prefactor =
+        ((iatom == jatom) ? 1.0 : 2.0) * exp(-task->zeta[0] * f * rab2);
+    task->zetp = zetp;
+
+    const int block_num = task->block_num - 1;
+
+    for (int i = 0; i < 3; i++) {
+        task->ra[i] = ra[i];
+        task->rp[i] = ra[i] + f * task->rab[i];
+        task->rb[i] = ra[i] + task->rab[i];
+    }
+
+    task->lmax[0] = ibasis->lmax[iset];
+    task->lmax[1] = jbasis->lmax[jset];
+    task->lmin[0] = ibasis->lmin[iset];
+    task->lmin[1] = jbasis->lmin[jset];
+
+    if ((block_num != prev_block_num) || (iset != prev_iset) ||
+        (jset != prev_jset)) {
+        task->update_block_ = true;
+        prev_block_num = block_num;
+        prev_iset = iset;
+        prev_jset = jset;
+    } else {
+        task->update_block_ = false;
+    }
+
+    task->offset[0] = ipgf * ncoseta;
+    task->offset[1] = jpgf * ncosetb;
     task++;
   }
 
