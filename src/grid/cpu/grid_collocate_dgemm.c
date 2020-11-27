@@ -876,7 +876,6 @@ void grid_collocate_pgf_product_cpu_dgemm(
 
   handler->grid.ld_ = grid_local_size[0];
   handler->grid.data = grid_;
-  handler->blocked_grid.blocked_decomposition = false;
 
   setup_global_grid_size(&handler->grid, (const int *const)grid_global_size);
 
@@ -936,12 +935,12 @@ void grid_collocate_pgf_product_cpu_dgemm(
 
   initialize_tensor_4(&(handler->alpha), 3, lmax_prep[1] + 1, lmax_prep[0] + 1,
                       lmax_prep[0] + lmax_prep[1] + 1);
-  alloc_tensor(&(handler->alpha));
+  realloc_tensor(&(handler->alpha));
 
   const int lp = lmax_prep[0] + lmax_prep[1];
 
   initialize_tensor_3(&(handler->coef), lp + 1, lp + 1, lp + 1);
-  alloc_tensor(&(handler->coef));
+  realloc_tensor(&(handler->coef));
 
   // initialy cp2k stores coef_xyz as coef[z][y][x]. this is fine but I
   // need them to be stored as
@@ -965,38 +964,28 @@ void grid_collocate_pgf_product_cpu_dgemm(
   free(pab_prep.data);
 }
 
-double compute_coefficients(grid_context *const ctx,
-                            struct collocation_integration_ *handler,
-                            const _task *task, tensor *const pab,
-                            tensor *const work, tensor *const pab_prep,
-                            int *const prev_block_num, int *const prev_iset,
-                            int *const prev_jset, const grid_buffer *pab_blocks,
-                            double *rp) {
+
+void compute_coefficients(grid_context *const ctx,
+                          struct collocation_integration_ *handler,
+                          const _task *task,
+                          const grid_buffer *pab_blocks,
+                          tensor *const pab,
+                          tensor *const work,
+                          tensor *const pab_prep) {
   const int iatom = task->iatom - 1;
   const int jatom = task->jatom - 1;
   const int iset = task->iset - 1;
   const int jset = task->jset - 1;
-  const int ipgf = task->ipgf - 1;
-  const int jpgf = task->jpgf - 1;
   const int ikind = ctx->atom_kinds[iatom] - 1;
   const int jkind = ctx->atom_kinds[jatom] - 1;
   const grid_basis_set *ibasis = ctx->basis_sets[ikind];
   const grid_basis_set *jbasis = ctx->basis_sets[jkind];
-  const int ncoseta = ncoset(ibasis->lmax[iset]);
-  const int ncosetb = ncoset(jbasis->lmax[jset]);
-  /* const int ncoa = ibasis->npgf[iset] * ncoseta;  // size of carthesian
-   * set */
-  /* const int ncob = jbasis->npgf[jset] * ncosetb; */
+
   const int block_num = task->block_num - 1;
 
   // Load subblock from buffer and decontract into Cartesian sublock pab.
   // The previous pab can be reused when only ipgf or jpgf has changed.
-  if (block_num != *prev_block_num || iset != *prev_iset ||
-      jset != *prev_jset) {
-    *prev_block_num = block_num;
-    *prev_iset = iset;
-    *prev_jset = jset;
-
+  if (task->update_block_) {
     // Locate current matrix block within the buffer. This block
     // contains the weights of the gaussian pairs in the spherical
     // harmonic basis, but we do computation in the cartesian
@@ -1010,36 +999,15 @@ double compute_coefficients(grid_context *const ctx,
                                   block, work, pab);
   } // end of block loading
 
-  const double zeta[2] = {ibasis->zet[iset * ibasis->maxpgf + ipgf],
-                          jbasis->zet[jset * jbasis->maxpgf + jpgf]};
-
-  const double *ra = &ctx->atom_positions[3 * iatom];
-  int offset[2] = {ipgf * ncoseta, jpgf * ncosetb};
-
-  int lmax[2] = {ibasis->lmax[iset], jbasis->lmax[jset]};
-  int lmin[2] = {ibasis->lmin[iset], jbasis->lmin[jset]};
-
-  const double zetp = zeta[0] + zeta[1];
-  const double f = zeta[1] / zetp;
-  const double rab2 = task->rab[0] * task->rab[0] +
-                      task->rab[1] * task->rab[1] + task->rab[2] * task->rab[2];
-  const double prefactor =
-      ((iatom == jatom) ? 1.0 : 2.0) * exp(-zeta[0] * f * rab2);
-
-  double rb[3];
-  for (int i = 0; i < 3; i++) {
-    rp[i] = ra[i] + f * task->rab[i];
-    rb[i] = ra[i] + task->rab[i];
-  }
 
   int lmin_prep[2];
   int lmax_prep[2];
 
-  lmin_prep[0] = imax(lmin[0] + handler->lmin_diff[0], 0);
-  lmin_prep[1] = imax(lmin[1] + handler->lmin_diff[1], 0);
+  lmin_prep[0] = imax(task->lmin[0] + handler->lmin_diff[0], 0);
+  lmin_prep[1] = imax(task->lmin[1] + handler->lmin_diff[1], 0);
 
-  lmax_prep[0] = lmax[0] + handler->lmax_diff[0];
-  lmax_prep[1] = lmax[1] + handler->lmax_diff[1];
+  lmax_prep[0] = task->lmax[0] + handler->lmax_diff[0];
+  lmax_prep[1] = task->lmax[1] + handler->lmax_diff[1];
 
   const int n1_prep = ncoset(lmax_prep[0]);
   const int n2_prep = ncoset(lmax_prep[1]);
@@ -1050,7 +1018,12 @@ double compute_coefficients(grid_context *const ctx,
   initialize_tensor_2(pab_prep, n2_prep, n1_prep);
   realloc_tensor(pab_prep);
 
-  grid_prepare_pab_dgemm(handler->func, offset, lmin, lmax, &zeta[0], pab,
+  grid_prepare_pab_dgemm(handler->func,
+                         task->offset,
+                         task->lmin,
+                         task->lmax,
+                         &task->zeta[0],
+                         pab,
                          pab_prep);
 
   //   *** initialise the coefficient matrix, we transform the sum
@@ -1081,18 +1054,23 @@ double compute_coefficients(grid_context *const ctx,
   initialize_tensor_3(&handler->coef, lp + 1, lp + 1, lp + 1);
   realloc_tensor(&handler->coef);
 
-  // trese two functions can be done with dgemm again....
+  // these two functions can be done with dgemm again....
 
-  // initialy cp2k stores coef_xyz as coef[z][y][x]. this is fine but I
-  // need them to be stored as
-
-  grid_prepare_alpha_dgemm(ra, rb, rp, lmax_prep, &handler->alpha);
+  grid_prepare_alpha_dgemm(task->ra,
+                           task->rb,
+                           task->rp,
+                           lmax_prep,
+                           &handler->alpha);
 
   // compute the coefficients after applying the function of interest
   // coef[x][z][y]
-  grid_prepare_coef_dgemm(lmin_prep, lmax_prep, lp, prefactor, &handler->alpha,
-                          pab_prep, &handler->coef);
-  return zetp;
+  grid_prepare_coef_dgemm(lmin_prep,
+                          lmax_prep,
+                          lp,
+                          task->prefactor,
+                          &handler->alpha,
+                          pab_prep,
+                          &handler->coef);
 }
 
 void collocate_one_grid_level_dgemm(grid_context *const ctx,
@@ -1147,8 +1125,6 @@ void collocate_one_grid_level_dgemm(grid_context *const ctx,
       memset(handler->grid.data, 0, sizeof(double) * grid->alloc_size_);
     }
 
-    // Initialize variables to detect when a new subblock has to be fetched.
-    int prev_block_num = -1, prev_iset = -1, prev_jset = -1;
 
 #pragma omp for schedule(static)
     for (int itask = 0; itask < ctx->tasks_per_level[level]; itask++) {
@@ -1170,12 +1146,10 @@ void collocate_one_grid_level_dgemm(grid_context *const ctx,
                           task->border_mask);
       }
 
-      double rp[3];
-      double zetp = compute_coefficients(ctx, handler, task, &pab, &work,
-                                         &pab_prep, &prev_block_num, &prev_iset,
-                                         &prev_jset, pab_blocks, rp);
+      compute_coefficients(ctx, handler, task, pab_blocks, &pab, &work,
+                           &pab_prep);
 
-      grid_collocate(handler, ctx->orthorhombic, zetp, rp, task->radius);
+      grid_collocate(handler, ctx->orthorhombic, task->zetp, task->rp, task->radius);
     }
 
     // Merge thread local grids into shared grid. Could be improved though....

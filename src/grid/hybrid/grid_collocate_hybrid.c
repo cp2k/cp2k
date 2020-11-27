@@ -61,22 +61,13 @@ static void my_worker_is_running(pgf_list_gpu *const my_worker) {
   }
 }
 
-static void add_orbital_to_list(pgf_list_gpu *const list, const int cmax,
-                                const int border_mask, const int lp,
-                                const double rp[3], const double radius,
-                                const double zetp, const tensor *const coef) {
+static void add_orbital_to_list(pgf_list_gpu *const list,
+                                const int cmax,
+                                const _task *task,
+                                const tensor *const coef) {
   assert(list->batch_size > list->list_length);
-
-  list->lmax_cpu_[list->list_length] = lp;
-  list->rp_cpu_[list->list_length].x = rp[0];
-  list->rp_cpu_[list->list_length].y = rp[1];
-  list->rp_cpu_[list->list_length].z = rp[2];
-
-  list->radius_cpu_[list->list_length] = radius;
-
-  list->zeta_cpu_[list->list_length] = zetp;
-
   list->coef_offset_cpu_[0] = 0;
+  const int lp = coef->size[2] - 1;
   const int coef_alloc_size_ = ((lp + 1) * (lp + 2) * (lp + 3)) / 6;
   if (list->list_length > 0) {
     list->coef_offset_cpu_[list->list_length] =
@@ -102,7 +93,8 @@ static void add_orbital_to_list(pgf_list_gpu *const list, const int cmax,
       coef, list->coef_cpu_ + list->coef_offset_cpu_[list->list_length]);
 
   list->cmax = imax(list->cmax, cmax);
-  list->border_mask_cpu_[list->list_length] = border_mask;
+  memcpy(&list->task_list_cpu_[list->list_length], task, sizeof(_task));
+
   list->list_length++;
 }
 
@@ -119,28 +111,19 @@ static pgf_list_gpu *create_worker_list(const int number_of_workers,
     list[i].batch_size = batch_size;
     list[i].list_length = 0;
     list[i].coef_dynamic_alloc_size_gpu_ = 0;
-    list[i].lmax_cpu_ = (int *)malloc(sizeof(int) * list->batch_size);
+    list[i].task_list_cpu_ = (_task *)malloc(sizeof(_task) * list->batch_size);
     list[i].coef_offset_cpu_ = (int *)malloc(sizeof(int) * list->batch_size);
-    list[i].rp_cpu_ = (double3 *)malloc(sizeof(double3) * list->batch_size);
-    list[i].radius_cpu_ = (double *)malloc(sizeof(double) * list->batch_size);
-    list[i].zeta_cpu_ = (double *)malloc(sizeof(double) * list->batch_size);
-    list[i].border_mask_cpu_ = (int *)malloc(sizeof(int) * list->batch_size);
-
     list[i].coef_cpu_ =
         (double *)malloc(sizeof(double) * list->batch_size * 8 * 8 * 8);
     list[i].coef_alloc_size_gpu_ = list->batch_size * 8 * 8 * 8;
     cudaSetDevice(list[i].device_id);
-    cudaMalloc((void **)&list[i].radius_gpu_,
-               sizeof(double) * list->batch_size);
+
     cudaMalloc((void **)&list[i].coef_offset_gpu_,
                sizeof(int) * list->batch_size);
-    cudaMalloc((void **)&list[i].lmax_gpu_, sizeof(int) * list->batch_size);
-    cudaMalloc((void **)&list[i].rp_gpu_, sizeof(double3) * list->batch_size);
-    cudaMalloc((void **)&list[i].zeta_gpu_, sizeof(double) * list->batch_size);
     cudaMalloc((void **)&list[i].coef_gpu_,
                sizeof(double) * list->coef_alloc_size_gpu_);
-    cudaMalloc((void **)&list[i].border_mask_gpu_,
-               sizeof(int) * list->batch_size);
+    cudaMalloc((void **)&list[i].task_list_gpu_,
+               sizeof(_task) * list->batch_size);
 
     cudaStreamCreate(&list[i].stream);
     cublasCreate(&list[i].blas_handle);
@@ -159,23 +142,15 @@ static pgf_list_gpu *create_worker_list(const int number_of_workers,
 static void destroy_worker_list(pgf_list_gpu *const lst) {
   cudaSetDevice(lst->device_id);
   cudaFree(lst->coef_offset_gpu_);
-  cudaFree(lst->radius_gpu_);
-  cudaFree(lst->lmax_gpu_);
-  cudaFree(lst->rp_gpu_);
-  cudaFree(lst->zeta_gpu_);
   cudaFree(lst->coef_gpu_);
   cudaFree(lst->data_gpu_);
-  cudaFree(lst->border_mask_gpu_);
+  cudaFree(lst->task_list_gpu_);
   cudaStreamDestroy(lst->stream);
   cublasDestroy(lst->blas_handle);
   cudaEventDestroy(lst->event);
-  free(lst->lmax_cpu_);
   free(lst->coef_offset_cpu_);
-  free(lst->rp_cpu_);
-  free(lst->radius_cpu_);
-  free(lst->zeta_cpu_);
   free(lst->coef_cpu_);
-  free(lst->border_mask_cpu_);
+  free(lst->task_list_cpu_);
 }
 
 static void
@@ -328,21 +303,17 @@ static void collocate_one_grid_level_gpu(grid_context *const ctx,
     initialize_tensor_2(&pab_prep, ctx->maxco, ctx->maxco);
     alloc_tensor(&pab_prep);
 
-    // Initialize variables to detect when a new subblock has to be fetched.
-    int prev_block_num = -1, prev_iset = -1, prev_jset = -1;
-
 #pragma omp for schedule(static)
     for (int itask = 0; itask < ctx->tasks_per_level[level]; itask++) {
       // Define some convenient aliases.
-      const _task *task = &ctx->tasks[level][itask];
+      _task *const task = &ctx->tasks[level][itask];
       if (task->level != level) {
         printf("level %d, %d\n", task->level, level);
         abort();
       }
-      double rp[3];
-      double zetp = compute_coefficients(ctx, handler, task, &pab, &work,
-                                         &pab_prep, &prev_block_num, &prev_iset,
-                                         &prev_jset, pab_blocks, rp);
+
+      compute_coefficients(ctx, handler, task, pab_blocks, &pab, &work,
+                           &pab_prep);
 
       {
         int cubecenter[3];
@@ -355,11 +326,12 @@ static void collocate_one_grid_level_gpu(grid_context *const ctx,
         int cmax = compute_cube_properties(
             handler->orthogonal[0] && handler->orthogonal[1] &&
                 handler->orthogonal[2],
-            task->radius, handler->dh, handler->dh_inv, rp, &disr_radius,
+            task->radius, handler->dh, handler->dh_inv, task->rp, &disr_radius,
             roffset, cubecenter, lb_cube, ub_cube, cube_size);
-
-        add_orbital_to_list(current_worker, cmax, task->border_mask,
-                            handler->coef.size[2] - 1, rp, task->radius, zetp,
+        task->l1_plus_l2_ = handler->coef.size[2] - 1;
+        add_orbital_to_list(current_worker,
+                            cmax,
+                            task,
                             &handler->coef);
       }
       /* The list is full so we can start computation on GPU */
@@ -522,7 +494,8 @@ void grid_collocate_task_list_hybrid(
 
   for (int thread = 0; thread < max_threads; thread++) {
     initialize_worker_list_on_gpu(
-        ctx->handler[thread], ctx->device_id[thread % ctx->number_of_devices],
+        ctx->handler[thread],
+        ctx->device_id[thread % ctx->number_of_devices],
         length_queue, /* basically the number of gaussian we can treat */
         2);           /* number of workers */
   }

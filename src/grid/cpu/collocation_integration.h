@@ -22,6 +22,7 @@ extern "C" {
 #endif
 
 #include "../cpu/tensor_local.h"
+#include "private_header.h"
 #ifdef __GRID_CUDA
 typedef struct pgf_list_gpu_ {
   /* number of devices */
@@ -86,6 +87,8 @@ typedef struct pgf_list_gpu_ {
   int *border_mask_cpu_;
   int *border_mask_gpu_;
 
+  _task *task_list_cpu_;
+  _task *task_list_gpu_;
   int3 border_width;
 
   struct pgf_list_gpu_ *next;
