@@ -791,7 +791,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s, matrix_v, scrm
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s, scrm
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -932,13 +932,12 @@ CONTAINS
       CALL xc_rho_set_release(rho1_set)
       !
       CALL get_qs_env(qs_env=qs_env, rho=rho, matrix_s_kp=matrix_s)
-      NULLIFY (matrix_v)
-      CALL dbcsr_allocate_matrix_set(matrix_v, nspins, 1)
+      CALL dbcsr_allocate_matrix_set(ec_env%matrix_hz, nspins)
       DO ispin = 1, nspins
-         ALLOCATE (matrix_v(ispin, 1)%matrix)
-         CALL dbcsr_create(matrix_v(ispin, 1)%matrix, template=matrix_s(1, 1)%matrix)
-         CALL dbcsr_copy(matrix_v(ispin, 1)%matrix, matrix_s(1, 1)%matrix)
-         CALL dbcsr_set(matrix_v(ispin, 1)%matrix, 0.0_dp)
+         ALLOCATE (ec_env%matrix_hz(ispin)%matrix)
+         CALL dbcsr_create(ec_env%matrix_hz(ispin)%matrix, template=matrix_s(1, 1)%matrix)
+         CALL dbcsr_copy(ec_env%matrix_hz(ispin)%matrix, matrix_s(1, 1)%matrix)
+         CALL dbcsr_set(ec_env%matrix_hz(ispin)%matrix, 0.0_dp)
       END DO
       CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
       ! vtot = v_xc(ispin) + dv_hartree
@@ -947,7 +946,7 @@ CONTAINS
          CALL pw_scale(v_xc(ispin)%pw, v_xc(ispin)%pw%pw_grid%dvol)
          CALL pw_axpy(dv_hartree_rspace%pw, v_xc(ispin)%pw)
          CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_xc(ispin), &
-                                 hmat=matrix_v(ispin, 1), &
+                                 hmat=ec_env%matrix_hz(ispin), &
                                  pmat=matrix_p(ispin, 1), &
                                  calculate_forces=.TRUE.)
       END DO
@@ -969,20 +968,9 @@ CONTAINS
          CALL cp_fm_get_info(mo_coeff, matrix_struct=fm_struct, nrow_global=nao, ncol_global=norb)
          NULLIFY (vmos(ispin)%matrix)
          CALL cp_fm_create(vmos(ispin)%matrix, fm_struct)
-         CALL cp_dbcsr_sm_fm_multiply(matrix_v(ispin, 1)%matrix, mo_coeff, vmos(ispin)%matrix, &
+         CALL cp_dbcsr_sm_fm_multiply(ec_env%matrix_hz(ispin)%matrix, mo_coeff, vmos(ispin)%matrix, &
                                       norb, alpha=focc, beta=0.0_dp)
       END DO
-      !MK The Intel compiler has trouble with that pointer assignment
-      !MK ec_env%matrix_hz => matrix_v(:, 1)
-      !MK Begin explicit copy
-      CALL dbcsr_allocate_matrix_set(ec_env%matrix_hz, nspins)
-      DO ispin = 1, nspins
-         ALLOCATE (ec_env%matrix_hz(ispin)%matrix)
-         CALL dbcsr_create(ec_env%matrix_hz(ispin)%matrix, template=matrix_v(ispin, 1)%matrix)
-         CALL dbcsr_copy(matrix_v(ispin, 1)%matrix, ec_env%matrix_hz(ispin)%matrix)
-      END DO
-      CALL dbcsr_deallocate_matrix_set(matrix_v)
-      !MK End
       IF (ASSOCIATED(ec_env%cpmos)) THEN
          DO i = 1, SIZE(ec_env%cpmos)
             CALL cp_fm_release(ec_env%cpmos(i)%matrix)
