@@ -185,11 +185,11 @@ CONTAINS
       IF (PRESENT(n_atom)) THEN
          spgr%n_atom = n_atom
       ELSE IF (PRESENT(n_core)) THEN
-         spgr%n_atom = nparticle - n_core
+         spgr%n_atom = spgr%nparticle - n_core
       ELSE IF (PRESENT(n_shell)) THEN
-         spgr%n_atom = nparticle - n_shell
+         spgr%n_atom = spgr%nparticle - n_shell
       ELSE
-         spgr%n_atom = nparticle
+         spgr%n_atom = spgr%nparticle
       ENDIF
 
       IF (PRESENT(n_core)) THEN
@@ -247,7 +247,7 @@ CONTAINS
          spgr%pol = 0.0_dp
       END IF
 
-      ALLOCATE(spgr%lat(nparticle))
+      ALLOCATE(spgr%lat(spgr%nparticle))
       spgr%lat=.TRUE.
 
       IF (PRESENT(ranges)) THEN
@@ -268,10 +268,10 @@ CONTAINS
         END DO
       END IF
 
-      ALLOCATE(tmp_coor(3, spgr%nparticle_sym), tmp_types(spgr%nparticle_sym))
+      ALLOCATE(tmp_coor(3, spgr%n_atom_sym), tmp_types(spgr%n_atom_sym))
 
       j = 0
-      DO i = 1, nparticle
+      DO i = 1, spgr%n_atom
         IF (spgr%lat(i)) THEN
           j = j+1
           tmp_coor(:, j) = scoor(:, i)
@@ -300,8 +300,8 @@ CONTAINS
       END SELECT
 
       ! atom types
-      ALLOCATE (spgr%atype(nparticle))
-      spgr%atype(1:nparticle) = types(1:nparticle)
+      ALLOCATE (spgr%atype(spgr%nparticle))
+      spgr%atype(1:spgr%nparticle) = types(1:spgr%nparticle)
 
       spgr%n_operations = 0
 
@@ -320,24 +320,24 @@ CONTAINS
          CALL cite_reference(Togo2018)
          spgr%international_symbol = '           '
          ierr = spg_get_international(spgr%international_symbol, TRANSPOSE(cell%hmat), tmp_coor, tmp_types, &
-                                      spgr%nparticle_sym, eps_sym)
+                                      spgr%n_atom_sym, eps_sym)
          IF (ierr == 0) THEN
             CALL cp_warn(__LOCATION__, "Symmetry Library SPGLIB failed")
             spglib = .FALSE.
          ELSE
             nop = spg_get_multiplicity(TRANSPOSE(cell%hmat), tmp_coor, tmp_types, &
-                                       spgr%nparticle_sym, eps_sym)
+                                       spgr%n_atom_sym, eps_sym)
             ALLOCATE (spgr%rotations(3, 3, nop), spgr%translations(3, nop))
-            ALLOCATE (spgr%eqatom(nop, nparticle))
+            ALLOCATE (spgr%eqatom(nop, spgr%nparticle))
             ALLOCATE (spgr%lop(nop))
             spgr%n_operations = nop
             spgr%lop = .TRUE.
             ierr = spg_get_symmetry(spgr%rotations, spgr%translations, nop, TRANSPOSE(cell%hmat), &
-                                    tmp_coor, tmp_types, spgr%nparticle_sym, eps_sym)
+                                    tmp_coor, tmp_types, spgr%n_atom_sym, eps_sym)
             ! Schoenflies Symbol
             spgr%schoenflies = '       '
             ierr = spg_get_schoenflies(spgr%schoenflies, TRANSPOSE(cell%hmat), tmp_coor, tmp_types, &
-                                       spgr%nparticle_sym, eps_sym)
+                                       spgr%n_atom_sym, eps_sym)
             ! Point Group
             spgr%pointgroup_symbol = '      '
             tra_mat = 0
@@ -427,7 +427,7 @@ CONTAINS
          n_shell = 0
       END IF
 
-      nparticle = n_atom + n_shell      
+      nparticle = n_atom + n_shell
       ALLOCATE (scoord(3, nparticle), atype(nparticle))
       DO i = 1, n_atom
          shell_index = particles%els(i)%shell_index
