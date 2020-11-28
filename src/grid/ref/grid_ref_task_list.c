@@ -122,6 +122,78 @@ void dgemm_(const char *transa, const char *transb, const int *m, const int *n,
             const int *ldc);
 
 /*******************************************************************************
+ * \brief Convenient wrapper to hide Fortran nature of dgemm_, swapping a and b.
+ * \author Ole Schuett
+ ******************************************************************************/
+static void dgemm(const char transa, const char transb, const int m,
+                  const int n, const int k, const double alpha, const double *a,
+                  const int lda, const double *b, const int ldb,
+                  const double beta, double *c, const int ldc) {
+  dgemm_(&transb, &transa, &n, &m, &k, &alpha, b, &ldb, a, &lda, &beta, c,
+         &ldc);
+}
+
+/*******************************************************************************
+ * \brief Transforms pab from contracted spherical to prim. cartesian basis.
+ * \author Ole Schuett
+ ******************************************************************************/
+static void load_pab(const grid_basis_set *ibasis, const grid_basis_set *jbasis,
+                     const int iset, const int jset, const bool transpose,
+                     const double *block, double *pab) {
+
+  // Define some more convenient aliases.
+  const int ncoseta = ncoset(ibasis->lmax[iset]);
+  const int ncosetb = ncoset(jbasis->lmax[jset]);
+  const int ncoa = ibasis->npgf[iset] * ncoseta; // size of carthesian set
+  const int ncob = jbasis->npgf[jset] * ncosetb;
+
+  const int nsgf_seta = ibasis->nsgf_set[iset]; // size of spherical set
+  const int nsgf_setb = jbasis->nsgf_set[jset];
+  const int nsgfa = ibasis->nsgf; // size of entire spherical basis
+  const int nsgfb = jbasis->nsgf;
+  const int sgfa = ibasis->first_sgf[iset] - 1; // start of spherical set
+  const int sgfb = jbasis->first_sgf[jset] - 1;
+  const int maxcoa = ibasis->maxco;
+  const int maxcob = jbasis->maxco;
+
+  double work[nsgf_setb * ncoa];
+  if (transpose) {
+    // work[nsgf_setb][ncoa] = MATMUL(subblock, ibasis->sphi)
+    dgemm('N', 'N', nsgf_setb, ncoa, nsgf_seta, 1.0,
+          &block[sgfb * nsgfa + sgfa], nsgfa, &ibasis->sphi[sgfa * maxcoa],
+          maxcoa, 0.0, work, ncoa);
+  } else {
+    // work[nsgf_setb][ncoa] = MATMUL(TRANSPOSE(subblock), ibasis->sphi)
+    dgemm('T', 'N', nsgf_setb, ncoa, nsgf_seta, 1.0,
+          &block[sgfa * nsgfb + sgfb], nsgfb, &ibasis->sphi[sgfa * maxcoa],
+          maxcoa, 0.0, work, ncoa);
+  }
+  // pab[ncob][ncoa] = MATMUL(TRANSPOSE(jbasis->sphi), work)
+  dgemm('T', 'N', ncob, ncoa, nsgf_setb, 1.0, &jbasis->sphi[sgfb * maxcob],
+        maxcob, work, ncoa, 0.0, pab, ncoa);
+}
+
+/*******************************************************************************
+ * \brief Allocate thread local memory that is aligned at to page boundaries.
+ * \author Ole Schuett
+ ******************************************************************************/
+void *malloc_threadlocal(const size_t size_unaligned, const int nthreads,
+                         double *threadlocal[nthreads]) {
+
+  const unsigned int alignpage = (1 << 12); // 4K pages assumed
+  const uintptr_t align1 = alignpage - 1;
+  const size_t size = (size_unaligned + align1) & ~align1;
+  void *const pool = malloc(size * nthreads + align1);
+  const uintptr_t pool_aligned = ((uintptr_t)pool + align1) & ~align1;
+
+  for (int i = 0; i < nthreads; i++) {
+    const uintptr_t aligned = pool_aligned + i * size;
+    threadlocal[i] = (double *)aligned;
+  }
+  return pool;
+}
+
+/*******************************************************************************
  * \brief Collocate a range of tasks which are destined for the same grid level.
  * \author Ole Schuett
  ******************************************************************************/
@@ -134,13 +206,11 @@ static void collocate_one_grid_level(
 
   // Allocate memory for thread local copy of the grid.
   const int nthreads = omp_get_max_threads();
-  const unsigned int alignpage = (1 << 12); // 4K pages assumed
-  const uintptr_t align1 = alignpage - 1;
+  double *threadlocal_grid[nthreads];
   const size_t npts_local_total = npts_local[0] * npts_local[1] * npts_local[2];
-  const size_t grid_size_unaligned = npts_local_total * sizeof(double);
-  const size_t grid_size = (grid_size_unaligned + align1) & ~align1;
-  void *const grid_pool = malloc(grid_size * nthreads + align1);
-  const uintptr_t grid_pool_aligned = ((uintptr_t)grid_pool + align1) & ~align1;
+  const size_t grid_size = npts_local_total * sizeof(double);
+  void *const grid_pool =
+      malloc_threadlocal(grid_size, nthreads, threadlocal_grid);
 
 // Using default(shared) because with GCC 9 the behavior around const changed:
 // https://www.gnu.org/software/gcc/gcc-9/porting_to.html
@@ -151,11 +221,9 @@ static void collocate_one_grid_level(
     // Matrix pab is re-used across tasks.
     double pab[task_list->maxco * task_list->maxco];
 
-    const int thread_num = omp_get_thread_num();
-    const uintptr_t aligned = grid_pool_aligned + thread_num * grid_size;
-    double *const threadlocal_grid = (double *)aligned;
     // Clear thread local copy of the grid.
-    memset(threadlocal_grid, 0, grid_size_unaligned);
+    double *const my_grid = threadlocal_grid[omp_get_thread_num()];
+    memset(my_grid, 0, grid_size);
 
 #pragma omp for schedule(static)
     for (int itask = first_task; itask <= last_task; itask++) {
@@ -171,11 +239,16 @@ static void collocate_one_grid_level(
       const int jkind = task_list->atom_kinds[jatom] - 1;
       const grid_basis_set *ibasis = task_list->basis_sets[ikind];
       const grid_basis_set *jbasis = task_list->basis_sets[jkind];
+      const double zeta = ibasis->zet[iset * ibasis->maxpgf + ipgf];
+      const double zetb = jbasis->zet[jset * jbasis->maxpgf + jpgf];
       const int ncoseta = ncoset(ibasis->lmax[iset]);
       const int ncosetb = ncoset(jbasis->lmax[jset]);
       const int ncoa = ibasis->npgf[iset] * ncoseta; // size of carthesian set
       const int ncob = jbasis->npgf[jset] * ncosetb;
       const int block_num = task->block_num - 1;
+      const int block_offset = task_list->block_offsets[block_num];
+      const double *block = &pab_blocks[block_offset];
+      const bool transpose = (iatom <= jatom);
 
       // Load subblock from buffer and decontract into Cartesian sublock pab.
       // The previous pab can be reused when only ipgf or jpgf has changed.
@@ -184,44 +257,8 @@ static void collocate_one_grid_level(
         prev_block_num = block_num;
         prev_iset = iset;
         prev_jset = jset;
-
-        // Define some more convenient aliases.
-        const int nsgf_seta = ibasis->nsgf_set[iset]; // size of spherical set
-        const int nsgf_setb = jbasis->nsgf_set[jset];
-        const int nsgfa = ibasis->nsgf; // size of entire spherical basis
-        const int nsgfb = jbasis->nsgf;
-        const int sgfa = ibasis->first_sgf[iset] - 1; // start of spherical set
-        const int sgfb = jbasis->first_sgf[jset] - 1;
-        const int maxcoa = ibasis->maxco;
-        const int maxcob = jbasis->maxco;
-
-        // Locate current matrix block within the buffer.
-        const int block_offset =
-            task_list->block_offsets[block_num]; // zero based
-        const double *block = &pab_blocks[block_offset];
-
-        // Decontract the sub block into pab.
-        double work[nsgf_setb * ncoa];
-        const double zero = 0.0, one = 1.0;
-        if (iatom <= jatom) {
-          // work[nsgf_setb][ncoa] = MATMUL(ibasis->sphi, subblock)
-          dgemm_("N", "N", &ncoa, &nsgf_setb, &nsgf_seta, &one,
-                 &ibasis->sphi[sgfa * maxcoa], &maxcoa,
-                 &block[sgfb * nsgfa + sgfa], &nsgfa, &zero, work, &ncoa);
-        } else {
-          // work[nsgf_setb][ncoa] = MATMUL(ibasis->sphi, TRANSPOSE(subblock))
-          dgemm_("N", "T", &ncoa, &nsgf_setb, &nsgf_seta, &one,
-                 &ibasis->sphi[sgfa * maxcoa], &maxcoa,
-                 &block[sgfa * nsgfb + sgfb], &nsgfb, &zero, work, &ncoa);
-        }
-        // pab[ncob][ncoa] = MATMUL(work, TRANSPOSE(jbasis->sphi))
-        dgemm_("N", "T", &ncoa, &ncob, &nsgf_setb, &one, work, &ncoa,
-               &jbasis->sphi[sgfb * maxcob], &maxcob, &zero, pab, &ncoa);
-
-      } // end of block loading
-
-      const double zeta = ibasis->zet[iset * ibasis->maxpgf + ipgf];
-      const double zetb = jbasis->zet[jset * jbasis->maxpgf + jpgf];
+        load_pab(ibasis, jbasis, iset, jset, transpose, block, pab);
+      }
 
       grid_ref_collocate_pgf_product(
           /*orthorhombic=*/orthorhombic,
@@ -248,13 +285,13 @@ static void collocate_one_grid_level(
           /*n1=*/ncoa,
           /*n2=*/ncob,
           /*pab=*/(const double(*)[ncoa])pab,
-          /*grid=*/threadlocal_grid);
+          /*grid=*/my_grid);
     } // end of task loop
 
     // Merge thread local grids into shared grid.
 #pragma omp critical
     for (size_t i = 0; i < npts_local_total; i++) {
-      grid[i] += threadlocal_grid[i];
+      grid[i] += my_grid[i];
     }
   } // end of omp parallel
 
