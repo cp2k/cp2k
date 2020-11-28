@@ -280,4 +280,30 @@ void grid_collocate_task_list(
   }
 }
 
+/*******************************************************************************
+ * \brief Integrate all tasks of in given list from given grids.
+ *        See grid_task_list.h for details.
+ * \author Ole Schuett
+ ******************************************************************************/
+void grid_integrate_task_list(
+    const grid_task_list *task_list, const bool orthorhombic,
+    const bool compute_tau, const bool calculate_forces, const int natoms,
+    const int nlevels, const int npts_global[nlevels][3],
+    const int npts_local[nlevels][3], const int shift_local[nlevels][3],
+    const int border_width[nlevels][3], const double dh[nlevels][3][3],
+    const double dh_inv[nlevels][3][3], const grid_buffer *pab_blocks,
+    const double *grid[nlevels], grid_buffer *hab_blocks,
+    double forces[natoms][3], double virial[3][3]) {
+
+  if (task_list->backend != GRID_BACKEND_REF) {
+    fprintf(stderr, "Error: integrate only implemented for REF backend\n");
+    abort();
+  }
+
+  grid_ref_integrate_task_list(
+      task_list->ref, orthorhombic, compute_tau, calculate_forces, natoms,
+      nlevels, npts_global, npts_local, shift_local, border_width, dh, dh_inv,
+      pab_blocks, grid, hab_blocks, forces, virial);
+}
+
 // EOF
