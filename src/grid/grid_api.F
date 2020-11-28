@@ -66,7 +66,7 @@ MODULE grid_api
    PUBLIC :: grid_buffer_type, grid_create_buffer, grid_free_buffer
    PUBLIC :: grid_basis_set_type, grid_create_basis_set, grid_free_basis_set
    PUBLIC :: grid_task_list_type, grid_create_task_list, grid_free_task_list
-   PUBLIC :: grid_collocate_task_list
+   PUBLIC :: grid_collocate_task_list, grid_integrate_task_list
 
    TYPE grid_buffer_type
       REAL(KIND=dp), DIMENSION(:), POINTER :: host_buffer => Null()
@@ -818,6 +818,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'grid_create_task_list'
 
       INTEGER                                            :: handle, ikind
+      TYPE(C_PTR) :: block_num_list_c, block_offsets_c, border_mask_list_c, iatom_list_c, &
+         ipgf_list_c, iset_list_c, jatom_list_c, jpgf_list_c, jset_list_c, level_list_c, &
+         rab_list_c, radius_list_c
       TYPE(C_PTR), ALLOCATABLE, DIMENSION(:), TARGET     :: basis_sets_c
       INTERFACE
          SUBROUTINE grid_create_task_list_c(ntasks, nlevels, natoms, nkinds, nblocks, &
@@ -893,36 +896,57 @@ CONTAINS
       CPASSERT(IS_CONTIGUOUS(rab_list))
 #endif
 
-      !If task_list%c_ptr is already allocated, then its memory will be reused or freed.
-      IF (ntasks == 0) THEN
-         CALL grid_create_task_list_c(0, nlevels, 0, 0, 0, C_NULL_PTR, C_NULL_PTR, C_NULL_PTR, &
-                                      C_NULL_PTR, C_NULL_PTR, C_NULL_PTR, C_NULL_PTR, C_NULL_PTR, &
-                                      C_NULL_PTR, C_NULL_PTR, C_NULL_PTR, C_NULL_PTR, C_NULL_PTR, &
-                                      C_NULL_PTR, C_NULL_PTR, &
-                                      task_list=task_list%c_ptr)
+      IF (ntasks > 0) THEN
+         block_offsets_c = C_LOC(block_offsets(1))
+         level_list_c = C_LOC(level_list(1))
+         iatom_list_c = C_LOC(iatom_list(1))
+         jatom_list_c = C_LOC(jatom_list(1))
+         iset_list_c = C_LOC(iset_list(1))
+         jset_list_c = C_LOC(jset_list(1))
+         ipgf_list_c = C_LOC(ipgf_list(1))
+         jpgf_list_c = C_LOC(jpgf_list(1))
+         border_mask_list_c = C_LOC(border_mask_list(1))
+         block_num_list_c = C_LOC(block_num_list(1))
+         radius_list_c = C_LOC(radius_list(1))
+         rab_list_c = C_LOC(rab_list(1, 1))
       ELSE
-         CALL grid_create_task_list_c(ntasks=ntasks, &
-                                      nlevels=nlevels, &
-                                      natoms=natoms, &
-                                      nkinds=nkinds, &
-                                      nblocks=nblocks, &
-                                      block_offsets=C_LOC(block_offsets(1)), &
-                                      atom_positions=C_LOC(atom_positions(1, 1)), &
-                                      atom_kinds=C_LOC(atom_kinds(1)), &
-                                      basis_sets=C_LOC(basis_sets_c(1)), &
-                                      level_list=C_LOC(level_list(1)), &
-                                      iatom_list=C_LOC(iatom_list(1)), &
-                                      jatom_list=C_LOC(jatom_list(1)), &
-                                      iset_list=C_LOC(iset_list(1)), &
-                                      jset_list=C_LOC(jset_list(1)), &
-                                      ipgf_list=C_LOC(ipgf_list(1)), &
-                                      jpgf_list=C_LOC(jpgf_list(1)), &
-                                      border_mask_list=C_LOC(border_mask_list(1)), &
-                                      block_num_list=C_LOC(block_num_list(1)), &
-                                      radius_list=C_LOC(radius_list(1)), &
-                                      rab_list=C_LOC(rab_list(1, 1)), &
-                                      task_list=task_list%c_ptr)
+         ! Without tasks the lists are empty and there is no first element to call C_LOC on.
+         block_offsets_c = C_NULL_PTR
+         level_list_c = C_NULL_PTR
+         iatom_list_c = C_NULL_PTR
+         jatom_list_c = C_NULL_PTR
+         iset_list_c = C_NULL_PTR
+         jset_list_c = C_NULL_PTR
+         ipgf_list_c = C_NULL_PTR
+         jpgf_list_c = C_NULL_PTR
+         border_mask_list_c = C_NULL_PTR
+         block_num_list_c = C_NULL_PTR
+         radius_list_c = C_NULL_PTR
+         rab_list_c = C_NULL_PTR
       ENDIF
+
+      !If task_list%c_ptr is already allocated, then its memory will be reused or freed.
+      CALL grid_create_task_list_c(ntasks=ntasks, &
+                                   nlevels=nlevels, &
+                                   natoms=natoms, &
+                                   nkinds=nkinds, &
+                                   nblocks=nblocks, &
+                                   block_offsets=block_offsets_c, &
+                                   atom_positions=C_LOC(atom_positions(1, 1)), &
+                                   atom_kinds=C_LOC(atom_kinds(1)), &
+                                   basis_sets=C_LOC(basis_sets_c(1)), &
+                                   level_list=level_list_c, &
+                                   iatom_list=iatom_list_c, &
+                                   jatom_list=jatom_list_c, &
+                                   iset_list=iset_list_c, &
+                                   jset_list=jset_list_c, &
+                                   ipgf_list=ipgf_list_c, &
+                                   jpgf_list=jpgf_list_c, &
+                                   border_mask_list=border_mask_list_c, &
+                                   block_num_list=block_num_list_c, &
+                                   radius_list=radius_list_c, &
+                                   rab_list=rab_list_c, &
+                                   task_list=task_list%c_ptr)
 
       CPASSERT(C_ASSOCIATED(task_list%c_ptr))
 
@@ -1044,6 +1068,7 @@ CONTAINS
 #endif
 
       CPASSERT(C_ASSOCIATED(task_list%c_ptr))
+      CPASSERT(C_ASSOCIATED(pab_blocks%c_ptr))
 
       CALL grid_collocate_task_list_c(task_list=task_list%c_ptr, &
                                       orthorhombic=orthorhombic, &
@@ -1060,6 +1085,134 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE grid_collocate_task_list
+
+! **************************************************************************************************
+!> \brief Integrate all tasks of in given list from given grids.
+!> \param task_list ...
+!> \param compute_tau ...
+!> \param calculate_forces ...
+!> \param pab_blocks ...
+!> \param rs_grids ...
+!> \param hab_blocks ...
+!> \param forces ...
+!> \param virial ...
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE grid_integrate_task_list(task_list, compute_tau, calculate_forces, pab_blocks, &
+                                       rs_grids, hab_blocks, forces, virial)
+      TYPE(grid_task_list_type), INTENT(IN)              :: task_list
+      LOGICAL, INTENT(IN)                                :: compute_tau, calculate_forces
+      TYPE(grid_buffer_type), INTENT(IN)                 :: pab_blocks
+      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_grids
+      TYPE(grid_buffer_type), INTENT(INOUT)              :: hab_blocks
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
+         TARGET                                          :: forces
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
+         TARGET                                          :: virial
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'grid_integrate_task_list'
+
+      INTEGER                                            :: handle, ilevel, nlevels
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), TARGET      :: border_width, npts_global, npts_local, &
+                                                            shift_local
+      LOGICAL(KIND=C_BOOL)                               :: orthorhombic
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         TARGET                                          :: dh, dh_inv
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grid
+      TYPE(C_PTR), ALLOCATABLE, DIMENSION(:), TARGET     :: grid_pointers
+      TYPE(realspace_grid_type), POINTER                 :: rsgrid
+      INTERFACE
+         SUBROUTINE grid_integrate_task_list_c(task_list, orthorhombic, compute_tau, calculate_forces, &
+                                               natoms, nlevels, npts_global, npts_local, shift_local, &
+                                               border_width, dh, dh_inv, &
+                                               pab_blocks, grid, hab_blocks, forces, virial) &
+            BIND(C, name="grid_integrate_task_list")
+            IMPORT :: C_PTR, C_INT, C_BOOL
+            TYPE(C_PTR), VALUE                        :: task_list
+            LOGICAL(KIND=C_BOOL), VALUE               :: orthorhombic
+            LOGICAL(KIND=C_BOOL), VALUE               :: compute_tau
+            LOGICAL(KIND=C_BOOL), VALUE               :: calculate_forces
+            INTEGER(KIND=C_INT), VALUE                :: natoms
+            INTEGER(KIND=C_INT), VALUE                :: nlevels
+            TYPE(C_PTR), VALUE                        :: npts_global
+            TYPE(C_PTR), VALUE                        :: npts_local
+            TYPE(C_PTR), VALUE                        :: shift_local
+            TYPE(C_PTR), VALUE                        :: border_width
+            TYPE(C_PTR), VALUE                        :: dh
+            TYPE(C_PTR), VALUE                        :: dh_inv
+            TYPE(C_PTR), VALUE                        :: pab_blocks
+            TYPE(C_PTR), VALUE                        :: grid
+            TYPE(C_PTR), VALUE                        :: hab_blocks
+            TYPE(C_PTR), VALUE                        :: forces
+            TYPE(C_PTR), VALUE                        :: virial
+         END SUBROUTINE grid_integrate_task_list_c
+      END INTERFACE
+
+      CALL timeset(routineN, handle)
+
+      nlevels = SIZE(rs_grids)
+      CPASSERT(nlevels > 0)
+      orthorhombic = LOGICAL(rs_grids(1)%rs_grid%desc%orthorhombic, C_BOOL)
+
+      ALLOCATE (grid_pointers(nlevels))
+      ALLOCATE (npts_global(3, nlevels), npts_local(3, nlevels))
+      ALLOCATE (shift_local(3, nlevels), border_width(3, nlevels))
+      ALLOCATE (dh(3, 3, nlevels), dh_inv(3, 3, nlevels))
+      DO ilevel = 1, nlevels
+         rsgrid => rs_grids(ilevel)%rs_grid
+         CALL get_rsgrid_properties(rsgrid=rsgrid, &
+                                    npts_global=npts_global(:, ilevel), &
+                                    npts_local=npts_local(:, ilevel), &
+                                    shift_local=shift_local(:, ilevel), &
+                                    border_width=border_width(:, ilevel))
+         CPASSERT(rsgrid%desc%orthorhombic .EQV. orthorhombic)  ! should be the same for all levels
+         dh(:, :, ilevel) = rsgrid%desc%dh(:, :)
+         dh_inv(:, :, ilevel) = rsgrid%desc%dh_inv(:, :)
+         grid(1:, 1:, 1:) => rsgrid%r(:, :, :)  ! ensure lower bounds are (1,1,1)
+         grid_pointers(ilevel) = C_LOC(grid(1, 1, 1))
+      END DO
+
+#if __GNUC__ >= 9
+      CPASSERT(IS_CONTIGUOUS(npts_global))
+      CPASSERT(IS_CONTIGUOUS(npts_local))
+      CPASSERT(IS_CONTIGUOUS(shift_local))
+      CPASSERT(IS_CONTIGUOUS(border_width))
+      CPASSERT(IS_CONTIGUOUS(dh))
+      CPASSERT(IS_CONTIGUOUS(dh_inv))
+      CPASSERT(IS_CONTIGUOUS(grid_pointers))
+      CPASSERT(IS_CONTIGUOUS(forces))
+      CPASSERT(IS_CONTIGUOUS(virial))
+      DO ilevel = 1, nlevels
+         grid(1:, 1:, 1:) => rs_grids(ilevel)%rs_grid%r(:, :, :)
+         CPASSERT(IS_CONTIGUOUS(grid))
+      END DO
+#endif
+
+      CPASSERT(SIZE(forces, 1) == 3)
+      CPASSERT(C_ASSOCIATED(task_list%c_ptr))
+      CPASSERT(C_ASSOCIATED(hab_blocks%c_ptr))
+      CPASSERT(C_ASSOCIATED(pab_blocks%c_ptr) .OR. .NOT. calculate_forces)
+
+      CALL grid_integrate_task_list_c(task_list=task_list%c_ptr, &
+                                      orthorhombic=orthorhombic, &
+                                      compute_tau=LOGICAL(compute_tau, C_BOOL), &
+                                      calculate_forces=LOGICAL(calculate_forces, C_BOOL), &
+                                      natoms=SIZE(forces, 2), &
+                                      nlevels=nlevels, &
+                                      npts_global=C_LOC(npts_global(1, 1)), &
+                                      npts_local=C_LOC(npts_local(1, 1)), &
+                                      shift_local=C_LOC(shift_local(1, 1)), &
+                                      border_width=C_LOC(border_width(1, 1)), &
+                                      dh=C_LOC(dh(1, 1, 1)), &
+                                      dh_inv=C_LOC(dh_inv(1, 1, 1)), &
+                                      pab_blocks=pab_blocks%c_ptr, &
+                                      grid=C_LOC(grid_pointers(1)), &
+                                      hab_blocks=hab_blocks%c_ptr, &
+                                      forces=C_LOC(forces(1, 1)), &
+                                      virial=C_LOC(virial(1, 1)))
+
+      CALL timestop(handle)
+   END SUBROUTINE grid_integrate_task_list
 
 ! **************************************************************************************************
 !> \brief Initialize grid library
