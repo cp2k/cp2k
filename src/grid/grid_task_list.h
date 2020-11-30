@@ -11,7 +11,10 @@
 
 #include "common/grid_basis_set.h"
 #include "common/grid_buffer.h"
+#include "common/grid_constants.h"
+#include "cpu/grid_cpu_task_list.h"
 #include "gpu/grid_gpu_task_list.h"
+#include "hybrid/grid_hybrid_task_list.h"
 #include "ref/grid_ref_task_list.h"
 
 /*******************************************************************************
@@ -20,12 +23,11 @@
  ******************************************************************************/
 typedef struct {
   int backend;
-  bool validate;
   grid_ref_task_list *ref;
-  void *cpu;
+  grid_cpu_task_list *cpu;
 #ifdef __GRID_CUDA
   grid_gpu_task_list *gpu;
-  void *hybrid;
+  grid_hybrid_task_list *hybrid;
 #endif
   // more backends to be added here
 } grid_task_list;

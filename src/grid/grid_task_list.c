@@ -14,16 +14,7 @@
 #include "common/grid_common.h"
 #include "common/grid_constants.h"
 #include "common/grid_library.h"
-#include "cpu/grid_context_cpu.h"
 #include "grid_task_list.h"
-
-void grid_collocate_task_list_hybrid(
-    void *const ptr, const bool orthorhombic, const enum grid_func func,
-    const int nlevels, const int npts_global[nlevels][3],
-    const int npts_local[nlevels][3], const int shift_local[nlevels][3],
-    const int border_width[nlevels][3], const double dh[nlevels][3][3],
-    const double dh_inv[nlevels][3][3], const grid_buffer *pab_blocks,
-    double *grid[nlevels]);
 
 /*******************************************************************************
  * \brief Allocates a task list which can be passed to grid_collocate_task_list.
@@ -46,17 +37,54 @@ void grid_create_task_list(
 
   if (*task_list == NULL) {
     *task_list = malloc(sizeof(grid_task_list));
-    (*task_list)->ref = NULL;
-    (*task_list)->cpu = NULL;
+    memset(*task_list, 0, sizeof(grid_task_list));
+
+    // Resolve AUTO to a concrete backend.
+    if (config.backend == GRID_BACKEND_AUTO) {
 #ifdef __GRID_CUDA
-    (*task_list)->gpu = NULL;
-    (*task_list)->hybrid = NULL;
+      (*task_list)->backend = GRID_BACKEND_GPU;
+#else
+      (*task_list)->backend = GRID_BACKEND_REF;
 #endif
-    (*task_list)->validate = config.validate;
+    } else {
+      (*task_list)->backend = config.backend;
+    }
   }
 
-  switch (config.backend) {
-#ifndef __GRID_CUDA
+  // Create reference backend - needed as fallback and possibly for validation.
+  grid_ref_create_task_list(
+      ntasks, nlevels, natoms, nkinds, nblocks, block_offsets, atom_positions,
+      atom_kinds, basis_sets, level_list, iatom_list, jatom_list, iset_list,
+      jset_list, ipgf_list, jpgf_list, border_mask_list, block_num_list,
+      radius_list, rab_list, &(*task_list)->ref);
+
+  // Create other backend, if selected.
+  switch ((*task_list)->backend) {
+  case GRID_BACKEND_REF:
+    break; // was already created above
+  case GRID_BACKEND_CPU:
+    grid_cpu_create_task_list(
+        ntasks, nlevels, natoms, nkinds, nblocks, block_offsets, atom_positions,
+        atom_kinds, basis_sets, level_list, iatom_list, jatom_list, iset_list,
+        jset_list, ipgf_list, jpgf_list, border_mask_list, block_num_list,
+        radius_list, rab_list, &(*task_list)->cpu);
+    break;
+#ifdef __GRID_CUDA
+  case GRID_BACKEND_GPU:
+    grid_gpu_create_task_list(
+        ntasks, nlevels, natoms, nkinds, nblocks, block_offsets, atom_positions,
+        atom_kinds, basis_sets, level_list, iatom_list, jatom_list, iset_list,
+        jset_list, ipgf_list, jpgf_list, border_mask_list, block_num_list,
+        radius_list, rab_list, &(*task_list)->gpu);
+    break;
+  case GRID_BACKEND_HYBRID:
+    grid_hybrid_create_task_list(
+        ntasks, nlevels, natoms, nkinds, nblocks, block_offsets, atom_positions,
+        atom_kinds, basis_sets, level_list, iatom_list, jatom_list, iset_list,
+        jset_list, ipgf_list, jpgf_list, border_mask_list, block_num_list,
+        radius_list, rab_list, &(*task_list)->hybrid);
+    break;
+#else
   case GRID_BACKEND_GPU:
   case GRID_BACKEND_HYBRID:
     fprintf(stderr,
@@ -65,98 +93,10 @@ void grid_create_task_list(
     abort();
     break;
 #endif
-  case GRID_BACKEND_CPU: {
-    if (!(*task_list)->cpu) {
-      (*task_list)->cpu = create_grid_context_cpu(
-          ntasks, nlevels, natoms, nkinds, nblocks, block_offsets,
-          atom_positions, atom_kinds, basis_sets, level_list, iatom_list,
-          jatom_list, iset_list, jset_list, ipgf_list, jpgf_list,
-          border_mask_list, block_num_list, radius_list, rab_list);
-    } else {
-      update_grid_context_cpu(ntasks, nlevels, natoms, nkinds, nblocks,
-                              block_offsets, atom_positions, atom_kinds,
-                              basis_sets, level_list, iatom_list, jatom_list,
-                              iset_list, jset_list, ipgf_list, jpgf_list,
-                              border_mask_list, block_num_list, radius_list,
-                              rab_list, (*task_list)->cpu);
-    }
-    (*task_list)->backend = GRID_BACKEND_CPU;
-  } break;
-#ifdef __GRID_CUDA
-  case GRID_BACKEND_AUTO:
-  case GRID_BACKEND_GPU:
-    grid_gpu_create_task_list(
-        ntasks, nlevels, natoms, nkinds, nblocks, block_offsets, atom_positions,
-        atom_kinds, basis_sets, level_list, iatom_list, jatom_list, iset_list,
-        jset_list, ipgf_list, jpgf_list, border_mask_list, block_num_list,
-        radius_list, rab_list, &(*task_list)->gpu);
-    (*task_list)->backend = GRID_BACKEND_GPU;
-    break;
-  case GRID_BACKEND_HYBRID: {
-    if (!(*task_list)->hybrid) {
-      (*task_list)->hybrid = create_grid_context_cpu(
-          ntasks, nlevels, natoms, nkinds, nblocks, block_offsets,
-          atom_positions, atom_kinds, basis_sets, level_list, iatom_list,
-          jatom_list, iset_list, jset_list, ipgf_list, jpgf_list,
-          border_mask_list, block_num_list, radius_list, rab_list);
-    } else {
-      update_grid_context_cpu(ntasks, nlevels, natoms, nkinds, nblocks,
-                              block_offsets, atom_positions, atom_kinds,
-                              basis_sets, level_list, iatom_list, jatom_list,
-                              iset_list, jset_list, ipgf_list, jpgf_list,
-                              border_mask_list, block_num_list, radius_list,
-                              rab_list, (*task_list)->hybrid);
-    }
-
-    /* does not allocate anything on the GPU. */
-    /* allocation only occurs when the collocate (or integrate) function is
-     * called. Resources are released before exiting the function */
-
-    /* I do *not* store the address of config.device_id */
-    initialize_grid_context_on_gpu(
-        (*task_list)->hybrid, 1 /* number of devices */, &config.device_id);
-    update_queue_length((*task_list)->hybrid, config.queue_length);
-    (*task_list)->backend = GRID_BACKEND_HYBRID;
-  } break;
-#else
-  case GRID_BACKEND_AUTO:
-#endif
-  case GRID_BACKEND_REF:
-    (*task_list)->backend = GRID_BACKEND_REF;
-    grid_ref_create_task_list(
-        ntasks, nlevels, natoms, nkinds, nblocks, block_offsets, atom_positions,
-        atom_kinds, basis_sets, level_list, iatom_list, jatom_list, iset_list,
-        jset_list, ipgf_list, jpgf_list, border_mask_list, block_num_list,
-        radius_list, rab_list, &(*task_list)->ref);
-    break;
-  default: {
+  default:
     printf("Error: Unknown grid backend: %i.\n", config.backend);
     abort();
-  } break;
-  }
-
-  if ((config.apply_cutoff) &&
-      (((*task_list)->backend == GRID_BACKEND_HYBRID) ||
-       ((*task_list)->backend == GRID_BACKEND_CPU))) {
-#ifdef __GRID_CUDA
-    if ((*task_list)->cpu) {
-      apply_cutoff((*task_list)->cpu);
-    } else {
-      apply_cutoff((*task_list)->hybrid);
-    }
-#else
-    if ((*task_list)->cpu) {
-      apply_cutoff((*task_list)->cpu);
-    }
-#endif
-  }
-
-  if ((config.validate) && ((*task_list)->backend != GRID_BACKEND_REF)) {
-    grid_ref_create_task_list(
-        ntasks, nlevels, natoms, nkinds, nblocks, block_offsets, atom_positions,
-        atom_kinds, basis_sets, level_list, iatom_list, jatom_list, iset_list,
-        jset_list, ipgf_list, jpgf_list, border_mask_list, block_num_list,
-        radius_list, rab_list, &(*task_list)->ref);
+    break;
   }
 }
 
@@ -166,28 +106,24 @@ void grid_create_task_list(
  ******************************************************************************/
 void grid_free_task_list(grid_task_list *task_list) {
 
-  switch (task_list->backend) {
-  case GRID_BACKEND_CPU:
-    destroy_grid_context_cpu(task_list->cpu);
+  if (task_list->ref != NULL) {
+    grid_ref_free_task_list(task_list->ref);
+    task_list->ref = NULL;
+  }
+  if (task_list->cpu != NULL) {
+    grid_cpu_free_task_list(task_list->cpu);
     task_list->cpu = NULL;
-    break;
+  }
 #ifdef __GRID_CUDA
-  case GRID_BACKEND_GPU:
+  if (task_list->gpu != NULL) {
     grid_gpu_free_task_list(task_list->gpu);
     task_list->gpu = NULL;
-    break;
-  case GRID_BACKEND_HYBRID:
-    destroy_grid_context_cpu(task_list->hybrid);
-    break;
-#endif
-  case GRID_BACKEND_REF:
-    grid_ref_free_task_list(task_list->ref);
-    break;
   }
-
-  if ((task_list->backend != GRID_BACKEND_REF) && task_list->validate)
-    grid_ref_free_task_list(task_list->ref);
-  task_list->ref = NULL;
+  if (task_list->hybrid != NULL) {
+    grid_hybrid_free_task_list(task_list->hybrid);
+    task_list->hybrid = NULL;
+  }
+#endif
 
   free(task_list);
 }
@@ -205,8 +141,6 @@ void grid_collocate_task_list(
     const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
     const grid_buffer *pab_blocks, double *grid[nlevels]) {
 
-  // If validation is enabled, make a backup copy of the original grid.
-
   switch (task_list->backend) {
   case GRID_BACKEND_REF:
     grid_ref_collocate_task_list(task_list->ref, orthorhombic, func, nlevels,
@@ -214,7 +148,7 @@ void grid_collocate_task_list(
                                  border_width, dh, dh_inv, pab_blocks, grid);
     break;
   case GRID_BACKEND_CPU:
-    grid_collocate_task_list_cpu(task_list->cpu, orthorhombic, func, nlevels,
+    grid_cpu_collocate_task_list(task_list->cpu, orthorhombic, func, nlevels,
                                  npts_global, npts_local, shift_local,
                                  border_width, dh, dh_inv, pab_blocks, grid);
     break;
@@ -225,7 +159,7 @@ void grid_collocate_task_list(
                                  border_width, dh, dh_inv, pab_blocks, grid);
     break;
   case GRID_BACKEND_HYBRID:
-    grid_collocate_task_list_hybrid(
+    grid_hybrid_collocate_task_list(
         task_list->hybrid, orthorhombic, func, nlevels, npts_global, npts_local,
         shift_local, border_width, dh, dh_inv, pab_blocks, grid);
     break;
@@ -237,7 +171,7 @@ void grid_collocate_task_list(
   }
 
   // Perform validation if enabled.
-  if (task_list->validate) {
+  if (grid_library_get_config().validate) {
     // Create empty reference grid array.
     double *grid_ref[nlevels];
     for (int level = 0; level < nlevels; level++) {
@@ -295,15 +229,38 @@ void grid_integrate_task_list(
     const double *grid[nlevels], grid_buffer *hab_blocks,
     double forces[natoms][3], double virial[3][3]) {
 
-  if (task_list->backend != GRID_BACKEND_REF) {
-    fprintf(stderr, "Error: integrate only implemented for REF backend\n");
+  switch (task_list->backend) {
+#ifdef __GRID_CUDA
+  case GRID_BACKEND_GPU:
+    // grid_gpu_integrate_task_list(
+    //     task_list->gpu, orthorhombic, compute_tau, calculate_forces, natoms,
+    //     nlevels, npts_global, npts_local, shift_local, border_width, dh,
+    //     dh_inv, pab_blocks, grid, hab_blocks, forces, virial);
+    // break;
+  case GRID_BACKEND_HYBRID:
+    // grid_hybrid_integrate_task_list(
+    //     task_list->hybrid, orthorhombic, compute_tau, calculate_forces,
+    //     natoms, nlevels, npts_global, npts_local, shift_local, border_width,
+    //     dh, dh_inv, pab_blocks, grid, hab_blocks, forces, virial);
+    // break;
+#endif
+  case GRID_BACKEND_CPU:
+    // grid_cpu_integrate_task_list(
+    //     task_list->cpu, orthorhombic, compute_tau, calculate_forces, natoms,
+    //     nlevels, npts_global, npts_local, shift_local, border_width, dh,
+    //     dh_inv, pab_blocks, grid, hab_blocks, forces, virial);
+    // break;
+  case GRID_BACKEND_REF:
+    grid_ref_integrate_task_list(
+        task_list->ref, orthorhombic, compute_tau, calculate_forces, natoms,
+        nlevels, npts_global, npts_local, shift_local, border_width, dh, dh_inv,
+        pab_blocks, grid, hab_blocks, forces, virial);
+    break;
+  default:
+    printf("Error: Unknown grid backend: %i.\n", task_list->backend);
     abort();
+    break;
   }
-
-  grid_ref_integrate_task_list(
-      task_list->ref, orthorhombic, compute_tau, calculate_forces, natoms,
-      nlevels, npts_global, npts_local, shift_local, border_width, dh, dh_inv,
-      pab_blocks, grid, hab_blocks, forces, virial);
 }
 
 // EOF
