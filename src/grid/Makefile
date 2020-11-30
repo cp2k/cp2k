@@ -26,6 +26,7 @@ ALL_OBJECTS := grid_collocate_replay.o \
                gpu/grid_gpu_collocate.o \
                hybrid/grid_collocate_hybrid_cuda.o \
                hybrid/grid_collocate_hybrid.o \
+               hybrid/grid_hybrid_task_list.o \
                cpu/grid_context_cpu.o \
                cpu/coefficients.o \
                cpu/grid_collocate_dgemm.o \
@@ -35,7 +36,8 @@ ALL_OBJECTS := grid_collocate_replay.o \
                cpu/collocation_integration.o \
                cpu/grid_context_cpu.o \
                cpu/grid_prepare_pab_dgemm.o \
-               cpu/tensor_local.o
+               cpu/tensor_local.o \
+               cpu/grid_cpu_task_list.o
 
 
 %.o: %.c $(ALL_HEADERS)
