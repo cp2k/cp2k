@@ -276,11 +276,6 @@ CONTAINS
 
       ALLOCATE (forces_array(3, natoms))
 
-      ! initialize the working hmat structures
-      task_list%hab_buffer%host_buffer(:) = 0.0_dp
-      virial_matrix(:, :) = 0.0_dp
-      forces_array(:, :) = 0.0_dp
-
       IF (pab_required) THEN
          ! initialize the working pmat structures
          ALLOCATE (deltap(nimages))

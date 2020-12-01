@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "../common/grid_library.h"
 #include "grid_context_cpu.h"
@@ -69,6 +70,14 @@ void grid_cpu_collocate_task_list(
     const int shift_local[nlevels][3], const int border_width[nlevels][3],
     const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
     const grid_buffer *pab_blocks, double *grid[nlevels]) {
+
+  // Zero the grids.
+  for (int ilevel = 0; ilevel < nlevels; ilevel++) {
+    const size_t npts_local_total =
+        npts_local[ilevel][0] * npts_local[ilevel][1] * npts_local[ilevel][2];
+    const size_t grid_size = npts_local_total * sizeof(double);
+    memset(grid[ilevel], 0, grid_size);
+  }
 
   grid_collocate_task_list_cpu(task_list->context, orthorhombic, func, nlevels,
                                npts_global, npts_local, shift_local,

@@ -1508,11 +1508,8 @@ CONTAINS
       CALL pw_env_get(pw_env, rs_grids=rs_rho)
       nlevels = SIZE(rs_rho)
       group = rs_rho(1)%rs_grid%desc%group
-
-      ! Zero all grids.
       DO ilevel = 1, nlevels
          CALL rs_grid_retain(rs_rho(ilevel)%rs_grid)
-         CALL rs_grid_zero(rs_rho(ilevel)%rs_grid)
       END DO
 
       ! Check if any of the grids is distributed.
