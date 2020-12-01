@@ -13,6 +13,7 @@
 !>      02.2005 Update to the new version 2.4 and deleting the blas part of
 !>              the code (Teodoro Laino)
 !>      11.2012 New version 3.0 converted to Fortran 90 (Matthias Krack)
+!>      12.2020 Implementation of Space Group Symmetry (Pierre-André Cazade)
 !> \author Fawzi Mohamed (first version)
 ! **************************************************************************************************
 MODULE cp_lbfgs
@@ -175,6 +176,7 @@ CONTAINS
 !>                 Written by
 !>                             Ciyou Zhu
 !>                 in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
+!> \history        [pcazade] 12.2020 Implementation of Space Group Symmetry
 ! **************************************************************************************************
    SUBROUTINE setulb(n, m, x, lower_bound, upper_bound, nbd, f, g, factr, pgtol, wa, iwa, &
                      task, iprint, csave, lsave, isave, dsave, trust_radius, spgr)
@@ -273,7 +275,7 @@ CONTAINS
          END DO
       ENDIF
 
-      ! [pcazade] passes spgr to mainlb
+      ! passes spgr to mainlb
       IF(PRESENT(spgr)) THEN
          CALL mainlb(n, m, x, lower_bound, upper_bound, nbd, f, g, factr, pgtol, &
                      wa(lws), wa(lwy), wa(lsy), wa(lss), wa(lwt), &
@@ -388,6 +390,7 @@ CONTAINS
 !>               Written by
 !>                           Ciyou Zhu
 !>               in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
+!> \history      [pcazade] 12.2020 Implementation of Space Group Symmetry
 ! **************************************************************************************************
    SUBROUTINE mainlb(n, m, x, lower_bound, upper_bound, nbd, f, g, factr, pgtol, ws, wy, &
                      sy, ss, wt, wn, snd, z, r, d, t, xp, wa, &
@@ -517,7 +520,7 @@ CONTAINS
 !        Initialize iwhere & project x onto the feasible set.
 
          CALL active(n, lower_bound, upper_bound, nbd, x, iwhere, iprint, x_projected, constrained, boxed)
-         ! [pcazade] applies rotation matrices to coordinates
+         ! applies rotation matrices to coordinates
          IF (keep_sg) THEN
             CALL spgr_apply_rotations_coord(spgr, x)
          END IF
@@ -530,7 +533,7 @@ CONTAINS
                          cpu1, cachyt, sbtime, lnscht, time1, gd, step_max, g_inf_norm, stp, gdold, dtd)
          RETURN
       ELSE
-         ! [pcazade] applies rotation matrices to coordinates
+         ! applies rotation matrices to coordinates
          IF (keep_sg) THEN
             CALL spgr_apply_rotations_coord(spgr, x)
             CALL spgr_apply_rotations_force(spgr, g)
@@ -655,7 +658,7 @@ CONTAINS
                         m, wy, ws, sy, wt, theta, col, head, &
                         wa(1), wa(2*m + 1), wa(4*m + 1), wa(6*m + 1), nseg, &
                         iprint, g_inf_norm, info, epsmch)
-            ! [pcazade] applies rotation matrices to coordinates
+            ! applies rotation matrices to coordinates
             IF (keep_sg) THEN
                CALL spgr_apply_rotations_coord(spgr, z)
             END IF
@@ -727,7 +730,7 @@ CONTAINS
 !                                                   from 'cauchy').
             CALL cmprlb(n, m, x, g, ws, wy, sy, wt, z, r, wa, index, &
                         theta, col, head, nfree, constrained, info)
-            ! [pcazade] applies rotation matrices to coordinates
+            ! applies rotation matrices to coordinates
             IF (keep_sg) THEN
                CALL spgr_apply_rotations_force(spgr, r)
             END IF
@@ -737,7 +740,7 @@ CONTAINS
 
                CALL subsm(n, m, nfree, index, lower_bound, upper_bound, nbd, z, r, xp, ws, wy, &
                           theta, x, g, col, head, iword, wa, wn, iprint, info)
-               ! [pcazade] applies rotation matrices to coordinates
+               ! applies rotation matrices to coordinates
                IF (keep_sg) THEN
                   CALL spgr_apply_rotations_coord(spgr, z)
                   CALL spgr_apply_rotations_force(spgr, r)
@@ -770,7 +773,7 @@ CONTAINS
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 !     Generate the search direction d:=z-x.
-        ! [pcazade] applies rotation matrices to coordinates
+        ! applies rotation matrices to coordinates
          IF (keep_sg) THEN
             CALL spgr_apply_rotations_coord(spgr, x)
             CALL spgr_apply_rotations_coord(spgr, z)
@@ -781,7 +784,7 @@ CONTAINS
          CALL timer(cpu1)
       ENDIF
       IF (.NOT. first .OR. .NOT. (task(1:5) == 'NEW_X')) THEN
-         ! [pcazade] applies rotation matrices to coordinates
+         ! applies rotation matrices to coordinates
          IF (keep_sg) THEN
             CALL spgr_apply_rotations_coord(spgr, x)
             CALL spgr_apply_rotations_coord(spgr, z)
@@ -792,7 +795,7 @@ CONTAINS
          CALL lnsrlb(n, lower_bound, upper_bound, nbd, x, f, fold, gd, gdold, g, d, r, t, z, stp, dnorm, &
                      dtd, xstep, step_max, iter, ifun, iback, nfgv, info, task, &
                      boxed, constrained, csave, isave(22), dsave(17))
-         ! [pcazade] applies rotation matrices to coordinates
+         ! applies rotation matrices to coordinates
          IF (keep_sg) THEN
             CALL spgr_apply_rotations_coord(spgr, x)
             CALL spgr_apply_rotations_force(spgr, g)

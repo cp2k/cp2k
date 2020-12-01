@@ -17,7 +17,7 @@
 !> \param para_env ...
 !> \par History
 !>       CELL OPTIMIZATION:  Teodoro Laino [tlaino] - University of Zurich - 03.2008
-!>
+!>       07.2020 Pierre Cazade [pcazade] Space Group Symmetry
 !> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
 ! **************************************************************************************************
 RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &

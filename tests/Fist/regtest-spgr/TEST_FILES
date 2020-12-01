@@ -6,4 +6,5 @@
 copper.inp                                   1      Fm-3m   192
 quartz.inp                                   1      P3_221    6
 zro.inp                                      1      P2_1/c    4
+zro-filename.inp                             1      P2_1/c    4
 #EOF

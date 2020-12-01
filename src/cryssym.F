@@ -165,9 +165,6 @@ CONTAINS
          CALL cp_warn(__LOCATION__, "Symmetry library SPGLIB not available")
          spglib = .FALSE.
       ELSE
-         !IF (major /= 1 .OR. minor /= 9 .OR. micro /= 9) THEN
-         !   CALL cp_warn(__LOCATION__, "Version of Symmetry Library SPGLIB not tested")
-         !END IF
          spglib = .TRUE.
          CALL cite_reference(Togo2018)
          ierr = spg_get_international(csym%international_symbol, TRANSPOSE(hmat), scoor, types, nat, delta)

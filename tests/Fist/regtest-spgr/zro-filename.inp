@@ -1,0 +1,116 @@
+&GLOBAL
+ PROJECT_NAME zro-filename
+ PRINT_LEVEL medium
+ RUN_TYPE CELL_OPT
+&END GLOBAL
+&MOTION
+  &CELL_OPT
+    OPTIMIZER BFGS
+    MAX_ITER 1
+    KEEP_ANGLES T
+    KEEP_SYMMETRY T
+    KEEP_SPACE_GROUP T
+    EPS_GEO 1.e-4
+    EPS_SPGR 1e-4
+    SPGR_FILE_NAME zro-sg.dat
+    SPGR_PRINT_LEVEL 1
+  &END CELL_OPT
+&END MOTION
+&FORCE_EVAL
+ METHOD FIST
+ STRESS_TENSOR ANALYTICAL
+ &MM
+  &FORCEFIELD
+   &SHELL O
+    CORE_CHARGE  +0.077
+    SHELL_CHARGE -2.077
+    MASS_FRACTION 0.1
+    SPRING [eV*angstrom^-2] 27.29
+    MAX_DISTANCE [angstrom] 0.5
+   &END SHELL
+   &SHELL Zr
+    CORE_CHARGE  +2.65
+    SHELL_CHARGE +1.35
+    MASS_FRACTION 0.01
+    SPRING [eV*angstrom^-2] 169.617
+    MAX_DISTANCE [angstrom] 0.5
+   &END SHELL
+   &NONBONDED
+    &WILLIAMS
+     ATOMS O O
+     A [eV] 22764.30
+     B [angstrom^-1] 1/0.1490
+     C [eV*angstrom^6] 27.890
+     RCUT [angstrom] 10.4
+    &END WILLIAMS
+    &WILLIAMS
+     ATOMS O Zr
+     A [eV] 985.869
+     B [angstrom^-1] 1/0.3760
+     C [eV*angstrom^6] 0.0
+     RCUT [angstrom] 10.4
+    &END WILLIAMS
+    &WILLIAMS
+     ATOMS Zr Zr
+     A [eV] 0.0
+     B [angstrom^-1] 0.0
+     C [eV*angstrom^6] 0.0
+     RCUT [angstrom] 10.4
+    &END WILLIAMS
+   &END NONBONDED
+   &SPLINE
+    EMAX_ACCURACY [hartree] 0.02
+    EMAX_SPLINE [hartree] 1.0E4
+    EPS_SPLINE [hartree] 1.0E-7
+    R0_NB [angstrom] 0.1
+   &END SPLINE
+  &END FORCEFIELD
+  &POISSON
+   &EWALD
+    EWALD_TYPE spme
+    ALPHA [angstrom^-1] 0.35
+    GMAX  8  8  8
+    &RS_GRID
+     DISTRIBUTION_TYPE automatic
+    &END RS_GRID
+   &END EWALD
+  &END POISSON
+ &END MM
+ &PRINT
+  &STRESS_TENSOR ON
+    NDIGITS 16
+  &END STRESS_TENSOR
+ &END PRINT
+ &SUBSYS
+  &CELL
+   A      5.1690000000     0.0000000000     0.0000000000
+   B      0.0000000000     5.2320000000     0.0000000000
+   C     -0.8585260429     0.0000000000     5.2715475938
+   SYMMETRY MONOCLINIC
+   PERIODIC  XYZ
+   MULTIPLE_UNIT_CELL  1 1 1
+  &END CELL
+  &COORD
+   SCALED T
+   Zr      0.275800    0.040400    0.208900  ZrO2  1
+   Zr      0.275800    0.459600    0.708900  ZrO2  1
+   Zr      0.724200    0.540400    0.291100  ZrO2  1
+   Zr      0.724200    0.959600    0.791100  ZrO2  1
+   O       0.069000    0.342000    0.345000  ZrO2  1
+   O       0.069000    0.158000    0.845000  ZrO2  1
+   O       0.931000    0.842000    0.155000  ZrO2  1
+   O       0.931000    0.658000    0.655000  ZrO2  1
+   O       0.451000    0.758000    0.479000  ZrO2  1
+   O       0.451000    0.742000    0.979000  ZrO2  1
+   O       0.549000    0.258000    0.021000  ZrO2  1
+   O       0.549000    0.242000    0.521000  ZrO2  1
+  &END COORD
+  &TOPOLOGY
+   NUMBER_OF_ATOMS  12
+   MULTIPLE_UNIT_CELL  1 1 1
+   CONN_FILE_FORMAT OFF
+   DISABLE_EXCLUSION_LISTS T
+   PARA_RES OFF
+  &END TOPOLOGY
+ &END SUBSYS
+&END FORCE_EVAL

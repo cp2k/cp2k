@@ -7,8 +7,8 @@
 
 ! **************************************************************************************************
 !> \brief Routines for Geometry optimization using BFGS algorithm
-!> \note Module modified by Pierre-André Cazade [pcazade] 01.2020 - University of Limerick.
-!>       Modifications enable Space Group Symmetry.
+!> \history Module modified by Pierre-André Cazade [pcazade] 01.2020 - University of Limerick.
+!>          Modifications enable Space Group Symmetry.
 ! **************************************************************************************************
 MODULE bfgs_optimizer
 
@@ -78,11 +78,8 @@ MODULE bfgs_optimizer
                                               spgr_find_equivalent_atoms,&
                                               spgr_apply_rotations_coord,&
                                               spgr_apply_rotations_force,&
-                                              spgr_gen,&
                                               spgr_type,&
                                               print_spgr,&
-                                              spgr_print_cell,&
-                                              spgr_print_xg,&
                                               release_spgr_type
 #include "../base/base_uses.f90"
 
@@ -105,7 +102,7 @@ CONTAINS
 !> \param geo_section ...
 !> \param gopt_env ...
 !> \param x0 ...
-!> \note [pcazade] 01.2020 modified to perform Space Group Symmetry 
+!> \history [pcazade] 01.2020 modified to perform Space Group Symmetry 
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE geoopt_bfgs(force_env, gopt_param, globenv, geo_section, gopt_env, x0)
 
@@ -274,7 +271,7 @@ CONTAINS
       ALLOCATE (dr(ndf))
       dr(:) = 0.0_dp
 
-      ! [pcazade] find space_group
+      ! find space_group
       CALL section_vals_val_get(geo_section, "KEEP_SPACE_GROUP", l_val=keep_sg)
       IF (keep_sg) THEN
          CALL identify_space_group(spgr, subsys, subsys%cell, geo_section, gopt_env, output_unit)
@@ -286,7 +283,7 @@ CONTAINS
       CALL cp_iterate(logger%iter_info, increment=0, iter_nr_out=iter_nr)
       CALL print_geo_opt_header(gopt_env, output_unit, wildcard)
 
-      ! [pcazade] Symmetrize forces and stress tensor
+      ! Symmetrize forces and stress tensor
       IF (keep_sg) THEN
         ! Calculate Energy & Gradients
         CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
@@ -297,7 +294,7 @@ CONTAINS
                         .FALSE., gopt_env%force_env%para_env)
       END IF
 
-      ! [pcazade] Symmetrize coordinates and forces
+      ! Symmetrize coordinates and forces
       IF (keep_sg) THEN
          CALL spgr_apply_rotations_coord(spgr, x0)
          CALL spgr_apply_rotations_force(spgr, g)
@@ -325,7 +322,7 @@ CONTAINS
             IF (ionode) CALL close_file(unit_number=hesunit_read)
          ELSE
             IF ((its - iter_nr) > 1) THEN
-               ! [pcazade] Symmetrize old coordinates and old forces
+               ! Symmetrize old coordinates and old forces
                IF (keep_sg) THEN
                   CALL spgr_apply_rotations_coord(spgr, xold)
                   CALL spgr_apply_rotations_force(spgr, gold)
@@ -338,7 +335,7 @@ CONTAINS
 
                CALL bfgs(ndf, dx, dg, hess_mat, work, para_env)
 
-               ! [pcazade] Symmetrize coordinates and forces change
+               ! Symmetrize coordinates and forces change
                IF (keep_sg) THEN
                   CALL spgr_apply_rotations_force(spgr, dx)
                   CALL spgr_apply_rotations_force(spgr, dg)
@@ -351,7 +348,7 @@ CONTAINS
             ENDIF
          END IF
 
-         ! [pcazade] Symmetrize coordinates and forces
+         ! Symmetrize coordinates and forces
          IF (keep_sg) THEN
             CALL spgr_apply_rotations_coord(spgr, x0)
             CALL spgr_apply_rotations_force(spgr, g)
@@ -382,7 +379,7 @@ CONTAINS
          END IF
          CALL geoopt_get_step(ndf, eigval, eigvec_mat, hess_tmp, dr, g, para_env, use_rfo)
 
-         ! [pcazade] Symmetrize dr
+         ! Symmetrize dr
          IF (keep_sg) THEN
             CALL spgr_apply_rotations_force(spgr, dr)
          END IF
@@ -392,7 +389,7 @@ CONTAINS
          ! Update the atomic positions
          x0 = x0 + dr
 
-         ! [pcazade] Symmetrize coordinates
+         ! Symmetrize coordinates
          IF (keep_sg) THEN
             CALL spgr_apply_rotations_coord(spgr, x0)
          END IF
@@ -400,7 +397,7 @@ CONTAINS
          CALL energy_predict(ndf, work, hess_mat, dr, g, conv, pred, para_env)
          eold = etot
 
-         ! [pcazade] Symmetrize forces and stress tensor
+         ! Symmetrize forces and stress tensor
          IF (keep_sg) THEN
            ! Energy & Gradients at new step
            CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
@@ -413,7 +410,7 @@ CONTAINS
 
          ediff = etot - eold
 
-         ! [pcazade] Symmetrize forces
+         ! Symmetrize forces
          IF (keep_sg) THEN
             CALL spgr_apply_rotations_force(spgr, g)
          END IF
@@ -460,7 +457,7 @@ CONTAINS
       DEALLOCATE (work)
       DEALLOCATE (dr)
 
-      ! [pcazade] releases spgr structure
+      ! releases spgr structure
       IF (keep_sg) THEN
          CALL release_spgr_type(spgr)
       END IF

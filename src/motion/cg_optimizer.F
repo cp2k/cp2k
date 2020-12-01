@@ -49,12 +49,8 @@ MODULE cg_optimizer
                                               spgr_find_equivalent_atoms,&
                                               spgr_apply_rotations_coord,&
                                               spgr_apply_rotations_force,&
-                                              spgr_apply_rotations_hess,&
-                                              spgr_gen,&
                                               spgr_type,&
                                               print_spgr,&
-                                              spgr_print_cell,&
-                                              spgr_print_xg,&
                                               release_spgr_type
    USE machine,                         ONLY: m_walltime
 #include "../base/base_uses.f90"
@@ -216,7 +212,7 @@ CONTAINS
 
       keep_sg = .FALSE.
       IF(PRESENT(spgr)) keep_sg = .TRUE.
-      ! [pcazade] applies rotation matrices to coordinates
+      ! applies rotation matrices to coordinates
       IF (keep_sg) THEN
          CALL spgr_apply_rotations_coord(spgr, x0)
       END IF
@@ -226,7 +222,7 @@ CONTAINS
       save_consistent_energy_force = gopt_env%require_consistent_energy_force
       gopt_env%require_consistent_energy_force = .FALSE.
 
-      ! [pcazade] Symmetrize coordinates and forces
+      ! Symmetrize coordinates and forces
       IF (keep_sg) THEN
         CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos, &
                         .FALSE., gopt_env%force_env%para_env, spgr=spgr)
@@ -236,7 +232,7 @@ CONTAINS
       END IF
       gopt_env%require_consistent_energy_force = save_consistent_energy_force
 
-      ! [pcazade] Symmetrize coordinates and forces
+      ! Symmetrize coordinates and forces
       IF (keep_sg) THEN
          CALL spgr_apply_rotations_coord(spgr, x0)
          CALL spgr_apply_rotations_force(spgr, xi)
@@ -259,7 +255,7 @@ CONTAINS
          CALL section_vals_val_set(gopt_env%geo_section, "STEP_START_VAL", i_val=its)
          CALL gopt_f_ii(its, output_unit)
 
-         ! [pcazade] Symmetrize coordinates and forces
+         ! Symmetrize coordinates and forces
          IF (keep_sg) THEN
             CALL spgr_apply_rotations_coord(spgr, x0)
             CALL spgr_apply_rotations_force(spgr, g)
@@ -271,7 +267,7 @@ CONTAINS
          ! Line minimization
          CALL cg_linmin(gopt_env, x0, xi, g, opt_energy, output_unit, gopt_param, globenv)
          
-         ! [pcazade] applies rotation matrices to coordinates
+         ! Applies rotation matrices to coordinates
          IF (keep_sg) THEN
             CALL spgr_apply_rotations_coord(spgr, x0)
          END IF
@@ -295,7 +291,7 @@ CONTAINS
          save_consistent_energy_force = gopt_env%require_consistent_energy_force
          gopt_env%require_consistent_energy_force = .FALSE.
 
-         ! [pcazade] Symmetrize coordinates and forces
+         ! Symmetrize coordinates and forces
          IF (keep_sg) THEN
            CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos, &
                            .FALSE., gopt_env%force_env%para_env, spgr=spgr)
@@ -305,7 +301,7 @@ CONTAINS
          END IF
          gopt_env%require_consistent_energy_force = save_consistent_energy_force
 
-         ! [pcazade] Symmetrize coordinates and forces
+         ! Symmetrize coordinates and forces
          IF (keep_sg) THEN
             CALL spgr_apply_rotations_force(spgr, xi)
          END IF
@@ -314,7 +310,7 @@ CONTAINS
          wildcard = "   CG"
          CALL get_conjugate_direction(gopt_env, Fletcher_Reeves, g, xi, h)
 
-         ! [pcazade] Symmetrize coordinates and forces
+         ! Symmetrize coordinates and forces
          IF (keep_sg) THEN
             CALL spgr_apply_rotations_force(spgr, g)
             CALL spgr_apply_rotations_force(spgr, xi)

@@ -44,8 +44,7 @@ MODULE cp_lbfgs_optimizer_gopt
                                               cp_subsys_type
    USE space_groups,                    ONLY: spgr_type,&
                                               spgr_apply_rotations_coord,&
-                                              spgr_apply_rotations_force,&
-                                              spgr_print_xg
+                                              spgr_apply_rotations_force
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -521,12 +520,12 @@ CONTAINS
       IF (PRESENT(converged)) converged = optimizer%status == 4
       ALLOCATE (xold(SIZE(optimizer%x)))
 
-      ! [pcazade] collecting subsys
+      ! collecting subsys
       CALL force_env_get(force_env, subsys=subsys)
       
       keep_sg = .FALSE.
       IF(PRESENT(spgr)) keep_sg = .TRUE.
-      ! [pcazade] applies rotation matrices to coordinates
+      ! applies rotation matrices to coordinates
       IF (keep_sg) THEN
          CALL spgr_apply_rotations_coord(spgr, optimizer%x)
       END IF
@@ -570,7 +569,7 @@ CONTAINS
                ! restart the optimizer
                optimizer%status = 0
                optimizer%task = 'START'
-               ! [pcazade] applies rotation matrices to coordinates and forces
+               ! applies rotation matrices to coordinates and forces
                IF (keep_sg) THEN
                  CALL spgr_apply_rotations_coord(spgr, optimizer%x)
                  CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
@@ -624,7 +623,7 @@ CONTAINS
             ELSE IF (optimizer%task(1:5) == 'NEW_X') THEN
                IF (justEntred) THEN
                   optimizer%status = 2
-                  ! [pcazade] applies rotation matrices to coordinates and forces
+                  ! applies rotation matrices to coordinates and forces
                   IF (keep_sg) THEN
                       CALL spgr_apply_rotations_coord(spgr, optimizer%x)
                       CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
@@ -649,7 +648,7 @@ CONTAINS
                                   optimizer%dsave, optimizer%trust_radius)
                   END IF
                ELSE
-                  ! [pcazade] applies rotation matrices to coordinates and forces
+                  ! applies rotation matrices to coordinates and forces
                   IF (keep_sg) THEN
                      CALL spgr_apply_rotations_coord(spgr, optimizer%x)
                      CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
@@ -695,7 +694,7 @@ CONTAINS
             END IF
             ! do not use keywords?
             IF (is_master) THEN
-               ! [pcazade] applies rotation matrices to coordinates and forces
+               ! applies rotation matrices to coordinates and forces
                IF (keep_sg) THEN
                    CALL spgr_apply_rotations_coord(spgr, optimizer%x)
                    CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
@@ -885,7 +884,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(optimizer))
       CPASSERT(optimizer%ref_count > 0)
       IF(PRESENT(spgr))THEN
-         ! [pcazade] passes spgr structure if present
+         ! passes spgr structure if present
          CALL cp_opt_gopt_step(optimizer, n_iter=n_iter, f=f, &
                                last_f=last_f, projected_gradient=projected_gradient, &
                                converged=converged, geo_section=geo_section, &

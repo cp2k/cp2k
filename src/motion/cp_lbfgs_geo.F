@@ -44,12 +44,8 @@ MODULE cp_lbfgs_geo
                                               spgr_find_equivalent_atoms,&
                                               spgr_apply_rotations_coord,&
                                               spgr_apply_rotations_force,&
-                                              spgr_apply_rotations_hess,&
-                                              spgr_gen,&
                                               spgr_type,&
                                               print_spgr,&
-                                              spgr_print_cell,&
-                                              spgr_print_xg,&
                                               release_spgr_type
 #include "../base/base_uses.f90"
 
@@ -106,7 +102,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(gopt_param))
       CPASSERT(gopt_param%ref_count > 0)
 
-      ! [pcazade] collecting subsys
+      ! collecting subsys
       CALL force_env_get(force_env, para_env=para_env, cell=cell, subsys=subsys)
 
       ! Geometry optimization starts now
@@ -114,7 +110,7 @@ CONTAINS
                                          extension=".geoLog")
       CALL print_geo_opt_header(gopt_env, output_unit, "L-BFGS")
 
-      ! [pcazade] finds space group
+      ! finds space group
       CALL section_vals_val_get(geo_section, "KEEP_SPACE_GROUP", l_val=keep_sg)
       IF (keep_sg) THEN
         CALL identify_space_group(spgr, subsys, subsys%cell, geo_section, gopt_env, output_unit)
@@ -141,7 +137,7 @@ CONTAINS
 
          ! Real optimization step..
          IF(keep_sg)THEN
-            ! [pcazade] passes spgr structure if required
+            ! passes spgr structure if required
             IF (.NOT. cp_opt_gopt_next(optimizer, geo_section=geo_section, &
                                        force_env=force_env, gopt_param=gopt_param, &
                                        converged=converged, spgr=spgr)) EXIT
@@ -173,7 +169,7 @@ CONTAINS
       CALL cp_print_key_finished_output(output_unit, logger, geo_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
 
-      ! [pcazade] deallocates spgr structure
+      ! deallocates spgr structure
       IF (keep_sg) THEN
          CALL release_spgr_type(spgr)
       END IF
