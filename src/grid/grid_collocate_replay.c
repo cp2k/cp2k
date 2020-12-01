@@ -307,7 +307,6 @@ double grid_collocate_replay(const char *filename, const int cycles,
   }
 
   double *grid_test = malloc(sizeof_grid);
-  memset(grid_test, 0, sizeof_grid);
 
   struct timespec start_time, end_time;
 
@@ -335,7 +334,7 @@ double grid_collocate_replay(const char *filename, const int cycles,
     grid_free_buffer(pab_blocks);
 
   } else {
-
+    memset(grid_test, 0, sizeof_grid);
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
     for (int i = 0; i < cycles; i++) {
       grid_ref_collocate_pgf_product(

@@ -205,11 +205,14 @@ static void collocate_one_grid_level(
     const int border_width[3], const double dh[3][3], const double dh_inv[3][3],
     const double *pab_blocks, double *grid) {
 
+  // Zero the grid.
+  const size_t npts_local_total = npts_local[0] * npts_local[1] * npts_local[2];
+  const size_t grid_size = npts_local_total * sizeof(double);
+  memset(grid, 0, grid_size);
+
   // Allocate memory for thread local copy of the grid.
   const int nthreads = omp_get_max_threads();
   double *threadlocal_grid[nthreads];
-  const size_t npts_local_total = npts_local[0] * npts_local[1] * npts_local[2];
-  const size_t grid_size = npts_local_total * sizeof(double);
   void *const mem_pool =
       malloc_threadlocal(grid_size, nthreads, threadlocal_grid);
 
@@ -536,6 +539,13 @@ void grid_ref_integrate_task_list(
 
   assert(task_list->nlevels == nlevels);
   assert(task_list->natoms == natoms);
+
+  // Zero result arrays.
+  memset(hab_blocks->host_buffer, 0, hab_blocks->size);
+  if (calculate_forces) {
+    memset(forces, 0, natoms * 3 * sizeof(double));
+    memset(virial, 0, 9 * sizeof(double));
+  }
 
   int first_task = 0;
   for (int level = 0; level < task_list->nlevels; level++) {
