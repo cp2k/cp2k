@@ -1344,7 +1344,7 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          CALL get_mo_set(mo_set=mos(ispin)%mo_set, maxocc=occ, uniform_occupation=uniform)
          IF (.NOT. uniform) THEN
-            CPABORT("Berry phase moments for non uniform MOs' occupation numbers not implemented")
+            CPWARN("Berry phase moments for non uniform MOs' occupation numbers not implemented")
          END IF
       END DO
 

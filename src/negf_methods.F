@@ -40,7 +40,9 @@ MODULE negf_methods
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
-                                              cp_print_key_unit_nr
+                                              cp_print_key_unit_nr,&
+                                              debug_print_level,&
+                                              high_print_level
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
@@ -155,8 +157,9 @@ CONTAINS
 
       CHARACTER(len=default_string_length)               :: contact_id_str
       INTEGER                                            :: handle, icontact, ispin, log_unit, &
-                                                            ncontacts, npoints, nspins, print_unit
-      LOGICAL                                            :: should_output
+                                                            ncontacts, npoints, nspins, &
+                                                            print_level, print_unit
+      LOGICAL                                            :: should_output, verbose_output
       REAL(kind=dp)                                      :: energy_max, energy_min
       REAL(kind=dp), DIMENSION(2)                        :: current
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -194,8 +197,37 @@ CONTAINS
       CALL negf_control_create(negf_control)
       CALL read_negf_control(negf_control, root_section, cp_subsys)
 
+      ! print unit, if log_unit > 0, otherwise no output
+      log_unit = cp_print_key_unit_nr(logger, negf_section, "PRINT%PROGRAM_RUN_INFO", extension=".Log")
+
+      ! print levels, are used if log_unit > 0
+      IF (log_unit > 0) THEN
+         CALL section_vals_val_get(negf_section, "PRINT%PROGRAM_RUN_INFO%PRINT_LEVEL", i_val=print_level)
+         SELECT CASE (print_level)
+         CASE (high_print_level, debug_print_level)
+            verbose_output = .TRUE.
+         CASE DEFAULT
+            verbose_output = .FALSE.
+         END SELECT
+      END IF
+
+      IF (log_unit > 0) THEN
+         WRITE (log_unit, '(/,T2,A,T62)') "COMPUTE THE RELEVANT HAMILTONIAN MATRICES"
+      END IF
+
       CALL negf_sub_env_create(sub_env, negf_control, blacs_env, global_env%blacs_grid_layout, global_env%blacs_repeatable)
       CALL negf_env_create(negf_env, sub_env, negf_control, force_env, negf_mixing_section, log_unit)
+
+      IF (log_unit > 0 .AND. verbose_output) THEN
+         DO icontact = 1, SIZE(negf_control%contacts)
+            WRITE (log_unit, "(/,' NEGF| Atoms in the contact region',I2,':',I4)") &
+               icontact, SIZE(negf_control%contacts(icontact)%atomlist_bulk)
+            WRITE (log_unit, "(16I5)") negf_control%contacts(icontact)%atomlist_bulk
+         END DO
+         WRITE (log_unit, "(/,' NEGF| Atoms in the full scattering region:',I4)") SIZE(negf_control%atomlist_S_screening)
+         WRITE (log_unit, "(16I5)") negf_control%atomlist_S_screening
+         WRITE (log_unit, *)
+      END IF
 
       ! compute contact Fermi level as well as requested properties
       ncontacts = SIZE(negf_control%contacts)
