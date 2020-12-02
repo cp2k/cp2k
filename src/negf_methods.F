@@ -37,10 +37,12 @@ MODULE negf_methods
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
-   USE cp_output_handling,              ONLY: &
-        cp_p_file, cp_print_key_finished_output, cp_print_key_should_output, cp_print_key_unit_nr, &
-        debug_print_level, high_print_level, low_print_level, medium_print_level, &
-        silent_print_level
+   USE cp_output_handling,              ONLY: cp_p_file,&
+                                              cp_print_key_finished_output,&
+                                              cp_print_key_should_output,&
+                                              cp_print_key_unit_nr,&
+                                              debug_print_level,&
+                                              high_print_level
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
