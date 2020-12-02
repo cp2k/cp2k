@@ -157,7 +157,7 @@ CONTAINS
       INTEGER                                            :: handle, icontact, ispin, log_unit, &
                                                             ncontacts, npoints, nspins, &
                                                             print_level, print_unit
-      LOGICAL                                            :: print1, print2, should_output
+      LOGICAL                                            :: should_output, verbose_output
       REAL(kind=dp)                                      :: energy_max, energy_min
       REAL(kind=dp), DIMENSION(2)                        :: current
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
