@@ -202,23 +202,10 @@ CONTAINS
       IF (log_unit > 0) THEN
          CALL section_vals_val_get(negf_section, "PRINT%PROGRAM_RUN_INFO%PRINT_LEVEL", i_val=print_level)
          SELECT CASE (print_level)
-         CASE (silent_print_level)
-            print1 = .FALSE.
-            print2 = .FALSE.
-         CASE (low_print_level)
-            print1 = .FALSE.
-            print2 = .FALSE.
-         CASE (medium_print_level)
-            print1 = .TRUE.
-            print2 = .FALSE.
-         CASE (high_print_level)
-            print1 = .TRUE.
-            print2 = .TRUE.
-         CASE (debug_print_level)
-            print1 = .TRUE.
-            print2 = .TRUE.
+         CASE (high_print_level, debug_print_level)
+            verbose_output = .TRUE.
          CASE DEFAULT
-            !do nothing
+            verbose_output = .FALSE.
          END SELECT
       END IF
 
