@@ -594,7 +594,7 @@ CONTAINS
          x(ja+2) = x(ja+2) + spgr%pol(2)
          x(ja+3) = x(ja+3) + spgr%pol(3)
       END DO
-      xold=x
+      xold(1:3*nparticle) = x(1:3*nparticle)
 
       nops = 0
       DO ir=1,nop
@@ -705,7 +705,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: ia, ib, ir, nparticle, nop, nops, handle, &
-                                                            ja, jb
+                                                            ja, jb, n_coord
       REAL(KIND=dp), DIMENSION(3)                        :: ri, ro, tr, rf, rn
       REAL(KIND=dp), DIMENSION(3, 3)                     :: rot
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: coord
@@ -714,7 +714,10 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       allocate(cold(size(coord)))
-      cold=coord
+      n_coord = size(coord)
+      
+      cold(1:n_coord) = coord(1:n_coord)
+      
       nop=spgr%n_operations
       nparticle = spgr%nparticle
       nops = spgr%n_reduced_operations
@@ -768,7 +771,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: ia, ib, ir, nparticle, nop, nops, handle, &
-                                                            ja, jb
+                                                            ja, jb, n_force
       REAL(KIND=dp), DIMENSION(3)                        :: ri, ro, rn
       REAL(KIND=dp), DIMENSION(3, 3)                     :: rot
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: force
@@ -777,7 +780,10 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       allocate(fold(size(force)))
-      fold=force
+      n_force = size(force)
+      
+      fold(1:n_force) = force(1:n_force)
+
       nop=spgr%n_operations
       nparticle = spgr%nparticle
       nops = spgr%n_reduced_operations
