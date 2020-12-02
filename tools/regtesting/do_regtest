@@ -162,13 +162,6 @@ while [ $# -ge 1 ]; do
   echo ""
   echo "For more information visit: <http://cp2k.org/dev:regtesting>"
   exit 0;;
- -svndate|-svnrev)
-  shift;&
- -nogit|-nosvn|-noemptycheck)
-  echo "WARNING: The following flags have been removed and will now be ignored:"
-  echo "         -nogit, -nosvn, -noemptycheck, -svndate, -svnrev"
-  echo "         This warning will soon be converted into an error, please remove them from your script invocation."
-  ;;
  # stop on invalid flag
  -*)
   echo "ERROR: Invalid command line flag $1 found"
