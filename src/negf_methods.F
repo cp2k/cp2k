@@ -216,7 +216,7 @@ CONTAINS
       CALL negf_sub_env_create(sub_env, negf_control, blacs_env, global_env%blacs_grid_layout, global_env%blacs_repeatable)
       CALL negf_env_create(negf_env, sub_env, negf_control, force_env, negf_mixing_section, log_unit)
 
-      IF (log_unit > 0 .AND. print2) THEN
+      IF (log_unit > 0 .AND. verbose_output) THEN
          DO icontact = 1, SIZE(negf_control%contacts)
             WRITE (log_unit, "(/,' NEGF| Atoms in the contact region',I2,':',I4)") &
                icontact, SIZE(negf_control%contacts(icontact)%atomlist_bulk)
