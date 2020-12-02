@@ -313,7 +313,6 @@ CONTAINS
          ! Symmetrize coordinates and forces
          IF (keep_sg) THEN
             CALL spgr_apply_rotations_force(spgr, g)
-            CALL spgr_apply_rotations_force(spgr, xi)
             CALL spgr_apply_rotations_force(spgr, h)
          END IF
 
