@@ -608,6 +608,19 @@ MODULE input_constants
                                                radius_vdw = 13, &
                                                radius_default = 14
 
+   ! Voronoi integration
+   INTEGER, PARAMETER, PUBLIC               :: voro_radii_unity = 100, &
+                                               voro_radii_vdw = 101, &
+                                               voro_radii_cov = 102, &
+                                               voro_radii_user = 103
+
+   ! BQB Format
+   INTEGER, PARAMETER, PUBLIC               :: bqb_opt_off = 100, &
+                                               bqb_opt_quick = 101, &
+                                               bqb_opt_normal = 102, &
+                                               bqb_opt_patient = 103, &
+                                               bqb_opt_exhaustive = 104
+
    ! MAO
    INTEGER, PARAMETER, PUBLIC               :: mao_basis_orb = 2000, &
                                                mao_basis_prim = 2001, &

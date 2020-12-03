@@ -16,8 +16,9 @@ MODULE cp_control_utils
         VanVoorhis2015, VandeVondele2005a, VandeVondele2005b, Yin2017, Zhechkov2005, cite_reference
    USE cp_control_types,                ONLY: &
         admm_control_create, admm_control_type, ddapc_control_create, ddapc_restraint_type, &
-        dft_control_create, dft_control_type, efield_type, qs_control_type, sccs_control_create, &
-        tddfpt2_control_type, tddfpt_control_create, tddfpt_control_type, xtb_control_type
+        dft_control_create, dft_control_type, efield_type, expot_control_create, &
+        maxwell_control_create, qs_control_type, sccs_control_create, tddfpt2_control_type, &
+        tddfpt_control_create, tddfpt_control_type, xtb_control_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -102,7 +103,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: density_cut, gradient_cut, tau_cut
       REAL(KIND=dp), DIMENSION(:), POINTER               :: pol
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(section_vals_type), POINTER                   :: sccs_section, scf_section, tmp_section, &
+      TYPE(section_vals_type), POINTER                   :: maxwell_section, sccs_section, &
+                                                            scf_section, tmp_section, &
                                                             xc_fun_section, xc_section
       TYPE(xc_rho_cflags_type)                           :: needs
 
@@ -436,6 +438,31 @@ CONTAINS
       ! Read the external potential input section
       tmp_section => section_vals_get_subs_vals(dft_section, "EXTERNAL_POTENTIAL")
       CALL section_vals_get(tmp_section, explicit=dft_control%apply_external_potential)
+      IF (dft_control%apply_external_potential) THEN
+         CALL expot_control_create(dft_control%expot_control)
+         CALL section_vals_val_get(tmp_section, "READ_FROM_CUBE", &
+                                   l_val=dft_control%expot_control%read_from_cube)
+         CALL section_vals_val_get(tmp_section, "STATIC", &
+                                   l_val=dft_control%expot_control%static)
+         CALL section_vals_val_get(tmp_section, "SCALING_FACTOR", &
+                                   r_val=dft_control%expot_control%scaling_factor)
+         ! External potential using Maxwell equation
+         maxwell_section => section_vals_get_subs_vals(tmp_section, "MAXWELL")
+         CALL section_vals_get(maxwell_section, explicit=is_present)
+         IF (is_present) THEN
+            dft_control%expot_control%maxwell_solver = .TRUE.
+            CALL maxwell_control_create(dft_control%maxwell_control)
+            ! read the input values from Maxwell section
+            CALL section_vals_val_get(maxwell_section, "TEST_REAL", &
+                                      r_val=dft_control%maxwell_control%real_test)
+            CALL section_vals_val_get(maxwell_section, "TEST_INTEGER", &
+                                      i_val=dft_control%maxwell_control%int_test)
+            CALL section_vals_val_get(maxwell_section, "TEST_LOGICAL", &
+                                      l_val=dft_control%maxwell_control%log_test)
+         ELSE
+            dft_control%expot_control%maxwell_solver = .FALSE.
+         END IF
+      END IF
 
       ! Read the SCCS input section if present
       sccs_section => section_vals_get_subs_vals(dft_section, "SCCS")

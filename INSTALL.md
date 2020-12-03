@@ -303,6 +303,21 @@ SIRIUS is a domain specific library for electronic structure calculations.
   library should be placed in front of the scalapack library.
 - see <https://github.com/eth-cscs/COSMA> for more information.
 
+### 2t. LibVori (Voronoi Integration for Electrostatic Properties from Electron Density)
+
+- LibVori is a library which enables to compute electrostatic properties
+  (charge, dipole vector, quadrupole tensor, ...) via integration of the total
+  electron density in the Voronoi cell of each atom.
+- Add `-D__LIBVORI` to DFLAGS to enable support for LibVori.
+- see <https://brehm-research.de/voronoi> for more information.
+
+### 2u. LibMaxwell (External Maxwell Solver)
+
+- LibMaxwell is a library to solve the time-dependent Maxwell equations
+  and use the resulting electric field in MD runs or real-time propagation.
+- Add `-D__LIBMAXWELL` to DFLAGS to enable support for LibMaxwell.
+- see <https://brehm-research.de> for more information.
+
 ## 3. Compile
 
 ### 3a. ARCH files

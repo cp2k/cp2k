@@ -77,6 +77,7 @@ MODULE md_run
                                               metadyn_write_colvar
    USE metadynamics_types,              ONLY: set_meta_env
    USE particle_list_types,             ONLY: particle_list_type
+   USE qs_environment_methods,          ONLY: qs_env_time_update
    USE reftraj_types,                   ONLY: create_reftraj,&
                                               reftraj_type,&
                                               release_reftraj
@@ -372,8 +373,9 @@ CONTAINS
          END IF
 
          IF (ASSOCIATED(force_env%qs_env)) THEN
-            force_env%qs_env%sim_time = time
-            force_env%qs_env%sim_step = itimes
+            CALL qs_env_time_update(force_env%qs_env, time, itimes)
+!deb        force_env%qs_env%sim_time = time
+!deb        force_env%qs_env%sim_step = itimes
          END IF
          ! Warm-up engines for metadynamics
          IF (ASSOCIATED(force_env%meta_env)) THEN
@@ -454,8 +456,9 @@ CONTAINS
          time = time + simpar%dt
          !needed when electric field fields are applied
          IF (ASSOCIATED(force_env%qs_env)) THEN
-            force_env%qs_env%sim_time = time
-            force_env%qs_env%sim_step = itimes
+            CALL qs_env_time_update(force_env%qs_env, time, itimes)
+!deb        force_env%qs_env%sim_time = time
+!deb        force_env%qs_env%sim_step = itimes
          END IF
          IF (ehrenfest_md) force_env%qs_env%rtp%istep = istep
 

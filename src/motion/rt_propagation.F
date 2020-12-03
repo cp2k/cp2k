@@ -312,6 +312,12 @@ CONTAINS
          qs_env%sim_step = i_step
          rtp%istep = i_step - rtp%i_start
          CALL calculate_ecore_efield(qs_env, .FALSE.)
+         !
+         IF (dft_control%apply_external_potential) THEN
+            IF (.NOT. dft_control%expot_control%static) THEN
+               dft_control%eval_external_potential = .TRUE.
+            END IF
+         END IF
          CALL external_c_potential(qs_env, calculate_forces=.FALSE.)
          CALL external_e_potential(qs_env)
          CALL cp_iterate(logger%iter_info, last=(i_step == max_steps), iter_nr=i_step)
