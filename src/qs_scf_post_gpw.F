@@ -200,6 +200,7 @@ MODULE qs_scf_post_gpw
    USE stm_images,                      ONLY: th_stm_image
    USE transport,                       ONLY: qs_scf_post_transport
    USE virial_types,                    ONLY: virial_type
+   USE voronoi_interface,               ONLY: entry_voronoi_or_bqb
    USE xray_diffraction,                ONLY: calculate_rhotot_elec_gspace,&
                                               xray_diffraction_spectrum
 #include "./base/base_uses.f90"
@@ -1821,12 +1822,11 @@ CONTAINS
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename, my_pos_cube
       CHARACTER(LEN=default_string_length)               :: name
-      INTEGER                                            :: after, handle, i, iat, id, ikind, img, &
-                                                            iso, ispin, iw, l, nd(3), ngto, niso, &
-                                                            nkind, np, nr, output_unit, &
-                                                            print_level, unit_nr
+      INTEGER :: after, handle, i, iat, id, ikind, img, iso, ispin, iw, l, nd(3), ngto, niso, &
+         nkind, np, nr, output_unit, print_level, should_print_bqb, should_print_voro, unit_nr, &
+         unit_nr_voro
       LOGICAL :: append_cube, do_kpoints, mpi_io, omit_headers, print_it, print_total_density, &
-         rho_r_valid, write_ks, write_xc, xrd_interface
+         rho_r_valid, voro_print_txt, write_ks, write_xc, xrd_interface
       REAL(KIND=dp)                                      :: q_max, rho_hard, rho_soft, rho_total, &
                                                             rho_total_rspace, udvol, volume
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: bfun
@@ -1850,14 +1850,16 @@ CONTAINS
       TYPE(pw_p_type), POINTER                           :: rho0_s_gs, rho_core, vee
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: v_hartree_rspace
+      TYPE(pw_type), POINTER                             :: mb_rho, v_hartree_rspace
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
       TYPE(rho_atom_type), POINTER                       :: rho_atom
-      TYPE(section_vals_type), POINTER                   :: dft_section, input, print_key, xc_section
+      TYPE(section_vals_type), POINTER                   :: dft_section, input, print_key, &
+                                                            print_key_bqb, print_key_voro, &
+                                                            xc_section
 
       CALL timeset(routineN, handle)
       NULLIFY (cell, dft_control, pw_env, auxbas_pw_pool, pw_pools, &
@@ -2493,6 +2495,72 @@ CONTAINS
             unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%HIRSHFELD", extension=".hirshfeld", log_filename=.FALSE.)
             CALL hirshfeld_charges(qs_env, print_key, unit_nr)
             CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%HIRSHFELD")
+         END IF
+      END IF
+
+      ! Do a Voronoi Integration or write a compressed BQB File
+      print_key_voro => section_vals_get_subs_vals(input, "DFT%PRINT%VORONOI")
+      print_key_bqb => section_vals_get_subs_vals(input, "DFT%PRINT%E_DENSITY_BQB")
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key_voro), cp_p_file)) THEN
+         should_print_voro = 1
+      ELSE
+         should_print_voro = 0
+      ENDIF
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key_bqb), cp_p_file)) THEN
+         should_print_bqb = 1
+      ELSE
+         should_print_bqb = 0
+      ENDIF
+      IF ((should_print_voro /= 0) .OR. (should_print_bqb /= 0)) THEN
+
+         ! we check if real space density is available
+         NULLIFY (rho)
+         CALL get_qs_env(qs_env=qs_env, rho=rho)
+         CALL qs_rho_get(rho, rho_r_valid=rho_r_valid)
+         IF (rho_r_valid) THEN
+
+            IF (dft_control%nspins > 1) THEN
+               CALL get_qs_env(qs_env=qs_env, &
+                               pw_env=pw_env)
+               CALL pw_env_get(pw_env=pw_env, &
+                               auxbas_pw_pool=auxbas_pw_pool, &
+                               pw_pools=pw_pools)
+               CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
+                                      pw=rho_elec_rspace%pw, &
+                                      use_data=REALDATA3D, &
+                                      in_space=REALSPACE)
+               CALL pw_copy(rho_r(1)%pw, rho_elec_rspace%pw)
+               CALL pw_axpy(rho_r(2)%pw, rho_elec_rspace%pw)
+               mb_rho => rho_elec_rspace%pw
+               !CALL voronoi_analysis( qs_env, rho_elec_rspace%pw, print_key, unit_nr )
+            ELSE
+               mb_rho => rho_r(1)%pw
+               !CALL voronoi_analysis( qs_env, rho_r(1)%pw, print_key, unit_nr )
+            END IF ! nspins
+
+            IF (should_print_voro /= 0) THEN
+               CALL section_vals_val_get(print_key_voro, "OUTPUT_TEXT", l_val=voro_print_txt)
+               IF (voro_print_txt) THEN
+                  unit_nr_voro = cp_print_key_unit_nr(logger, input, "DFT%PRINT%VORONOI", extension=".voronoi", &
+                                                      log_filename=.FALSE.)
+               ELSE
+                  unit_nr_voro = 0
+               END IF
+            ELSE
+               unit_nr_voro = 0
+            ENDIF
+
+            CALL entry_voronoi_or_bqb(should_print_voro, should_print_bqb, print_key_voro, print_key_bqb, &
+                                      unit_nr_voro, qs_env, mb_rho)
+
+            IF (dft_control%nspins > 1) THEN
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_elec_rspace%pw)
+            END IF
+
+            IF (unit_nr_voro > 0) THEN
+               CALL cp_print_key_finished_output(unit_nr_voro, logger, input, "DFT%PRINT%VORONOI")
+            END IF
+
          END IF
       END IF
 

@@ -71,7 +71,8 @@ MODULE qs_environment_methods
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_environment_methods'
 
    PUBLIC :: qs_env_rebuild_pw_env, &
-             qs_env_setup
+             qs_env_setup, &
+             qs_env_time_update
 !***
 CONTAINS
 
@@ -418,5 +419,31 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE qs_env_rebuild_pw_env
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param time ...
+!> \param itimes ...
+! **************************************************************************************************
+   SUBROUTINE qs_env_time_update(qs_env, time, itimes)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp), INTENT(IN)                          :: time
+      INTEGER, INTENT(IN)                                :: itimes
+
+      TYPE(dft_control_type), POINTER                    :: dft_control
+
+      qs_env%sim_time = time
+      qs_env%sim_step = itimes
+
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
+
+      IF (dft_control%apply_external_potential) THEN
+         IF (.NOT. dft_control%expot_control%static) THEN
+            dft_control%eval_external_potential = .TRUE.
+         END IF
+      END IF
+
+   END SUBROUTINE qs_env_time_update
 
 END MODULE qs_environment_methods

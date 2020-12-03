@@ -16,13 +16,14 @@ MODULE input_cp2k_dft
                                               basis_sort_zet
    USE bibliography,                    ONLY: &
         Andermatt2016, Andreussi2012, Avezac2005, BaniHashemian2016, Becke1988b, Bengtsson1999, &
-        Blochl1995, Brelaz1979, Dewar1977, Dewar1985, Dudarev1997, Dudarev1998, Ehrhardt1985, &
-        Fattebert2002, Golze2017a, Golze2017b, Guidon2010, Heinzmann1976, Holmberg2017, &
-        Holmberg2018, Hunt2003, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Kolafa2004, Krack2000, &
-        Krack2002, Kuhne2007, Kunert2003, Lippert1997, Lippert1999, Lu2004, Perdew1981, &
-        Repasky2002, Rocha2006, Schenter2008, Schiffmann2015, Stewart1982, Stewart1989, &
-        Stewart2007, Thiel1992, Tozer1996, VanVoorhis2015, VandeVondele2003, VandeVondele2005a, &
-        VandeVondele2005b, VandeVondele2006, Weber2008, Yin2017, Zhao1994
+        Blochl1995, Brehm2018, Brehm2020, Brelaz1979, Dewar1977, Dewar1985, Dudarev1997, &
+        Dudarev1998, Ehrhardt1985, Fattebert2002, Golze2017a, Golze2017b, Guidon2010, &
+        Heinzmann1976, Holmberg2017, Holmberg2018, Hunt2003, Iannuzzi2005, Iannuzzi2006, &
+        Iannuzzi2007, Kolafa2004, Krack2000, Krack2002, Kuhne2007, Kunert2003, Lippert1997, &
+        Lippert1999, Lu2004, Perdew1981, Repasky2002, Rocha2006, Rycroft2009, Schenter2008, &
+        Schiffmann2015, Stewart1982, Stewart1989, Stewart2007, Thiel1992, Thomas2015, &
+        VanVoorhis2015, VandeVondele2003, VandeVondele2005a, VandeVondele2005b, VandeVondele2006, &
+        Weber2008, Yin2017
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               debug_print_level,&
@@ -35,7 +36,8 @@ MODULE input_cp2k_dft
                                               spline3_pbc_interp
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
-        atomic_guess, becke_cutoff_element, becke_cutoff_global, broyden_type_1, &
+        atomic_guess, becke_cutoff_element, becke_cutoff_global, bqb_opt_exhaustive, &
+        bqb_opt_normal, bqb_opt_off, bqb_opt_patient, bqb_opt_quick, broyden_type_1, &
         broyden_type_1_explicit, broyden_type_1_explicit_ls, broyden_type_1_ls, broyden_type_2, &
         broyden_type_2_explicit, broyden_type_2_explicit_ls, broyden_type_2_ls, casci_canonical, &
         cdft_alpha_constraint, cdft_beta_constraint, cdft_charge_constraint, &
@@ -91,19 +93,22 @@ MODULE input_cp2k_dft
         sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
         smear_energy_window, smear_fermi_dirac, smear_list, sparse_guess, tddfpt_davidson, &
         tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, tddfpt_spin_cons, tddfpt_spin_flip, &
-        tddfpt_triplet, use_coulomb, use_diff, use_mom_ref_coac, use_mom_ref_com, &
-        use_mom_ref_user, use_mom_ref_zero, use_no, use_restart_wfn, use_rt_restart, use_scf_wfn, &
-        wannier_projection, weight_type_mass, weight_type_unit, wfi_aspc_nr, wfi_frozen_method_nr, &
-        wfi_linear_p_method_nr, wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, &
-        wfi_ps_method_nr, wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, &
-        wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr, xas_1s_type, xas_2p_type, &
-        xas_2s_type, xas_3d_type, xas_3p_type, xas_3s_type, xas_4d_type, xas_4f_type, xas_4p_type, &
-        xas_4s_type, xas_dip_len, xas_dip_vel, xas_dscf, xas_none, xas_not_excited, &
-        xas_tdp_by_index, xas_tdp_by_kind, xas_tp_fh, xas_tp_flex, xas_tp_hh, xas_tp_xfh, &
-        xas_tp_xhh, xes_tp_val
+        tddfpt_triplet, use_mom_ref_coac, use_mom_ref_com, use_mom_ref_user, use_mom_ref_zero, &
+        use_restart_wfn, use_rt_restart, use_scf_wfn, voro_radii_cov, voro_radii_unity, &
+        voro_radii_user, voro_radii_vdw, wannier_projection, weight_type_mass, weight_type_unit, &
+        wfi_aspc_nr, wfi_frozen_method_nr, wfi_linear_p_method_nr, wfi_linear_ps_method_nr, &
+        wfi_linear_wf_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr, &
+        wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr, &
+        xas_1s_type, xas_2p_type, xas_2s_type, xas_3d_type, xas_3p_type, xas_3s_type, xas_4d_type, &
+        xas_4f_type, xas_4p_type, xas_4s_type, xas_dip_len, xas_dip_vel, xas_dscf, xas_none, &
+        xas_not_excited, xas_tdp_by_index, xas_tdp_by_kind, xas_tp_fh, xas_tp_flex, xas_tp_hh, &
+        xas_tp_xfh, xas_tp_xhh, xes_tp_val
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_ec,                   ONLY: create_ec_section
+   USE input_cp2k_external,             ONLY: create_ext_den_section,&
+                                              create_ext_pot_section,&
+                                              create_ext_vxc_section
    USE input_cp2k_field,                ONLY: create_efield_section,&
                                               create_per_efield_section
    USE input_cp2k_kpoints,              ONLY: create_kpoints_section
@@ -1538,6 +1543,135 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
                           description="append the cube files when they already exist", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+      ! Output of BQB volumetric files
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name="E_DENSITY_BQB", &
+                                       description="Controls the output of the electron density to the losslessly"// &
+                                       " compressed BQB file format, see [Brehm2018] (via LibBQB"// &
+                                       " see <a href=""https://brehm-research.de/bqb"" target=""_blank"">"// &
+                                       " https://brehm-research.de/bqb</a> ). Currently does not work"// &
+                                       "  with changing cell vector (NpT ensemble).", &
+                                       print_level=debug_print_level, filename="", &
+                                       citations=(/Brehm2018/))
+
+      CALL keyword_create(keyword, __LOCATION__, name="SKIP_FIRST", &
+                          description="Skips the first step of a MD run (avoids duplicate step if restarted).", &
+                          usage="SKIP_FIRST T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="STORE_STEP_NUMBER", &
+                          description="Stores the step number and simulation time in the comment line of each BQB"// &
+                          " frame. Switch it off for binary compatibility with original CP2k CUBE files.", &
+                          usage="STORE_STEP_NUMBER F", default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="CHECK", &
+                          description="Performs an on-the-fly decompression of each compressed BQB frame to check"// &
+                          " whether the volumetric data exactly matches, and aborts the run if not so.", &
+                          usage="CHECK T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="HISTORY", &
+                          description="Controls how many previous steps are taken into account for extrapolation in"// &
+                          " compression. Use a value of 1 to compress the frames independently.", &
+                          usage="HISTORY 10", n_var=1, default_i_val=10, type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="PARAMETER_KEY", &
+                          description="Allows to supply previously optimized compression parameters via a"// &
+                          " parameter key (alphanumeric character sequence starting with 'at')."// &
+                          " Just leave away the 'at' sign here, because CP2k will otherwise"// &
+                          " assume it is a variable name in the input", &
+                          usage="PARAMETER_KEY <KEY>", n_var=1, default_c_val="", type_of_var=char_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="OPTIMIZE", &
+                          description="Controls the time spent to optimize the parameters for compression efficiency.", &
+                          usage="OPTIMIZE {OFF,QUICK,NORMAL,PATIENT,EXHAUSTIVE}", repeats=.FALSE., n_var=1, &
+                          default_i_val=bqb_opt_quick, &
+                          enum_c_vals=s2a("OFF", "QUICK", "NORMAL", "PATIENT", "EXHAUSTIVE"), &
+                          enum_desc=s2a("No optimization (use defaults)", "Quick optimization", &
+                                        "Standard optimization", "Precise optimization", "Exhaustive optimization"), &
+                          enum_i_vals=(/bqb_opt_off, bqb_opt_quick, bqb_opt_normal, bqb_opt_patient, bqb_opt_exhaustive/))
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+      ! Voronoi Integration via LibVori
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name="VORONOI", &
+                                       description="Controls the Voronoi integration of the total electron density"// &
+                                       " for the computation of electromagnetic moments, see [Thomas2015]"// &
+                                       " and [Brehm2020] (via LibVori,"// &
+                                       " see <a href=""https://brehm-research.de/voronoi"" target=""_blank"">"// &
+                                       " https://brehm-research.de/voronoi</a> ).", &
+                                       print_level=debug_print_level, filename="", &
+                                       citations=(/Rycroft2009, Thomas2015, Brehm2018, Brehm2020/))
+
+      CALL keyword_create(keyword, __LOCATION__, name="SANITY_CHECK", &
+                          description="Performs a sanity check before each Voronoi integration, i.e.,"// &
+                          " checks if every grid point is located in exactly one Voronoi cell.", &
+                          usage="SANITY_CHECK T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SKIP_FIRST", &
+                          description="Skips the first step of a MD run (avoids duplicate step if restarted).", &
+                          usage="SKIP_FIRST T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="VERBOSE", &
+                          description="Switches on verbose screen output of the Voronoi integration.", &
+                          usage="VERBOSE T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="OUTPUT_EMP", &
+                          description="Writes the resulting electromagnetic moments to a binary file ""properties.emp"".", &
+                          usage="OUTPUT_EMP T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="OUTPUT_TEXT", &
+                          description="Writes the resulting electromagnetic moments to text files (*.voronoi).", &
+                          usage="OUTPUT_TEXT T", default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="REFINEMENT_FACTOR", &
+                          description="Sets the refinement factor for the Voronoi integration.", &
+                          usage="REFINEMENT 2", n_var=1, default_i_val=1, type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="VORONOI_RADII", &
+                          description="Which atomic radii to use for the radical Voronoi tessellation.", &
+                          usage="VORONOI_RADII {UNITY,VDW,COVALENT,USER}", repeats=.FALSE., n_var=1, &
+                          default_i_val=voro_radii_vdw, &
+                          enum_c_vals=s2a("UNITY", "VDW", "COVALENT", "USER"), &
+                          enum_desc=s2a("Use unity radii (non-radical Voronoi tessellation)", "Use VdW atom radii", &
+                                        "Use covalent atom radii", "Use user-specified atom radii"), &
+                          enum_i_vals=(/voro_radii_unity, voro_radii_vdw, voro_radii_cov, voro_radii_user/))
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="USER_RADII", &
+                          description="Defines user atom radii for the radical Voronoi tessellation (one per atom).", &
+                          usage="USER_RADII {real} {real} {real}", repeats=.FALSE., &
+                          unit_str="angstrom", &
+                          type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -6674,188 +6808,6 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_low_spin_roks_section
-
-! **************************************************************************************************
-!> \brief Creates the section for applying an electrostatic external potential
-!> \param section ...
-!> \date 12.2009
-!> \author teo
-! **************************************************************************************************
-   SUBROUTINE create_ext_pot_section(section)
-      TYPE(section_type), POINTER                        :: section
-
-      TYPE(keyword_type), POINTER                        :: keyword
-
-      CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, __LOCATION__, name="EXTERNAL_POTENTIAL", &
-                          description="Section controlling the presence of an electrostatic "// &
-                          "external potential dependent on the atomic positions (X,Y,Z). "// &
-                          "As the external potential is currently applied via a grid, "// &
-                          "it only works with DFT based methods (GPW/GAPW) that already use "// &
-                          "a grid based approach to solve the Poisson equation.", &
-                          n_keywords=7, n_subsections=0, repeats=.FALSE.)
-      NULLIFY (keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="FUNCTION", &
-                          description="Specifies the functional form in mathematical notation. Variables must be the atomic "// &
-                          "coordinates (X,Y,Z) of the grid.", usage="FUNCTION  X^2+Y^2+Z^2+LOG(ABS(X+Y))", &
-                          type_of_var=lchar_t, n_var=1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="PARAMETERS", &
-                          description="Defines the parameters of the functional form", &
-                          usage="PARAMETERS a b D", type_of_var=char_t, &
-                          n_var=-1, repeats=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="VALUES", &
-                          description="Defines the values of parameter of the functional form", &
-                          usage="VALUES ", type_of_var=real_t, &
-                          n_var=-1, repeats=.TRUE., unit_str="internal_cp2k")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="UNITS", &
-                          description="Optionally, allows to define valid CP2K unit strings for each parameter value. "// &
-                          "It is assumed that the corresponding parameter value is specified in this unit.", &
-                          usage="UNITS angstrom eV*angstrom^-1 angstrom^1 K", type_of_var=char_t, &
-                          n_var=-1, repeats=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="STATIC", &
-                          description="Specifies the external potential as STATIC or time dependent. At the moment "// &
-                          "only static potentials are implemented.", &
-                          usage="STATIC T", default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="DX", &
-                          description="Parameter used for computing the derivative with the Ridders' method.", &
-                          usage="DX <REAL>", default_r_val=0.1_dp, unit_str="bohr")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="ERROR_LIMIT", &
-                          description="Checks that the error in computing the derivative is not larger than "// &
-                          "the value set; in case error is larger a warning message is printed.", &
-                          usage="ERROR_LIMIT <REAL>", default_r_val=1.0E-12_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      !keyword for reading the external potential from cube file
-      CALL keyword_create(keyword, __LOCATION__, name="READ_FROM_CUBE", &
-                          description="Switch for reading the external potential from file pot.cube. The values "// &
-                          "of the potential must be on the grid points of the realspace grid.", &
-                          usage="READ_FROM_CUBE T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      !keyword for scaling the external potential that is read from file by a constant factor
-      CALL keyword_create(keyword, __LOCATION__, name="SCALING_FACTOR", &
-                          description="A factor for scaling the the external potential that is read from file."// &
-                          "The value of the potential at each grid point is multiplied by this factor.", &
-                          usage="SCALING_FACTOR <REAL>", default_r_val=1.0_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-   END SUBROUTINE create_ext_pot_section
-
-! **************************************************************************************************
-!> \brief ZMP Creates the section for reading user supplied external density
-!> \param section ...
-!> \date 03.2011
-!> \author D. Varsano [daniele.varsano@nano.cnr.it]
-! **************************************************************************************************
-   SUBROUTINE create_ext_den_section(section)
-      TYPE(section_type), POINTER                        :: section
-
-      TYPE(keyword_type), POINTER                        :: keyword
-
-      CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, __LOCATION__, name="EXTERNAL_DENSITY", &
-                          description="Section for the use of the ZMP technique on external densities.", &
-                          n_keywords=4, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Zhao1994, Tozer1996/))
-      NULLIFY (keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="FILE_DENSITY", &
-                          description="Specifies the filename containing the target density in *.cube format."// &
-                          "In the MGRID section it must be imposed NGRID 1, as it works with only"// &
-                          "one grid. The number of points in each direction, and the spacing must"// &
-                          "be previously defined choosing the plane waves cut-off in section MGRID"// &
-                          "keyword CUTOFF, and the cube dimension in section SUBSYS / CELL / keyword ABC", &
-                          usage="DENSITY_FILE_NAME <FILENAME>", &
-                          type_of_var=char_t, default_c_val="RHO_O.dat", n_var=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="LAMBDA", &
-                          description="Lagrange multiplier defined in the constraint ZMP method. When starting, use"// &
-                          "small values when starting from scratch (around 5,10). Then gradually increase"// &
-                          "the values depending, restarting from the previous calculation with the smaller"// &
-                          "value. To choose the progressive values of LAMBDA look at the convergence of the"// &
-                          " eigenvalues.", &
-                          usage="DX <REAL>", default_r_val=10.0_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="ZMP_CONSTRAINT", &
-                          description="Specify which kind of constraint to solve the ZMP equation. The COULOMB default"// &
-                          "option is more stable.", &
-                          usage="ZMP_CONSTRAINT <CHAR>", &
-                          enum_c_vals=s2a("COULOMB", "DIFF", "NONE"), &
-                          enum_i_vals=(/use_coulomb, use_diff, use_no/), &
-                          enum_desc=s2a("Coulomb constraint, integral of [rho_0(r)-rho(r)]/|r-r'|", &
-                                        "Simple constraint, [rho_0(r)-rho(r)]", &
-                                        "No constrain imposed"), &
-                          default_i_val=use_coulomb)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="FERMI_AMALDI", &
-                          description="Add the Fermi-Amaldi contribution to the Hartree potential."// &
-                          "It leads to a more stable convergence.", &
-                          usage="FERMI_AMALDI <LOGICAL>", &
-                          repeats=.FALSE., &
-                          n_var=1, &
-                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-   END SUBROUTINE create_ext_den_section
-
-! **************************************************************************************************
-!> \brief ZMP Creates the section for creating the external v_xc
-!> \param section ...
-!> \date 03.2011
-!> \author D. Varsano [daniele.varsano@nano.cnr.it]
-! **************************************************************************************************
-   SUBROUTINE create_ext_vxc_section(section)
-      TYPE(section_type), POINTER                        :: section
-
-      TYPE(keyword_type), POINTER                        :: keyword
-
-      CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, __LOCATION__, name="EXTERNAL_VXC", &
-                          description="SCF convergence with external v_xc calculated through previous ZMP"// &
-                          "calculation", &
-                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
-      NULLIFY (keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="FILE_VXC", &
-                          description="The *.cube filename containing the v_xc potential. This works only"// &
-                          "with NGRID 1 imposed in the MGRID section. The number of points in each"// &
-                          "direction, and the spacing must equal to those previously used in the ZMP"// &
-                          "calculation and defined through the plane wave cut-off and the cube dimension"// &
-                          "respectively set in section MGRID / keyword CUTOFF, and in section SUBSYS /"// &
-                          "CELL / keyword ABC", &
-                          usage="FILE_VXC <FILENAME>", &
-                          type_of_var=char_t, default_c_val="VXC_O.dat", n_var=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-   END SUBROUTINE create_ext_vxc_section
 
 ! **************************************************************************************************
 !> \brief makes the orbital transformation section

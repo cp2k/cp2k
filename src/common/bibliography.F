@@ -90,7 +90,8 @@ MODULE bibliography
                             Ren2011, Ren2013, Cohen2000, Rogers2002, Filippetti2000, Paziani2006, &
                             Toulouse2004, Limpanuparb2011, Martin2003, Yin2017, Goerigk2017, &
                             Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, Lass2018, cp2kqs2020, &
-                            Behler2007, Behler2011, Schran2020a, Schran2020b
+                            Behler2007, Behler2011, Schran2020a, Schran2020b, &
+                            Rycroft2009, Thomas2015, Brehm2018, Brehm2020
 
 CONTAINS
 
@@ -4591,6 +4592,88 @@ CONTAINS
                          "PB American Institute of Physics", &
                          "ER"), &
                          DOI="10.1063/5.0007045")
+
+      CALL add_reference(key=Rycroft2009, ISI_record=s2a( &
+                         "TY JOUR", &
+                         "PT J", &
+                         "AU Rycroft, Chris H", &
+                         "TI VORO++: A three-dimensional Voronoi cell library in C++", &
+                         "SO Chaos: An Interdisciplinary Journal of Nonlinear Science", &
+                         "JF Chaos: An Interdisciplinary Journal of Nonlinear Science", &
+                         "JO Chaos", &
+                         "SN 1054-1500", &
+                         "IS 4", &
+                         "PY 2009", &
+                         "VL 19", &
+                         "SP 041111", &
+                         "DI 10.1063/1.3215722", &
+                         "PB American Institute of Physics", &
+                         "ER"), &
+                         DOI="10.1063/1.3215722")
+
+      CALL add_reference(key=Thomas2015, ISI_record=s2a( &
+                         "TY JOUR", &
+                         "PT J", &
+                         "AU Thomas, Martin", &
+                         "   Brehm, Martin", &
+                         "   Kirchner, Barbara", &
+                         "TI Voronoi dipole moments for the simulation of bulk phase vibrational", &
+                         "   spectra", &
+                         "SO Physical Chemistry Chemical Physics", &
+                         "JF Physical Chemistry Chemical Physics", &
+                         "JO Phys. Chem. Chem. Phys.", &
+                         "SN 1463-9076", &
+                         "IS 5", &
+                         "PY 2015", &
+                         "VL 17", &
+                         "SP 3207", &
+                         "EP 3213", &
+                         "DI 10.1039/C4CP05272B", &
+                         "PB The Royal Society of Chemistry", &
+                         "ER"), &
+                         DOI="10.1039/C4CP05272B")
+
+      CALL add_reference(key=Brehm2018, ISI_record=s2a( &
+                         "TY JOUR", &
+                         "PT J", &
+                         "AU Brehm, Martin", &
+                         "   Thomas, Martin", &
+                         "TI An Efficient Lossless Compression Algorithm for Trajectories of Atom", &
+                         "   Positions and Volumetric Data", &
+                         "SO Journal of Chemical Information and Modeling", &
+                         "JF Journal of Chemical Information and Modeling", &
+                         "JO J. Chem. Inf. Model.", &
+                         "SN 1549-9596", &
+                         "IS 10", &
+                         "PY 2018", &
+                         "VL 58", &
+                         "SP 2092", &
+                         "EP 2107", &
+                         "DI 10.1021/acs.jcim.8b00501", &
+                         "PB American Chemical Society", &
+                         "ER"), &
+                         DOI="10.1021/acs.jcim.8b00501")
+
+      CALL add_reference(key=Brehm2020, ISI_record=s2a( &
+                         "TY JOUR", &
+                         "PT J", &
+                         "AU Brehm, Martin", &
+                         "   Thomas, Martin", &
+                         "   Gehrke, Sascha", &
+                         "   Kirchner, Barbara", &
+                         "TI TRAVIS - A free analyzer for trajectories from molecular simulation", &
+                         "SO The Journal of Chemical Physics", &
+                         "JF The Journal of Chemical Physics", &
+                         "JO J. Chem. Phys.", &
+                         "SN 0021-9606", &
+                         "IS 16", &
+                         "PY 2020", &
+                         "VL 152", &
+                         "SP 164105", &
+                         "DI 10.1063/5.0005078", &
+                         "PB American Institute of Physics", &
+                         "ER"), &
+                         DOI="10.1063/5.0005078")
 
    END SUBROUTINE add_all_references
 
