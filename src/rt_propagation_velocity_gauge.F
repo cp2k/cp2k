@@ -601,7 +601,7 @@ CONTAINS
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
 !$OMP SHARED (basis_set, gpotential, ncoset, sap_ppnl, sap_int_cos, sap_int_sin, nkind, &
-!$OMP         ldints, ldai, nco, cell, particle_set, kvec) &
+!$OMP         ldints, maxco, nco, cell, particle_set, kvec) &
 !$OMP PRIVATE (slot, ikind, kkind, iatom, katom, nlist, ilist, nneighbor, jneighbor, &
 !$OMP          cell_c, rac, dac, iac, first_sgfa, la_max, la_min, npgfa, nseta, nsgfa, nsgf_seta,&
 !$OMP          rpgfa, set_radius_a, sphi_a, zeta, alpha_ppnl, cprj, lppnl, nppnl, nprj_ppnl,&
@@ -609,7 +609,7 @@ CONTAINS
 !$OMP          nprjc, rprjc, lc_max, lc_min, zetc, ncoc, ai_work_sin, ai_work_cos, na, nb, np, dogth)
 
       ALLOCATE (work_cos(ldints, ldints), work_sin(ldints, ldints))
-      ALLOCATE (ai_work_cos(ldai, ldai), ai_work_sin(ldai, ldai))
+      ALLOCATE (ai_work_cos(maxco, maxco), ai_work_sin(maxco, maxco))
       work_cos = 0.0_dp
       work_sin = 0.0_dp
       ai_work_cos = 0.0_dp
