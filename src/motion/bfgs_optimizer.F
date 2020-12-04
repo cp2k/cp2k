@@ -7,8 +7,9 @@
 
 ! **************************************************************************************************
 !> \brief Routines for Geometry optimization using BFGS algorithm
-!> \history Module modified by Pierre-André Cazade [pcazade] 01.2020 - University of Limerick.
-!>          Modifications enable Space Group Symmetry.
+!> \par History
+!>      Module modified by Pierre-André Cazade [pcazade] 01.2020 - University of Limerick.
+!>      Modifications enable Space Group Symmetry.
 ! **************************************************************************************************
 MODULE bfgs_optimizer
 
@@ -75,12 +76,11 @@ MODULE bfgs_optimizer
                                               mp_sum
    USE particle_list_types,             ONLY: particle_list_type
    USE space_groups,                    ONLY: identify_space_group,&
-                                              spgr_find_equivalent_atoms,&
+                                              print_spgr,&
+                                              release_spgr_type,&
                                               spgr_apply_rotations_coord,&
                                               spgr_apply_rotations_force,&
-                                              spgr_type,&
-                                              print_spgr,&
-                                              release_spgr_type
+                                              spgr_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -102,7 +102,8 @@ CONTAINS
 !> \param geo_section ...
 !> \param gopt_env ...
 !> \param x0 ...
-!> \history [pcazade] 01.2020 modified to perform Space Group Symmetry 
+!> \par History
+!>      01.2020 modified to perform Space Group Symmetry [pcazade]
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE geoopt_bfgs(force_env, gopt_param, globenv, geo_section, gopt_env, x0)
 
@@ -121,8 +122,9 @@ CONTAINS
       INTEGER                                            :: handle, hesunit_read, indf, info, &
                                                             iter_nr, its, maxiter, ndf, nfree, &
                                                             output_unit
-      LOGICAL                                            :: conv, hesrest, ionode, shell_present, &
-                                                            should_stop, use_mod_hes, use_rfo, keep_sg
+      LOGICAL                                            :: conv, hesrest, ionode, keep_sg, &
+                                                            shell_present, should_stop, &
+                                                            use_mod_hes, use_rfo
       REAL(KIND=dp)                                      :: ediff, emin, eold, etot, pred, rad, rat, &
                                                             step, t_diff, t_now, t_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dg, dr, dx, eigval, gold, work, xold
@@ -285,13 +287,13 @@ CONTAINS
 
       ! Symmetrize forces and stress tensor
       IF (keep_sg) THEN
-        ! Calculate Energy & Gradients
-        CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
-                        .FALSE., gopt_env%force_env%para_env, spgr=spgr)
+         ! Calculate Energy & Gradients
+         CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
+                         .FALSE., gopt_env%force_env%para_env, spgr=spgr)
       ELSE
-        ! Calculate Energy & Gradients
-        CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
-                        .FALSE., gopt_env%force_env%para_env)
+         ! Calculate Energy & Gradients
+         CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
+                         .FALSE., gopt_env%force_env%para_env)
       END IF
 
       ! Symmetrize coordinates and forces
@@ -327,7 +329,7 @@ CONTAINS
                   CALL spgr_apply_rotations_coord(spgr, xold)
                   CALL spgr_apply_rotations_force(spgr, gold)
                END IF
-               
+
                DO indf = 1, ndf
                   dx(indf) = x0(indf) - xold(indf)
                   dg(indf) = g(indf) - gold(indf)
@@ -383,7 +385,7 @@ CONTAINS
          IF (keep_sg) THEN
             CALL spgr_apply_rotations_force(spgr, dr)
          END IF
-         
+
          CALL trust_radius(ndf, step, rad, rat, dr, output_unit)
 
          ! Update the atomic positions
@@ -399,13 +401,13 @@ CONTAINS
 
          ! Symmetrize forces and stress tensor
          IF (keep_sg) THEN
-           ! Energy & Gradients at new step
-           CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
-                           .FALSE., gopt_env%force_env%para_env, spgr=spgr)
+            ! Energy & Gradients at new step
+            CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
+                            .FALSE., gopt_env%force_env%para_env, spgr=spgr)
          ELSE
-           ! Energy & Gradients at new step
-           CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
-                           .FALSE., gopt_env%force_env%para_env)
+            ! Energy & Gradients at new step
+            CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
+                            .FALSE., gopt_env%force_env%para_env)
          END IF
 
          ediff = etot - eold

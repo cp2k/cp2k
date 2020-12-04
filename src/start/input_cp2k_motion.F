@@ -60,9 +60,9 @@ MODULE input_cp2k_motion
                                               section_release,&
                                               section_type
    USE input_val_types,                 ONLY: integer_t,&
+                                              lchar_t,&
                                               logical_t,&
-                                              real_t,&
-                                              lchar_t
+                                              real_t
    USE kinds,                           ONLY: dp
    USE string_utilities,                ONLY: s2a
 #include "../base/base_uses.f90"
@@ -775,8 +775,9 @@ CONTAINS
 !> \param description ...
 !> \param just_optimizers ...
 !> \param use_model_hessian ...
+!> \par History
+!>      01.2020 keywords related to Space Group Symmetry added [pcazade]
 !> \author teo
-!> \history  01.2020 keywords related to Space Group Symmetry added [pcazade]
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE create_geoopt_section(section, location, label, description, just_optimizers, use_model_hessian)
       TYPE(section_type), POINTER                        :: section
@@ -873,57 +874,57 @@ CONTAINS
          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      
+
       ! collects keywords related to precision for finding the space group
       CALL keyword_create( &
          keyword, __LOCATION__, name="EPS_GEO", &
-                          description="Accuracy required for symmetry detection", &
-                          usage="EPS_GEO {REAL}", &
-                          default_r_val=1.e-4_dp, repeats=.FALSE.)
+         description="Accuracy required for symmetry detection", &
+         usage="EPS_GEO {REAL}", &
+         default_r_val=1.e-4_dp, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       ! collects keywords related to precision for finding the space group
       CALL keyword_create( &
          keyword, __LOCATION__, name="EPS_SPGR", &
-                          description="Accuracy required for symmetry detection", &
-                          usage="EPS_SPGR {REAL}", &
-                          default_r_val=1.e-4_dp, repeats=.FALSE.)
+         description="Accuracy required for symmetry detection", &
+         usage="EPS_SPGR {REAL}", &
+         default_r_val=1.e-4_dp, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       ! collects keywords related to reduction of symmetry due to an external field
       CALL keyword_create( &
          keyword, __LOCATION__, name="SYMM_REDUCTION", &
-                          description="Polarisation vector of electric field for symmetry reduction", &
-                          usage="SYMM_REDUCTION  0.0 0.0 0.0", &
-                          repeats=.FALSE., n_var=3, &
-                          type_of_var=real_t, default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp/))
+         description="Polarisation vector of electric field for symmetry reduction", &
+         usage="SYMM_REDUCTION  0.0 0.0 0.0", &
+         repeats=.FALSE., n_var=3, &
+         type_of_var=real_t, default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       ! collects keywords related to ranges of atoms to symmetrize
-      CALL keyword_create(&
+      CALL keyword_create( &
          keyword, __LOCATION__, name="SYMM_EXCLUDE_RANGE", &
-                          description="Range of atoms to exclude from symmetry. This keyword can be repeated.", &
-                          repeats=.TRUE., usage="SYMM_EXCLUDE_RANGE {Int} {Int}", type_of_var=integer_t, n_var=2)
+         description="Range of atoms to exclude from symmetry. This keyword can be repeated.", &
+         repeats=.TRUE., usage="SYMM_EXCLUDE_RANGE {Int} {Int}", type_of_var=integer_t, n_var=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       ! collects keywords related to print SPGR info
-      CALL keyword_create(&
+      CALL keyword_create( &
          keyword, __LOCATION__, name="SPGR_FILE_NAME", &
-                          description="Name of output file for detailed Space Group Symmetry iformation.", &
-                          repeats=.FALSE., usage="SPGR_FILE_NAME {Filename}", default_lc_val="",&
-                          type_of_var=lchar_t, n_var=1)
+         description="Name of output file for detailed Space Group Symmetry iformation.", &
+         repeats=.FALSE., usage="SPGR_FILE_NAME {Filename}", default_lc_val="", &
+         type_of_var=lchar_t, n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(&
+      CALL keyword_create( &
          keyword, __LOCATION__, name="SPGR_PRINT_LEVEL", &
-                          description="Print equivalent atoms list for each symmetry operation.", &
-                          repeats=.FALSE., usage="SPGR_PRINT_LEVEL {Level}", default_i_val=-1,&
-                          type_of_var=integer_t, n_var=1)
+         description="Print equivalent atoms list for each symmetry operation.", &
+         repeats=.FALSE., usage="SPGR_PRINT_LEVEL {Level}", default_i_val=-1, &
+         type_of_var=integer_t, n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

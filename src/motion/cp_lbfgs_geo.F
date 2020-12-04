@@ -24,6 +24,7 @@ MODULE cp_lbfgs_geo
                                               cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type
    USE global_types,                    ONLY: global_environment_type
@@ -38,15 +39,11 @@ MODULE cp_lbfgs_geo
                                               section_vals_val_get,&
                                               section_vals_val_set
    USE kinds,                           ONLY: dp
-   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                              cp_subsys_type
    USE space_groups,                    ONLY: identify_space_group,&
-                                              spgr_find_equivalent_atoms,&
-                                              spgr_apply_rotations_coord,&
-                                              spgr_apply_rotations_force,&
-                                              spgr_type,&
                                               print_spgr,&
-                                              release_spgr_type
+                                              release_spgr_type,&
+                                              spgr_apply_rotations_coord,&
+                                              spgr_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -83,14 +80,14 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'geoopt_lbfgs'
 
       INTEGER                                            :: handle, iter_nr, its, output_unit
-      LOGICAL                                            :: converged, should_stop, keep_sg
+      LOGICAL                                            :: converged, keep_sg, should_stop
       REAL(KIND=dp)                                      :: trust_radius
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_lbfgs_opt_gopt_type), POINTER              :: optimizer
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(spgr_type)                                    :: spgr
 
       CALL timeset(routineN, handle)
@@ -113,9 +110,9 @@ CONTAINS
       ! finds space group
       CALL section_vals_val_get(geo_section, "KEEP_SPACE_GROUP", l_val=keep_sg)
       IF (keep_sg) THEN
-        CALL identify_space_group(spgr, subsys, subsys%cell, geo_section, gopt_env, output_unit)
-        CALL spgr_apply_rotations_coord(spgr, x0)
-        CALL print_spgr(spgr)
+         CALL identify_space_group(spgr, subsys, subsys%cell, geo_section, gopt_env, output_unit)
+         CALL spgr_apply_rotations_coord(spgr, x0)
+         CALL print_spgr(spgr)
       END IF
 
       ! Stop if not implemented
@@ -136,7 +133,7 @@ CONTAINS
          CALL gopt_f_ii(its, output_unit)
 
          ! Real optimization step..
-         IF(keep_sg)THEN
+         IF (keep_sg) THEN
             ! passes spgr structure if required
             IF (.NOT. cp_opt_gopt_next(optimizer, geo_section=geo_section, &
                                        force_env=force_env, gopt_param=gopt_param, &

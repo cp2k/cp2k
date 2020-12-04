@@ -22,9 +22,9 @@ MODULE cp_lbfgs
    USE cp_files,                        ONLY: open_file
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
-   USE space_groups,                    ONLY: spgr_type,&
-                                              spgr_apply_rotations_coord,&
-                                              spgr_apply_rotations_force
+   USE space_groups,                    ONLY: spgr_apply_rotations_coord,&
+                                              spgr_apply_rotations_force,&
+                                              spgr_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -170,13 +170,15 @@ CONTAINS
 !>                 dsave(15) = the slope of the line search function at the starting point of the line search;
 !>                 dsave(16) = the square of the 2-norm of the line search direction vector.
 !> \param trust_radius ...
+!> \param spgr ...
+!> \par History
+!>      12.2020 Implementation of Space Group Symmetry [pcazade]
 !> \author         NEOS, November 1994. (Latest revision June 1996.)
 !>                 Optimization Technology Center.
 !>                 Argonne National Laboratory and Northwestern University.
 !>                 Written by
 !>                             Ciyou Zhu
 !>                 in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
-!> \history        [pcazade] 12.2020 Implementation of Space Group Symmetry
 ! **************************************************************************************************
    SUBROUTINE setulb(n, m, x, lower_bound, upper_bound, nbd, f, g, factr, pgtol, wa, iwa, &
                      task, iprint, csave, lsave, isave, dsave, trust_radius, spgr)
@@ -196,10 +198,10 @@ CONTAINS
       INTEGER                                            :: isave(44)
       REAL(KIND=dp)                                      :: dsave(29)
       REAL(KIND=dp), INTENT(in)                          :: trust_radius
+      TYPE(spgr_type), OPTIONAL                          :: spgr
 
       INTEGER                                            :: i, ld, lr, lsnd, lss, lsy, lt, lwa, lwn, &
                                                             lws, lwt, lwy, lxp, lz
-      TYPE(spgr_type), OPTIONAL                          :: spgr
 
 !     References:
 !
@@ -276,7 +278,7 @@ CONTAINS
       ENDIF
 
       ! passes spgr to mainlb
-      IF(PRESENT(spgr)) THEN
+      IF (PRESENT(spgr)) THEN
          CALL mainlb(n, m, x, lower_bound, upper_bound, nbd, f, g, factr, pgtol, &
                      wa(lws), wa(lwy), wa(lsy), wa(lss), wa(lwt), &
                      wa(lwn), wa(lsnd), wa(lz), wa(lr), wa(ld), wa(lt), wa(lxp), &
@@ -384,13 +386,15 @@ CONTAINS
 !> \param lsave  lsave is a logical working array
 !> \param isave  isave is an integer working array
 !> \param dsave  is a double precision working array
+!> \param spgr ...
+!> \par History
+!>      12.2020 Implementation of Space Group Symmetry [pcazade]
 !> \author       NEOS, November 1994. (Latest revision June 1996.)
 !>               Optimization Technology Center.
 !>               Argonne National Laboratory and Northwestern University.
 !>               Written by
 !>                           Ciyou Zhu
 !>               in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
-!> \history      [pcazade] 12.2020 Implementation of Space Group Symmetry
 ! **************************************************************************************************
    SUBROUTINE mainlb(n, m, x, lower_bound, upper_bound, nbd, f, g, factr, pgtol, ws, wy, &
                      sy, ss, wt, wn, snd, z, r, d, t, xp, wa, &
@@ -409,6 +413,7 @@ CONTAINS
       LOGICAL                                            :: lsave(4)
       INTEGER                                            :: isave(23)
       REAL(KIND=dp)                                      :: dsave(29)
+      TYPE(spgr_type), OPTIONAL                          :: spgr
 
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
@@ -417,11 +422,10 @@ CONTAINS
                                                             itail, iter, itfile, iupdat, iword, k, &
                                                             nact, nenter, nfgv, nfree, nintol, &
                                                             nseg, nskip
-      LOGICAL                                            :: boxed, constrained, first, updatd, wrk, &
-                                                            x_projected, keep_sg
+      LOGICAL                                            :: boxed, constrained, first, keep_sg, &
+                                                            updatd, wrk, x_projected
       REAL(KIND=dp) :: cachyt, cpu1, cpu2, ddot, ddum, dnorm, dr, dtd, epsmch, fold, g_inf_norm, &
          gd, gdold, lnscht, rr, sbtime, step_max, stp, theta, time, time1, time2, tol, xstep
-      TYPE(spgr_type), OPTIONAL                          :: spgr
 
 !     References:
 !
@@ -442,9 +446,9 @@ CONTAINS
 !        ftp to eecs.nwu.edu in the directory pub/lbfgs/lbfgs_bcm.)
 !
 !                           *  *  *
-      
+
       keep_sg = .FALSE.
-      IF(PRESENT(spgr)) keep_sg = .TRUE.
+      IF (PRESENT(spgr)) keep_sg = .TRUE.
 
       IF (task == 'START') THEN
 
@@ -538,7 +542,7 @@ CONTAINS
             CALL spgr_apply_rotations_coord(spgr, x)
             CALL spgr_apply_rotations_force(spgr, g)
          END IF
-         
+
 !          restore local variables.
 
          x_projected = lsave(1)
@@ -773,7 +777,7 @@ CONTAINS
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 !     Generate the search direction d:=z-x.
-        ! applies rotation matrices to coordinates
+         ! applies rotation matrices to coordinates
          IF (keep_sg) THEN
             CALL spgr_apply_rotations_coord(spgr, x)
             CALL spgr_apply_rotations_coord(spgr, z)
