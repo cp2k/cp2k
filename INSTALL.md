@@ -11,9 +11,7 @@ For more details on downloading CP2K, see <https://www.cp2k.org/download>.
 
 The most convenient way to install pre-requisites is by using the [toolchain script](./tools/toolchain/install_cp2k_toolchain.sh).
 
-For a complete introduction to the toolchain script,
-see the [README for users](./tools/toolchain/README_FOR_USERS.md)
-or the [README for developers](./tools/toolchain/README_FOR_DEVELOPERS.md).
+For a complete introduction to the toolchain script, see the [README](./tools/toolchain/README.md).
 
 The basic steps are:
 
