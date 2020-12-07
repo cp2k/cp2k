@@ -119,6 +119,7 @@ be installed separately by the user.
 | hdf5      | [BSD 3-Clause](https://support.hdfgroup.org/ftp/HDF5/releases/COPYING)                  | Yes            |
 | libint    | [GPL](https://github.com/evaleev/libint/blob/master/LICENSE)                            | Yes            |
 | libsmm    | [GPL](https://github.com/cp2k/cp2k/blob/master/LICENSE)                                 | Yes            |
+| libvori   | LGPL-3                                                                                  | Yes            |
 | libvdwxc  | [GPL](https://gitlab.com/libvdwxc/libvdwxc/blob/master/LICENSE)                         | Yes            |
 | libxc     | [MPL](https://gitlab.com/libxc/libxc/blob/master/COPYING)                               | Yes            |
 | libxsmm   | [BSD 3-Clause](https://github.com/hfp/libxsmm/blob/master/LICENSE.md)                   | Yes            |
