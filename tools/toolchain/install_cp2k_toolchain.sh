@@ -222,6 +222,8 @@ The --with-PKG options follow the rules:
                           Default = install
   --with-cosma            Enable cosma as a replacement for scalapack matrix multiplication
                           Default = install
+  --with-libvori          Enable libvori for the Voronoi integration (and the BQB compressed trajectory format)
+                          Default = install
 
 FURTHER INSTRUCTIONS
 
@@ -258,7 +260,8 @@ tool_list="gcc cmake valgrind"
 mpi_list="mpich openmpi intelmpi"
 math_list="mkl acml openblas reflapack"
 lib_list="fftw libint libxc libsmm libxsmm cosma scalapack elpa plumed \
-          spfft ptscotch superlu pexsi quip gsl spglib hdf5 libvdwxc sirius"
+          spfft ptscotch superlu pexsi quip gsl spglib hdf5 libvdwxc sirius
+          libvori"
 package_list="$tool_list $mpi_list $math_list $lib_list"
 # ------------------------------------------------------------------------
 
@@ -303,6 +306,7 @@ with_elpa="__INSTALL__"
 with_libvdwxc="__INSTALL__"
 with_spfft=__INSTALL__
 with_cosma=__INSTALL__
+with_libvori=__INSTALL__
 # for MPI, we try to detect system MPI variant
 with_openmpi=__SYSTEM__
 with_mpich=__SYSTEM__
@@ -608,6 +612,9 @@ while [ $# -ge 1 ] ; do
         --with-cosma*)
             with_cosma=$(read_with $1)
             ;;
+        --with-libvori*)
+            with_libvori=$(read_with $1)
+            ;;
         --help*)
             show_help
             exit 0
@@ -723,8 +730,8 @@ else
     fi
 fi
 
-# spg library requires cmake.
-if [ "$with_spglib" = "__INSTALL__" ] ; then
+# spglib and libvori require cmake.
+if [ "$with_spglib" = "__INSTALL__" ] || [ "$with_libvori" = "__INSTALL__" ] ; then
     [ "$with_cmake" = "__DONTUSE__" ] && with_cmake="__INSTALL__"
 fi
 
@@ -938,6 +945,7 @@ else
     ./scripts/install_hdf5.sh
     ./scripts/install_libvdwxc.sh
     ./scripts/install_sirius.sh
+    ./scripts/install_libvori.sh
     ./scripts/generate_arch_files.sh
 fi
 

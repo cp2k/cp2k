@@ -310,6 +310,9 @@ SIRIUS is a domain specific library for electronic structure calculations.
   electron density in the Voronoi cell of each atom.
 - Add `-D__LIBVORI` to DFLAGS to enable support for LibVori.
 - see <https://brehm-research.de/voronoi> for more information.
+- LibVori also enables support for the BQB file format for compressed trajectories,
+  please see <https://brehm-research.de/bqb.php> for more information as well as
+  the `bqbtool` to inspect BQB files.
 
 ### 2u. LibMaxwell (External Maxwell Solver)
 
