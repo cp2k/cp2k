@@ -75,15 +75,15 @@ case "$with_spfft" in
         SPFFT_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath='${pkg_install_dir}/lib/cuda'"
         ;;
     __SYSTEM__)
-        echo "==================== Finding psfft from system paths ===================="
-        check_command pkg-config --modversion psfft
+        echo "==================== Finding spfft from system paths ===================="
+        check_command pkg-config --modversion spfft
         add_include_from_paths SPFFT_CFLAGS "spfft.h" $INCLUDE_PATHS
         add_lib_from_paths SPFFT_LDFLAGS "libspfft.*" $LIB_PATHS
         ;;
     __DONTUSE__)
         ;;
     *)
-        echo "==================== Linking psfft to user paths ===================="
+        echo "==================== Linking spfft to user paths ===================="
         pkg_install_dir="$with_spfft"
 
         # use the lib64 directory if present (multi-abi distros may link lib/ to lib32/ instead)
