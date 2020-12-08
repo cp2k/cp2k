@@ -24,6 +24,7 @@
 #include "coefficients.h"
 #include "collocation_integration.h"
 #include "grid_collocate_dgemm.h"
+#include "grid_cpu_task_list.h"
 #include "grid_prepare_pab_dgemm.h"
 #include "non_orthorombic_corrections.h"
 #include "private_header.h"
@@ -251,7 +252,6 @@ void apply_sphere_cutoff_ortho(struct collocation_integration_ *const handler,
       map[i][ig] = modulo(cube_center[i] + lb_cube[i] + ig -
                               handler->grid.lower_corner[i],
                           handler->grid.full_size[i]);
-      ;
     }
   }
 
@@ -282,30 +282,26 @@ void apply_sphere_cutoff_ortho(struct collocation_integration_ *const handler,
           const int xmin = ceil(-1e-8 - sqrt(jremain) * handler->dh_inv[0][0]);
           const int xmax = 1 - xmin;
 
-          int lower_corner[3] = {k, j, xmin};
-          int upper_corner[3] = {k + 1, j + 1, xmin};
-
           // printf("xmin %d, xmax %d\n", xmin, xmax);
           for (int x = xmin - lb_cube[2];
                x < imin((xmax - lb_cube[2]), handler->cube.size[2]); x++) {
             const int x1 = map[2][x];
 
-            int diff = compute_interval(
-                map[2], handler->grid.full_size[2], handler->grid.size[2],
-                handler->cube.size[2], x1, &x, lower_corner + 2,
-                upper_corner + 2, xwindow);
+            if (!is_point_in_interval(x1, xwindow))
+              continue;
+
+            int lower_corner[3] = {k, j, x1};
+            int upper_corner[3] = {k + 1, j + 1, x1 + 1};
+
+            compute_interval(map[2], handler->grid.full_size[2],
+                             handler->grid.size[2], handler->cube.size[2], x1,
+                             &x, lower_corner + 2, upper_corner + 2, xwindow);
 
             if (upper_corner[2] - lower_corner[2]) {
-              const int position1[3] = {kg, jg - lb_cube[1], x + diff};
+              const int position1[3] = {kg, jg - lb_cube[1], x};
 
-              /* the function will internally take care of the local vs global
-               * grid */
-
-              double *restrict dst =
-                  &idx3(handler->grid,
-                        lower_corner[0] - handler->grid.lower_corner[0],
-                        lower_corner[1] - handler->grid.lower_corner[1],
-                        lower_corner[2] - handler->grid.lower_corner[2]);
+              double *restrict dst = &idx3(handler->grid, lower_corner[0],
+                                           lower_corner[1], lower_corner[2]);
               double *restrict src = &idx3(handler->cube, position1[0],
                                            position1[1], position1[2]);
 
@@ -411,13 +407,16 @@ void apply_spherical_cutoff_generic(
       for (int x = xmin - lb_cube[2];
            x < imin((xmax - lb_cube[2]), handler->cube.size[2]); x++) {
         const int x1 = map[2][x];
-        int diff =
-            compute_interval(map[2], handler->grid.full_size[2],
-                             handler->grid.size[2], handler->cube.size[2], x1,
-                             &x, lower_corner + 2, upper_corner + 2, xwindow);
+
+        if (!is_point_in_interval(x1, xwindow))
+          continue;
+
+        compute_interval(map[2], handler->grid.full_size[2],
+                         handler->grid.size[2], handler->cube.size[2], x1, &x,
+                         lower_corner + 2, upper_corner + 2, xwindow);
 
         if (upper_corner[2] - lower_corner[2]) {
-          const int position1[3] = {k, j, x + diff};
+          const int position1[3] = {k, j, x};
 
           /* the function will internally take care of the local vs global
            * grid */
@@ -647,7 +646,6 @@ void apply_mapping_cubic(struct collocation_integration_ *handler,
 
   int lower_corner[3];
   int upper_corner[3];
-  int diff[3];
 
   const Interval zwindow = {.xmin = handler->grid.window_shift[0],
                             .xmax = handler->grid.window_size[0]};
@@ -677,9 +675,9 @@ void apply_mapping_cubic(struct collocation_integration_ *handler,
     if (!is_point_in_interval(z1, zwindow))
       continue;
 
-    diff[0] = compute_interval(map[0], handler->grid.full_size[0],
-                               handler->grid.size[0], handler->cube.size[0], z1,
-                               &z, lower_corner, upper_corner, zwindow);
+    compute_interval(map[0], handler->grid.full_size[0], handler->grid.size[0],
+                     handler->cube.size[0], z1, &z, lower_corner, upper_corner,
+                     zwindow);
 
     /* // We have a full plane. */
     if (upper_corner[0] - lower_corner[0]) {
@@ -690,10 +688,9 @@ void apply_mapping_cubic(struct collocation_integration_ *handler,
         if (!is_point_in_interval(y1, ywindow))
           continue;
 
-        diff[1] =
-            compute_interval(map[1], handler->grid.full_size[1],
-                             handler->grid.size[1], handler->cube.size[1], y1,
-                             &y, lower_corner + 1, upper_corner + 1, ywindow);
+        compute_interval(map[1], handler->grid.full_size[1],
+                         handler->grid.size[1], handler->cube.size[1], y1, &y,
+                         lower_corner + 1, upper_corner + 1, ywindow);
 
         if (upper_corner[1] - lower_corner[1]) {
           for (int x = 0; x < handler->cube.size[2]; x++) {
@@ -702,13 +699,12 @@ void apply_mapping_cubic(struct collocation_integration_ *handler,
             if (!is_point_in_interval(x1, xwindow))
               continue;
 
-            diff[2] = compute_interval(
-                map[2], handler->grid.full_size[2], handler->grid.size[2],
-                handler->cube.size[2], x1, &x, lower_corner + 2,
-                upper_corner + 2, xwindow);
+            compute_interval(map[2], handler->grid.full_size[2],
+                             handler->grid.size[2], handler->cube.size[2], x1,
+                             &x, lower_corner + 2, upper_corner + 2, xwindow);
 
             if (upper_corner[2] - lower_corner[2]) {
-              const int position1[3] = {z + diff[0], y + diff[1], x + diff[2]};
+              const int position1[3] = {z, y, x};
 
               /* the function will internally take care of the local vx global
                * grid */
@@ -955,8 +951,9 @@ void grid_collocate_pgf_product_cpu_dgemm(
   //
 
   // coef[x][z][y]
-  grid_prepare_coef_dgemm(lmin_prep, lmax_prep, lp, prefactor,
-                          &(handler->alpha), &pab_prep, &(handler->coef));
+  grid_compute_coefficients_dgemm(lmin_prep, lmax_prep, lp, prefactor,
+                                  &(handler->alpha), &pab_prep,
+                                  &(handler->coef));
 
   grid_collocate(handler, use_ortho, zetp, rp, radius);
 
@@ -964,41 +961,44 @@ void grid_collocate_pgf_product_cpu_dgemm(
   free(pab_prep.data);
 }
 
-
-void compute_coefficients(grid_context *const ctx,
-                          struct collocation_integration_ *handler,
-                          const _task *task,
-                          const grid_buffer *pab_blocks,
-                          tensor *const pab,
-                          tensor *const work,
-                          tensor *const pab_prep) {
-  const int iatom = task->iatom - 1;
-  const int jatom = task->jatom - 1;
-  const int iset = task->iset - 1;
-  const int jset = task->jset - 1;
-  const int ikind = ctx->atom_kinds[iatom] - 1;
-  const int jkind = ctx->atom_kinds[jatom] - 1;
+void extract_blocks(grid_context *const ctx, const _task *const task,
+                    const grid_buffer *pab_blocks, tensor *const work,
+                    tensor *const pab) {
+  const int iatom = task->iatom;
+  const int jatom = task->jatom;
+  const int iset = task->iset;
+  const int jset = task->jset;
+  const int ikind = ctx->atom_kinds[iatom];
+  const int jkind = ctx->atom_kinds[jatom];
   const grid_basis_set *ibasis = ctx->basis_sets[ikind];
   const grid_basis_set *jbasis = ctx->basis_sets[jkind];
 
-  const int block_num = task->block_num - 1;
+  const int block_num = task->block_num;
 
+  // Locate current matrix block within the buffer. This block
+  // contains the weights of the gaussian pairs in the spherical
+  // harmonic basis, but we do computation in the cartesian
+  // harmonic basis so we have to rotate the coefficients. It is nothing
+  // else than a basis change and it done with two dgemm.
+
+  const int block_offset = ctx->block_offsets[block_num]; // zero based
+  double *const block = &pab_blocks->host_buffer[block_offset];
+
+  rotate_to_cartesian_harmonics(ibasis, jbasis, iatom, jatom, iset, jset, block,
+                                work, pab);
+}
+
+void compute_coefficients(grid_context *const ctx,
+                          struct collocation_integration_ *handler,
+                          const _task *const previous_task,
+                          const _task *const task,
+                          const grid_buffer *pab_blocks, tensor *const pab,
+                          tensor *const work, tensor *const pab_prep) {
   // Load subblock from buffer and decontract into Cartesian sublock pab.
   // The previous pab can be reused when only ipgf or jpgf has changed.
-  if (task->update_block_) {
-    // Locate current matrix block within the buffer. This block
-    // contains the weights of the gaussian pairs in the spherical
-    // harmonic basis, but we do computation in the cartesian
-    // harmonic basis so we have to rotate the coefficients. It is nothing
-    // else than a basis change and it done with two dgemm.
-
-    const int block_offset = ctx->block_offsets[block_num]; // zero based
-    double *const block = &pab_blocks->host_buffer[block_offset];
-
-    rotate_to_cartesian_harmonics(ibasis, jbasis, iatom, jatom, iset, jset,
-                                  block, work, pab);
-  } // end of block loading
-
+  if (task->update_block_ || (previous_task == NULL)) {
+    extract_blocks(ctx, task, pab_blocks, work, pab);
+  }
 
   int lmin_prep[2];
   int lmax_prep[2];
@@ -1018,13 +1018,8 @@ void compute_coefficients(grid_context *const ctx,
   initialize_tensor_2(pab_prep, n2_prep, n1_prep);
   realloc_tensor(pab_prep);
 
-  grid_prepare_pab_dgemm(handler->func,
-                         task->offset,
-                         task->lmin,
-                         task->lmax,
-                         &task->zeta[0],
-                         pab,
-                         pab_prep);
+  grid_prepare_pab_dgemm(handler->func, task->offset, task->lmin, task->lmax,
+                         &task->zeta[0], pab, pab_prep);
 
   //   *** initialise the coefficient matrix, we transform the sum
   //
@@ -1056,21 +1051,15 @@ void compute_coefficients(grid_context *const ctx,
 
   // these two functions can be done with dgemm again....
 
-  grid_prepare_alpha_dgemm(task->ra,
-                           task->rb,
-                           task->rp,
-                           lmax_prep,
+  grid_prepare_alpha_dgemm(task->ra, task->rb, task->rp, lmax_prep,
                            &handler->alpha);
 
   // compute the coefficients after applying the function of interest
   // coef[x][z][y]
-  grid_prepare_coef_dgemm(lmin_prep,
-                          lmax_prep,
-                          lp,
-                          task->prefactor,
-                          &handler->alpha,
-                          pab_prep,
-                          &handler->coef);
+  grid_compute_coefficients_dgemm(
+      lmin_prep, lmax_prep, lp,
+      task->prefactor * ((task->iatom == task->jatom) ? 1.0 : 2.0),
+      &handler->alpha, pab_prep, &handler->coef);
 }
 
 void collocate_one_grid_level_dgemm(grid_context *const ctx,
@@ -1116,16 +1105,21 @@ void collocate_one_grid_level_dgemm(grid_context *const ctx,
     for (int d = 0; d < 3; d++)
       handler->orthogonal[d] = handler->grid.orthogonal[d];
 
-    if (num_threads == 1) {
-      // only one thread in the omp region.
+    if ((thread_id == 0) || (num_threads == 1)) {
+      // thread id 0 directly store the results in the final storage space
       handler->grid.data = ctx->grid[level].data;
-    } else {
-      handler->grid.data =
-          ((double *)ctx->scratch) + thread_id * handler->grid.alloc_size_;
+    }
+
+    if ((num_threads > 1) && (thread_id > 0)) {
+      handler->grid.data = ((double *)ctx->scratch) +
+                           (thread_id - 1) * handler->grid.alloc_size_;
       memset(handler->grid.data, 0, sizeof(double) * grid->alloc_size_);
     }
 
-
+    /* it is only useful when we split the list over multiple threads. The first
+     * iteration should load the block whatever status the task->block_update_
+     * has */
+    const _task *prev_task = NULL;
 #pragma omp for schedule(static)
     for (int itask = 0; itask < ctx->tasks_per_level[level]; itask++) {
       // Define some convenient aliases.
@@ -1140,42 +1134,131 @@ void collocate_one_grid_level_dgemm(grid_context *const ctx,
           (handler->grid.size[1] != handler->grid.full_size[1]) ||
           (handler->grid.size[2] != handler->grid.full_size[2])) {
         /* unfortunately the window where the gaussian should be added depends
-         * on the bounds. So I have to adjust the window all the time. */
+         * on the bonds. So I have to adjust the window all the time. */
 
         setup_grid_window(&handler->grid, shift_local, border_width,
                           task->border_mask);
       }
 
-      compute_coefficients(ctx, handler, task, pab_blocks, &pab, &work,
-                           &pab_prep);
+      /* this is a three steps procedure. pab_blocks contains the coefficients
+       * of the operator in the spherical harmonic basis while we do computation
+       * in the cartesian harmonic basis.
+       *
+       * step 1 : rotate the coefficients from the harmonic to the cartesian
+       * basis
 
-      grid_collocate(handler, ctx->orthorhombic, task->zetp, task->rp, task->radius);
+       * step 2 : extract the subblock and apply additional transformations
+       * corresponding the spatial derivatives of the operator (the last is not
+       * always done)
+
+       * step 3 : change from (x - x_1)^\alpha (x - x_2)^\beta to (x -
+       * x_{12})^k. It is a transformation which involves binomial
+       * coefficients.
+       *
+       * \f[ (x - x_1) ^\alpha (x - x_2) ^ beta = \sum_{k_{1} k_{2}} ^
+       *     {\alpha\beta} \text{Binomial}(\alpha,k_1)
+       *     \text{Binomial}(\beta,k_2) (x - x_{12})^{k_1 + k_2} (x_12 - x_1)
+       *     ^{\alpha - k_1} (x_12 - x_2) ^{\beta - k_2} ]
+       *
+       * step 1 is done only when necessary, the two remaining steps are done
+       * for each bond.
+       */
+
+      compute_coefficients(ctx, handler, prev_task, task, pab_blocks, &pab,
+                           &work, &pab_prep);
+
+      grid_collocate(handler, ctx->orthorhombic, task->zetp, task->rp,
+                     task->radius);
+      prev_task = task;
     }
 
     // Merge thread local grids into shared grid. Could be improved though....
 
+    // thread 0 does nothing since the data are already placed in the final
+    // destination
     if (num_threads > 1) {
-      if ((grid->alloc_size_ / num_threads) >= 2) {
-        const int block_size = grid->alloc_size_ / num_threads +
-                               ((grid->alloc_size_ % num_threads) != 0);
+      if ((grid->alloc_size_ / (num_threads - 1)) >= 2) {
+        const int block_size = grid->alloc_size_ / (num_threads - 1) +
+                               (grid->alloc_size_ % (num_threads - 1));
+
         for (int bk = 0; bk < num_threads; bk++) {
-          int bk_id = (bk + thread_id) % num_threads;
-          int begin = bk_id * block_size;
-          int end = imin((bk_id + 1) * block_size, grid->alloc_size_);
-          cblas_daxpy(end - begin, 1.0, handler->grid.data + begin, 1,
-                      grid->data + begin, 1);
+          if (thread_id > 0) {
+            int bk_id = (bk + thread_id - 1) % num_threads;
+            int begin = bk_id * block_size;
+            int end = imin((bk_id + 1) * block_size, grid->alloc_size_);
+            cblas_daxpy(end - begin, 1.0, handler->grid.data + begin, 1,
+                        grid->data + begin, 1);
+          }
 #pragma omp barrier
         }
-      } else {
+      }
+    } else {
 #pragma omp critical
+      if (thread_id > 0)
         cblas_daxpy(handler->grid.alloc_size_, 1.0,
                     &idx3(handler->grid, 0, 0, 0), 1, &idx3(grid[0], 0, 0, 0),
                     1);
-      }
     }
     handler->grid.data = NULL;
     free(pab.data);
     free(pab_prep.data);
     free(work.data);
   }
+}
+
+/*******************************************************************************
+ * \brief Collocate all tasks of a given list onto given grids.
+ *        See grid_task_list.h for details.
+ ******************************************************************************/
+void grid_cpu_collocate_task_list(
+    grid_cpu_task_list *const ptr, const bool orthorhombic,
+    const enum grid_func func, const int nlevels,
+    const int npts_global[nlevels][3], const int npts_local[nlevels][3],
+    const int shift_local[nlevels][3], const int border_width[nlevels][3],
+    const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
+    const grid_buffer *pab_blocks, double *grid[nlevels]) {
+
+  grid_context *const ctx = (grid_context *const)ptr;
+
+  assert(ctx->checksum == ctx_checksum);
+
+  ctx->orthorhombic = orthorhombic;
+
+  const int max_threads = omp_get_max_threads();
+
+  assert(ctx->nlevels == nlevels);
+
+  //#pragma omp parallel for
+  for (int level = 0; level < ctx->nlevels; level++) {
+    set_grid_parameters(&ctx->grid[level], orthorhombic, npts_global[level],
+                        npts_local[level], shift_local[level],
+                        border_width[level], dh[level], dh_inv[level],
+                        grid[level]);
+    memset(ctx->grid[level].data, 0,
+           sizeof(double) * ctx->grid[level].alloc_size_);
+  }
+
+  if (ctx->scratch == NULL) {
+    int max_size = ctx->grid[0].alloc_size_;
+
+    /* compute the size of the largest grid. It is used afterwards to allocate
+     * scratch memory for the grid on each omp thread */
+    for (int x = 1; x < nlevels; x++) {
+      max_size = imax(ctx->grid[x].alloc_size_, max_size);
+    }
+
+    max_size = ((max_size / 4096) + (max_size % 4096 != 0)) * 4096;
+
+    /* scratch is a void pointer !!!!! */
+    ctx->scratch =
+        grid_allocate_scratch(max_size * max_threads * sizeof(double));
+  }
+
+  for (int level = 0; level < ctx->nlevels; level++) {
+    collocate_one_grid_level_dgemm(ctx, border_width[level], shift_local[level],
+                                   func, level, pab_blocks);
+  }
+
+  grid_free_scratch(ctx->scratch);
+  ctx->scratch = NULL;
 }

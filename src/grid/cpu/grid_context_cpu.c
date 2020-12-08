@@ -10,12 +10,70 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../common/grid_library.h"
 #include "collocation_integration.h"
 #include "grid_collocate_dgemm.h"
 #include "grid_context_cpu.h"
+#include "grid_cpu_task_list.h"
 #include "private_header.h"
 #include "tensor_local.h"
 #include "utils.h"
+
+void return_dh(void *const ptr, const int level, double *const dh) {
+  grid_context *const ctx = (grid_context *const)ptr;
+
+  assert(ctx->checksum == ctx_checksum);
+  dh[0] = ctx->grid[level].dh[0][0];
+  dh[1] = ctx->grid[level].dh[0][1];
+  dh[2] = ctx->grid[level].dh[0][2];
+  dh[3] = ctx->grid[level].dh[1][0];
+  dh[4] = ctx->grid[level].dh[1][1];
+  dh[5] = ctx->grid[level].dh[1][2];
+  dh[6] = ctx->grid[level].dh[2][0];
+  dh[7] = ctx->grid[level].dh[2][1];
+  dh[8] = ctx->grid[level].dh[2][2];
+}
+
+void return_dh_inv(void *const ptr, const int level, double *const dh_inv) {
+  grid_context *const ctx = (grid_context *const)ptr;
+
+  assert(ctx->checksum == ctx_checksum);
+  dh_inv[0] = ctx->grid[level].dh_inv[0][0];
+  dh_inv[1] = ctx->grid[level].dh_inv[0][1];
+  dh_inv[2] = ctx->grid[level].dh_inv[0][2];
+  dh_inv[3] = ctx->grid[level].dh_inv[1][0];
+  dh_inv[4] = ctx->grid[level].dh_inv[1][1];
+  dh_inv[5] = ctx->grid[level].dh_inv[1][2];
+  dh_inv[6] = ctx->grid[level].dh_inv[2][0];
+  dh_inv[7] = ctx->grid[level].dh_inv[2][1];
+  dh_inv[8] = ctx->grid[level].dh_inv[2][2];
+}
+
+int return_num_devs(void *const ptr) {
+  grid_context *const ctx = (grid_context *const)ptr;
+  assert(ctx->checksum == ctx_checksum);
+
+  return ctx->number_of_devices;
+}
+
+int return_device_id(void *const ptr, const int device) {
+  grid_context *const ctx = (grid_context *const)ptr;
+  assert(ctx->checksum == ctx_checksum);
+
+  return ctx->device_id[device];
+}
+
+int is_grid_orthorhombic(void *const ptr) {
+  grid_context *const ctx = (grid_context *const)ptr;
+  assert(ctx->checksum == ctx_checksum);
+  return ctx->orthorhombic;
+}
+
+void update_queue_length(void *const ptr, const int queue_length) {
+  grid_context *const ctx = (grid_context *const)ptr;
+  assert(ctx->checksum == ctx_checksum);
+  ctx->queue_length = queue_length;
+}
 
 void update_atoms_position(const int natoms,
                            const double atoms_positions[natoms][3],
@@ -63,6 +121,10 @@ void update_atoms_kinds(const int natoms, const int *atoms_kinds,
   // data->natoms is initialized before calling this function
   if (data->natoms)
     memcpy(data->atom_kinds, atoms_kinds, sizeof(int) * natoms);
+
+  for (int i = 0; i < natoms; i++) {
+    data->atom_kinds[i] -= 1;
+  }
 }
 
 void update_block_offsets(const int nblocks, const int *const block_offsets,
@@ -154,30 +216,36 @@ void update_task_lists(const int nlevels, const int ntasks,
   int prev_block_num = -1;
   int prev_iset = -1;
   int prev_jset = -1;
-
+  int prev_level = -1;
   _task *task = ctx->tasks[0];
   for (int i = 0; i < ntasks; i++) {
+    if (prev_level != (level_list[i] - 1)) {
+      prev_level = level_list[i] - 1;
+      prev_block_num = -1;
+      prev_iset = -1;
+      prev_jset = -1;
+    }
     task->level = level_list[i] - 1;
-    task->iatom = iatom_list[i];
-    task->jatom = jatom_list[i];
-    task->iset = iset_list[i];
-    task->jset = jset_list[i];
-    task->ipgf = ipgf_list[i];
-    task->jpgf = jpgf_list[i];
+    task->iatom = iatom_list[i] - 1;
+    task->jatom = jatom_list[i] - 1;
+    task->iset = iset_list[i] - 1;
+    task->jset = jset_list[i] - 1;
+    task->ipgf = ipgf_list[i] - 1;
+    task->jpgf = jpgf_list[i] - 1;
     task->border_mask = border_mask_list[i];
-    task->block_num = block_num_list[i];
+    task->block_num = block_num_list[i] - 1;
     task->radius = radius_list[i];
     task->rab[0] = rab_list[i][0];
     task->rab[1] = rab_list[i][1];
     task->rab[2] = rab_list[i][2];
-    const int iatom = task->iatom - 1;
-    const int jatom = task->jatom - 1;
-    const int iset = task->iset - 1;
-    const int jset = task->jset - 1;
-    const int ipgf = task->ipgf - 1;
-    const int jpgf = task->jpgf - 1;
-    const int ikind = ctx->atom_kinds[iatom] - 1;
-    const int jkind = ctx->atom_kinds[jatom] - 1;
+    const int iatom = task->iatom;
+    const int jatom = task->jatom;
+    const int iset = task->iset;
+    const int jset = task->jset;
+    const int ipgf = task->ipgf;
+    const int jpgf = task->jpgf;
+    const int ikind = ctx->atom_kinds[iatom];
+    const int jkind = ctx->atom_kinds[jatom];
     const grid_basis_set *ibasis = ctx->basis_sets[ikind];
     const grid_basis_set *jbasis = ctx->basis_sets[jkind];
     const int ncoseta = ncoset(ibasis->lmax[iset]);
@@ -190,18 +258,18 @@ void update_task_lists(const int nlevels, const int ntasks,
     const double zetp = task->zeta[0] + task->zeta[1];
     const double f = task->zeta[1] / zetp;
     const double rab2 = task->rab[0] * task->rab[0] +
-        task->rab[1] * task->rab[1] + task->rab[2] * task->rab[2];
+                        task->rab[1] * task->rab[1] +
+                        task->rab[2] * task->rab[2];
 
-    task->prefactor =
-        ((iatom == jatom) ? 1.0 : 2.0) * exp(-task->zeta[0] * f * rab2);
+    task->prefactor = exp(-task->zeta[0] * f * rab2);
     task->zetp = zetp;
 
-    const int block_num = task->block_num - 1;
+    const int block_num = task->block_num;
 
     for (int i = 0; i < 3; i++) {
-        task->ra[i] = ra[i];
-        task->rp[i] = ra[i] + f * task->rab[i];
-        task->rb[i] = ra[i] + task->rab[i];
+      task->ra[i] = ra[i];
+      task->rp[i] = ra[i] + f * task->rab[i];
+      task->rb[i] = ra[i] + task->rab[i];
     }
 
     task->lmax[0] = ibasis->lmax[iset];
@@ -211,12 +279,12 @@ void update_task_lists(const int nlevels, const int ntasks,
 
     if ((block_num != prev_block_num) || (iset != prev_iset) ||
         (jset != prev_jset)) {
-        task->update_block_ = true;
-        prev_block_num = block_num;
-        prev_iset = iset;
-        prev_jset = jset;
+      task->update_block_ = true;
+      prev_block_num = block_num;
+      prev_iset = iset;
+      prev_jset = jset;
     } else {
-        task->update_block_ = false;
+      task->update_block_ = false;
     }
 
     task->offset[0] = ipgf * ncoseta;
@@ -375,7 +443,7 @@ void apply_cutoff(void *ptr) {
 }
 
 void set_grid_parameters(
-    grid_context *ctx, const int grid_level,
+    tensor *grid, const bool orthorhombic,
     const int grid_full_size[3],  /* size of the full grid */
     const int grid_local_size[3], /* size of the local grid block */
     const int shift_local[3],     /* coordinates of the lower coordinates of the
@@ -385,166 +453,98 @@ void set_grid_parameters(
         dh[3][3], /* displacement vectors of the grid (cartesian) -> (ijk) */
     const double dh_inv[3][3], /* (ijk) -> (x,y,z) */
     double *grid_) {
-  assert(ctx->checksum == ctx_checksum);
-  memset(&ctx->grid[grid_level], 0, sizeof(tensor));
-  initialize_tensor_3(&ctx->grid[grid_level], grid_local_size[2],
-                      grid_local_size[1], grid_local_size[0]);
+  memset(grid, 0, sizeof(tensor));
+  initialize_tensor_3(grid, grid_local_size[2], grid_local_size[1],
+                      grid_local_size[0]);
 
-  ctx->grid[grid_level].data = grid_;
-  ctx->grid[grid_level].ld_ = grid_local_size[0];
+  grid->data = grid_;
+  grid->ld_ = grid_local_size[0];
 
-  setup_global_grid_size(&ctx->grid[grid_level], &grid_full_size[0]);
+  setup_global_grid_size(grid, &grid_full_size[0]);
 
   /* the grid is divided over several ranks or not periodic */
   if ((grid_local_size[0] != grid_full_size[0]) ||
       (grid_local_size[1] != grid_full_size[1]) ||
       (grid_local_size[2] != grid_full_size[2])) {
-    setup_grid_window(&ctx->grid[grid_level], shift_local, border_width,
-                      ctx->tasks[grid_level][0].border_mask);
+    setup_grid_window(grid, shift_local, border_width, 0);
   } else {
-    ctx->grid[grid_level].window_shift[0] = 0;
-    ctx->grid[grid_level].window_shift[1] = 0;
-    ctx->grid[grid_level].window_shift[2] = 0;
+    grid->window_shift[0] = 0;
+    grid->window_shift[1] = 0;
+    grid->window_shift[2] = 0;
 
-    ctx->grid[grid_level].window_size[0] = ctx->grid[grid_level].size[0];
-    ctx->grid[grid_level].window_size[1] = ctx->grid[grid_level].size[1];
-    ctx->grid[grid_level].window_size[2] = ctx->grid[grid_level].size[2];
+    grid->window_size[0] = grid->size[0];
+    grid->window_size[1] = grid->size[1];
+    grid->window_size[2] = grid->size[2];
   }
 
-  ctx->grid[grid_level].dh[0][0] = dh[0][0];
-  ctx->grid[grid_level].dh[0][1] = dh[0][1];
-  ctx->grid[grid_level].dh[0][2] = dh[0][2];
-  ctx->grid[grid_level].dh[1][0] = dh[1][0];
-  ctx->grid[grid_level].dh[1][1] = dh[1][1];
-  ctx->grid[grid_level].dh[1][2] = dh[1][2];
-  ctx->grid[grid_level].dh[2][0] = dh[2][0];
-  ctx->grid[grid_level].dh[2][1] = dh[2][1];
-  ctx->grid[grid_level].dh[2][2] = dh[2][2];
+  grid->dh[0][0] = dh[0][0];
+  grid->dh[0][1] = dh[0][1];
+  grid->dh[0][2] = dh[0][2];
+  grid->dh[1][0] = dh[1][0];
+  grid->dh[1][1] = dh[1][1];
+  grid->dh[1][2] = dh[1][2];
+  grid->dh[2][0] = dh[2][0];
+  grid->dh[2][1] = dh[2][1];
+  grid->dh[2][2] = dh[2][2];
 
-  ctx->grid[grid_level].dh_inv[0][0] = dh_inv[0][0];
-  ctx->grid[grid_level].dh_inv[0][1] = dh_inv[0][1];
-  ctx->grid[grid_level].dh_inv[0][2] = dh_inv[0][2];
-  ctx->grid[grid_level].dh_inv[1][0] = dh_inv[1][0];
-  ctx->grid[grid_level].dh_inv[1][1] = dh_inv[1][1];
-  ctx->grid[grid_level].dh_inv[1][2] = dh_inv[1][2];
-  ctx->grid[grid_level].dh_inv[2][0] = dh_inv[2][0];
-  ctx->grid[grid_level].dh_inv[2][1] = dh_inv[2][1];
-  ctx->grid[grid_level].dh_inv[2][2] = dh_inv[2][2];
+  grid->dh_inv[0][0] = dh_inv[0][0];
+  grid->dh_inv[0][1] = dh_inv[0][1];
+  grid->dh_inv[0][2] = dh_inv[0][2];
+  grid->dh_inv[1][0] = dh_inv[1][0];
+  grid->dh_inv[1][1] = dh_inv[1][1];
+  grid->dh_inv[1][2] = dh_inv[1][2];
+  grid->dh_inv[2][0] = dh_inv[2][0];
+  grid->dh_inv[2][1] = dh_inv[2][1];
+  grid->dh_inv[2][2] = dh_inv[2][2];
 
-  verify_orthogonality(ctx->grid[grid_level].dh,
-                       ctx->grid[grid_level].orthogonal);
+  verify_orthogonality(grid->dh, grid->orthogonal);
 
-  if (ctx->orthorhombic) {
-    ctx->grid[grid_level].orthogonal[0] = true;
-    ctx->grid[grid_level].orthogonal[1] = true;
-    ctx->grid[grid_level].orthogonal[2] = true;
+  if (orthorhombic) {
+    grid->orthogonal[0] = true;
+    grid->orthogonal[1] = true;
+    grid->orthogonal[2] = true;
   }
 }
 
-/* this will have to be revised when the internal module interface is clean from
- * the mess. We should have one task_list associated to one grid, have the grid
- * informations available there, etc.... */
+/*******************************************************************************
+ * \brief Allocates a task list for the cpu backend.
+ *        See grid_task_list.h for details.
+ ******************************************************************************/
+void grid_cpu_create_task_list(
+    const int ntasks, const int nlevels, const int natoms, const int nkinds,
+    const int nblocks, const int block_offsets[nblocks],
+    const double atom_positions[natoms][3], const int atom_kinds[natoms],
+    const grid_basis_set *basis_sets[nkinds], const int level_list[ntasks],
+    const int iatom_list[ntasks], const int jatom_list[ntasks],
+    const int iset_list[ntasks], const int jset_list[ntasks],
+    const int ipgf_list[ntasks], const int jpgf_list[ntasks],
+    const int border_mask_list[ntasks], const int block_num_list[ntasks],
+    const double radius_list[ntasks], const double rab_list[ntasks][3],
+    grid_cpu_task_list **task_list) {
 
-void grid_collocate_task_list_cpu(
-    void *const ptr, const bool orthorhombic, const int func, const int nlevels,
-    const int npts_global[nlevels][3], const int npts_local[nlevels][3],
-    const int shift_local[nlevels][3], const int border_width[nlevels][3],
-    const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
-    const grid_buffer *pab_blocks, double *grid[nlevels]) {
-  grid_context *const ctx = (grid_context *const)ptr;
-
-  assert(ctx->checksum == ctx_checksum);
-
-  ctx->orthorhombic = orthorhombic;
-
-  const int max_threads = omp_get_max_threads();
-
-  assert(ctx->nlevels == nlevels);
-
-  //#pragma omp parallel for
-  for (int level = 0; level < ctx->nlevels; level++) {
-    set_grid_parameters(ctx, level, npts_global[level], npts_local[level],
-                        shift_local[level], border_width[level], dh[level],
-                        dh_inv[level], grid[level]);
-    memset(ctx->grid[level].data, 0,
-           sizeof(double) * ctx->grid[level].alloc_size_);
+  if (*task_list == NULL) {
+    *task_list = create_grid_context_cpu(
+        ntasks, nlevels, natoms, nkinds, nblocks, block_offsets, atom_positions,
+        atom_kinds, basis_sets, level_list, iatom_list, jatom_list, iset_list,
+        jset_list, ipgf_list, jpgf_list, border_mask_list, block_num_list,
+        radius_list, rab_list);
+  } else {
+    update_grid_context_cpu(
+        ntasks, nlevels, natoms, nkinds, nblocks, block_offsets, atom_positions,
+        atom_kinds, basis_sets, level_list, iatom_list, jatom_list, iset_list,
+        jset_list, ipgf_list, jpgf_list, border_mask_list, block_num_list,
+        radius_list, rab_list, *task_list);
   }
 
-  if (ctx->scratch == NULL) {
-    int max_size = ctx->grid[0].alloc_size_;
-
-    /* compute the size of the largest grid. It is used afterwards to allocate
-     * scratch memory for the grid on each omp thread */
-    for (int x = 1; x < nlevels; x++) {
-      max_size = imax(ctx->grid[x].alloc_size_, max_size);
-    }
-
-    max_size = ((max_size / 4096) + (max_size % 4096 != 0)) * 4096;
-
-    ctx->scratch = memalign(4096, sizeof(double) * max_size * max_threads);
+  const grid_library_config config = grid_library_get_config();
+  if (config.apply_cutoff) {
+    apply_cutoff(*task_list);
   }
-
-  for (int level = 0; level < ctx->nlevels; level++) {
-    collocate_one_grid_level_dgemm(ctx, border_width[level], shift_local[level],
-                                   func, level, pab_blocks);
-  }
-
-  free(ctx->scratch);
-  ctx->scratch = NULL;
 }
 
-void return_dh(void *const ptr, const int level, double *const dh) {
-  grid_context *const ctx = (grid_context *const)ptr;
-
-  assert(ctx->checksum == ctx_checksum);
-  dh[0] = ctx->grid[level].dh[0][0];
-  dh[1] = ctx->grid[level].dh[0][1];
-  dh[2] = ctx->grid[level].dh[0][2];
-  dh[3] = ctx->grid[level].dh[1][0];
-  dh[4] = ctx->grid[level].dh[1][1];
-  dh[5] = ctx->grid[level].dh[1][2];
-  dh[6] = ctx->grid[level].dh[2][0];
-  dh[7] = ctx->grid[level].dh[2][1];
-  dh[8] = ctx->grid[level].dh[2][2];
-}
-
-void return_dh_inv(void *const ptr, const int level, double *const dh_inv) {
-  grid_context *const ctx = (grid_context *const)ptr;
-
-  assert(ctx->checksum == ctx_checksum);
-  dh_inv[0] = ctx->grid[level].dh_inv[0][0];
-  dh_inv[1] = ctx->grid[level].dh_inv[0][1];
-  dh_inv[2] = ctx->grid[level].dh_inv[0][2];
-  dh_inv[3] = ctx->grid[level].dh_inv[1][0];
-  dh_inv[4] = ctx->grid[level].dh_inv[1][1];
-  dh_inv[5] = ctx->grid[level].dh_inv[1][2];
-  dh_inv[6] = ctx->grid[level].dh_inv[2][0];
-  dh_inv[7] = ctx->grid[level].dh_inv[2][1];
-  dh_inv[8] = ctx->grid[level].dh_inv[2][2];
-}
-
-int return_num_devs(void *const ptr) {
-  grid_context *const ctx = (grid_context *const)ptr;
-  assert(ctx->checksum == ctx_checksum);
-
-  return ctx->number_of_devices;
-}
-
-int return_device_id(void *const ptr, const int device) {
-  grid_context *const ctx = (grid_context *const)ptr;
-  assert(ctx->checksum == ctx_checksum);
-
-  return ctx->device_id[device];
-}
-
-int is_grid_orthorhombic(void *const ptr) {
-  grid_context *const ctx = (grid_context *const)ptr;
-  assert(ctx->checksum == ctx_checksum);
-  return ctx->orthorhombic;
-}
-
-void update_queue_length(void *const ptr, const int queue_length) {
-  grid_context *const ctx = (grid_context *const)ptr;
-  assert(ctx->checksum == ctx_checksum);
-  ctx->queue_length = queue_length;
+/*******************************************************************************
+ * \brief Deallocates given task list, basis_sets have to be freed separately.
+ ******************************************************************************/
+void grid_cpu_free_task_list(grid_cpu_task_list *task_list) {
+  destroy_grid_context_cpu(task_list);
 }

@@ -67,8 +67,10 @@ void transform_triangular_to_xyz(const double *const coef_xyz,
   }
 }
 
-// *****************************************************************************
-void grid_prepare_coef_dgemm_bis(
+/* Rotate from the (x - x_1) ^ alpha_1 (x - x_2) ^ \alpha_2 to (x - x_{12}) ^ k
+ * in all three directions */
+
+void grid_compute_coefficients_dgemm(
     const int *lmin, const int *lmax, const int lp, const double prefactor,
     const tensor *const alpha, // [3][lb_max+1][la_max+1][lp+1]
     const tensor *const pab,
@@ -83,152 +85,88 @@ void grid_prepare_coef_dgemm_bis(
   memset(coef_xyz->data, 0, coef_xyz->alloc_size_ * sizeof(double));
   // we need a proper fix for that. We can use the tensor structure for this
 
-  double *coef_xyt =
-      grid_allocate_scratch(sizeof(double) * (lp + 1) * (lp + 1));
-  double *coef_xtt = grid_allocate_scratch(sizeof(double) * (lp + 1));
-
   for (int lzb = 0; lzb <= lmax[1]; lzb++) {
-    for (int lza = 0; lza <= lmax[0]; lza++) {
-      memset(coef_xyt, 0, sizeof(double) * (lp + 1) * (lp + 1));
-      for (int lyb = 0; lyb <= lmax[1] - lzb; lyb++) {
-        for (int lya = 0; lya <= lmax[0] - lza; lya++) {
-          const int lxpm = (lmax[1] - lzb - lyb) + (lmax[0] - lza - lya);
-          for (int i = 0; i <= lxpm; i++) {
-            coef_xtt[i] = 0.0;
-          }
-          for (int lxb = imax(lmin[1] - lzb - lyb, 0);
-               lxb <= lmax[1] - lzb - lyb; lxb++) {
-            for (int lxa = imax(lmin[0] - lza - lya, 0);
-                 lxa <= lmax[0] - lza - lya; lxa++) {
+    for (int lyb = 0; lyb <= lmax[1] - lzb; lyb++) {
+      const int lxb_min = imax(lmin[1] - lzb - lyb, 0);
+      for (int lxb = lxb_min; lxb <= lmax[1] - lzb - lyb; lxb++) {
+        const int jco = coset(lxb, lyb, lzb);
+        for (int lza = 0; lza <= lmax[0]; lza++) {
+          for (int lya = 0; lya <= lmax[0] - lza; lya++) {
+            const int lxa_min = imax(lmin[0] - lza - lya, 0);
+            for (int lxa = lxa_min; lxa <= lmax[0] - lza - lya; lxa++) {
               const int ico = coset(lxa, lya, lza);
-              const int jco = coset(lxb, lyb, lzb);
-              const double p_ele = prefactor * idx2(pab[0], jco, ico);
-              const double *__restrict__ src = &idx4(alpha[0], 0, lxb, lxa, 0);
-#pragma GCC ivdep
+              const double pab_ = idx2(pab[0], jco, ico);
               for (int lxp = 0; lxp <= lxa + lxb; lxp++) {
-                coef_xtt[lxp] += p_ele * src[lxp];
+                const double p1 =
+                    idx4(alpha[0], 0, lxb, lxa, lxp) * pab_ * prefactor;
+                for (int lzp = 0; lzp <= lp - lxa - lxb; lzp++) {
+                  for (int lyp = 0; lyp <= lp - lxa - lxb - lzp; lyp++) {
+                    const double p2 = idx4(alpha[0], 1, lyb, lya, lyp) *
+                                      idx4(alpha[0], 2, lzb, lza, lzp) * p1;
+                    idx3(coef_xyz[0], lxp, lzp, lyp) += p2;
+                  }
+                }
               }
             }
-          }
-          for (int lyp = 0; lyp <= lya + lyb; lyp++) {
-            const double pe = idx4(alpha[0], 1, lyb, lya, lyp);
-            double *__restrict__ dst = &coef_xyt[lyp * (lp + 1)];
-#pragma GCC ivdep
-            for (int lxp = 0; lxp <= lp - lza - lzb - lya - lyb; lxp++) {
-              dst[lxp] += pe * coef_xtt[lxp];
-            }
-          }
-        }
-      }
-      /* I need to permute two of the indices for the orthogonal case */
-      for (int lzp = 0; lzp <= lza + lzb; lzp++) {
-        for (int lyp = 0; lyp <= lp - lza - lzb; lyp++) {
-          const double pe = idx4(alpha[0], 2, lzb, lza, lzp);
-          const double *__restrict__ src = &coef_xyt[lyp * (lp + 1)];
-
-#pragma GCC ivdep
-          for (int lxp = 0; lxp <= lp - lza - lzb - lyp; lxp++) {
-            idx3(coef_xyz[0], lxp, lzp, lyp) += pe * src[lxp];
           }
         }
       }
     }
   }
-  grid_free_scratch(coef_xyt);
-  grid_free_scratch(coef_xtt);
 }
 
-void grid_prepare_coef_dgemm(
-    const int *lmin, const int *lmax, const int lp, const double prefactor,
-    const tensor *const alpha, // [3][lb_max+1][la_max+1][lp+1]
-    const tensor *const pab,
-    tensor *coef_xyz) //[lp+1][lp+1][lp+1]
-{
+/* Rotate from (x - x_{12}) ^ k to (x - x_1) ^ alpha_1 (x - x_2) ^ \alpha_2 in
+ * all three directions */
+
+void grid_compute_vab(
+    const int *const lmin, const int *const lmax, const int lp,
+    const double prefactor,
+    const tensor *const alpha, // transformation parameters (x - x_1)^n (x -
+                               // x_2)^m -> (x - x_12) ^ l
+    const tensor *const coef_xyz, tensor *vab) {
   /* can be done with dgemms as well, since it is a change of basis from (x -
    * x1) (x - x2) to (x - x12)^alpha */
 
   assert(alpha != NULL);
   assert(coef_xyz != NULL);
   assert(coef_xyz->data != NULL);
-  memset(coef_xyz->data, 0, coef_xyz->alloc_size_ * sizeof(double));
+
+  memset(vab->data, 0, sizeof(double) * vab->alloc_size_);
   // we need a proper fix for that. We can use the tensor structure for this
 
   for (int lzb = 0; lzb <= lmax[1]; lzb++) {
-      for (int lyb = 0; lyb <= lmax[1] - lzb; lyb++) {
-          const int lxb_min = imax(lmin[1] - lzb - lyb, 0);
-          for (int lxb = lxb_min; lxb <= lmax[1] - lzb - lyb; lxb++) {
-              const int jco = coset(lxb, lyb, lzb);
-              for (int lza = 0; lza <= lmax[0]; lza++) {
-                  for (int lya = 0; lya <= lmax[0] - lza; lya++) {
-                      const int lxa_min = imax(lmin[0] - lza - lya, 0);
-                      for (int lxa = lxa_min; lxa <= lmax[1] - lza - lya; lxa++) {
-                          const int ico = coset(lxa, lya, lza);
-                          const double pab_ = idx2(pab[0], jco, ico);
-                          for (int lzp = 0; lzp <= lza + lzb; lzp++) {
-                              double p = prefactor * pab_ * idx4(alpha[0], 2, lzb, lza, lzp);
-                              for (int lxp = 0; lxp <= lp - lza - lzb; lxp++) {
-                                  double p1 = p * idx4(alpha[0], 0, lxb, lxa, lxp);
-                                  double *restrict dst = &idx3(coef_xyz[0], lxp, lzp, 0);
-                                  const double *restrict const src = &idx4(alpha[0], 1, lyb, lya, 0);
-#pragma GCC ivdep
-                                  for (int lyp = 0; lyp <= lp - lza - lzb - lxp; lyp++) {
-                                      dst[lyp] += p1 * src[lyp]; // collocate
-                                  }
-                              }
-                          }
-                      }
+    for (int lyb = 0; lyb <= lmax[1] - lzb; lyb++) {
+      const int lxb_min = imax(lmin[1] - lzb - lyb, 0);
+      for (int lxb = lxb_min; lxb <= lmax[1] - lzb - lyb; lxb++) {
+        const int jco = coset(lxb, lyb, lzb);
+        for (int lza = 0; lza <= lmax[0]; lza++) {
+          for (int lya = 0; lya <= lmax[0] - lza; lya++) {
+            const int lxa_min = imax(lmin[0] - lza - lya, 0);
+            for (int lxa = lxa_min; lxa <= lmax[0] - lza - lya; lxa++) {
+              const int ico = coset(lxa, lya, lza);
+              double pab_ = 0.0;
+
+              /* this can be done with 3 dgemms actually but need to
+               * set coef accordingly (triangular along the second
+               * diagonal) */
+
+              for (int lxp = 0; lxp <= lxa + lxb; lxp++) {
+                for (int lzp = 0; lzp <= lp - lxa - lxb; lzp++) {
+                  for (int lyp = 0; lyp <= lp - lxa - lxb - lzp; lyp++) {
+                    const double p2 = idx4(alpha[0], 1, lyb, lya, lyp) *
+                                      idx4(alpha[0], 2, lzb, lza, lzp) *
+                                      idx4(alpha[0], 0, lxb, lxa, lxp) *
+                                      prefactor;
+                    pab_ += idx3(coef_xyz[0], lyp, lxp, lzp) * p2;
                   }
+                }
               }
+              idx2(vab[0], jco, ico) += pab_;
+            }
           }
+        }
       }
-  }
-}
-
-/* opposite of the previous function. Extract pab from coef */
-void grid_compute_pab_dgemm(
-    const int *lmin, const int *lmax, const int lp, const double prefactor,
-    const tensor *const alpha, // [3][lb_max+1][la_max+1][lp+1]
-    const tensor *const coef_xyz,
-    tensor *pab) //[lp+1][lp+1][lp+1]
-{
-  /* can be done with dgemms as well, since it is a change of basis from (x -
-   * x1) (x - x2) to (x - x12)^alpha */
-
-  assert(alpha != NULL);
-  assert(coef_xyz != NULL);
-  assert(coef_xyz->data != NULL);
-  memset(coef_xyz->data, 0, coef_xyz->alloc_size_ * sizeof(double));
-  // we need a proper fix for that. We can use the tensor structure for this
-
-  for (int lzb = 0; lzb <= lmax[1]; lzb++) {
-      for (int lyb = 0; lyb <= lmax[1] - lzb; lyb++) {
-          const int lxb_min = imax(lmin[1] - lzb - lyb, 0);
-          for (int lxb = lxb_min; lxb <= lmax[1] - lzb - lyb; lxb++) {
-              const int jco = coset(lxb, lyb, lzb);
-              for (int lza = 0; lza <= lmax[0]; lza++) {
-                  for (int lya = 0; lya <= lmax[0] - lza; lya++) {
-                      const int lxa_min = imax(lmin[0] - lza - lya, 0);
-                      for (int lxa = lxa_min; lxa <= lmax[1] - lza - lya; lxa++) {
-                          const int ico = coset(lxa, lya, lza);
-                          double pab_ = 0.0;
-                          for (int lyp = 0; lyp <= lya + lyb; lyp++) {
-                              double p = prefactor * idx4(alpha[0], 1, lyb, lya, lyp);
-                              for (int lxp = 0; lxp <= lp - lya - lyb; lxp++) {
-                                  double p1 = p * idx4(alpha[0], 0, lxb, lxa, lxp);
-                                  const double *restrict const src1 = &idx3(coef_xyz[0], lyp, lxp, 0);
-                                  const double *restrict  const src2 = &idx4(alpha[0], 1, lzb, lza, 0);
-#pragma GCC ivdep
-                                  for (int lzp = 0; lzp <= lp - lya - lyb - lxp; lyp++) {
-                                      pab_ += src1[lyp] * p1 * src2[lyp]; // collocate
-                                  }
-                              }
-                          }
-                          idx2(pab[0], jco, ico) += pab_;
-                      }
-                  }
-              }
-          }
-      }
+    }
   }
 }
 

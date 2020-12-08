@@ -590,10 +590,10 @@ void cblas_dgemv(const CBLAS_LAYOUT order, const CBLAS_TRANSPOSE TransA,
 }
 #endif
 
-int compute_interval(const int *const map, const int full_size, const int size,
-                     const int cube_size, const int x1, int *x,
-                     int *const lower_corner, int *const upper_corner,
-                     const Interval window) {
+void compute_interval(const int *const map, const int full_size, const int size,
+                      const int cube_size, const int x1, int *x,
+                      int *const lower_corner, int *const upper_corner,
+                      const Interval window) {
   if (size == full_size) {
     /* we have the full grid in that direction */
     /* lower boundary is within the window */
@@ -620,13 +620,10 @@ int compute_interval(const int *const map, const int full_size, const int size,
     // window of interest and is also equal to the previous point + 1. The last
     // check is pointless in practice.
 
-    for (int i = *x + 2; (i < size) && ((*upper_corner + 1) == map[i]) &&
+    for (int i = *x + 1; (i < size) && (*upper_corner == map[i]) &&
                          is_point_in_interval(map[i], window);
          i++) {
       (*upper_corner)++;
     }
-    return (*upper_corner) - (*lower_corner);
   }
-
-  return imax(*lower_corner - *upper_corner, 0);
 }

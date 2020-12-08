@@ -19,5 +19,3 @@ void grid_prepare_pab_dgemm(const enum grid_func func, const int *const offset,
                             tensor *const pab_prep);
 
 #endif
-
-// EOF

@@ -16,12 +16,16 @@
 #include <stdlib.h>
 
 #include "../common/grid_common.h"
+#include "../common/grid_library.h"
 #include "../cpu/coefficients.h"
 #include "../cpu/collocation_integration.h"
+#include "../cpu/grid_context_cpu.h"
 #include "../cpu/grid_prepare_pab_dgemm.h"
 #include "../cpu/private_header.h"
 #include "../cpu/tensor_local.h"
 #include "../cpu/utils.h"
+
+typedef struct grid_context_ grid_hybrid_task_list;
 
 void initialize_grid_parameters_on_gpu_step1(void *const ctx, const int level);
 
@@ -61,10 +65,8 @@ static void my_worker_is_running(pgf_list_gpu *const my_worker) {
   }
 }
 
-static void add_orbital_to_list(pgf_list_gpu *const list,
-                                const int cmax,
-                                const _task *task,
-                                const tensor *const coef) {
+static void add_orbital_to_list(pgf_list_gpu *const list, const int cmax,
+                                const _task *task, const tensor *const coef) {
   assert(list->batch_size > list->list_length);
   list->coef_offset_cpu_[0] = 0;
   const int lp = coef->size[2] - 1;
@@ -303,6 +305,7 @@ static void collocate_one_grid_level_gpu(grid_context *const ctx,
     initialize_tensor_2(&pab_prep, ctx->maxco, ctx->maxco);
     alloc_tensor(&pab_prep);
 
+    const _task *prev_task = NULL;
 #pragma omp for schedule(static)
     for (int itask = 0; itask < ctx->tasks_per_level[level]; itask++) {
       // Define some convenient aliases.
@@ -312,8 +315,8 @@ static void collocate_one_grid_level_gpu(grid_context *const ctx,
         abort();
       }
 
-      compute_coefficients(ctx, handler, task, pab_blocks, &pab, &work,
-                           &pab_prep);
+      compute_coefficients(ctx, handler, prev_task, task, pab_blocks, &pab,
+                           &work, &pab_prep);
 
       {
         int cubecenter[3];
@@ -329,10 +332,7 @@ static void collocate_one_grid_level_gpu(grid_context *const ctx,
             task->radius, handler->dh, handler->dh_inv, task->rp, &disr_radius,
             roffset, cubecenter, lb_cube, ub_cube, cube_size);
         task->l1_plus_l2_ = handler->coef.size[2] - 1;
-        add_orbital_to_list(current_worker,
-                            cmax,
-                            task,
-                            &handler->coef);
+        add_orbital_to_list(current_worker, cmax, task, &handler->coef);
       }
       /* The list is full so we can start computation on GPU */
       if (current_worker->batch_size == current_worker->list_length) {
@@ -432,7 +432,7 @@ static void collocate_one_grid_level_gpu(grid_context *const ctx,
   }
 }
 
-void grid_collocate_task_list_hybrid(
+void grid_hybrid_collocate_task_list(
     void *const ptr, const bool orthorhombic, const enum grid_func func,
     const int nlevels, const int npts_global[nlevels][3],
     const int npts_local[nlevels][3], const int shift_local[nlevels][3],
@@ -452,9 +452,10 @@ void grid_collocate_task_list_hybrid(
   }
 
   for (int level = 0; level < ctx->nlevels; level++) {
-    set_grid_parameters(ctx, level, npts_global[level], npts_local[level],
-                        shift_local[level], border_width[level], dh[level],
-                        dh_inv[level], grid[level]);
+    set_grid_parameters(&ctx->grid[level], orthorhombic, npts_global[level],
+                        npts_local[level], shift_local[level],
+                        border_width[level], dh[level], dh_inv[level],
+                        grid[level]);
   }
 
   if (ctx->scratch == NULL) {
@@ -494,8 +495,7 @@ void grid_collocate_task_list_hybrid(
 
   for (int thread = 0; thread < max_threads; thread++) {
     initialize_worker_list_on_gpu(
-        ctx->handler[thread],
-        ctx->device_id[thread % ctx->number_of_devices],
+        ctx->handler[thread], ctx->device_id[thread % ctx->number_of_devices],
         length_queue, /* basically the number of gaussian we can treat */
         2);           /* number of workers */
   }
@@ -523,4 +523,59 @@ void grid_collocate_task_list_hybrid(
   free(ctx->scratch);
   ctx->scratch = NULL;
 }
+
+/*******************************************************************************
+ * \brief Allocates a task list for the hybrid backend.
+ *        See grid_task_list.h for details.
+ ******************************************************************************/
+void grid_hybrid_create_task_list(
+    const int ntasks, const int nlevels, const int natoms, const int nkinds,
+    const int nblocks, const int block_offsets[nblocks],
+    const double atom_positions[natoms][3], const int atom_kinds[natoms],
+    const grid_basis_set *basis_sets[nkinds], const int level_list[ntasks],
+    const int iatom_list[ntasks], const int jatom_list[ntasks],
+    const int iset_list[ntasks], const int jset_list[ntasks],
+    const int ipgf_list[ntasks], const int jpgf_list[ntasks],
+    const int border_mask_list[ntasks], const int block_num_list[ntasks],
+    const double radius_list[ntasks], const double rab_list[ntasks][3],
+    grid_hybrid_task_list **task_list) {
+
+  if (*task_list == NULL) {
+    *task_list = create_grid_context_cpu(
+        ntasks, nlevels, natoms, nkinds, nblocks, block_offsets, atom_positions,
+        atom_kinds, basis_sets, level_list, iatom_list, jatom_list, iset_list,
+        jset_list, ipgf_list, jpgf_list, border_mask_list, block_num_list,
+        radius_list, rab_list);
+  } else {
+    update_grid_context_cpu(
+        ntasks, nlevels, natoms, nkinds, nblocks, block_offsets, atom_positions,
+        atom_kinds, basis_sets, level_list, iatom_list, jatom_list, iset_list,
+        jset_list, ipgf_list, jpgf_list, border_mask_list, block_num_list,
+        radius_list, rab_list, *task_list);
+  }
+
+  /* does not allocate anything on the GPU. */
+  /* allocation only occurs when the collocate (or integrate) function is
+   * called. Resources are released before exiting the function */
+
+  const grid_library_config config = grid_library_get_config();
+
+  /* I do *not* store the address of config.device_id */
+  initialize_grid_context_on_gpu(*task_list, 1 /* number of devices */,
+                                 &config.device_id);
+
+  update_queue_length(*task_list, config.queue_length);
+
+  if (config.apply_cutoff) {
+    apply_cutoff(*task_list);
+  }
+}
+
+/*******************************************************************************
+ * \brief Deallocates given task list, basis_sets have to be freed separately.
+ ******************************************************************************/
+void grid_hybrid_free_task_list(grid_hybrid_task_list *ptr) {
+  destroy_grid_context_cpu(ptr);
+}
+
 #endif

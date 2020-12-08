@@ -13,11 +13,11 @@
 #include <stdbool.h>
 
 /*******************************************************************************
- * \brief Internal representation of a task list.
+ * \brief opaque pointer hidding the internal representation of the structure.
+ * It is not needed to know what exact structure for the public interface.
+ * Equivalent to private member in c++ class
  ******************************************************************************/
-typedef struct {
-  void *context;
-} grid_cpu_task_list;
+typedef struct grid_context_ grid_cpu_task_list;
 
 /*******************************************************************************
  * \brief Allocates a task list for the cpu backend.
@@ -45,13 +45,20 @@ void grid_cpu_free_task_list(grid_cpu_task_list *task_list);
  *        See grid_task_list.h for details.
  ******************************************************************************/
 void grid_cpu_collocate_task_list(
-    const grid_cpu_task_list *task_list, const bool orthorhombic,
+    grid_cpu_task_list *const task_list, const bool orthorhombic,
     const enum grid_func func, const int nlevels,
     const int npts_global[nlevels][3], const int npts_local[nlevels][3],
     const int shift_local[nlevels][3], const int border_width[nlevels][3],
     const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
     const grid_buffer *pab_blocks, double *grid[nlevels]);
 
-#endif
+void grid_cpu_integrate_task_list(
+    void *const ptr, const bool orthorhombic, const bool compute_tau,
+    const int natoms, const int nlevels, const int npts_global[nlevels][3],
+    const int npts_local[nlevels][3], const int shift_local[nlevels][3],
+    const int border_width[nlevels][3], const double dh[nlevels][3][3],
+    const double dh_inv[nlevels][3][3], const grid_buffer *const pab_blocks,
+    const double *grid[nlevels], grid_buffer *hab_blocks,
+    double forces[natoms][3], double virial[3][3]);
 
-// EOF
+#endif

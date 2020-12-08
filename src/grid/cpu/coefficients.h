@@ -18,11 +18,12 @@ extern void grid_prepare_alpha_dgemm(const double ra[3], const double rb[3],
                                      const double rp[3], const int *lmax,
                                      tensor *alpha);
 
-extern void grid_prepare_coef_dgemm(const int *const lmin,
-                                    const int *const lmax, const int lp,
-                                    const double prefactor,
-                                    const tensor *const alpha,
-                                    const tensor *const pab, tensor *coef_xyz);
+extern void grid_compute_coefficients_dgemm(const int *const lmin,
+                                            const int *const lmax, const int lp,
+                                            const double prefactor,
+                                            const tensor *const alpha,
+                                            const tensor *const pab,
+                                            tensor *coef_xyz);
 
 extern void compute_compact_polynomial_coefficients(
     const tensor *coef, const int *coef_offset_, const int *lmin,
@@ -45,4 +46,9 @@ grid_transform_coef_ijk_to_xyz_cp2k(const int lp, const double dh[3][3],
                                     const double *__restrict coef_ijk,
                                     double *__restrict coef_xyz);
 
+extern void
+grid_compute_vab(const int *const lmin, const int *const lmax, const int lp,
+                 const double prefactor,
+                 const tensor *const alpha, // [3][lb_max+1][la_max+1][lp+1]
+                 const tensor *const coef_xyz, tensor *pab);
 #endif
