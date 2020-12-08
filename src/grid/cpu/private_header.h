@@ -48,7 +48,7 @@ typedef struct {
   enum checksum_ checksum;
 } _task;
 
-typedef struct {
+typedef struct grid_context_ {
   int ntasks;  // total number of tasks
   int nlevels; // number of different grid
   int natoms;
@@ -140,7 +140,8 @@ extern void tensor_reduction_for_collocate_integrate(
     const struct tensor_ *p_alpha_beta_reduced_, struct tensor_ *cube);
 
 extern void set_grid_parameters(
-    grid_context *ctx, const int grid_level,
+    tensor *grid, /* tensor describing the grid */
+    const bool orthorhombic,
     const int grid_full_size[3],  /* size of the full grid */
     const int grid_local_size[3], /* size of the local grid block */
     const int shift_local[3],     /* coordinates of the lower coordinates of the
@@ -156,9 +157,22 @@ extern void collocate_one_grid_level_dgemm(grid_context *const ctx,
                                            const int func, const int level,
                                            const grid_buffer *pab_blocks);
 
+extern void integrate_one_grid_level_dgemm(
+    grid_context *const ctx, const int level, const bool calculate_tau,
+    const bool calculate_forces, const bool calculate_virial,
+    const int *const shift_local, const int *const border_width,
+    const grid_buffer *const pab_blocks, grid_buffer *const hab_blocks,
+    tensor *forces_, tensor *virial_);
+
 extern void compute_coefficients(grid_context *const ctx,
                                  struct collocation_integration_ *handler,
-                                 const _task *task,
-                                 const grid_buffer *pab_blocks, tensor *const pab,
-                                 tensor *const work, tensor *const pab_prep);
+                                 const _task *previous_task, const _task *task,
+                                 const grid_buffer *pab_blocks,
+                                 tensor *const pab, tensor *const work,
+                                 tensor *const pab_prep);
+
+extern void extract_blocks(grid_context *const ctx, const _task *const task,
+                           const grid_buffer *pab_blocks, tensor *const work,
+                           tensor *const pab);
+
 #endif
