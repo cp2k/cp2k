@@ -160,6 +160,8 @@ QS/regtest-mp2-4                                            libint
 QS/regtest-sym-3
 QS/regtest-gpw-6-4
 LIBTEST
+LIBTEST/libvori                                             libvori
+LIBTEST/libbqb                                              libbqb
 Fist/regtest-5-vib                                          mpiranks==1||mpiranks==2||mpiranks==4
 QS/regtest-hfx-stress                                       libint
 QS/regtest-admm-1                                           libint

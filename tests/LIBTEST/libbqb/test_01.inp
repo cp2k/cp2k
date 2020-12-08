@@ -1,0 +1,85 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_MOLOPT
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      CUTOFF 200
+      NGRIDS 5
+      REL_CUTOFF 40
+    &END MGRID
+
+    &QS
+      EPS_DEFAULT 1.0E-10
+    &END QS
+
+    &SCF
+      SCF_GUESS ATOMIC
+      MAX_SCF 15
+      EPS_SCF 1.0E-6
+      &OT
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_ALL
+      &END
+      &OUTER_SCF
+        MAX_SCF 20
+        EPS_SCF 1.0E-6
+      &END
+      &PRINT
+        &RESTART
+          &EACH
+            MD 0
+          &END EACH
+        &END RESTART
+      &END PRINT
+    &END SCF
+
+    &PRINT
+      &E_DENSITY_BQB
+        CHECK
+        FILENAME =out.bqb
+      &END E_DENSITY_BQB
+    &END PRINT
+
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+      &XC_GRID
+        XC_DERIV NN10_SMOOTH
+        XC_SMOOTH_RHO NN10
+      &END XC_GRID
+    &END XC
+  &END DFT
+
+  &SUBSYS
+    &CELL
+      ABC 10.0 10.0 10.0
+    &END CELL
+
+    &COORD
+O         -2.05324        0.38067       -0.16312
+H         -1.33100        0.89052        0.28284
+H         -1.82503       -0.56850        0.00122
+O          1.30380        0.61328        0.87127
+H          1.45893       -0.19270        0.31516
+H          1.53008        1.37137        0.27775
+    &END COORD
+
+    &KIND H
+      BASIS_SET SZV-MOLOPT-SR-GTH
+      POTENTIAL GTH-BLYP-q1
+    &END KIND
+
+    &KIND O
+      BASIS_SET SZV-MOLOPT-SR-GTH
+      POTENTIAL GTH-BLYP-q6
+    &END KIND
+
+  &END SUBSYS
+&END FORCE_EVAL
+
+&GLOBAL
+  PROJECT libbqb_test_01
+  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+&END GLOBAL
