@@ -8084,7 +8084,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Enables the usage of the OT iterator solver", &
-                          usage="&XC_FUNCTIONAL {logical}", &
+                          usage="&OT_SOLVER {logical}", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
