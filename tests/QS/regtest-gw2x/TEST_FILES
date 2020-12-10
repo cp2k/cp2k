@@ -13,3 +13,4 @@ Ne-pbc-shortrange.inp                                  88      1e-08            
 Ne-pbc-truncated.inp                                   88      1e-08            919.922795
 #XPS only calculation, bypassing all XAS_TDP stuff
 SiH4-HF-xps_only.inp                                   91      1e-08            106.675736
+SiH4-BHandHLYP-xps_only.inp                            91      1e-08            106.089668

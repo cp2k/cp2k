@@ -1,0 +1,83 @@
+&GLOBAL
+  PROJECT SiH4-BHandHLYP-xps_only
+  PRINT_LEVEL LOW
+  RUN_TYPE ENERGY
+&END GLOBAL
+&FORCE_EVAL
+  &DFT
+    BASIS_SET_FILE_NAME  EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME  POTENTIAL
+    AUTO_BASIS RI_XAS    MEDIUM
+
+    &POISSON
+      PERIODIC NONE
+      PSOLVER MT
+    &END POISSON
+
+    &QS
+      METHOD GAPW
+    &END QS
+
+    &XC
+      &XC_FUNCTIONAL
+         &LIBXC
+            FUNCTIONAL HYB_GGA_XC_BHandHLYP
+         &END LIBXC
+      &END XC_FUNCTIONAL
+      &HF
+         FRACTION 0.5
+      &END HF
+    &END XC
+
+    &XAS_TDP
+      &DONOR_STATES
+         DEFINE_EXCITED BY_KIND
+         KIND_LIST Si
+         STATE_TYPES 1s
+         STATE_TYPES 2s
+         STATE_TYPES 2p
+         N_SEARCH 5
+         LOCALIZE
+      &END DONOR_STATES
+
+      &GW2X
+         XPS_ONLY
+      &END GW2X
+      
+      &KERNEL
+         ! No need for xc kernel as we only care about XPS
+         &XC_FUNCTIONAL NONE
+         &END XC_FUNCTIONAL
+         &EXACT_EXCHANGE
+            FRACTION 1.0
+         &END EXACT_EXCHANGE
+      &END KERNEL
+    &END XAS_TDP
+
+  &END DFT
+  &SUBSYS
+    &KIND Si
+      BASIS_SET Ahlrichs-def2-TZVP
+      POTENTIAL ALL
+    &END KIND
+    &KIND H
+      BASIS_SET Ahlrichs-def2-TZVP
+      POTENTIAL GTH-PBE
+    &END KIND
+    &CELL
+      ABC 5.0 5.0 5.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      Si   0.000000    0.000000    0.000000
+      H    0.853686    0.853686    0.853686
+      H   -0.853686   -0.853686    0.853686
+      H   -0.853686    0.853686   -0.853686
+      H    0.853686   -0.853686   -0.853686
+    &END COORD
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
