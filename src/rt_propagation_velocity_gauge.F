@@ -34,7 +34,8 @@ MODULE rt_propagation_velocity_gauge
                                               sgp_potential_type
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
-                                              section_vals_type
+                                              section_vals_type,&
+                                              section_vals_val_get
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE mathconstants,                   ONLY: one,&
@@ -84,8 +85,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'velocity_gauge_ks_matrix'
 
       INTEGER                                            :: handle, idir, ispin
-      LOGICAL                                            :: do_hfx
-      REAL(KIND=dp)                                      :: factor
+      LOGICAL                                            :: add_nl_term, do_hfx
+      REAL(KIND=dp)                                      :: factor, factor_kvec_nl, factor_lin, &
+                                                            factor_nl_im, factor_nl_re, factor_qu
       REAL(KIND=dp), DIMENSION(3)                        :: vec_pot
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_im, matrix_s, &
@@ -133,10 +135,18 @@ CONTAINS
          ENDDO
       ENDIF
 
+      hfx_sections => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION")
+      CALL section_vals_val_get(hfx_sections, "VG_COM_NL", l_val=add_nl_term)
+      CALL section_vals_val_get(hfx_sections, "FACTOR_NL_RE", r_val=factor_nl_re)
+      CALL section_vals_val_get(hfx_sections, "FACTOR_NL_IM", r_val=factor_nl_im)
+      CALL section_vals_val_get(hfx_sections, "FACTOR_LIN", r_val=factor_lin)
+      CALL section_vals_val_get(hfx_sections, "FACTOR_QUA", r_val=factor_qu)
+      CALL section_vals_val_get(hfx_sections, "FACTOR_KVEC_NL", r_val=factor_kvec_nl)
+
       ! add linear term in vector potential to imaginary part of KS-matrix
       DO ispin = 1, dft_control%nspins
          DO idir = 1, 3
-            CALL dbcsr_add(matrix_ks_im(ispin)%matrix, momentum(idir)%matrix, one, -2.0_dp*vec_pot(idir))
+            CALL dbcsr_add(matrix_ks_im(ispin)%matrix, momentum(idir)%matrix, one, factor_lin*2.0_dp*vec_pot(idir))
          ENDDO
       ENDDO
 
@@ -148,32 +158,34 @@ CONTAINS
          factor = factor + vec_pot(idir)**2
       ENDDO
       DO ispin = 1, dft_control%nspins
-         CALL dbcsr_add(matrix_ks(ispin)%matrix, matrix_s(1)%matrix, one, factor)
+         CALL dbcsr_add(matrix_ks(ispin)%matrix, matrix_s(1)%matrix, one, factor*factor_qu)
       ENDDO
 
       IF (dft_control%qs_control%gpw) THEN
-         NULLIFY (nl_term)
-         CALL dbcsr_allocate_matrix_set(nl_term, 2)
+         IF (add_nl_term) THEN
+            NULLIFY (nl_term)
+            CALL dbcsr_allocate_matrix_set(nl_term, 2)
 
-         CALL dbcsr_init_p(nl_term(1)%matrix)
-         CALL dbcsr_create(nl_term(1)%matrix, template=matrix_s(1)%matrix, &
-                           matrix_type=dbcsr_type_symmetric, name="nl gauge term real part")
-         CALL cp_dbcsr_alloc_block_from_nbl(nl_term(1)%matrix, sab_orb)
-         CALL dbcsr_set(nl_term(1)%matrix, zero)
+            CALL dbcsr_init_p(nl_term(1)%matrix)
+            CALL dbcsr_create(nl_term(1)%matrix, template=matrix_s(1)%matrix, &
+                              matrix_type=dbcsr_type_symmetric, name="nl gauge term real part")
+            CALL cp_dbcsr_alloc_block_from_nbl(nl_term(1)%matrix, sab_orb)
+            CALL dbcsr_set(nl_term(1)%matrix, zero)
 
-         CALL dbcsr_init_p(nl_term(2)%matrix)
-         CALL dbcsr_create(nl_term(2)%matrix, template=matrix_s(1)%matrix, &
-                           matrix_type=dbcsr_type_antisymmetric, name="nl gauge term imaginary part")
-         CALL cp_dbcsr_alloc_block_from_nbl(nl_term(2)%matrix, sab_orb)
-         CALL dbcsr_set(nl_term(2)%matrix, zero)
+            CALL dbcsr_init_p(nl_term(2)%matrix)
+            CALL dbcsr_create(nl_term(2)%matrix, template=matrix_s(1)%matrix, &
+                              matrix_type=dbcsr_type_antisymmetric, name="nl gauge term imaginary part")
+            CALL cp_dbcsr_alloc_block_from_nbl(nl_term(2)%matrix, sab_orb)
+            CALL dbcsr_set(nl_term(2)%matrix, zero)
 
-         CALL velocity_gauge_nl_term(qs_env, nl_term, vec_pot)
+            CALL velocity_gauge_nl_term(qs_env, nl_term, vec_pot*factor_kvec_nl)
 
-         DO ispin = 1, dft_control%nspins
-            CALL dbcsr_add(matrix_ks(ispin)%matrix, nl_term(1)%matrix, one, one)
-            CALL dbcsr_add(matrix_ks_im(ispin)%matrix, nl_term(2)%matrix, one, one)
-         ENDDO
-         CALL dbcsr_deallocate_matrix_set(nl_term)
+            DO ispin = 1, dft_control%nspins
+               CALL dbcsr_add(matrix_ks(ispin)%matrix, nl_term(1)%matrix, one, factor_nl_re)
+               CALL dbcsr_add(matrix_ks_im(ispin)%matrix, nl_term(2)%matrix, one, factor_nl_im)
+            ENDDO
+            CALL dbcsr_deallocate_matrix_set(nl_term)
+         ENDIF
       ENDIF
 
       CALL timestop(handle)
@@ -195,11 +207,12 @@ CONTAINS
 
       ! fieldstrength
       ! for a delta pulse: vec_pot = - c * kvec
-      ! the speed of light cancels in the linear term in the Hamiltonian
+      ! the speed of light cancels in the linear term in the Hamiltonian and is not
+      ! taken into account here
       vec_pot(:) = cell%h_inv(1, :)*dft_control%rtp_control%delta_pulse_direction(1) + &
                    cell%h_inv(2, :)*dft_control%rtp_control%delta_pulse_direction(2) + &
                    cell%h_inv(3, :)*dft_control%rtp_control%delta_pulse_direction(3)
-      vec_pot = vec_pot*twopi*dft_control%rtp_control%delta_pulse_scale
+      vec_pot = -vec_pot*twopi*dft_control%rtp_control%delta_pulse_scale
 
    END SUBROUTINE get_vector_potential
 
