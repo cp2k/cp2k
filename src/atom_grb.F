@@ -422,11 +422,11 @@ CONTAINS
       ! generate polarization sets
       maxl = atom%state%maxl_occ
       CALL section_vals_val_get(grb_section, "NUM_GTO_POLARIZATION", i_val=num_gto)
+      num_pol = num_gto
       IF (num_gto > 0) THEN
          IF (iw > 0) THEN
             WRITE (iw, '(/,A)') " Polarization basis set  "
          END IF
-         num_pol = num_gto
          ALLOCATE (pbasis(num_gto, num_gto, 0:7), alp(num_gto))
          pbasis = 0.0_dp
          ! optimize exponents
