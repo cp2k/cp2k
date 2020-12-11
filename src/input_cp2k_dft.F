@@ -8286,6 +8286,48 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="VG_COM_NL", &
+                          description="apply non local correction term", &
+                          usage="VG_COM_NL T", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FACTOR_NL_RE", &
+                          description="Multiply nl term with this number", &
+                          usage="FACTOR_NL_RE 1.000", &
+                          default_r_val=1.0_dp, n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FACTOR_NL_IM", &
+                          description="Multiply nl term with this number", &
+                          usage="FACTOR_NL_IM 1.000", &
+                          default_r_val=1.0_dp, n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FACTOR_LIN", &
+                          description="Multiply linear term with this number", &
+                          usage="FACTOR_LIN 1.000", &
+                          default_r_val=1.0_dp, n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FACTOR_QUA", &
+                          description="Multiply kvec for nl term with this number", &
+                          usage="FACTOR_KVEC_NL 1.000", &
+                          default_r_val=1.0_dp, n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FACTOR_KVEC_NL", &
+                          description="Multiply quadratic term with this number", &
+                          usage="FACTOR_QUA 1.000", &
+                          default_r_val=1.0_dp, n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="COM_NL", &
                           description="Include non local commutator for periodic delta pulse.", &
                           usage="COM_NL", &
