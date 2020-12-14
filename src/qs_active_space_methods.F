@@ -145,10 +145,30 @@ MODULE qs_active_space_methods
       PROCEDURE :: func => eri_fcidump_print_func
    END TYPE
 
+   TYPE, EXTENDS(eri_type_eri_element_func) :: eri_fcidump_checksum
+      INTEGER :: bra_start=0, ket_start=0
+      REAL(KIND=dp) :: checksum=0.0_dp
+    CONTAINS
+      PROCEDURE, PASS :: set => eri_fcidump_set
+      PROCEDURE :: func => eri_fcidump_checksum_func
+   END TYPE eri_fcidump_checksum
+
+
 ! **************************************************************************************************
 
 CONTAINS
 
+! **************************************************************************************************
+!> \brief ...
+! **************************************************************************************************
+  SUBROUTINE eri_fcidump_set( this, bra_start, ket_start )
+    CLASS(eri_fcidump_checksum) :: this
+    INTEGER,INTENT(IN) :: bra_start, ket_start
+    this%bra_start = bra_start
+    this%ket_start = ket_start
+  END SUBROUTINE eri_fcidump_set
+
+  
 ! **************************************************************************************************
 !> \brief ...
 !> \param input ...
@@ -1492,9 +1512,12 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: as_input
 
       INTEGER                                            :: i, i1, i2, i3, i4, isym, iw, nspins
-      REAL(KIND=dp)                                      :: esub
+      REAL(KIND=dp)                                      :: esub, checksum
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: fmat
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(eri_fcidump_checksum) :: eri_checksum
+
+      checksum = 0.0_dp
 
       logger => cp_get_default_logger()
       IF (BTEST(cp_print_key_should_output(logger%iter_info, &
@@ -1519,6 +1542,9 @@ CONTAINS
                !
                ! Print integrals: ERI
                CALL active_space_env%eri%eri_foreach(1, eri_fcidump_print(iw,1,1))
+               CALL eri_checksum%set(1,1)
+               CALL active_space_env%eri%eri_foreach(1, eri_checksum)
+               
                ! Print integrals: Fij
                ! replicate Fock matrix
                ALLOCATE (fmat(norb, norb))
@@ -1527,6 +1553,7 @@ CONTAINS
                   i3 = 0; i4 = 0
                   DO i1 = 1, norb
                      DO i2 = i1, norb
+                        checksum = checksum + ABS(fmat(i1, i2))
                         WRITE (iw, "(ES23.16,4I4)") fmat(i1, i2), i1, i2, i3, i4
                      END DO
                   END DO
@@ -1535,6 +1562,7 @@ CONTAINS
                ! Print energy
                esub = active_space_env%energy_inactive
                i1 = 0; i2 = 0; i3 = 0; i4 = 0
+               checksum = checksum + ABS(esub)
                IF (iw > 0) WRITE (iw, "(ES23.16,4I4)") esub, i1, i2, i3, i4
             END ASSOCIATE
          ELSE
@@ -1556,10 +1584,16 @@ CONTAINS
                ! Print integrals: ERI
                ! alpha-alpha
                CALL active_space_env%eri%eri_foreach(1, eri_fcidump_print(iw,1,1))
+               CALL eri_checksum%set(1,1)
+               CALL active_space_env%eri%eri_foreach(1, eri_checksum)
                ! alpha-beta
                CALL active_space_env%eri%eri_foreach(2, eri_fcidump_print(iw,1,norb+1))
+               CALL eri_checksum%set(1,norb+1)
+               CALL active_space_env%eri%eri_foreach(2, eri_checksum)
                ! beta-beta
                CALL active_space_env%eri%eri_foreach(3, eri_fcidump_print(iw,norb+1,norb+1))
+               CALL eri_checksum%set(norb+1,norb+1)
+               CALL active_space_env%eri%eri_foreach(3, eri_checksum)
                ! Print integrals: Fij
                ! alpha
                ALLOCATE (fmat(norb, norb))
@@ -1568,6 +1602,7 @@ CONTAINS
                   i3 = 0; i4 = 0
                   DO i1 = 1, norb
                      DO i2 = i1, norb
+                        checksum = checksum + ABS(fmat(i1, i2))
                         WRITE (iw, "(ES23.16,4I4)") fmat(i1, i2), i1, i2, i3, i4
                      END DO
                   END DO
@@ -1580,6 +1615,7 @@ CONTAINS
                   i3 = 0; i4 = 0
                   DO i1 = 1, norb
                      DO i2 = i1, norb
+                        checksum = checksum + ABS(fmat(i1, i2))
                         WRITE (iw, "(ES23.16,4I4)") fmat(i1, i2), i1+norb, i2+norb, i3, i4
                      END DO
                   END DO
@@ -1588,11 +1624,17 @@ CONTAINS
                ! Print energy
                esub = active_space_env%energy_inactive
                i1 = 0; i2 = 0; i3 = 0; i4 = 0
+               checksum = checksum + ABS(esub)
                IF (iw > 0) WRITE (iw, "(ES23.16,4I4)") esub, i1, i2, i3, i4
             END ASSOCIATE
          END IF
          !
          CALL cp_print_key_finished_output(iw, logger, as_input, "FCIDUMP")
+
+         !>>
+         iw = cp_logger_get_default_io_unit(logger)
+         IF (iw > 0) WRITE (iw, '(T4,A,T66,F12.8)') "FCIDUMP| Checksum:", eri_checksum%checksum+checksum
+         !<<
 
       END IF
 
@@ -2102,5 +2144,25 @@ CONTAINS
 
       cont = .TRUE.
    END FUNCTION eri_fcidump_print_func
+
+! **************************************************************************************************
+!> \brief checksum each value on the master node
+!> \param this object reference
+!> \param i i-index
+!> \param j j-index
+!> \param k k-index
+!> \param l l-index
+!> \param val value of the integral at (i,j,k.l)
+!> \return always true to dump all integrals
+! **************************************************************************************************
+   LOGICAL FUNCTION eri_fcidump_checksum_func(this, i, j, k, l, val) RESULT(cont)
+     CLASS(eri_fcidump_checksum), INTENT(inout) :: this
+     INTEGER, INTENT(in)                     :: i, j, k, l
+     REAL(KIND=dp), INTENT(in)               :: val
+
+     this%checksum = this%checksum + ABS(val)
+
+     cont = .TRUE.
+   END FUNCTION eri_fcidump_checksum_func
 
 END MODULE qs_active_space_methods
