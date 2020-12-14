@@ -184,8 +184,8 @@ CONTAINS
 
       CHARACTER(len=10)                                  :: cshell, lnam(5)
       INTEGER :: eri_method, eri_operator, eri_print, handle, i, iatom, ishell, isp, ispin, iw, j, &
-         jm, m, mselect, n1, n2, nactive, nao, natom, ncol, nel, ninactive, ninactive_alpha, &
-         ninactive_beta, nmo, nn1, nn2, nspins, ntot, zval
+         jm, m, mselect, n1, n2, nelec_active, nao, natom, ncol, nel, nelec_inactive, nelec_inactive_alpha, &
+         nelec_inactive_beta, nmo, nn1, nn2, nspins, nelec_total, zval
       INTEGER, DIMENSION(2)                              :: nactive_orb, nepol, ninactive_orb
       INTEGER, DIMENSION(5)                              :: nshell
       INTEGER, DIMENSION(:), POINTER                     :: invals
@@ -270,9 +270,9 @@ CONTAINS
          END IF
       END IF
 
-      CALL section_vals_val_get(as_input, "ACTIVE_ELECTRONS", i_val=nactive)
-      IF (nactive <= 0) CPABORT("Specify a positive number of active electrons.")
-      CALL get_qs_env(qs_env, nelectron_total=ntot, nelectron_spin=nepol)
+      CALL section_vals_val_get(as_input, "ACTIVE_ELECTRONS", i_val=nelec_active)
+      IF (nelec_active <= 0) CPABORT("Specify a positive number of active electrons.")
+      CALL get_qs_env(qs_env, nelectron_total=nelec_total, nelectron_spin=nepol)
       CALL get_qs_env(qs_env, dft_control=dft_control)
       nspins = dft_control%nspins
       CALL section_vals_val_get(as_input, "INACTIVE_ELECTRONS", explicit=explicit)
@@ -282,55 +282,55 @@ CONTAINS
             CALL cp_abort(__LOCATION__, "Number of Inactive Electrons has to be specified"// &
                           " in spin polarised case.")
          END IF
-         ninactive_alpha = invals(1)
-         ninactive_beta = invals(2)
-         ninactive = ninactive_alpha + ninactive_beta
+         nelec_inactive_alpha = invals(1)
+         nelec_inactive_beta = invals(2)
+         nelec_inactive = nelec_inactive_alpha + nelec_inactive_beta
       ELSE
          IF (explicit) THEN
-            ninactive = invals(1)
+            nelec_inactive = invals(1)
          ELSE
-            ninactive = ntot - nactive
+            nelec_inactive = nelec_total - nelec_active
          END IF
-         ninactive_alpha = ninactive
-         ninactive_beta = 0
+         nelec_inactive_alpha = nelec_inactive
+         nelec_inactive_beta = 0
       END IF
 
       IF (iw > 0) THEN
          IF (nspins < 2) THEN
-            WRITE (iw, '(T4,A,T69,I10)') "Total number of electrons", ntot
-            WRITE (iw, '(T4,A,T69,I10)') "Number of active electrons", nactive
-            WRITE (iw, '(T4,A,T69,I10)') "Number of inactive electrons", ninactive
+            WRITE (iw, '(T4,A,T69,I10)') "Total number of electrons", nelec_total
+            WRITE (iw, '(T4,A,T69,I10)') "Number of active electrons", nelec_active
+            WRITE (iw, '(T4,A,T69,I10)') "Number of inactive electrons", nelec_inactive
          ELSE
-            WRITE (iw, '(T4,A,T69,I10)') "Total number of electrons", ntot
-            WRITE (iw, '(T4,A,T69,I10)') "Number of active electrons", nactive
-            WRITE (iw, '(T4,A,T69,I10)') "Number of inactive electrons", ninactive
-            WRITE (iw, '(T4,A,T69,I10)') "Number of inactive electrons (alpha)", ninactive_alpha
-            WRITE (iw, '(T4,A,T69,I10)') "Number of inactive electrons (beta)", ninactive_beta
+            WRITE (iw, '(T4,A,T69,I10)') "Total number of electrons", nelec_total
+            WRITE (iw, '(T4,A,T69,I10)') "Number of active electrons", nelec_active
+            WRITE (iw, '(T4,A,T69,I10)') "Number of inactive electrons", nelec_inactive
+            WRITE (iw, '(T4,A,T69,I10)') "Number of inactive electrons (alpha)", nelec_inactive_alpha
+            WRITE (iw, '(T4,A,T69,I10)') "Number of inactive electrons (beta)", nelec_inactive_beta
          END IF
       END IF
 
 
-      CPASSERT(ninactive >= 0)
-      CPASSERT(ninactive_alpha >= 0)
-      CPASSERT(ninactive_beta >= 0)
-      CPASSERT(ntot == ninactive + nactive)
+      CPASSERT(nelec_inactive >= 0)
+      CPASSERT(nelec_inactive_alpha >= 0)
+      CPASSERT(nelec_inactive_beta >= 0)
+      CPASSERT(nelec_total == nelec_inactive + nelec_active)
       IF (nspins > 1) THEN
-         CPASSERT(nepol(1) >= ninactive_alpha)
-         CPASSERT(nepol(2) >= ninactive_beta)
+         CPASSERT(nepol(1) >= nelec_inactive_alpha)
+         CPASSERT(nepol(2) >= nelec_inactive_beta)
       END IF
 
       
-      active_space_env%nactive = nactive
-      active_space_env%ninactive = ninactive
+      active_space_env%nelec_active = nelec_active
+      active_space_env%nelec_inactive = nelec_inactive
       IF (nspins == 1) THEN
-         active_space_env%nelectrons(1) = ntot
-         active_space_env%nelectrons(2) = 0
+         active_space_env%nelec_total(1) = nelec_total
+         active_space_env%nelec_total(2) = 0
       ELSE
-         active_space_env%nelectrons(1) = nepol(1)
-         active_space_env%nelectrons(2) = nepol(2)
+         active_space_env%nelec_total(1) = nepol(1)
+         active_space_env%nelec_total(2) = nepol(2)
       END IF
-      active_space_env%ninspin(1) = ninactive_alpha
-      active_space_env%ninspin(2) = ninactive_beta
+      active_space_env%nelec_inactive_spinwise(1) = nelec_inactive_alpha
+      active_space_env%nelec_inactive_spinwise(2) = nelec_inactive_beta
       active_space_env%multiplicity = dft_control%multiplicity
       active_space_env%nspins = nspins
 
@@ -349,10 +349,10 @@ CONTAINS
       CALL section_vals_val_get(as_input, "INACTIVE_ORBITALS", i_vals=invals)
       IF (.NOT. explicit) THEN
          IF (nspins == 1) THEN
-            ninactive_orb(1) = active_space_env%ninspin(1)/2
+            ninactive_orb(1) = active_space_env%nelec_inactive_spinwise(1)/2
          ELSE
             DO ispin = 1, nspins
-               ninactive_orb(ispin) = active_space_env%ninspin(ispin)
+               ninactive_orb(ispin) = active_space_env%nelec_inactive_spinwise(ispin)
             END DO
          END IF
       ELSE
@@ -362,11 +362,11 @@ CONTAINS
          END DO
       END IF
       IF (nspins == 1) THEN
-         CPASSERT(MOD(ninactive, 2) == 0)
-         CPASSERT(ninactive_orb(1) >= ninactive/2)
+         CPASSERT(MOD(nelec_inactive, 2) == 0)
+         CPASSERT(ninactive_orb(1) >= nelec_inactive/2)
       ELSE
-         CPASSERT(ninactive_orb(1) >= ninactive_alpha)
-         CPASSERT(ninactive_orb(2) >= ninactive_beta)
+         CPASSERT(ninactive_orb(1) >= nelec_inactive_alpha)
+         CPASSERT(ninactive_orb(2) >= nelec_inactive_beta)
       END IF
 
       CALL get_qs_env(qs_env, mos=mos)
@@ -387,7 +387,7 @@ CONTAINS
          active_space_env%mos_active(ispin)%mo_set => mo_set
          mo_set => active_space_env%mos_inactive(ispin)%mo_set
          nmo = ninactive_orb(ispin)
-         nel = active_space_env%ninspin(ispin)
+         nel = active_space_env%nelec_inactive_spinwise(ispin)
          NULLIFY (mo_set)
          CALL allocate_mo_set(mo_set, nao, nmo, nel, REAL(nel, KIND=dp), maxocc, 0.0_dp)
          CALL init_mo_set(mo_set, fm_ref=fm_ref, name="Inactive Space MO")
@@ -732,12 +732,12 @@ CONTAINS
 
       ! set the reference active space density matrix
       nspins = active_space_env%nspins
-      ALLOCATE (active_space_env%p_ref(nspins))
+      ALLOCATE (active_space_env%p_active(nspins))
       DO isp = 1, nspins
          mo_set => active_space_env%mos_active(isp)%mo_set
          CALL get_mo_set(mo_set, mo_coeff=mo_coeff, nmo=nmo)
-         NULLIFY (active_space_env%p_ref(isp)%matrix)
-         CALL create_subspace_matrix(mo_coeff, active_space_env%p_ref(isp)%matrix, nmo)
+         NULLIFY (active_space_env%p_active(isp)%matrix)
+         CALL create_subspace_matrix(mo_coeff, active_space_env%p_active(isp)%matrix, nmo)
       END DO
       SELECT CASE (mselect)
       CASE DEFAULT
@@ -746,9 +746,9 @@ CONTAINS
          focc = 2.0_dp
          IF (nspins == 2) focc = 1.0_dp
          DO isp = 1, nspins
-            fmat => active_space_env%p_ref(isp)%matrix
+            fmat => active_space_env%p_active(isp)%matrix
             CALL cp_fm_set_all(fmat, alpha=0.0_dp)
-            n1 = active_space_env%nelectrons(isp) - active_space_env%ninspin(isp)
+            n1 = active_space_env%nelec_total(isp) - active_space_env%nelec_inactive_spinwise(isp)
             DO i = 1, nactive_orb(isp)
                fel = MIN(focc, REAL(n1, KIND=dp))
                CALL cp_fm_set_element(fmat, i, i, fel)
@@ -1529,7 +1529,7 @@ CONTAINS
          IF (nspins == 1) THEN
             ASSOCIATE (norb=>active_space_env%eri%norb, &
                        ms2=>0, & ! active_space_env%multiplicity ?
-                       nelec=>active_space_env%nactive)
+                       nelec=>active_space_env%nelec_active)
 
                IF (iw > 0) THEN
                   WRITE (iw, "(A,A,I4,A,I4,A,I2,A)") "&FCI", " NORB=", norb, ",NELEC=", nelec, ",MS2=", ms2, ","
@@ -1569,7 +1569,7 @@ CONTAINS
 
             ASSOCIATE (norb=>active_space_env%eri%norb, &
                        ms2=>0, & ! active_space_env%multiplicity ?
-                       nelec=>active_space_env%nactive)
+                       nelec=>active_space_env%nelec_active)
 
                IF (iw > 0) THEN
                   WRITE (iw, "(A,A,I4,A,I4,A,I2,A)") "&FCI", " NORB=", norb, ",NELEC=", nelec, ",MS2=", ms2, ","
@@ -1696,7 +1696,7 @@ CONTAINS
          ALLOCATE (ks_mat(norb, norb), ks_ref(norb, norb), p_mat(norb, norb))
          ks_ref = 0.0_dp
 
-         call replicate_and_symmetrize_matrix( norb, active_space_env%p_ref(1)%matrix, p_mat )
+         call replicate_and_symmetrize_matrix( norb, active_space_env%p_active(1)%matrix, p_mat )
          call replicate_and_symmetrize_matrix( norb, active_space_env%ks_sub(1)%matrix, ks_mat )
          !
          !
@@ -1742,8 +1742,8 @@ CONTAINS
               &     p_a_mat(norb, norb),  p_b_mat(norb, norb))
          ks_a_ref(:,:) = 0.0_dp; ks_b_ref(:,:) = 0.0_dp
 
-         call replicate_and_symmetrize_matrix( norb, active_space_env%p_ref(1)%matrix, p_a_mat )
-         call replicate_and_symmetrize_matrix( norb, active_space_env%p_ref(2)%matrix, p_b_mat )
+         call replicate_and_symmetrize_matrix( norb, active_space_env%p_active(1)%matrix, p_a_mat )
+         call replicate_and_symmetrize_matrix( norb, active_space_env%p_active(2)%matrix, p_b_mat )
          call replicate_and_symmetrize_matrix( norb, active_space_env%ks_sub(1)%matrix, ks_a_mat )
          call replicate_and_symmetrize_matrix( norb, active_space_env%ks_sub(2)%matrix, ks_b_mat )
          !
@@ -2042,7 +2042,7 @@ CONTAINS
       CALL qs_rho_get(rho, rho_ao=rho_ao)
 
       nspins = active_space_env%nspins
-      p_ref => active_space_env%p_ref
+      p_ref => active_space_env%p_active
       mos => active_space_env%mos_active
       DO ispin = 1, nspins
          pinact => active_space_env%pmat_inactive(ispin)%matrix
