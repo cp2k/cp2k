@@ -299,14 +299,14 @@ with_reflapack=__DONTUSE__
 
 # sirius is activated by default
 with_sirius="__INSTALL__"
-with_gsl="__INSTALL__"
+with_gsl="__DONTUSE__"
 with_spglib="__INSTALL__"
-with_hdf5="__INSTALL__"
+with_hdf5="__DONTUSE__"
 with_elpa="__INSTALL__"
-with_libvdwxc="__INSTALL__"
-with_spfft=__INSTALL__
-with_cosma=__INSTALL__
-with_libvori=__INSTALL__
+with_libvdwxc="__DONTUSE__"
+with_spfft="__DONTUSE__"
+with_cosma="__INSTALL__"
+with_libvori="__INSTALL__"
 # for MPI, we try to detect system MPI variant
 with_openmpi=__SYSTEM__
 with_mpich=__SYSTEM__
@@ -737,30 +737,15 @@ fi
 
 # SIRIUS dependencies. Remove the gsl library from the dependencies if SIRIUS is not activated
 if [ "$with_sirius" = "__INSTALL__" ] ; then
-    if [ "$with_spfft" = "__DONTUSE__" ] ; then
-        report_error "For SIRIUS to work you need a working spfft library use --with-spfft option to specify if you wish to install the library or specify its location."
-        exit 1
-    fi
-    if [ "$with_gsl" = "__DONTUSE__" ] ; then
-        report_error "For SIRIUS to work you need a working gsl library use --with-gsl option to specify if you wish to install the library or specify its location."
-        exit 1
-    fi
-    if [ "$with_libxc" = "__DONTUSE__" ] ; then
-        report_error "For SIRIUS to work you need a working libxc library use --with-libxc option to specify if you wish to install the library or specify its location."
-        exit 1
-    fi
-    if [ "$with_fftw" = "__DONTUSE__" ] ; then
-        report_error "For SIRIUS to work you need a working fftw library use --with-fftw option to specify if you wish to install the library or specify its location."
-        exit 1
-    fi
-    if [ "$with_spglib" = "__DONTUSE__" ] ; then
-        report_error "For SIRIUS to work you need a working spglib library use --with-spglib option to specify if you wish to install the library or specify its location."
-        exit 1
-    fi
-    if [ "$with_hdf5" = "__DONTUSE__" ] ; then
-        report_error "For SIRIUS to work you need a working hdf5 library use --with-hdf5 option to specify if you wish to install the library or specify its location."
-        exit 1
-    fi
+    [ "$with_spfft" = "__DONTUSE__" ] && with_spfft="__INSTALL__"
+    [ "$with_gsl" = "__DONTUSE__" ] && with_gsl="__INSTALL__"
+    [ "$with_libxc" = "__DONTUSE__" ] && with_libxc="__INSTALL__"
+    [ "$with_fftw" = "__DONTUSE__" ] && with_fftw="__INSTALL__"
+    [ "$with_spglib" = "__DONTUSE__" ] && with_spglib="__INSTALL__"
+    [ "$with_hdf5" = "__DONTUSE__" ] && with_hdf5="__INSTALL__"
+    [ "$with_libvdwxc" = "__DONTUSE__" ] && with_libvdwxc="__INSTALL__"
+    [ "$with_cosma" = "__DONTUSE__" ] && with_cosma="__INSTALL__"
+    [ "$with_elpa" = "__DONTUSE__" ] && with_elpa="__INSTALL__"
 fi
 
 # ------------------------------------------------------------------------
