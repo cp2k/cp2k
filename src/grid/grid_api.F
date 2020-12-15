@@ -1091,6 +1091,7 @@ CONTAINS
 !> \param task_list ...
 !> \param compute_tau ...
 !> \param calculate_forces ...
+!> \param calculate_virial ...
 !> \param pab_blocks ...
 !> \param rs_grids ...
 !> \param hab_blocks ...
@@ -1098,10 +1099,11 @@ CONTAINS
 !> \param virial ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE grid_integrate_task_list(task_list, compute_tau, calculate_forces, pab_blocks, &
-                                       rs_grids, hab_blocks, forces, virial)
+   SUBROUTINE grid_integrate_task_list(task_list, compute_tau, calculate_forces, calculate_virial, &
+                                       pab_blocks, rs_grids, hab_blocks, forces, virial)
       TYPE(grid_task_list_type), INTENT(IN)              :: task_list
-      LOGICAL, INTENT(IN)                                :: compute_tau, calculate_forces
+      LOGICAL, INTENT(IN)                                :: compute_tau, calculate_forces, &
+                                                            calculate_virial
       TYPE(grid_buffer_type), INTENT(IN)                 :: pab_blocks
       TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_grids
       TYPE(grid_buffer_type), INTENT(INOUT)              :: hab_blocks
@@ -1119,11 +1121,12 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          TARGET                                          :: dh, dh_inv
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grid
+      TYPE(C_PTR)                                        :: forces_c, virial_c
       TYPE(C_PTR), ALLOCATABLE, DIMENSION(:), TARGET     :: grid_pointers
       TYPE(realspace_grid_type), POINTER                 :: rsgrid
       INTERFACE
-         SUBROUTINE grid_integrate_task_list_c(task_list, orthorhombic, compute_tau, calculate_forces, &
-                                               natoms, nlevels, npts_global, npts_local, shift_local, &
+         SUBROUTINE grid_integrate_task_list_c(task_list, orthorhombic, compute_tau, natoms, &
+                                               nlevels, npts_global, npts_local, shift_local, &
                                                border_width, dh, dh_inv, &
                                                pab_blocks, grid, hab_blocks, forces, virial) &
             BIND(C, name="grid_integrate_task_list")
@@ -1131,7 +1134,6 @@ CONTAINS
             TYPE(C_PTR), VALUE                        :: task_list
             LOGICAL(KIND=C_BOOL), VALUE               :: orthorhombic
             LOGICAL(KIND=C_BOOL), VALUE               :: compute_tau
-            LOGICAL(KIND=C_BOOL), VALUE               :: calculate_forces
             INTEGER(KIND=C_INT), VALUE                :: natoms
             INTEGER(KIND=C_INT), VALUE                :: nlevels
             TYPE(C_PTR), VALUE                        :: npts_global
@@ -1172,6 +1174,18 @@ CONTAINS
          grid_pointers(ilevel) = C_LOC(grid(1, 1, 1))
       END DO
 
+      IF (calculate_forces) THEN
+         forces_c = C_LOC(forces(1, 1))
+      ELSE
+         forces_c = C_NULL_PTR
+      ENDIF
+
+      IF (calculate_virial) THEN
+         virial_c = C_LOC(virial(1, 1))
+      ELSE
+         virial_c = C_NULL_PTR
+      ENDIF
+
 #if __GNUC__ >= 9
       CPASSERT(IS_CONTIGUOUS(npts_global))
       CPASSERT(IS_CONTIGUOUS(npts_local))
@@ -1192,11 +1206,11 @@ CONTAINS
       CPASSERT(C_ASSOCIATED(task_list%c_ptr))
       CPASSERT(C_ASSOCIATED(hab_blocks%c_ptr))
       CPASSERT(C_ASSOCIATED(pab_blocks%c_ptr) .OR. .NOT. calculate_forces)
+      CPASSERT(C_ASSOCIATED(pab_blocks%c_ptr) .OR. .NOT. calculate_virial)
 
       CALL grid_integrate_task_list_c(task_list=task_list%c_ptr, &
                                       orthorhombic=orthorhombic, &
                                       compute_tau=LOGICAL(compute_tau, C_BOOL), &
-                                      calculate_forces=LOGICAL(calculate_forces, C_BOOL), &
                                       natoms=SIZE(forces, 2), &
                                       nlevels=nlevels, &
                                       npts_global=C_LOC(npts_global(1, 1)), &
@@ -1208,8 +1222,8 @@ CONTAINS
                                       pab_blocks=pab_blocks%c_ptr, &
                                       grid=C_LOC(grid_pointers(1)), &
                                       hab_blocks=hab_blocks%c_ptr, &
-                                      forces=C_LOC(forces(1, 1)), &
-                                      virial=C_LOC(virial(1, 1)))
+                                      forces=forces_c, &
+                                      virial=virial_c)
 
       CALL timestop(handle)
    END SUBROUTINE grid_integrate_task_list
