@@ -139,9 +139,9 @@ CONTAINS
                                                             igrid_level, ikind, img, maxco, &
                                                             maxsgf_set, natoms, nimages, nkind
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
-      LOGICAL                                            :: distributed_grids, do_kp, &
-                                                            my_compute_tau, my_force_adm, my_gapw, &
-                                                            pab_required, use_virial
+      LOGICAL                                            :: calculate_virial, distributed_grids, &
+                                                            do_kp, my_compute_tau, my_force_adm, &
+                                                            my_gapw, pab_required
       REAL(KIND=dp)                                      :: admm_scal_fac
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: forces_array
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_matrix
@@ -258,8 +258,7 @@ CONTAINS
          CPASSERT(do_kp)
       END IF
       nkind = SIZE(qs_kind_set)
-      use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
-
+      calculate_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer) .AND. calculate_forces
       pab_required = (PRESENT(pmat) .OR. PRESENT(pmat_kp)) .AND. calculate_forces
 
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, &
@@ -300,6 +299,7 @@ CONTAINS
       CALL grid_integrate_task_list(task_list=task_list%grid_task_list, &
                                     compute_tau=my_compute_tau, &
                                     calculate_forces=calculate_forces, &
+                                    calculate_virial=calculate_virial, &
                                     pab_blocks=task_list%pab_buffer, &
                                     rs_grids=rs_v, &
                                     hab_blocks=task_list%hab_buffer, &
@@ -320,7 +320,7 @@ CONTAINS
          DEALLOCATE (atom_of_kind, kind_of)
       END IF
 
-      IF (use_virial .AND. calculate_forces) THEN
+      IF (calculate_virial) THEN
          virial%pv_virial = virial%pv_virial + admm_scal_fac*virial_matrix
       END IF
 

@@ -381,11 +381,11 @@ static inline void store_hab(const grid_basis_set *ibasis,
 static void integrate_one_grid_level(
     const grid_ref_task_list *task_list, const int first_task,
     const int last_task, const bool orthorhombic, const bool compute_tau,
-    const bool calculate_forces, const int natoms, const int npts_global[3],
-    const int npts_local[3], const int shift_local[3],
-    const int border_width[3], const double dh[3][3], const double dh_inv[3][3],
-    const grid_buffer *pab_blocks, const double *grid, grid_buffer *hab_blocks,
-    double forces[natoms][3], double virial[3][3]) {
+    const int natoms, const int npts_global[3], const int npts_local[3],
+    const int shift_local[3], const int border_width[3], const double dh[3][3],
+    const double dh_inv[3][3], const grid_buffer *pab_blocks,
+    const double *grid, grid_buffer *hab_blocks, double forces[natoms][3],
+    double virial[3][3]) {
 
   // Allocate memory for thread local copy of the hab_blocks.
   const int nthreads = omp_get_max_threads();
@@ -433,11 +433,12 @@ static void integrate_one_grid_level(
       const int block_num = task->block_num - 1;
       const int block_offset = task_list->block_offsets[block_num];
       const bool transpose = (iatom <= jatom);
+      const bool pab_required = (forces != NULL || virial != NULL);
 
       // Load pab and store hab subblocks when needed.
       // Previous hab and pab can be reused when only ipgf or jpgf has changed.
       if (block_offset != old_offset || iset != old_iset || jset != old_jset) {
-        if (calculate_forces) {
+        if (pab_required) {
           load_pab(ibasis, jbasis, iset, jset, transpose,
                    &pab_blocks->host_buffer[block_offset], pab);
         }
@@ -482,20 +483,25 @@ static void integrate_one_grid_level(
           /*n2=*/ncob,
           /*grid=*/grid,
           /*hab=*/(double(*)[ncoa])hab,
-          /*pab=*/(calculate_forces) ? (const double(*)[ncoa])pab : NULL,
-          /*forces=*/(calculate_forces) ? my_forces : NULL,
-          /*virials=*/(calculate_forces) ? my_virials : NULL,
+          /*pab=*/(pab_required) ? (const double(*)[ncoa])pab : NULL,
+          /*forces=*/(forces != NULL) ? my_forces : NULL,
+          /*virials=*/(virial != NULL) ? my_virials : NULL,
           /*hdab=*/NULL,
           /*a_hdab=*/NULL);
 
       // Merge thread local forces and virial into shared ones.
       // It does not seem worth the trouble to accumulate them thread-locally.
-      if (calculate_forces) {
-        const double scalef = (iatom == jatom) ? 1.0 : 2.0;
+      const double scalef = (iatom == jatom) ? 1.0 : 2.0;
+      if (forces != NULL) {
 #pragma omp critical(forces)
         for (int i = 0; i < 3; i++) {
           forces[iatom][i] += scalef * my_forces[0][i];
           forces[jatom][i] += scalef * my_forces[1][i];
+        }
+      }
+      if (virial != NULL) {
+#pragma omp critical(virial)
+        for (int i = 0; i < 3; i++) {
           for (int j = 0; j < 3; j++) {
             virial[i][j] += scalef * my_virials[0][i][j];
             virial[i][j] += scalef * my_virials[1][i][j];
@@ -529,21 +535,22 @@ static void integrate_one_grid_level(
  ******************************************************************************/
 void grid_ref_integrate_task_list(
     const grid_ref_task_list *task_list, const bool orthorhombic,
-    const bool compute_tau, const bool calculate_forces, const int natoms,
-    const int nlevels, const int npts_global[nlevels][3],
-    const int npts_local[nlevels][3], const int shift_local[nlevels][3],
-    const int border_width[nlevels][3], const double dh[nlevels][3][3],
-    const double dh_inv[nlevels][3][3], const grid_buffer *pab_blocks,
-    const double *grid[nlevels], grid_buffer *hab_blocks,
-    double forces[natoms][3], double virial[3][3]) {
+    const bool compute_tau, const int natoms, const int nlevels,
+    const int npts_global[nlevels][3], const int npts_local[nlevels][3],
+    const int shift_local[nlevels][3], const int border_width[nlevels][3],
+    const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
+    const grid_buffer *pab_blocks, const double *grid[nlevels],
+    grid_buffer *hab_blocks, double forces[natoms][3], double virial[3][3]) {
 
   assert(task_list->nlevels == nlevels);
   assert(task_list->natoms == natoms);
 
   // Zero result arrays.
   memset(hab_blocks->host_buffer, 0, hab_blocks->size);
-  if (calculate_forces) {
+  if (forces != NULL) {
     memset(forces, 0, natoms * 3 * sizeof(double));
+  }
+  if (virial != NULL) {
     memset(virial, 0, 9 * sizeof(double));
   }
 
@@ -552,10 +559,10 @@ void grid_ref_integrate_task_list(
     const int last_task = first_task + task_list->tasks_per_level[level] - 1;
 
     integrate_one_grid_level(
-        task_list, first_task, last_task, orthorhombic, compute_tau,
-        calculate_forces, natoms, npts_global[level], npts_local[level],
-        shift_local[level], border_width[level], dh[level], dh_inv[level],
-        pab_blocks, grid[level], hab_blocks, forces, virial);
+        task_list, first_task, last_task, orthorhombic, compute_tau, natoms,
+        npts_global[level], npts_local[level], shift_local[level],
+        border_width[level], dh[level], dh_inv[level], pab_blocks, grid[level],
+        hab_blocks, forces, virial);
 
     first_task = last_task + 1;
   }

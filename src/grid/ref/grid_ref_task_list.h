@@ -93,13 +93,12 @@ void grid_ref_collocate_task_list(
  ******************************************************************************/
 void grid_ref_integrate_task_list(
     const grid_ref_task_list *task_list, const bool orthorhombic,
-    const bool compute_tau, const bool calculate_forces, const int natoms,
-    const int nlevels, const int npts_global[nlevels][3],
-    const int npts_local[nlevels][3], const int shift_local[nlevels][3],
-    const int border_width[nlevels][3], const double dh[nlevels][3][3],
-    const double dh_inv[nlevels][3][3], const grid_buffer *pab_blocks,
-    const double *grid[nlevels], grid_buffer *hab_blocks,
-    double forces[natoms][3], double virial[3][3]);
+    const bool compute_tau, const int natoms, const int nlevels,
+    const int npts_global[nlevels][3], const int npts_local[nlevels][3],
+    const int shift_local[nlevels][3], const int border_width[nlevels][3],
+    const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
+    const grid_buffer *pab_blocks, const double *grid[nlevels],
+    grid_buffer *hab_blocks, double forces[natoms][3], double virial[3][3]);
 
 #endif
 

@@ -116,7 +116,6 @@ void grid_collocate_task_list(
  * \param task_list        Task list to collocate.
  * \param orthorhombic     Whether simulation box is orthorhombic.
  * \param compute_tau      When true then <nabla a| V | nabla b> is computed.
- * \param calculate_forces When true then forces and virial are calculated.
  * \param natoms           Number of atoms.
  * \param nlevels          Number of grid levels.
  *
@@ -130,23 +129,22 @@ void grid_collocate_task_list(
  * \param dh_inv          Inverse incremental grid matrix.
  * \param grid            Grid array to integrate from.
  *
- * \param pab_blocks      Optional density blocks, needed for calculate_forces.
+ * \param pab_blocks      Optional density blocks, needed for forces and virial.
  *
  * \param hab_blocks      Output buffer with the Hamiltonian matrix blocks.
- * \param forces          Optional output forces, requires calculate_forces=T.
- * \param virial          Optional output virials, requires calculate_forces=T.
+ * \param forces          Optional output forces, requires pab_blocks.
+ * \param virial          Optional output virials, requires pab_blocks.
  *
  * \author Ole Schuett
  ******************************************************************************/
 void grid_integrate_task_list(
     const grid_task_list *task_list, const bool orthorhombic,
-    const bool compute_tau, const bool calculate_forces, const int natoms,
-    const int nlevels, const int npts_global[nlevels][3],
-    const int npts_local[nlevels][3], const int shift_local[nlevels][3],
-    const int border_width[nlevels][3], const double dh[nlevels][3][3],
-    const double dh_inv[nlevels][3][3], const grid_buffer *pab_blocks,
-    const double *grid[nlevels], grid_buffer *hab_blocks,
-    double forces[natoms][3], double virial[3][3]);
+    const bool compute_tau, const int natoms, const int nlevels,
+    const int npts_global[nlevels][3], const int npts_local[nlevels][3],
+    const int shift_local[nlevels][3], const int border_width[nlevels][3],
+    const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
+    const grid_buffer *pab_blocks, const double *grid[nlevels],
+    grid_buffer *hab_blocks, double forces[natoms][3], double virial[3][3]);
 
 #endif
 

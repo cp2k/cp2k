@@ -5,6 +5,7 @@
 /*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
 /*----------------------------------------------------------------------------*/
 
+#include <assert.h>
 #include <math.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -221,40 +222,42 @@ void grid_collocate_task_list(
  ******************************************************************************/
 void grid_integrate_task_list(
     const grid_task_list *task_list, const bool orthorhombic,
-    const bool compute_tau, const bool calculate_forces, const int natoms,
-    const int nlevels, const int npts_global[nlevels][3],
-    const int npts_local[nlevels][3], const int shift_local[nlevels][3],
-    const int border_width[nlevels][3], const double dh[nlevels][3][3],
-    const double dh_inv[nlevels][3][3], const grid_buffer *pab_blocks,
-    const double *grid[nlevels], grid_buffer *hab_blocks,
-    double forces[natoms][3], double virial[3][3]) {
+    const bool compute_tau, const int natoms, const int nlevels,
+    const int npts_global[nlevels][3], const int npts_local[nlevels][3],
+    const int shift_local[nlevels][3], const int border_width[nlevels][3],
+    const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
+    const grid_buffer *pab_blocks, const double *grid[nlevels],
+    grid_buffer *hab_blocks, double forces[natoms][3], double virial[3][3]) {
+
+  assert(forces == NULL || pab_blocks != NULL);
+  assert(virial == NULL || pab_blocks != NULL);
 
   switch (task_list->backend) {
 #ifdef __GRID_CUDA
   case GRID_BACKEND_GPU:
     // grid_gpu_integrate_task_list(
-    //     task_list->gpu, orthorhombic, compute_tau, calculate_forces, natoms,
+    //     task_list->gpu, orthorhombic, compute_tau, natoms,
     //     nlevels, npts_global, npts_local, shift_local, border_width, dh,
     //     dh_inv, pab_blocks, grid, hab_blocks, forces, virial);
     // break;
   case GRID_BACKEND_HYBRID:
     // grid_hybrid_integrate_task_list(
-    //     task_list->hybrid, orthorhombic, compute_tau, calculate_forces,
-    //     natoms, nlevels, npts_global, npts_local, shift_local, border_width,
+    //     task_list->hybrid, orthorhombic, compute_tau, natoms,
+    //     nlevels, npts_global, npts_local, shift_local, border_width,
     //     dh, dh_inv, pab_blocks, grid, hab_blocks, forces, virial);
     // break;
 #endif
   case GRID_BACKEND_CPU:
     // grid_cpu_integrate_task_list(
-    //     task_list->cpu, orthorhombic, compute_tau, calculate_forces, natoms,
-    //     nlevels, npts_global, npts_local, shift_local, border_width, dh,
-    //     dh_inv, pab_blocks, grid, hab_blocks, forces, virial);
+    //     task_list->hybrid, orthorhombic, compute_tau, natoms,
+    //     nlevels, npts_global, npts_local, shift_local, border_width,
+    //     dh, dh_inv, pab_blocks, grid, hab_blocks, forces, virial);
     // break;
   case GRID_BACKEND_REF:
-    grid_ref_integrate_task_list(
-        task_list->ref, orthorhombic, compute_tau, calculate_forces, natoms,
-        nlevels, npts_global, npts_local, shift_local, border_width, dh, dh_inv,
-        pab_blocks, grid, hab_blocks, forces, virial);
+    grid_ref_integrate_task_list(task_list->ref, orthorhombic, compute_tau,
+                                 natoms, nlevels, npts_global, npts_local,
+                                 shift_local, border_width, dh, dh_inv,
+                                 pab_blocks, grid, hab_blocks, forces, virial);
     break;
   default:
     printf("Error: Unknown grid backend: %i.\n", task_list->backend);
