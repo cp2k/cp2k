@@ -146,13 +146,12 @@ MODULE qs_active_space_methods
    END TYPE
 
    TYPE, EXTENDS(eri_type_eri_element_func) :: eri_fcidump_checksum
-      INTEGER :: bra_start=0, ket_start=0
-      REAL(KIND=dp) :: checksum=0.0_dp
-    CONTAINS
+      INTEGER :: bra_start = 0, ket_start = 0
+      REAL(KIND=dp) :: checksum = 0.0_dp
+   CONTAINS
       PROCEDURE, PASS :: set => eri_fcidump_set
       PROCEDURE :: func => eri_fcidump_checksum_func
    END TYPE eri_fcidump_checksum
-
 
 ! **************************************************************************************************
 
@@ -164,13 +163,12 @@ CONTAINS
 !> \param bra_start starting index of the bra
 !> \param ket_start starting index of the ket
 ! **************************************************************************************************
-  SUBROUTINE eri_fcidump_set( this, bra_start, ket_start )
-    CLASS(eri_fcidump_checksum) :: this
-    INTEGER, INTENT(IN) :: bra_start, ket_start
-    this%bra_start = bra_start
-    this%ket_start = ket_start
-  END SUBROUTINE eri_fcidump_set
-
+   SUBROUTINE eri_fcidump_set(this, bra_start, ket_start)
+      CLASS(eri_fcidump_checksum) :: this
+      INTEGER, INTENT(IN) :: bra_start, ket_start
+      this%bra_start = bra_start
+      this%ket_start = ket_start
+   END SUBROUTINE eri_fcidump_set
 
 ! **************************************************************************************************
 !> \brief Main method for determining the active space Hamiltonian
@@ -187,8 +185,8 @@ CONTAINS
 
       CHARACTER(len=10)                                  :: cshell, lnam(5)
       INTEGER :: eri_method, eri_operator, eri_print, handle, i, iatom, ishell, isp, ispin, iw, j, &
-         jm, m, mselect, n1, n2, nelec_active, nao, natom, ncol, nel, nelec_inactive, nelec_inactive_alpha, &
-         nelec_inactive_beta, nmo, nn1, nn2, nspins, nelec_total, zval
+         jm, m, mselect, n1, n2, nao, natom, ncol, nel, nelec_active, nelec_inactive, &
+         nelec_inactive_alpha, nelec_inactive_beta, nelec_total, nmo, nn1, nn2, nspins, zval
       INTEGER, DIMENSION(2)                              :: nactive_orb, nepol, ninactive_orb
       INTEGER, DIMENSION(5)                              :: nshell
       INTEGER, DIMENSION(:), POINTER                     :: invals
@@ -312,7 +310,6 @@ CONTAINS
          END IF
       END IF
 
-
       CPASSERT(nelec_inactive >= 0)
       CPASSERT(nelec_inactive_alpha >= 0)
       CPASSERT(nelec_inactive_beta >= 0)
@@ -321,7 +318,6 @@ CONTAINS
          CPASSERT(nepol(1) >= nelec_inactive_alpha)
          CPASSERT(nepol(2) >= nelec_inactive_beta)
       END IF
-
 
       active_space_env%nelec_active = nelec_active
       active_space_env%nelec_inactive = nelec_inactive
@@ -1182,7 +1178,7 @@ CONTAINS
                            END IF
                            wfn_r%pw%cr3d = rho_r%pw%cr3d*wfn3%pw%cr3d*wfn4%pw%cr3d
                            erint = pw_integrate_function(wfn_r%pw)
-                           IF (abs(erint) > eri_env%eps_integral) THEN
+                           IF (ABS(erint) > eri_env%eps_integral) THEN
                               intcount = intcount + 1
                               IF (print2 .AND. iw > 0) THEN
                                  WRITE (iw, "(T4,'ERI_GPW|',T20,2I4,' [',I1,']',2I4,' [',I1,']',T58,G20.14)") &
@@ -1516,10 +1512,10 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: as_input
 
       INTEGER                                            :: i, i1, i2, i3, i4, isym, iw, nspins
-      REAL(KIND=dp)                                      :: esub, checksum
+      REAL(KIND=dp)                                      :: checksum, esub
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: fmat
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(eri_fcidump_checksum) :: eri_checksum
+      TYPE(eri_fcidump_checksum)                         :: eri_checksum
 
       checksum = 0.0_dp
 
@@ -1545,14 +1541,14 @@ CONTAINS
                END IF
                !
                ! Print integrals: ERI
-               CALL active_space_env%eri%eri_foreach(1, eri_fcidump_print(iw,1,1))
-               CALL eri_checksum%set(1,1)
+               CALL active_space_env%eri%eri_foreach(1, eri_fcidump_print(iw, 1, 1))
+               CALL eri_checksum%set(1, 1)
                CALL active_space_env%eri%eri_foreach(1, eri_checksum)
 
                ! Print integrals: Fij
                ! replicate Fock matrix
                ALLOCATE (fmat(norb, norb))
-               CALL replicate_and_symmetrize_matrix( norb, active_space_env%fock_sub(1)%matrix, fmat )
+               CALL replicate_and_symmetrize_matrix(norb, active_space_env%fock_sub(1)%matrix, fmat)
                IF (iw > 0) THEN
                   i3 = 0; i4 = 0
                   DO i1 = 1, norb
@@ -1587,21 +1583,21 @@ CONTAINS
                !
                ! Print integrals: ERI
                ! alpha-alpha
-               CALL active_space_env%eri%eri_foreach(1, eri_fcidump_print(iw,1,1))
-               CALL eri_checksum%set(1,1)
+               CALL active_space_env%eri%eri_foreach(1, eri_fcidump_print(iw, 1, 1))
+               CALL eri_checksum%set(1, 1)
                CALL active_space_env%eri%eri_foreach(1, eri_checksum)
                ! alpha-beta
-               CALL active_space_env%eri%eri_foreach(2, eri_fcidump_print(iw,1,norb+1))
-               CALL eri_checksum%set(1,norb+1)
+               CALL active_space_env%eri%eri_foreach(2, eri_fcidump_print(iw, 1, norb + 1))
+               CALL eri_checksum%set(1, norb + 1)
                CALL active_space_env%eri%eri_foreach(2, eri_checksum)
                ! beta-beta
-               CALL active_space_env%eri%eri_foreach(3, eri_fcidump_print(iw,norb+1,norb+1))
-               CALL eri_checksum%set(norb+1,norb+1)
+               CALL active_space_env%eri%eri_foreach(3, eri_fcidump_print(iw, norb + 1, norb + 1))
+               CALL eri_checksum%set(norb + 1, norb + 1)
                CALL active_space_env%eri%eri_foreach(3, eri_checksum)
                ! Print integrals: Fij
                ! alpha
                ALLOCATE (fmat(norb, norb))
-               CALL replicate_and_symmetrize_matrix( norb, active_space_env%fock_sub(1)%matrix, fmat )
+               CALL replicate_and_symmetrize_matrix(norb, active_space_env%fock_sub(1)%matrix, fmat)
                IF (iw > 0) THEN
                   i3 = 0; i4 = 0
                   DO i1 = 1, norb
@@ -1614,13 +1610,13 @@ CONTAINS
                DEALLOCATE (fmat)
                ! beta
                ALLOCATE (fmat(norb, norb))
-               CALL replicate_and_symmetrize_matrix( norb, active_space_env%fock_sub(2)%matrix, fmat )
+               CALL replicate_and_symmetrize_matrix(norb, active_space_env%fock_sub(2)%matrix, fmat)
                IF (iw > 0) THEN
                   i3 = 0; i4 = 0
                   DO i1 = 1, norb
                      DO i2 = i1, norb
                         checksum = checksum + ABS(fmat(i1, i2))
-                        WRITE (iw, "(ES23.16,4I4)") fmat(i1, i2), i1+norb, i2+norb, i3, i4
+                        WRITE (iw, "(ES23.16,4I4)") fmat(i1, i2), i1 + norb, i2 + norb, i3, i4
                      END DO
                   END DO
                END IF
@@ -1637,13 +1633,12 @@ CONTAINS
 
          !>>
          iw = cp_logger_get_default_io_unit(logger)
-         IF (iw > 0) WRITE (iw, '(T4,A,T66,F12.8)') "FCIDUMP| Checksum:", eri_checksum%checksum+checksum
+         IF (iw > 0) WRITE (iw, '(T4,A,T66,F12.8)') "FCIDUMP| Checksum:", eri_checksum%checksum + checksum
          !<<
 
       END IF
 
    END SUBROUTINE fcidump
-
 
 ! **************************************************************************************************
 !> \brief replicate and symmetrize a matrix
@@ -1651,15 +1646,15 @@ CONTAINS
 !> \param distributed_matrix ...
 !> \param replicated_matrix ...
 ! **************************************************************************************************
-   SUBROUTINE replicate_and_symmetrize_matrix( norb, distributed_matrix, replicated_matrix )
-      INTEGER, INTENT(IN) :: norb
-      TYPE(cp_fm_type), POINTER, INTENT(IN) :: distributed_matrix
-      REAL(dp), DIMENSION(:,:), INTENT(INOUT) :: replicated_matrix
+   SUBROUTINE replicate_and_symmetrize_matrix(norb, distributed_matrix, replicated_matrix)
+      INTEGER, INTENT(IN)                                :: norb
+      TYPE(cp_fm_type), INTENT(IN), POINTER              :: distributed_matrix
+      REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: replicated_matrix
 
-      INTEGER :: i1, i2
-      REAL(dp) :: mval
+      INTEGER                                            :: i1, i2
+      REAL(dp)                                           :: mval
 
-      replicated_matrix(:,:) = 0.0_dp
+      replicated_matrix(:, :) = 0.0_dp
       DO i1 = 1, norb
          DO i2 = i1, norb
             CALL cp_fm_get_element(distributed_matrix, i1, i2, mval)
@@ -1681,12 +1676,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'subspace_fock_matrix', &
          routineP = moduleN//':'//routineN
-      INTEGER                                            :: i1, i2, &
-                                                            is, &
-                                                            norb, nspins
+
+      INTEGER                                            :: i1, i2, is, norb, nspins
       REAL(KIND=dp)                                      :: eeri, eref, esub, mval
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ks_mat, ks_ref, p_mat, p_a_mat, p_b_mat, &
-           ks_a_ref, ks_b_ref, ks_a_mat, ks_b_mat
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ks_a_mat, ks_a_ref, ks_b_mat, ks_b_ref, &
+                                                            ks_mat, ks_ref, p_a_mat, p_b_mat, p_mat
       TYPE(cp_fm_type), POINTER                          :: matrix
       TYPE(dbcsr_csr_type), POINTER                      :: eri, eri_aa, eri_ab, eri_bb
 
@@ -1701,12 +1695,12 @@ CONTAINS
          ALLOCATE (ks_mat(norb, norb), ks_ref(norb, norb), p_mat(norb, norb))
          ks_ref = 0.0_dp
 
-         call replicate_and_symmetrize_matrix( norb, active_space_env%p_active(1)%matrix, p_mat )
-         call replicate_and_symmetrize_matrix( norb, active_space_env%ks_sub(1)%matrix, ks_mat )
+         CALL replicate_and_symmetrize_matrix(norb, active_space_env%p_active(1)%matrix, p_mat)
+         CALL replicate_and_symmetrize_matrix(norb, active_space_env%ks_sub(1)%matrix, ks_mat)
          !
          !
          eri => active_space_env%eri%eri(1)%csr_mat
-         call build_subspace_fock_matrix( norb, eri, p_mat, ks_ref )
+         CALL build_subspace_fock_matrix(norb, eri, p_mat, ks_ref)
          !
          ! calculate energy
          eeri = 0.0_dp
@@ -1744,27 +1738,27 @@ CONTAINS
          ! replicate KS, Core, and P matrices
          ALLOCATE (ks_a_mat(norb, norb), ks_b_mat(norb, norb), &
               &    ks_a_ref(norb, norb), ks_b_ref(norb, norb), &
-              &     p_a_mat(norb, norb),  p_b_mat(norb, norb))
-         ks_a_ref(:,:) = 0.0_dp; ks_b_ref(:,:) = 0.0_dp
+              &     p_a_mat(norb, norb), p_b_mat(norb, norb))
+         ks_a_ref(:, :) = 0.0_dp; ks_b_ref(:, :) = 0.0_dp
 
-         call replicate_and_symmetrize_matrix( norb, active_space_env%p_active(1)%matrix, p_a_mat )
-         call replicate_and_symmetrize_matrix( norb, active_space_env%p_active(2)%matrix, p_b_mat )
-         call replicate_and_symmetrize_matrix( norb, active_space_env%ks_sub(1)%matrix, ks_a_mat )
-         call replicate_and_symmetrize_matrix( norb, active_space_env%ks_sub(2)%matrix, ks_b_mat )
+         CALL replicate_and_symmetrize_matrix(norb, active_space_env%p_active(1)%matrix, p_a_mat)
+         CALL replicate_and_symmetrize_matrix(norb, active_space_env%p_active(2)%matrix, p_b_mat)
+         CALL replicate_and_symmetrize_matrix(norb, active_space_env%ks_sub(1)%matrix, ks_a_mat)
+         CALL replicate_and_symmetrize_matrix(norb, active_space_env%ks_sub(2)%matrix, ks_b_mat)
          !
          !
          eri_aa => active_space_env%eri%eri(1)%csr_mat
          eri_ab => active_space_env%eri%eri(2)%csr_mat
          eri_bb => active_space_env%eri%eri(3)%csr_mat
-         call build_subspace_spin_fock_matrix( norb, eri_aa, eri_ab, p_a_mat, p_b_mat, ks_a_ref, tr_mixed_eri=.false. )
-         call build_subspace_spin_fock_matrix( norb, eri_bb, eri_ab, p_b_mat, p_a_mat, ks_b_ref, tr_mixed_eri=.true. )
+         CALL build_subspace_spin_fock_matrix(norb, eri_aa, eri_ab, p_a_mat, p_b_mat, ks_a_ref, tr_mixed_eri=.FALSE.)
+         CALL build_subspace_spin_fock_matrix(norb, eri_bb, eri_ab, p_b_mat, p_a_mat, ks_b_ref, tr_mixed_eri=.TRUE.)
          !
          ! calculate energy
          eeri = 0.0_dp
-         eeri = 0.5_dp*( SUM(ks_a_ref*p_a_mat) + SUM(ks_b_ref*p_b_mat) )
-         esub = eref - SUM(ks_a_mat*p_a_mat)-SUM(ks_b_mat*p_b_mat) + eeri
-         ks_a_mat(:,:) = ks_a_mat(:,:) - ks_a_ref(:, :)
-         ks_b_mat(:,:) = ks_b_mat(:,:) - ks_b_ref(:, :)
+         eeri = 0.5_dp*(SUM(ks_a_ref*p_a_mat) + SUM(ks_b_ref*p_b_mat))
+         esub = eref - SUM(ks_a_mat*p_a_mat) - SUM(ks_b_mat*p_b_mat) + eeri
+         ks_a_mat(:, :) = ks_a_mat(:, :) - ks_a_ref(:, :)
+         ks_b_mat(:, :) = ks_b_mat(:, :) - ks_b_ref(:, :)
          !
          active_space_env%energy_inactive = esub
          !
@@ -1778,9 +1772,8 @@ CONTAINS
          DO is = 1, nspins
             matrix => active_space_env%ks_sub(is)%matrix
             CALL cp_fm_create(active_space_env%fock_sub(is)%matrix, matrix%matrix_struct, &
-                 name="Active Fock operator")
+                              name="Active Fock operator")
          END DO
-
 
          matrix => active_space_env%fock_sub(1)%matrix
          DO i1 = 1, norb
@@ -1801,7 +1794,6 @@ CONTAINS
 
    END SUBROUTINE subspace_fock_matrix
 
-
 ! **************************************************************************************************
 !> \brief build subspace fockian
 !> \param norb number of orbitals
@@ -1809,16 +1801,16 @@ CONTAINS
 !> \param p_mat density matrix
 !> \param ks_ref fockian matrix
 ! **************************************************************************************************
-   SUBROUTINE build_subspace_fock_matrix( norb, eri, p_mat, ks_ref )
-      INTEGER, INTENT(IN) :: norb
-      TYPE(dbcsr_csr_type), INTENT(IN)  :: eri
-      REAL(dp), DIMENSION(:,:), INTENT(IN) :: p_mat
-      REAL(dp), DIMENSION(:,:), INTENT(INOUT) :: ks_ref
+   SUBROUTINE build_subspace_fock_matrix(norb, eri, p_mat, ks_ref)
+      INTEGER, INTENT(IN)                                :: norb
+      TYPE(dbcsr_csr_type), INTENT(IN)                   :: eri
+      REAL(dp), DIMENSION(:, :), INTENT(IN)              :: p_mat
+      REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: ks_ref
 
-      INTEGER :: nindex, i1, i2, i12, i12l, irptr, i34l, i34, i3, i4
-      INTEGER, DIMENSION(2) :: irange
-      REAL(dp) :: erint
-
+      INTEGER                                            :: i1, i12, i12l, i2, i3, i34, i34l, i4, &
+                                                            irptr, nindex
+      INTEGER, DIMENSION(2)                              :: irange
+      REAL(dp)                                           :: erint
 
       nindex = (norb*(norb + 1))/2
       irange = get_irange_csr(nindex, eri%mp_group)
@@ -1869,28 +1861,27 @@ CONTAINS
 
    END SUBROUTINE build_subspace_fock_matrix
 
-
 ! **************************************************************************************************
 !> \brief build subspace fockian for unrestricted spins
 !> \param norb number of orbitals
 !> \param eri_aa two electon integrals in MO with parallel spins
 !> \param eri_ab two electon integrals in MO with anti-parallel spins
 !> \param p_a_mat density matrix for up-spin
-!> \param p_a_mat density matrix for down-spin
+!> \param p_b_mat density matrix for down-spin
 !> \param ks_a_ref fockian matrix for up-spin
 !> \param tr_mixed_eri boolean to indicate Coulomb interaction alignment
 ! **************************************************************************************************
-   SUBROUTINE build_subspace_spin_fock_matrix( norb, eri_aa, eri_ab, p_a_mat, p_b_mat, ks_a_ref, tr_mixed_eri )
-      INTEGER, INTENT(IN) :: norb
-      TYPE(dbcsr_csr_type), INTENT(IN)  :: eri_aa, eri_ab
-      REAL(dp), DIMENSION(:,:), INTENT(IN) :: p_a_mat, p_b_mat
-      REAL(dp), DIMENSION(:,:), INTENT(INOUT) :: ks_a_ref
-      LOGICAL, INTENT(IN) :: tr_mixed_eri
+   SUBROUTINE build_subspace_spin_fock_matrix(norb, eri_aa, eri_ab, p_a_mat, p_b_mat, ks_a_ref, tr_mixed_eri)
+      INTEGER, INTENT(IN)                                :: norb
+      TYPE(dbcsr_csr_type), INTENT(IN)                   :: eri_aa, eri_ab
+      REAL(dp), DIMENSION(:, :), INTENT(IN)              :: p_a_mat, p_b_mat
+      REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: ks_a_ref
+      LOGICAL, INTENT(IN)                                :: tr_mixed_eri
 
-      INTEGER :: nindex, i1, i2, i12, i12l, irptr, i34l, i34, i3, i4
-      INTEGER, DIMENSION(2) :: irange
-      REAL(dp) :: erint
-
+      INTEGER                                            :: i1, i12, i12l, i2, i3, i34, i34l, i4, &
+                                                            irptr, nindex
+      INTEGER, DIMENSION(2)                              :: irange
+      REAL(dp)                                           :: erint
 
       nindex = (norb*(norb + 1))/2
       irange = get_irange_csr(nindex, eri_aa%mp_group)
@@ -1945,13 +1936,13 @@ CONTAINS
                   CALL csr_idx_from_combined(i34, norb, i3, i4)
                   erint = eri_ab%nzval_local%r_dp(irptr + i34l)
                   ! Coulomb
-                  if(tr_mixed_eri) then
+                  IF (tr_mixed_eri) THEN
                      !F_kl += (kl beta|ij alpha )*d_alpha_ij
                      ks_a_ref(i3, i4) = ks_a_ref(i3, i4) + erint*p_b_mat(i1, i2)
-                  else
+                  ELSE
                      !F_ij += (ij alpha|kl beta )*d_beta_kl
                      ks_a_ref(i1, i2) = ks_a_ref(i1, i2) + erint*p_b_mat(i3, i4)
-                  endif
+                  ENDIF
                END DO
             END IF
          END DO
@@ -1965,7 +1956,6 @@ CONTAINS
       CALL mp_sum(ks_a_ref, eri_aa%mp_group)
 
    END SUBROUTINE build_subspace_spin_fock_matrix
-
 
 ! **************************************************************************************************
 !> \brief Creates a local basis
@@ -2152,8 +2142,8 @@ CONTAINS
       IF (this%unit_nr > 0) THEN
          !WRITE (this%unit_nr, "(ES23.16,4I4)") val, i, j, &
          !     &                                     k, l
-         WRITE (this%unit_nr, "(ES23.16,4I4)") val, i +this%bra_start-1, j +this%bra_start-1, &
-              &                                     k +this%ket_start-1, l +this%ket_start-1
+         WRITE (this%unit_nr, "(ES23.16,4I4)") val, i + this%bra_start - 1, j + this%bra_start - 1, &
+              &                                     k + this%ket_start - 1, l + this%ket_start - 1
       END IF
 
       cont = .TRUE.
@@ -2170,21 +2160,21 @@ CONTAINS
 !> \return always true to dump all integrals
 ! **************************************************************************************************
    LOGICAL FUNCTION eri_fcidump_checksum_func(this, i, j, k, l, val) RESULT(cont)
-     CLASS(eri_fcidump_checksum), INTENT(inout) :: this
-     INTEGER, INTENT(in)                     :: i, j, k, l
-     REAL(KIND=dp), INTENT(in)               :: val
-     ! TODO Without performing some no-operation on these arguments, the compiler complains about
-     ! unused dummy arguments. However, we cannot remove them in the current implementation. How
-     ! should we handle this clearnly?
-#define nop(x) associate( x => x ); end associate
-     nop( i )
-     nop( j )
-     nop( k )
-     nop( l )
+      CLASS(eri_fcidump_checksum), INTENT(inout) :: this
+      INTEGER, INTENT(in)                     :: i, j, k, l
+      REAL(KIND=dp), INTENT(in)               :: val
+      ! TODO Without performing some no-operation on these arguments, the compiler complains about
+      ! unused dummy arguments. However, we cannot remove them in the current implementation. How
+      ! should we handle this clearnly?
+#define nop(x) associate( x => x ); END associate
+      nop(i)
+      nop(j)
+      nop(k)
+      nop(l)
 
-     this%checksum = this%checksum + ABS(val)
+      this%checksum = this%checksum + ABS(val)
 
-     cont = .TRUE.
+      cont = .TRUE.
    END FUNCTION eri_fcidump_checksum_func
 
 END MODULE qs_active_space_methods
