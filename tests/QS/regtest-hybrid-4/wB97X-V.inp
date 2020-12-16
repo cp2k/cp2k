@@ -52,6 +52,7 @@
            VERBOSE_OUTPUT
            KERNEL_FILE_NAME rVV10_kernel_table.dat
            CUTOFF 40
+           SCALE 1.0
          &END NON_LOCAL
       &END vdW_POTENTIAL
    &END XC 
