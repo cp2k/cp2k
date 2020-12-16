@@ -1,0 +1,78 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &QS
+      METHOD GAPW
+    &END QS
+    UKS TRUE
+    MULTIPLICITY 3
+    &XC
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
+      &HF 1.0
+      &END HF
+    &END XC
+    &POISSON
+      POISSON_SOLVER ANALYTIC
+      PERIODIC NONE
+    &END POISSON
+    &MGRID
+      CUTOFF 500
+    &END MGRID
+    &SCF
+      ADDED_MOS 17
+      MAX_SCF 20
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
+    &END SCF
+    &PRINT
+      &AO_MATRICES
+        CORE_HAMILTONIAN TRUE
+        KINETIC_ENERGY TRUE
+        POTENTIAL_ENERGY TRUE
+      &END AO_MATRICES
+      &ACTIVE_SPACE
+        ACTIVE_ELECTRONS 2
+        ACTIVE_ORBITALS 3 3
+        INACTIVE_ELECTRONS 3 3
+        ISOLATED_SYSTEM TRUE
+        &ERI
+          METHOD FULL_GPW
+          PERIODICITY 0 0 0
+        &END ERI
+        &ERI_GPW
+          CUTOFF 500
+        &END ERI_GPW
+        &FCIDUMP
+          FILENAME __STD_OUT__
+        &END FCIDUMP
+      &END ACTIVE_SPACE
+    &END PRINT
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      C 0.000  0.000  0.112
+      H 0.000  0.974  0.335
+      H 0.000 -0.974 -0.335
+    &END COORD
+    &KIND H
+      BASIS_SET 6-31G*
+      POTENTIAL ALL
+    &END KIND
+    &KIND C
+      BASIS_SET 6-31G*
+      POTENTIAL ALL
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+  PROJECT ch2_gapw
+&END GLOBAL
