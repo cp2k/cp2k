@@ -18,7 +18,7 @@
       CUTOFF 500
     &END MGRID
     &SCF
-      ADDED_MOS 18
+      ADDED_MOS 17
       MAX_SCF 20
       &PRINT
         &RESTART OFF
