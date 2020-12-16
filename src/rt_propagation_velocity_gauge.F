@@ -507,7 +507,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ai_work_cos, ai_work_sin, work_cos, &
                                                             work_sin
       REAL(KIND=dp), DIMENSION(1)                        :: rprjc, zetc
-      REAL(KIND=dp), DIMENSION(3)                        :: ra, rac, rc
+      REAL(KIND=dp), DIMENSION(3)                        :: ra, rac, rc, raf, rcf
       REAL(KIND=dp), DIMENSION(:), POINTER               :: alpha_ppnl, set_radius_a
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cprj, rpgfa, sphi_a, vprj_ppnl, zeta
       TYPE(clist_type), POINTER                          :: clist, clist_sin
@@ -619,7 +619,7 @@ CONTAINS
 !$OMP          cell_c, rac, dac, iac, first_sgfa, la_max, la_min, npgfa, nseta, nsgfa, nsgf_seta,&
 !$OMP          rpgfa, set_radius_a, sphi_a, zeta, alpha_ppnl, cprj, lppnl, nppnl, nprj_ppnl,&
 !$OMP          ppnl_radius, vprj_ppnl, clist, clist_sin, ra, rc, ncoa, sgfa, prjc, work_cos, work_sin,&
-!$OMP          nprjc, rprjc, lc_max, lc_min, zetc, ncoc, ai_work_sin, ai_work_cos, na, nb, np, dogth)
+!$OMP          nprjc, rprjc, lc_max, lc_min, zetc, ncoc, ai_work_sin, ai_work_cos, na, nb, np, dogth, raf, rcf)
 
       ALLOCATE (work_cos(ldints, ldints), work_sin(ldints, ldints))
       ALLOCATE (ai_work_cos(maxco, maxco), ai_work_sin(maxco, maxco))
@@ -696,8 +696,13 @@ CONTAINS
          clist_sin%achint = 0.0_dp
          clist_sin%nsgf_cnt = 0
 
+         ! reference point at zero
          ra(:) = pbc(particle_set(iatom)%r(:), cell)
          rc(:) = ra + rac
+
+         ! reference point at pseudized atom
+         raf(:) = ra - rc
+         rcf(:) = 0._dp         
 
          DO iset = 1, nseta
             ncoa = npgfa(iset)*ncoset(la_max(iset))
@@ -717,7 +722,7 @@ CONTAINS
                   ncoc = ncoset(lc_max)
 
                   CALL cossin(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
-                              lc_max, 1, zetc, rprjc, lc_min, ra, rc, kvec, ai_work_cos, ai_work_sin)
+                              lc_max, 1, zetc, rprjc, lc_min, raf, rcf, kvec, ai_work_cos, ai_work_sin)
 
                   ! projector functions: Cartesian -> spherical
                   na = ncoa
