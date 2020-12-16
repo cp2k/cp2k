@@ -168,7 +168,7 @@ CONTAINS
     this%ket_start = ket_start
   END SUBROUTINE eri_fcidump_set
 
-  
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param input ...
@@ -319,7 +319,7 @@ CONTAINS
          CPASSERT(nepol(2) >= nelec_inactive_beta)
       END IF
 
-      
+
       active_space_env%nelec_active = nelec_active
       active_space_env%nelec_inactive = nelec_inactive
       IF (nspins == 1) THEN
@@ -1544,7 +1544,7 @@ CONTAINS
                CALL active_space_env%eri%eri_foreach(1, eri_fcidump_print(iw,1,1))
                CALL eri_checksum%set(1,1)
                CALL active_space_env%eri%eri_foreach(1, eri_checksum)
-               
+
                ! Print integrals: Fij
                ! replicate Fock matrix
                ALLOCATE (fmat(norb, norb))
@@ -1643,14 +1643,14 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief replicate and symmetrize a matrix
-!> \param 
+!> \param
 !> \par History
 ! **************************************************************************************************
    subroutine replicate_and_symmetrize_matrix( norb, distributed_matrix, replicated_matrix )
      integer, intent(in) :: norb
      TYPE(cp_fm_type), pointer, INTENT(in) :: distributed_matrix
      real(dp), dimension(:,:), intent(inout) :: replicated_matrix
-     
+
      integer :: i1, i2
      real(dp) :: mval
 
@@ -1759,9 +1759,9 @@ CONTAINS
          eeri = 0.5_dp*( SUM(ks_a_ref*p_a_mat) + SUM(ks_b_ref*p_b_mat) )
          esub = eref - SUM(ks_a_mat*p_a_mat)-SUM(ks_b_mat*p_b_mat) + eeri
          ks_a_mat(:,:) = ks_a_mat(:,:) - ks_a_ref(:, :)
-         ks_b_mat(:,:) = ks_b_mat(:,:) - ks_b_ref(:, :)         
+         ks_b_mat(:,:) = ks_b_mat(:,:) - ks_b_ref(:, :)
          !
-         active_space_env%energy_inactive = esub         
+         active_space_env%energy_inactive = esub
          !
          IF (ASSOCIATED(active_space_env%fock_sub)) THEN
             DO is = 1, SIZE(active_space_env%fock_sub)
@@ -1791,7 +1791,7 @@ CONTAINS
                CALL cp_fm_set_element(matrix, i1, i2, mval)
             END DO
          END DO
-         
+
       END IF
 
    END SUBROUTINE subspace_fock_matrix
@@ -1875,8 +1875,8 @@ CONTAINS
      integer :: nindex, i1, i2, i12, i12l, irptr, i34l, i34, i3, i4
      integer, dimension(2) :: irange
      real(dp) :: erint
-     
-     
+
+
      nindex = (norb*(norb + 1))/2
      irange = get_irange_csr(nindex, eri_aa%mp_group)
      DO i1 = 1, norb
@@ -1940,7 +1940,7 @@ CONTAINS
               END DO
            END IF
         END DO
-     END DO     
+     END DO
      !
      DO i1 = 1, norb
         DO i2 = i1, norb
@@ -1951,7 +1951,7 @@ CONTAINS
 
    end subroutine build_subspace_spin_fock_matrix
 
-   
+
 ! **************************************************************************************************
 !> \brief Creates a local basis
 !> \param pro_basis_set ...
