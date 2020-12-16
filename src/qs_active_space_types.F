@@ -118,8 +118,8 @@ MODULE qs_active_space_types
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param active_space_env ...
+!> \brief Creates an active space environment type, nullifying all quantities.
+!> \param active_space_env the active space environment to be initialized
 ! **************************************************************************************************
    SUBROUTINE create_active_space_type(active_space_env)
       TYPE(active_space_type), POINTER                   :: active_space_env
@@ -137,8 +137,8 @@ CONTAINS
    END SUBROUTINE create_active_space_type
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param active_space_env ...
+!> \brief Releases all quantities in the active space environment.
+!> \param active_space_env the active space environment to be released
 ! **************************************************************************************************
    SUBROUTINE release_active_space_type(active_space_env)
       TYPE(active_space_type), POINTER                   :: active_space_env
@@ -207,8 +207,8 @@ CONTAINS
    END SUBROUTINE release_active_space_type
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param eri_env ...
+!> \brief Releases the ERI environment type.
+!> \param eri_env the ERI environment to be released
 ! **************************************************************************************************
    SUBROUTINE release_eri_type(eri_env)
       TYPE(eri_type)                                     :: eri_env
@@ -279,8 +279,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief calculates index range for processor in group mp_group
-!> \param nindex ...
-!> \param mp_group ...
+!> \param nindex the number of indices
+!> \param mp_group message-passing group ID
 !> \return a range tuple
 !> \par History
 !>      04.2016 created [JGH]
