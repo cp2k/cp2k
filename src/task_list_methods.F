@@ -2668,7 +2668,7 @@ CONTAINS
                                                             nrows, ncols, lock_num
       LOGICAL                                            :: found
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
-!$      INTEGER(kind=omp_lock_kind), ALLOCATABLE, DIMENSION(:) :: locks
+      INTEGER(kind=omp_lock_kind), ALLOCATABLE, DIMENSION(:) :: locks
 
       ! initialize locks
       ALLOCATE (locks(10*omp_get_max_threads()))
