@@ -1118,6 +1118,12 @@ CONTAINS
                           type_of_var=real_t, default_r_vals=(/6.3_dp, 0.0093_dp/), n_var=2)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="SCALE", &
+                          description="Scales the energy contribution of the rVV10 functional", &
+                          usage="SCALE 1.0", &
+                          type_of_var=real_t, default_r_val=1.0_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
 
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)

@@ -430,6 +430,7 @@ CONTAINS
          END SELECT
       END IF
       CALL mp_sum(Ec_nl, para_env%group)
+      IF (nl_type == vdw_nl_RVV10) Ec_nl = Ec_nl*dispersion_env%scale_rvv10
       edispersion = Ec_nl
 
       IF (energy_only) THEN
@@ -476,8 +477,8 @@ CONTAINS
          END IF
          SELECT CASE (nl_type)
          CASE (vdw_nl_RVV10)
-            potential(:) = 0.5_dp*potential(:) + beta
-            hpot(:) = 0.5_dp*hpot(:)
+            potential(:) = (0.5_dp*potential(:) + beta)*dispersion_env%scale_rvv10
+            hpot(:) = 0.5_dp*dispersion_env%scale_rvv10*hpot(:)
          END SELECT
          CALL pw_pool_create_pw(pw_pool, vxc_r, use_data=REALDATA3D, in_space=REALSPACE)
          DO i = 1, 3

@@ -174,6 +174,7 @@ CONTAINS
          CALL section_vals_val_get(nl_section, "TYPE", i_val=dispersion_env%nl_type)
          CALL section_vals_val_get(nl_section, "CUTOFF", r_val=dispersion_env%pw_cutoff)
          CALL section_vals_val_get(nl_section, "PARAMETERS", r_vals=params)
+         CALL section_vals_val_get(nl_section, "SCALE", r_val=dispersion_env%scale_rvv10)
          dispersion_env%b_value = params(1)
          dispersion_env%c_value = params(2)
       END IF

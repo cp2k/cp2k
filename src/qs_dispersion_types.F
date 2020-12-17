@@ -71,7 +71,7 @@ MODULE qs_dispersion_types
       REAL(KIND=dp)                          :: kgc8 !s8 scaling parameter
       !vdW-DF variables
       REAL(KIND=dp)                          :: pw_cutoff
-      REAL(KIND=dp)                          :: b_value, c_value !parameters for the rVV10 functional
+      REAL(KIND=dp)                          :: b_value, c_value, scale_rvv10 !parameters for the rVV10 functional
       INTEGER                                :: nqs, nr_points
       !! The number of q points and radial points
       !! used in generating the kernel phi(q1*r, q2*r)
