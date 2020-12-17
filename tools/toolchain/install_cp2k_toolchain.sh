@@ -745,7 +745,6 @@ if [ "$with_sirius" = "__INSTALL__" ] ; then
     [ "$with_hdf5" = "__DONTUSE__" ] && with_hdf5="__INSTALL__"
     [ "$with_libvdwxc" = "__DONTUSE__" ] && with_libvdwxc="__INSTALL__"
     [ "$with_cosma" = "__DONTUSE__" ] && with_cosma="__INSTALL__"
-    [ "$with_elpa" = "__DONTUSE__" ] && with_elpa="__INSTALL__"
 fi
 
 # ------------------------------------------------------------------------
