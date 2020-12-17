@@ -1,17 +1,18 @@
-# Tested with: GFortran 8.3.0, MPICH 3.3, LAPACK 3.8.0, ScaLAPACK 2.0.2, FFTW 3.3,
-#              Libint 2.6.0, Libxc 4.3.4, ELPA 2019.05.001, PLUMED 2.5.2, SPGLIB 1.12.2
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, August 2020)
+# Tested with: GFortran 8.3.0, MPICH 3.3, LAPACK 3.9.0, ScaLAPACK 2.0.2, FFTW 3.3,
+#              LIBINT 2.6.0, LIBXC 4.3.4, ELPA 2020.05.001, PLUMED 2.6.2, SPGLIB 1.16.0,
+#              LIBVORI 201208
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, December 2020)
 
 CC          = mpicc
 FC          = mpif90
 LD          = mpif90
 AR          = ar -r
 
-include       $(MPI_PATH)/plumed/2.5.2/lib/plumed/src/lib/Plumed.inc.static
+include       $(MPI_PATH)/plumed2/2.6.2/lib/plumed/src/lib/Plumed.inc.static
 
-ELPA_VER    = 2019.05.001
-ELPA_INC    = $(MPI_PATH)/elpa/$(ELPA_VER)-openmp/include/elpa_openmp-$(ELPA_VER)
-ELPA_LIB    = $(MPI_PATH)/elpa/$(ELPA_VER)-openmp/lib
+ELPA_VER    = 2020.05.001
+ELPA_INC    = $(MPI_PATH)/elpa/$(ELPA_VER)/include/elpa_openmp-$(ELPA_VER)
+ELPA_LIB    = $(MPI_PATH)/elpa/$(ELPA_VER)/lib
 
 FFTW_INC    = $(GNU_PATH)/fftw/3.3-regtest/include
 FFTW_LIB    = $(GNU_PATH)/fftw/3.3-regtest/lib
@@ -19,17 +20,21 @@ FFTW_LIB    = $(GNU_PATH)/fftw/3.3-regtest/lib
 LIBINT_INC  = $(GNU_PATH)/libint/2.6.0-lmax-4-regtest/include
 LIBINT_LIB  = $(GNU_PATH)/libint/2.6.0-lmax-4-regtest/lib
 
+LIBVORI_LIB = $(GNU_PATH)/libvori/201208/lib
+
 LIBXC_INC   = $(GNU_PATH)/libxc/4.3.4-regtest/include
 LIBXC_LIB   = $(GNU_PATH)/libxc/4.3.4-regtest/lib
 
-SPGLIB_INC  = $(GNU_PATH)/spglib/1.12.2/include
-SPGLIB_LIB  = $(GNU_PATH)/spglib/1.12.2/lib
+SPGLIB_INC  = $(GNU_PATH)/spglib/1.16.0/include
+SPGLIB_LIB  = $(GNU_PATH)/spglib/1.16.0/lib
 
 CFLAGS      = -O1 -fopenmp -g -mtune=generic
 
 DFLAGS      = -D__ELPA
 DFLAGS     += -D__FFTW3
+DFLAGS     += -D__GSL
 DFLAGS     += -D__LIBINT
+DFLAGS     += -D__LIBVORI
 DFLAGS     += -D__LIBXC
 DFLAGS     += -D__MPI_VERSION=3
 DFLAGS     += -D__PLUMED2
@@ -67,6 +72,7 @@ LDFLAGS     = $(FCFLAGS) -fsanitize=leak
 
 LIBS        = $(PLUMED_DEPENDENCIES) -lgsl -lgslcblas -lz
 LIBS       += $(ELPA_LIB)/libelpa_openmp.a
+LIBS       += $(LIBVORI_LIB)/libvori.a
 LIBS       += $(LIBXC_LIB)/libxcf03.a
 LIBS       += $(LIBXC_LIB)/libxc.a
 LIBS       += $(LIBINT_LIB)/libint2.a
