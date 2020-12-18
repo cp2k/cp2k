@@ -27,7 +27,7 @@ rsgrid-dist-1.inp                                      1      3e-11             
 3H2O_bsse_multi_LIST.inp                               5    1.0E-14                      -1.271011
 OH-H2O-bsse.inp                                        5    1.0E-14                      -0.112213
 # Langevin dynamics
-H2O-langevin-1.inp                                     1    1.0E-14             -17.14549194468292
+H2O-langevin-1.inp                                     1      2e-14             -17.14549194468292
 H2O-langevin-2.inp                                     1    1.0E-14             -17.14566019286764
 #Ref grid
 H2O-ref-1.inp                                          1      2e-14             -17.14023455320299
