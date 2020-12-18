@@ -2161,14 +2161,10 @@ CONTAINS
       CLASS(eri_fcidump_checksum), INTENT(inout) :: this
       INTEGER, INTENT(in)                     :: i, j, k, l
       REAL(KIND=dp), INTENT(in)               :: val
-      ! TODO Without performing some no-operation on these arguments, the compiler complains about
-      ! unused dummy arguments. However, we cannot remove them in the current implementation. How
-      ! should we handle this clearnly?
-#define nop(x) associate( x => x ); END associate
-      nop(i)
-      nop(j)
-      nop(k)
-      nop(l)
+      MARK_USED(i)
+      MARK_USED(j)
+      MARK_USED(k)
+      MARK_USED(l)
 
       this%checksum = this%checksum + ABS(val)
 
