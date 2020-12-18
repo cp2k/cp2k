@@ -71,10 +71,10 @@ MODULE qs_active_space_types
    END TYPE eri_type_eri_element_func
 
    TYPE active_space_type
-      INTEGER                       :: nactive
-      INTEGER                       :: ninactive
-      INTEGER, DIMENSION(2)         :: ninspin
-      INTEGER, DIMENSION(2)         :: nelectrons
+      INTEGER                       :: nelec_active
+      INTEGER                       :: nelec_inactive
+      INTEGER, DIMENSION(2)         :: nelec_inactive_spinwise
+      INTEGER, DIMENSION(2)         :: nelec_total
       INTEGER                       :: multiplicity
       INTEGER                       :: nspins
       LOGICAL                       :: molecule
@@ -86,7 +86,7 @@ MODULE qs_active_space_types
       TYPE(mo_set_p_type), DIMENSION(:), POINTER  :: mos_active
       TYPE(mo_set_p_type), DIMENSION(:), POINTER  :: mos_inactive
       TYPE(eri_type)                :: eri
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: p_ref
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: p_active
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: ks_sub
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: vxc_sub
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: h_sub
@@ -118,8 +118,8 @@ MODULE qs_active_space_types
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param active_space_env ...
+!> \brief Creates an active space environment type, nullifying all quantities.
+!> \param active_space_env the active space environment to be initialized
 ! **************************************************************************************************
    SUBROUTINE create_active_space_type(active_space_env)
       TYPE(active_space_type), POINTER                   :: active_space_env
@@ -130,15 +130,15 @@ CONTAINS
 
       ALLOCATE (active_space_env)
       NULLIFY (active_space_env%mos_active, active_space_env%mos_inactive)
-      NULLIFY (active_space_env%ks_sub, active_space_env%p_ref)
+      NULLIFY (active_space_env%ks_sub, active_space_env%p_active)
       NULLIFY (active_space_env%vxc_sub, active_space_env%h_sub)
       NULLIFY (active_space_env%fock_sub, active_space_env%pmat_inactive)
 
    END SUBROUTINE create_active_space_type
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param active_space_env ...
+!> \brief Releases all quantities in the active space environment.
+!> \param active_space_env the active space environment to be released
 ! **************************************************************************************************
    SUBROUTINE release_active_space_type(active_space_env)
       TYPE(active_space_type), POINTER                   :: active_space_env
@@ -163,11 +163,11 @@ CONTAINS
 
          CALL release_eri_type(active_space_env%eri)
 
-         IF (ASSOCIATED(active_space_env%p_ref)) THEN
-            DO isp = 1, SIZE(active_space_env%p_ref)
-               CALL cp_fm_release(active_space_env%p_ref(isp)%matrix)
+         IF (ASSOCIATED(active_space_env%p_active)) THEN
+            DO isp = 1, SIZE(active_space_env%p_active)
+               CALL cp_fm_release(active_space_env%p_active(isp)%matrix)
             END DO
-            DEALLOCATE (active_space_env%p_ref)
+            DEALLOCATE (active_space_env%p_active)
          END IF
 
          IF (ASSOCIATED(active_space_env%ks_sub)) THEN
@@ -207,8 +207,8 @@ CONTAINS
    END SUBROUTINE release_active_space_type
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param eri_env ...
+!> \brief Releases the ERI environment type.
+!> \param eri_env the ERI environment to be released
 ! **************************************************************************************************
    SUBROUTINE release_eri_type(eri_env)
       TYPE(eri_type)                                     :: eri_env
@@ -279,8 +279,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief calculates index range for processor in group mp_group
-!> \param nindex ...
-!> \param mp_group ...
+!> \param nindex the number of indices
+!> \param mp_group message-passing group ID
 !> \return a range tuple
 !> \par History
 !>      04.2016 created [JGH]
