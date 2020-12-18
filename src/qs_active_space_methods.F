@@ -2140,8 +2140,6 @@ CONTAINS
 
       ! write to the actual file only on the master
       IF (this%unit_nr > 0) THEN
-         !WRITE (this%unit_nr, "(ES23.16,4I4)") val, i, j, &
-         !     &                                     k, l
          WRITE (this%unit_nr, "(ES23.16,4I4)") val, i + this%bra_start - 1, j + this%bra_start - 1, &
               &                                     k + this%ket_start - 1, l + this%ket_start - 1
       END IF
