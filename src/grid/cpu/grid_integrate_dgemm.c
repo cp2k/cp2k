@@ -22,9 +22,9 @@
 #include "../common/grid_common.h"
 #include "coefficients.h"
 #include "collocation_integration.h"
+#include "cpu_private_header.h"
 #include "grid_collocate_dgemm.h"
 #include "non_orthorombic_corrections.h"
-#include "private_header.h"
 #include "tensor_local.h"
 #include "utils.h"
 

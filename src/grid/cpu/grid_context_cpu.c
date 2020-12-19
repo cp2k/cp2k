@@ -13,10 +13,10 @@
 
 #include "../common/grid_library.h"
 #include "collocation_integration.h"
+#include "cpu_private_header.h"
 #include "grid_collocate_dgemm.h"
 #include "grid_context_cpu.h"
 #include "grid_cpu_task_list.h"
-#include "private_header.h"
 #include "tensor_local.h"
 #include "utils.h"
 

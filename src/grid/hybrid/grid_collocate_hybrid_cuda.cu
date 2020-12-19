@@ -13,7 +13,7 @@
 
 #include "../common/grid_constants.h"
 #include "../cpu/collocation_integration.h"
-#include "../cpu/private_header.h"
+#include "../cpu/cpu_private_header.h"
 
 extern "C" void reset_list_gpu(pgf_list_gpu *lst);
 extern "C" void return_dh(void *const ptr, const int level, double *const dh);
@@ -34,7 +34,7 @@ __constant__ __device__ int grid_lower_boundaries_[3];
 
 extern __shared__ double array[];
 
-#include "private_header.hu"
+#include "hybrid_private_header.h"
 
 struct pab_computation_struct_ {
   int offset[2];

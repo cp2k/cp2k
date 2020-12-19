@@ -22,7 +22,7 @@ extern "C" {
 #endif
 
 #include "../cpu/tensor_local.h"
-#include "private_header.h"
+#include "cpu_private_header.h"
 #ifdef __GRID_CUDA
 typedef struct pgf_list_gpu_ {
   /* number of devices */
