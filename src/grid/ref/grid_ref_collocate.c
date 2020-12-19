@@ -17,6 +17,7 @@
 #include "../common/grid_common.h"
 #include "grid_ref_collint.h"
 #include "grid_ref_collocate.h"
+#include "grid_ref_integrate.h"
 #include "grid_ref_prepare_pab.h"
 
 /*******************************************************************************
@@ -82,7 +83,7 @@ static void record_collocate(
 
   const int D = DECIMAL_DIG; // In C11 we could use DBL_DECIMAL_DIG.
   FILE *fp = fopen(filename, "w+");
-  fprintf(fp, "#Grid collocate task v9\n");
+  fprintf(fp, "#Grid task v10\n");
   fprintf(fp, "orthorhombic %i\n", orthorhombic);
   fprintf(fp, "border_mask %i\n", border_mask);
   fprintf(fp, "func %i\n", func);
@@ -142,6 +143,35 @@ static void record_collocate(
       }
     }
   }
+
+  double hab[n2][n1];
+  double forces[2][3] = {0};
+  double virials[2][3][3] = {0};
+  memset(hab, 0, n2 * n1 * sizeof(double));
+
+  const bool compute_tau = (func == GRID_FUNC_DADB);
+
+  grid_ref_integrate_pgf_product(orthorhombic, compute_tau, border_mask, la_max,
+                                 la_min, lb_max, lb_min, zeta, zetb, dh, dh_inv,
+                                 ra, rab, npts_global, npts_local, shift_local,
+                                 border_width, radius, o1, o2, n1, n2, grid,
+                                 hab, pab, forces, virials, NULL, NULL);
+
+  for (int i = o2; i < ncoset(lb_max) + o2; i++) {
+    for (int j = o1; j < ncoset(la_max) + o1; j++) {
+      fprintf(fp, "hab %i %i %.*e\n", i, j, D, hab[i][j]);
+    }
+  }
+  fprintf(fp, "force_a %.*e %.*e %.*e\n", D, forces[0][0], D, forces[0][1], D,
+          forces[0][2]);
+  fprintf(fp, "force_b %.*e %.*e %.*e\n", D, forces[1][0], D, forces[1][1], D,
+          forces[1][2]);
+  for (int i = 0; i < 3; i++)
+    fprintf(fp, "virial %i %.*e %.*e %.*e\n", i, D,
+            virials[0][i][0] + virials[1][i][0], D,
+            virials[0][i][1] + virials[1][i][1], D,
+            virials[0][i][2] + virials[1][i][2]);
+
   fprintf(fp, "#THE_END\n");
   fclose(fp);
   printf("Wrote %s\n", filename);

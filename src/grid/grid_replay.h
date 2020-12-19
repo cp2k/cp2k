@@ -5,8 +5,8 @@
 /*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
 /*----------------------------------------------------------------------------*/
 
-#ifndef GRID_COLLOCATE_REPLAY_H
-#define GRID_COLLOCATE_REPLAY_H
+#ifndef GRID_REPLAY_H
+#define GRID_REPLAY_H
 
 #include <stdbool.h>
 
@@ -25,19 +25,20 @@ void grid_collocate_record(
     const double pab[n2][n1], const double *grid);
 
 /*******************************************************************************
- * \brief Reads a .task file, collocates it, and compares results to reference.
+ * \brief Reads a .task file, collocates/integrates it, and compares results.
  *
  * \param filename          Name of the task file.
  * \param cycles            Number of times the task should be collocated.
+ * \param collocate         When true collocate is called otherwise integrate.
  * \param batch             When false grid_collocate_pgf_product_cpu is called.
  *                          When true grid_collocate_task_list is called.
  * \param cycles_per_block  Number of cycles per matrix block decontraction.
- * \returns                 The maximum difference for an individual grid point.
+ * \returns                 The maximum relative difference.
  *
  * \author Ole Schuett
  ******************************************************************************/
-double grid_collocate_replay(const char *filename, const int cycles,
-                             const bool batch, const int cycles_per_block);
+double grid_replay(const char *filename, const int cycles, const bool collocate,
+                   const bool batch, const int cycles_per_block);
 
 #endif
 

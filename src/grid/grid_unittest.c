@@ -10,7 +10,7 @@
 #include <string.h>
 
 #include "common/grid_library.h"
-#include "grid_collocate_replay.h"
+#include "grid_replay.h"
 
 void mpi_sum_func(long *number, int mpi_comm) {
   *number += 0; // Nothing todo without MPI, pretend arguments are used anyways.
@@ -23,7 +23,7 @@ void print_func(char *message, int output_unit) {
 }
 
 /*******************************************************************************
- * \brief Unit test for the grid collocate code.
+ * \brief Unit test for the grid code.
  * \author Ole Schuett
  ******************************************************************************/
 static int run_test(const char cp2k_root_dir[], const char task_file[]) {
@@ -42,11 +42,14 @@ static int run_test(const char cp2k_root_dir[], const char task_file[]) {
   strcat(filename, task_file);
 
   int errors = 0;
-  for (int ibatch = 0; ibatch < 2; ibatch++) {
-    const double max_diff = grid_collocate_replay(filename, 1, ibatch == 1, 1);
-    if (max_diff > 1e-12) {
-      printf("Max diff too high, test failed.\n");
-      errors++;
+  for (int icol = 0; icol < 2; icol++) {
+    for (int ibatch = 0; ibatch < 2; ibatch++) {
+      const double max_diff =
+          grid_replay(filename, 1, icol == 1, ibatch == 1, 1);
+      if (max_diff > 1e-12) {
+        printf("Max diff too high, test failed.\n\n");
+        errors++;
+      }
     }
   }
   return errors;
@@ -54,25 +57,25 @@ static int run_test(const char cp2k_root_dir[], const char task_file[]) {
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {
-    printf("Usage: grid_collocate_unittest.x <cp2k-root-dir>\n");
+    printf("Usage: grid_unittest.x <cp2k-root-dir>\n");
     return 1;
   }
 
   grid_library_init();
 
   int errors = 0;
-  errors += run_test(argv[1], "collocate_ortho_density_l0000.task");
-  errors += run_test(argv[1], "collocate_ortho_density_l0122.task");
-  errors += run_test(argv[1], "collocate_ortho_density_l2200.task");
-  errors += run_test(argv[1], "collocate_ortho_density_l3300.task");
-  errors += run_test(argv[1], "collocate_ortho_density_l3333.task");
-  errors += run_test(argv[1], "collocate_ortho_non_periodic.task");
-  errors += run_test(argv[1], "collocate_ortho_tau.task");
-  errors += run_test(argv[1], "collocate_general_density.task");
-  errors += run_test(argv[1], "collocate_general_tau.task");
-  errors += run_test(argv[1], "collocate_general_subpatch0.task");
-  errors += run_test(argv[1], "collocate_general_subpatch16.task");
-  errors += run_test(argv[1], "collocate_general_overflow.task");
+  errors += run_test(argv[1], "ortho_density_l0000.task");
+  errors += run_test(argv[1], "ortho_density_l0122.task");
+  errors += run_test(argv[1], "ortho_density_l2200.task");
+  errors += run_test(argv[1], "ortho_density_l3300.task");
+  errors += run_test(argv[1], "ortho_density_l3333.task");
+  errors += run_test(argv[1], "ortho_non_periodic.task");
+  errors += run_test(argv[1], "ortho_tau.task");
+  errors += run_test(argv[1], "general_density.task");
+  errors += run_test(argv[1], "general_tau.task");
+  errors += run_test(argv[1], "general_subpatch0.task");
+  errors += run_test(argv[1], "general_subpatch16.task");
+  errors += run_test(argv[1], "general_overflow.task");
 
   grid_library_print_stats(&mpi_sum_func, 0, &print_func, 0);
   grid_library_finalize();

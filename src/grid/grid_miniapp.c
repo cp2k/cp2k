@@ -10,7 +10,7 @@
 #include <string.h>
 
 #include "common/grid_library.h"
-#include "grid_collocate_replay.h"
+#include "grid_replay.h"
 
 void mpi_sum_func(long *number, int mpi_comm) {
   *number += 0; // Nothing todo without MPI, pretend arguments are used anyways.
@@ -29,9 +29,15 @@ void print_func(char *message, int output_unit) {
 int main(int argc, char *argv[]) {
   // Parsing of optional args.
   int iarg = 1;
+  int nrequired_args = 2;
+
+  bool collocate = true;
+  if (iarg < argc && strcmp(argv[iarg], "--integrate") == 0) {
+    iarg++;
+    collocate = false;
+  }
 
   bool batch = false;
-  int nrequired_args = 2;
   if (iarg < argc && strcmp(argv[iarg], "--batch") == 0) {
     iarg++;
     batch = true;
@@ -40,7 +46,7 @@ int main(int argc, char *argv[]) {
 
   // All optional args have been parsed.
   if (argc - iarg != nrequired_args) {
-    fprintf(stderr, "Usage: grid_collocate_miniapp.x [--batch "
+    fprintf(stderr, "Usage: grid_miniapp.x [--integrate] [--batch "
                     "<cycles-per-block>] <cycles> <task-file>\n");
     return 1;
   }
@@ -60,7 +66,7 @@ int main(int argc, char *argv[]) {
   grid_library_init();
 
   const double max_diff =
-      grid_collocate_replay(argv[iarg++], cycles, batch, cycles_per_block);
+      grid_replay(argv[iarg++], cycles, collocate, batch, cycles_per_block);
 
   grid_library_print_stats(&mpi_sum_func, 0, &print_func, 0);
   grid_library_finalize();
