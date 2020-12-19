@@ -421,6 +421,7 @@ partially depending on installed libraries (see 2.)
   switch on energy profiling on Cray systems
 - `-D__NO_ABORT` to avoid calling abort, but STOP instead (useful for coverage
   testing, and to avoid core dumps on some systems)
+- `-D__ARM` required for arm based systems
 
 Features useful to deal with legacy systems
 
