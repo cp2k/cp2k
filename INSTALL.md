@@ -332,6 +332,8 @@ e.g., [Linux-x86-64-gfortran.sopt](./arch/Linux-x86-64-gfortran.sopt).
 Alternatively <https://dashboard.cp2k.org> provides sample arch files as part of
 the testing reports (click on the status field, search for 'ARCH-file').
 
+- Some architectures might require additional preprocessor flags like `-D__ARM`
+  for arm based systems.
 - With -DNDEBUG assertions may be stripped ("compiled out").
 - NDEBUG is the ANSI-conforming symbol name (not __NDEBUG).
 - Regular release builds may carry assertions for safety.
