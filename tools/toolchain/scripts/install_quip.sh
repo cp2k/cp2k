@@ -54,6 +54,9 @@ case "$with_quip" in
                 i386)
                     quip_arch=x86_32
                     ;;
+                arm)
+                    quip_arch=x86_64
+                    ;;
                 *)
                     report_error $LINENO "arch $OPENBLAS_ARCH is currently unsupported"
                     exit 1
