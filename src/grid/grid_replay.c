@@ -21,9 +21,10 @@
 
 #include "common/grid_buffer.h"
 #include "common/grid_common.h"
-#include "grid_collocate_replay.h"
+#include "grid_replay.h"
 #include "grid_task_list.h"
 #include "ref/grid_ref_collocate.h"
+#include "ref/grid_ref_integrate.h"
 
 /*******************************************************************************
  * \brief Reads next line from given filehandle and handles errors.
@@ -153,13 +154,14 @@ static void create_dummy_basis_set(const int size, const int lmin,
  * \brief Creates mock task list with one task per cycle.
  * \author Ole Schuett
  ******************************************************************************/
-static void create_dummy_task_list(
-    const int border_mask, const double rscale, const double ra[3],
-    const double rab[3], const double radius, const grid_basis_set *basis_set_a,
-    const grid_basis_set *basis_set_b, const int n1, const int n2, const int o1,
-    const int o2, const int la_max, const int lb_max, const double pab[n2][n1],
-    const int cycles, const int cycles_per_block, grid_buffer **pab_blocks,
-    grid_task_list **task_list) {
+static void create_dummy_task_list(const int border_mask, const double ra[3],
+                                   const double rab[3], const double radius,
+                                   const grid_basis_set *basis_set_a,
+                                   const grid_basis_set *basis_set_b,
+                                   const int o1, const int o2, const int la_max,
+                                   const int lb_max, const int cycles,
+                                   const int cycles_per_block,
+                                   grid_task_list **task_list) {
 
   const int ntasks = cycles;
   const int nlevels = 1;
@@ -204,22 +206,15 @@ static void create_dummy_task_list(
                         iatom_list, jatom_list, iset_list, jset_list, ipgf_list,
                         jpgf_list, border_mask_list, block_num_list,
                         radius_list, rab_list, task_list);
-
-  grid_create_buffer(n1 * n2, pab_blocks);
-  for (int i = 0; i < n1; i++) {
-    for (int j = 0; j < n2; j++) {
-      (*pab_blocks)->host_buffer[j * n1 + i] = rscale / 2.0 * pab[j][i];
-    }
-  }
 }
 
 /*******************************************************************************
- * \brief Reads a .task file, collocates it, and compares results to reference.
- *        See grid_collocate_replay.h for details.
+ * \brief Reads a .task file, collocates/integrates it, and compares results.
+ *        See grid_replay.h for details.
  * \author Ole Schuett
  ******************************************************************************/
-double grid_collocate_replay(const char *filename, const int cycles,
-                             const bool batch, const int cycles_per_block) {
+double grid_replay(const char *filename, const int cycles, const bool collocate,
+                   const bool batch, const int cycles_per_block) {
 
   if (cycles < 1) {
     fprintf(stderr, "Error: Cycles have to be greater than zero.\n");
@@ -240,7 +235,7 @@ double grid_collocate_replay(const char *filename, const int cycles,
 
   char header_line[100];
   read_next_line(header_line, sizeof(header_line), fp);
-  if (strcmp(header_line, "#Grid collocate task v9\n") != 0) {
+  if (strcmp(header_line, "#Grid task v10\n") != 0) {
     fprintf(stderr, "Error: Wrong file header.\n");
     abort();
   }
@@ -248,6 +243,7 @@ double grid_collocate_replay(const char *filename, const int cycles,
   const bool orthorhombic = parse_int("orthorhombic", fp);
   const int border_mask = parse_int("border_mask", fp);
   const int func = parse_int("func", fp);
+  const bool compute_tau = (func == GRID_FUNC_DADB);
   const int la_max = parse_int("la_max", fp);
   const int la_min = parse_int("la_min", fp);
   const int lb_max = parse_int("lb_max", fp);
@@ -299,6 +295,22 @@ double grid_collocate_replay(const char *filename, const int cycles,
     grid_ref[k * npts_local[1] * npts_local[0] + j * npts_local[0] + i] = value;
   }
 
+  double hab_ref[n2][n1];
+  memset(hab_ref, 0, n2 * n1 * sizeof(double));
+  for (int i = o2; i < ncoset(lb_max) + o2; i++) {
+    for (int j = o1; j < ncoset(la_max) + o1; j++) {
+      sprintf(format, "%i %i %%le", i, j);
+      parse_next_line("hab", fp, format, 1, &hab_ref[i][j]);
+    }
+  }
+
+  double forces_ref[2][3];
+  parse_double3("force_a", fp, forces_ref[0]);
+  parse_double3("force_b", fp, forces_ref[1]);
+
+  double virial_ref[3][3];
+  parse_double3x3("virial", fp, virial_ref);
+
   char footer_line[100];
   read_next_line(footer_line, sizeof(footer_line), fp);
   if (strcmp(footer_line, "#THE_END\n") != 0) {
@@ -307,6 +319,9 @@ double grid_collocate_replay(const char *filename, const int cycles,
   }
 
   double *grid_test = malloc(sizeof_grid);
+  double hab_test[n2][n1];
+  double forces_test[2][3];
+  double virial_test[3][3];
 
   struct timespec start_time, end_time;
 
@@ -315,32 +330,78 @@ double grid_collocate_replay(const char *filename, const int cycles,
     create_dummy_basis_set(n1, la_min, la_max, zeta, &basisa);
     create_dummy_basis_set(n2, lb_min, lb_max, zetb, &basisb);
     grid_task_list *task_list = NULL;
-    grid_buffer *pab_blocks = NULL;
-    create_dummy_task_list(border_mask, rscale, ra, rab, radius, basisa, basisb,
-                           n1, n2, o1, o2, la_max, lb_max, pab, cycles,
-                           cycles_per_block, &pab_blocks, &task_list);
+    create_dummy_task_list(border_mask, ra, rab, radius, basisa, basisb, o1, o2,
+                           la_max, lb_max, cycles, cycles_per_block,
+                           &task_list);
+    grid_buffer *pab_blocks = NULL, *hab_blocks = NULL;
+    grid_create_buffer(n1 * n2, &pab_blocks);
+    grid_create_buffer(n1 * n2, &hab_blocks);
+    const double f = (collocate) ? rscale : 1.0;
+    for (int i = 0; i < n1; i++) {
+      for (int j = 0; j < n2; j++) {
+        pab_blocks->host_buffer[j * n1 + i] = 0.5 * f * pab[j][i];
+      }
+    }
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
-    double *grids_array[1] = {grid_test};
     const int nlevels = 1;
-    grid_collocate_task_list(
-        task_list, orthorhombic, func, nlevels, (const int(*)[3])npts_global,
-        (const int(*)[3])npts_local, (const int(*)[3])shift_local,
-        (const int(*)[3])border_width, (const double(*)[3][3])dh,
-        (const double(*)[3][3])dh_inv, pab_blocks, grids_array);
+    const int natoms = 2;
+    if (collocate) {
+      // collocate
+      double *grids_array[1] = {grid_test};
+      grid_collocate_task_list(
+          task_list, orthorhombic, func, nlevels, (const int(*)[3])npts_global,
+          (const int(*)[3])npts_local, (const int(*)[3])shift_local,
+          (const int(*)[3])border_width, (const double(*)[3][3])dh,
+          (const double(*)[3][3])dh_inv, pab_blocks, grids_array);
+    } else {
+      // integrate
+      double *grids_array[1] = {grid_ref};
+      grid_integrate_task_list(
+          task_list, orthorhombic, compute_tau, natoms, nlevels,
+          (const int(*)[3])npts_global, (const int(*)[3])npts_local,
+          (const int(*)[3])shift_local, (const int(*)[3])border_width,
+          (const double(*)[3][3])dh, (const double(*)[3][3])dh_inv, pab_blocks,
+          (const double(**))grids_array, hab_blocks, forces_test, virial_test);
+      for (int i = 0; i < n2; i++) {
+        for (int j = 0; j < n1; j++) {
+          hab_test[i][j] = hab_blocks->host_buffer[i * n1 + j];
+        }
+      }
+    }
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end_time);
     grid_free_basis_set(basisa);
     grid_free_basis_set(basisb);
     grid_free_task_list(task_list);
     grid_free_buffer(pab_blocks);
-
+    grid_free_buffer(hab_blocks);
   } else {
-    memset(grid_test, 0, sizeof_grid);
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
-    for (int i = 0; i < cycles; i++) {
-      grid_ref_collocate_pgf_product(
-          orthorhombic, border_mask, func, la_max, la_min, lb_max, lb_min, zeta,
-          zetb, rscale, dh, dh_inv, ra, rab, npts_global, npts_local,
-          shift_local, border_width, radius, o1, o2, n1, n2, pab, grid_test);
+    if (collocate) {
+      // collocate
+      memset(grid_test, 0, sizeof_grid);
+      for (int i = 0; i < cycles; i++) {
+        grid_ref_collocate_pgf_product(
+            orthorhombic, border_mask, func, la_max, la_min, lb_max, lb_min,
+            zeta, zetb, rscale, dh, dh_inv, ra, rab, npts_global, npts_local,
+            shift_local, border_width, radius, o1, o2, n1, n2, pab, grid_test);
+      }
+    } else {
+      // integrate
+      memset(hab_test, 0, n2 * n1 * sizeof(double));
+      memset(forces_test, 0, 2 * 3 * sizeof(double));
+      double virials_test[2][3][3] = {0};
+      for (int i = 0; i < cycles; i++) {
+        grid_ref_integrate_pgf_product(
+            orthorhombic, compute_tau, border_mask, la_max, la_min, lb_max,
+            lb_min, zeta, zetb, dh, dh_inv, ra, rab, npts_global, npts_local,
+            shift_local, border_width, radius, o1, o2, n1, n2, grid_ref,
+            hab_test, pab, forces_test, virials_test, NULL, NULL);
+      }
+      for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+          virial_test[i][j] = virials_test[0][i][j] + virials_test[1][i][j];
+        }
+      }
     }
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end_time);
   }
@@ -348,17 +409,62 @@ double grid_collocate_replay(const char *filename, const int cycles,
                            1e-9 * (end_time.tv_nsec - start_time.tv_nsec);
 
   double max_value = 0.0;
-  double max_diff = 0.0;
-  for (int i = 0; i < npts_local_total; i++) {
-    const double ref_value = cycles * grid_ref[i];
-    const double diff = fabs(grid_test[i] - ref_value);
-    max_diff = fmax(max_diff, diff);
-    max_value = fmax(max_value, fabs(grid_test[i]));
+  double max_rel_diff = 0.0;
+  if (collocate) {
+    // collocate
+    // compare grid
+    for (int i = 0; i < npts_local_total; i++) {
+      const double ref_value = cycles * grid_ref[i];
+      const double test_value = grid_test[i];
+      const double diff = fabs(test_value - ref_value);
+      const double rel_diff = diff / fmax(1.0, fabs(ref_value));
+      max_rel_diff = fmax(max_rel_diff, rel_diff);
+      max_value = fmax(max_value, fabs(test_value));
+    }
+  } else {
+    // integrate
+    // compare hab
+    for (int i = 0; i < n2; i++) {
+      for (int j = 0; j < n1; j++) {
+        const double ref_value = cycles * hab_ref[i][j];
+        const double test_value = hab_test[i][j];
+        const double diff = fabs(test_value - ref_value);
+        const double rel_diff = diff / fmax(1.0, fabs(ref_value));
+        max_rel_diff = fmax(max_rel_diff, rel_diff);
+        max_value = fmax(max_value, fabs(test_value));
+        // if (ref_value != 0.0 || test_value != 0.0) {
+        //   printf("%i %i ref: %le test: %le diff:%le rel_diff: %le\n", i, j,
+        //          ref_value, test_value, diff, rel_diff);
+        // }
+      }
+    }
+    // compare forces
+    const double forces_fudge_factor = 1e-4; // account for higher numeric noise
+    for (int i = 0; i < 2; i++) {
+      for (int j = 0; j < 3; j++) {
+        const double ref_value = cycles * forces_ref[i][j];
+        const double test_value = forces_test[i][j];
+        const double diff = fabs(test_value - ref_value);
+        const double rel_diff = diff / fmax(1.0, fabs(ref_value));
+        max_rel_diff = fmax(max_rel_diff, rel_diff * forces_fudge_factor);
+      }
+    }
+    // compare virial
+    const double virial_fudge_factor = 1e-4; // account for higher numeric noise
+    for (int i = 0; i < 3; i++) {
+      for (int j = 0; j < 3; j++) {
+        const double ref_value = cycles * virial_ref[i][j];
+        const double test_value = virial_test[i][j];
+        const double diff = fabs(test_value - ref_value);
+        const double rel_diff = diff / fmax(1.0, fabs(ref_value));
+        max_rel_diff = fmax(max_rel_diff, rel_diff * virial_fudge_factor);
+      }
+    }
   }
-
-  printf("Task: %-65s   Batched: %-3s   Cycles: %e   Max value: %le   Max "
-         "diff: %le   Time: %le sec\n",
-         filename, batch ? "yes" : "no", (float)cycles, max_value, max_diff,
+  printf("Task: %-55s   %9s %-7s   Cycles: %e   Max value: %le   "
+         "Max rel diff: %le   Time: %le sec\n",
+         filename, collocate ? "Collocate" : "Integrate",
+         batch ? "Batched" : "PGF-Ref", (float)cycles, max_value, max_rel_diff,
          delta_sec);
 
   free(grid_ref);
@@ -374,7 +480,7 @@ double grid_collocate_replay(const char *filename, const int cycles,
     exit(1);
   }
 
-  return max_diff;
+  return max_rel_diff;
 }
 
 // EOF
