@@ -14,7 +14,7 @@
 ! **************************************************************************************************
 MODULE pexsi_interface
 
-#ifdef __LIBPEXSI
+#if defined(__LIBPEXSI)
    USE f_ppexsi_interface, ONLY: f_ppexsi_dft_driver, &
                                  f_ppexsi_load_real_hs_matrix, &
                                  f_ppexsi_options, &
@@ -23,7 +23,7 @@ MODULE pexsi_interface
                                  f_ppexsi_retrieve_real_dft_matrix, &
                                  f_ppexsi_set_default_options
 #endif
-#if defined (__HAS_IEEE_EXCEPTIONS)
+#if defined(__HAS_IEEE_EXCEPTIONS)
    USE ieee_exceptions, ONLY: ieee_get_halting_mode, &
                               ieee_set_halting_mode, &
                               ieee_all
@@ -45,7 +45,7 @@ MODULE pexsi_interface
 
    TYPE cp_pexsi_options
       PRIVATE
-#ifdef __LIBPEXSI
+#if defined(__LIBPEXSI)
       TYPE(f_ppexsi_options) :: options
 #else
       INTEGER :: unused = -1
@@ -88,15 +88,15 @@ CONTAINS
       REAL(KIND=real_8), INTENT(IN), OPTIONAL  :: temperature, gap, deltaE
       INTEGER, INTENT(IN), OPTIONAL            :: numPole, isInertiaCount, &
                                                   maxPEXSIIter
-      REAL(KIND=real_8), INTENT(IN), OPTIONAL :: muMin0, muMax0, mu0, &
-                                                 muInertiaTolerance, muInertiaExpansion, muPEXSISafeGuard, &
-                                                 numElectronPEXSITolerance
+      REAL(KIND=real_8), INTENT(IN), OPTIONAL  :: muMin0, muMax0, mu0, &
+                                                  muInertiaTolerance, muInertiaExpansion, muPEXSISafeGuard, &
+                                                  numElectronPEXSITolerance
       INTEGER, INTENT(IN), OPTIONAL            :: matrixType, &
                                                   isSymbolicFactorize, &
                                                   ordering, rowOrdering, npSymbFact, &
                                                   verbosity
 
-#ifdef __LIBPEXSI
+#if defined(__LIBPEXSI)
       IF (PRESENT(temperature)) pexsi_options%options%temperature = temperature
       IF (PRESENT(gap)) pexsi_options%options%gap = gap
       IF (PRESENT(deltaE)) pexsi_options%options%deltaE = deltaE
@@ -193,7 +193,7 @@ CONTAINS
                                                   ordering, rowOrdering, npSymbFact, &
                                                   verbosity
 
-#ifdef __LIBPEXSI
+#if defined(__LIBPEXSI)
       IF (PRESENT(temperature)) temperature = pexsi_options%options%temperature
       IF (PRESENT(gap)) gap = pexsi_options%options%gap
       IF (PRESENT(deltaE)) deltaE = pexsi_options%options%deltaE
@@ -251,7 +251,7 @@ CONTAINS
    SUBROUTINE cp_pexsi_set_default_options(pexsi_options)
       TYPE(cp_pexsi_options), INTENT(OUT)      :: pexsi_options
 
-#ifdef  __LIBPEXSI
+#if defined(__LIBPEXSI)
       CALL f_ppexsi_set_default_options(pexsi_options%options)
 #else
       CPABORT("Requires linking to the PEXSI library.")
@@ -269,9 +269,13 @@ CONTAINS
    FUNCTION cp_pexsi_plan_initialize(comm, numProcRow, numProcCol, outputFileIndex)
       INTEGER, INTENT(IN)                      :: comm, numProcRow, numProcCol, &
                                                   outputFileIndex
+#if defined(__ARM)
+      INTEGER                                  :: cp_pexsi_plan_initialize
+#else
       INTEGER(KIND=int_8)                      :: cp_pexsi_plan_initialize
+#endif
 
-#ifdef  __LIBPEXSI
+#if defined(__LIBPEXSI)
       CHARACTER(LEN=*), PARAMETER              :: routineN = 'cp_pexsi_plan_initialize'
       INTEGER                                  :: info, handle
 
@@ -309,7 +313,11 @@ CONTAINS
                                            nnzLocal, numColLocal, colptrLocal, &
                                            rowindLocal, HnzvalLocal, isSIdentity, &
                                            SnzvalLocal)
+#if defined(__ARM)
+      INTEGER, INTENT(IN)                      :: plan
+#else
       INTEGER(KIND=int_8), INTENT(IN)          :: plan
+#endif
       TYPE(cp_pexsi_options), INTENT(IN)       :: pexsi_options
       INTEGER, INTENT(IN)                      :: nrows, nnz, nnzLocal, &
                                                   numColLocal, colptrLocal(*), &
@@ -318,7 +326,7 @@ CONTAINS
       INTEGER, INTENT(IN)                      :: isSIdentity
       REAL(KIND=real_8), INTENT(IN)            :: SnzvalLocal(*)
 
-#ifdef  __LIBPEXSI
+#if defined(__LIBPEXSI)
       CHARACTER(LEN=*), PARAMETER              :: routineN = 'cp_pexsi_load_real_symmetric_hs_matrix'
       INTEGER                                  :: handle, info
 
@@ -361,7 +369,11 @@ CONTAINS
    SUBROUTINE cp_pexsi_dft_driver(plan, pexsi_options, numElectronExact, muPEXSI, &
                                   numElectronPEXSI, muMinInertia, muMaxInertia, &
                                   numTotalInertiaIter, numTotalPEXSIIter)
+#if defined(__ARM)
+      INTEGER, INTENT(IN)                      :: plan
+#else
       INTEGER(KIND=int_8), INTENT(IN)          :: plan
+#endif
       TYPE(cp_pexsi_options), INTENT(IN)       :: pexsi_options
       REAL(KIND=real_8), INTENT(IN)            :: numElectronExact
       REAL(KIND=real_8), INTENT(out)           :: muPEXSI, numElectronPEXSI, &
@@ -369,10 +381,10 @@ CONTAINS
       INTEGER, INTENT(out)                     :: numTotalInertiaIter, &
                                                   numTotalPEXSIIter
 
-#ifdef  __LIBPEXSI
+#if defined(__LIBPEXSI)
       CHARACTER(LEN=*), PARAMETER              :: routineN = 'cp_pexsi_dft_driver'
       INTEGER                                  :: handle, info
-#if defined (__HAS_IEEE_EXCEPTIONS)
+#if defined(__HAS_IEEE_EXCEPTIONS)
       LOGICAL, DIMENSION(5)                    :: halt
 #endif
 
@@ -380,7 +392,7 @@ CONTAINS
 
       ! Unfortuntatelly, some PEXSI kernels raise IEEE754 exceptions.
       ! Therefore, we disable floating point traps temporarily.
-#if defined (__HAS_IEEE_EXCEPTIONS)
+#if defined(__HAS_IEEE_EXCEPTIONS)
       CALL ieee_get_halting_mode(IEEE_ALL, halt)
       CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
 #endif
@@ -389,7 +401,7 @@ CONTAINS
                                numElectronPEXSI, muMinInertia, muMaxInertia, &
                                numTotalInertiaIter, numTotalPEXSIIter, info)
 
-#if defined (__HAS_IEEE_EXCEPTIONS)
+#if defined(__HAS_IEEE_EXCEPTIONS)
       CALL ieee_set_halting_mode(IEEE_ALL, halt)
 #endif
 
@@ -424,11 +436,16 @@ CONTAINS
    SUBROUTINE cp_pexsi_retrieve_real_dft_matrix(plan, DMnzvalLocal, EDMnzvalLocal, &
                                                 FDMnzvalLocal, totalEnergyH, &
                                                 totalEnergyS, totalFreeEnergy)
+#if defined(__ARM)
+      INTEGER, INTENT(IN)                      :: plan
+#else
       INTEGER(KIND=int_8), INTENT(IN)          :: plan
-      REAL(KIND=real_8), INTENT(out) :: DMnzvalLocal(*), EDMnzvalLocal(*), &
-                                        FDMnzvalLocal(*), totalEnergyH, totalEnergyS, totalFreeEnergy
+#endif
+      REAL(KIND=real_8), INTENT(out)           :: DMnzvalLocal(*), EDMnzvalLocal(*), &
+                                                  FDMnzvalLocal(*), totalEnergyH, totalEnergyS, &
+                                                  totalFreeEnergy
 
-#ifdef  __LIBPEXSI
+#if defined(__LIBPEXSI)
       CHARACTER(LEN=*), PARAMETER              :: routineN = 'cp_pexsi_retrieve_real_symmetric_dft_matrix'
       INTEGER                                  :: handle, info
 
@@ -458,9 +475,13 @@ CONTAINS
 !> \param plan ...
 ! **************************************************************************************************
    SUBROUTINE cp_pexsi_plan_finalize(plan)
+#if defined(__ARM)
+      INTEGER, INTENT(IN)                      :: plan
+#else
       INTEGER(KIND=int_8), INTENT(IN)          :: plan
+#endif
 
-#ifdef  __LIBPEXSI
+#if defined(__LIBPEXSI)
       CHARACTER(LEN=*), PARAMETER              :: routineN = 'cp_pexsi_plan_finalize'
       INTEGER                                  :: info, handle
 

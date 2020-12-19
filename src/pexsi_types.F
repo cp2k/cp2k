@@ -85,22 +85,24 @@ MODULE pexsi_types
 !> \author Patrick Seewald
 ! **************************************************************************************************
    TYPE lib_pexsi_env
-      TYPE(dbcsr_type)                      :: dbcsr_template_matrix_sym, &
-                                               dbcsr_template_matrix_nonsym
-      TYPE(dbcsr_csr_type)                           :: csr_mat_p, csr_mat_ks, csr_mat_s, &
-                                                        csr_mat_E, csr_mat_F
+      TYPE(dbcsr_type)                         :: dbcsr_template_matrix_sym, &
+                                                  dbcsr_template_matrix_nonsym
+      TYPE(dbcsr_csr_type)                     :: csr_mat_p, csr_mat_ks, csr_mat_s, &
+                                                  csr_mat_E, csr_mat_F
       TYPE(cp_pexsi_options)                   :: options
       REAL(KIND=dp), DIMENSION(:), POINTER     :: kTS => NULL()
-
       TYPE(dbcsr_p_type), DIMENSION(:), &
-         POINTER                                :: matrix_w => NULL()
-
-      INTEGER(kind=int_8)                      :: plan
+         POINTER                               :: matrix_w => NULL()
+#if defined(__ARM)
+      INTEGER                                  :: plan
+#else
+      INTEGER(KIND=int_8)                      :: plan
+#endif
       INTEGER                                  :: nspin, num_ranks_per_pole, mp_group
 
       TYPE(dbcsr_type), DIMENSION(:), &
-         POINTER                                :: max_ev_vector
-      TYPE(dbcsr_type)                      :: csr_sparsity
+         POINTER                               :: max_ev_vector
+      TYPE(dbcsr_type)                         :: csr_sparsity
       INTEGER, DIMENSION(2)                    :: mp_dims
 
       LOGICAL                                  :: csr_screening, do_adaptive_tol_nel
