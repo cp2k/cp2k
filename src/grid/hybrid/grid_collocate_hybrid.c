@@ -19,9 +19,9 @@
 #include "../common/grid_library.h"
 #include "../cpu/coefficients.h"
 #include "../cpu/collocation_integration.h"
+#include "../cpu/cpu_private_header.h"
 #include "../cpu/grid_context_cpu.h"
 #include "../cpu/grid_prepare_pab_dgemm.h"
-#include "../cpu/private_header.h"
 #include "../cpu/tensor_local.h"
 #include "../cpu/utils.h"
 

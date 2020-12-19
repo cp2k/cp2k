@@ -5,8 +5,8 @@
 /*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
 /*----------------------------------------------------------------------------*/
 
-#ifndef PRIVATE_HEADER_H
-#define PRIVATE_HEADER_H
+#ifndef CPU_PRIVATE_HEADER_H
+#define CPU_PRIVATE_HEADER_H
 
 #include "tensor_local.h"
 #include <assert.h>

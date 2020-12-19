@@ -15,7 +15,7 @@
 #endif
 #include "../common/grid_common.h"
 #include "coefficients.h"
-#include "private_header.h"
+#include "cpu_private_header.h"
 #include "tensor_local.h"
 
 void transform_xyz_to_triangular(const tensor *const coef,

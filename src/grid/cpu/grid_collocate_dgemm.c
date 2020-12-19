@@ -23,11 +23,11 @@
 #include "../common/grid_constants.h"
 #include "coefficients.h"
 #include "collocation_integration.h"
+#include "cpu_private_header.h"
 #include "grid_collocate_dgemm.h"
 #include "grid_cpu_task_list.h"
 #include "grid_prepare_pab_dgemm.h"
 #include "non_orthorombic_corrections.h"
-#include "private_header.h"
 #include "tensor_local.h"
 
 void collocate_l0(double *scratch, const double alpha, const bool orthogonal,

@@ -22,7 +22,7 @@
 #endif
 
 #include "../common/grid_common.h"
-#include "private_header.h"
+#include "cpu_private_header.h"
 #include "tensor_local.h"
 
 /* inverse of the factorials */

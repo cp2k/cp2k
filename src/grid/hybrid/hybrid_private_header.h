@@ -5,8 +5,8 @@
 /*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
 /*----------------------------------------------------------------------------*/
 
-#ifndef PRIVATE_HEADER_H
-#define PRIVATE_HEADER_H
+#ifndef HYBRID_PRIVATE_HEADER_H
+#define HYBRID_PRIVATE_HEADER_H
 
 #include <cuda.h>
 
