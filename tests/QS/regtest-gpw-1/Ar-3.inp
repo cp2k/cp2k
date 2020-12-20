@@ -18,7 +18,6 @@
       EPS_SCF 1.0E-4
       MAX_DIIS 4
       MAX_SCF 20
-       
       SCF_GUESS RESTART
     &END SCF
     &XC
@@ -41,4 +40,7 @@
 &END FORCE_EVAL
 &GLOBAL
   PRINT_LEVEL MEDIUM
+  &GRID
+    BACKEND REF ! basis is too large for GPU backend
+  &END GRID
 &END GLOBAL
