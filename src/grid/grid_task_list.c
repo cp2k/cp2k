@@ -173,13 +173,12 @@ void grid_collocate_task_list(
 
   // Perform validation if enabled.
   if (grid_library_get_config().validate) {
-    // Create empty reference grid array.
+    // Allocate space for reference results.
     double *grid_ref[nlevels];
     for (int level = 0; level < nlevels; level++) {
       const size_t sizeof_grid = sizeof(double) * npts_local[level][0] *
                                  npts_local[level][1] * npts_local[level][2];
       grid_ref[level] = malloc(sizeof_grid);
-      memset(grid_ref[level], 0, sizeof_grid);
     }
 
     // Call reference implementation.
@@ -189,6 +188,7 @@ void grid_collocate_task_list(
 
     // Compare results.
     const double tolerance = 1e-12;
+    double max_rel_diff = 0.0;
     for (int level = 0; level < nlevels; level++) {
       for (int i = 0; i < npts_local[level][0]; i++) {
         for (int j = 0; j < npts_local[level][1]; j++) {
@@ -198,8 +198,9 @@ void grid_collocate_task_list(
             const double ref_value = grid_ref[level][idx];
             const double diff = fabs(grid[level][idx] - ref_value);
             const double rel_diff = diff / fmax(1.0, fabs(ref_value));
+            max_rel_diff = fmax(max_rel_diff, rel_diff);
             if (rel_diff > tolerance) {
-              fprintf(stderr, "Error: Grid validation failure\n");
+              fprintf(stderr, "Error: Validation failure in grid collocate\n");
               fprintf(stderr, "   diff:     %le\n", diff);
               fprintf(stderr, "   rel_diff: %le\n", rel_diff);
               fprintf(stderr, "   value:    %le\n", ref_value);
@@ -211,6 +212,7 @@ void grid_collocate_task_list(
         }
       }
       free(grid_ref[level]);
+      printf("Validated grid collocate, max rel. diff: %le\n", max_rel_diff);
     }
   }
 }
@@ -263,6 +265,88 @@ void grid_integrate_task_list(
     printf("Error: Unknown grid backend: %i.\n", task_list->backend);
     abort();
     break;
+  }
+
+  // Perform validation if enabled.
+  if (grid_library_get_config().validate) {
+    // Allocate space for reference results.
+    const int hab_length = hab_blocks->size / sizeof(double);
+    grid_buffer *hab_blocks_ref = NULL;
+    grid_create_buffer(hab_length, &hab_blocks_ref);
+    double forces_ref[natoms][3], virial_ref[3][3];
+
+    // Call reference implementation.
+    grid_ref_integrate_task_list(
+        task_list->ref, orthorhombic, compute_tau, natoms, nlevels, npts_global,
+        npts_local, shift_local, border_width, dh, dh_inv, pab_blocks, grid,
+        hab_blocks_ref, (forces != NULL) ? forces_ref : NULL,
+        (virial != NULL) ? virial_ref : NULL);
+
+    // Compare hab.
+    const double hab_tolerance = 1e-12;
+    double hab_max_rel_diff = 0.0;
+    for (int i = 0; i < hab_length; i++) {
+      const double ref_value = hab_blocks_ref->host_buffer[i];
+      const double test_value = hab_blocks->host_buffer[i];
+      const double diff = fabs(test_value - ref_value);
+      const double rel_diff = diff / fmax(1.0, fabs(ref_value));
+      hab_max_rel_diff = fmax(hab_max_rel_diff, rel_diff);
+      if (rel_diff > hab_tolerance) {
+        fprintf(stderr, "Error: Validation failure in grid integrate\n");
+        fprintf(stderr, "   hab diff:     %le\n", diff);
+        fprintf(stderr, "   hab rel_diff: %le\n", rel_diff);
+        fprintf(stderr, "   hab value:    %le\n", ref_value);
+        fprintf(stderr, "   hab i:        %i\n", i);
+        abort();
+      }
+    }
+
+    // Compare forces.
+    const double forces_tolerance = 1e-8; // account for higher numeric noise
+    if (forces != NULL) {
+      for (int iatom = 0; iatom < natoms; iatom++) {
+        for (int idir = 0; idir < 3; idir++) {
+          const double ref_value = forces_ref[iatom][idir];
+          const double test_value = forces[iatom][idir];
+          ;
+          const double diff = fabs(test_value - ref_value);
+          const double rel_diff = diff / fmax(1.0, fabs(ref_value));
+          if (rel_diff > forces_tolerance) {
+            fprintf(stderr, "Error: Validation failure in grid integrate\n");
+            fprintf(stderr, "   forces diff:     %le\n", diff);
+            fprintf(stderr, "   forces rel_diff: %le\n", rel_diff);
+            fprintf(stderr, "   forces value:    %le\n", ref_value);
+            fprintf(stderr, "   forces atom:     %i\n", iatom);
+            fprintf(stderr, "   forces dir:      %i\n", idir);
+            abort();
+          }
+        }
+      }
+    }
+
+    // Compare virial.
+    const double virial_tolerance = 1e-8; // account for higher numeric noise
+    if (virial != NULL) {
+      for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+          const double ref_value = virial_ref[i][j];
+          const double test_value = virial[i][j];
+          const double diff = fabs(test_value - ref_value);
+          const double rel_diff = diff / fmax(1.0, fabs(ref_value));
+          if (rel_diff > virial_tolerance) {
+            fprintf(stderr, "Error: Validation failure in grid integrate\n");
+            fprintf(stderr, "   virial diff:     %le\n", diff);
+            fprintf(stderr, "   virial rel_diff: %le\n", rel_diff);
+            fprintf(stderr, "   virial value:    %le\n", ref_value);
+            fprintf(stderr, "   virial ij:       %i  %i\n", i, j);
+            abort();
+          }
+        }
+      }
+    }
+
+    printf("Validated grid_integrate, max rel. diff: %le\n", hab_max_rel_diff);
+    grid_free_buffer(hab_blocks_ref);
   }
 }
 
