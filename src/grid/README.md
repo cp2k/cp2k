@@ -42,7 +42,7 @@ grid 13 13 18 9.926167350636332098457e-24
 #THE_END
 ```
 
-For more information see [grid_collocate_replay.c](grid_collocate_replay.c).
+For more information see [grid_replay.c](grid_replay.c).
 
 ## MiniApp
 
