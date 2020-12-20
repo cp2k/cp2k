@@ -24,6 +24,7 @@ ALL_OBJECTS := grid_replay.o \
                ref/grid_ref_prepare_pab.o \
                gpu/grid_gpu_task_list.o \
                gpu/grid_gpu_collocate.o \
+               gpu/grid_gpu_integrate.o \
                hybrid/grid_collocate_hybrid_cuda.o \
                hybrid/grid_collocate_hybrid.o \
                cpu/grid_context_cpu.o \
