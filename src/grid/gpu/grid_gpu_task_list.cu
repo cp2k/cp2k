@@ -18,6 +18,7 @@
 
 #include "../common/grid_common.h"
 #include "../common/grid_constants.h"
+#include "../common/grid_library.h"
 #include "grid_gpu_collocate.h"
 #include "grid_gpu_integrate.h"
 #include "grid_gpu_task_list.h"
@@ -48,6 +49,9 @@ void grid_gpu_create_task_list(
     const int border_mask_list[], const int block_num_list[],
     const double radius_list[], const double rab_list[][3],
     grid_gpu_task_list **task_list_out) {
+
+  // Select GPU device.
+  CHECK(cudaSetDevice(grid_library_get_config().device_id));
 
   if (*task_list_out != NULL) {
     // This is actually an opportunity to reuse some buffers.
@@ -191,6 +195,9 @@ void grid_gpu_create_task_list(
  ******************************************************************************/
 void grid_gpu_free_task_list(grid_gpu_task_list *task_list) {
 
+  // Select GPU device.
+  CHECK(cudaSetDevice(grid_library_get_config().device_id));
+
   // Download basis sets from device to get device pointers to their lists.
   const int nkinds = task_list->nkinds;
   grid_basis_set basis_sets_host[nkinds];
@@ -244,7 +251,9 @@ void grid_gpu_collocate_task_list(
     const int border_width[][3], const double dh[][3][3],
     const double dh_inv[][3][3], const grid_buffer *pab_blocks,
     double *grid[]) {
-  assert(task_list->nlevels == nlevels);
+
+  // Select GPU device.
+  CHECK(cudaSetDevice(grid_library_get_config().device_id));
 
   // Upload blocks buffer using the main stream
   CHECK(cudaMemcpyAsync(pab_blocks->device_buffer, pab_blocks->host_buffer,
@@ -257,6 +266,7 @@ void grid_gpu_collocate_task_list(
   CHECK(cudaEventRecord(input_ready_event, task_list->main_stream));
 
   int first_task = 0;
+  assert(task_list->nlevels == nlevels);
   for (int level = 0; level < task_list->nlevels; level++) {
     const int last_task = first_task + task_list->tasks_per_level[level] - 1;
     const cudaStream_t level_stream = task_list->level_streams[level];
@@ -318,7 +328,8 @@ void grid_gpu_integrate_task_list(
     const grid_buffer *pab_blocks, const double *grid[],
     grid_buffer *hab_blocks, double forces[][3], double virial[3][3]) {
 
-  assert(task_list->nlevels == nlevels);
+  // Select GPU device.
+  CHECK(cudaSetDevice(grid_library_get_config().device_id));
 
   // Prepare shared buffers using the main stream
   double *forces_dev = NULL;
@@ -351,6 +362,7 @@ void grid_gpu_integrate_task_list(
   CHECK(cudaEventRecord(input_ready_event, task_list->main_stream));
 
   int first_task = 0;
+  assert(task_list->nlevels == nlevels);
   for (int level = 0; level < task_list->nlevels; level++) {
     const int last_task = first_task + task_list->tasks_per_level[level] - 1;
     const cudaStream_t level_stream = task_list->level_streams[level];

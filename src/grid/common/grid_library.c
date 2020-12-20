@@ -19,7 +19,7 @@
 static grid_library_globals **per_thread_globals = NULL;
 static bool library_initialized = false;
 static grid_library_config config = {.backend = GRID_BACKEND_AUTO,
-                                     .device_id = -1,
+                                     .device_id = 0,
                                      .validate = false,
                                      .apply_cutoff = false,
                                      .queue_length = 8192};

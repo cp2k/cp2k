@@ -7,6 +7,10 @@
 #ifndef GRID_LIBRARY_H
 #define GRID_LIBRARY_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "grid_constants.h"
 #include "grid_sphere_cache.h"
 #include <stdbool.h>
@@ -81,6 +85,10 @@ grid_sphere_cache *grid_library_get_sphere_cache();
  * \author Ole Schuett
  ******************************************************************************/
 void grid_library_increment_counter(int collocate, int ortho, int lp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // GRID_LIBRARY_H
 
