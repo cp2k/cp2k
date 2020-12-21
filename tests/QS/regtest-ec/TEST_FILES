@@ -5,7 +5,7 @@ H2_H2O-xcLLP_ec.inp                                   11      1e-08             
 H2_H2O_ec.inp                                         11      1e-10                 -18.4641086282
 H2_H2O_ecprim.inp                                     11      1e-10                 -18.4071025433
 2H2O_ecmao.inp                                        11      1e-10                 -34.0838901711
-2H2O_ecmao2.inp                                       11      1e-08                 -34.5024586832
+2H2O_ecmao2.inp                                       11      1e-08                 -34.5024390041
 H2O_ec.inp                                            11      1e-08                 -17.2629537942
 HF_ec_dipole.inp                                      11      1e-08                 -24.8917060368
 HF_ec_field.inp                                       11      1e-08                 -24.8908706031
