@@ -30,6 +30,7 @@ MODULE pexsi_interface
 #endif
    USE kinds, ONLY: int_8, &
                     real_8
+   USE ISO_C_BINDING, ONLY: C_INTPTR_T
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -269,11 +270,7 @@ CONTAINS
    FUNCTION cp_pexsi_plan_initialize(comm, numProcRow, numProcCol, outputFileIndex)
       INTEGER, INTENT(IN)                      :: comm, numProcRow, numProcCol, &
                                                   outputFileIndex
-#if defined(__ARM)
-      INTEGER                                  :: cp_pexsi_plan_initialize
-#else
-      INTEGER(KIND=int_8)                      :: cp_pexsi_plan_initialize
-#endif
+      INTEGER(KIND=C_INTPTR_T)                 :: cp_pexsi_plan_initialize
 
 #if defined(__LIBPEXSI)
       CHARACTER(LEN=*), PARAMETER              :: routineN = 'cp_pexsi_plan_initialize'
@@ -313,11 +310,7 @@ CONTAINS
                                            nnzLocal, numColLocal, colptrLocal, &
                                            rowindLocal, HnzvalLocal, isSIdentity, &
                                            SnzvalLocal)
-#if defined(__ARM)
-      INTEGER, INTENT(IN)                      :: plan
-#else
-      INTEGER(KIND=int_8), INTENT(IN)          :: plan
-#endif
+      INTEGER(KIND=C_INTPTR_T), INTENT(IN)     :: plan
       TYPE(cp_pexsi_options), INTENT(IN)       :: pexsi_options
       INTEGER, INTENT(IN)                      :: nrows, nnz, nnzLocal, &
                                                   numColLocal, colptrLocal(*), &
@@ -369,11 +362,7 @@ CONTAINS
    SUBROUTINE cp_pexsi_dft_driver(plan, pexsi_options, numElectronExact, muPEXSI, &
                                   numElectronPEXSI, muMinInertia, muMaxInertia, &
                                   numTotalInertiaIter, numTotalPEXSIIter)
-#if defined(__ARM)
-      INTEGER, INTENT(IN)                      :: plan
-#else
-      INTEGER(KIND=int_8), INTENT(IN)          :: plan
-#endif
+      INTEGER(KIND=C_INTPTR_T), INTENT(IN)     :: plan
       TYPE(cp_pexsi_options), INTENT(IN)       :: pexsi_options
       REAL(KIND=real_8), INTENT(IN)            :: numElectronExact
       REAL(KIND=real_8), INTENT(out)           :: muPEXSI, numElectronPEXSI, &
@@ -436,11 +425,7 @@ CONTAINS
    SUBROUTINE cp_pexsi_retrieve_real_dft_matrix(plan, DMnzvalLocal, EDMnzvalLocal, &
                                                 FDMnzvalLocal, totalEnergyH, &
                                                 totalEnergyS, totalFreeEnergy)
-#if defined(__ARM)
-      INTEGER, INTENT(IN)                      :: plan
-#else
-      INTEGER(KIND=int_8), INTENT(IN)          :: plan
-#endif
+      INTEGER(KIND=C_INTPTR_T), INTENT(IN)     :: plan
       REAL(KIND=real_8), INTENT(out)           :: DMnzvalLocal(*), EDMnzvalLocal(*), &
                                                   FDMnzvalLocal(*), totalEnergyH, totalEnergyS, &
                                                   totalFreeEnergy
@@ -475,11 +460,7 @@ CONTAINS
 !> \param plan ...
 ! **************************************************************************************************
    SUBROUTINE cp_pexsi_plan_finalize(plan)
-#if defined(__ARM)
-      INTEGER, INTENT(IN)                      :: plan
-#else
-      INTEGER(KIND=int_8), INTENT(IN)          :: plan
-#endif
+      INTEGER(KIND=C_INTPTR_T), INTENT(IN)     :: plan
 
 #if defined(__LIBPEXSI)
       CHARACTER(LEN=*), PARAMETER              :: routineN = 'cp_pexsi_plan_finalize'
