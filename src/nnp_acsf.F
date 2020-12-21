@@ -25,6 +25,7 @@ MODULE nnp_acsf
                                               nnp_acsf_rad_type,&
                                               nnp_cut_cos,&
                                               nnp_cut_tanh,&
+                                              nnp_env_get,&
                                               nnp_neighbor_type,&
                                               nnp_type
    USE periodic_table,                  ONLY: get_ptable_info
@@ -55,7 +56,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE nnp_calc_acsf(nnp, i, dsymdxyz)
 
-      TYPE(nnp_type), INTENT(INOUT)                      :: nnp
+      TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp
       INTEGER, INTENT(IN)                                :: i
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), &
          OPTIONAL                                        :: dsymdxyz
@@ -1152,13 +1153,17 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE nnp_neighbor_create(nnp, ind, nat, neighbor)
 
-      TYPE(nnp_type), INTENT(IN)                         :: nnp
+      TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp
       INTEGER, INTENT(IN)                                :: ind, nat
       TYPE(nnp_neighbor_type), INTENT(INOUT)             :: neighbor
 
       INTEGER                                            :: n
+      TYPE(cell_type), POINTER                           :: cell
 
-      CALL nnp_compute_pbc_copies(neighbor%pbc_copies, nnp%cell_ref, nnp%max_cut)
+      NULLIFY (cell)
+      CALL nnp_env_get(nnp_env=nnp, cell=cell)
+
+      CALL nnp_compute_pbc_copies(neighbor%pbc_copies, cell, nnp%max_cut)
       n = (SUM(neighbor%pbc_copies) + 1)*nat
       ALLOCATE (neighbor%dist_rad(4, n, nnp%rad(ind)%n_symfgrp))
       ALLOCATE (neighbor%dist_ang1(4, n, nnp%ang(ind)%n_symfgrp))
@@ -1207,7 +1212,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE nnp_compute_neighbors(nnp, neighbor, i)
 
-      TYPE(nnp_type), INTENT(IN)                         :: nnp
+      TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp
       TYPE(nnp_neighbor_type), INTENT(INOUT)             :: neighbor
       INTEGER, INTENT(IN)                                :: i
 
@@ -1215,6 +1220,10 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: nl
       REAL(KIND=dp)                                      :: norm
       REAL(KIND=dp), DIMENSION(3)                        :: dr
+      TYPE(cell_type), POINTER                           :: cell
+
+      NULLIFY (cell)
+      CALL nnp_env_get(nnp_env=nnp, cell=cell)
 
       ind = nnp%ele_ind(i)
 
@@ -1228,7 +1237,7 @@ CONTAINS
                   IF (j == i .AND. nl(1) == 0 .AND. nl(2) == 0 .AND. nl(3) == 0) CYCLE
                   dr(:) = nnp%coord(:, i) - nnp%coord(:, j)
                   !Apply pbc, but subtract nl boxes from periodic image
-                  dr = pbc(dr, nnp%cell_ref, nl)
+                  dr = pbc(dr, cell, nl)
                   norm = NORM2(dr(:))
                   DO s = 1, nnp%rad(ind)%n_symfgrp
                      IF (nnp%ele_ind(j) == nnp%rad(ind)%symfgrp(s)%ele_ind(1)) THEN

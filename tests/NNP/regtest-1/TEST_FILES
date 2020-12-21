@@ -4,6 +4,7 @@
 H2O-64_NNP_MD.inp                       2    1.0E-14           0.375124218267E+04
 H2O_C-NNP_MD.inp                        2    1.0E-14           0.586488095231E+02
 H2O-64_C-NNP_MD.inp                     2    1.0E-14           0.375124235844E+04
+H2O-64_C-NNP_MD-NpT-numeric.inp         2    1.0E-14           0.375124841615E+04
 H2O-64_C-NNP_biased_MD.inp              2    1.0E-14           0.375124232248E+04
 H2O-64_C-NNP_biased_MD_restart.inp      2    1.0E-14           0.375124124406E+04
 #EOF
