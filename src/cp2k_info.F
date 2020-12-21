@@ -283,9 +283,6 @@ CONTAINS
 #if defined(__GRID_CUDA)
       flags = TRIM(flags)//" grid_cuda"
 #endif
-#if defined(__ARM)
-      flags = TRIM(flags)//" arm"
-#endif
 
    END FUNCTION cp2k_flags
 
