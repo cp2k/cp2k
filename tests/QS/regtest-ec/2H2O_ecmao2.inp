@@ -30,7 +30,7 @@
     &ENERGY_CORRECTION
       HARRIS_BASIS HARRIS
       MAO
-      MAO_MAX_ITER 2000
+      MAO_MAX_ITER 1000
       MAO_EPS_GRAD 1.e-7
       &XC
         &XC_FUNCTIONAL 
