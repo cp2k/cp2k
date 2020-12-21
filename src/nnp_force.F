@@ -13,8 +13,6 @@
 MODULE nnp_force
 
    USE atomic_kind_types,               ONLY: atomic_kind_type
-   USE cell_types,                      ONLY: cell_type,&
-                                              get_cell
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
@@ -72,9 +70,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: allcalc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: denergydsym
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dsymdxyz
-      REAL(KIND=dp), DIMENSION(3)                        :: abc
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(distribution_1d_type), POINTER                :: local_particles
@@ -83,15 +79,14 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (cell, particle_set, logger, local_particles, subsys, &
+      NULLIFY (particle_set, logger, local_particles, subsys, &
                atomic_kind_set)
       logger => cp_get_default_logger()
 
       CPASSERT(ASSOCIATED(nnp))
-      CALL nnp_env_get(nnp_env=nnp, cell=cell, particle_set=particle_set, &
+      CALL nnp_env_get(nnp_env=nnp, particle_set=particle_set, &
                        subsys=subsys, local_particles=local_particles, &
                        atomic_kind_set=atomic_kind_set)
-      CALL get_cell(cell=cell, abc=abc)
 
       ! Initialize energy and gradient:
       nnp%atomic_energy(:, :) = 0.0_dp
