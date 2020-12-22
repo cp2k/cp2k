@@ -4,8 +4,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-libvori_ver="201208"
-libvori_sha256="b1e2ab335542cda2e4eb62c72c09990bf3a5cda7df53e63db98948c83d82e2d5"
+libvori_ver="201217"
+libvori_sha256="6ad456ed6ca5d28cadcc0d90eabe8fff5caa77b99f12764323de5e3ae21cddf5"
 
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}"/common_vars.sh
@@ -76,13 +76,13 @@ case "${with_libvori:=__INSTALL__}" in
 esac
 
 if [ "$with_libvori" != "__DONTUSE__" ] ; then
-    LIBVORI_LIBS="-lvori"
+    LIBVORI_LIBS="-lvori -lstdc++"
     if [ "$with_libvori" != "__SYSTEM__" ] ; then
         cat << EOF > "${BUILDDIR}/setup_libvori"
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
-export LIBVORI_LIBS="-lvori"
+export LIBVORI_LIBS="${LIBVORI_LIBS}"
 export LIBVORI_ROOT="${pkg_install_dir}"
 EOF
     fi
