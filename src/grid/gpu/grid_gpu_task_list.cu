@@ -167,6 +167,22 @@ void grid_gpu_create_task_list(
     }
   }
 
+  // collect stats
+  memset(task_list->stats, 0, 2 * 20 * sizeof(int));
+  for (int itask = 0; itask < ntasks; itask++) {
+    const int iatom = iatom_list[itask] - 1;
+    const int jatom = jatom_list[itask] - 1;
+    const int ikind = atom_kinds[iatom] - 1;
+    const int jkind = atom_kinds[jatom] - 1;
+    const int iset = iset_list[itask] - 1;
+    const int jset = jset_list[itask] - 1;
+    const int la_max = basis_sets[ikind]->lmax[iset];
+    const int lb_max = basis_sets[jkind]->lmax[jset];
+    const int lp = imin(la_max + lb_max, 19);
+    const bool has_border_mask = (border_mask_list[itask] != 0);
+    task_list->stats[has_border_mask][lp]++;
+  }
+
   // allocate main cuda stream
   CHECK(cudaStreamCreate(&task_list->main_stream));
 
@@ -265,6 +281,7 @@ void grid_gpu_collocate_task_list(
   CHECK(cudaEventCreate(&input_ready_event));
   CHECK(cudaEventRecord(input_ready_event, task_list->main_stream));
 
+  int lp_diff;
   int first_task = 0;
   assert(task_list->nlevels == nlevels);
   for (int level = 0; level < task_list->nlevels; level++) {
@@ -292,9 +309,23 @@ void grid_gpu_collocate_task_list(
         task_list, first_task, last_task, orthorhombic, func,
         npts_global[level], npts_local[level], shift_local[level],
         border_width[level], dh[level], dh_inv[level], level_stream,
-        pab_blocks->device_buffer, task_list->grid_dev[level]);
+        pab_blocks->device_buffer, task_list->grid_dev[level], &lp_diff);
 
     first_task = last_task + 1;
+  }
+
+  // update counters while we wait for kernels to finish
+  for (int has_border_mask = 0; has_border_mask <= 1; has_border_mask++) {
+    for (int lp = 0; lp < 20; lp++) {
+      const int count = task_list->stats[has_border_mask][lp];
+      if (orthorhombic && !has_border_mask) {
+        grid_library_counter_add(lp + lp_diff, GRID_BACKEND_GPU,
+                                 GRID_COLLOCATE_ORTHO, count);
+      } else {
+        grid_library_counter_add(lp + lp_diff, GRID_BACKEND_GPU,
+                                 GRID_COLLOCATE_GENERAL, count);
+      }
+    }
   }
 
   // download result from device to host.
@@ -361,6 +392,7 @@ void grid_gpu_integrate_task_list(
   CHECK(cudaEventCreate(&input_ready_event));
   CHECK(cudaEventRecord(input_ready_event, task_list->main_stream));
 
+  int lp_diff;
   int first_task = 0;
   assert(task_list->nlevels == nlevels);
   for (int level = 0; level < task_list->nlevels; level++) {
@@ -389,7 +421,7 @@ void grid_gpu_integrate_task_list(
         npts_global[level], npts_local[level], shift_local[level],
         border_width[level], dh[level], dh_inv[level], level_stream,
         pab_blocks_dev, task_list->grid_dev[level], hab_blocks->device_buffer,
-        forces_dev, virial_dev);
+        forces_dev, virial_dev, &lp_diff);
 
     // Have main stream wait for level to complete before downloading results.
     cudaEvent_t level_done_event;
@@ -399,6 +431,20 @@ void grid_gpu_integrate_task_list(
     CHECK(cudaEventDestroy(level_done_event));
 
     first_task = last_task + 1;
+  }
+
+  // update counters while we wait for kernels to finish
+  for (int has_border_mask = 0; has_border_mask <= 1; has_border_mask++) {
+    for (int lp = 0; lp < 20; lp++) {
+      const int count = task_list->stats[has_border_mask][lp];
+      if (orthorhombic && !has_border_mask) {
+        grid_library_counter_add(lp + lp_diff, GRID_BACKEND_GPU,
+                                 GRID_INTEGRATE_ORTHO, count);
+      } else {
+        grid_library_counter_add(lp + lp_diff, GRID_BACKEND_GPU,
+                                 GRID_INTEGRATE_GENERAL, count);
+      }
+    }
   }
 
   // download result from device to host using main stream.

@@ -96,12 +96,23 @@ void grid_library_set_config(const enum grid_backend backend,
 grid_library_config grid_library_get_config() { return config; }
 
 /*******************************************************************************
- * \brief Increment specified counter, see grid_library.h for details.
+ * \brief Adds given increment to counter specified by lp, backend, and kernel.
  * \author Ole Schuett
  ******************************************************************************/
-void grid_library_increment_counter(int lp, int kern, int op) {
-  lp = imin(lp, 19);
-  per_thread_globals[omp_get_thread_num()]->counters[lp][kern][op]++;
+void grid_library_counter_add(const int lp, const enum grid_backend backend,
+                              const enum grid_library_kernel kernel,
+                              const int increment) {
+  const int back = backend - GRID_BACKEND_REF;
+  const int idx = back * 4 * 20 + kernel * 20 + imin(lp, 19);
+  per_thread_globals[omp_get_thread_num()]->counters[idx] += increment;
+}
+
+/*******************************************************************************
+ * \brief Comperator passed to qsort to compare two counters.
+ * \author Ole Schuett
+ ******************************************************************************/
+static int compare_counters(const void *a, const void *b) {
+  return *(long *)b - *(long *)a;
 }
 
 /*******************************************************************************
@@ -118,20 +129,19 @@ void grid_library_print_stats(void (*mpi_sum_func)(long *, int),
   }
 
   // Sum all counters across threads and mpi ranks.
-  long counters[20][2][2] = {0};
+  long counters[320][2] = {0};
   double total = 0.0;
-  for (int lp = 0; lp < 20; lp++) {
-    for (int kern = 0; kern < 2; kern++) {
-      for (int op = 0; op < 2; op++) {
-        for (int i = 0; i < omp_get_max_threads(); i++) {
-          counters[lp][kern][op] +=
-              per_thread_globals[i]->counters[lp][kern][op];
-        }
-        mpi_sum_func(&counters[lp][kern][op], mpi_comm);
-        total += counters[lp][kern][op];
-      }
+  for (int i = 0; i < 320; i++) {
+    counters[i][1] = i;
+    for (int j = 0; j < omp_get_max_threads(); j++) {
+      counters[i][0] += per_thread_globals[j]->counters[i];
     }
+    mpi_sum_func(&counters[i][0], mpi_comm);
+    total += counters[i][0];
   }
+
+  // Sort counters.
+  qsort(counters, 320, 2 * sizeof(long), &compare_counters);
 
   // Print counters.
   print_func("\n", output_unit);
@@ -150,24 +160,26 @@ void grid_library_print_stats(void (*mpi_sum_func)(long *, int),
   print_func(" ----------------------------------------------------------------"
              "---------------\n",
              output_unit);
-  print_func(" LP    KERNEL    OPERATION                                     "
+  print_func(" LP    KERNEL             BACKEND                              "
              "COUNT     PERCENT\n",
              output_unit);
 
-  for (int lp = 0; lp < 20; lp++) {
-    for (int kern = 0; kern < 2; kern++) {
-      for (int op = 0; op < 2; op++) {
-        if (counters[lp][kern][op] == 0)
-          continue; // skip empty counters
-        const char *op_str = (op == 1) ? "collocate" : "integrate";
-        const char *kern_str = (kern == 1) ? "ortho" : "general";
-        char buffer[100];
-        double percent = 100.0 * counters[lp][kern][op] / total;
-        snprintf(buffer, sizeof(buffer), " %-5i %-9s %-12s %38li %10.2f%%\n",
-                 lp, kern_str, op_str, counters[lp][kern][op], percent);
-        print_func(buffer, output_unit);
-      }
-    }
+  const char *kernel_names[] = {"collocate ortho", "integrate ortho",
+                                "collocate general", "integrate general"};
+  const char *backend_names[] = {"REF", "CPU", "GPU", "HYBRID"};
+
+  for (int i = 0; i < 320; i++) {
+    if (counters[i][0] == 0)
+      continue; // skip empty counters
+    const double percent = 100.0 * counters[i][0] / total;
+    const int idx = counters[i][1];
+    const int back = idx / 80;
+    const int kern = (idx % 80) / 20;
+    const int lp = (idx % 80) % 20;
+    char buffer[100];
+    snprintf(buffer, sizeof(buffer), " %-5i %-17s  %-6s  %34li %10.2f%%\n", lp,
+             kernel_names[kern], backend_names[back], counters[i][0], percent);
+    print_func(buffer, output_unit);
   }
 
   print_func(" ----------------------------------------------------------------"
