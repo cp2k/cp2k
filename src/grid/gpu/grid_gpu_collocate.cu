@@ -142,7 +142,8 @@ void grid_gpu_collocate_one_grid_level(
     const int last_task, const bool orthorhombic, const enum grid_func func,
     const int npts_global[3], const int npts_local[3], const int shift_local[3],
     const int border_width[3], const double dh[3][3], const double dh_inv[3][3],
-    const cudaStream_t stream, const double *pab_blocks_dev, double *grid_dev) {
+    const cudaStream_t stream, const double *pab_blocks_dev, double *grid_dev,
+    int *lp_diff) {
 
   const int ntasks = last_task - first_task + 1;
   if (ntasks == 0) {
@@ -153,6 +154,7 @@ void grid_gpu_collocate_one_grid_level(
 
   // Compute max angular momentum.
   const prepare_ldiffs ldiffs = prepare_get_ldiffs(func);
+  *lp_diff = ldiffs.la_max_diff + ldiffs.lb_max_diff; // for reporting stats
   const int la_max = task_list->lmax + ldiffs.la_max_diff;
   const int lb_max = task_list->lmax + ldiffs.lb_max_diff;
   const int lp_max = la_max + lb_max;

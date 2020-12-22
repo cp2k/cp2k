@@ -787,16 +787,18 @@ cxyz_to_grid(const bool orthorhombic, const int border_mask, const int lp,
              const double radius, GRID_CONST_WHEN_COLLOCATE double *cxyz,
              GRID_CONST_WHEN_INTEGRATE double *grid) {
 
+  enum grid_library_kernel k;
   if (orthorhombic && border_mask == 0) {
-    grid_library_increment_counter(lp, 1, GRID_DO_COLLOCATE);
+    k = (GRID_DO_COLLOCATE) ? GRID_COLLOCATE_ORTHO : GRID_INTEGRATE_ORTHO;
     ortho_cxyz_to_grid(lp, zetp, dh, dh_inv, rp, npts_global, npts_local,
                        shift_local, radius, cxyz, grid);
   } else {
-    grid_library_increment_counter(lp, 0, GRID_DO_COLLOCATE);
+    k = (GRID_DO_COLLOCATE) ? GRID_COLLOCATE_GENERAL : GRID_INTEGRATE_GENERAL;
     general_cxyz_to_grid(border_mask, lp, zetp, dh, dh_inv, rp, npts_global,
                          npts_local, shift_local, border_width, radius, cxyz,
                          grid);
   }
+  grid_library_counter_add(lp, GRID_BACKEND_REF, k, 1);
 }
 
 /*******************************************************************************

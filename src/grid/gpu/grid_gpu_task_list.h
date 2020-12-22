@@ -51,6 +51,7 @@ typedef struct {
   cudaStream_t *level_streams;
   cudaStream_t main_stream;
   int lmax;
+  int stats[2][20]; // [has_border_mask][lp]
   // device pointers
   int *block_offsets_dev;
   double *atom_positions_dev;

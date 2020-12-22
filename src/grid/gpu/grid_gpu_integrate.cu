@@ -207,7 +207,7 @@ void grid_gpu_integrate_one_grid_level(
     const int border_width[3], const double dh[3][3], const double dh_inv[3][3],
     const cudaStream_t stream, const double *pab_blocks_dev,
     const double *grid_dev, double *hab_blocks_dev, double *forces_dev,
-    double *virial_dev) {
+    double *virial_dev, int *lp_diff) {
 
   const int ntasks = last_task - first_task + 1;
   if (ntasks == 0) {
@@ -222,6 +222,7 @@ void grid_gpu_integrate_one_grid_level(
   assert(!calculate_virial || calculate_forces);
   const process_ldiffs ldiffs =
       process_get_ldiffs(calculate_forces, calculate_virial, compute_tau);
+  *lp_diff = ldiffs.la_max_diff + ldiffs.lb_max_diff; // for reporting stats
   const int la_max = task_list->lmax + ldiffs.la_max_diff;
   const int lb_max = task_list->lmax + ldiffs.lb_max_diff;
   const int lp_max = la_max + lb_max;
