@@ -303,14 +303,15 @@ void grid_integrate_task_list(
 
     // Compare forces.
     const double forces_tolerance = 1e-8; // account for higher numeric noise
+    double forces_max_rel_diff = 0.0;
     if (forces != NULL) {
       for (int iatom = 0; iatom < natoms; iatom++) {
         for (int idir = 0; idir < 3; idir++) {
           const double ref_value = forces_ref[iatom][idir];
           const double test_value = forces[iatom][idir];
-          ;
           const double diff = fabs(test_value - ref_value);
           const double rel_diff = diff / fmax(1.0, fabs(ref_value));
+          forces_max_rel_diff = fmax(forces_max_rel_diff, rel_diff);
           if (rel_diff > forces_tolerance) {
             fprintf(stderr, "Error: Validation failure in grid integrate\n");
             fprintf(stderr, "   forces diff:     %le\n", diff);
@@ -326,6 +327,7 @@ void grid_integrate_task_list(
 
     // Compare virial.
     const double virial_tolerance = 1e-8; // account for higher numeric noise
+    double virial_max_rel_diff = 0.0;
     if (virial != NULL) {
       for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
@@ -333,6 +335,7 @@ void grid_integrate_task_list(
           const double test_value = virial[i][j];
           const double diff = fabs(test_value - ref_value);
           const double rel_diff = diff / fmax(1.0, fabs(ref_value));
+          virial_max_rel_diff = fmax(virial_max_rel_diff, rel_diff);
           if (rel_diff > virial_tolerance) {
             fprintf(stderr, "Error: Validation failure in grid integrate\n");
             fprintf(stderr, "   virial diff:     %le\n", diff);
@@ -345,7 +348,8 @@ void grid_integrate_task_list(
       }
     }
 
-    printf("Validated grid_integrate, max rel. diff: %le\n", hab_max_rel_diff);
+    printf("Validated grid_integrate, max rel. diff: %le %le %le\n",
+           hab_max_rel_diff, forces_max_rel_diff, virial_max_rel_diff);
     grid_free_buffer(hab_blocks_ref);
   }
 }
