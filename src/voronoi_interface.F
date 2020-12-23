@@ -55,7 +55,7 @@ MODULE voronoi_interface
 
    ! Global parameters
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'voronoi_interface'
-   PUBLIC :: entry_voronoi_or_bqb
+   PUBLIC :: entry_voronoi_or_bqb, finalize_libvori
 
 #if defined(__LIBVORI)
 
@@ -205,6 +205,18 @@ MODULE voronoi_interface
          REAL(C_DOUBLE) :: buf(*)
       END FUNCTION libvori_push_rho_zrow
 
+      INTEGER(C_INT) FUNCTION libvori_setBQBOverwrite(i) BIND(C, NAME='libvori_setBQBOverwrite')
+         USE ISO_C_BINDING, ONLY: C_INT
+         IMPLICIT NONE
+         INTEGER(C_INT), VALUE :: i
+      END FUNCTION libvori_setBQBOverwrite
+
+      INTEGER(C_INT) FUNCTION libvori_setVoriOverwrite(i) BIND(C, NAME='libvori_setVoriOverwrite')
+         USE ISO_C_BINDING, ONLY: C_INT
+         IMPLICIT NONE
+         INTEGER(C_INT), VALUE :: i
+      END FUNCTION libvori_setVoriOverwrite
+
       INTEGER(C_INT) FUNCTION libvori_get_radius(length, buf) BIND(C, NAME='libvori_get_radius')
          USE ISO_C_BINDING, ONLY: C_INT, C_DOUBLE
          IMPLICIT NONE
@@ -251,6 +263,10 @@ MODULE voronoi_interface
          REAL(C_DOUBLE) :: buf(*)
       END FUNCTION libvori_get_charge_center
 
+      INTEGER(C_INT) FUNCTION libvori_finalize() BIND(C, NAME='libvori_finalize')
+         USE ISO_C_BINDING, ONLY: C_INT
+         IMPLICIT NONE
+      END FUNCTION libvori_finalize
    END INTERFACE
 
 #endif
@@ -286,7 +302,8 @@ CONTAINS
                                                             ip, i1, i2, reffac, radius_type, bqb_optimize, &
                                                             bqb_history
       LOGICAL                                            :: outemp, bqb_skip_first, voro_skip_first, &
-                                                            bqb_store_step, bqb_check, voro_sanity
+                                                            bqb_store_step, bqb_check, voro_sanity, &
+                                                            bqb_overwrite, vori_overwrite
       REAL(KIND=dp)                                      :: zeff
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -340,6 +357,7 @@ CONTAINS
          CALL section_vals_val_get(input_voro, "VORONOI_RADII", i_val=radius_type)
          CALL section_vals_val_get(input_voro, "SKIP_FIRST", l_val=voro_skip_first)
          CALL section_vals_val_get(input_voro, "SANITY_CHECK", l_val=voro_sanity)
+         CALL section_vals_val_get(input_voro, "OVERWRITE", l_val=vori_overwrite)
          IF (radius_type == voro_radii_user) THEN
             CALL section_vals_val_get(input_voro, "USER_RADII", r_vals=user_radii)
          ENDIF
@@ -359,6 +377,7 @@ CONTAINS
          CALL section_vals_val_get(input_bqb, "SKIP_FIRST", l_val=bqb_skip_first)
          CALL section_vals_val_get(input_bqb, "STORE_STEP_NUMBER", l_val=bqb_store_step)
          CALL section_vals_val_get(input_bqb, "CHECK", l_val=bqb_check)
+         CALL section_vals_val_get(input_bqb, "OVERWRITE", l_val=bqb_overwrite)
          CALL section_vals_val_get(input_bqb, "PARAMETER_KEY", c_val=bqb_parm_string)
          IF (qs_env%single_point_run) THEN
             bqb_skip_first = .FALSE.
@@ -394,6 +413,11 @@ CONTAINS
             ELSE
                ret = libvori_setVoronoiSkipFirst(0)
             ENDIF
+            IF (vori_overwrite) THEN
+               ret = libvori_setVoriOverwrite(1)
+            ELSE
+               ret = libvori_setVoriOverwrite(0)
+            ENDIF
          ELSE
             ret = libvori_setPrefix_BQB()
          ENDIF
@@ -424,6 +448,11 @@ CONTAINS
                ret = libvori_setBQBCheck(1)
             ELSE
                ret = libvori_setBQBCheck(0)
+            ENDIF
+            IF (bqb_overwrite) THEN
+               ret = libvori_setBQBOverwrite(1)
+            ELSE
+               ret = libvori_setBQBOverwrite(0)
             ENDIF
             IF (bqb_store_step) THEN
                ret = libvori_setBQBStoreStep(1)
@@ -714,5 +743,14 @@ CONTAINS
 
    END SUBROUTINE entry_voronoi_or_bqb
 
+! **************************************************************************************************
+!> \brief Call libvori's finalize if support is compiled in
+! **************************************************************************************************
+   SUBROUTINE finalize_libvori()
+#if defined(__LIBVORI)
+      INTEGER(KIND=C_INT) :: ret
+      ret = libvori_finalize()
+#endif
+   END SUBROUTINE
 END MODULE voronoi_interface
 
