@@ -10,7 +10,7 @@ from os import path
 from datetime import datetime
 
 flag_exceptions_re = re.compile(
-    r"__COMPILE_REVISION|__COMPILE_DATE|__COMPILE_ARCH|__COMPILE_HOST|"
+    r"__COMPILE_REVISION|__COMPILE_DATE|__COMPILE_ARCH|__COMPILE_HOST|CUDA_VERSION|"
     r"__INTEL_COMPILER|__cplusplus|\$\{.*\}\$|__.*__"
 )
 

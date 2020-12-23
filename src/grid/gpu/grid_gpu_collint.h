@@ -16,10 +16,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if (CUDA_VERSION >= 11000)
 #include <cooperative_groups.h>
 #include <cooperative_groups/reduce.h>
-
 namespace cg = cooperative_groups;
+#endif
 
 #include "../common/grid_basis_set.h"
 #include "../common/grid_common.h"
@@ -64,11 +65,17 @@ __device__ static void atomicAddDouble(double *address, double val) {
  * \author Ole Schuett
  ******************************************************************************/
 __device__ static inline void coalescedAtomicAdd(double *address, double val) {
-  cg::coalesced_group active = cg::coalesced_threads();
-  double sum = cg::reduce(active, val, cg::plus<double>());
+
+#if (CUDA_VERSION >= 11000)
+  // This can provide a significant speedup, e.g. 12x for lp=0 on a Maxwell GPU.
+  const cg::coalesced_group active = cg::coalesced_threads();
+  const double sum = cg::reduce(active, val, cg::plus<double>());
   if (active.thread_rank() == 0) {
     atomicAddDouble(address, sum);
   }
+#else
+  atomicAddDouble(address, val);
+#endif
 }
 
 /*******************************************************************************
