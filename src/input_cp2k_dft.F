@@ -1579,6 +1579,13 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="OVERWRITE", &
+                          description="Specify this keyword to overwrite the output BQB file if"// &
+                          " it already exists. By default, the data is appended to an existing file.", &
+                          usage="OVERWRITE T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="HISTORY", &
                           description="Controls how many previous steps are taken into account for extrapolation in"// &
                           " compression. Use a value of 1 to compress the frames independently.", &
@@ -1623,6 +1630,13 @@ CONTAINS
                           description="Performs a sanity check before each Voronoi integration, i.e.,"// &
                           " checks if every grid point is located in exactly one Voronoi cell.", &
                           usage="SANITY_CHECK T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="OVERWRITE", &
+                          description="Specify this keyword to overwrite any existing ""properties.emp"" file if"// &
+                          " it already exists. By default, the data is appended to an existing file.", &
+                          usage="OVERWRITE T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
