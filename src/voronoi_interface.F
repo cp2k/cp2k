@@ -408,16 +408,9 @@ CONTAINS
          IF (do_voro /= 0) THEN
             ret = libvori_setPrefix_Voronoi()
             ret = libvori_setRefinementFactor(reffac)
-            IF (voro_skip_first) THEN
-               ret = libvori_setVoronoiSkipFirst(1)
-            ELSE
-               ret = libvori_setVoronoiSkipFirst(0)
-            ENDIF
-            IF (vori_overwrite) THEN
-               ret = libvori_setVoriOverwrite(1)
-            ELSE
-               ret = libvori_setVoriOverwrite(0)
-            ENDIF
+            ret = libvori_setVoronoiSkipFirst(MERGE(1, 0, voro_skip_first))
+            ret = libvori_setVoriOverwrite(MERGE(1, 0, vori_overwrite))
+            ret = libvori_setEMPOutput(MERGE(1, 0, outemp))
          ELSE
             ret = libvori_setPrefix_BQB()
          ENDIF
@@ -439,26 +432,10 @@ CONTAINS
             END SELECT
             ret = libvori_setBQBOptimization(bqb_optimize)
             ret = libvori_setBQBHistory(bqb_history)
-            IF (bqb_skip_first) THEN
-               ret = libvori_setBQBSkipFirst(1)
-            ELSE
-               ret = libvori_setBQBSkipFirst(0)
-            ENDIF
-            IF (bqb_check) THEN
-               ret = libvori_setBQBCheck(1)
-            ELSE
-               ret = libvori_setBQBCheck(0)
-            ENDIF
-            IF (bqb_overwrite) THEN
-               ret = libvori_setBQBOverwrite(1)
-            ELSE
-               ret = libvori_setBQBOverwrite(0)
-            ENDIF
-            IF (bqb_store_step) THEN
-               ret = libvori_setBQBStoreStep(1)
-            ELSE
-               ret = libvori_setBQBStoreStep(0)
-            ENDIF
+            ret = libvori_setBQBSkipFirst(MERGE(1, 0, bqb_skip_first))
+            ret = libvori_setBQBCheck(MERGE(1, 0, bqb_check))
+            ret = libvori_setBQBOverwrite(MERGE(1, 0, bqb_overwrite))
+            ret = libvori_setBQBStoreStep(MERGE(1, 0, bqb_store_step))
          ENDIF
 
          ret = libvori_setgrid( &
@@ -486,7 +463,7 @@ CONTAINS
                )
 
          IF (ret /= 0) THEN
-            CALL cp_abort(__LOCATION__, "The library returned an error. Aborting.")
+            CPABORT("The library returned an error. Aborting.")
          ENDIF
 
          ALLOCATE (particles_z(natom))
@@ -508,7 +485,7 @@ CONTAINS
          ret = libvori_pushatoms(natom, particles_z, particles_c, particles_r(1, :), particles_r(2, :), particles_r(3, :))
 
          IF (ret /= 0) THEN
-            CALL cp_abort(__LOCATION__, "The library returned an error. Aborting.")
+            CPABORT("The library returned an error. Aborting.")
          ENDIF
 
       ENDIF
@@ -559,7 +536,7 @@ CONTAINS
             IF (my_rank == dest) THEN
                ret = libvori_push_rho_zrow(I1 - L1, I2 - L2, U3 - L3 + 1, buf)
                IF (ret /= 0) THEN
-                  CALL cp_abort(__LOCATION__, "The library returned an error. Aborting.")
+                  CPABORT("The library returned an error. Aborting.")
                ENDIF
             ENDIF
 
@@ -579,12 +556,6 @@ CONTAINS
       IF (my_rank == 0) THEN
 
          IF (do_voro /= 0) THEN
-
-            IF (outemp) THEN
-               ret = libvori_setEMPOutput(1)
-            ELSE
-               ret = libvori_setEMPOutput(0)
-            ENDIF
 
             IF (radius_type == voro_radii_unity) THEN
                ret = libvori_setRadii_Unity()
@@ -606,7 +577,7 @@ CONTAINS
                ret = libvori_sanitycheck(sim_step, sim_time)
 
                IF (ret /= 0) THEN
-                  CALL cp_abort(__LOCATION__, "The library returned an error. Aborting.")
+                  CPABORT("The library returned an error. Aborting.")
                ENDIF
 
             ENDIF
@@ -614,7 +585,7 @@ CONTAINS
             ret = libvori_step(sim_step, sim_time)
 
             IF (ret /= 0) THEN
-               CALL cp_abort(__LOCATION__, "The library returned an error. Aborting.")
+               CPABORT("The library returned an error. Aborting.")
             ENDIF
 
             ALLOCATE (voro_radii(natom))
@@ -706,7 +677,7 @@ CONTAINS
             ret = libvori_processBQBFrame(sim_step, sim_time*femtoseconds)
 
             IF (ret /= 0) THEN
-               CALL cp_abort(__LOCATION__, "The library returned an error. Aborting.")
+               CPABORT("The library returned an error. Aborting.")
             ENDIF
 
             IF (do_voro /= 0) THEN
@@ -736,8 +707,8 @@ CONTAINS
       MARK_USED(rspace_pw)
 
       CALL cp_warn(__LOCATION__, &
-                   "Voronoi integration and BQB output require CP2k to be compiled &
-                   &with the -D__LIBVORI preprocessor option.")
+                   "Voronoi integration and BQB output require CP2k to be compiled"// &
+                   " with the -D__LIBVORI preprocessor option.")
 
 #endif
 
@@ -753,4 +724,3 @@ CONTAINS
 #endif
    END SUBROUTINE
 END MODULE voronoi_interface
-
