@@ -16,10 +16,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if (CUDA_VERSION >= 11000)
 #include <cooperative_groups.h>
-#include <cooperative_groups/reduce.h>
 namespace cg = cooperative_groups;
+
+#if (CUDA_VERSION >= 11000)
+#include <cooperative_groups/reduce.h>
 #endif
 
 #include "../common/grid_basis_set.h"
@@ -66,16 +67,32 @@ __device__ static void atomicAddDouble(double *address, double val) {
  ******************************************************************************/
 __device__ static inline void coalescedAtomicAdd(double *address, double val) {
 
-#if (CUDA_VERSION >= 11000)
-  // This can provide a significant speedup, e.g. 12x for lp=0 on a Maxwell GPU.
   const cg::coalesced_group active = cg::coalesced_threads();
+
+#if (CUDA_VERSION >= 11000)
+  // Reduce from Cuda 11+ library is around 30% faster than the solution below.
   const double sum = cg::reduce(active, val, cg::plus<double>());
+
+#else
+  // Slow sequential reduction until group size is a power of two.
+  double sum1 = 0.0;
+  unsigned int group_size = active.size();
+  while ((group_size & (group_size - 1)) != 0) {
+    sum1 += active.shfl_down(val, group_size - 1);
+    group_size--;
+  }
+  // Fast tree reduction halving group size in each iteration.
+  double sum2 = val;
+  for (int offset = group_size / 2; offset > 0; offset /= 2) {
+    sum2 += active.shfl_down(sum2, offset);
+  }
+  const double sum = sum1 + sum2;
+#endif
+
+  // A single atomic add to avoid shared memory bank conflicts.
   if (active.thread_rank() == 0) {
     atomicAddDouble(address, sum);
   }
-#else
-  atomicAddDouble(address, val);
-#endif
 }
 
 /*******************************************************************************
