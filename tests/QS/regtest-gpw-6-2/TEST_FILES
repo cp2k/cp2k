@@ -4,6 +4,6 @@ si8_noort_broy_wc_jacobi_ene1.inp                     23      7e-04             
 si8_noort_broy_wc_direct_ene.inp                      23       2E-9                 555.1771778293
 #
 si8_lsd_broy_stm.inp                                   1      2e-13             -30.92831595126394
-si8_lsd_broy_wc_ene.inp                               23      4e-10                1440.4655686718
-si8_lsd_broy_wc.inp                                   23      4e-09                2032.3788474873
+si8_lsd_broy_wc_ene.inp                               23      2e-09                1440.4655686718
+si8_lsd_broy_wc.inp                                   23      5e-09                2032.3788474873
 #EOF
