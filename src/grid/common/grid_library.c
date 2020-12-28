@@ -38,11 +38,11 @@ void grid_library_init() {
     abort();
   }
 
-  per_thread_globals =
-      malloc(sizeof(grid_library_globals *) * omp_get_max_threads());
+  const int n = omp_get_max_threads();
+  per_thread_globals = malloc(n * sizeof(grid_library_globals *));
 
 // Using parallel regions to ensure memory is allocated near a thread's core.
-#pragma omp parallel default(none) shared(per_thread_globals)
+#pragma omp parallel default(none) shared(per_thread_globals) num_threads(n)
   {
     const int ithread = omp_get_thread_num();
     per_thread_globals[ithread] = malloc(sizeof(grid_library_globals));
