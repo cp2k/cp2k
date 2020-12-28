@@ -1,0 +1,7 @@
+MAJOR = 8
+MINOR = 0
+PATCH = 0
+# A specific DATE (YYYY-MM-DD) fixes an official release, otherwise
+# it is considered Development version.
+DATE  = 2020-12-09
+
