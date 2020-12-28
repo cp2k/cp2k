@@ -24,6 +24,10 @@ static grid_library_config config = {.backend = GRID_BACKEND_AUTO,
                                      .apply_cutoff = false,
                                      .queue_length = 8192};
 
+#if !defined(_OPENMP)
+#error "OpenMP is required. Please add -fopenmp to your C compiler flags."
+#endif
+
 /*******************************************************************************
  * \brief Initializes the grid library.
  * \author Ole Schuett
