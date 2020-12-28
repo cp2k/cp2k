@@ -121,7 +121,7 @@ MODULE qs_ks_utils
    USE virial_types,                    ONLY: virial_type
    USE xc,                              ONLY: xc_exc_calc,&
                                               xc_vxc_pw_create1
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

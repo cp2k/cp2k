@@ -22,7 +22,7 @@ MODULE helium_types
                                               int_8
    USE parallel_rng_types,              ONLY: rng_stream_type
    USE splines_types,                   ONLY: spline_data_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

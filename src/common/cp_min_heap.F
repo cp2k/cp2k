@@ -8,7 +8,7 @@
 MODULE cp_min_heap
    USE kinds,                           ONLY: int_4,&
                                               int_8
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

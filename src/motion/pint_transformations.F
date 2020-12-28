@@ -15,7 +15,7 @@ MODULE pint_transformations
                                               staging_u2x,&
                                               staging_x2u
    USE pint_types,                      ONLY: pint_env_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

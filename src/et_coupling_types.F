@@ -15,7 +15,7 @@ MODULE et_coupling_types
                                               cp_fm_release
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE kinds,                           ONLY: dp
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

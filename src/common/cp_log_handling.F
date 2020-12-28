@@ -55,7 +55,7 @@ MODULE cp_log_handling
    USE message_passing,                 ONLY: mp_comm_free
    USE string_utilities,                ONLY: compress
    USE timings,                         ONLY: print_stack
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

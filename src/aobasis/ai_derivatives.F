@@ -36,7 +36,7 @@ MODULE ai_derivatives
    USE kinds,                           ONLY: dp
    USE orbital_pointers,                ONLY: coset,&
                                               ncoset
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

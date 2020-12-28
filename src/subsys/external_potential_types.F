@@ -53,7 +53,7 @@ MODULE external_potential_types
    USE periodic_table,                  ONLY: ptable
    USE string_utilities,                ONLY: remove_word,&
                                               uppercase
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

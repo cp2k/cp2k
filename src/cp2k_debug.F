@@ -61,7 +61,7 @@ MODULE cp2k_debug
                                               virial_set,&
                                               virial_type,&
                                               zero_virial
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

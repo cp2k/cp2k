@@ -27,7 +27,7 @@ MODULE cp_cfm_types
    USE message_passing,                 ONLY: &
         cp2k_is_parallel, mp_allgather, mp_any_source, mp_bcast, mp_irecv, mp_isend, mp_proc_null, &
         mp_request_null, mp_sum, mp_waitall
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

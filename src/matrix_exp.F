@@ -45,7 +45,7 @@ MODULE matrix_exp
                                               mp_max,&
                                               mp_reordering,&
                                               mp_sum
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

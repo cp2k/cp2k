@@ -34,7 +34,7 @@ MODULE xas_env_types
    USE scf_control_types,               ONLY: scf_c_release,&
                                               scf_c_retain,&
                                               scf_control_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

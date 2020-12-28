@@ -30,7 +30,7 @@ MODULE qs_condnum
         dbcsr_p_type, dbcsr_release, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: invmat
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

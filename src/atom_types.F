@@ -55,7 +55,7 @@ MODULE atom_types
                                               grid_atom_type
    USE string_utilities,                ONLY: remove_word,&
                                               uppercase
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

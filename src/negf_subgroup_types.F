@@ -22,7 +22,7 @@ MODULE negf_subgroup_types
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE message_passing,                 ONLY: mp_comm_split
    USE negf_control_types,              ONLY: negf_control_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

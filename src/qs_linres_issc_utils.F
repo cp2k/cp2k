@@ -83,7 +83,7 @@ MODULE qs_linres_issc_utils
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_p_env_types,                  ONLY: qs_p_env_type
    USE qs_spin_orbit,                   ONLY: build_pso_matrix
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

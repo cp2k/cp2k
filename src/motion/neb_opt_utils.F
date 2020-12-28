@@ -30,7 +30,7 @@ MODULE neb_opt_utils
                                               reorient_images
    USE particle_types,                  ONLY: particle_type
    USE replica_types,                   ONLY: replica_env_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

@@ -33,7 +33,7 @@ MODULE constraint_util
                                               molecule_type
    USE particle_types,                  ONLY: particle_type
    USE virial_types,                    ONLY: virial_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

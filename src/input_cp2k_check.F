@@ -39,7 +39,7 @@ MODULE input_cp2k_check
                                               dp
    USE memory_utilities,                ONLY: reallocate
    USE xc_input_constants,              ONLY: do_vwn5
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

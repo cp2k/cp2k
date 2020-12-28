@@ -124,7 +124,7 @@ MODULE mixed_cdft_methods
                                               rs_grid_zero,&
                                               rs_pw_transfer
    USE util,                            ONLY: sort
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

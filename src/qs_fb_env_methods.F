@@ -102,7 +102,7 @@ MODULE qs_fb_env_methods
    USE scf_control_types,               ONLY: scf_control_type
    USE string_utilities,                ONLY: compress,&
                                               uppercase
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

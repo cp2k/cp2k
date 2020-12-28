@@ -73,7 +73,7 @@ MODULE rt_propagation_methods
    USE rt_propagation_utils,            ONLY: calc_S_derivs,&
                                               calc_update_rho,&
                                               calc_update_rho_sparse
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -76,7 +76,7 @@ MODULE almo_scf_qs
                                               qs_rho_type
    USE qs_scf_types,                    ONLY: qs_scf_env_type,&
                                               scf_env_create
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

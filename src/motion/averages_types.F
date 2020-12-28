@@ -30,7 +30,7 @@ MODULE averages_types
    USE virial_types,                    ONLY: virial_create,&
                                               virial_release,&
                                               virial_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

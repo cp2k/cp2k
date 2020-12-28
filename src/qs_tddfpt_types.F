@@ -24,7 +24,7 @@ MODULE qs_tddfpt_types
                                               qs_environment_type
    USE qs_matrix_pools,                 ONLY: mpools_get
    USE qs_p_env_types,                  ONLY: qs_p_env_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

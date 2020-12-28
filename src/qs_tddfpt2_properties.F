@@ -111,7 +111,7 @@ MODULE qs_tddfpt2_properties
    USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos
    USE string_utilities,                ONLY: integer_to_string
    USE util,                            ONLY: sort
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

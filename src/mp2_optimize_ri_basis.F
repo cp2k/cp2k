@@ -58,7 +58,7 @@ MODULE mp2_optimize_ri_basis
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE util,                            ONLY: sort
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

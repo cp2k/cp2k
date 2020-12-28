@@ -32,7 +32,7 @@ MODULE helium_interactions
                                               kelvin
    USE pint_types,                      ONLY: pint_env_type
    USE splines_types,                   ONLY: spline_data_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

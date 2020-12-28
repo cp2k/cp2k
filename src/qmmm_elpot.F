@@ -33,7 +33,7 @@ MODULE qmmm_elpot
                                               qmmm_gaussian_type
    USE qmmm_types_low,                  ONLY: qmmm_Pot_Type,&
                                               qmmm_pot_p_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

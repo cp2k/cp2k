@@ -36,7 +36,7 @@ MODULE cp_fm_diag_utils
                                               mp_comm_free,&
                                               mp_comm_split,&
                                               mp_sync
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

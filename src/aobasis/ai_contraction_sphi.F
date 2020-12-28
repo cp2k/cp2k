@@ -24,7 +24,7 @@ MODULE ai_contraction_sphi
                       libxsmm_dmmfunction
 #endif
 
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

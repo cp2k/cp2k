@@ -20,7 +20,7 @@ MODULE cube_utils
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: matvec_3x3
    USE realspace_grid_types,            ONLY: realspace_grid_desc_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

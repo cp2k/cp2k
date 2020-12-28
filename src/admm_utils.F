@@ -29,7 +29,7 @@ MODULE admm_utils
                                               do_admm_purify_mo_no_diag,&
                                               do_admm_purify_none
    USE kinds,                           ONLY: dp
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

@@ -37,7 +37,7 @@ MODULE qs_scf_csr_write
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

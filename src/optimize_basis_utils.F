@@ -36,7 +36,7 @@ MODULE optimize_basis_utils
                                               subset_type
    USE powell,                          ONLY: opt_state_type
    USE string_utilities,                ONLY: uppercase
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

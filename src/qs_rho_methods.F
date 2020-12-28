@@ -63,7 +63,7 @@ MODULE qs_rho_methods
                                               qs_rho_type
    USE ri_environment_methods,          ONLY: calculate_ri_densities
    USE task_list_types,                 ONLY: task_list_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

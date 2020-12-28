@@ -36,7 +36,7 @@ MODULE lri_environment_types
                                               release_neighbor_list_sets
    USE qs_o3c_types,                    ONLY: o3c_container_type,&
                                               release_o3c_container
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

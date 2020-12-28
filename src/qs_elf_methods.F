@@ -35,7 +35,7 @@ MODULE qs_elf_methods
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

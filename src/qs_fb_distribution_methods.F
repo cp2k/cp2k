@@ -33,7 +33,7 @@ MODULE qs_fb_distribution_methods
                                               fb_env_set
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE util,                            ONLY: sort
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -32,7 +32,7 @@ MODULE atomic_kind_types
    USE shell_potential_types,           ONLY: shell_kind_type,&
                                               shell_release,&
                                               shell_retain
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -34,7 +34,7 @@ MODULE ai_overlap_ppl
                                               pi
    USE orbital_pointers,                ONLY: indco,&
                                               ncoset
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

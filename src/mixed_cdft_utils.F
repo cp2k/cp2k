@@ -113,7 +113,7 @@ MODULE mixed_cdft_utils
                                               rs_grid_create,&
                                               rs_grid_create_descriptor,&
                                               rs_grid_print
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

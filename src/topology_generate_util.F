@@ -61,7 +61,7 @@ MODULE topology_generate_util
                                               reorder_structure
    USE util,                            ONLY: find_boundary,&
                                               sort
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

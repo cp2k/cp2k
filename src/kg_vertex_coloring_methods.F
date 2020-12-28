@@ -35,7 +35,7 @@ MODULE kg_vertex_coloring_methods
    USE kg_environment_types,            ONLY: kg_environment_type
    USE kinds,                           ONLY: int_4,&
                                               int_8
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

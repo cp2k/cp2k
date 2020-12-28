@@ -46,7 +46,7 @@ MODULE xas_tdp_kernel
                                               xas_tdp_env_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

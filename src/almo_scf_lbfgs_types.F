@@ -24,7 +24,7 @@ MODULE almo_scf_lbfgs_types
                                               dbcsr_scale,&
                                               dbcsr_type
    USE kinds,                           ONLY: dp
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

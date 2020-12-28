@@ -77,7 +77,7 @@ MODULE qmmm_gpw_forces
    USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

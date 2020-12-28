@@ -52,7 +52,7 @@ MODULE cp_dbcsr_cp2k_link
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
    USE string_utilities,                ONLY: s2a
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

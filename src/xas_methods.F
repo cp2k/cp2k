@@ -122,7 +122,7 @@ MODULE xas_methods
    USE xas_restart,                     ONLY: xas_read_restart
    USE xas_tp_scf,                      ONLY: xas_do_tp_scf,&
                                               xes_scf_once
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

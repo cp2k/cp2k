@@ -7,7 +7,7 @@
 MODULE callgraph
    USE kinds, ONLY: int_4, int_8
    USE timings_base_type, ONLY: call_stat_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

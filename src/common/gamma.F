@@ -17,7 +17,7 @@ MODULE gamma
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: ifac,&
                                               pi
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

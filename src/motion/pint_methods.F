@@ -140,7 +140,7 @@ MODULE pint_methods
                                               replica_env_type
    USE simpar_types,                    ONLY: create_simpar_type,&
                                               release_simpar_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

@@ -33,7 +33,7 @@ MODULE qs_gcp_utils
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE sto_ng,                          ONLY: get_sto_ng
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

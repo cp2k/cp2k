@@ -41,7 +41,7 @@ MODULE eip_environment_types
                                               particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE virial_types,                    ONLY: virial_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

@@ -43,7 +43,7 @@ MODULE pint_qtb
    USE pint_types,                      ONLY: normalmode_env_type,&
                                               pint_env_type,&
                                               qtb_therm_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

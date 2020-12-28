@@ -41,7 +41,7 @@ MODULE libcp2k
                                               default_string_length,&
                                               dp
    USE qs_active_space_types,           ONLY: eri_type_eri_element_func
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

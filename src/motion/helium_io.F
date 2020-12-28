@@ -62,7 +62,7 @@ MODULE helium_io
    USE physcon,                         ONLY: angstrom,&
                                               massunit
    USE pint_types,                      ONLY: pint_env_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

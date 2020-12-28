@@ -45,7 +45,7 @@ MODULE free_energy_methods
                                               sw_test,&
                                               vn_test
    USE string_utilities,                ONLY: compress
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

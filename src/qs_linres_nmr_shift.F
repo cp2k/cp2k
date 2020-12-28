@@ -78,7 +78,7 @@ MODULE qs_linres_nmr_shift
    USE qs_rho_types,                    ONLY: qs_rho_get
    USE realspace_grid_types,            ONLY: realspace_grid_desc_type
    USE util,                            ONLY: get_limit
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -32,7 +32,7 @@ MODULE qs_linres_types
    USE qs_rho_types,                    ONLY: qs_rho_p_type,&
                                               qs_rho_release
    USE realspace_grid_types,            ONLY: realspace_grid_p_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

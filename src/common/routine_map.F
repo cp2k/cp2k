@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 MODULE routine_map
    USE kinds, ONLY: default_string_length, int_4, int_8
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

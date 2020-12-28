@@ -30,7 +30,7 @@ MODULE ps_wavelet_methods
    USE pw_poisson_types,                ONLY: pw_poisson_parameter_type
    USE pw_types,                        ONLY: pw_type
    USE util,                            ONLY: get_limit
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

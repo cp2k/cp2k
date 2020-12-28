@@ -19,7 +19,7 @@ MODULE splines_methods
    USE splines_types,                   ONLY: spline_data_p_type,&
                                               spline_data_type,&
                                               spline_factor_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

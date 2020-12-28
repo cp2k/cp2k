@@ -45,7 +45,7 @@ MODULE dm_ls_scf_methods
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE mathlib,                         ONLY: abnormal_value
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

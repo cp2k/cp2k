@@ -27,7 +27,7 @@ MODULE preconditioner_types
    USE input_constants,                 ONLY: cholesky_reduce,&
                                               ot_precond_solver_default
    USE kinds,                           ONLY: dp
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

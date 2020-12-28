@@ -47,7 +47,7 @@ MODULE scf_control_types
    USE qs_ot_types,                     ONLY: ot_readwrite_input,&
                                               qs_ot_settings_init,&
                                               qs_ot_settings_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -15,7 +15,7 @@ MODULE mp2_laplace
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
    USE kinds,                           ONLY: dp
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

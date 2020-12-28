@@ -59,7 +59,7 @@ MODULE rpa_gw_im_time_util
                                               pgf_block_sizes,&
                                               split_block_sizes
    USE rpa_communication,               ONLY: communicate_buffer
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

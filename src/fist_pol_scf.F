@@ -38,7 +38,7 @@ MODULE fist_pol_scf
    USE pw_poisson_types,                ONLY: do_ewald_ewald,&
                                               do_ewald_pme,&
                                               do_ewald_spme
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

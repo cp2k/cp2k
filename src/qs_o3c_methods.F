@@ -26,7 +26,7 @@ MODULE qs_o3c_methods
         set_o3c_container
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

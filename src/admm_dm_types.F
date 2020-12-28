@@ -18,7 +18,7 @@ MODULE admm_dm_types
    USE input_constants,                 ONLY: do_admm_basis_projection,&
                                               do_admm_purify_mcweeny
    USE kinds,                           ONLY: dp
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

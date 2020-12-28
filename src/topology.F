@@ -87,7 +87,7 @@ MODULE topology
                                               topology_set_atm_mass
    USE topology_xtl,                    ONLY: read_coordinate_xtl
    USE topology_xyz,                    ONLY: read_coordinate_xyz
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

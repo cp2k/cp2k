@@ -62,7 +62,7 @@ MODULE qs_environment_methods
    USE qs_rho0_ggrid,                   ONLY: rho0_s_grid_create
    USE qs_rho0_types,                   ONLY: rho0_mpole_type
    USE scf_control_types,               ONLY: scf_control_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

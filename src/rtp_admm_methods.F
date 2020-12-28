@@ -55,7 +55,7 @@ MODULE rtp_admm_methods
    USE rt_propagation_types,            ONLY: get_rtp,&
                                               rt_prop_type
    USE task_list_types,                 ONLY: task_list_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

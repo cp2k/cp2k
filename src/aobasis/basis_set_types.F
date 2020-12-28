@@ -51,7 +51,7 @@ MODULE basis_set_types
                                               remove_word,&
                                               uppercase
    USE util,                            ONLY: sort
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

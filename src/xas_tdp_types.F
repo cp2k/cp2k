@@ -55,7 +55,7 @@ MODULE xas_tdp_types
                                               qs_loc_env_release
    USE qs_ot_types,                     ONLY: qs_ot_settings_init,&
                                               qs_ot_settings_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

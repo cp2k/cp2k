@@ -22,7 +22,7 @@ MODULE qs_ks_qmmm_types
    USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                               pw_pool_type
    USE pw_types,                        ONLY: pw_p_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

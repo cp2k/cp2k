@@ -19,7 +19,7 @@ MODULE pao_optimizer
    USE pao_input,                       ONLY: pao_opt_bfgs,&
                                               pao_opt_cg
    USE pao_types,                       ONLY: pao_env_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

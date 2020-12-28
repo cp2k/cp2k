@@ -83,7 +83,7 @@ MODULE dm_ls_scf
    USE transport,                       ONLY: external_scf_method,&
                                               transport_initialize
    USE transport_env_types,             ONLY: transport_env_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

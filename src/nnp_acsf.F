@@ -29,7 +29,7 @@ MODULE nnp_acsf
                                               nnp_neighbor_type,&
                                               nnp_type
    USE periodic_table,                  ONLY: get_ptable_info
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

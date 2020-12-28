@@ -39,7 +39,7 @@ MODULE replica_types
    USE message_passing,                 ONLY: mp_sum
    USE qs_wf_history_types,             ONLY: qs_wf_history_p_type,&
                                               wfi_release
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

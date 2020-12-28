@@ -19,7 +19,7 @@ MODULE metadynamics_types
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE parallel_rng_types,              ONLY: rng_stream_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

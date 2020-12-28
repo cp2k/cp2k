@@ -45,7 +45,7 @@ MODULE qs_dftb3_methods
    USE sap_kind_types,                  ONLY: sap_int_type
    USE virial_methods,                  ONLY: virial_pair_force
    USE virial_types,                    ONLY: virial_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

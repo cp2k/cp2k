@@ -19,7 +19,7 @@ MODULE qs_local_rho_types
                                               rho0_mpole_type
    USE qs_rho_atom_types,               ONLY: deallocate_rho_atom_set,&
                                               rho_atom_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

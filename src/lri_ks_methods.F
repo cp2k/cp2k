@@ -40,7 +40,7 @@ MODULE lri_ks_methods
    USE ri_environment_methods,          ONLY: ri_metric_solver
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

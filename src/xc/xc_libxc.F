@@ -84,7 +84,7 @@ MODULE xc_libxc
                             xc_libxc_wrap_is_under_development
 #endif
 
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

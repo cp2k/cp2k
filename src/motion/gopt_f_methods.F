@@ -63,7 +63,7 @@ MODULE gopt_f_methods
    USE qmmmx_util,                      ONLY: apply_qmmmx_translate
    USE virial_methods,                  ONLY: virial_evaluate
    USE virial_types,                    ONLY: virial_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

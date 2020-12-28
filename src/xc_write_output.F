@@ -23,7 +23,7 @@ MODULE xc_write_output
    USE kinds,                           ONLY: default_string_length
    USE xc_derivatives,                  ONLY: xc_functional_get_info
    USE xc_libxc,                        ONLY: libxc_version_info
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

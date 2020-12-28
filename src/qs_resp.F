@@ -93,7 +93,7 @@ MODULE qs_resp
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
    USE uff_vdw_radii_table,             ONLY: get_uff_vdw_radius
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

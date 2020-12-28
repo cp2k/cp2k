@@ -31,7 +31,7 @@ MODULE rs_methods
    USE realspace_grid_types,            ONLY: &
         pw2rs, realspace_grid_desc_type, realspace_grid_p_type, realspace_grid_type, rs2pw, &
         rs_grid_create, rs_grid_release, rs_grid_zero, rs_pw_transfer
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

@@ -23,7 +23,7 @@ MODULE qs_tddfpt2_densities
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -25,7 +25,7 @@ MODULE semi_empirical_store_int_types
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE memory_utilities,                ONLY: reallocate
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

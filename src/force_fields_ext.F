@@ -45,7 +45,7 @@ MODULE force_fields_ext
    USE particle_types,                  ONLY: particle_type
    USE string_utilities,                ONLY: uppercase
    USE topology_amber,                  ONLY: rdparm_amber_8
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

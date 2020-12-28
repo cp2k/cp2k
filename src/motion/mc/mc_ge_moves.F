@@ -52,7 +52,7 @@ MODULE mc_ge_moves
                                               particle_list_type
    USE particle_methods,                ONLY: write_particle_coordinates
    USE physcon,                         ONLY: angstrom
-#include "../../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -34,7 +34,7 @@ MODULE graph_methods
                                               ptable
    USE physcon,                         ONLY: bohr
    USE string_utilities,                ONLY: uppercase
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

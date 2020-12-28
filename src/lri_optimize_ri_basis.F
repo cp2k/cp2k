@@ -75,7 +75,7 @@ MODULE lri_optimize_ri_basis
                                               qs_rho_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

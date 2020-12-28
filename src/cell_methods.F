@@ -47,7 +47,7 @@ MODULE cell_methods
                                               dp
    USE mathconstants,                   ONLY: degree
    USE mathlib,                         ONLY: angle
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

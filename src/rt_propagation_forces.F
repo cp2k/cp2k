@@ -45,7 +45,7 @@ MODULE rt_propagation_forces
    USE qs_overlap,                      ONLY: build_overlap_force
    USE rt_propagation_types,            ONLY: get_rtp,&
                                               rt_prop_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

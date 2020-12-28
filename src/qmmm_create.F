@@ -65,7 +65,7 @@ MODULE qmmm_create
                                               qs_env_create,&
                                               qs_environment_type,&
                                               set_qs_env
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

@@ -54,7 +54,7 @@ MODULE metadynamics_utils
                                               metavar_type,&
                                               multiple_walkers_type
    USE physcon,                         ONLY: kelvin
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

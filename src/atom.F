@@ -26,7 +26,7 @@ MODULE atom
    USE kinds,                           ONLY: default_string_length
    USE periodic_table,                  ONLY: nelem,&
                                               ptable
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

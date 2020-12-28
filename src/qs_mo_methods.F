@@ -52,7 +52,7 @@ MODULE qs_mo_methods
                                               mo_set_p_type,&
                                               mo_set_type
    USE scf_control_types,               ONLY: scf_control_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

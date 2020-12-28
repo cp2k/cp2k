@@ -79,7 +79,7 @@ MODULE lri_environment_methods
    USE virial_types,                    ONLY: virial_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

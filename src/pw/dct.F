@@ -31,7 +31,7 @@ MODULE dct
                                               REALDATA1D,&
                                               RECIPROCALSPACE,&
                                               pw_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

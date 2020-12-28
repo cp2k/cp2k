@@ -31,7 +31,7 @@ MODULE qs_tddfpt2_fhxc
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
    USE qs_tddfpt2_types,                ONLY: full_kernel_env_type,&
                                               tddfpt_work_matrices
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -20,7 +20,7 @@ MODULE mscfg_types
         dbcsr_nfullrows_total, dbcsr_release, dbcsr_reserve_block2d, dbcsr_set, dbcsr_type, &
         dbcsr_type_no_symmetry, dbcsr_work_create
    USE kinds,                           ONLY: dp
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

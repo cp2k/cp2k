@@ -34,7 +34,7 @@ MODULE commutator_rkinetic
                                               neighbor_list_set_p_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

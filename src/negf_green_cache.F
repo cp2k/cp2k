@@ -13,7 +13,7 @@ MODULE negf_green_cache
                                               cp_cfm_release
    USE kinds,                           ONLY: dp
    USE util,                            ONLY: sort
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

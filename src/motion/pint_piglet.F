@@ -37,7 +37,7 @@ MODULE pint_piglet
    USE pint_io,                         ONLY: pint_write_line
    USE pint_types,                      ONLY: piglet_therm_type,&
                                               pint_env_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

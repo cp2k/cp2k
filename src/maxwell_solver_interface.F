@@ -25,7 +25,7 @@ MODULE maxwell_solver_interface
       mp_file_write_at, mp_maxloc, mp_recv, mp_send, mp_sum, mp_sync, mpi_character_size
    USE ISO_C_BINDING, ONLY: C_INT, C_DOUBLE
 
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

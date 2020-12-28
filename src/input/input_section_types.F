@@ -43,7 +43,7 @@ MODULE input_section_types
                                               substitute_special_xml_tokens,&
                                               typo_match,&
                                               uppercase
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

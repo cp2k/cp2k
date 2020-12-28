@@ -56,7 +56,7 @@ MODULE cp_output_handling
                                               mp_file_open
    USE string_utilities,                ONLY: compress,&
                                               s2a
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

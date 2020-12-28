@@ -50,7 +50,7 @@ MODULE qs_dftb_parameters
                                               qs_kind_type,&
                                               set_qs_kind
    USE string_utilities,                ONLY: uppercase
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

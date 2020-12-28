@@ -33,7 +33,7 @@ MODULE pao_input
    USE linesearch,                      ONLY: linesearch_create_section
    USE pao_types,                       ONLY: pao_env_type
    USE string_utilities,                ONLY: s2a
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

@@ -13,7 +13,7 @@
 ! **************************************************************************************************
 MODULE xc_rho_cflags_types
 
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
    IMPLICIT NONE
    PRIVATE
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.

@@ -18,7 +18,7 @@ MODULE grrm_utils
    USE physcon,                         ONLY: angstrom
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

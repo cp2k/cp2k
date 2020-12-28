@@ -37,7 +37,7 @@ MODULE hfx_libint_interface
    USE mathconstants,                   ONLY: pi
    USE orbital_pointers,                ONLY: nco
    USE t_c_g0,                          ONLY: t_c_g0_n
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

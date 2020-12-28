@@ -14,7 +14,7 @@ MODULE csvr_system_utils
 
    USE kinds,                           ONLY: dp
    USE parallel_rng_types,              ONLY: rng_stream_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

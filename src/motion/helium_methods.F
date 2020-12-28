@@ -79,7 +79,7 @@ MODULE helium_methods
                                               init_splinexy
    USE splines_types,                   ONLY: spline_data_create,&
                                               spline_data_release
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

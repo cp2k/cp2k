@@ -33,7 +33,7 @@ MODULE qs_cdft_scf_utils
                                               qs_environment_type
    USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE scf_control_types,               ONLY: scf_control_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

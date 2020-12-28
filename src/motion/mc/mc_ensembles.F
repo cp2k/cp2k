@@ -83,7 +83,7 @@ MODULE mc_ensembles
                                               boltzmann,&
                                               joule,&
                                               n_avogadro
-#include "../../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

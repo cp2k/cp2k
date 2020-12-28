@@ -41,7 +41,7 @@ MODULE molecule_kind_types
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE shell_potential_types,           ONLY: shell_kind_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

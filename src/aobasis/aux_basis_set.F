@@ -22,7 +22,7 @@ MODULE aux_basis_set
                                               nso
    USE orbital_symbols,                 ONLY: cgf_symbol,&
                                               sgf_symbol
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

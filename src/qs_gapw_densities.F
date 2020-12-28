@@ -27,7 +27,7 @@ MODULE qs_gapw_densities
                                               rho0_mpole_type
    USE qs_rho_atom_methods,             ONLY: calculate_rho_atom
    USE qs_rho_atom_types,               ONLY: rho_atom_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

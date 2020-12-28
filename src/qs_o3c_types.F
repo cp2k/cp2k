@@ -18,7 +18,7 @@ MODULE qs_o3c_types
         neighbor_list_iterator_create, neighbor_list_iterator_p_type, &
         neighbor_list_iterator_release, neighbor_list_set_p_type, nl_set_sub_iterator, &
         nl_sub_iterate
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

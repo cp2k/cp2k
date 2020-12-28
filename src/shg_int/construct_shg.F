@@ -23,7 +23,7 @@ MODULE construct_shg
    USE orbital_pointers,                ONLY: indso,&
                                               indso_inv,&
                                               nsoset
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -31,7 +31,7 @@ MODULE qs_fb_atomic_halo_types
    USE string_utilities,                ONLY: compress
    USE util,                            ONLY: locate,&
                                               sort
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

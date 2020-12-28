@@ -40,7 +40,7 @@ MODULE cp_parser_methods
    USE message_passing,                 ONLY: mp_bcast
    USE string_utilities,                ONLY: is_whitespace,&
                                               uppercase
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

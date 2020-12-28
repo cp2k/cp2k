@@ -78,7 +78,7 @@ MODULE qs_mo_io
    USE qs_mo_types,                     ONLY: mo_set_p_type,&
                                               mo_set_type
    USE string_utilities,                ONLY: compress
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

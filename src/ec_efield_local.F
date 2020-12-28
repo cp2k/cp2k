@@ -48,7 +48,7 @@ MODULE ec_efield_local
    USE qs_period_efield_types,          ONLY: efield_berry_type,&
                                               init_efield_matrices,&
                                               set_efield_matrices
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

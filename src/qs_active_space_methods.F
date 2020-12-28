@@ -130,7 +130,7 @@ MODULE qs_active_space_methods
    USE task_list_types,                 ONLY: allocate_task_list,&
                                               deallocate_task_list,&
                                               task_list_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

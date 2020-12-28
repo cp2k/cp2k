@@ -17,7 +17,7 @@
 MODULE cp_parser_inpp_types
 
    USE kinds, ONLY: default_path_length
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

@@ -20,7 +20,7 @@ MODULE realspace_grid_cube
         mp_file_write_at, mp_maxloc, mp_recv, mp_send, mp_sum, mp_sync, mpi_character_size
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
    USE pw_types,                        ONLY: pw_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -70,7 +70,7 @@ MODULE qs_integrate_potential_single
                                               rs_pw_transfer
    USE rs_pw_interface,                 ONLY: potential_pw2rs
    USE virial_types,                    ONLY: virial_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

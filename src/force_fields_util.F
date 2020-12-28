@@ -72,7 +72,7 @@ MODULE force_fields_util
    USE qmmm_types_low,                  ONLY: qmmm_env_mm_type
    USE shell_potential_types,           ONLY: shell_kind_type
    USE string_utilities,                ONLY: compress
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

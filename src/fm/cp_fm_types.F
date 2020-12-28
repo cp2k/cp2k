@@ -34,7 +34,7 @@ MODULE cp_fm_types
         mp_proc_null, mp_recv, mp_request_null, mp_send, mp_sum, mp_waitall
    USE parallel_rng_types,              ONLY: UNIFORM,&
                                               rng_stream_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

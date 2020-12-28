@@ -55,7 +55,7 @@ MODULE se_fock_matrix
    USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_finalize,&
                                               semi_empirical_si_initialize,&
                                               semi_empirical_si_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

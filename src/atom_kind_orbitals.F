@@ -53,7 +53,7 @@ MODULE atom_kind_orbitals
                                               qs_kind_type,&
                                               set_pseudo_state
    USE rel_control_types,               ONLY: rel_control_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

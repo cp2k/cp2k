@@ -29,7 +29,7 @@ MODULE glbopt_minhop
    USE swarm_message,                   ONLY: swarm_message_add,&
                                               swarm_message_get,&
                                               swarm_message_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

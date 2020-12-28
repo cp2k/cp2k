@@ -28,7 +28,7 @@ MODULE helium_worm
                                               dp
    USE mathconstants,                   ONLY: pi
    USE pint_types,                      ONLY: pint_env_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

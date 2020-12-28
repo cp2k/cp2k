@@ -26,7 +26,7 @@ MODULE cp_parser_inpp_methods
    USE memory_utilities, ONLY: reallocate
    USE string_utilities, ONLY: is_whitespace, &
                                uppercase
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

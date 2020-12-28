@@ -69,7 +69,7 @@ MODULE force_fields_input
    USE shell_potential_types,           ONLY: shell_p_create,&
                                               shell_p_type
    USE string_utilities,                ONLY: uppercase
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

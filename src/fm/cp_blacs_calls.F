@@ -18,7 +18,7 @@
 MODULE cp_blacs_calls
 
    USE kinds,                           ONLY: dp
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_blacs_calls'

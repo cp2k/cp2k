@@ -35,7 +35,7 @@ MODULE helium_common
    USE pint_types,                      ONLY: pint_env_type
    USE splines_methods,                 ONLY: spline_value
    USE splines_types,                   ONLY: spline_data_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

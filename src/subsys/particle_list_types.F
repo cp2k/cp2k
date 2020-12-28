@@ -16,7 +16,7 @@ MODULE particle_list_types
    USE particle_types, ONLY: deallocate_particle_set, &
                              particle_type
 
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

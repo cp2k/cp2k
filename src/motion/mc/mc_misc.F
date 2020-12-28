@@ -22,7 +22,7 @@ MODULE mc_misc
         accattempt, get_mc_input_file, get_mc_molecule_info, get_mc_par, mc_averages_type, &
         mc_input_file_type, mc_molecule_info_type, mc_moves_p_type, mc_moves_type, mc_simpar_type
    USE physcon,                         ONLY: angstrom
-#include "../../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

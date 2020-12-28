@@ -21,7 +21,7 @@ MODULE qs_cdft_opt_types
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -72,7 +72,7 @@ MODULE qs_tddfpt2_methods
                                               tddfpt_oecorr,&
                                               tddfpt_release_ground_state_mos
    USE string_utilities,                ONLY: integer_to_string
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

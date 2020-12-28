@@ -19,7 +19,7 @@ MODULE cryssym
         spg_get_micro_version, spg_get_minor_version, spg_get_multiplicity, spg_get_pointgroup, &
         spg_get_schoenflies, spg_get_symmetry
    USE string_utilities,                ONLY: strip_control_codes
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

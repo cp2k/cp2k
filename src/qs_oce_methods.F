@@ -39,7 +39,7 @@ MODULE qs_oce_methods
    USE sap_kind_types,                  ONLY: clist_type,&
                                               sap_int_type,&
                                               sap_sort
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

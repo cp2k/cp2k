@@ -19,7 +19,7 @@ MODULE cp_files
    USE machine,                         ONLY: default_input_unit,&
                                               default_output_unit,&
                                               m_getcwd
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

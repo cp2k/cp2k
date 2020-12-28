@@ -31,7 +31,7 @@ MODULE dm_ls_scf_curvy
    USE machine,                         ONLY: m_flush
    USE mathconstants,                   ONLY: ifac
    USE mathlib,                         ONLY: invmat
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

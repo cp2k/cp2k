@@ -36,7 +36,7 @@ MODULE input_cp2k_almo
                                               section_type
    USE kinds,                           ONLY: dp
    USE string_utilities,                ONLY: s2a
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

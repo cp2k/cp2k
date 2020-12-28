@@ -56,7 +56,7 @@ MODULE qs_basis_gradient
    USE qs_subsys_types,                 ONLY: qs_subsys_set,&
                                               qs_subsys_type
    USE qs_update_s_mstruct,             ONLY: qs_env_update_s_mstruct
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -50,7 +50,7 @@ MODULE thermal_region_utils
                                               release_thermal_regions,&
                                               thermal_region_type,&
                                               thermal_regions_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

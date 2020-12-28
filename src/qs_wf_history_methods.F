@@ -93,7 +93,7 @@ MODULE qs_wf_history_methods
                                               wfi_get_snapshot,&
                                               wfi_release
    USE scf_control_types,               ONLY: scf_control_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

@@ -106,7 +106,7 @@ MODULE qs_kind_types
                                               get_xtb_atom_param,&
                                               write_xtb_atom_param,&
                                               xtb_atom_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

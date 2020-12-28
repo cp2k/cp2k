@@ -16,7 +16,7 @@ MODULE eri_mme_gaussian
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: gamma1
    USE minimax_exp,                     ONLY: get_exp_minimax_coeff
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

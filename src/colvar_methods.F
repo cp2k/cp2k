@@ -97,7 +97,7 @@ MODULE colvar_methods
    USE string_utilities,                ONLY: compress,&
                                               uppercase
    USE wannier_states_types,            ONLY: wannier_centres_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

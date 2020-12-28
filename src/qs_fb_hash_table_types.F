@@ -26,7 +26,7 @@ MODULE qs_fb_hash_table_types
 
    USE kinds,                           ONLY: int_8
    USE qs_hash_table_functions,         ONLY: hash_table_matching_prime
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

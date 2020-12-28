@@ -17,7 +17,7 @@ MODULE input_enumeration_types
    USE kinds,                           ONLY: default_string_length
    USE string_utilities,                ONLY: a2s,&
                                               uppercase
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

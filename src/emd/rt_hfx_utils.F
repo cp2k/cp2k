@@ -31,7 +31,7 @@ MODULE rt_hfx_utils
                                               qs_rho_set,&
                                               qs_rho_type
    USE rt_propagation_types,            ONLY: rt_prop_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

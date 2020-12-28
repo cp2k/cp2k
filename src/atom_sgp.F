@@ -31,7 +31,7 @@ MODULE atom_sgp
                                               get_pseudo_inverse_diag
    USE powell,                          ONLY: opt_state_type,&
                                               powell_optimize
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

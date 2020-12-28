@@ -41,7 +41,7 @@ MODULE input_cp2k_pwdft
                                  medium_print_level, &
                                  silent_print_level
    USE kinds, ONLY: dp
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

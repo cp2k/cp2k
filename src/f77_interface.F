@@ -139,7 +139,7 @@ MODULE f77_interface
                                               timings_register_hooks
    USE timings_types,                   ONLY: timer_env_type
    USE virial_types,                    ONLY: virial_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

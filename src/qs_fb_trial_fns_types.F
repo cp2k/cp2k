@@ -7,7 +7,7 @@
 
 MODULE qs_fb_trial_fns_types
 
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
    IMPLICIT NONE
 
    PRIVATE

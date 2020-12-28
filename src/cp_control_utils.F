@@ -66,7 +66,7 @@ MODULE cp_control_utils
    USE xc_input_constants,              ONLY: xc_deriv_collocate
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
    USE xc_write_output,                 ONLY: xc_write
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

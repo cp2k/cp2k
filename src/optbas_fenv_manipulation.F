@@ -65,7 +65,7 @@ MODULE optbas_fenv_manipulation
                                               qs_rho_type
    USE scf_control_types,               ONLY: scf_control_type
    USE string_utilities,                ONLY: uppercase
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

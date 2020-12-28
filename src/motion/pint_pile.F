@@ -25,7 +25,7 @@ MODULE pint_pile
    USE pint_types,                      ONLY: normalmode_env_type,&
                                               pile_therm_type,&
                                               pint_env_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

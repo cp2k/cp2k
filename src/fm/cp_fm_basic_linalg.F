@@ -28,7 +28,7 @@ MODULE cp_fm_basic_linalg
    USE mathlib,                         ONLY: get_pseudo_inverse_svd,&
                                               invert_matrix
    USE message_passing,                 ONLY: mp_sum
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

@@ -19,7 +19,7 @@ MODULE ls_matrix_exp
         dbcsr_filter, dbcsr_frobenius_norm, dbcsr_multiply, dbcsr_p_type, dbcsr_scale, dbcsr_set, &
         dbcsr_transposed, dbcsr_type, dbcsr_type_complex_8
    USE kinds,                           ONLY: dp
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

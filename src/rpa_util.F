@@ -70,7 +70,7 @@ MODULE rpa_util
                                               qs_environment_type
    USE rpa_communication,               ONLY: fm_redistribute
    USE rpa_gw_kpoints,                  ONLY: compute_wkp_W
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

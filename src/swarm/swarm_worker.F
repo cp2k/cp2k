@@ -27,7 +27,7 @@ MODULE swarm_worker
                                               swarm_message_get,&
                                               swarm_message_haskey,&
                                               swarm_message_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

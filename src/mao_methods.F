@@ -57,7 +57,7 @@ MODULE mao_methods
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

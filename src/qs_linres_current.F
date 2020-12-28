@@ -130,7 +130,7 @@ MODULE qs_linres_current
    USE task_list_types,                 ONLY: atom_pair_type,&
                                               reallocate_tasks,&
                                               task_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

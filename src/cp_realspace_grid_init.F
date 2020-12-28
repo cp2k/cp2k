@@ -20,7 +20,7 @@ MODULE cp_realspace_grid_init
    USE realspace_grid_types,            ONLY: realspace_grid_input_type,&
                                               rsgrid_automatic,&
                                               rsgrid_replicated
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

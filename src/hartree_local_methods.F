@@ -48,7 +48,7 @@ MODULE hartree_local_methods
                                               rho_atom_coeff,&
                                               rho_atom_type
    USE util,                            ONLY: get_limit
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

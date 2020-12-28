@@ -27,7 +27,7 @@ MODULE csvr_system_init
                                               rng_stream_type_from_record
    USE simpar_types,                    ONLY: simpar_type
    USE thermostat_types,                ONLY: thermostat_info_type
-#include "../../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

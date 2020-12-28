@@ -9,7 +9,7 @@
 
 MODULE cp_linked_list_fm
    USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
 #:mute
 #:set nametype1 = ['fm']

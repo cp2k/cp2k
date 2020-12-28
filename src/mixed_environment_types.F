@@ -52,7 +52,7 @@ MODULE mixed_environment_types
                                               particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE qs_rho_types,                    ONLY: qs_rho_p_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

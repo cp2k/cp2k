@@ -13,7 +13,7 @@ MODULE pao_ml_gaussprocess
    USE kinds,                           ONLY: dp
    USE pao_types,                       ONLY: pao_env_type,&
                                               training_matrix_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -58,7 +58,7 @@ MODULE qs_scf_output
    USE qs_scf_types,                    ONLY: qs_scf_env_type,&
                                               special_diag_method_nr
    USE scf_control_types,               ONLY: scf_control_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

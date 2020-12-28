@@ -95,7 +95,7 @@ MODULE hfx_ri
                                               neighbor_list_3c_type,&
                                               split_block_sizes
    USE util,                            ONLY: sort
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

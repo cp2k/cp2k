@@ -18,7 +18,7 @@ MODULE statistical_methods
    USE global_types,                    ONLY: global_environment_type
    USE kinds,                           ONLY: dp
    USE util,                            ONLY: sort
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

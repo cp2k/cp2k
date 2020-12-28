@@ -44,7 +44,7 @@ MODULE tmc_messages
    USE tmc_types,                       ONLY: allocate_tmc_atom_type,&
                                               tmc_atom_type,&
                                               tmc_param_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

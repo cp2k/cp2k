@@ -47,7 +47,7 @@ MODULE rpa_communication
                                               prepare_redistribution
    USE mp2_types,                       ONLY: integ_mat_buffer_type
    USE util,                            ONLY: get_limit
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

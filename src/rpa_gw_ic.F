@@ -36,7 +36,7 @@ MODULE rpa_gw_ic
    USE physcon,                         ONLY: evolt
    USE qs_tensors_types,                ONLY: create_2c_tensor
    USE rpa_communication,               ONLY: communicate_buffer
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

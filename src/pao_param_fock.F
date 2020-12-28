@@ -15,7 +15,7 @@ MODULE pao_param_fock
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: diamat_all
    USE pao_types,                       ONLY: pao_env_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

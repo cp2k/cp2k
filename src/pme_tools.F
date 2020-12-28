@@ -21,7 +21,7 @@ MODULE pme_tools
    USE kinds,                           ONLY: dp
    USE particle_types,                  ONLY: particle_type
    USE realspace_grid_types,            ONLY: realspace_grid_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

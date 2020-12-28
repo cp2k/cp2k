@@ -53,7 +53,7 @@ MODULE atom_utils
    USE qs_grid_atom,                    ONLY: grid_atom_type
    USE splines,                         ONLY: spline3ders
    USE string_utilities,                ONLY: uppercase
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

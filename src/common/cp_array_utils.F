@@ -22,7 +22,7 @@ MODULE cp_array_utils
 
    USE kinds, ONLY: ${uselist(usekinds)}$
 
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
    IMPLICIT NONE
    PRIVATE
 

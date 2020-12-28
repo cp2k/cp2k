@@ -53,7 +53,7 @@ MODULE semi_empirical_parameters
                                               convert_param_to_cp2k,&
                                               valence_electrons
    USE semi_empirical_types,            ONLY: semi_empirical_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

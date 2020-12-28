@@ -29,7 +29,7 @@ MODULE qmmmx_update
                                               qmmmx_env_type
    USE qmmmx_util,                      ONLY: setup_force_mixing_qmmm_sections,&
                                               update_force_mixing_labels
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

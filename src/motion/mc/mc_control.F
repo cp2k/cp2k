@@ -50,7 +50,7 @@ MODULE mc_control
    USE parallel_rng_types,              ONLY: rng_stream_type
    USE particle_list_types,             ONLY: particle_list_type
    USE physcon,                         ONLY: angstrom
-#include "../../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

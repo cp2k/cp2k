@@ -25,7 +25,7 @@ MODULE semi_empirical_mpole_methods
                                               semi_empirical_mpole_type
    USE semi_empirical_par_utils,        ONLY: amn_l
    USE semi_empirical_types,            ONLY: semi_empirical_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

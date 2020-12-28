@@ -17,7 +17,7 @@
 MODULE cp_parser_ilist_methods
    USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_parser_ilist_types,           ONLY: ilist_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

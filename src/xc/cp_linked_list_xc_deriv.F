@@ -9,7 +9,7 @@
 
 MODULE cp_linked_list_xc_deriv
    USE xc_derivative_types, ONLY: xc_derivative_type, xc_derivative_p_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
 #:mute
 #:set nametype1 = ['xc_deriv']

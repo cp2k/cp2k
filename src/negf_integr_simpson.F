@@ -34,7 +34,7 @@ MODULE negf_integr_simpson
                                               equidistant_nodes_a_b,&
                                               rescale_normalised_nodes
    USE util,                            ONLY: sort
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

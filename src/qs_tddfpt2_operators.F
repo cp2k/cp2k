@@ -49,7 +49,7 @@ MODULE qs_tddfpt2_operators
    USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                               xc_rho_set_type,&
                                               xc_rho_set_update
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

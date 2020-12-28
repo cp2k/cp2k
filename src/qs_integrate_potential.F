@@ -27,7 +27,7 @@ MODULE qs_integrate_potential
                                               integrate_v_core_rspace,&
                                               integrate_v_rspace_diagonal,&
                                               integrate_v_rspace_one_center
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

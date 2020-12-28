@@ -37,7 +37,7 @@ MODULE molden_utils
                                               get_qs_kind_set,&
                                               qs_kind_type
    USE qs_mo_types,                     ONLY: mo_set_p_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

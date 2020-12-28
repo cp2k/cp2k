@@ -67,7 +67,7 @@ MODULE mp2_eri
                                      neighbor_list_set_p_type
    USE util, ONLY: get_limit
    USE cp_eri_mme_interface, ONLY: cp_eri_mme_update_local_counts
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

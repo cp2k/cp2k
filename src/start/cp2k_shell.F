@@ -66,7 +66,7 @@ MODULE cp2k_shell
    USE physcon,                         ONLY: angstrom,&
                                               evolt
    USE string_utilities,                ONLY: uppercase
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

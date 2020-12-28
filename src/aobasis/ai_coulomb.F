@@ -45,7 +45,7 @@ MODULE ai_coulomb
    USE mathconstants,                   ONLY: pi
    USE orbital_pointers,                ONLY: coset,&
                                               ncoset
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_coulomb'

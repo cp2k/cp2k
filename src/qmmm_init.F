@@ -70,7 +70,7 @@ MODULE qmmm_init
                                               qs_environment_type
    USE shell_potential_types,           ONLY: get_shell,&
                                               shell_kind_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

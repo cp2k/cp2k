@@ -59,7 +59,7 @@ MODULE thermostat_utils
    USE thermostat_types,                ONLY: thermostat_info_type,&
                                               thermostat_type,&
                                               thermostats_type
-#include "../../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

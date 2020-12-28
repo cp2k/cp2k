@@ -10,7 +10,7 @@ MODULE beta_gamma_psi
    ! not tested in the case where dp would stand for single precision
 
    USE kinds,                           ONLY: dp
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

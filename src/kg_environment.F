@@ -72,7 +72,7 @@ MODULE kg_environment
    USE string_utilities,                ONLY: uppercase
    USE task_list_types,                 ONLY: deallocate_task_list
    USE util,                            ONLY: sort
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

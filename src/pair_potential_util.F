@@ -21,7 +21,7 @@ MODULE pair_potential_util
         lj_type, not_initialized, pair_potential_single_type, wl_type
    USE physcon,                         ONLY: bohr,&
                                               evolt
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

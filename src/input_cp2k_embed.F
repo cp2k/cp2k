@@ -27,7 +27,7 @@ MODULE input_cp2k_embed
                                               section_type
    USE input_val_types,                 ONLY: integer_t
    USE string_utilities,                ONLY: s2a
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

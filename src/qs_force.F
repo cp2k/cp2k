@@ -81,7 +81,7 @@ MODULE qs_force
    USE virial_types,                    ONLY: symmetrize_virial,&
                                               virial_type
    USE xtb_matrices,                    ONLY: build_xtb_matrices
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

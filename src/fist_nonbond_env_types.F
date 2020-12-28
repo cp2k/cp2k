@@ -23,7 +23,7 @@ MODULE fist_nonbond_env_types
                                               pair_potential_pp_type,&
                                               siepmann_type,&
                                               tersoff_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

@@ -24,7 +24,7 @@ MODULE velocity_verlet_control
    USE md_environment_types,            ONLY: get_md_env,&
                                               md_environment_type
    USE simpar_types,                    ONLY: simpar_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

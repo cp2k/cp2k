@@ -11,7 +11,7 @@
 MODULE cp_iter_types
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

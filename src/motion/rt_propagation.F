@@ -76,7 +76,7 @@ MODULE rt_propagation
                                               get_restart_wfn
    USE rt_propagator_init,              ONLY: init_propagators,&
                                               rt_initialize_rho_from_mos
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

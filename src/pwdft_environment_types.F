@@ -28,7 +28,7 @@ MODULE pwdft_environment_types
    USE sirius, ONLY: sirius_free_handler
 #endif
 
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

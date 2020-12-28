@@ -35,7 +35,7 @@ MODULE pexsi_types
                                               cp_pexsi_plan_finalize,&
                                               cp_pexsi_plan_initialize,&
                                               cp_pexsi_set_options
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

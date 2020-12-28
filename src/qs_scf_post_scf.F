@@ -23,7 +23,7 @@ MODULE qs_scf_post_scf
    USE qs_scf_post_se,                  ONLY: scf_post_calculation_se
    USE qs_scf_post_tb,                  ONLY: scf_post_calculation_tb
    USE qs_scf_types,                    ONLY: qs_scf_env_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

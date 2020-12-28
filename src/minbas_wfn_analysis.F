@@ -88,7 +88,7 @@ MODULE minbas_wfn_analysis
                                               set_mo_set
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

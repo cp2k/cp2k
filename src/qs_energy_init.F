@@ -62,7 +62,7 @@ MODULE qs_energy_init
    USE se_core_core,                    ONLY: se_core_core_interaction
    USE se_core_matrix,                  ONLY: build_se_core_matrix
    USE xtb_matrices,                    ONLY: build_xtb_matrices
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

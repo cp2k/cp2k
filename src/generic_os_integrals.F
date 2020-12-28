@@ -46,7 +46,7 @@ MODULE generic_os_integrals
                                               overlap_abc_test
    USE kinds,                           ONLY: dp
    USE orbital_pointers,                ONLY: ncoset
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -49,7 +49,7 @@ MODULE qs_tddfpt_module
                                               tddfpt_cleanup,&
                                               tddfpt_init
    USE xc_pot_saop,                     ONLY: add_saop_pot
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

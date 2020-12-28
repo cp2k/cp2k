@@ -37,7 +37,7 @@ MODULE qs_scf_wfn_mix
                                               mo_set_p_type
    USE qs_scf_types,                    ONLY: qs_scf_env_type,&
                                               special_diag_method_nr
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

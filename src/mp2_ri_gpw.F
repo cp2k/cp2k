@@ -33,7 +33,7 @@ MODULE mp2_ri_gpw
    USE mp2_types,                       ONLY: mp2_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

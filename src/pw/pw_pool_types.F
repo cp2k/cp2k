@@ -45,7 +45,7 @@ MODULE pw_pool_types
                                               pw_release,&
                                               pw_type
    USE timings,                         ONLY: print_stack
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

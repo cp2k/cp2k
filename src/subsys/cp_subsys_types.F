@@ -56,7 +56,7 @@ MODULE cp_subsys_types
    USE particle_types,                  ONLY: particle_type
    USE virial_types,                    ONLY: virial_release,&
                                               virial_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

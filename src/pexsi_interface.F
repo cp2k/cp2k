@@ -31,7 +31,7 @@ MODULE pexsi_interface
    USE kinds, ONLY: int_8, &
                     real_8
    USE ISO_C_BINDING, ONLY: C_INTPTR_T
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

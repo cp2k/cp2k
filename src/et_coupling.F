@@ -42,7 +42,7 @@ MODULE et_coupling
                                               qs_environment_type
    USE qs_matrix_pools,                 ONLY: mpools_get
    USE qs_mo_types,                     ONLY: get_mo_set
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

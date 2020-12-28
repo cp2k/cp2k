@@ -80,7 +80,7 @@ MODULE md_energies
    USE thermostat_types,                ONLY: thermostats_type
    USE thermostat_utils,                ONLY: print_thermostats_status
    USE virial_types,                    ONLY: virial_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

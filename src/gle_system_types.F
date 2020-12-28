@@ -24,7 +24,7 @@ MODULE gle_system_types
                                               next_rng_seed,&
                                               rng_stream_type
    USE string_utilities,                ONLY: compress
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

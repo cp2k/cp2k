@@ -38,7 +38,7 @@ MODULE input_cp2k_binary_restarts
                                               str2id
    USE topology_types,                  ONLY: atom_info_type,&
                                               topology_parameters_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -43,7 +43,7 @@ MODULE tmc_types
                                               elem_array_type,&
                                               elem_list_type,&
                                               global_tree_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

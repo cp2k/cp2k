@@ -93,7 +93,7 @@ MODULE qs_tensors
         symmetrik_ik
    USE t_c_g0,                          ONLY: get_lmax_init,&
                                               init
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -55,7 +55,7 @@ MODULE molecular_moments
                                               qs_kind_type
    USE qs_loc_types,                    ONLY: qs_loc_env_new_type
    USE qs_moments,                      ONLY: build_local_moment_matrix
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

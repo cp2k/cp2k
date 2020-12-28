@@ -43,7 +43,7 @@ MODULE atom_pseudo
    USE periodic_table,                  ONLY: nelem,&
                                               ptable
    USE physcon,                         ONLY: bohr
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

@@ -33,7 +33,7 @@ MODULE tmc_cancelation
         status_canceled_ener, status_canceled_nmc, status_created, status_deleted, &
         status_deleted_result, status_rejected, status_rejected_result, tree_type
    USE tmc_types,                       ONLY: tmc_env_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

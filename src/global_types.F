@@ -26,7 +26,7 @@ MODULE global_types
                                               dp
    USE machine,                         ONLY: m_walltime
    USE parallel_rng_types,              ONLY: rng_stream_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

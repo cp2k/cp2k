@@ -29,7 +29,7 @@ MODULE qs_matrix_pools
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

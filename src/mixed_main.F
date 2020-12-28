@@ -27,7 +27,7 @@ MODULE mixed_main
    USE mixed_environment_types,         ONLY: mixed_env_create,&
                                               mixed_environment_type,&
                                               set_mixed_env
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

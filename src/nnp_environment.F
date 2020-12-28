@@ -63,7 +63,7 @@ MODULE nnp_environment
                                               write_structure_data
    USE particle_types,                  ONLY: particle_type
    USE periodic_table,                  ONLY: get_ptable_info
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

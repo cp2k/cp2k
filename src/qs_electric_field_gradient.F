@@ -72,7 +72,7 @@ MODULE qs_electric_field_gradient
    USE qs_rho_types,                    ONLY: qs_rho_type
    USE util,                            ONLY: get_limit,&
                                               sort
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

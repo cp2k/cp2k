@@ -38,7 +38,7 @@ MODULE cp_lbfgs_geo
                                               section_vals_val_get,&
                                               section_vals_val_set
    USE kinds,                           ONLY: dp
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

@@ -56,7 +56,7 @@ MODULE almo_scf_methods
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: binomial
    USE util,                            ONLY: sort
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

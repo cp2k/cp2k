@@ -33,7 +33,7 @@ MODULE ai_onecenter
                                               gamma0,&
                                               gamma1,&
                                               pi
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

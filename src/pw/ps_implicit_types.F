@@ -25,7 +25,7 @@ MODULE ps_implicit_types
                                               pw_pool_type
    USE pw_types,                        ONLY: pw_release,&
                                               pw_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

@@ -31,7 +31,7 @@ MODULE qs_ot_minimizer
    USE qs_ot,                           ONLY: qs_ot_get_derivative,&
                                               qs_ot_get_derivative_ref
    USE qs_ot_types,                     ONLY: qs_ot_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

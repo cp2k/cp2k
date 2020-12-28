@@ -42,7 +42,7 @@ MODULE cp_parser_types
                                               max_line_length
    USE message_passing,                 ONLY: mp_comm_self
    USE string_utilities,                ONLY: compress
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

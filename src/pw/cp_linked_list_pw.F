@@ -12,7 +12,7 @@ MODULE cp_linked_list_pw
    USE pw_types, ONLY: pw_type, pw_p_type
    USE cp_array_utils, ONLY: cp_3d_r_p_type
    USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
 #:mute
 #:set nametype1 = ['3d_r', 'pw', 'rs']

@@ -35,7 +35,7 @@ MODULE tmc_calculations
    USE tmc_types,                       ONLY: tmc_atom_type,&
                                               tmc_env_type,&
                                               tmc_param_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

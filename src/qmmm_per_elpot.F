@@ -47,7 +47,7 @@ MODULE qmmm_per_elpot
    USE qmmm_types_low,                  ONLY: qmmm_per_pot_p_type,&
                                               qmmm_per_pot_type,&
                                               qmmm_pot_p_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

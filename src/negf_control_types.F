@@ -29,7 +29,7 @@ MODULE negf_control_types
    USE physcon,                         ONLY: kelvin
    USE string_utilities,                ONLY: integer_to_string
    USE util,                            ONLY: sort
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

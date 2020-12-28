@@ -51,7 +51,7 @@ MODULE input_cp2k_xc
         xc_old_f_routine, xc_pbe_orig, xc_pbe_rev, xc_pbe_sol, xc_rho_nn10, xc_rho_nn50, &
         xc_rho_no_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth, xc_test_lsd_f_routine, &
         xgga_b88x, xgga_ev93, xgga_opt, xgga_pbex, xgga_pw86, xgga_pw91, xgga_revpbe
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

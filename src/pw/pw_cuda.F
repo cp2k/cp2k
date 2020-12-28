@@ -36,7 +36,7 @@ MODULE pw_cuda
    USE pw_types,                        ONLY: REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

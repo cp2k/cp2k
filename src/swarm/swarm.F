@@ -38,7 +38,7 @@ MODULE swarm
                                               swarm_worker_finalize,&
                                               swarm_worker_init,&
                                               swarm_worker_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

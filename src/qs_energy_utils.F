@@ -59,7 +59,7 @@ MODULE qs_energy_utils
    USE scf_control_types,               ONLY: scf_control_type
    USE xas_methods,                     ONLY: xas
    USE xas_tdp_methods,                 ONLY: xas_tdp
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -15,7 +15,7 @@ MODULE fist_neighbor_list_types
    USE exclusion_types,                 ONLY: exclusion_type
    USE kinds,                           ONLY: dp
    USE memory_utilities,                ONLY: reallocate
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

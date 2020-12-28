@@ -24,7 +24,7 @@ MODULE al_system_init
                                               molecule_type
    USE simpar_types,                    ONLY: simpar_type
    USE thermostat_types,                ONLY: thermostat_info_type
-#include "../../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

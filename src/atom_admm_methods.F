@@ -37,7 +37,7 @@ MODULE atom_admm_methods
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: invmat_symm,&
                                               jacobi
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

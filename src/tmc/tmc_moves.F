@@ -36,7 +36,7 @@ MODULE tmc_moves
                                               tree_type
    USE tmc_types,                       ONLY: tmc_atom_type,&
                                               tmc_param_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

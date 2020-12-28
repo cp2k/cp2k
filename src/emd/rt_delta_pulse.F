@@ -61,7 +61,7 @@ MODULE rt_delta_pulse
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE rt_propagation_types,            ONLY: get_rtp,&
                                               rt_prop_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -167,7 +167,7 @@ MODULE qs_environment_types
    USE xas_env_types,                   ONLY: xas_env_release,&
                                               xas_env_retain,&
                                               xas_environment_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -13,7 +13,7 @@
 MODULE negf_integr_utils
    USE kinds, ONLY: dp
    USE mathconstants, ONLY: pi
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 #:include 'negf_integr_utils.fypp'
    IMPLICIT NONE
    PRIVATE

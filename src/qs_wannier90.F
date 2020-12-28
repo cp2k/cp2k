@@ -80,7 +80,7 @@ MODULE qs_wannier90
    USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE scf_control_types,               ONLY: scf_control_type
    USE wannier90,                       ONLY: wannier_setup
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

@@ -36,7 +36,7 @@ MODULE qs_ks_qmmm_methods
                                               set_qs_env
    USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type,&
                                               qs_ks_qmmm_release
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

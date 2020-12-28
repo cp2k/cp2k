@@ -34,7 +34,7 @@ MODULE dm_ls_chebyshev
                                               m_walltime
    USE mathconstants,                   ONLY: pi
    USE qs_environment_types,            ONLY: qs_environment_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

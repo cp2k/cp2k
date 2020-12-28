@@ -25,7 +25,7 @@ MODULE mao_optimizer
                                               mao_initialization,&
                                               mao_orthogonalization,&
                                               mao_scalar_product
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

@@ -50,7 +50,7 @@ MODULE rpa_kpoints
    USE rpa_gw_kpoints,                  ONLY: compute_Wc_kp_tau_GW,&
                                               compute_Wc_real_space_tau_GW
    USE rpa_im_time,                     ONLY: init_cell_index_rpa
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

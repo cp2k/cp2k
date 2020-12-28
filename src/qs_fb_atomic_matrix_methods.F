@@ -32,7 +32,7 @@ MODULE qs_fb_atomic_matrix_methods
    USE qs_fb_matrix_data_types,         ONLY: fb_matrix_data_get,&
                                               fb_matrix_data_has_data,&
                                               fb_matrix_data_obj
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

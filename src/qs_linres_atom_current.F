@@ -74,7 +74,7 @@ MODULE qs_linres_atom_current
 !$                    omp_init_lock, omp_set_lock, &
 !$                    omp_unset_lock, omp_destroy_lock
 
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

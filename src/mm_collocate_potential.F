@@ -19,7 +19,7 @@ MODULE mm_collocate_potential
                                               return_cube
    USE kinds,                           ONLY: dp
    USE pw_types,                        ONLY: pw_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

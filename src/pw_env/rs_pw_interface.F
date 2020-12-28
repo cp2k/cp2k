@@ -40,7 +40,7 @@ MODULE rs_pw_interface
                                               rs2pw,&
                                               rs_grid_release,&
                                               rs_pw_transfer
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -20,7 +20,7 @@ MODULE ct_types
    USE input_constants,                 ONLY: cg_polak_ribiere,&
                                               tensor_orthogonal
    USE kinds,                           ONLY: dp
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

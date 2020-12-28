@@ -43,7 +43,7 @@ MODULE rt_make_propagators
                                               taylor_only_imaginary
    USE rt_propagation_types,            ONLY: get_rtp,&
                                               rt_prop_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

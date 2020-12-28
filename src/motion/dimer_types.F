@@ -34,7 +34,7 @@ MODULE dimer_types
    USE molecule_kind_types,             ONLY: fixd_constraint_type,&
                                               get_molecule_kind,&
                                               molecule_kind_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

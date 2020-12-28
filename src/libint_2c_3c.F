@@ -29,7 +29,7 @@ MODULE libint_2c_3c
                                               ncoset
    USE t_c_g0,                          ONLY: get_lmax_init,&
                                               t_c_g0_n
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

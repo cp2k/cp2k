@@ -38,7 +38,7 @@ MODULE nnp_force
    USE particle_types,                  ONLY: particle_type
    USE periodic_table,                  ONLY: get_ptable_info
    USE physcon,                         ONLY: angstrom
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

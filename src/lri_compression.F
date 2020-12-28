@@ -16,7 +16,7 @@ MODULE lri_compression
                                               sp
    USE lri_environment_types,           ONLY: carray,&
                                               int_container
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

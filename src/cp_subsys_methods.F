@@ -66,7 +66,7 @@ MODULE cp_subsys_methods
    USE topology_util,                   ONLY: check_subsys_element
    USE virial_types,                    ONLY: virial_create,&
                                               virial_set
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

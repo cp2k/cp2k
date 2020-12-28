@@ -15,7 +15,7 @@ MODULE qmmmx_types
    USE qmmm_types,                      ONLY: qmmm_env_get,&
                                               qmmm_env_release,&
                                               qmmm_env_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

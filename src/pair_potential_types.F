@@ -23,7 +23,7 @@ MODULE pair_potential_types
                                               spline_factor_copy,&
                                               spline_factor_release,&
                                               spline_factor_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

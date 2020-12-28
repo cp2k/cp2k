@@ -70,7 +70,7 @@ MODULE force_env_types
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_env_release,&
                                               qs_environment_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

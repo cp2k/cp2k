@@ -25,7 +25,7 @@ MODULE ai_overlap
                                               ncoset,&
                                               nso
    USE orbital_transformation_matrices, ONLY: orbtramat
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

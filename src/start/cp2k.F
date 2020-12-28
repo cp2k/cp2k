@@ -63,7 +63,7 @@ PROGRAM cp2k
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length
    USE machine,                         ONLY: default_output_unit
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

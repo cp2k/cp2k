@@ -19,7 +19,7 @@ MODULE dielectric_types
    USE pw_types,                        ONLY: pw_p_type,&
                                               pw_release,&
                                               pw_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

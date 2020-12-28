@@ -53,7 +53,7 @@ MODULE glbopt_master
    USE swarm_message,                   ONLY: swarm_message_get,&
                                               swarm_message_type
    USE topology,                        ONLY: topology_control
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

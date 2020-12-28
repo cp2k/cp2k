@@ -78,7 +78,7 @@ MODULE qs_tddfpt2_stda_utils
    USE scf_control_types,               ONLY: scf_control_type
    USE util,                            ONLY: get_limit
    USE virial_types,                    ONLY: virial_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

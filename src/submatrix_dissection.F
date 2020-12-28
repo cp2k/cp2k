@@ -61,7 +61,7 @@ MODULE submatrix_dissection
 
 !$ USE omp_lib, ONLY: omp_get_max_threads, omp_get_thread_num
 
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

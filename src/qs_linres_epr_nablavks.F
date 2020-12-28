@@ -88,7 +88,7 @@ MODULE qs_linres_epr_nablavks
    USE qs_vxc,                          ONLY: qs_vxc_create
    USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
    USE util,                            ONLY: get_limit
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

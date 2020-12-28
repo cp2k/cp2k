@@ -27,7 +27,7 @@ MODULE constraint_4x6
                                               local_g4x6_constraint_type,&
                                               molecule_type
    USE particle_types,                  ONLY: particle_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

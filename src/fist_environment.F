@@ -73,7 +73,7 @@ MODULE fist_environment
                                               write_structure_data
    USE particle_types,                  ONLY: particle_type
    USE qmmm_types_low,                  ONLY: qmmm_env_mm_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

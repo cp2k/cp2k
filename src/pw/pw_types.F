@@ -32,7 +32,7 @@ MODULE pw_types
    USE pw_grids,                        ONLY: pw_grid_release,&
                                               pw_grid_retain
    USE timings,                         ONLY: print_stack
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

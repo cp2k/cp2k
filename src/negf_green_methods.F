@@ -31,7 +31,7 @@ MODULE negf_green_methods
                                               z_mone,&
                                               z_one,&
                                               z_zero
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

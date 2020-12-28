@@ -30,7 +30,7 @@ MODULE list
    USE list_routinestat, ONLY: @{uselist_listmethods(routinestat)}@
    USE list_timerenv, ONLY: @{uselist_listmethods(timerenv)}@
 
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
    IMPLICIT NONE
 
    PRIVATE

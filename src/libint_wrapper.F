@@ -36,7 +36,7 @@ MODULE libint_wrapper
    !libint2_build_3eri
 #endif
    USE orbital_pointers, ONLY: nco
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

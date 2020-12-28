@@ -27,7 +27,7 @@ MODULE qs_rho_types
                                               set_2d_pointer
    USE pw_types,                        ONLY: pw_p_type,&
                                               pw_release
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

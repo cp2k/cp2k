@@ -46,7 +46,7 @@ MODULE mp2_direct_method
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: qs_environment_type
    USE t_sh_p_s_c,                      ONLY: free_C0
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

@@ -35,7 +35,7 @@ MODULE generic_shg_integrals
         contract_s_overlap_aba, contract_s_overlap_abb, contract_s_ra2m_ab, &
         contract_sint_ab_chigh, contract_sint_ab_clow, s_coulomb_ab, s_gauss_ab, s_overlap_ab, &
         s_overlap_abb, s_ra2m_ab, s_verf_ab, s_verfc_ab, s_vgauss_ab
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

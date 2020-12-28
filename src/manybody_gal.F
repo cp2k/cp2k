@@ -34,7 +34,7 @@ MODULE manybody_gal
                                               pair_potential_single_type
    USE particle_types,                  ONLY: particle_type
    USE util,                            ONLY: sort
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

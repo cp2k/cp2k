@@ -57,7 +57,7 @@ MODULE fist_neighbor_lists
                                               reorder_atoms_subcell,&
                                               subcell_type
    USE util,                            ONLY: sort
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

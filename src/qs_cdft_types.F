@@ -27,7 +27,7 @@ MODULE qs_cdft_types
                                               qs_outer_scf_type
    USE pw_types,                        ONLY: pw_p_type
    USE qs_cdft_opt_types,               ONLY: cdft_opt_type_release
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

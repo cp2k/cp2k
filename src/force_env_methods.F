@@ -174,7 +174,7 @@ MODULE force_env_methods
                                               virial_release,&
                                               virial_type,&
                                               zero_virial
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

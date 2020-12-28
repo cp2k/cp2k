@@ -37,7 +37,7 @@ MODULE ai_moments
    USE orbital_pointers,                ONLY: coset,&
                                               indco,&
                                               ncoset
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

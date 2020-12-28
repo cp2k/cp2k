@@ -99,7 +99,7 @@ MODULE almo_scf
    USE qs_scf_post_scf,                 ONLY: qs_scf_compute_properties
    USE qs_scf_types,                    ONLY: qs_scf_env_type,&
                                               scf_env_release
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

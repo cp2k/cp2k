@@ -17,7 +17,7 @@ MODULE mol_force
         do_ff_legendre, do_ff_mixed_bend_stretch, do_ff_mm2, do_ff_mm3, do_ff_mm4, do_ff_morse, &
         do_ff_opls, do_ff_quartic, legendre_data_type
    USE kinds,                           ONLY: dp
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

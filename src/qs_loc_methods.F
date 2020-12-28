@@ -102,7 +102,7 @@ MODULE qs_loc_methods
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
    USE string_utilities,                ONLY: xstring
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -51,7 +51,7 @@ MODULE semi_empirical_int_ana
                                               setup_se_int_control_type
    USE taper_types,                     ONLY: dtaper_eval,&
                                               taper_eval
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

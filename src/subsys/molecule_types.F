@@ -26,7 +26,7 @@ MODULE molecule_types
                                               get_molecule_kind,&
                                               molecule_kind_type,&
                                               vsite_constraint_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

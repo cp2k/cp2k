@@ -41,7 +41,7 @@ MODULE qs_core_energies
                                               neighbor_list_set_p_type
    USE virial_methods,                  ONLY: virial_pair_force
    USE virial_types,                    ONLY: virial_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

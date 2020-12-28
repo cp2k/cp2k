@@ -32,7 +32,7 @@ MODULE semi_empirical_utils
         pm6fm_default_parameter, pnnl_default_parameter, rm1_default_parameter
    USE semi_empirical_types,            ONLY: se_taper_type,&
                                               semi_empirical_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

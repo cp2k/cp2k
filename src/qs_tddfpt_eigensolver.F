@@ -52,7 +52,7 @@ MODULE qs_tddfpt_eigensolver
    USE qs_tddfpt_utils,                 ONLY: co_initial_guess,&
                                               normalize,&
                                               reorthogonalize
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -19,7 +19,7 @@
 !> \author Matthias Krack (12.02.2001)
 ! **************************************************************************************************
 MODULE print_messages
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
    IMPLICIT NONE
 
    PRIVATE

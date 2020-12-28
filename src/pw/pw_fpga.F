@@ -23,7 +23,7 @@ MODULE pw_fpga
    USE cp_files,                        ONLY: get_data_dir
    USE kinds,                           ONLY: dp,&
                                               sp
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

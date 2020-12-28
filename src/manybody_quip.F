@@ -29,7 +29,7 @@ MODULE manybody_quip
    USE quip_unified_wrapper_module, ONLY: quip_unified_wrapper
 #endif
 
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

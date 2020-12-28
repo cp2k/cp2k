@@ -41,7 +41,7 @@ MODULE pao_param
    USE pao_types,                       ONLY: pao_env_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

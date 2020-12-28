@@ -70,7 +70,7 @@ MODULE mc_run
    USE parallel_rng_types,              ONLY: UNIFORM,&
                                               rng_stream_type
    USE physcon,                         ONLY: angstrom
-#include "../../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

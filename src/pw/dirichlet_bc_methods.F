@@ -45,7 +45,7 @@ MODULE dirichlet_bc_methods
                                               REALSPACE,&
                                               pw_type
    USE rs_methods,                      ONLY: setup_grid_axes
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

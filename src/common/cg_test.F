@@ -25,7 +25,7 @@ MODULE cg_test
                                               clebsch_gordon_deallocate,&
                                               clebsch_gordon_init,&
                                               y_lm
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

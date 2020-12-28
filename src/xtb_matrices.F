@@ -107,7 +107,7 @@ MODULE xtb_matrices
    USE xtb_parameters,                  ONLY: xtb_set_kab
    USE xtb_types,                       ONLY: get_xtb_atom_param,&
                                               xtb_atom_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

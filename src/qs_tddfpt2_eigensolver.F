@@ -52,7 +52,7 @@ MODULE qs_tddfpt2_eigensolver
                                               tddfpt_kernel_env_type,&
                                               tddfpt_work_matrices
    USE qs_tddfpt2_utils,                ONLY: tddfpt_total_number_of_states
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

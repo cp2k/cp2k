@@ -54,7 +54,7 @@ MODULE rpa_axk
    USE rpa_communication,               ONLY: fm_redistribute,&
                                               gamma_fm_to_dbcsr
    USE util,                            ONLY: get_limit
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

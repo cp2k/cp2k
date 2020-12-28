@@ -27,7 +27,7 @@ MODULE qs_linres_nmr_epr_common_utils
                                               RECIPROCALSPACE,&
                                               pw_p_type,&
                                               pw_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

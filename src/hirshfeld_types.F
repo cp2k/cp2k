@@ -19,7 +19,7 @@ MODULE hirshfeld_types
    USE kinds,                           ONLY: dp
    USE pw_types,                        ONLY: pw_p_type,&
                                               pw_release
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

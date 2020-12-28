@@ -69,7 +69,7 @@ MODULE neb_methods
    USE replica_methods,                 ONLY: rep_env_create
    USE replica_types,                   ONLY: rep_env_release,&
                                               replica_env_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

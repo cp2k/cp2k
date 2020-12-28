@@ -22,7 +22,7 @@ MODULE qs_active_space_types
    USE kinds,                           ONLY: dp
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                               mo_set_p_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

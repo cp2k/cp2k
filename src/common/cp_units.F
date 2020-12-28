@@ -40,7 +40,7 @@ MODULE cp_units
    USE string_utilities,                ONLY: compress,&
                                               s2a,&
                                               uppercase
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

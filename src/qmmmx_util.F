@@ -50,7 +50,7 @@ MODULE qmmmx_util
                                               force_mixing_label_termination
    USE qmmm_util,                       ONLY: apply_qmmm_translate
    USE qmmmx_types,                     ONLY: qmmmx_env_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

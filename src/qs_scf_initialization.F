@@ -110,7 +110,7 @@ MODULE qs_scf_initialization
    USE scf_control_types,               ONLY: scf_control_type
    USE xas_env_types,                   ONLY: xas_environment_type
    USE xas_restart,                     ONLY: xas_initialize_rho
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

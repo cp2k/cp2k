@@ -28,7 +28,7 @@ MODULE distribution_1d_types
                                               cp_para_env_retain
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE parallel_rng_types,              ONLY: rng_stream_p_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -37,7 +37,7 @@ MODULE iterate_matrix
    USE mathlib, ONLY: abnormal_value
    USE message_passing, ONLY: mp_sum
    USE submatrix_dissection, ONLY: submatrix_dissection_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

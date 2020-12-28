@@ -65,7 +65,7 @@ MODULE qs_scf_loop_utils
                                               special_diag_method_nr
    USE scf_control_types,               ONLY: scf_control_type,&
                                               smear_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

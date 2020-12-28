@@ -48,7 +48,7 @@ MODULE voronoi_interface
       bqb_opt_off, bqb_opt_quick, bqb_opt_normal, bqb_opt_patient, bqb_opt_exhaustive
    USE ISO_C_BINDING, ONLY: C_INT, C_DOUBLE, C_CHAR
 
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

@@ -18,7 +18,7 @@ MODULE cp_realspace_grid_cube
    USE realspace_grid_cube,             ONLY: cube_to_pw,&
                                               pw_to_cube,&
                                               pw_to_simple_volumetric
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

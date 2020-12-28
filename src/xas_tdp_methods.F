@@ -138,7 +138,7 @@ MODULE xas_tdp_methods
                                               setup_xas_tdp_prob,&
                                               solve_xas_tdp_prob
    USE xc_write_output,                 ONLY: xc_write
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

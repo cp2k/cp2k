@@ -41,7 +41,7 @@ MODULE ewald_pw_methods
                                               pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

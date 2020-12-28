@@ -103,7 +103,7 @@ MODULE library_tests
         rs_grid_create, rs_grid_create_descriptor, rs_grid_print, rs_grid_release, &
         rs_grid_release_descriptor, rs_grid_zero, rs_pw_transfer
    USE shg_integrals_test,              ONLY: shg_integrals_perf_acc_test
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

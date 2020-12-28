@@ -203,7 +203,7 @@ MODULE qs_scf_post_gpw
    USE voronoi_interface,               ONLY: entry_voronoi_or_bqb
    USE xray_diffraction,                ONLY: calculate_rhotot_elec_gspace,&
                                               xray_diffraction_spectrum
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

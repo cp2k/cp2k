@@ -80,7 +80,7 @@ MODULE qs_linres_op
                                               build_lin_mom_matrix,&
                                               rRc_xyz_ao
    USE qs_spin_orbit,                   ONLY: build_pso_matrix
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

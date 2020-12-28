@@ -51,7 +51,7 @@ MODULE pair_potential
                                               spline_factor_type
    USE string_table,                    ONLY: str2id
    USE util,                            ONLY: sort
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

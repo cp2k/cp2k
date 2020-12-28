@@ -72,7 +72,7 @@ MODULE fist_force
    USE shell_potential_types,           ONLY: shell_kind_type
    USE spme,                            ONLY: spme_evaluate
    USE virial_types,                    ONLY: virial_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

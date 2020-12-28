@@ -22,7 +22,7 @@ MODULE qs_fb_com_tasks_types
                                               fb_matrix_data_has_data,&
                                               fb_matrix_data_obj
    USE util,                            ONLY: sort
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

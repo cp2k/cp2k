@@ -208,7 +208,7 @@ MODULE qs_environment
                                               xtb_parameters_read,&
                                               xtb_parameters_set
    USE xtb_types,                       ONLY: allocate_xtb_atom_param
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

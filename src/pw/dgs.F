@@ -36,7 +36,7 @@ MODULE dgs
    USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
                                               realspace_grid_type
    USE structure_factors,               ONLY: structure_factor_evaluate
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

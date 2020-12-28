@@ -85,7 +85,7 @@ MODULE rt_propagation_output
    USE rt_propagation_types,            ONLY: get_rtp,&
                                               rt_prop_type
    USE rt_propagation_utils,            ONLY: calculate_P_imaginary
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

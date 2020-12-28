@@ -18,7 +18,7 @@ MODULE qs_charge_mixing
                                               mixing_storage_type,&
                                               multisecant_mixing_nr,&
                                               pulay_mixing_nr
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

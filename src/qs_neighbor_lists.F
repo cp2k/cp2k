@@ -95,7 +95,7 @@ MODULE qs_neighbor_lists
                                               subcell_type
    USE util,                            ONLY: locate,&
                                               sort
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

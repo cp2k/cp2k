@@ -101,7 +101,7 @@ MODULE xas_tp_scf
                                               xas_environment_type
    USE xas_restart,                     ONLY: find_excited_core_orbital,&
                                               xas_write_restart
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

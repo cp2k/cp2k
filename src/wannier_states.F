@@ -38,7 +38,7 @@ MODULE wannier_states
                                               qs_environment_type
    USE wannier_states_types,            ONLY: wannier_centres_type
 !!!! this ones are needed to mapping
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -61,7 +61,7 @@ MODULE input_cp2k_global
    USE machine,                         ONLY: m_cpuid
    USE string_utilities,                ONLY: s2a
    USE timings,                         ONLY: default_timings_level
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

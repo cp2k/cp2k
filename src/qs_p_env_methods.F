@@ -92,7 +92,7 @@ MODULE qs_p_env_methods
                                               qs_rho_get,&
                                               qs_rho_type
    USE string_utilities,                ONLY: compress
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

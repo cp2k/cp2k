@@ -14,7 +14,7 @@
 MODULE hfx_compression_core_methods
 
    USE kinds,                           ONLY: int_8
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

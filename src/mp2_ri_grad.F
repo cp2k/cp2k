@@ -97,7 +97,7 @@ MODULE mp2_ri_grad
    USE task_list_types,                 ONLY: task_list_type
    USE util,                            ONLY: get_limit
    USE virial_types,                    ONLY: virial_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

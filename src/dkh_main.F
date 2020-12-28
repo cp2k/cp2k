@@ -30,7 +30,7 @@ MODULE dkh_main
    USE physcon,                         ONLY: c_light_au
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

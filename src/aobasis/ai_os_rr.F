@@ -10,7 +10,7 @@ MODULE ai_os_rr
    USE gamma,                           ONLY: fgamma => fgamma_0
    USE kinds,                           ONLY: dp
    USE orbital_pointers,                ONLY: coset
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_os_rr'

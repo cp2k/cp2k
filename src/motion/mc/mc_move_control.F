@@ -22,7 +22,7 @@ MODULE mc_move_control
                                               mc_simpar_type,&
                                               set_mc_par
    USE physcon,                         ONLY: angstrom
-#include "../../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -75,7 +75,7 @@ MODULE qs_tddfpt2_utils
    USE util,                            ONLY: sort
    USE xc_pot_saop,                     ONLY: add_saop_pot
    USE xtb_matrices,                    ONLY: build_xtb_ks_matrix
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

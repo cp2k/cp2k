@@ -28,7 +28,7 @@ MODULE eri_mme_lattice_summation
    USE orbital_pointers, ONLY: coset, &
                                indco, &
                                ncoset
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

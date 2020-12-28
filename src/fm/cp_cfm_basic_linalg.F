@@ -25,7 +25,7 @@ MODULE cp_cfm_basic_linalg
                                               z_zero
    USE message_passing,                 ONLY: mp_prod,&
                                               mp_sum
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

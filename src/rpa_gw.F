@@ -95,7 +95,7 @@ MODULE rpa_gw
    USE qs_tensors,                      ONLY: decompress_tensor
    USE qs_tensors_types,                ONLY: create_2c_tensor
    USE rpa_gw_im_time_util,             ONLY: get_tensor_3c_overl_int_gw
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -39,7 +39,7 @@ MODULE gle_system_dynamics
    USE thermostat_utils,                ONLY: ke_region_particles,&
                                               momentum_region_particles,&
                                               vel_rescale_particles
-#include "../../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

@@ -61,7 +61,7 @@ MODULE qs_linres_epr_utils
                                               qs_rho_create,&
                                               qs_rho_set
    USE scf_control_types,               ONLY: scf_control_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

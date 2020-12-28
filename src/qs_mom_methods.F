@@ -44,7 +44,7 @@ MODULE qs_mom_methods
    USE string_utilities,                ONLY: integer_to_string
    USE util,                            ONLY: sort,&
                                               sort_unique
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

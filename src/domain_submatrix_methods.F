@@ -30,7 +30,7 @@ MODULE domain_submatrix_methods
    USE message_passing,                 ONLY: mp_allgather,&
                                               mp_alltoall,&
                                               mp_sync
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

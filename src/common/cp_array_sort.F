@@ -21,7 +21,7 @@ MODULE cp_array_sort
 
    USE kinds, ONLY: sp, dp, int_4, int_8
 
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
 #:include 'array_sort.fypp'
 

@@ -43,7 +43,7 @@ MODULE ai_operators_r12
                                               ncoset
    USE t_c_g0,                          ONLY: get_lmax_init,&
                                               t_c_g0_n
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_operators_r12'

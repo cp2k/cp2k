@@ -40,7 +40,7 @@ MODULE topology_connectivity_util
                                               connectivity_info_type,&
                                               topology_parameters_type
    USE util,                            ONLY: sort
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

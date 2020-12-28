@@ -29,7 +29,7 @@ MODULE lri_integrals
    USE kinds,                           ONLY: dp
    USE lri_environment_types,           ONLY: lri_environment_type,&
                                               lri_int_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

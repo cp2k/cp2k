@@ -54,7 +54,7 @@ MODULE mc_types
                                               joule
    USE string_utilities,                ONLY: uppercase,&
                                               xstring
-#include "../../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -18,7 +18,7 @@ MODULE qs_force_types
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_force_types'

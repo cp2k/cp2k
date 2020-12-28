@@ -28,7 +28,7 @@ MODULE message_passing
       real_8_size
    USE machine, ONLY: m_abort
 
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
 #if defined(__parallel) && !defined(__MPI_VERSION)
 #define __MPI_VERSION 3

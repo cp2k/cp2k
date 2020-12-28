@@ -17,7 +17,7 @@ MODULE cp_fm_cholesky
    USE cp_log_handling,                 ONLY: cp_to_string
    USE kinds,                           ONLY: dp,&
                                               sp
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

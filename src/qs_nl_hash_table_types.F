@@ -29,7 +29,7 @@ MODULE qs_nl_hash_table_types
    USE kinds,                           ONLY: int_8
    USE qs_hash_table_functions,         ONLY: hash_table_matching_prime
    USE qs_neighbor_list_types,          ONLY: neighbor_list_task_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

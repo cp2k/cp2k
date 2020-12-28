@@ -58,7 +58,7 @@ MODULE rpa_im_time
    USE qs_tensors,                      ONLY: decompress_tensor,&
                                               get_tensor_occupancy
    USE qs_tensors_types,                ONLY: create_2c_tensor
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

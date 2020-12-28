@@ -34,7 +34,7 @@ MODULE qmmm_util
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env
    USE qs_kind_types,                   ONLY: qs_kind_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

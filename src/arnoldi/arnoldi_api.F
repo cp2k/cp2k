@@ -42,7 +42,7 @@ MODULE arnoldi_api
                                               dbcsr_matrix_colvec_multiply
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -52,7 +52,7 @@ MODULE qs_efield_local
                                               set_efield_matrices
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -28,7 +28,7 @@ MODULE dm_ls_scf_types
                                               lib_pexsi_finalize
    USE qs_density_mixing_types,         ONLY: mixing_storage_release,&
                                               mixing_storage_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

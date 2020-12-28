@@ -37,7 +37,7 @@ MODULE cp_ddapc_types
                                               pw_pool_release,&
                                               pw_pool_type
    USE pw_types,                        ONLY: pw_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

@@ -30,7 +30,7 @@ MODULE arnoldi_methods
                     real_8
    USE message_passing, ONLY: mp_bcast, &
                               mp_sum
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

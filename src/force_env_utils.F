@@ -31,7 +31,7 @@ MODULE force_env_utils
    USE molecule_types,                  ONLY: global_constraint_type
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: update_particle_set
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

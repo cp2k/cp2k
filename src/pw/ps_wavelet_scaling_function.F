@@ -12,7 +12,7 @@
 MODULE ps_wavelet_scaling_function
    USE kinds,                           ONLY: dp
    USE lazy,                            ONLY: lazy_arrays
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

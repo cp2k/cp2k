@@ -59,7 +59,7 @@ MODULE pme
    USE structure_factors,               ONLY: structure_factor_allocate,&
                                               structure_factor_deallocate,&
                                               structure_factor_init
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

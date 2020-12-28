@@ -34,7 +34,7 @@ MODULE admm_dm_methods
                                               qs_rho_set,&
                                               qs_rho_type
    USE task_list_types,                 ONLY: task_list_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

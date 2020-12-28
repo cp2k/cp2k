@@ -115,7 +115,7 @@ MODULE qs_linres_current_utils
    USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                               rs_grid_release
    USE scf_control_types,               ONLY: scf_control_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

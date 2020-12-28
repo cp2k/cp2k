@@ -102,7 +102,7 @@ MODULE mp2_gpw
                                               pair_radius_setup
    USE rpa_main,                        ONLY: rpa_ri_compute_en
    USE rpa_rse,                         ONLY: rse_energy
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

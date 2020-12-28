@@ -62,7 +62,7 @@ MODULE tmc_analysis
                                               write_subtree_elem_unformated
    USE tmc_types,                       ONLY: tmc_atom_type,&
                                               tmc_param_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -26,7 +26,7 @@ MODULE md_util
    USE md_energies,                     ONLY: md_write_output
    USE md_environment_types,            ONLY: md_environment_type
    USE message_passing,                 ONLY: mp_bcast
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

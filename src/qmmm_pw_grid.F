@@ -30,7 +30,7 @@ MODULE qmmm_pw_grid
                                               pw_pool_type,&
                                               pw_pools_dealloc
    USE qmmm_types_low,                  ONLY: qmmm_env_qm_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

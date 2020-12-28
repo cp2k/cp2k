@@ -50,7 +50,7 @@ MODULE qmmm_force
    USE qs_environment_types,            ONLY: get_qs_env
    USE qs_force,                        ONLY: qs_calc_energy_force
    USE qs_ks_qmmm_methods,              ONLY: ks_qmmm_env_rebuild
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

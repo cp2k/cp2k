@@ -55,7 +55,7 @@ MODULE qs_fb_filter_matrix_methods
                                               fb_trial_fns_obj
    USE string_utilities,                ONLY: compress,&
                                               uppercase
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

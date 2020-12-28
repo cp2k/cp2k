@@ -93,7 +93,7 @@ MODULE qmmm_gaussian_input
         s9_b6, s9_b7, s9_b8, s9_b9, s9_rc
    USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type
    USE string_utilities,                ONLY: uppercase
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

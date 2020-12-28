@@ -59,7 +59,7 @@ MODULE qs_local_properties
                                               qs_rho_type
    USE qs_vxc,                          ONLY: qs_xc_density
    USE virial_types,                    ONLY: virial_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

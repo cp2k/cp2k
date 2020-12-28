@@ -21,7 +21,7 @@ MODULE task_list_types
                                               grid_task_list_type
    USE kinds,                           ONLY: dp,&
                                               int_8
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

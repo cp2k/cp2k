@@ -24,7 +24,7 @@ MODULE manybody_tersoff
                                               tersoff_pot_type,&
                                               tersoff_type
    USE util,                            ONLY: sort
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

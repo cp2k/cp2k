@@ -28,7 +28,7 @@ MODULE pao_ml_descriptor
                                               pao_descriptor_type,&
                                               qs_kind_type
    USE util,                            ONLY: sort
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

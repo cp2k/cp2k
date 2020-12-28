@@ -22,7 +22,7 @@ MODULE molsym
                                               rotate_vector,&
                                               unit_matrix,&
                                               vector_product
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

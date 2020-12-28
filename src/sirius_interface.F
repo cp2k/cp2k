@@ -70,7 +70,7 @@ MODULE sirius_interface
         sirius_option_set_double, sirius_option_set_int, sirius_option_set_logical, &
         sirius_option_set_string, sirius_set_atom_position, sirius_set_atom_type_dion, &
         sirius_set_atom_type_radial_grid, sirius_set_lattice_vectors, sirius_update_ground_state
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 
@@ -778,7 +778,7 @@ END MODULE sirius_interface
 !***************************************************************************************************
 MODULE sirius_interface
    USE pwdft_environment_types, ONLY: pwdft_environment_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

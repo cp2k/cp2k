@@ -61,7 +61,7 @@ MODULE mp2_gpw_method
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE task_list_types,                 ONLY: task_list_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -19,7 +19,7 @@ MODULE colvar_types
                                               default_string_length,&
                                               dp
    USE particle_types,                  ONLY: particle_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

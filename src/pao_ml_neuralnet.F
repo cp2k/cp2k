@@ -14,7 +14,7 @@ MODULE pao_ml_neuralnet
    USE pao_types,                       ONLY: pao_env_type,&
                                               training_matrix_type
    USE parallel_rng_types,              ONLY: rng_stream_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

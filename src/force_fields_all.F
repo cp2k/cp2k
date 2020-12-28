@@ -84,7 +84,7 @@ MODULE force_fields_all
    USE string_utilities,                ONLY: compress,&
                                               integer_to_string,&
                                               uppercase
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -28,7 +28,7 @@ MODULE qs_gamma2kp
    USE qs_scf_initialization,           ONLY: qs_scf_env_init_basic
    USE qs_scf_types,                    ONLY: qs_scf_env_type,&
                                               scf_env_release
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

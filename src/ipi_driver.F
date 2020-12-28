@@ -48,7 +48,7 @@ MODULE ipi_driver
                                               mp_sync,&
                                               mp_testany
    USE virial_types,                    ONLY: virial_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

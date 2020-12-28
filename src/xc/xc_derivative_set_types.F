@@ -31,7 +31,7 @@ MODULE xc_derivative_set_types
    USE xc_derivative_types,             ONLY: xc_derivative_create,&
                                               xc_derivative_release,&
                                               xc_derivative_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

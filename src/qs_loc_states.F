@@ -36,7 +36,7 @@ MODULE qs_loc_states
    USE qs_mo_types,                     ONLY: mo_set_p_type
    USE wannier_states,                  ONLY: construct_wannier_states
    USE wannier_states_types,            ONLY: wannier_centres_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

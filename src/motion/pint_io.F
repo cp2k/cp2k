@@ -46,7 +46,7 @@ MODULE pint_io
                                               e_kin_virial_id,&
                                               e_potential_id,&
                                               pint_env_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

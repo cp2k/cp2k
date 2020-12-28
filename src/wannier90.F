@@ -66,7 +66,7 @@
 MODULE wannier90
    USE kinds,                           ONLY: dp
    USE physcon,                         ONLY: bohr
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

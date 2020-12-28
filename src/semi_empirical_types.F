@@ -42,7 +42,7 @@ MODULE semi_empirical_types
    USE taper_types,                     ONLY: taper_create,&
                                               taper_release,&
                                               taper_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -50,7 +50,7 @@ MODULE shg_integrals_test
                                               dp
    USE orbital_pointers,                ONLY: init_orbital_pointers
    USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

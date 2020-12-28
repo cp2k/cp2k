@@ -29,7 +29,7 @@ MODULE bse
                                               mp_sum
    USE mp2_types,                       ONLY: integ_mat_buffer_type
    USE rpa_communication,               ONLY: communicate_buffer
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

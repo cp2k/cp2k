@@ -25,7 +25,7 @@ MODULE s_contract_shg
    USE mathconstants,                   ONLY: dfac,&
                                               fac,&
                                               pi
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

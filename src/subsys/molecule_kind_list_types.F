@@ -15,7 +15,7 @@
 MODULE molecule_kind_list_types
    use molecule_kind_types, only: molecule_kind_type, deallocate_molecule_kind_set
 
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

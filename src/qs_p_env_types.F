@@ -27,7 +27,7 @@ MODULE qs_p_env_types
                                               local_rho_type
    USE qs_rho_types,                    ONLY: qs_rho_release,&
                                               qs_rho_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

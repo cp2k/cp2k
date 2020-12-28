@@ -75,7 +75,7 @@ MODULE qs_tddfpt2_subgroups
    USE task_list_types,                 ONLY: allocate_task_list,&
                                               deallocate_task_list,&
                                               task_list_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

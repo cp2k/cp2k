@@ -25,7 +25,7 @@ MODULE qmmm_topology_util
                                               str2id
    USE string_utilities,                ONLY: compress
    USE topology_types,                  ONLY: topology_parameters_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

@@ -54,7 +54,7 @@ MODULE spme
         pw2rs, realspace_grid_desc_type, realspace_grid_p_type, realspace_grid_type, rs2pw, &
         rs_grid_create, rs_grid_release, rs_grid_set_box, rs_grid_zero, rs_pw_transfer
    USE shell_potential_types,           ONLY: shell_kind_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -31,7 +31,7 @@ MODULE cp_fm_elpa
                               mp_bcast
 !$ USE OMP_LIB, ONLY: omp_get_num_threads
 
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
 #if defined (__ELPA)
    USE elpa_constants, ONLY: ELPA_2STAGE_REAL_GENERIC, &

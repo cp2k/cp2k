@@ -30,7 +30,7 @@ MODULE arnoldi_data_methods
    USE kinds, ONLY: real_4, &
                     real_8
    USE util, ONLY: sort
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

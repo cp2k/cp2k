@@ -42,7 +42,7 @@ MODULE ec_environment
                                               get_qs_kind_set,&
                                               qs_kind_type
    USE string_utilities,                ONLY: uppercase
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

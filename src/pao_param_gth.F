@@ -36,7 +36,7 @@ MODULE pao_param_gth
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               pao_potential_type,&
                                               qs_kind_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

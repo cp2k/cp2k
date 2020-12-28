@@ -19,7 +19,7 @@ MODULE qs_rho0_types
    USE qs_rho_atom_types,               ONLY: rho_atom_coeff
    USE whittaker,                       ONLY: whittaker_c0a,&
                                               whittaker_ci
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -73,7 +73,7 @@ MODULE task_list_methods
 
 !$ USE OMP_LIB, ONLY: omp_destroy_lock, omp_get_num_threads, omp_init_lock, &
 !$                    omp_lock_kind, omp_set_lock, omp_unset_lock, omp_get_max_threads
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
 #:include './common/array_sort.fypp'
 

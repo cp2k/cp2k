@@ -37,7 +37,7 @@ MODULE qs_mixing_utils
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_scf_methods,                  ONLY: cp_sm_mix
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

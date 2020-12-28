@@ -29,7 +29,7 @@ MODULE fist_efield_methods
    USE moments_utils,                   ONLY: get_reference_point
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: debye
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

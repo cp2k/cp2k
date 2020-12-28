@@ -43,7 +43,7 @@ MODULE input_parsing
                                               dp,&
                                               max_line_length
    USE string_utilities,                ONLY: uppercase
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

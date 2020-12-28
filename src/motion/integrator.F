@@ -98,7 +98,7 @@ MODULE integrator
    USE thermostat_types,                ONLY: thermostat_type
    USE virial_methods,                  ONLY: virial_evaluate
    USE virial_types,                    ONLY: virial_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

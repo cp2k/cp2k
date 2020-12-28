@@ -122,7 +122,7 @@ MODULE negf_methods
    USE qs_scf_methods,                  ONLY: scf_env_density_mixing
    USE qs_subsys_types,                 ONLY: qs_subsys_type
    USE string_utilities,                ONLY: integer_to_string
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

@@ -51,7 +51,7 @@ MODULE optimize_input
    USE physcon,                         ONLY: bohr
    USE powell,                          ONLY: opt_state_type,&
                                               powell_optimize
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

@@ -50,7 +50,7 @@ MODULE atom_grb
                                               powell_optimize
    USE qs_grid_atom,                    ONLY: allocate_grid_atom,&
                                               create_grid_atom
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

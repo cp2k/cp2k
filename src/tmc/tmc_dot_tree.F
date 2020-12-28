@@ -30,7 +30,7 @@ MODULE tmc_dot_tree
         status_canceled_ener, status_canceled_nmc, status_created, status_deleted, &
         status_deleted_result, status_rejected, status_rejected_result, tree_type
    USE tmc_types,                       ONLY: tmc_param_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

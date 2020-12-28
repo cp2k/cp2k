@@ -78,7 +78,7 @@ MODULE vibrational_analysis
                                               replica_env_type
    USE scine_utils,                     ONLY: write_scine
    USE util,                            ONLY: sort
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

@@ -36,7 +36,7 @@ MODULE negf_integr_cc
                                               equidistant_nodes_a_b,&
                                               rescale_nodes_cos,&
                                               rescale_normalised_nodes
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

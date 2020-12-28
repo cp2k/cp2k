@@ -22,7 +22,7 @@ MODULE atom_upf
                                               dp
    USE periodic_table,                  ONLY: get_ptable_info,&
                                               ptable
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

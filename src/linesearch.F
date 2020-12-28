@@ -28,7 +28,7 @@ MODULE linesearch
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE string_utilities,                ONLY: s2a
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

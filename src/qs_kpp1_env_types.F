@@ -20,7 +20,7 @@ MODULE qs_kpp1_env_types
                                               xc_dset_release
    USE xc_rho_set_types,                ONLY: xc_rho_set_release,&
                                               xc_rho_set_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

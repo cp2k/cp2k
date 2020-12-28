@@ -68,7 +68,7 @@ MODULE qs_rho0_ggrid
         rs_pw_transfer
    USE util,                            ONLY: get_limit
    USE virial_types,                    ONLY: virial_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

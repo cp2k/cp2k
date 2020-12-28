@@ -40,7 +40,7 @@ MODULE qs_subsys_types
    USE qs_kind_types,                   ONLY: deallocate_qs_kind_set,&
                                               qs_kind_type
    USE virial_types,                    ONLY: virial_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

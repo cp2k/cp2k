@@ -72,7 +72,7 @@ MODULE bfgs_optimizer
    USE message_passing,                 ONLY: mp_min,&
                                               mp_sum
    USE particle_list_types,             ONLY: particle_list_type
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE

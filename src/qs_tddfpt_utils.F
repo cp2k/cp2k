@@ -41,7 +41,7 @@ MODULE qs_tddfpt_utils
    USE qs_tddfpt_types,                 ONLY: tddfpt_env_allocate,&
                                               tddfpt_env_deallocate,&
                                               tddfpt_env_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

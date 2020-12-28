@@ -76,7 +76,7 @@ RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
    USE cp_log_handling, ONLY: cp_add_default_logger, &
                               cp_rm_default_logger
 
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
    IMPLICIT NONE
    TYPE(gopt_f_type), POINTER               :: gopt_env
    REAL(KIND=dp), DIMENSION(:), POINTER     :: x

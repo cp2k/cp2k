@@ -83,7 +83,7 @@ MODULE input_cp2k_restarts
    USE thermostat_types,                ONLY: thermostat_type
    USE thermostat_utils,                ONLY: communication_thermo_low2,&
                                               get_kin_energies
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

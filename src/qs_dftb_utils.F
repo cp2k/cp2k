@@ -21,7 +21,7 @@ MODULE qs_dftb_utils
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

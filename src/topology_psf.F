@@ -49,7 +49,7 @@ MODULE topology_psf
                                               reorder_structure,&
                                               tag_molecule
    USE util,                            ONLY: sort
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

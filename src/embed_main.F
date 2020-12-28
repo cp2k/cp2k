@@ -27,7 +27,7 @@ MODULE embed_main
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length
    USE message_passing,                 ONLY: mp_comm_split
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

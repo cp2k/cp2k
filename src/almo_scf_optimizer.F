@@ -102,7 +102,7 @@ MODULE almo_scf_optimizer
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_loc_utils,                    ONLY: compute_berry_operator
    USE qs_localization_methods,         ONLY: initialize_weights
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -75,7 +75,7 @@ MODULE qs_cdft_utils
                                               rs_grid_retain,&
                                               rs_grid_zero,&
                                               rs_pw_transfer
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

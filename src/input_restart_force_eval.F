@@ -59,7 +59,7 @@ MODULE input_restart_force_eval
    USE qs_environment_types,            ONLY: get_qs_env
    USE string_utilities,                ONLY: string_to_ascii
    USE virial_types,                    ONLY: virial_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

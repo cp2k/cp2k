@@ -49,7 +49,7 @@ MODULE pwdft_environment
                                               cp_sirius_energy_force,&
                                               cp_sirius_update_context
    USE virial_types,                    ONLY: virial_type
-#include "./base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
 

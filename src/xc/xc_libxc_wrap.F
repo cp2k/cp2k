@@ -88,7 +88,7 @@ MODULE xc_libxc_wrap
                            XC_FLAGS_HAVE_EXC, &
                            XC_FLAGS_DEVELOPMENT
 
-#include "../base/base_uses.f90"
+#include "base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
