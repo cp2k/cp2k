@@ -35,6 +35,6 @@ test_shg_integrals_01.inp                              0
 test_shg_integrals_02.inp                              0
 grid_ref_backend_ortho.inp                             1      2e-14             -21.04944231395059
 grid_validate_ortho.inp                                1      2e-14             -21.04944231395059
-grid_ref_backend_nonortho.inp                          1      5e-13             -18.04976254476928
-grid_validate_nonortho.inp                             1      5e-13             -18.04976254476928
+grid_ref_backend_nonortho.inp                          1      1e-12             -18.04976254476928
+grid_validate_nonortho.inp                             1      1e-12             -18.04976254476928
 #EOF
