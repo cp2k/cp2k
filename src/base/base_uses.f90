@@ -12,6 +12,10 @@
                                              timeset,&
                                              timestop
 
+! Check for OpenMP early on - ideally before the compiler fails with a cryptic message.
+#if !defined(_OPENMP)
+   "OpenMP is required. Please add -fopenmp to your Fortran compiler flags."
+#endif
 
 ! Dangerous: Full path can be arbitrarily long and might overflow Fortran line.
 #if !defined(__SHORT_FILE__)

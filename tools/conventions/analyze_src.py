@@ -11,7 +11,7 @@ from datetime import datetime
 
 flag_exceptions_re = re.compile(
     r"__COMPILE_REVISION|__COMPILE_DATE|__COMPILE_ARCH|__COMPILE_HOST|CUDA_VERSION|"
-    r"__INTEL_COMPILER|__cplusplus|\$\{.*\}\$|__.*__"
+    r"__INTEL_COMPILER|__cplusplus|_OPENMP|\$\{.*\}\$|__.*__"
 )
 
 portable_filename_re = re.compile(r"^[a-zA-Z0-9._/#~=+-]*$")
