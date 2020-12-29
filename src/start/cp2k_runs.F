@@ -43,11 +43,11 @@ MODULE cp2k_runs
                                               cp_unit_set_type,&
                                               print_all_units
    USE cuda_profiling,                  ONLY: cuda_nvtx_init
-   USE dbcsr_api,                       ONLY: dbcsr_finalize_lib,&
+   USE dbcsr_api,                       ONLY: dbcsr_get_accdrv_active_device_id,&
+                                              dbcsr_finalize_lib,&
                                               dbcsr_init_lib,&
                                               dbcsr_print_config,&
                                               dbcsr_print_statistics
-   USE dbcsr_config,                    ONLY: get_accdrv_active_device_id
    USE environment,                     ONLY: cp2k_finalize,&
                                               cp2k_init,&
                                               cp2k_read,&
@@ -257,7 +257,7 @@ CONTAINS
       CALL section_vals_val_get(root_section, "GLOBAL%GRID%APPLY_CUTOFF", l_val=grid_apply_cutoff)
       CALL section_vals_val_get(root_section, "GLOBAL%GRID%QUEUE_LENGTH", i_val=grid_queue_length)
       CALL grid_library_set_config(backend=grid_backend, &
-                                   device_id=get_accdrv_active_device_id(), &
+                                   device_id=dbcsr_get_accdrv_active_device_id(), &
                                    validate=grid_validate, &
                                    apply_cutoff=grid_apply_cutoff, &
                                    queue_length=grid_queue_length)
