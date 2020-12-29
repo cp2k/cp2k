@@ -47,6 +47,11 @@ MODULE voronoi_interface
       voro_radii_unity, voro_radii_vdw, voro_radii_cov, voro_radii_user, &
       bqb_opt_off, bqb_opt_quick, bqb_opt_normal, bqb_opt_patient, bqb_opt_exhaustive
    USE ISO_C_BINDING, ONLY: C_INT, C_DOUBLE, C_CHAR
+#if defined(__HAS_IEEE_EXCEPTIONS)
+   USE ieee_exceptions, ONLY: ieee_get_halting_mode, &
+                              ieee_set_halting_mode, &
+                              ieee_all
+#endif
 
 #include "./base/base_uses.f90"
 
@@ -332,6 +337,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: user_radii
       CHARACTER(len=default_path_length)                 :: bqb_file_name
       CHARACTER(len=128)                                 :: bqb_parm_string
+#if defined(__HAS_IEEE_EXCEPTIONS)
+      LOGICAL, DIMENSION(5)                              :: halt
+#endif
 
       CALL timeset(routineN, handle)
       NULLIFY (logger)
@@ -398,6 +406,12 @@ CONTAINS
       U1 = rspace_pw%pw_grid%bounds(2, 1)
       U2 = rspace_pw%pw_grid%bounds(2, 2)
       U3 = rspace_pw%pw_grid%bounds(2, 3)
+
+      ! Temporarily disable floating point traps because libvori raise IEEE754 exceptions.
+#if defined(__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_get_halting_mode(IEEE_ALL, halt)
+      CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
+#endif
 
       IF (my_rank == 0) THEN
 
@@ -693,6 +707,10 @@ CONTAINS
          ENDIF  ! do_bqb
 
       ENDIF
+
+#if defined(__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_set_halting_mode(IEEE_ALL, halt)
+#endif
 
       CALL timestop(handle)
 
