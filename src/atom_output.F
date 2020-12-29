@@ -32,7 +32,8 @@ MODULE atom_output
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE mathconstants,                   ONLY: pi, dfac
+   USE mathconstants,                   ONLY: dfac,&
+                                              pi
    USE periodic_table,                  ONLY: ptable
    USE physcon,                         ONLY: evolt
    USE xc_derivatives,                  ONLY: xc_functional_get_info
@@ -374,6 +375,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Print the optimized atomic basis set into a file.
 !> \param atom_basis  atomic basis set
+!> \param wfn ...
 !> \par History
 !>    * 11.2016 revised output format [Matthias Krack]
 !>    * 11.2011 Slater basis functions [Juerg Hutter]
@@ -383,7 +385,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE atom_print_basis_file(atom_basis, wfn)
       TYPE(atom_basis_type)                              :: atom_basis
-      REAL(KIND=dp), DIMENSION(:,:,:), OPTIONAL          :: wfn
+      REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL        :: wfn
 
       INTEGER                                            :: i, iw, l
       REAL(KIND=dp)                                      :: expzet, prefac, zeta
@@ -460,25 +462,25 @@ CONTAINS
          CPABORT("")
       END SELECT
 
-      IF(PRESENT(wfn)) THEN
+      IF (PRESENT(wfn)) THEN
          SELECT CASE (atom_basis%basis_type)
          CASE DEFAULT
          CASE (GTO_BASIS)
             IF (.NOT. atom_basis%geometrical) THEN
-              WRITE (iw, '(/,T3,A)') "ORBITAL COEFFICENTS (Quickstep normalization)"
-              DO l = 0, lmat
-                 IF (atom_basis%nbas(l) > 0) THEN
-                   WRITE (iw, '(T3,A,I3)') "L Quantum Number:",l
-                   ! Quickstep normalization
-                   expzet = 0.25_dp*REAL(2*l + 3, dp)
-                   prefac = SQRT(SQRT(pi)/2._dp**(l + 2)*dfac(2*l + 1))
-                   DO i = 1, atom_basis%nbas(l) 
-                      zeta = (2._dp*atom_basis%am(i, l))**expzet
-                      WRITE (iw, '(T5,F14.8,2x,6F12.8)') atom_basis%am(i, l), wfn(i, 1:6, l)*prefac/zeta
-                   END DO
-                 END IF
-              END DO
-           END IF
+               WRITE (iw, '(/,T3,A)') "ORBITAL COEFFICENTS (Quickstep normalization)"
+               DO l = 0, lmat
+                  IF (atom_basis%nbas(l) > 0) THEN
+                     WRITE (iw, '(T3,A,I3)') "L Quantum Number:", l
+                     ! Quickstep normalization
+                     expzet = 0.25_dp*REAL(2*l + 3, dp)
+                     prefac = SQRT(SQRT(pi)/2._dp**(l + 2)*dfac(2*l + 1))
+                     DO i = 1, atom_basis%nbas(l)
+                        zeta = (2._dp*atom_basis%am(i, l))**expzet
+                        WRITE (iw, '(T5,F14.8,2x,6F12.8)') atom_basis%am(i, l), wfn(i, 1:6, l)*prefac/zeta
+                     END DO
+                  END IF
+               END DO
+            END IF
          END SELECT
       END IF
 

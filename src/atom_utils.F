@@ -2586,7 +2586,7 @@ CONTAINS
       END IF
 
       info = 0
-      lwork = MAX(nbas*nbas, nbas+100)
+      lwork = MAX(nbas*nbas, nbas + 100)
       ALLOCATE (weig(nbas), work(lwork))
 
       CALL lapack_ssyev("N", "U", nbas, smat, nbas, weig, work, lwork, info)
