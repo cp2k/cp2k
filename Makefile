@@ -502,7 +502,7 @@ FYPPFLAGS ?= -n
 
 %.o: %.F
 	$(TOOLSRC)/build_utils/fypp $(FYPPFLAGS) $< $*.F90
-	$(FC) -c $(FCFLAGS) -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $(OBJEXTSINCL) $*.F90 $(FCLOGPIPE)
+	$(FC) -c $(FCFLAGS) -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' -I'$(SRCDIR)' $(OBJEXTSINCL) $*.F90 $(FCLOGPIPE)
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) $<
