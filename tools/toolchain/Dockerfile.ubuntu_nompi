@@ -37,7 +37,6 @@ COPY ./scripts ./scripts
 COPY ./install_cp2k_toolchain.sh .
 RUN ./install_cp2k_toolchain.sh  \
     --mpi-mode=no                \
-    --with-libvori=no            \
     --with-gcc=system            \
     --with-cmake=system          \
     --with-fftw=system           \
