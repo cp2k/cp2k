@@ -120,15 +120,19 @@ RUN ./scripts/install_gsl.sh && \
 
 COPY ./scripts/install_libvdwxc.sh \
      ./scripts/install_spglib.sh \
-     ./scripts/install_spfft.sh \
+     ./scripts/install_libvori.sh \
      ./scripts/
 RUN ./scripts/install_libvdwxc.sh && \
     ./scripts/install_spglib.sh && \
-    ./scripts/install_spfft.sh && \
+    ./scripts/install_libvori.sh && \
     rm -rf ./build
 
-COPY ./scripts/install_sirius.sh ./scripts/
-RUN ./scripts/install_sirius.sh && rm -rf ./build
+COPY ./scripts/install_spfft.sh \
+     ./scripts/install_sirius.sh \
+     ./scripts/
+RUN ./scripts/install_spfft.sh && \
+    ./scripts/install_sirius.sh && \
+    rm -rf ./build
 
 COPY ./scripts/arch_base.tmpl \
      ./scripts/generate_arch_files.sh \

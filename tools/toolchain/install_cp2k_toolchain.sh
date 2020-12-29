@@ -911,7 +911,6 @@ else
     ./scripts/install_valgrind.sh
     ./scripts/install_mathlibs.sh
     ./scripts/install_fftw.sh
-    ./scripts/install_spfft.sh
     ./scripts/install_libint.sh
     ./scripts/install_libxc.sh
     ./scripts/install_libsmm.sh
@@ -925,11 +924,12 @@ else
     ./scripts/install_quip.sh
     ./scripts/install_plumed.sh
     ./scripts/install_gsl.sh
-    ./scripts/install_spglib.sh
     ./scripts/install_hdf5.sh
     ./scripts/install_libvdwxc.sh
-    ./scripts/install_sirius.sh
+    ./scripts/install_spglib.sh
     ./scripts/install_libvori.sh
+    ./scripts/install_spfft.sh
+    ./scripts/install_sirius.sh
     ./scripts/generate_arch_files.sh
 fi
 
