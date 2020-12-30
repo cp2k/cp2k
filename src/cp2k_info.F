@@ -37,8 +37,8 @@ MODULE cp2k_info
 #if defined(__RELEASE_VERSION)
    INTEGER, PARAMETER          :: id_cp2k_version = id_release_version ! (Uncomment for release     version)
 #else
-   INTEGER, PARAMETER          :: id_cp2k_version = id_development_version ! (Uncomment for development version)
-!  INTEGER, PARAMETER          :: id_cp2k_version = 2                      ! (Uncomment for branch      version)
+!  INTEGER, PARAMETER          :: id_cp2k_version = id_development_version ! (Uncomment for development version)
+   INTEGER, PARAMETER          :: id_cp2k_version = 2                      ! (Uncomment for branch      version)
 #endif
 
 #if defined(__COMPILE_REVISION)
@@ -47,7 +47,7 @@ MODULE cp2k_info
    CHARACTER(LEN=*), PARAMETER :: compile_revision = "unknown"
 #endif
 
-   CHARACTER(LEN=*), PARAMETER :: version_nr = "8.0"
+   CHARACTER(LEN=*), PARAMETER :: version_nr = "8.1"
    CHARACTER(LEN=*), PARAMETER :: cp2k_year = "2020"
    CHARACTER(LEN=*), PARAMETER :: cp2k_version = "CP2K version "//TRIM(version_nr)
    CHARACTER(LEN=*), PARAMETER :: cp2k_home = "https://www.cp2k.org/"
