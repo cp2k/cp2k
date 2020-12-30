@@ -26,7 +26,7 @@ cd tools/toolchain/
 
 ```shell
 ./install_cp2k_toolchain.sh --with-libxsmm=install --with-openblas=system \
-     --with-fftw=system --with-reflapack=no  --enable-cuda --enable-omp
+     --with-fftw=system --with-reflapack=no  --enable-cuda
 ```
 
 - Once the script has completed successfully, follow the instructions given at
