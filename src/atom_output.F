@@ -385,9 +385,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE atom_print_basis_file(atom_basis, wfn)
       TYPE(atom_basis_type)                              :: atom_basis
-      REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL        :: wfn
+      REAL(KIND=dp), DIMENSION(:, :, 0:), OPTIONAL       :: wfn
 
-      INTEGER                                            :: i, iw, l
+      INTEGER                                            :: i, im, iw, l
       REAL(KIND=dp)                                      :: expzet, prefac, zeta
 
       CALL open_file(file_name="OPT_BASIS", file_status="UNKNOWN", file_action="WRITE", unit_number=iw)
@@ -468,6 +468,7 @@ CONTAINS
          CASE (GTO_BASIS)
             IF (.NOT. atom_basis%geometrical) THEN
                WRITE (iw, '(/,T3,A)') "ORBITAL COEFFICENTS (Quickstep normalization)"
+               im = MIN(6, SIZE(wfn, 2))
                DO l = 0, lmat
                   IF (atom_basis%nbas(l) > 0) THEN
                      WRITE (iw, '(T3,A,I3)') "L Quantum Number:", l
@@ -476,7 +477,7 @@ CONTAINS
                      prefac = SQRT(SQRT(pi)/2._dp**(l + 2)*dfac(2*l + 1))
                      DO i = 1, atom_basis%nbas(l)
                         zeta = (2._dp*atom_basis%am(i, l))**expzet
-                        WRITE (iw, '(T5,F14.8,2x,6F12.8)') atom_basis%am(i, l), wfn(i, 1:6, l)*prefac/zeta
+                        WRITE (iw, '(T5,F14.8,2x,6F12.8)') atom_basis%am(i, l), wfn(i, 1:im, l)*prefac/zeta
                      END DO
                   END IF
                END DO
