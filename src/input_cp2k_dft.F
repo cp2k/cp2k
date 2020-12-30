@@ -1556,7 +1556,7 @@ CONTAINS
                                        " see <a href=""https://brehm-research.de/bqb"" target=""_blank"">"// &
                                        " https://brehm-research.de/bqb</a> ). Currently does not work"// &
                                        "  with changing cell vector (NpT ensemble).", &
-                                       print_level=debug_print_level, filename="", &
+                                       print_level=debug_print_level + 1, filename="", &
                                        citations=(/Brehm2018/))
 
       CALL keyword_create(keyword, __LOCATION__, name="SKIP_FIRST", &
@@ -1623,7 +1623,7 @@ CONTAINS
                                        " and [Brehm2020] (via LibVori,"// &
                                        " see <a href=""https://brehm-research.de/voronoi"" target=""_blank"">"// &
                                        " https://brehm-research.de/voronoi</a> ).", &
-                                       print_level=debug_print_level, filename="", &
+                                       print_level=debug_print_level + 1, filename="", &
                                        citations=(/Rycroft2009, Thomas2015, Brehm2018, Brehm2020/))
 
       CALL keyword_create(keyword, __LOCATION__, name="SANITY_CHECK", &
