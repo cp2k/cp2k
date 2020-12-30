@@ -32,7 +32,8 @@ MODULE atom_output
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE mathconstants,                   ONLY: pi
+   USE mathconstants,                   ONLY: dfac,&
+                                              pi
    USE periodic_table,                  ONLY: ptable
    USE physcon,                         ONLY: evolt
    USE xc_derivatives,                  ONLY: xc_functional_get_info
@@ -374,6 +375,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Print the optimized atomic basis set into a file.
 !> \param atom_basis  atomic basis set
+!> \param wfn ...
 !> \par History
 !>    * 11.2016 revised output format [Matthias Krack]
 !>    * 11.2011 Slater basis functions [Juerg Hutter]
@@ -381,10 +383,12 @@ CONTAINS
 !> \note  The basis set is stored as the file 'OPT_BASIS' inside the current working directory.
 !>        It may be a good idea, however, to specify the name of this file via some input section.
 ! **************************************************************************************************
-   SUBROUTINE atom_print_basis_file(atom_basis)
+   SUBROUTINE atom_print_basis_file(atom_basis, wfn)
       TYPE(atom_basis_type)                              :: atom_basis
+      REAL(KIND=dp), DIMENSION(:, :, 0:), OPTIONAL       :: wfn
 
-      INTEGER                                            :: i, iw, l
+      INTEGER                                            :: i, im, iw, l
+      REAL(KIND=dp)                                      :: expzet, prefac, zeta
 
       CALL open_file(file_name="OPT_BASIS", file_status="UNKNOWN", file_action="WRITE", unit_number=iw)
       SELECT CASE (atom_basis%basis_type)
@@ -457,6 +461,30 @@ CONTAINS
       CASE DEFAULT
          CPABORT("")
       END SELECT
+
+      IF (PRESENT(wfn)) THEN
+         SELECT CASE (atom_basis%basis_type)
+         CASE DEFAULT
+         CASE (GTO_BASIS)
+            IF (.NOT. atom_basis%geometrical) THEN
+               WRITE (iw, '(/,T3,A)') "ORBITAL COEFFICENTS (Quickstep normalization)"
+               im = MIN(6, SIZE(wfn, 2))
+               DO l = 0, lmat
+                  IF (atom_basis%nbas(l) > 0) THEN
+                     WRITE (iw, '(T3,A,I3)') "L Quantum Number:", l
+                     ! Quickstep normalization
+                     expzet = 0.25_dp*REAL(2*l + 3, dp)
+                     prefac = SQRT(SQRT(pi)/2._dp**(l + 2)*dfac(2*l + 1))
+                     DO i = 1, atom_basis%nbas(l)
+                        zeta = (2._dp*atom_basis%am(i, l))**expzet
+                        WRITE (iw, '(T5,F14.8,2x,6F12.8)') atom_basis%am(i, l), wfn(i, 1:im, l)*prefac/zeta
+                     END DO
+                  END IF
+               END DO
+            END IF
+         END SELECT
+      END IF
+
       CALL close_file(unit_number=iw)
 
    END SUBROUTINE atom_print_basis_file

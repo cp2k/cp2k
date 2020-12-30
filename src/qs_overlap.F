@@ -236,7 +236,6 @@ CONTAINS
       NULLIFY (atomic_kind_set)
       CALL get_ks_env(ks_env, &
                       atomic_kind_set=atomic_kind_set, &
-                      natom=natom, &
                       qs_kind_set=qs_kind_set, &
                       dft_control=dft_control)
 

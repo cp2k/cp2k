@@ -452,7 +452,7 @@ CONTAINS
             END DO
          END SELECT
          CALL atom_print_basis(basis, iunit, " Optimized Basis")
-         CALL atom_print_basis_file(basis)
+         CALL atom_print_basis_file(basis, atom_info(1, 1)%atom%orbitals%wfn)
       END IF
 
       DEALLOCATE (x)

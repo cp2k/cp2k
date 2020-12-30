@@ -417,6 +417,7 @@ CONTAINS
       CALL atom_density(rho(:), atom%orbitals%pmat, atom%basis, maxl, typ="RHO")
       n = SUM(MAXLOC(rho(:)))
       rmax = basis%grid%rad(n)
+      IF (rmax < 0.1_dp) rmax = 1.0_dp
       DEALLOCATE (rho)
 
       ! generate polarization sets
