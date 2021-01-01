@@ -2,10 +2,13 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-# +-----------------------------------------------------------------------+
-# |  CP2K: A general program to perform molecular dynamics simulations    |
-# |  Copyright (C) 2000 - 2020  CP2K developers group                     |
-# +-----------------------------------------------------------------------+
+# +---------------------------------------------------------------------------+
+# |   CP2K: A general program to perform molecular dynamics simulations       |
+# |   Copyright 2000-2021 CP2K developers group <https://cp2k.org>            |
+# |                                                                           |
+# |   SPDX-License-Identifier: GPL-2.0-or-later                               |
+# +---------------------------------------------------------------------------+
+#
 #
 # *****************************************************************************
 #> \brief    This script will compile and install or link existing tools and

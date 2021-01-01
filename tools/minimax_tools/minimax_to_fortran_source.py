@@ -132,10 +132,15 @@ k_p.append(len(k) + 1)
 
 out = open("../../src/minimax/minimax_exp_k53.F", "w", encoding="utf8")
 out.write(
-    "!--------------------------------------------------------------------------------------------------!\n\
-!   CP2K: A general program to perform molecular dynamics simulations                              !\n\
-!   Copyright (C) 2000 - 2020  CP2K developers group                                               !\n\
-!--------------------------------------------------------------------------------------------------!\n\n"
+    """
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright 2000-2021 CP2K developers group <https://cp2k.org>                                   !
+!                                                                                                  !
+!   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
+!--------------------------------------------------------------------------------------------------!
+""".strip()
+    + "\n\n"
 )
 
 out.write(
