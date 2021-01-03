@@ -1,0 +1,52 @@
+# Tested with: GFortran 8.3.0, LAPACK 3.9.0, FFTW 3.3, LIBINT 2.6.0,
+#             LIBXC 4.3.4, SPGLIB 1.16.0, LIBVORI 201229
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, December 2020)
+
+CC          = gcc
+FC          = gfortran
+LD          = gfortran
+AR          = ar -r
+
+FFTW_INC    = $(GNU_PATH)/fftw/3.3-generic/include
+FFTW_LIB    = $(GNU_PATH)/fftw/3.3-generic/lib
+
+LIBINT_INC  = $(GNU_PATH)/libint/2.6.0-lmax-4-generic/include
+LIBINT_LIB  = $(GNU_PATH)/libint/2.6.0-lmax-4-generic/lib
+
+LIBVORI_LIB = $(GNU_PATH)/libvori/201229-generic/lib
+
+LIBXC_INC   = $(GNU_PATH)/libxc/4.3.4-generic/include
+LIBXC_LIB   = $(GNU_PATH)/libxc/4.3.4-generic/lib
+
+SPGLIB_INC  = $(GNU_PATH)/spglib/1.16.0-generic/include
+SPGLIB_LIB  = $(GNU_PATH)/spglib/1.16.0-generic/lib
+
+CFLAGS      = -O2 -fopenmp -g -mtune=generic
+
+DFLAGS     += -D__FFTW3
+DFLAGS     += -D__LIBINT
+DFLAGS     += -D__LIBVORI
+DFLAGS     += -D__LIBXC
+DFLAGS     += -D__SPGLIB
+DFLAGS     += -D__CHECK_DIAG
+
+FCFLAGS     = $(CFLAGS) $(DFLAGS)
+FCFLAGS    += -ffree-form
+FCFLAGS    += -ffree-line-length-none
+FCFLAGS    += -std=f2008
+FCFLAGS    += -I$(FFTW_INC)
+FCFLAGS    += -I$(LIBINT_INC)
+FCFLAGS    += -I$(LIBXC_INC)
+
+LDFLAGS     = $(FCFLAGS) -static
+
+LIBS        = $(LIBVORI_LIB)/libvori.a
+LIBS       += $(LIBXC_LIB)/libxcf03.a
+LIBS       += $(LIBXC_LIB)/libxc.a
+LIBS       += $(LIBINT_LIB)/libint2.a
+LIBS       += $(SPGLIB_LIB)/libsymspg.a
+LIBS       += $(FFTW_LIB)/libfftw3.a
+LIBS       += $(FFTW_LIB)/libfftw3_threads.a
+LIBS       += $(LIBPATH)/liblapack-generic.a
+LIBS       += $(LIBPATH)/libblas-generic.a
+LIBS       += -ldl -lstdc++
