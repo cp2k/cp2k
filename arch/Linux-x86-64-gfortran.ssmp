@@ -1,5 +1,6 @@
-# Tested with: GFortran 8.3.0, FFTW 3.3, LAPACK 3.8.0, Libint 2.6.0, Libxc 4.3.4, libxsmm 1.15, SPGLIB 1.12.2
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, August 2020)
+# Tested with: GFortran 8.3.0, LAPACK 3.9.0, FFTW 3.3, LIBINT 2.6.0,
+#             LIBXC 4.3.4, SPGLIB 1.16.0, LIBVORI 201229, LIBXSMM 1.16.1
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, December 2020)
 
 CC          = gcc
 FC          = gfortran
@@ -12,34 +13,42 @@ FFTW_LIB    = $(GNU_PATH)/fftw/3.3/lib
 LIBINT_INC  = $(GNU_PATH)/libint/2.6.0-lmax-6/include
 LIBINT_LIB  = $(GNU_PATH)/libint/2.6.0-lmax-6/lib
 
+LIBVORI_LIB = $(GNU_PATH)/libvori/201229/lib
+
 LIBXC_INC   = $(GNU_PATH)/libxc/4.3.4/include
 LIBXC_LIB   = $(GNU_PATH)/libxc/4.3.4/lib
 
-LIBXSMM_INC = $(GNU_PATH)/libxsmm/1.15/include
-LIBXSMM_LIB = $(GNU_PATH)/libxsmm/1.15/lib
+LIBXSMM_INC = $(GNU_PATH)/libxsmm/1.16.1/include
+LIBXSMM_LIB = $(GNU_PATH)/libxsmm/1.16.1/lib
 
-SPGLIB_INC  = $(GNU_PATH)/spglib/1.12.2/include
-SPGLIB_LIB  = $(GNU_PATH)/spglib/1.12.2/lib
+SPGLIB_INC  = $(GNU_PATH)/spglib/1.16.0/include
+SPGLIB_LIB  = $(GNU_PATH)/spglib/1.16.0/lib
 
-CFLAGS      = -O2 -fopenmp -g -mtune=native
+CFLAGS      = -O2 -fopenmp -g -march=native -mtune=native
 
 DFLAGS      = -D__FFTW3
 DFLAGS     += -D__LIBINT
+DFLAGS     += -D__LIBVORI
 DFLAGS     += -D__LIBXC
 DFLAGS     += -D__LIBXSMM
 DFLAGS     += -D__SPGLIB
 
 FCFLAGS     = $(CFLAGS) $(DFLAGS)
+FCFLAGS    += -fbacktrace
 FCFLAGS    += -ffree-form
 FCFLAGS    += -ffree-line-length-none
 FCFLAGS    += -ftree-vectorize
 FCFLAGS    += -funroll-loops
 FCFLAGS    += -std=f2008
-FCFLAGS    += -I$(FFTW_INC) -I$(LIBINT_INC) -I$(LIBXC_INC) -I$(LIBXSMM_INC)
+FCFLAGS    += -I$(FFTW_INC)
+FCFLAGS    += -I$(LIBINT_INC)
+FCFLAGS    += -I$(LIBXC_INC)
+FCFLAGS    += -I$(LIBXSMM_INC)
 
 LDFLAGS     = $(FCFLAGS) -static
 
-LIBS        = $(LIBXC_LIB)/libxcf03.a
+LIBS        = $(LIBVORI_LIB)/libvori.a
+LIBS       += $(LIBXC_LIB)/libxcf03.a
 LIBS       += $(LIBXC_LIB)/libxc.a
 LIBS       += $(LIBINT_LIB)/libint2.a
 LIBS       += $(SPGLIB_LIB)/libsymspg.a
@@ -49,4 +58,5 @@ LIBS       += $(LIBXSMM_LIB)/libxsmmf.a
 LIBS       += $(LIBXSMM_LIB)/libxsmm.a
 LIBS       += $(LIBPATH)/liblapack.a
 LIBS       += $(LIBPATH)/libblas.a
-LIBS       += -ldl -lpthread -lstdc++
+LIBS       += -ldl
+LIBS       += -lstdc++

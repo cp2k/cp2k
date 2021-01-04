@@ -20,15 +20,15 @@ FFTW_LIB    = $(GNU_PATH)/fftw/3.3-regtest/lib
 LIBINT_INC  = $(GNU_PATH)/libint/2.6.0-lmax-4-regtest/include
 LIBINT_LIB  = $(GNU_PATH)/libint/2.6.0-lmax-4-regtest/lib
 
-LIBVORI_LIB = $(GNU_PATH)/libvori/201229/lib
+LIBVORI_LIB = $(GNU_PATH)/libvori/201229-regtest/lib
 
 LIBXC_INC   = $(GNU_PATH)/libxc/4.3.4-regtest/include
 LIBXC_LIB   = $(GNU_PATH)/libxc/4.3.4-regtest/lib
 
-SPGLIB_INC  = $(GNU_PATH)/spglib/1.16.0/include
-SPGLIB_LIB  = $(GNU_PATH)/spglib/1.16.0/lib
+SPGLIB_INC  = $(GNU_PATH)/spglib/1.16.0-regtest/include
+SPGLIB_LIB  = $(GNU_PATH)/spglib/1.16.0-regtest/lib
 
-CFLAGS      = -O1 -fopenmp -g -mtune=generic
+CFLAGS      = -O2 -fopenmp -g -march=native -mtune=native
 
 DFLAGS      = -D__ELPA
 DFLAGS     += -D__FFTW3
@@ -59,6 +59,7 @@ WFLAGS     += -Werror=unused-dummy-argument
 WFLAGS     += -Werror=unused-variable
 
 FCFLAGS     = $(CFLAGS) $(DFLAGS) $(WFLAGS)
+FCFLAGS    += -fbacktrace
 FCFLAGS    += -fcheck=bounds,do,recursion,pointer
 FCFLAGS    += -ffree-form
 FCFLAGS    += -ffree-line-length-none
@@ -66,7 +67,9 @@ FCFLAGS    += -fimplicit-none
 FCFLAGS    += -fno-omit-frame-pointer
 FCFLAGS    += -std=f2008
 FCFLAGS    += -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules
-FCFLAGS    += -I$(FFTW_INC) -I$(LIBINT_INC) -I$(LIBXC_INC)
+FCFLAGS    += -I$(FFTW_INC)
+FCFLAGS    += -I$(LIBINT_INC)
+FCFLAGS    += -I$(LIBXC_INC)
 
 LDFLAGS     = $(FCFLAGS) -fsanitize=leak
 
@@ -82,4 +85,5 @@ LIBS       += $(FFTW_LIB)/libfftw3_threads.a
 LIBS       += $(MPI_LIBRARY_PATH)/libscalapack-regtest.a
 LIBS       += $(LIBPATH)/liblapack-regtest.a
 LIBS       += $(LIBPATH)/libblas-regtest.a
-LIBS       += -ldl -lstdc++
+LIBS       += -ldl
+LIBS       += -lstdc++
