@@ -110,6 +110,7 @@ CONTAINS
                                                             paw_atom, tau_f
       REAL(dp)                                           :: density_cut, exc_h, exc_s, gradient_cut, &
                                                             my_adiabatic_rescale_factor, tau_cut
+      REAL(dp), DIMENSION(1, 1)                          :: tau_d
       REAL(dp), DIMENSION(:, :), POINTER                 :: rho_h, rho_nlcc, rho_s, weight
       REAL(dp), DIMENSION(:, :, :), POINTER              :: tau_h, tau_s, vtau_h, vtau_s, vxc_h, &
                                                             vxc_s
@@ -307,6 +308,8 @@ CONTAINS
                IF (tau_f) THEN
                   !compute tau on the grid all at once
                   CALL calc_tau_atom(tau_h, tau_s, rho_atom, my_kind_set(ikind), nspins)
+               ELSE
+                  tau_d = 0.0_dp
                END IF
 
                DO ir = 1, nr
@@ -317,8 +320,13 @@ CONTAINS
                      CALL calc_rho_nlcc(grid_atom, nspins, gradient_f, &
                                         ir, rho_nlcc(:, 1), rho_h, rho_s, rho_nlcc(:, 2), drho_h, drho_s)
                   END IF
-                  CALL fill_rho_set(rho_set_h, lsd, nspins, needs, rho_h, drho_h, tau_h(:, ir, :), na, ir)
-                  CALL fill_rho_set(rho_set_s, lsd, nspins, needs, rho_s, drho_s, tau_s(:, ir, :), na, ir)
+                  IF (tau_f) THEN
+                     CALL fill_rho_set(rho_set_h, lsd, nspins, needs, rho_h, drho_h, tau_h(:, ir, :), na, ir)
+                     CALL fill_rho_set(rho_set_s, lsd, nspins, needs, rho_s, drho_s, tau_s(:, ir, :), na, ir)
+                  ELSE
+                     CALL fill_rho_set(rho_set_h, lsd, nspins, needs, rho_h, drho_h, tau_d, na, ir)
+                     CALL fill_rho_set(rho_set_s, lsd, nspins, needs, rho_s, drho_s, tau_d, na, ir)
+                  END IF
                END DO
 
                !-------------------!
