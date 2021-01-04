@@ -39,7 +39,6 @@ RUN ./install_cp2k_toolchain.sh  \
     --math-mode=mkl              \
     --with-reflapack=no          \
     --with-scalapack=no          \
-    --with-elpa=no               \
     --libint-lmax=${LIBINT_LMAX} \
     --gpu-ver=${GPU_VERSION}     \
     && rm -rf ./build
