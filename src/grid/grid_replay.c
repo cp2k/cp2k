@@ -242,7 +242,7 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
 
   const bool orthorhombic = parse_int("orthorhombic", fp);
   const int border_mask = parse_int("border_mask", fp);
-  const int func = parse_int("func", fp);
+  const enum grid_func func = parse_int("func", fp);
   const bool compute_tau = (func == GRID_FUNC_DADB);
   const int la_max = parse_int("la_max", fp);
   const int la_min = parse_int("la_min", fp);

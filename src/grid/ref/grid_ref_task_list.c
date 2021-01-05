@@ -400,7 +400,7 @@ static void integrate_one_grid_level(
     // Initialize variables to detect when a new subblock has to be fetched.
     int old_offset = -1, old_iset = -1, old_jset = -1;
     grid_basis_set *old_ibasis = NULL, *old_jbasis = NULL;
-    bool old_transpose;
+    bool old_transpose = false;
 
     // Matrix pab and hab are re-used across tasks.
     double pab[task_list->maxco * task_list->maxco];
