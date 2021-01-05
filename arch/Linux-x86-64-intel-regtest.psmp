@@ -1,4 +1,4 @@
-# Tested with  Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 18.0.5.274 Build 20180823
+# Tested with: Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 18.0.5.274 Build 20180823
 #              Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.1.3.304 Build 20200925
 #              Intel MPI, MKL, LIBINT 2.6.0, LIBXC 4.3.4, LIBXSMM 1.16.1, ELPA 2020.05.001, PLUMED 2.6.2, SPGLIB 1.16.0,
 #              LIBVORI 201229
@@ -29,7 +29,7 @@ LIBXSMM_LIB = $(INTEL_PATH)/libxsmm/1.16.1/lib
 SPGLIB_INC  = $(INTEL_PATH)/spglib/1.16.0/include
 SPGLIB_LIB  = $(INTEL_PATH)/spglib/1.16.0/lib
 
-CFLAGS      = -O2 -funroll-loops -g -qopenmp -traceback -xHost
+CFLAGS      = -O2 -fopenmp -fp-model precise -funroll-loops -g -traceback -xHost
 
 DFLAGS      = -D__ELPA
 DFLAGS     += -D__FFTW3
@@ -57,6 +57,7 @@ FCFLAGS    += -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules
 FCFLAGS    += -I$(LIBINT_INC)
 FCFLAGS    += -I$(LIBXC_INC)
 FCFLAGS    += -I$(LIBXSMM_INC)
+FCFLAGS    += -I$(SPGLIB_INC)
 
 LDFLAGS     = $(FCFLAGS) -static-intel -static_mpi
 LDFLAGS_C   = -nofor_main

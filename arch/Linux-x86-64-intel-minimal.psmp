@@ -8,7 +8,7 @@ FC        = mpiifort
 LD        = mpiifort
 AR        = ar -r
 
-CFLAGS    = -O2 -g -qopenmp -traceback -xHost
+CFLAGS    = -O2 -fopenmp -fp-model precise -funroll-loops -g -traceback -xHost
 
 DFLAGS    = -D__FFTW3
 DFLAGS   += -D__MAX_CONTR=4
@@ -21,9 +21,7 @@ FCFLAGS   = $(CFLAGS) $(DFLAGS)
 FCFLAGS  += -diag-disable=8291
 FCFLAGS  += -diag-disable=8293
 FCFLAGS  += -fpp
-FCFLAGS  += -fp-model precise
 FCFLAGS  += -free
-FCFLAGS  += -funroll-loops
 FCFLAGS  += -I$(MKLROOT)/include
 FCFLAGS  += -I$(MKLROOT)/include/fftw
 
