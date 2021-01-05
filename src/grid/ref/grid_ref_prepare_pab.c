@@ -26,7 +26,7 @@ static inline void prep_term(const orbital a, const orbital b,
  * \brief Returns block size changes due to transformation grid_prepare_pab.
  * \author Ole Schuett
  ******************************************************************************/
-void grid_ref_prepare_get_ldiffs(const int func, int *la_min_diff,
+void grid_ref_prepare_get_ldiffs(const enum grid_func func, int *la_min_diff,
                                  int *la_max_diff, int *lb_min_diff,
                                  int *lb_max_diff) {
   const prepare_ldiffs ldiffs = prepare_get_ldiffs(func);
@@ -41,7 +41,7 @@ void grid_ref_prepare_get_ldiffs(const int func, int *la_min_diff,
  *        See grid_ref_prepare_pab.h for details.
  * \author Ole Schuett
  ******************************************************************************/
-void grid_ref_prepare_pab(const int func, const int o1, const int o2,
+void grid_ref_prepare_pab(const enum grid_func func, const int o1, const int o2,
                           const int la_max, const int la_min, const int lb_max,
                           const int lb_min, const double zeta,
                           const double zetb, const int n1, const int n2,
