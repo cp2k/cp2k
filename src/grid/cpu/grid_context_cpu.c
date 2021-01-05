@@ -21,7 +21,7 @@
 #include "utils.h"
 
 void return_dh(void *const ptr, const int level, double *const dh) {
-  grid_context *const ctx = (grid_context *const)ptr;
+  grid_context *const ctx = (grid_context *)ptr;
 
   assert(ctx->checksum == ctx_checksum);
   dh[0] = ctx->grid[level].dh[0][0];
@@ -36,7 +36,7 @@ void return_dh(void *const ptr, const int level, double *const dh) {
 }
 
 void return_dh_inv(void *const ptr, const int level, double *const dh_inv) {
-  grid_context *const ctx = (grid_context *const)ptr;
+  grid_context *const ctx = (grid_context *)ptr;
 
   assert(ctx->checksum == ctx_checksum);
   dh_inv[0] = ctx->grid[level].dh_inv[0][0];
@@ -51,27 +51,27 @@ void return_dh_inv(void *const ptr, const int level, double *const dh_inv) {
 }
 
 int return_num_devs(void *const ptr) {
-  grid_context *const ctx = (grid_context *const)ptr;
+  grid_context *const ctx = (grid_context *)ptr;
   assert(ctx->checksum == ctx_checksum);
 
   return ctx->number_of_devices;
 }
 
 int return_device_id(void *const ptr, const int device) {
-  grid_context *const ctx = (grid_context *const)ptr;
+  grid_context *const ctx = (grid_context *)ptr;
   assert(ctx->checksum == ctx_checksum);
 
   return ctx->device_id[device];
 }
 
 int is_grid_orthorhombic(void *const ptr) {
-  grid_context *const ctx = (grid_context *const)ptr;
+  grid_context *const ctx = (grid_context *)ptr;
   assert(ctx->checksum == ctx_checksum);
   return ctx->orthorhombic;
 }
 
 void update_queue_length(void *const ptr, const int queue_length) {
-  grid_context *const ctx = (grid_context *const)ptr;
+  grid_context *const ctx = (grid_context *)ptr;
   assert(ctx->checksum == ctx_checksum);
   ctx->queue_length = queue_length;
 }

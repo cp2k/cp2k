@@ -258,8 +258,7 @@ static void collocate_one_grid_level_gpu(grid_context *const ctx,
     handler->func = func;
     grid_prepare_get_ldiffs_dgemm(handler->func, handler->lmin_diff,
                                   handler->lmax_diff);
-    initialize_basis_vectors(handler, (const double(*)[3])grid->dh,
-                             (const double(*)[3])grid->dh_inv);
+    initialize_basis_vectors(handler, grid->dh, grid->dh_inv);
 
     handler->apply_cutoff = ctx->apply_cutoff;
 
@@ -504,7 +503,7 @@ void grid_hybrid_collocate_task_list(
    * implementation. */
   for (int level = 0; level < ctx->nlevels; level++) {
     bool orthogonal[3];
-    verify_orthogonality(dh[level], orthogonal);
+    verify_orthogonality((const double(*)[3])dh[level], orthogonal);
     if (orthogonal[0] && orthogonal[1] && orthogonal[2] && (!ctx->orthorhombic))
       ctx->orthorhombic = true;
     else
