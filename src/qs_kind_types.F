@@ -2052,6 +2052,8 @@ CONTAINS
                IF (.NOT. ASSOCIATED(elec_conf)) THEN
                   CALL get_potential(potential=qs_kind%gth_potential, elec_conf=elec_conf)
                   CALL set_qs_kind(qs_kind, elec_conf=elec_conf)
+               ELSE
+                  CALL set_potential(potential=qs_kind%gth_potential, elec_conf=elec_conf)
                END IF
             CASE ("UPF")
                ALLOCATE (qs_kind%upf_potential)
@@ -2176,6 +2178,8 @@ CONTAINS
                   IF (.NOT. ASSOCIATED(elec_conf)) THEN
                      CALL get_potential(potential=qs_kind%all_potential, elec_conf=elec_conf)
                      CALL set_qs_kind(qs_kind, elec_conf=elec_conf)
+                  ELSE
+                     CALL set_potential(potential=qs_kind%all_potential, elec_conf=elec_conf)
                   END IF
                CASE ("GTH")
                   CALL allocate_potential(qs_kind%gth_potential)
@@ -2187,6 +2191,8 @@ CONTAINS
                   IF (.NOT. ASSOCIATED(elec_conf)) THEN
                      CALL get_potential(potential=qs_kind%gth_potential, elec_conf=elec_conf)
                      CALL set_qs_kind(qs_kind, elec_conf=elec_conf)
+                  ELSE
+                     CALL set_potential(potential=qs_kind%gth_potential, elec_conf=elec_conf)
                   END IF
                CASE ("ECP")
                   CALL allocate_potential(qs_kind%sgp_potential)
@@ -3092,13 +3098,32 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: z
       INTEGER, DIMENSION(0:lmat, 10), INTENT(OUT)        :: ncalc, ncore, nelem
 
-      INTEGER                                            :: ii, l, ll, lx, nn
-      INTEGER, DIMENSION(0:lmat)                         :: econfx
+      INTEGER                                            :: ii, iounit, l, ll, lmin, lx, nn
+      INTEGER, DIMENSION(0:lmat)                         :: econfx, etest
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
+      iounit = cp_logger_get_default_io_unit(logger)
 
       econfx = 0
       econfx(0:SIZE(econf) - 1) = econf
       IF (SUM(econf) >= 0) THEN
-         DO l = 0, MIN(lmat, UBOUND(ptable(z)%e_conv, 1))
+         lmin = MIN(lmat, UBOUND(ptable(z)%e_conv, 1))
+         ! test for compatibility of valence occupation and full atomic occupation
+         etest = 0
+         etest(0:lmin) = ptable(z)%e_conv(0:lmin) - econfx(0:lmin)
+         IF (ANY(etest < 0) .OR. ANY(MOD(etest, 2) /= 0)) THEN
+            ! the occupations are not compatible
+            IF (iounit > 0) THEN
+               WRITE (iounit, "(/,A,A2)") "WARNING: Incompatible occupations for Atomtype ", ptable(z)%symbol
+               WRITE (iounit, "(A,10I3)") "WARNING: Valence Occupations :", econfx
+               WRITE (iounit, "(A,10I3)") "WARNING: Atomic Occupations  :", ptable(z)%e_conv
+               WRITE (iounit, "(A,10I3)") "WARNING: Redefine ELEC_CONF in the KIND section"
+            END IF
+            CPABORT("Incompatible Atomic Occupations Detected")
+         END IF
+         DO l = 0, lmin
             ll = 2*(2*l + 1)
             nn = ptable(z)%e_conv(l) - econfx(l)
             IF (MOD(nn, ll) == 0) CYCLE
@@ -3111,7 +3136,7 @@ CONTAINS
                EXIT
             END DO
          END DO
-         DO l = 0, MIN(lmat, UBOUND(ptable(z)%e_conv, 1))
+         DO l = 0, lmin
             ll = 2*(2*l + 1)
             nn = ptable(z)%e_conv(l) - econfx(l)
             ii = 0
@@ -3126,7 +3151,7 @@ CONTAINS
                END IF
             END DO
          END DO
-         DO l = 0, MIN(lmat, UBOUND(ptable(z)%e_conv, 1))
+         DO l = 0, lmin
             ll = 2*(2*l + 1)
             nn = ptable(z)%e_conv(l)
             ii = 0
@@ -3145,7 +3170,7 @@ CONTAINS
       ELSE
          ncore = 0
          ncalc = 0
-         DO l = 0, MIN(lmat, UBOUND(ptable(z)%e_conv, 1))
+         DO l = 0, lmin
             ll = 2*(2*l + 1)
             nn = ABS(econfx(l))
             ii = 0
