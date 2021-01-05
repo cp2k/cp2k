@@ -15,7 +15,7 @@
 #include "../common/grid_basis_set.h"
 #include "../common/grid_buffer.h"
 #include "../common/grid_common.h"
-
+#include "../common/grid_constants.h"
 enum checksum_ { task_checksum = 0x2384989, ctx_checksum = 0x2356734 };
 
 typedef struct {
@@ -154,7 +154,8 @@ extern void set_grid_parameters(
 
 extern void collocate_one_grid_level_dgemm(grid_context *const ctx,
                                            const int *const, const int *const,
-                                           const int func, const int level,
+                                           const enum grid_func func,
+                                           const int level,
                                            const grid_buffer *pab_blocks);
 
 extern void integrate_one_grid_level_dgemm(

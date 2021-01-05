@@ -864,8 +864,8 @@ void grid_collocate_pgf_product_cpu_dgemm(
   const double rab2 = rab[0] * rab[0] + rab[1] * rab[1] + rab[2] * rab[2];
   const double prefactor = rscale * exp(-zeta * f * rab2);
   const double zeta_pair[2] = {zeta, zetb};
-  initialize_basis_vectors(handler, dh, dh_inv);
-  verify_orthogonality(dh, handler->orthogonal);
+  initialize_basis_vectors(handler, (const double(*)[3])dh, dh_inv);
+  verify_orthogonality((const double(*)[3])dh, handler->orthogonal);
 
   initialize_tensor_3(&(handler->grid), grid_local_size[2], grid_local_size[1],
                       grid_local_size[0]);
@@ -1065,7 +1065,7 @@ void compute_coefficients(grid_context *const ctx,
 void collocate_one_grid_level_dgemm(grid_context *const ctx,
                                     const int *const border_width,
                                     const int *const shift_local,
-                                    const int func, const int level,
+                                    const enum grid_func func, const int level,
                                     const grid_buffer *pab_blocks) {
   tensor *const grid = &ctx->grid[level];
   // Using default(shared) because with GCC 9 the behavior around const changed:
