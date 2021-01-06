@@ -111,7 +111,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="EFIELD", &
                           description="parameters for finite, time dependent, nonperiodic electric fields."// &
-                                      " For static fields use EXTERNAL_POTENTIAL.", &
+                          " For static fields use EXTERNAL_POTENTIAL.", &
                           n_keywords=6, n_subsections=1, repeats=.TRUE.)
 
       NULLIFY (keyword, subsection)
