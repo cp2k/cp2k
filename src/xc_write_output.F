@@ -48,7 +48,7 @@ CONTAINS
 
       CHARACTER(LEN=2*default_string_length)             :: shortform
       CHARACTER(LEN=20)                                  :: tmpStr
-      CHARACTER(LEN=20*default_string_length)            :: reference
+      CHARACTER(LEN=200*default_string_length)           :: reference
       INTEGER                                            :: i_rep, ifun, il, myfun, n_rep
       TYPE(section_vals_type), POINTER                   :: libxc_fun, xc_fun, xc_fun_section
 

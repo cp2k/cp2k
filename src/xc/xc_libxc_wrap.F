@@ -23,11 +23,14 @@ MODULE xc_libxc_wrap
 #if defined (__LIBXC)
 #include <xc_version.h>
 ! check for LibXC version
-#if (XC_MAJOR_VERSION < 4)
-   This version of CP2K ONLY works with libxc versions 4.0.3 and above.
+#if (XC_MAJOR_VERSION < 5)
+   This version of CP2K ONLY works with libxc versions 5.1.0 and above.
    Furthermore, -I${LIBXC_DIR}/include needs to be added to FCFLAGS.
 #else
 
+#if (XC_MAJOR_VERSION == 5 && XC_MINOR_VERSION < 0)
+   This version needs the hotfix 5.1.0 for libxc.
+#else
    ! Functionals which require parameters
    USE cp_log_handling, ONLY: cp_to_string
    USE kinds, ONLY: dp
@@ -53,14 +56,14 @@ MODULE xc_libxc_wrap
                            xc_f03_func_reference_get_ref, &
                            xc_f03_func_reference_get_doi, &
                            !
-                           xc_f03_lda, &
+                           xc_f03_lda => xc_f03_lda_exc_vxc_fxc_kxc, &
                            xc_f03_lda_exc, &
                            xc_f03_lda_exc_vxc, &
                            xc_f03_lda_fxc, &
                            xc_f03_lda_kxc, &
                            xc_f03_lda_vxc, &
                            !
-                           xc_f03_mgga, &
+                           xc_f03_mgga => xc_f03_mgga_exc_vxc_fxc, &
                            xc_f03_mgga_exc, &
                            xc_f03_mgga_exc_vxc, &
                            xc_f03_mgga_fxc, &
@@ -372,6 +375,7 @@ CONTAINS
 
    END SUBROUTINE xc_libxc_wrap_functional_set_params
 
+#endif
 #endif
 #endif
 END MODULE xc_libxc_wrap
