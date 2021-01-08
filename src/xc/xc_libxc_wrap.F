@@ -76,6 +76,7 @@ MODULE xc_libxc_wrap
                            XC_FAMILY_LDA, &
                            XC_FAMILY_GGA, &
                            XC_FAMILY_MGGA, &
+                           XC_FAMILY_HYB_LDA, &
                            XC_FAMILY_HYB_GGA, &
                            XC_FAMILY_HYB_MGGA, &
                            !
@@ -113,7 +114,7 @@ MODULE xc_libxc_wrap
              xc_f03_mgga_vxc
 
    PUBLIC :: XC_FAMILY_LDA, XC_FAMILY_GGA, XC_FAMILY_MGGA, &
-             XC_FAMILY_HYB_GGA, XC_FAMILY_HYB_MGGA
+             XC_FAMILY_HYB_LDA, XC_FAMILY_HYB_GGA, XC_FAMILY_HYB_MGGA
 
    PUBLIC :: XC_UNPOLARIZED, XC_POLARIZED
 

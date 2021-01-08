@@ -71,6 +71,7 @@ MODULE xc_libxc
                             XC_FAMILY_LDA, &
                             XC_FAMILY_GGA, &
                             XC_FAMILY_MGGA, &
+                            XC_FAMILY_HYB_LDA, &
                             XC_FAMILY_HYB_GGA, &
                             XC_FAMILY_HYB_MGGA, &
                             XC_CORRELATION, &
@@ -161,7 +162,7 @@ CONTAINS
       END IF
       IF (PRESENT(needs)) THEN
          SELECT CASE (xc_f03_func_info_get_family(xc_info))
-         CASE (XC_FAMILY_LDA)
+         CASE (XC_FAMILY_LDA, XC_FAMILY_HYB_LDA)
             needs%rho = .TRUE.
          CASE (XC_FAMILY_GGA, XC_FAMILY_HYB_GGA)
             needs%rho = .TRUE.
@@ -177,7 +178,7 @@ CONTAINS
       END IF
       IF (PRESENT(max_deriv)) THEN
          SELECT CASE (xc_f03_func_info_get_family(xc_info))
-         CASE (XC_FAMILY_LDA)
+         CASE (XC_FAMILY_LDA, XC_FAMILY_HYB_LDA)
             max_deriv = 3
          CASE (XC_FAMILY_GGA, XC_FAMILY_HYB_GGA)
             max_deriv = 2
@@ -266,7 +267,7 @@ CONTAINS
       END IF
       IF (PRESENT(needs)) THEN
          SELECT CASE (xc_f03_func_info_get_family(xc_info))
-         CASE (XC_FAMILY_LDA)
+         CASE (XC_FAMILY_LDA, XC_FAMILY_HYB_LDA)
             needs%rho_spin = .TRUE.
          CASE (XC_FAMILY_GGA, XC_FAMILY_HYB_GGA)
             needs%rho_spin = .TRUE.
@@ -284,7 +285,7 @@ CONTAINS
       END IF
       IF (PRESENT(max_deriv)) THEN
          SELECT CASE (xc_f03_func_info_get_family(xc_info))
-         CASE (XC_FAMILY_LDA)
+         CASE (XC_FAMILY_LDA, XC_FAMILY_HYB_LDA)
             max_deriv = 3
          CASE (XC_FAMILY_GGA, XC_FAMILY_HYB_GGA)
             max_deriv = 2
@@ -432,7 +433,7 @@ CONTAINS
       END IF
       IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
          SELECT CASE (xc_f03_func_info_get_family(xc_info))
-         CASE (XC_FAMILY_LDA)
+         CASE (XC_FAMILY_LDA, XC_FAMILY_HYB_LDA)
             deriv => xc_dset_get_derivative(deriv_set, "(rho)", &
                                             allocate_deriv=.TRUE.)
             CALL xc_derivative_get(deriv, deriv_data=e_rho)
@@ -464,7 +465,7 @@ CONTAINS
       END IF
       IF (grad_deriv >= 2 .OR. grad_deriv == -2) THEN
          SELECT CASE (xc_f03_func_info_get_family(xc_info))
-         CASE (XC_FAMILY_LDA)
+         CASE (XC_FAMILY_LDA, XC_FAMILY_HYB_LDA)
             deriv => xc_dset_get_derivative(deriv_set, "(rho)(rho)", &
                                             allocate_deriv=.TRUE.)
             CALL xc_derivative_get(deriv, deriv_data=e_rho_rho)
@@ -520,7 +521,7 @@ CONTAINS
       END IF
       IF (grad_deriv >= 3 .OR. grad_deriv == -3) THEN
          SELECT CASE (xc_f03_func_info_get_family(xc_info))
-         CASE (XC_FAMILY_LDA)
+         CASE (XC_FAMILY_LDA, XC_FAMILY_HYB_LDA)
             deriv => xc_dset_get_derivative(deriv_set, "(rho)(rho)(rho)", &
                                             allocate_deriv=.TRUE.)
             CALL xc_derivative_get(deriv, deriv_data=e_rho_rho_rho)
@@ -739,7 +740,7 @@ CONTAINS
       END IF
       IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
          SELECT CASE (xc_f03_func_info_get_family(xc_info))
-         CASE (XC_FAMILY_LDA)
+         CASE (XC_FAMILY_LDA, XC_FAMILY_HYB_LDA)
             deriv => xc_dset_get_derivative(deriv_set, "(rhoa)", &
                                             allocate_deriv=.TRUE.)
             CALL xc_derivative_get(deriv, deriv_data=e_rhoa)
@@ -798,7 +799,7 @@ CONTAINS
       END IF
       IF (grad_deriv >= 2 .OR. grad_deriv == -2) THEN
          SELECT CASE (xc_f03_func_info_get_family(xc_info))
-         CASE (XC_FAMILY_LDA)
+         CASE (XC_FAMILY_LDA, XC_FAMILY_HYB_LDA)
             deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhoa)", &
                                             allocate_deriv=.TRUE.)
             CALL xc_derivative_get(deriv, deriv_data=e_rhoa_rhoa)
@@ -1001,7 +1002,7 @@ CONTAINS
       END IF
       IF (grad_deriv >= 3 .OR. grad_deriv == -3) THEN
          SELECT CASE (xc_f03_func_info_get_family(xc_info))
-         CASE (XC_FAMILY_LDA)
+         CASE (XC_FAMILY_LDA, XC_FAMILY_HYB_LDA)
             deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhoa)(rhoa)", &
                                             allocate_deriv=.TRUE.)
             CALL xc_derivative_get(deriv, deriv_data=e_rhoa_rhoa_rhoa)
@@ -1182,7 +1183,7 @@ CONTAINS
 !$OMP END CRITICAL(libxc_init)
 !$OMP BARRIER
       SELECT CASE (xc_f03_func_info_get_family(xc_info))
-      CASE (XC_FAMILY_LDA)
+      CASE (XC_FAMILY_LDA, XC_FAMILY_HYB_LDA)
          IF (grad_deriv == 0) THEN
 !$OMP           DO
             DO ii = 1, npoints
@@ -1637,7 +1638,7 @@ CONTAINS
 !$OMP BARRIER
 
       SELECT CASE (xc_f03_func_info_get_family(xc_info))
-      CASE (XC_FAMILY_LDA)
+      CASE (XC_FAMILY_LDA, XC_FAMILY_HYB_LDA)
          IF (grad_deriv == 0) THEN
 !$OMP           DO
             DO ii = 1, npoints
