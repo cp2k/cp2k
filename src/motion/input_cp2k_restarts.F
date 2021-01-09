@@ -1009,6 +1009,9 @@ CONTAINS
          CALL string_to_ascii(rng_record, ascii(:, 1))
          CALL section_rng_val_set(rng_section=tmpsec, nsize=1, &
                                   ascii=ascii)
+         tmpsec => section_vals_get_subs_vals(pint_section, "PILE")
+         CALL section_vals_val_set(tmpsec, "THERMOSTAT_ENERGY", &
+                                   r_val=pint_env%e_pile)
       ELSE IF (pint_env%pimd_thermostat == thermostat_qtb) THEN
          tmpsec => section_vals_get_subs_vals(pint_section, &
                                               "QTB%RNG_INIT")
@@ -1016,6 +1019,9 @@ CONTAINS
                               ascii(:, 1))
          CALL section_rng_val_set(rng_section=tmpsec, nsize=1, &
                                   ascii=ascii)
+         tmpsec => section_vals_get_subs_vals(pint_section, "QTB")
+         CALL section_vals_val_set(tmpsec, "THERMOSTAT_ENERGY", &
+                                   r_val=pint_env%e_qtb)
       ELSE IF (pint_env%pimd_thermostat == thermostat_piglet) THEN
          tmpsec => section_vals_get_subs_vals(pint_section, &
                                               "PIGLET%RNG_INIT")
@@ -1023,6 +1029,9 @@ CONTAINS
          CALL string_to_ascii(rng_record, ascii(:, 1))
          CALL section_rng_val_set(rng_section=tmpsec, nsize=1, &
                                   ascii=ascii)
+         tmpsec => section_vals_get_subs_vals(pint_section, "PIGLET")
+         CALL section_vals_val_set(tmpsec, "THERMOSTAT_ENERGY", &
+                                   r_val=pint_env%e_piglet)
          ! update thermostat velocities in the global input structure
          NULLIFY (r_vals)
          ALLOCATE (r_vals((pint_env%piglet_therm%nsp1 - 1)* &
