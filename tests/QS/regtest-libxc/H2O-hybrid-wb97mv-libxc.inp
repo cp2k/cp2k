@@ -17,30 +17,39 @@
     &SCF
       EPS_SCF 1.0E-6
       SCF_GUESS ATOMIC 
-      MAX_SCF 2
+      MAX_SCF 100
     &END SCF
     &XC
-      DENSITY_CUTOFF 1.0e-9
-      DENSITY_SMOOTH_CUTOFF_RANGE 0
-      FUNCTIONAL_ROUTINE NEW
-      &XC_FUNCTIONAL      
+      &XC_FUNCTIONAL
         &LIBXC
-          FUNCTIONAL XC_HYB_MGGA_XC_TPSSH
+          FUNCTIONAL HYB_MGGA_XC_WB97M_V
         &END LIBXC
       &END XC_FUNCTIONAL
-      &XC_GRID
-        XC_DERIV NN50_SMOOTH
-        XC_SMOOTH_RHO NONE
-      &END XC_GRID
       &HF
+        FRACTION 1.000
         &SCREENING
-          EPS_SCHWARZ 1.0E-10 
+           EPS_SCHWARZ 1.0E-6
+        &END
+        &INTERACTION_POTENTIAL
+           POTENTIAL_TYPE MIX_CL
+           SCALE_COULOMB   0.15
+           SCALE_LONGRANGE 0.85
+           OMEGA 0.30
         &END
         &MEMORY
-          MAX_MEMORY  5 
+          MAX_MEMORY  10
         &END
-        FRACTION 0.10
       &END
+      &vdW_POTENTIAL
+         DISPERSION_FUNCTIONAL NON_LOCAL
+         &NON_LOCAL
+           TYPE RVV10
+           PARAMETERS 6.0 0.01
+           VERBOSE_OUTPUT
+           KERNEL_FILE_NAME rVV10_kernel_table.dat
+           CUTOFF 100
+         &END NON_LOCAL
+      &END vdW_POTENTIAL
     &END XC
   &END DFT
   &SUBSYS
@@ -64,7 +73,7 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT H2O-hybrid-tpssh_libxc
+  PROJECT H2O-hybrid-wb97mv_libxc
 #  TRACE
   PRINT_LEVEL MEDIUM 
 &END GLOBAL
