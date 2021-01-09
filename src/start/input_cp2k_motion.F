@@ -1780,7 +1780,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="THERMOSTAT_ENERGY", &
-                          description="Thermostat energy for conserved quantity."// &
+                          description="Thermostat energy for conserved quantity. "// &
                           "Only useful in restart files.", &
                           usage="THERMOSTAT_ENERGY {real}", type_of_var=real_t, &
                           n_var=1, default_r_val=0.0_dp)
@@ -1830,7 +1830,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="THERMOSTAT_ENERGY", &
-                          description="Thermostat energy for conserved quantity."// &
+                          description="Thermostat energy for conserved quantity. "// &
                           "Only useful in restart files.", &
                           usage="THERMOSTAT_ENERGY {real}", type_of_var=real_t, &
                           n_var=1, default_r_val=0.0_dp)
@@ -1886,7 +1886,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="THERMOSTAT_ENERGY", &
-                          description="Thermostat energy for conserved quantity."// &
+                          description="Thermostat energy for conserved quantity. "// &
                           "Only useful in restart files.", &
                           usage="THERMOSTAT_ENERGY {real}", type_of_var=real_t, &
                           n_var=1, default_r_val=0.0_dp)
