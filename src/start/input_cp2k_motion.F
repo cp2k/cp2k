@@ -1761,7 +1761,7 @@ CONTAINS
                           " May lead to unphysical motions if constraint e.g. FIXED_ATOMS, is applied."// &
                           " RESTART_HELIUM section has to be .FALSE. when restarting the PIGLET job.", &
                           citations=(/Ceriotti2010/), &
-                          n_keywords=2, n_subsections=1, &
+                          n_keywords=3, n_subsections=1, &
                           repeats=.FALSE.)
       CALL create_rng_section(subsubsection)
       CALL section_add_subsection(subsection, subsubsection)
@@ -1779,6 +1779,13 @@ CONTAINS
                           n_var=1, default_r_val=0.5_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="THERMOSTAT_ENERGY", &
+                          description="Thermostat energy for conserved quantity. "// &
+                          "Only useful in restart files.", &
+                          usage="THERMOSTAT_ENERGY {real}", type_of_var=real_t, &
+                          n_var=1, default_r_val=0.0_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -1786,7 +1793,7 @@ CONTAINS
                           description="Controls the PI Generalized Langevin Equation thermostat."// &
                           " Needs the exact harmonic integrator", &
                           citations=(/Ceriotti2012/), &
-                          n_keywords=3, n_subsections=2, &
+                          n_keywords=4, n_subsections=2, &
                           repeats=.FALSE.)
       CALL create_rng_section(subsubsection)
       CALL section_add_subsection(subsection, subsubsection)
@@ -1822,6 +1829,13 @@ CONTAINS
                           enum_i_vals=(/matrix_init_cholesky, matrix_init_diagonal/))
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="THERMOSTAT_ENERGY", &
+                          description="Thermostat energy for conserved quantity. "// &
+                          "Only useful in restart files.", &
+                          usage="THERMOSTAT_ENERGY {real}", type_of_var=real_t, &
+                          n_var=1, default_r_val=0.0_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -1829,7 +1843,7 @@ CONTAINS
                           description="Controls the QTB-PILE thermostat."// &
                           " Needs the exact harmonic integrator", &
                           citations=(/Brieuc2016/), &
-                          n_keywords=6, n_subsections=1, &
+                          n_keywords=7, n_subsections=1, &
                           repeats=.FALSE.)
       CALL create_rng_section(subsubsection)
       CALL section_add_subsection(subsection, subsubsection)
@@ -1869,6 +1883,13 @@ CONTAINS
                           description="Number of points used for the convolution product.", &
                           usage="NF {integer}", type_of_var=integer_t, &
                           n_var=1, default_i_val=128)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="THERMOSTAT_ENERGY", &
+                          description="Thermostat energy for conserved quantity. "// &
+                          "Only useful in restart files.", &
+                          usage="THERMOSTAT_ENERGY {real}", type_of_var=real_t, &
+                          n_var=1, default_r_val=0.0_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(section, subsection)
