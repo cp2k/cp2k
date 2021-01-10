@@ -232,7 +232,7 @@ CONTAINS
 !! order_ is positive as it must be in this case:
 !! ec(:,2) needs ed(:,1) for example
             CALL pw_lda_ed_loc(rho(k), ed, abs_order)
-            ed = scale*ed
+            ed(0:abs_order) = scale*ed(0:abs_order)
 
             IF (order >= 0) THEN
                e_0(k) = e_0(k) + rho(k)*ed(0)
@@ -395,8 +395,10 @@ CONTAINS
          rho = rhoa(k) + rhob(k)
          IF (rho > eps_rho) THEN
 
+            ed = 0.0_dp
             CALL pw_lsd_ed_loc(rhoa(k), rhob(k), ed, abs_order)
             ed = ed*scale
+
             IF (order >= 0) THEN
                e_0(k) = e_0(k) + rho*ed(0)
             END IF
