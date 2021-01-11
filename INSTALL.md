@@ -314,14 +314,14 @@ SIRIUS is a domain specific library for electronic structure calculations.
   please see <https://brehm-research.de/bqb> for more information as well as
   the `bqbtool` to inspect BQB files.
 
-/*
+<!---
 ### 2u. LibMaxwell (External Maxwell Solver)
 
 - LibMaxwell is a library to solve the time-dependent Maxwell equations
   and use the resulting electric field in MD runs or real-time propagation.
 - Add `-D__LIBMAXWELL` to DFLAGS to enable support for LibMaxwell.
 - see <https://brehm-research.de> for more information.
-*/
+-->
 
 ## 3. Compile
 
