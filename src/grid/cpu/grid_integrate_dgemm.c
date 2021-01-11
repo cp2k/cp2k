@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <omp.h>
 
@@ -1068,9 +1069,9 @@ void grid_cpu_integrate_task_list(
 
   const int max_threads = omp_get_max_threads();
 
-  if (ctx->scratch == NULL) {
-    ctx->scratch = memalign(4096, hab_blocks->size * max_threads);
-  }
+  if (ctx->scratch == NULL)
+    ctx->scratch =
+        aligned_alloc(sysconf(_SC_PAGESIZE), hab_blocks->size * max_threads);
 
   ctx->orthorhombic = orthorhombic;
 
