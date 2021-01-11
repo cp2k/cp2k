@@ -305,21 +305,23 @@ SIRIUS is a domain specific library for electronic structure calculations.
 
 ### 2t. LibVori (Voronoi Integration for Electrostatic Properties from Electron Density)
 
-- LibVori is a library which enables to compute electrostatic properties
-  (charge, dipole vector, quadrupole tensor, ...) via integration of the total
+- LibVori is a library which enables the calculation of electrostatic properties
+  (charge, dipole vector, quadrupole tensor, etc.) via integration of the total
   electron density in the Voronoi cell of each atom.
-- Add `-D__LIBVORI` to DFLAGS to enable support for LibVori.
-- see <https://brehm-research.de/voronoi> for more information.
+- Add `-D__LIBVORI` to the DFLAGS to enable support for LibVori.
+- see <https://brehm-research.de/libvori> for more information.
 - LibVori also enables support for the BQB file format for compressed trajectories,
-  please see <https://brehm-research.de/bqb.php> for more information as well as
+  please see <https://brehm-research.de/bqb> for more information as well as
   the `bqbtool` to inspect BQB files.
 
+/*
 ### 2u. LibMaxwell (External Maxwell Solver)
 
 - LibMaxwell is a library to solve the time-dependent Maxwell equations
   and use the resulting electric field in MD runs or real-time propagation.
 - Add `-D__LIBMAXWELL` to DFLAGS to enable support for LibMaxwell.
 - see <https://brehm-research.de> for more information.
+*/
 
 ## 3. Compile
 
