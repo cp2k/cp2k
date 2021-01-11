@@ -7,7 +7,9 @@
 
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #ifdef __GRID_CUDA
 #include <cublas_v2.h>
@@ -41,7 +43,8 @@ struct collocation_integration_ *collocate_create_handle() {
   handle->coef_alloc_size = realloc_tensor(&handle->coef);
   handle->pol_alloc_size = realloc_tensor(&handle->pol);
 
-  handle->scratch = memalign(4096, sizeof(double) * 32768);
+  handle->scratch =
+      aligned_alloc(sysconf(_SC_PAGESIZE), sizeof(double) * 32768);
   handle->scratch_alloc_size = 32768;
   handle->T_alloc_size = 8192;
   handle->W_alloc_size = 2048;
@@ -106,7 +109,7 @@ void initialize_W_and_T(collocation_integration *const handler,
     if (handler->scratch)
       free(handler->scratch);
     handler->scratch =
-        memalign(64, sizeof(double) * handler->scratch_alloc_size);
+        aligned_alloc(64, sizeof(double) * handler->scratch_alloc_size);
     if (handler->scratch == NULL)
       abort();
   }
@@ -137,7 +140,7 @@ void initialize_W_and_T_integrate(collocation_integration *const handler,
     if (handler->scratch)
       free(handler->scratch);
     handler->scratch =
-        memalign(64, sizeof(double) * handler->scratch_alloc_size);
+        aligned_alloc(64, sizeof(double) * handler->scratch_alloc_size);
     if (handler->scratch == NULL)
       abort();
   }

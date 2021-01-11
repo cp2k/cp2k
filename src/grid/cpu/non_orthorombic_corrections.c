@@ -7,9 +7,9 @@
 
 #include "non_orthorombic_corrections.h"
 
-#include <malloc.h>
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "../common/grid_common.h"
@@ -119,8 +119,8 @@ void calculate_non_orthorombic_corrections_tensor(
   initialize_tensor_3(Exp, 3, max_elem, max_elem);
   realloc_tensor(Exp);
 
-  x1 = memalign(64, sizeof(double) * max_elem);
-  x2 = memalign(64, sizeof(double) * max_elem);
+  x1 = aligned_alloc(64, sizeof(double) * max_elem);
+  x2 = aligned_alloc(64, sizeof(double) * max_elem);
   initialize_tensor_2(&exp_tmp, Exp->size[1], Exp->size[2]);
 
   memset(&idx3(Exp[0], 0, 0, 0), 0, sizeof(double) * Exp->alloc_size_);
@@ -198,8 +198,8 @@ void calculate_non_orthorombic_corrections_tensor_blocked(
                                 block_size[2]};
 
   const int max_elem = imax(imax(cube_size[0], cube_size[1]), cube_size[2]);
-  x1 = memalign(64, sizeof(double) * max_elem);
-  x2 = memalign(64, sizeof(double) * max_elem);
+  x1 = aligned_alloc(64, sizeof(double) * max_elem);
+  x2 = aligned_alloc(64, sizeof(double) * max_elem);
 
   initialize_tensor_4(Exp, 3,
                       imax(upper_corner[0] - lower_corner[0],

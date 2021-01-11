@@ -8,11 +8,11 @@
 #ifndef TENSOR_LOCAL_H
 #define TENSOR_LOCAL_H
 
-#include <malloc.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 typedef struct tensor_ {
   int dim_;
@@ -115,7 +115,7 @@ static inline tensor *create_tensor(const int dim, const int *sizes) {
     abort();
 
   initialize_tensor(a, dim, sizes);
-  a->data = (double *)memalign(64, sizeof(double) * a->alloc_size_);
+  a->data = aligned_alloc(64, sizeof(double) * a->alloc_size_);
   if (a->data == NULL)
     abort();
   a->old_alloc_size_ = a->alloc_size_;
