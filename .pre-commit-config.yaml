@@ -2,7 +2,7 @@
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v2.5.0
+    rev: v3.4.0
     hooks:
     -   id: check-yaml
     -   id: check-added-large-files
@@ -20,7 +20,7 @@ repos:
             tools/build_utils/fypp|
           )$
 -   repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: master
+    rev: v0.26.0
     hooks:
     -   id: markdownlint
 -   repo: https://github.com/shellcheck-py/shellcheck-py
