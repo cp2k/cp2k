@@ -169,6 +169,9 @@ CONTAINS
                       tau_r=tau_struct_r)
 
       compute_virial = virial%pv_calculate .AND. (.NOT. virial%pv_numer)
+      IF (compute_virial) THEN
+         virial%pv_xc = 0.0_dp
+      END IF
 
       CALL section_vals_val_get(xc_section, "XC_FUNCTIONAL%_SECTION_PARAMETERS_", &
                                 i_val=myfun)

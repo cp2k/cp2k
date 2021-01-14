@@ -577,6 +577,9 @@ CONTAINS
          NULLIFY (rho_struct)
 
          IF (use_virial .AND. calculate_forces) THEN
+!deb
+            WRITE (6, *) "PV_XC  1 ", virial%pv_xc
+!deb
             virial%pv_exc = virial%pv_exc - virial%pv_xc
             virial%pv_virial = virial%pv_virial - virial%pv_xc
             ! virial%pv_xc will be zeroed in the xc routines
@@ -629,6 +632,9 @@ CONTAINS
 
       NULLIFY (rho_struct)
       IF (use_virial .AND. calculate_forces) THEN
+!deb
+         WRITE (6, *) "PV_XC  2 ", virial%pv_xc
+!deb
          virial%pv_exc = virial%pv_exc - virial%pv_xc
          virial%pv_virial = virial%pv_virial - virial%pv_xc
       END IF
@@ -717,6 +723,9 @@ CONTAINS
             energy%exc = energy%exc - ekin_mol
             ! virial corrections
             IF (use_virial .AND. calculate_forces) THEN
+!deb
+               WRITE (6, *) "PV_XC  3 ", virial%pv_xc
+!deb
                virial%pv_exc = virial%pv_exc + virial%pv_xc
                virial%pv_virial = virial%pv_virial + virial%pv_xc
                virial%pv_xc = 0.0_dp

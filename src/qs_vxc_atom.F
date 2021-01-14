@@ -111,6 +111,7 @@ CONTAINS
       REAL(dp)                                           :: density_cut, exc_h, exc_s, gradient_cut, &
                                                             my_adiabatic_rescale_factor, tau_cut
       REAL(dp), DIMENSION(1, 1)                          :: tau_d
+      REAL(dp), DIMENSION(1, 1, 1, 1)                    :: rho_d
       REAL(dp), DIMENSION(:, :), POINTER                 :: rho_h, rho_nlcc, rho_s, weight
       REAL(dp), DIMENSION(:, :, :), POINTER              :: tau_h, tau_s, vtau_h, vtau_s, vxc_h, &
                                                             vxc_s
@@ -304,6 +305,7 @@ CONTAINS
                ELSE
                   NULLIFY (r_h, r_s)
                   CALL get_rho_atom(rho_atom=rho_atom, rho_rad_h=r_h, rho_rad_s=r_s)
+                  rho_d = 0.0_dp
                END IF
                IF (tau_f) THEN
                   !compute tau on the grid all at once
@@ -323,9 +325,12 @@ CONTAINS
                   IF (tau_f) THEN
                      CALL fill_rho_set(rho_set_h, lsd, nspins, needs, rho_h, drho_h, tau_h(:, ir, :), na, ir)
                      CALL fill_rho_set(rho_set_s, lsd, nspins, needs, rho_s, drho_s, tau_s(:, ir, :), na, ir)
-                  ELSE
+                  ELSE IF (gradient_f) THEN
                      CALL fill_rho_set(rho_set_h, lsd, nspins, needs, rho_h, drho_h, tau_d, na, ir)
                      CALL fill_rho_set(rho_set_s, lsd, nspins, needs, rho_s, drho_s, tau_d, na, ir)
+                  ELSE
+                     CALL fill_rho_set(rho_set_h, lsd, nspins, needs, rho_h, rho_d, tau_d, na, ir)
+                     CALL fill_rho_set(rho_set_s, lsd, nspins, needs, rho_s, rho_d, tau_d, na, ir)
                   END IF
                END DO
 
@@ -487,6 +492,7 @@ CONTAINS
       LOGICAL                                            :: gradient_functional, lsd, lsd_singlets, &
                                                             paw_atom, tau_f
       REAL(KIND=dp)                                      :: density_cut, gradient_cut, rtot, tau_cut
+      REAL(KIND=dp), DIMENSION(1, 1)                     :: rtau
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rho1_h, rho1_s, rho_h, rho_s, tau1_h, &
                                                             tau1_s, tau_h, tau_s, weight
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: vxc_h, vxc_s
@@ -556,6 +562,8 @@ CONTAINS
       tau_f = (needs%tau .OR. needs%tau_spin)
       IF (tau_f) THEN
          CPABORT("Tau functionals not implemented for GAPW 2nd derivatives")
+      ELSE
+         rtau = 0.0_dp
       END IF
 
       IF (do_tddft) THEN
@@ -677,10 +685,17 @@ CONTAINS
                                      ir, r1_h, r1_s, rho1_h, rho1_s, dr1_h, dr1_s, r1_h_d, r1_s_d, &
                                      drho1_h, drho1_s)
 
-               CALL fill_rho_set(rho_set_h, lsd, nspins, needs, rho_h, drho_h, tau_h, na, ir)
-               CALL fill_rho_set(rho1_set_h, lsd, nspins, needs, rho1_h, drho1_h, tau1_h, na, ir)
-               CALL fill_rho_set(rho_set_s, lsd, nspins, needs, rho_s, drho_s, tau_s, na, ir)
-               CALL fill_rho_set(rho1_set_s, lsd, nspins, needs, rho1_s, drho1_s, tau1_s, na, ir)
+               IF (tau_f) THEN
+                  CALL fill_rho_set(rho_set_h, lsd, nspins, needs, rho_h, drho_h, tau_h, na, ir)
+                  CALL fill_rho_set(rho1_set_h, lsd, nspins, needs, rho1_h, drho1_h, tau1_h, na, ir)
+                  CALL fill_rho_set(rho_set_s, lsd, nspins, needs, rho_s, drho_s, tau_s, na, ir)
+                  CALL fill_rho_set(rho1_set_s, lsd, nspins, needs, rho1_s, drho1_s, tau1_s, na, ir)
+               ELSE
+                  CALL fill_rho_set(rho_set_h, lsd, nspins, needs, rho_h, drho_h, rtau, na, ir)
+                  CALL fill_rho_set(rho1_set_h, lsd, nspins, needs, rho1_h, drho1_h, rtau, na, ir)
+                  CALL fill_rho_set(rho_set_s, lsd, nspins, needs, rho_s, drho_s, rtau, na, ir)
+                  CALL fill_rho_set(rho1_set_s, lsd, nspins, needs, rho1_s, drho1_s, rtau, na, ir)
+               END IF
 
             END DO
 
