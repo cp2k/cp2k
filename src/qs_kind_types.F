@@ -3098,8 +3098,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: z
       INTEGER, DIMENSION(0:lmat, 10), INTENT(OUT)        :: ncalc, ncore, nelem
 
-      INTEGER                                            :: ii, iounit, l, ll, lmin, lx, nn
-      INTEGER, DIMENSION(0:lmat)                         :: econfx, etest
+      INTEGER                                            :: ii, iounit, l, ll, lmin, nc, nn
+      INTEGER, DIMENSION(0:lmat)                         :: econfx
       TYPE(cp_logger_type), POINTER                      :: logger
 
       NULLIFY (logger)
@@ -3110,63 +3110,129 @@ CONTAINS
       econfx(0:SIZE(econf) - 1) = econf
       IF (SUM(econf) >= 0) THEN
          lmin = MIN(lmat, UBOUND(ptable(z)%e_conv, 1))
-         ! test for compatibility of valence occupation and full atomic occupation
-         etest = 0
-         etest(0:lmin) = ptable(z)%e_conv(0:lmin) - econfx(0:lmin)
-         IF (ANY(etest < 0) .OR. ANY(MOD(etest, 2) /= 0)) THEN
-            ! the occupations are not compatible
+         ! number of core electrons
+         nc = z - SUM(econf)
+         ! setup ncore
+         ncore = 0
+         SELECT CASE (nc)
+         CASE (0)
+         CASE (2)
+            ncore(0, 1) = 2
+         CASE (10)
+            ncore(0, 1) = 2
+            ncore(0, 2) = 2
+            ncore(1, 1) = 6
+         CASE (18)
+            ncore(0, 1) = 2
+            ncore(0, 2) = 2
+            ncore(0, 3) = 2
+            ncore(1, 1) = 6
+            ncore(1, 2) = 6
+         CASE (28)
+            ncore(0, 1) = 2
+            ncore(0, 2) = 2
+            ncore(0, 3) = 2
+            ncore(1, 1) = 6
+            ncore(1, 2) = 6
+            ncore(2, 1) = 10
+         CASE (36)
+            ncore(0, 1) = 2
+            ncore(0, 2) = 2
+            ncore(0, 3) = 2
+            ncore(0, 4) = 2
+            ncore(1, 1) = 6
+            ncore(1, 2) = 6
+            ncore(1, 3) = 6
+            ncore(2, 1) = 10
+         CASE (46)
+            ncore(0, 1) = 2
+            ncore(0, 2) = 2
+            ncore(0, 3) = 2
+            ncore(0, 4) = 2
+            ncore(1, 1) = 6
+            ncore(1, 2) = 6
+            ncore(1, 3) = 6
+            ncore(2, 1) = 10
+            ncore(2, 2) = 10
+         CASE (54)
+            ncore(0, 1) = 2
+            ncore(0, 2) = 2
+            ncore(0, 3) = 2
+            ncore(0, 4) = 2
+            ncore(0, 5) = 2
+            ncore(1, 1) = 6
+            ncore(1, 2) = 6
+            ncore(1, 3) = 6
+            ncore(1, 4) = 6
+            ncore(2, 1) = 10
+            ncore(2, 2) = 10
+         CASE (60)
+            ncore(0, 1) = 2
+            ncore(0, 2) = 2
+            ncore(0, 3) = 2
+            ncore(0, 4) = 2
+            ncore(1, 1) = 6
+            ncore(1, 2) = 6
+            ncore(1, 3) = 6
+            ncore(2, 1) = 10
+            ncore(2, 2) = 10
+            ncore(3, 1) = 14
+         CASE (68)
+            ncore(0, 1) = 2
+            ncore(0, 2) = 2
+            ncore(0, 3) = 2
+            ncore(0, 4) = 2
+            ncore(0, 5) = 2
+            ncore(1, 1) = 6
+            ncore(1, 2) = 6
+            ncore(1, 3) = 6
+            ncore(1, 4) = 6
+            ncore(2, 1) = 10
+            ncore(2, 2) = 10
+            ncore(3, 1) = 14
+         CASE (78)
+            ncore(0, 1) = 2
+            ncore(0, 2) = 2
+            ncore(0, 3) = 2
+            ncore(0, 4) = 2
+            ncore(0, 5) = 2
+            ncore(1, 1) = 6
+            ncore(1, 2) = 6
+            ncore(1, 3) = 6
+            ncore(1, 4) = 6
+            ncore(2, 1) = 10
+            ncore(2, 2) = 10
+            ncore(2, 3) = 10
+            ncore(3, 1) = 14
+         CASE DEFAULT
+            ncore(0, 1) = -1
+         END SELECT
+         ! if the core is established, finish the setup
+         IF (ncore(0, 1) >= 0) THEN
+            DO l = 0, lmin
+               ll = 2*(2*l + 1)
+               nn = SUM(ncore(l, :)) + econfx(l)
+               ii = 0
+               DO
+                  ii = ii + 1
+                  IF (nn <= ll) THEN
+                     nelem(l, ii) = nn
+                     EXIT
+                  ELSE
+                     nelem(l, ii) = ll
+                     nn = nn - ll
+                  END IF
+               END DO
+            END DO
+            ncalc = nelem - ncore
+         ELSE
+            ! test for compatibility of valence occupation and full atomic occupation
             IF (iounit > 0) THEN
-               WRITE (iounit, "(/,A,A2)") "WARNING: Incompatible occupations for Atomtype ", ptable(z)%symbol
-               WRITE (iounit, "(A,10I3)") "WARNING: Valence Occupations :", econfx
-               WRITE (iounit, "(A,10I3)") "WARNING: Atomic Occupations  :", ptable(z)%e_conv
+               WRITE (iounit, "(/,A,A2)") "WARNING: Core states irregular for atom type ", ptable(z)%symbol
                WRITE (iounit, "(A,10I3)") "WARNING: Redefine ELEC_CONF in the KIND section"
-            END IF
-            CPABORT("Incompatible Atomic Occupations Detected")
+               CPABORT("Incompatible Atomic Occupations Detected")
+            ENDIF
          END IF
-         DO l = 0, lmin
-            ll = 2*(2*l + 1)
-            nn = ptable(z)%e_conv(l) - econfx(l)
-            IF (MOD(nn, ll) == 0) CYCLE
-            IF (econfx(l) == 0) CYCLE
-            IF (MOD(nn, 2) == 0) CYCLE
-            DO lx = 3, l + 1, -1
-               IF (econfx(lx) == 0) CYCLE
-               econfx(l) = econfx(l) + 1
-               econfx(lx) = econfx(lx) - 1
-               EXIT
-            END DO
-         END DO
-         DO l = 0, lmin
-            ll = 2*(2*l + 1)
-            nn = ptable(z)%e_conv(l) - econfx(l)
-            ii = 0
-            DO
-               ii = ii + 1
-               IF (nn <= ll) THEN
-                  ncore(l, ii) = nn
-                  EXIT
-               ELSE
-                  ncore(l, ii) = ll
-                  nn = nn - ll
-               END IF
-            END DO
-         END DO
-         DO l = 0, lmin
-            ll = 2*(2*l + 1)
-            nn = ptable(z)%e_conv(l)
-            ii = 0
-            DO
-               ii = ii + 1
-               IF (nn <= ll) THEN
-                  nelem(l, ii) = nn
-                  EXIT
-               ELSE
-                  nelem(l, ii) = ll
-                  nn = nn - ll
-               END IF
-            END DO
-         END DO
-         ncalc = nelem - ncore
       ELSE
          ncore = 0
          ncalc = 0
@@ -3185,6 +3251,7 @@ CONTAINS
                END IF
             END DO
          END DO
+         nelem = ncalc
       END IF
 
    END SUBROUTINE set_pseudo_state
