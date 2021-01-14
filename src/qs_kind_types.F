@@ -3098,7 +3098,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: z
       INTEGER, DIMENSION(0:lmat, 10), INTENT(OUT)        :: ncalc, ncore, nelem
 
-      INTEGER                                            :: ii, iounit, l, ll, lmin, nn, nc
+      INTEGER                                            :: ii, iounit, l, ll, lmin, nc, nn
       INTEGER, DIMENSION(0:lmat)                         :: econfx
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -3117,101 +3117,101 @@ CONTAINS
          SELECT CASE (nc)
          CASE (0)
          CASE (2)
-            ncore(0,1) = 2
+            ncore(0, 1) = 2
          CASE (10)
-            ncore(0,1) = 2
-            ncore(0,2) = 2
-            ncore(1,1) = 6
+            ncore(0, 1) = 2
+            ncore(0, 2) = 2
+            ncore(1, 1) = 6
          CASE (18)
-            ncore(0,1) = 2
-            ncore(0,2) = 2
-            ncore(0,3) = 2
-            ncore(1,1) = 6
-            ncore(1,2) = 6
+            ncore(0, 1) = 2
+            ncore(0, 2) = 2
+            ncore(0, 3) = 2
+            ncore(1, 1) = 6
+            ncore(1, 2) = 6
          CASE (28)
-            ncore(0,1) = 2
-            ncore(0,2) = 2
-            ncore(0,3) = 2
-            ncore(1,1) = 6
-            ncore(1,2) = 6
-            ncore(2,1) = 10
+            ncore(0, 1) = 2
+            ncore(0, 2) = 2
+            ncore(0, 3) = 2
+            ncore(1, 1) = 6
+            ncore(1, 2) = 6
+            ncore(2, 1) = 10
          CASE (36)
-            ncore(0,1) = 2
-            ncore(0,2) = 2
-            ncore(0,3) = 2
-            ncore(0,4) = 2
-            ncore(1,1) = 6
-            ncore(1,2) = 6
-            ncore(1,3) = 6
-            ncore(2,1) = 10
+            ncore(0, 1) = 2
+            ncore(0, 2) = 2
+            ncore(0, 3) = 2
+            ncore(0, 4) = 2
+            ncore(1, 1) = 6
+            ncore(1, 2) = 6
+            ncore(1, 3) = 6
+            ncore(2, 1) = 10
          CASE (46)
-            ncore(0,1) = 2
-            ncore(0,2) = 2
-            ncore(0,3) = 2
-            ncore(0,4) = 2
-            ncore(1,1) = 6
-            ncore(1,2) = 6
-            ncore(1,3) = 6
-            ncore(2,1) = 10
-            ncore(2,2) = 10
+            ncore(0, 1) = 2
+            ncore(0, 2) = 2
+            ncore(0, 3) = 2
+            ncore(0, 4) = 2
+            ncore(1, 1) = 6
+            ncore(1, 2) = 6
+            ncore(1, 3) = 6
+            ncore(2, 1) = 10
+            ncore(2, 2) = 10
          CASE (54)
-            ncore(0,1) = 2
-            ncore(0,2) = 2
-            ncore(0,3) = 2
-            ncore(0,4) = 2
-            ncore(0,5) = 2
-            ncore(1,1) = 6
-            ncore(1,2) = 6
-            ncore(1,3) = 6
-            ncore(1,4) = 6
-            ncore(2,1) = 10
-            ncore(2,2) = 10
+            ncore(0, 1) = 2
+            ncore(0, 2) = 2
+            ncore(0, 3) = 2
+            ncore(0, 4) = 2
+            ncore(0, 5) = 2
+            ncore(1, 1) = 6
+            ncore(1, 2) = 6
+            ncore(1, 3) = 6
+            ncore(1, 4) = 6
+            ncore(2, 1) = 10
+            ncore(2, 2) = 10
          CASE (60)
-            ncore(0,1) = 2
-            ncore(0,2) = 2
-            ncore(0,3) = 2
-            ncore(0,4) = 2
-            ncore(1,1) = 6
-            ncore(1,2) = 6
-            ncore(1,3) = 6
-            ncore(2,1) = 10
-            ncore(2,2) = 10
-            ncore(3,1) = 14
+            ncore(0, 1) = 2
+            ncore(0, 2) = 2
+            ncore(0, 3) = 2
+            ncore(0, 4) = 2
+            ncore(1, 1) = 6
+            ncore(1, 2) = 6
+            ncore(1, 3) = 6
+            ncore(2, 1) = 10
+            ncore(2, 2) = 10
+            ncore(3, 1) = 14
          CASE (68)
-            ncore(0,1) = 2
-            ncore(0,2) = 2
-            ncore(0,3) = 2
-            ncore(0,4) = 2
-            ncore(0,5) = 2
-            ncore(1,1) = 6
-            ncore(1,2) = 6
-            ncore(1,3) = 6
-            ncore(1,4) = 6
-            ncore(2,1) = 10
-            ncore(2,2) = 10
-            ncore(3,1) = 14
+            ncore(0, 1) = 2
+            ncore(0, 2) = 2
+            ncore(0, 3) = 2
+            ncore(0, 4) = 2
+            ncore(0, 5) = 2
+            ncore(1, 1) = 6
+            ncore(1, 2) = 6
+            ncore(1, 3) = 6
+            ncore(1, 4) = 6
+            ncore(2, 1) = 10
+            ncore(2, 2) = 10
+            ncore(3, 1) = 14
          CASE (78)
-            ncore(0,1) = 2
-            ncore(0,2) = 2
-            ncore(0,3) = 2
-            ncore(0,4) = 2
-            ncore(0,5) = 2
-            ncore(1,1) = 6
-            ncore(1,2) = 6
-            ncore(1,3) = 6
-            ncore(1,4) = 6
-            ncore(2,1) = 10
-            ncore(2,2) = 10
-            ncore(2,3) = 10
-            ncore(3,1) = 14
+            ncore(0, 1) = 2
+            ncore(0, 2) = 2
+            ncore(0, 3) = 2
+            ncore(0, 4) = 2
+            ncore(0, 5) = 2
+            ncore(1, 1) = 6
+            ncore(1, 2) = 6
+            ncore(1, 3) = 6
+            ncore(1, 4) = 6
+            ncore(2, 1) = 10
+            ncore(2, 2) = 10
+            ncore(2, 3) = 10
+            ncore(3, 1) = 14
          CASE DEFAULT
-            ncore(0,1) = -1
+            ncore(0, 1) = -1
          END SELECT
          ! if the core is established, finish the setup
-         IF (ncore(0,1) >= 0) THEN
+         IF (ncore(0, 1) >= 0) THEN
             DO l = 0, lmin
                ll = 2*(2*l + 1)
-               nn = SUM(ncore(l,:)) + econfx(l)
+               nn = SUM(ncore(l, :)) + econfx(l)
                ii = 0
                DO
                   ii = ii + 1
