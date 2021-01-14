@@ -3120,6 +3120,7 @@ CONTAINS
          CASE (0)
          CASE (2)
 <<<<<<< HEAD
+<<<<<<< HEAD
             ncore(0, 1) = 2
          CASE (10)
             ncore(0, 1) = 2
@@ -3217,101 +3218,108 @@ CONTAINS
                nn = SUM(ncore(l, :)) + econfx(l)
 =======
             ncore(0,1) = 2
+=======
+            ncore(0, 1) = 2
+>>>>>>> 31d144f10... Code prettify
          CASE (10)
-            ncore(0,1) = 2
-            ncore(0,2) = 2
-            ncore(1,1) = 6
+            ncore(0, 1) = 2
+            ncore(0, 2) = 2
+            ncore(1, 1) = 6
          CASE (18)
-            ncore(0,1) = 2
-            ncore(0,2) = 2
-            ncore(0,3) = 2
-            ncore(1,1) = 6
-            ncore(1,2) = 6
+            ncore(0, 1) = 2
+            ncore(0, 2) = 2
+            ncore(0, 3) = 2
+            ncore(1, 1) = 6
+            ncore(1, 2) = 6
          CASE (28)
-            ncore(0,1) = 2
-            ncore(0,2) = 2
-            ncore(0,3) = 2
-            ncore(1,1) = 6
-            ncore(1,2) = 6
-            ncore(2,1) = 10
+            ncore(0, 1) = 2
+            ncore(0, 2) = 2
+            ncore(0, 3) = 2
+            ncore(1, 1) = 6
+            ncore(1, 2) = 6
+            ncore(2, 1) = 10
          CASE (36)
-            ncore(0,1) = 2
-            ncore(0,2) = 2
-            ncore(0,3) = 2
-            ncore(0,4) = 2
-            ncore(1,1) = 6
-            ncore(1,2) = 6
-            ncore(1,3) = 6
-            ncore(2,1) = 10
+            ncore(0, 1) = 2
+            ncore(0, 2) = 2
+            ncore(0, 3) = 2
+            ncore(0, 4) = 2
+            ncore(1, 1) = 6
+            ncore(1, 2) = 6
+            ncore(1, 3) = 6
+            ncore(2, 1) = 10
          CASE (46)
-            ncore(0,1) = 2
-            ncore(0,2) = 2
-            ncore(0,3) = 2
-            ncore(0,4) = 2
-            ncore(1,1) = 6
-            ncore(1,2) = 6
-            ncore(1,3) = 6
-            ncore(2,1) = 10
-            ncore(2,2) = 10
+            ncore(0, 1) = 2
+            ncore(0, 2) = 2
+            ncore(0, 3) = 2
+            ncore(0, 4) = 2
+            ncore(1, 1) = 6
+            ncore(1, 2) = 6
+            ncore(1, 3) = 6
+            ncore(2, 1) = 10
+            ncore(2, 2) = 10
          CASE (54)
-            ncore(0,1) = 2
-            ncore(0,2) = 2
-            ncore(0,3) = 2
-            ncore(0,4) = 2
-            ncore(0,5) = 2
-            ncore(1,1) = 6
-            ncore(1,2) = 6
-            ncore(1,3) = 6
-            ncore(1,4) = 6
-            ncore(2,1) = 10
-            ncore(2,2) = 10
+            ncore(0, 1) = 2
+            ncore(0, 2) = 2
+            ncore(0, 3) = 2
+            ncore(0, 4) = 2
+            ncore(0, 5) = 2
+            ncore(1, 1) = 6
+            ncore(1, 2) = 6
+            ncore(1, 3) = 6
+            ncore(1, 4) = 6
+            ncore(2, 1) = 10
+            ncore(2, 2) = 10
          CASE (60)
-            ncore(0,1) = 2
-            ncore(0,2) = 2
-            ncore(0,3) = 2
-            ncore(0,4) = 2
-            ncore(1,1) = 6
-            ncore(1,2) = 6
-            ncore(1,3) = 6
-            ncore(2,1) = 10
-            ncore(2,2) = 10
-            ncore(3,1) = 14
+            ncore(0, 1) = 2
+            ncore(0, 2) = 2
+            ncore(0, 3) = 2
+            ncore(0, 4) = 2
+            ncore(1, 1) = 6
+            ncore(1, 2) = 6
+            ncore(1, 3) = 6
+            ncore(2, 1) = 10
+            ncore(2, 2) = 10
+            ncore(3, 1) = 14
          CASE (68)
-            ncore(0,1) = 2
-            ncore(0,2) = 2
-            ncore(0,3) = 2
-            ncore(0,4) = 2
-            ncore(0,5) = 2
-            ncore(1,1) = 6
-            ncore(1,2) = 6
-            ncore(1,3) = 6
-            ncore(1,4) = 6
-            ncore(2,1) = 10
-            ncore(2,2) = 10
-            ncore(3,1) = 14
+            ncore(0, 1) = 2
+            ncore(0, 2) = 2
+            ncore(0, 3) = 2
+            ncore(0, 4) = 2
+            ncore(0, 5) = 2
+            ncore(1, 1) = 6
+            ncore(1, 2) = 6
+            ncore(1, 3) = 6
+            ncore(1, 4) = 6
+            ncore(2, 1) = 10
+            ncore(2, 2) = 10
+            ncore(3, 1) = 14
          CASE (78)
-            ncore(0,1) = 2
-            ncore(0,2) = 2
-            ncore(0,3) = 2
-            ncore(0,4) = 2
-            ncore(0,5) = 2
-            ncore(1,1) = 6
-            ncore(1,2) = 6
-            ncore(1,3) = 6
-            ncore(1,4) = 6
-            ncore(2,1) = 10
-            ncore(2,2) = 10
-            ncore(2,3) = 10
-            ncore(3,1) = 14
+            ncore(0, 1) = 2
+            ncore(0, 2) = 2
+            ncore(0, 3) = 2
+            ncore(0, 4) = 2
+            ncore(0, 5) = 2
+            ncore(1, 1) = 6
+            ncore(1, 2) = 6
+            ncore(1, 3) = 6
+            ncore(1, 4) = 6
+            ncore(2, 1) = 10
+            ncore(2, 2) = 10
+            ncore(2, 3) = 10
+            ncore(3, 1) = 14
          CASE DEFAULT
-            ncore(0,1) = -1
+            ncore(0, 1) = -1
          END SELECT
          ! if the core is established, finish the setup
-         IF (ncore(0,1) >= 0) THEN
+         IF (ncore(0, 1) >= 0) THEN
             DO l = 0, lmin
                ll = 2*(2*l + 1)
+<<<<<<< HEAD
                nn = SUM(ncore(l,:)) + econfx(l)
 >>>>>>> 4847da234... Initial guess based on standard core definitions.
+=======
+               nn = SUM(ncore(l, :)) + econfx(l)
+>>>>>>> 31d144f10... Code prettify
                ii = 0
                DO
                   ii = ii + 1
