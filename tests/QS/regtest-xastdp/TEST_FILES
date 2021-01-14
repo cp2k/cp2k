@@ -26,5 +26,5 @@ SiH4-PBE0-admm-pseudo.inp                              88      1e-08           1
 CH3-PBE-uks.inp                                        88      1e-06           265.243216 
 #Checking singlet, triplet, spin-conserving, spin-flip and SOC
 Ar-HF-2p-SOC-rcs.inp                                   88      1e-08           261.349222
-Ar-HF-2p-SOC-os.inp                                    88      1e-08           261.347682
+Ar-HF-2p-SOC-os.inp                                    88      1e-08           261.347679
 #EOF

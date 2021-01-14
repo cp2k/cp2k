@@ -1827,8 +1827,8 @@ CONTAINS
 ! <Psi_Isc|SOC|Psi_Jsf> =   sum_k,sigma <psi^Isc_k,sigma|SOC|psi^Isf_k,tau>
 !                           - sum_k,l,sigma <psi^0_k,tau|SOC|psi^0_l,sigma
 
-      tas(1) = 1; tbs(1) = ndo_mo + 1
-      tas(2) = ndo_mo + 1; tbs(2) = 1
+      tas(1) = ndo_mo + 1; tbs(1) = 1
+      tas(2) = 1; tbs(2) = ndo_mo + 1
 
       !the overlap
       CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s(1)%matrix, dbcsr_sf, 0.0_dp, &
@@ -1836,8 +1836,8 @@ CONTAINS
       CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sc, dbcsr_work, 0.0_dp, dbcsr_ovlp, filter_eps=eps_filter)
 
       !start with the imaginary contribution
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, orb_soc_x, dbcsr_sf, 0.0_dp, dbcsr_work, filter_eps=eps_filter)
-      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sc, dbcsr_work, 0.0_dp, dbcsr_prod, filter_eps=eps_filter)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, orb_soc_x, dbcsr_sc, 0.0_dp, dbcsr_work, filter_eps=eps_filter)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, dbcsr_sf, dbcsr_work, 0.0_dp, dbcsr_prod, filter_eps=eps_filter)
 
       CALL os_amew_soc_elements(dbcsr_tmp, dbcsr_prod, dbcsr_ovlp, domo_soc_x, pref_diaga=1.0_dp, &
                                 pref_diagb=1.0_dp, pref_tracea=-1.0_dp, pref_traceb=-1.0_dp, &
@@ -2836,9 +2836,9 @@ CONTAINS
          IF (found) THEN
             soc_elem = soc_elem &
                        + pref_tracea*SUM(pblock(tas(1):tas(1) + ndo_mo - 1, tas(2):tas(2) + ndo_mo - 1)* &
-                                         TRANSPOSE(domo_soc(tas(1):tas(1) + ndo_mo - 1, tas(2):tas(2) + ndo_mo - 1))) &
+                                         domo_soc(tas(1):tas(1) + ndo_mo - 1, tas(2):tas(2) + ndo_mo - 1)) &
                        + pref_traceb*SUM(pblock(tbs(1):tbs(1) + ndo_mo - 1, tbs(2):tbs(2) + ndo_mo - 1)* &
-                                         TRANSPOSE(domo_soc(tbs(1):tbs(1) + ndo_mo - 1, tbs(2):tbs(2) + ndo_mo - 1)))
+                                         domo_soc(tbs(1):tbs(1) + ndo_mo - 1, tbs(2):tbs(2) + ndo_mo - 1))
 
             IF (do_diags) THEN
                diag(:) = get_diag(pblock)
