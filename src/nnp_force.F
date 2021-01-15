@@ -289,7 +289,7 @@ CONTAINS
       TYPE(section_vals_type), INTENT(IN), POINTER       :: print_section
 
       INTEGER                                            :: unit_nr
-      LOGICAL                                            :: file_is_new
+      LOGICAL                                            :: file_is_new, explicit
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: print_key
 
@@ -330,12 +330,17 @@ CONTAINS
       END IF
 
       print_key => section_vals_get_subs_vals(print_section, "SUM_FORCE")
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-         unit_nr = cp_print_key_unit_nr(logger, print_key, extension=".dat", &
-                                        middle_name="nnp-sumforce", is_new_file=file_is_new)
-         IF (unit_nr > 0) CALL nnp_print_sumforces(nnp, print_section, unit_nr, file_is_new)
-         CALL cp_print_key_finished_output(unit_nr, logger, print_key)
-      END IF
+
+      CALL section_vals_val_get(print_section, "SUM_FORCE%ATOM_LIST", &
+                                explicit=explicit)
+      IF (explicit) THEN
+         IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+            unit_nr = cp_print_key_unit_nr(logger, print_key, extension=".dat", &
+                                           middle_name="nnp-sumforce", is_new_file=file_is_new)
+            IF (unit_nr > 0) CALL nnp_print_sumforces(nnp, print_section, unit_nr, file_is_new)
+            CALL cp_print_key_finished_output(unit_nr, logger, print_key)
+         END IF
+       END IF
 
    END SUBROUTINE nnp_print
 
