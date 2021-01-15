@@ -289,7 +289,7 @@ CONTAINS
       TYPE(section_vals_type), INTENT(IN), POINTER       :: print_section
 
       INTEGER                                            :: unit_nr
-      LOGICAL                                            :: file_is_new, explicit
+      LOGICAL                                            :: explicit, file_is_new
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: print_key
 
@@ -340,7 +340,7 @@ CONTAINS
             IF (unit_nr > 0) CALL nnp_print_sumforces(nnp, print_section, unit_nr, file_is_new)
             CALL cp_print_key_finished_output(unit_nr, logger, print_key)
          END IF
-       END IF
+      END IF
 
    END SUBROUTINE nnp_print
 
