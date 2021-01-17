@@ -14,6 +14,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "../common/grid_common.h"
 #include "../common/grid_library.h"
@@ -83,10 +84,11 @@ static void add_orbital_to_list(pgf_list_gpu *const list, const int cmax,
 
   if (list->coef_dynamic_alloc_size_gpu_ > list->coef_alloc_size_gpu_) {
     list->durty = true;
-    list->coef_cpu_ =
-        realloc(list->coef_cpu_,
-                sizeof(double) * (list->coef_dynamic_alloc_size_gpu_ + 4096));
-    list->coef_alloc_size_gpu_ = list->coef_dynamic_alloc_size_gpu_ + 4096;
+    list->coef_cpu_ = realloc(
+        list->coef_cpu_, sizeof(double) * (list->coef_dynamic_alloc_size_gpu_ +
+                                           sysconf(_SC_PAGESIZE)));
+    list->coef_alloc_size_gpu_ =
+        list->coef_dynamic_alloc_size_gpu_ + sysconf(_SC_PAGESIZE);
   }
 
   if (list->lmax < lp)
@@ -464,9 +466,10 @@ void grid_hybrid_collocate_task_list(
       max_size = imax(ctx->grid[x].alloc_size_, max_size);
     }
 
-    max_size = ((max_size / 4096) + 1) * 4096;
+    max_size = ((max_size / sysconf(_SC_PAGESIZE)) + 1) * sysconf(_SC_PAGESIZE);
 
-    ctx->scratch = memalign(4096, sizeof(double) * max_size * max_threads);
+    ctx->scratch = aligned_alloc(sysconf(_SC_PAGESIZE),
+                                 sizeof(double) * max_size * max_threads);
   }
 
   /*
