@@ -29,7 +29,7 @@ MODULE cp_fm_elpa
    USE message_passing, ONLY: mp_comm_free, &
                               mp_comm_split_direct, &
                               mp_bcast
-!$ USE OMP_LIB, ONLY: omp_get_num_threads
+!$ USE OMP_LIB, ONLY: omp_get_max_threads
 
 #include "../base/base_uses.f90"
 
@@ -474,7 +474,8 @@ $: "#endif"
       IF (use_qr) &
          CALL elpa_obj%set("qr", 1, success)
 
-!$    CALL elpa_obj%set("omp_threads", omp_get_num_threads(), success)
+      ! synchronize the number of threads used by ELPA to the number of threads available
+!$    CALL elpa_obj%set("omp_threads", omp_get_max_threads(), success)
 
       CALL elpa_obj%eigenvectors(matrix%local_data, eval, eigenvectors%local_data, success)
 
