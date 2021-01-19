@@ -28,7 +28,7 @@ MODULE xc_libxc_wrap
    Furthermore, -I${LIBXC_DIR}/include needs to be added to FCFLAGS.
 #else
 
-#if (XC_MAJOR_VERSION == 5 && XC_MINOR_VERSION < 0)
+#if (XC_MAJOR_VERSION == 5 && XC_MINOR_VERSION < 1)
    This version needs the hotfix 5.1.0 for libxc.
 #else
    ! Functionals which require parameters
