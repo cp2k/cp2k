@@ -505,9 +505,9 @@ CONTAINS
       TYPE(atom_type)                                    :: atom
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(len=200*default_string_length)           :: reference
       CHARACTER(len=160)                                 :: shortform
       CHARACTER(len=20)                                  :: tmpStr
+      CHARACTER(len=200*default_string_length)           :: reference
       INTEGER                                            :: i_rep, ifun, il, meth, myfun, n_rep, &
                                                             reltyp
       LOGICAL                                            :: lsd

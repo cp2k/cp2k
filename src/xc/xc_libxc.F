@@ -1896,7 +1896,7 @@ CONTAINS
                      exc = 0.0_dp
                   ELSE
                      CALL xc_f03_gga_exc_vxc_fxc(xc_func, one, rhov(1, 1), sigmav(1, 1), exc, vrho(1, 1), vsigma(1, 1), &
-                                         v2rho2(1, 1), v2rhosigma(1, 1), v2sigma2(1, 1))
+                                                 v2rho2(1, 1), v2rhosigma(1, 1), v2sigma2(1, 1))
                   END IF
                   e_0(ii) = e_0(ii) + sc*exc(1)*(rhov(1, 1) + rhov(2, 1))
                   e_rhoa(ii) = e_rhoa(ii) + sc*vrho(1, 1)
@@ -2076,11 +2076,11 @@ CONTAINS
                   tauv(2, 1) = MAX(tauv(2, 1), sigmav(3, 1)/(8.0_dp*rhov(2, 1)))
                   IF (no_exc) THEN
                      CALL xc_f03_mgga_vxc_fxc(xc_func, one, rhov(1, 1), sigmav(1, 1), &
-                                          laplace_rhov(1, 1), tauv(1, 1), vrho(1, 1), vsigma(1, 1), &
-                                          vlapl(1, 1), vtau(1, 1), &
-                                          v2rho2(1, 1), v2sigma2(1, 1), v2lapl2(1, 1), v2tau2(1, 1), &
-                                          v2rhosigma(1, 1), v2rholapl(1, 1), v2rhotau(1, 1), &
-                                          v2sigmalapl(1, 1), v2sigmatau(1, 1), v2lapltau(1, 1))
+                                              laplace_rhov(1, 1), tauv(1, 1), vrho(1, 1), vsigma(1, 1), &
+                                              vlapl(1, 1), vtau(1, 1), &
+                                              v2rho2(1, 1), v2sigma2(1, 1), v2lapl2(1, 1), v2tau2(1, 1), &
+                                              v2rhosigma(1, 1), v2rholapl(1, 1), v2rhotau(1, 1), &
+                                              v2sigmalapl(1, 1), v2sigmatau(1, 1), v2lapltau(1, 1))
                   ELSE
                      CALL xc_f03_mgga(xc_func, one, rhov(1, 1), sigmav(1, 1), &
                                       laplace_rhov(1, 1), tauv(1, 1), exc, vrho(1, 1), vsigma(1, 1), &
@@ -2181,11 +2181,11 @@ CONTAINS
                   tauv(2, 1) = MAX(tauv(2, 1), sigmav(3, 1)/(8.0_dp*rhov(2, 1)))
                   IF (no_exc) THEN
                      CALL xc_f03_mgga_vxc_fxc(xc_func, one, rhov(1, 1), sigmav(1, 1), &
-                                          laplace_rhov(1, 1), tauv(1, 1), vrho(1, 1), vsigma(1, 1), &
-                                          vlapl(1, 1), vtau(1, 1), &
-                                          v2rho2(1, 1), v2sigma2(1, 1), v2lapl2(1, 1), v2tau2(1, 1), &
-                                          v2rhosigma(1, 1), v2rholapl(1, 1), v2rhotau(1, 1), &
-                                          v2sigmalapl(1, 1), v2sigmatau(1, 1), v2lapltau(1, 1))
+                                              laplace_rhov(1, 1), tauv(1, 1), vrho(1, 1), vsigma(1, 1), &
+                                              vlapl(1, 1), vtau(1, 1), &
+                                              v2rho2(1, 1), v2sigma2(1, 1), v2lapl2(1, 1), v2tau2(1, 1), &
+                                              v2rhosigma(1, 1), v2rholapl(1, 1), v2rhotau(1, 1), &
+                                              v2sigmalapl(1, 1), v2sigmatau(1, 1), v2lapltau(1, 1))
                      exc = 0.0_dp
                   ELSE
                      CALL xc_f03_mgga(xc_func, one, rhov(1, 1), sigmav(1, 1), &
