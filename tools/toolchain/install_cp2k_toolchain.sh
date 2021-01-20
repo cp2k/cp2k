@@ -925,8 +925,8 @@ else
     ./scripts/install_superlu.sh
     ./scripts/install_pexsi.sh
     ./scripts/install_quip.sh
-    ./scripts/install_plumed.sh
     ./scripts/install_gsl.sh
+    ./scripts/install_plumed.sh
     ./scripts/install_hdf5.sh
     ./scripts/install_libvdwxc.sh
     ./scripts/install_spglib.sh
