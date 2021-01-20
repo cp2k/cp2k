@@ -41,7 +41,8 @@
 ! **************************************************************************************************
 PROGRAM cp2k
 
-   USE OMP_LIB,                         ONLY: omp_set_num_threads
+   USE OMP_LIB,                         ONLY: omp_get_max_threads,&
+                                              omp_set_num_threads
    USE cp2k_info,                       ONLY: compile_revision,&
                                               cp2k_flags,&
                                               cp2k_version,&
@@ -124,6 +125,25 @@ PROGRAM cp2k
    IF (command(l - 4:l) == ".sopt" .OR. command(l - 4:l) == ".popt") THEN
       CALL omp_set_num_threads(1)
    ENDIF
+
+#ifdef __ACCELERATE
+   IF (omp_get_max_threads() > 1) THEN
+      BLOCK
+         CHARACTER(len=default_path_length) :: env_var
+         INTEGER :: veclib_max_threads, ierr
+         CALL get_environment_variable("VECLIB_MAXIMUM_THREADS", env_var, status=ierr)
+         veclib_max_threads = 0
+         IF (ierr == 0) &
+            READ (env_var, *) veclib_max_threads
+         IF (ierr == 1 .OR. (ierr == 0 .AND. veclib_max_threads > 1)) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "macOS' Accelerate framework has its own threading enabled which may interfere"// &
+                         " with the OpenMP threading. You can disable the Accelerate threading by setting"// &
+                         " the environment variable VECLIB_MAXIMUM_THREADS=1")
+         END IF
+      END BLOCK
+   END IF
+#endif
 
    i_arg = 0
    arg_loop: DO WHILE (i_arg < COMMAND_ARGUMENT_COUNT())
