@@ -3,7 +3,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
 libxc_ver="5.1.0"
-libxc_sha256="e8d2b6eb2b46b356a27f0367a7665ff276d7f295da7c734e774ee66f82e56297"
+libxc_sha256="f67b6e518372871d9eed6e5dba77c3ab5ea030c229ba7a7d44bcf51f3258373f"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -30,13 +30,12 @@ case "$with_libxc" in
                 echo "libxc-${libxc_ver}.tar.gz is found"
             else
                 download_pkg ${DOWNLOADER_FLAGS} ${libxc_sha256} \
-                             https://gitlab.com/libxc/libxc/-/archive/${libxc_ver}/libxc-${libxc_ver}.tar.gz
+                             https://www.cp2k.org/static/downloads/libxc-${libxc_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
             [ -d libxc-${libxc_ver} ] && rm -rf libxc-${libxc_ver}
             tar -xzf libxc-${libxc_ver}.tar.gz
             cd libxc-${libxc_ver}
-            autoreconf -i > autoreconf.log 2>&1
             ./configure  --prefix="${pkg_install_dir}" --libdir="${pkg_install_dir}/lib" > configure.log 2>&1
             make -j $NPROCS > make.log 2>&1
             make install > install.log 2>&1
