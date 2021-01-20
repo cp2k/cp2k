@@ -41,8 +41,10 @@ MODULE xc_libxc_wrap
                            !
                            xc_f03_gga_exc, &
                            xc_f03_gga_exc_vxc, &
+                           xc_f03_gga_exc_vxc_fxc, &
                            xc_f03_gga_fxc, &
                            xc_f03_gga_vxc, &
+                           xc_f03_gga_vxc_fxc, &
                            !
                            xc_f03_func_get_info, &
                            xc_f03_func_info_get_family, &
@@ -59,6 +61,7 @@ MODULE xc_libxc_wrap
                            xc_f03_lda => xc_f03_lda_exc_vxc_fxc_kxc, &
                            xc_f03_lda_exc, &
                            xc_f03_lda_exc_vxc, &
+                           xc_f03_lda_exc_vxc_fxc, &
                            xc_f03_lda_fxc, &
                            xc_f03_lda_kxc, &
                            xc_f03_lda_vxc, &
@@ -68,6 +71,7 @@ MODULE xc_libxc_wrap
                            xc_f03_mgga_exc_vxc, &
                            xc_f03_mgga_fxc, &
                            xc_f03_mgga_vxc, &
+                           xc_f03_mgga_vxc_fxc, &
                            !
                            xc_f03_func_t, &
                            xc_f03_func_info_t, &
@@ -105,13 +109,13 @@ MODULE xc_libxc_wrap
    PUBLIC :: xc_f03_func_init, xc_f03_func_end
    PUBLIC :: xc_f03_func_get_info, xc_f03_func_info_get_family, xc_f03_func_info_get_kind, &
              xc_f03_func_info_get_name
-   PUBLIC :: xc_f03_gga_exc, xc_f03_gga_exc_vxc, xc_f03_gga_fxc, &
-             xc_f03_gga_vxc
+   PUBLIC :: xc_f03_gga_exc, xc_f03_gga_exc_vxc, xc_f03_gga_exc_vxc_fxc, xc_f03_gga_fxc, &
+             xc_f03_gga_vxc, xc_f03_gga_vxc_fxc
    PUBLIC :: xc_f03_lda, &
-             xc_f03_lda_exc, xc_f03_lda_exc_vxc, &
+             xc_f03_lda_exc, xc_f03_lda_exc_vxc, xc_f03_lda_exc_vxc_fxc, &
              xc_f03_lda_fxc, xc_f03_lda_kxc, xc_f03_lda_vxc
    PUBLIC :: xc_f03_mgga, xc_f03_mgga_exc, xc_f03_mgga_exc_vxc, xc_f03_mgga_fxc, &
-             xc_f03_mgga_vxc
+             xc_f03_mgga_vxc, xc_f03_mgga_vxc_fxc
 
    PUBLIC :: XC_FAMILY_LDA, XC_FAMILY_GGA, XC_FAMILY_MGGA, &
              XC_FAMILY_HYB_LDA, XC_FAMILY_HYB_GGA, XC_FAMILY_HYB_MGGA
