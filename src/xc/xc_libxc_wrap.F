@@ -23,13 +23,9 @@ MODULE xc_libxc_wrap
 #if defined (__LIBXC)
 #include <xc_version.h>
 ! check for LibXC version
-#if (XC_MAJOR_VERSION < 5)
+#if (XC_MAJOR_VERSION < 5 || (XC_MAJOR_VERSION == 5 && XC_MINOR_VERSION < 1))
    This version of CP2K ONLY works with libxc versions 5.1.0 and above.
    Furthermore, -I${LIBXC_DIR}/include needs to be added to FCFLAGS.
-#else
-
-#if (XC_MAJOR_VERSION == 5 && XC_MINOR_VERSION < 1)
-   This version needs the hotfix 5.1.0 for libxc.
 #else
    ! Functionals which require parameters
    USE cp_log_handling, ONLY: cp_to_string
@@ -380,7 +376,6 @@ CONTAINS
 
    END SUBROUTINE xc_libxc_wrap_functional_set_params
 
-#endif
 #endif
 #endif
 END MODULE xc_libxc_wrap
