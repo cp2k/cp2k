@@ -146,7 +146,7 @@ The --with-PKG options follow the rules:
   --with-gcc              The GCC compiler to use to compile CP2K
                           Default = system
   --with-cmake            Cmake utilities
-                          Default = no
+                          Default = install
   --with-valgrind         Valgrind memory debugging tool, only used for
                           debugging purposes.
                           Default = no
@@ -212,7 +212,7 @@ The --with-PKG options follow the rules:
   --with-sirius           Enable interface to the plane wave SIRIUS library.
                           This package requires: gsl, libspg, elpa, scalapack, hdf5 and libxc.
                           Default = install
-  --with-gsl              Enable the gnu scientific library
+  --with-gsl              Enable the gnu scientific library (required for PLUMED and SIRIUS)
                           Default = install
   --with-libvdwxc         Enable support of Van der Waals interactions in SIRIUS. Support provided by libvdwxc
                           Default = install
@@ -750,6 +750,10 @@ if [ "$with_sirius" = "__INSTALL__" ] ; then
     [ "$with_cosma" = "__DONTUSE__" ] && with_cosma="__INSTALL__"
 fi
 
+if [ "$with_plumed" = "__INSTALL__" ] ; then
+    [ "$with_gsl" = "__DONTUSE__" ] && with_gsl="__INSTALL__"
+    [ "$with_fftw" = "__DONTUSE__" ] && with_fftw="__INSTALL__"
+fi
 # ------------------------------------------------------------------------
 # Preliminaries
 # ------------------------------------------------------------------------
