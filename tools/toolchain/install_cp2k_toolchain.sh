@@ -909,34 +909,16 @@ done
 if [ "$dry_run" == "__TRUE__" ] ; then
     echo "Wrote only configuration files (--dry-run)."
 else
-    ./scripts/install_gcc.sh
-    ./scripts/setup_buildtools.sh
-    ./scripts/install_cmake.sh
-    ./scripts/install_mpich.sh
-    ./scripts/install_openmpi.sh
-    ./scripts/install_intelmpi.sh
-    ./scripts/install_valgrind.sh
-    ./scripts/install_mathlibs.sh
-    ./scripts/install_fftw.sh
-    ./scripts/install_libint.sh
-    ./scripts/install_libxc.sh
-    ./scripts/install_libsmm.sh
-    ./scripts/install_libxsmm.sh
-    ./scripts/install_scalapack.sh
-    ./scripts/install_cosma.sh
-    ./scripts/install_elpa.sh
-    ./scripts/install_ptscotch.sh
-    ./scripts/install_superlu.sh
-    ./scripts/install_pexsi.sh
-    ./scripts/install_quip.sh
-    ./scripts/install_gsl.sh
-    ./scripts/install_plumed.sh
-    ./scripts/install_hdf5.sh
-    ./scripts/install_libvdwxc.sh
-    ./scripts/install_spglib.sh
-    ./scripts/install_libvori.sh
-    ./scripts/install_spfft.sh
-    ./scripts/install_sirius.sh
+    ./scripts/stage0/install_stage0.sh
+    ./scripts/stage1/install_stage1.sh
+    ./scripts/stage2/install_stage2.sh
+    ./scripts/stage3/install_stage3.sh
+    ./scripts/stage4/install_stage4.sh
+    ./scripts/stage5/install_stage5.sh
+    ./scripts/stage6/install_stage6.sh
+    ./scripts/stage7/install_stage7.sh
+    ./scripts/stage8/install_stage8.sh
+    # Stage 9 is reserved for DBCSR.
     ./scripts/generate_arch_files.sh
 fi
 
