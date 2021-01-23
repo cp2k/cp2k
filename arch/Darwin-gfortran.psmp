@@ -7,9 +7,10 @@ FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 RANLIB   = ranlib
+CFLAGS   = -O2 -fopenmp -g
 DFLAGS   = -D__MPI_VERSION=3 -D__parallel -D__SCALAPACK \
            -D__NO_STATM_ACCESS -D__ACCELERATE -D__LIBXC -D__LIBINT
-FCFLAGS  = -I $(LIBXC_INCLUDE_DIR) -I $(LIBINT_INCLUDE_DIR) -fopenmp -O2 \
+FCFLAGS  = -I $(LIBXC_INCLUDE_DIR) -I $(LIBINT_INCLUDE_DIR) -fopenmp -O2 -g \
            -funroll-loops -ftree-vectorize -ffree-form $(DFLAGS)
 LDFLAGS  = $(FCFLAGS)
 LIBS     = -framework Accelerate -lscalapack \
