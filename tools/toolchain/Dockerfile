@@ -23,6 +23,7 @@ COPY ./scripts/VERSION \
      ./scripts/tool_kit.sh \
      ./scripts/common_vars.sh \
      ./scripts/signal_trap.sh \
+     ./scripts/get_openblas_arch.sh \
      ./scripts/
 
 # Dry-run leaves behind config files for the followup install scripts.
@@ -34,105 +35,32 @@ RUN ./install_cp2k_toolchain.sh  \
     --libint-lmax=${LIBINT_LMAX} \
     --dry-run
 
-COPY ./scripts/install_gcc.sh \
-     ./scripts/get_openblas_arch.sh \
-     ./scripts/setup_buildtools.sh \
-     ./scripts/openblas-0.3.6-disable-avx512.patch \
-     ./scripts/
-COPY ./scripts/files/gcc-10.2.0-cpp-__has_include.patch \
-     ./scripts/files/
-RUN ./scripts/install_gcc.sh && \
-    ./scripts/setup_buildtools.sh && \
-    rm -rf ./build
+COPY ./scripts/stage0/ ./scripts/stage0/
+RUN  ./scripts/stage0/install_stage0.sh && rm -rf ./build
 
-COPY ./scripts/install_cmake.sh ./scripts/
-RUN ./scripts/install_cmake.sh && rm -rf ./build
+COPY ./scripts/stage1/ ./scripts/stage1/
+RUN  ./scripts/stage1/install_stage1.sh && rm -rf ./build
 
-COPY ./scripts/install_mpich.sh \
-     ./scripts/install_openmpi.sh \
-     ./scripts/install_intelmpi.sh \
-     ./scripts/
-RUN ./scripts/install_openmpi.sh && \
-    ./scripts/install_mpich.sh && \
-    ./scripts/install_intelmpi.sh && \
-    rm -rf ./build
+COPY ./scripts/stage2/ ./scripts/stage2/
+RUN  ./scripts/stage2/install_stage2.sh && rm -rf ./build
 
-COPY ./scripts/install_valgrind.sh ./scripts/
-RUN ./scripts/install_valgrind.sh && rm -rf ./build
+COPY ./scripts/stage3/ ./scripts/stage3/
+RUN  ./scripts/stage3/install_stage3.sh && rm -rf ./build
 
-COPY ./scripts/install_reflapack.sh \
-     ./scripts/install_mkl.sh \
-     ./scripts/install_acml.sh \
-     ./scripts/install_openblas.sh \
-     ./scripts/install_mathlibs.sh \
-     ./scripts/
-RUN ./scripts/install_mathlibs.sh && rm -rf ./build
+COPY ./scripts/stage4/ ./scripts/stage4/
+RUN  ./scripts/stage4/install_stage4.sh && rm -rf ./build
 
-COPY ./scripts/install_fftw.sh ./scripts/
-RUN ./scripts/install_fftw.sh && rm -rf ./build
+COPY ./scripts/stage5/ ./scripts/stage5/
+RUN  ./scripts/stage5/install_stage5.sh && rm -rf ./build
 
-COPY ./scripts/install_libint.sh ./scripts/
-RUN ./scripts/install_libint.sh && rm -rf ./build
+COPY ./scripts/stage6/ ./scripts/stage6/
+RUN  ./scripts/stage6/install_stage6.sh && rm -rf ./build
 
-COPY ./scripts/install_libxc.sh ./scripts/
-RUN ./scripts/install_libxc.sh && rm -rf ./build
+COPY ./scripts/stage7/ ./scripts/stage7/
+RUN  ./scripts/stage7/install_stage7.sh && rm -rf ./build
 
-COPY ./scripts/install_libsmm.sh \
-     ./scripts/install_libxsmm.sh \
-     ./scripts/install_scalapack.sh \
-     ./scripts/install_cosma.sh \
-     ./scripts/
-COPY ./scripts/files/scalapack-2.1.0-gcc10.patch \
-     ./scripts/files/
-RUN ./scripts/install_libsmm.sh && \
-    ./scripts/install_libxsmm.sh && \
-    ./scripts/install_scalapack.sh && \
-    ./scripts/install_cosma.sh && \
-    rm -rf ./build
-
-COPY ./scripts/install_elpa.sh ./scripts/
-COPY ./scripts/files/elpa-2020.05.001-no-LDFLAGS-for-NVCC-compile.patch \
-     ./scripts/files/
-RUN ./scripts/install_elpa.sh && rm -rf ./build
-
-COPY ./scripts/install_ptscotch.sh \
-     ./scripts/install_superlu.sh \
-     ./scripts/install_pexsi.sh \
-     ./scripts/
-RUN ./scripts/install_ptscotch.sh && \
-    ./scripts/install_superlu.sh && \
-    ./scripts/install_pexsi.sh && \
-    rm -rf ./build
-
-COPY ./scripts/install_quip.sh \
-     ./scripts/install_plumed.sh \
-     ./scripts/
-RUN ./scripts/install_quip.sh && \
-    ./scripts/install_plumed.sh && \
-    rm -rf ./build
-
-COPY ./scripts/install_gsl.sh \
-     ./scripts/install_hdf5.sh \
-     ./scripts/
-RUN ./scripts/install_gsl.sh && \
-    ./scripts/install_hdf5.sh && \
-    rm -rf ./build
-
-COPY ./scripts/install_libvdwxc.sh \
-     ./scripts/install_spglib.sh \
-     ./scripts/install_libvori.sh \
-     ./scripts/
-RUN ./scripts/install_libvdwxc.sh && \
-    ./scripts/install_spglib.sh && \
-    ./scripts/install_libvori.sh && \
-    rm -rf ./build
-
-COPY ./scripts/install_spfft.sh \
-     ./scripts/install_sirius.sh \
-     ./scripts/
-RUN ./scripts/install_spfft.sh && \
-    ./scripts/install_sirius.sh && \
-    rm -rf ./build
+COPY ./scripts/stage8/ ./scripts/stage8/
+RUN  ./scripts/stage8/install_stage8.sh && rm -rf ./build
 
 COPY ./scripts/arch_base.tmpl \
      ./scripts/generate_arch_files.sh \
