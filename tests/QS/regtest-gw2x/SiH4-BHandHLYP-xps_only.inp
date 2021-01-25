@@ -20,9 +20,8 @@
 
     &XC
       &XC_FUNCTIONAL
-         &LIBXC
-            FUNCTIONAL HYB_GGA_XC_BHandHLYP
-         &END LIBXC
+         &HYB_GGA_XC_BHandHLYP
+         &END HYB_GGA_XC_BHandHLYP
       &END XC_FUNCTIONAL
       &HF
          FRACTION 0.5

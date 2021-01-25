@@ -47,9 +47,8 @@
     &END SCF
     &XC
       &XC_FUNCTIONAL                                       
-        &LIBXC                                               
-          FUNCTIONAL  XC_GGA_XC_PBE1W                        
-        &END LIBXC                                           
+        &GGA_XC_PBE1W
+        &END GGA_XC_PBE1W
       &END XC_FUNCTIONAL                                     
       &VDW_POTENTIAL                                         
          POTENTIAL_TYPE PAIR_POTENTIAL

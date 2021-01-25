@@ -28,12 +28,10 @@
       RESTARTS 2
       &XC
         &XC_FUNCTIONAL
-          &LIBXC
-            FUNCTIONAL XC_LDA_X
-          &END LIBXC
-          &LIBXC
-            FUNCTIONAL XC_LDA_C_VWN
-          &END LIBXC
+          &LDA_X
+          &END LDA_X
+          &LDA_C_VWN
+          &END LDA_C_VWN
         &END XC_FUNCTIONAL
         &XC_GRID
          XC_DERIV SPLINE2_SMOOTH
@@ -42,12 +40,10 @@
     &END TDDFPT
     &XC
       &XC_FUNCTIONAL
-        &LIBXC
-          FUNCTIONAL XC_LDA_X
-        &END LIBXC
-        &LIBXC
-          FUNCTIONAL XC_LDA_C_VWN
-        &END LIBXC
+        &LDA_X
+        &END LDA_X
+        &LDA_C_VWN
+        &END LDA_C_VWN
       &END XC_FUNCTIONAL
     &END XC
   &END DFT

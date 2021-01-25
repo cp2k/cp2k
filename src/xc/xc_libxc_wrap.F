@@ -32,8 +32,13 @@ MODULE xc_libxc_wrap
    USE kinds, ONLY: dp
    USE xc_f03_lib_m, ONLY: xc_f03_func_end, &
                            xc_f03_func_init, &
+                           xc_f03_functional_get_name, &
                            xc_f03_func_set_ext_params, &
                            xc_f03_functional_get_number, &
+                           xc_f03_available_functional_numbers, &
+                           xc_f03_available_functional_names, &
+                           xc_f03_maximum_name_length, &
+                           xc_f03_number_of_functionals, &
                            !
                            xc_f03_gga_exc, &
                            xc_f03_gga_exc_vxc, &
@@ -49,6 +54,8 @@ MODULE xc_libxc_wrap
                            xc_f03_func_info_get_references, &
                            xc_f03_func_info_get_flags, &
                            xc_f03_func_info_get_n_ext_params, &
+                           xc_f03_func_info_get_ext_params_name, &
+                           xc_f03_func_info_get_ext_params_default_value, &
                            xc_f03_func_info_get_ext_params_description, &
                            !
                            xc_f03_func_reference_get_ref, &
@@ -92,6 +99,11 @@ MODULE xc_libxc_wrap
                            XC_FLAGS_HAVE_EXC, &
                            XC_FLAGS_DEVELOPMENT
 
+   USE input_section_types, ONLY: section_add_keyword, &
+                                  section_add_subsection, &
+                                  section_create, &
+                                  section_release, &
+                                  section_type, section_vals_type, section_vals_val_get
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -103,8 +115,12 @@ MODULE xc_libxc_wrap
 
    PUBLIC :: xc_f03_func_t, xc_f03_func_info_t
    PUBLIC :: xc_f03_func_init, xc_f03_func_end
+   PUBLIC :: xc_f03_functional_get_name, xc_f03_available_functional_numbers, xc_f03_maximum_name_length, &
+             xc_f03_number_of_functionals, xc_f03_available_functional_names
    PUBLIC :: xc_f03_func_get_info, xc_f03_func_info_get_family, xc_f03_func_info_get_kind, &
-             xc_f03_func_info_get_name
+             xc_f03_func_info_get_name, xc_f03_func_info_get_ext_params_name, &
+             xc_f03_func_info_get_ext_params_description, xc_f03_func_info_get_ext_params_default_value, &
+             xc_f03_func_info_get_n_ext_params
    PUBLIC :: xc_f03_gga_exc, xc_f03_gga_exc_vxc, xc_f03_gga_exc_vxc_fxc, xc_f03_gga_fxc, &
              xc_f03_gga_vxc, xc_f03_gga_vxc_fxc
    PUBLIC :: xc_f03_lda, &
@@ -127,7 +143,8 @@ MODULE xc_libxc_wrap
              xc_libxc_wrap_needs_laplace, &
              xc_libxc_wrap_functional_set_params, &
              xc_libxc_wrap_is_under_development, &
-             xc_libxc_get_reference_length
+             xc_libxc_get_reference_length, &
+             xc_libxc_check_functional
 
 CONTAINS
 
@@ -152,7 +169,7 @@ CONTAINS
       ! We are counting the number of necessary lines by carrying out a dry run of xc_libxc_wrap_info_refs
       i_ref = 0
       idx = 1
-      length = 10
+      length = 0
       DO WHILE (i_ref >= 0)
          ! information about functional references
          xc_ref = xc_f03_func_info_get_references(xc_info, i_ref)
@@ -167,7 +184,7 @@ CONTAINS
          END IF
          DO i = 1, n_params
             descr_string = xc_f03_func_info_get_ext_params_description(xc_info, i - 1)
-            length = length + LEN_TRIM(descr_string) - 1 + 3
+            length = length + LEN_TRIM(descr_string) + 3
             IF (MOD(length, maxlen) /= 0) length = length + maxlen - MOD(length, maxlen)
          END DO
          idx = idx + 1
@@ -237,6 +254,7 @@ CONTAINS
             first = last + 1
             empty = last + (maxlen - 1) - MOD(last - 1, maxlen)
             ! fill up line with 'spaces'
+
             IF (empty /= last) THEN
                reference(first:empty) = ' '
                first = empty + 1
@@ -285,6 +303,36 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE xc_libxc_wrap_version
+
+! **************************************************************************************************
+!> \brief Checks existence of functional in LibXC
+!> \param func_string ...
+!> \return ...
+!> \author F. Stein
+!> \note Remove prefix to keep compatibility, functionals can be specified (in
+!>       LIBXC section) as:
+!>       GGA_X_...  or  XC_GGA_X_...
+!>       Starting from version 2.2.0 both name conventions are allowed, before
+!>       the 'XC_' prefix was necessary.
+!>
+! **************************************************************************************************
+   LOGICAL FUNCTION xc_libxc_check_functional(func_string) RESULT(exists)
+      CHARACTER(LEN=*), INTENT(IN)                       :: func_string
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_check_functional'
+
+      INTEGER                                            :: func_id
+
+      IF (func_string(1:3) == "XC_") THEN
+         func_id = xc_f03_functional_get_number(func_string(4:LEN_TRIM(func_string)))
+      ELSE
+         func_id = xc_f03_functional_get_number(func_string(1:LEN_TRIM(func_string)))
+      END IF
+
+      exists = .TRUE.
+      IF (func_id == -1) exists = .FALSE.
+
+   END FUNCTION xc_libxc_check_functional
 
 ! **************************************************************************************************
 !> \brief Provides the functional ID.
@@ -388,33 +436,55 @@ CONTAINS
 !> \brief Wrapper for functionals that need special parameters.
 !> \param xc_func ...
 !> \param xc_info ...
-!> \param params ...
+!> \param libxc_params ...
 !> \param no_exc ...
 !>
 !> \author A. Gloess (agloess)
 ! **************************************************************************************************
-   SUBROUTINE xc_libxc_wrap_functional_set_params(xc_func, xc_info, params, no_exc)
+   SUBROUTINE xc_libxc_wrap_functional_set_params(xc_func, xc_info, libxc_params, no_exc)
       TYPE(xc_f03_func_t), INTENT(INOUT)                 :: xc_func
       TYPE(xc_f03_func_info_t), INTENT(IN)               :: xc_info
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN), POINTER   :: params
+      TYPE(section_vals_type), POINTER, INTENT(IN)       :: libxc_params
       LOGICAL, INTENT(INOUT)                             :: no_exc
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_functional_set_params'
 
-      INTEGER                                            :: handle, i_params, n_params
+      INTEGER                                            :: handle, i, i_params, n_params
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: params
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: params_pointer
+      CHARACTER(LEN=128)                                 :: param_name
 
       CALL timeset(routineN, handle)
 
       n_params = xc_f03_func_info_get_n_ext_params(xc_info)
-      i_params = SIZE(params)
+      IF (n_params > 0) THEN
+         IF (libxc_params%section%name == "LIBXC" .OR. libxc_params%section%name == "KE_LIBXC") THEN
+            NULLIFY (params_pointer)
+            CALL section_vals_val_get(libxc_params, "parameters", r_vals=params_pointer)
+            CPASSERT(ASSOCIATED(params_pointer))
 
-      IF ((n_params > 0) .AND. (i_params > 0) .AND. (params(1) < HUGE(0.0_dp))) THEN
-         IF (i_params == n_params) THEN
-            CALL xc_f03_func_set_ext_params(xc_func, params)
+            i_params = SIZE(params_pointer)
+
+            IF ((n_params > 0) .AND. (i_params > 0) .AND. (params(1) < HUGE(0.0_dp))) THEN
+               IF (i_params == n_params) THEN
+                  CALL xc_f03_func_set_ext_params(xc_func, params)
+               ELSE
+                  CALL cp_abort(__LOCATION__, &
+                     "LIBXC: Inconsistent number of optional external parameters. (required: "&
+                     &//cp_to_string(n_params)//", given: "//cp_to_string(i_params)//")")
+               END IF
+            END IF
+
+            CALL xc_f03_func_set_ext_params(xc_func, params_pointer)
          ELSE
-            CALL cp_abort(__LOCATION__, &
-               "LIBXC: Inconsistent number of optional external parameters. (required: "&
-               &//cp_to_string(n_params)//", given: "//cp_to_string(i_params)//")")
+            ALLOCATE (params(n_params))
+            DO i = 1, n_params
+               param_name = xc_f03_func_info_get_ext_params_name(xc_info, i - 1)
+
+               CALL section_vals_val_get(libxc_params, TRIM(param_name), r_val=params(i))
+            END DO
+
+            CALL xc_f03_func_set_ext_params(xc_func, params)
          END IF
       END IF
 

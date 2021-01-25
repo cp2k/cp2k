@@ -323,7 +323,12 @@ CONTAINS
       CASE ("SRLDA")
          CALL sr_lda_info(reference, shortform, lsd, needs, max_deriv)
       CASE default
-         CPABORT("unknown functional '"//TRIM(functional%section%name)//"'")
+         ! If the functional has not been implemented internally, it's from LibXC
+         IF (lsd) THEN
+            CALL libxc_lsd_info(functional, reference, shortform, needs, max_deriv, print_warn)
+         ELSE
+            CALL libxc_lda_info(functional, reference, shortform, needs, max_deriv, print_warn)
+         ENDIF
       END SELECT
    END SUBROUTINE xc_functional_get_info
 
@@ -551,7 +556,12 @@ CONTAINS
             CALL sr_lda_eval(rho_set, deriv_set, deriv_order, functional)
          END IF
       CASE default
-         CPABORT("unknown functional '"//TRIM(functional%section%name)//"'")
+         ! If functional not natively supported, ask LibXC
+         IF (lsd) THEN
+            CALL libxc_lsd_eval(rho_set, deriv_set, deriv_order, functional)
+         ELSE
+            CALL libxc_lda_eval(rho_set, deriv_set, deriv_order, functional)
+         ENDIF
       END SELECT
 
       CALL timestop(handle)

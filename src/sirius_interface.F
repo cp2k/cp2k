@@ -70,6 +70,7 @@ MODULE sirius_interface
         sirius_option_set_double, sirius_option_set_int, sirius_option_set_logical, &
         sirius_option_set_string, sirius_set_atom_position, sirius_set_atom_type_dion, &
         sirius_set_atom_type_radial_grid, sirius_set_lattice_vectors, sirius_update_ground_state
+   USE xc_libxc,                        ONLY: libxc_check_existence_in_libxc
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -181,8 +182,16 @@ CONTAINS
                CALL section_vals_get(xc_fun, n_repetition=n)
                DO i = 1, n
                   CALL section_vals_val_get(xc_fun, "FUNCTIONAL", i_rep_section=i, c_val=section_name)
-                  CALL sirius_option_add_string_to(sctx, 'parameters', 'xc_functionals', section_name)
+                  IF (section_name(1:3) == "XC_") THEN
+                     CALL sirius_option_add_string_to(sctx, 'parameters', 'xc_functionals', section_name)
+                  ELSE
+                     CALL sirius_option_add_string_to(sctx, 'parameters', 'xc_functionals', "XC_"//section_name)
+                  END IF
                END DO
+            ELSE IF (libxc_check_existence_in_libxc(xc_fun)) THEN
+               ! Here, we do not have to check whether the functional name starts with XC_
+               ! because we only allow the shorter form w/o XC_
+               CALL sirius_option_add_string_to(sctx, 'parameters', 'xc_functionals', "XC_"//TRIM(xc_fun%section%name))
             ENDIF
          END DO
       ENDIF

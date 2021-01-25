@@ -20,9 +20,8 @@
 
     &XC
       &XC_FUNCTIONAL
-         &LIBXC
-            FUNCTIONAL HYB_GGA_XC_B3LYP5
-         &END LIBXC
+         &HYB_GGA_XC_B3LYP5
+         &END HYB_GGA_XC_B3LYP5
       &END XC_FUNCTIONAL
       &HF
          FRACTION 0.2
@@ -48,9 +47,8 @@
       
       &KERNEL
          &XC_FUNCTIONAL
-            &LIBXC
-               FUNCTIONAL HYB_GGA_XC_B3LYP5
-            &END LIBXC
+            &HYB_GGA_XC_B3LYP5
+            &END HYB_GGA_XC_B3LYP5
          &END XC_FUNCTIONAL
          &EXACT_EXCHANGE
             FRACTION 0.2

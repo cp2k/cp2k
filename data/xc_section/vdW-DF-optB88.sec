@@ -7,9 +7,8 @@
 #
     &XC
       &XC_FUNCTIONAL
-        &LIBXC
-          FUNCTIONAL XC_GGA_X_OPTB88_VDW
-        &END LIBXC
+        &GGA_X_OPTB88_VDW
+        &END GGA_X_OPTB88_VDW
         &PW92
         &END PW92
       &END XC_FUNCTIONAL

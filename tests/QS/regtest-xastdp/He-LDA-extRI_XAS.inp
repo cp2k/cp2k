@@ -37,9 +37,8 @@
 
       &KERNEL
          &XC_FUNCTIONAL
-            &LIBXC
-               FUNCTIONAL LDA_XC_TETER93
-            &END LIBXC
+            &LDA_XC_TETER93
+            &END LDA_XC_TETER93
          &END XC_FUNCTIONAL
       &END KERNEL
 

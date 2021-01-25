@@ -25,9 +25,8 @@
     &END SCF
     &XC
       &XC_FUNCTIONAL
-        &LIBXC
-          FUNCTIONAL HYB_GGA_XC_WB97X_V
-        &END LIBXC
+        &HYB_GGA_XC_WB97X_V
+        &END HYB_GGA_XC_WB97X_V
       &END XC_FUNCTIONAL
       &HF
         FRACTION 1.000

@@ -28,12 +28,10 @@
       RESTARTS 2
       &XC
         &XC_FUNCTIONAL
-          &LIBXC
-            FUNCTIONAL XC_GGA_X_PBE
-          &END LIBXC
-          &LIBXC
-            FUNCTIONAL XC_GGA_C_PBE
-          &END LIBXC
+          &GGA_X_PBE
+          &END GGA_X_PBE
+          &GGA_C_PBE
+          &END GGA_C_PBE
         &END XC_FUNCTIONAL
         &XC_GRID
          XC_DERIV SPLINE2_SMOOTH
@@ -42,12 +40,10 @@
     &END TDDFPT
     &XC
       &XC_FUNCTIONAL
-        &LIBXC
-          FUNCTIONAL XC_GGA_X_PBE
-        &END LIBXC
-        &LIBXC
-          FUNCTIONAL XC_GGA_C_PBE
-        &END LIBXC
+        &GGA_X_PBE
+        &END GGA_X_PBE
+        &GGA_C_PBE
+        &END GGA_C_PBE
       &END XC_FUNCTIONAL
     &END XC
   &END DFT

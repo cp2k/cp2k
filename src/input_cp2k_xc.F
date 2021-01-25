@@ -51,6 +51,7 @@ MODULE input_cp2k_xc
         xc_old_f_routine, xc_pbe_orig, xc_pbe_rev, xc_pbe_sol, xc_rho_nn10, xc_rho_nn50, &
         xc_rho_no_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth, xc_test_lsd_f_routine, &
         xgga_b88x, xgga_ev93, xgga_opt, xgga_pbex, xgga_pw86, xgga_pw91, xgga_revpbe
+   USE xc_libxc,                        ONLY: libxc_add_sections
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -76,7 +77,8 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="xc_functional", &
-                          description="The xc functional to use", &
+                          description="The xc functional to use. For Functionals "// &
+                          "of the LibXC library use the appropriate section.", &
                           n_keywords=0, n_subsections=4, repeats=.FALSE., &
                           citations=(/Ortiz1994, Becke1988, Perdew1996, Zhang1998, Lee1988, &
                                       Heyd2004, Vosko1980, Goedecker1996, Perdew1981, &
@@ -282,6 +284,8 @@ CONTAINS
                                 "FUNCTIONAL GGA_K_LLP")
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
+
+      CALL libxc_add_sections(section)
 
       CALL section_create(subsection, __LOCATION__, name="CS1", &
                           description="Uses the CS1 functional", &
@@ -789,7 +793,9 @@ CONTAINS
                           citations=(/Marques2012, Lehtola2018/))
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="activates functionals from libxc library", &
-                          lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
+                          lone_keyword_l_val=.TRUE., default_l_val=.FALSE., &
+                          deprecation_notice="Instead of &"//name//" with set keyword "// &
+                          "FUNCTIONAL <FUNCTIONAL_KEY> use the section &<FUNCTIONAL_KEY>.")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="FUNCTIONAL", &

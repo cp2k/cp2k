@@ -16,13 +16,11 @@
 
     &XC
       &XC_FUNCTIONAL 
-         &LIBXC
-            FUNCTIONAL LDA_C_VWN
-         &END LIBXC
-         &LIBXC
-            FUNCTIONAL LDA_X
+         &LDA_C_VWN
+         &END LDA_C_VWN
+         &LDA_X
             SCALE 0.75
-         &END LIBXC
+         &END LDA_X
       &END XC_FUNCTIONAL
       &HF
          FRACTION 0.25
@@ -51,13 +49,11 @@
 
       &KERNEL
          &XC_FUNCTIONAL 
-            &LIBXC
-               FUNCTIONAL LDA_C_VWN
-            &END LIBXC
-            &LIBXC
-               FUNCTIONAL LDA_X
+            &LDA_C_VWN
+            &END LDA_C_VWN
+            &LDA_X
                SCALE 0.75
-            &END LIBXC
+            &END LDA_X
          &END XC_FUNCTIONAL
 
          &EXACT_EXCHANGE

@@ -23,9 +23,8 @@
 #This is B3LYP using VWN3
     &XC
       &XC_FUNCTIONAL
-        &LIBXC
-          FUNCTIONAL XC_HYB_GGA_XC_B3LYP
-        &END LIBXC
+        &HYB_GGA_XC_B3LYP
+        &END HYB_GGA_XC_B3LYP
       &END XC_FUNCTIONAL
       &HF
         &SCREENING

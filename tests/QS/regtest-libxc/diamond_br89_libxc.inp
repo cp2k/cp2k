@@ -22,9 +22,8 @@
     &END SCF
     &XC
       &XC_FUNCTIONAL
-        &LIBXC
-          FUNCTIONAL XC_MGGA_X_BR89
-        &END LIBXC
+        &MGGA_X_BR89
+        &END MGGA_X_BR89
       &END XC_FUNCTIONAL
     &END XC
     &PRINT

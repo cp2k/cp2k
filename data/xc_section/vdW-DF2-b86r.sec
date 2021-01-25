@@ -5,9 +5,8 @@
 #
     &XC
       &XC_FUNCTIONAL
-        &LIBXC
-          FUNCTIONAL XC_GGA_X_B86_R
-        &END LIBXC
+        &GGA_X_B86_R
+        &END GGA_X_B86_R
         &PW92
         &END PW92
       &END XC_FUNCTIONAL
