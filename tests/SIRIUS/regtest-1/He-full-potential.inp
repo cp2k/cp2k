@@ -42,12 +42,10 @@
     &DFT
       &XC
          &XC_FUNCTIONAL
-            &LIBXC
-               FUNCTIONAL XC_LDA_X
-            &END LIBXC
-            &LIBXC
-               FUNCTIONAL XC_LDA_C_PZ
-            &END LIBXC
+            &LDA_X
+            &END LDA_X
+            &LDA_C_PZ
+            &END LDA_C_PZ
          &END XC_FUNCTIONAL
       &END XC
     &END DFT

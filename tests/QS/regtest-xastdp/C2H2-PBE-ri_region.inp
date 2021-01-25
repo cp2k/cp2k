@@ -40,12 +40,10 @@
       &KERNEL
          RI_REGION 3.0
          &XC_FUNCTIONAL
-            &LIBXC
-               FUNCTIONAL GGA_X_PBE
-            &END LIBXC
-            &LIBXC
-               FUNCTIONAL GGA_C_PBE
-            &END LIBXC
+            &GGA_X_PBE
+            &END GGA_X_PBE
+            &GGA_C_PBE
+            &END GGA_C_PBE
          &END XC_FUNCTIONAL
       &END KERNEL
 

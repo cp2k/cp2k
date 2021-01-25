@@ -9,9 +9,8 @@
      METHOD_TYPE  KOHN-SHAM
      &XC
        &XC_FUNCTIONAL
-         &LIBXC
-           FUNCTIONAL XC_MGGA_X_TPSS
-         &END LIBXC
+         &MGGA_X_TPSS
+         &END MGGA_X_TPSS
        &END XC_FUNCTIONAL
      &END XC
   &END METHOD

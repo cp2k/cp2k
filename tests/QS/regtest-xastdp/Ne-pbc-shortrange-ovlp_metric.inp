@@ -15,19 +15,16 @@
 
     &XC
       &XC_FUNCTIONAL 
-         &LIBXC
-            FUNCTIONAL LDA_C_VWN
-         &END LIBXC
+         &LDA_C_VWN
+         &END LDA_C_VWN
          !Range separated, need 100% of long-range and 75% of short range LDA exchange
          !Long-range obtained by substracting short-range from normal => end up with -0.25 scale
-         &LIBXC
-            FUNCTIONAL LDA_X
-         &END LIBXC 
-         &LIBXC
-            FUNCTIONAL LDA_X_ERF
+         &LDA_X
+         &END LDA_X
+         &LDA_X_ERF
             SCALE -0.25
-            PARAMETERS 0.6
-         &END LIBXC
+            _OMEGA 0.6
+         &END LDA_X_ERF
       &END XC_FUNCTIONAL
       &HF
          FRACTION 0.25
@@ -53,14 +50,12 @@
 
       &KERNEL
          &XC_FUNCTIONAL 
-            &LIBXC
-               FUNCTIONAL LDA_C_VWN
-            &END LIBXC
-            &LIBXC
-               FUNCTIONAL LDA_X_ERF
+            &LDA_C_VWN
+            &END LDA_C_VWN
+            &LDA_X_ERF
                SCALE 0.75
-               PARAMETERS 0.6
-            &END LIBXC
+               _OMEGA 0.6
+            &END LDA_X_ERF
          &END XC_FUNCTIONAL
 
          &EXACT_EXCHANGE

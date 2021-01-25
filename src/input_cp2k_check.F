@@ -173,11 +173,9 @@ CONTAINS
          !The cp2k-native PW92 gives disagreeing results (in the 0.01E_H
          !decimal) and yields inconsistent forces in a DEBUG run.
          !(rk, 6.3.2014)
-         CALL section_vals_val_set(functionals, "LIBXC%_SECTION_PARAMETERS_", & !60%LDA
+         CALL section_vals_val_set(functionals, "LDA_C_PW%_SECTION_PARAMETERS_", & !60%LDA
                                    l_val=.TRUE.)
-         CALL section_vals_val_set(functionals, "LIBXC%FUNCTIONAL", &
-                                   c_val="LDA_C_PW")
-         CALL section_vals_val_set(functionals, "LIBXC%SCALE", &
+         CALL section_vals_val_set(functionals, "LDA_C_PW%SCALE", &
                                    r_val=0.6001664769_dp)
 
          CALL section_vals_val_set(functionals, "BEEF%_SECTION_PARAMETERS_", & !BEEF exchange
