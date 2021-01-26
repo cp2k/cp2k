@@ -316,7 +316,7 @@ CONTAINS
                               full_grid, use_real_wfn, eps_geo, parallel_group_size, kp_range, nkp, xkp, wkp, &
                               para_env, blacs_env_all, cart, para_env_full, para_env_kp, para_env_inter_kp, blacs_env, &
                               kp_env, mpools, iogrp, nkp_groups, kp_dist, cell_to_index, sab_nl)
-      TYPE(kpoint_type), POINTER                         :: kpoint
+      TYPE(kpoint_type), INTENT(IN)                      :: kpoint
       CHARACTER(LEN=*), OPTIONAL                         :: kp_scheme
       INTEGER, DIMENSION(3), OPTIONAL                    :: nkp_grid
       REAL(KIND=dp), DIMENSION(3), OPTIONAL              :: kp_shift
@@ -343,8 +343,6 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), OPTIONAL, POINTER     :: cell_to_index
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: sab_nl
-
-      CPASSERT(ASSOCIATED(kpoint))
 
       IF (PRESENT(kp_scheme)) kp_scheme = kpoint%kp_scheme
       IF (PRESENT(nkp_grid)) nkp_grid = kpoint%nkp_grid
@@ -419,7 +417,7 @@ CONTAINS
                               full_grid, use_real_wfn, eps_geo, parallel_group_size, kp_range, nkp, xkp, wkp, &
                               para_env, blacs_env_all, cart, para_env_full, para_env_kp, para_env_inter_kp, blacs_env, &
                               kp_env, mpools, iogrp, nkp_groups, kp_dist, cell_to_index, sab_nl)
-      TYPE(kpoint_type), POINTER                         :: kpoint
+      TYPE(kpoint_type), INTENT(INOUT)                   :: kpoint
       CHARACTER(LEN=*), OPTIONAL                         :: kp_scheme
       INTEGER, DIMENSION(3), OPTIONAL                    :: nkp_grid
       REAL(KIND=dp), DIMENSION(3), OPTIONAL              :: kp_shift
@@ -446,8 +444,6 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), OPTIONAL, POINTER     :: cell_to_index
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: sab_nl
-
-      CPASSERT(ASSOCIATED(kpoint))
 
       IF (PRESENT(kp_scheme)) kpoint%kp_scheme = kp_scheme
       IF (PRESENT(nkp_grid)) kpoint%nkp_grid = nkp_grid
@@ -495,7 +491,7 @@ CONTAINS
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE read_kpoint_section(kpoint, kpoint_section, a_vec)
-      TYPE(kpoint_type), POINTER                         :: kpoint
+      TYPE(kpoint_type), INTENT(INOUT)                   :: kpoint
       TYPE(section_vals_type), POINTER                   :: kpoint_section
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: a_vec
 
@@ -506,8 +502,6 @@ CONTAINS
       LOGICAL                                            :: available
       REAL(KIND=dp)                                      :: ff
       REAL(KIND=dp), DIMENSION(:), POINTER               :: reallist
-
-      CPASSERT(ASSOCIATED(kpoint))
 
       CALL section_vals_get(kpoint_section, explicit=available)
 
@@ -599,13 +593,11 @@ CONTAINS
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE write_kpoint_info(kpoint, dft_section)
-      TYPE(kpoint_type), POINTER                         :: kpoint
-      TYPE(section_vals_type), POINTER                   :: dft_section
+      TYPE(kpoint_type), INTENT(IN)                      :: kpoint
+      TYPE(section_vals_type), INTENT(IN)                :: dft_section
 
       INTEGER                                            :: i, punit
       TYPE(cp_logger_type), POINTER                      :: logger
-
-      CPASSERT(ASSOCIATED(kpoint))
 
       NULLIFY (logger)
       logger => cp_get_default_logger()
@@ -745,15 +737,13 @@ CONTAINS
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE get_kpoint_env(kpoint_env, nkpoint, wkp, xkp, is_local, mos)
-      TYPE(kpoint_env_type), POINTER                     :: kpoint_env
+      TYPE(kpoint_env_type), INTENT(IN)                  :: kpoint_env
       INTEGER, OPTIONAL                                  :: nkpoint
       REAL(KIND=dp), OPTIONAL                            :: wkp
       REAL(KIND=dp), DIMENSION(3), OPTIONAL              :: xkp
       LOGICAL, OPTIONAL                                  :: is_local
       TYPE(mo_set_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: mos
-
-      CPASSERT(ASSOCIATED(kpoint_env))
 
       IF (PRESENT(nkpoint)) nkpoint = kpoint_env%nkpoint
       IF (PRESENT(wkp)) wkp = kpoint_env%wkp
