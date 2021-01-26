@@ -126,9 +126,56 @@ MODULE xc_libxc_wrap
              xc_libxc_wrap_functional_get_number, &
              xc_libxc_wrap_needs_laplace, &
              xc_libxc_wrap_functional_set_params, &
-             xc_libxc_wrap_is_under_development
+             xc_libxc_wrap_is_under_development, &
+             xc_libxc_get_reference_length
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Provides the reference(s) for this functional.
+!> \param xc_info func_info object of the functional
+!> \return upper bound for the length of the reference string
+!> \author F. Stein
+! **************************************************************************************************
+   FUNCTION xc_libxc_get_reference_length(xc_info) RESULT(length)
+
+      TYPE(xc_f03_func_info_t), INTENT(IN)               :: xc_info
+      INTEGER                                            :: length
+
+      INTEGER, PARAMETER                                 :: maxlen = 67
+
+      CHARACTER(LEN=128)                                 :: descr_string
+      CHARACTER(LEN=1024)                                :: doi_string, ref_string
+      INTEGER                                            :: i, i_ref, idx, n_params
+      TYPE(xc_f03_func_reference_t)                      :: xc_ref
+
+      ! We are counting the number of necessary lines by carrying out a dry run of xc_libxc_wrap_info_refs
+      i_ref = 0
+      idx = 1
+      length = 10
+      DO WHILE (i_ref >= 0)
+         ! information about functional references
+         xc_ref = xc_f03_func_info_get_references(xc_info, i_ref)
+         ref_string = xc_f03_func_reference_get_ref(xc_ref)
+         doi_string = xc_f03_func_reference_get_doi(xc_ref)
+         length = length + LEN_TRIM(ref_string) + LEN_TRIM(doi_string) + 11
+         IF (MOD(length, maxlen) /= 0) length = length + maxlen - MOD(length, maxlen)
+         ! information about (optional) external parameters
+         n_params = xc_f03_func_info_get_n_ext_params(xc_info)
+         IF (n_params > 0) THEN
+            length = length + maxlen
+         END IF
+         DO i = 1, n_params
+            descr_string = xc_f03_func_info_get_ext_params_description(xc_info, i - 1)
+            length = length + LEN_TRIM(descr_string) - 1 + 3
+            IF (MOD(length, maxlen) /= 0) length = length + maxlen - MOD(length, maxlen)
+         END DO
+         idx = idx + 1
+      END DO
+      ! two additional lines for spin polarization, scaling factor and buffer
+      length = length + 2*maxlen
+
+   END FUNCTION xc_libxc_get_reference_length
 
 ! **************************************************************************************************
 !> \brief Provides the reference(s) for this functional.
@@ -149,7 +196,9 @@ CONTAINS
       INTEGER, PARAMETER                                 :: maxlen = 67
 
       CHARACTER(LEN=128)                                 :: descr_string
-      CHARACTER(LEN=400)                                 :: doi_string, ref_string, tmp_string
+      CHARACTER(LEN=1028)                                :: doi_string, ref_string
+      ! conservative estimate of the necessary length: 2*1028+11=2067
+      CHARACTER(LEN=2067)                                :: tmp_string
       INTEGER                                            :: empty, first, handle, i, i_ref, idx, &
                                                             last, n_params
       TYPE(xc_f03_func_reference_t)                      :: xc_ref
@@ -208,6 +257,9 @@ CONTAINS
       first = last + 1
       ! fill with 'spaces'
       reference(first:LEN(reference)) = ' '
+
+      IF (last > LEN(reference)) &
+         CPABORT("Faulty reference length.")
 
       CALL timestop(handle)
 

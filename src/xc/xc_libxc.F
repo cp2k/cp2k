@@ -87,7 +87,8 @@ MODULE xc_libxc
                             xc_libxc_wrap_functional_get_number, &
                             xc_libxc_wrap_needs_laplace, &
                             xc_libxc_wrap_functional_set_params, &
-                            xc_libxc_wrap_is_under_development
+                            xc_libxc_wrap_is_under_development, &
+                            xc_libxc_get_reference_length
 #endif
 
 #include "../base/base_uses.f90"
@@ -98,13 +99,55 @@ MODULE xc_libxc
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_libxc'
 
    PUBLIC :: libxc_lda_info, libxc_lda_eval, libxc_lsd_info, libxc_lsd_eval, &
-             libxc_version_info
+             libxc_version_info, libxc_get_reference_length
 
 #if defined (__LIBXC)
    INTEGER(C_SIZE_T), PARAMETER, PRIVATE :: one = 1
 #endif
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief This function returns the maximum length of the reference string for a given LibXC functional
+!> \param libxc_params LibXC input section
+!> \param lsd spin polarized calculation
+!> \return maximum length of the string
+! **************************************************************************************************
+   FUNCTION libxc_get_reference_length(libxc_params, lsd) RESULT(length)
+
+      TYPE(section_vals_type), POINTER, INTENT(IN)         :: libxc_params
+      LOGICAL, INTENT(IN)                      :: lsd
+      INTEGER                                  :: length
+
+#if defined (__LIBXC)
+      CHARACTER(LEN=default_string_length)     :: func_name
+      INTEGER                                  :: func_id
+      TYPE(xc_f03_func_t)                      :: xc_func
+      TYPE(xc_f03_func_info_t)                 :: xc_info
+
+      CALL section_vals_val_get(libxc_params, "functional", c_val=func_name)
+
+      func_id = xc_libxc_wrap_functional_get_number(func_name)
+!$OMP CRITICAL(libxc_init)
+      IF (lsd) THEN
+         CALL xc_f03_func_init(xc_func, func_id, XC_POLARIZED)
+      ELSE
+         CALL xc_f03_func_init(xc_func, func_id, XC_UNPOLARIZED)
+      END IF
+      xc_info = xc_f03_func_get_info(xc_func)
+!$OMP END CRITICAL(libxc_init)
+!$OMP BARRIER
+
+      length = xc_libxc_get_reference_length(xc_info)
+
+      CALL xc_f03_func_end(xc_func)
+#else
+      MARK_USED(libxc_params)
+      length = 0
+      CPABORT("In order to use LibXC you have to download and install it!")
+#endif
+
+   END FUNCTION libxc_get_reference_length
 
 ! **************************************************************************************************
 !> \brief info about the functional from libxc

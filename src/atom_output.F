@@ -37,7 +37,8 @@ MODULE atom_output
    USE periodic_table,                  ONLY: ptable
    USE physcon,                         ONLY: evolt
    USE xc_derivatives,                  ONLY: xc_functional_get_info
-   USE xc_libxc,                        ONLY: libxc_version_info
+   USE xc_libxc,                        ONLY: libxc_get_reference_length,&
+                                              libxc_version_info
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -507,7 +508,7 @@ CONTAINS
 
       CHARACTER(len=160)                                 :: shortform
       CHARACTER(len=20)                                  :: tmpStr
-      CHARACTER(len=200*default_string_length)           :: reference
+      CHARACTER(len=:), ALLOCATABLE                      :: reference
       INTEGER                                            :: i_rep, ifun, il, meth, myfun, n_rep, &
                                                             reltyp
       LOGICAL                                            :: lsd
@@ -608,12 +609,14 @@ CONTAINS
                xc_fun => section_vals_get_subs_vals2(xc_fun_section, i_section=ifun)
                IF (.NOT. ASSOCIATED(xc_fun)) EXIT
                IF (TRIM(xc_fun%section%name) /= "LIBXC") THEN
+                  ALLOCATE (CHARACTER(LEN=20*default_string_length) :: reference)
                   CALL xc_functional_get_info(xc_fun, lsd=lsd, reference=reference, shortform=shortform)
                   WRITE (iw, fmt="(' FUNCTIONAL| ',a,':')") &
                      TRIM(xc_fun%section%name)
                   DO il = 1, LEN_TRIM(reference), 67
                      WRITE (iw, fmt="(' FUNCTIONAL| ',a67)") reference(il:)
                   END DO
+                  DEALLOCATE (reference)
                ELSE
                   ! LIBXC is the only repeatable functional section - for each we need
                   ! NOT the single values, but the whole section_vals_type independently
@@ -622,6 +625,7 @@ CONTAINS
                      NULLIFY (libxc_fun)
                      CALL section_vals_duplicate(xc_fun, libxc_fun, i_rep_start=i_rep, i_rep_end=i_rep)
                      IF (.NOT. ASSOCIATED(libxc_fun)) EXIT
+                     ALLOCATE (CHARACTER(LEN=libxc_get_reference_length(libxc_fun, lsd)) :: reference)
                      CALL xc_functional_get_info(libxc_fun, lsd=lsd, reference=reference, shortform=shortform)
                      CALL section_vals_release(libxc_fun)
                      CALL libxc_version_info(tmpStr)
@@ -631,6 +635,7 @@ CONTAINS
                      DO il = 1, LEN_TRIM(reference), 67
                         WRITE (iw, fmt="(' FUNCTIONAL| ',a67)") reference(il:)
                      END DO
+                     DEALLOCATE (reference)
                   END DO
                END IF
             END DO
