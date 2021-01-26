@@ -310,7 +310,7 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE allocate_all_potential(potential)
-      TYPE(all_potential_type), POINTER                  :: potential
+      TYPE(all_potential_type), INTENT(INOUT), POINTER   :: potential
 
       IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
@@ -330,7 +330,7 @@ CONTAINS
 !> \author  Toon.Verstraelen@gmail.com
 ! **************************************************************************************************
    SUBROUTINE allocate_fist_potential(potential)
-      TYPE(fist_potential_type), POINTER                 :: potential
+      TYPE(fist_potential_type), INTENT(INOUT), POINTER  :: potential
 
       IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
@@ -355,7 +355,7 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE allocate_local_potential(potential)
-      TYPE(local_potential_type), POINTER                :: potential
+      TYPE(local_potential_type), INTENT(INOUT), POINTER :: potential
 
       IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
@@ -379,7 +379,7 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE allocate_gth_potential(potential)
-      TYPE(gth_potential_type), POINTER                  :: potential
+      TYPE(gth_potential_type), INTENT(INOUT), POINTER   :: potential
 
       IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
@@ -417,7 +417,7 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE allocate_sgp_potential(potential)
-      TYPE(sgp_potential_type), POINTER                  :: potential
+      TYPE(sgp_potential_type), INTENT(INOUT), POINTER   :: potential
 
       IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
@@ -473,12 +473,12 @@ CONTAINS
    SUBROUTINE deallocate_all_potential(potential)
       TYPE(all_potential_type), POINTER                  :: potential
 
-      IF (ASSOCIATED(potential)) THEN
-         DEALLOCATE (potential%elec_conf)
-         DEALLOCATE (potential)
-      ELSE
+      IF (.NOT. ASSOCIATED(potential)) THEN
          CPABORT("The pointer potential is not associated.")
       END IF
+
+      DEALLOCATE (potential%elec_conf)
+      DEALLOCATE (potential)
 
    END SUBROUTINE deallocate_all_potential
 
@@ -491,12 +491,12 @@ CONTAINS
    SUBROUTINE deallocate_fist_potential(potential)
       TYPE(fist_potential_type), POINTER                 :: potential
 
-      IF (ASSOCIATED(potential)) THEN
-         ! Nothing exciting here yet.
-         DEALLOCATE (potential)
-      ELSE
+      IF (.NOT. ASSOCIATED(potential)) THEN
          CPABORT("The pointer potential is not associated.")
       END IF
+
+      ! Nothing exciting here yet.
+      DEALLOCATE (potential)
 
    END SUBROUTINE deallocate_fist_potential
 
@@ -510,22 +510,18 @@ CONTAINS
    SUBROUTINE deallocate_local_potential(potential)
       TYPE(local_potential_type), POINTER                :: potential
 
-      IF (ASSOCIATED(potential)) THEN
-
-         IF (ASSOCIATED(potential%alpha)) THEN
-            DEALLOCATE (potential%alpha)
-         END IF
-         IF (ASSOCIATED(potential%cval)) THEN
-            DEALLOCATE (potential%cval)
-         END IF
-
-         DEALLOCATE (potential)
-
-      ELSE
-
+      IF (.NOT. ASSOCIATED(potential)) THEN
          CPABORT("The pointer potential is not associated.")
-
       END IF
+
+      IF (ASSOCIATED(potential%alpha)) THEN
+         DEALLOCATE (potential%alpha)
+      END IF
+      IF (ASSOCIATED(potential%cval)) THEN
+         DEALLOCATE (potential%cval)
+      END IF
+
+      DEALLOCATE (potential)
 
    END SUBROUTINE deallocate_local_potential
 
@@ -539,48 +535,46 @@ CONTAINS
    SUBROUTINE deallocate_gth_potential(potential)
       TYPE(gth_potential_type), POINTER                  :: potential
 
-      IF (ASSOCIATED(potential)) THEN
-
-         DEALLOCATE (potential%elec_conf)
-         !     *** Deallocate the parameters of the local part ***
-
-         IF (ASSOCIATED(potential%cexp_ppl)) THEN
-            DEALLOCATE (potential%cexp_ppl)
-         END IF
-
-         !     *** Deallocate the parameters of the non-local part ***
-         IF (ASSOCIATED(potential%alpha_ppnl)) THEN
-            DEALLOCATE (potential%alpha_ppnl)
-            DEALLOCATE (potential%cprj)
-            DEALLOCATE (potential%cprj_ppnl)
-            DEALLOCATE (potential%hprj_ppnl)
-            DEALLOCATE (potential%nprj_ppnl)
-            DEALLOCATE (potential%vprj_ppnl)
-         END IF
-
-         IF (ASSOCIATED(potential%alpha_lpot)) THEN
-            DEALLOCATE (potential%alpha_lpot)
-            DEALLOCATE (potential%nct_lpot)
-            DEALLOCATE (potential%cval_lpot)
-         END IF
-
-         IF (ASSOCIATED(potential%alpha_lsd)) THEN
-            DEALLOCATE (potential%alpha_lsd)
-            DEALLOCATE (potential%nct_lsd)
-            DEALLOCATE (potential%cval_lsd)
-         END IF
-
-         IF (ASSOCIATED(potential%alpha_nlcc)) THEN
-            DEALLOCATE (potential%alpha_nlcc)
-            DEALLOCATE (potential%nct_nlcc)
-            DEALLOCATE (potential%cval_nlcc)
-         END IF
-
-         DEALLOCATE (potential)
-      ELSE
+      IF (.NOT. ASSOCIATED(potential)) THEN
          CPABORT("The pointer potential is not associated.")
       END IF
 
+      DEALLOCATE (potential%elec_conf)
+      !     *** Deallocate the parameters of the local part ***
+
+      IF (ASSOCIATED(potential%cexp_ppl)) THEN
+         DEALLOCATE (potential%cexp_ppl)
+      END IF
+
+      !     *** Deallocate the parameters of the non-local part ***
+      IF (ASSOCIATED(potential%alpha_ppnl)) THEN
+         DEALLOCATE (potential%alpha_ppnl)
+         DEALLOCATE (potential%cprj)
+         DEALLOCATE (potential%cprj_ppnl)
+         DEALLOCATE (potential%hprj_ppnl)
+         DEALLOCATE (potential%nprj_ppnl)
+         DEALLOCATE (potential%vprj_ppnl)
+      END IF
+
+      IF (ASSOCIATED(potential%alpha_lpot)) THEN
+         DEALLOCATE (potential%alpha_lpot)
+         DEALLOCATE (potential%nct_lpot)
+         DEALLOCATE (potential%cval_lpot)
+      END IF
+
+      IF (ASSOCIATED(potential%alpha_lsd)) THEN
+         DEALLOCATE (potential%alpha_lsd)
+         DEALLOCATE (potential%nct_lsd)
+         DEALLOCATE (potential%cval_lsd)
+      END IF
+
+      IF (ASSOCIATED(potential%alpha_nlcc)) THEN
+         DEALLOCATE (potential%alpha_nlcc)
+         DEALLOCATE (potential%nct_nlcc)
+         DEALLOCATE (potential%cval_nlcc)
+      END IF
+
+      DEALLOCATE (potential)
    END SUBROUTINE deallocate_gth_potential
 
 ! **************************************************************************************************
@@ -590,44 +584,44 @@ CONTAINS
    SUBROUTINE deallocate_sgp_potential(potential)
       TYPE(sgp_potential_type), POINTER                  :: potential
 
-      IF (ASSOCIATED(potential)) THEN
-         IF (ASSOCIATED(potential%elec_conf)) THEN
-            DEALLOCATE (potential%elec_conf)
-         END IF
-         IF (ASSOCIATED(potential%a_local)) THEN
-            DEALLOCATE (potential%a_local)
-         END IF
-         IF (ASSOCIATED(potential%c_local)) THEN
-            DEALLOCATE (potential%c_local)
-         END IF
-
-         IF (ASSOCIATED(potential%a_nonlocal)) THEN
-            DEALLOCATE (potential%a_nonlocal)
-         END IF
-         IF (ASSOCIATED(potential%h_nonlocal)) THEN
-            DEALLOCATE (potential%h_nonlocal)
-         END IF
-         IF (ASSOCIATED(potential%c_nonlocal)) THEN
-            DEALLOCATE (potential%c_nonlocal)
-         END IF
-         IF (ASSOCIATED(potential%cprj_ppnl)) THEN
-            DEALLOCATE (potential%cprj_ppnl)
-         END IF
-         IF (ASSOCIATED(potential%vprj_ppnl)) THEN
-            DEALLOCATE (potential%vprj_ppnl)
-         END IF
-
-         IF (ASSOCIATED(potential%a_nlcc)) THEN
-            DEALLOCATE (potential%a_nlcc)
-         END IF
-         IF (ASSOCIATED(potential%c_nlcc)) THEN
-            DEALLOCATE (potential%c_nlcc)
-         END IF
-
-         DEALLOCATE (potential)
-      ELSE
+      IF (.NOT. ASSOCIATED(potential)) THEN
          CPABORT("The pointer potential is not associated.")
       END IF
+
+      IF (ASSOCIATED(potential%elec_conf)) THEN
+         DEALLOCATE (potential%elec_conf)
+      END IF
+      IF (ASSOCIATED(potential%a_local)) THEN
+         DEALLOCATE (potential%a_local)
+      END IF
+      IF (ASSOCIATED(potential%c_local)) THEN
+         DEALLOCATE (potential%c_local)
+      END IF
+
+      IF (ASSOCIATED(potential%a_nonlocal)) THEN
+         DEALLOCATE (potential%a_nonlocal)
+      END IF
+      IF (ASSOCIATED(potential%h_nonlocal)) THEN
+         DEALLOCATE (potential%h_nonlocal)
+      END IF
+      IF (ASSOCIATED(potential%c_nonlocal)) THEN
+         DEALLOCATE (potential%c_nonlocal)
+      END IF
+      IF (ASSOCIATED(potential%cprj_ppnl)) THEN
+         DEALLOCATE (potential%cprj_ppnl)
+      END IF
+      IF (ASSOCIATED(potential%vprj_ppnl)) THEN
+         DEALLOCATE (potential%vprj_ppnl)
+      END IF
+
+      IF (ASSOCIATED(potential%a_nlcc)) THEN
+         DEALLOCATE (potential%a_nlcc)
+      END IF
+      IF (ASSOCIATED(potential%c_nlcc)) THEN
+         DEALLOCATE (potential%c_nlcc)
+      END IF
+
+      DEALLOCATE (potential)
 
    END SUBROUTINE deallocate_sgp_potential
 
@@ -3090,10 +3084,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE copy_sgp_potential(pot_in, pot_out)
 
-      TYPE(sgp_potential_type), INTENT(IN), POINTER      :: pot_in
+      TYPE(sgp_potential_type), INTENT(IN)               :: pot_in
       TYPE(sgp_potential_type), INTENT(INOUT), POINTER   :: pot_out
 
-      CPASSERT(ASSOCIATED(pot_in))
       CALL allocate_sgp_potential(pot_out)
 
       pot_out%name = pot_in%name

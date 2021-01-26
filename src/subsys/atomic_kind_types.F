@@ -90,28 +90,26 @@ CONTAINS
 
       INTEGER                                            :: ikind, nkind
 
-      IF (ASSOCIATED(atomic_kind_set)) THEN
-
-         nkind = SIZE(atomic_kind_set)
-
-         DO ikind = 1, nkind
-            IF (ASSOCIATED(atomic_kind_set(ikind)%fist_potential)) THEN
-               CALL deallocate_potential(atomic_kind_set(ikind)%fist_potential)
-            END IF
-            IF (ASSOCIATED(atomic_kind_set(ikind)%atom_list)) THEN
-               DEALLOCATE (atomic_kind_set(ikind)%atom_list)
-            END IF
-            CALL shell_release(atomic_kind_set(ikind)%shell)
-
-            CALL damping_p_release(atomic_kind_set(ikind)%damping)
-         END DO
-         DEALLOCATE (atomic_kind_set)
-      ELSE
+      IF (.NOT. ASSOCIATED(atomic_kind_set)) THEN
          CALL cp_abort(__LOCATION__, &
                        "The pointer atomic_kind_set is not associated and "// &
                        "cannot be deallocated")
       END IF
 
+      nkind = SIZE(atomic_kind_set)
+
+      DO ikind = 1, nkind
+         IF (ASSOCIATED(atomic_kind_set(ikind)%fist_potential)) THEN
+            CALL deallocate_potential(atomic_kind_set(ikind)%fist_potential)
+         END IF
+         IF (ASSOCIATED(atomic_kind_set(ikind)%atom_list)) THEN
+            DEALLOCATE (atomic_kind_set(ikind)%atom_list)
+         END IF
+         CALL shell_release(atomic_kind_set(ikind)%shell)
+
+         CALL damping_p_release(atomic_kind_set(ikind)%damping)
+      END DO
+      DEALLOCATE (atomic_kind_set)
    END SUBROUTINE deallocate_atomic_kind_set
 
 ! **************************************************************************************************
@@ -140,7 +138,7 @@ CONTAINS
                               rcov, rvdw, z, qeff, apol, cpol, mm_radius, &
                               shell, shell_active, damping)
 
-      TYPE(atomic_kind_type)                             :: atomic_kind
+      TYPE(atomic_kind_type), INTENT(IN)                 :: atomic_kind
       TYPE(fist_potential_type), OPTIONAL, POINTER       :: fist_potential
       CHARACTER(LEN=2), INTENT(OUT), OPTIONAL            :: element_symbol
       CHARACTER(LEN=default_string_length), &
@@ -231,7 +229,7 @@ CONTAINS
                                   shell_check_distance, &
                                   damping_present)
 
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(atomic_kind_type), DIMENSION(:), INTENT(IN)   :: atomic_kind_set
       INTEGER, DIMENSION(:), INTENT(OUT), OPTIONAL       :: atom_of_kind, kind_of, natom_of_kind
       INTEGER, INTENT(OUT), OPTIONAL                     :: maxatom, natom, nshell
       LOGICAL, INTENT(OUT), OPTIONAL                     :: fist_potential_present, shell_present, &
@@ -239,27 +237,24 @@ CONTAINS
                                                             damping_present
 
       INTEGER                                            :: atom_a, iatom, ikind, nkind
-      TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(damping_p_type), POINTER                      :: damping
       TYPE(fist_potential_type), POINTER                 :: fist_potential
       TYPE(shell_kind_type), POINTER                     :: shell
 
-      IF (ASSOCIATED(atomic_kind_set)) THEN
+      IF (PRESENT(maxatom)) maxatom = 0
+      IF (PRESENT(natom)) natom = 0
+      IF (PRESENT(nshell)) nshell = 0
+      IF (PRESENT(shell_present)) shell_present = .FALSE.
+      IF (PRESENT(shell_adiabatic)) shell_adiabatic = .FALSE.
+      IF (PRESENT(shell_check_distance)) shell_check_distance = .FALSE.
+      IF (PRESENT(damping_present)) damping_present = .FALSE.
+      IF (PRESENT(atom_of_kind)) atom_of_kind(:) = 0
+      IF (PRESENT(kind_of)) kind_of(:) = 0
+      IF (PRESENT(natom_of_kind)) natom_of_kind(:) = 0
 
-         IF (PRESENT(maxatom)) maxatom = 0
-         IF (PRESENT(natom)) natom = 0
-         IF (PRESENT(nshell)) nshell = 0
-         IF (PRESENT(shell_present)) shell_present = .FALSE.
-         IF (PRESENT(shell_adiabatic)) shell_adiabatic = .FALSE.
-         IF (PRESENT(shell_check_distance)) shell_check_distance = .FALSE.
-         IF (PRESENT(damping_present)) damping_present = .FALSE.
-         IF (PRESENT(atom_of_kind)) atom_of_kind(:) = 0
-         IF (PRESENT(kind_of)) kind_of(:) = 0
-         IF (PRESENT(natom_of_kind)) natom_of_kind(:) = 0
-
-         nkind = SIZE(atomic_kind_set)
-         DO ikind = 1, nkind
-            atomic_kind => atomic_kind_set(ikind)
+      nkind = SIZE(atomic_kind_set)
+      DO ikind = 1, nkind
+         ASSOCIATE (atomic_kind=>atomic_kind_set(ikind))
             CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                  fist_potential=fist_potential, &
                                  shell=shell, &
@@ -306,10 +301,8 @@ CONTAINS
             IF (PRESENT(natom_of_kind)) THEN
                natom_of_kind(ikind) = atomic_kind_set(ikind)%natom
             END IF
-         END DO
-      ELSE
-         CPABORT("The pointer atomic_kind_set is not associated")
-      END IF
+         END ASSOCIATE
+      END DO
 
    END SUBROUTINE get_atomic_kind_set
 
@@ -332,7 +325,7 @@ CONTAINS
                               fist_potential, shell, &
                               shell_active, damping)
 
-      TYPE(atomic_kind_type), POINTER                    :: atomic_kind
+      TYPE(atomic_kind_type), INTENT(INOUT)              :: atomic_kind
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: element_symbol, name
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: mass
       INTEGER, INTENT(IN), OPTIONAL                      :: kind_number, natom
@@ -344,38 +337,32 @@ CONTAINS
 
       INTEGER                                            :: n
 
-      IF (ASSOCIATED(atomic_kind)) THEN
-
-         IF (PRESENT(element_symbol)) atomic_kind%element_symbol = element_symbol
-         IF (PRESENT(name)) atomic_kind%name = name
-         IF (PRESENT(mass)) atomic_kind%mass = mass
-         IF (PRESENT(kind_number)) atomic_kind%kind_number = kind_number
-         IF (PRESENT(natom)) atomic_kind%natom = natom
-         IF (PRESENT(atom_list)) THEN
-            n = SIZE(atom_list)
-            IF (n > 0) THEN
-               IF (ASSOCIATED(atomic_kind%atom_list)) THEN
-                  DEALLOCATE (atomic_kind%atom_list)
-               END IF
-               ALLOCATE (atomic_kind%atom_list(n))
-               atomic_kind%atom_list(:) = atom_list(:)
-               atomic_kind%natom = n
-            ELSE
-               CPABORT("An invalid atom_list was supplied")
+      IF (PRESENT(element_symbol)) atomic_kind%element_symbol = element_symbol
+      IF (PRESENT(name)) atomic_kind%name = name
+      IF (PRESENT(mass)) atomic_kind%mass = mass
+      IF (PRESENT(kind_number)) atomic_kind%kind_number = kind_number
+      IF (PRESENT(natom)) atomic_kind%natom = natom
+      IF (PRESENT(atom_list)) THEN
+         n = SIZE(atom_list)
+         IF (n > 0) THEN
+            IF (ASSOCIATED(atomic_kind%atom_list)) THEN
+               DEALLOCATE (atomic_kind%atom_list)
             END IF
+            ALLOCATE (atomic_kind%atom_list(n))
+            atomic_kind%atom_list(:) = atom_list(:)
+            atomic_kind%natom = n
+         ELSE
+            CPABORT("An invalid atom_list was supplied")
          END IF
-         IF (PRESENT(fist_potential)) atomic_kind%fist_potential => fist_potential
-         IF (PRESENT(shell)) THEN
-            atomic_kind%shell => shell
-            CALL shell_retain(shell)
-         END IF
-         IF (PRESENT(shell_active)) atomic_kind%shell_active = shell_active
-
-         IF (PRESENT(damping)) atomic_kind%damping => damping
-
-      ELSE
-         CPABORT("The pointer atomic_kind is not associated")
       END IF
+      IF (PRESENT(fist_potential)) atomic_kind%fist_potential => fist_potential
+      IF (PRESENT(shell)) THEN
+         atomic_kind%shell => shell
+         CALL shell_retain(shell)
+      END IF
+      IF (PRESENT(shell_active)) atomic_kind%shell_active = shell_active
+
+      IF (PRESENT(damping)) atomic_kind%damping => damping
 
    END SUBROUTINE set_atomic_kind
 
@@ -386,7 +373,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
    PURE FUNCTION is_hydrogen(atomic_kind) RESULT(res)
-      TYPE(atomic_kind_type), POINTER                    :: atomic_kind
+      TYPE(atomic_kind_type), INTENT(IN)                 :: atomic_kind
       LOGICAL                                            :: res
 
       res = TRIM(atomic_kind%element_symbol) == "H"

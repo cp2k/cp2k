@@ -101,7 +101,7 @@ CONTAINS
 !> \param damping ...
 ! **************************************************************************************************
    SUBROUTINE init_damping(damping)
-      TYPE(damping_type)                                 :: damping
+      TYPE(damping_type), INTENT(INOUT)                  :: damping
 
       damping%itype = no_damping
       damping%order = 1

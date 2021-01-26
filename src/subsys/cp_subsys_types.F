@@ -203,7 +203,7 @@ CONTAINS
    SUBROUTINE cp_subsys_set(subsys, atomic_kinds, particles, local_particles, &
                             molecules, molecule_kinds, local_molecules, para_env, &
                             colvar_p, shell_particles, core_particles, gci, multipoles, results, cell)
-      TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(cp_subsys_type), INTENT(INOUT)                :: subsys
       TYPE(atomic_kind_list_type), OPTIONAL, POINTER     :: atomic_kinds
       TYPE(particle_list_type), OPTIONAL, POINTER        :: particles
       TYPE(distribution_1d_type), OPTIONAL, POINTER      :: local_particles
@@ -219,7 +219,6 @@ CONTAINS
       TYPE(cp_result_type), OPTIONAL, POINTER            :: results
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell
 
-      CPASSERT(ASSOCIATED(subsys))
       CPASSERT(subsys%ref_count > 0)
       IF (PRESENT(multipoles)) THEN
          CALL retain_multipole_type(multipoles)
@@ -340,7 +339,7 @@ CONTAINS
                             shell_particles, core_particles, gci, multipoles, &
                             natom, nparticle, ncore, nshell, nkind, atprop, virial, &
                             results, cell)
-      TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(cp_subsys_type), INTENT(IN)                   :: subsys
       INTEGER, INTENT(out), OPTIONAL                     :: ref_count
       TYPE(atomic_kind_list_type), OPTIONAL, POINTER     :: atomic_kinds
       TYPE(atomic_kind_type), DIMENSION(:), OPTIONAL, &
@@ -374,7 +373,6 @@ CONTAINS
       n_core = 0
       n_shell = 0
 
-      CPASSERT(ASSOCIATED(subsys))
       CPASSERT(subsys%ref_count > 0)
 
       IF (PRESENT(ref_count)) ref_count = subsys%ref_count
@@ -442,7 +440,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pack_subsys_particles(subsys, f, r, s, v, fscale, cell)
 
-      TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(cp_subsys_type), INTENT(IN)                   :: subsys
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT), OPTIONAL :: f, r, s, v
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: fscale
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell
@@ -452,8 +450,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: rs
       TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
                                                             shell_particles
-
-      CPASSERT(ASSOCIATED(subsys))
 
       IF (PRESENT(s)) THEN
          CPASSERT(PRESENT(cell))
@@ -594,7 +590,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE unpack_subsys_particles(subsys, f, r, s, v, fscale, cell)
 
-      TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(cp_subsys_type), INTENT(IN)                   :: subsys
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: f, r, s, v
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: fscale
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell
@@ -605,8 +601,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: rs
       TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
                                                             shell_particles
-
-      CPASSERT(ASSOCIATED(subsys))
 
       NULLIFY (core_particles)
       NULLIFY (particles)

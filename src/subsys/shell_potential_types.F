@@ -70,22 +70,20 @@ CONTAINS
    SUBROUTINE get_shell(shell, charge, charge_core, charge_shell, mass_core, &
                         mass_shell, k2_spring, k4_spring, max_dist, shell_cutoff)
 
-      TYPE(shell_kind_type), POINTER                     :: shell
+      TYPE(shell_kind_type), INTENT(IN)                  :: shell
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: charge, charge_core, charge_shell, &
                                                             mass_core, mass_shell, k2_spring, &
                                                             k4_spring, max_dist, shell_cutoff
 
-      IF (ASSOCIATED(shell)) THEN
-         IF (PRESENT(charge)) charge = shell%charge_core + shell%charge_shell
-         IF (PRESENT(charge_core)) charge_core = shell%charge_core
-         IF (PRESENT(charge_shell)) charge_shell = shell%charge_shell
-         IF (PRESENT(mass_core)) mass_core = shell%mass_core
-         IF (PRESENT(mass_shell)) mass_shell = shell%mass_shell
-         IF (PRESENT(k2_spring)) k2_spring = shell%k2_spring
-         IF (PRESENT(k4_spring)) k4_spring = shell%k4_spring
-         IF (PRESENT(max_dist)) max_dist = shell%max_dist
-         IF (PRESENT(shell_cutoff)) shell_cutoff = shell%shell_cutoff
-      END IF
+      IF (PRESENT(charge)) charge = shell%charge_core + shell%charge_shell
+      IF (PRESENT(charge_core)) charge_core = shell%charge_core
+      IF (PRESENT(charge_shell)) charge_shell = shell%charge_shell
+      IF (PRESENT(mass_core)) mass_core = shell%mass_core
+      IF (PRESENT(mass_shell)) mass_shell = shell%mass_shell
+      IF (PRESENT(k2_spring)) k2_spring = shell%k2_spring
+      IF (PRESENT(k4_spring)) k4_spring = shell%k4_spring
+      IF (PRESENT(max_dist)) max_dist = shell%max_dist
+      IF (PRESENT(shell_cutoff)) shell_cutoff = shell%shell_cutoff
 
    END SUBROUTINE
 ! **************************************************************************************************

@@ -68,7 +68,8 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE cp_virial(virial_in, virial_out)
-      TYPE(virial_type), POINTER                         :: virial_in, virial_out
+      TYPE(virial_type), INTENT(IN)                      :: virial_in
+      TYPE(virial_type), INTENT(INOUT)                   :: virial_out
 
       virial_out%pv_total = virial_in%pv_total
       virial_out%pv_kinetic = virial_in%pv_kinetic
@@ -104,7 +105,7 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE symmetrize_virial(virial)
-      TYPE(virial_type), POINTER                         :: virial
+      TYPE(virial_type), INTENT(INOUT)                   :: virial
 
       INTEGER                                            :: i, j
 
@@ -160,7 +161,7 @@ CONTAINS
 !> \param reset ...
 ! **************************************************************************************************
    SUBROUTINE zero_virial(virial, reset)
-      TYPE(virial_type), POINTER                         :: virial
+      TYPE(virial_type), INTENT(INOUT)                   :: virial
       LOGICAL, INTENT(IN), OPTIONAL                      :: reset
 
       LOGICAL                                            :: my_reset
@@ -230,7 +231,7 @@ CONTAINS
                          pv_exc, pv_exx, pv_vdw, pv_mp2, pv_nlcc, pv_gapw, pv_lrigpw, &
                          pv_availability, pv_calculate, pv_numer, pv_diagonal)
 
-      TYPE(virial_type), POINTER                         :: virial
+      TYPE(virial_type), INTENT(INOUT)                   :: virial
       REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: pv_total, pv_kinetic, pv_virial, pv_xc, &
          pv_fock_4c, pv_constraint, pv_overlap, pv_ekinetic, pv_ppl, pv_ppnl, pv_ecore_overlap, &
          pv_ehartree, pv_exc, pv_exx, pv_vdw, pv_mp2, pv_nlcc, pv_gapw, pv_lrigpw

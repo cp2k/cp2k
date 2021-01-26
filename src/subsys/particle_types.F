@@ -119,7 +119,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE update_particle_set(particle_set, int_group, pos, vel, for, add)
 
-      TYPE(particle_type), POINTER                       :: particle_set(:)
+      TYPE(particle_type), INTENT(INOUT)                 :: particle_set(:)
       INTEGER, INTENT(IN)                                :: int_group
       REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: pos(:, :), vel(:, :), for(:, :)
       LOGICAL, INTENT(IN), OPTIONAL                      :: add
@@ -194,7 +194,7 @@ CONTAINS
    FUNCTION get_particle_pos_or_vel(iatom, particle_set, vector) RESULT(x)
 
       INTEGER, INTENT(IN)                                :: iatom
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vector
       REAL(KIND=dp), DIMENSION(3)                        :: x
 
@@ -231,7 +231,7 @@ CONTAINS
    SUBROUTINE update_particle_pos_or_vel(iatom, particle_set, x, vector)
 
       INTEGER, INTENT(IN)                                :: iatom
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
       REAL(KIND=dp), DIMENSION(3), INTENT(INOUT)         :: x
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: vector
 
