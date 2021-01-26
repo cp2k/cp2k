@@ -263,7 +263,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    FUNCTION get_section_info(section) RESULT(message)
-      TYPE(section_type), POINTER                        :: section
+      TYPE(section_type), INTENT(IN)                     :: section
       CHARACTER(LEN=default_path_length)                 :: message
 
       INTEGER                                            :: length
@@ -295,7 +295,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE section_describe(section, unit_nr, level, hide_root, recurse)
-      TYPE(section_type), POINTER                        :: section
+      TYPE(section_type), INTENT(IN), POINTER            :: section
       INTEGER, INTENT(in)                                :: unit_nr, level
       LOGICAL, INTENT(in), OPTIONAL                      :: hide_root
       INTEGER, INTENT(in), OPTIONAL                      :: recurse
@@ -362,14 +362,13 @@ CONTAINS
 !>      private utility function
 ! **************************************************************************************************
    FUNCTION section_get_subsection_index(section, subsection_name) RESULT(res)
-      TYPE(section_type), POINTER                        :: section
-      CHARACTER(len=*), INTENT(in)                       :: subsection_name
+      TYPE(section_type), INTENT(IN)                     :: section
+      CHARACTER(len=*), INTENT(IN)                       :: subsection_name
       INTEGER                                            :: res
 
       CHARACTER(len=default_string_length)               :: upc_name
       INTEGER                                            :: isub
 
-      CPASSERT(ASSOCIATED(section))
       CPASSERT(section%ref_count > 0)
       res = -1
       upc_name = subsection_name
@@ -391,8 +390,8 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    FUNCTION section_get_subsection(section, subsection_name) RESULT(res)
-      TYPE(section_type), POINTER                        :: section
-      CHARACTER(len=*), INTENT(in)                       :: subsection_name
+      TYPE(section_type), INTENT(IN)                     :: section
+      CHARACTER(len=*), INTENT(IN)                       :: subsection_name
       TYPE(section_type), POINTER                        :: res
 
       INTEGER                                            :: isub
@@ -415,14 +414,13 @@ CONTAINS
 !>      private utility function
 ! **************************************************************************************************
    FUNCTION section_get_keyword_index(section, keyword_name) RESULT(res)
-      TYPE(section_type), POINTER                        :: section
-      CHARACTER(len=*), INTENT(in)                       :: keyword_name
+      TYPE(section_type), INTENT(IN)                     :: section
+      CHARACTER(len=*), INTENT(IN)                       :: keyword_name
       INTEGER                                            :: res
 
       INTEGER                                            :: ik, in
       CHARACTER(len=default_string_length)               :: upc_name
 
-      CPASSERT(ASSOCIATED(section))
       CPASSERT(section%ref_count > 0)
       CPASSERT(ASSOCIATED(section%keywords))
       res = -2
@@ -456,8 +454,8 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    RECURSIVE FUNCTION section_get_keyword(section, keyword_name) RESULT(res)
-      TYPE(section_type), POINTER                        :: section
-      CHARACTER(len=*), INTENT(in)                       :: keyword_name
+      TYPE(section_type), INTENT(IN)                     :: section
+      CHARACTER(len=*), INTENT(IN)                       :: keyword_name
       TYPE(keyword_type), POINTER                        :: res
 
       INTEGER                                            :: ik, my_index
@@ -487,13 +485,12 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE section_add_keyword(section, keyword)
-      TYPE(section_type), POINTER                        :: section
-      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), INTENT(INOUT)                  :: section
+      TYPE(keyword_type), INTENT(IN), POINTER            :: keyword
 
       INTEGER                                            :: i, j, k
       TYPE(keyword_p_type), DIMENSION(:), POINTER        :: new_keywords
 
-      CPASSERT(ASSOCIATED(section))
       CPASSERT(section%ref_count > 0)
       CPASSERT(.NOT. section%frozen)
       CPASSERT(ASSOCIATED(keyword))
@@ -542,12 +539,12 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE section_add_subsection(section, subsection)
-      TYPE(section_type), POINTER                        :: section, subsection
+      TYPE(section_type), INTENT(INOUT)                  :: section
+      TYPE(section_type), INTENT(IN), POINTER            :: subsection
 
       INTEGER                                            :: i
       TYPE(section_p_type), DIMENSION(:), POINTER        :: new_subsections
 
-      CPASSERT(ASSOCIATED(section))
       CPASSERT(section%ref_count > 0)
       CPASSERT(ASSOCIATED(subsection))
       CPASSERT(subsection%ref_count > 0)
@@ -673,13 +670,12 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE section_vals_get(section_vals, ref_count, id_nr, n_repetition, &
                                n_subs_vals_rep, section, explicit)
-      TYPE(section_vals_type), POINTER                   :: section_vals
+      TYPE(section_vals_type), INTENT(IN)                :: section_vals
       INTEGER, INTENT(out), OPTIONAL                     :: ref_count, id_nr, n_repetition, &
                                                             n_subs_vals_rep
       TYPE(section_type), OPTIONAL, POINTER              :: section
       LOGICAL, INTENT(out), OPTIONAL                     :: explicit
 
-      CPASSERT(ASSOCIATED(section_vals))
       CPASSERT(section_vals%ref_count > 0)
       IF (PRESENT(ref_count)) ref_count = section_vals%ref_count
       IF (PRESENT(id_nr)) id_nr = section_vals%id_nr
@@ -701,16 +697,15 @@ CONTAINS
 ! **************************************************************************************************
    RECURSIVE FUNCTION section_vals_get_subs_vals(section_vals, subsection_name, &
                                                  i_rep_section, can_return_null) RESULT(res)
-      TYPE(section_vals_type), POINTER                   :: section_vals
-      CHARACTER(len=*), INTENT(in)                       :: subsection_name
-      INTEGER, INTENT(in), OPTIONAL                      :: i_rep_section
-      LOGICAL, INTENT(in), OPTIONAL                      :: can_return_null
+      TYPE(section_vals_type), INTENT(IN)                :: section_vals
+      CHARACTER(len=*), INTENT(IN)                       :: subsection_name
+      INTEGER, INTENT(IN), OPTIONAL                      :: i_rep_section
+      LOGICAL, INTENT(IN), OPTIONAL                      :: can_return_null
       TYPE(section_vals_type), POINTER                   :: res
 
       INTEGER                                            :: irep, isection, my_index
       LOGICAL                                            :: is_path, my_can_return_null
 
-      CPASSERT(ASSOCIATED(section_vals))
       CPASSERT(section_vals%ref_count > 0)
 
       my_can_return_null = .FALSE.
@@ -793,14 +788,13 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION section_vals_get_subs_vals3(section_vals, subsection_name, &
                                         i_rep_section) RESULT(res)
-      TYPE(section_vals_type), POINTER                   :: section_vals
+      TYPE(section_vals_type), INTENT(IN)                :: section_vals
       CHARACTER(LEN=*), INTENT(IN)                       :: subsection_name
       INTEGER, INTENT(in), OPTIONAL                      :: i_rep_section
       TYPE(section_vals_type), POINTER                   :: res
 
       INTEGER                                            :: i_section, irep
 
-      CPASSERT(ASSOCIATED(section_vals))
       CPASSERT(section_vals%ref_count > 0)
       NULLIFY (res)
       irep = 1
@@ -816,14 +810,13 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE section_vals_add_values(section_vals)
-      TYPE(section_vals_type), POINTER                   :: section_vals
+      TYPE(section_vals_type), INTENT(INOUT)             :: section_vals
 
       INTEGER                                            :: i, j
       TYPE(cp_sll_val_p_type), DIMENSION(:, :), POINTER  :: new_values
       TYPE(section_vals_p_type), DIMENSION(:, :), &
          POINTER                                         :: new_sps
 
-      CPASSERT(ASSOCIATED(section_vals))
       CPASSERT(section_vals%ref_count > 0)
       ALLOCATE (new_values(-1:UBOUND(section_vals%values, 1), SIZE(section_vals%values, 2) + 1))
       DO j = 1, SIZE(section_vals%values, 2)
@@ -903,7 +896,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION section_get_cval(section_vals, keyword_name) RESULT(res)
 
-      TYPE(section_vals_type), POINTER                   :: section_vals
+      TYPE(section_vals_type), INTENT(IN)                :: section_vals
       CHARACTER(len=*), INTENT(in)                       :: keyword_name
       CHARACTER(LEN=default_string_length)               :: res
 
@@ -919,7 +912,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION section_get_rval(section_vals, keyword_name) RESULT(res)
 
-      TYPE(section_vals_type), POINTER                   :: section_vals
+      TYPE(section_vals_type), INTENT(IN)                :: section_vals
       CHARACTER(len=*), INTENT(in)                       :: keyword_name
       REAL(kind=dp)                                      :: res
 
@@ -935,7 +928,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION section_get_rvals(section_vals, keyword_name) RESULT(res)
 
-      TYPE(section_vals_type), POINTER                   :: section_vals
+      TYPE(section_vals_type), INTENT(IN)                :: section_vals
       CHARACTER(len=*), INTENT(in)                       :: keyword_name
       REAL(kind=dp), DIMENSION(:), POINTER               :: res
 
@@ -951,7 +944,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION section_get_ival(section_vals, keyword_name) RESULT(res)
 
-      TYPE(section_vals_type), POINTER                   :: section_vals
+      TYPE(section_vals_type), INTENT(IN)                :: section_vals
       CHARACTER(len=*), INTENT(in)                       :: keyword_name
       INTEGER                                            :: res
 
@@ -967,7 +960,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION section_get_ivals(section_vals, keyword_name) RESULT(res)
 
-      TYPE(section_vals_type), POINTER                   :: section_vals
+      TYPE(section_vals_type), INTENT(IN)                :: section_vals
       CHARACTER(len=*), INTENT(in)                       :: keyword_name
       INTEGER, DIMENSION(:), POINTER                     :: res
 
@@ -983,7 +976,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION section_get_lval(section_vals, keyword_name) RESULT(res)
 
-      TYPE(section_vals_type), POINTER                   :: section_vals
+      TYPE(section_vals_type), INTENT(IN)                :: section_vals
       CHARACTER(len=*), INTENT(in)                       :: keyword_name
       LOGICAL                                            :: res
 
@@ -1017,7 +1010,7 @@ CONTAINS
    SUBROUTINE section_vals_val_get(section_vals, keyword_name, i_rep_section, &
                                    i_rep_val, n_rep_val, val, l_val, i_val, r_val, c_val, l_vals, i_vals, r_vals, &
                                    c_vals, explicit)
-      TYPE(section_vals_type), POINTER                   :: section_vals
+      TYPE(section_vals_type), INTENT(IN), TARGET        :: section_vals
       CHARACTER(len=*), INTENT(in)                       :: keyword_name
       INTEGER, INTENT(in), OPTIONAL                      :: i_rep_section, i_rep_val
       INTEGER, INTENT(out), OPTIONAL                     :: n_rep_val
@@ -1042,7 +1035,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: s_vals
       TYPE(val_type), POINTER                            :: my_val
 
-      CPASSERT(ASSOCIATED(section_vals))
       CPASSERT(section_vals%ref_count > 0)
 
       my_index = INDEX(keyword_name, '%') + 1
@@ -1126,7 +1118,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE section_vals_list_get(section_vals, keyword_name, i_rep_section, &
                                     list)
-      TYPE(section_vals_type), POINTER                   :: section_vals
+      TYPE(section_vals_type), INTENT(IN), POINTER       :: section_vals
       CHARACTER(len=*), INTENT(in)                       :: keyword_name
       INTEGER, OPTIONAL                                  :: i_rep_section
       TYPE(cp_sll_val_type), POINTER                     :: list
@@ -1394,7 +1386,7 @@ CONTAINS
 !>      skips required sections which weren't read
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE section_vals_write(section_vals, unit_nr, hide_root, hide_defaults)
-      TYPE(section_vals_type), POINTER                   :: section_vals
+      TYPE(section_vals_type), INTENT(IN)                :: section_vals
       INTEGER, INTENT(in)                                :: unit_nr
       LOGICAL, INTENT(in), OPTIONAL                      :: hide_root, hide_defaults
 
@@ -1414,7 +1406,6 @@ CONTAINS
       IF (PRESENT(hide_root)) my_hide_root = hide_root
       IF (PRESENT(hide_defaults)) my_hide_defaults = hide_defaults
 
-      CPASSERT(ASSOCIATED(section_vals))
       CPASSERT(section_vals%ref_count > 0)
       IF (unit_nr > 0) THEN
          CALL section_vals_get(section_vals, explicit=explicit, n_repetition=nr, section=section)
@@ -1589,7 +1580,7 @@ CONTAINS
    RECURSIVE SUBROUTINE section_typo_match(section, section_name, unknown_string, location_string, &
                                            matching_rank, matching_string, bonus)
 
-      TYPE(section_type), POINTER                        :: section
+      TYPE(section_type), INTENT(IN), POINTER            :: section
       CHARACTER(LEN=*)                                   :: section_name, unknown_string, &
                                                             location_string
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: matching_rank

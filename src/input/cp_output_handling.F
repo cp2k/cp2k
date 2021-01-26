@@ -344,10 +344,11 @@ CONTAINS
    FUNCTION cp_print_key_should_output(iteration_info, basis_section, &
                                        print_key_path, used_print_key, first_time) &
       RESULT(res)
-      TYPE(cp_iteration_info_type), POINTER              :: iteration_info
-      TYPE(section_vals_type), POINTER                   :: basis_section
+      TYPE(cp_iteration_info_type), INTENT(IN)           :: iteration_info
+      TYPE(section_vals_type), INTENT(IN), TARGET        :: basis_section
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: print_key_path
-      TYPE(section_vals_type), OPTIONAL, POINTER         :: used_print_key
+      TYPE(section_vals_type), INTENT(INOUT), OPTIONAL, &
+         POINTER                                         :: used_print_key
       LOGICAL, INTENT(OUT), OPTIONAL                     :: first_time
       INTEGER                                            :: res
 
@@ -357,13 +358,8 @@ CONTAINS
 
       res = 0
       IF (PRESENT(first_time)) first_time = .FALSE.
-      CPASSERT(ASSOCIATED(basis_section))
       CPASSERT(basis_section%ref_count > 0)
       IF (PRESENT(used_print_key)) NULLIFY (used_print_key)
-      ! IF (failure) THEN
-      !    IF (iteration_info%print_level>=debug_print_level) res=cp_out_default
-      !    RETURN
-      ! END IF
 
       IF (PRESENT(print_key_path)) THEN
          end_str = LEN_TRIM(print_key_path)
@@ -432,13 +428,12 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    FUNCTION cp_printkey_is_on(iteration_info, print_key) RESULT(res)
-      TYPE(cp_iteration_info_type), POINTER              :: iteration_info
+      TYPE(cp_iteration_info_type), INTENT(IN)           :: iteration_info
       TYPE(section_vals_type), POINTER                   :: print_key
       LOGICAL                                            :: res
 
       INTEGER                                            :: print_level
 
-      CPASSERT(ASSOCIATED(iteration_info))
       CPASSERT(iteration_info%ref_count > 0)
       IF (.NOT. ASSOCIATED(print_key)) THEN
          res = (iteration_info%print_level > debug_print_level)
@@ -462,7 +457,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION cp_printkey_is_iter(iteration_info, print_key, first_time) &
       RESULT(res)
-      TYPE(cp_iteration_info_type), POINTER              :: iteration_info
+      TYPE(cp_iteration_info_type), INTENT(IN)           :: iteration_info
       TYPE(section_vals_type), POINTER                   :: print_key
       LOGICAL, INTENT(OUT), OPTIONAL                     :: first_time
       LOGICAL                                            :: res
@@ -470,7 +465,6 @@ CONTAINS
       INTEGER                                            :: add_last, ilevel, iter_nr, ival
       LOGICAL                                            :: first, level_passed
 
-      CPASSERT(ASSOCIATED(iteration_info))
       CPASSERT(iteration_info%ref_count > 0)
       IF (.NOT. ASSOCIATED(print_key)) THEN
          res = (iteration_info%print_level > debug_print_level)
@@ -809,7 +803,7 @@ CONTAINS
                                  file_action, file_status, do_backup, on_file, is_new_file, mpi_io, &
                                  fout) RESULT(res)
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(section_vals_type), POINTER                   :: basis_section
+      TYPE(section_vals_type), INTENT(IN)                :: basis_section
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: print_key_path
       CHARACTER(len=*), INTENT(IN)                       :: extension
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: middle_name
@@ -876,7 +870,6 @@ CONTAINS
          mpi_io = my_mpi_io
       END IF
       NULLIFY (print_key)
-      CPASSERT(ASSOCIATED(basis_section))
       CPASSERT(ASSOCIATED(logger))
       CPASSERT(basis_section%ref_count > 0)
       CPASSERT(logger%ref_count > 0)
@@ -1020,7 +1013,7 @@ CONTAINS
                                            mpi_io)
       INTEGER, INTENT(INOUT)                             :: unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(section_vals_type), POINTER                   :: basis_section
+      TYPE(section_vals_type), INTENT(IN)                :: basis_section
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: print_key_path
       LOGICAL, INTENT(IN), OPTIONAL                      :: local, ignore_should_output, on_file, &
                                                             mpi_io
@@ -1037,7 +1030,6 @@ CONTAINS
       IF (PRESENT(local)) my_local = local
       IF (PRESENT(on_file)) my_on_file = on_file
       IF (PRESENT(mpi_io)) my_mpi_io = mpi_io
-      CPASSERT(ASSOCIATED(basis_section))
       CPASSERT(ASSOCIATED(logger))
       CPASSERT(basis_section%ref_count > 0)
       CPASSERT(logger%ref_count > 0)
@@ -1091,4 +1083,3 @@ CONTAINS
    END FUNCTION cp_mpi_io_get
 
 END MODULE cp_output_handling
-
