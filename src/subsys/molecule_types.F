@@ -289,7 +289,7 @@ CONTAINS
    SUBROUTINE get_molecule(molecule, molecule_kind, lmi, lci, lg3x3, lg4x6, lcolv, &
                            first_atom, last_atom, first_shell, last_shell)
 
-      TYPE(molecule_type), POINTER                       :: molecule
+      TYPE(molecule_type), INTENT(IN)                    :: molecule
       TYPE(molecule_kind_type), OPTIONAL, POINTER        :: molecule_kind
       TYPE(local_states_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: lmi
@@ -303,42 +303,34 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: first_atom, last_atom, first_shell, &
                                                             last_shell
 
-      IF (ASSOCIATED(molecule)) THEN
-
-         IF (PRESENT(first_atom)) first_atom = molecule%first_atom
-         IF (PRESENT(last_atom)) last_atom = molecule%last_atom
-         IF (PRESENT(first_shell)) first_shell = molecule%first_shell
-         IF (PRESENT(last_shell)) last_shell = molecule%last_shell
-         IF (PRESENT(molecule_kind)) molecule_kind => molecule%molecule_kind
-         IF (PRESENT(lmi)) lmi => molecule%lmi
-         IF (PRESENT(lci)) lci => molecule%lci
-         IF (PRESENT(lcolv)) THEN
-            IF (ASSOCIATED(molecule%lci)) THEN
-               lcolv => molecule%lci%lcolv
-            ELSE
-               CPABORT("The pointer lci is not associated")
-            ENDIF
+      IF (PRESENT(first_atom)) first_atom = molecule%first_atom
+      IF (PRESENT(last_atom)) last_atom = molecule%last_atom
+      IF (PRESENT(first_shell)) first_shell = molecule%first_shell
+      IF (PRESENT(last_shell)) last_shell = molecule%last_shell
+      IF (PRESENT(molecule_kind)) molecule_kind => molecule%molecule_kind
+      IF (PRESENT(lmi)) lmi => molecule%lmi
+      IF (PRESENT(lci)) lci => molecule%lci
+      IF (PRESENT(lcolv)) THEN
+         IF (ASSOCIATED(molecule%lci)) THEN
+            lcolv => molecule%lci%lcolv
+         ELSE
+            CPABORT("The pointer lci is not associated")
          ENDIF
-         IF (PRESENT(lg3x3)) THEN
-            IF (ASSOCIATED(molecule%lci)) THEN
-               lg3x3 => molecule%lci%lg3x3
-            ELSE
-               CPABORT("The pointer lci is not associated")
-            ENDIF
+      ENDIF
+      IF (PRESENT(lg3x3)) THEN
+         IF (ASSOCIATED(molecule%lci)) THEN
+            lg3x3 => molecule%lci%lg3x3
+         ELSE
+            CPABORT("The pointer lci is not associated")
          ENDIF
-         IF (PRESENT(lg4x6)) THEN
-            IF (ASSOCIATED(molecule%lci)) THEN
-               lg4x6 => molecule%lci%lg4x6
-            ELSE
-               CPABORT("The pointer lci is not associated")
-            ENDIF
+      ENDIF
+      IF (PRESENT(lg4x6)) THEN
+         IF (ASSOCIATED(molecule%lci)) THEN
+            lg4x6 => molecule%lci%lg4x6
+         ELSE
+            CPABORT("The pointer lci is not associated")
          ENDIF
-
-      ELSE
-
-         CPABORT("The pointer lci is not associated")
-
-      END IF
+      ENDIF
 
    END SUBROUTINE get_molecule
 
@@ -356,7 +348,7 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE set_molecule(molecule, molecule_kind, lmi, lci, lcolv, lg3x3, lg4x6)
-      TYPE(molecule_type), POINTER                       :: molecule
+      TYPE(molecule_type), INTENT(INOUT)                 :: molecule
       TYPE(molecule_kind_type), OPTIONAL, POINTER        :: molecule_kind
       TYPE(local_states_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: lmi
@@ -368,37 +360,30 @@ CONTAINS
       TYPE(local_g4x6_constraint_type), OPTIONAL, &
          POINTER                                         :: lg4x6(:)
 
-      IF (ASSOCIATED(molecule)) THEN
-
-         IF (PRESENT(molecule_kind)) molecule%molecule_kind => molecule_kind
-         IF (PRESENT(lmi)) molecule%lmi => lmi
-         IF (PRESENT(lci)) molecule%lci => lci
-         IF (PRESENT(lcolv)) THEN
-            IF (ASSOCIATED(molecule%lci)) THEN
-               molecule%lci%lcolv => lcolv
-            ELSE
-               CPABORT("The pointer lci is not associated")
-            ENDIF
+      IF (PRESENT(molecule_kind)) molecule%molecule_kind => molecule_kind
+      IF (PRESENT(lmi)) molecule%lmi => lmi
+      IF (PRESENT(lci)) molecule%lci => lci
+      IF (PRESENT(lcolv)) THEN
+         IF (ASSOCIATED(molecule%lci)) THEN
+            molecule%lci%lcolv => lcolv
+         ELSE
+            CPABORT("The pointer lci is not associated")
          ENDIF
-         IF (PRESENT(lg3x3)) THEN
-            IF (ASSOCIATED(molecule%lci)) THEN
-               molecule%lci%lg3x3 => lg3x3
-            ELSE
-               CPABORT("The pointer lci is not associated")
-            ENDIF
+      ENDIF
+      IF (PRESENT(lg3x3)) THEN
+         IF (ASSOCIATED(molecule%lci)) THEN
+            molecule%lci%lg3x3 => lg3x3
+         ELSE
+            CPABORT("The pointer lci is not associated")
          ENDIF
-         IF (PRESENT(lg4x6)) THEN
-            IF (ASSOCIATED(molecule%lci)) THEN
-               molecule%lci%lg4x6 => lg4x6
-            ELSE
-               CPABORT("The pointer lci is not associated")
-            ENDIF
+      ENDIF
+      IF (PRESENT(lg4x6)) THEN
+         IF (ASSOCIATED(molecule%lci)) THEN
+            molecule%lci%lg4x6 => lg4x6
+         ELSE
+            CPABORT("The pointer lci is not associated")
          ENDIF
-      ELSE
-
-         CPABORT("The pointer molecule is not associated")
-
-      END IF
+      ENDIF
 
    END SUBROUTINE set_molecule
 
@@ -412,45 +397,33 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE set_molecule_set(molecule_set, first_atom, last_atom)
-      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(molecule_type), DIMENSION(:), INTENT(INOUT)   :: molecule_set
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: first_atom, last_atom
 
       INTEGER                                            :: imolecule
 
-      IF (ASSOCIATED(molecule_set)) THEN
-
-         IF (PRESENT(first_atom)) THEN
-
-            IF (SIZE(first_atom) /= SIZE(molecule_set)) THEN
-               CALL cp_abort(__LOCATION__, &
-                             "The sizes of first_atom and molecule_set "// &
-                             "are different")
-            END IF
-
-            DO imolecule = 1, SIZE(molecule_set)
-               molecule_set(imolecule)%first_atom = first_atom(imolecule)
-            END DO
-
+      IF (PRESENT(first_atom)) THEN
+         IF (SIZE(first_atom) /= SIZE(molecule_set)) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "The sizes of first_atom and molecule_set "// &
+                          "are different")
          END IF
 
-         IF (PRESENT(last_atom)) THEN
+         DO imolecule = 1, SIZE(molecule_set)
+            molecule_set(imolecule)%first_atom = first_atom(imolecule)
+         END DO
+      END IF
 
-            IF (SIZE(last_atom) /= SIZE(molecule_set)) THEN
-               CALL cp_abort(__LOCATION__, &
-                             "The sizes of last_atom and molecule_set "// &
-                             "are different")
-            END IF
-
-            DO imolecule = 1, SIZE(molecule_set)
-               molecule_set(imolecule)%last_atom = last_atom(imolecule)
-            END DO
-
+      IF (PRESENT(last_atom)) THEN
+         IF (SIZE(last_atom) /= SIZE(molecule_set)) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "The sizes of last_atom and molecule_set "// &
+                          "are different")
          END IF
 
-      ELSE
-
-         CPABORT("The pointer molecule_set is not associated")
-
+         DO imolecule = 1, SIZE(molecule_set)
+            molecule_set(imolecule)%last_atom = last_atom(imolecule)
+         END DO
       END IF
 
    END SUBROUTINE set_molecule_set
@@ -461,15 +434,13 @@ CONTAINS
 !> \param atom_to_mol ...
 ! **************************************************************************************************
    SUBROUTINE molecule_of_atom(molecule_set, atom_to_mol)
-      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(molecule_type), DIMENSION(:), INTENT(IN)      :: molecule_set
       INTEGER, DIMENSION(:), INTENT(OUT)                 :: atom_to_mol
 
       INTEGER                                            :: first_atom, iatom, imol, last_atom
-      TYPE(molecule_type), POINTER                       :: molecule
 
       DO imol = 1, SIZE(molecule_set)
-         molecule => molecule_set(imol)
-         CALL get_molecule(molecule=molecule, first_atom=first_atom, last_atom=last_atom)
+         CALL get_molecule(molecule=molecule_set(imol), first_atom=first_atom, last_atom=last_atom)
          DO iatom = first_atom, last_atom
             atom_to_mol(iatom) = imol
          ENDDO ! iatom
@@ -495,7 +466,7 @@ CONTAINS
                                     mol_to_last_atom, mol_to_nelectrons, mol_to_nbasis, mol_to_charge, &
                                     mol_to_multiplicity)
 
-      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(molecule_type), DIMENSION(:), INTENT(IN)      :: molecule_set
       INTEGER, DIMENSION(:), INTENT(OUT), OPTIONAL :: atom_to_mol, mol_to_first_atom, &
          mol_to_last_atom, mol_to_nelectrons, mol_to_nbasis, mol_to_charge, mol_to_multiplicity
 
@@ -503,12 +474,10 @@ CONTAINS
                                                             nbasis, nelec
       REAL(KIND=dp)                                      :: charge
       TYPE(molecule_kind_type), POINTER                  :: imol_kind
-      TYPE(molecule_type), POINTER                       :: molecule
 
       DO imol = 1, SIZE(molecule_set)
 
-         molecule => molecule_set(imol)
-         CALL get_molecule(molecule=molecule, molecule_kind=imol_kind, &
+         CALL get_molecule(molecule=molecule_set(imol), molecule_kind=imol_kind, &
                            first_atom=first_atom, last_atom=last_atom)
 
          IF (PRESENT(mol_to_nelectrons)) THEN

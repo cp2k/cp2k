@@ -571,7 +571,7 @@ CONTAINS
                                 ub_kind_set, impr_kind_set, opbend_kind_set, torsion_kind_set, &
                                 molname_generated)
 
-      TYPE(molecule_kind_type), POINTER                  :: molecule_kind
+      TYPE(molecule_kind_type), INTENT(IN)               :: molecule_kind
       TYPE(atom_type), DIMENSION(:), OPTIONAL, POINTER   :: atom_list
       TYPE(bond_type), DIMENSION(:), OPTIONAL, POINTER   :: bond_list
       TYPE(bend_type), DIMENSION(:), OPTIONAL, POINTER   :: bend_list
@@ -619,87 +619,79 @@ CONTAINS
 
       INTEGER                                            :: i
 
-      IF (ASSOCIATED(molecule_kind)) THEN
-
-         IF (PRESENT(atom_list)) atom_list => molecule_kind%atom_list
-         IF (PRESENT(bend_list)) bend_list => molecule_kind%bend_list
-         IF (PRESENT(bond_list)) bond_list => molecule_kind%bond_list
-         IF (PRESENT(impr_list)) impr_list => molecule_kind%impr_list
-         IF (PRESENT(opbend_list)) opbend_list => molecule_kind%opbend_list
-         IF (PRESENT(ub_list)) ub_list => molecule_kind%ub_list
-         IF (PRESENT(bond_kind_set)) bond_kind_set => molecule_kind%bond_kind_set
-         IF (PRESENT(bend_kind_set)) bend_kind_set => molecule_kind%bend_kind_set
-         IF (PRESENT(ub_kind_set)) ub_kind_set => molecule_kind%ub_kind_set
-         IF (PRESENT(impr_kind_set)) impr_kind_set => molecule_kind%impr_kind_set
-         IF (PRESENT(opbend_kind_set)) opbend_kind_set => molecule_kind%opbend_kind_set
-         IF (PRESENT(torsion_kind_set)) torsion_kind_set => molecule_kind%torsion_kind_set
-         IF (PRESENT(colv_list)) colv_list => molecule_kind%colv_list
-         IF (PRESENT(g3x3_list)) g3x3_list => molecule_kind%g3x3_list
-         IF (PRESENT(g4x6_list)) g4x6_list => molecule_kind%g4x6_list
-         IF (PRESENT(vsite_list)) vsite_list => molecule_kind%vsite_list
-         IF (PRESENT(fixd_list)) fixd_list => molecule_kind%fixd_list
-         IF (PRESENT(torsion_list)) torsion_list => molecule_kind%torsion_list
-         IF (PRESENT(shell_list)) shell_list => molecule_kind%shell_list
-         IF (PRESENT(name)) name = molecule_kind%name
-         IF (PRESENT(molname_generated)) molname_generated = molecule_kind%molname_generated
-         IF (PRESENT(mass)) mass = molecule_kind%mass
-         IF (PRESENT(charge)) charge = molecule_kind%charge
-         IF (PRESENT(kind_number)) kind_number = molecule_kind%kind_number
-         IF (PRESENT(natom)) natom = molecule_kind%natom
-         IF (PRESENT(nbend)) nbend = molecule_kind%nbend
-         IF (PRESENT(nbond)) nbond = molecule_kind%nbond
-         IF (PRESENT(nub)) nub = molecule_kind%nub
-         IF (PRESENT(nimpr)) nimpr = molecule_kind%nimpr
-         IF (PRESENT(nopbend)) nopbend = molecule_kind%nopbend
-         IF (PRESENT(nconstraint)) nconstraint = (molecule_kind%ncolv%ntot - molecule_kind%ncolv%nrestraint) + &
-                                                 3*(molecule_kind%ng3x3 - molecule_kind%ng3x3_restraint) + &
-                                                 6*(molecule_kind%ng4x6 - molecule_kind%ng4x6_restraint) + &
-                                                 3*(molecule_kind%nvsite - molecule_kind%nvsite_restraint)
-         IF (PRESENT(ncolv)) ncolv = molecule_kind%ncolv
-         IF (PRESENT(ng3x3)) ng3x3 = molecule_kind%ng3x3
-         IF (PRESENT(ng4x6)) ng4x6 = molecule_kind%ng4x6
-         IF (PRESENT(nvsite)) nvsite = molecule_kind%nvsite
-         ! Number of atoms that have one or more components fixed
-         IF (PRESENT(nfixd)) nfixd = molecule_kind%nfixd
-         ! Number of degrees of freedom fixed
-         IF (PRESENT(nconstraint_fixd)) THEN
-            nconstraint_fixd = 0
-            IF (molecule_kind%nfixd /= 0) THEN
-               DO i = 1, SIZE(molecule_kind%fixd_list)
-                  IF (molecule_kind%fixd_list(i)%restraint%active) CYCLE
-                  SELECT CASE (molecule_kind%fixd_list(i)%itype)
-                  CASE (use_perd_x, use_perd_y, use_perd_z)
-                     nconstraint_fixd = nconstraint_fixd + 1
-                  CASE (use_perd_xy, use_perd_xz, use_perd_yz)
-                     nconstraint_fixd = nconstraint_fixd + 2
-                  CASE (use_perd_xyz)
-                     nconstraint_fixd = nconstraint_fixd + 3
-                  END SELECT
-               END DO
-            END IF
+      IF (PRESENT(atom_list)) atom_list => molecule_kind%atom_list
+      IF (PRESENT(bend_list)) bend_list => molecule_kind%bend_list
+      IF (PRESENT(bond_list)) bond_list => molecule_kind%bond_list
+      IF (PRESENT(impr_list)) impr_list => molecule_kind%impr_list
+      IF (PRESENT(opbend_list)) opbend_list => molecule_kind%opbend_list
+      IF (PRESENT(ub_list)) ub_list => molecule_kind%ub_list
+      IF (PRESENT(bond_kind_set)) bond_kind_set => molecule_kind%bond_kind_set
+      IF (PRESENT(bend_kind_set)) bend_kind_set => molecule_kind%bend_kind_set
+      IF (PRESENT(ub_kind_set)) ub_kind_set => molecule_kind%ub_kind_set
+      IF (PRESENT(impr_kind_set)) impr_kind_set => molecule_kind%impr_kind_set
+      IF (PRESENT(opbend_kind_set)) opbend_kind_set => molecule_kind%opbend_kind_set
+      IF (PRESENT(torsion_kind_set)) torsion_kind_set => molecule_kind%torsion_kind_set
+      IF (PRESENT(colv_list)) colv_list => molecule_kind%colv_list
+      IF (PRESENT(g3x3_list)) g3x3_list => molecule_kind%g3x3_list
+      IF (PRESENT(g4x6_list)) g4x6_list => molecule_kind%g4x6_list
+      IF (PRESENT(vsite_list)) vsite_list => molecule_kind%vsite_list
+      IF (PRESENT(fixd_list)) fixd_list => molecule_kind%fixd_list
+      IF (PRESENT(torsion_list)) torsion_list => molecule_kind%torsion_list
+      IF (PRESENT(shell_list)) shell_list => molecule_kind%shell_list
+      IF (PRESENT(name)) name = molecule_kind%name
+      IF (PRESENT(molname_generated)) molname_generated = molecule_kind%molname_generated
+      IF (PRESENT(mass)) mass = molecule_kind%mass
+      IF (PRESENT(charge)) charge = molecule_kind%charge
+      IF (PRESENT(kind_number)) kind_number = molecule_kind%kind_number
+      IF (PRESENT(natom)) natom = molecule_kind%natom
+      IF (PRESENT(nbend)) nbend = molecule_kind%nbend
+      IF (PRESENT(nbond)) nbond = molecule_kind%nbond
+      IF (PRESENT(nub)) nub = molecule_kind%nub
+      IF (PRESENT(nimpr)) nimpr = molecule_kind%nimpr
+      IF (PRESENT(nopbend)) nopbend = molecule_kind%nopbend
+      IF (PRESENT(nconstraint)) nconstraint = (molecule_kind%ncolv%ntot - molecule_kind%ncolv%nrestraint) + &
+                                              3*(molecule_kind%ng3x3 - molecule_kind%ng3x3_restraint) + &
+                                              6*(molecule_kind%ng4x6 - molecule_kind%ng4x6_restraint) + &
+                                              3*(molecule_kind%nvsite - molecule_kind%nvsite_restraint)
+      IF (PRESENT(ncolv)) ncolv = molecule_kind%ncolv
+      IF (PRESENT(ng3x3)) ng3x3 = molecule_kind%ng3x3
+      IF (PRESENT(ng4x6)) ng4x6 = molecule_kind%ng4x6
+      IF (PRESENT(nvsite)) nvsite = molecule_kind%nvsite
+      ! Number of atoms that have one or more components fixed
+      IF (PRESENT(nfixd)) nfixd = molecule_kind%nfixd
+      ! Number of degrees of freedom fixed
+      IF (PRESENT(nconstraint_fixd)) THEN
+         nconstraint_fixd = 0
+         IF (molecule_kind%nfixd /= 0) THEN
+            DO i = 1, SIZE(molecule_kind%fixd_list)
+               IF (molecule_kind%fixd_list(i)%restraint%active) CYCLE
+               SELECT CASE (molecule_kind%fixd_list(i)%itype)
+               CASE (use_perd_x, use_perd_y, use_perd_z)
+                  nconstraint_fixd = nconstraint_fixd + 1
+               CASE (use_perd_xy, use_perd_xz, use_perd_yz)
+                  nconstraint_fixd = nconstraint_fixd + 2
+               CASE (use_perd_xyz)
+                  nconstraint_fixd = nconstraint_fixd + 3
+               END SELECT
+            END DO
          END IF
-         IF (PRESENT(ng3x3_restraint)) ng3x3_restraint = molecule_kind%ng3x3_restraint
-         IF (PRESENT(ng4x6_restraint)) ng4x6_restraint = molecule_kind%ng4x6_restraint
-         IF (PRESENT(nvsite_restraint)) nvsite_restraint = molecule_kind%nvsite_restraint
-         IF (PRESENT(nfixd_restraint)) nfixd_restraint = molecule_kind%nfixd_restraint
-         IF (PRESENT(nrestraints)) nrestraints = molecule_kind%ncolv%nrestraint + &
-                                                 molecule_kind%ng3x3_restraint + &
-                                                 molecule_kind%ng4x6_restraint + &
-                                                 molecule_kind%nvsite_restraint
-         IF (PRESENT(nmolecule)) nmolecule = molecule_kind%nmolecule
-         IF (PRESENT(nshell)) nshell = molecule_kind%nshell
-         IF (PRESENT(ntorsion)) ntorsion = molecule_kind%ntorsion
-         IF (PRESENT(nsgf)) nsgf = molecule_kind%nsgf
-         IF (PRESENT(nelectron)) nelectron = molecule_kind%nelectron
-         IF (PRESENT(nelectron_alpha)) nelectron_alpha = molecule_kind%nelectron_beta
-         IF (PRESENT(nelectron_beta)) nelectron_beta = molecule_kind%nelectron_alpha
-         IF (PRESENT(molecule_list)) molecule_list => molecule_kind%molecule_list
-
-      ELSE
-
-         CPABORT("The pointer molecule_kind is not associated")
-
       END IF
+      IF (PRESENT(ng3x3_restraint)) ng3x3_restraint = molecule_kind%ng3x3_restraint
+      IF (PRESENT(ng4x6_restraint)) ng4x6_restraint = molecule_kind%ng4x6_restraint
+      IF (PRESENT(nvsite_restraint)) nvsite_restraint = molecule_kind%nvsite_restraint
+      IF (PRESENT(nfixd_restraint)) nfixd_restraint = molecule_kind%nfixd_restraint
+      IF (PRESENT(nrestraints)) nrestraints = molecule_kind%ncolv%nrestraint + &
+                                              molecule_kind%ng3x3_restraint + &
+                                              molecule_kind%ng4x6_restraint + &
+                                              molecule_kind%nvsite_restraint
+      IF (PRESENT(nmolecule)) nmolecule = molecule_kind%nmolecule
+      IF (PRESENT(nshell)) nshell = molecule_kind%nshell
+      IF (PRESENT(ntorsion)) ntorsion = molecule_kind%ntorsion
+      IF (PRESENT(nsgf)) nsgf = molecule_kind%nsgf
+      IF (PRESENT(nelectron)) nelectron = molecule_kind%nelectron
+      IF (PRESENT(nelectron_alpha)) nelectron_alpha = molecule_kind%nelectron_beta
+      IF (PRESENT(nelectron_beta)) nelectron_beta = molecule_kind%nelectron_alpha
+      IF (PRESENT(molecule_list)) molecule_list => molecule_kind%molecule_list
 
    END SUBROUTINE get_molecule_kind
 
@@ -727,7 +719,7 @@ CONTAINS
                                     nconstraint, nconstraint_fixd, nmolecule, &
                                     nrestraints)
 
-      TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
+      TYPE(molecule_kind_type), DIMENSION(:), INTENT(IN) :: molecule_kind_set
       INTEGER, INTENT(OUT), OPTIONAL                     :: maxatom, natom, nbond, nbend, nub, &
                                                             ntorsion, nimpr, nopbend, nconstraint, &
                                                             nconstraint_fixd, nmolecule, &
@@ -735,28 +727,24 @@ CONTAINS
 
       INTEGER :: ibend, ibond, iimpr, imolecule_kind, iopbend, itorsion, iub, na, nc, nc_fixd, &
          nfixd_restraint, nm, nmolecule_kind, nrestraints_tot
-      TYPE(molecule_kind_type), POINTER                  :: molecule_kind
 
-      IF (ASSOCIATED(molecule_kind_set)) THEN
+      IF (PRESENT(maxatom)) maxatom = 0
+      IF (PRESENT(natom)) natom = 0
+      IF (PRESENT(nbond)) nbond = 0
+      IF (PRESENT(nbend)) nbend = 0
+      IF (PRESENT(nub)) nub = 0
+      IF (PRESENT(ntorsion)) ntorsion = 0
+      IF (PRESENT(nimpr)) nimpr = 0
+      IF (PRESENT(nopbend)) nopbend = 0
+      IF (PRESENT(nconstraint)) nconstraint = 0
+      IF (PRESENT(nconstraint_fixd)) nconstraint_fixd = 0
+      IF (PRESENT(nrestraints)) nrestraints = 0
+      IF (PRESENT(nmolecule)) nmolecule = 0
 
-         IF (PRESENT(maxatom)) maxatom = 0
-         IF (PRESENT(natom)) natom = 0
-         IF (PRESENT(nbond)) nbond = 0
-         IF (PRESENT(nbend)) nbend = 0
-         IF (PRESENT(nub)) nub = 0
-         IF (PRESENT(ntorsion)) ntorsion = 0
-         IF (PRESENT(nimpr)) nimpr = 0
-         IF (PRESENT(nopbend)) nopbend = 0
-         IF (PRESENT(nconstraint)) nconstraint = 0
-         IF (PRESENT(nconstraint_fixd)) nconstraint_fixd = 0
-         IF (PRESENT(nrestraints)) nrestraints = 0
-         IF (PRESENT(nmolecule)) nmolecule = 0
+      nmolecule_kind = SIZE(molecule_kind_set)
 
-         nmolecule_kind = SIZE(molecule_kind_set)
-
-         DO imolecule_kind = 1, nmolecule_kind
-
-            molecule_kind => molecule_kind_set(imolecule_kind)
+      DO imolecule_kind = 1, nmolecule_kind
+         ASSOCIATE (molecule_kind=>molecule_kind_set(imolecule_kind))
 
             CALL get_molecule_kind(molecule_kind=molecule_kind, &
                                    natom=na, &
@@ -784,13 +772,8 @@ CONTAINS
             IF (PRESENT(nmolecule)) nmolecule = nmolecule + nm
             IF (PRESENT(nrestraints)) nrestraints = nrestraints + nm*nrestraints_tot + nfixd_restraint
 
-         END DO
-
-      ELSE
-
-         CPABORT("The pointer molecule_kind_set is not associated")
-
-      END IF
+         END ASSOCIATE
+      END DO
 
    END SUBROUTINE get_molecule_kind_set
 
@@ -857,7 +840,7 @@ CONTAINS
                                 opbend_kind_set, nelectron, nsgf, &
                                 molname_generated)
 
-      TYPE(molecule_kind_type), POINTER                  :: molecule_kind
+      TYPE(molecule_kind_type), INTENT(INOUT)            :: molecule_kind
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: name
       REAL(KIND=dp), OPTIONAL                            :: mass, charge
       INTEGER, INTENT(IN), OPTIONAL                      :: kind_number
@@ -911,66 +894,57 @@ CONTAINS
 
       INTEGER                                            :: n
 
-      IF (ASSOCIATED(molecule_kind)) THEN
-
-         IF (PRESENT(atom_list)) THEN
-            n = SIZE(atom_list)
-            molecule_kind%natom = n
-            molecule_kind%atom_list => atom_list
-         END IF
-         IF (PRESENT(molname_generated)) molecule_kind%molname_generated = molname_generated
-         IF (PRESENT(name)) molecule_kind%name = name
-         IF (PRESENT(mass)) molecule_kind%mass = mass
-         IF (PRESENT(charge)) molecule_kind%charge = charge
-         IF (PRESENT(kind_number)) molecule_kind%kind_number = kind_number
-         IF (PRESENT(nbond)) molecule_kind%nbond = nbond
-         IF (PRESENT(bond_list)) molecule_kind%bond_list => bond_list
-         IF (PRESENT(nbend)) molecule_kind%nbend = nbend
-         IF (PRESENT(nelectron)) molecule_kind%nelectron = nelectron
-         IF (PRESENT(nsgf)) molecule_kind%nsgf = nsgf
-         IF (PRESENT(bend_list)) molecule_kind%bend_list => bend_list
-         IF (PRESENT(nub)) molecule_kind%nub = nub
-         IF (PRESENT(ub_list)) molecule_kind%ub_list => ub_list
-         IF (PRESENT(ntorsion)) molecule_kind%ntorsion = ntorsion
-         IF (PRESENT(torsion_list)) molecule_kind%torsion_list => torsion_list
-         IF (PRESENT(nimpr)) molecule_kind%nimpr = nimpr
-         IF (PRESENT(impr_list)) molecule_kind%impr_list => impr_list
-         IF (PRESENT(nopbend)) molecule_kind%nopbend = nopbend
-         IF (PRESENT(opbend_list)) molecule_kind%opbend_list => opbend_list
-         IF (PRESENT(ncolv)) molecule_kind%ncolv = ncolv
-         IF (PRESENT(colv_list)) molecule_kind%colv_list => colv_list
-         IF (PRESENT(ng3x3)) molecule_kind%ng3x3 = ng3x3
-         IF (PRESENT(g3x3_list)) molecule_kind%g3x3_list => g3x3_list
-         IF (PRESENT(ng4x6)) molecule_kind%ng4x6 = ng4x6
-         IF (PRESENT(nvsite)) molecule_kind%nvsite = nvsite
-         IF (PRESENT(nfixd)) molecule_kind%nfixd = nfixd
-         IF (PRESENT(nfixd_restraint)) molecule_kind%nfixd_restraint = nfixd_restraint
-         IF (PRESENT(ng3x3_restraint)) molecule_kind%ng3x3_restraint = ng3x3_restraint
-         IF (PRESENT(ng4x6_restraint)) molecule_kind%ng4x6_restraint = ng4x6_restraint
-         IF (PRESENT(nvsite_restraint)) molecule_kind%nvsite_restraint = nvsite_restraint
-         IF (PRESENT(g4x6_list)) molecule_kind%g4x6_list => g4x6_list
-         IF (PRESENT(vsite_list)) molecule_kind%vsite_list => vsite_list
-         IF (PRESENT(fixd_list)) molecule_kind%fixd_list => fixd_list
-         IF (PRESENT(bond_kind_set)) molecule_kind%bond_kind_set => bond_kind_set
-         IF (PRESENT(bend_kind_set)) molecule_kind%bend_kind_set => bend_kind_set
-         IF (PRESENT(ub_kind_set)) molecule_kind%ub_kind_set => ub_kind_set
-         IF (PRESENT(torsion_kind_set)) molecule_kind%torsion_kind_set => torsion_kind_set
-         IF (PRESENT(impr_kind_set)) molecule_kind%impr_kind_set => impr_kind_set
-         IF (PRESENT(opbend_kind_set)) molecule_kind%opbend_kind_set => opbend_kind_set
-         IF (PRESENT(nshell)) molecule_kind%nshell = nshell
-         IF (PRESENT(shell_list)) molecule_kind%shell_list => shell_list
-         IF (PRESENT(molecule_list)) THEN
-            n = SIZE(molecule_list)
-            molecule_kind%nmolecule = n
-            molecule_kind%molecule_list => molecule_list
-         END IF
-
-      ELSE
-
-         CPABORT("The pointer molecule_kind is not associated")
-
+      IF (PRESENT(atom_list)) THEN
+         n = SIZE(atom_list)
+         molecule_kind%natom = n
+         molecule_kind%atom_list => atom_list
       END IF
-
+      IF (PRESENT(molname_generated)) molecule_kind%molname_generated = molname_generated
+      IF (PRESENT(name)) molecule_kind%name = name
+      IF (PRESENT(mass)) molecule_kind%mass = mass
+      IF (PRESENT(charge)) molecule_kind%charge = charge
+      IF (PRESENT(kind_number)) molecule_kind%kind_number = kind_number
+      IF (PRESENT(nbond)) molecule_kind%nbond = nbond
+      IF (PRESENT(bond_list)) molecule_kind%bond_list => bond_list
+      IF (PRESENT(nbend)) molecule_kind%nbend = nbend
+      IF (PRESENT(nelectron)) molecule_kind%nelectron = nelectron
+      IF (PRESENT(nsgf)) molecule_kind%nsgf = nsgf
+      IF (PRESENT(bend_list)) molecule_kind%bend_list => bend_list
+      IF (PRESENT(nub)) molecule_kind%nub = nub
+      IF (PRESENT(ub_list)) molecule_kind%ub_list => ub_list
+      IF (PRESENT(ntorsion)) molecule_kind%ntorsion = ntorsion
+      IF (PRESENT(torsion_list)) molecule_kind%torsion_list => torsion_list
+      IF (PRESENT(nimpr)) molecule_kind%nimpr = nimpr
+      IF (PRESENT(impr_list)) molecule_kind%impr_list => impr_list
+      IF (PRESENT(nopbend)) molecule_kind%nopbend = nopbend
+      IF (PRESENT(opbend_list)) molecule_kind%opbend_list => opbend_list
+      IF (PRESENT(ncolv)) molecule_kind%ncolv = ncolv
+      IF (PRESENT(colv_list)) molecule_kind%colv_list => colv_list
+      IF (PRESENT(ng3x3)) molecule_kind%ng3x3 = ng3x3
+      IF (PRESENT(g3x3_list)) molecule_kind%g3x3_list => g3x3_list
+      IF (PRESENT(ng4x6)) molecule_kind%ng4x6 = ng4x6
+      IF (PRESENT(nvsite)) molecule_kind%nvsite = nvsite
+      IF (PRESENT(nfixd)) molecule_kind%nfixd = nfixd
+      IF (PRESENT(nfixd_restraint)) molecule_kind%nfixd_restraint = nfixd_restraint
+      IF (PRESENT(ng3x3_restraint)) molecule_kind%ng3x3_restraint = ng3x3_restraint
+      IF (PRESENT(ng4x6_restraint)) molecule_kind%ng4x6_restraint = ng4x6_restraint
+      IF (PRESENT(nvsite_restraint)) molecule_kind%nvsite_restraint = nvsite_restraint
+      IF (PRESENT(g4x6_list)) molecule_kind%g4x6_list => g4x6_list
+      IF (PRESENT(vsite_list)) molecule_kind%vsite_list => vsite_list
+      IF (PRESENT(fixd_list)) molecule_kind%fixd_list => fixd_list
+      IF (PRESENT(bond_kind_set)) molecule_kind%bond_kind_set => bond_kind_set
+      IF (PRESENT(bend_kind_set)) molecule_kind%bend_kind_set => bend_kind_set
+      IF (PRESENT(ub_kind_set)) molecule_kind%ub_kind_set => ub_kind_set
+      IF (PRESENT(torsion_kind_set)) molecule_kind%torsion_kind_set => torsion_kind_set
+      IF (PRESENT(impr_kind_set)) molecule_kind%impr_kind_set => impr_kind_set
+      IF (PRESENT(opbend_kind_set)) molecule_kind%opbend_kind_set => opbend_kind_set
+      IF (PRESENT(nshell)) molecule_kind%nshell = nshell
+      IF (PRESENT(shell_list)) molecule_kind%shell_list => shell_list
+      IF (PRESENT(molecule_list)) THEN
+         n = SIZE(molecule_list)
+         molecule_kind%nmolecule = n
+         molecule_kind%molecule_list => molecule_list
+      END IF
    END SUBROUTINE set_molecule_kind
 
 ! **************************************************************************************************
@@ -982,7 +956,7 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE write_molecule_kind(molecule_kind, output_unit)
-      TYPE(molecule_kind_type), POINTER                  :: molecule_kind
+      TYPE(molecule_kind_type), INTENT(IN)               :: molecule_kind
       INTEGER, INTENT(in)                                :: output_unit
 
       CHARACTER(LEN=default_string_length)               :: name
@@ -990,62 +964,56 @@ CONTAINS
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
 
       IF (output_unit > 0) THEN
-         IF (ASSOCIATED(molecule_kind)) THEN
-            natom = SIZE(molecule_kind%atom_list)
-            nmolecule = SIZE(molecule_kind%molecule_list)
+         natom = SIZE(molecule_kind%atom_list)
+         nmolecule = SIZE(molecule_kind%molecule_list)
 
-            IF (natom == 1) THEN
-               atomic_kind => molecule_kind%atom_list(1)%atomic_kind
-               CALL get_atomic_kind(atomic_kind=atomic_kind, name=name)
-               WRITE (UNIT=output_unit, FMT="(/,T2,I5,A,T36,A,A,T64,A)") &
-                  molecule_kind%kind_number, &
-                  ". Molecule kind: "//TRIM(molecule_kind%name), &
-                  "Atomic kind name:   ", TRIM(name)
-               WRITE (UNIT=output_unit, FMT="(T9,A,L1,T55,A,T75,I6)") &
-                  "Automatic name: ", molecule_kind%molname_generated, &
-                  "Number of molecules:", nmolecule
-            ELSE
-               WRITE (UNIT=output_unit, FMT="(/,T2,I5,A,T50,A,T75,I6,/,T22,A)") &
-                  molecule_kind%kind_number, &
-                  ". Molecule kind: "//TRIM(molecule_kind%name), &
-                  "Number of atoms:    ", natom, &
-                  "Atom         Atomic kind name"
-               DO iatom = 1, natom
-                  atomic_kind => molecule_kind%atom_list(iatom)%atomic_kind
-                  CALL get_atomic_kind(atomic_kind=atomic_kind, name=name)
-                  WRITE (UNIT=output_unit, FMT="(T20,I6,(7X,A18))") &
-                     iatom, TRIM(name)
-               END DO
-               WRITE (UNIT=output_unit, FMT="(/,T9,A,L1)") &
-                  "The name was automatically generated: ", &
-                  molecule_kind%molname_generated
-               WRITE (UNIT=output_unit, FMT="(T9,A,I6,/,T9,A,(T30,5I10))") &
-                  "Number of molecules: ", nmolecule, "Molecule list:", &
-                  (molecule_kind%molecule_list(imolecule), imolecule=1, nmolecule)
-               IF (molecule_kind%nbond > 0) &
-                  WRITE (UNIT=output_unit, FMT="(1X,A30,I6)") &
-                  "Number of bonds:       ", molecule_kind%nbond
-               IF (molecule_kind%nbend > 0) &
-                  WRITE (UNIT=output_unit, FMT="(1X,A30,I6)") &
-                  "Number of bends:       ", molecule_kind%nbend
-               IF (molecule_kind%nub > 0) &
-                  WRITE (UNIT=output_unit, FMT="(1X,A30,I6)") &
-                  "Number of Urey-Bradley:", molecule_kind%nub
-               IF (molecule_kind%ntorsion > 0) &
-                  WRITE (UNIT=output_unit, FMT="(1X,A30,I6)") &
-                  "Number of torsions:    ", molecule_kind%ntorsion
-               IF (molecule_kind%nimpr > 0) &
-                  WRITE (UNIT=output_unit, FMT="(1X,A30,I6)") &
-                  "Number of improper:    ", molecule_kind%nimpr
-               IF (molecule_kind%nopbend > 0) &
-                  WRITE (UNIT=output_unit, FMT="(1X,A30,I6)") &
-                  "Number of out opbends:    ", molecule_kind%nopbend
-            END IF
-
+         IF (natom == 1) THEN
+            atomic_kind => molecule_kind%atom_list(1)%atomic_kind
+            CALL get_atomic_kind(atomic_kind=atomic_kind, name=name)
+            WRITE (UNIT=output_unit, FMT="(/,T2,I5,A,T36,A,A,T64,A)") &
+               molecule_kind%kind_number, &
+               ". Molecule kind: "//TRIM(molecule_kind%name), &
+               "Atomic kind name:   ", TRIM(name)
+            WRITE (UNIT=output_unit, FMT="(T9,A,L1,T55,A,T75,I6)") &
+               "Automatic name: ", molecule_kind%molname_generated, &
+               "Number of molecules:", nmolecule
          ELSE
-            CPABORT("")
+            WRITE (UNIT=output_unit, FMT="(/,T2,I5,A,T50,A,T75,I6,/,T22,A)") &
+               molecule_kind%kind_number, &
+               ". Molecule kind: "//TRIM(molecule_kind%name), &
+               "Number of atoms:    ", natom, &
+               "Atom         Atomic kind name"
+            DO iatom = 1, natom
+               atomic_kind => molecule_kind%atom_list(iatom)%atomic_kind
+               CALL get_atomic_kind(atomic_kind=atomic_kind, name=name)
+               WRITE (UNIT=output_unit, FMT="(T20,I6,(7X,A18))") &
+                  iatom, TRIM(name)
+            END DO
+            WRITE (UNIT=output_unit, FMT="(/,T9,A,L1)") &
+               "The name was automatically generated: ", &
+               molecule_kind%molname_generated
+            WRITE (UNIT=output_unit, FMT="(T9,A,I6,/,T9,A,(T30,5I10))") &
+               "Number of molecules: ", nmolecule, "Molecule list:", &
+               (molecule_kind%molecule_list(imolecule), imolecule=1, nmolecule)
+            IF (molecule_kind%nbond > 0) &
+               WRITE (UNIT=output_unit, FMT="(1X,A30,I6)") &
+               "Number of bonds:       ", molecule_kind%nbond
+            IF (molecule_kind%nbend > 0) &
+               WRITE (UNIT=output_unit, FMT="(1X,A30,I6)") &
+               "Number of bends:       ", molecule_kind%nbend
+            IF (molecule_kind%nub > 0) &
+               WRITE (UNIT=output_unit, FMT="(1X,A30,I6)") &
+               "Number of Urey-Bradley:", molecule_kind%nub
+            IF (molecule_kind%ntorsion > 0) &
+               WRITE (UNIT=output_unit, FMT="(1X,A30,I6)") &
+               "Number of torsions:    ", molecule_kind%ntorsion
+            IF (molecule_kind%nimpr > 0) &
+               WRITE (UNIT=output_unit, FMT="(1X,A30,I6)") &
+               "Number of improper:    ", molecule_kind%nimpr
+            IF (molecule_kind%nopbend > 0) &
+               WRITE (UNIT=output_unit, FMT="(1X,A30,I6)") &
+               "Number of out opbends:    ", molecule_kind%nopbend
          END IF
-
       END IF
    END SUBROUTINE write_molecule_kind
 
@@ -1058,8 +1026,8 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE write_molecule_kind_set(molecule_kind_set, subsys_section)
-      TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
-      TYPE(section_vals_type), POINTER                   :: subsys_section
+      TYPE(molecule_kind_type), DIMENSION(:), INTENT(IN) :: molecule_kind_set
+      TYPE(section_vals_type), INTENT(IN)                :: subsys_section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'write_molecule_kind_set'
 
@@ -1069,7 +1037,6 @@ CONTAINS
                                                             ntotal, nub, output_unit
       LOGICAL                                            :: all_single_atoms
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(molecule_kind_type), POINTER                  :: molecule_kind
 
       CALL timeset(routineN, handle)
 
@@ -1078,55 +1045,49 @@ CONTAINS
       output_unit = cp_print_key_unit_nr(logger, subsys_section, &
                                          "PRINT%MOLECULES", extension=".Log")
       IF (output_unit > 0) THEN
-         IF (ASSOCIATED(molecule_kind_set)) THEN
-            WRITE (UNIT=output_unit, FMT="(/,/,T2,A)") "MOLECULE KIND INFORMATION"
+         WRITE (UNIT=output_unit, FMT="(/,/,T2,A)") "MOLECULE KIND INFORMATION"
 
-            nmolecule_kind = SIZE(molecule_kind_set)
+         nmolecule_kind = SIZE(molecule_kind_set)
 
-            all_single_atoms = .TRUE.
-            DO imolecule_kind = 1, nmolecule_kind
-               natom = SIZE(molecule_kind_set(imolecule_kind)%atom_list)
-               nmolecule = SIZE(molecule_kind_set(imolecule_kind)%molecule_list)
-               IF (natom*nmolecule > 1) all_single_atoms = .FALSE.
-            ENDDO
+         all_single_atoms = .TRUE.
+         DO imolecule_kind = 1, nmolecule_kind
+            natom = SIZE(molecule_kind_set(imolecule_kind)%atom_list)
+            nmolecule = SIZE(molecule_kind_set(imolecule_kind)%molecule_list)
+            IF (natom*nmolecule > 1) all_single_atoms = .FALSE.
+         ENDDO
 
-            IF (all_single_atoms) THEN
-               WRITE (UNIT=output_unit, FMT="(/,/,T2,A)") &
-                  "All atoms are their own molecule, skipping detailed information"
-            ELSE
-               DO imolecule_kind = 1, nmolecule_kind
-                  molecule_kind => molecule_kind_set(imolecule_kind)
-                  CALL write_molecule_kind(molecule_kind, output_unit)
-               END DO
-            ENDIF
-
-            CALL get_molecule_kind_set(molecule_kind_set=molecule_kind_set, &
-                                       nbond=nbond, &
-                                       nbend=nbend, &
-                                       nub=nub, &
-                                       ntorsion=ntors, &
-                                       nimpr=nimpr, &
-                                       nopbend=nopbend)
-            ntotal = nbond + nbend + nub + ntors + nimpr + nopbend
-            IF (ntotal > 0) THEN
-               WRITE (UNIT=output_unit, FMT="(/,/,T2,A,T45,A30,I6)") &
-                  "MOLECULE KIND SET INFORMATION", &
-                  "Total Number of bonds:       ", nbond
-               WRITE (UNIT=output_unit, FMT="(T45,A30,I6)") &
-                  "Total Number of bends:       ", nbend
-               WRITE (UNIT=output_unit, FMT="(T45,A30,I6)") &
-                  "Total Number of Urey-Bradley:", nub
-               WRITE (UNIT=output_unit, FMT="(T45,A30,I6)") &
-                  "Total Number of torsions:    ", ntors
-               WRITE (UNIT=output_unit, FMT="(T45,A30,I6)") &
-                  "Total Number of improper:    ", nimpr
-               WRITE (UNIT=output_unit, FMT="(T45,A30,I6)") &
-                  "Total Number of opbends:    ", nopbend
-            END IF
+         IF (all_single_atoms) THEN
+            WRITE (UNIT=output_unit, FMT="(/,/,T2,A)") &
+               "All atoms are their own molecule, skipping detailed information"
          ELSE
-            CPABORT("")
-         END IF
+            DO imolecule_kind = 1, nmolecule_kind
+               CALL write_molecule_kind(molecule_kind_set(imolecule_kind), output_unit)
+            END DO
+         ENDIF
 
+         CALL get_molecule_kind_set(molecule_kind_set=molecule_kind_set, &
+                                    nbond=nbond, &
+                                    nbend=nbend, &
+                                    nub=nub, &
+                                    ntorsion=ntors, &
+                                    nimpr=nimpr, &
+                                    nopbend=nopbend)
+         ntotal = nbond + nbend + nub + ntors + nimpr + nopbend
+         IF (ntotal > 0) THEN
+            WRITE (UNIT=output_unit, FMT="(/,/,T2,A,T45,A30,I6)") &
+               "MOLECULE KIND SET INFORMATION", &
+               "Total Number of bonds:       ", nbond
+            WRITE (UNIT=output_unit, FMT="(T45,A30,I6)") &
+               "Total Number of bends:       ", nbend
+            WRITE (UNIT=output_unit, FMT="(T45,A30,I6)") &
+               "Total Number of Urey-Bradley:", nub
+            WRITE (UNIT=output_unit, FMT="(T45,A30,I6)") &
+               "Total Number of torsions:    ", ntors
+            WRITE (UNIT=output_unit, FMT="(T45,A30,I6)") &
+               "Total Number of improper:    ", nimpr
+            WRITE (UNIT=output_unit, FMT="(T45,A30,I6)") &
+               "Total Number of opbends:    ", nopbend
+         END IF
       END IF
       CALL cp_print_key_finished_output(output_unit, logger, subsys_section, &
                                         "PRINT%MOLECULES")

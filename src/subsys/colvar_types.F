@@ -530,12 +530,11 @@ CONTAINS
 !> \author Teodoro Laino, [teo] 09.03.2006
 ! **************************************************************************************************
    SUBROUTINE colvar_setup(colvar)
-      TYPE(colvar_type), POINTER                         :: colvar
+      TYPE(colvar_type), INTENT(INOUT)                   :: colvar
 
       INTEGER                                            :: i, idum, iend, ii, istart, j, np, stat
       INTEGER, DIMENSION(:), POINTER                     :: list
 
-      CPASSERT(ASSOCIATED(colvar))
       SELECT CASE (colvar%type_id)
       CASE (dist_colvar_id)
          np = 2
@@ -1028,7 +1027,7 @@ CONTAINS
 !> \author Dorothea Golze
 ! **************************************************************************************************
    SUBROUTINE setup_hydronium_colvars(colvar, colvar_id, list)
-      TYPE(colvar_type), POINTER                         :: colvar
+      TYPE(colvar_type), INTENT(INOUT)                   :: colvar
       INTEGER, INTENT(IN)                                :: colvar_id
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: list
 
@@ -1097,7 +1096,7 @@ CONTAINS
 !> \author Dorothea Golze
 ! **************************************************************************************************
    SUBROUTINE setup_acid_hydronium_colvars(colvar, colvar_id, list)
-      TYPE(colvar_type), POINTER                         :: colvar
+      TYPE(colvar_type), INTENT(INOUT)                   :: colvar
       INTEGER, INTENT(IN)                                :: colvar_id
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: list
 
@@ -1186,7 +1185,7 @@ CONTAINS
 !> \author Teodoro Laino - 03.2007
 ! **************************************************************************************************
    FUNCTION colv_size(colvar, i) RESULT(my_size)
-      TYPE(colvar_type), POINTER                         :: colvar
+      TYPE(colvar_type), INTENT(IN)                      :: colvar
       INTEGER                                            :: i, my_size
 
       my_size = 1
@@ -1382,13 +1381,13 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] 04.2006
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE colvar_clone(colvar_out, colvar_in, i_atom_offset)
-      TYPE(colvar_type), POINTER                         :: colvar_out, colvar_in
+      TYPE(colvar_type), INTENT(INOUT), POINTER          :: colvar_out
+      TYPE(colvar_type), INTENT(IN)                      :: colvar_in
       INTEGER, INTENT(IN), OPTIONAL                      :: i_atom_offset
 
       INTEGER                                            :: i, my_offset, ndim, ndim2, stat
 
       my_offset = 0
-      CPASSERT(ASSOCIATED(colvar_in))
       CPASSERT(.NOT. ASSOCIATED(colvar_out))
       IF (PRESENT(i_atom_offset)) my_offset = i_atom_offset
       CALL colvar_create(colvar_out, colvar_in%type_id)
@@ -1794,7 +1793,8 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] 03.2007
 ! **************************************************************************************************
    SUBROUTINE colvar_clone_points(colvar_out, colvar_in, offset)
-      TYPE(colvar_type), POINTER                         :: colvar_out, colvar_in
+      TYPE(colvar_type), INTENT(INOUT)                   :: colvar_out
+      TYPE(colvar_type), INTENT(IN)                      :: colvar_in
       INTEGER, INTENT(IN)                                :: offset
 
       INTEGER                                            :: i, natoms, npoints
@@ -1911,8 +1911,8 @@ CONTAINS
 !> \author Teodoro Laino - 03.2007
 ! **************************************************************************************************
    SUBROUTINE eval_point_pos(point, particles, r)
-      TYPE(point_type)                                   :: point
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particles
+      TYPE(point_type), INTENT(IN)                       :: point
+      TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particles
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: r
 
       INTEGER                                            :: i
@@ -1936,8 +1936,8 @@ CONTAINS
 !> \param m ...
 ! **************************************************************************************************
    SUBROUTINE eval_point_mass(point, particles, m)
-      TYPE(point_type)                                   :: point
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particles
+      TYPE(point_type), INTENT(IN)                       :: point
+      TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particles
       REAL(KIND=dp), INTENT(OUT)                         :: m
 
       INTEGER                                            :: i
@@ -1963,9 +1963,9 @@ CONTAINS
 !> \author Teodoro Laino - 03.2007
 ! **************************************************************************************************
    SUBROUTINE eval_point_der(points, i, dsdr, f)
-      TYPE(point_type), DIMENSION(:), POINTER            :: points
+      TYPE(point_type), DIMENSION(:), INTENT(IN)         :: points
       INTEGER, INTENT(IN)                                :: i
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dsdr
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: dsdr
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: f
 
       INTEGER                                            :: ind, j
@@ -1998,7 +1998,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
    FUNCTION diff_colvar(colvar, b) RESULT(diff)
-      TYPE(colvar_type), POINTER                         :: colvar
+      TYPE(colvar_type), INTENT(IN)                      :: colvar
       REAL(KIND=dp), INTENT(IN)                          :: b
       REAL(KIND=dp)                                      :: diff
 
