@@ -129,6 +129,8 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(vxc_rho))
       CPASSERT(.NOT. ASSOCIATED(vxc_tau))
 
+      virial_xc = 0.0_dp
+
       CALL section_vals_val_get(xc_section, "FUNCTIONAL_ROUTINE", &
                                 i_val=f_routine)
       SELECT CASE (f_routine)
@@ -1116,6 +1118,7 @@ CONTAINS
       END IF
 
       use_virial = compute_virial
+      virial_xc = 0.0_dp
 
       bo = rho_r(1)%pw%pw_grid%bounds_local
       npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
