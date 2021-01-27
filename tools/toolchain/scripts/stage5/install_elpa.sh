@@ -2,8 +2,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-elpa_ver="2020.05.001"
-elpa_sha256="66ff1cf332ce1c82075dc7b5587ae72511d2bcb3a45322c94af6b01996439ce5"
+elpa_ver="2020.11.001"
+elpa_sha256="15591f142eeaa98ab3201d27ca9ac328e21beabf0803b011a04183fcaf6efdde"
 patches=(
     "${SCRIPT_DIR}/stage5/elpa-${elpa_ver}-no-LDFLAGS-for-NVCC-compile.patch"
     )
