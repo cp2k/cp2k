@@ -2415,13 +2415,15 @@ CONTAINS
 
       INTEGER                                            :: i, istat, j
 
-      DO i = 1, LEN_TRIM(string) - 2
-         IF (string(i:i + 1) .NE. "-Q") CYCLE
+      i = INDEX(string, "-Q", .TRUE.)
+      IF (i == 0) THEN
+         n = -1
+      ELSE
          j = SCAN(string(i + 2:), "- ")
          READ (string(i + 2:i + j), '(I3)', iostat=istat) n
-         IF (istat == 0) RETURN
-      ENDDO
-      n = -1 ! valence electron number not found
+         IF (istat /= 0) n = -1
+      END IF
+
    END FUNCTION
 
 ! **************************************************************************************************
