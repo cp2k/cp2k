@@ -493,6 +493,7 @@ CONTAINS
                                                             paw_atom, tau_f
       REAL(KIND=dp)                                      :: density_cut, gradient_cut, rtot, tau_cut
       REAL(KIND=dp), DIMENSION(1, 1)                     :: rtau
+      REAL(KIND=dp), DIMENSION(1, 1, 1, 1)               :: rrho
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rho1_h, rho1_s, rho_h, rho_s, tau1_h, &
                                                             tau1_s, tau_h, tau_s, weight
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: vxc_h, vxc_s
@@ -639,6 +640,9 @@ CONTAINS
             ALLOCATE (vxg_h(1:3, 1:na, 1:nr, 1:nspins), vxg_s(1:3, 1:na, 1:nr, 1:nspins))
             vxg_h = 0.0_dp
             vxg_s = 0.0_dp
+         ELSE
+            NULLIFY (vxg_h, vxg_s)
+            rrho = 0.0_dp
          END IF
 
          ! parallelization
@@ -690,11 +694,16 @@ CONTAINS
                   CALL fill_rho_set(rho1_set_h, lsd, nspins, needs, rho1_h, drho1_h, tau1_h, na, ir)
                   CALL fill_rho_set(rho_set_s, lsd, nspins, needs, rho_s, drho_s, tau_s, na, ir)
                   CALL fill_rho_set(rho1_set_s, lsd, nspins, needs, rho1_s, drho1_s, tau1_s, na, ir)
-               ELSE
+               ELSE IF (gradient_functional) THEN
                   CALL fill_rho_set(rho_set_h, lsd, nspins, needs, rho_h, drho_h, rtau, na, ir)
                   CALL fill_rho_set(rho1_set_h, lsd, nspins, needs, rho1_h, drho1_h, rtau, na, ir)
                   CALL fill_rho_set(rho_set_s, lsd, nspins, needs, rho_s, drho_s, rtau, na, ir)
                   CALL fill_rho_set(rho1_set_s, lsd, nspins, needs, rho1_s, drho1_s, rtau, na, ir)
+               ELSE
+                  CALL fill_rho_set(rho_set_h, lsd, nspins, needs, rho_h, rrho, rtau, na, ir)
+                  CALL fill_rho_set(rho1_set_h, lsd, nspins, needs, rho1_h, rrho, rtau, na, ir)
+                  CALL fill_rho_set(rho_set_s, lsd, nspins, needs, rho_s, rrho, rtau, na, ir)
+                  CALL fill_rho_set(rho1_set_s, lsd, nspins, needs, rho1_s, rrho, rtau, na, ir)
                END IF
 
             END DO
