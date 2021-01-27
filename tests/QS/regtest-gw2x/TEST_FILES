@@ -9,7 +9,7 @@ O2-HF-uks.inp                                          88      1e-08            
 #Checking the use of ADMM, pseudo-potentials and varying batch size
 CH3F-PBEh-admm-pseudo.inp                              88      1e-08            679.556996
 #Checking PBCs (non-practical calculations)
-Ne-pbc-shortrange.inp                                  88      1e-08            905.355502
+Ne-pbc-shortrange.inp                                  88      1e-08            904.378971
 Ne-pbc-truncated.inp                                   88      1e-08            919.922795
 #XPS only calculation, bypassing all XAS_TDP stuff
 SiH4-HF-xps_only.inp                                   91      1e-08            106.675736

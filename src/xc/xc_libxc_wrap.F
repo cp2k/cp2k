@@ -23,11 +23,10 @@ MODULE xc_libxc_wrap
 #if defined (__LIBXC)
 #include <xc_version.h>
 ! check for LibXC version
-#if (XC_MAJOR_VERSION < 4)
-   This version of CP2K ONLY works with libxc versions 4.0.3 and above.
+#if (XC_MAJOR_VERSION < 5 || (XC_MAJOR_VERSION == 5 && XC_MINOR_VERSION < 1))
+   This version of CP2K ONLY works with libxc versions 5.1.0 and above.
    Furthermore, -I${LIBXC_DIR}/include needs to be added to FCFLAGS.
 #else
-
    ! Functionals which require parameters
    USE cp_log_handling, ONLY: cp_to_string
    USE kinds, ONLY: dp
@@ -38,8 +37,10 @@ MODULE xc_libxc_wrap
                            !
                            xc_f03_gga_exc, &
                            xc_f03_gga_exc_vxc, &
+                           xc_f03_gga_exc_vxc_fxc, &
                            xc_f03_gga_fxc, &
                            xc_f03_gga_vxc, &
+                           xc_f03_gga_vxc_fxc, &
                            !
                            xc_f03_func_get_info, &
                            xc_f03_func_info_get_family, &
@@ -53,18 +54,20 @@ MODULE xc_libxc_wrap
                            xc_f03_func_reference_get_ref, &
                            xc_f03_func_reference_get_doi, &
                            !
-                           xc_f03_lda, &
+                           xc_f03_lda => xc_f03_lda_exc_vxc_fxc_kxc, &
                            xc_f03_lda_exc, &
                            xc_f03_lda_exc_vxc, &
+                           xc_f03_lda_exc_vxc_fxc, &
                            xc_f03_lda_fxc, &
                            xc_f03_lda_kxc, &
                            xc_f03_lda_vxc, &
                            !
-                           xc_f03_mgga, &
+                           xc_f03_mgga => xc_f03_mgga_exc_vxc_fxc, &
                            xc_f03_mgga_exc, &
                            xc_f03_mgga_exc_vxc, &
                            xc_f03_mgga_fxc, &
                            xc_f03_mgga_vxc, &
+                           xc_f03_mgga_vxc_fxc, &
                            !
                            xc_f03_func_t, &
                            xc_f03_func_info_t, &
@@ -73,6 +76,7 @@ MODULE xc_libxc_wrap
                            XC_FAMILY_LDA, &
                            XC_FAMILY_GGA, &
                            XC_FAMILY_MGGA, &
+                           XC_FAMILY_HYB_LDA, &
                            XC_FAMILY_HYB_GGA, &
                            XC_FAMILY_HYB_MGGA, &
                            !
@@ -101,16 +105,16 @@ MODULE xc_libxc_wrap
    PUBLIC :: xc_f03_func_init, xc_f03_func_end
    PUBLIC :: xc_f03_func_get_info, xc_f03_func_info_get_family, xc_f03_func_info_get_kind, &
              xc_f03_func_info_get_name
-   PUBLIC :: xc_f03_gga_exc, xc_f03_gga_exc_vxc, xc_f03_gga_fxc, &
-             xc_f03_gga_vxc
+   PUBLIC :: xc_f03_gga_exc, xc_f03_gga_exc_vxc, xc_f03_gga_exc_vxc_fxc, xc_f03_gga_fxc, &
+             xc_f03_gga_vxc, xc_f03_gga_vxc_fxc
    PUBLIC :: xc_f03_lda, &
-             xc_f03_lda_exc, xc_f03_lda_exc_vxc, &
+             xc_f03_lda_exc, xc_f03_lda_exc_vxc, xc_f03_lda_exc_vxc_fxc, &
              xc_f03_lda_fxc, xc_f03_lda_kxc, xc_f03_lda_vxc
    PUBLIC :: xc_f03_mgga, xc_f03_mgga_exc, xc_f03_mgga_exc_vxc, xc_f03_mgga_fxc, &
-             xc_f03_mgga_vxc
+             xc_f03_mgga_vxc, xc_f03_mgga_vxc_fxc
 
    PUBLIC :: XC_FAMILY_LDA, XC_FAMILY_GGA, XC_FAMILY_MGGA, &
-             XC_FAMILY_HYB_GGA, XC_FAMILY_HYB_MGGA
+             XC_FAMILY_HYB_LDA, XC_FAMILY_HYB_GGA, XC_FAMILY_HYB_MGGA
 
    PUBLIC :: XC_UNPOLARIZED, XC_POLARIZED
 
@@ -122,9 +126,56 @@ MODULE xc_libxc_wrap
              xc_libxc_wrap_functional_get_number, &
              xc_libxc_wrap_needs_laplace, &
              xc_libxc_wrap_functional_set_params, &
-             xc_libxc_wrap_is_under_development
+             xc_libxc_wrap_is_under_development, &
+             xc_libxc_get_reference_length
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Provides the reference(s) for this functional.
+!> \param xc_info func_info object of the functional
+!> \return upper bound for the length of the reference string
+!> \author F. Stein
+! **************************************************************************************************
+   FUNCTION xc_libxc_get_reference_length(xc_info) RESULT(length)
+
+      TYPE(xc_f03_func_info_t), INTENT(IN)               :: xc_info
+      INTEGER                                            :: length
+
+      INTEGER, PARAMETER                                 :: maxlen = 67
+
+      CHARACTER(LEN=128)                                 :: descr_string
+      CHARACTER(LEN=1024)                                :: doi_string, ref_string
+      INTEGER                                            :: i, i_ref, idx, n_params
+      TYPE(xc_f03_func_reference_t)                      :: xc_ref
+
+      ! We are counting the number of necessary lines by carrying out a dry run of xc_libxc_wrap_info_refs
+      i_ref = 0
+      idx = 1
+      length = 10
+      DO WHILE (i_ref >= 0)
+         ! information about functional references
+         xc_ref = xc_f03_func_info_get_references(xc_info, i_ref)
+         ref_string = xc_f03_func_reference_get_ref(xc_ref)
+         doi_string = xc_f03_func_reference_get_doi(xc_ref)
+         length = length + LEN_TRIM(ref_string) + LEN_TRIM(doi_string) + 11
+         IF (MOD(length, maxlen) /= 0) length = length + maxlen - MOD(length, maxlen)
+         ! information about (optional) external parameters
+         n_params = xc_f03_func_info_get_n_ext_params(xc_info)
+         IF (n_params > 0) THEN
+            length = length + maxlen
+         END IF
+         DO i = 1, n_params
+            descr_string = xc_f03_func_info_get_ext_params_description(xc_info, i - 1)
+            length = length + LEN_TRIM(descr_string) - 1 + 3
+            IF (MOD(length, maxlen) /= 0) length = length + maxlen - MOD(length, maxlen)
+         END DO
+         idx = idx + 1
+      END DO
+      ! two additional lines for spin polarization, scaling factor and buffer
+      length = length + 2*maxlen
+
+   END FUNCTION xc_libxc_get_reference_length
 
 ! **************************************************************************************************
 !> \brief Provides the reference(s) for this functional.
@@ -145,7 +196,9 @@ CONTAINS
       INTEGER, PARAMETER                                 :: maxlen = 67
 
       CHARACTER(LEN=128)                                 :: descr_string
-      CHARACTER(LEN=400)                                 :: doi_string, ref_string, tmp_string
+      CHARACTER(LEN=1028)                                :: doi_string, ref_string
+      ! conservative estimate of the necessary length: 2*1028+11=2067
+      CHARACTER(LEN=2067)                                :: tmp_string
       INTEGER                                            :: empty, first, handle, i, i_ref, idx, &
                                                             last, n_params
       TYPE(xc_f03_func_reference_t)                      :: xc_ref
@@ -204,6 +257,9 @@ CONTAINS
       first = last + 1
       ! fill with 'spaces'
       reference(first:LEN(reference)) = ' '
+
+      IF (last > LEN(reference)) &
+         CPABORT("Faulty reference length.")
 
       CALL timestop(handle)
 

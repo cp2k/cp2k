@@ -191,7 +191,7 @@ version of CP2K (ssmp or psmp), the FFTW3 threading library libfftw3_threads
 
 ### 2k. libxc (optional, wider choice of xc functionals)
 
-- The version 4.0.3 (or later) of libxc can be downloaded from <http://www.tddft.org/programs/octopus/wiki/index.php/Libxc>.
+- The version 5.1.0 (or later) of libxc can be downloaded from <https://www.tddft.org/programs/libxc>
 - During the installation, the directories `$(LIBXC_DIR)/lib`
   and `$(LIBXC_DIR)/include` are created.
 - Add `-D__LIBXC` to DFLAGS, `-I$(LIBXC_DIR)/include` to FCFLAGS

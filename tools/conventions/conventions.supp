@@ -12,6 +12,8 @@ Flag LIBINT_CONTRACTED_INTS not mentioned in INSTALL.md
 Flag LIBINT_CONTRACTED_INTS not mentioned in cp2k_flags()
 Flag XC_MAJOR_VERSION not mentioned in INSTALL.md
 Flag XC_MAJOR_VERSION not mentioned in cp2k_flags()
+Flag XC_MINOR_VERSION not mentioned in INSTALL.md
+Flag XC_MINOR_VERSION not mentioned in cp2k_flags()
 Flag __CRAY_PM_FAKE_ENERGY not mentioned in INSTALL.md
 Flag __DATA_DIR not mentioned in cp2k_flags()
 Flag __FFTW3_UNALIGNED not mentioned in cp2k_flags()
