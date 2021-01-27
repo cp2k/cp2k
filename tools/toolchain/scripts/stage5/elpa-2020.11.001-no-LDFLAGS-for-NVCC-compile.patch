@@ -2,7 +2,7 @@ diff --git a/Makefile.in b/Makefile.in
 index 312c7f2..11daefb 100644
 --- a/Makefile.in
 +++ b/Makefile.in
-@@ -21004,7 +21004,7 @@ uninstall-man: uninstall-man1 uninstall-man3
+@@ -21518,7 +21518,7 @@ uninstall-man: uninstall-man1 uninstall-man3
  
  # Cuda files
  .cu.lo:
