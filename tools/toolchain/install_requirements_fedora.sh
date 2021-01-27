@@ -23,8 +23,6 @@ dnf -qy install                             \
     perl-open                               \
     perl-FindBin                            \
     pkg-config                              \
-    python                                  \
-    python-numpy                            \
     python3                                 \
     unzip                                   \
     vim-common                              \
