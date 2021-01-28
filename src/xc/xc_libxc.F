@@ -143,6 +143,7 @@ CONTAINS
       CALL xc_f03_func_end(xc_func)
 #else
       MARK_USED(libxc_params)
+      MARK_USED(lsd)
       length = 0
       CPABORT("In order to use LibXC you have to download and install it!")
 #endif
