@@ -1,6 +1,6 @@
 # Tested with: GFortran 8.3.0, LAPACK 3.9.0, FFTW 3.3, LIBINT 2.6.0,
-#             LIBXC 4.3.4, SPGLIB 1.16.0, LIBVORI 201229, LIBXSMM 1.16.1
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, December 2020)
+#              LIBXC 5.1.0, SPGLIB 1.16.0, LIBVORI 201229, LIBXSMM 1.16.1
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, January 2021)
 
 CC          = gcc
 FC          = gfortran
@@ -15,8 +15,8 @@ LIBINT_LIB  = $(GNU_PATH)/libint/2.6.0-lmax-6/lib
 
 LIBVORI_LIB = $(GNU_PATH)/libvori/201229/lib
 
-LIBXC_INC   = $(GNU_PATH)/libxc/4.3.4/include
-LIBXC_LIB   = $(GNU_PATH)/libxc/4.3.4/lib
+LIBXC_INC   = $(GNU_PATH)/libxc/5.1.0/include
+LIBXC_LIB   = $(GNU_PATH)/libxc/5.1.0/lib
 
 LIBXSMM_INC = $(GNU_PATH)/libxsmm/1.16.1/include
 LIBXSMM_LIB = $(GNU_PATH)/libxsmm/1.16.1/lib
@@ -24,7 +24,7 @@ LIBXSMM_LIB = $(GNU_PATH)/libxsmm/1.16.1/lib
 SPGLIB_INC  = $(GNU_PATH)/spglib/1.16.0/include
 SPGLIB_LIB  = $(GNU_PATH)/spglib/1.16.0/lib
 
-CFLAGS      = -O2 -fopenmp -g -march=native -mtune=native
+CFLAGS      = -O2 -fopenmp -ftree-vectorize -funroll-loops -g -march=native -mtune=native
 
 DFLAGS      = -D__FFTW3
 DFLAGS     += -D__LIBINT
@@ -37,8 +37,7 @@ FCFLAGS     = $(CFLAGS) $(DFLAGS)
 FCFLAGS    += -fbacktrace
 FCFLAGS    += -ffree-form
 FCFLAGS    += -ffree-line-length-none
-FCFLAGS    += -ftree-vectorize
-FCFLAGS    += -funroll-loops
+FCFLAGS    += -fno-omit-frame-pointer
 FCFLAGS    += -std=f2008
 FCFLAGS    += -I$(FFTW_INC)
 FCFLAGS    += -I$(LIBINT_INC)
