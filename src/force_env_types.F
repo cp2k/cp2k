@@ -310,7 +310,7 @@ CONTAINS
                                       kinetic_energy, harmonic_shell, kinetic_shell, cell, sub_force_env, &
                                       qmmm_env, qmmmx_env, eip_env, pwdft_env, globenv, input, force_env_section, &
                                       method_name_id, root_section, mixed_env, nnp_env, embed_env)
-      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(force_env_type), INTENT(IN)                   :: force_env
       INTEGER, INTENT(out), OPTIONAL                     :: in_use
       TYPE(fist_environment_type), OPTIONAL, POINTER     :: fist_env
       TYPE(qs_environment_type), OPTIONAL, POINTER       :: qs_env
@@ -345,7 +345,6 @@ CONTAINS
 
       NULLIFY (subsys_tmp)
 
-      CPASSERT(ASSOCIATED(force_env))
       CPASSERT(force_env%ref_count > 0)
 
       SELECT CASE (force_env%in_use)
@@ -496,7 +495,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION force_env_get_natom(force_env) RESULT(n_atom)
 
-      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(force_env_type), INTENT(IN)                   :: force_env
       INTEGER                                            :: n_atom
 
       TYPE(cp_subsys_type), POINTER                      :: subsys
@@ -517,7 +516,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION force_env_get_nparticle(force_env) RESULT(n_particle)
 
-      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(force_env_type), INTENT(IN)                   :: force_env
       INTEGER                                            :: n_particle
 
       TYPE(cp_subsys_type), POINTER                      :: subsys
@@ -539,7 +538,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE force_env_get_frc(force_env, frc, n)
 
-      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(force_env_type), INTENT(IN)                   :: force_env
       REAL(KIND=dp), DIMENSION(*), INTENT(OUT)           :: frc
       INTEGER, INTENT(IN)                                :: n
 
@@ -549,7 +548,6 @@ CONTAINS
       TYPE(cp_subsys_type), POINTER                      :: subsys
 
       CALL timeset(routineN, handle)
-      CPASSERT(ASSOCIATED(force_env))
       CPASSERT(force_env%ref_count > 0)
       CALL force_env_get(force_env, subsys=subsys)
       CALL pack_subsys_particles(subsys=subsys, f=frc(1:n))
@@ -567,7 +565,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE force_env_get_pos(force_env, pos, n)
 
-      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(force_env_type), INTENT(IN)                   :: force_env
       REAL(kind=dp), DIMENSION(*), INTENT(OUT)           :: pos
       INTEGER, INTENT(IN)                                :: n
 
@@ -577,7 +575,6 @@ CONTAINS
       TYPE(cp_subsys_type), POINTER                      :: subsys
 
       CALL timeset(routineN, handle)
-      CPASSERT(ASSOCIATED(force_env))
       CPASSERT(force_env%ref_count > 0)
       CALL force_env_get(force_env, subsys=subsys)
       CALL pack_subsys_particles(subsys=subsys, r=pos(1:n))
@@ -595,7 +592,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE force_env_get_vel(force_env, vel, n)
 
-      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(force_env_type), INTENT(IN)                   :: force_env
       REAL(KIND=dp), DIMENSION(*), INTENT(OUT)           :: vel
       INTEGER, INTENT(IN)                                :: n
 
@@ -605,7 +602,6 @@ CONTAINS
       TYPE(cp_subsys_type), POINTER                      :: subsys
 
       CALL timeset(routineN, handle)
-      CPASSERT(ASSOCIATED(force_env))
       CPASSERT(force_env%ref_count > 0)
       CALL force_env_get(force_env, subsys=subsys)
       CALL pack_subsys_particles(subsys=subsys, v=vel(1:n))
@@ -628,14 +624,13 @@ CONTAINS
    SUBROUTINE force_env_set(force_env, meta_env, fp_env, force_env_section, &
                             method_name_id, additional_potential)
 
-      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(force_env_type), INTENT(INOUT)                :: force_env
       TYPE(meta_env_type), OPTIONAL, POINTER             :: meta_env
       TYPE(fp_type), OPTIONAL, POINTER                   :: fp_env
       TYPE(section_vals_type), OPTIONAL, POINTER         :: force_env_section
       INTEGER, OPTIONAL                                  :: method_name_id
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: additional_potential
 
-      CPASSERT(ASSOCIATED(force_env))
       CPASSERT(force_env%ref_count > 0)
       IF (PRESENT(meta_env)) THEN
          IF (ASSOCIATED(meta_env)) THEN
@@ -675,7 +670,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE multiple_fe_list(force_env_sections, root_section, i_force_eval, nforce_eval)
 
-      TYPE(section_vals_type), POINTER                   :: force_env_sections, root_section
+      TYPE(section_vals_type), INTENT(IN)                :: force_env_sections, root_section
       INTEGER, DIMENSION(:), POINTER                     :: i_force_eval
       INTEGER                                            :: nforce_eval
 
@@ -707,4 +702,3 @@ CONTAINS
    END SUBROUTINE multiple_fe_list
 
 END MODULE force_env_types
-

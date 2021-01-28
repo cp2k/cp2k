@@ -369,7 +369,7 @@ CONTAINS
                          nkind, natom, dft_control, dbcsr_dist, distribution_2d, pw_env, &
                          para_env, blacs_env, nelectron_total, nelectron_spin, admm_dm)
 
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(qs_ks_env_type), INTENT(IN)                   :: ks_env
       TYPE(pw_type), OPTIONAL, POINTER                   :: v_hartree_rspace
       LOGICAL, OPTIONAL                                  :: s_mstruct_changed, rho_changed, &
                                                             potential_changed, forces_up_to_date
@@ -426,7 +426,6 @@ CONTAINS
       INTEGER, DIMENSION(2), OPTIONAL                    :: nelectron_spin
       TYPE(admm_dm_type), OPTIONAL, POINTER              :: admm_dm
 
-      IF (.NOT. ASSOCIATED(ks_env)) CPABORT("get_ks_env: not associated")
       IF (ks_env%ref_count < 1) CPABORT("get_ks_env: ks_env%ref_count<1")
       IF (.NOT. ASSOCIATED(ks_env%subsys)) CPABORT("get_ks_env: subsys not associated")
 
@@ -623,7 +622,7 @@ CONTAINS
                          subsys, dft_control, dbcsr_dist, distribution_2d, pw_env, &
                          para_env, blacs_env, admm_dm)
 
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(qs_ks_env_type), INTENT(INOUT)                :: ks_env
       TYPE(pw_type), OPTIONAL, POINTER                   :: v_hartree_rspace
       LOGICAL, OPTIONAL                                  :: s_mstruct_changed, rho_changed, &
                                                             potential_changed, forces_up_to_date
@@ -654,7 +653,6 @@ CONTAINS
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env
       TYPE(admm_dm_type), OPTIONAL, POINTER              :: admm_dm
 
-      IF (.NOT. ASSOCIATED(ks_env)) CPABORT("set_ks_env: not associated")
       IF (ks_env%ref_count < 1) CPABORT("set_ks_env: ks_env%ref_count<1")
 
       IF (PRESENT(s_mstruct_changed)) ks_env%s_mstruct_changed = s_mstruct_changed
@@ -923,7 +921,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qs_ks_did_change(ks_env, s_mstruct_changed, rho_changed, &
                                potential_changed, full_reset)
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(qs_ks_env_type), INTENT(INOUT)                :: ks_env
       LOGICAL, INTENT(in), OPTIONAL                      :: s_mstruct_changed, rho_changed, &
                                                             potential_changed, full_reset
 
@@ -934,8 +932,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       my_mstruct_chg = .FALSE.
-
-      CPASSERT(ASSOCIATED(ks_env))
 
       IF (PRESENT(rho_changed)) THEN
          IF (rho_changed) ks_env%rho_changed = .TRUE.
