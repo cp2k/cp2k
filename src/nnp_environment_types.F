@@ -455,7 +455,7 @@ CONTAINS
                           nnp_input, force_env_input, cell, cell_ref, &
                           use_ref_cell, nnp_potential_energy, virial)
 
-      TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp_env
+      TYPE(nnp_type), INTENT(IN)                         :: nnp_env
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: nnp_forces
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
       TYPE(atomic_kind_type), DIMENSION(:), OPTIONAL, &
@@ -481,7 +481,6 @@ CONTAINS
 
       NULLIFY (atomic_kinds, particles, molecules, molecule_kinds)
 
-      CPASSERT(ASSOCIATED(nnp_env))
       CPASSERT(nnp_env%ref_count > 0)
 
       IF (PRESENT(nnp_potential_energy)) THEN
@@ -541,7 +540,7 @@ CONTAINS
                           nnp_input, force_env_input, cell_ref, &
                           use_ref_cell, nnp_potential_energy)
 
-      TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp_env
+      TYPE(nnp_type), INTENT(INOUT)                      :: nnp_env
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: nnp_forces
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
       TYPE(atomic_kind_type), DIMENSION(:), OPTIONAL, &
@@ -564,7 +563,6 @@ CONTAINS
       TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(particle_list_type), POINTER                  :: particles
 
-      CPASSERT(ASSOCIATED(nnp_env))
       CPASSERT(nnp_env%ref_count > 0)
 
       IF (PRESENT(nnp_potential_energy)) THEN
