@@ -27,6 +27,7 @@ if [ -n "${USE_STABLE_DBCSR}" ] ; then
         echo -e "Status: FAILED\n"
         exit 0
     fi
+    ln -fs python3 /usr/bin/python  # DBCSR v2.1.0-rc16 needs the python binary.
 fi
 
 # Compile cp2k.
