@@ -19,7 +19,10 @@ MODULE fist_neighbor_list_control
    USE cell_types,                      ONLY: cell_clone,&
                                               cell_create,&
                                               cell_release,&
-                                              cell_type
+                                              cell_type,&
+                                              pbc,&
+                                              real_to_scaled,&
+                                              scaled_to_real
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -102,7 +105,7 @@ CONTAINS
       LOGICAL, DIMENSION(:, :), POINTER                  :: full_nl
       REAL(KIND=dp)                                      :: aup, dr2, dr2_max, ei_scale14, lup, &
                                                             vdw_scale14, verlet_skin
-      REAL(KIND=dp), DIMENSION(3)                        :: dr, rab, s, s2r
+      REAL(KIND=dp), DIMENSION(3)                        :: dr, rab, rab_last_update, s, s2r
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rlist_cut, rlist_lowsq
       TYPE(cell_type), POINTER                           :: cell_last_update
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -278,25 +281,12 @@ CONTAINS
       ! Store particle positions after the last update, translated to the
       ! primitive cell, in r_last_update_pbc.
       DO iparticle = 1, nparticle
-         rab = r_last_update(iparticle)%r
-         IF (cell%orthorhombic) THEN
-            rab(1) = -cell%hmat(1, 1)*cell%perd(1)*ANINT(cell_last_update%h_inv(1, 1)*rab(1))
-            rab(2) = -cell%hmat(2, 2)*cell%perd(2)*ANINT(cell_last_update%h_inv(2, 2)*rab(2))
-            rab(3) = -cell%hmat(3, 3)*cell%perd(3)*ANINT(cell_last_update%h_inv(3, 3)*rab(3))
-         ELSE
-            s(1) = cell_last_update%h_inv(1, 1)*rab(1) + cell_last_update%h_inv(1, 2)*rab(2) + &
-                   cell_last_update%h_inv(1, 3)*rab(3)
-            s(2) = cell_last_update%h_inv(2, 1)*rab(1) + cell_last_update%h_inv(2, 2)*rab(2) + &
-                   cell_last_update%h_inv(2, 3)*rab(3)
-            s(3) = cell_last_update%h_inv(3, 1)*rab(1) + cell_last_update%h_inv(3, 2)*rab(2) + &
-                   cell_last_update%h_inv(3, 3)*rab(3)
-            s(1) = -cell%perd(1)*ANINT(s(1))
-            s(2) = -cell%perd(2)*ANINT(s(2))
-            s(3) = -cell%perd(3)*ANINT(s(3))
-            rab(1) = +cell%hmat(1, 1)*s(1) + cell%hmat(1, 2)*s(2) + cell%hmat(1, 3)*s(3)
-            rab(2) = +cell%hmat(2, 1)*s(1) + cell%hmat(2, 2)*s(2) + cell%hmat(2, 3)*s(3)
-            rab(3) = +cell%hmat(3, 1)*s(1) + cell%hmat(3, 2)*s(2) + cell%hmat(3, 3)*s(3)
-         END IF
+         ! The pbc algorithm is sensitive to numeric noise and compiler optimization because of ANINT.
+         ! Therefore we need to call here exactly the same routine as in build_neighbor_lists.
+         rab_last_update = pbc(r_last_update(iparticle)%r, cell_last_update) - r_last_update(iparticle)%r
+         CALL real_to_scaled(s, rab_last_update, cell_last_update)
+         CALL scaled_to_real(rab, s, cell)
+
          r_last_update_pbc(iparticle)%r = particle_set(iparticle)%r + rab
          ! Use the same translation for core and shell.
          ishell = particle_set(iparticle)%shell_index
