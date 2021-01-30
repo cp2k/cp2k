@@ -430,13 +430,13 @@ CONTAINS
       occ_estate = 0.0_dp
       IF (PRESENT(xas_env)) THEN
          CALL get_xas_env(xas_env=xas_env, xas_nelectron=xas_nelectron, occ_estate=occ_estate, xas_estate=xas_estate)
-         nomo = INT(xas_nelectron + 1 - occ_estate)
-         IF (MOD(xas_nelectron + 1 - occ_estate, 1.0_dp) > EPSILON(0.0_dp)) nomo = nomo + 1
+         nomo = CEILING(xas_nelectron + 1.0 - occ_estate - EPSILON(0.0_dp))
 
          mo_set%occupation_numbers(1:nomo) = mo_set%maxocc
          IF (xas_estate > 0) mo_set%occupation_numbers(xas_estate) = occ_estate
          el_count = SUM(mo_set%occupation_numbers(1:nomo))
-        IF (el_count > xas_nelectron) mo_set%occupation_numbers(nomo) = mo_set%occupation_numbers(nomo) - (el_count - xas_nelectron)
+         IF (el_count > xas_nelectron) &
+            mo_set%occupation_numbers(nomo) = mo_set%occupation_numbers(nomo) - (el_count - xas_nelectron)
          el_count = SUM(mo_set%occupation_numbers(1:nomo))
          is_large = ABS(el_count - xas_nelectron) > xas_nelectron*EPSILON(el_count)
          CPASSERT(.NOT. is_large)
