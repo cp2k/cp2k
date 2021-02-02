@@ -1,6 +1,6 @@
 # Tested with: GFortran 8.3.0, MPICH 3.2.1, Cray-libsci 20.06.1, Cray-FFTW 3.3.8, Libint 2.6.0,
-#              Libxc 4.3.4, libxsmm 1.16.1, ELPA 2020.05.001, PLUMED 2.6.1, SPGLIB 1.16.0
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, September 2020)
+#              Libxc 5.1.0, libxsmm 1.16.1, ELPA 2020.11.001, PLUMED 2.6.2, SPGLIB 1.16.0
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, January 2021)
 
 # Cray XC40 (Piz Daint, CSCS, multi-core partition)
 
@@ -18,17 +18,17 @@ FC          = ftn
 LD          = ftn
 AR          = ar -r
 
-include       $(MPI_PATH)/plumed/2.6.1/lib/plumed/src/lib/Plumed.inc.static
+include       $(MPI_PATH)/plumed2/2.6.2/lib/plumed/src/lib/Plumed.inc.static
 
-ELPA_VER    = 2020.05.001
+ELPA_VER    = 2020.11.001
 ELPA_INC    = $(MPI_PATH)/elpa/$(ELPA_VER)/include/elpa_openmp-$(ELPA_VER)
 ELPA_LIB    = $(MPI_PATH)/elpa/$(ELPA_VER)/lib
 
 LIBINT_INC  = $(GNU_PATH)/libint/2.6.0-lmax-6/include
 LIBINT_LIB  = $(GNU_PATH)/libint/2.6.0-lmax-6/lib
 
-LIBXC_INC   = $(GNU_PATH)/libxc/4.3.4/include
-LIBXC_LIB   = $(GNU_PATH)/libxc/4.3.4/lib
+LIBXC_INC   = $(GNU_PATH)/libxc/5.1.0/include
+LIBXC_LIB   = $(GNU_PATH)/libxc/5.1.0/lib
 
 LIBXSMM_INC = $(GNU_PATH)/libxsmm/1.16.1/include
 LIBXSMM_LIB = $(GNU_PATH)/libxsmm/1.16.1/lib
@@ -40,7 +40,6 @@ CFLAGS      = -O3 -fopenmp -ftree-vectorize -funroll-loops -g
 
 DFLAGS      = -D__ELPA
 DFLAGS     += -D__FFTW3
-#DFLAGS     += -D__HAS_smm_dnn
 DFLAGS     += -D__LIBINT
 DFLAGS     += -D__LIBXC
 DFLAGS     += -D__LIBXSMM
@@ -53,11 +52,16 @@ DFLAGS     += -D__SCALAPACK
 #DFLAGS     += -D__CHECK_DIAG
 
 FCFLAGS     = $(CFLAGS) $(DFLAGS)
+FCFLAGS    += -fbacktrace
 FCFLAGS    += -ffree-form
 FCFLAGS    += -ffree-line-length-none
+FCFLAGS    += -fno-omit-frame-pointer
 FCFLAGS    += -std=f2008
 FCFLAGS    += -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules
-FCFLAGS    += -I$(LIBINT_INC) -I$(LIBXC_INC) -I$(LIBXSMM_INC) -I$(SPGLIB_INC)
+FCFLAGS    += -I$(LIBINT_INC)
+FCFLAGS    += -I$(LIBXC_INC)
+FCFLAGS    += -I$(LIBXSMM_INC)
+FCFLAGS    += -I$(SPGLIB_INC)
 
 LDFLAGS     = $(FCFLAGS) -static
 
@@ -67,7 +71,6 @@ LIBS       += $(LIBXC_LIB)/libxcf03.a
 LIBS       += $(LIBXC_LIB)/libxc.a
 LIBS       += $(LIBINT_LIB)/libint2.a
 LIBS       += $(SPGLIB_LIB)/libsymspg.a
-#LIBS       += /apps/common/UES/easybuild/sources/c/CP2K/libsmm_dnn_cray.gnu.a
 LIBS       += $(LIBXSMM_LIB)/libxsmmf.a
 LIBS       += $(LIBXSMM_LIB)/libxsmm.a
 LIBS       += -ldl -lstdc++
