@@ -37,6 +37,10 @@ cd tools/toolchain/
 Sub-points here discuss prerequisites needed to build CP2K. Copies of the
 recommended versions of 3rd party software can be downloaded from <https://www.cp2k.org/static/downloads/>.
 
+Generally, CP2K supports only one version for each of its dependencies.
+These are defined by the [toolchain scripts](./tools/toolchain/scripts/).
+Other versions might work too, but we don't test them. So, your mileage may vary.
+
 ### 2a. GNU make (required, build system)
 
 GNU make should be on your system (gmake or make on linux) and used for the build,
