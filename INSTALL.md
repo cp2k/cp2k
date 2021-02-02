@@ -101,6 +101,7 @@ If your computing platform does not provide MPI,
 there are several freely available alternatives:
 
 - MPICH2 MPI: <http://www-unix.mcs.anl.gov/mpi/mpich/>
+  (may require `-fallow-argument-mismatch` when building with GCC 10)
 - OpenMPI MPI: <http://www.open-mpi.org/>
 - ScaLAPACK:
   - <http://www.netlib.org/scalapack/>
