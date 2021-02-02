@@ -73,8 +73,10 @@ matching your compiler, and download all patches!
   - <http://math-atlas.sourceforge.net>
   - <https://www.tacc.utexas.edu/research-development/tacc-software/gotoblas2>
 
-If compiling with OpenMP support then it is recommended to use a non-threaded
-version of BLAS. In particular if compiling with MKL and using OpenMP you must
+Please note that the BLAS/LAPACK implementation used by CP2K needs to be
+OpenMP thread-safe. Examples are: the sequential variant of the Intel MKL,
+the Cray libsci, the OpenBLAS OpenMP variant and the reference BLAS/LAPACK packages.
+In particular if compiling with MKL you must
 define `-D__MKL` to ensure the code is thread-safe. MKL with multiple OpenMP
 threads in CP2K requires that CP2K was compiled with the Intel compiler.
 If the `cpp` precompiler is used in a separate precompilation step in combination
@@ -125,9 +127,8 @@ use gfortran).
 :warning: Note that on machines and compilers which support SSE you can configure
 FFTW3 with `--enable-sse2`. Compilers/systems that do not align memory (NAG f95,
 Intel IA32/gfortran) should either not use `--enable-sse2` or otherwise set the
-define `-D__FFTW3_UNALIGNED` in the arch file. When building an OpenMP parallel
-version of CP2K (ssmp or psmp), the FFTW3 threading library libfftw3_threads
-(or libfftw3_omp) is required.
+define `-D__FFTW3_UNALIGNED` in the arch file. Since CP2K is OpenMP parallelized,
+the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
 
 ### 2g. LIBINT (optional, enables methods including HF exchange)
 
@@ -204,8 +205,7 @@ Library ELPA for the solution of the eigenvalue problem
 
 - ELPA replaces the ScaLapack `SYEVD` to improve the performance of the diagonalization
 - A version of ELPA can to be downloaded from <http://elpa.rzg.mpg.de/software>.
-- During the installation the `libelpa.a`
-  (or `libelpa_openmp.a` if OpenMP is enabled) is created.
+- During the installation the `libelpa_openmp.a` is created.
 - Minimal supported version of ELPA is 2018.05.001.
 - Add `-D__ELPA` to `DFLAGS`
 - Add `-I$(ELPA_INCLUDE_DIR)/modules` to `FCFLAGS`
@@ -425,8 +425,7 @@ partially depending on installed libraries (see 2.)
 Features useful to deal with legacy systems
 
 - `-D__NO_MPI_THREAD_SUPPORT_CHECK`  - Workaround for MPI libraries that do not
-  declare they are thread safe (funneled) but you want to use them with OpenMP
-  code anyways.
+  declare they are thread safe (funneled).
 - `-D__NO_IPI_DRIVER` disables the socket interface in case of troubles compiling
   on systems that do not support POSIX sockets.
 - `-D__HAS_IEEE_EXCEPTIONS` disables trapping temporarily for libraries like scalapack.
