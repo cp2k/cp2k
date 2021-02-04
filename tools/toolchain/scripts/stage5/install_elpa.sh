@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 elpa_ver="2020.11.001"
 elpa_sha256="15591f142eeaa98ab3201d27ca9ac328e21beabf0803b011a04183fcaf6efdde"
 patches=(
-    "${SCRIPT_DIR}/stage5/elpa-${elpa_ver}-no-LDFLAGS-for-NVCC-compile.patch"
+    "${SCRIPT_DIR}/stage5/elpa-${elpa_ver}-fix_nvcc_wrap.patch"
     )
 
 source "${SCRIPT_DIR}"/common_vars.sh
@@ -50,7 +50,6 @@ case "$with_elpa" in
                              https://www.cp2k.org/static/downloads/elpa-${elpa_ver}.tar.gz
             fi
             [ -d elpa-${elpa_ver} ] && rm -rf elpa-${elpa_ver}
-            echo "Installing from scratch into ${pkg_install_dir}"
             tar -xzf elpa-${elpa_ver}.tar.gz
 
             # fix wrong dependency order (at least in elpa 2016.05.003)
@@ -80,7 +79,6 @@ case "$with_elpa" in
             [ "${has_AVX2}" == "yes" ] && AVX_flag="-mavx2"
             has_AVX512=`grep '\bavx512f\b' /proc/cpuinfo 1>/dev/null && echo 'yes' || echo 'no'`
             [ "${has_AVX512}" == "yes" ] && AVX512_flags="-mavx512f"
-            has_GPU=$([ "$ENABLE_CUDA" == "__TRUE__" ] && echo "yes" || echo "no")
             if [ "$OPENBLAS_ARCH" == "x86_64" ] ; then
                FMA_flag=`grep '\bfma\b' /proc/cpuinfo 1>/dev/null && echo '-mfma' || echo '-mno-fma'`
                SSE4_flag=`grep '\bsse4_1\b' /proc/cpuinfo 1>/dev/null && echo '-msse4' || echo '-mno-sse4'`
@@ -96,31 +94,37 @@ case "$with_elpa" in
                SSE4_flag=""
                config_flags="--disable-avx --disable-avx2 --disable-avx512 --disable-sse --disable-sse-assembly"
             fi
-            mkdir -p build; cd build
-            ../configure  --prefix="${pkg_install_dir}" \
-                          --libdir="${pkg_install_dir}/lib" \
-                          --enable-openmp=yes \
-                          --enable-shared=no \
-                          --enable-static=yes \
-                          ${config_flags} \
-                          --enable-gpu=${has_GPU} \
-                          --with-cuda-path=${CUDA_PATH} \
-                          FC=${MPIFC} \
-                          CC=${MPICC} \
-                          CXX=${MPICXX} \
-                          FCFLAGS="${FCFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} -ffree-line-length-none ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags}" \
-                          CFLAGS="${CFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags}" \
-                          CXXFLAGS="${CXXFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags}" \
-                          LDFLAGS="-Wl,--enable-new-dtags ${MATH_LDFLAGS} ${SCALAPACK_LDFLAGS} ${cray_ldflags}" \
-                          LIBS="${SCALAPACK_LIBS} ${MATH_LIBS}" \
-                          >configure.log 2>&1
-            make -j $NPROCS ${ELPA_MAKEOPTS} >make.log 2>&1
-            make install >install.log 2>&1
-            cd ../../
+            for TARGET in "cpu" "gpu" ; do
+               [ "$TARGET" == "gpu" ] && [ "$ENABLE_CUDA" != "__TRUE__" ] && continue
+               echo "Installing from scratch into ${pkg_install_dir}/${TARGET}"
+
+               mkdir -p "build_${TARGET}"; cd "build_${TARGET}"
+               ../configure  --prefix="${pkg_install_dir}/${TARGET}/" \
+                             --libdir="${pkg_install_dir}/${TARGET}/lib" \
+                             --enable-openmp=yes \
+                             --enable-shared=no \
+                             --enable-static=yes \
+                             ${config_flags} \
+                             --enable-gpu=$([ "$TARGET" == "gpu" ] && echo "yes" || echo "no") \
+                             --with-cuda-path=${CUDA_PATH} \
+                             FC=${MPIFC} \
+                             CC=${MPICC} \
+                             CXX=${MPICXX} \
+                             FCFLAGS="${FCFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} -ffree-line-length-none ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags}" \
+                             CFLAGS="${CFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags}" \
+                             CXXFLAGS="${CXXFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags}" \
+                             LDFLAGS="-Wl,--enable-new-dtags ${MATH_LDFLAGS} ${SCALAPACK_LDFLAGS} ${cray_ldflags}" \
+                             LIBS="${SCALAPACK_LIBS} ${MATH_LIBS}" \
+                             >configure.log 2>&1
+               make -j $NPROCS ${ELPA_MAKEOPTS} >make.log 2>&1
+               make install >install.log 2>&1
+               cd ..
+            done
+            cd ..
             write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage5/$(basename ${SCRIPT_NAME})"
         fi
-        ELPA_CFLAGS="-I'${pkg_install_dir}/include/elpa_openmp-${elpa_ver}/modules' -I'${pkg_install_dir}/include/elpa_openmp-${elpa_ver}/elpa'"
-        ELPA_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+        ELPA_CFLAGS="-I'${pkg_install_dir}/IF_CUDA(gpu|cpu)/include/elpa_openmp-${elpa_ver}/modules' -I'${pkg_install_dir}/IF_CUDA(gpu|cpu)/include/elpa_openmp-${elpa_ver}/elpa'"
+        ELPA_LDFLAGS="-L'${pkg_install_dir}/IF_CUDA(gpu|cpu)/lib' -Wl,-rpath='${pkg_install_dir}/IF_CUDA(gpu|cpu)/lib'"
         ;;
     __SYSTEM__)
         echo "==================== Finding ELPA from system paths ===================="
@@ -183,6 +187,11 @@ export CP_LIBS="IF_MPI(${ELPA_LIBS}|) \${CP_LIBS}"
 prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
 export ELPAROOT="$pkg_install_dir"
 export ELPAVERSION="${elpa_ver}"
+EOF
+
+cat <<EOF >> ${INSTALLDIR}/lsan.supp
+# leaks related to ELPA
+leak:cublasXtDeviceSelect
 EOF
 fi
 
