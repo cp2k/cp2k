@@ -65,38 +65,28 @@ if [ "$with_mkl" != "__DONTUSE__" ] ; then
             exit 1
         fi
     done
-    # set the correct lib flags from  MLK link adviser
-    MKL_LIBS="-Wl,--start-group ${mkl_lib_dir}/libmkl_gf_lp64.so ${mkl_lib_dir}/libmkl_sequential.so ${mkl_lib_dir}/libmkl_core.so"
-    # check optional libraries
-    if [ $MPI_MODE != no ] ; then
-        enable_mkl_scalapack="__TRUE__"
-        mkl_optional_libs="libmkl_scalapack_lp64.so"
-        case $MPI_MODE in
-            mpich)
-                mkl_blacs_lib="libmkl_blacs_intelmpi_lp64.so"
-                ;;
-            openmpi)
-                mkl_blacs_lib="libmkl_blacs_openmpi_lp64.so"
-                ;;
-            *)
-                enable_mkl_scalapack="__FALSE__"
-                ;;
-        esac
-        mkl_optional_libs="$mkl_optional_libs $mkl_blacs_lib"
-        for ii in $mkl_optional_libs ; do
-            if ! [ -f "${mkl_lib_dir}/${ii}" ] ; then
-                enable_mkl_scalapack="__FALSE__"
-            fi
-        done
-        if [ $enable_mkl_scalapack = "__TRUE__" ] ; then
-            echo "Using MKL provided ScaLAPACK and BLACS"
-            MKL_LIBS="${mkl_lib_dir}/libmkl_scalapack_lp64.so ${MKL_LIBS} ${mkl_lib_dir}/${mkl_blacs_lib}"
-        fi
-    else
-        echo "Not using MKL provided ScaLAPACK and BLACS"
-        enable_mkl_scalapack="__FALSE__"
-    fi
-    MKL_LIBS="${MKL_LIBS} -Wl,--end-group -lpthread -lm -ldl"
+
+    case $MPI_MODE in
+        mpich)
+            mkl_scalapack_lib="-lmkl_scalapack_lp64"
+            mkl_blacs_lib="-lmkl_blacs_intelmpi_lp64"
+            ;;
+        openmpi)
+            mkl_scalapack_lib="-lmkl_scalapack_lp64"
+            mkl_blacs_lib="-lmkl_blacs_openmpi_lp64"
+            ;;
+        *)
+            echo "Not using MKL provided ScaLAPACK and BLACS"
+            mkl_scalapack_lib=""
+            mkl_blacs_lib=""
+            ;;
+    esac
+
+    # set the correct lib flags from MLK link adviser
+    MKL_LIBS="-L${mkl_lib_dir} -Wl,-rpath=${mkl_lib_dir} ${mkl_scalapack_lib}"
+    MKL_LIBS+=" -Wl,--start-group -lmkl_gf_lp64 -lmkl_sequential -lmkl_core"
+    MKL_LIBS+=" ${mkl_blacs_lib} -Wl,--end-group -lpthread -lm -ldl"
+
     MKL_CFLAGS="${MKL_CFLAGS} -I${MKLROOT}/include -I${MKLROOT}/include/fftw"
 
     # write setup files
@@ -111,7 +101,7 @@ export FAST_MATH_CFLAGS="\${FAST_MATH_CFLAGS} ${MKL_CFLAGS}"
 export FAST_MATH_LIBS="\${FAST_MATH_LIBS} ${MKL_LIBS}"
 export CP_DFLAGS="\${CP_DFLAGS} -D__MKL"
 EOF
-    if [ $enable_mkl_scalapack = "__TRUE__" ] ; then
+    if [ -n "${mkl_scalapack_lib}" ] ; then
         cat <<EOF >> "${BUILDDIR}/setup_mkl"
 export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__SCALAPACK|)"
 export with_scalapack="__DONTUSE__"
