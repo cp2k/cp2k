@@ -76,8 +76,9 @@ MODULE machine
       END FUNCTION m_cpuid_static
    END INTERFACE
 
-   ! should only be set according to the state in &GLOBAL
-   LOGICAL, SAVE, PUBLIC :: flush_should_flush = .FALSE.
+   ! Flushing is enabled by default because without it crash reports can get lost.
+   ! For performance reasons it can be disabled via the input in &GLOBAL.
+   LOGICAL, SAVE, PUBLIC :: flush_should_flush = .TRUE.
 
 CONTAINS
 
