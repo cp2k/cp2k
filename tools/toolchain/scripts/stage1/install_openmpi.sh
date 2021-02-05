@@ -111,8 +111,8 @@ EOF
         OPENMPI_LDFLAGS="${OPENMPI_LDFLAGS//-l${lib}}"
     done
     # old versions didn't support MPI 3, so adjust __MPI_VERSION accordingly (needed e.g. for pexsi)
-    if [ $major_version -lt 1 ] || \
-       [ $major_version -eq 1 -a $minor_version -lt 7 ] ; then
+    if [[ "$major_version" =~ ^[0-9]+$ ]] && ( [ $major_version -lt 1 ] || \
+       [ $major_version -eq 1 -a $minor_version -lt 7 ] ) ; then
         mpi2_dflags="-D__MPI_VERSION=2"
     else
         mpi2_dflags=''
