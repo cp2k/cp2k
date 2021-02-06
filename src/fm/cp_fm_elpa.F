@@ -10,6 +10,12 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE cp_fm_elpa
+   USE machine, ONLY: m_cpuid, &
+                      MACHINE_X86, &
+                      MACHINE_CPU_GENERIC, &
+                      MACHINE_X86_SSE4, &
+                      MACHINE_X86_AVX, &
+                      MACHINE_X86_AVX2
    USE cp_blacs_env, ONLY: cp_blacs_env_type
    USE cp_fm_basic_linalg, ONLY: cp_fm_upper_to_full
    USE cp_fm_diag_utils, ONLY: cp_fm_redistribute_start, &
@@ -29,12 +35,13 @@ MODULE cp_fm_elpa
    USE message_passing, ONLY: mp_comm_free, &
                               mp_comm_split_direct, &
                               mp_bcast
-!$ USE OMP_LIB, ONLY: omp_get_max_threads
+   USE OMP_LIB, ONLY: omp_get_max_threads
 
 #include "../base/base_uses.f90"
 
 #if defined (__ELPA)
-   USE elpa_constants, ONLY: ELPA_2STAGE_REAL_GENERIC, &
+   USE elpa_constants, ONLY: ELPA_2STAGE_REAL_INVALID, &
+                             ELPA_2STAGE_REAL_GENERIC, &
                              ELPA_2STAGE_REAL_GENERIC_SIMPLE, &
                              ELPA_2STAGE_REAL_BGP, &
                              ELPA_2STAGE_REAL_BGQ, &
@@ -63,106 +70,94 @@ MODULE cp_fm_elpa
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_elpa'
 
-   CHARACTER(len=14), DIMENSION(*), PARAMETER :: elpa_kernel_names = [CHARACTER(len=14) :: &
-                                                                      "AUTO", &
-                                                                      "GENERIC", &
-                                                                      "GENERIC_SIMPLE", &
-                                                                      "BGP", &
-                                                                      "BGQ", &
-                                                                      "SSE", &
-                                                                      "SSE_BLOCK2", &
-                                                                      "SSE_BLOCK4", &
-                                                                      "SSE_BLOCK6", &
-                                                                      "AVX_BLOCK2", &
-                                                                      "AVX_BLOCK4", &
-                                                                      "AVX_BLOCK6", &
-                                                                      "AVX2_BLOCK2", &
-                                                                      "AVX2_BLOCK4", &
-                                                                      "AVX2_BLOCK6", &
-                                                                      "AVX512_BLOCK2", &
-                                                                      "AVX512_BLOCK4", &
-                                                                      "AVX512_BLOCK6", &
-                                                                      "GPU"]
+#if defined(__ELPA)
+   INTEGER, DIMENSION(19), PARAMETER :: elpa_kernel_ids = [ &
+                                        ELPA_2STAGE_REAL_INVALID, & ! auto
+                                        ELPA_2STAGE_REAL_GENERIC, &
+                                        ELPA_2STAGE_REAL_GENERIC_SIMPLE, &
+                                        ELPA_2STAGE_REAL_BGP, &
+                                        ELPA_2STAGE_REAL_BGQ, &
+                                        ELPA_2STAGE_REAL_SSE_ASSEMBLY, &
+                                        ELPA_2STAGE_REAL_SSE_BLOCK2, &
+                                        ELPA_2STAGE_REAL_SSE_BLOCK4, &
+                                        ELPA_2STAGE_REAL_SSE_BLOCK6, &
+                                        ELPA_2STAGE_REAL_AVX_BLOCK2, &
+                                        ELPA_2STAGE_REAL_AVX_BLOCK4, &
+                                        ELPA_2STAGE_REAL_AVX_BLOCK6, &
+                                        ELPA_2STAGE_REAL_AVX2_BLOCK2, &
+                                        ELPA_2STAGE_REAL_AVX2_BLOCK4, &
+                                        ELPA_2STAGE_REAL_AVX2_BLOCK6, &
+                                        ELPA_2STAGE_REAL_AVX512_BLOCK2, &
+                                        ELPA_2STAGE_REAL_AVX512_BLOCK4, &
+                                        ELPA_2STAGE_REAL_AVX512_BLOCK6, &
+                                        ELPA_2STAGE_REAL_GPU]
 
-   CHARACTER(len=44), DIMENSION(*), PARAMETER :: elpa_kernel_descriptions = [CHARACTER(len=44) :: &
-                                                                             "Automatically selected kernel", &
-                                                                             "Generic kernel", &
-                                                                             "Simplified generic kernel", &
-                                                                             "Kernel optimized for IBM BGP", &
-                                                                             "Kernel optimized for IBM BGQ", &
-                                                                             "Kernel optimized for x86_64/SSE", &
-                                                                             "Kernel optimized for x86_64/SSE (block=2)", &
-                                                                             "Kernel optimized for x86_64/SSE (block=4)", &
-                                                                             "Kernel optimized for x86_64/SSE (block=6)", &
-                                                                             "Kernel optimized for Intel AVX (block=2)", &
-                                                                             "Kernel optimized for Intel AVX (block=4)", &
-                                                                             "Kernel optimized for Intel AVX (block=6)", &
-                                                                             "Kernel optimized for Intel AVX2 (block=2)", &
-                                                                             "Kernel optimized for Intel AVX2 (block=4)", &
-                                                                             "Kernel optimized for Intel AVX2 (block=6)", &
-                                                                             "Kernel optimized for Intel AVX-512 (block=2)", &
-                                                                             "Kernel optimized for Intel AVX-512 (block=4)", &
-                                                                             "Kernel optimized for Intel AVX-512 (block=6)", &
-                                                                             "Kernel targeting GPUs"]
+   CHARACTER(len=14), DIMENSION(SIZE(elpa_kernel_ids)), PARAMETER :: &
+      elpa_kernel_names = [CHARACTER(len=14) :: &
+                           "AUTO", &
+                           "GENERIC", &
+                           "GENERIC_SIMPLE", &
+                           "BGP", &
+                           "BGQ", &
+                           "SSE", &
+                           "SSE_BLOCK2", &
+                           "SSE_BLOCK4", &
+                           "SSE_BLOCK6", &
+                           "AVX_BLOCK2", &
+                           "AVX_BLOCK4", &
+                           "AVX_BLOCK6", &
+                           "AVX2_BLOCK2", &
+                           "AVX2_BLOCK4", &
+                           "AVX2_BLOCK6", &
+                           "AVX512_BLOCK2", &
+                           "AVX512_BLOCK4", &
+                           "AVX512_BLOCK6", &
+                           "GPU"]
 
-   INTEGER, SAVE :: elpa_kernel = -1 ! auto
+   CHARACTER(len=44), DIMENSION(SIZE(elpa_kernel_ids)), PARAMETER :: &
+      elpa_kernel_descriptions = [CHARACTER(len=44) :: &
+                                  "Automatically selected kernel", &
+                                  "Generic kernel", &
+                                  "Simplified generic kernel", &
+                                  "Kernel optimized for IBM BGP", &
+                                  "Kernel optimized for IBM BGQ", &
+                                  "Kernel optimized for x86_64/SSE", &
+                                  "Kernel optimized for x86_64/SSE (block=2)", &
+                                  "Kernel optimized for x86_64/SSE (block=4)", &
+                                  "Kernel optimized for x86_64/SSE (block=6)", &
+                                  "Kernel optimized for Intel AVX (block=2)", &
+                                  "Kernel optimized for Intel AVX (block=4)", &
+                                  "Kernel optimized for Intel AVX (block=6)", &
+                                  "Kernel optimized for Intel AVX2 (block=2)", &
+                                  "Kernel optimized for Intel AVX2 (block=4)", &
+                                  "Kernel optimized for Intel AVX2 (block=6)", &
+                                  "Kernel optimized for Intel AVX-512 (block=2)", &
+                                  "Kernel optimized for Intel AVX-512 (block=4)", &
+                                  "Kernel optimized for Intel AVX-512 (block=6)", &
+                                  "Kernel targeting GPUs"]
+
+#else
+   INTEGER, DIMENSION(1), PARAMETER :: elpa_kernel_ids = [-1]
+   CHARACTER(len=14), DIMENSION(1), PARAMETER :: elpa_kernel_names = ["AUTO"]
+   CHARACTER(len=44), DIMENSION(1), PARAMETER :: elpa_kernel_descriptions = ["Automatically selected kernel"]
+#endif
+
+   INTEGER, SAVE :: elpa_kernel = elpa_kernel_ids(1) ! auto
    LOGICAL, SAVE :: elpa_qr = .FALSE., &
                     elpa_qr_unsafe = .FALSE., &
-                    elpa_should_print = .FALSE., &
-                    elpa_use_gpu = .FALSE.
+                    elpa_should_print = .FALSE.
 
    PUBLIC :: cp_fm_diag_elpa, &
-             get_elpa_number_kernels, &
-             get_elpa_kernel_index, &
              set_elpa_kernel, &
              set_elpa_qr, &
              set_elpa_print, &
+             elpa_kernel_ids, &
              elpa_kernel_names, &
              elpa_kernel_descriptions, &
              initialize_elpa_library, &
              finalize_elpa_library
 
 CONTAINS
-
-! **************************************************************************************************
-!> \brief Return the number of available ELPA kernels
-!> \return ...
-! **************************************************************************************************
-   PURE FUNCTION get_elpa_number_kernels() RESULT(num)
-      INTEGER :: num
-
-      num = SIZE(elpa_kernel_names)
-   END FUNCTION get_elpa_number_kernels
-
-! **************************************************************************************************
-!> \brief Returns the index of an ELPA kernel suitable for the given CPUID
-!> \return ...
-! **************************************************************************************************
-   PURE FUNCTION get_elpa_kernel_index(cpuid) RESULT(index)
-      USE machine, ONLY: MACHINE_X86, &
-                         MACHINE_CPU_GENERIC, &
-                         MACHINE_X86_SSE4, &
-                         MACHINE_X86_AVX, &
-                         MACHINE_X86_AVX2
-      INTEGER, INTENT(IN) :: cpuid
-      INTEGER :: index
-
-      index = 1 ! AUTO
-      IF ((MACHINE_CPU_GENERIC .LT. cpuid) .AND. (cpuid .LE. MACHINE_X86)) THEN
-         ! the following indizes correspond to OUR list of kernels, not the ones from ELPA
-         SELECT CASE (cpuid)
-         CASE (MACHINE_X86_SSE4)
-            index = 8 ! ELPA_2STAGE_REAL_SSE_BLOCK4
-         CASE (MACHINE_X86_AVX)
-            index = 11 ! ELPA_2STAGE_REAL_AVX_BLOCK4
-         CASE (MACHINE_X86_AVX2)
-            index = 14 ! ELPA_2STAGE_REAL_AVX2_BLOCK4
-         CASE DEFAULT
-            index = 17 ! ELPA_2STAGE_REAL_AVX512_BLOCK4
-         END SELECT
-      END IF
-
-   END FUNCTION get_elpa_kernel_index
 
 ! **************************************************************************************************
 !> \brief Initialize the ELPA library
@@ -189,64 +184,45 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Sets the active ELPA kernel.
-!> \param kernel Integer between 1 and get_elpa_number_kernels()
+!> \param requested_kernel one of the elpa_kernel_ids
 ! **************************************************************************************************
-   SUBROUTINE set_elpa_kernel(kernel)
-      INTEGER, INTENT(IN) :: kernel
+   SUBROUTINE set_elpa_kernel(requested_kernel)
+      INTEGER, INTENT(IN)                                :: requested_kernel
 
-#:def pick_macro(kernel_const)
-#! use Fypp's eval directive to hide ELPA flags from convention checker
-$: "#if defined(__ELPA)"
-$: "   elpa_kernel = ELPA_2STAGE_REAL_" + kernel_const
-$: "#else"
-$: "   CPABORT('ELPA is not available')"
-$: "#endif"
-#:enddef
+#if defined (__ELPA)
+      INTEGER                                            :: cpuid
+      CLASS(elpa_t), POINTER                             :: elpa_obj
 
-      SELECT CASE (kernel)
-      CASE (1)
-         elpa_kernel = -1 ! auto
-      CASE (2)
-@:        pick_macro(GENERIC)
-      CASE (3)
-@:        pick_macro(GENERIC_SIMPLE)
-      CASE (4)
-@:        pick_macro(BGP)
-      CASE (5)
-@:        pick_macro(BGQ)
-      CASE (6)
-@:        pick_macro(SSE_ASSEMBLY)
-      CASE (7)
-@:        pick_macro(SSE_BLOCK2)
-      CASE (8)
-@:        pick_macro(SSE_BLOCK4)
-      CASE (9)
-@:        pick_macro(SSE_BLOCK6)
-      CASE (10)
-@:        pick_macro(AVX_BLOCK2)
-      CASE (11)
-@:        pick_macro(AVX_BLOCK4)
-      CASE (12)
-@:        pick_macro(AVX_BLOCK6)
-      CASE (13)
-@:        pick_macro(AVX2_BLOCK2)
-      CASE (14)
-@:        pick_macro(AVX2_BLOCK4)
-      CASE (15)
-@:        pick_macro(AVX2_BLOCK6)
-      CASE (16)
-@:        pick_macro(AVX512_BLOCK2)
-      CASE (17)
-@:        pick_macro(AVX512_BLOCK4)
-      CASE (18)
-@:        pick_macro(AVX512_BLOCK6)
-      CASE (19)
-@:        pick_macro(GPU)
-         elpa_use_gpu = .TRUE.
-      CASE DEFAULT
-         CPABORT("Invalid ELPA kernel selected")
-      END SELECT
+      elpa_kernel = requested_kernel
 
+      ! Resolve AUTO kernel.
+      IF (requested_kernel == ELPA_2STAGE_REAL_INVALID) THEN
+         cpuid = m_cpuid()
+         IF ((MACHINE_CPU_GENERIC .LT. cpuid) .AND. (cpuid .LE. MACHINE_X86)) THEN
+            SELECT CASE (cpuid)
+            CASE (MACHINE_X86_SSE4)
+               elpa_kernel = ELPA_2STAGE_REAL_SSE_BLOCK4
+            CASE (MACHINE_X86_AVX)
+               elpa_kernel = ELPA_2STAGE_REAL_AVX_BLOCK4
+            CASE (MACHINE_X86_AVX2)
+               elpa_kernel = ELPA_2STAGE_REAL_AVX2_BLOCK4
+            CASE DEFAULT
+               elpa_kernel = ELPA_2STAGE_REAL_AVX512_BLOCK4
+            END SELECT
+         END IF
+
+         elpa_obj => elpa_allocate()
+         IF (elpa_obj%can_set("gpu", 1) == ELPA_OK) THEN
+            CPWARN("ELPA GPU kernel is available, but not enabled automatically.")
+            !TODO: Enable GPU kernel automatically once the segfaults have been fixed.
+            !elpa_kernel = ELPA_2STAGE_REAL_GPU  ! Select GPU over CPU kernel when available.
+         ENDIF
+         CALL elpa_deallocate(elpa_obj)
+
+      END IF
+#else
+      MARK_USED(requested_kernel)
+#endif
    END SUBROUTINE set_elpa_kernel
 
 ! **************************************************************************************************
@@ -258,7 +234,7 @@ $: "#endif"
 !>                      ELPA versions, potentially leading to incorrect eigenvalues
 ! **************************************************************************************************
    SUBROUTINE set_elpa_qr(use_qr, use_qr_unsafe)
-      LOGICAL, INTENT(IN) :: use_qr, use_qr_unsafe
+      LOGICAL, INTENT(IN)                                :: use_qr, use_qr_unsafe
 
       elpa_qr = use_qr
       elpa_qr_unsafe = use_qr_unsafe
@@ -270,7 +246,7 @@ $: "#endif"
 !> \param flag the logical flag
 ! **************************************************************************************************
    SUBROUTINE set_elpa_print(flag)
-      LOGICAL, INTENT(IN) :: flag
+      LOGICAL, INTENT(IN)                                :: flag
 
       elpa_should_print = flag
    END SUBROUTINE set_elpa_print
@@ -325,19 +301,21 @@ $: "#endif"
 !> \param matrix the matrix that is diagonalized
 !> \param eigenvectors eigenvectors of the input matrix
 !> \param eigenvalues eigenvalues of the input matrix
+!> \param rdinfo ...
 ! **************************************************************************************************
    SUBROUTINE cp_fm_diag_elpa_base(matrix, eigenvectors, eigenvalues, rdinfo)
 
-      TYPE(cp_fm_type), POINTER, INTENT(INOUT) :: matrix, eigenvectors
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT) :: eigenvalues
-      TYPE(cp_fm_redistribute_info), INTENT(IN) :: rdinfo
+      TYPE(cp_fm_type), INTENT(INOUT), POINTER           :: matrix, eigenvectors
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: eigenvalues
+      TYPE(cp_fm_redistribute_info), INTENT(IN)          :: rdinfo
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_diag_elpa_base'
 
-      INTEGER                                  :: handle
+      INTEGER                                            :: handle
+
       CLASS(elpa_t), POINTER                   :: elpa_obj
-      CHARACTER(len=14)                        :: kernel
-      INTEGER                                  :: group, &
+      CHARACTER(len=default_string_length)     :: kernel_name
+      INTEGER                                  :: group, i, &
                                                   mypcol, myprow, n, &
                                                   n_rows, n_cols, &
                                                   nblk, neig, io_unit, &
@@ -413,15 +391,18 @@ $: "#endif"
       IF (io_unit > 0 .AND. elpa_should_print) THEN
          WRITE (io_unit, '(/,A)') "ELPA| Matrix diagonalization information"
 
-         IF (elpa_kernel == -1) THEN
-            kernel = TRIM(elpa_kernel_names(1))
-         ELSE
-            kernel = TRIM(elpa_kernel_names(elpa_kernel + 1)) ! this assumes that our indizes differ from the ELPA idx by -1
-         END IF
+         ! find name for given kernel id
+         kernel_name = ""
+         DO i = 1, SIZE(elpa_kernel_ids)
+            IF (elpa_kernel_ids(i) == elpa_kernel) THEN
+               kernel_name = elpa_kernel_names(i)
+            ENDIF
+         ENDDO
+         CPASSERT(LEN_TRIM(kernel_name) > 0)
 
          WRITE (io_unit, '(A,I14)') "ELPA| Matrix order             : ", n
          WRITE (io_unit, '(A,I14)') "ELPA| Matrix block size        : ", nblk
-         WRITE (io_unit, '(A,A14)') "ELPA| Kernel                   : ", ADJUSTR(kernel)
+         WRITE (io_unit, '(A,A14)') "ELPA| Kernel                   : ", ADJUSTR(TRIM(kernel_name))
          WRITE (io_unit, '(A,L14)') "ELPA| QR step requested        : ", elpa_qr
 
          IF (elpa_qr) THEN
@@ -446,47 +427,63 @@ $: "#endif"
       elpa_obj => elpa_allocate()
 
       CALL elpa_obj%set("na", n, success)
+      CPASSERT(success == elpa_ok)
+
       CALL elpa_obj%set("nev", neig, success)
+      CPASSERT(success == elpa_ok)
+
       CALL elpa_obj%set("local_nrows", n_rows, success)
+      CPASSERT(success == elpa_ok)
+
       CALL elpa_obj%set("local_ncols", n_cols, success)
+      CPASSERT(success == elpa_ok)
+
       CALL elpa_obj%set("nblk", nblk, success)
+      CPASSERT(success == elpa_ok)
+
       CALL elpa_obj%set("mpi_comm_parent", group, success)
+      CPASSERT(success == elpa_ok)
+
       CALL elpa_obj%set("process_row", myprow, success)
+      CPASSERT(success == elpa_ok)
+
       CALL elpa_obj%set("process_col", mypcol, success)
+      CPASSERT(success == elpa_ok)
 
       success = elpa_obj%setup()
-      IF (success /= elpa_ok) &
-         CPABORT("Setting up the ELPA object failed")
+      CPASSERT(success == elpa_ok)
 
       CALL elpa_obj%set("solver", elpa_solver_2stage, success)
+      CPASSERT(success == elpa_ok)
 
       ! enabling the GPU must happen before setting the kernel
-      IF (elpa_use_gpu) &
+      IF (elpa_kernel == ELPA_2STAGE_REAL_GPU) THEN
          CALL elpa_obj%set("gpu", 1, success)
-
-      IF (elpa_kernel .GE. 1) THEN
-         CALL elpa_obj%set("real_kernel", elpa_kernel, success)
-         IF (success /= elpa_ok) THEN
-            CPABORT("Setting the ELPA real_kernel failed")
-         ENDIF
+         CPASSERT(success == elpa_ok)
       ENDIF
 
-      IF (use_qr) &
+      CALL elpa_obj%set("real_kernel", elpa_kernel, success)
+      CPASSERT(success == elpa_ok)
+
+      IF (use_qr) THEN
          CALL elpa_obj%set("qr", 1, success)
+         CPASSERT(success == elpa_ok)
+      ENDIF
 
       ! synchronize the number of threads used by ELPA to the number of threads available
-!$    CALL elpa_obj%set("omp_threads", omp_get_max_threads(), success)
+      CALL elpa_obj%set("omp_threads", omp_get_max_threads(), success)
+      CPASSERT(success == elpa_ok)
 
       CALL elpa_obj%eigenvectors(matrix%local_data, eval, eigenvectors%local_data, success)
-
       IF (success /= elpa_ok) &
          CPABORT("ELPA failed to diagonalize a matrix")
 
       IF (check_eigenvalues) THEN
          ! run again without QR
          CALL elpa_obj%set("qr", 0, success)
-         CALL elpa_obj%eigenvectors(matrix_noqr%local_data, eval_noqr, eigenvectors_noqr%local_data, success)
+         CPASSERT(success == elpa_ok)
 
+         CALL elpa_obj%eigenvectors(matrix_noqr%local_data, eval_noqr, eigenvectors_noqr%local_data, success)
          IF (success /= elpa_ok) &
             CPABORT("ELPA failed to diagonalize a matrix even without QR decomposition")
 
@@ -509,3 +506,4 @@ $: "#endif"
 #endif
 
 END MODULE cp_fm_elpa
+
