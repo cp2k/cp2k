@@ -68,7 +68,7 @@ CONTAINS
 
       CALL print_abort_message(message, location, unit_nr)
       CALL print_stack(unit_nr)
-      CALL m_flush(unit_nr)
+      FLUSH (unit_nr)  ! ignore &GLOBAL / FLUSH_SHOULD_FLUSH
 
       CALL mp_abort()
    END SUBROUTINE cp_abort_handler
