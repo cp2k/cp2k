@@ -10,6 +10,7 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE cp_fm_elpa
+   USE cp_log_handling, ONLY: cp_to_string
    USE machine, ONLY: m_cpuid, &
                       MACHINE_X86, &
                       MACHINE_CPU_GENERIC, &
@@ -41,6 +42,7 @@ MODULE cp_fm_elpa
 
 #if defined (__ELPA)
    USE elpa_constants, ONLY: ELPA_2STAGE_REAL_INVALID, &
+                             ELPA_2STAGE_REAL_DEFAULT, &
                              ELPA_2STAGE_REAL_GENERIC, &
                              ELPA_2STAGE_REAL_GENERIC_SIMPLE, &
                              ELPA_2STAGE_REAL_BGP, &
@@ -219,6 +221,10 @@ CONTAINS
          ENDIF
          CALL elpa_deallocate(elpa_obj)
 
+         ! If we could not find a suitable kernel then use ELPA_2STAGE_REAL_DEFAULT.
+         IF (requested_kernel == ELPA_2STAGE_REAL_INVALID) THEN
+            elpa_kernel = ELPA_2STAGE_REAL_DEFAULT
+         ENDIF
       END IF
 #else
       MARK_USED(requested_kernel)
@@ -391,14 +397,14 @@ CONTAINS
       IF (io_unit > 0 .AND. elpa_should_print) THEN
          WRITE (io_unit, '(/,A)') "ELPA| Matrix diagonalization information"
 
-         ! find name for given kernel id
-         kernel_name = ""
+         ! Find name for given kernel id.
+         ! In case ELPA_2STAGE_REAL_DEFAULT was used it might not be in our elpa_kernel_ids list.
+         kernel_name = "id: "//TRIM(ADJUSTL(cp_to_string(elpa_kernel)))
          DO i = 1, SIZE(elpa_kernel_ids)
             IF (elpa_kernel_ids(i) == elpa_kernel) THEN
                kernel_name = elpa_kernel_names(i)
             ENDIF
          ENDDO
-         CPASSERT(LEN_TRIM(kernel_name) > 0)
 
          WRITE (io_unit, '(A,I14)') "ELPA| Matrix order             : ", n
          WRITE (io_unit, '(A,I14)') "ELPA| Matrix block size        : ", nblk
@@ -470,9 +476,11 @@ CONTAINS
          CPASSERT(success == elpa_ok)
       ENDIF
 
-      ! synchronize the number of threads used by ELPA to the number of threads available
-      CALL elpa_obj%set("omp_threads", omp_get_max_threads(), success)
-      CPASSERT(success == elpa_ok)
+      ! Set number of threads only when ELPA was built with OpenMP support.
+      IF (elpa_obj%can_set("omp_threads", omp_get_max_threads()) == ELPA_OK) THEN
+         CALL elpa_obj%set("omp_threads", omp_get_max_threads(), success)
+         CPASSERT(success == elpa_ok)
+      ENDIF
 
       CALL elpa_obj%eigenvectors(matrix%local_data, eval, eigenvectors%local_data, success)
       IF (success /= elpa_ok) &
