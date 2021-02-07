@@ -69,9 +69,14 @@ MODULE environment
                                               dp,&
                                               int_8,&
                                               print_kind_info
-   USE machine,                         ONLY: &
-        flush_should_flush, m_cpuid, m_cpuid_name, m_cpuid_static, m_cpuinfo, m_energy, &
-        m_flush_internal, m_memory_details, m_procrun
+   USE machine,                         ONLY: flush_should_flush,&
+                                              m_cpuid,&
+                                              m_cpuid_name,&
+                                              m_cpuid_static,&
+                                              m_cpuinfo,&
+                                              m_energy,&
+                                              m_memory_details,&
+                                              m_procrun
    USE message_passing,                 ONLY: add_mp_perf_env,&
                                               describe_mp_perf_env,&
                                               mp_collect_timings,&
@@ -207,7 +212,7 @@ CONTAINS
          WRITE (UNIT=my_output_unit, FMT="(T2,A,T31,A50)") &
             "CP2K| Input file name", &
             ADJUSTR(TRIM(input_file_name))
-         CALL m_flush_internal(my_output_unit)
+         FLUSH (my_output_unit) ! ignore &GLOBAL / FLUSH_SHOULD_FLUSH
       END IF
 
 #if defined(__FAST_MATH__)
@@ -1214,7 +1219,7 @@ CONTAINS
 
          ! Just a choice, do not print the CP2K footer if there is a failure
          CALL cp2k_footer(iw, wdir)
-         IF (iw > 0) CALL m_flush_internal(iw)
+         IF (iw > 0) FLUSH (iw)  ! ignore &GLOBAL / FLUSH_SHOULD_FLUSH
 
          CALL cp_print_key_finished_output(iw, logger, root_section, &
                                            "GLOBAL%PROGRAM_RUN_INFO")

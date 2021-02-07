@@ -6,24 +6,33 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
+!> \brief Machine interface based on Fortran 2003 and POSIX
 !> \par History
 !>      JGH (05.07.2001) : added G95 interface
 !>      - m_flush added (12.06.2002,MK)
 !>      - Missing print_memory added (24.09.2002,MK)
-!> \author APSI & JGH
+!>      - Migrate to generic implementation based on F2003 + POSIX (2014, Ole Schuett)
+!> \author APSI, JGH, Ole Schuett
 ! **************************************************************************************************
 MODULE machine
-   USE ISO_C_BINDING,                   ONLY: C_INT
-   USE ISO_FORTRAN_ENV,                 ONLY: input_unit,&
-                                              output_unit
-   USE kinds,                           ONLY: default_string_length,&
-                                              dp,&
-                                              int_8
-   USE machine_internal,                ONLY: &
-        m_abort, m_chdir, m_flush_internal => m_flush, m_getcwd, m_getlog, m_getpid, m_hostnm, &
-        m_memory, m_memory_details, m_memory_max, m_mov, m_procrun
-
-!$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads, OMP_GET_WTIME
+   USE ISO_C_BINDING, ONLY: C_CHAR, &
+                            C_INT, &
+                            C_PTR, &
+                            C_NULL_CHAR, &
+                            C_ASSOCIATED
+   USE ISO_FORTRAN_ENV, ONLY: input_unit, &
+                              output_unit
+   USE omp_lib, ONLY: omp_get_wtime
+   USE kinds, ONLY: default_path_length, &
+                    default_string_length, &
+                    dp, &
+                    int_8
+#if defined(__LIBXSMM)
+   USE libxsmm, ONLY: libxsmm_timer_tick, &
+                      libxsmm_timer_duration, &
+                      libxsmm_get_target_archid, &
+                      LIBXSMM_X86_SSE4
+#endif
 
    IMPLICIT NONE
 
@@ -58,9 +67,9 @@ MODULE machine
 
    PRIVATE
 
-   PUBLIC :: m_walltime, m_datum, m_hostnm, m_flush, m_flush_internal, &
+   PUBLIC :: m_walltime, m_datum, m_hostnm, m_flush, &
              m_getcwd, m_getlog, m_getpid, m_procrun, m_abort, &
-             m_chdir, m_mov, m_memory, m_memory_details, m_memory_max, m_energy, &
+             m_chdir, m_mov, m_memory, m_memory_details, m_energy, &
              m_cpuinfo, m_cpuid_static, m_cpuid, m_cpuid_name
 
    INTERFACE
@@ -80,6 +89,8 @@ MODULE machine
    ! For performance reasons it can be disabled via the input in &GLOBAL.
    LOGICAL, SAVE, PUBLIC :: flush_should_flush = .TRUE.
 
+   INTEGER(KIND=int_8), SAVE, PUBLIC :: m_memory_max = 0
+
 CONTAINS
 
 ! **************************************************************************************************
@@ -93,8 +104,10 @@ CONTAINS
    SUBROUTINE m_flush(lunit)
       INTEGER, INTENT(IN)                                :: lunit
 
-      IF (flush_should_flush) CALL m_flush_internal(lunit)
+      IF (flush_should_flush) FLUSH (lunit)
+
    END SUBROUTINE
+
 ! **************************************************************************************************
 !> \brief returns time from a real-time clock, protected against rolling
 !>      early/easily
@@ -106,50 +119,12 @@ CONTAINS
 !>      might still roll, if not called multiple times per count_max/count_rate
 ! **************************************************************************************************
    FUNCTION m_walltime() RESULT(wt)
-#if defined(__LIBXSMM)
-      USE libxsmm, ONLY: libxsmm_timer_tick, libxsmm_timer_duration
-#endif
       REAL(KIND=dp)                                      :: wt
 
 #if defined(__LIBXSMM)
       wt = libxsmm_timer_duration(0_int_8, libxsmm_timer_tick())
 #else
-
-      INTEGER(KIND=int_8)                                :: count
-      INTEGER(KIND=int_8), SAVE                          :: count_max, count_rate, cycles = -1, &
-                                                            last_count
-!$    IF (.FALSE.) THEN
-! count lies in [0,count_max] and increases monotonically
-
-         IF (cycles == -1) THEN ! get parameters of system_clock and initialise
-            CALL SYSTEM_CLOCK(count_rate=count_rate, count_max=count_max)
-            cycles = 0
-            last_count = 0
-         ENDIF
-
-         CALL SYSTEM_CLOCK(count=count)
-
-         ! protect against non-standard cases where time might be non-monotonous,
-         ! but it is unlikely that the clock cycled (e.g. underlying system clock adjustments)
-         ! i.e. if count is smaller than last_count by only a small fraction of count_max,
-         ! we use last_count instead
-         ! if count is smaller, we assume that the clock cycled.
-         IF (count < last_count) THEN
-            IF (last_count - count < count_max/100) THEN
-               count = last_count
-            ELSE
-               cycles = cycles + 1
-            ENDIF
-         ENDIF
-
-         ! keep track of our history
-         last_count = count
-
-         wt = (REAL(count, KIND=dp) + REAL(cycles, KIND=dp)*(1.0_dp + REAL(count_max, KIND=dp))) &
-              /REAL(count_rate, KIND=dp)
-!$    ELSE
-!$       wt = OMP_GET_WTIME()
-!$    ENDIF
+      wt = omp_get_wtime()
 #endif
    END FUNCTION m_walltime
 
@@ -190,9 +165,6 @@ CONTAINS
 !>      04.2019 created [Hans Pabst]
 ! **************************************************************************************************
    PURE FUNCTION m_cpuid() RESULT(cpuid)
-#if defined(__LIBXSMM)
-      USE libxsmm, ONLY: libxsmm_get_target_archid, LIBXSMM_X86_SSE4
-#endif
       INTEGER :: cpuid
 #if defined(__LIBXSMM)
       cpuid = libxsmm_get_target_archid()
@@ -303,5 +275,374 @@ CONTAINS
       cal_date = date(1:4)//"-"//date(5:6)//"-"//date(7:8)//" "//time(1:2)//":"//time(3:4)//":"//time(5:10)
 
    END SUBROUTINE m_datum
+
+! **************************************************************************************************
+!> \brief Can be used to get a nice core
+! **************************************************************************************************
+   SUBROUTINE m_abort()
+      INTERFACE
+         SUBROUTINE abort() BIND(C, name="abort")
+         END SUBROUTINE
+      END INTERFACE
+
+      CALL abort()
+   END SUBROUTINE m_abort
+
+! **************************************************************************************************
+!> \brief Returns if a process is running on the local machine
+!>        1 if yes and 0 if not
+!> \param pid ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION m_procrun(pid) RESULT(run_on)
+      INTEGER, INTENT(IN)       ::   pid
+      INTEGER                   ::   run_on
+#if defined(__MINGW)
+      run_on = 0
+#else
+      INTEGER                   ::   istat
+
+      INTERFACE
+         FUNCTION kill(pid, sig) BIND(C, name="kill") RESULT(errno)
+            IMPORT
+            INTEGER(KIND=C_INT), VALUE                :: pid, sig
+            INTEGER(KIND=C_INT)                      :: errno
+         END FUNCTION
+      END INTERFACE
+
+      ! If sig is 0, then no signal is sent, but error checking is still
+      ! performed; this can be used to check for the existence of a process
+      ! ID or process group ID.
+
+      istat = kill(pid=pid, sig=0)
+      IF (istat == 0) THEN
+         run_on = 1 ! no error, process exists
+      ELSE
+         run_on = 0 ! error, process probably does not exist
+      ENDIF
+#endif
+   END FUNCTION m_procrun
+
+! **************************************************************************************************
+!> \brief Returns the total amount of memory [bytes] in use, if known, zero otherwise
+!> \param mem ...
+! **************************************************************************************************
+   SUBROUTINE m_memory(mem)
+
+      INTEGER(KIND=int_8), OPTIONAL, INTENT(OUT)         :: mem
+      INTEGER(KIND=int_8)                      :: mem_local
+
+      !
+      ! __NO_STATM_ACCESS can be used to disable the stuff, if getpagesize
+      ! lead to linking errors or /proc/self/statm can not be opened
+      !
+#if defined(__NO_STATM_ACCESS)
+      mem_local = 0
+#else
+      INTEGER(KIND=int_8)                      :: m1, m2, m3
+      CHARACTER(LEN=80) :: DATA
+      INTEGER :: iostat, i
+
+      ! the size of a page, might not be available everywhere
+      INTERFACE
+         FUNCTION getpagesize() BIND(C, name="getpagesize") RESULT(RES)
+            IMPORT
+            INTEGER(C_INT) :: RES
+         END FUNCTION
+      END INTERFACE
+
+      !
+      ! reading from statm
+      !
+      mem_local = -1
+      DATA = ""
+      OPEN (121245, FILE="/proc/self/statm", ACTION="READ", STATUS="OLD", ACCESS="STREAM")
+      DO I = 1, 80
+         READ (121245, END=999) DATA(I:I)
+      ENDDO
+999   CLOSE (121245)
+      DATA(I:80) = ""
+      ! m1 = total
+      ! m2 = resident
+      ! m3 = shared
+      READ (DATA, *, IOSTAT=iostat) m1, m2, m3
+      IF (iostat .NE. 0) THEN
+         mem_local = 0
+      ELSE
+         mem_local = m2
+#if defined(__STATM_TOTAL)
+         mem_local = m1
+#endif
+#if defined(__STATM_RESIDENT)
+         mem_local = m2
+#endif
+         mem_local = mem_local*getpagesize()
+      ENDIF
+#endif
+
+      m_memory_max = MAX(mem_local, m_memory_max)
+      IF (PRESENT(mem)) mem = mem_local
+
+   END SUBROUTINE m_memory
+
+! **************************************************************************************************
+!> \brief get more detailed memory info, all units are bytes.
+!>         the only 'useful' option is MemLikelyFree which is an estimate of remaining memory
+!>         assumed to give info like /proc/meminfo while MeMLikelyFree is the amount of
+!>         memory we're likely to be able to allocate, but not necessarily in one chunk
+!>         zero means not available...
+!> \param MemTotal ...
+!> \param MemFree ...
+!> \param Buffers ...
+!> \param Cached ...
+!> \param Slab ...
+!> \param SReclaimable ...
+!> \param MemLikelyFree ...
+! **************************************************************************************************
+   SUBROUTINE m_memory_details(MemTotal, MemFree, Buffers, Cached, Slab, SReclaimable, MemLikelyFree)
+
+      INTEGER(kind=int_8), OPTIONAL :: MemTotal, MemFree, Buffers, Cached, Slab, SReclaimable, MemLikelyFree
+
+      INTEGER, PARAMETER :: Nbuffer = 10000
+      CHARACTER(LEN=Nbuffer) :: meminfo
+
+      INTEGER :: i
+
+      MemTotal = 0
+      MemFree = 0
+      Buffers = 0
+      Cached = 0
+      Slab = 0
+      SReclaimable = 0
+      MemLikelyFree = 0
+      meminfo = ""
+
+      OPEN (UNIT=8123, file="/proc/meminfo", ACCESS="STREAM", ERR=901)
+      i = 0
+      DO
+         i = i + 1
+         IF (i > Nbuffer) EXIT
+         READ (8123, END=900, ERR=900) meminfo(i:i)
+      ENDDO
+900   CONTINUE
+      meminfo(i:Nbuffer) = ""
+901   CONTINUE
+      CLOSE (8123, ERR=902)
+902   CONTINUE
+      MemTotal = get_field_value_in_bytes('MemTotal:')
+      MemFree = get_field_value_in_bytes('MemFree:')
+      Buffers = get_field_value_in_bytes('Buffers:')
+      Cached = get_field_value_in_bytes('Cached:')
+      Slab = get_field_value_in_bytes('Slab:')
+      SReclaimable = get_field_value_in_bytes('SReclaimable:')
+      ! opinions here vary but this might work
+      MemLikelyFree = MemFree + Buffers + Cached + SReclaimable
+
+   CONTAINS
+
+! **************************************************************************************************
+!> \brief ...
+!> \param field ...
+!> \return ...
+! **************************************************************************************************
+      INTEGER(int_8) FUNCTION get_field_value_in_bytes(field)
+      CHARACTER(LEN=*)                                   :: field
+
+      INTEGER                                            :: start
+      INTEGER(KIND=int_8)                                :: value
+
+         get_field_value_in_bytes = 0
+         start = INDEX(meminfo, field)
+         IF (start .NE. 0) THEN
+            start = start + LEN_TRIM(field)
+            IF (start .LT. Nbuffer) THEN
+               READ (meminfo(start:), *, ERR=999, END=999) value
+               ! XXXXXXX convert from Kb to bytes XXXXXXXX
+               get_field_value_in_bytes = value*1024
+999            CONTINUE
+            ENDIF
+         ENDIF
+      END FUNCTION
+   END SUBROUTINE m_memory_details
+
+! **************************************************************************************************
+!> \brief ...
+!> \param hname ...
+! **************************************************************************************************
+   SUBROUTINE m_hostnm(hname)
+      CHARACTER(len=*), INTENT(OUT)            :: hname
+#if defined(__MINGW)
+      ! While there is a gethostname in the Windows (POSIX) API, it requires that winsocks is
+      ! initialised prior to using it via WSAStartup(..), respectively cleaned up at the end via WSACleanup().
+      hname = "<unknown>"
+#else
+      INTEGER                                  :: istat, i
+      CHARACTER(len=default_path_length)       :: buf
+
+      INTERFACE
+         FUNCTION gethostname(buf, buflen) BIND(C, name="gethostname") RESULT(errno)
+            IMPORT
+            CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: buf
+            INTEGER(KIND=C_INT), VALUE               :: buflen
+            INTEGER(KIND=C_INT)                      :: errno
+         END FUNCTION
+      END INTERFACE
+
+      istat = gethostname(buf, LEN(buf))
+      IF (istat /= 0) THEN
+         WRITE (*, *) "m_hostnm failed"
+         CALL m_abort()
+      ENDIF
+      i = INDEX(buf, c_null_char) - 1
+      hname = buf(1:i)
+#endif
+   END SUBROUTINE m_hostnm
+
+! **************************************************************************************************
+!> \brief ...
+!> \param curdir ...
+! **************************************************************************************************
+   SUBROUTINE m_getcwd(curdir)
+      CHARACTER(len=*), INTENT(OUT)            :: curdir
+      TYPE(C_PTR)                              :: stat
+      INTEGER                                  :: i
+      CHARACTER(len=default_path_length), TARGET  :: tmp
+
+      INTERFACE
+         FUNCTION getcwd(buf, buflen) BIND(C, name="getcwd") RESULT(stat)
+            IMPORT
+            CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: buf
+            INTEGER(KIND=C_INT), VALUE               :: buflen
+            TYPE(C_PTR)                              :: stat
+         END FUNCTION
+      END INTERFACE
+
+      stat = getcwd(tmp, LEN(tmp))
+      IF (.NOT. C_ASSOCIATED(stat)) THEN
+         WRITE (*, *) "m_getcwd failed"
+         CALL m_abort()
+      ENDIF
+      i = INDEX(tmp, c_null_char) - 1
+      curdir = tmp(1:i)
+   END SUBROUTINE m_getcwd
+
+! **************************************************************************************************
+!> \brief ...
+!> \param dir ...
+!> \param ierror ...
+! **************************************************************************************************
+   SUBROUTINE m_chdir(dir, ierror)
+      CHARACTER(len=*), INTENT(IN)             :: dir
+      INTEGER, INTENT(OUT)                     :: ierror
+
+      INTERFACE
+         FUNCTION chdir(path) BIND(C, name="chdir") RESULT(errno)
+            IMPORT
+            CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: path
+            INTEGER(KIND=C_INT)                      :: errno
+         END FUNCTION
+      END INTERFACE
+
+      ierror = chdir(TRIM(dir)//c_null_char)
+   END SUBROUTINE m_chdir
+
+! **************************************************************************************************
+!> \brief ...
+!> \param pid ...
+! **************************************************************************************************
+   SUBROUTINE m_getpid(pid)
+      INTEGER, INTENT(OUT)                     :: pid
+
+      INTERFACE
+         FUNCTION getpid() BIND(C, name="getpid") RESULT(pid)
+            IMPORT
+            INTEGER(KIND=C_INT)              :: pid
+         END FUNCTION
+      END INTERFACE
+
+      pid = getpid()
+   END SUBROUTINE m_getpid
+
+! **************************************************************************************************
+!> \brief ...
+!> \param path ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION m_unlink(path) RESULT(istat)
+
+      CHARACTER(LEN=*), INTENT(IN)             :: path
+
+      INTEGER                                  :: istat
+
+      INTERFACE
+         FUNCTION unlink(path) BIND(C, name="unlink") RESULT(errno)
+            IMPORT
+            CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: path
+            INTEGER(KIND=C_INT)                      :: errno
+         END FUNCTION
+      END INTERFACE
+
+      istat = unlink(TRIM(path)//c_null_char)
+   END FUNCTION m_unlink
+
+! **************************************************************************************************
+!> \brief ...
+!> \param source ...
+!> \param TARGET ...
+! **************************************************************************************************
+   SUBROUTINE m_mov(source, TARGET)
+
+      CHARACTER(LEN=*), INTENT(IN)             :: source, TARGET
+
+      INTEGER                                  :: istat
+
+      INTERFACE
+         FUNCTION rename(src, dest) BIND(C, name="rename") RESULT(errno)
+            IMPORT
+            CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: src, dest
+            INTEGER(KIND=C_INT)                      :: errno
+         END FUNCTION
+      END INTERFACE
+
+      IF (TARGET == source) THEN
+         WRITE (*, *) "Warning: m_mov ", TRIM(TARGET), " equals ", TRIM(source)
+         RETURN
+      ENDIF
+
+      ! first remove target (needed on windows / mingw)
+      istat = m_unlink(TARGET)
+      ! ignore istat of unlink
+
+      ! now move
+      istat = rename(TRIM(source)//c_null_char, TRIM(TARGET)//c_null_char)
+      IF (istat .NE. 0) THEN
+         WRITE (*, *) "Trying to move "//TRIM(source)//" to "//TRIM(TARGET)//"."
+         WRITE (*, *) "rename returned status: ", istat
+         WRITE (*, *) "Problem moving file"
+         CALL m_abort()
+      ENDIF
+   END SUBROUTINE m_mov
+
+! **************************************************************************************************
+!> \brief ...
+!> \param user ...
+! **************************************************************************************************
+   SUBROUTINE m_getlog(user)
+      CHARACTER(len=*), INTENT(OUT) :: user
+      INTEGER                       :: status
+
+      ! on a posix system LOGNAME should be defined
+      CALL get_environment_variable("LOGNAME", value=user, status=status)
+      ! nope, check alternative
+      IF (status /= 0) &
+         CALL get_environment_variable("USER", value=user, status=status)
+      ! nope, check alternative
+      IF (status /= 0) &
+         CALL get_environment_variable("USERNAME", value=user, status=status)
+      ! fall back
+      IF (status /= 0) &
+         user = "<unknown>"
+
+   END SUBROUTINE m_getlog
 
 END MODULE machine
