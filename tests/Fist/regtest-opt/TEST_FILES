@@ -13,7 +13,7 @@ geo_opt_lbfgs.inp                                     11    1.0E-14            -
 cell_opt_direct_bfgs.inp                              11    1.0E-14            -35.644084205321462
 cell_opt_direct_cg_2pnt.inp                           11    1.0E-14            -35.644084205340675
 cell_opt_direct_cg_gold.inp                           11      4e-10            -35.644084195146633
-cell_opt_direct_lbfgs.inp                             11      1E-11            -35.644084204213243
+cell_opt_direct_lbfgs.inp                             11    3.0E-11            -35.644084204213243
 # Cell optimisation
 cell_opt_bfgs_geo_opt_bfgs.inp                        11    1.0E-14            -35.644084174653557
 cell_opt_bfgs_geo_opt_lbfgs.inp                       11      8e-10            -35.644084152053679
