@@ -273,4 +273,5 @@ QS/regtest-hfx-ri                                           libint
 Fist/regtest-gal19
 NNP/regtest-1
 QS/regtest-as-1                                             libint
+QS/regtest-spgr                                             spglib
 Fist/regtest-spgr                                           spglib
