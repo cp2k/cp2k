@@ -15,6 +15,8 @@
 ! **************************************************************************************************
 MODULE string_utilities
 
+   USE ISO_C_BINDING,                   ONLY: C_CHAR,&
+                                              C_NULL_CHAR
    USE kinds,                           ONLY: default_blank_character
 
    IMPLICIT NONE
@@ -82,7 +84,8 @@ MODULE string_utilities
              typo_match, &
              uppercase, &
              write_html_tables, &
-             xstring
+             xstring, &
+             strlcpy_c2f
 
    PUBLIC :: html_entity_table, &
              newline
@@ -3586,5 +3589,28 @@ CONTAINS
       END DO
 
    END SUBROUTINE strip_control_codes
+
+! **************************************************************************************************
+!> \brief Copy the content of a \0-terminated C-string to a finite-length Fortran string
+!>
+!> The content of the new string may be truncated if the number of characters before the '\0'
+!> in the source string exceed the length of the destination string. Based on the strlcpy C function.
+!> \param fstring destination string
+!> \param cstring source string
+!> \return the number of characters copied
+!> \author Tiziano Müller
+! **************************************************************************************************
+   FUNCTION strlcpy_c2f(fstring, cstring) RESULT(nchar)
+      CHARACTER(LEN=*), INTENT(OUT)                      :: fstring
+      CHARACTER(LEN=1, KIND=C_CHAR), INTENT(IN)          :: cstring(*)
+      INTEGER                                            :: nchar
+
+      DO nchar = 1, LEN(fstring)
+         IF (cstring(nchar) == C_NULL_CHAR) EXIT
+         fstring(nchar:nchar) = cstring(nchar)
+      END DO
+
+      nchar = nchar - 1
+   END FUNCTION strlcpy_c2f
 
 END MODULE string_utilities

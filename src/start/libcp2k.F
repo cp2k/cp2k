@@ -41,6 +41,7 @@ MODULE libcp2k
                                               default_string_length,&
                                               dp
    USE qs_active_space_types,           ONLY: eri_type_eri_element_func
+   USE string_utilities,                ONLY: strlcpy_c2f
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -130,12 +131,12 @@ CONTAINS
       CHARACTER(LEN=1, KIND=C_CHAR), INTENT(IN)          :: input_file_path(*), output_file_path(*)
 
       CHARACTER(LEN=default_path_length)                 :: ifp, ofp
-      INTEGER                                            :: ierr
+      INTEGER                                            :: ierr, ncopied
       TYPE(section_type), POINTER                        :: input_declaration
 
       ifp = " "; ofp = " "
-      CALL strncpy_c2f(ifp, input_file_path)
-      CALL strncpy_c2f(ofp, output_file_path)
+      ncopied = strlcpy_c2f(ifp, input_file_path)
+      ncopied = strlcpy_c2f(ofp, output_file_path)
 
       NULLIFY (input_declaration)
       CALL create_cp2k_root_section(input_declaration)
@@ -157,12 +158,12 @@ CONTAINS
       INTEGER(C_INT), VALUE                              :: mpi_comm
 
       CHARACTER(LEN=default_path_length)                 :: ifp, ofp
-      INTEGER                                            :: ierr
+      INTEGER                                            :: ierr, ncopied
       TYPE(section_type), POINTER                        :: input_declaration
 
       ifp = " "; ofp = " "
-      CALL strncpy_c2f(ifp, input_file_path)
-      CALL strncpy_c2f(ofp, output_file_path)
+      ncopied = strlcpy_c2f(ifp, input_file_path)
+      ncopied = strlcpy_c2f(ofp, output_file_path)
 
       NULLIFY (input_declaration)
       CALL create_cp2k_root_section(input_declaration)
@@ -245,10 +246,10 @@ CONTAINS
       REAL(C_DOUBLE), DIMENSION(1:n_el), INTENT(OUT)     :: RESULT
 
       CHARACTER(LEN=default_string_length)               :: desc_low
-      INTEGER                                            :: ierr
+      INTEGER                                            :: ierr, ncopied
 
       desc_low = " "
-      CALL strncpy_c2f(desc_low, description)
+      ncopied = strlcpy_c2f(desc_low, description)
 
       CALL get_result_r1(env_id, desc_low, n_el, RESULT, ierr=ierr)
       CPASSERT(ierr == 0)
@@ -366,11 +367,12 @@ CONTAINS
       CHARACTER(LEN=1, KIND=C_CHAR), INTENT(IN)          :: input_file_path(*), output_file_path(*)
 
       CHARACTER(LEN=default_path_length)                 :: ifp, ofp
+      INTEGER                                            :: ncopied
       TYPE(section_type), POINTER                        :: input_declaration
 
       ifp = " "; ofp = " "
-      CALL strncpy_c2f(ifp, input_file_path)
-      CALL strncpy_c2f(ofp, output_file_path)
+      ncopied = strlcpy_c2f(ifp, input_file_path)
+      ncopied = strlcpy_c2f(ofp, output_file_path)
 
       NULLIFY (input_declaration)
       CALL create_cp2k_root_section(input_declaration)
@@ -389,11 +391,12 @@ CONTAINS
       INTEGER(C_INT), VALUE                              :: mpi_comm
 
       CHARACTER(LEN=default_path_length)                 :: ifp, ofp
+      INTEGER                                            :: ncopied
       TYPE(section_type), POINTER                        :: input_declaration
 
       ifp = " "; ofp = " "
-      CALL strncpy_c2f(ifp, input_file_path)
-      CALL strncpy_c2f(ofp, output_file_path)
+      ncopied = strlcpy_c2f(ifp, input_file_path)
+      ncopied = strlcpy_c2f(ofp, output_file_path)
 
       NULLIFY (input_declaration)
       CALL create_cp2k_root_section(input_declaration)
@@ -598,27 +601,6 @@ CONTAINS
       CALL f_env_rm_defaults(f_env, ierr)
       CPASSERT(ierr == 0)
    END FUNCTION cp2k_active_space_get_eri
-
-! **************************************************************************************************
-!> \brief Copy the content of a \0-terminated C-string to a finite-length Fortran string
-!>
-!> The content of the new string may be truncated if the number of characters before the '\0'
-!> in the source string exceed the length of the destination string.
-!> \param fstring destination string
-!> \param cstring source string
-!> \author Tiziano Mueller
-! **************************************************************************************************
-   SUBROUTINE strncpy_c2f(fstring, cstring)
-      CHARACTER(LEN=*), INTENT(OUT)                      :: fstring
-      CHARACTER(LEN=1, KIND=C_CHAR), INTENT(IN)          :: cstring(*)
-
-      INTEGER                                            :: i
-
-      DO i = 1, LEN(fstring)
-         IF (cstring(i) == C_NULL_CHAR) EXIT
-         fstring(i:i) = cstring(i)
-      END DO
-   END SUBROUTINE strncpy_c2f
 
 ! **************************************************************************************************
 !> \brief Copy the active space ERI to C buffers
