@@ -12,13 +12,14 @@
 MODULE grid_api
    USE ISO_C_BINDING,                   ONLY: &
         C_ASSOCIATED, C_BOOL, C_CHAR, C_DOUBLE, C_FUNLOC, C_FUNPTR, C_F_POINTER, C_INT, C_LOC, &
-        C_LONG, C_NULL_CHAR, C_NULL_PTR, C_PTR
+        C_LONG, C_NULL_PTR, C_PTR
    USE cell_types,                      ONLY: cell_type
    USE cube_utils,                      ONLY: cube_info_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
    USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
                                               realspace_grid_type
+   USE string_utilities,                ONLY: strlcpy_c2f
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1341,18 +1342,16 @@ CONTAINS
       INTEGER(KIND=C_INT), INTENT(IN), VALUE             :: output_unit
 
       CHARACTER(LEN=1000)                                :: buffer
-      INTEGER                                            :: i
+      INTEGER                                            :: nchars
 
-      IF (output_unit > 0) THEN
-         ! Convert C char array into Fortran string.
-         buffer = ""
-         DO i = 1, LEN(buffer)
-            IF (message(i) == C_NULL_CHAR) EXIT
-            buffer(i:i) = message(i)
-         END DO
-         ! Print the message.
-         WRITE (output_unit, FMT="(A)", ADVANCE="NO") buffer(1:i - 1)
-      END IF
+      IF (output_unit <= 0) &
+         RETURN
+
+      ! Convert C char array into Fortran string.
+      nchars = strlcpy_c2f(buffer, message)
+
+      ! Print the message.
+      WRITE (output_unit, FMT="(A)", ADVANCE="NO") buffer(1:nchars)
    END SUBROUTINE print_func
 
 END MODULE grid_api
