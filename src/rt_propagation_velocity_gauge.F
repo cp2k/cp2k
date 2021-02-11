@@ -146,7 +146,7 @@ CONTAINS
       ! add linear term in vector potential to imaginary part of KS-matrix
       DO ispin = 1, dft_control%nspins
          DO idir = 1, 3
-            CALL dbcsr_add(matrix_ks_im(ispin)%matrix, momentum(idir)%matrix, one, factor_lin*2.0_dp*vec_pot(idir))
+            CALL dbcsr_add(matrix_ks_im(ispin)%matrix, momentum(idir)%matrix, one, -factor_lin*vec_pot(idir))
          ENDDO
       ENDDO
 
@@ -158,7 +158,7 @@ CONTAINS
          factor = factor + vec_pot(idir)**2
       ENDDO
       DO ispin = 1, dft_control%nspins
-         CALL dbcsr_add(matrix_ks(ispin)%matrix, matrix_s(1)%matrix, one, factor*factor_qu)
+         CALL dbcsr_add(matrix_ks(ispin)%matrix, matrix_s(1)%matrix, one, 0.5*factor*factor_qu)
       ENDDO
 
       IF (dft_control%qs_control%gpw) THEN
@@ -212,7 +212,7 @@ CONTAINS
       vec_pot(:) = cell%h_inv(1, :)*dft_control%rtp_control%delta_pulse_direction(1) + &
                    cell%h_inv(2, :)*dft_control%rtp_control%delta_pulse_direction(2) + &
                    cell%h_inv(3, :)*dft_control%rtp_control%delta_pulse_direction(3)
-      vec_pot = -vec_pot*twopi*dft_control%rtp_control%delta_pulse_scale
+      vec_pot = vec_pot*twopi*dft_control%rtp_control%delta_pulse_scale
 
    END SUBROUTINE get_vector_potential
 
