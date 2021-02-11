@@ -97,7 +97,7 @@ RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
 
    INTEGER                                  :: ensemble, handle, idg, idir, ip, &
                                                nparticle, nsize, shell_index
-   LOGICAL                                  :: explicit, my_final_evaluation, keep_sg
+   LOGICAL                                  :: explicit, my_final_evaluation, keep_space_group
    REAL(KIND=dp)                            :: f_ts, potential_energy
    REAL(KIND=dp), DIMENSION(3, 3)            :: av_ptens
    REAL(KIND=dp), DIMENSION(:), POINTER     :: cell_gradient, gradient_ts
@@ -131,8 +131,8 @@ RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
                       shell_particles=shell_particles, &
                       virial=virial)
 
-   keep_sg = .FALSE.
-   IF (PRESENT(spgr)) keep_sg = .TRUE.
+   keep_space_group = .FALSE.
+   IF (PRESENT(spgr)) keep_space_group = .TRUE.
 
    my_final_evaluation = .FALSE.
    IF (PRESENT(final_evaluation)) my_final_evaluation = final_evaluation
@@ -155,7 +155,7 @@ RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
          IF (PRESENT(gradient)) THEN
             IF (master == para_env%mepos) THEN ! we are on the master
                CALL pack_subsys_particles(subsys=subsys, f=gradient, fscale=-1.0_dp)
-               IF (keep_sg) THEN
+               IF (keep_space_group) THEN
                   CALL spgr_apply_rotations_force(spgr, gradient)
                   CALL unpack_subsys_particles(subsys=subsys, f=gradient, fscale=-1.0_dp)
                END IF
@@ -218,11 +218,10 @@ RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
                CPASSERT((SIZE(gradient) == nsize + 6))
                CALL pack_subsys_particles(subsys=subsys, f=gradient(1:nsize), fscale=-1.0_dp)
                CALL apply_cell_change(gopt_env, cell, gradient, update_forces=.TRUE.)
-               IF (keep_sg) THEN
+               IF (keep_space_group) THEN
                   CALL spgr_apply_rotations_force(spgr, gradient)
                   CALL spgr_apply_rotations_stress(spgr, cell, av_ptens)
                   IF (para_env%ionode) THEN
-                     WRITE (6, *) master, para_env%mepos
                      CALL spgr_write_stress_tensor(av_ptens, spgr)
                   END IF
                END IF
@@ -313,7 +312,7 @@ RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
             av_ptens(:, :) = virial_avg%pv_total(:, :)/cell%deth
             IF (master == para_env%mepos) THEN ! we are on the master
                CPASSERT(ASSOCIATED(gradient))
-               IF (keep_sg) THEN
+               IF (keep_space_group) THEN
                   CALL spgr_apply_rotations_stress(spgr, cell, av_ptens)
                   IF (para_env%ionode) THEN
                      CALL spgr_write_stress_tensor(av_ptens, spgr)

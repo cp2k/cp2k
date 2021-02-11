@@ -47,6 +47,7 @@ MODULE space_groups
                                               spg_get_pointgroup,&
                                               spg_get_schoenflies,&
                                               spg_get_symmetry
+   USE string_utilities,                ONLY: strlcpy_c2f
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -60,8 +61,7 @@ MODULE space_groups
       INTEGER                                     :: plevel = -1
       INTEGER                                     :: punit = default_output_unit
       INTEGER                                     :: istriz = -1
-      REAL(KIND=dp)                               :: eps_geo = 1.0e-4_dp
-      REAL(KIND=dp)                               :: eps_sym = 1.0e-4_dp
+      REAL(KIND=dp)                               :: eps_symmetry = 1.0e-4_dp
       INTEGER                                     :: nparticle = 0
       INTEGER                                     :: nparticle_sym = 0
       INTEGER                                     :: n_atom = 0
@@ -142,8 +142,7 @@ CONTAINS
 !> \param types ...
 !> \param cell ...
 !> \param gopt_env ...
-!> \param eps_geo ...
-!> \param eps_sym ...
+!> \param eps_symmetry ...
 !> \param pol ...
 !> \param ranges ...
 !> \param nparticle ...
@@ -157,7 +156,7 @@ CONTAINS
 !>      01.2020 created [pcazade]
 !> \author Pierre-André Cazade (first version)
 ! **************************************************************************************************
-   SUBROUTINE spgr_create(spgr, scoor, types, cell, gopt_env, eps_geo, eps_sym, pol, ranges, &
+   SUBROUTINE spgr_create(spgr, scoor, types, cell, gopt_env, eps_symmetry, pol, ranges, &
                           nparticle, n_atom, n_core, n_shell, iounit, plevel, filename)
 
       TYPE(spgr_type), INTENT(INOUT)                     :: spgr
@@ -165,7 +164,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: types
       TYPE(cell_type), INTENT(IN), POINTER               :: cell
       TYPE(gopt_f_type), INTENT(IN), POINTER             :: gopt_env
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_geo, eps_sym
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_symmetry
       REAL(KIND=dp), DIMENSION(3), INTENT(IN), OPTIONAL  :: pol
       INTEGER, DIMENSION(:, :), INTENT(IN), OPTIONAL     :: ranges
       INTEGER, INTENT(IN), OPTIONAL                      :: nparticle, n_atom, n_core, n_shell, &
@@ -176,10 +175,11 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_create', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, ierr, j, n_sr_rep, nop, &
-                                                            tra_mat(3, 3)
+                                                            nchars, tra_mat(3, 3)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: tmp_types
       LOGICAL                                            :: spglib
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: tmp_coor
+      CHARACTER(LEN=1000)                                :: buffer
 
       CALL timeset(routineN, handle)
 
@@ -237,13 +237,8 @@ CONTAINS
       END IF
 
       ! accuracy for symmetry
-      IF (PRESENT(eps_geo)) THEN
-         spgr%eps_geo = eps_geo
-      END IF
-
-      ! accuracy for symmetry
-      IF (PRESENT(eps_sym)) THEN
-         spgr%eps_sym = eps_sym
+      IF (PRESENT(eps_symmetry)) THEN
+         spgr%eps_symmetry = eps_symmetry
       END IF
 
       ! vector to test reduced symmetry
@@ -315,27 +310,36 @@ CONTAINS
       spglib = .TRUE.
       CALL cite_reference(Togo2018)
       ierr = spg_get_international(spgr%international_symbol, TRANSPOSE(cell%hmat), tmp_coor, tmp_types, &
-                                   spgr%n_atom_sym, eps_sym)
+                                   spgr%n_atom_sym, eps_symmetry)
+      buffer = ''
+      nchars = strlcpy_c2f(buffer, spgr%international_symbol)
+      spgr%international_symbol = buffer(1:nchars)
       IF (ierr == 0) THEN
          CPABORT("Symmetry Library SPGLIB failed, most likely due a problem with the coordinates.")
          spglib = .FALSE.
       ELSE
          nop = spg_get_multiplicity(TRANSPOSE(cell%hmat), tmp_coor, tmp_types, &
-                                    spgr%n_atom_sym, eps_sym)
+                                    spgr%n_atom_sym, eps_symmetry)
          ALLOCATE (spgr%rotations(3, 3, nop), spgr%translations(3, nop))
          ALLOCATE (spgr%eqatom(nop, spgr%nparticle))
          ALLOCATE (spgr%lop(nop))
          spgr%n_operations = nop
          spgr%lop = .TRUE.
          ierr = spg_get_symmetry(spgr%rotations, spgr%translations, nop, TRANSPOSE(cell%hmat), &
-                                 tmp_coor, tmp_types, spgr%n_atom_sym, eps_sym)
+                                 tmp_coor, tmp_types, spgr%n_atom_sym, eps_symmetry)
          ! Schoenflies Symbol
          ierr = spg_get_schoenflies(spgr%schoenflies, TRANSPOSE(cell%hmat), tmp_coor, tmp_types, &
-                                    spgr%n_atom_sym, eps_sym)
+                                    spgr%n_atom_sym, eps_symmetry)
+         buffer = ''
+         nchars = strlcpy_c2f(buffer, spgr%schoenflies)
+         spgr%schoenflies = buffer(1:nchars)
          ! Point Group
          tra_mat = 0
          ierr = spg_get_pointgroup(spgr%pointgroup_symbol, tra_mat, &
                                    spgr%rotations, spgr%n_operations)
+         buffer = ''
+         nchars = strlcpy_c2f(buffer, spgr%pointgroup_symbol)
+         spgr%pointgroup_symbol = buffer(1:nchars)
       END IF
 #else
       CPABORT("Symmetry library SPGLIB not available")
@@ -382,7 +386,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atype
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ranges
       INTEGER, DIMENSION(:), POINTER                     :: tmp
-      REAL(KIND=dp)                                      :: eps_geo, eps_sym
+      REAL(KIND=dp)                                      :: eps_symmetry
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: scoord
       REAL(KIND=dp), DIMENSION(:), POINTER               :: pol
       TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
@@ -413,7 +417,6 @@ CONTAINS
          CPASSERT(n_core == n_shell)
       ELSE IF (ASSOCIATED(core_particles)) THEN
          ! This case should not occur at the moment
-         CPASSERT(ASSOCIATED(shell_particles))
       ELSE
          n_core = 0
          n_shell = 0
@@ -437,8 +440,7 @@ CONTAINS
 
       CALL section_vals_val_get(geo_section, "SPGR_PRINT_LEVEL", i_val=plevel)
       CALL section_vals_val_get(geo_section, "SPGR_FILE_NAME", c_val=filename)
-      CALL section_vals_val_get(geo_section, "EPS_GEO", r_val=eps_geo)
-      CALL section_vals_val_get(geo_section, "EPS_SPGR", r_val=eps_sym)
+      CALL section_vals_val_get(geo_section, "EPS_SYMMETRY", r_val=eps_symmetry)
       CALL section_vals_val_get(geo_section, "SYMM_REDUCTION", r_vals=pol)
       CALL section_vals_val_get(geo_section, "SYMM_EXCLUDE_RANGE", n_rep_val=n_sr_rep)
       IF (n_sr_rep > 0) THEN
@@ -447,12 +449,12 @@ CONTAINS
             CALL section_vals_val_get(geo_section, "SYMM_EXCLUDE_RANGE", i_rep_val=i, i_vals=tmp)
             ranges(:, i) = tmp(:)
          END DO
-         CALL spgr_create(spgr, scoord, atype, cell, gopt_env, eps_geo=eps_geo, eps_sym=eps_sym, pol=pol(1:3), &
+         CALL spgr_create(spgr, scoord, atype, cell, gopt_env, eps_symmetry=eps_symmetry, pol=pol(1:3), &
                           ranges=ranges, nparticle=nparticle, n_atom=n_atom, n_core=n_core, n_shell=n_shell, iounit=iounit, &
                           filename=filename, plevel=plevel)
          DEALLOCATE (ranges)
       ELSE
-         CALL spgr_create(spgr, scoord, atype, cell, gopt_env, eps_geo=eps_geo, eps_sym=eps_sym, pol=pol(1:3), &
+         CALL spgr_create(spgr, scoord, atype, cell, gopt_env, eps_symmetry=eps_symmetry, pol=pol(1:3), &
                           nparticle=nparticle, n_atom=n_atom, n_core=n_core, n_shell=n_shell, iounit=iounit, &
                           filename=filename, plevel=plevel)
       ENDIF
@@ -515,11 +517,11 @@ CONTAINS
                ro(1) = REAL(rot(1, 1), dp)*rb(1) + REAL(rot(2, 1), dp)*rb(2) + REAL(rot(3, 1), dp)*rb(3) + tr(1)
                ro(2) = REAL(rot(1, 2), dp)*rb(1) + REAL(rot(2, 2), dp)*rb(2) + REAL(rot(3, 2), dp)*rb(3) + tr(2)
                ro(3) = REAL(rot(1, 3), dp)*rb(1) + REAL(rot(2, 3), dp)*rb(2) + REAL(rot(3, 3), dp)*rb(3) + tr(3)
-               ro(1) = ro(1) - REAL(NINT(ro(1) - ri(1)))
-               ro(2) = ro(2) - REAL(NINT(ro(2) - ri(2)))
-               ro(3) = ro(3) - REAL(NINT(ro(3) - ri(3)))
+               ro(1) = ro(1) - REAL(NINT(ro(1) - ri(1)), dp)
+               ro(2) = ro(2) - REAL(NINT(ro(2) - ri(2)), dp)
+               ro(3) = ro(3) - REAL(NINT(ro(3) - ri(3)), dp)
                diff = NORM2(ri(:) - ro(:))
-               IF ((diff < spgr%eps_geo) .AND. (spgr%atype(ia) == spgr%atype(ib))) THEN
+               IF ((diff < spgr%eps_symmetry) .AND. (spgr%atype(ia) == spgr%atype(ib))) THEN
                   spgr%eqatom(ir, ia) = ib
                   EXIT
                END IF
@@ -543,11 +545,11 @@ CONTAINS
                ro(1) = REAL(rot(1, 1), dp)*rb(1) + REAL(rot(2, 1), dp)*rb(2) + REAL(rot(3, 1), dp)*rb(3) + tr(1)
                ro(2) = REAL(rot(1, 2), dp)*rb(1) + REAL(rot(2, 2), dp)*rb(2) + REAL(rot(3, 2), dp)*rb(3) + tr(2)
                ro(3) = REAL(rot(1, 3), dp)*rb(1) + REAL(rot(2, 3), dp)*rb(2) + REAL(rot(3, 3), dp)*rb(3) + tr(3)
-               ro(1) = ro(1) - REAL(NINT(ro(1) - ri(1)))
-               ro(2) = ro(2) - REAL(NINT(ro(2) - ri(2)))
-               ro(3) = ro(3) - REAL(NINT(ro(3) - ri(3)))
+               ro(1) = ro(1) - REAL(NINT(ro(1) - ri(1)), dp)
+               ro(2) = ro(2) - REAL(NINT(ro(2) - ri(2)), dp)
+               ro(3) = ro(3) - REAL(NINT(ro(3) - ri(3)), dp)
                diff = NORM2(ri(:) - ro(:))
-               IF ((diff < spgr%eps_geo) .AND. (spgr%atype(ia) == spgr%atype(ib))) THEN
+               IF ((diff < spgr%eps_symmetry) .AND. (spgr%atype(ia) == spgr%atype(ib))) THEN
                   spgr%eqatom(ir, ia) = ib
                   EXIT
                END IF
@@ -614,7 +616,9 @@ CONTAINS
             ja = 3*(ia - 1)
             jb = 3*(ib - 1)
             ro = x(jb + 1:jb + 3) - xold(ja + 1:ja + 3)
- spgr%lop(ir) = (spgr%lop(ir) .AND. (ABS(ro(1)) < spgr%eps_geo) .AND. (ABS(ro(2)) < spgr%eps_geo) .AND. (ABS(ro(3)) < spgr%eps_geo))
+            spgr%lop(ir) = (spgr%lop(ir) .AND. (ABS(ro(1)) < spgr%eps_symmetry) &
+                                                .AND. (ABS(ro(2)) < spgr%eps_symmetry) &
+                                                .AND. (ABS(ro(3)) < spgr%eps_symmetry))
          END DO
          IF (spgr%lop(ir)) nops = nops + 1
       END DO
@@ -730,9 +734,9 @@ CONTAINS
             ro(1) = REAL(rot(1, 1), dp)*ri(1) + REAL(rot(2, 1), dp)*ri(2) + REAL(rot(3, 1), dp)*ri(3) + tr(1)
             ro(2) = REAL(rot(1, 2), dp)*ri(1) + REAL(rot(2, 2), dp)*ri(2) + REAL(rot(3, 2), dp)*ri(3) + tr(2)
             ro(3) = REAL(rot(1, 3), dp)*ri(1) + REAL(rot(2, 3), dp)*ri(2) + REAL(rot(3, 3), dp)*ri(3) + tr(3)
-            ro(1) = ro(1) - REAL(NINT(ro(1) - rf(1)))
-            ro(2) = ro(2) - REAL(NINT(ro(2) - rf(2)))
-            ro(3) = ro(3) - REAL(NINT(ro(3) - rf(3)))
+            ro(1) = ro(1) - REAL(NINT(ro(1) - rf(1)), dp)
+            ro(2) = ro(2) - REAL(NINT(ro(2) - rf(2)), dp)
+            ro(3) = ro(3) - REAL(NINT(ro(3) - rf(3)), dp)
             rn(1:3) = rn(1:3) + ro(1:3)
          END DO
          rn = rn/REAL(nops)

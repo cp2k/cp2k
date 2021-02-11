@@ -80,7 +80,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'geoopt_lbfgs'
 
       INTEGER                                            :: handle, iter_nr, its, output_unit
-      LOGICAL                                            :: converged, keep_sg, should_stop
+      LOGICAL                                            :: converged, keep_space_group, should_stop
       REAL(KIND=dp)                                      :: trust_radius
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_lbfgs_opt_gopt_type), POINTER              :: optimizer
@@ -108,8 +108,8 @@ CONTAINS
       CALL print_geo_opt_header(gopt_env, output_unit, "L-BFGS")
 
       ! finds space group
-      CALL section_vals_val_get(geo_section, "KEEP_SPACE_GROUP", l_val=keep_sg)
-      IF (keep_sg) THEN
+      CALL section_vals_val_get(geo_section, "KEEP_SPACE_GROUP", l_val=keep_space_group)
+      IF (keep_space_group) THEN
          CALL identify_space_group(spgr, subsys, subsys%cell, geo_section, gopt_env, output_unit)
          CALL spgr_apply_rotations_coord(spgr, x0)
          CALL print_spgr(spgr)
@@ -133,7 +133,7 @@ CONTAINS
          CALL gopt_f_ii(its, output_unit)
 
          ! Real optimization step..
-         IF (keep_sg) THEN
+         IF (keep_space_group) THEN
             ! passes spgr structure if required
             IF (.NOT. cp_opt_gopt_next(optimizer, geo_section=geo_section, &
                                        force_env=force_env, gopt_param=gopt_param, &
@@ -167,7 +167,7 @@ CONTAINS
                                         "PRINT%PROGRAM_RUN_INFO")
 
       ! deallocates spgr structure
-      IF (keep_sg) THEN
+      IF (keep_space_group) THEN
          CALL release_spgr_type(spgr)
       END IF
 

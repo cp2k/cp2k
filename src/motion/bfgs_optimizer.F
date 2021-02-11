@@ -122,7 +122,7 @@ CONTAINS
       INTEGER                                            :: handle, hesunit_read, indf, info, &
                                                             iter_nr, its, maxiter, ndf, nfree, &
                                                             output_unit
-      LOGICAL                                            :: conv, hesrest, ionode, keep_sg, &
+      LOGICAL                                            :: conv, hesrest, ionode, keep_space_group, &
                                                             shell_present, should_stop, &
                                                             use_mod_hes, use_rfo
       REAL(KIND=dp)                                      :: ediff, emin, eold, etot, pred, rad, rat, &
@@ -274,8 +274,8 @@ CONTAINS
       dr(:) = 0.0_dp
 
       ! find space_group
-      CALL section_vals_val_get(geo_section, "KEEP_SPACE_GROUP", l_val=keep_sg)
-      IF (keep_sg) THEN
+      CALL section_vals_val_get(geo_section, "KEEP_SPACE_GROUP", l_val=keep_space_group)
+      IF (keep_space_group) THEN
          CALL identify_space_group(spgr, subsys, subsys%cell, geo_section, gopt_env, output_unit)
          CALL spgr_apply_rotations_coord(spgr, x0)
          CALL print_spgr(spgr)
@@ -286,7 +286,7 @@ CONTAINS
       CALL print_geo_opt_header(gopt_env, output_unit, wildcard)
 
       ! Symmetrize forces and stress tensor
-      IF (keep_sg) THEN
+      IF (keep_space_group) THEN
          ! Calculate Energy & Gradients
          CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
                          .FALSE., gopt_env%force_env%para_env, spgr=spgr)
@@ -297,7 +297,7 @@ CONTAINS
       END IF
 
       ! Symmetrize coordinates and forces
-      IF (keep_sg) THEN
+      IF (keep_space_group) THEN
          CALL spgr_apply_rotations_coord(spgr, x0)
          CALL spgr_apply_rotations_force(spgr, g)
       END IF
@@ -325,7 +325,7 @@ CONTAINS
          ELSE
             IF ((its - iter_nr) > 1) THEN
                ! Symmetrize old coordinates and old forces
-               IF (keep_sg) THEN
+               IF (keep_space_group) THEN
                   CALL spgr_apply_rotations_coord(spgr, xold)
                   CALL spgr_apply_rotations_force(spgr, gold)
                END IF
@@ -338,7 +338,7 @@ CONTAINS
                CALL bfgs(ndf, dx, dg, hess_mat, work, para_env)
 
                ! Symmetrize coordinates and forces change
-               IF (keep_sg) THEN
+               IF (keep_space_group) THEN
                   CALL spgr_apply_rotations_force(spgr, dx)
                   CALL spgr_apply_rotations_force(spgr, dg)
                END IF
@@ -351,7 +351,7 @@ CONTAINS
          END IF
 
          ! Symmetrize coordinates and forces
-         IF (keep_sg) THEN
+         IF (keep_space_group) THEN
             CALL spgr_apply_rotations_coord(spgr, x0)
             CALL spgr_apply_rotations_force(spgr, g)
          END IF
@@ -382,7 +382,7 @@ CONTAINS
          CALL geoopt_get_step(ndf, eigval, eigvec_mat, hess_tmp, dr, g, para_env, use_rfo)
 
          ! Symmetrize dr
-         IF (keep_sg) THEN
+         IF (keep_space_group) THEN
             CALL spgr_apply_rotations_force(spgr, dr)
          END IF
 
@@ -392,7 +392,7 @@ CONTAINS
          x0 = x0 + dr
 
          ! Symmetrize coordinates
-         IF (keep_sg) THEN
+         IF (keep_space_group) THEN
             CALL spgr_apply_rotations_coord(spgr, x0)
          END IF
 
@@ -400,7 +400,7 @@ CONTAINS
          eold = etot
 
          ! Symmetrize forces and stress tensor
-         IF (keep_sg) THEN
+         IF (keep_space_group) THEN
             ! Energy & Gradients at new step
             CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
                             .FALSE., gopt_env%force_env%para_env, spgr=spgr)
@@ -413,7 +413,7 @@ CONTAINS
          ediff = etot - eold
 
          ! Symmetrize forces
-         IF (keep_sg) THEN
+         IF (keep_space_group) THEN
             CALL spgr_apply_rotations_force(spgr, g)
          END IF
 
@@ -460,7 +460,7 @@ CONTAINS
       DEALLOCATE (dr)
 
       ! releases spgr structure
-      IF (keep_sg) THEN
+      IF (keep_space_group) THEN
          CALL release_spgr_type(spgr)
       END IF
 

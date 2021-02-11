@@ -422,7 +422,7 @@ CONTAINS
                                                             itail, iter, itfile, iupdat, iword, k, &
                                                             nact, nenter, nfgv, nfree, nintol, &
                                                             nseg, nskip
-      LOGICAL                                            :: boxed, constrained, first, keep_sg, &
+      LOGICAL                                            :: boxed, constrained, first, keep_space_group, &
                                                             updatd, wrk, x_projected
       REAL(KIND=dp) :: cachyt, cpu1, cpu2, ddot, ddum, dnorm, dr, dtd, epsmch, fold, g_inf_norm, &
          gd, gdold, lnscht, rr, sbtime, step_max, stp, theta, time, time1, time2, tol, xstep
@@ -447,8 +447,8 @@ CONTAINS
 !
 !                           *  *  *
 
-      keep_sg = .FALSE.
-      IF (PRESENT(spgr)) keep_sg = .TRUE.
+      keep_space_group = .FALSE.
+      IF (PRESENT(spgr)) keep_space_group = .TRUE.
 
       IF (task == 'START') THEN
 
@@ -525,7 +525,7 @@ CONTAINS
 
          CALL active(n, lower_bound, upper_bound, nbd, x, iwhere, iprint, x_projected, constrained, boxed)
          ! applies rotation matrices to coordinates
-         IF (keep_sg) THEN
+         IF (keep_space_group) THEN
             CALL spgr_apply_rotations_coord(spgr, x)
          END IF
 
@@ -538,7 +538,7 @@ CONTAINS
          RETURN
       ELSE
          ! applies rotation matrices to coordinates
-         IF (keep_sg) THEN
+         IF (keep_space_group) THEN
             CALL spgr_apply_rotations_coord(spgr, x)
             CALL spgr_apply_rotations_force(spgr, g)
          END IF
@@ -663,7 +663,7 @@ CONTAINS
                         wa(1), wa(2*m + 1), wa(4*m + 1), wa(6*m + 1), nseg, &
                         iprint, g_inf_norm, info, epsmch)
             ! applies rotation matrices to coordinates
-            IF (keep_sg) THEN
+            IF (keep_space_group) THEN
                CALL spgr_apply_rotations_coord(spgr, z)
             END IF
             IF (info /= 0) THEN
@@ -735,7 +735,7 @@ CONTAINS
             CALL cmprlb(n, m, x, g, ws, wy, sy, wt, z, r, wa, index, &
                         theta, col, head, nfree, constrained, info)
             ! applies rotation matrices to coordinates
-            IF (keep_sg) THEN
+            IF (keep_space_group) THEN
                CALL spgr_apply_rotations_force(spgr, r)
             END IF
             IF (info == 0) THEN
@@ -745,7 +745,7 @@ CONTAINS
                CALL subsm(n, m, nfree, index, lower_bound, upper_bound, nbd, z, r, xp, ws, wy, &
                           theta, x, g, col, head, iword, wa, wn, iprint, info)
                ! applies rotation matrices to coordinates
-               IF (keep_sg) THEN
+               IF (keep_space_group) THEN
                   CALL spgr_apply_rotations_coord(spgr, z)
                   CALL spgr_apply_rotations_force(spgr, r)
                END IF
@@ -778,7 +778,7 @@ CONTAINS
 
 !     Generate the search direction d:=z-x.
          ! applies rotation matrices to coordinates
-         IF (keep_sg) THEN
+         IF (keep_space_group) THEN
             CALL spgr_apply_rotations_coord(spgr, x)
             CALL spgr_apply_rotations_coord(spgr, z)
          END IF
@@ -789,7 +789,7 @@ CONTAINS
       ENDIF
       IF (.NOT. first .OR. .NOT. (task(1:5) == 'NEW_X')) THEN
          ! applies rotation matrices to coordinates
-         IF (keep_sg) THEN
+         IF (keep_space_group) THEN
             CALL spgr_apply_rotations_coord(spgr, x)
             CALL spgr_apply_rotations_coord(spgr, z)
             CALL spgr_apply_rotations_force(spgr, d)
@@ -800,7 +800,7 @@ CONTAINS
                      dtd, xstep, step_max, iter, ifun, iback, nfgv, info, task, &
                      boxed, constrained, csave, isave(22), dsave(17))
          ! applies rotation matrices to coordinates
-         IF (keep_sg) THEN
+         IF (keep_space_group) THEN
             CALL spgr_apply_rotations_coord(spgr, x)
             CALL spgr_apply_rotations_force(spgr, g)
          END IF
@@ -909,7 +909,7 @@ CONTAINS
       END IF
 
 !     Compute d=newx-oldx, r=newg-oldg, rr=y'y and dr=y's.
-      IF (keep_sg) THEN
+      IF (keep_space_group) THEN
          CALL spgr_apply_rotations_force(spgr, g)
          CALL spgr_apply_rotations_force(spgr, r)
       END IF

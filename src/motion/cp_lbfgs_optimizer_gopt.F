@@ -505,7 +505,7 @@ CONTAINS
 
       CHARACTER(LEN=5)                                   :: wildcard
       INTEGER                                            :: dataunit, handle, its
-      LOGICAL                                            :: conv, is_master, justEntred, keep_sg
+      LOGICAL                                            :: conv, is_master, justEntred, keep_space_group
       REAL(KIND=dp)                                      :: t_diff, t_now, t_old
       REAL(KIND=dp), DIMENSION(:), POINTER               :: xold
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -522,10 +522,10 @@ CONTAINS
       ! collecting subsys
       CALL force_env_get(force_env, subsys=subsys)
 
-      keep_sg = .FALSE.
-      IF (PRESENT(spgr)) keep_sg = .TRUE.
+      keep_space_group = .FALSE.
+      IF (PRESENT(spgr)) keep_space_group = .TRUE.
       ! applies rotation matrices to coordinates
-      IF (keep_sg) THEN
+      IF (keep_space_group) THEN
          CALL spgr_apply_rotations_coord(spgr, optimizer%x)
       END IF
 
@@ -540,7 +540,7 @@ CONTAINS
          optimizer%status = 0
          IF (is_master) THEN
             optimizer%task = 'START'
-            IF (keep_sg) THEN
+            IF (keep_space_group) THEN
                CALL setulb(SIZE(optimizer%x), optimizer%m, optimizer%x, &
                            optimizer%lower_bound, optimizer%upper_bound, &
                            optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
@@ -569,7 +569,7 @@ CONTAINS
                optimizer%status = 0
                optimizer%task = 'START'
                ! applies rotation matrices to coordinates and forces
-               IF (keep_sg) THEN
+               IF (keep_space_group) THEN
                   CALL spgr_apply_rotations_coord(spgr, optimizer%x)
                   CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
                   CALL setulb(SIZE(optimizer%x), optimizer%m, optimizer%x, &
@@ -597,7 +597,7 @@ CONTAINS
                IF (optimizer%isave(36) > optimizer%max_f_per_iter) THEN
                   optimizer%task = 'STOP: CPU, hit max f eval in iter'
                   optimizer%status = 5 ! anormal exit
-                  IF (keep_sg) THEN
+                  IF (keep_space_group) THEN
                      CALL setulb(SIZE(optimizer%x), optimizer%m, optimizer%x, &
                                  optimizer%lower_bound, optimizer%upper_bound, &
                                  optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
@@ -623,7 +623,7 @@ CONTAINS
                IF (justEntred) THEN
                   optimizer%status = 2
                   ! applies rotation matrices to coordinates and forces
-                  IF (keep_sg) THEN
+                  IF (keep_space_group) THEN
                      CALL spgr_apply_rotations_coord(spgr, optimizer%x)
                      CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
                      CALL setulb(SIZE(optimizer%x), optimizer%m, optimizer%x, &
@@ -648,7 +648,7 @@ CONTAINS
                   END IF
                ELSE
                   ! applies rotation matrices to coordinates and forces
-                  IF (keep_sg) THEN
+                  IF (keep_space_group) THEN
                      CALL spgr_apply_rotations_coord(spgr, optimizer%x)
                      CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
                   END IF
@@ -678,7 +678,7 @@ CONTAINS
          SELECT CASE (optimizer%status)
          CASE (1)
             !op=1 evaluate f and g
-            IF (keep_sg) THEN
+            IF (keep_space_group) THEN
                CALL cp_eval_at(optimizer%obj_funct, x=optimizer%x, &
                                f=optimizer%f, &
                                gradient=optimizer%gradient, &
@@ -694,7 +694,7 @@ CONTAINS
             ! do not use keywords?
             IF (is_master) THEN
                ! applies rotation matrices to coordinates and forces
-               IF (keep_sg) THEN
+               IF (keep_space_group) THEN
                   CALL spgr_apply_rotations_coord(spgr, optimizer%x)
                   CALL spgr_apply_rotations_force(spgr, optimizer%gradient)
                   CALL setulb(SIZE(optimizer%x), optimizer%m, optimizer%x, &
