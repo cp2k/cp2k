@@ -285,16 +285,9 @@ CONTAINS
       CALL cp_iterate(logger%iter_info, increment=0, iter_nr_out=iter_nr)
       CALL print_geo_opt_header(gopt_env, output_unit, wildcard)
 
-      ! Symmetrize forces and stress tensor
-      IF (keep_space_group) THEN
-         ! Calculate Energy & Gradients
-         CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
-                         .FALSE., gopt_env%force_env%para_env, spgr=spgr)
-      ELSE
-         ! Calculate Energy & Gradients
-         CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
-                         .FALSE., gopt_env%force_env%para_env)
-      END IF
+      ! Calculate Energy & Gradients
+      CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
+                      .FALSE., gopt_env%force_env%para_env, spgr=spgr)
 
       ! Symmetrize coordinates and forces
       IF (keep_space_group) THEN
@@ -399,16 +392,9 @@ CONTAINS
          CALL energy_predict(ndf, work, hess_mat, dr, g, conv, pred, para_env)
          eold = etot
 
-         ! Symmetrize forces and stress tensor
-         IF (keep_space_group) THEN
-            ! Energy & Gradients at new step
-            CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
-                            .FALSE., gopt_env%force_env%para_env, spgr=spgr)
-         ELSE
-            ! Energy & Gradients at new step
-            CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
-                            .FALSE., gopt_env%force_env%para_env)
-         END IF
+         ! Energy & Gradients at new step
+         CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
+                         .FALSE., gopt_env%force_env%para_env, spgr=spgr)
 
          ediff = etot - eold
 

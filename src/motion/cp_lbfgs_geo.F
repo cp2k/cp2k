@@ -133,16 +133,9 @@ CONTAINS
          CALL gopt_f_ii(its, output_unit)
 
          ! Real optimization step..
-         IF (keep_space_group) THEN
-            ! passes spgr structure if required
-            IF (.NOT. cp_opt_gopt_next(optimizer, geo_section=geo_section, &
-                                       force_env=force_env, gopt_param=gopt_param, &
-                                       converged=converged, spgr=spgr)) EXIT
-         ELSE
-            IF (.NOT. cp_opt_gopt_next(optimizer, geo_section=geo_section, &
-                                       force_env=force_env, gopt_param=gopt_param, &
-                                       converged=converged)) EXIT
-         ENDIF
+         IF (.NOT. cp_opt_gopt_next(optimizer, geo_section=geo_section, &
+                                    force_env=force_env, gopt_param=gopt_param, &
+                                    converged=converged, spgr=spgr)) EXIT
 
          ! Check for an external exit command
          CALL external_control(should_stop, "GEO", globenv=globenv)

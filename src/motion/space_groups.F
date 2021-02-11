@@ -39,7 +39,8 @@ MODULE space_groups
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE machine,                         ONLY: default_output_unit
-   USE mathlib,                         ONLY: inv_3x3
+   USE mathlib,                         ONLY: inv_3x3, det_3x3,&
+                                              jacobi
    USE particle_list_types,             ONLY: particle_list_type
    USE physcon,                         ONLY: pascal
    USE spglib_f08,                      ONLY: spg_get_international,&
@@ -47,7 +48,7 @@ MODULE space_groups
                                               spg_get_pointgroup,&
                                               spg_get_schoenflies,&
                                               spg_get_symmetry
-   USE string_utilities,                ONLY: strlcpy_c2f
+   !USE string_utilities,                ONLY: strlcpy_c2f
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -70,7 +71,6 @@ MODULE space_groups
       INTEGER                                     :: n_atom_sym = 0
       INTEGER                                     :: n_core_sym = 0
       INTEGER                                     :: n_shell_sym = 0
-      INTEGER                                     :: ndigits = 16
       INTEGER, DIMENSION(:), ALLOCATABLE          :: atype
       INTEGER, DIMENSION(:, :), ALLOCATABLE        :: eqatom
       LOGICAL, DIMENSION(:), ALLOCATABLE          :: lop, lat
@@ -175,11 +175,12 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_create', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, ierr, j, n_sr_rep, nop, &
-                                                            nchars, tra_mat(3, 3)
+                                                            tra_mat(3, 3)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: tmp_types
       LOGICAL                                            :: spglib
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: tmp_coor
-      CHARACTER(LEN=1000)                                :: buffer
+      !INTEGER                                            :: nchars
+      !CHARACTER(LEN=1000)                                :: buffer
 
       CALL timeset(routineN, handle)
 
@@ -291,8 +292,10 @@ CONTAINS
          SELECT CASE (gopt_env%cell_method_id)
          CASE (default_cell_direct_id)
             CALL init_cell(spgr%cell_ref, hmat=gopt_env%h_ref)
-         CASE (default_cell_geo_opt_id, default_cell_md_id)
+         CASE (default_cell_geo_opt_id)
             CPABORT("SPACE_GROUP_SYMMETRY SHOULD NOT BE INVOKED DURING THE CELL STEP.")
+         CASE(default_cell_md_id)
+            CPABORT("SPACE_GROUP_SYMMETRY IS NOT COMPATIBLE WITH MD.")
          CASE DEFAULT
             CPABORT("SPACE_GROUP_SYMMETRY INVOKED WITH AN UNKNOWN OPTIMIZATION METHOD.")
          END SELECT
@@ -311,9 +314,9 @@ CONTAINS
       CALL cite_reference(Togo2018)
       ierr = spg_get_international(spgr%international_symbol, TRANSPOSE(cell%hmat), tmp_coor, tmp_types, &
                                    spgr%n_atom_sym, eps_symmetry)
-      buffer = ''
-      nchars = strlcpy_c2f(buffer, spgr%international_symbol)
-      spgr%international_symbol = buffer(1:nchars)
+      !buffer = ''
+      !nchars = strlcpy_c2f(buffer, spgr%international_symbol)
+      !spgr%international_symbol = buffer(1:nchars)
       IF (ierr == 0) THEN
          CPABORT("Symmetry Library SPGLIB failed, most likely due a problem with the coordinates.")
          spglib = .FALSE.
@@ -330,16 +333,16 @@ CONTAINS
          ! Schoenflies Symbol
          ierr = spg_get_schoenflies(spgr%schoenflies, TRANSPOSE(cell%hmat), tmp_coor, tmp_types, &
                                     spgr%n_atom_sym, eps_symmetry)
-         buffer = ''
-         nchars = strlcpy_c2f(buffer, spgr%schoenflies)
-         spgr%schoenflies = buffer(1:nchars)
+         !buffer = ''
+         !nchars = strlcpy_c2f(buffer, spgr%schoenflies)
+         !spgr%schoenflies = buffer(1:nchars)
          ! Point Group
          tra_mat = 0
          ierr = spg_get_pointgroup(spgr%pointgroup_symbol, tra_mat, &
                                    spgr%rotations, spgr%n_operations)
-         buffer = ''
-         nchars = strlcpy_c2f(buffer, spgr%pointgroup_symbol)
-         spgr%pointgroup_symbol = buffer(1:nchars)
+         !buffer = ''
+         !nchars = strlcpy_c2f(buffer, spgr%pointgroup_symbol)
+         !spgr%pointgroup_symbol = buffer(1:nchars)
       END IF
 #else
       CPABORT("Symmetry library SPGLIB not available")
@@ -946,8 +949,6 @@ CONTAINS
                spgr%n_operations_subset
             WRITE (iunit, '(T2,A,T55,I16)') "SPGR| NUMBER OF REDUCED SYMMETRY OPERATIONS:", &
                spgr%n_reduced_operations
-            WRITE (iunit, *) "SPGR| REDUCED SYMMETRY OPERATIONS:", &
-               spgr%lop
             WRITE (iunit, '(T2,A,T55,I8,I8)') "SPGR| NUMBER OF PARTICLES AND SYMMETRIZED PARTICLES:", &
                spgr%nparticle, spgr%nparticle_sym
             WRITE (iunit, '(T2,A,T55,I8,I8)') "SPGR| NUMBER OF ATOMS AND SYMMETRIZED ATOMS:", &
@@ -957,6 +958,7 @@ CONTAINS
             WRITE (iunit, '(T2,A,T55,I8,I8)') "SPGR| NUMBER OF SHELLS AND SYMMETRIZED SHELLS:", &
                spgr%n_shell, spgr%n_shell_sym
             IF (spgr%plevel > 0) THEN
+               WRITE (iunit, *) "SPGR| ACTIVE REDUCED SYMMETRY OPERATIONS:", spgr%lop
                WRITE (iunit, '(/,T2,A,A)') "----------------------------------------", &
                   "---------------------------------------"
                WRITE (iunit, '(T2,A,T34,A,T77,A)') "----", "EQUIVALENT ATOMS", "----"
@@ -1006,25 +1008,47 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_write_stress_tensor', &
          routineP = moduleN//':'//routineN
 
-      CHARACTER(LEN=22)                                  :: fmtstr2
-      CHARACTER(LEN=31)                                  :: fmtstr1
-      INTEGER                                            :: handle, n
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: stress_tensor
+      INTEGER                                            :: handle
+      REAL(KIND=dp), DIMENSION(3)                        :: eigval
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: eigvec, stress_tensor
 
       CALL timeset(routineN, handle)
 
       stress_tensor(:, :) = stress(:, :)*pascal*1.0E-9_dp
-      n = MIN(MAX(1, spgr%ndigits), 20)
-      fmtstr1 = "(/,T2,A,/,/,T13,A1,2(  X,A1))"
-      WRITE (UNIT=fmtstr1(22:23), FMT="(I2)") n + 7
-      fmtstr2 = "(T3,A,T5,3(1X,F  .  ))"
-      WRITE (UNIT=fmtstr2(16:17), FMT="(I2)") n + 7
-      WRITE (UNIT=fmtstr2(19:20), FMT="(I2)") n
-      WRITE (UNIT=spgr%punit, FMT=fmtstr1) &
-         "SPGR| SYMMETRIZED STRESS TENSOR [GPa]", "X", "Y", "Z"
-      WRITE (UNIT=spgr%punit, FMT=fmtstr2) "X", stress_tensor(1, 1:3)
-      WRITE (UNIT=spgr%punit, FMT=fmtstr2) "Y", stress_tensor(2, 1:3)
-      WRITE (UNIT=spgr%punit, FMT=fmtstr2) "Z", stress_tensor(3, 1:3)
+
+      WRITE (UNIT=spgr%punit, FMT='(/,T2,A)') &
+               'SPGR STRESS| Symmetrized stress tensor [GPa]'
+      WRITE (UNIT=spgr%punit, FMT='(T2,A,T19,3(19X,A1))') &
+         'SPGR STRESS|', 'x', 'y', 'z'
+      WRITE (UNIT=spgr%punit, FMT='(T2,A,T26,3(1X,ES19.11))') &
+         'SPGR STRESS|      x', stress_tensor(1, 1:3)
+      WRITE (UNIT=spgr%punit, FMT='(T2,A,T26,3(1X,ES19.11))') &
+         'SPGR STRESS|      y', stress_tensor(2, 1:3)
+      WRITE (UNIT=spgr%punit, FMT='(T2,A,T26,3(1X,ES19.11))') &
+         'SPGR STRESS|      z', stress_tensor(3, 1:3)
+      WRITE (UNIT=spgr%punit, FMT='(T2,A,T66,ES20.11)') &
+         'SPGR STRESS| 1/3 Trace', (stress_tensor(1, 1) + &
+                                    stress_tensor(2, 2) + &
+                                    stress_tensor(3, 3))/3.0_dp
+      WRITE (UNIT=spgr%punit, FMT='(T2,A,T66,ES20.11)') &
+         'SPGR STRESS| Determinant', det_3x3(stress_tensor(1:3, 1), &
+                                             stress_tensor(1:3, 2), &
+                                             stress_tensor(1:3, 3))
+      eigval(:) = 0.0_dp
+      eigvec(:, :) = 0.0_dp
+      CALL jacobi(stress_tensor, eigval, eigvec)
+      WRITE (UNIT=spgr%punit, FMT='(/,T2,A)') &
+         'SPGR STRESS| Eigenvectors and eigenvalues of the symmetrized stress tensor [GPa]'
+      WRITE (UNIT=spgr%punit, FMT='(T2,A,T19,3(1X,I19))') &
+         'SPGR STRESS|', 1, 2, 3
+      WRITE (UNIT=spgr%punit, FMT='(T2,A,T26,3(1X,ES19.11))') &
+         'SPGR STRESS| Eigenvalues', eigval(1:3)
+      WRITE (UNIT=spgr%punit, FMT='(T2,A,T26,3(1X,F19.12))') &
+         'SPGR STRESS|      x', eigvec(1, 1:3)
+      WRITE (UNIT=spgr%punit, FMT='(T2,A,T26,3(1X,F19.12))') &
+         'SPGR STRESS|      y', eigvec(2, 1:3)
+      WRITE (UNIT=spgr%punit, FMT='(T2,A,T26,3(1X,F19.12))') &
+         'SPGR STRESS|      z', eigvec(3, 1:3)
 
       CALL timestop(handle)
 

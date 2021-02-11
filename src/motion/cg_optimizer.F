@@ -132,18 +132,14 @@ CONTAINS
          END SELECT
       END IF
 
-      IF (keep_space_group) THEN
-         CALL cp_cg_main(force_env, x0, gopt_param, output_unit, globenv, &
-                         gopt_env, do_update=my_do_update, spgr=spgr)
-      ELSE
-         CALL cp_cg_main(force_env, x0, gopt_param, output_unit, globenv, &
-                         gopt_env, do_update=my_do_update)
-      ENDIF
+      CALL cp_cg_main(force_env, x0, gopt_param, output_unit, globenv, &
+                      gopt_env, do_update=my_do_update, spgr=spgr)
+              
       CALL cp_print_key_finished_output(output_unit, logger, geo_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
       IF (PRESENT(do_update)) do_update = my_do_update
 
-      ! [pcazade] deallocates spgr structure
+      ! deallocates spgr structure
       IF (keep_space_group) THEN
          CALL release_spgr_type(spgr)
       END IF

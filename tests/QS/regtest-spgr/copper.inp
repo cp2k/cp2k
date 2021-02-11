@@ -5,7 +5,7 @@
  &END GLOBAL
  &MOTION
    &CELL_OPT
-     OPTIMIZER  BFGS
+     OPTIMIZER  LBFGS
      MAX_ITER  1
      KEEP_ANGLES  T
      KEEP_SYMMETRY  T
@@ -20,7 +20,7 @@
      MULTIPLICITY  1
      CHARGE  0
      &SCF
-       MAX_SCF  10
+       MAX_SCF  100
        SCF_GUESS  ATOMIC
        EPS_SCF 1.E-5
        ADDED_MOS  20
