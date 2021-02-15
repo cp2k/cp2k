@@ -102,9 +102,9 @@ CONTAINS
          END IF
 
          CALL cell_release(spgr%cell_ref)
-      END IF
 
-      NULLIFY(spgr)
+         DEALLOCATE(spgr)
+      END IF
 
    END SUBROUTINE release_spgr_type
 
