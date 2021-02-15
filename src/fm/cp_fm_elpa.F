@@ -198,7 +198,7 @@ CONTAINS
       elpa_kernel = requested_kernel
 
       ! Resolve AUTO kernel.
-      IF (requested_kernel == ELPA_2STAGE_REAL_INVALID) THEN
+      IF (elpa_kernel == ELPA_2STAGE_REAL_INVALID) THEN
          cpuid = m_cpuid()
          IF ((MACHINE_CPU_GENERIC .LT. cpuid) .AND. (cpuid .LE. MACHINE_X86)) THEN
             SELECT CASE (cpuid)
@@ -222,7 +222,7 @@ CONTAINS
          CALL elpa_deallocate(elpa_obj)
 
          ! If we could not find a suitable kernel then use ELPA_2STAGE_REAL_DEFAULT.
-         IF (requested_kernel == ELPA_2STAGE_REAL_INVALID) THEN
+         IF (elpa_kernel == ELPA_2STAGE_REAL_INVALID) THEN
             elpa_kernel = ELPA_2STAGE_REAL_DEFAULT
          ENDIF
       END IF
