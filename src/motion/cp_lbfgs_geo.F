@@ -39,10 +39,10 @@ MODULE cp_lbfgs_geo
                                               section_vals_val_get,&
                                               section_vals_val_set
    USE kinds,                           ONLY: dp
-   USE space_groups_types,              ONLY: spgr_type
    USE space_groups,                    ONLY: identify_space_group,&
                                               print_spgr,&
                                               spgr_apply_rotations_coord
+   USE space_groups_types,              ONLY: spgr_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE

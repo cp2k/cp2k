@@ -41,9 +41,9 @@ MODULE cp_lbfgs_optimizer_gopt
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_bcast
-   USE space_groups_types,              ONLY: spgr_type
    USE space_groups,                    ONLY: spgr_apply_rotations_coord,&
                                               spgr_apply_rotations_force
+   USE space_groups_types,              ONLY: spgr_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -499,13 +499,14 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: geo_section
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(gopt_param_type), POINTER                     :: gopt_param
-      TYPE(spgr_type), POINTER, OPTIONAL                 :: spgr
+      TYPE(spgr_type), OPTIONAL, POINTER                 :: spgr
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_opt_gopt_step'
 
       CHARACTER(LEN=5)                                   :: wildcard
       INTEGER                                            :: dataunit, handle, its
-      LOGICAL                                            :: conv, is_master, justEntred, keep_space_group
+      LOGICAL                                            :: conv, is_master, justEntred, &
+                                                            keep_space_group
       REAL(KIND=dp)                                      :: t_diff, t_now, t_old
       REAL(KIND=dp), DIMENSION(:), POINTER               :: xold
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -827,7 +828,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: geo_section
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(gopt_param_type), POINTER                     :: gopt_param
-      TYPE(spgr_type), POINTER, OPTIONAL                 :: spgr
+      TYPE(spgr_type), OPTIONAL, POINTER                 :: spgr
       LOGICAL                                            :: res
 
 !call timeset(routineN,handle)

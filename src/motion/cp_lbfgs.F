@@ -22,9 +22,9 @@ MODULE cp_lbfgs
    USE cp_files,                        ONLY: open_file
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
-   USE space_groups_types,              ONLY: spgr_type
    USE space_groups,                    ONLY: spgr_apply_rotations_coord,&
                                               spgr_apply_rotations_force
+   USE space_groups_types,              ONLY: spgr_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -198,7 +198,7 @@ CONTAINS
       INTEGER                                            :: isave(44)
       REAL(KIND=dp)                                      :: dsave(29)
       REAL(KIND=dp), INTENT(in)                          :: trust_radius
-      TYPE(spgr_type), POINTER, OPTIONAL                 :: spgr
+      TYPE(spgr_type), OPTIONAL, POINTER                 :: spgr
 
       INTEGER                                            :: i, ld, lr, lsnd, lss, lsy, lt, lwa, lwn, &
                                                             lws, lwt, lwy, lxp, lz
@@ -404,7 +404,7 @@ CONTAINS
       LOGICAL                                            :: lsave(4)
       INTEGER                                            :: isave(23)
       REAL(KIND=dp)                                      :: dsave(29)
-      TYPE(spgr_type), POINTER, OPTIONAL                 :: spgr
+      TYPE(spgr_type), OPTIONAL, POINTER                 :: spgr
 
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
@@ -413,8 +413,9 @@ CONTAINS
                                                             itail, iter, itfile, iupdat, iword, k, &
                                                             nact, nenter, nfgv, nfree, nintol, &
                                                             nseg, nskip
-      LOGICAL                                            :: boxed, constrained, first, keep_space_group, &
-                                                            updatd, wrk, x_projected
+      LOGICAL                                            :: boxed, constrained, first, &
+                                                            keep_space_group, updatd, wrk, &
+                                                            x_projected
       REAL(KIND=dp) :: cachyt, cpu1, cpu2, ddot, ddum, dnorm, dr, dtd, epsmch, fold, g_inf_norm, &
          gd, gdold, lnscht, rr, sbtime, step_max, stp, theta, time, time1, time2, tol, xstep
 

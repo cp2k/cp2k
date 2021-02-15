@@ -13,8 +13,8 @@
 ! **************************************************************************************************
 MODULE space_groups_types
 
-   USE cell_types,                      ONLY: cell_type,&
-                                              cell_release
+   USE cell_types,                      ONLY: cell_release,&
+                                              cell_type
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE machine,                         ONLY: default_output_unit
@@ -72,11 +72,11 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE release_spgr_type(spgr)
 
-      TYPE(spgr_type), POINTER                    :: spgr
+      TYPE(spgr_type), POINTER                           :: spgr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'release_spgr_type', &
          routineP = moduleN//':'//routineN
-      
+
       IF (ASSOCIATED(spgr)) THEN
 
          IF (ALLOCATED(spgr%rotations)) THEN
@@ -103,7 +103,7 @@ CONTAINS
 
          CALL cell_release(spgr%cell_ref)
 
-         DEALLOCATE(spgr)
+         DEALLOCATE (spgr)
       END IF
 
    END SUBROUTINE release_spgr_type
@@ -117,12 +117,12 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE init_spgr(spgr)
 
-      TYPE(spgr_type), POINTER    :: spgr
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_spgr', &
-         routineP = moduleN//':'//routineN
-      
+      TYPE(spgr_type), POINTER                           :: spgr
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_spgr', routineP = moduleN//':'//routineN
+
       CPASSERT(.NOT. ASSOCIATED(spgr))
-      ALLOCATE(spgr)
+      ALLOCATE (spgr)
 
       spgr%keep_space_group = .FALSE.
       spgr%symlib = .FALSE.
@@ -145,7 +145,7 @@ CONTAINS
       spgr%n_operations = 0
       spgr%n_reduced_operations = 0
       spgr%n_operations_subset = 0
-      NULLIFY(spgr%cell_ref)
+      NULLIFY (spgr%cell_ref)
 
    END SUBROUTINE init_spgr
 

@@ -41,9 +41,9 @@ MODULE gopt_f_types
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE particle_list_types,             ONLY: particle_list_type
-   USE space_groups_types,              ONLY: spgr_type,&
+   USE space_groups_types,              ONLY: init_spgr,&
                                               release_spgr_type,&
-                                              init_spgr
+                                              spgr_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE

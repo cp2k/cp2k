@@ -75,11 +75,11 @@ MODULE bfgs_optimizer
    USE message_passing,                 ONLY: mp_min,&
                                               mp_sum
    USE particle_list_types,             ONLY: particle_list_type
-   USE space_groups_types,              ONLY: spgr_type
    USE space_groups,                    ONLY: identify_space_group,&
                                               print_spgr,&
                                               spgr_apply_rotations_coord,&
                                               spgr_apply_rotations_force
+   USE space_groups_types,              ONLY: spgr_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -121,9 +121,8 @@ CONTAINS
       INTEGER                                            :: handle, hesunit_read, indf, info, &
                                                             iter_nr, its, maxiter, ndf, nfree, &
                                                             output_unit
-      LOGICAL                                            :: conv, hesrest, ionode, &
-                                                            shell_present, should_stop, &
-                                                            use_mod_hes, use_rfo
+      LOGICAL                                            :: conv, hesrest, ionode, shell_present, &
+                                                            should_stop, use_mod_hes, use_rfo
       REAL(KIND=dp)                                      :: ediff, emin, eold, etot, pred, rad, rat, &
                                                             step, t_diff, t_now, t_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dg, dr, dx, eigval, gold, work, xold

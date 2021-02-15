@@ -44,11 +44,11 @@ MODULE cg_optimizer
                                               section_vals_val_set
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
-   USE space_groups_types,              ONLY: spgr_type
    USE space_groups,                    ONLY: identify_space_group,&
                                               print_spgr,&
                                               spgr_apply_rotations_coord,&
                                               spgr_apply_rotations_force
+   USE space_groups_types,              ONLY: spgr_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -95,7 +95,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY(spgr)
+      NULLIFY (spgr)
       logger => cp_get_default_logger()
       spgr => gopt_env%spgr
 
@@ -122,7 +122,7 @@ CONTAINS
                CALL print_spgr(spgr)
             CASE (default_cell_geo_opt_id)
                spgr%keep_space_group = .FALSE.
-            CASE(default_cell_md_id)
+            CASE (default_cell_md_id)
                CPABORT("KEEP_SPACE_GROUP not implemented for motion method MD.")
             CASE DEFAULT
                spgr%keep_space_group = .FALSE.
@@ -134,7 +134,7 @@ CONTAINS
 
       CALL cp_cg_main(force_env, x0, gopt_param, output_unit, globenv, &
                       gopt_env, do_update=my_do_update)
-              
+
       CALL cp_print_key_finished_output(output_unit, logger, geo_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
       IF (PRESENT(do_update)) do_update = my_do_update
@@ -165,7 +165,6 @@ CONTAINS
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(gopt_f_type), POINTER                         :: gopt_env
       LOGICAL, INTENT(OUT), OPTIONAL                     :: do_update
-      TYPE(spgr_type), POINTER                           :: spgr
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cg_main'
 
@@ -183,6 +182,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: root_section
+      TYPE(spgr_type), POINTER                           :: spgr
 
       CALL timeset(routineN, handle)
       t_old = m_walltime()
@@ -213,7 +213,7 @@ CONTAINS
 
       CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos, &
                       .FALSE., gopt_env%force_env%para_env)
-      
+
       gopt_env%require_consistent_energy_force = save_consistent_energy_force
 
       ! Symmetrize coordinates and forces
@@ -277,7 +277,7 @@ CONTAINS
 
          CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos, &
                          .FALSE., gopt_env%force_env%para_env)
-         
+
          gopt_env%require_consistent_energy_force = save_consistent_energy_force
 
          ! Symmetrize coordinates and forces

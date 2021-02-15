@@ -18,7 +18,6 @@ MODULE space_groups
                                               cite_reference
    USE cell_types,                      ONLY: cell_copy,&
                                               cell_create,&
-                                              cell_release,&
                                               cell_type,&
                                               init_cell,&
                                               real_to_scaled,&
@@ -39,17 +38,18 @@ MODULE space_groups
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE machine,                         ONLY: default_output_unit
-   USE mathlib,                         ONLY: inv_3x3, det_3x3,&
+   USE mathlib,                         ONLY: det_3x3,&
+                                              inv_3x3,&
                                               jacobi
    USE particle_list_types,             ONLY: particle_list_type
    USE physcon,                         ONLY: pascal
+   USE space_groups_types,              ONLY: spgr_type
    USE spglib_f08,                      ONLY: spg_get_international,&
                                               spg_get_multiplicity,&
                                               spg_get_pointgroup,&
                                               spg_get_schoenflies,&
                                               spg_get_symmetry
    USE string_utilities,                ONLY: strlcpy_c2f
-   USE space_groups_types,              ONLY: spgr_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -101,20 +101,19 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_create', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, ierr, j, n_sr_rep, nop, &
-                                                            tra_mat(3, 3)
+      CHARACTER(LEN=1000)                                :: buffer
+      INTEGER                                            :: handle, i, ierr, j, n_sr_rep, nchars, &
+                                                            nop, tra_mat(3, 3)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: tmp_types
       LOGICAL                                            :: spglib
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: tmp_coor
-      INTEGER                                            :: nchars
-      CHARACTER(LEN=1000)                                :: buffer
       TYPE(spgr_type), POINTER                           :: spgr
 
       CALL timeset(routineN, handle)
 
       spgr => gopt_env%spgr
       CPASSERT(ASSOCIATED(spgr))
-      
+
       !..total number of particles (atoms plus shells)
       IF (PRESENT(nparticle)) THEN
          CPASSERT(nparticle == SIZE(scoor, 2))
@@ -225,7 +224,7 @@ CONTAINS
             CALL init_cell(spgr%cell_ref, hmat=gopt_env%h_ref)
          CASE (default_cell_geo_opt_id)
             CPABORT("SPACE_GROUP_SYMMETRY SHOULD NOT BE INVOKED DURING THE CELL STEP.")
-         CASE(default_cell_md_id)
+         CASE (default_cell_md_id)
             CPABORT("SPACE_GROUP_SYMMETRY IS NOT COMPATIBLE WITH MD.")
          CASE DEFAULT
             CPABORT("SPACE_GROUP_SYMMETRY INVOKED WITH AN UNKNOWN OPTIMIZATION METHOD.")
@@ -267,7 +266,7 @@ CONTAINS
          buffer = ''
          nchars = strlcpy_c2f(buffer, spgr%schoenflies)
          spgr%schoenflies = buffer(1:nchars)
-         
+
          ! Point Group
          tra_mat = 0
          ierr = spg_get_pointgroup(spgr%pointgroup_symbol, tra_mat, &
@@ -291,7 +290,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief routine indentifies the space group and finds rotation matrices.
 !> \param subsys ...
-!> \param cell ...
 !> \param geo_section ...
 !> \param gopt_env ...
 !> \param iounit ...
@@ -321,10 +319,10 @@ CONTAINS
       REAL(KIND=dp)                                      :: eps_symmetry
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: scoord
       REAL(KIND=dp), DIMENSION(:), POINTER               :: pol
-      TYPE(spgr_type), POINTER                           :: spgr
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
                                                             shell_particles
+      TYPE(spgr_type), POINTER                           :: spgr
 
       CALL timeset(routineN, handle)
 
@@ -341,7 +339,7 @@ CONTAINS
       NULLIFY (cell)
       cell => subsys%cell
       CPASSERT(ASSOCIATED(cell))
-      
+
       CALL cp_subsys_get(subsys, particles=particles, shell_particles=shell_particles, core_particles=core_particles)
 
       CPASSERT(ASSOCIATED(particles))
@@ -420,7 +418,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE spgr_find_equivalent_atoms(spgr, scoord)
 
-      TYPE(spgr_type), POINTER, INTENT(INOUT)            :: spgr
+      TYPE(spgr_type), INTENT(INOUT), POINTER            :: spgr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(IN)                                      :: scoord
 
@@ -514,7 +512,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE spgr_reduce_symm(spgr)
 
-      TYPE(spgr_type), POINTER, INTENT(INOUT)            :: spgr
+      TYPE(spgr_type), INTENT(INOUT), POINTER            :: spgr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_reduce_symm', &
          routineP = moduleN//':'//routineN
@@ -560,8 +558,8 @@ CONTAINS
             jb = 3*(ib - 1)
             ro = x(jb + 1:jb + 3) - xold(ja + 1:ja + 3)
             spgr%lop(ir) = (spgr%lop(ir) .AND. (ABS(ro(1)) < spgr%eps_symmetry) &
-                                                .AND. (ABS(ro(2)) < spgr%eps_symmetry) &
-                                                .AND. (ABS(ro(3)) < spgr%eps_symmetry))
+                            .AND. (ABS(ro(2)) < spgr%eps_symmetry) &
+                            .AND. (ABS(ro(3)) < spgr%eps_symmetry))
          END DO
          IF (spgr%lop(ir)) nops = nops + 1
       END DO
@@ -583,7 +581,7 @@ CONTAINS
 
    SUBROUTINE spgr_rotations_subset(spgr)
 
-      TYPE(spgr_type), POINTER, INTENT(INOUT)            :: spgr
+      TYPE(spgr_type), INTENT(INOUT), POINTER            :: spgr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_rotations_subset', &
          routineP = moduleN//':'//routineN
@@ -640,7 +638,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE spgr_apply_rotations_coord(spgr, coord)
 
-      TYPE(spgr_type), POINTER, INTENT(IN)               :: spgr
+      TYPE(spgr_type), INTENT(IN), POINTER               :: spgr
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: coord
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_apply_rotations_coord', &
@@ -702,7 +700,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE spgr_apply_rotations_force(spgr, force)
 
-      TYPE(spgr_type), POINTER, INTENT(IN)               :: spgr
+      TYPE(spgr_type), INTENT(IN), POINTER               :: spgr
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: force
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_apply_rotations_force', &
@@ -799,7 +797,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE spgr_apply_rotations_stress(spgr, cell, stress)
 
-      TYPE(spgr_type), POINTER, INTENT(IN)               :: spgr
+      TYPE(spgr_type), INTENT(IN), POINTER               :: spgr
       TYPE(cell_type), INTENT(IN), POINTER               :: cell
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: stress
 
@@ -856,7 +854,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE print_spgr(spgr)
 
-      TYPE(spgr_type), POINTER, INTENT(IN)               :: spgr
+      TYPE(spgr_type), INTENT(IN), POINTER               :: spgr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_spgr', routineP = moduleN//':'//routineN
 
@@ -943,7 +941,7 @@ CONTAINS
    SUBROUTINE spgr_write_stress_tensor(stress, spgr)
 
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: stress
-      TYPE(spgr_type), POINTER, INTENT(IN)               :: spgr
+      TYPE(spgr_type), INTENT(IN), POINTER               :: spgr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_write_stress_tensor', &
          routineP = moduleN//':'//routineN
@@ -957,7 +955,7 @@ CONTAINS
       stress_tensor(:, :) = stress(:, :)*pascal*1.0E-9_dp
 
       WRITE (UNIT=spgr%punit, FMT='(/,T2,A)') &
-               'SPGR STRESS| Symmetrized stress tensor [GPa]'
+         'SPGR STRESS| Symmetrized stress tensor [GPa]'
       WRITE (UNIT=spgr%punit, FMT='(T2,A,T19,3(19X,A1))') &
          'SPGR STRESS|', 'x', 'y', 'z'
       WRITE (UNIT=spgr%punit, FMT='(T2,A,T26,3(1X,ES19.11))') &
