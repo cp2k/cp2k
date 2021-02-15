@@ -75,12 +75,11 @@ MODULE bfgs_optimizer
    USE message_passing,                 ONLY: mp_min,&
                                               mp_sum
    USE particle_list_types,             ONLY: particle_list_type
+   USE space_groups_types,              ONLY: spgr_type
    USE space_groups,                    ONLY: identify_space_group,&
                                               print_spgr,&
-                                              release_spgr_type,&
                                               spgr_apply_rotations_coord,&
-                                              spgr_apply_rotations_force,&
-                                              spgr_type
+                                              spgr_apply_rotations_force
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -122,7 +121,7 @@ CONTAINS
       INTEGER                                            :: handle, hesunit_read, indf, info, &
                                                             iter_nr, its, maxiter, ndf, nfree, &
                                                             output_unit
-      LOGICAL                                            :: conv, hesrest, ionode, keep_space_group, &
+      LOGICAL                                            :: conv, hesrest, ionode, &
                                                             shell_present, should_stop, &
                                                             use_mod_hes, use_rfo
       REAL(KIND=dp)                                      :: ediff, emin, eold, etot, pred, rad, rat, &
@@ -137,12 +136,13 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: print_key, root_section
-      TYPE(spgr_type)                                    :: spgr
+      TYPE(spgr_type), POINTER                           :: spgr
 
-      NULLIFY (logger, g, blacs_env)
+      NULLIFY (logger, g, blacs_env, spgr)
       logger => cp_get_default_logger()
       para_env => force_env%para_env
       root_section => force_env%root_section
+      spgr => gopt_env%spgr
       t_old = m_walltime()
 
       CALL timeset(routineN, handle)
@@ -274,9 +274,9 @@ CONTAINS
       dr(:) = 0.0_dp
 
       ! find space_group
-      CALL section_vals_val_get(geo_section, "KEEP_SPACE_GROUP", l_val=keep_space_group)
-      IF (keep_space_group) THEN
-         CALL identify_space_group(spgr, subsys, subsys%cell, geo_section, gopt_env, output_unit)
+      CALL section_vals_val_get(geo_section, "KEEP_SPACE_GROUP", l_val=spgr%keep_space_group)
+      IF (spgr%keep_space_group) THEN
+         CALL identify_space_group(subsys, geo_section, gopt_env, output_unit)
          CALL spgr_apply_rotations_coord(spgr, x0)
          CALL print_spgr(spgr)
       END IF
@@ -287,10 +287,10 @@ CONTAINS
 
       ! Calculate Energy & Gradients
       CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
-                      .FALSE., gopt_env%force_env%para_env, spgr=spgr)
+                      .FALSE., gopt_env%force_env%para_env)
 
       ! Symmetrize coordinates and forces
-      IF (keep_space_group) THEN
+      IF (spgr%keep_space_group) THEN
          CALL spgr_apply_rotations_coord(spgr, x0)
          CALL spgr_apply_rotations_force(spgr, g)
       END IF
@@ -318,7 +318,7 @@ CONTAINS
          ELSE
             IF ((its - iter_nr) > 1) THEN
                ! Symmetrize old coordinates and old forces
-               IF (keep_space_group) THEN
+               IF (spgr%keep_space_group) THEN
                   CALL spgr_apply_rotations_coord(spgr, xold)
                   CALL spgr_apply_rotations_force(spgr, gold)
                END IF
@@ -331,7 +331,7 @@ CONTAINS
                CALL bfgs(ndf, dx, dg, hess_mat, work, para_env)
 
                ! Symmetrize coordinates and forces change
-               IF (keep_space_group) THEN
+               IF (spgr%keep_space_group) THEN
                   CALL spgr_apply_rotations_force(spgr, dx)
                   CALL spgr_apply_rotations_force(spgr, dg)
                END IF
@@ -344,7 +344,7 @@ CONTAINS
          END IF
 
          ! Symmetrize coordinates and forces
-         IF (keep_space_group) THEN
+         IF (spgr%keep_space_group) THEN
             CALL spgr_apply_rotations_coord(spgr, x0)
             CALL spgr_apply_rotations_force(spgr, g)
          END IF
@@ -375,7 +375,7 @@ CONTAINS
          CALL geoopt_get_step(ndf, eigval, eigvec_mat, hess_tmp, dr, g, para_env, use_rfo)
 
          ! Symmetrize dr
-         IF (keep_space_group) THEN
+         IF (spgr%keep_space_group) THEN
             CALL spgr_apply_rotations_force(spgr, dr)
          END IF
 
@@ -385,7 +385,7 @@ CONTAINS
          x0 = x0 + dr
 
          ! Symmetrize coordinates
-         IF (keep_space_group) THEN
+         IF (spgr%keep_space_group) THEN
             CALL spgr_apply_rotations_coord(spgr, x0)
          END IF
 
@@ -394,12 +394,12 @@ CONTAINS
 
          ! Energy & Gradients at new step
          CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
-                         .FALSE., gopt_env%force_env%para_env, spgr=spgr)
+                         .FALSE., gopt_env%force_env%para_env)
 
          ediff = etot - eold
 
          ! Symmetrize forces
-         IF (keep_space_group) THEN
+         IF (spgr%keep_space_group) THEN
             CALL spgr_apply_rotations_force(spgr, g)
          END IF
 
@@ -444,11 +444,6 @@ CONTAINS
       DEALLOCATE (eigval)
       DEALLOCATE (work)
       DEALLOCATE (dr)
-
-      ! releases spgr structure
-      IF (keep_space_group) THEN
-         CALL release_spgr_type(spgr)
-      END IF
 
       CALL cp_print_key_finished_output(output_unit, logger, geo_section, &
                                         "PRINT%PROGRAM_RUN_INFO")

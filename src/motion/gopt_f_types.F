@@ -41,6 +41,9 @@ MODULE gopt_f_types
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE particle_list_types,             ONLY: particle_list_type
+   USE space_groups_types,              ONLY: spgr_type,&
+                                              release_spgr_type,&
+                                              init_spgr
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -71,6 +74,7 @@ MODULE gopt_f_types
       TYPE(gopt_f_type), POINTER               :: gopt_dimer_env
       TYPE(gopt_param_type), POINTER           :: gopt_dimer_param
       TYPE(cell_opt_env_type), POINTER         :: cell_env
+      TYPE(spgr_type), POINTER                 :: spgr
       REAL(KIND=dp), DIMENSION(3, 3)           :: h_ref
       LOGICAL                                  :: require_consistent_energy_force
    END TYPE gopt_f_type
@@ -108,12 +112,13 @@ CONTAINS
       ALLOCATE (gopt_env)
       nshell = 0
 
-      NULLIFY (gopt_env%dimer_env, gopt_env%gopt_dimer_env, gopt_env%gopt_dimer_param, gopt_env%cell_env)
+      NULLIFY (gopt_env%dimer_env, gopt_env%gopt_dimer_env, gopt_env%gopt_dimer_param, gopt_env%cell_env, gopt_env%spgr)
       gopt_env%ref_count = 1
       last_gopt_f_id = last_gopt_f_id + 1
       gopt_env%id_nr = last_gopt_f_id
       gopt_env%dimer_rotation = .FALSE.
       gopt_env%do_line_search = .FALSE.
+      CALL init_spgr(gopt_env%spgr)
       CALL force_env_retain(force_env)
       gopt_env%force_env => force_env
       gopt_env%motion_section => section_vals_get_subs_vals(force_env%root_section, "MOTION")
@@ -210,6 +215,7 @@ CONTAINS
             CALL dimer_env_release(gopt_env%dimer_env)
             CALL gopt_f_release(gopt_env%gopt_dimer_env)
             CALL gopt_param_release(gopt_env%gopt_dimer_param)
+            CALL release_spgr_type(gopt_env%spgr)
             DEALLOCATE (gopt_env)
          END IF
       END IF

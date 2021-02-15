@@ -22,9 +22,9 @@ MODULE cp_lbfgs
    USE cp_files,                        ONLY: open_file
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
+   USE space_groups_types,              ONLY: spgr_type
    USE space_groups,                    ONLY: spgr_apply_rotations_coord,&
-                                              spgr_apply_rotations_force,&
-                                              spgr_type
+                                              spgr_apply_rotations_force
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -198,7 +198,7 @@ CONTAINS
       INTEGER                                            :: isave(44)
       REAL(KIND=dp)                                      :: dsave(29)
       REAL(KIND=dp), INTENT(in)                          :: trust_radius
-      TYPE(spgr_type), OPTIONAL                          :: spgr
+      TYPE(spgr_type), POINTER, OPTIONAL                 :: spgr
 
       INTEGER                                            :: i, ld, lr, lsnd, lss, lsy, lt, lwa, lwn, &
                                                             lws, lwt, lwy, lxp, lz
@@ -278,21 +278,12 @@ CONTAINS
       ENDIF
 
       ! passes spgr to mainlb
-      IF (PRESENT(spgr)) THEN
-         CALL mainlb(n, m, x, lower_bound, upper_bound, nbd, f, g, factr, pgtol, &
-                     wa(lws), wa(lwy), wa(lsy), wa(lss), wa(lwt), &
-                     wa(lwn), wa(lsnd), wa(lz), wa(lr), wa(ld), wa(lt), wa(lxp), &
-                     wa(lwa), &
-                     iwa(1), iwa(n + 1), iwa(2*n + 1), task, iprint, &
-                     csave, lsave, isave(22), dsave, spgr=spgr)
-      ELSE
-         CALL mainlb(n, m, x, lower_bound, upper_bound, nbd, f, g, factr, pgtol, &
-                     wa(lws), wa(lwy), wa(lsy), wa(lss), wa(lwt), &
-                     wa(lwn), wa(lsnd), wa(lz), wa(lr), wa(ld), wa(lt), wa(lxp), &
-                     wa(lwa), &
-                     iwa(1), iwa(n + 1), iwa(2*n + 1), task, iprint, &
-                     csave, lsave, isave(22), dsave)
-      ENDIF
+      CALL mainlb(n, m, x, lower_bound, upper_bound, nbd, f, g, factr, pgtol, &
+                  wa(lws), wa(lwy), wa(lsy), wa(lss), wa(lwt), &
+                  wa(lwn), wa(lsnd), wa(lz), wa(lr), wa(ld), wa(lt), wa(lxp), &
+                  wa(lwa), &
+                  iwa(1), iwa(n + 1), iwa(2*n + 1), task, iprint, &
+                  csave, lsave, isave(22), dsave, spgr=spgr)
 
       RETURN
 
@@ -413,7 +404,7 @@ CONTAINS
       LOGICAL                                            :: lsave(4)
       INTEGER                                            :: isave(23)
       REAL(KIND=dp)                                      :: dsave(29)
-      TYPE(spgr_type), OPTIONAL                          :: spgr
+      TYPE(spgr_type), POINTER, OPTIONAL                 :: spgr
 
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
@@ -448,7 +439,9 @@ CONTAINS
 !                           *  *  *
 
       keep_space_group = .FALSE.
-      IF (PRESENT(spgr)) keep_space_group = .TRUE.
+      IF (PRESENT(spgr) .AND. ASSOCIATED(spgr)) THEN
+         IF (spgr%keep_space_group) keep_space_group = .TRUE.
+      END IF
 
       IF (task == 'START') THEN
 

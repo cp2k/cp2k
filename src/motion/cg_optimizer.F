@@ -44,12 +44,11 @@ MODULE cg_optimizer
                                               section_vals_val_set
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
+   USE space_groups_types,              ONLY: spgr_type
    USE space_groups,                    ONLY: identify_space_group,&
                                               print_spgr,&
-                                              release_spgr_type,&
                                               spgr_apply_rotations_coord,&
-                                              spgr_apply_rotations_force,&
-                                              spgr_type
+                                              spgr_apply_rotations_force
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -89,60 +88,56 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'geoopt_cg'
 
       INTEGER                                            :: handle, output_unit
-      LOGICAL                                            :: keep_space_group, my_do_update
+      LOGICAL                                            :: my_do_update
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys
-      TYPE(spgr_type)                                    :: spgr
+      TYPE(spgr_type), POINTER                           :: spgr
 
       CALL timeset(routineN, handle)
 
+      NULLIFY(spgr)
       logger => cp_get_default_logger()
+      spgr => gopt_env%spgr
 
       output_unit = cp_print_key_unit_nr(logger, geo_section, "PRINT%PROGRAM_RUN_INFO", &
                                          extension=".geoLog")
       CALL print_geo_opt_header(gopt_env, output_unit, "CONJUGATE GRADIENTS")
 
-      ! [pcazade] find space_group
+      ! find space_group
       CALL force_env_get(force_env, subsys=subsys)
-      keep_space_group = .FALSE.
-      CALL section_vals_val_get(geo_section, "KEEP_SPACE_GROUP", l_val=keep_space_group)
-      IF (keep_space_group) THEN
+      CALL section_vals_val_get(geo_section, "KEEP_SPACE_GROUP", l_val=spgr%keep_space_group)
+      IF (spgr%keep_space_group) THEN
          SELECT CASE (gopt_env%type_id)
          CASE (default_minimization_method_id, default_ts_method_id)
             CALL force_env_get(force_env, subsys=subsys)
-            CALL identify_space_group(spgr, subsys, subsys%cell, geo_section, gopt_env, output_unit)
+            CALL identify_space_group(subsys, geo_section, gopt_env, output_unit)
             CALL spgr_apply_rotations_coord(spgr, x0)
             CALL print_spgr(spgr)
          CASE (default_cell_method_id)
             SELECT CASE (gopt_env%cell_method_id)
             CASE (default_cell_direct_id)
                CALL force_env_get(force_env, subsys=subsys)
-               CALL identify_space_group(spgr, subsys, subsys%cell, geo_section, gopt_env, output_unit)
+               CALL identify_space_group(subsys, geo_section, gopt_env, output_unit)
                CALL spgr_apply_rotations_coord(spgr, x0)
                CALL print_spgr(spgr)
             CASE (default_cell_geo_opt_id)
-               keep_space_group = .FALSE.
+               spgr%keep_space_group = .FALSE.
             CASE(default_cell_md_id)
                CPABORT("KEEP_SPACE_GROUP not implemented for motion method MD.")
             CASE DEFAULT
-               keep_space_group = .FALSE.
+               spgr%keep_space_group = .FALSE.
             END SELECT
          CASE DEFAULT
-            keep_space_group = .FALSE.
+            spgr%keep_space_group = .FALSE.
          END SELECT
       END IF
 
       CALL cp_cg_main(force_env, x0, gopt_param, output_unit, globenv, &
-                      gopt_env, do_update=my_do_update, spgr=spgr)
+                      gopt_env, do_update=my_do_update)
               
       CALL cp_print_key_finished_output(output_unit, logger, geo_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
       IF (PRESENT(do_update)) do_update = my_do_update
-
-      ! deallocates spgr structure
-      IF (keep_space_group) THEN
-         CALL release_spgr_type(spgr)
-      END IF
 
       CALL timestop(handle)
 
@@ -157,13 +152,12 @@ CONTAINS
 !> \param globenv ...
 !> \param gopt_env ...
 !> \param do_update ...
-!> \param spgr ...
 !> \par History
 !>      10.2005 created [tlaino]
 !> \author Teodoro Laino
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE cp_cg_main(force_env, x0, gopt_param, output_unit, globenv, &
-                                   gopt_env, do_update, spgr)
+                                   gopt_env, do_update)
       TYPE(force_env_type), POINTER                      :: force_env
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x0
       TYPE(gopt_param_type), POINTER                     :: gopt_param
@@ -171,14 +165,14 @@ CONTAINS
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(gopt_f_type), POINTER                         :: gopt_env
       LOGICAL, INTENT(OUT), OPTIONAL                     :: do_update
-      TYPE(spgr_type), OPTIONAL                          :: spgr
+      TYPE(spgr_type), POINTER                           :: spgr
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cg_main'
 
       CHARACTER(LEN=5)                                   :: wildcard
       INTEGER                                            :: handle, iter_nr, its, max_steep_steps, &
                                                             maxiter
-      LOGICAL                                            :: conv, Fletcher_Reeves, keep_space_group, &
+      LOGICAL                                            :: conv, Fletcher_Reeves, &
                                                             save_consistent_energy_force, &
                                                             should_stop
       REAL(KIND=dp)                                      :: emin, eold, opt_energy, res_lim, t_diff, &
@@ -192,7 +186,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       t_old = m_walltime()
-      NULLIFY (logger, g, h, xi)
+      NULLIFY (logger, g, h, xi, spgr)
       root_section => force_env%root_section
       logger => cp_get_default_logger()
       conv = .FALSE.
@@ -206,10 +200,9 @@ CONTAINS
       ALLOCATE (xold(SIZE(x0)))
       CALL force_env_get(force_env, cell=cell, subsys=subsys)
 
-      keep_space_group = .FALSE.
-      IF (PRESENT(spgr)) keep_space_group = .TRUE.
+      spgr => gopt_env%spgr
       ! applies rotation matrices to coordinates
-      IF (keep_space_group) THEN
+      IF (spgr%keep_space_group) THEN
          CALL spgr_apply_rotations_coord(spgr, x0)
       END IF
 
@@ -219,12 +212,12 @@ CONTAINS
       gopt_env%require_consistent_energy_force = .FALSE.
 
       CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos, &
-                      .FALSE., gopt_env%force_env%para_env, spgr=spgr)
+                      .FALSE., gopt_env%force_env%para_env)
       
       gopt_env%require_consistent_energy_force = save_consistent_energy_force
 
       ! Symmetrize coordinates and forces
-      IF (keep_space_group) THEN
+      IF (spgr%keep_space_group) THEN
          CALL spgr_apply_rotations_coord(spgr, x0)
          CALL spgr_apply_rotations_force(spgr, xi)
       END IF
@@ -247,7 +240,7 @@ CONTAINS
          CALL gopt_f_ii(its, output_unit)
 
          ! Symmetrize coordinates and forces
-         IF (keep_space_group) THEN
+         IF (spgr%keep_space_group) THEN
             CALL spgr_apply_rotations_coord(spgr, x0)
             CALL spgr_apply_rotations_force(spgr, g)
             CALL spgr_apply_rotations_force(spgr, xi)
@@ -259,7 +252,7 @@ CONTAINS
          CALL cg_linmin(gopt_env, x0, xi, g, opt_energy, output_unit, gopt_param, globenv)
 
          ! Applies rotation matrices to coordinates
-         IF (keep_space_group) THEN
+         IF (spgr%keep_space_group) THEN
             CALL spgr_apply_rotations_coord(spgr, x0)
          END IF
 
@@ -283,12 +276,12 @@ CONTAINS
          gopt_env%require_consistent_energy_force = .FALSE.
 
          CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos, &
-                         .FALSE., gopt_env%force_env%para_env, spgr=spgr)
+                         .FALSE., gopt_env%force_env%para_env)
          
          gopt_env%require_consistent_energy_force = save_consistent_energy_force
 
          ! Symmetrize coordinates and forces
-         IF (keep_space_group) THEN
+         IF (spgr%keep_space_group) THEN
             CALL spgr_apply_rotations_force(spgr, xi)
          END IF
 
@@ -297,7 +290,7 @@ CONTAINS
          CALL get_conjugate_direction(gopt_env, Fletcher_Reeves, g, xi, h)
 
          ! Symmetrize coordinates and forces
-         IF (keep_space_group) THEN
+         IF (spgr%keep_space_group) THEN
             CALL spgr_apply_rotations_force(spgr, g)
             CALL spgr_apply_rotations_force(spgr, h)
          END IF

@@ -3,6 +3,6 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares with the space group name and number of operations provied in the SPGR section of the output file
 #      for details see cp2k/tools/do_regtest
-copper.inp                                   0      Fm-3m   192
-quartz.inp                                   0      P3_221    6
+copper.inp                                   0
+quartz.inp                                   0
 #EOF

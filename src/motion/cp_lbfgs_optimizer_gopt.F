@@ -41,9 +41,9 @@ MODULE cp_lbfgs_optimizer_gopt
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_bcast
+   USE space_groups_types,              ONLY: spgr_type
    USE space_groups,                    ONLY: spgr_apply_rotations_coord,&
-                                              spgr_apply_rotations_force,&
-                                              spgr_type
+                                              spgr_apply_rotations_force
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -499,7 +499,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: geo_section
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(gopt_param_type), POINTER                     :: gopt_param
-      TYPE(spgr_type), OPTIONAL                          :: spgr
+      TYPE(spgr_type), POINTER, OPTIONAL                 :: spgr
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_opt_gopt_step'
 
@@ -523,7 +523,10 @@ CONTAINS
       CALL force_env_get(force_env, subsys=subsys)
 
       keep_space_group = .FALSE.
-      IF (PRESENT(spgr)) keep_space_group = .TRUE.
+      IF (PRESENT(spgr) .AND. ASSOCIATED(spgr)) THEN
+         IF (spgr%keep_space_group) keep_space_group = .TRUE.
+      END IF
+
       ! applies rotation matrices to coordinates
       IF (keep_space_group) THEN
          CALL spgr_apply_rotations_coord(spgr, optimizer%x)
@@ -646,7 +649,7 @@ CONTAINS
                             f=optimizer%f, &
                             gradient=optimizer%gradient, &
                             final_evaluation=.FALSE., &
-                            master=optimizer%master, para_env=optimizer%para_env, spgr=spgr)
+                            master=optimizer%master, para_env=optimizer%para_env)
             ! do not use keywords?
             IF (is_master) THEN
                ! applies rotation matrices to coordinates and forces
@@ -824,25 +827,18 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: geo_section
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(gopt_param_type), POINTER                     :: gopt_param
-      TYPE(spgr_type), OPTIONAL                          :: spgr
+      TYPE(spgr_type), POINTER, OPTIONAL                 :: spgr
       LOGICAL                                            :: res
 
 !call timeset(routineN,handle)
 
       CPASSERT(ASSOCIATED(optimizer))
       CPASSERT(optimizer%ref_count > 0)
-      IF (PRESENT(spgr)) THEN
-         ! passes spgr structure if present
-         CALL cp_opt_gopt_step(optimizer, n_iter=n_iter, f=f, &
-                               last_f=last_f, projected_gradient=projected_gradient, &
-                               converged=converged, geo_section=geo_section, &
-                               force_env=force_env, gopt_param=gopt_param, spgr=spgr)
-      ELSE
-         CALL cp_opt_gopt_step(optimizer, n_iter=n_iter, f=f, &
-                               last_f=last_f, projected_gradient=projected_gradient, &
-                               converged=converged, geo_section=geo_section, &
-                               force_env=force_env, gopt_param=gopt_param)
-      ENDIF
+      ! passes spgr structure if present
+      CALL cp_opt_gopt_step(optimizer, n_iter=n_iter, f=f, &
+                            last_f=last_f, projected_gradient=projected_gradient, &
+                            converged=converged, geo_section=geo_section, &
+                            force_env=force_env, gopt_param=gopt_param, spgr=spgr)
       res = (optimizer%status < 40) .AND. .NOT. converged
       !call timestop(handle)
    END FUNCTION cp_opt_gopt_next

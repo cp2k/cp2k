@@ -21,11 +21,10 @@
 INTERFACE
 
    RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
-                                   final_evaluation, para_env, spgr)
+                                   final_evaluation, para_env)
 
       USE cp_para_types, ONLY: cp_para_env_type
       USE gopt_f_types, ONLY: gopt_f_type
-      USE space_groups, ONLY: spgr_type
       USE kinds, ONLY: dp
 
       TYPE(gopt_f_type), POINTER               :: gopt_env
@@ -36,7 +35,6 @@ INTERFACE
       INTEGER, INTENT(IN)                      :: master
       LOGICAL, INTENT(IN), OPTIONAL            :: final_evaluation
       TYPE(cp_para_env_type), POINTER          :: para_env
-      TYPE(spgr_type), OPTIONAL                :: spgr
 
    END SUBROUTINE cp_eval_at
 

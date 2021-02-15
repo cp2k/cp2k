@@ -39,11 +39,10 @@ MODULE cp_lbfgs_geo
                                               section_vals_val_get,&
                                               section_vals_val_set
    USE kinds,                           ONLY: dp
+   USE space_groups_types,              ONLY: spgr_type
    USE space_groups,                    ONLY: identify_space_group,&
                                               print_spgr,&
-                                              release_spgr_type,&
-                                              spgr_apply_rotations_coord,&
-                                              spgr_type
+                                              spgr_apply_rotations_coord
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -80,7 +79,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'geoopt_lbfgs'
 
       INTEGER                                            :: handle, iter_nr, its, output_unit
-      LOGICAL                                            :: converged, keep_space_group, should_stop
+      LOGICAL                                            :: converged, should_stop
       REAL(KIND=dp)                                      :: trust_radius
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_lbfgs_opt_gopt_type), POINTER              :: optimizer
@@ -88,12 +87,13 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(spgr_type)                                    :: spgr
+      TYPE(spgr_type), POINTER                           :: spgr
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (optimizer, para_env)
+      NULLIFY (optimizer, para_env, spgr)
       logger => cp_get_default_logger()
+      spgr => gopt_env%spgr
       root_section => force_env%root_section
       CPASSERT(ASSOCIATED(force_env))
       CPASSERT(ASSOCIATED(gopt_param))
@@ -108,9 +108,9 @@ CONTAINS
       CALL print_geo_opt_header(gopt_env, output_unit, "L-BFGS")
 
       ! finds space group
-      CALL section_vals_val_get(geo_section, "KEEP_SPACE_GROUP", l_val=keep_space_group)
-      IF (keep_space_group) THEN
-         CALL identify_space_group(spgr, subsys, subsys%cell, geo_section, gopt_env, output_unit)
+      CALL section_vals_val_get(geo_section, "KEEP_SPACE_GROUP", l_val=spgr%keep_space_group)
+      IF (spgr%keep_space_group) THEN
+         CALL identify_space_group(subsys, geo_section, gopt_env, output_unit)
          CALL spgr_apply_rotations_coord(spgr, x0)
          CALL print_spgr(spgr)
       END IF
@@ -158,11 +158,6 @@ CONTAINS
       CALL cp_opt_gopt_release(optimizer)
       CALL cp_print_key_finished_output(output_unit, logger, geo_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
-
-      ! deallocates spgr structure
-      IF (keep_space_group) THEN
-         CALL release_spgr_type(spgr)
-      END IF
 
       CALL timestop(handle)
 
