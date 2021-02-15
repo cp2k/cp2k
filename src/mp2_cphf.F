@@ -498,7 +498,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE solve_z_vector_eq
 
 ! **************************************************************************************************
 !> \brief Here we performe the CPHF like update using GPW,

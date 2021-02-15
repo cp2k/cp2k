@@ -12,9 +12,11 @@
 ! **************************************************************************************************
 MODULE qs_force_types
 
-   !USE cp_control_types,                ONLY: qs_control_type
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_io_unit,&
+                                              cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
@@ -61,7 +63,8 @@ MODULE qs_force_types
              get_qs_force, &
              put_qs_force, &
              total_qs_force, &
-             zero_qs_force
+             zero_qs_force, &
+             write_forces_debug
 
 CONTAINS
 
@@ -576,5 +579,84 @@ CONTAINS
       END DO
 
    END SUBROUTINE total_qs_force
+
+! **************************************************************************************************
+!> \brief Write a Quickstep force data for 1 atom
+!> \param qs_force ...
+!> \param ikind ...
+!> \param iatom ...
+!> \param iunit ...
+!> \date    05.06.2002
+!> \author  MK/JGH
+!> \version 1.0
+! **************************************************************************************************
+   SUBROUTINE write_forces_debug(qs_force, ikind, iatom, iunit)
+
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: qs_force
+      INTEGER, INTENT(IN), OPTIONAL                      :: ikind, iatom, iunit
+
+      CHARACTER(LEN=35)                                  :: fmtstr2
+      CHARACTER(LEN=48)                                  :: fmtstr1
+      INTEGER                                            :: jatom, jkind, iounit
+      REAL(KIND=dp), DIMENSION(3)                        :: total
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+      IF (PRESENT(iunit)) THEN
+         iounit = iunit
+      ELSE
+         NULLIFY (logger)
+         logger => cp_get_default_logger()
+         iounit = cp_logger_get_default_io_unit(logger)
+      END IF
+      IF (PRESENT(ikind)) THEN
+         jkind = ikind
+      ELSE
+         jkind = 1
+      END IF
+      IF (PRESENT(iatom)) THEN
+         jatom = iatom
+      ELSE
+         jatom = 1
+      END IF
+
+      IF (iounit > 0) THEN
+
+         fmtstr1 = "(/,T2,A,/,T3,A,T11,A,T23,A,T40,A1,2(17X,A1))"
+         fmtstr2 = "((T2,I5,4X,I4,T18,A,T34,3F18.12))"
+
+         WRITE (UNIT=iounit, FMT=fmtstr1) &
+            "FORCES [a.u.]", "Atom", "Kind", "Component", "X", "Y", "Z"
+
+         total(1:3) = qs_force(jkind)%overlap(1:3, jatom) &
+            + qs_force(jkind)%overlap_admm(1:3, jatom) &
+            + qs_force(jkind)%kinetic(1:3, jatom) &
+            + qs_force(jkind)%gth_ppl(1:3, jatom) &
+            + qs_force(jkind)%gth_ppnl(1:3, jatom) &
+            + qs_force(jkind)%core_overlap(1:3, jatom) &
+            + qs_force(jkind)%rho_core(1:3, jatom) &
+            + qs_force(jkind)%rho_elec(1:3, jatom) &
+            + qs_force(jkind)%dispersion(1:3, jatom) &
+            + qs_force(jkind)%fock_4c(1:3, jatom) &
+            + qs_force(jkind)%mp2_non_sep(1:3, jatom) &
+            + qs_force(jkind)%mp2_sep(1:3, jatom)
+
+         WRITE (UNIT=iounit, FMT=fmtstr2) &
+            jatom, jkind, "       overlap", qs_force(jkind)%overlap(1:3, jatom), &
+            jatom, jkind, "  overlap_admm", qs_force(jkind)%overlap_admm(1:3, jatom), &
+            jatom, jkind, "       kinetic", qs_force(jkind)%kinetic(1:3, jatom), &
+            jatom, jkind, "       gth_ppl", qs_force(jkind)%gth_ppl(1:3, jatom), &
+            jatom, jkind, "      gth_ppnl", qs_force(jkind)%gth_ppnl(1:3, jatom), &
+            jatom, jkind, "  core_overlap", qs_force(jkind)%core_overlap(1:3, jatom), &
+            jatom, jkind, "      rho_core", qs_force(jkind)%rho_core(1:3, jatom), &
+            jatom, jkind, "      rho_elec", qs_force(jkind)%rho_elec(1:3, jatom), &
+            jatom, jkind, "    dispersion", qs_force(jkind)%dispersion(1:3, jatom), &
+            jatom, jkind, "       fock_4c", qs_force(jkind)%fock_4c(1:3, jatom), &
+            jatom, jkind, "   mp2_non_sep", qs_force(jkind)%mp2_non_sep(1:3, jatom), &
+            jatom, jkind, "       mp2_sep", qs_force(jkind)%mp2_sep(1:3, jatom), &
+            jatom, jkind, "         total", total(1:3)
+
+      END IF
+
+   END SUBROUTINE write_forces_debug
 
 END MODULE qs_force_types
