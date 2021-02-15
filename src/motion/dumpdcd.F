@@ -23,6 +23,7 @@ PROGRAM dumpdcd
 !          - FRC to CORD (-frc2cord flag) hack added (28.01.2016,MK)
 !          - Option -eformat added (15.02.2016,MK)
 !          - Fix box unit string for velocity dump (07.06.2020,MK)
+!          - Dump cell information to comment line of XMOL file if requested and available (15.02.2021,MK)
 !
 ! Note: For -ekin a XYZ file is required to obtain the atomic labels.
 !       The -info and the -debug flags provide a more detailed output which is especially handy for tracing problems.
@@ -45,43 +46,46 @@ PROGRAM dumpdcd
 
    ! Parameters
    CHARACTER(LEN=*), PARAMETER :: routineN = "dumpdcd", &
-                                  version_info = routineN//" v3.0 (31.01.2014, Matthias Krack)"
+                                  version_info = routineN//" v3.1 (15.02.2021, Matthias Krack)"
 
    INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND(14, 200), &
                          sp = SELECTED_REAL_KIND(6, 30)
    INTEGER, PARAMETER :: default_string_length = 240, &
-                         xyz_input_unit = 10
+                         cell_input_unit = 10, &
+                         xyz_input_unit = 11
 
    REAL(KIND=dp), PARAMETER :: pi = 3.14159265358979323846264338_dp
-!  REAL(KIND=dp), PARAMETER :: angstrom = 0.52917720859_dp, &              ! [a.u.] -> [Angstrom]
-   REAL(KIND=dp), PARAMETER :: degree = 180.0_dp/pi, &                   ! [rad]  -> [degree]
+   REAL(KIND=dp), PARAMETER :: angstrom = 0.52917720859_dp, &            ! [a.u.] -> [Angstrom]
+                               degree = 180.0_dp/pi, &                   ! [rad]  -> [degree]
                                kelvin = 315774.647902944_dp, &           ! [a.u.] -> [K]
-                               massunit = 1822.88484264550_dp             ! [u]    -> [a.u.]
+                               massunit = 1822.88484264550_dp            ! [u]    -> [a.u.]
 
    ! Variables
    CHARACTER(LEN=4)                                   :: id_dcd
    CHARACTER(LEN=10)                                  :: unit_string
    CHARACTER(LEN=17)                                  :: fmt_string
-   CHARACTER(LEN=default_string_length)               :: arg, dcd_file_name, message, out_file_name, output_format, &
-                                                         remark_xyz, string, xyz_file_name
+   CHARACTER(LEN=default_string_length)               :: arg, cell_file_name, dcd_file_name, message, out_file_name, &
+                                                         output_format, remark_xyz, string, xyz_file_name
    CHARACTER(LEN=5), DIMENSION(:), ALLOCATABLE        :: atomic_label
    CHARACTER(LEN=80), DIMENSION(2)                    :: remark_dcd
-   INTEGER                                            :: first_frame, have_unit_cell, i, iarg, &
-                                                         iatom, iskip, istat, istep, last_frame, narg, &
+   INTEGER                                            :: first_frame, have_unit_cell, i, iarg, iatom, &
+                                                         iframe, iskip, istat, istep, last_frame, narg, &
                                                          natom_dcd, natom_xyz, ndcd_file, nframe, &
                                                          nframe_read, nremark, stride
    LOGICAL                                            :: apply_pbc, debug, dump_frame, eformat, ekin, eo, have_atomic_labels, &
-                                                         info, opened, output_format_dcd, output_format_xmol, &
+                                                         have_cell_file, info, opened, output_format_dcd, output_format_xmol, &
                                                          pbc0, print_atomic_displacements, print_scaled_coordinates, &
                                                          print_scaled_pbc_coordinates, trace_atoms, vel2cord
    REAL(KIND=sp)                                      :: dt
-   REAL(KIND=dp)                                      :: a, alpha, b, beta, c, eps_out_of_box, gamma, tavg, tavg_frame
+   REAL(KIND=dp)                                      :: a, a_dcd, alpha, alpha_dcd, b, b_dcd, beta, beta_dcd, c, c_dcd, &
+                                                         cell_volume, eps_angle, eps_geo, eps_out_of_box, gamma, gamma_dcd, &
+                                                         step_time, tavg, tavg_frame
    INTEGER, DIMENSION(16)                             :: idum
    REAL(KIND=dp), DIMENSION(3)                        :: rdum
    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: atomic_displacement, atomic_mass, atomic_temperature
-   REAL(KIND=dp), DIMENSION(3, 3)                      :: h, hinv
-   REAL(KIND=sp), DIMENSION(:, :), ALLOCATABLE         :: r
-   REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE         :: r_pbc, r0, s, s_pbc
+   REAL(KIND=dp), DIMENSION(3, 3)                     :: h, hinv, hmat
+   REAL(KIND=sp), DIMENSION(:, :), ALLOCATABLE        :: r
+   REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: r_pbc, r0, s, s_pbc
 
    apply_pbc = .FALSE.
    pbc0 = .FALSE.
@@ -105,9 +109,11 @@ PROGRAM dumpdcd
    nremark = 0
    have_unit_cell = 0
    have_atomic_labels = .FALSE.
+   have_cell_file = .FALSE.
    idum(:) = 0
    rdum(:) = 0.0_dp
    id_dcd = ""
+   cell_file_name = ""
    dcd_file_name = ""
    out_file_name = ""
    xyz_file_name = ""
@@ -144,6 +150,11 @@ PROGRAM dumpdcd
       CALL get_command_argument(NUMBER=iarg, VALUE=arg, STATUS=istat)
 
       SELECT CASE (arg)
+      CASE ("-cell_file")
+         iarg = iarg + 1
+         CALL get_command_argument(NUMBER=iarg, VALUE=cell_file_name, STATUS=istat)
+         have_cell_file = .TRUE.
+         CYCLE dcd_file_loop
       CASE ("-debug", "-d")
          debug = .TRUE.
          info = .TRUE.
@@ -415,6 +426,28 @@ PROGRAM dumpdcd
          END IF
       END IF
 
+      ! Read cell information file if requested
+      IF (have_cell_file) THEN
+         string = ""
+         ! Check if a new cell file name was specified, if yes then close the old unit
+         INQUIRE (UNIT=cell_input_unit, NAME=string)
+         IF (TRIM(string) /= TRIM(cell_file_name)) CLOSE (UNIT=cell_input_unit)
+         INQUIRE (UNIT=cell_input_unit, OPENED=opened)
+         ! Read new cell file if needed and update reference information
+         IF (.NOT. opened) THEN
+            OPEN (UNIT=cell_input_unit, &
+                  FILE=cell_file_name, &
+                  STATUS="OLD", &
+                  ACCESS="SEQUENTIAL", &
+                  FORM="FORMATTED", &
+                  POSITION="REWIND", &
+                  ACTION="READ", &
+                  IOSTAT=istat)
+            IF (istat /= 0) CALL abort_program(routineN, "The cell file could not be opened")
+            IF (info) WRITE (UNIT=error_unit, FMT="(A)") "#", "# Reading cell file: "//TRIM(cell_file_name)
+         END IF
+      END IF
+
       ! Increment DCD file counter
       ndcd_file = ndcd_file + 1
 
@@ -514,6 +547,96 @@ PROGRAM dumpdcd
          IF (have_unit_cell == 1) THEN
             READ (UNIT=input_unit, IOSTAT=istat) a, gamma, b, beta, alpha, c
             IF (istat < 0) EXIT frame_loop
+         END IF
+         IF (have_cell_file) THEN
+            ! Read cell information from cell file if available
+            DO
+               READ (UNIT=cell_input_unit, FMT=*, IOSTAT=istat) string
+               IF (istat /= 0) THEN
+                  message = ""
+                  WRITE (UNIT=message, FMT="(A)") &
+                     "Reading frame (step) from cell file "//TRIM(cell_file_name)//" failed"
+                  CALL abort_program(routineN, TRIM(message))
+               END IF
+               IF (string(1:1) == "#") THEN
+                  CYCLE
+               ELSE
+                  BACKSPACE (UNIT=cell_input_unit)
+                  EXIT
+               END IF
+            END DO
+            READ (UNIT=cell_input_unit, FMT=*, IOSTAT=istat) iframe, step_time, hmat(1:3, 1:3), cell_volume
+            IF (istat /= 0) THEN
+               WRITE (UNIT=error_unit, FMT="(/,T2,A,I0)") &
+                  "IOSTAT =   ", istat, &
+                  "Line read: """//TRIM(string)//""""
+               message = ""
+               WRITE (UNIT=message, FMT="(A)") &
+                  "Invalid cell information read from cell file "//TRIM(cell_file_name)
+               CALL abort_program(routineN, TRIM(message))
+            END IF
+            ! Save cell information from DCD header, if available
+            IF (have_unit_cell == 1) THEN
+               a_dcd = a
+               b_dcd = b
+               c_dcd = c
+               alpha_dcd = alpha
+               beta_dcd = beta
+               gamma_dcd = gamma
+            END IF
+            ! Overwrite cell information from DCD header
+            a = SQRT(DOT_PRODUCT(hmat(1:3, 1), hmat(1:3, 1)))
+            b = SQRT(DOT_PRODUCT(hmat(1:3, 2), hmat(1:3, 2)))
+            c = SQRT(DOT_PRODUCT(hmat(1:3, 3), hmat(1:3, 3)))
+            ! Lattice vectors from DCD headers of VEL files are atomic units, but the CP2K cell file is in Angstrom
+            IF (unit_string == "[a.u.]") THEN
+               a = a/angstrom
+               b = b/angstrom
+               c = c/angstrom
+            END IF
+            alpha = angle(hmat(1:3, 2), hmat(1:3, 3))*degree
+            beta = angle(hmat(1:3, 3), hmat(1:3, 1))*degree
+            gamma = angle(hmat(1:3, 1), hmat(1:3, 2))*degree
+            IF (have_unit_cell == 1) THEN
+               eps_geo = 1.0E-7_dp
+               IF (ABS(a - a_dcd) > eps_geo) THEN
+                  WRITE (UNIT=error_unit, FMT="(/,(T2,A,F14.6))") &
+                     "a (CELL file)  =   ", a, &
+                     "a (DCD header) =   ", a_dcd
+                  CALL abort_program(routineN, "Cell file and DCD file information for lattice constant ""a"" differ")
+               END IF
+               IF (ABS(b - b_dcd) > eps_geo) THEN
+                  WRITE (UNIT=error_unit, FMT="(/,(T2,A,F14.6))") &
+                     "b (CELL file)  =   ", b, &
+                     "b (DCD header) =   ", b_dcd
+                  CALL abort_program(routineN, "Cell file and DCD file information for lattice constant ""b"" differ")
+               END IF
+               IF (ABS(c - c_dcd) > eps_geo) THEN
+                  WRITE (UNIT=error_unit, FMT="(/,(T2,A,F14.6))") &
+                     "c (CELL file)  =   ", c, &
+                     "c (DCD header) =   ", c_dcd
+                  CALL abort_program(routineN, "Cell file and DCD file information for lattice constant ""c"" differ")
+               END IF
+               eps_angle = 1.0E-4_dp
+               IF (ABS(alpha - alpha_dcd) > eps_angle) THEN
+                  WRITE (UNIT=error_unit, FMT="(/,(T2,A,F14.6))") &
+                     "alpha (CELL file)  =   ", alpha, &
+                     "alpha (DCD header) =   ", alpha_dcd
+                  CALL abort_program(routineN, "Cell file and DCD file information for cell angle ""alpha"" differ")
+               END IF
+               IF (ABS(beta - beta_dcd) > eps_angle) THEN
+                  WRITE (UNIT=error_unit, FMT="(/,(T2,A,F14.6))") &
+                     "beta (CELL file)  =   ", beta, &
+                     "beta (DCD header) =   ", beta_dcd
+                  CALL abort_program(routineN, "Cell file and DCD file information for cell angle ""beta"" differ")
+               END IF
+               IF (ABS(gamma - gamma_dcd) > eps_angle) THEN
+                  WRITE (UNIT=error_unit, FMT="(/,(T2,A,F14.6))") &
+                     "gamma (CELL file)  =   ", gamma, &
+                     "gamma (DCD header) =   ", gamma_dcd
+                  CALL abort_program(routineN, "Cell file and DCD file information for cell angle ""beta"" differ")
+               END IF
+            END IF
          END IF
 
          IF ((info .OR. trace_atoms) .AND. dump_frame) THEN
@@ -691,8 +814,13 @@ PROGRAM dumpdcd
                      END IF
                   ELSE
                      IF (output_format_xmol) THEN
-                        WRITE (UNIT=output_unit, FMT="(T2,I0,/,A,2(I0,A))") &
-                           natom_dcd, "Frame: ", nframe_read + 1, ", Step: ", nframe, ", "//TRIM(remark_xyz)
+                        IF (have_cell_file .OR. (have_unit_cell == 1)) THEN
+                           WRITE (UNIT=output_unit, FMT="(T2,I0,/,3(1X,F14.6),3(1X,F9.3))") &
+                              natom_dcd, a, b, c, alpha, beta, gamma
+                        ELSE
+                           WRITE (UNIT=output_unit, FMT="(T2,I0,/,A,2(I0,A))") &
+                              natom_dcd, "Frame: ", nframe_read + 1, ", Step: ", nframe, ", "//TRIM(remark_xyz)
+                        END IF
                         DO iatom = 1, natom_dcd
                            WRITE (UNIT=output_unit, FMT=fmt_string) ADJUSTL(atomic_label(iatom)), r(iatom, 1:3)
                         END DO
@@ -796,6 +924,36 @@ CONTAINS
       STOP "*** ABNORMAL PROGRAM TERMINATION of dumpdcd v3.1 ***"
 
    END SUBROUTINE abort_program
+
+! **************************************************************************************************
+!> \brief  Calculation of the angle between the vectors a and b.
+!>         The angle is returned in radians.
+!> \param a ...
+!> \param b ...
+!> \return ...
+! **************************************************************************************************
+   PURE FUNCTION angle(a, b) RESULT(angle_ab)
+
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: a, b
+      REAL(KIND=dp)                                      :: angle_ab
+
+      REAL(KIND=dp), PARAMETER                           :: eps_geo = 1.0E-6_dp
+
+      REAL(KIND=dp)                                      :: length_of_a, length_of_b
+      REAL(KIND=dp), DIMENSION(SIZE(a, 1))               :: a_norm, b_norm
+
+      length_of_a = SQRT(DOT_PRODUCT(a, a))
+      length_of_b = SQRT(DOT_PRODUCT(b, b))
+
+      IF ((length_of_a > eps_geo) .AND. (length_of_b > eps_geo)) THEN
+         a_norm(:) = a(:)/length_of_a
+         b_norm(:) = b(:)/length_of_b
+         angle_ab = ACOS(MIN(MAX(DOT_PRODUCT(a_norm, b_norm), -1.0_dp), 1.0_dp))
+      ELSE
+         angle_ab = 0.0_dp
+      END IF
+
+   END FUNCTION angle
 
 ! **************************************************************************************************
 !> \brief ...
@@ -997,7 +1155,9 @@ CONTAINS
 
       h(:, :) = 0.0_dp
 
-      IF ((alpha == 90.0_dp) .AND. (beta == 90.0_dp) .AND. (gamma == 90.0_dp)) THEN
+      IF ((ABS(alpha - 90.0_dp) < EPSILON(0.0_dp)) .AND. &
+          (ABS(beta - 90.0_dp) < EPSILON(0.0_dp)) .AND. &
+          (ABS(gamma - 90.0_dp) < EPSILON(0.0_dp))) THEN
          orthorhombic = .TRUE.
          h(1, 1) = a
          h(2, 2) = b
@@ -1062,12 +1222,14 @@ CONTAINS
 !> \brief ...
 ! **************************************************************************************************
    SUBROUTINE print_help()
+
       ! Print the program flags for help
 
       WRITE (UNIT=*, FMT="(T2,A)") &
          "", &
          "Program flags for "//TRIM(version_info)//":", &
          "", &
+         " -cell_file                     : Input file with cell information in CP2K format (.cell)", &
          " -debug, -d                     : Print debug information", &
          " -ekin                          : Dump just the ""temperature"" of each atom", &
          " -eformat                       : Print coordinates in scientific format", &
@@ -1083,7 +1245,7 @@ CONTAINS
          " -pbc0                          : Apply the periodic boundary conditions (PBC) to each frame before it is dumped", &
          "                                  (origin at box centre)", &
          " -stride <int>                  : Stride for frame dump (allows to skip frames, e.g. by dumping each 10th frame)", &
-        " -trace_atoms <real>            : Print the atoms which left the simulation box given a threshold value in scaled units", &
+         " -trace_atoms <real>            : Print atoms which left the simulation box given a threshold value in scaled units", &
          " -vel2cord, -v2c                : Dump a VELocity DCD file as COoRDinate DCD file (hack which allows a digest by VMD)", &
          " -xyz_file, -xyz <file_name>    : Name of a reference XYZ file in XMOL format that provides the atomic labels", &
          ""
@@ -1095,28 +1257,29 @@ CONTAINS
          "", &
          "Specific usage examples:", &
          "", &
-         " dumpdcd UO2-2x2x2-pos-1.dcd (without atomic labels from XYZ file)", &
-         " dumpdcd -xyz UO2-2x2x2.xyz UO2-2x2x2-pos-1.dcd (single DCD file)", &
-         " dumpdcd -xyz UO2-2x2x2.xyz UO2-2x2x2-pos-1.dcd UO2-2x2x2-pos-2.dcd ... (multiple DCD files are dumped consecutively)", &
-         " dumpdcd -info -xyz UO2-2x2x2.xyz UO2-2x2x2-pos-1.dcd UO2-2x2x2-pos-2.dcd (print additional information)", &
-         " dumpdcd -debug -xyz UO2-2x2x2.xyz UO2-2x2x2-pos-1.dcd UO2-2x2x2-pos-2.dcd (print debug information)", &
-         " dumpdcd -ekin -d -xyz UO2-2x2x2.xyz UO2-2x2x2-vel-1.dcd (print the ""temperature"" of each atom)", &
-         " dumpdcd -ekin -xyz UO2-2x2x2.xyz UO2-2x2x2-vel-1.dcd (print just the temperature of each atom)", &
-         " dumpdcd -first_frame 5 -last_frame 10 UO2-2x2x2-pos-1.dcd (just dump frame 5 to 10, ie. 6 frames in total)", &
-         " dumpdcd -o outfile.xyz UO2-2x2x2-pos-1.dcd (write output to the file ""outfile.xyz"" instead of stdout)", &
+         " dumpdcd project-pos-1.dcd (without atomic labels from XYZ file)", &
+         " dumpdcd -xyz project.xyz project-pos-1.dcd (single DCD file)", &
+         " dumpdcd -xyz project.xyz project-pos-1.dcd project-pos-2.dcd ... (multiple DCD files are dumped consecutively)", &
+         " dumpdcd -xyz project.xyz -cell_file project-1.cell -of xmol project-pos-1.dcd", &
+         " dumpdcd -info -xyz project.xyz project-pos-1.dcd project-pos-2.dcd (print additional information)", &
+         " dumpdcd -debug -xyz project.xyz project-pos-1.dcd project-pos-2.dcd (print debug information)", &
+         " dumpdcd -ekin -d -xyz project.xyz project-vel-1.dcd (print the ""temperature"" of each atom)", &
+         " dumpdcd -ekin -xyz project.xyz project-vel-1.dcd (print just the temperature of each atom)", &
+         " dumpdcd -first_frame 5 -last_frame 10 project-pos-1.dcd (just dump frame 5 to 10, ie. 6 frames in total)", &
+         " dumpdcd -o outfile.xyz project-pos-1.dcd (write output to the file ""outfile.xyz"" instead of stdout)", &
          " dumpdcd -o test.xyz -output_format xmol -xyz ref.xyz -first 10 -last 10 test.dcd (dump 10th frame in XMOL format)", &
          " dumpdcd -of dcd -ff 10 -lf 20 test.dcd (dump the frames 10 to 20 in DCD format to the default output file output.dcd)", &
          " dumpdcd -o part.dcd -of dcd -ff 1 -lf 3 test.dcd (dump the frames 1 to 3 in DCD format to the output file part.dcd)", &
-     " dumpdcd -o part.dcd -of dcd -first 10 -lf 100 -stride 10 test.dcd (dump the frames 10, 20, ..., 100 to the file part.dcd)", &
+         " dumpdcd -o part.dcd -of dcd -first 10 -lf 100 -stride 10 test.dcd (dump the frames 10,..., 100 to the file part.dcd)", &
          " dumpdcd -output new.dcd -output_format dcd -pbc old.dcd (dump all frames applying PBC to the output file new.dcd)", &
          " dumpdcd -o new.dcd -of dcd -pbc -trace_atoms 0.02 old.dcd (all atoms more than 2% out of the box are listed)", &
-    " dumpdcd -o new.dcd -e out_of_box.log -of dcd -pbc -trace_atoms 0.1 old.dcd (atoms more than 10% out of the box are listed)", &
-     " dumpdcd -o new.dcd -of dcd -vel2cord old.dcd (dump old.dcd as new.dcd and change only the DCD id string from VEL to CORD)", &
-     " dumpdcd -o new.dcd -of dcd -frc2cord old.dcd (dump old.dcd as new.dcd and change only the DCD id string from FRC to CORD)", &
-         " dumpdcd -i -disp UO2-2x2x2-pos-1.dcd (dump the displacements of all atoms w.r.t. their positions in the first frame)", &
-         " dumpdcd -i -of dcd -disp UO2-2x2x2-pos-1.dcd (dump the atomic displacements as x-coordinates of a DCD CORD file)", &
-     " dumpdcd -i -of dcd -ekin -v2c -xyz UO2-2x2x2.xyz UO2-2x2x2-vel-1.dcd (dump the atomic temperatures as x-coordinates of a ", &
-         "                                                                       DCD CORD file -> hack for VMD)", &
+         " dumpdcd -o new.dcd -e out_of_box.log -of dcd -pbc -trace_atoms 0.1 old.dcd (atoms >10% out of the box are listed)", &
+         " dumpdcd -o new.dcd -of dcd -vel2cord old.dcd (dump old.dcd as new.dcd and change only the DCD id from VEL to CORD)", &
+         " dumpdcd -o new.dcd -of dcd -frc2cord old.dcd (dump old.dcd as new.dcd and change only the DCD id from FRC to CORD)", &
+         " dumpdcd -i -disp project-pos-1.dcd (dump the displacements of all atoms w.r.t. their positions in the first frame)", &
+         " dumpdcd -i -of dcd -disp project-pos-1.dcd (dump the atomic displacements as x-coordinates of a DCD CORD file)", &
+         " dumpdcd -i -of dcd -ekin -v2c -xyz project.xyz project-vel-1.dcd (dump the atomic temperatures as x-coordinates of a ", &
+         "                                                                   DCD CORD file -> hack for VMD)", &
          ""
 
       WRITE (UNIT=*, FMT="(T2,A)") &
