@@ -46,7 +46,7 @@ PROGRAM dumpdcd
 
    ! Parameters
    CHARACTER(LEN=*), PARAMETER :: routineN = "dumpdcd", &
-                                  version_info = routineN//" v3.1 (15.02.2021, Matthias Krack)"
+                                  version_info = routineN//" v3.1 (15.02.2021)"
 
    INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND(14, 200), &
                          sp = SELECTED_REAL_KIND(6, 30)
@@ -73,13 +73,14 @@ PROGRAM dumpdcd
                                                          natom_dcd, natom_xyz, ndcd_file, nframe, &
                                                          nframe_read, nremark, stride
    LOGICAL                                            :: apply_pbc, debug, dump_frame, eformat, ekin, eo, have_atomic_labels, &
-                                                         have_cell_file, info, opened, output_format_dcd, output_format_xmol, &
-                                                         pbc0, print_atomic_displacements, print_scaled_coordinates, &
-                                                         print_scaled_pbc_coordinates, trace_atoms, vel2cord
+                                                         have_cell_file, ignore_warnings, info, opened, output_format_dcd, &
+                                                         output_format_xmol, pbc0, print_atomic_displacements, &
+                                                         print_scaled_coordinates, print_scaled_pbc_coordinates, trace_atoms, &
+                                                         vel2cord
    REAL(KIND=sp)                                      :: dt
    REAL(KIND=dp)                                      :: a, a_dcd, alpha, alpha_dcd, b, b_dcd, beta, beta_dcd, c, c_dcd, &
-                                                         cell_volume, eps_angle, eps_geo, eps_out_of_box, gamma, gamma_dcd, &
-                                                         step_time, tavg, tavg_frame
+                                                         cell_volume, eps_angle, eps_geo, eps_out_of_box, first_step_time, &
+                                                         gamma, gamma_dcd, step_time, tavg, tavg_frame
    INTEGER, DIMENSION(16)                             :: idum
    REAL(KIND=dp), DIMENSION(3)                        :: rdum
    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: atomic_displacement, atomic_mass, atomic_temperature
@@ -94,6 +95,7 @@ PROGRAM dumpdcd
    eformat = .FALSE.
    ekin = .FALSE.
    eo = .FALSE.
+   ignore_warnings = .FALSE.
    info = .FALSE.
    trace_atoms = .FALSE.
    vel2cord = .FALSE.
@@ -131,6 +133,8 @@ PROGRAM dumpdcd
    beta = 0.0_dp
    gamma = 0.0_dp
    eps_out_of_box = -HUGE(0.0_dp)
+   first_step_time = 0.0_dp
+   step_time = 0.0_dp
    tavg = 0.0_dp
    tavg_frame = 0.0_dp
 
@@ -185,6 +189,9 @@ PROGRAM dumpdcd
       CASE ("-help", "-h")
          CALL print_help()
          STOP
+      CASE ("-ignore_warnings")
+         ignore_warnings = .TRUE.
+         CYCLE dcd_file_loop
       CASE ("-info", "-i")
          info = .TRUE.
          CYCLE dcd_file_loop
@@ -575,6 +582,7 @@ PROGRAM dumpdcd
                   "Invalid cell information read from cell file "//TRIM(cell_file_name)
                CALL abort_program(routineN, TRIM(message))
             END IF
+            IF (nframe == first_frame) first_step_time = step_time
             ! Save cell information from DCD header, if available
             IF (have_unit_cell == 1) THEN
                a_dcd = a
@@ -598,6 +606,17 @@ PROGRAM dumpdcd
             beta = angle(hmat(1:3, 3), hmat(1:3, 1))*degree
             gamma = angle(hmat(1:3, 1), hmat(1:3, 2))*degree
             IF (have_unit_cell == 1) THEN
+               ! Check consistency of DCD and cell file information
+               IF (.NOT. ignore_warnings) THEN
+                  IF (MODULO(step_time - first_step_time, REAL(dt, KIND=dp)) > 1.0E-6_dp) THEN
+                     WRITE (UNIT=error_unit, FMT="(/,T2,A,I8,/,(T2,A,F15.6,A))") &
+                        "Step number (CELL file) = ", iframe, &
+                        "Step time (CELL file)   = ", step_time, " fs", &
+                        "Time step (DCD header)  = ", dt, " fs"
+                     WRITE (UNIT=error_unit, FMT="(/,T2,A)") &
+                        "*** WARNING: MD step time in cell file is not a multiple of the MD time step in the DCD file header ***"
+                  END IF
+               END IF
                eps_geo = 1.0E-7_dp
                IF (ABS(a - a_dcd) > eps_geo) THEN
                   WRITE (UNIT=error_unit, FMT="(/,(T2,A,F14.6))") &
@@ -1236,6 +1255,7 @@ CONTAINS
          " -eo                            : Write standard output and standard error to the same logical unit", &
          " -first_frame, -ff <int>        : Number of the first frame which is dumped", &
          " -help, -h                      : Print this information", &
+         " -ignore_warnings               : Do not print warning messages, e.g. about inconsistencies", &
          " -info, -i                      : Print additional information for each frame (see also -debug flag)", &
          " -last_frame, -lf <int>         : Number of the last frame which is dumped", &
          " -output, -o <file_name>        : Name of the output file (default is stdout)", &
