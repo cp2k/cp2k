@@ -905,7 +905,7 @@ CONTAINS
       ! collects keywords related to print SPGR info
       CALL keyword_create( &
          keyword, __LOCATION__, name="SPGR_FILE_NAME", &
-         description="Name of output file for detailed Space Group Symmetry iformation.", &
+         description="Name of output file for detailed Space Group Symmetry information.", &
          repeats=.FALSE., usage="SPGR_FILE_NAME {Filename}", default_lc_val="", &
          type_of_var=lchar_t, n_var=1)
       CALL section_add_keyword(section, keyword)

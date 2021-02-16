@@ -223,14 +223,14 @@ CONTAINS
          CASE (default_cell_direct_id)
             CALL init_cell(spgr%cell_ref, hmat=gopt_env%h_ref)
          CASE (default_cell_geo_opt_id)
-            CPABORT("SPACE_GROUP_SYMMETRY SHOULD NOT BE INVOKED DURING THE CELL STEP.")
+            CPABORT("SPACE_GROUP_SYMMETRY should not be invoked during the cell step.")
          CASE (default_cell_md_id)
-            CPABORT("SPACE_GROUP_SYMMETRY IS NOT COMPATIBLE WITH MD.")
+            CPABORT("SPACE_GROUP_SYMMETRY is not compatible with md.")
          CASE DEFAULT
-            CPABORT("SPACE_GROUP_SYMMETRY INVOKED WITH AN UNKNOWN OPTIMIZATION METHOD.")
+            CPABORT("SPACE_GROUP_SYMMETRY invoked with an unknown optimization method.")
          END SELECT
       CASE DEFAULT
-         CPABORT("SPACE_GROUP_SYMMETRY IS NOT COMPATIBLE WITH MD.")
+         CPABORT("SPACE_GROUP_SYMMETRY is not compatible with md.")
       END SELECT
 
       ! atom types
@@ -353,6 +353,7 @@ CONTAINS
          CPASSERT(n_core == n_shell)
       ELSE IF (ASSOCIATED(core_particles)) THEN
          ! This case should not occur at the moment
+         CPABORT("Core particles should not be defined without corresponding shell particles.")
       ELSE
          n_core = 0
          n_shell = 0
