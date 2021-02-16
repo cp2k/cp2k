@@ -223,6 +223,8 @@ The --with-PKG options follow the rules:
                           Default = install
   --with-spfft            Enable the spare fft used in SIRIUS (hard dependency)
                           Default = install
+  --with-spla             Enable the spare linear algebra used in SIRIUS (hard dependency)
+                          Default = install
   --with-cosma            Enable cosma as a replacement for scalapack matrix multiplication
                           Default = install
   --with-libvori          Enable libvori for the Voronoi integration (and the BQB compressed trajectory format)
@@ -263,7 +265,7 @@ tool_list="gcc cmake valgrind"
 mpi_list="mpich openmpi intelmpi"
 math_list="mkl acml openblas reflapack"
 lib_list="fftw libint libxc libsmm libxsmm cosma scalapack elpa plumed \
-          spfft ptscotch superlu pexsi quip gsl spglib hdf5 libvdwxc sirius
+          spfft spla ptscotch superlu pexsi quip gsl spglib hdf5 libvdwxc sirius
           libvori"
 package_list="$tool_list $mpi_list $math_list $lib_list"
 # ------------------------------------------------------------------------
@@ -307,7 +309,8 @@ with_spglib="__INSTALL__"
 with_hdf5="__DONTUSE__"
 with_elpa="__INSTALL__"
 with_libvdwxc="__DONTUSE__"
-with_spfft="__DONTUSE__"
+with_spfft="__INSTALL__"
+with_spla="__INSTALL__"
 with_cosma="__INSTALL__"
 with_libvori="__INSTALL__"
 # for MPI, we try to detect system MPI variant
