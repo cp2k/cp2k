@@ -1,10 +1,10 @@
 # Minimal arch file for CP2K, with minimal dependencies.
 # With this setup, all of CP2K can be pasted together in a single .f90 file:
 # https://www.dropbox.com/s/18oi02srbot3h9p/cp2k_single_file.f90.gz
-CC          = gcc
-CXX         = g++
+CC          = gcc -g
+CXX         = g++ -g
 AR          = ar -r
-FC          = gfortran
+FC          = gfortran -g
 LD          = gfortran
 CFLAGS      = -fopenmp
 FCFLAGS     = -fopenmp -ffree-form
