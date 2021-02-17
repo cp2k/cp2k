@@ -690,6 +690,10 @@ if [ $MPI_MODE = no ] ; then
         echo "Not using MPI, so spfft is disabled"
         with_spfft="__DONTUSE__"
     fi
+    if [ "$with_spla" != "__DONTUSE__" ] ; then
+        echo "Not using MPI, so spla is disabled"
+        with_spla="__DONTUSE__"
+    fi
     if [ "$with_cosma" != "__DONTUSE__" ] ; then
         echo "Not using MPI, so cosma is disabled"
         with_cosma="__DONTUSE__"
