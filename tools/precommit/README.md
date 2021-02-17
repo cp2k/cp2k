@@ -15,6 +15,8 @@ source code:
     to format C and Cuda files.
 - [black](https://github.com/psf/black)
     to format Python scripts.
+- [shfmt](https://github.com/mvdan/sh)
+    to format Shell scripts.
 - [shellcheck](https://github.com/koalaman/shellcheck)
     to analyze Shell scripts.
 - [markdownlint](https://github.com/DavidAnson/markdownlint)
