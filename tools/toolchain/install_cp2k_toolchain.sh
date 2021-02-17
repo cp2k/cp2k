@@ -223,7 +223,7 @@ The --with-PKG options follow the rules:
                           Default = install
   --with-spfft            Enable the spare fft used in SIRIUS (hard dependency)
                           Default = install
-  --with-spla             Enable the spare linear algebra used in SIRIUS (hard dependency)
+  --with-spla             Enable the Specialized Parallel Linear Algebra library (required by SIRIUS)
                           Default = install
   --with-cosma            Enable cosma as a replacement for scalapack matrix multiplication
                           Default = install
