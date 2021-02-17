@@ -3,6 +3,6 @@
 # e.g. 0 means do not compare anything, running is enough
 #      93 compares with the space group number provied in the SPGR section of the output file
 #      for details see cp2k/tools/do_regtest
-copper.inp                                  93     225
-quartz.inp                                  93     154
+copper.inp                                            93          0             225
+quartz.inp                                            93          0             154
 #EOF
