@@ -8,14 +8,14 @@ source /opt/cp2k-toolchain/install/setup
 echo -e "\n========== Compiling CP2K =========="
 cd /workspace/cp2k
 echo -n "Compiling cp2k... "
-if make -j VERSION=pdbg &> make.out ; then
-    echo "done."
+if make -j VERSION=pdbg &> make.out; then
+  echo "done."
 else
-    echo -e "failed.\n\n"
-    tail -n 100 make.out
-    echo -e "\nSummary: Compilation failed."
-    echo -e "Status: FAILED\n"
-    exit 0
+  echo -e "failed.\n\n"
+  tail -n 100 make.out
+  echo -e "\nSummary: Compilation failed."
+  echo -e "Status: FAILED\n"
+  exit 0
 fi
 
 echo -e "\n========== Installing i-Pi =========="
@@ -25,11 +25,11 @@ pip3 install --quiet .
 
 echo -e "\n========== Running i-Pi Tests =========="
 
-cd  /opt/i-pi/examples/cp2k/nvt-cl
+cd /opt/i-pi/examples/cp2k/nvt-cl
 set +e # disable error trapping for remainder of script
 
 TIMEOUT_SEC="300"
-ulimit -t ${TIMEOUT_SEC}  # Limit cpu time.
+ulimit -t ${TIMEOUT_SEC} # Limit cpu time.
 
 # launch cp2k
 (
@@ -56,12 +56,12 @@ echo "CP2K exit code: ${CP2K_EXIT_CODE}"
 echo "i-Pi exit code: ${IPI_EXIT_CODE}"
 
 IPI_REVISION=$(git rev-parse --short HEAD)
-if (( IPI_EXIT_CODE )) || (( CP2K_EXIT_CODE )) ; then
-    echo "Summary: Something is wrong with i-Pi commit ${IPI_REVISION}."
-    echo "Status: FAILED"
+if ((IPI_EXIT_CODE)) || ((CP2K_EXIT_CODE)); then
+  echo "Summary: Something is wrong with i-Pi commit ${IPI_REVISION}."
+  echo "Status: FAILED"
 else
-    echo "Summary: i-Pi commit ${IPI_REVISION} works fine."
-    echo "Status: OK"
+  echo "Summary: i-Pi commit ${IPI_REVISION} works fine."
+  echo "Status: OK"
 fi
 
 #EOF

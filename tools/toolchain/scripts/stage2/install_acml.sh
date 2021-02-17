@@ -17,39 +17,39 @@ ACML_LIBS=''
 cd "${BUILDDIR}"
 
 case "$with_acml" in
-    __INSTALL__)
-        echo "==================== Installing ACML ===================="
-        report_error $LINENO "To install ACML you should either contact your system administrator or go to https://developer.amd.com/tools-and-sdks/archive/amd-core-math-library-acml/acml-downloads-resources/ and download the correct version for your system."
-        exit 1
-        ;;
-    __SYSTEM__)
-        echo "==================== Finding ACML from system paths ===================="
-        check_lib -lacml "ACML"
-        add_include_from_paths ACML_CFLAGS "acml.h" $INCLUDE_PATHS
-        add_lib_from_paths ACML_LDFLAGS "libacml.*" $LIB_PATHS
-        ;;
-    __DONTUSE__)
-        ;;
-    *)
-        echo "==================== Linking ACML to user paths ===================="
-        pkg_install_dir="$with_acml"
-        check_dir "${pkg_install_dir}/lib"
-        ACML_CFLAGS="-I'${pkg_install_dir}/include'"
-        ACML_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
-        ;;
+  __INSTALL__)
+    echo "==================== Installing ACML ===================="
+    report_error $LINENO "To install ACML you should either contact your system administrator or go to https://developer.amd.com/tools-and-sdks/archive/amd-core-math-library-acml/acml-downloads-resources/ and download the correct version for your system."
+    exit 1
+    ;;
+  __SYSTEM__)
+    echo "==================== Finding ACML from system paths ===================="
+    check_lib -lacml "ACML"
+    add_include_from_paths ACML_CFLAGS "acml.h" $INCLUDE_PATHS
+    add_lib_from_paths ACML_LDFLAGS "libacml.*" $LIB_PATHS
+    ;;
+  __DONTUSE__) ;;
+
+  *)
+    echo "==================== Linking ACML to user paths ===================="
+    pkg_install_dir="$with_acml"
+    check_dir "${pkg_install_dir}/lib"
+    ACML_CFLAGS="-I'${pkg_install_dir}/include'"
+    ACML_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+    ;;
 esac
-if [ "$with_acml" != "__DONTUSE__" ] ; then
-    ACML_LIBS="-lacml"
-    if [ "$with_acml" != "__SYSTEM__" ] ; then
-        cat <<EOF > "${BUILDDIR}/setup_acml"
+if [ "$with_acml" != "__DONTUSE__" ]; then
+  ACML_LIBS="-lacml"
+  if [ "$with_acml" != "__SYSTEM__" ]; then
+    cat << EOF > "${BUILDDIR}/setup_acml"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path CPATH "$pkg_install_dir/include"
 EOF
-        cat "${BUILDDIR}/setup_acml" >> $SETUPFILE
-    fi
-    cat <<EOF >> "${BUILDDIR}/setup_acml"
+    cat "${BUILDDIR}/setup_acml" >> $SETUPFILE
+  fi
+  cat << EOF >> "${BUILDDIR}/setup_acml"
 export ACML_CFLAGS="${ACML_CFLAGS}"
 export ACML_LDFLAGS="${ACML_LDFLAGS}"
 export ACML_LIBS="${ACML_LIBS}"

@@ -10,29 +10,29 @@ find ./src/ -type f -not -path "*/preprettify/*" -not -path "*/.git/*" -print0 |
 md5sum ./data/POTENTIAL >> checksums.md5
 
 make -j 16 pretty
-make -j 16 pretty  # run twice to ensure consistency with doxify
+make -j 16 pretty # run twice to ensure consistency with doxify
 
 cd data
 cat GTH_POTENTIALS HF_POTENTIALS NLCC_POTENTIALS ALL_POTENTIALS > POTENTIAL
 cd ..
 
-nfiles=`wc -l checksums.md5 | cut -f 1 -d " "`
+nfiles=$(wc -l checksums.md5 | cut -f 1 -d " ")
 summary="Checked $nfiles files."
 status="OK"
 
 echo "Searching for doxify warnings ..."
 if grep -r -e "UNMATCHED_PROCEDURE_ARGUMENT" \
-           -e "UNKNOWN_DOXYGEN_COMMENT" \
-           -e "UNKNOWN_COMMENT" \
-           --exclude-dir=".git" \
-           --exclude-dir="preprettify" \
-           ./src/* ; then
+  -e "UNKNOWN_DOXYGEN_COMMENT" \
+  -e "UNKNOWN_COMMENT" \
+  --exclude-dir=".git" \
+  --exclude-dir="preprettify" \
+  ./src/*; then
   summary="Found doxify warnings"
   status="FAILED"
 fi
 
 echo "Comparing MD5-sums ..."
-if ! md5sum --quiet --check checksums.md5 ; then
+if ! md5sum --quiet --check checksums.md5; then
   summary='Code not invariant under "make pretty"'
   status="FAILED"
 fi

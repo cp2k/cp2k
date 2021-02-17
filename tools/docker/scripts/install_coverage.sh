@@ -8,8 +8,8 @@ lcov_sha256="c1cda2fa33bec9aa2c2c73c87226cfe97de0831887176b45ee523c5e30f8053a"
 # LCOV dependencies
 apt-get update -qq
 apt-get install -qq --no-install-recommends \
-    libperlio-gzip-perl \
-    libjson-perl
+  libperlio-gzip-perl \
+  libjson-perl
 rm -rf /var/lib/apt/lists/*
 
 cd /tmp

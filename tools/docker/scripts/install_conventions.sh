@@ -12,10 +12,10 @@ ln -vs /opt/cp2k-toolchain/install/arch/local* .
 # pre-build cp2k
 cd /workspace/cp2k/tools/conventions
 echo -n "Warming cache by trying to run test_conventions.sh... "
-if ./test_conventions.sh &> /dev/null ; then
-   echo "done."
+if ./test_conventions.sh &> /dev/null; then
+  echo "done."
 else
-   echo "failed."
+  echo "failed."
 fi
 
 rm -rf ../lib/ ../exe/

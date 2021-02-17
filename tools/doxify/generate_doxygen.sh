@@ -4,15 +4,15 @@
 
 DOXYGENDIR="./doxygen"
 
-for SRC_FN in $(find ./src/ -type f) ; do
-    echo "Preprocessing ${SRC_FN}"
-    DEST_FN="${DOXYGENDIR}/${SRC_FN}"
-    mkdir -p $(dirname "${DEST_FN}")
-    if [[ "${SRC_FN}" == *.F ]] ; then
-        ./tools/build_utils/fypp "${SRC_FN}" "${DEST_FN}" &> /dev/null
-    else
-        cp "${SRC_FN}" "${DEST_FN}"
-    fi
+for SRC_FN in $(find ./src/ -type f); do
+  echo "Preprocessing ${SRC_FN}"
+  DEST_FN="${DOXYGENDIR}/${SRC_FN}"
+  mkdir -p $(dirname "${DEST_FN}")
+  if [[ "${SRC_FN}" == *.F ]]; then
+    ./tools/build_utils/fypp "${SRC_FN}" "${DEST_FN}" &> /dev/null
+  else
+    cp "${SRC_FN}" "${DEST_FN}"
+  fi
 done
 
 cp tools/logo/cp2k_logo_100.png ${DOXYGENDIR}/cp2k_logo.png

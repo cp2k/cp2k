@@ -7,14 +7,14 @@ source /opt/cp2k-toolchain/install/setup
 
 cd /workspace/cp2k
 echo -n "Compiling cp2k... "
-if make -j VERSION=pdbg &> make.out ; then
-    echo "done."
+if make -j VERSION=pdbg &> make.out; then
+  echo "done."
 else
-    echo -e "failed.\n\n"
-    tail -n 100 make.out
-    echo -e "\nSummary: Compilation failed."
-    echo -e "Status: FAILED\n"
-    exit 0
+  echo -e "failed.\n\n"
+  tail -n 100 make.out
+  echo -e "\nSummary: Compilation failed."
+  echo -e "Status: FAILED\n"
+  exit 0
 fi
 
 echo -e "\n========== Installing CP2K =========="
@@ -48,12 +48,12 @@ echo -e "\n========== Running ASE Tests =========="
 cd /opt/ase/
 ASE_REVISION=$(git rev-parse --short HEAD)
 
-if ase test -j 0 -c cp2k calculator/cp2k ; then
-    echo "Summary: ASE commit ${ASE_REVISION} works fine."
-    echo "Status: OK"
+if ase test -j 0 -c cp2k calculator/cp2k; then
+  echo "Summary: ASE commit ${ASE_REVISION} works fine."
+  echo "Status: OK"
 else
-    echo "Summary: Something is wrong with ASE commit ${ASE_REVISION}."
-    echo "Status: FAILED"
+  echo "Summary: Something is wrong with ASE commit ${ASE_REVISION}."
+  echo "Status: FAILED"
 fi
 
 #EOF

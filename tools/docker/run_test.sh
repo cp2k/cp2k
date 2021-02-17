@@ -2,10 +2,10 @@
 
 # author: Ole Schuett
 
-if (( $# < 1 )); then
-    echo "usage: run_test.sh <test_name> [additional-docker-run-args]"
-    echo "example: run_test.sh python"
-    exit 1
+if (($# < 1)); then
+  echo "usage: run_test.sh <test_name> [additional-docker-run-args]"
+  echo "example: run_test.sh python"
+  exit 1
 fi
 
 set -e

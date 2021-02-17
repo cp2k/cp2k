@@ -16,60 +16,60 @@ source "${INSTALLDIR}"/toolchain.env
 cd "${BUILDDIR}"
 
 case "$with_valgrind" in
-    __INSTALL__)
-        echo "==================== Installing Valgrind ===================="
-        pkg_install_dir="${INSTALLDIR}/valgrind-${valgrind_ver}"
-        install_lock_file="$pkg_install_dir/install_successful"
-        if verify_checksums "${install_lock_file}" ; then
-            echo "valgrind-${valgrind_ver} is already installed, skipping it."
-        else
-            if [ -f valgrind-${valgrind_ver}.tar.bz2 ] ; then
-                echo "valgrind-${valgrind_ver}.tar.bz2 is found"
-            else
-                download_pkg ${DOWNLOADER_FLAGS} ${valgrind_sha256} \
-                             https://www.cp2k.org/static/downloads/valgrind-${valgrind_ver}.tar.bz2
-            fi
-            echo "Installing from scratch into ${pkg_install_dir}"
-            [ -d valgrind-${valgrind_ver} ] && rm -rf valgrind-${valgrind_ver}
-            tar -xjf valgrind-${valgrind_ver}.tar.bz2
-            cd valgrind-${valgrind_ver}
-            ./configure --prefix="${pkg_install_dir}" --libdir="${pkg_install_dir}/lib" > configure.log 2>&1
-            make -j $NPROCS > make.log 2>&1
-            make -j $NPROCS install > install.log 2>&1
-            cd ..
-            write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage1/$(basename ${SCRIPT_NAME})"
-        fi
-        ;;
-    __SYSTEM__)
-        echo "==================== Finding Valgrind from system paths ===================="
-        check_command valgrind "valgrind"
-        ;;
-    __DONTUSE__)
-        ;;
-    *)
-        echo "==================== Linking Valgrind to user paths ===================="
-        pkg_install_dir="$with_valgrind"
-        check_dir "${with_valgrind}/bin"
-        check_dir "${with_valgrind}/lib"
-        check_dir "${with_valgrind}/include"
-        ;;
+  __INSTALL__)
+    echo "==================== Installing Valgrind ===================="
+    pkg_install_dir="${INSTALLDIR}/valgrind-${valgrind_ver}"
+    install_lock_file="$pkg_install_dir/install_successful"
+    if verify_checksums "${install_lock_file}"; then
+      echo "valgrind-${valgrind_ver} is already installed, skipping it."
+    else
+      if [ -f valgrind-${valgrind_ver}.tar.bz2 ]; then
+        echo "valgrind-${valgrind_ver}.tar.bz2 is found"
+      else
+        download_pkg ${DOWNLOADER_FLAGS} ${valgrind_sha256} \
+          https://www.cp2k.org/static/downloads/valgrind-${valgrind_ver}.tar.bz2
+      fi
+      echo "Installing from scratch into ${pkg_install_dir}"
+      [ -d valgrind-${valgrind_ver} ] && rm -rf valgrind-${valgrind_ver}
+      tar -xjf valgrind-${valgrind_ver}.tar.bz2
+      cd valgrind-${valgrind_ver}
+      ./configure --prefix="${pkg_install_dir}" --libdir="${pkg_install_dir}/lib" > configure.log 2>&1
+      make -j $NPROCS > make.log 2>&1
+      make -j $NPROCS install > install.log 2>&1
+      cd ..
+      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage1/$(basename ${SCRIPT_NAME})"
+    fi
+    ;;
+  __SYSTEM__)
+    echo "==================== Finding Valgrind from system paths ===================="
+    check_command valgrind "valgrind"
+    ;;
+  __DONTUSE__) ;;
+
+  *)
+    echo "==================== Linking Valgrind to user paths ===================="
+    pkg_install_dir="$with_valgrind"
+    check_dir "${with_valgrind}/bin"
+    check_dir "${with_valgrind}/lib"
+    check_dir "${with_valgrind}/include"
+    ;;
 esac
-if [ "$with_valgrind" != "__DONTUSE__" ] ; then
-    if [ "$with_valgrind" != "__SYSTEM__" ] ; then
-        cat <<EOF > "${BUILDDIR}/setup_valgrind"
+if [ "$with_valgrind" != "__DONTUSE__" ]; then
+  if [ "$with_valgrind" != "__SYSTEM__" ]; then
+    cat << EOF > "${BUILDDIR}/setup_valgrind"
 prepend_path PATH "$pkg_install_dir/bin"
 prepend_path PATH "$pkg_install_dir/lib"
 prepend_path PATH "$pkg_install_dir/include"
 EOF
-        cat "${BUILDDIR}/setup_valgrind" >> ${SETUPFILE}
-    fi
+    cat "${BUILDDIR}/setup_valgrind" >> ${SETUPFILE}
+  fi
 fi
 cd "${ROOTDIR}"
 
 # ----------------------------------------------------------------------
 # Suppress reporting of known leaks
 # ----------------------------------------------------------------------
-cat <<EOF >> ${INSTALLDIR}/valgrind.supp
+cat << EOF >> ${INSTALLDIR}/valgrind.supp
 {
    BuggySUPERLU
    Memcheck:Cond
@@ -90,7 +90,7 @@ cat <<EOF >> ${INSTALLDIR}/valgrind.supp
 }
 EOF
 # also need to give links to the .supp file in setup file
-cat <<EOF >> ${SETUPFILE}
+cat << EOF >> ${SETUPFILE}
 export VALGRIND_OPTIONS="--suppressions=${INSTALLDIR}/valgrind.supp --max-stackframe=2168152 --error-exitcode=42"
 EOF
 

@@ -17,12 +17,12 @@ source /opt/cp2k-toolchain/install/setup
 # pre-build cp2k
 cd /workspace/cp2k
 for VERSION in 'psmp' 'ssmp'; do
-   echo -n "Warming cache by trying to compile cp2k.${VERSION}... "
-   if make -j VERSION="${VERSION}" &> /dev/null ; then
-      echo 'done.'
-   else
-      echo 'failed.'
-   fi
+  echo -n "Warming cache by trying to compile cp2k.${VERSION}... "
+  if make -j VERSION="${VERSION}" &> /dev/null; then
+    echo 'done.'
+  else
+    echo 'failed.'
+  fi
 done
 
 rm -rf lib exe
