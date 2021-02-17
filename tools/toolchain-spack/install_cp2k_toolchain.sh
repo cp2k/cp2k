@@ -458,7 +458,7 @@ if [ "${mpi_provider}" != none ] ; then
         "packages:all:providers:lapack:[${blas_provider}]" \
         "packages:all:providers:mpi:[${mpi_provider}]" \
         "packages:all:providers:scalapack:[${scalapack_provider}]" \
-        "packages:cp2k:variants:${cp2k_variants} ${cp2k_variants_mpi_only ${cp2k_variants_mpi_only}}" \
+        "packages:cp2k:variants:${cp2k_variants} ${cp2k_variants_mpi_only} ${cp2k_variants_mpi_only}" \
         "packages:fftw:variants:+openmp" \
         "packages:openblas:variants:threads=openmp"
 
