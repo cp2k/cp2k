@@ -242,12 +242,12 @@ CONTAINS
 #ifdef __SPGLIB
       spglib = .TRUE.
       CALL cite_reference(Togo2018)
-      ierr = spg_get_international(spgr%international_symbol, TRANSPOSE(cell%hmat), tmp_coor, tmp_types, &
-                                   spgr%n_atom_sym, eps_symmetry)
+      spgr%space_group_number = spg_get_international(spgr%international_symbol, TRANSPOSE(cell%hmat), tmp_coor, tmp_types, &
+                                                      spgr%n_atom_sym, eps_symmetry)
       buffer = ''
       nchars = strlcpy_c2f(buffer, spgr%international_symbol)
       spgr%international_symbol = buffer(1:nchars)
-      IF (ierr == 0) THEN
+      IF (spgr%space_group_number == 0) THEN
          CPABORT("Symmetry Library SPGLIB failed, most likely due a problem with the coordinates.")
          spglib = .FALSE.
       ELSE
@@ -838,7 +838,7 @@ CONTAINS
             END DO
          END DO
       END DO
-      stress = stress/FLOAT(nop)
+      stress = stress/REAL(nop, dp)
 
       DEALLOCATE (roto)
 
@@ -876,6 +876,8 @@ CONTAINS
          WRITE (iunit, '(T2,A,A)') "----------------------------------------", &
             "---------------------------------------"
          IF (spgr%symlib) THEN
+            WRITE (iunit, '(T2,A,T73,I8)') "SPGR| SPACE GROUP NUMBER:", &
+               spgr%space_group_number
             WRITE (iunit, '(T2,A,T70,A11)') "SPGR| INTERNATIONAL SYMBOL:", &
                TRIM(ADJUSTR(spgr%international_symbol))
             WRITE (iunit, '(T2,A,T75,A6)') "SPGR| POINT GROUP SYMBOL:", &

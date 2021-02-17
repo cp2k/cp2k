@@ -46,6 +46,7 @@ MODULE space_groups_types
       LOGICAL, DIMENSION(:), ALLOCATABLE          :: lop, lat
       REAL(KIND=dp), DIMENSION(3)                 :: pol = 0.0_dp
       !SPGLIB
+      INTEGER                                     :: space_group_number = 0
       CHARACTER(len=11)                           :: international_symbol = ""
       CHARACTER(len=6)                            :: pointgroup_symbol = ""
       CHARACTER(len=7)                            :: schoenflies = ""
@@ -138,6 +139,7 @@ CONTAINS
       spgr%n_atom_sym = 0
       spgr%n_core_sym = 0
       spgr%n_shell_sym = 0
+      spgr%space_group_number = 0
       spgr%international_symbol = ""
       spgr%pointgroup_symbol = ""
       spgr%schoenflies = ""

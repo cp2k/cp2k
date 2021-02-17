@@ -440,8 +440,8 @@ CONTAINS
 !                           *  *  *
 
       keep_space_group = .FALSE.
-      IF (PRESENT(spgr) .AND. ASSOCIATED(spgr)) THEN
-         keep_space_group = spgr%keep_space_group
+      IF (PRESENT(spgr)) THEN
+         IF (ASSOCIATED(spgr)) keep_space_group = spgr%keep_space_group
       END IF
 
       IF (task == 'START') THEN
