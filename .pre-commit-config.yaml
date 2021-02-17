@@ -93,3 +93,11 @@ repos:
             tools/manual/collapsibleList.js|
             tools/manual/toggle_folding.js|
           )$
+    -   id: shfmt
+        name: 'Reformat shell scripts with shfmt'
+        minimum_pre_commit_version: 2.4.0
+        language: golang
+        additional_dependencies: [mvdan.cc/sh/v3/cmd/shfmt@v3.2.2]
+        entry: shfmt
+        args: ['-i=2', '-ci', '-sr', '-w']
+        files: '\.sh$'
