@@ -106,7 +106,7 @@ def main():
 
     # Find eligible files and sort by size as larger ones will take longer to process.
     eligible_file_pattern = re.compile(
-        r"(./data/.*POTENTIALS?)|(.*/PACKAGE)|(.*\.(F|fypp|c|cu|h|py|md))$"
+        r"(./data/.*POTENTIALS?)|(.*/PACKAGE)|(.*\.(F|fypp|c|cu|h|py|md|sh))$"
     )
     file_list = [fn for fn in candidate_file_list if eligible_file_pattern.match(fn)]
     file_list.sort(reverse=True, key=lambda fn: os.path.getsize(fn))
@@ -189,7 +189,8 @@ def process_file(fn, allow_modifications):
         run_analyze_src(fn)
 
     elif re.match(r".*\.sh$", fn):
-        run_remote_tool("shellcheck", fn)
+        run_remote_tool("shfmt", fn)
+        # run_remote_tool("shellcheck", fn)
 
     elif re.match(r".*\.md$", fn):
         run_remote_tool("markdownlint", fn)

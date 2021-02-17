@@ -29,6 +29,12 @@ def black():
 
 
 # ======================================================================================
+@app.route("/shfmt", methods=["POST"])
+def shfmt():
+    return run_tool(["shfmt", "-i=2", "-ci", "-sr", "-w"])
+
+
+# ======================================================================================
 @app.route("/shellcheck", methods=["POST"])
 def shellcheck():
     return run_tool(["shellcheck"])
