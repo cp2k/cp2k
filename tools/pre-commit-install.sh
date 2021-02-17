@@ -7,9 +7,9 @@ set -o nounset
 
 PYTHON=$(command -v python3 || true)
 
-if [ -z "${PYTHON}" ] ; then
-    echo "ERROR: the python3 executable could not be found, but is required for the complete build process"
-    exit 1
+if [ -z "${PYTHON}" ]; then
+  echo "ERROR: the python3 executable could not be found, but is required for the complete build process"
+  exit 1
 fi
 
 SCRIPTDIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
@@ -17,16 +17,16 @@ SCRIPTDIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 # here we assume that this script is located in the tools/ subfolder
 ENVDIR="${SCRIPTDIR}/../.pre-commit-env"
 
-if [ -f "${ENVDIR}/bootstrap_done" ] ; then
-    echo "The environment in <CP2K-SRC-DIR>/.pre-commit-env/ is ready to use..."
-    exit 0
+if [ -f "${ENVDIR}/bootstrap_done" ]; then
+  echo "The environment in <CP2K-SRC-DIR>/.pre-commit-env/ is ready to use..."
+  exit 0
 fi
 
 echo "Installing all required tools to run pre-commit in <CP2K-SRC-DIR>/.pre-commit-env/"
 
 echo "Creating the virtualenv for pre-commit..."
-if [ ! -d "${ENVDIR}" ] ; then
-    "${PYTHON}" -m venv "${ENVDIR}"
+if [ ! -d "${ENVDIR}" ]; then
+  "${PYTHON}" -m venv "${ENVDIR}"
 fi
 
 # resolve the relative path now that we have it:
@@ -39,28 +39,28 @@ ENVDIR=$(CDPATH='' cd -- "${ENVDIR}" && pwd)
 PYTHON=$(command -v python)
 PIP=$(command -v pip || true)
 
-if [ -z "${PIP}" ] ; then
-    echo "Bootstrapping the pip command inside the virtual environment..."
+if [ -z "${PIP}" ]; then
+  echo "Bootstrapping the pip command inside the virtual environment..."
 
-    FETCHER="$(command -v curl || true)"
-    FETCHER_OPTS=""
+  FETCHER="$(command -v curl || true)"
+  FETCHER_OPTS=""
 
-    if [ -z "${FETCHER}" ] ; then
-        FETCHER="$(command -v wget || true)"
-        FETCHER_OPTS="-O-"
-    fi
+  if [ -z "${FETCHER}" ]; then
+    FETCHER="$(command -v wget || true)"
+    FETCHER_OPTS="-O-"
+  fi
 
-    if [ -z "${FETCHER}" ] ; then
-        echo "ERROR: neither wget nor curl seem to be available, please download"
-        echo "    https://bootstrap.pypa.io/get-pip.py"
-        echo "manually and run:"
-        echo "    python3 get-pip.py"
-        echo "to install the pip command, then rerun this script."
-        rm -rf "${ENVDIR}"  # cleaning up to avoid picking up the unprefixed pip on the rerun
-        exit 1
-    fi
+  if [ -z "${FETCHER}" ]; then
+    echo "ERROR: neither wget nor curl seem to be available, please download"
+    echo "    https://bootstrap.pypa.io/get-pip.py"
+    echo "manually and run:"
+    echo "    python3 get-pip.py"
+    echo "to install the pip command, then rerun this script."
+    rm -rf "${ENVDIR}" # cleaning up to avoid picking up the unprefixed pip on the rerun
+    exit 1
+  fi
 
-    "${FETCHER}" ${FETCHER_OPTS} "https://bootstrap.pypa.io/get-pip.py" | "${PYTHON}"
+  "${FETCHER}" ${FETCHER_OPTS} "https://bootstrap.pypa.io/get-pip.py" | "${PYTHON}"
 fi
 
 PIP=$(command -v pip)

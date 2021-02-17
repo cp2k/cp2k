@@ -5,10 +5,10 @@
 # install Ubuntu packages
 apt-get update -qq
 apt-get install -qq --no-install-recommends \
-    python3                                 \
-    python3-pip                             \
-    python3-wheel                           \
-    python3-setuptools
+  python3 \
+  python3-pip \
+  python3-wheel \
+  python3-setuptools
 rm -rf /var/lib/apt/lists/*
 
 # install python packages
@@ -27,10 +27,10 @@ ln -vs /opt/cp2k-toolchain/install/arch/local* .
 # pre-build cp2k
 cd /workspace/cp2k
 echo -n "Warming cache by trying to compile... "
-if make -j VERSION=pdbg &> /dev/null ; then
-   echo "done."
+if make -j VERSION=pdbg &> /dev/null; then
+  echo "done."
 else
-   echo "failed."
+  echo "failed."
 fi
 rm -rf lib exe
 

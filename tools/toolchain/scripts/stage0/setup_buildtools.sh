@@ -9,8 +9,8 @@ source "${SCRIPT_DIR}"/signal_trap.sh
 source "${INSTALLDIR}"/toolchain.conf
 source "${INSTALLDIR}"/toolchain.env
 
-for ii in $tool_list ; do
-    load "${BUILDDIR}/setup_${ii}"
+for ii in $tool_list; do
+  load "${BUILDDIR}/setup_${ii}"
 done
 
 # ------------------------------------------------------------------------
@@ -35,7 +35,8 @@ export CXXFLAGS=$(allowed_gxx_flags ${CXXFLAGS})
 export LDFLAGS="${TSANFLAGS}"
 
 # get system arch information using OpenBLAS prebuild
-"${SCRIPTDIR}"/get_openblas_arch.sh; load "${BUILDDIR}/openblas_arch"
+"${SCRIPTDIR}"/get_openblas_arch.sh
+load "${BUILDDIR}/openblas_arch"
 
 write_toolchain_env "${INSTALLDIR}"
 

@@ -2,9 +2,9 @@
 
 # author: Ole Schuett
 
-if (( $# != 2 )) ; then
-    echo "Usage: install_regtest.sh <ARCH> <VERSION>"
-    exit 1
+if (($# != 2)); then
+  echo "Usage: install_regtest.sh <ARCH> <VERSION>"
+  exit 1
 fi
 
 ARCH=$1
@@ -18,18 +18,18 @@ ln -vs /opt/cp2k-toolchain/install/arch/local* .
 source /opt/cp2k-toolchain/install/setup
 
 # Make OpenMPI happy.
-if command -v ompi_info &> /dev/null ; then
-    TESTOPTS="-mpiexec 'mpiexec --bind-to none --allow-run-as-root' ${TESTOPTS}"
-    export OMPI_MCA_plm_rsh_agent=/bin/false
+if command -v ompi_info &> /dev/null; then
+  TESTOPTS="-mpiexec 'mpiexec --bind-to none --allow-run-as-root' ${TESTOPTS}"
+  export OMPI_MCA_plm_rsh_agent=/bin/false
 fi
 
 # pre-build cp2k
 cd /workspace/cp2k || exit 1
 echo -n "Warming cache by trying to compile... "
-if make -j ARCH="${ARCH}" VERSION="${VERSION}" &> /dev/null ; then
-    echo "done."
+if make -j ARCH="${ARCH}" VERSION="${VERSION}" &> /dev/null; then
+  echo "done."
 else
-    echo "failed."
+  echo "failed."
 fi
 
 # remove binaries to reduce image size

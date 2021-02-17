@@ -8,14 +8,14 @@ source /opt/cp2k-toolchain/install/setup
 echo -e "\n========== Compiling CP2K =========="
 cd /workspace/cp2k
 echo -n "Compiling cp2k... "
-if make -j VERSION=pdbg &> make.out ; then
-    echo "done."
+if make -j VERSION=pdbg &> make.out; then
+  echo "done."
 else
-    echo -e "failed.\n\n"
-    tail -n 100 make.out
-    echo -e "\nSummary: Compilation failed."
-    echo -e "Status: FAILED\n"
-    exit 0
+  echo -e "failed.\n\n"
+  tail -n 100 make.out
+  echo -e "\nSummary: Compilation failed."
+  echo -e "Status: FAILED\n"
+  exit 0
 fi
 
 echo -e "\n========== Installing AiiDA-CP2K plugin =========="
@@ -44,13 +44,13 @@ EndOfMessage
 chmod +x /usr/bin/cp2k
 
 echo -e "\n========== Running AiiDA-CP2K Tests =========="
-cd  /opt/aiida-cp2k/
+cd /opt/aiida-cp2k/
 
 set +e # disable error trapping for remainder of script
 (
-set -e # abort on error
-ulimit -t 1800  # abort after 30 minutes
-$AS_UBUNTU_USER py.test
+  set -e         # abort on error
+  ulimit -t 1800 # abort after 30 minutes
+  $AS_UBUNTU_USER py.test
 )
 
 EXIT_CODE=$?
@@ -58,12 +58,12 @@ EXIT_CODE=$?
 echo ""
 
 AIIDA_COMMIT=$(git rev-parse --short HEAD)
-if (( EXIT_CODE )); then
-    echo "Summary: Something is wrong with aiida-cp2k commit ${AIIDA_COMMIT}."
-    echo "Status: FAILED"
+if ((EXIT_CODE)); then
+  echo "Summary: Something is wrong with aiida-cp2k commit ${AIIDA_COMMIT}."
+  echo "Status: FAILED"
 else
-    echo "Summary: aiida-cp2k commit ${AIIDA_COMMIT} works fine."
-    echo "Status: OK"
+  echo "Summary: aiida-cp2k commit ${AIIDA_COMMIT} works fine."
+  echo "Status: OK"
 fi
 
 #EOF

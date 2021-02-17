@@ -13,6 +13,6 @@ docker push gcr.io/cp2k-org-project/img_cp2kprecommit:${SHORT_SHA}
 docker push gcr.io/cp2k-org-project/img_cp2kprecommit:latest
 
 gcloud run deploy cp2k-precommit --platform=managed --region=us-central1 \
-    --image=gcr.io/cp2k-org-project/img_cp2kprecommit:${SHORT_SHA}
+  --image=gcr.io/cp2k-org-project/img_cp2kprecommit:${SHORT_SHA}
 
 #EOF

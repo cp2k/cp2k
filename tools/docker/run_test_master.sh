@@ -2,10 +2,10 @@
 
 # author: Ole Schuett
 
-if (( $# < 1 )); then
-    echo "usage: run_test_master.sh <test_name> [additional-docker-run-args]"
-    echo "example: run_test_master.sh python"
-    exit 1
+if (($# < 1)); then
+  echo "usage: run_test_master.sh <test_name> [additional-docker-run-args]"
+  echo "example: run_test_master.sh python"
+  exit 1
 fi
 
 set -e
@@ -22,6 +22,5 @@ set -x
 ${DOCKER:-docker} run -i --init --rm --cap-add=SYS_PTRACE \
   -e "GIT_BRANCH=${GIT_BRANCH}" -e "GIT_REF=${GIT_REF}" \
   "$@" "img_cp2k_test_${TESTNAME}"
-
 
 #EOF

@@ -12,26 +12,26 @@ export DEBCONF_NONINTERACTIVE_SEEN=true
 apt-get update -qq
 
 apt-get install -qq --no-install-recommends \
-    autoconf                                \
-    autogen                                 \
-    automake                                \
-    autotools-dev                           \
-    bzip2                                   \
-    ca-certificates                         \
-    g++                                     \
-    git                                     \
-    less                                    \
-    libtool                                 \
-    libtool-bin                             \
-    make                                    \
-    nano                                    \
-    patch                                   \
-    pkg-config                              \
-    python3                                 \
-    unzip                                   \
-    wget                                    \
-    xxd                                     \
-    zlib1g-dev
+  autoconf \
+  autogen \
+  automake \
+  autotools-dev \
+  bzip2 \
+  ca-certificates \
+  g++ \
+  git \
+  less \
+  libtool \
+  libtool-bin \
+  make \
+  nano \
+  patch \
+  pkg-config \
+  python3 \
+  unzip \
+  wget \
+  xxd \
+  zlib1g-dev
 
 rm -rf /var/lib/apt/lists/*
 

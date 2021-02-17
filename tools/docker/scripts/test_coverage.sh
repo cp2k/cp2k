@@ -2,9 +2,9 @@
 
 # author: Ole Schuett
 
-if (( $# != 1 )) ; then
-    echo "Usage: test_coverage.sh <VERSION>"
-    exit 1
+if (($# != 1)); then
+  echo "Usage: test_coverage.sh <VERSION>"
+  exit 1
 fi
 
 ARCH=local_coverage
@@ -16,7 +16,7 @@ source /opt/cp2k-toolchain/install/setup
 echo -e "\n========== Running Regtests =========="
 cd /workspace/cp2k || exit 1
 CP2K_REVISION=$(./tools/build_utils/get_revision_number ./src)
-rm -rf "obj/${ARCH}/${VERSION}"/*.gcda   # remove old gcov statistics
+rm -rf "obj/${ARCH}/${VERSION}"/*.gcda # remove old gcov statistics
 
 make ARCH="${ARCH}" VERSION="${VERSION}" TESTOPTS="${TESTOPTS}" test
 
@@ -26,11 +26,11 @@ make ARCH="${ARCH}" VERSION="${VERSION}" TESTOPTS="${TESTOPTS}" test
 rm -f "/workspace/cp2k/obj/${ARCH}/${VERSION}"/exts/*/*.gcda
 cd /tmp || exit 1
 GCOV_TIMEOUT="10s"
-for fn in "/workspace/cp2k/obj/${ARCH}/${VERSION}"/*.gcda ; do
-    if ! timeout "${GCOV_TIMEOUT}" gcov "$fn" &> /dev/null ; then
-        echo "Skipping ${fn} because gcov took longer than ${GCOV_TIMEOUT}."
-        rm "${fn}"
-    fi
+for fn in "/workspace/cp2k/obj/${ARCH}/${VERSION}"/*.gcda; do
+  if ! timeout "${GCOV_TIMEOUT}" gcov "$fn" &> /dev/null; then
+    echo "Skipping ${fn} because gcov took longer than ${GCOV_TIMEOUT}."
+    rm "${fn}"
+  fi
 done
 
 # collect coverage stats

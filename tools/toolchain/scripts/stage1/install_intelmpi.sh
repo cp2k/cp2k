@@ -18,49 +18,49 @@ mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
 case "$with_intelmpi" in
-    __INSTALL__)
-        echo '__INSTALL__ is not supported; please manually install Intel MPI'
-        exit 1
-        ;;
-    __SYSTEM__)
-        echo "==================== Finding Intel MPI from system paths ===================="
-        check_command mpirun "intelmpi"
-        check_command mpiicc "intelmpi"
-        check_command mpiifort "intelmpi"
-        check_command mpiicpc "intelmpi"
-        add_include_from_paths INTELMPI_CFLAGS "mpi.h" $INCLUDE_PATHS
-        add_lib_from_paths INTELMPI_LDFLAGS "libmpi.*" $LIB_PATHS
-        check_lib -lmpi "intelmpi"
-        check_lib -lmpicxx "intelmpi"
-        ;;
-    __DONTUSE__)
-        ;;
-    *)
-        echo "==================== Linking INTELMPI to user paths ===================="
-        pkg_install_dir="$with_intelmpi"
-        check_dir "${pkg_install_dir}/bin"
-        check_dir "${pkg_install_dir}/lib"
-        check_dir "${pkg_install_dir}/include"
-        INTELMPI_CFLAGS="-I'${pkg_install_dir}/include'"
-        INTELMPI_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
-        ;;
+  __INSTALL__)
+    echo '__INSTALL__ is not supported; please manually install Intel MPI'
+    exit 1
+    ;;
+  __SYSTEM__)
+    echo "==================== Finding Intel MPI from system paths ===================="
+    check_command mpirun "intelmpi"
+    check_command mpiicc "intelmpi"
+    check_command mpiifort "intelmpi"
+    check_command mpiicpc "intelmpi"
+    add_include_from_paths INTELMPI_CFLAGS "mpi.h" $INCLUDE_PATHS
+    add_lib_from_paths INTELMPI_LDFLAGS "libmpi.*" $LIB_PATHS
+    check_lib -lmpi "intelmpi"
+    check_lib -lmpicxx "intelmpi"
+    ;;
+  __DONTUSE__) ;;
+
+  *)
+    echo "==================== Linking INTELMPI to user paths ===================="
+    pkg_install_dir="$with_intelmpi"
+    check_dir "${pkg_install_dir}/bin"
+    check_dir "${pkg_install_dir}/lib"
+    check_dir "${pkg_install_dir}/include"
+    INTELMPI_CFLAGS="-I'${pkg_install_dir}/include'"
+    INTELMPI_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+    ;;
 esac
-if [ "$with_intelmpi" != "__DONTUSE__" ] ; then
-    INTELMPI_LIBS="-lmpi -lmpicxx"
-    if [ "$with_intelmpi" != "__SYSTEM__" ] ; then
-        cat <<EOF > "${BUILDDIR}/setup_intelmpi"
+if [ "$with_intelmpi" != "__DONTUSE__" ]; then
+  INTELMPI_LIBS="-lmpi -lmpicxx"
+  if [ "$with_intelmpi" != "__SYSTEM__" ]; then
+    cat << EOF > "${BUILDDIR}/setup_intelmpi"
 prepend_path PATH "$pkg_install_dir/bin"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path CPATH "$pkg_install_dir/include"
 EOF
-        cat "${BUILDDIR}/setup_intelmpi" >> $SETUPFILE
-        mpi_bin="$pkg_install_dir/bin/mpirun"
-    else
-        mpi_bin=mpirun
-    fi
-    cat <<EOF >> "${BUILDDIR}/setup_intelmpi"
+    cat "${BUILDDIR}/setup_intelmpi" >> $SETUPFILE
+    mpi_bin="$pkg_install_dir/bin/mpirun"
+  else
+    mpi_bin=mpirun
+  fi
+  cat << EOF >> "${BUILDDIR}/setup_intelmpi"
 export MPI_MODE="${MPI_MODE}"
 export INTELMPI_CFLAGS="${INTELMPI_CFLAGS}"
 export INTELMPI_LDFLAGS="${INTELMPI_LDFLAGS}"
