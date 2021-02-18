@@ -17,7 +17,7 @@ CP2K_LOCAL=$(realpath ../../)
 set -x
 
 # SYS_PTRACE needed by LeakSanitizer.
-${DOCKER:-docker} run -i --init --rm --cap-add=SYS_PTRACE \
+${DOCKER:-docker} run -i --init --rm --cap-add=SYS_PTRACE --shm-size=1g \
   --volume "${CP2K_LOCAL}:/mnt/cp2k/:ro" \
   "$@" "img_cp2k_test_${TESTNAME}"
 
