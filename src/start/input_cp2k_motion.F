@@ -929,7 +929,7 @@ CONTAINS
          type_of_var=integer_t, n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      
+
       CALL create_lbfgs_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
