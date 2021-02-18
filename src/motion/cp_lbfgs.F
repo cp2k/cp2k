@@ -13,6 +13,7 @@
 !>      02.2005 Update to the new version 2.4 and deleting the blas part of
 !>              the code (Teodoro Laino)
 !>      11.2012 New version 3.0 converted to Fortran 90 (Matthias Krack)
+!>      12.2020 Implementation of Space Group Symmetry (Pierre-André Cazade)
 !> \author Fawzi Mohamed (first version)
 ! **************************************************************************************************
 MODULE cp_lbfgs
@@ -21,6 +22,9 @@ MODULE cp_lbfgs
    USE cp_files,                        ONLY: open_file
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
+   USE space_groups,                    ONLY: spgr_apply_rotations_coord,&
+                                              spgr_apply_rotations_force
+   USE space_groups_types,              ONLY: spgr_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -166,6 +170,9 @@ CONTAINS
 !>                 dsave(15) = the slope of the line search function at the starting point of the line search;
 !>                 dsave(16) = the square of the 2-norm of the line search direction vector.
 !> \param trust_radius ...
+!> \param spgr ...
+!> \par History
+!>      12.2020 Implementation of Space Group Symmetry [pcazade]
 !> \author         NEOS, November 1994. (Latest revision June 1996.)
 !>                 Optimization Technology Center.
 !>                 Argonne National Laboratory and Northwestern University.
@@ -174,7 +181,7 @@ CONTAINS
 !>                 in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
 ! **************************************************************************************************
    SUBROUTINE setulb(n, m, x, lower_bound, upper_bound, nbd, f, g, factr, pgtol, wa, iwa, &
-                     task, iprint, csave, lsave, isave, dsave, trust_radius)
+                     task, iprint, csave, lsave, isave, dsave, trust_radius, spgr)
 
       INTEGER, INTENT(in)                                :: n, m
       REAL(KIND=dp), INTENT(inout)                       :: x(n)
@@ -191,6 +198,7 @@ CONTAINS
       INTEGER                                            :: isave(44)
       REAL(KIND=dp)                                      :: dsave(29)
       REAL(KIND=dp), INTENT(in)                          :: trust_radius
+      TYPE(spgr_type), OPTIONAL, POINTER                 :: spgr
 
       INTEGER                                            :: i, ld, lr, lsnd, lss, lsy, lt, lwa, lwn, &
                                                             lws, lwt, lwy, lxp, lz
@@ -269,12 +277,13 @@ CONTAINS
          END DO
       ENDIF
 
+      ! passes spgr to mainlb
       CALL mainlb(n, m, x, lower_bound, upper_bound, nbd, f, g, factr, pgtol, &
                   wa(lws), wa(lwy), wa(lsy), wa(lss), wa(lwt), &
                   wa(lwn), wa(lsnd), wa(lz), wa(lr), wa(ld), wa(lt), wa(lxp), &
                   wa(lwa), &
                   iwa(1), iwa(n + 1), iwa(2*n + 1), task, iprint, &
-                  csave, lsave, isave(22), dsave)
+                  csave, lsave, isave(22), dsave, spgr=spgr)
 
       RETURN
 
@@ -368,6 +377,9 @@ CONTAINS
 !> \param lsave  lsave is a logical working array
 !> \param isave  isave is an integer working array
 !> \param dsave  is a double precision working array
+!> \param spgr ...
+!> \par History
+!>      12.2020 Implementation of Space Group Symmetry [pcazade]
 !> \author       NEOS, November 1994. (Latest revision June 1996.)
 !>               Optimization Technology Center.
 !>               Argonne National Laboratory and Northwestern University.
@@ -378,7 +390,7 @@ CONTAINS
    SUBROUTINE mainlb(n, m, x, lower_bound, upper_bound, nbd, f, g, factr, pgtol, ws, wy, &
                      sy, ss, wt, wn, snd, z, r, d, t, xp, wa, &
                      index, iwhere, indx2, task, &
-                     iprint, csave, lsave, isave, dsave)
+                     iprint, csave, lsave, isave, dsave, spgr)
       INTEGER, INTENT(in)                                :: n, m
       REAL(KIND=dp), INTENT(inout)                       :: x(n)
       REAL(KIND=dp), INTENT(in)                          :: lower_bound(n), upper_bound(n)
@@ -392,6 +404,7 @@ CONTAINS
       LOGICAL                                            :: lsave(4)
       INTEGER                                            :: isave(23)
       REAL(KIND=dp)                                      :: dsave(29)
+      TYPE(spgr_type), OPTIONAL, POINTER                 :: spgr
 
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
@@ -400,7 +413,8 @@ CONTAINS
                                                             itail, iter, itfile, iupdat, iword, k, &
                                                             nact, nenter, nfgv, nfree, nintol, &
                                                             nseg, nskip
-      LOGICAL                                            :: boxed, constrained, first, updatd, wrk, &
+      LOGICAL                                            :: boxed, constrained, first, &
+                                                            keep_space_group, updatd, wrk, &
                                                             x_projected
       REAL(KIND=dp) :: cachyt, cpu1, cpu2, ddot, ddum, dnorm, dr, dtd, epsmch, fold, g_inf_norm, &
          gd, gdold, lnscht, rr, sbtime, step_max, stp, theta, time, time1, time2, tol, xstep
@@ -424,6 +438,11 @@ CONTAINS
 !        ftp to eecs.nwu.edu in the directory pub/lbfgs/lbfgs_bcm.)
 !
 !                           *  *  *
+
+      keep_space_group = .FALSE.
+      IF (PRESENT(spgr)) THEN
+         IF (ASSOCIATED(spgr)) keep_space_group = spgr%keep_space_group
+      END IF
 
       IF (task == 'START') THEN
 
@@ -499,6 +518,10 @@ CONTAINS
 !        Initialize iwhere & project x onto the feasible set.
 
          CALL active(n, lower_bound, upper_bound, nbd, x, iwhere, iprint, x_projected, constrained, boxed)
+         ! applies rotation matrices to coordinates
+         IF (keep_space_group) THEN
+            CALL spgr_apply_rotations_coord(spgr, x)
+         END IF
 
 !        The end of the initialization.
          task = 'FG_START'
@@ -508,6 +531,12 @@ CONTAINS
                          cpu1, cachyt, sbtime, lnscht, time1, gd, step_max, g_inf_norm, stp, gdold, dtd)
          RETURN
       ELSE
+         ! applies rotation matrices to coordinates
+         IF (keep_space_group) THEN
+            CALL spgr_apply_rotations_coord(spgr, x)
+            CALL spgr_apply_rotations_force(spgr, g)
+         END IF
+
 !          restore local variables.
 
          x_projected = lsave(1)
@@ -627,6 +656,10 @@ CONTAINS
                         m, wy, ws, sy, wt, theta, col, head, &
                         wa(1), wa(2*m + 1), wa(4*m + 1), wa(6*m + 1), nseg, &
                         iprint, g_inf_norm, info, epsmch)
+            ! applies rotation matrices to coordinates
+            IF (keep_space_group) THEN
+               CALL spgr_apply_rotations_coord(spgr, z)
+            END IF
             IF (info /= 0) THEN
 !            singular triangular system detected; refresh the lbfgs memory.
                IF (iprint >= 1) WRITE (*, 1005)
@@ -695,12 +728,21 @@ CONTAINS
 !                                                   from 'cauchy').
             CALL cmprlb(n, m, x, g, ws, wy, sy, wt, z, r, wa, index, &
                         theta, col, head, nfree, constrained, info)
+            ! applies rotation matrices to coordinates
+            IF (keep_space_group) THEN
+               CALL spgr_apply_rotations_force(spgr, r)
+            END IF
             IF (info == 0) THEN
 
 !     call the direct method.
 
                CALL subsm(n, m, nfree, index, lower_bound, upper_bound, nbd, z, r, xp, ws, wy, &
                           theta, x, g, col, head, iword, wa, wn, iprint, info)
+               ! applies rotation matrices to coordinates
+               IF (keep_space_group) THEN
+                  CALL spgr_apply_rotations_coord(spgr, z)
+                  CALL spgr_apply_rotations_force(spgr, r)
+               END IF
             END IF
             IF (info /= 0) THEN
 !          singular triangular system detected;
@@ -729,16 +771,33 @@ CONTAINS
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 !     Generate the search direction d:=z-x.
-
+         ! applies rotation matrices to coordinates
+         IF (keep_space_group) THEN
+            CALL spgr_apply_rotations_coord(spgr, x)
+            CALL spgr_apply_rotations_coord(spgr, z)
+         END IF
          DO i = 1, n
             d(i) = z(i) - x(i)
          END DO
          CALL timer(cpu1)
       ENDIF
       IF (.NOT. first .OR. .NOT. (task(1:5) == 'NEW_X')) THEN
+         ! applies rotation matrices to coordinates
+         IF (keep_space_group) THEN
+            CALL spgr_apply_rotations_coord(spgr, x)
+            CALL spgr_apply_rotations_coord(spgr, z)
+            CALL spgr_apply_rotations_force(spgr, d)
+            CALL spgr_apply_rotations_force(spgr, g)
+            CALL spgr_apply_rotations_force(spgr, r)
+         END IF
          CALL lnsrlb(n, lower_bound, upper_bound, nbd, x, f, fold, gd, gdold, g, d, r, t, z, stp, dnorm, &
                      dtd, xstep, step_max, iter, ifun, iback, nfgv, info, task, &
                      boxed, constrained, csave, isave(22), dsave(17))
+         ! applies rotation matrices to coordinates
+         IF (keep_space_group) THEN
+            CALL spgr_apply_rotations_coord(spgr, x)
+            CALL spgr_apply_rotations_force(spgr, g)
+         END IF
          IF (info /= 0 .OR. iback >= 20) THEN
 !          restore the previous iterate.
             CALL dcopy(n, t, 1, x, 1)
@@ -844,7 +903,10 @@ CONTAINS
       END IF
 
 !     Compute d=newx-oldx, r=newg-oldg, rr=y'y and dr=y's.
-
+      IF (keep_space_group) THEN
+         CALL spgr_apply_rotations_force(spgr, g)
+         CALL spgr_apply_rotations_force(spgr, r)
+      END IF
       DO i = 1, n
          r(i) = g(i) - r(i)
       END DO

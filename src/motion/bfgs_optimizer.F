@@ -7,6 +7,9 @@
 
 ! **************************************************************************************************
 !> \brief Routines for Geometry optimization using BFGS algorithm
+!> \par History
+!>      Module modified by Pierre-André Cazade [pcazade] 01.2020 - University of Limerick.
+!>      Modifications enable Space Group Symmetry.
 ! **************************************************************************************************
 MODULE bfgs_optimizer
 
@@ -72,6 +75,11 @@ MODULE bfgs_optimizer
    USE message_passing,                 ONLY: mp_min,&
                                               mp_sum
    USE particle_list_types,             ONLY: particle_list_type
+   USE space_groups,                    ONLY: identify_space_group,&
+                                              print_spgr,&
+                                              spgr_apply_rotations_coord,&
+                                              spgr_apply_rotations_force
+   USE space_groups_types,              ONLY: spgr_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -93,6 +101,8 @@ CONTAINS
 !> \param geo_section ...
 !> \param gopt_env ...
 !> \param x0 ...
+!> \par History
+!>      01.2020 modified to perform Space Group Symmetry [pcazade]
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE geoopt_bfgs(force_env, gopt_param, globenv, geo_section, gopt_env, x0)
 
@@ -125,11 +135,13 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: print_key, root_section
+      TYPE(spgr_type), POINTER                           :: spgr
 
-      NULLIFY (logger, g, blacs_env)
+      NULLIFY (logger, g, blacs_env, spgr)
       logger => cp_get_default_logger()
       para_env => force_env%para_env
       root_section => force_env%root_section
+      spgr => gopt_env%spgr
       t_old = m_walltime()
 
       CALL timeset(routineN, handle)
@@ -260,6 +272,14 @@ CONTAINS
       ALLOCATE (dr(ndf))
       dr(:) = 0.0_dp
 
+      ! find space_group
+      CALL section_vals_val_get(geo_section, "KEEP_SPACE_GROUP", l_val=spgr%keep_space_group)
+      IF (spgr%keep_space_group) THEN
+         CALL identify_space_group(subsys, geo_section, gopt_env, output_unit)
+         CALL spgr_apply_rotations_coord(spgr, x0)
+         CALL print_spgr(spgr)
+      END IF
+
       ! Geometry optimization starts now
       CALL cp_iterate(logger%iter_info, increment=0, iter_nr_out=iter_nr)
       CALL print_geo_opt_header(gopt_env, output_unit, wildcard)
@@ -267,6 +287,12 @@ CONTAINS
       ! Calculate Energy & Gradients
       CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
                       .FALSE., gopt_env%force_env%para_env)
+
+      ! Symmetrize coordinates and forces
+      IF (spgr%keep_space_group) THEN
+         CALL spgr_apply_rotations_coord(spgr, x0)
+         CALL spgr_apply_rotations_force(spgr, g)
+      END IF
 
       ! Print info at time 0
       emin = etot
@@ -290,6 +316,12 @@ CONTAINS
             IF (ionode) CALL close_file(unit_number=hesunit_read)
          ELSE
             IF ((its - iter_nr) > 1) THEN
+               ! Symmetrize old coordinates and old forces
+               IF (spgr%keep_space_group) THEN
+                  CALL spgr_apply_rotations_coord(spgr, xold)
+                  CALL spgr_apply_rotations_force(spgr, gold)
+               END IF
+
                DO indf = 1, ndf
                   dx(indf) = x0(indf) - xold(indf)
                   dg(indf) = g(indf) - gold(indf)
@@ -297,11 +329,23 @@ CONTAINS
 
                CALL bfgs(ndf, dx, dg, hess_mat, work, para_env)
 
+               ! Symmetrize coordinates and forces change
+               IF (spgr%keep_space_group) THEN
+                  CALL spgr_apply_rotations_force(spgr, dx)
+                  CALL spgr_apply_rotations_force(spgr, dg)
+               END IF
+
                !Possibly dump the Hessian file
                IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
                   CALL write_bfgs_hessian(geo_section, hess_mat, logger)
                ENDIF
             ENDIF
+         END IF
+
+         ! Symmetrize coordinates and forces
+         IF (spgr%keep_space_group) THEN
+            CALL spgr_apply_rotations_coord(spgr, x0)
+            CALL spgr_apply_rotations_force(spgr, g)
          END IF
 
          ! Setting the present positions & gradients as old
@@ -328,10 +372,21 @@ CONTAINS
             CALL rat_fun_opt(ndf, dg, eigval, work, eigvec_mat, g, para_env)
          END IF
          CALL geoopt_get_step(ndf, eigval, eigvec_mat, hess_tmp, dr, g, para_env, use_rfo)
+
+         ! Symmetrize dr
+         IF (spgr%keep_space_group) THEN
+            CALL spgr_apply_rotations_force(spgr, dr)
+         END IF
+
          CALL trust_radius(ndf, step, rad, rat, dr, output_unit)
 
          ! Update the atomic positions
          x0 = x0 + dr
+
+         ! Symmetrize coordinates
+         IF (spgr%keep_space_group) THEN
+            CALL spgr_apply_rotations_coord(spgr, x0)
+         END IF
 
          CALL energy_predict(ndf, work, hess_mat, dr, g, conv, pred, para_env)
          eold = etot
@@ -339,7 +394,13 @@ CONTAINS
          ! Energy & Gradients at new step
          CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
                          .FALSE., gopt_env%force_env%para_env)
+
          ediff = etot - eold
+
+         ! Symmetrize forces
+         IF (spgr%keep_space_group) THEN
+            CALL spgr_apply_rotations_force(spgr, g)
+         END IF
 
          ! check for an external exit command
          CALL external_control(should_stop, "GEO", globenv=globenv)
