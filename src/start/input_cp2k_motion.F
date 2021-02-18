@@ -869,8 +869,19 @@ CONTAINS
       ! collects keywords related to Space Group Symmetry
       CALL keyword_create( &
          keyword, __LOCATION__, name="KEEP_SPACE_GROUP", &
-         description="Keep the space group symmetry operation during optimization.", &
-         usage="KEEP_SPACE_GROUP yes", &
+         description="Enables keeping the space group symmetry during optimization."// &
+         "The space group is automatically detected and preserved."// &
+         "The ability to identify the space group depends on the quality"// &
+         "and accuracy of the input coordinates and of the cell parameters."// &
+         "PDB files usually are not accurate enough."// &
+         "EPS_SYMMETRY keyword can be used to adjust the detection threshold."// &
+         "Ranges of atoms can be excluded from it via the repeatable keyword SYMM_EXCLUDE_RANGE."// &
+         "SYMM_REDUCTION allows to take into account the effect of a polarization electric on the symmetry."// &
+         "It typically reduces it. The vector should have the same direction has the electric field."// &
+         "The amplitude does not matter."// &
+         "Finally, space group symmetry is only applied on the coordinates, the forces, and the stress tensor."// &
+         "It does not affect and/or reduce the computational cost of energy evaluation.", &
+         usage="KEEP_SPACE_GROUP .TRUE.", &
          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -878,7 +889,7 @@ CONTAINS
       ! collects keywords related to precision for finding the space group
       CALL keyword_create( &
          keyword, __LOCATION__, name="EPS_SYMMETRY", &
-         description="Accuracy required for symmetry detection", &
+         description="Accuracy required for the identification of the space group.", &
          usage="EPS_SYMMETRY {REAL}", &
          default_r_val=1.e-4_dp, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
@@ -887,7 +898,7 @@ CONTAINS
       ! collects keywords related to reduction of symmetry due to an external field
       CALL keyword_create( &
          keyword, __LOCATION__, name="SYMM_REDUCTION", &
-         description="Polarisation vector of electric field for symmetry reduction", &
+         description="Polarization vector of the electric field for space group symmetry reduction", &
          usage="SYMM_REDUCTION  0.0 0.0 0.0", &
          repeats=.FALSE., n_var=3, &
          type_of_var=real_t, default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp/))
@@ -897,7 +908,7 @@ CONTAINS
       ! collects keywords related to ranges of atoms to symmetrize
       CALL keyword_create( &
          keyword, __LOCATION__, name="SYMM_EXCLUDE_RANGE", &
-         description="Range of atoms to exclude from symmetry. This keyword can be repeated.", &
+         description="Range of atoms to exclude from space group symmetry. This keyword can be repeated.", &
          repeats=.TRUE., usage="SYMM_EXCLUDE_RANGE {Int} {Int}", type_of_var=integer_t, n_var=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -905,7 +916,7 @@ CONTAINS
       ! collects keywords related to print SPGR info
       CALL keyword_create( &
          keyword, __LOCATION__, name="SPGR_FILE_NAME", &
-         description="Name of output file for detailed Space Group Symmetry information.", &
+         description="Name of output file for detailed space group symmetry information.", &
          repeats=.FALSE., usage="SPGR_FILE_NAME {Filename}", default_lc_val="", &
          type_of_var=lchar_t, n_var=1)
       CALL section_add_keyword(section, keyword)
@@ -913,12 +924,12 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="SPGR_PRINT_LEVEL", &
-         description="Print equivalent atoms list for each symmetry operation.", &
+         description="Print equivalent atoms list for each space group symmetry operation.", &
          repeats=.FALSE., usage="SPGR_PRINT_LEVEL {Level}", default_i_val=-1, &
          type_of_var=integer_t, n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-
+      
       CALL create_lbfgs_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
