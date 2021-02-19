@@ -869,18 +869,10 @@ CONTAINS
       ! collects keywords related to Space Group Symmetry
       CALL keyword_create( &
          keyword, __LOCATION__, name="KEEP_SPACE_GROUP", &
-         description="Enables keeping the space group symmetry during optimization."// &
-         "The space group is automatically detected and preserved."// &
-         "The ability to identify the space group depends on the quality"// &
-         "and accuracy of the input coordinates and of the cell parameters."// &
-         "PDB files usually are not accurate enough."// &
-         "EPS_SYMMETRY keyword can be used to adjust the detection threshold."// &
-         "Ranges of atoms can be excluded from it via the repeatable keyword SYMM_EXCLUDE_RANGE."// &
-         "SYMM_REDUCTION allows to take into account the effect of a polarization electric on the symmetry."// &
-         "It typically reduces it. The vector should have the same direction has the electric field."// &
-         "The amplitude does not matter."// &
-         "Finally, space group symmetry is only applied on the coordinates, the forces, and the stress tensor."// &
-         "It does not affect and/or reduce the computational cost of energy evaluation.", &
+         description="Detect space group of atoms and preserve during optimization."// &
+         "The space group symmetry is applied to coordinates, forces, and the stress tensor."// &
+         "It does not affect/reduce computational cost."//&
+         "Use EPS_SYMMETRY to adjust the detection threshold.", &
          usage="KEEP_SPACE_GROUP .TRUE.", &
          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
@@ -898,7 +890,9 @@ CONTAINS
       ! collects keywords related to reduction of symmetry due to an external field
       CALL keyword_create( &
          keyword, __LOCATION__, name="SYMM_REDUCTION", &
-         description="Polarization vector of the electric field for space group symmetry reduction", &
+         description="Direction of the external static electric field."\\ &
+         "Some symmetry operations are not compartible with the dircetion of an electric field."\\ &
+         "These operations are used when enforcing the space group.", &
          usage="SYMM_REDUCTION  0.0 0.0 0.0", &
          repeats=.FALSE., n_var=3, &
          type_of_var=real_t, default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp/))
@@ -908,7 +902,9 @@ CONTAINS
       ! collects keywords related to ranges of atoms to symmetrize
       CALL keyword_create( &
          keyword, __LOCATION__, name="SYMM_EXCLUDE_RANGE", &
-         description="Range of atoms to exclude from space group symmetry. This keyword can be repeated.", &
+         description="Range of atoms to exclude from space group symmetry."\\ &
+         "These atoms are excluded from both identification and enforcement."\\ &
+         "This keyword can be repeated.", &
          repeats=.TRUE., usage="SYMM_EXCLUDE_RANGE {Int} {Int}", type_of_var=integer_t, n_var=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
