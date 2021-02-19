@@ -869,8 +869,11 @@ CONTAINS
       ! collects keywords related to Space Group Symmetry
       CALL keyword_create( &
          keyword, __LOCATION__, name="KEEP_SPACE_GROUP", &
-         description="Keep the space group symmetry operation during optimization.", &
-         usage="KEEP_SPACE_GROUP yes", &
+         description="Detect space group of atoms and preserve during optimization. "// &
+         "The space group symmetry is applied to coordinates, forces, and the stress tensor. "// &
+         "It does not affect/reduce computational cost. "// &
+         "Use EPS_SYMMETRY to adjust the detection threshold.", &
+         usage="KEEP_SPACE_GROUP .TRUE.", &
          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -878,7 +881,8 @@ CONTAINS
       ! collects keywords related to precision for finding the space group
       CALL keyword_create( &
          keyword, __LOCATION__, name="EPS_SYMMETRY", &
-         description="Accuracy required for symmetry detection", &
+         description="Accuracy for space group determination. EPS_SYMMETRY is dimensionless. "// &
+       "Roughly speaking, two scaled (fractional) atomic positions v1, v2 are considered identical if |v1 - v2| < EPS_SYMMETRY. ", &
          usage="EPS_SYMMETRY {REAL}", &
          default_r_val=1.e-4_dp, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
@@ -887,7 +891,9 @@ CONTAINS
       ! collects keywords related to reduction of symmetry due to an external field
       CALL keyword_create( &
          keyword, __LOCATION__, name="SYMM_REDUCTION", &
-         description="Polarisation vector of electric field for symmetry reduction", &
+         description="Direction of the external static electric field. "// &
+         "Some symmetry operations are not compartible with the dircetion of an electric field. "// &
+         "These operations are used when enforcing the space group.", &
          usage="SYMM_REDUCTION  0.0 0.0 0.0", &
          repeats=.FALSE., n_var=3, &
          type_of_var=real_t, default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp/))
@@ -897,7 +903,9 @@ CONTAINS
       ! collects keywords related to ranges of atoms to symmetrize
       CALL keyword_create( &
          keyword, __LOCATION__, name="SYMM_EXCLUDE_RANGE", &
-         description="Range of atoms to exclude from symmetry. This keyword can be repeated.", &
+         description="Range of atoms to exclude from space group symmetry. "// &
+         "These atoms are excluded from both identification and enforcement. "// &
+         "This keyword can be repeated.", &
          repeats=.TRUE., usage="SYMM_EXCLUDE_RANGE {Int} {Int}", type_of_var=integer_t, n_var=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -905,7 +913,7 @@ CONTAINS
       ! collects keywords related to print SPGR info
       CALL keyword_create( &
          keyword, __LOCATION__, name="SPGR_FILE_NAME", &
-         description="Name of output file for detailed Space Group Symmetry information.", &
+         description="Name of output file for detailed space group symmetry information.", &
          repeats=.FALSE., usage="SPGR_FILE_NAME {Filename}", default_lc_val="", &
          type_of_var=lchar_t, n_var=1)
       CALL section_add_keyword(section, keyword)
@@ -913,7 +921,7 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="SPGR_PRINT_LEVEL", &
-         description="Print equivalent atoms list for each symmetry operation.", &
+         description="Print equivalent atoms list for each space group symmetry operation.", &
          repeats=.FALSE., usage="SPGR_PRINT_LEVEL {Level}", default_i_val=-1, &
          type_of_var=integer_t, n_var=1)
       CALL section_add_keyword(section, keyword)
