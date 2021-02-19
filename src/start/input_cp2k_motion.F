@@ -869,9 +869,9 @@ CONTAINS
       ! collects keywords related to Space Group Symmetry
       CALL keyword_create( &
          keyword, __LOCATION__, name="KEEP_SPACE_GROUP", &
-         description="Detect space group of atoms and preserve during optimization. "// &
+         description="Detect space group of the system and preserve it during optimization. "// &
          "The space group symmetry is applied to coordinates, forces, and the stress tensor. "// &
-         "It does not affect/reduce computational cost. "// &
+         "It works for supercell. It does not affect/reduce computational cost. "// &
          "Use EPS_SYMMETRY to adjust the detection threshold.", &
          usage="KEEP_SPACE_GROUP .TRUE.", &
          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., repeats=.FALSE.)
@@ -892,7 +892,7 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, name="SYMM_REDUCTION", &
          description="Direction of the external static electric field. "// &
-         "Some symmetry operations are not compartible with the dircetion of an electric field. "// &
+         "Some symmetry operations are not compatible with the direction of an electric field. "// &
          "These operations are used when enforcing the space group.", &
          usage="SYMM_REDUCTION  0.0 0.0 0.0", &
          repeats=.FALSE., n_var=3, &
