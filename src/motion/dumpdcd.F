@@ -72,15 +72,16 @@ PROGRAM dumpdcd
                                                          iframe, iskip, istat, istep, last_frame, narg, &
                                                          natom_dcd, natom_xyz, ndcd_file, nframe, &
                                                          nframe_read, nremark, stride
-   LOGICAL                                            :: apply_pbc, debug, dump_frame, eformat, ekin, eo, have_atomic_labels, &
-                                                         have_cell_file, ignore_warnings, info, opened, output_format_dcd, &
-                                                         output_format_xmol, pbc0, print_atomic_displacements, &
-                                                         print_scaled_coordinates, print_scaled_pbc_coordinates, trace_atoms, &
-                                                         vel2cord
-   REAL(KIND=sp)                                      :: dt
+   LOGICAL                                            :: apply_pbc, debug, dump_frame, eformat, ekin, eo, &
+                                                         have_atomic_labels, have_cell_file, ignore_warnings, info, &
+                                                         opened, output_format_dcd, output_format_xmol, pbc0, &
+                                                         print_atomic_displacements, print_scaled_coordinates, &
+                                                         print_scaled_pbc_coordinates, trace_atoms, vel2cord
+   REAL(KIND=sp)                                      :: dt_dcd
    REAL(KIND=dp)                                      :: a, a_dcd, alpha, alpha_dcd, b, b_dcd, beta, beta_dcd, c, c_dcd, &
-                                                         cell_volume, eps_angle, eps_geo, eps_out_of_box, first_step_time, &
-                                                         gamma, gamma_dcd, step_time, tavg, tavg_frame
+                                                         cell_volume, dt, eps_angle, eps_geo, eps_out_of_box, &
+                                                         first_step_time, gamma, gamma_dcd, md_time_step, ndt, step_time, &
+                                                         tavg, tavg_frame
    INTEGER, DIMENSION(16)                             :: idum
    REAL(KIND=dp), DIMENSION(3)                        :: rdum
    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: atomic_displacement, atomic_mass, atomic_temperature
@@ -125,7 +126,8 @@ PROGRAM dumpdcd
    remark_dcd(:) = ""
    remark_xyz = ""
    fmt_string = ""
-   dt = 0.0_sp
+   dt = 0.0_dp
+   dt_dcd = 0.0_sp
    a = 0.0_dp
    b = 0.0_dp
    c = 0.0_dp
@@ -134,6 +136,7 @@ PROGRAM dumpdcd
    gamma = 0.0_dp
    eps_out_of_box = -HUGE(0.0_dp)
    first_step_time = 0.0_dp
+   md_time_step = 0.0_dp
    step_time = 0.0_dp
    tavg = 0.0_dp
    tavg_frame = 0.0_dp
@@ -206,6 +209,15 @@ PROGRAM dumpdcd
          CYCLE dcd_file_loop
 101      CALL abort_program(routineN, "Invalid number for last frame specified "// &
                             "(an integer number greater than zero is expected)")
+      CASE ("-md_time_step")
+         iarg = iarg + 1
+         CALL get_command_argument(NUMBER=iarg, VALUE=arg, STATUS=istat)
+         READ (UNIT=arg, FMT=*, ERR=102) md_time_step
+         IF (md_time_step <= 0.0_dp) THEN
+            CALL abort_program(routineN, "Invalid (negative) MD time step specified")
+         END IF
+         CYCLE dcd_file_loop
+102      CALL abort_program(routineN, "Invalid MD time step specified")
       CASE ("-o", "-output")
          iarg = iarg + 1
          CALL get_command_argument(NUMBER=iarg, VALUE=out_file_name, STATUS=istat)
@@ -475,13 +487,13 @@ PROGRAM dumpdcd
       END IF
 
       ! Read 1st record of DCD file
-      READ (UNIT=input_unit) id_dcd, idum(1), istep, iskip, idum(2:7), dt, have_unit_cell, idum(8:16)
+      READ (UNIT=input_unit) id_dcd, idum(1), istep, iskip, idum(2:7), dt_dcd, have_unit_cell, idum(8:16)
       IF (info) THEN
          WRITE (UNIT=error_unit, FMT="(A,2(/,A,I0),/,A,F9.3,/,A,I0)") &
             "# DCD id string   : "//id_dcd, &
             "# Step            : ", istep, &
             "# Print frequency : ", iskip, &
-            "# Time step [fs]  : ", dt, &
+            "# Time step [fs]  : ", dt_dcd, &
             "# Unit cell       : ", have_unit_cell
       END IF
 
@@ -530,8 +542,10 @@ PROGRAM dumpdcd
       ! Dump output in DCD format => dcd2dcd functionality
       IF (output_format_dcd) THEN
          IF (vel2cord) id_dcd = "CORD"
-         ! Note, dt is REAL*4 and the rest is INTEGER*4
-         WRITE (UNIT=output_unit) id_dcd, idum(1), istep, iskip, idum(2:7), dt, have_unit_cell, idum(8:16)
+         ! Overwrite MD time step, if supplied
+         IF (md_time_step > 0.0_dp) dt_dcd = REAL(md_time_step, KIND=sp)
+         ! Note, dt_dcd is REAL*4 and the rest is INTEGER*4
+         WRITE (UNIT=output_unit) id_dcd, idum(1), istep, iskip, idum(2:7), dt_dcd, have_unit_cell, idum(8:16)
          WRITE (UNIT=output_unit) nremark, remark_dcd(1), remark_dcd(2)
          WRITE (UNIT=output_unit) natom_dcd
       END IF
@@ -582,78 +596,90 @@ PROGRAM dumpdcd
                   "Invalid cell information read from cell file "//TRIM(cell_file_name)
                CALL abort_program(routineN, TRIM(message))
             END IF
+            ! Store step time of the first (selected) MD step
             IF (nframe == first_frame) first_step_time = step_time
-            ! Save cell information from DCD header, if available
-            IF (have_unit_cell == 1) THEN
-               a_dcd = a
-               b_dcd = b
-               c_dcd = c
-               alpha_dcd = alpha
-               beta_dcd = beta
-               gamma_dcd = gamma
-            END IF
-            ! Overwrite cell information from DCD header
-            a = SQRT(DOT_PRODUCT(hmat(1:3, 1), hmat(1:3, 1)))
-            b = SQRT(DOT_PRODUCT(hmat(1:3, 2), hmat(1:3, 2)))
-            c = SQRT(DOT_PRODUCT(hmat(1:3, 3), hmat(1:3, 3)))
-            ! Lattice vectors from DCD headers of VEL files are atomic units, but the CP2K cell file is in Angstrom
-            IF (unit_string == "[a.u.]") THEN
-               a = a/angstrom
-               b = b/angstrom
-               c = c/angstrom
-            END IF
-            alpha = angle(hmat(1:3, 2), hmat(1:3, 3))*degree
-            beta = angle(hmat(1:3, 3), hmat(1:3, 1))*degree
-            gamma = angle(hmat(1:3, 1), hmat(1:3, 2))*degree
-            IF (have_unit_cell == 1) THEN
-               ! Check consistency of DCD and cell file information
-               IF (.NOT. ignore_warnings) THEN
-                  IF (MODULO(step_time - first_step_time, REAL(dt, KIND=dp)) > 1.0E-6_dp) THEN
-                     WRITE (UNIT=error_unit, FMT="(/,T2,A,I8,/,(T2,A,F15.6,A))") &
-                        "Step number (CELL file) = ", iframe, &
-                        "Step time (CELL file)   = ", step_time, " fs", &
-                        "Time step (DCD header)  = ", dt, " fs"
-                     WRITE (UNIT=error_unit, FMT="(/,T2,A)") &
-                        "*** WARNING: MD step time in cell file is not a multiple of the MD time step in the DCD file header ***"
+            ! Perform checks only for the selected frames
+            IF ((nframe >= first_frame) .AND. (nframe <= last_frame)) THEN
+               ! Save cell information from DCD header, if available
+               IF (have_unit_cell == 1) THEN
+                  a_dcd = a
+                  b_dcd = b
+                  c_dcd = c
+                  alpha_dcd = alpha
+                  beta_dcd = beta
+                  gamma_dcd = gamma
+               END IF
+               ! Overwrite cell information from DCD header
+               a = SQRT(DOT_PRODUCT(hmat(1:3, 1), hmat(1:3, 1)))
+               b = SQRT(DOT_PRODUCT(hmat(1:3, 2), hmat(1:3, 2)))
+               c = SQRT(DOT_PRODUCT(hmat(1:3, 3), hmat(1:3, 3)))
+               ! Lattice vectors from DCD headers of VEL files are atomic units, but the CP2K cell file is in Angstrom
+               IF (unit_string == "[a.u.]") THEN
+                  a = a/angstrom
+                  b = b/angstrom
+                  c = c/angstrom
+               END IF
+               alpha = angle(hmat(1:3, 2), hmat(1:3, 3))*degree
+               beta = angle(hmat(1:3, 3), hmat(1:3, 1))*degree
+               gamma = angle(hmat(1:3, 1), hmat(1:3, 2))*degree
+               IF (have_unit_cell == 1) THEN
+                  ! Check consistency of DCD and cell file information
+                  IF (.NOT. ignore_warnings) THEN
+                     IF (md_time_step > 0.0_dp) THEN
+                        dt = md_time_step
+                        string = "Time step (requested)   ="
+                     ELSE
+                        dt = REAL(dt_dcd, KIND=dp)
+                        string = "Time step (DCD header)  ="
+                     END IF
+                     ndt = (step_time - first_step_time)/dt
+                     IF (ABS(ndt - ANINT(ndt)) > 1.0E-8_dp) THEN
+                        WRITE (UNIT=error_unit, FMT="(/,T2,A,I8,/,(T2,A,F15.6,A))") &
+                           "Step number (CELL file) = ", iframe, &
+                           "Step time (CELL file)   = ", step_time, " fs", &
+                           TRIM(string)//" ", dt, " fs"
+                        WRITE (UNIT=error_unit, FMT="(/,T2,A)") &
+                           "*** WARNING: MD step time in cell file is not a multiple of the MD time step in the DCD file header ***"
+                     END IF
                   END IF
-               END IF
-               eps_geo = 1.0E-7_dp
-               IF (ABS(a - a_dcd) > eps_geo) THEN
-                  WRITE (UNIT=error_unit, FMT="(/,(T2,A,F14.6))") &
-                     "a (CELL file)  =   ", a, &
-                     "a (DCD header) =   ", a_dcd
-                  CALL abort_program(routineN, "Cell file and DCD file information for lattice constant ""a"" differ")
-               END IF
-               IF (ABS(b - b_dcd) > eps_geo) THEN
-                  WRITE (UNIT=error_unit, FMT="(/,(T2,A,F14.6))") &
-                     "b (CELL file)  =   ", b, &
-                     "b (DCD header) =   ", b_dcd
-                  CALL abort_program(routineN, "Cell file and DCD file information for lattice constant ""b"" differ")
-               END IF
-               IF (ABS(c - c_dcd) > eps_geo) THEN
-                  WRITE (UNIT=error_unit, FMT="(/,(T2,A,F14.6))") &
-                     "c (CELL file)  =   ", c, &
-                     "c (DCD header) =   ", c_dcd
-                  CALL abort_program(routineN, "Cell file and DCD file information for lattice constant ""c"" differ")
-               END IF
-               eps_angle = 1.0E-4_dp
-               IF (ABS(alpha - alpha_dcd) > eps_angle) THEN
-                  WRITE (UNIT=error_unit, FMT="(/,(T2,A,F14.6))") &
-                     "alpha (CELL file)  =   ", alpha, &
-                     "alpha (DCD header) =   ", alpha_dcd
-                  CALL abort_program(routineN, "Cell file and DCD file information for cell angle ""alpha"" differ")
-               END IF
-               IF (ABS(beta - beta_dcd) > eps_angle) THEN
-                  WRITE (UNIT=error_unit, FMT="(/,(T2,A,F14.6))") &
-                     "beta (CELL file)  =   ", beta, &
-                     "beta (DCD header) =   ", beta_dcd
-                  CALL abort_program(routineN, "Cell file and DCD file information for cell angle ""beta"" differ")
-               END IF
-               IF (ABS(gamma - gamma_dcd) > eps_angle) THEN
-                  WRITE (UNIT=error_unit, FMT="(/,(T2,A,F14.6))") &
-                     "gamma (CELL file)  =   ", gamma, &
-                     "gamma (DCD header) =   ", gamma_dcd
-                  CALL abort_program(routineN, "Cell file and DCD file information for cell angle ""beta"" differ")
+                  eps_geo = 1.0E-7_dp
+                  IF (ABS(a - a_dcd) > eps_geo) THEN
+                     WRITE (UNIT=error_unit, FMT="(/,(T2,A,F14.6))") &
+                        "a (CELL file)  =   ", a, &
+                        "a (DCD header) =   ", a_dcd
+                     CALL abort_program(routineN, "Cell file and DCD file information for lattice constant ""a"" differ")
+                  END IF
+                  IF (ABS(b - b_dcd) > eps_geo) THEN
+                     WRITE (UNIT=error_unit, FMT="(/,(T2,A,F14.6))") &
+                        "b (CELL file)  =   ", b, &
+                        "b (DCD header) =   ", b_dcd
+                     CALL abort_program(routineN, "Cell file and DCD file information for lattice constant ""b"" differ")
+                  END IF
+                  IF (ABS(c - c_dcd) > eps_geo) THEN
+                     WRITE (UNIT=error_unit, FMT="(/,(T2,A,F14.6))") &
+                        "c (CELL file)  =   ", c, &
+                        "c (DCD header) =   ", c_dcd
+                     CALL abort_program(routineN, "Cell file and DCD file information for lattice constant ""c"" differ")
+                  END IF
+                  eps_angle = 1.0E-4_dp
+                  IF (ABS(alpha - alpha_dcd) > eps_angle) THEN
+                     WRITE (UNIT=error_unit, FMT="(/,(T2,A,F14.6))") &
+                        "alpha (CELL file)  =   ", alpha, &
+                        "alpha (DCD header) =   ", alpha_dcd
+                     CALL abort_program(routineN, "Cell file and DCD file information for cell angle ""alpha"" differ")
+                  END IF
+                  IF (ABS(beta - beta_dcd) > eps_angle) THEN
+                     WRITE (UNIT=error_unit, FMT="(/,(T2,A,F14.6))") &
+                        "beta (CELL file)  =   ", beta, &
+                        "beta (DCD header) =   ", beta_dcd
+                     CALL abort_program(routineN, "Cell file and DCD file information for cell angle ""beta"" differ")
+                  END IF
+                  IF (ABS(gamma - gamma_dcd) > eps_angle) THEN
+                     WRITE (UNIT=error_unit, FMT="(/,(T2,A,F14.6))") &
+                        "gamma (CELL file)  =   ", gamma, &
+                        "gamma (DCD header) =   ", gamma_dcd
+                     CALL abort_program(routineN, "Cell file and DCD file information for cell angle ""beta"" differ")
+                  END IF
                END IF
             END IF
          END IF
@@ -1258,6 +1284,7 @@ CONTAINS
          " -ignore_warnings               : Do not print warning messages, e.g. about inconsistencies", &
          " -info, -i                      : Print additional information for each frame (see also -debug flag)", &
          " -last_frame, -lf <int>         : Number of the last frame which is dumped", &
+         " -md_time_step <real>           : Use this MD time step instead of the one from the DCD header", &
          " -output, -o <file_name>        : Name of the output file (default is stdout)", &
          " -output_format, -of <DCD|XMOL> : Output format for dump", &
          " -pbc                           : Apply the periodic boundary conditions (PBC) to each frame before it is dumped", &
