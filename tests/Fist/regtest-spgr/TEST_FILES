@@ -4,5 +4,5 @@
 #      1 compares with the space group name and number of operations provied in the SPGR section of the output file
 #      for details see cp2k/tools/do_regtest
 zro.inp                                               93          0              14
-zro-filename.inp                                       0
+zro_print_atoms.inp                                    0
 #EOF

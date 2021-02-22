@@ -12,7 +12,6 @@
 !> \author Pierre-André Cazade (first version)
 ! **************************************************************************************************
 MODULE space_groups
-
    USE atomic_kind_types,               ONLY: get_atomic_kind
    USE bibliography,                    ONLY: Togo2018,&
                                               cite_reference
@@ -22,8 +21,6 @@ MODULE space_groups
                                               init_cell,&
                                               real_to_scaled,&
                                               scaled_to_real
-   USE cp_files,                        ONLY: close_file,&
-                                              open_file
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
    USE gopt_f_types,                    ONLY: gopt_f_type
@@ -35,9 +32,7 @@ MODULE space_groups
                                               default_ts_method_id
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: default_path_length,&
-                                              dp
-   USE machine,                         ONLY: default_output_unit
+   USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: det_3x3,&
                                               inv_3x3,&
                                               jacobi
@@ -77,15 +72,14 @@ CONTAINS
 !> \param n_atom ...
 !> \param n_core ...
 !> \param n_shell ...
-!> \param iounit ...
-!> \param plevel ...
-!> \param filename ...
+!> \param iunit ...
+!> \param print_atoms ...
 !> \par History
 !>      01.2020 created [pcazade]
 !> \author Pierre-André Cazade (first version)
 ! **************************************************************************************************
    SUBROUTINE spgr_create(scoor, types, cell, gopt_env, eps_symmetry, pol, ranges, &
-                          nparticle, n_atom, n_core, n_shell, iounit, plevel, filename)
+                          nparticle, n_atom, n_core, n_shell, iunit, print_atoms)
 
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: scoor
       INTEGER, DIMENSION(:), INTENT(IN)                  :: types
@@ -94,10 +88,9 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_symmetry
       REAL(KIND=dp), DIMENSION(3), INTENT(IN), OPTIONAL  :: pol
       INTEGER, DIMENSION(:, :), INTENT(IN), OPTIONAL     :: ranges
-      INTEGER, INTENT(IN), OPTIONAL                      :: nparticle, n_atom, n_core, n_shell, &
-                                                            iounit, plevel
-      CHARACTER(LEN=default_path_length), INTENT(IN), &
-         OPTIONAL                                        :: filename
+      INTEGER, INTENT(IN), OPTIONAL                      :: nparticle, n_atom, n_core, n_shell
+      INTEGER, INTENT(IN)                                :: iunit
+      LOGICAL, INTENT(IN)                                :: print_atoms
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_create', routineP = moduleN//':'//routineN
 
@@ -153,19 +146,8 @@ CONTAINS
       spgr%n_core_sym = spgr%n_core
       spgr%n_shell_sym = spgr%n_shell
 
-      ! output unit
-      IF (PRESENT(filename)) THEN
-         spgr%filename = TRIM(filename)
-      ELSE IF (PRESENT(iounit)) THEN
-         spgr%punit = iounit
-      ELSE
-         spgr%punit = default_output_unit
-      END IF
-
-      ! output unit
-      IF (PRESENT(plevel)) THEN
-         spgr%plevel = plevel
-      END IF
+      spgr%iunit = iunit
+      spgr%print_atoms = print_atoms
 
       ! accuracy for symmetry
       IF (PRESENT(eps_symmetry)) THEN
@@ -292,30 +274,29 @@ CONTAINS
 !> \param subsys ...
 !> \param geo_section ...
 !> \param gopt_env ...
-!> \param iounit ...
+!> \param iunit ...
 !> \par History
 !>      01.2020 created [pcazade]
 !> \author Pierre-André Cazade (first version)
 !> \note  rotation matrices innclude translations and translation symmetry:
 !>        it works with supercells as well.
 ! **************************************************************************************************
-   SUBROUTINE identify_space_group(subsys, geo_section, gopt_env, iounit)
+   SUBROUTINE identify_space_group(subsys, geo_section, gopt_env, iunit)
 
       TYPE(cp_subsys_type), INTENT(IN), POINTER          :: subsys
       TYPE(section_vals_type), INTENT(IN), POINTER       :: geo_section
       TYPE(gopt_f_type), INTENT(IN), POINTER             :: gopt_env
-      INTEGER                                            :: iounit
+      INTEGER, INTENT(IN)                                :: iunit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'identify_space_group', &
          routineP = moduleN//':'//routineN
 
-      CHARACTER(LEN=default_path_length)                 :: filename
       INTEGER                                            :: handle, i, k, n_atom, n_core, n_shell, &
-                                                            n_sr_rep, nparticle, plevel, &
-                                                            shell_index
+                                                            n_sr_rep, nparticle, shell_index
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atype
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ranges
       INTEGER, DIMENSION(:), POINTER                     :: tmp
+      LOGICAL                                            :: print_atoms
       REAL(KIND=dp)                                      :: eps_symmetry
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: scoord
       REAL(KIND=dp), DIMENSION(:), POINTER               :: pol
@@ -375,8 +356,7 @@ CONTAINS
          END IF
       END DO
 
-      CALL section_vals_val_get(geo_section, "SPGR_PRINT_LEVEL", i_val=plevel)
-      CALL section_vals_val_get(geo_section, "SPGR_FILE_NAME", c_val=filename)
+      CALL section_vals_val_get(geo_section, "SPGR_PRINT_ATOMS", l_val=print_atoms)
       CALL section_vals_val_get(geo_section, "EPS_SYMMETRY", r_val=eps_symmetry)
       CALL section_vals_val_get(geo_section, "SYMM_REDUCTION", r_vals=pol)
       CALL section_vals_val_get(geo_section, "SYMM_EXCLUDE_RANGE", n_rep_val=n_sr_rep)
@@ -387,13 +367,13 @@ CONTAINS
             ranges(:, i) = tmp(:)
          END DO
          CALL spgr_create(scoord, atype, cell, gopt_env, eps_symmetry=eps_symmetry, pol=pol(1:3), &
-                          ranges=ranges, nparticle=nparticle, n_atom=n_atom, n_core=n_core, n_shell=n_shell, iounit=iounit, &
-                          filename=filename, plevel=plevel)
+                          ranges=ranges, nparticle=nparticle, n_atom=n_atom, &
+                          n_core=n_core, n_shell=n_shell, iunit=iunit, print_atoms=print_atoms)
          DEALLOCATE (ranges)
       ELSE
          CALL spgr_create(scoord, atype, cell, gopt_env, eps_symmetry=eps_symmetry, pol=pol(1:3), &
-                          nparticle=nparticle, n_atom=n_atom, n_core=n_core, n_shell=n_shell, iounit=iounit, &
-                          filename=filename, plevel=plevel)
+                          nparticle=nparticle, n_atom=n_atom, &
+                          n_core=n_core, n_shell=n_shell, iunit=iunit, print_atoms=print_atoms)
       ENDIF
 
       NULLIFY (spgr)
@@ -859,76 +839,62 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_spgr', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, iunit, j
+      INTEGER                                            :: i, j
 
-      CALL timeset(routineN, handle)
-
-      IF (LEN_TRIM(spgr%filename) > 0) THEN
-         CALL open_file(file_name=spgr%filename, unit_number=iunit, file_status="UNKNOWN", file_action="WRITE")
-      ELSE
-         iunit = spgr%punit
-      END IF
-
-      IF (iunit >= 0) THEN
-         WRITE (iunit, '(/,T2,A,A)') "----------------------------------------", &
+      IF (spgr%iunit > 0) THEN
+         WRITE (spgr%iunit, '(/,T2,A,A)') "----------------------------------------", &
             "---------------------------------------"
-         WRITE (iunit, "(T2,A,T25,A,T77,A)") "----", "SPACE GROUP SYMMETRY INFORMATION", "----"
-         WRITE (iunit, '(T2,A,A)') "----------------------------------------", &
+         WRITE (spgr%iunit, "(T2,A,T25,A,T77,A)") "----", "SPACE GROUP SYMMETRY INFORMATION", "----"
+         WRITE (spgr%iunit, '(T2,A,A)') "----------------------------------------", &
             "---------------------------------------"
          IF (spgr%symlib) THEN
-            WRITE (iunit, '(T2,A,T73,I8)') "SPGR| SPACE GROUP NUMBER:", &
+            WRITE (spgr%iunit, '(T2,A,T73,I8)') "SPGR| SPACE GROUP NUMBER:", &
                spgr%space_group_number
-            WRITE (iunit, '(T2,A,T70,A11)') "SPGR| INTERNATIONAL SYMBOL:", &
+            WRITE (spgr%iunit, '(T2,A,T70,A11)') "SPGR| INTERNATIONAL SYMBOL:", &
                TRIM(ADJUSTR(spgr%international_symbol))
-            WRITE (iunit, '(T2,A,T75,A6)') "SPGR| POINT GROUP SYMBOL:", &
+            WRITE (spgr%iunit, '(T2,A,T75,A6)') "SPGR| POINT GROUP SYMBOL:", &
                TRIM(ADJUSTR(spgr%pointgroup_symbol))
-            WRITE (iunit, '(T2,A,T74,A7)') "SPGR| SCHOENFLIES SYMBOL:", &
+            WRITE (spgr%iunit, '(T2,A,T74,A7)') "SPGR| SCHOENFLIES SYMBOL:", &
                TRIM(ADJUSTR(spgr%schoenflies))
-            WRITE (iunit, '(T2,A,T73,I8)') "SPGR| NUMBER OF SYMMETRY OPERATIONS:", &
+            WRITE (spgr%iunit, '(T2,A,T73,I8)') "SPGR| NUMBER OF SYMMETRY OPERATIONS:", &
                spgr%n_operations
-            WRITE (iunit, '(T2,A,T73,I8)') "SPGR| NUMBER OF UNIQUE ROTATIONS:", &
+            WRITE (spgr%iunit, '(T2,A,T73,I8)') "SPGR| NUMBER OF UNIQUE ROTATIONS:", &
                spgr%n_operations_subset
-            WRITE (iunit, '(T2,A,T73,I8)') "SPGR| NUMBER OF REDUCED SYMMETRY OPERATIONS:", &
+            WRITE (spgr%iunit, '(T2,A,T73,I8)') "SPGR| NUMBER OF REDUCED SYMMETRY OPERATIONS:", &
                spgr%n_reduced_operations
-            WRITE (iunit, '(T2,A,T65,I8,I8)') "SPGR| NUMBER OF PARTICLES AND SYMMETRIZED PARTICLES:", &
+            WRITE (spgr%iunit, '(T2,A,T65,I8,I8)') "SPGR| NUMBER OF PARTICLES AND SYMMETRIZED PARTICLES:", &
                spgr%nparticle, spgr%nparticle_sym
-            WRITE (iunit, '(T2,A,T65,I8,I8)') "SPGR| NUMBER OF ATOMS AND SYMMETRIZED ATOMS:", &
+            WRITE (spgr%iunit, '(T2,A,T65,I8,I8)') "SPGR| NUMBER OF ATOMS AND SYMMETRIZED ATOMS:", &
                spgr%n_atom, spgr%n_atom_sym
-            WRITE (iunit, '(T2,A,T65,I8,I8)') "SPGR| NUMBER OF CORES AND SYMMETRIZED CORES:", &
+            WRITE (spgr%iunit, '(T2,A,T65,I8,I8)') "SPGR| NUMBER OF CORES AND SYMMETRIZED CORES:", &
                spgr%n_core, spgr%n_core_sym
-            WRITE (iunit, '(T2,A,T65,I8,I8)') "SPGR| NUMBER OF SHELLS AND SYMMETRIZED SHELLS:", &
+            WRITE (spgr%iunit, '(T2,A,T65,I8,I8)') "SPGR| NUMBER OF SHELLS AND SYMMETRIZED SHELLS:", &
                spgr%n_shell, spgr%n_shell_sym
-            IF (spgr%plevel > 0) THEN
-               WRITE (iunit, *) "SPGR| ACTIVE REDUCED SYMMETRY OPERATIONS:", spgr%lop
-               WRITE (iunit, '(/,T2,A,A)') "----------------------------------------", &
+            IF (spgr%print_atoms) THEN
+               WRITE (spgr%iunit, *) "SPGR| ACTIVE REDUCED SYMMETRY OPERATIONS:", spgr%lop
+               WRITE (spgr%iunit, '(/,T2,A,A)') "----------------------------------------", &
                   "---------------------------------------"
-               WRITE (iunit, '(T2,A,T34,A,T77,A)') "----", "EQUIVALENT ATOMS", "----"
-               WRITE (iunit, '(T2,A,A)') "----------------------------------------", &
+               WRITE (spgr%iunit, '(T2,A,T34,A,T77,A)') "----", "EQUIVALENT ATOMS", "----"
+               WRITE (spgr%iunit, '(T2,A,A)') "----------------------------------------", &
                   "---------------------------------------"
                DO i = 1, spgr%nparticle
                   DO j = 1, spgr%n_operations
-                     WRITE (iunit, '(T2,A,T52,I8,I8,I8)') "SPGR| ATOM | SYMMETRY OPERATION | EQUIVALENT ATOM", &
+                     WRITE (spgr%iunit, '(T2,A,T52,I8,I8,I8)') "SPGR| ATOM | SYMMETRY OPERATION | EQUIVALENT ATOM", &
                         i, j, spgr%eqatom(j, i)
                   END DO
                END DO
-               WRITE (iunit, '(T2,A,A)') "----------------------------------------", &
+               WRITE (spgr%iunit, '(T2,A,A)') "----------------------------------------", &
                   "---------------------------------------"
                DO i = 1, spgr%n_operations
-                  WRITE (iunit, '(T2,A,T46,i4,T51,3I10,/,T51,3I10,/,T51,3I10)') &
+                  WRITE (spgr%iunit, '(T2,A,T46,i4,T51,3I10,/,T51,3I10,/,T51,3I10)') &
                      "SPGR| SYMMETRY OPERATION #:", i, (spgr%rotations(j, :, i), j=1, 3)
-                  WRITE (iunit, '(T51,3F10.5)') spgr%translations(:, i)
+                  WRITE (spgr%iunit, '(T51,3F10.5)') spgr%translations(:, i)
                END DO
             END IF
          ELSE
-            WRITE (iunit, "(T2,A)") "SPGLIB for Crystal Symmetry Information determination is not availale"
+            WRITE (spgr%iunit, "(T2,A)") "SPGLIB for Crystal Symmetry Information determination is not availale"
          END IF
       END IF
-
-      IF (LEN_TRIM(spgr%filename) > 0) THEN
-         CALL close_file(iunit)
-      END IF
-
-      CALL timestop(handle)
 
    END SUBROUTINE print_spgr
 
@@ -949,49 +915,46 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_write_stress_tensor', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle
       REAL(KIND=dp), DIMENSION(3)                        :: eigval
       REAL(KIND=dp), DIMENSION(3, 3)                     :: eigvec, stress_tensor
 
-      CALL timeset(routineN, handle)
-
       stress_tensor(:, :) = stress(:, :)*pascal*1.0E-9_dp
 
-      WRITE (UNIT=spgr%punit, FMT='(/,T2,A)') &
-         'SPGR STRESS| Symmetrized stress tensor [GPa]'
-      WRITE (UNIT=spgr%punit, FMT='(T2,A,T19,3(19X,A1))') &
-         'SPGR STRESS|', 'x', 'y', 'z'
-      WRITE (UNIT=spgr%punit, FMT='(T2,A,T26,3(1X,ES19.11))') &
-         'SPGR STRESS|      x', stress_tensor(1, 1:3)
-      WRITE (UNIT=spgr%punit, FMT='(T2,A,T26,3(1X,ES19.11))') &
-         'SPGR STRESS|      y', stress_tensor(2, 1:3)
-      WRITE (UNIT=spgr%punit, FMT='(T2,A,T26,3(1X,ES19.11))') &
-         'SPGR STRESS|      z', stress_tensor(3, 1:3)
-      WRITE (UNIT=spgr%punit, FMT='(T2,A,T66,ES20.11)') &
-         'SPGR STRESS| 1/3 Trace', (stress_tensor(1, 1) + &
-                                    stress_tensor(2, 2) + &
-                                    stress_tensor(3, 3))/3.0_dp
-      WRITE (UNIT=spgr%punit, FMT='(T2,A,T66,ES20.11)') &
-         'SPGR STRESS| Determinant', det_3x3(stress_tensor(1:3, 1), &
-                                             stress_tensor(1:3, 2), &
-                                             stress_tensor(1:3, 3))
-      eigval(:) = 0.0_dp
-      eigvec(:, :) = 0.0_dp
-      CALL jacobi(stress_tensor, eigval, eigvec)
-      WRITE (UNIT=spgr%punit, FMT='(/,T2,A)') &
-         'SPGR STRESS| Eigenvectors and eigenvalues of the symmetrized stress tensor [GPa]'
-      WRITE (UNIT=spgr%punit, FMT='(T2,A,T19,3(1X,I19))') &
-         'SPGR STRESS|', 1, 2, 3
-      WRITE (UNIT=spgr%punit, FMT='(T2,A,T26,3(1X,ES19.11))') &
-         'SPGR STRESS| Eigenvalues', eigval(1:3)
-      WRITE (UNIT=spgr%punit, FMT='(T2,A,T26,3(1X,F19.12))') &
-         'SPGR STRESS|      x', eigvec(1, 1:3)
-      WRITE (UNIT=spgr%punit, FMT='(T2,A,T26,3(1X,F19.12))') &
-         'SPGR STRESS|      y', eigvec(2, 1:3)
-      WRITE (UNIT=spgr%punit, FMT='(T2,A,T26,3(1X,F19.12))') &
-         'SPGR STRESS|      z', eigvec(3, 1:3)
-
-      CALL timestop(handle)
+      IF (spgr%iunit > 0) THEN
+         WRITE (UNIT=spgr%iunit, FMT='(/,T2,A)') &
+            'SPGR STRESS| Symmetrized stress tensor [GPa]'
+         WRITE (UNIT=spgr%iunit, FMT='(T2,A,T19,3(19X,A1))') &
+            'SPGR STRESS|', 'x', 'y', 'z'
+         WRITE (UNIT=spgr%iunit, FMT='(T2,A,T26,3(1X,ES19.11))') &
+            'SPGR STRESS|      x', stress_tensor(1, 1:3)
+         WRITE (UNIT=spgr%iunit, FMT='(T2,A,T26,3(1X,ES19.11))') &
+            'SPGR STRESS|      y', stress_tensor(2, 1:3)
+         WRITE (UNIT=spgr%iunit, FMT='(T2,A,T26,3(1X,ES19.11))') &
+            'SPGR STRESS|      z', stress_tensor(3, 1:3)
+         WRITE (UNIT=spgr%iunit, FMT='(T2,A,T66,ES20.11)') &
+            'SPGR STRESS| 1/3 Trace', (stress_tensor(1, 1) + &
+                                       stress_tensor(2, 2) + &
+                                       stress_tensor(3, 3))/3.0_dp
+         WRITE (UNIT=spgr%iunit, FMT='(T2,A,T66,ES20.11)') &
+            'SPGR STRESS| Determinant', det_3x3(stress_tensor(1:3, 1), &
+                                                stress_tensor(1:3, 2), &
+                                                stress_tensor(1:3, 3))
+         eigval(:) = 0.0_dp
+         eigvec(:, :) = 0.0_dp
+         CALL jacobi(stress_tensor, eigval, eigvec)
+         WRITE (UNIT=spgr%iunit, FMT='(/,T2,A)') &
+            'SPGR STRESS| Eigenvectors and eigenvalues of the symmetrized stress tensor [GPa]'
+         WRITE (UNIT=spgr%iunit, FMT='(T2,A,T19,3(1X,I19))') &
+            'SPGR STRESS|', 1, 2, 3
+         WRITE (UNIT=spgr%iunit, FMT='(T2,A,T26,3(1X,ES19.11))') &
+            'SPGR STRESS| Eigenvalues', eigval(1:3)
+         WRITE (UNIT=spgr%iunit, FMT='(T2,A,T26,3(1X,F19.12))') &
+            'SPGR STRESS|      x', eigvec(1, 1:3)
+         WRITE (UNIT=spgr%iunit, FMT='(T2,A,T26,3(1X,F19.12))') &
+            'SPGR STRESS|      y', eigvec(2, 1:3)
+         WRITE (UNIT=spgr%iunit, FMT='(T2,A,T26,3(1X,F19.12))') &
+            'SPGR STRESS|      z', eigvec(3, 1:3)
+      ENDIF
 
    END SUBROUTINE spgr_write_stress_tensor
 

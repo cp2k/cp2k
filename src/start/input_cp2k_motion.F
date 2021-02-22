@@ -60,7 +60,6 @@ MODULE input_cp2k_motion
                                               section_release,&
                                               section_type
    USE input_val_types,                 ONLY: integer_t,&
-                                              lchar_t,&
                                               logical_t,&
                                               real_t
    USE kinds,                           ONLY: dp
@@ -910,20 +909,10 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      ! collects keywords related to print SPGR info
       CALL keyword_create( &
-         keyword, __LOCATION__, name="SPGR_FILE_NAME", &
-         description="Name of output file for detailed space group symmetry information.", &
-         repeats=.FALSE., usage="SPGR_FILE_NAME {Filename}", default_lc_val="", &
-         type_of_var=lchar_t, n_var=1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, name="SPGR_PRINT_LEVEL", &
+         keyword, __LOCATION__, name="SPGR_PRINT_ATOMS", &
          description="Print equivalent atoms list for each space group symmetry operation.", &
-         repeats=.FALSE., usage="SPGR_PRINT_LEVEL {Level}", default_i_val=-1, &
-         type_of_var=integer_t, n_var=1)
+         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

@@ -220,9 +220,7 @@ RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
                IF (spgr%keep_space_group) THEN
                   CALL spgr_apply_rotations_force(spgr, gradient)
                   CALL spgr_apply_rotations_stress(spgr, cell, av_ptens)
-                  IF (para_env%ionode) THEN
-                     CALL spgr_write_stress_tensor(av_ptens, spgr)
-                  END IF
+                  CALL spgr_write_stress_tensor(av_ptens, spgr)
                END IF
                cell_gradient => gradient(nsize + 1:nsize + 6)
                cell_gradient = 0.0_dp
@@ -313,9 +311,7 @@ RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
                CPASSERT(ASSOCIATED(gradient))
                IF (spgr%keep_space_group) THEN
                   CALL spgr_apply_rotations_stress(spgr, cell, av_ptens)
-                  IF (para_env%ionode) THEN
-                     CALL spgr_write_stress_tensor(av_ptens, spgr)
-                  END IF
+                  CALL spgr_write_stress_tensor(av_ptens, spgr)
                END IF
                ! Compute the gradients on the cell
                CALL get_dg_dh(gradient, av_ptens, gopt_env%cell_env%pres_ext, cell, gopt_env%cell_env%mtrx, &
