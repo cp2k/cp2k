@@ -41,8 +41,7 @@ MODULE gopt_f_types
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE particle_list_types,             ONLY: particle_list_type
-   USE space_groups_types,              ONLY: init_spgr,&
-                                              release_spgr_type,&
+   USE space_groups_types,              ONLY: release_spgr_type,&
                                               spgr_type
 #include "../base/base_uses.f90"
 
@@ -118,7 +117,7 @@ CONTAINS
       gopt_env%id_nr = last_gopt_f_id
       gopt_env%dimer_rotation = .FALSE.
       gopt_env%do_line_search = .FALSE.
-      CALL init_spgr(gopt_env%spgr)
+      ALLOCATE (gopt_env%spgr)
       CALL force_env_retain(force_env)
       gopt_env%force_env => force_env
       gopt_env%motion_section => section_vals_get_subs_vals(force_env%root_section, "MOTION")

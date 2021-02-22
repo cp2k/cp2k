@@ -15,9 +15,7 @@ MODULE space_groups_types
 
    USE cell_types,                      ONLY: cell_release,&
                                               cell_type
-   USE kinds,                           ONLY: default_path_length,&
-                                              dp
-   USE machine,                         ONLY: default_output_unit
+   USE kinds,                           ONLY: dp
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -29,8 +27,8 @@ MODULE space_groups_types
    TYPE spgr_type
       LOGICAL                                     :: keep_space_group = .FALSE.
       LOGICAL                                     :: symlib = .FALSE.
-      INTEGER                                     :: plevel = -1
-      INTEGER                                     :: punit = default_output_unit
+      LOGICAL                                     :: print_atoms = .FALSE.
+      INTEGER                                     :: iunit = -1
       INTEGER                                     :: istriz = -1
       REAL(KIND=dp)                               :: eps_symmetry = 1.0e-4_dp
       INTEGER                                     :: nparticle = 0
@@ -50,17 +48,16 @@ MODULE space_groups_types
       CHARACTER(len=11)                           :: international_symbol = ""
       CHARACTER(len=6)                            :: pointgroup_symbol = ""
       CHARACTER(len=7)                            :: schoenflies = ""
-      CHARACTER(LEN=default_path_length)          :: filename = ""
       INTEGER                                     :: n_operations = 0
       INTEGER                                     :: n_reduced_operations = 0
       INTEGER                                     :: n_operations_subset = 0
       INTEGER, DIMENSION(:, :, :), ALLOCATABLE    :: rotations
       INTEGER, DIMENSION(:, :, :), ALLOCATABLE    :: rotations_subset
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: translations
-      TYPE(cell_type), POINTER                    :: cell_ref
+      TYPE(cell_type), POINTER                    :: cell_ref => NULL()
    END TYPE spgr_type
 
-   PUBLIC :: spgr_type, init_spgr, release_spgr_type
+   PUBLIC :: spgr_type, release_spgr_type
 
 CONTAINS
 
@@ -108,47 +105,5 @@ CONTAINS
       END IF
 
    END SUBROUTINE release_spgr_type
-
-! **************************************************************************************************
-!> \brief Initialize variables in the SPGR type but does not initializa or allocate the arrays.
-!> \param spgr  The SPGR type
-!> \par History
-!>      02.2021 created [pcazade]
-!> \author Pierre-André Cazade (first version)
-! **************************************************************************************************
-   SUBROUTINE init_spgr(spgr)
-
-      TYPE(spgr_type), POINTER                           :: spgr
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_spgr', routineP = moduleN//':'//routineN
-
-      CPASSERT(.NOT. ASSOCIATED(spgr))
-      ALLOCATE (spgr)
-
-      spgr%keep_space_group = .FALSE.
-      spgr%symlib = .FALSE.
-      spgr%plevel = -1
-      spgr%punit = default_output_unit
-      spgr%istriz = -1
-      spgr%eps_symmetry = 1.0e-4_dp
-      spgr%nparticle = 0
-      spgr%nparticle_sym = 0
-      spgr%n_atom = 0
-      spgr%n_core = 0
-      spgr%n_shell = 0
-      spgr%n_atom_sym = 0
-      spgr%n_core_sym = 0
-      spgr%n_shell_sym = 0
-      spgr%space_group_number = 0
-      spgr%international_symbol = ""
-      spgr%pointgroup_symbol = ""
-      spgr%schoenflies = ""
-      spgr%filename = ""
-      spgr%n_operations = 0
-      spgr%n_reduced_operations = 0
-      spgr%n_operations_subset = 0
-      NULLIFY (spgr%cell_ref)
-
-   END SUBROUTINE init_spgr
 
 END MODULE space_groups_types
