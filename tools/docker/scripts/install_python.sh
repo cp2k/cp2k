@@ -11,7 +11,8 @@ apt-get install -qq --no-install-recommends \
   python3-wheel \
   python3-setuptools \
   python3-dev \
-  build-essential
+  build-essential \
+  golang
 rm -rf /var/lib/apt/lists/*
 
 # install python packages
