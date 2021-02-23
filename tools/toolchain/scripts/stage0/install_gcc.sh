@@ -162,7 +162,7 @@ cd "${ROOTDIR}"
 
 # this might need to be adjusted for the versions of the software
 # employed
-cat << EOF >> ${INSTALLDIR}/lsan.supp
+cat << EOF >> "${INSTALLDIR}/lsan.supp"
 # known leak either related to mpi or scalapack  (e.g. showing randomly for Fist/regtest-7-2/UO2-2x2x2-genpot_units.inp)
 leak:__cp_fm_types_MOD_cp_fm_write_unformatted
 # leak related to mpi or scalapack  triggers sometimes for regtest-kp-2/cc2.inp
@@ -176,7 +176,7 @@ leak:symbfact_distributeMatrix
 leak:__dbcsr_tensor_types_MOD___copy_dbcsr_tensor_types_Dbcsr_tas_dist_t
 leak:__dbcsr_tensor_types_MOD___copy_dbcsr_tensor_types_Dbcsr_tas_blk_size_t
 EOF
-cat << EOF >> ${INSTALLDIR}/tsan.supp
+cat << EOF >> "${INSTALLDIR}/tsan.supp"
 # tsan bugs likely related to gcc
 # PR66756
 deadlock:_gfortran_st_open
@@ -188,7 +188,7 @@ race:__dbcsr_transformations_MOD_dbcsr_make_untransposed_blocks
 EOF
 
 # need to also link to the .supp file in setup file
-cat << EOF >> ${SETUPFILE}
+cat << EOF >> "${SETUPFILE}"
 export LSAN_OPTIONS=suppressions=${INSTALLDIR}/lsan.supp
 export TSAN_OPTIONS=suppressions=${INSTALLDIR}/tsan.supp
 EOF
