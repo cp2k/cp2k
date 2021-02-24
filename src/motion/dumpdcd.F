@@ -46,7 +46,7 @@ PROGRAM dumpdcd
 
    ! Parameters
    CHARACTER(LEN=*), PARAMETER :: routineN = "dumpdcd", &
-                                  version_info = routineN//" v3.1 (15.02.2021)"
+                                  version_info = routineN//" v3.1 (24.02.2021)"
 
    INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND(14, 200), &
                          sp = SELECTED_REAL_KIND(6, 30)
@@ -157,7 +157,7 @@ PROGRAM dumpdcd
       CALL get_command_argument(NUMBER=iarg, VALUE=arg, STATUS=istat)
 
       SELECT CASE (arg)
-      CASE ("-cell_file")
+      CASE ("-cell_file", "-cell")
          iarg = iarg + 1
          CALL get_command_argument(NUMBER=iarg, VALUE=cell_file_name, STATUS=istat)
          have_cell_file = .TRUE.
@@ -633,10 +633,13 @@ PROGRAM dumpdcd
                         string = "Time step (DCD header)  ="
                      END IF
                      ndt = (step_time - first_step_time)/dt
-                     IF (ABS(ndt - ANINT(ndt)) > 1.0E-8_dp) THEN
+                     IF (ABS(ndt - ANINT(ndt)) > 0.01_dp) THEN
                         WRITE (UNIT=error_unit, FMT="(/,T2,A,I8,/,(T2,A,F15.6,A))") &
                            "Step number (CELL file) = ", iframe, &
                            "Step time (CELL file)   = ", step_time, " fs", &
+                           "First step (CELL file)  = ", first_step_time, " fs", &
+                           "Time since first step   = ", step_time - first_step_time, " fs", &
+                           "Steps since first step  = ", ndt, "", &
                            TRIM(string)//" ", dt, " fs"
                         WRITE (UNIT=error_unit, FMT="(/,T2,A)") &
                            "*** WARNING: MD step time in cell file is not a multiple of the MD time step in the DCD file header ***"
@@ -1274,7 +1277,7 @@ CONTAINS
          "", &
          "Program flags for "//TRIM(version_info)//":", &
          "", &
-         " -cell_file                     : Input file with cell information in CP2K format (.cell)", &
+         " -cell_file, -cell              : Input file with cell information in CP2K format (.cell)", &
          " -debug, -d                     : Print debug information", &
          " -ekin                          : Dump just the ""temperature"" of each atom", &
          " -eformat                       : Print coordinates in scientific format", &
@@ -1307,7 +1310,8 @@ CONTAINS
          " dumpdcd project-pos-1.dcd (without atomic labels from XYZ file)", &
          " dumpdcd -xyz project.xyz project-pos-1.dcd (single DCD file)", &
          " dumpdcd -xyz project.xyz project-pos-1.dcd project-pos-2.dcd ... (multiple DCD files are dumped consecutively)", &
-         " dumpdcd -xyz project.xyz -cell_file project-1.cell -of xmol project-pos-1.dcd", &
+         " dumpdcd -xyz project.xyz -cell_file project-1.cell -of xmol project-pos-1.dcd (check and print cell parameter to ", &
+         "                                                                                XMOL comment line, e.g. for TRAVIS)", &
          " dumpdcd -info -xyz project.xyz project-pos-1.dcd project-pos-2.dcd (print additional information)", &
          " dumpdcd -debug -xyz project.xyz project-pos-1.dcd project-pos-2.dcd (print debug information)", &
          " dumpdcd -ekin -d -xyz project.xyz project-vel-1.dcd (print the ""temperature"" of each atom)", &
