@@ -18,6 +18,22 @@
 #include "grid_ref_task_list.h"
 
 /*******************************************************************************
+ * \brief Comperator passed to qsort to compare two tasks.
+ * \author Ole Schuett
+ ******************************************************************************/
+static int compare_tasks(const void *a, const void *b) {
+  const grid_ref_task *task_a = a, *task_b = b;
+  if (task_a->level != task_b->level) {
+    return task_a->level - task_b->level;
+  } else if (task_a->block_num != task_b->block_num) {
+    return task_a->block_num - task_b->block_num;
+  } else if (task_a->iset != task_b->iset) {
+    return task_a->iset - task_b->iset;
+  } else {
+    return task_a->jset - task_b->jset;
+  }
+}
+/*******************************************************************************
  * \brief Allocates a task list for the reference backend.
  *        See grid_task_list.h for details.
  * \author Ole Schuett
@@ -81,13 +97,25 @@ void grid_ref_create_task_list(
     task_list->tasks[i].rab[2] = rab_list[i][2];
   }
 
-  // Count tasks per level.
-  size = nlevels * sizeof(int);
-  task_list->tasks_per_level = malloc(size);
-  memset(task_list->tasks_per_level, 0, size);
-  for (int i = 0; i < ntasks; i++) {
-    task_list->tasks_per_level[level_list[i] - 1]++;
-    assert(i == 0 || level_list[i] >= level_list[i - 1]); // expect ordered list
+  // Sort tasks by level, block_num, iset, and jset.
+  qsort(task_list->tasks, ntasks, sizeof(grid_ref_task), &compare_tasks);
+
+  // Find first and last task for each level and block.
+  size = nlevels * nblocks * sizeof(int);
+  task_list->first_level_block_task = malloc(size);
+  task_list->last_level_block_task = malloc(size);
+  for (int i = 0; i < nlevels * nblocks; i++) {
+    task_list->first_level_block_task[i] = 0;
+    task_list->last_level_block_task[i] = -1; // last < first means no tasks
+  }
+  for (int itask = 0; itask < ntasks; itask++) {
+    const int level = task_list->tasks[itask].level - 1;
+    const int block_num = task_list->tasks[itask].block_num - 1;
+    if (itask == 0 || task_list->tasks[itask - 1].level - 1 != level ||
+        task_list->tasks[itask - 1].block_num - 1 != block_num) {
+      task_list->first_level_block_task[level * nblocks + block_num] = itask;
+    }
+    task_list->last_level_block_task[level * nblocks + block_num] = itask;
   }
 
   // Find largest Cartesian subblock size.
@@ -109,7 +137,8 @@ void grid_ref_free_task_list(grid_ref_task_list *task_list) {
   free(task_list->atom_kinds);
   free(task_list->basis_sets);
   free(task_list->tasks);
-  free(task_list->tasks_per_level);
+  free(task_list->first_level_block_task);
+  free(task_list->last_level_block_task);
   free(task_list);
 }
 
@@ -199,9 +228,10 @@ void *malloc_threadlocal(const size_t size_unaligned, const int nthreads,
  * \author Ole Schuett
  ******************************************************************************/
 static void collocate_one_grid_level(
-    const grid_ref_task_list *task_list, const int first_task,
-    const int last_task, const bool orthorhombic, const enum grid_func func,
-    const int npts_global[3], const int npts_local[3], const int shift_local[3],
+    const grid_ref_task_list *task_list, const int *first_block_task,
+    const int *last_block_task, const bool orthorhombic,
+    const enum grid_func func, const int npts_global[3],
+    const int npts_local[3], const int shift_local[3],
     const int border_width[3], const double dh[3][3], const double dh_inv[3][3],
     const double *pab_blocks, double *grid) {
 
@@ -230,74 +260,84 @@ static void collocate_one_grid_level(
     double *const my_grid = threadlocal_grid[omp_get_thread_num()];
     memset(my_grid, 0, grid_size);
 
-#pragma omp for schedule(static)
-    for (int itask = first_task; itask <= last_task; itask++) {
-      // Define some convenient aliases.
-      const grid_ref_task *task = &task_list->tasks[itask];
-      const int iatom = task->iatom - 1;
-      const int jatom = task->jatom - 1;
-      const int iset = task->iset - 1;
-      const int jset = task->jset - 1;
-      const int ipgf = task->ipgf - 1;
-      const int jpgf = task->jpgf - 1;
-      const int ikind = task_list->atom_kinds[iatom] - 1;
-      const int jkind = task_list->atom_kinds[jatom] - 1;
-      const grid_basis_set *ibasis = task_list->basis_sets[ikind];
-      const grid_basis_set *jbasis = task_list->basis_sets[jkind];
-      const double zeta = ibasis->zet[iset * ibasis->maxpgf + ipgf];
-      const double zetb = jbasis->zet[jset * jbasis->maxpgf + jpgf];
-      const int ncoseta = ncoset(ibasis->lmax[iset]);
-      const int ncosetb = ncoset(jbasis->lmax[jset]);
-      const int ncoa = ibasis->npgf[iset] * ncoseta; // size of carthesian set
-      const int ncob = jbasis->npgf[jset] * ncosetb;
-      const int block_num = task->block_num - 1;
-      const int block_offset = task_list->block_offsets[block_num];
-      const double *block = &pab_blocks[block_offset];
-      const bool transpose = (iatom <= jatom);
+    // Parallelize over blocks to avoid unnecessary calls to load_pab.
+    const int chunk_size = imax(1, task_list->nblocks / (nthreads * 50));
+#pragma omp for schedule(dynamic, chunk_size)
+    for (int block_num = 0; block_num < task_list->nblocks; block_num++) {
+      const int first_task = first_block_task[block_num];
+      const int last_task = last_block_task[block_num];
 
-      // Load subblock from buffer and decontract into Cartesian sublock pab.
-      // The previous pab can be reused when only ipgf or jpgf has changed.
-      if (block_offset != old_offset || iset != old_iset || jset != old_jset) {
-        old_offset = block_offset;
-        old_iset = iset;
-        old_jset = jset;
-        load_pab(ibasis, jbasis, iset, jset, transpose, block, pab);
-      }
+      for (int itask = first_task; itask <= last_task; itask++) {
+        // Define some convenient aliases.
+        const grid_ref_task *task = &task_list->tasks[itask];
+        const int iatom = task->iatom - 1;
+        const int jatom = task->jatom - 1;
+        const int iset = task->iset - 1;
+        const int jset = task->jset - 1;
+        const int ipgf = task->ipgf - 1;
+        const int jpgf = task->jpgf - 1;
+        const int ikind = task_list->atom_kinds[iatom] - 1;
+        const int jkind = task_list->atom_kinds[jatom] - 1;
+        const grid_basis_set *ibasis = task_list->basis_sets[ikind];
+        const grid_basis_set *jbasis = task_list->basis_sets[jkind];
+        const double zeta = ibasis->zet[iset * ibasis->maxpgf + ipgf];
+        const double zetb = jbasis->zet[jset * jbasis->maxpgf + jpgf];
+        const int ncoseta = ncoset(ibasis->lmax[iset]);
+        const int ncosetb = ncoset(jbasis->lmax[jset]);
+        const int ncoa = ibasis->npgf[iset] * ncoseta; // size of carthesian set
+        const int ncob = jbasis->npgf[jset] * ncosetb;
+        const int block_num = task->block_num - 1;
+        const int block_offset = task_list->block_offsets[block_num];
+        const double *block = &pab_blocks[block_offset];
+        const bool transpose = (iatom <= jatom);
 
-      grid_ref_collocate_pgf_product(
-          /*orthorhombic=*/orthorhombic,
-          /*border_mask=*/task->border_mask,
-          /*func=*/func,
-          /*la_max=*/ibasis->lmax[iset],
-          /*la_min=*/ibasis->lmin[iset],
-          /*lb_max=*/jbasis->lmax[jset],
-          /*lb_min=*/jbasis->lmin[jset],
-          /*zeta=*/zeta,
-          /*zetb=*/zetb,
-          /*rscale=*/(iatom == jatom) ? 1 : 2,
-          /*dh=*/dh,
-          /*dh_inv=*/dh_inv,
-          /*ra=*/&task_list->atom_positions[3 * iatom],
-          /*rab=*/task->rab,
-          /*npts_global=*/npts_global,
-          /*npts_local=*/npts_local,
-          /*shift_local=*/shift_local,
-          /*border_width=*/border_width,
-          /*radius=*/task->radius,
-          /*o1=*/ipgf * ncoseta,
-          /*o2=*/jpgf * ncosetb,
-          /*n1=*/ncoa,
-          /*n2=*/ncob,
-          /*pab=*/(const double(*)[ncoa])pab,
-          /*grid=*/my_grid);
-    } // end of task loop
+        // Load subblock from buffer and decontract into Cartesian sublock pab.
+        // The previous pab can be reused when only ipgf or jpgf has changed.
+        if (block_offset != old_offset || iset != old_iset ||
+            jset != old_jset) {
+          old_offset = block_offset;
+          old_iset = iset;
+          old_jset = jset;
+          load_pab(ibasis, jbasis, iset, jset, transpose, block, pab);
+        }
+
+        grid_ref_collocate_pgf_product(
+            /*orthorhombic=*/orthorhombic,
+            /*border_mask=*/task->border_mask,
+            /*func=*/func,
+            /*la_max=*/ibasis->lmax[iset],
+            /*la_min=*/ibasis->lmin[iset],
+            /*lb_max=*/jbasis->lmax[jset],
+            /*lb_min=*/jbasis->lmin[jset],
+            /*zeta=*/zeta,
+            /*zetb=*/zetb,
+            /*rscale=*/(iatom == jatom) ? 1 : 2,
+            /*dh=*/dh,
+            /*dh_inv=*/dh_inv,
+            /*ra=*/&task_list->atom_positions[3 * iatom],
+            /*rab=*/task->rab,
+            /*npts_global=*/npts_global,
+            /*npts_local=*/npts_local,
+            /*shift_local=*/shift_local,
+            /*border_width=*/border_width,
+            /*radius=*/task->radius,
+            /*o1=*/ipgf * ncoseta,
+            /*o2=*/jpgf * ncosetb,
+            /*n1=*/ncoa,
+            /*n2=*/ncob,
+            /*pab=*/(const double(*)[ncoa])pab,
+            /*grid=*/my_grid);
+
+      } // end of task loop
+    }   // end of block loop
 
     // Merge thread local grids into shared grid.
 #pragma omp critical(grid)
     for (size_t i = 0; i < npts_local_total; i++) {
       grid[i] += my_grid[i];
     }
-  } // end of omp parallel
+
+  } // end of omp parallel region
 
   free(mem_pool);
 }
@@ -317,17 +357,16 @@ void grid_ref_collocate_task_list(
 
   assert(task_list->nlevels == nlevels);
 
-  int first_task = 0;
   for (int level = 0; level < task_list->nlevels; level++) {
-    const int last_task = first_task + task_list->tasks_per_level[level] - 1;
+    const int idx = level * task_list->nblocks;
+    const int *first_block_task = &task_list->first_level_block_task[idx];
+    const int *last_block_task = &task_list->last_level_block_task[idx];
 
-    collocate_one_grid_level(task_list, first_task, last_task, orthorhombic,
-                             func, npts_global[level], npts_local[level],
-                             shift_local[level], border_width[level], dh[level],
-                             dh_inv[level], pab_blocks->host_buffer,
-                             grid[level]);
-
-    first_task = last_task + 1;
+    collocate_one_grid_level(task_list, first_block_task, last_block_task,
+                             orthorhombic, func, npts_global[level],
+                             npts_local[level], shift_local[level],
+                             border_width[level], dh[level], dh_inv[level],
+                             pab_blocks->host_buffer, grid[level]);
   }
 }
 
@@ -379,23 +418,17 @@ static inline void store_hab(const grid_basis_set *ibasis,
  * \author Ole Schuett
  ******************************************************************************/
 static void integrate_one_grid_level(
-    const grid_ref_task_list *task_list, const int first_task,
-    const int last_task, const bool orthorhombic, const bool compute_tau,
+    const grid_ref_task_list *task_list, const int *first_block_task,
+    const int *last_block_task, const bool orthorhombic, const bool compute_tau,
     const int natoms, const int npts_global[3], const int npts_local[3],
     const int shift_local[3], const int border_width[3], const double dh[3][3],
     const double dh_inv[3][3], const grid_buffer *pab_blocks,
     const double *grid, grid_buffer *hab_blocks, double forces[natoms][3],
     double virial[3][3]) {
 
-  // Allocate memory for thread local copy of the hab_blocks.
-  const int nthreads = omp_get_max_threads();
-  double *threadlocal_hab_blocks[nthreads];
-  void *const mem_pool =
-      malloc_threadlocal(hab_blocks->size, nthreads, threadlocal_hab_blocks);
-
 // Using default(shared) because with GCC 9 the behavior around const changed:
 // https://www.gnu.org/software/gcc/gcc-9/porting_to.html
-#pragma omp parallel default(shared) num_threads(nthreads)
+#pragma omp parallel default(shared)
   {
     // Initialize variables to detect when a new subblock has to be fetched.
     int old_offset = -1, old_iset = -1, old_jset = -1;
@@ -406,90 +439,98 @@ static void integrate_one_grid_level(
     double pab[task_list->maxco * task_list->maxco];
     double hab[task_list->maxco * task_list->maxco];
 
-    // Clear thread local copy of the hab_blocks.
-    double *const my_hab_blocks = threadlocal_hab_blocks[omp_get_thread_num()];
-    memset(my_hab_blocks, 0, hab_blocks->size);
+    // Parallelize over blocks to avoid concurred access to hab_blocks.
+    const int nthreads = omp_get_num_threads();
+    const int chunk_size = imax(1, task_list->nblocks / (nthreads * 50));
+#pragma omp for schedule(dynamic, chunk_size)
+    for (int block_num = 0; block_num < task_list->nblocks; block_num++) {
+      const int first_task = first_block_task[block_num];
+      const int last_task = last_block_task[block_num];
 
-#pragma omp for schedule(static)
-    for (int itask = first_task; itask <= last_task; itask++) {
-      // Define some convenient aliases.
-      const grid_ref_task *task = &task_list->tasks[itask];
-      const int iatom = task->iatom - 1;
-      const int jatom = task->jatom - 1;
-      const int iset = task->iset - 1;
-      const int jset = task->jset - 1;
-      const int ipgf = task->ipgf - 1;
-      const int jpgf = task->jpgf - 1;
-      const int ikind = task_list->atom_kinds[iatom] - 1;
-      const int jkind = task_list->atom_kinds[jatom] - 1;
-      grid_basis_set *ibasis = task_list->basis_sets[ikind];
-      grid_basis_set *jbasis = task_list->basis_sets[jkind];
-      const double zeta = ibasis->zet[iset * ibasis->maxpgf + ipgf];
-      const double zetb = jbasis->zet[jset * jbasis->maxpgf + jpgf];
-      const int ncoseta = ncoset(ibasis->lmax[iset]);
-      const int ncosetb = ncoset(jbasis->lmax[jset]);
-      const int ncoa = ibasis->npgf[iset] * ncoseta; // size of carthesian set
-      const int ncob = jbasis->npgf[jset] * ncosetb;
-      const int block_num = task->block_num - 1;
-      const int block_offset = task_list->block_offsets[block_num];
-      const bool transpose = (iatom <= jatom);
-      const bool pab_required = (forces != NULL || virial != NULL);
-
-      // Load pab and store hab subblocks when needed.
-      // Previous hab and pab can be reused when only ipgf or jpgf has changed.
-      if (block_offset != old_offset || iset != old_iset || jset != old_jset) {
-        if (pab_required) {
-          load_pab(ibasis, jbasis, iset, jset, transpose,
-                   &pab_blocks->host_buffer[block_offset], pab);
-        }
-        if (old_offset >= 0) { // skip first iteration
-          store_hab(old_ibasis, old_jbasis, old_iset, old_jset, old_transpose,
-                    hab, &my_hab_blocks[old_offset]);
-        }
-        memset(hab, 0, ncoa * ncob * sizeof(double));
-        old_offset = block_offset;
-        old_iset = iset;
-        old_jset = jset;
-        old_ibasis = ibasis;
-        old_jbasis = jbasis;
-        old_transpose = transpose;
-      }
-
+      // Accumulate forces per block as it corresponds to a pair of atoms.
+      const int iatom = task_list->tasks[first_task].iatom - 1;
+      const int jatom = task_list->tasks[first_task].jatom - 1;
       double my_forces[2][3] = {0};
       double my_virials[2][3][3] = {0};
 
-      grid_ref_integrate_pgf_product(
-          /*orthorhombic=*/orthorhombic,
-          /*compute_tau=*/compute_tau,
-          /*border_mask=*/task->border_mask,
-          /*la_max=*/ibasis->lmax[iset],
-          /*la_min=*/ibasis->lmin[iset],
-          /*lb_max=*/jbasis->lmax[jset],
-          /*lb_min=*/jbasis->lmin[jset],
-          /*zeta=*/zeta,
-          /*zetb=*/zetb,
-          /*dh=*/dh,
-          /*dh_inv=*/dh_inv,
-          /*ra=*/&task_list->atom_positions[3 * iatom],
-          /*rab=*/task->rab,
-          /*npts_global=*/npts_global,
-          /*npts_local=*/npts_local,
-          /*shift_local=*/shift_local,
-          /*border_width=*/border_width,
-          /*radius=*/task->radius,
-          /*o1=*/ipgf * ncoseta,
-          /*o2=*/jpgf * ncosetb,
-          /*n1=*/ncoa,
-          /*n2=*/ncob,
-          /*grid=*/grid,
-          /*hab=*/(double(*)[ncoa])hab,
-          /*pab=*/(pab_required) ? (const double(*)[ncoa])pab : NULL,
-          /*forces=*/(forces != NULL) ? my_forces : NULL,
-          /*virials=*/(virial != NULL) ? my_virials : NULL,
-          /*hdab=*/NULL,
-          /*a_hdab=*/NULL);
+      for (int itask = first_task; itask <= last_task; itask++) {
+        // Define some convenient aliases.
+        const grid_ref_task *task = &task_list->tasks[itask];
+        assert(task->block_num - 1 == block_num);
+        assert(task->iatom - 1 == iatom && task->jatom - 1 == jatom);
+        const int ikind = task_list->atom_kinds[iatom] - 1;
+        const int jkind = task_list->atom_kinds[jatom] - 1;
+        grid_basis_set *ibasis = task_list->basis_sets[ikind];
+        grid_basis_set *jbasis = task_list->basis_sets[jkind];
+        const int iset = task->iset - 1;
+        const int jset = task->jset - 1;
+        const int ipgf = task->ipgf - 1;
+        const int jpgf = task->jpgf - 1;
+        const double zeta = ibasis->zet[iset * ibasis->maxpgf + ipgf];
+        const double zetb = jbasis->zet[jset * jbasis->maxpgf + jpgf];
+        const int ncoseta = ncoset(ibasis->lmax[iset]);
+        const int ncosetb = ncoset(jbasis->lmax[jset]);
+        const int ncoa = ibasis->npgf[iset] * ncoseta; // size of carthesian set
+        const int ncob = jbasis->npgf[jset] * ncosetb;
+        const int block_offset = task_list->block_offsets[block_num];
+        const bool transpose = (iatom <= jatom);
+        const bool pab_required = (forces != NULL || virial != NULL);
 
-      // Merge thread local forces and virial into shared ones.
+        // Load pab and store hab subblocks when needed.
+        // Previous hab and pab can be reused when only ipgf or jpgf changed.
+        if (block_offset != old_offset || iset != old_iset ||
+            jset != old_jset) {
+          if (pab_required) {
+            load_pab(ibasis, jbasis, iset, jset, transpose,
+                     &pab_blocks->host_buffer[block_offset], pab);
+          }
+          if (old_offset >= 0) { // skip first iteration
+            store_hab(old_ibasis, old_jbasis, old_iset, old_jset, old_transpose,
+                      hab, &hab_blocks->host_buffer[old_offset]);
+          }
+          memset(hab, 0, ncoa * ncob * sizeof(double));
+          old_offset = block_offset;
+          old_iset = iset;
+          old_jset = jset;
+          old_ibasis = ibasis;
+          old_jbasis = jbasis;
+          old_transpose = transpose;
+        }
+
+        grid_ref_integrate_pgf_product(
+            /*orthorhombic=*/orthorhombic,
+            /*compute_tau=*/compute_tau,
+            /*border_mask=*/task->border_mask,
+            /*la_max=*/ibasis->lmax[iset],
+            /*la_min=*/ibasis->lmin[iset],
+            /*lb_max=*/jbasis->lmax[jset],
+            /*lb_min=*/jbasis->lmin[jset],
+            /*zeta=*/zeta,
+            /*zetb=*/zetb,
+            /*dh=*/dh,
+            /*dh_inv=*/dh_inv,
+            /*ra=*/&task_list->atom_positions[3 * iatom],
+            /*rab=*/task->rab,
+            /*npts_global=*/npts_global,
+            /*npts_local=*/npts_local,
+            /*shift_local=*/shift_local,
+            /*border_width=*/border_width,
+            /*radius=*/task->radius,
+            /*o1=*/ipgf * ncoseta,
+            /*o2=*/jpgf * ncosetb,
+            /*n1=*/ncoa,
+            /*n2=*/ncob,
+            /*grid=*/grid,
+            /*hab=*/(double(*)[ncoa])hab,
+            /*pab=*/(pab_required) ? (const double(*)[ncoa])pab : NULL,
+            /*forces=*/(forces != NULL) ? my_forces : NULL,
+            /*virials=*/(virial != NULL) ? my_virials : NULL,
+            /*hdab=*/NULL,
+            /*a_hdab=*/NULL);
+
+      } // end of task loop
+
+      // Merge thread-local forces and virial into shared ones.
       // It does not seem worth the trouble to accumulate them thread-locally.
       const double scalef = (iatom == jatom) ? 1.0 : 2.0;
       if (forces != NULL) {
@@ -509,23 +550,15 @@ static void integrate_one_grid_level(
         }
       }
 
-    } // end of task loop
+    } // end of block loop
 
     // store final hab
     if (old_offset >= 0) {
       store_hab(old_ibasis, old_jbasis, old_iset, old_jset, old_transpose, hab,
-                &my_hab_blocks[old_offset]);
+                &hab_blocks->host_buffer[old_offset]);
     }
 
-    // Merge thread local hab_blocks into shared hab_blocks.
-#pragma omp critical(hab)
-    for (size_t i = 0; i < hab_blocks->size / sizeof(double); i++) {
-      hab_blocks->host_buffer[i] += my_hab_blocks[i];
-    }
-
-  } // end of omp parallel
-
-  free(mem_pool);
+  } // end of omp parallel region
 }
 
 /*******************************************************************************
@@ -554,17 +587,16 @@ void grid_ref_integrate_task_list(
     memset(virial, 0, 9 * sizeof(double));
   }
 
-  int first_task = 0;
   for (int level = 0; level < task_list->nlevels; level++) {
-    const int last_task = first_task + task_list->tasks_per_level[level] - 1;
+    const int idx = level * task_list->nblocks;
+    const int *first_block_task = &task_list->first_level_block_task[idx];
+    const int *last_block_task = &task_list->last_level_block_task[idx];
 
     integrate_one_grid_level(
-        task_list, first_task, last_task, orthorhombic, compute_tau, natoms,
-        npts_global[level], npts_local[level], shift_local[level],
+        task_list, first_block_task, last_block_task, orthorhombic, compute_tau,
+        natoms, npts_global[level], npts_local[level], shift_local[level],
         border_width[level], dh[level], dh_inv[level], pab_blocks, grid[level],
         hab_blocks, forces, virial);
-
-    first_task = last_task + 1;
   }
 }
 
