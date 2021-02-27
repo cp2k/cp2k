@@ -49,6 +49,8 @@ typedef struct {
   int *first_level_block_task;
   int *last_level_block_task;
   int maxco;
+  double **threadlocals;
+  size_t *threadlocal_sizes;
 } grid_ref_task_list;
 
 /*******************************************************************************

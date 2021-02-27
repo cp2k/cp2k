@@ -124,6 +124,14 @@ void grid_ref_create_task_list(
     task_list->maxco = imax(task_list->maxco, task_list->basis_sets[i]->maxco);
   }
 
+  // Initialize thread-local storage.
+  size = omp_get_max_threads() * sizeof(double *);
+  task_list->threadlocals = malloc(size);
+  memset(task_list->threadlocals, 0, size);
+  size = omp_get_max_threads() * sizeof(size_t);
+  task_list->threadlocal_sizes = malloc(size);
+  memset(task_list->threadlocal_sizes, 0, size);
+
   *task_list_out = task_list;
 }
 
@@ -139,6 +147,13 @@ void grid_ref_free_task_list(grid_ref_task_list *task_list) {
   free(task_list->tasks);
   free(task_list->first_level_block_task);
   free(task_list->last_level_block_task);
+  for (int i = 0; i < omp_get_max_threads(); i++) {
+    if (task_list->threadlocals[i] != NULL) {
+      free(task_list->threadlocals[i]);
+    }
+  }
+  free(task_list->threadlocals);
+  free(task_list->threadlocal_sizes);
   free(task_list);
 }
 
@@ -204,26 +219,6 @@ static void load_pab(const grid_basis_set *ibasis, const grid_basis_set *jbasis,
 }
 
 /*******************************************************************************
- * \brief Allocate thread local memory that is aligned at to page boundaries.
- * \author Ole Schuett
- ******************************************************************************/
-void *malloc_threadlocal(const size_t size_unaligned, const int nthreads,
-                         double *threadlocal[nthreads]) {
-
-  const unsigned int alignpage = (1 << 12); // 4K pages assumed
-  const uintptr_t align1 = alignpage - 1;
-  const size_t size = (size_unaligned + align1) & ~align1;
-  void *const pool = malloc(size * nthreads + align1);
-  const uintptr_t pool_aligned = ((uintptr_t)pool + align1) & ~align1;
-
-  for (int i = 0; i < nthreads; i++) {
-    const uintptr_t aligned = pool_aligned + i * size;
-    threadlocal[i] = (double *)aligned;
-  }
-  return pool;
-}
-
-/*******************************************************************************
  * \brief Collocate a range of tasks which are destined for the same grid level.
  * \author Ole Schuett
  ******************************************************************************/
@@ -240,24 +235,30 @@ static void collocate_one_grid_level(
   const size_t grid_size = npts_local_total * sizeof(double);
   memset(grid, 0, grid_size);
 
-  // Allocate memory for thread local copy of the grid.
-  const int nthreads = omp_get_max_threads();
-  double *threadlocal_grid[nthreads];
-  void *const mem_pool =
-      malloc_threadlocal(grid_size, nthreads, threadlocal_grid);
-
 // Using default(shared) because with GCC 9 the behavior around const changed:
 // https://www.gnu.org/software/gcc/gcc-9/porting_to.html
-#pragma omp parallel default(shared) num_threads(nthreads)
+#pragma omp parallel default(shared)
   {
+    const int ithread = omp_get_thread_num();
+    const int nthreads = omp_get_num_threads();
+
     // Initialize variables to detect when a new subblock has to be fetched.
     int old_offset = -1, old_iset = -1, old_jset = -1;
 
     // Matrix pab is re-used across tasks.
     double pab[task_list->maxco * task_list->maxco];
 
-    // Clear thread local copy of the grid.
-    double *const my_grid = threadlocal_grid[omp_get_thread_num()];
+    // Ensure that grid can fit into thread-local storage, reallocate if needed.
+    if (task_list->threadlocal_sizes[ithread] < grid_size) {
+      if (task_list->threadlocals[ithread] != NULL) {
+        free(task_list->threadlocals[ithread]);
+      }
+      task_list->threadlocals[ithread] = malloc(grid_size);
+      task_list->threadlocal_sizes[ithread] = grid_size;
+    }
+
+    // Zero thread-local copy of the grid.
+    double *const my_grid = task_list->threadlocals[ithread];
     memset(my_grid, 0, grid_size);
 
     // Parallelize over blocks to avoid unnecessary calls to load_pab.
@@ -338,8 +339,6 @@ static void collocate_one_grid_level(
     }
 
   } // end of omp parallel region
-
-  free(mem_pool);
 }
 
 /*******************************************************************************
