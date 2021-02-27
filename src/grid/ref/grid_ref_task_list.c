@@ -6,6 +6,7 @@
 /*----------------------------------------------------------------------------*/
 
 #include <assert.h>
+#include <math.h>
 #include <omp.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -230,11 +231,6 @@ static void collocate_one_grid_level(
     const int border_width[3], const double dh[3][3], const double dh_inv[3][3],
     const double *pab_blocks, double *grid) {
 
-  // Zero the grid.
-  const size_t npts_local_total = npts_local[0] * npts_local[1] * npts_local[2];
-  const size_t grid_size = npts_local_total * sizeof(double);
-  memset(grid, 0, grid_size);
-
 // Using default(shared) because with GCC 9 the behavior around const changed:
 // https://www.gnu.org/software/gcc/gcc-9/porting_to.html
 #pragma omp parallel default(shared)
@@ -249,6 +245,8 @@ static void collocate_one_grid_level(
     double pab[task_list->maxco * task_list->maxco];
 
     // Ensure that grid can fit into thread-local storage, reallocate if needed.
+    const int npts_local_total = npts_local[0] * npts_local[1] * npts_local[2];
+    const size_t grid_size = npts_local_total * sizeof(double);
     if (task_list->threadlocal_sizes[ithread] < grid_size) {
       if (task_list->threadlocals[ithread] != NULL) {
         free(task_list->threadlocals[ithread]);
@@ -332,10 +330,35 @@ static void collocate_one_grid_level(
       } // end of task loop
     }   // end of block loop
 
-    // Merge thread local grids into shared grid.
-#pragma omp critical(grid)
-    for (size_t i = 0; i < npts_local_total; i++) {
-      grid[i] += my_grid[i];
+    // Merge thread-local grids via an efficient tree reduction.
+    const int nreduction_cycles = ceil(log(nthreads) / log(2)); // tree depth
+    for (int icycle = 1; icycle <= nreduction_cycles; icycle++) {
+      // Threads are divided into groups, whose size doubles with each cycle.
+      // After a cycle the reduced data is stored at first thread of each group.
+      const int group_size = 1 << icycle; // 2**icycle
+      const int igroup = ithread / group_size;
+      const int dest_thread = igroup * group_size;
+      const int src_thread = dest_thread + group_size / 2;
+      // The last group might actually be a bit smaller.
+      const int actual_group_size = imin(group_size, nthreads - dest_thread);
+      // Parallelize summation by dividing grid points across group members.
+      const int rank = modulo(ithread, group_size); // position within the group
+      const int lb = (npts_local_total * rank) / actual_group_size;
+      const int ub = (npts_local_total * (rank + 1)) / actual_group_size;
+      if (src_thread < nthreads) {
+        for (int i = lb; i < ub; i++) {
+          task_list->threadlocals[dest_thread][i] +=
+              task_list->threadlocals[src_thread][i];
+        }
+      }
+#pragma omp barrier
+    }
+
+    // Copy final result from first thread into shared grid.
+    const int lb = (npts_local_total * ithread) / nthreads;
+    const int ub = (npts_local_total * (ithread + 1)) / nthreads;
+    for (int i = lb; i < ub; i++) {
+      grid[i] = task_list->threadlocals[0][i];
     }
 
   } // end of omp parallel region
