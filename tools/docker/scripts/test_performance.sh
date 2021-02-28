@@ -40,14 +40,25 @@ fi
 
 echo -e '\n========== Running Performance Test =========='
 mkdir -p /workspace/artifacts
-cd ./benchmarks/QS
+cd ./benchmarks
 
-for INPUT in "H2O-64.inp" "H2O-64_nonortho.inp"; do
-  LABEL="${INPUT%.*}"
+BENCHMARKS=(
+  "QS/H2O-64.inp"
+  "QS/H2O-64_nonortho.inp"
+  "QS_single_node/H2O-hyb.inp"
+  "QS_single_node/bench_dftb.inp"
+  "QS_single_node/dbcsr.inp"
+)
+
+for INPUT in "${BENCHMARKS[@]}"; do
+  INPUT_BASENAME=$(basename "${INPUT}")
+  LABEL=${INPUT_BASENAME%.*}
   OUTPUT_MPI="/workspace/artifacts/${LABEL}_32mpi.out"
   OUTPUT_OMP="/workspace/artifacts/${LABEL}_32omp.out"
-  run_benchmark 1 32 "${INPUT}" "${OUTPUT_MPI}"
-  run_benchmark 32 1 "${INPUT}" "${OUTPUT_OMP}"
+  cd "$(dirname "${INPUT}")"
+  run_benchmark 1 32 "${INPUT_BASENAME}" "${OUTPUT_MPI}"
+  run_benchmark 32 1 "${INPUT_BASENAME}" "${OUTPUT_OMP}"
+  cd ..
   echo ""
   /workspace/plot_performance.py "${LABEL}" "${LABEL}" "${OUTPUT_OMP}" "${OUTPUT_MPI}"
   echo ""
