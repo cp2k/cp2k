@@ -421,7 +421,7 @@ def gen_plots(archive_reports, log, outdir, full_archive):
 
     # write html output
     html_output = ""
-    for pname in sorted(plots.keys()):
+    for pname in plots.keys():
         html_output += '<a href="plot_data.txt"><img src="%s" alt="%s"></a>\n' % (
             pname + fig_ext,
             plots[pname]["title"],
