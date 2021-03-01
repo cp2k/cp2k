@@ -644,31 +644,16 @@ CONTAINS
                    & QuadXZ              QuadYX              QuadYY&
                    &              QuadYZ              QuadZX              QuadZY              QuadZZ"
                DO i1 = 1, natom
-                  WRITE (unit_voro, FMT="(I6,I6,F20.10,F20.10,F20.10,F20.10,F20.10,F20.10,F20.10,F20.10,F20.10,F20.10,&
-                          &F20.10,F20.10,F20.10,F20.10,F20.10,F20.10,F20.10,F20.10,F20.10,F20.10,F20.10)") &
+                  WRITE (unit_voro, FMT="(2I6,21F20.10)") &
                      i1, &
                      particles_z(i1), &
                      voro_radii(i1)/100.0_dp, &
-                     voro_wrapped_pos(i1, 1)/100.0_dp, &
-                     voro_wrapped_pos(i1, 2)/100.0_dp, &
-                     voro_wrapped_pos(i1, 3)/100.0_dp, &
+                     voro_wrapped_pos(i1, 1:3)/100.0_dp, &
                      particles_c(i1), &
                      voro_charge(i1), &
-                     voro_dipole(i1, 1), &
-                     voro_dipole(i1, 2), &
-                     voro_dipole(i1, 3), &
-                     voro_charge_center(i1, 1)/100.0_dp, &
-                     voro_charge_center(i1, 2)/100.0_dp, &
-                     voro_charge_center(i1, 3)/100.0_dp, &
-                     voro_quadrupole(i1, 1), &
-                     voro_quadrupole(i1, 2), &
-                     voro_quadrupole(i1, 3), &
-                     voro_quadrupole(i1, 4), &
-                     voro_quadrupole(i1, 5), &
-                     voro_quadrupole(i1, 6), &
-                     voro_quadrupole(i1, 7), &
-                     voro_quadrupole(i1, 8), &
-                     voro_quadrupole(i1, 9)
+                     voro_dipole(i1, 1:3), &
+                     voro_charge_center(i1, 1:3)/100.0_dp, &
+                     voro_quadrupole(i1, 1:9)
                ENDDO
             ENDIF
 
