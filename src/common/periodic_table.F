@@ -373,7 +373,7 @@ CONTAINS
       ptable(21)%amass = 44.955912_dp
       ptable(21)%covalent_radius = 1.44_dp
       ptable(21)%metallic_radius = 1.62_dp
-      ptable(21)%vdw_radius = 2.00_dp
+      ptable(21)%vdw_radius = scale2vdw(ptable(21)%metallic_radius)
       ptable(21)%e_conv(0:3) = (/8, 12, 1, 0/)
       ptable(21)%eht_param(0:3) = (/-8.87_dp, -2.75_dp, -8.51_dp, z/)
 
@@ -384,7 +384,7 @@ CONTAINS
       ptable(22)%amass = 47.867_dp
       ptable(22)%covalent_radius = 1.32_dp
       ptable(22)%metallic_radius = 1.47_dp
-      ptable(22)%vdw_radius = 2.00_dp
+      ptable(22)%vdw_radius = scale2vdw(ptable(22)%metallic_radius)
       ptable(22)%e_conv(0:3) = (/8, 12, 2, 0/)
       ptable(22)%eht_param(0:3) = (/-8.97_dp, -5.44_dp, -10.81_dp, z/)
 
@@ -395,7 +395,7 @@ CONTAINS
       ptable(23)%amass = 50.9415_dp
       ptable(23)%covalent_radius = 1.22_dp
       ptable(23)%metallic_radius = 1.34_dp
-      ptable(23)%vdw_radius = 2.00_dp
+      ptable(23)%vdw_radius = scale2vdw(ptable(23)%metallic_radius)
       ptable(23)%e_conv(0:3) = (/8, 12, 3, 0/)
       ptable(23)%eht_param(0:3) = (/-8.81_dp, -5.52_dp, -11.00_dp, z/)
 
@@ -406,7 +406,7 @@ CONTAINS
       ptable(24)%amass = 51.9961_dp
       ptable(24)%covalent_radius = 1.18_dp
       ptable(24)%metallic_radius = 1.28_dp
-      ptable(24)%vdw_radius = 2.00_dp
+      ptable(24)%vdw_radius = scale2vdw(ptable(24)%metallic_radius)
       ptable(24)%e_conv(0:3) = (/7, 12, 5, 0/)
       ptable(24)%eht_param(0:3) = (/-8.66_dp, -5.24_dp, -11.22_dp, z/)
 
@@ -417,7 +417,7 @@ CONTAINS
       ptable(25)%amass = 54.938045_dp
       ptable(25)%covalent_radius = 1.17_dp
       ptable(25)%metallic_radius = 1.27_dp
-      ptable(25)%vdw_radius = 2.00_dp
+      ptable(25)%vdw_radius = scale2vdw(ptable(25)%metallic_radius)
       ptable(25)%e_conv(0:3) = (/8, 12, 5, 0/)
       ptable(25)%eht_param(0:3) = (/-9.75_dp, -5.89_dp, -11.67_dp, z/)
 
@@ -428,7 +428,7 @@ CONTAINS
       ptable(26)%amass = 55.845_dp
       ptable(26)%covalent_radius = 1.17_dp
       ptable(26)%metallic_radius = 1.26_dp
-      ptable(26)%vdw_radius = 2.00_dp
+      ptable(26)%vdw_radius = scale2vdw(ptable(26)%metallic_radius)
       ptable(26)%e_conv(0:3) = (/8, 12, 6, 0/)
       ptable(26)%eht_param(0:3) = (/-9.10_dp, -5.32_dp, -12.60_dp, z/)
 
@@ -439,7 +439,7 @@ CONTAINS
       ptable(27)%amass = 58.933195_dp
       ptable(27)%covalent_radius = 1.16_dp
       ptable(27)%metallic_radius = 1.25_dp
-      ptable(27)%vdw_radius = 2.00_dp
+      ptable(27)%vdw_radius = scale2vdw(ptable(27)%metallic_radius)
       ptable(27)%e_conv(0:3) = (/8, 12, 7, 0/)
       ptable(27)%eht_param(0:3) = (/-9.21_dp, -5.29_dp, -13.18_dp, z/)
 
@@ -571,7 +571,7 @@ CONTAINS
       ptable(39)%amass = 88.90585_dp
       ptable(39)%covalent_radius = 1.62_dp
       ptable(39)%metallic_radius = 1.80_dp
-      ptable(39)%vdw_radius = 2.00_dp
+      ptable(39)%vdw_radius = scale2vdw(ptable(39)%metallic_radius)
       ptable(39)%e_conv(0:3) = (/10, 18, 11, 0/)
       ptable(39)%eht_param(0:3) = (/z, z, z, z/)
 
@@ -582,7 +582,7 @@ CONTAINS
       ptable(40)%amass = 91.224_dp
       ptable(40)%covalent_radius = 1.45_dp
       ptable(40)%metallic_radius = 1.60_dp
-      ptable(40)%vdw_radius = 2.00_dp
+      ptable(40)%vdw_radius = scale2vdw(ptable(40)%metallic_radius)
       ptable(40)%e_conv(0:3) = (/10, 18, 12, 0/)
       ptable(40)%eht_param(0:3) = (/-8.00_dp, -5.40_dp, -10.20_dp, z/)
 
@@ -593,7 +593,7 @@ CONTAINS
       ptable(41)%amass = 92.90638_dp
       ptable(41)%covalent_radius = 1.34_dp
       ptable(41)%metallic_radius = 1.46_dp
-      ptable(41)%vdw_radius = 2.00_dp
+      ptable(41)%vdw_radius = scale2vdw(ptable(41)%metallic_radius)
       ptable(41)%e_conv(0:3) = (/9, 18, 14, 0/)
       ptable(41)%eht_param(0:3) = (/-10.10_dp, -6.86_dp, -12.10_dp, z/)
 
@@ -604,7 +604,7 @@ CONTAINS
       ptable(42)%amass = 95.96_dp
       ptable(42)%covalent_radius = 1.30_dp
       ptable(42)%metallic_radius = 1.39_dp
-      ptable(42)%vdw_radius = 2.00_dp
+      ptable(42)%vdw_radius = scale2vdw(ptable(42)%metallic_radius)
       ptable(42)%e_conv(0:3) = (/9, 18, 15, 0/)
       ptable(42)%eht_param(0:3) = (/-8.34_dp, -5.25_dp, -10.50_dp, z/)
 
@@ -615,7 +615,7 @@ CONTAINS
       ptable(43)%amass = 97.9072_dp ! (98)
       ptable(43)%covalent_radius = 1.27_dp
       ptable(43)%metallic_radius = 1.36_dp
-      ptable(43)%vdw_radius = 2.00_dp
+      ptable(43)%vdw_radius = scale2vdw(ptable(43)%metallic_radius)
       ptable(43)%e_conv(0:3) = (/10, 18, 15, 0/)
       ptable(43)%eht_param(0:3) = (/-10.07_dp, -5.40_dp, -12.82_dp, z/)
 
@@ -626,7 +626,7 @@ CONTAINS
       ptable(44)%amass = 101.07_dp
       ptable(44)%covalent_radius = 1.25_dp
       ptable(44)%metallic_radius = 1.34_dp
-      ptable(44)%vdw_radius = 2.00_dp
+      ptable(44)%vdw_radius = scale2vdw(ptable(44)%metallic_radius)
       ptable(44)%e_conv(0:3) = (/9, 18, 17, 0/)
       ptable(44)%eht_param(0:3) = (/-10.40_dp, -6.87_dp, -14.90_dp, z/)
 
@@ -637,7 +637,7 @@ CONTAINS
       ptable(45)%amass = 102.9055_dp
       ptable(45)%covalent_radius = 1.25_dp
       ptable(45)%metallic_radius = 1.34_dp
-      ptable(45)%vdw_radius = 2.00_dp
+      ptable(45)%vdw_radius = scale2vdw(ptable(45)%metallic_radius)
       ptable(45)%e_conv(0:3) = (/9, 18, 18, 0/)
       ptable(45)%eht_param(0:3) = (/-8.09_dp, -4.57_dp, -12.50_dp, z/)
 
@@ -769,7 +769,7 @@ CONTAINS
       ptable(57)%amass = 138.90547_dp
       ptable(57)%covalent_radius = 1.69_dp
       ptable(57)%metallic_radius = 1.87_dp
-      ptable(57)%vdw_radius = 2.00_dp
+      ptable(57)%vdw_radius = scale2vdw(ptable(57)%metallic_radius)
       ptable(57)%e_conv(0:3) = (/12, 24, 21, 0/)
       ptable(57)%eht_param(0:3) = (/-7.67_dp, -5.01_dp, -8.21_dp, z/)
 
@@ -780,7 +780,7 @@ CONTAINS
       ptable(58)%amass = 140.116_dp
       ptable(58)%covalent_radius = 1.65_dp
       ptable(58)%metallic_radius = 1.818_dp
-      ptable(58)%vdw_radius = 2.00_dp
+      ptable(58)%vdw_radius = scale2vdw(ptable(58)%metallic_radius)
       ptable(58)%e_conv(0:3) = (/12, 24, 21, 1/)
       ptable(58)%eht_param(0:3) = (/z, z, z, z/)
 
@@ -791,7 +791,7 @@ CONTAINS
       ptable(59)%amass = 140.90765_dp
       ptable(59)%covalent_radius = 1.65_dp
       ptable(59)%metallic_radius = 1.824_dp
-      ptable(59)%vdw_radius = 2.00_dp
+      ptable(59)%vdw_radius = scale2vdw(ptable(59)%metallic_radius)
       ptable(59)%e_conv(0:3) = (/12, 24, 20, 3/)
       ptable(59)%eht_param(0:3) = (/z, z, z, z/)
 
@@ -802,7 +802,7 @@ CONTAINS
       ptable(60)%amass = 144.242_dp
       ptable(60)%covalent_radius = 1.64_dp
       ptable(60)%metallic_radius = 1.814_dp
-      ptable(60)%vdw_radius = 2.00_dp
+      ptable(60)%vdw_radius = scale2vdw(ptable(60)%metallic_radius)
       ptable(60)%e_conv(0:3) = (/12, 24, 20, 4/)
       ptable(60)%eht_param(0:3) = (/z, z, z, z/)
 
@@ -813,7 +813,7 @@ CONTAINS
       ptable(61)%amass = 144.9127_dp ! (145)
       ptable(61)%covalent_radius = 1.63_dp
       ptable(61)%metallic_radius = 1.834_dp
-      ptable(61)%vdw_radius = 2.00_dp
+      ptable(61)%vdw_radius = scale2vdw(ptable(61)%metallic_radius)
       ptable(61)%e_conv(0:3) = (/12, 24, 20, 5/)
       ptable(61)%eht_param(0:3) = (/z, z, z, z/)
 
@@ -824,7 +824,7 @@ CONTAINS
       ptable(62)%amass = 150.36_dp
       ptable(62)%covalent_radius = 1.62_dp
       ptable(62)%metallic_radius = 1.804_dp
-      ptable(62)%vdw_radius = 2.00_dp
+      ptable(62)%vdw_radius = scale2vdw(ptable(62)%metallic_radius)
       ptable(62)%e_conv(0:3) = (/12, 24, 20, 6/)
       ptable(62)%eht_param(0:3) = (/-4.86_dp, -4.86_dp, -6.06_dp, -11.28_dp/)
 
@@ -835,7 +835,7 @@ CONTAINS
       ptable(63)%amass = 151.964_dp
       ptable(63)%covalent_radius = 1.85_dp
       ptable(63)%metallic_radius = 1.804_dp
-      ptable(63)%vdw_radius = 2.00_dp
+      ptable(63)%vdw_radius = scale2vdw(ptable(63)%metallic_radius)
       ptable(63)%e_conv(0:3) = (/12, 24, 20, 7/)
       ptable(63)%eht_param(0:3) = (/z, z, z, z/)
 
@@ -846,7 +846,7 @@ CONTAINS
       ptable(64)%amass = 157.25_dp
       ptable(64)%covalent_radius = 1.61_dp
       ptable(64)%metallic_radius = 1.804_dp
-      ptable(64)%vdw_radius = 2.00_dp
+      ptable(64)%vdw_radius = scale2vdw(ptable(64)%metallic_radius)
       ptable(64)%e_conv(0:3) = (/12, 24, 21, 7/)
       ptable(64)%eht_param(0:3) = (/z, z, z, z/)
 
@@ -857,7 +857,7 @@ CONTAINS
       ptable(65)%amass = 158.92535_dp
       ptable(65)%covalent_radius = 1.59_dp
       ptable(65)%metallic_radius = 1.773_dp
-      ptable(65)%vdw_radius = 2.00_dp
+      ptable(65)%vdw_radius = scale2vdw(ptable(65)%metallic_radius)
       ptable(65)%e_conv(0:3) = (/12, 24, 20, 9/)
       ptable(65)%eht_param(0:3) = (/z, z, z, z/)
 
@@ -868,7 +868,7 @@ CONTAINS
       ptable(66)%amass = 162.5_dp
       ptable(66)%covalent_radius = 1.59_dp
       ptable(66)%metallic_radius = 1.781_dp
-      ptable(66)%vdw_radius = 2.00_dp
+      ptable(66)%vdw_radius = scale2vdw(ptable(66)%metallic_radius)
       ptable(66)%e_conv(0:3) = (/12, 24, 20, 10/)
       ptable(66)%eht_param(0:3) = (/z, z, z, z/)
 
@@ -879,7 +879,7 @@ CONTAINS
       ptable(67)%amass = 164.93032_dp
       ptable(67)%covalent_radius = 1.58_dp
       ptable(67)%metallic_radius = 1.762_dp
-      ptable(67)%vdw_radius = 2.00_dp
+      ptable(67)%vdw_radius = scale2vdw(ptable(67)%metallic_radius)
       ptable(67)%e_conv(0:3) = (/12, 24, 20, 11/)
       ptable(67)%eht_param(0:3) = (/z, z, z, z/)
 
@@ -890,7 +890,7 @@ CONTAINS
       ptable(68)%amass = 167.259_dp
       ptable(68)%covalent_radius = 1.57_dp
       ptable(68)%metallic_radius = 1.761_dp
-      ptable(68)%vdw_radius = 2.00_dp
+      ptable(68)%vdw_radius = scale2vdw(ptable(68)%metallic_radius)
       ptable(68)%e_conv(0:3) = (/12, 24, 20, 12/)
       ptable(68)%eht_param(0:3) = (/z, z, z, z/)
 
@@ -901,7 +901,7 @@ CONTAINS
       ptable(69)%amass = 168.93421_dp
       ptable(69)%covalent_radius = 1.56_dp
       ptable(69)%metallic_radius = 1.759_dp
-      ptable(69)%vdw_radius = 2.00_dp
+      ptable(69)%vdw_radius = scale2vdw(ptable(69)%metallic_radius)
       ptable(69)%e_conv(0:3) = (/12, 24, 20, 13/)
       ptable(69)%eht_param(0:3) = (/z, z, z, z/)
 
@@ -912,7 +912,7 @@ CONTAINS
       ptable(70)%amass = 173.054_dp
       ptable(70)%covalent_radius = 1.56_dp
       ptable(70)%metallic_radius = 1.760_dp
-      ptable(70)%vdw_radius = 2.00_dp
+      ptable(70)%vdw_radius = scale2vdw(ptable(70)%metallic_radius)
       ptable(70)%e_conv(0:3) = (/12, 24, 20, 14/)
       ptable(70)%eht_param(0:3) = (/-5.35_dp, -5.35_dp, -5.21_dp, &
                                     -13.86_dp/)
@@ -924,7 +924,7 @@ CONTAINS
       ptable(71)%amass = 174.9668_dp
       ptable(71)%covalent_radius = 1.56_dp
       ptable(71)%metallic_radius = 1.738_dp
-      ptable(71)%vdw_radius = 2.00_dp
+      ptable(71)%vdw_radius = scale2vdw(ptable(71)%metallic_radius)
       ptable(71)%e_conv(0:3) = (/12, 24, 21, 14/)
       ptable(71)%eht_param(0:3) = (/-6.05_dp, -6.05_dp, -5.12_dp, -22.40_dp/)
 
@@ -935,7 +935,7 @@ CONTAINS
       ptable(72)%amass = 178.49_dp
       ptable(72)%covalent_radius = 1.44_dp
       ptable(72)%metallic_radius = 1.59_dp
-      ptable(72)%vdw_radius = 2.00_dp
+      ptable(72)%vdw_radius = scale2vdw(ptable(72)%metallic_radius)
       ptable(72)%e_conv(0:3) = (/12, 24, 22, 14/)
       ptable(72)%eht_param(0:3) = (/z, z, z, z/)
 
@@ -946,7 +946,7 @@ CONTAINS
       ptable(73)%amass = 180.94788_dp
       ptable(73)%covalent_radius = 1.34_dp
       ptable(73)%metallic_radius = 1.46_dp
-      ptable(73)%vdw_radius = 2.00_dp
+      ptable(73)%vdw_radius = scale2vdw(ptable(73)%metallic_radius)
       ptable(73)%e_conv(0:3) = (/12, 24, 23, 14/)
       ptable(73)%eht_param(0:3) = (/-10.10_dp, -6.86_dp, -12.10_dp, z/)
 
@@ -957,7 +957,7 @@ CONTAINS
       ptable(74)%amass = 183.84_dp
       ptable(74)%covalent_radius = 1.30_dp
       ptable(74)%metallic_radius = 1.39_dp
-      ptable(74)%vdw_radius = 2.00_dp
+      ptable(74)%vdw_radius = scale2vdw(ptable(74)%metallic_radius)
       ptable(74)%e_conv(0:3) = (/12, 24, 24, 14/)
       ptable(74)%eht_param(0:3) = (/-8.26_dp, -5.17_dp, -10.37_dp, z/)
 
@@ -968,7 +968,7 @@ CONTAINS
       ptable(75)%amass = 186.207_dp
       ptable(75)%covalent_radius = 1.28_dp
       ptable(75)%metallic_radius = 1.37_dp
-      ptable(75)%vdw_radius = 2.00_dp
+      ptable(75)%vdw_radius = scale2vdw(ptable(75)%metallic_radius)
       ptable(75)%e_conv(0:3) = (/12, 24, 25, 14/)
       ptable(75)%eht_param(0:3) = (/-9.36_dp, -5.96_dp, -12.66_dp, z/)
 
@@ -979,7 +979,7 @@ CONTAINS
       ptable(76)%amass = 190.23_dp
       ptable(76)%covalent_radius = 1.26_dp
       ptable(76)%metallic_radius = 1.35_dp
-      ptable(76)%vdw_radius = 2.00_dp
+      ptable(76)%vdw_radius = scale2vdw(ptable(76)%metallic_radius)
       ptable(76)%e_conv(0:3) = (/12, 24, 26, 14/)
       ptable(76)%eht_param(0:3) = (/-8.17_dp, -4.81_dp, -11.84_dp, z/)
 
@@ -990,7 +990,7 @@ CONTAINS
       ptable(77)%amass = 192.217_dp
       ptable(77)%covalent_radius = 1.27_dp
       ptable(77)%metallic_radius = 1.355_dp
-      ptable(77)%vdw_radius = 2.00_dp
+      ptable(77)%vdw_radius = scale2vdw(ptable(77)%metallic_radius)
       ptable(77)%e_conv(0:3) = (/12, 24, 27, 14/)
       ptable(77)%eht_param(0:3) = (/-11.36_dp, -4.50_dp, -12.17_dp, z/)
 
@@ -1144,7 +1144,7 @@ CONTAINS
       ptable(91)%amass = 231.03588_dp
       ptable(91)%covalent_radius = 1.61_dp
       ptable(91)%metallic_radius = 1.63_dp
-      ptable(91)%vdw_radius = 2.00_dp
+      ptable(91)%vdw_radius = scale2vdw(ptable(91)%metallic_radius)
       ptable(91)%e_conv(0:3) = (/14, 30, 31, 16/)
       ptable(91)%eht_param(0:3) = (/z, z, z, z/)
 
@@ -1166,7 +1166,7 @@ CONTAINS
       ptable(93)%amass = 237.0_dp
       ptable(93)%covalent_radius = 1.55_dp
       ptable(93)%metallic_radius = 1.55_dp
-      ptable(93)%vdw_radius = 2.00_dp
+      ptable(93)%vdw_radius = scale2vdw(ptable(93)%metallic_radius)
       ptable(93)%e_conv(0:3) = (/14, 30, 31, 18/)
       ptable(93)%eht_param(0:3) = (/z, z, z, z/)
 
@@ -1177,7 +1177,7 @@ CONTAINS
       ptable(94)%amass = 244.0_dp
       ptable(94)%covalent_radius = 1.53_dp
       ptable(94)%metallic_radius = 1.59_dp
-      ptable(94)%vdw_radius = 2.00_dp
+      ptable(94)%vdw_radius = scale2vdw(ptable(94)%metallic_radius)
       ptable(94)%e_conv(0:3) = (/14, 30, 30, 20/)
       ptable(94)%eht_param(0:3) = (/z, z, z, z/)
 
@@ -1188,7 +1188,7 @@ CONTAINS
       ptable(95)%amass = 243.0_dp
       ptable(95)%covalent_radius = 1.51_dp
       ptable(95)%metallic_radius = 1.73_dp
-      ptable(95)%vdw_radius = 2.00_dp
+      ptable(95)%vdw_radius = scale2vdw(ptable(95)%metallic_radius)
       ptable(95)%e_conv(0:3) = (/14, 30, 30, 21/)
       ptable(95)%eht_param(0:3) = (/z, z, z, z/)
 
@@ -1199,7 +1199,7 @@ CONTAINS
       ptable(96)%amass = 247.0_dp
       ptable(96)%covalent_radius = 0.99_dp ! this value looks strange
       ptable(96)%metallic_radius = 1.74_dp
-      ptable(96)%vdw_radius = 2.00_dp
+      ptable(96)%vdw_radius = scale2vdw(ptable(96)%metallic_radius)
       ptable(96)%e_conv(0:3) = (/14, 30, 31, 21/)
       ptable(96)%eht_param(0:3) = (/z, z, z, z/)
 
@@ -1210,7 +1210,7 @@ CONTAINS
       ptable(97)%amass = 247.0_dp
       ptable(97)%covalent_radius = 1.54_dp
       ptable(97)%metallic_radius = 1.70_dp
-      ptable(97)%vdw_radius = 2.00_dp
+      ptable(97)%vdw_radius = scale2vdw(ptable(97)%metallic_radius)
       ptable(97)%e_conv(0:3) = (/14, 30, 30, 23/)
       ptable(97)%eht_param(0:3) = (/z, z, z, z/)
 
@@ -1221,7 +1221,7 @@ CONTAINS
       ptable(98)%amass = 251.0_dp
       ptable(98)%covalent_radius = 1.83_dp
       ptable(98)%metallic_radius = 1.86_dp
-      ptable(98)%vdw_radius = 2.00_dp
+      ptable(98)%vdw_radius = scale2vdw(ptable(98)%metallic_radius)
       ptable(98)%e_conv(0:3) = (/14, 30, 30, 24/)
       ptable(98)%eht_param(0:3) = (/z, z, z, z/)
 
@@ -1232,7 +1232,7 @@ CONTAINS
       ptable(99)%amass = 252.0_dp
       ptable(99)%covalent_radius = 1.50_dp
       ptable(99)%metallic_radius = 1.86_dp
-      ptable(99)%vdw_radius = 2.00_dp
+      ptable(99)%vdw_radius = scale2vdw(ptable(99)%metallic_radius)
       ptable(99)%e_conv(0:3) = (/14, 30, 30, 25/)
       ptable(99)%eht_param(0:3) = (/z, z, z, z/)
 
@@ -1941,5 +1941,20 @@ CONTAINS
       ptable(97:nelem)%gyrom_ratio_isotope = 0
 
    END SUBROUTINE init_gratio
+
+! **************************************************************************************************
+!> \brief Retrieve the unavailable atomic van der Waals radii from the metallic radii by scaling
+!>        these with the factor 1.2 and rounding to two digits
+!> \param r atomic (metallic) input radius
+!> \return r_vdw van der Waals radius
+! **************************************************************************************************
+   PURE FUNCTION scale2vdw(r) RESULT(r_vdw)
+
+      REAL(KIND=dp), INTENT(IN)                          :: r
+      REAL(KIND=dp)                                      :: r_vdw
+
+      r_vdw = ANINT(120.0_dp*r)/100.0_dp
+
+   END FUNCTION scale2vdw
 
 END MODULE periodic_table
