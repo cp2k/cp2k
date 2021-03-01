@@ -7,6 +7,14 @@
 #ifndef GRID_COMMON_H
 #define GRID_COMMON_H
 
+#define GRID_STRINGIFY(SYMBOL) #SYMBOL
+
+#if defined(__GNUC__)
+#define GRID_PRAGMA_UNROLL(N) _Pragma(GRID_STRINGIFY(GCC unroll N))
+#else
+#define GRID_PRAGMA_UNROLL(N) _Pragma(GRID_STRINGIFY(unroll(N)))
+#endif
+
 #if defined(__CUDACC__)
 #define GRID_HOST_DEVICE __host__ __device__
 #else
