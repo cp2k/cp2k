@@ -1,5 +1,5 @@
 # bugs in berry phase dipole
-bug_ai_moments.inp                                    39    1.0E-14                     0.28412117
+bug_ai_moments.inp                                    39    1.0E-14                     0.28391764
 #
 si8_broy_stm.inp                                       1      2e-13             -30.92831595126399
 si8_broy_wc.inp                                       23      2e-06             1902.3469570831001
