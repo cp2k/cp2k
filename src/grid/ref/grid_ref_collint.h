@@ -169,6 +169,32 @@ static inline void ortho_cxy_to_cx(const int lp, const double pol_j1[lp + 1],
 }
 
 /*******************************************************************************
+ * \brief Loop body of ortho_cxy_to_grid to be inlined for low values of lp.
+ * \author Ole Schuett
+ ******************************************************************************/
+static inline void
+ortho_cxy_to_grid_low(const int lp, const int j1, const int j2, const int kg1,
+                      const int kg2, const int jg1, const int jg2,
+                      const int cmax, const double pol[3][2 * cmax + 1][lp + 1],
+                      const int map[3][2 * cmax + 1], const int npts_local[3],
+                      int **sphere_bounds_iter, double *cx,
+                      GRID_CONST_WHEN_COLLOCATE double *cxy,
+                      GRID_CONST_WHEN_INTEGRATE double *grid) {
+
+#if (GRID_DO_COLLOCATE)
+  // collocate
+  ortho_cxy_to_cx(lp, pol[1][j1 + cmax], pol[1][j2 + cmax], cxy, cx);
+  ortho_cx_to_grid(lp, kg1, kg2, jg1, jg2, cmax, pol, map, npts_local,
+                   sphere_bounds_iter, cx, grid);
+#else
+  // integrate
+  ortho_cx_to_grid(lp, kg1, kg2, jg1, jg2, cmax, pol, map, npts_local,
+                   sphere_bounds_iter, cx, grid);
+  ortho_cxy_to_cx(lp, pol[1][j1 + cmax], pol[1][j2 + cmax], cxy, cx);
+#endif
+}
+
+/*******************************************************************************
  * \brief Collocates coefficients C_xy onto the grid for orthorhombic case.
  * \author Ole Schuett
  ******************************************************************************/
@@ -196,17 +222,32 @@ static inline void ortho_cxy_to_grid(const int lp, const int kg1, const int kg2,
 
     memset(cx, 0, cx_size * sizeof(double));
 
-#if (GRID_DO_COLLOCATE)
-    // collocate
-    ortho_cxy_to_cx(lp, pol[1][j1 + cmax], pol[1][j2 + cmax], cxy, cx);
-    ortho_cx_to_grid(lp, kg1, kg2, jg1, jg2, cmax, pol, map, npts_local,
-                     sphere_bounds_iter, cx, grid);
-#else
-    // integrate
-    ortho_cx_to_grid(lp, kg1, kg2, jg1, jg2, cmax, pol, map, npts_local,
-                     sphere_bounds_iter, cx, grid);
-    ortho_cxy_to_cx(lp, pol[1][j1 + cmax], pol[1][j2 + cmax], cxy, cx);
-#endif
+    // Hopefully the compiler will inline optimized branches for low lp values.
+    switch (lp) {
+    case (0):
+      ortho_cxy_to_grid_low(0, j1, j2, kg1, kg2, jg1, jg2, cmax, pol, map,
+                            npts_local, sphere_bounds_iter, cx, cxy, grid);
+      break;
+    case (1):
+      ortho_cxy_to_grid_low(1, j1, j2, kg1, kg2, jg1, jg2, cmax, pol, map,
+                            npts_local, sphere_bounds_iter, cx, cxy, grid);
+      break;
+    case (2):
+      ortho_cxy_to_grid_low(2, j1, j2, kg1, kg2, jg1, jg2, cmax, pol, map,
+                            npts_local, sphere_bounds_iter, cx, cxy, grid);
+      break;
+    case (3):
+      ortho_cxy_to_grid_low(3, j1, j2, kg1, kg2, jg1, jg2, cmax, pol, map,
+                            npts_local, sphere_bounds_iter, cx, cxy, grid);
+      break;
+    case (4):
+      ortho_cxy_to_grid_low(4, j1, j2, kg1, kg2, jg1, jg2, cmax, pol, map,
+                            npts_local, sphere_bounds_iter, cx, cxy, grid);
+      break;
+    default:
+      ortho_cxy_to_grid_low(lp, j1, j2, kg1, kg2, jg1, jg2, cmax, pol, map,
+                            npts_local, sphere_bounds_iter, cx, cxy, grid);
+    }
   }
 }
 
