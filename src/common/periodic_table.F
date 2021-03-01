@@ -373,7 +373,7 @@ CONTAINS
       ptable(21)%amass = 44.955912_dp
       ptable(21)%covalent_radius = 1.44_dp
       ptable(21)%metallic_radius = 1.62_dp
-      ptable(21)%vdw_radius = scale2vdw(ptable(21)%metallic_radius)
+      ptable(21)%vdw_radius = 2.11_dp ! [3]
       ptable(21)%e_conv(0:3) = (/8, 12, 1, 0/)
       ptable(21)%eht_param(0:3) = (/-8.87_dp, -2.75_dp, -8.51_dp, z/)
 
