@@ -40,7 +40,7 @@ C-sic-2.inp                                            1      1e-13             
 C_ot.inp                                               1      1e-13              -5.33746454516253
 # use of the fermi distribution
 C_fermi.inp                                            1      1e-13              -5.34109284627944
-Al_fermi.inp                                           1      5e-14              -8.17296838739042
+Al_fermi.inp                                           1      5e-14              -8.17296838715160
 # go through planned FFTs, but don't check results, they will depend on the selected plan
 H2O-plan-2.inp                                         0
 H2O-plan-3.inp                                         0
