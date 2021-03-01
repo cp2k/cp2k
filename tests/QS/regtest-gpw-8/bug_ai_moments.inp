@@ -63,7 +63,7 @@ Ti    -1.937119     5.946676    -8.046348
          # Basis set name:  MOD-DZVP-GTH  for symbol:  TI
          # Basis set read from the basis set filename: HFX_BASIS
        &END BASIS
-POTENTIAL_TYPE GTH
+POTENTIAL GTH
        &POTENTIAL
  4 6 2
   0.3800000000000000E+00 2  0.8711442180000001E+01 -0.7002867699999999E+00
