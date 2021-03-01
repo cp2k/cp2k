@@ -5,13 +5,11 @@ all: grid_miniapp.x grid_unittest.x
 clean:
 	rm -fv *.o */*.o *.x
 
-CFLAGS := -fopenmp -g -O3 -std=c99 -march=native -Wall -Wextra -I${CUDA_PATH}/include -D__GRID_CUDA
-NVFLAGS := -g -O3 -lineinfo -arch sm_50 -Wno-deprecated-gpu-targets -Xcompiler "-fopenmp -Wall -Wextra" -D__GRID_CUDA
-
-LIBS := -lm -lblas -lcudart -lcuda -lcublas -L${CUDA_PATH}/lib64
+CFLAGS := -fopenmp -g -O3 -march=native -Wall -Wextra
+NVFLAGS := -g -O3 -lineinfo -arch sm_50 -Wno-deprecated-gpu-targets -Xcompiler "$(CFLAGS)" -D__GRID_CUDA
+LIBS := -lm -lblas
 
 ALL_HEADERS := $(shell find . -name "*.h")
-
 ALL_OBJECTS := grid_replay.o \
                grid_task_list.o \
                common/grid_library.o \
@@ -22,10 +20,6 @@ ALL_OBJECTS := grid_replay.o \
                ref/grid_ref_collocate.o \
                ref/grid_ref_integrate.o \
                ref/grid_ref_prepare_pab.o \
-               gpu/grid_gpu_task_list.o \
-               gpu/grid_gpu_collocate.o \
-               gpu/grid_gpu_integrate.o \
-               hybrid/grid_collocate_hybrid_cuda.o \
                hybrid/grid_collocate_hybrid.o \
                cpu/grid_context_cpu.o \
                cpu/coefficients.o \
@@ -38,17 +32,27 @@ ALL_OBJECTS := grid_replay.o \
                cpu/grid_prepare_pab_dgemm.o \
                cpu/tensor_local.o
 
-
-%.o: %.c $(ALL_HEADERS)
-	cd $(dir $<); $(CC) -c $(CFLAGS) $(notdir $<)
+# Enable Cuda when nvcc compiler is present.
+NVCC := $(shell which nvcc)
+ifneq ($(NVCC),)
+LIBS += -lcudart -lcuda -lcublas -L${CUDA_PATH}/lib64
+CFLAGS += -I${CUDA_PATH}/include -D__GRID_CUDA
+ALL_OBJECTS += hybrid/grid_collocate_hybrid_cuda.o \
+               gpu/grid_gpu_task_list.o \
+               gpu/grid_gpu_collocate.o \
+               gpu/grid_gpu_integrate.o
 
 %.o: %.cu $(ALL_HEADERS)
-	cd $(dir $<); nvcc -c $(NVFLAGS) $(notdir $<)
+	cd $(dir $<); $(NVCC) -c $(NVFLAGS) $(notdir $<)
+endif
+
+%.o: %.c $(ALL_HEADERS)
+	cd $(dir $<); $(CC) -c -std=c11 $(CFLAGS) $(notdir $<)
 
 grid_miniapp.x: grid_miniapp.o $(ALL_OBJECTS)
-	nvcc $(NVFLAGS) -o $@ $^ $(LIBS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
 grid_unittest.x: grid_unittest.o $(ALL_OBJECTS)
-	nvcc $(NVFLAGS) -o $@ $^ $(LIBS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
 #EOF
