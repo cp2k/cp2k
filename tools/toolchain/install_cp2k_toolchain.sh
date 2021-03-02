@@ -309,8 +309,8 @@ with_spglib="__INSTALL__"
 with_hdf5="__DONTUSE__"
 with_elpa="__INSTALL__"
 with_libvdwxc="__DONTUSE__"
-with_spfft="__INSTALL__"
-with_spla="__INSTALL__"
+with_spfft="__DONTUSE__"
+with_spla="__DONTUSE__"
 with_cosma="__INSTALL__"
 with_libvori="__INSTALL__"
 # for MPI, we try to detect system MPI variant
@@ -619,6 +619,9 @@ while [ $# -ge 1 ]; do
     --with-libvori*)
       with_libvori=$(read_with $1)
       ;;
+    --with-spla*)
+      with_spla=$(read_with $1)
+      ;;
     --help*)
       show_help
       exit 0
@@ -746,6 +749,7 @@ fi
 # SIRIUS dependencies. Remove the gsl library from the dependencies if SIRIUS is not activated
 if [ "$with_sirius" = "__INSTALL__" ]; then
   [ "$with_spfft" = "__DONTUSE__" ] && with_spfft="__INSTALL__"
+  [ "$with_spla" = "__DONTUSE__" ] && with_spla="__INSTALL__"
   [ "$with_gsl" = "__DONTUSE__" ] && with_gsl="__INSTALL__"
   [ "$with_libxc" = "__DONTUSE__" ] && with_libxc="__INSTALL__"
   [ "$with_fftw" = "__DONTUSE__" ] && with_fftw="__INSTALL__"
