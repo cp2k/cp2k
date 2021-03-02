@@ -37,7 +37,7 @@ MODULE voronoi_interface
                               qs_subsys_type
    USE cp_control_types, ONLY: dft_control_type
    USE pw_grid_types, ONLY: PW_MODE_LOCAL
-   USE physcon, ONLY: femtoseconds
+   USE physcon, ONLY: angstrom, femtoseconds
    USE message_passing, ONLY: &
       file_amode_rdonly, file_offset, mp_bcast, mp_file_close, mp_file_descriptor_type, &
       mp_file_get_position, mp_file_open, mp_file_read_all_chv, mp_file_type_free, &
@@ -151,10 +151,6 @@ MODULE voronoi_interface
       INTEGER(C_INT) FUNCTION libvori_setRadii_Unity() BIND(C, NAME='libvori_setRadii_Unity')
          USE ISO_C_BINDING, ONLY: C_INT
       END FUNCTION libvori_setRadii_Unity
-
-      INTEGER(C_INT) FUNCTION libvori_setRadii_VdW() BIND(C, NAME='libvori_setRadii_VdW')
-         USE ISO_C_BINDING, ONLY: C_INT
-      END FUNCTION libvori_setRadii_VdW
 
       INTEGER(C_INT) FUNCTION libvori_setRadii_Covalent() BIND(C, NAME='libvori_setRadii_Covalent')
          USE ISO_C_BINDING, ONLY: C_INT
@@ -316,13 +312,14 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: particles_z
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: particles_r
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: particles_c
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: particles_radius
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(particle_list_type), POINTER                  :: particles
       INTEGER                                            :: sim_step
-      REAL(KIND=dp)                                      :: sim_time
+      REAL(KIND=dp)                                      :: r, sim_time
       TYPE(qs_subsys_type), POINTER                      :: subsys
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -368,15 +365,15 @@ CONTAINS
          CALL section_vals_val_get(input_voro, "OVERWRITE", l_val=vori_overwrite)
          IF (radius_type == voro_radii_user) THEN
             CALL section_vals_val_get(input_voro, "USER_RADII", r_vals=user_radii)
-         ENDIF
+         END IF
          IF (qs_env%single_point_run) THEN
             voro_skip_first = .FALSE.
-         ENDIF
+         END IF
          CALL cite_reference(Rycroft2009)
          CALL cite_reference(Thomas2015)
          CALL cite_reference(Brehm2018)
          CALL cite_reference(Brehm2020)
-      ENDIF
+      END IF
 
       IF (do_bqb /= 0) THEN
          CALL section_vals_val_get(input_bqb, "HISTORY", i_val=bqb_history)
@@ -390,12 +387,12 @@ CONTAINS
          IF (qs_env%single_point_run) THEN
             bqb_skip_first = .FALSE.
             bqb_history = 1
-         ENDIF
+         END IF
          IF (bqb_history < 1) THEN
             bqb_history = 1
-         ENDIF
+         END IF
          CALL cite_reference(Brehm2018)
-      ENDIF
+      END IF
 
       CALL qs_subsys_get(subsys, particles=particles)
 
@@ -417,7 +414,7 @@ CONTAINS
 
          IF (iounit > 0) THEN
             WRITE (iounit, *) ""
-         ENDIF
+         END IF
 
          IF (do_voro /= 0) THEN
             ret = libvori_setPrefix_Voronoi()
@@ -427,7 +424,7 @@ CONTAINS
             ret = libvori_setEMPOutput(MERGE(1, 0, outemp))
          ELSE
             ret = libvori_setPrefix_BQB()
-         ENDIF
+         END IF
 
          IF (do_bqb /= 0) THEN
             ret = libvori_setBQBFilename(default_path_length, bqb_file_name)
@@ -450,7 +447,7 @@ CONTAINS
             ret = libvori_setBQBCheck(MERGE(1, 0, bqb_check))
             ret = libvori_setBQBOverwrite(MERGE(1, 0, bqb_overwrite))
             ret = libvori_setBQBStoreStep(MERGE(1, 0, bqb_store_step))
-         ENDIF
+         END IF
 
          ret = libvori_setgrid( &
                U1 - L1 + 1, &
@@ -478,14 +475,16 @@ CONTAINS
 
          IF (ret /= 0) THEN
             CPABORT("The library returned an error. Aborting.")
-         ENDIF
+         END IF
 
          ALLOCATE (particles_z(natom))
          ALLOCATE (particles_c(natom))
          ALLOCATE (particles_r(3, natom))
+         ALLOCATE (particles_radius(natom))
 
          DO ikind = 1, nkind
-            CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
+            CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff, vdw_radius=r)
+            r = r*angstrom
             atomic_kind => atomic_kind_set(ikind)
             CALL get_atomic_kind(atomic_kind, atom_list=atom_list, z=ord)
             DO iat = 1, SIZE(atom_list)
@@ -493,24 +492,26 @@ CONTAINS
                particles_c(i) = zeff
                particles_z(i) = ord
                particles_r(:, i) = particles%els(i)%r(:)
-            ENDDO
-         ENDDO
+               particles_radius(i) = r
+            END DO
+         END DO
 
          ret = libvori_pushatoms(natom, particles_z, particles_c, particles_r(1, :), particles_r(2, :), particles_r(3, :))
+         ret = libvori_setRadii_User(100.0_dp, particles_radius)
 
          IF (ret /= 0) THEN
             CPABORT("The library returned an error. Aborting.")
-         ENDIF
+         END IF
 
-      ENDIF
+      END IF
 
       IF (iounit > 0) THEN
          IF (do_voro /= 0) THEN
             WRITE (iounit, *) "VORONOI| Collecting electron density from MPI ranks and sending to library..."
          ELSE
             WRITE (iounit, *) "BQB| Collecting electron density from MPI ranks and sending to library..."
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       ALLOCATE (buf(L3:U3))
 
@@ -527,32 +528,32 @@ CONTAINS
                       rspace_pw%pw_grid%para%bo(1, 2, ip, 1) <= I2 - L2 + 1 &
                       .AND. rspace_pw%pw_grid%para%bo(2, 2, ip, 1) >= I2 - L2 + 1) THEN
                      source = ip
-                  ENDIF
-               ENDDO
+                  END IF
+               END DO
             ELSE
                source = dest
-            ENDIF
+            END IF
 
             IF (source == dest) THEN
                IF (my_rank == source) THEN
                   buf(:) = rspace_pw%cr3d(I1, I2, :)
-               ENDIF
+               END IF
             ELSE
                IF (my_rank == source) THEN
                   buf(:) = rspace_pw%cr3d(I1, I2, :)
                   CALL mp_send(buf, dest, tag, gid)
-               ENDIF
+               END IF
                IF (my_rank == dest) THEN
                   CALL mp_recv(buf, source, tag, gid)
-               ENDIF
-            ENDIF
+               END IF
+            END IF
 
             IF (my_rank == dest) THEN
                ret = libvori_push_rho_zrow(I1 - L1, I2 - L2, U3 - L3 + 1, buf)
                IF (ret /= 0) THEN
                   CPABORT("The library returned an error. Aborting.")
-               ENDIF
-            ENDIF
+               END IF
+            END IF
 
             ! this double loop generates so many messages that it can overload
             ! the message passing system, e.g. on XT3
@@ -562,8 +563,8 @@ CONTAINS
             ! more complicated rewrite
             CALL mp_sync(gid)
 
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       DEALLOCATE (buf)
 
@@ -573,18 +574,20 @@ CONTAINS
 
             IF (radius_type == voro_radii_unity) THEN
                ret = libvori_setRadii_Unity()
-            ELSEIF (radius_type == voro_radii_vdw) THEN
-               ret = libvori_setRadii_VdW()
-            ELSEIF (radius_type == voro_radii_cov) THEN
+            ELSE IF (radius_type == voro_radii_cov) THEN
+               ! Use the covalent radii from LIBVORI
                ret = libvori_setRadii_Covalent()
-            ELSEIF (radius_type == voro_radii_user) THEN
+            ELSE IF (radius_type == voro_radii_vdw) THEN
+               ! Use the van der Waals radii from CP2K
+            ELSE IF (radius_type == voro_radii_user) THEN
+               ! Use the user defined atomic radii
                IF (natom /= SIZE(user_radii)) THEN
                   CALL cp_abort(__LOCATION__, &
                                 "Length of keyword VORONOI\USER_RADII does not "// &
                                 "match number of atoms in the input coordinate file.")
-               ENDIF
+               END IF
                ret = libvori_setRadii_User(100.0_dp, user_radii)
-            ENDIF
+            END IF
 
             IF (voro_sanity) THEN
 
@@ -592,15 +595,15 @@ CONTAINS
 
                IF (ret /= 0) THEN
                   CPABORT("The library returned an error. Aborting.")
-               ENDIF
+               END IF
 
-            ENDIF
+            END IF
 
             ret = libvori_step(sim_step, sim_time)
 
             IF (ret /= 0) THEN
                CPABORT("The library returned an error. Aborting.")
-            ENDIF
+            END IF
 
             ALLOCATE (voro_radii(natom))
             ALLOCATE (voro_charge(natom))
@@ -617,22 +620,22 @@ CONTAINS
             DO i1 = 1, 3
                ret = libvori_get_dipole(i1, natom, voro_buffer)
                voro_dipole(:, i1) = voro_buffer(:)
-            ENDDO
+            END DO
 
             DO i1 = 1, 9
                ret = libvori_get_quadrupole(i1, natom, voro_buffer)
                voro_quadrupole(:, i1) = voro_buffer(:)
-            ENDDO
+            END DO
 
             DO i1 = 1, 3
                ret = libvori_get_wrapped_pos(i1, natom, voro_buffer)
                voro_wrapped_pos(:, i1) = voro_buffer(:)
-            ENDDO
+            END DO
 
             DO i1 = 1, 3
                ret = libvori_get_charge_center(i1, natom, voro_buffer)
                voro_charge_center(:, i1) = voro_buffer(:)
-            ENDDO
+            END DO
 
             IF (unit_voro > 0) THEN
                WRITE (unit_voro, FMT="(A,I8,A,F12.4,A)") "# Simulation step ", sim_step, ",  Simulation time ", &
@@ -654,8 +657,8 @@ CONTAINS
                      voro_dipole(i1, 1:3), &
                      voro_charge_center(i1, 1:3)/100.0_dp, &
                      voro_quadrupole(i1, 1:9)
-               ENDDO
-            ENDIF
+               END DO
+            END IF
 
             DEALLOCATE (voro_radii)
             DEALLOCATE (voro_charge)
@@ -667,9 +670,9 @@ CONTAINS
 
             IF (iounit > 0) THEN
                WRITE (iounit, *) "VORONOI| Voronoi integration finished."
-            ENDIF
+            END IF
 
-         ENDIF ! do_voro
+         END IF ! do_voro
 
          IF (do_bqb /= 0) THEN
 
@@ -677,21 +680,28 @@ CONTAINS
 
             IF (ret /= 0) THEN
                CPABORT("The library returned an error. Aborting.")
-            ENDIF
+            END IF
 
             IF (do_voro /= 0) THEN
                IF (iounit > 0) THEN
                   WRITE (iounit, *) "VORONOI| BQB compression finished."
-               ENDIF
+               END IF
             ELSE
                IF (iounit > 0) THEN
                   WRITE (iounit, *) "BQB| BQB compression finished."
-               ENDIF
-            ENDIF
+               END IF
+            END IF
 
-         ENDIF  ! do_bqb
+         END IF  ! do_bqb
 
-      ENDIF
+      END IF
+
+      IF (my_rank == 0) THEN
+         DEALLOCATE (particles_z)
+         DEALLOCATE (particles_c)
+         DEALLOCATE (particles_r)
+         DEALLOCATE (particles_radius)
+      END IF
 
 #if defined(__HAS_IEEE_EXCEPTIONS)
       CALL ieee_set_halting_mode(IEEE_ALL, halt)
