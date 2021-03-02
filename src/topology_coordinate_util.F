@@ -228,8 +228,10 @@ CONTAINS
       DO i = 1, topology%natom_type
          atomic_kind => atomic_kind_set(i)
          mass(i) = mass(i)*massunit
-         CALL set_atomic_kind(atomic_kind=atomic_kind, kind_number=i, &
-                              name=id2str(atom_info%id_atom_names(i)), element_symbol=id2str(id_element(i)), &
+         CALL set_atomic_kind(atomic_kind=atomic_kind, &
+                              kind_number=i, &
+                              name=id2str(atom_info%id_atom_names(i)), &
+                              element_symbol=id2str(id_element(i)), &
                               mass=mass(i))
          IF (iw > 0) THEN
             WRITE (iw, '(A,I5,A,I5,4A)') "Atomic Kind n.:", i, " out of:", topology%natom_type, &
@@ -297,7 +299,8 @@ CONTAINS
             WRITE (iw, *)
          ENDIF
          CALL set_atomic_kind(atomic_kind=atomic_kind, &
-                              natom=natom_of_kind(i), atom_list=iatomlist)
+                              natom=natom_of_kind(i), &
+                              atom_list=iatomlist)
          DEALLOCATE (iatomlist)
       END DO
       DEALLOCATE (natom_of_kind)
@@ -683,7 +686,7 @@ CONTAINS
       CALL timestop(handle2)
       !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
-      ! 11. Set the atomic_kind_set()%fist_potentail%[qeff] (PART 1)
+      ! 11. Set the atomic_kind_set()%fist_potential%[qeff] (PART 1)
       !-----------------------------------------------------------------------------
       CALL timeset(routineN//'_10', handle2)
       CALL section_vals_val_get(force_env_section, "METHOD", i_val=method_name_id)

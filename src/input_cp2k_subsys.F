@@ -1165,6 +1165,21 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="COVALENT_RADIUS", &
+                          description="Use this covalent radius (in Angstrom) for all atoms of "// &
+                          "the atomic kind instead of the internally tabulated default value", &
+                          usage="COVALENT_RADIUS 1.24", n_var=1, default_r_val=0.0_dp, &
+                          unit_str="angstrom")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="VDW_RADIUS", &
+                          description="Use this van der Waals radius (in Angstrom) for all atoms of "// &
+                          "the atomic kind instead of the internally tabulated default value", &
+                          usage="VDW_RADIUS 1.85", n_var=1, default_r_val=0.0_dp, unit_str="angstrom")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="HARD_EXP_RADIUS", &
                           description="The region where the hard density is supposed to be confined"// &
                           " (GAPW) (in Bohr, default is 1.2 for H and 1.512 otherwise)", &
@@ -1975,15 +1990,17 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="BONDLENGTH_MAX", &
                           description="Maximum distance to generate neighbor lists to build connectivity", &
-                          usage="BONDLENGTH_MAX <real>", default_r_val=cp_unit_to_cp2k(value=3.0_dp, &
-                                                                                       unit_str="angstrom"), unit_str="angstrom")
+                          usage="BONDLENGTH_MAX <real>", &
+                          default_r_val=cp_unit_to_cp2k(value=3.0_dp, unit_str="angstrom"), &
+                          unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="BONDLENGTH_MIN", &
                           description="Minimum distance to generate neighbor lists to build connectivity", &
-                          usage="BONDLENGTH_MIN <real>", default_r_val=cp_unit_to_cp2k(value=0.01_dp, &
-                                                                                       unit_str="angstrom"), unit_str="angstrom")
+                          usage="BONDLENGTH_MIN <real>", &
+                          default_r_val=cp_unit_to_cp2k(value=0.01_dp, unit_str="angstrom"), &
+                          unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2245,6 +2262,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, &
                           name="U_MINUS_J", &
+                          variants=(/"U_EFF"/), &
                           description="Effective parameter U(eff) = U - J", &
                           repeats=.FALSE., &
                           n_var=1, &

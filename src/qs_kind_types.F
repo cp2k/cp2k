@@ -79,7 +79,8 @@ MODULE qs_kind_types
                                               projectors
    USE periodic_table,                  ONLY: get_ptable_info,&
                                               ptable
-   USE physcon,                         ONLY: bohr,&
+   USE physcon,                         ONLY: angstrom,&
+                                              bohr,&
                                               evolt
    USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
    USE qs_dftb_utils,                   ONLY: deallocate_dftb_atom_param,&
@@ -174,14 +175,17 @@ MODULE qs_kind_types
       !
       TYPE(basis_set_container_type), &
          DIMENSION(20)                       :: basis_sets
-      !
+      ! Atomic radii
+      REAL(KIND=dp)                          :: covalent_radius = 0.0_dp
+      REAL(KIND=dp)                          :: vdw_radius = 0.0_dp
+      ! GAPW specific data
       TYPE(paw_proj_set_type), POINTER       :: paw_proj_set => Null()
-      !
-      REAL(dp)                               :: hard_radius = 0.8_dp*bohr ! for hard and soft exp
-      REAL(dp)                               :: hard0_radius = 0.8_dp*bohr ! for hard exp of rho0
-      REAL(dp)                               :: max_rad_local = 13.2_dp*bohr ! max GTO radius used in GAPW
+      REAL(KIND=dp)                          :: hard_radius = 0.8_dp*bohr ! for hard and soft exp
+      REAL(KIND=dp)                          :: hard0_radius = 0.8_dp*bohr ! for hard exp of rho0
+      REAL(KIND=dp)                          :: max_rad_local = 13.2_dp*bohr ! max GTO radius used in GAPW
       LOGICAL                                :: paw_atom = .FALSE. ! needs atomic rho1
       LOGICAL                                :: gpw_type_forced = .FALSE. ! gpw atom even if with hard exponents
+      !
       LOGICAL                                :: ghost = .FALSE.
       LOGICAL                                :: floating = .FALSE.
       INTEGER                                :: lmax_dftb = -1
@@ -264,14 +268,14 @@ CONTAINS
             END IF
             IF (ASSOCIATED(qs_kind_set(ikind)%gth_potential)) THEN
                CALL deallocate_potential(qs_kind_set(ikind)%gth_potential)
-            ENDIF
+            END IF
             IF (ASSOCIATED(qs_kind_set(ikind)%sgp_potential)) THEN
                CALL deallocate_potential(qs_kind_set(ikind)%sgp_potential)
-            ENDIF
+            END IF
             IF (ASSOCIATED(qs_kind_set(ikind)%upf_potential)) THEN
                CALL atom_release_upf(qs_kind_set(ikind)%upf_potential)
                DEALLOCATE (qs_kind_set(ikind)%upf_potential)
-            ENDIF
+            END IF
             IF (ASSOCIATED(qs_kind_set(ikind)%se_parameter)) THEN
                CALL semi_empirical_release(qs_kind_set(ikind)%se_parameter)
             END IF
@@ -382,6 +386,8 @@ CONTAINS
 !> \param hard_radius ...
 !> \param hard0_radius ...
 !> \param max_rad_local ...
+!> \param covalent_radius ...
+!> \param vdw_radius ...
 !> \param gpw_type_forced ...
 !> \param harmonics ...
 !> \param max_iso_not0 ...
@@ -426,6 +432,7 @@ CONTAINS
                           alpha_core_charge, ccore_charge, core_charge, core_charge_radius, &
                           soft_basis_set, hard_basis_set, paw_proj_set, softb, &
                           paw_atom, hard_radius, hard0_radius, max_rad_local, &
+                          covalent_radius, vdw_radius, &
                           gpw_type_forced, harmonics, max_iso_not0, max_s_harm, grid_atom, &
                           ngrid_ang, ngrid_rad, lmax_rho0, &
                           dft_plus_u_atom, l_of_dft_plus_u, u_minus_j, dispersion, &
@@ -455,7 +462,9 @@ CONTAINS
       TYPE(paw_proj_set_type), OPTIONAL, POINTER         :: paw_proj_set
       LOGICAL, INTENT(IN), OPTIONAL                      :: softb
       LOGICAL, INTENT(OUT), OPTIONAL                     :: paw_atom
-      REAL(dp), INTENT(OUT), OPTIONAL                    :: hard_radius, hard0_radius, max_rad_local
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: hard_radius, hard0_radius, &
+                                                            max_rad_local, covalent_radius, &
+                                                            vdw_radius
       LOGICAL, INTENT(OUT), OPTIONAL                     :: gpw_type_forced
       TYPE(harmonics_atom_type), OPTIONAL, POINTER       :: harmonics
       INTEGER, INTENT(OUT), OPTIONAL                     :: max_iso_not0, max_s_harm
@@ -630,6 +639,9 @@ CONTAINS
 
       IF (PRESENT(soft_basis_set)) soft_basis_set => qs_kind%soft_basis_set
       IF (PRESENT(hard_basis_set)) hard_basis_set => qs_kind%hard_basis_set
+
+      IF (PRESENT(covalent_radius)) covalent_radius = qs_kind%covalent_radius
+      IF (PRESENT(vdw_radius)) vdw_radius = qs_kind%vdw_radius
 
       IF (PRESENT(paw_proj_set)) paw_proj_set => qs_kind%paw_proj_set
       IF (PRESENT(paw_atom)) paw_atom = qs_kind%paw_atom
@@ -914,12 +926,12 @@ CONTAINS
             IF (PRESENT(maxco_proj) .AND. ASSOCIATED(paw_proj_set)) THEN
                CALL get_paw_proj_set(paw_proj_set=paw_proj_set, ncgauprj=imax)
                maxco_proj = MAX(maxco_proj, imax)
-            ENDIF
+            END IF
 
             IF (PRESENT(maxlprj) .AND. ASSOCIATED(paw_proj_set)) THEN
                CALL get_paw_proj_set(paw_proj_set=paw_proj_set, maxl=imax)
                maxlprj = MAX(maxlprj, imax)
-            ENDIF
+            END IF
 
             IF (PRESENT(maxppnl) .AND. ASSOCIATED(gth_potential)) THEN
                CALL get_potential(potential=gth_potential, nppnl=imax)
@@ -1128,11 +1140,11 @@ CONTAINS
 
             IF (PRESENT(max_ngrid_rad)) THEN
                max_ngrid_rad = MAX(max_ngrid_rad, ngrid_rad)
-            ENDIF
+            END IF
 
             IF (PRESENT(max_sph_harm)) THEN
                max_sph_harm = MAX(max_sph_harm, max_s_harm)
-            ENDIF
+            END IF
 
             IF (PRESENT(maxg_iso_not0)) THEN
                maxg_iso_not0 = MAX(maxg_iso_not0, max_iso_not0)
@@ -1211,7 +1223,7 @@ CONTAINS
 
       IF (.NOT. ASSOCIATED(qs_kind_set)) THEN
          CPABORT("init_qs_kind_set: The pointer qs_kind_set is not associated")
-      ENDIF
+      END IF
 
       DO ikind = 1, SIZE(qs_kind_set)
          qs_kind => qs_kind_set(ikind)
@@ -1399,8 +1411,7 @@ CONTAINS
 !>      - 20.09.2002,gt: adapted for POL/KG use (elp_potential)
 !>      - 05.03.2010: split elp_potential into fist_potential and kg_potential
 ! **************************************************************************************************
-   SUBROUTINE read_qs_kind(qs_kind, kind_section, para_env, force_env_section, &
-                           no_fail, method_id)
+   SUBROUTINE read_qs_kind(qs_kind, kind_section, para_env, force_env_section, no_fail, method_id)
 
       TYPE(qs_kind_type), INTENT(INOUT)                  :: qs_kind
       TYPE(section_vals_type), POINTER                   :: kind_section
@@ -1429,7 +1440,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: add_el, elec_conf, orbitals
       LOGICAL :: check, explicit, explicit_basis, explicit_kgpot, explicit_potential, nobasis, &
          section_enabled, subsection_enabled, update_input
-      REAL(KIND=dp)                                      :: alpha, ccore, rc, zeff_correction
+      REAL(KIND=dp)                                      :: alpha, ccore, r, rc, zeff_correction
       REAL(KIND=dp), DIMENSION(3)                        :: error
       REAL(KIND=dp), DIMENSION(:), POINTER               :: a_nl, aloc, anlcc, cloc, cnlcc, nelec
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_nl
@@ -1589,7 +1600,7 @@ CONTAINS
                                       r_val=qs_kind%pao_potentials(ipaopot)%beta)
             CALL section_vals_val_get(pao_pot_section, keyword_name="WEIGHT", i_rep_section=ipaopot, &
                                       r_val=qs_kind%pao_potentials(ipaopot)%weight)
-         ENDDO
+         END DO
 
          ! parse PAO_DESCRIPTOR sections
          pao_desc_section => section_vals_get_subs_vals(kind_section, "PAO_DESCRIPTOR", i_rep_section=k_rep)
@@ -1602,7 +1613,7 @@ CONTAINS
                                       r_val=qs_kind%pao_descriptors(ipaodesc)%screening)
             CALL section_vals_val_get(pao_desc_section, keyword_name="WEIGHT", i_rep_section=ipaodesc, &
                                       r_val=qs_kind%pao_descriptors(ipaodesc)%weight)
-         ENDDO
+         END DO
 
          ! parse ELEC_CONF
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
@@ -1611,7 +1622,7 @@ CONTAINS
             CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                       keyword_name="ELEC_CONF", i_vals=elec_conf)
             CALL set_qs_kind(qs_kind, elec_conf=elec_conf)
-         ENDIF
+         END IF
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="CORE_CORRECTION", r_val=zeff_correction)
          ! parse POTENTIAL
@@ -1642,13 +1653,29 @@ CONTAINS
          END IF
          CALL uppercase(potential_type)
 
-         ! parse KG POTENTIAL
+         ! Parse KG POTENTIAL
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="KG_POTENTIAL_FILE_NAME", c_val=kg_potential_fn_kind)
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="KG_POTENTIAL", c_val=kgpot_name)
 
-         ! assign atom dependent defaults, only H special case
+         ! Assign atomic covalent radius
+         qs_kind%covalent_radius = ptable(z)%covalent_radius*bohr
+         CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
+                                   keyword_name="COVALENT_RADIUS", r_val=r)
+         IF (r > 0.0_dp) THEN
+            qs_kind%covalent_radius = r*bohr
+         END IF
+
+         ! Assign atomic van der Waals radius
+         qs_kind%vdw_radius = ptable(z)%vdw_radius*bohr
+         CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
+                                   keyword_name="VDW_RADIUS", r_val=r)
+         IF (r > 0.0_dp) THEN
+            qs_kind%vdw_radius = r*bohr
+         END IF
+
+         ! Assign atom dependent defaults, only H special case
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, n_rep_val=i, &
                                    keyword_name="HARD_EXP_RADIUS")
          IF (i == 0) THEN
@@ -1656,11 +1683,11 @@ CONTAINS
                qs_kind%hard_radius = 1.2_dp
             ELSE
                qs_kind%hard_radius = 0.8_dp*bohr
-            ENDIF
+            END IF
          ELSE
             CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                       keyword_name="HARD_EXP_RADIUS", r_val=qs_kind%hard_radius)
-         ENDIF
+         END IF
 
          ! assign atom dependent defaults, only H special case
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, n_rep_val=i, &
@@ -1670,7 +1697,7 @@ CONTAINS
          ELSE
             CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                       keyword_name="RHO0_EXP_RADIUS", r_val=qs_kind%hard0_radius)
-         ENDIF
+         END IF
          IF (qs_kind%hard_radius < qs_kind%hard0_radius) &
             CPABORT("rc0 should be <= rc")
 
@@ -2240,7 +2267,7 @@ CONTAINS
                   CPASSERT(.NOT. sgppot%has_local)
                   CPASSERT(.NOT. sgppot%has_nlcc)
                   ! core
-                  rc = ptable(z)%covalent_radius*0.5_dp
+                  rc = 0.5_dp*qs_kind%covalent_radius*angstrom
                   rc = MAX(rc, 0.2_dp)
                   rc = MIN(rc, 1.0_dp)
                   alpha = 1.0_dp/(2.0_dp*rc**2)
@@ -2618,6 +2645,8 @@ CONTAINS
 !> \param floating ...
 !> \param hard_radius ...
 !> \param hard0_radius ...
+!> \param covalent_radius ...
+!> \param vdw_radius ...
 !> \param soft_basis_set ...
 !> \param hard_basis_set ...
 !> \param lmax_rho0 ...
@@ -2632,6 +2661,7 @@ CONTAINS
 !> \param pao_basis_size ...
 ! **************************************************************************************************
    SUBROUTINE set_qs_kind(qs_kind, paw_atom, ghost, floating, hard_radius, hard0_radius, &
+                          covalent_radius, vdw_radius, &
                           soft_basis_set, hard_basis_set, lmax_rho0, zeff, &
                           no_optimize, dispersion, u_minus_j, reltmat, &
                           dftb_parameter, xtb_parameter, &
@@ -2639,7 +2669,8 @@ CONTAINS
 
       TYPE(qs_kind_type), INTENT(INOUT)                  :: qs_kind
       LOGICAL, INTENT(IN), OPTIONAL                      :: paw_atom, ghost, floating
-      REAL(dp), INTENT(IN), OPTIONAL                     :: hard_radius, hard0_radius
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: hard_radius, hard0_radius, &
+                                                            covalent_radius, vdw_radius
       TYPE(gto_basis_set_type), OPTIONAL, POINTER        :: soft_basis_set, hard_basis_set
       INTEGER, INTENT(IN), OPTIONAL                      :: lmax_rho0
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: zeff
@@ -2657,13 +2688,15 @@ CONTAINS
       IF (PRESENT(elec_conf)) THEN
          IF (ASSOCIATED(qs_kind%elec_conf)) THEN
             DEALLOCATE (qs_kind%elec_conf)
-         ENDIF
+         END IF
          ALLOCATE (qs_kind%elec_conf(0:SIZE(elec_conf) - 1))
          qs_kind%elec_conf(:) = elec_conf(:)
-      ENDIF
+      END IF
       IF (PRESENT(paw_atom)) qs_kind%paw_atom = paw_atom
       IF (PRESENT(hard_radius)) qs_kind%hard_radius = hard_radius
       IF (PRESENT(hard0_radius)) qs_kind%hard0_radius = hard0_radius
+      IF (PRESENT(covalent_radius)) qs_kind%covalent_radius = covalent_radius
+      IF (PRESENT(vdw_radius)) qs_kind%vdw_radius = vdw_radius
       IF (PRESENT(soft_basis_set)) qs_kind%soft_basis_set => soft_basis_set
       IF (PRESENT(hard_basis_set)) qs_kind%hard_basis_set => hard_basis_set
       IF (PRESENT(lmax_rho0)) qs_kind%lmax_rho0 = lmax_rho0
@@ -2756,6 +2789,16 @@ CONTAINS
             IF (qs_kind%floating) THEN
                WRITE (UNIT=output_unit, FMT="(/,T6,A)") &
                   "The atoms of this atomic kind are FLOATING BASIS FUNCTIONS."
+            END IF
+            IF (qs_kind%covalent_radius > 0.0_dp) THEN
+               WRITE (UNIT=output_unit, FMT="(T8,A,T71,F10.3)") &
+                  "Atomic covalent radius [Angstrom]:", &
+                  qs_kind%covalent_radius*angstrom
+            END IF
+            IF (qs_kind%vdw_radius > 0.0_dp) THEN
+               WRITE (UNIT=output_unit, FMT="(T8,A,T71,F10.3)") &
+                  "Atomic van der Waals radius [Angstrom]:", &
+                  qs_kind%vdw_radius*angstrom
             END IF
             IF (qs_kind%paw_atom) THEN
                WRITE (UNIT=output_unit, FMT="(/,T6,A)") &
@@ -3233,7 +3276,7 @@ CONTAINS
                WRITE (iounit, "(/,A,A2)") "WARNING: Core states irregular for atom type ", ptable(z)%symbol
                WRITE (iounit, "(A,10I3)") "WARNING: Redefine ELEC_CONF in the KIND section"
                CPABORT("Incompatible Atomic Occupations Detected")
-            ENDIF
+            END IF
          END IF
       ELSE
          ncore = 0
@@ -3284,7 +3327,7 @@ CONTAINS
             CALL get_potential(potential=sgp_potential, has_nlcc=nlcc_present)
             nlcc = nlcc .OR. nlcc_present
          END IF
-      ENDDO
+      END DO
 
    END FUNCTION has_nlcc
 
