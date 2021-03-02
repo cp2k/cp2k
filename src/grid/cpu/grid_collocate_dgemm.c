@@ -245,7 +245,7 @@ void apply_sphere_cutoff_ortho(struct collocation_integration_ *const handler,
   int **map = handler->map;
   map[1] = map[0] + 2 * cmax + 1;
   map[2] = map[1] + 2 * cmax + 1;
-  memset(map[0], 0xff, sizeof(int) * 3 * (2 * cmax + 1));
+  // memset(map[0], 0xff, sizeof(int) * 3 * (2 * cmax + 1));
 
   for (int i = 0; i < 3; i++) {
     for (int ig = 0; ig < handler->cube.size[i]; ig++) {
@@ -336,7 +336,7 @@ void apply_spherical_cutoff_generic(
   int **map = handler->map;
   map[1] = map[0] + 2 * cmax + 1;
   map[2] = map[1] + 2 * cmax + 1;
-  memset(map[0], 0xff, sizeof(int) * 3 * (2 * cmax + 1));
+  //	memset(map[0], 0xff, sizeof(int) * 3 * (2 * cmax + 1));
 
   for (int i = 0; i < 3; i++) {
     for (int ig = 0; ig < handler->cube.size[i]; ig++) {
@@ -476,8 +476,8 @@ void collocate_l0(double *scratch, const double alpha, const bool orthogonal_xy,
 
 /* compute the following operation (variant) it is a tensor contraction
 
-   V_{kji} = \sum_{\alpha\beta\gamma} C_{\alpha\gamma\beta} T_{2,\alpha,i}
-   T_{1,\beta,j} T_{0,\gamma,k}
+         V_{kji} = \sum_{\alpha\beta\gamma} C_{\alpha\gamma\beta} T_{2,\alpha,i}
+         T_{1,\beta,j} T_{0,\gamma,k}
 
 */
 void tensor_reduction_for_collocate_integrate(
@@ -606,17 +606,33 @@ void tensor_reduction_for_collocate_integrate(
     }
   }
 
+  if (Exp == NULL)
+    return;
+
+  if (Exp && (!orthogonal[0] && !orthogonal[1])) {
+    tensor exp_yz;
+    tensor exp_xz;
+    initialize_tensor_2(&exp_xz, Exp->size[1], Exp->size[2]);
+    initialize_tensor_2(&exp_yz, Exp->size[1], Exp->size[2]);
+    exp_xz.data = &idx3(Exp[0], 0, 0, 0);
+    exp_yz.data = &idx3(Exp[0], 1, 0, 0);
+    apply_non_orthorombic_corrections_xz_yz_blocked(&exp_xz, &exp_yz, cube);
+    return;
+  }
+
   if (Exp && (!orthogonal[0] || !orthogonal[1])) {
-    tensor exp_xy;
-    initialize_tensor_2(&exp_xy, Exp->size[1], Exp->size[2]);
     if (!orthogonal[0]) {
-      exp_xy.data = &idx3(Exp[0], 0, 0, 0);
-      apply_non_orthorombic_corrections_xz_blocked(&exp_xy, cube);
+      tensor exp_xz;
+      initialize_tensor_2(&exp_xz, Exp->size[1], Exp->size[2]);
+      exp_xz.data = &idx3(Exp[0], 0, 0, 0);
+      apply_non_orthorombic_corrections_xz_blocked(&exp_xz, cube);
     }
 
     if (!orthogonal[1]) {
-      exp_xy.data = &idx3(Exp[0], 1, 0, 0);
-      apply_non_orthorombic_corrections_yz_blocked(&exp_xy, cube);
+      tensor exp_yz;
+      initialize_tensor_2(&exp_yz, Exp->size[1], Exp->size[2]);
+      exp_yz.data = &idx3(Exp[0], 1, 0, 0);
+      apply_non_orthorombic_corrections_yz_blocked(&exp_yz, cube);
     }
   }
 
@@ -635,7 +651,7 @@ void apply_mapping_cubic(struct collocation_integration_ *handler,
   int **map = handler->map;
   map[1] = map[0] + 2 * cmax + 1;
   map[2] = map[1] + 2 * cmax + 1;
-  memset(map[0], 0xff, sizeof(int) * 3 * (2 * cmax + 1));
+  // memset(map[0], 0xff, sizeof(int) * 3 * (2 * cmax + 1));
   for (int i = 0; i < 3; i++) {
     for (int ig = 0; ig < handler->cube.size[i]; ig++) {
       map[i][ig] = modulo(cube_center[i] + ig + lower_boundaries_cube[i] -

@@ -36,7 +36,7 @@ void extract_cube_within_spherical_cutoff_ortho(
   int **map = handler->map;
   map[1] = map[0] + 2 * cmax + 1;
   map[2] = map[1] + 2 * cmax + 1;
-  memset(map[0], 0xff, sizeof(int) * 3 * (2 * cmax + 1));
+  // memset(map[0], 0xff, sizeof(int) * 3 * (2 * cmax + 1));
 
   for (int i = 0; i < 3; i++) {
     for (int ig = 0; ig < handler->cube.size[i]; ig++) {
@@ -131,7 +131,7 @@ void extract_cube_within_spherical_cutoff_generic(
   int **map = handler->map;
   map[1] = map[0] + 2 * cmax + 1;
   map[2] = map[1] + 2 * cmax + 1;
-  memset(map[0], 0xff, sizeof(int) * 3 * (2 * cmax + 1));
+  // memset(map[0], 0xff, sizeof(int) * 3 * (2 * cmax + 1));
 
   for (int i = 0; i < 3; i++) {
     for (int ig = 0; ig < handler->cube.size[i]; ig++) {
@@ -227,7 +227,7 @@ void extract_cube_within_spherical_cutoff_generic(
             dst[x] = src[x];
           }
 
-          if (handler->grid.size[0] == handler->grid.full_size[0])
+          if (handler->grid.size[2] == handler->grid.full_size[2])
             update_loop_index(handler->grid.full_size[2], x1, &x);
           else
             x += upper_corner[2] - lower_corner[2] - 1;
@@ -486,7 +486,7 @@ void extract_cube(struct collocation_integration_ *handler, const int cmax,
   int **map = handler->map;
   map[1] = map[0] + 2 * cmax + 1;
   map[2] = map[1] + 2 * cmax + 1;
-  memset(map[0], 0xff, sizeof(int) * 3 * (2 * cmax + 1));
+  //  memset(map[0], 0xff, sizeof(int) * 3 * (2 * cmax + 1));
   for (int i = 0; i < 3; i++) {
     for (int ig = 0; ig < handler->cube.size[i]; ig++) {
       map[i][ig] = modulo(cube_center[i] + ig + lower_boundaries_cube[i] -
@@ -504,8 +504,6 @@ void extract_cube(struct collocation_integration_ *handler, const int cmax,
                             .xmax = handler->grid.window_size[1]};
   const Interval xwindow = {.xmin = handler->grid.window_shift[2],
                             .xmax = handler->grid.window_size[2]};
-
-  memset(handler->cube.data, 0, sizeof(double) * handler->cube.alloc_size_);
 
   for (int z = 0; (z < handler->cube.size[0]); z++) {
     const int z1 = map[0][z];
@@ -906,8 +904,8 @@ void integrate_one_grid_level_dgemm(
       grid_integrate(handler, ctx->orthorhombic, task->zetp, task->rp,
                      task->radius);
       /*
-        handler->coef contains coefficients in the (x - x_12) basis. now
-        we need to rotate them in the (x - x_1) (x - x_2) basis
+              handler->coef contains coefficients in the (x - x_12) basis. now
+              we need to rotate them in the (x - x_1) (x - x_2) basis
       */
 
       /* compute the transformation matrix */
