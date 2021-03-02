@@ -221,9 +221,6 @@ CONTAINS
 #if defined(__DBCSR_ACC)
       flags = TRIM(flags)//" dbcsr_acc"
 #endif
-#if defined(__HAS_LIBGRID)
-      flags = TRIM(flags)//" libgrid"
-#endif
 #if defined(__MAX_CONTR)
       CALL integer_to_string(__MAX_CONTR, tmp_str)
       flags = TRIM(flags)//" max_contr="//TRIM(tmp_str)
