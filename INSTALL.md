@@ -412,8 +412,6 @@ partially depending on installed libraries (see 2.)
 - `-D__GRID_CORE=X` (with X=1..6) specific optimized core routines can be
   selected.  Reasonable defaults are [provided](./src/grid/collocate_fast.f90)
   but trial-and-error might yield (a small ~10%) speedup.
-- `-D__HAS_LIBGRID` (and `-L/path/to/libgrid.a` in LIBS) tuned versions of
-  integrate and collocate routines can be [generated](./tools/autotune_grid/README).
 - `-D__PILAENV_BLOCKSIZE`: can be used to specify the blocksize (e.g. `-D__PILAENV_BLOCKSIZE=1024`),
   which is a hack to overwrite (if the linker allows this) the PILAENV function
   provided by Scalapack. This can lead to much improved PDGEMM performance.

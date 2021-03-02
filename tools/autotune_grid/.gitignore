@@ -1,2 +1,0 @@
-# Include all template files, even the ones matching other ignore patterns
-!*.template
