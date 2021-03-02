@@ -476,8 +476,8 @@ void collocate_l0(double *scratch, const double alpha, const bool orthogonal_xy,
 
 /* compute the following operation (variant) it is a tensor contraction
 
-         V_{kji} = \sum_{\alpha\beta\gamma} C_{\alpha\gamma\beta} T_{2,\alpha,i}
-         T_{1,\beta,j} T_{0,\gamma,k}
+                                 V_{kji} = \sum_{\alpha\beta\gamma}
+   C_{\alpha\gamma\beta} T_{2,\alpha,i} T_{1,\beta,j} T_{0,\gamma,k}
 
 */
 void tensor_reduction_for_collocate_integrate(
@@ -721,7 +721,6 @@ void apply_mapping_cubic(struct collocation_integration_ *handler,
 
             if (upper_corner[2] - lower_corner[2]) {
               const int position1[3] = {z, y, x};
-
               /* the function will internally take care of the local vx global
                * grid */
               add_sub_grid(
