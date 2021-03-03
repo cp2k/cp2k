@@ -32,7 +32,7 @@ static grid_library_config config = {.backend = GRID_BACKEND_AUTO,
  * \brief Initializes the grid library.
  * \author Ole Schuett
  ******************************************************************************/
-void grid_library_init() {
+void grid_library_init(void) {
   if (library_initialized) {
     printf("Error: Grid library was already initialized.\n");
     abort();
@@ -56,7 +56,7 @@ void grid_library_init() {
  * \brief Finalizes the grid library.
  * \author Ole Schuett
  ******************************************************************************/
-void grid_library_finalize() {
+void grid_library_finalize(void) {
   if (!library_initialized) {
     printf("Error: Grid library is not initialized.\n");
     abort();
@@ -75,7 +75,7 @@ void grid_library_finalize() {
  * \brief Returns a pointer to the thread local sphere cache.
  * \author Ole Schuett
  ******************************************************************************/
-grid_sphere_cache *grid_library_get_sphere_cache() {
+grid_sphere_cache *grid_library_get_sphere_cache(void) {
   return &per_thread_globals[omp_get_thread_num()]->sphere_cache;
 }
 
@@ -97,7 +97,7 @@ void grid_library_set_config(const enum grid_backend backend,
  * \brief Returns the library config.
  * \author Ole Schuett
  ******************************************************************************/
-grid_library_config grid_library_get_config() { return config; }
+grid_library_config grid_library_get_config(void) { return config; }
 
 /*******************************************************************************
  * \brief Adds given increment to counter specified by lp, backend, and kernel.

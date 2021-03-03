@@ -22,7 +22,7 @@
 #include "tensor_local.h"
 #include "utils.h"
 
-struct collocation_integration_ *collocate_create_handle() {
+struct collocation_integration_ *collocate_create_handle(void) {
   struct collocation_integration_ *handle = NULL;
   handle = (struct collocation_integration_ *)malloc(
       sizeof(struct collocation_integration_));
