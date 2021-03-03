@@ -16,6 +16,8 @@
 #include "../common/grid_library.h"
 #include "../common/grid_sphere_cache.h"
 
+#define GRID_MAX_LP_OPTIMIZED 9
+
 #if (GRID_DO_COLLOCATE)
 #define GRID_CONST_WHEN_COLLOCATE const
 #define GRID_CONST_WHEN_INTEGRATE
@@ -224,10 +226,9 @@ static inline void ortho_cxy_to_grid(const int lp, const int kg1, const int kg2,
     memset(cx, 0, cx_size * sizeof(double));
 
     // Generate separate branches for low values of lp gives up to 30% speedup.
-    const int MAX_LP_OPTIMIZED = 9;
-    if (lp <= MAX_LP_OPTIMIZED) {
-      GRID_PRAGMA_UNROLL(MAX_LP_OPTIMIZED + 1)
-      for (int ilp = 0; ilp <= MAX_LP_OPTIMIZED; ilp++) {
+    if (lp <= GRID_MAX_LP_OPTIMIZED) {
+      GRID_PRAGMA_UNROLL(GRID_MAX_LP_OPTIMIZED + 1)
+      for (int ilp = 0; ilp <= GRID_MAX_LP_OPTIMIZED; ilp++) {
         if (lp == ilp) {
           ortho_cxy_to_grid_low(ilp, j1, j2, kg1, kg2, jg1, jg2, cmax, pol, map,
                                 npts_local, sphere_bounds_iter, cx, cxy, grid);
