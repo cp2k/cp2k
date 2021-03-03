@@ -170,7 +170,7 @@ typedef struct collocation_integration_ {
 
 } collocation_integration;
 
-extern struct collocation_integration_ *collocate_create_handle();
+extern struct collocation_integration_ *collocate_create_handle(void);
 extern void collocate_synchronize(void *gaussian_handler);
 extern void collocate_destroy_handle(void *gaussian_handle);
 extern void calculate_collocation(void *const in);

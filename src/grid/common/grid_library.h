@@ -19,13 +19,13 @@ extern "C" {
  * \brief Initializes the grid library.
  * \author Ole Schuett
  ******************************************************************************/
-void grid_library_init();
+void grid_library_init(void);
 
 /*******************************************************************************
  * \brief Finalizes the grid library.
  * \author Ole Schuett
  ******************************************************************************/
-void grid_library_finalize();
+void grid_library_finalize(void);
 
 /*******************************************************************************
  * \brief Configuration of the grid library.
@@ -52,7 +52,7 @@ void grid_library_set_config(const enum grid_backend backend,
  * \brief Returns the library config.
  * \author Ole Schuett
  ******************************************************************************/
-grid_library_config grid_library_get_config();
+grid_library_config grid_library_get_config(void);
 
 /*******************************************************************************
  * \brief Prints statistics gathered by the grid library.
@@ -86,7 +86,7 @@ enum grid_library_kernel {
  * \brief Returns a pointer to the thread local sphere cache.
  * \author Ole Schuett
  ******************************************************************************/
-grid_sphere_cache *grid_library_get_sphere_cache();
+grid_sphere_cache *grid_library_get_sphere_cache(void);
 
 /*******************************************************************************
  * \brief Adds given increment to counter specified by lp, backend, and kernel.
