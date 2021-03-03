@@ -497,7 +497,6 @@ CONTAINS
          END DO
 
          ret = libvori_pushatoms(natom, particles_z, particles_c, particles_r(1, :), particles_r(2, :), particles_r(3, :))
-         ret = libvori_setRadii_User(100.0_dp, particles_radius)
 
          IF (ret /= 0) THEN
             CPABORT("The library returned an error. Aborting.")
@@ -579,6 +578,7 @@ CONTAINS
                ret = libvori_setRadii_Covalent()
             ELSE IF (radius_type == voro_radii_vdw) THEN
                ! Use the van der Waals radii from CP2K
+               ret = libvori_setRadii_User(100.0_dp, particles_radius)
             ELSE IF (radius_type == voro_radii_user) THEN
                ! Use the user defined atomic radii
                IF (natom /= SIZE(user_radii)) THEN
@@ -587,6 +587,8 @@ CONTAINS
                                 "match number of atoms in the input coordinate file.")
                END IF
                ret = libvori_setRadii_User(100.0_dp, user_radii)
+            ELSE
+               CPABORT("No valid radius type was specified for VORONOI")
             END IF
 
             IF (voro_sanity) THEN
