@@ -8,11 +8,12 @@
 #define GRID_COMMON_H
 
 #define GRID_STRINGIFY(SYMBOL) #SYMBOL
+#define GRID_EXPAND(ARG) ARG
 
 #if defined(__GNUC__)
-#define GRID_PRAGMA_UNROLL(N) _Pragma(GRID_STRINGIFY(GCC unroll N))
+#define GRID_PRAGMA_UNROLL(N) _Pragma(GRID_STRINGIFY(GRID_EXPAND(GCC unroll N)))
 #else
-#define GRID_PRAGMA_UNROLL(N) _Pragma(GRID_STRINGIFY(unroll(N)))
+#define GRID_PRAGMA_UNROLL(N) _Pragma(GRID_STRINGIFY(GRID_EXPAND(unroll(N))))
 #endif
 
 #if defined(__CUDACC__)
