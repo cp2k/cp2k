@@ -2787,12 +2787,12 @@ CONTAINS
                   "The atoms of this atomic kind are FLOATING BASIS FUNCTIONS."
             END IF
             IF (qs_kind%covalent_radius > 0.0_dp) THEN
-               WRITE (UNIT=output_unit, FMT="(T8,A,T71,F10.3)") &
+               WRITE (UNIT=output_unit, FMT="(/,T8,A,T71,F10.3)") &
                   "Atomic covalent radius [Angstrom]:", &
                   qs_kind%covalent_radius*angstrom
             END IF
             IF (qs_kind%vdw_radius > 0.0_dp) THEN
-               WRITE (UNIT=output_unit, FMT="(T8,A,T71,F10.3)") &
+               WRITE (UNIT=output_unit, FMT="(/,T8,A,T71,F10.3)") &
                   "Atomic van der Waals radius [Angstrom]:", &
                   qs_kind%vdw_radius*angstrom
             END IF
