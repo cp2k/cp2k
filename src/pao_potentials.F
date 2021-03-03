@@ -291,7 +291,7 @@ CONTAINS
       ! Calculate strides of sphi matrix.
       ! This matrix is in the uncontraced cartesian basis.
       ! It contains all shells of the set.
-      ! It's index runs over all primitive gaussians of the set
+      ! Its index runs over all primitive gaussians of the set
       ! and then for each gaussian over all configurations of *the entire set*. (0->lmax)
       nn1 = ncoset(basis_set%lmax(iset))
       nn2 = ncoset(basis_set%lmax(jset))
@@ -299,7 +299,7 @@ CONTAINS
       ! Calculate strides of sab matrix
       ! This matrix is also in the uncontraced cartensian basis,
       ! however it contains only a single shell.
-      ! It's index runs over all primitive gaussians of the set
+      ! Its index runs over all primitive gaussians of the set
       ! and then for each gaussian over all configrations of *the given shell*.
       l1 = basis_set%l(ishell, iset)
       l2 = basis_set%l(jshell, jset)

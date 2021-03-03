@@ -63,7 +63,7 @@ CONTAINS
          END DO
       END DO
       ! pint_env%mass is REAL, DIMENSION(NDIM) which means that each atom
-      ! has it's mass defined three times - here we hope that all three
+      ! has its mass defined three times - here we hope that all three
       ! values are equal
       tmass = tmass/3.0_dp
       com_r(:) = com_r(:)/tmass

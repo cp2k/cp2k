@@ -241,7 +241,7 @@ CONTAINS
       ! master slave not supported
       IF (para_env%num_pe == 1) THEN
          farming_env%master_slave = .FALSE.
-         WRITE (output_unit, FMT="(T2,A)") "FARMING| Master-slave setup not support for serial runs"
+         WRITE (output_unit, FMT="(T2,A)") "FARMING| Master-slave setup not supported for serial runs"
       ENDIF
       IF (farming_env%master_slave) THEN
          num_slaves = para_env%num_pe - 1

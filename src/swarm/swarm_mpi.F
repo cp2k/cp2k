@@ -335,7 +335,7 @@ CONTAINS
 
       INTEGER                                            :: dest, tag
 
-! Only rank-0 of worker group sends it's report
+! Only rank-0 of worker group sends its report
 
       IF (swarm_mpi%worker%source /= swarm_mpi%worker%mepos) RETURN
 
