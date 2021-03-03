@@ -60,7 +60,7 @@ for INPUT in "${BENCHMARKS[@]}"; do
   run_benchmark 32 1 "${INPUT_BASENAME}" "${OUTPUT_OMP}"
   cd ..
   echo ""
-  /workspace/plot_performance.py "${LABEL}" "${LABEL}" "${OUTPUT_OMP}" "${OUTPUT_MPI}"
+  /workspace/plot_performance.py 32 "${LABEL}" "${LABEL}" "${OUTPUT_OMP}" "${OUTPUT_MPI}"
   echo ""
 done
 
