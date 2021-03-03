@@ -551,7 +551,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Defines a new ordering of ranks on this realspace grid, recalculating
 !>        the data bounds and reallocating the grid.  As a result, each MPI process
-!>        now has a real rank (i.e. it's rank in the MPI communicator from the pw grid)
+!>        now has a real rank (i.e., its rank in the MPI communicator from the pw grid)
 !>        and a virtual rank (the rank of the process where the data now owned by this
 !>        process would reside in an ordinary cartesian distribution).
 !>        NB. Since the grid size required may change, the caller should be sure to release

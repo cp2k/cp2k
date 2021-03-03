@@ -127,7 +127,7 @@ CONTAINS
          IF (explicit) &
             CALL cp_warn(__LOCATION__, &
                          "A barostat has been defined with an MD ensemble which does not support barostat! "// &
-                         "It's definition will be ignored!")
+                         "Its definition will be ignored!")
       END IF
 
    END SUBROUTINE create_barostat_type
