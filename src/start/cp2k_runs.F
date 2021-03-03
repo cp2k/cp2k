@@ -196,7 +196,6 @@ CONTAINS
 
       ! DBCSR sets the GPU device, make sure it is the first GPU call
       CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit)
-      CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit)
 
       CALL cuda_nvtx_init()
 
