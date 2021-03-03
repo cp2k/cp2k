@@ -81,7 +81,7 @@ case "$with_libvdwxc" in
           --with-mpi \
           >> configure.log 2>&1
       fi
-      make -j $NPROCS > compile.log 2>&1
+      make -j $(get_nprocs) > compile.log 2>&1
       make install > compile.log 2>&1
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage7/$(basename ${SCRIPT_NAME})"
     fi

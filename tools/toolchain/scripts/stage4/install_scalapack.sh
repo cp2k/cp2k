@@ -55,7 +55,7 @@ case "$with_scalapack" in
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR="lib" \
         -DCMAKE_BUILD_TYPE=Release .. > configure.log 2>&1
-      make -j $NPROCS > make.log 2>&1
+      make -j $(get_nprocs) > make.log 2>&1
       make install >> make.log 2>&1
 
       popd > /dev/null

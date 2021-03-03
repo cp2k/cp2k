@@ -51,8 +51,8 @@ case "$with_openmpi" in
         CFLAGS="${CFLAGS} -fgnu89-inline"
       fi
       ./configure --prefix=${pkg_install_dir} --libdir="${pkg_install_dir}/lib" --enable-mpi1-compatibility CFLAGS="${CFLAGS}" > configure.log 2>&1
-      make -j $NPROCS > make.log 2>&1
-      make -j $NPROCS install > install.log 2>&1
+      make -j $(get_nprocs) > make.log 2>&1
+      make -j $(get_nprocs) install > install.log 2>&1
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage1/$(basename ${SCRIPT_NAME})"
     fi

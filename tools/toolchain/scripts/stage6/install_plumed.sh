@@ -54,7 +54,7 @@ case "$with_plumed" in
         LIBS="${libs}" \
         --prefix=${pkg_install_dir} \
         --libdir="${pkg_install_dir}/lib" > configure.log 2>&1
-      make VERBOSE=1 -j $NPROCS > make.log 2>&1
+      make VERBOSE=1 -j $(get_nprocs) > make.log 2>&1
       make install > install.log 2>&1
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage6/$(basename ${SCRIPT_NAME})"
     fi

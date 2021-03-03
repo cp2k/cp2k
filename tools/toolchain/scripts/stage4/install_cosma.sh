@@ -65,8 +65,8 @@ case "$with_cosma" in
           ;;
       esac
 
-      make -j $NPROCS > make.log 2>&1
-      make -j $NPROCS install > install.log 2>&1
+      make -j $(get_nprocs) > make.log 2>&1
+      make -j $(get_nprocs) install > install.log 2>&1
       cd ..
 
       if [ "$ENABLE_CUDA" = "__TRUE__" ]; then
@@ -95,7 +95,7 @@ case "$with_cosma" in
               -DCOSMA_WITH_APPS=NO .. > cmake.log 2>&1
             ;;
         esac
-        make -j $NPROCS > make.log 2>&1
+        make -j $(get_nprocs) > make.log 2>&1
         install -d ${pkg_install_dir}/lib/cuda
         [ -f libs/grid2grid/src/grid2grid/*.a ] && install -m 644 libs/grid2grid/src/grid2grid/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
         [ -f libs/options/*.so ] && install -m 644 libs/options/*.so ${pkg_install_dir}/lib/cuda >> install.log 2>&1

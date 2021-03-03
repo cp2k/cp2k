@@ -79,7 +79,7 @@ case "$with_libint" in
         --libdir="${pkg_install_dir}/lib" \
         > configure.log 2>&1
 
-      make -j $NPROCS > make.log 2>&1
+      make -j $(get_nprocs) > make.log 2>&1
       make install > install.log 2>&1
 
       cd ..

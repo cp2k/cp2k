@@ -42,7 +42,7 @@ case "$with_ptscotch" in
           -e "s|\(^CCD\).*|\1 = $MPICC|g" \
           -e "s|\(^CFLAGS\).*|\1 = $CFLAGS -DCOMMON_RANDOM_FIXED_SEED -DSCOTCH_RENAME -Drestrict=__restrict -DIDXSIZE64 ${MPI_CFLAGS}|g" \
           > Makefile.inc
-      make scotch -j $NPROCS > make.log 2>&1
+      make scotch -j $(get_nprocs) > make.log 2>&1
       make ptscotch -j $NROCS > make.log 2>&1
       # PT-scotch make install is buggy in that it cannot create
       # intermediate directories

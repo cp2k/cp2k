@@ -48,7 +48,7 @@ case "$with_fftw" in
       grep '\bavx2\b' /proc/cpuinfo 1> /dev/null && FFTW_FLAGS="${FFTW_FLAGS} --enable-avx2"
       grep '\bavx512f\b' /proc/cpuinfo 1> /dev/null && FFTW_FLAGS="${FFTW_FLAGS} --enable-avx512"
       ./configure --prefix=${pkg_install_dir} --libdir="${pkg_install_dir}/lib" ${FFTW_FLAGS} > configure.log 2>&1
-      make -j $NPROCS > make.log 2>&1
+      make -j $(get_nprocs) > make.log 2>&1
       make install > install.log 2>&1
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage2/$(basename ${SCRIPT_NAME})"

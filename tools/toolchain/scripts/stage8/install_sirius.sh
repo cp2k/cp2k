@@ -138,7 +138,7 @@ case "$with_sirius" in
         -DUSE_ELPA=OFF \
         ${COMPILATION_OPTIONS} .. > compile.log 2>&1
 
-      make -j $NPROCS -C src >> compile.log 2>&1
+      make -j $(get_nprocs) -C src >> compile.log 2>&1
 
       install -d ${pkg_install_dir}/include >> install.log 2>&1
       install -d ${pkg_install_dir}/lib >> install.log 2>&1
@@ -163,7 +163,7 @@ case "$with_sirius" in
           -DBUILD_SHARED_LIBS=OFF \
           -DCMAKE_CXX_COMPILER="${MPICXX}" \
           -DCMAKE_C_COMPILER="${MPICC}" ${COMPILATION_OPTIONS} .. >> compile.log 2>&1
-        make -j $NPROCS -C src >> compile.log 2>&1
+        make -j $(get_nprocs) -C src >> compile.log 2>&1
         install -d ${pkg_install_dir}/lib/cuda
         install -d ${pkg_install_dir}/include/cuda
         install -m 644 src/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1

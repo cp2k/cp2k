@@ -48,7 +48,7 @@ case "$with_openblas" in
       # wrt NUM_THREADS=64: this is what the most common Linux distros seem to choose atm
       #                     for a good compromise between memory usage and scalability
       (
-        make -j $NPROCS \
+        make -j $(get_nprocs) \
           MAKE_NB_JOBS=0 \
           NUM_THREADS=64 \
           USE_THREAD=1 \
@@ -58,7 +58,7 @@ case "$with_openblas" in
           PREFIX="${pkg_install_dir}" \
           > make.log 2>&1
       ) || (
-        make -j $NPROCS \
+        make -j $(get_nprocs) \
           MAKE_NB_JOBS=0 \
           TARGET=NEHALEM \
           NUM_THREADS=64 \
@@ -69,7 +69,7 @@ case "$with_openblas" in
           PREFIX="${pkg_install_dir}" \
           > make.nehalem.log 2>&1
       )
-      make -j $NPROCS \
+      make -j $(get_nprocs) \
         MAKE_NB_JOBS=0 \
         NUM_THREADS=64 \
         USE_THREAD=1 \

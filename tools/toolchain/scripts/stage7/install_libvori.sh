@@ -47,9 +47,9 @@ case "${with_libvori:=__INSTALL__}" in
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=TRUE \
         .. > cmake.log 2>&1
-      CMAKE_BUILD_PARALLEL_LEVEL="${NPROCS}" cmake --build . > build.log 2>&1
-      CMAKE_BUILD_PARALLEL_LEVEL="${NPROCS}" cmake --build . --target test > test.log 2>&1
-      CMAKE_BUILD_PARALLEL_LEVEL="${NPROCS}" cmake --build . --target install > install.log 2>&1
+      CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . > build.log 2>&1
+      CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . --target test > test.log 2>&1
+      CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . --target install > install.log 2>&1
 
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage7/$(basename "${SCRIPT_NAME}")"
     fi

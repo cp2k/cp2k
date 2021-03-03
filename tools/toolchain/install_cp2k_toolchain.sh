@@ -338,9 +338,6 @@ else
   export MPI_MODE=no
 fi
 
-# number of processors to use
-export NPROCS=$(get_nprocs)
-
 # default enable options
 dry_run=__FALSE__
 enable_tsan=__FALSE__
@@ -384,7 +381,7 @@ while [ $# -ge 1 ]; do
   case $1 in
     -j)
       shift
-      export NPROCS=$1
+      export NPROCS_OVERWRITE=$1
       ;;
     --no-check-certificate)
       export DOWNLOADER_FLAGS="-n"
@@ -865,7 +862,7 @@ fi
 # Installing tools required for building CP2K and associated libraries
 # ------------------------------------------------------------------------
 
-echo "Compiling with $NPROCS processes."
+echo "Compiling with $(get_nprocs) processes."
 
 # set environment for compiling compilers and tools required for CP2K
 # and libraries it depends on
