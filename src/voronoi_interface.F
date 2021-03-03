@@ -70,59 +70,59 @@ MODULE voronoi_interface
 
       INTEGER(C_INT) FUNCTION libvori_setBQBSkipFirst(i) BIND(C, NAME='libvori_setBQBSkipFirst')
          USE ISO_C_BINDING, ONLY: C_INT
-         IMPLICIT NONE
-         INTEGER(C_INT), VALUE :: i
+      INTEGER(C_INT), VALUE                              :: i
+
       END FUNCTION libvori_setBQBSkipFirst
 
       INTEGER(C_INT) FUNCTION libvori_setBQBStoreStep(i) BIND(C, NAME='libvori_setBQBStoreStep')
          USE ISO_C_BINDING, ONLY: C_INT
-         IMPLICIT NONE
-         INTEGER(C_INT), VALUE :: i
+      INTEGER(C_INT), VALUE                              :: i
+
       END FUNCTION libvori_setBQBStoreStep
 
       INTEGER(C_INT) FUNCTION libvori_setVoronoiSkipFirst(i) BIND(C, NAME='libvori_setVoronoiSkipFirst')
          USE ISO_C_BINDING, ONLY: C_INT
-         IMPLICIT NONE
-         INTEGER(C_INT), VALUE :: i
+      INTEGER(C_INT), VALUE                              :: i
+
       END FUNCTION libvori_setVoronoiSkipFirst
 
       INTEGER(C_INT) FUNCTION libvori_setBQBCheck(i) BIND(C, NAME='libvori_setBQBCheck')
          USE ISO_C_BINDING, ONLY: C_INT
-         IMPLICIT NONE
-         INTEGER(C_INT), VALUE :: i
+      INTEGER(C_INT), VALUE                              :: i
+
       END FUNCTION libvori_setBQBCheck
 
       INTEGER(C_INT) FUNCTION libvori_setBQBFilename(len, s) BIND(C, NAME='libvori_setBQBFilename')
          USE ISO_C_BINDING, ONLY: C_INT, C_CHAR
-         IMPLICIT NONE
-         INTEGER(C_INT), VALUE :: len
-         CHARACTER(C_CHAR) :: s(*)
+      INTEGER(C_INT), VALUE                              :: len
+      CHARACTER(C_CHAR)                                  :: s(*)
+
       END FUNCTION libvori_setBQBFilename
 
       INTEGER(C_INT) FUNCTION libvori_setBQBParmString(len, s) BIND(C, NAME='libvori_setBQBParmString')
          USE ISO_C_BINDING, ONLY: C_INT, C_CHAR
-         IMPLICIT NONE
-         INTEGER(C_INT), VALUE :: len
-         CHARACTER(C_CHAR) :: s(*)
+      INTEGER(C_INT), VALUE                              :: len
+      CHARACTER(C_CHAR)                                  :: s(*)
+
       END FUNCTION libvori_setBQBParmString
 
       INTEGER(C_INT) FUNCTION libvori_setBQBHistory(i) BIND(C, NAME='libvori_setBQBHistory')
          USE ISO_C_BINDING, ONLY: C_INT
-         IMPLICIT NONE
-         INTEGER(C_INT), VALUE :: i
+      INTEGER(C_INT), VALUE                              :: i
+
       END FUNCTION libvori_setBQBHistory
 
       INTEGER(C_INT) FUNCTION libvori_setBQBOptimization(i) BIND(C, NAME='libvori_setBQBOptimization')
          USE ISO_C_BINDING, ONLY: C_INT
-         IMPLICIT NONE
-         INTEGER(C_INT), VALUE :: i
+      INTEGER(C_INT), VALUE                              :: i
+
       END FUNCTION libvori_setBQBOptimization
 
       INTEGER(C_INT) FUNCTION libvori_processBQBFrame(step, t) BIND(C, NAME='libvori_processBQBFrame')
          USE ISO_C_BINDING, ONLY: C_INT, C_DOUBLE
-         IMPLICIT NONE
-         INTEGER(C_INT), VALUE :: step
-         REAL(C_DOUBLE), VALUE :: t
+      INTEGER(C_INT), VALUE                              :: step
+      REAL(C_DOUBLE), VALUE                              :: t
+
       END FUNCTION libvori_processBQBFrame
 
       INTEGER(C_INT) FUNCTION libvori_setPrefix_Voronoi() BIND(C, NAME='libvori_setPrefix_Voronoi')
@@ -135,13 +135,14 @@ MODULE voronoi_interface
 
       INTEGER(C_INT) FUNCTION libvori_setRefinementFactor(i) BIND(C, NAME='libvori_setRefinementFactor')
          USE ISO_C_BINDING, ONLY: C_INT
-         INTEGER(C_INT), VALUE :: i
+      INTEGER(C_INT), VALUE                              :: i
+
       END FUNCTION libvori_setRefinementFactor
 
       INTEGER(C_INT) FUNCTION libvori_setEMPOutput(i) BIND(C, NAME='libvori_setEMPOutput')
          USE ISO_C_BINDING, ONLY: C_INT
-         IMPLICIT NONE
-         INTEGER(C_INT), VALUE :: i
+      INTEGER(C_INT), VALUE                              :: i
+
       END FUNCTION libvori_setEMPOutput
 
       INTEGER(C_INT) FUNCTION libvori_setPrintLevel_Verbose() BIND(C, NAME='libvori_setPrintLevel_Verbose')
@@ -158,115 +159,105 @@ MODULE voronoi_interface
 
       INTEGER(C_INT) FUNCTION libvori_setRadii_User(factor, rad) BIND(C, NAME='libvori_setRadii_User')
          USE ISO_C_BINDING, ONLY: C_INT, C_DOUBLE
-         IMPLICIT NONE
-         REAL(C_DOUBLE), VALUE :: factor
-         REAL(C_DOUBLE) :: rad(*)
+      REAL(C_DOUBLE), VALUE                              :: factor
+      REAL(C_DOUBLE)                                     :: rad(*)
+
       END FUNCTION libvori_setRadii_User
 
       INTEGER(C_INT) FUNCTION libvori_step(step, t) BIND(C, NAME='libvori_step')
          USE ISO_C_BINDING, ONLY: C_INT, C_DOUBLE
-         IMPLICIT NONE
-         INTEGER(C_INT), VALUE :: step
-         REAL(C_DOUBLE), VALUE :: t
+      INTEGER(C_INT), VALUE                              :: step
+      REAL(C_DOUBLE), VALUE                              :: t
+
       END FUNCTION libvori_step
 
       INTEGER(C_INT) FUNCTION libvori_sanitycheck(step, t) BIND(C, NAME='libvori_sanitycheck')
          USE ISO_C_BINDING, ONLY: C_INT, C_DOUBLE
-         IMPLICIT NONE
-         INTEGER(C_INT), VALUE :: step
-         REAL(C_DOUBLE), VALUE :: t
+      INTEGER(C_INT), VALUE                              :: step
+      REAL(C_DOUBLE), VALUE                              :: t
+
       END FUNCTION libvori_sanitycheck
 
       INTEGER(C_INT) FUNCTION libvori_setGrid(rx, ry, rz, ax, ay, az, bx, by, bz, cx, cy, cz, tax, tay, taz, tbx, tby, tbz, &
                                               tcx, tcy, tcz) BIND(C, NAME='libvori_setGrid')
          USE ISO_C_BINDING, ONLY: C_INT, C_DOUBLE
-         IMPLICIT NONE
-         INTEGER(C_INT), VALUE :: rx, ry, rz
-         REAL(C_DOUBLE), VALUE :: ax, ay, az, bx, by, bz, cx, cy, cz
-         REAL(C_DOUBLE), VALUE :: tax, tay, taz, tbx, tby, tbz, tcx, tcy, tcz
+      INTEGER(C_INT), VALUE                              :: rx, ry, rz
+      REAL(C_DOUBLE), VALUE                              :: ax, ay, az, bx, by, bz, cx, cy, cz, tax, &
+                                                            tay, taz, tbx, tby, tbz, tcx, tcy, tcz
+
       END FUNCTION libvori_setGrid
 
       INTEGER(C_INT) FUNCTION libvori_pushAtoms(n, pord, pchg, posx, posy, posz) BIND(C, NAME='libvori_pushAtoms')
          USE ISO_C_BINDING, ONLY: C_INT, C_DOUBLE
-         IMPLICIT NONE
-         INTEGER(C_INT), VALUE :: n
-         INTEGER(C_INT) :: pord(*)
-         REAL(C_DOUBLE) :: pchg(*)
-         REAL(C_DOUBLE) :: posx(*)
-         REAL(C_DOUBLE) :: posy(*)
-         REAL(C_DOUBLE) :: posz(*)
+      INTEGER(C_INT), VALUE                              :: n
+      INTEGER(C_INT)                                     :: pord(*)
+      REAL(C_DOUBLE)                                     :: pchg(*), posx(*), posy(*), posz(*)
+
       END FUNCTION libvori_pushAtoms
 
       INTEGER(C_INT) FUNCTION libvori_push_rho_zrow(ix, iy, length, buf) BIND(C, NAME='libvori_push_rho_zrow')
          USE ISO_C_BINDING, ONLY: C_INT, C_DOUBLE
-         IMPLICIT NONE
-         INTEGER(C_INT), VALUE :: ix
-         INTEGER(C_INT), VALUE :: iy
-         INTEGER(C_INT), VALUE :: length
-         REAL(C_DOUBLE) :: buf(*)
+      INTEGER(C_INT), VALUE                              :: ix, iy, length
+      REAL(C_DOUBLE)                                     :: buf(*)
+
       END FUNCTION libvori_push_rho_zrow
 
       INTEGER(C_INT) FUNCTION libvori_setBQBOverwrite(i) BIND(C, NAME='libvori_setBQBOverwrite')
          USE ISO_C_BINDING, ONLY: C_INT
-         IMPLICIT NONE
-         INTEGER(C_INT), VALUE :: i
+      INTEGER(C_INT), VALUE                              :: i
+
       END FUNCTION libvori_setBQBOverwrite
 
       INTEGER(C_INT) FUNCTION libvori_setVoriOverwrite(i) BIND(C, NAME='libvori_setVoriOverwrite')
          USE ISO_C_BINDING, ONLY: C_INT
-         IMPLICIT NONE
-         INTEGER(C_INT), VALUE :: i
+      INTEGER(C_INT), VALUE                              :: i
+
       END FUNCTION libvori_setVoriOverwrite
 
       INTEGER(C_INT) FUNCTION libvori_get_radius(length, buf) BIND(C, NAME='libvori_get_radius')
          USE ISO_C_BINDING, ONLY: C_INT, C_DOUBLE
-         IMPLICIT NONE
-         INTEGER(C_INT), VALUE :: length
-         REAL(C_DOUBLE) :: buf(*)
+      INTEGER(C_INT), VALUE                              :: length
+      REAL(C_DOUBLE)                                     :: buf(*)
+
       END FUNCTION libvori_get_radius
 
       INTEGER(C_INT) FUNCTION libvori_get_charge(length, buf) BIND(C, NAME='libvori_get_charge')
          USE ISO_C_BINDING, ONLY: C_INT, C_DOUBLE
-         IMPLICIT NONE
-         INTEGER(C_INT), VALUE :: length
-         REAL(C_DOUBLE) :: buf(*)
+      INTEGER(C_INT), VALUE                              :: length
+      REAL(C_DOUBLE)                                     :: buf(*)
+
       END FUNCTION libvori_get_charge
 
       INTEGER(C_INT) FUNCTION libvori_get_dipole(component, length, buf) BIND(C, NAME='libvori_get_dipole')
          USE ISO_C_BINDING, ONLY: C_INT, C_DOUBLE
-         IMPLICIT NONE
-         INTEGER(C_INT), VALUE :: component
-         INTEGER(C_INT), VALUE :: length
-         REAL(C_DOUBLE) :: buf(*)
+      INTEGER(C_INT), VALUE                              :: component, length
+      REAL(C_DOUBLE)                                     :: buf(*)
+
       END FUNCTION libvori_get_dipole
 
       INTEGER(C_INT) FUNCTION libvori_get_quadrupole(component, length, buf) BIND(C, NAME='libvori_get_quadrupole')
          USE ISO_C_BINDING, ONLY: C_INT, C_DOUBLE
-         IMPLICIT NONE
-         INTEGER(C_INT), VALUE :: component
-         INTEGER(C_INT), VALUE :: length
-         REAL(C_DOUBLE) :: buf(*)
+      INTEGER(C_INT), VALUE                              :: component, length
+      REAL(C_DOUBLE)                                     :: buf(*)
+
       END FUNCTION libvori_get_quadrupole
 
       INTEGER(C_INT) FUNCTION libvori_get_wrapped_pos(component, length, buf) BIND(C, NAME='libvori_get_wrapped_pos')
          USE ISO_C_BINDING, ONLY: C_INT, C_DOUBLE
-         IMPLICIT NONE
-         INTEGER(C_INT), VALUE :: component
-         INTEGER(C_INT), VALUE :: length
-         REAL(C_DOUBLE) :: buf(*)
+      INTEGER(C_INT), VALUE                              :: component, length
+      REAL(C_DOUBLE)                                     :: buf(*)
+
       END FUNCTION libvori_get_wrapped_pos
 
       INTEGER(C_INT) FUNCTION libvori_get_charge_center(component, length, buf) BIND(C, NAME='libvori_get_charge_center')
          USE ISO_C_BINDING, ONLY: C_INT, C_DOUBLE
-         IMPLICIT NONE
-         INTEGER(C_INT), VALUE :: component
-         INTEGER(C_INT), VALUE :: length
-         REAL(C_DOUBLE) :: buf(*)
+      INTEGER(C_INT), VALUE                              :: component, length
+      REAL(C_DOUBLE)                                     :: buf(*)
+
       END FUNCTION libvori_get_charge_center
 
       INTEGER(C_INT) FUNCTION libvori_finalize() BIND(C, NAME='libvori_finalize')
          USE ISO_C_BINDING, ONLY: C_INT
-         IMPLICIT NONE
       END FUNCTION libvori_finalize
    END INTERFACE
 
@@ -642,12 +633,13 @@ CONTAINS
             IF (unit_voro > 0) THEN
                WRITE (unit_voro, FMT="(A,I8,A,F12.4,A)") "# Simulation step ", sim_step, ",  Simulation time ", &
                   sim_time*femtoseconds, " fs"
-               WRITE (unit_voro, FMT="(A)") "#   ID   Ord              Radius                PosX                PosY    &
-                   &            PosZ              &
-                   &  Core              Charge                DipX                DipY                DipZ         &
-                   & ChgCenterX          ChgCenterY          ChgCenterZ              QuadXX              QuadXY             &
-                   & QuadXZ              QuadYX              QuadYY&
-                   &              QuadYZ              QuadZX              QuadZY              QuadZZ"
+               WRITE (unit_voro, FMT="(A,21A20)") "# Atom     Z", &
+                  "Radius", "Position(X)", "Position(Y)", "Position(Z)", &
+                  "Z(eff)", "Charge", "Dipole(X)", "Dipole(Y)", "Dipole(Z)", &
+                  "ChargeCenter(X)", "ChargeCenter(Y)", "ChargeCenter(Z)", &
+                  "Quadrupole(XX)", "Quadrupole(XY)", "Quadrupole(XZ)", &
+                  "Quadrupole(YX)", "Quadrupole(YY)", "Quadrupole(YZ)", &
+                  "Quadrupole(ZX)", "Quadrupole(ZY)", "Quadrupole(ZZ)"
                DO i1 = 1, natom
                   WRITE (unit_voro, FMT="(2I6,21F20.10)") &
                      i1, &
