@@ -62,11 +62,11 @@ case "$with_gcc" in
         --enable-lto \
         --enable-plugins \
         > configure.log 2>&1
-      make -j $NPROCS \
+      make -j $(get_nprocs) \
         CFLAGS="-fPIC $CFLAGS" \
         CXXFLAGS="-fPIC $CXXFLAGS" \
         > make.log 2>&1
-      make -j $NPROCS install > install.log 2>&1
+      make -j $(get_nprocs) install > install.log 2>&1
       # thread sanitizer
       if [ $ENABLE_TSAN = "__TRUE__" ]; then
         # now the tricky bit... we need to recompile in particular
@@ -78,7 +78,7 @@ case "$with_gcc" in
         # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=55374#c10
         cd x86_64*/libgfortran
         make clean > clean.log 2>&1
-        make -j $NPROCS \
+        make -j $(get_nprocs) \
           CFLAGS="-std=gnu99 -g -O2 -fsanitize=thread " \
           FCFLAGS="-g -O2 -fsanitize=thread" \
           CXXFLAGS="-std=gnu99 -g -O2 -fsanitize=thread " \
@@ -87,7 +87,7 @@ case "$with_gcc" in
         make install > install.log 2>&1
         cd ../libgomp
         make clean > clean.log 2>&1
-        make -j $NPROCS \
+        make -j $(get_nprocs) \
           CFLAGS="-std=gnu99 -g -O2 -fsanitize=thread " \
           FCFLAGS="-g -O2 -fsanitize=thread" \
           CXXFLAGS="-std=gnu99 -g -O2 -fsanitize=thread " \

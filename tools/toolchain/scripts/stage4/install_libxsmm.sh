@@ -57,7 +57,7 @@ EOF
       # stage of building an executable that uses the libxsmm
       # library
       cd libxsmm-${libxsmm_ver}
-      make -j $NPROCS \
+      make -j $(get_nprocs) \
         MALLOC=0 \
         INTRINSICS=1 \
         CXX=$CXX \
@@ -65,7 +65,7 @@ EOF
         FC=$FC \
         PREFIX=${pkg_install_dir} \
         > make.log 2>&1
-      make -j $NPROCS \
+      make -j $(get_nprocs) \
         MALLOC=0 \
         INTRINSICS=1 \
         CXX=$CXX \

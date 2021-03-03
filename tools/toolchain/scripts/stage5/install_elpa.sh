@@ -117,7 +117,7 @@ case "$with_elpa" in
           LDFLAGS="-Wl,--enable-new-dtags ${MATH_LDFLAGS} ${SCALAPACK_LDFLAGS} ${cray_ldflags}" \
           LIBS="${SCALAPACK_LIBS} ${MATH_LIBS}" \
           > configure.log 2>&1
-        make -j $NPROCS ${ELPA_MAKEOPTS} > make.log 2>&1
+        make -j $(get_nprocs) ${ELPA_MAKEOPTS} > make.log 2>&1
         make install > install.log 2>&1
         cd ..
       done

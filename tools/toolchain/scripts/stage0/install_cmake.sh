@@ -41,8 +41,8 @@ case "$with_cmake" in
         cp CMakeLists.txt CMakeLists.txt.orig
         sed -i 's/option(BUILD_CursesDialog "Build the CMake Curses Dialog ccmake" ON)/option(BUILD_CursesDialog "Build the CMake Curses Dialog ccmake" OFF)/g' CMakeLists.txt
       fi
-      ./bootstrap --prefix="${pkg_install_dir}" --parallel="${NPROCS}" -- -DCMAKE_USE_OPENSSL=OFF > configure.log 2>&1
-      make -j $NPROCS > make.log 2>&1
+      ./bootstrap --prefix="${pkg_install_dir}" --parallel="$(get_nprocs)" -- -DCMAKE_USE_OPENSSL=OFF > configure.log 2>&1
+      make -j $(get_nprocs) > make.log 2>&1
       make install > install.log 2>&1
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage0/$(basename ${SCRIPT_NAME})"

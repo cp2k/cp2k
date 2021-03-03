@@ -135,7 +135,9 @@ reverse() (
 
 # get the number of processes available for compilation
 get_nprocs() {
-  if $(command -v nproc >&- 2>&-); then
+  if [ -n "${NPROCS_OVERWRITE}" ]; then
+    echo "${NPROCS_OVERWRITE}"
+  elif $(command -v nproc >&- 2>&-); then
     echo $(nproc --all)
   else
     echo 1
