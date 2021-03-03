@@ -93,10 +93,11 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: print_atoms
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_create', routineP = moduleN//':'//routineN
-
+#ifdef __SPGLIB
       CHARACTER(LEN=1000)                                :: buffer
-      INTEGER                                            :: handle, i, ierr, j, n_sr_rep, nchars, &
-                                                            nop, tra_mat(3, 3)
+      INTEGER                                            :: ierr, nchars, nop, tra_mat(3, 3)
+#endif
+      INTEGER                                            :: handle, i, j, n_sr_rep
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: tmp_types
       LOGICAL                                            :: spglib
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: tmp_coor
