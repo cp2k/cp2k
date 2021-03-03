@@ -1663,17 +1663,13 @@ CONTAINS
          qs_kind%covalent_radius = ptable(z)%covalent_radius*bohr
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="COVALENT_RADIUS", r_val=r)
-         IF (r > 0.0_dp) THEN
-            qs_kind%covalent_radius = r*bohr
-         END IF
+         IF (r > 0.0_dp) qs_kind%covalent_radius = r
 
          ! Assign atomic van der Waals radius
          qs_kind%vdw_radius = ptable(z)%vdw_radius*bohr
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="VDW_RADIUS", r_val=r)
-         IF (r > 0.0_dp) THEN
-            qs_kind%vdw_radius = r*bohr
-         END IF
+         IF (r > 0.0_dp) qs_kind%vdw_radius = r
 
          ! Assign atom dependent defaults, only H special case
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, n_rep_val=i, &
