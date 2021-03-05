@@ -23,7 +23,7 @@
 
     &SCF
       MAX_SCF   40
-      EPS_SCF   1e-6
+      EPS_SCF   1e-5
       SCF_GUESS atomic
       ADDED_MOS 5
     &END SCF
@@ -48,7 +48,7 @@
 
   &SUBSYS
     &CELL
-      ABC 8.0 8.0 8.0
+      ABC 5.5 5.5 5.5
     &END CELL
 
     &COORD

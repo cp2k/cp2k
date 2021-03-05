@@ -41,7 +41,7 @@
 
   &SUBSYS
     &CELL
-      ABC 8.0 8.0 8.0
+      ABC 6.0 6.0 6.0
     &END CELL
 
     &COORD

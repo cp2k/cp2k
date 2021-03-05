@@ -55,7 +55,7 @@
     &END TOPOLOGY
 
     &CELL
-      ABC 9.0 9.0 9.0
+      ABC 6.0 6.0 6.0
       PERIODIC NONE
     &END CELL
 
