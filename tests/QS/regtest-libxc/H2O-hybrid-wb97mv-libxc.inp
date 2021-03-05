@@ -4,7 +4,7 @@
     BASIS_SET_FILE_NAME EMSL_BASIS_SETS
     POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
-      CUTOFF 250
+      CUTOFF 200
       REL_CUTOFF 50
     &END MGRID
     &QS
@@ -46,7 +46,7 @@
            PARAMETERS 6.0 0.01
            VERBOSE_OUTPUT
            KERNEL_FILE_NAME rVV10_kernel_table.dat
-           CUTOFF 100
+           CUTOFF 30
          &END NON_LOCAL
       &END vdW_POTENTIAL
     &END XC

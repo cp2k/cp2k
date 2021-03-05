@@ -22,7 +22,7 @@
   METHOD Quickstep
   &DFT
     &MGRID
-      CUTOFF    290
+      CUTOFF    200
       REL_CUTOFF 40
     &END MGRID
     &QS
@@ -65,7 +65,7 @@
   &SUBSYS
     &CELL
        ! ABC 9.8528 9.8528 9.8528
-       ABC 6.0 6.0 6.0
+       ABC 5.0 5.0 5.0
     &END CELL
     &COORD
        O  7.06151e+00  9.49296e+00  5.05644e+00
