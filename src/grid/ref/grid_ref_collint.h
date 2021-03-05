@@ -32,19 +32,15 @@
  ******************************************************************************/
 static inline void __attribute__((always_inline))
 ortho_reg_to_grid(const int kg1, const int kg2, const int jg1, const int jg2,
-                  const int ig1, const int ig2, const int npts_local[3],
+                  const int ig, const int npts_local[3],
                   GRID_CONST_WHEN_COLLOCATE double *reg,
                   GRID_CONST_WHEN_INTEGRATE double *grid) {
 
   const int stride = npts_local[1] * npts_local[0];
-  const int grid_index_0 = kg1 * stride + jg1 * npts_local[0] + ig1;
-  const int grid_index_1 = kg2 * stride + jg1 * npts_local[0] + ig1;
-  const int grid_index_2 = kg1 * stride + jg2 * npts_local[0] + ig1;
-  const int grid_index_3 = kg2 * stride + jg2 * npts_local[0] + ig1;
-  const int grid_index_4 = kg1 * stride + jg1 * npts_local[0] + ig2;
-  const int grid_index_5 = kg2 * stride + jg1 * npts_local[0] + ig2;
-  const int grid_index_6 = kg1 * stride + jg2 * npts_local[0] + ig2;
-  const int grid_index_7 = kg2 * stride + jg2 * npts_local[0] + ig2;
+  const int grid_index_0 = kg1 * stride + jg1 * npts_local[0] + ig;
+  const int grid_index_1 = kg2 * stride + jg1 * npts_local[0] + ig;
+  const int grid_index_2 = kg1 * stride + jg2 * npts_local[0] + ig;
+  const int grid_index_3 = kg2 * stride + jg2 * npts_local[0] + ig;
 
 #if (GRID_DO_COLLOCATE)
   // collocate
@@ -52,20 +48,12 @@ ortho_reg_to_grid(const int kg1, const int kg2, const int jg1, const int jg2,
   grid[grid_index_1] += reg[1];
   grid[grid_index_2] += reg[2];
   grid[grid_index_3] += reg[3];
-  grid[grid_index_4] += reg[4];
-  grid[grid_index_5] += reg[5];
-  grid[grid_index_6] += reg[6];
-  grid[grid_index_7] += reg[7];
 #else
   // integrate
   reg[0] += grid[grid_index_0];
   reg[1] += grid[grid_index_1];
   reg[2] += grid[grid_index_2];
   reg[3] += grid[grid_index_3];
-  reg[4] += grid[grid_index_4];
-  reg[5] += grid[grid_index_5];
-  reg[6] += grid[grid_index_6];
-  reg[7] += grid[grid_index_7];
 #endif
 }
 
@@ -74,35 +62,26 @@ ortho_reg_to_grid(const int kg1, const int kg2, const int jg1, const int jg2,
  * \author Ole Schuett
  ******************************************************************************/
 static inline void __attribute__((always_inline))
-ortho_cx_to_reg(const int lp, const int i1, const int i2, const int cmax,
+ortho_cx_to_reg(const int lp, const int i, const int cmax,
                 const double pol[3][lp + 1][2 * cmax + 1],
                 GRID_CONST_WHEN_COLLOCATE double *cx,
                 GRID_CONST_WHEN_INTEGRATE double *reg) {
 
   for (int lxp = 0; lxp <= lp; lxp++) {
-    const double p1 = pol[0][lxp][i1 + cmax];
-    const double p2 = pol[0][lxp][i2 + cmax];
+    const double p = pol[0][lxp][i + cmax];
 
 #if (GRID_DO_COLLOCATE)
     // collocate
-    reg[0] += cx[lxp * 4 + 0] * p1;
-    reg[1] += cx[lxp * 4 + 1] * p1;
-    reg[2] += cx[lxp * 4 + 2] * p1;
-    reg[3] += cx[lxp * 4 + 3] * p1;
-    reg[4] += cx[lxp * 4 + 0] * p2;
-    reg[5] += cx[lxp * 4 + 1] * p2;
-    reg[6] += cx[lxp * 4 + 2] * p2;
-    reg[7] += cx[lxp * 4 + 3] * p2;
+    reg[0] += cx[lxp * 4 + 0] * p;
+    reg[1] += cx[lxp * 4 + 1] * p;
+    reg[2] += cx[lxp * 4 + 2] * p;
+    reg[3] += cx[lxp * 4 + 3] * p;
 #else
     // integrate
-    cx[lxp * 4 + 0] += reg[0] * p1;
-    cx[lxp * 4 + 1] += reg[1] * p1;
-    cx[lxp * 4 + 2] += reg[2] * p1;
-    cx[lxp * 4 + 3] += reg[3] * p1;
-    cx[lxp * 4 + 0] += reg[4] * p2;
-    cx[lxp * 4 + 1] += reg[5] * p2;
-    cx[lxp * 4 + 2] += reg[6] * p2;
-    cx[lxp * 4 + 3] += reg[7] * p2;
+    cx[lxp * 4 + 0] += reg[0] * p;
+    cx[lxp * 4 + 1] += reg[1] * p;
+    cx[lxp * 4 + 2] += reg[2] * p;
+    cx[lxp * 4 + 3] += reg[3] * p;
 #endif
   }
 }
@@ -119,23 +98,22 @@ ortho_cx_to_grid(const int lp, const int kg1, const int kg2, const int jg1,
                  int **sphere_bounds_iter, GRID_CONST_WHEN_COLLOCATE double *cx,
                  GRID_CONST_WHEN_INTEGRATE double *grid) {
 
-  const int istart = *((*sphere_bounds_iter)++);
-  for (int i1 = istart; i1 <= 0; i1++) {
-    const int i2 = 1 - i1;
-    const int ig1 = map[0][i1 + cmax];
-    const int ig2 = map[0][i2 + cmax];
+  const int lb = *((*sphere_bounds_iter)++);
+  const int ub = 1 - lb;
+  for (int i = lb; i <= ub; i++) {
+    const int ig = map[0][i + cmax];
 
     // In all likelihood the compiler will keep these variables in registers.
-    double reg[8] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+    double reg[4] = {0.0, 0.0, 0.0, 0.0};
 
 #if (GRID_DO_COLLOCATE)
     // collocate
-    ortho_cx_to_reg(lp, i1, i2, cmax, pol, cx, reg);
-    ortho_reg_to_grid(kg1, kg2, jg1, jg2, ig1, ig2, npts_local, reg, grid);
+    ortho_cx_to_reg(lp, i, cmax, pol, cx, reg);
+    ortho_reg_to_grid(kg1, kg2, jg1, jg2, ig, npts_local, reg, grid);
 #else
     // integrate
-    ortho_reg_to_grid(kg1, kg2, jg1, jg2, ig1, ig2, npts_local, reg, grid);
-    ortho_cx_to_reg(lp, i1, i2, cmax, pol, cx, reg);
+    ortho_reg_to_grid(kg1, kg2, jg1, jg2, ig, npts_local, reg, grid);
+    ortho_cx_to_reg(lp, i, cmax, pol, cx, reg);
 #endif
   }
 }
