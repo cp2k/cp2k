@@ -30,7 +30,7 @@ def main():
     plot = f"{label}_timings_{nprocs}omp"
     print(f'Plot: name="{plot}", title="{full_title}", ylabel="time [s]"')
     for r in ["rest"] + routines:
-        t = timings_omp[r]
+        t = timings_omp.get(r, 0.0)
         print(f'PlotPoint: plot="{plot}", name="{r}", label="{r}", y={t}, yerr=0.0')
     print("")
 
@@ -38,7 +38,7 @@ def main():
     plot = f"{label}_timings_{nprocs}mpi"
     print(f'Plot: name="{plot}", title="{full_title}", ylabel="time [s]"')
     for r in ["rest"] + routines:
-        t = timings_mpi[r]
+        t = timings_mpi.get(r, 0.0)
         print(f'PlotPoint: plot="{plot}", name="{r}", label="{r}", y={t}, yerr=0.0')
     print("")
 
