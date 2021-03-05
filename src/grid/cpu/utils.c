@@ -620,7 +620,7 @@ void compute_interval(const int *const map, const int full_size, const int size,
     // window of interest and is also equal to the previous point + 1. The last
     // check is pointless in practice.
 
-    for (int i = *x + 1; (i < size) && (*upper_corner == map[i]) &&
+    for (int i = *x + 1; (i < cube_size) && (*upper_corner == map[i]) &&
                          is_point_in_interval(map[i], window);
          i++) {
       (*upper_corner)++;
