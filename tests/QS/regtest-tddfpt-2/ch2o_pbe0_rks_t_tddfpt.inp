@@ -62,7 +62,7 @@
     &END TOPOLOGY
 
     &CELL
-      ABC 9.0 9.0 9.0
+      ABC 6.0 6.0 6.0
       PERIODIC NONE
     &END CELL
 
@@ -74,15 +74,15 @@
     &END COORD
 
     &KIND O
-      BASIS_SET aug-TZV2P-GTH
+      BASIS_SET DZVP-GTH
       POTENTIAL GTH-PBE-q6
     &END KIND
     &KIND C
-      BASIS_SET aug-TZV2P-GTH
+      BASIS_SET DZVP-GTH
       POTENTIAL GTH-PBE-q4
     &END KIND
     &KIND H
-      BASIS_SET aug-TZV2P-GTH
+      BASIS_SET DZVP-GTH
       POTENTIAL GTH-PBE-q1
     &END KIND
   &END SUBSYS

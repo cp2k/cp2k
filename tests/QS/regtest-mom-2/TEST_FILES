@@ -8,14 +8,14 @@
 # number of active electrons : 8
 # excitation              multiplicity  C2v_irreducible_representation
 # ground state              singlet     A1
-h2o_pbe0_admm-none_gs.inp                              1    1.0E-06            -17.249537264984799
+h2o_pbe0_admm-none_gs.inp                              1    1.0E-06            -17.24968568154571
 # 4 (alpha) -> 5 (alpha)    singlet     B1
-h2o_pbe0_admm-none_mom_s1.inp                          1    1.0E-06            -16.944602915042481
+h2o_pbe0_admm-none_mom_s1.inp                          1    1.0E-06            -16.94939353581146
 # 3 (alpha) -> 5 (alpha)    singlet     A1
-h2o_pbe0_admm-none_mom_s2.inp                          1    1.0E-06            -16.857002061449730
+h2o_pbe0_admm-none_mom_s2.inp                          1    1.0E-06            -16.86211842868142
 # 4 (beta)  -> 5 (alpha)    triplet     B1
-h2o_pbe0_admm-none_t1.inp                              1    1.0E-06            -16.956010213485037
+h2o_pbe0_admm-none_t1.inp                              1    1.0E-06            -16.96838171290687
 # 4 (beta)  -> 6 (alpha) =  4 (beta)  -> 5 (alpha) +
 # 5 (alpha) -> 6 (alpha)    triplet     A2
-h2o_pbe0_admm-none_mom_t2.inp                          1    1.0E-06            -16.877327751521978
+h2o_pbe0_admm-none_mom_t2.inp                          1    1.0E-06            -16.87134031959955
 #EOF
