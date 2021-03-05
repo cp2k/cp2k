@@ -74,14 +74,14 @@ ortho_reg_to_grid(const int kg1, const int kg2, const int jg1, const int jg2,
  * \author Ole Schuett
  ******************************************************************************/
 static inline void __attribute__((always_inline))
-ortho_cx_to_reg(const int lp, const double pol_i1[lp + 1],
-                const double pol_i2[lp + 1],
+ortho_cx_to_reg(const int lp, const int i1, const int i2, const int cmax,
+                const double pol[3][lp + 1][2 * cmax + 1],
                 GRID_CONST_WHEN_COLLOCATE double *cx,
                 GRID_CONST_WHEN_INTEGRATE double *reg) {
 
   for (int lxp = 0; lxp <= lp; lxp++) {
-    const double p1 = pol_i1[lxp];
-    const double p2 = pol_i2[lxp];
+    const double p1 = pol[0][lxp][i1 + cmax];
+    const double p2 = pol[0][lxp][i2 + cmax];
 
 #if (GRID_DO_COLLOCATE)
     // collocate
@@ -114,7 +114,7 @@ ortho_cx_to_reg(const int lp, const double pol_i1[lp + 1],
 static inline void __attribute__((always_inline))
 ortho_cx_to_grid(const int lp, const int kg1, const int kg2, const int jg1,
                  const int jg2, const int cmax,
-                 const double pol[3][2 * cmax + 1][lp + 1],
+                 const double pol[3][lp + 1][2 * cmax + 1],
                  const int map[3][2 * cmax + 1], const int npts_local[3],
                  int **sphere_bounds_iter, GRID_CONST_WHEN_COLLOCATE double *cx,
                  GRID_CONST_WHEN_INTEGRATE double *grid) {
@@ -130,12 +130,12 @@ ortho_cx_to_grid(const int lp, const int kg1, const int kg2, const int jg1,
 
 #if (GRID_DO_COLLOCATE)
     // collocate
-    ortho_cx_to_reg(lp, pol[0][i1 + cmax], pol[0][i2 + cmax], cx, reg);
+    ortho_cx_to_reg(lp, i1, i2, cmax, pol, cx, reg);
     ortho_reg_to_grid(kg1, kg2, jg1, jg2, ig1, ig2, npts_local, reg, grid);
 #else
     // integrate
     ortho_reg_to_grid(kg1, kg2, jg1, jg2, ig1, ig2, npts_local, reg, grid);
-    ortho_cx_to_reg(lp, pol[0][i1 + cmax], pol[0][i2 + cmax], cx, reg);
+    ortho_cx_to_reg(lp, i1, i2, cmax, pol, cx, reg);
 #endif
   }
 }
@@ -145,27 +145,29 @@ ortho_cx_to_grid(const int lp, const int kg1, const int kg2, const int jg1,
  * \author Ole Schuett
  ******************************************************************************/
 static inline void __attribute__((always_inline))
-ortho_cxy_to_cx(const int lp, const double pol_j1[lp + 1],
-                const double pol_j2[lp + 1],
+ortho_cxy_to_cx(const int lp, const int j1, const int j2, const int cmax,
+                const double pol[3][lp + 1][2 * cmax + 1],
                 GRID_CONST_WHEN_COLLOCATE double *cxy,
                 GRID_CONST_WHEN_INTEGRATE double *cx) {
 
   for (int lyp = 0; lyp <= lp; lyp++) {
     for (int lxp = 0; lxp <= lp - lyp; lxp++) {
+      const double p1 = pol[1][lyp][j1 + cmax];
+      const double p2 = pol[1][lyp][j2 + cmax];
       const int cxy_index = lyp * (lp + 1) * 2 + lxp * 2; // [lyp, lxp, 0]
 
 #if (GRID_DO_COLLOCATE)
       // collocate
-      cx[lxp * 4 + 0] += cxy[cxy_index + 0] * pol_j1[lyp];
-      cx[lxp * 4 + 1] += cxy[cxy_index + 1] * pol_j1[lyp];
-      cx[lxp * 4 + 2] += cxy[cxy_index + 0] * pol_j2[lyp];
-      cx[lxp * 4 + 3] += cxy[cxy_index + 1] * pol_j2[lyp];
+      cx[lxp * 4 + 0] += cxy[cxy_index + 0] * p1;
+      cx[lxp * 4 + 1] += cxy[cxy_index + 1] * p1;
+      cx[lxp * 4 + 2] += cxy[cxy_index + 0] * p2;
+      cx[lxp * 4 + 3] += cxy[cxy_index + 1] * p2;
 #else
       // integrate
-      cxy[cxy_index + 0] += cx[lxp * 4 + 0] * pol_j1[lyp];
-      cxy[cxy_index + 1] += cx[lxp * 4 + 1] * pol_j1[lyp];
-      cxy[cxy_index + 0] += cx[lxp * 4 + 2] * pol_j2[lyp];
-      cxy[cxy_index + 1] += cx[lxp * 4 + 3] * pol_j2[lyp];
+      cxy[cxy_index + 0] += cx[lxp * 4 + 0] * p1;
+      cxy[cxy_index + 1] += cx[lxp * 4 + 1] * p1;
+      cxy[cxy_index + 0] += cx[lxp * 4 + 2] * p2;
+      cxy[cxy_index + 1] += cx[lxp * 4 + 3] * p2;
 #endif
     }
   }
@@ -178,7 +180,7 @@ ortho_cxy_to_cx(const int lp, const double pol_j1[lp + 1],
 static inline void __attribute__((always_inline))
 ortho_cxy_to_grid_low(const int lp, const int j1, const int j2, const int kg1,
                       const int kg2, const int jg1, const int jg2,
-                      const int cmax, const double pol[3][2 * cmax + 1][lp + 1],
+                      const int cmax, const double pol[3][lp + 1][2 * cmax + 1],
                       const int map[3][2 * cmax + 1], const int npts_local[3],
                       int **sphere_bounds_iter, double *cx,
                       GRID_CONST_WHEN_COLLOCATE double *cxy,
@@ -186,14 +188,14 @@ ortho_cxy_to_grid_low(const int lp, const int j1, const int j2, const int kg1,
 
 #if (GRID_DO_COLLOCATE)
   // collocate
-  ortho_cxy_to_cx(lp, pol[1][j1 + cmax], pol[1][j2 + cmax], cxy, cx);
+  ortho_cxy_to_cx(lp, j1, j2, cmax, pol, cxy, cx);
   ortho_cx_to_grid(lp, kg1, kg2, jg1, jg2, cmax, pol, map, npts_local,
                    sphere_bounds_iter, cx, grid);
 #else
   // integrate
   ortho_cx_to_grid(lp, kg1, kg2, jg1, jg2, cmax, pol, map, npts_local,
                    sphere_bounds_iter, cx, grid);
-  ortho_cxy_to_cx(lp, pol[1][j1 + cmax], pol[1][j2 + cmax], cxy, cx);
+  ortho_cxy_to_cx(lp, j1, j2, cmax, pol, cxy, cx);
 #endif
 }
 
@@ -203,7 +205,7 @@ ortho_cxy_to_grid_low(const int lp, const int j1, const int j2, const int kg1,
  ******************************************************************************/
 static inline void ortho_cxy_to_grid(const int lp, const int kg1, const int kg2,
                                      const int cmax,
-                                     const double pol[3][2 * cmax + 1][lp + 1],
+                                     const double pol[3][lp + 1][2 * cmax + 1],
                                      const int map[3][2 * cmax + 1],
                                      const int npts_local[3],
                                      int **sphere_bounds_iter,
@@ -245,26 +247,29 @@ static inline void ortho_cxy_to_grid(const int lp, const int kg1, const int kg2,
  * \brief Transforms coefficients C_xyz into C_xz by fixing grid index k.
  * \author Ole Schuett
  ******************************************************************************/
-static inline void ortho_cxyz_to_cxy(const int lp, const double pol_k1[lp + 1],
-                                     const double pol_k2[lp + 1],
+static inline void ortho_cxyz_to_cxy(const int lp, const int k1, const int k2,
+                                     const int cmax,
+                                     const double pol[3][lp + 1][2 * cmax + 1],
                                      GRID_CONST_WHEN_COLLOCATE double *cxyz,
                                      GRID_CONST_WHEN_INTEGRATE double *cxy) {
 
   for (int lzp = 0; lzp <= lp; lzp++) {
     for (int lyp = 0; lyp <= lp - lzp; lyp++) {
       for (int lxp = 0; lxp <= lp - lzp - lyp; lxp++) {
+        const double p1 = pol[2][lzp][k1 + cmax];
+        const double p2 = pol[2][lzp][k2 + cmax];
         const int cxyz_index =
             lzp * (lp + 1) * (lp + 1) + lyp * (lp + 1) + lxp; // [lzp, lyp, lxp]
         const int cxy_index = lyp * (lp + 1) * 2 + lxp * 2;   // [lyp, lxp, 0]
 
 #if (GRID_DO_COLLOCATE)
         // collocate
-        cxy[cxy_index + 0] += cxyz[cxyz_index] * pol_k1[lzp];
-        cxy[cxy_index + 1] += cxyz[cxyz_index] * pol_k2[lzp];
+        cxy[cxy_index + 0] += cxyz[cxyz_index] * p1;
+        cxy[cxy_index + 1] += cxyz[cxyz_index] * p2;
 #else
         // integrate
-        cxyz[cxyz_index] += cxy[cxy_index + 0] * pol_k1[lzp];
-        cxyz[cxyz_index] += cxy[cxy_index + 1] * pol_k2[lzp];
+        cxyz[cxyz_index] += cxy[cxy_index + 0] * p1;
+        cxyz[cxyz_index] += cxy[cxy_index + 1] * p2;
 #endif
       }
     }
@@ -331,7 +336,7 @@ ortho_cxyz_to_grid(const int lp, const double zetp, const double dh[3][3],
   const int cmax = imax(imax(ub_cube[0], ub_cube[1]), ub_cube[2]);
 
   // Precompute (x-xp)**lp*exp(..) for each direction.
-  double pol_mutable[3][2 * cmax + 1][lp + 1];
+  double pol_mutable[3][lp + 1][2 * cmax + 1];
   for (int idir = 0; idir < 3; idir++) {
     const double dr = dh[idir][idir];
     const double ro = roffset[idir];
@@ -348,7 +353,7 @@ ortho_cxyz_to_grid(const int lp, const double zetp, const double dh[3][3],
       t_exp_min_2 *= t_exp_2;
       double pg = t_exp_min_1;
       for (int icoef = 0; icoef <= lp; icoef++) {
-        pol_mutable[idir][ig + cmax][icoef] = pg; // exp(-zetp*rpg**2)
+        pol_mutable[idir][icoef][ig + cmax] = pg; // exp(-zetp*rpg**2)
         pg *= rpg;
       }
     }
@@ -360,13 +365,13 @@ ortho_cxyz_to_grid(const int lp, const double zetp, const double dh[3][3],
       t_exp_plus_2 *= t_exp_2;
       double pg = t_exp_plus_1;
       for (int icoef = 0; icoef <= lp; icoef++) {
-        pol_mutable[idir][1 - ig + cmax][icoef] = pg; // exp(-zetp*rpg**2)
+        pol_mutable[idir][icoef][1 - ig + cmax] = pg; // exp(-zetp*rpg**2)
         pg *= rpg;
       }
     }
   }
-  const double(*pol)[2 * cmax + 1][lp + 1] =
-      (const double(*)[2 * cmax + 1][lp + 1]) pol_mutable;
+  const double(*pol)[lp + 1][2 * cmax + 1] =
+      (const double(*)[lp + 1][2 * cmax + 1]) pol_mutable;
 
   // Precompute mapping from cube to grid indices for each direction
   int map_mutable[3][2 * cmax + 1];
@@ -391,14 +396,14 @@ ortho_cxyz_to_grid(const int lp, const double zetp, const double dh[3][3],
 
 #if (GRID_DO_COLLOCATE)
     // collocate
-    ortho_cxyz_to_cxy(lp, pol[2][k1 + cmax], pol[2][k2 + cmax], cxyz, cxy);
+    ortho_cxyz_to_cxy(lp, k1, k2, cmax, pol, cxyz, cxy);
     ortho_cxy_to_grid(lp, kg1, kg2, cmax, pol, map, npts_local,
                       sphere_bounds_iter, cxy, grid);
 #else
     // integrate
     ortho_cxy_to_grid(lp, kg1, kg2, cmax, pol, map, npts_local,
                       sphere_bounds_iter, cxy, grid);
-    ortho_cxyz_to_cxy(lp, pol[2][k1 + cmax], pol[2][k2 + cmax], cxyz, cxy);
+    ortho_cxyz_to_cxy(lp, k1, k2, cmax, pol, cxyz, cxy);
 #endif
   }
 }
