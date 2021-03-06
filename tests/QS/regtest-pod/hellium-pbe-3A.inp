@@ -3,7 +3,7 @@
   ECHO_INPUT .false.
   PRINT_LEVEL low
   PROGRAM_NAME cp2k
-  PROJECT_NAME hellium-pbe-3A
+  PROJECT_NAME helium-pbe-3A
   RUN_TYPE energy
   SAVE_MEM .true.
   SEED 50801
