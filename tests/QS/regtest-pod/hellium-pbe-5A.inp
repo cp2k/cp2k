@@ -33,7 +33,7 @@
     &END MGRID
     # QuickStep solver setting
     &QS
-      EPS_DEFAULT 1.0e-8
+      EPS_DEFAULT 1.0E-10
       EXTRAPOLATION ps
       EXTRAPOLATION_ORDER 3 
       METHOD GAPW
