@@ -42,15 +42,15 @@
     &SCF
       MAX_SCF 25
       SCF_GUESS atomic
-      EPS_SCF 1.0e-5
+      EPS_SCF 1.0E-5
       ADDED_MOS 2
+      LSHIFT 0.01
       &DIAGONALIZATION on
         ALGORITHM standard
       &END DIAGONALIZATION
       &MIXING
         METHOD direct_p_mixing
-        ALPHA 0.1
-        NSKIP 10
+        ALPHA 0.8
       &END MIXING
       &PRINT
         &RESTART off
