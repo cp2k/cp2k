@@ -1,6 +1,6 @@
 # Tested with: GFortran 8.3.0, LAPACK 3.9.0, FFTW 3.3, LIBINT 2.6.0,
-#             LIBXC 5.1.0, SPGLIB 1.16.0, LIBVORI 201229
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, January 2021)
+#             LIBXC 5.1.2, SPGLIB 1.16.0, LIBVORI 201229
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, March 2021)
 
 CC          = gcc
 FC          = gfortran
@@ -15,8 +15,8 @@ LIBINT_LIB  = $(GNU_PATH)/libint/2.6.0-lmax-4-generic/lib
 
 LIBVORI_LIB = $(GNU_PATH)/libvori/201229-generic/lib
 
-LIBXC_INC   = $(GNU_PATH)/libxc/5.1.0-generic/include
-LIBXC_LIB   = $(GNU_PATH)/libxc/5.1.0-generic/lib
+LIBXC_INC   = $(GNU_PATH)/libxc/5.1.2-generic/include
+LIBXC_LIB   = $(GNU_PATH)/libxc/5.1.2-generic/lib
 
 SPGLIB_INC  = $(GNU_PATH)/spglib/1.16.0-generic/include
 SPGLIB_LIB  = $(GNU_PATH)/spglib/1.16.0-generic/lib
