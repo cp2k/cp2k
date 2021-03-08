@@ -204,13 +204,15 @@ CONTAINS
 
       TYPE(section_type), POINTER :: subsection
       TYPE(keyword_type), POINTER :: keyword
-      INTEGER :: no_func, len_name, ii, func_id, n_param, iparam
+      INTEGER :: handle, no_func, len_name, ii, func_id, n_param, iparam
       REAL(KIND=C_DOUBLE) :: default_val
       CHARACTER(LEN=128) :: func_name, param_name, param_descr, description
       CHARACTER(LEN=2*default_string_length) :: warning
       INTEGER(KIND=C_INT), DIMENSION(:), ALLOCATABLE :: func_ids
       TYPE(xc_f03_func_t)                      :: xc_func
       TYPE(xc_f03_func_info_t)                 :: xc_info
+
+      CALL timeset(routineN, handle)
 
       CPASSERT(ASSOCIATED(section))
       NULLIFY (subsection, keyword)
@@ -276,6 +278,8 @@ CONTAINS
          CALL xc_f03_func_end(xc_func)
 
       END DO
+
+      CALL timestop(handle)
 #else
       MARK_USED(section)
 

@@ -471,7 +471,7 @@ CONTAINS
 
             IF ((n_params > 0) .AND. (i_params > 0) .AND. (params_pointer(1) < HUGE(0.0_dp))) THEN
                IF (i_params == n_params) THEN
-WRITE(*,*) "parameters ", params_pointer
+                  WRITE (*, *) "parameters ", params_pointer
                   CALL xc_f03_func_set_ext_params(xc_func, params_pointer)
                ELSE
                   CALL cp_abort(__LOCATION__, &
