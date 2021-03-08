@@ -24,7 +24,10 @@
         # This test just checks whether the old LibXC interface still works
         # To be removed after removal of the deprecated &LIBXC section
         &LIBXC
-          FUNCTIONAL LDA_XC_TETER93
+          FUNCTIONAL GGA_X_PBE
+        &END LIBXC
+        &LIBXC
+          FUNCTIONAL GGA_C_PBE
         &END LIBXC
       &END XC_FUNCTIONAL
     &END XC
