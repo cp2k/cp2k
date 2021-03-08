@@ -199,9 +199,9 @@ CONTAINS
 
       TYPE(section_type), POINTER, INTENT(IN) :: section
 
+#if defined (__LIBXC)
       CHARACTER(len=*), PARAMETER :: routineN = 'libxc_add_sections'
 
-#if defined (__LIBXC)
       TYPE(section_type), POINTER :: subsection
       TYPE(keyword_type), POINTER :: keyword
       INTEGER :: no_func, len_name, ii, func_id, n_param, iparam
@@ -542,9 +542,9 @@ CONTAINS
       INTEGER, INTENT(in)                      :: grad_deriv
       TYPE(section_vals_type), POINTER         :: libxc_params
 
+#if defined (__LIBXC)
       CHARACTER(len=*), PARAMETER :: routineN = 'libxc_lda_eval'
 
-#if defined (__LIBXC)
       CHARACTER(LEN=default_string_length)     :: func_name
       INTEGER                                  :: func_id, handle, npoints
       INTEGER, DIMENSION(:, :), POINTER        :: bo
@@ -786,9 +786,9 @@ CONTAINS
       INTEGER, INTENT(in)                      :: grad_deriv
       TYPE(section_vals_type), POINTER         :: libxc_params
 
+#if defined (__LIBXC)
       CHARACTER(len=*), PARAMETER :: routineN = 'libxc_lsd_eval'
 
-#if defined (__LIBXC)
       CHARACTER(LEN=default_string_length)     :: func_name
       INTEGER                                  :: func_id, handle, npoints
       INTEGER, DIMENSION(:, :), POINTER        :: bo

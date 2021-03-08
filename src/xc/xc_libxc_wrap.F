@@ -321,7 +321,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_check_functional'
 
-      INTEGER                                            :: func_id
+      INTEGER                                            :: func_id, handle
+
+      CALL timeset(routineN, handle)
 
       IF (func_string(1:3) == "XC_") THEN
          func_id = xc_f03_functional_get_number(func_string(4:LEN_TRIM(func_string)))
@@ -331,6 +333,8 @@ CONTAINS
 
       exists = .TRUE.
       IF (func_id == -1) exists = .FALSE.
+
+      CALL timestop(handle)
 
    END FUNCTION xc_libxc_check_functional
 
