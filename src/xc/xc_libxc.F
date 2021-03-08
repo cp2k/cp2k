@@ -29,6 +29,13 @@ MODULE xc_libxc
    USE bibliography, ONLY: Lehtola2018, &
                            Marques2012, &
                            cite_reference
+   USE input_section_types, ONLY: section_add_keyword, &
+                                  section_add_subsection, &
+                                  section_create, &
+                                  section_release, &
+                                  section_type, &
+                                  section_vals_type, &
+                                  section_vals_val_get
    USE kinds, ONLY: default_string_length, &
                     dp
    USE xc_derivative_set_types, ONLY: xc_derivative_set_type, &
@@ -42,13 +49,6 @@ MODULE xc_libxc
    USE input_keyword_types, ONLY: keyword_create, &
                                   keyword_release, &
                                   keyword_type
-   USE input_section_types, ONLY: section_add_keyword, &
-                                  section_add_subsection, &
-                                  section_create, &
-                                  section_release, &
-                                  section_type, &
-                                  section_vals_type, &
-                                  section_vals_val_get
    USE iso_c_binding, ONLY: C_SIZE_T, C_INT, C_DOUBLE
    USE xc_libxc_wrap, ONLY: xc_f03_func_t, &
                             xc_f03_func_init, &
@@ -387,8 +387,9 @@ CONTAINS
       MARK_USED(max_deriv)
       MARK_USED(print_warn)
 
-      CALL cp_abort(__LOCATION__, "Unknown functional! If you are asking for a functional of the LibXC library, &
-                    you have to download and install the library!")
+      CALL cp_abort(__LOCATION__, "Unknown functional! If you are asking "// &
+                    "for a functional of the LibXC library, "// &
+                    "you have to download and install the library!")
 #endif
 
    END SUBROUTINE libxc_lda_info
@@ -499,8 +500,9 @@ CONTAINS
       MARK_USED(max_deriv)
       MARK_USED(print_warn)
 
-      CALL cp_abort(__LOCATION__, "Unknown functional! If you are asking for a functional of the LibXC library, &
-                    you have to download and install the library!")
+      CALL cp_abort(__LOCATION__, "Unknown functional! If you are "// &
+                    "asking for a functional of the LibXC library, "// &
+                    "you have to download and install the library!")
 #endif
 
    END SUBROUTINE libxc_lsd_info
@@ -760,8 +762,9 @@ CONTAINS
       MARK_USED(deriv_set)
       MARK_USED(grad_deriv)
       MARK_USED(libxc_params)
-      CALL cp_abort(__LOCATION__, "Unknown functional! If you are asking for a functional of the LibXC library, &
-                    you have to download and install the library!")
+      CALL cp_abort(__LOCATION__, "Unknown functional! If you are asking "// &
+                    "for a functional of the LibXC library, "// &
+                    "you have to download and install the library!")
 #endif
    END SUBROUTINE libxc_lda_eval
 
@@ -1299,8 +1302,9 @@ CONTAINS
       MARK_USED(grad_deriv)
       MARK_USED(libxc_params)
 
-      CALL cp_abort(__LOCATION__, "Unknown functional! If you are asking for a functional of the LibXC library, &
-                    you have to download and install the library!")
+      CALL cp_abort(__LOCATION__, "Unknown functional! If you are asking "// &
+                    "for a functional of the LibXC library, "// &
+                    "you have to download and install the library!")
 #endif
    END SUBROUTINE libxc_lsd_eval
 
