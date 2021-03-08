@@ -321,7 +321,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_check_functional'
 
-      INTEGER                                            :: func_id
+      INTEGER                                            :: func_id, handle
+
+      CALL timeset(routineN, handle)
 
       IF (func_string(1:3) == "XC_") THEN
          func_id = xc_f03_functional_get_number(func_string(4:LEN_TRIM(func_string)))
@@ -331,6 +333,8 @@ CONTAINS
 
       exists = .TRUE.
       IF (func_id == -1) exists = .FALSE.
+
+      CALL timestop(handle)
 
    END FUNCTION xc_libxc_check_functional
 
@@ -465,17 +469,16 @@ CONTAINS
 
             i_params = SIZE(params_pointer)
 
-            IF ((n_params > 0) .AND. (i_params > 0) .AND. (params(1) < HUGE(0.0_dp))) THEN
+            IF ((n_params > 0) .AND. (i_params > 0) .AND. (params_pointer(1) < HUGE(0.0_dp))) THEN
                IF (i_params == n_params) THEN
-                  CALL xc_f03_func_set_ext_params(xc_func, params)
+                  WRITE (*, *) "parameters ", params_pointer
+                  CALL xc_f03_func_set_ext_params(xc_func, params_pointer)
                ELSE
                   CALL cp_abort(__LOCATION__, &
                      "LIBXC: Inconsistent number of optional external parameters. (required: "&
                      &//cp_to_string(n_params)//", given: "//cp_to_string(i_params)//")")
                END IF
             END IF
-
-            CALL xc_f03_func_set_ext_params(xc_func, params_pointer)
          ELSE
             ALLOCATE (params(n_params))
             DO i = 1, n_params

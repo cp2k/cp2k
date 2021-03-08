@@ -29,6 +29,13 @@ MODULE xc_libxc
    USE bibliography, ONLY: Lehtola2018, &
                            Marques2012, &
                            cite_reference
+   USE input_section_types, ONLY: section_add_keyword, &
+                                  section_add_subsection, &
+                                  section_create, &
+                                  section_release, &
+                                  section_type, &
+                                  section_vals_type, &
+                                  section_vals_val_get
    USE kinds, ONLY: default_string_length, &
                     dp
    USE xc_derivative_set_types, ONLY: xc_derivative_set_type, &
@@ -42,13 +49,6 @@ MODULE xc_libxc
    USE input_keyword_types, ONLY: keyword_create, &
                                   keyword_release, &
                                   keyword_type
-   USE input_section_types, ONLY: section_add_keyword, &
-                                  section_add_subsection, &
-                                  section_create, &
-                                  section_release, &
-                                  section_type, &
-                                  section_vals_type, &
-                                  section_vals_val_get
    USE iso_c_binding, ONLY: C_SIZE_T, C_INT, C_DOUBLE
    USE xc_libxc_wrap, ONLY: xc_f03_func_t, &
                             xc_f03_func_init, &
@@ -199,18 +199,20 @@ CONTAINS
 
       TYPE(section_type), POINTER, INTENT(IN) :: section
 
+#if defined (__LIBXC)
       CHARACTER(len=*), PARAMETER :: routineN = 'libxc_add_sections'
 
-#if defined (__LIBXC)
       TYPE(section_type), POINTER :: subsection
       TYPE(keyword_type), POINTER :: keyword
-      INTEGER :: no_func, len_name, ii, func_id, n_param, iparam
+      INTEGER :: handle, no_func, len_name, ii, func_id, n_param, iparam
       REAL(KIND=C_DOUBLE) :: default_val
       CHARACTER(LEN=128) :: func_name, param_name, param_descr, description
       CHARACTER(LEN=2*default_string_length) :: warning
       INTEGER(KIND=C_INT), DIMENSION(:), ALLOCATABLE :: func_ids
       TYPE(xc_f03_func_t)                      :: xc_func
       TYPE(xc_f03_func_info_t)                 :: xc_info
+
+      CALL timeset(routineN, handle)
 
       CPASSERT(ASSOCIATED(section))
       NULLIFY (subsection, keyword)
@@ -276,6 +278,8 @@ CONTAINS
          CALL xc_f03_func_end(xc_func)
 
       END DO
+
+      CALL timestop(handle)
 #else
       MARK_USED(section)
 
@@ -387,8 +391,9 @@ CONTAINS
       MARK_USED(max_deriv)
       MARK_USED(print_warn)
 
-      CALL cp_abort(__LOCATION__, "Unknown functional! If you are asking for a functional of the LibXC library, &
-                    you have to download and install the library!")
+      CALL cp_abort(__LOCATION__, "Unknown functional! If you are asking "// &
+                    "for a functional of the LibXC library, "// &
+                    "you have to download and install the library!")
 #endif
 
    END SUBROUTINE libxc_lda_info
@@ -499,8 +504,9 @@ CONTAINS
       MARK_USED(max_deriv)
       MARK_USED(print_warn)
 
-      CALL cp_abort(__LOCATION__, "Unknown functional! If you are asking for a functional of the LibXC library, &
-                    you have to download and install the library!")
+      CALL cp_abort(__LOCATION__, "Unknown functional! If you are "// &
+                    "asking for a functional of the LibXC library, "// &
+                    "you have to download and install the library!")
 #endif
 
    END SUBROUTINE libxc_lsd_info
@@ -540,9 +546,9 @@ CONTAINS
       INTEGER, INTENT(in)                      :: grad_deriv
       TYPE(section_vals_type), POINTER         :: libxc_params
 
+#if defined (__LIBXC)
       CHARACTER(len=*), PARAMETER :: routineN = 'libxc_lda_eval'
 
-#if defined (__LIBXC)
       CHARACTER(LEN=default_string_length)     :: func_name
       INTEGER                                  :: func_id, handle, npoints
       INTEGER, DIMENSION(:, :), POINTER        :: bo
@@ -760,8 +766,9 @@ CONTAINS
       MARK_USED(deriv_set)
       MARK_USED(grad_deriv)
       MARK_USED(libxc_params)
-      CALL cp_abort(__LOCATION__, "Unknown functional! If you are asking for a functional of the LibXC library, &
-                    you have to download and install the library!")
+      CALL cp_abort(__LOCATION__, "Unknown functional! If you are asking "// &
+                    "for a functional of the LibXC library, "// &
+                    "you have to download and install the library!")
 #endif
    END SUBROUTINE libxc_lda_eval
 
@@ -783,9 +790,9 @@ CONTAINS
       INTEGER, INTENT(in)                      :: grad_deriv
       TYPE(section_vals_type), POINTER         :: libxc_params
 
+#if defined (__LIBXC)
       CHARACTER(len=*), PARAMETER :: routineN = 'libxc_lsd_eval'
 
-#if defined (__LIBXC)
       CHARACTER(LEN=default_string_length)     :: func_name
       INTEGER                                  :: func_id, handle, npoints
       INTEGER, DIMENSION(:, :), POINTER        :: bo
@@ -1299,8 +1306,9 @@ CONTAINS
       MARK_USED(grad_deriv)
       MARK_USED(libxc_params)
 
-      CALL cp_abort(__LOCATION__, "Unknown functional! If you are asking for a functional of the LibXC library, &
-                    you have to download and install the library!")
+      CALL cp_abort(__LOCATION__, "Unknown functional! If you are asking "// &
+                    "for a functional of the LibXC library, "// &
+                    "you have to download and install the library!")
 #endif
    END SUBROUTINE libxc_lsd_eval
 
@@ -1350,20 +1358,20 @@ CONTAINS
 
       REAL(KIND=dp), DIMENSION(*), INTENT(IN)            :: rho, norm_drho, laplace_rho, tau
       REAL(KIND=dp), DIMENSION(*), INTENT(INOUT) :: e_0, e_rho, e_ndrho, e_laplace_rho, e_tau, &
-                                         e_rho_rho, e_ndrho_rho, e_ndrho_ndrho, e_rho_laplace_rho, e_rho_tau, e_ndrho_laplace_rho, &
-                                                 e_ndrho_tau, e_laplace_rho_laplace_rho, e_laplace_rho_tau, e_tau_tau, e_rho_rho_rho
+         e_rho_rho, e_ndrho_rho, e_ndrho_ndrho, e_rho_laplace_rho, e_rho_tau, e_ndrho_laplace_rho, &
+         e_ndrho_tau, e_laplace_rho_laplace_rho, e_laplace_rho_tau, e_tau_tau, e_rho_rho_rho
       INTEGER, INTENT(in)                                :: grad_deriv, npoints
       REAL(KIND=dp), INTENT(in)                          :: epsilon_rho, epsilon_tau
       CHARACTER(LEN=default_string_length), INTENT(IN)   :: func_name
-      REAL(KIND=dp), INTENT(IN)                          :: sc
-      TYPE(xc_f03_func_info_t), INTENT(IN)               :: xc_info
+      REAL(KIND=dp), INTENT(in)                          :: sc
       TYPE(xc_f03_func_t), INTENT(IN)                    :: xc_func
+      TYPE(xc_f03_func_info_t), INTENT(IN)               :: xc_info
       LOGICAL, INTENT(IN)                                :: no_exc
 
       INTEGER                                            :: ii
       REAL(KIND=dp), DIMENSION(1) :: exc, my_tau, sigma, v2lapl2, v2lapltau, v2rho2, v2rholapl, &
-                                     v2rhosigma, v2rhotau, v2sigma2, v2sigmalapl, v2sigmatau, v2tau2, v3rho3, vlapl, vrho, &
-                                     vsigma, vtau
+         v2rhosigma, v2rhotau, v2sigma2, v2sigmalapl, v2sigmatau, v2tau2, v3rho3, vlapl, vrho, &
+         vsigma, vtau
 
       ! init vlapl (prevent libxc-4.0.x bug)
       vlapl = 0.0_dp
@@ -1770,24 +1778,24 @@ CONTAINS
                                                             norm_drhob, laplace_rhoa, &
                                                             laplace_rhob, tau_a, tau_b
       REAL(KIND=dp), DIMENSION(*), INTENT(INOUT) :: e_0, e_rhoa, e_rhob, e_ndrho, e_ndrhoa, &
-                                             e_ndrhob, e_laplace_rhoa, e_laplace_rhob, e_tau_a, e_tau_b, e_rhoa_rhoa, e_rhoa_rhob, &
-                                             e_rhob_rhob, e_ndrho_rhoa, e_ndrho_rhob, e_ndrhoa_rhoa, e_ndrhoa_rhob, e_ndrhob_rhoa, &
-                                                    e_ndrhob_rhob, e_ndrho_ndrho, e_ndrho_ndrhoa, e_ndrho_ndrhob, e_ndrhoa_ndrhoa, &
-                                                    e_ndrhoa_ndrhob, e_ndrhob_ndrhob, e_rhoa_laplace_rhoa, e_rhoa_laplace_rhob, &
-                                               e_rhob_laplace_rhoa, e_rhob_laplace_rhob, e_rhoa_tau_a, e_rhoa_tau_b, e_rhob_tau_a, &
-                                                    e_rhob_tau_b, e_ndrho_laplace_rhoa, e_ndrho_laplace_rhob, e_ndrhoa_laplace_rhoa
+         e_ndrhob, e_laplace_rhoa, e_laplace_rhob, e_tau_a, e_tau_b, e_rhoa_rhoa, e_rhoa_rhob, &
+         e_rhob_rhob, e_ndrho_rhoa, e_ndrho_rhob, e_ndrhoa_rhoa, e_ndrhoa_rhob, e_ndrhob_rhoa, &
+         e_ndrhob_rhob, e_ndrho_ndrho, e_ndrho_ndrhoa, e_ndrho_ndrhob, e_ndrhoa_ndrhoa, &
+         e_ndrhoa_ndrhob, e_ndrhob_ndrhob, e_rhoa_laplace_rhoa, e_rhoa_laplace_rhob, &
+         e_rhob_laplace_rhoa, e_rhob_laplace_rhob, e_rhoa_tau_a, e_rhoa_tau_b, e_rhob_tau_a, &
+         e_rhob_tau_b, e_ndrho_laplace_rhoa, e_ndrho_laplace_rhob, e_ndrhoa_laplace_rhoa
       REAL(KIND=dp), DIMENSION(*), INTENT(INOUT) :: e_ndrhoa_laplace_rhob, e_ndrhob_laplace_rhoa, &
-                                              e_ndrhob_laplace_rhob, e_ndrho_tau_a, e_ndrho_tau_b, e_ndrhoa_tau_a, e_ndrhoa_tau_b, &
-                                         e_ndrhob_tau_a, e_ndrhob_tau_b, e_laplace_rhoa_laplace_rhoa, e_laplace_rhoa_laplace_rhob, &
-                                                    e_laplace_rhob_laplace_rhob, e_laplace_rhoa_tau_a, e_laplace_rhoa_tau_b, &
-                                          e_laplace_rhob_tau_a, e_laplace_rhob_tau_b, e_tau_a_tau_a, e_tau_a_tau_b, e_tau_b_tau_b, &
-                                                    e_rhoa_rhoa_rhoa, e_rhoa_rhoa_rhob, e_rhoa_rhob_rhob, e_rhob_rhob_rhob
+         e_ndrhob_laplace_rhob, e_ndrho_tau_a, e_ndrho_tau_b, e_ndrhoa_tau_a, e_ndrhoa_tau_b, &
+         e_ndrhob_tau_a, e_ndrhob_tau_b, e_laplace_rhoa_laplace_rhoa, e_laplace_rhoa_laplace_rhob, &
+         e_laplace_rhob_laplace_rhob, e_laplace_rhoa_tau_a, e_laplace_rhoa_tau_b, &
+         e_laplace_rhob_tau_a, e_laplace_rhob_tau_b, e_tau_a_tau_a, e_tau_a_tau_b, e_tau_b_tau_b, &
+         e_rhoa_rhoa_rhoa, e_rhoa_rhoa_rhob, e_rhoa_rhob_rhob, e_rhob_rhob_rhob
       INTEGER, INTENT(in)                                :: grad_deriv, npoints
       REAL(KIND=dp), INTENT(in)                          :: epsilon_rho, epsilon_tau
       CHARACTER(LEN=default_string_length), INTENT(IN)   :: func_name
-      REAL(KIND=dp), INTENT(IN)                   :: sc
-      TYPE(xc_f03_func_info_t), INTENT(IN)               :: xc_info
+      REAL(KIND=dp), INTENT(in)                          :: sc
       TYPE(xc_f03_func_t), INTENT(IN)                    :: xc_func
+      TYPE(xc_f03_func_info_t), INTENT(IN)               :: xc_info
       LOGICAL, INTENT(IN)                                :: no_exc
 
       INTEGER                                            :: ii

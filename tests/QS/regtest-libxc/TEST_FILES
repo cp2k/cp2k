@@ -16,4 +16,6 @@ diamond_br89_libxc_uks.inp                             1      7e-14             
 diamond_br89_libxc.inp                                 1      7e-14             -11.06581270880638
 # tpss new input
 H2O-tpss_lsd.inp                                       1      3e-13             -34.34060245665712
+# To be removed after &LIBXC section will be removed (deprecated)
+H2O-old_interface.inp                                  1      2e-14             -76.34479499905686
 #EOF
