@@ -46,8 +46,11 @@ MODULE efield_tb_methods
                                               init_efield_matrices
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE sap_kind_types,                  ONLY: release_sap_int,&
+                                              sap_int_type
    USE virial_methods,                  ONLY: virial_pair_force
    USE virial_types,                    ONLY: virial_type
+   USE xtb_coulomb,                     ONLY: xtb_dsint_list
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -278,18 +281,20 @@ CONTAINS
 
       COMPLEX(KIND=dp)                                   :: zdeta
       COMPLEX(KIND=dp), DIMENSION(3)                     :: zi(3)
-      INTEGER                                            :: atom_a, atom_b, blk, handle, ia, iatom, &
-                                                            ic, icol, idir, ikind, irow, is, &
-                                                            ispin, jatom, jkind, natom, nimg, nspin
+      INTEGER                                            :: atom_a, atom_b, blk, handle, ia, iac, &
+                                                            iatom, ic, icol, idir, ikind, irow, &
+                                                            is, ispin, jatom, jkind, natom, nimg, &
+                                                            nkind, nspin
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(3)                              :: cellind
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: found, use_virial
-      REAL(KIND=dp)                                      :: charge, dd, fdir
+      REAL(KIND=dp)                                      :: charge, dd, dr, fdir, fi
       REAL(KIND=dp), DIMENSION(3)                        :: fieldpol, fij, forcea, fpolvec, kvec, &
-                                                            qi, rab, ria, rib
+                                                            qi, rab, ria, rib, rij
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: ds_block, ks_block, p_block, s_block
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: dsint
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -304,6 +309,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
@@ -318,10 +324,6 @@ CONTAINS
       ! calculate stress only if forces requested also
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
       use_virial = use_virial .AND. calculate_forces
-      ! disable stress calculation
-      IF (use_virial) THEN
-         CPABORT("Stress tensor for periodic E-field not implemented")
-      END IF
 
       fieldpol = dft_control%period_efield%polarisation
       fieldpol = fieldpol/SQRT(DOT_PRODUCT(fieldpol, fieldpol))
@@ -374,7 +376,8 @@ CONTAINS
                      ria = particle_set(ia)%r
                      ria = pbc(ria, cell)
                      forcea(1:3) = fieldpol(1:3)*charge
-                     CALL virial_pair_force(virial%pv_virial, 1.0_dp, forcea, ria)
+                     CALL virial_pair_force(virial%pv_virial, -0.5_dp, forcea, ria)
+                     CALL virial_pair_force(virial%pv_virial, -0.5_dp, ria, forcea)
                   END IF
                END DO
             ELSE
@@ -432,9 +435,76 @@ CONTAINS
                   force(ikind)%efield(1:3, atom_a) = force(ikind)%efield(1:3, atom_a) + fdir*fij(1:3)
                   force(jkind)%efield(1:3, atom_b) = force(jkind)%efield(1:3, atom_b) - fdir*fij(1:3)
                END IF
-
             ENDDO
             CALL dbcsr_iterator_stop(iter)
+            !
+            ! stress tensor for Gamma point needs to recalculate overlap integral derivatives
+            !
+            IF (use_virial) THEN
+               ! derivative overlap integral (non collapsed)
+               NULLIFY (sap_int)
+               IF (dft_control%qs_control%dftb) THEN
+                  CPABORT("DFTB stress tensor for periodic efield not implemented")
+               ELSEIF (dft_control%qs_control%xtb) THEN
+                  CALL xtb_dsint_list(qs_env, sap_int)
+               ELSE
+                  CPABORT("TB method unknown")
+               END IF
+               !
+               CALL get_qs_env(qs_env, nkind=nkind)
+               DO ikind = 1, nkind
+                  DO jkind = 1, nkind
+                     iac = ikind + nkind*(jkind - 1)
+                     IF (.NOT. ASSOCIATED(sap_int(iac)%alist)) CYCLE
+                     DO ia = 1, sap_int(iac)%nalist
+                        IF (.NOT. ASSOCIATED(sap_int(iac)%alist(ia)%clist)) CYCLE
+                        iatom = sap_int(iac)%alist(ia)%aatom
+                        DO ic = 1, sap_int(iac)%alist(ia)%nclist
+                           jatom = sap_int(iac)%alist(ia)%clist(ic)%catom
+                           rij = sap_int(iac)%alist(ia)%clist(ic)%rac
+                           dr = SQRT(SUM(rij(:)**2))
+                           IF (dr > 1.e-6_dp) THEN
+                              dsint => sap_int(iac)%alist(ia)%clist(ic)%acint
+                              icol = MAX(iatom, jatom)
+                              irow = MIN(iatom, jatom)
+                              IF (irow == iatom) rij = -rij
+                              fdir = 0.0_dp
+                              ria = particle_set(irow)%r
+                              rib = particle_set(icol)%r
+                              DO idir = 1, 3
+                                 kvec(:) = twopi*cell%h_inv(idir, :)
+                                 dd = SUM(kvec(:)*ria(:))
+                                 zdeta = CMPLX(COS(dd), SIN(dd), KIND=dp)
+                                 fdir = fdir + fpolvec(idir)*AIMAG(LOG(zdeta))
+                                 dd = SUM(kvec(:)*rib(:))
+                                 zdeta = CMPLX(COS(dd), SIN(dd), KIND=dp)
+                                 fdir = fdir + fpolvec(idir)*AIMAG(LOG(zdeta))
+                              END DO
+                              fi = 1.0_dp
+                              IF (iatom == jatom) fi = 0.5_dp
+                              DO ispin = 1, nspin
+                                 NULLIFY (p_block)
+                                 CALL dbcsr_get_block_p(matrix=matrix_p(ispin, 1)%matrix, &
+                                                        row=irow, col=icol, block=p_block, found=found)
+                                 CPASSERT(found)
+                                 fij = 0.0_dp
+                                 DO idir = 1, 3
+                                    IF (irow == iatom) THEN
+                                       fij(idir) = SUM(p_block*dsint(:, :, idir))
+                                    ELSE
+                                       fij(idir) = SUM(TRANSPOSE(p_block)*dsint(:, :, idir))
+                                    END IF
+                                 END DO
+                                 IF (irow == iatom) fij = -fij
+                                 CALL virial_pair_force(virial%pv_virial, fi, fdir*fij(1:3), rij)
+                              END DO
+                           END IF
+                        END DO
+                     END DO
+                  END DO
+               END DO
+               CALL release_sap_int(sap_int)
+            END IF
          ELSE
             CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
             DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
@@ -489,8 +559,15 @@ CONTAINS
                   IF (irow == iatom) fij = -fij
                   force(ikind)%efield(1:3, atom_a) = force(ikind)%efield(1:3, atom_a) - fdir*fij(1:3)
                   force(jkind)%efield(1:3, atom_b) = force(jkind)%efield(1:3, atom_b) + fdir*fij(1:3)
+                  IF (use_virial) THEN
+                     dr = SQRT(SUM(rab(:)**2))
+                     IF (dr > 1.e-6_dp) THEN
+                        fi = 1.0_dp
+                        IF (iatom == jatom) fi = 0.5_dp
+                        CALL virial_pair_force(virial%pv_virial, fi, -fdir*fij(1:3), rab)
+                     END IF
+                  END IF
                END IF
-
             END DO
             CALL neighbor_list_iterator_release(nl_iterator)
          END IF
@@ -578,7 +655,7 @@ CONTAINS
       use_virial = use_virial .AND. calculate_forces
       ! disable stress calculation
       IF (use_virial) THEN
-         CPABORT("Stress tensor for periodic E-field not implemented")
+         CPABORT("Stress tensor for periodic D-field not implemented")
       END IF
 
       dfilter(1:3) = dft_control%period_efield%d_filter(1:3)
@@ -671,11 +748,6 @@ CONTAINS
                   iatom = atom_of_kind(ia)
                   ikind = kind_of(ia)
                   force(ikind)%efield(:, iatom) = force(ikind)%efield(:, iatom) + di(:)*charge
-                  IF (use_virial) THEN
-                     ria = particle_set(ia)%r
-                     ria = pbc(ria, cell)
-                     CALL virial_pair_force(virial%pv_virial, 1.0_dp, di*charge, ria)
-                  END IF
                END DO
             END IF
          END IF

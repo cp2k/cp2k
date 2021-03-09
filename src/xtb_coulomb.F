@@ -83,7 +83,7 @@ MODULE xtb_coulomb
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xtb_coulomb'
 
-   PUBLIC :: build_xtb_coulomb, gamma_rab_sr
+   PUBLIC :: build_xtb_coulomb, gamma_rab_sr, xtb_dsint_list
 
 CONTAINS
 
