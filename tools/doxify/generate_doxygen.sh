@@ -4,16 +4,16 @@
 
 DOXYGENDIR="./doxygen"
 
-for SRC_FN in $(find ./src/ -type f); do
+while IFS= read -r -d '' SRC_FN; do
   echo "Preprocessing ${SRC_FN}"
   DEST_FN="${DOXYGENDIR}/${SRC_FN}"
-  mkdir -p $(dirname "${DEST_FN}")
+  mkdir -p "$(dirname "${DEST_FN}")"
   if [[ "${SRC_FN}" == *.F ]]; then
     ./tools/build_utils/fypp "${SRC_FN}" "${DEST_FN}" &> /dev/null
   else
     cp "${SRC_FN}" "${DEST_FN}"
   fi
-done
+done < <(find ./src/ -type f -print0)
 
 cp tools/logo/cp2k_logo_100.png ${DOXYGENDIR}/cp2k_logo.png
 
@@ -26,6 +26,6 @@ doxygen ./Doxyfile
 
 # Remove CP2K from header bars because we already have the logo.
 cd html
-sed -i 's/"projectname">CP2K/"projectname">/' *.html ./*/*.html ./*/*/*.html
+sed -i 's/"projectname">CP2K/"projectname">/' ./*.html ./*/*.html ./*/*/*.html
 
 #EOF

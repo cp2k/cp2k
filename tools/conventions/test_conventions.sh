@@ -17,20 +17,20 @@ date --utc --rfc-3339=seconds
 )
 MAKE_EXIT_CODE=$?
 
-if (($MAKE_EXIT_CODE)); then
+if ((MAKE_EXIT_CODE)); then
   cd ../../obj/local_warn/psmp/
   echo ""
-  grep -B 2 Error *.warn
+  grep -B 2 Error ./*.warn
   echo ""
   echo "Summary: Compilation failed."
   echo "Status: FAILED"
 else
-  rm -f *.issues
+  rm -f ./*.issues
 
   set -o errexit
 
   ./analyze_gfortran_ast.py ../../obj/Linux-x86-64-gfortran/dumpast/*.ast > ast.issues
   ./analyze_gfortran_warnings.py ../../obj/local_warn/psmp/*.warn > warn.issues
   ./analyze_src.py -b ../../ > src.issues
-  ./summarize_issues.py --suppressions=conventions.supp *.issues
+  ./summarize_issues.py --suppressions=conventions.supp ./*.issues
 fi

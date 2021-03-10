@@ -2,9 +2,8 @@
 
 set -eo pipefail
 
-ARGS=${ARGS:-} # Set to "-v" for debugging
 SCRIPTDIR=$(
-  cd $(dirname "$0")
+  cd "$(dirname "$0")"
   pwd
 ) # Pick up full path to scripts from wherever doxify.sh lives
 
@@ -20,8 +19,8 @@ for file in "$@"; do
   #   definitions that don't have any and checks that existing comments are complete,
   #   fixing these if required.
   # * After adding comments, remove any double comment header lines
-  "${SCRIPTDIR}/fixcomments.pl" ${ARGS} "${file}" |
-    "${SCRIPTDIR}/remove_extra_comments.pl" ${ARGS} > "${tmp_file}"
+  "${SCRIPTDIR}/fixcomments.pl" "${file}" |
+    "${SCRIPTDIR}/remove_extra_comments.pl" > "${tmp_file}"
 
   # Copy the final modified source file on top of the original file
   if ! cmp -s "${file}" "${tmp_file}"; then
