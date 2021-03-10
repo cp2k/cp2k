@@ -190,7 +190,7 @@ def process_file(fn, allow_modifications):
 
     elif re.match(r".*\.sh$", fn):
         run_remote_tool("shfmt", fn)
-        # run_remote_tool("shellcheck", fn)
+        run_remote_tool("shellcheck", fn)
 
     elif re.match(r".*\.md$", fn):
         run_remote_tool("markdownlint", fn)
