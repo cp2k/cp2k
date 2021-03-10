@@ -34,7 +34,7 @@ if [ "" != "${HOME}" ]; then
   CONFIGFILE=${HOME}/.xconfigure-cp2k-plan
 else
   HERE=$(
-    cd $(dirname $0)
+    cd "$(dirname "$0")" || exit
     pwd -P
   )
   CONFIGFILE=${HERE}/.xconfigure-cp2k-plan
@@ -80,8 +80,8 @@ if [ "" != "${GREP}" ] && [ "" != "${SORT}" ] && [ "" != "${HEAD}" ] &&
   fi
   OUTPUT=0
   if [ "" = "$1" ]; then
-    if [ -e ${CONFIGFILE} ]; then # remind configuration
-      NCORESPERNODE=$(${CUT} -d" " -f1 ${CONFIGFILE})
+    if [ -e "${CONFIGFILE}" ]; then # remind configuration
+      NCORESPERNODE=$(${CUT} -d" " -f1 "${CONFIGFILE}")
     elif [ "" != "${NC}" ]; then
       NCORESPERNODE=${NC}
     fi
@@ -91,8 +91,8 @@ if [ "" != "${GREP}" ] && [ "" != "${SORT}" ] && [ "" != "${HEAD}" ] &&
     shift
   fi
   if [ "" = "$1" ]; then
-    if [ -e ${CONFIGFILE} ]; then # remind configuration
-      NTHREADSPERCORE=$(${CUT} -d" " -f2 ${CONFIGFILE})
+    if [ -e "${CONFIGFILE}" ]; then # remind configuration
+      NTHREADSPERCORE=$(${CUT} -d" " -f2 "${CONFIGFILE}")
     elif [ "" != "${HT}" ]; then
       NTHREADSPERCORE=${HT}
     fi
@@ -102,8 +102,8 @@ if [ "" != "${GREP}" ] && [ "" != "${SORT}" ] && [ "" != "${HEAD}" ] &&
     shift
   fi
   if [ "" = "$1" ]; then
-    if [ -e ${CONFIGFILE} ]; then # remind configuration
-      NPROCSPERNODE=$(${CUT} -d" " -f3 ${CONFIGFILE})
+    if [ -e "${CONFIGFILE}" ]; then # remind configuration
+      NPROCSPERNODE=$(${CUT} -d" " -f3 "${CONFIGFILE}")
     elif [ "" != "${NS}" ]; then
       NPROCSPERNODE=${NS}
     fi
@@ -128,7 +128,7 @@ if [ "" != "${GREP}" ] && [ "" != "${SORT}" ] && [ "" != "${HEAD}" ] &&
   MIN_NRANKS=$((PENALTY_MIN * NPROCSPERNODE))
   # remember system configuration
   if [ "0" != "${OUTPUT}" ]; then
-    echo "${NCORESPERNODE} ${NTHREADSPERCORE} ${NPROCSPERNODE}" > ${CONFIGFILE} 2> /dev/null
+    echo "${NCORESPERNODE} ${NTHREADSPERCORE} ${NPROCSPERNODE}" > "${CONFIGFILE}" 2> /dev/null
   fi
   NCORESTOTAL=$((TOTALNUMNODES * NCORESPERNODE))
   NCORESOCKET=$((NCORESPERNODE / NPROCSPERNODE))
@@ -138,7 +138,7 @@ if [ "" != "${GREP}" ] && [ "" != "${SORT}" ] && [ "" != "${HEAD}" ] &&
   NRANKSMIN=$((TOTALNUMNODES * NPROCSPERNODE))
   NSQRT_MIN=$(isqrt ${NRANKSMIN})
   NSQRT_MAX=$(isqrt ${NCORESTOTAL})
-  for NSQRT in $(${SEQ} ${NSQRT_MIN} ${NSQRT_MAX}); do
+  for NSQRT in $(${SEQ} "${NSQRT_MIN}" "${NSQRT_MAX}"); do
     NSQR=$((NSQRT * NSQRT))
     NRANKSPERNODE=$((NSQR / TOTALNUMNODES))
     if [ "${NSQR}" = "$((TOTALNUMNODES * NRANKSPERNODE))" ]; then
@@ -191,8 +191,8 @@ if [ "" != "${GREP}" ] && [ "" != "${SORT}" ] && [ "" != "${HEAD}" ] &&
     NRANKSPERNODE=$(echo "${RESULT}" | ${CUT} -d";" -f1)
     NTHREADSPERRANK=$((NTHREADSPERNODE / NRANKSPERNODE))
     PENALTY=$(echo "${RESULT}" | ${CUT} -d";" -f2)
-    if [ "0" != "$((OUTPUT_SQR < OUTPUT_POT))" ] ||
-      [ "0" != "$((PENALTY <= PENALTY_TOP))" ]; then
+    if [ "$((OUTPUT_SQR < OUTPUT_POT))" != "0" ] ||
+      [ "$((PENALTY <= PENALTY_TOP))" != "0" ]; then
       NSQRT=$(echo "${RESULT}" | ${CUT} -d";" -f3)
       echo "[${NRANKSPERNODE}x${NTHREADSPERRANK}]: ${NRANKSPERNODE} ranks per node with ${NTHREADSPERRANK} thread(s) per rank (${PENALTY}% penalty) -> ${NSQRT}x${NSQRT}"
       OUTPUT_SQR=$((OUTPUT_SQR + 1))
@@ -201,7 +201,7 @@ if [ "" != "${GREP}" ] && [ "" != "${SORT}" ] && [ "" != "${HEAD}" ] &&
   if [ "0" != "${OUTPUT_SQR}" ]; then
     echo "--------------------------------------------------------------------------------"
   fi
-  for NRANKSPERNODE in $(${SEQ} ${MIN_NRANKS} ${NCORESPERNODE}); do
+  for NRANKSPERNODE in $(${SEQ} "${MIN_NRANKS}" "${NCORESPERNODE}"); do
     REST=$((NCORESPERNODE % NRANKSPERNODE))
     PENALTY=$(((100 * REST + NCORESPERNODE - 1) / NCORESPERNODE))
     # criterion to add penalty in case of unbalanced load
