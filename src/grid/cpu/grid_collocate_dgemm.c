@@ -336,7 +336,7 @@ void apply_spherical_cutoff_generic(
   int **map = handler->map;
   map[1] = map[0] + 2 * cmax + 1;
   map[2] = map[1] + 2 * cmax + 1;
-  //	memset(map[0], 0xff, sizeof(int) * 3 * (2 * cmax + 1));
+  // memset(map[0], 0xff, sizeof(int) * 3 * (2 * cmax + 1));
 
   for (int i = 0; i < 3; i++) {
     for (int ig = 0; ig < handler->cube.size[i]; ig++) {
