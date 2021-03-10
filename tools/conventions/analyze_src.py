@@ -96,8 +96,6 @@ def validate(cp2k_dir, filelist=None, excluded_dirs=DEFAULT_EXCLUDED_DIRS):
 
         for fn in files:
             fn_ext = fn.rsplit(".", 1)[-1]
-            if fn_ext in ("template", "instantiate"):
-                continue
 
             with open(path.join(root, fn), encoding="utf8") as fhandle:
                 content = fhandle.read()
@@ -189,6 +187,8 @@ def validate(cp2k_dir, filelist=None, excluded_dirs=DEFAULT_EXCLUDED_DIRS):
                 continue  # skip binary files
             if b"\r\n" in content:
                 warnings += ["Text file %s contains DOS linebreaks" % shortfn]
+            if b"\t" in content:
+                warnings += ["Text file %s contains tab character" % shortfn]
 
     return warnings
 
