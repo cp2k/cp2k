@@ -68,13 +68,13 @@ def main():
     assert server_hello.startswith("cp2k precommit server")
 
     # Store candidate before changing base directory and creating scratch dir.
-    candidate_file_list = [os.path.abspath(fn) for fn in args.files]
+    file_list = [os.path.abspath(fn) for fn in args.files]
     base_dir = Path(__file__).resolve().parent.parent.parent
     os.chdir(base_dir)
     SCRATCH_DIR.mkdir(parents=True, exist_ok=True)
 
     # Collect candidate files.
-    if not candidate_file_list:
+    if not file_list:
         sys.stdout.write("Searching for files...\r")
         sys.stdout.flush()
         for root, dirs, files in os.walk("."):
@@ -86,7 +86,11 @@ def main():
                 continue
             if root.startswith("./tools/build_utils/fypp"):
                 continue
-            if root.startswith("./tools/autotune_grid"):
+            if root.startswith("./tools/autotools"):
+                continue
+            if root.startswith("./data/DFTB/scc"):
+                continue
+            if root.startswith("./arch"):
                 continue
             if root.startswith("./doxygen"):
                 continue
@@ -102,13 +106,14 @@ def main():
                 continue
             if root.startswith("./.git"):
                 continue
-            candidate_file_list += [os.path.join(root, fn) for fn in files]
+            file_list += [os.path.join(root, fn) for fn in files]
 
-    # Find eligible files and sort by size as larger ones will take longer to process.
-    eligible_file_pattern = re.compile(
-        r"(./data/.*POTENTIALS?)|(.*/PACKAGE)|(.*\.(F|fypp|c|cu|h|py|md|sh))$"
-    )
-    file_list = [fn for fn in candidate_file_list if eligible_file_pattern.match(fn)]
+    # Filter symlinks, backup copies, and hidden files.
+    file_list = [fn for fn in file_list if not os.path.islink(fn)]
+    file_list = [fn for fn in file_list if not fn[-1] in ("~", "#")]
+    file_list = [fn for fn in file_list if not os.path.basename(fn).startswith(".")]
+
+    # Sort files by size as larger ones will take longer to process.
     file_list.sort(reverse=True, key=lambda fn: os.path.getsize(fn))
 
     # Load cache.
@@ -177,29 +182,25 @@ def process_file(fn, allow_modifications):
     if re.match(r".*\.(F|fypp)$", fn):
         run_local_tool("./tools/doxify/doxify.sh", fn)
         run_prettify(fn)
-        run_analyze_src(fn)
 
-    elif re.match(r".*\.(c|cu|cpp|h|hpp)$", fn):
+    if re.match(r".*\.(c|cu|cpp|h|hpp)$", fn):
         run_remote_tool("clangformat", fn)
-        run_analyze_src(fn)
 
-    elif re.match(r"(.*/PACKAGE)|(.*\.py)$", fn):
+    if re.match(r"(.*/PACKAGE)|(.*\.py)$", fn):
         ast.parse(orig_content, filename=fn)
         run_remote_tool("black", fn)
-        run_analyze_src(fn)
 
-    elif re.match(r".*\.sh$", fn):
+    if re.match(r".*\.sh$", fn):
         run_remote_tool("shfmt", fn)
         run_remote_tool("shellcheck", fn)
 
-    elif re.match(r".*\.md$", fn):
+    if re.match(r".*\.md$", fn):
         run_remote_tool("markdownlint", fn)
 
-    elif re.match(r"./data/.*POTENTIALS?$", fn):
+    if re.match(r"./data/.*POTENTIALS?$", fn):
         check_data_files()
 
-    else:
-        raise Exception("Unknown file extension: " + fn)
+    run_check_file_properties(fn)
 
     new_content = Path(fn).read_bytes()
     if new_content == orig_content:
@@ -227,14 +228,8 @@ def run_prettify(fn):
 
 
 # ======================================================================================
-def run_analyze_src(fn):
-    run_local_tool(
-        "./tools/conventions/analyze_src.py",
-        "--fail",
-        "--suppressions",
-        "./tools/conventions/conventions.supp",
-        fn,
-    )
+def run_check_file_properties(fn):
+    run_local_tool("./tools/precommit/check_file_properties.py", fn)
 
 
 # ======================================================================================

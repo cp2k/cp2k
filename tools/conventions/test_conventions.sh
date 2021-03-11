@@ -31,6 +31,5 @@ else
 
   ./analyze_gfortran_ast.py ../../obj/Linux-x86-64-gfortran/dumpast/*.ast > ast.issues
   ./analyze_gfortran_warnings.py ../../obj/local_warn/psmp/*.warn > warn.issues
-  ./analyze_src.py -b ../../ > src.issues
   ./summarize_issues.py --suppressions=conventions.supp ./*.issues
 fi
