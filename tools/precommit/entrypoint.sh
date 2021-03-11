@@ -19,9 +19,9 @@ else
 
   echo -e "\n========== Starting Precommit Server =========="
   cd ./tools/precommit/
-  gunicorn --bind=:8080 --workers=1 --threads=8 --timeout=0 precommit_server:app &> server.logs &
+  gunicorn --bind=:8080 --workers=1 --threads=8 --timeout=0 precommit_server:app &> /workspace/precommit_server.logs &
   sleep 3
-  cat server.logs
+  cat /workspace/precommit_server.logs
 
   echo -e "\n========== Running Precommit Checks =========="
   export CP2K_PRECOMMIT_SERVER="http://127.0.0.1:8080"

@@ -1,40 +1,3 @@
-Data file BASIS_SET copied to tests/QMMM/QS
-Data file GTH_BASIS_SETS copied to tests/QMMM/QS
-Data file MM_POTENTIAL copied to tests/QMMM/QS
-Data file POTENTIAL copied to tests/QMMM/QS
-Flag FD_DEBUG not mentioned in INSTALL.md
-Flag FD_DEBUG not mentioned in cp2k_flags()
-Flag INTEL_MKL_VERSION not mentioned in INSTALL.md
-Flag INTEL_MKL_VERSION not mentioned in cp2k_flags()
-Flag LIBINT2_MAX_AM_eri not mentioned in INSTALL.md
-Flag LIBINT2_MAX_AM_eri not mentioned in cp2k_flags()
-Flag LIBINT_CONTRACTED_INTS not mentioned in INSTALL.md
-Flag LIBINT_CONTRACTED_INTS not mentioned in cp2k_flags()
-Flag XC_MAJOR_VERSION not mentioned in INSTALL.md
-Flag XC_MAJOR_VERSION not mentioned in cp2k_flags()
-Flag XC_MINOR_VERSION not mentioned in INSTALL.md
-Flag XC_MINOR_VERSION not mentioned in cp2k_flags()
-Flag __CRAY_PM_FAKE_ENERGY not mentioned in INSTALL.md
-Flag __DATA_DIR not mentioned in cp2k_flags()
-Flag __FFTW3_UNALIGNED not mentioned in cp2k_flags()
-Flag __FORCE_USE_FAST_MATH not mentioned in INSTALL.md
-Flag __FORCE_USE_FAST_MATH not mentioned in cp2k_flags()
-Flag __HAS_smm_cnt not mentioned in INSTALL.md
-Flag __HAS_smm_ctn not mentioned in INSTALL.md
-Flag __HAS_smm_ctt not mentioned in INSTALL.md
-Flag __HAS_smm_dnt not mentioned in INSTALL.md
-Flag __HAS_smm_dtn not mentioned in INSTALL.md
-Flag __HAS_smm_dtt not mentioned in INSTALL.md
-Flag __HAS_smm_snt not mentioned in INSTALL.md
-Flag __HAS_smm_stn not mentioned in INSTALL.md
-Flag __HAS_smm_stt not mentioned in INSTALL.md
-Flag __HAS_smm_znt not mentioned in INSTALL.md
-Flag __HAS_smm_ztn not mentioned in INSTALL.md
-Flag __HAS_smm_ztt not mentioned in INSTALL.md
-Flag __PILAENV_BLOCKSIZE not mentioned in cp2k_flags()
-Flag __PW_CUDA_NO_HOSTALLOC not mentioned in INSTALL.md
-Flag __RELEASE_VERSION not mentioned in INSTALL.md
-Flag __RELEASE_VERSION not mentioned in cp2k_flags()
 al_system_dynamics.F: Found WRITE statement with hardcoded unit in "dump_vel"
 almo_scf.F: Found WRITE statement with hardcoded unit in "almo_scf_init"
 base_hooks.F: Found CALL m_abort in procedure "cp_abort"
@@ -246,8 +209,6 @@ xyz2dcd.F: Found STOP statement in procedure "xyz2dcd"
 xyz2dcd.F: Found WRITE statement with hardcoded unit in "abort_program"
 xyz2dcd.F: Found WRITE statement with hardcoded unit in "print_help"
 xyz2dcd.F: Found WRITE statement with hardcoded unit in "xyz2dcd"
-Flag GRID_DO_COLLOCATE not mentioned in INSTALL.md
-Flag GRID_DO_COLLOCATE not mentioned in cp2k_flags()
 memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank1_allocated"
 memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank1_unallocated"
 memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank2_allocated"

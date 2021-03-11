@@ -44,9 +44,9 @@ repos:
             src/base/base_uses.f90|
             src/common/util.F|
           )$
-    -   id: analyze_src
-        name: Run analyze_src
-        entry: ./tools/conventions/analyze_src.py --fail --suppressions ./tools/conventions/conventions.supp
+    -   id: check_file_properties
+        name: Run check_file_properties.py
+        entry: ./tools/precommit/check_file_properties.py
         language: script
         files: '^src/.*\.(F|fypp|c|cu|cpp|h|hpp)$'
     -   id: regen_data
