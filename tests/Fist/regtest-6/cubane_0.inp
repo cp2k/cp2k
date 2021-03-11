@@ -6,7 +6,7 @@
       ! VDW_SCALE14 0.5
       ! EI_SCALE14  0.5
       ! PARM94 and Following
-      VDW_SCALE14 0.5 
+      VDW_SCALE14 0.5
       EI_SCALE14  0.83333333333333333333
       parm_file_name ../sample_pot/cubane.pot
       parmtype CHM

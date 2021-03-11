@@ -170,7 +170,7 @@
        TYPE NOSE
        &NOSE
          TIMECON \
-@INCLUDE file0.inc 
+@INCLUDE file0.inc
        &END
       &DEFINE_REGION
         LIST 1 2 3 \
@@ -186,7 +186,7 @@
       &END
     &END
   &END MD
-  &PRINT 
+  &PRINT
     &RESTART
       FILENAME MOLECULE
       COMMON_ITERATION_LEVELS 100

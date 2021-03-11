@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT  CH3_stress
   PRINT_LEVEL LOW
   RUN_TYPE CELL_OPT
@@ -46,7 +46,7 @@
         &SCREENING
           EPS_SCHWARZ 1.0E-4
           EPS_SCHWARZ_FORCES 1.0E-4
-          SCREEN_ON_INITIAL_P FALSE 
+          SCREEN_ON_INITIAL_P FALSE
         &END SCREENING
         &INTERACTION_POTENTIAL
           POTENTIAL_TYPE TRUNCATED
@@ -79,7 +79,7 @@
           -2.5559027122990370E-04   -9.2228252501752594E-04    4.5286618039725633E-04
            1.6657210614800535E-04   -8.4758917186367037E-04   -2.2362984387179316E-03
            0.0                       0.0                       0.0
-    &END VELOCITY        
+    &END VELOCITY
     &CELL
       ABC [angstrom] 7.0 7.0 7.0
     &END CELL
@@ -93,7 +93,7 @@
       BASIS_SET RI_AUX  RI_DZVP-GTH
       POTENTIAL  GTH-HF-q4
     &END KIND
-    &COORD 
+    &COORD
         C     0.000     0.000     0.300
         H     0.000     1.173     0.000
         H     0.929    -0.536     0.000

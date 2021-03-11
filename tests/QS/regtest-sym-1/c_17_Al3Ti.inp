@@ -13,7 +13,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#Al_3 Ti & I4/mmm-D_{4h}^{17} & tI8 & D0_22 & Pearson Alloys, p. 328 
+#Al_3 Ti & I4/mmm-D_{4h}^{17} & tI8 & D0_22 & Pearson Alloys, p. 328
      A   3.84800000  0.00000000  0.00000000
      B   0.00000000  3.84800000  0.00000000
      C   1.92400000  1.92400000  4.29800000

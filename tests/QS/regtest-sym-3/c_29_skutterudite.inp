@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#As_3 Co & Im(-3) -- T^5_h (#204) & cI32 & D0_3 & Skutterudite & Ni for Co 
+#As_3 Co & Im(-3) -- T^5_h (#204) & cI32 & D0_3 & Skutterudite & Ni for Co
      A  -4.10275000  4.10275000  4.10275000
      B   4.10275000 -4.10275000  4.10275000
      C   4.10275000  4.10275000 -4.10275000

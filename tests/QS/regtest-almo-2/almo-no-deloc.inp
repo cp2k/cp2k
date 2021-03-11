@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT hex-ice 
+  PROJECT hex-ice
   RUN_TYPE ENERGY
   PRINT_LEVEL LOW
 &END GLOBAL
@@ -12,7 +12,7 @@
       ALMO_SCF T
       EPS_DEFAULT 1.0E-8 ! 1.0E-12
     &END QS
-    
+
     &ALMO_SCF
       EPS_FILTER                 1.0E-8
       ALMO_ALGORITHM             DIAG
@@ -23,11 +23,11 @@
         EPS_ERROR                5.0E-4
         N_DIIS                   5
       &END ALMO_OPTIMIZER_DIIS
-      
+
       DELOCALIZE_METHOD          NONE
-      
+
     &END ALMO_SCF
-    
+
     &MGRID
       CUTOFF 200 ! 320
       NGRIDS 5
@@ -40,7 +40,7 @@
   &SUBSYS
     &CELL
 @INCLUDE 'ice.cell'
-      MULTIPLE_UNIT_CELL 1 1 1 
+      MULTIPLE_UNIT_CELL 1 1 1
     &END CELL
     &TOPOLOGY
       MULTIPLE_UNIT_CELL 1 1 1
@@ -49,7 +49,7 @@
 @INCLUDE 'ice.xyz'
     &END COORD
     &KIND H
-      BASIS_SET DZVP-GTH 
+      BASIS_SET DZVP-GTH
       POTENTIAL GTH-BLYP-q1
     &END KIND
     &KIND O

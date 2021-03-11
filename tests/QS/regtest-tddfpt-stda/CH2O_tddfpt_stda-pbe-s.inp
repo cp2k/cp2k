@@ -9,7 +9,7 @@
   &PROPERTIES
     &TDDFPT
        KERNEL sTDA
-       &sTDA 
+       &sTDA
           FRACTION 0.0
        &END sTDA
        NSTATES      1

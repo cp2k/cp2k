@@ -39,7 +39,7 @@
          FILTER_FACTOR 10.0
          FILTER_FACTOR_SCALE 0.5
          MIN_FILTER 1.0
-      &END  
+      &END
     &END
     &SCF
       EPS_SCF 1.0E-8

@@ -1,5 +1,5 @@
 &MULTIPLE_FORCE_EVALS
-   FORCE_EVAL_ORDER 2 3 
+   FORCE_EVAL_ORDER 2 3
    MULTIPLE_SUBSYS T
 &END
 &FORCE_EVAL
@@ -156,7 +156,7 @@
     TEMPERATURE 200.0
     &PRINT
      &ENERGY
-      &EACH 
+      &EACH
         MD 1
       &END
      &END
@@ -164,7 +164,7 @@
   &END MD
   &PRINT
    &TRAJECTORY
-    &EACH 
+    &EACH
       MD 100
     &END
    &END

@@ -22,7 +22,7 @@
         MAX_PAO 1
         EPS_PAO 1.0E-5
         PARAMETERIZATION GTH
-        NUM_GRADIENT_ORDER 4 
+        NUM_GRADIENT_ORDER 4
         CHECK_GRADIENT_TOL 1.0E-6
         &LINE_SEARCH
           METHOD 3PNT

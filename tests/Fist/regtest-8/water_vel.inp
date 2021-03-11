@@ -44,7 +44,7 @@
         #GTOP_INFO
         #G96_INFO
       &END TOPOLOGY_INFO
-    &END 
+    &END
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL

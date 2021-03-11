@@ -9,7 +9,7 @@
       &END BEND
       &BOND
         ATOMS O H
-        K [angstrom^-2kcalmol] 450.0 
+        K [angstrom^-2kcalmol] 450.0
         R0 [angstrom] 0.9572
       &END BOND
       &CHARGE

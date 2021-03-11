@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#Ag Au Te_4 & P2/c-C_{2h}^4 #13 & mP12 & E1_b & Pearson's Handbook v. I, p. 501 
+#Ag Au Te_4 & P2/c-C_{2h}^4 #13 & mP12 & E1_b & Pearson's Handbook v. I, p. 501
     A    8.96000000  0.00000000  0.00000000
     B    0.00000000  4.49000000  0.00000000
     C  -12.03859891  0.00000000  8.29557329

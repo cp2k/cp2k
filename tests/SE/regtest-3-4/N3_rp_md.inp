@@ -49,21 +49,21 @@
     &END CELL
     &COLVAR
        &REACTION_PATH
-	  LAMBDA 5.0
+    LAMBDA 5.0
           STEP_SIZE 0.01
           RANGE -2.0 37.0
           VARIABLE T
-	  FUNCTION 6.70208+3.8*sin(-0.131993*T+7.1788)+0.0678055*T
+    FUNCTION 6.70208+3.8*sin(-0.131993*T+7.1788)+0.0678055*T
           &MAP
             RANGE 2 12
             RANGE 2 12
             GRID_SPACING 0.5
             GRID_SPACING 0.5
           &END
-	  &COLVAR
+    &COLVAR
             &DISTANCE
                ATOMS 26 32
-	    &END
+      &END
           &END
           FUNCTION 7.34534+3.8*sin(-0.100683*T+5.23466)+0.0728908*T
           &COLVAR

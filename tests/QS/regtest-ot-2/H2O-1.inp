@@ -7,13 +7,13 @@
       CUTOFF 200
     &END MGRID
     &QS
-      EXTRAPOLATION PS 
+      EXTRAPOLATION PS
       EXTRAPOLATION_ORDER 1
     &END QS
     &SCF
       MAX_SCF 1
       SCF_GUESS ATOMIC
-      &OT 
+      &OT
       &END OT
     &END SCF
     &XC

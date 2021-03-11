@@ -11,7 +11,7 @@
     &SCF
       EPS_SCF 1.0E-5
       MAX_SCF 30
-      &OT ON 
+      &OT ON
         PRECONDITIONER FULL_ALL
         MINIMIZER DIIS
       &END OT

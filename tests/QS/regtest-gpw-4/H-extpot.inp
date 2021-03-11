@@ -18,15 +18,15 @@
       &END XC_FUNCTIONAL
     &END XC
     &POISSON
-      POISSON_SOLVER MT  
+      POISSON_SOLVER MT
       PERIODIC NONE
     &END
     &EXTERNAL_POTENTIAL
       FUNCTION A
-      PARAMETERS A 
-      VALUES [eV] 10.0 
+      PARAMETERS A
+      VALUES [eV] 10.0
     &END
-    &PRINT 
+    &PRINT
       &DERIVATIVES
       &END
     &END

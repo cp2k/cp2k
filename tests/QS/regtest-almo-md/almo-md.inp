@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT hex-ice 
+  PROJECT hex-ice
   RUN_TYPE MD
   PRINT_LEVEL LOW
 &END GLOBAL
@@ -27,7 +27,7 @@
       ALMO_SCF T
       EPS_DEFAULT 1.0E-8
     &END QS
-    
+
     &ALMO_SCF
       EPS_FILTER                 1.0E-8
       ALMO_ALGORITHM             DIAG
@@ -41,9 +41,9 @@
       &END
 
       DELOCALIZE_METHOD          NONE
-      
+
     &END ALMO_SCF
-    
+
     &MGRID
       CUTOFF 200
       NGRIDS 4
@@ -56,7 +56,7 @@
   &SUBSYS
     &CELL
 @INCLUDE '../regtest-almo-1/ice.cell'
-      MULTIPLE_UNIT_CELL 1 1 1 
+      MULTIPLE_UNIT_CELL 1 1 1
     &END CELL
     &TOPOLOGY
       MULTIPLE_UNIT_CELL 1 1 1
@@ -65,7 +65,7 @@
 @INCLUDE '../regtest-almo-1/ice.xyz'
     &END COORD
     &KIND H
-      BASIS_SET SZV-GTH 
+      BASIS_SET SZV-GTH
       POTENTIAL GTH-BLYP-q1
     &END KIND
     &KIND O

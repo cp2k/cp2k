@@ -5,7 +5,7 @@
     POTENTIAL_FILE_NAME POTENTIAL
     &SCRF
       EPS_OUT 80.0
-      LMAX 3 
+      LMAX 3
       &SPHERE
         RADIUS [angstrom] 6.0
         &CENTER

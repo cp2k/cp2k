@@ -2,7 +2,7 @@
 !  Tests level shifting, printing embedding potential cubes
 !  and adding a constant part to the embedding potential
 !
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT  h4_h8_pbe_pbe0_4_const
   PRINT_LEVEL HIGH
   RUN_TYPE ENERGY
@@ -18,37 +18,37 @@
        &MAPPING
           &FORCE_EVAL_EMBED
              &FRAGMENT 1
-                1 4  
+                1 4
              &END
              &FRAGMENT 2
-                5 8  
+                5 8
              &END
              &FRAGMENT 3
-                1 8  
+                1 8
              &END
           &END
           &FORCE_EVAL 1
              &FRAGMENT 1
                 1 4
-                MAP 1 
+                MAP 1
               &END
           &END
           &FORCE_EVAL 2
              &FRAGMENT 1
                 1 4
-                MAP 2 
+                MAP 2
              &END
           &END
           &FORCE_EVAL 3
              &FRAGMENT 1
                 1 8
-                MAP 3 
+                MAP 3
               &END
           &END
           &FORCE_EVAL 4
              &FRAGMENT 1
                 1 4
-                MAP 2 
+                MAP 2
              &END
           &END
        &END

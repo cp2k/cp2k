@@ -18,7 +18,7 @@
       &XC_FUNCTIONAL
         &LDA_HOLE_T_C_LR
           CUTOFF_RADIUS 1.0
-        &END 
+        &END
       &END XC_FUNCTIONAL
     &END XC
   &END DFT

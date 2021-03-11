@@ -24,17 +24,17 @@
       &XC_FUNCTIONAL
        &XALPHA
          SCALE_X 0.5
-       &END XALPHA 
+       &END XALPHA
        &LYP
          SCALE_C 1.0
        &END LYP
       &END XC_FUNCTIONAL
       &HF
         &SCREENING
-          EPS_SCHWARZ 1.0E-16 
+          EPS_SCHWARZ 1.0E-16
         &END
         &MEMORY
-          MAX_MEMORY  100 
+          MAX_MEMORY  100
         &END
         FRACTION 0.5
       &END
@@ -64,5 +64,5 @@
 &GLOBAL
   PROJECT CH3-hybrid-handh-lsd
 #  TRACE
-  PRINT_LEVEL MEDIUM 
+  PRINT_LEVEL MEDIUM
 &END GLOBAL

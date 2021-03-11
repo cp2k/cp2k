@@ -19,7 +19,7 @@
         &BECKE_ROUSSEL
           CUTOFF_RADIUS 0.0
           GAMMA 0.8
-        &END 
+        &END
       &END XC_FUNCTIONAL
     &END XC
   &END DFT

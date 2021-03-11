@@ -10,77 +10,77 @@
       parm_file_name ../sample_pot/N3_dye.pot
       parmtype CHM
      &CHARGE
-        ATOM O  
+        ATOM O
         CHARGE -0.536000000
-     &END CHARGE 
+     &END CHARGE
      &CHARGE
-        ATOM OH  
+        ATOM OH
         CHARGE -0.595000000
-     &END CHARGE 
+     &END CHARGE
      &CHARGE
-        ATOM C  
+        ATOM C
         CHARGE 0.622000000
-     &END CHARGE 
+     &END CHARGE
      &CHARGE
-        ATOM HO  
+        ATOM HO
         CHARGE 0.446000000
-     &END CHARGE 
+     &END CHARGE
      &CHARGE
-        ATOM Ca1 
+        ATOM Ca1
         CHARGE 0.220000000
-     &END CHARGE 
+     &END CHARGE
      &CHARGE
-        ATOM Ca2 
+        ATOM Ca2
         CHARGE -0.427000000
-     &END CHARGE 
+     &END CHARGE
      &CHARGE
-        ATOM Ca3 
+        ATOM Ca3
         CHARGE -0.312000000
-     &END CHARGE 
+     &END CHARGE
      &CHARGE
-        ATOM Ha1 
+        ATOM Ha1
         CHARGE 0.185000000
-     &END CHARGE 
+     &END CHARGE
      &CHARGE
-        ATOM Ha2 
+        ATOM Ha2
         CHARGE 0.157000000
-     &END CHARGE 
+     &END CHARGE
      &CHARGE
-        ATOM Ca4 
+        ATOM Ca4
         CHARGE 0.268000000
-     &END CHARGE 
+     &END CHARGE
      &CHARGE
         ATOM H4
         CHARGE 0.086000000
-     &END CHARGE 
+     &END CHARGE
      &CHARGE
         ATOM Nb
         CHARGE -0.529000000
-     &END CHARGE 
+     &END CHARGE
      &CHARGE
-        ATOM Nt 
+        ATOM Nt
         CHARGE -0.529000000
-     &END CHARGE 
+     &END CHARGE
      &CHARGE
-        ATOM Ca5 
+        ATOM Ca5
         CHARGE 0.415000000
-     &END CHARGE 
+     &END CHARGE
      &CHARGE
-        ATOM N2 
+        ATOM N2
         CHARGE -0.722000000
-     &END CHARGE 
+     &END CHARGE
      &CHARGE
-        ATOM C1 
+        ATOM C1
         CHARGE 0.417000000
-     &END CHARGE 
+     &END CHARGE
      &CHARGE
-        ATOM S2  
+        ATOM S2
         CHARGE -0.6950000000
-     &END CHARGE 
+     &END CHARGE
      &CHARGE
-        ATOM Ru 
+        ATOM Ru
         CHARGE 2.000000000
-     &END CHARGE 
+     &END CHARGE
     &END FORCEFIELD
     &POISSON
       &EWALD
@@ -96,10 +96,10 @@
     &END CELL
     &TOPOLOGY
        CONNECTIVITY PSF
-	CONN_FILE_NAME ../sample_psf/N3_dye.psf
+  CONN_FILE_NAME ../sample_psf/N3_dye.psf
 !        &GENERATE
 !          BONDPARM COVALENT
-!          BONDLENGTH_MAX 2.1  
+!          BONDLENGTH_MAX 2.1
 !CREATE_MOLECULES
 !        &END
 !        &DUMP_PSF
@@ -165,55 +165,55 @@ H4 2.4949032356 1.0621834864 1.3712573711
 Nb 2.0730876452 -0.0472211481 -0.3305101342
 HO 0.8140727184 -4.6387236809 -6.6325738090
 HO -3.7887646613 4.5419511950 -4.9829484802
- &END COORD 
-    &KIND O  
-       ELEMENT O 
-    &END KIND 
-    &KIND H4  
-       ELEMENT H 
-    &END KIND 
-    &KIND Ca1 
-       ELEMENT C 
-    &END KIND 
-    &KIND OH  
-       ELEMENT O 
-    &END KIND 
-    &KIND Ca2 
-       ELEMENT C 
-    &END KIND 
-    &KIND Ca3 
-       ELEMENT C 
-    &END KIND 
-    &KIND Ha1  
-       ELEMENT H 
-    &END KIND 
-    &KIND Ca4 
-       ELEMENT C 
-    &END KIND 
-    &KIND Ha2 
-       ELEMENT H 
-    &END KIND 
-    &KIND Nb  
-       ELEMENT N 
-    &END KIND 
-    &KIND Ca5 
-       ELEMENT C 
-    &END KIND 
-    &KIND C1  
-       ELEMENT C 
-    &END KIND 
-    &KIND s2  
-       ELEMENT S 
-    &END KIND 
-    &KIND ru 
+ &END COORD
+    &KIND O
+       ELEMENT O
+    &END KIND
+    &KIND H4
+       ELEMENT H
+    &END KIND
+    &KIND Ca1
+       ELEMENT C
+    &END KIND
+    &KIND OH
+       ELEMENT O
+    &END KIND
+    &KIND Ca2
+       ELEMENT C
+    &END KIND
+    &KIND Ca3
+       ELEMENT C
+    &END KIND
+    &KIND Ha1
+       ELEMENT H
+    &END KIND
+    &KIND Ca4
+       ELEMENT C
+    &END KIND
+    &KIND Ha2
+       ELEMENT H
+    &END KIND
+    &KIND Nb
+       ELEMENT N
+    &END KIND
+    &KIND Ca5
+       ELEMENT C
+    &END KIND
+    &KIND C1
+       ELEMENT C
+    &END KIND
+    &KIND s2
+       ELEMENT S
+    &END KIND
+    &KIND ru
        ELEMENT Ru
-    &END KIND 
-    &KIND Nt  
-       ELEMENT N 
-    &END KIND 
-    &KIND N2  
-       ELEMENT N 
-    &END KIND 
+    &END KIND
+    &KIND Nt
+       ELEMENT N
+    &END KIND
+    &KIND N2
+       ELEMENT N
+    &END KIND
   &END SUBSYS
 
 &END FORCE_EVAL
@@ -240,8 +240,8 @@ HO -3.7887646613 4.5419511950 -4.9829484802
     TIMESTEP 0.05
     TEMPERATURE 30
     &THERMOSTAT
-	&NOSE
-	   TIMECON 50
+  &NOSE
+     TIMECON 50
         &END
     &END
   &END MD
@@ -250,7 +250,7 @@ HO -3.7887646613 4.5419511950 -4.9829484802
    NPROC_REP 4
    DX 0.01
    INTENSITIES
-   &PRINT 
+   &PRINT
      &PROGRAM_RUN_INFO ON
      &END
    &END

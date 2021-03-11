@@ -2,9 +2,9 @@
 
 &FORCE_EVAL
   METHOD Quickstep
-  &DFT 
-      BASIS_SET_FILE_NAME GTH_BASIS_SETS 
-      POTENTIAL_FILE_NAME GTH_POTENTIALS 
+  &DFT
+      BASIS_SET_FILE_NAME GTH_BASIS_SETS
+      POTENTIAL_FILE_NAME GTH_POTENTIALS
       RESTART_FILE_NAME  hcn_md-RESTART.wfn
     &MGRID
       CUTOFF 50
@@ -49,7 +49,7 @@
 
   &SUBSYS
     &CELL
-      ABC   8.0  8.0  8.0 
+      ABC   8.0  8.0  8.0
       PERIODIC NONE
     &END CELL
 
@@ -117,7 +117,7 @@
   &END MD
   &FREE_ENERGY
     &METADYN
-      DO_HILLS  
+      DO_HILLS
       LAGRANGE
       NT_HILLS 10
       WW 1.0e-3

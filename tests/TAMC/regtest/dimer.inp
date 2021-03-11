@@ -13,9 +13,9 @@
 @set zk 10.0  ! coupling constant for collective variables and atoms
 @set zmass 100.0 ! mass for collective variables
 @set zgamma 0.001 ! friction coefficient for lagrange equations for cvs
-@set Tz  3000.0 ! temperature 
+@set Tz  3000.0 ! temperature
 @set Nz 1   ! number of steps to integrate z
-@set dtz 0.5 ! time step to integrate the z 
+@set dtz 0.5 ! time step to integrate the z
 @set dt 1.0 ! time steps to integrate atoms
 @set N 1 ! the length of the mini-trajectory
 @set M 2 ! number of cycles/steps for the HMC part
@@ -156,7 +156,7 @@
           &end each
           add_last numeric
         &end molecular_states
-      &end 
+      &end
     &end Localize
     &Print
       &MO_Cubes Medium
@@ -270,8 +270,8 @@
         Scale 1.0
         Colvar 1
       &end metavar
-      &EXT_LAGRANGE_SS0                                                                                                                                                                                                                                                       
-        0.44025202                                                                                                                                                                                                                                             
+      &EXT_LAGRANGE_SS0
+        0.44025202
       &END EXT_LAGRANGE_SS0
       &Print
         &Colvar

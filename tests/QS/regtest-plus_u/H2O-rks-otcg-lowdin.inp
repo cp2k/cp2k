@@ -45,7 +45,7 @@
       &PRINT
         &RESTART
           &EACH
-            MD 1 
+            MD 1
             QS_SCF 30
           &END
           ADD_LAST NUMERIC

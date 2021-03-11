@@ -38,7 +38,7 @@
         ENERGY_GAP 0.001
       &END OT
       &SMEAR
-        METHOD FERMI_DIRAC 
+        METHOD FERMI_DIRAC
         ELECTRONIC_TEMPERATURE   5000.
       &END
       &MIXING
@@ -47,7 +47,7 @@
           BETA   1.0
           NPULAY  5
           PULAY_ALPHA 0.4
-          GMIX_P 
+          GMIX_P
       &END
       ADDED_MOS   20 20
     &END SCF

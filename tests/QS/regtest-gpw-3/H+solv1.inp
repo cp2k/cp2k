@@ -9,7 +9,7 @@
     &END MGRID
     &SCRF
       EPS_OUT 100.0
-      LMAX 3 
+      LMAX 3
       &SPHERE
         RADIUS [angstrom] 3.0
         &CENTER

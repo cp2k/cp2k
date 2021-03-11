@@ -21,13 +21,13 @@
       &OT off
        PRECONDITIONER FULL_ALL
       &END OT
-      MAX_SCF 2 
+      MAX_SCF 2
     &END SCF
     &XC
       &XC_FUNCTIONAL
       &XWPBE
         SCALE_X -0.25
-        SCALE_X0 1.0 
+        SCALE_X0 1.0
         OMEGA 0.11
       &END
       &PBE
@@ -75,5 +75,5 @@
 &GLOBAL
   PROJECT CH3-hybrid-HSE06-lsd
 #  TRACE
-  PRINT_LEVEL MEDIUM 
+  PRINT_LEVEL MEDIUM
 &END GLOBAL

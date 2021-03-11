@@ -52,7 +52,7 @@
       PRINT_CELL            .TRUE.
       PRINT_ENERGIES        .TRUE.
       RESTART_IN
-      RESTART_OUT                    # create a TMC restart file  
+      RESTART_OUT                    # create a TMC restart file
       PRINT_ONLY_ACC        .TRUE.
       PRINT_TEST_OUTPUT
   &END TMC

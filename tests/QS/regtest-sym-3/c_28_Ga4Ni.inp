@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#Ga_4 Ni & I23-T^3 #197 & cI40 & Pearson's Handbook 
+#Ga_4 Ni & I23-T^3 #197 & cI40 & Pearson's Handbook
      A  -4.21475000  4.21475000  4.21475000
      B   4.21475000 -4.21475000  4.21475000
      C   4.21475000  4.21475000 -4.21475000

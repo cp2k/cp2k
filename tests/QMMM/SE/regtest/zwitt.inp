@@ -55,10 +55,10 @@
     &QM_KIND O
       MM_INDEX 8
     &END QM_KIND
-    &QM_KIND N 
+    &QM_KIND N
       MM_INDEX 1 6
     &END QM_KIND
-    &QM_KIND C 
+    &QM_KIND C
       MM_INDEX 5
     &END QM_KIND
   &END QMMM

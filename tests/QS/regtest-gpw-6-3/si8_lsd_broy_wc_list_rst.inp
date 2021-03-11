@@ -31,7 +31,7 @@
       MAX_SCF   5
       EPS_SCF 1.0e-7
       &SMEAR
-        METHOD FERMI_DIRAC 
+        METHOD FERMI_DIRAC
         ELECTRONIC_TEMPERATURE   300.
         FIXED_MAGNETIC_MOMENT  0.0
       &END
@@ -51,7 +51,7 @@
       METHOD L1SD
       MAX_ITER 30
       EPS_LOCALIZATION 1.0E-10
-      LIST  3 4 5 6 7 8 9 
+      LIST  3 4 5 6 7 8 9
       RESTART
       &PRINT
         &WANNIER_CENTERS
@@ -75,7 +75,7 @@
     &END
 
     &TOPOLOGY
-      COORD_FILE_NAME ../sample_xyz/SI_8.xyz 
+      COORD_FILE_NAME ../sample_xyz/SI_8.xyz
       COORDINATE XYZ
       CONNECTIVITY OFF
     &END TOPOLOGY

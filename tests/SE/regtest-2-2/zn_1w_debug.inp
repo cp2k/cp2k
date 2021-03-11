@@ -27,12 +27,12 @@
       &END
       SCF_GUESS mopac
       &OUTER_SCF
-	EPS_SCF 1.0E-6
-	MAX_SCF 10
+  EPS_SCF 1.0E-6
+  MAX_SCF 10
       &END OUTER_SCF
       &OT ON
-	MINIMIZER CG
-	PRECONDITIONER FULL_ALL
+  MINIMIZER CG
+  PRECONDITIONER FULL_ALL
       &END OT
       &PRINT
          &RESTART OFF
@@ -42,7 +42,7 @@
       &END
     &END SCF
   &END DFT
-  
+
   &SUBSYS
     &TOPOLOGY
       CONNECTIVITY OFF
@@ -52,7 +52,7 @@
     &CELL
       ABC  15.0 15.0 15.0
     &END CELL
-    
+
     &KIND H
       BASIS_SET TZV2P-GTH-q1
       POTENTIAL GTH-PBE-q1
@@ -65,7 +65,7 @@
       BASIS_SET TZV-GTH-q12-confined
       POTENTIAL GTH-PBE-q12
     &END KIND
-    
+
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL

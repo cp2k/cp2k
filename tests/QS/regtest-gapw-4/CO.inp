@@ -2,7 +2,7 @@
  PROJECT      co_lsd
  IOLEVEL      MEDIUM
  RUN_TYPE     ENERGY
-&END 
+&END
 
 &FORCE_EVAL
   METHOD Quickstep
@@ -36,7 +36,7 @@
       EPS_SCF 5.E-7
       EPS_DIIS 0.4
       MAX_SCF 5
-       
+
       ADDED_MOS  1 1
       &PRINT
         &TOTAL_DENSITIES MEDIUM
@@ -58,7 +58,7 @@
   &END SECTION DFT
   &SUBSYS
     &CELL
-       ABC    6.0    6.0     6.0 
+       ABC    6.0    6.0     6.0
        PERIODIC NONE
     &END CELL
 

@@ -14,7 +14,7 @@
     &END QS
 
     &XC
-      &XC_FUNCTIONAL 
+      &XC_FUNCTIONAL
          &LDA_C_VWN
          &END LDA_C_VWN
          &LDA_X
@@ -33,18 +33,18 @@
     &XAS_TDP
       &DONOR_STATES
          DEFINE_EXCITED BY_INDEX
-         AT_LIST 1 
+         AT_LIST 1
          STATE_TYPES 1s
          N_SEARCH 8
          LOCALIZE
       &END DONOR_STATES
 
-      TAMM_DANCOFF 
+      TAMM_DANCOFF
       GRID Ne 150 150
       N_EXCITED 10
 
       &KERNEL
-         &XC_FUNCTIONAL 
+         &XC_FUNCTIONAL
             &LDA_C_VWN
             &END LDA_C_VWN
             &LDA_X

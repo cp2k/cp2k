@@ -4,7 +4,7 @@
     &QS
       METHOD PM6
       LS_SCF
-      &SE 
+      &SE
       &END
     &END QS
     &LS_SCF

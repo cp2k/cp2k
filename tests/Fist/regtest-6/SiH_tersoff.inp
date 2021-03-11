@@ -76,11 +76,11 @@
 
           ATOMS H H
 
-          A        86.7120 
+          A        86.7120
 
-          B        43.5310 
+          B        43.5310
 
-          lambda1  3.7879 
+          lambda1  3.7879
 
           lambda2  1.9800
 
@@ -94,25 +94,25 @@
 
           d        1.0
 
-          h        1.0	
+          h        1.0
 
-          lambda3  0.0  
+          lambda3  0.0
 
           bigR     0.9
 
           bigD     0.1
 
-          RCUT     8.0 
+          RCUT     8.0
 
         &END TERSOFF
 
         &TERSOFF
 
-          ATOMS Si H 
+          ATOMS Si H
 
           A        398.4373596941
 
-          B        111.7087902328 
+          B        111.7087902328
 
           lambda1  3.1339
 
@@ -130,13 +130,13 @@
 
           h       -5.9826E-1
 
-          lambda3  0.0  
+          lambda3  0.0
 
           bigR     1.6015617378
 
           bigD     0.1224744871
 
-          RCUT     8.0 
+          RCUT     8.0
 
         &END TERSOFF
 
@@ -160,7 +160,7 @@
 
       &END
 
-      &FF_INFO 
+      &FF_INFO
 
       &END
 

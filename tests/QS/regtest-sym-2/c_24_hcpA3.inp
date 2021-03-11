@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#Mg & P6_3/mmc-D_{6h}^4 #194 & hP2 & A3 & Ashcroft and Mermin, 77 
+#Mg & P6_3/mmc-D_{6h}^4 #194 & hP2 & A3 & Ashcroft and Mermin, 77
      A   1.60500000 -2.77994155  0.00000000
      B   1.60500000  2.77994155  0.00000000
      C   0.00000000  0.00000000  5.21000000

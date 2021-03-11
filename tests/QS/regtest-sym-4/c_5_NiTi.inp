@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#NiTi & P2_1/m-C_{2h}^2 & mP4 & Pearson's Handbook Vol. IV, p. 4715 
+#NiTi & P2_1/m-C_{2h}^2 & mP4 & Pearson's Handbook Vol. IV, p. 4715
      A   2.88400000  0.00000000  0.00000000
      B   0.00000000  4.11000000  0.00000000
      C  -0.65730425  0.00000000  4.61846036

@@ -44,7 +44,7 @@
   &END MM
   &SUBSYS
     &CELL
-      ABC 10.0 10.0 10.0 
+      ABC 10.0 10.0 10.0
     &END CELL
     &COORD
     O   0.00 0.00 0.00

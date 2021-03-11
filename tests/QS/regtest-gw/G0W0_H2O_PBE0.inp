@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT  G0W0_H2O_PBE0
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
@@ -68,12 +68,12 @@
             CORR_MOS_VIRT         10
             ANALYTIC_CONTINUATION TWO_POLE
             NUMB_POLES            2
-            CROSSING_SEARCH       Z_SHOT 
+            CROSSING_SEARCH       Z_SHOT
             FERMI_LEVEL_OFFSET    2.0E-2
             EV_GW_ITER            1
             UPDATE_XC_ENERGY
             RI_SIGMA_X FALSE
-          &END GW 
+          &END GW
         &END RI_RPA
         MEMORY  200.
         NUMBER_PROC  1

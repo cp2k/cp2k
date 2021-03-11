@@ -14,7 +14,7 @@
         &PARAMETER
           PARAM_FILE_PATH  DFTB/scc
           PARAM_FILE_NAME  scc_parameter
-          DISPERSION_TYPE  D3 
+          DISPERSION_TYPE  D3
           DISPERSION_RADIUS           15.
           COORDINATION_CUTOFF         1.e-4
           D3_SCALING                  1.0 1.0 1.5

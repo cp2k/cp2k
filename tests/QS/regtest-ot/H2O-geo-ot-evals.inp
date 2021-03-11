@@ -2,7 +2,7 @@
   METHOD Quickstep
   &DFT
     &PRINT
-      &MO_CUBES 
+      &MO_CUBES
         NHOMO 1
         WRITE_CUBE FALSE
       &END
@@ -14,7 +14,7 @@
     &END MGRID
     &QS
       EPS_DEFAULT 1.0E-12
-      EXTRAPOLATION PS 
+      EXTRAPOLATION PS
       EXTRAPOLATION_ORDER 2
     &END QS
     &SCF

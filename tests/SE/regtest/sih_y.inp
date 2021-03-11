@@ -36,7 +36,7 @@
       PERIODIC NONE
     &END CELL
     &COORD
-       Si       0.0     0.0     0.0 
+       Si       0.0     0.0     0.0
        H        0.0     1.4     0.0
     &END COORD
     &PRINT

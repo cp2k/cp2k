@@ -52,7 +52,7 @@
 &MOTION
   &CONSTRAINT
     &FIXED_ATOMS
-      LIST 3 
+      LIST 3
       LIST 4
       &RESTRAINT
           K   [kcalmol*angstrom^-2]  100.0

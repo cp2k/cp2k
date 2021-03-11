@@ -29,7 +29,7 @@
       ABC 10.0 10.0 10.0
     &END CELL
     &COORD
-   Ar 0.0 0.0 0.0 
+   Ar 0.0 0.0 0.0
     &END COORD
     &TOPOLOGY
     &END TOPOLOGY

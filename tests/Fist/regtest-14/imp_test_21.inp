@@ -106,7 +106,7 @@
           EPSILON [au_e] 0.0
         &END LENNARD-JONES
       &END NONBONDED
-      &NONBONDED14   
+      &NONBONDED14
         &LENNARD-JONES
           ATOMS C C
           SIGMA [au_l] 1.0
@@ -157,7 +157,7 @@
           SIGMA [au_l] 1.0
           EPSILON [au_e] 0.0
         &END LENNARD-JONES
-      &END NONBONDED14     
+      &END NONBONDED14
     &END FORCEFIELD
     &POISSON
       PERIODIC none

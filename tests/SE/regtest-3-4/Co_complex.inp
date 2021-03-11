@@ -26,7 +26,7 @@
       MAX_SCF 10
       EPS_SCF 1.0E-5
       SCF_GUESS mopac
-      &OT 
+      &OT
         MINIMIZER CG
         PRECONDITIONER FULL_SINGLE_INVERSE
       &END
@@ -34,7 +34,7 @@
   &END DFT
   &SUBSYS
     &CELL
-       a [angstrom]     5.817     0.000     0.000 
+       a [angstrom]     5.817     0.000     0.000
        b [angstrom]     1.996     6.536     0.000
        c [angstrom]     1.765    -0.011    12.135
     &END CELL

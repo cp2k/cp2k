@@ -10,7 +10,7 @@
       &END
     &END MGRID
     &QS
-      WF_INTERPOLATION PS 
+      WF_INTERPOLATION PS
       EXTRAPOLATION_ORDER 3
     &END QS
     &SCF

@@ -3,7 +3,7 @@
   &DFT
     BASIS_SET_FILE_NAME BASIS_MOLOPT
     POTENTIAL_FILE_NAME POTENTIAL
-   
+
     &MGRID
       CUTOFF 250
       NGRIDS 1
@@ -16,7 +16,7 @@
       EPS_SCF 1.0E-6
       MAX_DIIS 4
       MAX_SCF 100
-       
+
       SCF_GUESS ATOMIC
     &END SCF
 

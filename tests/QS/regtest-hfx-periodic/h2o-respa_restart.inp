@@ -1,7 +1,7 @@
 ! Restart of RESPA is tested. Continues h2o-respa.inp by one more step
 &MULTIPLE_FORCE_EVALS
    ! 1 is the cheap one (here pade), evaluated multiple times, 2 is the expensive one (here hfx), evaluated once per timestep
-   FORCE_EVAL_ORDER 1 2   
+   FORCE_EVAL_ORDER 1 2
 &END
 &FORCE_EVAL
   METHOD Quickstep
@@ -24,7 +24,7 @@
       &END XC_FUNCTIONAL
       &HF
         &SCREENING
-          EPS_SCHWARZ 1.0E-10 
+          EPS_SCHWARZ 1.0E-10
           EPS_SCHWARZ_FORCES 1.0E-10
         &END
         &INTERACTION_POTENTIAL

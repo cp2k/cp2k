@@ -37,10 +37,10 @@
     &END XC
   &END DFT
   &SUBSYS
-    &KIND  O   
+    &KIND  O
       BASIS_SET  DZVP-MOLOPT-GTH
       POTENTIAL  GTH-BLYP-q6
-#     MAGNETIZATION 1.0 
+#     MAGNETIZATION 1.0
     &END
     &CELL
       ABC 8 8 8

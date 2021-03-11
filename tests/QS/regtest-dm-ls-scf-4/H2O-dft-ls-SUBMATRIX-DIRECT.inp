@@ -1,4 +1,4 @@
-! size can be tuned by setting NREP 
+! size can be tuned by setting NREP
 ! molecular clustering is an interesting parameter
 @SET NREP 1
 &FORCE_EVAL

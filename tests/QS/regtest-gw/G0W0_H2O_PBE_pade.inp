@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT  G0W0_H2O_PBE_pade
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
@@ -61,11 +61,11 @@
             CORR_MOS_VIRT         10
             ANALYTIC_CONTINUATION PADE
             NPARAM_PADE            16
-            CROSSING_SEARCH       NEWTON 
+            CROSSING_SEARCH       NEWTON
             FERMI_LEVEL_OFFSET    2.0E-2
             EV_GW_ITER            1
             RI_SIGMA_X            FALSE
-          &END GW 
+          &END GW
         &END RI_RPA
         MEMORY  200.
         NUMBER_PROC  1

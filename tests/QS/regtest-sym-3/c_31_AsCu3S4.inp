@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#AsCu_3S_4 & Lazarevicite & P(-4)3m #215 T^1_d & cP8 & Pearson's Handbook 
+#AsCu_3S_4 & Lazarevicite & P(-4)3m #215 T^1_d & cP8 & Pearson's Handbook
      A   5.28000000  0.00000000  0.00000000
      B   0.00000000  5.28000000  0.00000000
      C   0.00000000  0.00000000  5.28000000

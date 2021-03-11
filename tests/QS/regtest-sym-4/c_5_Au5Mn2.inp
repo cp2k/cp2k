@@ -13,7 +13,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#Au_5 Mn_2 & C2/m-C_{2h}^3 #12 (ai^3) & mC14 & Pearson Handbook I, Alloys 346-7 
+#Au_5 Mn_2 & C2/m-C_{2h}^3 #12 (ai^3) & mC14 & Pearson Handbook I, Alloys 346-7
      A   4.59400000 -1.97700000  0.00000000
      B   4.59400000  1.97700000  0.00000000
      C  -0.85240550  0.00000000  6.42268210

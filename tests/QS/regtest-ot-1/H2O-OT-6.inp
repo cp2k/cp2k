@@ -17,7 +17,7 @@
       SCF_GUESS ATOMIC
       &OT ON
       &END OT
-      NOTCONV_STOPALL  
+      NOTCONV_STOPALL
     &END SCF
     &XC
       &XC_FUNCTIONAL Pade

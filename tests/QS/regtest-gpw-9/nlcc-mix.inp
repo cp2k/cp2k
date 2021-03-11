@@ -8,7 +8,7 @@
     THRESHOLD  0.05
   &END
 !  TRACE
-!  TRACE_MASTER .FALSE.  
+!  TRACE_MASTER .FALSE.
 !  TRACE_MAX 1000
 &END GLOBAL
 &MOTION
@@ -16,7 +16,7 @@
   HOST daint02
   PORT 31019
 !  SLEEP_TIME 0.1
- &END DRIVER 
+ &END DRIVER
 &END MOTION
 &FORCE_EVAL
   METHOD Quickstep
@@ -46,11 +46,11 @@
       &END
     &END SCF
     &XC
-      &XC_FUNCTIONAL                                       
+      &XC_FUNCTIONAL
         &GGA_XC_PBE1W
         &END GGA_XC_PBE1W
-      &END XC_FUNCTIONAL                                     
-      &VDW_POTENTIAL                                         
+      &END XC_FUNCTIONAL
+      &VDW_POTENTIAL
          POTENTIAL_TYPE PAIR_POTENTIAL
          &PAIR_POTENTIAL
             TYPE DFTD3
@@ -163,13 +163,13 @@
 !      H  3.50471e+00  1.01739e+01  4.96311e+00
 !      O  7.81827e+00  1.24753e+01 -1.75675e+00
 !      H  8.45545e+00  1.30236e+01 -1.24453e+00
-!      H  7.33330e+00  1.30810e+01 -2.33409e+00 
+!      H  7.33330e+00  1.30810e+01 -2.33409e+00
     &END COORD
     &KIND H
       &BASIS
         3
-        1  0  0  3  1  
-              8.3744350009  -0.0283380461  
+        1  0  0  3  1
+              8.3744350009  -0.0283380461
               1.8058681460  -0.1365288433
               0.4852528328  -0.3242514841
         1  0  0  1  1
@@ -188,7 +188,7 @@
       &BASIS
         3
         2  0  1  3  1  1
-              8.3043855492   0.1510165999    -0.0995679273   
+              8.3043855492   0.1510165999    -0.0995679273
               2.4579484191  -0.0400692139    -0.3257542222
               0.7597373434  -0.6395855949    -0.5111354819
         2  0  1  1  1  1

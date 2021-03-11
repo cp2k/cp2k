@@ -31,7 +31,7 @@
       ABC 20. 20. 20.
     &END CELL
     &COORD
-    O                   0.000   0.000   0.000  
+    O                   0.000   0.000   0.000
     &END COORD
     &MULTIPOLES
        &DIPOLES

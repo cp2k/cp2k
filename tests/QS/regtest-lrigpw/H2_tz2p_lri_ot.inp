@@ -21,14 +21,14 @@
       METHOD LRIGPW
       &LRIGPW
          LRI_OVERLAP_MATRIX PSEUDO_INVERSE_DIAG
-         SHG_LRI_INTEGRALS .FALSE. 
+         SHG_LRI_INTEGRALS .FALSE.
       &END
     &END QS
     &SCF
       SCF_GUESS atomic
       MAX_SCF 3
       EPS_SCF 1.0E-6
-      &OT 
+      &OT
         PRECONDITIONER NONE
       &END
     &END SCF
@@ -53,7 +53,7 @@
     &KIND H
       BASIS_SET ORB adf_tz2p_basis
       POTENTIAL GTH-PADE-q1
-      BASIS_SET LRI_AUX adf_tz2p_fit_basis 
+      BASIS_SET LRI_AUX adf_tz2p_fit_basis
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL

@@ -21,7 +21,7 @@
         &GV09
           CUTOFF_RADIUS 1.0
           SCALE_X 0.9
-        &END 
+        &END
       &END XC_FUNCTIONAL
     &END XC
   &END DFT

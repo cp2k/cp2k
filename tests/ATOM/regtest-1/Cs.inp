@@ -9,7 +9,7 @@
      METHOD_TYPE  KOHN-SHAM
      RELATIVISTIC DKH(3)
      &XC
-       &XC_FUNCTIONAL 
+       &XC_FUNCTIONAL
          &BECKE88
          &END BECKE88
        &END XC_FUNCTIONAL

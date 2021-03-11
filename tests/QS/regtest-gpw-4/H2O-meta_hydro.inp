@@ -1,8 +1,8 @@
 &GLOBAL
   PROJECT H2O-meta_hydro
   PRINT_LEVEL LOW
-  PROGRAM CP2K 
-  RUN_TYPE md 
+  PROGRAM CP2K
+  RUN_TYPE md
 &END GLOBAL
 &MOTION
   &MD
@@ -32,32 +32,32 @@
         MASS 40.
         COLVAR 1
         SCALE .050
-      &END METAVAR 
+      &END METAVAR
       &METAVAR
         MASS 40.
         COLVAR 2
         SCALE .2
-      &END METAVAR 
+      &END METAVAR
     &END METADYN
   &END FREE_ENERGY
 &END MOTION
-&FORCE_EVAL 
+&FORCE_EVAL
   METHOD QUICKSTEP
   &SUBSYS
     &CELL
       ABC 8.0 8.0 8.0
     &END CELL
     &COORD
- O        0.000000        0.000000        0.000000 
+ O        0.000000        0.000000        0.000000
  H        0.120000        0.060000       -0.990000
  H       -0.960000       -0.250000        0.160000
- O        0.140000        2.389000        0.920000 
+ O        0.140000        2.389000        0.920000
  H        0.480000        2.609000        1.790000
  H       -0.040000        3.269000        0.540000
  O       -2.450000       -0.590000        0.410000
  H       -2.874000       -0.061000        0.935000
  H       -2.760000       -1.480000        0.620000
- O       -0.140000        0.254000       -2.427000 
+ O       -0.140000        0.254000       -2.427000
  H       -1.043000        0.354000       -2.615000
  H        0.252000        0.281000       -3.381000
  H        0.100000        0.930000        0.350000
@@ -76,8 +76,8 @@
     &END PRINT
     &COLVAR
      &HYDRONIUM_SHELL
-       OXYGENS   1 4 7 10  
-       HYDROGENS 2 3 5 6 8 9 11 12 13    
+       OXYGENS   1 4 7 10
+       HYDROGENS 2 3 5 6 8 9 11 12 13
        ROO 5.5
        ROH 2.2
        NH  2.2
@@ -90,12 +90,12 @@
     &END COLVAR
     &COLVAR
      &HYDRONIUM_DISTANCE
-       OXYGENS   1 4 7 10  
-       HYDROGENS 2 3 5 6 8 9 11 12 13   
+       OXYGENS   1 4 7 10
+       HYDROGENS 2 3 5 6 8 9 11 12 13
        NH 2.4
        PM 20
        QM 40
-       LAMBDA 20. 
+       LAMBDA 20.
      &END HYDRONIUM_DISTANCE
     &END COLVAR
   &END SUBSYS

@@ -1,7 +1,7 @@
-# This input file produces exactly the same numerical results as 
-# a single run of ../regtest-1/ala.with same MOTION setup.. 
+# This input file produces exactly the same numerical results as
+# a single run of ../regtest-1/ala.with same MOTION setup..
 &MULTIPLE_FORCE_EVALS
-   FORCE_EVAL_ORDER 2 3 
+   FORCE_EVAL_ORDER 2 3
    MULTIPLE_SUBSYS T
 &END
 &FORCE_EVAL

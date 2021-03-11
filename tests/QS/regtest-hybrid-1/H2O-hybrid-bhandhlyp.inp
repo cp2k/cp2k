@@ -19,7 +19,7 @@
       MAX_SCF 2
       SCF_GUESS ATOMIC
     &END SCF
-#These are the coefficients used for BHandHLyp    
+#These are the coefficients used for BHandHLyp
     &XC
       &XC_FUNCTIONAL
        &LYP
@@ -31,10 +31,10 @@
       &END XC_FUNCTIONAL
       &HF
         &SCREENING
-          EPS_SCHWARZ 1.0E-16 
+          EPS_SCHWARZ 1.0E-16
         &END
         &MEMORY
-          MAX_MEMORY  100 
+          MAX_MEMORY  100
         &END
         FRACTION 0.5
       &END
@@ -63,5 +63,5 @@
 &GLOBAL
   PROJECT H2O-hybrid-bhandhlyp
 #  TRACE
-  PRINT_LEVEL MEDIUM 
+  PRINT_LEVEL MEDIUM
 &END GLOBAL

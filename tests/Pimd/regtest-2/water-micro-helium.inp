@@ -22,7 +22,7 @@
       SOLUTE_INTERACTION     MWATER
       POTENTIAL_FILE_NAME    lj-test-pot.dat
       COORD_INIT_TEMP        -1
-      SOLUTE_RADIUS          2 
+      SOLUTE_RADIUS          2
       NATOMS                 5
       NBEADS                16
       NUM_ENV                5

@@ -17,8 +17,8 @@
       EPS_SCF 1.0E-6
       MAX_SCF 2
       SCF_GUESS atomic
-	&OT
-	&END OT
+  &OT
+  &END OT
     &END SCF
     &XC
       &XC_FUNCTIONAL Pade

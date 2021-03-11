@@ -1,4 +1,4 @@
-# test implicit poisson solver: dielectric = 1.0 , two parallel planar Dirichlet regions , OT CG 
+# test implicit poisson solver: dielectric = 1.0 , two parallel planar Dirichlet regions , OT CG
 &GLOBAL
   PROJECT     H2O_dbl_cstr_otcg
   RUN_TYPE    ENERGY
@@ -89,7 +89,7 @@
       S_PRECONDITIONER      NONE
       REPORT_ALL_SPARSITIES off
       PERFORM_MU_SCAN       off
-      PURIFICATION_METHOD   TRS4 
+      PURIFICATION_METHOD   TRS4
     &END LS_SCF
     &SCF
       SCF_GUESS ATOMIC

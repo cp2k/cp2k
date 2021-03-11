@@ -17,7 +17,7 @@
     &END
     &PRINT
       &ENERGY
-        &EACH 
+        &EACH
           MD 1
         &END
         FILENAME md1.ener
@@ -64,7 +64,7 @@
       &END
       &NONBONDED
         &TERSOFF
-          ATOMS C  C 
+          ATOMS C  C
           A        1.3936E3
           B        3.467E2
           lambda1  3.4879

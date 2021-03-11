@@ -20,7 +20,7 @@
     &QS
       METHOD LRIGPW
       &LRIGPW
-        SHG_LRI_INTEGRALS .FALSE. 
+        SHG_LRI_INTEGRALS .FALSE.
       &END
     &END QS
     &SCF
@@ -52,7 +52,7 @@ He     1.212436     0.000000     0.700000
     &KIND H
       BASIS_SET ORB adf_tz2p_basis
       POTENTIAL GTH-PADE-q1
-      BASIS_SET LRI_AUX adf_tz2p_fit_basis 
+      BASIS_SET LRI_AUX adf_tz2p_fit_basis
     &END KIND
     &KIND He
       BASIS_SET ORB adf_tz2p_basis

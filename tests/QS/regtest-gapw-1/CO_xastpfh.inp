@@ -4,7 +4,7 @@
  PROJECT      CO_xastpfh
  IOLEVEL      MEDIUM
  RUN_TYPE     ENERGY
-&END 
+&END
 
 &FORCE_EVAL
   METHOD Quickstep
@@ -39,7 +39,7 @@
       EPS_SCF 5.E-7
       EPS_DIIS 0.4
       MAX_SCF 1
-       
+
       ADDED_MOS  1 1
       &OT OFF
         PRECONDITIONER FULL_ALL
@@ -61,7 +61,7 @@
      PERIODIC NONE
     &END POISSON
 
-    &XAS 
+    &XAS
       &SCF
         EPS_SCF 0.000001
         MAX_SCF 10
@@ -78,12 +78,12 @@
       &END
       &PRINT
          &PROGRAM_RUN_INFO
-         &END 
+         &END
          &RESTART
              &EACH
                XAS_SCF 1
              &END
-         &END 
+         &END
          &XES_SPECTRUM
          &END
          &XAS_SPECTRUM
@@ -100,7 +100,7 @@
   &END SECTION DFT
   &SUBSYS
     &CELL
-       ABC    6.0    6.0     6.0 
+       ABC    6.0    6.0     6.0
        PERIODIC NONE
     &END CELL
 

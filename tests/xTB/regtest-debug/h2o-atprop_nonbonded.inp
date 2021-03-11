@@ -2,13 +2,13 @@
   STRESS_TENSOR ANALYTICAL
   &PROPERTIES
      &ATOMIC
-        ENERGY 
+        ENERGY
         PRESSURE
      &END ATOMIC
   &END PROPERTIES
   &DFT
     &QS
-      METHOD xTB 
+      METHOD xTB
       &xTB
         DO_EWALD           T
         COULOMB_INTERACTION T
@@ -28,7 +28,7 @@
           DX 0.001
           ERROR_LIMIT 0.0000000001
         &END NONBONDED
-      &END 
+      &END
     &END QS
     &SCF
       SCF_GUESS MOPAC

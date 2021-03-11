@@ -91,7 +91,7 @@
     TEMPERATURE 300.0
     &PRINT
       &ENERGY
-        &EACH 
+        &EACH
           MD 1
         &END
       &END

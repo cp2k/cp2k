@@ -1,7 +1,7 @@
 &GLOBAL
   PROJECT BNH
   RUN_TYPE  ENERGY
-  PRINT_LEVEL LOW 
+  PRINT_LEVEL LOW
   !TRACE TRUE
 &END GLOBAL
 &FORCE_EVAL
@@ -25,10 +25,10 @@
         EPS_ERROR                1.0E-3 !1.0E-6
         N_DIIS                   5
       &END ALMO_OPTIMIZER_DIIS
-      
+
       DELOCALIZE_METHOD          XALMO_SCF
       XALMO_R_CUTOFF_FACTOR      0.6
-      
+
       &XALMO_OPTIMIZER_PCG
         MAX_ITER                 100
         EPS_ERROR                1.0E-3 !1.0E-6
@@ -37,9 +37,9 @@
         LIN_SEARCH_STEP_SIZE_GUESS 0.2
         MAX_ITER_OUTER_LOOP      0
       &END XALMO_OPTIMIZER_PCG
-      
+
     &END ALMO_SCF
-    
+
     &MGRID
       CUTOFF 200 !600
       NGRIDS 5
@@ -70,7 +70,7 @@
     &END COORD
     &KIND Hp
       ELEMENT   H
-      BASIS_SET SZV-GTH 
+      BASIS_SET SZV-GTH
       POTENTIAL GTH-BLYP-q1
       !&BS
       !  &ALPHA
@@ -82,14 +82,14 @@
       !  ! TO AVOID WARNINGS
       !  &BETA
       !    NEL -1
-      !    L    0 
+      !    L    0
       !    N    1
       !  &END
       !&END
     &END KIND
     &KIND Hm
       ELEMENT   H
-      BASIS_SET SZV-GTH 
+      BASIS_SET SZV-GTH
       POTENTIAL GTH-BLYP-q1
       !&BS
       !  &ALPHA
@@ -119,7 +119,7 @@
         ! TO AVOID WARNINGS
         &BETA
           NEL  2
-          L    1 
+          L    1
           N    2
         &END
       &END

@@ -25,7 +25,7 @@
     &END
     &SCF
       EPS_SCF 1.0E-8
-      SCF_GUESS ATOMIC 
+      SCF_GUESS ATOMIC
     &END
     &KG_METHOD
       &XC
@@ -70,7 +70,7 @@
 &MOTION
   &MD
     TEMPERATURE 300
-    STEPS 3 
+    STEPS 3
     &PRINT
       &ENERGY
         &EACH
@@ -82,7 +82,7 @@
 &END
 &GLOBAL
   PROJECT H2
-  RUN_TYPE MD 
+  RUN_TYPE MD
   PRINT_LEVEL MEDIUM
   ! EXTENDED_FFT_LENGTHS ! enable for large systems and FFTW
 &END GLOBAL

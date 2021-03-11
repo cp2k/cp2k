@@ -39,7 +39,7 @@
   # &CONSTRAINT
   #   &FIXED_ATOMS
   #     COMPONENTS_TO_FIX  XYZ
-  #     LIST  1             
+  #     LIST  1
   #   &END FIXED_ATOMS
   # &END CONSTRAINT
 &END MOTION

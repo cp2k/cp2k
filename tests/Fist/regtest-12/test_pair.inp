@@ -14,14 +14,14 @@
         K 0.0
         R0 1.0
       &END BOND
-      
+
       &BEND
         ATOMS H O O
         KIND HARMONIC
         K 0.0
         THETA0 0.0
       &END BEND
-      
+
       &CHARGE
         ATOM O
         CHARGE 0.0
@@ -37,12 +37,12 @@
       &END SPLINE
       &NONBONDED
         &GENPOT
-          atoms H H 
+          atoms H H
           FUNCTION 0.0/r
           VARIABLES r
         &END GENPOT
         &GENPOT
-          atoms O H 
+          atoms O H
           FUNCTION 0.0*r
           VARIABLES r
         &END GENPOT
@@ -54,12 +54,12 @@
       &END NONBONDED
       &NONBONDED14
         &GENPOT
-          atoms H H 
+          atoms H H
           FUNCTION -1/r
           VARIABLES r
         &END GENPOT
         &GENPOT
-          atoms O H 
+          atoms O H
           FUNCTION 0.0*r
           VARIABLES r
         &END GENPOT

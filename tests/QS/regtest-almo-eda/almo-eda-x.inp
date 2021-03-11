@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT hex-ice 
+  PROJECT hex-ice
   RUN_TYPE ENERGY
   PRINT_LEVEL LOW
 &END GLOBAL
@@ -12,7 +12,7 @@
       ALMO_SCF T
       EPS_DEFAULT 1.0E-8 ! 1.0E-12
     &END QS
-    
+
     &ALMO_SCF
 
       &ANALYSIS T
@@ -36,10 +36,10 @@
         EPS_ERROR                5.0E-4
         N_DIIS                   5
       &END ALMO_OPTIMIZER_DIIS
-      
+
       DELOCALIZE_METHOD          XALMO_X
       XALMO_R_CUTOFF_FACTOR      1.4
-      
+
       &XALMO_OPTIMIZER_PCG
         MAX_ITER                 100
         EPS_ERROR                5.0E-4
@@ -48,21 +48,21 @@
         LIN_SEARCH_STEP_SIZE_GUESS 0.5
         MAX_ITER_OUTER_LOOP      0
       &END XALMO_OPTIMIZER_PCG
-      
+
     &END ALMO_SCF
-    
+
     ! The SCF section controls calculations
     ! on single molecules.
-    ! IMPORTANT: converge simgle-molecule calculations 
-    ! tightly to get correct energy decomposition terms 
+    ! IMPORTANT: converge simgle-molecule calculations
+    ! tightly to get correct energy decomposition terms
     &SCF
       EPS_SCF 1.0E-2
-      SCF_GUESS ATOMIC 
+      SCF_GUESS ATOMIC
       &OT
         PRECONDITIONER FULL_ALL
       &END
     &END SCF
-    
+
     &MGRID
       CUTOFF 200 ! 320
       NGRIDS 4
@@ -75,7 +75,7 @@
   &SUBSYS
     &CELL
 @INCLUDE '../regtest-almo-1/ice.cell'
-      MULTIPLE_UNIT_CELL 1 1 1 
+      MULTIPLE_UNIT_CELL 1 1 1
     &END CELL
     &TOPOLOGY
       MULTIPLE_UNIT_CELL 1 1 1
@@ -84,7 +84,7 @@
 @INCLUDE '../regtest-almo-1/ice-cut.xyz'
     &END COORD
     &KIND H
-      BASIS_SET DZVP-GTH 
+      BASIS_SET DZVP-GTH
       POTENTIAL GTH-BLYP-q1
     &END KIND
     &KIND O

@@ -36,7 +36,7 @@
           MINIMAX_QUADRATURE
           RPA_NUM_QUAD_POINTS    16
         &END
-        &INTEGRALS 
+        &INTEGRALS
           &WFC_GPW
             CUTOFF      200
             REL_CUTOFF  35

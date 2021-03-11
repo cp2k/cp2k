@@ -33,14 +33,14 @@
     &PERIODIC_EFIELD
        POLARISATION 0 0 1
        INTENSITY 0.05
-    &END    
+    &END
   &END DFT
   &SUBSYS
     &CELL
       ABC 5.0 5.0 5.0
     &END CELL
     &COORD
-    F   0.000000    0.000000    0.000000 
+    F   0.000000    0.000000    0.000000
     H   0.000000    0.000000    0.970000
     &END COORD
   &END SUBSYS

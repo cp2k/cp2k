@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#Cr_3 Si & Pm(-3)n-O_h^3 #223 & A15 & cP8 & Nevitt, Ch. 13 in Westbrook 
+#Cr_3 Si & Pm(-3)n-O_h^3 #223 & A15 & cP8 & Nevitt, Ch. 13 in Westbrook
      A   4.55000000  0.00000000  0.00000000
      B   0.00000000  4.55000000  0.00000000
      C   0.00000000  0.00000000  4.55000000

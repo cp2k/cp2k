@@ -19,7 +19,7 @@
   &END METHOD
   &OPTIMIZATION
     EPS_SCF 1.e-8
-  &END 
+  &END
   &PRINT
      &UPF_FILE
        FILENAME ./C_HGH_NLCC.UPF
@@ -36,7 +36,7 @@
    2
         0.30228391  1      9.57595383
         0.36878252  1     -0.00996437
-    &END 
+    &END
   &END POTENTIAL
 
 &END ATOM

@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
 PROJECT Ne-test
 PRINT_LEVEL LOW
 RUN_TYPE MD

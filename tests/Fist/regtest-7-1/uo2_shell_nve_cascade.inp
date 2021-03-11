@@ -1,7 +1,7 @@
 &FORCE_EVAL
   METHOD Fist
   &MM
-@include pmeis_forcefield.inc    
+@include pmeis_forcefield.inc
     &POISSON
       &EWALD
         EWALD_TYPE spme
@@ -44,8 +44,8 @@
       &DEFINE_REGION
         TEMPERATURE  100
         TEMP_TOL  10
-        LIST 45  46  47  48  51  52  53  54  55  56  58  60  61  62  63  64  66  67  68  69  70  71  72  
-        LIST 75  76  79  80  82  84  86  88  90  91  92  94  95  96 
+        LIST 45  46  47  48  51  52  53  54  55  56  58  60  61  62  63  64  66  67  68  69  70  71  72
+        LIST 75  76  79  80  82  84  86  88  90  91  92  94  95  96
       &END
       &DEFINE_REGION
         TEMPERATURE  500000

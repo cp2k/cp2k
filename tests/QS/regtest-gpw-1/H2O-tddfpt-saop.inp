@@ -11,7 +11,7 @@
     &END QS
     &SCF
       EPS_SCF 1.0E-5
-       
+
       SCF_GUESS atomic
     &END SCF
     &TDDFPT

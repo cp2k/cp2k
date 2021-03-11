@@ -13,7 +13,7 @@
       MAX_SCF 20
        &OT T
          PRECONDITIONER FULL_ALL
-         MINIMIZER CG   
+         MINIMIZER CG
          LINESEARCH 3PNT
        &END OT
        &OUTER_SCF T

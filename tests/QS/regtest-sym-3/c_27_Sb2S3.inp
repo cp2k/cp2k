@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#Sb_2 S_3 & D5_8 & oP20 & Pnma-D_{2h}^{16} #62 & Strukturbereicht III, p. 49   
+#Sb_2 S_3 & D5_8 & oP20 & Pnma-D_{2h}^{16} #62 & Strukturbereicht III, p. 49
      A  11.28000000  0.00000000  0.00000000
      B   0.00000000  3.83000000  0.00000000
      C   0.00000000  0.00000000 11.20000000

@@ -50,7 +50,7 @@
       &RESTRAINT
           K  1.0
       &END
-    &END 
+    &END
   &END CONSTRAINT
   &PRINT
     &RESTART

@@ -1,13 +1,13 @@
 &GLOBAL
   PROJECT run-corr_dipm-RKS
-  RUN_TYPE ENERGY             
+  RUN_TYPE ENERGY
 &END GLOBAL
 
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
     BASIS_SET_FILE_NAME BASIS_SET
-    POTENTIAL_FILE_NAME GTH_POTENTIALS            
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
 
     SURFACE_DIPOLE_CORRECTION TRUE
     SURF_DIP_DIR Z
@@ -18,7 +18,7 @@
     MULTIPLICITY 1
 
     &QS
-       METHOD GPW 
+       METHOD GPW
        EPS_DEFAULT 1.0E-8
     &END
 
@@ -26,14 +26,14 @@
        PERIODIC XYZ
     &END
 
-    &SCF                              
+    &SCF
       SCF_GUESS ATOMIC
-      MAX_SCF 100 
+      MAX_SCF 100
       EPS_SCF 1.0E-4
       ADDED_MOS 10
       &DIAGONALIZATION
         ALGORITHM STANDARD  ! Do not change
-      &END 
+      &END
       &MIXING
         METHOD BROYDEN_MIXING
       &END
@@ -62,9 +62,9 @@
     &END XC
 
   &END DFT
- 
+
   &SUBSYS
-    &CELL 
+    &CELL
       ABC [angstrom] 3.192 5.529 28.650
       PERIODIC XYZ
     &END CELL
@@ -77,13 +77,13 @@
     &END
 
     &KIND Mg
-      BASIS_SET DZVP-GTH-PADE-q2 
+      BASIS_SET DZVP-GTH-PADE-q2
       POTENTIAL GTH-PADE-q2
     &END KIND
     &KIND pNe
       ELEMENT Ne
-      BASIS_SET SZV-GTH-PADE 
-      POTENTIAL GTH-PADE 
+      BASIS_SET SZV-GTH-PADE
+      POTENTIAL GTH-PADE
       CORE_CORRECTION -0.0001
     &END KIND
   &END SUBSYS

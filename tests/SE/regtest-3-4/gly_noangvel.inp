@@ -19,7 +19,7 @@
           METHOD DIRECT_P_MIXING
           ALPHA   0.1
       &END
-      &OT 
+      &OT
         MINIMIZER DIIS
         PRECONDITIONER NONE
       &END

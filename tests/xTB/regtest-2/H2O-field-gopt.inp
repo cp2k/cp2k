@@ -9,7 +9,7 @@
     &PERIODIC_EFIELD
        POLARISATION 1 0 0
        INTENSITY 0.001
-    &END    
+    &END
     &QS
       METHOD xTB
       EPS_DEFAULT 1.0E-12
@@ -51,4 +51,4 @@
       MAX_ITER 3
    &END
 &END
-      
+

@@ -24,22 +24,22 @@
         THETA0 1.4
       &END BEND
       &NONBONDED
-        &LENNARD-JONES 
-  	  ATOMS O O
-          EPSILON 76 
-          SIGMA 3.1 
+        &LENNARD-JONES
+      ATOMS O O
+          EPSILON 76
+          SIGMA 3.1
           RCUT 5.0
         &END LENNARD-JONES
-        &LENNARD-JONES 
-  	  ATOMS O H
+        &LENNARD-JONES
+      ATOMS O H
           EPSILON 0.0
-          SIGMA 3.1 
+          SIGMA 3.1
           RCUT 5.0
         &END LENNARD-JONES
-        &LENNARD-JONES 
-  	  ATOMS H H 
+        &LENNARD-JONES
+      ATOMS H H
           EPSILON 0.0
-          SIGMA 3.1 
+          SIGMA 3.1
           RCUT 5.0
         &END LENNARD-JONES
       &END NONBONDED

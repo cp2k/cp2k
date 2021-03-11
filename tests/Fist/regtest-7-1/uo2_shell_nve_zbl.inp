@@ -1,7 +1,7 @@
 &FORCE_EVAL
   METHOD Fist
   &MM
-@include pmeis_forcefield.inc    
+@include pmeis_forcefield.inc
     &POISSON
       &EWALD
         EWALD_TYPE spme

@@ -22,7 +22,7 @@
       MAX_SCF 50
       EPS_SCF 1.0E-6
       SCF_GUESS mopac
-      &OT 
+      &OT
         MINIMIZER DIIS
         PRECONDITIONER FULL_SINGLE_INVERSE
       &END
@@ -35,7 +35,7 @@
   &SUBSYS
     &CELL
       # this is the wrong cell but it's just to test the parse of the CIF
-      ABC 4.175  4.175  4.175 
+      ABC 4.175  4.175  4.175
     &END CELL
     &TOPOLOGY
       COORDINATE CIF

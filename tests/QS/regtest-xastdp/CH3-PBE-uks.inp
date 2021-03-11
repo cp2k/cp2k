@@ -40,7 +40,7 @@
       GRID C 300 300
       EXCITATIONS OS_SPIN_CONS
       N_EXCITED 12
-      
+
       &KERNEL
          RI_RADIUS 3.0
          &XC_FUNCTIONAL

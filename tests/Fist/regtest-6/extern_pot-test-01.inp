@@ -6,11 +6,11 @@
   &END
   &EXTERNAL_POTENTIAL
     FUNCTION sin(0.5*X)+cos(2.0*Y)-0.03*Z
-    ATOMS_LIST 2 
+    ATOMS_LIST 2
   &END
   &EXTERNAL_POTENTIAL
     FUNCTION sin(0.5*X)+cos(2.0*Y)-0.03*Z
-    ATOMS_LIST 3 
+    ATOMS_LIST 3
   &END
   &MM
     &FORCEFIELD
@@ -38,9 +38,9 @@
       ABC 10.0 10.0 10.0
     &END CELL
     &COORD
-   Ar 2.5 2.5 2.0 
-   Ar 5.0 5.0 5.0 
-   Ar 4.0 2.0 8.0 
+   Ar 2.5 2.5 2.0
+   Ar 5.0 5.0 5.0
+   Ar 4.0 2.0 8.0
     &END COORD
     &TOPOLOGY
     &END TOPOLOGY

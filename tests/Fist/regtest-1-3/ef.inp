@@ -9,7 +9,7 @@
         ATOM C
         CHARGE 0
       &END CHARGE
-      
+
       &SPLINE
         EMAX_SPLINE  3.5
         EMAX_ACCURACY  3.5

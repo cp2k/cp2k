@@ -17,7 +17,7 @@
       &DFTB
         SELF_CONSISTENT    T
         DISPERSION         T
-        ORTHOGONAL_BASIS   F   
+        ORTHOGONAL_BASIS   F
         DO_EWALD           F
         &PARAMETER
           PARAM_FILE_PATH  DFTB/scc
@@ -40,10 +40,10 @@
       PERIODIC NONE
     &END CELL
     &COORD
-     O     0.051368    0.000000    0.000000     
-     C     1.278612    0.000000    0.000000    
-     H     1.870460    0.939607    0.000000   
-     H     1.870460   -0.939607    0.000000  
+     O     0.051368    0.000000    0.000000
+     C     1.278612    0.000000    0.000000
+     H     1.870460    0.939607    0.000000
+     H     1.870460   -0.939607    0.000000
     &END COORD
   &END SUBSYS
 &END FORCE_EVAL

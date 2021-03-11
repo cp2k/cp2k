@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT H2O-03
   PRINT_LEVEL LOW
   RUN_TYPE ENERGY
@@ -42,7 +42,7 @@
       &END HF
       &WF_CORRELATION
        &MP2
-          METHOD  MP2_GPW  
+          METHOD  MP2_GPW
        &END MP2
         MEMORY 1000.
         &INTEGRALS

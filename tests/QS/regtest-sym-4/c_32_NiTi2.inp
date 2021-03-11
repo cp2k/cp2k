@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#NiTi_2 & Fd(-3)m-O_h^7 #227 & cF96 & Pearson's Handbook Vol. IV, p. 4715  
+#NiTi_2 & Fd(-3)m-O_h^7 #227 & cF96 & Pearson's Handbook Vol. IV, p. 4715
      A   0.00000000  5.65965000  5.65965000
      B   5.65965000  0.00000000  5.65965000
      C   5.65965000  5.65965000  0.00000000

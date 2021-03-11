@@ -1,11 +1,11 @@
-# 
-# 
+#
+#
 # This is an example for the usage of OT.
 # OT is meant to be used for large systems with large basis sets
 # Currently OT can only be started from a RESTART file
 # Our strategy is to generate this using a compatible minimal basis set
-# 
-# 
+#
+#
 
 &FORCE_EVAL
   METHOD Quickstep

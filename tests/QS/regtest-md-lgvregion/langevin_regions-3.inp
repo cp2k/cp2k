@@ -33,7 +33,7 @@
   # &CONSTRAINT
   #   &FIXED_ATOMS
   #     COMPONENTS_TO_FIX  XYZ
-  #     LIST  1             
+  #     LIST  1
   #   &END FIXED_ATOMS
   # &END CONSTRAINT
 &END MOTION
@@ -75,7 +75,7 @@
       0.2 0.0 0.0
       0.2 0.0 0.0
       0.2 0.0 0.0
-    &END 
+    &END
     &KIND H
       BASIS_SET dZVp-GTH
       POTENTIAL GTH-PADE-q1

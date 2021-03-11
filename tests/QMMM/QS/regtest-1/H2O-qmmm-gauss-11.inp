@@ -36,7 +36,7 @@
       parmtype CHM
       &spline
        rcut_nb 5.2917720830
-      &end 
+      &end
     &END FORCEFIELD
     &POISSON
       &EWALD
@@ -75,13 +75,13 @@
     &QM_KIND O
       MM_INDEX 1
     &END QM_KIND
-  # 
+  #
   # QM_KINDS
-  # 
-  # 
+  #
+  #
   # MM_KINDS
-  # 
-  # 
+  #
+  #
   &END QMMM
   &SUBSYS
     &CELL

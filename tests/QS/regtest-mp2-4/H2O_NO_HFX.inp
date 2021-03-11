@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT  H2O_NO_HFX
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
@@ -31,7 +31,7 @@
     &END SCF
     &XC
       ! No HFX.... yet MP2
-      &XC_FUNCTIONAL 
+      &XC_FUNCTIONAL
         &BECKE88
         &END
       &END XC_FUNCTIONAL

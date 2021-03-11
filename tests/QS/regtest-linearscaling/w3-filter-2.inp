@@ -26,7 +26,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC 10 4 4 
+      ABC 10 4 4
     &END CELL
     &COORD
  O    0.000000    0.000000    0.119173

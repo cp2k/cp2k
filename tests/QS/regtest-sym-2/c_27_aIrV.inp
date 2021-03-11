@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#alpha IrV & Cmmm-D_{2h}^{19} #65 (jg) & oC8 & Pearson Handbook IV 4139, Alloys 
+#alpha IrV & Cmmm-D_{2h}^{19} #65 (jg) & oC8 & Pearson Handbook IV 4139, Alloys
      A   2.89550000 -3.37800000  0.00000000
      B   2.89550000  3.37800000  0.00000000
      C   0.00000000  0.00000000  2.79600000

@@ -2,7 +2,7 @@
   PROJECT     H2plus2_implicit_md
   RUN_TYPE    MD
   PRINT_LEVEL MEDIUM
-  ! EXTENDED_FFT_LENGTHS ! enable for large systems and FFTW  
+  ! EXTENDED_FFT_LENGTHS ! enable for large systems and FFTW
 &END GLOBAL
 
 &MOTION
@@ -19,7 +19,7 @@
   &DFT
     BASIS_SET_FILE_NAME BASIS_MOLOPT
     POTENTIAL_FILE_NAME GTH_POTENTIALS
-    
+
     CHARGE +2
 
     &POISSON
@@ -79,7 +79,7 @@
       S_PRECONDITIONER      NONE
       REPORT_ALL_SPARSITIES off
       PERFORM_MU_SCAN       off
-      PURIFICATION_METHOD   TRS4 
+      PURIFICATION_METHOD   TRS4
     &END LS_SCF
     &SCF
       SCF_GUESS ATOMIC

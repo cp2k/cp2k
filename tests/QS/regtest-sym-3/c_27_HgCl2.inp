@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#HgCl_2 & C25 & oP12 & Pnma-D_{2h}^{16} #62 & Strukturbereicht II, p. 19  
+#HgCl_2 & C25 & oP12 & Pnma-D_{2h}^{16} #62 & Strukturbereicht II, p. 19
      A  12.66700000  0.00000000  0.00000000
      B   0.00000000  4.30700000  0.00000000
      C   0.00000000  0.00000000  5.93600000

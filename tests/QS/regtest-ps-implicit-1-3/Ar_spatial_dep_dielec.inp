@@ -1,4 +1,4 @@
-# implicit Poisson solver with spatially dependent dielectric constant 
+# implicit Poisson solver with spatially dependent dielectric constant
 &GLOBAL
   PROJECT     Ar_spatial_dep_dielec
   RUN_TYPE    ENERGY
@@ -75,7 +75,7 @@
       S_PRECONDITIONER      NONE
       REPORT_ALL_SPARSITIES off
       PERFORM_MU_SCAN       off
-      PURIFICATION_METHOD   TRS4 
+      PURIFICATION_METHOD   TRS4
     &END LS_SCF
     &SCF
       SCF_GUESS ATOMIC

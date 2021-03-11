@@ -6,30 +6,30 @@
       ! VDW_SCALE14 0.5
       ! EI_SCALE14  0.5
       ! PARM94 and Following
-      VDW_SCALE14 0.5 
+      VDW_SCALE14 0.5
       EI_SCALE14  0.83333333333333333333
       parm_file_name ../sample_pot/mol.pot
       parmtype CHM
       SHIFT_CUTOFF .false.
 #&charge
-#atom C 
-#charge    0.0 
+#atom C
+#charge    0.0
 #&end
 #&charge
-#atom O  
-#charge   0.0 
+#atom O
+#charge   0.0
 #&end
 #&charge
-#atom N   
-#charge  0.0 
+#atom N
+#charge  0.0
 #&end
 #&charge
-#atom H1  
-#charge  0.0 
+#atom H1
+#charge  0.0
 #&end
 #&charge
 #atom CT
-#charge  0.0 
+#charge  0.0
 #&end
     &END FORCEFIELD
     &POISSON

@@ -3,10 +3,10 @@
   STRESS_TENSOR ANALYTICAL
   &DFT
     &QS
-      METHOD xTB 
+      METHOD xTB
       &xTB
         DO_EWALD            T
-      &END 
+      &END
       EPS_DEFAULT 1.E-14
     &END QS
     &SCF
@@ -19,7 +19,7 @@
       EPS_SCF 1.e-7
     &END SCF
     &KPOINTS
-       SCHEME  NONE 
+       SCHEME  NONE
     &END KPOINTS
     &POISSON
       &EWALD
@@ -32,13 +32,13 @@
       MULTIPLE_UNIT_CELL ${NREP} ${NREP} ${NREP}
     &END
     &CELL
-      ABC 5.0 5.0 10.0   
+      ABC 5.0 5.0 10.0
       MULTIPLE_UNIT_CELL ${NREP} ${NREP} ${NREP}
     &END CELL
     &COORD
-    O                  -4.583   5.333   1.560   
-    H                  -3.777   5.331   0.943  
-    H                  -5.081   4.589   1.176 
+    O                  -4.583   5.333   1.560
+    H                  -3.777   5.331   0.943
+    H                  -5.081   4.589   1.176
     &END COORD
   &END SUBSYS
 &END FORCE_EVAL

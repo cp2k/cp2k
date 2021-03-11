@@ -81,7 +81,7 @@
     &REPLICA
       COORD_FILE_NAME  ../amber/MOL.4.xyz
     &END
-    &PROGRAM_RUN_INFO 
+    &PROGRAM_RUN_INFO
     &END
     &CONVERGENCE_INFO
     &END

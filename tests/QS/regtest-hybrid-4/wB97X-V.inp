@@ -54,16 +54,16 @@
            SCALE 1.0
          &END NON_LOCAL
       &END vdW_POTENTIAL
-   &END XC 
+   &END XC
   &END DFT
   &SUBSYS
     &CELL
-      ABC 8.0 8.0 8.0 
+      ABC 8.0 8.0 8.0
       PERIODIC NONE
     &END CELL
     &COORD
-H       0.0000 	0.3628 	0.0000
-H       0.0000 	-0.3628 0.0000
+H       0.0000   0.3628   0.0000
+H       0.0000   -0.3628 0.0000
     &END COORD
     &KIND H
       BASIS_SET SZV-MOLOPT-GTH

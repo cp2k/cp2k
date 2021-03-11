@@ -2,7 +2,7 @@
   METHOD Quickstep
   &DFT
     &QS
-      METHOD PM6 
+      METHOD PM6
       &SE
       &END
     &END QS

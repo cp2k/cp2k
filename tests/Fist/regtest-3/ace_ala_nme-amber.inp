@@ -54,7 +54,7 @@
     MAX_ITER 1
   &END
   &PRINT
-    &TRAJECTORY 
+    &TRAJECTORY
     &END
     &RESTART OFF
     &END

@@ -27,8 +27,8 @@
       PERIODIC NONE
     &END CELL
     &COORD
-     H     0.000000    0.000000    0.000000   
-     H     0.000000    0.700000    0.000000  
+     H     0.000000    0.000000    0.000000
+     H     0.000000    0.700000    0.000000
     &END COORD
   &END SUBSYS
 &END FORCE_EVAL

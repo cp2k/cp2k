@@ -46,7 +46,7 @@
          C_OS 1.2
          C_SS 0.33333
       &END GW2X
-      
+
       &KERNEL
          &XC_FUNCTIONAL PBE
             &PBE

@@ -61,4 +61,4 @@
       STEPS 2
       TIMESTEP [au_t] 0.1
    &END
-&END   
+&END

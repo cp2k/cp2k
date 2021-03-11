@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#CdSb & Pbca (#61, D^{15}_{2h}) & B_e & oP16 & H to show boundaries 
+#CdSb & Pbca (#61, D^{15}_{2h}) & B_e & oP16 & H to show boundaries
      A   6.46900000  0.00000000  0.00000000
      B   0.00000000  8.25100000  0.00000000
      C   0.00000000  0.00000000  8.52200000

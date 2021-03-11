@@ -13,7 +13,7 @@
         O_SPLINE 6
       &END EWALD
     &END POISSON
-    &PRINT 
+    &PRINT
       &NEIGHBOR_LISTS
       &END
     &END

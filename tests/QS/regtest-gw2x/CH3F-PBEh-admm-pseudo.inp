@@ -57,7 +57,7 @@
       &GW2X
          BATCH_SIZE 1
       &END GW2X
-      
+
       &KERNEL
          &XC_FUNCTIONAL PBE
             &PBE

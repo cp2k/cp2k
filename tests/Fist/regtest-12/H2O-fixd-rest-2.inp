@@ -51,7 +51,7 @@
       &RESTRAINT
           K   [kcalmol*angstrom^-2] 100.0
       &END
-    &END 
+    &END
   &END CONSTRAINT
 &END MOTION
 &EXT_RESTART

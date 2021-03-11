@@ -26,7 +26,7 @@
     &END QS
 
     &SCF
-      &OT 
+      &OT
          PRECONDITIONER FULL_ALL
          ENERGY_GAP 0.01
       &END OT
@@ -56,7 +56,7 @@
       TAMM_DANCOFF
       DIPOLE_FORM LENGTH
       GRID Si 150 150
-      
+
       &KERNEL
          &XC_FUNCTIONAL
             &GGA_X_PBE

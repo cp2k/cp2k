@@ -12,18 +12,18 @@
         CHARGE  0.0
       &END
       &SHELL U
-        CORE_CHARGE  6.840000  
+        CORE_CHARGE  6.840000
         SHELL_CHARGE -2.840000
         MASS_FRACTION  0.1
         SPRING  [eV*angstrom^-2] 171.556
- 
+
       &END SHELL
       &SHELL O
         CORE_CHARGE 1.186267
         SHELL_CHARGE -3.186267
         MASS_FRACTION 0.2
         SPRING [eV*angstrom^-2] 70.824
- 
+
       &END SHELL
       &NONBONDED
         &WILLIAMS
@@ -76,8 +76,8 @@
       ABC  30.0 30.0 30.0
     &END CELL
     &COORD
-     O   0.0 0.0 0.0 
-     U   5.0 0.0 0.0 
+     O   0.0 0.0 0.0
+     U   5.0 0.0 0.0
     &END
     &TOPOLOGY
     &END TOPOLOGY

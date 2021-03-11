@@ -23,11 +23,11 @@
   &END METHOD
   &OPTIMIZATION
     EPS_SCF 1.e-05
-  &END 
+  &END
   &PRINT
-    &BASIS_SET 
-    &END 
-  &END 
+    &BASIS_SET
+    &END
+  &END
 
   &AE_BASIS
      BASIS_TYPE GEOMETRICAL_GTO
@@ -45,7 +45,7 @@
     2
      0.22095592    1    18.33745811
      0.21133247    0
-    &END 
+    &END
   &END POTENTIAL
 
   &POWELL

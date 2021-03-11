@@ -21,7 +21,7 @@
           METHOD DIRECT_P_MIXING
           ALPHA   0.1
       &END
-      &OT 
+      &OT
         ROTATION
         LINESEARCH 3PNT
         MINIMIZER CG

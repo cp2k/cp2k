@@ -1,6 +1,6 @@
 &GLOBAL
    PROJECT Ru_geo
-   RUN_TYPE GEO_OPT 
+   RUN_TYPE GEO_OPT
    PRINT_LEVEL LOW
 &END GLOBAL
 
@@ -19,7 +19,7 @@
          &END EWALD
       &END POISSON
       &KPOINTS
-         SCHEME  MONKHORST-PACK  3 3 3 
+         SCHEME  MONKHORST-PACK  3 3 3
       &END KPOINTS
 
       &SCF

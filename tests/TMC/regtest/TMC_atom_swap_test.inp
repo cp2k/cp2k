@@ -7,7 +7,7 @@
   PROGRAM TMC
   RUN_TYPE TMC
   PRINT_LEVEL LOW
-  WALLTIME 00:10:25 
+  WALLTIME 00:10:25
 &END GLOBAL
 &MOTION
   &TMC
@@ -30,7 +30,7 @@
 #      &END
       &MOVE_TYPE ATOM_SWAP
         ATOMS O H
-        ATOMS O N 
+        ATOMS O N
         PROB  20
       &END
       NUM_MV_ELEM_IN_CELL 0

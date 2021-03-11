@@ -15,14 +15,14 @@
         SHELL_CHARGE 6.840000
         MASS_FRACTION  0.1
         SPRING  [eV*angstrom^-2] 171.556
-         
+
       &END SHELL
       &SHELL O
         CORE_CHARGE 1.186267
         SHELL_CHARGE -3.186267
         MASS_FRACTION 0.2
         SPRING [eV*angstrom^-2] 70.824
-          
+
       &END SHELL
       &NONBONDED
         &WILLIAMS
@@ -104,7 +104,7 @@
     TEMP_KIND
     &SHELL
       TEMPERATURE  5
-      TEMP_TOL  25 
+      TEMP_TOL  25
       &THERMOSTAT
         TYPE NOSE
 #        TYPE CSVR

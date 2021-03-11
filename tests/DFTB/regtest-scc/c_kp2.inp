@@ -25,7 +25,7 @@
       &END EWALD
     &END POISSON
     &SCF
-      SCF_GUESS ATOMIC 
+      SCF_GUESS ATOMIC
       &MIXING
           METHOD DIRECT_P_MIXING
           ALPHA   0.50
@@ -34,7 +34,7 @@
       EPS_SCF 1.0e-8
     &END SCF
     &KPOINTS
-       SCHEME  MONKHORST-PACK  2 2 2 
+       SCHEME  MONKHORST-PACK  2 2 2
        SYMMETRY ON
        EPS_GEO 1.e-8
        FULL_GRID ON

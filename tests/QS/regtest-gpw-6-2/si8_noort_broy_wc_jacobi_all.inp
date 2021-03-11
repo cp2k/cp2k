@@ -27,7 +27,7 @@
       MAX_SCF   5
       EPS_SCF 1.0e-7
       &SMEAR
-        METHOD FERMI_DIRAC 
+        METHOD FERMI_DIRAC
         ELECTRONIC_TEMPERATURE   300.
       &END
       &MIXING
@@ -49,23 +49,23 @@
       &PRINT
         &WANNIER_CENTERS
         &END
-      &END 
+      &END
     &END
     &PRINT
     &END
   &END DFT
   &SUBSYS
     &CELL
-       A  5.42858871335   1.0   0.0  
-       B   0.0    5.42858871335  0.0  
-       C   0.00     0.00  5.42858871335 
+       A  5.42858871335   1.0   0.0
+       B   0.0    5.42858871335  0.0
+       C   0.00     0.00  5.42858871335
     &END CELL
     &KIND  Si
       BASIS_SET  DZVP-GTH
       POTENTIAL  GTH-PBE-q4
     &END
     &TOPOLOGY
-      COORD_FILE_NAME ../sample_xyz/SI_8.xyz 
+      COORD_FILE_NAME ../sample_xyz/SI_8.xyz
       COORDINATE XYZ
       CONNECTIVITY OFF
     &END TOPOLOGY

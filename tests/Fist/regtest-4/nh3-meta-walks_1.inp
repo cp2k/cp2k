@@ -65,7 +65,7 @@
 #           ./WALKER_2.data
 #     This would be the correct file name.. but this also makes
 # the regtest instable (if not cleaned all the time.. so.. let's
-# give a dummy name.. so we are sure that is not going to read 
+# give a dummy name.. so we are sure that is not going to read
 # old files..
            ./WALKER_2-DUMMY.data
         &END

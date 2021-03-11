@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#Al_5 C_3 N & E9_4 & P6_3mc-C_{6v}^4 #186 & cP18 & Strukturbericht III pp. 73-4 
+#Al_5 C_3 N & E9_4 & P6_3mc-C_{6v}^4 #186 & cP18 & Strukturbericht III pp. 73-4
      A   1.64000000 -2.84056332  0.00000000
      B   1.64000000  2.84056332  0.00000000
      C   0.00000000  0.00000000 21.55000000

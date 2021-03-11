@@ -20,7 +20,7 @@
         &END GENPOT
       &END NONBONDED
     &END FORCEFIELD
-    
+
     &POISSON
       &EWALD
         EWALD_TYPE NONE

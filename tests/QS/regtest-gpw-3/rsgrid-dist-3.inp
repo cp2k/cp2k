@@ -28,8 +28,8 @@
     &PRINT
       &MO_CUBES
         NHOMO 1
-        NLUMO 1 
-      &END 
+        NLUMO 1
+      &END
     &END PRINT
   &END DFT
   &SUBSYS

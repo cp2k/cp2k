@@ -17,7 +17,7 @@
       CUTOFF 400
       COMMENSURATE
     &END MGRID
-    &SCF                        ! Parameters controlling the convergence of the scf. This section should not be changed. 
+    &SCF                        ! Parameters controlling the convergence of the scf. This section should not be changed.
       SCF_GUESS RESTART
       EPS_SCF 1.0E-6
       MAX_SCF 300
@@ -27,7 +27,7 @@
         PRECONDITIONER  FULL_ALL
       &END OT
     &END SCF
-    &XC                        ! Parameters needed to compute the electronic exchange potential 
+    &XC                        ! Parameters needed to compute the electronic exchange potential
       &XC_FUNCTIONAL BLYP
       &END XC_FUNCTIONAL
     &END XC
@@ -37,7 +37,7 @@
     &END QS
   &END DFT
 
-  &QMMM  			! This defines the QS cell in the QMMM calc
+  &QMMM        ! This defines the QS cell in the QMMM calc
     &CELL
       ABC 17.7 17.7 17.7
       PERIODIC XYZ
@@ -54,7 +54,7 @@
       MM_INDEX 2887 2888 2080 2079
     &END QM_KIND
     &QM_KIND C
-      MM_INDEX 2880 2883 2886 2072 2075 2078 
+      MM_INDEX 2880 2883 2886 2072 2075 2078
     &END QM_KIND
     &QM_KIND H
       MM_INDEX 2884 2885 2881 2882 2074 2073 2077 2076 2081
@@ -102,7 +102,7 @@
       CONN_FILE_FORMAT AMBER
       CONN_FILE_NAME ClC.prmtop
       COORD_FILE_FORMAT PDB
-      COORD_FILE_NAME  ClC.pdb 
+      COORD_FILE_NAME  ClC.pdb
       &CENTER_COORDINATES
       &END CENTER_COORDINATES
     &END TOPOLOGY
@@ -138,7 +138,7 @@
 &END FORCE_EVAL
 
 &MOTION
-   &MD 
+   &MD
       ENSEMBLE NVE
       STEPS 5
       TEMPERATURE 300

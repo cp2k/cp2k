@@ -26,7 +26,7 @@
     &EFIELD
     &END
     &SCF
-      SCF_GUESS ATOMIC 
+      SCF_GUESS ATOMIC
       &OT OFF
          PRECONDITIONER FULL_SINGLE_INVERSE
          MINIMIZER DIIS
@@ -96,5 +96,5 @@
    DE 0.0002
    EPS_NO_ERROR_CHECK 5.e-5
 &END
- 
+
 

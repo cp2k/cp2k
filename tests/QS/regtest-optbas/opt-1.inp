@@ -9,35 +9,35 @@
    BASIS_TEMPLATE_FILE BASIS_MOLOPT
 ! BASIS_WORK_FILE contains the basis set generated with the information below
    BASIS_WORK_FILE WORK_BASIS_STRUCTURE
-! BASIS_OUTPUT_FILE contains the result basis and intermediate basis set. Can be directly used with CP2K 
+! BASIS_OUTPUT_FILE contains the result basis and intermediate basis set. Can be directly used with CP2K
    BASIS_OUTPUT_FILE myout
 ! specify basis set combinations for H and O being fitted together
-   BASIS_COMBINATIONS 0 0 
+   BASIS_COMBINATIONS 0 0
    BASIS_COMBINATIONS 1 1
    BASIS_COMBINATIONS 2 2
 ! include LOG(condition_number) in the fit
-   USE_CONDITION_NUMBER 
+   USE_CONDITION_NUMBER
 ! specify the weights on the CN for all combinations
    CONDITION_WEIGHT 0.001 ! 0 0
    CONDITION_WEIGHT 0.001 ! 1 1
-   CONDITION_WEIGHT 0.01  ! 2 2 
+   CONDITION_WEIGHT 0.01  ! 2 2
 ! specify the weights on the residuums for all combinations
    RESIDUUM_WEIGHT 100 ! 0 0
    RESIDUUM_WEIGHT 10  ! 1 1
-   RESIDUUM_WEIGHT 1.0 ! 2 2 
+   RESIDUUM_WEIGHT 1.0 ! 2 2
 ! output frquency for new basis file anjd opt info
    WRITE_FREQUENCY 20
-! number of procs can be assigned for every calcualtion 
+! number of procs can be assigned for every calcualtion
 !   GROUP_PARTITION 4 4 2
 ! information for optimization
    &OPTIMIZATION
-      MAX_FUN 35  
+      MAX_FUN 35
    &END
 ! path to input files and directory for the QS calculations and the restart files
    &TRAINING_FILES
       INPUT_FILE_NAME H2O-ref.inp
    &END
-! informations for the basis sets to be fitted. If nothing is specified basis from 
+! informations for the basis sets to be fitted. If nothing is specified basis from
 ! training input will be used
    &FIT_KIND H
       BASIS_SET TZVP-MOLOPT-GTH   ! will be reference set 0
@@ -53,21 +53,21 @@
         REMOVE_CONTRACTION 1 0 2
         REMOVE_CONTRACTION 1 1 1
      &END
-  &END   
+  &END
   &FIT_KIND O
      BASIS_SET TZVP-MOLOPT-GTH   ! reference set 0
      INITIAL_DEGREES_OF_FREEDOM COEFFICIENTS
      &DERIVED_BASIS_SETS  ! reference set 1
         BASIS_SET_NAME DZVP-MOLOPT-GTH
         REMOVE_CONTRACTION 1 0 3
-	REMOVE_CONTRACTION 1 1 3
+  REMOVE_CONTRACTION 1 1 3
      &END
      &DERIVED_BASIS_SETS ! reference set 2
         BASIS_SET_NAME SZV-MOLOPT-GTH
         REFERENCE_SET 1
         REMOVE_CONTRACTION 1 0 2
-	REMOVE_CONTRACTION 1 1 2
-	REMOVE_CONTRACTION 1 2 1
+  REMOVE_CONTRACTION 1 1 2
+  REMOVE_CONTRACTION 1 2 1
      &END
-   &END 
+   &END
 &END

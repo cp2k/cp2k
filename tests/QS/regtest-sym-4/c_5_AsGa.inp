@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#AsGa (> 24 GPa) & Imm2-C_{2v}^20 #44 & oI4 & Pearson's Handbook Vol. I 1135 
+#AsGa (> 24 GPa) & Imm2-C_{2v}^20 #44 & oI4 & Pearson's Handbook Vol. I 1135
      A   4.92000000  0.00000000  0.00000000
      B   0.00000000  4.79000000  0.00000000
      C   2.46000000  2.39500000  1.31750000

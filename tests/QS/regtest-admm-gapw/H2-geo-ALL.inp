@@ -46,7 +46,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC 8.0 8.0 8.0 
+      ABC 8.0 8.0 8.0
       PERIODIC NONE
     &END CELL
     &COORD

@@ -30,22 +30,22 @@
         THETA0 1.82422
       &END BEND
       &NONBONDED
-        &LENNARD-JONES 
-  	  ATOMS O O
-          EPSILON 78.19580 
-          SIGMA 3.1655 
+        &LENNARD-JONES
+      ATOMS O O
+          EPSILON 78.19580
+          SIGMA 3.1655
           RCUT 12.0
         &END LENNARD-JONES
-        &LENNARD-JONES 
-  	  ATOMS O H
+        &LENNARD-JONES
+      ATOMS O H
           EPSILON 55.927
-          SIGMA 3.1655 
+          SIGMA 3.1655
           RCUT 12.0
         &END LENNARD-JONES
-        &LENNARD-JONES 
-  	  ATOMS H H 
+        &LENNARD-JONES
+      ATOMS H H
           EPSILON 40.0
-          SIGMA 3.1655 
+          SIGMA 3.1655
           RCUT 12.0
         &END LENNARD-JONES
       &END NONBONDED
@@ -117,7 +117,7 @@
         PMROT_MOL 1.0
       &END MOL_PROBABILITIES
       &BOX_PROBABILITIES
-        PMVOL_BOX 1.0 
+        PMVOL_BOX 1.0
         PMHMC_BOX 1.0
       &END BOX_PROBABILITIES
     &END MOVE_PROBABILITIES
@@ -127,21 +127,21 @@
     &END MOVE_UPDATES
     &MAX_DISPLACEMENTS
       &MOL_DISPLACEMENTS
-        RMDIHEDRAL 3.0 
-        RMANGLE 10.0 
-        RMBOND 0.074 
-        RMROT 26.0 
-        RMTRANS 0.58 
+        RMDIHEDRAL 3.0
+        RMANGLE 10.0
+        RMBOND 0.074
+        RMROT 26.0
+        RMTRANS 0.58
       &END MOL_DISPLACEMENTS
       &BOX_DISPLACEMENTS
         RMVOLUME 500.0
       &END BOX_DISPLACEMENTS
     &END MAX_DISPLACEMENTS
     &AVBMC
-      AVBMC_ATOM 1 
-      AVBMC_RMIN 1.0 
-      AVBMC_RMAX 5.0 
-      PBIAS 0.5 
+      AVBMC_ATOM 1
+      AVBMC_RMIN 1.0
+      AVBMC_RMAX 5.0
+      PBIAS 0.5
     &END AVBMC
   &END MC
 &END MOTION

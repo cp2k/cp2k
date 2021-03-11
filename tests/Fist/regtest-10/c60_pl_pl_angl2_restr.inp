@@ -28,12 +28,12 @@
     TEMPERATURE 300.0
     &PRINT
       &PROGRAM_RUN_INFO
-        &EACH 
+        &EACH
           MD ${INDEX}
         &END
       &END
       &ENERGY
-        &EACH 
+        &EACH
           MD ${INDEX}
         &END
       &END ENERGY
@@ -56,7 +56,7 @@
 &FORCE_EVAL
   &PRINT
     &PROGRAM_RUN_INFO
-      &EACH 
+      &EACH
         MD ${INDEX}
       &END
     &END
@@ -69,7 +69,7 @@
       &END
       &NONBONDED
         &TERSOFF
-          ATOMS C  C 
+          ATOMS C  C
           A        1.3936E3
           B        3.467E2
           lambda1  3.4879
@@ -106,7 +106,7 @@
       &ANGLE_PLANE_PLANE
         &PLANE
           DEF_TYPE ATOMS
-          ATOMS 2 4 5 
+          ATOMS 2 4 5
         &END
         &PLANE
           DEF_TYPE ATOMS

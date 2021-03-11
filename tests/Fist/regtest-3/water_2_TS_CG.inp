@@ -58,7 +58,7 @@
       &DIMER
         DR 0.0001
         ANGLE_TOLERANCE [deg] 0.5
-        INTERPOLATE_GRADIENT 
+        INTERPOLATE_GRADIENT
         &ROT_OPT
           OPTIMIZER CG
           MAX_ITER 1000

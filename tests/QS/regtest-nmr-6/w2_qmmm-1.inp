@@ -99,7 +99,7 @@
     &QM_KIND H
       MM_INDEX 2 3
     &END QM_KIND
-    &PERIODIC 
+    &PERIODIC
       GMAX 0.1
       &MULTIPOLE
         RCUT 15.0
@@ -108,7 +108,7 @@
     &END
     &PRINT
       &PERIODIC_INFO
-      &END 
+      &END
     &END
   &END QMMM
   &SUBSYS

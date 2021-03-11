@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT  h2o_h2_pbe
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
@@ -14,37 +14,37 @@
        &MAPPING
           &FORCE_EVAL_EMBED
              &FRAGMENT 1
-                1 3  
+                1 3
              &END
              &FRAGMENT 2
-                4 5  
+                4 5
              &END
              &FRAGMENT 3
-                1 5  
+                1 5
              &END
           &END
           &FORCE_EVAL 1
              &FRAGMENT 1
                 1 3
-                MAP 1 
+                MAP 1
               &END
           &END
           &FORCE_EVAL 2
              &FRAGMENT 1
                 1 2
-                MAP 2 
+                MAP 2
              &END
           &END
           &FORCE_EVAL 3
              &FRAGMENT 1
                 1 5
-                MAP 3 
+                MAP 3
               &END
           &END
           &FORCE_EVAL 4
              &FRAGMENT 1
                 1 2
-                MAP 2 
+                MAP 2
              &END
           &END
        &END
@@ -64,11 +64,11 @@
       POTENTIAL  GTH-HF-q6
     &END KIND
     &COORD
-  O      1.75  1.5  0.0   
-  H      1.0   1.0  0.0   
-  H      2.5   1.0  0.0    
-  H      1.75  2.75  0.0   
-  H      1.75  3.50 0.0    
+  O      1.75  1.5  0.0
+  H      1.0   1.0  0.0
+  H      2.5   1.0  0.0
+  H      1.75  2.75  0.0
+  H      1.75  3.50 0.0
     &END
   &END SUBSYS
 &END FORCE_EVAL
@@ -122,9 +122,9 @@
       POTENTIAL  GTH-HF-q6
     &END KIND
     &COORD
-  O      1.75  1.5  0.0   
-  H      1.0   1.0  0.0   
-  H      2.5   1.0  0.0    
+  O      1.75  1.5  0.0
+  H      1.0   1.0  0.0
+  H      2.5   1.0  0.0
     &END
   &END SUBSYS
 &END FORCE_EVAL
@@ -179,8 +179,8 @@
       POTENTIAL  GTH-HF-q6
     &END KIND
     &COORD
-  H      1.75  2.75  0.0   
-  H      1.75  3.50 0.0    
+  H      1.75  2.75  0.0
+  H      1.75  3.50 0.0
     &END
   &END SUBSYS
 &END FORCE_EVAL
@@ -257,11 +257,11 @@
       POTENTIAL  GTH-HF-q6
     &END KIND
     &COORD
-  O      1.75  1.5  0.0   
-  H      1.0   1.0  0.0   
-  H      2.5   1.0  0.0    
-  H      1.75  2.75  0.0   
-  H      1.75  3.50 0.0    
+  O      1.75  1.5  0.0
+  H      1.0   1.0  0.0
+  H      2.5   1.0  0.0
+  H      1.75  2.75  0.0
+  H      1.75  3.50 0.0
     &END
   &END SUBSYS
 &END FORCE_EVAL
@@ -329,8 +329,8 @@
       POTENTIAL  GTH-HF-q6
     &END KIND
     &COORD
-  H      1.75  2.75  0.0   
-  H      1.75  3.50 0.0    
+  H      1.75  2.75  0.0
+  H      1.75  3.50 0.0
     &END
   &END SUBSYS
 &END FORCE_EVAL

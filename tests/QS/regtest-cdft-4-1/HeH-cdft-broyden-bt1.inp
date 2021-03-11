@@ -45,7 +45,7 @@
 &END GLOBAL
 
 &FORCE_EVAL
-  METHOD QS  
+  METHOD QS
   @SET BECKE_STR ${BECKE_STR_1}
   @SET BECKE_TARGET ${BECKE_TARGET_1}
   @include dft-common-params.inc

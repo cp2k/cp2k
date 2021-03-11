@@ -113,7 +113,7 @@
        &END
     &END PRINT
   &END DFT
-      
+
 
   &SUBSYS
     &CELL

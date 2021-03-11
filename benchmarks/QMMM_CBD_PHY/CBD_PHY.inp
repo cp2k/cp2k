@@ -1,11 +1,11 @@
 &GLOBAL
   PROJECT force-opt-qmmm
   RUN_TYPE MD
-  PRINT_LEVEL LOW 
+  PRINT_LEVEL LOW
 &END GLOBAL
 
 &FORCE_EVAL
-  METHOD QMMM 
+  METHOD QMMM
 
   &DFT
     CHARGE 1
@@ -17,7 +17,7 @@
       CUTOFF 400
       COMMENSURATE
     &END MGRID
-    &SCF                        ! Parameters controlling the convergence of the scf. This section should not be changed. 
+    &SCF                        ! Parameters controlling the convergence of the scf. This section should not be changed.
       SCF_GUESS RESTART
       EPS_SCF 1.0E-6
       MAX_SCF 300
@@ -27,7 +27,7 @@
         PRECONDITIONER  FULL_ALL
       &END OT
     &END SCF
-    &XC                        ! Parameters needed to compute the electronic exchange potential 
+    &XC                        ! Parameters needed to compute the electronic exchange potential
       &XC_FUNCTIONAL PBE
       &END XC_FUNCTIONAL
     &END XC
@@ -37,7 +37,7 @@
     &END QS
   &END DFT
 
-  &QMMM  			! This defines the QS cell in the QMMM calc
+  &QMMM        ! This defines the QS cell in the QMMM calc
     &CELL
       ABC 25 25 25
       PERIODIC XYZ
@@ -75,7 +75,7 @@
     LINK_TYPE IMOMM
     QMMM_SCALE_FACTOR 0
     &END LINK
-   &LINK 
+   &LINK
     QM_KIND H
     MM_INDEX 7972
     QM_INDEX 7987
@@ -119,7 +119,7 @@
     &TOPOLOGY                    ! Section used to center the atomic coordinates in the given box. Useful for big molecules
       CONN_FILE_FORMAT AMBER
       CONN_FILE_NAME CBD_PHY.prmtop
-      COORD_FILE_FORMAT PDB 
+      COORD_FILE_FORMAT PDB
       COORD_FILE_NAME CBD_PHY.pdb
       &CENTER_COORDINATES
         CENTER_POINT  9.5 11.7 15.3
@@ -150,7 +150,7 @@
 &END FORCE_EVAL
 
 &MOTION
-   &MD 
+   &MD
       ENSEMBLE NVE
       STEPS 5
       TEMPERATURE 300

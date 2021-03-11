@@ -22,7 +22,7 @@
       SCF_GUESS ATOMIC
       EPS_SCF 1.0E-7
       &MIXING
-	 ALPHA 0.1
+   ALPHA 0.1
       &END MIXING
     &END SCF
 @ENDIF
@@ -43,7 +43,7 @@
         EWALD_TYPE EWALD
         EWALD_ACCURACY 1.E-6
         ALPHA 0.35
-	GMAX 53 61 67
+  GMAX 53 61 67
       &END EWALD
     &END POISSON
     &QS
@@ -84,7 +84,7 @@
       EI_SCALE14  0.8333333
       SHIFT_CUTOFF .FALSE.
       &SPLINE
-	 EMAX_SPLINE 1.0
+   EMAX_SPLINE 1.0
       &END SPLINE
     &END FORCEFIELD
     &POISSON
@@ -96,239 +96,239 @@
         EWALD_TYPE SPME
         EWALD_ACCURACY 1.E-6
         ALPHA 0.35
-	GMAX 53 61 67
+  GMAX 53 61 67
       &END EWALD
     &END POISSON
   &END MM
   &QMMM
 
       &QM_KIND C
-	 MM_INDEX 544
+   MM_INDEX 544
       &END QM_KIND
 
       &QM_KIND H
-	 MM_INDEX 547
+   MM_INDEX 547
       &END QM_KIND
 
       &QM_KIND O
-	 MM_INDEX 545
-	 MM_INDEX 546
+   MM_INDEX 545
+   MM_INDEX 546
       &END QM_KIND
 
       &LINK
-	 QM_INDEX 546
-	 MM_INDEX 543
+   QM_INDEX 546
+   MM_INDEX 543
       &END LINK
 
      &FORCE_MIXING
 
-	 MAX_N_QM 500
+   MAX_N_QM 500
 
-	 R_CORE 1.3 1.5
-	 R_QM 3.0 3.5
-	 R_BUF 3.0 3.5
-	 QM_KIND_ELEMENT_MAPPING H H
-	 QM_KIND_ELEMENT_MAPPING O O
-	 QM_KIND_ELEMENT_MAPPING N N
-	 QM_KIND_ELEMENT_MAPPING C C
+   R_CORE 1.3 1.5
+   R_QM 3.0 3.5
+   R_BUF 3.0 3.5
+   QM_KIND_ELEMENT_MAPPING H H
+   QM_KIND_ELEMENT_MAPPING O O
+   QM_KIND_ELEMENT_MAPPING N N
+   QM_KIND_ELEMENT_MAPPING C C
 
-	 EXTENDED_DELTA_CHARGE -1
+   EXTENDED_DELTA_CHARGE -1
 
-	 ADAPTIVE_EXCLUDE_MOLECULES MOL0
+   ADAPTIVE_EXCLUDE_MOLECULES MOL0
 
-	 &QM_NON_ADAPTIVE
+   &QM_NON_ADAPTIVE
 
-	    &QM_KIND C
-	       MM_INDEX 536
-	       MM_INDEX 538
-	       MM_INDEX 541
-	    &END QM_KIND
+      &QM_KIND C
+         MM_INDEX 536
+         MM_INDEX 538
+         MM_INDEX 541
+      &END QM_KIND
 
-	    &QM_KIND H
-	       MM_INDEX 537
-	       MM_INDEX 539
-	       MM_INDEX 540
-	       MM_INDEX 542
-	       MM_INDEX 543
-	    &END QM_KIND
+      &QM_KIND H
+         MM_INDEX 537
+         MM_INDEX 539
+         MM_INDEX 540
+         MM_INDEX 542
+         MM_INDEX 543
+      &END QM_KIND
 
-	 &END QM_NON_ADAPTIVE
+   &END QM_NON_ADAPTIVE
 
-	 &BUFFER_NON_ADAPTIVE
+   &BUFFER_NON_ADAPTIVE
 
-	    &QM_KIND C
-	       MM_INDEX 474
-	       MM_INDEX 480
-	       MM_INDEX 484
-	       MM_INDEX 516
-	       MM_INDEX 532
-	       MM_INDEX 548
-	       MM_INDEX 552
-	       MM_INDEX 778
-	       MM_INDEX 781
-	       MM_INDEX 835
-	       MM_INDEX 850
-	       MM_INDEX 854
-	       MM_INDEX 856
-	       MM_INDEX 859
-	       MM_INDEX 862
-	       MM_INDEX 867
-	       MM_INDEX 871
-	       MM_INDEX 1592
-	       MM_INDEX 1594
-	       MM_INDEX 1597
-	       MM_INDEX 1598
-	       MM_INDEX 1602
-	       MM_INDEX 1603
-	       MM_INDEX 1605
-	       MM_INDEX 1607
-	       MM_INDEX 1609
-	       MM_INDEX 1611
-	       MM_INDEX 1612
-	       MM_INDEX 1616
-	       MM_INDEX 1628
-	       MM_INDEX 1632
-	       MM_INDEX 1634
-	    &END QM_KIND
+      &QM_KIND C
+         MM_INDEX 474
+         MM_INDEX 480
+         MM_INDEX 484
+         MM_INDEX 516
+         MM_INDEX 532
+         MM_INDEX 548
+         MM_INDEX 552
+         MM_INDEX 778
+         MM_INDEX 781
+         MM_INDEX 835
+         MM_INDEX 850
+         MM_INDEX 854
+         MM_INDEX 856
+         MM_INDEX 859
+         MM_INDEX 862
+         MM_INDEX 867
+         MM_INDEX 871
+         MM_INDEX 1592
+         MM_INDEX 1594
+         MM_INDEX 1597
+         MM_INDEX 1598
+         MM_INDEX 1602
+         MM_INDEX 1603
+         MM_INDEX 1605
+         MM_INDEX 1607
+         MM_INDEX 1609
+         MM_INDEX 1611
+         MM_INDEX 1612
+         MM_INDEX 1616
+         MM_INDEX 1628
+         MM_INDEX 1632
+         MM_INDEX 1634
+      &END QM_KIND
 
-	    &QM_KIND H
-	       MM_INDEX 475
-	       MM_INDEX 483
-	       MM_INDEX 485
-	       MM_INDEX 517
-	       MM_INDEX 535
-	       MM_INDEX 551
-	       MM_INDEX 553
-	       MM_INDEX 779
-	       MM_INDEX 780
-	       MM_INDEX 836
-	       MM_INDEX 853
-	       MM_INDEX 855
-	       MM_INDEX 857
-	       MM_INDEX 858
-	       MM_INDEX 860
-	       MM_INDEX 861
-	       MM_INDEX 865
-	       MM_INDEX 866
-	       MM_INDEX 870
-	       MM_INDEX 872
-	       MM_INDEX 1593
-	       MM_INDEX 1595
-	       MM_INDEX 1596
-	       MM_INDEX 1599
-	       MM_INDEX 1601
-	       MM_INDEX 1604
-	       MM_INDEX 1606
-	       MM_INDEX 1608
-	       MM_INDEX 1610
-	       MM_INDEX 1615
-	       MM_INDEX 1617
-	       MM_INDEX 1631
-	       MM_INDEX 1633
-	       MM_INDEX 1635
-	       MM_INDEX 1636
-	       MM_INDEX 1637
-	    &END QM_KIND
+      &QM_KIND H
+         MM_INDEX 475
+         MM_INDEX 483
+         MM_INDEX 485
+         MM_INDEX 517
+         MM_INDEX 535
+         MM_INDEX 551
+         MM_INDEX 553
+         MM_INDEX 779
+         MM_INDEX 780
+         MM_INDEX 836
+         MM_INDEX 853
+         MM_INDEX 855
+         MM_INDEX 857
+         MM_INDEX 858
+         MM_INDEX 860
+         MM_INDEX 861
+         MM_INDEX 865
+         MM_INDEX 866
+         MM_INDEX 870
+         MM_INDEX 872
+         MM_INDEX 1593
+         MM_INDEX 1595
+         MM_INDEX 1596
+         MM_INDEX 1599
+         MM_INDEX 1601
+         MM_INDEX 1604
+         MM_INDEX 1606
+         MM_INDEX 1608
+         MM_INDEX 1610
+         MM_INDEX 1615
+         MM_INDEX 1617
+         MM_INDEX 1631
+         MM_INDEX 1633
+         MM_INDEX 1635
+         MM_INDEX 1636
+         MM_INDEX 1637
+      &END QM_KIND
 
-	    &QM_KIND N
-	       MM_INDEX 482
-	       MM_INDEX 534
-	       MM_INDEX 550
-	       MM_INDEX 852
-	       MM_INDEX 864
-	       MM_INDEX 869
-	       MM_INDEX 1600
-	       MM_INDEX 1614
-	       MM_INDEX 1630
-	    &END QM_KIND
+      &QM_KIND N
+         MM_INDEX 482
+         MM_INDEX 534
+         MM_INDEX 550
+         MM_INDEX 852
+         MM_INDEX 864
+         MM_INDEX 869
+         MM_INDEX 1600
+         MM_INDEX 1614
+         MM_INDEX 1630
+      &END QM_KIND
 
-	    &QM_KIND O
-	       MM_INDEX 481
-	       MM_INDEX 533
-	       MM_INDEX 549
-	       MM_INDEX 782
-	       MM_INDEX 783
-	       MM_INDEX 851
-	       MM_INDEX 863
-	       MM_INDEX 868
-	       MM_INDEX 1613
-	       MM_INDEX 1629
-	    &END QM_KIND
+      &QM_KIND O
+         MM_INDEX 481
+         MM_INDEX 533
+         MM_INDEX 549
+         MM_INDEX 782
+         MM_INDEX 783
+         MM_INDEX 851
+         MM_INDEX 863
+         MM_INDEX 868
+         MM_INDEX 1613
+         MM_INDEX 1629
+      &END QM_KIND
 
-	    &LINK
-	       QM_INDEX 474
-	       MM_INDEX 472
-	    &END LINK
-	    &LINK
-	       QM_INDEX 474
-	       MM_INDEX 476
-	    &END LINK
-	    &LINK
-	       QM_INDEX 484
-	       MM_INDEX 490
-	    &END LINK
-	    &LINK
-	       QM_INDEX 484
-	       MM_INDEX 486
-	    &END LINK
-	    &LINK
-	       QM_INDEX 516
-	       MM_INDEX 514
-	    &END LINK
-	    &LINK
-	       QM_INDEX 516
-	       MM_INDEX 518
-	    &END LINK
-	    &LINK
-	       QM_INDEX 552
-	       MM_INDEX 559
-	    &END LINK
-	    &LINK
-	       QM_INDEX 552
-	       MM_INDEX 554
-	    &END LINK
-	    &LINK
-	       QM_INDEX 778
-	       MM_INDEX 776
-	    &END LINK
-	    &LINK
-	       QM_INDEX 835
-	       MM_INDEX 833
-	    &END LINK
-	    &LINK
-	       QM_INDEX 835
-	       MM_INDEX 837
-	    &END LINK
-	    &LINK
-	       QM_INDEX 871
-	       MM_INDEX 886
-	    &END LINK
-	    &LINK
-	       QM_INDEX 871
-	       MM_INDEX 873
-	    &END LINK
-	    &LINK
-	       QM_INDEX 1592
-	       MM_INDEX 1590
-	    &END LINK
-	    &LINK
-	       QM_INDEX 1616
-	       MM_INDEX 1618
-	    &END LINK
-	    &LINK
-	       QM_INDEX 1632
-	       MM_INDEX 1638
-	    &END LINK
+      &LINK
+         QM_INDEX 474
+         MM_INDEX 472
+      &END LINK
+      &LINK
+         QM_INDEX 474
+         MM_INDEX 476
+      &END LINK
+      &LINK
+         QM_INDEX 484
+         MM_INDEX 490
+      &END LINK
+      &LINK
+         QM_INDEX 484
+         MM_INDEX 486
+      &END LINK
+      &LINK
+         QM_INDEX 516
+         MM_INDEX 514
+      &END LINK
+      &LINK
+         QM_INDEX 516
+         MM_INDEX 518
+      &END LINK
+      &LINK
+         QM_INDEX 552
+         MM_INDEX 559
+      &END LINK
+      &LINK
+         QM_INDEX 552
+         MM_INDEX 554
+      &END LINK
+      &LINK
+         QM_INDEX 778
+         MM_INDEX 776
+      &END LINK
+      &LINK
+         QM_INDEX 835
+         MM_INDEX 833
+      &END LINK
+      &LINK
+         QM_INDEX 835
+         MM_INDEX 837
+      &END LINK
+      &LINK
+         QM_INDEX 871
+         MM_INDEX 886
+      &END LINK
+      &LINK
+         QM_INDEX 871
+         MM_INDEX 873
+      &END LINK
+      &LINK
+         QM_INDEX 1592
+         MM_INDEX 1590
+      &END LINK
+      &LINK
+         QM_INDEX 1616
+         MM_INDEX 1618
+      &END LINK
+      &LINK
+         QM_INDEX 1632
+         MM_INDEX 1638
+      &END LINK
 
-	 &END BUFFER_NON_ADAPTIVE
+   &END BUFFER_NON_ADAPTIVE
 
      &END FORCE_MIXING
 
      &CELL
-	# 19x16x18 + 4 vacuum on each side
+  # 19x16x18 + 4 vacuum on each side
         ABC 27.0 24.0 26.0
 @IF ${QS_METHOD} == DFT
-	PERIODIC XYZ
+  PERIODIC XYZ
 @ENDIF
      &END CELL
 @IF ${QS_METHOD} == SE
@@ -410,18 +410,18 @@
 &MOTION
    &PRINT
       &TRAJECTORY
-	 FORMAT XYZ
-	 &EACH
-	    MD 1
-	 &END EACH
-	 COMMON_ITERATION_LEVELS 0
+   FORMAT XYZ
+   &EACH
+      MD 1
+   &END EACH
+   COMMON_ITERATION_LEVELS 0
       &END TRAJECTORY
       &FORCES
-	 FORMAT XYZ
-	 &EACH
-	    MD 1
-	 &END EACH
-	 COMMON_ITERATION_LEVELS 0
+   FORMAT XYZ
+   &EACH
+      MD 1
+   &END EACH
+   COMMON_ITERATION_LEVELS 0
       &END FORCES
       &FORCE_MIXING_LABELS
          FORMAT XYZ
@@ -451,12 +451,12 @@
    &GEO_OPT
       OPTIMIZER CG
       &CG
-	 &LINE_SEARCH
-	    TYPE 2PNT
-	    &2PNT
-	       LINMIN_GRAD_ONLY
-	    &END 2PNT
-	 &END LINE_SEARCH
+   &LINE_SEARCH
+      TYPE 2PNT
+      &2PNT
+         LINMIN_GRAD_ONLY
+      &END 2PNT
+   &END LINE_SEARCH
       &END CG
    &END GEO_OPT
 

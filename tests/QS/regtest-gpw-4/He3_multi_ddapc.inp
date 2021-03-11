@@ -13,7 +13,7 @@
         ATOMS   3
         TARGET -1.0
         STRENGTH 0.02
-        FUNCTIONAL_FORM CONSTRAINT 
+        FUNCTIONAL_FORM CONSTRAINT
       &END
       &DDAPC_RESTRAINT
         ATOMS   2
@@ -22,22 +22,22 @@
         TYPE_OF_DENSITY FULL
       &END
       &DDAPC_RESTRAINT
-        ATOMS   1 
+        ATOMS   1
         TARGET -1.0
         STRENGTH 6.0
         TYPE_OF_DENSITY SPIN
       &END
     &END QS
     &SCF
-      MAX_SCF 7 
+      MAX_SCF 7
       EPS_SCF 5.0E-7
       SCF_GUESS ATOMIC
       &OT
         PRECONDITIONER FULL_ALL
-        ENERGY_GAP 0.01 
+        ENERGY_GAP 0.01
       &END
       &OUTER_SCF
-         MAX_SCF 1 
+         MAX_SCF 1
          EPS_SCF 3.0E-3
          OPTIMIZER BISECT
          TYPE DDAPC_CONSTRAINT
@@ -48,7 +48,7 @@
       &END XC_FUNCTIONAL
     &END XC
     &DENSITY_FITTING
-    &END  
+    &END
     &PRINT
        &E_DENSITY_CUBE
        &END

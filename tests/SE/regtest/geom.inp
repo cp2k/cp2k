@@ -51,8 +51,8 @@
       &END OT
       &PRINT
         &RESTART
-          &EACH 
-            __ROOT__ 20 
+          &EACH
+            __ROOT__ 20
             GEO_OPT  20
             QS_SCF   20
           &END

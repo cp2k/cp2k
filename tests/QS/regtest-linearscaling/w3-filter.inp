@@ -24,7 +24,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC 8 6 6 
+      ABC 8 6 6
     &END CELL
     &COORD
  O    0.000000    0.000000    0.119173
@@ -58,5 +58,5 @@
     STEPS 2
     TIMESTEP 0.5
     TEMPERATURE 300.0
-  &END MD  
+  &END MD
 &END

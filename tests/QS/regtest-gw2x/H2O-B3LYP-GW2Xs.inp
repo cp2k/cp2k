@@ -44,7 +44,7 @@
       &GW2X
          PSEUDO_CANONICAL F
       &END GW2X
-      
+
       &KERNEL
          &XC_FUNCTIONAL
             &HYB_GGA_XC_B3LYP5

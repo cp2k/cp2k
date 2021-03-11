@@ -29,27 +29,27 @@
           B [angstrom^-1] 2.35159661652
           C [eV*angstrom^6] 0.0
           RCUT 10.4
-	  RMIN [angstrom] 0.8
+    RMIN [angstrom] 0.8
         &END WILLIAMS
-	&GENPOT
+  &GENPOT
           atoms U O
-	  FUNCTION P/X*(a1*EXP(-3.2*X/AU)+a2*EXP(-0.9423*X/AU)+a3*EXP(-0.4029*X/AU)+a4*EXP(-0.2016*X/AU)) 
-	  PARAMETERS P AU a1 a2 a3 a4
-	  VALUES  51.11239406426095344911  .37659841887685972746 0.1818 0.5099 0.2802  0.02817
-	  VARIABLES X
-	  RMAX [angstrom]  0.4
+    FUNCTION P/X*(a1*EXP(-3.2*X/AU)+a2*EXP(-0.9423*X/AU)+a3*EXP(-0.4029*X/AU)+a4*EXP(-0.2016*X/AU)) 
+    PARAMETERS P AU a1 a2 a3 a4
+    VALUES  51.11239406426095344911  .37659841887685972746 0.1818 0.5099 0.2802  0.02817
+    VARIABLES X
+    RMAX [angstrom]  0.4
           RCUT 10.4
-	&END
-	&GENPOT
+  &END
+  &GENPOT
           atoms U O
-	  FUNCTION a0 + a1*X + a2*X**2 + a3 *X**3 + a4* X**4 + a5 * X**5
-	  PARAMETERS a0 a1 a2 a3 a4  a5
-	  VALUES 103.31962895    -182.45077437       32.96257294      140.94822916     -111.18252029       24.77706269 
-	  VARIABLES X
-	  RMIN [angstrom]  0.4
-	  RMAX [angstrom]  0.8
+    FUNCTION a0 + a1*X + a2*X**2 + a3 *X**3 + a4* X**4 + a5 * X**5
+    PARAMETERS a0 a1 a2 a3 a4  a5
+    VALUES 103.31962895    -182.45077437       32.96257294      140.94822916     -111.18252029       24.77706269 
+    VARIABLES X
+    RMIN [angstrom]  0.4
+    RMAX [angstrom]  0.8
           RCUT 10.4
-	&END
+  &END
         &BUCK4RANGES
           atoms O O
           A [eV] 20908.03

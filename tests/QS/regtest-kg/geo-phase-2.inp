@@ -39,12 +39,12 @@
       MIXING_FRACTION 0.05
       REPORT_ALL_SPARSITIES .FALSE.
       MAX_ITER_LANCZOS 128
-      ! not particularly stable with default 
+      ! not particularly stable with default
       EXTRAPOLATION_ORDER 1
       &CURVY_STEPS
       &END
       S_PRECONDITIONER NONE
-      ! about 160 Gb of data, 700s 
+      ! about 160 Gb of data, 700s
 !    RESTART_WRITE
 !    RESTART_READ
      !&CHEBYSHEV
@@ -107,7 +107,7 @@
    &GEO_OPT
       OPTIMIZER LBFGS
       MAX_ITER  2
-   &END 
+   &END
 &END
 &EXT_RESTART
    RESTART_FILE_NAME test-1.restart

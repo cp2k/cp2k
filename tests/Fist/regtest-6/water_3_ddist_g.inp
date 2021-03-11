@@ -46,7 +46,7 @@
           TYPE GEO_CENTER
           ATOMS 1
         &END
-        ATOMS 1 2 3 4 
+        ATOMS 1 2 3 4
         # distance 1 = ( 4 - 6 )
         # distance 2 = ( 6 - 1 )
         COEFFICIENT -1.0000

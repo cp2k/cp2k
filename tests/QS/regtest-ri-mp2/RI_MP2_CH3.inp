@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT  RI_MP2_CH3
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
@@ -36,7 +36,7 @@
         FRACTION 1.0000000
         &SCREENING
           EPS_SCHWARZ 1.0E-6
-          SCREEN_ON_INITIAL_P FALSE 
+          SCREEN_ON_INITIAL_P FALSE
         &END SCREENING
       &END HF
       &WF_CORRELATION

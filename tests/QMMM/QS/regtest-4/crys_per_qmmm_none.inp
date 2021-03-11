@@ -96,11 +96,11 @@
     &QM_KIND CL
       MM_INDEX 2
     &END QM_KIND
-  # 
+  #
   # QM_KINDS
-  # 
-  # 
-  # 
+  #
+  #
+  #
   &END QMMM
   &SUBSYS
     &CELL

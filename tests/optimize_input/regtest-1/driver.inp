@@ -23,18 +23,18 @@
       &COMPARE_ENERGIES
        &EACH
          POWELL_OPT 5
-       &END 
+       &END
       &END
    &END
    &RESTART
     &EACH
       POWELL_OPT 5
-    &END 
+    &END
    &END
    &HISTORY
     &EACH
       POWELL_OPT 5
-    &END 
+    &END
    &END
    ! will be randomized by 10%
    RANDOMIZE_VARIABLES 10

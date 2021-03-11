@@ -31,7 +31,7 @@
     &COORD
        C     0.0 0.0 0.0
     &END COORD
-    # test that in a minimal basis we still get the proper trace 
+    # test that in a minimal basis we still get the proper trace
     &KIND C
       BASIS_SET SZV-MOLOPT-GTH
       POTENTIAL GTH-PBE

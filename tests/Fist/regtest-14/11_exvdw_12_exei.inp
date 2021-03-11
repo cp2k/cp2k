@@ -2,13 +2,13 @@
   METHOD FIST
 #  STRESS_TENSOR ANALYTICAL
   &MM
-    &PRINT 
+    &PRINT
        &FF_INFO ON
        &END FF_INFO
     &END PRINT
     &FORCEFIELD
-       &CHARGE   
-          ATOM    Si 
+       &CHARGE
+          ATOM    Si
           CHARGE  +4.0
        &END CHARGE
        &BOND
@@ -19,70 +19,70 @@
           # Just a fake bond term
        &END BOND
        &BEND
-          ATOMS O Si O 
-          K         0.07707	
+          ATOMS O Si O
+          K         0.07707
           KIND      HARMONIC
           THETA0    1.91061
-        ## Si-O-Si	0.07707	1.91061	0.0-1.8/0.0-1.8/0.0-3.2
+        ## Si-O-Si  0.07707  1.91061  0.0-1.8/0.0-1.8/0.0-3.2
        &END BEND
        ############################## shells ################3
        &SHELL  O
           MAX_DISTANCE   0.1
-          CORE_CHARGE    0.87 
+          CORE_CHARGE    0.87
           MASS_FRACTION  0.2
           SHELL_CHARGE  -2.87
-          SPRING [eV*angstrom^-2]    74.92 
+          SPRING [eV*angstrom^-2]    74.92
        &END SHELL
        &NONBONDED
           &WILLIAMS
               ATOMS  Si O
-              A [eV]            1283.90700     
-              B [angstrom^-1]      3.11993	
+              A [eV]            1283.90700
+              B [angstrom^-1]      3.11993
               C [eV*angstrom^6]  10.66158
               RCUT 12.0
-          ##V(r) = A*EXP(-B*r) - C / r^6 . 
-          ## Si-O	1283.90700	3.11993	10.66158
+          ##V(r) = A*EXP(-B*r) - C / r^6 .
+          ## Si-O  1283.90700  3.11993  10.66158
           &END WILLIAMS
-          &WILLIAMS 
+          &WILLIAMS
             ATOMS  O O
-              A [eV]            22764.00000   
-              B [angstrom^-1]       3.11993	
+              A [eV]            22764.00000
+              B [angstrom^-1]       3.11993
               C [eV*angstrom^6]    27.87900
             RCUT 12.0
-          ##V(r) = A*EXP(-B*r) - C / r^6 . 
-          ##Osi-Osi	22764.00000	3.11993	27.87900
+          ##V(r) = A*EXP(-B*r) - C / r^6 .
+          ##Osi-Osi  22764.00000  3.11993  27.87900
           &END WILLIAMS
           &LENNARD-JONES
                ATOMS    Si Si
                EPSILON    0.0
                RCUT       1.0
                SIGMA       3.12619
-          ## Lennard-Jones	e	rho(A)	
-          ## Ow-Ow	131.00029	3.12619	0.0-12.0
+          ## Lennard-Jones  e  rho(A)
+          ## Ow-Ow  131.00029  3.12619  0.0-12.0
           &END LENNARD-JONES
        &END NONBONDED
        &SPLINE
-          EMAX_SPLINE 1000.0 
+          EMAX_SPLINE 1000.0
        &END  SPLINE
     &END FORCEFIELD
     &POISSON
       &EWALD
         EWALD_TYPE spme
         ALPHA .35
-        GMAX 20   
+        GMAX 20
         O_SPLINE 6
       &END EWALD
     &END POISSON
   &END MM
   &SUBSYS
    &CELL
-     ABC 10 10 10  
+     ABC 10 10 10
     &END CELL
     &TOPOLOGY
-      COORD_FILE_NAME ../sample_xyz/sio2.xyz 
-      COORDINATE XYZ 
+      COORD_FILE_NAME ../sample_xyz/sio2.xyz
+      COORDINATE XYZ
       CONNECTIVITY PSF
-      CONN_FILE_NAME  ../sample_psf/sio2.psf 
+      CONN_FILE_NAME  ../sample_psf/sio2.psf
       EXCLUDE_VDW 1-1
       EXCLUDE_EI  1-2
     &END TOPOLOGY
@@ -100,10 +100,10 @@
 &END GLOBAL
 &MOTION
   &MD
-    ENSEMBLE NVT 
-    STEPS 1000 
-    TIMESTEP  0.1 
-    TEMPERATURE 300.0 
+    ENSEMBLE NVT
+    STEPS 1000
+    TIMESTEP  0.1
+    TEMPERATURE 300.0
     &SHELL
       TEMPERATURE 25.0
       TEMP_TOL    25.0
@@ -111,36 +111,36 @@
     &THERMOSTAT
       REGION MOLECULE
     TYPE NOSE
-    	&NOSE
+      &NOSE
         LENGTH 3
-      	YOSHIDA 3
-      	TIMECON 5 
-      	MTS 2
-    	&END NOSE
+        YOSHIDA 3
+        TIMECON 5
+        MTS 2
+      &END NOSE
    &END THERMOSTAT
    &BAROSTAT
-      PRESSURE 1.0    
-      TIMECON 1000  
-   &END BAROSTAT 
+      PRESSURE 1.0
+      TIMECON 1000
+   &END BAROSTAT
     &PRINT
       &PROGRAM_RUN_INFO
           &EACH
             MD 5
-	  &END EACH
+    &END EACH
       &END PROGRAM_RUN_INFO
      &ENERGY
           &EACH
             MD 5
-	  &END EACH
+    &END EACH
       &END ENERGY
      &END PRINT
   &END MD
   &PRINT
     &TRAJECTORY
-      &EACH  
+      &EACH
        MD  1
        GEO_OPT 1
-     &END EACH 
+     &END EACH
     &END TRAJECTORY
     &VELOCITIES OFF
     &END VELOCITIES

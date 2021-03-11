@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT  RPA_AXK_H2O
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY

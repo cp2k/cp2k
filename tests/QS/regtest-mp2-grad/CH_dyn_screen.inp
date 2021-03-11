@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT  CH_dyn_screen
   PRINT_LEVEL LOW
   RUN_TYPE MD
@@ -18,7 +18,7 @@
   &PRINT
      &FORCES MEDIUM
      &END FORCES
-  &END PRINT        
+  &END PRINT
   &DFT
     BASIS_SET_FILE_NAME  GTH_BASIS_SETS
     BASIS_SET_FILE_NAME  HFX_BASIS
@@ -82,7 +82,7 @@
 #          -2.5559027122990370E-04   -9.2228252501752594E-04    4.5286618039725633E-04
 #           1.6657210614800535E-04   -8.4758917186367037E-04   -2.2362984387179316E-03
 #           0.0                       0.0                       0.0
-#    &END VELOCITY        
+#    &END VELOCITY
     &CELL
       ABC [angstrom] 5.0 5.0 5.0
     &END CELL

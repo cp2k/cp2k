@@ -1,5 +1,5 @@
 @SET MY_OMEGA 0.5
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT  CH3-rsLDAlrMP2.inp
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY

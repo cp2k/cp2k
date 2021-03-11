@@ -1,7 +1,7 @@
 &GLOBAL
-  PROJECT LiF 
+  PROJECT LiF
   RUN_TYPE ENERGY
-  PRINT_LEVEL LOW 
+  PRINT_LEVEL LOW
 &END GLOBAL
 &FORCE_EVAL
   METHOD QS
@@ -23,10 +23,10 @@
         EPS_ERROR                5.0E-4
         N_DIIS                   5
       &END ALMO_OPTIMIZER_DIIS
-      
+
       DELOCALIZE_METHOD          FULL_X_THEN_SCF
       XALMO_R_CUTOFF_FACTOR      1.2
-      
+
       &XALMO_OPTIMIZER_PCG
         MAX_ITER                 100
         EPS_ERROR                5.0E-4
@@ -35,9 +35,9 @@
         LIN_SEARCH_STEP_SIZE_GUESS 0.5
         MAX_ITER_OUTER_LOOP      0
       &END XALMO_OPTIMIZER_PCG
-      
+
     &END ALMO_SCF
-    
+
     &MGRID
       CUTOFF 200 ! 320
       NGRIDS 5
@@ -50,7 +50,7 @@
   &SUBSYS
     &CELL
       ABC 4.0351 4.0351 4.0351
-      MULTIPLE_UNIT_CELL 1 1 1 
+      MULTIPLE_UNIT_CELL 1 1 1
     &END CELL
     &TOPOLOGY
       MULTIPLE_UNIT_CELL 1 1 1
@@ -67,7 +67,7 @@
       F  0.5 0.5 0.5 F-minus
     &END COORD
     &KIND Li
-      BASIS_SET DZVP-GTH 
+      BASIS_SET DZVP-GTH
       POTENTIAL GTH-BLYP-q3
       &BS
         &ALPHA
@@ -79,7 +79,7 @@
         ! TO AVOID WARNINGS
         &BETA
           NEL -1
-          L    0 
+          L    0
           N    2
         &END
       &END
@@ -97,7 +97,7 @@
         ! TO AVOID WARNINGS
         &BETA
           NEL +1
-          L    1 
+          L    1
           N    2
         &END
       &END

@@ -15,15 +15,15 @@
 
     &POISSON
       PERIODIC NONE
-      PSOLVER MT 
+      PSOLVER MT
     &END
 
     &XC
-      &XC_FUNCTIONAL 
+      &XC_FUNCTIONAL
             &GGA_C_PBE
             &END GGA_C_PBE
             &GGA_X_PBE
-               SCALE 0.75 
+               SCALE 0.75
             &END GGA_X_PBE
       &END XC_FUNCTIONAL
       &HF
@@ -45,11 +45,11 @@
       N_EXCITED 15
 
       &KERNEL
-         &XC_FUNCTIONAL 
+         &XC_FUNCTIONAL
             &GGA_C_PBE
             &END GGA_C_PBE
             &GGA_X_PBE
-               SCALE 0.75 
+               SCALE 0.75
             &END GGA_X_PBE
          &END XC_FUNCTIONAL
          &EXACT_EXCHANGE

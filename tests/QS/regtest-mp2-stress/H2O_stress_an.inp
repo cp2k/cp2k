@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT     STRESS_RI-MP2
   PRINT_LEVEL LOW
   RUN_TYPE    CELL_OPT

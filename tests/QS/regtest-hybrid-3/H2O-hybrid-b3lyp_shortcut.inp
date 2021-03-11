@@ -16,7 +16,7 @@
     &END
     &SCF
       EPS_SCF 1.0E-6
-      SCF_GUESS ATOMIC 
+      SCF_GUESS ATOMIC
       MAX_SCF 2
     &END SCF
 #These are the coefficients used for B3LYP using VWN5, this is recommended but doesn't match the default Gaussian definition
@@ -25,10 +25,10 @@
       &END XC_FUNCTIONAL
       &HF
         &SCREENING
-          EPS_SCHWARZ 1.0E-10 
+          EPS_SCHWARZ 1.0E-10
         &END
         &MEMORY
-          MAX_MEMORY  5 
+          MAX_MEMORY  5
         &END
       &END
     &END XC
@@ -56,5 +56,5 @@
 &GLOBAL
   PROJECT H2O-hybrid-b3lyp_shortcut
 #  TRACE
-  PRINT_LEVEL MEDIUM 
+  PRINT_LEVEL MEDIUM
 &END GLOBAL

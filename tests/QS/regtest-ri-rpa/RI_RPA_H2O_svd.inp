@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT  RI_RPA_H2O_svd
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY

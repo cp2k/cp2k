@@ -3,11 +3,11 @@
 ! reads an TRAJECTORY or xyz file
 ! give the filename on the command line or it defaults to TRAJECTORY
 !   Features:
-!    -skips '<<NEW DATA' lines 
-!    -skips blank lines 
-!    -finds the number of atoms 
+!    -skips '<<NEW DATA' lines
+!    -skips blank lines
+!    -finds the number of atoms
 !   LIMITATIONS
-!    -assumes that the number of atoms is the same throughout the  
+!    -assumes that the number of atoms is the same throughout the
 !       trajectory
 ! --------------------------------------------------------------------
 
@@ -20,7 +20,7 @@
   INTEGER :: iu_infile = 25
   INTEGER :: iu_outfile = 35
   INTEGER :: iu_todofile = 45
-  INTEGER :: nframes 
+  INTEGER :: nframes
   DOUBLE PRECISION, PARAMETER :: au2ang = 0.5291772
   INTEGER, DIMENSION (1000,5) :: actiontype
   INTEGER :: nactions
@@ -39,10 +39,10 @@
   endif
 
 
-  out_filename  = "trajana.out" 
+  out_filename  = "trajana.out"
   todo_filename = "trajana.in"
- 
-  iostatus = 0 
+
+  iostatus = 0
   open (iu_infile,FILE=in_filename,IOSTAT=iostatus,STATUS='OLD')
   if (iostatus.NE.0) CALL give_info("unable to open TRAJECTORY","")
   open (iu_todofile,FILE=todo_filename,IOSTAT=iostatus,STATUS='OLD')
@@ -54,12 +54,12 @@
   call determine_style(iu_infile, style)
 
 
- 
+
   call determine_number_of_atoms (iu_infile, natoms, style)
   write(*,*) "atoms per frame : ", natoms
   if (natoms.LE.0) CALL give_info("number of atoms should be > 0","")
 
-  
+
 
 
   call determine_number_of_frames (iu_infile, natoms, nframes,style)
@@ -80,53 +80,53 @@ CONTAINS
 !==============================================================================
 !==============================================================================
   SUBROUTINE give_info(S,S2)
-	character(*) , INTENT(IN) :: S,S2
-	write(*,*) "**** TRAJectory ANAlyzer ****" 
-	write(*,*) "Following error occurred : "
-	write(*,*) ""
-	write(*,*) S 
-	write(*,*) S2
-	write(*,*) ""
-	write(*,*) "**** TRAJectory ANAlyzer ****"
-	write(*,*) "****        Manual       ****"
-	write(*,*) "*****************************"
-	write(*,*) "It can calculate - Distances      in angstrom"
-	write(*,*) "                 - Angles         in degrees"
-	write(*,*) "                 - Torsion angles in degrees"
-	write(*,*) "This program will read from the file TRAJECTORY"
+        character(*) , INTENT(IN) :: S,S2
+        write(*,*) "**** TRAJectory ANAlyzer ****"
+        write(*,*) "Following error occurred : "
+        write(*,*) ""
+        write(*,*) S
+        write(*,*) S2
+        write(*,*) ""
+        write(*,*) "**** TRAJectory ANAlyzer ****"
+        write(*,*) "****        Manual       ****"
+        write(*,*) "*****************************"
+        write(*,*) "It can calculate - Distances      in angstrom"
+        write(*,*) "                 - Angles         in degrees"
+        write(*,*) "                 - Torsion angles in degrees"
+        write(*,*) "This program will read from the file TRAJECTORY"
         write(*,*) "or from the file given on the command line"
         write(*,*) "This file can either be in xmol or TRAJECTORY format"
         write(*,*) "                                file trajana.in"
-	write(*,*) "             and write to the   file trajana.out"
-	write(*,*) ""
-	write(*,*) ""
-	write(*,*) "the structure of trajana.in is as follows"
-	write(*,*) "----------------------------------"
+        write(*,*) "             and write to the   file trajana.out"
+        write(*,*) ""
+        write(*,*) ""
+        write(*,*) "the structure of trajana.in is as follows"
+        write(*,*) "----------------------------------"
         write(*,*) "D[istance] #1 #1"
-	write(*,*) "A[ngle]    #1 #2 #3"
-	write(*,*) "T[orsion]  #1 #2 #3 #4"
-	write(*,*) "! COMMENT"
-	write(*,*) "# COMMENT"
-	write(*,*) "C COMMENT"
-	write(*,*) "----------------------------------"
-	write(*,*) "the program only checks for the first character of the line"
-	write(*,*) "so abbrev. may be used"
-	write(*,*) "the order of the lines is not important."
-	write(*,*) "The number of lines is limited to 1000"
-	write(*,*) "#1 #2 #3 #4, are the numbers of the atoms as they appear in"
-	write(*,*) " the trajectory / movie / output file with 1 being the first"
-	write(*,*) ""
-	write(*,*) ""
-	write(*,*) "the structure of trajana.out is as follows"
-	write(*,*) "----------------------------------"
-	write(*,*) "#1 #2 #3 #4 #5 ....."
-	write(*,*) " ...."
-	write(*,*) "----------------------------------"
-	write(*,*) "#1 is the number of the frame analyzed"
-	write(*,*) "   #2 #3 ... is the distance,angle,torsion, in the same order "
-	write(*,*) "             as it appears in the trajana.in file"
-        write(*,*) "the following line will be for the following frame" 
-	STOP
+        write(*,*) "A[ngle]    #1 #2 #3"
+        write(*,*) "T[orsion]  #1 #2 #3 #4"
+        write(*,*) "! COMMENT"
+        write(*,*) "# COMMENT"
+        write(*,*) "C COMMENT"
+        write(*,*) "----------------------------------"
+        write(*,*) "the program only checks for the first character of the line"
+        write(*,*) "so abbrev. may be used"
+        write(*,*) "the order of the lines is not important."
+        write(*,*) "The number of lines is limited to 1000"
+        write(*,*) "#1 #2 #3 #4, are the numbers of the atoms as they appear in"
+        write(*,*) " the trajectory / movie / output file with 1 being the first"
+        write(*,*) ""
+        write(*,*) ""
+        write(*,*) "the structure of trajana.out is as follows"
+        write(*,*) "----------------------------------"
+        write(*,*) "#1 #2 #3 #4 #5 ....."
+        write(*,*) " ...."
+        write(*,*) "----------------------------------"
+        write(*,*) "#1 is the number of the frame analyzed"
+        write(*,*) "   #2 #3 ... is the distance,angle,torsion, in the same order "
+        write(*,*) "             as it appears in the trajana.in file"
+        write(*,*) "the following line will be for the following frame"
+        STOP
   END SUBROUTINE give_info
 !==============================================================================
 !==============================================================================
@@ -146,11 +146,11 @@ CONTAINS
     ls = 1
     call csgetr (line, ls, rtemp)
     call csgetr (line, ls, rtemp)
-    
+
     if (ls == 0)then
       style = 1
       write (*,*) "Taking the XMOL format "
-    else 
+    else
       style = 2
       write (*,*) "Taking the TRAJECTORY format"
     endif
@@ -158,14 +158,14 @@ CONTAINS
 
 !==============================================================================
 !==============================================================================
-   
+
 
 
   SUBROUTINE determine_number_of_frames (iu, natoms, nframes, style)
 
     INTEGER, INTENT(IN) :: iu
     INTEGER, INTENT(IN) :: natoms, style
-    INTEGER, INTENT(OUT) :: nframes 
+    INTEGER, INTENT(OUT) :: nframes
 
     INTEGER :: read_status, itemp, iatom_type
     INTEGER :: iframes, i
@@ -175,10 +175,10 @@ CONTAINS
     CHARACTER (120) :: line
 
     rewind (iu)
-    iframes = 0 
+    iframes = 0
     continue_read = .true.
 
-    do 
+    do
       iframes = iframes + 1
       if (style==1)then   !xmol - file
           do i=1,2  ! number of atoms and comment
@@ -204,8 +204,8 @@ CONTAINS
     end do
 
     nframes = iframes - 1
- 
-  END SUBROUTINE determine_number_of_frames 
+
+  END SUBROUTINE determine_number_of_frames
 
 !==============================================================================
 !==============================================================================
@@ -225,7 +225,7 @@ CONTAINS
     natoms = 0
     continue_read = .true.
     frame = -1
-    
+
     if (style==1)then       !xmol - file
         call read_line (iu, read_status, line)
         ls = 1
@@ -243,22 +243,22 @@ CONTAINS
         ls = 1
         CALL csgeti(line,ls,itemp)
         if (ls.eq.0) then
-	 exit	
-	endif
+         exit
+        endif
         if (frame.eq.-1) then
-	  natoms=natoms+1
+          natoms=natoms+1
           frame=itemp
         else
           if (itemp.EQ.frame) then
-	     natoms=natoms+1
+             natoms=natoms+1
           else
-	     exit
+             exit
           endif
-	endif
+        endif
     end do
     endif
 
- 
+
   END SUBROUTINE determine_number_of_atoms
 
 !==============================================================================
@@ -269,7 +269,7 @@ CONTAINS
 
     INTEGER, INTENT(IN) :: iu, natoms
     INTEGEr, INTENT(OUT) :: nactions
-    INTEGER, DIMENSION(1000,5), INTENT(OUT) :: actiontype  
+    INTEGER, DIMENSION(1000,5), INTENT(OUT) :: actiontype
 
     INTEGER :: read_status, itemp, iatom_type
     LOGICAL :: continue_read
@@ -284,26 +284,26 @@ CONTAINS
     nactions = 0
 
     do
-	
+
         call read_line_2 (iu, read_status, line)
         if (read_status .ne. 0) then
-		continue_read=.false.
-		exit
+                continue_read=.false.
+                exit
         end if
         if (read_status .eq. 0) then
-	   read (line,'(A1)') firstchar 
-	   select case (firstchar)
-		case('D','d')
-		   nactions = nactions + 1
+           read (line,'(A1)') firstchar
+           select case (firstchar)
+                case('D','d')
+                   nactions = nactions + 1
                    actiontype(nactions,1) = 1
-		   ls = 1
+                   ls = 1
                    CALL csgeti(line,ls,itemp)
-		   actiontype(nactions,2)=itemp
+                   actiontype(nactions,2)=itemp
                    if ((ls.EQ.0).OR.(itemp.LE.0).OR.(itemp.GT.natoms)) CALL give_info("error in trajana.in",line)
                    CALL csgeti(line,ls,itemp)
-		   actiontype(nactions,3)=itemp 
+                   actiontype(nactions,3)=itemp
                    if ((ls.EQ.0).OR.(itemp.LE.0).OR.(itemp.GT.natoms)) CALL give_info("error in trajana.in",line)
-		case('A','a')
+                case('A','a')
                    nactions = nactions + 1
                    actiontype(nactions,1) = 2
                    ls = 1
@@ -317,8 +317,8 @@ CONTAINS
                    actiontype(nactions,4)=itemp
                    if ((ls.EQ.0).OR.(itemp.LE.0).OR.(itemp.GT.natoms)) CALL give_info("error in trajana.in",line)
 
-		
-		case('T','t')
+
+                case('T','t')
                    nactions = nactions + 1
                    actiontype(nactions,1) = 3
                    ls = 1
@@ -334,13 +334,13 @@ CONTAINS
                    CALL csgeti(line,ls,itemp)
                    actiontype(nactions,5)=itemp
                    if ((ls.EQ.0).OR.(itemp.LE.0).OR.(itemp.GT.natoms)) CALL give_info("error in trajana.in",line)
-		
+
                 case('!','C','#',' ')
-		   ! this is just a comment line 
+                   ! this is just a comment line
                 case default
-		   !something wrong in syntax
+                   !something wrong in syntax
                    if ((ls.EQ.0).OR.(itemp.LE.0).OR.(itemp.GT.natoms)) CALL give_info("error in trajana.in",line)
-	   end select
+           end select
         end if
     end do
     if (read_status.EQ.2) CALL give_info("Error reading trajana.in","")
@@ -374,13 +374,13 @@ CONTAINS
     WRITE (LINE_OUT,'(A,I5,A)') '(I10.7,',nactions,'E15.7)'
     rewind (iu_infile)
 
-    DO iframe=1, nframes ! TO GET THE data 
+    DO iframe=1, nframes ! TO GET THE data
 
       if (style==1)then
           call read_line (iu_infile, read_status, line)
           call read_line (iu_infile, read_status, line)
       endif
-     
+
       do iatom = 1, natoms
         call read_line (iu_infile, read_status, line)
         ls = 1
@@ -389,40 +389,40 @@ CONTAINS
         else
            call csgeti (line, ls, itemp)
         endif
-        call csgetr (line, ls, xyz(1,iatom)) 
-        call csgetr (line, ls, xyz(2,iatom)) 
-        call csgetr (line, ls, xyz(3,iatom)) 
+        call csgetr (line, ls, xyz(1,iatom))
+        call csgetr (line, ls, xyz(2,iatom))
+        call csgetr (line, ls, xyz(3,iatom))
         if (ls.EQ.0) CALL give_info("error in trajana.in","")
 !       call csgetr (line, ls, dtemp) ! to get the velocities
-!       call csgetr (line, ls, dtemp) 
+!       call csgetr (line, ls, dtemp)
 !       call csgetr (line, ls, dtemp)
       end do
-      
+
       DO iaction=1, nactions
-	select case (actiontype(iaction,1))
-    	 case (1)
-		CALL addvec( 1.0D0, xyz(1,actiontype(iaction,2)),  &
-			    -1.0D0, xyz(1,actiontype(iaction,3)),  &
-			     dummyvec(1,1)   )
-		CALL getnorm(dummyvec(1,1), distance)
+        select case (actiontype(iaction,1))
+             case (1)
+                CALL addvec( 1.0D0, xyz(1,actiontype(iaction,2)),  &
+                            -1.0D0, xyz(1,actiontype(iaction,3)),  &
+                             dummyvec(1,1)   )
+                CALL getnorm(dummyvec(1,1), distance)
                 if (style==1)then
                 results(iaction) = distance
                 else
-		results(iaction) = distance * au2ang
+                results(iaction) = distance * au2ang
                 endif
-	 case (2)
-		CALL addvec( 1.0D0, xyz(1,actiontype(iaction,2)),  &
-			    -1.0D0, xyz(1,actiontype(iaction,3)),  &
-			     dummyvec(1,1)   )
-		CALL normvec(dummyvec(1,1), dummyvec(1,1))
-		CALL addvec( 1.0D0, xyz(1,actiontype(iaction,4)),  &
-	  		    -1.0D0, xyz(1,actiontype(iaction,3)),  &
-			     dummyvec(1,2)   )
-		CALL normvec(dummyvec(1,2), dummyvec(1,2))
-		CALL getscal(dummyvec(1,1), dummyvec(1,2), scal)
+         case (2)
+                CALL addvec( 1.0D0, xyz(1,actiontype(iaction,2)),  &
+                            -1.0D0, xyz(1,actiontype(iaction,3)),  &
+                             dummyvec(1,1)   )
+                CALL normvec(dummyvec(1,1), dummyvec(1,1))
+                CALL addvec( 1.0D0, xyz(1,actiontype(iaction,4)),  &
+                              -1.0D0, xyz(1,actiontype(iaction,3)),  &
+                             dummyvec(1,2)   )
+                CALL normvec(dummyvec(1,2), dummyvec(1,2))
+                CALL getscal(dummyvec(1,1), dummyvec(1,2), scal)
                 results(iaction) = acos ( scal )*rad2deg
-	 case (3)
-		
+         case (3)
+
                 CALL addvec( 1.0D0, xyz(1,actiontype(iaction,2)),  &
                             -1.0D0, xyz(1,actiontype(iaction,3)),  &
                              dummyvec(1,1)   )
@@ -431,8 +431,8 @@ CONTAINS
                             -1.0D0, xyz(1,actiontype(iaction,3)),  &
                              dummyvec(1,2)   )
                 CALL normvec(dummyvec(1,2), dummyvec(1,2))
-		CALL vecprod(dummyvec(1,1),dummyvec(1,2),dummyvec(1,5)) 
-		CALL normvec(dummyvec(1,5),dummyvec(1,5))
+                CALL vecprod(dummyvec(1,1),dummyvec(1,2),dummyvec(1,5))
+                CALL normvec(dummyvec(1,5),dummyvec(1,5))
 
                 CALL addvec( 1.0D0, xyz(1,actiontype(iaction,3)),  &
                             -1.0D0, xyz(1,actiontype(iaction,4)),  &
@@ -442,27 +442,27 @@ CONTAINS
                             -1.0D0, xyz(1,actiontype(iaction,4)),  &
                              dummyvec(1,4)   )
                 CALL normvec(dummyvec(1,4), dummyvec(1,4))
-		CALL vecprod(dummyvec(1,3),dummyvec(1,4),dummyvec(1,6)) 
-		CALL normvec(dummyvec(1,6),dummyvec(1,6))
+                CALL vecprod(dummyvec(1,3),dummyvec(1,4),dummyvec(1,6))
+                CALL normvec(dummyvec(1,6),dummyvec(1,6))
 
-		CALL addvec( 1.0D0, xyz(1,actiontype(iaction,4)),  &
-			    -1.0D0, xyz(1,actiontype(iaction,3)),  &
-			     dummyvec(1,8)   )
+                CALL addvec( 1.0D0, xyz(1,actiontype(iaction,4)),  &
+                            -1.0D0, xyz(1,actiontype(iaction,3)),  &
+                             dummyvec(1,8)   )
 
-		CALL getscal(dummyvec(1,5),dummyvec(1,6),scal)
-		CALL vecprod(dummyvec(1,5),dummyvec(1,6),dummyvec(1,7))
-		CALL getnorm(dummyvec(1,7),norm)
+                CALL getscal(dummyvec(1,5),dummyvec(1,6),scal)
+                CALL vecprod(dummyvec(1,5),dummyvec(1,6),dummyvec(1,7))
+                CALL getnorm(dummyvec(1,7),norm)
 
-		CALL getscal(dummyvec(1,7),dummyvec(1,8),scal2)
-		
-		results(iaction) = ACOS(scal)
-		IF (scal2.LT.0) THEN
-			results(iaction) = -results(iaction) +&
-						  2*3.1415926535
-		END IF
-		results(iaction)=results(iaction)*rad2deg
-		
-	end select
+                CALL getscal(dummyvec(1,7),dummyvec(1,8),scal2)
+
+                results(iaction) = ACOS(scal)
+                IF (scal2.LT.0) THEN
+                        results(iaction) = -results(iaction) +&
+                                                  2*3.1415926535
+                END IF
+                results(iaction)=results(iaction)*rad2deg
+
+        end select
       END DO
 
       WRITE (iu_outfile,LINE_OUT) iframe,(results(J),J=1,nactions)
@@ -484,7 +484,7 @@ CONTAINS
 !
 !   status_out = 0  everything normal
 !                1  end of file reached
-!                2  some other kind of error 
+!                2  some other kind of error
 !   ---------------------------------------------------------
 
     INTEGER, INTENT(IN) :: iu
@@ -495,7 +495,7 @@ CONTAINS
 
     status_out = 0
     do
-      read (iu, '(a120)', IOSTAT=ios, END=999) line       
+      read (iu, '(a120)', IOSTAT=ios, END=999) line
       if (ios .ne. 0) then
         status_out = 2
         exit
@@ -503,17 +503,17 @@ CONTAINS
       if (line(4:5) == '<<') cycle
       if (line .ne. "") exit
     end do
-   
+
     return
 
 !   ---------------------------------------
 !   If end of file is reached reading input
 !   ---------------------------------------
     999  continue
- 
+
    status_out = 1
-   
-  END SUBROUTINE read_line 
+
+  END SUBROUTINE read_line
 
 !==============================================================================
 
@@ -544,16 +544,16 @@ CONTAINS
       end if
       if (line .ne. "") exit
     end do
- 
+
     return
 
 !   ---------------------------------------
 !   If end of file is reached reading input
 !   ---------------------------------------
     9999  continue
- 
+
    status_out = 1
- 
+
   END SUBROUTINE read_line_2
 
 !==============================================================================
@@ -636,7 +636,7 @@ END PROGRAM trajana
 ! ======================================================================
 !
       ll = len (string)
-      if (ll.le.0) then 
+      if (ll.le.0) then
         stop
       end if
 !
@@ -1017,7 +1017,7 @@ END PROGRAM trajana
 !     ==--------------------------------------------------------------==
       CALL getnorm(vec_old, dnorm)
       vec_norm(1) = vec_old(1) / dnorm
-      vec_norm(2) = vec_old(2) / dnorm       
+      vec_norm(2) = vec_old(2) / dnorm
       vec_norm(3) = vec_old(3) / dnorm
 !     ==--------------------------------------------------------------==
       RETURN

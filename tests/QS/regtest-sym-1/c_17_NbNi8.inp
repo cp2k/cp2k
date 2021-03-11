@@ -13,7 +13,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#NbNi_8 & I4/mmm-D_{4h}^{17} #139 (ahi) & tI18 & Pearson "Metals and Alloys" pp 
+#NbNi_8 & I4/mmm-D_{4h}^{17} #139 (ahi) & tI18 & Pearson "Metals and Alloys" pp
      A  -3.73352380  3.73352380  1.76000000
      B   3.73352380 -3.73352380  1.76000000
      C   3.73352380  3.73352380 -1.76000000

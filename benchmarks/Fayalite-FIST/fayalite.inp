@@ -12,20 +12,20 @@
       &CHARGE
          ATOM Fe
          CHARGE 1.2
-      &END CHARGE 
+      &END CHARGE
       &CHARGE
-         ATOM Si 
+         ATOM Si
          CHARGE 2.4
       &END CHARGE
       &CHARGE
-         ATOM O 
+         ATOM O
          CHARGE -1.2
       &END CHARGE
       IGNORE_MISSING_CRITICAL_PARAMS
       &NONBONDED
          &GENPOT
             ATOMS Fe O
-            FUNCTION D*((1-exp(-A*(X-R)))^2 - 1) + C/(X^12) 
+            FUNCTION D*((1-exp(-A*(X-R)))^2 - 1) + C/(X^12)
             PARAMETERS D A R C
             RCUT 5.5
             VALUES 0.078171 1.822638 2.658163 2.0
@@ -34,7 +34,7 @@
          &END GENPOT
          &GENPOT
             ATOMS Si O
-            FUNCTION D*((1-exp(-A*(X-R)))^2 - 1) + C/(X^12) 
+            FUNCTION D*((1-exp(-A*(X-R)))^2 - 1) + C/(X^12)
             PARAMETERS D A R C
             RCUT 5.5
             VALUES 0.340554 2.006700 2.100000 1.0
@@ -43,7 +43,7 @@
          &END GENPOT
          &GENPOT
             ATOMS O O
-            FUNCTION D*((1-exp(-A*(X-R)))^2 - 1) + C/(X^12) 
+            FUNCTION D*((1-exp(-A*(X-R)))^2 - 1) + C/(X^12)
             PARAMETERS D A R C
             RCUT 5.5
             VALUES 0.042395 1.379316 3.618701 22.0
@@ -58,7 +58,7 @@
     &POISSON
        &EWALD
           EWALD_TYPE SPME
-          GMAX 15 33 19 
+          GMAX 15 33 19
        &END EWALD
     &END POISSON
   &END MM
@@ -66,7 +66,7 @@
   &SUBSYS
     &CELL
       ABC 4.8195 10.4788 6.0873
-       MULTIPLE_UNIT_CELL 10 10 10 
+       MULTIPLE_UNIT_CELL 10 10 10
     &END CELL
     &TOPOLOGY
        MULTIPLE_UNIT_CELL 10 10 10

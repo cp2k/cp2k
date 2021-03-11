@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#KClO_3 & mP10 & P2_1/m-C_{2h}^2 (#11) & G0_6 & Strukturbericht II, 64   
+#KClO_3 & mP10 & P2_1/m-C_{2h}^2 (#11) & G0_6 & Strukturbericht II, 64
      A   4.64000000  0.00000000  0.00000000
      B   0.00000000  5.58000000  0.00000000
      C  -2.31086350  0.00000000  6.69225750
