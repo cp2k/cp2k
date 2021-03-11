@@ -494,74 +494,75 @@ ortho_cxyz_to_grid(const int lp, const double zetp, const double dh[3][3],
 }
 
 /*******************************************************************************
- * \brief Collocates coefficients C_i into register reg for general case.
- * \author Ole Schuett
- ******************************************************************************/
-static inline void general_ci_to_reg(const int lp, const double exp_aiibic,
-                                     const double di,
-                                     GRID_CONST_WHEN_COLLOCATE double *ci,
-                                     GRID_CONST_WHEN_INTEGRATE double *reg) {
-  double dip = exp_aiibic;
-
-  for (int il = 0; il <= lp; il++) {
-#if (GRID_DO_COLLOCATE)
-    (*reg) += ci[il] * dip; // collocate
-#else
-    ci[il] += (*reg) * dip; // integrate
-#endif
-    dip *= di;
-  }
-}
-
-/*******************************************************************************
  * \brief Collocates coefficients C_i onto the grid for general case.
  * \author Ole Schuett
  ******************************************************************************/
-static inline void general_ci_to_grid(
-    const int lp, const int jg, const int kg, const int ismin, const int ismax,
-    const int npts_local[3], const int bounds_i[2], const int index_min[3],
-    const int map_i[], const double zetp, const double a, const double b,
-    const double c, const double exp_ab, const double exp_2a,
-    const double gp[3], GRID_CONST_WHEN_COLLOCATE double *ci,
-    GRID_CONST_WHEN_INTEGRATE double *grid) {
+static inline void __attribute__((always_inline))
+general_ci_to_grid(const int lp, const int jg, const int kg, const int ismin,
+                   const int ismax, const int npts_local[3],
+                   const int index_min[3], const int index_max[3],
+                   const int map_i[], const int sections_i[],
+                   const double gp[3], const int k, const int j,
+                   const double exp_ij[], const double exp_jk[],
+                   const double exp_ki[], GRID_CONST_WHEN_COLLOCATE double *ci,
+                   GRID_CONST_WHEN_INTEGRATE double *grid) {
 
   const int base = kg * npts_local[1] * npts_local[0] + jg * npts_local[0];
-  double exp_aiibic = 0.0;
-  double exp_2ai = 0.0;
-  bool exp_is_invalid = true;
 
-  for (int i = ismin; i <= ismax; i++) {
-    const int ig = map_i[i - index_min[0]];
-    if (ig < bounds_i[0] || bounds_i[1] < ig) {
-      exp_is_invalid = true;
+  // AVX instructions can only load/store from evenly spaced memory locations.
+  // Since the cube can wrap around due to the grid's periodicity,
+  // the inner loop runs over sections with homogeneous cube to grid mapping.
+  for (int istart = ismin; istart <= ismax; istart++) {
+    const int istop = imin(ismax, istart + sections_i[istart - index_min[0]]);
+    if (map_i[istart - index_min[0]] < 0) {
+      istart = istop; // skip over out-of-bounds indicies
       continue;
     }
 
-    const double di = (double)i;
-    const int grid_index = base + ig; // [kg, jg, ig]
+    const int cube2grid = map_i[istart - index_min[0]] - istart;
+    for (int i = istart; i <= istop; i++) {
+      const int ig = i + cube2grid;
+      const double di = i - gp[0];
 
-    if (exp_is_invalid) {
-      exp_2ai = exp(-zetp * (a + a) * di);
-      exp_aiibic = exp(-zetp * ((a * di + b) * di + c));
-      exp_is_invalid = false;
-    }
+      const int stride_i = index_max[0] - index_min[0] + 1;
+      const int stride_j = index_max[1] - index_min[1] + 1;
+      const int stride_k = index_max[2] - index_min[2] + 1;
+      const int idx_ij = (j - index_min[1]) * stride_i + i - index_min[0];
+      const int idx_jk = (k - index_min[2]) * stride_j + j - index_min[1];
+      const int idx_ki = (i - index_min[0]) * stride_k + k - index_min[2];
 
-    // In all likelihood the compiler will keep this variable in a register.
-    double reg = 0.0;
+      // Mathieu's trick: Calculate 3D Gaussian from three precomputed 2D tables
+      //
+      // r   =  (i-gp[0])*dh[0,:] + (j-gp[1])*dh[1,:] + (k-gp[2])*dh[2,:]
+      //     =  a                 + b                 + c
+      //
+      // r**2  =  (a + b + c)**2  =  a**2 + b**2 + c**2 + 2ab + 2bc + 2ca
+      //
+      // exp(-r**2)  =  exp(-a(a+2b)) * exp(-b*(b+2c)) * exp(-c*(c+2a))
+      //
+      const double gaussian = exp_ij[idx_ij] * exp_jk[idx_jk] * exp_ki[idx_ki];
+
+      const int grid_index = base + ig; // [kg, jg, ig]
+      double dip = gaussian;
 
 #if (GRID_DO_COLLOCATE)
-    // collocate
-    general_ci_to_reg(lp, exp_aiibic, di - gp[0], ci, &reg);
-    grid[grid_index] += reg;
+      // collocate
+      double reg = 0.0;
+      for (int il = 0; il <= lp; il++) {
+        reg += ci[il] * dip;
+        dip *= di;
+      }
+      grid[grid_index] += reg;
 #else
-    // integrate
-    reg += grid[grid_index];
-    general_ci_to_reg(lp, exp_aiibic, di - gp[0], ci, &reg);
+      // integrate
+      const double reg = grid[grid_index];
+      for (int il = 0; il <= lp; il++) {
+        ci[il] += reg * dip;
+        dip *= di;
+      }
 #endif
-
-    // update exponential term
-    exp_aiibic *= exp_2ai * exp_ab; // exp(-zetp * ((a * i + b) * i + c));
-    exp_2ai *= exp_2a;
+    }
+    istart = istop;
   }
 }
 
@@ -569,9 +570,10 @@ static inline void general_ci_to_grid(
  * \brief Transforms coefficients C_ij into C_i by fixing grid index j.
  * \author Ole Schuett
  ******************************************************************************/
-static inline void general_cij_to_ci(const int lp, const double dj,
-                                     GRID_CONST_WHEN_COLLOCATE double *cij,
-                                     GRID_CONST_WHEN_INTEGRATE double *ci) {
+static inline void __attribute__((always_inline))
+general_cij_to_ci(const int lp, const double dj,
+                  GRID_CONST_WHEN_COLLOCATE double *cij,
+                  GRID_CONST_WHEN_INTEGRATE double *ci) {
   double djp = 1.0;
   for (int jl = 0; jl <= lp; jl++) {
     for (int il = 0; il <= lp - jl; il++) {
@@ -587,73 +589,107 @@ static inline void general_cij_to_ci(const int lp, const double dj,
 }
 
 /*******************************************************************************
+ * \brief Loop body of general_cij_to_grid to be inlined for low values of lp.
+ * \author Ole Schuett
+ ******************************************************************************/
+static inline void __attribute__((always_inline)) general_cij_to_grid_low(
+    const int lp, const int jg, const int kg, const int ismin, const int ismax,
+    const int npts_local[3], const int index_min[3], const int index_max[3],
+    const int map_i[], const int sections_i[], const double gp[3], const int k,
+    const int j, const double exp_ij[], const double exp_jk[],
+    const double exp_ki[], const double dj, double *ci,
+    GRID_CONST_WHEN_COLLOCATE double *cij,
+    GRID_CONST_WHEN_INTEGRATE double *grid) {
+
+#if (GRID_DO_COLLOCATE)
+  // collocate
+  general_cij_to_ci(lp, dj, cij, ci);
+  general_ci_to_grid(lp, jg, kg, ismin, ismax, npts_local, index_min, index_max,
+                     map_i, sections_i, gp, k, j, exp_ij, exp_jk, exp_ki, ci,
+                     grid);
+#else
+  // integrate
+  general_ci_to_grid(lp, jg, kg, ismin, ismax, npts_local, index_min, index_max,
+                     map_i, sections_i, gp, k, j, exp_ij, exp_jk, exp_ki, ci,
+                     grid);
+  general_cij_to_ci(lp, dj, cij, ci);
+#endif
+}
+
+/*******************************************************************************
  * \brief Collocates coefficients C_ij onto the grid for general case.
  * \author Ole Schuett
  ******************************************************************************/
 static inline void general_cij_to_grid(
     const int lp, const int k, const int kg, const int npts_local[3],
-    const int bounds_i[2], const int bounds_j[2], const int index_min[3],
-    const int index_max[3], const int map_i[], const int map_j[],
-    const double zetp, const double dh[3][3], const double gp[3],
-    const double radius, GRID_CONST_WHEN_COLLOCATE double *cij,
+    const int index_min[3], const int index_max[3], const int map_i[],
+    const int map_j[], const int sections_i[], const int sections_j[],
+    const double dh[3][3], const double gp[3], const double radius,
+    const double exp_ij[], const double exp_jk[], const double exp_ki[],
+    GRID_CONST_WHEN_COLLOCATE double *cij,
     GRID_CONST_WHEN_INTEGRATE double *grid) {
-
-  const double d0 = dh[1][0], d1 = dh[1][1], d2 = dh[1][2];
-  const double u0 = (0 - gp[0]) * dh[0][0] + (k - gp[2]) * dh[2][0];
-  const double u1 = (0 - gp[0]) * dh[0][1] + (k - gp[2]) * dh[2][1];
-  const double u2 = (0 - gp[0]) * dh[0][2] + (k - gp[2]) * dh[2][2];
-  const double a =
-      dh[0][0] * dh[0][0] + dh[0][1] * dh[0][1] + dh[0][2] * dh[0][2];
-  const double inva2 = 0.5 / a, exp_2a = exp(-zetp * (a + a));
-  double ci[lp + 1];
 
   for (int j = index_min[1]; j <= index_max[1]; j++) {
     const int jg = map_j[j - index_min[1]];
+    if (jg < 0) {
+      j += sections_j[j - index_min[1]]; // skip over out-of-bounds indicies
+      continue;
+    }
 
-    if (bounds_j[0] <= jg && jg <= bounds_j[1]) {
-      const double dj = (double)j - gp[1];
-      const double v0 = u0 + d0 * dj, v1 = u1 + d1 * dj, v2 = u2 + d2 * dj;
-      const double b = (v0 * dh[0][0] + v1 * dh[0][1] + v2 * dh[0][2]) * 2.0;
-      const double c = (v0 * v0 + v1 * v1 + v2 * v2);
-      const double d = b * b - 4.0 * a * (c - radius * radius);
+    //--------------------------------------------------------------------
+    // Find bounds for the inner loop based on a quadratic equation in i.
+    //
+    // The real-space vector from the center of the gaussian to the
+    // grid point i,j,k is given by:
+    //   r = (i-gp[0])*dh[0,:] + (j-gp[1])*dh[1,:] + (k-gp[2])*dh[2,:]
+    //
+    // Separating the term that depends on i:
+    //   r = i*dh[0,:] - gp[0]*dh[0,:] + (j-gp[1])*dh[1,:] + (k-gp[2])*dh[2,:]
+    //     = i*dh[0,:] + v
+    //
+    // The squared distance works out to:
+    //   r**2 = dh[0,:]**2 * i**2  +  2 * v * dh[0,:] * i  +  v**2
+    //        = a * i**2           +  b * i                +  c
+    //
+    // Solving r**2==radius**2 for i yields:
+    //    d =  b**2  -  4 * a * (c - radius**2)
+    //    i = (-b \pm sqrt(d)) / (2*a)
+    //
+    double a = 0.0, b = 0.0, c = 0.0;
+    for (int i = 0; i < 3; i++) {
+      const double v = (0 - gp[0]) * dh[0][i] + (j - gp[1]) * dh[1][i] +
+                       (k - gp[2]) * dh[2][i];
+      a += dh[0][i] * dh[0][i];
+      b += 2.0 * v * dh[0][i];
+      c += v * v;
+    }
+    const double d = b * b - 4.0 * a * (c - radius * radius);
 
-      //--------------------------------------------------------------------
-      // Find bounds for the inner loop based on a quadratic equation in i.
-      //
-      // The real-space vector from the center of the gaussian to the
-      // grid point i,j,k is given by:
-      //   r = (i-gp[0])*dh[0,:] + (j-gp[1])*dh[1,:] + (k-gp[2])*dh[2,:]
-      //
-      // Separating the term that depends on i:
-      //   r = i*dh[0,:] - gp[0]*dh[0,:] + (j-gp[1])*dh[1,:] + (k-gp[2])*dh[2,:]
-      //     = i*dh[0,:] + v
-      //
-      // The squared distance works out to:
-      //   r**2 = dh[0,:]**2 * i**2  +  2 * v * dh[0,:] * i  +  v**2
-      //        = a * i**2           +  b * i                +  c
-      //
-      // Solving r**2==radius**2 for i yields:
-      //    d =  b**2  -  4 * a * (c - radius**2)
-      //    i = (-b \pm sqrt(d)) / (2*a)
-      //
-      if (0.0 < d) {
-        const double exp_ab = exp(-zetp * (a + b)), sqrt_d = sqrt(d);
-        const int ismin = (int)ceil((-b - sqrt_d) * inva2);
-        const int ismax = (int)floor((-b + sqrt_d) * inva2);
-        memset(ci, 0, sizeof(ci));
-#if (GRID_DO_COLLOCATE)
-        // collocate
-        general_cij_to_ci(lp, dj, cij, ci);
-        general_ci_to_grid(lp, jg, kg, ismin, ismax, npts_local, bounds_i,
-                           index_min, map_i, zetp, a, b, c, exp_ab, exp_2a, gp,
-                           ci, grid);
-#else
-        // integrate
-        general_ci_to_grid(lp, jg, kg, ismin, ismax, npts_local, bounds_i,
-                           index_min, map_i, zetp, a, b, c, exp_ab, exp_2a, gp,
-                           ci, grid);
-        general_cij_to_ci(lp, dj, cij, ci);
-#endif
+    if (0.0 < d) {
+      const double sqrt_d = sqrt(d);
+      const double inv_2a = 1.0 / (2.0 * a);
+      const int ismin = (int)ceil((-b - sqrt_d) * inv_2a);
+      const int ismax = (int)floor((-b + sqrt_d) * inv_2a);
+      const double dj = j - gp[1];
+
+      double ci[lp + 1];
+      memset(ci, 0, sizeof(ci));
+
+      // Generate separate branches for low values of lp.
+      if (lp <= GRID_MAX_LP_OPTIMIZED) {
+        GRID_PRAGMA_UNROLL(GRID_MAX_LP_OPTIMIZED + 1)
+        for (int ilp = 0; ilp <= GRID_MAX_LP_OPTIMIZED; ilp++) {
+          if (lp == ilp) {
+            general_cij_to_grid_low(ilp, jg, kg, ismin, ismax, npts_local,
+                                    index_min, index_max, map_i, sections_i, gp,
+                                    k, j, exp_ij, exp_jk, exp_ki, dj, ci, cij,
+                                    grid);
+          }
+        }
+      } else {
+        general_cij_to_grid_low(lp, jg, kg, ismin, ismax, npts_local, index_min,
+                                index_max, map_i, sections_i, gp, k, j, exp_ij,
+                                exp_jk, exp_ki, dj, ci, cij, grid);
       }
     }
   }
@@ -681,6 +717,84 @@ static inline void general_cijk_to_cij(const int lp, const double dk,
       }
     }
     dkp *= dk;
+  }
+}
+
+/*******************************************************************************
+ * \brief Precompute mapping of grid indices and its homogeneous sections.
+ * \author Ole Schuett
+ ******************************************************************************/
+static inline void precompute_mapping(const int index_min, const int index_max,
+                                      const int shift_local,
+                                      const int npts_global,
+                                      const int bounds[2], int map[],
+                                      int sections[]) {
+
+  // Precompute mapping from continous grid indices to pbc wraped.
+  for (int k = index_min; k <= index_max; k++) {
+    const int kg = modulo(k - shift_local, npts_global);
+    if (bounds[0] <= kg && kg <= bounds[1]) {
+      map[k - index_min] = kg;
+    } else {
+      map[k - index_min] = INT_MIN; // out of bounds - not mapped
+    }
+  }
+
+  // Precompute lenght of sections with homogeneous cube to grid mapping.
+  const int range = index_max - index_min + 1;
+  for (int kg = range - 1; kg >= 0; kg--) {
+    if (kg == range - 1 || map[kg] != map[kg + 1] - 1) {
+      sections[kg] = 0;
+    } else {
+      sections[kg] = sections[kg + 1] + 1;
+    }
+  }
+}
+
+/*******************************************************************************
+ * \brief Fill one of the 2D tables that is used to assemble the 3D Gaussian.
+ * \author Ole Schuett
+ ******************************************************************************/
+static inline void
+precompute_exp_table(const int idir, const int jdir, const int index_min[3],
+                     const int index_max[3], const double zetp,
+                     const double dh[3][3], const double gp[3],
+                     double exp_table[]) {
+
+  const int stride_i = index_max[idir] - index_min[idir] + 1;
+  const double h_ii = dh[idir][0] * dh[idir][0] + dh[idir][1] * dh[idir][1] +
+                      dh[idir][2] * dh[idir][2];
+  const double h_ij = dh[idir][0] * dh[jdir][0] + dh[idir][1] * dh[jdir][1] +
+                      dh[idir][2] * dh[jdir][2];
+
+  for (int i = index_min[idir]; i <= index_max[idir]; i++) {
+    const double di = i - gp[idir];
+    const double rii = di * di * h_ii;
+    const double rij_unit = di * h_ij;
+    const double exp_ij_unit = exp(-zetp * 2.0 * rij_unit);
+
+    // compute exponentials symmetrically around cube center
+    const int j_center = (int)gp[jdir];
+    const double dj_center = j_center - gp[jdir];
+    const double rij_center = dj_center * rij_unit;
+    const double exp_ij_center = exp(-zetp * (rii + 2.0 * rij_center));
+
+    // above center
+    double exp_ij = exp_ij_center;
+    for (int j = j_center; j <= index_max[jdir]; j++) {
+      const int idx = (j - index_min[jdir]) * stride_i + i - index_min[idir];
+      exp_table[idx] = exp_ij; // exp(-zetp * (di*di*h_ii + 2*di*dj*h_ij));
+      exp_ij *= exp_ij_unit;
+    }
+
+    // below center
+    const double exp_ij_unit_inv = 1.0 / exp_ij_unit;
+    exp_ij = exp_ij_center * exp_ij_unit_inv;
+    for (int j = j_center - 1; j >= index_min[jdir]; j--) {
+      const int idx = (j - index_min[jdir]) * stride_i + i - index_min[idir];
+      exp_table[idx] = exp_ij; // exp(-zetp * (di*di*h_ii + 2*di*dj*h_ij));
+      exp_ij *= exp_ij_unit_inv;
+    }
   }
 }
 
@@ -726,9 +840,7 @@ general_cijk_to_grid(const int border_mask, const int lp, const double zetp,
     }
   }
 
-  // CALL return_cube_nonortho(cube_info, radius, index_min, index_max, rp)
-  //
-  // get the min max indices that contain at least the cube that contains a
+  // Get the min max indices that contain at least the cube that contains a
   // sphere around rp of radius radius if the cell is very non-orthogonal this
   // implies that many useless points are included this estimate can be improved
   // (i.e. not box but sphere should be used)
@@ -750,26 +862,35 @@ general_cijk_to_grid(const int border_mask, const int lp, const double zetp,
     }
   }
 
-  // precompute modulos
-  int map_k[index_max[2] - index_min[2] + 1];
-  for (int k = index_min[2]; k <= index_max[2]; k++) {
-    map_k[k - index_min[2]] = modulo(k - shift_local[2], npts_global[2]);
-  }
-  int map_j[index_max[1] - index_min[1] + 1];
-  for (int j = index_min[1]; j <= index_max[1]; j++) {
-    map_j[j - index_min[1]] = modulo(j - shift_local[1], npts_global[1]);
-  }
-  int map_i[index_max[0] - index_min[0] + 1];
-  for (int i = index_min[0]; i <= index_max[0]; i++) {
-    map_i[i - index_min[0]] = modulo(i - shift_local[0], npts_global[0]);
-  }
+  // Precompute mappings
+  const int range_i = index_max[0] - index_min[0] + 1;
+  int map_i[range_i], sections_i[range_i];
+  precompute_mapping(index_min[0], index_max[0], shift_local[0], npts_global[0],
+                     bounds_i, map_i, sections_i);
+  const int range_j = index_max[1] - index_min[1] + 1;
+  int map_j[range_j], sections_j[range_j];
+  precompute_mapping(index_min[1], index_max[1], shift_local[1], npts_global[1],
+                     bounds_j, map_j, sections_j);
+  const int range_k = index_max[2] - index_min[2] + 1;
+  int map_k[range_k], sections_k[range_k];
+  precompute_mapping(index_min[2], index_max[2], shift_local[2], npts_global[2],
+                     bounds_k, map_k, sections_k);
+
+  // Precompute exponentials
+  double exp_ij[range_i * range_j];
+  precompute_exp_table(0, 1, index_min, index_max, zetp, dh, gp, exp_ij);
+  double exp_jk[range_j * range_k];
+  precompute_exp_table(1, 2, index_min, index_max, zetp, dh, gp, exp_jk);
+  double exp_ki[range_k * range_i];
+  precompute_exp_table(2, 0, index_min, index_max, zetp, dh, gp, exp_ki);
 
   // go over the grid, but cycle if the point is not within the radius
   const int cij_size = (lp + 1) * (lp + 1);
   double cij[cij_size];
   for (int k = index_min[2]; k <= index_max[2]; k++) {
     const int kg = map_k[k - index_min[2]];
-    if (kg < bounds_k[0] || bounds_k[1] < kg) {
+    if (kg < 0) {
+      k += sections_k[k - index_min[2]]; // skip over out-of-bounds indicies
       continue;
     }
 
@@ -779,14 +900,14 @@ general_cijk_to_grid(const int border_mask, const int lp, const double zetp,
 #if (GRID_DO_COLLOCATE)
     // collocate
     general_cijk_to_cij(lp, (double)k - gp[2], cijk, cij);
-    general_cij_to_grid(lp, k, kg, npts_local, bounds_i, bounds_j, index_min,
-                        index_max, map_i, map_j, zetp, dh, gp, radius, cij,
-                        grid);
+    general_cij_to_grid(lp, k, kg, npts_local, index_min, index_max, map_i,
+                        map_j, sections_i, sections_j, dh, gp, radius, exp_ij,
+                        exp_jk, exp_ki, cij, grid);
 #else
     // integrate
-    general_cij_to_grid(lp, k, kg, npts_local, bounds_i, bounds_j, index_min,
-                        index_max, map_i, map_j, zetp, dh, gp, radius, cij,
-                        grid);
+    general_cij_to_grid(lp, k, kg, npts_local, index_min, index_max, map_i,
+                        map_j, sections_i, sections_j, dh, gp, radius, exp_ij,
+                        exp_jk, exp_ki, cij, grid);
     general_cijk_to_cij(lp, (double)k - gp[2], cijk, cij);
 #endif
   }
