@@ -50,7 +50,7 @@
   &END DFT
   &SUBSYS
     &KIND Si
-      ELEMENT	Si
+      ELEMENT  Si
       BASIS_SET DZVP-GTH-PADE
       POTENTIAL GTH-PADE-q4
     &END KIND

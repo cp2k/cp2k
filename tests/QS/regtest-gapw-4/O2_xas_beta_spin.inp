@@ -4,7 +4,7 @@
     LSD
     BASIS_SET_FILE_NAME BASIS_def2_QZVP_RI_ALL
     POTENTIAL_FILE_NAME POTENTIAL
- 
+
     CHARGE 0
     MULTIPLICITY 3
     &MGRID
@@ -35,7 +35,7 @@
        OCCUPATION_NUMBERS
      &END
     &END
-    &XAS 
+    &XAS
       &SCF
         EPS_SCF 8.5E-2
         MAX_SCF 30
@@ -45,15 +45,15 @@
       STATE_TYPE    1s
       STATE_SEARCH  2
       SPIN_CHANNEL  2
-      ATOMS_LIST    1 
+      ATOMS_LIST    1
       ADDED_MOS     10
       &LOCALIZE
       &END
       &PRINT
          &PROGRAM_RUN_INFO
-         &END 
+         &END
          &RESTART
-         &END 
+         &END
          &XES_SPECTRUM
          &END
          &XAS_SPECTRUM
@@ -71,8 +71,8 @@
     &END CELL
 
     &COORD
-      O  0.00000000  0.00000000  -0.00423076  
-      O  0.00000000  -0.00000000  1.21423076  
+      O  0.00000000  0.00000000  -0.00423076
+      O  0.00000000  -0.00000000  1.21423076
     &END
 
     &KIND H
@@ -103,7 +103,7 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT 7782-44-7 
+  PROJECT 7782-44-7
   RUN_TYPE energy
   WALLTIME  10700
 &END GLOBAL

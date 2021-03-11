@@ -6,12 +6,12 @@
 &END GLOBAL
 
 &FORCE_EVAL
-  METHOD QS 
+  METHOD QS
   &DFT
 
     BASIS_SET_FILE_NAME GTH_BASIS_SETS
     POTENTIAL_FILE_NAME GTH_POTENTIALS
-    
+
     &QS
       METHOD GPW
       ALMO_SCF T
@@ -32,7 +32,7 @@
       XALMO_R_CUTOFF_FACTOR      0.6
       XALMO_TRIAL_WF             SIMPLE
       RETURN_ORTHOGONALIZED_MOS  FALSE
-      
+
       &XALMO_OPTIMIZER_PCG
         MAX_ITER                 15
         EPS_ERROR                1.0E-5
@@ -42,20 +42,20 @@
         MAX_ITER_OUTER_LOOP      10
         PRECOND_FILTER_THRESHOLD 0.05
       &END XALMO_OPTIMIZER_PCG
-      
+
     &END ALMO_SCF
-    
+
     &XC
       &XC_FUNCTIONAL BLYP
       &END XC_FUNCTIONAL
     &END XC
-  
+
   &END DFT
 
   &SUBSYS
     &CELL
       ABC    3.66 3.66 3.66
-      MULTIPLE_UNIT_CELL 1 1 1 
+      MULTIPLE_UNIT_CELL 1 1 1
     &END CELL
 
     &COORD
@@ -75,7 +75,7 @@
       POTENTIAL GTH-BLYP-q3
       &BS
         &ALPHA
-          NEL -1 -2 
+          NEL -1 -2
           L    1  0
           N    2  2
         &END
@@ -102,12 +102,12 @@
         ! TO AVOID WARNINGS
         &BETA
           NEL +3
-          L    1 
+          L    1
           N    2
         &END
       &END
     &END KIND
-  
+
   &END SUBSYS
 
 &END FORCE_EVAL

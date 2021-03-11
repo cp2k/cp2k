@@ -25,7 +25,7 @@
          &RESTART OFF
          &END
       &END
-      &OT 
+      &OT
         PRECONDITIONER FULL_SINGLE_INVERSE
         MINIMIZER DIIS
         N_DIIS 9

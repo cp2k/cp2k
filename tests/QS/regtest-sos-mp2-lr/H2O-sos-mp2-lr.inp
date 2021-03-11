@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT  H2O-sos-mp2-lr
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
@@ -37,12 +37,12 @@
         FRACTION 1.0000000
         &SCREENING
           EPS_SCHWARZ 1.0E-8
-          SCREEN_ON_INITIAL_P FALSE 
+          SCREEN_ON_INITIAL_P FALSE
         &END SCREENING
       &END HF
       &WF_CORRELATION
         &RI_SOS_MP2
-          QUADRATURE_POINTS  5 
+          QUADRATURE_POINTS  5
         &END
         &INTEGRALS
           ERI_METHOD GPW

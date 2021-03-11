@@ -36,7 +36,7 @@
         MAX_MOMENT 4
         PERIODIC   F
         REFERENCE  USER_DEFINED
-        REF_POINT  [angstrom] 2. 0. 0.  
+        REF_POINT  [angstrom] 2. 0. 0.
       &END MOMENTS
     &END PRINT
   &END DFT

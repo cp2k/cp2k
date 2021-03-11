@@ -14,7 +14,7 @@
       &NONBONDED
         &GENPOT
           atoms O O
-          FUNCTION a1/(r**a2)-a3*EXP(-a4*(r-a5)**2)-a6*EXP(-a7*(r-a8)**2) 
+          FUNCTION a1/(r**a2)-a3*EXP(-a4*(r-a5)**2)-a6*EXP(-a7*(r-a8)**2)
           PARAMETERS a1 a2 a3 a4 a5 a6 a7 a8
           VALUES   1.1980729808482192E+04   8.8590999999999998   3.9840036159964918E-04   1.1201140711367266   6.4250688553322552   3.9840036159964918E-04   0.4200427766762724   8.5037676026456328
           VARIABLES r
@@ -22,7 +22,7 @@
         &END GENPOT
         &GENPOT
           atoms O H
-          FUNCTION  a1/(r**a2)-a3/(1.0+EXP(a4*(r-a5)))-a6/(1.0+EXP(a7*(r-a8))) 
+          FUNCTION  a1/(r**a2)-a3/(1.0+EXP(a4*(r-a5)))-a6/(1.0+EXP(a7*(r-a8)))
           PARAMETERS a1 a2 a3 a4 a5 a6 a7 a8
           VALUES 3.4655842820128613   9.1991200000000006   1.5936014463985966E-02  21.1670883320000023   1.9842124406173143   6.3744057855943869E-03   2.9067968640523154   4.1573974946267542
           VARIABLES r
@@ -30,8 +30,8 @@
         &END GENPOT
         &GENPOT
           atoms H H
-          FUNCTION a1/(1.0+EXP(a2*(r-a3)))-a4*EXP(-a5*(r-a6)**2) 
-          PARAMETERS a1 a2 a3 a4 a5 a6 
+          FUNCTION a1/(1.0+EXP(a2*(r-a3)))-a4*EXP(-a5*(r-a6)**2)
+          PARAMETERS a1 a2 a3 a4 a5 a6
           VALUES  2.8684826035174742E-02  21.1670883320000023   3.8739385745385655   2.7091224588776143E-02   2.1343129559919420   2.7448461067819574
           VARIABLES r
           RCUT    5.0

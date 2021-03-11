@@ -22,8 +22,8 @@
     &SCF
       &PRINT
         &RESTART
-           &EACH 
-             MD 1 
+           &EACH
+             MD 1
              QS_SCF 0
            &END
            ADD_LAST NUMERIC
@@ -37,7 +37,7 @@
       SCF_GUESS atomic
       MAX_SCF 30
       EPS_SCF 1.0E-4
-      &OT 
+      &OT
         MINIMIZER DIIS
         N_DIIS 7
         PRECONDITIONER FULL_ALL

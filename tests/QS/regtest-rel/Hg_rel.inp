@@ -48,7 +48,7 @@
     &END COORD
     &KIND Hg
       POTENTIAL ALL
-      &POTENTIAL 
+      &POTENTIAL
         12   24   30   14
           0.50000000
       &END

@@ -7,10 +7,10 @@
       &END
     &END
     &PERIODIC_EFIELD
-       POLARISATION 1 2 5 
+       POLARISATION 1 2 5
        INTENSITY 0.01
        DISPLACEMENT_FIELD T
-    &END    
+    &END
     &QS
       METHOD xTB
       &XTB
@@ -26,7 +26,7 @@
     &END POISSON
     &SCF
       EPS_SCF 1.0E-7
-      SCF_GUESS ATOMIC 
+      SCF_GUESS ATOMIC
       MAX_SCF 100
     &END SCF
   &END DFT
@@ -37,8 +37,8 @@
       C  0.0  0.0  4.0
     &END CELL
     &COORD
-    H   0.000000    0.000000    0.000000 
-    F   0.940000    0.000000    0.000000 
+    H   0.000000    0.000000    0.000000
+    F   0.940000    0.000000    0.000000
     &END COORD
   &END SUBSYS
 &END FORCE_EVAL

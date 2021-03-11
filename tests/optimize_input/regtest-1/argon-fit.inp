@@ -66,19 +66,19 @@ Ar    7.3821811477948271E+00    4.1270919924567533E+00   -7.2659402775337623E-01
   &END
   &PRINT
     &CELL
-      &EACH 
+      &EACH
         MD 100
       &END
     &END
     &FORCES
-      &EACH 
+      &EACH
         MD 100
       &END
     &END
     &TRAJECTORY
-      &EACH 
+      &EACH
         MD 100
       &END
     &END
-  &END 
+  &END
 &END MOTION

@@ -8,7 +8,7 @@
       EPS_DEFAULT 1.0E-8
     &END QS
     &SCF
-      SCF_GUESS ATOMIC 
+      SCF_GUESS ATOMIC
       MAX_SCF 4
       ADDED_MOS  4
     &END SCF

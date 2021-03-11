@@ -9,7 +9,7 @@
      &END SE
     &END QS
     &SCF
-      SCF_GUESS ATOMIC  
+      SCF_GUESS ATOMIC
       MAX_SCF 50
       EPS_SCF 1.0E-7
       &OUTER_SCF
@@ -59,11 +59,11 @@
  H         6.801000        2.946000        0.142000
  H         5.352000        3.000000       -0.270000
     &END COORD
-       
+
      &COLVAR
         &COORDINATION
-           # phosphate 
-           ATOMS_FROM 1 
+           # phosphate
+           ATOMS_FROM 1
            # 2 water oxygens
            ATOMS_TO 14 17
            R0 5.5
@@ -88,13 +88,13 @@
           &END PROGRAM_RUN_INFO
        &END PRINT
      &END COLVAR
-     
+
      &COLVAR
          &COORDINATION
             #phosphate
             ATOMS_FROM 1
             # 2 water oxygens
-            ATOMS_TO 14 17 
+            ATOMS_TO 14 17
             R0 3.5
             NN 12
             ND 24
@@ -115,14 +115,14 @@
 &MOTION
       &CONSTRAINT
        &FIXED_ATOMS
-        LIST 1 4 
+        LIST 1 4
         &RESTRAINT
          K 9.0E-04
         &END RESTRAINT
        &END FIXED_ATOMS
        &COLLECTIVE
         COLVAR 1
-        INTERMOLECULAR T 
+        INTERMOLECULAR T
         TARGET 2.0
          &RESTRAINT
           K 0.005
@@ -150,7 +150,7 @@
          &END ENERGY
       &END PRINT
      &END MD
-     
+
 &END MOTION
 &GLOBAL
   PROJECT h2po4

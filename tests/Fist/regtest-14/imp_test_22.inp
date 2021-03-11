@@ -106,7 +106,7 @@
           EPSILON [au_e] 0.0
         &END LENNARD-JONES
       &END NONBONDED
-      &NONBONDED14   
+      &NONBONDED14
         &LENNARD-JONES
           ATOMS C C
           SIGMA [au_l] 1.0

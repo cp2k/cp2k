@@ -2,18 +2,18 @@
   STRESS_TENSOR ANALYTICAL
   &PROPERTIES
      &ATOMIC
-        ENERGY 
+        ENERGY
         PRESSURE
      &END ATOMIC
   &END PROPERTIES
   &DFT
     &QS
-      METHOD xTB 
+      METHOD xTB
       &xTB
         DO_EWALD           T
         COULOMB_INTERACTION T
         TB3_INTERACTION T
-      &END 
+      &END
     &END QS
     &SCF
       SCF_GUESS MOPAC

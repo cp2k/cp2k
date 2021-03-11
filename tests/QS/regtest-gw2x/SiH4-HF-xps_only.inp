@@ -40,7 +40,7 @@
       &GW2X
          XPS_ONLY
       &END GW2X
-      
+
       &KERNEL
          &XC_FUNCTIONAL NONE
          &END XC_FUNCTIONAL

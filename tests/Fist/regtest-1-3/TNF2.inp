@@ -136,7 +136,7 @@
           RCUT           9.0
         &END LENNARD-JONES
         &LENNARD-JONES
-          ATOMS       C C 
+          ATOMS       C C
           EPSILON  [kjmol] 1.10456000000000000000
           SIGMA    [angstrom]   3.50
           RCUT           9.0

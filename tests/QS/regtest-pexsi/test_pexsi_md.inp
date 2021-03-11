@@ -21,7 +21,7 @@
       PERFORM_MU_SCAN OFF
       PURIFICATION_METHOD PEXSI
       &PEXSI
-        NUM_POLE 60 
+        NUM_POLE 60
         MAX_PEXSI_ITER 3
         MU_MIN_0 -0.5
         MU_MAX_0 0.5

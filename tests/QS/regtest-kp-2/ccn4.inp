@@ -29,9 +29,9 @@
     &END XC
     &KPOINTS
        SCHEME MONKHORST-PACK 2 2 2
-       SYMMETRY ON 
+       SYMMETRY ON
        EPS_GEO 1.e-8
-       FULL_GRID ON 
+       FULL_GRID ON
        VERBOSE F
        PARALLEL_GROUP_SIZE  0
     &END KPOINTS

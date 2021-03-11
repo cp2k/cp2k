@@ -9,7 +9,7 @@
       &DFTB
         SELF_CONSISTENT    F
         DISPERSION         T
-        ORTHOGONAL_BASIS   F   
+        ORTHOGONAL_BASIS   F
         &PARAMETER
           PARAM_FILE_PATH  DFTB/nonscc
           PARAM_FILE_NAME  nonscc_parameter
@@ -28,7 +28,7 @@
     &END SCF
     &KPOINTS
        SCHEME  MONKHORST-PACK  2 2 2
-       SYMMETRY ON 
+       SYMMETRY ON
        EPS_GEO 1.e-8
        FULL_GRID ON
        VERBOSE F
@@ -58,7 +58,7 @@
 &END FORCE_EVAL
 &GLOBAL
   PROJECT Si
-  PRINT_LEVEL low 
+  PRINT_LEVEL low
   RUN_TYPE DEBUG
 &END GLOBAL
 &DEBUG

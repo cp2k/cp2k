@@ -4,7 +4,7 @@
  PROJECT      xes_core0.5
  IOLEVEL      MEDIUM
  RUN_TYPE     ENERGY
-&END 
+&END
 
 &FORCE_EVAL
   METHOD Quickstep
@@ -43,7 +43,7 @@
       EPS_SCF 5.E-6
       EPS_DIIS 0.4
       MAX_SCF 100
-       
+
       ADDED_MOS  1 1
       &OT OFF
         PRECONDITIONER FULL_ALL
@@ -64,7 +64,7 @@
      PERIODIC NONE
     &END POISSON
 
-    &XAS 
+    &XAS
       &SCF
         EPS_SCF 0.000001
         EPS_DIIS   0.4
@@ -92,7 +92,7 @@
   &END SECTION DFT
   &SUBSYS
     &CELL
-       ABC    6.0    6.0     6.0 
+       ABC    6.0    6.0     6.0
        PERIODIC NONE
     &END CELL
 

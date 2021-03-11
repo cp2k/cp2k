@@ -43,7 +43,7 @@
             &END LDA_XC_TETER93
          &END XC_FUNCTIONAL
       &END KERNEL
-      
+
    &END XAS_TDP
 
   &END DFT

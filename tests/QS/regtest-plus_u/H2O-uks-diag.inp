@@ -41,8 +41,8 @@
       &END OUTER_SCF
       &PRINT
         &RESTART
-          &EACH 
-             GEO_OPT 1 
+          &EACH
+             GEO_OPT 1
              QS_SCF 30
           &END
           ADD_LAST NUMERIC

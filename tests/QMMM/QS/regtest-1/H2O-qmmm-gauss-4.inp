@@ -62,13 +62,13 @@
     &QM_KIND O
       MM_INDEX 4
     &END QM_KIND
-  # 
+  #
   # QM_KINDS
-  # 
-  # 
+  #
+  #
   # MM_KINDS
-  # 
-  # 
+  #
+  #
   &END QMMM
   &SUBSYS
     &CELL

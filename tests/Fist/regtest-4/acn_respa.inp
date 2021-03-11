@@ -1,5 +1,5 @@
 &MULTIPLE_FORCE_EVALS
-   FORCE_EVAL_ORDER 2 1   
+   FORCE_EVAL_ORDER 2 1
 &END
 &FORCE_EVAL
   METHOD FIST
@@ -38,7 +38,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-       PARM_FILE_NAME ../sample_pot/acn.pot 
+       PARM_FILE_NAME ../sample_pot/acn.pot
        PARMTYPE CHM
        &CHARGE
         ATOM CT

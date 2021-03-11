@@ -30,7 +30,7 @@
       &END
     &END SCF
     &XC
-      &XC_FUNCTIONAL 
+      &XC_FUNCTIONAL
         &BECKE88
         &END
       &END XC_FUNCTIONAL

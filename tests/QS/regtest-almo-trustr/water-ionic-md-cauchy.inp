@@ -77,7 +77,7 @@
         ! BETA FUNCTION SHOULD BE THE SAME TO AVOID WARNINGS
         &BETA
           NEL -1
-          L    0 
+          L    0
           N    1
         &END
       &END
@@ -95,7 +95,7 @@
         ! BETA FUNCTION SHOULD BE THE SAME TO AVOID WARNINGS
         &BETA
           NEL +2
-          L    1 
+          L    1
           N    2
         &END
       &END
@@ -103,7 +103,7 @@
 
     &CELL
       ABC  3.00000000       3.00000000       5.00000000
-      MULTIPLE_UNIT_CELL 1 1 1 
+      MULTIPLE_UNIT_CELL 1 1 1
     &END CELL
 
     &TOPOLOGY
@@ -114,7 +114,7 @@
       &END GENERATE
       MULTIPLE_UNIT_CELL 1 1 1
     &END
-    
+
     &COORD
       O         1.5285821781        1.7062403635       3.9140529453
       H         1.6296675630        1.2721242389       4.7873221686

@@ -33,7 +33,7 @@
         METHOD BROYDEN_MIXING
         ALPHA 0.4
         NBUFFER 8
-        !NSKIP 2 
+        !NSKIP 2
         !N_SIMPLE_MIX 4
       &END RHO_MIXING
       &PEXSI
@@ -54,7 +54,7 @@
       MAX_SCF   50
       EPS_SCF   1.0e-7
       &SMEAR
-        METHOD FERMI_DIRAC 
+        METHOD FERMI_DIRAC
         ELECTRONIC_TEMPERATURE [K] 5000.
       &END
       &MIXING
@@ -89,7 +89,7 @@
       POTENTIAL  GTH-PBE-q4
     &END
     &TOPOLOGY
-      COORD_FILE_NAME ../sample_xyz/C_8.xyz 
+      COORD_FILE_NAME ../sample_xyz/C_8.xyz
       COORDINATE XYZ
       CONNECTIVITY OFF
       MULTIPLE_UNIT_CELL ${NREP} ${NREP} 1

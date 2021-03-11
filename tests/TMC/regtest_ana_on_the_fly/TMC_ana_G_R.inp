@@ -8,7 +8,7 @@
   RUN_TYPE TMC
   PRINT_LEVEL LOW
   #TRACE
-  WALLTIME              00:10:25 
+  WALLTIME              00:10:25
 &END GLOBAL
 &MOTION
   &TMC
@@ -52,7 +52,7 @@
       PRINT_TEST_OUTPUT
       &TMC_ANALYSIS
         RESTART             .FALSE.
-        G_R 
+        G_R
       &END TMC_ANALYSIS
   &END TMC
 &END MOTION

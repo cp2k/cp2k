@@ -1,4 +1,4 @@
-@SET TOP ../sample_top/dmpoh_vacuum.atop 
+@SET TOP ../sample_top/dmpoh_vacuum.atop
 @SET RST ../sample_crd/dmpoh.rst
 
 @SET CELLA 50.0

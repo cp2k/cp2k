@@ -11,7 +11,7 @@
       CUTOFF 200
     &END MGRID
     &SCF
-      SCF_GUESS ATOMIC 
+      SCF_GUESS ATOMIC
       &OT
          MINIMIZER DIIS
          PRECONDITIONER FULL_ALL

@@ -13,7 +13,7 @@
        MAX_KV      10
        CONVERGENCE 1.0e-5
        OE_CORR SAOP
-       RKS_TRIPLETS T   
+       RKS_TRIPLETS T
        &XC
          &XC_FUNCTIONAL PADE
          &END XC_FUNCTIONAL

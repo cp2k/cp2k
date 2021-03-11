@@ -23,7 +23,7 @@
       PURIFICATION_METHOD TRS4
     &END
     &KG_METHOD
-      &XC   
+      &XC
         &XC_FUNCTIONAL
           &GGA_K_LLP
           &END
@@ -63,7 +63,7 @@
 &END FORCE_EVAL
 &GLOBAL
   PROJECT H2-LIBXC
-  RUN_TYPE ENERGY 
+  RUN_TYPE ENERGY
   PRINT_LEVEL MEDIUM
   ! EXTENDED_FFT_LENGTHS ! enable for large systems and FFTW
 &END GLOBAL

@@ -30,7 +30,7 @@
     &END CELL
     &COLVAR
       &DISTANCE_FUNCTION
-        ATOMS 4 6 6 1 
+        ATOMS 4 6 6 1
         COEFFICIENT -1.00000
         # distance 1 = ( 4 - 6 )
         # distance 2 = ( 6 - 1 )

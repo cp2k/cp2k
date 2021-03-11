@@ -38,7 +38,7 @@
             base_radius 3.0
             apx_type    CIRCUMSCRIBED
             n_sides     5
-            n_prtn      3 1 
+            n_prtn      3 1
             thickness   0.5
             smoothing_width 0.1
             delta_alpha 0.15
@@ -87,7 +87,7 @@
       S_PRECONDITIONER      NONE
       REPORT_ALL_SPARSITIES off
       PERFORM_MU_SCAN       off
-      PURIFICATION_METHOD   TRS4 
+      PURIFICATION_METHOD   TRS4
     &END LS_SCF
     &SCF
       @IF ${Diag}

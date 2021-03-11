@@ -8,7 +8,7 @@
   &METHOD
      METHOD_TYPE  KOHN-SHAM
      &XC
-       &XC_FUNCTIONAL 
+       &XC_FUNCTIONAL
            &OPTX
            &END OPTX
            &CS1

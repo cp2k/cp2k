@@ -6,7 +6,7 @@
       EXTRAPOLATION use_guess
       METHOD AM1
       &SE
-       
+
       &END
     &END QS
     &SCF

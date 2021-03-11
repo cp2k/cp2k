@@ -30,7 +30,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC 6.0 6.0 6.0 
+      ABC 6.0 6.0 6.0
     &END CELL
     &COORD
   N 3.000000  0.000000  0.000000

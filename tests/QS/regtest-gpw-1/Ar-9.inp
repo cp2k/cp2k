@@ -14,7 +14,7 @@
       EPS_SCF 1.0E-8
       MAX_DIIS 4
       MAX_SCF 3
-       
+
       SCF_GUESS atomic
     &END SCF
     &XC

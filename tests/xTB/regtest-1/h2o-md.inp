@@ -1,13 +1,13 @@
 &FORCE_EVAL
   &DFT
     &QS
-      METHOD xTB 
+      METHOD xTB
       &xTB
         DO_EWALD           T
         &PARAMETER
           DISPERSION_PARAMETER_FILE   dftd3.dat
         &END PARAMETER
-      &END 
+      &END
     &END QS
     &SCF
       SCF_GUESS MOPAC

@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT  H2O_ADMM
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
@@ -71,7 +71,7 @@
   &SUBSYS
     &CELL
       ! ABC [angstrom] 12 12 12
-      ABC [angstrom] 5 5 5 
+      ABC [angstrom] 5 5 5
       PERIODIC NONE
     &END CELL
     &KIND H

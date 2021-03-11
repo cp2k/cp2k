@@ -28,7 +28,7 @@
 #    &END KG_METHOD
     &SCF
       EPS_SCF 1.0E-8
-      SCF_GUESS ATOMIC 
+      SCF_GUESS ATOMIC
     &END
     &XC
       &XC_FUNCTIONAL

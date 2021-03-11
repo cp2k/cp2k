@@ -2,7 +2,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-       PARM_FILE_NAME ../sample_pot/acn.pot 
+       PARM_FILE_NAME ../sample_pot/acn.pot
        PARMTYPE CHM
        &CHARGE
         ATOM CT

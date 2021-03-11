@@ -10,7 +10,7 @@
   ! check we can do a really large, really sparse matrix in short time.
   ! good to catch non-O(N) behavior in dbcsr.
   ! matrix size and sparsity are such that the test is fast for O(N)
-  ! but slow for O(N**foo) 
+  ! but slow for O(N**foo)
   &CP_DBCSR
      K 400000
      M 400000

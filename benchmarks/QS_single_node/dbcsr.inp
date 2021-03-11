@@ -34,7 +34,7 @@
      bs_m 1 32
      bs_k 1 32
      bs_n 1 32
-  &END 
+  &END
   &CP_DBCSR
      K 13800
      M 13800

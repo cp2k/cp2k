@@ -33,7 +33,7 @@
       QUADRATURE GC_LOG
     &END QS
     &SCF
-       
+
       SCF_GUESS atomic
     &END SCF
     &XC

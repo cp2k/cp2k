@@ -22,7 +22,7 @@
       LMAXN1 6
       METHOD GAPW
       QUADRATURE GC_LOG
-     
+
     &END QS
     &SCF
       EPS_SCF 1.0E-4

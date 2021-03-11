@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT  O2_dyn
   PRINT_LEVEL LOW
   &TIMINGS
@@ -37,7 +37,7 @@
         FRACTION 1.0000000
         &SCREENING
           EPS_SCHWARZ 1.0E-6
-          SCREEN_ON_INITIAL_P FALSE 
+          SCREEN_ON_INITIAL_P FALSE
         &END SCREENING
         &INTERACTION_POTENTIAL
           POTENTIAL_TYPE TRUNCATED
@@ -70,7 +70,7 @@
     &VELOCITY
            0.0                       0.0                       0.0
            0.0                       0.0                       0.0
-    &END VELOCITY        
+    &END VELOCITY
     &CELL
       ABC [angstrom]  6.000   6.000   6.000
       !PERIODIC NONE
@@ -86,7 +86,7 @@
     &END
     &TOPOLOGY
       &CENTER_COORDINATES
-      &END        
+      &END
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL

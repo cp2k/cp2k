@@ -27,7 +27,7 @@
 # does not work well with topology generation
 #
     &TOPOLOGY
-     CONN_FILE_FORMAT OFF 
+     CONN_FILE_FORMAT OFF
     &END
     &COORD
    O     0.000000     0.000000     0.000000

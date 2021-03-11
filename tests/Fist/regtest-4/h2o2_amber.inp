@@ -6,7 +6,7 @@
       ! VDW_SCALE14 0.5
       ! EI_SCALE14  0.5
       ! PARM94 and Following
-      VDW_SCALE14 0.5 
+      VDW_SCALE14 0.5
       EI_SCALE14  0.8333333
       parm_file_name ../sample_pot/h2o2_amber.pot
       parmtype CHM

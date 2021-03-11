@@ -55,7 +55,7 @@
     &KIND H
       BASIS_SET aug-TZV2P-GTH
       POTENTIAL_TYPE GTH
-      &POTENTIAL 
+      &POTENTIAL
         1
      0.20000000    2    -4.17890044     0.72446331
     0

@@ -38,22 +38,22 @@
         THETA0 1.82422
       &END BEND
       &NONBONDED
-        &LENNARD-JONES 
-  	  ATOMS O O
-          EPSILON 78.19580 
-          SIGMA 3.1655 
+        &LENNARD-JONES
+      ATOMS O O
+          EPSILON 78.19580
+          SIGMA 3.1655
           RCUT 5.0
         &END LENNARD-JONES
-        &LENNARD-JONES 
-  	  ATOMS O H
+        &LENNARD-JONES
+      ATOMS O H
           EPSILON 0.0
-          SIGMA 3.1655 
+          SIGMA 3.1655
           RCUT 5.0
         &END LENNARD-JONES
-        &LENNARD-JONES 
-  	  ATOMS H H 
+        &LENNARD-JONES
+      ATOMS H H
           EPSILON 0.0
-          SIGMA 3.1655 
+          SIGMA 3.1655
           RCUT 5.0
         &END LENNARD-JONES
         &LENNARD-JONES

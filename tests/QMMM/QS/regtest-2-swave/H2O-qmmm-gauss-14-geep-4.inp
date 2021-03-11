@@ -75,7 +75,7 @@
   &QMMM
     &CELL
       ABC 13.0 13.0 13.0
-    &END CELL 
+    &END CELL
     ECOUPL S-WAVE
     NOCOMPATIBILITY
     USE_GEEP_LIB 4
@@ -95,14 +95,14 @@
     &QM_KIND O
       MM_INDEX 1
     &END QM_KIND
-  # 
+  #
   # QM_KINDS
-  # 
-  # 
+  #
+  #
   # MM_KINDS
-  # 
-  # 
-  # 
+  #
+  #
+  #
   &END QMMM
   &SUBSYS
     &CELL

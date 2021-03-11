@@ -21,9 +21,9 @@
     &END QS
     &ENERGY_CORRECTION
       ENERGY_FUNCTIONAL HARRIS
-      HARRIS_BASIS ORBITAL 
+      HARRIS_BASIS ORBITAL
       &XC
-        &XC_FUNCTIONAL 
+        &XC_FUNCTIONAL
            &PBE
            &END
         &END
@@ -31,10 +31,10 @@
     &END ENERGY_CORRECTION
     &SCF
       EPS_SCF 1.0E-7
-      SCF_GUESS ATOMIC 
+      SCF_GUESS ATOMIC
     &END
     &XC
-      &XC_FUNCTIONAL 
+      &XC_FUNCTIONAL
          &PADE
          &END
       &END
@@ -45,8 +45,8 @@
       ABC 6.0 6.0 6.0
     &END CELL
     &COORD
-    H     0.000000     0.000000     0.000000    
-    F     0.000000     0.000000     1.050000   
+    H     0.000000     0.000000     0.000000
+    F     0.000000     0.000000     1.050000
     &END COORD
     &KIND H
       BASIS_SET ORB DZVP-GTH-BLYP
@@ -59,7 +59,7 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT HF 
+  PROJECT HF
   RUN_TYPE ENERGY_FORCE
   PRINT_LEVEL LOW
 &END GLOBAL

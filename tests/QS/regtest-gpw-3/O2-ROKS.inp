@@ -31,7 +31,7 @@
       EXTRAPOLATION USE_PREV_P
     &END QS
     &SCF
-       
+
       SCF_GUESS atomic
     &END SCF
     &XC

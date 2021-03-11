@@ -52,7 +52,7 @@ trace f
        0.2 0.0 0.0
        0.2 0.0 0.0
        0.2 0.0 0.0
-    &END 
+    &END
     &KIND H
       BASIS_SET dZVp-GTH
       POTENTIAL GTH-PADE-q1

@@ -33,18 +33,18 @@
     &COLVAR
       &DISTANCE
         ATOMS 1 2
-      &END 
-    &END 
+      &END
+    &END
     &COLVAR
       &DISTANCE
         ATOMS 1 3
       &END
-    &END 
+    &END
     &COLVAR
       &ANGLE
         ATOMS 2 1 3
       &END ANGLE
-    &END 
+    &END
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL

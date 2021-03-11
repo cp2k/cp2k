@@ -12,7 +12,7 @@
       MAX_SCF 5
       SCF_GUESS ATOMIC
       EPS_SCF 1.0E-4
-      &OT 
+      &OT
         MINIMIZER BROYDEN
         BROYDEN_SIGMA 0.4
         BROYDEN_BETA  0.7

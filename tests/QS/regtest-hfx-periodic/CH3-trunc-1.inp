@@ -17,7 +17,7 @@
       MAX_SCF 50
     &END SCF
     &XC
-      &XC_FUNCTIONAL NONE 
+      &XC_FUNCTIONAL NONE
       &END XC_FUNCTIONAL
       &HF
         &SCREENING
@@ -34,7 +34,7 @@
         &END
         &PERIODIC
           NUMBER_OF_SHELLS 1
-        &END 
+        &END
       &END
     &END XC
   &END DFT
@@ -60,6 +60,6 @@
 &END FORCE_EVAL
 &GLOBAL
   PROJECT CH3-trunc-1
-  PRINT_LEVEL MEDIUM 
+  PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
 &END GLOBAL

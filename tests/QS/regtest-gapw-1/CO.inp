@@ -3,7 +3,7 @@
  PROJECT      xas_hch_igloiii
  IOLEVEL      MEDIUM
  RUN_TYPE     ENERGY
-&END 
+&END
 
 &FORCE_EVAL
   METHOD Quickstep
@@ -37,7 +37,7 @@
       EPS_SCF 5.E-7
       EPS_DIIS 0.4
       MAX_SCF 3
-       
+
       ADDED_MOS  1 1
       &OT OFF
         PRECONDITIONER FULL_ALL
@@ -62,7 +62,7 @@
   &END SECTION DFT
   &SUBSYS
     &CELL
-       ABC    3.0    3.0     3.0 
+       ABC    3.0    3.0     3.0
        PERIODIC NONE
     &END CELL
 

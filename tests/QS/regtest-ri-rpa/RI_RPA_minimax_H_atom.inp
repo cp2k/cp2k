@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT     H_atom
   PRINT_LEVEL MEDIUM
   RUN_TYPE    ENERGY

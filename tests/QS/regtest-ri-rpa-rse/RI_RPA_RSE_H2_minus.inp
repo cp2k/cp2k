@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT  RI_RPA_RSE_H2_minus
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY

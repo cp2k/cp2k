@@ -13,7 +13,7 @@
       &END
       &CHARGE
         ATOM YC
-CHARGE 0.48            
+CHARGE 0.48
       &END CHARGE
       &CHARGE
         ATOM I1
@@ -21,15 +21,15 @@ CHARGE -1.0
       &END CHARGE
       &CHARGE
         ATOM CT
-CHARGE -0.48      
+CHARGE -0.48
       &END CHARGE
       &CHARGE
         ATOM YN
-CHARGE -0.531        
+CHARGE -0.531
       &END CHARGE
       &CHARGE
         ATOM HC
-CHARGE 0.177      
+CHARGE 0.177
       &END CHARGE
       &CHARGE
         ATOM TI
@@ -145,7 +145,7 @@ CHARGE -1.04121
        &END
        ! CONNECTIVITY PSF
        ! CONN_FILE topology.psf
-    &END 
+    &END
     &CELL
     ABC 22.692   20.4539964  40.16
     &END CELL
@@ -159,7 +159,7 @@ HC -9.136765 -9.758293 7.252505 ACN
 HC -9.790688 -8.318348 6.329801 ACN
 HC -10.40202 -8.723755 7.938682 ACN
      &END COORD
-    &KIND TI 
+    &KIND TI
        ELEMENT Ti
     &END KIND
     &KIND I1

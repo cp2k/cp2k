@@ -32,7 +32,7 @@
         &END
         &MOLECULAR_STATES
         &END
-      &END 
+      &END
     &END
     &PRINT
       &MO_CUBES

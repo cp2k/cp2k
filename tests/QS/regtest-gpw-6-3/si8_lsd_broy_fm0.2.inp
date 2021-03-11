@@ -29,7 +29,7 @@
       MAX_SCF   5
       EPS_SCF 1.0e-7
       &SMEAR
-        METHOD FERMI_DIRAC 
+        METHOD FERMI_DIRAC
         ELECTRONIC_TEMPERATURE   300.
         FIXED_MAGNETIC_MOMENT  0.2
       &END
@@ -68,7 +68,7 @@
     &END
 
     &TOPOLOGY
-      COORD_FILE_NAME ../sample_xyz/SI_8.xyz 
+      COORD_FILE_NAME ../sample_xyz/SI_8.xyz
       COORDINATE XYZ
       CONNECTIVITY OFF
     &END TOPOLOGY

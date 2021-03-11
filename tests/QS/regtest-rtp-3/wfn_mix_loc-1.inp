@@ -42,7 +42,7 @@
         &END
         &MOLECULAR_STATES
         &END
-      &END 
+      &END
     &END
     &PRINT
       &E_DENSITY_CUBE

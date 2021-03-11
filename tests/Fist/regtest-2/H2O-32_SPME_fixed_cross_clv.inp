@@ -61,24 +61,24 @@
       ABC 9.865 9.865 9.865
     &END CELL
     &COORD
-    O                  -4.583   5.333   1.560   FIX 
-    H                  -3.777   5.331   0.943   FIX 
-    H                  -5.081   4.589   1.176   FIX 
-    &END 
+    O                  -4.583   5.333   1.560   FIX
+    H                  -3.777   5.331   0.943   FIX
+    H                  -5.081   4.589   1.176   FIX
+    &END
     &COLVAR
       &XYZ_OUTERDIAG
         ATOMS 1 2
         COMPONENT_A X
         COMPONENT_B X
       &END
-    &END 
+    &END
     &COLVAR
       &XYZ_OUTERDIAG
         ATOMS 2 3
         COMPONENT_A Y
         COMPONENT_B X
       &END
-    &END 
+    &END
     &COLVAR
       &XYZ_OUTERDIAG
         ATOMS 3 1
@@ -131,7 +131,7 @@
     &END
     &PRINT
       &PROGRAM_RUN_INFO
-         &EACH 
+         &EACH
            MD 100
          &END
       &END

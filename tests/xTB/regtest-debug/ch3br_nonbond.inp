@@ -12,8 +12,8 @@
         &NONBONDED
          &GENPOT
           ATOMS Br Xe
-          FUNCTION Aparam*exp(-Bparam*r)-Cparam/r**8 
-          PARAMETERS Aparam Bparam Cparam 
+          FUNCTION Aparam*exp(-Bparam*r)-Cparam/r**8
+          PARAMETERS Aparam Bparam Cparam
           VALUES 49.507 1.441 6703.192
           VARIABLES r
          &END GENPOT

@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#Mo Ni_4 & I4/m-C_{2h}^5 #87 & tI10 & D1_a & Pearson's Handbook Vol. IV 
+#Mo Ni_4 & I4/m-C_{2h}^5 #87 & tI10 & D1_a & Pearson's Handbook Vol. IV
      A   5.72000000  0.00000000  0.00000000
      B   0.00000000  5.72000000  0.00000000
      C   2.86000000  2.86000000  1.78200000

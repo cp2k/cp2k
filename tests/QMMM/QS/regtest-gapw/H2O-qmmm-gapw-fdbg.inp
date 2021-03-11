@@ -102,13 +102,13 @@
     &QM_KIND O
       MM_INDEX 1
     &END QM_KIND
-  # 
+  #
   # QM_KINDS
-  # 
-  # 
+  #
+  #
   # MM_KINDS
-  # 
-  # 
+  #
+  #
   &END QMMM
   &SUBSYS
     &CELL

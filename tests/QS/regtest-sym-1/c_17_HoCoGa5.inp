@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#HoCoGa5 & P4/mmm-D_{4h}^1 #123 (abci) & tI7 & Pearson's Handbook II, 2403 
+#HoCoGa5 & P4/mmm-D_{4h}^1 #123 (abci) & tI7 & Pearson's Handbook II, 2403
      A   4.20700000  0.00000000  0.00000000
      B   0.00000000  4.20700000  0.00000000
      C   0.00000000  0.00000000  6.79500000

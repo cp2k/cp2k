@@ -35,7 +35,7 @@
         ENERGY_GAP 0.001
       &END OT
       &SMEAR
-        METHOD FERMI_DIRAC 
+        METHOD FERMI_DIRAC
         ELECTRONIC_TEMPERATURE   1000.
       &END
       &MIXING
@@ -74,7 +74,7 @@
       POTENTIAL  GTH-PBE-q4
     &END
     &TOPOLOGY
-      COORD_FILE_NAME ../sample_xyz/C_8.xyz 
+      COORD_FILE_NAME ../sample_xyz/C_8.xyz
       COORDINATE XYZ
       CONNECTIVITY OFF
     &END TOPOLOGY

@@ -68,7 +68,7 @@
     &FIXED_ATOMS
       MOLNAME WAT
       EXCLUDE_QM
-    &END 
+    &END
   &END
   &MD
     ENSEMBLE NVE

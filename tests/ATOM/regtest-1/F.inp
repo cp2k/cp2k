@@ -10,11 +10,11 @@
   &METHOD
      METHOD_TYPE  KOHN-SHAM
      &XC
-       &XC_FUNCTIONAL 
+       &XC_FUNCTIONAL
          &BECKE88
          &END BECKE88
-         &LYP 
-         &END LYP 
+         &LYP
+         &END LYP
        &END XC_FUNCTIONAL
      &END XC
   &END METHOD

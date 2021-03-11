@@ -35,13 +35,13 @@
         &COLVAR
           &DISTANCE
             ATOMS 1 2
-          &END 
-        &END 
+          &END
+        &END
         &COLVAR
           &DISTANCE
             ATOMS 1 3
           &END
-        &END 
+        &END
         FUNCTION (CV1^P+CV2^P)^(1./P)
         PARAMETERS P
         VALUES 4.0

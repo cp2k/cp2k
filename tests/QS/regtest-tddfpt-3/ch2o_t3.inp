@@ -34,7 +34,7 @@
     &SCF
       MAX_SCF 100
       EPS_SCF 1.e-5
-      SCF_GUESS ATOMIC 
+      SCF_GUESS ATOMIC
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE

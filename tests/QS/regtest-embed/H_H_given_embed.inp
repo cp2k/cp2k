@@ -1,8 +1,8 @@
 !
 !  Open-shell grid-based optimization of the embedding potential
-!  with restart from potetnials in cube format 
-! 
-&GLOBAL                                                                                           
+!  with restart from potetnials in cube format
+!
+&GLOBAL
   PROJECT  h_h_given_embed
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
@@ -68,7 +68,7 @@
       POTENTIAL  GTH-HF-q1
     &END KIND
     &COORD
-  H      1.75  4.25 0.0    
+  H      1.75  4.25 0.0
     &END
   &END SUBSYS
 &END FORCE_EVAL

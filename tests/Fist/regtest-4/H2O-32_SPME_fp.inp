@@ -181,20 +181,20 @@ H    3.3743079408139188E+01   -1.6316055340317995E-01    8.9023205078769010E+00 
          &END
       &END
       &program_run_info
-         &EACH 
+         &EACH
            MD 10
          &END
       &END
     &END
   &END MD
-  &PRINT 
+  &PRINT
     &RESTART
        &EACH
          MD 100000
        &END
     &END
     &RESTART_HISTORY
-       &EACH 
+       &EACH
          MD 100000
        &END
     &END
@@ -216,7 +216,7 @@ H    3.3743079408139188E+01   -1.6316055340317995E-01    8.9023205078769010E+00 
       ATOMS 1 2 3
     &END G3X3
   &END CONSTRAINT
-  &FLEXIBLE_PARTITIONING 
+  &FLEXIBLE_PARTITIONING
     CENTRAL_ATOM 1
     INNER_ATOMS  4 7 10 13 16 19 22 25
     OUTER_ATOMS  28 31 34 37 40 43 46 49 52 55 58 \

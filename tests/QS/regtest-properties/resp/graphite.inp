@@ -22,7 +22,7 @@
       &END XC_FUNCTIONAL
     &END XC
     &POISSON
-       PERIODIC XYZ 
+       PERIODIC XYZ
        PSOLVER PERIODIC
     &END
   &END DFT
@@ -49,12 +49,12 @@ C      4.920000    1.419800    0.000000
   &END SUBSYS
     &PROPERTIES
       &RESP
-       STRIDE 3 
+       STRIDE 3
        &SLAB_SAMPLING
         RANGE 1.0 3.0
         LENGTH 1.0
-        ATOM_LIST 1..8 
-        SURF_DIRECTION Z 
+        ATOM_LIST 1..8
+        SURF_DIRECTION Z
        &END
       &END
     &END

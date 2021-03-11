@@ -33,11 +33,11 @@
     &COLVAR
       &DISTANCE
         &POINT
-	  TYPE GEO_CENTER
+    TYPE GEO_CENTER
           ATOMS 1
         &END
         &POINT
-	  TYPE GEO_CENTER
+    TYPE GEO_CENTER
           ATOMS 3
         &END
         ATOMS 1 2
@@ -46,11 +46,11 @@
     &COLVAR
       &DISTANCE
         &POINT
-	  TYPE GEO_CENTER
+    TYPE GEO_CENTER
           ATOMS 2
         &END
         &POINT
-	  TYPE GEO_CENTER
+    TYPE GEO_CENTER
           ATOMS 3
         &END
         ATOMS 1 2

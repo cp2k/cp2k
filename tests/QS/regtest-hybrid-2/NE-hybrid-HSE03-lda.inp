@@ -17,17 +17,17 @@
     &END
     &SCF
       EPS_SCF 1.0E-6
-      SCF_GUESS ATOMIC 
-      MAX_SCF 15 
-       
+      SCF_GUESS ATOMIC
+      MAX_SCF 15
+
     &END SCF
     &XC
-     &XC_FUNCTIONAL 
+     &XC_FUNCTIONAL
      &XWPBE
        SCALE_X -0.25
        SCALE_X0 1.0
-#Omega = 0.15*2^(1/3) 
-       OMEGA 0.189 
+#Omega = 0.15*2^(1/3)
+       OMEGA 0.189
      &END
       &PBE
         SCALE_X 0.0
@@ -42,9 +42,9 @@
           POTENTIAL_TYPE SHORTRANGE
 #Omega = 0.15/sqrt(2)
           OMEGA 0.106
-        &END 
+        &END
         &MEMORY
-          MAX_MEMORY 10 
+          MAX_MEMORY 10
         &END
         FRACTION 0.25
       &END
@@ -67,6 +67,6 @@
 &GLOBAL
   PROJECT NE-hybrid-HSE03-lda
 #  TRACE
-  PRINT_LEVEL MEDIUM 
-#  RUN_TYPE ENERGY 
+  PRINT_LEVEL MEDIUM
+#  RUN_TYPE ENERGY
 &END GLOBAL

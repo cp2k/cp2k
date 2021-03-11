@@ -39,7 +39,7 @@
             base_radius 3.5
             apx_type    INSCRIBED
             n_sides     6
-            n_prtn      1 1 
+            n_prtn      1 1
             thickness   0.45
             smoothing_width 0.08
             delta_alpha 0.12
@@ -88,7 +88,7 @@
       S_PRECONDITIONER      NONE
       REPORT_ALL_SPARSITIES off
       PERFORM_MU_SCAN       off
-      PURIFICATION_METHOD   TRS4 
+      PURIFICATION_METHOD   TRS4
     &END LS_SCF
     &SCF
       @IF ${Diag}

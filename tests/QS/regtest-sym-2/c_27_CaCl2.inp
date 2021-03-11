@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#CaCl_2 & C35 & oP6 & Pnnm-D_{2h}^{12} #58 & Strukturbereicht III, p. 30    
+#CaCl_2 & C35 & oP6 & Pnnm-D_{2h}^{12} #58 & Strukturbereicht III, p. 30
      A   6.24000000  0.00000000  0.00000000
      B   0.00000000  6.43000000  0.00000000
      C   0.00000000  0.00000000  4.20000000

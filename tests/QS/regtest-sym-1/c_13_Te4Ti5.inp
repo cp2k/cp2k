@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#Te_4 Ti_5 & I4/m-C_{4h}^5 #87 (ah^2) & tI18 & Pearson Handbook IV 5321, Alloys 
+#Te_4 Ti_5 & I4/m-C_{4h}^5 #87 (ah^2) & tI18 & Pearson Handbook IV 5321, Alloys
      A  -5.08200000  5.08200000  1.88600000
      B   5.08200000 -5.08200000  1.88600000
      C   5.08200000  5.08200000 -1.88600000

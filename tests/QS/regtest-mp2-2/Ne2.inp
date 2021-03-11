@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT Ne2
   PRINT_LEVEL LOW
   RUN_TYPE ENERGY
@@ -37,7 +37,7 @@
       &END HF
       &WF_CORRELATION
        &MP2
-          METHOD DIRECT_CANONICAL  
+          METHOD DIRECT_CANONICAL
        &END MP2
         MEMORY 1000.
         &INTEGRALS

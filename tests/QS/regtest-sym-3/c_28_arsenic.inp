@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#As (alpha) & A7 & hR2 & R(-3)m-D_{3d}^5 #166 & Pearson (Alloys) p. 559      
+#As (alpha) & A7 & hR2 & R(-3)m-D_{3d}^5 #166 & Pearson (Alloys) p. 559
      A   0.25712604  2.91596103  2.91596103
      B   2.91596103  0.25712604  2.91596103
      C   2.91596103  2.91596103  0.25712604

@@ -1,7 +1,7 @@
 &FORCE_EVAL
   METHOD FIST
   &MM
-    &FORCEFIELD     
+    &FORCEFIELD
       &BOND
         ATOMS C H
         K [au_e*au_l^-2] 0.0
@@ -90,7 +90,7 @@
           EPSILON [au_e] 0.0
         &END LENNARD-JONES
       &END NONBONDED
-      &NONBONDED14   
+      &NONBONDED14
         &LENNARD-JONES
           ATOMS C C
           SIGMA [au_l] 1.0
@@ -172,7 +172,7 @@
   RUN_TYPE DEBUG
   PRINT_LEVEL DEBUG
 &END GLOBAL
-&DEBUG 
+&DEBUG
   DX 0.001
   DEBUG_STRESS_TENSOR F
 &END

@@ -9,7 +9,7 @@
       &END BEND
       &BOND
         ATOMS O H
-        K [angstrom^-2kcalmol] 450.0 
+        K [angstrom^-2kcalmol] 450.0
         R0 [angstrom] 0.9572
       &END BOND
       &CHARGE
@@ -24,16 +24,16 @@
         &GENPOT
           atoms O O
           FUNCTION 4.0*0.00024234375275817384*((5.953960130145687/x)^12-(5.953960130145687/x)**6)
-          #PARAMETERS 
-          #VALUES   
+          #PARAMETERS
+          #VALUES
           VARIABLES x
           RCUT    [angstrom] 11.4
         &END GENPOT
         &GENPOT
           atoms O H
           FUNCTION 4.0*0.00013322508091892268*((3.354263887710221/x)^12-(3.354263887710221/x)**6)
-          PARAMETERS 
-          VALUES   
+          PARAMETERS
+          VALUES
           VARIABLES x
           RCUT  [angstrom] 11.4
         &END GENPOT

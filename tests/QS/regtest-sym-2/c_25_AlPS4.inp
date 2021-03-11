@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#Al P S_4 & P222 & D_2^1 & #16 & oP12 & Pearson's Handbook 
+#Al P S_4 & P222 & D_2^1 & #16 & oP12 & Pearson's Handbook
      A   5.61000000  0.00000000  0.00000000
      B   0.00000000  5.67000000  0.00000000
      C   0.00000000  0.00000000  9.05000000

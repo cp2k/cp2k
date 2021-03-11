@@ -18,7 +18,7 @@
       MAX_SCF 15
     &END SCF
     &XC
-       &XC_FUNCTIONAL 
+       &XC_FUNCTIONAL
          &LDA_HOLE_T_C_LR
            CUTOFF_RADIUS 1.0
          &END
@@ -30,7 +30,7 @@
        ABC 5.0 5.0 5.0
     &END CELL
     &COORD
-     C   0.000000    0.000000    0.1581 
+     C   0.000000    0.000000    0.1581
      H   0.000000    0.000000    -0.9487
     &END COORD
     &KIND H
@@ -45,6 +45,6 @@
 &END FORCE_EVAL
 &GLOBAL
   PROJECT CH_LDA_HOLE_T_C_LR_1.0
-  RUN_TYPE ENERGY 
-  PRINT_LEVEL MEDIUM 
+  RUN_TYPE ENERGY
+  PRINT_LEVEL MEDIUM
 &END GLOBAL

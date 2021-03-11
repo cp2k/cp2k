@@ -8,7 +8,7 @@
   RUN_TYPE TMC
   PRINT_LEVEL LOW
   #TRACE
-  WALLTIME 00:10:25 
+  WALLTIME 00:10:25
 &END GLOBAL
 &MOTION
   &TMC
@@ -35,7 +35,7 @@
           PROB          1
         &END
       &END NMC_MOVES
-      SUB_BOX           5.0 
+      SUB_BOX           5.0
       NUM_MV_ELEM_IN_CELL 0
       RND_DETERMINISTIC 42
       ESIMATE_ACC_PROB .TRUE.

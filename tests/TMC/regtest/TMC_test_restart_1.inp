@@ -1,4 +1,4 @@
-# second part for restarting 
+# second part for restarting
 #  (takes the written restart file from restart test part 1)
 #  filename written in tmc_restart.last
 # and do second part of calculation
@@ -8,14 +8,14 @@
   PROGRAM TMC
   RUN_TYPE TMC
   PRINT_LEVEL LOW
-  WALLTIME 00:01:30 
+  WALLTIME 00:01:30
 &END GLOBAL
 &MOTION
   &TMC
       GROUP_ENERGY_SIZE 1
       GROUP_ENERGY_NR 1
       GROUP_CC_SIZE 0
-      NUM_MC_ELEM 100 
+      NUM_MC_ELEM 100
       ENERGY_FILE_NAME H2O.inp
       NR_TEMPERATURE 3
       TEMPERATURE 300 460

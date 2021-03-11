@@ -30,7 +30,7 @@
     &ENERGY_CORRECTION
       HARRIS_BASIS HARRIS
       &XC
-        &XC_FUNCTIONAL 
+        &XC_FUNCTIONAL
            &PBE
            &END
         &END
@@ -38,7 +38,7 @@
     &END ENERGY_CORRECTION
     &SCF
       EPS_SCF 1.0E-5
-      SCF_GUESS ATOMIC 
+      SCF_GUESS ATOMIC
     &END
     &XC
       &XC_FUNCTIONAL

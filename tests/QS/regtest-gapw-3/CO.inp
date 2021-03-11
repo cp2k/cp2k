@@ -2,7 +2,7 @@
  PROJECT      co_gapw_lsd
  IOLEVEL      MEDIUM
  RUN_TYPE     ENERGY
-&END 
+&END
 
 &FORCE_EVAL
   METHOD Quickstep
@@ -40,7 +40,7 @@
       EPS_SCF 5.E-6
       EPS_DIIS 0.4
       MAX_SCF 100
-       
+
       ADDED_MOS  1 1
       &OT OFF
         PRECONDITIONER FULL_ALL
@@ -65,7 +65,7 @@
   &END SECTION DFT
   &SUBSYS
     &CELL
-       ABC    6.0    6.0     6.0 
+       ABC    6.0    6.0     6.0
        PERIODIC NONE
     &END CELL
 

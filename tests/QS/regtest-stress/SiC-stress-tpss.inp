@@ -41,7 +41,7 @@
       SCF_GUESS atomic
     &END SCF
     &XC
-      &XC_FUNCTIONAL 
+      &XC_FUNCTIONAL
          &TPSS
          &END
       &END XC_FUNCTIONAL

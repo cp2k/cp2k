@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#V_4 Zn_5 & I4/mmm-D_{4h}^{17} #139 (ahi) & tI18 & Pearson's Handbook IV, 5354 
+#V_4 Zn_5 & I4/mmm-D_{4h}^{17} #139 (ahi) & tI18 & Pearson's Handbook IV, 5354
      A   8.91000000  0.00000000  0.00000000
      B   0.00000000  8.91000000  0.00000000
      C   4.45500000  4.45500000  1.61200000

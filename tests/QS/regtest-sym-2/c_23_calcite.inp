@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#CaCO_3 & R(-3)c [D^6_{3d}] (#167) & hR10 & calcite & Rhombohedral Lattice 
+#CaCO_3 & R(-3)c [D^6_{3d}] (#167) & hR10 & calcite & Rhombohedral Lattice
      A   2.87538675   .00000000  5.67289618
      B  -1.43769337  2.49015797  5.67289618
      C  -1.43769337 -2.49015797  5.67289618

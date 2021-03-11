@@ -78,7 +78,7 @@ H                 2.2619        12.8748         7.1559
     LBIAS no
     LSTOP yes
     NMOVES 1
-    RCLUS 3.5 
+    RCLUS 3.5
     NSTEP 5
     PRESSURE 1.013
     RESTART no

@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#MoS_2 & C7 & hP6 & P6_3/mmc-D_{6h}^4 #194 & Pearson's Handbook 
+#MoS_2 & C7 & hP6 & P6_3/mmc-D_{6h}^4 #194 & Pearson's Handbook
      A   1.58000000 -2.73664028  0.00000000
      B   1.58000000  2.73664028  0.00000000
      C   0.00000000  0.00000000 12.29000000

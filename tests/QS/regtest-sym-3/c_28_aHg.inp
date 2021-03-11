@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#Hg (alpha) & A10 & hR1 & R(-3)m-D_{3d}^5 #166 & Pearson (Alloys) p. 559 
+#Hg (alpha) & A10 & hR1 & R(-3)m-D_{3d}^5 #166 & Pearson (Alloys) p. 559
       A  2.92889471  0.47518459  0.47518459
       B  0.47518459  2.92889471  0.47518459
       C  0.47518459  0.47518459  2.92889471

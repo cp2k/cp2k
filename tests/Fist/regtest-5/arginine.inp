@@ -55,7 +55,7 @@
          &IMPROPER REMOVE
            ATOMS 26 28 27 25
            ATOMS 29 30 31 25
-         &END 
+         &END
       &END
     &END TOPOLOGY
   &END SUBSYS

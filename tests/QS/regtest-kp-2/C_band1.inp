@@ -13,7 +13,7 @@
     &END QS
     &SCF
       EPS_SCF 1.0E-4
-      SCF_GUESS ATOMIC 
+      SCF_GUESS ATOMIC
       MAX_SCF  20
       &MIXING
           METHOD DIRECT_P_MIXING
@@ -28,10 +28,10 @@
     &END XC
     &KPOINTS
        SCHEME MONKHORST-PACK 1 1 1
-       SYMMETRY OFF 
+       SYMMETRY OFF
        WAVEFUNCTIONS REAL
        EPS_GEO 1.e-8
-       FULL_GRID ON 
+       FULL_GRID ON
        VERBOSE F
        PARALLEL_GROUP_SIZE  0
     &END KPOINTS

@@ -28,14 +28,14 @@
     SPIN_POLARIZED .true.
     # Realspace multi-grids
     &MGRID
-      CUTOFF 300.0 
+      CUTOFF 300.0
       REL_CUTOFF 50.0
     &END MGRID
     # QuickStep solver setting
     &QS
       EPS_DEFAULT 1.0e-8
       EXTRAPOLATION ps
-      EXTRAPOLATION_ORDER 3 
+      EXTRAPOLATION_ORDER 3
       METHOD GAPW
     &END QS
     # SCF procedure

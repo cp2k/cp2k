@@ -29,7 +29,7 @@
       EXTRAPOLATION use_prev_p
       METHOD PM3
       &SE
-       
+
       &END
     &END QS
     &SCF

@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#NH_3 & P 2_1 3-T^4 #198 & cP16 & ND_3 data from Wyckoff Vol II. pp. 117-9      
+#NH_3 & P 2_1 3-T^4 #198 & cP16 & ND_3 data from Wyckoff Vol II. pp. 117-9
      A   5.09100000  0.00000000  0.00000000
      B   0.00000000  5.09100000  0.00000000
      C   0.00000000  0.00000000  5.09100000

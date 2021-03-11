@@ -26,7 +26,7 @@
      &VIRTUAL_SITE
       INTERMOLECULAR FALSE
       ATOMS 4 2 1 3
-      PARAMETERS 0.18348396 0.18348396 
+      PARAMETERS 0.18348396 0.18348396
       MOLECULE 1
      &END VIRTUAL_SITE
    &END CONSTRAINT
@@ -40,73 +40,73 @@
        RCUT_NB 12.00
      &END SPLINE
      &BEND
-       ATOMS      HW     OW     HW 
-      THETA0     [deg] 109.500 
+       ATOMS      HW     OW     HW
+      THETA0     [deg] 109.500
        !K          [rad^2kjmol] 627.600
        K          [rad^2kjmol] 0.000
        KIND   G87
      &END BEND
      &BEND
-       ATOMS      HW     OW     MW 
+       ATOMS      HW     OW     MW
        THETA0     [deg]  54.750
-       !K          [rad^2kjmol]  418.400 
-       K          [rad^2kjmol]  0.000 
+       !K          [rad^2kjmol]  418.400
+       K          [rad^2kjmol]  0.000
        KIND   G87
      &END BEND
      &BEND
-       ATOMS      MW     HW     OW 
-       THETA0     [deg] 109.500 
+       ATOMS      MW     HW     OW
+       THETA0     [deg] 109.500
        K          [rad^2kjmol] 0.000
        KIND   G87
      &END BEND
      &BEND
-       ATOMS      MW     HW     HW 
-       THETA0     [deg] 109.500 
+       ATOMS      MW     HW     HW
+       THETA0     [deg] 109.500
        K          [rad^2kjmol] 0.000
        KIND   G87
      &END BEND
      &BEND
-       ATOMS      OW     HW     HW 
-       THETA0     [deg] 109.500 
+       ATOMS      OW     HW     HW
+       THETA0     [deg] 109.500
        K          [rad^2kjmol] 0.000
        KIND   G87
      &END BEND
      &BEND
-       ATOMS      OW     MW     HW 
-       THETA0     [deg] 109.500 
+       ATOMS      OW     MW     HW
+       THETA0     [deg] 109.500
        K          [rad^2kjmol] 0.000
        KIND   G87
      &END BEND
      &BEND
-       ATOMS      HW     MW     HW 
-       THETA0     [deg] 109.500 
+       ATOMS      HW     MW     HW
+       THETA0     [deg] 109.500
        K          [rad^2kjmol] 0.000
        KIND   G87
      &END BEND
      &BOND
        ATOMS OW HW
-       K      [nm^-2kjmol] 502080.0 
-       !K      [nm^-2kjmol] 0.0 
+       K      [nm^-2kjmol] 502080.0
+       !K      [nm^-2kjmol] 0.0
        R0     [nm] 0.09572
        KIND   G87
      &END BOND
      &BOND
        ATOMS OW MW
-       !K      [nm^-2kjmol]  753120.0 
-       K      [nm^-2kjmol]  00.0 
-       R0     [nm]  0.01750 
+       !K      [nm^-2kjmol]  753120.0
+       K      [nm^-2kjmol]  00.0
+       R0     [nm]  0.01750
        KIND   G87
      &END BOND
      &BOND
        ATOMS HW HW
-       K      [nm^-2kjmol]  000000.0 
-       R0     [nm]  0.01750 
+       K      [nm^-2kjmol]  000000.0
+       R0     [nm]  0.01750
        KIND   G87
      &END BOND
      &BOND
        ATOMS HW MW
-       K      [nm^-2kjmol]  000000.0 
-       R0     [nm]  0.01750 
+       K      [nm^-2kjmol]  000000.0
+       R0     [nm]  0.01750
        KIND   G87
      &END BOND
      &NONBONDED
@@ -127,30 +127,30 @@
        &END LENNARD-JONES
        &LENNARD-JONES
          ATOMS      HW HW
-         EPSILON    0.0  
+         EPSILON    0.0
          SIGMA      0.1
        &END LENNARD-JONES
        &LENNARD-JONES
          ATOMS      HW MW
-         EPSILON    0.0  
+         EPSILON    0.0
          SIGMA      0.1
        &END LENNARD-JONES
        &LENNARD-JONES
          ATOMS      MW MW
-         EPSILON    0.0  
+         EPSILON    0.0
          SIGMA      0.1
        &END LENNARD-JONES
      &END NONBONDED
      &CHARGE
-       ATOM OW 
+       ATOM OW
        CHARGE 0.000000
      &END CHARGE
      &CHARGE
-       ATOM HW 
+       ATOM HW
        CHARGE 0.5190
      &END CHARGE
      &CHARGE
-       ATOM MW 
+       ATOM MW
        CHARGE -1.038
      &END CHARGE
      &DIPOLE
@@ -196,7 +196,7 @@
     &END KIND
     &KIND HW
       ELEMENT H
-      MASS    1.00800 
+      MASS    1.00800
     &END KIND
     &KIND MW
       ELEMENT H

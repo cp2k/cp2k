@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#8 atom bcc supercell of bcc with full symmetry & Im(-3)m & O_h^9 & #229 & cI16 
+#8 atom bcc supercell of bcc with full symmetry & Im(-3)m & O_h^9 & #229 & cI16
      A  -2.87000000  2.87000000  2.87000000
      B   2.87000000 -2.87000000  2.87000000
      C   2.87000000  2.87000000 -2.87000000

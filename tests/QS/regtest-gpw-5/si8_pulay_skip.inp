@@ -40,7 +40,7 @@
         ENERGY_GAP 0.001
       &END OT
       &SMEAR
-        METHOD FERMI_DIRAC 
+        METHOD FERMI_DIRAC
         ELECTRONIC_TEMPERATURE   5000.
       &END
       &MIXING
@@ -49,8 +49,8 @@
           BETA   1.0
           NPULAY  5
           PULAY_ALPHA 0.0
-          NSIMPLEMIX 3 
-          NSKIP 3 
+          NSIMPLEMIX 3
+          NSKIP 3
       &END
       ADDED_MOS   20 20
     &END SCF
@@ -85,7 +85,7 @@
     &END
 
     &TOPOLOGY
-      COORD_FILE_NAME ../sample_xyz/SI_8.xyz 
+      COORD_FILE_NAME ../sample_xyz/SI_8.xyz
       COORDINATE XYZ
       CONNECTIVITY OFF
     &END TOPOLOGY

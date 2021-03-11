@@ -7,7 +7,7 @@
 &FORCE_EVAL
   METHOD QS
   &DFT
-    BASIS_SET_FILE_NAME BASIS_MOLOPT 
+    BASIS_SET_FILE_NAME BASIS_MOLOPT
     POTENTIAL_FILE_NAME GTH_POTENTIALS
     CHARGE 0
     &MGRID
@@ -30,14 +30,14 @@
         N_DIIS                   5
       &END ALMO_OPTIMIZER_DIIS
 
-      DELOCALIZE_METHOD          NONE      
+      DELOCALIZE_METHOD          NONE
     &END ALMO_SCF
 
     &SCF
       SCF_GUESS ATOMIC
       EPS_SCF 5.0E-3
       CHOLESKY INVERSE
-      ADDED_MOS 6 !! Must be same number as total number of atoms 
+      ADDED_MOS 6 !! Must be same number as total number of atoms
       &DIAGONALIZATION
          ALGORITHM STANDARD
          EPS_ADAPT 0.01
@@ -56,13 +56,13 @@
 
     &XC
       &XC_FUNCTIONAL PBE
-      &END XC_FUNCTIONAL 
+      &END XC_FUNCTIONAL
     &END XC
   &END DFT
 
   &SUBSYS
     &CELL
-      A [angstrom] 5.62    0.00    0.00 
+      A [angstrom] 5.62    0.00    0.00
       B [angstrom] 2.80    4.86    0.00
       C [angstrom] 0.00    0.00    7.00
       PERIODIC XYZ
@@ -78,7 +78,7 @@
     &END KIND
 
     &KIND Au
-      BASIS_SET DZVP-MOLOPT-SR-GTH 
+      BASIS_SET DZVP-MOLOPT-SR-GTH
       POTENTIAL GTH-PBE-q11
     &END KIND
 

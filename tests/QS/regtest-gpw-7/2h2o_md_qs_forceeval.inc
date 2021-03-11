@@ -80,8 +80,8 @@
          &END TOTAL_DIPOLE
          &WANNIER_CENTERS
           &EACH
-	    MD 2  
-	  &END EACH
+      MD 2  
+    &END EACH
           IONS+CENTERS T
           FILENAME =${BASE_NAME}-${ID}_wan.xyz
          &END WANNIER_CENTERS

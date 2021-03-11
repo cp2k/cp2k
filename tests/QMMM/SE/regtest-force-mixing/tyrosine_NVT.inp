@@ -42,7 +42,7 @@
         EWALD_TYPE EWALD
         EWALD_ACCURACY 1.E-6
         ALPHA 0.35
-	GMAX 53 61 67
+  GMAX 53 61 67
       &END EWALD
     &END POISSON
     &QS
@@ -81,8 +81,8 @@
     &END XC
 #    &PRINT
 #      &MULLIKEN
-#	 FILENAME qmcharges
-#	 COMMON_ITERATION_LEVELS 0
+#   FILENAME qmcharges
+#   COMMON_ITERATION_LEVELS 0
 #      &END MULLIKEN
 #    &END PRINT
   &END DFT
@@ -104,97 +104,97 @@
         EWALD_TYPE SPME
         EWALD_ACCURACY 1.E-6
         ALPHA 0.35
-	GMAX 53 61 67
+  GMAX 53 61 67
       &END EWALD
     &END POISSON
   &END MM
   &QMMM
 
       &QM_KIND O
-	 MM_INDEX 4
-	 MM_INDEX 23
+   MM_INDEX 4
+   MM_INDEX 23
       &END QM_KIND
 
       &QM_KIND C
-	 MM_INDEX 3
+   MM_INDEX 3
       &END QM_KIND
 
       &LINK
-	 QM_INDEX 3
-	 MM_INDEX 2
+   QM_INDEX 3
+   MM_INDEX 2
       &END LINK
 
      &FORCE_MIXING
 
-	 MAX_N_QM 300
+   MAX_N_QM 300
 
-	 R_CORE 1.3 1.5
-	 R_QM 3.0 3.5
-	 R_BUF 3.0 3.5
-	 QM_KIND_ELEMENT_MAPPING H H
-	 QM_KIND_ELEMENT_MAPPING O O
-	 QM_KIND_ELEMENT_MAPPING N N
-	 QM_KIND_ELEMENT_MAPPING C C
+   R_CORE 1.3 1.5
+   R_QM 3.0 3.5
+   R_BUF 3.0 3.5
+   QM_KIND_ELEMENT_MAPPING H H
+   QM_KIND_ELEMENT_MAPPING O O
+   QM_KIND_ELEMENT_MAPPING N N
+   QM_KIND_ELEMENT_MAPPING C C
 
-	 EXTENDED_DELTA_CHARGE 0
+   EXTENDED_DELTA_CHARGE 0
 
-	 ADAPTIVE_EXCLUDE_MOLECULES M1
+   ADAPTIVE_EXCLUDE_MOLECULES M1
 
-	 &QM_NON_ADAPTIVE
+   &QM_NON_ADAPTIVE
 
-	    &QM_KIND N
-	       MM_INDEX 1
-	    &END QM_KIND
+      &QM_KIND N
+         MM_INDEX 1
+      &END QM_KIND
 
-	    &QM_KIND C
-	       MM_INDEX 2
-	    &END QM_KIND
+      &QM_KIND C
+         MM_INDEX 2
+      &END QM_KIND
 
-	    &QM_KIND H
-	       MM_INDEX 13
-	       MM_INDEX 14
-	       MM_INDEX 21
-	    &END QM_KIND
+      &QM_KIND H
+         MM_INDEX 13
+         MM_INDEX 14
+         MM_INDEX 21
+      &END QM_KIND
 
-	 &END QM_NON_ADAPTIVE
+   &END QM_NON_ADAPTIVE
 
-	 &BUFFER_NON_ADAPTIVE
+   &BUFFER_NON_ADAPTIVE
 
-	    &QM_KIND C
-	       MM_INDEX 5
+      &QM_KIND C
+         MM_INDEX 5
 
-	       MM_INDEX 6
-	       MM_INDEX 7
-	       MM_INDEX 8
-	       MM_INDEX 9
-	       MM_INDEX 10
-	       MM_INDEX 11
-	    &END QM_KIND
+         MM_INDEX 6
+         MM_INDEX 7
+         MM_INDEX 8
+         MM_INDEX 9
+         MM_INDEX 10
+         MM_INDEX 11
+      &END QM_KIND
 
-	    &QM_KIND H
-	       MM_INDEX 15
-	       MM_INDEX 16
+      &QM_KIND H
+         MM_INDEX 15
+         MM_INDEX 16
 
-	       MM_INDEX 17
-	       MM_INDEX 18
-	       MM_INDEX 19
-	       MM_INDEX 20
-	    &END QM_KIND
+         MM_INDEX 17
+         MM_INDEX 18
+         MM_INDEX 19
+         MM_INDEX 20
+      &END QM_KIND
 
-	    &LINK
-	       QM_INDEX 11
-	       MM_INDEX 12
-	    &END LINK
+      &LINK
+         QM_INDEX 11
+         MM_INDEX 12
+      &END LINK
 
-	 &END BUFFER_NON_ADAPTIVE
+   &END BUFFER_NON_ADAPTIVE
 
      &END FORCE_MIXING
 
      &CELL
-	# big enough for QM region atoms plus a bit
+  # big enough for QM region atoms plus a bit
         ABC 18.0 18.0 18.0
 @IF ${QS_METHOD} == DFT
-	PERIODIC XYZ
+  PERIODIC XYZ
 @ENDIF
      &END CELL
 @IF ${QS_METHOD} == SE
@@ -218,7 +218,7 @@
 @IF ${QS_METHOD} == DFT
       PERIODIC XYZ
 @ENDIF
-      ABC [angstrom] 32.82913000 32.82913000 32.82913000 
+      ABC [angstrom] 32.82913000 32.82913000 32.82913000
     &END CELL
     &TOPOLOGY
       COORDINATE PDB
@@ -3380,9 +3380,9 @@
            0.0 0.0 0.0
            0.0 0.0 0.0
            0.0 0.0 0.0
-	      -0.0003 0.0012 0.0012
-	      -0.0003 0.0012 0.0012
-	      -0.0003 0.0012 0.0012
+        -0.0003 0.0012 0.0012
+        -0.0003 0.0012 0.0012
+        -0.0003 0.0012 0.0012
            0.0 0.0 0.0
            0.0 0.0 0.0
            0.0 0.0 0.0
@@ -3929,7 +3929,7 @@
            0.0 0.0 0.0
            0.0 0.0 0.0
            0.0 0.0 0.0
-	 &END VELOCITY
+   &END VELOCITY
 
   &END SUBSYS
 &END FORCE_EVAL
@@ -3944,25 +3944,25 @@
 &MOTION
    &PRINT
       &TRAJECTORY
-	 FORMAT XYZ
-	 &EACH
-	    MD 1
-	 &END EACH
-	 COMMON_ITERATION_LEVELS 0
+   FORMAT XYZ
+   &EACH
+      MD 1
+   &END EACH
+   COMMON_ITERATION_LEVELS 0
       &END TRAJECTORY
       &FORCES
-	 FORMAT XYZ
-	 &EACH
-	    MD 1
-	 &END EACH
-	 COMMON_ITERATION_LEVELS 0
+   FORMAT XYZ
+   &EACH
+      MD 1
+   &END EACH
+   COMMON_ITERATION_LEVELS 0
       &END FORCES
       &FORCE_MIXING_LABELS
-	 FORMAT XYZ
-	 &EACH
-	    MD 1
-	 &END EACH
-	 COMMON_ITERATION_LEVELS 0
+   FORMAT XYZ
+   &EACH
+      MD 1
+   &END EACH
+   COMMON_ITERATION_LEVELS 0
       &END FORCE_MIXING_LABELS
    &END PRINT
 
@@ -3985,12 +3985,12 @@
    &GEO_OPT
       OPTIMIZER CG
       &CG
-	 &LINE_SEARCH
-	    TYPE 2PNT
-	    &2PNT
-	       LINMIN_GRAD_ONLY
-	    &END 2PNT
-	 &END LINE_SEARCH
+   &LINE_SEARCH
+      TYPE 2PNT
+      &2PNT
+         LINMIN_GRAD_ONLY
+      &END 2PNT
+   &END LINE_SEARCH
       &END CG
    &END GEO_OPT
 

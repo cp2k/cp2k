@@ -15,7 +15,7 @@
 
     &POISSON
       PERIODIC NONE
-      PSOLVER MT 
+      PSOLVER MT
     &END
 
     &XC
@@ -26,12 +26,12 @@
     &XAS_TDP
       &DONOR_STATES
          DEFINE_EXCITED BY_INDEX
-         AT_LIST 1 
+         AT_LIST 1
          STATE_TYPES 1s
          N_SEARCH 1
       &END DONOR_STATES
 
-      TAMM_DANCOFF 
+      TAMM_DANCOFF
       GRID He 150 250
       N_EXCITED 10
 

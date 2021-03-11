@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#P (black) & Cmca-D_{2h}^{18} #64 & oC8 & A17 & Pearson, Alloys, p 779 
+#P (black) & Cmca-D_{2h}^{18} #64 & oC8 & A17 & Pearson, Alloys, p 779
      A   1.65700000 -5.24000000  0.00000000
      B   1.65700000  5.24000000  0.00000000
      C   0.00000000  0.00000000  4.37600000

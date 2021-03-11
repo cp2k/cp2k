@@ -47,7 +47,7 @@
         LIN_SEARCH_STEP_SIZE_GUESS 0.1
         MAX_ITER_OUTER_LOOP      2
       &END XALMO_OPTIMIZER_PCG
-      
+
     &END ALMO_SCF
 
     &XC
@@ -60,7 +60,7 @@
   &SUBSYS
     &CELL
       ABC 4.0351 4.0351 4.0351
-      MULTIPLE_UNIT_CELL 1 1 1 
+      MULTIPLE_UNIT_CELL 1 1 1
     &END CELL
     &TOPOLOGY
       MULTIPLE_UNIT_CELL 1 1 1
@@ -77,7 +77,7 @@
       F  0.5 0.5 0.5 F-minus
     &END COORD
     &KIND Li
-      BASIS_SET DZVP-GTH 
+      BASIS_SET DZVP-GTH
       POTENTIAL GTH-BLYP-q3
       &BS
         &ALPHA
@@ -89,7 +89,7 @@
         ! TO AVOID WARNINGS
         &BETA
           NEL -1
-          L    0 
+          L    0
           N    2
         &END
       &END
@@ -107,7 +107,7 @@
         ! TO AVOID WARNINGS
         &BETA
           NEL +1
-          L    1 
+          L    1
           N    2
         &END
       &END

@@ -24,7 +24,7 @@
 &FORCE_EVAL
   METHOD Quickstep
   STRESS_TENSOR analytical
-#  STRESS_TENSOR numerical 
+#  STRESS_TENSOR numerical
   &DFT
     &QS
       METHOD PM6

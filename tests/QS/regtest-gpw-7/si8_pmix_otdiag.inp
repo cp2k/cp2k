@@ -35,7 +35,7 @@
         ALGORITHM OT
       &END
       &SMEAR
-        METHOD FERMI_DIRAC 
+        METHOD FERMI_DIRAC
         ELECTRONIC_TEMPERATURE   5000.
       &END
       &MIXING
@@ -72,7 +72,7 @@
       POTENTIAL  GTH-PBE-q4
     &END
     &TOPOLOGY
-      COORD_FILE_NAME ../sample_xyz/SI_8.xyz 
+      COORD_FILE_NAME ../sample_xyz/SI_8.xyz
       COORDINATE XYZ
       CONNECTIVITY OFF
     &END TOPOLOGY

@@ -9,7 +9,7 @@
      METHOD_TYPE  KOHN-SHAM
      RELATIVISTIC ZORA(MP)
      &XC
-       &XC_FUNCTIONAL 
+       &XC_FUNCTIONAL
           &XALPHA
              XA 0.75
           &END XALPHA

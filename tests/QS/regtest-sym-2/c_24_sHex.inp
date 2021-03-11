@@ -13,7 +13,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#Au for HgSn_{6-10} & P6/mmm (#191) D^1_{6h} & hP1 & A_f & Pearson Alloys p 478 
+#Au for HgSn_{6-10} & P6/mmm (#191) D^1_{6h} & hP1 & A_f & Pearson Alloys p 478
      A   1.60500000 -2.77994155  0.00000000
      B   1.60500000  2.77994155  0.00000000
      C   0.00000000  0.00000000  2.99000000

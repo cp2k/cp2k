@@ -1,7 +1,7 @@
 &GLOBAL
   PROJECT test_entropic_pexsi
   PRINT_LEVEL MEDIUM
-  RUN_TYPE ENERGY 
+  RUN_TYPE ENERGY
 &END GLOBAL
 &FORCE_EVAL
   METHOD QS
@@ -76,7 +76,7 @@
     &END
     &TOPOLOGY
       MULTIPLE_UNIT_CELL 1 1 1
-      COORD_FILE_NAME ../sample_xyz/SI_8.xyz 
+      COORD_FILE_NAME ../sample_xyz/SI_8.xyz
       COORDINATE XYZ
       CONNECTIVITY OFF
     &END TOPOLOGY

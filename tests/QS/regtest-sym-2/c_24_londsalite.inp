@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#Hexagonal Diamond & C & P6_3/mmc #194 D_{6h}^4 & hP4 
+#Hexagonal Diamond & C & P6_3/mmc #194 D_{6h}^4 & hP4
      A   1.26218560 -2.18616960  0.00000000
      B   1.26218560  2.18616960  0.00000000
      C   0.00000000  0.00000000  4.12228092

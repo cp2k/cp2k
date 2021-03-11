@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#Mg Ni_2 & P6_3/mmc-D_{6h}^4 #194 & hP24 & C36 & Laves & Pearson, Alloys, p 660 
+#Mg Ni_2 & P6_3/mmc-D_{6h}^4 #194 & hP24 & C36 & Laves & Pearson, Alloys, p 660
      A   2.40750000 -4.16991232  0.00000000
      B   2.40750000  4.16991232  0.00000000
      C   0.00000000  0.00000000 15.80000000

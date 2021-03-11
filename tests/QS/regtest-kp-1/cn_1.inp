@@ -34,9 +34,9 @@
     &END XC
     &KPOINTS
        SCHEME  MONKHORST-PACK  1 1 1
-       SYMMETRY ON 
+       SYMMETRY ON
        EPS_GEO 1.e-8
-       FULL_GRID ON 
+       FULL_GRID ON
        VERBOSE F
        PARALLEL_GROUP_SIZE  0
        WAVEFUNCTIONS REAL

@@ -23,7 +23,7 @@
         R012 [au_l] 1.81111424
         R032 [au_l] 1.81111424
         KBS12 [au_e*au_l^-1*rad^-1] 0.3
-        KBS32 [au_e*au_l^-1*rad^-1] 0.3      
+        KBS32 [au_e*au_l^-1*rad^-1] 0.3
       &END BEND
       &NONBONDED
         &LENNARD-JONES
@@ -40,7 +40,7 @@
             ATOMS O O
             SIGMA [au_l] 1
             EPSILON [au_e] 0
-        &END LENNARD-JONES     
+        &END LENNARD-JONES
       &END NONBONDED
     &END FORCEFIELD
     &POISSON

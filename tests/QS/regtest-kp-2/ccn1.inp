@@ -32,7 +32,7 @@
          1-NORM
          DIAGONALIZATION
          ARNOLDI
-      &END 
+      &END
     &END PRINT
   &END DFT
   &SUBSYS

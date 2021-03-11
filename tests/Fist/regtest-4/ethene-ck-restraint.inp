@@ -35,10 +35,10 @@
         ATOMS   3 1 2 4
       &END
     &END
-    &COLVAR 
+    &COLVAR
       &TORSION
         ATOMS   3 1 2 6
-      &END 
+      &END
     &END
     &COLVAR
       &TORSION

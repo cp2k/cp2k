@@ -47,7 +47,7 @@
       RESTART_FILE_NAME ${WRKDIR}/${RESFILE}-BFGS.Hessian
 @endif
     &END
- &END GEO_OPT 
+ &END GEO_OPT
 
   &PRINT
     &TRAJECTORY
@@ -208,7 +208,7 @@ LIST 270 271 272 277 278 279 280 285 286 287 288
       &PDOS
         NLUMO 2500
         COMPONENTS
-# Ar under BN in Nhcp-Btop region; 
+# Ar under BN in Nhcp-Btop region;
 # N close to Ar (wxa)
         &LDOS
            LIST 815 802 814
@@ -227,7 +227,7 @@ LIST 270 271 272 277 278 279 280 285 286 287 288
       &END PDOS
 @endif
 
-    &END 
+    &END
 
   &END DFT
   &SUBSYS

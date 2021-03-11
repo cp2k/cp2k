@@ -11,7 +11,7 @@
     &END MGRID
       &POISSON
         PERIODIC NONE
-        POISSON_SOLVER ANALYTIC 
+        POISSON_SOLVER ANALYTIC
       &END
     &QS
       ! EPS_DEFAULT 1.0E-16
@@ -22,7 +22,7 @@
        PRECONDITIONER FULL_ALL
       &END OT
       EPS_SCF 1.0E-6
-      SCF_GUESS ATOMIC 
+      SCF_GUESS ATOMIC
       MAX_SCF 1
     &END SCF
     &XC
@@ -31,10 +31,10 @@
       &HF
        &SCREENING
          EPS_SCHWARZ 1.0E-14
-         SCREEN_ON_INITIAL_P FALSE 
+         SCREEN_ON_INITIAL_P FALSE
        &END
        &INTERACTION_POTENTIAL
-         POTENTIAL_TYPE COULOMB 
+         POTENTIAL_TYPE COULOMB
        &END
        &MEMORY
          MAX_MEMORY 100
@@ -48,8 +48,8 @@
       ABC 25.0 25.0 25.0
     &END CELL
     &COORD
-H   0.0          0.0         0.0 
-H   0.0          0.0         0.8 
+H   0.0          0.0         0.0
+H   0.0          0.0         0.8
     &END
     &KIND H
       POTENTIAL GTH-PBE-q1
@@ -63,6 +63,6 @@ H   0.0          0.0         0.8
 &END FORCE_EVAL
 &GLOBAL
   PROJECT H2_PW_HFX
-  PRINT_LEVEL MEDIUM 
-  RUN_TYPE ENERGY 
+  PRINT_LEVEL MEDIUM
+  RUN_TYPE ENERGY
 &END GLOBAL

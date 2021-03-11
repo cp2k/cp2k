@@ -8,7 +8,7 @@
   &METHOD
      METHOD_TYPE  KOHN-SHAM
      &XC
-       &XC_FUNCTIONAL 
+       &XC_FUNCTIONAL
           &BECKE97
               PARAMETRIZATION B97GRIMME
           &END BECKE97

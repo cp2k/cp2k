@@ -12,7 +12,7 @@
     &END QS
     &SCF
       MAX_SCF 5
-      &OT 
+      &OT
        ROTATION
       &END
     &END SCF

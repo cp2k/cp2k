@@ -12,7 +12,7 @@
     &END QS
     &SCF
       EPS_SCF 1.0E-6
-      SCF_GUESS ATOMIC 
+      SCF_GUESS ATOMIC
       MAX_SCF  8
       &OT
          MINIMIZER DIIS

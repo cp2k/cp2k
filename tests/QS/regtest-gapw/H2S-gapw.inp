@@ -8,11 +8,11 @@
     &END MGRID
     &QS
       EPS_DEFAULT 1.0E-8
-      EXTRAPOLATION PS 
+      EXTRAPOLATION PS
       EXTRAPOLATION_ORDER 3
       METHOD GAPW
       EPS_SVD 0.0
-     
+
     &END QS
     &SCF
       EPS_SCF 1.0E-5

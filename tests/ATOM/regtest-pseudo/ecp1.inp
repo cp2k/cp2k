@@ -22,7 +22,7 @@
   &OPTIMIZATION
     MAX_ITER 100
     EPS_SCF 1.e-6
-  &END 
+  &END
   &PRINT
      &POTENTIAL
      &END POTENTIAL
@@ -36,7 +36,7 @@
       C nelec 2
       C ul
       2      1.000000000            0.000000000
-      C S 
+      C S
       2      6.401052000           33.121638000
       C P
       2      7.307747000           -1.986257000

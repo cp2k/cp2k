@@ -16,7 +16,7 @@
     &END
     &SCF
       EPS_SCF 1.0E-6
-      SCF_GUESS ATOMIC 
+      SCF_GUESS ATOMIC
       MAX_SCF 2
     &END SCF
     &XC
@@ -55,5 +55,5 @@
 &GLOBAL
   PROJECT H2O-old-interface
 #  TRACE
-  PRINT_LEVEL MEDIUM 
+  PRINT_LEVEL MEDIUM
 &END GLOBAL

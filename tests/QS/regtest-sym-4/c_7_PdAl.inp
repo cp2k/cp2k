@@ -13,7 +13,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#PdAl & R(-3) [C^2_{3i}] (#148) & hR26 & Rhombohedral Lattice 
+#PdAl & R(-3) [C^2_{3i}] (#148) & hR26 & Rhombohedral Lattice
       A   .00000000  9.04072786  1.75033333
       B -7.82950000 -4.52036393  1.75033333
       C  7.82950000 -4.52036393  1.75033333

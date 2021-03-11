@@ -20,7 +20,7 @@
       &END XC_FUNCTIONAL
     &END XC
     &DENSITY_FITTING
-    &END  
+    &END
   &END DFT
   &SUBSYS
     &CELL

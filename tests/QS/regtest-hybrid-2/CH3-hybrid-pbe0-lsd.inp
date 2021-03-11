@@ -29,10 +29,10 @@
       &END XC_FUNCTIONAL
       &HF
         &SCREENING
-          EPS_SCHWARZ 1.0E-16 
+          EPS_SCHWARZ 1.0E-16
         &END
         &MEMORY
-          MAX_MEMORY  10 
+          MAX_MEMORY  10
         &END
         FRACTION 0.25
       &END
@@ -62,5 +62,5 @@
 &GLOBAL
   PROJECT CH3-hybrid-pbe0-lsd
 #  TRACE
-  PRINT_LEVEL MEDIUM 
+  PRINT_LEVEL MEDIUM
 &END GLOBAL

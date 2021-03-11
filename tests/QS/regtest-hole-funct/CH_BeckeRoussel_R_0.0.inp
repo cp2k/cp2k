@@ -15,7 +15,7 @@
       SCF_GUESS ATOMIC
     &END SCF
     &XC
-       &XC_FUNCTIONAL 
+       &XC_FUNCTIONAL
          &BECKE_ROUSSEL
            CUTOFF_RADIUS 0.0
          &END
@@ -27,7 +27,7 @@
        ABC 5.0 5.0 5.0
     &END CELL
     &COORD
-     C   0.000000    0.000000    0.1581 
+     C   0.000000    0.000000    0.1581
      H   0.000000    0.000000    -0.9487
     &END COORD
     &KIND H
@@ -42,6 +42,6 @@
 &END FORCE_EVAL
 &GLOBAL
   PROJECT CH_BeckeRoussel_R_0.0
-  RUN_TYPE ENERGY 
-  PRINT_LEVEL MEDIUM 
+  RUN_TYPE ENERGY
+  PRINT_LEVEL MEDIUM
 &END GLOBAL

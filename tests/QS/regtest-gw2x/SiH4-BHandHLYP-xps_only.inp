@@ -42,7 +42,7 @@
       &GW2X
          XPS_ONLY
       &END GW2X
-      
+
       &KERNEL
          ! No need for xc kernel as we only care about XPS
          &XC_FUNCTIONAL NONE

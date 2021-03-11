@@ -20,13 +20,13 @@
       LMAXN1 6
       METHOD GAPW
       QUADRATURE GC_LOG
-     
+
     &END QS
     &SCF
       EPS_DIIS 0.4
       EPS_SCF 3.0E-6
       MAX_SCF 1
-       
+
       SCF_GUESS ATOMIC
     &END SCF
     &XC

@@ -225,15 +225,15 @@
     &QM_KIND OZ
       MM_INDEX 55 57 58 59 62 77 95 97 100 102 113 105
     &END QM_KIND
-  # 
+  #
   # QM_KINDS
-  # 
-  # 
+  #
+  #
   # MM_KINDS
-  # 
-  # 
+  #
+  #
   # FORCEFIELD
-  # 
+  #
   &END QMMM
   &SUBSYS
     &CELL

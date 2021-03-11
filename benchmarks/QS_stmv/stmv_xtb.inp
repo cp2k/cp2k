@@ -44,7 +44,7 @@
       ABC 216.832 216.832 216.832
     &END CELL
 !
-! coord_mol is directly derived from online available stmv.psf/stmv.pdb 
+! coord_mol is directly derived from online available stmv.psf/stmv.pdb
 ! it declares each water molecule a molecule, whereas each atom of the virus is an atom as well.
 !
     &COORD
@@ -92,5 +92,5 @@
       OPTIMIZER LBFGS
       ! use more iterations for added realism.
       MAX_ITER  1
-   &END 
+   &END
 &END

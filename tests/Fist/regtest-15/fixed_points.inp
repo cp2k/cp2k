@@ -1,12 +1,12 @@
-@SET PRM01   0.1 
-@SET PRM02   0.2 
-@SET PRM03   0.3 
-@SET PRM04   0.4 
-@SET PRM05   0.5 
-@SET PRM06   0.6 
-@SET PRM07   0.7 
-@SET PRM08   0.8 
-@SET PRM09   0.9 
+@SET PRM01   0.1
+@SET PRM02   0.2
+@SET PRM03   0.3
+@SET PRM04   0.4
+@SET PRM05   0.5
+@SET PRM06   0.6
+@SET PRM07   0.7
+@SET PRM08   0.8
+@SET PRM09   0.9
 &FORCE_EVAL
   METHOD FIST
   &MM
@@ -37,7 +37,7 @@
            FUNCTION  A1*cos(1*acos(A/r-B))+A2*cos(2*acos(A/r-B))+A3*cos(3*acos(A/r-B))+A4*cos(4*acos(A/r-B))+A5*cos(5*acos(A/r-B))+A6*cos(6*acos(A/r-B))+A7*cos(7*acos(A/r-B))+A8*cos( 8*acos(A/r-B))+A9*cos(9*acos(A/r-B))
            VARIABLES   r
            PARAMETERS  A B A1 A2 A3 A4 A5 A6 A7 A8 A9
-           VALUES      10.0/1.0 3.0/2.0 $PRM01  $PRM02  $PRM03  $PRM04  $PRM05  $PRM06  $PRM07   $PRM08  $PRM09 
+           VALUES      10.0/1.0 3.0/2.0 $PRM01  $PRM02  $PRM03  $PRM04  $PRM05  $PRM06  $PRM07   $PRM08  $PRM09
            RMIN [bohr]      5.0
            RMAX [bohr]     20.0
          &END GENPOT

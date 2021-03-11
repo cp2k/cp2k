@@ -9,7 +9,7 @@
      METHOD_TYPE  KOHN-SHAM
      RELATIVISTIC DKH(0)
      &XC
-       &XC_FUNCTIONAL 
+       &XC_FUNCTIONAL
          &VWN
          &END VWN
        &END XC_FUNCTIONAL

@@ -2,7 +2,7 @@
 !
 ! Test restart in the spin-unrestricted case
 !
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT  h_h_pbe_pbe0_triplet_restart
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
@@ -18,37 +18,37 @@
        &MAPPING
           &FORCE_EVAL_EMBED
              &FRAGMENT 1
-                1 1  
+                1 1
              &END
              &FRAGMENT 2
-                2 2  
+                2 2
              &END
              &FRAGMENT 3
-                1 2  
+                1 2
              &END
           &END
           &FORCE_EVAL 1
              &FRAGMENT 1
                 1 1
-                MAP 1 
+                MAP 1
               &END
           &END
           &FORCE_EVAL 2
              &FRAGMENT 1
                 1 1
-                MAP 2 
+                MAP 2
              &END
           &END
           &FORCE_EVAL 3
              &FRAGMENT 1
                 1 2
-                MAP 3 
+                MAP 3
               &END
           &END
           &FORCE_EVAL 4
              &FRAGMENT 1
                 1 1
-                MAP 2 
+                MAP 2
              &END
           &END
        &END
@@ -68,8 +68,8 @@
       POTENTIAL  GTH-HF-q6
     &END KIND
     &COORD
-  H      1.75  2.75  0.0   
-  H      1.75  4.25  0.0    
+  H      1.75  2.75  0.0
+  H      1.75  4.25  0.0
     &END
   &END SUBSYS
 &END FORCE_EVAL
@@ -120,7 +120,7 @@
       POTENTIAL  GTH-HF-q1
     &END KIND
     &COORD
-  H      1.75  2.75  0.0   
+  H      1.75  2.75  0.0
     &END
   &END SUBSYS
 &END FORCE_EVAL
@@ -172,7 +172,7 @@
       POTENTIAL  GTH-HF-q1
     &END KIND
     &COORD
-  H      1.75  4.25  0.0    
+  H      1.75  4.25  0.0
     &END
   &END SUBSYS
 &END FORCE_EVAL
@@ -240,8 +240,8 @@
       POTENTIAL  GTH-HF-q1
     &END KIND
     &COORD
-  H      1.75  2.75  0.0   
-  H      1.75  4.25  0.0    
+  H      1.75  2.75  0.0
+  H      1.75  4.25  0.0
     &END
   &END SUBSYS
 &END FORCE_EVAL
@@ -306,7 +306,7 @@
       POTENTIAL  GTH-HF-q1
     &END KIND
     &COORD
-  H      1.75  4.25 0.0    
+  H      1.75  4.25 0.0
     &END
   &END SUBSYS
 &END FORCE_EVAL

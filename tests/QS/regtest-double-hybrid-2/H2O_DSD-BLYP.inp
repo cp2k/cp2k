@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT  H2O_allelec
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
@@ -32,7 +32,7 @@
     &END SCF
 ! Parameters for the DSD-BLYP double hybrid functional (ax=0.69  ac=0.54  cOS=0.46  cSS=0.37)
     &XC
-      &XC_FUNCTIONAL 
+      &XC_FUNCTIONAL
        &LYP
          SCALE_C  0.69
        &END
@@ -44,7 +44,7 @@
         FRACTION   0.69
         &SCREENING
           EPS_SCHWARZ 1.0E-8
-          SCREEN_ON_INITIAL_P FALSE 
+          SCREEN_ON_INITIAL_P FALSE
         &END SCREENING
       &END HF
       &WF_CORRELATION

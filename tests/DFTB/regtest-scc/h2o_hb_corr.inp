@@ -9,7 +9,7 @@
     &QS
       METHOD DFTB
       &DFTB
-        HB_SR_GAMMA 
+        HB_SR_GAMMA
         SELF_CONSISTENT    T
         DO_EWALD           T
         DISPERSION         T

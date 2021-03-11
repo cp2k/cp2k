@@ -12,7 +12,7 @@
       ALMO_SCF T
       EPS_DEFAULT 1.0E-8 ! 1.0E-12
     &END QS
-    
+
     &ALMO_SCF
       EPS_FILTER                 1.0E-8
       ALMO_ALGORITHM             SKIP
@@ -24,10 +24,10 @@
         EPS_ERROR                5.0E-4
         N_DIIS                   7
       &END ALMO_OPTIMIZER_DIIS
-      
+
       DELOCALIZE_METHOD          XALMO_SCF
       XALMO_R_CUTOFF_FACTOR      1.2
-      
+
       &XALMO_OPTIMIZER_PCG
         MAX_ITER                 50
         EPS_ERROR                5.0E-4
@@ -37,9 +37,9 @@
         MAX_ITER_OUTER_LOOP      2
         PRECOND_FILTER_THRESHOLD 0.05
       &END XALMO_OPTIMIZER_PCG
-      
+
     &END ALMO_SCF
-    
+
     &MGRID
       CUTOFF 200 ! 320
       NGRIDS 5
@@ -58,7 +58,7 @@
       MULTIPLE_UNIT_CELL 1 1 1
     &END
     &COORD
-      ! atomic decomposition 
+      ! atomic decomposition
       H        0.0000000000        0.0000000000        0.0000000000       H1
       F        0.0000000000        0.0000000000        1.0000000000       F1
       H        0.0000000000        0.0000000000        3.0000000000       H2
@@ -67,7 +67,7 @@
       F        0.0000000000        0.0000000000        5.0000000000       F3
       H        0.0000000000        1.0000000000        8.0000000000       H4
       F        0.0000000000        0.0000000000        8.0000000000       F4
-      ! molecular decomposition 
+      ! molecular decomposition
       !H        0.0000000000        0.0000000000        0.0000000000       HF1
       !F        0.0000000000        0.0000000000        1.0000000000       HF1
       !H        0.0000000000        0.0000000000        3.0000000000       HF2
@@ -78,7 +78,7 @@
       !F        0.0000000000        0.0000000000        8.0000000000       HF4
     &END COORD
     &KIND H
-      BASIS_SET DZVP-GTH 
+      BASIS_SET DZVP-GTH
       POTENTIAL GTH-BLYP-q1
       &BS
         &ALPHA
@@ -88,7 +88,7 @@
         &END
         &BETA
           NEL -1
-          L    0 
+          L    0
           N    1
         &END
       &END
@@ -104,7 +104,7 @@
         &END
         &BETA
           NEL +1
-          L    1 
+          L    1
           N    2
         &END
       &END

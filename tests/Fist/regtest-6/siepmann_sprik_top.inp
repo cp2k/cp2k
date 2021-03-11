@@ -13,7 +13,7 @@
 &END MOTION
 
 &MULTIPLE_FORCE_EVALS
-  FORCE_EVAL_ORDER  1 2 3 
+  FORCE_EVAL_ORDER  1 2 3
   MULTIPLE_SUBSYS T
 &END
 
@@ -27,7 +27,7 @@
      # X: Energy force_eval 2
      # Y: Energy force_eval 3
      MIXING_FUNCTION X+Y
-     VARIABLES X Y 
+     VARIABLES X Y
    &END
    &PRINT
     &DIPOLE OFF
@@ -36,8 +36,8 @@
   &END
   &SUBSYS
     &CELL
-    ABC 33.2623 28.8060  25.0  
-    ALPHA_BETA_GAMMA 90.0 90.0 90.0 
+    ABC 33.2623 28.8060  25.0
+    ALPHA_BETA_GAMMA 90.0 90.0 90.0
     &END CELL
     &COORD
 Pt     0.000000    0.000000    0.000000
@@ -513,7 +513,7 @@ H     14.4818     13.0374      6.90643
            atoms O Pt
            FUNCTION A/r^alpha-C/r^6
            VARIABLES r
-           PARAMETERS A alpha C 
+           PARAMETERS A alpha C
            VALUES 71059.888 11.0 29.48697
            RCUT  12
         &END GENPOT

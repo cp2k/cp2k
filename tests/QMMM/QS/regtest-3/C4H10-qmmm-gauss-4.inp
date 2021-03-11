@@ -69,16 +69,16 @@
     &QM_KIND H
       MM_INDEX 6 7 9 10
     &END QM_KIND
-  # 
+  #
   # QM_KINDS
-  # 
-  # 
+  #
+  #
   # MM_KINDS
-  # 
-  # 
+  #
+  #
   # LINKS
-  # 
-  # 
+  #
+  #
   &END QMMM
   &SUBSYS
     &CELL

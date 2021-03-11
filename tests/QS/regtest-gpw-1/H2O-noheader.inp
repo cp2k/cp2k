@@ -19,7 +19,7 @@
       DERIVATIVES
       KINETIC_ENERGY
       KOHN_SHAM_MATRIX
-      # MATRIX_VXC 
+      # MATRIX_VXC
       NDIGITS 12
       ORTHO
       OVERLAP

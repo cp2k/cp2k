@@ -17,8 +17,8 @@
      ASPARSITY 0.05
      BSPARSITY 0.05
      CSPARSITY 0.05
-     bs_m 1 26 1 13 1 54 
-     bs_k 1 26 1 13 1 54 
-     bs_n 1 26 1 13 1 54 
+     bs_m 1 26 1 13 1 54
+     bs_k 1 26 1 13 1 54
+     bs_n 1 26 1 13 1 54
   &END
 &END TEST

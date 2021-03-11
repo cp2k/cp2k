@@ -60,7 +60,7 @@
   &END SECTION DFT
   &SUBSYS
     &CELL
-       ABC  8 8 8 
+       ABC  8 8 8
        PERIODIC NONE
     &END CELL
     &KIND  Au
@@ -76,7 +76,7 @@
    &COLVAR
      &GYRATION_RADIUS
        KINDS  Au
-     &END 
+     &END
    &END
 !   &COLVAR
 !     &COORDINATION
@@ -85,7 +85,7 @@
 !        R0 3
 !        NN 8
 !        ND 12
-!     &END 
+!     &END
 !   &END
   &END SUBSYS
 &END FORCE_EVAL

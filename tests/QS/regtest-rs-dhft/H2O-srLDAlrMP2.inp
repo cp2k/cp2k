@@ -1,5 +1,5 @@
 @SET MY_OMEGA 0.5
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT  H2O-srLDAlrMP2
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
@@ -45,7 +45,7 @@
         &END INTERACTION_POTENTIAL
         &SCREENING
           EPS_SCHWARZ 1.0E-8
-          SCREEN_ON_INITIAL_P FALSE 
+          SCREEN_ON_INITIAL_P FALSE
         &END SCREENING
       &END HF
       &WF_CORRELATION

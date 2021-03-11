@@ -11,7 +11,7 @@
       &DFTB
         SELF_CONSISTENT    F
         DISPERSION         T
-        ORTHOGONAL_BASIS   F   
+        ORTHOGONAL_BASIS   F
         &PARAMETER
           PARAM_FILE_PATH  DFTB/nonscc
           SK_FILE  Mo Mo  momo

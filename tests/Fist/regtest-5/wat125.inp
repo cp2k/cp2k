@@ -27,7 +27,7 @@
   &END MM
   &SUBSYS
     &CELL
-      ABC 15.0 15.0 15.0 
+      ABC 15.0 15.0 15.0
     &END CELL
     &TOPOLOGY
       COORD_FILE_NAME ../sample_xyz/wat125.xyz

@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#NiSSb   & P2_1 3 #198 T^4 & cP12 & F0_1 & Pearson's Handbook    
+#NiSSb   & P2_1 3 #198 T^4 & cP12 & F0_1 & Pearson's Handbook
      A   5.88100000  0.00000000  0.00000000
      B   0.00000000  5.88100000  0.00000000
      C   0.00000000  0.00000000  5.88100000

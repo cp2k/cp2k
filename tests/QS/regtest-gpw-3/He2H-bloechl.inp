@@ -34,7 +34,7 @@
     &COORD
     H   3.0000  3.0000  3.0000
     He  3.0000  3.0000  7.0000
-    H   7.0000  7.0000  7.0000 
+    H   7.0000  7.0000  7.0000
     &END COORD
     &KIND H
       BASIS_SET DZV-GTH-PADE

@@ -34,40 +34,40 @@
         THETA0 1.82422
       &END BEND
       &NONBONDED
-        &LENNARD-JONES 
-  	  ATOMS Ar Ar
+        &LENNARD-JONES
+      ATOMS Ar Ar
           EPSILON 60.0
-          SIGMA 2.5 
+          SIGMA 2.5
           RCUT 5.0
         &END LENNARD-JONES
-        &LENNARD-JONES 
-  	  ATOMS Ar O
+        &LENNARD-JONES
+      ATOMS Ar O
           EPSILON 70.0
-          SIGMA 2.8 
+          SIGMA 2.8
           RCUT 5.0
         &END LENNARD-JONES
-        &LENNARD-JONES 
-  	  ATOMS Ar H
+        &LENNARD-JONES
+      ATOMS Ar H
           EPSILON 0.0
-          SIGMA 2.5 
+          SIGMA 2.5
           RCUT 5.0
         &END LENNARD-JONES
-        &LENNARD-JONES 
-  	  ATOMS O O
-          EPSILON 78.19580 
-          SIGMA 3.1655 
+        &LENNARD-JONES
+      ATOMS O O
+          EPSILON 78.19580
+          SIGMA 3.1655
           RCUT 5.0
         &END LENNARD-JONES
-        &LENNARD-JONES 
-  	  ATOMS O H
+        &LENNARD-JONES
+      ATOMS O H
           EPSILON 0.0
-          SIGMA 3.1655 
+          SIGMA 3.1655
           RCUT 5.0
         &END LENNARD-JONES
-        &LENNARD-JONES 
-  	  ATOMS H H 
+        &LENNARD-JONES
+      ATOMS H H
           EPSILON 0.0
-          SIGMA 3.1655 
+          SIGMA 3.1655
           RCUT 5.0
         &END LENNARD-JONES
       &END NONBONDED
@@ -164,7 +164,7 @@
         PMROT_MOL 1.0 1.0
       &END MOL_PROBABILITIES
       &BOX_PROBABILITIES
-        PMVOL_BOX 1.0 
+        PMVOL_BOX 1.0
         PMHMC_BOX 1.0
       &END BOX_PROBABILITIES
     &END MOVE_PROBABILITIES

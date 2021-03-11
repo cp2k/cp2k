@@ -11,7 +11,7 @@
   &METHOD
      METHOD_TYPE  KOHN-SHAM
      &XC
-       &XC_FUNCTIONAL 
+       &XC_FUNCTIONAL
          &PBE
          &END
        &END XC_FUNCTIONAL
@@ -19,12 +19,12 @@
   &END METHOD
   &OPTIMIZATION
     EPS_SCF 1.e-8
-  &END 
+  &END
   &PRINT
     &RESPONSE_BASIS
        DERIVATIVES 1
-    &END 
-  &END 
+    &END
+  &END
   &PP_BASIS
       NUM_GTO  6 6 6
       S_EXPONENTS 3.73260507 1.83419039 0.80906390 0.34515101 0.13836655 0.04967010
@@ -44,7 +44,7 @@
                                         2.86457842
     0.38059720     2   -15.53165455    13.58045054
                                       -15.39878349
-    &END 
+    &END
     CONFINEMENT_TYPE POLYNOM
     CONFINEMENT   0.5  22.32  2.0
   &END POTENTIAL

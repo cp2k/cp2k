@@ -34,7 +34,7 @@
       EPS_FILTER                 1.0E-8 ! 1.0E-11
       ALMO_ALGORITHM             SKIP
       ALMO_SCF_GUESS             ATOMIC
-      MO_OVERLAP_INV_ALG         DENSE_CHOLESKY         
+      MO_OVERLAP_INV_ALG         DENSE_CHOLESKY
       XALMO_TRIAL_WF             SIMPLE
       DELOCALIZE_METHOD          XALMO_SCF
       XALMO_R_CUTOFF_FACTOR      1.0
@@ -56,7 +56,7 @@
         MAX_ITER_OUTER_LOOP      50
         PRECOND_FILTER_THRESHOLD 0.008
       &END XALMO_OPTIMIZER_PCG
-      
+
     &END ALMO_SCF
 
     &XC
@@ -80,7 +80,7 @@
         ! BETA FUNCTION SHOULD BE THE SAME TO AVOID WARNINGS
         &BETA
           NEL -1
-          L    0 
+          L    0
           N    1
         &END
       &END
@@ -98,7 +98,7 @@
         ! BETA FUNCTION SHOULD BE THE SAME TO AVOID WARNINGS
         &BETA
           NEL +2
-          L    1 
+          L    1
           N    2
         &END
       &END
@@ -106,7 +106,7 @@
 
     &CELL
       ABC  3.00000000       3.00000000       5.00000000
-      MULTIPLE_UNIT_CELL 1 1 1 
+      MULTIPLE_UNIT_CELL 1 1 1
     &END CELL
 
     &TOPOLOGY
@@ -117,7 +117,7 @@
       &END GENERATE
       MULTIPLE_UNIT_CELL 1 1 1
     &END
-    
+
     &COORD
       O         1.5285821781        1.7062403635       3.9140529453
       H         1.6296675630        1.2721242389       4.7873221686

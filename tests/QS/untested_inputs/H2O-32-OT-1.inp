@@ -1,8 +1,8 @@
-# 
+#
 # First file to be run when using OT
 # Should be used to generate a reasonable initial guess for running
 # H2O-32-OT-2.inp
-# 
+#
 
 &FORCE_EVAL
   METHOD Quickstep

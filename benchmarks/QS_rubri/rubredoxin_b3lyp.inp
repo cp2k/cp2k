@@ -15,18 +15,18 @@
        EPS_DEFAULT 1.0E-12
        EPS_PGF_ORB 1.0E-15
     &END QS
-    &SCF 
+    &SCF
       EPS_SCF 6.0E-8
       MAX_SCF 60
       SCF_GUESS RESTART
-      &OT 
+      &OT
          PRECONDITIONER FULL_ALL
       &END
       &OUTER_SCF
          EPS_SCF 6.0E-8
          MAX_SCF 20
       &END
-      &PRINT 
+      &PRINT
         &RESTART OFF
         &END
       &END

@@ -22,7 +22,7 @@
       MAX_SCF 30
       EPS_SCF 1.0E-5
       SCF_GUESS mopac
-      &OT 
+      &OT
         MINIMIZER CG
         LINESEARCH 3PNT
         PRECONDITIONER FULL_SINGLE_INVERSE

@@ -54,7 +54,7 @@
       PERIODIC NONE
     &END CELL
     &COORD
-  H       0.0   0.0   0.0 
+  H       0.0   0.0   0.0
   H       5.0   0.0   0.0
     &END COORD
     &KIND H

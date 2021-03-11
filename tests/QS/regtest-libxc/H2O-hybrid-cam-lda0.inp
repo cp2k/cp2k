@@ -16,20 +16,20 @@
     &END
     &SCF
       EPS_SCF 1.0E-6
-      SCF_GUESS ATOMIC 
+      SCF_GUESS ATOMIC
       MAX_SCF 2
     &END SCF
     &XC
       DENSITY_CUTOFF 1.0e-9
       DENSITY_SMOOTH_CUTOFF_RANGE 0
       FUNCTIONAL_ROUTINE NEW
-      &XC_FUNCTIONAL      
+      &XC_FUNCTIONAL
         &HYB_LDA_XC_CAM_LDA0
         &END HYB_LDA_XC_CAM_LDA0
       &END XC_FUNCTIONAL
       &HF
         &SCREENING
-          EPS_SCHWARZ 1.0E-10 
+          EPS_SCHWARZ 1.0E-10
         &END
         &INTERACTION_POTENTIAL
           OMEGA 0.333333333333
@@ -38,7 +38,7 @@
           SCALE_COULOMB   0.25
         &END INTERACTION_POTENTIAL
         &MEMORY
-          MAX_MEMORY  5 
+          MAX_MEMORY  5
         &END
         FRACTION 1.0
       &END
@@ -67,5 +67,5 @@
 &GLOBAL
   PROJECT H2O-hybrid-cam-lda0
 #  TRACE
-  PRINT_LEVEL MEDIUM 
+  PRINT_LEVEL MEDIUM
 &END GLOBAL

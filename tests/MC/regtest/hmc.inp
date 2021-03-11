@@ -11,8 +11,8 @@
         CHARGE 0.0
       &END CHARGE
       &NONBONDED
-        &LENNARD-JONES 
-  	  ATOMS Ar Ar
+        &LENNARD-JONES
+      ATOMS Ar Ar
           EPSILON 114.98
           SIGMA 3.4
           RCUT 17.0
@@ -1161,7 +1161,7 @@ Ar                8.3845        21.9484         4.3317
         PMROT_MOL 1.0
       &END MOL_PROBABILITIES
       &BOX_PROBABILITIES
-        PMVOL_BOX 1.0 
+        PMVOL_BOX 1.0
         PMHMC_BOX 1.0
       &END BOX_PROBABILITIES
     &END MOVE_PROBABILITIES
@@ -1171,21 +1171,21 @@ Ar                8.3845        21.9484         4.3317
     &END MOVE_UPDATES
     &MAX_DISPLACEMENTS
       &MOL_DISPLACEMENTS
-        RMDIHEDRAL 3.0 
-        RMANGLE 10.0 
-        RMBOND 0.074 
-        RMROT 26.0 
-        RMTRANS 0.58 
+        RMDIHEDRAL 3.0
+        RMANGLE 10.0
+        RMBOND 0.074
+        RMROT 26.0
+        RMTRANS 0.58
       &END MOL_DISPLACEMENTS
       &BOX_DISPLACEMENTS
         RMVOLUME 500.0
       &END BOX_DISPLACEMENTS
     &END MAX_DISPLACEMENTS
     &AVBMC
-      AVBMC_ATOM 1 
-      AVBMC_RMIN 1.0 
-      AVBMC_RMAX 5.0 
-      PBIAS 0.5 
+      AVBMC_ATOM 1
+      AVBMC_RMIN 1.0
+      AVBMC_RMAX 5.0
+      PBIAS 0.5
     &END AVBMC
   &END MC
    &MD

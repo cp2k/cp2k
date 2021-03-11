@@ -48,7 +48,7 @@
           PRIOR MEAN
          &END
          !
-         !          learning settings 
+         !          learning settings
          !
          !          MIXING 0.3
          !          MAX_PAO 200000
@@ -217,12 +217,12 @@
         MD 1
       &END EACH
     &END TRAJECTORY
-    &VELOCITIES 
+    &VELOCITIES
       &EACH
         MD 1
       &END EACH
     &END VELOCITIES
-    &FORCES 
+    &FORCES
       &EACH
         MD 1
       &END EACH

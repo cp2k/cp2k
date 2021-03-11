@@ -80,7 +80,7 @@
   &PRINT
     &RESTART OFF
     &END
-    &TRAJECTORY 
+    &TRAJECTORY
     &END
     &VELOCITIES OFF
     &END

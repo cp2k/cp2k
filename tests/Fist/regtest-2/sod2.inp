@@ -8,7 +8,7 @@
         K 0.5
         R0 [angstrom] 1.59
       &END BOND
-      
+
       &BEND
         ATOMS Si O Si
         KIND HARMONIC
@@ -21,7 +21,7 @@
         K 0.0
         THETA0 0.0
       &END BEND
-      
+
       &CHARGE
         ATOM Si
         CHARGE 1
@@ -37,7 +37,7 @@
       &END SPLINE
       &NONBONDED
         &GENPOT
-          ATOMS Si Si 
+          ATOMS Si Si
           FUNCTION 1*exp(-r/2.0)
           VARIABLES r
         &END GENPOT
@@ -60,7 +60,7 @@
         &END GENPOT
       &END NONBONDED14
     &END FORCEFIELD
-    
+
     &POISSON
       &EWALD
         EWALD_TYPE NONE

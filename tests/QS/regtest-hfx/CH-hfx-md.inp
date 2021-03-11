@@ -13,7 +13,7 @@
     &END QS
     &SCF
       SCF_GUESS ATOMIC
-      MAX_SCF 5 
+      MAX_SCF 5
     &END SCF
     &XC
        &XC_FUNCTIONAL NONE
@@ -34,7 +34,7 @@
       ABC 5.0 5.0 5.0
     &END CELL
     &COORD
-     C   0.000000    0.000000    0.1581 
+     C   0.000000    0.000000    0.1581
      H   0.000000    0.000000    -0.9487
     &END COORD
     &KIND H
@@ -50,8 +50,8 @@
 &GLOBAL
   PROJECT CH-hfx-md
 #  TRACE
-  RUN_TYPE MD 
-  PRINT_LEVEL MEDIUM 
+  RUN_TYPE MD
+  PRINT_LEVEL MEDIUM
 &END GLOBAL
 &MOTION
  &MD

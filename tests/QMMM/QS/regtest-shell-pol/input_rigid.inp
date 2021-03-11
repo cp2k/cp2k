@@ -29,7 +29,7 @@
       &CHARGE
          ATOM K
          CHARGE 1.0
-      &END CHARGE 
+      &END CHARGE
       &CHARGE
          ATOM KZ
          CHARGE 0.0
@@ -46,7 +46,7 @@
           C [eV*angstrom^6] 0.0
           RCUT [angstrom] 5.0
         &END WILLIAMS
-	&WILLIAMS
+  &WILLIAMS
           atoms K   ClZ
           A [eV] 4117.9
           B [angstrom^-1] 3.2808
@@ -60,7 +60,7 @@
           C [eV*angstrom^6] 0.0
           RCUT [angstrom] 5.0
         &END WILLIAMS
-	&WILLIAMS
+  &WILLIAMS
           atoms KZ  ClZ
           A [eV] 4117.9
           B [angstrom^-1] 3.2808
@@ -89,7 +89,7 @@
           RCUT [angstrom] 10.0
         &END WILLIAMS
         &WILLIAMS
-          atoms K   K  
+          atoms K   K
           A [eV] 3796.9
           B [angstrom^-1] 3.84172
           C [eV*angstrom^6] 124.0

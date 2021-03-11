@@ -12,7 +12,7 @@
   &END DFT
   &SUBSYS
     &CELL
-#CuSbS_2 & F5_6 & oP16 & Pnma-D_{2h}^{16} #62 & Strukturbereicht III, p. 75 
+#CuSbS_2 & F5_6 & oP16 & Pnma-D_{2h}^{16} #62 & Strukturbereicht III, p. 75
       A  6.00000000  0.00000000  0.00000000
       B  0.00000000  3.78000000  0.00000000
       C  0.00000000  0.00000000 14.45000000

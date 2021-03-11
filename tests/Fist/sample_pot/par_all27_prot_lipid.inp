@@ -100,15 +100,15 @@ C    C     600.000     1.3350 ! ALLOW ARO HEM
                 ! Heme vinyl substituent (KK, from propene (JCS))
 CA   CA    305.000     1.3750 ! ALLOW   ARO
                 ! benzene, JES 8/25/89
-CE1  CE1   440.000     1.3400   ! 
+CE1  CE1   440.000     1.3400   !
 ! for butene; from propene, yin/adm jr., 12/95
-CE1  CE2   500.000     1.3420   ! 
+CE1  CE2   500.000     1.3420   !
 ! for propene, yin/adm jr., 12/95
-CE1  CT2   365.000     1.5020   ! 
+CE1  CT2   365.000     1.5020   !
 ! for butene; from propene, yin/adm jr., 12/95
-CE1  CT3   383.000     1.5040   ! 
+CE1  CT3   383.000     1.5040   !
 ! for butene, yin/adm jr., 12/95
-CE2  CE2   510.000     1.3300   ! 
+CE2  CE2   510.000     1.3300   !
 ! for ethene, yin/adm jr., 12/95
 CP1  C     250.000     1.4900 ! ALLOW PRO
                 ! 6-31g* AcProNH2, ProNH2, 6-31g*//3-21g AcProNHCH3 RLD 4/23/93
@@ -214,9 +214,9 @@ HA   CT3   322.000     1.1110 ! ALLOW   ALI
                 ! alkane update, adm jr., 3/2/92
 HA   CY    330.000     1.0800 ! ALLOW   ARO
                 ! JWK 05/14/91 new r0 from indole
-HE1  CE1   360.500     1.1000   ! 
+HE1  CE1   360.500     1.1000   !
 ! for propene, yin/adm jr., 12/95
-HE2  CE2   365.000     1.1000   ! 
+HE2  CE2   365.000     1.1000   !
 ! for ethene, yin/adm jr., 12/95
 HB   CP1   330.000     1.0800 ! ALLOW PRO
                 ! 6-31g* AcProNH2, ProNH2, 6-31g*//3-21g AcProNHCH3 RLD 4/23/93
@@ -432,13 +432,13 @@ ANGLES
 !
 CA   CA   CA    40.000    120.00   35.00   2.41620 ! ALLOW   ARO
                 ! JES 8/25/89
-CE1  CE1  CT3    48.00    123.50   ! 
+CE1  CE1  CT3    48.00    123.50   !
 ! for 2-butene, yin/adm jr., 12/95
-CE1  CT2  CT3    32.00    112.20   ! 
+CE1  CT2  CT3    32.00    112.20   !
 ! for 1-butene; from propene, yin/adm jr., 12/95
-CE2  CE1  CT2    48.00    126.00   ! 
+CE2  CE1  CT2    48.00    126.00   !
 ! for 1-butene; from propene, yin/adm jr., 12/95
-CE2  CE1  CT3    47.00    125.20   ! 
+CE2  CE1  CT3    47.00    125.20   !
 ! for propene, yin/adm jr., 12/95
 CP1  N    C      60.000   117.0000 ! ALLOW PRO
                 ! 6-31g* AcProNH2, ProNH2, 6-31g*//3-21g AcProNHCH3 RLD 4/23/93
@@ -680,7 +680,7 @@ HA   CT2  CC    33.000    109.50   30.00   2.16300 ! ALLOW   ALI PEP POL ARO
                 ! adm jr. 4/05/91, for asn,asp,gln,glu and cters
 HA   CT2  CD    33.000    109.50   30.00   2.16300 ! ALLOW   ALI PEP POL ARO
                 ! adm jr. 5/02/91, acetic acid pure solvent
-HA   CT2  CE1    45.00    111.50   ! 
+HA   CT2  CE1    45.00    111.50   !
 ! for 1-butene; from propene, yin/adm jr., 12/95
 HA   CT2  CPB    50.000   109.5000 ! ALLOW HEM
                 ! Heme (6-liganded): substituents (KK 05/13/91)
@@ -704,7 +704,7 @@ HA   CT3  CC    33.000    109.50   30.00   2.16300 ! ALLOW   ALI PEP POL ARO
                 ! adm jr. 4/05/91, for asn,asp,gln,glu and cters
 HA   CT3  CD    33.000    109.50   30.00   2.16300 ! ALLOW   ALI PEP POL ARO
                 ! adm jr. 5/02/91, acetic acid pure solvent
-HA   CT3  CE1    42.00    111.50   ! 
+HA   CT3  CE1    42.00    111.50   !
 ! for 2-butene, yin/adm jr., 12/95
 HA   CT3  CPB    50.000   109.5000 ! ALLOW HEM
                 ! Heme (6-liganded): substituents (KK 05/13/91)
@@ -724,19 +724,19 @@ HA   CY   CA    20.000    126.40   25.00   2.18600 ! ALLOW   ARO
                 ! JWK 05/14/91 new theta0 and r0UB from indole
 HA   CY   CPT   32.000    126.40   25.00   2.25500 ! ALLOW   ARO
                 ! JWK 05/14/91 new theta0 and r0UB from indole
-HE1  CE1  CE1    52.00    119.50   ! 
+HE1  CE1  CE1    52.00    119.50   !
 ! for 2-butene, yin/adm jr., 12/95
-HE1  CE1  CE2    42.00    118.00   ! 
+HE1  CE1  CE2    42.00    118.00   !
 ! for propene, yin/adm jr., 12/95
-HE1  CE1  CT2    40.00    116.00   ! 
+HE1  CE1  CT2    40.00    116.00   !
 ! for 1-butene; from propene, yin/adm jr., 12/95
-HE1  CE1  CT3    22.00    117.00   ! 
+HE1  CE1  CT3    22.00    117.00   !
 ! for propene, yin/adm jr., 12/95
-HE2  CE2  CE1    45.00    120.50   ! 
+HE2  CE2  CE1    45.00    120.50   !
 ! for propene, yin/adm jr., 12/95
-HE2  CE2  CE2    55.50    120.50   ! 
+HE2  CE2  CE2    55.50    120.50   !
 ! for ethene, yin/adm jr., 12/95
-HE2  CE2  HE2    19.00    119.00   ! 
+HE2  CE2  HE2    19.00    119.00   !
 ! for propene, yin/adm jr., 12/95
 HB   CP1  C      50.000   112.0000 ! ALLOW PEP PRO
                 ! 6-31g* AcProNH2, ProNH2, 6-31g*//3-21g AcProNHCH3 RLD 4/23/93
@@ -1255,13 +1255,13 @@ CD   CT1  NH1  C        0.2000  1   180.00 ! ALLOW PEP POL
                 ! ala dipeptide update for new C VDW Rmin, adm jr., 3/3/93c
 CD   CT2  NH1  C        0.2000  1   180.00 ! ALLOW PEP POL
                 ! Alanine dipeptide; NMA; acetate; etc. backbon adm jr., 3/3/93c
-CE1  CE1  CT3  HA       0.0300  3     0.00 ! 
+CE1  CE1  CT3  HA       0.0300  3     0.00 !
 ! for butene, yin/adm jr., 12/95
-CE2  CE1  CT2  CT3      0.5000  3     0.00 ! 
+CE2  CE1  CT2  CT3      0.5000  3     0.00 !
 ! for butene, yin/adm jr., 12/95
-CE2  CE1  CT2  HA       0.1200  3     0.00 ! 
+CE2  CE1  CT2  HA       0.1200  3     0.00 !
 ! for butene, yin/adm jr., 12/95
-CE2  CE1  CT3  HA       0.0500  3   180.00 ! 
+CE2  CE1  CT3  HA       0.0500  3   180.00 !
 ! for propene, yin/adm jr., 12/95
 CP1  C    N    CP1      2.7500  2   180.00 ! ALLOW PRO
                 ! 6-31g* AcProNH2, ProNH2, 6-31g*//3-21g AcProNHCH3 RLD 4/23/93
@@ -1413,7 +1413,7 @@ CT3  C    NH1  CT3      2.5000  2   180.00 !  ALLOW PEP
                 ! Gives appropriate NMA cis/trans barrier. (LK)
 CT3  CA   CA   CA       3.1000  2   180.00 ! ALLOW   ARO
                 ! toluene, adm jr., 3/7/92
-CT3  CE1  CE2  HE2      5.2000  2   180.00 ! 
+CT3  CE1  CE2  HE2      5.2000  2   180.00 !
 ! for propene, yin/adm jr., 12/95
 CT3  CPH1 NR1  CPH2     3.0000  2   180.00 ! ALLOW ARO
                 ! his, ADM JR., 7/22/89, FROM HA CPH1 NR1 CPH2
@@ -1611,15 +1611,15 @@ HA   CY   CPT  CA       3.0000  2   180.00 ! ALLOW   ARO
                 ! JWK 09/05/89
 HA   CY   CPT  CPT      3.0000  2   180.00 ! ALLOW   ARO
                 ! JWK 09/05/89
-HE1  CE1  CE2  HE2      5.2000  2   180.00 ! 
+HE1  CE1  CE2  HE2      5.2000  2   180.00 !
 ! for propene, yin/adm jr., 12/95
-HE1  CE1  CT2  HA       0.8700  3     0.00 ! 
+HE1  CE1  CT2  HA       0.8700  3     0.00 !
 ! for butene, yin/adm jr., 12/95
-HE1  CE1  CT2  CT3      0.1200  3     0.00 ! 
+HE1  CE1  CT2  CT3      0.1200  3     0.00 !
 ! for butene, yin/adm jr., 12/95
-HE1  CE1  CT3  HA       0.3400  3     0.00 ! 
+HE1  CE1  CT3  HA       0.3400  3     0.00 !
 ! for butene, yin/adm jr., 12/95
-HE2  CE2  CE1  CT2      5.2000  2   180.00 ! 
+HE2  CE2  CE1  CT2      5.2000  2   180.00 !
 ! for butene, yin/adm jr., 12/95
 HB   CP1  N    C        0.8000  3     0.00 ! ALLOW PRO PEP
                 ! 6-31g* AcProNH2, ProNH2, 6-31g*//3-21g AcProNHCH3 RLD 4/23/93
@@ -2021,9 +2021,9 @@ X    CD   OH1  X        2.0500  2   180.00 ! ALLOW   PEP POL ARO ALC
                 ! adm jr, 10/17/90, acetic acid C-Oh rotation barrier
 X    CD   OS   X        2.0500  2   180.00 ! ALLOW   PEP POL
                 ! adm jr. 3/19/92, from lipid methyl acetate
-X    CE1  CE1  X        5.2000  2   180.00 ! 
+X    CE1  CE1  X        5.2000  2   180.00 !
 ! for butene, yin/adm jr., 12/95
-X    CE2  CE2  X        4.9000  2   180.00 ! 
+X    CE2  CE2  X        4.9000  2   180.00 !
 ! for ethene, yin/adm jr., 12/95
 X    CP1  C    X        0.0000  6   180.00 ! ALLOW   POL PEP PRO
                 ! 6-31g* AcProNH2, ProNH2, 6-31g*//3-21g AcProNHCH3 RLD 4/23/93
@@ -2157,7 +2157,7 @@ CTL2 CTL2 CL   OSL     -0.15    1   180.00 ! methyl propionate, 12/92
 CTL2 CTL2 CL   OSL      0.53    2   180.00 ! methyl propionate, 12/92
 CTL3 CTL2 CL   OSL     -0.15    1   180.00 ! methyl propionate, 12/92
 CTL3 CTL2 CL   OSL      0.53    2   180.00 ! methyl propionate, 12/92
-X    CTL2 NTL  X        0.26    3     0.00 ! tetramethylammonium  
+X    CTL2 NTL  X        0.26    3     0.00 ! tetramethylammonium
 X    CTL5 NTL  X        0.23    3     0.00 ! tetramethylammonium
 X    CTL2 NH3L X        0.10    3     0.00 ! ethanolamine
 NH3L CTL2 CTL2 OHL      0.7     1   180.00 ! ethanolamine
@@ -2230,7 +2230,7 @@ HA   CPB  C    C      20.0000         0      0.0000 ! ALLOW HEM ARO
                 ! Heme (6-liganded): substituents (KK 05/13/91)
 HA   HA   C    C      20.0000         0    180.0000 ! ALLOW   PEP POL ARO
                 ! Heme vinyl substituent (KK, from propene (JCS))
-HE2  HE2  CE2  CE2     3.0            0      0.00   ! 
+HE2  HE2  CE2  CE2     3.0            0      0.00   !
 ! for ethene, yin/adm jr., 12/95
 HR1  NR1  NR2  CPH2    0.5000         0      0.0000 ! ALLOW ARO
                 ! his, adm jr., 7/05/90
@@ -2329,9 +2329,9 @@ CC     0.000000  -0.070000     2.000000 ! ALLOW   PEP POL ARO
                 ! adm jr. 3/3/92, acetic acid heat of solvation
 CD     0.000000  -0.070000     2.000000 ! ALLOW  POL
                 ! adm jr. 3/19/92, acetate a.i. and dH of solvation
-CE1    0.000000  -0.068000     2.090000 ! 
+CE1    0.000000  -0.068000     2.090000 !
 ! for propene, yin/adm jr., 12/95
-CE2    0.000000  -0.064000     2.080000 ! 
+CE2    0.000000  -0.064000     2.080000 !
 ! for ethene, yin/adm jr., 12/95
 CM     0.000000  -0.110000     2.100000 ! ALLOW HEM
                 ! Heme (6-liganded): CO ligand carbon (KK 05/13/91)
@@ -2384,9 +2384,9 @@ H      0.000000  -0.046000     0.224500 ! ALLOW PEP POL SUL ARO ALC
                 ! same as TIP3P hydrogen, adm jr., 7/20/89
 HA     0.000000  -0.022000     1.320000 ! ALLOW PEP ALI POL SUL ARO PRO ALC
                 ! methane/ethane a.i. and ethane pure solvent, adm jr, 2/3/92
-HE1    0.000000  -0.031000     1.250000 ! 
+HE1    0.000000  -0.031000     1.250000 !
 ! for propene, yin/adm jr., 12/95
-HE2    0.000000  -0.026000     1.260000 ! 
+HE2    0.000000  -0.026000     1.260000 !
 ! for ethene, yin/adm jr., 12/95
 HB     0.000000  -0.022000     1.320000 ! ALLOW PEP ALI POL SUL ARO PRO ALC
                 ! methane/ethane a.i. and ethane pure solvent, adm jr, 2/3/92
@@ -2405,16 +2405,16 @@ HS     0.000000  -0.100000     0.450000 ! ALLOW SUL
 HT     0.000000  -0.046000     0.224500 ! ALLOW WAT
                 !TIP3P HYDROGEN PARAMETERS, adm jr., NBFIX obsolete
 ! hydrogen wildcards
-!H*     0.000000  -0.046000     0.224500 
-!HA     0.000000  -0.022000     1.320000 
-!HE1    0.000000  -0.031000     1.250000 
-!HE2    0.000000  -0.026000     1.260000 
-!HB     0.000000  -0.022000     1.320000 
+!H*     0.000000  -0.046000     0.224500
+!HA     0.000000  -0.022000     1.320000
+!HE1    0.000000  -0.031000     1.250000
+!HE2    0.000000  -0.026000     1.260000
+!HB     0.000000  -0.022000     1.320000
 !HP     0.000000  -0.030000     1.358200   0.000000  -0.030000     1.358200
-!HR1    0.000000  -0.046000     0.900000 
-!HR2    0.000000  -0.046000     0.700000 
-!HR3    0.000000  -0.007800     1.468000 
-!HS     0.000000  -0.100000     0.450000 
+!HR1    0.000000  -0.046000     0.900000
+!HR2    0.000000  -0.046000     0.700000
+!HR3    0.000000  -0.007800     1.468000
+!HS     0.000000  -0.100000     0.450000
 !
 N      0.000000  -0.200000     1.850000   0.000000  -0.000100     1.850000 ! ALLOW   PRO
                 ! 6-31g* AcProNH2, ProNH2, 6-31g*//3-21g AcProNHCH3 RLD 4/23/93
@@ -2439,9 +2439,9 @@ NR3    0.000000  -0.200000     1.850000 ! ALLOW ARO
 NY     0.000000  -0.200000     1.850000 ! ALLOW   ARO
                 ! trp, JWK
 ! nitrogen wildcards
-!N*     0.000000  -0.200000     1.850000 
-!N      0.000000  -0.200000     1.850000   0.000000  -0.000100     1.850000 
-!NH1    0.000000  -0.200000     1.850000   0.000000  -0.200000     1.550000 
+!N*     0.000000  -0.200000     1.850000
+!N      0.000000  -0.200000     1.850000   0.000000  -0.000100     1.850000
+!NH1    0.000000  -0.200000     1.850000   0.000000  -0.200000     1.550000
 !
 O      0.000000  -0.120000     1.700000   0.000000  -0.120000     1.400000 ! ALLOW   PEP POL
                 ! This 1,4 vdW allows the C5 dipeptide minimum to exist.(LK)

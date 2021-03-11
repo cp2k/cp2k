@@ -11,7 +11,7 @@
     &QS
       EPS_DEFAULT 1.0E-12
       &DDAPC_RESTRAINT
-        ATOMS   1 
+        ATOMS   1
         TARGET -1.0
         STRENGTH 5.0
         TYPE_OF_DENSITY SPIN
@@ -29,7 +29,7 @@
       &END XC_FUNCTIONAL
     &END XC
     &DENSITY_FITTING
-    &END  
+    &END
     &PRINT
      &MULLIKEN
      &END

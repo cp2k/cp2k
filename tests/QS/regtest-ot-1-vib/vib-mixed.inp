@@ -1,5 +1,5 @@
 &MULTIPLE_FORCE_EVALS
-   FORCE_EVAL_ORDER 2 3 
+   FORCE_EVAL_ORDER 2 3
 &END
 &FORCE_EVAL
  METHOD MIXED
@@ -71,7 +71,7 @@
           FUNCTION A+B*EXP(-C*X)
           VARIABLES X
           PARAMETERS A B C
-          VALUES  0. 0.11  0.749685866 
+          VALUES  0. 0.11  0.749685866
           RCUT 7.
           RMIN 0.
           RMAX 10.

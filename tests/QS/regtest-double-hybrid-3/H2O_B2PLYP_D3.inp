@@ -1,4 +1,4 @@
-&GLOBAL                                                                                           
+&GLOBAL
   PROJECT  H2O_allelec
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
@@ -44,7 +44,7 @@
         FRACTION   0.53
         &SCREENING
           EPS_SCHWARZ 1.0E-8
-          SCREEN_ON_INITIAL_P FALSE 
+          SCREEN_ON_INITIAL_P FALSE
         &END SCREENING
       &END HF
       &WF_CORRELATION
