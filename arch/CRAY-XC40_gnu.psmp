@@ -1,6 +1,6 @@
 # Tested with: GFortran 8.3.0, MPICH 3.2.1, Cray-libsci 20.06.1, Cray-FFTW 3.3.8, Libint 2.6.0,
-#              Libxc 5.1.0, libxsmm 1.16.1, ELPA 2020.11.001, PLUMED 2.6.2, SPGLIB 1.16.0
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, January 2021)
+#              LIBXC 5.1.2, LIBVORI 201229, LIBXSMM 1.16.1, ELPA 2020.11.001, PLUMED 2.6.2, SPGLIB 1.16.0
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, March 2021)
 
 # Cray XC40 (Piz Daint, CSCS, multi-core partition)
 
@@ -21,14 +21,16 @@ AR          = ar -r
 include       $(MPI_PATH)/plumed2/2.6.2/lib/plumed/src/lib/Plumed.inc.static
 
 ELPA_VER    = 2020.11.001
-ELPA_INC    = $(MPI_PATH)/elpa/$(ELPA_VER)/include/elpa_openmp-$(ELPA_VER)
+ELPA_INC    = $(MPI_PATH)/elpa/$(ELPA_VER)/include/elpa-$(ELPA_VER)
 ELPA_LIB    = $(MPI_PATH)/elpa/$(ELPA_VER)/lib
 
 LIBINT_INC  = $(GNU_PATH)/libint/2.6.0-lmax-6/include
 LIBINT_LIB  = $(GNU_PATH)/libint/2.6.0-lmax-6/lib
 
-LIBXC_INC   = $(GNU_PATH)/libxc/5.1.0/include
-LIBXC_LIB   = $(GNU_PATH)/libxc/5.1.0/lib
+LIBVORI_LIB = $(GNU_PATH)/libvori/201229/lib
+
+LIBXC_INC   = $(GNU_PATH)/libxc/5.1.2/include
+LIBXC_LIB   = $(GNU_PATH)/libxc/5.1.2/lib
 
 LIBXSMM_INC = $(GNU_PATH)/libxsmm/1.16.1/include
 LIBXSMM_LIB = $(GNU_PATH)/libxsmm/1.16.1/lib
@@ -41,6 +43,7 @@ CFLAGS      = -O3 -fopenmp -ftree-vectorize -funroll-loops -g
 DFLAGS      = -D__ELPA
 DFLAGS     += -D__FFTW3
 DFLAGS     += -D__LIBINT
+DFLAGS     += -D__LIBVORI
 DFLAGS     += -D__LIBXC
 DFLAGS     += -D__LIBXSMM
 DFLAGS     += -D__MAX_CONTR=4
@@ -66,7 +69,8 @@ FCFLAGS    += -I$(SPGLIB_INC)
 LDFLAGS     = $(FCFLAGS) -static
 
 LIBS        = $(PLUMED_DEPENDENCIES) -lz
-LIBS       += $(ELPA_LIB)/libelpa_openmp.a
+LIBS       += $(ELPA_LIB)/libelpa.a
+LIBS       += $(LIBVORI_LIB)/libvori.a
 LIBS       += $(LIBXC_LIB)/libxcf03.a
 LIBS       += $(LIBXC_LIB)/libxc.a
 LIBS       += $(LIBINT_LIB)/libint2.a
