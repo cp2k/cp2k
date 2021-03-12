@@ -31,7 +31,7 @@ LIBXSMM_LIB = $(GNU_PATH)/libxsmm/1.16.1/lib
 SPGLIB_INC  = $(GNU_PATH)/spglib/1.16.0/include
 SPGLIB_LIB  = $(GNU_PATH)/spglib/1.16.0/lib
 
-CFLAGS      = -O2 -fopenmp -ftree-vectorize -funroll-loops -g -march=native -mtune=native
+CFLAGS      = -O3 -fopenmp -ftree-vectorize -funroll-loops -g -march=native -mtune=native
 
 DFLAGS      = -D__ELPA
 DFLAGS     += -D__FFTW3
