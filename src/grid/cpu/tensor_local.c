@@ -28,8 +28,7 @@ size_t realloc_tensor(tensor *t) {
   t->data = NULL;
 
   if (t->data == NULL) {
-    t->data =
-        aligned_alloc(sysconf(_SC_PAGESIZE), sizeof(double) * t->alloc_size_);
+    t->data = malloc(sizeof(double) * t->alloc_size_);
     if (!t->data)
       abort();
     t->old_alloc_size_ = t->alloc_size_;
@@ -43,8 +42,7 @@ void alloc_tensor(tensor *t) {
     abort();
   }
 
-  t->data =
-      aligned_alloc(sysconf(_SC_PAGESIZE), sizeof(double) * t->alloc_size_);
+  t->data = malloc(sizeof(double) * t->alloc_size_);
   if (!t->data)
     abort();
   t->old_alloc_size_ = t->alloc_size_;

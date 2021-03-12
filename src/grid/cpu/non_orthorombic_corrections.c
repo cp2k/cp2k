@@ -119,8 +119,8 @@ void calculate_non_orthorombic_corrections_tensor(
   initialize_tensor_3(Exp, 3, max_elem, max_elem);
   realloc_tensor(Exp);
 
-  x1 = aligned_alloc(64, sizeof(double) * max_elem);
-  x2 = aligned_alloc(64, sizeof(double) * max_elem);
+  x1 = grid_allocate_scratch(sizeof(double) * max_elem);
+  x2 = grid_allocate_scratch(sizeof(double) * max_elem);
   initialize_tensor_2(&exp_tmp, Exp->size[1], Exp->size[2]);
 
   memset(&idx3(Exp[0], 0, 0, 0), 0, sizeof(double) * Exp->alloc_size_);
@@ -142,8 +142,8 @@ void calculate_non_orthorombic_corrections_tensor(
              &exp_tmp);
     }
   }
-  free(x1);
-  free(x2);
+  grid_free_scratch(x1);
+  grid_free_scratch(x2);
 }
 
 void calculate_non_orthorombic_corrections_tensor_blocked(
@@ -198,8 +198,8 @@ void calculate_non_orthorombic_corrections_tensor_blocked(
                                 block_size[2]};
 
   const int max_elem = imax(imax(cube_size[0], cube_size[1]), cube_size[2]);
-  x1 = aligned_alloc(64, sizeof(double) * max_elem);
-  x2 = aligned_alloc(64, sizeof(double) * max_elem);
+  x1 = grid_allocate_scratch(sizeof(double) * max_elem);
+  x2 = grid_allocate_scratch(sizeof(double) * max_elem);
 
   initialize_tensor_4(Exp, 3,
                       imax(upper_corner[0] - lower_corner[0],
@@ -248,8 +248,8 @@ void calculate_non_orthorombic_corrections_tensor_blocked(
     }
   }
 
-  free(x1);
-  free(x2);
+  grid_free_scratch(x1);
+  grid_free_scratch(x2);
   /* free(exp_tmp.data); */
 }
 
