@@ -115,7 +115,7 @@ static inline tensor *create_tensor(const int dim, const int *sizes) {
     abort();
 
   initialize_tensor(a, dim, sizes);
-  a->data = (double *)aligned_alloc(64, sizeof(double) * a->alloc_size_);
+  a->data = (double *)malloc(sizeof(double) * a->alloc_size_);
   if (a->data == NULL)
     abort();
   a->old_alloc_size_ = a->alloc_size_;

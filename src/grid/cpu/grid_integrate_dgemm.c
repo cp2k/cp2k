@@ -1068,8 +1068,7 @@ void grid_cpu_integrate_task_list(
   const int max_threads = omp_get_max_threads();
 
   if (ctx->scratch == NULL)
-    ctx->scratch =
-        aligned_alloc(sysconf(_SC_PAGESIZE), hab_blocks->size * max_threads);
+    ctx->scratch = malloc(hab_blocks->size * max_threads);
 
   ctx->orthorhombic = orthorhombic;
 

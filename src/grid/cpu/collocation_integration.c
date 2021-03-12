@@ -108,8 +108,7 @@ void initialize_W_and_T(collocation_integration *const handler,
 
     if (handler->scratch)
       free(handler->scratch);
-    handler->scratch =
-        aligned_alloc(64, sizeof(double) * handler->scratch_alloc_size);
+    handler->scratch = malloc(sizeof(double) * handler->scratch_alloc_size);
     if (handler->scratch == NULL)
       abort();
   }
@@ -139,8 +138,7 @@ void initialize_W_and_T_integrate(collocation_integration *const handler,
 
     if (handler->scratch)
       free(handler->scratch);
-    handler->scratch =
-        aligned_alloc(64, sizeof(double) * handler->scratch_alloc_size);
+    handler->scratch = malloc(sizeof(double) * handler->scratch_alloc_size);
     if (handler->scratch == NULL)
       abort();
   }
