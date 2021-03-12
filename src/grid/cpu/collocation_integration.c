@@ -43,8 +43,7 @@ struct collocation_integration_ *collocate_create_handle(void) {
   handle->coef_alloc_size = realloc_tensor(&handle->coef);
   handle->pol_alloc_size = realloc_tensor(&handle->pol);
 
-  handle->scratch =
-      aligned_alloc(sysconf(_SC_PAGESIZE), sizeof(double) * 32768);
+  handle->scratch = malloc(32768 * sizeof(double));
   handle->scratch_alloc_size = 32768;
   handle->T_alloc_size = 8192;
   handle->W_alloc_size = 2048;
@@ -75,6 +74,8 @@ void collocate_destroy_handle(void *gaussian_handle) {
   free(handle->scratch);
   free(handle->pol.data);
   free(handle->cube.data);
+  free(handle->alpha.data);
+  free(handle->coef.data);
   free(handle->blocks_coordinates.data);
   handle->alpha.data = NULL;
   handle->coef.data = NULL;
