@@ -1016,6 +1016,10 @@ void integrate_one_grid_level_dgemm(
           cblas_daxpy(forces_local_.alloc_size_, 1.0, forces_local_.data, 1,
                       forces_->data, 1);
         }
+      } else {
+        // we are running with OMP_NUM_THREADS=1
+        cblas_daxpy(forces_local_.alloc_size_, 1.0, forces_local_.data, 1,
+                    forces_->data, 1);
       }
     }
 
