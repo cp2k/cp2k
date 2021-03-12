@@ -423,7 +423,7 @@ void destroy_grid_context_cpu(void *ptr) {
   free(ctx->tasks[0]);
   free(ctx->tasks);
   free(ctx->tasks_per_level);
-
+  free(ctx->grid);
   if (ctx->device_id)
     free(ctx->device_id);
 
@@ -431,6 +431,7 @@ void destroy_grid_context_cpu(void *ptr) {
     for (int i = 0; i < ctx->number_of_handler; i++) {
       collocate_destroy_handle(ctx->handler[i]);
     }
+    free(ctx->handler);
   }
 
   free(ctx);
