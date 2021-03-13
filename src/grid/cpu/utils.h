@@ -147,7 +147,7 @@ static inline void grid_free_scratch(void *ptr) {
 #endif
 }
 
-/* even openblas has cblas versions of lapack and blas. */
+/* even openblas and lapack has cblas versions of lapack and blas. */
 #ifndef __MKL
 enum CBLAS_LAYOUT { CblasRowMajor = 101, CblasColMajor = 102 };
 enum CBLAS_TRANSPOSE {

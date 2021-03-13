@@ -427,6 +427,7 @@ void apply_spherical_cutoff_generic(
               &idx3(handler->cube, position1[0], position1[1], position1[2]);
 
           const int sizex = upper_corner[2] - lower_corner[2];
+          GRID_PRAGMA_UNROLL(4)
 #pragma GCC ivdep
           for (int x = 0; x < sizex; x++) {
             dst[x] += src[x];
@@ -464,6 +465,7 @@ void collocate_l0(double *scratch, const double alpha, const bool orthogonal_xy,
       const double *__restrict src = &idx2(exp_xy[0], y, 0);
       double *__restrict dst = &scratch[y * cube->ld_];
 #pragma GCC ivdep
+      GRID_PRAGMA_UNROLL(4)
       for (int x = 0; x < cube->size[2]; x++) {
         dst[x] *= src[x];
       }
@@ -651,7 +653,7 @@ void apply_mapping_cubic(struct collocation_integration_ *handler,
   int **map = handler->map;
   map[1] = map[0] + 2 * cmax + 1;
   map[2] = map[1] + 2 * cmax + 1;
-  // memset(map[0], 0xff, sizeof(int) * 3 * (2 * cmax + 1));
+
   for (int i = 0; i < 3; i++) {
     for (int ig = 0; ig < handler->cube.size[i]; ig++) {
       map[i][ig] = modulo(cube_center[i] + ig + lower_boundaries_cube[i] -
