@@ -16,6 +16,10 @@
 #include <libxsmm.h>
 #endif
 
+#ifdef __MKL
+#include <mkl.h>
+#endif
+
 #include "../common/grid_common.h"
 #include "tensor_local.h"
 #include "utils.h"
@@ -219,25 +223,6 @@ void add_sub_grid(const int *lower_corner, const int *upper_corner,
     position1[1] = position[1];
     position1[2] = position[2];
   }
-  for (int d = 0; d < 3; d++) {
-    if ((lower_corner[d] < grid->window_shift[d]) || (lower_corner[d] < 0) ||
-        (lower_corner[d] >= upper_corner[d]) || (upper_corner[d] <= 0) ||
-        (upper_corner[d] - lower_corner[d] > subgrid->size[d]) ||
-        (grid == NULL) || (subgrid == NULL)) {
-      printf("Error : invalid parameters. Values of the given parameters along "
-             "the first wrong dimension\n");
-      printf("      : lorner corner  [%d] = %d\n", d, lower_corner[d]);
-      printf("      : upper  corner  [%d] = %d\n", d, upper_corner[d]);
-      printf("      : diff           [%d] = %d\n", d,
-             upper_corner[d] - lower_corner[d]);
-      printf("      : src grid size  [%d] = %d\n", d, subgrid->size[d]);
-      printf("      : dst grid size  [%d] = %d\n", d, grid->size[d]);
-      printf("      : window dst grid size  [%d] = %d\n", d,
-             grid->window_size[d]);
-      printf("      : window dst shift  [%d] = %d\n", d, grid->window_shift[d]);
-      abort();
-    }
-  }
 
   const int sizex = upper_corner[2] - lower_corner[2];
   const int sizey = upper_corner[1] - lower_corner[1];
@@ -253,6 +238,7 @@ void add_sub_grid(const int *lower_corner, const int *upper_corner,
 #ifdef __LIBXSMM
       LIBXSMM_PRAGMA_SIMD
 #else
+      GRID_PRAGMA_UNROLL(4)
 #pragma GCC ivdep
 #endif
       for (int x = 0; x < sizex; x++) {
@@ -263,6 +249,7 @@ void add_sub_grid(const int *lower_corner, const int *upper_corner,
       src += subgrid->ld_;
     }
 
+    GRID_PRAGMA_UNROLL(4)
 #pragma GCC ivdep
     for (int x = 0; x < sizex; x++) {
       dst[x] += src[x];
@@ -402,6 +389,14 @@ void verify_orthogonality(const double dh[3][3], bool orthogonal[3]) {
 }
 
 #ifndef __MKL
+extern void dger_(const int *M, const int *N, const double *alpha,
+                  const double *X, const int *incX, const double *Y,
+                  const int *incY, double *A, const int *lda);
+extern void dgemv_(const char *Trans, const int *M, const int *N,
+                   const double *alpha, const double *A, const int *lda,
+                   const double *X, const int *incX, const double *beta,
+                   double *Y, const int *incY);
+
 void cblas_daxpy(const int N, const double alpha, const double *X,
                  const int incX, double *Y, const int incY) {
   if ((incX == 1) && (incY == 1)) {
@@ -476,39 +471,9 @@ void cblas_dger(const CBLAS_LAYOUT Layout, const int M, const int N,
                 const double alpha, const double *X, const int incX,
                 const double *Y, const int incY, double *A, const int lda) {
   if (Layout == CblasRowMajor) {
-    for (int i = 0; i < M; i++) {
-      const double x = alpha * X[i + incX];
-      if (incY == 1) {
-        double *restrict dst = &A[i * lda];
-        const double *restrict y = Y;
-        for (int k = 0; k < N; k++) {
-          dst[k] += y[k] * x;
-        }
-      } else {
-        double *restrict dst = &A[i * lda];
-        const double *restrict y = Y;
-        for (int k = 0; k < N; k++) {
-          dst[k] += y[k + incY] * x;
-        }
-      }
-    }
+    dger_(&N, &M, &alpha, Y, &incY, X, &incX, A, &lda);
   } else {
-    for (int j = 0; j < N; j++) {
-      const double y = alpha * Y[j + incY];
-      if (incX == 1) {
-        double *restrict dst = &A[j * lda];
-        const double *restrict x = X;
-        for (int k = 0; k < M; k++) {
-          dst[k] += x[k] * y;
-        }
-      } else {
-        double *restrict dst = &A[j * lda];
-        const double *restrict x = X;
-        for (int k = 0; k < M; k++) {
-          dst[k] += x[k + incX] * y;
-        }
-      }
-    }
+    dger_(&N, &M, &alpha, X, &incX, Y, &incY, A, &lda);
   }
 }
 
@@ -518,75 +483,20 @@ void cblas_dgemv(const CBLAS_LAYOUT order, const CBLAS_TRANSPOSE TransA,
                  const int M, const int N, const double alpha, const double *A,
                  const int lda, const double *X, const int incX,
                  const double beta, double *Y, const int incY) {
-  int i, j;
-  int lenX, lenY;
-#define OFFSET(N, incX) ((incX) > 0 ? 0 : ((N)-1) * (-(incX)))
 
-  const int Trans = (TransA != CblasConjTrans) ? TransA : CblasTrans;
-
-  if (M == 0 || N == 0)
-    return;
-
-  if (alpha == 0.0 && beta == 1.0)
-    return;
-
-  if (Trans == CblasNoTrans) {
-    lenX = N;
-    lenY = M;
+  if (order == CblasColMajor) {
+    if (TransA == CblasTrans)
+      dgemv_("T", &M, &N, &alpha, A, &lda, X, &incX, &beta, Y, &incY);
+    else {
+      dgemv_("N", &M, &N, &alpha, A, &lda, X, &incX, &beta, Y, &incY);
+    }
   } else {
-    lenX = M;
-    lenY = N;
-  }
-
-  /* form  y := beta*y */
-  if (beta == 0.0) {
-    int iy = OFFSET(lenY, incY);
-    for (i = 0; i < lenY; i++) {
-      Y[iy] = 0.0;
-      iy += incY;
-    }
-  } else if (beta != 1.0) {
-    int iy = OFFSET(lenY, incY);
-    for (i = 0; i < lenY; i++) {
-      Y[iy] *= beta;
-      iy += incY;
+    if (TransA == CblasTrans)
+      dgemv_("N", &N, &M, &alpha, A, &lda, X, &incX, &beta, Y, &incY);
+    else {
+      dgemv_("T", &N, &M, &alpha, A, &lda, X, &incX, &beta, Y, &incY);
     }
   }
-
-  if (alpha == 0.0)
-    return;
-
-  if ((order == CblasRowMajor && Trans == CblasNoTrans) ||
-      (order == CblasColMajor && Trans == CblasTrans)) {
-    /* form  y := alpha*A*x + y */
-    int iy = OFFSET(lenY, incY);
-    for (i = 0; i < lenY; i++) {
-      double temp = 0.0;
-      int ix = OFFSET(lenX, incX);
-      for (j = 0; j < lenX; j++) {
-        temp += X[ix] * A[lda * i + j];
-        ix += incX;
-      }
-      Y[iy] += alpha * temp;
-      iy += incY;
-    }
-  } else if ((order == CblasRowMajor && Trans == CblasTrans) ||
-             (order == CblasColMajor && Trans == CblasNoTrans)) {
-    /* form  y := alpha*A'*x + y */
-    int ix = OFFSET(lenX, incX);
-    for (j = 0; j < lenX; j++) {
-      const double temp = alpha * X[ix];
-      if (temp != 0.0) {
-        int iy = OFFSET(lenY, incY);
-        for (i = 0; i < lenY; i++) {
-          Y[iy] += temp * A[lda * j + i];
-          iy += incY;
-        }
-      }
-      ix += incX;
-    }
-  }
-#undef OFFSET
 }
 #endif
 
