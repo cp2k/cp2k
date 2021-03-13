@@ -1,0 +1,58 @@
+!
+! derived from ../QS/regtest-gpw-1/Ar-2.inp
+!
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_SET
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      CUTOFF 200
+      REL_CUTOFF 40
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-12
+      EPS_GVG 1.0E-6
+      EPS_RHO 1.0E-8
+    &END QS
+    &SCF
+      CHOLESKY OFF
+      EPS_DIIS 0.1
+      EPS_SCF 1.0E-6
+      MAX_DIIS 4
+      MAX_SCF 20
+
+      SCF_GUESS atomic
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+    &PRINT
+      &MO ON
+        EIGVECS
+        CARTESIAN
+        FILENAME cartesian-mos
+      &END MO
+    &END PRINT
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+    &END CELL
+    &COORD
+    Ar     0.000000  0.000000  0.000000
+    &END COORD
+    &KIND Ar
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q8
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  &GRID
+    BACKEND REF
+  &END GRID
+  PROJECT Ar_ortho_grid_ref
+  PRINT_LEVEL MEDIUM
+&END GLOBAL

@@ -51,8 +51,8 @@
 &END FORCE_EVAL
 &GLOBAL
   &GRID
-    VALIDATE .TRUE.
+    BACKEND AUTO
   &END GRID
-  PROJECT grid_validate_ortho
+  PROJECT Ar_ortho_grid_auto
   PRINT_LEVEL MEDIUM
 &END GLOBAL
