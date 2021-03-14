@@ -7,7 +7,7 @@
 simple_non-ortho_grid_auto.inp                             1     1e-12           -18.04976254476928
 simple_non-ortho_grid_validate.inp                         1     1e-12           -18.04976254476928
 simple_non-ortho_grid_ref.inp                              1     1e-12           -18.04976254476928
-simple_non-ortho_grid_dgemm.inp                            1     5e-09           -18.05635361766292
+simple_non-ortho_grid_dgemm.inp                            1     4e-08           -18.05635361766292
 
 simple_ortho_grid_auto.inp                                 1     2e-14           -21.04944231395059
 simple_ortho_grid_validate.inp                             1     2e-14           -21.04944231395059
