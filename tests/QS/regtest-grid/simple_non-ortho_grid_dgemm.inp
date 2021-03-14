@@ -66,6 +66,6 @@ C    1.22800000 -0.70898613  5.02200000
     BACKEND CPU
     APPLY_CUTOFF no
   &END GRID
-  PROJECT Ar_non-ortho_grid_dgemm
+  PROJECT simple_non-ortho_grid_dgemm
   PRINT_LEVEL MEDIUM
 &END GLOBAL

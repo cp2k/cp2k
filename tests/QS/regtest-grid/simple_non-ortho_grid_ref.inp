@@ -63,8 +63,8 @@ C    1.22800000 -0.70898613  5.02200000
 &END FORCE_EVAL
 &GLOBAL
   &GRID
-    VALIDATE .TRUE.
+    BACKEND REF
   &END GRID
-  PROJECT Ar_non-ortho_grid_validate
+  PROJECT simple_non-ortho_grid_ref
   PRINT_LEVEL MEDIUM
 &END GLOBAL
