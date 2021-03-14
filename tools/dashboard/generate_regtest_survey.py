@@ -236,7 +236,7 @@ def parse_test_files():
         fn = tests_root + d + "/TEST_FILES"
         content = open(fn, encoding="utf8").read()
         for line in content.strip().split("\n"):
-            if line[0] == "#":
+            if not line or line.startswith("#"):
                 continue
             parts = line.split()
             name = d + "/" + parts[0]
