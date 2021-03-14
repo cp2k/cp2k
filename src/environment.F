@@ -49,6 +49,10 @@ MODULE environment
    USE force_env_types,                 ONLY: multiple_fe_list
    USE gamma,                           ONLY: deallocate_md_ftable
    USE global_types,                    ONLY: global_environment_type
+   USE grid_api,                        ONLY: GRID_BACKEND_AUTO,&
+                                              GRID_BACKEND_CPU,&
+                                              GRID_BACKEND_GPU,&
+                                              GRID_BACKEND_REF
    USE header,                          ONLY: cp2k_footer,&
                                               cp2k_header
    USE input_constants,                 ONLY: &
@@ -491,8 +495,8 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: env_num, model_name, project_name
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: trace_routines
-      INTEGER :: cpuid, cpuid_static, i_diag, i_fft, iforce_eval, method_name_id, n_rep_val, &
-         nforce_eval, num_threads, output_unit, print_level, trace_max, unit_nr
+      INTEGER :: cpuid, cpuid_static, i_diag, i_fft, i_grid_backend, iforce_eval, method_name_id, &
+         n_rep_val, nforce_eval, num_threads, output_unit, print_level, trace_max, unit_nr
       INTEGER(kind=int_8) :: Buffers, Buffers_avr, Buffers_max, Buffers_min, Cached, Cached_avr, &
          Cached_max, Cached_min, MemFree, MemFree_avr, MemFree_max, MemFree_min, MemLikelyFree, &
          MemLikelyFree_avr, MemLikelyFree_max, MemLikelyFree_min, MemTotal, MemTotal_avr, &
@@ -773,6 +777,22 @@ CONTAINS
             print_level_string = " DEBUG"
          CASE DEFAULT
             CPABORT("Unknown print_level")
+         END SELECT
+
+         CALL section_vals_val_get(global_section, "GRID%BACKEND", i_val=i_grid_backend)
+         SELECT CASE (i_grid_backend)
+         CASE (GRID_BACKEND_AUTO)
+            WRITE (UNIT=output_unit, FMT="(T2,A,T75,A6)") &
+               start_section_label//"| Grid backend", "AUTO"
+         CASE (GRID_BACKEND_CPU)
+            WRITE (UNIT=output_unit, FMT="(T2,A,T75,A6)") &
+               start_section_label//"| Grid backend", "CPU"
+         CASE (GRID_BACKEND_GPU)
+            WRITE (UNIT=output_unit, FMT="(T2,A,T75,A6)") &
+               start_section_label//"| Grid backend", "GPU"
+         CASE (GRID_BACKEND_REF)
+            WRITE (UNIT=output_unit, FMT="(T2,A,T75,A6)") &
+               start_section_label//"| Grid backend", "REF"
          END SELECT
 
          WRITE (UNIT=output_unit, FMT="(T2,A,T75,A6)") &

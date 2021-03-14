@@ -41,7 +41,6 @@ enum grid_backend {
   GRID_BACKEND_REF = 11,
   GRID_BACKEND_CPU = 12,
   GRID_BACKEND_GPU = 13,
-  GRID_BACKEND_HYBRID = 14
 };
 
 #endif
