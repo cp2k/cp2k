@@ -65,6 +65,6 @@ C    1.22800000 -0.70898613  5.02200000
   &GRID
     BACKEND AUTO
   &END GRID
-  PROJECT Ar_non-ortho_grid_auto
+  PROJECT simple_non-ortho_grid_auto
   PRINT_LEVEL MEDIUM
 &END GLOBAL

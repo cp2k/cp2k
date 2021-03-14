@@ -51,8 +51,9 @@
 &END FORCE_EVAL
 &GLOBAL
   &GRID
-    BACKEND REF
+    BACKEND CPU
+    APPLY_CUTOFF no
   &END GRID
-  PROJECT Ar_ortho_grid_ref
+  PROJECT simple_ortho_grid_dgemm
   PRINT_LEVEL MEDIUM
 &END GLOBAL
