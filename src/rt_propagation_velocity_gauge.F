@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2020 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2021 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -207,12 +207,12 @@ CONTAINS
 
       ! fieldstrength
       ! for a delta pulse: vec_pot = - c * kvec
-      ! the speed of light cancels in the linear term in the Hamiltonian and is not
+      ! the speed of light cancels in the terms in the velocity gauge Hamiltonian and is not
       ! taken into account here
       vec_pot(:) = cell%h_inv(1, :)*dft_control%rtp_control%delta_pulse_direction(1) + &
                    cell%h_inv(2, :)*dft_control%rtp_control%delta_pulse_direction(2) + &
                    cell%h_inv(3, :)*dft_control%rtp_control%delta_pulse_direction(3)
-      vec_pot = vec_pot*twopi*dft_control%rtp_control%delta_pulse_scale
+      vec_pot = - vec_pot*twopi*dft_control%rtp_control%delta_pulse_scale
 
    END SUBROUTINE get_vector_potential
 
