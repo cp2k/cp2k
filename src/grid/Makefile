@@ -20,7 +20,6 @@ ALL_OBJECTS := grid_replay.o \
                ref/grid_ref_collocate.o \
                ref/grid_ref_integrate.o \
                ref/grid_ref_prepare_pab.o \
-               hybrid/grid_collocate_hybrid.o \
                cpu/grid_context_cpu.o \
                cpu/coefficients.o \
                cpu/grid_collocate_dgemm.o \
@@ -37,8 +36,7 @@ NVCC := $(shell which nvcc)
 ifneq ($(NVCC),)
 LIBS += -lcudart -lcuda -lcublas -L${CUDA_PATH}/lib64
 CFLAGS += -I${CUDA_PATH}/include -D__GRID_CUDA
-ALL_OBJECTS += hybrid/grid_collocate_hybrid_cuda.o \
-               gpu/grid_gpu_task_list.o \
+ALL_OBJECTS += gpu/grid_gpu_task_list.o \
                gpu/grid_gpu_collocate.o \
                gpu/grid_gpu_integrate.o
 

@@ -37,7 +37,6 @@ typedef struct {
   int device_id;     // gpu id
   bool validate;     // When true the reference backend runs in shadow mode.
   bool apply_cutoff; // only important for the dgemm and gpu backends
-  int queue_length;  // Length of the queue for the gpu backend
 } grid_library_config;
 
 /*******************************************************************************
@@ -46,7 +45,7 @@ typedef struct {
  ******************************************************************************/
 void grid_library_set_config(const enum grid_backend backend,
                              const int device_id, const bool validate,
-                             const bool apply_cutoff, const int queue_length);
+                             const bool apply_cutoff);
 
 /*******************************************************************************
  * \brief Returns the library config.

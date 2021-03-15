@@ -78,19 +78,10 @@ void grid_create_task_list(
         jset_list, ipgf_list, jpgf_list, border_mask_list, block_num_list,
         radius_list, rab_list, &(*task_list)->gpu);
     break;
-  case GRID_BACKEND_HYBRID:
-    grid_hybrid_create_task_list(
-        ntasks, nlevels, natoms, nkinds, nblocks, block_offsets, atom_positions,
-        atom_kinds, basis_sets, level_list, iatom_list, jatom_list, iset_list,
-        jset_list, ipgf_list, jpgf_list, border_mask_list, block_num_list,
-        radius_list, rab_list, &(*task_list)->hybrid);
-    break;
 #else
   case GRID_BACKEND_GPU:
-  case GRID_BACKEND_HYBRID:
-    fprintf(stderr,
-            "Error: The GPU and hybrid grid backends are not available. "
-            "Please re-compile with -D__GRID_CUDA.");
+    fprintf(stderr, "Error: The GPU grid backend is not available. "
+                    "Please re-compile with -D__GRID_CUDA.");
     abort();
     break;
 #endif
@@ -119,10 +110,6 @@ void grid_free_task_list(grid_task_list *task_list) {
   if (task_list->gpu != NULL) {
     grid_gpu_free_task_list(task_list->gpu);
     task_list->gpu = NULL;
-  }
-  if (task_list->hybrid != NULL) {
-    grid_hybrid_free_task_list(task_list->hybrid);
-    task_list->hybrid = NULL;
   }
 #endif
 
@@ -158,11 +145,6 @@ void grid_collocate_task_list(
     grid_gpu_collocate_task_list(task_list->gpu, orthorhombic, func, nlevels,
                                  npts_global, npts_local, shift_local,
                                  border_width, dh, dh_inv, pab_blocks, grid);
-    break;
-  case GRID_BACKEND_HYBRID:
-    grid_hybrid_collocate_task_list(
-        task_list->hybrid, orthorhombic, func, nlevels, npts_global, npts_local,
-        shift_local, border_width, dh, dh_inv, pab_blocks, grid);
     break;
 #endif
   default:
@@ -238,12 +220,6 @@ void grid_integrate_task_list(
 #ifdef __GRID_CUDA
   case GRID_BACKEND_GPU:
     grid_gpu_integrate_task_list(task_list->gpu, orthorhombic, compute_tau,
-                                 natoms, nlevels, npts_global, npts_local,
-                                 shift_local, border_width, dh, dh_inv,
-                                 pab_blocks, grid, hab_blocks, forces, virial);
-    break;
-  case GRID_BACKEND_HYBRID:
-    grid_cpu_integrate_task_list(task_list->hybrid, orthorhombic, compute_tau,
                                  natoms, nlevels, npts_global, npts_local,
                                  shift_local, border_width, dh, dh_inv,
                                  pab_blocks, grid, hab_blocks, forces, virial);

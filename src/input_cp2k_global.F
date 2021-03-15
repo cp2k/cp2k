@@ -35,7 +35,6 @@ MODULE input_cp2k_global
    USE grid_api,                        ONLY: GRID_BACKEND_AUTO,&
                                               GRID_BACKEND_CPU,&
                                               GRID_BACKEND_GPU,&
-                                              GRID_BACKEND_HYBRID,&
                                               GRID_BACKEND_REF
    USE input_constants,                 ONLY: &
         bsse_run, callgraph_all, callgraph_master, callgraph_none, cell_opt_run, debug_run, &
@@ -711,13 +710,12 @@ CONTAINS
                           description="Selects the backed used by the grid library.", &
                           default_i_val=GRID_BACKEND_AUTO, &
                           enum_i_vals=(/GRID_BACKEND_AUTO, GRID_BACKEND_REF, GRID_BACKEND_CPU, &
-                                        GRID_BACKEND_GPU, GRID_BACKEND_HYBRID/), &
-                          enum_c_vals=s2a("AUTO", "REF", "CPU", "GPU", "HYBRID"), &
+                                        GRID_BACKEND_GPU/), &
+                          enum_c_vals=s2a("AUTO", "REF", "CPU", "GPU"), &
                           enum_desc=s2a("Let the grid library pick the backend automatically", &
                                         "Reference backend implementation", &
                                         "Optimized CPU backend", &
-                                        "Optimized GPU backend", &
-                                        "Backend using both CPU and GPU"))
+                                        "Optimized GPU backend"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -730,18 +728,12 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="APPLY_CUTOFF", &
-                          description="When enabled the cpu and hybrid backends "// &
+                          description="When enabled the cpu backend "// &
                           " apply a spherical cutoff on the top of the cube. "// &
                           " There is a performance penalty using it in "// &
                           "combination with the cpu backend but it is on by "// &
                           "default for the regtests", default_l_val=.TRUE., &
                           lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="QUEUE_LENGTH", &
-                          description="Number of gaussians that the hybrid backend treats in one round", &
-                          default_i_val=4096)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

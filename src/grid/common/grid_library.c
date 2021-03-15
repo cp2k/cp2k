@@ -21,8 +21,7 @@ static bool library_initialized = false;
 static grid_library_config config = {.backend = GRID_BACKEND_AUTO,
                                      .device_id = 0,
                                      .validate = false,
-                                     .apply_cutoff = false,
-                                     .queue_length = 8192};
+                                     .apply_cutoff = false};
 
 #if !defined(_OPENMP)
 #error "OpenMP is required. Please add -fopenmp to your C compiler flags."
@@ -85,12 +84,11 @@ grid_sphere_cache *grid_library_get_sphere_cache(void) {
  ******************************************************************************/
 void grid_library_set_config(const enum grid_backend backend,
                              const int device_id, const bool validate,
-                             const bool apply_cutoff, const int queue_length) {
+                             const bool apply_cutoff) {
   config.backend = backend;
   config.device_id = device_id;
   config.validate = validate;
   config.apply_cutoff = apply_cutoff;
-  config.queue_length = queue_length;
 }
 
 /*******************************************************************************
@@ -170,7 +168,7 @@ void grid_library_print_stats(void (*mpi_sum_func)(long *, int),
 
   const char *kernel_names[] = {"collocate ortho", "integrate ortho",
                                 "collocate general", "integrate general"};
-  const char *backend_names[] = {"REF", "CPU", "GPU", "HYBRID"};
+  const char *backend_names[] = {"REF", "CPU", "GPU"};
 
   for (int i = 0; i < 320; i++) {
     if (counters[i][0] == 0)
