@@ -781,9 +781,10 @@ void grid_collocate(collocation_integration *const handler,
    */
 
   /* seting up the cube parameters */
-  int cmax = compute_cube_properties(use_ortho, radius, handler->dh,
-                                     handler->dh_inv, rp, &disr_radius, roffset,
-                                     cubecenter, lb_cube, ub_cube, cube_size);
+  int cmax = compute_cube_properties(
+      use_ortho, radius, (const double(*)[3])handler->dh,
+      (const double(*)[3])handler->dh_inv, rp, &disr_radius, roffset,
+      cubecenter, lb_cube, ub_cube, cube_size);
 
   /* initialize the multidimensional array containing the polynomials */
   initialize_tensor_3(&handler->pol, 3, handler->coef.size[0], cmax);
@@ -820,11 +821,12 @@ void grid_collocate(collocation_integration *const handler,
                         &idx3(handler->pol, 2, 0, 0)); /* i indice */
 
     calculate_non_orthorombic_corrections_tensor(
-        zetp, roffset, handler->dh, lb_cube, ub_cube, handler->orthogonal,
-        &handler->Exp);
+        zetp, roffset, (const double(*)[3])handler->dh, lb_cube, ub_cube,
+        handler->orthogonal, &handler->Exp);
 
     /* Use a slightly modified version of Ole code */
-    grid_transform_coef_xzy_to_ikj(handler->dh, &handler->coef);
+    grid_transform_coef_xzy_to_ikj((const double(*)[3])handler->dh,
+                                   &handler->coef);
   }
 
   /* allocate memory for the polynomial and the cube */
@@ -881,7 +883,7 @@ void grid_collocate_pgf_product_cpu_dgemm(
   const double rab2 = rab[0] * rab[0] + rab[1] * rab[1] + rab[2] * rab[2];
   const double prefactor = rscale * exp(-zeta * f * rab2);
   const double zeta_pair[2] = {zeta, zetb};
-  initialize_basis_vectors(handler, (const double(*)[3])dh, dh_inv);
+  initialize_basis_vectors(handler, dh, dh_inv);
   verify_orthogonality((const double(*)[3])dh, handler->orthogonal);
 
   initialize_tensor_3(&(handler->grid), grid_local_size[2], grid_local_size[1],
@@ -1112,7 +1114,8 @@ void collocate_one_grid_level_dgemm(grid_context *const ctx,
     initialize_tensor_2(&pab_prep, ctx->maxco, ctx->maxco);
     alloc_tensor(&pab_prep);
 
-    initialize_basis_vectors(handler, grid->dh, grid->dh_inv);
+    initialize_basis_vectors(handler, (const double(*)[3])grid->dh,
+                             (const double(*)[3])grid->dh_inv);
 
     /* setup the grid parameters, window parameters (if the grid is split), etc
      */

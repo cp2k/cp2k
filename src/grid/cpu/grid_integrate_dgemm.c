@@ -593,9 +593,10 @@ void grid_integrate(collocation_integration *const handler,
    */
 
   /* seting up the cube parameters */
-  int cmax = compute_cube_properties(use_ortho, radius, handler->dh,
-                                     handler->dh_inv, rp, &disr_radius, roffset,
-                                     cubecenter, lb_cube, ub_cube, cube_size);
+  int cmax = compute_cube_properties(
+      use_ortho, radius, (const double(*)[3])handler->dh,
+      (const double(*)[3])handler->dh_inv, rp, &disr_radius, roffset,
+      cubecenter, lb_cube, ub_cube, cube_size);
 
   /* initialize the multidimensional array containing the polynomials */
   if (lp != 0) {
@@ -742,7 +743,8 @@ void grid_integrate(collocation_integration *const handler,
 
   /* go from ijk -> xyz */
   if (!use_ortho)
-    grid_transform_coef_jik_to_yxz(handler->dh, &handler->coef);
+    grid_transform_coef_jik_to_yxz((const double(*)[3])handler->dh,
+                                   &handler->coef);
 }
 
 void integrate_one_grid_level_dgemm(
@@ -833,7 +835,8 @@ void integrate_one_grid_level_dgemm(
       alloc_tensor(&virial_local_pair_);
     }
 
-    initialize_basis_vectors(handler, grid->dh, grid->dh_inv);
+    initialize_basis_vectors(handler, (const double(*)[3])grid->dh,
+                             (const double(*)[3])grid->dh_inv);
 
     tensor_copy(&handler->grid, grid);
     handler->grid.data = grid->data;
