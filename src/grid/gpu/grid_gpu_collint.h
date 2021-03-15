@@ -33,6 +33,7 @@ namespace cg = cooperative_groups;
 #else
 #define GRID_CONST_WHEN_COLLOCATE
 #define GRID_CONST_WHEN_INTEGRATE const
+#define GRID_N_CXYZ_LOCAL_MEM 35
 #endif
 
 /*******************************************************************************
@@ -101,7 +102,7 @@ __device__ static inline void coalescedAtomicAdd(double *address, double val) {
  ******************************************************************************/
 __device__ static void
 cxyz_to_gridpoint(const double dx, const double dy, const double dz,
-                  const double zetp, const int lp,
+                  const double zetp, const int lp, double *cxyz_local_mem,
                   GRID_CONST_WHEN_COLLOCATE double *cxyz,
                   GRID_CONST_WHEN_INTEGRATE double *gridpoint) {
 
@@ -114,7 +115,8 @@ cxyz_to_gridpoint(const double dx, const double dy, const double dz,
   double gridpoint_reg = 0.0; // accumulate into register
 #else
   // integrate
-  const double gridpoint_reg = *gridpoint; // load from global mem into register
+  // Load without polluting L1 cache, which is needed for cxyz_local_mem.
+  const double gridpoint_reg = __ldg(gridpoint);
 #endif
 
   double pow_dz = 1.0;
@@ -132,7 +134,11 @@ cxyz_to_gridpoint(const double dx, const double dy, const double dz,
         gridpoint_reg += cxyz[cxyz_index] * p;
 #else
         // integrate
-        coalescedAtomicAdd(&cxyz[cxyz_index], gridpoint_reg * p);
+        if (cxyz_index < GRID_N_CXYZ_LOCAL_MEM) {
+          cxyz_local_mem[cxyz_index] += gridpoint_reg * p;
+        } else {
+          coalescedAtomicAdd(&cxyz[cxyz_index], gridpoint_reg * p);
+        }
 #endif
 
         pow_dx *= dx; // pow_dx = pow(dx, lxp)
@@ -297,6 +303,7 @@ static void init_constant_memory() {
  ******************************************************************************/
 __device__ static void
 ortho_cxyz_to_grid(const kernel_params *params, const smem_task *task,
+                   double *cxyz_local_mem,
                    GRID_CONST_WHEN_COLLOCATE double *cxyz,
                    GRID_CONST_WHEN_INTEGRATE double *grid) {
   // Discretize the radius.
@@ -359,8 +366,8 @@ ortho_cxyz_to_grid(const kernel_params *params, const smem_task *task,
             kg * params->npts_local[1] * params->npts_local[0] +
             jg * params->npts_local[0] + ig;
 
-        cxyz_to_gridpoint(dx, dy, dz, task->zetp, task->lp, cxyz,
-                          &grid[grid_index]);
+        cxyz_to_gridpoint(dx, dy, dz, task->zetp, task->lp, cxyz_local_mem,
+                          cxyz, &grid[grid_index]);
       }
     }
   }
@@ -374,6 +381,7 @@ ortho_cxyz_to_grid(const kernel_params *params, const smem_task *task,
  ******************************************************************************/
 __device__ static void
 general_cxyz_to_grid(const kernel_params *params, const smem_task *task,
+                     double *cxyz_local_mem,
                      GRID_CONST_WHEN_COLLOCATE double *cxyz,
                      GRID_CONST_WHEN_INTEGRATE double *grid) {
 
@@ -463,8 +471,8 @@ general_cxyz_to_grid(const kernel_params *params, const smem_task *task,
         const int stride = params->npts_local[1] * params->npts_local[0];
         const int grid_index = kg * stride + jg * params->npts_local[0] + ig;
 
-        cxyz_to_gridpoint(dx, dy, dz, task->zetp, task->lp, cxyz,
-                          &grid[grid_index]);
+        cxyz_to_gridpoint(dx, dy, dz, task->zetp, task->lp, cxyz_local_mem,
+                          cxyz, &grid[grid_index]);
       }
     }
   }
@@ -481,11 +489,30 @@ __device__ static void cxyz_to_grid(const kernel_params *params,
                                     GRID_CONST_WHEN_COLLOCATE double *cxyz,
                                     GRID_CONST_WHEN_INTEGRATE double *grid) {
 
+#if (GRID_DO_COLLOCATE)
+  // collocate
+  double *cxyz_local_mem = NULL;
+#else
+  // integrate
+  // We force cxyz_local_mem into local memory by using dynamic indexing and
+  // rely on the L1 cache to provide fast access during cxyz_to_gridpoint.
+  // https://developer.nvidia.com/blog/fast-dynamic-indexing-private-arrays-cuda
+  double cxyz_local_mem[GRID_N_CXYZ_LOCAL_MEM] = {0.0};
+#endif
+
   if (params->orthorhombic && task->border_mask == 0) {
-    ortho_cxyz_to_grid(params, task, cxyz, grid);
+    ortho_cxyz_to_grid(params, task, cxyz_local_mem, cxyz, grid);
   } else {
-    general_cxyz_to_grid(params, task, cxyz, grid);
+    general_cxyz_to_grid(params, task, cxyz_local_mem, cxyz, grid);
   }
+
+#if (!GRID_DO_COLLOCATE)
+  // integrate
+  for (int i = 0; i < GRID_N_CXYZ_LOCAL_MEM; i++) {
+    coalescedAtomicAdd(&cxyz[i], cxyz_local_mem[i]);
+  }
+  __syncthreads(); // because of concurrent writes to cxyz
+#endif
 }
 
 /*******************************************************************************
