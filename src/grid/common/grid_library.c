@@ -105,7 +105,8 @@ void grid_library_counter_add(const int lp, const enum grid_backend backend,
                               const enum grid_library_kernel kernel,
                               const int increment) {
   const int back = backend - GRID_BACKEND_REF;
-  const int idx = back * 4 * 20 + kernel * 20 + imin(lp, 19);
+  const int idx =
+      back * GRID_NUMBER_OF_BACKENDS_ * 20 + kernel * 20 + imin(lp, 19);
   per_thread_globals[omp_get_thread_num()]->counters[idx] += increment;
 }
 
@@ -131,9 +132,9 @@ void grid_library_print_stats(void (*mpi_sum_func)(long *, int),
   }
 
   // Sum all counters across threads and mpi ranks.
-  long counters[320][2] = {0};
+  long counters[GRID_NUMBER_OF_BACKENDS_ * 80][2] = {0};
   double total = 0.0;
-  for (int i = 0; i < 320; i++) {
+  for (int i = 0; i < GRID_NUMBER_OF_BACKENDS_ * 80; i++) {
     counters[i][1] = i;
     for (int j = 0; j < omp_get_max_threads(); j++) {
       counters[i][0] += per_thread_globals[j]->counters[i];
@@ -143,7 +144,8 @@ void grid_library_print_stats(void (*mpi_sum_func)(long *, int),
   }
 
   // Sort counters.
-  qsort(counters, 320, 2 * sizeof(long), &compare_counters);
+  qsort(counters, GRID_NUMBER_OF_BACKENDS_ * 80, 2 * sizeof(long),
+        &compare_counters);
 
   // Print counters.
   print_func("\n", output_unit);
@@ -170,7 +172,7 @@ void grid_library_print_stats(void (*mpi_sum_func)(long *, int),
                                 "collocate general", "integrate general"};
   const char *backend_names[] = {"REF", "CPU", "GPU"};
 
-  for (int i = 0; i < 320; i++) {
+  for (int i = 0; i < GRID_NUMBER_OF_BACKENDS_ * 80; i++) {
     if (counters[i][0] == 0)
       continue; // skip empty counters
     const double percent = 100.0 * counters[i][0] / total;

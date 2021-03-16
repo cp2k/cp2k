@@ -15,6 +15,8 @@ extern "C" {
 #include "grid_sphere_cache.h"
 #include <stdbool.h>
 
+#define GRID_NUMBER_OF_BACKENDS_ 3
+
 /*******************************************************************************
  * \brief Initializes the grid library.
  * \author Ole Schuett
@@ -67,7 +69,7 @@ void grid_library_print_stats(void (*mpi_sum_func)(long *, int), int mpi_comm,
  ******************************************************************************/
 typedef struct {
   grid_sphere_cache sphere_cache;
-  long counters[4 * 4 * 20]; // [backend][kernel][lp]
+  long counters[GRID_NUMBER_OF_BACKENDS_ * 4 * 20]; // [backend][kernel][lp]
 } grid_library_globals;
 
 /*******************************************************************************
