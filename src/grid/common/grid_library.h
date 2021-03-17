@@ -61,16 +61,6 @@ void grid_library_print_stats(void (*mpi_sum_func)(long *, int), int mpi_comm,
                               void (*print_func)(char *, int), int output_unit);
 
 /*******************************************************************************
- * \brief All exiting counters. When adding a counter also update functions
- *        internal_add_stats() and grid_library_print_counters().
- * \author Ole Schuett
- ******************************************************************************/
-typedef struct {
-  grid_sphere_cache sphere_cache;
-  long counters[4 * 4 * 20]; // [backend][kernel][lp]
-} grid_library_globals;
-
-/*******************************************************************************
  * \brief Various kernels provided by the grid library.
  * \author Ole Schuett
  ******************************************************************************/

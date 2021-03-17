@@ -16,6 +16,16 @@
 #include "grid_constants.h"
 #include "grid_library.h"
 
+// counter dimensions
+#define GRID_NBACKENDS 3
+#define GRID_NKERNELS 4
+#define GRID_MAX_LP 20
+
+typedef struct {
+  grid_sphere_cache sphere_cache;
+  long counters[GRID_NBACKENDS * GRID_NKERNELS * GRID_MAX_LP];
+} grid_library_globals;
+
 static grid_library_globals **per_thread_globals = NULL;
 static bool library_initialized = false;
 static int max_threads = 0;
@@ -109,8 +119,11 @@ void grid_library_counter_add(const int lp, const enum grid_backend backend,
                               const enum grid_library_kernel kernel,
                               const int increment) {
   assert(lp >= 0);
+  assert(kernel < GRID_NKERNELS);
   const int back = backend - GRID_BACKEND_REF;
-  const int idx = back * 4 * 20 + kernel * 20 + imin(lp, 19);
+  assert(back < GRID_NBACKENDS);
+  const int idx = back * GRID_NKERNELS * GRID_MAX_LP + kernel * GRID_MAX_LP +
+                  imin(lp, GRID_MAX_LP - 1);
   const int ithread = omp_get_thread_num();
   assert(ithread < max_threads);
   per_thread_globals[ithread]->counters[idx] += increment;
@@ -138,10 +151,12 @@ void grid_library_print_stats(void (*mpi_sum_func)(long *, int),
   }
 
   // Sum all counters across threads and mpi ranks.
-  long counters[320][2] = {0};
+  const int ncounters = GRID_NBACKENDS * GRID_NKERNELS * GRID_MAX_LP;
+  long counters[ncounters][2];
+  memset(counters, 0, ncounters * 2 * sizeof(long));
   double total = 0.0;
-  for (int i = 0; i < 320; i++) {
-    counters[i][1] = i;
+  for (int i = 0; i < ncounters; i++) {
+    counters[i][1] = i; // needed as inverse index after qsort
     for (int j = 0; j < max_threads; j++) {
       counters[i][0] += per_thread_globals[j]->counters[i];
     }
@@ -150,7 +165,7 @@ void grid_library_print_stats(void (*mpi_sum_func)(long *, int),
   }
 
   // Sort counters.
-  qsort(counters, 320, 2 * sizeof(long), &compare_counters);
+  qsort(counters, ncounters, 2 * sizeof(long), &compare_counters);
 
   // Print counters.
   print_func("\n", output_unit);
@@ -177,14 +192,15 @@ void grid_library_print_stats(void (*mpi_sum_func)(long *, int),
                                 "collocate general", "integrate general"};
   const char *backend_names[] = {"REF", "CPU", "GPU"};
 
-  for (int i = 0; i < 320; i++) {
+  for (int i = 0; i < ncounters; i++) {
     if (counters[i][0] == 0)
       continue; // skip empty counters
     const double percent = 100.0 * counters[i][0] / total;
     const int idx = counters[i][1];
-    const int back = idx / 80;
-    const int kern = (idx % 80) / 20;
-    const int lp = (idx % 80) % 20;
+    const int backend_stride = GRID_NKERNELS * GRID_MAX_LP;
+    const int back = idx / backend_stride;
+    const int kern = (idx % backend_stride) / GRID_MAX_LP;
+    const int lp = (idx % backend_stride) % GRID_MAX_LP;
     char buffer[100];
     snprintf(buffer, sizeof(buffer), " %-5i %-17s  %-6s  %34li %10.2f%%\n", lp,
              kernel_names[kern], backend_names[back], counters[i][0], percent);
