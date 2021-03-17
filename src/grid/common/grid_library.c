@@ -18,6 +18,7 @@
 
 static grid_library_globals **per_thread_globals = NULL;
 static bool library_initialized = false;
+static int max_threads = 0;
 static grid_library_config config = {.backend = GRID_BACKEND_AUTO,
                                      .device_id = 0,
                                      .validate = false,
@@ -37,11 +38,12 @@ void grid_library_init(void) {
     abort();
   }
 
-  const int n = omp_get_max_threads();
-  per_thread_globals = malloc(n * sizeof(grid_library_globals *));
+  max_threads = omp_get_max_threads();
+  per_thread_globals = malloc(max_threads * sizeof(grid_library_globals *));
 
 // Using parallel regions to ensure memory is allocated near a thread's core.
-#pragma omp parallel default(none) shared(per_thread_globals) num_threads(n)
+#pragma omp parallel default(none) shared(per_thread_globals)                  \
+    num_threads(max_threads)
   {
     const int ithread = omp_get_thread_num();
     per_thread_globals[ithread] = malloc(sizeof(grid_library_globals));
@@ -61,7 +63,7 @@ void grid_library_finalize(void) {
     abort();
   }
 
-  for (int i = 0; i < omp_get_max_threads(); i++) {
+  for (int i = 0; i < max_threads; i++) {
     grid_sphere_cache_free(&per_thread_globals[i]->sphere_cache);
     free(per_thread_globals[i]);
   }
@@ -75,7 +77,9 @@ void grid_library_finalize(void) {
  * \author Ole Schuett
  ******************************************************************************/
 grid_sphere_cache *grid_library_get_sphere_cache(void) {
-  return &per_thread_globals[omp_get_thread_num()]->sphere_cache;
+  const int ithread = omp_get_thread_num();
+  assert(ithread < max_threads);
+  return &per_thread_globals[ithread]->sphere_cache;
 }
 
 /*******************************************************************************
@@ -106,7 +110,9 @@ void grid_library_counter_add(const int lp, const enum grid_backend backend,
                               const int increment) {
   const int back = backend - GRID_BACKEND_REF;
   const int idx = back * 4 * 20 + kernel * 20 + imin(lp, 19);
-  per_thread_globals[omp_get_thread_num()]->counters[idx] += increment;
+  const int ithread = omp_get_thread_num();
+  assert(ithread < max_threads);
+  per_thread_globals[ithread]->counters[idx] += increment;
 }
 
 /*******************************************************************************
@@ -135,7 +141,7 @@ void grid_library_print_stats(void (*mpi_sum_func)(long *, int),
   double total = 0.0;
   for (int i = 0; i < 320; i++) {
     counters[i][1] = i;
-    for (int j = 0; j < omp_get_max_threads(); j++) {
+    for (int j = 0; j < max_threads; j++) {
       counters[i][0] += per_thread_globals[j]->counters[i];
     }
     mpi_sum_func(&counters[i][0], mpi_comm);
