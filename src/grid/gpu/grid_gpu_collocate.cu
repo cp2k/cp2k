@@ -145,19 +145,19 @@ void grid_gpu_collocate_one_grid_level(
     const cudaStream_t stream, const double *pab_blocks_dev, double *grid_dev,
     int *lp_diff) {
 
-  const int ntasks = last_task - first_task + 1;
-  if (ntasks == 0) {
-    return; // Nothing to do.
-  }
-
-  init_constant_memory();
-
   // Compute max angular momentum.
   const prepare_ldiffs ldiffs = prepare_get_ldiffs(func);
   *lp_diff = ldiffs.la_max_diff + ldiffs.lb_max_diff; // for reporting stats
   const int la_max = task_list->lmax + ldiffs.la_max_diff;
   const int lb_max = task_list->lmax + ldiffs.lb_max_diff;
   const int lp_max = la_max + lb_max;
+
+  const int ntasks = last_task - first_task + 1;
+  if (ntasks == 0) {
+    return; // Nothing to do and lp_diff already set.
+  }
+
+  init_constant_memory();
 
   // Compute required shared memory.
   // TODO: Currently, cab's indicies run over 0...ncoset[lmax],
