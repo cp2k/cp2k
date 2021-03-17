@@ -108,6 +108,7 @@ grid_library_config grid_library_get_config(void) { return config; }
 void grid_library_counter_add(const int lp, const enum grid_backend backend,
                               const enum grid_library_kernel kernel,
                               const int increment) {
+  assert(lp >= 0);
   const int back = backend - GRID_BACKEND_REF;
   const int idx = back * 4 * 20 + kernel * 20 + imin(lp, 19);
   const int ithread = omp_get_thread_num();

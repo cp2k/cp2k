@@ -209,13 +209,6 @@ void grid_gpu_integrate_one_grid_level(
     const double *grid_dev, double *hab_blocks_dev, double *forces_dev,
     double *virial_dev, int *lp_diff) {
 
-  const int ntasks = last_task - first_task + 1;
-  if (ntasks == 0) {
-    return; // Nothing to do.
-  }
-
-  init_constant_memory();
-
   // Compute max angular momentum.
   const bool calculate_forces = (forces_dev != NULL);
   const bool calculate_virial = (virial_dev != NULL);
@@ -226,6 +219,13 @@ void grid_gpu_integrate_one_grid_level(
   const int la_max = task_list->lmax + ldiffs.la_max_diff;
   const int lb_max = task_list->lmax + ldiffs.lb_max_diff;
   const int lp_max = la_max + lb_max;
+
+  const int ntasks = last_task - first_task + 1;
+  if (ntasks == 0) {
+    return; // Nothing to do and lp_diff already set.
+  }
+
+  init_constant_memory();
 
   // Compute required shared memory.
   // TODO: Currently, cab's indicies run over 0...ncoset[lmax],
