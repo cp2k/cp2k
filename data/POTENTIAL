@@ -3950,15 +3950,15 @@ H ALLELECTRON ALL
      0.20000000    0
 #
 He ALLELECTRON ALL
-    2    0    0 
+    2    0    0
      0.20000000    0
 #
 Li ALLELECTRON ALL
-    3    0    0 
+    3    0    0
      0.40000000    0
 #
 Be ALLELECTRON ALL
-    4    0    0 
+    4    0    0
      0.32500000    0
 #
 B ALLELECTRON ALL
@@ -4023,73 +4023,73 @@ K ALLELECTRON ALL
 #
 Ca ALLELECTRON ALL
     8   12    0
-     0.39000000
+     0.39000000    0
 #
 Sc ALLELECTRON ALL
     8   12    1
-     0.38500000
+     0.38500000    0
 #
 Ti ALLELECTRON ALL
     8   12    2
-     0.3800000
+     0.3800000    0
 #
 V  ALLELECTRON ALL
     8   12    3
-     0.37500000
+     0.37500000    0
 #
 Cr ALLELECTRON ALL
     8   12    4
-     0.37000000
+     0.37000000    0
 #
 Mn ALLELECTRON ALL
     8   12    5
-     0.36500000
+     0.36500000    0
 #
 Fe  ALLELECTRON ALL
     8   12    6
-     0.36000000
+     0.36000000    0
 #
 Co  ALLELECTRON ALL
     8   12    7
-     0.35500000
+     0.35500000    0
 #
 Ni  ALLELECTRON ALL
     8   12    8
-     0.35000000
+     0.35000000    0
 #
 Cu ALLELECTRON ALL
     8   12    9
-     0.53000000
+     0.53000000    0
 #
 Zn ALLELECTRON ALL
     8   12   10
-     0.34000000
+     0.34000000    0
 #
 Ga ALLELECTRON ALL
     8   13   10
-     0.49000000
+     0.49000000    0
 #
 Ge ALLELECTRON ALL
     8   14   10
-     0.54000000
+     0.54000000    0
 #
 As ALLELECTRON ALL
     8   15   10
-     0.52000000
+     0.52000000    0
 #
 Se ALLELECTRON ALL
     8   16   10
-     0.51000000
+     0.51000000    0
 #
 Br ALLELECTRON ALL
     8   17   10
-     0.50000000
+     0.50000000    0
 #
 Kr ALLELECTRON ALL
     8   18   10
-     0.50000000
+     0.50000000    0
 #
 I  ALLELECTRON ALL
    10   23   20
-     0.50000000
+     0.50000000    0
 #
