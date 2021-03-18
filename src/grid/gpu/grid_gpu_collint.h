@@ -33,8 +33,9 @@ namespace cg = cooperative_groups;
 #else
 #define GRID_CONST_WHEN_COLLOCATE
 #define GRID_CONST_WHEN_INTEGRATE const
-#define GRID_N_CXYZ_LOCAL_MEM 35
 #endif
+
+#define GRID_N_CXYZ_LOCAL_MEM 35
 
 /*******************************************************************************
  * \brief Atomic add for doubles that also works prior to compute capability 6.
@@ -97,60 +98,121 @@ __device__ static inline void coalescedAtomicAdd(double *address, double val) {
 }
 
 /*******************************************************************************
- * \brief Compute value of a single grid point with distance d{xyz} from center.
+ * \brief Collocate a single grid point with distance d{xyz} from center.
  * \author Ole Schuett
  ******************************************************************************/
-__device__ static void
-cxyz_to_gridpoint(const double dx, const double dy, const double dz,
-                  const double zetp, const int lp, double *cxyz_local_mem,
-                  GRID_CONST_WHEN_COLLOCATE double *cxyz,
-                  GRID_CONST_WHEN_INTEGRATE double *gridpoint) {
+__device__ static void cxyz_to_gridpoint(const double dx, const double dy,
+                                         const double dz, const double zetp,
+                                         const int lp, const double *cxyz,
+                                         double *gridpoint) {
 
   // Squared distance of point from center.
   const double r2 = dx * dx + dy * dy + dz * dz;
   const double gaussian = exp(-zetp * r2);
 
-#if (GRID_DO_COLLOCATE)
   // collocate
   double gridpoint_reg = 0.0; // accumulate into register
-#else
-  // integrate
-  // Load without polluting L1 cache, which is needed for cxyz_local_mem.
-  const double gridpoint_reg = __ldg(gridpoint);
-#endif
 
-  double pow_dz = 1.0;
-  for (int lzp = 0; lzp <= lp; lzp++) {
-    double pow_dy = 1.0;
-    for (int lyp = 0; lyp <= lp - lzp; lyp++) {
-      double pow_dx = 1.0;
-      for (int lxp = 0; lxp <= lp - lzp - lyp; lxp++) {
+  if (lp == 0) {
+    gridpoint_reg += cxyz[0];
 
-        const double p = gaussian * pow_dx * pow_dy * pow_dz;
-        const int cxyz_index = coset(lxp, lyp, lzp);
+  } else if (lp == 1) {
+    gridpoint_reg += cxyz[0];
+    gridpoint_reg += cxyz[1] * dx;
+    gridpoint_reg += cxyz[2] * dy;
+    gridpoint_reg += cxyz[3] * dz;
 
-#if (GRID_DO_COLLOCATE)
-        // collocate
-        gridpoint_reg += cxyz[cxyz_index] * p;
-#else
-        // integrate
-        if (cxyz_index < GRID_N_CXYZ_LOCAL_MEM) {
-          cxyz_local_mem[cxyz_index] += gridpoint_reg * p;
-        } else {
-          coalescedAtomicAdd(&cxyz[cxyz_index], gridpoint_reg * p);
+  } else if (lp == 2) {
+    gridpoint_reg += cxyz[0];
+    gridpoint_reg += cxyz[1] * dx;
+    gridpoint_reg += cxyz[2] * dy;
+    gridpoint_reg += cxyz[3] * dz;
+    gridpoint_reg += cxyz[4] * dx * dx;
+    gridpoint_reg += cxyz[5] * dx * dy;
+    gridpoint_reg += cxyz[6] * dx * dz;
+    gridpoint_reg += cxyz[7] * dy * dy;
+    gridpoint_reg += cxyz[8] * dy * dz;
+    gridpoint_reg += cxyz[9] * dz * dz;
+
+  } else {
+    double pow_dz = 1.0;
+    for (int lzp = 0; lzp <= lp; lzp++) {
+      double pow_dy = 1.0;
+      for (int lyp = 0; lyp <= lp - lzp; lyp++) {
+        double pow_dx = 1.0;
+        for (int lxp = 0; lxp <= lp - lzp - lyp; lxp++) {
+          const double p = pow_dx * pow_dy * pow_dz;
+          const int cxyz_index = coset(lxp, lyp, lzp);
+          gridpoint_reg += cxyz[cxyz_index] * p;
+          pow_dx *= dx; // pow_dx = pow(dx, lxp)
         }
-#endif
-
-        pow_dx *= dx; // pow_dx = pow(dx, lxp)
+        pow_dy *= dy; // pow_dy = pow(dy, lyp)
       }
-      pow_dy *= dy; // pow_dy = pow(dy, lyp)
+      pow_dz *= dz; // pow_dz = pow(dz, lzp)
     }
-    pow_dz *= dz; // pow_dz = pow(dz, lzp)
   }
+  atomicAddDouble(gridpoint, gridpoint_reg * gaussian);
+}
 
-#if (GRID_DO_COLLOCATE)
-  atomicAddDouble(gridpoint, gridpoint_reg);
-#endif
+/*******************************************************************************
+ * \brief Integrate a single grid point with distance d{xyz} from center.
+ * \author Ole Schuett
+ ******************************************************************************/
+__device__ static void gridpoint_to_cxyz(const double dx, const double dy,
+                                         const double dz, const double zetp,
+                                         const int lp, double *cxyz_local_mem,
+                                         double *cxyz,
+                                         const double *gridpoint) {
+
+  // Squared distance of point from center.
+  const double r2 = dx * dx + dy * dy + dz * dz;
+  const double gaussian = exp(-zetp * r2);
+
+  // Load without polluting L1 cache, which is needed for cxyz_local_mem.
+  const double gridpoint_reg = __ldg(gridpoint) * gaussian;
+
+  if (lp == 0) {
+    cxyz_local_mem[0] += gridpoint_reg;
+
+  } else if (lp == 1) {
+    cxyz_local_mem[0] += gridpoint_reg;
+    cxyz_local_mem[1] += gridpoint_reg * dx;
+    cxyz_local_mem[2] += gridpoint_reg * dy;
+    cxyz_local_mem[3] += gridpoint_reg * dz;
+
+  } else if (lp == 2) {
+    cxyz_local_mem[0] += gridpoint_reg;
+    cxyz_local_mem[1] += gridpoint_reg * dx;
+    cxyz_local_mem[2] += gridpoint_reg * dy;
+    cxyz_local_mem[3] += gridpoint_reg * dz;
+    cxyz_local_mem[4] += gridpoint_reg * dx * dx;
+    cxyz_local_mem[5] += gridpoint_reg * dx * dy;
+    cxyz_local_mem[6] += gridpoint_reg * dx * dz;
+    cxyz_local_mem[7] += gridpoint_reg * dy * dy;
+    cxyz_local_mem[8] += gridpoint_reg * dy * dz;
+    cxyz_local_mem[9] += gridpoint_reg * dz * dz;
+
+  } else {
+    double pow_dz = 1.0;
+    for (int lzp = 0; lzp <= lp; lzp++) {
+      double pow_dy = 1.0;
+      for (int lyp = 0; lyp <= lp - lzp; lyp++) {
+        double pow_dx = 1.0;
+        for (int lxp = 0; lxp <= lp - lzp - lyp; lxp++) {
+          const double val = gridpoint_reg * pow_dx * pow_dy * pow_dz;
+          const int cxyz_index = coset(lxp, lyp, lzp);
+          if (cxyz_index < GRID_N_CXYZ_LOCAL_MEM) {
+            cxyz_local_mem[cxyz_index] += val;
+          } else {
+            coalescedAtomicAdd(&cxyz[cxyz_index], val);
+          }
+          pow_dx *= dx; // pow_dx = pow(dx, lxp)
+        }
+        pow_dy *= dy; // pow_dy = pow(dy, lyp)
+      }
+      pow_dz *= dz; // pow_dz = pow(dz, lzp)
+    }
+  }
 }
 
 /*******************************************************************************
@@ -366,8 +428,15 @@ ortho_cxyz_to_grid(const kernel_params *params, const smem_task *task,
             kg * params->npts_local[1] * params->npts_local[0] +
             jg * params->npts_local[0] + ig;
 
-        cxyz_to_gridpoint(dx, dy, dz, task->zetp, task->lp, cxyz_local_mem,
+#if (GRID_DO_COLLOCATE)
+        // collocate
+        cxyz_to_gridpoint(dx, dy, dz, task->zetp, task->lp, cxyz,
+                          &grid[grid_index]);
+#else
+        // integrate
+        gridpoint_to_cxyz(dx, dy, dz, task->zetp, task->lp, cxyz_local_mem,
                           cxyz, &grid[grid_index]);
+#endif
       }
     }
   }
@@ -471,8 +540,15 @@ general_cxyz_to_grid(const kernel_params *params, const smem_task *task,
         const int stride = params->npts_local[1] * params->npts_local[0];
         const int grid_index = kg * stride + jg * params->npts_local[0] + ig;
 
-        cxyz_to_gridpoint(dx, dy, dz, task->zetp, task->lp, cxyz_local_mem,
+#if (GRID_DO_COLLOCATE)
+        // collocate
+        cxyz_to_gridpoint(dx, dy, dz, task->zetp, task->lp, cxyz,
+                          &grid[grid_index]);
+#else
+        // integrate
+        gridpoint_to_cxyz(dx, dy, dz, task->zetp, task->lp, cxyz_local_mem,
                           cxyz, &grid[grid_index]);
+#endif
       }
     }
   }
@@ -491,11 +567,11 @@ __device__ static void cxyz_to_grid(const kernel_params *params,
 
 #if (GRID_DO_COLLOCATE)
   // collocate
-  double *cxyz_local_mem = NULL;
+  double *cxyz_local_mem = NULL; // never used
 #else
   // integrate
   // We force cxyz_local_mem into local memory by using dynamic indexing and
-  // rely on the L1 cache to provide fast access during cxyz_to_gridpoint.
+  // rely on the L1 cache to provide fast access during gridpoint_to_cxyz.
   // https://developer.nvidia.com/blog/fast-dynamic-indexing-private-arrays-cuda
   double cxyz_local_mem[GRID_N_CXYZ_LOCAL_MEM] = {0.0};
 #endif
