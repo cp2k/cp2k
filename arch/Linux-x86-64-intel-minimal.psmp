@@ -1,7 +1,9 @@
-# Tested with  Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 18.0.5.274 Build 20180823
+# Tested with: Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 18.0.5.274 Build 20180823
+#              Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.1.1.217 Build 20200306
 #              Intel(R) Fortran Intel(R) 64 Compiler for applications running on Intel(R) 64, Version 19.1.3.304 Build 20200925
+#              Intel(R) Fortran Intel(R) 64 Compiler Classic for applications running on Intel(R) 64, Version 2021.1 Build 20201112
 #              Intel MPI, MKL
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, December 2020)
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, March 2021)
 
 CC        = mpiicc
 FC        = mpiifort
@@ -26,7 +28,7 @@ FCFLAGS  += -I$(MKLROOT)/include
 FCFLAGS  += -I$(MKLROOT)/include/fftw
 
 LDFLAGS   = $(FCFLAGS) -static-intel -static_mpi
-LDFLAGS_C = -nofor_main
+LDFLAGS_C = -nofor-main
 
 MKL_LIB   = $(MKLROOT)/lib/intel64
 
