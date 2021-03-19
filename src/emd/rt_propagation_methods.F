@@ -73,6 +73,7 @@ MODULE rt_propagation_methods
    USE rt_propagation_utils,            ONLY: calc_S_derivs,&
                                               calc_update_rho,&
                                               calc_update_rho_sparse
+   USE rt_propagation_velocity_gauge,   ONLY: velocity_gauge_ks_matrix
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -127,6 +128,12 @@ CONTAINS
       CALL get_qs_env(qs_env, matrix_s=matrix_s)
       IF (rtp%iter == 1) THEN
          CALL qs_energies_init(qs_env, .FALSE.)
+         ! add additional terms for the velocity gauge to matrix_h
+         ! should be called imediately after qs_energies_init and before qs_ks_update_qs_env
+         IF (rtp_control%velocity_gauge) THEN
+            CALL velocity_gauge_ks_matrix(qs_env)
+         ENDIF
+
          CALL get_qs_env(qs_env, matrix_s=matrix_s)
          IF (.NOT. rtp_control%fixed_ions) THEN
             CALL s_matrices_create(matrix_s, rtp)
