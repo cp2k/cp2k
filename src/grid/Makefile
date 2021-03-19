@@ -6,7 +6,7 @@ clean:
 	rm -fv *.o */*.o *.x
 
 CFLAGS := -fopenmp -g -O3 -march=native -Wall -Wextra
-NVFLAGS := -g -O3 -lineinfo -arch sm_50 -Wno-deprecated-gpu-targets -Xcompiler "$(CFLAGS)" -D__GRID_CUDA
+NVFLAGS := -g -O3 -lineinfo -arch sm_70 -Wno-deprecated-gpu-targets -Xcompiler "$(CFLAGS)" -D__GRID_CUDA
 LIBS := -lm -lblas
 
 ALL_HEADERS := $(shell find . -name "*.h")

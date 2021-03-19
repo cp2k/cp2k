@@ -87,11 +87,11 @@ __device__ static void store_forces_and_virial(const kernel_params *params,
           for (int k = 0; k < 3; k++) {
             const double force_a = get_force_a(a, b, k, task->zeta, task->zetb,
                                                task->n1, cab, COMPUTE_TAU);
-            coalescedAtomicAdd(&task->forces_a[k], force_a * pabval);
+            atomicAddDouble(&task->forces_a[k], force_a * pabval);
             const double force_b =
                 get_force_b(a, b, k, task->zeta, task->zetb, task->rab,
                             task->n1, cab, COMPUTE_TAU);
-            coalescedAtomicAdd(&task->forces_b[k], force_b * pabval);
+            atomicAddDouble(&task->forces_b[k], force_b * pabval);
           }
           if (params->virial != NULL) {
             for (int k = 0; k < 3; k++) {
@@ -103,7 +103,7 @@ __device__ static void store_forces_and_virial(const kernel_params *params,
                     get_virial_b(a, b, k, l, task->zeta, task->zetb, task->rab,
                                  task->n1, cab, COMPUTE_TAU);
                 const double virial = pabval * (virial_a + virial_b);
-                coalescedAtomicAdd(&params->virial[k * 3 + l], virial);
+                atomicAddDouble(&params->virial[k * 3 + l], virial);
               }
             }
           }
@@ -275,7 +275,8 @@ void grid_gpu_integrate_one_grid_level(
 
   // Launch !
   const int nblocks = ntasks;
-  const dim3 threads_per_block(4, 8, 8);
+  const dim3 threads_per_block(32, 2, 1);
+  assert(threads_per_block.x == 32); // needed for __syncwarp
 
   if (!compute_tau && !calculate_forces) {
     grid_integrate_density<<<nblocks, threads_per_block, smem_per_block,

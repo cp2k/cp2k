@@ -67,9 +67,18 @@ __device__ static void atomicAddDouble(double *address, double val) {
  * \brief Sums first within a warp and then issues a single atomicAdd per warp.
  * \author Ole Schuett
  ******************************************************************************/
-__device__ static inline void coalescedAtomicAdd(double *address, double val) {
+__device__ static inline void coalescedAtomicAdd(double *base_address, int idx,
+                                                 double val) {
 
+#if __CUDA_ARCH__ >= 700
+  // The labeled_partition should not be needed because of __syncwarp earlier,
+  // but since it has no noticeable performance impact and we can play it safe.
+  const cg::coalesced_group active =
+      cg::labeled_partition(cg::coalesced_threads(), idx);
+  // assert(active.meta_group_size()==1); // too costly for production
+#else
   const cg::coalesced_group active = cg::coalesced_threads();
+#endif
 
 #if (CUDA_VERSION >= 11000)
   // Reduce from Cuda 11+ library is around 30% faster than the solution below.
@@ -91,9 +100,9 @@ __device__ static inline void coalescedAtomicAdd(double *address, double val) {
   const double sum = sum1 + sum2;
 #endif
 
-  // A single atomic add to avoid shared memory bank conflicts.
+  // Use only a single atomic add to avoid collisions.
   if (active.thread_rank() == 0) {
-    atomicAddDouble(address, sum);
+    atomicAddDouble(&base_address[idx], sum);
   }
 }
 
@@ -204,7 +213,7 @@ __device__ static void gridpoint_to_cxyz(const double dx, const double dy,
           if (cxyz_index < GRID_N_CXYZ_LOCAL_MEM) {
             cxyz_local_mem[cxyz_index] += val;
           } else {
-            coalescedAtomicAdd(&cxyz[cxyz_index], val);
+            coalescedAtomicAdd(cxyz, cxyz_index, val);
           }
           pow_dx *= dx; // pow_dx = pow(dx, lxp)
         }
@@ -411,6 +420,12 @@ ortho_cxyz_to_grid(const kernel_params *params, const smem_task *task,
       const double jremain = kremain - jr * jr;
       const int imin =
           ceil(-1e-8 - sqrt(fmax(0.0, jremain)) * params->dh_inv[0][0]);
+
+#if (!GRID_DO_COLLOCATE)
+      // Sync threads within warp to have a single group in coalescedAtomicAdd.
+      __syncwarp(); // assumes blockDim.x==32
+#endif
+
       for (int i = threadIdx.x + imin; i <= 1 - imin; i += blockDim.x) {
         const int ia = cubecenter[0] + i - params->shift_local[0];
         const int ig =
@@ -510,6 +525,12 @@ general_cxyz_to_grid(const kernel_params *params, const smem_task *task,
       if (jg < bounds_j[0] || bounds_j[1] < jg) {
         continue;
       }
+
+#if (!GRID_DO_COLLOCATE)
+      // Sync threads within warp to have a single group in coalescedAtomicAdd.
+      __syncwarp(); // assumes blockDim.x==32
+#endif
+
       const int i_start = threadIdx.x + index_min[0];
       for (int i = i_start; i <= index_max[0]; i += blockDim.x) {
         const int ig =
@@ -585,7 +606,7 @@ __device__ static void cxyz_to_grid(const kernel_params *params,
 #if (!GRID_DO_COLLOCATE)
   // integrate
   for (int i = 0; i < GRID_N_CXYZ_LOCAL_MEM; i++) {
-    coalescedAtomicAdd(&cxyz[i], cxyz_local_mem[i]);
+    atomicAddDouble(&cxyz[i], cxyz_local_mem[i]);
   }
   __syncthreads(); // because of concurrent writes to cxyz
 #endif
