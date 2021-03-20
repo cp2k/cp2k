@@ -46,7 +46,7 @@ __device__ static void block_to_cab(const kernel_params *params,
   // Decontract block, apply prepare_pab, and store in cab.
   // This is a double matrix product. Since the pab block can be quite large the
   // two products are fused to conserve shared memory.
-  for (int i = threadIdx.x; i < task->nsgf_setb; i += blockDim.x) {
+  for (int i = threadIdx.z; i < task->nsgf_setb; i += blockDim.z) {
     for (int j = threadIdx.y; j < task->nsgf_seta; j += blockDim.y) {
       double block_val;
       if (task->block_transposed) {
@@ -57,8 +57,8 @@ __device__ static void block_to_cab(const kernel_params *params,
 
       if (IS_FUNC_AB) {
         // fast path for common case
-        const int jco_start = task->first_cosetb + threadIdx.z;
-        for (int jco = jco_start; jco < task->ncosetb; jco += blockDim.z) {
+        const int jco_start = task->first_cosetb + threadIdx.x;
+        for (int jco = jco_start; jco < task->ncosetb; jco += blockDim.x) {
           const double sphib = task->sphib[i * task->maxcob + jco];
           for (int ico = task->first_coseta; ico < task->ncoseta; ico++) {
             const double sphia = task->sphia[j * task->maxcoa + ico];
@@ -68,8 +68,8 @@ __device__ static void block_to_cab(const kernel_params *params,
         }
       } else {
         // Since prepare_pab is a register hog we use it only when really needed
-        const int jco_start = task->first_cosetb + threadIdx.z;
-        for (int jco = jco_start; jco < task->ncosetb; jco += blockDim.z) {
+        const int jco_start = task->first_cosetb + threadIdx.x;
+        for (int jco = jco_start; jco < task->ncosetb; jco += blockDim.x) {
           const orbital b = coset_inv[jco];
           for (int ico = task->first_coseta; ico < task->ncoseta; ico++) {
             const orbital a = coset_inv[ico];
@@ -205,7 +205,7 @@ void grid_gpu_collocate_one_grid_level(
 
   // Launch !
   const int nblocks = ntasks;
-  const dim3 threads_per_block(4, 8, 8);
+  const dim3 threads_per_block(4, 4, 4);
 
   if (func == GRID_FUNC_AB) {
     collocate_kernel_density<<<nblocks, threads_per_block, smem_per_block,
