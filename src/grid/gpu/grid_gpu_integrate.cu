@@ -38,9 +38,9 @@ __device__ static void store_hab(const kernel_params *params,
   for (int i = threadIdx.x; i < task->nsgf_setb; i += blockDim.x) {
     for (int j = threadIdx.y; j < task->nsgf_seta; j += blockDim.y) {
       const int jco_start = task->first_cosetb + threadIdx.z;
+      double block_val = 0.0;
       for (int jco = jco_start; jco < task->ncosetb; jco += blockDim.z) {
         const orbital b = coset_inv[jco];
-        double block_val = 0.0;
         const double sphib = task->sphib[i * task->maxcob + jco];
         for (int ico = task->first_coseta; ico < task->ncoseta; ico++) {
           const orbital a = coset_inv[ico];
@@ -49,11 +49,11 @@ __device__ static void store_hab(const kernel_params *params,
           const double sphia = task->sphia[j * task->maxcoa + ico];
           block_val += hab * sphia * sphib;
         }
-        if (task->block_transposed) {
-          atomicAddDouble(&task->hab_block[j * task->nsgfb + i], block_val);
-        } else {
-          atomicAddDouble(&task->hab_block[i * task->nsgfa + j], block_val);
-        }
+      }
+      if (task->block_transposed) {
+        atomicAddDouble(&task->hab_block[j * task->nsgfb + i], block_val);
+      } else {
+        atomicAddDouble(&task->hab_block[i * task->nsgfa + j], block_val);
       }
     }
   }
