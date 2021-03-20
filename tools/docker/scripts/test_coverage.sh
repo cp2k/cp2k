@@ -36,7 +36,10 @@ done
 # collect coverage stats
 mkdir -p /workspace/artifacts/coverage
 cd /workspace/artifacts/coverage || exit 1
-lcov --directory "/workspace/cp2k/obj/${ARCH}/${VERSION}" --capture --output-file coverage.info > lcov.log
+lcov --directory "/workspace/cp2k/obj/${ARCH}/${VERSION}" \
+  --exclude "/opt/cp2k-toolchain/*" \
+  --capture \
+  --output-file coverage.info > lcov.log
 lcov --summary coverage.info
 
 # generate html report
