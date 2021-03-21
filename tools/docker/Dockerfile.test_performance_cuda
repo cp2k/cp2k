@@ -9,13 +9,13 @@ COPY ./scripts/install_basics.sh .
 RUN ./install_basics.sh
 
 COPY ./scripts/install_performance.sh .
-RUN ./install_performance.sh "local"
+RUN ./install_performance.sh "local_cuda"
 
 COPY ./scripts/ci_entrypoint.sh \
      ./scripts/test_performance.sh  \
      ./scripts/plot_performance.py  \
      ./
 
-CMD ["./ci_entrypoint.sh", "./test_performance.sh", "local"]
+CMD ["./ci_entrypoint.sh", "./test_performance.sh", "local_cuda"]
 
 #EOF
