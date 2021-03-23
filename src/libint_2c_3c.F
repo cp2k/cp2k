@@ -15,6 +15,7 @@ MODULE libint_2c_3c
    USE gamma,                           ONLY: fgamma => fgamma_0
    USE input_constants,                 ONLY: do_potential_coulomb,&
                                               do_potential_id,&
+                                              do_potential_long,&
                                               do_potential_short,&
                                               do_potential_truncated
    USE kinds,                           ONLY: default_path_length,&
@@ -36,7 +37,7 @@ MODULE libint_2c_3c
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'libint_2c_3c'
 
-   PUBLIC :: eri_3center, eri_2center, cutoff_screen_factor, libint_potential_type
+   PUBLIC :: eri_3center, eri_2center, cutoff_screen_factor, libint_potential_type, compare_potential_types
 
    ! For screening of integrals with a truncated potential, it is important to use a slightly larger
    ! cutoff radius due to the discontinuity of the truncated Coulomb potential at the cutoff radius.
@@ -578,6 +579,24 @@ CONTAINS
                                     params%m_max, params%Fm)
 
    END SUBROUTINE set_params_2c
+
+   PURE FUNCTION compare_potential_types(potential1, potential2) RESULT(equals)
+      TYPE(libint_potential_type), INTENT(IN) :: potential1, potential2
+      LOGICAL :: equals
+
+      IF (potential1%potential_type /= potential2%potential_type) THEN
+         equals = .FALSE.
+      ELSE
+         equals = .TRUE.
+         SELECT CASE (potential1%potential_type)
+         CASE (do_potential_short, do_potential_long)
+            IF (potential1%omega /= potential2%omega) equals = .FALSE.
+         CASE (do_potential_truncated)
+            IF (potential1%cutoff_radius /= potential2%cutoff_radius) equals = .FALSE.
+         END SELECT
+      END IF
+
+   END FUNCTION compare_potential_types
 
 END MODULE libint_2c_3c
 

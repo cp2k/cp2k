@@ -1,0 +1,114 @@
+&GLOBAL                                                                                           
+  PROJECT     GRAD_CH_gpw_admm_none
+  PRINT_LEVEL LOW
+  RUN_TYPE    GEO_OPT
+&END GLOBAL
+&MOTION
+  &GEO_OPT
+    MAX_ITER  1
+  &END
+&END MOTION
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME  HFX_BASIS
+    BASIS_SET_FILE_NAME  BASIS_ADMM
+    POTENTIAL_FILE_NAME  POTENTIAL
+    UKS
+    MULTIPLICITY 2
+    &AUXILIARY_DENSITY_MATRIX_METHOD
+      METHOD BASIS_PROJECTION
+      ADMM_PURIFICATION_METHOD NONE
+      EXCH_CORRECTION_FUNC DEFAULT
+    &END
+    &MGRID
+      CUTOFF     100
+      REL_CUTOFF  30
+    &END MGRID
+    &QS
+      METHOD GPW
+      EPS_DEFAULT 1.0E-10
+    &END QS
+    &POISSON
+      POISSON_SOLVER WAVELET
+      PERIODIC XYZ
+    &END POISSON
+    &SCF
+      SCF_GUESS   ATOMIC
+      # To reduce the time for this test, we use a VERY coarse EPS_SCF
+      EPS_SCF     1.0E-2
+      MAX_SCF     100
+    &END SCF
+    &XC
+      2ND_DERIV_ANALYTICAL .FALSE.
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
+      &HF
+        FRACTION 1.0000000
+        &SCREENING
+          SCREEN_ON_INITIAL_P .FALSE.
+          EPS_SCHWARZ         1.0E-10
+          EPS_SCHWARZ_FORCES  1.0E-6
+        &END SCREENING
+        &INTERACTION_POTENTIAL
+          POTENTIAL_TYPE TRUNCATED
+          CUTOFF_RADIUS 1.5
+          T_C_G_DATA t_c_g.dat
+        &END
+      &END HF
+      &WF_CORRELATION
+        &RI_MP2
+          BLOCK_SIZE  1
+          EPS_CANONICAL 0.0001
+          FREE_HFX_BUFFER .FALSE.
+          &CPHF
+            EPS_CONV  1.0E-4
+            # Under these conditions, the iteration does not converge at all
+            MAX_ITER  1
+          &END
+        &END
+        &INTEGRALS
+          &WFC_GPW
+            CUTOFF      25
+            REL_CUTOFF  10
+            EPS_FILTER  1.0E-12
+            EPS_GRID    1.0E-8
+          &END WFC_GPW
+        &END INTEGRALS
+        MEMORY       1.00
+        NUMBER_PROC  1
+      &END
+    &END XC
+  &END DFT
+  &PRINT
+   &FORCES
+   &END
+  &END
+  &SUBSYS
+    &CELL
+      ABC [angstrom]  4.0 4.0 4.0
+      PERIODIC XYZ
+    &END CELL
+    &KIND H
+      BASIS_SET         DZVP-GTH
+      BASIS_SET RI_AUX  RI_DZVP-GTH
+      BASIS_SET AUX_FIT cFIT3
+      POTENTIAL         GTH-HF-q1
+    &END KIND
+    &KIND C
+      BASIS_SET         DZVP-GTH
+      BASIS_SET RI_AUX  RI_DZVP-GTH
+      BASIS_SET AUX_FIT cFIT3
+      POTENTIAL         GTH-HF-q4
+    &END KIND
+    &COORD
+  C     0.000     0.000     0.300
+  H     0.000     1.173     0.000
+    &END
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

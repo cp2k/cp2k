@@ -16,7 +16,7 @@ MODULE xc_atom
    USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_p_type
    USE xc,                              ONLY: divide_by_norm_drho,&
-                                              xc_calc_2nd_deriv
+                                              xc_calc_2nd_deriv_analytical
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                               xc_dset_get_derivative
    USE xc_derivative_types,             ONLY: xc_derivative_get,&
@@ -397,8 +397,8 @@ CONTAINS
          vxc_pw(ispin)%pw%cr3d => vxc(:, :, ispin:ispin)
       END DO
 
-      CALL xc_calc_2nd_deriv(vxc_pw, deriv_set, rho_set, rho1_set, pw_pool, &
-                             xc_section, gapw=.TRUE., vxg=vxg)
+      CALL xc_calc_2nd_deriv_analytical(vxc_pw, deriv_set, rho_set, rho1_set, pw_pool, &
+                                        xc_section, gapw=.TRUE., vxg=vxg)
 
       DO ispin = 1, nspins
          DEALLOCATE (vxc_pw(ispin)%pw)

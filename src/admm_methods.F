@@ -37,7 +37,8 @@ MODULE admm_methods
                                               cp_fm_cholesky_reduce,&
                                               cp_fm_cholesky_restore
    USE cp_fm_diag,                      ONLY: cp_fm_syevd
-   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
+   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                              cp_fm_p_type,&
                                               cp_fm_set_all,&
                                               cp_fm_set_element,&
                                               cp_fm_to_fm,&
@@ -125,7 +126,8 @@ MODULE admm_methods
              calc_aux_mo_derivs_none, &
              scale_dm, &
              admm_fit_mo_coeffs, &
-             admm_update_ks_atom
+             admm_update_ks_atom, &
+             admm_aux_reponse_density
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'admm_methods'
 
@@ -2448,5 +2450,49 @@ CONTAINS
          Heaviside = 1.0_dp
       END IF
    END FUNCTION Heaviside
+ 
+! **************************************************************************************************
+!> \brief Calculate ADMM auxiliary response density
+!> \param qs_env ...
+!> \param dm ...
+!> \param dm_admm ...
+! **************************************************************************************************
+   SUBROUTINE admm_aux_reponse_density(qs_env, dm, dm_admm)
+      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: dm
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: dm_admm
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_aux_reponse_density'
+
+      INTEGER                                            :: handle, ispin, nao, nao_aux, ncol, nspins
+      TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(dft_control_type), POINTER                    :: dft_control
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, admm_env=admm_env, dft_control=dft_control)
+
+      nspins = dft_control%nspins
+
+      CPASSERT(ASSOCIATED(admm_env%A))
+      CPASSERT(ASSOCIATED(admm_env%work_orb_orb))
+      CPASSERT(ASSOCIATED(admm_env%work_aux_orb))
+      CPASSERT(ASSOCIATED(admm_env%work_aux_aux))
+      CALL cp_fm_get_info(admm_env%A, nrow_global=nao_aux, ncol_global=nao)
+
+      ! P1 -> AUX BASIS
+      CALL cp_fm_get_info(admm_env%work_orb_orb, nrow_global=nao, ncol_global=ncol)
+      DO ispin = 1, nspins
+         CALL copy_dbcsr_to_fm(dm(ispin)%matrix, admm_env%work_orb_orb)
+         CALL cp_gemm('N', 'N', nao_aux, ncol, nao, 1.0_dp, admm_env%A, &
+                      admm_env%work_orb_orb, 0.0_dp, admm_env%work_aux_orb)
+         CALL cp_gemm('N', 'T', nao_aux, nao_aux, nao, 1.0_dp, admm_env%A, &
+                      admm_env%work_aux_orb, 0.0_dp, admm_env%work_aux_aux)
+         CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, dm_admm(ispin)%matrix, keep_sparsity=.TRUE.)
+      ENDDO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE admm_aux_reponse_density
 
 END MODULE admm_methods

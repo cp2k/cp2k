@@ -964,6 +964,7 @@ CONTAINS
 !$OMP END PARALLEL
       IF (use_virial) THEN
          virial%pv_virial = virial%pv_virial + virial_thread
+         virial%pv_overlap = virial%pv_overlap + virial_thread
       END IF
 
       DEALLOCATE (basis_set_list_a, basis_set_list_b)

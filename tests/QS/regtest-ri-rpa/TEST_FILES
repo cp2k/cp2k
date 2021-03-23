@@ -7,6 +7,6 @@ RI_RPA_H2O_minimax.inp                                11      1e-08            -
 RI_RPA_H2O_PBE0.inp                                   11      1e-08            -17.122863632433685
 RI_RPA_H2O_PBE0_ADMM1.inp                             11      1e-08            -17.125217824055699
 RI_RPA_H2O_Obara_Saika.inp                            11      1e-08            -17.160204463746162
-RI_RPA_H2O_svd.inp                                    11      1e-09            -17.145632690184986
-RI_RPA_H2O_overlap_metric_svd.inp                     11      1e-09            -17.145498315844101
+RI_RPA_H2O_svd.inp                                    11      1e-09            -17.145691221376168
+RI_RPA_H2O_overlap_metric_svd.inp                     11      1e-09            -17.145530117968583
 #EOF

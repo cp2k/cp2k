@@ -13,11 +13,18 @@
 ! **************************************************************************************************
 MODULE mp2_cphf
    USE admm_types,                      ONLY: admm_type
+   USE atomic_kind_types,               ONLY: atomic_kind_type
+   USE cell_types,                      ONLY: cell_type
+   USE core_ppl,                        ONLY: build_core_ppl
+   USE core_ppnl,                       ONLY: build_core_ppnl
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
-                                              dbcsr_allocate_matrix_set
+                                              cp_dbcsr_plus_fm_fm_t,&
+                                              cp_dbcsr_sm_fm_multiply,&
+                                              dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_p_type,&
@@ -31,21 +38,31 @@ MODULE mp2_cphf
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_unit_nr,&
+                                              cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_deallocate_matrix,&
+                                              dbcsr_multiply,&
                                               dbcsr_p_type,&
+                                              dbcsr_release,&
                                               dbcsr_scale,&
-                                              dbcsr_set
-   USE energy_corrections,              ONLY: calc_ks_response_potentials
+                                              dbcsr_set,&
+                                              dbcsr_type
+   USE hfx_admm_utils,                  ONLY: tddft_hfx_matrix
+   USE hfx_derivatives,                 ONLY: derivatives_four_center
    USE hfx_types,                       ONLY: alloc_containers,&
                                               hfx_container_type,&
                                               hfx_init_container,&
                                               hfx_type
-   USE input_constants,                 ONLY: ot_precond_full_all
-   USE input_section_types,             ONLY: section_vals_get,&
+   USE input_constants,                 ONLY: ot_precond_full_all,&
+                                              do_admm_aux_exch_func_none 
+   USE input_section_types,             ONLY: section_get_ival,&
+                                              section_get_rval,&
+                                              section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -55,7 +72,8 @@ MODULE mp2_cphf
    USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: fourpi
    USE message_passing,                 ONLY: mp_sum
-   USE mp2_types,                       ONLY: mp2_type
+   USE mp2_types,                       ONLY: mp2_type, two_dim_real_array
+   USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
@@ -75,32 +93,47 @@ MODULE mp2_cphf
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_p_type
-   USE qs_2nd_kernel_ao,                ONLY: apply_hfx_ao,&
-                                              apply_xc_admm_ao
+   USE qs_2nd_kernel_ao,                ONLY: apply_2nd_order_kernel,&
+                                              admm_projection_derivative
    USE qs_collocate_density,            ONLY: calculate_rho_elec
+   USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
-   USE qs_force_types,                  ONLY: qs_force_type
+   USE qs_force_types,                  ONLY: allocate_qs_force,&
+                                              deallocate_qs_force,&
+                                              qs_force_type,&
+                                              sum_qs_force,&
+                                              total_qs_force,&
+                                              zero_qs_force
    USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                               integrate_v_rspace
-   USE qs_kpp1_env_methods,             ONLY: calc_kpp1
+   USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_kinetic,                      ONLY: build_kinetic_matrix
    USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                               set_ks_env
    USE qs_linres_types,                 ONLY: linres_control_create,&
                                               linres_control_release,&
                                               linres_control_type
+   USE qs_mo_types,                     ONLY: mo_set_p_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+   USE qs_overlap,                      ONLY: build_overlap_matrix
    USE qs_p_env_methods,                ONLY: p_env_check_i_alloc,&
                                               p_env_create,&
+                                              p_env_finish_kpp1,&
                                               p_env_psi0_changed,&
                                               p_env_update_rho
    USE qs_p_env_types,                  ONLY: p_env_release,&
                                               qs_p_env_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE virial_types,                    ONLY: virial_type
-   USE xc,                              ONLY: xc_vxc_pw_create
+   USE response_solver,                 ONLY: calculate_whz_matrix,&
+                                              ks_ref_potential
+   USE task_list_types,                 ONLY: task_list_type
+   USE virial_types,                    ONLY: virial_type,&
+                                              zero_virial
+   USE qs_dispersion_types,             ONLY: qs_dispersion_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -111,8 +144,9 @@ MODULE mp2_cphf
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_cphf'
+   LOGICAL, PARAMETER, PRIVATE :: debug_forces = .TRUE.
 
-   PUBLIC :: solve_z_vector_eq
+   PUBLIC :: solve_z_vector_eq, update_mp2_forces
 
 CONTAINS
 
@@ -148,43 +182,41 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'solve_z_vector_eq'
 
       INTEGER :: bin, dimen, handle, handle2, i, i_global, i_thread, iiB, irep, ispin, j_global, &
-         jjB, my_bin_size, n_rep_hf, n_threads, ncol_local, nrow_local, nspins, transf_type_in, &
-         transf_type_out
+         jjB, my_bin_size, n_rep_hf, n_threads, ncol_local, nrow_local, nspins, transf_type_in
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: virtual
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: alpha_beta, do_dynamic_load_balancing, &
-                                                            do_hfx, hfx_treat_lsd_in_core, &
-                                                            restore_p_screen
+                                                            do_hfx, restore_p_screen
       REAL(KIND=dp)                                      :: out_alpha
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: L_jb, mo_coeff_o, mo_coeff_v, P_ia, &
                                                             P_mo, W_mo
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER                          :: fm_back, fm_G_mu_nu
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_p_mp2, matrix_s, &
-                                                            matrix_w_mp2, P_mu_nu, rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_p_mp2, matrix_p_mp2_admm, matrix_s, &
+                                                            P_mu_nu, rho_ao, rho_ao_aux_fit, rho1_ao
       TYPE(hfx_container_type), DIMENSION(:), POINTER    :: integral_containers
       TYPE(hfx_container_type), POINTER                  :: maxval_container
       TYPE(hfx_type), POINTER                            :: actual_x_data
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_p_env_type), POINTER                       :: p_env
-      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input
 
       CALL timeset(routineN, handle)
 
       ! start collecting stuff
       dimen = nmo
-      NULLIFY (input, matrix_s, blacs_env, rho, matrix_w_mp2, &
-               matrix_p_mp2, matrix_ks)
+      NULLIFY (input, matrix_s, blacs_env, rho, &
+               matrix_p_mp2, matrix_p_mp2_admm, matrix_ks)
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
                       input=input, &
                       matrix_s=matrix_s, &
                       matrix_ks=matrix_ks, &
                       matrix_p_mp2=matrix_p_mp2, &
-                      matrix_w_mp2=matrix_w_mp2, &
+                      matrix_p_mp2_admm=matrix_p_mp2_admm, &
                       blacs_env=blacs_env, &
                       rho=rho)
 
@@ -205,15 +237,6 @@ CONTAINS
       ENDDO
       ALLOCATE (virtual(nspins))
       virtual(:) = dimen - homo(:)
-
-      ! hfx section
-      NULLIFY (hfx_sections)
-      hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%HF")
-      CALL section_vals_get(hfx_sections, explicit=do_hfx, n_repetition=n_rep_hf)
-      IF (do_hfx) THEN
-         CALL section_vals_val_get(hfx_sections, "TREAT_LSD_IN_CORE", l_val=hfx_treat_lsd_in_core, &
-                                   i_rep_section=1)
-      END IF
 
       NULLIFY (P_mu_nu)
       CALL dbcsr_allocate_matrix_set(P_mu_nu, nspins)
@@ -257,6 +280,10 @@ CONTAINS
                                  t_firstrow=1, t_firstcol=1)
       END DO
 
+      ! hfx section
+      NULLIFY (hfx_sections)
+      hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%HF")
+      CALL section_vals_get(hfx_sections, explicit=do_hfx, n_repetition=n_rep_hf)
       IF (do_hfx) THEN
          ! here we check if we have to reallocate the HFX container
          IF (mp2_env%ri_mp2%free_hfx_buffer) THEN
@@ -319,15 +346,16 @@ CONTAINS
       linres_control%preconditioner_type = ot_precond_full_all
       linres_control%energy_gap = 0.02_dp
 
+      NULLIFY(p_env)
       CALL p_env_create(p_env, qs_env, p1_option=P_mu_nu, orthogonal_orbitals=.TRUE., linres_control=linres_control)
       CALL set_qs_env(qs_env, linres_control=linres_control)
       CALL p_env_psi0_changed(p_env, qs_env)
       p_env%new_preconditioner = .TRUE.
       CALL p_env_check_i_alloc(p_env, qs_env)
+      mp2_env%ri_grad%p_env => p_env
 
       ! update Lagrangian with the CPHF like update, occ-occ block, first call (recompute hfx integrals if needed)
       transf_type_in = 1
-      transf_type_out = 1
       out_alpha = 0.5_dp
       ! In alpha-beta case, L_bj_alpha has Coulomb and XC alpha-alpha part
       ! and (only) Coulomb alpha-beta part and vice versa.
@@ -336,24 +364,21 @@ CONTAINS
       ! part of L_bj(alpha) for open shell
 
       CALL cphf_like_update(qs_env, homo, virtual, dimen, nspins, &
-                            mo_coeff, mo_coeff_o, &
+                            mo_coeff_o, &
                             mo_coeff_v, Eigenval, p_env, &
-                            do_hfx, &
                             P_mo, fm_G_mu_nu, fm_back, transf_type_in, out_alpha, &
-                            L_jb, transf_type_out, &
+                            L_jb, &
                             recalc_hfx_integrals=mp2_env%ri_mp2%free_hfx_buffer)
 
       ! update Lagrangian with the CPHF like update, virt-virt block
       transf_type_in = 2
-      transf_type_out = 1
       out_alpha = 0.5_dp
 
       CALL cphf_like_update(qs_env, homo, virtual, dimen, nspins, &
-                            mo_coeff, mo_coeff_o, &
+                            mo_coeff_o, &
                             mo_coeff_v, Eigenval, p_env, &
-                            do_hfx, &
                             P_mo, fm_G_mu_nu, fm_back, transf_type_in, out_alpha, &
-                            L_jb, transf_type_out)
+                            L_jb)
 
       ! at this point Lagrnagian is completed ready to solve the Z-vector equations
       ! P_ia will contain the solution of these equations
@@ -368,14 +393,17 @@ CONTAINS
       END DO
 
       CALL solve_z_vector_eq_low(qs_env, mp2_env, para_env, homo, virtual, dimen, unit_nr, nspins, &
-                                 mo_coeff, mo_coeff_o, mo_coeff_v, Eigenval, p_env, blacs_env, &
-                                 do_hfx, L_jb, fm_G_mu_nu, fm_back, P_ia)
+                                 mo_coeff_o, mo_coeff_v, Eigenval, p_env, blacs_env, &
+                                 L_jb, fm_G_mu_nu, fm_back, P_ia)
 
-      ! release Lagrangian
+      ! release fm stuff
+      CALL cp_fm_release(fm_G_mu_nu)
       DO ispin = 1, nspins
          CALL cp_fm_release(L_jb(ispin)%matrix)
+         CALL cp_fm_release(mo_coeff_o(ispin)%matrix)
+         CALL cp_fm_release(mo_coeff_v(ispin)%matrix)
       END DO
-      DEALLOCATE (L_jb)
+      DEALLOCATE (L_jb, mo_coeff_o, mo_coeff_v)
 
       DO ispin = 1, nspins
          ! update the MP2-MO density matrix with the occ-virt block
@@ -391,7 +419,7 @@ CONTAINS
       END DO
       DEALLOCATE (P_ia)
 
-      ! do the final update to MP2 energy weighted matrix W_MO
+      ! do the final update to the energy weighted matrix W_MO
       DO ispin = 1, nspins
          CALL cp_fm_get_info(matrix=W_mo(ispin)%matrix, &
                              nrow_local=nrow_local, &
@@ -405,6 +433,10 @@ CONTAINS
                   i_global = row_indices(iiB)
                   W_mo(ispin)%matrix%local_data(iiB, jjB) = W_mo(ispin)%matrix%local_data(iiB, jjB) &
                                                             - P_mo(ispin)%matrix%local_data(iiB, jjB)*Eigenval(j_global, ispin)
+                  IF (i_global == j_global .AND. nspins == 1) W_mo(ispin)%matrix%local_data(iiB, jjB) = &
+                     W_mo(ispin)%matrix%local_data(iiB, jjB) - 2.0_dp*Eigenval(j_global, ispin)
+                  IF (i_global == j_global .AND. nspins == 2) W_mo(ispin)%matrix%local_data(iiB, jjB) = &
+                     W_mo(ispin)%matrix%local_data(iiB, jjB) - Eigenval(j_global, ispin)
                END DO
             ELSE
                DO iiB = 1, nrow_local
@@ -423,99 +455,70 @@ CONTAINS
          END DO
       END DO
 
-      ! complete the occ-occ block of W_mo with a CPHF like update
-      transf_type_in = 4
-      transf_type_out = 2
-      out_alpha = -0.5_dp
+      ! create the MP2 energy weighted density matrix
+      NULLIFY(p_env%w1)
+      CALL dbcsr_allocate_matrix_set(p_env%w1, 1)
+      ALLOCATE (p_env%w1(1)%matrix)
+      CALL dbcsr_copy(p_env%w1(1)%matrix, matrix_s(1)%matrix, &
+                      name="W MATRIX MP2")
+      CALL dbcsr_set(p_env%w1(1)%matrix, 0.0_dp)
 
-      CALL cphf_like_update(qs_env, homo, virtual, dimen, nspins, &
-                            mo_coeff, mo_coeff_o, &
-                            mo_coeff_v, Eigenval, p_env, &
-                            do_hfx, &
-                            P_mo, fm_G_mu_nu, fm_back, transf_type_in, out_alpha, &
-                            W_mo, transf_type_out)
-
-      ! release fm stuff
-      CALL cp_fm_release(fm_G_mu_nu)
-      DO ispin = 1, nspins
-         CALL cp_fm_release(mo_coeff_o(ispin)%matrix)
-         CALL cp_fm_release(mo_coeff_v(ispin)%matrix)
-      END DO
-      DEALLOCATE (mo_coeff_o, mo_coeff_v)
-
-      ! backtransform into AO basis, since P_mo and W_mo
-      ! are symmetric (in principle), no need to symmetrize
-      ! first W_mo
+      ! backtnsform the collected parts of the energy-weighted density matrix into AO basis
       DO ispin = 1, nspins
          CALL cp_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
-                      mo_coeff(ispin)%matrix, W_mo(ispin)%matrix, 0.0_dp, fm_back, &
-                      a_first_col=1, &
-                      a_first_row=1, &
-                      b_first_col=1, &
-                      b_first_row=1, &
-                      c_first_col=1, &
-                      c_first_row=1)
-         CALL cp_gemm('N', 'T', dimen, dimen, dimen, 1.0_dp, &
-                      fm_back, mo_coeff(ispin)%matrix, 0.0_dp, W_mo(ispin)%matrix, &
-                      a_first_col=1, &
-                      a_first_row=1, &
-                      b_first_col=1, &
-                      b_first_row=1, &
-                      c_first_col=1, &
-                      c_first_row=1)
-         ! and P_mo
-         CALL cp_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
-                      mo_coeff(ispin)%matrix, P_mo(ispin)%matrix, 0.0_dp, fm_back, &
-                      a_first_col=1, &
-                      a_first_row=1, &
-                      b_first_col=1, &
-                      b_first_row=1, &
-                      c_first_col=1, &
-                      c_first_row=1)
-         CALL cp_gemm('N', 'T', dimen, dimen, dimen, 1.0_dp, &
-                      fm_back, mo_coeff(ispin)%matrix, 0.0_dp, P_mo(ispin)%matrix, &
-                      a_first_col=1, &
-                      a_first_row=1, &
-                      b_first_col=1, &
-                      b_first_row=1, &
-                      c_first_col=1, &
-                      c_first_row=1)
+                      mo_coeff(ispin)%matrix, W_mo(ispin)%matrix, 0.0_dp, fm_back)
+         CALL cp_fm_release(W_mo(ispin)%matrix)
+         CALL cp_dbcsr_plus_fm_fm_t(p_env%w1(1)%matrix, fm_back, mo_coeff(ispin)%matrix, dimen, 1.0_dp, .TRUE.)
       END DO
+      DEALLOCATE(W_mo)
 
-      ! copy W_mo into dbcsr
+      CALL qs_rho_get(p_env%rho1, rho_ao=rho1_ao)
+
       DO ispin = 1, nspins
-         CALL copy_fm_to_dbcsr(W_mo(ispin)%matrix, matrix_w_mp2(ispin)%matrix, keep_sparsity=.TRUE.)
+         CALL dbcsr_set(p_env%p1(ispin)%matrix, 0.0_dp)
+
+         CALL cp_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
+                      mo_coeff(ispin)%matrix, P_mo(ispin)%matrix, 0.0_dp, fm_back)
+         CALL cp_fm_release(P_mo(ispin)%matrix)
+         CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff(ispin)%matrix, dimen, 1.0_dp, .TRUE.)
+
+         CALL dbcsr_copy(rho1_ao(ispin)%matrix, p_env%p1(ispin)%matrix)
       END DO
+      CALL cp_fm_release(fm_back)
+      DEALLOCATE (P_mo)
+
+      CALL p_env_update_rho(p_env, qs_env)
 
       ! create mp2 DBCSR density
       CALL dbcsr_allocate_matrix_set(matrix_p_mp2, nspins)
       DO ispin = 1, nspins
          ALLOCATE (matrix_p_mp2(ispin)%matrix)
-         CALL dbcsr_copy(matrix_p_mp2(ispin)%matrix, rho_ao(ispin)%matrix, &
+         CALL dbcsr_copy(matrix_p_mp2(ispin)%matrix, p_env%p1(ispin)%matrix, &
                          name="P MATRIX MP2")
-         CALL dbcsr_set(matrix_p_mp2(ispin)%matrix, 0.0_dp)
-         CALL copy_fm_to_dbcsr(P_mo(ispin)%matrix, matrix_p_mp2(ispin)%matrix, keep_sparsity=.TRUE.)
       END DO
-      CALL set_ks_env(ks_env, matrix_p_mp2=matrix_p_mp2)
 
-      CALL cp_fm_release(fm_back)
+      IF (dft_control%do_admm) THEN
+         CALL get_qs_env(qs_env, rho_aux_fit=rho_aux_fit)
+         CALL qs_rho_get(rho_aux_fit, rho_ao=rho_ao_aux_fit)
 
-      ! release remaining fm stuff
-      DO ispin = 1, nspins
-         CALL cp_fm_release(W_mo(ispin)%matrix)
-         CALL cp_fm_release(P_mo(ispin)%matrix)
-      END DO
-      DEALLOCATE (P_mo, W_mo)
+         ! create mp2 DBCSR density in auxiliary basis
+         CALL dbcsr_allocate_matrix_set(matrix_p_mp2_admm, nspins)
+         DO ispin = 1, nspins
+            ALLOCATE (matrix_p_mp2_admm(ispin)%matrix)
+            CALL dbcsr_copy(matrix_p_mp2_admm(ispin)%matrix, p_env%p1_admm(ispin)%matrix, &
+                            name="P MATRIX MP2 ADMM")
+         END DO
+      END IF
 
-      CALL update_mp2_forces(qs_env, para_env)
+      CALL set_ks_env(ks_env, matrix_p_mp2=matrix_p_mp2, matrix_p_mp2_admm=matrix_p_mp2_admm)
 
       ! We will need one more hfx calculation for HF gradient part
       mp2_env%not_last_hfx = .FALSE.
       mp2_env%p_screen = restore_p_screen
 
-      ! Release linres stuff
-      CALL p_env_release(p_env)
-      CALL linres_control_release(linres_control)
+      DO ispin = 1, nspins
+         CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
+      END DO
 
       CALL timestop(handle)
 
@@ -528,50 +531,39 @@ CONTAINS
 !>        transf_type_in = 2 -> virt-virt back transformation
 !>        transf_type_in = 3 -> occ-virt back transformation including the
 !>                              eigenvalues energy differences for the diagonal elements
-!>        transf_type_in = 4 -> full range
-!>        transf_type_out defines the type of transformation for the matrix in output
-!>        transf_type_out = 1 -> occ-vit transformation
-!>        transf_type_out = 2 -> occ-occ transformation
 !> \param qs_env ...
 !> \param homo ...
 !> \param virtual ...
 !> \param dimen ...
 !> \param nspins ...
-!> \param mo_coeff ...
 !> \param mo_coeff_o ...
 !> \param mo_coeff_v ...
 !> \param Eigenval ...
 !> \param p_env ...
-!> \param do_hfx ...
 !> \param fm_mo ...
 !> \param fm_ao ...
 !> \param fm_back ...
 !> \param transf_type_in ...
 !> \param out_alpha ...
 !> \param fm_mo_out ...
-!> \param transf_type_out ...
 !> \param recalc_hfx_integrals ...
 !> \author Mauro Del Ben, Vladimir Rybkin
 ! **************************************************************************************************
    SUBROUTINE cphf_like_update(qs_env, homo, virtual, dimen, nspins, &
-                               mo_coeff, mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
-                               do_hfx, fm_mo, fm_ao, fm_back, transf_type_in, out_alpha, &
-                               fm_mo_out, transf_type_out, recalc_hfx_integrals)
+                               mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
+                               fm_mo, fm_ao, fm_back, transf_type_in, out_alpha, &
+                               fm_mo_out, recalc_hfx_integrals)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       INTEGER, INTENT(IN)                                :: nspins, dimen
       INTEGER, DIMENSION(nspins), INTENT(IN)             :: virtual, homo
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN), &
-         POINTER                                         :: mo_coeff
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff_o, mo_coeff_v
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
-      LOGICAL, INTENT(IN)                                :: do_hfx
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mo
       TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_ao, fm_back
       INTEGER, INTENT(IN)                                :: transf_type_in
       REAL(KIND=dp), INTENT(IN)                          :: out_alpha
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: fm_mo_out
-      INTEGER, INTENT(IN)                                :: transf_type_out
       LOGICAL, INTENT(IN), OPTIONAL                      :: recalc_hfx_integrals
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cphf_like_update'
@@ -579,30 +571,16 @@ CONTAINS
       INTEGER                                            :: handle, i_global, iiB, ispin, j_global, &
                                                             jjB, ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      LOGICAL                                            :: lr_triplet, lrigpw, &
-                                                            my_recalc_hfx_integrals
-      TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_fm_type), POINTER                          :: mat_in, mat_out
-      TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:), &
-         TARGET                                          :: mat_mu_nu, rho_work_ao, rho_work_ao_admm
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho1_ao
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
-      TYPE(linres_control_type), POINTER                 :: linres_control
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho1, rho1_xc
-      TYPE(section_vals_type), POINTER                   :: input, xc_section
 
-      NULLIFY (ks_env)
       CALL timeset(routineN, handle)
-
-      my_recalc_hfx_integrals = .FALSE.
-      IF (PRESENT(recalc_hfx_integrals)) my_recalc_hfx_integrals = recalc_hfx_integrals
 
       CALL qs_rho_get(p_env%rho1, rho_ao=rho1_ao)
 
       ! Determine the first-order density matrices in AO basis
       DO ispin = 1, nspins
+         CALL dbcsr_set(p_env%p1(ispin)%matrix, 0.0_dp)
 
          mat_in => fm_mo(ispin)%matrix
 
@@ -611,108 +589,33 @@ CONTAINS
          CASE (1)
             ! occ-occ block
             CALL cp_gemm('N', 'N', dimen, homo(ispin), homo(ispin), 1.0_dp, &
-                         mo_coeff_o(ispin)%matrix, mat_in, 0.0_dp, fm_back, &
-                         a_first_col=1, &
-                         a_first_row=1, &
-                         b_first_col=1, &
-                         b_first_row=1, &
-                         c_first_col=1, &
-                         c_first_row=1)
-            CALL cp_gemm('N', 'T', dimen, dimen, homo(ispin), 1.0_dp, &
-                         fm_back, mo_coeff_o(ispin)%matrix, 0.0_dp, fm_ao, &
-                         a_first_col=1, &
-                         a_first_row=1, &
-                         b_first_col=1, &
-                         b_first_row=1, &
-                         c_first_col=1, &
-                         c_first_row=1)
+                         mo_coeff_o(ispin)%matrix, mat_in, 0.0_dp, fm_back)
+            CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_o(ispin)%matrix, homo(ispin), 1.0_dp, .TRUE.)
 
          CASE (2)
             ! virt-virt block
             CALL cp_gemm('N', 'N', dimen, virtual(ispin), virtual(ispin), 1.0_dp, &
                          mo_coeff_v(ispin)%matrix, mat_in, 0.0_dp, fm_back, &
-                         a_first_col=1, &
-                         a_first_row=1, &
                          b_first_col=homo(ispin) + 1, &
-                         b_first_row=homo(ispin) + 1, &
-                         c_first_col=1, &
-                         c_first_row=1)
-            CALL cp_gemm('N', 'T', dimen, dimen, virtual(ispin), 1.0_dp, &
-                         fm_back, mo_coeff_v(ispin)%matrix, 0.0_dp, fm_ao, &
-                         a_first_col=1, &
-                         a_first_row=1, &
-                         b_first_col=1, &
-                         b_first_row=1, &
-                         c_first_col=1, &
-                         c_first_row=1)
+                         b_first_row=homo(ispin) + 1)
+            CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_v(ispin)%matrix, virtual(ispin), 1.0_dp, .TRUE.)
 
          CASE (3)
             ! virt-occ blocks
             CALL cp_gemm('N', 'N', dimen, virtual(ispin), homo(ispin), 1.0_dp, &
-                         mo_coeff_o(ispin)%matrix, mat_in, 0.0_dp, fm_back, &
-                         a_first_col=1, &
-                         a_first_row=1, &
-                         b_first_col=1, &
-                         b_first_row=1, &
-                         c_first_col=1, &
-                         c_first_row=1)
-            CALL cp_gemm('N', 'T', dimen, dimen, virtual(ispin), 1.0_dp, &
-                         fm_back, mo_coeff_v(ispin)%matrix, 0.0_dp, fm_ao, &
-                         a_first_col=1, &
-                         a_first_row=1, &
-                         b_first_col=1, &
-                         b_first_row=1, &
-                         c_first_col=1, &
-                         c_first_row=1)
+                         mo_coeff_o(ispin)%matrix, mat_in, 0.0_dp, fm_back)
+            CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_v(ispin)%matrix, virtual(ispin), 0.5_dp, .TRUE.)
             ! and symmetrize (here again multiply instead of transposing)
             CALL cp_gemm('N', 'T', dimen, homo(ispin), virtual(ispin), 1.0_dp, &
-                         mo_coeff_v(ispin)%matrix, mat_in, 0.0_dp, fm_back, &
-                         a_first_col=1, &
-                         a_first_row=1, &
-                         b_first_col=1, &
-                         b_first_row=1, &
-                         c_first_col=1, &
-                         c_first_row=1)
-            CALL cp_gemm('N', 'T', dimen, dimen, homo(ispin), 0.5_dp, &
-                         fm_back, mo_coeff_o(ispin)%matrix, 0.5_dp, fm_ao, &
-                         a_first_col=1, &
-                         a_first_row=1, &
-                         b_first_col=1, &
-                         b_first_row=1, &
-                         c_first_col=1, &
-                         c_first_row=1)
-
-         CASE (4)
-            ! all-all block
-            CALL cp_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
-                         mo_coeff(ispin)%matrix, mat_in, 0.0_dp, fm_back, &
-                         a_first_col=1, &
-                         a_first_row=1, &
-                         b_first_col=1, &
-                         b_first_row=1, &
-                         c_first_col=1, &
-                         c_first_row=1)
-            CALL cp_gemm('N', 'T', dimen, dimen, dimen, 1.0_dp, &
-                         fm_back, mo_coeff(ispin)%matrix, 0.0_dp, fm_ao, &
-                         a_first_col=1, &
-                         a_first_row=1, &
-                         b_first_col=1, &
-                         b_first_row=1, &
-                         c_first_col=1, &
-                         c_first_row=1)
+                         mo_coeff_v(ispin)%matrix, mat_in, 0.0_dp, fm_back)
+            CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_o(ispin)%matrix, homo(ispin), 0.5_dp, .TRUE.)
 
          CASE DEFAULT
             ! nothing
          END SELECT
 
-         ! copy fm into DBCSR
-         CALL dbcsr_set(p_env%p1(ispin)%matrix, 0.0_dp)
-         CALL copy_fm_to_dbcsr(fm_ao, p_env%p1(ispin)%matrix, keep_sparsity=.TRUE.)
-
          CALL dbcsr_copy(rho1_ao(ispin)%matrix, p_env%p1(ispin)%matrix)
       END DO
-
-      CALL get_qs_env(qs_env, ks_env=ks_env, x_data=x_data, dft_control=dft_control)
 
       CALL p_env_update_rho(p_env, qs_env)
 
@@ -740,69 +643,9 @@ CONTAINS
          END DO
       END IF
 
-      DO ispin = 1, nspins
-         CALL dbcsr_set(p_env%kpp1(ispin)%matrix, 0.0_dp)
-      END DO
-
-      NULLIFY (input)
-
-      rho1 => p_env%rho1
-      rho1_xc => p_env%rho1_xc
-
-      CALL get_qs_env(qs_env=qs_env, &
-                      input=input, &
-                      linres_control=linres_control)
-
-      lrigpw = dft_control%qs_control%lrigpw
-
-      lr_triplet = linres_control%lr_triplet
-
-      IF (dft_control%do_admm) THEN
-         CALL get_qs_env(qs_env, admm_env=admm_env)
-         xc_section => admm_env%xc_section_primary
-      ELSE
-         xc_section => section_vals_get_subs_vals(input, "DFT%XC")
-      END IF
-
-      CALL calc_kpp1(rho1_xc, rho1, xc_section, .FALSE., &
-                     .FALSE., lrigpw, .TRUE., lr_triplet, &
-                     qs_env, p_env)
-
-      IF (do_hfx) THEN
-         ! For HFX, we have to remap the different matrices
-         ALLOCATE (rho_work_ao(nspins), mat_mu_nu(nspins))
-         IF (dft_control%do_admm) ALLOCATE (rho_work_ao_admm(nspins))
-         IF (nspins == 2) THEN
-            ! In case of unrestricted calculations, we need a dummy dbcsr matrix for the hfx kernel
-            NULLIFY (mat_mu_nu(2)%matrix)
-            ALLOCATE (mat_mu_nu(2)%matrix)
-            CALL dbcsr_create(mat_mu_nu(2)%matrix, template=p_env%kpp1(1)%matrix)
-            rho_work_ao(2)%matrix => mat_mu_nu(2)%matrix
-            IF (dft_control%do_admm) rho_work_ao_admm(2)%matrix => mat_mu_nu(2)%matrix
-         END IF
-
-         DO ispin = 1, nspins
-            ! update with the exchange like contributions
-
-            rho_work_ao(1)%matrix => p_env%p1(ispin)%matrix
-            IF (dft_control%do_admm) rho_work_ao_admm(1)%matrix => p_env%p1_admm(ispin)%matrix
-            mat_mu_nu(1)%matrix => p_env%kpp1(ispin)%matrix
-            CALL apply_hfx_ao(qs_env, rho_work_ao, rho_work_ao_admm, mat_mu_nu, my_recalc_hfx_integrals)
-         END DO
-
-         IF (nspins == 2) THEN
-            CALL dbcsr_deallocate_matrix(mat_mu_nu(2)%matrix)
-         END IF
-         DEALLOCATE (mat_mu_nu, rho_work_ao)
-         IF (dft_control%do_admm) THEN
-            DEALLOCATE (rho_work_ao_admm)
-            CALL apply_xc_admm_ao(qs_env, p_env)
-         END IF
-      END IF
+      CALL apply_2nd_order_kernel(qs_env, p_env, recalc_hfx_integrals)
 
       DO ispin = 1, nspins
-         CALL dbcsr_scale(p_env%kpp1(ispin)%matrix, 2.0_dp)
-
          ! copy back to fm
          CALL cp_fm_set_all(fm_ao, 0.0_dp)
          CALL copy_dbcsr_to_fm(matrix=p_env%kpp1(ispin)%matrix, fm=fm_ao)
@@ -813,51 +656,11 @@ CONTAINS
 
          ! transform to MO basis, here we always sum the result into the input matrix
 
-         SELECT CASE (transf_type_out)
-            ! In alpha-beta case the density is contracted with the orbitals of different
-            ! spin. Thus, there's branching at forward transform and no branching here,
-            ! at back transform.
-         CASE (1)
-            ! occ-virt block
-            CALL cp_gemm('T', 'N', homo(ispin), dimen, dimen, 1.0_dp, &
-                         mo_coeff_o(ispin)%matrix, fm_ao, 0.0_dp, fm_back, &
-                         a_first_col=1, &
-                         a_first_row=1, &
-                         b_first_col=1, &
-                         b_first_row=1, &
-                         c_first_col=1, &
-                         c_first_row=1)
-            CALL cp_gemm('N', 'N', homo(ispin), virtual(ispin), dimen, out_alpha, &
-                         fm_back, mo_coeff_v(ispin)%matrix, 1.0_dp, mat_out, &
-                         a_first_col=1, &
-                         a_first_row=1, &
-                         b_first_col=1, &
-                         b_first_row=1, &
-                         c_first_col=1, &
-                         c_first_row=1)
-
-         CASE (2)
-            ! occ-occ block
-            CALL cp_gemm('T', 'N', homo(ispin), dimen, dimen, 1.0_dp, &
-                         mo_coeff_o(ispin)%matrix, fm_ao, 0.0_dp, fm_back, &
-                         a_first_col=1, &
-                         a_first_row=1, &
-                         b_first_col=1, &
-                         b_first_row=1, &
-                         c_first_col=1, &
-                         c_first_row=1)
-            CALL cp_gemm('N', 'N', homo(ispin), homo(ispin), dimen, out_alpha, &
-                         fm_back, mo_coeff_o(ispin)%matrix, 1.0_dp, mat_out, &
-                         a_first_col=1, &
-                         a_first_row=1, &
-                         b_first_col=1, &
-                         b_first_row=1, &
-                         c_first_col=1, &
-                         c_first_row=1)
-
-         CASE DEFAULT
-            ! nothing
-         END SELECT
+         ! occ-virt block
+         CALL cp_gemm('T', 'N', homo(ispin), dimen, dimen, 1.0_dp, &
+                      mo_coeff_o(ispin)%matrix, fm_ao, 0.0_dp, fm_back)
+         CALL cp_gemm('N', 'N', homo(ispin), virtual(ispin), dimen, 2.0_dp*out_alpha, &
+                      fm_back, mo_coeff_v(ispin)%matrix, 1.0_dp, mat_out)
 
       END DO
 
@@ -876,13 +679,11 @@ CONTAINS
 !> \param dimen ...
 !> \param unit_nr ...
 !> \param nspins ...
-!> \param mo_coeff ...
 !> \param mo_coeff_o ...
 !> \param mo_coeff_v ...
 !> \param Eigenval ...
 !> \param p_env ...
 !> \param blacs_env ...
-!> \param do_hfx ...
 !> \param L_jb ...
 !> \param fm_G_mu_nu ...
 !> \param fm_back ...
@@ -890,20 +691,17 @@ CONTAINS
 !> \author Mauro Del Ben, Vladimir Rybkin
 ! **************************************************************************************************
    SUBROUTINE solve_z_vector_eq_low(qs_env, mp2_env, para_env, homo, virtual, dimen, unit_nr, nspins, &
-                                    mo_coeff, mo_coeff_o, mo_coeff_v, Eigenval, p_env, blacs_env, &
-                                    do_hfx, L_jb, fm_G_mu_nu, fm_back, P_ia)
+                                    mo_coeff_o, mo_coeff_v, Eigenval, p_env, blacs_env, &
+                                    L_jb, fm_G_mu_nu, fm_back, P_ia)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(mp2_type), INTENT(IN), POINTER                :: mp2_env
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       INTEGER, INTENT(IN)                                :: nspins, unit_nr, dimen
       INTEGER, DIMENSION(nspins), INTENT(IN)             :: virtual, homo
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN), &
-         POINTER                                         :: mo_coeff
       TYPE(cp_fm_p_type), DIMENSION(nspins), INTENT(IN)  :: mo_coeff_o, mo_coeff_v
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
       TYPE(cp_blacs_env_type), INTENT(IN), POINTER       :: blacs_env
-      LOGICAL, INTENT(IN)                                :: do_hfx
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: L_jb
       TYPE(cp_fm_type), INTENT(INOUT), POINTER           :: fm_G_mu_nu, fm_back
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: P_ia
@@ -911,7 +709,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_z_vector_eq_low'
 
       INTEGER :: cycle_counter, handle, i_global, iiB, iiter, ispin, j_global, jjB, max_num_iter, &
-         ncol_local, nrow_local, transf_type_in, transf_type_out
+         ncol_local, nrow_local, transf_type_in
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: converged
       REAL(KIND=dp)                                      :: eps_conv, out_alpha, t1, t2
@@ -939,7 +737,6 @@ CONTAINS
 
       ! set the transformation type (equal for all methods all updates)
       transf_type_in = 3
-      transf_type_out = 1
       out_alpha = 1.0_dp
 
       ! set convergece flag
@@ -1047,11 +844,10 @@ CONTAINS
          END DO
 
          CALL cphf_like_update(qs_env, homo, virtual, dimen, nspins, &
-                               mo_coeff, mo_coeff_o, &
+                               mo_coeff_o, &
                                mo_coeff_v, Eigenval, p_env, &
-                               do_hfx, &
                                xn(:, iiter), fm_G_mu_nu, fm_back, transf_type_in, out_alpha, &
-                               Ax(:, iiter), transf_type_out)
+                               Ax(:, iiter))
 
          ! in order to reduce the number of calls to mp_sum here we
          ! cluster all necessary scalar products into a single vector
@@ -1176,64 +972,256 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
-!> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE update_mp2_forces(qs_env, para_env)
+   SUBROUTINE update_mp2_forces(qs_env)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'update_mp2_forces'
 
-      INTEGER                                            :: alpha, beta, handle, handle2, i, ikind, &
+      INTEGER                                            :: alpha, beta, handle, idir, iounit, &
                                                             ispin, nspins
       INTEGER, DIMENSION(3)                              :: comp
-      LOGICAL                                            :: use_virial
-      REAL(KIND=dp)                                      :: e_hartree, e_xc, pair_energy, tot_rho_r
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_dummy, h_stress
+      LOGICAL                                            :: use_virial, do_hfx
+      REAL(KIND=dp)                                      :: e_dummy, e_hartree, e_xc, exc, ehartree
+      REAL(KIND=dp), DIMENSION(3)                        :: deb
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_virial
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_p_mp2, matrix_s, &
-                                                            matrix_w_mp2, rho_ao
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_p_mp2, matrix_p_mp2_admm, matrix_s, &
+                                                            rho_ao, scrm, rho1, rho_ao_aux
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp, scrm_kp
+      TYPE(dbcsr_p_type), DIMENSION(:), ALLOCATABLE, TARGET :: matrix_ks_aux
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(linres_control_type), POINTER                 :: linres_control
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb, sac_ppl, sap_ppnl
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: dvg(3), pot_g, pot_r, rho_tot_g, &
-                                                            rho_tot_r, temp_pw_g
-      TYPE(pw_p_type), ALLOCATABLE, DIMENSION(:)         :: tau_mp2_g, tau_mp2_r
+      TYPE(pw_p_type)                                    :: pot_g, pot_r, rho_tot_g, &
+                                                            temp_pw_g, vhxc_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_mp2_g, rho_mp2_r, rho_r, &
-                                                            tau_r, v_rho, v_tau, v_xc
-      TYPE(pw_p_type), POINTER                           :: rho_core
+                                                            tau_mp2_r, rho_mp2_r_aux, &
+                                                            vxc_rspace, vtau_rspace, dvg, vadmm_rspace
+      TYPE(pw_p_type), POINTER                           :: rho_core, vh_rspace
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(section_vals_type), POINTER                   :: input, xc_section
+      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux
+      TYPE(section_vals_type), POINTER                   :: input, xc_section, hfx_sections
+      TYPE(task_list_type), POINTER                      :: task_list_aux_fit
       TYPE(virial_type), POINTER                         :: virial
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (input, pw_env, matrix_s, rho, energy, force, virial, matrix_w_mp2, &
-               matrix_p_mp2, matrix_ks, rho_core)
+      logger => cp_get_default_logger()
+      iounit = cp_logger_get_default_unit_nr(logger)
+
+      NULLIFY (input, pw_env, matrix_s, rho, energy, force, virial, &
+               matrix_p_mp2, matrix_p_mp2_admm, matrix_ks, rho_core)
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
                       dft_control=dft_control, &
                       pw_env=pw_env, &
                       input=input, &
+                      mos=mos, &
+                      para_env=para_env, &
                       matrix_s=matrix_s, &
                       matrix_ks=matrix_ks, &
                       matrix_p_mp2=matrix_p_mp2, &
-                      matrix_w_mp2=matrix_w_mp2, &
+                      matrix_p_mp2_admm=matrix_p_mp2_admm, &
                       rho=rho, &
-                      energy=energy, &
+                      cell=cell, &
                       force=force, &
                       virial=virial, &
+                      sab_orb=sab_orb, &
+                      energy=energy, &
                       rho_core=rho_core)
 
-      CALL qs_rho_get(rho, rho_ao=rho_ao)
+      p_env => qs_env%mp2_env%ri_grad%p_env
+
+      CALL qs_rho_get(rho, rho_ao=rho_ao, rho_ao_kp=rho_ao_kp, rho_r=rho_r, rho_g=rho_g)
       nspins = SIZE(rho_ao)
 
       ! check if we have to calculate the virial
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+      IF (use_virial) virial%pv_calculate = .TRUE.
+
+      CALL zero_qs_force(force)
+      IF (use_virial) CALL zero_virial(virial, .FALSE.)
+
+      DO ispin = 1, nspins
+         CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
+      END DO
+
+      IF (nspins == 2) THEN
+         CALL dbcsr_add(rho_ao(1)%matrix, rho_ao(2)%matrix, 1.0_dp, 1.0_dp)
+      END IF
+
+      ! Kinetic energy matrix
+      NULLIFY (scrm)
+      IF (debug_forces) THEN
+         deb(1:3) = force(1)%kinetic(1:3, 1)
+         IF (use_virial) e_dummy = third_tr(virial%pv_virial)
+      END IF
+      CALL build_kinetic_matrix(ks_env, matrix_t=scrm, &
+                                matrix_name="KINETIC ENERGY MATRIX", &
+                                basis_type="ORB", &
+                                sab_nl=sab_orb, calculate_forces=.TRUE., &
+                                matrix_p=rho_ao(1)%matrix)
+      IF (debug_forces) THEN
+         deb(1:3) = force(1)%kinetic(1:3, 1) - deb(1:3)
+         CALL mp_sum(deb, para_env%group)
+         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dT       ", deb
+         IF (use_virial) THEN
+            e_dummy = third_tr(virial%pv_virial) - e_dummy
+            CALL mp_sum(e_dummy, para_env%group)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: T          ", e_dummy
+         END IF
+      END IF
+      CALL dbcsr_deallocate_matrix_set(scrm)
+
+      IF (nspins == 2) THEN
+         CALL dbcsr_add(rho_ao(1)%matrix, rho_ao(2)%matrix, 1.0_dp, -1.0_dp)
+      END IF
+
+      ! Add pseudo potential terms
+      scrm_kp(1:nspins, 1:1) => matrix_ks(1:nspins)
+      CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, particle_set=particle_set, &
+                      atomic_kind_set=atomic_kind_set, sac_ppl=sac_ppl, sap_ppnl=sap_ppnl)
+      IF (ASSOCIATED(sac_ppl)) THEN
+         IF (debug_forces) THEN
+            deb(1:3) = force(1)%gth_ppl(1:3, 1)
+            IF (use_virial) e_dummy = third_tr(virial%pv_virial)
+         END IF
+         CALL build_core_ppl(scrm_kp, rho_ao_kp, force, &
+                             virial, .TRUE., use_virial, 1, &
+                             qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, &
+                             1, NULL(), "ORB")
+         IF (debug_forces) THEN
+            deb(1:3) = force(1)%gth_ppl(1:3, 1) - deb(1:3)
+            CALL mp_sum(deb, para_env%group)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dHppl    ", deb
+            IF (use_virial) THEN
+               e_dummy = third_tr(virial%pv_virial) - e_dummy
+               CALL mp_sum(e_dummy, para_env%group)
+               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: Hppl       ", e_dummy
+            END IF
+         END IF
+      END IF
+      IF (ASSOCIATED(sap_ppnl)) THEN
+         IF (debug_forces) THEN
+            deb(1:3) = force(1)%gth_ppnl(1:3, 1)
+            IF (use_virial) e_dummy = third_tr(virial%pv_virial)
+         END IF
+         CALL build_core_ppnl(scrm_kp, rho_ao_kp, force, &
+                              virial, .TRUE., use_virial, 1, &
+                              qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, dft_control%qs_control%eps_ppnl, &
+                              1, NULL(), "ORB")
+         IF (debug_forces) THEN
+            deb(1:3) = force(1)%gth_ppnl(1:3, 1) - deb(1:3)
+            CALL mp_sum(deb, para_env%group)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dHppnl   ", deb
+            IF (use_virial) THEN
+               e_dummy = third_tr(virial%pv_virial) - e_dummy
+               CALL mp_sum(e_dummy, para_env%group)
+               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: Hppnl      ", e_dummy
+            END IF
+         END IF
+      END IF
+
+      ! Get the different components of the KS potential
+      NULLIFY(vh_rspace, vxc_rspace, vtau_rspace, vadmm_rspace)
+      IF (use_virial) THEN
+         h_stress = 0.0_dp
+         CALL ks_ref_potential(qs_env, vh_rspace, vxc_rspace, vtau_rspace, vadmm_rspace, ehartree, exc, h_stress)
+         ! Update virial
+         virial%pv_ehartree = virial%pv_ehartree + h_stress/REAL(para_env%num_pe, dp)
+         virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env%num_pe, dp)
+         virial%pv_exc = virial%pv_exc - virial%pv_xc
+         virial%pv_virial = virial%pv_virial - virial%pv_xc
+         IF (debug_forces) THEN
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: xc       ", third_tr(h_stress)
+            CALL mp_sum(virial%pv_xc(1, 1), para_env%group)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: Corr xc   ", third_tr(virial%pv_xc)
+         END IF
+      ELSE
+         CALL ks_ref_potential(qs_env, vh_rspace, vxc_rspace, vtau_rspace, vadmm_rspace, ehartree, exc)
+      END IF
+
+      ! Vhxc
+      CALL get_qs_env(qs_env, pw_env=pw_env)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
+                      poisson_env=poisson_env)
+      NULLIFY(vhxc_rspace%pw)
+      CALL pw_pool_create_pw(auxbas_pw_pool, vhxc_rspace%pw, &
+                             use_data=REALDATA3D, in_space=REALSPACE)
+      IF (use_virial) h_stress = virial%pv_virial
+      IF (debug_forces) THEN
+         deb(1:3) = force(1)%rho_elec(1:3, 1)
+         IF (use_virial) e_dummy = third_tr(h_stress)
+      END IF
+      DO ispin = 1, nspins
+         CALL pw_transfer(vh_rspace%pw, vhxc_rspace%pw)
+         CALL pw_axpy(vxc_rspace(ispin)%pw, vhxc_rspace%pw)
+         CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
+                                 hmat=matrix_ks(ispin), pmat=rho_ao(ispin), &
+                                 qs_env=qs_env, calculate_forces=.TRUE.)
+         IF (ASSOCIATED(vtau_rspace)) THEN
+            CALL integrate_v_rspace(v_rspace=vtau_rspace(ispin), &
+                                    hmat=matrix_ks(ispin), pmat=rho_ao(ispin), &
+                                    qs_env=qs_env, calculate_forces=.TRUE., compute_tau=.TRUE.)
+         END IF
+      END DO
+      IF (debug_forces) THEN
+         deb(1:3) = force(1)%rho_elec(1:3, 1) - deb(1:3)
+         CALL mp_sum(deb, para_env%group)
+         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dVhxc    ", deb
+         IF (use_virial) THEN
+            e_dummy = third_tr(virial%pv_virial) - e_dummy
+            CALL mp_sum(e_dummy, para_env%group)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: Vhxc      ", e_dummy
+         END IF
+      END IF
+      IF (use_virial) THEN
+         h_stress = virial%pv_virial - h_stress
+         virial%pv_ehartree = virial%pv_ehartree + h_stress
+
+         CALL qs_rho_get(p_env%rho1, rho_r=rho_mp2_r, tau_r=tau_mp2_r)
+         e_xc = 0.0_dp
+         DO ispin = 1, nspins
+            ! The potentials have been scaled in ks_ref_potential, but for pw_integral_ab, we need the unscaled potentials
+            CALL pw_scale(vxc_rspace(ispin)%pw, 1.0_dp/vxc_rspace(ispin)%pw%pw_grid%dvol)
+            e_xc = e_xc + pw_integral_ab(rho_mp2_r(ispin)%pw, vxc_rspace(ispin)%pw)
+            IF (ASSOCIATED(vtau_rspace)) CALL pw_scale(vtau_rspace(ispin)%pw, 1.0_dp/vtau_rspace(ispin)%pw%pw_grid%dvol)
+            IF (ASSOCIATED(vtau_rspace)) e_xc = e_xc + pw_integral_ab(tau_mp2_r(ispin)%pw, vtau_rspace(ispin)%pw)
+         END DO
+         IF (debug_forces .AND. iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG VIRIAL:: vxc*d1   ", e_xc
+         DO alpha = 1, 3
+            virial%pv_exc(alpha, alpha) = virial%pv_exc(alpha, alpha) - e_xc/REAL(para_env%num_pe, dp)
+            virial%pv_virial(alpha, alpha) = virial%pv_virial(alpha, alpha) - e_xc/REAL(para_env%num_pe, dp)
+         END DO
+      END IF
+      DO ispin = 1, nspins
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_rspace(ispin)%pw)
+         IF (ASSOCIATED(vtau_rspace)) CALL pw_pool_give_back_pw(auxbas_pw_pool, vtau_rspace(ispin)%pw)
+      END DO
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, vhxc_rspace%pw)
+      DEALLOCATE(vxc_rspace)
+      IF (ASSOCIATED(vtau_rspace)) DEALLOCATE(vtau_rspace)
+
+
+      DO ispin = 1, nspins
+         CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, -1.0_dp)
+      END DO
 
       ! pw stuff
       NULLIFY (poisson_env, auxbas_pw_pool)
@@ -1241,169 +1229,77 @@ CONTAINS
                       poisson_env=poisson_env)
 
       ! get some of the grids ready
-      NULLIFY (pot_r%pw, pot_g%pw, rho_tot_r%pw, rho_tot_g%pw, rho_mp2_g, rho_mp2_r)
-      ALLOCATE (rho_mp2_r(nspins), rho_mp2_g(nspins))
-      DO ispin = 1, nspins
-         NULLIFY (rho_mp2_r(ispin)%pw, rho_mp2_g(ispin)%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, rho_mp2_r(ispin)%pw, &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
-         CALL pw_pool_create_pw(auxbas_pw_pool, rho_mp2_g(ispin)%pw, &
-                                use_data=COMPLEXDATA1D, &
-                                in_space=RECIPROCALSPACE)
-         CALL pw_zero(rho_mp2_r(ispin)%pw)
-         CALL pw_zero(rho_mp2_g(ispin)%pw)
-      END DO
+      NULLIFY (pot_r%pw, pot_g%pw, rho_tot_g%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, pot_r%pw, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, pot_g%pw, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_r%pw, &
-                             use_data=REALDATA3D, &
-                             in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_g%pw, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
 
-      CALL pw_zero(rho_tot_r%pw)
       CALL pw_zero(rho_tot_g%pw)
 
-      ! update the core-forces with the MP2-density contribution
-      ! put MP2 density on the grid
+      CALL qs_rho_get(p_env%rho1, rho_r=rho_mp2_r, rho_g=rho_mp2_g)
       DO ispin = 1, nspins
-         CALL calculate_rho_elec(matrix_p=matrix_p_mp2(ispin)%matrix, &
-                                 rho=rho_mp2_r(ispin), &
-                                 rho_gspace=rho_mp2_g(ispin), &
-                                 total_rho=tot_rho_r, &
-                                 ks_env=ks_env, &
-                                 soft_valid=.FALSE.)
-
          CALL pw_axpy(rho_mp2_g(ispin)%pw, rho_tot_g%pw)
       END DO
 
+      NULLIFY(dvg)
+      IF (use_virial) THEN
+         ALLOCATE(dvg(3))
+         DO idir = 1, 3
+            NULLIFY (dvg(idir)%pw)
+            CALL pw_pool_create_pw(auxbas_pw_pool, dvg(idir)%pw, &
+                                   use_data=COMPLEXDATA1D, &
+                                   in_space=RECIPROCALSPACE)
+         END DO
+      END IF
+
       ! calculate the MP2 potential
-      CALL pw_poisson_solve(poisson_env, rho_tot_g%pw, pair_energy, pot_g%pw)
+      CALL pw_poisson_solve(poisson_env, rho_tot_g%pw, vhartree=pot_g%pw, dvhartree=dvg)
       CALL pw_transfer(pot_g%pw, pot_r%pw)
       CALL pw_scale(pot_r%pw, pot_r%pw%pw_grid%dvol)
+      CALL pw_axpy(pot_r%pw, vh_rspace%pw)
 
       ! calculate core forces
-      CALL integrate_v_core_rspace(pot_r, qs_env)
-      DO ikind = 1, SIZE(force)
-         force(ikind)%mp2_sep = force(ikind)%rho_core
-         force(ikind)%rho_core = 0.0_dp
-      ENDDO
-
-      ! Calculate XC part
-      NULLIFY (v_xc)
-      ALLOCATE (v_xc(nspins))
-      DO ispin = 1, nspins
-         NULLIFY (v_xc(ispin)%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, v_xc(ispin)%pw, &
-                                use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_zero(v_xc(ispin)%pw)
-      END DO
-
-      ! Get KS density
-
-      IF (dft_control%do_admm) THEN
-         CALL get_qs_env(qs_env, admm_env=admm_env)
-         xc_section => admm_env%xc_section_primary
-      ELSE
-         xc_section => section_vals_get_subs_vals(input, "DFT%XC")
+      CALL integrate_v_core_rspace(vh_rspace, qs_env)
+      IF (debug_forces) THEN
+         deb(:) = force(1)%rho_core(:, 1)
+         CALL mp_sum(deb, para_env%group)
+         IF (iounit > 0) WRITE(iounit, "(T3,A,T33,3F16.8)") "DEBUG:: core      ", deb
+         IF (use_virial) THEN
+            e_dummy = third_tr(virial%pv_virial) - e_dummy
+            CALL mp_sum(e_dummy, para_env%group)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: core      ", e_dummy
+         END IF
       END IF
-      IF (use_virial) h_stress = 0.0_dp
-      CALL calc_ks_response_potentials(v_xc, xc_section, qs_env, rho_mp2_r, rho_mp2_g, compute_virial=use_virial, virial=h_stress)
-      ! Update the virial
-      IF (use_virial) THEN
-         virial%pv_mp2 = virial%pv_mp2 + h_stress
-         virial%pv_virial = virial%pv_virial + h_stress
-      END IF
-      !
-      ! vtot = v_xc(ispin) + dv_hartree
-      CALL qs_rho_get(rho, rho_ao=rho_ao)
-      DO ispin = 1, nspins
-         ! Add v_hartree + v_xc = v_rspace
-         CALL pw_scale(v_xc(ispin)%pw, v_xc(ispin)%pw%pw_grid%dvol)
-         CALL pw_axpy(pot_r%pw, v_xc(ispin)%pw)
-         ! integrate over potential <a|V|b>
-         CALL integrate_v_rspace(v_rspace=v_xc(ispin), &
-                                 hmat=matrix_ks(ispin), &
-                                 pmat=rho_ao(ispin), &
-                                 qs_env=qs_env, &
-                                 calculate_forces=.TRUE.)
-
-      END DO
-
-      DO ikind = 1, SIZE(force)
-         force(ikind)%mp2_sep = force(ikind)%mp2_sep + force(ikind)%rho_elec
-         force(ikind)%rho_elec = 0.0_dp
-      ENDDO
-
-      DO ispin = 1, nspins
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
-      END DO
-      DEALLOCATE (v_xc)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, vh_rspace%pw)
+      DEALLOCATE(vh_rspace)
 
       IF (use_virial) THEN
          ! update virial if necessary with the volume term
          ! first create pw auxiliary stuff
-         CALL timeset(routineN//"_Virial", handle2)
          NULLIFY (temp_pw_g%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, temp_pw_g%pw, &
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
-         DO i = 1, 3
-            NULLIFY (dvg(i)%pw)
-            CALL pw_pool_create_pw(auxbas_pw_pool, dvg(i)%pw, &
-                                   use_data=COMPLEXDATA1D, &
-                                   in_space=RECIPROCALSPACE)
-         END DO
 
          ! make a copy of the MP2 density in G space
          CALL pw_copy(rho_tot_g%pw, temp_pw_g%pw)
-         ! calculate MP2-like-hartree potential derivatives
-         DO i = 1, 3
-            comp = 0
-            comp(i) = 1
-            CALL pw_copy(pot_g%pw, dvg(i)%pw)
-            CALL pw_derive(dvg(i)%pw, comp)
-         END DO
-
-         CALL pw_zero(rho_tot_r%pw)
-         CALL pw_zero(rho_tot_g%pw)
-
-         NULLIFY (rho_r, rho_g)
-         ALLOCATE (rho_r(nspins), rho_g(nspins))
-         DO ispin = 1, nspins
-            NULLIFY (rho_r(ispin)%pw, rho_g(ispin)%pw)
-            CALL pw_pool_create_pw(auxbas_pw_pool, rho_r(ispin)%pw, &
-                                   use_data=REALDATA3D, &
-                                   in_space=REALSPACE)
-            CALL pw_pool_create_pw(auxbas_pw_pool, rho_g(ispin)%pw, &
-                                   use_data=COMPLEXDATA1D, &
-                                   in_space=RECIPROCALSPACE)
-         END DO
 
          ! calculate total SCF density and potential
-         DO ispin = 1, nspins
-            CALL calculate_rho_elec(matrix_p=rho_ao(ispin)%matrix, &
-                                    rho=rho_r(ispin), &
-                                    rho_gspace=rho_g(ispin), &
-                                    total_rho=tot_rho_r, &
-                                    ks_env=ks_env, &
-                                    soft_valid=.FALSE.)
-
-            CALL pw_axpy(rho_r(ispin)%pw, rho_tot_r%pw)
-            CALL pw_axpy(rho_g(ispin)%pw, rho_tot_g%pw)
-         END DO
-         ! don't forget the core density
+         CALL pw_copy(rho_g(1)%pw, rho_tot_g%pw)
+         IF (nspins == 2) CALL pw_axpy(rho_g(2)%pw, rho_tot_g%pw)
          CALL pw_axpy(rho_core%pw, rho_tot_g%pw)
          CALL pw_poisson_solve(poisson_env, rho_tot_g%pw, vhartree=pot_g%pw)
 
          ! finally update virial with the volume contribution
          e_hartree = pw_integral_ab(temp_pw_g%pw, pot_g%pw)
+         IF (debug_forces .AND. iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: vh1*d0   ", e_hartree
+
          h_stress = 0.0_dp
          DO alpha = 1, 3
             comp = 0
@@ -1417,98 +1313,299 @@ CONTAINS
                h_stress(beta, alpha) = h_stress(alpha, beta)
             END DO
          END DO
+         IF (debug_forces .AND. iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: Hartree  ", third_tr(h_stress)
 
          ! free stuff
          CALL pw_pool_give_back_pw(auxbas_pw_pool, temp_pw_g%pw)
-         DO i = 1, 3
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, dvg(i)%pw)
+         DO idir = 1, 3
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, dvg(idir)%pw)
          END DO
+         DEALLOCATE(dvg)
 
-         ! Add the contributions of the XC kernel
-         NULLIFY (v_rho, v_tau)
-         CALL qs_rho_get(rho, tau_r=tau_r)
-         CALL xc_vxc_pw_create(v_rho, v_tau, e_xc, rho_r, rho_g, tau_r, xc_section, auxbas_pw_pool, .FALSE., h_dummy)
-
-         ! For tau-dependent functionals, we need the perturbed kinetic energy densities
-         IF (ASSOCIATED(v_tau)) THEN
-            ALLOCATE (tau_mp2_r(nspins))
-            ALLOCATE (tau_mp2_g(nspins))
-            DO ispin = 1, nspins
-               NULLIFY (tau_mp2_r(ispin)%pw)
-               NULLIFY (tau_mp2_g(ispin)%pw)
-               CALL pw_pool_create_pw(auxbas_pw_pool, tau_mp2_r(ispin)%pw, &
-                                      use_data=REALDATA3D, &
-                                      in_space=REALSPACE)
-               CALL pw_pool_create_pw(auxbas_pw_pool, tau_mp2_g(ispin)%pw, &
-                                      use_data=COMPLEXDATA1D, &
-                                      in_space=RECIPROCALSPACE)
-
-               CALL calculate_rho_elec(matrix_p=matrix_p_mp2(ispin)%matrix, &
-                                       rho=tau_mp2_r(ispin), &
-                                       rho_gspace=tau_mp2_g(ispin), &
-                                       total_rho=tot_rho_r, &
-                                       ks_env=ks_env, &
-                                       soft_valid=.FALSE., &
-                                       compute_tau=.TRUE.)
-
-            END DO
-         END IF
-
-         e_xc = 0.0_dp
-         DO ispin = 1, nspins
-            e_xc = e_xc + pw_integral_ab(rho_mp2_r(ispin)%pw, v_rho(ispin)%pw)
-            IF (ASSOCIATED(v_tau)) e_xc = e_xc + pw_integral_ab(tau_mp2_r(ispin)%pw, v_tau(ispin)%pw)
-         END DO
-WRITE(*,*) "exc", e_xc
-
-         DO alpha = 1, 3
-            h_stress(alpha, alpha) = h_stress(alpha, alpha) - e_xc
-         END DO
-
-         ! Update the virial
-         virial%pv_mp2 = virial%pv_mp2 + h_stress/REAL(para_env%num_pe, dp)
+         virial%pv_ehartree = virial%pv_ehartree + h_stress/REAL(para_env%num_pe, dp)
          virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env%num_pe, dp)
 
-         ! release stuff
-         DO ispin = 1, nspins
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r(ispin)%pw)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g(ispin)%pw)
-         END DO
-         DEALLOCATE (rho_r, rho_g)
-
-         IF (ASSOCIATED(v_rho)) THEN
-            DO ispin = 1, nspins
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rho(ispin)%pw)
-            END DO
-            DEALLOCATE (v_rho)
-         END IF
-         IF (ASSOCIATED(v_tau)) THEN
-            DO ispin = 1, nspins
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau(ispin)%pw)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, tau_mp2_r(ispin)%pw)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, tau_mp2_g(ispin)%pw)
-            END DO
-            DEALLOCATE (v_tau)
-         END IF
-         CALL timestop(handle2)
       END IF
 
       DO ispin = 1, nspins
-         CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
+         CALL dbcsr_set(p_env%kpp1(ispin)%matrix, 0.0_dp)
+         IF (dft_control%do_admm) CALL dbcsr_set(p_env%kpp1_admm(ispin)%matrix, 0.0_dp)
       END DO
+
+      CALL get_qs_env(qs_env=qs_env, linres_control=linres_control)
+
+      IF (dft_control%do_admm) THEN
+         CALL get_qs_env(qs_env, admm_env=admm_env)
+         xc_section => admm_env%xc_section_primary
+      ELSE
+         xc_section => section_vals_get_subs_vals(input, "DFT%XC")
+      END IF
+
+      IF (use_virial) THEN
+         h_stress = 0.0_dp
+         pv_virial = virial%pv_virial
+      END IF
+      IF (debug_forces) THEN
+         deb = force(1)%rho_elec(1:3, 1)
+         IF (use_virial) e_dummy = third_tr(pv_virial)
+      END IF
+      CALL apply_2nd_order_kernel(qs_env, p_env, .FALSE., .TRUE., use_virial, h_stress)
+      IF (use_virial) THEN
+         virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - pv_virial)
+         virial%pv_exc = virial%pv_exc + h_stress
+         virial%pv_virial = virial%pv_virial + h_stress
+         IF (debug_forces) THEN
+            e_dummy = third_tr(h_stress)
+            CALL mp_sum(e_dummy, para_env%group)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: Kxc       ", e_dummy
+         END IF
+      END IF
+      IF (debug_forces) THEN
+         deb(:) = force(1)%rho_elec(:, 1) - deb
+         CALL mp_sum(deb, para_env%group)
+         IF (iounit > 0) WRITE(iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P0*Khxc    ", deb
+         IF (use_virial) THEN
+            e_dummy = third_tr(virial%pv_virial) - e_dummy
+            CALL mp_sum(e_dummy, para_env%group)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: Khxc      ", e_dummy
+         END IF
+      END IF
+      
+      ! hfx section
+      NULLIFY (hfx_sections)
+      hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%HF")
+      CALL section_vals_get(hfx_sections, explicit=do_hfx)
+      IF (do_hfx) THEN
+         IF (dft_control%do_admm) THEN
+            CALL get_qs_env(qs_env, rho_aux_fit=rho_aux)
+            CALL qs_rho_get(rho_aux, rho_ao=rho_ao_aux, rho_ao_kp=rho_ao_kp)
+            DO ispin = 1, nspins
+               CALL dbcsr_add(rho_ao_aux(ispin)%matrix, p_env%p1_admm(ispin)%matrix, 1.0_dp, 1.0_dp)
+            END DO
+            rho1 => p_env%p1_admm
+         ELSE
+            DO ispin = 1, nspins
+               CALL dbcsr_add(rho_ao(ispin)%matrix, p_env%p1(ispin)%matrix, 1.0_dp, 1.0_dp)
+            END DO
+            rho1 => p_env%p1
+         END IF
+
+         CALL derivatives_four_center(qs_env, rho_ao_kp, rho1, hfx_sections, para_env, &
+                                      1, use_virial)
+         IF (use_virial) THEN
+            virial%pv_exx = virial%pv_exx - virial%pv_fock_4c
+            virial%pv_virial = virial%pv_virial - virial%pv_fock_4c
+         END IF
+         IF (debug_forces) THEN
+            deb(1:3) = force(1)%fock_4c(1:3, 1) - deb(1:3)
+            CALL mp_sum(deb, para_env%group)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*hfx  ", deb
+            IF (use_virial) THEN
+               e_dummy = third_tr(virial%pv_fock_4c)
+               CALL mp_sum(e_dummy, para_env%group)
+               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: hfx    ", e_dummy
+            END IF
+         END IF
+
+         IF (dft_control%do_admm) THEN
+            CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
+            DO ispin = 1, nspins
+               CALL dbcsr_add(rho_ao_aux(ispin)%matrix, p_env%p1_admm(ispin)%matrix, 1.0_dp, -1.0_dp)
+            END DO
+         ELSE
+            DO ispin = 1, nspins
+               CALL dbcsr_add(rho_ao(ispin)%matrix, p_env%p1(ispin)%matrix, 1.0_dp, -1.0_dp)
+            END DO
+         END IF
+
+         IF (dft_control%do_admm) THEN
+            IF (use_virial) h_stress = virial%pv_virial
+            IF (debug_forces) THEN
+               deb = force(1)%overlap_admm(1:3, 1)
+               IF (use_virial) e_dummy = third_tr(virial%pv_virial)
+            END IF
+            ! The 2nd order kernel contains a factor of two in apply_xc_admm_ao which we don't need for the projection derivatives
+            IF (nspins == 1) CALL dbcsr_scale(p_env%kpp1_admm(1)%matrix, 0.5_dp)
+            CALL admm_projection_derivative(qs_env, p_env%kpp1_admm, rho_ao)
+            IF (debug_forces) THEN
+               deb(:) = force(1)%overlap_admm(:, 1) - deb
+               CALL mp_sum(deb, para_env%group)
+               IF (iounit > 0) WRITE(iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*KADMM*dS'", deb
+               IF (use_virial) THEN
+                  e_dummy = third_tr(virial%pv_virial) - e_dummy
+                  CALL mp_sum(e_dummy, para_env%group)
+                  IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: KADMM*S'  ", e_dummy
+               END IF
+            END IF
+            IF (use_virial) virial%pv_exc = virial%pv_exc + (virial%pv_virial - h_stress)
+
+            ALLOCATE(matrix_ks_aux(nspins))
+            DO ispin = 1, nspins
+               NULLIFY(matrix_ks_aux(ispin)%matrix)
+               ALLOCATE(matrix_ks_aux(ispin)%matrix)
+               CALL dbcsr_copy(matrix_ks_aux(ispin)%matrix, p_env%kpp1_admm(ispin)%matrix)
+               CALL dbcsr_set(matrix_ks_aux(ispin)%matrix, 0.0_dp)
+            END DO
+
+            ! Calculate kernel
+            CALL tddft_hfx_matrix(matrix_ks_aux, rho_ao_aux, qs_env, .FALSE.)
+
+            IF (dft_control%admm_control%aux_exch_func /= do_admm_aux_exch_func_none) THEN
+               CALL get_qs_env(qs_env, ks_env=ks_env, task_list_aux_fit=task_list_aux_fit)
+
+               DO ispin = 1, nspins
+                  CALL dbcsr_add(rho_ao_aux(ispin)%matrix, p_env%p1_admm(ispin)%matrix, 1.0_dp, 1.0_dp)
+               END DO
+
+               IF (use_virial) THEN
+                  CALL qs_rho_get(p_env%rho1_admm, rho_r=rho_mp2_r_aux)
+                  e_xc = 0.0_dp
+                  DO ispin = 1, nspins
+                     e_xc = e_xc + pw_integral_ab(rho_mp2_r_aux(ispin)%pw, vadmm_rspace(ispin)%pw)
+                  END DO
+
+                  e_xc = -e_xc/vadmm_rspace(1)%pw%pw_grid%dvol/REAL(para_env%num_pe, dp)
+
+                  ! Update the virial
+                  DO alpha = 1, 3
+                     virial%pv_exc(alpha, alpha) = virial%pv_exc(alpha, alpha) + e_xc
+                     virial%pv_virial(alpha, alpha) = virial%pv_virial(alpha, alpha) + e_xc
+                  END DO
+                  IF (debug_forces) THEN
+                     IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: P1*VADMM  ", e_xc
+                  END IF
+               END IF
+
+               IF (use_virial) h_stress = virial%pv_virial
+               IF (debug_forces) THEN
+                  deb = force(1)%rho_elec(1:3, 1)
+                  IF (use_virial) e_dummy = third_tr(virial%pv_virial)
+               END IF
+               DO ispin = 1, nspins
+                  CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin), hmat=matrix_ks_aux(ispin), qs_env=qs_env, &
+                                          calculate_forces=.TRUE., basis_type="AUX_FIT", &
+                                          task_list_external=task_list_aux_fit, pmat=rho_ao_aux(ispin))
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, vadmm_rspace(ispin)%pw)
+               END DO
+               IF (use_virial) virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - h_stress)
+               DEALLOCATE(vadmm_rspace)
+               IF (debug_forces) THEN
+                  deb(:) = force(1)%rho_elec(:, 1) - deb
+                  CALL mp_sum(deb, para_env%group)
+                  IF (iounit > 0) WRITE(iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*VADMM' ", deb
+                  IF (use_virial) THEN
+                     e_dummy = third_tr(virial%pv_virial) - e_dummy
+                     CALL mp_sum(e_dummy, para_env%group)
+                     IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: VADMM'   ", e_dummy
+                  END IF
+               END IF
+
+               DO ispin = 1, nspins
+                  CALL dbcsr_add(rho_ao_aux(ispin)%matrix, p_env%p1_admm(ispin)%matrix, 1.0_dp, -1.0_dp)
+               END DO
+
+            END IF
+
+            DO ispin = 1, nspins
+               CALL dbcsr_add(rho_ao(ispin)%matrix, p_env%p1(ispin)%matrix, 1.0_dp, 1.0_dp)
+            END DO
+
+            IF (use_virial) h_stress = virial%pv_virial
+            IF (debug_forces) THEN
+               deb = force(1)%overlap_admm(1:3, 1)
+               IF (use_virial) e_dummy = third_tr(virial%pv_virial)
+            END IF
+            ! Add the second half of the projector deriatives contracting the first order density matrix with the fockian in the auxiliary basis
+            CALL admm_projection_derivative(qs_env, matrix_ks_aux, rho_ao)
+            IF (debug_forces) THEN
+               deb(:) = force(1)%overlap_admm(:, 1) - deb
+               CALL mp_sum(deb, para_env%group)
+               IF (iounit > 0) WRITE(iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*VADMM*dS'", deb
+               IF (use_virial) THEN
+                  e_dummy = third_tr(virial%pv_virial) - e_dummy
+                  CALL mp_sum(e_dummy, para_env%group)
+                  IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: VADMM*S'  ", e_dummy
+               END IF
+            END IF
+            IF (use_virial) virial%pv_exc = virial%pv_exc + (virial%pv_virial - h_stress)
+
+            DO ispin = 1, nspins
+               CALL dbcsr_add(rho_ao(ispin)%matrix, p_env%p1(ispin)%matrix, 1.0_dp, -1.0_dp)
+            END DO
+
+            DO ispin = 1, nspins
+               CALL dbcsr_release(matrix_ks_aux(ispin)%matrix)
+               DEALLOCATE(matrix_ks_aux(ispin)%matrix)
+            END DO
+            DEALLOCATE(matrix_ks_aux)
+         END IF
+      END IF
+
+      CALL dbcsr_scale(p_env%w1(1)%matrix, -1.0_dp)
+
+      ! Finish matrix_w_mp2 with occ-occ block
+      DO ispin = 1, nspins
+         CALL calculate_whz_matrix(mos(ispin)%mo_set, p_env%kpp1(ispin)%matrix, p_env%w1(1)%matrix, 1.0_dp)
+      END DO
+
+      IF (debug_forces .AND. use_virial) e_dummy = third_tr(virial%pv_virial)
+
+      NULLIFY (scrm)
+      CALL build_overlap_matrix(ks_env, matrix_s=scrm, &
+                                matrix_name="OVERLAP MATRIX", &
+                                basis_type_a="ORB", basis_type_b="ORB", &
+                                sab_nl=sab_orb, calculate_forces=.TRUE., &
+                                matrix_p=p_env%w1(1)%matrix)
+      CALL dbcsr_deallocate_matrix_set(scrm)
+
+      IF (debug_forces) THEN
+         deb = force(1)%overlap(1:3, 1)
+         CALL mp_sum(deb, para_env%group)
+         IF (iounit>0) WRITE(iounit, "(T3,A,T33,3F16.8)") "DEBUG:: W*dS     ", deb
+         IF (use_virial) THEN
+            e_dummy = third_tr(virial%pv_virial) - e_dummy
+            CALL mp_sum(e_dummy, para_env%group)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: S         ", e_dummy
+         END IF
+      END IF
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_r%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_g%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_r%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_g%pw)
-      DO ispin = 1, nspins
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_mp2_r(ispin)%pw)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_mp2_g(ispin)%pw)
-      END DO
-      DEALLOCATE (rho_mp2_r, rho_mp2_g)
+
+      ! Release linres stuff
+      CALL p_env_release(p_env)
+      CALL linres_control_release(linres_control)
+
+      CALL sum_qs_force(force, qs_env%mp2_env%ri_grad%mp2_force)
+      CALL deallocate_qs_force(qs_env%mp2_env%ri_grad%mp2_force)
+
+      IF (use_virial) THEN
+         virial%pv_mp2 = qs_env%mp2_env%ri_grad%mp2_virial
+         virial%pv_virial = virial%pv_virial + qs_env%mp2_env%ri_grad%mp2_virial
+         IF (debug_forces) THEN
+            e_dummy = third_tr(virial%pv_virial)
+            CALL mp_sum(e_dummy, para_env%group)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: MP2nonsep  ", e_dummy
+         END IF
+      END IF
+      ! Rewind the change from the beginning
+      IF (use_virial) virial%pv_calculate = .FALSE.
+
+      ! Add the dispersion forces and virials
+      CALL get_qs_env(qs_env, dispersion_env=dispersion_env)
+      CALL calculate_dispersion_pairpot(qs_env, dispersion_env, e_dummy, .TRUE.)
 
       CALL timestop(handle)
 
    END SUBROUTINE update_mp2_forces
+
+   PURE FUNCTION third_tr(matrix)
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN) :: matrix
+      REAL(KIND=dp) :: third_tr
+
+      third_tr = (matrix(1, 1) + matrix(2, 2) + matrix(3, 3))/3.0_dp
+
+   END FUNCTION third_tr
 
 END MODULE mp2_cphf

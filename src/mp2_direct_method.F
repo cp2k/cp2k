@@ -484,8 +484,8 @@ CONTAINS
 
       ! The Integ_MP2 will contain the (ia|jb) integrals, necessary for example
       ! for the RI-MP2 basis optimization. In this case the number of ij batches
-      ! has to be equal to 1 (all integrals over molecular orbitals are compituted
-      ! in a sigle step).
+      ! has to be equal to 1 (all integrals over molecular orbitals are computed
+      ! in a single step).
       copy_integrals = .FALSE.
       IF (PRESENT(Integ_MP2)) copy_integrals = .TRUE.
 
@@ -575,7 +575,7 @@ CONTAINS
          IF (multiple >= Ni_occupied*Nj_occupied) EXIT
       END DO
 
-      ! proc_num_task contains the numer of time second occupied
+      ! proc_num_task contains the number of times the second occupied
       ! orbital transformation is called for each processor, needs for balancing
       ! the point to point send
       ALLOCATE (proc_num_task(0:para_env%num_pe - 1))
@@ -606,7 +606,7 @@ CONTAINS
 
          END DO
       END DO
-      ! calculate the exact maximum  number of call to the second occupied
+      ! calculate the exact maximum number of calls to the second occupied
       ! orbital transformation
       ! max_num_call_sec_transf=MAXVAL(proc_num_task)
 

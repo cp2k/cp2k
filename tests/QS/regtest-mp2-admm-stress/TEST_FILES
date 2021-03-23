@@ -1,0 +1,5 @@
+H2O_grad_admm_none.inp                                11      3e-08           -16.817072816421426
+CH_grad_admm_none.inp                                 11      6e-08            -5.849673308292491
+H2O_grad_admm.inp                                     11      1e-08           -16.874006099848796
+CH_grad_admm.inp                                      11      2e-08            -5.845135126003937
+#EOF

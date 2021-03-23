@@ -47,7 +47,6 @@ MODULE qs_force_types
                                                  ehrenfest, &
                                                  efield, &
                                                  eev, &
-                                                 mp2_sep, &
                                                  mp2_non_sep, &
                                                  total
    END TYPE qs_force_type
@@ -113,7 +112,6 @@ CONTAINS
          ! Always initialize ch_pulay to zero..
          qs_force(ikind)%ch_pulay = 0.0_dp
          ALLOCATE (qs_force(ikind)%fock_4c(3, n))
-         ALLOCATE (qs_force(ikind)%mp2_sep(3, n))
          ALLOCATE (qs_force(ikind)%mp2_non_sep(3, n))
          ALLOCATE (qs_force(ikind)%total(3, n))
       END DO
@@ -218,10 +216,6 @@ CONTAINS
             DEALLOCATE (qs_force(ikind)%fock_4c)
          END IF
 
-         IF (ASSOCIATED(qs_force(ikind)%mp2_sep)) THEN
-            DEALLOCATE (qs_force(ikind)%mp2_sep)
-         END IF
-
          IF (ASSOCIATED(qs_force(ikind)%mp2_non_sep)) THEN
             DEALLOCATE (qs_force(ikind)%mp2_non_sep)
          END IF
@@ -281,7 +275,6 @@ CONTAINS
          qs_force(ikind)%efield(:, :) = 0.0_dp
          qs_force(ikind)%eev(:, :) = 0.0_dp
          qs_force(ikind)%mp2_non_sep(:, :) = 0.0_dp
-         qs_force(ikind)%mp2_sep(:, :) = 0.0_dp
          qs_force(ikind)%total(:, :) = 0.0_dp
       END DO
 
@@ -347,8 +340,6 @@ CONTAINS
                                          qs_force_in(ikind)%eev(:, :)
          qs_force_out(ikind)%mp2_non_sep(:, :) = qs_force_out(ikind)%mp2_non_sep(:, :) + &
                                                  qs_force_in(ikind)%mp2_non_sep(:, :)
-         qs_force_out(ikind)%mp2_sep(:, :) = qs_force_out(ikind)%mp2_sep(:, :) + &
-                                             qs_force_in(ikind)%mp2_sep(:, :)
          qs_force_out(ikind)%total(:, :) = qs_force_out(ikind)%total(:, :) + &
                                            qs_force_in(ikind)%total(:, :)
       END DO
@@ -387,7 +378,6 @@ CONTAINS
          CALL mp_sum(qs_force(ikind)%g0s_Vh_elec, para_env%group)
          CALL mp_sum(qs_force(ikind)%fock_4c, para_env%group)
          CALL mp_sum(qs_force(ikind)%mp2_non_sep, para_env%group)
-         CALL mp_sum(qs_force(ikind)%mp2_sep, para_env%group)
          CALL mp_sum(qs_force(ikind)%repulsive, para_env%group)
          CALL mp_sum(qs_force(ikind)%dispersion, para_env%group)
          CALL mp_sum(qs_force(ikind)%gcp, para_env%group)
@@ -409,7 +399,6 @@ CONTAINS
                                        qs_force(ikind)%g0s_Vh_elec(:, :) + &
                                        qs_force(ikind)%fock_4c(:, :) + &
                                        qs_force(ikind)%mp2_non_sep(:, :) + &
-                                       qs_force(ikind)%mp2_sep(:, :) + &
                                        qs_force(ikind)%repulsive(:, :) + &
                                        qs_force(ikind)%dispersion(:, :) + &
                                        qs_force(ikind)%gcp(:, :) + &
@@ -577,7 +566,6 @@ CONTAINS
                               qs_force(ikind)%g0s_Vh_elec(:, ia) + &
                               qs_force(ikind)%fock_4c(:, ia) + &
                               qs_force(ikind)%mp2_non_sep(:, ia) + &
-                              qs_force(ikind)%mp2_sep(:, ia) + &
                               qs_force(ikind)%repulsive(:, ia) + &
                               qs_force(ikind)%dispersion(:, ia) + &
                               qs_force(ikind)%gcp(:, ia) + &

@@ -20,7 +20,6 @@ MODULE xc_xpbe_hole_t_c_lr
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: euler,&
                                               pi
-   USE mathlib,                         ONLY: expint
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                               xc_dset_get_derivative
    USE xc_derivative_types,             ONLY: xc_derivative_get,&
@@ -420,9 +419,9 @@ CONTAINS
 !$OMP     DO
 
       DO ip = 1, npoints
-         my_rho = 2.0_dp*MAX(rho(ip), 0.0_dp)
+         my_rho = MAX(2.0_dp*rho(ip), 0.0_dp)
          IF (my_rho > epsilon_rho) THEN
-            my_ndrho = 2.0_dp*MAX(norm_drho(ip), 0.0_dp)
+            my_ndrho = MAX(2.0_dp*norm_drho(ip), 0.0_dp)
 
             ! *** Do some precalculation in order to catch the correct branch afterwards
             sscale = 1.0_dp
@@ -472,7 +471,7 @@ CONTAINS
 !>      01.2009 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! **************************************************************************************************
-   SUBROUTINE xpbe_hole_t_c_lr_lda_calc_1(e_0, e_rho, e_ndrho, &
+   ELEMENTAL SUBROUTINE xpbe_hole_t_c_lr_lda_calc_1(e_0, e_rho, e_ndrho, &
                                           rho, ndrho, sscale, sx, R, order)
       REAL(KIND=dp), INTENT(INOUT)                       :: e_0, e_rho, e_ndrho
       REAL(KIND=dp), INTENT(IN)                          :: rho, ndrho, sscale, sx, R
@@ -839,7 +838,7 @@ CONTAINS
 !>      01.2009 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! **************************************************************************************************
-   SUBROUTINE xpbe_hole_t_c_lr_lda_calc_2(e_0, e_rho, e_ndrho, &
+   ELEMENTAL SUBROUTINE xpbe_hole_t_c_lr_lda_calc_2(e_0, e_rho, e_ndrho, &
                                           rho, ndrho, sscale, sx, R, order)
       REAL(KIND=dp), INTENT(INOUT)                       :: e_0, e_rho, e_ndrho
       REAL(KIND=dp), INTENT(IN)                          :: rho, ndrho, sscale, sx, R
@@ -1108,7 +1107,7 @@ CONTAINS
 !>     - red calculates the reduced gradient in a save way (i.e. using a fixed
 !>       cutoff EPS_RHO)
 ! **************************************************************************************************
-   FUNCTION exei(P, Q)
+   ELEMENTAL FUNCTION exei(P, Q)
       REAL(dp), INTENT(IN)                               :: P, Q
       REAL(dp)                                           :: exei
 
@@ -1159,7 +1158,7 @@ CONTAINS
 !> \param dQrho ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION dexeirho(P, Q, dPrho, dQrho)
+   ELEMENTAL FUNCTION dexeirho(P, Q, dPrho, dQrho)
       REAL(dp), INTENT(IN)                               :: P, Q, dPrho, dQrho
       REAL(dp)                                           :: dexeirho
 
@@ -1174,7 +1173,7 @@ CONTAINS
 !> \param dQndrho ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION dexeindrho(P, Q, dPndrho, dQndrho)
+   ELEMENTAL FUNCTION dexeindrho(P, Q, dPndrho, dQndrho)
       REAL(dp), INTENT(IN)                               :: P, Q, dPndrho, dQndrho
       REAL(dp)                                           :: dexeindrho
 
@@ -1187,7 +1186,7 @@ CONTAINS
 !> \param ndrho ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION red(rho, ndrho)
+   ELEMENTAL FUNCTION red(rho, ndrho)
       REAL(dp), INTENT(IN)                               :: rho, ndrho
       REAL(dp)                                           :: red
 
@@ -1202,7 +1201,7 @@ CONTAINS
 !> \param ndrho ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION dsdrho(rho, ndrho)
+   ELEMENTAL FUNCTION dsdrho(rho, ndrho)
       REAL(dp), INTENT(IN)                               :: rho, ndrho
       REAL(dp)                                           :: dsdrho
 
@@ -1216,7 +1215,7 @@ CONTAINS
 !> \param rho ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION dsdndrho(rho)
+   ELEMENTAL FUNCTION dsdndrho(rho)
       REAL(dp), INTENT(IN)                               :: rho
       REAL(dp)                                           :: dsdndrho
 
@@ -1224,6 +1223,79 @@ CONTAINS
       dsdndrho = dsdndrho/(pi**(2.0_dp/3.0_dp))
       dsdndrho = dsdndrho*MAX(1.0_dp/rho**(4.0_dp/3.0_dp), EPS_RHO)
    END FUNCTION dsdndrho
+
+! **************************************************************************************************
+!> \brief computes the exponential integral
+!>      En(x) = Int(exp(-x*t)/t^n,t=1..infinity)  x>0, n=0,1,..
+!>      Note: Ei(-x) = -E1(x)
+!> \param n ...
+!> \param x ...
+!> \return ...
+!> \par History
+!>      05.2007 Created
+!> \author Manuel Guidon (adapted from Numerical recipies, cleaner version of mathlib)
+! **************************************************************************************************
+   ELEMENTAL FUNCTION expint(n, x)
+      INTEGER, INTENT(IN)                                :: n
+      REAL(dp), INTENT(IN)                               :: x
+      REAL(dp)                                           :: expint
+
+      INTEGER, PARAMETER                                 :: maxit = 100
+      REAL(dp), PARAMETER :: eps = 6.e-14_dp, euler = 0.5772156649015328606065120_dp, &
+         fpmin = TINY(0.0_dp)
+
+      INTEGER                                            :: i, ii, nm1
+      REAL(dp)                                           :: a, b, c, d, del, fact, h, psi
+
+      nm1 = n - 1
+
+      IF (n .LT. 0 .OR. x .LT. 0.0_dp .OR. (x .EQ. 0.0_dp .AND. (n .EQ. 0 .OR. n .EQ. 1))) THEN
+         expint = HUGE(1.0_dp)
+      ELSE IF (n .EQ. 0) THEN !Special case.
+         expint = EXP(-x)/x
+      ELSE IF (x .EQ. 0.0_dp) THEN !Another special case.
+         expint = 1.0_dp/nm1
+      ELSE IF (x .GT. 1.0_dp) THEN !Lentz's algorithm (5.2).
+         b = x + n
+         c = 1.0_dp/FPMIN
+         d = 1.0_dp/b
+         h = d
+         DO i = 1, MAXIT
+            a = -i*(nm1 + i)
+            b = b + 2.0_dp
+            d = 1.0_dp/(a*d + b)
+            c = b + a/c
+            del = c*d
+            h = h*del
+            IF (ABS(del - 1.0_dp) .LT. EPS .OR. i == MAXIT) THEN
+               expint = h*EXP(-x)
+               RETURN
+            END IF
+         END DO
+      ELSE !Evaluate series.
+         IF (nm1 .NE. 0) THEN !Set first term.
+            expint = 1.0_dp/nm1
+         ELSE
+            expint = -LOG(x) - euler
+         END IF
+         fact = 1.0_dp
+         DO i = 1, MAXIT
+            fact = -fact*x/i
+            IF (i .NE. nm1) THEN
+               del = -fact/(i - nm1)
+            ELSE
+               psi = -euler !Compute I(n).
+               DO ii = 1, nm1
+                  psi = psi + 1.0_dp/ii
+               END DO
+               del = fact*(-LOG(x) + psi)
+            END IF
+            expint = expint + del
+            IF (ABS(del) .LT. ABS(expint)*EPS) RETURN
+         END DO
+      END IF
+      RETURN
+   END FUNCTION expint
 
 END MODULE xc_xpbe_hole_t_c_lr
 

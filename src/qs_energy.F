@@ -100,8 +100,10 @@ CONTAINS
             ! Compute MP2 energy
             CALL qs_energies_mp2(qs_env, my_calc_forces)
 
-            ! if calculate forces, time to compute the w matrix
-            CALL qs_energies_compute_matrix_w(qs_env, my_calc_forces)
+            IF (.NOT. ASSOCIATED(qs_env%mp2_env)) THEN
+               ! if calculate forces, time to compute the w matrix
+               CALL qs_energies_compute_matrix_w(qs_env, my_calc_forces)
+            END IF
 
          END IF
 

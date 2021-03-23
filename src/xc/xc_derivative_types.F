@@ -70,6 +70,7 @@ CONTAINS
 
       CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH)          :: my_desc
 
+      CPASSERT(.NOT. ASSOCIATED(derivative))
       ALLOCATE (derivative)
 
       derivative%ref_count = 1
@@ -90,9 +91,8 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE xc_derivative_retain(deriv)
-      TYPE(xc_derivative_type), POINTER                  :: deriv
+      TYPE(xc_derivative_type), INTENT(INOUT)            :: deriv
 
-      CPASSERT(ASSOCIATED(deriv))
       CPASSERT(deriv%ref_count > 0)
       deriv%ref_count = deriv%ref_count + 1
    END SUBROUTINE xc_derivative_retain
@@ -145,7 +145,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xc_derivative_get(deriv, desc, split_desc, &
                                 order, deriv_data, accept_null_data)
-      TYPE(xc_derivative_type), POINTER                  :: deriv
+      TYPE(xc_derivative_type), INTENT(IN)               :: deriv
       CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH), &
          INTENT(out), OPTIONAL                           :: desc
       CHARACTER(len=MAX_LABEL_LENGTH), DIMENSION(:), &
@@ -160,7 +160,6 @@ CONTAINS
       my_accept_null_data = .FALSE.
       IF (PRESENT(accept_null_data)) my_accept_null_data = accept_null_data
 
-      CPASSERT(ASSOCIATED(deriv))
       CPASSERT(deriv%ref_count > 0)
       IF (PRESENT(desc)) desc = deriv%desc
       IF (PRESENT(split_desc)) split_desc => deriv%split_desc

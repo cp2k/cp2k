@@ -21,6 +21,7 @@ MODULE ps_wavelet_methods
                                               mp_max
    USE ps_wavelet_kernel,               ONLY: createKernel
    USE ps_wavelet_types,                ONLY: WAVELET0D,&
+                                              ps_wavelet_release,&
                                               ps_wavelet_type
    USE ps_wavelet_util,                 ONLY: F_FFT_dimensions,&
                                               PSolver,&
@@ -69,6 +70,11 @@ CONTAINS
 
       CALL cite_reference(Genovese2006)
       CALL cite_reference(Genovese2007)
+
+      IF (ASSOCIATED(wavelet)) THEN
+         CALL ps_wavelet_release(wavelet)
+         NULLIFY(wavelet)
+      END IF
 
       ALLOCATE (wavelet)
 

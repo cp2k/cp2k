@@ -48,6 +48,7 @@ MODULE mp2_eri
                                   section_vals_type, &
                                   section_vals_val_get
    USE kinds, ONLY: dp
+   USE libint_2c_3c,                    ONLY: libint_potential_type
    USE message_passing, ONLY: mp_sum
    USE orbital_pointers, ONLY: coset, &
                                init_orbital_pointers, &
@@ -95,6 +96,7 @@ CONTAINS
 !>        Contiguous column-wise distribution and parallelization over pairs of sets.
 !> \param param ...
 !> \param para_env mpi environment for local columns
+!> \param potential_parameter ...
 !> \param qs_env ...
 !> \param basis_type_a ...
 !> \param basis_type_b ...
@@ -112,12 +114,11 @@ CONTAINS
 !> \param do_reflection_a ...
 !> \param do_reflection_b ...
 ! **************************************************************************************************
-   SUBROUTINE mp2_eri_2c_integrate(param, potential_type, omega, para_env, qs_env, basis_type_a, basis_type_b, hab, first_b, &
+   SUBROUTINE mp2_eri_2c_integrate(param, potential_parameter, para_env, qs_env, basis_type_a, basis_type_b, hab, first_b, &
                                    last_b, eri_method, pab, force_a, force_b, hdab, hadb, &
                                    reflection_z_a, reflection_z_b, do_reflection_a, do_reflection_b)
       TYPE(cp_eri_mme_param), INTENT(INOUT)              :: param
-      INTEGER, INTENT(IN)                                :: potential_type
-      REAL(KIND=dp), INTENT(IN)                          :: omega
+      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: basis_type_a, basis_type_b
@@ -283,7 +284,7 @@ CONTAINS
                          ${conditional(doforce_2)}$PRESENT(force_b)) THEN
 
                         CALL integrate_set_2c( &
-                           param%par, potential_type, omega, &
+                           param%par, potential_parameter, &
                            la_min(iset), la_max(iset), &
                            lb_min(jset), lb_max(jset), &
                            npgfa(iset), npgfb(jset), &
@@ -326,6 +327,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Integrate set pair and contract with sphi matrix.
 !> \param param ...
+!> \param potential_parameter ...
 !> \param la_min ...
 !> \param la_max ...
 !> \param lb_min ...
@@ -360,14 +362,13 @@ CONTAINS
 !> \param do_reflection_a ...
 !> \param do_reflection_b ...
 ! **************************************************************************************************
-   SUBROUTINE integrate_set_2c(param, potential_type, omega, la_min, la_max, lb_min, lb_max, npgfa, npgfb, zeta, zetb, &
+   SUBROUTINE integrate_set_2c(param, potential_parameter, la_min, la_max, lb_min, lb_max, npgfa, npgfb, zeta, zetb, &
                                ra, rb, hab, n_hab_a, n_hab_b, offset_hab_a, offset_hab_b, &
                                offset_set_a, offset_set_b, sphi_a, sphi_b, sgfa, sgfb, nsgfa, nsgfb, &
                                eri_method, pab, force_a, force_b, hdab, hadb, G_count, R_count, &
                                do_reflection_a, do_reflection_b)
       TYPE(eri_mme_param), INTENT(INOUT)                 :: param
-      INTEGER, INTENT(IN)                                :: potential_type
-      REAL(KIND=dp), INTENT(IN)                          :: omega
+      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       INTEGER, INTENT(IN)                                :: la_min, la_max, lb_min, lb_max, npgfa
       REAL(KIND=dp), DIMENSION(npgfa), INTENT(IN)        :: zeta
       INTEGER, INTENT(IN)                                :: npgfb
@@ -453,7 +454,7 @@ CONTAINS
       set_b_start = offset_set_b + 1; set_b_end = offset_set_b + n_hab_b
 
       IF (eri_method == do_eri_mme) THEN
-         CALL eri_mme_set_potential(param, convert_potential_type(potential_type), omega)
+         CALL eri_mme_set_potential(param, convert_potential_type(potential_parameter%potential_type), potential_parameter%omega)
 
          IF (calculate_forces .AND. PRESENT(pab)) THEN
             ! uncontracted hermite-gaussian representation of density matrix
@@ -595,6 +596,7 @@ CONTAINS
 !> \brief high-level integration routine for 3c integrals (ab|c) over CP2K basis sets.
 !>        For each local function of c, (ab|c) is written to a DBCSR matrix mat_ab.
 !> \param param ...
+!> \param potential_parameter ...
 !> \param para_env ...
 !> \param qs_env ...
 !> \param first_c start index of local range of c
@@ -613,15 +615,14 @@ CONTAINS
 !> \param mat_adbc ...
 !> \param mat_abdc ...
 ! **************************************************************************************************
-   SUBROUTINE mp2_eri_3c_integrate(param, potential_type, omega, para_env, qs_env, &
+   SUBROUTINE mp2_eri_3c_integrate(param, potential_parameter, para_env, qs_env, &
                                    first_c, last_c, mat_ab, &
                                    basis_type_a, basis_type_b, basis_type_c, &
                                    sab_nl, eri_method, &
                                    pabc, force_a, force_b, force_c, &
                                    mat_dabc, mat_adbc, mat_abdc)
       TYPE(cp_eri_mme_param), INTENT(INOUT)              :: param
-      INTEGER, INTENT(IN)                                :: potential_type
-      REAL(KIND=dp), INTENT(IN)                          :: omega
+      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       INTEGER, INTENT(IN)                                :: first_c, last_c
@@ -895,7 +896,7 @@ CONTAINS
                          ${conditional(adbc)}$PRESENT(mat_adbc) .AND. &
                          ${conditional(abdc)}$PRESENT(mat_abdc)) THEN
                         CALL integrate_set_3c( &
-                           param%par, potential_type, omega, &
+                           param%par, potential_parameter, &
                            la_min(iset), la_max(iset), &
                            lb_min(jset), lb_max(jset), &
                            lc_min(kset), lc_max(kset), &
@@ -1009,6 +1010,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Integrate set triple and contract with sphi matrix
 !> \param param ...
+!> \param potential_parameter ...
 !> \param la_min ...
 !> \param la_max ...
 !> \param lb_min ...
@@ -1058,7 +1060,7 @@ CONTAINS
 !> \param RR_count ...
 !> \note
 ! **************************************************************************************************
-   SUBROUTINE integrate_set_3c(param, potential_type, omega, &
+   SUBROUTINE integrate_set_3c(param, potential_parameter, &
                                la_min, la_max, lb_min, lb_max, lc_min, lc_max, &
                                npgfa, npgfb, npgfc, &
                                zeta, zetb, zetc, &
@@ -1078,8 +1080,7 @@ CONTAINS
                                GG_count, GR_count, RR_count)
 
       TYPE(eri_mme_param), INTENT(INOUT)                 :: param
-      INTEGER, INTENT(IN)                                :: potential_type
-      REAL(KIND=dp), INTENT(IN)                          :: omega
+      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       INTEGER, INTENT(IN)                                :: la_min, la_max, lb_min, lb_max, lc_min, &
                                                             lc_max, npgfa, npgfb, npgfc
       REAL(KIND=dp), DIMENSION(npgfa), INTENT(IN)        :: zeta
@@ -1173,7 +1174,7 @@ CONTAINS
       set_c_start = offset_set_c + 1; set_c_end = offset_set_c + n_habc_c
 
       IF (eri_method == do_eri_mme) THEN
-         CALL eri_mme_set_potential(param, convert_potential_type(potential_type), omega)
+         CALL eri_mme_set_potential(param, convert_potential_type(potential_parameter%potential_type), potential_parameter%omega)
 
          IF (calculate_forces .AND. PRESENT(pabc)) THEN
             ! uncontracted hermite-gaussian representation of density matrix

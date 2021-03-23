@@ -116,6 +116,7 @@ CONTAINS
       NULLIFY (ec_env%vh_rspace)
       NULLIFY (ec_env%vxc_rspace)
       NULLIFY (ec_env%vtau_rspace)
+      NULLIFY (ec_env%vadmm_rspace)
       ec_env%should_update = .TRUE.
       ec_env%mao = .FALSE.
 

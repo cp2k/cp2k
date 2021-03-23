@@ -1,0 +1,125 @@
+&GLOBAL                                                                                           
+  PROJECT     STRESS_RI-MP2
+  PRINT_LEVEL LOW
+  RUN_TYPE    DEBUG
+&END GLOBAL
+&MOTION
+  &CELL_OPT
+    MAX_ITER  0
+  &END
+&END MOTION
+
+&DEBUG
+   DEBUG_FORCES .FALSE.
+   DEBUG_STRESS_TENSOR .TRUE.
+   DEBUG_DIPOLE .FALSE.
+   DEBUG_POLARIZABILITY .FALSE.
+   DE 0.001
+   STOP_ON_MISMATCH .FALSE.
+   EPS_NO_ERROR_CHECK 5.e-5
+&END
+&FORCE_EVAL
+  METHOD         Quickstep
+  STRESS_TENSOR  ANALYTICAL
+  &PRINT
+    &FORCES
+    &END FORCES
+    &STRESS_TENSOR
+     COMPONENTS
+    &END STRESS_TENSOR
+  &END
+  &DFT
+    BASIS_SET_FILE_NAME  GTH_BASIS_SETS
+    BASIS_SET_FILE_NAME  HFX_BASIS
+    BASIS_SET_FILE_NAME  BASIS_ADMM
+    POTENTIAL_FILE_NAME  POTENTIAL
+    &AUXILIARY_DENSITY_MATRIX_METHOD
+      METHOD BASIS_PROJECTION
+      ADMM_PURIFICATION_METHOD NONE
+      EXCH_CORRECTION_FUNC PBEX
+    &END
+    &MGRID
+      CUTOFF      800
+      REL_CUTOFF   50
+    &END MGRID
+    &QS
+      METHOD GPW
+      EPS_DEFAULT 1.0E-12
+    &END QS
+    &SCF
+      SCF_GUESS   ATOMIC
+      EPS_SCF     1.0E-6
+      MAX_SCF     100
+      &PRINT
+        &RESTART OFF
+        &END
+      &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
+      &HF
+        FRACTION 1.0000000
+        &SCREENING
+          EPS_SCHWARZ 1.0E-6
+          EPS_SCHWARZ_FORCES  1.0E-6
+          SCREEN_ON_INITIAL_P .FALSE.
+        &END SCREENING
+        &INTERACTION_POTENTIAL
+          POTENTIAL_TYPE  TRUNCATED
+          # One should actually chose half the nearest neighbour distance (here 2.4999)
+          CUTOFF_RADIUS   1.5
+          T_C_G_DATA      t_c_g.dat
+        &END
+      &END HF
+      &WF_CORRELATION
+        &RI_MP2
+          BLOCK_SIZE  1
+          EPS_CANONICAL 0.0001
+          FREE_HFX_BUFFER .TRUE.
+          &CPHF
+            EPS_CONV  1.0E-4
+            MAX_ITER  30
+          &END
+        &END
+        &INTEGRALS
+          &WFC_GPW
+            CUTOFF      250
+            REL_CUTOFF  30
+            EPS_FILTER  1.0E-6
+            EPS_GRID    1.0E-6
+          &END WFC_GPW
+        &END INTEGRALS
+        MEMORY       1.00
+        NUMBER_PROC  1
+      &END
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC [angstrom]  6.0000   6.0000  6.0000
+    &END CELL
+    &KIND H
+      BASIS_SET         SZV-GTH
+      BASIS_SET RI_AUX  RI_DZVP-GTH
+      BASIS_SET AUX_FIT FIT3
+      POTENTIAL         GTH-HF-q1
+    &END KIND
+    &KIND O
+      BASIS_SET         SZV-GTH
+      BASIS_SET RI_AUX  RI_DZVP-GTH
+      BASIS_SET AUX_FIT FIT3
+      POTENTIAL         GTH-HF-q6
+    &END KIND
+    &COORD
+      O       0.000000    0.000000    -0.211000
+      H       0.000000   -0.844000     0.495000
+      H       0.000000    0.744000     0.495000
+    &END
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+

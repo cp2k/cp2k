@@ -66,10 +66,10 @@ MODULE pw_methods
 
    PUBLIC :: pw_zero, pw_structure_factor, pw_smoothing
    PUBLIC :: pw_copy, pw_axpy, pw_transfer, pw_scale
-   PUBLIC :: pw_gauss_damp, pw_derive, pw_dr2, pw_write, pw_multiply
+   PUBLIC :: pw_gauss_damp, pw_compl_gauss_damp, pw_derive, pw_dr2, pw_write, pw_multiply
    PUBLIC :: pw_integral_ab, pw_integral_a2b
    PUBLIC :: pw_dr2_gg, pw_integrate_function
-   PUBLIC :: pw_set
+   PUBLIC :: pw_set, pw_truncated
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_methods'
    LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .FALSE.
@@ -104,32 +104,24 @@ CONTAINS
       CPASSERT(pw%ref_count > 0)
       IF (pw%in_use == REALDATA1D) THEN
          ns = SIZE(pw%cr)
-!$OMP PARALLEL DEFAULT(NONE) SHARED(pw)
-!$OMP WORKSHARE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw)
          pw%cr(:) = 0._dp
-!$OMP END WORKSHARE
-!$OMP END PARALLEL
+!$OMP END PARALLEL WORKSHARE
       ELSE IF (pw%in_use == COMPLEXDATA1D) THEN
          ns = SIZE(pw%cc)
-!$OMP PARALLEL DEFAULT(NONE) SHARED(pw)
-!$OMP WORKSHARE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw)
          pw%cc(:) = CMPLX(0._dp, 0._dp, KIND=dp)
-!$OMP END WORKSHARE
-!$OMP END PARALLEL
+!$OMP END PARALLEL WORKSHARE
       ELSE IF (pw%in_use == REALDATA3D) THEN
          ns = SIZE(pw%cr3d)
-!$OMP PARALLEL DEFAULT(NONE) SHARED(pw)
-!$OMP WORKSHARE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw)
          pw%cr3d(:, :, :) = 0._dp
-!$OMP END WORKSHARE
-!$OMP END PARALLEL
+!$OMP END PARALLEL WORKSHARE
       ELSE IF (pw%in_use == COMPLEXDATA3D) THEN
          ns = SIZE(pw%cc3d)
-!$OMP PARALLEL DEFAULT(NONE) SHARED(pw)
-!$OMP WORKSHARE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw)
          pw%cc3d(:, :, :) = CMPLX(0._dp, 0._dp, KIND=dp)
-!$OMP END WORKSHARE
-!$OMP END PARALLEL
+!$OMP END PARALLEL WORKSHARE
       ELSE
          CPABORT("No possible data field!")
       END IF
@@ -346,32 +338,24 @@ CONTAINS
       SELECT CASE (pw%in_use)
       CASE (REALDATA1D)
          ns = SIZE(pw%cr)
-!$OMP PARALLEL DEFAULT(NONE) SHARED(pw,A)
-!$OMP WORKSHARE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw,A)
          pw%cr(:) = a*pw%cr(:)
-!$OMP END WORKSHARE
-!$OMP END PARALLEL
+!$OMP END PARALLEL WORKSHARE
       CASE (COMPLEXDATA1D)
          ns = 2*SIZE(pw%cc)
-!$OMP PARALLEL DEFAULT(NONE) SHARED(pw,A)
-!$OMP WORKSHARE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw,A)
          pw%cc(:) = a*pw%cc(:)
-!$OMP END WORKSHARE
-!$OMP END PARALLEL
+!$OMP END PARALLEL WORKSHARE
       CASE (REALDATA3D)
          ns = SIZE(pw%cr3d)
-!$OMP PARALLEL DEFAULT(NONE) SHARED(pw,A)
-!$OMP WORKSHARE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw,A)
          pw%cr3d(:, :, :) = a*pw%cr3d(:, :, :)
-!$OMP END WORKSHARE
-!$OMP END PARALLEL
+!$OMP END PARALLEL WORKSHARE
       CASE (COMPLEXDATA3D)
          ns = 2*SIZE(pw%cc3d)
-!$OMP PARALLEL DEFAULT(NONE) SHARED(pw,A)
-!$OMP WORKSHARE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw,A)
          pw%cc3d(:, :, :) = a*pw%cc3d(:, :, :)
-!$OMP END WORKSHARE
-!$OMP END PARALLEL
+!$OMP END PARALLEL WORKSHARE
       CASE DEFAULT
          CPABORT("No suitable data field")
       END SELECT
@@ -402,7 +386,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gauss_damp'
 
-      INTEGER                                            :: cnt, handle, i, n_exp
+      INTEGER                                            :: cnt, handle, n_exp
       REAL(KIND=dp)                                      :: flop, omega_2
 
       CALL timeset(routineN, handle)
@@ -420,10 +404,9 @@ CONTAINS
 
          cnt = SIZE(pw%cc)
 
-!$OMP PARALLEL DO PRIVATE(i) DEFAULT(NONE) SHARED(cnt, pw, omega_2)
-         DO i = 1, cnt
-            pw%cc(i) = pw%cc(i)*EXP(-pw%pw_grid%gsq(i)*omega_2)
-         END DO
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(cnt, pw, omega_2)
+         pw%cc(:) = pw%cc(:)*EXP(-pw%pw_grid%gsq(:)*omega_2)
+!$OMP END PARALLEL WORKSHARE
          flop = flop + 2*cnt
          n_exp = n_exp + cnt
 
@@ -437,6 +420,128 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE pw_gauss_damp
+
+! **************************************************************************************************
+!> \brief Multiply all data points with a Gaussian damping factor
+!>        Needed for longrange Coulomb potential
+!>        V(\vec r)=erf(omega*r)/r
+!>        V(\vec g)=\frac{4*\pi}{g**2}*exp(-g**2/omega**2)
+!> \param pw ...
+!> \param omega ...
+!> \par History
+!>      Frederick Stein (12-04-2019) created
+!> \author Frederick Stein (12-Apr-2019)
+!> \note
+!>      Performs a Gaussian damping
+!>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
+! **************************************************************************************************
+   SUBROUTINE pw_compl_gauss_damp(pw, omega)
+
+      TYPE(pw_type), INTENT(INOUT)                       :: pw
+      REAL(KIND=dp), INTENT(IN)                          :: omega
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_compl_gauss_damp'
+
+      INTEGER                                            :: cnt, handle, i, n_exp
+      REAL(KIND=dp)                                      :: flop, omega_2, tmp
+
+      CALL timeset(routineN, handle)
+      CPASSERT(pw%ref_count > 0)
+      CPASSERT(omega >= 0)
+
+      flop = 0.0_dp
+      n_exp = 0
+
+      omega_2 = omega*omega
+      omega_2 = 0.25_dp/omega_2
+
+      IF (pw%in_space == RECIPROCALSPACE .AND. &
+          pw%in_use == COMPLEXDATA1D) THEN
+
+         cnt = SIZE(pw%cc)
+
+!$OMP PARALLEL DO PRIVATE(i, tmp) DEFAULT(NONE) SHARED(cnt, pw, omega_2)
+         DO i = 1, cnt
+            tmp = -omega_2*pw%pw_grid%gsq(i)
+            IF (ABS(tmp) > 1.0e-5) THEN
+               pw%cc(i) = pw%cc(i)*(1.0_dp - EXP(tmp))
+            ELSE
+               pw%cc(i) = pw%cc(i)*(tmp+0.5_dp*tmp*(tmp+(1.0_dp/3.0_dp)*tmp**2))
+            END IF
+         END DO
+         flop = flop + 2*cnt
+
+      ELSE
+
+         CPABORT("No suitable data field")
+
+      END IF
+
+      flop = flop*1.e-6_dp
+      CALL timestop(handle)
+
+   END SUBROUTINE pw_compl_gauss_damp
+
+! **************************************************************************************************
+!> \brief Multiply all data points with a complementary cosine
+!>        Needed for truncated Coulomb potential
+!>        V(\vec r)=1/r if r<rc, 0 else
+!>        V(\vec g)=\frac{4*\pi}{g**2}*(1-cos(g*rc))
+!> \param pw ...
+!> \param omega ...
+!> \par History
+!>      Frederick Stein (07-06-2021) created
+!> \author Frederick Stein (07-Jun-2021)
+!> \note
+!>      Multiplies by complementary cosine
+!>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
+! **************************************************************************************************
+   SUBROUTINE pw_truncated(pw, rcutoff)
+
+      TYPE(pw_type), INTENT(INOUT)                       :: pw
+      REAL(KIND=dp), INTENT(IN)                          :: rcutoff
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gauss_damp'
+
+      INTEGER                                            :: cnt, handle, i, n_cos, n_sqrt
+      REAL(KIND=dp)                                      :: flop, tmp
+
+      CALL timeset(routineN, handle)
+      CPASSERT(pw%ref_count > 0)
+      CPASSERT(rcutoff >= 0)
+
+      flop = 0.0_dp
+      n_cos = 0
+      n_sqrt = 0
+
+      IF (pw%in_space == RECIPROCALSPACE .AND. &
+          pw%in_use == COMPLEXDATA1D) THEN
+
+         cnt = SIZE(pw%cc)
+
+!$OMP PARALLEL DO PRIVATE(i,tmp) DEFAULT(NONE) SHARED(cnt, pw, rcutoff)
+         DO i = 1, cnt
+            tmp = SQRT(pw%pw_grid%gsq(i))*rcutoff
+            IF (tmp >= 0.005_dp) THEN
+               pw%cc(i) = pw%cc(i)*(1.0_dp-COS(tmp))
+            ELSE
+               pw%cc(i) = pw%cc(i)*tmp**2/2.0_dp*(1.0-tmp**2/12.0_dp)
+            END IF
+         END DO
+         flop = flop + 2*cnt
+         n_sqrt = n_sqrt + cnt
+         n_cos = n_cos + cnt
+
+      ELSE
+
+         CPABORT("No suitable data field")
+
+      END IF
+
+      flop = flop*1.e-6_dp
+      CALL timestop(handle)
+
+   END SUBROUTINE pw_truncated
 
 ! **************************************************************************************************
 !> \brief Calculate the derivative of a plane wave vector
@@ -457,7 +562,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_derive'
 
       COMPLEX(KIND=dp)                                   :: im
-      INTEGER                                            :: cnt, handle, i, m
+      INTEGER                                            :: cnt, handle, m
       REAL(KIND=dp)                                      :: flop
 
       CALL timeset(routineN, handle)
@@ -475,52 +580,45 @@ CONTAINS
          cnt = SIZE(pw%cc)
 
          IF (n(1) == 1) THEN
-!$OMP PARALLEL DO PRIVATE (i) DEFAULT(NONE) SHARED(cnt, pw)
-            DO i = 1, cnt
-               pw%cc(i) = pw%cc(i)*pw%pw_grid%g(1, i)
-            END DO
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(cnt, pw)
+            pw%cc(:) = pw%cc(:)*pw%pw_grid%g(1, :)
+!$OMP END PARALLEL WORKSHARE
             flop = flop + 6*cnt
          ELSE IF (n(1) > 1) THEN
-!$OMP PARALLEL DO PRIVATE (i) DEFAULT(NONE) SHARED(cnt, pw,n)
-            DO i = 1, cnt
-               pw%cc(i) = pw%cc(i)*(pw%pw_grid%g(1, i)**n(1))
-            END DO
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(cnt, pw,n)
+            pw%cc(:) = pw%cc(:)*(pw%pw_grid%g(1, :)**n(1))
+!$OMP END PARALLEL WORKSHARE
             flop = flop + 7*cnt
          END IF
          IF (n(2) == 1) THEN
-!$OMP PARALLEL DO PRIVATE (i) DEFAULT(NONE) SHARED(pw, cnt)
-            DO i = 1, cnt
-               pw%cc(i) = pw%cc(i)*pw%pw_grid%g(2, i)
-            END DO
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw, cnt)
+            pw%cc(:) = pw%cc(:)*pw%pw_grid%g(2, :)
+!$OMP END PARALLEL WORKSHARE
             flop = flop + 6*cnt
          ELSE IF (n(2) > 1) THEN
-!$OMP PARALLEL DO PRIVATE (i) DEFAULT(NONE) SHARED(pw, cnt,n)
-            DO i = 1, cnt
-               pw%cc(i) = pw%cc(i)*(pw%pw_grid%g(2, i)**n(2))
-            END DO
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw, cnt,n)
+            pw%cc(:) = pw%cc(:)*(pw%pw_grid%g(2, :)**n(2))
+!$OMP END PARALLEL WORKSHARE
             flop = flop + 7*cnt
          END IF
          IF (n(3) == 1) THEN
-!$OMP PARALLEL DO PRIVATE (i) DEFAULT(NONE) SHARED(pw,cnt)
-            DO i = 1, cnt
-               pw%cc(i) = pw%cc(i)*pw%pw_grid%g(3, i)
-            END DO
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw,cnt)
+            pw%cc(:) = pw%cc(:)*pw%pw_grid%g(3, :)
+!$OMP END PARALLEL WORKSHARE
             flop = flop + 6*cnt
          ELSE IF (n(3) > 1) THEN
-!$OMP PARALLEL DO PRIVATE (i) DEFAULT(NONE) SHARED(pw,cnt,n)
-            DO i = 1, cnt
-               pw%cc(i) = pw%cc(i)*(pw%pw_grid%g(3, i)**n(3))
-            END DO
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw,cnt,n)
+            pw%cc(:) = pw%cc(:)*(pw%pw_grid%g(3, :)**n(3))
+!$OMP END PARALLEL WORKSHARE
             flop = flop + 7*cnt
          END IF
 
          ! im can take the values 1, -1, i, -i
          ! skip this if im == 1
          IF (ABS(REAL(im, KIND=dp) - 1.0_dp) > 1.e-10) THEN
-!$OMP PARALLEL DO PRIVATE (i) DEFAULT(NONE) SHARED(pw,cnt,im)
-            DO i = 1, cnt
-               pw%cc(i) = im*pw%cc(i)
-            END DO
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw,cnt,im)
+            pw%cc(:) = im*pw%cc(:)
+!$OMP END PARALLEL WORKSHARE
             flop = flop + 6*cnt
          END IF
 
@@ -842,35 +940,27 @@ CONTAINS
             END IF
          ELSE IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D) THEN
             IF (my_alpha == 1.0_dp) THEN
-!$OMP PARALLEL DEFAULT(NONE) SHARED(pw1, pw2)
-!$OMP WORKSHARE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2)
                pw2%cr3d = pw2%cr3d+pw1%cr3d
-!$OMP END WORKSHARE
-!$OMP END PARALLEL
+!$OMP END PARALLEL WORKSHARE
                flop = REAL(SIZE(pw2%cr3d), KIND=dp)
             ELSE
-!$OMP PARALLEL DEFAULT(NONE) SHARED(pw1, pw2, my_alpha)
-!$OMP WORKSHARE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2, my_alpha)
                pw2%cr3d = pw2%cr3d+my_alpha*pw1%cr3d
-!$OMP END WORKSHARE
-!$OMP END PARALLEL
+!$OMP END PARALLEL WORKSHARE
                flop = REAL(2*SIZE(pw2%cr3d), KIND=dp)
             END IF
          ELSE IF (pw1%in_use == COMPLEXDATA3D .AND. &
                   pw2%in_use == COMPLEXDATA3D) THEN
             IF (my_alpha == 1.0_dp) THEN
-!$OMP PARALLEL DEFAULT(NONE) SHARED(pw1, pw2)
-!$OMP WORKSHARE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2)
                pw2%cc3d = pw2%cc3d+pw1%cc3d
-!$OMP END WORKSHARE
-!$OMP END PARALLEL
+!$OMP END PARALLEL WORKSHARE
                flop = REAL(2*SIZE(pw2%cc3d), KIND=dp)
             ELSE
-!$OMP PARALLEL DEFAULT(NONE) SHARED(pw1, pw2, my_alpha)
-!$OMP WORKSHARE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2, my_alpha)
                pw2%cc3d = pw2%cc3d+my_alpha*pw1%cc3d
-!$OMP END WORKSHARE
-!$OMP END PARALLEL
+!$OMP END PARALLEL WORKSHARE
                flop = REAL(4*SIZE(pw2%cc3d), KIND=dp)
             END IF
          ELSE
@@ -1039,71 +1129,55 @@ CONTAINS
          IF (pw1%in_use == REALDATA1D .AND. pw2%in_use == REALDATA1D .AND. &
              pw_out%in_use == REALDATA1D) THEN
             IF (my_alpha == 1.0_dp) THEN
-!$OMP PARALLEL DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
-!$OMP WORKSHARE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
                pw_out%cr = pw_out%cr + pw1%cr + pw2%cr
-!$OMP END WORKSHARE
-!$OMP END PARALLEL
+!$OMP END PARALLEL WORKSHARE
                flop = REAL(2*SIZE(pw2%cr), KIND=dp)
             ELSE
-!$OMP PARALLEL DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
-!$OMP WORKSHARE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
                pw_out%cr = pw_out%cr + my_alpha*pw1%cr*pw2%cr
-!$OMP END WORKSHARE
-!$OMP END PARALLEL
+!$OMP END PARALLEL WORKSHARE
                flop = REAL(3*SIZE(pw2%cr), KIND=dp)
             END IF
          ELSE IF (pw1%in_use == COMPLEXDATA1D .AND. &
                   pw2%in_use == COMPLEXDATA1D .AND. &
                   pw_out%in_use == COMPLEXDATA1D) THEN
             IF (my_alpha == 1.0_dp) THEN
-!$OMP PARALLEL DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
-!$OMP WORKSHARE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
                pw_out%cc = pw_out%cc + pw1%cc*pw2%cc
-!$OMP END WORKSHARE
-!$OMP END PARALLEL
+!$OMP END PARALLEL WORKSHARE
                flop = REAL(3*SIZE(pw2%cc), KIND=dp)
             ELSE
-!$OMP PARALLEL DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
-!$OMP WORKSHARE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
                pw_out%cc = pw_out%cc + my_alpha*pw1%cc*pw2%cc
-!$OMP END WORKSHARE
-!$OMP END PARALLEL
+!$OMP END PARALLEL WORKSHARE
                flop = REAL(6*SIZE(pw2%cc), KIND=dp)
             END IF
          ELSE IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D .AND. &
                   pw_out%in_use == REALDATA3D) THEN
             IF (my_alpha == 1.0_dp) THEN
-!$OMP PARALLEL DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
-!$OMP WORKSHARE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
                pw_out%cr3d = pw_out%cr3d+pw1%cr3d*pw2%cr3d
-!$OMP END WORKSHARE
-!$OMP END PARALLEL
+!$OMP END PARALLEL WORKSHARE
                flop = REAL(2*SIZE(pw2%cr3d), KIND=dp)
             ELSE
-!$OMP PARALLEL DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
-!$OMP WORKSHARE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
                pw_out%cr3d = pw_out%cr3d+my_alpha*pw1%cr3d*pw2%cr3d
-!$OMP END WORKSHARE
-!$OMP END PARALLEL
+!$OMP END PARALLEL WORKSHARE
                flop = REAL(3*SIZE(pw2%cr3d), KIND=dp)
             END IF
          ELSE IF (pw1%in_use == COMPLEXDATA3D .AND. &
                   pw2%in_use == COMPLEXDATA3D .AND. &
                   pw_out%in_use == COMPLEXDATA3D) THEN
             IF (my_alpha == 1.0_dp) THEN
-!$OMP PARALLEL DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
-!$OMP WORKSHARE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
                pw_out%cc3d = pw_out%cc3d+pw1%cc3d*pw2%cc3d
-!$OMP END WORKSHARE
-!$OMP END PARALLEL
+!$OMP END PARALLEL WORKSHARE
                flop = REAL(3*SIZE(pw2%cc3d), KIND=dp)
             ELSE
-!$OMP PARALLEL DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
-!$OMP WORKSHARE
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
                pw_out%cc3d = pw_out%cc3d+my_alpha*pw1%cc3d*pw2%cc3d
-!$OMP END WORKSHARE
-!$OMP END PARALLEL
+!$OMP END PARALLEL WORKSHARE
                flop = REAL(6*SIZE(pw2%cc3d), KIND=dp)
             END IF
          ELSE
@@ -1975,7 +2049,7 @@ CONTAINS
 !> \param gridb ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION pw_compatible(grida, gridb) RESULT(compat)
+   ELEMENTAL FUNCTION pw_compatible(grida, gridb) RESULT(compat)
       TYPE(pw_grid_type), INTENT(IN)                     :: grida, gridb
       LOGICAL                                            :: compat
 

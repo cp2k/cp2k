@@ -6,7 +6,7 @@ evGW_OH_PBE.inp                                       11      1e-08            -
 evGW_H2O_PBE_RI_HFX.inp                               11      1e-08            -13.112474185087502
 G0W0_H2O_PBE_periodic.inp                             11      1e-07            -17.144843116457857
 G0W0_H2O_PBE_pade.inp                                 78    1.0E-14                          16.22
-evGW_OH_PBE_svd.inp                                   11      1e-08            -16.452864482288359
-evGW_H2O_PBE_RI_HFX_svd.inp                           11      1e-08            -13.176028670946073
+evGW_OH_PBE_svd.inp                                   11      1e-08            -16.414920515699585
+evGW_H2O_PBE_RI_HFX_svd.inp                           11      1e-08            -13.112474185078236
 scGW0_H2O_PBE.inp                                     11      1e-08            -17.118441200805574
 #EOF

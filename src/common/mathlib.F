@@ -1482,9 +1482,10 @@ CONTAINS
 !>      05.2007 Created
 !> \author Manuel Guidon (adapted from Numerical recipies)
 ! **************************************************************************************************
-   FUNCTION expint(n, x)
-      INTEGER                                            :: n
-      REAL(dp)                                           :: x, expint
+   ELEMENTAL IMPURE FUNCTION expint(n, x)
+      INTEGER, INTENT(IN)                                :: n
+      REAL(dp), INTENT(IN)                               :: x
+      REAL(dp)                                           :: expint
 
       INTEGER, PARAMETER                                 :: maxit = 100
       REAL(dp), PARAMETER :: eps = 6.e-14_dp, euler = 0.5772156649015328606065120_dp, &

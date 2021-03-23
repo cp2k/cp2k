@@ -1030,7 +1030,10 @@ CONTAINS
 
       IF (do_kpoints) THEN
          ! please choose EPS_PGF_ORB in QS section smaller than EPS_GRID in WFC_GPW section
-         CPASSERT(mp2_env%mp2_gpw%eps_grid .GE. dft_control%qs_control%eps_pgf_orb)
+         IF (mp2_env%mp2_gpw%eps_grid < dft_control%qs_control%eps_pgf_orb) THEN
+            mp2_env%mp2_gpw%eps_grid = dft_control%qs_control%eps_pgf_orb
+            CPWARN("WFC_GPW%EPS_GRID has been set to QS%EPS_PGF_ORB")
+         END IF
       END IF
 
       ! hack hack hack XXXXXXXXXXXXXXX ... to be fixed

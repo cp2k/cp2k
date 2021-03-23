@@ -63,12 +63,8 @@ MODULE kg_correction
                                               xc_prep_2nd_deriv
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                               xc_dset_release
-   USE xc_derivatives,                  ONLY: xc_functionals_get_needs
-   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
-   USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
-                                              xc_rho_set_release,&
-                                              xc_rho_set_type,&
-                                              xc_rho_set_update
+   USE xc_rho_set_types,                ONLY: xc_rho_set_release,&
+                                              xc_rho_set_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -711,16 +707,12 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_kernel'
 
       INTEGER                                            :: handle, ispin, nspins
-      INTEGER, DIMENSION(2, 3)                           :: bo
-      LOGICAL                                            :: lsd
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_r, rho_r, tau_pw, vxc_rho
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_r, rho_r, vxc_rho
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(section_vals_type), POINTER                   :: xc_fun_section
       TYPE(xc_derivative_set_type), POINTER              :: deriv_set
-      TYPE(xc_rho_cflags_type)                           :: needs
-      TYPE(xc_rho_set_type), POINTER                     :: rho1_set, rho_set
+      TYPE(xc_rho_set_type), POINTER                     :: rho_set
 
       CALL timeset(routineN, handle)
 
@@ -735,37 +727,12 @@ CONTAINS
       CALL pw_env_get(pw_env=pw_env, &
                       auxbas_pw_pool=auxbas_pw_pool)
 
-      ALLOCATE (vxc_rho(nspins))
-      DO ispin = 1, nspins
-         NULLIFY (vxc_rho(nspins)%pw)
-         CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
-                                pw=vxc_rho(ispin)%pw, &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
-         CALL pw_zero(vxc_rho(ispin)%pw)
-      END DO
-
       ! Get grid based density
       NULLIFY (rho_r, rho1_r, rho1_g)
       CALL qs_rho_get(rho, rho_r=rho_r)
       CALL qs_rho_get(rho1, rho_r=rho1_r, rho_g=rho1_g)
 
-      NULLIFY (deriv_set, rho_set, rho1_set, tau_pw)
-      ! Init rho1_set, with which to fold second derivative
-      bo = rho_r(1)%pw%pw_grid%bounds_local
-      CALL xc_rho_set_create(rho1_set, bo, &
-                             rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
-                             drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF"), &
-                             tau_cutoff=section_get_rval(xc_section, "TAU_CUTOFF"))
-      lsd = (nspins == 2)
-      xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
-      needs = xc_functionals_get_needs(xc_fun_section, lsd, .TRUE.)
-
-      ! calculate the rho set used to fold with 2nd derivative
-      CALL xc_rho_set_update(rho1_set, rho1_r, rho1_g, tau_pw, needs, &
-                             section_get_ival(xc_section, "XC_GRID%XC_DERIV"), &
-                             section_get_ival(xc_section, "XC_GRID%XC_SMOOTH_RHO"), &
-                             auxbas_pw_pool)
+      NULLIFY (deriv_set, rho_set)
 
       ! main ingredient is xc_rho_set_and_dset_create
       CALL xc_prep_2nd_deriv(deriv_set=deriv_set, &    ! containing potentials
@@ -779,7 +746,8 @@ CONTAINS
       CALL xc_calc_2nd_deriv(v_xc=vxc_rho, &           ! XC-potential
                              deriv_set=deriv_set, &    ! deriv of xc-potential
                              rho_set=rho_set, &        ! density at which deriv are calculated
-                             rho1_set=rho1_set, &      ! density with which to fold
+                             rho1_r=rho1_r, &      ! density with which to fold
+                             rho1_g=rho1_g, &
                              pw_pool=auxbas_pw_pool, & ! pool for grids
                              xc_section=xc_section, &
                              gapw=.FALSE.)
@@ -787,7 +755,6 @@ CONTAINS
       ! Release second deriv stuff
       CALL xc_dset_release(deriv_set)
       CALL xc_rho_set_release(rho_set=rho_set, pw_pool=auxbas_pw_pool)
-      CALL xc_rho_set_release(rho_set=rho1_set, pw_pool=auxbas_pw_pool)
 
       ! export vxc
       ALLOCATE (vxc(nspins))

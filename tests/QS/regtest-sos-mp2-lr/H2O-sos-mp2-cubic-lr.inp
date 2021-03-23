@@ -62,7 +62,6 @@
         NUMBER_PROC  1
         &RI
           DO_SVD
-          EPS_SVD 1.0E-5
           &RI_METRIC
             POTENTIAL_TYPE IDENTITY
           &END

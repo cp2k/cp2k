@@ -153,8 +153,8 @@ CONTAINS
    SUBROUTINE xgga_eval(functional, lsd, rho_set, deriv_set, order)
       INTEGER, INTENT(in)                                :: functional
       LOGICAL, INTENT(in)                                :: lsd
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_rho_set_type), POINTER, INTENT(IN)         :: rho_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: order
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xgga_eval'
@@ -179,9 +179,7 @@ CONTAINS
          NULLIFY (norm_drho(ispin)%array, rho(ispin)%array, rho_1_3(ispin)%array)
       END DO
 
-      CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
-      CPASSERT(ASSOCIATED(deriv_set))
       CPASSERT(deriv_set%ref_count > 0)
       IF (lsd) THEN
          CALL xc_rho_set_get(rho_set, rhoa_1_3=rho_1_3(1)%array, &

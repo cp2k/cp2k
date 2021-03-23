@@ -44,12 +44,14 @@ MODULE qs_p_env_types
 !> \param id_nr identification number (unique between p_env_types)
 !> \param ref_count reference count (see doc/ReferenceCounting.html)
 !> \param kpp 1: the kpp1 matrix (make it temporary?)
+!> \param kpp1_admm: collects the parts in auxiliary basis, they have to be added to kpp1 later
 !> \param m_epsilon minus epsilon: -<psi0d|H_rho|psi0d>
 !> \param psi 0d: the dual basis of psi0: psi0 (psi0^T S psi0)^-1
 !> \param S_psi 0: S times psi0, cached for performance reasons
 !> \param Smo_inv inverse of the mo overlap: (psi0^T S psi0)^-1
 !> \param rho 1: the density rho1
 !> \param rho 1: the soft density rho1 for gapw_xc
+!> \param rho 1_admm: density rho1 in auxiliary basis (for ADMM)
 !> \param n_mo cached number of mo: n_mo(i)=qs_env%c(i)%nmo
 !> \param n_ao cached number of ao: n_ao(i)=qs_env%c(i)%nao
 !> \note
@@ -59,13 +61,14 @@ MODULE qs_p_env_types
 
       LOGICAL :: orthogonal_orbitals
       INTEGER :: id_nr, ref_count
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: kpp1, p1, w1
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: kpp1, kpp1_admm, p1, w1
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: p1_admm => NULL()
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: m_epsilon, &
                                                    psi0d, S_psi0, Smo_inv
       TYPE(qs_kpp1_env_type), POINTER :: kpp1_env
       TYPE(qs_rho_type), POINTER :: rho1
       TYPE(qs_rho_type), POINTER :: rho1_xc
+      TYPE(qs_rho_type), POINTER :: rho1_admm
       INTEGER, DIMENSION(2) :: n_mo, & ! no of molecular orbitals
                                n_ao ! no of basis functions
       ! GAPW stuff
@@ -135,7 +138,9 @@ CONTAINS
                CALL qs_rho_release(p_env%rho1_xc)
             ENDIF
             CALL qs_rho_release(p_env%rho1)
+            IF (ASSOCIATED(p_env%rho1_admm)) CALL qs_rho_release(p_env%rho1_admm)
             IF (ASSOCIATED(p_env%kpp1)) CALL dbcsr_deallocate_matrix_set(p_env%kpp1)
+            IF (ASSOCIATED(p_env%kpp1_admm)) CALL dbcsr_deallocate_matrix_set(p_env%kpp1_admm)
             IF (ASSOCIATED(p_env%p1)) CALL dbcsr_deallocate_matrix_set(p_env%p1)
             IF (ASSOCIATED(p_env%w1)) CALL dbcsr_deallocate_matrix_set(p_env%w1)
             IF (ASSOCIATED(p_env%p1_admm)) CALL dbcsr_deallocate_matrix_set(p_env%p1_admm)
