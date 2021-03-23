@@ -1,4 +1,4 @@
-# Tested with: GFortran 8.3.0, MPICH 3.2.1, Cray-libsci 20.06.1, Cray-FFTW 3.3.8, Libint 2.6.0,
+# Tested with: GFortran 8.3.0, MPICH 3.2.1, Cray-libsci 20.09.1, Cray-FFTW 3.3.8, Libint 2.6.0,
 #              LIBXC 5.1.2, LIBVORI 201229, LIBXSMM 1.16.1, ELPA 2020.11.001, PLUMED 2.6.2, SPGLIB 1.16.0
 # Author: Matthias Krack (matthias.krack@psi.ch, PSI, March 2021)
 
@@ -8,6 +8,8 @@
 #  module add daint-mc
 #  module rm PrgEnv-cray
 #  module add PrgEnv-gnu
+#  module rm gcc/10.1.0
+#  module add gcc/8.3.0
 #  module add cray-fftw
 
 GNU_PATH    = /store/psi/psi01/mkrack/daint/mc/gnu/8.3.0
@@ -38,7 +40,8 @@ LIBXSMM_LIB = $(GNU_PATH)/libxsmm/1.16.1/lib
 SPGLIB_INC  = $(GNU_PATH)/spglib/1.16.0/include
 SPGLIB_LIB  = $(GNU_PATH)/spglib/1.16.0/lib
 
-CFLAGS      = -O3 -fopenmp -ftree-vectorize -funroll-loops -g
+# cc, CC, and ftn include already the proper -march flag
+CFLAGS      = -O3 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g
 
 DFLAGS      = -D__ELPA
 DFLAGS     += -D__FFTW3
