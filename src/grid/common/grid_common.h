@@ -10,7 +10,9 @@
 #define GRID_STRINGIFY(SYMBOL) #SYMBOL
 
 // GCC introduced the unroll pragma with version 8 using a custom syntax.
-#if defined(__GNUC__) && __GNUC__ >= 8
+#if defined(__INTEL_COMPILER)
+#define GRID_PRAGMA_UNROLL(N) _Pragma(GRID_STRINGIFY(unroll(N)))
+#elif defined(__GNUC__) && __GNUC__ >= 8
 #define GRID_PRAGMA_UNROLL(N) _Pragma(GRID_STRINGIFY(GCC unroll N))
 #elif defined(__GNUC__) && __GNUC__ < 8
 #define GRID_PRAGMA_UNROLL(N)
