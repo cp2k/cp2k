@@ -1,9 +1,9 @@
-al_system_dynamics.F: Found WRITE statement with hardcoded unit in "dump_vel"
 almo_scf.F: Found WRITE statement with hardcoded unit in "almo_scf_init"
+al_system_dynamics.F: Found WRITE statement with hardcoded unit in "dump_vel"
 base_hooks.F: Found CALL m_abort in procedure "cp_abort"
 base_hooks.F: Found STOP statement in procedure "cp__a"
-base_hooks.F: Found STOP statement in procedure "cp__b"
 base_hooks.F: Found STOP statement in procedure "cp_abort"
+base_hooks.F: Found STOP statement in procedure "cp__b"
 base_hooks.F: Found WRITE statement with hardcoded unit in "cp_abort"
 base_hooks.F: Found WRITE statement with hardcoded unit in "cp_hint"
 base_hooks.F: Found WRITE statement with hardcoded unit in "cp_warn"
@@ -74,6 +74,8 @@ free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_no
 free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_trend"
 glbopt_history.F: Found WRITE statement with hardcoded unit in "verify_history_lookup"
 glbopt_mincrawl.F: Found WRITE statement with hardcoded unit in "print_tempdist"
+graphcon.F: Found GOTO statement in procedure "all_permutations"
+graphcon.F: Found WRITE statement with hardcoded unit in "reorder_graph"
 graph.F: Found CALL RANDOM_SEED in procedure "graph"
 graph.F: Found WRITE statement with hardcoded unit in "graph"
 graph_methods.F: Found OPEN statement in procedure "fes_cube_write"
@@ -81,8 +83,6 @@ graph_methods.F: Found WRITE statement with hardcoded unit in "fes_cube_write"
 graph_methods.F: Found WRITE statement with hardcoded unit in "fes_min"
 graph_methods.F: Found WRITE statement with hardcoded unit in "fes_path"
 graph_utils.F: Found WRITE statement with hardcoded unit in "get_val_res"
-graphcon.F: Found GOTO statement in procedure "all_permutations"
-graphcon.F: Found WRITE statement with hardcoded unit in "reorder_graph"
 hfx_compression_methods.F: Found READ with unchecked STAT in "hfx_decompress_cache"
 hfx_energy_potential.F: Found WRITE statement with hardcoded unit in "print_integrals"
 input_enumeration_types.F: Found WRITE statement with hardcoded unit in "enum_i2c"
@@ -92,11 +92,11 @@ library_tests.F: Found CALL RANDOM_NUMBER in procedure "cp_fm_gemm_test"
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "fft_test"
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "rs_pw_transfer_test"
 library_tests.F: Routine PILAENV called with an implicit interface.
-machine.F: Found OPEN statement in procedure "m_cpuinfo"
 machine.F: Found CALL m_abort in procedure "m_getcwd"
 machine.F: Found CALL m_abort in procedure "m_hostnm"
 machine.F: Found CALL m_abort in procedure "m_mov"
 machine.F: Found CLOSE statement in procedure "m_memory_details"
+machine.F: Found OPEN statement in procedure "m_cpuinfo"
 machine.F: Found OPEN statement in procedure "m_memory"
 machine.F: Found OPEN statement in procedure "m_memory_details"
 machine.F: Found WRITE statement with hardcoded unit in "m_getcwd"
@@ -105,6 +105,18 @@ machine.F: Found WRITE statement with hardcoded unit in "m_mov"
 mathlib.F: Found WRITE statement with hardcoded unit in "diag"
 mc_coordinates.F: Found WRITE statement with hardcoded unit in "generate_cbmc_swap_config"
 mc_move_control.F: Found WRITE statement with hardcoded unit in "mc_move_update"
+memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank1_allocated"
+memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank1_unallocated"
+memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank2_allocated"
+memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank2_unallocated"
+memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_string_rank1_allocated"
+memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_string_rank1_unallocated"
+message_passing.f90: Rank mismatch between actual argument at (1) and actual argument at (2) (rank-1 and scalar)
+message_passing.f90: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-1)
+message_passing.f90: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-2)
+message_passing.f90: Type mismatch between actual argument at (1) and actual argument at (2) (COMPLEX(4)/REAL(8)).
+message_passing.f90: Type mismatch between actual argument at (1) and actual argument at (2) (COMPLEX(8)/COMPLEX(4)).
+message_passing.f90: Type mismatch between actual argument at (1) and actual argument at (2) (INTEGER(4)/REAL(8)).
 message_passing.F: Found CALL m_abort in procedure "mp_abort"
 message_passing.F: Found CLOSE statement in procedure "mp_file_close"
 message_passing.F: Found OPEN statement in procedure "mp_file_open"
@@ -112,12 +124,6 @@ message_passing.F: Found STOP statement in procedure "mp_abort"
 message_passing.F: Rank mismatch between actual argument at (1) and actual argument at (2) (rank-1 and scalar)
 message_passing.F: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-2)
 message_passing.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
-message_passing.f90: Rank mismatch between actual argument at (1) and actual argument at (2) (rank-1 and scalar)
-message_passing.f90: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-1)
-message_passing.f90: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-2)
-message_passing.f90: Type mismatch between actual argument at (1) and actual argument at (2) (COMPLEX(4)/REAL(8)).
-message_passing.f90: Type mismatch between actual argument at (1) and actual argument at (2) (COMPLEX(8)/COMPLEX(4)).
-message_passing.f90: Type mismatch between actual argument at (1) and actual argument at (2) (INTEGER(4)/REAL(8)).
 mltfftsg_tools.F: Found WRITE statement with hardcoded unit in "ctrig"
 mode_selective.F: Found READ with unchecked STAT in "bfgs_guess"
 mp2.F: Found lossy conversion real_4_r8 without KIND argument in "compute_vec_sigma_x_minus_vxc_gw"
@@ -153,8 +159,8 @@ qs_linres_current.F: Found WRITE statement with hardcoded unit in "calculate_jrh
 qs_linres_current.F: Found WRITE statement with hardcoded unit in "collocate_gauge_new"
 qs_linres_issc_utils.F: Found WRITE statement with hardcoded unit in "issc_issc"
 qs_linres_op.F: Routine INDXL2G called with an implicit interface.
-qs_loc_utils.F: Routine PZROT called with an implicit interface.
 qs_localization_methods.F: Routine PZROT called with an implicit interface.
+qs_loc_utils.F: Routine PZROT called with an implicit interface.
 qs_ot.F: Found WRITE statement with hardcoded unit in "qs_ot_generate_rotation"
 qs_rho_atom_methods.F: Found WRITE statement with hardcoded unit in "init_rho_atom"
 se_core_matrix.F: Found WRITE statement with hardcoded unit in "aa"
@@ -162,8 +168,8 @@ se_core_matrix.F: Found WRITE statement with hardcoded unit in "makeds"
 se_core_matrix.F: Found WRITE statement with hardcoded unit in "makes"
 se_fock_matrix_coulomb.F: Found WRITE statement with hardcoded unit in "build_fock_matrix_coulomb_lr"
 se_fock_matrix_dbg.F: Found WRITE statement with hardcoded unit in "dbg_energy_coulomb_lr"
-semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_dcore_nucint_ana"
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_dcorecore_ana"
+semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_dcore_nucint_ana"
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_drotnuc_ana"
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_dssss_nucint_ana"
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_dterep_ana"
@@ -209,9 +215,3 @@ xyz2dcd.F: Found STOP statement in procedure "xyz2dcd"
 xyz2dcd.F: Found WRITE statement with hardcoded unit in "abort_program"
 xyz2dcd.F: Found WRITE statement with hardcoded unit in "print_help"
 xyz2dcd.F: Found WRITE statement with hardcoded unit in "xyz2dcd"
-memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank1_allocated"
-memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank1_unallocated"
-memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank2_allocated"
-memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank2_unallocated"
-memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_string_rank1_allocated"
-memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_string_rank1_unallocated"
