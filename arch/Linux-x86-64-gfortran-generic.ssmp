@@ -21,7 +21,7 @@ LIBXC_LIB   = $(GNU_PATH)/libxc/5.1.2-generic/lib
 SPGLIB_INC  = $(GNU_PATH)/spglib/1.16.0-generic/include
 SPGLIB_LIB  = $(GNU_PATH)/spglib/1.16.0-generic/lib
 
-CFLAGS      = -O2 -fopenmp -g -mtune=generic
+CFLAGS      = -O2 -fopenmp -g -mtune=generic -fopenmp-simd
 
 DFLAGS     += -D__FFTW3
 DFLAGS     += -D__LIBINT

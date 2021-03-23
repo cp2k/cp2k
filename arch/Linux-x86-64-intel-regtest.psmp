@@ -31,7 +31,7 @@ LIBXSMM_LIB = $(INTEL_PATH)/libxsmm/1.16.1/lib
 SPGLIB_INC  = $(INTEL_PATH)/spglib/1.16.0/include
 SPGLIB_LIB  = $(INTEL_PATH)/spglib/1.16.0/lib
 
-CFLAGS      = -O2 -fopenmp -fp-model precise -funroll-loops -g -traceback -xHost
+CFLAGS      = -O2 -fopenmp -fp-model precise -funroll-loops -g -traceback -xHost -fopenmp-simd
 
 DFLAGS      = -D__ELPA
 DFLAGS     += -D__FFTW3

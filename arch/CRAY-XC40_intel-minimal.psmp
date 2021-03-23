@@ -13,7 +13,7 @@ FC        = ftn
 LD        = ftn
 AR        = ar -r
 
-CFLAGS    = -O3 -fopenmp -fp-model precise -funroll-loops -g -traceback
+CFLAGS    = -O3 -fopenmp -fp-model precise -funroll-loops -g -traceback -fopenmp-simd
 
 DFLAGS    = -D__FFTW3
 DFLAGS   += -D__MAX_CONTR=4

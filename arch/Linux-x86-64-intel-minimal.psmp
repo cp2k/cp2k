@@ -10,7 +10,7 @@ FC        = mpiifort
 LD        = mpiifort
 AR        = ar -r
 
-CFLAGS    = -O2 -fopenmp -fp-model precise -funroll-loops -g -traceback -xHost
+CFLAGS    = -O2 -fopenmp -fp-model precise -funroll-loops -g -traceback -xHost -fopenmp-simd
 
 DFLAGS    = -D__FFTW3
 DFLAGS   += -D__MAX_CONTR=4

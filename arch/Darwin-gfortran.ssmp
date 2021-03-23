@@ -6,7 +6,7 @@ FC       = gfortran
 LD       = gfortran
 AR       = ar -r
 RANLIB   = ranlib
-CFLAGS   = -O2 -fopenmp -g
+CFLAGS   = -O2 -fopenmp -g -fopenmp-simd
 DFLAGS   = -D__NO_STATM_ACCESS -D__ACCELERATE -D__LIBXC -D__LIBINT
 FCFLAGS  = -I $(LIBXC_INCLUDE_DIR) -I $(LIBINT_INCLUDE_DIR) -fopenmp -funroll-loops \
            -ftree-vectorize -ffree-form -O2 -g $(DFLAGS)

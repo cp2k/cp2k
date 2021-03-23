@@ -6,7 +6,7 @@ LD       = mpif90
 AR       = ar -r
 GPUVER   = K20X
 
-CXXFLAGS = -O3 -I${CUDA_PATH}/include -std=c++11 -fopenmp
+CXXFLAGS = -O3 -I${CUDA_PATH}/include -std=c++11 -fopenmp -fopenmp-simd
 
 #https://gcc.gnu.org/onlinedocs/gfortran/Error-and-Warning-Options.html
 
