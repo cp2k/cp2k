@@ -255,7 +255,4 @@ extern void alloc_tensor(tensor *t);
   a.data[(i)*a.offsets[0] + (j)*a.offsets[1] + (k)*a.ld_ + (l)]
 #define idx3(a, i, j, k) a.data[(i)*a.offsets[0] + (j)*a.ld_ + (k)]
 #define idx2(a, i, j) a.data[(i)*a.ld_ + (j)]
-
-extern void compute_block_dimensions(const int *const grid_size,
-                                     int *const blockDim);
 #endif

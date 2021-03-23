@@ -63,7 +63,6 @@ void exp_ij(const double alpha, const int offset_i, const int imin,
     double *restrict dst = &idx2(exp_ij_[0], i + offset_i, offset_j);
     double ctmp = exp_recursive(c_exp, 1.0 / c_exp, jmin);
 
-#pragma GCC ivdep
     for (int j = 0; j < (jmax - jmin); j++) {
       dst[j] *= ctmp;
       ctmp *= c_exp;
@@ -233,7 +232,7 @@ void calculate_non_orthorombic_corrections_tensor_blocked(
             double *restrict dst = &idx2(exp_blocked, y2, 0);
             const double scal = x1[y_1 + y2] * c_exp_const;
             const double *restrict src = &x2[x_1];
-#pragma GCC ivdep
+#pragma omp simd linear(dst, src) simdlen(8)
             for (int x3 = 0; x3 < block_size[d2]; x3++) {
               dst[x3] = scal * src[x3];
             }
@@ -268,6 +267,7 @@ void apply_non_orthorombic_corrections(const bool *restrict plane,
         const double *restrict yx = &idx3(Exp[0], 2, y, 0);
         double *restrict dst = &idx3(cube[0], z, y, 0);
 
+#pragma omp simd linear(dst, yx) simdlen(8)
         for (int x = 0; x < cube->size[2]; x++) {
           dst[x] *= yx[x];
         }
@@ -283,6 +283,7 @@ void apply_non_orthorombic_corrections(const bool *restrict plane,
         const double zy = idx3(Exp[0], 1, z, y);
         double *restrict dst = &idx3(cube[0], z, y, 0);
 
+#pragma omp simd linear(dst) simdlen(8)
         for (int x = 0; x < cube->size[2]; x++) {
           dst[x] *= zy;
         }
@@ -297,7 +298,7 @@ void apply_non_orthorombic_corrections(const bool *restrict plane,
       double *restrict zx = &idx3(Exp[0], 0, z, 0);
       for (int y = 0; y < cube->size[1]; y++) {
         double *restrict dst = &idx3(cube[0], z, y, 0);
-
+#pragma omp simd linear(dst, zx) simdlen(8)
         for (int x = 0; x < cube->size[2]; x++) {
           dst[x] *= zx[x];
         }
@@ -314,6 +315,7 @@ void apply_non_orthorombic_corrections(const bool *restrict plane,
         const double *restrict yx = &idx3(Exp[0], 2, y, 0);
         double *restrict dst = &idx3(cube[0], z, y, 0);
 
+#pragma omp simd linear(dst, yx) simdlen(8)
         for (int x = 0; x < cube->size[2]; x++) {
           dst[x] *= zy * yx[x];
         }
@@ -329,7 +331,7 @@ void apply_non_orthorombic_corrections(const bool *restrict plane,
       for (int y = 0; y < cube->size[1]; y++) {
         const double *restrict yx = &idx3(Exp[0], 2, y, 0);
         double *restrict dst = &idx3(cube[0], z, y, 0);
-
+#pragma omp simd linear(dst, yx) simdlen(8)
         for (int x = 0; x < cube->size[2]; x++) {
           dst[x] *= zx[x] * yx[x];
         }
@@ -346,6 +348,7 @@ void apply_non_orthorombic_corrections(const bool *restrict plane,
         const double zy = idx3(Exp[0], 1, z, y);
         double *restrict dst = &idx3(cube[0], z, y, 0);
 
+#pragma omp simd linear(dst) simdlen(8)
         for (int x = 0; x < cube->size[2]; x++) {
           dst[x] *= zx[x] * zy;
         }
@@ -363,6 +366,7 @@ void apply_non_orthorombic_corrections(const bool *restrict plane,
       const double *restrict yx = &idx3(Exp[0], 2, y, 0);
       double *restrict dst = &idx3(cube[0], z, y, 0);
 
+#pragma omp simd linear(dst, zx, yx) simdlen(8)
       for (int x = 0; x < cube->size[2]; x++) {
         dst[x] *= zx[x] * zy * yx[x];
       }
@@ -377,7 +381,8 @@ void apply_non_orthorombic_corrections_xy_blocked(
     for (int y1 = 0; y1 < m->size[1]; y1++) {
       double *restrict dst = &idx3(m[0], gamma, y1, 0);
       const double *restrict src = &idx2(Exp[0], y1, 0);
-#pragma GCC ivdep
+
+#pragma omp simd linear(dst, src) simdlen(8)
       for (int x1 = 0; x1 < m->size[2]; x1++) {
         dst[x1] *= src[x1];
       }
@@ -391,7 +396,7 @@ void apply_non_orthorombic_corrections_xz_blocked(
     const double *restrict src = &idx2(Exp[0], z1, 0);
     for (int y1 = 0; y1 < m->size[1]; y1++) {
       double *restrict dst = &idx3(m[0], z1, y1, 0);
-#pragma GCC ivdep
+#pragma omp simd linear(dst, src) simdlen(8)
       for (int x1 = 0; x1 < m->size[2]; x1++) {
         dst[x1] *= src[x1];
       }
@@ -405,7 +410,7 @@ void apply_non_orthorombic_corrections_yz_blocked(
     for (int y1 = 0; y1 < m->size[1]; y1++) {
       const double src = idx2(Exp[0], z1, y1);
       double *restrict dst = &idx3(m[0], z1, y1, 0);
-#pragma GCC ivdep
+#pragma omp simd linear(dst) simdlen(8)
       for (int x1 = 0; x1 < m->size[2]; x1++) {
         dst[x1] *= src;
       }
@@ -421,7 +426,7 @@ void apply_non_orthorombic_corrections_xz_yz_blocked(
     for (int y1 = 0; y1 < m->size[1]; y1++) {
       const double src = idx2(Exp_yz[0], z1, y1);
       double *restrict dst = &idx3(m[0], z1, y1, 0);
-#pragma GCC ivdep
+#pragma omp simd linear(dst) simdlen(8)
       for (int x1 = 0; x1 < m->size[2]; x1++) {
         dst[x1] *= src * src_xz[x1];
       }

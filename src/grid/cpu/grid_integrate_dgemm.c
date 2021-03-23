@@ -101,7 +101,8 @@ void extract_cube_within_spherical_cutoff_ortho(
                                            lower_corner[1], lower_corner[2]);
 
               const int sizex = upper_corner[2] - lower_corner[2];
-#pragma GCC ivdep
+
+#pragma omp simd linear(dst, src) simdlen(8)
               for (int x = 0; x < sizex; x++) {
                 dst[x] = src[x];
               }
@@ -216,13 +217,14 @@ void extract_cube_within_spherical_cutoff_generic(
           /* the function will internally take care of the local vs global
            * grid */
 
-          const double *__restrict__ const src = &idx3(
-              handler->grid, lower_corner[0], lower_corner[1], lower_corner[2]);
+          double *__restrict__ src = &idx3(handler->grid, lower_corner[0],
+                                           lower_corner[1], lower_corner[2]);
           double *__restrict__ dst =
               &idx3(handler->cube, position1[0], position1[1], position1[2]);
 
           const int sizex = upper_corner[2] - lower_corner[2];
-#pragma GCC ivdep
+
+#pragma omp simd linear(dst, src) simdlen(8)
           for (int x = 0; x < sizex; x++) {
             dst[x] = src[x];
           }
@@ -678,8 +680,8 @@ void grid_integrate(collocation_integration *const handler,
 
     /* the three remaining tensors are initialized in the function */
     calculate_non_orthorombic_corrections_tensor(
-        zetp, roffset, handler->dh, lb_cube, ub_cube, handler->orthogonal,
-        &handler->Exp);
+        zetp, roffset, (const double(*)[3])handler->dh, lb_cube, ub_cube,
+        handler->orthogonal, &handler->Exp);
   }
 
   if (handler->apply_cutoff) {
