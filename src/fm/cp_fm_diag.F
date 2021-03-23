@@ -211,7 +211,7 @@ CONTAINS
                                                                             "ELPA "/)
       REAL(KIND=dp), PARAMETER                           :: eps = 1.0E-12_dp
 
-      INTEGER                                            :: handle, i, j, ncol, nrow
+      INTEGER                                            :: handle, i, j, ncol, nrow, output_unit
       LOGICAL                                            :: check_eigenvectors
 #if defined(__SCALAPACK)
       TYPE(cp_blacs_env_type), POINTER                   :: context
@@ -227,6 +227,7 @@ CONTAINS
       check_eigenvectors = .FALSE.
 #endif
       IF (check_eigenvectors) THEN
+         output_unit = cp_logger_get_default_unit_nr()
 #if defined(__SCALAPACK)
          nrow = eigenvectors%matrix_struct%nrow_global
          ncol = MIN(eigenvectors%matrix_struct%ncol_global, nvec)
@@ -243,7 +244,7 @@ CONTAINS
                IF ((iprow == myprow) .AND. (ipcol == mypcol)) THEN
                   IF (i == j) THEN
                      IF (ABS(matrix%local_data(il, jl) - 1.0_dp) > eps) THEN
-                        WRITE (UNIT=*, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.12,/,T2,A)") &
+                        WRITE (UNIT=output_unit, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.12,/,T2,A)") &
                            "The eigenvectors returned by "//TRIM(diag_driver(diag_type))//" are not orthonormal", &
                            "Matrix element (", i, ", ", j, ") = ", matrix%local_data(il, jl), &
                            "The expected value is 1"
@@ -251,7 +252,7 @@ CONTAINS
                      END IF
                   ELSE
                      IF (ABS(matrix%local_data(il, jl)) > eps) THEN
-                        WRITE (UNIT=*, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.12,/,T2,A)") &
+                        WRITE (UNIT=output_unit, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.12,/,T2,A)") &
                            "The eigenvectors returned by "//TRIM(diag_driver(diag_type))//" are not orthonormal", &
                            "Matrix element (", i, ", ", j, ") = ", matrix%local_data(il, jl), &
                            "The expected value is 0"
@@ -272,7 +273,7 @@ CONTAINS
             DO j = 1, ncol
                IF (i == j) THEN
                   IF (ABS(matrix%local_data(i, j) - 1.0_dp) > eps) THEN
-                     WRITE (UNIT=*, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.12,/,T2,A)") &
+                     WRITE (UNIT=output_unit, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.12,/,T2,A)") &
                         "The eigenvectors returned by "//TRIM(diag_driver(diag_type))//" are not orthonormal", &
                         "Matrix element (", i, ", ", j, ") = ", matrix%local_data(i, j), &
                         "The expected value is 1"
@@ -280,7 +281,7 @@ CONTAINS
                   END IF
                ELSE
                   IF (ABS(matrix%local_data(i, j)) > eps) THEN
-                     WRITE (UNIT=*, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.12,/,T2,A)") &
+                     WRITE (UNIT=output_unit, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.12,/,T2,A)") &
                         "The eigenvectors returned by "//TRIM(diag_driver(diag_type))//" are not orthonormal", &
                         "Matrix element (", i, ", ", j, ") = ", matrix%local_data(i, j), &
                         "The expected value is 0"
