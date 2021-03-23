@@ -55,7 +55,6 @@
         NUMBER_PROC  1
         &RI
           DO_SVD T
-          EPS_SVD 1.0E-2
         &END RI
       &END
     &END XC

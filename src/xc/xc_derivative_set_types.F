@@ -68,7 +68,7 @@ CONTAINS
    FUNCTION xc_dset_get_derivative(derivative_set, description, allocate_deriv) &
       RESULT(res)
 
-      TYPE(xc_derivative_set_type), POINTER              :: derivative_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: derivative_set
       CHARACTER(len=*), INTENT(in)                       :: description
       LOGICAL, INTENT(in), OPTIONAL                      :: allocate_deriv
       TYPE(xc_derivative_type), POINTER                  :: res
@@ -81,7 +81,6 @@ CONTAINS
 
       NULLIFY (pos, deriv_att, cr3d_ptr)
 
-      CPASSERT(ASSOCIATED(derivative_set))
       CPASSERT(derivative_set%ref_count > 0)
 
       my_allocate_deriv = .FALSE.
@@ -185,9 +184,8 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE xc_dset_retain(deriv_set)
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(INOUT)        :: deriv_set
 
-      CPASSERT(ASSOCIATED(deriv_set))
       CPASSERT(deriv_set%ref_count > 0)
       deriv_set%ref_count = deriv_set%ref_count + 1
    END SUBROUTINE xc_dset_retain
@@ -198,14 +196,13 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xc_dset_zero_all(deriv_set)
 
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
 
       TYPE(cp_sll_xc_deriv_type), POINTER                :: pos
       TYPE(xc_derivative_type), POINTER                  :: deriv_att
 
       NULLIFY (pos, deriv_att)
 
-      CPASSERT(ASSOCIATED(deriv_set))
       pos => deriv_set%derivs
       DO WHILE (cp_sll_xc_deriv_next(pos, el_att=deriv_att))
          deriv_att%deriv_data = 0.0_dp

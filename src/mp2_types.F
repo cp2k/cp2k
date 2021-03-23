@@ -33,6 +33,8 @@ MODULE mp2_types
    USE libint_2c_3c,                    ONLY: libint_potential_type
    USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_sum
+   USE qs_p_env_types,                  ONLY: qs_p_env_type
+   USE qs_force_types,                  ONLY: qs_force_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -195,14 +197,17 @@ MODULE mp2_types
    END TYPE
 
    TYPE grad_util
-      TYPE(two_dim_real_array), DIMENSION(2) :: P_ij, P_ab, Gamma_PQ
+      TYPE(two_dim_real_array), DIMENSION(2) :: P_ij, P_ab, Gamma_PQ, Gamma_PQ_2
       TYPE(three_dim_real_array), DIMENSION(2) :: Gamma_P_ia
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: PQ_half
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: operator_half, PQ_half
       TYPE(dbcsr_p_type), DIMENSION(:, :), ALLOCATABLE :: G_P_ia
       TYPE(dbcsr_p_type), DIMENSION(:), ALLOCATABLE :: mo_coeff_o, mo_coeff_v
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:) :: P_mo, W_mo, L_jb
       REAL(KIND=dp) :: cphf_eps_conv
       INTEGER :: cphf_max_num_iter
+      TYPE(qs_p_env_type), POINTER :: p_env => NULL()
+      TYPE(qs_force_type), DIMENSION(:), POINTER :: mp2_force
+      REAL(KIND=dp), DIMENSION(3, 3) :: mp2_virial
    END TYPE
 
    TYPE mp2_type
@@ -233,7 +238,6 @@ MODULE mp2_types
       TYPE(cp_eri_mme_param), POINTER  :: eri_mme_param
       INTEGER, DIMENSION(:), POINTER  :: eri_blksize => NULL()
       LOGICAL  :: do_svd
-      REAL(KIND=dp) :: eps_svd
       REAL(KIND=dp) :: eps_range
       TYPE(libint_potential_type) :: ri_metric
    END TYPE

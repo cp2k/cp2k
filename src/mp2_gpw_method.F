@@ -50,6 +50,7 @@ MODULE mp2_gpw_method
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_type
+   USE pw_methods,                      ONLY: pw_transfer
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               pw_p_type,&
@@ -144,7 +145,7 @@ CONTAINS
          my_A_batch_size, my_A_virtual_end, my_A_virtual_start, my_B_size, my_B_virtual_end, &
          my_B_virtual_start, my_I_batch_size, my_I_occupied_end, my_I_occupied_start, &
          my_q_position, ncol_local, nfullcols_total, nfullrows_total, ngroup, nrow_local, p, p_best
-      INTEGER :: potential_type, proc_receive, proc_send, q, q_best, row, row_offset, row_size, &
+      INTEGER :: proc_receive, proc_send, q, q_best, row, row_offset, row_size, &
          size_EX, size_EX_send, size_of_exchange_group, sub_sub_color, virtual, virtual_beta, &
          wfn_calc, wfn_calc_best
       INTEGER(KIND=int_8)                                :: mem
@@ -155,7 +156,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: do_alpha_beta
       REAL(KIND=dp)                                      :: cutoff_old, mem_min, mem_real, mem_try, &
-                                                            omega, relative_cutoff_old, wfn_size
+                                                            relative_cutoff_old, wfn_size
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Cocc, my_Cvirt
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C, BIb_Ex, BIb_send
@@ -418,9 +419,6 @@ CONTAINS
                                      pw_env_sub, external_vector=my_Cocc(:, i - my_I_occupied_start + 1))
       END DO
 
-      potential_type = qs_env%mp2_env%potential_parameter%potential_type
-      omega = qs_env%mp2_env%potential_parameter%omega
-
       Emp2 = 0.0_dp
       Emp2_Cou = 0.0_dp
       Emp2_EX = 0.0_dp
@@ -444,7 +442,8 @@ CONTAINS
 
             ! potential
             rho_r%pw%cr3d = psi_i(i)%pw%cr3d*psi_a%pw%cr3d
-            CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_type, omega)
+            CALL pw_transfer(rho_r%pw, rho_g%pw)
+            CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, qs_env%mp2_env%potential_parameter)
 
             ! and finally (ia|munu)
             CALL timeset(routineN//"_int", handle3)

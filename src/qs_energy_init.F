@@ -91,13 +91,12 @@ CONTAINS
 
       INTEGER                                            :: img, ispin, nimg, nspin
       LOGICAL                                            :: has_unit_metric, molecule_only
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_w_mp2
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s, matrix_w
       TYPE(dbcsr_type), POINTER                          :: matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
-      NULLIFY (ks_env, matrix_w, matrix_w_mp2, matrix_s, dft_control)
+      NULLIFY (ks_env, matrix_w, matrix_s, dft_control)
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
       IF (dft_control%qs_control%do_kg) THEN
@@ -127,17 +126,6 @@ CONTAINS
             END DO
          END DO
          CALL set_ks_env(ks_env, matrix_w_kp=matrix_w)
-         IF (ASSOCIATED(qs_env%mp2_env)) THEN
-            ! create the MP2 energy weighted density matrix
-            CALL dbcsr_allocate_matrix_set(matrix_w_mp2, dft_control%nspins)
-            DO ispin = 1, nspin
-               ALLOCATE (matrix_w_mp2(ispin)%matrix)
-               CALL dbcsr_copy(matrix_w_mp2(ispin)%matrix, matrix, &
-                               name="W MATRIX MP2")
-               CALL dbcsr_set(matrix_w_mp2(ispin)%matrix, 0.0_dp)
-            END DO
-            CALL set_ks_env(ks_env, matrix_w_mp2=matrix_w_mp2)
-         END IF
       ENDIF
 
    END SUBROUTINE qs_energies_init

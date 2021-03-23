@@ -161,9 +161,8 @@ CONTAINS
 !> \param rho_set the object to retain
 ! **************************************************************************************************
    SUBROUTINE xc_rho_set_retain(rho_set)
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho_set
 
-      CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
       rho_set%ref_count = rho_set%ref_count + 1
    END SUBROUTINE xc_rho_set_retain
@@ -438,12 +437,11 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE xc_rho_set_clean(rho_set, pw_pool)
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho_set
       TYPE(pw_pool_type), POINTER                        :: pw_pool
 
       INTEGER                                            :: idir
 
-      CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
 
       IF (rho_set%owns%rho) THEN
@@ -566,8 +564,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs, &
                                 xc_deriv_method_id, xc_rho_smooth_id, pw_pool)
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, rho_g, tau
+      TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho_set
+      TYPE(pw_p_type), DIMENSION(:), INTENT(IN)          :: rho_r, tau
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g
       TYPE(xc_rho_cflags_type), INTENT(in)               :: needs
       INTEGER, INTENT(IN)                                :: xc_deriv_method_id, xc_rho_smooth_id
       TYPE(pw_pool_type), POINTER                        :: pw_pool
@@ -598,7 +597,6 @@ CONTAINS
       nd = RESHAPE((/1, 0, 0, 0, 1, 0, 0, 0, 1/), (/3, 3/))
       nd_laplace = RESHAPE((/2, 0, 0, 0, 2, 0, 0, 0, 2/), (/3, 3/))
 
-      CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
       IF (ANY(rho_set%local_bounds /= pw_pool%pw_grid%bounds_local)) &
          CPABORT("pw_pool cr3d have different size than expected")
@@ -1100,7 +1098,6 @@ CONTAINS
 
       ! tau part
       IF (needs%tau .OR. needs%tau_spin) THEN
-         CPASSERT(ASSOCIATED(tau))
          DO ispin = 1, nspins
             CPASSERT(ASSOCIATED(tau(ispin)%pw))
             CPASSERT(ASSOCIATED(tau(ispin)%pw%cr3d))

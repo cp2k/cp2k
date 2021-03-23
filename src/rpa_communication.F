@@ -101,9 +101,9 @@ CONTAINS
          rec_iaia_size, rec_iaia_start, rec_pcol, rec_prow, ref_send_pcol, ref_send_prow, &
          send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, map_rec_size, map_send_size, &
-                                                            proc_map, req_send, sub_proc_map
+                                                            req_send, sub_proc_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: grid_2_mepos, grid_ref_2_send_pos, &
-         group_grid_2_mepos, indices_map_my, mepos_2_grid, mepos_2_grid_group, sizes
+         group_grid_2_mepos, indices_map_my, mepos_2_grid, mepos_2_grid_group
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: part_ia
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Gamma_2D
@@ -126,13 +126,12 @@ CONTAINS
       ! Make a 2D array intermediate
 
       CALL prepare_redistribution(para_env_RPA, para_env_sub, ngroup, &
-                                  proc_map, group_grid_2_mepos, mepos_2_grid_group, sizes, &
-                                  fm_mat_Gamma_3)
+                                  group_grid_2_mepos, mepos_2_grid_group)
 
-      CALL fm2array(Gamma_2D, dimen_ia, dimen_RI, para_env_RPA, proc_map, &
+      CALL fm2array(Gamma_2D, dimen_ia, dimen_RI, para_env_RPA, &
                     my_ia_size, my_ia_start, my_ia_end, &
                     my_group_L_size, my_group_L_start, my_group_L_end, &
-                    sizes, group_grid_2_mepos, mepos_2_grid_group, &
+                    group_grid_2_mepos, mepos_2_grid_group, &
                     para_env_sub%num_pe, ngroup, &
                     fm_mat_Gamma_3)
 

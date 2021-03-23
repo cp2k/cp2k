@@ -29,8 +29,10 @@ MODULE qs_force
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
+                                              dbcsr_deallocate_matrix,&
                                               dbcsr_p_type,&
-                                              dbcsr_set
+                                              dbcsr_set,&
+                                              dbcsr_type
    USE dft_plus_u,                      ONLY: plus_u
    USE efield_utils,                    ONLY: calculate_ecore_efield
    USE energy_corrections,              ONLY: energy_correction
@@ -41,6 +43,7 @@ MODULE qs_force
    USE kinds,                           ONLY: dp
    USE lri_environment_types,           ONLY: lri_environment_type
    USE message_passing,                 ONLY: mp_sum
+   USE mp2_cphf,                        ONLY: update_mp2_forces
    USE mulliken,                        ONLY: mulliken_restraint
    USE particle_types,                  ONLY: particle_type
    USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
@@ -142,8 +145,8 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_ks_aux_fit, matrix_p_mp2, matrix_s, &
-         matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_w, matrix_w_mp2, rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_ks_aux_fit, matrix_p_mp2, matrix_p_mp2_admm, matrix_s, &
+         matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_w, rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_w_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(lri_environment_type), POINTER                :: lri_env
@@ -201,9 +204,6 @@ CONTAINS
       IF (dft_control%qs_control%cdft) THEN
          dft_control%qs_control%cdft_control%save_pot = .TRUE.
       END IF
-
-      ! Set parameter for P screening with MP2
-      IF (ASSOCIATED(qs_env%mp2_env)) qs_env%mp2_env%not_last_hfx = .TRUE.
 
       ! recalculate energy with forces
       CALL qs_energies(qs_env, calc_forces=.TRUE.)
@@ -308,50 +308,35 @@ CONTAINS
          ENDIF
       END IF
 
-      ! Compute grid-based forces
-      CALL qs_ks_update_qs_env(qs_env, calculate_forces=.TRUE.)
-
       ! MP2 Code
       IF (ASSOCIATED(qs_env%mp2_env)) THEN
-         NULLIFY (matrix_p_mp2, matrix_w_mp2, rho, ks_env, energy)
+         ! We will determine the gradients later
+         NULLIFY (matrix_p_mp2, matrix_p_mp2_admm, rho, ks_env, energy)
          CALL get_qs_env(qs_env, &
                          matrix_p_mp2=matrix_p_mp2, &
-                         matrix_w_mp2=matrix_w_mp2, &
                          ks_env=ks_env, &
                          rho=rho, &
                          energy=energy)
          NULLIFY (rho_ao)
          CALL qs_rho_get(rho, rho_ao=rho_ao)
 
-         ! with MP2 we have to recalculate the SCF energy with the
-         ! correct density
+         ! Calculate MP2 properties
+         CALL qs_rho_update_rho(rho, qs_env=qs_env)
+         CALL qs_scf_compute_properties(qs_env, wf_type='MP2   ')
+
+         ! Return to the correct density and calculate the energy
          DO ispin = 1, dft_control%nspins
             CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, -1.0_dp)
          END DO
          CALL qs_rho_update_rho(rho, qs_env=qs_env)
+
          CALL qs_ks_did_change(ks_env, rho_changed=.TRUE.)
          CALL qs_ks_update_qs_env(qs_env, just_energy=.TRUE.)
          energy%total = energy%total + energy%mp2
+      ELSE
 
-         ! Compute MP2 properties
-         ! Get the HF+MP2 density
-         DO ispin = 1, dft_control%nspins
-            CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
-         END DO
-         CALL qs_rho_update_rho(rho, qs_env=qs_env)
-         CALL qs_ks_did_change(ks_env, rho_changed=.TRUE.)
-         CALL qs_scf_compute_properties(qs_env, wf_type='MP2   ')
-         ! Get everything back
-         DO ispin = 1, dft_control%nspins
-            CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, -1.0_dp)
-         END DO
-         CALL qs_rho_update_rho(rho, qs_env=qs_env)
-         CALL qs_ks_did_change(ks_env, rho_changed=.TRUE.)
-
-         ! deallocate mp2_W
-         CALL dbcsr_deallocate_matrix_set(matrix_w_mp2)
-         CALL set_ks_env(ks_env, matrix_w_mp2=Null())
-
+         ! Compute grid-based forces
+         CALL qs_ks_update_qs_env(qs_env, calculate_forces=.TRUE.)
       END IF
 
       ! Add forces resulting from wavefunction fitting
@@ -383,6 +368,10 @@ CONTAINS
 
       ! Energy_correction
       CALL energy_correction(qs_env, ec_init=.FALSE., calculate_forces=.TRUE.)
+
+      IF (ASSOCIATED(qs_env%mp2_env)) THEN
+         CALL update_mp2_forces(qs_env)
+      END IF
 
       ! replicate forces (get current pointer)
       NULLIFY (force)
@@ -581,7 +570,6 @@ CONTAINS
                   iatom, ikind, "        efield", qs_force(ikind)%efield(1:3, i), &
                   iatom, ikind, "           eev", qs_force(ikind)%eev(1:3, i), &
                   iatom, ikind, "   mp2_non_sep", qs_force(ikind)%mp2_non_sep(1:3, i), &
-                  iatom, ikind, "       mp2_sep", qs_force(ikind)%mp2_sep(1:3, i), &
                   iatom, ikind, "         total", qs_force(ikind)%total(1:3, i)
                grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3, i)
             END DO
@@ -610,7 +598,6 @@ CONTAINS
                   iatom, ikind, "        efield", qs_force(ikind)%efield(1:3, i), &
                   iatom, ikind, "           eev", qs_force(ikind)%eev(1:3, i), &
                   iatom, ikind, "   mp2_non_sep", qs_force(ikind)%mp2_non_sep(1:3, i), &
-                  iatom, ikind, "       mp2_sep", qs_force(ikind)%mp2_sep(1:3, i), &
                   iatom, ikind, "         total", qs_force(ikind)%total(1:3, i)
                grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3, i)
             END DO
@@ -641,7 +628,6 @@ CONTAINS
                   iatom, ikind, "       ch_pulay", qs_force(ikind)%ch_pulay(1:3, i), &
                   iatom, ikind, "        fock_4c", qs_force(ikind)%fock_4c(1:3, i), &
                   iatom, ikind, "   mp2_non_sep", qs_force(ikind)%mp2_non_sep(1:3, i), &
-                  iatom, ikind, "       mp2_sep", qs_force(ikind)%mp2_sep(1:3, i), &
                   iatom, ikind, "          total", qs_force(ikind)%total(1:3, i)
                grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3, i)
             END DO

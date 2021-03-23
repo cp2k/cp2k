@@ -74,7 +74,6 @@
         NUMBER_PROC  1
         &RI
           DO_SVD
-          EPS_SVD 0.0
         &END RI
       &END
     &END XC

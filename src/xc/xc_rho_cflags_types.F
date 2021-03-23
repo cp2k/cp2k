@@ -60,7 +60,7 @@ CONTAINS
 !> \param cflags the flags to set
 !> \param value the value to set
 ! **************************************************************************************************
-   SUBROUTINE xc_rho_cflags_setall(cflags, value)
+   ELEMENTAL SUBROUTINE xc_rho_cflags_setall(cflags, value)
       TYPE(xc_rho_cflags_type), INTENT(out)              :: cflags
       LOGICAL, INTENT(in)                                :: value
 
@@ -85,7 +85,7 @@ CONTAINS
 !> \param cflags2 the flags to compare
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION xc_rho_cflags_equal(cflags1, cflags2) RESULT(equal)
+   ELEMENTAL FUNCTION xc_rho_cflags_equal(cflags1, cflags2) RESULT(equal)
       TYPE(xc_rho_cflags_type), INTENT(in)               :: cflags1, cflags2
       LOGICAL                                            :: equal
 

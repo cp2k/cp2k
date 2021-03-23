@@ -89,7 +89,7 @@ MODULE ec_env_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: matrix_hz
       ! potentials from input density
       TYPE(pw_p_type), POINTER                         :: vh_rspace
-      TYPE(pw_p_type), DIMENSION(:), POINTER           :: vxc_rspace, vtau_rspace
+      TYPE(pw_p_type), DIMENSION(:), POINTER           :: vxc_rspace, vtau_rspace, vadmm_rspace
       ! efield
       TYPE(efield_berry_type), POINTER                 :: efield => NULL()
    END TYPE energy_correction_type
@@ -163,6 +163,12 @@ CONTAINS
                CALL pw_release(ec_env%vtau_rspace(iab)%pw)
             END DO
             DEALLOCATE (ec_env%vtau_rspace)
+         END IF
+         IF (ASSOCIATED(ec_env%vadmm_rspace)) THEN
+            DO iab = 1, SIZE(ec_env%vadmm_rspace)
+               CALL pw_release(ec_env%vadmm_rspace(iab)%pw)
+            END DO
+            DEALLOCATE (ec_env%vadmm_rspace)
          END IF
          CALL efield_berry_release(ec_env%efield)
 

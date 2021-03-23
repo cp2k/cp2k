@@ -849,11 +849,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_integ_mat'
 
-      INTEGER                                            :: grid_2D(2), handle, handle2, i, iproc, &
+      INTEGER                                            :: grid_2D(2), handle, handle2, iproc, &
                                                             iproc_col, iproc_row, &
                                                             mepos_in_RPA_group, &
                                                             row_col_proc_ratio, sub_sub_color
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: RPA_proc_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: group_grid_2_mepos
       LOGICAL                                            :: my_beta_case, my_blacs_ext, &
                                                             my_blacs_S_ext, my_do_im_time
@@ -948,17 +947,7 @@ CONTAINS
       ! for imaginary time we do not need the fm_mat_S
       IF (.NOT. my_do_im_time) THEN
 
-         ! create the RPA proc_map
-         ALLOCATE (RPA_proc_map(-para_env_RPA%num_pe:2*para_env_RPA%num_pe - 1))
-         RPA_proc_map = 0
-         DO i = 0, para_env_RPA%num_pe - 1
-            RPA_proc_map(i) = i
-            RPA_proc_map(-i - 1) = para_env_RPA%num_pe - i - 1
-            RPA_proc_map(para_env_RPA%num_pe + i) = i
-         END DO
-
          CALL create_group_dist(gd_ia, my_ia_start, my_ia_end, my_ia_size, para_env_RPA)
-
          CALL create_group_dist(gd_L, my_group_L_start, my_group_L_end, my_group_L_size, para_env_RPA)
 
          ! create the info array
@@ -969,7 +958,7 @@ CONTAINS
          group_grid_2_mepos(para_env_sub%mepos, mepos_in_RPA_group) = para_env_RPA%mepos
          CALL mp_sum(group_grid_2_mepos, para_env_RPA%group)
 
-         CALL array2fm(BIb_C_2D, fm_struct, dimen_ia, dimen_RI, para_env_RPA, RPA_proc_map, &
+         CALL array2fm(BIb_C_2D, fm_struct, dimen_ia, dimen_RI, para_env_RPA, &
                        my_ia_start, my_ia_end, my_group_L_start, my_group_L_end, gd_ia, gd_L, &
                        group_grid_2_mepos, para_env_sub%num_pe, ngroup, fm_mat_S, &
                        integ_group_size, color_rpa_group)

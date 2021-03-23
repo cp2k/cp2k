@@ -66,7 +66,8 @@ MODULE mp2_integrals
                                               int_8
    USE kpoint_methods,                  ONLY: kpoint_init_cell_index
    USE kpoint_types,                    ONLY: kpoint_type
-   USE libint_2c_3c,                    ONLY: libint_potential_type
+   USE libint_2c_3c,                    ONLY: compare_potential_types,&
+                                              libint_potential_type
    USE machine,                         ONLY: m_flush
    USE message_passing,                 ONLY: mp_cart_create,&
                                               mp_environ,&
@@ -262,12 +263,12 @@ CONTAINS
                                                             periodic
       LOGICAL                                            :: do_gpw, do_kpoints_from_Gamma, do_svd, &
                                                             memory_info
-      REAL(KIND=dp) :: compression_factor, cond_num, cutoff_old, eps_svd, mem_for_iaK, memory_3c, &
+      REAL(KIND=dp) :: compression_factor, cond_num, cutoff_old, mem_for_iaK, memory_3c, &
          occ, omega_pot, rc_ang, relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows, my_Vrows
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
+      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L, fm_matrix_V
       TYPE(cp_para_env_type), POINTER                    :: para_env_L
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_munu_local_L
       TYPE(dbcsr_t_pgrid_type)                           :: pgrid_t3c_M, pgrid_t3c_overl
@@ -292,11 +293,6 @@ CONTAINS
 
       nspins = SIZE(homo)
 
-      IF ((ri_metric%potential_type == do_potential_short .OR. ri_metric%potential_type == do_potential_truncated) &
-          .AND. .NOT. do_im_time) THEN
-         CPABORT("TRUNCATED and SHORTRANGE RI metrics not yet implemented")
-      ENDIF
-
       ALLOCATE (virtual(nspins))
       virtual(:) = nmo - homo(:)
       gw_corr_lev_total = gw_corr_lev_virt + gw_corr_lev_occ
@@ -304,7 +300,6 @@ CONTAINS
       eri_method = qs_env%mp2_env%eri_method
       eri_param => qs_env%mp2_env%eri_mme_param
       do_svd = qs_env%mp2_env%do_svd
-      eps_svd = qs_env%mp2_env%eps_svd
       potential_type = qs_env%mp2_env%potential_parameter%potential_type
       ri_metric_type = ri_metric%potential_type
       omega_pot = qs_env%mp2_env%potential_parameter%omega
@@ -354,13 +349,13 @@ CONTAINS
       END IF
 
       CALL get_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
-                            fm_matrix_L, ngroup, color_sub, dimen_RI, dimen_RI_red, kpoints, mo_coeff(1)%matrix, &
+                            fm_matrix_L, fm_matrix_V, ngroup, color_sub, dimen_RI, dimen_RI_red, kpoints, mo_coeff(1)%matrix, &
                             my_group_L_size, my_group_L_start, my_group_L_end, &
-                            gd_array, calc_PQ_cond_num .AND. .NOT. do_svd, cond_num, do_svd, eps_svd, &
+                            gd_array, calc_PQ_cond_num .AND. .NOT. do_svd, cond_num, do_svd, &
                             num_small_eigen, qs_env%mp2_env%potential_parameter, ri_metric, &
                             fm_matrix_L_RI_metric, &
                             do_im_time, do_kpoints_from_Gamma .OR. do_kpoints_cubic_RPA, qs_env%mp2_env%mp2_gpw%eps_pgf_orb_S, &
-                            qs_kind_set, sab_orb_sub)
+                            qs_kind_set, sab_orb_sub, calc_forces)
 
       IF (unit_nr > 0) THEN
          ASSOCIATE (ri_metric=>qs_env%mp2_env%ri_metric)
@@ -401,19 +396,20 @@ CONTAINS
       IF (calc_PQ_cond_num .OR. do_svd) THEN
          IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T67,ES14.5)") &
             "RI_INFO| Condition number of the (P|Q):", cond_num
-         IF (do_svd) THEN
-            IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,ES8.1,A,T75,i6)") &
-               "RI_INFO| Number of neglected Eigenvalues of (P|Q) smaller than ", eps_svd, ":", num_small_eigen
-         ELSE
-            IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,ES14.1,A,T75,i6)") &
-               "RI_INFO| Number of Eigenvalue of (P|Q) smaller ", eps_svd, ":", num_small_eigen
-         END IF
+         IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+            "RI_INFO| Number of non-positive Eigenvalues of (P|Q):", num_small_eigen
       END IF
 
       IF (.NOT. do_im_time) THEN
          ! replicate the necessary row of the L^{-1} matrix on each proc
          CALL grep_Lcols(para_env_L, dimen_RI, fm_matrix_L, &
                          my_group_L_start, my_group_L_end, my_group_L_size, my_Lrows)
+         IF (calc_forces .AND. .NOT. compare_potential_types(qs_env%mp2_env%ri_metric, &
+                                                       qs_env%mp2_env%potential_parameter)) THEN
+            CALL grep_Lcols(para_env_L, dimen_RI, fm_matrix_V, &
+                            my_group_L_start, my_group_L_end, my_group_L_size, my_Vrows)
+            CALL cp_fm_release(fm_matrix_V)
+         END IF
       END IF
       ! clean the L^{-1} matrix
       CALL cp_fm_release(fm_matrix_L)
@@ -430,6 +426,11 @@ CONTAINS
          lll = itmp(2) - itmp(1) + 1
          ALLOCATE (qs_env%mp2_env%ri_grad%PQ_half(lll, my_group_L_size))
          qs_env%mp2_env%ri_grad%PQ_half(:, :) = my_Lrows(itmp(1):itmp(2), 1:my_group_L_size)
+         IF (.NOT. compare_potential_types(qs_env%mp2_env%ri_metric, qs_env%mp2_env%potential_parameter)) THEN
+            ALLOCATE (qs_env%mp2_env%ri_grad%operator_half(lll, my_group_L_size))
+            qs_env%mp2_env%ri_grad%operator_half(:, :) = my_Vrows(itmp(1):itmp(2), 1:my_group_L_size)
+            DEALLOCATE(my_Vrows)
+         END IF
       END IF
 
       IF (unit_nr > 0) THEN
@@ -559,7 +560,7 @@ CONTAINS
                CALL dbcsr_copy(mat_munu_local_L(LLL)%matrix, mat_munu%matrix)
                CALL dbcsr_set(mat_munu_local_L(LLL)%matrix, 0.0_dp)
             ENDDO
-            CALL mp2_eri_3c_integrate(eri_param, ri_metric%potential_type, ri_metric%omega, para_env_sub, qs_env, &
+            CALL mp2_eri_3c_integrate(eri_param, ri_metric, para_env_sub, qs_env, &
                                       first_c=my_group_L_start, last_c=my_group_L_end, &
                                       mat_ab=mat_munu_local_L, &
                                       basis_type_a="ORB", basis_type_b="ORB", &
@@ -631,7 +632,7 @@ CONTAINS
 
                CALL mp2_eri_3c_integrate_gpw(mo_coeff(1)%matrix, psi_L, rho_g, atomic_kind_set, qs_kind_set, cell, dft_control, &
                                              particle_set, pw_env_sub, my_Lrows(:, i_counter), poisson_env, rho_r, pot_g, &
-                                             ri_metric%potential_type, ri_metric%omega, mat_munu, qs_env, task_list_sub)
+                                             ri_metric, mat_munu, qs_env, task_list_sub)
 
                DO ispin = 1, nspins
                   CALL ao_to_mo_and_store_B(para_env_sub, mat_munu, intermed_mat(ispin), &
@@ -1327,7 +1328,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: local_col_row_info, rec_col_row_info
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, col_indices_rec, &
                                                             row_indices, row_indices_rec
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_L, local_L_internal, rec_L
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_L_internal
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: local_L, rec_L
 
       CALL timeset(routineN, handle)
 
@@ -1353,7 +1355,7 @@ CONTAINS
                           local_data=local_L_internal)
 
       ALLOCATE (local_L(nrow_local, ncol_local))
-      local_L = local_L_internal(1:nrow_local, 1:ncol_local)
+      local_L(:, :) = local_L_internal(1:nrow_local, 1:ncol_local)
 
       max_row_col_local = MAX(nrow_local, ncol_local)
       CALL mp_max(max_row_col_local, para_env%group)
@@ -1419,13 +1421,10 @@ CONTAINS
          END DO
 
          local_col_row_info(:, :) = rec_col_row_info
-         DEALLOCATE (local_L)
-         ALLOCATE (local_L(nrow_rec, ncol_rec))
-         local_L = rec_L
+         CALL MOVE_ALLOC(rec_L, local_L)
 
          DEALLOCATE (col_indices_rec)
          DEALLOCATE (row_indices_rec)
-         DEALLOCATE (rec_L)
       END DO
       CALL timestop(handle2)
 

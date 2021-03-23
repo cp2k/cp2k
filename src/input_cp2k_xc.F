@@ -1251,6 +1251,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="STEP_SIZE", &
+                          description="Step size in terms of the first order potential for the numerical "// &
+                          "evaluation of XC derivatives", &
+                          usage="STEP_SIZE 1.0E-3", default_r_val=1e-3_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 

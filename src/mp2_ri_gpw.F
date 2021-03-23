@@ -21,6 +21,7 @@ MODULE mp2_ri_gpw
                                               release_group_dist
    USE kinds,                           ONLY: dp,&
                                               int_8
+   USE libint_2c_3c,                    ONLY: compare_potential_types
    USE machine,                         ONLY: m_flush,&
                                               m_memory,&
                                               m_walltime
@@ -704,6 +705,11 @@ CONTAINS
 
       END DO
       END DO
+
+      ! We do not need this matrix later, so deallocate it here to safe memory
+      IF (calc_forces) DEALLOCATE(mp2_env%ri_grad%PQ_half)
+      IF (calc_forces .AND. .NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) &
+         DEALLOCATE(mp2_env%ri_grad%operator_half)
 
       CALL dgemm_counter_write(dgemm_counter, para_env, unit_nr)
 

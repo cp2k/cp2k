@@ -96,6 +96,7 @@ MODULE qs_linres_methods
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
    USE qs_p_env_methods,                ONLY: p_env_check_i_alloc,&
+                                              p_env_finish_kpp1,&
                                               p_env_update_rho
    USE qs_p_env_types,                  ONLY: qs_p_env_type
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
@@ -652,6 +653,11 @@ CONTAINS
             CALL get_qs_env(qs_env, rho=rho) ! that could be called before
             CALL qs_rho_update_rho(rho, qs_env=qs_env) ! that could be called before
 
+            DO ispin = 1, nspins
+               CALL dbcsr_set(p_env%kpp1(ispin)%matrix, 0.0_dp)
+               IF (ASSOCIATED(p_env%kpp1_admm)) CALL dbcsr_set(p_env%kpp1_admm(ispin)%matrix, 0.0_dp)
+            END DO
+
             CALL apply_op_2(qs_env, p_env, c0, Av)
 
          ENDIF
@@ -732,6 +738,7 @@ CONTAINS
          CALL apply_op_2_dft(qs_env, p_env)
          CALL apply_hfx(qs_env, p_env)
          CALL apply_xc_admm(qs_env, p_env)
+         CALL p_env_finish_kpp1(qs_env, p_env)
       END IF
 
       ! Transform second index in AO basis
@@ -962,7 +969,7 @@ CONTAINS
       CALL section_vals_get(hfx_section, explicit=do_hfx)
 
       IF (do_hfx) THEN
-         CALL apply_hfx_ao(qs_env, p_env%p1, p_env%p1_admm, p_env%kpp1)
+         CALL apply_hfx_ao(qs_env, p_env)
       END IF
 
       CALL timestop(handle)

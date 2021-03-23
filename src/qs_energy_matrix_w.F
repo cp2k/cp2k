@@ -72,7 +72,7 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fmstruct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, matrix_w, &
-                                                            matrix_w_mp2, mo_derivs, rho_ao
+                                                            mo_derivs, rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, matrix_w_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -129,7 +129,6 @@ CONTAINS
                             matrix_w=matrix_w, &
                             matrix_ks=matrix_ks, &
                             matrix_s=matrix_s, &
-                            matrix_w_mp2=matrix_w_mp2, &
                             mo_derivs=mo_derivs, &
                             scf_control=scf_control, &
                             mos=mos, &

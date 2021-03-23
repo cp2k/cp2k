@@ -469,7 +469,6 @@ CONTAINS
       do_p_screening = screening_parameter%do_initial_p_screening
       ! Special treatment for MP2 with initial density screening
       IF (do_p_screening) THEN
-         nspins = dft_control%nspins
          IF (ASSOCIATED(qs_env%mp2_env)) THEN
             IF ((qs_env%mp2_env%ri_mp2%free_hfx_buffer)) THEN
                do_p_screening = ((qs_env%mp2_env%p_screen) .AND. (qs_env%mp2_env%not_last_hfx))

@@ -1302,10 +1302,12 @@ CONTAINS
          description="Which interaction potential should be used "// &
          "(Coulomb, TShPSC operator).", &
          usage="POTENTIAL_TYPE TSHPSC", &
-         enum_c_vals=s2a("COULOMB", "TShPSC", "LONGRANGE"), &
+         enum_c_vals=s2a("COULOMB", "TShPSC", "LONGRANGE", "SHORTRANGE", "TRUNCATED"), &
          enum_i_vals=(/do_potential_coulomb, &
                        do_potential_TShPSC, &
-                       do_potential_long/), &
+                       do_potential_long, &
+                       do_potential_short, &
+                       do_potential_truncated/), &
          enum_desc=s2a("Coulomb potential: 1/r", &
                        "TShPSC:<ul><li>1/x - s/Rc for x &le; Rc</li>"// &
                        "<li>(1 - s)/Rc - (x - Rc)/Rc^2 + (x - Rc)^2/Rc^3 - "// &
@@ -1313,14 +1315,17 @@ CONTAINS
                        "(6-3*s - 4*n + n^2)*(x - Rc)^4/(Rc^5*(n^4 - 4*n^3 + 6*n^2 - 4*n + 1)) "// &
                        "for Rc &lt; x &le; n*Rc (4th order polynomial)</li>"// &
                        "<li>0 for x &gt; n*Rc</li></ul>", &
-                       "Longrange Coulomg potential: erf(w*r)/r)"), &
+                       "Longrange Coulomb potential: erf(w*r)/r)", &
+                       "Shortrange Coulomb potential: erfc(w*r)/r", &
+                       "Truncated Coulomb potential"), &
          default_i_val=do_potential_coulomb)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="TRUNCATION_RADIUS", &
-                          description="Determines truncation radius for the truncated TShPSC potential. "// &
-                          "Only valid when doing truncated calculation", &
+                          variants=(/"CUTOFF_RADIUS"/), &
+                          description="Determines truncation radius for the truncated potentials. "// &
+                          "Only valid when doing truncated calculations", &
                           usage="TRUNCATION_RADIUS 10.0", type_of_var=real_t, &
                           default_r_val=10.0_dp, &
                           unit_str="angstrom")
@@ -1329,9 +1334,10 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, &
-         name="TShPSC_DATA", &
-         description="Location of the file TShPSC.dat that contains the data for the "// &
-         "evaluation of the TShPSC G0 ", &
+         name="POTENTIAL_DATA", &
+         variants=s2a("TShPSC_DATA", "T_C_G_DATA"), &
+         description="Location of the file TShPSC.dat or t_c_g.dat that contains the data for the "// &
+         "evaluation of the evaluation of the truncated potentials", &
          usage="TShPSC_DATA t_sh_p_s_c.dat", &
          default_c_val="t_sh_p_s_c.dat")
       CALL section_add_keyword(section, keyword)
@@ -1340,7 +1346,8 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, &
          name="OMEGA", &
-         description="Range separation parameter for the longrange potential. Only valid when longrange potential is requested.", &
+         description="Range separation parameter for the longrange or shortrange potential. "// &
+                     "Only valid when longrange or shortrange potential is requested.", &
          usage="OMEGA 0.5", type_of_var=real_t, &
          default_r_val=0.5_dp)
       CALL section_add_keyword(section, keyword)
@@ -1416,14 +1423,6 @@ CONTAINS
                           "potential is employed.", &
                           usage="DO_SVD  .TRUE.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="EPS_SVD", &
-                          description="Include all singular vectors with a singular value smaller than EPS_SVD. "// &
-                          "Is used to provide info on smallest eigenvalues.", &
-                          usage="EPS_SVD  1.0e-5", &
-                          default_r_val=1.0E-3_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

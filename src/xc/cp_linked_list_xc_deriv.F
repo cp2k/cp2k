@@ -30,12 +30,10 @@ MODULE cp_linked_list_xc_deriv
 !> \return ...
 ! **************************************************************************************************
    function cp_sll_deriv_less_q(el1, el2) result(res)
-      type(xc_derivative_type), pointer :: el1, el2
+      type(xc_derivative_type), INTENT(IN) :: el1, el2
       logical :: res
 
-      CPASSERT(associated(el1))
       CPASSERT(associated(el1%split_desc))
-      CPASSERT(associated(el2))
       CPASSERT(associated(el2%split_desc))
      res = size(el1%split_desc) < size(el2%split_desc) .or. (size(el1%split_desc) == size(el2%split_desc) .and. el1%desc < el2%desc)
    end function

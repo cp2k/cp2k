@@ -53,7 +53,7 @@ CONTAINS
 !>                    should be standardized
 !> \param res ...
 ! **************************************************************************************************
-   SUBROUTINE standardize_derivative_desc(deriv_desc, res)
+   PURE SUBROUTINE standardize_derivative_desc(deriv_desc, res)
       CHARACTER(len=*), INTENT(in)                       :: deriv_desc
       CHARACTER(LEN=MAX_DERIVATIVE_DESC_LENGTH), &
          INTENT(OUT)                                     :: res
@@ -96,7 +96,7 @@ CONTAINS
 !> \param deriv_desc input string which describes the derivative
 !> \param res ...
 ! **************************************************************************************************
-   SUBROUTINE create_split_derivative_desc(deriv_desc, res)
+   PURE SUBROUTINE create_split_derivative_desc(deriv_desc, res)
       CHARACTER(len=*), INTENT(in)                       :: deriv_desc
       CHARACTER(len=MAX_LABEL_LENGTH), DIMENSION(:), &
          POINTER                                         :: res

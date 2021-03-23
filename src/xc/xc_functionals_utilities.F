@@ -150,7 +150,7 @@ CONTAINS
 !> \param rho ...
 !> \param rs ...
 ! **************************************************************************************************
-   SUBROUTINE calc_rs_single(rho, rs)
+   ELEMENTAL SUBROUTINE calc_rs_single(rho, rs)
 
 !   rs parameter : f*rho**(-1/3)
 
@@ -369,7 +369,7 @@ CONTAINS
 !> \param fx ...
 !> \param m ...
 ! **************************************************************************************************
-   SUBROUTINE calc_fx_single(rhoa, rhob, fx, m)
+   PURE SUBROUTINE calc_fx_single(rhoa, rhob, fx, m)
 
 !   spin interpolation function and derivatives
 !
@@ -423,7 +423,7 @@ CONTAINS
 !> \param z ...
 !> \param order ...
 ! **************************************************************************************************
-   SUBROUTINE calc_z(a, b, z, order)
+   PURE SUBROUTINE calc_z(a, b, z, order)
 
       REAL(KIND=dp), INTENT(IN)                          :: a, b
       REAL(KIND=dp), DIMENSION(0:, 0:), INTENT(OUT)      :: z
