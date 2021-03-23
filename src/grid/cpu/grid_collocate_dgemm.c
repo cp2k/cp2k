@@ -208,8 +208,7 @@ void grid_fill_pol_dgemm(const bool transpose, const double dr,
       double *__restrict__ poly = &idx2(pol, 1, 0);
       double *__restrict__ src1 = &idx2(pol, 0, 0);
       double *__restrict__ dst = &idx2(pol, 2, 0);
-//#pragma omp simd
-#pragma GCC ivdep
+#pragma omp simd linear(dst, src1, poly) simdlen(8)
       for (int ig = 0; ig < (xmax - xmin + 1 + pol_offset); ig++)
         dst[ig] = src1[ig] * poly[ig] * poly[ig];
     }
@@ -218,8 +217,7 @@ void grid_fill_pol_dgemm(const bool transpose, const double dr,
       const double *__restrict__ poly = &idx2(pol, 1, 0);
       const double *__restrict__ src1 = &idx2(pol, icoef - 1, 0);
       double *__restrict__ dst = &idx2(pol, icoef, 0);
-//#pragma omp simd
-#pragma GCC ivdep
+#pragma omp simd linear(dst, src1, poly) simdlen(8)
       for (int ig = 0; ig < (xmax - xmin + 1 + pol_offset); ig++) {
         dst[ig] = src1[ig] * poly[ig];
       }
@@ -229,7 +227,7 @@ void grid_fill_pol_dgemm(const bool transpose, const double dr,
     if (lp > 0) {
       double *__restrict__ dst = &idx2(pol, 1, 0);
       const double *__restrict__ src = &idx2(pol, 0, 0);
-#pragma GCC ivdep
+#pragma omp simd linear(dst, src) simdlen(8)
       for (int ig = 0; ig < (xmax - xmin + 1 + pol_offset); ig++) {
         dst[ig] *= src[ig];
       }
@@ -306,7 +304,7 @@ void apply_sphere_cutoff_ortho(struct collocation_integration_ *const handler,
                                            position1[1], position1[2]);
 
               const int sizex = upper_corner[2] - lower_corner[2];
-#pragma GCC ivdep
+#pragma omp simd linear(dst, src) simdlen(8)
               for (int x = 0; x < sizex; x++) {
                 dst[x] += src[x];
               }
@@ -427,8 +425,7 @@ void apply_spherical_cutoff_generic(
               &idx3(handler->cube, position1[0], position1[1], position1[2]);
 
           const int sizex = upper_corner[2] - lower_corner[2];
-          GRID_PRAGMA_UNROLL(4)
-#pragma GCC ivdep
+#pragma omp simd linear(dst, src) simdlen(8)
           for (int x = 0; x < sizex; x++) {
             dst[x] += src[x];
           }
@@ -464,8 +461,7 @@ void collocate_l0(double *scratch, const double alpha, const bool orthogonal_xy,
     for (int y = 0; y < cube->size[1]; y++) {
       const double *__restrict src = &idx2(exp_xy[0], y, 0);
       double *__restrict dst = &scratch[y * cube->ld_];
-#pragma GCC ivdep
-      GRID_PRAGMA_UNROLL(4)
+#pragma omp simd linear(dst, src) simdlen(8)
       for (int x = 0; x < cube->size[2]; x++) {
         dst[x] *= src[x];
       }

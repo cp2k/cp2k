@@ -104,8 +104,7 @@ extern void extract_sub_grid(const int *lower_corner, const int *upper_corner,
 extern void add_sub_grid(const int *lower_corner, const int *upper_corner,
                          const int *position, const tensor *subgrid,
                          tensor *grid);
-extern void return_cube_position(const int *grid_size, const int *lb_grid,
-                                 const int *cube_center,
+extern void return_cube_position(const int *lb_grid, const int *cube_center,
                                  const int *lower_boundaries_cube,
                                  const int *period, int *const position);
 
