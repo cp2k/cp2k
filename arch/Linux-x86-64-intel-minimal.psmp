@@ -10,7 +10,8 @@ FC        = mpiifort
 LD        = mpiifort
 AR        = ar -r
 
-CFLAGS    = -O2 -fopenmp -fp-model precise -funroll-loops -g -traceback -xHost
+# Only one test input (CH4-rsLDA.inp) gives wrong results with inlining enabled
+CFLAGS    = -O2 -fno-inline -fopenmp -fp-model precise -funroll-loops -g -qopenmp-simd -traceback -xHost
 
 DFLAGS    = -D__FFTW3
 DFLAGS   += -D__MAX_CONTR=4

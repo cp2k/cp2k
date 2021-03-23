@@ -28,7 +28,7 @@ LIBXC_LIB   = $(GNU_PATH)/libxc/5.1.2-regtest/lib
 SPGLIB_INC  = $(GNU_PATH)/spglib/1.16.0-regtest/include
 SPGLIB_LIB  = $(GNU_PATH)/spglib/1.16.0-regtest/lib
 
-CFLAGS      = -O2 -fopenmp -g -march=native -mtune=native
+CFLAGS      = -O2 -fopenmp -fopenmp-simd -g -march=native -mtune=native
 
 DFLAGS      = -D__ELPA
 DFLAGS     += -D__FFTW3
