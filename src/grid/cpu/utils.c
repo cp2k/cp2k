@@ -203,7 +203,8 @@ void extract_sub_grid(const int *lower_corner, const int *upper_corner,
 #ifdef __LIBXSMM
       LIBXSMM_PRAGMA_SIMD
 #else
-#pragma omp simd linear(dst, src) simdlen(8)
+      //#pragma omp simd linear(dst, src) simdlen(8)
+      GRID_PRAGMA_SIMD((dst, src), 8)
 #endif
       for (int x = 0; x < sizex; x++) {
         dst[x] = src[x];
@@ -238,7 +239,8 @@ void add_sub_grid(const int *lower_corner, const int *upper_corner,
 #ifdef __LIBXSMM
       LIBXSMM_PRAGMA_SIMD
 #else
-#pragma omp simd linear(dst, src) simdlen(8)
+      //#pragma omp simd linear(dst, src) simdlen(8)
+      GRID_PRAGMA_SIMD((dst, src), 8)
 #endif
       for (int x = 0; x < sizex; x++) {
         dst[x] += src[x];
@@ -248,7 +250,8 @@ void add_sub_grid(const int *lower_corner, const int *upper_corner,
       src += subgrid->ld_;
     }
 
-#pragma omp simd linear(dst, src) simdlen(8)
+    //#pragma omp simd linear(dst, src) simdlen(8)
+    GRID_PRAGMA_SIMD((dst, src), 8)
     for (int x = 0; x < sizex; x++) {
       dst[x] += src[x];
     }
