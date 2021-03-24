@@ -47,6 +47,7 @@ MODULE cp_fm_diag
                           cp_fm_to_fm, &
                           cp_fm_type
    USE cp_log_handling, ONLY: cp_get_default_logger, &
+                              cp_logger_get_default_io_unit, &
                               cp_logger_get_default_unit_nr, &
                               cp_logger_get_unit_nr, &
                               cp_logger_type
@@ -209,8 +210,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_diag'
       CHARACTER(LEN=5), DIMENSION(2), PARAMETER          :: diag_driver = (/"SYEVD", &
                                                                             "ELPA "/)
-      REAL(KIND=dp), PARAMETER                           :: eps = 1.0E-12_dp
+      REAL(KIND=dp), PARAMETER                           :: eps_abort = 1.0E-9_dp, &
+                                                            eps_warning = 1.0E-12_dp
 
+      TYPE(cp_logger_type), POINTER                      :: logger
       INTEGER                                            :: handle, i, j, ncol, nrow, output_unit
       LOGICAL                                            :: check_eigenvectors
 #if defined(__SCALAPACK)
@@ -221,13 +224,17 @@ CONTAINS
 #endif
 
       CALL timeset(routineN, handle)
+
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
+      output_unit = cp_logger_get_default_io_unit(logger)
+
 #if defined(__CHECK_DIAG)
       check_eigenvectors = .TRUE.
 #else
       check_eigenvectors = .FALSE.
 #endif
       IF (check_eigenvectors) THEN
-         output_unit = cp_logger_get_default_unit_nr()
 #if defined(__SCALAPACK)
          nrow = eigenvectors%matrix_struct%nrow_global
          ncol = MIN(eigenvectors%matrix_struct%ncol_global, nvec)
@@ -243,20 +250,28 @@ CONTAINS
                CALL infog2l(i, j, desca, nprow, npcol, myprow, mypcol, il, jl, iprow, ipcol)
                IF ((iprow == myprow) .AND. (ipcol == mypcol)) THEN
                   IF (i == j) THEN
-                     IF (ABS(matrix%local_data(il, jl) - 1.0_dp) > eps) THEN
+                     IF (ABS(matrix%local_data(il, jl) - 1.0_dp) > eps_warning) THEN
                         WRITE (UNIT=output_unit, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.12,/,T2,A)") &
                            "The eigenvectors returned by "//TRIM(diag_driver(diag_type))//" are not orthonormal", &
                            "Matrix element (", i, ", ", j, ") = ", matrix%local_data(il, jl), &
                            "The expected value is 1"
-                        CPABORT("ERROR in "//routineN//": Check of matrix diagonalization failed")
+                        IF (ABS(matrix%local_data(il, jl) - 1.0_dp) > eps_abort) THEN
+                           CPABORT("ERROR in "//routineN//": Check of matrix diagonalization failed")
+                        ELSE
+                           CPWARN("Check of matrix diagonalization failed in routine "//routineN)
+                        END IF
                      END IF
                   ELSE
-                     IF (ABS(matrix%local_data(il, jl)) > eps) THEN
+                     IF (ABS(matrix%local_data(il, jl)) > eps_warning) THEN
                         WRITE (UNIT=output_unit, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.12,/,T2,A)") &
                            "The eigenvectors returned by "//TRIM(diag_driver(diag_type))//" are not orthonormal", &
                            "Matrix element (", i, ", ", j, ") = ", matrix%local_data(il, jl), &
                            "The expected value is 0"
-                        CPABORT("ERROR in "//routineN//": Check of matrix diagonalization failed")
+                        IF (ABS(matrix%local_data(il, jl)) > eps_abort) THEN
+                           CPABORT("ERROR in "//routineN//": Check of matrix diagonalization failed")
+                        ELSE
+                           CPWARN("Check of matrix diagonalization failed in routine "//routineN)
+                        END IF
                      END IF
                   END IF
                END IF
@@ -272,20 +287,28 @@ CONTAINS
          DO i = 1, ncol
             DO j = 1, ncol
                IF (i == j) THEN
-                  IF (ABS(matrix%local_data(i, j) - 1.0_dp) > eps) THEN
+                  IF (ABS(matrix%local_data(i, j) - 1.0_dp) > eps_warning) THEN
                      WRITE (UNIT=output_unit, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.12,/,T2,A)") &
                         "The eigenvectors returned by "//TRIM(diag_driver(diag_type))//" are not orthonormal", &
                         "Matrix element (", i, ", ", j, ") = ", matrix%local_data(i, j), &
                         "The expected value is 1"
-                     CPABORT("ERROR in "//routineN//": Check of matrix diagonalization failed")
+                     IF (ABS(matrix%local_data(i, j) - 1.0_dp) > eps_abort) THEN
+                        CPABORT("ERROR in "//routineN//": Check of matrix diagonalization failed")
+                     ELSE
+                        CPWARN("Check of matrix diagonalization failed in routine "//routineN)
+                     END IF
                   END IF
                ELSE
-                  IF (ABS(matrix%local_data(i, j)) > eps) THEN
+                  IF (ABS(matrix%local_data(i, j)) > eps_warning) THEN
                      WRITE (UNIT=output_unit, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.12,/,T2,A)") &
                         "The eigenvectors returned by "//TRIM(diag_driver(diag_type))//" are not orthonormal", &
                         "Matrix element (", i, ", ", j, ") = ", matrix%local_data(i, j), &
                         "The expected value is 0"
-                     CPABORT("ERROR in "//routineN//": Check of matrix diagonalization failed")
+                     IF (ABS(matrix%local_data(i, j)) > eps_abort) THEN
+                        CPABORT("ERROR in "//routineN//": Check of matrix diagonalization failed")
+                     ELSE
+                        CPWARN("Check of matrix diagonalization failed in routine "//routineN)
+                     END IF
                   END IF
                END IF
             END DO
