@@ -16,6 +16,7 @@ MODULE rt_propagation_velocity_gauge
                                               gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
+   USE core_ppnl,                       ONLY: build_core_ppnl
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
@@ -32,12 +33,13 @@ MODULE rt_propagation_velocity_gauge
                                               gth_potential_type,&
                                               sgp_potential_p_type,&
                                               sgp_potential_type
-   USE input_section_types,             ONLY: section_vals_get,&
-                                              section_vals_get_subs_vals,&
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp,&
                                               int_8
+   USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                              kpoint_type
    USE mathconstants,                   ONLY: one,&
                                               twopi,&
                                               zero
@@ -47,17 +49,23 @@ MODULE rt_propagation_velocity_gauge
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_force_types,                  ONLY: qs_force_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
+   USE qs_ks_types,                     ONLY: get_ks_env,&
+                                              qs_ks_env_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_operators_ao,                 ONLY: build_lin_mom_matrix
+   USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                              qs_rho_type
    USE sap_kind_types,                  ONLY: alist_type,&
                                               clist_type,&
                                               get_alist,&
                                               release_sap_int,&
                                               sap_int_type,&
                                               sap_sort
+   USE virial_types,                    ONLY: virial_type
 
 !$ USE OMP_LIB, ONLY: omp_lock_kind, &
 !$                    omp_init_lock, omp_set_lock, &
@@ -78,40 +86,100 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
+!> \param subtract_non_gt ...
 ! **************************************************************************************************
-   SUBROUTINE velocity_gauge_ks_matrix(qs_env)
+   SUBROUTINE velocity_gauge_ks_matrix(qs_env, subtract_non_gt)
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN), OPTIONAL                      :: subtract_non_gt
 
       CHARACTER(len=*), PARAMETER :: routineN = 'velocity_gauge_ks_matrix'
 
-      INTEGER                                            :: handle, idir, image, ispin, nimages, &
-                                                            nspins
-      LOGICAL                                            :: add_nl_term, do_hfx
-      REAL(KIND=dp)                                      :: factor, factor_kvec_nl, factor_lin, &
-                                                            factor_nl_im, factor_nl_re, factor_qu
+      INTEGER                                            :: handle, idir, image, nder, nimages
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      LOGICAL                                            :: add_nl_term, calculate_forces, &
+                                                            my_subtract_non_gt, ppnl_present, &
+                                                            use_virial
+      REAL(KIND=dp)                                      :: eps_ppnl, factor, factor_kvec_nl, &
+                                                            factor_lin, factor_nl_im, &
+                                                            factor_nl_re, factor_qu
       REAL(KIND=dp), DIMENSION(3)                        :: vec_pot
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_im, matrix_s, momentum, nl_term
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: momentum, nl_term
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_h_im, matrix_nl, &
+                                                            matrix_p, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb
+         POINTER                                         :: sab_orb, sap_ppnl
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input
+      TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (dft_control, matrix_s, sab_orb, matrix_h, cell, input, matrix_ks_im)
+      my_subtract_non_gt = .FALSE.
+      IF (PRESENT(subtract_non_gt)) my_subtract_non_gt = subtract_non_gt
+
+      NULLIFY (dft_control, matrix_s, sab_orb, matrix_h, cell, input, matrix_h_im, kpoints, cell_to_index, &
+               sap_ppnl, particle_set, qs_kind_set, atomic_kind_set, virial, force, matrix_p, rho, matrix_nl)
+
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
                       sab_orb=sab_orb, &
-                      matrix_s=matrix_s, &
+                      sap_ppnl=sap_ppnl, &
+                      matrix_s_kp=matrix_s, &
                       matrix_h_kp=matrix_h, &
                       cell=cell, &
                       input=input, &
-                      matrix_ks_im=matrix_ks_im)
+                      matrix_h_im_kp=matrix_h_im)
 
       nimages = dft_control%nimages
-      nspins = dft_control%nspins
+      ppnl_present = ASSOCIATED(sap_ppnl)
+
+      IF (nimages > 1) THEN
+         CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
+         CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
+      END IF
+
+      IF (my_subtract_non_gt) THEN
+         IF (ppnl_present) THEN
+            CALL get_qs_env(qs_env, &
+                            qs_kind_set=qs_kind_set, &
+                            particle_set=particle_set, &
+                            atomic_kind_set=atomic_kind_set, &
+                            virial=virial, &
+                            rho=rho)
+
+            CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
+            calculate_forces = .FALSE.
+            use_virial = .FALSE.
+            nder = 1
+
+            CALL dbcsr_allocate_matrix_set(matrix_nl, 1, nimages)
+            DO image = 1, nimages
+               ALLOCATE (matrix_nl(1, image)%matrix)
+               CALL dbcsr_create(matrix_nl(1, image)%matrix, template=matrix_s(1, 1)%matrix)
+               CALL cp_dbcsr_alloc_block_from_nbl(matrix_nl(1, image)%matrix, sab_orb)
+               CALL dbcsr_set(matrix_nl(1, image)%matrix, zero)
+            ENDDO
+
+            CALL build_core_ppnl(matrix_nl, matrix_p, force, virial, calculate_forces, use_virial, nder, &
+                                 qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, &
+                                 nimages, cell_to_index, "ORB")
+
+            DO image = 1, nimages
+               CALL dbcsr_add(matrix_h(1, image)%matrix, matrix_nl(1, image)%matrix, one, -one)
+            ENDDO
+
+            CALL dbcsr_deallocate_matrix_set(matrix_nl)
+         END IF
+      ENDIF
+
       !get vector potential
       vec_pot(:) = 0._dp
       CALL get_vector_potential(dft_control, cell, vec_pot)
@@ -121,7 +189,7 @@ CONTAINS
       CALL dbcsr_allocate_matrix_set(momentum, 3)
       DO idir = 1, 3
          CALL dbcsr_init_p(momentum(idir)%matrix)
-         CALL dbcsr_create(momentum(idir)%matrix, template=matrix_s(1)%matrix, &
+         CALL dbcsr_create(momentum(idir)%matrix, template=matrix_s(1, 1)%matrix, &
                            matrix_type=dbcsr_type_antisymmetric)
          CALL cp_dbcsr_alloc_block_from_nbl(momentum(idir)%matrix, sab_orb)
          CALL dbcsr_set(momentum(idir)%matrix, zero)
@@ -129,14 +197,9 @@ CONTAINS
       CALL build_lin_mom_matrix(qs_env, momentum)
 
       ! set imaginary part of KS matrix to zero
-      ! if not done for hfx in subroutine hfx_ks_matrix()
-      hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%HF")
-      CALL section_vals_get(hfx_sections, explicit=do_hfx)
-      IF (.NOT. do_hfx) THEN
-         DO ispin = 1, nspins
-            CALL dbcsr_set(matrix_ks_im(ispin)%matrix, zero)
-         ENDDO
-      ENDIF
+      DO image = 1, nimages
+         CALL dbcsr_set(matrix_h_im(1, image)%matrix, zero)
+      ENDDO
 
       hfx_sections => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION")
       CALL section_vals_val_get(hfx_sections, "VG_COM_NL", l_val=add_nl_term)
@@ -147,9 +210,9 @@ CONTAINS
       CALL section_vals_val_get(hfx_sections, "FACTOR_KVEC_NL", r_val=factor_kvec_nl)
 
       ! add linear term in vector potential to imaginary part of KS-matrix
-      DO ispin = 1, nspins
+      DO image = 1, nimages
          DO idir = 1, 3
-            CALL dbcsr_add(matrix_ks_im(ispin)%matrix, momentum(idir)%matrix, one, -factor_lin*vec_pot(idir))
+            CALL dbcsr_add(matrix_h_im(1, image)%matrix, momentum(idir)%matrix, one, -factor_lin*vec_pot(idir))
          ENDDO
       ENDDO
 
@@ -160,36 +223,32 @@ CONTAINS
       DO idir = 1, 3
          factor = factor + vec_pot(idir)**2
       ENDDO
-      DO ispin = 1, nspins
-         DO image = 1, nimages
-            CALL dbcsr_add(matrix_h(ispin, image)%matrix, matrix_s(1)%matrix, one, 0.5*factor*factor_qu)
-         ENDDO
+      DO image = 1, nimages
+         CALL dbcsr_add(matrix_h(1, image)%matrix, matrix_s(1, image)%matrix, one, 0.5*factor*factor_qu)
       ENDDO
 
-      IF (dft_control%qs_control%gpw) THEN
+      IF (ppnl_present) THEN
          IF (add_nl_term) THEN
             NULLIFY (nl_term)
             CALL dbcsr_allocate_matrix_set(nl_term, 2)
 
             CALL dbcsr_init_p(nl_term(1)%matrix)
-            CALL dbcsr_create(nl_term(1)%matrix, template=matrix_s(1)%matrix, &
+            CALL dbcsr_create(nl_term(1)%matrix, template=matrix_s(1, 1)%matrix, &
                               matrix_type=dbcsr_type_symmetric, name="nl gauge term real part")
             CALL cp_dbcsr_alloc_block_from_nbl(nl_term(1)%matrix, sab_orb)
             CALL dbcsr_set(nl_term(1)%matrix, zero)
 
             CALL dbcsr_init_p(nl_term(2)%matrix)
-            CALL dbcsr_create(nl_term(2)%matrix, template=matrix_s(1)%matrix, &
+            CALL dbcsr_create(nl_term(2)%matrix, template=matrix_s(1, 1)%matrix, &
                               matrix_type=dbcsr_type_antisymmetric, name="nl gauge term imaginary part")
             CALL cp_dbcsr_alloc_block_from_nbl(nl_term(2)%matrix, sab_orb)
             CALL dbcsr_set(nl_term(2)%matrix, zero)
 
             CALL velocity_gauge_nl_term(qs_env, nl_term, vec_pot*factor_kvec_nl)
 
-            DO ispin = 1, nspins
-               DO image = 1, nimages
-                  CALL dbcsr_add(matrix_h(ispin, image)%matrix, nl_term(1)%matrix, one, factor_nl_re)
-               ENDDO
-               CALL dbcsr_add(matrix_ks_im(ispin)%matrix, nl_term(2)%matrix, one, factor_nl_im)
+            DO image = 1, nimages
+               CALL dbcsr_add(matrix_h(1, image)%matrix, nl_term(1)%matrix, one, factor_nl_re)
+               CALL dbcsr_add(matrix_h_im(1, image)%matrix, nl_term(2)%matrix, one, factor_nl_im)
             ENDDO
             CALL dbcsr_deallocate_matrix_set(nl_term)
          ENDIF

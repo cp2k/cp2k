@@ -53,6 +53,7 @@ CONTAINS
    SUBROUTINE rtp_hfx_rebuild(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
+      LOGICAL                                            :: need_h_im = .FALSE.
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_im, matrix_s_aux, &
                                                             rho_aux_ao_im
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -69,8 +70,10 @@ CONTAINS
                       dft_control=dft_control, &
                       rho=rho)
 
+      need_h_im = dft_control%rtp_control%velocity_gauge
+
       CALL rebuild_matrices_im_kp(qs_env, rho, ks_env, dft_control%nspins, dft_control%nimages, &
-                                  rebuild_matrix_p=.TRUE., rebuild_matrix_ks=.TRUE.)
+                                  rebuild_matrix_p=.TRUE., rebuild_matrix_ks=.TRUE., rebuild_matrix_h=need_h_im)
 
       IF (dft_control%do_admm) THEN
          CALL get_admm_env(qs_env%admm_env, &
@@ -143,29 +146,33 @@ CONTAINS
 !> \param nimages ...
 !> \param rebuild_matrix_p ...
 !> \param rebuild_matrix_ks ...
+!> \param rebuild_matrix_h ...
 ! **************************************************************************************************
-   SUBROUTINE rebuild_matrices_im_kp(qs_env, rho, ks_env, nspins, nimages, rebuild_matrix_p, rebuild_matrix_ks)
+   SUBROUTINE rebuild_matrices_im_kp(qs_env, rho, ks_env, nspins, nimages, rebuild_matrix_p, rebuild_matrix_ks, rebuild_matrix_h)
       TYPE(qs_environment_type), INTENT(inout), POINTER  :: qs_env
       TYPE(qs_rho_type), INTENT(INOUT), POINTER          :: rho
       TYPE(qs_ks_env_type), INTENT(INOUT), POINTER       :: ks_env
       INTEGER, INTENT(in), OPTIONAL                      :: nspins, nimages
-      LOGICAL, INTENT(in), OPTIONAL                      :: rebuild_matrix_p, rebuild_matrix_ks
+      LOGICAL, INTENT(in), OPTIONAL                      :: rebuild_matrix_p, rebuild_matrix_ks, &
+                                                            rebuild_matrix_h
 
       CHARACTER(LEN=default_string_length)               :: headline
       INTEGER                                            :: image, ispin
-      LOGICAL                                            :: my_rebuild_ks = .FALSE., &
+      LOGICAL                                            :: my_rebuild_h = .FALSE., &
+                                                            my_rebuild_ks = .FALSE., &
                                                             my_rebuild_p = .FALSE.
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_im, matrix_ks_kp, matrix_p_im, &
-                                                            rho_ao_kp
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h_im, matrix_h_kp, matrix_ks_im, &
+                                                            matrix_ks_kp, matrix_p_im, rho_ao_kp
       TYPE(dbcsr_type), POINTER                          :: refmatrix
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
 
       IF (PRESENT(rebuild_matrix_p)) my_rebuild_p = rebuild_matrix_p
       IF (PRESENT(rebuild_matrix_ks)) my_rebuild_ks = rebuild_matrix_ks
+      IF (PRESENT(rebuild_matrix_h)) my_rebuild_h = rebuild_matrix_h
 
-      NULLIFY (matrix_ks_kp, rho_ao_kp, sab_orb)
-      CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks_kp, sab_orb=sab_orb)
+      NULLIFY (matrix_ks_kp, rho_ao_kp, sab_orb, matrix_h_kp)
+      CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks_kp, matrix_h_kp=matrix_h_kp, sab_orb=sab_orb)
       CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
 
       IF (my_rebuild_p) THEN
@@ -220,6 +227,24 @@ CONTAINS
             ENDDO
          ENDDO
          CALL set_ks_env(ks_env, matrix_ks_im_kp=matrix_ks_im)
+      ENDIF
+
+      IF (my_rebuild_h) THEN
+         NULLIFY (matrix_h_im)
+         CALL get_qs_env(qs_env, matrix_h_im_kp=matrix_h_im)
+
+         CALL dbcsr_allocate_matrix_set(matrix_h_im, 1, nimages)
+         refmatrix => matrix_h_kp(1, 1)%matrix
+
+         DO image = 1, nimages
+            headline = "IMAGINARY CORE HAMILTONIAN MATRIX"
+            ALLOCATE (matrix_h_im(1, image)%matrix)
+            CALL dbcsr_create(matrix=matrix_h_im(1, image)%matrix, template=refmatrix, &
+                              name=TRIM(headline), matrix_type=dbcsr_type_antisymmetric, nze=0)
+            CALL cp_dbcsr_alloc_block_from_nbl(matrix_h_im(1, image)%matrix, sab_orb)
+            CALL dbcsr_set(matrix_h_im(1, image)%matrix, 0.0_dp)
+         ENDDO
+         CALL set_ks_env(ks_env, matrix_h_im_kp=matrix_h_im)
       ENDIF
 
    END SUBROUTINE
