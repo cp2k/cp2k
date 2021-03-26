@@ -195,8 +195,8 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ksmat, matrix_vxc, mo_derivs
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, matrix_h, matrix_s, my_rho, &
-                                                            rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, ks_matrix_im, matrix_h, &
+                                                            matrix_h_im, matrix_s, my_rho, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(ecoul_1center_type), DIMENSION(:), POINTER    :: ecoul_1c
       TYPE(local_rho_type), POINTER                      :: local_rho_set
@@ -225,10 +225,10 @@ CONTAINS
       NULLIFY (admm_env, cell, dft_control, logger, mo_derivs, my_rho, &
                rho_struct, para_env, pw_env, virial, vppl_rspace, &
                v_hartree_rspace%pw, adiabatic_rescaling_section, hfx_sections, &
-               input, scf_section, xc_section, matrix_h, matrix_s, &
+               input, scf_section, xc_section, matrix_h, matrix_h_im, matrix_s, &
                auxbas_pw_pool, poisson_env, v_rspace_new, v_rspace_new_aux_fit, &
                v_tau_rspace, v_tau_rspace_aux_fit, matrix_vxc, vee, rho_nlcc, &
-               ks_env, ks_matrix, rho, energy, rho_xc, rho_r, rho_ao, rho_core)
+               ks_env, ks_matrix, ks_matrix_im, rho, energy, rho_xc, rho_r, rho_ao, rho_core)
 
       CPASSERT(ASSOCIATED(qs_env))
 
@@ -240,8 +240,10 @@ CONTAINS
                       ks_env=ks_env, &
                       dft_control=dft_control, &
                       matrix_h_kp=matrix_h, &
+                      matrix_h_im_kp=matrix_h_im, &
                       matrix_s_kp=matrix_s, &
                       matrix_ks_kp=ks_matrix, &
+                      matrix_ks_im_kp=ks_matrix_im, &
                       matrix_vxc=matrix_vxc, &
                       pw_env=pw_env, &
                       cell=cell, &
@@ -667,6 +669,19 @@ CONTAINS
                   CALL dbcsr_copy(ks_matrix(ispin, img)%matrix, matrix_h(1, img)%matrix, name=name)
                END DO
             END DO
+            ! imaginary part if required
+            IF (qs_env%run_rtp) THEN
+               IF (dft_control%rtp_control%velocity_gauge) THEN
+                  CPASSERT(ASSOCIATED(matrix_h_im))
+                  CPASSERT(ASSOCIATED(ks_matrix_im))
+                  DO ispin = 1, nspins
+                     DO img = 1, nimages
+                        CALL dbcsr_get_info(ks_matrix_im(ispin, img)%matrix, name=name) ! keep the name
+                        CALL dbcsr_copy(ks_matrix_im(ispin, img)%matrix, matrix_h_im(1, img)%matrix, name=name)
+                     END DO
+                  END DO
+               ENDIF
+            ENDIF
          END IF
 
          IF (use_virial .AND. calculate_forces) THEN

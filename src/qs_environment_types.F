@@ -372,12 +372,14 @@ CONTAINS
 !> \param energy ...
 !> \param force ...
 !> \param matrix_h ...
+!> \param matrix_h_im ...
 !> \param matrix_ks ...
 !> \param matrix_ks_im ...
 !> \param matrix_vxc ...
 !> \param run_rtp ...
 !> \param rtp ...
 !> \param matrix_h_kp ...
+!> \param matrix_h_im_kp ...
 !> \param matrix_ks_kp ...
 !> \param matrix_vxc_kp ...
 !> \param kinetic_kp ...
@@ -499,8 +501,8 @@ CONTAINS
                          sap_ppnl, sab_vdw, sab_scp, sap_oce, sab_lrc, sab_se, sab_xtbe, sab_tbe, sab_core, &
                          sab_xb, sab_xtb_nonbond, sab_almo, sab_kp, particle_set, energy, force, &
                          matrix_h, matrix_ks, matrix_ks_im, matrix_vxc, run_rtp, rtp, &
-                         matrix_h_kp, matrix_ks_kp, matrix_ks_im_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, matrix_w_kp, matrix_s_RI_aux_kp, &
-                         matrix_s, matrix_s_RI_aux, matrix_w, &
+                         matrix_h_kp, matrix_h_im_kp, matrix_ks_kp, matrix_ks_im_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, matrix_w_kp, & 
+                         matrix_s_RI_aux_kp, matrix_s, matrix_s_RI_aux, matrix_w, &
                          matrix_p_mp2, matrix_p_mp2_admm, rho, &
                          rho_buffer, rho_xc, pw_env, ewald_env, ewald_pw, active_space, &
                          mpools, input, para_env, blacs_env, scf_control, rel_control, kinetic, qs_charges, &
@@ -543,12 +545,12 @@ CONTAINS
       TYPE(qs_force_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: force
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: matrix_h, matrix_ks, matrix_ks_im, &
-                                                            matrix_vxc
+         POINTER                                         :: matrix_h, matrix_h_im, matrix_ks, &
+                                                            matrix_ks_im, matrix_vxc
       LOGICAL, OPTIONAL                                  :: run_rtp
       TYPE(rt_prop_type), OPTIONAL, POINTER              :: rtp
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
-         POINTER                                         :: matrix_h_kp, matrix_ks_kp, matrix_ks_im_kp, &
+         POINTER                                         :: matrix_h_kp, matrix_h_im_kp, matrix_ks_kp, matrix_ks_im_kp, &
                                                             matrix_vxc_kp, kinetic_kp, &
                                                             matrix_s_kp, matrix_w_kp, &
                                                             matrix_s_RI_aux_kp
@@ -766,6 +768,7 @@ CONTAINS
                       potential_changed=potential_changed, &
                       forces_up_to_date=forces_up_to_date, &
                       matrix_h=matrix_h, &
+                      matrix_h_im=matrix_h_im, &
                       matrix_ks=matrix_ks, &
                       matrix_ks_im=matrix_ks_im, &
                       matrix_vxc=matrix_vxc, &
@@ -777,6 +780,7 @@ CONTAINS
                       matrix_p_mp2=matrix_p_mp2, &
                       matrix_p_mp2_admm=matrix_p_mp2_admm, &
                       matrix_h_kp=matrix_h_kp, &
+                      matrix_h_im_kp=matrix_h_im_kp, &
                       matrix_ks_kp=matrix_ks_kp, &
                       matrix_vxc_kp=matrix_vxc_kp, &
                       kinetic_kp=kinetic_kp, &

@@ -79,6 +79,7 @@ MODULE rt_propagation
                                               calc_update_rho,&
                                               calc_update_rho_sparse,&
                                               get_restart_wfn
+   USE rt_propagation_velocity_gauge,   ONLY: velocity_gauge_ks_matrix
    USE rt_propagator_init,              ONLY: init_propagators,&
                                               rt_initialize_rho_from_mos
 #include "../base/base_uses.f90"
@@ -257,6 +258,9 @@ CONTAINS
          CALL calc_update_rho_sparse(qs_env)
       END IF
 
+      IF (rtp_control%velocity_gauge) THEN
+         CALL velocity_gauge_ks_matrix(qs_env, subtract_non_gt=.TRUE.)
+      ENDIF
       CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE.)
 
    END SUBROUTINE init_propagation_run
