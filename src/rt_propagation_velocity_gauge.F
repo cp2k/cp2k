@@ -159,6 +159,7 @@ CONTAINS
             calculate_forces = .FALSE.
             use_virial = .FALSE.
             nder = 1
+            eps_ppnl = dft_control%qs_control%eps_ppnl
 
             CALL dbcsr_allocate_matrix_set(matrix_nl, 1, nimages)
             DO image = 1, nimages
