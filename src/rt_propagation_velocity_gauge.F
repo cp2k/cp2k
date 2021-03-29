@@ -485,8 +485,8 @@ CONTAINS
                                  MATMUL(achint_cos(1:na, 1:np, 1), TRANSPOSE(bcint_cos(1:nb, 1:np, 1))) + &
                                  MATMUL(achint_sin(1:na, 1:np, 1), TRANSPOSE(bcint_sin(1:nb, 1:np, 1)))
                               ! sin * cos - cos * sin
-                              imag_block(1:na, 1:nb) = imag_block(1:na, 1:nb) + &
-                                                       MATMUL(achint_sin(1:na, 1:np, 1), TRANSPOSE(bcint_cos(1:nb, 1:np, 1))) - &
+                              imag_block(1:na, 1:nb) = imag_block(1:na, 1:nb) - &
+                                                       MATMUL(achint_sin(1:na, 1:np, 1), TRANSPOSE(bcint_cos(1:nb, 1:np, 1))) + &
                                                        MATMUL(achint_cos(1:na, 1:np, 1), TRANSPOSE(bcint_sin(1:nb, 1:np, 1)))
                            ELSE
                               ! cos*cos + sin*sin
@@ -494,8 +494,8 @@ CONTAINS
                                  MATMUL(bchint_cos(1:nb, 1:np, 1), TRANSPOSE(acint_cos(1:na, 1:np, 1))) + &
                                  MATMUL(bchint_sin(1:nb, 1:np, 1), TRANSPOSE(acint_sin(1:na, 1:np, 1)))
                               ! sin * cos - cos * sin
-                              imag_block(1:nb, 1:na) = imag_block(1:nb, 1:na) + &
-                                                       MATMUL(bchint_sin(1:nb, 1:np, 1), TRANSPOSE(acint_cos(1:na, 1:np, 1))) - &
+                              imag_block(1:nb, 1:na) = imag_block(1:nb, 1:na) - &
+                                                       MATMUL(bchint_sin(1:nb, 1:np, 1), TRANSPOSE(acint_cos(1:na, 1:np, 1))) + &
                                                        MATMUL(bchint_cos(1:nb, 1:np, 1), TRANSPOSE(acint_sin(1:na, 1:np, 1)))
 
                            ENDIF
