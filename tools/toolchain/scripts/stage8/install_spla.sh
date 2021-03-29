@@ -42,7 +42,7 @@ case "$with_spla" in
       [ -d SpLA-${spla_ver} ] && rm -rf SpLA-${spla_ver}
       tar -xzf SpLA-${spla_ver}.tar.gz
       cd spla-${spla_ver}
-      mkdir build-cpu
+      mkdir -p build-cpu
       cd build-cpu
       cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
