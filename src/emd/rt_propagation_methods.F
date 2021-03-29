@@ -131,7 +131,7 @@ CONTAINS
          ! add additional terms for the velocity gauge to matrix_h
          ! should be called imediately after qs_energies_init and before qs_ks_update_qs_env
          IF (rtp_control%velocity_gauge) THEN
-            CALL velocity_gauge_ks_matrix(qs_env)
+            CALL velocity_gauge_ks_matrix(qs_env, subtract_non_gt=rtp_control%nl_gauge_transform)
          ENDIF
 
          CALL get_qs_env(qs_env, matrix_s=matrix_s)

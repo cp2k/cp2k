@@ -2191,6 +2191,8 @@ CONTAINS
                                 l_val=dft_control%rtp_control%apply_delta_pulse)
       CALL section_vals_val_get(rtp_section, "VELOCITY_GAUGE", &
                                 l_val=dft_control%rtp_control%velocity_gauge)
+      CALL section_vals_val_get(rtp_section, "VG_COM_NL", &
+                                l_val=dft_control%rtp_control%nl_gauge_transform)
       CALL section_vals_val_get(rtp_section, "PERIODIC", &
                                 l_val=dft_control%rtp_control%periodic)
       CALL section_vals_val_get(rtp_section, "DENSITY_PROPAGATION", &

@@ -65,6 +65,7 @@ MODULE cp_control_types
       INTEGER, DIMENSION(3)                :: delta_pulse_direction
       REAL(KIND=dp)                        :: delta_pulse_scale
       LOGICAL                              :: velocity_gauge
+      LOGICAL                              :: nl_gauge_transform
    END TYPE rtp_control_type
 ! **************************************************************************************************
 ! \brief Control parameters for DFTB calculations
