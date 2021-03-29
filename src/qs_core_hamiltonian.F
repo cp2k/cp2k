@@ -504,11 +504,9 @@ CONTAINS
       eps_ppnl = dft_control%qs_control%eps_ppnl
       ppnl_present = ASSOCIATED(sap_ppnl)
       IF (ppnl_present) THEN
-         IF (.NOT. (qs_env%run_rtp .AND. dft_control%rtp_control%velocity_gauge)) THEN
-            CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
-                                 qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, &
-                                 nimages, cell_to_index, "ORB")
-         END IF
+         CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
+                              qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, &
+                              nimages, cell_to_index, "ORB")
       END IF
 
    END SUBROUTINE core_matrices

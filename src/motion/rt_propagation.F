@@ -259,7 +259,7 @@ CONTAINS
       END IF
 
       IF (rtp_control%velocity_gauge) THEN
-         CALL velocity_gauge_ks_matrix(qs_env, subtract_non_gt=.TRUE.)
+         CALL velocity_gauge_ks_matrix(qs_env, subtract_non_gt=rtp_control%nl_gauge_transform)
       ENDIF
       CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE.)
 
