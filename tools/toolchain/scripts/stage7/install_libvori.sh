@@ -48,12 +48,25 @@ case "${with_libvori:=__INSTALL__}" in
 
       mkdir "libvori-${libvori_ver}/build"
       cd "libvori-${libvori_ver}/build"
-      cmake \
-        -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-        -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
-        -DCMAKE_INSTALL_LIBDIR=lib \
-        -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=TRUE \
-        .. > cmake.log 2>&1
+      case ${OPENBLAS_ARCH} in
+        arm64)
+          cmake \
+           -DCMAKE_BUILD_TYPE=None \
+           -DCMAKE_CXX_FLAGS="-O1 -g" \
+           -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+           -DCMAKE_INSTALL_LIBDIR=lib \
+           -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=TRUE \
+           .. > cmake.log 2>&1
+        ;;
+        *)
+          cmake \
+           -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+           -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+           -DCMAKE_INSTALL_LIBDIR=lib \
+           -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=TRUE \
+           .. > cmake.log 2>&1
+        ;;
+      esac
       CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . > build.log 2>&1
       CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . --target test > test.log 2>&1
       CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . --target install > install.log 2>&1

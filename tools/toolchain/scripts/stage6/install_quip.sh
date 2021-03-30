@@ -61,7 +61,7 @@ case "$with_quip" in
         i386)
           quip_arch=x86_32
           ;;
-        arm)
+        arm*)
           quip_arch=x86_64
           ;;
         *)
@@ -103,6 +103,8 @@ case "$with_quip" in
       export QUIP_ARCH=linux_${quip_arch}_gfortran
       # hit enter a few times to accept defaults
       echo -e "${MATH_LDFLAGS} $(resolve_string "${MATH_LIBS}") \n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" | make config > configure.log
+      # Download up-to-date config.guess
+      wget http://savannah.gnu.org/cgi-bin/viewcvs/*checkout*/config/config/config.guess -O src/fox/config/config.guess -o wget.log
       # make -j does not work :-(
       make > make.log 2>&1
       ! [ -d "${pkg_install_dir}/include" ] && mkdir -p "${pkg_install_dir}/include"
