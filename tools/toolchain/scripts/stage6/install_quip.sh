@@ -9,8 +9,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-quip_ver="1ff93b3400b83e804f0f2e857e70c5e4133d9705"
-quip_sha256="7ae866e9d8187a9a73ac39bc2d87b975182165843890bdc7859eeb7bb389cad6"
+quip_ver="b4336484fb65b0e73211a8f920ae4361c7c353fd"
+quip_sha256="60fe54d60f5bcccd99abdccb6ca8d5d59c3c1c6997f95cee775318137743084e"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -61,7 +61,7 @@ case "$with_quip" in
         i386)
           quip_arch=x86_32
           ;;
-        arm*)
+        arm)
           quip_arch=x86_64
           ;;
         *)
@@ -103,8 +103,6 @@ case "$with_quip" in
       export QUIP_ARCH=linux_${quip_arch}_gfortran
       # hit enter a few times to accept defaults
       echo -e "${MATH_LDFLAGS} $(resolve_string "${MATH_LIBS}") \n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" | make config > configure.log
-      # Download up-to-date config.guess
-      wget http://savannah.gnu.org/cgi-bin/viewcvs/*checkout*/config/config/config.guess -O src/fox/config/config.guess -o wget.log
       # make -j does not work :-(
       make > make.log 2>&1
       ! [ -d "${pkg_install_dir}/include" ] && mkdir -p "${pkg_install_dir}/include"
