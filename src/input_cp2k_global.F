@@ -117,7 +117,7 @@ CONTAINS
          keyword, __LOCATION__, name="PREFERRED_DIAG_LIBRARY", &
          description="Specifies the DIAGONALIZATION library to be used. If not available, the standard scalapack is used", &
          usage="PREFERRED_DIAG_LIBRARY ELPA", &
-         default_i_val=default_diag, &
+         default_i_val=do_diag_sl, &
          enum_i_vals=(/do_diag_sl, do_diag_elpa/), &
          enum_c_vals=s2a("SL", "ELPA"), &
          enum_desc=s2a("Standard (Sca)LAPACK: syevd", "ELPA"), &
