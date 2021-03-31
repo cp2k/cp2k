@@ -61,7 +61,7 @@ case "$with_quip" in
         i386)
           quip_arch=x86_32
           ;;
-        arm)
+        arm*)
           quip_arch=x86_64
           ;;
         *)
