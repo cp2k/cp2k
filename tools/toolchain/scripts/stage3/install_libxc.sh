@@ -9,8 +9,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-libxc_ver="5.1.2"
-libxc_sha256="180d52b5552921d1fac8a10869dd30708c0fb41dc202a3bbee0e36f43872718a"
+libxc_ver="5.1.3"
+libxc_sha256="0350defdd6c1b165e4cf19995f590eee6e0b9db95a6b221d28cecec40f4e85cd"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -36,7 +36,7 @@ case "$with_libxc" in
       if [ -f libxc-${libxc_ver}.tar.gz ]; then
         echo "libxc-${libxc_ver}.tar.gz is found"
       else
-        download_pkg ${DOWNLOADER_FLAGS} -o libxc-5.1.2.tar.gz ${libxc_sha256} \
+        download_pkg ${DOWNLOADER_FLAGS} ${libxc_sha256} \
           https://www.cp2k.org/static/downloads/libxc-${libxc_ver}.tar.gz
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
