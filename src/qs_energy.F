@@ -61,7 +61,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_energies'
 
       INTEGER                                            :: handle
-      LOGICAL                                            :: my_calc_forces, run_rtp
+      LOGICAL                                            :: do_consistent_energies, my_calc_forces, &
+                                                            run_rtp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_energy_type), POINTER                      :: energy
 
@@ -69,6 +70,9 @@ CONTAINS
 
       my_calc_forces = .FALSE.
       IF (PRESENT(calc_forces)) my_calc_forces = calc_forces
+
+      do_consistent_energies = .FALSE.
+      IF (PRESENT(consistent_energies)) do_consistent_energies = consistent_energies
 
       CALL qs_env_rebuild_pw_env(qs_env)
 
@@ -86,31 +90,19 @@ CONTAINS
             CALL almo_entry_scf(qs_env=qs_env, calc_forces=my_calc_forces)
          ELSE
             CALL scf(qs_env=qs_env)
+         END IF
 
+         IF (do_consistent_energies) THEN
+            CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.FALSE.)
+         END IF
+
+         IF (.NOT. (dft_control%qs_control%do_ls_scf .OR. dft_control%qs_control%do_almo_scf)) THEN
             ! Compute MP2 energy
             CALL qs_energies_mp2(qs_env, my_calc_forces)
 
             ! if calculate forces, time to compute the w matrix
             CALL qs_energies_compute_matrix_w(qs_env, my_calc_forces)
 
-         END IF
-
-         IF (PRESENT(consistent_energies)) THEN
-            IF (consistent_energies) THEN
-               IF (ASSOCIATED(dft_control%rtp_control)) THEN
-                  IF (dft_control%rtp_control%periodic) THEN
-                     CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.FALSE.)
-                  ELSE
-                     CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.TRUE.)
-                  ENDIF
-               ELSE
-                  CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.TRUE.)
-               ENDIF
-               ! add MP2 energy if necessary
-               IF (ASSOCIATED(qs_env%mp2_env)) THEN
-                  energy%total = energy%total + energy%mp2
-               END IF
-            END IF
          END IF
 
          ! Check for energy correction
