@@ -23,44 +23,75 @@
  * \author Ole Schuett
  ******************************************************************************/
 void grid_create_task_list(
-    const int ntasks, const int nlevels, const int natoms, const int nkinds,
-    const int nblocks, const int block_offsets[nblocks],
-    const double atom_positions[natoms][3], const int atom_kinds[natoms],
-    const grid_basis_set *basis_sets[nkinds], const int level_list[ntasks],
-    const int iatom_list[ntasks], const int jatom_list[ntasks],
-    const int iset_list[ntasks], const int jset_list[ntasks],
-    const int ipgf_list[ntasks], const int jpgf_list[ntasks],
-    const int border_mask_list[ntasks], const int block_num_list[ntasks],
-    const double radius_list[ntasks], const double rab_list[ntasks][3],
-    grid_task_list **task_list) {
+    const bool orthorhombic, const int ntasks, const int nlevels,
+    const int natoms, const int nkinds, const int nblocks,
+    const int block_offsets[nblocks], const double atom_positions[natoms][3],
+    const int atom_kinds[natoms], const grid_basis_set *basis_sets[nkinds],
+    const int level_list[ntasks], const int iatom_list[ntasks],
+    const int jatom_list[ntasks], const int iset_list[ntasks],
+    const int jset_list[ntasks], const int ipgf_list[ntasks],
+    const int jpgf_list[ntasks], const int border_mask_list[ntasks],
+    const int block_num_list[ntasks], const double radius_list[ntasks],
+    const double rab_list[ntasks][3], const int npts_global[nlevels][3],
+    const int npts_local[nlevels][3], const int shift_local[nlevels][3],
+    const int border_width[nlevels][3], const double dh[nlevels][3][3],
+    const double dh_inv[nlevels][3][3], grid_task_list **task_list_out) {
 
   const grid_library_config config = grid_library_get_config();
 
-  if (*task_list == NULL) {
-    *task_list = malloc(sizeof(grid_task_list));
-    memset(*task_list, 0, sizeof(grid_task_list));
+  grid_task_list *task_list = NULL;
+
+  if (*task_list_out == NULL) {
+    task_list = malloc(sizeof(grid_task_list));
+    memset(task_list, 0, sizeof(grid_task_list));
 
     // Resolve AUTO to a concrete backend.
     if (config.backend == GRID_BACKEND_AUTO) {
 #ifdef __GRID_CUDA
-      (*task_list)->backend = GRID_BACKEND_GPU;
+      task_list->backend = GRID_BACKEND_GPU;
 #else
-      (*task_list)->backend = GRID_BACKEND_REF;
+      task_list->backend = GRID_BACKEND_REF;
 #endif
     } else {
-      (*task_list)->backend = config.backend;
+      task_list->backend = config.backend;
     }
+  } else {
+    // Reuse existing task list.
+    task_list = *task_list_out;
+    free(task_list->npts_local);
+    free(task_list->shift_local);
+    free(task_list->border_width);
+    free(task_list->dh);
+    free(task_list->dh_inv);
   }
+
+  // Store grid layout.
+  task_list->nlevels = nlevels;
+  task_list->orthorhombic = orthorhombic;
+  size_t size = nlevels * 3 * sizeof(int);
+  task_list->npts_global = malloc(size);
+  memcpy(task_list->npts_global, npts_global, size);
+  task_list->npts_local = malloc(size);
+  memcpy(task_list->npts_local, npts_local, size);
+  task_list->shift_local = malloc(size);
+  memcpy(task_list->shift_local, shift_local, size);
+  task_list->border_width = malloc(size);
+  memcpy(task_list->border_width, border_width, size);
+  size = nlevels * 9 * sizeof(double);
+  task_list->dh = malloc(size);
+  memcpy(task_list->dh, dh, size);
+  task_list->dh_inv = malloc(size);
+  memcpy(task_list->dh_inv, dh_inv, size);
 
   // Create reference backend - needed as fallback and possibly for validation.
   grid_ref_create_task_list(
       ntasks, nlevels, natoms, nkinds, nblocks, block_offsets, atom_positions,
       atom_kinds, basis_sets, level_list, iatom_list, jatom_list, iset_list,
       jset_list, ipgf_list, jpgf_list, border_mask_list, block_num_list,
-      radius_list, rab_list, &(*task_list)->ref);
+      radius_list, rab_list, &task_list->ref);
 
   // Create other backend, if selected.
-  switch ((*task_list)->backend) {
+  switch (task_list->backend) {
   case GRID_BACKEND_REF:
     break; // was already created above
   case GRID_BACKEND_CPU:
@@ -68,7 +99,7 @@ void grid_create_task_list(
         ntasks, nlevels, natoms, nkinds, nblocks, block_offsets, atom_positions,
         atom_kinds, basis_sets, level_list, iatom_list, jatom_list, iset_list,
         jset_list, ipgf_list, jpgf_list, border_mask_list, block_num_list,
-        radius_list, rab_list, &(*task_list)->cpu);
+        radius_list, rab_list, &task_list->cpu);
     break;
 #ifdef __GRID_CUDA
   case GRID_BACKEND_GPU:
@@ -76,7 +107,7 @@ void grid_create_task_list(
         ntasks, nlevels, natoms, nkinds, nblocks, block_offsets, atom_positions,
         atom_kinds, basis_sets, level_list, iatom_list, jatom_list, iset_list,
         jset_list, ipgf_list, jpgf_list, border_mask_list, block_num_list,
-        radius_list, rab_list, &(*task_list)->gpu);
+        radius_list, rab_list, &task_list->gpu);
     break;
 #else
   case GRID_BACKEND_GPU:
@@ -90,6 +121,8 @@ void grid_create_task_list(
     abort();
     break;
   }
+
+  *task_list_out = task_list;
 }
 
 /*******************************************************************************
@@ -113,6 +146,11 @@ void grid_free_task_list(grid_task_list *task_list) {
   }
 #endif
 
+  free(task_list->npts_local);
+  free(task_list->shift_local);
+  free(task_list->border_width);
+  free(task_list->dh);
+  free(task_list->dh_inv);
   free(task_list);
 }
 
@@ -128,6 +166,20 @@ void grid_collocate_task_list(
     const int shift_local[nlevels][3], const int border_width[nlevels][3],
     const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
     const grid_buffer *pab_blocks, double *grid[nlevels]) {
+
+  assert(task_list->nlevels == nlevels);
+  assert(task_list->orthorhombic == orthorhombic);
+  for (int ilevel = 0; ilevel < nlevels; ilevel++) {
+    for (int i = 0; i < 3; i++) {
+      assert(task_list->npts_global[ilevel][i] == npts_global[ilevel][i]);
+      assert(task_list->npts_local[ilevel][i] == npts_local[ilevel][i]);
+      assert(task_list->border_width[ilevel][i] == border_width[ilevel][i]);
+      for (int j = 0; j < 3; j++) {
+        assert(task_list->dh[ilevel][i][j] == dh[ilevel][i][j]);
+        assert(task_list->dh_inv[ilevel][i][j] == dh_inv[ilevel][i][j]);
+      }
+    }
+  }
 
   switch (task_list->backend) {
   case GRID_BACKEND_REF:
@@ -212,6 +264,20 @@ void grid_integrate_task_list(
     const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
     const grid_buffer *pab_blocks, const double *grid[nlevels],
     grid_buffer *hab_blocks, double forces[natoms][3], double virial[3][3]) {
+
+  assert(task_list->nlevels == nlevels);
+  assert(task_list->orthorhombic == orthorhombic);
+  for (int ilevel = 0; ilevel < nlevels; ilevel++) {
+    for (int i = 0; i < 3; i++) {
+      assert(task_list->npts_global[ilevel][i] == npts_global[ilevel][i]);
+      assert(task_list->npts_local[ilevel][i] == npts_local[ilevel][i]);
+      assert(task_list->border_width[ilevel][i] == border_width[ilevel][i]);
+      for (int j = 0; j < 3; j++) {
+        assert(task_list->dh[ilevel][i][j] == dh[ilevel][i][j]);
+        assert(task_list->dh_inv[ilevel][i][j] == dh_inv[ilevel][i][j]);
+      }
+    }
+  }
 
   assert(forces == NULL || pab_blocks != NULL);
   assert(virial == NULL || pab_blocks != NULL);
