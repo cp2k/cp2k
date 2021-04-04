@@ -338,7 +338,7 @@ CONTAINS
                                  cell=cell, &
                                  soft=my_soft, &
                                  basis_type=my_basis_type, &
-                                 nlevels=gridlevel_info%ngrid_levels)
+                                 rs_grids=rs_grids)
 
       ! If the rank order has changed, reallocate any of the distributed rs_grids
       IF (reorder_rs_grid_ranks) THEN
@@ -513,14 +513,14 @@ CONTAINS
 !> \brief Sends the task list data to the grid API.
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE create_grid_task_list(task_list, qs_kind_set, particle_set, cell, soft, basis_type, nlevels)
+   SUBROUTINE create_grid_task_list(task_list, qs_kind_set, particle_set, cell, soft, basis_type, rs_grids)
       TYPE(task_list_type), POINTER                      :: task_list
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
       LOGICAL                                            :: soft
       CHARACTER(LEN=default_string_length)               :: basis_type
-      INTEGER                                            :: nlevels
+      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_grids
 
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       INTEGER                                            :: nset, natoms, nkinds, ntasks, ikind, iatom, itask, nsgf
@@ -601,7 +601,6 @@ CONTAINS
       END DO
 
       CALL grid_create_task_list(ntasks=ntasks, &
-                                 nlevels=nlevels, &
                                  natoms=natoms, &
                                  nkinds=nkinds, &
                                  nblocks=SIZE(task_list%pair_offsets_recv), &
@@ -620,6 +619,7 @@ CONTAINS
                                  block_num_list=block_num_list, &
                                  radius_list=radius_list, &
                                  rab_list=rab_list, &
+                                 rs_grids=rs_grids, &
                                  task_list=task_list%grid_task_list)
 
       CALL grid_create_buffer(task_list%buffer_size_recv, task_list%pab_buffer)

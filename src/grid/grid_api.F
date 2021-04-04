@@ -772,7 +772,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Allocates a task list which can be passed to grid_collocate_task_list.
 !> \param ntasks ...
-!> \param nlevels ...
 !> \param natoms ...
 !> \param nkinds ...
 !> \param nblocks ...
@@ -791,17 +790,18 @@ CONTAINS
 !> \param block_num_list ...
 !> \param radius_list ...
 !> \param rab_list ...
+!> \param rs_grids ...
 !> \param task_list ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE grid_create_task_list(ntasks, nlevels, natoms, nkinds, nblocks, &
+   SUBROUTINE grid_create_task_list(ntasks, natoms, nkinds, nblocks, &
                                     block_offsets, atom_positions, atom_kinds, basis_sets, &
                                     level_list, iatom_list, jatom_list, &
                                     iset_list, jset_list, ipgf_list, jpgf_list, &
                                     border_mask_list, block_num_list, &
-                                    radius_list, rab_list, task_list)
+                                    radius_list, rab_list, rs_grids, task_list)
 
-      INTEGER, INTENT(IN)                                :: ntasks, nlevels, natoms, nkinds, nblocks
+      INTEGER, INTENT(IN)                                :: ntasks, natoms, nkinds, nblocks
       INTEGER, DIMENSION(:), INTENT(IN), TARGET          :: block_offsets
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), TARGET :: atom_positions
       INTEGER, DIMENSION(:), INTENT(IN), TARGET          :: atom_kinds
@@ -813,24 +813,36 @@ CONTAINS
                                                             block_num_list
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), TARGET    :: radius_list
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), TARGET :: rab_list
+      TYPE(realspace_grid_p_type), DIMENSION(:), &
+         INTENT(IN)                                      :: rs_grids
       TYPE(grid_task_list_type), INTENT(INOUT)           :: task_list
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'grid_create_task_list'
 
-      INTEGER                                            :: handle, ikind
+      INTEGER                                            :: handle, ikind, ilevel, nlevels
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), TARGET      :: border_width, npts_global, npts_local, &
+                                                            shift_local
+      LOGICAL(KIND=C_BOOL)                               :: orthorhombic
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         TARGET                                          :: dh, dh_inv
       TYPE(C_PTR) :: block_num_list_c, block_offsets_c, border_mask_list_c, iatom_list_c, &
          ipgf_list_c, iset_list_c, jatom_list_c, jpgf_list_c, jset_list_c, level_list_c, &
          rab_list_c, radius_list_c
       TYPE(C_PTR), ALLOCATABLE, DIMENSION(:), TARGET     :: basis_sets_c
+      TYPE(realspace_grid_type), POINTER                 :: rsgrid
       INTERFACE
-         SUBROUTINE grid_create_task_list_c(ntasks, nlevels, natoms, nkinds, nblocks, &
+         SUBROUTINE grid_create_task_list_c(orthorhombic, &
+                                            ntasks, nlevels, natoms, nkinds, nblocks, &
                                             block_offsets, atom_positions, atom_kinds, basis_sets, &
                                             level_list, iatom_list, jatom_list, &
                                             iset_list, jset_list, ipgf_list, jpgf_list, &
                                             border_mask_list, block_num_list, &
-                                            radius_list, rab_list, task_list) &
+                                            radius_list, rab_list, &
+                                            npts_global, npts_local, shift_local, &
+                                            border_width, dh, dh_inv, task_list) &
             BIND(C, name="grid_create_task_list")
-            IMPORT :: C_PTR, C_INT
+            IMPORT :: C_PTR, C_INT, C_BOOL
+            LOGICAL(KIND=C_BOOL), VALUE               :: orthorhombic
             INTEGER(KIND=C_INT), VALUE                :: ntasks
             INTEGER(KIND=C_INT), VALUE                :: nlevels
             INTEGER(KIND=C_INT), VALUE                :: natoms
@@ -851,6 +863,12 @@ CONTAINS
             TYPE(C_PTR), VALUE                        :: block_num_list
             TYPE(C_PTR), VALUE                        :: radius_list
             TYPE(C_PTR), VALUE                        :: rab_list
+            TYPE(C_PTR), VALUE                        :: npts_global
+            TYPE(C_PTR), VALUE                        :: npts_local
+            TYPE(C_PTR), VALUE                        :: shift_local
+            TYPE(C_PTR), VALUE                        :: border_width
+            TYPE(C_PTR), VALUE                        :: dh
+            TYPE(C_PTR), VALUE                        :: dh_inv
             TYPE(C_PTR)                               :: task_list
          END SUBROUTINE grid_create_task_list_c
       END INTERFACE
@@ -878,6 +896,25 @@ CONTAINS
          basis_sets_c(ikind) = basis_sets(ikind)%c_ptr
       END DO
 
+      nlevels = SIZE(rs_grids)
+      CPASSERT(nlevels > 0)
+      orthorhombic = LOGICAL(rs_grids(1)%rs_grid%desc%orthorhombic, C_BOOL)
+
+      ALLOCATE (npts_global(3, nlevels), npts_local(3, nlevels))
+      ALLOCATE (shift_local(3, nlevels), border_width(3, nlevels))
+      ALLOCATE (dh(3, 3, nlevels), dh_inv(3, 3, nlevels))
+      DO ilevel = 1, nlevels
+         rsgrid => rs_grids(ilevel)%rs_grid
+         CALL get_rsgrid_properties(rsgrid=rsgrid, &
+                                    npts_global=npts_global(:, ilevel), &
+                                    npts_local=npts_local(:, ilevel), &
+                                    shift_local=shift_local(:, ilevel), &
+                                    border_width=border_width(:, ilevel))
+         CPASSERT(rsgrid%desc%orthorhombic .EQV. orthorhombic)  ! should be the same for all levels
+         dh(:, :, ilevel) = rsgrid%desc%dh(:, :)
+         dh_inv(:, :, ilevel) = rsgrid%desc%dh_inv(:, :)
+      END DO
+
 #if __GNUC__ >= 9
       CPASSERT(IS_CONTIGUOUS(block_offsets))
       CPASSERT(IS_CONTIGUOUS(atom_positions))
@@ -894,6 +931,12 @@ CONTAINS
       CPASSERT(IS_CONTIGUOUS(block_num_list))
       CPASSERT(IS_CONTIGUOUS(radius_list))
       CPASSERT(IS_CONTIGUOUS(rab_list))
+      CPASSERT(IS_CONTIGUOUS(npts_global))
+      CPASSERT(IS_CONTIGUOUS(npts_local))
+      CPASSERT(IS_CONTIGUOUS(shift_local))
+      CPASSERT(IS_CONTIGUOUS(border_width))
+      CPASSERT(IS_CONTIGUOUS(dh))
+      CPASSERT(IS_CONTIGUOUS(dh_inv))
 #endif
 
       IF (ntasks > 0) THEN
@@ -926,7 +969,8 @@ CONTAINS
       ENDIF
 
       !If task_list%c_ptr is already allocated, then its memory will be reused or freed.
-      CALL grid_create_task_list_c(ntasks=ntasks, &
+      CALL grid_create_task_list_c(orthorhombic=orthorhombic, &
+                                   ntasks=ntasks, &
                                    nlevels=nlevels, &
                                    natoms=natoms, &
                                    nkinds=nkinds, &
@@ -946,6 +990,12 @@ CONTAINS
                                    block_num_list=block_num_list_c, &
                                    radius_list=radius_list_c, &
                                    rab_list=rab_list_c, &
+                                   npts_global=C_LOC(npts_global(1, 1)), &
+                                   npts_local=C_LOC(npts_local(1, 1)), &
+                                   shift_local=C_LOC(shift_local(1, 1)), &
+                                   border_width=C_LOC(border_width(1, 1)), &
+                                   dh=C_LOC(dh(1, 1, 1)), &
+                                   dh_inv=C_LOC(dh_inv(1, 1, 1)), &
                                    task_list=task_list%c_ptr)
 
       CPASSERT(C_ASSOCIATED(task_list%c_ptr))
