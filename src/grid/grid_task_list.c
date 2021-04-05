@@ -85,10 +85,11 @@ void grid_create_task_list(
 
   // Create reference backend - needed as fallback and possibly for validation.
   grid_ref_create_task_list(
-      ntasks, nlevels, natoms, nkinds, nblocks, block_offsets, atom_positions,
-      atom_kinds, basis_sets, level_list, iatom_list, jatom_list, iset_list,
-      jset_list, ipgf_list, jpgf_list, border_mask_list, block_num_list,
-      radius_list, rab_list, &task_list->ref);
+      orthorhombic, ntasks, nlevels, natoms, nkinds, nblocks, block_offsets,
+      atom_positions, atom_kinds, basis_sets, level_list, iatom_list,
+      jatom_list, iset_list, jset_list, ipgf_list, jpgf_list, border_mask_list,
+      block_num_list, radius_list, rab_list, npts_global, npts_local,
+      shift_local, border_width, dh, dh_inv, &task_list->ref);
 
   // Create other backend, if selected.
   switch (task_list->backend) {
@@ -183,9 +184,8 @@ void grid_collocate_task_list(
 
   switch (task_list->backend) {
   case GRID_BACKEND_REF:
-    grid_ref_collocate_task_list(task_list->ref, orthorhombic, func, nlevels,
-                                 npts_global, npts_local, shift_local,
-                                 border_width, dh, dh_inv, pab_blocks, grid);
+    grid_ref_collocate_task_list(task_list->ref, func, nlevels, pab_blocks,
+                                 grid);
     break;
   case GRID_BACKEND_CPU:
     grid_cpu_collocate_task_list(task_list->cpu, orthorhombic, func, nlevels,
@@ -216,9 +216,8 @@ void grid_collocate_task_list(
     }
 
     // Call reference implementation.
-    grid_ref_collocate_task_list(
-        task_list->ref, orthorhombic, func, nlevels, npts_global, npts_local,
-        shift_local, border_width, dh, dh_inv, pab_blocks, grid_ref);
+    grid_ref_collocate_task_list(task_list->ref, func, nlevels, pab_blocks,
+                                 grid_ref);
 
     // Compare results.
     const double tolerance = 1e-12;
@@ -298,9 +297,7 @@ void grid_integrate_task_list(
                                  pab_blocks, grid, hab_blocks, forces, virial);
     break;
   case GRID_BACKEND_REF:
-    grid_ref_integrate_task_list(task_list->ref, orthorhombic, compute_tau,
-                                 natoms, nlevels, npts_global, npts_local,
-                                 shift_local, border_width, dh, dh_inv,
+    grid_ref_integrate_task_list(task_list->ref, compute_tau, natoms, nlevels,
                                  pab_blocks, grid, hab_blocks, forces, virial);
     break;
   default:
@@ -318,11 +315,10 @@ void grid_integrate_task_list(
     double forces_ref[natoms][3], virial_ref[3][3];
 
     // Call reference implementation.
-    grid_ref_integrate_task_list(
-        task_list->ref, orthorhombic, compute_tau, natoms, nlevels, npts_global,
-        npts_local, shift_local, border_width, dh, dh_inv, pab_blocks, grid,
-        hab_blocks_ref, (forces != NULL) ? forces_ref : NULL,
-        (virial != NULL) ? virial_ref : NULL);
+    grid_ref_integrate_task_list(task_list->ref, compute_tau, natoms, nlevels,
+                                 pab_blocks, grid, hab_blocks_ref,
+                                 (forces != NULL) ? forces_ref : NULL,
+                                 (virial != NULL) ? virial_ref : NULL);
 
     // Compare hab.
     const double hab_tolerance = 1e-12;

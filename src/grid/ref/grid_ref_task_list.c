@@ -40,16 +40,19 @@ static int compare_tasks(const void *a, const void *b) {
  * \author Ole Schuett
  ******************************************************************************/
 void grid_ref_create_task_list(
-    const int ntasks, const int nlevels, const int natoms, const int nkinds,
-    const int nblocks, const int block_offsets[nblocks],
-    const double atom_positions[natoms][3], const int atom_kinds[natoms],
-    const grid_basis_set *basis_sets[nkinds], const int level_list[ntasks],
-    const int iatom_list[ntasks], const int jatom_list[ntasks],
-    const int iset_list[ntasks], const int jset_list[ntasks],
-    const int ipgf_list[ntasks], const int jpgf_list[ntasks],
-    const int border_mask_list[ntasks], const int block_num_list[ntasks],
-    const double radius_list[ntasks], const double rab_list[ntasks][3],
-    grid_ref_task_list **task_list_out) {
+    const bool orthorhombic, const int ntasks, const int nlevels,
+    const int natoms, const int nkinds, const int nblocks,
+    const int block_offsets[nblocks], const double atom_positions[natoms][3],
+    const int atom_kinds[natoms], const grid_basis_set *basis_sets[nkinds],
+    const int level_list[ntasks], const int iatom_list[ntasks],
+    const int jatom_list[ntasks], const int iset_list[ntasks],
+    const int jset_list[ntasks], const int ipgf_list[ntasks],
+    const int jpgf_list[ntasks], const int border_mask_list[ntasks],
+    const int block_num_list[ntasks], const double radius_list[ntasks],
+    const double rab_list[ntasks][3], const int npts_global[nlevels][3],
+    const int npts_local[nlevels][3], const int shift_local[nlevels][3],
+    const int border_width[nlevels][3], const double dh[nlevels][3][3],
+    const double dh_inv[nlevels][3][3], grid_ref_task_list **task_list_out) {
 
   if (*task_list_out != NULL) {
     // This is actually an opportunity to reuse some buffers.
@@ -58,6 +61,7 @@ void grid_ref_create_task_list(
 
   grid_ref_task_list *task_list = malloc(sizeof(grid_ref_task_list));
 
+  task_list->orthorhombic = orthorhombic;
   task_list->ntasks = ntasks;
   task_list->nlevels = nlevels;
   task_list->natoms = natoms;
@@ -96,6 +100,22 @@ void grid_ref_create_task_list(
     task_list->tasks[i].rab[0] = rab_list[i][0];
     task_list->tasks[i].rab[1] = rab_list[i][1];
     task_list->tasks[i].rab[2] = rab_list[i][2];
+  }
+
+  // Store grid layouts.
+  size = nlevels * sizeof(grid_ref_layout);
+  task_list->layouts = malloc(size);
+  for (int level = 0; level < nlevels; level++) {
+    for (int i = 0; i < 3; i++) {
+      task_list->layouts[level].npts_global[i] = npts_global[level][i];
+      task_list->layouts[level].npts_local[i] = npts_local[level][i];
+      task_list->layouts[level].shift_local[i] = shift_local[level][i];
+      task_list->layouts[level].border_width[i] = border_width[level][i];
+      for (int j = 0; j < 3; j++) {
+        task_list->layouts[level].dh[i][j] = dh[level][i][j];
+        task_list->layouts[level].dh_inv[i][j] = dh_inv[level][i][j];
+      }
+    }
   }
 
   // Sort tasks by level, block_num, iset, and jset.
@@ -146,6 +166,7 @@ void grid_ref_free_task_list(grid_ref_task_list *task_list) {
   free(task_list->atom_kinds);
   free(task_list->basis_sets);
   free(task_list->tasks);
+  free(task_list->layouts);
   free(task_list->first_level_block_task);
   free(task_list->last_level_block_task);
   for (int i = 0; i < omp_get_max_threads(); i++) {
@@ -225,9 +246,8 @@ static void load_pab(const grid_basis_set *ibasis, const grid_basis_set *jbasis,
  ******************************************************************************/
 static void collocate_one_grid_level(
     const grid_ref_task_list *task_list, const int *first_block_task,
-    const int *last_block_task, const bool orthorhombic,
-    const enum grid_func func, const int npts_global[3],
-    const int npts_local[3], const int shift_local[3],
+    const int *last_block_task, const enum grid_func func,
+    const int npts_global[3], const int npts_local[3], const int shift_local[3],
     const int border_width[3], const double dh[3][3], const double dh_inv[3][3],
     const double *pab_blocks, double *grid) {
 
@@ -301,7 +321,7 @@ static void collocate_one_grid_level(
         }
 
         grid_ref_collocate_pgf_product(
-            /*orthorhombic=*/orthorhombic,
+            /*orthorhombic=*/task_list->orthorhombic,
             /*border_mask=*/task->border_mask,
             /*func=*/func,
             /*la_max=*/ibasis->lmax[iset],
@@ -369,13 +389,10 @@ static void collocate_one_grid_level(
  *        See grid_task_list.h for details.
  * \author Ole Schuett
  ******************************************************************************/
-void grid_ref_collocate_task_list(
-    const grid_ref_task_list *task_list, const bool orthorhombic,
-    const enum grid_func func, const int nlevels,
-    const int npts_global[nlevels][3], const int npts_local[nlevels][3],
-    const int shift_local[nlevels][3], const int border_width[nlevels][3],
-    const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
-    const grid_buffer *pab_blocks, double *grid[nlevels]) {
+void grid_ref_collocate_task_list(const grid_ref_task_list *task_list,
+                                  const enum grid_func func, const int nlevels,
+                                  const grid_buffer *pab_blocks,
+                                  double *grid[nlevels]) {
 
   assert(task_list->nlevels == nlevels);
 
@@ -383,12 +400,11 @@ void grid_ref_collocate_task_list(
     const int idx = level * task_list->nblocks;
     const int *first_block_task = &task_list->first_level_block_task[idx];
     const int *last_block_task = &task_list->last_level_block_task[idx];
-
-    collocate_one_grid_level(task_list, first_block_task, last_block_task,
-                             orthorhombic, func, npts_global[level],
-                             npts_local[level], shift_local[level],
-                             border_width[level], dh[level], dh_inv[level],
-                             pab_blocks->host_buffer, grid[level]);
+    const grid_ref_layout *layout = &task_list->layouts[level];
+    collocate_one_grid_level(
+        task_list, first_block_task, last_block_task, func, layout->npts_global,
+        layout->npts_local, layout->shift_local, layout->border_width,
+        layout->dh, layout->dh_inv, pab_blocks->host_buffer, grid[level]);
   }
 }
 
@@ -441,12 +457,11 @@ static inline void store_hab(const grid_basis_set *ibasis,
  ******************************************************************************/
 static void integrate_one_grid_level(
     const grid_ref_task_list *task_list, const int *first_block_task,
-    const int *last_block_task, const bool orthorhombic, const bool compute_tau,
-    const int natoms, const int npts_global[3], const int npts_local[3],
-    const int shift_local[3], const int border_width[3], const double dh[3][3],
-    const double dh_inv[3][3], const grid_buffer *pab_blocks,
-    const double *grid, grid_buffer *hab_blocks, double forces[natoms][3],
-    double virial[3][3]) {
+    const int *last_block_task, const bool compute_tau, const int natoms,
+    const int npts_global[3], const int npts_local[3], const int shift_local[3],
+    const int border_width[3], const double dh[3][3], const double dh_inv[3][3],
+    const grid_buffer *pab_blocks, const double *grid, grid_buffer *hab_blocks,
+    double forces[natoms][3], double virial[3][3]) {
 
 // Using default(shared) because with GCC 9 the behavior around const changed:
 // https://www.gnu.org/software/gcc/gcc-9/porting_to.html
@@ -520,7 +535,7 @@ static void integrate_one_grid_level(
         }
 
         grid_ref_integrate_pgf_product(
-            /*orthorhombic=*/orthorhombic,
+            /*orthorhombic=*/task_list->orthorhombic,
             /*compute_tau=*/compute_tau,
             /*border_mask=*/task->border_mask,
             /*la_max=*/ibasis->lmax[iset],
@@ -589,13 +604,10 @@ static void integrate_one_grid_level(
  * \author Ole Schuett
  ******************************************************************************/
 void grid_ref_integrate_task_list(
-    const grid_ref_task_list *task_list, const bool orthorhombic,
-    const bool compute_tau, const int natoms, const int nlevels,
-    const int npts_global[nlevels][3], const int npts_local[nlevels][3],
-    const int shift_local[nlevels][3], const int border_width[nlevels][3],
-    const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
-    const grid_buffer *pab_blocks, const double *grid[nlevels],
-    grid_buffer *hab_blocks, double forces[natoms][3], double virial[3][3]) {
+    const grid_ref_task_list *task_list, const bool compute_tau,
+    const int natoms, const int nlevels, const grid_buffer *pab_blocks,
+    const double *grid[nlevels], grid_buffer *hab_blocks,
+    double forces[natoms][3], double virial[3][3]) {
 
   assert(task_list->nlevels == nlevels);
   assert(task_list->natoms == natoms);
@@ -613,12 +625,12 @@ void grid_ref_integrate_task_list(
     const int idx = level * task_list->nblocks;
     const int *first_block_task = &task_list->first_level_block_task[idx];
     const int *last_block_task = &task_list->last_level_block_task[idx];
-
+    const grid_ref_layout *layout = &task_list->layouts[level];
     integrate_one_grid_level(
-        task_list, first_block_task, last_block_task, orthorhombic, compute_tau,
-        natoms, npts_global[level], npts_local[level], shift_local[level],
-        border_width[level], dh[level], dh_inv[level], pab_blocks, grid[level],
-        hab_blocks, forces, virial);
+        task_list, first_block_task, last_block_task, compute_tau, natoms,
+        layout->npts_global, layout->npts_local, layout->shift_local,
+        layout->border_width, layout->dh, layout->dh_inv, pab_blocks,
+        grid[level], hab_blocks, forces, virial);
   }
 }
 
