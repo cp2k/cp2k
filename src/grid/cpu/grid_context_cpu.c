@@ -300,6 +300,36 @@ void update_task_lists(const int nlevels, const int ntasks,
   }
 }
 
+void update_layouts(const int nlevels, const int npts_global[nlevels][3],
+                    const int npts_local[nlevels][3],
+                    const int shift_local[nlevels][3],
+                    const int border_width[nlevels][3],
+                    const double dh[nlevels][3][3],
+                    const double dh_inv[nlevels][3][3], grid_context *ctx) {
+
+  assert(ctx != NULL);
+  assert(ctx->checksum == ctx_checksum);
+
+  if (ctx->layouts != NULL) {
+    free(ctx->layouts);
+  }
+
+  ctx->layouts = malloc(sizeof(_layout) * nlevels);
+
+  for (int level = 0; level < nlevels; level++) {
+    for (int i = 0; i < 3; i++) {
+      ctx->layouts[level].npts_global[i] = npts_global[level][i];
+      ctx->layouts[level].npts_local[i] = npts_local[level][i];
+      ctx->layouts[level].shift_local[i] = shift_local[level][i];
+      ctx->layouts[level].border_width[i] = border_width[level][i];
+      for (int j = 0; j < 3; j++) {
+        ctx->layouts[level].dh[i][j] = dh[level][i][j];
+        ctx->layouts[level].dh_inv[i][j] = dh_inv[level][i][j];
+      }
+    }
+  }
+}
+
 void update_grid(const int nlevels, grid_context *ctx) {
   assert(ctx != NULL);
   assert(ctx->checksum == ctx_checksum);
@@ -320,21 +350,26 @@ void update_grid(const int nlevels, grid_context *ctx) {
 }
 
 void *create_grid_context_cpu(
-    const int ntasks, const int nlevels, const int natoms, const int nkinds,
-    const int nblocks, const int *block_offsets,
-    const double atom_positions[natoms][3], const int *const atom_kinds,
-    const grid_basis_set **const basis_sets, const int *const level_list,
-    const int *const iatom_list, const int *jatom_list,
-    const int *const iset_list, const int *const jset_list,
-    const int *const ipgf_list, const int *const jpgf_list,
-    const int *const border_mask_list, const int *block_num_list,
-    const double *const radius_list, const double rab_list[ntasks][3]) {
+    const bool orthorhombic, const int ntasks, const int nlevels,
+    const int natoms, const int nkinds, const int nblocks,
+    const int *block_offsets, const double atom_positions[natoms][3],
+    const int *const atom_kinds, const grid_basis_set **const basis_sets,
+    const int *const level_list, const int *const iatom_list,
+    const int *jatom_list, const int *const iset_list,
+    const int *const jset_list, const int *const ipgf_list,
+    const int *const jpgf_list, const int *const border_mask_list,
+    const int *block_num_list, const double *const radius_list,
+    const double rab_list[ntasks][3], const int npts_global[nlevels][3],
+    const int npts_local[nlevels][3], const int shift_local[nlevels][3],
+    const int border_width[nlevels][3], const double dh[nlevels][3][3],
+    const double dh_inv[nlevels][3][3]) {
 
   grid_context *ctx = malloc(sizeof(grid_context));
 
   memset(ctx, 0, sizeof(grid_context));
 
   ctx->checksum = ctx_checksum;
+  ctx->orthorhombic = orthorhombic;
   update_block_offsets(nblocks, block_offsets, ctx);
   update_atoms_position(natoms, atom_positions, ctx);
   update_atoms_kinds(natoms, atom_kinds, ctx);
@@ -343,6 +378,8 @@ void *create_grid_context_cpu(
                     iset_list, jset_list, ipgf_list, jpgf_list,
                     border_mask_list, block_num_list, radius_list, rab_list,
                     ctx);
+  update_layouts(nlevels, npts_global, npts_local, shift_local, border_width,
+                 dh, dh_inv, ctx);
   update_grid(nlevels, ctx);
 
   const int max_threads = omp_get_max_threads();
@@ -360,21 +397,25 @@ void *create_grid_context_cpu(
 }
 
 void update_grid_context_cpu(
-    const int ntasks, const int nlevels, const int natoms, const int nkinds,
-    const int nblocks, const int *block_offsets,
-    const double atom_positions[natoms][3], const int *const atom_kinds,
-    const grid_basis_set **const basis_sets, const int *const level_list,
-    const int *const iatom_list, const int *jatom_list,
-    const int *const iset_list, const int *const jset_list,
-    const int *const ipgf_list, const int *const jpgf_list,
-    const int *const border_mask_list, const int *block_num_list,
-    const double *const radius_list, const double rab_list[ntasks][3],
-    void *ptr) {
+    const bool orthorhombic, const int ntasks, const int nlevels,
+    const int natoms, const int nkinds, const int nblocks,
+    const int *block_offsets, const double atom_positions[natoms][3],
+    const int *const atom_kinds, const grid_basis_set **const basis_sets,
+    const int *const level_list, const int *const iatom_list,
+    const int *jatom_list, const int *const iset_list,
+    const int *const jset_list, const int *const ipgf_list,
+    const int *const jpgf_list, const int *const border_mask_list,
+    const int *block_num_list, const double *const radius_list,
+    const double rab_list[ntasks][3], const int npts_global[nlevels][3],
+    const int npts_local[nlevels][3], const int shift_local[nlevels][3],
+    const int border_width[nlevels][3], const double dh[nlevels][3][3],
+    const double dh_inv[nlevels][3][3], void *ptr) {
 
   assert(ptr != NULL);
   grid_context *ctx = (grid_context *)ptr;
   assert(ctx->checksum == ctx_checksum);
 
+  ctx->orthorhombic = orthorhombic;
   update_block_offsets(nblocks, block_offsets, ctx);
   update_atoms_position(natoms, atom_positions, ctx);
   update_atoms_kinds(natoms, atom_kinds, ctx);
@@ -383,6 +424,8 @@ void update_grid_context_cpu(
                     iset_list, jset_list, ipgf_list, jpgf_list,
                     border_mask_list, block_num_list, radius_list, rab_list,
                     ctx);
+  update_layouts(nlevels, npts_global, npts_local, shift_local, border_width,
+                 dh, dh_inv, ctx);
   update_grid(nlevels, ctx);
 
   // Find largest Cartesian subblock size.
@@ -423,6 +466,7 @@ void destroy_grid_context_cpu(void *ptr) {
   free(ctx->tasks[0]);
   free(ctx->tasks);
   free(ctx->tasks_per_level);
+  free(ctx->layouts);
   free(ctx->grid);
   if (ctx->device_id)
     free(ctx->device_id);
@@ -513,29 +557,34 @@ void set_grid_parameters(
  *        See grid_task_list.h for details.
  ******************************************************************************/
 void grid_cpu_create_task_list(
-    const int ntasks, const int nlevels, const int natoms, const int nkinds,
-    const int nblocks, const int block_offsets[nblocks],
-    const double atom_positions[natoms][3], const int atom_kinds[natoms],
-    const grid_basis_set *basis_sets[nkinds], const int level_list[ntasks],
-    const int iatom_list[ntasks], const int jatom_list[ntasks],
-    const int iset_list[ntasks], const int jset_list[ntasks],
-    const int ipgf_list[ntasks], const int jpgf_list[ntasks],
-    const int border_mask_list[ntasks], const int block_num_list[ntasks],
-    const double radius_list[ntasks], const double rab_list[ntasks][3],
-    grid_cpu_task_list **task_list) {
+    const bool orthorhombic, const int ntasks, const int nlevels,
+    const int natoms, const int nkinds, const int nblocks,
+    const int block_offsets[nblocks], const double atom_positions[natoms][3],
+    const int atom_kinds[natoms], const grid_basis_set *basis_sets[nkinds],
+    const int level_list[ntasks], const int iatom_list[ntasks],
+    const int jatom_list[ntasks], const int iset_list[ntasks],
+    const int jset_list[ntasks], const int ipgf_list[ntasks],
+    const int jpgf_list[ntasks], const int border_mask_list[ntasks],
+    const int block_num_list[ntasks], const double radius_list[ntasks],
+    const double rab_list[ntasks][3], const int npts_global[nlevels][3],
+    const int npts_local[nlevels][3], const int shift_local[nlevels][3],
+    const int border_width[nlevels][3], const double dh[nlevels][3][3],
+    const double dh_inv[nlevels][3][3], grid_cpu_task_list **task_list) {
 
   if (*task_list == NULL) {
     *task_list = create_grid_context_cpu(
-        ntasks, nlevels, natoms, nkinds, nblocks, block_offsets, atom_positions,
-        atom_kinds, basis_sets, level_list, iatom_list, jatom_list, iset_list,
-        jset_list, ipgf_list, jpgf_list, border_mask_list, block_num_list,
-        radius_list, rab_list);
+        orthorhombic, ntasks, nlevels, natoms, nkinds, nblocks, block_offsets,
+        atom_positions, atom_kinds, basis_sets, level_list, iatom_list,
+        jatom_list, iset_list, jset_list, ipgf_list, jpgf_list,
+        border_mask_list, block_num_list, radius_list, rab_list, npts_global,
+        npts_local, shift_local, border_width, dh, dh_inv);
   } else {
     update_grid_context_cpu(
-        ntasks, nlevels, natoms, nkinds, nblocks, block_offsets, atom_positions,
-        atom_kinds, basis_sets, level_list, iatom_list, jatom_list, iset_list,
-        jset_list, ipgf_list, jpgf_list, border_mask_list, block_num_list,
-        radius_list, rab_list, *task_list);
+        orthorhombic, ntasks, nlevels, natoms, nkinds, nblocks, block_offsets,
+        atom_positions, atom_kinds, basis_sets, level_list, iatom_list,
+        jatom_list, iset_list, jset_list, ipgf_list, jpgf_list,
+        border_mask_list, block_num_list, radius_list, rab_list, npts_global,
+        npts_local, shift_local, border_width, dh, dh_inv, *task_list);
   }
 
   const grid_library_config config = grid_library_get_config();

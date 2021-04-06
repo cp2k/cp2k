@@ -48,6 +48,15 @@ typedef struct {
   enum checksum_ checksum;
 } _task;
 
+typedef struct {
+  int npts_global[3];
+  int npts_local[3];
+  int shift_local[3];
+  int border_width[3];
+  double dh[3][3];
+  double dh_inv[3][3];
+} _layout;
+
 typedef struct grid_context_ {
   int ntasks;  // total number of tasks
   int nlevels; // number of different grid
@@ -63,6 +72,7 @@ typedef struct grid_context_ {
   int *atom_kinds;
   grid_basis_set **basis_sets;
   _task **tasks;
+  _layout *layouts;
   int *tasks_per_level;
   int maxco;
   bool apply_cutoff;
