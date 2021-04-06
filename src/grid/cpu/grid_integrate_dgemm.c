@@ -1059,13 +1059,9 @@ void integrate_one_grid_level_dgemm(
  * matrix multiplication
  ******************************************************************************/
 void grid_cpu_integrate_task_list(
-    void *ptr, const bool orthorhombic, const bool compute_tau,
-    const int natoms, const int nlevels, const int npts_global[nlevels][3],
-    const int npts_local[nlevels][3], const int shift_local[nlevels][3],
-    const int border_width[nlevels][3], const double dh[nlevels][3][3],
-    const double dh_inv[nlevels][3][3], const grid_buffer *const pab_blocks,
-    double *grid[nlevels], grid_buffer *hab_blocks, double forces[natoms][3],
-    double virial[3][3]) {
+    void *ptr, const bool compute_tau, const int natoms, const int nlevels,
+    const grid_buffer *const pab_blocks, double *grid[nlevels],
+    grid_buffer *hab_blocks, double forces[natoms][3], double virial[3][3]) {
 
   grid_context *const ctx = (grid_context *const)ptr;
 
@@ -1081,14 +1077,13 @@ void grid_cpu_integrate_task_list(
   if (ctx->scratch == NULL)
     ctx->scratch = malloc(hab_blocks->size * max_threads);
 
-  ctx->orthorhombic = orthorhombic;
-
   //#pragma omp parallel for
   for (int level = 0; level < ctx->nlevels; level++) {
-    set_grid_parameters(&ctx->grid[level], orthorhombic, npts_global[level],
-                        npts_local[level], shift_local[level],
-                        border_width[level], dh[level], dh_inv[level],
-                        grid[level]);
+    const _layout *layout = &ctx->layouts[level];
+    set_grid_parameters(&ctx->grid[level], ctx->orthorhombic,
+                        layout->npts_global, layout->npts_local,
+                        layout->shift_local, layout->border_width, layout->dh,
+                        layout->dh_inv, grid[level]);
     ctx->grid[level].data = grid[level];
   }
 
@@ -1106,9 +1101,10 @@ void grid_cpu_integrate_task_list(
   }
 
   for (int level = 0; level < ctx->nlevels; level++) {
+    const _layout *layout = &ctx->layouts[level];
     integrate_one_grid_level_dgemm(ctx, level, compute_tau, calculate_forces,
-                                   calculate_virial, shift_local[level],
-                                   border_width[level], pab_blocks, hab_blocks,
+                                   calculate_virial, layout->shift_local,
+                                   layout->border_width, pab_blocks, hab_blocks,
                                    &forces_, &virial_);
     ctx->grid[level].data = NULL;
   }

@@ -1232,19 +1232,14 @@ void collocate_one_grid_level_dgemm(grid_context *const ctx,
  * \brief Collocate all tasks of a given list onto given grids.
  *        See grid_task_list.h for details.
  ******************************************************************************/
-void grid_cpu_collocate_task_list(
-    grid_cpu_task_list *const ptr, const bool orthorhombic,
-    const enum grid_func func, const int nlevels,
-    const int npts_global[nlevels][3], const int npts_local[nlevels][3],
-    const int shift_local[nlevels][3], const int border_width[nlevels][3],
-    const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
-    const grid_buffer *pab_blocks, double *grid[nlevels]) {
+void grid_cpu_collocate_task_list(grid_cpu_task_list *const ptr,
+                                  const enum grid_func func, const int nlevels,
+                                  const grid_buffer *pab_blocks,
+                                  double *grid[nlevels]) {
 
   grid_context *const ctx = (grid_context *const)ptr;
 
   assert(ctx->checksum == ctx_checksum);
-
-  ctx->orthorhombic = orthorhombic;
 
   const int max_threads = omp_get_max_threads();
 
@@ -1252,10 +1247,11 @@ void grid_cpu_collocate_task_list(
 
   //#pragma omp parallel for
   for (int level = 0; level < ctx->nlevels; level++) {
-    set_grid_parameters(&ctx->grid[level], orthorhombic, npts_global[level],
-                        npts_local[level], shift_local[level],
-                        border_width[level], dh[level], dh_inv[level],
-                        grid[level]);
+    const _layout *layout = &ctx->layouts[level];
+    set_grid_parameters(&ctx->grid[level], ctx->orthorhombic,
+                        layout->npts_global, layout->npts_local,
+                        layout->shift_local, layout->border_width, layout->dh,
+                        layout->dh_inv, grid[level]);
     memset(ctx->grid[level].data, 0,
            sizeof(double) * ctx->grid[level].alloc_size_);
   }
@@ -1277,8 +1273,10 @@ void grid_cpu_collocate_task_list(
   }
 
   for (int level = 0; level < ctx->nlevels; level++) {
-    collocate_one_grid_level_dgemm(ctx, border_width[level], shift_local[level],
-                                   func, level, pab_blocks);
+    const _layout *layout = &ctx->layouts[level];
+    collocate_one_grid_level_dgemm(ctx, layout->border_width,
+                                   layout->shift_local, func, level,
+                                   pab_blocks);
   }
 
   grid_free_scratch(ctx->scratch);
