@@ -22,8 +22,8 @@ extern "C" {
  ******************************************************************************/
 void grid_gpu_collocate_one_grid_level(
     const grid_gpu_task_list *task_list, const int first_task,
-    const int last_task, const bool orthorhombic, const enum grid_func func,
-    const int npts_global[3], const int npts_local[3], const int shift_local[3],
+    const int last_task, const enum grid_func func, const int npts_global[3],
+    const int npts_local[3], const int shift_local[3],
     const int border_width[3], const double dh[3][3], const double dh_inv[3][3],
     const cudaStream_t stream, const double *pab_blocks_dev, double *grid_dev,
     int *lp_diff);

@@ -202,8 +202,8 @@ __global__ static void grid_integrate_tau_forces(const kernel_params params) {
  ******************************************************************************/
 void grid_gpu_integrate_one_grid_level(
     const grid_gpu_task_list *task_list, const int first_task,
-    const int last_task, const bool orthorhombic, const bool compute_tau,
-    const int npts_global[3], const int npts_local[3], const int shift_local[3],
+    const int last_task, const bool compute_tau, const int npts_global[3],
+    const int npts_local[3], const int shift_local[3],
     const int border_width[3], const double dh[3][3], const double dh_inv[3][3],
     const cudaStream_t stream, const double *pab_blocks_dev,
     const double *grid_dev, double *hab_blocks_dev, double *forces_dev,
@@ -251,7 +251,7 @@ void grid_gpu_integrate_one_grid_level(
   params.smem_alpha_offset = cab_len;
   params.smem_cxyz_offset = params.smem_alpha_offset + alpha_len;
   params.first_task = first_task;
-  params.orthorhombic = orthorhombic;
+  params.orthorhombic = task_list->orthorhombic;
   params.grid = grid_dev;
   params.tasks = task_list->tasks_dev;
   params.atom_kinds = task_list->atom_kinds_dev;
