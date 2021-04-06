@@ -139,8 +139,8 @@ __global__ static void collocate_kernel_anyfunc(const kernel_params params) {
  ******************************************************************************/
 void grid_gpu_collocate_one_grid_level(
     const grid_gpu_task_list *task_list, const int first_task,
-    const int last_task, const bool orthorhombic, const enum grid_func func,
-    const int npts_global[3], const int npts_local[3], const int shift_local[3],
+    const int last_task, const enum grid_func func, const int npts_global[3],
+    const int npts_local[3], const int shift_local[3],
     const int border_width[3], const double dh[3][3], const double dh_inv[3][3],
     const cudaStream_t stream, const double *pab_blocks_dev, double *grid_dev,
     int *lp_diff) {
@@ -183,7 +183,7 @@ void grid_gpu_collocate_one_grid_level(
   params.smem_alpha_offset = cab_len;
   params.smem_cxyz_offset = params.smem_alpha_offset + alpha_len;
   params.first_task = first_task;
-  params.orthorhombic = orthorhombic;
+  params.orthorhombic = task_list->orthorhombic;
   params.func = func;
   params.grid = grid_dev;
   params.la_min_diff = ldiffs.la_min_diff;

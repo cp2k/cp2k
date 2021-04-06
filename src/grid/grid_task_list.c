@@ -105,10 +105,11 @@ void grid_create_task_list(
 #ifdef __GRID_CUDA
   case GRID_BACKEND_GPU:
     grid_gpu_create_task_list(
-        ntasks, nlevels, natoms, nkinds, nblocks, block_offsets, atom_positions,
-        atom_kinds, basis_sets, level_list, iatom_list, jatom_list, iset_list,
-        jset_list, ipgf_list, jpgf_list, border_mask_list, block_num_list,
-        radius_list, rab_list, &task_list->gpu);
+        orthorhombic, ntasks, nlevels, natoms, nkinds, nblocks, block_offsets,
+        atom_positions, atom_kinds, basis_sets, level_list, iatom_list,
+        jatom_list, iset_list, jset_list, ipgf_list, jpgf_list,
+        border_mask_list, block_num_list, radius_list, rab_list, npts_global,
+        npts_local, shift_local, border_width, dh, dh_inv, &task_list->gpu);
     break;
 #else
   case GRID_BACKEND_GPU:
@@ -194,9 +195,8 @@ void grid_collocate_task_list(
     break;
 #ifdef __GRID_CUDA
   case GRID_BACKEND_GPU:
-    grid_gpu_collocate_task_list(task_list->gpu, orthorhombic, func, nlevels,
-                                 npts_global, npts_local, shift_local,
-                                 border_width, dh, dh_inv, pab_blocks, grid);
+    grid_gpu_collocate_task_list(task_list->gpu, func, nlevels, pab_blocks,
+                                 grid);
     break;
 #endif
   default:
@@ -284,9 +284,7 @@ void grid_integrate_task_list(
   switch (task_list->backend) {
 #ifdef __GRID_CUDA
   case GRID_BACKEND_GPU:
-    grid_gpu_integrate_task_list(task_list->gpu, orthorhombic, compute_tau,
-                                 natoms, nlevels, npts_global, npts_local,
-                                 shift_local, border_width, dh, dh_inv,
+    grid_gpu_integrate_task_list(task_list->gpu, compute_tau, natoms, nlevels,
                                  pab_blocks, grid, hab_blocks, forces, virial);
     break;
 #endif

@@ -40,15 +40,18 @@
  * \author Ole Schuett
  ******************************************************************************/
 void grid_gpu_create_task_list(
-    const int ntasks, const int nlevels, const int natoms, const int nkinds,
-    const int nblocks, const int block_offsets[],
-    const double atom_positions[][3], const int atom_kinds[],
-    const grid_basis_set *basis_sets[], const int level_list[],
-    const int iatom_list[], const int jatom_list[], const int iset_list[],
-    const int jset_list[], const int ipgf_list[], const int jpgf_list[],
-    const int border_mask_list[], const int block_num_list[],
-    const double radius_list[], const double rab_list[][3],
-    grid_gpu_task_list **task_list_out) {
+    const bool orthorhombic, const int ntasks, const int nlevels,
+    const int natoms, const int nkinds, const int nblocks,
+    const int block_offsets[], const double atom_positions[][3],
+    const int atom_kinds[], const grid_basis_set *basis_sets[],
+    const int level_list[], const int iatom_list[], const int jatom_list[],
+    const int iset_list[], const int jset_list[], const int ipgf_list[],
+    const int jpgf_list[], const int border_mask_list[],
+    const int block_num_list[], const double radius_list[],
+    const double rab_list[][3], const int npts_global[][3],
+    const int npts_local[][3], const int shift_local[][3],
+    const int border_width[][3], const double dh[][3][3],
+    const double dh_inv[][3][3], grid_gpu_task_list **task_list_out) {
 
   // Select GPU device.
   CHECK(cudaSetDevice(grid_library_get_config().device_id));
@@ -61,13 +64,30 @@ void grid_gpu_create_task_list(
   grid_gpu_task_list *task_list =
       (grid_gpu_task_list *)malloc(sizeof(grid_gpu_task_list));
 
+  task_list->orthorhombic = orthorhombic;
   task_list->ntasks = ntasks;
   task_list->nlevels = nlevels;
   task_list->natoms = natoms;
   task_list->nkinds = nkinds;
   task_list->nblocks = nblocks;
 
-  size_t size = nblocks * sizeof(int);
+  // Store grid layouts.
+  size_t size = nlevels * sizeof(grid_gpu_layout);
+  task_list->layouts = (grid_gpu_layout *)malloc(size);
+  for (int level = 0; level < nlevels; level++) {
+    for (int i = 0; i < 3; i++) {
+      task_list->layouts[level].npts_global[i] = npts_global[level][i];
+      task_list->layouts[level].npts_local[i] = npts_local[level][i];
+      task_list->layouts[level].shift_local[i] = shift_local[level][i];
+      task_list->layouts[level].border_width[i] = border_width[level][i];
+      for (int j = 0; j < 3; j++) {
+        task_list->layouts[level].dh[i][j] = dh[level][i][j];
+        task_list->layouts[level].dh_inv[i][j] = dh_inv[level][i][j];
+      }
+    }
+  }
+
+  size = nblocks * sizeof(int);
   CHECK(cudaMalloc(&task_list->block_offsets_dev, size));
   CHECK(cudaMemcpy(task_list->block_offsets_dev, block_offsets, size,
                    cudaMemcpyHostToDevice));
@@ -252,6 +272,7 @@ void grid_gpu_free_task_list(grid_gpu_task_list *task_list) {
 
   free(task_list->grid_dev_size);
   free(task_list->tasks_per_level);
+  free(task_list->layouts);
   free(task_list);
 }
 
@@ -260,13 +281,10 @@ void grid_gpu_free_task_list(grid_gpu_task_list *task_list) {
  *        See grid_task_list.h for details.
  * \author Ole Schuett
  ******************************************************************************/
-void grid_gpu_collocate_task_list(
-    const grid_gpu_task_list *task_list, const bool orthorhombic,
-    const enum grid_func func, const int nlevels, const int npts_global[][3],
-    const int npts_local[][3], const int shift_local[][3],
-    const int border_width[][3], const double dh[][3][3],
-    const double dh_inv[][3][3], const grid_buffer *pab_blocks,
-    double *grid[]) {
+void grid_gpu_collocate_task_list(const grid_gpu_task_list *task_list,
+                                  const enum grid_func func, const int nlevels,
+                                  const grid_buffer *pab_blocks,
+                                  double *grid[]) {
 
   // Select GPU device.
   CHECK(cudaSetDevice(grid_library_get_config().device_id));
@@ -287,8 +305,9 @@ void grid_gpu_collocate_task_list(
   for (int level = 0; level < task_list->nlevels; level++) {
     const int last_task = first_task + task_list->tasks_per_level[level] - 1;
     const cudaStream_t level_stream = task_list->level_streams[level];
-    const size_t grid_size = npts_local[level][0] * npts_local[level][1] *
-                             npts_local[level][2] * sizeof(double);
+    const grid_gpu_layout *layout = &task_list->layouts[level];
+    const size_t grid_size = layout->npts_local[0] * layout->npts_local[1] *
+                             layout->npts_local[2] * sizeof(double);
 
     // reallocate device grid buffers if needed
     if (task_list->grid_dev_size[level] < grid_size) {
@@ -306,10 +325,10 @@ void grid_gpu_collocate_task_list(
     // launch kernel, but only after blocks have arrived
     CHECK(cudaStreamWaitEvent(level_stream, input_ready_event, 0));
     grid_gpu_collocate_one_grid_level(
-        task_list, first_task, last_task, orthorhombic, func,
-        npts_global[level], npts_local[level], shift_local[level],
-        border_width[level], dh[level], dh_inv[level], level_stream,
-        pab_blocks->device_buffer, task_list->grid_dev[level], &lp_diff);
+        task_list, first_task, last_task, func, layout->npts_global,
+        layout->npts_local, layout->shift_local, layout->border_width,
+        layout->dh, layout->dh_inv, level_stream, pab_blocks->device_buffer,
+        task_list->grid_dev[level], &lp_diff);
 
     first_task = last_task + 1;
   }
@@ -318,7 +337,7 @@ void grid_gpu_collocate_task_list(
   for (int has_border_mask = 0; has_border_mask <= 1; has_border_mask++) {
     for (int lp = 0; lp < 20; lp++) {
       const int count = task_list->stats[has_border_mask][lp];
-      if (orthorhombic && !has_border_mask) {
+      if (task_list->orthorhombic && !has_border_mask) {
         grid_library_counter_add(lp + lp_diff, GRID_BACKEND_GPU,
                                  GRID_COLLOCATE_ORTHO, count);
       } else {
@@ -331,8 +350,9 @@ void grid_gpu_collocate_task_list(
   // download result from device to host.
   // TODO: Make these mem copies actually async by page locking the grid buffers
   for (int level = 0; level < task_list->nlevels; level++) {
-    const size_t grid_size = npts_local[level][0] * npts_local[level][1] *
-                             npts_local[level][2] * sizeof(double);
+    const grid_gpu_layout *layout = &task_list->layouts[level];
+    const size_t grid_size = layout->npts_local[0] * layout->npts_local[1] *
+                             layout->npts_local[2] * sizeof(double);
     CHECK(cudaMemcpyAsync(grid[level], task_list->grid_dev[level], grid_size,
                           cudaMemcpyDeviceToHost,
                           task_list->level_streams[level]));
@@ -350,14 +370,12 @@ void grid_gpu_collocate_task_list(
  *        See grid_task_list.h for details.
  * \author Ole Schuett
  ******************************************************************************/
-void grid_gpu_integrate_task_list(
-    const grid_gpu_task_list *task_list, const bool orthorhombic,
-    const bool compute_tau, const int natoms, const int nlevels,
-    const int npts_global[][3], const int npts_local[][3],
-    const int shift_local[][3], const int border_width[][3],
-    const double dh[][3][3], const double dh_inv[][3][3],
-    const grid_buffer *pab_blocks, const double *grid[],
-    grid_buffer *hab_blocks, double forces[][3], double virial[3][3]) {
+void grid_gpu_integrate_task_list(const grid_gpu_task_list *task_list,
+                                  const bool compute_tau, const int natoms,
+                                  const int nlevels,
+                                  const grid_buffer *pab_blocks,
+                                  const double *grid[], grid_buffer *hab_blocks,
+                                  double forces[][3], double virial[3][3]) {
 
   // Select GPU device.
   CHECK(cudaSetDevice(grid_library_get_config().device_id));
@@ -398,8 +416,9 @@ void grid_gpu_integrate_task_list(
   for (int level = 0; level < task_list->nlevels; level++) {
     const int last_task = first_task + task_list->tasks_per_level[level] - 1;
     const cudaStream_t level_stream = task_list->level_streams[level];
-    const size_t grid_size = npts_local[level][0] * npts_local[level][1] *
-                             npts_local[level][2] * sizeof(double);
+    const grid_gpu_layout *layout = &task_list->layouts[level];
+    const size_t grid_size = layout->npts_local[0] * layout->npts_local[1] *
+                             layout->npts_local[2] * sizeof(double);
 
     // reallocate device grid buffer if needed
     if (task_list->grid_dev_size[level] < grid_size) {
@@ -417,11 +436,11 @@ void grid_gpu_integrate_task_list(
     // launch kernel, but only after grid has arrived
     CHECK(cudaStreamWaitEvent(level_stream, input_ready_event, 0));
     grid_gpu_integrate_one_grid_level(
-        task_list, first_task, last_task, orthorhombic, compute_tau,
-        npts_global[level], npts_local[level], shift_local[level],
-        border_width[level], dh[level], dh_inv[level], level_stream,
-        pab_blocks_dev, task_list->grid_dev[level], hab_blocks->device_buffer,
-        forces_dev, virial_dev, &lp_diff);
+        task_list, first_task, last_task, compute_tau, layout->npts_global,
+        layout->npts_local, layout->shift_local, layout->border_width,
+        layout->dh, layout->dh_inv, level_stream, pab_blocks_dev,
+        task_list->grid_dev[level], hab_blocks->device_buffer, forces_dev,
+        virial_dev, &lp_diff);
 
     // Have main stream wait for level to complete before downloading results.
     cudaEvent_t level_done_event;
@@ -437,7 +456,7 @@ void grid_gpu_integrate_task_list(
   for (int has_border_mask = 0; has_border_mask <= 1; has_border_mask++) {
     for (int lp = 0; lp < 20; lp++) {
       const int count = task_list->stats[has_border_mask][lp];
-      if (orthorhombic && !has_border_mask) {
+      if (task_list->orthorhombic && !has_border_mask) {
         grid_library_counter_add(lp + lp_diff, GRID_BACKEND_GPU,
                                  GRID_INTEGRATE_ORTHO, count);
       } else {
