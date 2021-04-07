@@ -23,15 +23,7 @@
 typedef struct {
   int backend;
   int nlevels;
-  bool orthorhombic;
-  // TODO introduce a grid_layout struct.
-  int (*npts_global)[3];
   int (*npts_local)[3];
-  int (*shift_local)[3];
-  int (*border_width)[3];
-  double (*dh)[3][3];
-  double (*dh_inv)[3][3];
-
   grid_ref_task_list *ref;
   grid_cpu_task_list *cpu;
 #ifdef __GRID_CUDA
@@ -106,48 +98,34 @@ void grid_free_task_list(grid_task_list *task_list);
  * \brief Collocate all tasks of in given list onto given grids.
  *
  * \param task_list       Task list to collocate.
- * \param orthorhombic    Whether simulation box is orthorhombic.
  * \param func            Function to be collocated, see grid_prepare_pab.h
  * \param nlevels         Number of grid levels.
  *
  *      The remaining params are given for each grid level:
  *
- * \param npts_global     Number of global grid points in each direction.
  * \param npts_local      Number of local grid points in each direction.
- * \param shift_local     Number of points local grid is shifted wrt global grid
- * \param border_width    Width of halo region in grid points in each direction.
- * \param dh              Incremental grid matrix.
- * \param dh_inv          Inverse incremental grid matrix.
  * \param pab_blocks      Buffer that contains the density matrix blocks.
  * \param grid            The output grid array to collocate into.
  *
  * \author Ole Schuett
  ******************************************************************************/
-void grid_collocate_task_list(
-    const grid_task_list *task_list, const bool orthorhombic,
-    const enum grid_func func, const int nlevels,
-    const int npts_global[nlevels][3], const int npts_local[nlevels][3],
-    const int shift_local[nlevels][3], const int border_width[nlevels][3],
-    const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
-    const grid_buffer *pab_blocks, double *grid[nlevels]);
+void grid_collocate_task_list(const grid_task_list *task_list,
+                              const enum grid_func func, const int nlevels,
+                              const int npts_local[nlevels][3],
+                              const grid_buffer *pab_blocks,
+                              double *grid[nlevels]);
 
 /*******************************************************************************
  * \brief Integrate all tasks of in given list from given grids.
  *
  * \param task_list        Task list to collocate.
- * \param orthorhombic     Whether simulation box is orthorhombic.
  * \param compute_tau      When true then <nabla a| V | nabla b> is computed.
  * \param natoms           Number of atoms.
  * \param nlevels          Number of grid levels.
  *
  *      The remaining params are given for each grid level:
  *
- * \param npts_global     Number of global grid points in each direction.
  * \param npts_local      Number of local grid points in each direction.
- * \param shift_local     Number of points local grid is shifted wrt global grid
- * \param border_width    Width of halo region in grid points in each direction.
- * \param dh              Incremental grid matrix.
- * \param dh_inv          Inverse incremental grid matrix.
  * \param grid            Grid array to integrate from.
  *
  * \param pab_blocks      Optional density blocks, needed for forces and virial.
@@ -159,11 +137,8 @@ void grid_collocate_task_list(
  * \author Ole Schuett
  ******************************************************************************/
 void grid_integrate_task_list(
-    const grid_task_list *task_list, const bool orthorhombic,
-    const bool compute_tau, const int natoms, const int nlevels,
-    const int npts_global[nlevels][3], const int npts_local[nlevels][3],
-    const int shift_local[nlevels][3], const int border_width[nlevels][3],
-    const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
+    const grid_task_list *task_list, const bool compute_tau, const int natoms,
+    const int nlevels, const int npts_local[nlevels][3],
     const grid_buffer *pab_blocks, const double *grid[nlevels],
     grid_buffer *hab_blocks, double forces[natoms][3], double virial[3][3]);
 

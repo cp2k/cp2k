@@ -1050,30 +1050,19 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'grid_collocate_task_list'
 
       INTEGER                                            :: handle, ilevel, nlevels
-      INTEGER, ALLOCATABLE, DIMENSION(:, :), TARGET      :: border_width, npts_global, npts_local, &
-                                                            shift_local
-      LOGICAL(KIND=C_BOOL)                               :: orthorhombic
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         TARGET                                          :: dh, dh_inv
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), TARGET      :: npts_local
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grid
       TYPE(C_PTR), ALLOCATABLE, DIMENSION(:), TARGET     :: grid_pointers
       TYPE(realspace_grid_type), POINTER                 :: rsgrid
       INTERFACE
-         SUBROUTINE grid_collocate_task_list_c(task_list, orthorhombic, func, nlevels, &
-                                               npts_global, npts_local, shift_local, &
-                                               border_width, dh, dh_inv, pab_blocks, grid) &
+         SUBROUTINE grid_collocate_task_list_c(task_list, func, nlevels, &
+                                               npts_local, pab_blocks, grid) &
             BIND(C, name="grid_collocate_task_list")
             IMPORT :: C_PTR, C_INT, C_BOOL
             TYPE(C_PTR), VALUE                        :: task_list
-            LOGICAL(KIND=C_BOOL), VALUE               :: orthorhombic
             INTEGER(KIND=C_INT), VALUE                :: func
             INTEGER(KIND=C_INT), VALUE                :: nlevels
-            TYPE(C_PTR), VALUE                        :: npts_global
             TYPE(C_PTR), VALUE                        :: npts_local
-            TYPE(C_PTR), VALUE                        :: shift_local
-            TYPE(C_PTR), VALUE                        :: border_width
-            TYPE(C_PTR), VALUE                        :: dh
-            TYPE(C_PTR), VALUE                        :: dh_inv
             TYPE(C_PTR), VALUE                        :: pab_blocks
             TYPE(C_PTR), VALUE                        :: grid
          END SUBROUTINE grid_collocate_task_list_c
@@ -1083,33 +1072,18 @@ CONTAINS
 
       nlevels = SIZE(rs_grids)
       CPASSERT(nlevels > 0)
-      orthorhombic = LOGICAL(rs_grids(1)%rs_grid%desc%orthorhombic, C_BOOL)
 
       ALLOCATE (grid_pointers(nlevels))
-      ALLOCATE (npts_global(3, nlevels), npts_local(3, nlevels))
-      ALLOCATE (shift_local(3, nlevels), border_width(3, nlevels))
-      ALLOCATE (dh(3, 3, nlevels), dh_inv(3, 3, nlevels))
+      ALLOCATE (npts_local(3, nlevels))
       DO ilevel = 1, nlevels
          rsgrid => rs_grids(ilevel)%rs_grid
-         CALL get_rsgrid_properties(rsgrid=rsgrid, &
-                                    npts_global=npts_global(:, ilevel), &
-                                    npts_local=npts_local(:, ilevel), &
-                                    shift_local=shift_local(:, ilevel), &
-                                    border_width=border_width(:, ilevel))
-         CPASSERT(rsgrid%desc%orthorhombic .EQV. orthorhombic)  ! should be the same for all levels
-         dh(:, :, ilevel) = rsgrid%desc%dh(:, :)
-         dh_inv(:, :, ilevel) = rsgrid%desc%dh_inv(:, :)
+         npts_local(:, ilevel) = rsgrid%ub_local - rsgrid%lb_local + 1
          grid(1:, 1:, 1:) => rsgrid%r(:, :, :)  ! ensure lower bounds are (1,1,1)
          grid_pointers(ilevel) = C_LOC(grid(1, 1, 1))
       END DO
 
 #if __GNUC__ >= 9
-      CPASSERT(IS_CONTIGUOUS(npts_global))
       CPASSERT(IS_CONTIGUOUS(npts_local))
-      CPASSERT(IS_CONTIGUOUS(shift_local))
-      CPASSERT(IS_CONTIGUOUS(border_width))
-      CPASSERT(IS_CONTIGUOUS(dh))
-      CPASSERT(IS_CONTIGUOUS(dh_inv))
       CPASSERT(IS_CONTIGUOUS(grid_pointers))
       DO ilevel = 1, nlevels
          grid(1:, 1:, 1:) => rs_grids(ilevel)%rs_grid%r(:, :, :)
@@ -1121,15 +1095,9 @@ CONTAINS
       CPASSERT(C_ASSOCIATED(pab_blocks%c_ptr))
 
       CALL grid_collocate_task_list_c(task_list=task_list%c_ptr, &
-                                      orthorhombic=orthorhombic, &
                                       func=ga_gb_function, &
                                       nlevels=nlevels, &
-                                      npts_global=C_LOC(npts_global(1, 1)), &
                                       npts_local=C_LOC(npts_local(1, 1)), &
-                                      shift_local=C_LOC(shift_local(1, 1)), &
-                                      border_width=C_LOC(border_width(1, 1)), &
-                                      dh=C_LOC(dh(1, 1, 1)), &
-                                      dh_inv=C_LOC(dh_inv(1, 1, 1)), &
                                       pab_blocks=pab_blocks%c_ptr, &
                                       grid=C_LOC(grid_pointers(1)))
 
@@ -1165,33 +1133,22 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'grid_integrate_task_list'
 
       INTEGER                                            :: handle, ilevel, nlevels
-      INTEGER, ALLOCATABLE, DIMENSION(:, :), TARGET      :: border_width, npts_global, npts_local, &
-                                                            shift_local
-      LOGICAL(KIND=C_BOOL)                               :: orthorhombic
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         TARGET                                          :: dh, dh_inv
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), TARGET      :: npts_local
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grid
       TYPE(C_PTR)                                        :: forces_c, virial_c
       TYPE(C_PTR), ALLOCATABLE, DIMENSION(:), TARGET     :: grid_pointers
       TYPE(realspace_grid_type), POINTER                 :: rsgrid
       INTERFACE
-         SUBROUTINE grid_integrate_task_list_c(task_list, orthorhombic, compute_tau, natoms, &
-                                               nlevels, npts_global, npts_local, shift_local, &
-                                               border_width, dh, dh_inv, &
+         SUBROUTINE grid_integrate_task_list_c(task_list, compute_tau, natoms, &
+                                               nlevels, npts_local, &
                                                pab_blocks, grid, hab_blocks, forces, virial) &
             BIND(C, name="grid_integrate_task_list")
             IMPORT :: C_PTR, C_INT, C_BOOL
             TYPE(C_PTR), VALUE                        :: task_list
-            LOGICAL(KIND=C_BOOL), VALUE               :: orthorhombic
             LOGICAL(KIND=C_BOOL), VALUE               :: compute_tau
             INTEGER(KIND=C_INT), VALUE                :: natoms
             INTEGER(KIND=C_INT), VALUE                :: nlevels
-            TYPE(C_PTR), VALUE                        :: npts_global
             TYPE(C_PTR), VALUE                        :: npts_local
-            TYPE(C_PTR), VALUE                        :: shift_local
-            TYPE(C_PTR), VALUE                        :: border_width
-            TYPE(C_PTR), VALUE                        :: dh
-            TYPE(C_PTR), VALUE                        :: dh_inv
             TYPE(C_PTR), VALUE                        :: pab_blocks
             TYPE(C_PTR), VALUE                        :: grid
             TYPE(C_PTR), VALUE                        :: hab_blocks
@@ -1204,22 +1161,12 @@ CONTAINS
 
       nlevels = SIZE(rs_grids)
       CPASSERT(nlevels > 0)
-      orthorhombic = LOGICAL(rs_grids(1)%rs_grid%desc%orthorhombic, C_BOOL)
 
       ALLOCATE (grid_pointers(nlevels))
-      ALLOCATE (npts_global(3, nlevels), npts_local(3, nlevels))
-      ALLOCATE (shift_local(3, nlevels), border_width(3, nlevels))
-      ALLOCATE (dh(3, 3, nlevels), dh_inv(3, 3, nlevels))
+      ALLOCATE (npts_local(3, nlevels))
       DO ilevel = 1, nlevels
          rsgrid => rs_grids(ilevel)%rs_grid
-         CALL get_rsgrid_properties(rsgrid=rsgrid, &
-                                    npts_global=npts_global(:, ilevel), &
-                                    npts_local=npts_local(:, ilevel), &
-                                    shift_local=shift_local(:, ilevel), &
-                                    border_width=border_width(:, ilevel))
-         CPASSERT(rsgrid%desc%orthorhombic .EQV. orthorhombic)  ! should be the same for all levels
-         dh(:, :, ilevel) = rsgrid%desc%dh(:, :)
-         dh_inv(:, :, ilevel) = rsgrid%desc%dh_inv(:, :)
+         npts_local(:, ilevel) = rsgrid%ub_local - rsgrid%lb_local + 1
          grid(1:, 1:, 1:) => rsgrid%r(:, :, :)  ! ensure lower bounds are (1,1,1)
          grid_pointers(ilevel) = C_LOC(grid(1, 1, 1))
       END DO
@@ -1237,12 +1184,7 @@ CONTAINS
       ENDIF
 
 #if __GNUC__ >= 9
-      CPASSERT(IS_CONTIGUOUS(npts_global))
       CPASSERT(IS_CONTIGUOUS(npts_local))
-      CPASSERT(IS_CONTIGUOUS(shift_local))
-      CPASSERT(IS_CONTIGUOUS(border_width))
-      CPASSERT(IS_CONTIGUOUS(dh))
-      CPASSERT(IS_CONTIGUOUS(dh_inv))
       CPASSERT(IS_CONTIGUOUS(grid_pointers))
       CPASSERT(IS_CONTIGUOUS(forces))
       CPASSERT(IS_CONTIGUOUS(virial))
@@ -1259,16 +1201,10 @@ CONTAINS
       CPASSERT(C_ASSOCIATED(pab_blocks%c_ptr) .OR. .NOT. calculate_virial)
 
       CALL grid_integrate_task_list_c(task_list=task_list%c_ptr, &
-                                      orthorhombic=orthorhombic, &
                                       compute_tau=LOGICAL(compute_tau, C_BOOL), &
                                       natoms=SIZE(forces, 2), &
                                       nlevels=nlevels, &
-                                      npts_global=C_LOC(npts_global(1, 1)), &
                                       npts_local=C_LOC(npts_local(1, 1)), &
-                                      shift_local=C_LOC(shift_local(1, 1)), &
-                                      border_width=C_LOC(border_width(1, 1)), &
-                                      dh=C_LOC(dh(1, 1, 1)), &
-                                      dh_inv=C_LOC(dh_inv(1, 1, 1)), &
                                       pab_blocks=pab_blocks%c_ptr, &
                                       grid=C_LOC(grid_pointers(1)), &
                                       hab_blocks=hab_blocks%c_ptr, &
