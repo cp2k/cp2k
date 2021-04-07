@@ -1,7 +1,7 @@
 # Tested with: GFortran 8.3.0, MPICH 3.3, LAPACK 3.9.0, ScaLAPACK 2.0.2, FFTW 3.3,
-#              LIBINT 2.6.0, LIBXC 5.1.2, ELPA 2020.11.001, PLUMED 2.6.2, SPGLIB 1.16.0,
+#              LIBINT 2.6.0, LIBXC 5.1.3, ELPA 2020.11.001, PLUMED 2.6.2, SPGLIB 1.16.0,
 #              LIBVORI 201229, LIBXSMM 1.16.1
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, March 2021)
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, April 2021)
 
 CC          = mpicc
 FC          = mpif90
@@ -22,8 +22,8 @@ LIBINT_LIB  = $(GNU_PATH)/libint/2.6.0-lmax-6/lib
 
 LIBVORI_LIB = $(GNU_PATH)/libvori/201229/lib
 
-LIBXC_INC   = $(GNU_PATH)/libxc/5.1.2/include
-LIBXC_LIB   = $(GNU_PATH)/libxc/5.1.2/lib
+LIBXC_INC   = $(GNU_PATH)/libxc/5.1.3/include
+LIBXC_LIB   = $(GNU_PATH)/libxc/5.1.3/lib
 
 LIBXSMM_INC = $(GNU_PATH)/libxsmm/1.16.1/include
 LIBXSMM_LIB = $(GNU_PATH)/libxsmm/1.16.1/lib
@@ -31,7 +31,7 @@ LIBXSMM_LIB = $(GNU_PATH)/libxsmm/1.16.1/lib
 SPGLIB_INC  = $(GNU_PATH)/spglib/1.16.0/include
 SPGLIB_LIB  = $(GNU_PATH)/spglib/1.16.0/lib
 
-CFLAGS      = -O3 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -march=native -mtune=native
+CFLAGS      = -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -march=native -mtune=native
 
 DFLAGS      = -D__ELPA
 DFLAGS     += -D__FFTW3
