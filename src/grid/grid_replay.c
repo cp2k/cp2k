@@ -353,20 +353,16 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
     if (collocate) {
       // collocate
       double *grids_array[1] = {grid_test};
-      grid_collocate_task_list(
-          task_list, orthorhombic, func, nlevels, (const int(*)[3])npts_global,
-          (const int(*)[3])npts_local, (const int(*)[3])shift_local,
-          (const int(*)[3])border_width, (const double(*)[3][3])dh,
-          (const double(*)[3][3])dh_inv, pab_blocks, grids_array);
+      grid_collocate_task_list(task_list, func, nlevels,
+                               (const int(*)[3])npts_local, pab_blocks,
+                               grids_array);
     } else {
       // integrate
       double *grids_array[1] = {grid_ref};
-      grid_integrate_task_list(
-          task_list, orthorhombic, compute_tau, natoms, nlevels,
-          (const int(*)[3])npts_global, (const int(*)[3])npts_local,
-          (const int(*)[3])shift_local, (const int(*)[3])border_width,
-          (const double(*)[3][3])dh, (const double(*)[3][3])dh_inv, pab_blocks,
-          (const double(**))grids_array, hab_blocks, forces_test, virial_test);
+      grid_integrate_task_list(task_list, compute_tau, natoms, nlevels,
+                               (const int(*)[3])npts_local, pab_blocks,
+                               (const double(**))grids_array, hab_blocks,
+                               forces_test, virial_test);
       for (int i = 0; i < n2; i++) {
         for (int j = 0; j < n1; j++) {
           hab_test[i][j] = hab_blocks->host_buffer[i * n1 + j];

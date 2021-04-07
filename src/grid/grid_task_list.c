@@ -59,29 +59,13 @@ void grid_create_task_list(
     // Reuse existing task list.
     task_list = *task_list_out;
     free(task_list->npts_local);
-    free(task_list->shift_local);
-    free(task_list->border_width);
-    free(task_list->dh);
-    free(task_list->dh_inv);
   }
 
-  // Store grid layout.
+  // Store npts_local for bounds checking and validation.
   task_list->nlevels = nlevels;
-  task_list->orthorhombic = orthorhombic;
   size_t size = nlevels * 3 * sizeof(int);
-  task_list->npts_global = malloc(size);
-  memcpy(task_list->npts_global, npts_global, size);
   task_list->npts_local = malloc(size);
   memcpy(task_list->npts_local, npts_local, size);
-  task_list->shift_local = malloc(size);
-  memcpy(task_list->shift_local, shift_local, size);
-  task_list->border_width = malloc(size);
-  memcpy(task_list->border_width, border_width, size);
-  size = nlevels * 9 * sizeof(double);
-  task_list->dh = malloc(size);
-  memcpy(task_list->dh, dh, size);
-  task_list->dh_inv = malloc(size);
-  memcpy(task_list->dh_inv, dh_inv, size);
 
   // Create reference backend - needed as fallback and possibly for validation.
   grid_ref_create_task_list(
@@ -150,10 +134,6 @@ void grid_free_task_list(grid_task_list *task_list) {
 #endif
 
   free(task_list->npts_local);
-  free(task_list->shift_local);
-  free(task_list->border_width);
-  free(task_list->dh);
-  free(task_list->dh_inv);
   free(task_list);
 }
 
@@ -162,26 +142,18 @@ void grid_free_task_list(grid_task_list *task_list) {
  *        See grid_task_list.h for details.
  * \author Ole Schuett
  ******************************************************************************/
-void grid_collocate_task_list(
-    const grid_task_list *task_list, const bool orthorhombic,
-    const enum grid_func func, const int nlevels,
-    const int npts_global[nlevels][3], const int npts_local[nlevels][3],
-    const int shift_local[nlevels][3], const int border_width[nlevels][3],
-    const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
-    const grid_buffer *pab_blocks, double *grid[nlevels]) {
+void grid_collocate_task_list(const grid_task_list *task_list,
+                              const enum grid_func func, const int nlevels,
+                              const int npts_local[nlevels][3],
+                              const grid_buffer *pab_blocks,
+                              double *grid[nlevels]) {
 
+  // Bounds check.
   assert(task_list->nlevels == nlevels);
-  assert(task_list->orthorhombic == orthorhombic);
   for (int ilevel = 0; ilevel < nlevels; ilevel++) {
-    for (int i = 0; i < 3; i++) {
-      assert(task_list->npts_global[ilevel][i] == npts_global[ilevel][i]);
-      assert(task_list->npts_local[ilevel][i] == npts_local[ilevel][i]);
-      assert(task_list->border_width[ilevel][i] == border_width[ilevel][i]);
-      for (int j = 0; j < 3; j++) {
-        assert(task_list->dh[ilevel][i][j] == dh[ilevel][i][j]);
-        assert(task_list->dh_inv[ilevel][i][j] == dh_inv[ilevel][i][j]);
-      }
-    }
+    assert(task_list->npts_local[ilevel][0] == npts_local[ilevel][0]);
+    assert(task_list->npts_local[ilevel][1] == npts_local[ilevel][1]);
+    assert(task_list->npts_local[ilevel][2] == npts_local[ilevel][2]);
   }
 
   switch (task_list->backend) {
@@ -256,26 +228,17 @@ void grid_collocate_task_list(
  * \author Ole Schuett
  ******************************************************************************/
 void grid_integrate_task_list(
-    const grid_task_list *task_list, const bool orthorhombic,
-    const bool compute_tau, const int natoms, const int nlevels,
-    const int npts_global[nlevels][3], const int npts_local[nlevels][3],
-    const int shift_local[nlevels][3], const int border_width[nlevels][3],
-    const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
+    const grid_task_list *task_list, const bool compute_tau, const int natoms,
+    const int nlevels, const int npts_local[nlevels][3],
     const grid_buffer *pab_blocks, const double *grid[nlevels],
     grid_buffer *hab_blocks, double forces[natoms][3], double virial[3][3]) {
 
+  // Bounds check.
   assert(task_list->nlevels == nlevels);
-  assert(task_list->orthorhombic == orthorhombic);
   for (int ilevel = 0; ilevel < nlevels; ilevel++) {
-    for (int i = 0; i < 3; i++) {
-      assert(task_list->npts_global[ilevel][i] == npts_global[ilevel][i]);
-      assert(task_list->npts_local[ilevel][i] == npts_local[ilevel][i]);
-      assert(task_list->border_width[ilevel][i] == border_width[ilevel][i]);
-      for (int j = 0; j < 3; j++) {
-        assert(task_list->dh[ilevel][i][j] == dh[ilevel][i][j]);
-        assert(task_list->dh_inv[ilevel][i][j] == dh_inv[ilevel][i][j]);
-      }
-    }
+    assert(task_list->npts_local[ilevel][0] == npts_local[ilevel][0]);
+    assert(task_list->npts_local[ilevel][1] == npts_local[ilevel][1]);
+    assert(task_list->npts_local[ilevel][2] == npts_local[ilevel][2]);
   }
 
   assert(forces == NULL || pab_blocks != NULL);
