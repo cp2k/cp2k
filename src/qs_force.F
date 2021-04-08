@@ -62,7 +62,8 @@ MODULE qs_force
    USE qs_force_types,                  ONLY: allocate_qs_force,&
                                               qs_force_type,&
                                               replicate_qs_force,&
-                                              zero_qs_force, write_forces_debug
+                                              write_forces_debug,&
+                                              zero_qs_force
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type,&
@@ -211,7 +212,7 @@ CONTAINS
       ! recalculate energy with forces
       CALL qs_energies(qs_env, calc_forces=.TRUE.)
 !deb
-      write(6,*) "FORCE TEST 1"
+      WRITE (6, *) "FORCE TEST 1"
       CALL write_forces_debug(force)
 !deb
 
@@ -381,7 +382,7 @@ CONTAINS
          CALL calc_mixed_overlap_force(qs_env)
       END IF
 !deb
-      write(6,*) "FORCE TEST 4"
+      WRITE (6, *) "FORCE TEST 4"
       CALL write_forces_debug(force)
 !deb
 

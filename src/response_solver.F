@@ -656,8 +656,8 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_pd, matrix_pz, matrix_wz, mpa, &
-                                                            scrm
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_pd, matrix_pz, matrix_s, &
+                                                            matrix_wz, mpa, scrm
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_p, mhd, mhx, mhy, mhz, &
                                                             mpd, mpz
       TYPE(dbcsr_type), POINTER                          :: dbwork
@@ -748,7 +748,6 @@ CONTAINS
       nimages = 1
 
       ! Kinetic energy matrix
-      ! This routine initializes a matrx scrm, later used for scratch purposes
       NULLIFY (scrm)
       IF (debug_forces) fodeb(1:3) = force(1)%kinetic(1:3, 1)
       IF (debug_stress) stdeb = virial%pv_ekinetic
@@ -772,6 +771,17 @@ CONTAINS
       IF (nspins == 2) THEN
          CALL dbcsr_add(mpa(1)%matrix, mpa(2)%matrix, 1.0_dp, -1.0_dp)
       END IF
+      CALL dbcsr_deallocate_matrix_set(scrm)
+
+      ! Initialize a matrix scrm, later used for scratch purposes
+      CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
+      CALL dbcsr_allocate_matrix_set(scrm, nspins)
+      DO ispin = 1, nspins
+         ALLOCATE (scrm(ispin)%matrix)
+         CALL dbcsr_create(scrm(ispin)%matrix, template=matrix_s(1)%matrix)
+         CALL dbcsr_copy(scrm(ispin)%matrix, matrix_s(1)%matrix)
+         CALL dbcsr_set(scrm(ispin)%matrix, 0.0_dp)
+      END DO
 
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, particle_set=particle_set, &
                       atomic_kind_set=atomic_kind_set)

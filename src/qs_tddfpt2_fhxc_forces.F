@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2020 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2021 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -1055,6 +1055,8 @@ CONTAINS
                   END IF
                END DO
             END DO
+            CALL dbcsr_iterator_stop(iter)
+            CALL dbcsr_deallocate_matrix_set(gamma_matrix)
             ! Ewald long range contribution
             IF (do_ewald) THEN
                ewald_env => work%ewald_env
@@ -1179,7 +1181,6 @@ CONTAINS
                                        matrix_g=gs_mos(ispin)%mos_occ, ncol=norb, alpha=alpha)
             CALL cp_fm_release(vcvec)
             CALL cp_fm_release(cvcmat)
-            CALL dbcsr_deallocate_matrix_set(gamma_matrix)
             DEALLOCATE (atom_of_kind, kind_of)
          END IF
          !

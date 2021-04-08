@@ -52,8 +52,8 @@ MODULE qs_scf_post_gpw
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
-                                              dbcsr_add,&
+   USE dbcsr_api,                       ONLY: dbcsr_add,&
+                                              dbcsr_p_type,&
                                               dbcsr_type
    USE dct,                             ONLY: pw_shrink
    USE et_coupling_types,               ONLY: set_et_coupling_type
@@ -185,9 +185,9 @@ MODULE qs_scf_post_gpw
                                               mpole_rho_atom,&
                                               rho0_mpole_type
    USE qs_rho_atom_types,               ONLY: rho_atom_type
+   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
    USE qs_scf_csr_write,                ONLY: write_ks_matrix_csr,&
                                               write_s_matrix_csr
    USE qs_scf_output,                   ONLY: qs_scf_write_mos
@@ -250,9 +250,9 @@ CONTAINS
                                                             nhomo, nlumo, nlumo_stm, nlumo_tddft, &
                                                             nlumos, nmo, output_unit, unit_nr
       INTEGER, DIMENSION(:, :, :), POINTER               :: marked_states
-      LOGICAL :: check_write, compute_lumos, do_homo, do_kpoints, do_mo_cubes, do_stm, &
+      LOGICAL :: check_write, compute_lumos, do_homo, do_kpoints, do_mo_cubes, do_mp2, do_stm, &
          do_wannier_cubes, has_homo, has_lumo, loc_explicit, loc_print_explicit, my_localized_wfn, &
-         p_loc, p_loc_homo, p_loc_lumo, do_mp2
+         p_loc, p_loc_homo, p_loc_lumo
       REAL(dp)                                           :: e_kin
       REAL(KIND=dp)                                      :: gap, homo_lumo(2, 2)
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
@@ -264,7 +264,8 @@ CONTAINS
          mo_loc_history, occupied_orbs, unoccupied_orbs, unoccupied_orbs_stm
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, matrix_s, mo_derivs, matrix_p_mp2
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, matrix_p_mp2, matrix_s, &
+                                                            mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: kinetic_m, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -338,11 +339,11 @@ CONTAINS
 
       CALL qs_rho_get(rho, rho_ao_kp=rho_ao)
 
-      IF(do_mp2) THEN
+      IF (do_mp2) THEN
          ! Get the HF+MP2 density
          CALL get_qs_env(qs_env, matrix_p_mp2=matrix_p_mp2)
          DO ispin = 1, dft_control%nspins
-            CALL dbcsr_add(rho_ao(ispin,1)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
+            CALL dbcsr_add(rho_ao(ispin, 1)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
          END DO
          CALL qs_rho_update_rho(rho, qs_env=qs_env)
          CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
@@ -745,10 +746,10 @@ CONTAINS
       ! Do active space calculation
       CALL active_space_main(input, logger, qs_env)
 
-      IF(do_mp2) THEN
+      IF (do_mp2) THEN
          ! Get everything back
          DO ispin = 1, dft_control%nspins
-            CALL dbcsr_add(rho_ao(ispin,1)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, -1.0_dp)
+            CALL dbcsr_add(rho_ao(ispin, 1)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, -1.0_dp)
          END DO
          CALL qs_rho_update_rho(rho, qs_env=qs_env)
          CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)

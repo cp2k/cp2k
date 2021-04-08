@@ -106,10 +106,10 @@ MODULE input_cp2k_dft
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_ec,                   ONLY: create_ec_section
+   USE input_cp2k_exstate,              ONLY: create_exstate_section
    USE input_cp2k_external,             ONLY: create_ext_den_section,&
                                               create_ext_pot_section,&
                                               create_ext_vxc_section
-   USE input_cp2k_exstate,              ONLY: create_exstate_section
    USE input_cp2k_field,                ONLY: create_efield_section,&
                                               create_per_efield_section
    USE input_cp2k_kpoints,              ONLY: create_kpoints_section

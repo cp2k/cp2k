@@ -128,8 +128,12 @@ MODULE energy_corrections
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
-   USE qs_force_types,                  ONLY: qs_force_type,&
+                                              qs_environment_type,&
+                                              set_qs_env
+   USE qs_force_types,                  ONLY: allocate_qs_force,&
+                                              deallocate_qs_force,&
+                                              qs_force_type,&
+                                              sum_qs_force,&
                                               total_qs_force,&
                                               zero_qs_force
    USE qs_initial_guess,                ONLY: calculate_atomic_block_dm
@@ -272,7 +276,15 @@ CONTAINS
 
                CALL evaluate_ec_core_matrix_traces(qs_env, ec_env)
             END IF
-
+            IF (my_calc_forces) THEN
+               CALL get_qs_env(qs_env, force=ec_force)
+               IF (ASSOCIATED(ec_env%force)) CALL deallocate_qs_force(ec_env%force)
+               ec_env%force => ec_force
+               CALL zero_qs_force(ks_force)
+               CALL sum_qs_force(ks_force, ec_force)
+               CALL set_qs_env(qs_env, force=ks_force)
+            END IF
+            energy%total = energy%total + energy%nonscf_correction
          CASE DEFAULT
             CPABORT("unknown energy correction")
          END SELECT

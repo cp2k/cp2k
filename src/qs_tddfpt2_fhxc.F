@@ -17,8 +17,8 @@ MODULE qs_tddfpt2_fhxc
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_p_type, dbcsr_release, &
-        dbcsr_set, dbcsr_type, dbcsr_type_symmetric
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_get_info, &
+        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_symmetric
    USE kinds,                           ONLY: dp
    USE pw_env_types,                    ONLY: pw_env_get
    USE pw_methods,                      ONLY: pw_axpy,&
@@ -249,7 +249,7 @@ CONTAINS
                CALL cp_fm_release(work_aux_orb)
                CALL cp_fm_release(work_orb_orb)
                DO ispin = 1, nspins
-                  CALL dbcsr_release(A_xc_munu_sub(ispin)%matrix)
+                  CALL dbcsr_deallocate_matrix(A_xc_munu_sub(ispin)%matrix)
                END DO
                DEALLOCATE (A_xc_munu_sub)
             ELSE

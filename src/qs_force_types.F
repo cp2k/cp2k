@@ -597,7 +597,7 @@ CONTAINS
 
       CHARACTER(LEN=35)                                  :: fmtstr2
       CHARACTER(LEN=48)                                  :: fmtstr1
-      INTEGER                                            :: jatom, jkind, iounit
+      INTEGER                                            :: iounit, jatom, jkind
       REAL(KIND=dp), DIMENSION(3)                        :: total
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -628,17 +628,17 @@ CONTAINS
             "FORCES [a.u.]", "Atom", "Kind", "Component", "X", "Y", "Z"
 
          total(1:3) = qs_force(jkind)%overlap(1:3, jatom) &
-            + qs_force(jkind)%overlap_admm(1:3, jatom) &
-            + qs_force(jkind)%kinetic(1:3, jatom) &
-            + qs_force(jkind)%gth_ppl(1:3, jatom) &
-            + qs_force(jkind)%gth_ppnl(1:3, jatom) &
-            + qs_force(jkind)%core_overlap(1:3, jatom) &
-            + qs_force(jkind)%rho_core(1:3, jatom) &
-            + qs_force(jkind)%rho_elec(1:3, jatom) &
-            + qs_force(jkind)%dispersion(1:3, jatom) &
-            + qs_force(jkind)%fock_4c(1:3, jatom) &
-            + qs_force(jkind)%mp2_non_sep(1:3, jatom) &
-            + qs_force(jkind)%mp2_sep(1:3, jatom)
+                      + qs_force(jkind)%overlap_admm(1:3, jatom) &
+                      + qs_force(jkind)%kinetic(1:3, jatom) &
+                      + qs_force(jkind)%gth_ppl(1:3, jatom) &
+                      + qs_force(jkind)%gth_ppnl(1:3, jatom) &
+                      + qs_force(jkind)%core_overlap(1:3, jatom) &
+                      + qs_force(jkind)%rho_core(1:3, jatom) &
+                      + qs_force(jkind)%rho_elec(1:3, jatom) &
+                      + qs_force(jkind)%dispersion(1:3, jatom) &
+                      + qs_force(jkind)%fock_4c(1:3, jatom) &
+                      + qs_force(jkind)%mp2_non_sep(1:3, jatom) &
+                      + qs_force(jkind)%mp2_sep(1:3, jatom)
 
          WRITE (UNIT=iounit, FMT=fmtstr2) &
             jatom, jkind, "       overlap", qs_force(jkind)%overlap(1:3, jatom), &
