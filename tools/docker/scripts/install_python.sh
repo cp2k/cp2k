@@ -16,8 +16,6 @@ apt-get install -qq --no-install-recommends \
 rm -rf /var/lib/apt/lists/*
 
 # install python packages
-pip3 install --quiet numpy matplotlib requests pre-commit
+pip3 install --quiet numpy matplotlib requests mypy
 
-# register the pre-commit hooks
-cd /workspace/cp2k
-pre-commit install --install-hooks
+#EOF

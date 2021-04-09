@@ -2,57 +2,40 @@
 
 # author: Ole Schuett
 
-function run_tests {
-  PYTHON=$1
-  SCRIPTS=$2
-  BASEDIR=$(pwd)
-  VERSION=$(${PYTHON} -V 2>&1 | tr -d '\n')
-  echo ""
-  echo "========== Running ${VERSION} Tests =========="
-  #find ./src/ ./tools/ -name "*.pyc" -exec rm {} \;
-  for i in $SCRIPTS; do
-    set +e #disable error trapping
-    echo "Running $i"
-    cd "$(dirname "$i")"
-    SCRIPT=$(basename "$i")
-    if ! $PYTHON -B "./${SCRIPT}"; then
-      echo "Test $i failed"
-      ERRORS=$((ERRORS + 1))
-    fi
-    set -e #re-enable error trapping
-    cd "$BASEDIR"
-  done
-}
-
-function run_pre_commit {
-  set +e #disable error trapping
-  if ! pre-commit run --all-files --hook-stage manual check-ast; then
-    echo "Syntax check failed."
-    ERRORS=$((ERRORS + 1))
+function run_test {
+  TEST_COMMAND=("$@")
+  echo -en "Running \"${TEST_COMMAND[*]}\"... "
+  if "${TEST_COMMAND[@]}" &> test.out; then
+    echo "done."
+  else
+    echo -e "failed.\n\n"
+    tail -n 100 test.out
+    echo -e "\nSummary: Test \"${TEST_COMMAND[*]}\" failed."
+    echo -e "Status: FAILED\n"
+    exit 0
   fi
-  set -e #re-enable error trapping
 }
 
 #===============================================================================
-ERRORS=0
-
 cd /workspace/cp2k
 
-# find executable python scripts
-ALL_TEST_SCRIPTS=$(find ./src/ ./tools/ -name "*_test.py" -executable)
-
-# python 3.x
-run_tests python3 "${ALL_TEST_SCRIPTS}"
-
-# run manual pre-commit checks
-run_pre_commit
-
-# print report
-NUM_TEST_SCRIPTS=$(($(wc -w <<< "${ALL_TEST_SCRIPTS}") + 1))
+echo "Using $(python3 --version) and $(mypy --version)."
 echo ""
-echo "Summary: Run ${NUM_TEST_SCRIPTS} Python test scripts, found ${ERRORS} errors."
-if [ $ERRORS == 0 ]; then
-  echo "Status: OK"
-else
-  echo "Status: FAILED"
-fi
+
+run_test ./tools/prettify/prettify_test.py
+run_test mypy --strict ./tools/dashboard/generate_dashboard.py
+
+# Test generate_dashboard.py. Running it twice to also execute its caching.
+mkdir -p /workspace/artifacts/dashboard
+for _ in {1..2}; do
+  run_test ./tools/dashboard/generate_dashboard.py \
+    ./tools/dashboard/dashboard.conf \
+    /workspace/artifacts/dashboard/status.pickle \
+    /workspace/artifacts/dashboard/
+done
+
+echo ""
+echo "Summary: Python tests passed"
+echo "Status: OK"
+
+#EOF
