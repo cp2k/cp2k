@@ -5,28 +5,32 @@
 #
 # author: Ole Schuett
 
-from typing import Any, Literal, List, Dict, cast, Optional, ValuesView, NewType
-
-import sys
-import os
-import smtplib
-from email.mime.text import MIMEText
-import html
-import re
-import gzip
-from datetime import datetime, timedelta
-from subprocess import check_output
-import traceback
-from os import path
-from pprint import pformat
-import itertools
 from configparser import ConfigParser
-import pickle
+from datetime import datetime, timedelta
+from email.mime.text import MIMEText
+from os import path
 from pathlib import Path
-import requests
-import hashlib
-import dataclasses
+from pprint import pformat
+from subprocess import check_output
 import argparse
+import dataclasses
+import gzip
+import hashlib
+import html
+import itertools
+import os
+import pickle
+import re
+import requests
+import smtplib
+import sys
+import traceback
+from typing import Any, List, Dict, cast, Optional, ValuesView, NewType
+
+try:
+    from typing import Literal
+except:
+    from typing_extensions import Literal  # type: ignore
 
 import matplotlib as mpl  # type: ignore
 
@@ -85,6 +89,14 @@ class Plot:
         self.name = name
         self.title = title
         self.ylabel = ylabel
+
+
+# ======================================================================================
+class AggregatedPlot:
+    def __init__(self, plot: Plot):
+        self.name = plot.name
+        self.title = plot.title
+        self.ylabel = plot.ylabel
         self.curves_by_name: Dict[str, PlotCurve] = {}
 
     @property
@@ -270,8 +282,8 @@ def gen_archive(config: ConfigParser, log: GitLog, outdir: Path) -> None:
         # loop over all relevant commits
         all_url_rows = []
         all_html_rows = []
-        max_age = 1 + max([-1] + [log.index_by_sha[sha] for sha in archive_reports])
-        for commit in log.commits[:max_age]:
+        max_age_full = max([-1] + [log.index_by_sha[sha] for sha in archive_reports])
+        for commit in log.commits[: max_age_full + 1]:
             sha = commit.sha
             html_row = "<tr>"
             html_row += commit_cell(sha, log)
@@ -280,8 +292,8 @@ def gen_archive(config: ConfigParser, log: GitLog, outdir: Path) -> None:
                 assert report.archive_path
                 html_row += status_cell(report.status, report.archive_path)
                 html_row += f'<td align="left">{report.summary}</td>'
-                archive_base_url = "https://dashboard.cp2k.org/archive/{s}"
-                url_row = f"{archive_base_url}/{report.archive_path}.gz\n"
+                archive_base_url = "https://dashboard.cp2k.org/archive"
+                url_row = f"{archive_base_url}/{s}/{report.archive_path}.gz\n"
             else:
                 html_row += 2 * "<td></td>"
                 url_row = ""
@@ -297,6 +309,7 @@ def gen_archive(config: ConfigParser, log: GitLog, outdir: Path) -> None:
                 html_out_postfix = "index_full.html"
                 urls_out_postfix = "list_full.txt"
                 toggle_link = '<p>View <a href="index.html">recent archive</a></p>'
+                max_age = max_age_full
             else:
                 html_out_postfix = "index.html"
                 urls_out_postfix = "list_recent.txt"
@@ -345,14 +358,14 @@ def gen_plots(
     ordered_shas = [c.sha for c in log.commits]
     ordered_reports = [archive_reports[s] for s in ordered_shas if s in archive_reports]
 
-    # collect plot data
-    plots_by_name = {}
+    # aggregate plot data
+    aggregated_plots: Dict[str, AggregatedPlot] = {}
     for report in ordered_reports:
         for p in report.plots:
-            if p.name not in plots_by_name:
-                plots_by_name[p.name] = p
+            if p.name not in aggregated_plots:
+                aggregated_plots[p.name] = AggregatedPlot(p)
         for pp in report.plot_points:
-            plot = plots_by_name[pp.plot_name]
+            plot = aggregated_plots[pp.plot_name]
             cname = pp.curve_name
             if cname not in plot.curves_by_name:
                 plot.curves_by_name[cname] = PlotCurve(label=pp.curve_label)
@@ -366,7 +379,7 @@ def gen_plots(
     max_age = max_age_full if full_archive else 100
 
     output = ""
-    for pname, plot in plots_by_name.items():
+    for pname, plot in aggregated_plots.items():
         print(f"Working on plot: {pname}")
         fn = f"{pname}_full" if full_archive else pname
         make_plot_data(outdir / Path(f"{fn}.txt"), plot, max_age, log)
@@ -377,7 +390,7 @@ def gen_plots(
 
 
 # ======================================================================================
-def make_plot_data(fn: Path, plot: Plot, max_age: int, log: GitLog) -> None:
+def make_plot_data(fn: Path, plot: AggregatedPlot, max_age: int, log: GitLog) -> None:
     output = f"# {plot.title}\n"
     headers = [f"{c.label:>6}" for c in plot.curves]
     output += "# " + "\t".join(["age", "commit"] + headers) + "\n"
@@ -398,7 +411,9 @@ def make_plot_data(fn: Path, plot: Plot, max_age: int, log: GitLog) -> None:
 
 
 # ======================================================================================
-def make_plot_image(fn: Path, plot: Plot, max_age: int, full_archive: bool) -> None:
+def make_plot_image(
+    fn: Path, plot: AggregatedPlot, max_age: int, full_archive: bool
+) -> None:
 
     # Setup figure.
     fig = plt.figure(figsize=(12, 4))
