@@ -22,6 +22,239 @@
 #include "grid_gpu_collint.h"
 #include "grid_gpu_integrate.h"
 
+// Teen registers are sufficient to integrate lp <= 2 with a single grid sweep.
+#define GRID_N_CXYZ_REGISTERS 10
+
+/*******************************************************************************
+ * \brief Add value to designated register without using dynamic indexing.
+ *        Otherwise the array would be stored in local memory, which is slower.
+ * https://developer.nvidia.com/blog/fast-dynamic-indexing-private-arrays-cuda
+ * \author Ole Schuett
+ ******************************************************************************/
+__device__ static inline void
+add_to_register(const double value, const int index, cxyz_store *store) {
+  switch (index) {
+  case 0:
+    store->regs[0] += value;
+    break;
+  case 1:
+    store->regs[1] += value;
+    break;
+  case 2:
+    store->regs[2] += value;
+    break;
+  case 3:
+    store->regs[3] += value;
+    break;
+  case 4:
+    store->regs[4] += value;
+    break;
+  case 5:
+    store->regs[5] += value;
+    break;
+  case 6:
+    store->regs[6] += value;
+    break;
+  case 7:
+    store->regs[7] += value;
+    break;
+  case 8:
+    store->regs[8] += value;
+    break;
+  case 9:
+    store->regs[9] += value;
+    break;
+  }
+}
+
+/*******************************************************************************
+ * \brief Integrate a single grid point with distance d{xyz} from center.
+ * \author Ole Schuett
+ ******************************************************************************/
+__device__ static void gridpoint_to_cxyz(const double dx, const double dy,
+                                         const double dz, const double zetp,
+                                         const int lp, const double *gridpoint,
+                                         cxyz_store *store) {
+
+  // Squared distance of point from center.
+  const double r2 = dx * dx + dy * dy + dz * dz;
+  const double gaussian = exp(-zetp * r2);
+
+  // Loading throught read-only cache reduces register usage for some reason.
+  const double prefactor = __ldg(gridpoint) * gaussian;
+
+  // Manually unrolled loops based on terms in coset_inv.
+  if (store->offset == 0) {
+    store->regs[0] += prefactor;
+    if (lp >= 1) {
+      store->regs[1] += prefactor * dx;
+      store->regs[2] += prefactor * dy;
+      store->regs[3] += prefactor * dz;
+      if (lp >= 2) {
+        store->regs[4] += prefactor * dx * dx;
+        store->regs[5] += prefactor * dx * dy;
+        store->regs[6] += prefactor * dx * dz;
+        store->regs[7] += prefactor * dy * dy;
+        store->regs[8] += prefactor * dy * dz;
+        store->regs[9] += prefactor * dz * dz;
+      }
+    }
+
+  } else if (store->offset == 10) {
+    store->regs[0] += prefactor * dx * dx * dx;
+    store->regs[1] += prefactor * dx * dx * dy;
+    store->regs[2] += prefactor * dx * dx * dz;
+    store->regs[3] += prefactor * dx * dy * dy;
+    store->regs[4] += prefactor * dx * dy * dz;
+    store->regs[5] += prefactor * dx * dz * dz;
+    store->regs[6] += prefactor * dy * dy * dy;
+    store->regs[7] += prefactor * dy * dy * dz;
+    store->regs[8] += prefactor * dy * dz * dz;
+    store->regs[9] += prefactor * dz * dz * dz;
+
+  } else if (store->offset == 20) {
+    store->regs[0] += prefactor * dx * dx * dx * dx;
+    store->regs[1] += prefactor * dx * dx * dx * dy;
+    store->regs[2] += prefactor * dx * dx * dx * dz;
+    store->regs[3] += prefactor * dx * dx * dy * dy;
+    store->regs[4] += prefactor * dx * dx * dy * dz;
+    store->regs[5] += prefactor * dx * dx * dz * dz;
+    store->regs[6] += prefactor * dx * dy * dy * dy;
+    store->regs[7] += prefactor * dx * dy * dy * dz;
+    store->regs[8] += prefactor * dx * dy * dz * dz;
+    store->regs[9] += prefactor * dx * dz * dz * dz;
+
+  } else if (store->offset == 30) {
+    store->regs[0] += prefactor * dy * dy * dy * dy;
+    store->regs[1] += prefactor * dy * dy * dy * dz;
+    store->regs[2] += prefactor * dy * dy * dz * dz;
+    store->regs[3] += prefactor * dy * dz * dz * dz;
+    store->regs[4] += prefactor * dz * dz * dz * dz;
+    if (lp >= 5) {
+      store->regs[5] += prefactor * dx * dx * dx * dx * dx;
+      store->regs[6] += prefactor * dx * dx * dx * dx * dy;
+      store->regs[7] += prefactor * dx * dx * dx * dx * dz;
+      store->regs[8] += prefactor * dx * dx * dx * dy * dy;
+      store->regs[9] += prefactor * dx * dx * dx * dy * dz;
+    }
+
+  } else if (store->offset == 40) {
+    store->regs[0] += prefactor * dx * dx * dx * dz * dz;
+    store->regs[1] += prefactor * dx * dx * dy * dy * dy;
+    store->regs[2] += prefactor * dx * dx * dy * dy * dz;
+    store->regs[3] += prefactor * dx * dx * dy * dz * dz;
+    store->regs[4] += prefactor * dx * dx * dz * dz * dz;
+    store->regs[5] += prefactor * dx * dy * dy * dy * dy;
+    store->regs[6] += prefactor * dx * dy * dy * dy * dz;
+    store->regs[7] += prefactor * dx * dy * dy * dz * dz;
+    store->regs[8] += prefactor * dx * dy * dz * dz * dz;
+    store->regs[9] += prefactor * dx * dz * dz * dz * dz;
+
+  } else if (store->offset == 50) {
+    store->regs[0] += prefactor * dy * dy * dy * dy * dy;
+    store->regs[1] += prefactor * dy * dy * dy * dy * dz;
+    store->regs[2] += prefactor * dy * dy * dy * dz * dz;
+    store->regs[3] += prefactor * dy * dy * dz * dz * dz;
+    store->regs[4] += prefactor * dy * dz * dz * dz * dz;
+    store->regs[5] += prefactor * dz * dz * dz * dz * dz;
+    if (lp >= 6) {
+      store->regs[6] += prefactor * dx * dx * dx * dx * dx * dx;
+      store->regs[7] += prefactor * dx * dx * dx * dx * dx * dy;
+      store->regs[8] += prefactor * dx * dx * dx * dx * dx * dz;
+      store->regs[9] += prefactor * dx * dx * dx * dx * dy * dy;
+    }
+
+  } else if (store->offset == 60) {
+    store->regs[0] += prefactor * dx * dx * dx * dx * dy * dz;
+    store->regs[1] += prefactor * dx * dx * dx * dx * dz * dz;
+    store->regs[2] += prefactor * dx * dx * dx * dy * dy * dy;
+    store->regs[3] += prefactor * dx * dx * dx * dy * dy * dz;
+    store->regs[4] += prefactor * dx * dx * dx * dy * dz * dz;
+    store->regs[5] += prefactor * dx * dx * dx * dz * dz * dz;
+    store->regs[6] += prefactor * dx * dx * dy * dy * dy * dy;
+    store->regs[7] += prefactor * dx * dx * dy * dy * dy * dz;
+    store->regs[8] += prefactor * dx * dx * dy * dy * dz * dz;
+    store->regs[9] += prefactor * dx * dx * dy * dz * dz * dz;
+
+  } else if (store->offset == 70) {
+    store->regs[0] += prefactor * dx * dx * dz * dz * dz * dz;
+    store->regs[1] += prefactor * dx * dy * dy * dy * dy * dy;
+    store->regs[2] += prefactor * dx * dy * dy * dy * dy * dz;
+    store->regs[3] += prefactor * dx * dy * dy * dy * dz * dz;
+    store->regs[4] += prefactor * dx * dy * dy * dz * dz * dz;
+    store->regs[5] += prefactor * dx * dy * dz * dz * dz * dz;
+    store->regs[6] += prefactor * dx * dz * dz * dz * dz * dz;
+    store->regs[7] += prefactor * dy * dy * dy * dy * dy * dy;
+    store->regs[8] += prefactor * dy * dy * dy * dy * dy * dz;
+    store->regs[9] += prefactor * dy * dy * dy * dy * dz * dz;
+
+  } else if (store->offset == 80) {
+    store->regs[0] += prefactor * dy * dy * dy * dz * dz * dz;
+    store->regs[1] += prefactor * dy * dy * dz * dz * dz * dz;
+    store->regs[2] += prefactor * dy * dz * dz * dz * dz * dz;
+    store->regs[3] += prefactor * dz * dz * dz * dz * dz * dz;
+    if (lp >= 7) {
+      store->regs[4] += prefactor * dx * dx * dx * dx * dx * dx * dx;
+      store->regs[5] += prefactor * dx * dx * dx * dx * dx * dx * dy;
+      store->regs[6] += prefactor * dx * dx * dx * dx * dx * dx * dz;
+      store->regs[7] += prefactor * dx * dx * dx * dx * dx * dy * dy;
+      store->regs[8] += prefactor * dx * dx * dx * dx * dx * dy * dz;
+      store->regs[9] += prefactor * dx * dx * dx * dx * dx * dz * dz;
+    }
+
+    // Handle higher offsets, ie. values of lp.
+  } else {
+    for (int i = 0; i < GRID_N_CXYZ_REGISTERS; i++) {
+      double val = prefactor;
+      const orbital a = coset_inv[i + store->offset];
+      for (int j = 0; j < a.l[0]; j++) {
+        val *= dx;
+      }
+      for (int j = 0; j < a.l[1]; j++) {
+        val *= dy;
+      }
+      for (int j = 0; j < a.l[2]; j++) {
+        val *= dz;
+      }
+      add_to_register(val, i, store);
+    }
+  }
+}
+
+/*******************************************************************************
+ * \brief Integrates the grid into coefficients C_xyz.
+ * \author Ole Schuett
+ ******************************************************************************/
+__device__ static void grid_to_cxyz(const kernel_params *params,
+                                    const smem_task *task, const double *grid,
+                                    double *cxyz) {
+
+  // Atomics adds on shared memory are pretty slow. Hence, the coeffients are
+  // accumulated in registers while looping over the grid points.
+  // For larger values of lp we need to do multiple sweeps over the grid.
+  // Due to the higher register usage and the multiple sweeps,
+  // the integrate kernel runs about 70% slower than the collocate kernel.
+  for (int offset = 0; offset < ncoset(task->lp);
+       offset += GRID_N_CXYZ_REGISTERS) {
+
+    double cxyz_regs[GRID_N_CXYZ_REGISTERS] = {0.0};
+    cxyz_store store = {.regs = cxyz_regs, .offset = offset};
+
+    if (task->use_orthorhombic_kernel) {
+      ortho_cxyz_to_grid(params, task, &store, grid);
+    } else {
+      general_cxyz_to_grid(params, task, &store, grid);
+    }
+
+    // Add register values to coefficients stored in shared memory.
+#pragma unroll // avoid dynamic indexing of registers
+    for (int i = 0; i < GRID_N_CXYZ_REGISTERS; i++) {
+      atomicAddDouble(&cxyz[i + offset], cxyz_regs[i]);
+    }
+  }
+  __syncthreads(); // because of concurrent writes to cxyz
+}
+
 /*******************************************************************************
  * \brief Contracts the subblock, going from cartesian harmonics to spherical.
  * \author Ole Schuett
@@ -136,7 +369,7 @@ __device__ static void integrate_kernel(const kernel_params *params) {
 
   // Copy task from global to shared memory and precompute some stuff.
   __shared__ smem_task task;
-  fill_smem_task(params, &task);
+  load_task(params, &task);
 
   // Check if radius is below the resolution of the grid.
   if (2.0 * task.radius < task.dh_max) {
@@ -150,7 +383,7 @@ __device__ static void integrate_kernel(const kernel_params *params) {
   double *smem_cxyz = &shared_memory[params->smem_cxyz_offset];
 
   zero_cxyz(&task, smem_cxyz);
-  cxyz_to_grid(params, &task, smem_cxyz, params->grid);
+  grid_to_cxyz(params, &task, params->grid, smem_cxyz);
 
   zero_cab(&task, smem_cab);
   compute_alpha(params, &task, smem_alpha);
@@ -202,9 +435,7 @@ __global__ static void grid_integrate_tau_forces(const kernel_params params) {
  ******************************************************************************/
 void grid_gpu_integrate_one_grid_level(
     const grid_gpu_task_list *task_list, const int first_task,
-    const int last_task, const bool compute_tau, const int npts_global[3],
-    const int npts_local[3], const int shift_local[3],
-    const int border_width[3], const double dh[3][3], const double dh_inv[3][3],
+    const int last_task, const bool compute_tau, const grid_gpu_layout *layout,
     const cudaStream_t stream, const double *pab_blocks_dev,
     const double *grid_dev, double *hab_blocks_dev, double *forces_dev,
     double *virial_dev, int *lp_diff) {
@@ -251,13 +482,8 @@ void grid_gpu_integrate_one_grid_level(
   params.smem_alpha_offset = cab_len;
   params.smem_cxyz_offset = params.smem_alpha_offset + alpha_len;
   params.first_task = first_task;
-  params.orthorhombic = task_list->orthorhombic;
   params.grid = grid_dev;
   params.tasks = task_list->tasks_dev;
-  params.atom_kinds = task_list->atom_kinds_dev;
-  params.basis_sets = task_list->basis_sets_dev;
-  params.block_offsets = task_list->block_offsets_dev;
-  params.atom_positions = task_list->atom_positions_dev;
   params.pab_blocks = pab_blocks_dev;
   params.hab_blocks = hab_blocks_dev;
   params.forces = forces_dev;
@@ -266,17 +492,15 @@ void grid_gpu_integrate_one_grid_level(
   params.lb_min_diff = ldiffs.lb_min_diff;
   params.la_max_diff = ldiffs.la_max_diff;
   params.lb_max_diff = ldiffs.lb_max_diff;
-  memcpy(params.dh, dh, 9 * sizeof(double));
-  memcpy(params.dh_inv, dh_inv, 9 * sizeof(double));
-  memcpy(params.npts_global, npts_global, 3 * sizeof(int));
-  memcpy(params.npts_local, npts_local, 3 * sizeof(int));
-  memcpy(params.shift_local, shift_local, 3 * sizeof(int));
-  memcpy(params.border_width, border_width, 3 * sizeof(int));
+  memcpy(params.dh, layout->dh, 9 * sizeof(double));
+  memcpy(params.dh_inv, layout->dh_inv, 9 * sizeof(double));
+  memcpy(params.npts_global, layout->npts_global, 3 * sizeof(int));
+  memcpy(params.npts_local, layout->npts_local, 3 * sizeof(int));
+  memcpy(params.shift_local, layout->shift_local, 3 * sizeof(int));
 
   // Launch !
   const int nblocks = ntasks;
-  const dim3 threads_per_block(32, 2, 1);
-  assert(threads_per_block.x == 32); // needed for __syncwarp
+  const dim3 threads_per_block(4, 4, 4);
 
   if (!compute_tau && !calculate_forces) {
     grid_integrate_density<<<nblocks, threads_per_block, smem_per_block,

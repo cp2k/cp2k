@@ -23,6 +23,173 @@
 #include "grid_gpu_collocate.h"
 
 /*******************************************************************************
+ * \brief Collocate a single grid point with distance d{xyz} from center.
+ * \author Ole Schuett
+ ******************************************************************************/
+__device__ static void cxyz_to_gridpoint(const double dx, const double dy,
+                                         const double dz, const double zetp,
+                                         const int lp, const cxyz_store *cxyz,
+                                         double *gridpoint) {
+
+  // Squared distance of point from center.
+  const double r2 = dx * dx + dy * dy + dz * dz;
+  const double gaussian = exp(-zetp * r2);
+
+  // accumulate into register
+  double gridpoint_reg = 0.0;
+
+  // Manually unrolled loops based on terms in coset_inv.
+  // For lp > 6 the register usage increases and the kernel becomes slower.
+  gridpoint_reg += cxyz[0];
+
+  if (lp >= 1) {
+    gridpoint_reg += cxyz[1] * dx;
+    gridpoint_reg += cxyz[2] * dy;
+    gridpoint_reg += cxyz[3] * dz;
+    if (lp >= 2) {
+      const double dx2 = dx * dx;
+      const double dy2 = dy * dy;
+      const double dz2 = dz * dz;
+      gridpoint_reg += cxyz[4] * dx2;
+      gridpoint_reg += cxyz[5] * dx * dy;
+      gridpoint_reg += cxyz[6] * dx * dz;
+      gridpoint_reg += cxyz[7] * dy2;
+      gridpoint_reg += cxyz[8] * dy * dz;
+      gridpoint_reg += cxyz[9] * dz2;
+      if (lp >= 3) {
+        const double dx3 = dx2 * dx;
+        const double dy3 = dy2 * dy;
+        const double dz3 = dz2 * dz;
+        gridpoint_reg += cxyz[10] * dx3;
+        gridpoint_reg += cxyz[11] * dx2 * dy;
+        gridpoint_reg += cxyz[12] * dx2 * dz;
+        gridpoint_reg += cxyz[13] * dx * dy2;
+        gridpoint_reg += cxyz[14] * dx * dy * dz;
+        gridpoint_reg += cxyz[15] * dx * dz2;
+        gridpoint_reg += cxyz[16] * dy3;
+        gridpoint_reg += cxyz[17] * dy2 * dz;
+        gridpoint_reg += cxyz[18] * dy * dz2;
+        gridpoint_reg += cxyz[19] * dz3;
+        if (lp >= 4) {
+          const double dx4 = dx3 * dx;
+          const double dy4 = dy3 * dy;
+          const double dz4 = dz3 * dz;
+          gridpoint_reg += cxyz[20] * dx4;
+          gridpoint_reg += cxyz[21] * dx3 * dy;
+          gridpoint_reg += cxyz[22] * dx3 * dz;
+          gridpoint_reg += cxyz[23] * dx2 * dy2;
+          gridpoint_reg += cxyz[24] * dx2 * dy * dz;
+          gridpoint_reg += cxyz[25] * dx2 * dz2;
+          gridpoint_reg += cxyz[26] * dx * dy3;
+          gridpoint_reg += cxyz[27] * dx * dy2 * dz;
+          gridpoint_reg += cxyz[28] * dx * dy * dz2;
+          gridpoint_reg += cxyz[29] * dx * dz3;
+          gridpoint_reg += cxyz[30] * dy4;
+          gridpoint_reg += cxyz[31] * dy3 * dz;
+          gridpoint_reg += cxyz[32] * dy2 * dz2;
+          gridpoint_reg += cxyz[33] * dy * dz3;
+          gridpoint_reg += cxyz[34] * dz4;
+          if (lp >= 5) {
+            const double dx5 = dx4 * dx;
+            const double dy5 = dy4 * dy;
+            const double dz5 = dz4 * dz;
+            gridpoint_reg += cxyz[35] * dx5;
+            gridpoint_reg += cxyz[36] * dx4 * dy;
+            gridpoint_reg += cxyz[37] * dx4 * dz;
+            gridpoint_reg += cxyz[38] * dx3 * dy2;
+            gridpoint_reg += cxyz[39] * dx3 * dy * dz;
+            gridpoint_reg += cxyz[40] * dx3 * dz2;
+            gridpoint_reg += cxyz[41] * dx2 * dy3;
+            gridpoint_reg += cxyz[42] * dx2 * dy2 * dz;
+            gridpoint_reg += cxyz[43] * dx2 * dy * dz2;
+            gridpoint_reg += cxyz[44] * dx2 * dz3;
+            gridpoint_reg += cxyz[45] * dx * dy4;
+            gridpoint_reg += cxyz[46] * dx * dy3 * dz;
+            gridpoint_reg += cxyz[47] * dx * dy2 * dz2;
+            gridpoint_reg += cxyz[48] * dx * dy * dz3;
+            gridpoint_reg += cxyz[49] * dx * dz4;
+            gridpoint_reg += cxyz[50] * dy5;
+            gridpoint_reg += cxyz[51] * dy4 * dz;
+            gridpoint_reg += cxyz[52] * dy3 * dz2;
+            gridpoint_reg += cxyz[53] * dy2 * dz3;
+            gridpoint_reg += cxyz[54] * dy * dz4;
+            gridpoint_reg += cxyz[55] * dz5;
+            if (lp >= 6) {
+              const double dx6 = dx5 * dx;
+              const double dy6 = dy5 * dy;
+              const double dz6 = dz5 * dz;
+              gridpoint_reg += cxyz[56] * dx6;
+              gridpoint_reg += cxyz[57] * dx5 * dy;
+              gridpoint_reg += cxyz[58] * dx5 * dz;
+              gridpoint_reg += cxyz[59] * dx4 * dy2;
+              gridpoint_reg += cxyz[60] * dx4 * dy * dz;
+              gridpoint_reg += cxyz[61] * dx4 * dz2;
+              gridpoint_reg += cxyz[62] * dx3 * dy3;
+              gridpoint_reg += cxyz[63] * dx3 * dy2 * dz;
+              gridpoint_reg += cxyz[64] * dx3 * dy * dz2;
+              gridpoint_reg += cxyz[65] * dx3 * dz3;
+              gridpoint_reg += cxyz[66] * dx2 * dy4;
+              gridpoint_reg += cxyz[67] * dx2 * dy3 * dz;
+              gridpoint_reg += cxyz[68] * dx2 * dy2 * dz2;
+              gridpoint_reg += cxyz[69] * dx2 * dy * dz3;
+              gridpoint_reg += cxyz[70] * dx2 * dz4;
+              gridpoint_reg += cxyz[71] * dx * dy5;
+              gridpoint_reg += cxyz[72] * dx * dy4 * dz;
+              gridpoint_reg += cxyz[73] * dx * dy3 * dz2;
+              gridpoint_reg += cxyz[74] * dx * dy2 * dz3;
+              gridpoint_reg += cxyz[75] * dx * dy * dz4;
+              gridpoint_reg += cxyz[76] * dx * dz5;
+              gridpoint_reg += cxyz[77] * dy6;
+              gridpoint_reg += cxyz[78] * dy5 * dz;
+              gridpoint_reg += cxyz[79] * dy4 * dz2;
+              gridpoint_reg += cxyz[80] * dy3 * dz3;
+              gridpoint_reg += cxyz[81] * dy2 * dz4;
+              gridpoint_reg += cxyz[82] * dy * dz5;
+              gridpoint_reg += cxyz[83] * dz6;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Handle higher values of lp.
+  if (lp >= 7) {
+    for (int i = 84; i < ncoset(lp); i++) {
+      double val = cxyz[i];
+      const orbital a = coset_inv[i];
+      for (int j = 0; j < a.l[0]; j++) {
+        val *= dx;
+      }
+      for (int j = 0; j < a.l[1]; j++) {
+        val *= dy;
+      }
+      for (int j = 0; j < a.l[2]; j++) {
+        val *= dz;
+      }
+      gridpoint_reg += val;
+    }
+  }
+
+  atomicAddDouble(gridpoint, gridpoint_reg * gaussian);
+}
+
+/*******************************************************************************
+ * \brief Collocates coefficients C_xyz onto the grid.
+ * \author Ole Schuett
+ ******************************************************************************/
+__device__ static void cxyz_to_grid(const kernel_params *params,
+                                    const smem_task *task, const double *cxyz,
+                                    double *grid) {
+
+  if (task->use_orthorhombic_kernel) {
+    ortho_cxyz_to_grid(params, task, cxyz, grid);
+  } else {
+    general_cxyz_to_grid(params, task, cxyz, grid);
+  }
+}
+
+/*******************************************************************************
  * \brief Adds given value to matrix element cab[idx(b)][idx(a)].
  * \author Ole Schuett
  ******************************************************************************/
@@ -95,7 +262,7 @@ __device__ static void collocate_kernel(const kernel_params *params) {
 
   // Copy task from global to shared memory and precompute some stuff.
   __shared__ smem_task task;
-  fill_smem_task(params, &task);
+  load_task(params, &task);
 
   // Check if radius is below the resolution of the grid.
   if (2.0 * task.radius < task.dh_max) {
@@ -139,11 +306,9 @@ __global__ static void collocate_kernel_anyfunc(const kernel_params params) {
  ******************************************************************************/
 void grid_gpu_collocate_one_grid_level(
     const grid_gpu_task_list *task_list, const int first_task,
-    const int last_task, const enum grid_func func, const int npts_global[3],
-    const int npts_local[3], const int shift_local[3],
-    const int border_width[3], const double dh[3][3], const double dh_inv[3][3],
-    const cudaStream_t stream, const double *pab_blocks_dev, double *grid_dev,
-    int *lp_diff) {
+    const int last_task, const enum grid_func func,
+    const grid_gpu_layout *layout, const cudaStream_t stream,
+    const double *pab_blocks_dev, double *grid_dev, int *lp_diff) {
 
   // Compute max angular momentum.
   const prepare_ldiffs ldiffs = prepare_get_ldiffs(func);
@@ -183,7 +348,6 @@ void grid_gpu_collocate_one_grid_level(
   params.smem_alpha_offset = cab_len;
   params.smem_cxyz_offset = params.smem_alpha_offset + alpha_len;
   params.first_task = first_task;
-  params.orthorhombic = task_list->orthorhombic;
   params.func = func;
   params.grid = grid_dev;
   params.la_min_diff = ldiffs.la_min_diff;
@@ -191,17 +355,12 @@ void grid_gpu_collocate_one_grid_level(
   params.la_max_diff = ldiffs.la_max_diff;
   params.lb_max_diff = ldiffs.lb_max_diff;
   params.tasks = task_list->tasks_dev;
-  params.atom_kinds = task_list->atom_kinds_dev;
-  params.basis_sets = task_list->basis_sets_dev;
-  params.block_offsets = task_list->block_offsets_dev;
-  params.atom_positions = task_list->atom_positions_dev;
   params.pab_blocks = pab_blocks_dev;
-  memcpy(params.dh, dh, 9 * sizeof(double));
-  memcpy(params.dh_inv, dh_inv, 9 * sizeof(double));
-  memcpy(params.npts_global, npts_global, 3 * sizeof(int));
-  memcpy(params.npts_local, npts_local, 3 * sizeof(int));
-  memcpy(params.shift_local, shift_local, 3 * sizeof(int));
-  memcpy(params.border_width, border_width, 3 * sizeof(int));
+  memcpy(params.dh, layout->dh, 9 * sizeof(double));
+  memcpy(params.dh_inv, layout->dh_inv, 9 * sizeof(double));
+  memcpy(params.npts_global, layout->npts_global, 3 * sizeof(int));
+  memcpy(params.npts_local, layout->npts_local, 3 * sizeof(int));
+  memcpy(params.shift_local, layout->shift_local, 3 * sizeof(int));
 
   // Launch !
   const int nblocks = ntasks;

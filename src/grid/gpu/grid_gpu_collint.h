@@ -16,13 +16,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <cooperative_groups.h>
-namespace cg = cooperative_groups;
-
-#if (CUDA_VERSION >= 11000)
-#include <cooperative_groups/reduce.h>
-#endif
-
 #include "../common/grid_basis_set.h"
 #include "../common/grid_common.h"
 #include "grid_gpu_task_list.h"
@@ -35,7 +28,31 @@ namespace cg = cooperative_groups;
 #define GRID_CONST_WHEN_INTEGRATE const
 #endif
 
-#define GRID_N_CXYZ_LOCAL_MEM 35
+/*******************************************************************************
+ * \brief Forward declarations for inner-most loop bodies.
+ *        Implementations are in grid_gpu_collocate.cu / grid_gpu_integrate.cu.
+ * \author Ole Schuett
+ ******************************************************************************/
+#if (GRID_DO_COLLOCATE)
+// collocate
+typedef double cxyz_store;
+
+__device__ static void cxyz_to_gridpoint(const double dx, const double dy,
+                                         const double dz, const double zetp,
+                                         const int lp, const cxyz_store *cxyz,
+                                         double *gridpoint);
+#else
+// integrate
+typedef struct {
+  double *regs;
+  int offset;
+} cxyz_store;
+
+__device__ static void gridpoint_to_cxyz(const double dx, const double dy,
+                                         const double dz, const double zetp,
+                                         const int lp, const double *gridpoint,
+                                         cxyz_store *store);
+#endif
 
 /*******************************************************************************
  * \brief Atomic add for doubles that also works prior to compute capability 6.
@@ -64,167 +81,6 @@ __device__ static void atomicAddDouble(double *address, double val) {
 }
 
 /*******************************************************************************
- * \brief Sums first within a warp and then issues a single atomicAdd per warp.
- * \author Ole Schuett
- ******************************************************************************/
-__device__ static inline void coalescedAtomicAdd(double *base_address, int idx,
-                                                 double val) {
-
-#if __CUDA_ARCH__ >= 700
-  // The labeled_partition should not be needed because of __syncwarp earlier,
-  // but since it has no noticeable performance impact and we can play it safe.
-  const cg::coalesced_group active =
-      cg::labeled_partition(cg::coalesced_threads(), idx);
-  // assert(active.meta_group_size()==1); // too costly for production
-#else
-  const cg::coalesced_group active = cg::coalesced_threads();
-#endif
-
-#if (CUDA_VERSION >= 11000)
-  // Reduce from Cuda 11+ library is around 30% faster than the solution below.
-  const double sum = cg::reduce(active, val, cg::plus<double>());
-
-#else
-  // Slow sequential reduction until group size is a power of two.
-  double sum1 = 0.0;
-  unsigned int group_size = active.size();
-  while ((group_size & (group_size - 1)) != 0) {
-    sum1 += active.shfl_down(val, group_size - 1);
-    group_size--;
-  }
-  // Fast tree reduction halving group size in each iteration.
-  double sum2 = val;
-  for (int offset = group_size / 2; offset > 0; offset /= 2) {
-    sum2 += active.shfl_down(sum2, offset);
-  }
-  const double sum = sum1 + sum2;
-#endif
-
-  // Use only a single atomic add to avoid collisions.
-  if (active.thread_rank() == 0) {
-    atomicAddDouble(&base_address[idx], sum);
-  }
-}
-
-/*******************************************************************************
- * \brief Collocate a single grid point with distance d{xyz} from center.
- * \author Ole Schuett
- ******************************************************************************/
-__device__ static void cxyz_to_gridpoint(const double dx, const double dy,
-                                         const double dz, const double zetp,
-                                         const int lp, const double *cxyz,
-                                         double *gridpoint) {
-
-  // Squared distance of point from center.
-  const double r2 = dx * dx + dy * dy + dz * dz;
-  const double gaussian = exp(-zetp * r2);
-
-  // collocate
-  double gridpoint_reg = 0.0; // accumulate into register
-
-  if (lp == 0) {
-    gridpoint_reg += cxyz[0];
-
-  } else if (lp == 1) {
-    gridpoint_reg += cxyz[0];
-    gridpoint_reg += cxyz[1] * dx;
-    gridpoint_reg += cxyz[2] * dy;
-    gridpoint_reg += cxyz[3] * dz;
-
-  } else if (lp == 2) {
-    gridpoint_reg += cxyz[0];
-    gridpoint_reg += cxyz[1] * dx;
-    gridpoint_reg += cxyz[2] * dy;
-    gridpoint_reg += cxyz[3] * dz;
-    gridpoint_reg += cxyz[4] * dx * dx;
-    gridpoint_reg += cxyz[5] * dx * dy;
-    gridpoint_reg += cxyz[6] * dx * dz;
-    gridpoint_reg += cxyz[7] * dy * dy;
-    gridpoint_reg += cxyz[8] * dy * dz;
-    gridpoint_reg += cxyz[9] * dz * dz;
-
-  } else {
-    double pow_dz = 1.0;
-    for (int lzp = 0; lzp <= lp; lzp++) {
-      double pow_dy = 1.0;
-      for (int lyp = 0; lyp <= lp - lzp; lyp++) {
-        double pow_dx = 1.0;
-        for (int lxp = 0; lxp <= lp - lzp - lyp; lxp++) {
-          const double p = pow_dx * pow_dy * pow_dz;
-          const int cxyz_index = coset(lxp, lyp, lzp);
-          gridpoint_reg += cxyz[cxyz_index] * p;
-          pow_dx *= dx; // pow_dx = pow(dx, lxp)
-        }
-        pow_dy *= dy; // pow_dy = pow(dy, lyp)
-      }
-      pow_dz *= dz; // pow_dz = pow(dz, lzp)
-    }
-  }
-  atomicAddDouble(gridpoint, gridpoint_reg * gaussian);
-}
-
-/*******************************************************************************
- * \brief Integrate a single grid point with distance d{xyz} from center.
- * \author Ole Schuett
- ******************************************************************************/
-__device__ static void gridpoint_to_cxyz(const double dx, const double dy,
-                                         const double dz, const double zetp,
-                                         const int lp, double *cxyz_local_mem,
-                                         double *cxyz,
-                                         const double *gridpoint) {
-
-  // Squared distance of point from center.
-  const double r2 = dx * dx + dy * dy + dz * dz;
-  const double gaussian = exp(-zetp * r2);
-
-  // Load without polluting L1 cache, which is needed for cxyz_local_mem.
-  const double gridpoint_reg = __ldg(gridpoint) * gaussian;
-
-  if (lp == 0) {
-    cxyz_local_mem[0] += gridpoint_reg;
-
-  } else if (lp == 1) {
-    cxyz_local_mem[0] += gridpoint_reg;
-    cxyz_local_mem[1] += gridpoint_reg * dx;
-    cxyz_local_mem[2] += gridpoint_reg * dy;
-    cxyz_local_mem[3] += gridpoint_reg * dz;
-
-  } else if (lp == 2) {
-    cxyz_local_mem[0] += gridpoint_reg;
-    cxyz_local_mem[1] += gridpoint_reg * dx;
-    cxyz_local_mem[2] += gridpoint_reg * dy;
-    cxyz_local_mem[3] += gridpoint_reg * dz;
-    cxyz_local_mem[4] += gridpoint_reg * dx * dx;
-    cxyz_local_mem[5] += gridpoint_reg * dx * dy;
-    cxyz_local_mem[6] += gridpoint_reg * dx * dz;
-    cxyz_local_mem[7] += gridpoint_reg * dy * dy;
-    cxyz_local_mem[8] += gridpoint_reg * dy * dz;
-    cxyz_local_mem[9] += gridpoint_reg * dz * dz;
-
-  } else {
-    double pow_dz = 1.0;
-    for (int lzp = 0; lzp <= lp; lzp++) {
-      double pow_dy = 1.0;
-      for (int lyp = 0; lyp <= lp - lzp; lyp++) {
-        double pow_dx = 1.0;
-        for (int lxp = 0; lxp <= lp - lzp - lyp; lxp++) {
-          const double val = gridpoint_reg * pow_dx * pow_dy * pow_dz;
-          const int cxyz_index = coset(lxp, lyp, lzp);
-          if (cxyz_index < GRID_N_CXYZ_LOCAL_MEM) {
-            cxyz_local_mem[cxyz_index] += val;
-          } else {
-            coalescedAtomicAdd(cxyz, cxyz_index, val);
-          }
-          pow_dx *= dx; // pow_dx = pow(dx, lxp)
-        }
-        pow_dy *= dy; // pow_dy = pow(dy, lyp)
-      }
-      pow_dz *= dz; // pow_dz = pow(dz, lzp)
-    }
-  }
-}
-
-/*******************************************************************************
  * \brief Parameters of the collocate kernel.
  * \author Ole Schuett
  ******************************************************************************/
@@ -233,19 +89,13 @@ typedef struct {
   int smem_alpha_offset;
   int smem_cxyz_offset;
   int first_task;
-  bool orthorhombic;
   int npts_global[3];
   int npts_local[3];
   int shift_local[3];
-  int border_width[3];
   double dh[3][3];
   double dh_inv[3][3];
   const grid_gpu_task *tasks;
-  const int *atom_kinds;
-  const grid_basis_set *basis_sets;
-  const int *block_offsets;
   const double *pab_blocks;
-  const double *atom_positions;
   GRID_CONST_WHEN_INTEGRATE double *grid;
   int la_min_diff;
   int lb_min_diff;
@@ -267,51 +117,20 @@ typedef struct {
  * \brief Shared memory representation of a task.
  * \author Ole Schuett
  ******************************************************************************/
-typedef struct {
-  int border_mask;
-  bool block_transposed;
-  double radius;
-  double radius2;
-  double ra[3];
-  double rb[3];
-  double rp[3];
-  double rab[3];
-  double gp[3];
-  double rab2;
-  double zeta;
-  double zetb;
-  double zetp;
-  double prefactor;
-  double off_diag_twice;
-  double dh_max;
+typedef struct : grid_gpu_task_struct {
   // angular momentum range of actual collocate / integrate operation
   int la_max;
   int lb_max;
   int la_min;
   int lb_min;
   int lp;
+
   // size of the cab matrix
   int n1;
   int n2;
-  // size of entire spherical basis
-  int nsgfa;
-  int nsgfb;
-  // size of spherical set
-  int nsgf_seta;
-  int nsgf_setb;
-  // start of decontracted set, ie. pab and hab
-  int first_coseta;
-  int first_cosetb;
-  // size of decontracted set, ie. pab and hab
-  int ncoseta;
-  int ncosetb;
-  // strides of the sphi transformation matrices
-  int maxcoa;
-  int maxcob;
-  // pointers matrices
+
   const double *pab_block;
-  const double *sphia;
-  const double *sphib;
+
 #if (!GRID_DO_COLLOCATE)
   // integrate
   double *hab_block;
@@ -374,45 +193,25 @@ static void init_constant_memory() {
  ******************************************************************************/
 __device__ static void
 ortho_cxyz_to_grid(const kernel_params *params, const smem_task *task,
-                   double *cxyz_local_mem,
-                   GRID_CONST_WHEN_COLLOCATE double *cxyz,
+                   GRID_CONST_WHEN_COLLOCATE cxyz_store *cxyz,
                    GRID_CONST_WHEN_INTEGRATE double *grid) {
-  // Discretize the radius.
-  const double drmin =
-      fmin(params->dh[0][0], fmin(params->dh[1][1], params->dh[2][2]));
-  const int imr = imax(1, (int)ceil(task->radius / drmin));
-  const double disr_radius = drmin * imr;
-
-  // *** position of the gaussian product
-  //
-  // this is the actual definition of the position on the grid
-  // i.e. a point rp(:) gets here grid coordinates
-  // MODULO(rp(:)/dr(:),npts_global(:))+1
-  // hence (0.0,0.0,0.0) in real space is rsgrid%lb on the rsgrid in Fortran
-  // and (1,1,1) on grid here in C.
-
-  // cubecenter(:) = FLOOR(MATMUL(dh_inv, rp))
-  int cubecenter[3];
-  for (int i = 0; i < 3; i++) {
-    cubecenter[i] = (int)floor(task->gp[i]);
-  }
 
   // The cube contains an even number of grid points in each direction and
   // collocation is always performed on a pair of two opposing grid points.
   // Hence, the points with index 0 and 1 are both assigned distance zero via
   // the formular distance=(2*index-1)/2.
-  const int kmin = ceil(-1e-8 - disr_radius * params->dh_inv[2][2]);
+  const int kmin = ceil(-1e-8 - task->disr_radius * params->dh_inv[2][2]);
   for (int k = threadIdx.z + kmin; k <= 1 - kmin; k += blockDim.z) {
-    const int ka = cubecenter[2] + k - params->shift_local[2];
+    const int ka = task->cube_center_shifted[2] + k;
     const int kg =
         modulo(ka, params->npts_global[2]); // target location on the grid
     const int kd = (2 * k - 1) / 2; // distance from center in grid points
     const double kr = kd * params->dh[2][2]; // distance from center in a.u.
-    const double kremain = disr_radius * disr_radius - kr * kr;
+    const double kremain = task->disr_radius * task->disr_radius - kr * kr;
     const int jmin =
         ceil(-1e-8 - sqrt(fmax(0.0, kremain)) * params->dh_inv[1][1]);
     for (int j = threadIdx.y + jmin; j <= 1 - jmin; j += blockDim.y) {
-      const int ja = cubecenter[1] + j - params->shift_local[1];
+      const int ja = task->cube_center_shifted[1] + j;
       const int jg =
           modulo(ja, params->npts_global[1]); // target location on the grid
       const int jd = (2 * j - 1) / 2; // distance from center in grid points
@@ -421,13 +220,8 @@ ortho_cxyz_to_grid(const kernel_params *params, const smem_task *task,
       const int imin =
           ceil(-1e-8 - sqrt(fmax(0.0, jremain)) * params->dh_inv[0][0]);
 
-#if (!GRID_DO_COLLOCATE)
-      // Sync threads within warp to have a single group in coalescedAtomicAdd.
-      __syncwarp(); // assumes blockDim.x==32
-#endif
-
       for (int i = threadIdx.x + imin; i <= 1 - imin; i += blockDim.x) {
-        const int ia = cubecenter[0] + i - params->shift_local[0];
+        const int ia = task->cube_center_shifted[0] + i;
         const int ig =
             modulo(ia, params->npts_global[0]); // target location on the grid
 
@@ -435,9 +229,9 @@ ortho_cxyz_to_grid(const kernel_params *params, const smem_task *task,
         // ie. they always snap to the next grid point. This allowed the legacy
         // implementation to cache the loop bounds.
         // For the calculation of the grid value we'll use the true distance.
-        const double dx = (cubecenter[0] + i) * params->dh[0][0] - task->rp[0];
-        const double dy = (cubecenter[1] + j) * params->dh[1][1] - task->rp[1];
-        const double dz = (cubecenter[2] + k) * params->dh[2][2] - task->rp[2];
+        const double dx = i * params->dh[0][0] + task->cube_offset[0];
+        const double dy = j * params->dh[1][1] + task->cube_offset[1];
+        const double dz = k * params->dh[2][2] + task->cube_offset[2];
 
         const int grid_index =
             kg * params->npts_local[1] * params->npts_local[0] +
@@ -449,8 +243,8 @@ ortho_cxyz_to_grid(const kernel_params *params, const smem_task *task,
                           &grid[grid_index]);
 #else
         // integrate
-        gridpoint_to_cxyz(dx, dy, dz, task->zetp, task->lp, cxyz_local_mem,
-                          cxyz, &grid[grid_index]);
+        gridpoint_to_cxyz(dx, dy, dz, task->zetp, task->lp, &grid[grid_index],
+                          cxyz);
 #endif
       }
     }
@@ -465,77 +259,28 @@ ortho_cxyz_to_grid(const kernel_params *params, const smem_task *task,
  ******************************************************************************/
 __device__ static void
 general_cxyz_to_grid(const kernel_params *params, const smem_task *task,
-                     double *cxyz_local_mem,
-                     GRID_CONST_WHEN_COLLOCATE double *cxyz,
+                     GRID_CONST_WHEN_COLLOCATE cxyz_store *cxyz,
                      GRID_CONST_WHEN_INTEGRATE double *grid) {
 
-  // get the min max indices that contain at least the cube that contains a
-  // sphere around rp of radius radius if the cell is very non-orthogonal this
-  // implies that many useless points are included this estimate can be
-  // improved (i.e. not box but sphere should be used)
-  int index_min[3] = {INT_MAX, INT_MAX, INT_MAX};
-  int index_max[3] = {INT_MIN, INT_MIN, INT_MIN};
-  for (int i = -1; i <= 1; i++) {
-    for (int j = -1; j <= 1; j++) {
-      for (int k = -1; k <= 1; k++) {
-        const double x = task->rp[0] + i * task->radius;
-        const double y = task->rp[1] + j * task->radius;
-        const double z = task->rp[2] + k * task->radius;
-        for (int idir = 0; idir < 3; idir++) {
-          const double resc = params->dh_inv[0][idir] * x +
-                              params->dh_inv[1][idir] * y +
-                              params->dh_inv[2][idir] * z;
-          index_min[idir] = imin(index_min[idir], (int)floor(resc));
-          index_max[idir] = imax(index_max[idir], (int)ceil(resc));
-        }
-      }
-    }
-  }
-
-  // Default for border_mask == 0.
-  int bounds_i[2] = {0, params->npts_local[0] - 1};
-  int bounds_j[2] = {0, params->npts_local[1] - 1};
-  int bounds_k[2] = {0, params->npts_local[2] - 1};
-
-  // See also rs_find_node() in task_list_methods.F.
-  // If the bit is set then we need to exclude the border in that direction.
-  if (task->border_mask & (1 << 0))
-    bounds_i[0] += params->border_width[0];
-  if (task->border_mask & (1 << 1))
-    bounds_i[1] -= params->border_width[0];
-  if (task->border_mask & (1 << 2))
-    bounds_j[0] += params->border_width[1];
-  if (task->border_mask & (1 << 3))
-    bounds_j[1] -= params->border_width[1];
-  if (task->border_mask & (1 << 4))
-    bounds_k[0] += params->border_width[2];
-  if (task->border_mask & (1 << 5))
-    bounds_k[1] -= params->border_width[2];
-
   // Go over the grid
-  const int k_start = threadIdx.z + index_min[2];
-  for (int k = k_start; k <= index_max[2]; k += blockDim.z) {
+  const int k_start = threadIdx.z + task->index_min[2];
+  for (int k = k_start; k <= task->index_max[2]; k += blockDim.z) {
     const int kg = modulo(k - params->shift_local[2], params->npts_global[2]);
-    if (kg < bounds_k[0] || bounds_k[1] < kg) {
+    if (kg < task->bounds_k[0] || task->bounds_k[1] < kg) {
       continue;
     }
-    const int j_start = threadIdx.y + index_min[1];
-    for (int j = j_start; j <= index_max[1]; j += blockDim.y) {
+    const int j_start = threadIdx.y + task->index_min[1];
+    for (int j = j_start; j <= task->index_max[1]; j += blockDim.y) {
       const int jg = modulo(j - params->shift_local[1], params->npts_global[1]);
-      if (jg < bounds_j[0] || bounds_j[1] < jg) {
+      if (jg < task->bounds_j[0] || task->bounds_j[1] < jg) {
         continue;
       }
 
-#if (!GRID_DO_COLLOCATE)
-      // Sync threads within warp to have a single group in coalescedAtomicAdd.
-      __syncwarp(); // assumes blockDim.x==32
-#endif
-
-      const int i_start = threadIdx.x + index_min[0];
-      for (int i = i_start; i <= index_max[0]; i += blockDim.x) {
+      const int i_start = threadIdx.x + task->index_min[0];
+      for (int i = i_start; i <= task->index_max[0]; i += blockDim.x) {
         const int ig =
             modulo(i - params->shift_local[0], params->npts_global[0]);
-        if (ig < bounds_i[0] || bounds_i[1] < ig) {
+        if (ig < task->bounds_i[0] || task->bounds_i[1] < ig) {
           continue;
         }
         // Compute distance of current grid point from center of Gaussian.
@@ -567,49 +312,14 @@ general_cxyz_to_grid(const kernel_params *params, const smem_task *task,
                           &grid[grid_index]);
 #else
         // integrate
-        gridpoint_to_cxyz(dx, dy, dz, task->zetp, task->lp, cxyz_local_mem,
-                          cxyz, &grid[grid_index]);
+        gridpoint_to_cxyz(dx, dy, dz, task->zetp, task->lp, &grid[grid_index],
+                          cxyz);
 #endif
       }
     }
   }
 
   __syncthreads(); // because of concurrent writes to grid / cxyz
-}
-
-/*******************************************************************************
- * \brief Collocates coefficients C_xyz onto the grid.
- * \author Ole Schuett
- ******************************************************************************/
-__device__ static void cxyz_to_grid(const kernel_params *params,
-                                    const smem_task *task,
-                                    GRID_CONST_WHEN_COLLOCATE double *cxyz,
-                                    GRID_CONST_WHEN_INTEGRATE double *grid) {
-
-#if (GRID_DO_COLLOCATE)
-  // collocate
-  double *cxyz_local_mem = NULL; // never used
-#else
-  // integrate
-  // We force cxyz_local_mem into local memory by using dynamic indexing and
-  // rely on the L1 cache to provide fast access during gridpoint_to_cxyz.
-  // https://developer.nvidia.com/blog/fast-dynamic-indexing-private-arrays-cuda
-  double cxyz_local_mem[GRID_N_CXYZ_LOCAL_MEM] = {0.0};
-#endif
-
-  if (params->orthorhombic && task->border_mask == 0) {
-    ortho_cxyz_to_grid(params, task, cxyz_local_mem, cxyz, grid);
-  } else {
-    general_cxyz_to_grid(params, task, cxyz_local_mem, cxyz, grid);
-  }
-
-#if (!GRID_DO_COLLOCATE)
-  // integrate
-  for (int i = 0; i < GRID_N_CXYZ_LOCAL_MEM; i++) {
-    atomicAddDouble(&cxyz[i], cxyz_local_mem[i]);
-  }
-  __syncthreads(); // because of concurrent writes to cxyz
-#endif
 }
 
 /*******************************************************************************
@@ -751,123 +461,39 @@ __device__ static void zero_cab(const smem_task *task, double *cab) {
  * \brief Copies a task from global to shared memory and does precomputations.
  * \author Ole Schuett
  ******************************************************************************/
-__device__ static void fill_smem_task(const kernel_params *params,
-                                      smem_task *task) {
+__device__ static void load_task(const kernel_params *params, smem_task *task) {
+
+  // Parallel copy of base task from global to shared memory.
+  if (threadIdx.y == 0 && threadIdx.z == 0) {
+    const int itask = params->first_task + blockIdx.x;
+    const grid_gpu_task *src_task = &params->tasks[itask];
+    grid_gpu_task *dest_task = task; // Upcast to base struct.
+    for (int i = threadIdx.x; i < sizeof(grid_gpu_task); i += blockDim.x) {
+      ((char *)dest_task)[i] = ((const char *)src_task)[i];
+    }
+  }
+  __syncthreads(); // because of concurrent writes to task
 
   if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) {
-    const int itask = params->first_task + blockIdx.x;
-    const grid_gpu_task *glb_task = &params->tasks[itask];
-    const int iatom = glb_task->iatom - 1;
-    const int jatom = glb_task->jatom - 1;
-    const int iset = glb_task->iset - 1;
-    const int jset = glb_task->jset - 1;
-    const int ipgf = glb_task->ipgf - 1;
-    const int jpgf = glb_task->jpgf - 1;
-    const int ikind = params->atom_kinds[iatom] - 1;
-    const int jkind = params->atom_kinds[jatom] - 1;
-    const grid_basis_set ibasis = params->basis_sets[ikind];
-    const grid_basis_set jbasis = params->basis_sets[jkind];
-
-    task->zeta = ibasis.zet[iset * ibasis.maxpgf + ipgf];
-    task->zetb = jbasis.zet[jset * jbasis.maxpgf + jpgf];
-    task->zetp = task->zeta + task->zetb;
-    const double f = task->zetb / task->zetp;
-
-    const double *glb_ra = &params->atom_positions[3 * iatom];
-    task->rab2 = 0.0;
-    for (int i = 0; i < 3; i++) {
-      task->rab[i] = glb_task->rab[i];
-      task->rab2 += task->rab[i] * task->rab[i];
-      task->ra[i] = glb_ra[i];
-      task->rb[i] = task->ra[i] + task->rab[i];
-      task->rp[i] = task->ra[i] + task->rab[i] * f;
-    }
-
-    // center in grid coords, gp = MATMUL(dh_inv, rp)
-    for (int i = 0; i < 3; i++) {
-      task->gp[i] = params->dh_inv[0][i] * task->rp[0] +
-                    params->dh_inv[1][i] * task->rp[1] +
-                    params->dh_inv[2][i] * task->rp[2];
-    }
-
-    // resolution of the grid
-    task->dh_max = 0.0;
-    for (int i = 0; i < 3; i++) {
-      for (int j = 0; j < 3; j++) {
-        task->dh_max = fmax(task->dh_max, fabs(params->dh[i][j]));
-      }
-    }
-
-    task->border_mask = glb_task->border_mask;
-    task->radius = glb_task->radius;
-    task->radius2 = task->radius * task->radius;
-    task->prefactor = exp(-task->zeta * f * task->rab2);
-    task->off_diag_twice = (iatom == jatom) ? 1.0 : 2.0;
-
-    // angular momentum range of basis set
-    const int la_max_basis = ibasis.lmax[iset];
-    const int lb_max_basis = jbasis.lmax[jset];
-    const int la_min_basis = ibasis.lmin[iset];
-    const int lb_min_basis = jbasis.lmin[jset];
-
-    // start of decontracted set, ie. pab and hab
-    task->first_coseta = (la_min_basis > 0) ? ncoset(la_min_basis - 1) : 0;
-    task->first_cosetb = (lb_min_basis > 0) ? ncoset(lb_min_basis - 1) : 0;
-
-    // size of decontracted set, ie. pab and hab
-    task->ncoseta = ncoset(la_max_basis);
-    task->ncosetb = ncoset(lb_max_basis);
-
     // angular momentum range for the actual collocate/integrate opteration.
-    task->la_max = la_max_basis + params->la_max_diff;
-    task->lb_max = lb_max_basis + params->lb_max_diff;
-    task->la_min = imax(la_min_basis + params->la_min_diff, 0);
-    task->lb_min = imax(lb_min_basis + params->lb_min_diff, 0);
+    task->la_max = task->la_max_basis + params->la_max_diff;
+    task->lb_max = task->lb_max_basis + params->lb_max_diff;
+    task->la_min = imax(task->la_min_basis + params->la_min_diff, 0);
+    task->lb_min = imax(task->lb_min_basis + params->lb_min_diff, 0);
     task->lp = task->la_max + task->lb_max;
 
     // size of the cab matrix
     task->n1 = ncoset(task->la_max);
     task->n2 = ncoset(task->lb_max);
 
-    // size of entire spherical basis
-    task->nsgfa = ibasis.nsgf;
-    task->nsgfb = jbasis.nsgf;
-
-    // size of spherical set
-    task->nsgf_seta = ibasis.nsgf_set[iset];
-    task->nsgf_setb = jbasis.nsgf_set[jset];
-
-    // strides of the sphi transformation matrices
-    task->maxcoa = ibasis.maxco;
-    task->maxcob = jbasis.maxco;
-
-    // start of spherical set within the basis
-    const int sgfa = ibasis.first_sgf[iset] - 1;
-    const int sgfb = jbasis.first_sgf[jset] - 1;
-
-    // start of exponent within the cartesian set
-    const int o1 = ipgf * task->ncoseta;
-    const int o2 = jpgf * task->ncosetb;
-
-    // transformations from contracted spherical to primitiv carthesian basis
-    task->sphia = &ibasis.sphi[sgfa * task->maxcoa + o1];
-    task->sphib = &jbasis.sphi[sgfb * task->maxcob + o2];
-
-    // Locate current matrix block within the buffer.
-    const int block_num = glb_task->block_num - 1;
-    const int block_offset = params->block_offsets[block_num];
-    task->block_transposed = (iatom > jatom);
-    const int subblock_offset = (task->block_transposed)
-                                    ? sgfa * task->nsgfb + sgfb
-                                    : sgfb * task->nsgfa + sgfa;
-    task->pab_block = &params->pab_blocks[block_offset + subblock_offset];
+    task->pab_block = &params->pab_blocks[task->ab_block_offset];
 
     // integrate
 #if (!GRID_DO_COLLOCATE)
-    task->hab_block = &params->hab_blocks[block_offset + subblock_offset];
+    task->hab_block = &params->hab_blocks[task->ab_block_offset];
     if (params->forces != NULL) {
-      task->forces_a = &params->forces[3 * iatom];
-      task->forces_b = &params->forces[3 * jatom];
+      task->forces_a = &params->forces[3 * task->iatom];
+      task->forces_b = &params->forces[3 * task->jatom];
     }
 #endif
   }
