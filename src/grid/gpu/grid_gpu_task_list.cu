@@ -35,6 +35,202 @@
   }
 
 /*******************************************************************************
+ * \brief Create a single task and precompute as much as possible.
+ * \author Ole Schuett
+ ******************************************************************************/
+static void
+create_tasks(const bool orthorhombic, const int ntasks,
+             const int block_offsets[], const double atom_positions[][3],
+             const int atom_kinds[], const grid_basis_set *basis_sets[],
+             const int level_list[], const int iatom_list[],
+             const int jatom_list[], const int iset_list[],
+             const int jset_list[], const int ipgf_list[],
+             const int jpgf_list[], const int border_mask_list[],
+             const int block_num_list[], const double radius_list[],
+             const double rab_list[][3], const int npts_local[][3],
+             const int shift_local[][3], const int border_width[][3],
+             const double dh[][3][3], const double dh_inv[][3][3],
+             const double *sphis_dev[], grid_gpu_task tasks[]) {
+
+  for (int itask = 0; itask < ntasks; itask++) {
+    grid_gpu_task *task = &tasks[itask];
+
+    task->iatom = iatom_list[itask] - 1;
+    task->jatom = jatom_list[itask] - 1;
+    const int iset = iset_list[itask] - 1;
+    const int jset = jset_list[itask] - 1;
+    const int ipgf = ipgf_list[itask] - 1;
+    const int jpgf = jpgf_list[itask] - 1;
+    const int ikind = atom_kinds[task->iatom] - 1;
+    const int jkind = atom_kinds[task->jatom] - 1;
+    const grid_basis_set *ibasis = basis_sets[ikind];
+    const grid_basis_set *jbasis = basis_sets[jkind];
+
+    const int level = level_list[itask] - 1;
+    const int border_mask = border_mask_list[itask];
+
+    task->use_orthorhombic_kernel = (orthorhombic && border_mask == 0);
+
+    task->zeta = ibasis->zet[iset * ibasis->maxpgf + ipgf];
+    task->zetb = jbasis->zet[jset * jbasis->maxpgf + jpgf];
+    task->zetp = task->zeta + task->zetb;
+    const double f = task->zetb / task->zetp;
+
+    task->rab2 = 0.0;
+    for (int i = 0; i < 3; i++) {
+      task->rab[i] = rab_list[itask][i];
+      task->rab2 += task->rab[i] * task->rab[i];
+      task->ra[i] = atom_positions[task->iatom][i];
+      task->rb[i] = task->ra[i] + task->rab[i];
+      task->rp[i] = task->ra[i] + task->rab[i] * f;
+    }
+
+    // center in grid coords, gp = MATMUL(dh_inv, rp)
+    for (int i = 0; i < 3; i++) {
+      task->gp[i] = dh_inv[level][0][i] * task->rp[0] +
+                    dh_inv[level][1][i] * task->rp[1] +
+                    dh_inv[level][2][i] * task->rp[2];
+    }
+
+    // resolution of the grid
+    task->dh_max = 0.0;
+    for (int i = 0; i < 3; i++) {
+      for (int j = 0; j < 3; j++) {
+        task->dh_max = fmax(task->dh_max, fabs(dh[level][i][j]));
+      }
+    }
+
+    task->radius = radius_list[itask];
+    task->radius2 = task->radius * task->radius;
+    task->prefactor = exp(-task->zeta * f * task->rab2);
+    task->off_diag_twice = (task->iatom == task->jatom) ? 1.0 : 2.0;
+
+    // angular momentum range of basis set
+    task->la_max_basis = ibasis->lmax[iset];
+    task->lb_max_basis = jbasis->lmax[jset];
+    task->la_min_basis = ibasis->lmin[iset];
+    task->lb_min_basis = jbasis->lmin[jset];
+
+    // start of decontracted set, ie. pab and hab
+    const int prev_ncoseta = ncoset(task->la_min_basis - 1);
+    const int prev_ncosetb = ncoset(task->lb_min_basis - 1);
+    task->first_coseta = (task->la_min_basis > 0) ? prev_ncoseta : 0;
+    task->first_cosetb = (task->lb_min_basis > 0) ? prev_ncosetb : 0;
+
+    // size of decontracted set, ie. pab and hab
+    task->ncoseta = ncoset(task->la_max_basis);
+    task->ncosetb = ncoset(task->lb_max_basis);
+
+    // size of entire spherical basis
+    task->nsgfa = ibasis->nsgf;
+    task->nsgfb = jbasis->nsgf;
+
+    // size of spherical set
+    task->nsgf_seta = ibasis->nsgf_set[iset];
+    task->nsgf_setb = jbasis->nsgf_set[jset];
+
+    // strides of the sphi transformation matrices
+    task->maxcoa = ibasis->maxco;
+    task->maxcob = jbasis->maxco;
+
+    // start of spherical set within the basis
+    const int sgfa = ibasis->first_sgf[iset] - 1;
+    const int sgfb = jbasis->first_sgf[jset] - 1;
+
+    // start of exponent within the cartesian set
+    const int o1 = ipgf * task->ncoseta;
+    const int o2 = jpgf * task->ncosetb;
+
+    // transformations from contracted spherical to primitiv carthesian basis
+    task->sphia = &sphis_dev[ikind][sgfa * task->maxcoa + o1];
+    task->sphib = &sphis_dev[jkind][sgfb * task->maxcob + o2];
+
+    // Locate current matrix block within the buffer.
+    const int block_num = block_num_list[itask] - 1;
+    task->block_transposed = (task->iatom > task->jatom);
+    const int block_offset = block_offsets[block_num];
+    const int subblock_offset = (task->block_transposed)
+                                    ? sgfa * task->nsgfb + sgfb
+                                    : sgfb * task->nsgfa + sgfa;
+    task->ab_block_offset = block_offset + subblock_offset;
+
+    // Stuff for the ortho kernel ----------------------------------------------
+
+    // Discretize the radius.
+    const double drmin =
+        fmin(dh[level][0][0], fmin(dh[level][1][1], dh[level][2][2]));
+    const int imr = imax(1, (int)ceil(task->radius / drmin));
+    task->disr_radius = drmin * imr;
+
+    // Position of the gaussian product:
+    // this is the actual definition of the position on the grid
+    // i.e. a point rp(:) gets here grid coordinates
+    // MODULO(rp(:)/dr(:),npts_global(:))+1
+    // hence (0.0,0.0,0.0) in real space is rsgrid%lb on the rsgrid in Fortran
+    // and (1,1,1) on grid here in C.
+    //
+    // cubecenter(:) = FLOOR(MATMUL(dh_inv, rp))
+    for (int i = 0; i < 3; i++) {
+      const int cubecenter = floor(task->gp[i]);
+      task->cube_center_shifted[i] = cubecenter - shift_local[level][i];
+      task->cube_offset[i] = cubecenter * dh[level][i][i] - task->rp[i];
+    }
+
+    // Stuff for the general kernel --------------------------------------------
+    //
+    // get the min max indices that contain at least the cube that contains a
+    // sphere around rp of radius radius if the cell is very non-orthogonal this
+    // implies that many useless points are included this estimate can be
+    // improved (i.e. not box but sphere should be used)
+    for (int i = 0; i < 3; i++) {
+      task->index_min[i] = INT_MAX;
+      task->index_max[i] = INT_MIN;
+    }
+    for (int i = -1; i <= 1; i++) {
+      for (int j = -1; j <= 1; j++) {
+        for (int k = -1; k <= 1; k++) {
+          const double x = task->rp[0] + i * task->radius;
+          const double y = task->rp[1] + j * task->radius;
+          const double z = task->rp[2] + k * task->radius;
+          for (int idir = 0; idir < 3; idir++) {
+            const double resc = dh_inv[level][0][idir] * x +
+                                dh_inv[level][1][idir] * y +
+                                dh_inv[level][2][idir] * z;
+            task->index_min[idir] =
+                imin(task->index_min[idir], (int)floor(resc));
+            task->index_max[idir] =
+                imax(task->index_max[idir], (int)ceil(resc));
+          }
+        }
+      }
+    }
+
+    // Defaults for border_mask == 0.
+    task->bounds_i[0] = 0;
+    task->bounds_i[1] = npts_local[level][0] - 1;
+    task->bounds_j[0] = 0;
+    task->bounds_j[1] = npts_local[level][1] - 1;
+    task->bounds_k[0] = 0;
+    task->bounds_k[1] = npts_local[level][2] - 1;
+
+    // See also rs_find_node() in task_list_methods.F.
+    // If the bit is set then we need to exclude the border in that direction.
+    if (border_mask & (1 << 0))
+      task->bounds_i[0] += border_width[level][0];
+    if (border_mask & (1 << 1))
+      task->bounds_i[1] -= border_width[level][0];
+    if (border_mask & (1 << 2))
+      task->bounds_j[0] += border_width[level][1];
+    if (border_mask & (1 << 3))
+      task->bounds_j[1] -= border_width[level][1];
+    if (border_mask & (1 << 4))
+      task->bounds_k[0] += border_width[level][2];
+    if (border_mask & (1 << 5))
+      task->bounds_k[1] -= border_width[level][2];
+  }
+}
+
+/*******************************************************************************
  * \brief Allocates a task list for the GPU backend.
  *        See grid_task_list.h for details.
  * \author Ole Schuett
@@ -87,87 +283,27 @@ void grid_gpu_create_task_list(
     }
   }
 
-  size = nblocks * sizeof(int);
-  CHECK(cudaMalloc(&task_list->block_offsets_dev, size));
-  CHECK(cudaMemcpy(task_list->block_offsets_dev, block_offsets, size,
-                   cudaMemcpyHostToDevice));
-
-  size = 3 * natoms * sizeof(double);
-  CHECK(cudaMalloc(&task_list->atom_positions_dev, size));
-  CHECK(cudaMemcpy(task_list->atom_positions_dev, atom_positions, size,
-                   cudaMemcpyHostToDevice));
-
-  size = natoms * sizeof(int);
-  CHECK(cudaMalloc(&task_list->atom_kinds_dev, size));
-  CHECK(cudaMemcpy(task_list->atom_kinds_dev, atom_kinds, size,
-                   cudaMemcpyHostToDevice));
-
-  // Upload basis sets to device.
-  grid_basis_set basis_sets_host[nkinds];
+  // Upload basis set sphi matrices to device.
+  task_list->sphis_dev = (double **)malloc(nkinds * sizeof(double *));
   for (int i = 0; i < nkinds; i++) {
-    const grid_basis_set *basis_set = basis_sets[i];
-    grid_basis_set *basis_set_host = &basis_sets_host[i];
-    basis_set_host->nset = basis_set->nset;
-    basis_set_host->nsgf = basis_set->nsgf;
-    basis_set_host->maxco = basis_set->maxco;
-    basis_set_host->maxpgf = basis_set->maxpgf;
-
-    size_t size = basis_set->nset * sizeof(int);
-    CHECK(cudaMalloc(&basis_set_host->lmin, size));
-    CHECK(cudaMemcpy(basis_set_host->lmin, basis_set->lmin, size,
-                     cudaMemcpyHostToDevice));
-
-    CHECK(cudaMalloc(&basis_set_host->lmax, size));
-    CHECK(cudaMemcpy(basis_set_host->lmax, basis_set->lmax, size,
-                     cudaMemcpyHostToDevice));
-
-    CHECK(cudaMalloc(&basis_set_host->npgf, size));
-    CHECK(cudaMemcpy(basis_set_host->npgf, basis_set->npgf, size,
-                     cudaMemcpyHostToDevice));
-
-    CHECK(cudaMalloc(&basis_set_host->nsgf_set, size));
-    CHECK(cudaMemcpy(basis_set_host->nsgf_set, basis_set->nsgf_set, size,
-                     cudaMemcpyHostToDevice));
-
-    CHECK(cudaMalloc(&basis_set_host->first_sgf, size));
-    CHECK(cudaMemcpy(basis_set_host->first_sgf, basis_set->first_sgf, size,
-                     cudaMemcpyHostToDevice));
-
-    size = basis_set->nsgf * basis_set->maxco * sizeof(double);
-    CHECK(cudaMalloc(&basis_set_host->sphi, size));
-    CHECK(cudaMemcpy(basis_set_host->sphi, basis_set->sphi, size,
-                     cudaMemcpyHostToDevice));
-
-    size = basis_set->nset * basis_set->maxpgf * sizeof(double);
-    CHECK(cudaMalloc(&basis_set_host->zet, size));
-    CHECK(cudaMemcpy(basis_set_host->zet, basis_set->zet, size,
+    size = basis_sets[i]->nsgf * basis_sets[i]->maxco * sizeof(double);
+    CHECK(cudaMalloc(&task_list->sphis_dev[i], size));
+    CHECK(cudaMemcpy(task_list->sphis_dev[i], basis_sets[i]->sphi, size,
                      cudaMemcpyHostToDevice));
   }
-  size = nkinds * sizeof(grid_basis_set);
-  CHECK(cudaMalloc(&task_list->basis_sets_dev, size));
-  CHECK(cudaMemcpy(task_list->basis_sets_dev, basis_sets_host, size,
-                   cudaMemcpyHostToDevice));
 
   size = ntasks * sizeof(grid_gpu_task);
   grid_gpu_task *tasks_host = (grid_gpu_task *)malloc(size);
-  for (int i = 0; i < ntasks; i++) {
-    tasks_host[i].level = level_list[i];
-    tasks_host[i].iatom = iatom_list[i];
-    tasks_host[i].jatom = jatom_list[i];
-    tasks_host[i].iset = iset_list[i];
-    tasks_host[i].jset = jset_list[i];
-    tasks_host[i].ipgf = ipgf_list[i];
-    tasks_host[i].jpgf = jpgf_list[i];
-    tasks_host[i].border_mask = border_mask_list[i];
-    tasks_host[i].block_num = block_num_list[i];
-    tasks_host[i].radius = radius_list[i];
-    tasks_host[i].rab[0] = rab_list[i][0];
-    tasks_host[i].rab[1] = rab_list[i][1];
-    tasks_host[i].rab[2] = rab_list[i][2];
-  }
+  create_tasks(orthorhombic, ntasks, block_offsets, atom_positions, atom_kinds,
+               basis_sets, level_list, iatom_list, jatom_list, iset_list,
+               jset_list, ipgf_list, jpgf_list, border_mask_list,
+               block_num_list, radius_list, rab_list, npts_local, shift_local,
+               border_width, dh, dh_inv, (const double **)task_list->sphis_dev,
+               tasks_host);
   CHECK(cudaMalloc(&task_list->tasks_dev, size));
   CHECK(cudaMemcpy(task_list->tasks_dev, tasks_host, size,
                    cudaMemcpyHostToDevice));
+
   free(tasks_host);
 
   // Count tasks per level.
@@ -234,26 +370,6 @@ void grid_gpu_free_task_list(grid_gpu_task_list *task_list) {
   // Select GPU device.
   CHECK(cudaSetDevice(grid_library_get_config().device_id));
 
-  // Download basis sets from device to get device pointers to their lists.
-  const int nkinds = task_list->nkinds;
-  grid_basis_set basis_sets_host[nkinds];
-  size_t size = nkinds * sizeof(grid_basis_set);
-  CHECK(cudaMemcpy(basis_sets_host, task_list->basis_sets_dev, size,
-                   cudaMemcpyDeviceToHost));
-  for (int i = 0; i < nkinds; i++) {
-    CHECK(cudaFree(basis_sets_host[i].lmin));
-    CHECK(cudaFree(basis_sets_host[i].lmax));
-    CHECK(cudaFree(basis_sets_host[i].npgf));
-    CHECK(cudaFree(basis_sets_host[i].nsgf_set));
-    CHECK(cudaFree(basis_sets_host[i].first_sgf));
-    CHECK(cudaFree(basis_sets_host[i].sphi));
-    CHECK(cudaFree(basis_sets_host[i].zet));
-  }
-  CHECK(cudaFree(task_list->basis_sets_dev));
-
-  CHECK(cudaFree(task_list->block_offsets_dev));
-  CHECK(cudaFree(task_list->atom_positions_dev));
-  CHECK(cudaFree(task_list->atom_kinds_dev));
   CHECK(cudaFree(task_list->tasks_dev));
 
   CHECK(cudaStreamDestroy(task_list->main_stream));
@@ -269,6 +385,11 @@ void grid_gpu_free_task_list(grid_gpu_task_list *task_list) {
     }
   }
   free(task_list->grid_dev);
+
+  for (int i = 0; i < task_list->nkinds; i++) {
+    CHECK(cudaFree(task_list->sphis_dev[i]));
+  }
+  free(task_list->sphis_dev);
 
   free(task_list->grid_dev_size);
   free(task_list->tasks_per_level);
@@ -325,10 +446,8 @@ void grid_gpu_collocate_task_list(const grid_gpu_task_list *task_list,
     // launch kernel, but only after blocks have arrived
     CHECK(cudaStreamWaitEvent(level_stream, input_ready_event, 0));
     grid_gpu_collocate_one_grid_level(
-        task_list, first_task, last_task, func, layout->npts_global,
-        layout->npts_local, layout->shift_local, layout->border_width,
-        layout->dh, layout->dh_inv, level_stream, pab_blocks->device_buffer,
-        task_list->grid_dev[level], &lp_diff);
+        task_list, first_task, last_task, func, layout, level_stream,
+        pab_blocks->device_buffer, task_list->grid_dev[level], &lp_diff);
 
     first_task = last_task + 1;
   }
@@ -349,6 +468,7 @@ void grid_gpu_collocate_task_list(const grid_gpu_task_list *task_list,
 
   // download result from device to host.
   // TODO: Make these mem copies actually async by page locking the grid buffers
+  // This now takes 10% of the time!!!
   for (int level = 0; level < task_list->nlevels; level++) {
     const grid_gpu_layout *layout = &task_list->layouts[level];
     const size_t grid_size = layout->npts_local[0] * layout->npts_local[1] *
@@ -430,17 +550,17 @@ void grid_gpu_integrate_task_list(const grid_gpu_task_list *task_list,
     }
 
     // upload grid
+    // TODO: Make these copies actually async by page locking the grid buffers.
+    // This now takes 30% of the time!!!
     CHECK(cudaMemcpyAsync(task_list->grid_dev[level], grid[level], grid_size,
                           cudaMemcpyHostToDevice, level_stream));
 
-    // launch kernel, but only after grid has arrived
+    // launch kernel, but only after hab, pab, virial, etc are ready
     CHECK(cudaStreamWaitEvent(level_stream, input_ready_event, 0));
     grid_gpu_integrate_one_grid_level(
-        task_list, first_task, last_task, compute_tau, layout->npts_global,
-        layout->npts_local, layout->shift_local, layout->border_width,
-        layout->dh, layout->dh_inv, level_stream, pab_blocks_dev,
-        task_list->grid_dev[level], hab_blocks->device_buffer, forces_dev,
-        virial_dev, &lp_diff);
+        task_list, first_task, last_task, compute_tau, layout, level_stream,
+        pab_blocks_dev, task_list->grid_dev[level], hab_blocks->device_buffer,
+        forces_dev, virial_dev, &lp_diff);
 
     // Have main stream wait for level to complete before downloading results.
     cudaEvent_t level_done_event;

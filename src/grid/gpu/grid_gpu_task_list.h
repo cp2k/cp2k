@@ -23,18 +23,66 @@ extern "C" {
  * \brief Internal representation of a task.
  * \author Ole Schuett
  ******************************************************************************/
-typedef struct {
-  int level;
+typedef struct grid_gpu_task_struct {
+  bool use_orthorhombic_kernel;
+  bool block_transposed;
+  double radius;
+  double radius2;
+  double ra[3];
+  double rb[3];
+  double rp[3];
+  double rab[3];
+  double gp[3];
+  double rab2;
+  double zeta;
+  double zetb;
+  double zetp;
+  double prefactor;
+  double off_diag_twice;
+  double dh_max;
+  // angular momentum range of basis set
+  int la_max_basis;
+  int lb_max_basis;
+  int la_min_basis;
+  int lb_min_basis;
+  // size of entire spherical basis
+  int nsgfa;
+  int nsgfb;
+  // size of spherical set
+  int nsgf_seta;
+  int nsgf_setb;
+  // start of decontracted set, ie. pab and hab
+  int first_coseta;
+  int first_cosetb;
+  // size of decontracted set, ie. pab and hab
+  int ncoseta;
+  int ncosetb;
+  // strides of the sphi transformation matrices
+  int maxcoa;
+  int maxcob;
+
+  // offset of the pab and hab block relative to buffer pointer.
+  int ab_block_offset;
+
+  // atoms to which the forces and virial should be added
   int iatom;
   int jatom;
-  int iset;
-  int jset;
-  int ipgf;
-  int jpgf;
-  int border_mask;
-  int block_num;
-  double radius;
-  double rab[3];
+
+  // pointers basis set matrices
+  const double *sphia;
+  const double *sphib;
+
+  // Stuff for the ortho kernel.
+  double disr_radius;
+  int cube_center_shifted[3];
+  double cube_offset[3];
+
+  // Stuff for the general kernel.
+  int index_min[3];
+  int index_max[3];
+  int bounds_i[2];
+  int bounds_j[2];
+  int bounds_k[2];
 } grid_gpu_task;
 
 /*******************************************************************************
@@ -68,10 +116,7 @@ typedef struct {
   int lmax;
   int stats[2][20]; // [has_border_mask][lp]
   // device pointers
-  int *block_offsets_dev;
-  double *atom_positions_dev;
-  int *atom_kinds_dev;
-  grid_basis_set *basis_sets_dev;
+  double **sphis_dev;
   grid_gpu_task *tasks_dev;
   double **grid_dev;
   size_t *grid_dev_size;
