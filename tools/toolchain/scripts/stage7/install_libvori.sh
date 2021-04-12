@@ -11,8 +11,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-libvori_ver="201229"
-libvori_sha256="da0afb292c94f8de2aaebfd0b692d15ffd86083cb8a48478b07ca93823decc06"
+libvori_ver="210412"
+libvori_sha256="331886aea9d093d8c44b95a07fab13d47f101b1f94a0640d7d670eb722bf90ac"
 
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}"/common_vars.sh
@@ -48,28 +48,15 @@ case "${with_libvori:=__INSTALL__}" in
 
       mkdir "libvori-${libvori_ver}/build"
       cd "libvori-${libvori_ver}/build"
-      case ${OPENBLAS_ARCH} in
-        arm64)
-          cmake \
-            -DCMAKE_BUILD_TYPE=None \
-            -DCMAKE_CXX_FLAGS="-O1 -g" \
-            -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
-            -DCMAKE_INSTALL_LIBDIR=lib \
-            -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=TRUE \
-            .. > cmake.log 2>&1
-          ;;
-        *)
-          cmake \
-            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-            -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
-            -DCMAKE_INSTALL_LIBDIR=lib \
-            -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=TRUE \
-            .. > cmake.log 2>&1
-          ;;
-      esac
-      CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . > build.log 2>&1
-      CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . --target test > test.log 2>&1
-      CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . --target install > install.log 2>&1
+      cmake \
+        -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+        -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=TRUE \
+        .. >cmake.log 2>&1
+      CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . >build.log 2>&1
+      CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . --target test >test.log 2>&1
+      CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . --target install >install.log 2>&1
 
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage7/$(basename "${SCRIPT_NAME}")"
     fi
