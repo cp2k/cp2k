@@ -332,14 +332,6 @@ CONTAINS
                            buffer_size=task_list%buffer_size_recv)
       DEALLOCATE (basis_set_list, nsgf)
 
-      CALL create_grid_task_list(task_list=task_list, &
-                                 qs_kind_set=qs_kind_set, &
-                                 particle_set=particle_set, &
-                                 cell=cell, &
-                                 soft=my_soft, &
-                                 basis_type=my_basis_type, &
-                                 rs_grids=rs_grids)
-
       ! If the rank order has changed, reallocate any of the distributed rs_grids
       IF (reorder_rs_grid_ranks) THEN
          DO i = 1, gridlevel_info%ngrid_levels
@@ -350,6 +342,14 @@ CONTAINS
             END IF
          END DO
       END IF
+
+      CALL create_grid_task_list(task_list=task_list, &
+                                 qs_kind_set=qs_kind_set, &
+                                 particle_set=particle_set, &
+                                 cell=cell, &
+                                 soft=my_soft, &
+                                 basis_type=my_basis_type, &
+                                 rs_grids=rs_grids)
 
       ! Now we have the final list of tasks, setup the task_list with the
       ! data needed for the loops in integrate_v/calculate_rho
