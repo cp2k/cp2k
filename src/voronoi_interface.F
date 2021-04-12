@@ -18,7 +18,7 @@ MODULE voronoi_interface
                               cp_logger_get_default_io_unit, &
                               cp_logger_type
    USE bibliography, ONLY: Rycroft2009, Thomas2015, Brehm2018, Brehm2020, &
-                           cite_reference
+                           Brehm2021, cite_reference
    USE kinds, ONLY: dp, default_path_length
    USE cell_types, ONLY: cell_type
    USE pw_types, ONLY: pw_p_type, pw_type
@@ -221,6 +221,13 @@ MODULE voronoi_interface
 
       END FUNCTION libvori_get_radius
 
+      INTEGER(C_INT) FUNCTION libvori_get_volume(length, buf) BIND(C, NAME='libvori_get_volume')
+         USE ISO_C_BINDING, ONLY: C_INT, C_DOUBLE
+      INTEGER(C_INT), VALUE                              :: length
+      REAL(C_DOUBLE)                                     :: buf(*)
+
+      END FUNCTION libvori_get_volume
+
       INTEGER(C_INT) FUNCTION libvori_get_charge(length, buf) BIND(C, NAME='libvori_get_charge')
          USE ISO_C_BINDING, ONLY: C_INT, C_DOUBLE
       INTEGER(C_INT), VALUE                              :: length
@@ -317,6 +324,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: voro_radii
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: voro_charge
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: voro_volume
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: voro_dipole
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: voro_quadrupole
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: voro_buffer
@@ -364,6 +372,7 @@ CONTAINS
          CALL cite_reference(Thomas2015)
          CALL cite_reference(Brehm2018)
          CALL cite_reference(Brehm2020)
+         CALL cite_reference(Brehm2021)
       END IF
 
       IF (do_bqb /= 0) THEN
@@ -600,6 +609,7 @@ CONTAINS
 
             ALLOCATE (voro_radii(natom))
             ALLOCATE (voro_charge(natom))
+            ALLOCATE (voro_volume(natom))
             ALLOCATE (voro_dipole(natom, 3))
             ALLOCATE (voro_quadrupole(natom, 9))
             ALLOCATE (voro_buffer(natom))
@@ -609,6 +619,8 @@ CONTAINS
             ret = libvori_get_radius(natom, voro_radii)
 
             ret = libvori_get_charge(natom, voro_charge)
+
+            ret = libvori_get_volume(natom, voro_volume)
 
             DO i1 = 1, 3
                ret = libvori_get_dipole(i1, natom, voro_buffer)
@@ -631,21 +643,23 @@ CONTAINS
             END DO
 
             IF (unit_voro > 0) THEN
+               WRITE (unit_voro, FMT="(I0)") natom
                WRITE (unit_voro, FMT="(A,I8,A,F12.4,A)") "# Simulation step ", sim_step, ",  Simulation time ", &
                   sim_time*femtoseconds, " fs"
-               WRITE (unit_voro, FMT="(A,21A20)") "# Atom     Z", &
+               WRITE (unit_voro, FMT="(A,22A20)") "# Atom     Z", &
                   "Radius", "Position(X)", "Position(Y)", "Position(Z)", &
-                  "Z(eff)", "Charge", "Dipole(X)", "Dipole(Y)", "Dipole(Z)", &
+                  "Voronoi_Volume", "Z(eff)", "Charge", "Dipole(X)", "Dipole(Y)", "Dipole(Z)", &
                   "ChargeCenter(X)", "ChargeCenter(Y)", "ChargeCenter(Z)", &
                   "Quadrupole(XX)", "Quadrupole(XY)", "Quadrupole(XZ)", &
                   "Quadrupole(YX)", "Quadrupole(YY)", "Quadrupole(YZ)", &
                   "Quadrupole(ZX)", "Quadrupole(ZY)", "Quadrupole(ZZ)"
                DO i1 = 1, natom
-                  WRITE (unit_voro, FMT="(2I6,21F20.10)") &
+                  WRITE (unit_voro, FMT="(2I6,22F20.10)") &
                      i1, &
                      particles_z(i1), &
                      voro_radii(i1)/100.0_dp, &
                      voro_wrapped_pos(i1, 1:3)/100.0_dp, &
+                     voro_volume(i1)/1000000.0_dp, &
                      particles_c(i1), &
                      voro_charge(i1), &
                      voro_dipole(i1, 1:3), &
@@ -656,6 +670,7 @@ CONTAINS
 
             DEALLOCATE (voro_radii)
             DEALLOCATE (voro_charge)
+            DEALLOCATE (voro_volume)
             DEALLOCATE (voro_dipole)
             DEALLOCATE (voro_quadrupole)
             DEALLOCATE (voro_buffer)
@@ -731,3 +746,5 @@ CONTAINS
 #endif
    END SUBROUTINE
 END MODULE voronoi_interface
+
+

@@ -16,8 +16,8 @@ MODULE input_cp2k_dft
                                               basis_sort_zet
    USE bibliography,                    ONLY: &
         Andermatt2016, Andreussi2012, Avezac2005, BaniHashemian2016, Becke1988b, Bengtsson1999, &
-        Blochl1995, Brehm2018, Brehm2020, Brelaz1979, Dewar1977, Dewar1985, Dudarev1997, &
-        Dudarev1998, Ehrhardt1985, Fattebert2002, Golze2017a, Golze2017b, Guidon2010, &
+        Blochl1995, Brehm2018, Brehm2020, Brehm2021, Brelaz1979, Dewar1977, Dewar1985, &
+        Dudarev1997, Dudarev1998, Ehrhardt1985, Fattebert2002, Golze2017a, Golze2017b, Guidon2010, &
         Heinzmann1976, Holmberg2017, Holmberg2018, Hunt2003, Iannuzzi2005, Iannuzzi2006, &
         Iannuzzi2007, Kolafa2004, Krack2000, Krack2002, Kuhne2007, Kunert2003, Lippert1997, &
         Lippert1999, Lu2004, Perdew1981, Repasky2002, Rocha2006, Rycroft2009, Schenter2008, &
@@ -1619,12 +1619,12 @@ CONTAINS
       ! Voronoi Integration via LibVori
       CALL cp_print_key_section_create(print_key, __LOCATION__, name="VORONOI", &
                                        description="Controls the Voronoi integration of the total electron density"// &
-                                       " for the computation of electromagnetic moments, see [Thomas2015]"// &
-                                       " and [Brehm2020] (via LibVori,"// &
+                                       " for the computation of electromagnetic moments, see [Thomas2015],"// &
+                                       " [Brehm2020], and [Brehm2021] (via LibVori,"// &
                                        " see <a href=""https://brehm-research.de/voronoi"" target=""_blank"">"// &
                                        " https://brehm-research.de/voronoi</a> ).", &
                                        print_level=debug_print_level + 1, filename="", &
-                                       citations=(/Rycroft2009, Thomas2015, Brehm2018, Brehm2020/))
+                                       citations=(/Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Brehm2021/))
 
       CALL keyword_create(keyword, __LOCATION__, name="SANITY_CHECK", &
                           description="Performs a sanity check before each Voronoi integration, i.e.,"// &

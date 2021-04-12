@@ -88,7 +88,8 @@ MODULE bibliography
                             Toulouse2004, Limpanuparb2011, Martin2003, Yin2017, Goerigk2017, &
                             Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, Lass2018, cp2kqs2020, &
                             Behler2007, Behler2011, Schran2020a, Schran2020b, &
-                            Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Shigeta2001, Heinecke2016
+                            Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Shigeta2001, Heinecke2016, &
+                            Brehm2021
 
 CONTAINS
 
@@ -4706,6 +4707,26 @@ CONTAINS
                          "DI 10.1109/SC.2016.83", &
                          "ER"), &
                          DOI="10.1109/SC.2016.83")
+
+      CALL add_reference(key=Brehm2021, ISI_record=s2a( &
+                         "TY JOUR", &
+                         "PT J", &
+                         "AU Brehm, Martin", &
+                         "   Thomas, Martin", &
+                         "TI Optimized Atomic Partial Charges and Radii Defined by Radical Voronoi", &
+                         "   Tessellation of Bulk Phase Simulations", &
+                         "SO Molecules", &
+                         "JF Molecules", &
+                         "JO Molecules", &
+                         "SN 1420-3049", &
+                         "IS 7", &
+                         "PY 2021", &
+                         "VL 26", &
+                         "SP 1875", &
+                         "DI 10.3390/molecules26071875", &
+                         "PB MDPI", &
+                         "ER"), &
+                         DOI="10.3390/molecules26071875")
 
    END SUBROUTINE add_all_references
 
