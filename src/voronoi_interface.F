@@ -644,8 +644,12 @@ CONTAINS
 
             IF (unit_voro > 0) THEN
                WRITE (unit_voro, FMT="(I0)") natom
-               WRITE (unit_voro, FMT="(A,I8,A,F12.4,A)") "# Simulation step ", sim_step, ",  Simulation time ", &
+               WRITE (unit_voro, FMT="(A,I8,A,F12.4,A)") "# Step ", sim_step, ",  Time ", &
                   sim_time*femtoseconds, " fs"
+               WRITE (unit_voro, FMT="(A,9F20.10)") "# Cell ", &
+                  cell%hmat(1, 1)*angstrom, cell%hmat(2, 1)*angstrom, cell%hmat(3, 1)*angstrom, &
+                  cell%hmat(1, 2)*angstrom, cell%hmat(2, 2)*angstrom, cell%hmat(3, 2)*angstrom, &
+                  cell%hmat(1, 3)*angstrom, cell%hmat(2, 3)*angstrom, cell%hmat(3, 3)*angstrom
                WRITE (unit_voro, FMT="(A,22A20)") "# Atom     Z", &
                   "Radius", "Position(X)", "Position(Y)", "Position(Z)", &
                   "Voronoi_Volume", "Z(eff)", "Charge", "Dipole(X)", "Dipole(Y)", "Dipole(Z)", &
@@ -658,7 +662,7 @@ CONTAINS
                      i1, &
                      particles_z(i1), &
                      voro_radii(i1)/100.0_dp, &
-                     voro_wrapped_pos(i1, 1:3)/100.0_dp, &
+                     particles_r(1:3, i1)*angstrom, &
                      voro_volume(i1)/1000000.0_dp, &
                      particles_c(i1), &
                      voro_charge(i1), &
