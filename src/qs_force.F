@@ -62,7 +62,6 @@ MODULE qs_force
    USE qs_force_types,                  ONLY: allocate_qs_force,&
                                               qs_force_type,&
                                               replicate_qs_force,&
-                                              write_forces_debug,&
                                               zero_qs_force
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
