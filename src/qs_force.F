@@ -211,10 +211,6 @@ CONTAINS
 
       ! recalculate energy with forces
       CALL qs_energies(qs_env, calc_forces=.TRUE.)
-!deb
-      WRITE (6, *) "FORCE TEST 1"
-      CALL write_forces_debug(force)
-!deb
 
       NULLIFY (para_env)
       CALL get_qs_env(qs_env, &
@@ -381,10 +377,6 @@ CONTAINS
          END DO
          CALL calc_mixed_overlap_force(qs_env)
       END IF
-!deb
-      WRITE (6, *) "FORCE TEST 4"
-      CALL write_forces_debug(force)
-!deb
 
       IF (ASSOCIATED(qs_env%mp2_env)) THEN
          CALL update_mp2_forces(qs_env)
