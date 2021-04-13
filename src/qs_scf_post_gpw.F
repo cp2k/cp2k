@@ -1820,13 +1820,14 @@ CONTAINS
       CHARACTER(len=1), DIMENSION(3), PARAMETER          :: cdir = (/"x", "y", "z"/)
 
       CHARACTER(LEN=2)                                   :: element_symbol
-      CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename, my_pos_cube
+      CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename, my_pos_cube, &
+                                                            my_pos_voro
       CHARACTER(LEN=default_string_length)               :: name
       INTEGER :: after, handle, i, iat, id, ikind, img, iso, ispin, iw, l, nd(3), ngto, niso, &
          nkind, np, nr, output_unit, print_level, should_print_bqb, should_print_voro, unit_nr, &
          unit_nr_voro
       LOGICAL :: append_cube, do_kpoints, mpi_io, omit_headers, print_it, print_total_density, &
-         rho_r_valid, voro_print_txt, write_ks, write_xc, xrd_interface
+         rho_r_valid, voro_print_txt, write_ks, write_xc, xrd_interface, append_voro
       REAL(KIND=dp)                                      :: q_max, rho_hard, rho_soft, rho_total, &
                                                             rho_total_rspace, udvol, volume
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: bfun
@@ -2541,8 +2542,13 @@ CONTAINS
             IF (should_print_voro /= 0) THEN
                CALL section_vals_val_get(print_key_voro, "OUTPUT_TEXT", l_val=voro_print_txt)
                IF (voro_print_txt) THEN
+                  append_voro = section_get_lval(input, "DFT%PRINT%VORONOI%APPEND")
+                  my_pos_voro = "REWIND"
+                  IF (append_voro) THEN
+                    my_pos_voro = "APPEND"
+                  END IF
                   unit_nr_voro = cp_print_key_unit_nr(logger, input, "DFT%PRINT%VORONOI", extension=".voronoi", &
-                                                      log_filename=.FALSE.)
+                                                      file_position=my_pos_voro, log_filename=.FALSE.)
                ELSE
                   unit_nr_voro = 0
                END IF
