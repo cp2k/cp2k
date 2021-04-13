@@ -643,7 +643,7 @@ CONTAINS
             END DO
 
             IF (unit_voro > 0) THEN
-               WRITE (unit_voro, FMT="(I0)") natom
+               WRITE (unit_voro, FMT="(T2,I0)") natom
                WRITE (unit_voro, FMT="(A,I8,A,F12.4,A)") "# Step ", sim_step, ",  Time ", &
                   sim_time*femtoseconds, " fs"
                WRITE (unit_voro, FMT="(A,9F20.10)") "# Cell ", &
