@@ -1626,6 +1626,12 @@ CONTAINS
                                        print_level=debug_print_level + 1, filename="", &
                                        citations=(/Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Brehm2021/))
 
+      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
+                          description="Appends frames to already existing .voronoi file.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="SANITY_CHECK", &
                           description="Performs a sanity check before each Voronoi integration, i.e.,"// &
                           " checks if every grid point is located in exactly one Voronoi cell.", &
@@ -1635,7 +1641,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="OVERWRITE", &
                           description="Specify this keyword to overwrite any existing ""properties.emp"" file if"// &
-                          " it already exists. By default, the data is appended to an existing file.", &
+                          " it already exists. By default, the data is appended to an existing .emp file.", &
                           usage="OVERWRITE T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
@@ -1653,13 +1659,15 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="OUTPUT_EMP", &
-                          description="Writes the resulting electromagnetic moments to a binary file ""properties.emp"".", &
+                          description="Writes the resulting electromagnetic moments to a binary file ""properties.emp""."// &
+                          " The file name cannot be changed.", &
                           usage="OUTPUT_EMP T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="OUTPUT_TEXT", &
-                          description="Writes the resulting electromagnetic moments to text files (*.voronoi).", &
+                          description="Writes the resulting electromagnetic moments to text files (*.voronoi)."// &
+                          " The file name is specified via FILENAME.", &
                           usage="OUTPUT_TEXT T", default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
