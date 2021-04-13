@@ -1826,8 +1826,8 @@ CONTAINS
       INTEGER :: after, handle, i, iat, id, ikind, img, iso, ispin, iw, l, nd(3), ngto, niso, &
          nkind, np, nr, output_unit, print_level, should_print_bqb, should_print_voro, unit_nr, &
          unit_nr_voro
-      LOGICAL :: append_cube, do_kpoints, mpi_io, omit_headers, print_it, print_total_density, &
-         rho_r_valid, voro_print_txt, write_ks, write_xc, xrd_interface, append_voro
+      LOGICAL :: append_cube, append_voro, do_kpoints, mpi_io, omit_headers, print_it, &
+         print_total_density, rho_r_valid, voro_print_txt, write_ks, write_xc, xrd_interface
       REAL(KIND=dp)                                      :: q_max, rho_hard, rho_soft, rho_total, &
                                                             rho_total_rspace, udvol, volume
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: bfun
@@ -2545,7 +2545,7 @@ CONTAINS
                   append_voro = section_get_lval(input, "DFT%PRINT%VORONOI%APPEND")
                   my_pos_voro = "REWIND"
                   IF (append_voro) THEN
-                    my_pos_voro = "APPEND"
+                     my_pos_voro = "APPEND"
                   END IF
                   unit_nr_voro = cp_print_key_unit_nr(logger, input, "DFT%PRINT%VORONOI", extension=".voronoi", &
                                                       file_position=my_pos_voro, log_filename=.FALSE.)
