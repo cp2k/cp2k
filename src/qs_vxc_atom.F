@@ -636,14 +636,15 @@ CONTAINS
          IF (gradient_functional) THEN
             ALLOCATE (drho_h(1:4, 1:na, 1:nr, 1:nspins), drho1_h(1:4, 1:na, 1:nr, 1:nspins), &
                       drho_s(1:4, 1:na, 1:nr, 1:nspins), drho1_s(1:4, 1:na, 1:nr, 1:nspins))
-
             ALLOCATE (vxg_h(1:3, 1:na, 1:nr, 1:nspins), vxg_s(1:3, 1:na, 1:nr, 1:nspins))
-            vxg_h = 0.0_dp
-            vxg_s = 0.0_dp
          ELSE
-            NULLIFY (vxg_h, vxg_s)
+            ALLOCATE (drho_h(1, 1, 1, 1), drho1_h(1, 1, 1, 1), &
+                      drho_s(1, 1, 1, 1), drho1_s(1, 1, 1, 1))
+            ALLOCATE (vxg_h(1, 1, 1, 1), vxg_s(1, 1, 1, 1))
             rrho = 0.0_dp
          END IF
+         vxg_h = 0.0_dp
+         vxg_s = 0.0_dp
 
          ! parallelization
          local_loop_limit = get_limit(natom, para_env%num_pe, para_env%mepos)
@@ -732,10 +733,8 @@ CONTAINS
          ! some cleanup
          NULLIFY (weight)
          DEALLOCATE (rho_h, rho_s, rho1_h, rho1_s, vxc_h, vxc_s)
-         IF (gradient_functional) THEN
-            DEALLOCATE (drho_h, drho_s, vxg_h, vxg_s)
-            DEALLOCATE (drho1_h, drho1_s)
-         END IF
+         DEALLOCATE (drho_h, drho_s, vxg_h, vxg_s)
+         DEALLOCATE (drho1_h, drho1_s)
 
          CALL xc_dset_release(deriv_set)
          CALL xc_rho_set_release(rho_set_h)

@@ -290,8 +290,8 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: found, use_virial
       REAL(KIND=dp)                                      :: charge, dd, dr, fdir, fi
-      REAL(KIND=dp), DIMENSION(3)                        :: fieldpol, fij, forcea, fpolvec, kvec, &
-                                                            qi, rab, ria, rib, rij, aqi
+      REAL(KIND=dp), DIMENSION(3)                        :: aqi, fieldpol, fij, forcea, fpolvec, &
+                                                            kvec, qi, rab, ria, rib, rij
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: ds_block, ks_block, p_block, s_block
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: dsint
@@ -350,9 +350,9 @@ CONTAINS
       qi = AIMAG(LOG(zi))
       energy%efield = -SUM(fpolvec(:)*qi(:))
 !deb
-      aqi = ATAN2(AIMAG(zi),REAL(zi,KIND=dp))
-      write(60,*) "AIMAG-LOG ",qi
-      write(60,*) "ATAN2     ",aqi
+      aqi = ATAN2(AIMAG(zi), REAL(zi, KIND=dp))
+      WRITE (60, *) "AIMAG-LOG ", qi
+      WRITE (60, *) "ATAN2     ", aqi
 !     ener_field = 0.0_dp
 !     ti = 0.0_dp
 !     DO idir = 1, 3
