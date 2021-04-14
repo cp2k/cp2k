@@ -989,7 +989,8 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="LONG_RANGE_CORRECTION", &
-                          description="Calculate a long range correction to the DFT-D3 model", &
+                          description="Calculate a long range correction to the DFT-D3 model."// &
+                          " WARNING: Use with care! Only for isotropic dense systems.", &
                           usage="LONG_RANGE_CORRECTION", default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
