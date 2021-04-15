@@ -349,27 +349,6 @@ CONTAINS
       END DO
       qi = AIMAG(LOG(zi))
       energy%efield = -SUM(fpolvec(:)*qi(:))
-!deb
-      aqi = ATAN2(AIMAG(zi), REAL(zi, KIND=dp))
-      WRITE (60, *) "AIMAG-LOG ", qi
-      WRITE (60, *) "ATAN2     ", aqi
-!     ener_field = 0.0_dp
-!     ti = 0.0_dp
-!     DO idir = 1, 3
-!        ! make sure the total normalized polarization is within [-1:1]
-!        IF (qi(idir) > pi) qi(idir) = qi(idir) - twopi
-!        IF (qi(idir) < -pi) qi(idir) = qi(idir) + twopi
-!        ! now check for log branch
-!        IF (ABS(efield%polarisation(idir) - qi(idir)) > pi) THEN
-!           ti(idir) = (efield%polarisation(idir) - qi(idir))/pi
-!           DO i = 1, 10
-!              qi(idir) = cqi(idir) + SIGN(1.0_dp, ti(idir))*twopi
-!              IF (ABS(efield%polarisation(idir) - qi(idir)) < pi) EXIT
-!           END DO
-!        END IF
-!        ener_field = ener_field + fpolvec(idir)*qi(idir)
-!     END DO
-!deb
 
       IF (.NOT. just_energy) THEN
          CALL get_qs_env(qs_env=qs_env, matrix_s_kp=matrix_s)
