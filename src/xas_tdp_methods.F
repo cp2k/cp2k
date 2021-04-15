@@ -20,6 +20,8 @@ MODULE xas_tdp_methods
         allocate_sto_basis_set, create_gto_from_sto_basis, deallocate_gto_basis_set, &
         deallocate_sto_basis_set, get_gto_basis_set, gto_basis_set_type, init_orb_basis_set, &
         set_sto_basis_set, srules, sto_basis_set_type
+   USE bibliography,                    ONLY: Bussy2021a,&
+                                              cite_reference
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
@@ -180,6 +182,8 @@ CONTAINS
             "!    Starting TDDFPT driven X-rays absorption spectroscopy calculations     !", &
             "!===========================================================================!"
       END IF
+
+      CALL cite_reference(Bussy2021a)
 
 !  Check whether this is a restart calculation, i.e. is a restart file is provided
       CALL section_vals_val_get(xas_tdp_section, "RESTART_FROM_FILE", n_rep_val=n_rep)
@@ -771,6 +775,7 @@ CONTAINS
 
 !     final qs_loc_env initialization. Impose Berry operator
       qs_loc_env%localized_wfn_control%operator_type = op_loc_berry
+      qs_loc_env%localized_wfn_control%max_iter = 25000
       IF (.NOT. xas_tdp_control%do_loc) THEN
          qs_loc_env%localized_wfn_control%localization_method = do_loc_none
       ELSE
@@ -957,6 +962,11 @@ CONTAINS
 
             CPABORT("Both singlet and triplet excitations are needed for SOC")
          END IF
+      END IF
+
+      !Warn against using E_RANGE with SOC
+      IF (xas_tdp_control%do_soc .AND. xas_tdp_control%e_range > 0.0_dp) THEN
+         CPWARN("Using E_RANGE and SOC together may lead to crashes, use N_EXCITED for safety.")
       END IF
 
       !TDA, full-TDDFT and diagonalization
@@ -2858,40 +2868,44 @@ CONTAINS
       ALLOCATE (IPs(SIZE(donor_state%gw2x_evals, 1), SIZE(donor_state%gw2x_evals, 2)))
       IPs(:, :) = donor_state%gw2x_evals(:, :)
 
-      !Apply SOC splitting
-      IF (donor_state%ndo_mo > 1) THEN
-         CALL get_soc_splitting(soc_shifts, donor_state, xas_tdp_env, xas_tdp_control, qs_env)
-         IPs(:, :) = IPs(:, :) + soc_shifts
+      !IPs in PBCs cannot be trusted because of a lack of a potential reference
+      IF (.NOT. xas_tdp_control%is_periodic) THEN
 
-         IF (output_unit > 0) THEN
-            WRITE (output_unit, FMT="(/,T5,A,F23.6)") &
-               "Ionization potentials for XPS (GW2X + SOC): ", -IPs(1, 1)*evolt
+         !Apply SOC splitting
+         IF (donor_state%ndo_mo > 1) THEN
+            CALL get_soc_splitting(soc_shifts, donor_state, xas_tdp_env, xas_tdp_control, qs_env)
+            IPs(:, :) = IPs(:, :) + soc_shifts
 
-            DO ispin = 1, nspins
-               DO ido_mo = 1, donor_state%ndo_mo
+            IF (output_unit > 0) THEN
+               WRITE (output_unit, FMT="(/,T5,A,F23.6)") &
+                  "Ionization potentials for XPS (GW2X + SOC): ", -IPs(1, 1)*evolt
 
-                  IF (ispin == 1 .AND. ido_mo == 1) CYCLE
+               DO ispin = 1, nspins
+                  DO ido_mo = 1, donor_state%ndo_mo
 
-                  WRITE (output_unit, FMT="(T5,A,F23.6)") &
-                     "                                            ", -IPs(ido_mo, ispin)*evolt
+                     IF (ispin == 1 .AND. ido_mo == 1) CYCLE
 
+                     WRITE (output_unit, FMT="(T5,A,F23.6)") &
+                        "                                            ", -IPs(ido_mo, ispin)*evolt
+
+                  END DO
                END DO
-            END DO
-         END IF
-
-      ELSE
-
-         ! No SOC, only 1 donor MO per spin
-         IF (output_unit > 0) THEN
-            WRITE (output_unit, FMT="(/,T5,A,F29.6)") &
-               "Ionization potentials for XPS (GW2X): ", -IPs(1, 1)*evolt
-
-            IF (nspins == 2) THEN
-               WRITE (output_unit, FMT="(T5,A,F29.6)") &
-                  "                                      ", -IPs(1, 2)*evolt
             END IF
-         END IF
 
+         ELSE
+
+            ! No SOC, only 1 donor MO per spin
+            IF (output_unit > 0) THEN
+               WRITE (output_unit, FMT="(/,T5,A,F29.6)") &
+                  "Ionization potentials for XPS (GW2X): ", -IPs(1, 1)*evolt
+
+               IF (nspins == 2) THEN
+                  WRITE (output_unit, FMT="(T5,A,F29.6)") &
+                     "                                      ", -IPs(1, 2)*evolt
+               END IF
+            END IF
+
+         END IF
       END IF
 
    END SUBROUTINE print_xps

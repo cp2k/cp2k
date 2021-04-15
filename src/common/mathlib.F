@@ -40,7 +40,8 @@ MODULE mathlib
              get_pseudo_inverse_diag, &
              symmetrize_matrix, &
              unit_matrix, diag, &
-             erfc_cutoff
+             erfc_cutoff, &
+             complex_diag
 
    ! Public functions
 
@@ -1812,5 +1813,56 @@ CONTAINS
          df = -omega*2*EXP(-omega**2*r**2)/SQRT(pi) - eps
       END SUBROUTINE eval_transc_func
    END SUBROUTINE erfc_cutoff
+
+! **************************************************************************************************
+!> \brief Diagonalizes a local complex Hermitian matrix using LAPACK. Based on cp_cfm_heevd
+!> \param matrix ...
+!> \param eigenvectors ...
+!> \param eigenvalues ...
+!> \author A. Bussy
+! **************************************************************************************************
+   SUBROUTINE complex_diag(matrix, eigenvectors, eigenvalues)
+
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)    :: matrix, eigenvectors
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
+
+      COMPLEX(KIND=dp), DIMENSION(:), ALLOCATABLE        :: work
+      INTEGER                                            :: info, liwork, lrwork, lwork, n
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: iwork
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: rwork
+
+      eigenvectors(:, :) = matrix(:, :)
+
+      n = SIZE(matrix, 1)
+      ALLOCATE (iwork(1), rwork(1), work(1))
+
+      ! work space query
+      lwork = -1
+      lrwork = -1
+      liwork = -1
+
+      CALL ZHEEVD('V', 'U', n, eigenvectors, n, eigenvalues, work, lwork, rwork, lrwork, iwork, liwork, info)
+
+      lwork = CEILING(REAL(work(1), KIND=dp))
+      lrwork = CEILING(REAL(rwork(1), KIND=dp))
+      liwork = iwork(1)
+
+      DEALLOCATE (iwork, rwork, work)
+
+      ALLOCATE (iwork(liwork))
+      iwork(:) = 0
+      ALLOCATE (rwork(lrwork))
+      rwork(:) = 0.0_dp
+      ALLOCATE (work(lwork))
+      work(:) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+
+      !diagonalization proper
+      CALL ZHEEVD('V', 'U', n, eigenvectors, n, eigenvalues, work, lwork, rwork, lrwork, iwork, liwork, info)
+
+      IF (info /= 0) &
+         CPABORT("Diagonalisation of a complex matrix failed")
+      DEALLOCATE (iwork, rwork, work)
+
+   END SUBROUTINE complex_diag
 
 END MODULE mathlib

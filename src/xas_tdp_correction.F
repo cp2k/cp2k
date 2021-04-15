@@ -13,12 +13,12 @@
 MODULE xas_tdp_correction
    USE admm_types,                      ONLY: admm_type
    USE admm_utils,                      ONLY: admm_correct_for_eigenvalues
-   USE bibliography,                    ONLY: Shigeta2001,&
+   USE bibliography,                    ONLY: Bussy2021b,&
+                                              Shigeta2001,&
                                               cite_reference
    USE cp_array_utils,                  ONLY: cp_1d_i_p_type,&
                                               cp_1d_r_p_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_submatrix,&
                                               cp_cfm_release,&
@@ -65,6 +65,7 @@ MODULE xas_tdp_correction
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
+   USE mathlib,                         ONLY: complex_diag
    USE message_passing,                 ONLY: mp_sum
    USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -140,6 +141,7 @@ CONTAINS
                lumo_work, mo_coeff, blacs_env, nsgf_blk)
 
       CALL cite_reference(Shigeta2001)
+      CALL cite_reference(Bussy2021b)
 
       CALL timeset(routineN, handle)
 
@@ -1011,12 +1013,12 @@ CONTAINS
 
       CALL dbcsr_t_destroy(work)
 
-      !create the optimal pgrid
+      !create the pgrid, based on the 2D dbcsr grid
       CALL dbcsr_t_pgrid_destroy(t_pgrid)
       pdims = 0
-      CALL dbcsr_t_pgrid_create(para_env%group, pdims, t_pgrid, tensor_dims=[natom, natom, nblk_ri])
+      CALL dbcsr_t_pgrid_create(para_env%group, pdims, t_pgrid, tensor_dims=[natom, natom, 1])
 
-      !cyclic distribution accross all directions
+      !cyclic distribution accross all directions.
       ALLOCATE (proc_dist_3(nblk_ri))
       CALL dbcsr_t_default_distvec(natom, pdims(1), orb_blk_size, proc_dist_1)
       CALL dbcsr_t_default_distvec(natom, pdims(2), orb_blk_size, proc_dist_2)
@@ -1092,26 +1094,28 @@ CONTAINS
       nspins = 1; IF (xas_tdp_control%do_uks .OR. xas_tdp_control%do_roks) nspins = 2
 
       !There are 2 contractions to do for the first tensor: (pq|X) --> (jq|X) --> (ja|X)
-
-      !First, we need a fully populated pq_X (spin-independent)
-      CALL get_full_pqX_from_3c_ex(pq_X, donor_state%at_index, xas_tdp_env, qs_env)
-
-      !Create the tensor pgrid. AOs and RI independent from spin
-      CALL get_qs_env(qs_env, para_env=para_env)
-      CALL dbcsr_t_get_info(pq_X, pdims=pdims, nblks_total=nblk_pqX)
-      CALL dbcsr_t_pgrid_create(para_env%group, pdims, t_pgrid)
-      nblk_aos = nblk_pqX(1)
-      nblk_ri = nblk_pqX(3)
+      !Because memory is the main concern, we move_data everytime at the cost of extra copies
 
       !Some quantities need to be stored for both spins, because they are later combined
+      CALL get_qs_env(qs_env, para_env=para_env)
       ALLOCATE (mo_blk_size(nspins), mo_row_dist(nspins), mo_col_dist(nspins))
       ALLOCATE (ja_X(nspins))
       ALLOCATE (oI_Y(nspins*donor_state%ndo_mo))
 
       DO ispin = 1, nspins
 
+         !First, we need a fully populated pq_X (spin-independent)
+         CALL get_full_pqX_from_3c_ex(pq_X, donor_state%at_index, xas_tdp_env, qs_env)
+
+         !Create the tensor pgrid. AOs and RI independent from spin
+         IF (ispin == 1) THEN
+            CALL dbcsr_t_get_info(pq_X, pdims=pdims, nblks_total=nblk_pqX)
+            CALL dbcsr_t_pgrid_create(para_env%group, pdims, t_pgrid)
+            nblk_aos = nblk_pqX(1)
+            nblk_ri = nblk_pqX(3)
+         END IF
+
          !Define MO block sizes, at worst, take one block per proc
-         !TODO: play with block sizes, especially investigate impact on GPU performance
          nblk_occ(ispin) = MAX(pdims(1), nocc(ispin)/16)
          nblk_virt(ispin) = MAX(pdims(2), nvirt(ispin)/16)
          nblk_mos(ispin) = nblk_occ(ispin) + nblk_virt(ispin)
@@ -1145,7 +1149,6 @@ CONTAINS
 
          CALL dbcsr_t_create(dbcsr_mo_coeffs, t_mo_coeffs)
          CALL dbcsr_t_copy_matrix_to_tensor(dbcsr_mo_coeffs, t_mo_coeffs)
-         CALL dbcsr_release(dbcsr_mo_coeffs)
 
          !prepare the (jq|X) tensor for the first contraction (over occupied MOs)
          ALLOCATE (mo_row_dist(ispin)%array(nblk_mos(ispin)), ao_col_dist(nblk_aos), ri_dist_3(nblk_ri))
@@ -1163,7 +1166,11 @@ CONTAINS
          CALL dbcsr_t_contract(alpha=dbcsr_scalar(1.0_dp), tensor_1=pq_X, tensor_2=t_mo_coeffs, &
                                beta=dbcsr_scalar(0.0_dp), tensor_3=jq_X, contract_1=[1], &
                                notcontract_1=[2, 3], contract_2=[1], notcontract_2=[2], &
-                               map_1=[2, 3], map_2=[1], bounds_3=[1, nocc(ispin)]) !only want occupied MOs for j
+                               map_1=[2, 3], map_2=[1], bounds_3=[1, nocc(ispin)], &!only want occupied MOs for j
+                               move_data=.TRUE.)
+
+         CALL dbcsr_t_destroy(pq_X)
+         CALL dbcsr_t_copy_matrix_to_tensor(dbcsr_mo_coeffs, t_mo_coeffs)
 
          !prepare (ja|X) tensor for the second contraction (over virtual MOs)
          !only virtual-occupied bit of the first 2 indices is occupied + it should be dense
@@ -1190,9 +1197,11 @@ CONTAINS
          CALL dbcsr_t_contract(alpha=dbcsr_scalar(1.0_dp), tensor_1=jq_X, tensor_2=t_mo_coeffs, &
                                beta=dbcsr_scalar(0.0_dp), tensor_3=ja_X(ispin), contract_1=[2], &
                                notcontract_1=[1, 3], contract_2=[1], notcontract_2=[2], &
-                               map_1=[1, 3], map_2=[2], bounds_3=[nocc(ispin) + 1, nocc(ispin) + nvirt(ispin)])
+                               map_1=[1, 3], map_2=[2], move_data=.TRUE., &
+                               bounds_3=[nocc(ispin) + 1, nocc(ispin) + nvirt(ispin)])
 
          CALL dbcsr_t_destroy(jq_X)
+         CALL dbcsr_t_copy_matrix_to_tensor(dbcsr_mo_coeffs, t_mo_coeffs)
 
          !Finally, get the oI_Y tensors
          CALL get_oIY_tensors(oI_Y, ispin, ao_blk_size, mo_blk_size(ispin)%array, ri_blk_size, &
@@ -1201,6 +1210,7 @@ CONTAINS
          !intermediate clen-up
          CALL dbcsr_t_destroy(t_mo_coeffs)
          CALL dbcsr_distribution_release(mat_dist)
+         CALL dbcsr_release(dbcsr_mo_coeffs)
          DEALLOCATE (ao_col_dist, ri_dist_3, ri_blk_size, ao_blk_size, ao_row_dist)
 
       END DO !ispin
@@ -1229,7 +1239,6 @@ CONTAINS
 
       !clean-up
       CALL dbcsr_t_pgrid_destroy(t_pgrid)
-      CALL dbcsr_t_destroy(pq_X)
       DO ispin = 1, nspins
          DEALLOCATE (mo_blk_size(ispin)%array)
          DEALLOCATE (mo_col_dist(ispin)%array)
@@ -1717,7 +1726,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'get_soc_splitting'
 
-      COMPLEX(dp), ALLOCATABLE, DIMENSION(:, :)          :: evecs
+      COMPLEX(dp), ALLOCATABLE, DIMENSION(:, :)          :: evecs, hami
       INTEGER                                            :: beta_spin, handle, ialpha, ibeta, &
                                                             ido_mo, ispin, nao, ndo_mo, ndo_so, &
                                                             nspins
@@ -1725,7 +1734,7 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: evals
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: tmp_shifts
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_cfm_type), POINTER                         :: evecs_cfm, hami_cfm
+      TYPE(cp_cfm_type), POINTER                         :: hami_cfm
       TYPE(cp_fm_struct_type), POINTER                   :: ao_domo_struct, domo_domo_struct, &
                                                             doso_doso_struct
       TYPE(cp_fm_type), POINTER                          :: alpha_gs_coeffs, ao_domo_work, &
@@ -1735,7 +1744,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(dbcsr_type), POINTER                          :: orb_soc_x, orb_soc_y, orb_soc_z
 
-      NULLIFY (matrix_ks, para_env, blacs_env, evecs_cfm, hami_cfm, ao_domo_struct, domo_domo_struct, &
+      NULLIFY (matrix_ks, para_env, blacs_env, hami_cfm, ao_domo_struct, domo_domo_struct, &
                doso_doso_struct, alpha_gs_coeffs, ao_domo_work, beta_gs_coeffs, domo_domo_work, &
                img_fm, real_fm, orb_soc_x, orb_soc_y, orb_soc_z)
 
@@ -1849,11 +1858,10 @@ CONTAINS
       CALL cp_cfm_create(hami_cfm, doso_doso_struct)
       CALL cp_fm_to_cfm(real_fm, img_fm, hami_cfm)
 
-      ! And diagonalize
-      ALLOCATE (evals(ndo_so), evecs(ndo_so, ndo_so))
-      CALL cp_cfm_create(evecs_cfm, doso_doso_struct)
-      CALL cp_cfm_heevd(hami_cfm, evecs_cfm, evals)
-      CALL cp_cfm_get_submatrix(evecs_cfm, evecs)
+      ! And diagonalize. Since tiny matrix (6x6), diagonalize locally
+      ALLOCATE (evals(ndo_so), evecs(ndo_so, ndo_so), hami(ndo_so, ndo_so))
+      CALL cp_cfm_get_submatrix(hami_cfm, hami)
+      CALL complex_diag(hami, evecs, evals)
 
       !The SOC corrected KS eigenvalues
       ALLOCATE (tmp_shifts(ndo_mo, 2))
@@ -1888,7 +1896,6 @@ CONTAINS
       CALL cp_fm_release(img_fm)
 
       CALL cp_cfm_release(hami_cfm)
-      CALL cp_cfm_release(evecs_cfm)
 
       CALL cp_fm_struct_release(ao_domo_struct)
       CALL cp_fm_struct_release(domo_domo_struct)
