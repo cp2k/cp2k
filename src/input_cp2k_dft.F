@@ -8040,6 +8040,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="PSEUDO_CANONICAL", &
+                          variants=(/"PSEUDO_CANO"/), &
                           description="Whether the pseudo-canonical version of GW2X should be used "// &
                           "(versus only using the diagonal of the generalized Fock matrix)", &
                           default_l_val=.TRUE.)

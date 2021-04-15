@@ -89,7 +89,7 @@ MODULE bibliography
                             Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, Lass2018, cp2kqs2020, &
                             Behler2007, Behler2011, Schran2020a, Schran2020b, &
                             Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Shigeta2001, Heinecke2016, &
-                            Brehm2021
+                            Brehm2021, Bussy2021a, Bussy2021b
 
 CONTAINS
 
@@ -4626,6 +4626,40 @@ CONTAINS
                          "IS 4-5", &
                          "ER"), &
                          DOI="10.1002/qua.1543")
+
+      CALL add_reference(key=Bussy2021a, ISI_record=s2a( &
+                         "TI Efficient and low-scaling linear-response time-dependent density ", &
+                         "   functional theory implementation for core-level spectroscopy of ", &
+                         "   large and periodic systems", &
+                         "AU Bussy, Augustin", &
+                         "   Hutter, Juerg", &
+                         "PY 2021", &
+                         "BP 4736", &
+                         "EP 4746", &
+                         "JF Physical Chemistry Chemical Physics", &
+                         "SO Phys. Chem. Chem. Phys.", &
+                         "VL 23", &
+                         "IS 8", &
+                         "PB The Royal Society of Chemistry", &
+                         "DI 10.1039/D0CP06164F ", &
+                         "ER"), &
+                         DOI="10.1039/D0CP06164F")
+
+      CALL add_reference(key=Bussy2021b, ISI_record=s2a( &
+                         "TI First-principles correction scheme for linear-response time-dependent ", &
+                         "   density functional theory calculations of core electronic states", &
+                         "AU Bussy, Augustin", &
+                         "   Hutter, Juerg", &
+                         "PY 2021", &
+                         "SP 034108", &
+                         "JF The Journal of Chemical Physics", &
+                         "SO J. Chem. Phys.", &
+                         "VL 155", &
+                         "IS 3", &
+                         "PB American Institute of Physics", &
+                         "DI 10.1063/5.0058124 ", &
+                         "ER"), &
+                         DOI="10.1063/5.0058124")
 
       CALL add_reference(key=Heinecke2016, ISI_record=s2a( &
                          "PT S", &
