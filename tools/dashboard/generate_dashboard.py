@@ -326,13 +326,13 @@ def gen_archive(config: ConfigParser, log: GitLog, outdir: Path) -> None:
             output += '<table border="1" cellspacing="3" cellpadding="5">\n'
             output += "<tr><th>Commit</th><th>Status</th><th>Summary</th>"
             output += "<th>Author</th><th>Commit Message</th></tr>\n\n"
-            output += "".join(all_html_rows[:max_age])
+            output += "".join(all_html_rows[: max_age + 1])
             output += "</table>\n"
             output += toggle_link
             output += html_footer()
             write_file(archive_dir / html_out_postfix, output)
 
-            url_list = "".join(all_url_rows[:max_age])
+            url_list = "".join(all_url_rows[: max_age + 1])
             write_file(archive_dir / urls_out_postfix, url_list)
 
 
