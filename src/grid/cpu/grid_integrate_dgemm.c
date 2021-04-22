@@ -1063,7 +1063,7 @@ void grid_cpu_integrate_task_list(
     const grid_buffer *const pab_blocks, double *grid[nlevels],
     grid_buffer *hab_blocks, double forces[natoms][3], double virial[3][3]) {
 
-  grid_context *const ctx = (grid_context *const)ptr;
+  grid_context *const ctx = (grid_context *)ptr;
 
   assert(ctx->checksum == ctx_checksum);
   assert(ctx->nlevels == nlevels);
