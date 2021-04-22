@@ -2011,7 +2011,7 @@ CONTAINS
                          "Information provided in the input file regarding POTENTIAL for KIND <"// &
                          TRIM(qs_kind%name)//"> will be ignored!")
 
-         check = ((nb_rep > 0) .OR. explicit_basis)
+         check = ((k_rep > 0) .OR. explicit_basis)
          IF (check) &
             CALL cp_warn(__LOCATION__, &
                          "Information provided in the input file regarding BASIS for KIND <"// &
@@ -2044,7 +2044,7 @@ CONTAINS
                          "Information provided in the input file regarding POTENTIAL for KIND <"// &
                          TRIM(qs_kind%name)//"> will be ignored!")
 
-         check = ((nb_rep > 0) .OR. explicit_basis)
+         check = ((k_rep > 0) .OR. explicit_basis)
          IF (check) &
             CALL cp_warn(__LOCATION__, &
                          "Information provided in the input file regarding BASIS for KIND <"// &
