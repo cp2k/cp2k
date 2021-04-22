@@ -9,26 +9,30 @@
 
 #define GRID_STRINGIFY(SYMBOL) #SYMBOL
 
-// GCC introduced the unroll pragma with version 8 using a custom syntax.
-#if defined(__INTEL_COMPILER)
-#define GRID_PRAGMA_UNROLL(N) _Pragma(GRID_STRINGIFY(unroll(N)))
-#if __INTEL_COMPILER >= 1900
-#define GRID_PRAGMA_SIMD(OBJS, N)                                              \
-  _Pragma(GRID_STRINGIFY(omp simd linear OBJS simdlen(N)))
+// GCC added the simd pragma with version 6.
+#if defined(__GNUC__) && !defined(__INTEL_COMPILER) && __GNUC__ < 6
+#define GRID_PRAGMA_SIMD(OBJS, N)
+// Intel added the simd pragma with version 19.00.
+#elif defined(__INTEL_COMPILER) && __INTEL_COMPILER < 1900
+#define GRID_PRAGMA_SIMD(OBJS, N)
+// All compilers support the same syntax defined by the OpenMP standard.
 #else
-#define GRID_PRAGMA_SIMD(OBJS, N)
+#define GRID_PRAGMA_SIMD(OBJS, N)                                              \
+  _Pragma(GRID_STRINGIFY(omp simd linear OBJS simdlen(N)))
 #endif
-#elif defined(__GNUC__) && __GNUC__ >= 8
-#define GRID_PRAGMA_SIMD(OBJS, N)                                              \
-  _Pragma(GRID_STRINGIFY(omp simd linear OBJS simdlen(N)))
-#define GRID_PRAGMA_UNROLL(N) _Pragma(GRID_STRINGIFY(GCC unroll N))
-#elif defined(__GNUC__) && __GNUC__ < 8
-#define GRID_PRAGMA_SIMD(OBJS, N)
+
+// GCC added the unroll pragma with version 8 and...
+#if defined(__GNUC__) && !defined(__INTEL_COMPILER) && __GNUC__ < 8
 #define GRID_PRAGMA_UNROLL(N)
-#else // Most other compilers support a common syntax.
-#define GRID_PRAGMA_SIMD(OBJS, N)                                              \
-  _Pragma(GRID_STRINGIFY(omp simd linear OBJS simdlen(N)))
+#define GRID_PRAGMA_UNROLL_UP_TO(N)
+// ...chose a custom syntax.
+#elif defined(__GNUC__) && !defined(__INTEL_COMPILER) && __GNUC__ >= 8
+#define GRID_PRAGMA_UNROLL(N) _Pragma(GRID_STRINGIFY(GCC unroll N))
+#define GRID_PRAGMA_UNROLL_UP_TO(N) _Pragma(GRID_STRINGIFY(GCC unroll N))
+// Most other compilers support a common syntax.
+#else
 #define GRID_PRAGMA_UNROLL(N) _Pragma(GRID_STRINGIFY(unroll(N)))
+#define GRID_PRAGMA_UNROLL_UP_TO(N) _Pragma("unroll")
 #endif
 
 #if defined(__CUDACC__)

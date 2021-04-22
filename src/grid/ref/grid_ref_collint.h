@@ -98,7 +98,7 @@ ortho_cx_to_grid_avx2(const int lp, const int cmax, const int i,
   __m256d r_vec_3 = _mm256_mul_pd(p_vec, _mm256_set1_pd(cx[3]));
 
   // Remaining iterations for lxp > 0 use fused multiply adds.
-  GRID_PRAGMA_UNROLL(GRID_MAX_LP_OPTIMIZED)
+  GRID_PRAGMA_UNROLL_UP_TO(GRID_MAX_LP_OPTIMIZED)
   for (int lxp = 1; lxp <= lp; lxp++) {
     const double *cx_base = &cx[lxp * 4];
     p_vec = _mm256_loadu_pd(&pol[0][lxp][icmax]);
@@ -121,7 +121,7 @@ ortho_cx_to_grid_avx2(const int lp, const int cmax, const int i,
   __m256d grid_vec_2 = _mm256_loadu_pd(grid_2);
   __m256d grid_vec_3 = _mm256_loadu_pd(grid_3);
 
-  GRID_PRAGMA_UNROLL(GRID_MAX_LP_OPTIMIZED + 1)
+  GRID_PRAGMA_UNROLL_UP_TO(GRID_MAX_LP_OPTIMIZED + 1)
   for (int lxp = 0; lxp <= lp; lxp++) {
     __m256d p_vec = _mm256_loadu_pd(&pol[0][lxp][icmax]);
 
