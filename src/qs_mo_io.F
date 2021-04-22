@@ -1010,7 +1010,7 @@ CONTAINS
       LOGICAL                                            :: ionode, my_last, p_cart, p_eval, p_evec, &
                                                             p_occ, should_output
       REAL(KIND=dp)                                      :: gap
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cmatrix, smatrix
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cmatrix, smatrix
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_parameter
@@ -1123,7 +1123,7 @@ CONTAINS
                         DO ishell = 1, nshell(iset)
                            lshell = l(ishell, iset)
                            CALL dgemm("T", "N", nco(lshell), mo_set%nmo, nso(lshell), 1.0_dp, &
-                                      orbtramat(lshell)%s2c, nso(lshell), &
+                                      orbtramat(lshell)%c2s, nso(lshell), &
                                       smatrix(isgf, 1), nsgf, 0.0_dp, &
                                       cmatrix(icgf, 1), ncgf)
                            icgf = icgf + nco(lshell)
@@ -1135,7 +1135,7 @@ CONTAINS
                      DO ishell = 1, lmax + 1
                         lshell = ishell - 1
                         CALL dgemm("T", "N", nco(lshell), nsgf, nso(lshell), 1.0_dp, &
-                                   orbtramat(lshell)%s2c, nso(lshell), &
+                                   orbtramat(lshell)%c2s, nso(lshell), &
                                    smatrix(isgf, 1), nsgf, 0.0_dp, &
                                    cmatrix(icgf, 1), ncgf)
                         icgf = icgf + nco(lshell)
