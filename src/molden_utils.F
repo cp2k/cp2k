@@ -259,7 +259,7 @@ CONTAINS
                            DO ishell = 1, nshell(iset)
                               lshell = l(ishell, iset)
                               CALL dgemm("T", "N", nco(lshell), mos(ispin)%mo_set%nmo, nso(lshell), 1.0_dp, &
-                                         orbtramat(lshell)%s2c, nso(lshell), &
+                                         orbtramat(lshell)%c2s, nso(lshell), &
                                          smatrix(isgf, 1), nsgf, 0.0_dp, &
                                          cmatrix(icgf, 1), ncgf)
                               icgf = icgf + nco(lshell)
