@@ -11,6 +11,7 @@
         "xc",
         "base",
         "mpiwrap",
+        "offload",
         "subsys",
         "hfxbase",
         "minimax",

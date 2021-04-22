@@ -145,7 +145,7 @@ void grid_free_task_list(grid_task_list *task_list) {
 void grid_collocate_task_list(const grid_task_list *task_list,
                               const enum grid_func func, const int nlevels,
                               const int npts_local[nlevels][3],
-                              const grid_buffer *pab_blocks,
+                              const offload_buffer *pab_blocks,
                               double *grid[nlevels]) {
 
   // Bounds check.
@@ -230,8 +230,8 @@ void grid_collocate_task_list(const grid_task_list *task_list,
 void grid_integrate_task_list(
     const grid_task_list *task_list, const bool compute_tau, const int natoms,
     const int nlevels, const int npts_local[nlevels][3],
-    const grid_buffer *pab_blocks, const double *grid[nlevels],
-    grid_buffer *hab_blocks, double forces[natoms][3], double virial[3][3]) {
+    const offload_buffer *pab_blocks, const double *grid[nlevels],
+    offload_buffer *hab_blocks, double forces[natoms][3], double virial[3][3]) {
 
   // Bounds check.
   assert(task_list->nlevels == nlevels);
@@ -269,8 +269,8 @@ void grid_integrate_task_list(
   if (grid_library_get_config().validate) {
     // Allocate space for reference results.
     const int hab_length = hab_blocks->size / sizeof(double);
-    grid_buffer *hab_blocks_ref = NULL;
-    grid_create_buffer(hab_length, &hab_blocks_ref);
+    offload_buffer *hab_blocks_ref = NULL;
+    offload_create_buffer(hab_length, &hab_blocks_ref);
     double forces_ref[natoms][3], virial_ref[3][3];
 
     // Call reference implementation.
@@ -347,7 +347,7 @@ void grid_integrate_task_list(
 
     printf("Validated grid_integrate, max rel. diff: %le %le %le\n",
            hab_max_rel_diff, forces_max_rel_diff, virial_max_rel_diff);
-    grid_free_buffer(hab_blocks_ref);
+    offload_free_buffer(hab_blocks_ref);
   }
 }
 

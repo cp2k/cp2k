@@ -404,7 +404,7 @@ void grid_gpu_free_task_list(grid_gpu_task_list *task_list) {
  ******************************************************************************/
 void grid_gpu_collocate_task_list(const grid_gpu_task_list *task_list,
                                   const enum grid_func func, const int nlevels,
-                                  const grid_buffer *pab_blocks,
+                                  const offload_buffer *pab_blocks,
                                   double *grid[]) {
 
   // Select GPU device.
@@ -493,8 +493,9 @@ void grid_gpu_collocate_task_list(const grid_gpu_task_list *task_list,
 void grid_gpu_integrate_task_list(const grid_gpu_task_list *task_list,
                                   const bool compute_tau, const int natoms,
                                   const int nlevels,
-                                  const grid_buffer *pab_blocks,
-                                  const double *grid[], grid_buffer *hab_blocks,
+                                  const offload_buffer *pab_blocks,
+                                  const double *grid[],
+                                  offload_buffer *hab_blocks,
                                   double forces[][3], double virial[3][3]) {
 
   // Select GPU device.

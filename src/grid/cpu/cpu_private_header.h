@@ -12,8 +12,8 @@
 #include <assert.h>
 #include <stdbool.h>
 /* everything here is specific to the cpu and gpu backends*/
+#include "../../offload/offload_buffer.h"
 #include "../common/grid_basis_set.h"
-#include "../common/grid_buffer.h"
 #include "../common/grid_common.h"
 #include "../common/grid_constants.h"
 enum checksum_ { task_checksum = 0x2384989, ctx_checksum = 0x2356734 };
@@ -166,24 +166,24 @@ extern void collocate_one_grid_level_dgemm(grid_context *const ctx,
                                            const int *const, const int *const,
                                            const enum grid_func func,
                                            const int level,
-                                           const grid_buffer *pab_blocks);
+                                           const offload_buffer *pab_blocks);
 
 extern void integrate_one_grid_level_dgemm(
     grid_context *const ctx, const int level, const bool calculate_tau,
     const bool calculate_forces, const bool calculate_virial,
     const int *const shift_local, const int *const border_width,
-    const grid_buffer *const pab_blocks, grid_buffer *const hab_blocks,
+    const offload_buffer *const pab_blocks, offload_buffer *const hab_blocks,
     tensor *forces_, tensor *virial_);
 
 extern void compute_coefficients(grid_context *const ctx,
                                  struct collocation_integration_ *handler,
                                  const _task *previous_task, const _task *task,
-                                 const grid_buffer *pab_blocks,
+                                 const offload_buffer *pab_blocks,
                                  tensor *const pab, tensor *const work,
                                  tensor *const pab_prep);
 
 extern void extract_blocks(grid_context *const ctx, const _task *const task,
-                           const grid_buffer *pab_blocks, tensor *const work,
+                           const offload_buffer *pab_blocks, tensor *const work,
                            tensor *const pab);
 
 #endif

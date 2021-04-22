@@ -4,8 +4,8 @@
 /*                                                                            */
 /*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
 /*----------------------------------------------------------------------------*/
-#ifndef GRID_BUFFER_H
-#define GRID_BUFFER_H
+#ifndef OFFLOAD_BUFFER_H
+#define OFFLOAD_BUFFER_H
 
 #include <stddef.h>
 
@@ -17,25 +17,31 @@ typedef struct {
   size_t size;
   double *host_buffer;
   double *device_buffer;
-} grid_buffer;
+} offload_buffer;
+
+/*******************************************************************************
+ * \brief Selects the device to be used.
+ * \author Ole Schuett
+ ******************************************************************************/
+void offload_set_device_id(int device_id);
 
 /*******************************************************************************
  * \brief Allocates a buffer of given length, ie. number of elements.
  * \author Ole Schuett
  ******************************************************************************/
-void grid_create_buffer(const int length, grid_buffer **buffer);
+void offload_create_buffer(const int length, offload_buffer **buffer);
 
 /*******************************************************************************
  * \brief Deallocate given buffer.
  * \author Ole Schuett
  ******************************************************************************/
-void grid_free_buffer(grid_buffer *buffer);
+void offload_free_buffer(offload_buffer *buffer);
 
 /*******************************************************************************
  * \brief Returns a pointer to the host buffer.
  * \author Ole Schuett
  ******************************************************************************/
-double *grid_buffer_get_host_pointer(grid_buffer *buffer);
+double *offload_get_buffer_host_pointer(offload_buffer *buffer);
 
 #endif
 

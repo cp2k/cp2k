@@ -1,5 +1,5 @@
 {
     "description": "Optimized GPU backend",
-    "requires": ["../common",],
+    "requires": ["../common", "../../offload"],
     "archive": "libcp2kgridgpu",
 }

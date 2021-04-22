@@ -391,7 +391,7 @@ static void collocate_one_grid_level(
  ******************************************************************************/
 void grid_ref_collocate_task_list(const grid_ref_task_list *task_list,
                                   const enum grid_func func, const int nlevels,
-                                  const grid_buffer *pab_blocks,
+                                  const offload_buffer *pab_blocks,
                                   double *grid[nlevels]) {
 
   assert(task_list->nlevels == nlevels);
@@ -460,8 +460,8 @@ static void integrate_one_grid_level(
     const int *last_block_task, const bool compute_tau, const int natoms,
     const int npts_global[3], const int npts_local[3], const int shift_local[3],
     const int border_width[3], const double dh[3][3], const double dh_inv[3][3],
-    const grid_buffer *pab_blocks, const double *grid, grid_buffer *hab_blocks,
-    double forces[natoms][3], double virial[3][3]) {
+    const offload_buffer *pab_blocks, const double *grid,
+    offload_buffer *hab_blocks, double forces[natoms][3], double virial[3][3]) {
 
 // Using default(shared) because with GCC 9 the behavior around const changed:
 // https://www.gnu.org/software/gcc/gcc-9/porting_to.html
@@ -605,8 +605,8 @@ static void integrate_one_grid_level(
  ******************************************************************************/
 void grid_ref_integrate_task_list(
     const grid_ref_task_list *task_list, const bool compute_tau,
-    const int natoms, const int nlevels, const grid_buffer *pab_blocks,
-    const double *grid[nlevels], grid_buffer *hab_blocks,
+    const int natoms, const int nlevels, const offload_buffer *pab_blocks,
+    const double *grid[nlevels], offload_buffer *hab_blocks,
     double forces[natoms][3], double virial[3][3]) {
 
   assert(task_list->nlevels == nlevels);

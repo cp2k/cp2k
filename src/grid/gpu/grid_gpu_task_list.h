@@ -13,8 +13,8 @@
 extern "C" {
 #endif
 
+#include "../../offload/offload_buffer.h"
 #include "../common/grid_basis_set.h"
-#include "../common/grid_buffer.h"
 #include "../common/grid_constants.h"
 #include <cuda_runtime.h>
 #include <stdbool.h>
@@ -154,7 +154,7 @@ void grid_gpu_free_task_list(grid_gpu_task_list *task_list);
  ******************************************************************************/
 void grid_gpu_collocate_task_list(const grid_gpu_task_list *task_list,
                                   const enum grid_func func, const int nlevels,
-                                  const grid_buffer *pab_blocks,
+                                  const offload_buffer *pab_blocks,
                                   double *grid[]);
 
 /*******************************************************************************
@@ -165,8 +165,9 @@ void grid_gpu_collocate_task_list(const grid_gpu_task_list *task_list,
 void grid_gpu_integrate_task_list(const grid_gpu_task_list *task_list,
                                   const bool compute_tau, const int natoms,
                                   const int nlevels,
-                                  const grid_buffer *pab_blocks,
-                                  const double *grid[], grid_buffer *hab_blocks,
+                                  const offload_buffer *pab_blocks,
+                                  const double *grid[],
+                                  offload_buffer *hab_blocks,
                                   double forces[][3], double virial[3][3]);
 
 #ifdef __cplusplus

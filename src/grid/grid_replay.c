@@ -19,7 +19,7 @@
 #include <string.h>
 #include <time.h>
 
-#include "common/grid_buffer.h"
+#include "../offload/offload_buffer.h"
 #include "common/grid_common.h"
 #include "grid_replay.h"
 #include "grid_task_list.h"
@@ -338,9 +338,9 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
         (const int(*)[3])npts_local, (const int(*)[3])shift_local,
         (const int(*)[3])border_width, (const double(*)[3][3])dh,
         (const double(*)[3][3])dh_inv, &task_list);
-    grid_buffer *pab_blocks = NULL, *hab_blocks = NULL;
-    grid_create_buffer(n1 * n2, &pab_blocks);
-    grid_create_buffer(n1 * n2, &hab_blocks);
+    offload_buffer *pab_blocks = NULL, *hab_blocks = NULL;
+    offload_create_buffer(n1 * n2, &pab_blocks);
+    offload_create_buffer(n1 * n2, &hab_blocks);
     const double f = (collocate) ? rscale : 1.0;
     for (int i = 0; i < n1; i++) {
       for (int j = 0; j < n2; j++) {
@@ -373,8 +373,8 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
     grid_free_basis_set(basisa);
     grid_free_basis_set(basisb);
     grid_free_task_list(task_list);
-    grid_free_buffer(pab_blocks);
-    grid_free_buffer(hab_blocks);
+    offload_free_buffer(pab_blocks);
+    offload_free_buffer(hab_blocks);
   } else {
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
     if (collocate) {

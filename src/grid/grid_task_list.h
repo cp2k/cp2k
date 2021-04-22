@@ -9,8 +9,8 @@
 
 #include <stdbool.h>
 
+#include "../offload/offload_buffer.h"
 #include "common/grid_basis_set.h"
-#include "common/grid_buffer.h"
 #include "common/grid_constants.h"
 #include "cpu/grid_cpu_task_list.h"
 #include "gpu/grid_gpu_task_list.h"
@@ -112,7 +112,7 @@ void grid_free_task_list(grid_task_list *task_list);
 void grid_collocate_task_list(const grid_task_list *task_list,
                               const enum grid_func func, const int nlevels,
                               const int npts_local[nlevels][3],
-                              const grid_buffer *pab_blocks,
+                              const offload_buffer *pab_blocks,
                               double *grid[nlevels]);
 
 /*******************************************************************************
@@ -139,8 +139,8 @@ void grid_collocate_task_list(const grid_task_list *task_list,
 void grid_integrate_task_list(
     const grid_task_list *task_list, const bool compute_tau, const int natoms,
     const int nlevels, const int npts_local[nlevels][3],
-    const grid_buffer *pab_blocks, const double *grid[nlevels],
-    grid_buffer *hab_blocks, double forces[natoms][3], double virial[3][3]);
+    const offload_buffer *pab_blocks, const double *grid[nlevels],
+    offload_buffer *hab_blocks, double forces[natoms][3], double virial[3][3]);
 
 #endif
 

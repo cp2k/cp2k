@@ -47,6 +47,7 @@ MODULE f77_interface
                                               unpack_subsys_particles
    USE dbcsr_api,                       ONLY: dbcsr_finalize_lib,&
                                               dbcsr_init_lib
+   USE dbcsr_config,                    ONLY: get_accdrv_active_device_id
    USE eip_environment,                 ONLY: eip_init
    USE eip_environment_types,           ONLY: eip_env_create,&
                                               eip_env_release,&
@@ -111,6 +112,7 @@ MODULE f77_interface
    USE nnp_environment_types,           ONLY: nnp_env_create,&
                                               nnp_env_release,&
                                               nnp_type
+   USE offload_api,                     ONLY: offload_set_device_id
    USE periodic_table,                  ONLY: init_periodic_table
    USE pw_cuda,                         ONLY: pw_cuda_finalize,&
                                               pw_cuda_init
@@ -270,6 +272,8 @@ CONTAINS
          ! DBCSR sets the device for multi-gpu, make sure it is the first GPU call
          CALL dbcsr_init_lib(default_para_env%group, timeset_hook, timestop_hook, &
                              cp_abort_hook, cp_warn_hook, io_unit=unit_nr)
+
+         CALL offload_set_device_id(device_id=get_accdrv_active_device_id())
 
          CALL pw_cuda_init()
 
