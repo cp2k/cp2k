@@ -858,7 +858,7 @@ void grid_collocate(collocation_integration *const handler,
 
 //******************************************************************************
 void grid_collocate_pgf_product_cpu_dgemm(
-    const bool use_ortho, const int border_mask, const int func,
+    const bool use_ortho, const int border_mask, const enum grid_func func,
     const int la_max, const int la_min, const int lb_max, const int lb_min,
     const double zeta, const double zetb, const double rscale,
     const double dh[3][3], const double dh_inv[3][3], const double ra[3],
@@ -894,7 +894,7 @@ void grid_collocate_pgf_product_cpu_dgemm(
   handler->grid.ld_ = grid_local_size[0];
   handler->grid.data = grid_;
 
-  setup_global_grid_size(&handler->grid, (const int *const)grid_global_size);
+  setup_global_grid_size(&handler->grid, (const int *)grid_global_size);
 
   initialize_tensor_3(&handler->grid, grid_local_size[2], grid_local_size[1],
                       grid_local_size[0]);
@@ -1237,7 +1237,7 @@ void grid_cpu_collocate_task_list(grid_cpu_task_list *const ptr,
                                   const grid_buffer *pab_blocks,
                                   double *grid[nlevels]) {
 
-  grid_context *const ctx = (grid_context *const)ptr;
+  grid_context *const ctx = (grid_context *)ptr;
 
   assert(ctx->checksum == ctx_checksum);
 

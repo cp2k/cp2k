@@ -1121,6 +1121,7 @@ void grid_prepare_pab_dgemm(const enum grid_func func, const int *const offset,
     grid_prepare_pab_Di2(&tmp);
     break;
   default:
-    assert(false && "Unknown ga_gb_function.");
+    printf("Unkown ga-gb function");
+    abort();
   }
 }

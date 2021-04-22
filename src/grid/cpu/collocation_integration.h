@@ -157,7 +157,7 @@ typedef struct collocation_integration_ {
   bool integrate;
   bool apply_cutoff;
 
-  int func;
+  enum grid_func func;
   int lmin_diff[2];
   int lmax_diff[2];
 
