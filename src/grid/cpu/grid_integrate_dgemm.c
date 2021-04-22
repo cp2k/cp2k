@@ -755,7 +755,7 @@ void integrate_one_grid_level_dgemm(
     grid_context *const ctx, const int level, const bool calculate_tau,
     const bool calculate_forces, const bool calculate_virial,
     const int *const shift_local, const int *const border_width,
-    const grid_buffer *const pab_blocks, grid_buffer *const hab_blocks,
+    const offload_buffer *const pab_blocks, offload_buffer *const hab_blocks,
     tensor *forces_, tensor *virial_) {
   tensor *const grid = &ctx->grid[level];
 
@@ -1060,8 +1060,8 @@ void integrate_one_grid_level_dgemm(
  ******************************************************************************/
 void grid_cpu_integrate_task_list(
     void *ptr, const bool compute_tau, const int natoms, const int nlevels,
-    const grid_buffer *const pab_blocks, double *grid[nlevels],
-    grid_buffer *hab_blocks, double forces[natoms][3], double virial[3][3]) {
+    const offload_buffer *const pab_blocks, double *grid[nlevels],
+    offload_buffer *hab_blocks, double forces[natoms][3], double virial[3][3]) {
 
   grid_context *const ctx = (grid_context *)ptr;
 

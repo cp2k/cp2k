@@ -9,13 +9,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "grid_buffer.h"
+#include "offload_buffer.h"
 
 #ifdef __GRID_CUDA
+#define __OFFLOAD_CUDA
+#endif
+
+#ifdef __OFFLOAD_CUDA
 #include <cuda_runtime.h>
+#endif
+
+static int current_device_id = -1;
 
 /*******************************************************************************
- * \brief Check given Cuda status and upon failure abort with a nice message.
+ * \brief Checks given Cuda status and upon failure abort with a nice message.
  * \author Ole Schuett
  ******************************************************************************/
 #define CHECK(status)                                                          \
@@ -25,13 +32,17 @@
     abort();                                                                   \
   }
 
-#endif // __GRID_CUDA
+/*******************************************************************************
+ * \brief Selects the device to be used.
+ * \author Ole Schuett
+ ******************************************************************************/
+void offload_set_device_id(int device_id) { current_device_id = device_id; }
 
 /*******************************************************************************
  * \brief Allocates a buffer of given length, ie. number of elements.
  * \author Ole Schuett
  ******************************************************************************/
-void grid_create_buffer(const int length, grid_buffer **buffer) {
+void offload_create_buffer(const int length, offload_buffer **buffer) {
 
   const size_t requested_size = length * sizeof(double);
 
@@ -39,16 +50,17 @@ void grid_create_buffer(const int length, grid_buffer **buffer) {
     if ((*buffer)->size >= requested_size) {
       return; // reuse existing buffer
     } else {
-      grid_free_buffer(*buffer);
+      offload_free_buffer(*buffer);
     }
   }
 
-  (*buffer) = malloc(sizeof(grid_buffer));
+  (*buffer) = malloc(sizeof(offload_buffer));
   (*buffer)->size = requested_size;
 
-#ifdef __GRID_CUDA
+#ifdef __OFFLOAD_CUDA
   // With size 0 cudaMallocHost doesn't null the pointer and cudaFreeHost fails.
   (*buffer)->host_buffer = NULL;
+  CHECK(cudaSetDevice(current_device_id));
   CHECK(cudaMallocHost((void **)&(*buffer)->host_buffer, requested_size));
   CHECK(cudaMalloc((void **)&(*buffer)->device_buffer, requested_size));
 #else
@@ -61,12 +73,12 @@ void grid_create_buffer(const int length, grid_buffer **buffer) {
  * \brief Deallocate given buffer.
  * \author Ole Schuett
  ******************************************************************************/
-void grid_free_buffer(grid_buffer *buffer) {
+void offload_free_buffer(offload_buffer *buffer) {
 
   if (buffer == NULL)
     return;
 
-#ifdef __GRID_CUDA
+#ifdef __OFFLOAD_CUDA
   CHECK(cudaFreeHost(buffer->host_buffer));
   CHECK(cudaFree(buffer->device_buffer));
 #else
@@ -80,7 +92,7 @@ void grid_free_buffer(grid_buffer *buffer) {
  * \brief Returns a pointer to the host buffer.
  * \author Ole Schuett
  ******************************************************************************/
-double *grid_buffer_get_host_pointer(grid_buffer *buffer) {
+double *offload_get_buffer_host_pointer(offload_buffer *buffer) {
   assert(buffer != NULL);
   return buffer->host_buffer;
 }

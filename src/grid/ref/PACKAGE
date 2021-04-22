@@ -1,5 +1,5 @@
 {
     "description": "Reference backend implementation",
-    "requires": ["../common"],
+    "requires": ["../common", "../../offload"],
     "archive": "libcp2kgridref",
 }

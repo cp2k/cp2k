@@ -11,12 +11,13 @@
 ! **************************************************************************************************
 MODULE grid_api
    USE ISO_C_BINDING,                   ONLY: &
-        C_ASSOCIATED, C_BOOL, C_CHAR, C_DOUBLE, C_FUNLOC, C_FUNPTR, C_F_POINTER, C_INT, C_LOC, &
-        C_LONG, C_NULL_PTR, C_PTR
+        C_ASSOCIATED, C_BOOL, C_CHAR, C_DOUBLE, C_FUNLOC, C_FUNPTR, C_INT, C_LOC, C_LONG, &
+        C_NULL_PTR, C_PTR
    USE cell_types,                      ONLY: cell_type
    USE cube_utils,                      ONLY: cube_info_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
+   USE offload_api,                     ONLY: offload_buffer_type
    USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
                                               realspace_grid_type
    USE string_utilities,                ONLY: strlcpy_c2f
@@ -63,15 +64,9 @@ MODULE grid_api
    PUBLIC :: grid_library_init, grid_library_finalize
    PUBLIC :: grid_library_set_config, grid_library_print_stats
    PUBLIC :: collocate_pgf_product, integrate_pgf_product
-   PUBLIC :: grid_buffer_type, grid_create_buffer, grid_free_buffer
    PUBLIC :: grid_basis_set_type, grid_create_basis_set, grid_free_basis_set
    PUBLIC :: grid_task_list_type, grid_create_task_list, grid_free_task_list
    PUBLIC :: grid_collocate_task_list, grid_integrate_task_list
-
-   TYPE grid_buffer_type
-      REAL(KIND=dp), DIMENSION(:), POINTER :: host_buffer => Null()
-      TYPE(C_PTR), PRIVATE :: c_ptr = C_NULL_PTR
-   END TYPE grid_buffer_type
 
    TYPE grid_basis_set_type
       PRIVATE
@@ -549,80 +544,6 @@ CONTAINS
    END SUBROUTINE get_rsgrid_properties
 
 ! **************************************************************************************************
-!> \brief Allocates a buffer of given length, ie. number of elements.
-!> \param length ...
-!> \param buffer ...
-!> \author Ole Schuett
-! **************************************************************************************************
-   SUBROUTINE grid_create_buffer(length, buffer)
-      INTEGER, INTENT(IN)                                :: length
-      TYPE(grid_buffer_type), INTENT(INOUT)              :: buffer
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'grid_create_buffer'
-
-      INTEGER                                            :: handle
-      TYPE(C_PTR)                                        :: host_buffer_c
-      INTERFACE
-         SUBROUTINE grid_create_buffer_c(length, buffer) &
-            BIND(C, name="grid_create_buffer")
-            IMPORT :: C_PTR, C_INT
-            INTEGER(KIND=C_INT), VALUE                :: length
-            TYPE(C_PTR)                               :: buffer
-         END SUBROUTINE grid_create_buffer_c
-      END INTERFACE
-      INTERFACE
-
-         FUNCTION grid_buffer_get_host_pointer_c(buffer) &
-            BIND(C, name="grid_buffer_get_host_pointer")
-            IMPORT :: C_PTR
-            TYPE(C_PTR), VALUE                        :: buffer
-            TYPE(C_PTR)                               :: grid_buffer_get_host_pointer_c
-         END FUNCTION grid_buffer_get_host_pointer_c
-      END INTERFACE
-
-      CALL timeset(routineN, handle)
-
-      CALL grid_create_buffer_C(length=length, buffer=buffer%c_ptr)
-      CPASSERT(C_ASSOCIATED(buffer%c_ptr))
-
-      host_buffer_c = grid_buffer_get_host_pointer_c(buffer%c_ptr)
-      CPASSERT(C_ASSOCIATED(host_buffer_c) .OR. length == 0)
-      CALL C_F_POINTER(host_buffer_c, buffer%host_buffer, shape=(/length/))
-
-      CALL timestop(handle)
-   END SUBROUTINE grid_create_buffer
-
-! **************************************************************************************************
-!> \brief Deallocates given buffer.
-!> \param buffer ...
-!> \author Ole Schuett
-! **************************************************************************************************
-   SUBROUTINE grid_free_buffer(buffer)
-      TYPE(grid_buffer_type), INTENT(INOUT)              :: buffer
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'grid_free_buffer'
-
-      INTEGER                                            :: handle
-      INTERFACE
-         SUBROUTINE grid_free_buffer_c(buffer) &
-            BIND(C, name="grid_free_buffer")
-            IMPORT :: C_PTR
-            TYPE(C_PTR), VALUE                        :: buffer
-         END SUBROUTINE grid_free_buffer_c
-      END INTERFACE
-
-      CALL timeset(routineN, handle)
-
-      CPASSERT(C_ASSOCIATED(buffer%c_ptr))
-
-      CALL grid_free_buffer_c(buffer%c_ptr)
-
-      buffer%c_ptr = C_NULL_PTR
-
-      CALL timestop(handle)
-   END SUBROUTINE grid_free_buffer
-
-! **************************************************************************************************
 !> \brief Allocates a basis set which can be passed to grid_create_task_list.
 !> \param nset ...
 !> \param nsgf ...
@@ -1044,7 +965,7 @@ CONTAINS
    SUBROUTINE grid_collocate_task_list(task_list, ga_gb_function, pab_blocks, rs_grids)
       TYPE(grid_task_list_type), INTENT(IN)              :: task_list
       INTEGER, INTENT(IN)                                :: ga_gb_function
-      TYPE(grid_buffer_type), INTENT(IN)                 :: pab_blocks
+      TYPE(offload_buffer_type), INTENT(IN)              :: pab_blocks
       TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_grids
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'grid_collocate_task_list'
@@ -1122,9 +1043,9 @@ CONTAINS
       TYPE(grid_task_list_type), INTENT(IN)              :: task_list
       LOGICAL, INTENT(IN)                                :: compute_tau, calculate_forces, &
                                                             calculate_virial
-      TYPE(grid_buffer_type), INTENT(IN)                 :: pab_blocks
+      TYPE(offload_buffer_type), INTENT(IN)              :: pab_blocks
       TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_grids
-      TYPE(grid_buffer_type), INTENT(INOUT)              :: hab_blocks
+      TYPE(offload_buffer_type), INTENT(INOUT)           :: hab_blocks
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          TARGET                                          :: forces
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
@@ -1271,6 +1192,7 @@ CONTAINS
                                      apply_cutoff=LOGICAL(apply_cutoff, C_BOOL))
 
    END SUBROUTINE grid_library_set_config
+
 ! **************************************************************************************************
 !> \brief Print grid library statistics
 !> \param mpi_comm ...

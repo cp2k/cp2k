@@ -117,6 +117,7 @@ MODULE cp2k_runs
                                               loop_over_molecules
    USE neb_methods,                     ONLY: neb
    USE negf_methods,                    ONLY: do_negf
+   USE offload_api,                     ONLY: offload_set_device_id
    USE optimize_basis,                  ONLY: run_optimize_basis
    USE optimize_input,                  ONLY: run_optimize_input
    USE pint_methods,                    ONLY: do_pint_run
@@ -260,6 +261,9 @@ CONTAINS
                                    device_id=get_accdrv_active_device_id(), &
                                    validate=grid_validate, &
                                    apply_cutoff=grid_apply_cutoff)
+
+      ! Configure the offload library.
+      CALL offload_set_device_id(device_id=get_accdrv_active_device_id())
 
       SELECT CASE (prog_name_id)
       CASE (do_atom)

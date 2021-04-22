@@ -8,8 +8,9 @@
 #ifndef GRID_CONTEXT_CPU_H
 #define GRID_CONTEXT_CPU_H
 
+#include "../../offload/offload_buffer.h"
 #include "../common/grid_basis_set.h"
-#include "../common/grid_buffer.h"
+
 void *create_grid_context_cpu(
     const bool orthorhombic, const int ntasks, const int nlevels,
     const int natoms, const int nkinds, const int nblocks,
@@ -54,5 +55,5 @@ void grid_collocate_task_list_cpu(
     const int npts_global[nlevels][3], const int npts_local[nlevels][3],
     const int shift_local[nlevels][3], const int border_width[nlevels][3],
     const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
-    const grid_buffer *pab_blocks, double *grid[nlevels]);
+    const offload_buffer *pab_blocks, double *grid[nlevels]);
 #endif

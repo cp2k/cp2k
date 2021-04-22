@@ -7,8 +7,8 @@
 #ifndef GRID_CPU_TASK_LIST_H
 #define GRID_CPU_TASK_LIST_H
 
+#include "../../offload/offload_buffer.h"
 #include "../common/grid_basis_set.h"
-#include "../common/grid_buffer.h"
 #include "../common/grid_constants.h"
 #include <stdbool.h>
 
@@ -49,14 +49,14 @@ void grid_cpu_free_task_list(grid_cpu_task_list *task_list);
  ******************************************************************************/
 void grid_cpu_collocate_task_list(grid_cpu_task_list *const task_list,
                                   const enum grid_func func, const int nlevels,
-                                  const grid_buffer *pab_blocks,
+                                  const offload_buffer *pab_blocks,
                                   double *grid[nlevels]);
 
 void grid_cpu_integrate_task_list(void *const ptr, const bool compute_tau,
                                   const int natoms, const int nlevels,
-                                  const grid_buffer *const pab_blocks,
+                                  const offload_buffer *const pab_blocks,
                                   const double *grid[nlevels],
-                                  grid_buffer *hab_blocks,
+                                  offload_buffer *hab_blocks,
                                   double forces[natoms][3],
                                   double virial[3][3]);
 

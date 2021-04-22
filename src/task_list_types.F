@@ -12,15 +12,14 @@
 !> \author Joost VandeVondele
 ! **************************************************************************************************
 MODULE task_list_types
-
    USE grid_api,                        ONLY: grid_basis_set_type,&
-                                              grid_buffer_type,&
                                               grid_free_basis_set,&
-                                              grid_free_buffer,&
                                               grid_free_task_list,&
                                               grid_task_list_type
    USE kinds,                           ONLY: dp,&
                                               int_8
+   USE offload_api,                     ONLY: offload_buffer_type,&
+                                              offload_free_buffer
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -76,8 +75,8 @@ MODULE task_list_types
 
       TYPE(grid_basis_set_type), DIMENSION(:), POINTER :: grid_basis_sets => Null()
       TYPE(grid_task_list_type)                     :: grid_task_list
-      TYPE(grid_buffer_type)                        :: pab_buffer
-      TYPE(grid_buffer_type)                        :: hab_buffer
+      TYPE(offload_buffer_type)                     :: pab_buffer
+      TYPE(offload_buffer_type)                     :: hab_buffer
    END TYPE task_list_type
 
    INTEGER, PARAMETER                               :: task_size_in_int8 = 17
@@ -186,8 +185,8 @@ CONTAINS
          DEALLOCATE (task_list%rank_sizes_recv)
       ENDIF
       CALL grid_free_task_list(task_list%grid_task_list)
-      CALL grid_free_buffer(task_list%pab_buffer)
-      CALL grid_free_buffer(task_list%hab_buffer)
+      CALL offload_free_buffer(task_list%pab_buffer)
+      CALL offload_free_buffer(task_list%hab_buffer)
       IF (ASSOCIATED(task_list%grid_basis_sets)) THEN
          DO i = 1, SIZE(task_list%grid_basis_sets)
             CALL grid_free_basis_set(task_list%grid_basis_sets(i))

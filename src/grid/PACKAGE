@@ -7,6 +7,7 @@
         "../common",
         "../subsys",
         "../mpiwrap",
+        "../offload",
         "./common",
         "./ref",
         "./cpu",

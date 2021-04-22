@@ -983,7 +983,7 @@ void grid_collocate_pgf_product_cpu_dgemm(
 }
 
 void extract_blocks(grid_context *const ctx, const _task *const task,
-                    const grid_buffer *pab_blocks, tensor *const work,
+                    const offload_buffer *pab_blocks, tensor *const work,
                     tensor *const pab) {
   const int iatom = task->iatom;
   const int jatom = task->jatom;
@@ -1013,7 +1013,7 @@ void compute_coefficients(grid_context *const ctx,
                           struct collocation_integration_ *handler,
                           const _task *const previous_task,
                           const _task *const task,
-                          const grid_buffer *pab_blocks, tensor *const pab,
+                          const offload_buffer *pab_blocks, tensor *const pab,
                           tensor *const work, tensor *const pab_prep) {
   // Load subblock from buffer and decontract into Cartesian sublock pab.
   // The previous pab can be reused when only ipgf or jpgf has changed.
@@ -1087,7 +1087,7 @@ void collocate_one_grid_level_dgemm(grid_context *const ctx,
                                     const int *const border_width,
                                     const int *const shift_local,
                                     const enum grid_func func, const int level,
-                                    const grid_buffer *pab_blocks) {
+                                    const offload_buffer *pab_blocks) {
   tensor *const grid = &ctx->grid[level];
   // Using default(shared) because with GCC 9 the behavior around const changed:
   // https://www.gnu.org/software/gcc/gcc-9/porting_to.html
@@ -1234,7 +1234,7 @@ void collocate_one_grid_level_dgemm(grid_context *const ctx,
  ******************************************************************************/
 void grid_cpu_collocate_task_list(grid_cpu_task_list *const ptr,
                                   const enum grid_func func, const int nlevels,
-                                  const grid_buffer *pab_blocks,
+                                  const offload_buffer *pab_blocks,
                                   double *grid[nlevels]) {
 
   grid_context *const ctx = (grid_context *)ptr;

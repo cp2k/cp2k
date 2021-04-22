@@ -12,8 +12,8 @@
 !> \author Joost VandeVondele
 ! **************************************************************************************************
 MODULE task_list_methods
-   USE grid_api, ONLY: &
-      grid_create_basis_set, grid_create_task_list, grid_create_buffer, grid_buffer_type
+   USE offload_api, ONLY: offload_create_buffer, offload_buffer_type
+   USE grid_api, ONLY: grid_create_basis_set, grid_create_task_list
    USE ao_util, ONLY: exp_radius_very_extended
    USE basis_set_types, ONLY: get_gto_basis_set, &
                               gto_basis_set_p_type, &
@@ -622,8 +622,8 @@ CONTAINS
                                  rs_grids=rs_grids, &
                                  task_list=task_list%grid_task_list)
 
-      CALL grid_create_buffer(task_list%buffer_size_recv, task_list%pab_buffer)
-      CALL grid_create_buffer(task_list%buffer_size_recv, task_list%hab_buffer)
+      CALL offload_create_buffer(task_list%buffer_size_recv, task_list%pab_buffer)
+      CALL offload_create_buffer(task_list%buffer_size_recv, task_list%hab_buffer)
 
    END SUBROUTINE create_grid_task_list
 
@@ -2523,7 +2523,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rs_scatter_matrices(src_matrices, dest_buffer, task_list, group)
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: src_matrices
-      TYPE(grid_buffer_type), INTENT(INOUT)              :: dest_buffer
+      TYPE(offload_buffer_type), INTENT(INOUT)           :: dest_buffer
       TYPE(task_list_type), INTENT(IN)                   :: task_list
       INTEGER, INTENT(IN)                                :: group
 
@@ -2557,7 +2557,7 @@ CONTAINS
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE rs_gather_matrices(src_buffer, dest_matrices, task_list, group)
-      TYPE(grid_buffer_type), INTENT(IN)                 :: src_buffer
+      TYPE(offload_buffer_type), INTENT(IN)              :: src_buffer
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: dest_matrices
       TYPE(task_list_type), INTENT(IN)                   :: task_list
       INTEGER, INTENT(IN)                                :: group
@@ -2594,7 +2594,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rs_copy_to_buffer(src_matrices, dest_buffer, task_list)
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: src_matrices
-      TYPE(grid_buffer_type), INTENT(INOUT)              :: dest_buffer
+      TYPE(offload_buffer_type), INTENT(INOUT)           :: dest_buffer
       TYPE(task_list_type), INTENT(IN)                   :: task_list
 
       CALL rs_pack_buffer(src_matrices=src_matrices, &
@@ -2609,7 +2609,7 @@ CONTAINS
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE rs_copy_to_matrices(src_buffer, dest_matrices, task_list)
-      TYPE(grid_buffer_type), INTENT(IN)                 :: src_buffer
+      TYPE(offload_buffer_type), INTENT(IN)              :: src_buffer
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: dest_matrices
       TYPE(task_list_type), INTENT(IN)                   :: task_list
 

@@ -1,0 +1,5 @@
+{
+    "description": "Common infrastructure for offloading to accelerator devices",
+    "requires": ["../base",],
+    "public": ["offload_api.F", "offload_buffer.h"],
+}

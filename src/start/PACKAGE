@@ -10,6 +10,7 @@
         "../tmc",
         "../base",
         "../mpiwrap",
+        "../offload",
         "../swarm",
         "../motion",
         "../motion/mc",
