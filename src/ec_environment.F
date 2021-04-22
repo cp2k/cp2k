@@ -511,7 +511,6 @@ CONTAINS
                CPABORT("Unknown sqrt method.")
             END SELECT
             WRITE (unit_nr, '(T2,A,T61,I20)') "S sqrt order:", ls_env%s_sqrt_order
-
          END IF
 
          SELECT CASE (ls_env%s_preconditioner_type)
@@ -532,6 +531,36 @@ CONTAINS
             CPABORT("Unknown cluster type")
          END SELECT
 
+      END IF
+
+      ! select the XC section
+      NULLIFY (xc_section)
+      xc_section => section_vals_get_subs_vals(dft_section, "XC")
+      section1 => section_vals_get_subs_vals(dft_section, "ENERGY_CORRECTION%XC")
+      section2 => section_vals_get_subs_vals(dft_section, "ENERGY_CORRECTION%XC%XC_FUNCTIONAL")
+      CALL section_vals_get(section2, explicit=explicit)
+      IF (explicit) THEN
+         CALL xc_functionals_expand(section2, section1)
+         ec_env%xc_section => section1
+      ELSE
+         ec_env%xc_section => xc_section
+      END IF
+
+      ! dispersion
+      ALLOCATE (dispersion_env)
+      NULLIFY (xc_section)
+      xc_section => ec_env%xc_section
+      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, para_env=para_env)
+      CALL qs_dispersion_env_set(dispersion_env, xc_section)
+      IF (dispersion_env%type == xc_vdw_fun_pairpot) THEN
+         NULLIFY (pp_section)
+         pp_section => section_vals_get_subs_vals(xc_section, "VDW_POTENTIAL%PAIR_POTENTIAL")
+         CALL qs_dispersion_pairpot_init(atomic_kind_set, qs_kind_set, dispersion_env, pp_section, para_env)
+         ! Build the neighbor lists for the vdW pair potential
+      ELSE IF (dispersion_env%type == xc_vdw_fun_nonloc) THEN
+         NULLIFY (nl_section)
+         nl_section => section_vals_get_subs_vals(xc_section, "VDW_POTENTIAL%NON_LOCAL")
+         CALL qs_dispersion_nonloc_init(dispersion_env, para_env)
       END IF
 
       WRITE (unit_nr, '(T2,A)') REPEAT("-", 79)

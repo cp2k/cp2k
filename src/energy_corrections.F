@@ -78,9 +78,10 @@ MODULE energy_corrections
                                               gth_potential_type,&
                                               sgp_potential_type
    USE input_constants,                 ONLY: &
-        ec_diagonalization, ec_functional_harris, ec_matrix_sign, ec_matrix_tc2, ec_matrix_trs4, &
-        ec_ot_atomic, ec_ot_diag, ec_ot_gs, ot_precond_full_single_inverse, &
-        ot_precond_solver_default, vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, xc_vdw_fun_pairpot
+        ec_curvy_steps, ec_diagonalization, ec_functional_harris, ec_matrix_sign, ec_matrix_tc2, &
+        ec_matrix_trs4, ls_s_sqrt_ns, ls_s_sqrt_proot, ec_ot_atomic, ec_ot_diag, ec_ot_gs, &
+        ot_precond_full_single_inverse, ot_precond_solver_default, &
+        vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, xc_vdw_fun_pairpot
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_lval,&
                                               section_vals_get_subs_vals,&
@@ -1954,7 +1955,6 @@ CONTAINS
          CALL build_neighbor_lists(sab_vdw, particle_set, atom2d, cell, pair_radius, &
                                    subcells=subcells, operator_type="PP", nlname="sab_vdw")
          dispersion_env%sab_vdw => sab_vdw
-
          IF (dispersion_env%pp_type == vdw_pairpot_dftd3 .OR. &
              dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
             ! Build the neighbor lists for coordination numbers as needed by the DFT-D3 method
@@ -1973,7 +1973,7 @@ CONTAINS
       CALL atom2d_cleanup(atom2d)
       DEALLOCATE (atom2d)
       DEALLOCATE (orb_present, default_present, ppl_present, ppnl_present)
-      DEALLOCATE (c_radius, orb_radius, ppl_radius, ppnl_radius)
+      DEALLOCATE (orb_radius, ppl_radius, ppnl_radius, c_radius)
       DEALLOCATE (pair_radius)
 
       ! Task list
