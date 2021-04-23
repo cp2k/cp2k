@@ -48,6 +48,7 @@ MODULE pw_grids
    USE message_passing,                 ONLY: &
         mp_allgather, mp_cart_coords, mp_cart_create, mp_cart_rank, mp_comm_compare, mp_comm_dup, &
         mp_comm_free, mp_comm_self, mp_dims_create, mp_environ, mp_max, mp_min, mp_sum
+   USE offload_api,                     ONLY: offload_get_device_id
    USE pw_grid_info,                    ONLY: pw_find_cutoff,&
                                               pw_grid_bounds_from_n,&
                                               pw_grid_init_setup
@@ -73,6 +74,15 @@ MODULE pw_grids
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_grids'
 
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+   INTERFACE
+      INTEGER(C_INT) FUNCTION cudaSetDevice(device_id) &
+         BIND(C, name="cudaSetDevice")
+         IMPORT
+         IMPLICIT NONE
+         INTEGER(C_INT), VALUE    :: device_id
+      END FUNCTION cudaSetDevice
+   END INTERFACE
+
    INTERFACE
       INTEGER(C_INT) FUNCTION cudaHostAlloc(buffer, length, flag) &
          BIND(C, name="cudaHostAlloc")
@@ -1733,6 +1743,8 @@ CONTAINS
       nmaps = 1
       IF (pw_grid%grid_span == HALFSPACE) nmaps = 2
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+      stat = cudaSetDevice(offload_get_device_id())
+      CPASSERT(stat == 0)
       length = INT(int_size*MAX(ng, 1)*MAX(nmaps, 1), KIND=C_SIZE_T)
       stat = cudaHostAlloc(cptr_g_hatmap, length, cudaHostAllocDefault)
       CPASSERT(stat == 0)
