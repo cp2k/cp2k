@@ -19,8 +19,6 @@ MODULE qs_rho0_ggrid
    USE grid_api,                        ONLY: GRID_FUNC_AB,&
                                               collocate_pgf_product
    USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: dfac,&
-                                              fourpi
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_sum
    USE orbital_pointers,                ONLY: indco,&
@@ -74,11 +72,11 @@ MODULE qs_rho0_ggrid
 
    PRIVATE
 
-! *** Global parameters (only in this module)
+   ! Global parameters (only in this module)
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho0_ggrid'
 
-! *** Public subroutines ***
+   ! Public subroutines
 
    PUBLIC :: put_rho0_on_grid, rho0_s_grid_create, integrate_vhg0_rspace
 
@@ -94,7 +92,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(rho0_mpole_type), POINTER                     :: rho0
-      REAL(dp), INTENT(OUT)                              :: tot_rs_int
+      REAL(KIND=dp), INTENT(OUT)                         :: tot_rs_int
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'put_rho0_on_grid'
 
@@ -200,11 +198,11 @@ CONTAINS
                IF (MODULO(nat, rs_grid%desc%group_size) == rs_grid%desc%my_pos) THEN
                   npme = npme + 1
                   cores(npme) = iat
-               ENDIF
+               END IF
             ELSE
                npme = npme + 1
                cores(npme) = iat
-            ENDIF
+            END IF
 
          END DO
 
@@ -226,7 +224,7 @@ CONTAINS
                rs_grid, cell, cube_info(igrid), ga_gb_function=GRID_FUNC_AB, radius=rpgf0, &
                use_subpatch=.TRUE., subpatch_pattern=0)
 
-         END DO !  j
+         END DO ! j
 
       END DO ! ikind
 
@@ -354,13 +352,13 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cg_list
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, lmax, lmin, npgf
       LOGICAL                                            :: grid_distributed, paw_atom, use_virial
-      REAL(dp)                                           :: c4pi, eps_rho_rspace, force_tmp(3), &
-                                                            ra(3), rpgf0, scale, zet0
-      REAL(dp), DIMENSION(:), POINTER                    :: hab_sph, norm_l, Qlm
-      REAL(dp), DIMENSION(:, :), POINTER                 :: hab, hdab_sph, intloc, pab
-      REAL(dp), DIMENSION(:, :, :), POINTER              :: a_hdab_sph, hdab, Qlm_gg
-      REAL(dp), DIMENSION(:, :, :, :), POINTER           :: a_hdab
+      REAL(KIND=dp)                                      :: eps_rho_rspace, force_tmp(3), ra(3), &
+                                                            rpgf0, scale, zet0
       REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: hab_sph, norm_l, Qlm
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: hab, hdab_sph, intloc, pab
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: a_hdab_sph, hdab, Qlm_gg
+      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: a_hdab
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
@@ -384,8 +382,6 @@ CONTAINS
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
       TYPE(rho_atom_type), POINTER                       :: rho_atom
       TYPE(virial_type), POINTER                         :: virial
-
-      c4pi = fourpi
 
       CALL timeset(routineN, handle)
 
@@ -422,7 +418,7 @@ CONTAINS
       !      IF (nspins == 1 .AND. do_triplet) RETURN
       !   ELSE
       !      IF (nspins == 1 .AND. dft_control%tddfpt_control%res_etype /= tddfpt_singlet) RETURN
-      !   ENDIF
+      !   END IF
       !END IF
 
       IF (PRESENT(local_rho_set)) &
@@ -432,16 +428,16 @@ CONTAINS
                           zet0_h=zet0, igrid_zet0_s=igrid, &
                           norm_g0l_h=norm_l)
 
-      ! *** set up of the potential on the multigrids
+      ! Setup of the potential on the multigrids
       NULLIFY (rs_descs, pw_pools)
       CPASSERT(ASSOCIATED(pw_env))
       CALL pw_env_get(pw_env, rs_descs=rs_descs, pw_pools=pw_pools)
 
-      ! *** assign from pw_env
+      ! Assign from pw_env
       auxbas_grid = pw_env%auxbas_grid
       cube_info => pw_env%cube_info
 
-      ! *** Get the potential on the right grid
+      ! Get the potential on the right grid
       NULLIFY (rs_v, rs_desc, pw_pool, pw_aux, coeff_rspace, coeff_gspace)
       rs_desc => rs_descs(igrid)%rs_desc
       pw_pool => pw_pools(igrid)%pool
@@ -485,7 +481,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(pw_pool, coeff_gspace%pw)
       DEALLOCATE (coeff_gspace)
 
-      ! *** set up the rs grid at level igrid
+      ! Setup the rs grid at level igrid
       CALL rs_grid_create(rs_v, rs_desc)
       CALL rs_grid_zero(rs_v)
       CALL rs_pw_transfer(rs_v, coeff_rspace%pw, pw2rs)
@@ -493,11 +489,11 @@ CONTAINS
       CALL pw_pool_give_back_pw(pw_pool, coeff_rspace%pw)
       DEALLOCATE (coeff_rspace)
 
-      ! *** Now the potential is on the right grid => integration
+      ! Now the potential is on the right grid => integration
 
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
-      !   *** Allocate work storage ***
+      ! Allocate work storage
 
       NULLIFY (hab, hab_sph, hdab, hdab_sph, pab, a_hdab, a_hdab_sph)
       nch_max = ncoset(lmax0)
@@ -588,28 +584,23 @@ CONTAINS
                         lx = indco(1, ico)
                         ly = indco(2, ico)
                         lz = indco(3, ico)
-
                         hab_sph(iso) = hab_sph(iso) + &
-                                       orbtramat(lshell)%c2s(is, ic)*hab(ico, 1)* &
-                                       norm_l(lshell)/ &
-                                       SQRT(c4pi*dfac(2*lx - 1)*dfac(2*ly - 1)*dfac(2*lz - 1)/ &
-                                            dfac(2*lshell + 1))
-
+                                       norm_l(lshell)* &
+                                       orbtramat(lshell)%slm(is, ic)* &
+                                       hab(ico, 1)
                         IF (calculate_forces) THEN
                            hdab_sph(1:3, iso) = hdab_sph(1:3, iso) + &
-                                                orbtramat(lshell)%c2s(is, ic)*hdab(1:3, ico, 1)* &
-                                                norm_l(lshell)/ &
-                                                SQRT(c4pi*dfac(2*lx - 1)*dfac(2*ly - 1)*dfac(2*lz - 1)/ &
-                                                     dfac(2*lshell + 1))
+                                                norm_l(lshell)* &
+                                                orbtramat(lshell)%slm(is, ic)* &
+                                                hdab(1:3, ico, 1)
                         END IF
                         IF (use_virial) THEN
                            DO ii = 1, 3
                            DO i = 1, 3
                               a_hdab_sph(i, ii, iso) = a_hdab_sph(i, ii, iso) + &
-                                                       orbtramat(lshell)%c2s(is, ic)*a_hdab(i, ii, ico, 1)* &
-                                                       norm_l(lshell)/ &
-                                                       SQRT(c4pi*dfac(2*lx - 1)*dfac(2*ly - 1)*dfac(2*lz - 1)/ &
-                                                            dfac(2*lshell + 1))
+                                                       norm_l(lshell)* &
+                                                       orbtramat(lshell)%slm(is, ic)* &
+                                                       a_hdab(i, ii, ico, 1)
                            END DO
                            END DO
                         END IF
@@ -651,7 +642,7 @@ CONTAINS
                END DO ! iset1
 
                IF (grid_distributed) THEN
-                  ! sum result over all processors
+                  ! Sum result over all processors
                   CALL mp_sum(intloc, para_env%group)
                END IF
 
