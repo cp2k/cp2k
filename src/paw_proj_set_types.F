@@ -42,42 +42,41 @@ MODULE paw_proj_set_types
 
    PRIVATE
 
-   ! *** Global parameters (only in this module)
+   ! Global parameters (only in this module)
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'paw_proj_set_types'
 
    INTEGER, PARAMETER :: max_name_length = 60
 
-   ! *** Define the projectors types ***
+   ! Define the projector types
 
-! **************************************************************************************************
    TYPE paw_proj_set_type
-      INTEGER                                  :: maxl, ncgauprj, nsgauprj
-      INTEGER, DIMENSION(:), POINTER           :: nprj ! 0:maxl
-      INTEGER, DIMENSION(:), POINTER           :: lx, ly, lz ! ncgauprj
-      INTEGER, DIMENSION(:), POINTER           :: ll, m ! nsgauprj
-      INTEGER, DIMENSION(:), POINTER           :: first_prj, last_prj ! 0:maxl
-      INTEGER, DIMENSION(:), POINTER           :: first_prjs ! 0:maxl
-      REAL(dp)                                 :: rcprj
-      REAL(dp), DIMENSION(:), POINTER          :: zisomin, zprjisomin
-      REAL(dp), DIMENSION(:, :), POINTER        :: zetprj ! maxnprj,0:maxl
-      REAL(dp), DIMENSION(:, :), POINTER        :: rzetprj ! maxnprj,0:maxl
-      REAL(dp), DIMENSION(:, :), POINTER        :: cprj ! ncgauprj, maxco*nset
-      REAL(dp), DIMENSION(:, :), POINTER        :: cprj_s ! nsgauprj, maxso*nset
-      REAL(dp), DIMENSION(:, :), POINTER        :: csprj ! ncgauprj, np_so
-      REAL(dp), DIMENSION(:, :), POINTER        :: local_oce_cphi_h, local_oce_cphi_s ! maxco,ncgf
-      REAL(dp), DIMENSION(:, :), POINTER        :: local_oce_sphi_h, local_oce_sphi_s ! maxco,nsgf
-      REAL(dp), DIMENSION(:, :), POINTER        :: sphi_h, sphi_s
-      REAL(dp), DIMENSION(:, :, :, :), POINTER    :: gccprj ! maxnprj,maxnpgf,0:maxl,nset
-      LOGICAL, DIMENSION(:, :), POINTER         :: isoprj ! maxnprj,0:maxl
-      INTEGER                                  :: nsatbas
-      INTEGER                                  :: nsotot
-      INTEGER, DIMENSION(:), POINTER           :: o2nindex ! maxso*nset
-      INTEGER, DIMENSION(:), POINTER           :: n2oindex ! maxso*nset
+      INTEGER                                            :: maxl, ncgauprj, nsgauprj
+      INTEGER, DIMENSION(:), POINTER                     :: nprj ! 0:maxl
+      INTEGER, DIMENSION(:), POINTER                     :: lx, ly, lz ! ncgauprj
+      INTEGER, DIMENSION(:), POINTER                     :: ll, m ! nsgauprj
+      INTEGER, DIMENSION(:), POINTER                     :: first_prj, last_prj ! 0:maxl
+      INTEGER, DIMENSION(:), POINTER                     :: first_prjs ! 0:maxl
+      REAL(KIND=dp)                                      :: rcprj
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: zisomin, zprjisomin
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zetprj ! maxnprj,0:maxl
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rzetprj ! maxnprj,0:maxl
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cprj ! ncgauprj, maxco*nset
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cprj_s ! nsgauprj, maxso*nset
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: csprj ! ncgauprj, np_so
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_oce_cphi_h, local_oce_cphi_s ! maxco,ncgf
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_oce_sphi_h, local_oce_sphi_s ! maxco,nsgf
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: sphi_h, sphi_s
+      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: gccprj ! maxnprj,maxnpgf,0:maxl,nset
+      LOGICAL, DIMENSION(:, :), POINTER                  :: isoprj ! maxnprj,0:maxl
+      INTEGER                                            :: nsatbas
+      INTEGER                                            :: nsotot
+      INTEGER, DIMENSION(:), POINTER                     :: o2nindex ! maxso*nset
+      INTEGER, DIMENSION(:), POINTER                     :: n2oindex ! maxso*nset
 
    END TYPE paw_proj_set_type
 
-   ! *** Public subroutines ***
+   ! Public subroutines
 
    PUBLIC ::  allocate_paw_proj_set, &
              deallocate_paw_proj_set, &
@@ -85,7 +84,7 @@ MODULE paw_proj_set_types
              projectors, &
              set_paw_proj_set
 
-   ! *** Public data types ***
+   ! Public data types
 
    PUBLIC ::  paw_proj_set_type
 
@@ -189,12 +188,12 @@ CONTAINS
 
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis
-      REAL(dp)                                           :: rc
+      REAL(KIND=dp)                                      :: rc
       TYPE(qs_control_type), INTENT(IN)                  :: qs_control
-      REAL(dp), INTENT(IN)                               :: max_rad_local_type
+      REAL(KIND=dp), INTENT(IN)                          :: max_rad_local_type
       TYPE(section_vals_type), POINTER                   :: force_env_section
 
-      REAL(dp)                                           :: eps_fit, eps_iso, eps_orb, eps_svd, &
+      REAL(KIND=dp)                                      :: eps_fit, eps_iso, eps_orb, eps_svd, &
                                                             max_rad_local
 
       eps_fit = qs_control%gapw_control%eps_fit
@@ -229,7 +228,7 @@ CONTAINS
 
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis
-      REAL(dp), INTENT(IN)                               :: eps_fit, eps_iso, eps_svd, rc, eps_orb, &
+      REAL(KIND=dp), INTENT(IN)                          :: eps_fit, eps_iso, eps_svd, rc, eps_orb, &
                                                             max_rad_local
       TYPE(section_vals_type), POINTER                   :: force_env_section
 
@@ -244,13 +243,12 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_cgf, first_sgf, l, last_cgf, &
                                                             last_sgf
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: isoprj
-      REAL(dp)                                           :: expzet, my_error, prefac, radius, x, &
+      REAL(KIND=dp)                                      :: expzet, my_error, prefac, radius, x, &
                                                             zetmin, zetval
-      REAL(dp), DIMENSION(:), POINTER                    :: zet, zetp
-      REAL(dp), DIMENSION(:, :), POINTER                 :: cphi, gcc, smat, sphi, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: S, Work_dgesdd
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: U, VT
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius, zet, zetp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cphi, gcc, smat, sphi, work
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcca, set_radius2
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -324,13 +322,13 @@ CONTAINS
                      np = np + 1
                   END IF
                END DO
-            ENDIF
-         ENDDO
+            END IF
+         END DO
          maxnprj = MAX(maxnprj, np)
          paw_proj%nprj(lshell) = np
-      ENDDO ! lshell
+      END DO ! lshell
 
-      !   *** Allocate exponents and coefficients ***
+      ! Allocate exponents and coefficients
       ALLOCATE (paw_proj%zetprj(maxnprj, 0:maxl))
       paw_proj%zetprj(1:maxnprj, 0:maxl) = 0.0_dp
       ALLOCATE (paw_proj%gccprj(maxnprj, maxpgf, 0:maxl, nset))
@@ -346,7 +344,7 @@ CONTAINS
       END DO
 
       NULLIFY (zet, zetp, gcc, smat, work)
-      !   *** Generate the projetor basis for each ang. mom. q.n. ***
+      ! Generate the projetor basis for each ang. mom. q.n.
       DO lshell = 0, maxl ! lshell
 
          np = paw_proj%nprj(lshell)
@@ -364,7 +362,7 @@ CONTAINS
 
          npgfg = 0
          notprj = 0
-         !     *** Collect all the exponent which contribute to lshell ***
+         ! Collect all the exponent which contribute to lshell
          DO iset = 1, nset ! iset
             IF (lshell >= lmin(iset) .AND. lshell <= lmax(iset)) THEN
                DO ip = 1, npgf(iset)
@@ -375,8 +373,8 @@ CONTAINS
                      notprj = notprj + 1
                   END IF
                END DO
-            ENDIF
-         ENDDO ! iset
+            END IF
+         END DO ! iset
 
          !     *** Smallest exp. due to eps_iso: concerned as an isolated projector ***
          paw_proj%zisomin(lshell) = gauss_exponent(lshell, rc, eps_iso, 1.0_dp)
@@ -400,10 +398,10 @@ CONTAINS
             END IF
          END DO
 
-         !     *** Smallest exp. due to eps_fit: where to start geometric progression ***
+         ! Smallest exp. due to eps_fit: where to start geometric progression
          zetmin = gauss_exponent(lshell, rc, eps_fit, 1.0_dp)
 
-         !     *** Generate the projectors by the geometric progression ***
+         ! Generate the projectors by the geometric progression
 
          IF (np - nisop - 1 > 2) THEN
             x = (80.0_dp/zetmin)**(1.0_dp/REAL(np - nisop - 1, dp))
@@ -417,8 +415,8 @@ CONTAINS
             IF (.NOT. isoprj(ip)) THEN
                zetp(ip) = zetval
                zetval = x*zetval
-            ENDIF
-         ENDDO
+            END IF
+         END DO
 
          paw_proj%zprjisomin(lshell) = zetval
 
@@ -428,8 +426,8 @@ CONTAINS
                zetp(ip) = zetval
                zetval = x*zetval
                nisop = nisop + 1
-            ENDIF
-         ENDDO
+            END IF
+         END DO
 
          !     *** Build the overlap matrix: <projector|primitive> ***
          prefac = 0.5_dp**(lshell + 2)*rootpi*dfac(2*lshell + 1)
@@ -442,48 +440,48 @@ CONTAINS
                DO jp = 1, np
                   IF (.NOT. isoprj(jp)) THEN
                      smat(ip, jp) = prefac/(zetp(ip) + zet(jp))**expzet
-                  ENDIF
-               ENDDO
-            ENDIF
-         ENDDO
+                  END IF
+               END DO
+            END IF
+         END DO
 
-         !     FIXME ... catch the case where np == 0
+         !FIXME ... catch the case where np == 0
          CPASSERT(np > 0)
 
-         !     *** Compute inverse of the transpose ***
+         ! Compute inverse of the transpose
          IF (eps_svd .EQ. 0.0_dp) THEN
             CALL invert_matrix(smat, gcc, my_error, "T")
          ELSE
             work = TRANSPOSE(smat)
-            ! workspace query
+            ! Workspace query
             ALLOCATE (iwork(8*np), S(np), U(np, np), VT(np, np), work_dgesdd(1))
             lwork = -1
             CALL DGESDD('S', np, np, work, np, S, U, np, vt, np, work_dgesdd, lwork, iwork, info)
             lwork = INT(work_dgesdd(1))
             DEALLOCATE (work_dgesdd); ALLOCATE (work_dgesdd(lwork))
             CALL DGESDD('S', np, np, work, np, S, U, np, vt, np, work_dgesdd, lwork, iwork, info)
-            ! construct the inverse
+            ! Construct the inverse
             DO k = 1, np
                ! invert SV
                IF (S(k) < eps_svd) THEN
                   S(k) = 0.0_dp
                ELSE
                   S(k) = 1.0_dp/S(k)
-               ENDIF
+               END IF
                VT(k, :) = VT(k, :)*S(k)
-            ENDDO
+            END DO
             CALL DGEMM('T', 'T', np, np, np, 1.0_dp, VT, np, U, np, 0.0_dp, gcc, np)
             DEALLOCATE (iwork, S, U, VT, work_dgesdd)
-         ENDIF
+         END IF
 
-         !     *** Set the coefficient of the isolated projectors to 0 ***
+         ! Set the coefficient of the isolated projectors to 0
          DO ip = 1, np
             IF (isoprj(ip)) THEN
                gcc(ip, ip) = 0.0_dp
-            ENDIF
-         ENDDO
+            END IF
+         END DO
 
-         !     *** Transfer data from local to global variables ***
+         ! Transfer data from local to global variables
 
          paw_proj%zetprj(1:np, lshell) = zetp(1:np)
          paw_proj%isoprj(1:np, lshell) = isoprj(1:np)
@@ -501,10 +499,10 @@ CONTAINS
                      paw_proj%gccprj(1:np, ip, lshell, iset) = 0.0_dp
                   END IF
                END DO
-            ENDIF
-         ENDDO ! iset
+            END IF
+         END DO ! iset
 
-         !     *** Print exponents and coefficients of the projectors ***
+         ! Print exponents and coefficients of the projectors
          IF (output_unit > 0) THEN
             WRITE (UNIT=output_unit, FMT="(/,/,T2,A,I2)") &
                "Built projector for angular momentum quantum number l= ", lshell
@@ -520,30 +518,30 @@ CONTAINS
                         "exp gto: ", orb_basis%zet(jp, iset), &
                         "coeff.:  ", (paw_proj%gccprj(ip, jp, &
                                                       lshell, iset), ip=1, np)
-                  ENDDO
-               ENDIF
-            ENDDO ! iset
+                  END DO
+               END IF
+            END DO ! iset
          END IF
 
-         !   *** Release the working storage for the current value lshell ***
+         ! Release the working storage for the current value lshell
          DEALLOCATE (isoprj)
          DEALLOCATE (gcc, zet, zetp, smat, work)
 
-      ENDDO ! lshell
+      END DO ! lshell
       CALL cp_print_key_finished_output(output_unit, logger, force_env_section, &
                                         "DFT%PRINT%GAPW%PROJECTORS")
 
-      !   *** Release the working storage for the current value lshell ***
+      ! Release the working storage for the current value lshell
       DEALLOCATE (set_radius)
       DEALLOCATE (set_radius2)
 
-      !   *** Count primitives basis functions for the projectors
+      ! Count primitives basis functions for the projectors
       paw_proj%ncgauprj = 0
       paw_proj%nsgauprj = 0
       DO lshell = 0, maxl
          paw_proj%ncgauprj = paw_proj%ncgauprj + nco(lshell)*paw_proj%nprj(lshell)
          paw_proj%nsgauprj = paw_proj%nsgauprj + nso(lshell)*paw_proj%nprj(lshell)
-      ENDDO
+      END DO
 
       ncgauprj = paw_proj%ncgauprj
       nsgauprj = paw_proj%nsgauprj
@@ -571,14 +569,14 @@ CONTAINS
                paw_proj%lx(ncgauprj) = indco(1, ico)
                paw_proj%ly(ncgauprj) = indco(2, ico)
                paw_proj%lz(ncgauprj) = indco(3, ico)
-            ENDDO ! ico
+            END DO ! ico
             DO iso = nsoset(lshell - 1) + 1, nsoset(lshell)
                nsgauprj = nsgauprj + 1
                paw_proj%ll(nsgauprj) = indso(1, iso)
                paw_proj%m(nsgauprj) = indso(2, iso)
-            ENDDO
-         ENDDO ! ip
-      ENDDO ! lshell
+            END DO
+         END DO ! ip
+      END DO ! lshell
 
       ms = 0
       DO iset = 1, orb_basis%nset
@@ -595,12 +593,12 @@ CONTAINS
                      iso = iso + (ipgf - 1)*ns + ms
                      paw_proj%cprj_s(iprjs, iso) = &
                         paw_proj%gccprj(ip, ipgf, lshell, iset)
-                  ENDDO ! iprjs
-               ENDDO ! ip
-            ENDDO ! ipgf
-         ENDDO ! lshell
+                  END DO ! iprjs
+               END DO ! ip
+            END DO ! ipgf
+         END DO ! lshell
          ms = ms + maxso
-      ENDDO ! iset
+      END DO ! iset
 
       ms = 0
       DO iset = 1, orb_basis%nset
@@ -619,21 +617,24 @@ CONTAINS
                         iprj = jp + il
                         DO ic = 1, nso(lshell)
                            iprjs = kp + ic
+                           !MK The normalization used here with s2c looks odd and might be a bug
+                           !MK which has not become obvious, because it seems that paw_proj%cprj
+                           !MK is not used thereafter
                            paw_proj%cprj(iprj, iso) = paw_proj%cprj(iprj, iso) + &
                                                       orbtramat(lshell)%s2c(ic, il)*paw_proj%cprj_s(iprjs, iso)* &
                                                       SQRT(dfac(2*lshell + 1)/(4.0_dp*pi)/ &
                                                            dfac(2*lx - 1)*dfac(2*ly - 1)*dfac(2*lz - 1))
-                        ENDDO ! ic
-                     ENDDO ! il
-                  ENDDO ! ip
-               ENDDO ! lshell
-            ENDDO ! iso
-         ENDDO ! ipgf
+                        END DO ! ic
+                     END DO ! il
+                  END DO ! ip
+               END DO ! lshell
+            END DO ! iso
+         END DO ! ipgf
          ms = ms + maxso
-      ENDDO ! iset
+      END DO ! iset
 
-      !   local coefficients for the one center expansions : oce
-      !   the coefficients are calculated for the full and soft expansions
+      ! Local coefficients for the one center expansions : oce
+      ! the coefficients are calculated for the full and soft expansions
       ALLOCATE (paw_proj%local_oce_cphi_h(maxco, ncgf))
       paw_proj%local_oce_cphi_h = 0.0_dp
       ALLOCATE (paw_proj%local_oce_sphi_h(maxco, nsgf))
@@ -648,7 +649,7 @@ CONTAINS
       ALLOCATE (paw_proj%sphi_s(maxco, nsgf))
       paw_proj%sphi_s = 0.0_dp
 
-      !   *** Cartesian ***
+      ! Cartesian
       DO iset = 1, nset
          n = ncoset(lmax(iset))
          DO ipgf = 1, npgf(iset)
@@ -668,11 +669,11 @@ CONTAINS
                   ELSE
                      paw_proj%local_oce_cphi_s(icomin:icomax, icgf) = &
                         cphi(icomin:icomax, icgf)
-                  ENDIF
+                  END IF
                END DO
-            ENDDO ! ishell
-         ENDDO ! ipgf
-      ENDDO ! iset
+            END DO ! ishell
+         END DO ! ipgf
+      END DO ! iset
 
       DO iset = 1, nset
          n = ncoset(lmax(iset))
@@ -693,11 +694,11 @@ CONTAINS
                   ELSE
                      paw_proj%sphi_s(icomin:icomax, isgf) = &
                         sphi(icomin:icomax, isgf)
-                  ENDIF
+                  END IF
                END DO
-            ENDDO ! ishell
-         ENDDO ! ipgf
-      ENDDO ! iset
+            END DO ! ishell
+         END DO ! ipgf
+      END DO ! iset
 
       DO iset = 1, nset
          n = ncoset(lmax(iset))
@@ -720,14 +721,10 @@ CONTAINS
                      DO isgf = isgfmin, isgfmax
                         paw_proj%local_oce_sphi_h(iso, isgf) = &
                            paw_proj%local_oce_sphi_h(iso, isgf) + &
-                           orbtramat(lshell)%s2c(is, ic)* &
-                           paw_proj%sphi_h(ico, isgf)*SQRT((4.0_dp*pi* &
-                                                            dfac(2*lx - 1)*dfac(2*ly - 1)*dfac(2*lz - 1))/dfac(2*lshell + 1))
+                           orbtramat(lshell)%slm_inv(is, ic)*paw_proj%sphi_h(ico, isgf)
                         paw_proj%local_oce_sphi_s(iso, isgf) = &
                            paw_proj%local_oce_sphi_s(iso, isgf) + &
-                           orbtramat(lshell)%s2c(is, ic)* &
-                           paw_proj%sphi_s(ico, isgf)*SQRT((4.0_dp*pi* &
-                                                            dfac(2*lx - 1)*dfac(2*ly - 1)*dfac(2*lz - 1))/dfac(2*lshell + 1))
+                           orbtramat(lshell)%slm_inv(is, ic)*paw_proj%sphi_s(ico, isgf)
                      END DO ! isgf
                   END DO ! ic
                END DO ! is
@@ -735,7 +732,7 @@ CONTAINS
          END DO ! ipgf
       END DO ! iset
 
-      !Index transformation OLD-NEW
+      ! Index transformation OLD-NEW
       ALLOCATE (paw_proj%o2nindex(maxso*nset))
       ALLOCATE (paw_proj%n2oindex(maxso*nset))
       paw_proj%o2nindex = 0
@@ -761,11 +758,12 @@ CONTAINS
       paw_proj%nsatbas = mp
       paw_proj%nsotot = nset*maxso
       ALLOCATE (paw_proj%csprj(nsgauprj, mp))
-      paw_proj%csprj = 0._dp
+      paw_proj%csprj = 0.0_dp
       DO k = 1, mp
          ico = paw_proj%n2oindex(k)
          paw_proj%csprj(:, k) = paw_proj%cprj_s(:, ico)
       END DO
+
    END SUBROUTINE build_projector
 
 ! **************************************************************************************************
@@ -801,15 +799,15 @@ CONTAINS
                                rcprj, rzetprj, zisomin, zetprj)
 
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj_set
-      REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: cprj, cprj_s, csprj
+      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: cprj, cprj_s, csprj
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: first_prj, first_prjs, last_prj
-      REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: local_oce_sphi_h, local_oce_sphi_s
+      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: local_oce_sphi_h, local_oce_sphi_s
       INTEGER, INTENT(OUT), OPTIONAL                     :: maxl, ncgauprj, nsgauprj, nsatbas, nsotot
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: nprj, o2nindex, n2oindex
-      REAL(dp), INTENT(OUT), OPTIONAL                    :: rcprj
-      REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: rzetprj
-      REAL(dp), DIMENSION(:), OPTIONAL, POINTER          :: zisomin
-      REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: zetprj
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: rcprj
+      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: rzetprj
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: zisomin
+      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: zetprj
 
       IF (ASSOCIATED(paw_proj_set)) THEN
          IF (PRESENT(cprj)) cprj => paw_proj_set%cprj
@@ -832,10 +830,9 @@ CONTAINS
          IF (PRESENT(zetprj)) zetprj => paw_proj_set%zetprj
          IF (PRESENT(o2nindex)) o2nindex => paw_proj_set%o2nindex
          IF (PRESENT(n2oindex)) n2oindex => paw_proj_set%n2oindex
-
       ELSE
          CPABORT("The pointer  paw_proj_set is not associated")
-      ENDIF
+      END IF
 
    END SUBROUTINE get_paw_proj_set
 
@@ -849,8 +846,8 @@ CONTAINS
    SUBROUTINE set_paw_proj_set(paw_proj_set, rzetprj, rcprj)
 
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj_set
-      REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: rzetprj
-      REAL(dp), INTENT(IN), OPTIONAL                     :: rcprj
+      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: rzetprj
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: rcprj
 
       IF (ASSOCIATED(paw_proj_set)) THEN
          IF (PRESENT(rzetprj)) paw_proj_set%rzetprj(:, 0:) = rzetprj(:, 0:)
@@ -862,4 +859,3 @@ CONTAINS
    END SUBROUTINE set_paw_proj_set
 
 END MODULE paw_proj_set_types
-
