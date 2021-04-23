@@ -21,10 +21,7 @@ MODULE qs_oce_methods
                                               gto_basis_set_type
    USE block_p_types,                   ONLY: block_p_type
    USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: dfac,&
-                                              pi
-   USE orbital_pointers,                ONLY: indco,&
-                                              init_orbital_pointers,&
+   USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                               nco,&
                                               ncoset,&
                                               nso
@@ -45,11 +42,11 @@ MODULE qs_oce_methods
 
    PRIVATE
 
-! *** Global parameters (only in this module)
+   ! Global parameters (only in this module)
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_oce_methods'
 
-! *** Public subroutines ***
+   ! Public subroutines
 
    PUBLIC :: build_oce_matrices, proj_blk, prj_scatter, prj_gather
 
@@ -72,27 +69,27 @@ CONTAINS
 
       TYPE(block_p_type), DIMENSION(:), POINTER          :: oces
       TYPE(qs_kind_type), POINTER                        :: atom_ka, atom_kb
-      REAL(dp), DIMENSION(3)                             :: rab
+      REAL(KIND=dp), DIMENSION(3)                        :: rab
       INTEGER, INTENT(IN)                                :: nder
       INTEGER, DIMENSION(:), INTENT(OUT)                 :: sgf_list
       INTEGER, INTENT(OUT)                               :: nsgf_cnt
       LOGICAL, INTENT(OUT)                               :: sgf_soft_only
-      REAL(dp), INTENT(IN)                               :: eps_fit
+      REAL(KIND=dp), INTENT(IN)                          :: eps_fit
 
-      INTEGER :: first_col, ic, ico, ider, ig1, igau, ip, ipgf, is, isgfb, isgfb_cnt, iso, isp, &
-         jc, jset, lds, lm, lpoint, lprj, lsgfb, lsgfb_cnt, lshell, lx, ly, lz, m, m1, maxcob, &
-         maxder, maxlb, maxlprj, maxnprja, maxsoa, msab, n, ncob, np_car, np_sph, nsatbas, nseta, &
-         nsetb, nsoatot, ntotsgfb, sgf_hard_only
+      INTEGER :: first_col, ic, ider, ig1, igau, ip, ipgf, is, isgfb, isgfb_cnt, isp, jc, jset, &
+         lds, lm, lpoint, lprj, lsgfb, lsgfb_cnt, lshell, m, m1, maxcob, maxder, maxlb, maxlprj, &
+         maxnprja, maxsoa, msab, n, ncob, np_car, np_sph, nsatbas, nseta, nsetb, nsoatot, &
+         ntotsgfb, sgf_hard_only
       INTEGER, DIMENSION(:), POINTER                     :: fp_cara, fp_spha, lb_max, lb_min, npgfb, &
                                                             nprjla, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfb
       LOGICAL                                            :: calculate_forces, paw_atom_a, paw_atom_b
-      REAL(dp)                                           :: dab, hard_radius_a, hard_radius_b, &
+      REAL(KIND=dp)                                      :: dab, hard_radius_a, hard_radius_b, &
                                                             radius, rcprja
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: c2s, ovs, spa_sb
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: s
-      REAL(dp), DIMENSION(:), POINTER                    :: set_radius_b, zisominb
-      REAL(dp), DIMENSION(:, :), POINTER                 :: cprj_s, csprj, rpgfb, rzetprja, spa_tmp, &
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ovs, spa_sb
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: s
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_b, zisominb
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cprj_s, csprj, rpgfb, rzetprja, spa_tmp, &
                                                             sphi_b, zetb, zetprja
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_a, orb_basis_b
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj_a, paw_proj_b
@@ -124,7 +121,7 @@ CONTAINS
 
       CALL get_gto_basis_set(gto_basis_set=orb_basis_a, nset=nseta, maxso=maxsoa)
 
-!  *** Add the block ab ***
+      !  Add the block ab
       dab = SQRT(SUM(rab*rab))
 
       maxder = ncoset(nder)
@@ -134,13 +131,12 @@ CONTAINS
       calculate_forces = .FALSE.
       IF (nder > 0) THEN
          calculate_forces = .TRUE.
-      ENDIF
+      END IF
 
       lm = MAX(maxlb, maxlprj)
       lds = ncoset(lm + nder + 1)
       msab = MAX(maxnprja*ncoset(maxlprj), maxcob)
 
-      ALLOCATE (c2s(lds, lds))
       ALLOCATE (s(lds, lds, ncoset(nder + 1)))
       ALLOCATE (spa_sb(np_car, ntotsgfb))
       ALLOCATE (spa_tmp(msab, msab*maxder))
@@ -159,14 +155,14 @@ CONTAINS
             DO jc = isgfb, lsgfb
                nsgf_cnt = nsgf_cnt + 1
                sgf_list(nsgf_cnt) = jc
-            ENDDO
+            END DO
 
             ! check if this function is hard
             radius = exp_radius(lb_max(jset), MAXVAL(zetb(1:npgfb(jset), jset)), eps_fit, 1.0_dp)
             IF (radius .LE. hard_radius_b) sgf_hard_only = sgf_hard_only + 1
 
-            ! ***integral between proj of iatom and primitives of jatom
-            ! *** Calculate the primitives overlap ***
+            ! Integral between proj of iatom and primitives of jatom
+            ! Calculate the primitives overlap
             spa_tmp = 0.0_dp
             ovs = 0.0_dp
             s = 0.0_dp
@@ -183,15 +179,6 @@ CONTAINS
                             rpgfb(:, jset), zetb(:, jset), &
                             -rab, dab, spa_tmp, &
                             nder, .TRUE., s, lds)
-               DO iso = 1, nso(lprj)
-                  DO ico = 1, nco(lprj)
-                     lx = indco(1, ico + ncoset(lprj - 1))
-                     ly = indco(2, ico + ncoset(lprj - 1))
-                     lz = indco(3, ico + ncoset(lprj - 1))
-                     c2s(iso, ico) = orbtramat(lprj)%c2s(iso, ico)/SQRT((4.0_dp*pi)/dfac(2*lprj + 1)* &
-                                                                        dfac(2*lx - 1)*dfac(2*ly - 1)*dfac(2*lz - 1))
-                  ENDDO
-               ENDDO
                DO ider = 1, maxder
                   is = (ider - 1)*SIZE(spa_tmp, 1)
                   isp = (ider - 1)*maxcob*nsetb
@@ -203,15 +190,13 @@ CONTAINS
                         igau = isp + ic + m1 + ncoset(lb_min(jset) - 1) + 1
                         ig1 = is + ic + ncoset(lb_min(jset) - 1) + 1
                         n = ncoset(lb_max(jset)) - ncoset(lb_min(jset) - 1)
-!                       CALL DGEMM("N", "N", nso(lprj), n, nco(lprj), 1._dp, c2s, lds, spa_tmp(lpoint, ig1), msab, &
-!                                  0._dp, ovs(m, igau), np_sph)
                         ovs(m:m + nso(lprj) - 1, igau:igau + n - 1) = &
-                           MATMUL(c2s(1:nso(lprj), 1:nco(lprj)), &
+                           MATMUL(orbtramat(lprj)%slm(1:nso(lprj), 1:nco(lprj)), &
                                   spa_tmp(lpoint:lpoint + nco(lprj) - 1, ig1:ig1 + n - 1))
-                     ENDDO
-                  ENDDO
-               ENDDO
-            ENDDO
+                     END DO
+                  END DO
+               END DO
+            END DO
 
             IF (paw_atom_b) THEN
                CALL get_paw_proj_set(paw_proj_set=paw_proj_b, zisomin=zisominb)
@@ -223,42 +208,42 @@ CONTAINS
                            is = maxcob*(ider - 1)
                            isp = (ider - 1)*maxcob*nsetb
                            ovs(:, igau + 1 + isp + m1:igau + nco(lshell) + isp + m1) = 0.0_dp
-                        ENDDO
-                     ENDIF
-                  ENDDO
+                        END DO
+                     END IF
+                  END DO
                END DO
-            ENDIF
+            END IF
 
-            ! *** Contraction step (integrals and derivatives)
+            ! Contraction step (integrals and derivatives)
             DO ider = 1, maxder
                first_col = (ider - 1)*maxcob*nsetb + 1 + m1
-!              CALL dgemm("N", "N", np_sph, nsgfb(jset), ncob, &
-!                         1.0_dp, ovs(1, first_col), SIZE(ovs, 1), &
-!                         sphi_b(1, isgfb), SIZE(sphi_b, 1), &
-!                         0.0_dp, spa_sb(1, isgfb), SIZE(spa_sb, 1))
+               ! CALL dgemm("N", "N", np_sph, nsgfb(jset), ncob, &
+               !           1.0_dp, ovs(1, first_col), SIZE(ovs, 1), &
+               !           sphi_b(1, isgfb), SIZE(sphi_b, 1), &
+               !           0.0_dp, spa_sb(1, isgfb), SIZE(spa_sb, 1))
                spa_sb(1:np_sph, isgfb:isgfb + nsgfb(jset) - 1) = &
                   MATMUL(ovs(1:np_sph, first_col:first_col + ncob - 1), &
                          sphi_b(1:ncob, isgfb:isgfb + nsgfb(jset) - 1))
 
-!              CALL dgemm("T", "N", nsatbas, nsgfb(jset), np_sph, &
-!                         1.0_dp, csprj(1, 1), SIZE(csprj, 1), &
-!                         spa_sb(1, isgfb), SIZE(spa_sb, 1), &
-!                         1.0_dp, oces(ider)%block(1, isgfb_cnt), SIZE(oces(ider)%block, 1))
+               ! CALL dgemm("T", "N", nsatbas, nsgfb(jset), np_sph, &
+               !          1.0_dp, csprj(1, 1), SIZE(csprj, 1), &
+               !          spa_sb(1, isgfb), SIZE(spa_sb, 1), &
+               !          1.0_dp, oces(ider)%block(1, isgfb_cnt), SIZE(oces(ider)%block, 1))
                oces(ider)%block(1:nsatbas, isgfb_cnt:isgfb_cnt + nsgfb(jset) - 1) = &
                   oces(ider)%block(1:nsatbas, isgfb_cnt:isgfb_cnt + nsgfb(jset) - 1) + &
                   MATMUL(TRANSPOSE(csprj(1:np_sph, 1:nsatbas)), &
                          spa_sb(1:np_sph, isgfb:isgfb + nsgfb(jset) - 1))
-            ENDDO
+            END DO
             isgfb_cnt = isgfb_cnt + nsgfb(jset)
          END IF ! radius
          m1 = m1 + maxcob
-      ENDDO !jset
+      END DO !jset
 
-      ! check if the screened functions are all soft
+      ! Check if the screened functions are all soft
       sgf_soft_only = .FALSE.
       IF (sgf_hard_only .EQ. 0) sgf_soft_only = .TRUE.
 
-      DEALLOCATE (c2s, s, spa_sb, spa_tmp, ovs)
+      DEALLOCATE (s, spa_sb, spa_tmp, ovs)
 
    END SUBROUTINE build_oce_block
 
@@ -282,8 +267,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: n2oindex, nsgf_seta
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: paw_atom_a
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: prjloc_h, prjloc_s
-      REAL(dp), DIMENSION(:, :), POINTER                 :: local_oce_h, local_oce_s
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: prjloc_h, prjloc_s
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_oce_h, local_oce_s
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_a
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj_a
 
@@ -315,12 +300,11 @@ CONTAINS
          DO jc = isgfa, lsgfa
             nsgf_cnt = nsgf_cnt + 1
             sgf_list(nsgf_cnt) = jc
-         ENDDO
+         END DO
          n = maxsoa*(iset - 1)
-
          prjloc_h(n + 1:n + maxsoa, isgfa:lsgfa) = local_oce_h(1:maxsoa, isgfa:lsgfa)
          prjloc_s(n + 1:n + maxsoa, isgfa:lsgfa) = local_oce_s(1:maxsoa, isgfa:lsgfa)
-      ENDDO
+      END DO
 
       DO i = 1, nsgfa
          DO j = 1, nsatbas
@@ -358,7 +342,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sap_oce
-      REAL(dp), INTENT(IN)                               :: eps_fit
+      REAL(KIND=dp), INTENT(IN)                          :: eps_fit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_oce_matrices'
 
@@ -387,7 +371,7 @@ CONTAINS
          CALL timeset(routineN//"_forces", handle)
       ELSE
          CALL timeset(routineN, handle)
-      ENDIF
+      END IF
 
       IF (ASSOCIATED(sap_oce)) THEN
 
@@ -560,7 +544,7 @@ CONTAINS
                   clist%maxac = MAXVAL(ABS(clist%acint(:, :, 1)))
                   clist%maxach = 0._dp
                   clist%sgf_list(1:nsgf_cnt) = sgf_list(1:nsgf_cnt)
-               ENDIF
+               END IF
                DO i = 1, maxder
                   DEALLOCATE (oceh(i)%block, oces(i)%block)
                END DO
@@ -582,7 +566,7 @@ CONTAINS
                   clist%maxac = MAXVAL(ABS(clist%acint(:, :, 1)))
                   clist%maxach = 0._dp
                   clist%sgf_list(1:nsgf_cnt) = sgf_list(1:nsgf_cnt)
-               ENDIF
+               END IF
                DO i = 1, maxder
                   DEALLOCATE (oces(i)%block)
                END DO
@@ -596,7 +580,7 @@ CONTAINS
          DEALLOCATE (oceh, oces)
 !$OMP END PARALLEL
 
-         ! set up sort index
+         ! Setup sort index
          CALL sap_sort(intac)
 
       END IF
@@ -630,22 +614,22 @@ CONTAINS
    SUBROUTINE proj_blk(h_a, s_a, na, h_b, s_b, nb, blk, ldb, proj_h, proj_s, nso, len1, len2, fac, distab)
 
       INTEGER, INTENT(IN)                                :: na
-      REAL(dp), INTENT(IN)                               :: s_a(na, *), h_a(na, *)
+      REAL(KIND=dp), INTENT(IN)                          :: s_a(na, *), h_a(na, *)
       INTEGER, INTENT(IN)                                :: nb
-      REAL(dp), INTENT(IN)                               :: s_b(nb, *), h_b(nb, *)
+      REAL(KIND=dp), INTENT(IN)                          :: s_b(nb, *), h_b(nb, *)
       INTEGER, INTENT(IN)                                :: ldb
-      REAL(dp), INTENT(IN)                               :: blk(ldb, *)
+      REAL(KIND=dp), INTENT(IN)                          :: blk(ldb, *)
       INTEGER, INTENT(IN)                                :: nso
-      REAL(dp), INTENT(INOUT)                            :: proj_s(nso, *), proj_h(nso, *)
+      REAL(KIND=dp), INTENT(INOUT)                       :: proj_s(nso, *), proj_h(nso, *)
       INTEGER, INTENT(IN)                                :: len1, len2
-      REAL(dp), INTENT(IN)                               :: fac
+      REAL(KIND=dp), INTENT(IN)                          :: fac
       LOGICAL, INTENT(IN)                                :: distab
 
-      REAL(dp)                                           :: buf1(len1), buf2(len2)
+      REAL(KIND=dp)                                      :: buf1(len1), buf2(len2)
 
       IF (na .EQ. 0 .OR. nb .EQ. 0 .OR. nso .EQ. 0) RETURN
 
-      ! handle special cases
+      ! Handle special cases
       IF (na .EQ. 1 .AND. nb .EQ. 1) THEN
          ! hard
          CALL dger(nso, nso, fac*blk(1, 1), h_a(1, 1), 1, h_b(1, 1), 1, proj_h(1, 1), nso)
@@ -666,8 +650,8 @@ CONTAINS
             ! soft
             CALL dgemm('N', 'N', na, nso, nb, fac, blk(1, 1), ldb, s_b(1, 1), nb, 0.0_dp, buf1(1), na)
             CALL dgemm('T', 'N', nso, nso, na, 1.0_dp, s_a(1, 1), na, buf1(1), na, 1.0_dp, proj_s(1, 1), nso)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
    END SUBROUTINE proj_blk
 
@@ -679,8 +663,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE prj_gather(ain, aout, atom)
 
-      REAL(dp), DIMENSION(:, :), INTENT(IN)              :: ain
-      REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: aout
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ain
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: aout
       TYPE(qs_kind_type), INTENT(IN)                     :: atom
 
       INTEGER                                            :: i, ip, j, jp, nbas
@@ -711,8 +695,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE prj_scatter(ain, aout, atom)
 
-      REAL(dp), DIMENSION(:, :), INTENT(IN)              :: ain
-      REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: aout
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ain
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: aout
       TYPE(qs_kind_type), INTENT(IN)                     :: atom
 
       INTEGER                                            :: i, ip, j, jp, nbas
