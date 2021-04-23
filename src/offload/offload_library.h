@@ -7,7 +7,7 @@
 #ifndef OFFLOAD_LIBRARY_H
 #define OFFLOAD_LIBRARY_H
 
-#ifdef __GRID_CUDA
+#if defined(__GRID_CUDA) || defined(__PW_CUDA)
 #define __OFFLOAD_CUDA
 #endif
 

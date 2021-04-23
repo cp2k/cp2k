@@ -178,7 +178,8 @@ extern "C" void pw_cuda_cfffg_z_(const double *din, cuDoubleComplex *zout,
   if (nrpts == 0 || ngpts == 0)
     return;
 
-  // get streams
+  // get streams and events
+  pw_cuda_set_device();
   pw_cuda_get_streams(&cuda_streams);
   pw_cuda_get_events(&cuda_events);
 
@@ -284,7 +285,8 @@ extern "C" void pw_cuda_sfffc_z_(const cuDoubleComplex *zin, double *dout,
   if (nrpts == 0 || ngpts == 0)
     return;
 
-  // get streams
+  // get streams and events
+  pw_cuda_set_device();
   pw_cuda_get_streams(&cuda_streams);
   pw_cuda_get_events(&cuda_events);
 
@@ -384,7 +386,8 @@ extern "C" void pw_cuda_cff_z_(const double *din, cuDoubleComplex *zout,
   if (nrpts == 0)
     return;
 
-  // get streams
+  // get streams and events
+  pw_cuda_set_device();
   pw_cuda_get_streams(&cuda_streams);
   pw_cuda_get_events(&cuda_events);
 
@@ -473,7 +476,8 @@ extern "C" void pw_cuda_ffc_z_(const cuDoubleComplex *zin, double *dout,
   if (nrpts == 0)
     return;
 
-  // get streams
+  // get streams and events
+  pw_cuda_set_device();
   pw_cuda_get_streams(&cuda_streams);
   pw_cuda_get_events(&cuda_events);
 
@@ -561,7 +565,8 @@ extern "C" void pw_cuda_cf_z_(const double *din, cuDoubleComplex *zout,
   if (nrpts == 0)
     return;
 
-  // get streams
+  // get streams and events
+  pw_cuda_set_device();
   pw_cuda_get_streams(&cuda_streams);
   pw_cuda_get_events(&cuda_events);
 
@@ -641,7 +646,8 @@ extern "C" void pw_cuda_fc_z_(const cuDoubleComplex *zin, double *dout,
   if (nrpts == 0)
     return;
 
-  // get streams
+  // get streams and events
+  pw_cuda_set_device();
   pw_cuda_get_streams(&cuda_streams);
   pw_cuda_get_events(&cuda_events);
 
@@ -718,7 +724,8 @@ extern "C" void pw_cuda_f_z_(const cuDoubleComplex *zin, cuDoubleComplex *zout,
   if (nrpts == 0)
     return;
 
-  // get streams
+  // get streams and events
+  pw_cuda_set_device();
   pw_cuda_get_streams(&cuda_streams);
   pw_cuda_get_events(&cuda_events);
 
@@ -789,6 +796,7 @@ extern "C" void pw_cuda_fg_z_(const cuDoubleComplex *zin, cuDoubleComplex *zout,
     return;
 
   // get streams and events
+  pw_cuda_set_device();
   pw_cuda_get_streams(&cuda_streams);
   pw_cuda_get_events(&cuda_events);
 
@@ -876,7 +884,8 @@ extern "C" void pw_cuda_sf_z_(const cuDoubleComplex *zin, cuDoubleComplex *zout,
   if (nrpts == 0 || ngpts == 0)
     return;
 
-  // get streams
+  // get streams and events
+  pw_cuda_set_device();
   pw_cuda_get_streams(&cuda_streams);
   pw_cuda_get_events(&cuda_events);
 
