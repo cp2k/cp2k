@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../../offload/offload_library.h"
 #include "../common/grid_common.h"
 #include "../common/grid_constants.h"
 #include "../common/grid_library.h"
@@ -250,7 +251,7 @@ void grid_gpu_create_task_list(
     const double dh_inv[][3][3], grid_gpu_task_list **task_list_out) {
 
   // Select GPU device.
-  CHECK(cudaSetDevice(grid_library_get_config().device_id));
+  CHECK(cudaSetDevice(offload_get_device_id()));
 
   if (*task_list_out != NULL) {
     // This is actually an opportunity to reuse some buffers.
@@ -359,9 +360,6 @@ void grid_gpu_create_task_list(
  ******************************************************************************/
 void grid_gpu_free_task_list(grid_gpu_task_list *task_list) {
 
-  // Select GPU device.
-  CHECK(cudaSetDevice(grid_library_get_config().device_id));
-
   CHECK(cudaFree(task_list->tasks_dev));
 
   CHECK(cudaStreamDestroy(task_list->main_stream));
@@ -392,7 +390,7 @@ void grid_gpu_collocate_task_list(const grid_gpu_task_list *task_list,
                                   offload_buffer *grids[]) {
 
   // Select GPU device.
-  CHECK(cudaSetDevice(grid_library_get_config().device_id));
+  CHECK(cudaSetDevice(offload_get_device_id()));
 
   // Upload blocks buffer using the main stream
   CHECK(cudaMemcpyAsync(pab_blocks->device_buffer, pab_blocks->host_buffer,
@@ -468,7 +466,7 @@ void grid_gpu_integrate_task_list(const grid_gpu_task_list *task_list,
                                   double forces[][3], double virial[3][3]) {
 
   // Select GPU device.
-  CHECK(cudaSetDevice(grid_library_get_config().device_id));
+  CHECK(cudaSetDevice(offload_get_device_id()));
 
   // Prepare shared buffers using the main stream
   double *forces_dev = NULL;

@@ -24,7 +24,8 @@ MODULE offload_api
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'offload_api'
 
-   PUBLIC :: offload_set_device_id
+   PUBLIC :: offload_get_device_count
+   PUBLIC :: offload_set_device_id, offload_get_device_id
    PUBLIC :: offload_buffer_type, offload_create_buffer, offload_free_buffer
 
    TYPE offload_buffer_type
@@ -33,6 +34,26 @@ MODULE offload_api
    END TYPE offload_buffer_type
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Returns the number of available devices.
+!> \return ...
+!> \author Ole Schuett
+! **************************************************************************************************
+   FUNCTION offload_get_device_count() RESULT(count)
+      INTEGER                                            :: count
+
+      INTERFACE
+         FUNCTION offload_get_device_count_c() &
+            BIND(C, name="offload_get_device_count")
+            IMPORT :: C_INT
+            INTEGER(KIND=C_INT)                :: offload_get_device_count_c
+         END FUNCTION offload_get_device_count_c
+      END INTERFACE
+
+      count = offload_get_device_count_c()
+
+   END FUNCTION offload_get_device_count
 
 ! **************************************************************************************************
 !> \brief Selects the device to be used.
@@ -53,6 +74,29 @@ CONTAINS
       CALL offload_set_device_id_c(device_id=device_id)
 
    END SUBROUTINE offload_set_device_id
+
+! **************************************************************************************************
+!> \brief Returns the device to be used.
+!> \return ...
+!> \author Ole Schuett
+! **************************************************************************************************
+   FUNCTION offload_get_device_id() RESULT(device_id)
+      INTEGER                                            :: device_id
+
+      INTERFACE
+         FUNCTION offload_get_device_id_c() &
+            BIND(C, name="offload_get_device_id")
+            IMPORT :: C_INT
+            INTEGER(KIND=C_INT)                :: offload_get_device_id_c
+         END FUNCTION offload_get_device_id_c
+      END INTERFACE
+
+      device_id = offload_get_device_id_c()
+
+      IF (device_id < 0) &
+         CPABORT("Offload device not selected.")
+
+   END FUNCTION offload_get_device_id
 
 ! **************************************************************************************************
 !> \brief Allocates a buffer of given length, ie. number of elements.

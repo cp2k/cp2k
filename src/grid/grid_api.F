@@ -1154,28 +1154,25 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Configures the grid library
 !> \param backend : backend to be used for collocate/integrate, possible values are REF, CPU, GPU
-!> \param device_id : GPU id returned by dbcsr
 !> \param validate : if set to true, compare the results of all backend to the reference backend
 !> \param apply_cutoff : apply a spherical cutoff before collocating or integrating. Only relevant for CPU backend
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE grid_library_set_config(backend, device_id, validate, apply_cutoff)
-      INTEGER, INTENT(IN)                                :: backend, device_id
+   SUBROUTINE grid_library_set_config(backend, validate, apply_cutoff)
+      INTEGER, INTENT(IN)                                :: backend
       LOGICAL, INTENT(IN)                                :: validate, apply_cutoff
 
       INTERFACE
-         SUBROUTINE grid_library_set_config_c(backend, device_id, validate, apply_cutoff) &
+         SUBROUTINE grid_library_set_config_c(backend, validate, apply_cutoff) &
             BIND(C, name="grid_library_set_config")
             IMPORT :: C_INT, C_BOOL
             INTEGER(KIND=C_INT), VALUE                :: backend
-            INTEGER(KIND=C_INT), VALUE                :: device_id
             LOGICAL(KIND=C_BOOL), VALUE               :: validate
             LOGICAL(KIND=C_BOOL), VALUE               :: apply_cutoff
          END SUBROUTINE grid_library_set_config_c
       END INTERFACE
 
       CALL grid_library_set_config_c(backend=backend, &
-                                     device_id=device_id, &
                                      validate=LOGICAL(validate, C_BOOL), &
                                      apply_cutoff=LOGICAL(apply_cutoff, C_BOOL))
 
