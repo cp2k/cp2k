@@ -28,6 +28,9 @@ MODULE realspace_grid_types
    USE message_passing,                 ONLY: &
         mp_comm_dup, mp_comm_free, mp_environ, mp_irecv, mp_isend, mp_isendrecv, mp_max, mp_min, &
         mp_request_null, mp_sum, mp_sync, mp_waitall, mp_waitany
+   USE offload_api,                     ONLY: offload_buffer_type,&
+                                              offload_create_buffer,&
+                                              offload_free_buffer
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL,&
                                               pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_release,&
@@ -150,8 +153,9 @@ MODULE realspace_grid_types
       INTEGER, DIMENSION(3) :: lb_real ! lower bounds of the real local data
       INTEGER, DIMENSION(3) :: ub_real ! upper bounds of the real local data
 
-      INTEGER, DIMENSION(:), POINTER :: px, py, pz ! index translators
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: r ! the grid
+      INTEGER, DIMENSION(:), POINTER             :: px, py, pz ! index translators
+      TYPE(offload_buffer_type)                  :: buffer ! owner of the grid's memory
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: r ! the grid (pointer to buffer%host_buffer)
 
    END TYPE realspace_grid_type
 
@@ -537,9 +541,11 @@ CONTAINS
 
       allocated_rs_grid_count = allocated_rs_grid_count + 1
 
-      ALLOCATE (rs%r(rs%lb_local(1):rs%ub_local(1), &
-                     rs%lb_local(2):rs%ub_local(2), &
-                     rs%lb_local(3):rs%ub_local(3)))
+      CALL offload_create_buffer(rs%ngpts_local, rs%buffer)
+      rs%r(rs%lb_local(1):rs%ub_local(1), &
+           rs%lb_local(2):rs%ub_local(2), &
+           rs%lb_local(3):rs%ub_local(3)) => rs%buffer%host_buffer
+
       ALLOCATE (rs%px(desc%npts(1)))
       ALLOCATE (rs%py(desc%npts(2)))
       ALLOCATE (rs%pz(desc%npts(3)))
@@ -2062,7 +2068,10 @@ CONTAINS
             CALL rs_grid_release_descriptor(rs_grid%desc)
 
             allocated_rs_grid_count = allocated_rs_grid_count - 1
-            DEALLOCATE (rs_grid%r)
+
+            CALL offload_free_buffer(rs_grid%buffer)
+            NULLIFY (rs_grid%r)
+
             DEALLOCATE (rs_grid%px)
             DEALLOCATE (rs_grid%py)
             DEALLOCATE (rs_grid%pz)
