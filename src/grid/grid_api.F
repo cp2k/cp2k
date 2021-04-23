@@ -1014,7 +1014,7 @@ CONTAINS
                                       nlevels=nlevels, &
                                       npts_local=C_LOC(npts_local(1, 1)), &
                                       pab_blocks=pab_blocks%c_ptr, &
-                                      grids=grids_c)
+                                      grids=C_LOC(grids_c(1)))
 
       CALL timestop(handle)
    END SUBROUTINE grid_collocate_task_list
@@ -1115,7 +1115,7 @@ CONTAINS
                                       nlevels=nlevels, &
                                       npts_local=C_LOC(npts_local(1, 1)), &
                                       pab_blocks=pab_blocks%c_ptr, &
-                                      grids=grids_c, &
+                                      grids=C_LOC(grids_c(1)), &
                                       hab_blocks=hab_blocks%c_ptr, &
                                       forces=forces_c, &
                                       virial=virial_c)
