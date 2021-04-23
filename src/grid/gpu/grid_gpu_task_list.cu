@@ -349,14 +349,6 @@ void grid_gpu_create_task_list(
     CHECK(cudaStreamCreate(&task_list->level_streams[i]));
   }
 
-  size = nlevels * sizeof(double *);
-  task_list->grid_dev = (double **)malloc(size);
-  memset(task_list->grid_dev, 0, size);
-
-  size = nlevels * sizeof(size_t);
-  task_list->grid_dev_size = (size_t *)malloc(size);
-  memset(task_list->grid_dev_size, 0, size);
-
   // return newly created task list
   *task_list_out = task_list;
 }
@@ -379,19 +371,11 @@ void grid_gpu_free_task_list(grid_gpu_task_list *task_list) {
   }
   free(task_list->level_streams);
 
-  for (int i = 0; i < task_list->nlevels; i++) {
-    if (task_list->grid_dev[i] != NULL) {
-      CHECK(cudaFree(task_list->grid_dev[i]));
-    }
-  }
-  free(task_list->grid_dev);
-
   for (int i = 0; i < task_list->nkinds; i++) {
     CHECK(cudaFree(task_list->sphis_dev[i]));
   }
   free(task_list->sphis_dev);
 
-  free(task_list->grid_dev_size);
   free(task_list->tasks_per_level);
   free(task_list->layouts);
   free(task_list);
@@ -405,7 +389,7 @@ void grid_gpu_free_task_list(grid_gpu_task_list *task_list) {
 void grid_gpu_collocate_task_list(const grid_gpu_task_list *task_list,
                                   const enum grid_func func, const int nlevels,
                                   const offload_buffer *pab_blocks,
-                                  double *grid[]) {
+                                  offload_buffer *grids[]) {
 
   // Select GPU device.
   CHECK(cudaSetDevice(grid_library_get_config().device_id));
@@ -427,27 +411,16 @@ void grid_gpu_collocate_task_list(const grid_gpu_task_list *task_list,
     const int last_task = first_task + task_list->tasks_per_level[level] - 1;
     const cudaStream_t level_stream = task_list->level_streams[level];
     const grid_gpu_layout *layout = &task_list->layouts[level];
-    const size_t grid_size = layout->npts_local[0] * layout->npts_local[1] *
-                             layout->npts_local[2] * sizeof(double);
+    offload_buffer *grid = grids[level];
 
-    // reallocate device grid buffers if needed
-    if (task_list->grid_dev_size[level] < grid_size) {
-      if (task_list->grid_dev[level] != NULL) {
-        CHECK(cudaFree(task_list->grid_dev[level]));
-      }
-      CHECK(cudaMalloc(&task_list->grid_dev[level], grid_size));
-      task_list->grid_dev_size[level] = grid_size;
-    }
-
-    // zero device grid buffers
-    CHECK(cudaMemsetAsync(task_list->grid_dev[level], 0, grid_size,
-                          level_stream));
+    // zero grid device buffer
+    CHECK(cudaMemsetAsync(grid->device_buffer, 0, grid->size, level_stream));
 
     // launch kernel, but only after blocks have arrived
     CHECK(cudaStreamWaitEvent(level_stream, input_ready_event, 0));
     grid_gpu_collocate_one_grid_level(
         task_list, first_task, last_task, func, layout, level_stream,
-        pab_blocks->device_buffer, task_list->grid_dev[level], &lp_diff);
+        pab_blocks->device_buffer, grid->device_buffer, &lp_diff);
 
     first_task = last_task + 1;
   }
@@ -467,13 +440,9 @@ void grid_gpu_collocate_task_list(const grid_gpu_task_list *task_list,
   }
 
   // download result from device to host.
-  // TODO: Make these mem copies actually async by page locking the grid buffers
-  // This now takes 10% of the time!!!
   for (int level = 0; level < task_list->nlevels; level++) {
-    const grid_gpu_layout *layout = &task_list->layouts[level];
-    const size_t grid_size = layout->npts_local[0] * layout->npts_local[1] *
-                             layout->npts_local[2] * sizeof(double);
-    CHECK(cudaMemcpyAsync(grid[level], task_list->grid_dev[level], grid_size,
+    offload_buffer *grid = grids[level];
+    CHECK(cudaMemcpyAsync(grid->host_buffer, grid->device_buffer, grid->size,
                           cudaMemcpyDeviceToHost,
                           task_list->level_streams[level]));
   }
@@ -494,7 +463,7 @@ void grid_gpu_integrate_task_list(const grid_gpu_task_list *task_list,
                                   const bool compute_tau, const int natoms,
                                   const int nlevels,
                                   const offload_buffer *pab_blocks,
-                                  const double *grid[],
+                                  const offload_buffer *grids[],
                                   offload_buffer *hab_blocks,
                                   double forces[][3], double virial[3][3]) {
 
@@ -538,29 +507,17 @@ void grid_gpu_integrate_task_list(const grid_gpu_task_list *task_list,
     const int last_task = first_task + task_list->tasks_per_level[level] - 1;
     const cudaStream_t level_stream = task_list->level_streams[level];
     const grid_gpu_layout *layout = &task_list->layouts[level];
-    const size_t grid_size = layout->npts_local[0] * layout->npts_local[1] *
-                             layout->npts_local[2] * sizeof(double);
-
-    // reallocate device grid buffer if needed
-    if (task_list->grid_dev_size[level] < grid_size) {
-      if (task_list->grid_dev[level] != NULL) {
-        CHECK(cudaFree(task_list->grid_dev[level]));
-      }
-      CHECK(cudaMalloc(&task_list->grid_dev[level], grid_size));
-      task_list->grid_dev_size[level] = grid_size;
-    }
+    const offload_buffer *grid = grids[level];
 
     // upload grid
-    // TODO: Make these copies actually async by page locking the grid buffers.
-    // This now takes 30% of the time!!!
-    CHECK(cudaMemcpyAsync(task_list->grid_dev[level], grid[level], grid_size,
+    CHECK(cudaMemcpyAsync(grid->device_buffer, grid->host_buffer, grid->size,
                           cudaMemcpyHostToDevice, level_stream));
 
     // launch kernel, but only after hab, pab, virial, etc are ready
     CHECK(cudaStreamWaitEvent(level_stream, input_ready_event, 0));
     grid_gpu_integrate_one_grid_level(
         task_list, first_task, last_task, compute_tau, layout, level_stream,
-        pab_blocks_dev, task_list->grid_dev[level], hab_blocks->device_buffer,
+        pab_blocks_dev, grid->device_buffer, hab_blocks->device_buffer,
         forces_dev, virial_dev, &lp_diff);
 
     // Have main stream wait for level to complete before downloading results.

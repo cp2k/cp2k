@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../offload/offload_buffer.h"
 #include "common/grid_library.h"
 #include "grid_replay.h"
 
@@ -61,6 +62,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  offload_set_device_id(0);
   grid_library_init();
 
   int errors = 0;

@@ -118,8 +118,6 @@ typedef struct {
   // device pointers
   double **sphis_dev;
   grid_gpu_task *tasks_dev;
-  double **grid_dev;
-  size_t *grid_dev_size;
 } grid_gpu_task_list;
 
 /*******************************************************************************
@@ -155,7 +153,7 @@ void grid_gpu_free_task_list(grid_gpu_task_list *task_list);
 void grid_gpu_collocate_task_list(const grid_gpu_task_list *task_list,
                                   const enum grid_func func, const int nlevels,
                                   const offload_buffer *pab_blocks,
-                                  double *grid[]);
+                                  offload_buffer *grids[]);
 
 /*******************************************************************************
  * \brief Integrate all tasks of in given list onto given grids.
@@ -166,7 +164,7 @@ void grid_gpu_integrate_task_list(const grid_gpu_task_list *task_list,
                                   const bool compute_tau, const int natoms,
                                   const int nlevels,
                                   const offload_buffer *pab_blocks,
-                                  const double *grid[],
+                                  const offload_buffer *grids[],
                                   offload_buffer *hab_blocks,
                                   double forces[][3], double virial[3][3]);
 

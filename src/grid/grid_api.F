@@ -972,12 +972,11 @@ CONTAINS
 
       INTEGER                                            :: handle, ilevel, nlevels
       INTEGER, ALLOCATABLE, DIMENSION(:, :), TARGET      :: npts_local
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grid
-      TYPE(C_PTR), ALLOCATABLE, DIMENSION(:), TARGET     :: grid_pointers
+      TYPE(C_PTR), ALLOCATABLE, DIMENSION(:), TARGET     :: grids_c
       TYPE(realspace_grid_type), POINTER                 :: rsgrid
       INTERFACE
          SUBROUTINE grid_collocate_task_list_c(task_list, func, nlevels, &
-                                               npts_local, pab_blocks, grid) &
+                                               npts_local, pab_blocks, grids) &
             BIND(C, name="grid_collocate_task_list")
             IMPORT :: C_PTR, C_INT, C_BOOL
             TYPE(C_PTR), VALUE                        :: task_list
@@ -985,7 +984,7 @@ CONTAINS
             INTEGER(KIND=C_INT), VALUE                :: nlevels
             TYPE(C_PTR), VALUE                        :: npts_local
             TYPE(C_PTR), VALUE                        :: pab_blocks
-            TYPE(C_PTR), VALUE                        :: grid
+            TYPE(C_PTR), VALUE                        :: grids
          END SUBROUTINE grid_collocate_task_list_c
       END INTERFACE
 
@@ -994,22 +993,17 @@ CONTAINS
       nlevels = SIZE(rs_grids)
       CPASSERT(nlevels > 0)
 
-      ALLOCATE (grid_pointers(nlevels))
+      ALLOCATE (grids_c(nlevels))
       ALLOCATE (npts_local(3, nlevels))
       DO ilevel = 1, nlevels
          rsgrid => rs_grids(ilevel)%rs_grid
          npts_local(:, ilevel) = rsgrid%ub_local - rsgrid%lb_local + 1
-         grid(1:, 1:, 1:) => rsgrid%r(:, :, :)  ! ensure lower bounds are (1,1,1)
-         grid_pointers(ilevel) = C_LOC(grid(1, 1, 1))
+         grids_c(ilevel) = rsgrid%buffer%c_ptr
       END DO
 
 #if __GNUC__ >= 9
       CPASSERT(IS_CONTIGUOUS(npts_local))
-      CPASSERT(IS_CONTIGUOUS(grid_pointers))
-      DO ilevel = 1, nlevels
-         grid(1:, 1:, 1:) => rs_grids(ilevel)%rs_grid%r(:, :, :)
-         CPASSERT(IS_CONTIGUOUS(grid))
-      END DO
+      CPASSERT(IS_CONTIGUOUS(grids_c))
 #endif
 
       CPASSERT(C_ASSOCIATED(task_list%c_ptr))
@@ -1020,7 +1014,7 @@ CONTAINS
                                       nlevels=nlevels, &
                                       npts_local=C_LOC(npts_local(1, 1)), &
                                       pab_blocks=pab_blocks%c_ptr, &
-                                      grid=C_LOC(grid_pointers(1)))
+                                      grids=grids_c)
 
       CALL timestop(handle)
    END SUBROUTINE grid_collocate_task_list
@@ -1055,14 +1049,13 @@ CONTAINS
 
       INTEGER                                            :: handle, ilevel, nlevels
       INTEGER, ALLOCATABLE, DIMENSION(:, :), TARGET      :: npts_local
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grid
       TYPE(C_PTR)                                        :: forces_c, virial_c
-      TYPE(C_PTR), ALLOCATABLE, DIMENSION(:), TARGET     :: grid_pointers
+      TYPE(C_PTR), ALLOCATABLE, DIMENSION(:), TARGET     :: grids_c
       TYPE(realspace_grid_type), POINTER                 :: rsgrid
       INTERFACE
          SUBROUTINE grid_integrate_task_list_c(task_list, compute_tau, natoms, &
                                                nlevels, npts_local, &
-                                               pab_blocks, grid, hab_blocks, forces, virial) &
+                                               pab_blocks, grids, hab_blocks, forces, virial) &
             BIND(C, name="grid_integrate_task_list")
             IMPORT :: C_PTR, C_INT, C_BOOL
             TYPE(C_PTR), VALUE                        :: task_list
@@ -1071,7 +1064,7 @@ CONTAINS
             INTEGER(KIND=C_INT), VALUE                :: nlevels
             TYPE(C_PTR), VALUE                        :: npts_local
             TYPE(C_PTR), VALUE                        :: pab_blocks
-            TYPE(C_PTR), VALUE                        :: grid
+            TYPE(C_PTR), VALUE                        :: grids
             TYPE(C_PTR), VALUE                        :: hab_blocks
             TYPE(C_PTR), VALUE                        :: forces
             TYPE(C_PTR), VALUE                        :: virial
@@ -1083,13 +1076,12 @@ CONTAINS
       nlevels = SIZE(rs_grids)
       CPASSERT(nlevels > 0)
 
-      ALLOCATE (grid_pointers(nlevels))
+      ALLOCATE (grids_c(nlevels))
       ALLOCATE (npts_local(3, nlevels))
       DO ilevel = 1, nlevels
          rsgrid => rs_grids(ilevel)%rs_grid
          npts_local(:, ilevel) = rsgrid%ub_local - rsgrid%lb_local + 1
-         grid(1:, 1:, 1:) => rsgrid%r(:, :, :)  ! ensure lower bounds are (1,1,1)
-         grid_pointers(ilevel) = C_LOC(grid(1, 1, 1))
+         grids_c(ilevel) = rsgrid%buffer%c_ptr
       END DO
 
       IF (calculate_forces) THEN
@@ -1106,13 +1098,9 @@ CONTAINS
 
 #if __GNUC__ >= 9
       CPASSERT(IS_CONTIGUOUS(npts_local))
-      CPASSERT(IS_CONTIGUOUS(grid_pointers))
+      CPASSERT(IS_CONTIGUOUS(grids_c))
       CPASSERT(IS_CONTIGUOUS(forces))
       CPASSERT(IS_CONTIGUOUS(virial))
-      DO ilevel = 1, nlevels
-         grid(1:, 1:, 1:) => rs_grids(ilevel)%rs_grid%r(:, :, :)
-         CPASSERT(IS_CONTIGUOUS(grid))
-      END DO
 #endif
 
       CPASSERT(SIZE(forces, 1) == 3)
@@ -1127,7 +1115,7 @@ CONTAINS
                                       nlevels=nlevels, &
                                       npts_local=C_LOC(npts_local(1, 1)), &
                                       pab_blocks=pab_blocks%c_ptr, &
-                                      grid=C_LOC(grid_pointers(1)), &
+                                      grids=grids_c, &
                                       hab_blocks=hab_blocks%c_ptr, &
                                       forces=forces_c, &
                                       virial=virial_c)

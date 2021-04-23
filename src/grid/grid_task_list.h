@@ -105,7 +105,7 @@ void grid_free_task_list(grid_task_list *task_list);
  *
  * \param npts_local      Number of local grid points in each direction.
  * \param pab_blocks      Buffer that contains the density matrix blocks.
- * \param grid            The output grid array to collocate into.
+ * \param grids           The output grid array to collocate into.
  *
  * \author Ole Schuett
  ******************************************************************************/
@@ -113,7 +113,7 @@ void grid_collocate_task_list(const grid_task_list *task_list,
                               const enum grid_func func, const int nlevels,
                               const int npts_local[nlevels][3],
                               const offload_buffer *pab_blocks,
-                              double *grid[nlevels]);
+                              offload_buffer *grids[nlevels]);
 
 /*******************************************************************************
  * \brief Integrate all tasks of in given list from given grids.
@@ -126,7 +126,7 @@ void grid_collocate_task_list(const grid_task_list *task_list,
  *      The remaining params are given for each grid level:
  *
  * \param npts_local      Number of local grid points in each direction.
- * \param grid            Grid array to integrate from.
+ * \param grids           Grid array to integrate from.
  *
  * \param pab_blocks      Optional density blocks, needed for forces and virial.
  *
@@ -139,7 +139,7 @@ void grid_collocate_task_list(const grid_task_list *task_list,
 void grid_integrate_task_list(
     const grid_task_list *task_list, const bool compute_tau, const int natoms,
     const int nlevels, const int npts_local[nlevels][3],
-    const offload_buffer *pab_blocks, const double *grid[nlevels],
+    const offload_buffer *pab_blocks, const offload_buffer *grids[nlevels],
     offload_buffer *hab_blocks, double forces[natoms][3], double virial[3][3]);
 
 #endif

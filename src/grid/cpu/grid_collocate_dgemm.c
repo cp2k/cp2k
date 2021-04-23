@@ -1235,7 +1235,7 @@ void collocate_one_grid_level_dgemm(grid_context *const ctx,
 void grid_cpu_collocate_task_list(grid_cpu_task_list *const ptr,
                                   const enum grid_func func, const int nlevels,
                                   const offload_buffer *pab_blocks,
-                                  double *grid[nlevels]) {
+                                  offload_buffer *grids[nlevels]) {
 
   grid_context *const ctx = (grid_context *)ptr;
 
@@ -1251,7 +1251,7 @@ void grid_cpu_collocate_task_list(grid_cpu_task_list *const ptr,
     set_grid_parameters(&ctx->grid[level], ctx->orthorhombic,
                         layout->npts_global, layout->npts_local,
                         layout->shift_local, layout->border_width, layout->dh,
-                        layout->dh_inv, grid[level]);
+                        layout->dh_inv, grids[level]);
     memset(ctx->grid[level].data, 0,
            sizeof(double) * ctx->grid[level].alloc_size_);
   }

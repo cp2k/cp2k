@@ -146,7 +146,7 @@ void grid_collocate_task_list(const grid_task_list *task_list,
                               const enum grid_func func, const int nlevels,
                               const int npts_local[nlevels][3],
                               const offload_buffer *pab_blocks,
-                              double *grid[nlevels]) {
+                              offload_buffer *grids[nlevels]) {
 
   // Bounds check.
   assert(task_list->nlevels == nlevels);
@@ -159,16 +159,16 @@ void grid_collocate_task_list(const grid_task_list *task_list,
   switch (task_list->backend) {
   case GRID_BACKEND_REF:
     grid_ref_collocate_task_list(task_list->ref, func, nlevels, pab_blocks,
-                                 grid);
+                                 grids);
     break;
   case GRID_BACKEND_CPU:
     grid_cpu_collocate_task_list(task_list->cpu, func, nlevels, pab_blocks,
-                                 grid);
+                                 grids);
     break;
 #ifdef __GRID_CUDA
   case GRID_BACKEND_GPU:
     grid_gpu_collocate_task_list(task_list->gpu, func, nlevels, pab_blocks,
-                                 grid);
+                                 grids);
     break;
 #endif
   default:
@@ -180,16 +180,17 @@ void grid_collocate_task_list(const grid_task_list *task_list,
   // Perform validation if enabled.
   if (grid_library_get_config().validate) {
     // Allocate space for reference results.
-    double *grid_ref[nlevels];
+    offload_buffer *grids_ref[nlevels];
     for (int level = 0; level < nlevels; level++) {
-      const size_t sizeof_grid = sizeof(double) * npts_local[level][0] *
-                                 npts_local[level][1] * npts_local[level][2];
-      grid_ref[level] = malloc(sizeof_grid);
+      const int npts_local_total =
+          npts_local[level][0] * npts_local[level][1] * npts_local[level][2];
+      grids_ref[level] = NULL;
+      offload_create_buffer(npts_local_total, &grids_ref[level]);
     }
 
     // Call reference implementation.
     grid_ref_collocate_task_list(task_list->ref, func, nlevels, pab_blocks,
-                                 grid_ref);
+                                 grids_ref);
 
     // Compare results.
     const double tolerance = 1e-12;
@@ -200,8 +201,9 @@ void grid_collocate_task_list(const grid_task_list *task_list,
           for (int k = 0; k < npts_local[level][2]; k++) {
             const int idx = k * npts_local[level][1] * npts_local[level][0] +
                             j * npts_local[level][0] + i;
-            const double ref_value = grid_ref[level][idx];
-            const double diff = fabs(grid[level][idx] - ref_value);
+            const double ref_value = grids_ref[level]->host_buffer[idx];
+            const double test_value = grids[level]->host_buffer[idx];
+            const double diff = fabs(test_value - ref_value);
             const double rel_diff = diff / fmax(1.0, fabs(ref_value));
             max_rel_diff = fmax(max_rel_diff, rel_diff);
             if (rel_diff > tolerance) {
@@ -216,7 +218,7 @@ void grid_collocate_task_list(const grid_task_list *task_list,
           }
         }
       }
-      free(grid_ref[level]);
+      offload_free_buffer(grids_ref[level]);
       printf("Validated grid collocate, max rel. diff: %le\n", max_rel_diff);
     }
   }
@@ -230,7 +232,7 @@ void grid_collocate_task_list(const grid_task_list *task_list,
 void grid_integrate_task_list(
     const grid_task_list *task_list, const bool compute_tau, const int natoms,
     const int nlevels, const int npts_local[nlevels][3],
-    const offload_buffer *pab_blocks, const double *grid[nlevels],
+    const offload_buffer *pab_blocks, const offload_buffer *grids[nlevels],
     offload_buffer *hab_blocks, double forces[natoms][3], double virial[3][3]) {
 
   // Bounds check.
@@ -248,16 +250,16 @@ void grid_integrate_task_list(
 #ifdef __GRID_CUDA
   case GRID_BACKEND_GPU:
     grid_gpu_integrate_task_list(task_list->gpu, compute_tau, natoms, nlevels,
-                                 pab_blocks, grid, hab_blocks, forces, virial);
+                                 pab_blocks, grids, hab_blocks, forces, virial);
     break;
 #endif
   case GRID_BACKEND_CPU:
     grid_cpu_integrate_task_list(task_list->cpu, compute_tau, natoms, nlevels,
-                                 pab_blocks, grid, hab_blocks, forces, virial);
+                                 pab_blocks, grids, hab_blocks, forces, virial);
     break;
   case GRID_BACKEND_REF:
     grid_ref_integrate_task_list(task_list->ref, compute_tau, natoms, nlevels,
-                                 pab_blocks, grid, hab_blocks, forces, virial);
+                                 pab_blocks, grids, hab_blocks, forces, virial);
     break;
   default:
     printf("Error: Unknown grid backend: %i.\n", task_list->backend);
@@ -275,7 +277,7 @@ void grid_integrate_task_list(
 
     // Call reference implementation.
     grid_ref_integrate_task_list(task_list->ref, compute_tau, natoms, nlevels,
-                                 pab_blocks, grid, hab_blocks_ref,
+                                 pab_blocks, grids, hab_blocks_ref,
                                  (forces != NULL) ? forces_ref : NULL,
                                  (virial != NULL) ? virial_ref : NULL);
 

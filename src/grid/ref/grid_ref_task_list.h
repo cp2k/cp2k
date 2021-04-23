@@ -102,7 +102,7 @@ void grid_ref_free_task_list(grid_ref_task_list *task_list);
 void grid_ref_collocate_task_list(const grid_ref_task_list *task_list,
                                   const enum grid_func func, const int nlevels,
                                   const offload_buffer *pab_blocks,
-                                  double *grid[nlevels]);
+                                  offload_buffer *grids[nlevels]);
 
 /*******************************************************************************
  * \brief Integrate all tasks of in given list from given grids.
@@ -112,7 +112,7 @@ void grid_ref_collocate_task_list(const grid_ref_task_list *task_list,
 void grid_ref_integrate_task_list(
     const grid_ref_task_list *task_list, const bool compute_tau,
     const int natoms, const int nlevels, const offload_buffer *pab_blocks,
-    const double *grid[nlevels], offload_buffer *hab_blocks,
+    const offload_buffer *grids[nlevels], offload_buffer *hab_blocks,
     double forces[natoms][3], double virial[3][3]);
 
 #endif
