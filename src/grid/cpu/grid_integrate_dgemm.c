@@ -1060,7 +1060,7 @@ void integrate_one_grid_level_dgemm(
  ******************************************************************************/
 void grid_cpu_integrate_task_list(
     void *ptr, const bool compute_tau, const int natoms, const int nlevels,
-    const offload_buffer *const pab_blocks, double *grid[nlevels],
+    const offload_buffer *const pab_blocks, offload_buffer *grids[nlevels],
     offload_buffer *hab_blocks, double forces[natoms][3], double virial[3][3]) {
 
   grid_context *const ctx = (grid_context *)ptr;
@@ -1083,8 +1083,8 @@ void grid_cpu_integrate_task_list(
     set_grid_parameters(&ctx->grid[level], ctx->orthorhombic,
                         layout->npts_global, layout->npts_local,
                         layout->shift_local, layout->border_width, layout->dh,
-                        layout->dh_inv, grid[level]);
-    ctx->grid[level].data = grid[level];
+                        layout->dh_inv, grids[level]);
+    ctx->grid[level].data = grids[level]->host_buffer;
   }
 
   bool calculate_virial = (virial != NULL);

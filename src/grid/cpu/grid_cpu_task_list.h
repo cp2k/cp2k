@@ -50,12 +50,12 @@ void grid_cpu_free_task_list(grid_cpu_task_list *task_list);
 void grid_cpu_collocate_task_list(grid_cpu_task_list *const task_list,
                                   const enum grid_func func, const int nlevels,
                                   const offload_buffer *pab_blocks,
-                                  double *grid[nlevels]);
+                                  offload_buffer *grids[nlevels]);
 
 void grid_cpu_integrate_task_list(void *const ptr, const bool compute_tau,
                                   const int natoms, const int nlevels,
                                   const offload_buffer *const pab_blocks,
-                                  const double *grid[nlevels],
+                                  const offload_buffer *grids[nlevels],
                                   offload_buffer *hab_blocks,
                                   double forces[natoms][3],
                                   double virial[3][3]);

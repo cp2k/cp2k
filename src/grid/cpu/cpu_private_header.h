@@ -160,7 +160,7 @@ extern void set_grid_parameters(
     const double
         dh[3][3], /* displacement vectors of the grid (cartesian) -> (ijk) */
     const double dh_inv[3][3], /* (ijk) -> (x,y,z) */
-    double *grid_);
+    offload_buffer *grid_);
 
 extern void collocate_one_grid_level_dgemm(grid_context *const ctx,
                                            const int *const, const int *const,

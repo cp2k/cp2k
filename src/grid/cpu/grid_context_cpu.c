@@ -498,12 +498,12 @@ void set_grid_parameters(
     const double
         dh[3][3], /* displacement vectors of the grid (cartesian) -> (ijk) */
     const double dh_inv[3][3], /* (ijk) -> (x,y,z) */
-    double *grid_) {
+    offload_buffer *grid_) {
   memset(grid, 0, sizeof(tensor));
   initialize_tensor_3(grid, grid_local_size[2], grid_local_size[1],
                       grid_local_size[0]);
 
-  grid->data = grid_;
+  grid->data = grid_->host_buffer;
   grid->ld_ = grid_local_size[0];
 
   setup_global_grid_size(grid, &grid_full_size[0]);

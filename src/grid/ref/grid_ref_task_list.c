@@ -249,7 +249,7 @@ static void collocate_one_grid_level(
     const int *last_block_task, const enum grid_func func,
     const int npts_global[3], const int npts_local[3], const int shift_local[3],
     const int border_width[3], const double dh[3][3], const double dh_inv[3][3],
-    const double *pab_blocks, double *grid) {
+    const double *pab_blocks, offload_buffer *grid) {
 
 // Using default(shared) because with GCC 9 the behavior around const changed:
 // https://www.gnu.org/software/gcc/gcc-9/porting_to.html
@@ -378,7 +378,7 @@ static void collocate_one_grid_level(
     const int lb = (npts_local_total * ithread) / nthreads;
     const int ub = (npts_local_total * (ithread + 1)) / nthreads;
     for (int i = lb; i < ub; i++) {
-      grid[i] = task_list->threadlocals[0][i];
+      grid->host_buffer[i] = task_list->threadlocals[0][i];
     }
 
   } // end of omp parallel region
@@ -392,7 +392,7 @@ static void collocate_one_grid_level(
 void grid_ref_collocate_task_list(const grid_ref_task_list *task_list,
                                   const enum grid_func func, const int nlevels,
                                   const offload_buffer *pab_blocks,
-                                  double *grid[nlevels]) {
+                                  offload_buffer *grids[nlevels]) {
 
   assert(task_list->nlevels == nlevels);
 
@@ -404,7 +404,7 @@ void grid_ref_collocate_task_list(const grid_ref_task_list *task_list,
     collocate_one_grid_level(
         task_list, first_block_task, last_block_task, func, layout->npts_global,
         layout->npts_local, layout->shift_local, layout->border_width,
-        layout->dh, layout->dh_inv, pab_blocks->host_buffer, grid[level]);
+        layout->dh, layout->dh_inv, pab_blocks->host_buffer, grids[level]);
   }
 }
 
@@ -460,7 +460,7 @@ static void integrate_one_grid_level(
     const int *last_block_task, const bool compute_tau, const int natoms,
     const int npts_global[3], const int npts_local[3], const int shift_local[3],
     const int border_width[3], const double dh[3][3], const double dh_inv[3][3],
-    const offload_buffer *pab_blocks, const double *grid,
+    const offload_buffer *pab_blocks, const offload_buffer *grid,
     offload_buffer *hab_blocks, double forces[natoms][3], double virial[3][3]) {
 
 // Using default(shared) because with GCC 9 the behavior around const changed:
@@ -557,7 +557,7 @@ static void integrate_one_grid_level(
             /*o2=*/jpgf * ncosetb,
             /*n1=*/ncoa,
             /*n2=*/ncob,
-            /*grid=*/grid,
+            /*grid=*/grid->host_buffer,
             /*hab=*/(double(*)[ncoa])hab,
             /*pab=*/(pab_required) ? (const double(*)[ncoa])pab : NULL,
             /*forces=*/(forces != NULL) ? my_forces : NULL,
@@ -606,7 +606,7 @@ static void integrate_one_grid_level(
 void grid_ref_integrate_task_list(
     const grid_ref_task_list *task_list, const bool compute_tau,
     const int natoms, const int nlevels, const offload_buffer *pab_blocks,
-    const double *grid[nlevels], offload_buffer *hab_blocks,
+    const offload_buffer *grids[nlevels], offload_buffer *hab_blocks,
     double forces[natoms][3], double virial[3][3]) {
 
   assert(task_list->nlevels == nlevels);
@@ -630,7 +630,7 @@ void grid_ref_integrate_task_list(
         task_list, first_block_task, last_block_task, compute_tau, natoms,
         layout->npts_global, layout->npts_local, layout->shift_local,
         layout->border_width, layout->dh, layout->dh_inv, pab_blocks,
-        grid[level], hab_blocks, forces, virial);
+        grids[level], hab_blocks, forces, virial);
   }
 }
 

@@ -285,16 +285,17 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
   const double(*pab)[n1] = (const double(*)[n1])pab_mutable;
 
   const int npts_local_total = npts_local[0] * npts_local[1] * npts_local[2];
-  const size_t sizeof_grid = sizeof(double) * npts_local_total;
-  double *grid_ref = malloc(sizeof_grid);
-  memset(grid_ref, 0, sizeof_grid);
+  offload_buffer *grid_ref = NULL;
+  offload_create_buffer(npts_local_total, &grid_ref);
+  memset(grid_ref->host_buffer, 0, npts_local_total * sizeof(double));
 
   const int ngrid_nonzero = parse_int("ngrid_nonzero", fp);
   for (int n = 0; n < ngrid_nonzero; n++) {
     int i, j, k;
     double value;
     parse_next_line("grid", fp, "%i %i %i %le", 4, &i, &j, &k, &value);
-    grid_ref[k * npts_local[1] * npts_local[0] + j * npts_local[0] + i] = value;
+    grid_ref->host_buffer[k * npts_local[1] * npts_local[0] +
+                          j * npts_local[0] + i] = value;
   }
 
   double hab_ref[n2][n1];
@@ -320,7 +321,8 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
     abort();
   }
 
-  double *grid_test = malloc(sizeof_grid);
+  offload_buffer *grid_test = NULL;
+  offload_create_buffer(npts_local_total, &grid_test);
   double hab_test[n2][n1];
   double forces_test[2][3];
   double virial_test[3][3];
@@ -352,17 +354,15 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
     const int natoms = 2;
     if (collocate) {
       // collocate
-      double *grids_array[1] = {grid_test};
+      offload_buffer *grids[1] = {grid_test};
       grid_collocate_task_list(task_list, func, nlevels,
-                               (const int(*)[3])npts_local, pab_blocks,
-                               grids_array);
+                               (const int(*)[3])npts_local, pab_blocks, grids);
     } else {
       // integrate
-      double *grids_array[1] = {grid_ref};
+      const offload_buffer *grids[1] = {grid_ref};
       grid_integrate_task_list(task_list, compute_tau, natoms, nlevels,
-                               (const int(*)[3])npts_local, pab_blocks,
-                               (const double(**))grids_array, hab_blocks,
-                               forces_test, virial_test);
+                               (const int(*)[3])npts_local, pab_blocks, grids,
+                               hab_blocks, forces_test, virial_test);
       for (int i = 0; i < n2; i++) {
         for (int j = 0; j < n1; j++) {
           hab_test[i][j] = hab_blocks->host_buffer[i * n1 + j];
@@ -379,12 +379,13 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
     if (collocate) {
       // collocate
-      memset(grid_test, 0, sizeof_grid);
+      memset(grid_test->host_buffer, 0, npts_local_total * sizeof(double));
       for (int i = 0; i < cycles; i++) {
         grid_ref_collocate_pgf_product(
             orthorhombic, border_mask, func, la_max, la_min, lb_max, lb_min,
             zeta, zetb, rscale, dh, dh_inv, ra, rab, npts_global, npts_local,
-            shift_local, border_width, radius, o1, o2, n1, n2, pab, grid_test);
+            shift_local, border_width, radius, o1, o2, n1, n2, pab,
+            grid_test->host_buffer);
       }
     } else {
       // integrate
@@ -395,8 +396,9 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
         grid_ref_integrate_pgf_product(
             orthorhombic, compute_tau, border_mask, la_max, la_min, lb_max,
             lb_min, zeta, zetb, dh, dh_inv, ra, rab, npts_global, npts_local,
-            shift_local, border_width, radius, o1, o2, n1, n2, grid_ref,
-            hab_test, pab, forces_test, virials_test, NULL, NULL);
+            shift_local, border_width, radius, o1, o2, n1, n2,
+            grid_ref->host_buffer, hab_test, pab, forces_test, virials_test,
+            NULL, NULL);
       }
       for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
@@ -415,8 +417,8 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
     // collocate
     // compare grid
     for (int i = 0; i < npts_local_total; i++) {
-      const double ref_value = cycles * grid_ref[i];
-      const double test_value = grid_test[i];
+      const double ref_value = cycles * grid_ref->host_buffer[i];
+      const double test_value = grid_test->host_buffer[i];
       const double diff = fabs(test_value - ref_value);
       const double rel_diff = diff / fmax(1.0, fabs(ref_value));
       max_rel_diff = fmax(max_rel_diff, rel_diff);
@@ -468,8 +470,8 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
          batch ? "Batched" : "PGF-Ref", (float)cycles, max_value, max_rel_diff,
          delta_sec);
 
-  free(grid_ref);
-  free(grid_test);
+  offload_free_buffer(grid_ref);
+  offload_free_buffer(grid_test);
 
   // Check floating point exceptions.
   if (fetestexcept(FE_DIVBYZERO) != 0) {
