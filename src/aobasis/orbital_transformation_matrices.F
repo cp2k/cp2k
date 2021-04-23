@@ -43,14 +43,13 @@ MODULE orbital_transformation_matrices
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: c2s, slm, s2c
    END TYPE orbtramat_type
 
-   REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE  :: c2s_tramat, s2c_tramat
    TYPE(orbtramat_type), DIMENSION(:), POINTER :: orbtramat
 
    INTEGER, SAVE :: current_maxl = -1
 
    ! Public variables
 
-   PUBLIC :: orbtramat, c2s_tramat
+   PUBLIC :: orbtramat
 
    ! Public subroutines
 
@@ -95,9 +94,6 @@ CONTAINS
       ALLOCATE (orbtramat(0:maxl))
       nc = ncoset(maxl)
       ns = nsoset(maxl)
-      ALLOCATE (c2s_tramat(ns, nc), s2c_tramat(ns, nc))
-      c2s_tramat = 0.0_dp
-      s2c_tramat = 0.0_dp
 
       DO l = 0, maxl
          nc = nco(l)
@@ -113,8 +109,10 @@ CONTAINS
       ! Loop over all angular momentum quantum numbers l
 
       DO l = 0, maxl
+
          ! Build the orbital transformation matrix for the transformation
          ! from Cartesian to spherical orbitals (c2s, formula 15)
+
          DO lx = 0, l
             DO ly = 0, l - lx
                lz = l - lx - ly
@@ -207,32 +205,6 @@ CONTAINS
             END DO
          END DO
 
-         ! Build up one shot transformation for unnormalized functions
-
-         nc = nco(l)
-         ns = nso(l)
-         lx1 = ncoset(l - 1) + 1
-         ly1 = nsoset(l - 1) + 1
-         lx2 = ncoset(l)
-         ly2 = nsoset(l)
-         s2c_tramat(ly1:ly2, lx1:lx2) = orbtramat(l)%s2c(1:ns, 1:nc)
-         c2s_tramat(ly1:ly2, lx1:lx2) = orbtramat(l)%c2s(1:ns, 1:nc)
-
-         s1 = 8.0_dp*pi*fac(l + 1)/fac(2*l + 2)
-         DO lx = 0, l
-            DO ly = 0, l - lx
-               lz = l - lx - ly
-               s2 = fac(2*lx)*fac(2*ly)*fac(2*lz)/(fac(lx)*fac(ly)*fac(lz))
-               s = SQRT(s1*s2)
-               ic = ncoset(l - 1) + co(lx, ly, lz)
-               DO m = -l, l
-                  is = nsoset(l - 1) + l + m + 1
-                  s2c_tramat(is, ic) = s2c_tramat(is, ic)*s
-                  c2s_tramat(is, ic) = c2s_tramat(is, ic)/s
-               END DO
-            END DO
-         END DO
-
       END DO
 
       ! Save initialization status
@@ -261,8 +233,6 @@ CONTAINS
             DEALLOCATE (orbtramat(l)%s2c)
          END DO
          DEALLOCATE (orbtramat)
-         DEALLOCATE (c2s_tramat)
-         DEALLOCATE (s2c_tramat)
          current_maxl = -1
       END IF
 
