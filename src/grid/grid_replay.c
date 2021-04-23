@@ -6,7 +6,7 @@
 /*----------------------------------------------------------------------------*/
 
 // needed for struct timespec
-#define _XOPEN_SOURCE 700 /* Enable POSIX 2008/13 */
+#define _POSIX_C_SOURCE 200809L
 
 #include <assert.h>
 #include <fenv.h>
