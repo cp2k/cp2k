@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../offload/offload_buffer.h"
+#include "../offload/offload_library.h"
 #include "common/grid_library.h"
 #include "grid_replay.h"
 

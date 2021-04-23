@@ -47,7 +47,6 @@ MODULE f77_interface
                                               unpack_subsys_particles
    USE dbcsr_api,                       ONLY: dbcsr_finalize_lib,&
                                               dbcsr_init_lib
-   USE dbcsr_config,                    ONLY: get_accdrv_active_device_id
    USE eip_environment,                 ONLY: eip_init
    USE eip_environment_types,           ONLY: eip_env_create,&
                                               eip_env_release,&
@@ -100,7 +99,7 @@ MODULE f77_interface
                                               m_getcwd,&
                                               m_memory
    USE message_passing,                 ONLY: &
-        add_mp_perf_env, get_mp_perf_env, mp_comm_world, mp_max, mp_perf_env_release, &
+        add_mp_perf_env, get_mp_perf_env, mp_comm_world, mp_environ, mp_max, mp_perf_env_release, &
         mp_perf_env_retain, mp_perf_env_type, mp_world_finalize, mp_world_init, rm_mp_perf_env
    USE metadynamics_types,              ONLY: meta_env_release,&
                                               meta_env_type
@@ -112,7 +111,9 @@ MODULE f77_interface
    USE nnp_environment_types,           ONLY: nnp_env_create,&
                                               nnp_env_release,&
                                               nnp_type
-   USE offload_api,                     ONLY: offload_set_device_id
+   USE offload_api,                     ONLY: offload_get_device_count,&
+                                              offload_get_device_id,&
+                                              offload_set_device_id
    USE periodic_table,                  ONLY: init_periodic_table
    USE pw_cuda,                         ONLY: pw_cuda_finalize,&
                                               pw_cuda_init
@@ -213,7 +214,8 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: init_mpi
       INTEGER, INTENT(out)                               :: ierr
 
-      INTEGER                                            :: mpi_comm_default, unit_nr
+      INTEGER                                            :: mpi_comm_default, numtask, taskid, &
+                                                            unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger
 
       IF (.NOT. module_initialized) THEN
@@ -267,13 +269,22 @@ CONTAINS
          !   *** init the bibliography ***
          CALL add_all_references()
 
+         ! Select active offload device when available.
+         IF (offload_get_device_count() > 0) THEN
+            CALL mp_environ(numtask=numtask, taskid=taskid, groupid=mpi_comm_default)
+            CALL offload_set_device_id(MOD(taskid, offload_get_device_count()))
+         ENDIF
+
          ! Initialize the DBCSR configuration
          ! Attach the time handler hooks to DBCSR
-         ! DBCSR sets the device for multi-gpu, make sure it is the first GPU call
-         CALL dbcsr_init_lib(default_para_env%group, timeset_hook, timestop_hook, &
-                             cp_abort_hook, cp_warn_hook, io_unit=unit_nr)
-
-         CALL offload_set_device_id(device_id=get_accdrv_active_device_id())
+         IF (offload_get_device_count() > 0) THEN
+            CALL dbcsr_init_lib(default_para_env%group, timeset_hook, timestop_hook, &
+                                cp_abort_hook, cp_warn_hook, io_unit=unit_nr, &
+                                accdrv_active_device_id=offload_get_device_id())
+         ELSE
+            CALL dbcsr_init_lib(default_para_env%group, timeset_hook, timestop_hook, &
+                                cp_abort_hook, cp_warn_hook, io_unit=unit_nr)
+         ENDIF
 
          CALL pw_cuda_init()
 

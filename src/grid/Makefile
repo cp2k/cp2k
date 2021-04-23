@@ -3,14 +3,15 @@
 all: grid_miniapp.x grid_unittest.x
 
 clean:
-	rm -fv *.o */*.o *.x ../offload/offload_buffer.o
+	rm -fv *.o */*.o *.x ../offload/*.o
 
 CFLAGS := -fopenmp -g -O3 -march=native -Wall -Wextra
 NVFLAGS := -g -O3 -lineinfo -arch sm_70 -Wno-deprecated-gpu-targets -Xcompiler "$(CFLAGS)" -D__GRID_CUDA
 LIBS := -lm -lblas
 
-ALL_HEADERS := $(shell find . -name "*.h") ../offload/offload_buffer.h
+ALL_HEADERS := $(shell find . -name "*.h") $(shell find ../offload/ -name "*.h")
 ALL_OBJECTS := ../offload/offload_buffer.o \
+               ../offload/offload_library.o \
                grid_replay.o \
                grid_task_list.o \
                common/grid_library.o \

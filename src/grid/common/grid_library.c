@@ -29,10 +29,8 @@ typedef struct {
 static grid_library_globals **per_thread_globals = NULL;
 static bool library_initialized = false;
 static int max_threads = 0;
-static grid_library_config config = {.backend = GRID_BACKEND_AUTO,
-                                     .device_id = 0,
-                                     .validate = false,
-                                     .apply_cutoff = false};
+static grid_library_config config = {
+    .backend = GRID_BACKEND_AUTO, .validate = false, .apply_cutoff = false};
 
 #if !defined(_OPENMP)
 #error "OpenMP is required. Please add -fopenmp to your C compiler flags."
@@ -97,10 +95,8 @@ grid_sphere_cache *grid_library_get_sphere_cache(void) {
  * \author Ole Schuett
  ******************************************************************************/
 void grid_library_set_config(const enum grid_backend backend,
-                             const int device_id, const bool validate,
-                             const bool apply_cutoff) {
+                             const bool validate, const bool apply_cutoff) {
   config.backend = backend;
-  config.device_id = device_id;
   config.validate = validate;
   config.apply_cutoff = apply_cutoff;
 }

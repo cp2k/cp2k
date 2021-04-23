@@ -4,39 +4,37 @@
 /*                                                                            */
 /*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
 /*----------------------------------------------------------------------------*/
-#ifndef OFFLOAD_BUFFER_H
-#define OFFLOAD_BUFFER_H
 
-#include <stddef.h>
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-/*******************************************************************************
- * \brief Internal representation of a buffer.
- * \author Ole Schuett
- ******************************************************************************/
-typedef struct {
-  size_t size;
-  double *host_buffer;
-  double *device_buffer;
-} offload_buffer;
+#include "offload_library.h"
+
+static int current_device_id = -1;
 
 /*******************************************************************************
- * \brief Allocates a buffer of given length, ie. number of elements.
+ * \brief Returns the number of available devices.
  * \author Ole Schuett
  ******************************************************************************/
-void offload_create_buffer(const int length, offload_buffer **buffer);
-
-/*******************************************************************************
- * \brief Deallocate given buffer.
- * \author Ole Schuett
- ******************************************************************************/
-void offload_free_buffer(offload_buffer *buffer);
-
-/*******************************************************************************
- * \brief Returns a pointer to the host buffer.
- * \author Ole Schuett
- ******************************************************************************/
-double *offload_get_buffer_host_pointer(offload_buffer *buffer);
-
+int offload_get_device_count() {
+  int count = 0;
+#ifdef __OFFLOAD_CUDA
+  OFFLOAD_CHECK(cudaGetDeviceCount(&count));
 #endif
+  return count;
+}
+
+/*******************************************************************************
+ * \brief Selects the device to be used.
+ * \author Ole Schuett
+ ******************************************************************************/
+void offload_set_device_id(int device_id) { current_device_id = device_id; }
+
+/*******************************************************************************
+ * \brief Returns the device to be used.
+ * \author Ole Schuett
+ ******************************************************************************/
+int offload_get_device_id() { return current_device_id; }
 
 // EOF

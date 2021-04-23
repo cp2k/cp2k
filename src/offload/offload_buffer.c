@@ -10,33 +10,7 @@
 #include <stdlib.h>
 
 #include "offload_buffer.h"
-
-#ifdef __GRID_CUDA
-#define __OFFLOAD_CUDA
-#endif
-
-#ifdef __OFFLOAD_CUDA
-#include <cuda_runtime.h>
-#endif
-
-static int current_device_id = -1;
-
-/*******************************************************************************
- * \brief Checks given Cuda status and upon failure abort with a nice message.
- * \author Ole Schuett
- ******************************************************************************/
-#define CHECK(status)                                                          \
-  if (status != cudaSuccess) {                                                 \
-    fprintf(stderr, "ERROR: %s %s %d\n", cudaGetErrorString(status), __FILE__, \
-            __LINE__);                                                         \
-    abort();                                                                   \
-  }
-
-/*******************************************************************************
- * \brief Selects the device to be used.
- * \author Ole Schuett
- ******************************************************************************/
-void offload_set_device_id(int device_id) { current_device_id = device_id; }
+#include "offload_library.h"
 
 /*******************************************************************************
  * \brief Allocates a buffer of given length, ie. number of elements.
@@ -60,9 +34,10 @@ void offload_create_buffer(const int length, offload_buffer **buffer) {
 #ifdef __OFFLOAD_CUDA
   // With size 0 cudaMallocHost doesn't null the pointer and cudaFreeHost fails.
   (*buffer)->host_buffer = NULL;
-  CHECK(cudaSetDevice(current_device_id));
-  CHECK(cudaMallocHost((void **)&(*buffer)->host_buffer, requested_size));
-  CHECK(cudaMalloc((void **)&(*buffer)->device_buffer, requested_size));
+  OFFLOAD_CHECK(cudaSetDevice(offload_get_device_id()));
+  OFFLOAD_CHECK(
+      cudaMallocHost((void **)&(*buffer)->host_buffer, requested_size));
+  OFFLOAD_CHECK(cudaMalloc((void **)&(*buffer)->device_buffer, requested_size));
 #else
   (*buffer)->host_buffer = malloc(requested_size);
   (*buffer)->device_buffer = NULL;
@@ -79,8 +54,8 @@ void offload_free_buffer(offload_buffer *buffer) {
     return;
 
 #ifdef __OFFLOAD_CUDA
-  CHECK(cudaFreeHost(buffer->host_buffer));
-  CHECK(cudaFree(buffer->device_buffer));
+  OFFLOAD_CHECK(cudaFreeHost(buffer->host_buffer));
+  OFFLOAD_CHECK(cudaFree(buffer->device_buffer));
 #else
   free(buffer->host_buffer);
 #endif
