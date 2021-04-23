@@ -132,7 +132,7 @@ Fist/regtest-pol
 Fist/regtest-6
 QS/regtest-ps-implicit-1-2                                  fftw3
 SE/regtest-2-1
-QS/regtest-dft-vdw-corr-2                                   libxc
+QS/regtest-dft-vdw-corr-2                                   libxc libint
 QS/regtest-sparsity                                         libint
 QS/regtest-admm-2                                           libint
 QS/regtest-double-hybrid-2                                  libint
