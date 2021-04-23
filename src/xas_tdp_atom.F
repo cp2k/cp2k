@@ -58,8 +58,6 @@ MODULE xas_tdp_atom
                                               init_lebedev_grids,&
                                               lebedev_grid
    USE libint_2c_3c,                    ONLY: libint_potential_type
-   USE mathconstants,                   ONLY: dfac,&
-                                              pi
    USE mathlib,                         ONLY: get_diag,&
                                               invmat_symm
    USE memory_utilities,                ONLY: reallocate
@@ -466,27 +464,23 @@ CONTAINS
          DO ipgf = 1, npgf(iset)
             start_s = (ipgf - 1)*nsoset(lmax(iset))
             start_c = (ipgf - 1)*ncoset(lmax(iset))
-
             DO l = lmin(iset), lmax(iset)
                DO iso = 1, nso(l)
                   DO ico = 1, nco(l)
-
                      lx = indco(1, ico + ncoset(l - 1))
                      ly = indco(2, ico + ncoset(l - 1))
                      lz = indco(3, ico + ncoset(l - 1))
-
-                     factor = orbtramat(l)%s2c(iso, ico) &
-                              *SQRT(4.0_dp*pi/dfac(2*l + 1)*dfac(2*lx - 1)*dfac(2*ly - 1)*dfac(2*lz - 1))
-
+!MK                     factor = orbtramat(l)%s2c(iso, ico) &
+!MK                              *SQRT(4.0_dp*pi/dfac(2*l + 1)*dfac(2*lx - 1)*dfac(2*ly - 1)*dfac(2*lz - 1))
+                     factor = orbtramat(l)%slm_inv(iso, ico)
                      sphi_so(start_s + nsoset(l - 1) + iso, sgfi:sgfi + nsgf_set(iset) - 1) = &
-                        sphi_so(start_s + nsoset(l - 1) + iso, sgfi:sgfi + nsgf_set(iset) - 1) &
-                        + factor*sphi(start_c + ncoset(l - 1) + ico, sgfi:sgfi + nsgf_set(iset) - 1)
-
-                  END DO !ico
-               END DO !iso
-            END DO !l
-         END DO !ipgf
-      END DO !iset
+                        sphi_so(start_s + nsoset(l - 1) + iso, sgfi:sgfi + nsgf_set(iset) - 1) + &
+                        factor*sphi(start_c + ncoset(l - 1) + ico, sgfi:sgfi + nsgf_set(iset) - 1)
+                  END DO ! ico
+               END DO ! iso
+            END DO ! l
+         END DO ! ipgf
+      END DO ! iset
 
    END SUBROUTINE compute_sphi_so
 
