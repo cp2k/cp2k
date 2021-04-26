@@ -234,12 +234,14 @@ CONTAINS
    SUBROUTINE sap_sort(sap_int)
       TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
 
-      INTEGER                                            :: iac, na
+      INTEGER                                            :: iac, na, sap_int_size
 
 ! *** Set up a sorting index
 
+      sap_init_size = SIZE(sap_int)
+
 !$OMP DO
-      DO iac = 1, SIZE(sap_int)
+      DO iac = 1, sap_init_size
          IF (.NOT. ASSOCIATED(sap_int(iac)%alist)) CYCLE
          na = SIZE(sap_int(iac)%alist)
          ALLOCATE (sap_int(iac)%asort(na), sap_int(iac)%aindex(na))
