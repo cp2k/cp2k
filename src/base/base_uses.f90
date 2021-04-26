@@ -14,7 +14,7 @@
 
 ! Check for OpenMP early on - ideally before the compiler fails with a cryptic message.
 #if !defined(_OPENMP)
-#error "OpenMP is required. Please add the corresponding flag (eg. -fopenmp for GFortran) to your Fortran compiler flags."
+   "OpenMP is required. Please add the corresponding flag (eg. -fopenmp for GFortran) to your Fortran compiler flags."
 #endif
 
 ! Dangerous: Full path can be arbitrarily long and might overflow Fortran line.
