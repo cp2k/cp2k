@@ -789,7 +789,9 @@ CONTAINS
          IF (ASSOCIATED(sm_w)) THEN
 
             CPWARN("This is an experimental version of the forces calculation for the DFT+U method LOWDIN")
-            IF (virial%pv_calculate) CPABORT("The stress tensor is not implemented for the DFT+U method LOWDIN")
+            IF (virial%pv_calculate) THEN
+               CPABORT("The stress tensor is not implemented for the DFT+U method LOWDIN")
+            END IF
 
          END IF ! W matrix update requested
 
