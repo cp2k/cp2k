@@ -117,7 +117,7 @@ SECTION_TITLE([GPU support])
 dnl check for cuda support
 CUDA_DFLAGS=""
 ACX_CUDA([options="$options cuda"
-          CUDA_DFLAGS="-D__ACC -D__DBCSR_ACC -D__PW_CUDA"], [])
+          CUDA_DFLAGS="-D__DBCSR_ACC -D__PW_CUDA"], [])
 AC_SUBST(GPUVER)
 AC_SUBST(CUDA_DFLAGS)
 

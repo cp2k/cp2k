@@ -32,7 +32,7 @@ AR       = ar -r
 
 # FLAG's ###############################################################
 DFLAGS   = -D__FFTW3 \
-           -D__ACC -D__DBCSR_ACC -D__OPENCL \
+           -D__DBCSR_ACC -D__OPENCL \
            -D__LIBXC2 \
            -D__LIBINT \
            -D__USE_CP2K_TRACE \
