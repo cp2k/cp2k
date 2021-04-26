@@ -49,8 +49,7 @@ SPGLIB_LIB  = $(GNU_PATH)/spglib/1.16.0/lib
 CFLAGS      = -O3 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g
 CXXFLAGS    = $(CFLAGS) -std=c++11 # -D__CUDA
 
-DFLAGS      = -D__ACC
-DFLAGS     += -D__DBCSR_ACC
+DFLAGS      = -D__DBCSR_ACC
 DFLAGS     += -D__ELPA
 DFLAGS     += -D__FFTW3
 #DFLAGS     += -D__GRID_CUDA

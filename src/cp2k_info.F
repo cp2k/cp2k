@@ -131,9 +131,6 @@ CONTAINS
       flags = TRIM(flags)//" quip"
 #endif
 
-#if defined(__ACC)
-      flags = TRIM(flags)//" acc"
-#endif
 #if defined(__PW_CUDA)
       flags = TRIM(flags)//" pw_cuda"
 #endif
