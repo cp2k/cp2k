@@ -146,6 +146,7 @@ MODULE message_passing
    PUBLIC :: mp_comm_dup, mp_comm_split, mp_comm_split_direct
    PUBLIC :: cp2k_is_parallel
    PUBLIC :: mp_probe
+   PUBLIC :: mp_get_node_global_rank
 
    ! message passing
    PUBLIC :: mp_bcast, mp_sum, mp_sum_partial, mp_max, mp_maxloc, mp_minloc, mp_min, mp_prod, mp_sync
@@ -798,7 +799,7 @@ CONTAINS
       ierr = 0
 #if defined(__parallel)
 
-      CALL mpi_comm_group(mp_comm, oldgroup, ierr); 
+      CALL mpi_comm_group(mp_comm, oldgroup, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_group @ mp_reordering")
       CALL mpi_group_incl(oldgroup, SIZE(ranks_order), ranks_order, newgroup, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_group_incl @ mp_reordering")
@@ -2107,6 +2108,44 @@ CONTAINS
       CALL mp_timestop(handle)
 
    END SUBROUTINE mp_comm_split
+
+! **************************************************************************************************
+!> \brief Get the local rank on the node according to the global communicator
+!> \return Node Rank id
+!> \author Alfio Lazzaro
+! **************************************************************************************************
+   FUNCTION mp_get_node_global_rank() &
+      RESULT(node_rank)
+
+      INTEGER                                            :: node_rank
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_get_node_global_rank'
+      INTEGER                                            :: handle, comm, ierr, rank
+
+      ierr = 0
+      rank = 0
+      comm = 0
+      CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+#if __MPI_VERSION > 2
+      CALL mpi_comm_rank(MPI_COMM_WORLD, rank, ierr)
+      IF (ierr /= mpi_success) CALL mp_stop(ierr, routineN)
+      CALL mpi_comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, rank, MPI_INFO_NULL, comm, ierr)
+      IF (ierr /= mpi_success) CALL mp_stop(ierr, routineN)
+      CALL mpi_comm_rank(comm, node_rank, ierr)
+      IF (ierr /= mpi_success) CALL mp_stop(ierr, routineN)
+      CALL mpi_comm_free(comm, ierr)
+      IF (ierr /= mpi_success) CALL mp_stop(ierr, routineN)
+#else
+      CPABORT("mp_get_node_global_rank requires MPI-3 standard")
+#endif
+#else
+      node_rank = 0
+#endif
+      CALL mp_timestop(handle)
+
+   END FUNCTION mp_get_node_global_rank
 
 ! **************************************************************************************************
 !> \brief probes for an incoming message with any tag
