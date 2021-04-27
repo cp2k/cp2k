@@ -302,13 +302,13 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief helper function to print the k-dependent KS or S matrix to file
-!> \param dft_section the dft_section
 !> \param mat Hamiltonian or overlap matrix for k-point calculations
+!> \param dft_section the dft_section
 !> \param kpoints Kpoint environment
 !> \param prefix string to distinguish between KS and S matrix
-!> \author Fabian Ducry
 !> \par History
 !>       Moved the code from write_matrix_csr to write_matrix_kp_csr
+!> \author Fabian Ducry
 ! **************************************************************************************************
    SUBROUTINE write_matrix_kp_csr(mat, dft_section, kpoints, prefix)
       TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(IN), &
