@@ -432,12 +432,12 @@ CONTAINS
 !$OMP DEFAULT (NONE) &
 !$OMP SHARED  (dokp, basis_set, matrix_h, cell_to_index,&
 !$OMP          sab_orb, matrix_p, sap_int, nkind, eps_ppnl, force, &
-!$OMP          locks, virial, use_virial, calculate_forces) &
+!$OMP          locks, natom, virial, use_virial, calculate_forces) &
 !$OMP PRIVATE (ikind, jkind, iatom, jatom, cell_b, rab, &
 !$OMP          slot, iab, atom_a, f0, irow, icol, h_block, &
 !$OMP          found,p_block, iac, ibc, alist_ac, alist_bc, acint, bcint, &
 !$OMP          achint, bchint, na, np, nb, katom, j, fa, fb, rbc, rac, &
-!$OMP          kkind, kac, kbc, i, img, hash, iatom8, natom) &
+!$OMP          kkind, kac, kbc, i, img, hash, iatom8) &
 !$OMP REDUCTION (+ : pv_thread, force_thread )
 
 !$OMP SINGLE

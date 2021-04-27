@@ -1443,9 +1443,14 @@ CONTAINS
       LOGICAL                                            :: found
       REAL(KIND=dp)                                      :: ewald_rcut
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(pair_potential_single_type), POINTER          :: pot
 
-      NULLIFY (pot)
+      NULLIFY (pot, logger)
+
+      logger => cp_get_default_logger()
+      iw = cp_logger_get_default_io_unit(logger)
+
       DO ikind = 1, SIZE(atomic_kind_set)
          atomic_kind => atomic_kind_set(ikind)
          CALL get_atomic_kind(atomic_kind=atomic_kind, name=name_atm_a_local)
