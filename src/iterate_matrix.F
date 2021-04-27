@@ -1575,8 +1575,7 @@ CONTAINS
          !$OMP PARALLEL DEFAULT(NONE) &
 #endif
          !$OMP          PRIVATE(sm, sm_sign, sm_size, sm_firstcol, sm_lastcol, j) &
-         !$OMP          SHARED(dissection, myrank, my_sms, unit_nr, eigbufs, mu, new_mu) &
-         !$OMP          REDUCTION(+:trace)
+         !$OMP          SHARED(dissection, myrank, my_sms, unit_nr, eigbufs, mu, new_mu)
          !$OMP DO SCHEDULE(GUIDED)
          DO i = 1, SIZE(my_sms)
             WRITE (unit_nr, '(T3,A,1X,I4,1X,A,1X,I6)') "Rank", myrank, "finalizing submatrix", my_sms(i)
@@ -1603,8 +1602,7 @@ CONTAINS
          !$OMP PARALLEL DEFAULT(NONE) &
 #endif
          !$OMP          PRIVATE(sm, sm_sign, sm_size, sm_firstcol, sm_lastcol, j) &
-         !$OMP          SHARED(dissection, myrank, my_sms, unit_nr, eigbufs, mu, new_mu) &
-         !$OMP          REDUCTION(+:trace)
+         !$OMP          SHARED(dissection, myrank, my_sms, unit_nr, eigbufs, mu, new_mu)
          !$OMP DO SCHEDULE(GUIDED)
          DO i = 1, SIZE(my_sms)
             WRITE (unit_nr, '(T3,A,1X,I4,1X,A,1X,I6)') "Rank", myrank, "reprocessing submatrix", my_sms(i)

@@ -178,6 +178,10 @@ CONTAINS
 !$OMP     END PARALLEL
 
       logger => cp_get_default_logger()
+      ! we could check if tau/grad were consistent, but don't do anything here
+      IF (non_coer > 0) THEN
+         non_coer = 0
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE tpss_lda_eval

@@ -528,12 +528,12 @@ CONTAINS
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
 !$OMP SHARED  (basis_set, matrix_rv, matrix_rxrv, matrix_rrv, &
-!$OMP          sap_int, nkind, eps_ppnl, my_rv, my_rxrv, my_rrv, locks, sab_all) &
+!$OMP          sap_int, natom, nkind, eps_ppnl, my_rv, my_rxrv, my_rrv, locks, sab_all) &
 !$OMP PRIVATE (ikind, jkind, iatom, jatom, cell_b, rab, &
 !$OMP          iab, irow, icol, blocks_rv, blocks_rxrv, blocks_rrv, &
 !$OMP          found, iac, ibc, alist_ac, alist_bc, acint, bcint, &
 !$OMP          achint, bchint, na, np, nb, kkind, kac, kbc, i, &
-!$OMP          go, asso_rv, asso_rxrv, asso_rrv, hash, natom)
+!$OMP          go, asso_rv, asso_rxrv, asso_rrv, hash)
 
 !$OMP SINGLE
 !$    ALLOCATE (locks(nlock))
