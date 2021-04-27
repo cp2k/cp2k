@@ -350,6 +350,10 @@ static void collocate_one_grid_level(
       } // end of task loop
     }   // end of block loop
 
+// While there should be an implicit barrier at the end of the block loop, this
+// explicit barrier eliminates occasional seg faults with icc compiled binaries.
+#pragma omp barrier
+
     // Merge thread-local grids via an efficient tree reduction.
     const int nreduction_cycles = ceil(log(nthreads) / log(2)); // tree depth
     for (int icycle = 1; icycle <= nreduction_cycles; icycle++) {
