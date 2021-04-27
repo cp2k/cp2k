@@ -238,10 +238,9 @@ CONTAINS
 
 ! *** Set up a sorting index
 
-      sap_init_size = SIZE(sap_int)
-
+      sap_int_size = SIZE(sap_int)
 !$OMP DO
-      DO iac = 1, sap_init_size
+      DO iac = 1, sap_int_size
          IF (.NOT. ASSOCIATED(sap_int(iac)%alist)) CYCLE
          na = SIZE(sap_int(iac)%alist)
          ALLOCATE (sap_int(iac)%asort(na), sap_int(iac)%aindex(na))
