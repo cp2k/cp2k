@@ -39,13 +39,6 @@
        VERBOSE F
        PARALLEL_GROUP_SIZE  0
     &END KPOINTS
-    &PRINT
-      &KS_CSR_WRITE
-        REAL_SPACE .TRUE.
-        BINARY .TRUE.
-        THRESHOLD 1E-4
-      &END KS_CSR_WRITE
-    &END PRINT
   &END DFT
   &SUBSYS
     &CELL

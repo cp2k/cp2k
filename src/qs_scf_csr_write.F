@@ -227,19 +227,21 @@ CONTAINS
          CALL get_kpoint_info(kpoints, sab_nl=sab_nl)
          CALL get_neighbor_list_set_p(neighbor_list_sets=sab_nl, symmetric=do_symmetric)
 
-         ALLOCATE (cell_to_index(LBOUND(c2i, 1):UBOUND(c2i, 1), &
-                                 LBOUND(c2i, 2):UBOUND(c2i, 2), &
-                                 LBOUND(c2i, 3):UBOUND(c2i, 3)))
-         cell_to_index(LBOUND(c2i, 1):UBOUND(c2i, 1), &
-                       LBOUND(c2i, 2):UBOUND(c2i, 2), &
-                       LBOUND(c2i, 3):UBOUND(c2i, 3)) = c2i
-
          ! desymmetrize the KS or S matrices if necessary
          IF (do_symmetric) THEN
             CALL desymmetrize_rs_matrix(mat, mat_nosym, cell_to_index, index_to_cell, kpoints)
+            ncell = SIZE(index_to_cell, 2) ! update the number of cells
          ELSE
+            ALLOCATE (cell_to_index(LBOUND(c2i, 1):UBOUND(c2i, 1), &
+                                    LBOUND(c2i, 2):UBOUND(c2i, 2), &
+                                    LBOUND(c2i, 3):UBOUND(c2i, 3)))
+            cell_to_index(LBOUND(c2i, 1):UBOUND(c2i, 1), &
+                          LBOUND(c2i, 2):UBOUND(c2i, 2), &
+                          LBOUND(c2i, 3):UBOUND(c2i, 3)) = c2i
+
             ALLOCATE (index_to_cell(3, ncell))
             index_to_cell(1:3, 1:ncell) = i2c
+
             mat_nosym => mat
          END IF
 
@@ -462,16 +464,18 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), &
          INTENT(INOUT), POINTER                          :: mat_nosym
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(INOUT)                                   :: cell_to_index
+         INTENT(OUT)                                     :: cell_to_index
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: index_to_cell
       TYPE(kpoint_type), INTENT(IN), POINTER             :: kpoints
 
       CHARACTER(len=*), PARAMETER :: routineN = 'desymmetrize_rs_matrix'
 
       INTEGER                                            :: handle, iatom, ic, icn, icol, irow, &
-                                                            ispin, jatom, ncell, nomirror, nspin
+                                                            ispin, jatom, ncell, nomirror, nspin, &
+                                                            nx, ny, nz
       INTEGER, DIMENSION(3)                              :: cell
       INTEGER, DIMENSION(:, :), POINTER                  :: i2c
+      INTEGER, DIMENSION(:, :, :), POINTER               :: c2i
       LOGICAL                                            :: found, lwtr
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
       TYPE(neighbor_list_iterator_p_type), &
@@ -482,9 +486,18 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       i2c => kpoints%index_to_cell
+      c2i => kpoints%cell_to_index
 
       ncell = SIZE(i2c, 2)
       nspin = SIZE(mat, 1)
+
+      nx = MAX(ABS(LBOUND(c2i, 1)), ABS(UBOUND(c2i, 1)))
+      ny = MAX(ABS(LBOUND(c2i, 2)), ABS(UBOUND(c2i, 3)))
+      nz = MAX(ABS(LBOUND(c2i, 3)), ABS(UBOUND(c2i, 3)))
+      ALLOCATE (cell_to_index(-nx:nx, -ny:ny, -nz:nz))
+      cell_to_index(LBOUND(c2i, 1):UBOUND(c2i, 1), &
+                    LBOUND(c2i, 2):UBOUND(c2i, 2), &
+                    LBOUND(c2i, 3):UBOUND(c2i, 3)) = c2i
 
       ! identify cells with no mirror img
       nomirror = 0
@@ -498,7 +511,7 @@ CONTAINS
       ALLOCATE (index_to_cell(3, ncell + nomirror))
       index_to_cell(:, 1:ncell) = i2c
 
-      nomirror = 0
+      nomirror = 0 ! count the imgs without mirror
       DO ic = 1, ncell
          cell = index_to_cell(:, ic)
          IF (cell_to_index(-cell(1), -cell(2), -cell(3)) == 0) THEN
