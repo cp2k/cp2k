@@ -18,6 +18,7 @@
 !> - 10.2004 removed pao [fawzi]
 !> - 08.2014 separated qs-related stuff from atomic_kind_types.F [Ole Schuett]
 !> - 07.2015 new container for basis sets [jgh]
+!> - 04.2021 init dft_plus_u_type [MK]
 ! **************************************************************************************************
 MODULE qs_kind_types
    USE atom_sgp,                        ONLY: atom_sgp_potential_type,&
@@ -117,18 +118,20 @@ MODULE qs_kind_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_kind_types'
 
+! **************************************************************************************************
 !> \brief Input parameters for the DFT+U method
 ! **************************************************************************************************
    TYPE dft_plus_u_type
-      INTEGER                                :: l, max_scf
-      REAL(KIND=dp)                          :: eps_u_ramping, &
-                                                eps_scf, &
-                                                u_minus_j_target, &
-                                                u_minus_j, &
-                                                u_ramping
-      INTEGER, DIMENSION(:), POINTER         :: orbitals
-      LOGICAL                                :: init_u_ramping_each_scf, &
-                                                smear
+      INTEGER                                :: l = -1
+      INTEGER                                :: max_scf = -1
+      REAL(KIND=dp)                          :: eps_u_ramping = 0.0_dp
+      REAL(KIND=dp)                          :: eps_scf = HUGE(0.0_dp)
+      REAL(KIND=dp)                          :: u_minus_j_target
+      REAL(KIND=dp)                          :: u_minus_j = 0.0_dp
+      REAL(KIND=dp)                          :: u_ramping = 0.0_dp
+      INTEGER, DIMENSION(:), POINTER         :: orbitals => Null()
+      LOGICAL                                :: init_u_ramping_each_scf = .FALSE.
+      LOGICAL                                :: smear = .FALSE.
       REAL(KIND=dp), DIMENSION(:), POINTER   :: nelec => Null()
    END TYPE dft_plus_u_type
 
@@ -154,6 +157,7 @@ MODULE qs_kind_types
       REAL(KIND=dp)                          :: screening_radius = HUGE(dp)
    END TYPE pao_descriptor_type
 
+! **************************************************************************************************
 !> \brief Provides all information about a quickstep kind
 ! **************************************************************************************************
    TYPE qs_kind_type
@@ -214,6 +218,7 @@ MODULE qs_kind_types
       TYPE(pao_descriptor_type), DIMENSION(:), POINTER :: pao_descriptors => Null()
    END TYPE qs_kind_type
 
+! **************************************************************************************************
 !> \brief Provides a vector of pointers of type qs_kind_type
 ! **************************************************************************************************
    TYPE qs_kind_p_type
