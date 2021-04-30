@@ -4,6 +4,7 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 cc1.inp                                                1    1.0E-12             -45.38964266770495
+bn1.inp                                               94    1.0E-14              27
 #cc2.inp                   1 1.0E-12 -45.38989062944852
 #cc3.inp                   1 1.0E-12 -45.38990176407365
 #cc4.inp                   1 1.0E-12 -45.38975726647867
