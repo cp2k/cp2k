@@ -152,8 +152,10 @@ CONTAINS
             gridlevel = i
          ENDIF
       ENDDO
+      !$OMP CRITICAL(add_counts)
       gridlevel_info%total_count = gridlevel_info%total_count + 1
       gridlevel_info%count(gridlevel) = gridlevel_info%count(gridlevel) + 1
+      !$OMP END CRITICAL(add_counts)
 
    END FUNCTION gaussian_gridlevel
 
