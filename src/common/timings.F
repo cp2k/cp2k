@@ -45,6 +45,9 @@ MODULE timings
                                               callstack_entry_type,&
                                               routine_stat_type
    USE timings_types,                   ONLY: timer_env_type
+   USE hip_profiling,                   ONLY: roctxRangePushA,&
+                                              roctxRangePop
+   USE ISO_C_BINDING,                   ONLY: C_NULL_CHAR
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -224,6 +227,9 @@ CONTAINS
       TYPE(callstack_entry_type)                         :: cs_entry
       TYPE(routine_stat_type), POINTER                   :: r_stat
       TYPE(timer_env_type), POINTER                      :: timer_env
+#if defined( __HIP_PROFILING )
+      INTEGER                                            :: ret
+#endif
 
 !$OMP MASTER
 !$OMP CRITICAL(time_setstop)
@@ -278,6 +284,9 @@ CONTAINS
 #if defined( __CUDA_PROFILING )
       CALL cuda_nvtx_range_push(routineN)
 #endif
+#if defined( __HIP_PROFILING )
+      ret = roctxRangePushA(routineN//C_NULL_CHAR)
+#endif
 
 !$OMP END CRITICAL(time_setstop)
 !$OMP END MASTER
@@ -312,6 +321,9 @@ CONTAINS
 
 #if defined( __CUDA_PROFILING )
       CALL cuda_nvtx_range_pop()
+#endif
+#if defined( __HIP_PROFILING )
+      CALL roctxRangePop()
 #endif
 
       timer_env => list_peek(timers_stack)

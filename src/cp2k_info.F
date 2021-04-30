@@ -218,6 +218,9 @@ CONTAINS
 #if defined(__CUDA_PROFILING)
       flags = TRIM(flags)//" cuda_profiling"
 #endif
+#if defined(__HIP_PROFILING)
+      flags = TRIM(flags)//" hip_profiling"
+#endif
 #if defined(__DBCSR_ACC)
       flags = TRIM(flags)//" dbcsr_acc"
 #endif
