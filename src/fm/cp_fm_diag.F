@@ -210,8 +210,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_diag'
       CHARACTER(LEN=5), DIMENSION(2), PARAMETER          :: diag_driver = (/"SYEVD", &
                                                                             "ELPA "/)
-      REAL(KIND=dp), PARAMETER                           :: eps_abort = 1.0E-11_dp, &
-                                                            eps_warning = 1.0E-13_dp
+      REAL(KIND=dp), PARAMETER                           :: eps_abort = 1.0E-14_dp, &
+                                                            eps_warning = 1.0E-14_dp
 
       TYPE(cp_logger_type), POINTER                      :: logger
       INTEGER                                            :: handle, i, j, ncol, nrow, output_unit

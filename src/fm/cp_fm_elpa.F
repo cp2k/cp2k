@@ -331,7 +331,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER         :: context
       TYPE(cp_fm_type), POINTER                :: matrix_noqr, eigenvectors_noqr
       TYPE(cp_logger_type), POINTER            :: logger
-      REAL(KIND=dp), PARAMETER                 :: th = 1.0E-14_dp
+      REAL(KIND=dp), PARAMETER                 :: threshold = 1.0E-14_dp
       INTEGER, DIMENSION(:), POINTER           :: ncol_locals
 
       CALL timeset(routineN, handle)
@@ -495,7 +495,7 @@ CONTAINS
          IF (success /= elpa_ok) &
             CPABORT("ELPA failed to diagonalize a matrix even without QR decomposition")
 
-         IF (ANY(ABS(eval(1:neig) - eval_noqr(1:neig)) .GT. th)) &
+         IF (ANY(ABS(eval(1:neig) - eval_noqr(1:neig)) .GT. threshold)) &
             CPABORT("Eigenvalues calculated with QR decomp. in ELPA are wrong. Disable ELPA_QR_UNSAFE.")
 
          DEALLOCATE (eval_noqr)
@@ -503,7 +503,8 @@ CONTAINS
          CALL cp_fm_release(eigenvectors_noqr)
       END IF
 
-      CALL elpa_deallocate(elpa_obj)
+      CALL elpa_deallocate(elpa_obj, success)
+      CPASSERT(success == elpa_ok)
 
       eigenvalues(1:neig) = eval(1:neig)
       DEALLOCATE (eval)
