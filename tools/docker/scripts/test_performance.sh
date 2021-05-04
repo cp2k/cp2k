@@ -53,6 +53,7 @@ BENCHMARKS=(
   "QS/H2O-64.inp"
   "QS/H2O-64_nonortho.inp"
   "QS_single_node/H2O-hyb.inp"
+  "QS_single_node/GW_PBE_4benzene.inp"
   "QS_single_node/bench_dftb.inp"
   "QS_single_node/dbcsr.inp"
 )
