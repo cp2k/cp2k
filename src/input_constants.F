@@ -19,6 +19,7 @@ MODULE input_constants
    USE kinds,                           ONLY: dp
 
    IMPLICIT NONE
+
    PRIVATE
 
    ! Tags for development/release versions
@@ -68,7 +69,7 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: weight_type_unit = 0, &
                                                weight_type_mass = 1
 
-   ! diag methods
+   ! Diagonalization routines of the ScaLAPACK library
    INTEGER, PARAMETER, PUBLIC               :: do_diag_syevd = 1, &
                                                do_diag_syevx = 2
    ! initial matrix methods methods
@@ -508,23 +509,23 @@ MODULE input_constants
                                                diag_block_davidson = 4, &
                                                diag_filter_matrix = 5
 
-   INTEGER, PUBLIC, PARAMETER               :: default_lbfgs_method_id = 1, &
+   INTEGER, PARAMETER, PUBLIC               :: default_lbfgs_method_id = 1, &
                                                default_bfgs_method_id = 2, &
                                                default_cg_method_id = 3
 
-   INTEGER, PUBLIC, PARAMETER               :: default_minimization_method_id = 1, &
+   INTEGER, PARAMETER, PUBLIC               :: default_minimization_method_id = 1, &
                                                default_ts_method_id = 2, &
                                                default_cell_method_id = 3, &
                                                default_shellcore_method_id = 4
 
-   INTEGER, PUBLIC, PARAMETER               :: none_ts_method_id = 0, &
+   INTEGER, PARAMETER, PUBLIC               :: none_ts_method_id = 0, &
                                                default_dimer_method_id = 1
 
-   INTEGER, PUBLIC, PARAMETER               :: do_first_rotation_step = 0, &
+   INTEGER, PARAMETER, PUBLIC               :: do_first_rotation_step = 0, &
                                                do_second_rotation_step = 1, &
                                                do_third_rotation_step = 2
 
-   INTEGER, PUBLIC, PARAMETER               :: default_cell_geo_opt_id = 0, &
+   INTEGER, PARAMETER, PUBLIC               :: default_cell_geo_opt_id = 0, &
                                                default_cell_md_id = 1, &
                                                default_cell_direct_id = 2
 
@@ -851,9 +852,9 @@ MODULE input_constants
                                                broy_mix_new = 5, &
                                                multisec_mix = 6
 
-   ! DIAGONALIZATION library
-   INTEGER, PARAMETER, PUBLIC               :: do_diag_sl = 1, &
-                                               do_diag_elpa = 2
+   ! Diagonalization library
+   INTEGER, PARAMETER, PUBLIC               :: do_diag_elpa = 1, &
+                                               do_diag_scalapack = 2
    ! FFT library
    ! these might need sync with fft_lib.F
    INTEGER, PARAMETER, PUBLIC               :: do_fft_sg = 1, &

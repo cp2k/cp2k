@@ -38,9 +38,9 @@ MODULE input_cp2k_global
                                               GRID_BACKEND_REF
    USE input_constants,                 ONLY: &
         bsse_run, callgraph_all, callgraph_master, callgraph_none, cell_opt_run, debug_run, &
-        do_atom, do_band, do_cp2k, do_dbcsr, do_diag_elpa, do_diag_sl, do_farming, do_fft_fftw3, &
-        do_fft_sg, do_opt_basis, do_optimize_input, do_pdgemm, do_swarm, do_tamc, do_test, &
-        do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, electronic_spectra_run, &
+        do_atom, do_band, do_cp2k, do_dbcsr, do_diag_elpa, do_diag_scalapack, do_farming, &
+        do_fft_fftw3, do_fft_sg, do_opt_basis, do_optimize_input, do_pdgemm, do_swarm, do_tamc, &
+        do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, electronic_spectra_run, &
         energy_force_run, energy_run, fftw_plan_estimate, fftw_plan_exhaustive, fftw_plan_measure, &
         fftw_plan_patient, gaussian, geo_opt_run, linear_response_run, mol_dyn_run, mon_car_run, &
         negf_run, none_run, pint_run, real_time_propagation, tree_mc_run, vib_anal
@@ -111,17 +111,25 @@ CONTAINS
 #if defined(__ELPA)
       default_diag = do_diag_elpa
 #else
-      default_diag = do_diag_sl
+      default_diag = do_diag_scalapack
 #endif
       CALL keyword_create( &
          keyword, __LOCATION__, name="PREFERRED_DIAG_LIBRARY", &
-         description="Specifies the DIAGONALIZATION library to be used. If not available, the standard scalapack is used", &
+         description="Specifies the diagonalization library to be used. If not available, the ScaLAPACK library is used", &
          usage="PREFERRED_DIAG_LIBRARY ELPA", &
-         default_i_val=do_diag_sl, &
-         enum_i_vals=(/do_diag_sl, do_diag_elpa/), &
-         enum_c_vals=s2a("SL", "ELPA"), &
-         enum_desc=s2a("Standard (Sca)LAPACK: syevd", "ELPA"), &
+         default_i_val=default_diag, &
+         enum_i_vals=(/do_diag_elpa, do_diag_scalapack, do_diag_scalapack/), &
+         enum_c_vals=s2a("ELPA", "ScaLAPACK", "SL"), &
+         enum_desc=s2a("ELPA library", "ScaLAPACK library", "ScaLAPACK library"), &
          citations=(/Marek2014/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_CHECK_DIAG", &
+                          description="Check that the orthonormality of the eigenvectors after a diagonalization "// &
+                          "fulfills the specified numerical accuracy. A negative threshold value disables the check.", &
+                          usage="EPS_CHECK_DIAG 1.0E-14", &
+                          default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

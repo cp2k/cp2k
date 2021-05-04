@@ -6,17 +6,17 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief represent the global information of a run: the input file,
-!>      parallel environment (and partially output).
-!>      Use sparingly, try not to send it too deep in your structures.
+!> \brief Define type storing the global information of a run. Keep the amount of stored data small.
+!>        Use it sparingly and try not to send it too deep in your structures.
 !> \par History
 !>      - print keys, basis_set_file name and potential_file_name added to the
 !>        global type (27.02.2001, MK)
-!>      - JGH (28.11.2001) : added pp_library_path to type
+!>      - added pp_library_path to type (28.11.2001, JGH)
 !>      - Merged with MODULE print_keys (17.01.2002, MK)
-!>      -  reference counting, create (08.2004, fawzi)
-!>      - new (parallel) random number generator (11.03.06,MK)
-!> \author JGH,MK,fawzi
+!>      - reference counting, create (08.2004, fawzi)
+!>      - new (parallel) random number generator (11.03.2006, MK)
+!>      - add eps_check_diag, remove id_nr from globenv, and revise initialization (04.05.2021, MK)
+!> \author JGH, MK, fawzi
 ! **************************************************************************************************
 MODULE global_types
 
@@ -42,19 +42,18 @@ MODULE global_types
                          HIGH = 3, &
                          DEBUG = 4
 
-   ! Public parameters
-
    ! Public data types
+
    PUBLIC :: global_environment_type
 
    ! Public subroutines
+
    PUBLIC :: globenv_create, &
              globenv_retain, &
              globenv_release
 
 ! **************************************************************************************************
 !> \brief contains the initially parsed file and the initial parallel environment
-!> \param id_nr identification number (unique)
 !> \param ref_count reference count (see doc/ReferenceCounting.html)
 !> \param handle handle with the total time of the computation
 !>
@@ -65,31 +64,35 @@ MODULE global_types
 !>      counting. Use it accordingly wherever possible.
 ! **************************************************************************************************
    TYPE global_environment_type
-      INTEGER :: id_nr, ref_count
+      INTEGER :: ref_count = 0
       TYPE(rng_stream_type), ALLOCATABLE      :: gaussian_rng_stream
-      CHARACTER(LEN=default_string_length)    :: diag_library
-      CHARACTER(LEN=default_string_length)    :: default_fft_library
-      CHARACTER(LEN=default_path_length)      :: fftw_wisdom_file_name
+      CHARACTER(LEN=default_string_length)    :: diag_library = "ScaLAPACK"
+      CHARACTER(LEN=default_string_length)    :: default_fft_library = "FFTSG"
+      CHARACTER(LEN=default_path_length)      :: fftw_wisdom_file_name = "/etc/fftw/wisdom"
 
-      INTEGER :: fft_pool_scratch_limit !! limit used for fft scratches
-      INTEGER :: fftw_plan_type !! which kind of planning to use with fftw
-      INTEGER :: idum !! random number seed
-      INTEGER :: prog_name_id !! index to define the type of program
-      INTEGER :: run_type_id !! index to define the run_tupe
-      INTEGER :: blacs_grid_layout !! will store the user preference for the blacs grid
-      INTEGER :: k_elpa !! optimized kernel for the ELPA diagonalization library
-      LOGICAL :: elpa_qr !! allow ELPA to use QR during diagonalization
-      LOGICAL :: elpa_print !! if additional information about ELPA diagonalization should be printed
-      LOGICAL :: elpa_qr_unsafe !! enable potentially unsafe ELPA options
-      LOGICAL :: blacs_repeatable !! will store the user preference for the repeatability of blacs collectives
-      REAL(KIND=dp) :: cp2k_start_time, cp2k_target_time
-      INTEGER :: handle
+      INTEGER :: fft_pool_scratch_limit = 0 ! limit number of used FFT scratches
+      INTEGER :: fftw_plan_type = 0 ! which kind of planning to use with FFTW
+      INTEGER :: idum = 0 ! random number seed
+      INTEGER :: prog_name_id = 0 ! index to define the type of program
+      INTEGER :: run_type_id = 0 ! index to define the run_tupe
+      INTEGER :: blacs_grid_layout = BLACS_GRID_SQUARE ! will store the user preference for the BLACS grid
+      INTEGER :: k_elpa = 1 ! optimized kernel for the ELPA diagonalization library
+      LOGICAL :: elpa_qr = .FALSE. ! allow ELPA to use QR during diagonalization
+      LOGICAL :: elpa_print = .FALSE. ! if additional information about ELPA diagonalization should be printed
+      LOGICAL :: elpa_qr_unsafe = .FALSE. ! enable potentially unsafe ELPA options
+      LOGICAL :: blacs_repeatable = .FALSE. ! will store the user preference for the repeatability of BLACS collectives
+      REAL(KIND=dp) :: cp2k_start_time = 0.0_dp
+      REAL(KIND=dp) :: cp2k_target_time = HUGE(0.0_dp) ! Maximum run time in seconds
+      ! Threshold value for the orthonormality of the eigenvectors after diagonalization
+      ! A negative threshold value disables the check which is the default
+      REAL(KIND=dp) :: eps_check_diag = -1.0_dp
+      INTEGER :: handle = 0
    END TYPE global_environment_type
 
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief creates a globenv
+!> \brief Creates the global environment globenv
 !> \param globenv the globenv to create
 !> \author fawzi
 ! **************************************************************************************************
@@ -99,21 +102,12 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(globenv))
       ALLOCATE (globenv)
       globenv%ref_count = 1
-      globenv%run_type_id = 0
-      globenv%diag_library = "SL"
-      globenv%k_elpa = 1
-      globenv%elpa_qr = .FALSE.
-      globenv%elpa_print = .FALSE.
-      globenv%default_fft_library = "FFTSG"
-      globenv%fftw_wisdom_file_name = "/etc/fftw/wisdom"
-      globenv%prog_name_id = 0
-      globenv%idum = 0 !! random number seed
-      globenv%blacs_grid_layout = BLACS_GRID_SQUARE
       globenv%cp2k_start_time = m_walltime()
+
    END SUBROUTINE globenv_create
 
 ! **************************************************************************************************
-!> \brief retains the global environment
+!> \brief Retains the global environment globenv
 !> \param globenv the global environment to retain
 !> \author fawzi
 ! **************************************************************************************************
@@ -123,10 +117,11 @@ CONTAINS
       CPASSERT(ASSOCIATED(globenv))
       CPASSERT(globenv%ref_count > 0)
       globenv%ref_count = globenv%ref_count + 1
+
    END SUBROUTINE globenv_retain
 
 ! **************************************************************************************************
-!> \brief releases the global environment
+!> \brief Releases the global environment globenv
 !> \param globenv the global environment to release
 !> \author fawzi
 ! **************************************************************************************************
@@ -142,7 +137,9 @@ CONTAINS
             DEALLOCATE (globenv)
          END IF
       END IF
+
       NULLIFY (globenv)
+
    END SUBROUTINE globenv_release
 
 END MODULE global_types
