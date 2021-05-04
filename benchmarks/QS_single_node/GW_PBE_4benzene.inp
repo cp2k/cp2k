@@ -1,0 +1,121 @@
+&GLOBAL
+  PROJECT  GW_PBE_4benzene
+  PRINT_LEVEL MEDIUM
+  RUN_TYPE ENERGY
+&END GLOBAL
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME  HFX_BASIS
+    SORT_BASIS EXP
+    POTENTIAL_FILE_NAME  GTH_POTENTIALS
+    &MGRID
+      CUTOFF  100
+      REL_CUTOFF  20
+    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER MT
+    &END POISSON
+    &QS
+      METHOD GPW
+      EPS_DEFAULT 1.0E-15
+      EPS_PGF_ORB 1.0E-30
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+      EPS_SCF 1.0E-7
+      MAX_SCF 100
+      &PRINT
+        &RESTART OFF
+        &END
+      &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+        &PBE
+        &END
+      &END XC_FUNCTIONAL
+      &WF_CORRELATION
+        &LOW_SCALING
+        &END
+        &RI_RPA
+          RPA_NUM_QUAD_POINTS 10
+          &GW
+            RI_SIGMA_X            TRUE
+          &END GW
+        &END RI_RPA
+      &END
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC [angstrom]  12.000   35.000  5.000
+      PERIODIC NONE
+    &END CELL
+    &KIND H
+      BASIS_SET  DZVP-GTH
+      BASIS_SET RI_AUX  RI_DZVP-GTH
+      POTENTIAL  GTH-PBE-q1
+    &END KIND
+    &KIND C
+      BASIS_SET  DZVP-GTH
+      BASIS_SET RI_AUX  RI_DZVP-GTH
+      POTENTIAL  GTH-PBE-q4
+    &END KIND
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END
+    &END TOPOLOGY
+    &COORD
+      C         -1.13571        0.81699        0.00000
+      C          0.13967        1.39205        0.00000
+      C         -1.27538       -0.57507        0.00000
+      H         -2.01433        1.44903        0.00000
+      C          1.27538        0.57508        0.00000
+      H          0.24772        2.46898        0.00000
+      C         -0.13967       -1.39204        0.00000
+      C          1.13571       -0.81698        0.00000
+      H         -2.26205       -1.01996        0.00000
+      H          2.26205        1.01997        0.00000
+      H         -0.24772       -2.46897        0.00000
+      H          2.01433       -1.44902        0.00000
+      C          0.83817       -8.82899        0.00000
+      C         -0.15783       -6.61989        0.00000
+      C         -1.57293       -8.58709        0.00000
+      C          0.97787       -7.43689        0.00000
+      C         -0.43723       -9.40399        0.00000
+      C         -1.43323       -7.19499        0.00000
+      H         -2.55953       -9.03199        0.00000
+      H         -2.31183       -6.56299        0.00000
+      H         -0.04983       -5.54299        0.00000
+      H          1.96447       -6.99199        0.00000
+      H         -0.54523      -10.48099        0.00000
+      H          1.71677       -9.46099        0.00000
+      C          1.39072        7.55627       -0.00000
+      C          0.39472        9.76537       -0.00000
+      C         -1.02038        7.79817       -0.00000
+      C          1.53042        8.94837       -0.00000
+      C          0.11532        6.98127       -0.00000
+      C         -0.88068        9.19027       -0.00000
+      H         -2.00698        7.35327       -0.00000
+      H         -1.75928        9.82227       -0.00000
+      H          0.50272       10.84227       -0.00000
+      H          2.51702        9.39327       -0.00000
+      H          0.00732        5.90427       -0.00000
+      H          2.26932        6.92427       -0.00000
+      C          1.64575       16.77963       -0.00000
+      C          0.64975       18.98873       -0.00000
+      C         -0.76535       17.02153       -0.00000
+      C          1.78545       18.17173       -0.00000
+      C          0.37035       16.20463       -0.00000
+      C         -0.62565       18.41363       -0.00000
+      H         -1.75195       16.57663       -0.00000
+      H         -1.50425       19.04563       -0.00000
+      H          0.75775       20.06563       -0.00000
+      H          2.77205       18.61663       -0.00000
+      H          0.26235       15.12763       -0.00000
+      H          2.52435       16.14763       -0.00000
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
