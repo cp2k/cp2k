@@ -52,6 +52,7 @@ MODULE mp2_eri_gpw
    USE qs_integrate_potential,          ONLY: integrate_pgf_product,&
                                               integrate_v_rspace
    USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              get_qs_kind_set,&
                                               qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
@@ -179,8 +180,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_eri_2c_integrate_gpw'
 
       INTEGER :: dir, handle, handle2, i, i_counter, iatom, igrid_level, ikind, ipgf, iset, lb(3), &
-         LLL, location(3), na1, na2, ncoa, nseta, offset, sgfa, tp(3), ub(3)
-      INTEGER                                            :: max_nseta
+         LLL, location(3), max_nseta, na1, na2, ncoa, nseta, offset, sgfa, tp(3), ub(3)
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: offset_2d
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
@@ -247,13 +247,7 @@ CONTAINS
 
          offset = 0
          ! Prepare offset ahead of OMP parallel loop
-         max_nseta = 0
-         DO iatom = 1, natom
-            ikind = kind_of(iatom)
-            CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set_a, basis_type="RI_AUX")
-            nseta = basis_set_a%nset
-            max_nseta = MAX(nseta, max_nseta)
-         END DO
+         CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxnset=max_nseta, basis_type="RI_AUX")
          ALLOCATE (offset_2d(max_nseta, natom))
 
          DO iatom = 1, natom
@@ -268,7 +262,10 @@ CONTAINS
          END DO
 
          ! integrate the little bastards
-         !$OMP PARALLEL DO DEFAULT(SHARED) &
+         !$OMP PARALLEL DO DEFAULT(NONE) &
+         !$OMP SHARED(natom, particle_set, cell, pw_env_sub, rs_v, offset_2d, &
+         !$OMP        qs_kind_set, ncoset, para_env_sub, dft_control, i_counter, &
+         !$OMP        kind_of, l_local_col) &
          !$OMP PRIVATE(iatom, ikind, basis_set_a, first_sgfa, la_max, la_min, npgfa, &
          !$OMP         nseta, nsgfa, rpgfa, set_radius_a, sphi_a, zeta, &
          !$OMP         ra, iset, ncoa, I_tmp2, I_ab, igrid_level, &
