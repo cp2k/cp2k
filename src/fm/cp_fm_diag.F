@@ -50,7 +50,8 @@ MODULE cp_fm_diag
    USE message_passing, ONLY: mp_bcast
 #if defined (__HAS_IEEE_EXCEPTIONS)
    USE ieee_exceptions, ONLY: ieee_get_halting_mode, &
-                              ieee_set_halting_mode
+                              ieee_set_halting_mode, &
+                              IEEE_ALL
 #endif
 #include "../base/base_uses.f90"
 
