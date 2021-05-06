@@ -473,8 +473,8 @@ CONTAINS
                CALL qs_scf_new_mos(qs_env, scf_env, scf_control, scf_section, diis_step, energy_only)
             END IF
 
-            ! another heavy weight print object, print controlled by dft_section
-            CALL qs_scf_write_mos(mos, atomic_kind_set, qs_kind_set, particle_set, dft_section)
+            ! Print requested MO information (can be computationally expensive with OT)
+            CALL qs_scf_write_mos(qs_env, scf_env, last_mos=.FALSE.)
 
             CALL qs_scf_density_mixing(scf_env, rho, para_env, diis_step)
 

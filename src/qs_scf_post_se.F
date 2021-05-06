@@ -637,16 +637,16 @@ CONTAINS
       CALL qs_subsys_get(subsys, particles=particles)
 
       CALL qs_rho_get(rho, rho_ao=rho_ao)
-      ! *** if the dft_section tells you to do so, write last wavefunction to screen
+      ! Print MO information if requested
       dft_section => section_vals_get_subs_vals(input, "DFT")
       IF (dft_control%nspins == 2) THEN
-         CALL write_mo_set(mos(1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, 4, &
-                           dft_section, spin="ALPHA", last=.TRUE.)
-         CALL write_mo_set(mos(2)%mo_set, atomic_kind_set, qs_kind_set, particle_set, 4, &
-                           dft_section, spin="BETA", last=.TRUE.)
+         CALL write_mo_set(mos(1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
+                           dft_section, 4, 0, last_mos=.TRUE., spin="ALPHA")
+         CALL write_mo_set(mos(2)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
+                           dft_section, 4, 0, last_mos=.TRUE., spin="BETA")
       ELSE
-         CALL write_mo_set(mos(1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, 4, &
-                           dft_section, last=.TRUE.)
+         CALL write_mo_set(mos(1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
+                           dft_section, 4, 0, last_mos=.TRUE.)
       END IF
 
       ! *** at the end of scf print out the projected dos per kind
