@@ -8,6 +8,17 @@
       CUTOFF 120
       REL_CUTOFF 30
     &END MGRID
+    &PRINT
+      &DFT_CONTROL_PARAMETERS
+      &END DFT_CONTROL_PARAMETERS
+      &MO
+        NDIGITS 10
+        RANGE 4 25
+        &EACH
+          QS_SCF 3
+        &END EACH
+      &END MO
+    &END PRINT
     &QS
       METHOD GPW
       EPS_DEFAULT 1.0E-12

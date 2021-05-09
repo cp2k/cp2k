@@ -25,6 +25,14 @@
     &PRINT
       &DFT_CONTROL_PARAMETERS
       &END DFT_CONTROL_PARAMETERS
+      &MO
+        RANGE 2 12
+        EIGENVALUES
+        NDIGITS 12
+        &EACH
+          QS_SCF 5
+        &END EACH
+      &END MO
       &PLUS_U
        &EACH
         QS_SCF 1
@@ -35,12 +43,14 @@
       EPS_DEFAULT 1.0E-8
     &END QS
     &SCF
+      ADDED_MOS 8 2
       EPS_SCF 1.0E-5
       MAX_SCF 30
-      &OT OFF
-        MINIMIZER cg
+      SCF_GUESS atomic
+      &OT off
+        MINIMIZER CG
       &END OT
-      &OUTER_SCF OFF
+      &OUTER_SCF off
         EPS_SCF 1.0E-5
         MAX_SCF 10
       &END OUTER_SCF
@@ -55,7 +65,6 @@
           BACKUP_COPIES 0
         &END RESTART
       &END PRINT
-      SCF_GUESS atomic
     &END SCF
     &XC
       &XC_FUNCTIONAL PADE

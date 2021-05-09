@@ -62,7 +62,7 @@
     NDIGITS 12
     OCCUPATION_NUMBERS
     &EACH
-     QS_SCF 0
+     QS_SCF 5
     &END EACH
    &END MO
   &END PRINT

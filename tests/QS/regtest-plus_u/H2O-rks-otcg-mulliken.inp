@@ -26,6 +26,13 @@
     &PRINT
       &DFT_CONTROL_PARAMETERS
       &END DFT_CONTROL_PARAMETERS
+      &MO
+        MO_RANGE 1 12
+        EIGENVALUES
+        &EACH
+          QS_SCF 0
+        &END EACH
+      &END MO
       &PLUS_U
       &END PLUS_U
     &END PRINT
@@ -35,10 +42,10 @@
     &SCF
       EPS_SCF 1.0E-5
       MAX_SCF 30
-      &OT ON
-        MINIMIZER cg
+      &OT on
+        MINIMIZER CG
       &END OT
-      &OUTER_SCF ON
+      &OUTER_SCF on
         EPS_SCF 1.0E-5
         MAX_SCF 10
       &END OUTER_SCF
