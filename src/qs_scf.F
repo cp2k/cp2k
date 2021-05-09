@@ -474,7 +474,7 @@ CONTAINS
             END IF
 
             ! Print requested MO information (can be computationally expensive with OT)
-            CALL qs_scf_write_mos(qs_env, scf_env, last_mos=.FALSE.)
+            CALL qs_scf_write_mos(qs_env, scf_env, final_mos=.FALSE.)
 
             CALL qs_scf_density_mixing(scf_env, rho, para_env, diis_step)
 

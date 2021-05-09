@@ -507,12 +507,12 @@ CONTAINS
                ! Write last wavefunction to screen
                IF (SIZE(mos) > 1) THEN
                   CALL write_mo_set(mos(1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                                    dft_section, 4, 0, last_mos=.FALSE., spin="XAS ALPHA")
+                                    dft_section, 4, 0, final_mos=.FALSE., spin="XAS ALPHA")
                   CALL write_mo_set(mos(2)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                                    dft_section, 4, 0, last_mos=.FALSE., spin="XAS BETA")
+                                    dft_section, 4, 0, final_mos=.FALSE., spin="XAS BETA")
                ELSE
                   CALL write_mo_set(mos(1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                                    dft_section, 4, 0, last_mos=.FALSE., spin="XAS")
+                                    dft_section, 4, 0, final_mos=.FALSE., spin="XAS")
                END IF
 
             ELSE

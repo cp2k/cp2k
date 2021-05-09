@@ -924,12 +924,12 @@ CONTAINS
          CALL get_qs_env(qs_env, mos=mos)
          IF (dft_control%nspins == 2) THEN
             CALL write_mo_set(mos(1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                              dft_section, 4, 0, last_mos=.TRUE., spin="ALPHA")
+                              dft_section, 4, 0, final_mos=.TRUE., spin="ALPHA")
             CALL write_mo_set(mos(2)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                              dft_section, 4, 0, last_mos=.TRUE., spin="BETA")
+                              dft_section, 4, 0, final_mos=.TRUE., spin="BETA")
          ELSE
             CALL write_mo_set(mos(1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                              dft_section, 4, 0, last_mos=.TRUE.)
+                              dft_section, 4, 0, final_mos=.TRUE.)
          END IF
          !
          SELECT CASE (tb_type)
@@ -949,12 +949,12 @@ CONTAINS
                CPASSERT(ASSOCIATED(mos_k))
                IF (dft_control%nspins == 2) THEN
                   CALL write_mo_set(mos_k(1, 1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                                    dft_section, 4, kpoint=ik, last_mos=.TRUE., spin="ALPHA")
+                                    dft_section, 4, kpoint=ik, final_mos=.TRUE., spin="ALPHA")
                   CALL write_mo_set(mos_k(1, 2)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                                    dft_section, 4, kpoint=ik, last_mos=.TRUE., spin="BETA")
+                                    dft_section, 4, kpoint=ik, final_mos=.TRUE., spin="BETA")
                ELSE
                   CALL write_mo_set(mos_k(1, 1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                                    dft_section, 4, kpoint=ik, last_mos=.TRUE.)
+                                    dft_section, 4, kpoint=ik, final_mos=.TRUE.)
                END IF
             END DO
          END IF

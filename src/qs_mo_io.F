@@ -563,7 +563,7 @@ CONTAINS
       IF (.NOT. my_cdft) THEN
          DO ispin = 1, nspin
             CALL write_mo_set(mo_array(ispin)%mo_set, atomic_kind_set, qs_kind_set, &
-                              particle_set, dft_section, 4, 0, last_mos=.FALSE.)
+                              particle_set, dft_section, 4, 0, final_mos=.FALSE.)
          END DO
       END IF
 
@@ -638,7 +638,7 @@ CONTAINS
 
       DO ispin = 1, nspin
          CALL write_mo_set(mo_array(ispin)%mo_set, atomic_kind_set, qs_kind_set, &
-                           particle_set, dft_section, 4, 0, last_mos=.FALSE.)
+                           particle_set, dft_section, 4, 0, final_mos=.FALSE.)
       END DO
 
       CALL timestop(handle)
@@ -967,8 +967,9 @@ CONTAINS
 !> \param dft_section ...
 !> \param before Digits before the dot
 !> \param kpoint An integer that labels the current k point, e.g. its index
-!> \param last_mos ...
+!> \param final_mos ...
 !> \param spin ...
+!> \param solver_method ...
 !> \date    15.05.2001
 !> \par History:
 !>       - Optionally print Cartesian MOs (20.04.2005, MK)
@@ -980,7 +981,8 @@ CONTAINS
 !> \version 1.1
 ! **************************************************************************************************
    SUBROUTINE write_mo_set_to_output_unit(mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                                          dft_section, before, kpoint, last_mos, spin)
+                                          dft_section, before, kpoint, final_mos, spin, &
+                                          solver_method)
 
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -988,26 +990,28 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: dft_section
       INTEGER, INTENT(IN)                                :: before, kpoint
-      LOGICAL, INTENT(IN), OPTIONAL                      :: last_mos
+      LOGICAL, INTENT(IN), OPTIONAL                      :: final_mos
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: spin
+      CHARACTER(LEN=2), INTENT(IN), OPTIONAL             :: solver_method
 
       CHARACTER(LEN=12)                                  :: symbol
       CHARACTER(LEN=12), DIMENSION(:), POINTER           :: bcgf_symbol
-      CHARACTER(LEN=16)                                  :: fmtstr5
-      CHARACTER(LEN=2)                                   :: element_symbol
+      CHARACTER(LEN=14)                                  :: fmtstr5
+      CHARACTER(LEN=15)                                  :: energy_str, orbital_str, vector_str
+      CHARACTER(LEN=2)                                   :: element_symbol, my_solver_method
       CHARACTER(LEN=2*default_string_length)             :: name
-      CHARACTER(LEN=20)                                  :: fmtstr4
-      CHARACTER(LEN=22)                                  :: fmtstr2
+      CHARACTER(LEN=22)                                  :: fmtstr4
+      CHARACTER(LEN=24)                                  :: fmtstr2
       CHARACTER(LEN=25)                                  :: fmtstr1
       CHARACTER(LEN=29)                                  :: fmtstr6
-      CHARACTER(LEN=38)                                  :: fmtstr3
+      CHARACTER(LEN=40)                                  :: fmtstr3
       CHARACTER(LEN=6), DIMENSION(:), POINTER            :: bsgf_symbol
       INTEGER :: after, first_mo, from, iatom, icgf, ico, icol, ikind, imo, irow, iset, isgf, &
          ishell, iso, iw, jcol, last_mo, left, lmax, lshell, natom, ncgf, ncol, ncol_global, &
          nrow_global, nset, nsgf, right, scf_step, to, width
       INTEGER, DIMENSION(:), POINTER                     :: mo_index_range, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l
-      LOGICAL                                            :: ionode, my_last, print_cartesian, &
+      LOGICAL                                            :: ionode, my_final, print_cartesian, &
                                                             print_eigvals, print_eigvecs, &
                                                             print_occup, should_output
       REAL(KIND=dp)                                      :: gap
@@ -1036,12 +1040,20 @@ CONTAINS
 
       IF ((.NOT. should_output) .OR. (.NOT. (print_eigvals .OR. print_eigvecs .OR. print_occup))) RETURN
 
-      IF (PRESENT(last_mos)) THEN
-         my_last = last_mos
+      ! Do we print the final MO information after SCF convergence is reached (default: no)
+      IF (PRESENT(final_mos)) THEN
+         my_final = final_mos
       ELSE
-         my_last = .FALSE.
+         my_final = .FALSE.
       END IF
       scf_step = MAX(0, logger%iter_info%iteration(logger%iter_info%n_rlevel) - 1)
+
+      IF (PRESENT(solver_method)) THEN
+         my_solver_method = solver_method
+      ELSE
+         ! Traditional diagonalization is assumed as default solver method
+         my_solver_method = "TD"
+      END IF
 
       IF (print_eigvecs) THEN
          CALL cp_fm_get_info(mo_set%mo_coeff, &
@@ -1065,9 +1077,9 @@ CONTAINS
 
          ! Definition of the variable formats
 
-         fmtstr1 = "(/,T2,21X,  (  X,I5,  X))"
-         fmtstr2 = "(T2,21X,  (1X,F  .  ))"
-         fmtstr3 = "(T2,I5,1X,I5,1X,A,1X,A6,  (1X,F  .  ))"
+         fmtstr1 = "(T2,A,21X,  (  X,I5,  X))"
+         fmtstr2 = "(T2,A,21X,  (1X,F  .  ))"
+         fmtstr3 = "(T2,A,I5,1X,I5,1X,A,1X,A6,  (1X,F  .  ))"
 
          width = before + after + 3
          ncol = INT(56/width)
@@ -1079,33 +1091,32 @@ CONTAINS
          WRITE (UNIT=fmtstr1(14:15), FMT="(I2)") left
          WRITE (UNIT=fmtstr1(21:22), FMT="(I2)") right
 
-         WRITE (UNIT=fmtstr2(9:10), FMT="(I2)") ncol
-         WRITE (UNIT=fmtstr2(16:17), FMT="(I2)") width - 1
-         WRITE (UNIT=fmtstr2(19:20), FMT="(I2)") after
+         WRITE (UNIT=fmtstr2(11:12), FMT="(I2)") ncol
+         WRITE (UNIT=fmtstr2(18:19), FMT="(I2)") width - 1
+         WRITE (UNIT=fmtstr2(21:22), FMT="(I2)") after
 
-         WRITE (UNIT=fmtstr3(25:26), FMT="(I2)") ncol
-         WRITE (UNIT=fmtstr3(32:33), FMT="(I2)") width - 1
-         WRITE (UNIT=fmtstr3(35:36), FMT="(I2)") after
+         WRITE (UNIT=fmtstr3(27:28), FMT="(I2)") ncol
+         WRITE (UNIT=fmtstr3(34:35), FMT="(I2)") width - 1
+         WRITE (UNIT=fmtstr3(37:38), FMT="(I2)") after
+
+         IF (my_final .OR. (my_solver_method == "TD")) THEN
+            energy_str = "EIGENVALUES"
+            vector_str = "EIGENVECTORS"
+         ELSE
+            energy_str = "ENERGIES"
+            vector_str = "COEFFICIENTS"
+         END IF
 
          IF (print_eigvecs) THEN
 
             IF (print_cartesian) THEN
 
-               IF (my_last) THEN
-                  name = "MO EIGENVALUES, MO OCCUPATION NUMBERS, AND "// &
-                         "CARTESIAN MO EIGENVECTORS"
-               ELSE
-                  WRITE (UNIT=name, FMT="(A,1X,I0)") &
-                     "MO EIGENVALUES, MO OCCUPATION NUMBERS, AND "// &
-                     "CARTESIAN MO EIGENVECTORS AFTER SCF STEP", scf_step
-               END IF
+               orbital_str = "CARTESIAN"
 
                ALLOCATE (cmatrix(ncgf, ncgf))
-
                cmatrix = 0.0_dp
 
                ! Transform spherical MOs to Cartesian MOs
-
                icgf = 1
                isgf = 1
                DO iatom = 1, natom
@@ -1148,38 +1159,45 @@ CONTAINS
 
             ELSE
 
-               IF (my_last) THEN
-                  name = "MO EIGENVALUES, MO OCCUPATION NUMBERS, AND "// &
-                         "SPHERICAL MO EIGENVECTORS"
-               ELSE
-                  WRITE (UNIT=name, FMT="(A,1X,I0)") &
-                     "MO EIGENVALUES, MO OCCUPATION NUMBERS, AND "// &
-                     "SPHERICAL MO EIGENVECTORS AFTER SCF STEP", scf_step
-               END IF
+               orbital_str = "SPHERICAL"
 
             END IF ! print_cartesian
 
-         ELSE IF (print_occup .OR. print_eigvals) THEN
-
-            IF (my_last) THEN
-               name = "MO EIGENVALUES AND MO OCCUPATION NUMBERS"
+            IF (my_final) THEN
+               name = TRIM(energy_str)//", OCCUPATION NUMBERS, AND "// &
+                      TRIM(orbital_str)//" "//TRIM(vector_str)
             ELSE
                WRITE (UNIT=name, FMT="(A,1X,I0)") &
-                  "MO EIGENVALUES AND MO OCCUPATION NUMBERS AFTER "// &
-                  "SCF STEP", scf_step
+                  TRIM(energy_str)//", OCCUPATION NUMBERS, AND "// &
+                  TRIM(orbital_str)//" "//TRIM(vector_str)//" AFTER SCF STEP", &
+                  scf_step
+            END IF
+
+         ELSE IF (print_occup .OR. print_eigvals) THEN
+
+            IF (my_final) THEN
+               name = TRIM(energy_str)//" AND OCCUPATION NUMBERS"
+            ELSE
+               WRITE (UNIT=name, FMT="(A,1X,I0)") &
+                  TRIM(energy_str)//" AND OCCUPATION NUMBERS "// &
+                  "AFTER SCF STEP", scf_step
             END IF
 
          END IF ! print_eigvecs
 
          ! Print headline
          IF (PRESENT(spin) .AND. (kpoint > 0)) THEN
-            WRITE (UNIT=iw, FMT="(/,T2,A,I0)") spin//" "//TRIM(name)//" FOR K POINT ", kpoint
+            WRITE (UNIT=iw, FMT="(/,T2,A,I0)") &
+               "MO| "//TRIM(spin)//" "//TRIM(name)//" FOR K POINT ", kpoint
          ELSE IF (PRESENT(spin)) THEN
-            WRITE (UNIT=iw, FMT="(/,T2,A)") spin//" "//TRIM(name)
+            WRITE (UNIT=iw, FMT="(/,T2,A)") &
+               "MO| "//TRIM(spin)//" "//TRIM(name)
          ELSE IF (kpoint > 0) THEN
-            WRITE (UNIT=iw, FMT="(/,T2,A,I0)") TRIM(name)//" FOR K POINT ", kpoint
+            WRITE (UNIT=iw, FMT="(/,T2,A,I0)") &
+               "MO| "//TRIM(name)//" FOR K POINT ", kpoint
          ELSE
-            WRITE (UNIT=iw, FMT="(/,T2,A)") TRIM(name)
+            WRITE (UNIT=iw, FMT="(/,T2,A)") &
+               "MO| "//TRIM(name)
          END IF
 
          ! Check if only a subset of the MOs has to be printed
@@ -1202,18 +1220,21 @@ CONTAINS
                from = icol
                to = MIN((from + ncol - 1), last_mo)
 
-               WRITE (UNIT=iw, FMT=fmtstr1) (jcol, jcol=from, to)
-               WRITE (UNIT=iw, FMT=fmtstr2) (mo_set%eigenvalues(jcol), jcol=from, to)
-               WRITE (UNIT=iw, FMT="(A)") ""
-
-               WRITE (UNIT=iw, FMT=fmtstr2) (mo_set%occupation_numbers(jcol), jcol=from, to)
-               WRITE (UNIT=iw, FMT="(A)") ""
+               WRITE (UNIT=iw, FMT="(T2,A)") "MO|"
+               WRITE (UNIT=iw, FMT=fmtstr1) &
+                  "MO|", (jcol, jcol=from, to)
+               WRITE (UNIT=iw, FMT=fmtstr2) &
+                  "MO|", (mo_set%eigenvalues(jcol), jcol=from, to)
+               WRITE (UNIT=iw, FMT="(T2,A)") "MO|"
+               WRITE (UNIT=iw, FMT=fmtstr2) &
+                  "MO|", (mo_set%occupation_numbers(jcol), jcol=from, to)
+               WRITE (UNIT=iw, FMT="(T2,A)") "MO|"
 
                irow = 1
 
                DO iatom = 1, natom
 
-                  IF (iatom /= 1) WRITE (UNIT=iw, FMT="(A)") ""
+                  IF (iatom /= 1) WRITE (UNIT=iw, FMT="(T2,A)") "MO|"
 
                   NULLIFY (orb_basis_set, dftb_parameter)
                   CALL get_atomic_kind(particle_set(iatom)%atomic_kind, &
@@ -1237,7 +1258,7 @@ CONTAINS
                               lshell = l(ishell, iset)
                               DO ico = 1, nco(lshell)
                                  WRITE (UNIT=iw, FMT=fmtstr3) &
-                                    irow, iatom, ADJUSTR(element_symbol), bcgf_symbol(icgf), &
+                                    "MO|", irow, iatom, ADJUSTR(element_symbol), bcgf_symbol(icgf), &
                                     (cmatrix(irow, jcol), jcol=from, to)
                                  icgf = icgf + 1
                                  irow = irow + 1
@@ -1253,7 +1274,7 @@ CONTAINS
                               symbol = cgf_symbol(1, indco(1:3, icgf))
                               symbol(1:2) = "  "
                               WRITE (UNIT=iw, FMT=fmtstr3) &
-                                 irow, iatom, ADJUSTR(element_symbol), symbol, &
+                                 "MO|", irow, iatom, ADJUSTR(element_symbol), symbol, &
                                  (cmatrix(irow, jcol), jcol=from, to)
                               icgf = icgf + 1
                               irow = irow + 1
@@ -1277,7 +1298,7 @@ CONTAINS
                               lshell = l(ishell, iset)
                               DO iso = 1, nso(lshell)
                                  WRITE (UNIT=iw, FMT=fmtstr3) &
-                                    irow, iatom, ADJUSTR(element_symbol), bsgf_symbol(isgf), &
+                                    "MO|", irow, iatom, ADJUSTR(element_symbol), bsgf_symbol(isgf), &
                                     (smatrix(irow, jcol), jcol=from, to)
                                  isgf = isgf + 1
                                  irow = irow + 1
@@ -1293,7 +1314,7 @@ CONTAINS
                               symbol = sgf_symbol(1, lshell, -lshell + iso - 1)
                               symbol(1:2) = "  "
                               WRITE (UNIT=iw, FMT=fmtstr3) &
-                                 irow, iatom, ADJUSTR(element_symbol), symbol, &
+                                 "MO|", irow, iatom, ADJUSTR(element_symbol), symbol, &
                                  (smatrix(irow, jcol), jcol=from, to)
                               isgf = isgf + 1
                               irow = irow + 1
@@ -1309,7 +1330,7 @@ CONTAINS
 
             END DO ! icol
 
-            WRITE (UNIT=iw, FMT="(/)")
+            WRITE (UNIT=iw, FMT="(T2,A)") "MO|"
 
             ! Release work storage
 
@@ -1320,34 +1341,40 @@ CONTAINS
 
          ELSE IF (print_occup .OR. print_eigvals) THEN
 
-            fmtstr4 = "(T2,I9,3(1X,F22.  ))"
-            WRITE (UNIT=fmtstr4(17:18), FMT="(I2)") after
-            WRITE (UNIT=iw, FMT="(/,A)") &
-               "# MO index   MO eigenvalue [a.u.]     MO eigenvalue [eV]          MO occupation"
+            WRITE (UNIT=iw, FMT="(T2,A)") "MO|"
+            fmtstr4 = "(T2,A,I7,3(1X,F22.  ))"
+            WRITE (UNIT=fmtstr4(19:20), FMT="(I2)") after
+            IF (my_final .OR. (my_solver_method == "TD")) THEN
+               WRITE (UNIT=iw, FMT="(A)") &
+                  " MO|  Index      Eigenvalue [a.u.]        Eigenvalue [eV]             Occupation"
+            ELSE
+               WRITE (UNIT=iw, FMT="(A)") &
+                  " MO|  Index          Energy [a.u.]            Energy [eV]             Occupation"
+            END IF
             DO imo = first_mo, last_mo
                WRITE (UNIT=iw, FMT=fmtstr4) &
-                  imo, mo_set%eigenvalues(imo), &
+                  "MO|", imo, mo_set%eigenvalues(imo), &
                   mo_set%eigenvalues(imo)*evolt, &
                   mo_set%occupation_numbers(imo)
             END DO
-            fmtstr5 = "(A,T58,F22.  ,/)"
+            fmtstr5 = "(A,T59,F22.  )"
             WRITE (UNIT=fmtstr5(12:13), FMT="(I2)") after
             WRITE (UNIT=iw, FMT=fmtstr5) &
-               "# Sum", accurate_sum(mo_set%occupation_numbers(:))
+               " MO| Sum:", accurate_sum(mo_set%occupation_numbers(:))
 
          END IF ! print_eigvecs
 
-         fmtstr6 = "(A,T17,F17.  ,A,T40,F17.  ,A)"
+         fmtstr6 = "(A,T18,F17.  ,A,T41,F17.  ,A)"
          WRITE (UNIT=fmtstr6(12:13), FMT="(I2)") after
          WRITE (UNIT=fmtstr6(25:26), FMT="(I2)") after
          WRITE (UNIT=iw, FMT=fmtstr6) &
-            "  Fermi energy:", mo_set%mu, " a.u.", mo_set%mu*evolt, " eV"
+            " MO| E(Fermi):", mo_set%mu, " a.u.", mo_set%mu*evolt, " eV"
          IF ((mo_set%homo > 0)) THEN
             IF ((mo_set%occupation_numbers(mo_set%homo) == mo_set%maxocc) .AND. (last_mo > mo_set%homo)) THEN
                gap = mo_set%eigenvalues(mo_set%homo + 1) - &
                      mo_set%eigenvalues(mo_set%homo)
                WRITE (UNIT=iw, FMT=fmtstr6) &
-                  "  HOMO-LUMO gap:", gap, " a.u.", gap*evolt, " eV"
+                  " MO| Band gap:", gap, " a.u.", gap*evolt, " eV"
             END IF
          END IF
          WRITE (UNIT=iw, FMT="(A)") ""

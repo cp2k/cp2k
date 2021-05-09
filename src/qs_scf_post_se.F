@@ -641,12 +641,12 @@ CONTAINS
       dft_section => section_vals_get_subs_vals(input, "DFT")
       IF (dft_control%nspins == 2) THEN
          CALL write_mo_set(mos(1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                           dft_section, 4, 0, last_mos=.TRUE., spin="ALPHA")
+                           dft_section, 4, 0, final_mos=.TRUE., spin="ALPHA")
          CALL write_mo_set(mos(2)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                           dft_section, 4, 0, last_mos=.TRUE., spin="BETA")
+                           dft_section, 4, 0, final_mos=.TRUE., spin="BETA")
       ELSE
          CALL write_mo_set(mos(1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                           dft_section, 4, 0, last_mos=.TRUE.)
+                           dft_section, 4, 0, final_mos=.TRUE.)
       END IF
 
       ! *** at the end of scf print out the projected dos per kind
