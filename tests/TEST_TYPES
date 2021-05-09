@@ -46,11 +46,11 @@ SUM OF SHELL FORCES !8
 PRM01!2
 Final value !6
 SUMMARY:: Number of molecule kinds found:!7
-Fermi energy: !3
+E(Fermi): !3
 Total Multiplication !9
 Direct MP2 Canonical Energy =!6
 RESP       1!4
-HOMO-LUMO gap: !3
+Band gap: !4
 Exchange-correlation energy: !3
 GRAND TOTAL FORCE !7
 BASOPT| Total residuum value: !5

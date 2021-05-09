@@ -2,10 +2,10 @@ H2O-rks-diag.inp                                      24      1E-11          0.0
 H2O-rks-otcg.inp                                      24      2e-07          0.0081042461219499994
 H2O-uks-diag.inp                                      24      3e-12          0.0070826097691200000
 H2O-uks-otcg.inp                                      24      1e-07          0.0070825676291199997
-H2O-rks-diag-mulliken.inp                             24      2e-11          0.0401646116479500000
+H2O-rks-diag-mulliken.inp                             24      2e-11          0.04016461029714
 H2O-rks-otcg-mulliken.inp                             24      9e-08          0.0401616150180899990
-H2O-uks-diag-mulliken.inp                             24      5e-13          0.0434047728284000000
-H2O-uks-otcg-mulliken.inp                             24      2e-08          0.0434080727848500030
+H2O-uks-diag-mulliken.inp                             24      5e-13          0.04340509184236
+H2O-uks-otcg-mulliken.inp                             24      2e-08          0.04340807378074
 H2O-rks-diag-lowdin.inp                               24      1E-12          0.07674874415138
 H2O-rks-otcg-lowdin.inp                               24      1E-12          0.07674870925125
 H2O-uks-diag-lowdin.inp                               24      1E-12          0.08364867485442

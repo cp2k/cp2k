@@ -28,6 +28,14 @@
     &PRINT
       &DFT_CONTROL_PARAMETERS
       &END DFT_CONTROL_PARAMETERS
+      &MO
+        COEFFICIENTS
+        ENERGIES
+        MO_INDEX_RANGE 1 9
+        &EACH
+          QS_SCF 5
+        &END EACH
+      &END MO
       &PLUS_U
       &END PLUS_U
     &END PRINT
@@ -37,10 +45,11 @@
     &SCF
       EPS_SCF 1.0E-5
       MAX_SCF 30
-      &OT ON
-        MINIMIZER cg
+      SCF_GUESS restart
+      &OT on
+        MINIMIZER CG
       &END OT
-      &OUTER_SCF ON
+      &OUTER_SCF on
         EPS_SCF 1.0E-5
         MAX_SCF 10
       &END OUTER_SCF
@@ -55,7 +64,6 @@
           BACKUP_COPIES 0
         &END RESTART
       &END PRINT
-      SCF_GUESS restart
     &END SCF
     &XC
       &XC_FUNCTIONAL PADE
