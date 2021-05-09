@@ -93,6 +93,7 @@ Ionization potentials for XPS !8
 FCIDUMP| Checksum: !3
 SPGR| SPACE GROUP NUMBER: !5
 KS CSR write| !4
+Fermi energy: !3
 #
 # these are the tests the can be selected for regtesting.
 # do regtest will grep for test_grep (first column) and look if the numeric value
