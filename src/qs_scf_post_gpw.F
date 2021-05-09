@@ -1647,7 +1647,7 @@ CONTAINS
       ! Write last MO information to output file if requested
       dft_section => section_vals_get_subs_vals(input, "DFT")
       IF (.NOT. qs_env%run_rtp) THEN
-         CALL qs_scf_write_mos(qs_env, scf_env, last_mos=.TRUE.)
+         CALL qs_scf_write_mos(qs_env, scf_env, final_mos=.TRUE.)
          IF (.NOT. do_kpoints) THEN
             CALL get_qs_env(qs_env, mos=mos, matrix_ks=ks_rmpv)
             CALL write_dm_binary_restart(mos, dft_section, ks_rmpv)

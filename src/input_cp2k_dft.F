@@ -1292,39 +1292,46 @@ CONTAINS
 
       CALL cp_print_key_section_create( &
          print_key, __LOCATION__, "MO", &
-         description="Controls the printing of the molecular orbitals. "// &
-         "Note that this is only functional with diagonalization based methods, in particular not with OT (see MO_CUBES)", &
+         description="Controls the printing of the molecular orbital (MO) information. The requested MO information "// &
+         "is printed for all occupied MOs by default. Use the MO_INDEX_RANGE keyword to restrict the number "// &
+         "of the MOs or to print the MO information for unoccupied MOs. With diagonalization, additional MOs "// &
+         "have to be made available for printout using the ADDED_MOS keyword in the SCF section. With OT, "// &
+         "it is sufficient to specify the desired MO_INDEX_RANGE. The OT eigensolver can be controlled with "// &
+         "the EPS_LUMO and MAX_ITER_LUMO keywords in the SCF section.", &
          print_level=high_print_level, filename="__STD_OUT__")
-      CALL keyword_create(keyword, __LOCATION__, name="Cartesian", &
-                          description="If the printkey is activated controls the printing of the mo in the cartesian basis", &
+      CALL keyword_create(keyword, __LOCATION__, name="CARTESIAN", &
+                          description="Print the MOs in the Cartesian basis instead of the default spherical basis.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="EIGENVALUES", variants=s2a("EIGVALS"), &
-                          description="If the printkey is activated controls the printing of the eigenvalues of the mos", &
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGIES", &
+                          variants=s2a("EIGENVALUES", "EIGVALS"), &
+                          description="Print the MO energies (eigenvalues).", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="EIGENVECTORS", variants=s2a("EIGVECS"), &
-                          description="If the printkey is activated controls the printing of the eigenvectors of the mos", &
+      CALL keyword_create(keyword, __LOCATION__, name="COEFFICIENTS", &
+                          variants=s2a("EIGENVECTORS", "EIGVECS"), &
+                          description="Print the MO coefficients (eigenvectors).", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="OCCUPATION_NUMBERS", variants=s2a("OCCNUMS"), &
-                          description="If the printkey is activated controls the printing of the occupation numbers of the mos", &
+      CALL keyword_create(keyword, __LOCATION__, name="OCCUPATION_NUMBERS", &
+                          variants=s2a("OCCNUMS"), &
+                          description="Print the MO occupation numbers.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="NDIGITS", &
-                          description="Specify the number of digits used to print the MO eigenvalues and occupation numbers", &
+                          description="Specify the number of digits used to print the MO information.", &
                           default_i_val=6)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, &
                           name="MO_INDEX_RANGE", &
                           variants=s2a("MO_RANGE", "RANGE"), &
-                          description="Allows to print only a subset of the MO eigenvectors or eigenvalues. "// &
-                          "The indices of the first and the last MO have to be specified", &
+                          description="Print only the requested subset of MOs. The indices of the first and "// &
+                          " the last MO have to be specified to define the range.", &
                           repeats=.FALSE., &
                           n_var=2, &
                           type_of_var=integer_t, &
@@ -2692,7 +2699,7 @@ CONTAINS
       NULLIFY (keyword)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "MO_CUBES", &
-                                       description="Controls the printing of cubes of the molecular orbitals.", &
+                                       description="Controls the printing of the molecular orbitals (MOs) as cube files.", &
                                        print_level=high_print_level, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
                           description="The stride (X,Y,Z) used to write the cube file "// &
@@ -5171,15 +5178,16 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER_LUMO", &
                           variants=(/"MAX_ITER_LUMOS"/), &
-                          description="The maximum number of iteration for the lumo computation", &
+                          description="Maximum number of iterations for the calculation of the LUMO energies "// &
+                          "with the OT eigensolver.", &
                           usage="MAX_ITER_LUMO 100", default_i_val=299)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_LUMO", &
                           variants=(/"EPS_LUMOS"/), &
-                          description="target accuracy of the computation of the lumo energy", &
-                          usage="EPS_LUMO 1.e-6", default_r_val=1.0e-5_dp)
+                          description="Target accuracy for the calculation of the LUMO energies with the OT eigensolver.", &
+                          usage="EPS_LUMO 1.0E-6", default_r_val=1.0E-5_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

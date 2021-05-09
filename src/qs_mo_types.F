@@ -24,6 +24,7 @@ MODULE qs_mo_types
    USE cp_dbcsr_operations,             ONLY: dbcsr_copy_columns_hack
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_type,&
                                               fm_pool_create_fm
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
@@ -122,7 +123,7 @@ CONTAINS
 
       !IF (ASSOCIATED(mo_set_old%mo_coeff_b)) THEN
       !   CALL dbcsr_copy(mo_set_new%mo_coeff_b, mo_set_old%mo_coeff_b)
-      !ENDIF
+      !END IF
       !mo_set_new%use_mo_coeff_b = mo_set_old%use_mo_coeff_b
 
       mo_set_new%eigenvalues = mo_set_old%eigenvalues
@@ -168,7 +169,7 @@ CONTAINS
       IF (ASSOCIATED(mo_set_old%mo_coeff_b)) THEN
          CALL dbcsr_init_p(mo_set_new%mo_coeff_b)
          CALL dbcsr_copy(mo_set_new%mo_coeff_b, mo_set_old%mo_coeff_b)
-      ENDIF
+      END IF
       mo_set_new%use_mo_coeff_b = mo_set_old%use_mo_coeff_b
 
       ALLOCATE (mo_set_new%eigenvalues(nmo))
@@ -233,16 +234,18 @@ CONTAINS
 !> \param mo_set the mo_set to initialize
 !> \param fm_pool a pool out which you initialize the mo_set
 !> \param fm_ref  a reference  matrix from which you initialize the mo_set
+!> \param fm_struct ...
 !> \param name ...
 !> \par History
 !>      11.2002 rewamped [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   SUBROUTINE init_mo_set(mo_set, fm_pool, fm_ref, name)
+   SUBROUTINE init_mo_set(mo_set, fm_pool, fm_ref, fm_struct, name)
 
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(cp_fm_pool_type), OPTIONAL, POINTER           :: fm_pool
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_ref
+      TYPE(cp_fm_struct_type), OPTIONAL, POINTER         :: fm_struct
       CHARACTER(LEN=*), INTENT(in)                       :: name
 
       INTEGER                                            :: nao, nmo, nomo
@@ -252,13 +255,16 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(mo_set%occupation_numbers))
       CPASSERT(.NOT. ASSOCIATED(mo_set%mo_coeff))
 
-      CPASSERT(PRESENT(fm_pool) .OR. PRESENT(fm_ref))
+      CPASSERT(PRESENT(fm_pool) .NEQV. (PRESENT(fm_ref) .NEQV. PRESENT(fm_struct)))
       IF (PRESENT(fm_pool)) THEN
          CPASSERT(ASSOCIATED(fm_pool))
          CALL fm_pool_create_fm(fm_pool, mo_set%mo_coeff, name=name)
       ELSE IF (PRESENT(fm_ref)) THEN
          CPASSERT(ASSOCIATED(fm_ref))
          CALL cp_fm_create(mo_set%mo_coeff, fm_ref%matrix_struct, name=name)
+      ELSE IF (PRESENT(fm_struct)) THEN
+         CPASSERT(ASSOCIATED(fm_struct))
+         CALL cp_fm_create(mo_set%mo_coeff, fm_struct, name=name)
       END IF
       CALL cp_fm_get_info(mo_set%mo_coeff, nrow_global=nao, ncol_global=nmo)
 
@@ -329,7 +335,7 @@ CONTAINS
                                       blacs_env=mo_array(1)%mo_set%mo_coeff%matrix_struct%context) !fm->dbcsr
       ELSE !fm->dbcsr
          CALL cp_fm_to_fm(mo_array(1)%mo_set%mo_coeff, mo_array(2)%mo_set%mo_coeff, mo_array(2)%mo_set%nmo)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
