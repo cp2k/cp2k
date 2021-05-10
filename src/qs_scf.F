@@ -184,15 +184,19 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief perform an scf procedure in the given qs_env
 !> \param qs_env the qs_environment where to perform the scf procedure
+!> \param has_converged ...
+!> \param total_scf_steps ...
 !> \par History
 !>      02.2003 introduced scf_env, moved real work to scf_env_do_scf [fawzi]
 !> \author fawzi
 !> \note
 ! **************************************************************************************************
-   SUBROUTINE scf(qs_env)
+   SUBROUTINE scf(qs_env, has_converged, total_scf_steps)
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: has_converged
+      INTEGER, INTENT(OUT), OPTIONAL                     :: total_scf_steps
 
-      INTEGER                                            :: ihistory, max_scf_tmp
+      INTEGER                                            :: ihistory, max_scf_tmp, tsteps
       LOGICAL                                            :: converged, outer_scf_loop, should_stop
       LOGICAL, SAVE                                      :: first_step_flag = .TRUE.
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: gradient_history, variable_history
@@ -205,6 +209,12 @@ CONTAINS
       NULLIFY (scf_env)
       logger => cp_get_default_logger()
       CPASSERT(ASSOCIATED(qs_env))
+      IF (PRESENT(has_converged)) THEN
+         has_converged = .FALSE.
+      END IF
+      IF (PRESENT(total_scf_steps)) THEN
+         total_scf_steps = 0
+      END IF
       CALL get_qs_env(qs_env, scf_env=scf_env, input=input, &
                       dft_control=dft_control, scf_control=scf_control)
       IF (scf_control%max_scf > 0) THEN
@@ -231,7 +241,7 @@ CONTAINS
 
          IF (.NOT. dft_control%qs_control%cdft) THEN
             CALL scf_env_do_scf(scf_env=scf_env, scf_control=scf_control, qs_env=qs_env, &
-                                converged=converged, should_stop=should_stop)
+                                converged=converged, should_stop=should_stop, total_scf_steps=tsteps)
          ELSE
             ! Third SCF loop needed for CDFT with OT to properly restart OT inner loop
             CALL cdft_scf(qs_env=qs_env, should_stop=should_stop)
@@ -291,6 +301,13 @@ CONTAINS
          IF (dft_control%qs_control%cdft) &
             CALL cdft_control_cleanup(dft_control%qs_control%cdft_control)
 
+         IF (PRESENT(has_converged)) THEN
+            has_converged = converged
+         END IF
+         IF (PRESENT(total_scf_steps)) THEN
+            total_scf_steps = tsteps
+         END IF
+
       END IF
 
    END SUBROUTINE scf
@@ -302,6 +319,7 @@ CONTAINS
 !> \param qs_env the qs_env, the scf_env lives in
 !> \param converged will be true / false if converged is reached
 !> \param should_stop ...
+!> \param total_scf_steps ...
 !> \par History
 !>      long history, see cvs and qs_scf module history
 !>      02.2003 introduced scf_env [fawzi]
@@ -311,12 +329,13 @@ CONTAINS
 !> \author Matthias Krack
 !> \note
 ! **************************************************************************************************
-   SUBROUTINE scf_env_do_scf(scf_env, scf_control, qs_env, converged, should_stop)
+   SUBROUTINE scf_env_do_scf(scf_env, scf_control, qs_env, converged, should_stop, total_scf_steps)
 
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(OUT)                               :: converged, should_stop
+      INTEGER, INTENT(OUT)                               :: total_scf_steps
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'scf_env_do_scf'
 
@@ -568,6 +587,7 @@ CONTAINS
       END DO scf_outer_loop
 
       converged = inner_loop_converged .AND. outer_loop_converged
+      total_scf_steps = total_steps
 
       IF (dft_control%qs_control%cdft) &
          dft_control%qs_control%cdft_control%total_steps = &
@@ -938,7 +958,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cdft_scf'
 
       INTEGER                                            :: handle, iatom, ispin, ivar, nmo, nvar, &
-                                                            output_unit
+                                                            output_unit, tsteps
       LOGICAL                                            :: cdft_loop_converged, converged, &
                                                             exit_cdft_loop, first_iteration, &
                                                             my_uocc, uniform_occupation
@@ -994,7 +1014,7 @@ CONTAINS
          CALL outer_loop_switch(scf_env, scf_control, cdft_control, cdft2ot)
          ! Solve electronic structure with fixed value of constraint
          CALL scf_env_do_scf(scf_env=scf_env, scf_control=scf_control, qs_env=qs_env, &
-                             converged=converged, should_stop=should_stop)
+                             converged=converged, should_stop=should_stop, total_scf_steps=tsteps)
          ! Decide whether to reuse the preconditioner on the next iteration
          IF (cdft_control%reuse_precond) THEN
             ! For convergence in exactly one step, the preconditioner is always reused (assuming max_reuse > 0)
@@ -1181,7 +1201,8 @@ CONTAINS
       CHARACTER(len=default_path_length)                 :: project_name
       INTEGER                                            :: counter, handle, i, ispin, iter_count, &
                                                             iwork, j, max_scf, nspins, nsteps, &
-                                                            nvar, nwork, output_unit, pwork, twork
+                                                            nvar, nwork, output_unit, pwork, &
+                                                            tsteps, twork
       LOGICAL                                            :: converged, explicit_jacobian, &
                                                             should_build, should_stop, &
                                                             use_md_history
@@ -1296,7 +1317,7 @@ CONTAINS
                   CALL qs_ks_did_change(ks_env, potential_changed=.TRUE.)
                   CALL outer_loop_switch(scf_env, scf_control, cdft_control, cdft2ot)
                   CALL scf_env_do_scf(scf_env=scf_env, scf_control=scf_control, qs_env=qs_env, &
-                                      converged=converged, should_stop=should_stop)
+                                      converged=converged, should_stop=should_stop, total_scf_steps=tsteps)
                   CALL outer_loop_switch(scf_env, scf_control, cdft_control, ot2cdft)
                   ! Update (iter_count + 1) element of gradient and print constraint info
                   scf_env%outer_scf%iter_count = scf_env%outer_scf%iter_count + 1
@@ -1378,7 +1399,7 @@ CONTAINS
       CHARACTER(len=default_path_length)                 :: project_name
       INTEGER                                            :: handle, i, ispin, iter_count, &
                                                             max_linesearch, max_scf, nspins, &
-                                                            nsteps, nvar, output_unit
+                                                            nsteps, nvar, output_unit, tsteps
       LOGICAL :: continue_ls, continue_ls_exit, converged, do_linesearch, found_solution, &
          reached_maxls, should_exit, should_stop, sign_changed
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: positive_sign
@@ -1510,7 +1531,7 @@ CONTAINS
             CALL qs_ks_did_change(ks_env, potential_changed=.TRUE.)
             CALL outer_loop_switch(scf_env, scf_control, cdft_control, cdft2ot)
             CALL scf_env_do_scf(scf_env=scf_env, scf_control=scf_control, qs_env=qs_env, &
-                                converged=converged, should_stop=should_stop)
+                                converged=converged, should_stop=should_stop, total_scf_steps=tsteps)
             CALL outer_loop_switch(scf_env, scf_control, cdft_control, ot2cdft)
             ! Update (iter_count + 1) element of gradient and print constraint info
             scf_env%outer_scf%iter_count = scf_env%outer_scf%iter_count + 1

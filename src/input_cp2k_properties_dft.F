@@ -35,9 +35,10 @@ MODULE input_cp2k_properties_dft
         current_orb_center_wannier, do_et_ddapc, do_full_density, do_no_et, do_spin_density, &
         gto_cartesian, gto_spherical, oe_gllb, oe_lb, oe_none, oe_saop, oe_shift, &
         ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
-        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
-        tddfpt_dipole_berry, tddfpt_dipole_length, tddfpt_dipole_velocity, tddfpt_kernel_full, &
-        tddfpt_kernel_stda, use_mom_ref_coac, use_mom_ref_com, use_mom_ref_user, use_mom_ref_zero
+        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, scan_x, scan_xy, &
+        scan_xyz, scan_xz, scan_y, scan_yz, scan_z, tddfpt_dipole_berry, tddfpt_dipole_length, &
+        tddfpt_dipole_velocity, tddfpt_kernel_full, tddfpt_kernel_stda, use_mom_ref_coac, &
+        use_mom_ref_com, use_mom_ref_user, use_mom_ref_zero
    USE input_cp2k_atprop,               ONLY: create_atprop_section
    USE input_cp2k_dft,                  ONLY: create_ddapc_restraint_section,&
                                               create_interp_section,&
@@ -122,6 +123,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_tddfpt2_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_tipscan_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -1474,5 +1479,72 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_stda_section
+
+! **************************************************************************************************
+!> \brief creates an input section for a tip scan calculation
+!> \param section section to create
+!> \par History
+!>    * 04.2021 created [JGH]
+! **************************************************************************************************
+   SUBROUTINE create_tipscan_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="TIP_SCAN", &
+                          description="Parameters needed to set up a Tip Scan."// &
+                          "Needs external definition of tip induced field.", &
+                          n_keywords=1, n_subsections=1, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="_SECTION_PARAMETERS_", &
+                          description="Controls the activation of the Tip Scan procedure", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SCAN_DIRECTION", &
+                          description="Defines scan direction and scan type(line, plane).", &
+                          usage="SCAN_DIRECTION XY", &
+                          enum_c_vals=s2a("X", "Y", "Z", "XY", "XZ", "YZ", "XYZ"), &
+                          enum_i_vals=(/scan_x, scan_y, scan_z, scan_xy, scan_xz, scan_yz, scan_xyz/), &
+                          default_i_val=scan_xy)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="REFERENCE_POINT", &
+                          description="The reference point to define the absolute position of the scan. ", &
+                          usage="REFERENCE_POINT 0.0 0.0 1.0", &
+                          n_var=3, default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp/), type_of_var=real_t, &
+                          unit_str="angstrom")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SCAN_POINTS", &
+                          description="Number of points calculated for each scan direction.", &
+                          usage="SCAN_POINTS 20 20", &
+                          n_var=-1, type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SCAN_STEP", &
+                          description="Step size for each scan direction.", &
+                          usage="SCAN_STEP 0.01 0.01", &
+                          n_var=-1, type_of_var=real_t, unit_str="angstrom")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="TIP_FILENAME", &
+                          description="Filename of tip potential defined in cube file format.", &
+                          usage="TIP_FILENAME <filename>", &
+                          type_of_var=lchar_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_tipscan_section
 
 END MODULE input_cp2k_properties_dft

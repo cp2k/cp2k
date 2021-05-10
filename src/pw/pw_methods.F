@@ -35,6 +35,7 @@ MODULE pw_methods
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_memory
    USE message_passing,                 ONLY: mp_sum
+   USE pw_copy_all,                     ONLY: pw_copy_match
    USE pw_cuda,                         ONLY: pw_cuda_c1dr3d_3d,&
                                               pw_cuda_c1dr3d_3d_ps,&
                                               pw_cuda_r3dc1d_3d,&
@@ -246,17 +247,17 @@ CONTAINS
                      END DO
                   END IF
                ELSE
-                  IF (out_unit > 0) THEN
-                     WRITE (out_unit, "(A,I5,T30,A,L1,T60,A,I5)") &
-                        " grid 1 :", pw1%pw_grid%id_nr, &
-                        " spherical :", pw1%pw_grid%spherical, &
-                        " reference :", pw1%pw_grid%reference
-                     WRITE (out_unit, "(A,I5,T30,A,L1,T60,A,I5)") &
-                        " grid 2 :", pw2%pw_grid%id_nr, &
-                        " spherical :", pw2%pw_grid%spherical, &
-                        " reference :", pw2%pw_grid%reference
-                  ENDIF
-                  CPABORT("Incompatible grids")
+                  !IF (out_unit > 0) THEN
+                  !   WRITE (out_unit, "(A,I5,T30,A,L1,T60,A,I5)") &
+                  !      " grid 1 :", pw1%pw_grid%id_nr, &
+                  !      " spherical :", pw1%pw_grid%spherical, &
+                  !      " reference :", pw1%pw_grid%reference
+                  !   WRITE (out_unit, "(A,I5,T30,A,L1,T60,A,I5)") &
+                  !      " grid 2 :", pw2%pw_grid%id_nr, &
+                  !      " spherical :", pw2%pw_grid%spherical, &
+                  !      " reference :", pw2%pw_grid%reference
+                  !ENDIF
+                  CALL pw_copy_match(pw1, pw2)
                END IF
 
             ELSE

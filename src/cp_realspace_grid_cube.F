@@ -38,15 +38,16 @@ CONTAINS
 !> \param particles ...
 !> \param stride ...
 !> \param zero_tails ...
+!> \param silent minimal I/O
 !> \param mpi_io True if cube should be written in parallel using MPI
 ! **************************************************************************************************
-   SUBROUTINE cp_pw_to_cube(pw, unit_nr, title, particles, stride, zero_tails, mpi_io)
+   SUBROUTINE cp_pw_to_cube(pw, unit_nr, title, particles, stride, zero_tails, silent, mpi_io)
       TYPE(pw_type), POINTER                             :: pw
       INTEGER, INTENT(IN)                                :: unit_nr
       CHARACTER(*), INTENT(IN), OPTIONAL                 :: title
       TYPE(particle_list_type), POINTER                  :: particles
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: stride
-      LOGICAL, INTENT(IN), OPTIONAL                      :: zero_tails, mpi_io
+      LOGICAL, INTENT(IN), OPTIONAL                      :: zero_tails, silent, mpi_io
 
       INTEGER                                            :: i, n
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: particles_z
@@ -67,11 +68,11 @@ CONTAINS
          CALL pw_to_cube(pw=pw, unit_nr=unit_nr, title=title, &
                          particles_z=particles_z, particles_r=particles_r, &
                          stride=stride, zero_tails=zero_tails, &
-                         mpi_io=mpi_io)
+                         silent=silent, mpi_io=mpi_io)
       ELSE
          CALL pw_to_cube(pw=pw, unit_nr=unit_nr, title=title, &
                          stride=stride, zero_tails=zero_tails, &
-                         mpi_io=mpi_io)
+                         silent=silent, mpi_io=mpi_io)
       END IF
 
    END SUBROUTINE cp_pw_to_cube
@@ -104,13 +105,15 @@ CONTAINS
 !> \param grid     pw to read from cube file
 !> \param filename name of cube file
 !> \param scaling  scale values before storing
+!> \param silent   minimal I/O
 !> \par History
 !>      Created [Nico Holmberg] (09.2018)
 ! **************************************************************************************************
-   SUBROUTINE cp_cube_to_pw(grid, filename, scaling)
+   SUBROUTINE cp_cube_to_pw(grid, filename, scaling, silent)
       TYPE(pw_type), POINTER                             :: grid
       CHARACTER(len=*), INTENT(in)                       :: filename
       REAL(kind=dp), INTENT(in)                          :: scaling
+      LOGICAL, INTENT(in), OPTIONAL                      :: silent
 
       LOGICAL                                            :: parallel_read
 
@@ -123,7 +126,7 @@ CONTAINS
       ! Check if MPI I/O was disabled in GLOBAL section
       IF (.NOT. cp_mpi_io_get()) parallel_read = .FALSE.
 
-      CALL cube_to_pw(grid, filename, scaling, parallel_read)
+      CALL cube_to_pw(grid, filename, scaling, parallel_read, silent=silent)
 
    END SUBROUTINE cp_cube_to_pw
 
