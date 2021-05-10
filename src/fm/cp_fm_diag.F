@@ -147,14 +147,16 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief   Choose the Eigensolver depending on which library is available
-!>           ELPA seems to be unstable for small systems
+!>          ELPA seems to be unstable for small systems
 !> \param matrix ...
 !> \param eigenvectors ...
 !> \param eigenvalues ...
 !> \param info ...
 !> \par     info If present returns error code and prevents program stops.
-!>               Works currently only for cp_fm_syevd with scalapack.
+!>               Works currently only for cp_fm_syevd with ScaLAPACK.
 !>               Other solvers will end the program regardless of PRESENT(info).
+!> \par History
+!>      - Do not use ELPA for small matrices and use instead ScaLAPACK as fallback (10.05.2021, MK)
 ! **************************************************************************************************
    SUBROUTINE choose_eigv_solver(matrix, eigenvectors, eigenvalues, info)
 
@@ -173,14 +175,14 @@ CONTAINS
       ! Sample peak memory
       CALL m_memory()
 
-      IF (diag_type == DIAG_TYPE_ELPA) THEN
-         CALL cp_fm_diag_elpa(matrix, eigenvectors, eigenvalues)
-      ELSE IF (diag_type == DIAG_TYPE_SCALAPACK) THEN
+      IF ((nmo < 16) .OR. (diag_type == DIAG_TYPE_SCALAPACK)) THEN
          IF (PRESENT(info)) THEN
             CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues, info=myinfo)
          ELSE
             CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues)
          END IF
+      ELSE IF (diag_type == DIAG_TYPE_ELPA) THEN
+         CALL cp_fm_diag_elpa(matrix, eigenvectors, eigenvalues)
       ELSE
          CPABORT("ERROR in "//routineN//": Invalid diagonalization type requested")
       END IF

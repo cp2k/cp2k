@@ -395,7 +395,8 @@ CONTAINS
       END IF
 
       IF (io_unit > 0 .AND. elpa_should_print) THEN
-         WRITE (io_unit, '(/,A)') "ELPA| Matrix diagonalization information"
+         WRITE (UNIT=io_unit, FMT="(/,T2,A)") &
+            "ELPA| Matrix diagonalization information"
 
          ! Find name for given kernel id.
          ! In case ELPA_2STAGE_REAL_DEFAULT was used it might not be in our elpa_kernel_ids list.
@@ -404,25 +405,37 @@ CONTAINS
             IF (elpa_kernel_ids(i) == elpa_kernel) THEN
                kernel_name = elpa_kernel_names(i)
             ENDIF
-         ENDDO
+         END DO
 
-         WRITE (io_unit, '(A,I14)') "ELPA| Matrix order             : ", n
-         WRITE (io_unit, '(A,I14)') "ELPA| Matrix block size        : ", nblk
-         WRITE (io_unit, '(A,A14)') "ELPA| Kernel                   : ", ADJUSTR(TRIM(kernel_name))
-         WRITE (io_unit, '(A,L14)') "ELPA| QR step requested        : ", elpa_qr
+         WRITE (UNIT=io_unit, FMT="(T2,A,I14)") &
+            "ELPA| Matrix order (NA)                  : ", n, &
+            "ELPA| Matrix block size (NBLK)           : ", nblk, &
+            "ELPA| Number of eigenvectors (NEV)       : ", neig, &
+            "ELPA| Local rows (LOCAL_NROWS)           : ", n_rows, &
+            "ELPA| Local columns (LOCAL_NCOLS)        : ", n_cols
+         WRITE (UNIT=io_unit, FMT="(T2,A,A14)") &
+            "ELPA| Kernel                             : ", ADJUSTR(TRIM(kernel_name))
+         WRITE (UNIT=io_unit, FMT="(T2,A,L14)") &
+            "ELPA| QR step requested                  : ", elpa_qr
 
          IF (elpa_qr) THEN
-            WRITE (io_unit, '(A,L14)') "ELPA| Use potentially unsafe QR: ", elpa_qr_unsafe
-            WRITE (io_unit, '(A,L14)') "ELPA| Matrix is suitable for QR: ", use_qr
-
+            WRITE (UNIT=io_unit, FMT="(T2,A,L14)") &
+               "ELPA| Use potentially unsafe QR          : ", elpa_qr_unsafe, &
+               "ELPA| Matrix is suitable for QR          : ", use_qr
             IF (.NOT. use_qr) THEN
-               IF (MOD(n, 2) .NE. 0) &
-                  WRITE (io_unit, '(A)') "ELPA| Matrix order is NOT even"
-               IF (nblk .LT. 64 .AND. .NOT. elpa_qr_unsafe) &
-                  WRITE (io_unit, '(A)') "ELPA| Matrix block size is NOT 64 or greater"
+               IF (MODULO(n, 2) /= 0) THEN
+                  WRITE (UNIT=io_unit, FMT="(T2,A)") &
+                     "ELPA| Matrix order is NOT even"
+               END IF
+               IF ((nblk < 64) .AND. (.NOT. elpa_qr_unsafe)) THEN
+                  WRITE (UNIT=io_unit, FMT="(T2,A)") &
+                     "ELPA| Matrix block size is NOT 64 or greater"
+               END IF
             ELSE
-               IF (nblk .LT. 64 .AND. elpa_qr_unsafe) &
-                  WRITE (io_unit, '(A,L14)') "ELPA| Matrix block size check was bypassed"
+               IF ((nblk < 64) .AND. elpa_qr_unsafe) THEN
+                  WRITE (UNIT=io_unit, FMT="(T2,A,L14)") &
+                     "ELPA| Matrix block size check was bypassed"
+               END IF
             END IF
          END IF
       END IF
@@ -515,4 +528,3 @@ CONTAINS
 #endif
 
 END MODULE cp_fm_elpa
-
