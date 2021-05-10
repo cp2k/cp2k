@@ -80,9 +80,6 @@ CONTAINS
       CALL get_qs_env(qs_env, dft_control=dft_control)
       IF (dft_control%apply_external_potential) THEN
          IF (dft_control%eval_external_potential) THEN
-!deb
-!write(6,*) "EXTERNAL ENERGY  ",dft_control%eval_external_potential
-!deb
             CALL get_qs_env(qs_env, vee=v_ee)
             IF (dft_control%expot_control%maxwell_solver) THEN
                scaling_factor = dft_control%expot_control%scaling_factor
@@ -168,9 +165,6 @@ CONTAINS
       IF (dft_control%apply_external_potential) THEN
          !ensure that external potential is loaded to grid
          IF (dft_control%eval_external_potential) THEN
-!deb
-!write(6,*) "EXTERNAL FORCE/CORE   CALL external_e_potential"
-!deb
             CALL external_e_potential(qs_env)
          END IF
          my_force = .FALSE.

@@ -57,6 +57,7 @@ MODULE qs_energy_utils
    USE qs_scf,                          ONLY: scf
    USE qs_tddfpt2_methods,              ONLY: tddfpt
    USE scf_control_types,               ONLY: scf_control_type
+   USE tip_scan_methods,                ONLY: tip_scanning
    USE xas_methods,                     ONLY: xas
    USE xas_tdp_methods,                 ONLY: xas_tdp
 #include "./base/base_uses.f90"
@@ -216,13 +217,14 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_properties'
 
       INTEGER                                            :: handle
-      LOGICAL                                            :: do_et, do_et_proj
+      LOGICAL                                            :: do_et, do_et_proj, do_tip_scan
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: v_hartree_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
-      TYPE(section_vals_type), POINTER                   :: input, proj_section, rest_b_section
+      TYPE(section_vals_type), POINTER                   :: input, proj_section, rest_b_section, &
+                                                            tip_scan_section
 
       NULLIFY (atprop, energy, pw_env)
       CALL timeset(routineN, handle)
@@ -302,6 +304,14 @@ CONTAINS
 
       IF (dft_control%tddfpt2_control%enabled) THEN
          CALL tddfpt(qs_env)
+      END IF
+
+      ! tip scan
+      NULLIFY (tip_scan_section)
+      tip_scan_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%TIP_SCAN")
+      CALL section_vals_get(tip_scan_section, explicit=do_tip_scan)
+      IF (do_tip_scan) THEN
+         CALL tip_scanning(qs_env, tip_scan_section)
       END IF
 
       CALL timestop(handle)

@@ -44,9 +44,11 @@ CONTAINS
 !> \param particles_z ...
 !> \param stride ...
 !> \param zero_tails ...
+!> \param silent ...
 !> \param mpi_io ...
 ! **************************************************************************************************
-   SUBROUTINE pw_to_cube(pw, unit_nr, title, particles_r, particles_z, stride, zero_tails, mpi_io)
+   SUBROUTINE pw_to_cube(pw, unit_nr, title, particles_r, particles_z, stride, zero_tails, &
+                         silent, mpi_io)
       TYPE(pw_type), POINTER                             :: pw
       INTEGER, INTENT(IN)                                :: unit_nr
       CHARACTER(*), INTENT(IN), OPTIONAL                 :: title
@@ -54,21 +56,23 @@ CONTAINS
          OPTIONAL                                        :: particles_r
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: particles_z
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: stride
-      LOGICAL, INTENT(IN), OPTIONAL                      :: zero_tails, mpi_io
+      LOGICAL, INTENT(IN), OPTIONAL                      :: zero_tails, silent, mpi_io
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_to_cube'
       INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
       INTEGER :: checksum, dest, gid, handle, i, I1, I2, I3, iat, ip, L1, L2, L3, msglen, my_rank, &
          my_stride(3), np, num_linebreak, num_pe, rank(2), size_of_z, source, tag, U1, U2, U3
-      LOGICAL                                            :: my_zero_tails, parallel_write
+      LOGICAL                                            :: be_silent, my_zero_tails, parallel_write
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: buf
 
       CALL timeset(routineN, handle)
 
       my_zero_tails = .FALSE.
+      be_silent = .FALSE.
       parallel_write = .FALSE.
       IF (PRESENT(zero_tails)) my_zero_tails = zero_tails
+      IF (PRESENT(silent)) be_silent = silent
       IF (PRESENT(mpi_io)) parallel_write = mpi_io
       my_stride = 1
       IF (PRESENT(stride)) THEN
@@ -223,16 +227,18 @@ CONTAINS
 !> \param filename name of cube file
 !> \param scaling  scale values before storing
 !> \param parallel_read ...
+!> \param silent ...
 !> \par History
 !>      Created [M.Watkins] (01.2014)
 !>      Use blocking, collective MPI read for parallel simulations [Nico Holmberg] (05.2017)
 ! **************************************************************************************************
-   SUBROUTINE cube_to_pw(grid, filename, scaling, parallel_read)
+   SUBROUTINE cube_to_pw(grid, filename, scaling, parallel_read, silent)
 
       TYPE(pw_type), POINTER                             :: grid
       CHARACTER(len=*), INTENT(in)                       :: filename
       REAL(kind=dp), INTENT(in)                          :: scaling
       LOGICAL, INTENT(in)                                :: parallel_read
+      LOGICAL, INTENT(in), OPTIONAL                      :: silent
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cube_to_pw'
       INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
@@ -243,6 +249,7 @@ CONTAINS
                                                             size_of_z, tag
       INTEGER, DIMENSION(3)                              :: lbounds, lbounds_local, npoints, &
                                                             npoints_local, ubounds, ubounds_local
+      LOGICAL                                            :: be_silent
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: buffer
       REAL(kind=dp), DIMENSION(3)                        :: dr, rdum
 
@@ -250,7 +257,11 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      !get rs grids and parallel envnment
+      be_silent = .FALSE.
+      IF (PRESENT(silent)) THEN
+         be_silent = silent
+      END IF
+      !get rs grids and parallel environment
       gid = grid%pw_grid%para%group
       my_rank = grid%pw_grid%para%my_pos
       num_pe = grid%pw_grid%para%group_size
@@ -274,7 +285,7 @@ CONTAINS
          ALLOCATE (buffer(lbounds(3):ubounds(3)))
 
          IF (my_rank == 0) THEN
-            IF (output_unit > 0) THEN
+            IF (output_unit > 0 .AND. .NOT. be_silent) THEN
                WRITE (output_unit, FMT="(/,T2,A,/,/,T2,A,/)") "Reading the cube file:     ", TRIM(filename)
             END IF
 
@@ -343,7 +354,7 @@ CONTAINS
          IF (MODULO(size_of_z, num_entries_line) /= 0) &
             num_linebreak = num_linebreak + 1
          msglen = (size_of_z*entry_len + num_linebreak)*mpi_character_size
-         CALL cube_to_pw_parallel(grid, filename, scaling, msglen)
+         CALL cube_to_pw_parallel(grid, filename, scaling, msglen, silent=silent)
       END IF
 
       CALL timestop(handle)
@@ -357,15 +368,17 @@ CONTAINS
 !> \param filename name of cube file
 !> \param scaling  scale values before storing
 !> \param msglen   the size of each grid slice along z-axis in bytes
+!> \param silent ...
 !> \par History
 !>      Created [Nico Holmberg] (05.2017)
 ! **************************************************************************************************
-   SUBROUTINE cube_to_pw_parallel(grid, filename, scaling, msglen)
+   SUBROUTINE cube_to_pw_parallel(grid, filename, scaling, msglen, silent)
 
       TYPE(pw_type), POINTER                             :: grid
       CHARACTER(len=*), INTENT(in)                       :: filename
       REAL(kind=dp), INTENT(in)                          :: scaling
       INTEGER, INTENT(in)                                :: msglen
+      LOGICAL, INTENT(in), OPTIONAL                      :: silent
 
       INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
@@ -379,12 +392,17 @@ CONTAINS
          num_pe, offset_global, output_unit, pos, readstat, size_of_z, tag
       CHARACTER(LEN=msglen), ALLOCATABLE, DIMENSION(:)   :: readbuffer
       CHARACTER(LEN=msglen)                              :: tmp
-      LOGICAL                                            :: should_read(2)
+      LOGICAL                                            :: be_silent, should_read(2)
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: buffer
       REAL(kind=dp), DIMENSION(3)                        :: dr, rdum
       TYPE(mp_file_descriptor_type)                      :: mp_file_type
 
       output_unit = cp_logger_get_default_io_unit()
+
+      be_silent = .FALSE.
+      IF (PRESENT(silent)) THEN
+         be_silent = silent
+      END IF
 
       !get rs grids and parallel envnment
       gid = grid%pw_grid%para%group
@@ -409,7 +427,7 @@ CONTAINS
 
       ! Read header information and determine byte offset of cube data on master process
       IF (my_rank == 0) THEN
-         IF (output_unit > 0) THEN
+         IF (output_unit > 0 .AND. .NOT. be_silent) THEN
             WRITE (output_unit, FMT="(/,T2,A,/,/,T2,A,/)") "Reading the cube file:     ", TRIM(filename)
          END IF
 
@@ -535,7 +553,7 @@ CONTAINS
          ! Check that cube was correctly read using intrinsic read on master who sends data to everyone
          buffer = 0.0_dp
          IF (my_rank == 0) THEN
-            IF (output_unit > 0) THEN
+            IF (output_unit > 0 .AND. .NOT. be_silent) THEN
                WRITE (output_unit, FMT="(/,T2,A,/,/,T2,A)") "Reading the cube file:     ", filename
             END IF
 

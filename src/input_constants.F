@@ -1170,4 +1170,13 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: gto_cartesian = 1, &
                                                gto_spherical = 2
 
+   ! Tip scan directions
+   INTEGER, PARAMETER, PUBLIC               :: scan_x = 1, &
+                                               scan_y = 2, &
+                                               scan_z = 3, &
+                                               scan_xy = 12, &
+                                               scan_xz = 13, &
+                                               scan_yz = 23, &
+                                               scan_xyz = 123
+
 END MODULE input_constants

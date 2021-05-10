@@ -646,7 +646,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'xes_scf_once'
 
       INTEGER                                            :: handle, ispin, istate, my_spin, nmo, &
-                                                            nvirtual, nvirtual2, output_unit
+                                                            nvirtual, nvirtual2, output_unit, &
+                                                            tsteps
       REAL(KIND=dp), DIMENSION(:), POINTER               :: all_evals, eigenvalues
       TYPE(cp_fm_type), POINTER                          :: all_vectors, mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -692,7 +693,7 @@ CONTAINS
          ENDIF
 
          CALL scf_env_do_scf(scf_env=scf_env, scf_control=scf_control, qs_env=qs_env, &
-                             converged=converged, should_stop=should_stop)
+                             converged=converged, should_stop=should_stop, total_scf_steps=tsteps)
          CALL scf_env_cleanup(scf_env)
 
       END IF
