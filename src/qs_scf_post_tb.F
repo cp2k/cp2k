@@ -9,6 +9,7 @@
 !> \brief Does all kind of post scf calculations for DFTB
 !> \par History
 !>      Started as a copy from the GPW file
+!>      - Revise MO information printout (10.05.2021, MK)
 !> \author JHU (03.2013)
 ! **************************************************************************************************
 MODULE qs_scf_post_tb
