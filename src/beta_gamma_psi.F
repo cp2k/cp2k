@@ -8,6 +8,7 @@
 ! **************************************************************************************************
 MODULE beta_gamma_psi
    ! not tested in the case where dp would stand for single precision
+   ! Routines for the beta function are untested
 
    USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
@@ -16,7 +17,7 @@ MODULE beta_gamma_psi
 
    PRIVATE
 
-   PUBLIC :: erf1, gamln, psi
+   PUBLIC :: psi
 
 CONTAINS
 
@@ -148,74 +149,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION epsln() RESULT(fn_val)
-!--------------------------------------------------------------------
-!     THE EVALUATION OF LN(EPS) WHERE EPS IS THE SMALLEST NUMBER
-!     SUCH THAT 1.0 + EPS .GT. 1.0 .  L IS A DUMMY ARGUMENT.
-!--------------------------------------------------------------------
-      REAL                                               :: fn_val
-
-      REAL, PARAMETER                                    :: one = 1.0
-
-! Local variable
-
-      fn_val = LOG(EPSILON(one))
-
-   END FUNCTION epsln
-
-! **************************************************************************************************
-!> \brief ...
-!> \param l ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION exparg(l) RESULT(fn_val)
-!--------------------------------------------------------------------
-!     IF L = 0 THEN  EXPARG(L) = THE LARGEST POSITIVE W FOR WHICH
-!     EXP(W) CAN BE COMPUTED.
-!
-!     IF L IS NONZERO THEN  EXPARG(L) = THE LARGEST NEGATIVE W FOR
-!     WHICH THE COMPUTED VALUE OF EXP(W) IS NONZERO.
-!
-!     NOTE... ONLY AN APPROXIMATE VALUE FOR EXPARG(L) IS NEEDED.
-!--------------------------------------------------------------------
-      INTEGER, INTENT(IN)                                :: l
-      REAL                                               :: fn_val
-
-      REAL, PARAMETER                                    :: one = 1.0
-
-! Local variable
-
-      IF (l == 0) THEN
-         fn_val = LOG(HUGE(one))
-      ELSE
-         fn_val = LOG(TINY(one))
-      END IF
-
-   END FUNCTION exparg
-
-! **************************************************************************************************
-!> \brief ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION depsln() RESULT(fn_val)
-!--------------------------------------------------------------------
-!     THE EVALUATION OF LN(EPS) WHERE EPS IS THE SMALLEST NUMBER
-!     SUCH THAT 1.e0_dp + EPS .GT. 1.e0_dp .  L IS A DUMMY ARGUMENT.
-!--------------------------------------------------------------------
-      REAL(dp)                                           :: fn_val
-
-      REAL(dp), PARAMETER                                :: one = 1._dp
-
-! Local variable
-
-      fn_val = LOG(EPSILON(one))
-
-   END FUNCTION depsln
-
-! **************************************************************************************************
-!> \brief ...
 !> \param l ...
 !> \return ...
 ! **************************************************************************************************
@@ -277,153 +210,6 @@ CONTAINS
       END IF
 
    END FUNCTION alnrel
-
-! **************************************************************************************************
-!> \brief ...
-!> \param x ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION erf1(x) RESULT(fn_val)
-!-----------------------------------------------------------------------
-!             EVALUATION OF THE REAL ERROR FUNCTION
-!-----------------------------------------------------------------------
-      REAL(dp), INTENT(IN)                               :: x
-      REAL(dp)                                           :: fn_val
-
-      REAL(dp), PARAMETER :: a(5) = (/.771058495001320e-04_dp, -.133733772997339e-02_dp, &
-         .323076579225834e-01_dp, .479137145607681e-01_dp, .128379167095513e+00_dp/), &
-         b(3) = (/.301048631703895e-02_dp, .538971687740286e-01_dp, .375795757275549e+00_dp/), &
-         c = .564189583547756e0_dp, p(8) = (/-1.36864857382717e-07_dp, 5.64195517478974e-01_dp, &
-         7.21175825088309e+00_dp, 4.31622272220567e+01_dp, 1.52989285046940e+02_dp, &
-         3.39320816734344e+02_dp, 4.51918953711873e+02_dp, 3.00459261020162e+02_dp/)
-      REAL(dp), PARAMETER :: q(8) = (/1.00000000000000e+00_dp, 1.27827273196294e+01_dp, &
-         7.70001529352295e+01_dp, 2.77585444743988e+02_dp, 6.38980264465631e+02_dp, &
-         9.31354094850610e+02_dp, 7.90950925327898e+02_dp, 3.00459260956983e+02_dp/), r(5) = (/ &
-         2.10144126479064e+00_dp, 2.62370141675169e+01_dp, 2.13688200555087e+01_dp, &
-         4.65807828718470e+00_dp, 2.82094791773523e-01_dp/), s(4) = (/9.41537750555460e+01_dp, &
-         1.87114811799590e+02_dp, 9.90191814623914e+01_dp, 1.80124575948747e+01_dp/)
-
-      REAL(dp)                                           :: ax, bot, t, top, x2
-
-      ax = ABS(x)
-      IF (ax < 0.5e0_dp) THEN
-         t = x*x
-         top = ((((a(1)*t + a(2))*t + a(3))*t + a(4))*t + a(5)) + 1.0e0_dp
-         bot = ((b(1)*t + b(2))*t + b(3))*t + 1.0e0_dp
-         fn_val = x*(top/bot)
-         RETURN
-
-      ELSE IF (ax < 4.0e0_dp) THEN
-         top = ((((((p(1)*ax + p(2))*ax + p(3))*ax + p(4))*ax + p(5))*ax &
-                 + p(6))*ax + p(7))*ax + p(8)
-         bot = ((((((q(1)*ax + q(2))*ax + q(3))*ax + q(4))*ax + q(5))*ax &
-                 + q(6))*ax + q(7))*ax + q(8)
-         fn_val = 0.5e0_dp + (0.5e0_dp - EXP(-x*x)*top/bot)
-         IF (x < 0.0e0_dp) fn_val = -fn_val
-         RETURN
-
-      ELSE IF (ax < 5.8e0_dp) THEN
-         x2 = x*x
-         t = 1.0e0_dp/x2
-         top = (((r(1)*t + r(2))*t + r(3))*t + r(4))*t + r(5)
-         bot = (((s(1)*t + s(2))*t + s(3))*t + s(4))*t + 1.0e0_dp
-         fn_val = (c - top/(x2*bot))/ax
-         fn_val = 0.5e0_dp + (0.5e0_dp - EXP(-x2)*fn_val)
-         IF (x < 0.0e0_dp) fn_val = -fn_val
-         RETURN
-
-      ELSE
-         fn_val = SIGN(1.0e0_dp, x)
-      END IF
-
-   END FUNCTION erf1
-
-! **************************************************************************************************
-!> \brief ...
-!> \param ind ...
-!> \param x ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION erfc1(ind, x) RESULT(fn_val)
-!-----------------------------------------------------------------------
-!         EVALUATION OF THE COMPLEMENTARY ERROR FUNCTION
-
-!          ERFC1(IND,X) = ERFC(X)            IF IND = 0
-!          ERFC1(IND,X) = EXP(X*X)*ERFC(X)   OTHERWISE
-!-----------------------------------------------------------------------
-      INTEGER, INTENT(IN)                                :: ind
-      REAL(dp), INTENT(IN)                               :: x
-      REAL(dp)                                           :: fn_val
-
-      REAL(dp), PARAMETER :: a(5) = (/.771058495001320e-04_dp, -.133733772997339e-02_dp, &
-         .323076579225834e-01_dp, .479137145607681e-01_dp, .128379167095513e+00_dp/), &
-         b(3) = (/.301048631703895e-02_dp, .538971687740286e-01_dp, .375795757275549e+00_dp/), &
-         c = .564189583547756e0_dp, p(8) = (/-1.36864857382717e-07_dp, 5.64195517478974e-01_dp, &
-         7.21175825088309e+00_dp, 4.31622272220567e+01_dp, 1.52989285046940e+02_dp, &
-         3.39320816734344e+02_dp, 4.51918953711873e+02_dp, 3.00459261020162e+02_dp/)
-      REAL(dp), PARAMETER :: q(8) = (/1.00000000000000e+00_dp, 1.27827273196294e+01_dp, &
-         7.70001529352295e+01_dp, 2.77585444743988e+02_dp, 6.38980264465631e+02_dp, &
-         9.31354094850610e+02_dp, 7.90950925327898e+02_dp, 3.00459260956983e+02_dp/), r(5) = (/ &
-         2.10144126479064e+00_dp, 2.62370141675169e+01_dp, 2.13688200555087e+01_dp, &
-         4.65807828718470e+00_dp, 2.82094791773523e-01_dp/), s(4) = (/9.41537750555460e+01_dp, &
-         1.87114811799590e+02_dp, 9.90191814623914e+01_dp, 1.80124575948747e+01_dp/)
-
-      REAL(dp)                                           :: ax, bot, e, t, top, w
-
-      ax = ABS(x)
-      IF (ax <= 0.5e0_dp) THEN
-         t = x*x
-         top = ((((a(1)*t + a(2))*t + a(3))*t + a(4))*t + a(5)) + 1.0e0_dp
-         bot = ((b(1)*t + b(2))*t + b(3))*t + 1.0e0_dp
-         fn_val = 0.5e0_dp + (0.5e0_dp - x*(top/bot))
-         IF (ind /= 0) fn_val = EXP(t)*fn_val
-         RETURN
-      ENDIF
-
-!                  0.5 < ABS(X) <= 4
-
-      IF (ax <= 4.0e0_dp) THEN
-         top = ((((((p(1)*ax + p(2))*ax + p(3))*ax + p(4))*ax + p(5))*ax &
-                 + p(6))*ax + p(7))*ax + p(8)
-         bot = ((((((q(1)*ax + q(2))*ax + q(3))*ax + q(4))*ax + q(5))*ax &
-                 + q(6))*ax + q(7))*ax + q(8)
-         fn_val = top/bot
-      ELSE
-
-!                      ABS(X) > 4
-
-         IF (x <= -5.6e0_dp) THEN
-!             LIMIT VALUE FOR LARGE NEGATIVE X
-            fn_val = 2.0e0_dp
-            IF (ind /= 0) fn_val = 2.0e0_dp*EXP(x*x)
-            RETURN
-         ENDIF
-         IF (ind == 0 .AND. (x > 100.0e0_dp .OR. x*x > -dxparg(1))) THEN
-            !             LIMIT VALUE FOR LARGE POSITIVE X
-            !                       WHEN IND = 0
-            fn_val = 0.0e0_dp
-            RETURN
-         ENDIF
-
-         t = (1.0e0_dp/x)**2
-         top = (((r(1)*t + r(2))*t + r(3))*t + r(4))*t + r(5)
-         bot = (((s(1)*t + s(2))*t + s(3))*t + s(4))*t + 1.0e0_dp
-         fn_val = (c - t*top/bot)/ax
-      ENDIF
-
-!                      FINAL ASSEMBLY
-
-      IF (ind /= 0) THEN
-         IF (x < 0.0e0_dp) fn_val = 2.0e0_dp*EXP(x*x) - fn_val
-         RETURN
-      END IF
-      w = x*x
-      t = w
-      e = w - t
-      fn_val = ((0.5e0_dp + (0.5e0_dp - e))*EXP(-t))*fn_val
-      IF (x < 0.0e0_dp) fn_val = 2.0e0_dp - fn_val
-
-   END FUNCTION erfc1
 
 ! **************************************************************************************************
 !> \brief ...
@@ -719,10 +505,10 @@ CONTAINS
       ENDIF
       IF (a == half) THEN
       IF (x < quarter) THEN
-         pp = erf1(SQRT(x))
+         pp = ERF(SQRT(x))
          qq = half + (half - pp)
       ELSE
-         qq = erfc1(0, SQRT(x))
+         qq = ERFC(SQRT(x))
          pp = half + (half - qq)
       END IF
       IF (PRESENT(p)) p = pp
@@ -884,53 +670,6 @@ CONTAINS
       fn_val = r*(u - 2.0e0_dp*t*w) + w1
 
    END FUNCTION rlog1
-
-! **************************************************************************************************
-!> \brief ...
-!> \param a ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION gamln(a) RESULT(fn_val)
-!-----------------------------------------------------------------------
-!            EVALUATION OF LN(GAMMA(A)) FOR POSITIVE A
-!-----------------------------------------------------------------------
-!     WRITTEN BY ALFRED H. MORRIS
-!          NAVAL SURFACE WARFARE CENTER
-!          DAHLGREN, VIRGINIA
-!--------------------------
-!     D = 0.5*(LN(2*PI) - 1)
-!--------------------------
-      REAL(dp), INTENT(IN)                               :: a
-      REAL(dp)                                           :: fn_val
-
-      REAL(dp), PARAMETER :: c0 = .833333333333333e-01_dp, c1 = -.277777777760991e-02_dp, &
-         c2 = .793650666825390e-03_dp, c3 = -.595202931351870e-03_dp, &
-         c4 = .837308034031215e-03_dp, c5 = -.165322962780713e-02_dp, d = .418938533204673e0_dp
-
-      INTEGER                                            :: i, n
-      REAL(dp)                                           :: t, w
-
-      IF (a <= 0.8e0_dp) THEN
-         fn_val = gamln1(a) - LOG(a)
-      ELSEIF (a <= 2.25e0_dp) THEN
-         t = (a - 0.5e0_dp) - 0.5e0_dp
-         fn_val = gamln1(t)
-      ELSEIF (a < 10.0e0_dp) THEN
-         n = INT(a - 1.25e0_dp)
-         t = a
-         w = 1.0e0_dp
-         DO i = 1, n
-            t = t - 1.0e0_dp
-            w = t*w
-         END DO
-         fn_val = gamln1(t - 1.0e0_dp) + LOG(w)
-      ELSE
-         t = (1.0e0_dp/a)**2
-         w = (((((c5*t + c4)*t + c3)*t + c2)*t + c1)*t + c0)/a
-         fn_val = (d + w) + (a - 0.5e0_dp)*(LOG(a) - 1.0e0_dp)
-      ENDIF
-
-   END FUNCTION gamln
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1197,16 +936,16 @@ CONTAINS
 !-----------------------------------------------------------------------
       ELSEIF (a < 1.0e0_dp) THEN
          IF (b < 8.0e0_dp) THEN
-            fn_val = gamln(a) + (gamln(b) - gamln(a + b))
+            fn_val = LOG_GAMMA(a) + (LOG_GAMMA(b) - LOG_GAMMA(a + b))
          ELSE
-            fn_val = gamln(a) + algdiv(a, b)
+            fn_val = LOG_GAMMA(a) + algdiv(a, b)
          ENDIF
 !-----------------------------------------------------------------------
 !                PROCEDURE WHEN 1 .LE. A .LT. 8
 !-----------------------------------------------------------------------
       ELSEIF (a <= 2.0e0_dp) THEN
          IF (b <= 2.0e0_dp) THEN
-            fn_val = gamln(a) + gamln(b) - gsumln(a, b)
+            fn_val = LOG_GAMMA(a) + LOG_GAMMA(b) - gsumln(a, b)
             RETURN
          ENDIF
          w = 0.0e0_dp
@@ -1219,10 +958,10 @@ CONTAINS
                b = b - 1.0e0_dp
                z = z*(b/(a + b))
             END DO
-            fn_val = w + LOG(z) + (gamln(a) + (gamln(b) - gsumln(a, b)))
+            fn_val = w + LOG(z) + (LOG_GAMMA(a) + (LOG_GAMMA(b) - gsumln(a, b)))
             RETURN
          ENDIF
-         fn_val = gamln(a) + algdiv(a, b)
+         fn_val = LOG_GAMMA(a) + algdiv(a, b)
 !                REDUCTION OF A WHEN B .LE. 1000
       ELSEIF (b <= 1000.0e0_dp) THEN
          n = INT(a - 1.0e0_dp)
@@ -1234,7 +973,7 @@ CONTAINS
          END DO
          w = LOG(w)
          IF (b >= 8.0e0_dp) THEN
-            fn_val = w + gamln(a) + algdiv(a, b)
+            fn_val = w + LOG_GAMMA(a) + algdiv(a, b)
             RETURN
          ENDIF
 
@@ -1246,7 +985,7 @@ CONTAINS
             b = b - 1.0e0_dp
             z = z*(b/(a + b))
          END DO
-         fn_val = w + LOG(z) + (gamln(a) + (gamln(b) - gsumln(a, b)))
+         fn_val = w + LOG(z) + (LOG_GAMMA(a) + (LOG_GAMMA(b) - gsumln(a, b)))
       ELSE
 !                REDUCTION OF A WHEN B .GT. 1000
 
@@ -1256,7 +995,7 @@ CONTAINS
             a = a - 1.0e0_dp
             w = w*(a/(1.0e0_dp + a/b))
          END DO
-         fn_val = (LOG(w) - n*LOG(b)) + (gamln(a) + algdiv(a, b))
+         fn_val = (LOG(w) - n*LOG(b)) + (LOG_GAMMA(a) + algdiv(a, b))
       ENDIF
 
    END FUNCTION betaln
@@ -2282,7 +2021,7 @@ CONTAINS
       a0(1) = (2.0e0_dp/3.0e0_dp)*r1
       c(1) = -0.5e0_dp*a0(1)
       d(1) = -c(1)
-      j0 = (0.5e0_dp/e0)*erfc1(1, z0)
+      j0 = (0.5e0_dp/e0)*ERFC_SCALED(z0)
       j1 = e1
       sum = j0 + d(1)*w0*j1
 

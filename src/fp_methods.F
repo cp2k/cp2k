@@ -13,9 +13,7 @@
 ! **************************************************************************************************
 MODULE fp_methods
 
-   USE beta_gamma_psi,                  ONLY: erf1,&
-                                              gamln,&
-                                              psi
+   USE beta_gamma_psi,                  ONLY: psi
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -152,8 +150,8 @@ CONTAINS
       fp_env%bias_energy = 0.0_dp
       IF (fp_env%bias) THEN
          kT = fp_env%temperature
-         fp_env%bias_energy = kT*(gamln(fp_env%ro1 + fp_env%ri2 + 1) - &
-                                  gamln(fp_env%ro1 + 1) - gamln(fp_env%ri2 + 1))
+         fp_env%bias_energy = kT*(LOG_GAMMA(fp_env%ro1 + fp_env%ri2 + 1) - &
+                                  LOG_GAMMA(fp_env%ro1 + 1) - LOG_GAMMA(fp_env%ri2 + 1))
 
          ! and add the corresponding forces
          ! inner particles
@@ -230,7 +228,7 @@ CONTAINS
 
       arg = (r1 - r)/width
 
-      c = (1.0_dp + erf1(arg))/2.0_dp
+      c = (1.0_dp + ERF(arg))/2.0_dp
       dcdr = (-oorootpi/width)*EXP(-arg**2)
 
    END SUBROUTINE

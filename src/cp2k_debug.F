@@ -375,7 +375,7 @@ CONTAINS
             poldir = (/0.0_dp, 0.0_dp, 1.0_dp/)
             amplitude = 0.0_dp
             CALL set_efield(dft_control, amplitude, poldir)
-            CALL force_env_calc_energy_force(force_env, calc_force=.FALSE.)
+            CALL force_env_calc_energy_force(force_env, calc_force=.TRUE.)
             CALL get_qs_env(force_env%qs_env, results=results)
             description = "[DIPOLE]"
             IF (test_for_result(results, description=description)) THEN
