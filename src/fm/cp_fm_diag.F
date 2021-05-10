@@ -417,8 +417,8 @@ CONTAINS
       CALL dsyevd('V', 'U', n, m(1, 1), nl, eig(1), work(1), lwork, iwork(1), liwork, myinfo)
 
       IF (myinfo /= 0) THEN
+         WRITE (message, "(A,I0,A)") "ERROR in DSYEVD: Matrix diagonalization failed (INFO = ", myinfo, ")"
          IF (PRESENT(info)) THEN
-            WRITE (message, "(A,I0,A)") "ERROR in DSYEVD: Matrix diagonalization failed (INFO = ", myinfo, ")"
             CPWARN(TRIM(message))
          ELSE
             CPABORT(TRIM(message))
