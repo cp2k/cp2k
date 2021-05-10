@@ -115,7 +115,6 @@ MODULE qs_scf_post_tb
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type,&
                                               set_ks_env
-   USE qs_mo_io,                        ONLY: write_mo_set
    USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues,&
                                               make_mo_eig
    USE qs_mo_occupation,                ONLY: set_mo_occupation
@@ -129,6 +128,7 @@ MODULE qs_scf_post_tb
                                               qs_rho_type
    USE qs_scf_csr_write,                ONLY: write_ks_matrix_csr,&
                                               write_s_matrix_csr
+   USE qs_scf_output,                   ONLY: qs_scf_write_mos
    USE qs_scf_types,                    ONLY: ot_method_nr,&
                                               qs_scf_env_type
    USE qs_scf_wfn_mix,                  ONLY: wfn_mix
@@ -205,7 +205,8 @@ CONTAINS
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: dft_section, moments_section, print_key, &
-                                                            print_section, wfn_mix_section
+                                                            print_section, sprint_section, &
+                                                            wfn_mix_section
       TYPE(xtb_atom_type), POINTER                       :: xtb_kind
 
       CALL timeset(routineN, handle)
@@ -373,7 +374,18 @@ CONTAINS
       IF (.NOT. no_mos) THEN
          print_key => section_vals_get_subs_vals(print_section, "MO")
          IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-            CALL print_mos(qs_env, dft_section, tb_type)
+            CALL qs_scf_write_mos(qs_env, scf_env, final_mos=.TRUE.)
+            IF (.NOT. do_kpoints) THEN
+               SELECT CASE (tb_type)
+               CASE ("DFTB")
+               CASE ("xTB")
+                  sprint_section => section_vals_get_subs_vals(dft_section, "PRINT%MO_MOLDEN")
+                  CALL get_qs_env(qs_env, mos=mos)
+                  CALL write_mos_molden(mos, qs_kind_set, particle_set, sprint_section)
+               CASE DEFAULT
+                  CPABORT("Unknown TB type")
+               END SELECT
+            END IF
          END IF
       END IF
 
@@ -879,88 +891,6 @@ CONTAINS
       CALL cp_fm_struct_release(ao_ao_fmstruct)
 
    END SUBROUTINE wfn_mix_tb
-
-! **************************************************************************************************
-!> \brief MO printing
-!> \param qs_env ...
-!> \param dft_section ...
-!> \param tb_type ...
-!> \par History
-!> \author JHU
-!> \note
-! **************************************************************************************************
-   SUBROUTINE print_mos(qs_env, dft_section, tb_type)
-
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(section_vals_type), POINTER                   :: dft_section
-      CHARACTER(LEN=*)                                   :: tb_type
-
-      INTEGER                                            :: ik, iounit
-      LOGICAL                                            :: do_kpoints
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(mo_set_p_type), DIMENSION(:, :), POINTER      :: mos_k
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(section_vals_type), POINTER                   :: sprint_section
-
-      CPASSERT(ASSOCIATED(qs_env))
-      IF (qs_env%run_rtp) RETURN
-
-      logger => cp_get_default_logger()
-      iounit = cp_logger_get_default_io_unit(logger)
-
-      CALL get_qs_env(qs_env, &
-                      dft_control=dft_control, &
-                      do_kpoints=do_kpoints, &
-                      atomic_kind_set=atomic_kind_set, &
-                      particle_set=particle_set, &
-                      qs_kind_set=qs_kind_set)
-
-      IF (.NOT. do_kpoints) THEN
-         CALL get_qs_env(qs_env, mos=mos)
-         IF (dft_control%nspins == 2) THEN
-            CALL write_mo_set(mos(1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                              dft_section, 4, 0, final_mos=.TRUE., spin="ALPHA")
-            CALL write_mo_set(mos(2)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                              dft_section, 4, 0, final_mos=.TRUE., spin="BETA")
-         ELSE
-            CALL write_mo_set(mos(1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                              dft_section, 4, 0, final_mos=.TRUE.)
-         END IF
-         !
-         SELECT CASE (tb_type)
-         CASE ("DFTB")
-            !
-         CASE ("xTB")
-            sprint_section => section_vals_get_subs_vals(dft_section, "PRINT%MO_MOLDEN")
-            CALL write_mos_molden(mos, qs_kind_set, particle_set, sprint_section)
-         CASE DEFAULT
-            CPABORT("Unknown TB type")
-         END SELECT
-      ELSE
-         CALL get_qs_env(qs_env=qs_env, kpoints=kpoints)
-         IF (kpoints%nkp /= 0) THEN
-            DO ik = 1, SIZE(kpoints%kp_env)
-               mos_k => kpoints%kp_env(ik)%kpoint_env%mos
-               CPASSERT(ASSOCIATED(mos_k))
-               IF (dft_control%nspins == 2) THEN
-                  CALL write_mo_set(mos_k(1, 1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                                    dft_section, 4, kpoint=ik, final_mos=.TRUE., spin="ALPHA")
-                  CALL write_mo_set(mos_k(1, 2)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                                    dft_section, 4, kpoint=ik, final_mos=.TRUE., spin="BETA")
-               ELSE
-                  CALL write_mo_set(mos_k(1, 1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                                    dft_section, 4, kpoint=ik, final_mos=.TRUE.)
-               END IF
-            END DO
-         END IF
-      END IF
-
-   END SUBROUTINE print_mos
 
 ! **************************************************************************************************
 !> \brief Gets the lumos, and eigenvalues for the lumos
