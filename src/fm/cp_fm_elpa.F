@@ -503,7 +503,8 @@ CONTAINS
          CALL cp_fm_release(eigenvectors_noqr)
       END IF
 
-      CALL elpa_deallocate(elpa_obj)
+      CALL elpa_deallocate(elpa_obj, success)
+      CPASSERT(success == elpa_ok)
 
       eigenvalues(1:neig) = eval(1:neig)
       DEALLOCATE (eval)
