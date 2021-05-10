@@ -10,10 +10,11 @@
 !> \par History
 !>      Started printing preliminary stuff for MO_CUBES and MO requires some
 !>      more work to complete all other functionalities
+!>      - Revise MO information printout (10.05.2021, MK)
 !> \author Teodoro Laino (07.2008)
 ! **************************************************************************************************
 MODULE qs_scf_post_se
-!
+
    USE ai_moments,                      ONLY: moment
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
@@ -56,10 +57,10 @@ MODULE qs_scf_post_se
                                               qs_kind_type
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_did_change
-   USE qs_mo_io,                        ONLY: write_mo_set
-   USE qs_mo_types,                     ONLY: mo_set_p_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE qs_scf_output,                   ONLY: qs_scf_write_mos
+   USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
    USE semi_empirical_types,            ONLY: get_se_param,&
@@ -99,8 +100,6 @@ CONTAINS
       LOGICAL                                            :: explicit, my_localized_wfn
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -112,8 +111,7 @@ CONTAINS
       CALL write_available_results(qs_env)
 
       my_localized_wfn = .FALSE.
-      NULLIFY (dft_control, mos, rho, &
-               subsys, particles, input, print_key, para_env)
+      NULLIFY (rho, subsys, particles, input, print_key, para_env)
 
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
@@ -121,8 +119,6 @@ CONTAINS
       CPASSERT(ASSOCIATED(qs_env))
       ! Here we start with data that needs a postprocessing...
       CALL get_qs_env(qs_env, &
-                      dft_control=dft_control, &
-                      mos=mos, &
                       rho=rho, &
                       input=input, &
                       subsys=subsys, &
@@ -322,7 +318,7 @@ CONTAINS
                      dggamma(j) = dggamma(j)*zeta + ggamma(j)*dzeta
                      ggamma(j) = ggamma(j)*zeta
                   END DO
-               ENDDO
+               END DO
             END DO
             dggamma = dggamma*zphase + ggamma*dzphase
             ggamma = ggamma*zphase
@@ -458,8 +454,7 @@ CONTAINS
 !> \param rho ...
 !> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE qs_scf_post_charges(input, logger, qs_env, rho, &
-                                  para_env)
+   SUBROUTINE qs_scf_post_charges(input, logger, qs_env, rho, para_env)
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -600,23 +595,19 @@ CONTAINS
 
       INTEGER                                            :: after, handle, ispin, iw, output_unit
       LOGICAL                                            :: omit_headers
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: dft_section, input
 
       CALL timeset(routineN, handle)
-      NULLIFY (cell, dft_control, mos, atomic_kind_set, particle_set, rho, &
-               ks_rmpv, dft_section, input, &
+      NULLIFY (dft_control, particle_set, rho, ks_rmpv, dft_section, input, &
                particles, subsys, para_env, rho_ao)
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
@@ -624,36 +615,25 @@ CONTAINS
       CPASSERT(ASSOCIATED(qs_env))
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
-                      mos=mos, &
-                      atomic_kind_set=atomic_kind_set, &
-                      qs_kind_set=qs_kind_set, &
                       particle_set=particle_set, &
                       rho=rho, &
                       matrix_ks=ks_rmpv, &
                       input=input, &
-                      cell=cell, &
                       subsys=subsys, &
+                      scf_env=scf_env, &
                       para_env=para_env)
       CALL qs_subsys_get(subsys, particles=particles)
-
       CALL qs_rho_get(rho, rho_ao=rho_ao)
-      ! Print MO information if requested
-      dft_section => section_vals_get_subs_vals(input, "DFT")
-      IF (dft_control%nspins == 2) THEN
-         CALL write_mo_set(mos(1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                           dft_section, 4, 0, final_mos=.TRUE., spin="ALPHA")
-         CALL write_mo_set(mos(2)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                           dft_section, 4, 0, final_mos=.TRUE., spin="BETA")
-      ELSE
-         CALL write_mo_set(mos(1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                           dft_section, 4, 0, final_mos=.TRUE.)
-      END IF
 
-      ! *** at the end of scf print out the projected dos per kind
+      ! Print MO information if requested
+      CALL qs_scf_write_mos(qs_env, scf_env, final_mos=.TRUE.)
+
+      ! Aat the end of SCF printout the projected DOS for each atomic kind
+      dft_section => section_vals_get_subs_vals(input, "DFT")
       IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%PDOS") &
                 , cp_p_file)) THEN
          CPWARN("PDOS not implemented for Semi-Empirical calculations!!")
-      ENDIF
+      END IF
 
       ! Print the total density (electronic + core charge)
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
@@ -683,13 +663,13 @@ CONTAINS
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
                                            "DFT%PRINT%V_HARTREE_CUBE"), cp_p_file)) THEN
          CPWARN("V_HARTREE_CUBE not implemented for Semi-Empirical calculations!!")
-      ENDIF
+      END IF
 
       ! Print the XC potential
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
                                            "DFT%PRINT%V_XC_CUBE"), cp_p_file)) THEN
          CPWARN("V_XC_CUBE not available for Semi-Empirical calculations!!")
-      ENDIF
+      END IF
 
       ! Write the density matrix
       CALL section_vals_val_get(input, "DFT%PRINT%AO_MATRICES%OMIT_HEADERS", l_val=omit_headers)
