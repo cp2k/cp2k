@@ -527,6 +527,7 @@ CONTAINS
       CALL section_vals_val_get(global_section, "ENABLE_MPI_IO", l_val=flag)
       CALL cp_mpi_io_set(flag)
       CALL section_vals_val_get(global_section, "ELPA_KERNEL", i_val=globenv%k_elpa)
+      CALL section_vals_val_get(global_section, "ELPA_NEIGVEC_MIN", i_val=globenv%elpa_neigvec_min)
       CALL section_vals_val_get(global_section, "ELPA_QR", l_val=globenv%elpa_qr)
       CALL section_vals_val_get(global_section, "ELPA_QR_UNSAFE", l_val=globenv%elpa_qr_unsafe)
       unit_nr = cp_print_key_unit_nr(logger, global_section, "PRINT_ELPA", extension=".Log")
@@ -751,12 +752,18 @@ CONTAINS
             ADJUSTR(TRIM(enum_i2c(enum1, globenv%prog_name_id))), &
             start_section_label//"| Project name", &
             ADJUSTR(project_name(:40)), &
+            start_section_label//"| Run type", &
+            ADJUSTR(TRIM(enum_i2c(enum2, globenv%run_type_id))), &
             start_section_label//"| FFT library", &
             ADJUSTR(globenv%default_fft_library(:40)), &
             start_section_label//"| Diagonalization library", &
-            ADJUSTR(globenv%diag_library(:40)), &
-            start_section_label//"| Run type", &
-            ADJUSTR(TRIM(enum_i2c(enum2, globenv%run_type_id)))
+            ADJUSTR(globenv%diag_library(:40))
+
+         IF (globenv%diag_library == "ELPA") THEN
+            WRITE (UNIT=output_unit, FMT="(T2,A,T71,I10)") &
+               start_section_label//"| Minimum number of eigenvectors for ELPA usage", &
+               globenv%elpa_neigvec_min
+         END IF
 
 #if defined(__CHECK_DIAG)
          ! Perform default check if no threshold value has been specified explicitly
@@ -1006,6 +1013,7 @@ CONTAINS
       CALL diag_init(diag_lib=TRIM(globenv%diag_library), &
                      fallback_applied=fallback_applied, &
                      elpa_kernel=globenv%k_elpa, &
+                     elpa_neigvec_min_input=globenv%elpa_neigvec_min, &
                      elpa_qr=globenv%elpa_qr, &
                      elpa_print=globenv%elpa_print, &
                      elpa_qr_unsafe=globenv%elpa_qr_unsafe, &

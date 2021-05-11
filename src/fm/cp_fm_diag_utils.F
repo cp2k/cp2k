@@ -91,21 +91,29 @@ CONTAINS
       CLASS(cp_fm_redistribute_info), INTENT(IN) :: self
       INTEGER, INTENT(IN) :: io_unit
 
-      WRITE (io_unit, '(/,A,I10)') "CP_FM_DIAG| Matrix order:           ", self%matrix_order
-      WRITE (io_unit, '(A,I6,A)') "CP_FM_DIAG| Matrix distributed on ", self%num_pe_old, " processes"
-      WRITE (io_unit, '(A,I5)') "CP_FM_DIAG| Optimal number of CPUs:      ", self%num_pe_opt
+      WRITE (UNIT=io_unit, FMT="(A)") ""
+      WRITE (UNIT=io_unit, FMT="(T2,A,T71,I10)") &
+         "CP_FM_DIAG| Number of processes over which the matrix is distributed ", self%num_pe_old, &
+         "CP_FM_DIAG| Matrix order ", self%matrix_order
+      WRITE (UNIT=io_unit, FMT="(T2,A,T71,I10)") &
+         "CP_FM_DIAG| Optimal number of CPUs ", self%num_pe_opt
       IF (self%num_pe_max_nz_col < 0) THEN
-         WRITE (io_unit, '(A,A)') "CP_FM_DIAG| Max number of CPUs (with non-zero columns): ", "<N/A>"
+         WRITE (UNIT=io_unit, FMT="(T2,A,T71,A10)") &
+            "CP_FM_DIAG| Maximum number of CPUs (with non-zero columns) ", "<N/A>"
       ELSE
-         WRITE (io_unit, '(A,I5)') "CP_FM_DIAG| Max number of CPUs (with non-zero columns): ", self%num_pe_max_nz_col
+         WRITE (UNIT=io_unit, FMT="(T2,A,T71,I10)") &
+            "CP_FM_DIAG| Maximum number of CPUs (with non-zero columns): ", self%num_pe_max_nz_col
       END IF
       IF (self%redistribute) THEN
-         WRITE (io_unit, '(A,I5,A)') "CP_FM_DIAG| The matrix will be redistributed onto ", self%num_pe_new, " processes"
+         WRITE (UNIT=io_unit, FMT="(T2,A,T71,I10)") &
+            "CP_FM_DIAG| Number of processes for the redistribution ", self%num_pe_new
       ELSE
-         WRITE (io_unit, '(A)') "CP_FM_DIAG| The matrix will NOT be redistributed"
+         WRITE (UNIT=io_unit, FMT="(T2,A)") &
+            "CP_FM_DIAG| The matrix will NOT be redistributed"
       END IF
-      WRITE (io_unit, '(A)') " "
-   END SUBROUTINE
+      WRITE (UNIT=io_unit, FMT="(A)") ""
+
+   END SUBROUTINE cp_fm_redistribute_info_write
 
 ! **************************************************************************************************
 !> \brief  Initializes temporary storage needed when redistributing arrays
@@ -357,11 +365,18 @@ CONTAINS
       rdinfo%redistribute = (rdinfo%num_pe_old > rdinfo%num_pe_new)
 
       IF (work_redistribute%should_print .AND. io_unit > 0) THEN
-         IF (is_elpa) &
-            WRITE (io_unit, '(A,L5)') "CP_FM_DIAG| Force redistribute (ELPA):", work_redistribute%elpa_force_redistribute
-
+         IF (is_elpa) THEN
+            IF (work_redistribute%elpa_force_redistribute) THEN
+               WRITE (UNIT=io_unit, FMT="(T2,A,T78,A3)") &
+                  "CP_FM_DIAG| Force redistribute (ELPA):", "YES"
+            ELSE
+               WRITE (UNIT=io_unit, FMT="(T2,A,T79,A2)") &
+                  "CP_FM_DIAG| Force redistribute (ELPA):", "NO"
+            END IF
+         END IF
          CALL rdinfo%write(io_unit)
       END IF
+      CALL mp_sync(para_env%group)
 
       ! if the optimal is smaller than num_pe, we will redistribute the input matrix
       IF (rdinfo%redistribute) THEN

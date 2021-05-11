@@ -113,15 +113,15 @@ CONTAINS
 #else
       default_diag = do_diag_scalapack
 #endif
-      CALL keyword_create( &
-         keyword, __LOCATION__, name="PREFERRED_DIAG_LIBRARY", &
-         description="Specifies the diagonalization library to be used. If not available, the ScaLAPACK library is used", &
-         usage="PREFERRED_DIAG_LIBRARY ELPA", &
-         default_i_val=default_diag, &
-         enum_i_vals=(/do_diag_elpa, do_diag_scalapack, do_diag_scalapack/), &
-         enum_c_vals=s2a("ELPA", "ScaLAPACK", "SL"), &
-         enum_desc=s2a("ELPA library", "ScaLAPACK library", "ScaLAPACK library"), &
-         citations=(/Marek2014/))
+      CALL keyword_create(keyword, __LOCATION__, name="PREFERRED_DIAG_LIBRARY", &
+                          description="Specifies the diagonalization library to be used. If not available, "// &
+                          "the ScaLAPACK library is used", &
+                          usage="PREFERRED_DIAG_LIBRARY ELPA", &
+                          default_i_val=default_diag, &
+                          enum_i_vals=(/do_diag_elpa, do_diag_scalapack, do_diag_scalapack/), &
+                          enum_c_vals=s2a("ELPA", "ScaLAPACK", "SL"), &
+                          enum_desc=s2a("ELPA library", "ScaLAPACK library", "ScaLAPACK library"), &
+                          citations=(/Marek2014/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -133,13 +133,21 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create( &
-         keyword, __LOCATION__, name="ELPA_KERNEL", &
-         description="Specifies the kernel to be used when ELPA is in use", &
-         default_i_val=elpa_kernel_ids(1), &
-         enum_i_vals=elpa_kernel_ids, &
-         enum_c_vals=elpa_kernel_names, &
-         enum_desc=elpa_kernel_descriptions)
+      CALL keyword_create(keyword, __LOCATION__, name="ELPA_KERNEL", &
+                          description="Specifies the kernel to be used when ELPA is in use", &
+                          default_i_val=elpa_kernel_ids(1), &
+                          enum_i_vals=elpa_kernel_ids, &
+                          enum_c_vals=elpa_kernel_names, &
+                          enum_desc=elpa_kernel_descriptions)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ELPA_NEIGVEC_MIN", &
+                          description="Minimum number of eigenvectors for the use of the eigensolver from "// &
+                          "the ELPA library. The eigensolver from the ScaLAPACK library is used as fallback "// &
+                          "for all smaller cases", &
+                          usage="ELPA_NEIGVEC_MIN 32", &
+                          default_i_val=16)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -688,10 +696,10 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="ELPA_FORCE_REDISTRIBUTE", &
                           description="Controls how to perform redistribution when ELPA is used for diagonalization. "// &
                           "By default, matrices are redistributed only to prevent crashes in the ELPA library "// &
-                          "which happen when the original matrix is distributed on too many processors. "// &
+                          "which happens when the original matrix is distributed over too many processors. "// &
                           "By turning on this keyword, redistribution is always performed using the defined rules. ", &
                           usage="ELPA_FORCE_REDISTRIBUTE", type_of_var=logical_t, &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

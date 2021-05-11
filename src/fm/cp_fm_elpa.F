@@ -218,13 +218,13 @@ CONTAINS
             CPWARN("ELPA GPU kernel is available, but not enabled automatically.")
             !TODO: Enable GPU kernel automatically once the segfaults have been fixed.
             !elpa_kernel = ELPA_2STAGE_REAL_GPU  ! Select GPU over CPU kernel when available.
-         ENDIF
+         END IF
          CALL elpa_deallocate(elpa_obj)
 
          ! If we could not find a suitable kernel then use ELPA_2STAGE_REAL_DEFAULT.
          IF (elpa_kernel == ELPA_2STAGE_REAL_INVALID) THEN
             elpa_kernel = ELPA_2STAGE_REAL_DEFAULT
-         ENDIF
+         END IF
       END IF
 #else
       MARK_USED(requested_kernel)
@@ -374,7 +374,7 @@ CONTAINS
       !     - Proper block size:    test/Fortran/test.F90
       ! Note that the names of these files might change in different ELPA versions
       ! Matrix order must be even
-      use_qr = elpa_qr .AND. (MOD(n, 2) .EQ. 0)
+      use_qr = elpa_qr .AND. (MODULO(n, 2) .EQ. 0)
       ! Matrix order and block size must be greater than or equal to 64
       IF (.NOT. elpa_qr_unsafe) &
          use_qr = use_qr .AND. (n .GE. 64) .AND. (nblk .GE. 64)
@@ -404,24 +404,40 @@ CONTAINS
          DO i = 1, SIZE(elpa_kernel_ids)
             IF (elpa_kernel_ids(i) == elpa_kernel) THEN
                kernel_name = elpa_kernel_names(i)
-            ENDIF
+            END IF
          END DO
 
-         WRITE (UNIT=io_unit, FMT="(T2,A,I14)") &
-            "ELPA| Matrix order (NA)                  : ", n, &
-            "ELPA| Matrix block size (NBLK)           : ", nblk, &
-            "ELPA| Number of eigenvectors (NEV)       : ", neig, &
-            "ELPA| Local rows (LOCAL_NROWS)           : ", n_rows, &
-            "ELPA| Local columns (LOCAL_NCOLS)        : ", n_cols
-         WRITE (UNIT=io_unit, FMT="(T2,A,A14)") &
-            "ELPA| Kernel                             : ", ADJUSTR(TRIM(kernel_name))
-         WRITE (UNIT=io_unit, FMT="(T2,A,L14)") &
-            "ELPA| QR step requested                  : ", elpa_qr
+         WRITE (UNIT=io_unit, FMT="(T2,A,T71,I10)") &
+            "ELPA| Matrix order (NA) ", n, &
+            "ELPA| Matrix block size (NBLK) ", nblk, &
+            "ELPA| Number of eigenvectors (NEV) ", neig, &
+            "ELPA| Local rows (LOCAL_NROWS) ", n_rows, &
+            "ELPA| Local columns (LOCAL_NCOLS) ", n_cols
+         WRITE (UNIT=io_unit, FMT="(T2,A,T61,A20)") &
+            "ELPA| Kernel ", ADJUSTR(TRIM(kernel_name))
+         IF (elpa_qr) THEN
+            WRITE (UNIT=io_unit, FMT="(T2,A,T78,A3)") &
+               "ELPA| QR step requested ", "YES"
+         ELSE
+            WRITE (UNIT=io_unit, FMT="(T2,A,T79,A2)") &
+               "ELPA| QR step requested ", "NO"
+         END IF
 
          IF (elpa_qr) THEN
-            WRITE (UNIT=io_unit, FMT="(T2,A,L14)") &
-               "ELPA| Use potentially unsafe QR          : ", elpa_qr_unsafe, &
-               "ELPA| Matrix is suitable for QR          : ", use_qr
+            IF (elpa_qr_unsafe) THEN
+               WRITE (UNIT=io_unit, FMT="(T2,A,T78,A3)") &
+                  "ELPA| Use potentially unsafe QR ", "YES"
+            ELSE
+               WRITE (UNIT=io_unit, FMT="(T2,A,T79,A2)") &
+                  "ELPA| Use potentially unsafe QR ", "NO"
+            END IF
+            IF (use_qr) THEN
+               WRITE (UNIT=io_unit, FMT="(T2,A,T78,A3)") &
+                  "ELPA| Matrix is suitable for QR ", "YES"
+            ELSE
+               WRITE (UNIT=io_unit, FMT="(T2,A,T79,A2)") &
+                  "ELPA| Matrix is suitable for QR ", "NO"
+            END IF
             IF (.NOT. use_qr) THEN
                IF (MODULO(n, 2) /= 0) THEN
                   WRITE (UNIT=io_unit, FMT="(T2,A)") &
@@ -433,7 +449,7 @@ CONTAINS
                END IF
             ELSE
                IF ((nblk < 64) .AND. elpa_qr_unsafe) THEN
-                  WRITE (UNIT=io_unit, FMT="(T2,A,L14)") &
+                  WRITE (UNIT=io_unit, FMT="(T2,A)") &
                      "ELPA| Matrix block size check was bypassed"
                END IF
             END IF
@@ -479,7 +495,7 @@ CONTAINS
       IF (elpa_kernel == ELPA_2STAGE_REAL_GPU) THEN
          CALL elpa_obj%set("gpu", 1, success)
          CPASSERT(success == elpa_ok)
-      ENDIF
+      END IF
 
       CALL elpa_obj%set("real_kernel", elpa_kernel, success)
       CPASSERT(success == elpa_ok)
@@ -487,13 +503,13 @@ CONTAINS
       IF (use_qr) THEN
          CALL elpa_obj%set("qr", 1, success)
          CPASSERT(success == elpa_ok)
-      ENDIF
+      END IF
 
       ! Set number of threads only when ELPA was built with OpenMP support.
       IF (elpa_obj%can_set("omp_threads", omp_get_max_threads()) == ELPA_OK) THEN
          CALL elpa_obj%set("omp_threads", omp_get_max_threads(), success)
          CPASSERT(success == elpa_ok)
-      ENDIF
+      END IF
 
       CALL elpa_obj%eigenvectors(matrix%local_data, eval, eigenvectors%local_data, success)
       IF (success /= elpa_ok) &
