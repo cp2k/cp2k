@@ -63,8 +63,14 @@ MODULE cp_fm_diag
 
    REAL(KIND=dp), PARAMETER, PUBLIC :: eps_check_diag_default = 5.0E-14_dp
 
-   ! These saved variables are diagonalization global
+   ! The following saved variables are diagonalization global
+   ! Stores the default library for diagonalization
    INTEGER, SAVE       :: diag_type = 0
+   ! Minimum number of eigenvectors for the use of the ELPA eigensolver.
+   ! The ScaLAPACK eigensolver is used as fallback for all smaller cases.
+   INTEGER, SAVE       :: elpa_neigvec_min = 0
+   ! Threshold value for the orthonormality check of the eigenvectors obtained
+   ! after a diagonalization. A negative value disables the check.
    REAL(KIND=dp), SAVE :: eps_check_diag = -1.0_dp
 
    ! Constants for the diag_type above
@@ -90,6 +96,7 @@ CONTAINS
 !> \param fallback_applied .TRUE. if support for the requested library was not compiled-in and fallback
 !>                         to ScaLAPACK was applied, .FALSE. otherwise.
 !> \param elpa_kernel integer that determines which ELPA kernel to use for diagonalization
+!> \param elpa_neigvec_min_input ...
 !> \param elpa_qr logical that determines if ELPA should try to use QR to accelerate the
 !>                diagonalization procedure of suitably sized matrices
 !> \param elpa_print logical that determines if information about the ELPA diagonalization should
@@ -98,11 +105,11 @@ CONTAINS
 !> \param eps_check_diag_input ...
 !> \author  MI 11.2013
 ! **************************************************************************************************
-   SUBROUTINE diag_init(diag_lib, fallback_applied, elpa_kernel, elpa_qr, elpa_print, &
-                        elpa_qr_unsafe, eps_check_diag_input)
+   SUBROUTINE diag_init(diag_lib, fallback_applied, elpa_kernel, elpa_neigvec_min_input, elpa_qr, &
+                        elpa_print, elpa_qr_unsafe, eps_check_diag_input)
       CHARACTER(LEN=*), INTENT(IN)                       :: diag_lib
       LOGICAL, INTENT(OUT)                               :: fallback_applied
-      INTEGER, INTENT(IN)                                :: elpa_kernel
+      INTEGER, INTENT(IN)                                :: elpa_kernel, elpa_neigvec_min_input
       LOGICAL, INTENT(IN)                                :: elpa_qr, elpa_print, elpa_qr_unsafe
       REAL(KIND=dp), INTENT(IN)                          :: eps_check_diag_input
 
@@ -131,6 +138,7 @@ CONTAINS
          CALL set_elpa_print(elpa_print)
       END IF
 
+      elpa_neigvec_min = elpa_neigvec_min_input
       eps_check_diag = eps_check_diag_input
 
    END SUBROUTINE diag_init
@@ -175,7 +183,7 @@ CONTAINS
       ! Sample peak memory
       CALL m_memory()
 
-      IF ((nmo < 16) .OR. (diag_type == DIAG_TYPE_SCALAPACK)) THEN
+      IF ((nmo < elpa_neigvec_min) .OR. (diag_type == DIAG_TYPE_SCALAPACK)) THEN
          IF (PRESENT(info)) THEN
             CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues, info=myinfo)
          ELSE
