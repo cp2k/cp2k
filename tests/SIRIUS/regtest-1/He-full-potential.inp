@@ -11,7 +11,8 @@
        ELECTRONIC_STRUCTURE_METHOD  full_potential_lapwlo
        SMEARING_WIDTH 0.05
        USE_SYMMETRY true
-       NUM_MAG_DIMS 0
+       VALENCE_RELATIVITY none
+       CORE_RELATIVITY none
        NUM_FV_STATES 40
        AW_CUTOFF 8.0
        PW_CUTOFF 20.00
@@ -35,7 +36,7 @@
     &END ITERATIVE_SOLVER
     &MIXER
        BETA 0.95
-       TYPE broyden1
+       TYPE anderson
        MAX_HISTORY 8
     &END MIXER
   &END PW_DFT
@@ -44,8 +45,8 @@
          &XC_FUNCTIONAL
             &LDA_X
             &END LDA_X
-            &LDA_C_PZ
-            &END LDA_C_PZ
+            &LDA_C_VWN
+            &END LDA_C_VWN
          &END XC_FUNCTIONAL
       &END XC
     &END DFT

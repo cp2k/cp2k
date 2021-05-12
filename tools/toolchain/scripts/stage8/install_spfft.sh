@@ -9,8 +9,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-spfft_ver="0.9.13"
-spfft_sha256="621543658991782dd184948082c7eea474b6759140f796bb55da2e2f654d3558"
+spfft_ver="1.0.3"
+spfft_sha256="b74ee66f766580d613bbcae91301cad545711e32c0a3e46860e0200b70915399"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -55,6 +55,7 @@ case "$with_spfft" in
         .. > cmake.log 2>&1
       make -j $(get_nprocs) > make.log 2>&1
       make -j $(get_nprocs) install > install.log 2>&1
+
       cd ..
 
       if [ "$ENABLE_CUDA" = "__TRUE__" ]; then
@@ -76,6 +77,10 @@ case "$with_spfft" in
         [ -f src/libspfft.a ] && install -m 644 src/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
         [ -f src/libspfft.so ] && install -m 644 src/*.so ${pkg_install_dir}/lib/cuda >> install.log 2>&1
       fi
+
+      # workaround for https://github.com/eth-cscs/SpFFT/issues/46
+      [ -d "${pkg_install_dir}/lib/cmake/spfft/modules" ] && mv "${pkg_install_dir}/lib/cmake/spfft/modules" "${pkg_install_dir}/lib/cmake/SpFFT/modules"
+
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})"
     fi
     SPFFT_ROOT="${pkg_install_dir}"
@@ -116,7 +121,8 @@ prepend_path CPATH "$pkg_install_dir/include"
 export SPFFT_INCLUDE_DIR="$pkg_install_dir/include"
 export SPFFT_LIBS="-lspfft"
 export SPFFT_ROOT="${pkg_install_dir}"
-export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$pkg_install_dir/lib64/pkgconfig:$pkg_install_dir/lib/pkgconfig"
+prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
+prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}/lib/cmake/SpFFT"
 EOF
   fi
   cat << EOF >> "${BUILDDIR}/setup_spfft"
@@ -129,7 +135,6 @@ export CP_LDFLAGS="\${CP_LDFLAGS} IF_CUDA(${SPFFT_CUDA_LDFLAGS}|${SPFFT_LDFLAGS}
 export SPFFT_LIBRARY="-lspfft"
 export SPFFT_ROOT="$pkg_install_dir"
 export SPFFT_INCLUDE_DIR="$pkg_install_dir/include"
-export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$pkg_install_dir/lib64/pkgconfig:$pkg_install_dir/lib/pkgconfig"
 export SPFFT_VERSION=${spfft-ver}
 export CP_LIBS="IF_MPI(${SPFFT_LIBS}|) \${CP_LIBS}"
 EOF

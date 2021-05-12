@@ -9,8 +9,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-spla_ver="1.2.1"
-spla_sha256="4d7237f752dc6257778c84ee19c9635072b1cb8ce8d9ab6e34a047f63a736b29"
+spla_ver="1.4.0"
+spla_sha256="364a9fe759fddec8a0839cf79f1cf0619fc36f4d4c15f1c2b1f437249d7840c6"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -76,6 +76,10 @@ case "$with_spla" in
         [ -f src/libspla.a ] && install -m 644 src/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
         [ -f src/libspla.so ] && install -m 644 src/*.so ${pkg_install_dir}/lib/cuda >> install.log 2>&1
       fi
+
+      # https://github.com/eth-cscs/spla/issues/17
+      [ -d "${pkg_install_dir}/lib/cmake/spla/modules" ] && mv "${pkg_install_dir}/lib/cmake/spla/modules" "${pkg_install_dir}/lib/cmake/SPLA/modules"
+
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})"
     fi
     SPLA_ROOT="${pkg_install_dir}"
@@ -116,7 +120,8 @@ prepend_path CPATH "$pkg_install_dir/include"
 export SPLA_INCLUDE_DIR="$pkg_install_dir/include"
 export SPLA_LIBS="-lspla"
 export SPLA_ROOT="${pkg_install_dir}"
-export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$pkg_install_dir/lib64/pkgconfig:$pkg_install_dir/lib/pkgconfig"
+prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}/lib/cmake"
+prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
 EOF
   fi
   cat << EOF >> "${BUILDDIR}/setup_spla"
@@ -129,7 +134,6 @@ export CP_LDFLAGS="\${CP_LDFLAGS} IF_CUDA(${SPLA_CUDA_LDFLAGS}|${SPLA_LDFLAGS})"
 export SPLA_LIBRARY="-lspla"
 export SPLA_ROOT="$pkg_install_dir"
 export SPLA_INCLUDE_DIR="$pkg_install_dir/include"
-export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$pkg_install_dir/lib64/pkgconfig:$pkg_install_dir/lib/pkgconfig"
 export SPLA_VERSION=${spla-ver}
 export CP_LIBS="IF_MPI(${SPLA_LIBS}|) \${CP_LIBS}"
 EOF
