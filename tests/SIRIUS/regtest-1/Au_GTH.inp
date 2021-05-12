@@ -29,7 +29,7 @@
        CONVERGE_BY_ENERGY 1
      &END ITERATIVE_SOLVER
      &MIXER
-       TYPE broyden1
+       TYPE broyden2
        MAX_HISTORY 8
      &END MIXER
   &END PW_DFT

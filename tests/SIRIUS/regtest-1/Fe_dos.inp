@@ -30,7 +30,7 @@
     &END ITERATIVE_SOLVER
     &MIXER
       BETA 0.7
-      TYPE broyden1
+      TYPE broyden2
       MAX_HISTORY 8
     &END MIXER
     &PRINT

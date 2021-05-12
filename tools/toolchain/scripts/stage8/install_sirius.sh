@@ -9,8 +9,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-sirius_ver="7.0.2"
-sirius_sha256="ee613607ce3be0b2c3f69b560b2415ce1b0e015179002aa90739430dbfaa0389"
+sirius_ver="7.2.5"
+sirius_sha256="794e03d4da91025f77542d3d593d87a8c74e980394f658a0210a4fd91c011f22"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -135,8 +135,7 @@ case "$with_sirius" in
         COMPILATION_OPTIONS="-DUSE_MKL=ON -DUSE_SCALAPACK=ON $COMPILATION_OPTIONS"
       fi
 
-      CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${SPFFT_ROOT}/lib/cmake:${SPFFT_ROOT}/lib64/cmake" \
-        cmake -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
+      cmake -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_CXXFLAGS_RELEASE="${SIRIUS_OPT}" \
         -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
         -DCMAKE_CXX_COMPILER="${MPICXX}" \
@@ -147,11 +146,11 @@ case "$with_sirius" in
 
       make -j $(get_nprocs) -C src >> compile.log 2>&1
 
-      install -d ${pkg_install_dir}/include >> install.log 2>&1
-      install -d ${pkg_install_dir}/lib >> install.log 2>&1
-      cp -R ../src/* ${pkg_install_dir}/include >> install.log 2>&1
-      install -m 644 src/*.a ${pkg_install_dir}/lib >> install.log 2>&1
-      install -m 644 src/mod_files/*.mod ${pkg_install_dir}/include >> install.log 2>&1
+      install -d "${pkg_install_dir}/include" >> install.log 2>&1
+      install -d "${pkg_install_dir}/lib" >> install.log 2>&1
+      cp -R ../src/* "${pkg_install_dir}/include" >> install.log 2>&1
+      install -m 644 src/*.a "${pkg_install_dir}/lib" >> install.log 2>&1
+      install -m 644 src/mod_files/*.mod "${pkg_install_dir}/include" >> install.log 2>&1
       cd ..
 
       # now do we have cuda as well
