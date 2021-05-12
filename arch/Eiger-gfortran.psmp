@@ -1,0 +1,71 @@
+# === For the CSCS HPE Cray EX System Alps (Eiger) ====
+# Uses only libraries provided by CSCS in the cpeGNU environment.
+#
+# To load the program environment: source this arch file with
+#   source arch/Eiger-gfortran.psmp
+# \
+  module load cpeGNU ; \
+  module load \
+    cray-fftw \
+    ELPA/2020.11.001 \
+    libxsmm/1.16.1 \
+    libxc/5.1.3 \
+    Libint-CP2K/2.6.0 ; \
+    echo "Please check the output above for error messages." ; \
+    echo "If everything is OK, run with:" ; \
+    echo "    make -j ARCH=Eiger-gfortran VERSION=psmp" ; \
+    return
+
+# === OPTIONS ===
+# To disable/enable them add them to the make call:
+#   ex.: make -j ARCH=Eiger-gfortran VERSION=psmp USE_ELPA=0
+
+USE_LIBINT=1
+USE_ELPA=1
+CHECKS=0
+
+# === PRE-PROCESSOR FLAGS (base) ===
+DFLAGS   = -D__parallel -D__SCALAPACK \
+           -D__FFTW3 \
+           -D__LIBXSMM \
+           -D__LIBXC
+
+# === LIBRARIES and MODULES ===
+
+LIBS    += -lxcf03 -lxc
+INCS    += -I$(EBROOTLIBXC)/include
+
+LIBS    += -lxsmmf -lxsmm -ldl
+INCS    += -I$(EBROOTLIBXSMM)/include
+
+ifeq ($(USE_ELPA),1)
+DFLAGS  += -D__ELPA
+LIBS    += -lelpa_openmp
+INCS    += -I$(ELPA_INCLUDE_DIR)/modules
+endif
+
+ifeq ($(USE_LIBINT),1)
+DFLAGS  += -D__LIBINT -D__MAX_CONTR=4
+LIBS    += -lint2 -lstdc++
+INCS    += -I$(EBROOTLIBINTMINCP2K)/include
+endif
+
+# === BINARIES (COMPILER, LINKER, ...) ===
+CC       = cc
+CXX      = CC
+FC       = ftn
+LD       = ftn
+AR       = ar -r
+
+# === COMPILER FLAGS ===
+AFLAGS   = $(DFLAGS) $(INCS) -g1 -fopenmp -O3 -funroll-loops
+FCFLAGS  = $(AFLAGS) -ffree-form -ffree-line-length-512 -fallow-argument-mismatch
+CFLAGS   = $(AFLAGS)
+CXXFLAGS = $(AFLAGS)
+LDFLAGS  = $(FCFLAGS)
+
+# -fallow-argument-mismatch: needed for (Cray-)MPICH and tightened interface requirements introduced in GCC-10
+
+ifeq ($(CHECKS),1)
+FCFLAGS    += -g -fcheck=bounds,do,recursion,pointer -Wconversion -fbacktrace
+endif
