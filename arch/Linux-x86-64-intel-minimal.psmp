@@ -11,7 +11,7 @@ LD        = mpiifort
 AR        = ar -r
 
 # Only one test input (CH4-rsLDA.inp) gives wrong results with inlining enabled
-CFLAGS    = -O2 -fno-inline -fopenmp -fp-model precise -funroll-loops -g -qopenmp-simd -traceback -xHost
+CFLAGS    = -O2 -fopenmp -fp-model precise -funroll-loops -g -qopenmp-simd -traceback -xHost
 
 DFLAGS    = -D__FFTW3
 DFLAGS   += -D__MAX_CONTR=4
@@ -44,3 +44,9 @@ LIBS     += -Wl,--end-group
 # Required due to memory leak that occurs if high optimisations are used
 mp2_optimize_ri_basis.o: mp2_optimize_ri_basis.F
 	$(FC) -c $(subst O2,O0,$(FCFLAGS)) $<
+
+# This functional is numerical unstable with non-strict floating point models.
+# See also: https://github.com/cp2k/cp2k/issues/1434
+xc_sr_lda.o: xc_sr_lda.F
+	$(TOOLSRC)/build_utils/fypp $(FYPPFLAGS) $< $*.F90
+	$(FC) -c $(subst precise,strict,$(FCFLAGS)) -I'$(dir $<)' $*.F90
