@@ -193,7 +193,6 @@ CONTAINS
 
 #if defined (__ELPA)
       INTEGER                                            :: cpuid
-      CLASS(elpa_t), POINTER                             :: elpa_obj
 
       elpa_kernel = requested_kernel
 
@@ -213,13 +212,7 @@ CONTAINS
             END SELECT
          END IF
 
-         elpa_obj => elpa_allocate()
-         IF (elpa_obj%can_set("gpu", 1) == ELPA_OK) THEN
-            CPWARN("ELPA GPU kernel is available, but not enabled automatically.")
-            !TODO: Enable GPU kernel automatically once the segfaults have been fixed.
-            !elpa_kernel = ELPA_2STAGE_REAL_GPU  ! Select GPU over CPU kernel when available.
-         END IF
-         CALL elpa_deallocate(elpa_obj)
+         !TODO: Select ELPA_2STAGE_REAL_GPU if available.
 
          ! If we could not find a suitable kernel then use ELPA_2STAGE_REAL_DEFAULT.
          IF (elpa_kernel == ELPA_2STAGE_REAL_INVALID) THEN
