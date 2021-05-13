@@ -1,6 +1,6 @@
 # Tested with: GFortran 8.3.0, MPICH 3.2.1, Cray-libsci 20.09.1, Cray-FFTW 3.3.8, Libint 2.6.0,
 #              LIBXC 5.1.3, LIBVORI 210412, LIBXSMM 1.16.1, ELPA 2020.11.001, PLUMED 2.6.2, SPGLIB 1.16.0
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, April 2021)
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, May 13)
 
 # Cray XC50 (Piz Daint, CSCS, GPU partition)
 
@@ -47,12 +47,11 @@ SPGLIB_LIB  = $(GNU_PATH)/spglib/1.16.0/lib
 
 # cc, CC, and ftn include already the proper -march flag
 CFLAGS      = -O3 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g
-CXXFLAGS    = $(CFLAGS) -std=c++11 # -D__CUDA
 
 DFLAGS      = -D__DBCSR_ACC
 DFLAGS     += -D__ELPA
 DFLAGS     += -D__FFTW3
-#DFLAGS     += -D__GRID_CUDA
+DFLAGS     += -D__GRID_CUDA
 DFLAGS     += -D__LIBINT
 DFLAGS     += -D__LIBVORI
 DFLAGS     += -D__LIBXC
@@ -68,19 +67,23 @@ DFLAGS     += -D__SCALAPACK
 
 NVFLAGS     = $(DFLAGS) -O3 -Xcompiler="-fopenmp" -arch sm_60 --std=c++11
 
-FCFLAGS     = $(CFLAGS) $(DFLAGS)
+CFLAGS     += $(DFLAGS)
+CFLAGS     += -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules
+CFLAGS     += -I$(LIBINT_INC)
+CFLAGS     += -I$(LIBXC_INC)
+CFLAGS     += -I$(LIBXSMM_INC)
+CFLAGS     += -I$(SPGLIB_INC)
+
+CXXFLAGS    = $(CFLAGS) -std=c++11
+
+FCFLAGS     = $(CFLAGS)
 FCFLAGS    += -fbacktrace
 FCFLAGS    += -ffree-form
 FCFLAGS    += -ffree-line-length-none
 FCFLAGS    += -fno-omit-frame-pointer
 FCFLAGS    += -std=f2008
-FCFLAGS    += -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules
-FCFLAGS    += -I$(LIBINT_INC)
-FCFLAGS    += -I$(LIBXC_INC)
-FCFLAGS    += -I$(LIBXSMM_INC)
-FCFLAGS    += -I$(SPGLIB_INC)
 
-LDFLAGS     = $(FCFLAGS) # -static
+LDFLAGS     = $(FCFLAGS) # -static not possible with CUDA
 
 LIBS        = $(PLUMED_DEPENDENCIES) -lz
 LIBS       += $(ELPA_LIB)/libelpa.a
