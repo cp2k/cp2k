@@ -6,7 +6,7 @@
 QS/regtest-grid
 QS/regtest-corr_dipm
 QS/regtest-admm-gapw                                        libint
-QS/regtest-rs-dhft                                          libint
+QS/regtest-rs-dhft                                          libint libxc
 QS/regtest-sos-mp2-lr                                       libint
 QS/regtest-rpa-lr                                           libint
 QS/regtest-mp2-lr                                           libint
@@ -77,7 +77,7 @@ QS/regtest-hfx-block                                        libint
 QS/regtest-ls-rtp
 QMMM/SE/regtest-force-mixing
 QS/regtest-xc
-QS/regtest-hfx-wfn-fitting                                  libint
+QS/regtest-hfx-wfn-fitting                                  libint libxc
 QS/regtest-tddfpt
 QS/regtest-tddfpt-stda                                      libint
 QS/regtest-libxc                                            libxc libint

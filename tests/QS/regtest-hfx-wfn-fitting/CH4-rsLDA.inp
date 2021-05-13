@@ -1,3 +1,5 @@
+@SET MY_OMEGA 0.5
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -28,8 +30,17 @@
     &END SCF
     &XC
       &XC_FUNCTIONAL
-        &SRLDA
-          OMEGA 0.5
+        &LDA_X
+        &END LDA_X
+        &LDA_X_ERF
+          _OMEGA ${MY_OMEGA}
+          SCALE -1.0
+        &END
+        &LDA_C_PMGB06
+          _OMEGA ${MY_OMEGA}
+          SCALE -1.0
+        &END
+        &LDA_C_PW
         &END
       &END XC_FUNCTIONAL
       &HF
@@ -43,7 +54,7 @@
         &END
         &INTERACTION_POTENTIAL
           POTENTIAL_TYPE LONGRANGE
-          OMEGA 0.5
+          OMEGA ${MY_OMEGA}
         &END
         FRACTION 1.0
       &END
