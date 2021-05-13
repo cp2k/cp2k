@@ -67,9 +67,6 @@ MODULE xc_derivatives
                                               xc_rho_cflags_type
    USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                               xc_rho_set_type
-   USE xc_sr_lda,                       ONLY: sr_lda_eval,&
-                                              sr_lda_info,&
-                                              sr_lsd_eval
    USE xc_tfw,                          ONLY: tfw_lda_eval,&
                                               tfw_lda_info,&
                                               tfw_lsd_eval,&
@@ -320,8 +317,6 @@ CONTAINS
          ELSE
             CALL xbr_pbe_lda_hole_tc_lr_lda_info(reference, shortform, needs, max_deriv)
          END IF
-      CASE ("SRLDA")
-         CALL sr_lda_info(reference, shortform, lsd, needs, max_deriv)
       CASE default
          ! If the functional has not been implemented internally, it's from LibXC
          IF (lsd) THEN
@@ -548,12 +543,6 @@ CONTAINS
          ELSE
             CALL xbr_pbe_lda_hole_tc_lr_lda_eval(rho_set, deriv_set, deriv_order, &
                                                  functional)
-         END IF
-      CASE ("SRLDA")
-         IF (lsd) THEN
-            CALL sr_lsd_eval(rho_set, deriv_set, deriv_order, functional)
-         ELSE
-            CALL sr_lda_eval(rho_set, deriv_set, deriv_order, functional)
          END IF
       CASE default
          ! If functional not natively supported, ask LibXC

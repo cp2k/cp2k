@@ -32,10 +32,19 @@
       ! ADDED_MOS 15000 15000
     &END SCF
     &XC
-      &XC_FUNCTIONAL NONE
-        &SRLDA
-          OMEGA ${MY_OMEGA}
-        &END SRLDA
+      &XC_FUNCTIONAL
+        &LDA_X
+        &END LDA_X
+        &LDA_X_ERF
+          _OMEGA ${MY_OMEGA}
+          SCALE -1.0
+        &END
+        &LDA_C_PMGB06
+          SCALE -1.0
+          _OMEGA ${MY_OMEGA}
+        &END
+        &LDA_C_PW
+        &END
       &END XC_FUNCTIONAL
       &HF
         FRACTION 1.0000000
