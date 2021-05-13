@@ -25,6 +25,6 @@
 
   &POWELL
      ACCURACY   1.e-14
-     STEP_SIZE  0.1
+     STEP_SIZE  0.01
   &END
 &END ATOM
