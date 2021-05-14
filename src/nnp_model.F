@@ -183,24 +183,24 @@ CONTAINS
          CASE (nnp_actfnct_tanh)
             arc%layer(i)%node_grad(:) = 1.0_dp - arc%layer(i)%node(:)**2 !tanh(x)'=1-tanh(x)**2
          CASE (nnp_actfnct_gaus)
-            arc%layer(i)%node_grad(j) = -1.0_dp*arc%layer(i)%node(j)*arc%layer(i)%node_grad(j)
+            arc%layer(i)%node_grad(:) = -1.0_dp*arc%layer(i)%node(:)*arc%layer(i)%node_grad(:)
          CASE (nnp_actfnct_lin)
             arc%layer(i)%node_grad(:) = 1.0_dp
          CASE (nnp_actfnct_cos)
-            arc%layer(i)%node_grad(j) = -SIN(arc%layer(i)%node_grad(j))
+            arc%layer(i)%node_grad(:) = -SIN(arc%layer(i)%node_grad(:))
          CASE (nnp_actfnct_sig)
-            arc%layer(i)%node_grad(j) = EXP(-arc%layer(i)%node_grad(j))/ &
-                                        (1.0_dp + EXP(-1.0_dp*arc%layer(i)%node_grad(j)))**2
+            arc%layer(i)%node_grad(:) = EXP(-arc%layer(i)%node_grad(:))/ &
+                                        (1.0_dp + EXP(-1.0_dp*arc%layer(i)%node_grad(:)))**2
          CASE (nnp_actfnct_invsig)
-            arc%layer(i)%node_grad(j) = -1.0_dp*EXP(-1.0_dp*arc%layer(i)%node_grad(j))/ &
-                                        (1.0_dp + EXP(-1.0_dp*arc%layer(i)%node_grad(j)))**2
+            arc%layer(i)%node_grad(:) = -1.0_dp*EXP(-1.0_dp*arc%layer(i)%node_grad(:))/ &
+                                        (1.0_dp + EXP(-1.0_dp*arc%layer(i)%node_grad(:)))**2
          CASE (nnp_actfnct_exp)
-            arc%layer(i)%node_grad(j) = -1.0_dp*arc%layer(i)%node(j)
+            arc%layer(i)%node_grad(:) = -1.0_dp*arc%layer(i)%node(:)
          CASE (nnp_actfnct_softplus)
-            arc%layer(i)%node_grad(j) = (EXP(arc%layer(i)%node(j)) + 1.0_dp)/ &
-                                        EXP(arc%layer(i)%node(j))
+            arc%layer(i)%node_grad(:) = (EXP(arc%layer(i)%node(:)) + 1.0_dp)/ &
+                                        EXP(arc%layer(i)%node(:))
          CASE (nnp_actfnct_quad)
-            arc%layer(i)%node_grad(j) = 2.0_dp*arc%layer(i)%node_grad(j)
+            arc%layer(i)%node_grad(:) = 2.0_dp*arc%layer(i)%node_grad(:)
          CASE DEFAULT
             CPABORT("NNP| Error: Unknown activation function")
          END SELECT
