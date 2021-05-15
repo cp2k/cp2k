@@ -1,6 +1,6 @@
 # Tested with: GFortran 8.3.0, MPICH 3.2.1, Cray-libsci 20.09.1, Cray-FFTW 3.3.8, Libint 2.6.0,
-#              LIBXC 5.1.3, LIBVORI 210412, LIBXSMM 1.16.1, ELPA 2020.11.001, PLUMED 2.6.2, SPGLIB 1.16.0
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, May 13)
+#              LIBXC 5.1.4, LIBVORI 210412, LIBXSMM 1.16.1, ELPA 2020.11.001, PLUMED 2.6.2, SPGLIB 1.16.0
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, May 2021)
 
 # Cray XC50 (Piz Daint, CSCS, GPU partition)
 
@@ -36,8 +36,8 @@ LIBINT_LIB  = $(GNU_PATH)/libint/2.6.0-lmax-6/lib
 
 LIBVORI_LIB = $(GNU_PATH)/libvori/210412/lib
 
-LIBXC_INC   = $(GNU_PATH)/libxc/5.1.3/include
-LIBXC_LIB   = $(GNU_PATH)/libxc/5.1.3/lib
+LIBXC_INC   = $(GNU_PATH)/libxc/5.1.4/include
+LIBXC_LIB   = $(GNU_PATH)/libxc/5.1.4/lib
 
 LIBXSMM_INC = $(GNU_PATH)/libxsmm/1.16.1/include
 LIBXSMM_LIB = $(GNU_PATH)/libxsmm/1.16.1/lib
