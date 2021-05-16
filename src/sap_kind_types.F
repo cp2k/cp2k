@@ -234,20 +234,20 @@ CONTAINS
    SUBROUTINE sap_sort(sap_int)
       TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
 
-      INTEGER                                            :: iac, na, sap_int_size
+      INTEGER                                            :: iac, na
 
 ! *** Set up a sorting index
 
-      sap_int_size = SIZE(sap_int)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(sap_int) PRIVATE(iac,na)
 !$OMP DO
-      DO iac = 1, sap_int_size
+      DO iac = 1, SIZE(sap_int)
          IF (.NOT. ASSOCIATED(sap_int(iac)%alist)) CYCLE
          na = SIZE(sap_int(iac)%alist)
          ALLOCATE (sap_int(iac)%asort(na), sap_int(iac)%aindex(na))
          sap_int(iac)%asort(1:na) = sap_int(iac)%alist(1:na)%aatom
          CALL sort(sap_int(iac)%asort, na, sap_int(iac)%aindex)
       END DO
-!$OMP END DO
+!$OMP END PARALLEL
 
    END SUBROUTINE sap_sort
 
