@@ -165,6 +165,8 @@ CONTAINS
       logger => cp_get_default_logger()
 
       ! input section print/xc
+      NULLIFY (tddfpt_section)
+      tddfpt_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%TDDFPT")
       CALL tddfpt_input(qs_env, do_hfx, do_admm, xc_section, tddfpt_print_section)
 
       CALL get_qs_env(qs_env, blacs_env=blacs_env, cell=cell, dft_control=dft_control, &

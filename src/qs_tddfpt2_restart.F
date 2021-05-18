@@ -173,6 +173,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      CPASSERT(ASSOCIATED(tddfpt_section))
+
       ! generate restart file name
       CALL section_vals_val_get(tddfpt_section, "WFN_RESTART_FILE_NAME", n_rep_val=n_rep_val)
       IF (n_rep_val > 0) THEN
