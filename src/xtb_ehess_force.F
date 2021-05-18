@@ -138,7 +138,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       logger => cp_get_default_logger()
-      iounit = cp_logger_get_default_unit_nr(logger)
+      IF (logger%para_env%ionode) THEN
+         iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         iounit = -1
+      ENDIF
 
       CPASSERT(ASSOCIATED(matrix_p1))
 

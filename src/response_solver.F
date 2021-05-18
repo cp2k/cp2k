@@ -690,7 +690,12 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       logger => cp_get_default_logger()
-      iounit = cp_logger_get_default_unit_nr(logger)
+      logger => cp_get_default_logger()
+      IF (logger%para_env%ionode) THEN
+         iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         iounit = -1
+      ENDIF
 
       do_ex = .FALSE.
       IF (PRESENT(ex_env)) do_ex = .TRUE.
@@ -1662,7 +1667,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       logger => cp_get_default_logger()
-      iounit = cp_logger_get_default_unit_nr(logger)
+      IF (logger%para_env%ionode) THEN
+         iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         iounit = -1
+      ENDIF
 
       do_ex = .FALSE.
       IF (PRESENT(ex_env)) do_ex = .TRUE.

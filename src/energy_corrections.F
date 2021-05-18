@@ -474,7 +474,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       logger => cp_get_default_logger()
-      iounit = cp_logger_get_default_unit_nr(logger)
+      IF (logger%para_env%ionode) THEN
+         iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         iounit = -1
+      ENDIF
 
       ! no k-points possible
       CALL get_qs_env(qs_env=qs_env, &
@@ -582,7 +586,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       logger => cp_get_default_logger()
-      iounit = cp_logger_get_default_unit_nr(logger)
+      IF (logger%para_env%ionode) THEN
+         iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         iounit = -1
+      ENDIF
 
       calculate_forces = .FALSE.
 
@@ -724,7 +732,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       logger => cp_get_default_logger()
-      iounit = cp_logger_get_default_unit_nr(logger)
+      IF (logger%para_env%ionode) THEN
+         iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         iounit = -1
+      ENDIF
 
       IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "ec_build_core_hamiltonian_force - START"
 
@@ -938,7 +950,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       logger => cp_get_default_logger()
-      iounit = cp_logger_get_default_unit_nr(logger)
+      IF (logger%para_env%ionode) THEN
+         iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         iounit = -1
+      ENDIF
 
       ! get all information on the electronic density
       NULLIFY (atomic_kind_set, blacs_env, cell, dft_control, force, ks_env, &
@@ -2027,7 +2043,11 @@ CONTAINS
       rlab(3) = "Z"
 
       logger => cp_get_default_logger()
-      iounit = cp_logger_get_default_unit_nr(logger)
+      IF (logger%para_env%ionode) THEN
+         iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         iounit = -1
+      ENDIF
 
       print_key => section_vals_get_subs_vals(section_vals=qs_env%input, &
                                               subsection_name="DFT%PRINT%MOMENTS")

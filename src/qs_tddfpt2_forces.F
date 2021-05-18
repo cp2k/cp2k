@@ -270,7 +270,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       logger => cp_get_default_logger()
-      iounit = cp_logger_get_default_unit_nr(logger)
+      IF (logger%para_env%ionode) THEN
+         iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         iounit = -1
+      ENDIF
 
       evect => ex_env%evect
 
@@ -434,7 +438,11 @@ CONTAINS
       CALL dbcsr_dot(matrix_pe, matrix_s, tmp)
       IF (ABS(tmp) > 1.e-08_dp) THEN
          logger => cp_get_default_logger()
-         iounit = cp_logger_get_default_unit_nr(logger)
+         IF (logger%para_env%ionode) THEN
+            iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+         ELSE
+            iounit = -1
+         ENDIF
          CPWARN("Electron count of excitation density matrix is non-zero.")
          IF (iounit > 0) THEN
             WRITE (iounit, "(T2,A,T61,G20.10)") "Measured electron count is ", tmp
@@ -573,7 +581,11 @@ CONTAINS
          CALL pw_axpy(trho_g(ispin)%pw, rho_tot_gspace%pw)
          IF (ABS(total_rho) > 1.e-08_dp) THEN
             logger => cp_get_default_logger()
-            iounit = cp_logger_get_default_unit_nr(logger)
+            IF (logger%para_env%ionode) THEN
+               iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+            ELSE
+               iounit = -1
+            ENDIF
             CPWARN("Real space electron count of excitation density is non-zero.")
             IF (iounit > 0) THEN
                WRITE (iounit, "(T2,A,T61,G20.10)") "Measured electron count is ", total_rho

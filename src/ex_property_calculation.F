@@ -122,7 +122,11 @@ CONTAINS
       tb = (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb)
 
       logger => cp_get_default_logger()
-      iounit = cp_logger_get_default_unit_nr(logger)
+      IF (logger%para_env%ionode) THEN
+         iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         iounit = -1
+      ENDIF
 
       print_key => section_vals_get_subs_vals(section_vals=qs_env%input, &
                                               subsection_name="DFT%PRINT%MOMENTS")
