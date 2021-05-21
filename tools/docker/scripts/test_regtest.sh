@@ -53,6 +53,9 @@ if [[ "${ARCH}" == "local" ]]; then
   fi
 fi
 
+# Improve code coverage on COSMA.
+export COSMA_DIM_THRESHOLD=0
+
 # Run regtests.
 echo -e "\n========== Running Regtests =========="
 make ARCH="${ARCH}" VERSION="${VERSION}" TESTOPTS="${TESTOPTS}" test

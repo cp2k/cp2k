@@ -9,8 +9,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-cosma_ver="2.2.0"
-cosma_sha256="1eb92a98110df595070a12193b9221eecf9d103ced8836c960f6c79a2bd553ca"
+cosma_ver="2.5.0"
+cosma_sha256="7f68bb0ee5c80f9b8df858afcbd017ad4ed87ac09439d13d7d890844dbdd3d54"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -27,26 +27,27 @@ case "$with_cosma" in
     require_env OPENBLASROOT
     require_env SCALAPACKROOT
 
-    echo "==================== Installing cosma ===================="
-    pkg_install_dir="${INSTALLDIR}/cosma-${cosma_ver}"
+    echo "==================== Installing COSMA ===================="
+    pkg_install_dir="${INSTALLDIR}/COSMA-${cosma_ver}"
     install_lock_file="$pkg_install_dir/install_successful"
 
     if verify_checksums "${install_lock_file}"; then
-      echo "cosma-${cosma_ver} is already installed, skipping it."
+      echo "COSMA-${cosma_ver} is already installed, skipping it."
     else
-      if [ -f cosma-${cosma_ver}.tar.gz ]; then
-        echo "cosma-${cosma_ver}.tar.gz is found"
+      if [ -f COSMA-v${cosma_ver}.tar.gz ]; then
+        echo "COSMA-v${cosma_ver}.tar.gz is found"
       else
         download_pkg ${DOWNLOADER_FLAGS} ${cosma_sha256} \
-          "https://github.com/eth-cscs/COSMA/releases/download/v${cosma_ver}/cosma.tar.gz" \
-          -o cosma-${cosma_ver}.tar.gz
-
+          "https://github.com/eth-cscs/COSMA/releases/download/v${cosma_ver}/COSMA-v${cosma_ver}.tar.gz" \
+          -o COSMA-v${cosma_ver}.tar.gz
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
-      [ -d cosma-${cosma_ver} ] && rm -rf cosma-${cosma_ver}
-      tar -xzf cosma-${cosma_ver}.tar.gz
-      mv cosma cosma-${cosma_ver}
-      cd cosma-${cosma_ver}
+      [ -d COSMA-${cosma_ver} ] && rm -rf COSMA-${cosma_ver}
+      tar -xzf COSMA-v${cosma_ver}.tar.gz
+      cd COSMA-v${cosma_ver}
+
+      # Build CPU version.
+      [ -d build-cpu ] && rm -rf "build-cpu"
       mkdir build-cpu
       cd build-cpu
       case "$MATH_MODE" in
@@ -57,8 +58,7 @@ case "$with_cosma" in
             -DCOSMA_BLAS=MKL \
             -DCOSMA_SCALAPACK=MKL \
             -DCOSMA_WITH_TESTS=NO \
-            -DCOSMA_WITH_APPS=NO \
-            -DCOSMA_WITH_BENCHMARKS=NO .. > cmake.log 2>&1
+            -DCOSMA_WITH_APPS=NO .. > cmake.log 2>&1
           ;;
         *)
           cmake \
@@ -67,15 +67,14 @@ case "$with_cosma" in
             -DCOSMA_BLAS=OPENBLAS \
             -DCOSMA_SCALAPACK=CUSTOM \
             -DCOSMA_WITH_TESTS=NO \
-            -DCOSMA_WITH_APPS=NO \
-            -DCMAKE_WITH_BENCHMARKS=NO .. > cmake.log 2>&1
+            -DCOSMA_WITH_APPS=NO .. > cmake.log 2>&1
           ;;
       esac
-
       make -j $(get_nprocs) > make.log 2>&1
       make -j $(get_nprocs) install > install.log 2>&1
       cd ..
 
+      # Build CUDA version.
       if [ "$ENABLE_CUDA" = "__TRUE__" ]; then
         [ -d build-cuda ] && rm -rf "build-cuda"
         mkdir build-cuda
@@ -83,31 +82,26 @@ case "$with_cosma" in
         case "$MATH_MODE" in
           mkl)
             cmake \
-              -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+              -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}-cuda" \
               -DCMAKE_INSTALL_LIBDIR=lib \
               -DCOSMA_BLAS=CUDA \
               -DCOSMA_SCALAPACK=MKL \
               -DCOSMA_WITH_TESTS=NO \
-              -DCOSMA_WITH_BENCHMARKS=NO \
               -DCOSMA_WITH_APPS=NO .. > cmake.log 2>&1
             ;;
           *)
             cmake \
-              -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+              -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}-cuda" \
               -DCMAKE_INSTALL_LIBDIR=lib \
               -DCOSMA_BLAS=CUDA \
               -DCOSMA_SCALAPACK=CUSTOM \
               -DCOSMA_WITH_TESTS=NO \
-              -DCOSMA_WITH_BENCHMARKS=NO \
               -DCOSMA_WITH_APPS=NO .. > cmake.log 2>&1
             ;;
         esac
         make -j $(get_nprocs) > make.log 2>&1
-        install -d ${pkg_install_dir}/lib/cuda
-        [ -f libs/grid2grid/src/grid2grid/*.a ] && install -m 644 libs/grid2grid/src/grid2grid/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
-        [ -f libs/options/*.so ] && install -m 644 libs/options/*.so ${pkg_install_dir}/lib/cuda >> install.log 2>&1
-        install -m 644 src/cosma/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
-        [ -f libs/Tiled-MM/src/Tiled-MM/*.a ] && install -m 644 libs/Tiled-MM/src/Tiled-MM/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
+        make -j $(get_nprocs) install > install.log 2>&1
+        cd ..
       fi
 
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage4/$(basename ${SCRIPT_NAME})"
@@ -115,13 +109,14 @@ case "$with_cosma" in
     COSMA_ROOT="${pkg_install_dir}"
     COSMA_CFLAGS="-I'${pkg_install_dir}/include'"
 
-    # check if cosma is compiled with 64bits and set up COSMA_LIBDIR accordingly
+    # Check if COSMA is compiled with 64bits and set up COSMA_LIBDIR accordingly.
     COSMA_LIBDIR="${pkg_install_dir}/lib"
     COSMA_LDFLAGS="-L'${COSMA_LIBDIR}' -Wl,-rpath='${COSMA_LIBDIR}'"
-    COSMA_CUDA_LDFLAGS="-L'${COSMA_LIBDIR}/cuda' -Wl,-rpath='${COSMA_LIBDIR}/cuda'"
+    COSMA_CUDA_LIBDIR="${pkg_install_dir}-cuda/lib"
+    COSMA_CUDA_LDFLAGS="-L'${COSMA_CUDA_LIBDIR}' -Wl,-rpath='${COSMA_CUDA_LIBDIR}'"
     ;;
   __SYSTEM__)
-    echo "==================== Finding cosma from system paths ===================="
+    echo "==================== Finding COSMA from system paths ===================="
     check_command pkg-config --modversion cosma
     add_include_from_paths COSMA_CFLAGS "cosma.h" $INCLUDE_PATHS
     add_lib_from_paths COSMA_LDFLAGS "libcosma.*" $LIB_PATHS
@@ -129,7 +124,7 @@ case "$with_cosma" in
   __DONTUSE__) ;;
 
   *)
-    echo "==================== Linking cosma to user paths ===================="
+    echo "==================== Linking COSMA to user paths ===================="
     pkg_install_dir="$with_cosma"
 
     # use the lib64 directory if present (multi-abi distros may link lib/ to lib32/ instead)
@@ -144,7 +139,7 @@ case "$with_cosma" in
     ;;
 esac
 if [ "$with_cosma" != "__DONTUSE__" ]; then
-  COSMA_LIBS="-lcosma_pxgemm -lcosma -lgrid2grid IF_CUDA(-lTiled-MM|)"
+  COSMA_LIBS="-lcosma_prefixed_pxgemm -lcosma -lcosta IF_CUDA(-lTiled-MM|)"
   if [ "$with_cosma" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_cosma"
 prepend_path LD_LIBRARY_PATH "${COSMA_LIBDIR}"
