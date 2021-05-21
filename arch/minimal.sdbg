@@ -9,4 +9,4 @@ LD          = gfortran
 CFLAGS      = -fopenmp
 FCFLAGS     = -fopenmp -ffree-form
 LDFLAGS     = -fopenmp
-LIBS        = -llapack -lblas
+LIBS        = -lopenblas
