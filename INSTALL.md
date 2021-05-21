@@ -301,10 +301,9 @@ SIRIUS is a domain specific library for electronic structure calculations.
 
 ### 2s. COSMA (Distributed Communication-Optimal Matrix-Matrix Multiplication Algorithm)
 
-- COSMA is a replacement of the pdgemm routine included in scalapack. The
-  library supports both CPU and GPUs. No specific flag during compilation is
-  needed to use the library in cp2k, excepted during linking time where the
-  library should be placed in front of the scalapack library.
+- COSMA is an alternative for the pdgemm routine included in ScaLAPACK.
+  The library supports both CPU and GPUs.
+- Add `-D__COSMA` to the DFLAGS to enable support for COSMA.
 - see <https://github.com/eth-cscs/COSMA> for more information.
 
 ### 2t. LibVori (Voronoi Integration for Electrostatic Properties from Electron Density)

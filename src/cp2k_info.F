@@ -126,6 +126,9 @@ CONTAINS
 #if defined(__SCALAPACK)
       flags = TRIM(flags)//" scalapack"
 #endif
+#if defined(__COSMA)
+      flags = TRIM(flags)//" cosma"
+#endif
 
 #if defined(__QUIP)
       flags = TRIM(flags)//" quip"

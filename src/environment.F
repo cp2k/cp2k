@@ -30,7 +30,8 @@ MODULE environment
                                               eps_check_diag_default
    USE cp_fm_diag_utils,                ONLY: cp_fm_redistribute_init
    USE cp_fm_struct,                    ONLY: cp_fm_struct_config
-   USE cp_fm_types,                     ONLY: cp_fm_setup
+   USE cp_fm_types,                     ONLY: cp_fm_get_mm_type,&
+                                              cp_fm_setup
    USE cp_log_handling,                 ONLY: &
         cp_add_default_logger, cp_get_default_logger, cp_logger_create, &
         cp_logger_get_default_unit_nr, cp_logger_release, cp_logger_set, cp_logger_type, &
@@ -57,9 +58,9 @@ MODULE environment
    USE header,                          ONLY: cp2k_footer,&
                                               cp2k_header
    USE input_constants,                 ONLY: &
-        callgraph_all, callgraph_none, do_cp2k, do_diag_elpa, do_diag_scalapack, do_eip, &
-        do_farming, do_fft_fftw3, do_fft_sg, do_fist, do_qs, do_sirius, do_test, energy_run, &
-        id_development_version, mol_dyn_run, none_run
+        callgraph_all, callgraph_none, do_cosma, do_cp2k, do_dbcsr, do_diag_elpa, &
+        do_diag_scalapack, do_eip, do_farming, do_fft_fftw3, do_fft_sg, do_fist, do_qs, &
+        do_scalapack, do_sirius, do_test, energy_run, id_development_version, mol_dyn_run, none_run
    USE input_cp2k_global,               ONLY: create_global_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enumeration_type
@@ -788,6 +789,18 @@ CONTAINS
          END IF
 #endif
          CALL section_release(section)
+
+         SELECT CASE (cp_fm_get_mm_type())
+         CASE (do_scalapack)
+            WRITE (UNIT=output_unit, FMT="(T2,A,T75,A6)") &
+               start_section_label//"| Matrix multiplication library", "SCALAPACK"
+         CASE (do_dbcsr)
+            WRITE (UNIT=output_unit, FMT="(T2,A,T75,A6)") &
+               start_section_label//"| Matrix multiplication library", "DBCSR"
+         CASE (do_cosma)
+            WRITE (UNIT=output_unit, FMT="(T2,A,T75,A6)") &
+               start_section_label//"| Matrix multiplication library", "COSMA"
+         END SELECT
 
          CALL section_vals_val_get(global_section, "ALLTOALL_SGL", l_val=ata)
          WRITE (UNIT=output_unit, FMT="(T2,A,T80,L1)") &

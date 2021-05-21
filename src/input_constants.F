@@ -1085,8 +1085,9 @@ MODULE input_constants
                                                sccs_derivative_cd7 = 3
 
    ! fm matrix multiplication
-   INTEGER, PARAMETER, PUBLIC               :: do_pdgemm = 1, &
-                                               do_dbcsr = 2
+   INTEGER, PARAMETER, PUBLIC               :: do_scalapack = 1, &
+                                               do_dbcsr = 2, &
+                                               do_cosma = 3
 
    ! Dispersion DFTB
    INTEGER, PARAMETER, PUBLIC               :: dispersion_uff = 100, &
