@@ -36,7 +36,7 @@ FC_arch="IF_MPI(${MPIFC}|${FC})"
 LD_arch="IF_MPI(${MPIFC}|${FC})"
 
 # we always want good line information and backtraces
-BASEFLAGS="-march=native -mtune=native -fno-omit-frame-pointer -g ${TSANFLAGS}"
+BASEFLAGS="-march=native -mtune=native -fno-omit-frame-pointer -g"
 OPT_FLAGS="-O3 -funroll-loops"
 NOOPT_FLAGS="-O1"
 

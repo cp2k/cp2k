@@ -114,8 +114,8 @@ EOF
   cat << EOF >> "${BUILDDIR}/setup_mkl"
 export MKL_CFLAGS="${MKL_CFLAGS}"
 export MKL_LIBS="${MKL_LIBS}"
-export FAST_MATH_CFLAGS="\${FAST_MATH_CFLAGS} ${MKL_CFLAGS}"
-export FAST_MATH_LIBS="\${FAST_MATH_LIBS} ${MKL_LIBS}"
+export MATH_CFLAGS="\${MATH_CFLAGS} ${MKL_CFLAGS}"
+export MATH_LIBS="\${MATH_LIBS} ${MKL_LIBS}"
 export CP_DFLAGS="\${CP_DFLAGS} -D__MKL -D__FFTW3 IF_COVERAGE(IF_MPI(|-U__FFTW3)|)"
 EOF
   if [ -n "${mkl_scalapack_lib}" ]; then

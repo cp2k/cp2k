@@ -49,7 +49,7 @@ case "$with_cosma" in
       cd cosma-${cosma_ver}
       mkdir build-cpu
       cd build-cpu
-      case "$FAST_MATH_MODE" in
+      case "$MATH_MODE" in
         mkl)
           cmake \
             -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
@@ -80,7 +80,7 @@ case "$with_cosma" in
         [ -d build-cuda ] && rm -rf "build-cuda"
         mkdir build-cuda
         cd build-cuda
-        case "$FAST_MATH_MODE" in
+        case "$MATH_MODE" in
           mkl)
             cmake \
               -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
