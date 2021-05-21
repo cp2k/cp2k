@@ -7,19 +7,19 @@ FC          = gfortran
 LD          = gfortran
 AR          = ar -r
 
-FFTW_INC    = $(GNU_PATH)/fftw/3.3.9-generic/include
-FFTW_LIB    = $(GNU_PATH)/fftw/3.3.9-generic/lib
+FFTW_INC    = $(GNU_PATH)/fftw/3.3.9/include
+FFTW_LIB    = $(GNU_PATH)/fftw/3.3.9/lib
 
-LIBINT_INC  = $(GNU_PATH)/libint/2.6.0-lmax-4-generic/include
-LIBINT_LIB  = $(GNU_PATH)/libint/2.6.0-lmax-4-generic/lib
+LIBINT_INC  = $(GNU_PATH)/libint/2.6.0-lmax-4/include
+LIBINT_LIB  = $(GNU_PATH)/libint/2.6.0-lmax-4/lib
 
-LIBVORI_LIB = $(GNU_PATH)/libvori/210412-generic/lib
+LIBVORI_LIB = $(GNU_PATH)/libvori/210412/lib
 
-LIBXC_INC   = $(GNU_PATH)/libxc/5.1.4-generic/include
-LIBXC_LIB   = $(GNU_PATH)/libxc/5.1.4-generic/lib
+LIBXC_INC   = $(GNU_PATH)/libxc/5.1.4/include
+LIBXC_LIB   = $(GNU_PATH)/libxc/5.1.4/lib
 
-SPGLIB_INC  = $(GNU_PATH)/spglib/1.16.0-generic/include
-SPGLIB_LIB  = $(GNU_PATH)/spglib/1.16.0-generic/lib
+SPGLIB_INC  = $(GNU_PATH)/spglib/1.16.0/include
+SPGLIB_LIB  = $(GNU_PATH)/spglib/1.16.0/lib
 
 CFLAGS      = -O2 -fopenmp -fopenmp-simd -g -mtune=generic
 
@@ -49,6 +49,6 @@ LIBS       += $(LIBINT_LIB)/libint2.a
 LIBS       += $(SPGLIB_LIB)/libsymspg.a
 LIBS       += $(FFTW_LIB)/libfftw3.a
 LIBS       += $(FFTW_LIB)/libfftw3_threads.a
-LIBS       += $(LIBPATH)/liblapack-generic.a
-LIBS       += $(LIBPATH)/libblas-generic.a
+LIBS       += $(LIBPATH)/liblapack.a
+LIBS       += $(LIBPATH)/libblas.a
 LIBS       += -ldl -lstdc++
