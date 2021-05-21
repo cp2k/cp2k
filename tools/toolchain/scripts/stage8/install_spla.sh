@@ -47,7 +47,7 @@ case "$with_spla" in
       cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR=lib \
-        -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=TRUE \
+        -DBUILD_SHARED_LIBS=OFF \
         -DSPLA_OMP=ON \
         -DSPLA_MPI=ON \
         -DSPLA_INSTALL=ON \
@@ -64,7 +64,7 @@ case "$with_spla" in
         cmake \
           -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
           -DCMAKE_INSTALL_LIBDIR=lib \
-          -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=TRUE \
+          -DBUILD_SHARED_LIBS=OFF \
           -DSPLA_OMP=ON \
           -DSPLA_MPI=ON \
           -DSPLA_STATIC=OM \
