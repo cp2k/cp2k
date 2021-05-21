@@ -51,7 +51,7 @@ case "$with_scalapack" in
 
       pushd "scalapack-${scalapack_ver}" > /dev/null
       for patch in "${patches[@]}"; do
-        patch -p1 < "${patch}"
+        patch -p1 < "${patch}" >> patch.log 2>&1
       done
       popd > /dev/null
 
@@ -61,6 +61,7 @@ case "$with_scalapack" in
       cmake -DCMAKE_FIND_ROOT_PATH="$ROOTDIR" \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR="lib" \
+        -DBUILD_SHARED_LIBS=NO \
         -DCMAKE_BUILD_TYPE=Release .. > configure.log 2>&1
       make -j $(get_nprocs) > make.log 2>&1
       make install >> make.log 2>&1
