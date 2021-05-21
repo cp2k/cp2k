@@ -88,8 +88,7 @@ WFLAGS="$WFLAGS_ERROR $WFLAGS_WARN IF_WARNALL(${WFLAGS_WARNALL}|)"
 FCDEBFLAGS="$FCDEB_FLAGS IF_DEBUG($FCDEB_FLAGS_DEBUG|)"
 DFLAGS="${CP_DFLAGS} IF_DEBUG($IEEE_EXCEPTIONS_DFLAGS -D__CHECK_DIAG|) IF_COVERAGE($COVERAGE_DFLAGS|)"
 # language independent flags
-# valgrind with avx can lead to spurious out-of-bound results
-G_CFLAGS="$BASEFLAGS IF_VALGRIND(-mno-avx -mno-avx2|)"
+G_CFLAGS="$BASEFLAGS"
 G_CFLAGS="$G_CFLAGS IF_COVERAGE($COVERAGE_FLAGS|IF_DEBUG($NOOPT_FLAGS|$OPT_FLAGS))"
 G_CFLAGS="$G_CFLAGS IF_DEBUG(|$PROFOPT_FLAGS)"
 G_CFLAGS="$G_CFLAGS $CP_CFLAGS"
@@ -150,7 +149,7 @@ gen_arch_file() {
   local __filename=$1
   shift
   local __flags=$@
-  local __full_flag_list="MPI DEBUG CUDA WARNALL VALGRIND COVERAGE"
+  local __full_flag_list="MPI DEBUG CUDA WARNALL COVERAGE"
   local __flag=''
   for __flag in $__full_flag_list; do
     eval "local __${__flag}=off"
@@ -218,14 +217,6 @@ if [ "$ENABLE_CUDA" = __TRUE__ ]; then
   fi
 fi
 
-# valgrind enabled arch files
-if [ "$ENABLE_VALGRIND" = __TRUE__ ]; then
-  gen_arch_file "local_valgrind.ssmp" VALGRIND
-  if [ "$MPI_MODE" != no ]; then
-    gen_arch_file "local_valgrind.psmp" VALGRIND MPI
-  fi
-fi
-
 cd "${ROOTDIR}"
 
 # -------------------------
@@ -245,7 +236,6 @@ To build CP2K you should change directory:
   make -j $(get_nprocs) ARCH=local VERSION="${arch_vers}"
 
 arch files for GPU enabled CUDA versions are named "local_cuda.*"
-arch files for valgrind versions are named "local_valgrind.*"
 arch files for coverage versions are named "local_coverage.*"
 
 Note that these pre-built arch files are for the GNU compiler, users have to adapt them for other compilers.
