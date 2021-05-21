@@ -154,9 +154,6 @@ The --with-PKG options follow the rules:
                           Default = system
   --with-cmake            Cmake utilities
                           Default = install
-  --with-valgrind         Valgrind memory debugging tool, only used for
-                          debugging purposes.
-                          Default = no
   --with-openmpi          OpenMPI, important if you want parallel version
                           of CP2K.
                           Default = system
@@ -267,7 +264,7 @@ EOF
 # PACKAGE LIST: register all new dependent tools and libs here. Order
 # is important, the first in the list gets installed first
 # ------------------------------------------------------------------------
-tool_list="gcc cmake valgrind"
+tool_list="gcc cmake"
 mpi_list="mpich openmpi intelmpi"
 math_list="mkl acml openblas reflapack"
 lib_list="fftw libint libxc libsmm libxsmm cosma scalapack elpa plumed \
@@ -523,9 +520,6 @@ while [ $# -ge 1 ]; do
     --with-cmake*)
       with_cmake=$(read_with $1)
       ;;
-    --with-valgrind*)
-      with_valgrind=$(read_with $1)
-      ;;
     --with-mpich*)
       with_mpich=$(read_with $1)
       if [ $with_mpich != __DONTUSE__ ]; then
@@ -650,7 +644,6 @@ export ENABLE_CUDA=$enable_cuda
 export ENABLE_CRAY=$enable_cray
 [ "$enable_gcc_master" = "__TRUE__" ] && export gcc_ver=master
 [ "$enable_libxsmm_master" = "__TRUE__" ] && export libxsmm_ver=master
-[ "$with_valgrind" != "__DONTUSE__" ] && export ENABLE_VALGRIND="__TRUE__"
 
 # ------------------------------------------------------------------------
 # Check and solve known conflicts before installations proceed
@@ -665,14 +658,6 @@ if [ $ENABLE_TSAN = "__TRUE__" ]; then
   fi
   echo "TSAN is enabled, cannot use libsmm"
   with_libsmm="__DONTUSE__"
-fi
-
-# valgrind conflicts
-if [ "$ENABLE_VALGRIND" = "__TRUE__" ]; then
-  if [ "$with_reflapack" = "__DONTUSE__" ]; then
-    echo "reflapack is automatically installed when valgrind is enabled"
-    with_reflapack="__INSTALL__"
-  fi
 fi
 
 # mpi library conflicts
