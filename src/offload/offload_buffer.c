@@ -34,7 +34,7 @@ void offload_create_buffer(const int length, offload_buffer **buffer) {
 #ifdef __OFFLOAD_CUDA
   // With size 0 cudaMallocHost doesn't null the pointer and cudaFreeHost fails.
   (*buffer)->host_buffer = NULL;
-  OFFLOAD_CHECK(cudaSetDevice(offload_get_device_id()));
+  offload_set_device();
   OFFLOAD_CHECK(
       cudaMallocHost((void **)&(*buffer)->host_buffer, requested_size));
   OFFLOAD_CHECK(cudaMalloc((void **)&(*buffer)->device_buffer, requested_size));

@@ -35,7 +35,7 @@ extern "C" {
  * \brief Returns the number of available devices.
  * \author Ole Schuett
  ******************************************************************************/
-int offload_get_device_count();
+int offload_get_device_count(void);
 
 /*******************************************************************************
  * \brief Selects the device to be used.
@@ -47,7 +47,13 @@ void offload_set_device_id(int device_id);
  * \brief Returns the device to be used.
  * \author Ole Schuett
  ******************************************************************************/
-int offload_get_device_id();
+int offload_get_device_id(void);
+
+/*******************************************************************************
+ * \brief Activates the device selected via offload_set_device_id()
+ * \author Ole Schuett
+ ******************************************************************************/
+void offload_set_device(void);
 
 #ifdef __cplusplus
 }

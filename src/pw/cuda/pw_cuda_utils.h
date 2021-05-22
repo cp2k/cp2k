@@ -10,8 +10,6 @@
 
 extern void pw_cuda_error_check(cudaError_t cudaError, int line);
 
-extern void pw_cuda_set_device();
-
 // STREAMS INIT/GET/RELEASE
 extern void pw_cuda_device_streams_alloc(cudaStream_t **streams);
 extern void pw_cuda_get_streams(cudaStream_t **streams);
