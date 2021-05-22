@@ -1,6 +1,6 @@
 # Tested with: GFortran 8.3.0, MPICH 3.3, LAPACK 3.9.1, ScaLAPACK 6819b24, FFTW 3.3.9,
 #              LIBINT 2.6.0, LIBXC 5.1.4, ELPA 2020.11.001, PLUMED 2.6.2, SPGLIB 1.16.0,
-#              LIBVORI 210412, LIBXSMM 1.16.1
+#              LIBVORI 210412, LIBXSMM 1.16.1, SIRIUS 7.0.2, OpenBLAS 0.3.15
 # Author: Matthias Krack (matthias.krack@psi.ch, PSI, May 2021)
 
 CC          = mpicc
@@ -9,6 +9,9 @@ LD          = mpif90
 AR          = ar -r
 
 include       $(MPI_PATH)/plumed2/2.6.2/lib/plumed/src/lib/Plumed.inc.static
+
+#COSMA_INC   = $(GNU_PATH)/COSMA/2.4.0/include
+#COSMA_LIB   = $(GNU_PATH)/COSMA/2.4.0/lib
 
 ELPA_VER    = 2020.11.001
 ELPA_INC    = $(MPI_PATH)/elpa/$(ELPA_VER)/include/elpa_openmp-$(ELPA_VER)
@@ -28,6 +31,9 @@ LIBXC_LIB   = $(GNU_PATH)/libxc/5.1.4/lib
 LIBXSMM_INC = $(GNU_PATH)/libxsmm/1.16.1/include
 LIBXSMM_LIB = $(GNU_PATH)/libxsmm/1.16.1/lib
 
+SIRIUS_INC  = $(GNU_PATH)/sirius/7.0.2/include
+SIRIUS_LIB  = $(GNU_PATH)/sirius/7.0.2/lib
+
 SPGLIB_INC  = $(GNU_PATH)/spglib/1.16.0/include
 SPGLIB_LIB  = $(GNU_PATH)/spglib/1.16.0/lib
 
@@ -45,6 +51,8 @@ DFLAGS     += -D__PLUMED2
 DFLAGS     += -D__SPGLIB
 DFLAGS     += -D__parallel
 DFLAGS     += -D__SCALAPACK
+DFLAGS     += -D__SIRIUS
+#DFLAGS     += -D__CHECK_DIAG
 
 FCFLAGS     = $(CFLAGS) $(DFLAGS)
 FCFLAGS    += -fbacktrace
@@ -52,15 +60,18 @@ FCFLAGS    += -ffree-form
 FCFLAGS    += -ffree-line-length-none
 FCFLAGS    += -fno-omit-frame-pointer
 FCFLAGS    += -std=f2008
+#FCFLAGS    += -I$(COSMA_INC)
 FCFLAGS    += -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules
 FCFLAGS    += -I$(FFTW_INC)
 FCFLAGS    += -I$(LIBINT_INC)
 FCFLAGS    += -I$(LIBXC_INC)
 FCFLAGS    += -I$(LIBXSMM_INC)
+FCFLAGS    += -I$(SIRIUS_INC)
+FCFLAGS    += -I$(SPGLIB_INC)
 
 LDFLAGS     = $(FCFLAGS) -static-libgfortran
 
-LIBS        = $(PLUMED_DEPENDENCIES) $(GSL_LIBRARY_DIR)/libgsl.a $(GSL_LIBRARY_DIR)/libgslcblas.a $(LIBPATH)/libz.a
+LIBS        = $(PLUMED_DEPENDENCIES)
 LIBS       += $(ELPA_LIB)/libelpa_openmp.a
 LIBS       += $(LIBVORI_LIB)/libvori.a
 LIBS       += $(LIBXC_LIB)/libxcf03.a
@@ -71,9 +82,18 @@ LIBS       += $(FFTW_LIB)/libfftw3.a
 LIBS       += $(FFTW_LIB)/libfftw3_threads.a
 LIBS       += $(LIBXSMM_LIB)/libxsmmf.a
 LIBS       += $(LIBXSMM_LIB)/libxsmm.a
+# Only needed for SIRIUS
+LIBS       += ${SIRIUS_LIB}/libsirius.a
+LIBS       += $(GNU_PATH)/SpFFT/0.9.13/lib/libspfft.a
+LIBS       += $(GNU_PATH)/SpLA/1.2.1/lib/libspla.a
+LIBS       += $(GNU_PATH)/hdf5/1.12.0/lib/libhdf5.a
+#
+#LIBS       += -L$(COSMA_LIB) lcosma_pxgemm -lcosma -lcosta_scalapack -lcosta
 LIBS       += $(MPI_LIBRARY_PATH)/libscalapack.a
 LIBS       += $(LIBPATH)/liblapack.a
-LIBS       += $(LIBPATH)/libblas.a
+LIBS       += $(GNU_PATH)/OpenBLAS/0.3.15/lib/libopenblas.a
+LIBS       += $(GSL_LIBRARY_DIR)/libgsl.a $(GSL_LIBRARY_DIR)/libgslcblas.a
+LIBS       += $(LIBPATH)/libz.a
 LIBS       += -ldl
 LIBS       += -lpthread
 LIBS       += -lstdc++
