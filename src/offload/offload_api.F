@@ -25,7 +25,7 @@ MODULE offload_api
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'offload_api'
 
    PUBLIC :: offload_get_device_count
-   PUBLIC :: offload_set_device_id, offload_get_device_id
+   PUBLIC :: offload_set_device_id, offload_get_device_id, offload_set_device
    PUBLIC :: offload_buffer_type, offload_create_buffer, offload_free_buffer
 
    TYPE offload_buffer_type
@@ -97,6 +97,22 @@ CONTAINS
          CPABORT("Offload device not selected.")
 
    END FUNCTION offload_get_device_id
+
+! **************************************************************************************************
+!> \brief Activates the device selected via offload_set_device_id()
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE offload_set_device()
+
+      INTERFACE
+         SUBROUTINE offload_set_device_c() &
+            BIND(C, name="offload_set_device")
+         END SUBROUTINE offload_set_device_c
+      END INTERFACE
+
+      CALL offload_set_device_c()
+
+   END SUBROUTINE offload_set_device
 
 ! **************************************************************************************************
 !> \brief Allocates a buffer of given length, ie. number of elements.

@@ -57,12 +57,6 @@ extern void pw_cuda_error_check(cudaError_t cudaError, int line) {
   }
 }
 
-extern void pw_cuda_set_device() {
-  cErr = cudaSetDevice(offload_get_device_id());
-  if (CHECK)
-    pw_cuda_error_check(cErr, __LINE__);
-}
-
 // STREAMS INIT/GET/RELEASE
 void pw_cuda_device_streams_alloc(cudaStream_t **streams) {
   cudaStream_t *cuda_streams_ptr;
@@ -167,7 +161,7 @@ extern "C" int pw_cuda_init() {
   if (is_configured == 0) {
     int version;
     cufftResult_t cufftErr;
-    pw_cuda_set_device();
+    offload_set_device();
     pw_cuda_device_streams_alloc(&cuda_streams);
     pw_cuda_device_events_alloc(&cuda_events);
     is_configured = 1;
@@ -194,7 +188,7 @@ extern "C" int pw_cuda_init() {
 
 extern "C" void pw_cuda_finalize() {
   if (is_configured == 1) {
-    pw_cuda_set_device();
+    offload_set_device();
     fftcu_release_();
     pw_cuda_device_streams_release(&cuda_streams);
     pw_cuda_device_events_release(&cuda_events);
