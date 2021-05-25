@@ -181,7 +181,7 @@ The --with-PKG options follow the rules:
                           Default = no
   --with-acml             AMD core maths library, which provides LAPACK and BLAS
                           Default = system
-  --with-mkl              Intel maths kernel library, which provides LAPACK and BLAS,
+  --with-mkl              Intel Math Kernel Library, which provides LAPACK, BLAS, and FFTW,
                           and depending on your system, may also provide ScaLAPACK.
                           If the MKL version of ScaLAPACK is found, then it will replace
                           the one specified by --with-scalapack option.
@@ -336,8 +336,8 @@ if (command -v mpirun >&- 2>&-); then
     echo "MPI is detected and it appears to be Intel MPI"
     with_gcc=__DONTUSE__
     export MPI_MODE=intelmpi
-  else
-    # default to mpich
+  else # default to mpich
+    echo "MPI is detected and defaults to MPICH"
     export MPI_MODE=mpich
   fi
 else

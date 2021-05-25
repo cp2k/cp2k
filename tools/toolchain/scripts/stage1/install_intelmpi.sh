@@ -79,6 +79,7 @@ export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__parallel ${mpi2_dflags}|)"
 export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(${INTELMPI_CFLAGS}|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${INTELMPI_LDFLAGS}|)"
 export CP_LIBS="\${CP_LIBS} IF_MPI(${INTELMPI_LIBS}|)"
+export MPICXX=mpicxx
 EOF
 fi
 
