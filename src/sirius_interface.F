@@ -61,15 +61,15 @@ MODULE sirius_interface
    USE sirius,                          ONLY: &
         sirius_add_atom, sirius_add_atom_type, sirius_add_atom_type_radial_function, &
         sirius_create_context, sirius_create_ground_state, sirius_create_kset_from_grid, &
-        sirius_dump_runtime_setup, sirius_finalize, sirius_find_ground_state, &
-        sirius_get_band_energies, sirius_get_band_occupancies, sirius_get_energy, &
-        sirius_get_forces, sirius_get_kpoint_properties, sirius_get_num_kpoints, &
-        sirius_get_parameters, sirius_get_stress_tensor, sirius_import_parameters, &
-        sirius_initialize, sirius_initialize_context, sirius_option_add_string_to, &
-        sirius_option_get_length, sirius_option_get_name_and_type, sirius_option_set_double, &
-        sirius_option_set_int, sirius_option_set_logical, sirius_option_set_string, &
-        sirius_set_atom_position, sirius_set_atom_type_dion, sirius_set_atom_type_radial_grid, &
-        sirius_set_lattice_vectors, sirius_update_ground_state
+        sirius_finalize, sirius_find_ground_state, sirius_get_band_energies, &
+        sirius_get_band_occupancies, sirius_get_energy, sirius_get_forces, &
+        sirius_get_kpoint_properties, sirius_get_num_kpoints, sirius_get_parameters, &
+        sirius_get_stress_tensor, sirius_import_parameters, sirius_initialize, &
+        sirius_initialize_context, sirius_option_add_string_to, sirius_option_get_length, &
+        sirius_option_get_name_and_type, sirius_option_set_double, sirius_option_set_int, &
+        sirius_option_set_logical, sirius_option_set_string, sirius_set_atom_position, &
+        sirius_set_atom_type_dion, sirius_set_atom_type_radial_grid, sirius_set_lattice_vectors, &
+        sirius_update_ground_state
    USE xc_libxc,                        ONLY: libxc_check_existence_in_libxc
 #include "./base/base_uses.f90"
 
@@ -231,7 +231,7 @@ CONTAINS
          CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, "iterative_solver")
       ENDIF
 
-      CALL sirius_dump_runtime_setup(sctx, "runtime.json")
+      !CALL sirius_dump_runtime_setup(sctx, "runtime.json")
       CALL sirius_import_parameters(sctx)
 
 ! lattice vectors of the unit cell should be in [a.u.] (length is in [a.u.])
