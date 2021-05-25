@@ -1378,7 +1378,7 @@ CONTAINS
          IF (map_send_size(proc_send) > 0) THEN
             send_counter = send_counter + 1
             IF (proc_send == para_env_sub%mepos) THEN
-               buffer_rec(send_counter)%msg = buffer_send(send_counter)%msg
+               buffer_rec(send_counter)%msg(:) = buffer_send(send_counter)%msg
             ELSE
                CALL mp_isend(buffer_send(send_counter)%msg, proc_send, para_env_sub%group, &
                              buffer_send(send_counter)%msg_req)

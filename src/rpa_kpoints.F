@@ -109,19 +109,19 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tj, wj
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(IN)                                      :: weights_cos_tf_w_to_t
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp_W
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wkp_W
       LOGICAL, INTENT(IN)                                :: do_gw_im_time, do_ri_Sigma_x, &
                                                             do_kpoints_from_Gamma, &
                                                             do_kpoints_cubic_RPA
-      TYPE(cp_cfm_p_type), DIMENSION(:, :), POINTER      :: cfm_mat_W_kp_tau
+      TYPE(cp_cfm_p_type), DIMENSION(:, :), ALLOCATABLE, INTENT(INOUT) :: cfm_mat_W_kp_tau
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
       INTEGER, DIMENSION(:), INTENT(IN)                  :: ikp_local
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega, mat_P_omega_kp
+      TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(INOUT) :: mat_P_omega, mat_P_omega_kp
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter_im_time
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mat_W
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_W
       TYPE(cp_fm_type), POINTER                          :: fm_mat_RI_global_work
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_SinvVSinv
 
@@ -234,7 +234,7 @@ CONTAINS
                                fm_mat_RI_global_work, dimen_RI, ikp, nkp, ikp_local, para_env)
 
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega_kp
+      TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(INOUT) :: mat_P_omega_kp
       TYPE(cp_fm_type), POINTER                          :: fm_mat_L_re, fm_mat_L_im, &
                                                             fm_mat_RI_global_work
       INTEGER, INTENT(IN)                                :: dimen_RI, ikp, nkp
@@ -298,7 +298,7 @@ CONTAINS
    SUBROUTINE mat_P_to_subgroup(mat_P_omega_kp, fm_mat_RI_global_work, &
                                 fm_mat_work, cfm_mat_Q, ikp, nkp, ikp_local, para_env)
 
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega_kp
+      TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(INOUT) :: mat_P_omega_kp
       TYPE(cp_fm_type), POINTER                          :: fm_mat_RI_global_work, fm_mat_work
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
       INTEGER, INTENT(IN)                                :: ikp, nkp
@@ -554,7 +554,7 @@ CONTAINS
    SUBROUTINE allocate_Wc_kp_tau_GW(cfm_mat_W_kp_tau, cfm_mat_Q, num_integ_points, jquad, &
                                     nkp, ikp_local)
 
-      TYPE(cp_cfm_p_type), DIMENSION(:, :), POINTER      :: cfm_mat_W_kp_tau
+      TYPE(cp_cfm_p_type), DIMENSION(:, :), ALLOCATABLE, INTENT(OUT) :: cfm_mat_W_kp_tau
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
       INTEGER, INTENT(IN)                                :: num_integ_points, jquad, nkp
       INTEGER, DIMENSION(:), INTENT(IN)                  :: ikp_local
@@ -568,7 +568,6 @@ CONTAINS
       ! Fourier transform from w to t; allocate only one (at first time point and also at
       ! first kpoint in case we do not do
       IF (jquad == 1) THEN
-         NULLIFY (cfm_mat_W_kp_tau)
          ALLOCATE (cfm_mat_W_kp_tau(nkp, num_integ_points))
          DO iquad = 1, num_integ_points
             DO jkp = 1, nkp
@@ -592,7 +591,7 @@ CONTAINS
 !> \param jquad ...
 ! **************************************************************************************************
    SUBROUTINE get_P_cell_T_from_P_gamma(mat_P_omega, qs_env, kpoints, jquad)
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega
+      TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(IN)    :: mat_P_omega
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER, INTENT(IN)                                :: jquad
@@ -715,7 +714,7 @@ CONTAINS
    SUBROUTINE transform_P_from_real_space_to_kpoints(mat_P_omega, mat_P_omega_kp, &
                                                      kpoints, eps_filter_im_time, jquad)
 
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega, mat_P_omega_kp
+      TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(INOUT) :: mat_P_omega, mat_P_omega_kp
       TYPE(kpoint_type), POINTER                         :: kpoints
       REAL(kind=dp), INTENT(IN)                          :: eps_filter_im_time
       INTEGER, INTENT(IN)                                :: jquad

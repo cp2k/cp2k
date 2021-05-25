@@ -80,13 +80,13 @@ CONTAINS
 !> \param gd_array ...
 !> \param gd_B_virtual ...
 !> \param sub_proc_map ...
-!> \param alpha_case ...
+!> \param kspin ...
 !> \author Mauro Del Ben
 ! **************************************************************************************************
    SUBROUTINE complete_gamma(mp2_env, B_ia_Q, dimen_RI, homo, virtual, para_env, para_env_sub, ngroup, &
                              my_group_L_size, my_group_L_start, my_group_L_end, &
                              my_B_size, my_B_virtual_start, gd_array, gd_B_virtual, &
-                             sub_proc_map, alpha_case)
+                             sub_proc_map, kspin)
 
       TYPE(mp2_type), POINTER                            :: mp2_env
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
@@ -98,7 +98,7 @@ CONTAINS
                                                             my_B_size, my_B_virtual_start
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array, gd_B_virtual
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sub_proc_map
-      LOGICAL, INTENT(IN)                                :: alpha_case
+      INTEGER, INTENT(IN)                                :: kspin
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'complete_gamma'
 
@@ -175,13 +175,8 @@ CONTAINS
             ia_global = (iiB - 1)*virtual + my_B_virtual_start + jjB - 1
             IF (ia_global >= my_ia_start .AND. ia_global <= my_ia_end) THEN
                ! Closed-shell, open-shell alpha-alpha component
-               IF (alpha_case) THEN
-                  Gamma_2D(ia_global - my_ia_start + 1, 1:my_group_L_size) = &
-                     mp2_env%ri_grad%Gamma_P_ia(1)%array(iiB, jjB, 1:my_group_L_size)
-               ELSE ! Open-shell beta-beta component
-                  Gamma_2D(ia_global - my_ia_start + 1, 1:my_group_L_size) = &
-                     mp2_env%ri_grad%Gamma_P_ia(2)%array(iiB, jjB, 1:my_group_L_size)
-               ENDIF
+               Gamma_2D(ia_global - my_ia_start + 1, 1:my_group_L_size) = &
+                  mp2_env%ri_grad%Gamma_P_ia(kspin)%array(iiB, jjB, 1:my_group_L_size)
             END IF
          END DO
       END DO
@@ -195,15 +190,9 @@ CONTAINS
          ALLOCATE (BIb_C_rec(homo, rec_B_size, my_group_L_size))
          BIb_C_rec = 0.0_dp
 
-         IF (alpha_case) THEN
-            CALL mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia(1)%array, proc_send, &
-                             BIb_C_rec, proc_receive, &
-                             para_env_sub%group)
-         ELSE
-            CALL mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia(2)%array, proc_send, &
-                             BIb_C_rec, proc_receive, &
-                             para_env_sub%group)
-         ENDIF
+         CALL mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia(kspin)%array, proc_send, &
+                          BIb_C_rec, proc_receive, &
+                          para_env_sub%group)
 
          DO iiB = 1, homo
             DO jjB = 1, rec_B_size
@@ -216,11 +205,7 @@ CONTAINS
 
          DEALLOCATE (BIb_C_rec)
       END DO
-      IF (alpha_case) THEN
-         DEALLOCATE (mp2_env%ri_grad%Gamma_P_ia(1)%array)
-      ELSE
-         DEALLOCATE (mp2_env%ri_grad%Gamma_P_ia(2)%array)
-      ENDIF
+      DEALLOCATE (mp2_env%ri_grad%Gamma_P_ia(kspin)%array)
 
       ! create the processor map and size arrays
       CALL create_group_dist(gd_ia_new, para_env%num_pe)
@@ -274,25 +259,14 @@ CONTAINS
                                ncol_global=dimen_RI, para_env=para_env)
 
       ! since we will need (P|Q)^(-1/2) in the future, make a copy
-      IF (alpha_case) THEN
-         ALLOCATE (mp2_env%ri_grad%Gamma_PQ(1)%array(my_P_size, my_group_L_size))
-         mp2_env%ri_grad%Gamma_PQ(1)%array(:, :) = mp2_env%ri_grad%PQ_half(:, :)
-         CALL array2fm(mp2_env%ri_grad%Gamma_PQ(1)%array, fm_struct, dimen_RI, dimen_RI, para_env, proc_map, &
-                       my_P_start, my_P_end, &
-                       my_group_L_start, my_group_L_end, &
-                       gd_P_new, gd_array_new, &
-                       group_grid_2_mepos, para_env_sub%num_pe, ngroup, &
-                       PQ_half)
-      ELSE
-         ALLOCATE (mp2_env%ri_grad%Gamma_PQ(2)%array(my_P_size, my_group_L_size))
-         mp2_env%ri_grad%Gamma_PQ(2)%array(:, :) = mp2_env%ri_grad%PQ_half(:, :)
-         CALL array2fm(mp2_env%ri_grad%Gamma_PQ(2)%array, fm_struct, dimen_RI, dimen_RI, para_env, proc_map, &
-                       my_P_start, my_P_end, &
-                       my_group_L_start, my_group_L_end, &
-                       gd_P_new, gd_array_new, &
-                       group_grid_2_mepos, para_env_sub%num_pe, ngroup, &
-                       PQ_half)
-      ENDIF
+      ALLOCATE (mp2_env%ri_grad%Gamma_PQ(kspin)%array(my_P_size, my_group_L_size))
+      mp2_env%ri_grad%Gamma_PQ(kspin)%array(:, :) = mp2_env%ri_grad%PQ_half(:, :)
+      CALL array2fm(mp2_env%ri_grad%Gamma_PQ(kspin)%array, fm_struct, dimen_RI, dimen_RI, para_env, proc_map, &
+                    my_P_start, my_P_end, &
+                    my_group_L_start, my_group_L_end, &
+                    gd_P_new, gd_array_new, &
+                    group_grid_2_mepos, para_env_sub%num_pe, ngroup, &
+                    PQ_half)
 
       CALL cp_fm_struct_release(fm_struct)
       CALL release_group_dist(gd_P_new)
@@ -359,26 +333,17 @@ CONTAINS
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local)
       CALL mp_allgather([nrow_local, ncol_local], sizes, para_env%group)
-      IF (alpha_case) THEN
-         CALL fm2array(mp2_env%ri_grad%Gamma_PQ(1)%array, dimen_RI, dimen_RI, para_env, proc_map, &
-                       my_P_size, my_P_start, my_P_end, &
-                       my_group_L_size, my_group_L_start, my_group_L_end, &
-                       sizes, group_grid_2_mepos, mepos_2_grid_group, &
-                       para_env_sub%num_pe, ngroup, &
-                       fm_Gamma_PQ)
-      ELSE
-         CALL fm2array(mp2_env%ri_grad%Gamma_PQ(2)%array, dimen_RI, dimen_RI, para_env, proc_map, &
-                       my_P_size, my_P_start, my_P_end, &
-                       my_group_L_size, my_group_L_start, my_group_L_end, &
-                       sizes, group_grid_2_mepos, mepos_2_grid_group, &
-                       para_env_sub%num_pe, ngroup, &
-                       fm_Gamma_PQ)
-      ENDIF
+      CALL fm2array(mp2_env%ri_grad%Gamma_PQ(kspin)%array, dimen_RI, dimen_RI, para_env, proc_map, &
+                    my_P_size, my_P_start, my_P_end, &
+                    my_group_L_size, my_group_L_start, my_group_L_end, &
+                    sizes, group_grid_2_mepos, mepos_2_grid_group, &
+                    para_env_sub%num_pe, ngroup, &
+                    fm_Gamma_PQ)
 
       ! create the Gamma_ia_P in DBCSR style
       CALL create_dbcsr_gamma(Gamma_2D, homo, virtual, dimen_ia, para_env_sub, sub_proc_map, &
                               my_ia_start, my_ia_end, my_group_L_size, gd_ia, &
-                              mp2_env, alpha_case)
+                              mp2_env, kspin)
 
       DEALLOCATE (pos_info)
       DEALLOCATE (group_grid_2_mepos, mepos_2_grid_group)
@@ -1175,11 +1140,11 @@ CONTAINS
 !> \param my_group_L_size ...
 !> \param gd_ia ...
 !> \param mp2_env ...
-!> \param alpha_case ...
+!> \param kspin ...
 ! **************************************************************************************************
    SUBROUTINE create_dbcsr_gamma(Gamma_2D, homo, virtual, dimen_ia, para_env_sub, sub_proc_map, &
                                  my_ia_start, my_ia_end, my_group_L_size, &
-                                 gd_ia, mp2_env, alpha_case)
+                                 gd_ia, mp2_env, kspin)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Gamma_2D
       INTEGER, INTENT(IN)                                :: homo, virtual, dimen_ia
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
@@ -1187,7 +1152,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: my_ia_start, my_ia_end, my_group_L_size
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_ia
       TYPE(mp2_type), POINTER                            :: mp2_env
-      LOGICAL, INTENT(IN)                                :: alpha_case
+      INTEGER, INTENT(IN)                                :: kspin
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_dbcsr_gamma'
 
@@ -1480,13 +1445,11 @@ CONTAINS
          CALL mp_waitall(req_send(:))
 
          ! now create the DBCSR matrix and copy fm_ia into it
-         ispin = 2
-         IF (alpha_case) ispin = 1
-         ALLOCATE (mp2_env%ri_grad%G_P_ia(kkB, ispin)%matrix)
-         CALL cp_dbcsr_m_by_n_from_template(mp2_env%ri_grad%G_P_ia(kkB, ispin)%matrix, &
-                                            template=mp2_env%ri_grad%mo_coeff_o(ispin)%matrix, &
+         ALLOCATE (mp2_env%ri_grad%G_P_ia(kkB, kspin)%matrix)
+         CALL cp_dbcsr_m_by_n_from_template(mp2_env%ri_grad%G_P_ia(kkB, kspin)%matrix, &
+                                            template=mp2_env%ri_grad%mo_coeff_o(kspin)%matrix, &
                                             m=homo, n=virtual, sym=dbcsr_type_no_symmetry)
-         CALL copy_fm_to_dbcsr(fm_ia, mp2_env%ri_grad%G_P_ia(kkB, ispin)%matrix, keep_sparsity=.FALSE.)
+         CALL copy_fm_to_dbcsr(fm_ia, mp2_env%ri_grad%G_P_ia(kkB, kspin)%matrix, keep_sparsity=.FALSE.)
 
       END DO
 

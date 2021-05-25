@@ -58,6 +58,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ival, unit_nr
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: r_vals
       LOGICAL                                            :: do_mp2, do_opt_ri_basis, do_ri_mp2, &
                                                             do_ri_sos_mp2, do_rpa
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -130,10 +131,16 @@ CONTAINS
                                 i_val=mp2_env%ri_g0w0%print_exx)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%RI_SIGMA_X", &
                                 l_val=mp2_env%ri_g0w0%do_ri_Sigma_x)
+      NULLIFY(r_vals)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%IC_CORR_LIST", &
-                                r_vals=mp2_env%ri_g0w0%ic_corr_list)
+                                r_vals=r_vals)
+      ALLOCATE(mp2_env%ri_g0w0%ic_corr_list(1)%array(SIZE(r_vals)))
+      mp2_env%ri_g0w0%ic_corr_list(1)%array(:) = r_vals(:)
+      NULLIFY(r_vals)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%IC_CORR_LIST_BETA", &
-                                r_vals=mp2_env%ri_g0w0%ic_corr_list_beta)
+                                r_vals=r_vals)
+      ALLOCATE(mp2_env%ri_g0w0%ic_corr_list(2)%array(SIZE(r_vals)))
+      mp2_env%ri_g0w0%ic_corr_list(2)%array(:) = r_vals(:)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%GAMMA_ONLY_SIGMA", &
                                 l_val=mp2_env%ri_g0w0%do_gamma_only_sigma)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%UPDATE_XC_ENERGY", &

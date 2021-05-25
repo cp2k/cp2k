@@ -530,8 +530,8 @@ CONTAINS
 
       ELSE
 
-         buffer_rec(0)%indx = buffer_send(0)%indx
-         buffer_rec(0)%msg = buffer_send(0)%msg
+         buffer_rec(0)%indx(:, :) = buffer_send(0)%indx
+         buffer_rec(0)%msg(:) = buffer_send(0)%msg
 
       END IF
 

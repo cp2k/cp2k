@@ -92,8 +92,7 @@ CONTAINS
                                            ikp, tj, tau_tj, weights_cos_tf_w_to_t, ikp_local, &
                                            para_env, kpoints, qs_env, wkp_W, mat_SinvVSinv, do_W_and_not_V)
 
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN), &
-         POINTER                                         :: fm_mat_W_tau
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_W_tau
       TYPE(cp_cfm_type), INTENT(IN), POINTER             :: cfm_mat_Q
       TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_mat_L_re, fm_mat_L_im
       INTEGER, INTENT(IN)                                :: dimen_RI, num_integ_points, jquad, ikp
@@ -105,7 +104,7 @@ CONTAINS
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       TYPE(kpoint_type), INTENT(IN), POINTER             :: kpoints
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN), POINTER   :: wkp_W
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wkp_W
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_SinvVSinv
       LOGICAL, INTENT(IN)                                :: do_W_and_not_V
 
@@ -444,8 +443,7 @@ CONTAINS
                                    dimen_RI, num_integ_points, jquad, &
                                    ikp, tj, tau_tj, weights_cos_tf_w_to_t)
 
-      TYPE(cp_cfm_p_type), DIMENSION(:, :), INTENT(IN), &
-         POINTER                                         :: cfm_mat_W_kp_tau
+      TYPE(cp_cfm_p_type), DIMENSION(:, :), INTENT(IN)   :: cfm_mat_W_kp_tau
       TYPE(cp_cfm_type), INTENT(IN), POINTER             :: cfm_mat_Q
       TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_mat_L_re, fm_mat_L_im
       INTEGER, INTENT(IN)                                :: dimen_RI, num_integ_points, jquad, ikp
@@ -536,7 +534,7 @@ CONTAINS
 !> \param periodic ...
 ! **************************************************************************************************
    SUBROUTINE compute_wkp_W(wkp_W, kpoints, h_mat, h_inv, exp_kpoints, periodic)
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp_W
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE, INTENT(OUT) :: wkp_W
       TYPE(kpoint_type), INTENT(IN), POINTER             :: kpoints
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: h_mat, h_inv
       REAL(KIND=dp), INTENT(INOUT)                       :: exp_kpoints
