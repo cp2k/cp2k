@@ -66,7 +66,12 @@ case "$with_mpich" in
     check_command mpirun "mpich"
     check_command mpicc "mpich"
     check_command mpif90 "mpich"
-    check_command mpic++ "mpich"
+    if [ $(mpic++) ]; then
+      check_command mpic++ "mpich"
+    else
+      check_command mpicxx "mpich"
+      export MPICXX=mpicxx
+    fi
     check_lib -lmpi "mpich"
     check_lib -lmpicxx "mpich"
     add_include_from_paths MPICH_CFLAGS "mpi.h" $INCLUDE_PATHS
@@ -121,6 +126,7 @@ export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__parallel ${mpi2_dflags}|)"
 export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(${MPICH_CFLAGS}|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${MPICH_LDFLAGS}|)"
 export CP_LIBS="\${CP_LIBS} IF_MPI(${MPICH_LIBS}|)"
+export MPICXX="${MPICXX}"
 EOF
 fi
 
