@@ -58,7 +58,7 @@ case "$with_fftw" in
       make -j $(get_nprocs) > make.log 2>&1
       make install > install.log 2>&1
       cd ..
-      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage2/$(basename ${SCRIPT_NAME})"
+      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage3/$(basename ${SCRIPT_NAME})"
     fi
     FFTW_CFLAGS="-I'${pkg_install_dir}/include'"
     FFTW_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
