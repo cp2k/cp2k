@@ -35,7 +35,7 @@ case "$with_intelmpi" in
     check_command mpiicc "intelmpi"
     check_command mpiifort "intelmpi"
     check_command mpiicpc "intelmpi"
-    if [ $(mpic++) ]; then
+    if [ $(command -v mpic++ >&- 2>&-) ]; then
       check_command mpic++ "intelmpi"
     else
       check_command mpicxx "intelmpi"

@@ -66,7 +66,7 @@ case "$with_mpich" in
     check_command mpirun "mpich"
     check_command mpicc "mpich"
     check_command mpif90 "mpich"
-    if [ $(mpic++) ]; then
+    if [ $(command -v mpic++ >&- 2>&-) ]; then
       check_command mpic++ "mpich"
     else
       check_command mpicxx "mpich"
