@@ -13,6 +13,7 @@
 ! **************************************************************************************************
 MODULE mp2_grids
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                              cp_fm_p_type,&
                                               cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
@@ -70,19 +71,16 @@ CONTAINS
 !> \param weights_cos_tf_t_to_w ...
 !> \param weights_cos_tf_w_to_t ...
 !> \param weights_sin_tf_t_to_w ...
-!> \param homo_beta ...
-!> \param dimen_ia_beta ...
-!> \param Eigenval_beta ...
 ! **************************************************************************************************
    SUBROUTINE get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, &
                                do_im_time, do_ri_sos_laplace_mp2, do_print, tau_tj, tau_wj, qs_env, do_gw_im_time, &
                                do_kpoints_cubic_RPA, a_scaling, e_fermi, tj, wj, mp2_env, weights_cos_tf_t_to_w, &
-                               weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, &
-                               homo_beta, dimen_ia_beta, Eigenval_beta)
+                               weights_cos_tf_w_to_t, weights_sin_tf_t_to_w)
 
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER, INTENT(IN)                                :: unit_nr, homo
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
+      INTEGER, INTENT(IN)                                :: unit_nr
+      INTEGER, INTENT(IN), DIMENSION(:)                  :: homo
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       INTEGER, INTENT(IN)                                :: num_integ_points
       LOGICAL, INTENT(IN)                                :: do_im_time, do_ri_sos_laplace_mp2, &
                                                             do_print
@@ -99,25 +97,21 @@ CONTAINS
          INTENT(OUT), OPTIONAL                           :: weights_cos_tf_t_to_w, &
                                                             weights_cos_tf_w_to_t, &
                                                             weights_sin_tf_t_to_w
-      INTEGER, INTENT(IN), OPTIONAL                      :: homo_beta, dimen_ia_beta
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: Eigenval_beta
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_minimax_grid'
       INTEGER, PARAMETER                                 :: num_points_per_magnitude = 200
 
-      INTEGER                                            :: handle, ierr, jquad
+      INTEGER                                            :: handle, ierr, jquad, ispin, nspins
       LOGICAL                                            :: my_do_kpoints, my_open_shell
-      REAL(KIND=dp)                                      :: E_Range, Emax, Emax_beta, Emin, &
-                                                            Emin_beta, max_error_min, scaling
+      REAL(KIND=dp)                                      :: E_Range, Emax, Emin, &
+                                                            max_error_min, scaling
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: x_tw
 
       CALL timeset(routineN, handle)
 
       ! Test for spin unrestricted
-      my_open_shell = .FALSE.
-      IF (PRESENT(homo_beta) .AND. PRESENT(dimen_ia_beta) .AND. PRESENT(Eigenval_beta)) THEN
-         my_open_shell = .TRUE.
-      END IF
+      nspins = SIZE(homo)
+      my_open_shell = (nspins == 2)
 
       ! Test whether all necessary variables are available
       my_do_kpoints = .FALSE.
@@ -134,16 +128,14 @@ CONTAINS
          CALL gap_and_max_eig_diff_kpoints(qs_env, para_env, Emin, Emax, e_fermi)
          E_Range = Emax/Emin
       ELSE
-         Emin = Eigenval(homo + 1) - Eigenval(homo)
-         Emax = MAXVAL(Eigenval) - MINVAL(Eigenval)
-         IF (my_open_shell) THEN
-            IF (homo_beta > 0) THEN
-               Emin_beta = Eigenval_beta(homo_beta + 1) - Eigenval_beta(homo_beta)
-               Emax_beta = MAXVAL(Eigenval_beta) - MINVAL(Eigenval_beta)
-               Emin = MIN(Emin, Emin_beta)
-               Emax = MAX(Emax, Emax_beta)
+         Emin = HUGE(dp)
+         Emax = 0.0_dp
+         DO ispin = 1, nspins
+            IF (homo(ispin) > 0) THEN
+               Emin = MIN(Emin, Eigenval(homo(ispin) + 1, ispin) - Eigenval(homo(ispin), ispin))
+               Emax = MAX(Emax, MAXVAL(Eigenval(:, ispin)) - MINVAL(Eigenval(:, ispin)))
             END IF
-         END IF
+         END DO
          E_Range = Emax/Emin
       END IF
 
@@ -302,44 +294,33 @@ CONTAINS
 !> \param a_scaling ...
 !> \param tj ...
 !> \param wj ...
-!> \param homo_beta ...
-!> \param virtual_beta ...
-!> \param dimen_ia_beta ...
-!> \param Eigenval_beta ...
-!> \param fm_mat_S_beta ...
 ! **************************************************************************************************
    SUBROUTINE get_clenshaw_grid(para_env, para_env_RPA, unit_nr, homo, virtual, Eigenval, num_integ_points, &
                                 num_integ_group, color_rpa_group, fm_mat_S, my_do_gw, &
-                                ext_scaling, a_scaling, tj, wj, &
-                                homo_beta, virtual_beta, dimen_ia_beta, Eigenval_beta, fm_mat_S_beta)
+                                ext_scaling, a_scaling, tj, wj)
 
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA
-      INTEGER, INTENT(IN)                                :: unit_nr, homo, virtual
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
+      INTEGER, INTENT(IN)                                :: unit_nr
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       INTEGER, INTENT(IN)                                :: num_integ_points, num_integ_group, &
                                                             color_rpa_group
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_S
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_S
       LOGICAL, INTENT(IN)                                :: my_do_gw
       REAL(KIND=dp), INTENT(IN)                          :: ext_scaling
       REAL(KIND=dp), INTENT(OUT)                         :: a_scaling
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: tj, wj
-      INTEGER, INTENT(IN), OPTIONAL                      :: homo_beta, virtual_beta, dimen_ia_beta
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: Eigenval_beta
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_mat_S_beta
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_clenshaw_grid'
 
-      INTEGER                                            :: handle, jquad
+      INTEGER                                            :: handle, jquad, nspins
       LOGICAL                                            :: my_open_shell
 
       CALL timeset(routineN, handle)
 
-      my_open_shell = .FALSE.
-      IF (PRESENT(homo_beta) .AND. PRESENT(virtual_beta) .AND. PRESENT(dimen_ia_beta) .AND. PRESENT(Eigenval_beta) .AND. &
-          PRESENT(fm_mat_S_beta)) THEN
-         my_open_shell = .TRUE.
-      END IF
+      nspins = SIZE(homo)
+      my_open_shell = (nspins == 2)
 
       ! Now, start to prepare the different grid
       ALLOCATE (tj(num_integ_points))
@@ -359,16 +340,9 @@ CONTAINS
          a_scaling = ext_scaling
       ELSE
          a_scaling = 1.0_dp
-         IF (my_open_shell) THEN
-            CALL calc_scaling_factor(a_scaling, para_env, para_env_RPA, homo, virtual, Eigenval, &
-                                     num_integ_points, num_integ_group, color_rpa_group, &
-                                     tj, wj, fm_mat_S, &
-                                     homo_beta, virtual_beta, dimen_ia_beta, Eigenval_beta, fm_mat_S_beta)
-         ELSE
-            CALL calc_scaling_factor(a_scaling, para_env, para_env_RPA, homo, virtual, Eigenval, &
-                                     num_integ_points, num_integ_group, color_rpa_group, &
-                                     tj, wj, fm_mat_S)
-         END IF
+         CALL calc_scaling_factor(a_scaling, para_env, para_env_RPA, homo, virtual, Eigenval, &
+                                  num_integ_points, num_integ_group, color_rpa_group, &
+                                  tj, wj, fm_mat_S)
       END IF
 
       IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.5)') 'INTEG_INFO| Scaling parameter:', a_scaling
@@ -393,33 +367,24 @@ CONTAINS
 !> \param tj_ext ...
 !> \param wj_ext ...
 !> \param fm_mat_S ...
-!> \param homo_beta ...
-!> \param virtual_beta ...
-!> \param dimen_ia_beta ...
-!> \param Eigenval_beta ...
-!> \param fm_mat_S_beta ...
 ! **************************************************************************************************
    SUBROUTINE calc_scaling_factor(a_scaling_ext, para_env, para_env_RPA, homo, virtual, Eigenval, &
                                   num_integ_points, num_integ_group, color_rpa_group, &
-                                  tj_ext, wj_ext, fm_mat_S, &
-                                  homo_beta, virtual_beta, dimen_ia_beta, Eigenval_beta, fm_mat_S_beta)
+                                  tj_ext, wj_ext, fm_mat_S)
       REAL(KIND=dp), INTENT(INOUT)                       :: a_scaling_ext
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA
-      INTEGER, INTENT(IN)                                :: homo, virtual
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       INTEGER, INTENT(IN)                                :: num_integ_points, num_integ_group, &
                                                             color_rpa_group
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: tj_ext, wj_ext
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_S
-      INTEGER, INTENT(IN), OPTIONAL                      :: homo_beta, virtual_beta, dimen_ia_beta
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: Eigenval_beta
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_mat_S_beta
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_S
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_scaling_factor'
 
       INTEGER                                            :: handle, icycle, jquad, nrow_local, &
-                                                            nrow_local_beta
+                                                            nrow_local_beta, nspins
       LOGICAL                                            :: my_open_shell
       REAL(KIND=dp) :: a_high, a_low, a_scaling, conv_param, eps, first_deriv, left_term, &
          right_term, right_term_ref, right_term_ref_beta, step
@@ -429,12 +394,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      my_open_shell = .FALSE.
-      IF (PRESENT(homo_beta) .AND. &
-          PRESENT(virtual_beta) .AND. &
-          PRESENT(dimen_ia_beta) .AND. &
-          PRESENT(Eigenval_beta) .AND. &
-          PRESENT(fm_mat_S_beta)) my_open_shell = .TRUE.
+      nspins = SIZE(homo)
+      my_open_shell = (nspins == 2)
 
       eps = 1.0E-10_dp
 
@@ -445,13 +406,14 @@ CONTAINS
          cottj(jquad) = 1.0_dp/TAN(tj_ext(jquad))
       END DO
 
-      CALL calc_ia_ia_integrals(para_env_RPA, homo, virtual, nrow_local, right_term_ref, Eigenval, D_ia, iaia_RI, M_ia, fm_mat_S, &
+      CALL calc_ia_ia_integrals(para_env_RPA, homo(1), virtual(1), nrow_local, right_term_ref, Eigenval(:, 1), &
+                                D_ia, iaia_RI, M_ia, fm_mat_S(1)%matrix, &
                                 para_env_row)
 
       ! In the open shell case do point 1-2-3 for the beta spin
       IF (my_open_shell) THEN
-         CALL calc_ia_ia_integrals(para_env_RPA, homo_beta, virtual_beta, nrow_local_beta, right_term_ref_beta, Eigenval_beta, &
-                                   D_ia_beta, iaia_RI_beta, M_ia_beta, fm_mat_S_beta, para_env_row_beta)
+         CALL calc_ia_ia_integrals(para_env_RPA, homo(2), virtual(2), nrow_local_beta, right_term_ref_beta, Eigenval(:, 2), &
+                                   D_ia_beta, iaia_RI_beta, M_ia_beta, fm_mat_S(2)%matrix, para_env_row_beta)
 
          right_term_ref = right_term_ref + right_term_ref_beta
       END IF

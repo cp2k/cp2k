@@ -12,8 +12,8 @@
 ! **************************************************************************************************
 MODULE rpa_gw_ic
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
-                                              dbcsr_scalar
+   USE dbcsr_api,                       ONLY: dbcsr_scalar,&
+                                              dbcsr_type
    USE dbcsr_tensor_api,                ONLY: &
         dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_copy_matrix_to_tensor, dbcsr_t_create, &
         dbcsr_t_destroy, dbcsr_t_get_block, dbcsr_t_get_info, dbcsr_t_iterator_blocks_left, &
@@ -60,7 +60,7 @@ CONTAINS
                                       do_alpha, do_beta)
 
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval
-      TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_SinvVSinv
+      TYPE(dbcsr_type), TARGET, INTENT(IN)               :: mat_SinvVSinv
       TYPE(dbcsr_t_type)                                 :: t_3c_overl_nnP_ic, &
                                                             t_3c_overl_nnP_ic_reflected
       INTEGER, INTENT(IN)                                :: gw_corr_lev_tot, gw_corr_lev_occ, &
@@ -107,8 +107,8 @@ CONTAINS
       ALLOCATE (sizes_RI_split(dbcsr_t_nblks_total(t_3c_overl_nnP_ic_reflected, 1)))
       CALL dbcsr_t_get_info(t_3c_overl_nnP_ic_reflected, blk_size_1=sizes_RI_split)
 
-      CALL dbcsr_t_create(mat_SinvVSinv%matrix, t_SinvVSinv_tmp)
-      CALL dbcsr_t_copy_matrix_to_tensor(mat_SinvVSinv%matrix, t_SinvVSinv_tmp)
+      CALL dbcsr_t_create(mat_SinvVSinv, t_SinvVSinv_tmp)
+      CALL dbcsr_t_copy_matrix_to_tensor(mat_SinvVSinv, t_SinvVSinv_tmp)
       pdims = 0
       CALL mp_dims_create(para_env%num_pe, pdims)
       CALL dbcsr_t_pgrid_create(para_env%group, pdims, pgrid_2d)

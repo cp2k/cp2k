@@ -476,21 +476,21 @@ MODULE message_passing
    END INTERFACE
 
    INTERFACE mp_send
-      MODULE PROCEDURE mp_send_i, mp_send_iv, &
-         mp_send_l, mp_send_lv, &
-         mp_send_r, mp_send_rv, &
-         mp_send_d, mp_send_dv, &
-         mp_send_c, mp_send_cv, &
-         mp_send_z, mp_send_zv
+      MODULE PROCEDURE mp_send_i, mp_send_iv, mp_send_im2, mp_send_im3, &
+         mp_send_l, mp_send_lv, mp_send_lm2, mp_send_lm3, &
+         mp_send_r, mp_send_rv, mp_send_rm2, mp_send_rm3, &
+         mp_send_d, mp_send_dv, mp_send_dm2, mp_send_dm3, &
+         mp_send_c, mp_send_cv, mp_send_cm2, mp_send_cm3, &
+         mp_send_z, mp_send_zv, mp_send_zm2, mp_send_zm3
    END INTERFACE
 
    INTERFACE mp_recv
-      MODULE PROCEDURE mp_recv_i, mp_recv_iv, &
-         mp_recv_l, mp_recv_lv, &
-         mp_recv_r, mp_recv_rv, &
-         mp_recv_d, mp_recv_dv, &
-         mp_recv_c, mp_recv_cv, &
-         mp_recv_z, mp_recv_zv
+      MODULE PROCEDURE mp_recv_i, mp_recv_iv, mp_recv_im2, mp_recv_im3, &
+         mp_recv_l, mp_recv_lv, mp_recv_lm2, mp_recv_lm3, &
+         mp_recv_r, mp_recv_rv, mp_recv_rm2, mp_recv_rm3, &
+         mp_recv_d, mp_recv_dv, mp_recv_dm2, mp_recv_dm3, &
+         mp_recv_c, mp_recv_cv, mp_recv_cm2, mp_recv_cm3, &
+         mp_recv_z, mp_recv_zv, mp_recv_zm2, mp_recv_zm3
    END INTERFACE
 
    INTERFACE mp_sendrecv

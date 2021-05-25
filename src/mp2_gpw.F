@@ -531,36 +531,16 @@ CONTAINS
          IF (.NOT. ALLOCATED(gd_B_virtual)) ALLOCATE (gd_B_virtual(nspins))
 
          ! RI-RPA
-         IF (nspins == 2) THEN
-            CALL rpa_ri_compute_en(qs_env, Emp2, mp2_env, BIb_C(1)%array, BIb_C_gw(1)%array, BIb_C_bse_ij, BIb_C_bse_ab, &
-                                   para_env, para_env_sub_RPA, color_sub, &
-                                   gd_array, gd_B_virtual(1), gd_B_all, gd_B_occ_bse, gd_B_virt_bse, &
-                                   mo_coeff(1)%matrix, fm_matrix_L_RI_metric, kpoints, &
-                                   Eigenval(:, 1), nmo, homo(1), dimen_RI, dimen_RI_red, gw_corr_lev_occ(1), gw_corr_lev_virt(1), &
-                                   unit_nr, my_do_ri_sos_laplace_mp2, my_do_gw, do_im_time, do_bse, matrix_s, &
-                                   mat_munu, &
-                                   mat_P_global, &
-                                   t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
-                                   starts_array_mc, ends_array_mc, &
-                                   starts_array_mc_block, ends_array_mc_block, &
-                                   BIb_C(2)%array, homo(2), Eigenval(:, 2), &
-                                   gd_B_virtual(2), &
-                                   mo_coeff(2)%matrix, BIb_C_gw(2)%array, gw_corr_lev_occ(2), gw_corr_lev_virt(2))
-
-         ELSE
-            CALL rpa_ri_compute_en(qs_env, Emp2, mp2_env, BIb_C(1)%array, BIb_C_gw(1)%array, BIb_C_bse_ij, BIb_C_bse_ab, &
-                                   para_env, para_env_sub_RPA, color_sub, &
-                                   gd_array, gd_B_virtual(1), gd_B_all, gd_B_occ_bse, gd_B_virt_bse, &
-                                   mo_coeff(1)%matrix, fm_matrix_L_RI_metric, kpoints, &
-                                   Eigenval(:, 1), nmo, homo(1), dimen_RI, dimen_RI_red, gw_corr_lev_occ(1), gw_corr_lev_virt(1), &
-                                   unit_nr, my_do_ri_sos_laplace_mp2, my_do_gw, do_im_time, do_bse, matrix_s, &
-                                   mat_munu, &
-                                   mat_P_global, &
-                                   t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
-                                   starts_array_mc, ends_array_mc, &
-                                   starts_array_mc_block, ends_array_mc_block)
-
-         END IF
+         CALL rpa_ri_compute_en(qs_env, Emp2, mp2_env, BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, &
+                                para_env, para_env_sub_RPA, color_sub, &
+                                gd_array, gd_B_virtual, gd_B_all, gd_B_occ_bse, gd_B_virt_bse, &
+                                mo_coeff, fm_matrix_L_RI_metric, kpoints, &
+                                Eigenval, nmo, homo, dimen_RI, dimen_RI_red, gw_corr_lev_occ, gw_corr_lev_virt, &
+                                unit_nr, my_do_ri_sos_laplace_mp2, my_do_gw, do_im_time, do_bse, matrix_s, &
+                                mat_munu, mat_P_global, &
+                                t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
+                                starts_array_mc, ends_array_mc, &
+                                starts_array_mc_block, ends_array_mc_block)
 
          IF (mp2_env%ri_rpa%do_rse) &
             CALL rse_energy(qs_env, mp2_env, para_env, dft_control, mo_coeff, nmo, homo, Eigenval)

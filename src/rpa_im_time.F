@@ -132,7 +132,7 @@ CONTAINS
                                   qs_env, index_to_cell_3c, cell_to_index_3c, &
                                   has_mat_P_blocks, do_ri_sos_laplace_mp2, &
                                   dbcsr_time, dbcsr_nflop)
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega
+      TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(IN)    :: mat_P_omega
       TYPE(cp_fm_type), POINTER :: fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, fm_mo_coeff_occ, &
          fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_P_global
@@ -606,7 +606,7 @@ CONTAINS
 !> \param mat_P_omega ...
 ! **************************************************************************************************
    SUBROUTINE zero_mat_P_omega(mat_P_omega)
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega
+      TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(IN)    :: mat_P_omega
 
       INTEGER                                            :: i_kp, jquad
 
@@ -666,7 +666,7 @@ CONTAINS
                                                             fm_mo_coeff_occ_scaled, &
                                                             fm_mo_coeff_virt_scaled
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_dm_occ_global, mat_dm_virt_global
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: matrix_s
       INTEGER, INTENT(IN)                                :: ispin
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       REAL(KIND=dp), INTENT(IN)                          :: e_fermi, eps_filter
@@ -1104,8 +1104,8 @@ CONTAINS
    SUBROUTINE density_matrix_from_kp_to_transl(kpoints, mat_dm_global_work, index_to_cell)
 
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_dm_global_work
-      INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: index_to_cell
+      TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(IN)    :: mat_dm_global_work
+      INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_to_cell
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_from_kp_to_transl'
 
@@ -1199,7 +1199,7 @@ CONTAINS
       INTEGER, DIMENSION(3), INTENT(IN)                  :: cell_grid
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell
-      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cell_type), POINTER, INTENT(IN)               :: cell
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'init_cell_index_rpa'
 
@@ -1329,7 +1329,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_to_cell_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: cell_to_index_3c
-      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_dm
+      INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_to_cell_dm
       LOGICAL, INTENT(OUT)                               :: R_minus_S_needed
       LOGICAL, INTENT(IN)                                :: do_kpoints_cubic_RPA
 
@@ -1415,7 +1415,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_to_cell_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: cell_to_index_3c
-      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_dm
+      INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_to_cell_dm
       LOGICAL, INTENT(OUT)                               :: R_minus_S_minus_T_needed
       LOGICAL, INTENT(IN)                                :: do_kpoints_cubic_RPA
 

@@ -641,6 +641,76 @@
   END SUBROUTINE mp_send_${nametype1}$v
 
 ! *****************************************************************************
+!> \brief Send rank-2 data to another process
+!> \param[in] msg             Rank-2 data to send
+!> \param dest ...
+!> \param tag ...
+!> \param gid ...
+!> \note see mp_send_${nametype1}$
+! *****************************************************************************
+  SUBROUTINE mp_send_${nametype1}$m2(msg, dest, tag, gid)
+     ${type1}$                                  :: msg(:, :)
+     INTEGER                                  :: dest, tag, gid
+
+     CHARACTER(len=*), PARAMETER :: routineN = 'mp_send_${nametype1}$m2'
+
+     INTEGER                                  :: handle, ierr, msglen
+
+     ierr = 0
+     CALL mp_timeset(routineN, handle)
+
+     msglen = SIZE(msg)
+#if defined(__parallel)
+     CALL mpi_send(msg, msglen, ${mpi_type1}$, dest, tag, gid, ierr)
+     IF (ierr /= 0) CALL mp_stop(ierr, "mpi_send @ "//routineN)
+     CALL add_perf(perf_id=13, count=1, msg_size=msglen*${bytes1}$)
+#else
+     MARK_USED(msg)
+     MARK_USED(dest)
+     MARK_USED(tag)
+     MARK_USED(gid)
+     ! only defined in parallel
+     CPABORT("not in parallel mode")
+#endif
+     CALL mp_timestop(handle)
+  END SUBROUTINE mp_send_${nametype1}$m2
+
+! *****************************************************************************
+!> \brief Send rank-3 data to another process
+!> \param[in] msg             Rank-3 data to send
+!> \param dest ...
+!> \param tag ...
+!> \param gid ...
+!> \note see mp_send_${nametype1}$
+! *****************************************************************************
+  SUBROUTINE mp_send_${nametype1}$m3(msg, dest, tag, gid)
+     ${type1}$                                  :: msg(:,:, :)
+     INTEGER                                  :: dest, tag, gid
+
+     CHARACTER(len=*), PARAMETER :: routineN = 'mp_send_${nametype1}m3'
+
+     INTEGER                                  :: handle, ierr, msglen
+
+     ierr = 0
+     CALL mp_timeset(routineN, handle)
+
+     msglen = SIZE(msg)
+#if defined(__parallel)
+     CALL mpi_send(msg, msglen, ${mpi_type1}$, dest, tag, gid, ierr)
+     IF (ierr /= 0) CALL mp_stop(ierr, "mpi_send @ "//routineN)
+     CALL add_perf(perf_id=13, count=1, msg_size=msglen*${bytes1}$)
+#else
+     MARK_USED(msg)
+     MARK_USED(dest)
+     MARK_USED(tag)
+     MARK_USED(gid)
+     ! only defined in parallel
+     CPABORT("not in parallel mode")
+#endif
+     CALL mp_timestop(handle)
+  END SUBROUTINE mp_send_${nametype1}$m3
+
+! *****************************************************************************
 !> \brief Receive one datum from another process
 !> \param[in,out] msg         Place received data into this variable
 !> \param[in,out] source      Process to receive from
@@ -726,6 +796,92 @@
 #endif
      CALL mp_timestop(handle)
   END SUBROUTINE mp_recv_${nametype1}$v
+
+! *****************************************************************************
+!> \brief Receive rank-2 data from another process
+!> \param[in,out] msg         Place received data into this rank-2 array
+!> \param source ...
+!> \param tag ...
+!> \param gid ...
+!> \note see mp_recv_${nametype1}$
+! *****************************************************************************
+  SUBROUTINE mp_recv_${nametype1}$m2(msg, source, tag, gid)
+     ${type1}$, INTENT(INOUT)                   :: msg(:, :)
+     INTEGER, INTENT(INOUT)                   :: source, tag
+     INTEGER, INTENT(IN)                      :: gid
+
+     CHARACTER(len=*), PARAMETER :: routineN = 'mp_recv_${nametype1}$m2'
+
+     INTEGER                                  :: handle, ierr, msglen
+#if defined(__parallel)
+     INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
+#endif
+
+     ierr = 0
+     CALL mp_timeset(routineN, handle)
+
+     msglen = SIZE(msg)
+#if defined(__parallel)
+     ALLOCATE (status(MPI_STATUS_SIZE))
+     CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, gid, status, ierr)
+     IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
+     CALL add_perf(perf_id=14, count=1, msg_size=msglen*${bytes1}$)
+     source = status(MPI_SOURCE)
+     tag = status(MPI_TAG)
+     DEALLOCATE (status)
+#else
+     MARK_USED(msg)
+     MARK_USED(source)
+     MARK_USED(tag)
+     MARK_USED(gid)
+     ! only defined in parallel
+     CPABORT("not in parallel mode")
+#endif
+     CALL mp_timestop(handle)
+  END SUBROUTINE mp_recv_${nametype1}$m2
+
+! *****************************************************************************
+!> \brief Receive rank-3 data from another process
+!> \param[in,out] msg         Place received data into this rank-3 array
+!> \param source ...
+!> \param tag ...
+!> \param gid ...
+!> \note see mp_recv_${nametype1}$
+! *****************************************************************************
+  SUBROUTINE mp_recv_${nametype1}$m3(msg, source, tag, gid)
+     ${type1}$, INTENT(INOUT)                   :: msg(:, :, :)
+     INTEGER, INTENT(INOUT)                   :: source, tag
+     INTEGER, INTENT(IN)                      :: gid
+
+     CHARACTER(len=*), PARAMETER :: routineN = 'mp_recv_${nametype1}$m3'
+
+     INTEGER                                  :: handle, ierr, msglen
+#if defined(__parallel)
+     INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
+#endif
+
+     ierr = 0
+     CALL mp_timeset(routineN, handle)
+
+     msglen = SIZE(msg)
+#if defined(__parallel)
+     ALLOCATE (status(MPI_STATUS_SIZE))
+     CALL mpi_recv(msg, msglen, ${mpi_type1}$, source, tag, gid, status, ierr)
+     IF (ierr /= 0) CALL mp_stop(ierr, "mpi_recv @ "//routineN)
+     CALL add_perf(perf_id=14, count=1, msg_size=msglen*${bytes1}$)
+     source = status(MPI_SOURCE)
+     tag = status(MPI_TAG)
+     DEALLOCATE (status)
+#else
+     MARK_USED(msg)
+     MARK_USED(source)
+     MARK_USED(tag)
+     MARK_USED(gid)
+     ! only defined in parallel
+     CPABORT("not in parallel mode")
+#endif
+     CALL mp_timestop(handle)
+  END SUBROUTINE mp_recv_${nametype1}$m3
 
 ! *****************************************************************************
 !> \brief Broadcasts a datum to all processes.
@@ -2585,12 +2741,14 @@
 !> \param[out] msgout         Received data
 !> \param[in] source          Process from which to receive
 !> \param[in] comm            Message passing environment identifier
+!> \param[in] tag             Send and recv tag (default: 0)
 ! *****************************************************************************
-  SUBROUTINE mp_sendrecv_${nametype1}$v(msgin, dest, msgout, source, comm)
+  SUBROUTINE mp_sendrecv_${nametype1}$v(msgin, dest, msgout, source, comm, tag)
      ${type1}$, INTENT(IN)                      :: msgin(:)
      INTEGER, INTENT(IN)                      :: dest
      ${type1}$, INTENT(OUT)                     :: msgout(:)
      INTEGER, INTENT(IN)                      :: source, comm
+     INTEGER, INTENT(IN), OPTIONAL            :: tag
 
      CHARACTER(len=*), PARAMETER :: routineN = 'mp_sendrecv_${nametype1}$v'
 
@@ -2608,6 +2766,10 @@
      msglen_out = SIZE(msgout)
      send_tag = 0 ! cannot think of something better here, this might be dangerous
      recv_tag = 0 ! cannot think of something better here, this might be dangerous
+     IF (PRESENT(tag)) THEN
+        send_tag = tag
+        recv_tag = tag
+     END IF
      CALL mpi_sendrecv(msgin, msglen_in, ${mpi_type1}$, dest, send_tag, msgout, &
                        msglen_out, ${mpi_type1}$, source, recv_tag, comm, MPI_STATUS_IGNORE, ierr)
      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_sendrecv @ "//routineN)
@@ -2617,6 +2779,7 @@
      MARK_USED(dest)
      MARK_USED(source)
      MARK_USED(comm)
+     MARK_USED(tag)
      msgout = msgin
 #endif
      CALL mp_timestop(handle)
@@ -2629,13 +2792,15 @@
 !> \param msgout ...
 !> \param source ...
 !> \param comm ...
+!> \param tag ...
 !> \note see mp_sendrecv_${nametype1}$v
 ! *****************************************************************************
-  SUBROUTINE mp_sendrecv_${nametype1}$m2(msgin, dest, msgout, source, comm)
+  SUBROUTINE mp_sendrecv_${nametype1}$m2(msgin, dest, msgout, source, comm, tag)
      ${type1}$, INTENT(IN)                      :: msgin(:, :)
      INTEGER, INTENT(IN)                      :: dest
      ${type1}$, INTENT(OUT)                     :: msgout(:, :)
      INTEGER, INTENT(IN)                      :: source, comm
+     INTEGER, INTENT(IN), OPTIONAL            :: tag
 
      CHARACTER(len=*), PARAMETER :: routineN = 'mp_sendrecv_${nametype1}$m2'
 
@@ -2653,6 +2818,10 @@
      msglen_out = SIZE(msgout, 1)*SIZE(msgout, 2)
      send_tag = 0 ! cannot think of something better here, this might be dangerous
      recv_tag = 0 ! cannot think of something better here, this might be dangerous
+     IF (PRESENT(tag)) THEN
+        send_tag = tag
+        recv_tag = tag
+     END IF
      CALL mpi_sendrecv(msgin, msglen_in, ${mpi_type1}$, dest, send_tag, msgout, &
                        msglen_out, ${mpi_type1}$, source, recv_tag, comm, MPI_STATUS_IGNORE, ierr)
      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_sendrecv @ "//routineN)
@@ -2662,6 +2831,7 @@
      MARK_USED(dest)
      MARK_USED(source)
      MARK_USED(comm)
+     MARK_USED(tag)
      msgout = msgin
 #endif
      CALL mp_timestop(handle)
@@ -2676,11 +2846,12 @@
 !> \param comm ...
 !> \note see mp_sendrecv_${nametype1}$v
 ! *****************************************************************************
-  SUBROUTINE mp_sendrecv_${nametype1}$m3(msgin, dest, msgout, source, comm)
+  SUBROUTINE mp_sendrecv_${nametype1}$m3(msgin, dest, msgout, source, comm, tag)
      ${type1}$, INTENT(IN)                      :: msgin(:, :, :)
      INTEGER, INTENT(IN)                      :: dest
      ${type1}$, INTENT(OUT)                     :: msgout(:, :, :)
      INTEGER, INTENT(IN)                      :: source, comm
+     INTEGER, INTENT(IN), OPTIONAL            :: tag
 
      CHARACTER(len=*), PARAMETER :: routineN = 'mp_sendrecv_${nametype1}$m3'
 
@@ -2698,6 +2869,10 @@
      msglen_out = SIZE(msgout)
      send_tag = 0 ! cannot think of something better here, this might be dangerous
      recv_tag = 0 ! cannot think of something better here, this might be dangerous
+     IF (PRESENT(tag)) THEN
+        send_tag = tag
+        recv_tag = tag
+     END IF
      CALL mpi_sendrecv(msgin, msglen_in, ${mpi_type1}$, dest, send_tag, msgout, &
                        msglen_out, ${mpi_type1}$, source, recv_tag, comm, MPI_STATUS_IGNORE, ierr)
      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_sendrecv @ "//routineN)
@@ -2707,6 +2882,7 @@
      MARK_USED(dest)
      MARK_USED(source)
      MARK_USED(comm)
+     MARK_USED(tag)
      msgout = msgin
 #endif
      CALL mp_timestop(handle)
@@ -2721,11 +2897,12 @@
 !> \param comm ...
 !> \note see mp_sendrecv_${nametype1}$v
 ! *****************************************************************************
-  SUBROUTINE mp_sendrecv_${nametype1}$m4(msgin, dest, msgout, source, comm)
+  SUBROUTINE mp_sendrecv_${nametype1}$m4(msgin, dest, msgout, source, comm, tag)
      ${type1}$, INTENT(IN)                      :: msgin(:, :, :, :)
      INTEGER, INTENT(IN)                      :: dest
      ${type1}$, INTENT(OUT)                     :: msgout(:, :, :, :)
      INTEGER, INTENT(IN)                      :: source, comm
+     INTEGER, INTENT(IN), OPTIONAL            :: tag
 
      CHARACTER(len=*), PARAMETER :: routineN = 'mp_sendrecv_${nametype1}$m4'
 
@@ -2743,6 +2920,10 @@
      msglen_out = SIZE(msgout)
      send_tag = 0 ! cannot think of something better here, this might be dangerous
      recv_tag = 0 ! cannot think of something better here, this might be dangerous
+     IF (PRESENT(tag)) THEN
+        send_tag = tag
+        recv_tag = tag
+     END IF
      CALL mpi_sendrecv(msgin, msglen_in, ${mpi_type1}$, dest, send_tag, msgout, &
                        msglen_out, ${mpi_type1}$, source, recv_tag, comm, MPI_STATUS_IGNORE, ierr)
      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_sendrecv @ "//routineN)
@@ -2752,6 +2933,7 @@
      MARK_USED(dest)
      MARK_USED(source)
      MARK_USED(comm)
+     MARK_USED(tag)
      msgout = msgin
 #endif
      CALL mp_timestop(handle)

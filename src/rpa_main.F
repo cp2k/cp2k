@@ -57,7 +57,8 @@ MODULE rpa_main
    USE kpoint_types,                    ONLY: kpoint_type
    USE machine,                         ONLY: m_flush,&
                                               m_memory
-   USE mathconstants,                   ONLY: pi
+   USE mathconstants,                   ONLY: pi,&
+                                              z_zero
    USE message_passing,                 ONLY: mp_min,&
                                               mp_sendrecv,&
                                               mp_sum
@@ -66,7 +67,10 @@ MODULE rpa_main
                                               get_minimax_grid
    USE mp2_laplace,                     ONLY: SOS_MP2_postprocessing
    USE mp2_ri_grad_util,                ONLY: array2fm
-   USE mp2_types,                       ONLY: mp2_type
+   USE mp2_types,                       ONLY: mp2_type, dgemm_counter_type, dgemm_counter_write, dgemm_counter_init, &
+                                              three_dim_real_array,&
+                                              two_dim_int_array,&
+                                              two_dim_real_array
    USE qs_environment_types,            ONLY: qs_environment_type
    USE rpa_axk,                         ONLY: compute_axk_ener
    USE rpa_gw,                          ONLY: GW_matrix_operations,&
@@ -141,14 +145,6 @@ CONTAINS
 !> \param ends_array_mc ...
 !> \param starts_array_mc_block ...
 !> \param ends_array_mc_block ...
-!> \param BIb_C_beta ...
-!> \param homo_beta ...
-!> \param Eigenval_beta ...
-!> \param gd_B_virtual_beta ...
-!> \param mo_coeff_beta ...
-!> \param BIb_C_gw_beta ...
-!> \param gw_corr_lev_occ_beta ...
-!> \param gw_corr_lev_virt_beta ...
 ! **************************************************************************************************
    SUBROUTINE rpa_ri_compute_en(qs_env, Erpa, mp2_env, BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, &
                                 para_env, para_env_sub, color_sub, &
@@ -156,32 +152,30 @@ CONTAINS
                                 mo_coeff, fm_matrix_L_RI_metric, kpoints, &
                                 Eigenval, nmo, homo, dimen_RI, dimen_RI_red, gw_corr_lev_occ, gw_corr_lev_virt, &
                                 unit_nr, do_ri_sos_laplace_mp2, my_do_gw, do_im_time, do_bse, matrix_s, &
-                                mat_munu, &
-                                mat_P_global, &
+                                mat_munu, mat_P_global, &
                                 t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                                 starts_array_mc, ends_array_mc, &
-                                starts_array_mc_block, ends_array_mc_block, &
-                                BIb_C_beta, homo_beta, Eigenval_beta, &
-                                gd_B_virtual_beta, &
-                                mo_coeff_beta, BIb_C_gw_beta, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta)
+                                starts_array_mc_block, ends_array_mc_block)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), INTENT(OUT)                         :: Erpa
       TYPE(mp2_type), INTENT(INOUT), POINTER             :: mp2_env
+      TYPE(three_dim_real_array), DIMENSION(:), INTENT(INOUT) :: BIb_C, BIb_C_gw
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(INOUT)                                   :: BIb_C, BIb_C_gw, BIb_C_bse_ij, &
+         INTENT(INOUT)                                   :: BIb_C_bse_ij, &
                                                             BIb_C_bse_ab
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
       INTEGER, INTENT(INOUT)                             :: color_sub
-      TYPE(group_dist_d1_type), INTENT(INOUT)            :: gd_array, gd_B_virtual, gd_B_all, &
+      TYPE(group_dist_d1_type), INTENT(INOUT)            :: gd_array, gd_B_all, &
                                                             gd_B_occ_bse, gd_B_virt_bse
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(group_dist_d1_type), INTENT(INOUT), DIMENSION(:) :: gd_B_virtual
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
       TYPE(kpoint_type), POINTER                         :: kpoints
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval
-      INTEGER, INTENT(IN)                                :: nmo, homo, dimen_RI, dimen_RI_red, &
-                                                            gw_corr_lev_occ, gw_corr_lev_virt, &
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: Eigenval
+      INTEGER, INTENT(IN)                                :: nmo, dimen_RI, dimen_RI_red, &
                                                             unit_nr
+      INTEGER, INTENT(IN), DIMENSION(:)                  :: homo, gw_corr_lev_occ, gw_corr_lev_virt
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2, my_do_gw, &
                                                             do_im_time, do_bse
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
@@ -196,42 +190,29 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: starts_array_mc, ends_array_mc, &
                                                             starts_array_mc_block, &
                                                             ends_array_mc_block
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(INOUT), OPTIONAL                         :: BIb_C_beta
-      INTEGER, INTENT(IN), OPTIONAL                      :: homo_beta
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), &
-         OPTIONAL                                        :: Eigenval_beta
-      TYPE(group_dist_d1_type), OPTIONAL                 :: gd_B_virtual_beta
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: mo_coeff_beta
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(INOUT), OPTIONAL                         :: BIb_C_gw_beta
-      INTEGER, INTENT(IN), OPTIONAL                      :: gw_corr_lev_occ_beta, &
-                                                            gw_corr_lev_virt_beta
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_ri_compute_en'
 
       INTEGER :: best_integ_group_size, best_num_integ_point, color_rpa_group, dimen_homo_square, &
-         dimen_ia, dimen_ia_beta, dimen_nm_gw, dimen_virt_square, handle, handle2, handle3, i, &
+         dimen_nm_gw, dimen_virt_square, handle, handle2, handle3, i, &
          ierr, iiB, input_integ_group_size, integ_group_size, jjB, min_integ_group_size, &
          my_ab_comb_bse_end, my_ab_comb_bse_size, my_ab_comb_bse_start, my_group_L_end, &
-         my_group_L_size, my_group_L_start, my_homo_beta, my_ia_end, my_ia_end_beta, my_ia_size, &
-         my_ia_size_beta, my_ia_start, my_ia_start_beta, my_ij_comb_bse_end, my_ij_comb_bse_size, &
+         my_group_L_size, my_group_L_start, my_ij_comb_bse_end, my_ij_comb_bse_size, &
          my_ij_comb_bse_start, my_nm_gw_end, my_nm_gw_size, my_nm_gw_start, ncol_block_mat
       INTEGER :: ngroup, nrow_block_mat, num_integ_group, num_integ_points, pos_integ_group, &
-         virtual, virtual_beta
+         ispin, nspins
       INTEGER(KIND=int_8)                                :: mem
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sub_proc_map
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sub_proc_map, virtual, dimen_ia, my_ia_end, my_ia_size, my_ia_start
       LOGICAL                                            :: do_minimax_quad, my_open_shell, &
                                                             skip_integ_group_opt
-      REAL(KIND=dp) :: allowed_memory, avail_mem, E_Range, Emax, Emax_beta, Emin, Emin_beta, &
+      REAL(KIND=dp) :: allowed_memory, avail_mem, E_Range, Emax, Emin, &
          mem_for_iaK, mem_for_QK, mem_min, mem_per_group, mem_real, needed_mem
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_C_2D, BIb_C_2D_beta, &
-                                                            BIb_C_2D_bse_ab, BIb_C_2D_bse_ij, &
-                                                            BIb_C_2D_gw, BIb_C_2D_gw_beta
-      TYPE(cp_fm_type), POINTER :: fm_mat_Q, fm_mat_Q_beta, fm_mat_Q_gemm, fm_mat_Q_gemm_beta, &
-         fm_mat_R_gw, fm_mat_S, fm_mat_S_ab_bse, fm_mat_S_beta, fm_mat_S_gw, fm_mat_S_gw_beta, &
-         fm_mat_S_ij_bse, fm_mo_coeff_occ, fm_mo_coeff_occ_beta, fm_mo_coeff_virt, &
-         fm_mo_coeff_virt_beta, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
+      TYPE(two_dim_real_array), ALLOCATABLE, DIMENSION(:) :: BIb_C_2D, BIb_C_2D_gw
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_C_2D_bse_ab, BIb_C_2D_bse_ij
+      TYPE(cp_fm_type), POINTER :: fm_mat_R_gw, fm_mat_S_ab_bse, &
+         fm_mat_S_ij_bse, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
+      TYPE(cp_fm_p_type), DIMENSION(:), ALLOCATABLE :: fm_mat_Q, fm_mat_Q_gemm, fm_mat_S, &
+         fm_mat_S_gw, fm_mo_coeff_occ, fm_mo_coeff_virt
       TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
 
       CALL timeset(routineN, handle)
@@ -257,16 +238,11 @@ CONTAINS
          CALL cite_reference(Wilhelm2016b)
       END IF
 
-      my_open_shell = .FALSE.
-      IF (PRESENT(BIb_C_beta) .AND. &
-          PRESENT(gd_B_virtual_beta) .AND. &
-          PRESENT(homo_beta) .AND. &
-          PRESENT(Eigenval_beta)) my_open_shell = .TRUE.
-
-      virtual = nmo - homo
-      IF (my_open_shell) THEN
-         virtual_beta = nmo - homo_beta
-      END IF
+      nspins = SIZE(homo)
+      my_open_shell = (nspins == 2)
+      ALLOCATE(virtual(nspins), dimen_ia(nspins), my_ia_end(nspins), my_ia_start(nspins), my_ia_size(nspins))
+      virtual(:) = nmo - homo(:)
+      dimen_ia(:) = virtual(:)*homo(:)
 
       IF (do_im_time) mp2_env%ri_rpa%minimax_quad = .TRUE.
       do_minimax_quad = mp2_env%ri_rpa%minimax_quad
@@ -276,16 +252,14 @@ CONTAINS
          input_integ_group_size = mp2_env%ri_laplace%integ_group_size
 
          ! check the range for the minimax approximation
-         Emin = 2.0_dp*(Eigenval(homo + 1) - Eigenval(homo))
-         Emax = 2.0_dp*(MAXVAL(Eigenval) - MINVAL(Eigenval))
-         IF (my_open_shell) THEN
-            IF (homo_beta > 0) THEN
-               Emin_beta = 2.0_dp*(Eigenval_beta(homo_beta + 1) - Eigenval_beta(homo_beta))
-               Emax_beta = 2.0_dp*(MAXVAL(Eigenval_beta) - MINVAL(Eigenval_beta))
-               Emin = MIN(Emin, Emin_beta)
-               Emax = MAX(Emax, Emax_beta)
+         Emin = HUGE(dp)
+         Emax = 0.0_dp
+         DO ispin = 1, nspins
+            IF (homo(ispin) > 0) THEN
+               Emin = MIN(Emin, 2.0_dp*(Eigenval(homo(ispin) + 1, ispin) - Eigenval(homo(ispin), ispin)))
+               Emax = MAX(Emax, 2.0_dp*(MAXVAL(Eigenval(:, ispin)) - MINVAL(Eigenval(:, ispin))))
             END IF
-         END IF
+         END DO
          E_Range = Emax/Emin
          IF (E_Range < 2.0_dp) E_Range = 2.0_dp
          ierr = 0
@@ -344,13 +318,8 @@ CONTAINS
 
          ! Calculate available memory and create integral group according to that
          ! mem_for_iaK is the memory needed for storing the 3 centre integrals
-         mem_for_iaK = REAL(homo, KIND=dp)*virtual*dimen_RI_red*8.0_dp/(1024_dp**2)
-         mem_for_QK = REAL(dimen_RI_red, KIND=dp)*dimen_RI_red*8.0_dp/(1024_dp**2)
-
-         IF (my_open_shell) THEN
-            mem_for_iaK = mem_for_iaK + REAL(homo_beta, KIND=dp)*virtual_beta*dimen_RI_red*8.0_dp/(1024_dp**2)
-            mem_for_QK = mem_for_QK*2.0_dp
-         END IF
+         mem_for_iaK = REAL(SUM(dimen_ia), KIND=dp)*dimen_RI_red*8.0_dp/(1024_dp**2)
+         mem_for_QK = REAL(dimen_RI_red, KIND=dp)*nspins*dimen_RI_red*8.0_dp/(1024_dp**2)
 
          CALL m_memory(mem)
          mem_real = (mem + 1024*1024 - 1)/(1024*1024)
@@ -358,7 +327,7 @@ CONTAINS
          ! has not been given back to the OS yet.
          CALL mp_min(mem_real, para_env%group)
 
-         mem_min = 2.0_dp*REAL(homo, KIND=dp)*maxsize(gd_B_virtual)*maxsize(gd_array)*8.0_dp/(1024**2)
+         mem_min = 2.0_dp*REAL(homo(1), KIND=dp)*maxsize(gd_B_virtual(1))*maxsize(gd_array)*8.0_dp/(1024**2)
 
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'RI_INFO| Minimum required memory per MPI process:', &
             mem_min, ' MiB'
@@ -463,15 +432,6 @@ CONTAINS
       pos_integ_group = MOD(color_sub, integ_group_size)
       color_rpa_group = color_sub/integ_group_size
 
-      ! reordering is not necessary for imaginary time
-      IF (.NOT. do_im_time) THEN
-         IF (my_open_shell) THEN
-            my_homo_beta = homo_beta
-         ELSE
-            my_homo_beta = homo
-         END IF
-      END IF ! not imaginary time
-
       CALL timeset(routineN//"_reorder", handle2)
 
       ! create the sub_proc_map
@@ -484,50 +444,37 @@ CONTAINS
 
       ! not necessary for imaginary time
 
-      IF (do_im_time) THEN
-
-         dimen_ia = homo*virtual
-
-      ELSE
+      ALLOCATE(BIb_C_2D(nspins))
+      IF (.NOT. do_im_time) THEN
 
          ! reorder the local data in such a way to help the next stage of matrix creation
          ! now the data inside the group are divided into a ia x K matrix
-         CALL calculate_BIb_C_2D(BIb_C_2D, BIb_C, para_env_sub, dimen_ia, homo, virtual, &
-                                 gd_B_virtual, &
-                                 sub_proc_map, my_ia_size, my_ia_start, my_ia_end, my_group_L_size)
+         DO ispin = 1, nspins
+            CALL calculate_BIb_C_2D(BIb_C_2D(ispin)%array, BIb_C(ispin)%array, para_env_sub, dimen_ia(ispin), &
+                                    homo(ispin), virtual(ispin), gd_B_virtual(ispin), &
+                                    sub_proc_map, my_ia_size(ispin), my_ia_start(ispin), my_ia_end(ispin), my_group_L_size)
 
-         DEALLOCATE (BIb_C)
-         CALL release_group_dist(gd_B_virtual)
+            DEALLOCATE (BIb_C(ispin)%array)
+            CALL release_group_dist(gd_B_virtual(ispin))
 
-         ! The same for open shell
-         IF (my_open_shell) THEN
-            CALL calculate_BIb_C_2D(BIb_C_2D_beta, BIb_C_beta, para_env_sub, dimen_ia_beta, &
-                                    homo_beta, virtual_beta, gd_B_virtual_beta, &
-                                    sub_proc_map, my_ia_size_beta, my_ia_start_beta, my_ia_end_beta, my_group_L_size)
-
-            DEALLOCATE (BIb_C_beta)
-            CALL release_group_dist(gd_B_virtual_beta)
-
-         END IF
+         END DO
 
          ! in the GW case, BIb_C_2D_gw is an nm x K matrix, with n: number of corr GW levels, m=nmo
          IF (my_do_gw) THEN
+            ALLOCATE(BIb_C_2D_gw(nspins))
 
             CALL timeset(routineN//"_reorder_gw", handle3)
 
-            CALL calculate_BIb_C_2D(BIb_C_2D_gw, BIb_C_gw, para_env_sub, dimen_nm_gw, &
-                                    gw_corr_lev_occ + gw_corr_lev_virt, nmo, gd_B_all, &
-                                    sub_proc_map, my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, my_group_L_size)
+            dimen_nm_gw = nmo*(gw_corr_lev_occ(1) + gw_corr_lev_virt(1))
 
             ! The same for open shell
-            IF (my_open_shell) THEN
-               CALL calculate_BIb_C_2D(BIb_C_2D_gw_beta, BIb_C_gw_beta, para_env_sub, dimen_nm_gw, &
-                                       gw_corr_lev_occ + gw_corr_lev_virt, nmo, gd_B_all, &
+            DO ispin = 1, nspins
+               CALL calculate_BIb_C_2D(BIb_C_2D_gw(ispin)%array, BIb_C_gw(ispin)%array, para_env_sub, dimen_nm_gw, &
+                                       gw_corr_lev_occ(ispin) + gw_corr_lev_virt(ispin), nmo, gd_B_all, &
                                        sub_proc_map, my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, my_group_L_size)
-               DEALLOCATE (BIb_C_gw_beta)
-            END IF
+               DEALLOCATE (BIb_C_gw(ispin)%array)
+            END DO
 
-            DEALLOCATE (BIb_C_gw)
             CALL release_group_dist(gd_B_all)
 
             CALL timestop(handle3)
@@ -539,8 +486,10 @@ CONTAINS
 
          CALL timeset(routineN//"_reorder_bse1", handle3)
 
+         dimen_homo_square = homo(1)**2
+
          CALL calculate_BIb_C_2D(BIb_C_2D_bse_ij, BIb_C_bse_ij, para_env_sub, dimen_homo_square, &
-                                 homo, homo, gd_B_occ_bse, &
+                                 homo(1), homo(1), gd_B_occ_bse, &
                                  sub_proc_map, my_ij_comb_bse_size, my_ij_comb_bse_start, my_ij_comb_bse_end, my_group_L_size)
 
          DEALLOCATE (BIb_C_bse_ij)
@@ -550,8 +499,10 @@ CONTAINS
 
          CALL timeset(routineN//"_reorder_bse2", handle3)
 
+         dimen_virt_square = virtual(1)**2
+
          CALL calculate_BIb_C_2D(BIb_C_2D_bse_ab, BIb_C_bse_ab, para_env_sub, dimen_virt_square, &
-                                 virtual, virtual, gd_B_virt_bse, &
+                                 virtual(1), virtual(1), gd_B_virt_bse, &
                                  sub_proc_map, my_ab_comb_bse_size, my_ab_comb_bse_start, my_ab_comb_bse_end, my_group_L_size)
 
          DEALLOCATE (BIb_C_bse_ab)
@@ -566,30 +517,35 @@ CONTAINS
       ! now create the matrices needed for the calculation, Q, S and G
       ! Q and G will have omega dependence
 
+      ALLOCATE(fm_mat_Q(nspins), fm_mat_Q_gemm(nspins), fm_mat_S(nspins), fm_mo_coeff_occ(nspins), fm_mo_coeff_virt(nspins))
+      DO ispin = 1, nspins
+         NULLIFY(fm_mat_Q(ispin)%matrix, fm_mat_Q_gemm(ispin)%matrix, fm_mat_S(ispin)%matrix, &
+                 fm_mo_coeff_occ(ispin)%matrix, fm_mo_coeff_virt(ispin)%matrix)
+      END DO
       IF (my_open_shell .AND. do_im_time .AND. do_ri_sos_laplace_mp2) THEN
-         CALL create_integ_mat(BIb_C_2D, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                               dimen_RI_red, dimen_ia, dimen_ia, color_rpa_group, &
+         CALL create_integ_mat(BIb_C_2D(1)%array, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
+                               dimen_RI_red, dimen_ia(1), dimen_ia(1), color_rpa_group, &
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
-                               my_ia_size, my_ia_start, my_ia_end, &
+                               my_ia_size(1), my_ia_start(1), my_ia_end(1), &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
-                               para_env_RPA, fm_mat_S, nrow_block_mat, ncol_block_mat, &
-                               do_im_time=do_im_time, fm_mat_Q_gemm=fm_mat_Q_gemm, fm_mat_Q=fm_mat_Q, &
+                               para_env_RPA, fm_mat_S(1)%matrix, nrow_block_mat, ncol_block_mat, &
+                               do_im_time=do_im_time, fm_mat_Q_gemm=fm_mat_Q_gemm(1)%matrix, fm_mat_Q=fm_mat_Q(1)%matrix, &
                                fm_scaled_dm_occ_tau=fm_scaled_dm_occ_tau, &
-                               fm_scaled_dm_virt_tau=fm_scaled_dm_virt_tau, mo_coeff=mo_coeff, &
-                               fm_mo_coeff_occ=fm_mo_coeff_occ, fm_mo_coeff_virt=fm_mo_coeff_virt, &
-                               nmo=nmo, homo=homo, fm_mat_Q_beta=fm_mat_Q_beta)
+                               fm_scaled_dm_virt_tau=fm_scaled_dm_virt_tau, mo_coeff=mo_coeff(1)%matrix, &
+                               fm_mo_coeff_occ=fm_mo_coeff_occ(1)%matrix, fm_mo_coeff_virt=fm_mo_coeff_virt(1)%matrix, &
+                               nmo=nmo, homo=homo(1), fm_mat_Q_beta=fm_mat_Q(2)%matrix)
       ELSE
-         CALL create_integ_mat(BIb_C_2D, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                               dimen_RI_red, dimen_ia, dimen_ia, color_rpa_group, &
+         CALL create_integ_mat(BIb_C_2D(1)%array, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
+                               dimen_RI_red, dimen_ia(1), dimen_ia(1), color_rpa_group, &
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
-                               my_ia_size, my_ia_start, my_ia_end, &
+                               my_ia_size(1), my_ia_start(1), my_ia_end(1), &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
-                               para_env_RPA, fm_mat_S, nrow_block_mat, ncol_block_mat, &
-                               do_im_time=do_im_time, fm_mat_Q_gemm=fm_mat_Q_gemm, fm_mat_Q=fm_mat_Q, &
+                               para_env_RPA, fm_mat_S(1)%matrix, nrow_block_mat, ncol_block_mat, &
+                               do_im_time=do_im_time, fm_mat_Q_gemm=fm_mat_Q_gemm(1)%matrix, fm_mat_Q=fm_mat_Q(1)%matrix, &
                                fm_scaled_dm_occ_tau=fm_scaled_dm_occ_tau, &
-                               fm_scaled_dm_virt_tau=fm_scaled_dm_virt_tau, mo_coeff=mo_coeff, &
-                               fm_mo_coeff_occ=fm_mo_coeff_occ, fm_mo_coeff_virt=fm_mo_coeff_virt, &
-                               nmo=nmo, homo=homo)
+                               fm_scaled_dm_virt_tau=fm_scaled_dm_virt_tau, mo_coeff=mo_coeff(1)%matrix, &
+                               fm_mo_coeff_occ=fm_mo_coeff_occ(1)%matrix, fm_mo_coeff_virt=fm_mo_coeff_virt(1)%matrix, &
+                               nmo=nmo, homo=homo(1))
       END IF
 
       IF (my_open_shell) THEN
@@ -597,47 +553,50 @@ CONTAINS
          ! for imaginary time, we only have to build beta mo coefficients
          IF (do_im_time) THEN
 
-            CALL create_occ_virt_mo_coeffs(fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, mo_coeff_beta, &
-                                           nmo, homo_beta)
+            CALL create_occ_virt_mo_coeffs(fm_mo_coeff_occ(2)%matrix, fm_mo_coeff_virt(2)%matrix, mo_coeff(2)%matrix, &
+                                           nmo, homo(2))
 
             ! for RPA with imaginary frequency, we have to build the same matrices for beta as for alpha
          ELSE
 
-            CALL create_integ_mat(BIb_C_2D_beta, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                                  dimen_RI_red, dimen_ia_beta, dimen_ia_beta, color_rpa_group, &
+            CALL create_integ_mat(BIb_C_2D(2)%array, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
+                                  dimen_RI_red, dimen_ia(2), dimen_ia(2), color_rpa_group, &
                                   mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
-                                  my_ia_size_beta, my_ia_start_beta, my_ia_end_beta, &
+                                  my_ia_size(2), my_ia_start(2), my_ia_end(2), &
                                   my_group_L_size, my_group_L_start, my_group_L_end, &
-                                  para_env_RPA, fm_mat_S_beta, nrow_block_mat, ncol_block_mat, &
-                                  .TRUE., fm_mat_Q%matrix_struct%context, &
-                                  fm_mat_Q_gemm=fm_mat_Q_gemm_beta, fm_mat_Q=fm_mat_Q_beta)
+                                  para_env_RPA, fm_mat_S(2)%matrix, nrow_block_mat, ncol_block_mat, &
+                                  .TRUE., fm_mat_Q(1)%matrix%matrix_struct%context, &
+                                  fm_mat_Q_gemm=fm_mat_Q_gemm(2)%matrix, fm_mat_Q=fm_mat_Q(2)%matrix)
 
          END IF
 
       END IF
+      DEALLOCATE(BIb_C_2D, my_ia_end, my_ia_size, my_ia_start)
 
-      ! for GW, we need other matrix fm_mat_S
+      ! for GW, we need other matrix fm_mat_S, always allocate the container to prevent crying compilers
+      ALLOCATE(fm_mat_S_gw(nspins))
       IF (my_do_gw .AND. .NOT. do_im_time) THEN
 
-         CALL create_integ_mat(BIb_C_2D_gw, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                               dimen_RI_red, dimen_nm_gw, dimen_ia, color_rpa_group, &
+         CALL create_integ_mat(BIb_C_2D_gw(1)%array, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
+                               dimen_RI_red, dimen_nm_gw, dimen_ia(1), color_rpa_group, &
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
                                my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
-                               para_env_RPA, fm_mat_S_gw, nrow_block_mat, ncol_block_mat, &
-                               .TRUE., fm_mat_Q%matrix_struct%context, fm_mat_Q%matrix_struct%context, &
+                               para_env_RPA, fm_mat_S_gw(1)%matrix, nrow_block_mat, ncol_block_mat, &
+                               .TRUE., fm_mat_Q(1)%matrix%matrix_struct%context, fm_mat_Q(1)%matrix%matrix_struct%context, &
                                fm_mat_Q=fm_mat_R_gw)
 
          IF (my_open_shell) THEN
-            CALL create_integ_mat(BIb_C_2D_gw_beta, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                                  dimen_RI_red, dimen_nm_gw, dimen_ia, color_rpa_group, &
+            CALL create_integ_mat(BIb_C_2D_gw(2)%array, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
+                                  dimen_RI_red, dimen_nm_gw, dimen_ia(1), color_rpa_group, &
                                   mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
                                   my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, &
                                   my_group_L_size, my_group_L_start, my_group_L_end, &
-                                  para_env_RPA, fm_mat_S_gw_beta, nrow_block_mat, ncol_block_mat, &
-                                  .TRUE., fm_mat_Q%matrix_struct%context, fm_mat_Q%matrix_struct%context)
+                                  para_env_RPA, fm_mat_S_gw(2)%matrix, nrow_block_mat, ncol_block_mat, &
+                                  .TRUE., fm_mat_Q(1)%matrix%matrix_struct%context, fm_mat_Q(1)%matrix%matrix_struct%context)
 
          END IF
+         DEALLOCATE(BIb_C_2D_gw)
 
       END IF
 
@@ -645,68 +604,41 @@ CONTAINS
       IF (do_bse) THEN
 
          CALL create_integ_mat(BIb_C_2D_bse_ij, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                               dimen_RI_red, dimen_homo_square, dimen_ia, color_rpa_group, &
+                               dimen_RI_red, dimen_homo_square, dimen_ia(1), color_rpa_group, &
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
                                my_ij_comb_bse_size, my_ij_comb_bse_start, my_ij_comb_bse_end, &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
                                para_env_RPA, fm_mat_S_ij_bse, nrow_block_mat, ncol_block_mat, &
-                               .TRUE., fm_mat_Q%matrix_struct%context, fm_mat_Q%matrix_struct%context)
+                               .TRUE., fm_mat_Q(1)%matrix%matrix_struct%context, fm_mat_Q(1)%matrix%matrix_struct%context)
 
          CALL create_integ_mat(BIb_C_2D_bse_ab, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                               dimen_RI_red, dimen_virt_square, dimen_ia, color_rpa_group, &
+                               dimen_RI_red, dimen_virt_square, dimen_ia(1), color_rpa_group, &
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
                                my_ab_comb_bse_size, my_ab_comb_bse_start, my_ab_comb_bse_end, &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
                                para_env_RPA, fm_mat_S_ab_bse, &
                                nrow_block_mat, ncol_block_mat, &
-                               .TRUE., fm_mat_Q%matrix_struct%context, fm_mat_Q%matrix_struct%context)
+                               .TRUE., fm_mat_Q(1)%matrix%matrix_struct%context, fm_mat_Q(1)%matrix%matrix_struct%context)
 
       END IF
 
-      IF (my_open_shell) THEN
-
-         CALL rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
-                          homo, virtual, dimen_RI, dimen_RI_red, dimen_ia, dimen_nm_gw, &
-                          Eigenval, num_integ_points, num_integ_group, color_rpa_group, &
-                          fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw, &
-                          fm_mat_S_ij_bse, fm_mat_S_ij_bse, &
-                          my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, &
-                          do_minimax_quad, &
-                          do_im_time, fm_mo_coeff_occ, fm_mo_coeff_virt, mo_coeff, fm_matrix_L_RI_metric, &
-                          fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
-                          mat_munu, mat_P_global, &
-                          t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
-                          starts_array_mc, ends_array_mc, &
-                          starts_array_mc_block, ends_array_mc_block, &
-                          matrix_s, &
-                          kpoints, &
-                          gd_array, color_sub, &
-                          fm_mo_coeff_occ_beta=fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta=fm_mo_coeff_virt_beta, &
-                          homo_beta=homo_beta, virtual_beta=virtual_beta, &
-                          dimen_ia_beta=dimen_ia_beta, Eigenval_beta=Eigenval_beta, fm_mat_S_beta=fm_mat_S_beta, &
-                          fm_mat_Q_gemm_beta=fm_mat_Q_gemm_beta, fm_mat_Q_beta=fm_mat_Q_beta, &
-                          fm_mat_S_gw_beta=fm_mat_S_gw_beta, gw_corr_lev_occ_beta=gw_corr_lev_occ_beta, &
-                          gw_corr_lev_virt_beta=gw_corr_lev_virt_beta, mo_coeff_beta=mo_coeff_beta, &
-                          do_ri_sos_laplace_mp2=do_ri_sos_laplace_mp2)
-      ELSE
-         CALL rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
-                          homo, virtual, dimen_RI, dimen_RI_red, dimen_ia, dimen_nm_gw, &
-                          Eigenval, num_integ_points, num_integ_group, color_rpa_group, &
-                          fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw, &
-                          fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
-                          my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, &
-                          do_minimax_quad, &
-                          do_im_time, fm_mo_coeff_occ, fm_mo_coeff_virt, mo_coeff, fm_matrix_L_RI_metric, &
-                          fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
-                          mat_munu, mat_P_global, &
-                          t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
-                          starts_array_mc, ends_array_mc, &
-                          starts_array_mc_block, ends_array_mc_block, &
-                          matrix_s, &
-                          kpoints, &
-                          gd_array, color_sub, &
-                          do_ri_sos_laplace_mp2=do_ri_sos_laplace_mp2)
-      END IF
+      ! Now start the RPA calculation
+      ! fm_mo_coeff_occ, fm_mo_coeff_virt will be deallocated here
+      CALL rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
+                       homo, virtual, dimen_RI, dimen_RI_red, dimen_ia, dimen_nm_gw, &
+                       Eigenval, num_integ_points, num_integ_group, color_rpa_group, &
+                       fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw, &
+                       fm_mat_S_ij_bse, fm_mat_S_ij_bse, &
+                       my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, &
+                       do_minimax_quad, &
+                       do_im_time, fm_mo_coeff_occ, fm_mo_coeff_virt, mo_coeff, fm_matrix_L_RI_metric, &
+                       fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
+                       mat_munu, mat_P_global, &
+                       t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
+                       starts_array_mc, ends_array_mc, &
+                       starts_array_mc_block, ends_array_mc_block, &
+                       matrix_s, kpoints, gd_array, color_sub, &
+                       do_ri_sos_laplace_mp2=do_ri_sos_laplace_mp2)
 
       DEALLOCATE (sub_proc_map)
 
@@ -715,25 +647,23 @@ CONTAINS
       CALL cp_para_env_release(para_env_RPA)
 
       IF (.NOT. do_im_time) THEN
-         CALL cp_fm_release(fm_mat_S)
-         CALL cp_fm_release(fm_mat_Q_gemm)
+         DO ispin = 1, nspins
+            CALL cp_fm_release(fm_mat_Q_gemm(ispin)%matrix)
+            CALL cp_fm_release(fm_mat_S(ispin)%matrix)
+         END DO
+         DEALLOCATE(fm_mat_Q_gemm, fm_mat_S)
       END IF
-      CALL cp_fm_release(fm_mat_Q)
-      IF (my_open_shell .AND. .NOT. do_im_time) THEN
-         CALL cp_fm_release(fm_mat_S_beta)
-         CALL cp_fm_release(fm_mat_Q_gemm_beta)
-         CALL cp_fm_release(fm_mat_Q_beta)
-      END IF
-      IF (my_open_shell .AND. do_ri_sos_laplace_mp2 .AND. do_im_time) THEN
-         CALL cp_fm_release(fm_mat_Q_beta)
-      END IF
+      DO ispin = 1, nspins
+         IF (ASSOCIATED(fm_mat_Q(ispin)%matrix)) CALL cp_fm_release(fm_mat_Q(ispin)%matrix)
+      END DO
+      DEALLOCATE(fm_mat_Q)
 
       IF (my_do_gw .AND. .NOT. do_im_time) THEN
-         CALL cp_fm_release(fm_mat_S_gw)
+         DO ispin = 1, nspins
+            CALL cp_fm_release(fm_mat_S_gw(ispin)%matrix)
+         END DO
+         DEALLOCATE(fm_mat_S_gw)
          CALL cp_fm_release(fm_mat_R_gw)
-         IF (my_open_shell) THEN
-            CALL cp_fm_release(fm_mat_S_gw_beta)
-         END IF
       END IF
 
       IF (do_bse) THEN
@@ -779,8 +709,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: BIb_C
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
-      INTEGER, INTENT(OUT)                               :: dimen_ia
-      INTEGER, INTENT(IN)                                :: homo, virtual
+      INTEGER, INTENT(IN)                                :: dimen_ia, homo, virtual
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: gd_B_virtual
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sub_proc_map
       INTEGER                                            :: my_ia_size, my_ia_start, my_ia_end, &
@@ -791,8 +720,6 @@ CONTAINS
       INTEGER :: ia_global, iiB, itmp(2), jjB, my_B_size, my_B_virtual_start, occ_high, occ_low, &
          proc_receive, proc_send, proc_shift, rec_B_size, rec_B_virtual_end, rec_B_virtual_start
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C_rec
-
-      dimen_ia = homo*virtual
 
       itmp = get_limit(dimen_ia, para_env_sub%num_pe, para_env_sub%mepos)
       my_ia_start = itmp(1)
@@ -1236,19 +1163,6 @@ CONTAINS
 !> \param kpoints ...
 !> \param gd_array ...
 !> \param color_sub ...
-!> \param fm_mo_coeff_occ_beta ...
-!> \param fm_mo_coeff_virt_beta ...
-!> \param homo_beta ...
-!> \param virtual_beta ...
-!> \param dimen_ia_beta ...
-!> \param Eigenval_beta ...
-!> \param fm_mat_S_beta ...
-!> \param fm_mat_Q_gemm_beta ...
-!> \param fm_mat_Q_beta ...
-!> \param fm_mat_S_gw_beta ...
-!> \param gw_corr_lev_occ_beta ...
-!> \param gw_corr_lev_virt_beta ...
-!> \param mo_coeff_beta ...
 !> \param do_ri_sos_laplace_mp2 ...
 ! **************************************************************************************************
    SUBROUTINE rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
@@ -1264,30 +1178,26 @@ CONTAINS
                           t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                           starts_array_mc, ends_array_mc, &
                           starts_array_mc_block, ends_array_mc_block, &
-                          matrix_s, kpoints, &
-                          gd_array, color_sub, &
-                          fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
-                          homo_beta, virtual_beta, dimen_ia_beta, Eigenval_beta, fm_mat_S_beta, &
-                          fm_mat_Q_gemm_beta, fm_mat_Q_beta, fm_mat_S_gw_beta, &
-                          gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, mo_coeff_beta, do_ri_sos_laplace_mp2)
+                          matrix_s, kpoints, gd_array, color_sub, &
+                          do_ri_sos_laplace_mp2)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), INTENT(OUT)                         :: Erpa
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA, para_env_sub
-      INTEGER, INTENT(IN)                                :: unit_nr, homo, virtual, dimen_RI, &
-                                                            dimen_RI_red, dimen_ia, dimen_nm_gw
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval
+      INTEGER, INTENT(IN)                                :: unit_nr, dimen_RI, &
+                                                            dimen_RI_red, dimen_nm_gw
+      INTEGER, INTENT(IN), DIMENSION(:)                  :: homo, dimen_ia, virtual
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: Eigenval
       INTEGER, INTENT(IN)                                :: num_integ_points, num_integ_group, &
                                                             color_rpa_group
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, &
-                                                            fm_mat_S_gw, fm_mat_R_gw, &
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_Q, fm_mat_Q_gemm, fm_mat_S, fm_mat_S_gw
+      TYPE(cp_fm_type), POINTER                          :: fm_mat_R_gw, &
                                                             fm_mat_S_ij_bse, fm_mat_S_ab_bse
       LOGICAL, INTENT(IN)                                :: my_do_gw, do_bse
-      INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt
+      INTEGER, INTENT(IN), DIMENSION(:)                  :: gw_corr_lev_occ, gw_corr_lev_virt
       LOGICAL, INTENT(IN)                                :: do_minimax_quad, do_im_time
-      TYPE(cp_fm_type), POINTER                          :: fm_mo_coeff_occ, fm_mo_coeff_virt, &
-                                                            mo_coeff
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mo_coeff_occ, fm_mo_coeff_virt, mo_coeff
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
       TYPE(cp_fm_type), POINTER                          :: fm_scaled_dm_occ_tau, &
                                                             fm_scaled_dm_virt_tau
@@ -1307,29 +1217,18 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
       INTEGER, INTENT(IN)                                :: color_sub
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_mo_coeff_occ_beta, &
-                                                            fm_mo_coeff_virt_beta
-      INTEGER, INTENT(IN), OPTIONAL                      :: homo_beta, virtual_beta, dimen_ia_beta
-      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT), &
-         OPTIONAL                                        :: Eigenval_beta
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_mat_S_beta, fm_mat_Q_gemm_beta, &
-                                                            fm_mat_Q_beta, fm_mat_S_gw_beta
-      INTEGER, INTENT(IN), OPTIONAL                      :: gw_corr_lev_occ_beta, &
-                                                            gw_corr_lev_virt_beta
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: mo_coeff_beta
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_num_int'
 
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: vec_Sigma_c_gw, vec_Sigma_c_gw_beta
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :) :: vec_Sigma_c_gw
       INTEGER :: count_ev_sc_GW, cut_memory, group_size_P, gw_corr_lev_tot, handle, handle3, &
-         iter_evGW, iter_sc_GW0, jquad, max_iter_bse, min_bsize, mm_style, my_num_dgemm_call, nkp, &
-         nkp_self_energy, nmo, num_3c_repl, num_cells_dm, num_fit_points, num_points_corr, &
-         num_Z_vectors, size_P
+         iter_evGW, iter_sc_GW0, jquad, max_iter_bse, min_bsize, mm_style, nkp, &
+         nkp_self_energy, nmo, num_3c_repl, num_cells_dm, num_fit_points, &
+         num_Z_vectors, size_P, nspins, ispin
       INTEGER(int_8)                                     :: dbcsr_nflop
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ikp_local
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c, t_3c_O_mo_ind, &
-                                                            t_3c_O_mo_ind_beta
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cell_to_index_3c
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, prim_blk_sizes, &
                                                             RI_blk_sizes
@@ -1337,59 +1236,48 @@ CONTAINS
          do_kpoints_from_Gamma, do_periodic, do_ri_Sigma_x, exit_ev_gw, first_cycle, &
          first_cycle_periodic_correction, my_open_shell, print_ic_values
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
-      REAL(dp)                                           :: dbcsr_time
-      REAL(KIND=dp) :: a_scaling, alpha, e_axk, e_axk_corr, e_fermi, e_fermi_beta, eps_filter, &
+      REAL(KIND=dp) :: a_scaling, alpha, dbcsr_time, e_axk, e_axk_corr, eps_filter, &
          eps_filter_im_time, eps_min_trans, ext_scaling, fermi_level_offset, &
          fermi_level_offset_input, my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: delta_corr, Eigenval_last, Eigenval_last_beta, &
-         Eigenval_scf, Eigenval_scf_beta, tau_tj, tau_wj, tj, trace_Qomega, vec_omega_fit_gw, &
-         vec_W_gw, vec_W_gw_beta, wj
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: Eigenval_kp, Eigenval_scf_kp, vec_Sigma_x_gw, &
-         vec_Sigma_x_gw_beta, weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: delta_corr, tau_tj, tau_wj, tj, trace_Qomega, vec_omega_fit_gw, wj, e_fermi
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: Eigenval_kp, Eigenval_scf_kp, &
+         weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, vec_W_gw, Eigenval_scf, Eigenval_last
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: B_abQ_bse_local, B_bar_iaQ_bse_local, &
-                                                            B_bar_ijQ_bse_local, B_iaQ_bse_local
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: ic_corr_list, ic_corr_list_beta, wkp_W
-      TYPE(cp_cfm_p_type), DIMENSION(:, :), POINTER      :: cfm_mat_W_kp_tau
+                                                            B_bar_ijQ_bse_local, B_iaQ_bse_local, &
+                                                            vec_Sigma_x_gw
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: wkp_W
+      TYPE(cp_cfm_p_type), DIMENSION(:, :), ALLOCATABLE  :: cfm_mat_W_kp_tau
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mat_W
+      TYPE(cp_fm_p_type), DIMENSION(:), ALLOCATABLE      :: fm_mat_W, fm_mat_S_gw_work
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L
       TYPE(cp_fm_type), POINTER :: fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
-         fm_mat_RI_global_work, fm_mat_S_gw_work, fm_mat_S_gw_work_beta, fm_mat_work, &
-         fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled
+         fm_mat_RI_global_work, fm_mat_work, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled
       TYPE(dbcsr_p_type)                                 :: mat_dm, mat_L, mat_M_P_munu_occ, &
                                                             mat_M_P_munu_virt, mat_P_global_copy, &
                                                             mat_SinvVSinv
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_berry_im_mo_mo, &
                                                             matrix_berry_re_mo_mo
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega, mat_P_omega_beta, &
-                                                            mat_P_omega_kp
-      TYPE(dbcsr_t_type) :: t_3c_overl_int_ao_mo, t_3c_overl_int_gw_AO, t_3c_overl_int_gw_AO_beta, &
-         t_3c_overl_int_gw_RI, t_3c_overl_int_gw_RI_beta, t_3c_overl_nnP_ic, &
-         t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected, t_3c_overl_nnP_ic_reflected_beta
+      TYPE(dbcsr_p_type), DIMENSION(:, :, :), ALLOCATABLE :: mat_P_omega
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega_kp
+      TYPE(dbcsr_t_type) :: t_3c_overl_int_ao_mo
+      TYPE(dbcsr_t_type), DIMENSION(:), ALLOCATABLE      :: t_3c_overl_int_gw_AO, &
+         t_3c_overl_int_gw_RI, t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected
       TYPE(dbcsr_type), POINTER                          :: mat_W, mat_work
-      TYPE(hfx_compression_type)                         :: t_3c_O_mo_compressed, &
-                                                            t_3c_O_mo_compressed_beta
+      TYPE(dgemm_counter_type)                           :: dgemm_counter
+      TYPE(hfx_compression_type), DIMENSION(:), ALLOCATABLE :: t_3c_O_mo_compressed
+      TYPE(two_dim_int_array), DIMENSION(:), ALLOCATABLE :: t_3c_O_mo_ind
 
       CALL timeset(routineN, handle)
 
-      my_open_shell = .FALSE.
-      IF (PRESENT(homo_beta) .AND. &
-          PRESENT(virtual_beta) .AND. &
-          PRESENT(dimen_ia_beta) .AND. &
-          PRESENT(Eigenval_beta) .AND. &
-          PRESENT(fm_mat_S_beta) .AND. &
-          PRESENT(fm_mat_Q_gemm_beta) .AND. &
-          PRESENT(fm_mat_Q_beta)) my_open_shell = .TRUE.
-
-      nmo = homo + virtual
+      nspins = SIZE(homo)
+      nmo = homo(1) + virtual(1)
+      my_open_shell = (nspins == 2)
 
       do_gw_im_time = my_do_gw .AND. do_im_time
       do_ri_Sigma_x = mp2_env%ri_g0w0%do_ri_Sigma_x
       do_ic_model = mp2_env%ri_g0w0%do_ic_model
       print_ic_values = mp2_env%ri_g0w0%print_ic_values
       do_periodic = mp2_env%ri_g0w0%do_periodic
-      ic_corr_list => mp2_env%ri_g0w0%ic_corr_list
-      ic_corr_list_beta => mp2_env%ri_g0w0%ic_corr_list_beta
       do_kpoints_cubic_RPA = mp2_env%ri_rpa_im_time%do_im_time_kpoints
       do_kpoints_from_Gamma = SUM(mp2_env%ri_rpa_im_time%kp_grid) > 0
 
@@ -1418,7 +1306,7 @@ CONTAINS
       END IF
 
       do_apply_ic_corr_to_gw = .FALSE.
-      IF (ic_corr_list(1) > 0.0_dp) do_apply_ic_corr_to_gw = .TRUE.
+      IF (mp2_env%ri_g0w0%ic_corr_list(1)%array(1) > 0.0_dp) do_apply_ic_corr_to_gw = .TRUE.
 
       IF (do_im_time) THEN
          CPASSERT(do_minimax_quad .OR. do_ri_sos_laplace_mp2)
@@ -1442,7 +1330,7 @@ CONTAINS
          min_bsize = mp2_env%ri_rpa_im_time%min_bsize
 
          CALL alloc_im_time(qs_env, para_env, dimen_RI, dimen_RI_red, &
-                            num_integ_points, fm_mat_Q, fm_mo_coeff_occ, fm_mo_coeff_virt, &
+                            num_integ_points, fm_mat_Q(1)%matrix, fm_mo_coeff_occ(1)%matrix, fm_mo_coeff_virt(1)%matrix, &
                             fm_matrix_L_RI_metric, mat_P_global, &
                             t_3c_O, matrix_s, kpoints, eps_filter_im_time, &
                             do_ri_sos_laplace_mp2, cut_memory, nkp, num_cells_dm, num_3c_repl, &
@@ -1455,13 +1343,9 @@ CONTAINS
                             has_mat_P_blocks, wkp_W, &
                             cfm_mat_Q, fm_mat_L, fm_mat_RI_global_work, fm_mat_work, fm_mo_coeff_occ_scaled, &
                             fm_mo_coeff_virt_scaled, mat_dm, mat_L, mat_M_P_munu_occ, mat_M_P_munu_virt, mat_P_global_copy, &
-                            mat_SinvVSinv, mat_P_omega, mat_P_omega_kp, &
-                            mat_work, &
-                            mat_P_omega_beta)
+                            mat_SinvVSinv, mat_P_omega, mat_P_omega_kp, mat_work)
 
          IF (my_do_gw) THEN
-
-            num_points_corr = mp2_env%ri_g0w0%num_omega_points
 
             CALL dbcsr_get_info(mat_P_global%matrix, &
                                 row_blk_size=RI_blk_sizes)
@@ -1469,72 +1353,37 @@ CONTAINS
             CALL dbcsr_get_info(matrix_s(1)%matrix, &
                                 row_blk_size=prim_blk_sizes)
 
-            gw_corr_lev_tot = gw_corr_lev_occ + gw_corr_lev_virt
+            gw_corr_lev_tot = gw_corr_lev_occ(1) + gw_corr_lev_virt(1)
 
             IF (.NOT. do_kpoints_cubic_RPA) THEN
-               IF (my_open_shell) THEN
-                  CALL allocate_matrices_gw_im_time(gw_corr_lev_occ, gw_corr_lev_virt, homo, nmo, &
-                                                    num_integ_points, unit_nr, &
-                                                    RI_blk_sizes, do_ic_model, &
-                                                    para_env, fm_mat_W, fm_mat_Q, &
-                                                    mo_coeff, &
-                                                    t_3c_overl_int_ao_mo, t_3c_O_mo_compressed, t_3c_O_mo_ind, &
-                                                    t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
-                                                    starts_array_mc, ends_array_mc, &
-                                                    t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
-                                                    matrix_s, mat_W, t_3c_O, &
-                                                    t_3c_O_compressed, t_3c_O_ind, &
-                                                    qs_env, &
-                                                    gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, homo_beta, &
-                                                    mo_coeff_beta, &
-                                                    t_3c_O_mo_compressed_beta, t_3c_O_mo_ind_beta, t_3c_overl_int_gw_RI_beta, &
-                                                    t_3c_overl_int_gw_AO_beta, &
-                                                    t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected_beta)
-               ELSE
-                  CALL allocate_matrices_gw_im_time(gw_corr_lev_occ, gw_corr_lev_virt, homo, nmo, &
-                                                    num_integ_points, unit_nr, &
-                                                    RI_blk_sizes, do_ic_model, &
-                                                    para_env, fm_mat_W, fm_mat_Q, &
-                                                    mo_coeff, &
-                                                    t_3c_overl_int_ao_mo, t_3c_O_mo_compressed, t_3c_O_mo_ind, &
-                                                    t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
-                                                    starts_array_mc, ends_array_mc, &
-                                                    t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
-                                                    matrix_s, mat_W, t_3c_O, &
-                                                    t_3c_O_compressed, t_3c_O_ind, &
-                                                    qs_env)
-
-               END IF
+               CALL allocate_matrices_gw_im_time(gw_corr_lev_occ, gw_corr_lev_virt, homo, nmo, &
+                                                 num_integ_points, unit_nr, &
+                                                 RI_blk_sizes, do_ic_model, &
+                                                 para_env, fm_mat_W, fm_mat_Q(1)%matrix, &
+                                                 mo_coeff, &
+                                                 t_3c_overl_int_ao_mo, t_3c_O_mo_compressed, t_3c_O_mo_ind, &
+                                                 t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
+                                                 starts_array_mc, ends_array_mc, &
+                                                 t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
+                                                 matrix_s, mat_W, t_3c_O, &
+                                                 t_3c_O_compressed, t_3c_O_ind, &
+                                                 qs_env)
 
             END IF
          END IF
 
       END IF
 
+      ALLOCATE(e_fermi(nspins))
       IF (do_minimax_quad .OR. do_ri_sos_laplace_mp2) THEN
-         IF (my_open_shell) THEN
-            CALL get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, do_im_time, &
-                                  do_ri_sos_laplace_mp2,.NOT. do_ic_model, tau_tj, tau_wj, qs_env, do_gw_im_time, &
-                                  do_kpoints_cubic_RPA, a_scaling, e_fermi, tj, wj, mp2_env, &
-                                  weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, &
-                                  homo_beta, dimen_ia_beta, Eigenval_beta)
-         ELSE
-            CALL get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, do_im_time, &
-                                  do_ri_sos_laplace_mp2,.NOT. do_ic_model, tau_tj, tau_wj, qs_env, do_gw_im_time, &
-                                  do_kpoints_cubic_RPA, a_scaling, e_fermi, tj, wj, mp2_env, &
-                                  weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w)
-         END IF
+         CALL get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, do_im_time, &
+                               do_ri_sos_laplace_mp2, .NOT. do_ic_model, tau_tj, tau_wj, qs_env, do_gw_im_time, &
+                               do_kpoints_cubic_RPA, a_scaling, e_fermi(1), tj, wj, mp2_env, &
+                               weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w)
       ELSE
-         IF (my_open_shell) THEN
-            CALL get_clenshaw_grid(para_env, para_env_RPA, unit_nr, homo, virtual, Eigenval, num_integ_points, &
-                                   num_integ_group, color_rpa_group, fm_mat_S, my_do_gw, &
-                                   ext_scaling, a_scaling, tj, wj, &
-                                   homo_beta, virtual_beta, dimen_ia_beta, Eigenval_beta, fm_mat_S_beta)
-         ELSE
-            CALL get_clenshaw_grid(para_env, para_env_RPA, unit_nr, homo, virtual, Eigenval, num_integ_points, &
-                                   num_integ_group, color_rpa_group, fm_mat_S, my_do_gw, &
-                                   ext_scaling, a_scaling, tj, wj)
-         END IF
+         CALL get_clenshaw_grid(para_env, para_env_RPA, unit_nr, homo, virtual, Eigenval, num_integ_points, &
+                                num_integ_group, color_rpa_group, fm_mat_S, my_do_gw, &
+                                ext_scaling, a_scaling, tj, wj)
       END IF
 
       ! This array is needed for RPA
@@ -1551,34 +1400,17 @@ CONTAINS
       END IF
 
       IF (my_do_gw) THEN
-         IF (my_open_shell) THEN
-            CALL allocate_matrices_gw(vec_Sigma_c_gw, color_rpa_group, dimen_nm_gw, &
-                                      gw_corr_lev_occ, gw_corr_lev_virt, homo, &
-                                      nmo, num_integ_group, num_integ_points, unit_nr, &
-                                      gw_corr_lev_tot, num_fit_points, omega_max_fit, &
-                                      do_minimax_quad, do_periodic, do_ri_Sigma_x,.NOT. do_im_time, &
-                                      first_cycle_periodic_correction, &
-                                      a_scaling, Eigenval, tj, vec_omega_fit_gw, vec_Sigma_x_gw, &
-                                      delta_corr, Eigenval_last, Eigenval_scf, vec_W_gw, &
-                                      fm_mat_S_gw, fm_mat_S_gw_work, &
-                                      para_env, mp2_env, kpoints, nkp, nkp_self_energy, &
-                                      do_kpoints_cubic_RPA, do_kpoints_from_Gamma, &
-                                      vec_Sigma_c_gw_beta, gw_corr_lev_occ_beta, homo_beta, Eigenval_beta, &
-                                      vec_Sigma_x_gw_beta, Eigenval_last_beta, Eigenval_scf_beta, vec_W_gw_beta, &
-                                      fm_mat_S_gw_work_beta, fm_mat_S_gw_beta)
-         ELSE
-            CALL allocate_matrices_gw(vec_Sigma_c_gw, color_rpa_group, dimen_nm_gw, &
-                                      gw_corr_lev_occ, gw_corr_lev_virt, homo, &
-                                      nmo, num_integ_group, num_integ_points, unit_nr, &
-                                      gw_corr_lev_tot, num_fit_points, omega_max_fit, &
-                                      do_minimax_quad, do_periodic, do_ri_Sigma_x,.NOT. do_im_time, &
-                                      first_cycle_periodic_correction, &
-                                      a_scaling, Eigenval, tj, vec_omega_fit_gw, vec_Sigma_x_gw, &
-                                      delta_corr, Eigenval_last, Eigenval_scf, vec_W_gw, &
-                                      fm_mat_S_gw, fm_mat_S_gw_work, &
-                                      para_env, mp2_env, kpoints, nkp, nkp_self_energy, &
-                                      do_kpoints_cubic_RPA, do_kpoints_from_Gamma)
-         END IF
+         CALL allocate_matrices_gw(vec_Sigma_c_gw, color_rpa_group, dimen_nm_gw, &
+                                   gw_corr_lev_occ, gw_corr_lev_virt, homo, &
+                                   nmo, num_integ_group, num_integ_points, unit_nr, &
+                                   gw_corr_lev_tot, num_fit_points, omega_max_fit, &
+                                   do_minimax_quad, do_periodic, do_ri_Sigma_x, .NOT. do_im_time, &
+                                   first_cycle_periodic_correction, &
+                                   a_scaling, Eigenval, tj, vec_omega_fit_gw, vec_Sigma_x_gw, &
+                                   delta_corr, Eigenval_last, Eigenval_scf, vec_W_gw, &
+                                   fm_mat_S_gw, fm_mat_S_gw_work, &
+                                   para_env, mp2_env, kpoints, nkp, nkp_self_energy, &
+                                   do_kpoints_cubic_RPA, do_kpoints_from_Gamma)
 
          IF (do_bse) THEN
 
@@ -1586,12 +1418,12 @@ CONTAINS
             eps_min_trans = mp2_env%ri_g0w0%eps_min_trans
             max_iter_bse = mp2_env%ri_g0w0%max_iter_bse
 
-            CALL cp_fm_create(fm_mat_Q_static_bse_gemm, fm_mat_Q_gemm%matrix_struct)
-            CALL cp_fm_to_fm(fm_mat_Q_gemm, fm_mat_Q_static_bse_gemm)
+            CALL cp_fm_create(fm_mat_Q_static_bse_gemm, fm_mat_Q_gemm(1)%matrix%matrix_struct)
+            CALL cp_fm_to_fm(fm_mat_Q_gemm(1)%matrix, fm_mat_Q_static_bse_gemm)
             CALL cp_fm_set_all(fm_mat_Q_static_bse_gemm, 0.0_dp)
 
-            CALL cp_fm_create(fm_mat_Q_static_bse, fm_mat_Q%matrix_struct)
-            CALL cp_fm_to_fm(fm_mat_Q_gemm, fm_mat_Q_static_bse)
+            CALL cp_fm_create(fm_mat_Q_static_bse, fm_mat_Q(1)%matrix%matrix_struct)
+            CALL cp_fm_to_fm(fm_mat_Q_gemm(1)%matrix, fm_mat_Q_static_bse)
             CALL cp_fm_set_all(fm_mat_Q_static_bse, 0.0_dp)
 
          END IF
@@ -1602,8 +1434,7 @@ CONTAINS
       IF (mp2_env%ri_rpa%do_ri_axk) e_axk = 0.0_dp
       first_cycle = .TRUE.
       omega_old = 0.0_dp
-      my_num_dgemm_call = 0
-      my_flop_rate = 0.0_dp
+      CALL dgemm_counter_init(dgemm_counter)
 
       DO count_ev_sc_GW = 1, iter_evGW
 
@@ -1615,21 +1446,17 @@ CONTAINS
          ! reset some values, important when doing eigenvalue self-consistent GW
          IF (my_do_gw) THEN
             Erpa = 0.0_dp
-            vec_Sigma_c_gw = (0.0_dp, 0.0_dp)
+            vec_Sigma_c_gw = z_zero
             first_cycle = .TRUE.
-            IF (my_open_shell) THEN
-               vec_Sigma_c_gw_beta = (0.0_dp, 0.0_dp)
-            END IF
          END IF
 
          ! calculate Q_PQ(it)
          IF (do_im_time) THEN
 
             IF (.NOT. do_kpoints_cubic_RPA) THEN
-               e_fermi = (Eigenval(homo) + Eigenval(homo + 1))*0.5_dp
-               IF (my_open_shell) THEN
-                  e_fermi_beta = (Eigenval_beta(homo_beta) + Eigenval_beta(homo_beta + 1))*0.5_dp
-               END IF
+               DO ispin = 1, nspins
+                  e_fermi(ispin) = (Eigenval(homo(ispin), ispin) + Eigenval(homo(ispin) + 1, ispin))*0.5_dp
+               END DO
             END IF
 
             tau = 0.0_dp
@@ -1647,11 +1474,11 @@ CONTAINS
                "SPARSITY_INFO| Minimum tensor block size:", min_bsize
 
             ! for evGW, we have to ensure that mat_P_omega is zero
-            CALL zero_mat_P_omega(mat_P_omega)
+            CALL zero_mat_P_omega(mat_P_omega(:, :, 1))
 
             ! compute the matrix Q(it) and Fourier transform it directly to mat_P_omega(iw)
-            CALL compute_mat_P_omega(mat_P_omega, fm_scaled_dm_occ_tau, &
-                                     fm_scaled_dm_virt_tau, fm_mo_coeff_occ, fm_mo_coeff_virt, &
+            CALL compute_mat_P_omega(mat_P_omega(:, :, 1), fm_scaled_dm_occ_tau, &
+                                     fm_scaled_dm_virt_tau, fm_mo_coeff_occ(1)%matrix, fm_mo_coeff_virt(1)%matrix, &
                                      fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
                                      mat_P_global, &
                                      matrix_s, &
@@ -1659,8 +1486,8 @@ CONTAINS
                                      t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                                      starts_array_mc, ends_array_mc, &
                                      starts_array_mc_block, ends_array_mc_block, &
-                                     weights_cos_tf_t_to_w, tj, tau_tj, e_fermi, eps_filter, alpha, &
-                                     eps_filter_im_time, Eigenval, nmo, &
+                                     weights_cos_tf_t_to_w, tj, tau_tj, e_fermi(1), eps_filter, alpha, &
+                                     eps_filter_im_time, Eigenval(:, 1), nmo, &
                                      num_integ_points, cut_memory, &
                                      unit_nr, mp2_env, para_env, &
                                      qs_env, index_to_cell_3c, cell_to_index_3c, &
@@ -1671,10 +1498,10 @@ CONTAINS
             IF (my_open_shell) THEN
                ! For SOS-MP2 we need the same calculation for alpha and beta spin independently, for RPA the sum of both
                IF (do_ri_sos_laplace_mp2) THEN
-                  CALL zero_mat_P_omega(mat_P_omega_beta)
+                  CALL zero_mat_P_omega(mat_P_omega(:, :, 2))
 
-                  CALL compute_mat_P_omega(mat_P_omega_beta, fm_scaled_dm_occ_tau, &
-                                           fm_scaled_dm_virt_tau, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
+                  CALL compute_mat_P_omega(mat_P_omega(:, :, 2), fm_scaled_dm_occ_tau, &
+                                           fm_scaled_dm_virt_tau, fm_mo_coeff_occ(2)%matrix, fm_mo_coeff_virt(2)%matrix, &
                                            fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
                                            mat_P_global, &
                                            matrix_s, &
@@ -1682,16 +1509,16 @@ CONTAINS
                                            t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                                            starts_array_mc, ends_array_mc, &
                                            starts_array_mc_block, ends_array_mc_block, &
-                                           weights_cos_tf_t_to_w, tj, tau_tj, e_fermi_beta, eps_filter, alpha, &
-                                           eps_filter_im_time, Eigenval_beta, nmo, &
+                                           weights_cos_tf_t_to_w, tj, tau_tj, e_fermi(2), eps_filter, alpha, &
+                                           eps_filter_im_time, Eigenval(:, 2), nmo, &
                                            num_integ_points, cut_memory, &
                                            unit_nr, mp2_env, para_env, &
                                            qs_env, index_to_cell_3c, cell_to_index_3c, &
                                            has_mat_P_blocks, do_ri_sos_laplace_mp2, &
                                            dbcsr_time, dbcsr_nflop)
                ELSE
-                  CALL compute_mat_P_omega(mat_P_omega, fm_scaled_dm_occ_tau, &
-                                           fm_scaled_dm_virt_tau, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
+                  CALL compute_mat_P_omega(mat_P_omega(:, :, 1), fm_scaled_dm_occ_tau, &
+                                           fm_scaled_dm_virt_tau, fm_mo_coeff_occ(2)%matrix, fm_mo_coeff_virt(2)%matrix, &
                                            fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
                                            mat_P_global, &
                                            matrix_s, &
@@ -1699,8 +1526,8 @@ CONTAINS
                                            t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                                            starts_array_mc, ends_array_mc, &
                                            starts_array_mc_block, ends_array_mc_block, &
-                                           weights_cos_tf_t_to_w, tj, tau_tj, e_fermi_beta, eps_filter, alpha, &
-                                           eps_filter_im_time, Eigenval_beta, nmo, &
+                                           weights_cos_tf_t_to_w, tj, tau_tj, e_fermi(2), eps_filter, alpha, &
+                                           eps_filter_im_time, Eigenval(:, 2), nmo, &
                                            num_integ_points, cut_memory, &
                                            unit_nr, mp2_env, para_env, &
                                            qs_env, index_to_cell_3c, cell_to_index_3c, &
@@ -1733,15 +1560,11 @@ CONTAINS
 
                IF (.NOT. (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma)) THEN
 
-                  CALL contract_P_omega_with_mat_L(mat_P_omega(jquad, 1)%matrix, mat_L%matrix, mat_work, eps_filter_im_time, &
-                                                   fm_mat_work, dimen_RI, dimen_RI_red, fm_mat_L(1, 1)%matrix, fm_mat_Q)
-
-                  ! For open-shell SOS-MP2 we have two different matrices to deal with
-                  IF (my_open_shell .AND. do_ri_sos_laplace_mp2) THEN
-                     CALL contract_P_omega_with_mat_L(mat_P_omega_beta(jquad, 1)%matrix, mat_L%matrix, mat_work, &
+                  DO ispin = 1, SIZE(mat_P_omega, 3)
+                     CALL contract_P_omega_with_mat_L(mat_P_omega(jquad, 1, ispin)%matrix, mat_L%matrix, mat_work, &
                                                       eps_filter_im_time, fm_mat_work, dimen_RI, dimen_RI_red, &
-                                                      fm_mat_L(1, 1)%matrix, fm_mat_Q_beta)
-                  END IF
+                                                      fm_mat_L(1, 1)%matrix, fm_mat_Q(ispin)%matrix)
+                  END DO
                END IF
 
             ELSE
@@ -1749,21 +1572,21 @@ CONTAINS
                IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3, A, 1X, I3, 1X, A, 1X, I3)") &
                   "INTEG_INFO| Started with Integration point", jquad, "of", num_integ_points
 
-               CALL calc_mat_Q(fm_mat_S, do_ri_sos_laplace_mp2, first_cycle, count_ev_sc_GW, iter_sc_GW0, virtual, &
-                               Eigenval, Eigenval_last, Eigenval_scf, &
-                               homo, omega, omega_old, jquad, mm_style, dimen_RI_red, dimen_ia, alpha, fm_mat_Q, &
-                               fm_mat_Q_gemm, para_env_RPA, do_bse, fm_mat_Q_static_bse_gemm, my_num_dgemm_call, my_flop_rate)
+               CALL calc_mat_Q(fm_mat_S(1)%matrix, do_ri_sos_laplace_mp2, first_cycle, count_ev_sc_GW, iter_sc_GW0, virtual(1), &
+                               Eigenval(:, 1), Eigenval_last(:, 1), Eigenval_scf(:, 1), &
+                               homo(1), omega, omega_old, jquad, mm_style, dimen_RI_red, dimen_ia(1), alpha, fm_mat_Q(1)%matrix, &
+                               fm_mat_Q_gemm(1)%matrix, do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter)
 
                IF (my_open_shell) THEN
-                  CALL calc_mat_Q(fm_mat_S_beta, do_ri_sos_laplace_mp2, first_cycle, count_ev_sc_GW, iter_sc_GW0, virtual_beta, &
-                                  Eigenval_beta, Eigenval_last_beta, Eigenval_scf_beta, &
-                                  homo_beta, omega, omega_old, jquad, mm_style, &
-                                  dimen_RI_red, dimen_ia_beta, alpha, fm_mat_Q_beta, fm_mat_Q_gemm_beta, para_env_RPA, do_bse, &
-                                  fm_mat_Q_static_bse_gemm, my_num_dgemm_call, my_flop_rate)
+                  CALL calc_mat_Q(fm_mat_S(2)%matrix, do_ri_sos_laplace_mp2, first_cycle, count_ev_sc_GW, iter_sc_GW0, virtual(2), &
+                                  Eigenval(:, 2), Eigenval_last(:, 2), Eigenval_scf(:, 2), &
+                                  homo(2), omega, omega_old, jquad, mm_style, &
+                                  dimen_RI_red, dimen_ia(2), alpha, fm_mat_Q(2)%matrix, fm_mat_Q_gemm(2)%matrix, do_bse, &
+                                  fm_mat_Q_static_bse_gemm, dgemm_counter)
 
                   ! For SOS-MP2 we need both matrices separately
                   IF (.NOT. do_ri_sos_laplace_mp2) THEN
-                     CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_mat_Q, beta=1.0_dp, matrix_b=fm_mat_Q_beta)
+                     CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_mat_Q(1)%matrix, beta=1.0_dp, matrix_b=fm_mat_Q(2)%matrix)
                   END IF
 
                END IF ! open shell
@@ -1772,8 +1595,8 @@ CONTAINS
 
             ! Calculate AXK energy correction
             IF (mp2_env%ri_rpa%do_ri_axk) THEN
-               CALL compute_axk_ener(qs_env, fm_mat_Q, fm_mat_Q_gemm, dimen_RI_red, dimen_ia, para_env_sub, &
-                                     para_env_RPA, eigenval, fm_mat_S, homo, virtual, omega, &
+               CALL compute_axk_ener(qs_env, fm_mat_Q(1)%matrix, fm_mat_Q_gemm(1)%matrix, dimen_RI_red, dimen_ia(1), para_env_sub, &
+                                     para_env_RPA, Eigenval(:, 1), fm_mat_S(1)%matrix, homo(1), virtual(1), omega, &
                                      mp2_env, mat_munu, unit_nr, e_axk_corr)
 
                ! Evaluate the final AXK energy correction
@@ -1781,22 +1604,19 @@ CONTAINS
             ENDIF ! do_ri_axk
 
             IF (do_ri_sos_laplace_mp2) THEN
-               IF (my_open_shell) THEN
-                  CALL SOS_MP2_postprocessing(fm_mat_Q, Erpa, tau_wj(jquad), fm_mat_Q_beta)
-               ELSE
-                  CALL SOS_MP2_postprocessing(fm_mat_Q, Erpa, tau_wj(jquad))
-               END IF
+               CALL SOS_MP2_postprocessing(fm_mat_Q, Erpa, tau_wj(jquad))
             ELSE
-               CALL RPA_postprocessing_start(dimen_RI_red, trace_Qomega, fm_mat_Q, para_env_RPA)
+               CALL RPA_postprocessing_start(dimen_RI_red, trace_Qomega, fm_mat_Q(1)%matrix, para_env_RPA)
 
                IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
                   CALL RPA_postprocessing_kp(dimen_RI, num_integ_points, jquad, nkp, count_ev_sc_GW, para_env, &
                                              para_env_RPA, Erpa, tau_tj, tj, wj, weights_cos_tf_w_to_t, wkp_W, do_gw_im_time, &
                                              do_ri_Sigma_x, do_kpoints_from_Gamma, do_kpoints_cubic_RPA, cfm_mat_W_kp_tau, &
-                                             cfm_mat_Q, ikp_local, mat_P_omega, mat_P_omega_kp, qs_env, eps_filter_im_time, &
+                                             cfm_mat_Q, ikp_local, mat_P_omega(:, :, 1), &
+                                             mat_P_omega_kp, qs_env, eps_filter_im_time, &
                                              kpoints, fm_mat_L, fm_mat_W, fm_mat_RI_global_work, mat_SinvVSinv)
                ELSE
-                  CALL RPA_postprocessing_nokp(dimen_RI_red, trace_Qomega, fm_mat_Q, para_env_RPA, Erpa, wj(jquad))
+                  CALL RPA_postprocessing_nokp(dimen_RI_red, trace_Qomega, fm_mat_Q(1)%matrix, para_env_RPA, Erpa, wj(jquad))
                END IF
             END IF ! do_ri_sos_laplace_mp2
 
@@ -1807,31 +1627,16 @@ CONTAINS
             CALL timestop(handle3)
 
             IF (my_do_gw) THEN
-               IF (my_open_shell) THEN
-                  CALL GW_matrix_operations(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI_red, gw_corr_lev_occ, &
-                                            gw_corr_lev_virt, homo, jquad, nmo, num_fit_points, num_integ_points, &
-                                            do_bse, do_im_time, do_periodic, first_cycle_periodic_correction, &
-                                            fermi_level_offset, fermi_level_offset_input, &
-                                            omega, Eigenval, delta_corr, tau_tj, tj, vec_omega_fit_gw, &
-                                            vec_W_gw, wj, weights_cos_tf_w_to_t, fm_mat_W, fm_mat_L, &
-                                            fm_mat_Q, fm_mat_Q_static_bse, fm_mat_R_gw, fm_mat_S_gw, &
-                                            fm_mat_S_gw_work, fm_mat_work, mo_coeff, para_env, &
-                                            para_env_RPA, matrix_berry_im_mo_mo, matrix_berry_re_mo_mo, &
-                                            kpoints, qs_env, mp2_env, do_kpoints_cubic_RPA, do_kpoints_from_Gamma, &
-                                            vec_Sigma_c_gw_beta, gw_corr_lev_occ_beta, homo_beta, Eigenval_beta, &
-                                            vec_W_gw_beta, fm_mat_S_gw_beta, fm_mat_S_gw_work_beta)
-               ELSE
-                  CALL GW_matrix_operations(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI_red, gw_corr_lev_occ, &
-                                            gw_corr_lev_virt, homo, jquad, nmo, num_fit_points, num_integ_points, &
-                                            do_bse, do_im_time, do_periodic, first_cycle_periodic_correction, &
-                                            fermi_level_offset, fermi_level_offset_input, &
-                                            omega, Eigenval, delta_corr, tau_tj, tj, vec_omega_fit_gw, &
-                                            vec_W_gw, wj, weights_cos_tf_w_to_t, fm_mat_W, fm_mat_L, &
-                                            fm_mat_Q, fm_mat_Q_static_bse, fm_mat_R_gw, fm_mat_S_gw, &
-                                            fm_mat_S_gw_work, fm_mat_work, mo_coeff, para_env, &
-                                            para_env_RPA, matrix_berry_im_mo_mo, matrix_berry_re_mo_mo, &
-                                            kpoints, qs_env, mp2_env, do_kpoints_cubic_RPA, do_kpoints_from_Gamma)
-               END IF
+               CALL GW_matrix_operations(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI_red, gw_corr_lev_occ, &
+                                         gw_corr_lev_virt, homo, jquad, nmo, num_fit_points, num_integ_points, &
+                                         do_bse, do_im_time, do_periodic, first_cycle_periodic_correction, &
+                                         fermi_level_offset, fermi_level_offset_input, &
+                                         omega, Eigenval, delta_corr, tau_tj, tj, vec_omega_fit_gw, &
+                                         vec_W_gw, wj, weights_cos_tf_w_to_t, fm_mat_W, fm_mat_L, &
+                                         fm_mat_Q(1)%matrix, fm_mat_Q_static_bse, fm_mat_R_gw, fm_mat_S_gw, &
+                                         fm_mat_S_gw_work, fm_mat_work, mo_coeff(1)%matrix, para_env, &
+                                         para_env_RPA, matrix_berry_im_mo_mo, matrix_berry_re_mo_mo, &
+                                         kpoints, qs_env, mp2_env, do_kpoints_cubic_RPA, do_kpoints_from_Gamma)
             END IF
 
          END DO ! jquad
@@ -1862,11 +1667,8 @@ CONTAINS
 
          ELSE
 
-            IF (para_env_RPA%mepos == 0) my_flop_rate = my_flop_rate/REAL(MAX(my_num_dgemm_call, 1), KIND=dp)/1.0E9_dp
-            CALL mp_sum(my_flop_rate, para_env%group)
-            my_flop_rate = my_flop_rate/para_env%num_pe
-            IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.2)") &
-               "PERFORMANCE| PDGEMM flop rate (Gflops / MPI rank):", my_flop_rate
+            CALL dgemm_counter_write(dgemm_counter, para_env, unit_nr)
+
          END IF
 
          ! GW: Compute self-energy Sigma, analytic continuation from iw -> w and correction of quasiparticle energies
@@ -1875,40 +1677,35 @@ CONTAINS
                CALL compute_QP_energies(vec_Sigma_c_gw, count_ev_sc_GW, gw_corr_lev_occ, &
                                         gw_corr_lev_tot, gw_corr_lev_virt, homo, &
                                         nmo, num_fit_points, num_integ_points, &
-                                        num_points_corr, unit_nr, do_apply_ic_corr_to_gw, do_im_time, &
+                                        unit_nr, do_apply_ic_corr_to_gw, do_im_time, &
                                         do_periodic, do_ri_Sigma_x, first_cycle_periodic_correction, &
                                         e_fermi, eps_filter, fermi_level_offset, &
                                         delta_corr, Eigenval, &
                                         Eigenval_last, Eigenval_scf, iter_sc_GW0, exit_ev_gw, tau_tj, tj, &
-                                        vec_omega_fit_gw, vec_Sigma_x_gw, ic_corr_list, &
+                                        vec_omega_fit_gw, vec_Sigma_x_gw, mp2_env%ri_g0w0%ic_corr_list, &
                                         weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, &
                                         fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_mo_coeff_occ, &
                                         fm_mo_coeff_virt, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
-                                        mo_coeff, fm_mat_W, para_env, para_env_RPA, mat_dm, mat_SinvVSinv, &
+                                        mo_coeff(1)%matrix, fm_mat_W, para_env, para_env_RPA, mat_dm, mat_SinvVSinv, &
                                         t_3c_overl_int_ao_mo, t_3c_O_mo_compressed, t_3c_O_mo_ind, &
                                         t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
                                         matrix_berry_im_mo_mo, matrix_berry_re_mo_mo, mat_W, matrix_s, &
                                         kpoints, mp2_env, qs_env, &
-                                        nkp_self_energy, do_kpoints_cubic_RPA, Eigenval_kp, Eigenval_scf_kp, &
-                                        vec_Sigma_c_gw_beta, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, homo_beta, &
-                                        e_fermi_beta, Eigenval_beta, Eigenval_last_beta, Eigenval_scf_beta, &
-                                        vec_Sigma_x_gw_beta, ic_corr_list_beta, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
-                                        t_3c_O_mo_compressed_beta, t_3c_O_mo_ind_beta, &
-                                        t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta)
+                                        nkp_self_energy, do_kpoints_cubic_RPA, Eigenval_kp, Eigenval_scf_kp)
             ELSE
                CALL compute_QP_energies(vec_Sigma_c_gw, count_ev_sc_GW, gw_corr_lev_occ, &
                                         gw_corr_lev_tot, gw_corr_lev_virt, homo, &
                                         nmo, num_fit_points, num_integ_points, &
-                                        num_points_corr, unit_nr, do_apply_ic_corr_to_gw, do_im_time, &
+                                        unit_nr, do_apply_ic_corr_to_gw, do_im_time, &
                                         do_periodic, do_ri_Sigma_x, first_cycle_periodic_correction, &
                                         e_fermi, eps_filter, fermi_level_offset, &
                                         delta_corr, Eigenval, &
                                         Eigenval_last, Eigenval_scf, iter_sc_GW0, exit_ev_gw, tau_tj, tj, &
-                                        vec_omega_fit_gw, vec_Sigma_x_gw, ic_corr_list, &
+                                        vec_omega_fit_gw, vec_Sigma_x_gw, mp2_env%ri_g0w0%ic_corr_list, &
                                         weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, &
                                         fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_mo_coeff_occ, &
                                         fm_mo_coeff_virt, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
-                                        mo_coeff, fm_mat_W, para_env, para_env_RPA, mat_dm, mat_SinvVSinv, &
+                                        mo_coeff(1)%matrix, fm_mat_W, para_env, para_env_RPA, mat_dm, mat_SinvVSinv, &
                                         t_3c_overl_int_ao_mo, t_3c_O_mo_compressed, t_3c_O_mo_ind, &
                                         t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, matrix_berry_im_mo_mo, &
                                         matrix_berry_re_mo_mo, mat_W, matrix_s, &
@@ -1927,24 +1724,24 @@ CONTAINS
 
          IF (my_open_shell) THEN
 
-            CALL calculate_ic_correction(Eigenval, mat_SinvVSinv, &
-                                         t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
+            CALL calculate_ic_correction(Eigenval(:, 1), mat_SinvVSinv%matrix, &
+                                         t_3c_overl_nnP_ic(1), t_3c_overl_nnP_ic_reflected(1), &
                                          gw_corr_lev_tot, &
-                                         gw_corr_lev_occ, gw_corr_lev_virt, homo, unit_nr, &
+                                         gw_corr_lev_occ(1), gw_corr_lev_virt(1), homo(1), unit_nr, &
                                          print_ic_values, para_env, do_alpha=.TRUE.)
 
-            CALL calculate_ic_correction(Eigenval_beta, mat_SinvVSinv, &
-                                         t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected_beta, &
+            CALL calculate_ic_correction(Eigenval(:, 2), mat_SinvVSinv%matrix, &
+                                         t_3c_overl_nnP_ic(2), t_3c_overl_nnP_ic_reflected(2), &
                                          gw_corr_lev_tot, &
-                                         gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, homo_beta, unit_nr, &
+                                         gw_corr_lev_occ(2), gw_corr_lev_virt(2), homo(2), unit_nr, &
                                          print_ic_values, para_env, do_beta=.TRUE.)
 
          ELSE
 
-            CALL calculate_ic_correction(Eigenval, mat_SinvVSinv, &
-                                         t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
+            CALL calculate_ic_correction(Eigenval(:, 1), mat_SinvVSinv%matrix, &
+                                         t_3c_overl_nnP_ic(1), t_3c_overl_nnP_ic_reflected(1), &
                                          gw_corr_lev_tot, &
-                                         gw_corr_lev_occ, gw_corr_lev_virt, homo, unit_nr, &
+                                         gw_corr_lev_occ(1), gw_corr_lev_virt(1), homo(1), unit_nr, &
                                          print_ic_values, para_env)
 
          END IF
@@ -1953,15 +1750,15 @@ CONTAINS
 
       ! postprocessing after GW for Bethe-Salpeter
       IF (do_bse) THEN
-         CALL mult_B_with_W_and_fill_local_3c_arrays(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S, fm_mat_Q_static_bse, &
+         CALL mult_B_with_W_and_fill_local_3c_arrays(fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S(1)%matrix, fm_mat_Q_static_bse, &
                                                      fm_mat_Q_static_bse_gemm, &
                                                      B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
-                                                     B_iaQ_bse_local, dimen_RI_red, homo, virtual, dimen_ia, &
+                                                     B_iaQ_bse_local, dimen_RI_red, homo(1), virtual(1), dimen_ia(1), &
                                                      gd_array, color_sub, para_env)
 
          CALL do_subspace_iterations(B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
-                                     B_iaQ_bse_local, homo, virtual, num_Z_vectors, &
-                                     max_iter_bse, eps_min_trans, Eigenval, para_env)
+                                     B_iaQ_bse_local, homo(1), virtual(1), num_Z_vectors, &
+                                     max_iter_bse, eps_min_trans, Eigenval(:, 1), para_env)
 
       END IF
 
@@ -1970,64 +1767,34 @@ CONTAINS
             CALL deallocate_matrices_gw(fm_mat_S_gw_work, vec_W_gw, vec_Sigma_c_gw, vec_omega_fit_gw, &
                                         mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw, &
                                         Eigenval_last, Eigenval_scf, do_periodic, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
-                                        kpoints, do_ri_Sigma_x, vec_Sigma_x_gw,.NOT. do_im_time, &
-                                        fm_mat_S_gw_work_beta, vec_W_gw_beta, vec_Sigma_c_gw_beta, &
-                                        Eigenval_last_beta, Eigenval_scf_beta, vec_Sigma_x_gw_beta)
+                                        kpoints, do_ri_Sigma_x, vec_Sigma_x_gw, .NOT. do_im_time)
          ELSE
             CALL deallocate_matrices_gw(fm_mat_S_gw_work, vec_W_gw, vec_Sigma_c_gw, vec_omega_fit_gw, &
                                         mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw, &
                                         Eigenval_last, Eigenval_scf, do_periodic, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
-                                        kpoints, do_ri_Sigma_x, vec_Sigma_x_gw,.NOT. do_im_time)
+                                        kpoints, do_ri_Sigma_x, vec_Sigma_x_gw, .NOT. do_im_time)
          END IF
       END IF
 
       IF (do_im_time) THEN
-         IF (my_open_shell) THEN
-            CALL dealloc_im_time(do_ri_sos_laplace_mp2, fm_mo_coeff_occ, fm_mo_coeff_virt, &
-                                 fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, ikp_local, index_to_cell_3c, &
-                                 cell_to_index_3c, do_ic_model, &
-                                 do_kpoints_cubic_RPA, do_kpoints_from_Gamma, do_ri_Sigma_x, &
-                                 has_mat_P_blocks, &
-                                 wkp_W, cfm_mat_Q, fm_mat_L, fm_mat_RI_global_work, fm_mat_work, &
-                                 fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, mat_dm, mat_L, &
-                                 mat_SinvVSinv, mat_P_omega, mat_P_omega_kp, &
-                                 t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
-                                 mat_work, &
-                                 fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, mat_P_omega_beta)
-         ELSE
-            CALL dealloc_im_time(do_ri_sos_laplace_mp2, fm_mo_coeff_occ, fm_mo_coeff_virt, &
-                                 fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, ikp_local, index_to_cell_3c, &
-                                 cell_to_index_3c, do_ic_model, &
-                                 do_kpoints_cubic_RPA, do_kpoints_from_Gamma, do_ri_Sigma_x, &
-                                 has_mat_P_blocks, &
-                                 wkp_W, cfm_mat_Q, fm_mat_L, fm_mat_RI_global_work, fm_mat_work, &
-                                 fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, mat_dm, mat_L, &
-                                 mat_SinvVSinv, mat_P_omega, mat_P_omega_kp, &
-                                 t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
-                                 mat_work)
-         END IF
+         CALL dealloc_im_time(fm_mo_coeff_occ, fm_mo_coeff_virt, &
+                              fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, ikp_local, index_to_cell_3c, &
+                              cell_to_index_3c, do_ic_model, &
+                              do_kpoints_cubic_RPA, do_kpoints_from_Gamma, do_ri_Sigma_x, &
+                              has_mat_P_blocks, &
+                              wkp_W, cfm_mat_Q, fm_mat_L, fm_mat_RI_global_work, fm_mat_work, &
+                              fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, mat_dm, mat_L, &
+                              mat_SinvVSinv, mat_P_omega, mat_P_omega_kp, &
+                              t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
+                              mat_work)
 
          IF (my_do_gw) THEN
-            IF (my_open_shell) THEN
-               CALL deallocate_matrices_gw_im_time(weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, do_ic_model, &
-                                                   do_kpoints_cubic_RPA, fm_mat_W, &
-                                                   t_3c_overl_int_ao_mo, t_3c_O_mo_compressed, t_3c_O_mo_ind, &
-                                                   t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
-                                                   t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
-                                                   mat_W, &
-                                                   ikp_local, cfm_mat_W_kp_tau, &
-                                                   t_3c_O_mo_compressed_beta, t_3c_O_mo_ind_beta, &
-                                                   t_3c_overl_int_gw_RI_beta, t_3c_overl_int_gw_AO_beta, &
-                                                   t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected_beta)
-            ELSE
-               CALL deallocate_matrices_gw_im_time(weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, do_ic_model, &
-                                                   do_kpoints_cubic_RPA, fm_mat_W, &
-                                                   t_3c_overl_int_ao_mo, t_3c_O_mo_compressed, t_3c_O_mo_ind, &
-                                                   t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
-                                                   t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
-                                                   mat_W, &
-                                                   ikp_local, cfm_mat_W_kp_tau)
-            END IF
+            CALL deallocate_matrices_gw_im_time(weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, do_ic_model, &
+                                                do_kpoints_cubic_RPA, fm_mat_W, &
+                                                t_3c_overl_int_ao_mo, t_3c_O_mo_compressed, t_3c_O_mo_ind, &
+                                                t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
+                                                t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
+                                                mat_W, ikp_local, cfm_mat_W_kp_tau)
          END IF
 
       END IF
