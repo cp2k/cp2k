@@ -74,7 +74,7 @@ if [ "$with_mkl" != "__DONTUSE__" ]; then
   done
 
   case $MPI_MODE in
-    intelmpi|mpich)
+    intelmpi | mpich)
       mkl_scalapack_lib="-lmkl_scalapack_lp64"
       mkl_blacs_lib="-lmkl_blacs_intelmpi_lp64"
       ;;
