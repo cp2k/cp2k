@@ -7,6 +7,5 @@
 # shellcheck disable=SC2235,SC2237
 
 ./scripts/stage2/install_mathlibs.sh
-./scripts/stage2/install_fftw.sh
 
 #EOF

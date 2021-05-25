@@ -6,6 +6,7 @@
 # shellcheck disable=SC2124,SC2129,SC2144,SC2153,SC2154,SC2155,SC2163,SC2164,SC2166
 # shellcheck disable=SC2235,SC2237
 
+./scripts/stage3/install_fftw.sh
 ./scripts/stage3/install_libint.sh
 ./scripts/stage3/install_libxc.sh
 
