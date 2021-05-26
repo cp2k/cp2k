@@ -118,7 +118,9 @@ CONTAINS
          needs%rho = .TRUE.
          needs%norm_drho = .TRUE.
       END IF
-      IF (PRESENT(max_deriv)) max_deriv = 2
+      ! deriv > 1 are not correct
+      ! IF (PRESENT(max_deriv)) max_deriv = 2
+      IF (PRESENT(max_deriv)) max_deriv = 1
    END SUBROUTINE xwpbe_lda_info
 
 ! **************************************************************************************************
@@ -207,6 +209,9 @@ CONTAINS
          deriv => xc_dset_get_derivative(deriv_set, &
                                          "(norm_drho)(norm_drho)", allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho)
+      END IF
+      IF (order > 1 .OR. order < -1) THEN
+         CPABORT("derivatives bigger than 1 do not work correctly")
       END IF
       IF (order > 2 .OR. order < -2) THEN
          CPABORT("derivatives bigger than 2 not implemented")

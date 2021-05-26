@@ -196,7 +196,7 @@ CONTAINS
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho)
       END IF
       IF (order > 1 .OR. order < -1) THEN
-         CPABORT("derivatives bigger than 2 not implemented")
+         CPABORT("derivatives bigger than 1 not implemented")
       END IF
 
       IF (R == 0.0_dp) THEN
@@ -361,7 +361,7 @@ CONTAINS
          CALL xc_derivative_get(deriv, deriv_data=e_ndrhob)
       END IF
       IF (order > 1 .OR. order < -1) THEN
-         CPABORT("derivatives bigger than 2 not implemented")
+         CPABORT("derivatives bigger than 1 not implemented")
       END IF
 
       IF (R == 0.0_dp) THEN
