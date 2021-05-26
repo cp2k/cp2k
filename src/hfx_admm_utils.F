@@ -666,6 +666,7 @@ CONTAINS
          CALL section_vals_val_set(xc_fun_section, "_SECTION_PARAMETERS_", &
                                    i_val=xc_none)
       ELSE IF (admm_env%aux_exch_func == do_admm_aux_exch_func_default) THEN
+         ! default PBE Functional
          !! ** Add functionals evaluated with auxiliary basis
          SELECT CASE (hfx_potential_type)
          CASE (do_potential_coulomb)
