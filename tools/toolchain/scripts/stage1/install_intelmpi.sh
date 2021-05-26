@@ -35,6 +35,12 @@ case "$with_intelmpi" in
     check_command mpiicc "intelmpi"
     check_command mpiifort "intelmpi"
     check_command mpiicpc "intelmpi"
+    if [ $(command -v mpic++ >&- 2>&-) ]; then
+      check_command mpic++ "intelmpi"
+    else
+      check_command mpicxx "intelmpi"
+      MPICXX=mpicxx
+    fi
     add_include_from_paths INTELMPI_CFLAGS "mpi.h" $INCLUDE_PATHS
     add_lib_from_paths INTELMPI_LDFLAGS "libmpi.*" $LIB_PATHS
     check_lib -lmpi "intelmpi"
@@ -79,6 +85,7 @@ export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__parallel ${mpi2_dflags}|)"
 export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(${INTELMPI_CFLAGS}|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${INTELMPI_LDFLAGS}|)"
 export CP_LIBS="\${CP_LIBS} IF_MPI(${INTELMPI_LIBS}|)"
+export MPICXX="${MPICXX}"
 EOF
 fi
 

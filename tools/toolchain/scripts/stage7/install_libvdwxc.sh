@@ -29,13 +29,14 @@ cd "${BUILDDIR}"
 
 case "$with_libvdwxc" in
   __INSTALL__)
-    require_env MPI_CFLAGS
-    require_env MPI_LDFLAGS
-    require_env MPI_LIBS
-    require_env FFTW_ROOT
+    require_env FFTW3_INCLUDES
+    require_env FFTW3_LIBS
     require_env FFTW_LDFLAGS
     require_env FFTW_LIBS
     require_env FFTW_CFLAGS
+    require_env MPI_CFLAGS
+    require_env MPI_LDFLAGS
+    require_env MPI_LIBS
 
     echo "==================== Installing libvdwxc ===================="
     pkg_install_dir="${INSTALLDIR}/libvdwxc-${libvdwxc_ver}"
@@ -75,7 +76,6 @@ case "$with_libvdwxc" in
         ./configure \
           --prefix="${pkg_install_dir}" \
           --libdir="${pkg_install_dir}/lib" \
-          --with-fftw3=${FFTW_ROOT} \
           --disable-shared \
           --without-mpi \
           >> configure.log 2>&1
@@ -83,7 +83,6 @@ case "$with_libvdwxc" in
         CC="${MPICC}" FC="${MPIFC}" ./configure \
           --prefix="${pkg_install_dir}" \
           --libdir="${pkg_install_dir}/lib" \
-          --with-fftw3=${FFTW_ROOT} \
           --disable-shared \
           --with-mpi \
           >> configure.log 2>&1
