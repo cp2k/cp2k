@@ -12,6 +12,7 @@
 # module rm gcc/10.1.0
 # module add gcc/8.3.0
 # module add cray-fftw
+# source /store/psi/psi01/mkrack/daint/mc/gnu/8.3.0/bin/init_mc_gnu.sh
 
 GNU_PATH    = /store/psi/psi01/mkrack/daint/mc/gnu/8.3.0
 MPI_PATH    = $(GNU_PATH)/mpich
