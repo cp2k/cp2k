@@ -20,10 +20,11 @@ source "${INSTALLDIR}"/toolchain.env
 MKL_CFLAGS=''
 MKL_LDFLAGS=''
 MKL_LIBS=''
-MKL_FFTW=1
 
-if [ "$with_libvdwxc" != "__DONTUSE__" ]; then
-  MKL_FFTW=0
+MKL_FFTW='yes'
+if [ "$with_libvdwxc" != "__DONTUSE__" ] && [ "$MPI_MODE" != "no" ]; then
+  report_warning $LINENO "MKL FFTW3 interface is present, but FFTW library is needed (FFTW-MPI)"
+  MKL_FFTW='no'
 fi
 
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
@@ -32,7 +33,7 @@ cd "${BUILDDIR}"
 case "$with_mkl" in
   __INSTALL__)
     echo "==================== Installing MKL ===================="
-    report_error ${LINENO} "To install MKL you should contact your system administrator."
+    report_error ${LINENO} "To install MKL, please contact your system administrator."
     exit 1
     ;;
   __SYSTEM__)
@@ -101,7 +102,7 @@ if [ "$with_mkl" != "__DONTUSE__" ]; then
   MKL_LIBS+=" ${mkl_blacs_lib} -Wl,--end-group -lpthread -lm -ldl"
   # setup_mkl disables using separate FFTW library (see below)
   MKL_CFLAGS="${MKL_CFLAGS} -I${MKLROOT}/include"
-  if [ "${MKL_FFTW}" != "0" ]; then
+  if [ "${MKL_FFTW}" != "no" ]; then
     MKL_CFLAGS+=" -I${MKLROOT}/include/fftw"
   fi
 
@@ -123,7 +124,7 @@ export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__SCALAPACK|)"
 export with_scalapack="__DONTUSE__"
 EOF
   fi
-  if [ "${MKL_FFTW}" != "0" ]; then
+  if [ "${MKL_FFTW}" != "no" ]; then
     cat << EOF >> "${BUILDDIR}/setup_mkl"
 export with_fftw="__DONTUSE__"
 export FFTW3_INCLUDES="${MKL_CFLAGS}"

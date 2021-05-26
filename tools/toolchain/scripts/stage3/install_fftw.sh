@@ -83,7 +83,8 @@ case "$with_fftw" in
     ;;
 esac
 if [ "$with_fftw" != "__DONTUSE__" ]; then
-  FFTW_LIBS="-lfftw3 -lfftw3_omp"
+  [ "$MPI_MODE" != "no" ] && FFTW_LIBS="-lfftw3_mpi "
+  FFTW_LIBS+="-lfftw3 -lfftw3_omp"
   if [ "$with_fftw" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_fftw"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
@@ -94,19 +95,18 @@ EOF
   fi
   # we may also want to cover FFT_SG
   cat << EOF >> "${BUILDDIR}/setup_fftw"
-export FFTW3_INCLUDES="${MKL_CFLAGS}"
-export FFTW3_LIBS="${MKL_LIBS}"
+export FFTW3_INCLUDES="${FFTW_CFLAGS}"
+export FFTW3_LIBS="${FFTW_LIBS}"
 export FFTW_CFLAGS="${FFTW_CFLAGS}"
 export FFTW_LDFLAGS="${FFTW_LDFLAGS}"
 export FFTW_LIBS="${FFTW_LIBS}"
 export CP_DFLAGS="\${CP_DFLAGS} -D__FFTW3 IF_COVERAGE(IF_MPI(|-U__FFTW3)|)"
 export CP_CFLAGS="\${CP_CFLAGS} ${FFTW_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${FFTW_LDFLAGS}"
-export CP_LIBS="IF_MPI(-lfftw3_mpi|) ${FFTW_LIBS} \${CP_LIBS}"
+export CP_LIBS="${FFTW_LIBS} \${CP_LIBS}"
 prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
 export FFTW_ROOT="$pkg_install_dir"
 EOF
-
   cat "${BUILDDIR}/setup_fftw" >> $SETUPFILE
 fi
 cd "${ROOTDIR}"

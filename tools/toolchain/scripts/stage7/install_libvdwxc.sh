@@ -29,14 +29,14 @@ cd "${BUILDDIR}"
 
 case "$with_libvdwxc" in
   __INSTALL__)
-    require_env MPI_CFLAGS
-    require_env MPI_LDFLAGS
-    require_env MPI_LIBS
     require_env FFTW3_INCLUDES
     require_env FFTW3_LIBS
     require_env FFTW_LDFLAGS
     require_env FFTW_LIBS
     require_env FFTW_CFLAGS
+    require_env MPI_CFLAGS
+    require_env MPI_LDFLAGS
+    require_env MPI_LIBS
 
     echo "==================== Installing libvdwxc ===================="
     pkg_install_dir="${INSTALLDIR}/libvdwxc-${libvdwxc_ver}"
