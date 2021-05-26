@@ -94,6 +94,8 @@ EOF
   fi
   # we may also want to cover FFT_SG
   cat << EOF >> "${BUILDDIR}/setup_fftw"
+export FFTW3_INCLUDES="${MKL_CFLAGS}"
+export FFTW3_LIBS="${MKL_LIBS}"
 export FFTW_CFLAGS="${FFTW_CFLAGS}"
 export FFTW_LDFLAGS="${FFTW_LDFLAGS}"
 export FFTW_LIBS="${FFTW_LIBS}"
