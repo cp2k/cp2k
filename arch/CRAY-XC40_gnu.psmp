@@ -1,16 +1,17 @@
 # Tested with: GFortran 8.3.0, MPICH 3.2.1, Cray-libsci 20.09.1, Cray-FFTW 3.3.8, Libint 2.6.0,
-#              LIBXC 5.1.4, LIBVORI 210412, LIBXSMM 1.16.1, ELPA 2020.11.001, PLUMED 2.6.2, SPGLIB 1.16.0
+#              LIBXC 5.1.4, LIBVORI 210412, LIBXSMM 1.16.1, ELPA 2020.11.001, PLUMED 2.6.2, 
+#              SPGLIB 1.16.0, GSL 2.6, SIRIUS 7.0.2
 # Author: Matthias Krack (matthias.krack@psi.ch, PSI, May 2021)
 
 # Cray XC40 (Piz Daint, CSCS, multi-core partition)
 
 # Program environments:
-#  module add daint-mc
-#  module rm PrgEnv-cray
-#  module add PrgEnv-gnu
-#  module rm gcc/10.1.0
-#  module add gcc/8.3.0
-#  module add cray-fftw
+# module add daint-mc
+# module rm PrgEnv-cray
+# module add PrgEnv-gnu
+# module rm gcc/10.1.0
+# module add gcc/8.3.0
+# module add cray-fftw
 
 GNU_PATH    = /store/psi/psi01/mkrack/daint/mc/gnu/8.3.0
 MPI_PATH    = $(GNU_PATH)/mpich
@@ -23,8 +24,11 @@ AR          = ar -r
 include       $(MPI_PATH)/plumed2/2.6.2/lib/plumed/src/lib/Plumed.inc.static
 
 ELPA_VER    = 2020.11.001
-ELPA_INC    = $(MPI_PATH)/elpa/$(ELPA_VER)/include/elpa-$(ELPA_VER)
+ELPA_INC    = $(MPI_PATH)/elpa/$(ELPA_VER)/include/elpa_openmp-$(ELPA_VER)
 ELPA_LIB    = $(MPI_PATH)/elpa/$(ELPA_VER)/lib
+
+GSL_INC     = $(GNU_PATH)/gsl/2.6/include
+GSL_LIB     = $(GNU_PATH)/gsl/2.6/lib
 
 LIBINT_INC  = $(GNU_PATH)/libint/2.6.0-lmax-6/include
 LIBINT_LIB  = $(GNU_PATH)/libint/2.6.0-lmax-6/lib
@@ -37,6 +41,9 @@ LIBXC_LIB   = $(GNU_PATH)/libxc/5.1.4/lib
 LIBXSMM_INC = $(GNU_PATH)/libxsmm/1.16.1/include
 LIBXSMM_LIB = $(GNU_PATH)/libxsmm/1.16.1/lib
 
+SIRIUS_INC  = $(GNU_PATH)/sirius/7.0.2/include
+SIRIUS_LIB  = $(GNU_PATH)/sirius/7.0.2/lib
+
 SPGLIB_INC  = $(GNU_PATH)/spglib/1.16.0/include
 SPGLIB_LIB  = $(GNU_PATH)/spglib/1.16.0/lib
 
@@ -45,6 +52,7 @@ CFLAGS      = -O3 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g
 
 DFLAGS      = -D__ELPA
 DFLAGS     += -D__FFTW3
+DFLAGS     += -D__GSL
 DFLAGS     += -D__LIBINT
 DFLAGS     += -D__LIBVORI
 DFLAGS     += -D__LIBXC
@@ -55,13 +63,16 @@ DFLAGS     += -D__PLUMED2
 DFLAGS     += -D__SPGLIB
 DFLAGS     += -D__parallel
 DFLAGS     += -D__SCALAPACK
+DFLAGS     += -D__SIRIUS
 #DFLAGS     += -D__CHECK_DIAG
 
 CFLAGS     += $(DFLAGS)
 CFLAGS     += -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules
+CFLAGS     += -I$(GSL_INC)
 CFLAGS     += -I$(LIBINT_INC)
 CFLAGS     += -I$(LIBXC_INC)
 CFLAGS     += -I$(LIBXSMM_INC)
+CFLAGS     += -I$(SIRIUS_INC)
 CFLAGS     += -I$(SPGLIB_INC)
 
 FCFLAGS     = $(CFLAGS)
@@ -73,8 +84,8 @@ FCFLAGS    += -std=f2008
 
 LDFLAGS     = $(FCFLAGS) -static
 
-LIBS        = $(PLUMED_DEPENDENCIES) -lz
-LIBS       += $(ELPA_LIB)/libelpa.a
+LIBS        = $(PLUMED_DEPENDENCIES)
+LIBS       += $(ELPA_LIB)/libelpa_openmp.a
 LIBS       += $(LIBVORI_LIB)/libvori.a
 LIBS       += $(LIBXC_LIB)/libxcf03.a
 LIBS       += $(LIBXC_LIB)/libxc.a
@@ -82,4 +93,12 @@ LIBS       += $(LIBINT_LIB)/libint2.a
 LIBS       += $(SPGLIB_LIB)/libsymspg.a
 LIBS       += $(LIBXSMM_LIB)/libxsmmf.a
 LIBS       += $(LIBXSMM_LIB)/libxsmm.a
+# Only needed for SIRIUS
+LIBS       += ${SIRIUS_LIB}/libsirius.a
+LIBS       += $(GNU_PATH)/SpFFT/0.9.13/lib/libspfft.a
+LIBS       += $(GNU_PATH)/SpLA/1.2.1/lib/libspla.a
+LIBS       += $(GNU_PATH)/hdf5/1.12.0/lib/libhdf5.a
+#
+LIBS       += $(GSL_LIB)/libgsl.a
+LIBS       += $(GNU_PATH)/lib/libz.a
 LIBS       += -ldl -lstdc++
