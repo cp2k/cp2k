@@ -44,7 +44,7 @@ MODULE hfx_admm_utils
         do_admm_aux_exch_func_bee, do_admm_aux_exch_func_default, do_admm_aux_exch_func_none, &
         do_admm_aux_exch_func_opt, do_admm_aux_exch_func_pbex, do_potential_coulomb, &
         do_potential_long, do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_short, &
-        do_potential_truncated, xc_funct_no_shortcut
+        do_potential_truncated, xc_funct_no_shortcut, xc_none
    USE input_section_types,             ONLY: section_vals_duplicate,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -596,12 +596,17 @@ CONTAINS
 !>          XWPBEX0:        PBE exchange hole for standard coulomb potential
 !>          PBE_HOLE_TC_LR: PBE exchange hole for longrange truncated coulomb potential
 !>
+!>        Above explanation is correct for the deafult case. If a specific functional is requested
+!>        for the correction term (cfun), we get
+!>        Ex,hf = Ex,hf' + (cfun-cfun')
+!>        for all cases of operators.
 !>
 !> \param qs_env the qs environment
 !> \param xc_section the original xc_section
 !> \param admm_env the ADMM environment
 !> \par History
 !>      12.2009 created [Manuel Guidon]
+!>      05.2021 simplify for case of no correction [JGH]
 !> \author Manuel Guidon
 ! **************************************************************************************************
    SUBROUTINE create_admm_xc_section(qs_env, xc_section, admm_env)
@@ -658,12 +663,9 @@ CONTAINS
       !in case of no admm exchange corr., no auxiliary exchange functional needed
       IF (admm_env%aux_exch_func == do_admm_aux_exch_func_none) THEN
          hfx_fraction = 0.0_dp
-      END IF
-
-      ! default PBE Functional
-      IF (admm_env%aux_exch_func == do_admm_aux_exch_func_default .OR. &
-          admm_env%aux_exch_func == do_admm_aux_exch_func_none) THEN
-
+         CALL section_vals_val_set(xc_fun_section, "_SECTION_PARAMETERS_", &
+                                   i_val=xc_none)
+      ELSE IF (admm_env%aux_exch_func == do_admm_aux_exch_func_default) THEN
          !! ** Add functionals evaluated with auxiliary basis
          SELECT CASE (hfx_potential_type)
          CASE (do_potential_coulomb)
