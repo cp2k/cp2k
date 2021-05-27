@@ -64,7 +64,6 @@ MODULE hfx_admm_utils
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
-   USE qs_force_types,                  ONLY: qs_force_type
    USE qs_interactions,                 ONLY: init_interaction_radii
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               init_gapw_basis_set,&
@@ -316,7 +315,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_ks_matrix'
 
-      INTEGER                                            :: handle, ikind, img, irep, ispin, mspin, &
+      INTEGER                                            :: handle, img, irep, ispin, mspin, &
                                                             n_rep_hf, nimages, ns, nspins
       LOGICAL                                            :: distribute_fock_matrix, &
                                                             do_adiabatic_rescaling, &
@@ -334,7 +333,6 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_rho_type), POINTER                         :: rho_orb
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(section_vals_type), POINTER                   :: adiabatic_rescaling_section, &
@@ -343,7 +341,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (auxbas_pw_pool, dft_control, force, hfx_sections, input, &
+      NULLIFY (auxbas_pw_pool, dft_control, hfx_sections, input, &
                para_env, poisson_env, pw_env, virial, matrix_ks_im, &
                matrix_ks_orb, rho_ao_orb, matrix_h, matrix_ks_aux_fit, &
                matrix_ks_aux_fit_im, matrix_ks_aux_fit_hfx)
@@ -394,13 +392,6 @@ CONTAINS
 
       CALL section_vals_get(hfx_sections, n_repetition=n_rep_hf)
 
-      IF (calculate_forces) THEN
-         !! initialize force array to zero
-         CALL get_qs_env(qs_env=qs_env, force=force)
-         DO ikind = 1, SIZE(force)
-            force(ikind)%fock_4c(:, :) = 0.0_dp
-         END DO
-      END IF
       ALLOCATE (hf_energy(n_rep_hf))
 
       eold = 0.0_dp
@@ -666,6 +657,7 @@ CONTAINS
          CALL section_vals_val_set(xc_fun_section, "_SECTION_PARAMETERS_", &
                                    i_val=xc_none)
       ELSE IF (admm_env%aux_exch_func == do_admm_aux_exch_func_default) THEN
+         ! default PBE Functional
          !! ** Add functionals evaluated with auxiliary basis
          SELECT CASE (hfx_potential_type)
          CASE (do_potential_coulomb)
