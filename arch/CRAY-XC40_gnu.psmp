@@ -1,6 +1,6 @@
 # Tested with: GFortran 8.3.0, MPICH 3.2.1, Cray-libsci 20.09.1, Cray-FFTW 3.3.8, Libint 2.6.0,
 #              LIBXC 5.1.4, LIBVORI 210412, LIBXSMM 1.16.1, ELPA 2020.11.001, PLUMED 2.6.2, 
-#              SPGLIB 1.16.0, GSL 2.6, SIRIUS 7.0.2
+#              SPGLIB 1.16.0, GSL 2.6, SIRIUS 7.0.2. COSMA 2.5.0
 # Author: Matthias Krack (matthias.krack@psi.ch, PSI, May 2021)
 
 # Cray XC40 (Piz Daint, CSCS, multi-core partition)
@@ -23,6 +23,9 @@ LD          = ftn
 AR          = ar -r
 
 include       $(MPI_PATH)/plumed2/2.6.2/lib/plumed/src/lib/Plumed.inc.static
+
+COSMA_INC   = $(GNU_PATH)/COSMA/2.5.0/include
+COSMA_LIB   = $(GNU_PATH)/COSMA/2.5.0/lib
 
 ELPA_VER    = 2020.11.001
 ELPA_INC    = $(MPI_PATH)/elpa/$(ELPA_VER)/include/elpa_openmp-$(ELPA_VER)
@@ -51,7 +54,8 @@ SPGLIB_LIB  = $(GNU_PATH)/spglib/1.16.0/lib
 # cc, CC, and ftn include already the proper -march flag
 CFLAGS      = -O3 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g
 
-DFLAGS      = -D__ELPA
+DFLAGS      = -D__COSMA
+DFLAGS     += -D__ELPA
 DFLAGS     += -D__FFTW3
 DFLAGS     += -D__GSL
 DFLAGS     += -D__LIBINT
@@ -68,6 +72,7 @@ DFLAGS     += -D__SIRIUS
 #DFLAGS     += -D__CHECK_DIAG
 
 CFLAGS     += $(DFLAGS)
+CFLAGS     += -I$(COSMA_INC)
 CFLAGS     += -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules
 CFLAGS     += -I$(GSL_INC)
 CFLAGS     += -I$(LIBINT_INC)
@@ -99,6 +104,11 @@ LIBS       += ${SIRIUS_LIB}/libsirius.a
 LIBS       += $(GNU_PATH)/SpFFT/0.9.13/lib/libspfft.a
 LIBS       += $(GNU_PATH)/SpLA/1.2.1/lib/libspla.a
 LIBS       += $(GNU_PATH)/hdf5/1.12.0/lib/libhdf5.a
+# Only needed for COSMA
+LIBS       += $(COSMA_LIB)/libcosma_prefixed_pxgemm.a
+LIBS       += $(COSMA_LIB)/libcosma.a
+LIBS       += $(COSMA_LIB)/libcosta_prefixed_scalapack.a
+LIBS       += $(COSMA_LIB)/libcosta.a
 #
 LIBS       += $(GSL_LIB)/libgsl.a
 LIBS       += $(GNU_PATH)/lib/libz.a
