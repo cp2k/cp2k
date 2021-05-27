@@ -17,13 +17,14 @@
       METHOD GPW
     &END QS
     LSD
+    CHARGE 1
     &EXCITED_STATES T
        STATE 1
     &END EXCITED_STATES
     &SCF
       SCF_GUESS ATOMIC 
       &OT
-         PRECONDITIONER FULL_SINGLE_INVERSE
+         PRECONDITIONER FULL_ALL
          MINIMIZER DIIS
       &END
       &OUTER_SCF
@@ -38,7 +39,7 @@
       &END XC_FUNCTIONAL
     &END XC
     &MGRID
-       CUTOFF  200
+       CUTOFF  400
        REL_CUTOFF  60
     &END
     &POISSON

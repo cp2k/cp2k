@@ -4,21 +4,21 @@ test01        -17.2410575712   PBE                               8.29564        
 test02        -17.2344065516   PBE0                             11.37226        9.14228       -0.11894030
 test03        -17.2344065516   PBE0                             11.37226        9.14228       -0.11894030
 test04        -17.2323283991   PBE0 ADMM                        11.38576        9.21132       -0.11909135
-test05        -17.2330762177   HSE06                            10.55097       -3.14338
-test06        -17.2313717444   HSE06 ADMM                       10.58382        8.82589       -0.35102470
+test05        -17.2330138740   HSE06                            10.54646        9.12041       -0.11947335
+test06        -17.2309849576   HSE06 ADMM(B88)                  10.55959        9.16020       -0.10974605
 test07        -17.2064454552   B88 MIX_CL                       17.34386        9.07644       -0.09598629
-test08        -17.2002469465   B88 MIX_CL ADMM                  17.18076       
-test09        -17.1927023394   MGGA VV3 MIX_CL ADMM
-test10        -17.1978417938   MGGA VV3 MIX_CL
-test11        -17.2250215289   PBE0 TC ADMM
+test08        -17.2021496197   B88 MIX_CL ADMM                  17.18941        9.22231        0.00577860
+test09        -17.1927023394   MGGA VV3 MIX_CL ADMM             xxxxxxxx        xxxxxxx       xxxxxxxxxxx
+test10        -17.1978417938   MGGA VV3 MIX_CL                  xxxxxxxx        xxxxxxx       xxxxxxxxxxx
+test11        -17.2264490994   PBE0 TC ADMM(PBEX)               11.22594        9.57334       -0.11876680
 test12        -17.2277279113   PBE0 TC                          11.18897        9.49663       -0.11896243
-test13        -17.2377733505   PBE0 TC LRC ADMM
-test14        -17.2404611684   PBE0 TC LRC
-test15        -17.1920148905   B88 MIX_CL TC ADMM
+test13        -17.2377733505   PBE0 TC LRC ADMM(PBEX)           HOLE?
+test14        -17.2404611684   PBE0 TC LRC                      HOLE?
+test15        -17.1997698629   B88 MIX_CL TC ADMM(PBEX)         16.96634        9.83848       -0.10341545
 test16        -17.1993689130   B88 MIX_CL TC                    17.00063        9.48348       -0.09480210
 test17        -17.2064454552   B88 MIX_CL TC (PBE)              17.34386       17.70733       -0.07271430
-test18        -17.2002469465   B88 MIX_CL TC ADMM (PBE)         17.18076       17.52670
-test19        -17.2250215289   PBE0 TC ADMM (PBE)               11.23588       11.61106
+test18        -17.2048955991   B88 MIX_CL TC ADMM(PBEX) (PBE)   17.24228       17.58311       -0.07353208
+test19        -17.2264490994   PBE0 TC ADMM(PBEX) (PBE)         11.22594       11.60056       -0.10071705
 test20        -17.2277279113   PBE0 TC (PBE)                    11.18897       11.56993       -0.10182608
-test21        -17.2251121456   PBE0 TC ADMM NC                 
-test22        -17.1937283672   B88 MIX_CL TC ADMM NC           
+test21        -17.2251121456   PBE0 TC ADMM(NC)                 11.24440        9.57917       -0.08951004
+test22        -17.1937283672   B88 MIX_CL TC ADMM(NC)           17.05791        9.85534       -0.00093538

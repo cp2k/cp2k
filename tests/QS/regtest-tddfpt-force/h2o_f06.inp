@@ -15,6 +15,7 @@
   &END PROPERTIES
   &DFT
     LSD
+    CHARGE 1
     &QS
       METHOD GPW
     &END QS
@@ -24,7 +25,7 @@
     &SCF
       SCF_GUESS ATOMIC 
       &OT
-         PRECONDITIONER FULL_SINGLE_INVERSE
+         PRECONDITIONER FULL_ALL
          MINIMIZER DIIS
       &END
       &OUTER_SCF
@@ -39,7 +40,7 @@
       &END XC_FUNCTIONAL
     &END XC
     &MGRID
-       CUTOFF  280
+       CUTOFF  400
        REL_CUTOFF  60
     &END
     &POISSON
