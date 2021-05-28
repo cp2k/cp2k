@@ -277,7 +277,7 @@ SIRIUS is a domain specific library for electronic structure calculations.
 
 - The code is available at <https://github.com/electronic-structure/SIRIUS>
 - For building CP2K with SIRIUS add `-D__SIRIUS` to DFLAGS.
-- See <https://electronic-structure.github.io/SIRIUS/> for more information.
+- See <https://electronic-structure.github.io/SIRIUS-doc/> for more information.
 
 ### 2r. FPGA (optional, plane wave FFT calculations)
 
