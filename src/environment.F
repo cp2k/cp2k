@@ -792,13 +792,13 @@ CONTAINS
 
          SELECT CASE (cp_fm_get_mm_type())
          CASE (do_scalapack)
-            WRITE (UNIT=output_unit, FMT="(T2,A,T75,A6)") &
-               start_section_label//"| Matrix multiplication library", "SCALAPACK"
+            WRITE (UNIT=output_unit, FMT="(T2,A,T72,A)") &
+               start_section_label//"| Matrix multiplication library", "ScaLAPACK"
          CASE (do_dbcsr)
-            WRITE (UNIT=output_unit, FMT="(T2,A,T75,A6)") &
+            WRITE (UNIT=output_unit, FMT="(T2,A,T76,A)") &
                start_section_label//"| Matrix multiplication library", "DBCSR"
          CASE (do_cosma)
-            WRITE (UNIT=output_unit, FMT="(T2,A,T75,A6)") &
+            WRITE (UNIT=output_unit, FMT="(T2,A,T76,A)") &
                start_section_label//"| Matrix multiplication library", "COSMA"
          END SELECT
 
