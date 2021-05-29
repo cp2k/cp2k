@@ -642,7 +642,7 @@ CONTAINS
                           enum_i_vals=(/do_scalapack, do_scalapack, do_dbcsr, do_cosma/), &
                           enum_c_vals=s2a("SCALAPACK", "PDGEMM", "DBCSR_MM", "COSMA"), &
                           enum_desc=s2a("Standard ScaLAPACK pdgemm", &
-                                        "Alias for SCALAPACK", &
+                                        "Alias for ScaLAPACK", &
                                         "DBCSR_MM is employed. This needs local transformation of the matrices", &
                                         "COSMA is employed. See https://github.com/eth-cscs/COSMA."))
       CALL section_add_keyword(section, keyword)
