@@ -156,25 +156,26 @@ create_tasks(const bool orthorhombic, const int ntasks,
     task->ab_block_offset = block_offset + subblock_offset;
 
     // Stuff for the ortho kernel ----------------------------------------------
+    if (orthorhombic) {
+      // Discretize the radius.
+      const double drmin =
+          fmin(dh[level][0][0], fmin(dh[level][1][1], dh[level][2][2]));
+      const int imr = imax(1, (int)ceil(task->radius / drmin));
+      task->disr_radius = drmin * imr;
 
-    // Discretize the radius.
-    const double drmin =
-        fmin(dh[level][0][0], fmin(dh[level][1][1], dh[level][2][2]));
-    const int imr = imax(1, (int)ceil(task->radius / drmin));
-    task->disr_radius = drmin * imr;
-
-    // Position of the gaussian product:
-    // this is the actual definition of the position on the grid
-    // i.e. a point rp(:) gets here grid coordinates
-    // MODULO(rp(:)/dr(:),npts_global(:))+1
-    // hence (0.0,0.0,0.0) in real space is rsgrid%lb on the rsgrid in Fortran
-    // and (1,1,1) on grid here in C.
-    //
-    // cubecenter(:) = FLOOR(MATMUL(dh_inv, rp))
-    for (int i = 0; i < 3; i++) {
-      const int cubecenter = floor(task->gp[i]);
-      task->cube_center_shifted[i] = cubecenter - shift_local[level][i];
-      task->cube_offset[i] = cubecenter * dh[level][i][i] - task->rp[i];
+      // Position of the gaussian product:
+      // this is the actual definition of the position on the grid
+      // i.e. a point rp(:) gets here grid coordinates
+      // MODULO(rp(:)/dr(:),npts_global(:))+1
+      // hence (0.0,0.0,0.0) in real space is rsgrid%lb on the rsgrid in Fortran
+      // and (1,1,1) on grid here in C.
+      //
+      // cubecenter(:) = FLOOR(MATMUL(dh_inv, rp))
+      for (int i = 0; i < 3; i++) {
+        const int cubecenter = floor(task->gp[i]);
+        task->cube_center_shifted[i] = cubecenter - shift_local[level][i];
+        task->cube_offset[i] = cubecenter * dh[level][i][i] - task->rp[i];
+      }
     }
 
     // Stuff for the general kernel --------------------------------------------
