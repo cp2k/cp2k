@@ -3,7 +3,7 @@
   &PROPERTIES
     &LINRES
        PRECONDITIONER FULL_ALL
-       EPS 1.e-12
+       EPS 1.e-14
        &POLAR
           DO_RAMAN T
           PERIODIC_DIPOLE_OPERATOR F
@@ -26,13 +26,13 @@
       &END
       &OUTER_SCF
          MAX_SCF  10
-         EPS_SCF 1.0E-7
+         EPS_SCF 1.0E-8
       &END
       MAX_SCF  100
-      EPS_SCF 1.0E-7
+      EPS_SCF 1.0E-8
     &END SCF
     &XC
-      &XC_FUNCTIONAL
+      &XC_FUNCTIONAL 
         &BECKE88
           SCALE_X 0.95238
         &END
@@ -108,7 +108,7 @@
    DEBUG_STRESS_TENSOR .FALSE.
    DEBUG_DIPOLE .TRUE.
    DEBUG_POLARIZABILITY .TRUE.
-   DE 0.00002
+   DE 0.000005
    EPS_NO_ERROR_CHECK 5.e-5
 &END
 

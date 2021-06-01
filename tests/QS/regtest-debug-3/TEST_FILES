@@ -3,19 +3,20 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-h2o_pbe0.inp                                          87      1e-05             0.157066941183E+02
-h2o_pbe0_admm.inp                                     87      1e-05             0.159060491447E+02
+h2o_pbe0.inp                                          60      1e-05             0.431619466772
+h2o_pbe0_admm.inp                                     60      1e-05             0.431782443780
 #
-#h2o_HSE06.inp
-#h2o_HSE06_admm.inp
-#h2o_B88_mixcl.inp
-#h2o_B88_mixcl_admm.inp
-#h2o_pbe0TC.inp
-#h2o_pbe0TC_admm.inp
-#h2o_B88_mixcl_TC_admm.inp
-#h2o_B88_mixcl_TC.inp
+h2o_HSE06.inp                                         60      1e-05             0.435592198533
+h2o_HSE06_admm.inp                                    60      1e-05             0.435020978453
+#h2o_B88_mixcl.inp                 functional B88_LR   60      1e-05             0.000000000000E+00
+#h2o_B88_mixcl_admm.inp            functional B88_LR   60      1e-05             0.000000000000E+00
+h2o_pbe0TC.inp                                        60      1e-05             0.430192264863
+h2o_pbe0TC_admm.inp                                   60      1e-05             0.426587857103
+#h2o_B88_mixcl_TC_admm.inp         functional B88_LR   60      1e-05             0.000000000000E+00
+#h2o_B88_mixcl_TC.inp              functional B88_LR   60      1e-05             0.000000000000E+00
 #h2o_pbe0TC_LRC.inp                functional LRC
 #h2o_pbe0TC_LRC_admm.inp           functional LRC
 #h2o_mgga_VV3_mixcl_admm.inp       functional mgga
 #h2o_mgga_VV3_mixcl.inp            functional mgga
 #EOF
+
