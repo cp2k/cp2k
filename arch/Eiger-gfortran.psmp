@@ -6,14 +6,17 @@
 # \
   module load cpeGNU ; \
   module load \
-    cray-fftw \
-    ELPA/2020.11.001 \
-    libxsmm/1.16.1 \
-    libxc/5.1.3 \
-    Libint-CP2K/2.6.0 ; \
+      cray-fftw \
+      ELPA/2020.11.001 \
+      libxsmm/1.16.1 \
+      libxc/5.1.3 \
+      Libint-CP2K/2.6.0 \
+      gcc/10.2.0 \
+      ; \
     echo "Please check the output above for error messages." ; \
-    echo "If everything is OK, run with:" ; \
+    echo "If everything is OK, build CP2K with:" ; \
     echo "    make -j ARCH=Eiger-gfortran VERSION=psmp" ; \
+    /usr/bin/test _`echo is_csh 2>/dev/null` != _is_csh && exit ; \
     return
 
 # === OPTIONS ===
