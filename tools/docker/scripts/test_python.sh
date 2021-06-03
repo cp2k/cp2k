@@ -25,6 +25,7 @@ echo ""
 run_test ./tools/prettify/prettify_test.py
 run_test mypy --strict ./tools/dashboard/generate_dashboard.py
 run_test mypy --strict ./tools/regtesting/do_regtest.py
+run_test mypy --strict ./tools/regtesting/optimize_test_dirs.py
 
 # Test generate_dashboard.py. Running it twice to also execute its caching.
 mkdir -p /workspace/artifacts/dashboard
