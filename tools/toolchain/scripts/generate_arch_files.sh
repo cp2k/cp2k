@@ -98,7 +98,10 @@ FCFLAGS="$G_CFLAGS \$(FCDEBFLAGS) \$(WFLAGS) \$(DFLAGS)"
 CFLAGS="$G_CFLAGS -std=c11 -Wall -Wextra -Werror \$(DFLAGS)"
 
 # Linker flags
-LDFLAGS="\$(FCFLAGS) ${CP_LDFLAGS}"
+# About --whole-archive see: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=52590
+STATIC_FLAGS="-static -Wl,--whole-archive -lpthread -Wl,--no-whole-archive"
+# Get unfortunately ignored: -static-libgcc -static-libstdc++ -static-libgfortran
+LDFLAGS="IF_STATIC(${STATIC_FLAGS}|) \$(FCFLAGS) ${CP_LDFLAGS}"
 
 # Library flags
 # add standard libs
@@ -194,12 +197,14 @@ EOF
 rm -f ${INSTALLDIR}/arch/local*
 # normal production arch files
 gen_arch_file "local.ssmp"
+gen_arch_file "local_static.ssmp" STATIC
 gen_arch_file "local.sdbg" DEBUG
 arch_vers="ssmp sdbg"
 
 if [ "$MPI_MODE" != no ]; then
   gen_arch_file "local.psmp" MPI
   gen_arch_file "local.pdbg" MPI DEBUG
+  gen_arch_file "local_static.psmp" MPI STATIC
   gen_arch_file "local_warn.psmp" MPI WARNALL
   gen_arch_file "local_coverage.pdbg" MPI COVERAGE
   arch_vers="${arch_vers} psmp pdbg"

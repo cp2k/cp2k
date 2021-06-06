@@ -138,6 +138,7 @@ if __name__ == "__main__":
         "CUDA": False,
         "WARNALL": False,
         "DEBUG": False,
+        "STATIC": False,
         "VALGRIND": False,
         "COVERAGE": False,
     }

@@ -62,6 +62,15 @@ case "$with_gcc" in
       GCCROOT=${PWD}
       mkdir obj
       cd obj
+      # TODO: Maybe use --disable-libquadmath-support to improve static linking:
+      # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=46539
+      #
+      # TODO: Maybe use --disable-gnu-unique-object to improve static linking:
+      # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=60348#c13
+      # https://stackoverflow.com/questions/11931420
+      #
+      # TODO: Unfortunately, we can not simply use --disable-shared, because
+      # it would break OpenBLAS build and probably others too.
       ${GCCROOT}/configure --prefix="${pkg_install_dir}" \
         --libdir="${pkg_install_dir}/lib" \
         --enable-languages=c,c++,fortran \

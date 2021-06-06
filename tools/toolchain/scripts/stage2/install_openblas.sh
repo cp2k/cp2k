@@ -54,6 +54,8 @@ case "$with_openblas" in
       #
       # wrt NUM_THREADS=64: this is what the most common Linux distros seem to choose atm
       #                     for a good compromise between memory usage and scalability
+      #
+      # Unfortunately, NO_SHARED=1 breaks ScaLAPACK build.
       (
         make -j $(get_nprocs) \
           MAKE_NB_JOBS=0 \

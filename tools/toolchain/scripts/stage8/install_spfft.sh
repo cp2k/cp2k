@@ -47,9 +47,10 @@ case "$with_spfft" in
       cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR=lib \
-        -DBUILD_SHARED_LIBS=OFF \
+        -DCMAKE_CXX_COMPILER="${MPICXX}" \
         -DSPFFT_OMP=ON \
         -DSPFFT_MPI=ON \
+        -DSPFFT_STATIC=ON \
         -DSPFFT_INSTALL=ON \
         .. > cmake.log 2>&1
       make -j $(get_nprocs) > make.log 2>&1
@@ -63,9 +64,10 @@ case "$with_spfft" in
         cmake \
           -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
           -DCMAKE_INSTALL_LIBDIR=lib \
-          -DBUILD_SHARED_LIBS=OFF \
+          -DCMAKE_CXX_COMPILER="${MPICXX}" \
           -DSPFFT_OMP=ON \
           -DSPFFT_MPI=ON \
+          -DSPFFT_STATIC=ON \
           -DSPFFT_INSTALL=ON \
           -DSPFFT_GPU_BACKEND=CUDA \
           .. > cmake.log 2>&1
