@@ -47,7 +47,7 @@ case "$with_fftw" in
       [ -d fftw-${fftw_ver} ] && rm -rf fftw-${fftw_ver}
       tar -xzf ${fftw_pkg}
       cd fftw-${fftw_ver}
-      FFTW_FLAGS="--enable-openmp --enable-shared --enable-static"
+      FFTW_FLAGS="--enable-openmp --disable-shared --enable-static"
       # fftw has mpi support but not compiled by default. so compile it if we build with mpi.
       # it will create a second library to link with if needed
       [ "$MPI_MODE" != "no" ] && FFTW_FLAGS="--enable-mpi ${FFTW_FLAGS}"

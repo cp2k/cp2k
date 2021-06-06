@@ -59,6 +59,7 @@ case "$with_plumed" in
         CXXFLAGS="${CXXFLAGS//-g/-g0} ${GSL_CFLAGS}" \
         LDFLAGS="${LDFLAGS} ${GSL_LDFLAGS}" \
         LIBS="${libs}" \
+        --disable-shared \
         --prefix=${pkg_install_dir} \
         --libdir="${pkg_install_dir}/lib" > configure.log 2>&1
       make VERBOSE=1 -j $(get_nprocs) > make.log 2>&1
@@ -96,9 +97,9 @@ EOF
   cat << EOF >> "${BUILDDIR}/setup_plumed"
 export PLUMED_LDFLAGS="${PLUMED_LDFLAGS}"
 export PLUMED_LIBS="${PLUMED_LIBS}"
-export CP_DFLAGS="\${CP_DFLAGS} -D__PLUMED2"
-export CP_LDFLAGS="\${CP_LDFLAGS} ${PLUMED_LDFLAGS}"
-export CP_LIBS="${PLUMED_LIBS} \${CP_LIBS}"
+export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__PLUMED2|)"
+export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${PLUMED_LDFLAGS}|)"
+export CP_LIBS="IF_MPI(${PLUMED_LIBS}|) \${CP_LIBS}"
 EOF
 fi
 

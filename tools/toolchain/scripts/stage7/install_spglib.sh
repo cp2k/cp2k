@@ -48,13 +48,12 @@ case "$with_spglib" in
       cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_BUILD_TYPE=Release \
-        -DBUILD_SHARED_LIBS=OFF \
+        -DBUILD_SHARED_LIBS=NO \
         .. > configure.log 2>&1
-      make -j $(get_nprocs) > make.log 2>&1
+      make -j $(get_nprocs) symspg > make.log 2>&1
       make install >> make.log 2>&1
-      mkdir ${pkg_install_dir}/include/spglib
-      cp ${pkg_install_dir}/include/{,spglib/}spglib.h
-      cd ..
+      # Despite -DBUILD_SHARED_LIBS=NO the shared library gets build and installed.
+      rm "${pkg_install_dir}"/lib/*.so*
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage7/$(basename ${SCRIPT_NAME})"
     fi
 

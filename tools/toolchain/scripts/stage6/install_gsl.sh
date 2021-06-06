@@ -42,7 +42,7 @@ case "$with_gsl" in
       cd gsl-${gsl_ver}
       ./configure --prefix="${pkg_install_dir}" \
         --libdir="${pkg_install_dir}/lib" \
-        --enable-shared \
+        --disable-shared \
         --enable-static > configure.log 2>&1
       make -j $(get_nprocs) > make.log 2>&1
       make -j $(get_nprocs) install > install.log 2>&1
