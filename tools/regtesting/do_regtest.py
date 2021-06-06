@@ -461,19 +461,19 @@ def eval_regtest(
 
     output = test.out_path.read_text(encoding="utf8") if test.out_path.exists() else ""
     output_tail = "\n".join(output.split("\n")[-100:])
-    error = "x" * 100 + f"\n{test.out_path}\n{output_tail}\n\n"
+    error = "x" * 100 + f"\n{test.out_path}\n"
     if timeout:
-        error += f"Timeout after {duration} seconds."
+        error += f"{output_tail}\n\nTimeout after {duration} seconds."
         return TestResult(test, duration, "TIMEOUT", error)
     elif returncode != 0:
-        error += f"Runtime failure with code {returncode}."
+        error += f"{output_tail}\n\nRuntime failure with code {returncode}."
         return TestResult(test, duration, "RUNTIME FAIL", error)
     elif not test.test_type:
         return TestResult(test, duration, "OK")  # test type zero
     else:
         value_txt = test.test_type.grep(output)
         if not value_txt:
-            error += f"Result not found: '{test.test_type.pattern}'."
+            error += f"{output_tail}\n\nResult not found: '{test.test_type.pattern}'."
             return TestResult(test, duration, "WRONG RESULT", error)
         else:
             # compare result to reference
@@ -482,7 +482,7 @@ def eval_regtest(
             if rel_error <= test.tolerance:
                 return TestResult(test, duration, "OK")
             else:
-                error += f"Difference too large: {rel_error} > {test.tolerance}, "
+                error += f"Difference too large: {rel_error:.2e} > {test.tolerance}, "
                 error += f"ref_value: {test.ref_value_txt}, value: {value_txt}."
                 return TestResult(test, duration, "WRONG RESULT", error)
 
