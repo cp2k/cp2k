@@ -803,6 +803,7 @@ CONTAINS
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(/,T2,A,T31,A50)') &
             'TB_DIPOLE| Dipole type', ADJUSTR(TRIM(dipole_type))
+         WRITE (unit_nr, "(T2,A,T33,3F16.8)") "TB_DIPOLE| Reference Point [Bohr]", rcc
          WRITE (unit_nr, '(T2,A,T30,3(1X,F16.8))') &
             'TB_DIPOLE| Moment [a.u.]', dipole(1:3)
          WRITE (unit_nr, '(T2,A,T30,3(1X,F16.8))') &
