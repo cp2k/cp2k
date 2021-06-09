@@ -53,7 +53,7 @@ case "$with_spglib" in
       make -j $(get_nprocs) symspg > make.log 2>&1
       make install >> make.log 2>&1
       # Despite -DBUILD_SHARED_LIBS=NO the shared library gets build and installed.
-      rm "${pkg_install_dir}"/lib/*.so*
+      rm "${pkg_install_dir}"/lib*/*.so*
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage7/$(basename ${SCRIPT_NAME})"
     fi
 
