@@ -23,8 +23,11 @@
 # To disable/enable them add them to the make call:
 #   ex.: make -j ARCH=Eiger-gfortran VERSION=psmp USE_ELPA=0
 
-USE_LIBINT=1
-USE_ELPA=1
+WITH_MKL=1
+
+USE_LIBINT=0
+USE_ELPA=0
+
 CHECKS=0
 
 # === PRE-PROCESSOR FLAGS (base) ===
@@ -51,6 +54,19 @@ ifeq ($(USE_LIBINT),1)
 DFLAGS  += -D__LIBINT -D__MAX_CONTR=4
 LIBS    += -lint2 -lstdc++
 INCS    += -I$(EBROOTLIBINTMINCP2K)/include
+endif
+
+ifeq ($(WITH_MKL),1)
+LIBS    += -lfftw3 -lfftw3_omp \
+           -L/opt/intel/mkl/lib/intel64 -Wl,-rpath=/opt/intel/mkl/lib/intel64 \
+           -lmkl_scalapack_lp64 \
+           -Wl,--start-group \
+           -lmkl_gf_lp64 \
+           -lmkl_sequential \
+           -lmkl_core \
+           -lmkl_blacs_intelmpi_lp64 \
+           -Wl,--end-group
+INCS    += -I/opt/intel/mkl/include
 endif
 
 # === BINARIES (COMPILER, LINKER, ...) ===
