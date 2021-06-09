@@ -67,7 +67,7 @@ case "$with_hdf5" in
 
 esac
 if [ "$with_hdf5" != "__DONTUSE__" ]; then
-  HDF5_LIBS="-lhdf5 -lhdf5_hl"
+  HDF5_LIBS="-lhdf5 -lhdf5_hl -lz"
   if [ "$with_hdf5" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_hdf5"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
