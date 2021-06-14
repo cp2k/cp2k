@@ -16,6 +16,11 @@ apt-get install -qq --no-install-recommends \
 rm -rf /var/lib/apt/lists/*
 
 # install python packages
-pip3 install --quiet numpy matplotlib requests mypy
+pip3 install --quiet \
+  numpy \
+  matplotlib \
+  requests \
+  types-requests \
+  mypy==0.902
 
 #EOF
