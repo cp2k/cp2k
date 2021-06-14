@@ -22,7 +22,7 @@ GPUVER      = P100
 
 CC          = cc
 CXX         = CC
-NVCC        = nvcc
+OFFLOAD_CC  = nvcc
 FC          = ftn
 LD          = ftn
 AR          = ar -r
@@ -79,7 +79,7 @@ DFLAGS     += -D__SCALAPACK
 DFLAGS     += -D__SIRIUS
 #DFLAGS     += -D__CHECK_DIAG
 
-NVFLAGS     = $(DFLAGS) -O3 -Xcompiler="-fopenmp" -arch sm_60 --std=c++11
+OFFLOAD_FLAGS = $(DFLAGS) -O3 -Xcompiler="-fopenmp" -arch sm_60 --std=c++11
 
 CFLAGS     += $(DFLAGS)
 CFLAGS     += -I$(COSMA_INC)

@@ -138,6 +138,26 @@ if [ "${ENABLE_CUDA}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
   LDFLAGS+=" ${CUDA_LDFLAGS}"
 fi
 
+# HIP handling
+if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
+  LIBS+=" IF_HIP(-lhipblas|)" # -lamdhip64
+  HIPFLAGS="-I\\\${ROCM_PATH}/hip/include -I\\\${ROCM_PATH}/hipblas/include"
+  HIPFLAGS+=" -g -arch sm_${ARCH_NUM} -O3 -Xcompiler='-fopenmp' --std=c++11 \$(DFLAGS)"
+  check_command hipcc "hip"
+  #check_lib -lamdhip64 "hip"
+  check_lib -lhipblas "hip"
+
+  # DBCSR suffers from https://github.com/ROCm-Developer-Tools/HIP/issues/268
+  #DFLAGS+=" IF_HIP(-D__DBCSR_ACC|)"
+  DFLAGS+=" IF_HIP(-D__GRID_HIP|)"
+
+  # Set LD-flags
+  HIP_LDFLAGS=''
+  #add_lib_from_paths HIP_LDFLAGS "libamdhip64.*" $LIB_PATHS
+  add_lib_from_paths HIP_LDFLAGS "libhipblas.*" $LIB_PATHS
+  LDFLAGS+=" ${HIP_LDFLAGS}"
+fi
+
 # -------------------------
 # generate the arch files
 # -------------------------
@@ -166,14 +186,27 @@ gen_arch_file() {
   if [ "$__CUDA" = "on" ]; then
     cat << EOF >> $__filename
 #
-CXX         = \${CC}
-CXXFLAGS    = \${CXXFLAGS} -I\\\${CUDA_PATH}/include -std=c++11 -fopenmp
-CFLAGS      = \${CFLAGS} -I\\\${CUDA_PATH}/include
-GPUVER      = \${GPUVER}
-NVCC        = \${NVCC}
-NVFLAGS     = \${NVFLAGS}
+CXX           = \${CC}
+CXXFLAGS      = \${CXXFLAGS} -I\\\${CUDA_PATH}/include -std=c++11 -fopenmp
+CFLAGS        = \${CFLAGS} -I\\\${CUDA_PATH}/include
+GPUVER        = \${GPUVER}
+OFFLOAD_CC    = \${NVCC}
+OFFLOAD_FLAGS = \${NVFLAGS}
 EOF
   fi
+
+  if [ "$__HIP" = "on" ]; then
+    cat << EOF >> $__filename
+#
+CXX           = \${CC}
+CXXFLAGS      = \${CXXFLAGS} -std=c++11 -fopenmp
+CFLAGS        = \${CFLAGS}
+GPUVER        = \${GPUVER}
+OFFLOAD_CC    = \${ROCM_PATH}/hip/bin/hipcc
+OFFLOAD_FLAGS = \${HIPFLAGS}
+EOF
+  fi
+
   if [ "$__WARNALL" = "on" ]; then
     cat << EOF >> $__filename
 #
@@ -222,6 +255,18 @@ if [ "$ENABLE_CUDA" = __TRUE__ ]; then
   fi
 fi
 
+# hip enabled arch files
+if [ "$ENABLE_HIP" = __TRUE__ ]; then
+  gen_arch_file "local_hip.ssmp" HIP
+  gen_arch_file "local_hip.sdbg" HIP DEBUG
+  if [ "$MPI_MODE" != no ]; then
+    gen_arch_file "local_hip.psmp" HIP MPI
+    gen_arch_file "local_hip.pdbg" HIP MPI DEBUG
+    gen_arch_file "local_hip_warn.psmp" HIP MPI WARNALL
+    gen_arch_file "local_coverage_hip.pdbg" HIP MPI COVERAGE
+  fi
+fi
+
 cd "${ROOTDIR}"
 
 # -------------------------
@@ -241,6 +286,7 @@ To build CP2K you should change directory:
   make -j $(get_nprocs) ARCH=local VERSION="${arch_vers}"
 
 arch files for GPU enabled CUDA versions are named "local_cuda.*"
+arch files for GPU enabled HIP versions are named "local_hip.*"
 arch files for coverage versions are named "local_coverage.*"
 
 Note that these pre-built arch files are for the GNU compiler, users have to adapt them for other compilers.

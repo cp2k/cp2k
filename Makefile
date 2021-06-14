@@ -55,7 +55,7 @@ OBJDIR  := $(MAINOBJDIR)/$(ARCH)/$(ONEVERSION)
 OBJEXTSDIR := $(OBJDIR)/$(EXTSDIR)
 OBJEXTSINCL := $(foreach dir,$(EXTSPACKAGES),-I'$(OBJEXTSDIR)/$(dir)')
 TSTDIR     := $(MAINTSTDIR)/$(ARCH)/$(ONEVERSION)
-ifeq ($(NVCC),)
+ifeq ($(OFFLOAD_CC),)
 EXE_NAMES := $(basename $(notdir $(filter-out %.cu, $(ALL_EXE_FILES))))
 endif
 ifneq ($(LD_SHARED),)
@@ -89,7 +89,7 @@ OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" ! -path 
 OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cpp")
 OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cxx")
 OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cc")
-ifneq ($(NVCC),)
+ifneq ($(OFFLOAD_CC),)
 OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cu")
 endif
 
@@ -194,9 +194,9 @@ else
 	$(CC) --version
 endif
 endif
-ifneq ($(NVCC),)
-	@echo "========== NVCC ($(ONEVERSION)) =========="
-	$(NVCC) --version
+ifneq ($(OFFLOAD_CC),)
+	@echo "========== OFFLOAD_CC ($(ONEVERSION)) =========="
+	$(OFFLOAD_CC) --version
 	@echo ""
 endif
 ifneq ($(AR),)
@@ -525,7 +525,7 @@ endif
 endif
 
 %.o: %.cu
-	$(NVCC) -c $(NVFLAGS) $<
+	$(OFFLOAD_CC) -c $(OFFLOAD_FLAGS) $<
 
 
 # module compiler magic =====================================================
