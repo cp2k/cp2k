@@ -136,6 +136,7 @@ if __name__ == "__main__":
     switches = {
         "MPI": False,
         "CUDA": False,
+        "HIP": False,
         "WARNALL": False,
         "DEBUG": False,
         "STATIC": False,

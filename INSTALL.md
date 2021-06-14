@@ -177,8 +177,8 @@ the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
 
 ### 2j. CUDA (optional, improved performance on GPU systems)
 
-- Specify NVCC (e.g. `NVCC = nvcc`) and
-  NVFLAGS (e.g. `NVFLAGS = -O3 -g -w --std=c++11`) variables.
+- Specify OFFLOAD_CC (e.g. `OFFLOAD_CC = nvcc`) and
+  OFFLOAD_FLAGS (e.g. `OFFLOAD_FLAGS = -O3 -g -w --std=c++11`) variables.
 - Use the `-D__DBCSR_ACC` to enable accelerator support for matrix multiplications.
 - Add `-lstdc++ -lcudart -lnvrtc -lcuda -lcublas` to LIBS.
 - Specify the GPU type (e.g. `GPUVER   = P100`),

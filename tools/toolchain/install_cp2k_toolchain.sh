@@ -125,6 +125,8 @@ The --enable-FEATURE options follow the rules:
                           Default = no
   --enable-cuda           Turn on GPU (CUDA) support.
                           Default = no
+  --enable-hip            Turn on GPU (HIP) support.
+                          Default = no
   --enable-cray           Turn on or off support for CRAY Linux Environment
                           (CLE) manually. By default the script will automatically
                           detect if your system is CLE, and provide support
@@ -333,15 +335,9 @@ dry_run=__FALSE__
 enable_tsan=__FALSE__
 enable_gcc_master=__FALSE__
 enable_libxsmm_master=__FALSE__
-if (command -v nvcc >&- 2>&-); then
-  echo "nvcc found, enabling CUDA by default"
-  enable_cuda=__TRUE__
-  export GPUVER=no
-else
-  echo "nvcc not found, disabling CUDA by default"
-  enable_cuda=__FALSE__
-  export GPUVER=no
-fi
+enable_cuda=__FALSE__
+enable_hip=__FALSE__
+export GPUVER=no
 
 # default for libint
 export LIBINT_LMAX=5
@@ -491,6 +487,13 @@ while [ $# -ge 1 ]; do
         exit 1
       fi
       ;;
+    --enable-hip*)
+      enable_hip=$(read_enable $1)
+      if [ $enable_hip = "__INVALID__" ]; then
+        report_error "invalid value for --enable-hip, please use yes or no"
+        exit 1
+      fi
+      ;;
     --enable-cray*)
       enable_cray=$(read_enable $1)
       if [ $enable_cray = "__INVALID__" ]; then
@@ -622,6 +625,7 @@ done
 # consolidate settings after user input
 export ENABLE_TSAN=$enable_tsan
 export ENABLE_CUDA=$enable_cuda
+export ENABLE_HIP=$enable_hip
 export ENABLE_CRAY=$enable_cray
 [ "$enable_gcc_master" = "__TRUE__" ] && export gcc_ver=master
 [ "$enable_libxsmm_master" = "__TRUE__" ] && export libxsmm_ver=master
@@ -670,10 +674,10 @@ else
   fi
 fi
 
-# If CUDA is enabled, make sure the GPU version has been defined
-if [ $ENABLE_CUDA = __TRUE__ ]; then
+# If CUDA or HIP are enabled, make sure the GPU version has been defined.
+if [ $ENABLE_CUDA = __TRUE__ ] || [ $ENABLE_HIP = __TRUE__ ]; then
   if [ "$GPUVER" = no ]; then
-    report_error "CUDA enabled, please choose GPU architecture to compile for with --gpu-ver"
+    report_error "Please choose GPU architecture to compile for with --gpu-ver"
     exit 1
   fi
 fi
