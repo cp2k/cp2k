@@ -1,0 +1,122 @@
+FROM nvidia/cuda:11.3.1-devel-ubuntu20.04
+
+# author: Ole Schuett
+
+# Installs toolchain with HIP and CUDA.
+# WARNING: The resulting image will violate the GPL and must not be distributed.
+
+# Setup CUDA environment.
+ENV CUDA_PATH /usr/local/cuda
+ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
+
+RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true \
+    && apt-get update -qq && apt-get install -qq --no-install-recommends \
+    ca-certificates \
+    build-essential \
+    cmake \
+    gfortran \
+    mpich \
+    libmpich-dev \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install HIP from source because the hip-nvcc package drags in 10GB of unnecessary dependencies.
+WORKDIR /opt/
+RUN wget -q https://github.com/ROCm-Developer-Tools/HIP/archive/refs/tags/rocm-4.2.0.tar.gz \
+    && echo "ecb929e0fc2eaaf7bbd16a1446a876a15baf72419c723734f456ee62e70b4c24 rocm-4.2.0.tar.gz" |  sha256sum --check \
+    && tar -xzf rocm-*.tar.gz \
+    && cd HIP-rocm-* \
+    && mkdir build \
+    && cd build \
+    && cmake .. >/dev/null 2>&1 \
+    && make -j >/dev/null 2>&1 \
+    && make install >/dev/null 2>&1 \
+    && cd ../../ \
+    && rm -rf rocm-*.tar.gz HIP-rocm-*
+
+# Install hipBLAS from source.
+RUN wget -q https://github.com/ROCmSoftwarePlatform/hipBLAS/archive/refs/tags/rocm-4.2.0.tar.gz \
+    && echo "c7ce7f69c7596b5a54e666fb1373ef41d1f896dd29260a691e2eadfa863e2b1a  rocm-4.2.0.tar.gz" | sha256sum --check \
+    && tar -xzf rocm-*.tar.gz \
+    && cd hipBLAS-rocm-* \
+    && ./install.sh --cuda --install >/dev/null 2>&1 \
+    && cd .. \
+    && rm -rf rocm-*.tar.gz hipBLAS-rocm-*
+
+# This is the alternative installation path via Ubuntu packages.
+## https://rocmdocs.amd.com/en/latest/Installation_Guide/Installation-Guide.html#ubuntu
+## https://rocmdocs.amd.com/en/latest/Installation_Guide/HIP-Installation.html#nvidia-platform
+#RUN apt-key adv --fetch-keys https://repo.radeon.com/rocm/rocm.gpg.key
+#RUN echo 'deb [arch=amd64] https://repo.radeon.com/rocm/apt/debian/ ubuntu main' > /etc/apt/sources.list.d/rocm.list
+#RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true \
+#    && apt-get update -qq \
+#    && apt-get install --yes --no-install-recommends hip-nvcc hipblas \
+#    && rm -rf /var/lib/apt/lists/*
+
+# Setup HIP environment.
+ENV ROCM_PATH /opt/rocm
+ENV PATH ${PATH}:${ROCM_PATH}/hip/bin
+ENV LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:${ROCM_PATH}/hip/lib:${ROCM_PATH}/hipblas/lib
+ENV HIP_PLATFORM nvidia
+RUN hipconfig
+
+# Install Ubuntu packages required by the toolchain.
+COPY ./install_requirements_ubuntu.sh .
+RUN ./install_requirements_ubuntu.sh
+
+# Build toolchain.
+WORKDIR /opt/cp2k-toolchain
+RUN mkdir scripts
+COPY ./scripts/VERSION \
+     ./scripts/parse_if.py \
+     ./scripts/tool_kit.sh \
+     ./scripts/common_vars.sh \
+     ./scripts/signal_trap.sh \
+     ./scripts/get_openblas_arch.sh \
+     ./scripts/
+
+# Dry-run leaves behind config files for the followup install scripts.
+# This breaks up the lengthy installation into smaller docker build steps.
+ARG GPU_VERSION
+ARG LIBINT_LMAX=5
+COPY ./install_cp2k_toolchain.sh .
+RUN ./install_cp2k_toolchain.sh  \
+    --mpi-mode=mpich             \
+    --libint-lmax=${LIBINT_LMAX} \
+    --enable-hip=yes             \
+    --gpu-ver=${GPU_VERSION}     \
+    --dry-run
+
+COPY ./scripts/stage0/ ./scripts/stage0/
+RUN  ./scripts/stage0/install_stage0.sh && rm -rf ./build
+
+COPY ./scripts/stage1/ ./scripts/stage1/
+RUN  ./scripts/stage1/install_stage1.sh && rm -rf ./build
+
+COPY ./scripts/stage2/ ./scripts/stage2/
+RUN  ./scripts/stage2/install_stage2.sh && rm -rf ./build
+
+COPY ./scripts/stage3/ ./scripts/stage3/
+RUN  ./scripts/stage3/install_stage3.sh && rm -rf ./build
+
+COPY ./scripts/stage4/ ./scripts/stage4/
+RUN  ./scripts/stage4/install_stage4.sh && rm -rf ./build
+
+COPY ./scripts/stage5/ ./scripts/stage5/
+RUN  ./scripts/stage5/install_stage5.sh && rm -rf ./build
+
+COPY ./scripts/stage6/ ./scripts/stage6/
+RUN  ./scripts/stage6/install_stage6.sh && rm -rf ./build
+
+COPY ./scripts/stage7/ ./scripts/stage7/
+RUN  ./scripts/stage7/install_stage7.sh && rm -rf ./build
+
+COPY ./scripts/stage8/ ./scripts/stage8/
+RUN  ./scripts/stage8/install_stage8.sh && rm -rf ./build
+
+COPY ./scripts/arch_base.tmpl \
+     ./scripts/generate_arch_files.sh \
+     ./scripts/
+RUN ./scripts/generate_arch_files.sh && rm -rf ./build
+
+#EOF
