@@ -140,22 +140,37 @@ fi
 
 # HIP handling
 if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
-  LIBS+=" IF_HIP(-lhipblas|)" # -lamdhip64
-  HIPFLAGS="-I\\\${ROCM_PATH}/hip/include -I\\\${ROCM_PATH}/hipblas/include"
-  HIPFLAGS+=" -g -arch sm_${ARCH_NUM} -O3 -Xcompiler='-fopenmp' --std=c++11 \$(DFLAGS)"
+  #
+  # TODO: Make toolchain oblivious to HIP_PLATFORM, currently it only works for Nvidia.
+  #
+  # DBCSR suffers from https://github.com/ROCm-Developer-Tools/HIP/issues/268
+  DFLAGS+=" IF_HIP(-D__HIP_PLATFORM_NVIDIA__ -D__GRID_HIP|)" # -D__DBCSR_ACC
+  HIP_FLAGS="-g -arch sm_${ARCH_NUM} -O3 -Xcompiler='-fopenmp' --std=c++11 \$(DFLAGS)"
+
+  LIBS+=" IF_HIP(-lhipblas -lcudart -lnvrtc -lcuda -lcufft -lcublas -lrt|)" # -lamdhip64
   check_command hipcc "hip"
   #check_lib -lamdhip64 "hip"
   check_lib -lhipblas "hip"
 
-  # DBCSR suffers from https://github.com/ROCm-Developer-Tools/HIP/issues/268
-  #DFLAGS+=" IF_HIP(-D__DBCSR_ACC|)"
-  DFLAGS+=" IF_HIP(-D__GRID_HIP|)"
+  check_command nvcc "cuda"
+  check_lib -lcudart "cuda"
+  check_lib -lnvrtc "cuda"
+  check_lib -lcuda "cuda"
+  check_lib -lcufft "cuda"
+  check_lib -lcublas "cuda"
 
   # Set LD-flags
   HIP_LDFLAGS=''
   #add_lib_from_paths HIP_LDFLAGS "libamdhip64.*" $LIB_PATHS
   add_lib_from_paths HIP_LDFLAGS "libhipblas.*" $LIB_PATHS
+  add_lib_from_paths HIP_LDFLAGS "libcudart.*" $LIB_PATHS
+  add_lib_from_paths HIP_LDFLAGS "libnvrtc.*" $LIB_PATHS
+  add_lib_from_paths HIP_LDFLAGS "libcuda.*" $LIB_PATHS
+  add_lib_from_paths HIP_LDFLAGS "libcufft.*" $LIB_PATHS
+  add_lib_from_paths HIP_LDFLAGS "libcublas.*" $LIB_PATHS
   LDFLAGS+=" ${HIP_LDFLAGS}"
+
+  HIP_INCLUDES="-I\${ROCM_PATH}/hip/include -I\${ROCM_PATH}/hipblas/include -I\${CUDA_PATH}/include"
 fi
 
 # -------------------------
@@ -199,11 +214,11 @@ EOF
     cat << EOF >> $__filename
 #
 CXX           = \${CC}
-CXXFLAGS      = \${CXXFLAGS} -std=c++11 -fopenmp
-CFLAGS        = \${CFLAGS}
+CXXFLAGS      = \${CXXFLAGS} \${HIP_INCLUDES} -std=c++11 -fopenmp
+CFLAGS        = \${CFLAGS} \${HIP_INCLUDES}
 GPUVER        = \${GPUVER}
 OFFLOAD_CC    = \${ROCM_PATH}/hip/bin/hipcc
-OFFLOAD_FLAGS = \${HIPFLAGS}
+OFFLOAD_FLAGS = \${HIP_FLAGS} \${HIP_INCLUDES}
 EOF
   fi
 
