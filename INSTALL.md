@@ -319,6 +319,26 @@ SIRIUS is a domain specific library for electronic structure calculations.
   please see <https://brehm-research.de/bqb> for more information as well as
   the `bqbtool` to inspect BQB files.
 
+### 2u. ROCM/HIP (Support for AMD GPU)
+
+The code for the grid backend was developed and tested on Mi100 but should work
+out of the box on Nvidia hardware as well.
+
+- USE `-D__GRID_HIP` to enable AMD GPU support for collocate and integrate
+  runtines.
+- Add `GPUVER=Mi50, Mi60, Mi100`
+- Add 'OFFLOAD_CC = hipcc'
+- Add  `-lamdhip64` to the `LIBS` variable
+- Add `OFFLOAD_FLAGS ='-fopenmp -m64 -pthread -fPIC -D__GRID_HIP -O2
+  --offload-arch=gfx908 --rocm-path=$(ROCM_PATH)`' where 'ROCM_PATH' is the path
+  where the rocm dsk resides. Architectures Mi100 (gfx908), Mi50 (gfx906)
+- the hip backend for the grid library supports nvidia hardware as well. It uses
+  the same code and can be used to validate the backend in case of access to
+  Nvidia hardware only. To get the compilation working, follow the steps above
+  and set the `OFFLOAD_FLAGS` with right `nvcc` parameters (see the cuda section
+  of this document). The environment variable `HIP_PLATFORM` should be set to
+  `HIP_PLATFORM=nvidia` to indicate to hipcc to use the nvcc compiler instead.
+
 <!---
 ### 2u. LibMaxwell (External Maxwell Solver)
 

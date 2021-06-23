@@ -22,6 +22,7 @@
 #include "../offload/offload_buffer.h"
 #include "common/grid_common.h"
 #include "grid_replay.h"
+
 #include "grid_task_list.h"
 #include "ref/grid_ref_collocate.h"
 #include "ref/grid_ref_integrate.h"
@@ -168,7 +169,13 @@ static void create_dummy_task_list(
   const int nlevels = 1;
   const int natoms = 2;
   const int nkinds = 2;
-  const int nblocks = cycles / cycles_per_block + 1;
+  int nblocks = cycles / cycles_per_block + 1;
+
+  /* we can not have more blocks than the number of tasks */
+  if (cycles == 1) {
+    nblocks = 1;
+  }
+
   int block_offsets[nblocks];
   memset(block_offsets, 0, nblocks * sizeof(int)); // all point to same data
   const double atom_positions[2][3] = {
@@ -435,10 +442,10 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
         const double rel_diff = diff / fmax(1.0, fabs(ref_value));
         max_rel_diff = fmax(max_rel_diff, rel_diff);
         max_value = fmax(max_value, fabs(test_value));
-        // if (ref_value != 0.0 || test_value != 0.0) {
-        //   printf("%i %i ref: %le test: %le diff:%le rel_diff: %le\n", i, j,
-        //          ref_value, test_value, diff, rel_diff);
-        // }
+        if (max_rel_diff > 1e-14) {
+          printf("%i %i ref: %le test: %le diff:%le rel_diff: %le\n", i, j,
+                 ref_value, test_value, diff, rel_diff);
+        }
       }
     }
     // compare forces
@@ -450,6 +457,10 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
         const double diff = fabs(test_value - ref_value);
         const double rel_diff = diff / fmax(1.0, fabs(ref_value));
         max_rel_diff = fmax(max_rel_diff, rel_diff * forces_fudge_factor);
+        if (max_rel_diff > 1e-14) {
+          printf("forces %i %i ref: %le test: %le diff:%le rel_diff: %le\n", i,
+                 j, ref_value, test_value, diff, rel_diff);
+        }
       }
     }
     // compare virial
@@ -461,6 +472,10 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
         const double diff = fabs(test_value - ref_value);
         const double rel_diff = diff / fmax(1.0, fabs(ref_value));
         max_rel_diff = fmax(max_rel_diff, rel_diff * virial_fudge_factor);
+        if (max_rel_diff > 1e-14) {
+          printf("virial %i %i ref: %le test: %le diff:%le rel_diff: %le\n", i,
+                 j, ref_value, test_value, diff, rel_diff);
+        }
       }
     }
   }

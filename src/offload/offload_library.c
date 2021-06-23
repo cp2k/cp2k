@@ -21,6 +21,8 @@ int offload_get_device_count(void) {
   int count = 0;
 #ifdef __OFFLOAD_CUDA
   OFFLOAD_CHECK(cudaGetDeviceCount(&count));
+#elif defined(__OFFLOAD_HIP)
+  OFFLOAD_CHECK(hipGetDeviceCount(&count));
 #endif
   return count;
 }
@@ -44,6 +46,8 @@ int offload_get_device_id(void) { return current_device_id; }
 void offload_set_device(void) {
 #ifdef __OFFLOAD_CUDA
   OFFLOAD_CHECK(cudaSetDevice(current_device_id));
+#elif defined(__OFFLOAD_HIP)
+  OFFLOAD_CHECK(hipSetDevice(current_device_id));
 #endif
 }
 

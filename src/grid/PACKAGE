@@ -12,6 +12,7 @@
         "./ref",
         "./cpu",
         "./gpu",
+        "./hip",
     ],
     "public": ["grid_api.F"],
 }

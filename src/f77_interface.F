@@ -112,7 +112,6 @@ MODULE f77_interface
                                               nnp_env_release,&
                                               nnp_type
    USE offload_api,                     ONLY: offload_get_device_count,&
-                                              offload_get_device_id,&
                                               offload_set_device_id
    USE periodic_table,                  ONLY: init_periodic_table
    USE pw_cuda,                         ONLY: pw_cuda_finalize,&
@@ -277,6 +276,7 @@ CONTAINS
 
          ! Initialize the DBCSR configuration
          ! Attach the time handler hooks to DBCSR
+#if defined __DBCSR_ACC
          IF (offload_get_device_count() > 0) THEN
             CALL dbcsr_init_lib(default_para_env%group, timeset_hook, timestop_hook, &
                                 cp_abort_hook, cp_warn_hook, io_unit=unit_nr, &
@@ -285,7 +285,10 @@ CONTAINS
             CALL dbcsr_init_lib(default_para_env%group, timeset_hook, timestop_hook, &
                                 cp_abort_hook, cp_warn_hook, io_unit=unit_nr)
          ENDIF
-
+#else
+         CALL dbcsr_init_lib(default_para_env%group, timeset_hook, timestop_hook, &
+                             cp_abort_hook, cp_warn_hook, io_unit=unit_nr)
+#endif
          CALL pw_cuda_init()
 
          CALL grid_library_init()

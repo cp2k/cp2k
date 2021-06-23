@@ -144,33 +144,54 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
   # TODO: Make toolchain oblivious to HIP_PLATFORM, currently it only works for Nvidia.
   #
   # DBCSR suffers from https://github.com/ROCm-Developer-Tools/HIP/issues/268
-  DFLAGS+=" IF_HIP(-D__HIP_PLATFORM_NVIDIA__ -D__GRID_HIP|)" # -D__DBCSR_ACC
-  HIP_FLAGS="-g -arch sm_${ARCH_NUM} -O3 -Xcompiler='-fopenmp' --std=c++11 \$(DFLAGS)"
 
-  LIBS+=" IF_HIP(-lhipblas -lcudart -lnvrtc -lcuda -lcufft -lcublas -lrt|)" # -lamdhip64
   check_command hipcc "hip"
-  #check_lib -lamdhip64 "hip"
   check_lib -lhipblas "hip"
-
-  check_command nvcc "cuda"
-  check_lib -lcudart "cuda"
-  check_lib -lnvrtc "cuda"
-  check_lib -lcuda "cuda"
-  check_lib -lcufft "cuda"
-  check_lib -lcublas "cuda"
-
-  # Set LD-flags
-  HIP_LDFLAGS=''
-  #add_lib_from_paths HIP_LDFLAGS "libamdhip64.*" $LIB_PATHS
   add_lib_from_paths HIP_LDFLAGS "libhipblas.*" $LIB_PATHS
-  add_lib_from_paths HIP_LDFLAGS "libcudart.*" $LIB_PATHS
-  add_lib_from_paths HIP_LDFLAGS "libnvrtc.*" $LIB_PATHS
-  add_lib_from_paths HIP_LDFLAGS "libcuda.*" $LIB_PATHS
-  add_lib_from_paths HIP_LDFLAGS "libcufft.*" $LIB_PATHS
-  add_lib_from_paths HIP_LDFLAGS "libcublas.*" $LIB_PATHS
+  HIPFLAGS="-I${ROCM_PATH}/hip/include -I${ROCM_PATH}/hipblas/include"
+  PLATFORM_FLAGS=''
+  case "${GPUVER}" in
+    Mi50)
+      check_lib -lamdhip64 "hip"
+      add_lib_from_paths HIP_LDFLAGS "libamdhip64.*" $LIB_PATHS
+      HIP_FLAGS+=" -D__HIP_PLATFORM_AMD__ -g --offload-arch=gfx906 -O3 -Xarch_host'-fopenmp' --std=c++11 \$(DFLAGS)"
+      LIBS+=" IF_HIP(-lhipblas -lamdhip64|)"
+      PLATFORM_FLAGS='-D__HIP_PLATFORM_AMD__'
+      ;;
+    Mi100)
+      check_lib -lamdhip64 "hip"
+      add_lib_from_paths HIP_LDFLAGS "libamdhip64.*" $LIB_PATHS
+      HIP_FLAGS+=" -D__HIP_PLATFORM_AMD__ -g --offload-arch=gfx908 -O3 -Xarch_host='-fopenmp' --std=c++11 \$(DFLAGS)"
+      LIBS+=" IF_HIP(-lhipblas -lamdhip64|)"
+      PLATFORM_FLAGS='-D__HIP_PLATFORM_AMD__ '
+      ;;
+    *)
+      check_command nvcc "cuda"
+      check_lib -lcudart "cuda"
+      check_lib -lnvrtc "cuda"
+      check_lib -lcuda "cuda"
+      check_lib -lcufft "cuda"
+      check_lib -lcublas "cuda"
+      DFLAGS+=" IF_HIP(-D__HIP_PLATFORM_NVIDIA__ -D__GRID_HIP|)" # -D__DBCSR_ACC
+      HIP_FLAGS=" -g -arch sm_${ARCH_NUM} -O3 -Xcompiler='-fopenmp' --std=c++11 \$(DFLAGS)"
+      add_include_from_paths CUDA_CFLAGS "cuda.h" $INCLUDE_PATHS
+      CFLAGS+=" -Wno-error=deprecated-declarations -Wno-error=return-type ${CUDA_CFLAGS}"
+      CXXFLAGS+=" -Wno-error=deprecated-declarations -Wno-error=return-type ${CUDA_CFLAGS}"
+      # Set LD-flags
+      LIBS+=' -lnvrtc -lcudart -lcufft -lcublas -lcuda'
+      add_lib_from_paths HIP_LDFLAGS "libcudart.*" $LIB_PATHS
+      add_lib_from_paths HIP_LDFLAGS "libnvrtc.*" $LIB_PATHS
+      add_lib_from_paths HIP_LDFLAGS "libcuda.*" $LIB_PATHS
+      add_lib_from_paths HIP_LDFLAGS "libcufft.*" $LIB_PATHS
+      add_lib_from_paths HIP_LDFLAGS "libcublas.*" $LIB_PATHS
+      ;;
+  esac
+
   LDFLAGS+=" ${HIP_LDFLAGS}"
 
-  HIP_INCLUDES="-I\${ROCM_PATH}/hip/include -I\${ROCM_PATH}/hipblas/include -I\${CUDA_PATH}/include"
+  HIP_INCLUDES="-I${ROCM_PATH}/hip/include -I${ROCM_PATH}/hipblas/include -I${CUDA_PATH}/include"
+  CFLAGS+=" ${HIP_INCLUDES}"
+  CXXFLAGS+=" ${HIP_INCLUDES}"
 fi
 
 # -------------------------
@@ -201,9 +222,6 @@ gen_arch_file() {
   if [ "$__CUDA" = "on" ]; then
     cat << EOF >> $__filename
 #
-CXX           = \${CC}
-CXXFLAGS      = \${CXXFLAGS} -I\\\${CUDA_PATH}/include -std=c++11 -fopenmp
-CFLAGS        = \${CFLAGS} -I\\\${CUDA_PATH}/include
 GPUVER        = \${GPUVER}
 OFFLOAD_CC    = \${NVCC}
 OFFLOAD_FLAGS = \${NVFLAGS}
@@ -213,9 +231,6 @@ EOF
   if [ "$__HIP" = "on" ]; then
     cat << EOF >> $__filename
 #
-CXX           = \${CC}
-CXXFLAGS      = \${CXXFLAGS} \${HIP_INCLUDES} -std=c++11 -fopenmp
-CFLAGS        = \${CFLAGS} \${HIP_INCLUDES}
 GPUVER        = \${GPUVER}
 OFFLOAD_CC    = \${ROCM_PATH}/hip/bin/hipcc
 OFFLOAD_FLAGS = \${HIP_FLAGS} \${HIP_INCLUDES}
