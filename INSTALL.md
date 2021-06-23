@@ -212,6 +212,8 @@ Library ELPA for the solution of the eigenvalue problem
 - During the installation the `libelpa_openmp.a` is created.
 - Minimal supported version of ELPA is 2018.05.001.
 - Add `-D__ELPA` to `DFLAGS`
+- Add `-D__ELPA_NVIDIA_GPU`, `-D__ELPA_AMD_GPU`, or `-D__ELPA_INTEL_GPU`
+  to `DFLAGS` to enable GPU support for the respective vendor.
 - Add `-I$(ELPA_INCLUDE_DIR)/modules` to `FCFLAGS`
 - Add `-I$(ELPA_INCLUDE_DIR)/elpa` to `FCFLAGS`
 - Add `-L$(ELPA_DIR)` to `LDFLAGS`

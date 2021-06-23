@@ -115,6 +115,15 @@ CONTAINS
 #if defined(__ELPA)
       flags = TRIM(flags)//" elpa"
 #endif
+#if defined(__ELPA_NVIDIA_GPU)
+      flags = TRIM(flags)//" elpa_nvidia_gpu"
+#endif
+#if defined(__ELPA_AMD_GPU)
+      flags = TRIM(flags)//" elpa_amd_gpu"
+#endif
+#if defined(__ELPA_INTEL_GPU)
+      flags = TRIM(flags)//" elpa_intel_gpu"
+#endif
 #if defined(__parallel)
       flags = TRIM(flags)//" parallel"
 #if !defined(__MPI_VERSION) || (__MPI_VERSION > 2)

@@ -9,8 +9,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-elpa_ver="2020.11.001"
-elpa_sha256="15591f142eeaa98ab3201d27ca9ac328e21beabf0803b011a04183fcaf6efdde"
+elpa_ver="2021.05.001"
+elpa_sha256="a4f1a4e3964f2473a5f8177f2091a9da5c6b5ef9280b8272dfefcbc3aad44d41"
 patches=(
   "${SCRIPT_DIR}/stage5/elpa-${elpa_ver}-fix_nvcc_wrap.patch"
 )
@@ -101,8 +101,8 @@ case "$with_elpa" in
         SSE4_flag=""
         config_flags="--disable-avx --disable-avx2 --disable-avx512 --disable-sse --disable-sse-assembly"
       fi
-      for TARGET in "cpu" "gpu"; do
-        [ "$TARGET" == "gpu" ] && [ "$ENABLE_CUDA" != "__TRUE__" ] && continue
+      for TARGET in "cpu" "nvidia"; do
+        [ "$TARGET" == "nvidia" ] && [ "$ENABLE_CUDA" != "__TRUE__" ] && continue
         echo "Installing from scratch into ${pkg_install_dir}/${TARGET}"
 
         mkdir -p "build_${TARGET}"
@@ -113,7 +113,7 @@ case "$with_elpa" in
           --enable-shared=no \
           --enable-static=yes \
           ${config_flags} \
-          --enable-gpu=$([ "$TARGET" == "gpu" ] && echo "yes" || echo "no") \
+          --enable-nvidia-gpu=$([ "$TARGET" == "nvidia" ] && echo "yes" || echo "no") \
           --with-cuda-path=${CUDA_PATH} \
           FC=${MPIFC} \
           CC=${MPICC} \
@@ -131,8 +131,8 @@ case "$with_elpa" in
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage5/$(basename ${SCRIPT_NAME})"
     fi
-    ELPA_CFLAGS="-I'${pkg_install_dir}/IF_CUDA(gpu|cpu)/include/elpa_openmp-${elpa_ver}/modules' -I'${pkg_install_dir}/IF_CUDA(gpu|cpu)/include/elpa_openmp-${elpa_ver}/elpa'"
-    ELPA_LDFLAGS="-L'${pkg_install_dir}/IF_CUDA(gpu|cpu)/lib' -Wl,-rpath='${pkg_install_dir}/IF_CUDA(gpu|cpu)/lib'"
+    ELPA_CFLAGS="-I'${pkg_install_dir}/IF_CUDA(nvidia|cpu)/include/elpa_openmp-${elpa_ver}/modules' -I'${pkg_install_dir}/IF_CUDA(nvidia|cpu)/include/elpa_openmp-${elpa_ver}/elpa'"
+    ELPA_LDFLAGS="-L'${pkg_install_dir}/IF_CUDA(nvidia|cpu)/lib' -Wl,-rpath='${pkg_install_dir}/IF_CUDA(nvidia|cpu)/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding ELPA from system paths ===================="
@@ -188,7 +188,7 @@ EOF
 export ELPA_CFLAGS="${ELPA_CFLAGS}"
 export ELPA_LDFLAGS="${ELPA_LDFLAGS}"
 export ELPA_LIBS="${ELPA_LIBS}"
-export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__ELPA|)"
+export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__ELPA IF_CUDA(-D__ELPA_NVIDIA_GPU|)|)"
 export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(${ELPA_CFLAGS}|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${ELPA_LDFLAGS}|)"
 export CP_LIBS="IF_MPI(${ELPA_LIBS}|) \${CP_LIBS}"

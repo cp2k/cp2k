@@ -60,7 +60,10 @@ MODULE cp_fm_elpa
                              ELPA_2STAGE_REAL_AVX512_BLOCK2, &
                              ELPA_2STAGE_REAL_AVX512_BLOCK4, &
                              ELPA_2STAGE_REAL_AVX512_BLOCK6, &
-                             ELPA_2STAGE_REAL_GPU
+                             ELPA_2STAGE_REAL_NVIDIA_GPU, &
+                             ELPA_2STAGE_REAL_AMD_GPU, &
+                             ELPA_2STAGE_REAL_INTEL_GPU
+
    USE elpa, ONLY: elpa_t, elpa_solver_2stage, &
                    elpa_init, elpa_uninit, &
                    elpa_allocate, elpa_deallocate, elpa_ok
@@ -73,7 +76,7 @@ MODULE cp_fm_elpa
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_elpa'
 
 #if defined(__ELPA)
-   INTEGER, DIMENSION(19), PARAMETER :: elpa_kernel_ids = [ &
+   INTEGER, DIMENSION(21), PARAMETER :: elpa_kernel_ids = [ &
                                         ELPA_2STAGE_REAL_INVALID, & ! auto
                                         ELPA_2STAGE_REAL_GENERIC, &
                                         ELPA_2STAGE_REAL_GENERIC_SIMPLE, &
@@ -92,7 +95,9 @@ MODULE cp_fm_elpa
                                         ELPA_2STAGE_REAL_AVX512_BLOCK2, &
                                         ELPA_2STAGE_REAL_AVX512_BLOCK4, &
                                         ELPA_2STAGE_REAL_AVX512_BLOCK6, &
-                                        ELPA_2STAGE_REAL_GPU]
+                                        ELPA_2STAGE_REAL_NVIDIA_GPU, &
+                                        ELPA_2STAGE_REAL_AMD_GPU, &
+                                        ELPA_2STAGE_REAL_INTEL_GPU]
 
    CHARACTER(len=14), DIMENSION(SIZE(elpa_kernel_ids)), PARAMETER :: &
       elpa_kernel_names = [CHARACTER(len=14) :: &
@@ -114,7 +119,9 @@ MODULE cp_fm_elpa
                            "AVX512_BLOCK2", &
                            "AVX512_BLOCK4", &
                            "AVX512_BLOCK6", &
-                           "GPU"]
+                           "NVIDIA_GPU", &
+                           "AMD_GPU", &
+                           "INTEL_GPU"]
 
    CHARACTER(len=44), DIMENSION(SIZE(elpa_kernel_ids)), PARAMETER :: &
       elpa_kernel_descriptions = [CHARACTER(len=44) :: &
@@ -136,7 +143,9 @@ MODULE cp_fm_elpa
                                   "Kernel optimized for Intel AVX-512 (block=2)", &
                                   "Kernel optimized for Intel AVX-512 (block=4)", &
                                   "Kernel optimized for Intel AVX-512 (block=6)", &
-                                  "Kernel targeting GPUs"]
+                                  "Kernel targeting Nvidia GPUs", &
+                                  "Kernel targeting AMD GPUs", &
+                                  "Kernel targeting Intel GPUs"]
 
 #else
    INTEGER, DIMENSION(1), PARAMETER :: elpa_kernel_ids = [-1]
@@ -212,7 +221,16 @@ CONTAINS
             END SELECT
          END IF
 
-         !TODO: Select ELPA_2STAGE_REAL_GPU if available.
+         ! Prefer GPU kernel if available.
+#if defined (__ELPA_NVIDIA_GPU)
+         elpa_kernel = ELPA_2STAGE_REAL_NVIDIA_GPU
+#endif
+#if defined (__ELPA_AMD_GPU)
+         elpa_kernel = ELPA_2STAGE_REAL_AMD_GPU
+#endif
+#if defined (__ELPA_INTEL_GPU)
+         elpa_kernel = ELPA_2STAGE_REAL_INTEL_GPU
+#endif
 
          ! If we could not find a suitable kernel then use ELPA_2STAGE_REAL_DEFAULT.
          IF (elpa_kernel == ELPA_2STAGE_REAL_INVALID) THEN
@@ -485,8 +503,16 @@ CONTAINS
       CPASSERT(success == elpa_ok)
 
       ! enabling the GPU must happen before setting the kernel
-      IF (elpa_kernel == ELPA_2STAGE_REAL_GPU) THEN
-         CALL elpa_obj%set("gpu", 1, success)
+      IF (elpa_kernel == ELPA_2STAGE_REAL_NVIDIA_GPU) THEN
+         CALL elpa_obj%set("nvidia-gpu", 1, success)
+         CPASSERT(success == elpa_ok)
+      END IF
+      IF (elpa_kernel == ELPA_2STAGE_REAL_AMD_GPU) THEN
+         CALL elpa_obj%set("amd-gpu", 1, success)
+         CPASSERT(success == elpa_ok)
+      END IF
+      IF (elpa_kernel == ELPA_2STAGE_REAL_INTEL_GPU) THEN
+         CALL elpa_obj%set("intel-gpu", 1, success)
          CPASSERT(success == elpa_ok)
       END IF
 
