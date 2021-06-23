@@ -91,8 +91,8 @@ MODULE qs_tddfpt2_fhxc_forces
                                               qs_environment_type
    USE qs_force_types,                  ONLY: add_qs_force,&
                                               qs_force_type
-   USE qs_fxc,                          ONLY: qs_fxc_create,&
-                                              qs_fxc_release
+   USE qs_fxc,                          ONLY: qs_fgxc_create,&
+                                              qs_fgxc_release
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
@@ -325,8 +325,12 @@ CONTAINS
          CALL qs_rho_create(rhox)
          CALL qs_rho_set(rho_struct=rhox, rho_ao=matrix_px1, rho_r=rhox_r, rho_g=rhox_g, &
                          rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
-         CALL qs_fxc_create(ks_env, rho, rhox, xc_section, do_analytic, do_numeric, is_rks_triplets, &
-                            fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+         IF (do_analytic .AND. .NOT. do_numeric) THEN
+            CPABORT("Analytic 3rd EXC derivatives not available")
+         ELSE
+            CALL qs_fgxc_create(ks_env, rho, rhox, xc_section, 6, is_rks_triplets, &
+                                fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+         END IF
          CALL qs_rho_set(rho_struct=rhox, rho_ao=NULL(), rho_r=NULL(), rho_g=NULL())
          CALL qs_rho_release(rhox)
          IF (nspins == 2) THEN
@@ -375,7 +379,7 @@ CONTAINS
             CALL mp_sum(fodeb, para_env%group)
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dKg[X]   ", fodeb
          END IF
-         CALL qs_fxc_release(ks_env, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+         CALL qs_fgxc_release(ks_env, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
 
          IF (do_admm) THEN
             IF (dft_control%admm_control%aux_exch_func == do_admm_aux_exch_func_none) THEN
@@ -427,9 +431,12 @@ CONTAINS
                CALL qs_rho_set(rho_struct=rhox_aux, rho_ao=matrix_px1_admm, &
                                rho_r=rhox_r_aux, rho_g=rhox_g_aux, &
                                rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
-               CALL qs_fxc_create(ks_env, rho_aux_fit, rhox_aux, xc_section, &
-                                  do_analytic, do_numeric, is_rks_triplets, &
-                                  fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+               IF (do_analytic .AND. .NOT. do_numeric) THEN
+                  CPABORT("Analytic 3rd derivatives of EXC not available")
+               ELSE
+                  CALL qs_fgxc_create(ks_env, rho_aux_fit, rhox_aux, xc_section, &
+                                      6, is_rks_triplets, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+               END IF
                CALL qs_rho_set(rho_struct=rhox_aux, rho_ao=NULL(), rho_r=NULL(), rho_g=NULL())
                CALL qs_rho_release(rhox_aux)
                DO ispin = 1, nspins
@@ -477,7 +484,7 @@ CONTAINS
                   CALL mp_sum(fodeb, para_env%group)
                   IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dKg[X]ADMM", fodeb
                END IF
-               CALL qs_fxc_release(ks_env, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+               CALL qs_fgxc_release(ks_env, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
                !
                ! A' fx A - Forces
                !

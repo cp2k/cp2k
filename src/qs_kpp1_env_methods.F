@@ -37,6 +37,7 @@ MODULE qs_kpp1_env_methods
                                               tddfpt_excitations,&
                                               tddfpt_triplet
    USE input_section_types,             ONLY: section_get_ival,&
+                                              section_get_lval,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -64,7 +65,6 @@ MODULE qs_kpp1_env_methods
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_create,&
                                               pw_p_type,&
                                               pw_release,&
                                               pw_retain
@@ -73,6 +73,8 @@ MODULE qs_kpp1_env_methods
                                               qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_fxc,                          ONLY: qs_fxc_analytic,&
+                                              qs_fxc_fdiff
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
    USE qs_integrate_potential,          ONLY: integrate_v_rspace,&
                                               integrate_v_rspace_diagonal,&
@@ -80,13 +82,13 @@ MODULE qs_kpp1_env_methods
    USE qs_kpp1_env_types,               ONLY: qs_kpp1_env_type
    USE qs_ks_atom,                      ONLY: update_ks_atom
    USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
+   USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_p_env_types,                  ONLY: qs_p_env_type
    USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_vxc_atom,                     ONLY: calculate_xc_2nd_deriv_atom
-   USE xc,                              ONLY: xc_calc_2nd_deriv,&
-                                              xc_prep_2nd_deriv
+   USE xc,                              ONLY: xc_prep_2nd_deriv
    USE xc_derivative_set_types,         ONLY: xc_dset_release
    USE xc_rho_set_types,                ONLY: xc_rho_set_release
 #include "./base/base_uses.f90"
@@ -144,83 +146,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'kpp1_calc_k_p_p1'
 
-      INTEGER                                            :: excitations, handle, res_etype
-      LOGICAL                                            :: do_excitations, do_triplet, explicit, &
-                                                            lsd_singlets
-      TYPE(section_vals_type), POINTER                   :: input, xc_section
-
-      CALL timeset(routineN, handle)
-
-      NULLIFY (input)
-
-      CPASSERT(ASSOCIATED(rho1))
-
-      CALL get_qs_env(qs_env=qs_env, &
-                      input=input)
-
-      CALL section_vals_val_get(input, "DFT%EXCITATIONS", &
-                                i_val=excitations)
-      CALL section_vals_val_get(input, "DFT%TDDFPT%LSD_SINGLETS", &
-                                l_val=lsd_singlets)
-      CALL section_vals_val_get(input, "DFT%TDDFPT%RES_ETYPE", &
-                                i_val=res_etype)
-
-      xc_section => section_vals_get_subs_vals(input, "DFT%XC")
-      IF (excitations == tddfpt_excitations) THEN
-         xc_section => section_vals_get_subs_vals(input, "DFT%TDDFPT%XC")
-         CALL section_vals_get(xc_section, explicit=explicit)
-         IF (.NOT. explicit) THEN
-            xc_section => section_vals_get_subs_vals(input, "DFT%XC")
-         END IF
-      END IF
-
-      do_excitations = (excitations == tddfpt_excitations)
-      do_triplet = (res_etype == tddfpt_triplet)
-
-      CALL calc_kpp1(rho1_xc, rho1, xc_section, .TRUE., &
-                     lsd_singlets, .FALSE., do_excitations, &
-                     do_triplet, qs_env, p_env)
-
-      CALL timestop(handle)
-   END SUBROUTINE kpp1_calc_k_p_p1
-
-! **************************************************************************************************
-!> \brief ...
-!> \param rho1_xc ...
-!> \param rho1 ...
-!> \param xc_section ...
-!> \param do_tddft ...
-!> \param lsd_singlets ...
-!> \param lrigpw ...
-!> \param do_excitations ...
-!> \param do_triplet ...
-!> \param qs_env ...
-!> \param p_env ...
-!> \param calc_forces ...
-!> \param calc_virial ...
-!> \param virial ...
-! **************************************************************************************************
-   SUBROUTINE calc_kpp1(rho1_xc, rho1, xc_section, do_tddft, lsd_singlets, lrigpw, &
-                        do_excitations, do_triplet, qs_env, p_env, calc_forces, &
-                        calc_virial, virial)
-
-      TYPE(qs_rho_type), POINTER                         :: rho1_xc, rho1
-      TYPE(section_vals_type), POINTER                   :: xc_section
-      LOGICAL, INTENT(IN)                                :: do_tddft, lsd_singlets, lrigpw, &
-                                                            do_excitations, do_triplet
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_p_env_type), POINTER                       :: p_env
-      LOGICAL, INTENT(IN), OPTIONAL                      :: calc_forces, calc_virial
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
-         OPTIONAL                                        :: virial
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'calc_kpp1', routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, ikind, ispin, nkind, ns, nspins, &
-                                                            output_unit
-      LOGICAL                                            :: gapw, gapw_xc, lsd, my_calc_forces
-      REAL(KIND=dp)                                      :: alpha, energy_hartree, energy_hartree_1c
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      INTEGER                                            :: excitations, handle, ispin, ns, nspins, &
+                                                            out_unit, res_etype
+      LOGICAL                                            :: deriv2_analytic, explicit, gapw, &
+                                                            gapw_xc, is_triplet, lsd_singlets
+      REAL(KIND=dp)                                      :: energy_hartree, energy_hartree_1c
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: k1mat, rho_ao
@@ -231,16 +161,15 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: rho1_tot_gspace, v_hartree_gspace, &
                                                             v_hartree_rspace
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_g_pw, rho1_r, rho1_r_pw, &
-                                                            v_rspace_new, v_xc
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_r, tau_pw, v_rspace_new, &
+                                                            v_xc
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(section_vals_type), POINTER                   :: input, scf_section
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(section_vals_type), POINTER                   :: input, scf_section, xc_section
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (v_xc, rho1_g, pw_env, rho1_g_pw)
       logger => cp_get_default_logger()
 
       CPASSERT(ASSOCIATED(p_env%kpp1))
@@ -248,13 +177,10 @@ CONTAINS
       CPASSERT(p_env%kpp1_env%ref_count > 0)
       CPASSERT(ASSOCIATED(rho1))
 
-      nspins = SIZE(p_env%kpp1)
-      lsd = (nspins == 2)
-
-      my_calc_forces = .FALSE.
-      IF (PRESENT(calc_forces)) my_calc_forces = calc_forces
-
-      CALL get_qs_env(qs_env, &
+      CPASSERT(kpp1_env%ref_count > 0)
+      CALL kpp1_check_i_alloc(kpp1_env, qs_env=qs_env)
+      CALL get_qs_env(qs_env=qs_env, &
+                      ks_env=ks_env, &
                       pw_env=pw_env, &
                       input=input, &
                       para_env=para_env, &
@@ -275,12 +201,35 @@ CONTAINS
          CPASSERT(ASSOCIATED(rho1_xc))
       END IF
 
-      CALL kpp1_check_i_alloc(p_env%kpp1_env, qs_env, do_excitations, lsd_singlets, do_triplet, xc_section)
+      nspins = SIZE(k_p_p1)
 
-      CALL qs_rho_get(rho, rho_ao=rho_ao)
-      CALL qs_rho_get(rho1, rho_g=rho1_g)
+      xc_section => section_vals_get_subs_vals(input, "DFT%XC")
+      scf_section => section_vals_get_subs_vals(input, "DFT%SCF")
+      CALL section_vals_val_get(input, "DFT%EXCITATIONS", &
+                                i_val=excitations)
+      IF (excitations == tddfpt_excitations) THEN
+         xc_section => section_vals_get_subs_vals(input, "DFT%TDDFPT%XC")
+         !FM this check should already had happened and section made explicit, give an error?
+         CALL section_vals_get(xc_section, explicit=explicit)
+         IF (.NOT. explicit) THEN
+            xc_section => section_vals_get_subs_vals(input, "DFT%XC")
+         END IF
+      END IF
 
-! gets the tmp grids
+      CALL section_vals_val_get(input, "DFT%TDDFPT%LSD_SINGLETS", &
+                                l_val=lsd_singlets)
+      CALL section_vals_val_get(input, "DFT%TDDFPT%RES_ETYPE", &
+                                i_val=res_etype)
+      IF (.NOT. (nspins == 1 .AND. excitations == tddfpt_excitations .AND. &
+                 res_etype /= tddfpt_singlet)) THEN
+         is_triplet = .FALSE.
+      ELSE
+         is_triplet = .TRUE.
+      END IF
+
+      kpp1_env%iter = kpp1_env%iter + 1
+
+      ! gets the tmp grids
       CPASSERT(ASSOCIATED(pw_env))
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
@@ -292,7 +241,7 @@ CONTAINS
       IF (gapw .OR. gapw_xc) &
          CALL prepare_gapw_den(qs_env, p_env%local_rho_set, do_rho0=(.NOT. gapw_xc))
 
-! *** calculate the hartree potential on the total density ***
+      ! *** calculate the hartree potential on the total density ***
 
       CALL pw_pool_create_pw(auxbas_pw_pool, rho1_tot_gspace%pw, &
                              use_data=COMPLEXDATA1D, &
@@ -308,10 +257,10 @@ CONTAINS
       scf_section => section_vals_get_subs_vals(input, "DFT%SCF")
       IF (cp_print_key_should_output(logger%iter_info, scf_section, "PRINT%TOTAL_DENSITIES") &
           /= 0) THEN
-         output_unit = cp_print_key_unit_nr(logger, scf_section, "PRINT%TOTAL_DENSITIES", &
-                                            extension=".scfLog")
-         CALL print_densities(rho1, rho1_tot_gspace, output_unit)
-         CALL cp_print_key_finished_output(output_unit, logger, scf_section, &
+         out_unit = cp_print_key_unit_nr(logger, scf_section, "PRINT%TOTAL_DENSITIES", &
+                                         extension=".scfLog")
+         CALL print_densities(rho1, rho1_tot_gspace, out_unit)
+         CALL cp_print_key_finished_output(out_unit, logger, scf_section, &
                                            "PRINT%TOTAL_DENSITIES")
       END IF
 
@@ -329,39 +278,24 @@ CONTAINS
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho1_tot_gspace%pw)
 
-! *** calculate the xc potential ***
+      ! *** calculate the xc potential ***
       IF (gapw_xc) THEN
          CALL qs_rho_get(rho1_xc, rho_r=rho1_r)
       ELSE
          CALL qs_rho_get(rho1, rho_r=rho1_r)
       END IF
 
-      IF (nspins == 1 .AND. do_excitations .AND. &
-          (lsd_singlets .OR. do_triplet)) THEN
-
-         lsd = .TRUE.
-         ALLOCATE (rho1_r_pw(2))
-         DO ispin = 1, 2
-            NULLIFY (rho1_r_pw(ispin)%pw)
-            CALL pw_create(rho1_r_pw(ispin)%pw, rho1_r(1)%pw%pw_grid, &
-                           rho1_r(1)%pw%in_use, rho1_r(1)%pw%in_space)
-            CALL pw_transfer(rho1_r(1)%pw, rho1_r_pw(ispin)%pw)
-         END DO
-
+      NULLIFY (v_xc, tau_pw)
+      !------!
+      ! rho1 !
+      !------!
+      deriv2_analytic = section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")
+      IF (deriv2_analytic) THEN
+         CALL qs_fxc_analytic(rho, rho1_r, xc_section, auxbas_pw_pool, is_triplet, v_xc)
       ELSE
-
-         ALLOCATE (rho1_r_pw(nspins))
-         DO ispin = 1, nspins
-            rho1_r_pw(ispin)%pw => rho1_r(ispin)%pw
-            CALL pw_retain(rho1_r_pw(ispin)%pw)
-         END DO
-
+         CPABORT("NYA 00009")
+         CALL qs_fxc_fdiff(ks_env, rho, rho1, xc_section, 6, is_triplet, v_xc, tau_pw)
       END IF
-
-      CALL xc_calc_2nd_deriv(v_xc, p_env%kpp1_env%deriv_set, p_env%kpp1_env%rho_set, &
-                             rho1_r_pw, rho1_g_pw, auxbas_pw_pool, xc_section, .FALSE., &
-                             NULL(), lsd_singlets, do_excitations, do_triplet, do_tddft, &
-                             compute_virial=calc_virial, virial_xc=virial)
 
       DO ispin = 1, nspins
          CALL pw_scale(v_xc(ispin)%pw, v_xc(ispin)%pw%pw_grid%dvol)
@@ -370,13 +304,8 @@ CONTAINS
       IF (SIZE(v_xc) /= nspins) CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(2)%pw)
       DEALLOCATE (v_xc)
 
-      IF (gapw) CALL calculate_xc_2nd_deriv_atom(p_env%local_rho_set, qs_env, xc_section, para_env, &
-                                                 do_tddft=do_tddft, do_triplet=do_triplet)
-
-      DO ispin = 1, SIZE(rho1_r_pw)
-         CALL pw_release(rho1_r_pw(ispin)%pw)
-      END DO
-      DEALLOCATE (rho1_r_pw)
+      IF (gapw) CALL calculate_xc_2nd_deriv_atom(p_env%local_rho_set, qs_env, xc_section, &
+                                                 para_env, do_tddft=.TRUE.)
 
       alpha = 1.0_dp
       IF (do_excitations .AND. nspins == 1) alpha = 2.0_dp
@@ -479,7 +408,7 @@ CONTAINS
                                        calculate_forces=my_calc_forces, &
                                        local_rho_set=p_env%local_rho_set)
          END IF
-         !  ***  Add single atom contributions to the KS matrix ***
+         ! ***  Add single atom contributions to the KS matrix ***
          ! remap pointer
          ns = SIZE(p_env%kpp1)
          ksmat(1:ns, 1:1) => p_env%kpp1(1:ns)
@@ -496,7 +425,8 @@ CONTAINS
       DEALLOCATE (v_rspace_new)
 
       CALL timestop(handle)
-   END SUBROUTINE calc_kpp1
+
+   END SUBROUTINE kpp1_calc_k_p_p1
 
 ! **************************************************************************************************
 !> \brief calcualtes the k_p_p1 kernel of the perturbation theory with finite
@@ -763,13 +693,13 @@ CONTAINS
 !> \brief ...
 !> \param rho1 ...
 !> \param rho1_tot_gspace ...
-!> \param output_unit ...
+!> \param out_unit ...
 ! **************************************************************************************************
-   SUBROUTINE print_densities(rho1, rho1_tot_gspace, output_unit)
+   SUBROUTINE print_densities(rho1, rho1_tot_gspace, out_unit)
 
       TYPE(qs_rho_type), POINTER                         :: rho1
       TYPE(pw_p_type), INTENT(IN)                        :: rho1_tot_gspace
-      INTEGER                                            :: output_unit
+      INTEGER                                            :: out_unit
 
       REAL(KIND=dp)                                      :: total_rho_gspace
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho1_r
@@ -777,9 +707,9 @@ CONTAINS
       NULLIFY (tot_rho1_r)
 
       total_rho_gspace = pw_integrate_function(rho1_tot_gspace%pw, isign=-1)
-      IF (output_unit > 0) THEN
+      IF (out_unit > 0) THEN
          CALL qs_rho_get(rho1, tot_rho_r=tot_rho1_r)
-         WRITE (UNIT=output_unit, FMT="(T3,A,T60,F20.10)") &
+         WRITE (UNIT=out_unit, FMT="(T3,A,T60,F20.10)") &
             "KPP1 total charge density (r-space):", &
             accurate_sum(tot_rho1_r), &
             "KPP1 total charge density (g-space):", &

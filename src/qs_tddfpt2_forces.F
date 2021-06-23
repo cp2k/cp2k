@@ -43,8 +43,7 @@ MODULE qs_tddfpt2_forces
                                               tddfpt_kernel_full,&
                                               tddfpt_kernel_none,&
                                               tddfpt_kernel_stda
-   USE input_section_types,             ONLY: section_get_ival,&
-                                              section_get_rval,&
+   USE input_section_types,             ONLY: section_get_lval,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -82,6 +81,8 @@ MODULE qs_tddfpt2_forces
                                               sum_qs_force,&
                                               total_qs_force,&
                                               zero_qs_force
+   USE qs_fxc,                          ONLY: qs_fxc_analytic,&
+                                              qs_fxc_fdiff
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
@@ -91,7 +92,9 @@ MODULE qs_tddfpt2_forces
                                               mo_set_p_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_overlap,                      ONLY: build_overlap_matrix
-   USE qs_rho_types,                    ONLY: qs_rho_get,&
+   USE qs_rho_types,                    ONLY: qs_rho_create,&
+                                              qs_rho_get,&
+                                              qs_rho_set,&
                                               qs_rho_type
    USE qs_tddfpt2_fhxc_forces,          ONLY: fhxc_force,&
                                               stda_force
@@ -101,16 +104,6 @@ MODULE qs_tddfpt2_forces
                                               tddfpt_work_matrices
    USE response_solver,                 ONLY: ks_ref_potential
    USE task_list_types,                 ONLY: task_list_type
-   USE xc,                              ONLY: xc_calc_2nd_deriv,&
-                                              xc_prep_2nd_deriv
-   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
-                                              xc_dset_release
-   USE xc_derivatives,                  ONLY: xc_functionals_get_needs
-   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
-   USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
-                                              xc_rho_set_release,&
-                                              xc_rho_set_type,&
-                                              xc_rho_set_update
    USE xtb_ehess,                       ONLY: xtb_coulomb_hessian
    USE xtb_types,                       ONLY: get_xtb_atom_param,&
                                               xtb_atom_type
@@ -512,9 +505,8 @@ CONTAINS
 
       INTEGER                                            :: handle, iounit, ispin, mspin, n_rep_hf, &
                                                             nao, nao_aux, norb, nspins
-      INTEGER, DIMENSION(2, 3)                           :: bo
-      LOGICAL                                            :: distribute_fock_matrix, do_hfx, &
-                                                            hfx_treat_lsd_in_core, lsd, &
+      LOGICAL                                            :: deriv2_analytic, distribute_fock_matrix, &
+                                                            do_hfx, hfx_treat_lsd_in_core, &
                                                             s_mstruct_changed
       REAL(KIND=dp)                                      :: eh1, focc, thartree, total_rho, &
                                                             total_rhoz_aux
@@ -536,13 +528,9 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
-      TYPE(section_vals_type), POINTER                   :: hfx_section, input, xc_fun_section, &
-                                                            xc_section
+      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit, rhoz_aux, trho
+      TYPE(section_vals_type), POINTER                   :: hfx_section, input, xc_section
       TYPE(task_list_type), POINTER                      :: task_list_aux_fit
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
-      TYPE(xc_rho_cflags_type)                           :: needs
-      TYPE(xc_rho_set_type), POINTER                     :: rho1_set, rho_set
 
       CALL timeset(routineN, handle)
 
@@ -602,13 +590,6 @@ CONTAINS
       ! Fxc*drho term
       CALL get_qs_env(qs_env, rho=rho)
       CALL qs_rho_get(rho, rho_r=rho_r, rho_g=rho_g, tau_r=tau_r)
-      ALLOCATE (v_xc(nspins))
-      DO ispin = 1, nspins
-         NULLIFY (v_xc(ispin)%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, v_xc(ispin)%pw, &
-                                use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_zero(v_xc(ispin)%pw)
-      END DO
       !
       CALL get_qs_env(qs_env, input=input)
       IF (dft_control%do_admm) THEN
@@ -617,30 +598,19 @@ CONTAINS
       ELSE
          xc_section => section_vals_get_subs_vals(input, "DFT%XC")
       END IF
-      lsd = (nspins == 2)
       !
-      NULLIFY (deriv_set, rho_set, rho1_set)
-      CALL xc_prep_2nd_deriv(deriv_set, rho_set, rho_r, auxbas_pw_pool, xc_section=xc_section)
-      bo = trho_r(1)%pw%pw_grid%bounds_local
-      CALL xc_rho_set_create(rho1_set, bo, &
-                             rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
-                             drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF"), &
-                             tau_cutoff=section_get_rval(xc_section, "TAU_CUTOFF"))
-
-      xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
-      needs = xc_functionals_get_needs(xc_fun_section, lsd, .TRUE.)
-
-      ! calculate the arguments needed by the functionals
-      CALL xc_rho_set_update(rho1_set, trho_r, trho_g, tau_r, needs, &
-                             section_get_ival(xc_section, "XC_GRID%XC_DERIV"), &
-                             section_get_ival(xc_section, "XC_GRID%XC_SMOOTH_RHO"), &
-                             auxbas_pw_pool)
-      CALL xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, &
-                             rho1_set, auxbas_pw_pool, xc_section=xc_section)
-      CALL xc_dset_release(deriv_set)
-      CALL xc_rho_set_release(rho_set)
-      CALL xc_rho_set_release(rho1_set)
-
+      NULLIFY (v_xc)
+      deriv2_analytic = section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")
+      IF (deriv2_analytic) THEN
+         CALL qs_fxc_analytic(rho, trho_r, xc_section, auxbas_pw_pool, .FALSE., v_xc)
+      ELSE
+         CPABORT("NYA 00006")
+         NULLIFY (trho)
+         CALL qs_rho_create(trho)
+         CALL qs_rho_set(trho, rho_r=trho_r, rho_g=trho_g)
+         CALL qs_fxc_fdiff(ks_env, rho, trho, xc_section, 6, .FALSE., v_xc, tau_r)
+         DEALLOCATE (trho)
+      END IF
       ! vtot = v_xc(ispin) + v_hartree
       DO ispin = 1, nspins
          CALL dbcsr_set(matrix_hz(ispin)%matrix, 0.0_dp)
@@ -684,13 +654,6 @@ CONTAINS
             !
             NULLIFY (rho_g_aux, rho_r_aux, tau_r_aux, rhoz_g_aux, rhoz_r_aux)
             CALL qs_rho_get(rho_aux_fit, rho_r=rho_r_aux, rho_g=rho_g_aux, tau_r=tau_r_aux)
-            ALLOCATE (v_xc(nspins))
-            DO ispin = 1, nspins
-               NULLIFY (v_xc(ispin)%pw)
-               CALL pw_pool_create_pw(auxbas_pw_pool, v_xc(ispin)%pw, &
-                                      use_data=REALDATA3D, in_space=REALSPACE)
-               CALL pw_zero(v_xc(ispin)%pw)
-            END DO
             ! rhoz_aux
             ALLOCATE (rhoz_r_aux(nspins), rhoz_g_aux(nspins))
             DO ispin = 1, nspins
@@ -707,26 +670,18 @@ CONTAINS
                                        task_list_external=task_list_aux_fit)
             END DO
             !
-            NULLIFY (deriv_set, rho_set, rho1_set)
-            CALL xc_prep_2nd_deriv(deriv_set, rho_set, rho_r_aux, auxbas_pw_pool, xc_section=xc_section)
-            bo = rhoz_r_aux(1)%pw%pw_grid%bounds_local
-            CALL xc_rho_set_create(rho1_set, bo, &
-                                   rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
-                                   drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF"), &
-                                   tau_cutoff=section_get_rval(xc_section, "TAU_CUTOFF"))
-
-            xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
-            needs = xc_functionals_get_needs(xc_fun_section, lsd, .TRUE.)
-            ! calculate the arguments needed by the functionals
-            CALL xc_rho_set_update(rho1_set, rhoz_r_aux, rhoz_g_aux, tau_r_aux, needs, &
-                                   section_get_ival(xc_section, "XC_GRID%XC_DERIV"), &
-                                   section_get_ival(xc_section, "XC_GRID%XC_SMOOTH_RHO"), &
-                                   auxbas_pw_pool)
-            CALL xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, &
-                                   rho1_set, auxbas_pw_pool, xc_section=xc_section)
-            CALL xc_dset_release(deriv_set)
-            CALL xc_rho_set_release(rho_set)
-            CALL xc_rho_set_release(rho1_set)
+            NULLIFY (v_xc)
+            deriv2_analytic = section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")
+            IF (deriv2_analytic) THEN
+               CALL qs_fxc_analytic(rho_aux_fit, rhoz_r_aux, xc_section, auxbas_pw_pool, .FALSE., v_xc)
+            ELSE
+               CPABORT("NYA 00007")
+               NULLIFY (rhoz_aux)
+               CALL qs_rho_create(rhoz_aux)
+               CALL qs_rho_set(rhoz_aux, rho_r=rhoz_r_aux, rho_g=rhoz_g_aux)
+               CALL qs_fxc_fdiff(ks_env, rho_aux_fit, rhoz_aux, xc_section, 6, .FALSE., v_xc, tau_r)
+               DEALLOCATE (rhoz_aux)
+            END IF
             !
             DO ispin = 1, nspins
                CALL pw_scale(v_xc(ispin)%pw, v_xc(ispin)%pw%pw_grid%dvol)

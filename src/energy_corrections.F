@@ -138,6 +138,8 @@ MODULE energy_corrections
                                               total_qs_force,&
                                               zero_qs_force
    USE qs_initial_guess,                ONLY: calculate_atomic_block_dm
+   USE qs_fxc,                          ONLY: qs_fxc_analytic,&
+                                              qs_fxc_fdiff
    USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                               integrate_v_rspace
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -162,7 +164,9 @@ MODULE energy_corrections
                                               pair_radius_setup
    USE qs_ot_eigensolver,               ONLY: ot_eigensolver
    USE qs_overlap,                      ONLY: build_overlap_matrix
-   USE qs_rho_types,                    ONLY: qs_rho_get,&
+   USE qs_rho_types,                    ONLY: qs_rho_create,&
+                                              qs_rho_get,&
+                                              qs_rho_set,&
                                               qs_rho_type
    USE qs_vxc,                          ONLY: qs_vxc_create
    USE response_solver,                 ONLY: ks_ref_potential,&
@@ -915,9 +919,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_build_ks_matrix_force'
 
-      INTEGER                                            :: handle, i, iounit, ispin, natom, nspins
-      LOGICAL                                            :: use_virial
-      REAL(dp)                                           :: dehartree, eexc, ehartree, eovrl, exc, &
+      INTEGER                                            :: handle, i, iounit, ispin, nao, natom, &
+                                                            norb, nspins
+      LOGICAL                                            :: deriv2_analytic, use_virial
+      REAL(dp)                                           :: dehartree, eexc, ehartree, eovrl, exc, focc, &
                                                             fconv, total_rhoout
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: ftot
       REAL(dp), DIMENSION(3)                             :: fodeb
@@ -943,7 +948,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_rho_type), POINTER                         :: rho, rho1
       TYPE(section_vals_type), POINTER                   :: input, xc_section
       TYPE(virial_type), POINTER                         :: virdeb, virial
 
@@ -1154,7 +1159,7 @@ CONTAINS
       ! Pulay force from Tr P_in (V_H(drho)+ Fxc(rho_in)*drho)
       ! RHS of CPKS equations: (V_H(drho)+ Fxc(rho_in)*drho)*C0
       ! Fxc*drho term
-      CALL get_qs_env(qs_env, input=input)
+      NULLIFY (v_xc)
       xc_section => ec_env%xc_section
 
       IF (use_virial) virial%pv_xc = 0.0_dp

@@ -60,6 +60,7 @@ MODULE response_solver
         ot_precond_full_kinetic, ot_precond_full_single, ot_precond_full_single_inverse, &
         ot_precond_none, ot_precond_s_inverse, precond_mlp
    USE input_section_types,             ONLY: section_vals_get,&
+                                              section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -105,6 +106,8 @@ MODULE response_solver
    USE qs_force_types,                  ONLY: add_qs_force,&
                                               qs_force_type,&
                                               total_qs_force
+   USE qs_fxc,                          ONLY: qs_fxc_analytic,&
+                                              qs_fxc_fdiff
    USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                               integrate_v_rspace
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -130,22 +133,14 @@ MODULE response_solver
                                               p_env_psi0_changed
    USE qs_p_env_types,                  ONLY: p_env_release,&
                                               qs_p_env_type
-   USE qs_rho_types,                    ONLY: qs_rho_get,&
+   USE qs_rho_types,                    ONLY: qs_rho_create,&
+                                              qs_rho_get,&
+                                              qs_rho_set,&
                                               qs_rho_type
    USE qs_vxc,                          ONLY: qs_vxc_create
    USE task_list_types,                 ONLY: task_list_type
    USE virial_methods,                  ONLY: one_third_sum_diag
    USE virial_types,                    ONLY: virial_type
-   USE xc,                              ONLY: xc_calc_2nd_deriv,&
-                                              xc_prep_2nd_deriv
-   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
-                                              xc_dset_release
-   USE xc_derivatives,                  ONLY: xc_functionals_get_needs
-   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
-   USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
-                                              xc_rho_set_release,&
-                                              xc_rho_set_type,&
-                                              xc_rho_set_update
    USE xtb_ehess,                       ONLY: xtb_coulomb_hessian
    USE xtb_ehess_force,                 ONLY: calc_xtb_ehess_force
    USE xtb_matrices,                    ONLY: xtb_hab_force
@@ -641,12 +636,11 @@ CONTAINS
                                                             nao, nao_aux, natom, nder, nimages, &
                                                             nspins
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: distribute_fock_matrix, do_ex, do_hfx, &
-                                                            hfx_treat_lsd_in_core, resp_only, &
-                                                            s_mstruct_changed, use_virial
+      LOGICAL :: deriv2_analytic, distribute_fock_matrix, do_ex, do_hfx, hfx_treat_lsd_in_core, &
+         resp_only, s_mstruct_changed, use_virial
       REAL(KIND=dp)                                      :: eh1, ehartree, ekin_mol, eps_filter, &
                                                             eps_ppnl, exc, fconv, focc, &
-                                                            total_rhoz, total_rhoz_aux
+                                                            total_rhoz, total_rhoz_aux, zehartree
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ftot1, ftot2, ftot3
       REAL(KIND=dp), DIMENSION(3)                        :: fodeb
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_loc, stdeb, sttot, sttot2
@@ -680,12 +674,10 @@ CONTAINS
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
+      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit, rhoz, rhoz_aux
       TYPE(section_vals_type), POINTER                   :: hfx_section, xc_section
       TYPE(task_list_type), POINTER                      :: task_list_aux_fit
       TYPE(virial_type), POINTER                         :: virial
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
 
       CALL timeset(routineN, handle)
 
@@ -1354,13 +1346,18 @@ CONTAINS
                                        task_list_external=task_list_aux_fit)
             END DO
             !
-            NULLIFY (deriv_set, rho_set)
-            CALL xc_prep_2nd_deriv(deriv_set, rho_set, rho_r_aux, auxbas_pw_pool, xc_section=xc_section)
-
-            CALL xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, &
-                                   rhoz_r_aux, rhoz_g_aux, auxbas_pw_pool, xc_section=xc_section, gapw=.FALSE.)
-            CALL xc_dset_release(deriv_set)
-            CALL xc_rho_set_release(rho_set)
+            NULLIFY (v_xc)
+            deriv2_analytic = section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")
+            IF (deriv2_analytic) THEN
+               CALL qs_fxc_analytic(rho_aux_fit, rhoz_r_aux, xc_section, auxbas_pw_pool, .FALSE., v_xc)
+            ELSE
+               CPABORT("NYA 00005")
+               NULLIFY (rhoz_aux)
+               CALL qs_rho_create(rhoz_aux)
+               CALL qs_rho_set(rhoz_aux, rho_r=rhoz_r_aux, rho_g=rhoz_g_aux)
+               CALL qs_fxc_fdiff(ks_env, rho_aux_fit, rhoz_aux, xc_section, 6, .FALSE., v_xc, tau_r)
+               DEALLOCATE (rhoz_aux)
+            END IF
             !
             CALL qs_rho_get(rho_aux_fit, rho_ao_kp=matrix_p)
             IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
