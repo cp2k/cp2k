@@ -33,7 +33,7 @@ COSMA_INC   = $(GNU_PATH)/COSMA/2.5.0/include
 COSMA_LIB   = $(GNU_PATH)/COSMA/2.5.0/lib
 
 ELPA_VER    = 2021.05.001
-ELPA_INC    = $(MPI_PATH)/elpa/$(ELPA_VER)/include/elpa_openmp-$(ELPA_VER)
+ELPA_INC    = $(MPI_PATH)/elpa/$(ELPA_VER)/include/elpa-$(ELPA_VER)
 ELPA_LIB    = $(MPI_PATH)/elpa/$(ELPA_VER)/lib
 
 GSL_INC     = $(GNU_PATH)/gsl/2.6/include
@@ -103,7 +103,7 @@ FCFLAGS    += -std=f2008
 LDFLAGS     = $(FCFLAGS) # -static not possible with CUDA
 
 LIBS        = $(PLUMED_DEPENDENCIES)
-LIBS       += $(ELPA_LIB)/libelpa_openmp.a
+LIBS       += $(ELPA_LIB)/libelpa.a
 LIBS       += $(LIBVORI_LIB)/libvori.a
 LIBS       += $(LIBXC_LIB)/libxcf03.a
 LIBS       += $(LIBXC_LIB)/libxc.a
