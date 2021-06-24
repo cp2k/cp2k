@@ -1,7 +1,7 @@
 # Tested with: GFortran 8.3.0, MPICH 3.2.1, Cray-libsci 20.09.1, Cray-FFTW 3.3.8, Libint 2.6.0,
-#              LIBXC 5.1.4, LIBVORI 210412, LIBXSMM 1.16.1, ELPA 2020.11.001, PLUMED 2.6.2, 
+#              LIBXC 5.1.4, LIBVORI 210412, LIBXSMM 1.16.1, ELPA 2021.05.001, PLUMED 2.6.2, 
 #              SPGLIB 1.16.0, GSL 2.6, SIRIUS 7.0.2. COSMA 2.5.0
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, May 2021)
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, June 2021)
 
 # Cray XC40 (Piz Daint, CSCS, multi-core partition)
 
@@ -27,7 +27,7 @@ include       $(MPI_PATH)/plumed2/2.6.2/lib/plumed/src/lib/Plumed.inc.static
 COSMA_INC   = $(GNU_PATH)/COSMA/2.5.0/include
 COSMA_LIB   = $(GNU_PATH)/COSMA/2.5.0/lib
 
-ELPA_VER    = 2020.11.001
+ELPA_VER    = 2021.05.001
 ELPA_INC    = $(MPI_PATH)/elpa/$(ELPA_VER)/include/elpa_openmp-$(ELPA_VER)
 ELPA_LIB    = $(MPI_PATH)/elpa/$(ELPA_VER)/lib
 

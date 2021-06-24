@@ -4,7 +4,7 @@
 #              Intel(R) Fortran Intel(R) 64 Compiler Classic for applications running on Intel(R) 64, Version 2021.1 Build 20201112
 #              Intel MPI, MKL, LIBINT 2.6.0, LIBXC 5.1.4, LIBXSMM 1.16.1, ELPA 2021.05.001, PLUMED 2.6.2, SPGLIB 1.16.0,
 #              LIBVORI 210412, SIRIUS 7.0.2
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, May 2021)
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, June 2021)
 
 CC          = mpiicc
 FC          = mpiifort
