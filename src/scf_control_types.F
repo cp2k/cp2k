@@ -611,7 +611,7 @@ CONTAINS
                "eps_diis:          ", scf_control%eps_diis, &
                "eps_eigval:        ", scf_control%eps_eigval, &
                "level_shift [a.u.]:", scf_control%level_shift
-            IF (SUM(scf_control%added_mos) > 0) THEN
+            IF (SUM(ABS(scf_control%added_mos)) > 0) THEN
                WRITE (UNIT=output_unit, FMT="(T25,A,T71,2I5)") &
                   "added MOs          ", scf_control%added_mos
             END IF

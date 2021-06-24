@@ -5286,7 +5286,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ADDED_MOS", &
-                          description="Number of additional MOS added for each spin", &
+                          description="Number of additional MOS added for each spin. Use -1 to add all available. "// &
+                          "alpha/beta spin can be specified independently (if spin-polarized calculation requested).", &
                           usage="ADDED_MOS", default_i_val=0, n_var=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

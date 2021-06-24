@@ -871,7 +871,7 @@ CONTAINS
       ELSEIF (scf_control%use_ot) THEN
          scf_env%method = ot_method_nr
          need_coeff_b = .TRUE.
-         IF (scf_control%added_mos(1) + scf_control%added_mos(2) > 0) &
+         IF (SUM(ABS(scf_control%added_mos)) > 0) &
             CPABORT("OT with ADDED_MOS/=0 not implemented")
          IF (dft_control%restricted .AND. dft_control%nspins .NE. 2) &
             CPABORT("nspin must be 2 for restricted (ROKS)")
