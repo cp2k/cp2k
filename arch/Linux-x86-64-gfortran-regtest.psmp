@@ -1,5 +1,5 @@
 # Tested with: GFortran 8.3.0, MPICH 3.3, LAPACK 3.9.1, ScaLAPACK 6819b24, FFTW 3.3.9,
-#              LIBINT 2.6.0, LIBXC 5.1.4, ELPA 2020.11.001, PLUMED 2.6.2, SPGLIB 1.16.0,
+#              LIBINT 2.6.0, LIBXC 5.1.4, ELPA 2021.05.001, PLUMED 2.6.2, SPGLIB 1.16.0,
 #              LIBVORI 210412, SIRIUS 7.0.2, OpenBLAS 0.3.15, COSMA 2.5.0
 # Author: Matthias Krack (matthias.krack@psi.ch, PSI, May 2021)
 
@@ -13,7 +13,7 @@ include       $(MPI_PATH)/plumed2/2.6.2/lib/plumed/src/lib/Plumed.inc.static
 COSMA_INC   = $(GNU_PATH)/COSMA/2.5.0/include
 COSMA_LIB   = $(GNU_PATH)/COSMA/2.5.0/lib
 
-ELPA_VER    = 2020.11.001
+ELPA_VER    = 2021.05.001
 ELPA_INC    = $(MPI_PATH)/elpa/$(ELPA_VER)/include/elpa_openmp-$(ELPA_VER)
 ELPA_LIB    = $(MPI_PATH)/elpa/$(ELPA_VER)/lib
 
