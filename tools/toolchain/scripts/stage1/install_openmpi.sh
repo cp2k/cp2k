@@ -9,8 +9,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-openmpi_ver="4.0.5"
-openmpi_sha256="572e777441fd47d7f06f1b8a166e7f44b8ea01b8b2e79d1e299d509725d1bd05"
+openmpi_ver="4.1.1"
+openmpi_sha256="d80b9219e80ea1f8bcfe5ad921bd9014285c4948c5965f4156a3831e60776444"
 openmpi_pkg="openmpi-${openmpi_ver}.tar.gz"
 
 source "${SCRIPT_DIR}"/common_vars.sh
