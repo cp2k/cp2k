@@ -1,64 +1,71 @@
 #!/usr/bin/env python3
 
-# author: Ole Schuett
+# author: Ole Schuett & Tiziano Müller
 
 import argparse
+import pathlib
 import re
 import sys
-import os
-from os import path
 from datetime import datetime
+from functools import lru_cache
+import typing
+
+
+# We assume this script is in tools/precommit/
+CP2K_DIR = pathlib.Path(__file__).resolve().parents[2]
 
 FLAG_EXCEPTIONS = (
-    "\$\{.*\}\$",
-    "__.*__",
-    "CUDA_VERSION",
-    "FD_DEBUG",
-    "GRID_DO_COLLOCATE",
-    "GRID_DO_COLLOCATE",
-    "INTEL_MKL_VERSION",
-    "LIBINT2_MAX_AM_eri",
-    "LIBINT_CONTRACTED_INTS",
-    "XC_MAJOR_VERSION",
-    "XC_MINOR_VERSION",
-    "_OPENMP",
-    "__COMPILE_ARCH",
-    "__COMPILE_DATE",
-    "__COMPILE_HOST",
-    "__COMPILE_REVISION",
-    "__CRAY_PM_FAKE_ENERGY",
-    "__DATA_DIR",
-    "__FFTW3_UNALIGNED",
-    "__FFTW3_UNALIGNED",
-    "__FORCE_USE_FAST_MATH",
-    "__FORCE_USE_FAST_MATH",
-    "__HAS_smm_cnt",
-    "__HAS_smm_ctn",
-    "__HAS_smm_ctt",
-    "__HAS_smm_dnt",
-    "__HAS_smm_dtn",
-    "__HAS_smm_dtt",
-    "__HAS_smm_snt",
-    "__HAS_smm_stn",
-    "__HAS_smm_stt",
-    "__HAS_smm_znt",
-    "__HAS_smm_ztn",
-    "__HAS_smm_ztt",
-    "__INTEL_COMPILER",
-    "__OFFLOAD_CUDA",
-    "__OFFLOAD_HIP",
-    "__PILAENV_BLOCKSIZE",
-    "__PW_CUDA_NO_HOSTALLOC",
-    "__PW_CUDA_NO_HOSTALLOC",
-    "__RELEASE_VERSION",
-    "__RELEASE_VERSION",
-    "__T_C_G0",
-    "__YUKAWA",
-    "__cplusplus",
+    r"\$\{.*\}\$",
+    r"__.*__",
+    r"CUDA_VERSION",
+    r"FD_DEBUG",
+    r"GRID_DO_COLLOCATE",
+    r"INTEL_MKL_VERSION",
+    r"LIBINT2_MAX_AM_eri",
+    r"LIBINT_CONTRACTED_INTS",
+    r"XC_MAJOR_VERSION",
+    r"XC_MINOR_VERSION",
+    r"_OPENMP",
+    r"__COMPILE_ARCH",
+    r"__COMPILE_DATE",
+    r"__COMPILE_HOST",
+    r"__COMPILE_REVISION",
+    r"__CRAY_PM_FAKE_ENERGY",
+    r"__DATA_DIR",
+    r"__FFTW3_UNALIGNED",
+    r"__FORCE_USE_FAST_MATH",
+    r"__HAS_smm_cnt",
+    r"__HAS_smm_ctn",
+    r"__HAS_smm_ctt",
+    r"__HAS_smm_dnt",
+    r"__HAS_smm_dtn",
+    r"__HAS_smm_dtt",
+    r"__HAS_smm_snt",
+    r"__HAS_smm_stn",
+    r"__HAS_smm_stt",
+    r"__HAS_smm_znt",
+    r"__HAS_smm_ztn",
+    r"__HAS_smm_ztt",
+    r"__INTEL_COMPILER",
+    r"__OFFLOAD_CUDA",
+    r"__OFFLOAD_HIP",
+    r"__PILAENV_BLOCKSIZE",
+    r"__PW_CUDA_NO_HOSTALLOC",
+    r"__PW_CUDA_NO_HOSTALLOC",
+    r"__RELEASE_VERSION",
+    r"__T_C_G0",
+    r"__YUKAWA",
+    r"__cplusplus",
 )
-flag_exceptions_re = re.compile("|".join(FLAG_EXCEPTIONS))
 
-portable_filename_re = re.compile(r"^[a-zA-Z0-9._/#~=+-]*$")
+FLAG_EXCEPTIONS_RE = re.compile(r"|".join(FLAG_EXCEPTIONS))
+PORTABLE_FILENAME_RE = re.compile(r"^[a-zA-Z0-9._/#~=+-]*$")
+OP_RE = re.compile(r"[\\|()!&><=*/+-]")
+NUM_RE = re.compile("[0-9]+[ulUL]*")
+CP2K_FLAGS_RE = re.compile(
+    r"FUNCTION cp2k_flags\(\)(.*)END FUNCTION cp2k_flags", re.DOTALL
+)
+
 
 BANNER_F = """\
 !--------------------------------------------------------------------------------------------------!
@@ -69,7 +76,7 @@ BANNER_F = """\
 !--------------------------------------------------------------------------------------------------!
 """
 
-BANNER_Fypp = """\
+BANNER_FYPP = """\
 #!-------------------------------------------------------------------------------------------------!
 #!   CP2K: A general program to perform molecular dynamics simulations                             !
 #!   Copyright 2000-{:d} CP2K developers group <https://cp2k.org>                                  !
@@ -87,23 +94,23 @@ BANNER_C = """\
 /*----------------------------------------------------------------------------*/
 """
 
-C_FAMILY_EXTENSIONS = ("c", "cu", "cpp", "h", "hpp")
+C_FAMILY_EXTENSIONS = (".c", ".cu", ".cpp", ".h", ".hpp")
 
-DEFAULT_EXCLUDED_DIRS = (
-    ".git",
-    "obj",
-    "lib",
-    "exe",
-    "regtesting",
-    "tools/toolchain/build",
-    "tools/toolchain/install",
-    "tools/autotools",
-)
 
-# =======================================================================================
-def check_file(fn):
+@lru_cache(maxsize=None)
+def get_install_txt():
+    return CP2K_DIR.joinpath("INSTALL.md").read_text()
+
+
+@lru_cache(maxsize=None)
+def get_flags_src():
+    cp2k_info = CP2K_DIR.joinpath("src/cp2k_info.F").read_text()
+    return CP2K_FLAGS_RE.search(cp2k_info).group(1)
+
+
+def check_file(path: pathlib.Path) -> typing.List[str]:
     """
-    Check the source files in the given directory/filelist for convention violations, like:
+    Check the given source file for convention violations, like:
 
     - correct copyright headers
     - undocumented preprocessor flags
@@ -111,93 +118,88 @@ def check_file(fn):
     """
     warnings = []
 
-    fn_ext = fn.rsplit(".", 1)[-1]
-    absfn = path.abspath(fn)
-    basefn = path.basename(fn)
+    fn_ext = path.suffix
+    abspath = path.resolve()
+    basefn = path.name
 
-    if not portable_filename_re.match(fn):
-        warnings += ["Filename %s not portable" % fn]
+    if not PORTABLE_FILENAME_RE.match(str(path)):
+        warnings += [f"Filename '{path}' not portable"]
 
-    if not path.exists(absfn):
+    if not abspath.exists():
         return warnings  # skip broken symlinks
 
-    with open(absfn, "rb") as fhandle:
-        raw_content = fhandle.read()
+    raw_content = abspath.read_bytes()
 
     if b"\0" in raw_content:
         return warnings  # skip binary files
 
     content = raw_content.decode("utf8")
     if "\r\n" in content:
-        warnings += ["Text file %s contains DOS linebreaks" % fn]
+        warnings += [f"{path}: contains DOS linebreaks"]
 
-    if fn_ext not in ("pot", "patch") and basefn != "Makefile" and "\t" in content:
-        warnings += ["Text file %s contains tab character" % fn]
+    if fn_ext not in (".pot", ".patch") and basefn != "Makefile" and "\t" in content:
+        warnings += [f"{path}: contains tab character"]
 
     # check banner
     year = datetime.utcnow().year
-    if fn_ext == "F" and not content.startswith(BANNER_F.format(year)):
-        warnings += ["%s: Copyright banner malformed" % fn]
-    if fn_ext == "fypp" and not content.startswith(BANNER_Fypp.format(year)):
-        warnings += ["%s: Copyright banner malformed" % fn]
-
+    if fn_ext == ".F" and not content.startswith(BANNER_F.format(year)):
+        warnings += [f"{path}: Copyright banner malformed"]
+    if fn_ext == ".fypp" and not content.startswith(BANNER_FYPP.format(year)):
+        warnings += [f"{path}: Copyright banner malformed"]
     if fn_ext in C_FAMILY_EXTENSIONS and not content.startswith(BANNER_C.format(year)):
-        warnings += ["%s: Copyright banner malformed" % fn]
+        warnings += [f"{path}: Copyright banner malformed"]
 
     # find all flags
     flags = set()
     line_continuation = False
-    for line in content.split("\n"):
+    for line in content.splitlines():
+        line = line.lstrip()
+
         if not line_continuation:
-            if len(line) == 0 or line[0] != "#":
+            if not line or line[0] != "#":
                 continue
             if line.split()[0] not in ("#if", "#ifdef", "#ifndef", "#elif"):
                 continue
+
         line = line.split("//", 1)[0]
-        line_continuation = line.strip().endswith("\\")
-        line = re.sub(r"[\\|()!&><=*/+-]", " ", line)
+        line_continuation = line.rstrip().endswith("\\")
+        line = OP_RE.sub(" ", line)
         line = line.replace("defined", " ")
-        for m in line.split()[1:]:
-            if re.match("[0-9]+[ulUL]*", m):
+
+        for word in line.split()[1:]:
+            if NUM_RE.match(word):
                 continue  # skip numbers
-            if fn_ext in ("h", "hpp") and basefn.upper().replace(".", "_") == m:
+
+            if fn_ext in (".h", ".hpp") and word == basefn.upper().replace(".", "_"):
                 continue  # ignore aptly named inclusion guards
-            flags.add(m)
+            flags.add(word)
 
-    flags = [f for f in flags if not flag_exceptions_re.match(f)]
+    flags = [flag for flag in flags if not FLAG_EXCEPTIONS_RE.match(flag)]
 
-    cp2k_dir = path.realpath(path.join(path.dirname(__file__), "../../"))
-    with open(path.join(cp2k_dir, "INSTALL.md"), encoding="utf8") as fhandle:
-        install_txt = fhandle.read()
-    with open(path.join(cp2k_dir, "src/cp2k_info.F"), encoding="utf8") as fhandle:
-        cp2k_info = fhandle.read()
-
-    cp2k_flags_pattern = r"FUNCTION cp2k_flags\(\)(.*)END FUNCTION cp2k_flags"
-    flags_src = re.search(cp2k_flags_pattern, cp2k_info, re.DOTALL).group(1)
-
-    for f in sorted(flags):
-        if f not in install_txt:
-            warnings += ["Flag %s not mentioned in INSTALL.md" % f]
-        if f not in flags_src:
-            warnings += ["Flag %s not mentioned in cp2k_flags()" % f]
+    for flag in sorted(flags):
+        if flag not in get_install_txt():
+            warnings += [f"{path}: Flag '{flag}' not mentioned in INSTALL.md"]
+        if flag not in get_flags_src():
+            warnings += [f"{path}: Flag '{flag}' not mentioned in cp2k_flags()"]
 
     return warnings
 
 
-# =======================================================================================
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: check_file_properties.py <filename>")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(
+        description="Check the given FILENAME for conventions"
+    )
+    parser.add_argument("files", metavar="FILENAME", type=pathlib.Path, nargs="+")
 
-    fn = sys.argv[1]
-    warnings = check_file(fn)
+    args = parser.parse_args()
 
-    for warning in warnings:
+    all_warnings = []
+
+    for fpath in args.files:
+        all_warnings += check_file(fpath)
+
+    for warning in all_warnings:
         print(warning)
 
-    if warnings:
+    if all_warnings:
         sys.exit(1)
-
-
-# EOF
