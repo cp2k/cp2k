@@ -51,7 +51,7 @@ MODULE message_passing
 ! USE mpi, ONLY: MPI_DOUBLE_PRECISION, MPI_DOUBLE_COMPLEX, MPI_REAL, MPI_COMPLEX, MPI_ANY_TAG,&
 !                MPI_ANY_SOURCE, MPI_COMM_NULL, MPI_REQUEST_NULL, MPI_WIN_NULL, MPI_STATUS_SIZE, MPI_STATUS_IGNORE, MPI_STATUSES_IGNORE, &
 !                MPI_ADDRESS_KIND, MPI_OFFSET_KIND, MPI_MODE_CREATE, MPI_MODE_RDONLY, MPI_MODE_WRONLY,&
-!                MPI_MODE_RDWR, MPI_MODE_EXCL, MPI_COMM_SELF, MPI_COMM_WORLD, MPI_THREAD_FUNNELED,&
+!                MPI_MODE_RDWR, MPI_MODE_EXCL, MPI_COMM_SELF, MPI_COMM_WORLD, MPI_THREAD_SERIALIZED,&
 !                MPI_ERRORS_RETURN, MPI_SUCCESS, MPI_MAX_PROCESSOR_NAME, MPI_MAX_ERROR_STRING, MPI_IDENT,&
 !                MPI_UNEQUAL, MPI_MAX, MPI_SUM, MPI_INFO_NULL, MPI_IN_PLACE, MPI_CONGRUENT, MPI_SIMILAR, MPI_MIN, MPI_SOURCE,&
 !                MPI_TAG, MPI_INTEGER8, MPI_INTEGER, MPI_MAXLOC, MPI_2INTEGER, MPI_MINLOC, MPI_LOGICAL, MPI_2DOUBLE_PRECISION,&
@@ -738,7 +738,7 @@ CONTAINS
 !$    no_threading_support = .TRUE.
 #else
       ! Does the right thing when using OpenMP: requests that the MPI
-      ! library supports funneled mode and verifies that the MPI library
+      ! library supports serialized mode and verifies that the MPI library
       ! provides that support.
       !
       ! Developers: Only the master thread will ever make calls to the
@@ -751,10 +751,10 @@ CONTAINS
          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_init @ mp_world_init")
 !$    ELSE
 !$OMP MASTER
-!$       CALL mpi_init_thread(MPI_THREAD_FUNNELED, provided_tsl, ierr)
+!$       CALL mpi_init_thread(MPI_THREAD_SERIALIZED, provided_tsl, ierr)
 !$       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_init_thread @ mp_world_init")
-!$       IF (provided_tsl .LT. MPI_THREAD_FUNNELED) THEN
-!$          CALL mp_stop(0, "MPI library does not support the requested level of threading (MPI_THREAD_FUNNELED).")
+!$       IF (provided_tsl .LT. MPI_THREAD_SERIALIZED) THEN
+!$          CALL mp_stop(0, "MPI library does not support the requested level of threading (MPI_THREAD_SERIALIZED).")
 !$       ENDIF
 !$OMP END MASTER
 !$    ENDIF
