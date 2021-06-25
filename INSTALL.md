@@ -428,7 +428,7 @@ partially depending on installed libraries (see 2.)
 Features useful to deal with legacy systems
 
 - `-D__NO_MPI_THREAD_SUPPORT_CHECK`  - Workaround for MPI libraries that do not
-  declare they are thread safe (funneled).
+  declare they are thread safe (serialized).
 - `-D__NO_IPI_DRIVER` disables the socket interface in case of troubles compiling
   on systems that do not support POSIX sockets.
 - `-D__HAS_IEEE_EXCEPTIONS` disables trapping temporarily for libraries like scalapack.
