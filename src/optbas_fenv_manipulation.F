@@ -54,7 +54,7 @@ MODULE optbas_fenv_manipulation
                                               qs_ks_env_type,&
                                               set_ks_env
    USE qs_matrix_pools,                 ONLY: mpools_get
-   USE qs_mo_io,                        ONLY: read_mo_set
+   USE qs_mo_io,                        ONLY: read_mo_set_from_restart
    USE qs_mo_methods,                   ONLY: calculate_density_matrix
    USE qs_mo_types,                     ONLY: init_mo_set,&
                                               mo_set_p_type
@@ -211,9 +211,9 @@ CONTAINS
          END IF
       END DO
 
-      CALL read_mo_set(mos, atomic_kind_set, qs_kind_set, particle_set, para_env, &
-                       id_nr=0, multiplicity=dft_control%multiplicity, dft_section=dft_section, &
-                       natom_mismatch=natom_mismatch)
+      CALL read_mo_set_from_restart(mos, atomic_kind_set, qs_kind_set, particle_set, para_env, &
+                                    id_nr=0, multiplicity=dft_control%multiplicity, dft_section=dft_section, &
+                                    natom_mismatch=natom_mismatch)
 
       CALL mpools_get(qs_env%mpools_aux_fit, ao_mo_fm_pools=ao_mo_fm_pools_aux_fit)
       DO ispin = 1, dft_control%nspins
@@ -428,4 +428,3 @@ CONTAINS
    END SUBROUTINE transfer_data_to_gto
 
 END MODULE optbas_fenv_manipulation
-

@@ -86,19 +86,12 @@ MODULE qs_mo_io
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_mo_io'
 
    PUBLIC :: wfn_restart_file_name, &
-             read_mo_set, &
-             write_mo_set, &
              write_rt_mos_to_restart, &
              read_rt_mos_from_restart, &
-             write_dm_binary_restart
-
-   INTERFACE read_mo_set
-      MODULE PROCEDURE read_mo_set_from_restart
-   END INTERFACE
-
-   INTERFACE write_mo_set
-      MODULE PROCEDURE write_mo_set_to_output_unit, write_mo_set_to_restart
-   END INTERFACE
+             write_dm_binary_restart, &
+             write_mo_set_to_output_unit, &
+             write_mo_set_to_restart, &
+             read_mo_set_from_restart
 
 CONTAINS
 
@@ -564,8 +557,8 @@ CONTAINS
       ! CDFT has no real dft_section and does not need to print
       IF (.NOT. my_cdft) THEN
          DO ispin = 1, nspin
-            CALL write_mo_set(mo_array(ispin)%mo_set, atomic_kind_set, qs_kind_set, &
-                              particle_set, dft_section, 4, 0, final_mos=.FALSE.)
+            CALL write_mo_set_to_output_unit(mo_array(ispin)%mo_set, atomic_kind_set, qs_kind_set, &
+                                             particle_set, dft_section, 4, 0, final_mos=.FALSE.)
          END DO
       END IF
 
@@ -639,8 +632,8 @@ CONTAINS
       IF (para_env%ionode) CALL close_file(unit_number=restart_unit)
 
       DO ispin = 1, nspin
-         CALL write_mo_set(mo_array(ispin)%mo_set, atomic_kind_set, qs_kind_set, &
-                           particle_set, dft_section, 4, 0, final_mos=.FALSE.)
+         CALL write_mo_set_to_output_unit(mo_array(ispin)%mo_set, atomic_kind_set, qs_kind_set, &
+                                          particle_set, dft_section, 4, 0, final_mos=.FALSE.)
       END DO
 
       CALL timestop(handle)
@@ -1168,26 +1161,17 @@ CONTAINS
 
             END IF ! print_cartesian
 
-            IF (my_final) THEN
-               name = TRIM(energy_str)//", OCCUPATION NUMBERS, AND "// &
-                      TRIM(orbital_str)//" "//TRIM(vector_str)
-            ELSE
-               WRITE (UNIT=name, FMT="(A,1X,I0)") &
-                  TRIM(energy_str)//", OCCUPATION NUMBERS, AND "// &
-                  TRIM(orbital_str)//" "//TRIM(vector_str)//" AFTER SCF STEP", &
-                  scf_step
-            END IF
+            name = TRIM(energy_str)//", OCCUPATION NUMBERS, AND "// &
+                   TRIM(orbital_str)//" "//TRIM(vector_str)
+
+            IF (.NOT. my_final) &
+               WRITE (UNIT=name, FMT="(A,1X,I0)") TRIM(name)//" AFTER SCF STEP", scf_step
 
          ELSE IF (print_occup .OR. print_eigvals) THEN
+            name = TRIM(energy_str)//" AND OCCUPATION NUMBERS"
 
-            IF (my_final) THEN
-               name = TRIM(energy_str)//" AND OCCUPATION NUMBERS"
-            ELSE
-               WRITE (UNIT=name, FMT="(A,1X,I0)") &
-                  TRIM(energy_str)//" AND OCCUPATION NUMBERS "// &
-                  "AFTER SCF STEP", scf_step
-            END IF
-
+            IF (.NOT. my_final) &
+               WRITE (UNIT=name, FMT="(A,1X,I0)") TRIM(name)//" AFTER SCF STEP", scf_step
          END IF ! print_eigvecs
 
          ! Print headline

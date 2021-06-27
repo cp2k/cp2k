@@ -64,7 +64,7 @@ MODULE qs_scf_output
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
-   USE qs_mo_io,                        ONLY: write_mo_set
+   USE qs_mo_io,                        ONLY: write_mo_set_to_output_unit
    USE qs_mo_methods,                   ONLY: calculate_magnitude,&
                                               calculate_orthonormality,&
                                               calculate_subspace_eigenvalues
@@ -386,20 +386,20 @@ CONTAINS
             IF (SIZE(mos) > 1) THEN
                SELECT CASE (ispin)
                CASE (1)
-                  CALL write_mo_set(mo_set_tmp, atomic_kind_set, qs_kind_set, particle_set, &
-                                    dft_section, 4, kpoint, final_mos=final_mos, spin="ALPHA", &
-                                    solver_method=solver_method)
+                  CALL write_mo_set_to_output_unit(mo_set_tmp, atomic_kind_set, qs_kind_set, particle_set, &
+                                                   dft_section, 4, kpoint, final_mos=final_mos, spin="ALPHA", &
+                                                   solver_method=solver_method)
                CASE (2)
-                  CALL write_mo_set(mo_set_tmp, atomic_kind_set, qs_kind_set, particle_set, &
-                                    dft_section, 4, kpoint, final_mos=final_mos, spin="BETA", &
-                                    solver_method=solver_method)
+                  CALL write_mo_set_to_output_unit(mo_set_tmp, atomic_kind_set, qs_kind_set, particle_set, &
+                                                   dft_section, 4, kpoint, final_mos=final_mos, spin="BETA", &
+                                                   solver_method=solver_method)
                CASE DEFAULT
                   CPABORT("Invalid spin")
                END SELECT
             ELSE
-               CALL write_mo_set(mo_set_tmp, atomic_kind_set, qs_kind_set, particle_set, &
-                                 dft_section, 4, kpoint, final_mos=final_mos, &
-                                 solver_method=solver_method)
+               CALL write_mo_set_to_output_unit(mo_set_tmp, atomic_kind_set, qs_kind_set, particle_set, &
+                                                dft_section, 4, kpoint, final_mos=final_mos, &
+                                                solver_method=solver_method)
             END IF
 
             ! Deallocate temporary objects needed for OT
