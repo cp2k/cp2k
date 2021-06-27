@@ -49,7 +49,7 @@ MODULE rt_propagation_utils
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type
-   USE qs_mo_io,                        ONLY: read_mo_set,&
+   USE qs_mo_io,                        ONLY: read_mo_set_from_restart,&
                                               read_rt_mos_from_restart
    USE qs_mo_methods,                   ONLY: calculate_density_matrix
    USE qs_mo_types,                     ONLY: mo_set_p_type
@@ -267,8 +267,8 @@ CONTAINS
       dft_section => section_vals_get_subs_vals(input, "DFT")
       SELECT CASE (dft_control%rtp_control%initial_wfn)
       CASE (use_restart_wfn)
-         CALL read_mo_set(mo_array, atomic_kind_set, qs_kind_set, particle_set, para_env, &
-                          id_nr=id_nr, multiplicity=dft_control%multiplicity, dft_section=dft_section)
+         CALL read_mo_set_from_restart(mo_array, atomic_kind_set, qs_kind_set, particle_set, para_env, &
+                                       id_nr=id_nr, multiplicity=dft_control%multiplicity, dft_section=dft_section)
          DO ispin = 1, nspin
             CALL calculate_density_matrix(mo_array(ispin)%mo_set, p_rmpv(ispin)%matrix)
          ENDDO

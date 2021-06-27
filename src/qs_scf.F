@@ -123,7 +123,7 @@ MODULE qs_scf
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type
-   USE qs_mo_io,                        ONLY: write_mo_set
+   USE qs_mo_io,                        ONLY: write_mo_set_to_restart
    USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
                                               make_basis_simple,&
                                               make_basis_sm
@@ -529,7 +529,7 @@ CONTAINS
                CALL write_kpoints_restart(rho_ao_kp, kpoints, scf_env, dft_section, particle_set, qs_kind_set)
             ELSE
                ! Write Wavefunction restart file
-               CALL write_mo_set(mos, particle_set, dft_section=dft_section, qs_kind_set=qs_kind_set)
+               CALL write_mo_set_to_restart(mos, particle_set, dft_section=dft_section, qs_kind_set=qs_kind_set)
             END IF
 
             ! Exit if we have finished with the SCF inner loop

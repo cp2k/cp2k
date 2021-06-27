@@ -72,7 +72,7 @@ MODULE qs_initial_guess
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
-   USE qs_mo_io,                        ONLY: read_mo_set,&
+   USE qs_mo_io,                        ONLY: read_mo_set_from_restart,&
                                               wfn_restart_file_name
    USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
                                               make_basis_lowdin,&
@@ -288,7 +288,7 @@ CONTAINS
 
       ! if a restart was requested, check that the file exists,
       ! if not we fall back to an atomic guess. No kidding, the file name should remain
-      ! in sync with read_mo_set
+      ! in sync with read_mo_set_from_restart
       id_nr = 0
       IF (density_guess == restart_guess) THEN
          ! only check existence on I/O node, otherwise if file exists there but
@@ -378,9 +378,9 @@ CONTAINS
             IF (natom_mismatch) density_guess = safe_density_guess
          ELSE
             CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
-            CALL read_mo_set(mo_array, atomic_kind_set, qs_kind_set, particle_set, para_env, &
-                             id_nr=id_nr, multiplicity=dft_control%multiplicity, dft_section=dft_section, &
-                             natom_mismatch=natom_mismatch)
+            CALL read_mo_set_from_restart(mo_array, atomic_kind_set, qs_kind_set, particle_set, para_env, &
+                                          id_nr=id_nr, multiplicity=dft_control%multiplicity, dft_section=dft_section, &
+                                          natom_mismatch=natom_mismatch)
 
             IF (natom_mismatch) THEN
                density_guess = safe_density_guess
@@ -448,9 +448,9 @@ CONTAINS
          IF (not_read > 1) THEN
             DO i = 1, last_read
                j = last_read - i
-               CALL read_mo_set(mo_array, atomic_kind_set, qs_kind_set, particle_set, para_env, &
-                                id_nr=j, multiplicity=dft_control%multiplicity, &
-                                dft_section=dft_section)
+               CALL read_mo_set_from_restart(mo_array, atomic_kind_set, qs_kind_set, particle_set, para_env, &
+                                             id_nr=j, multiplicity=dft_control%multiplicity, &
+                                             dft_section=dft_section)
 
                DO ispin = 1, nspin
                   IF (scf_control%level_shift /= 0.0_dp) THEN

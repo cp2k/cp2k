@@ -93,7 +93,7 @@ MODULE xas_methods
                                               set_loc_wfn_lists
    USE qs_matrix_pools,                 ONLY: mpools_get,&
                                               qs_matrix_pools_type
-   USE qs_mo_io,                        ONLY: write_mo_set
+   USE qs_mo_io,                        ONLY: write_mo_set_to_output_unit
    USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type,&
@@ -506,13 +506,13 @@ CONTAINS
 
                ! Write last wavefunction to screen
                IF (SIZE(mos) > 1) THEN
-                  CALL write_mo_set(mos(1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                                    dft_section, 4, 0, final_mos=.FALSE., spin="XAS ALPHA")
-                  CALL write_mo_set(mos(2)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                                    dft_section, 4, 0, final_mos=.FALSE., spin="XAS BETA")
+                  CALL write_mo_set_to_output_unit(mos(1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
+                                                   dft_section, 4, 0, final_mos=.FALSE., spin="XAS ALPHA")
+                  CALL write_mo_set_to_output_unit(mos(2)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
+                                                   dft_section, 4, 0, final_mos=.FALSE., spin="XAS BETA")
                ELSE
-                  CALL write_mo_set(mos(1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                                    dft_section, 4, 0, final_mos=.FALSE., spin="XAS")
+                  CALL write_mo_set_to_output_unit(mos(1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, &
+                                                   dft_section, 4, 0, final_mos=.FALSE., spin="XAS")
                END IF
 
             ELSE
