@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+namespace rocm_backend {
 /*******************************************************************************
  * \brief Implementation of function GRID_FUNC_AB, ie. identity transformation.
  ******************************************************************************/
@@ -340,7 +341,7 @@ prepare_pab(const enum grid_func func, const orbital a, const orbital b,
  * \brief Returns difference in angular momentum range for given func.
  * \author Ole Schuett
  ******************************************************************************/
-ldiffs_value prepare_get_ldiffs(const enum grid_func func) {
+inline ldiffs_value prepare_get_ldiffs(const enum grid_func func) {
   ldiffs_value ldiffs;
 
   switch (func) {
@@ -402,3 +403,4 @@ ldiffs_value prepare_get_ldiffs(const enum grid_func func) {
 
   return ldiffs;
 }
+} // namespace rocm_backend

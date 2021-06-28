@@ -788,5 +788,66 @@ __device__ __inline__ void fill_smem_task_coef(const kernel_params &dev,
   __syncthreads();
 }
 
+class smem_parameters {
+private:
+  int la_max_{-1};
+  int lb_max_{-1};
+  int la_min_{-1};
+  int lb_min_{-1};
+  int smem_per_block_{0};
+  int cxyz_len_{-1};
+  int alpha_len_{-1};
+  int cab_len_{-1};
+  int lp_max_{-1};
+  ldiffs_value ldiffs_;
+  int lp_diff_{-1};
+
+public:
+  smem_parameters(const ldiffs_value ldiffs, const int lmax) {
+    ldiffs_ = ldiffs;
+    lp_diff_ = ldiffs.la_max_diff + ldiffs.lb_max_diff;
+    la_max_ = lmax + ldiffs.la_max_diff;
+    lb_max_ = lmax + ldiffs.lb_max_diff;
+    lp_max_ = la_max_ + lb_max_;
+
+    cab_len_ = ncoset(lb_max_) * ncoset(la_max_);
+    alpha_len_ = 3 * (lb_max_ + 1) * (la_max_ + 1) * (lp_max_ + 1);
+    cxyz_len_ = ncoset(lp_max_);
+    smem_per_block_ =
+        std::max(cab_len_ + alpha_len_ + cxyz_len_, 64) * sizeof(double);
+
+    if (smem_per_block_ > 64 * 1024) {
+      fprintf(stderr,
+              "ERROR: Not enough shared memory in grid_gpu_collocate.\n");
+      fprintf(stderr, "cab_len: %i, ", cab_len_);
+      fprintf(stderr, "alpha_len: %i, ", alpha_len_);
+      fprintf(stderr, "cxyz_len: %i, ", cxyz_len_);
+      fprintf(stderr, "total smem_per_block: %f kb\n\n",
+              smem_per_block_ / 1024.0);
+      abort();
+    }
+  }
+
+  ~smem_parameters(){};
+
+  // copy and move are trivial
+
+  inline int smem_cab_offset() const { return cxyz_len_; }
+
+  inline int smem_alpha_offset() const { return cab_len_ + cxyz_len_; }
+
+  inline int smem_cxyz_offset() const { return 0; }
+
+  inline int smem_per_block() const { return smem_per_block_; }
+
+  inline int lp_diff() const { return lp_diff_; }
+
+  inline ldiffs_value ldiffs() const { return ldiffs_; }
+
+  inline int lp_max() const { return lp_max_; }
+
+  inline int cxyz_len() const { return cxyz_len_; }
+};
+
 } // namespace rocm_backend
 #endif

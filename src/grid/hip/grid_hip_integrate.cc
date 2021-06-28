@@ -36,31 +36,11 @@ namespace cg = cooperative_groups;
 #endif
 
 namespace rocm_backend {
-// #ifdef __HIP_PLATFORM_NVIDIA__
-//   template <typename T>
-//   __device__ __inline__ T warp_reduce(T *table, const int tid) {
-//     if (tid >= 32)
-//       return 0.0;
-//     cg::coalesced_group g = cg::coalesced_threads();
-// #if CUDA_VERSION > 10000
-//     return cg::reduce(g, table[tid], cg::plus<double>());
-// #else
-//     double val = table[tid];
-//     for (int i = g.size() / 2; i > 0; i /= 2) {
-//       val += g.shfl_down(val, i);
-//     }
-//     g.sync();
-//     return val;
-// #endif
-//   }
-
-// #else
 // do a warp reduction and return the final sum to thread_id = 0
 template <typename T>
 __device__ __inline__ T warp_reduce(T *table, const int tid) {
   // AMD GPU have warp size of 64 while nvidia GPUs have warpSize of 32 so the
   // first step is common to both platforms.
-
   if (tid < 32) {
     table[tid] += table[tid + 32];
   }
@@ -567,20 +547,6 @@ __global__ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_)
             accumulator[8][tid] += grid_value * r3y2 * r3y2 * r3yz; // y^5 z
             accumulator[9][tid] += grid_value * r3y2 * r3y2 * r3z2; // y^4 z^2
           } break;
-          // case 8: {
-          //   accumulator[0][tid]+= grid_value * r3y2 * r3z2 * r3yz; // y^3 z^3
-          //   accumulator[1][tid]+= grid_value * r3y2 * r3z2 * r3z2; // y^2 z^4
-          //   accumulator[2][tid]+= grid_value * r3z2 * r3z2 * r3yz; // y z^5
-          //   accumulator[3][tid]+= grid_value * r3z2 * r3z2 * r3z2; // z^6
-          //   if (task.lp >= 7) {
-          //     accumulator[4][tid]+= grid_value * r3x2 * r3x2 * r3x2 * r3.x;
-          //     accumulator[5][tid]+= grid_value * r3x2 * r3x2 * r3x2 * r3.y;
-          //     accumulator[6][tid]+= grid_value * r3x2 * r3x2 * r3x2 * r3.z;
-          //     accumulator[7][tid]+= grid_value * r3x2 * r3x2 * r3.x * r3y2;
-          //     accumulator[8][tid]+= grid_value * r3x2 * r3x2 * r3xy * r3.z;
-          //     accumulator[9][tid]+= grid_value * r3x2 * r3x2 * r3.x * r3z2;
-          //   }
-          // }
           default:
             for (int ic = 0; (ic < lbatch) && ((ic + ico) < length); ic++) {
               auto &co = coset_inv[ic + ico];
@@ -639,78 +605,68 @@ __global__ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_)
   }
 }
 
+kernel_params context_info::set_kernel_parameters(const int level, const smem_parameters &smem_params) {
+    kernel_params params;
+    params.smem_cab_offset = smem_params.smem_cab_offset();
+    params.smem_alpha_offset = smem_params.smem_alpha_offset();
+    params.first_task = 0;
+
+    params.la_min_diff = smem_params.ldiffs().la_min_diff;
+    params.lb_min_diff = smem_params.ldiffs().lb_min_diff;
+
+    params.la_max_diff = smem_params.ldiffs().la_max_diff;
+    params.lb_max_diff = smem_params.ldiffs().lb_max_diff;
+    params.first_task = 0;
+    params.tasks = this->tasks_dev.data();
+    params.task_sorted_by_blocks_dev = task_sorted_by_blocks_dev.data();
+    params.sorted_blocks_offset_dev = sorted_blocks_offset_dev.data();
+    params.num_tasks_per_block_dev = this->num_tasks_per_block_dev_.data();
+    params.block_offsets = this->block_offsets_dev.data();
+    params.la_min_diff = smem_params.ldiffs().la_min_diff;
+    params.lb_min_diff = smem_params.ldiffs().lb_min_diff;
+    params.la_max_diff = smem_params.ldiffs().la_max_diff;
+    params.lb_max_diff = smem_params.ldiffs().lb_max_diff;
+
+    params.ptr_dev[0] = pab_block_.data();
+
+    if (level >= 0) {
+      params.ptr_dev[1] = grid_[level].data();
+      for (int i = 0; i < 3; i++) {
+        memcpy(params.dh_, grid_[level].dh(), 9 * sizeof(double));
+        memcpy(params.dh_inv_, grid_[level].dh_inv(), 9 * sizeof(double));
+        params.grid_full_size_[i] = grid_[level].full_size(i);
+        params.grid_local_size_[i] = grid_[level].local_size(i);
+        params.grid_lower_corner_[i] = grid_[level].lower_corner(i);
+        params.grid_border_width_[i] = grid_[level].border_width(i);
+      }
+      params.first_task = first_task_per_level_[level];
+    }
+    params.ptr_dev[2] = this->coef_dev_.data();
+    params.ptr_dev[3] = hab_block_.data();
+    params.ptr_dev[4] = forces_.data();
+    params.ptr_dev[5] = virial_.data();
+    params.sphi_dev = this->sphi_dev.data();
+    return params;
+  }
+
 /*******************************************************************************
  * \brief Launches the Cuda kernel that integrates all tasks of one grid level.
  ******************************************************************************/
-void context_info::integrate_one_grid_level(const int level,
-                                            const int first_task,
-                                            const int last_task, int *lp_diff) {
-  const int ntasks = last_task - first_task;
+void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
+  if (number_of_tasks_per_level_[level] == 0)
+    return;
+  assert(!calculate_virial || calculate_forces);
 
   // Compute max angular momentum.
-  assert(!calculate_virial || calculate_forces);
   const ldiffs_value ldiffs =
       process_get_ldiffs(calculate_forces, calculate_virial, compute_tau);
-  *lp_diff = ldiffs.la_max_diff + ldiffs.lb_max_diff; // for reporting stats
-  const int la_max = this->lmax() + ldiffs.la_max_diff;
-  const int lb_max = this->lmax() + ldiffs.lb_max_diff;
-  const int lp_max = la_max + lb_max;
 
-  if (ntasks == 0) {
-    return; // Nothing to do and lp_diff already set.
-  }
+  smem_parameters smem_params(ldiffs, lmax());
 
+  *lp_diff = smem_params.lp_diff();
   init_constant_memory();
 
-  // Compute required shared memory.
-  // TODO: Currently, cab's indices run over 0...ncoset[lmax],
-  //       however only ncoset(lmin)...ncoset(lmax) are actually needed.
-  const int cab_len = ncoset(lb_max) * ncoset(la_max);
-  const int alpha_len = 3 * (lb_max + 1) * (la_max + 1) * (lp_max + 1);
-  const int cxyz_len = ncoset(lp_max);
-  const size_t smem_per_block =
-      (cab_len + alpha_len + cxyz_len) * sizeof(double);
-
-  if (smem_per_block > 48 * 1024) {
-    fprintf(stderr, "ERROR: Not enough shared memory in grid_gpu_integrate.\n");
-    fprintf(stderr, "cab_len: %i, ", cab_len);
-    fprintf(stderr, "alpha_len: %i, ", alpha_len);
-    fprintf(stderr, "cxyz_len: %i, ", cxyz_len);
-    fprintf(stderr, "total smem_per_block: %f kb\n\n", smem_per_block / 1024.0);
-    abort();
-  }
-
-  // kernel parameters
-  kernel_params params;
-  params.smem_cab_offset = cxyz_len;
-  params.smem_alpha_offset = params.smem_cab_offset + cab_len;
-  params.first_task = first_task;
-  params.tasks = this->tasks_dev.data();
-  params.block_offsets = this->block_offsets_dev.data();
-  params.num_tasks_per_block_dev = this->num_tasks_per_block_dev_.data();
-  params.la_min_diff = ldiffs.la_min_diff;
-  params.lb_min_diff = ldiffs.lb_min_diff;
-  params.la_max_diff = ldiffs.la_max_diff;
-  params.lb_max_diff = ldiffs.lb_max_diff;
-  params.ptr_dev[0] = nullptr;
-  params.ptr_dev[1] = grid_[level].data();
-  params.ptr_dev[2] = coef_dev_.data();
-  params.ptr_dev[3] = hab_block_.data();
-  params.ptr_dev[4] = nullptr;
-  params.ptr_dev[5] = nullptr;
-  params.sphi_dev = this->sphi_dev.data();
-
-  memcpy(params.dh_, this->grid_[level].dh(), 9 * sizeof(double));
-  memcpy(params.dh_inv_, this->grid_[level].dh_inv(), 9 * sizeof(double));
-  for (int i = 0; i < 3; i++) {
-    params.grid_full_size_[i] = this->grid_[level].full_size(i);
-    params.grid_local_size_[i] = this->grid_[level].local_size(i);
-    params.grid_lower_corner_[i] = this->grid_[level].lower_corner(i);
-    params.grid_border_width_[i] = this->grid_[level].border_width(i);
-  }
-
-  // Launch !
-  const int nblocks = ntasks;
+  kernel_params params = set_kernel_parameters(level, smem_params);
 
   /* WARNING : if you change the block size please be aware of that the number
    * of warps is hardcoded when we do the block reduction in the integrate
@@ -722,75 +678,34 @@ void context_info::integrate_one_grid_level(const int level,
   if (grid_[level].is_distributed()) {
     if (grid_[level].is_orthorhombic()) {
       integrate_kernel<double, double3, true, true, 10>
-        <<<nblocks, threads_per_block, 0, level_streams[level]>>>(params);
+        <<<number_of_tasks_per_level_[level], threads_per_block, 0, level_streams[level]>>>(params);
     } else {
       integrate_kernel<double, double3, true, false, 10>
-        <<<nblocks, threads_per_block, 0, level_streams[level]>>>(params);
+        <<<number_of_tasks_per_level_[level], threads_per_block, 0, level_streams[level]>>>(params);
     }
   } else {
     if (grid_[level].is_orthorhombic()) {
       integrate_kernel<double, double3, false, true, 10>
-        <<<nblocks, threads_per_block, 0, level_streams[level]>>>(params);
+        <<<number_of_tasks_per_level_[level], threads_per_block, 0, level_streams[level]>>>(params);
     } else {
       integrate_kernel<double, double3, false, false, 10>
-        <<<nblocks, threads_per_block, 0, level_streams[level]>>>(params);
+        <<<number_of_tasks_per_level_[level], threads_per_block, 0, level_streams[level]>>>(params);
     }
   }
 }
 
 void context_info::compute_hab_coefficients() {
-  // Compute max angular momentum.
-  assert(!calculate_virial || calculate_forces);
-  const ldiffs_value ldiffs =
-      process_get_ldiffs(calculate_forces, calculate_virial, compute_tau);
-  const int la_max = this->lmax() + ldiffs.la_max_diff;
-  const int lb_max = this->lmax() + ldiffs.lb_max_diff;
-  const int lp_max = la_max + lb_max;
 
+  assert(!calculate_virial || calculate_forces);
+
+  // Compute max angular momentum.
+  const ldiffs_value ldiffs =
+    process_get_ldiffs(calculate_forces, calculate_virial, compute_tau);
+
+  smem_parameters smem_params(ldiffs, lmax());
   init_constant_memory();
 
-  // Compute required shared memory.
-  // TODO: Currently, cab's indices run over 0...ncoset[lmax],
-  //       however only ncoset(lmin)...ncoset(lmax) are actually needed.
-  const int cab_len = ncoset(lb_max) * ncoset(la_max);
-  const int alpha_len = 3 * (lb_max + 1) * (la_max + 1) * (lp_max + 1);
-  const int cxyz_len = ncoset(lp_max);
-  const size_t smem_per_block =
-      std::max(cab_len + alpha_len + cxyz_len, 64) * sizeof(double);
-
-  if (smem_per_block > 48 * 1024) {
-    fprintf(stderr, "ERROR: Not enough shared memory in grid_gpu_integrate.\n");
-    fprintf(stderr, "cab_len: %i, ", cab_len);
-    fprintf(stderr, "alpha_len: %i, ", alpha_len);
-    fprintf(stderr, "cxyz_len: %i, ", cxyz_len);
-    fprintf(stderr, "total smem_per_block: %f kb\n\n", smem_per_block / 1024.0);
-    abort();
-  }
-
-  // kernel parameters
-  kernel_params params;
-  params.smem_cab_offset = cxyz_len;
-  params.smem_alpha_offset = params.smem_cab_offset + cab_len;
-  params.first_task = 0;
-  params.tasks = this->tasks_dev.data();
-  params.task_sorted_by_blocks_dev = task_sorted_by_blocks_dev.data();
-  params.sorted_blocks_offset_dev = sorted_blocks_offset_dev.data();
-  params.num_tasks_per_block_dev = this->num_tasks_per_block_dev_.data();
-  params.block_offsets = this->block_offsets_dev.data();
-  params.la_min_diff = ldiffs.la_min_diff;
-  params.lb_min_diff = ldiffs.lb_min_diff;
-  params.la_max_diff = ldiffs.la_max_diff;
-  params.lb_max_diff = ldiffs.lb_max_diff;
-
-  params.ptr_dev[0] = pab_block_.data();
-  // params.ptr_dev[1] = grid_[level].data();
-  params.ptr_dev[2] = this->coef_dev_.data();
-  params.ptr_dev[3] = hab_block_.data();
-  params.ptr_dev[4] = forces_.data();
-  params.ptr_dev[5] = virial_.data();
-  params.sphi_dev = this->sphi_dev.data();
-  // Launch !
-  const int nblocks = this->nblocks;
+  kernel_params params = set_kernel_parameters(-1, smem_params);
 
   /* WARNING if you change the block size. The number
    * of warps is hardcoded when we do the block reduction in the integrate
@@ -800,27 +715,27 @@ void context_info::compute_hab_coefficients() {
 
   if (!compute_tau && !calculate_forces) {
     compute_hab_v2<double, double3, false, false>
-        <<<nblocks, threads_per_block, smem_per_block, this->main_stream>>>(
+      <<<this->nblocks, threads_per_block, smem_params.smem_per_block(), this->main_stream>>>(
             params, this->ntasks);
     return;
   }
 
   if (!compute_tau && calculate_forces) {
     compute_hab_v2<double, double3, false, true>
-        <<<nblocks, threads_per_block, smem_per_block, this->main_stream>>>(
+      <<<this->nblocks, threads_per_block, smem_params.smem_per_block(), this->main_stream>>>(
             params, this->ntasks);
     return;
   }
 
   if (compute_tau && calculate_forces) {
     compute_hab_v2<double, double3, true, true>
-        <<<nblocks, threads_per_block, smem_per_block, this->main_stream>>>(
+      <<<this->nblocks, threads_per_block, smem_params.smem_per_block(), this->main_stream>>>(
             params, this->ntasks);
   }
 
   if (compute_tau && !calculate_forces) {
     compute_hab_v2<double, double3, true, false>
-        <<<nblocks, threads_per_block, smem_per_block, this->main_stream>>>(
+      <<<this->nblocks, threads_per_block, smem_params.smem_per_block(), this->main_stream>>>(
             params, this->ntasks);
   }
 }

@@ -23,10 +23,9 @@
 #include <hip/hip_runtime.h>
 
 #include "grid_hip_internal_header.h"
-
-namespace rocm_backend {
 #include "grid_hip_prepare_pab.h"
 
+namespace rocm_backend {
 /*******************************************************************************
  * \brief Decontracts the subblock, going from spherical to cartesian harmonics.
  ******************************************************************************/
@@ -387,106 +386,53 @@ __global__ __launch_bounds__(64) void collocate_kernel(const kernel_params dev_)
  * \brief Launches the Cuda kernel that collocates all tasks of one grid level.
  ******************************************************************************/
 void context_info::collocate_one_grid_level(const int level,
-                                            const int first_task,
-                                            const int last_task,
                                             const enum grid_func func,
                                             int *lp_diff) {
 
-  if ((last_task - first_task) == 0)
+  if (number_of_tasks_per_level_[level] == 0)
     return;
 
   // Compute max angular momentum.
   const ldiffs_value ldiffs = prepare_get_ldiffs(func);
-  *lp_diff = ldiffs.la_max_diff + ldiffs.lb_max_diff; // for reporting stats
-  const int la_max = this->lmax() + ldiffs.la_max_diff;
-  const int lb_max = this->lmax() + ldiffs.lb_max_diff;
-  const int lp_max = la_max + lb_max;
+  smem_parameters smem_params(ldiffs, lmax());
 
-  const int ntasks = last_task - first_task;
-  if (ntasks == 0) {
-    return; // Nothing to do and lp_diff already set.
-  }
-
+  *lp_diff = smem_params.lp_diff();
   init_constant_memory();
 
-  // Compute required shared memory.
-  // TODO: Currently, cab's indices run over 0...ncoset[lmax],
-  //       however only ncoset(lmin)...ncoset(lmax) are actually needed.
-  const int cab_len = ncoset(lb_max) * ncoset(la_max);
-  const int alpha_len = 3 * (lb_max + 1) * (la_max + 1) * (lp_max + 1);
-  const int cxyz_len = ncoset(lp_max);
-  const size_t smem_per_block =
-      (cab_len + alpha_len + cxyz_len) * sizeof(double);
-
-  if (smem_per_block > 64 * 1024) {
-    fprintf(stderr, "ERROR: Not enough shared memory in grid_gpu_collocate.\n");
-    fprintf(stderr, "cab_len: %i, ", cab_len);
-    fprintf(stderr, "alpha_len: %i, ", alpha_len);
-    fprintf(stderr, "cxyz_len: %i, ", cxyz_len);
-    fprintf(stderr, "total smem_per_block: %f kb\n\n", smem_per_block / 1024.0);
-    abort();
-  }
-
   // kernel parameters
-  kernel_params params;
-  params.smem_cab_offset = cxyz_len;
-  params.smem_alpha_offset = cab_len + params.smem_cab_offset;
-  params.first_task = first_task;
+  kernel_params params = set_kernel_parameters(level, smem_params);
   params.func = func;
-  params.la_min_diff = ldiffs.la_min_diff;
-  params.lb_min_diff = ldiffs.lb_min_diff;
 
-  params.la_max_diff = ldiffs.la_max_diff;
-  params.lb_max_diff = ldiffs.lb_max_diff;
-  // params.lp_max = 2 * this->lmax() + ldiffs.la_max_diff + ldiffs.lb_max_diff;
-  params.tasks = this->tasks_dev.data();
-  params.block_offsets = this->block_offsets_dev.data();
-  memcpy(params.dh_, grid_[level].dh(), 9 * sizeof(double));
-  memcpy(params.dh_inv_, grid_[level].dh_inv(), 9 * sizeof(double));
-  params.ptr_dev[0] = pab_block_.data();
-  params.ptr_dev[1] = grid_[level].data();
-  params.ptr_dev[2] = this->coef_dev_.data();
-  params.ptr_dev[3] = nullptr;
-  params.ptr_dev[4] = nullptr;
-  params.ptr_dev[5] = nullptr;
-  params.sphi_dev = this->sphi_dev.data();
-  for (int i = 0; i < 3; i++) {
-    params.grid_full_size_[i] = grid_[level].full_size(i);
-    params.grid_local_size_[i] = grid_[level].local_size(i);
-    params.grid_lower_corner_[i] = grid_[level].lower_corner(i);
-    params.grid_border_width_[i] = grid_[level].border_width(i);
-  }
   // Launch !
-  const int nblocks = ntasks;
   const dim3 threads_per_block(4, 4, 4);
 
   if (func == GRID_FUNC_AB) {
     calculate_coefficients<double, true>
-        <<<nblocks, threads_per_block, smem_per_block, level_streams[level]>>>(
+      <<<number_of_tasks_per_level_[level], threads_per_block, smem_params.smem_per_block(), level_streams[level]>>>(
             params);
   } else {
     calculate_coefficients<double, false>
-        <<<nblocks, threads_per_block, smem_per_block, level_streams[level]>>>(
+      <<<number_of_tasks_per_level_[level], threads_per_block, smem_params.smem_per_block(), level_streams[level]>>>(
             params);
   }
 
   if (grid_[level].is_distributed()) {
     if (grid_[level].is_orthorhombic())
       collocate_kernel<double, double3, true, true>
-        <<<nblocks, threads_per_block, cxyz_len * sizeof(double),
+        <<<number_of_tasks_per_level_[level], threads_per_block, smem_params.cxyz_len() * sizeof(double),
       level_streams[level]>>>(params);
     else
       collocate_kernel<double, double3, true, false>
-        <<<nblocks, threads_per_block, cxyz_len * sizeof(double),
+        <<<number_of_tasks_per_level_[level], threads_per_block, smem_params.cxyz_len() * sizeof(double),
       level_streams[level]>>>(params);
   } else {
     if (grid_[level].is_orthorhombic())
       collocate_kernel<double, double3, false, true>
-        <<<nblocks, threads_per_block, cxyz_len * sizeof(double),
+        <<<number_of_tasks_per_level_[level], threads_per_block, smem_params.cxyz_len() * sizeof(double),
         level_streams[level]>>>(params);
     else
       collocate_kernel<double, double3, false, false>
-        <<<nblocks, threads_per_block, cxyz_len * sizeof(double),
+        <<<number_of_tasks_per_level_[level], threads_per_block, smem_params.cxyz_len() * sizeof(double),
         level_streams[level]>>>(params);
   }
 }

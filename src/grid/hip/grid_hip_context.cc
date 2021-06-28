@@ -376,6 +376,7 @@ extern "C" void grid_hip_collocate_task_list(const void *ptr,
     return;
 
   ctx->verify_checksum();
+  assert(ctx->nlevels == nlevels);
   ctx->set_device();
 
   for (int level = 0; level < ctx->nlevels; level++) {
@@ -387,16 +388,12 @@ extern "C" void grid_hip_collocate_task_list(const void *ptr,
 
   // record an event so the level streams can wait for the blocks to be uploaded
 
-  int lp_diff;
-  int first_task = 0;
-  assert(ctx->nlevels == nlevels);
+  int lp_diff = -1;
 
   ctx->synchronize(ctx->main_stream);
 
   for (int level = 0; level < ctx->nlevels; level++) {
-    const int last_task = first_task + ctx->number_of_tasks_per_level_[level];
-    ctx->collocate_one_grid_level(level, first_task, last_task, func, &lp_diff);
-    first_task = last_task;
+    ctx->collocate_one_grid_level(level, func, &lp_diff);
   }
 
   // update counters while we wait for kernels to finish. It is not thread safe
@@ -405,15 +402,17 @@ extern "C" void grid_hip_collocate_task_list(const void *ptr,
   // information one level up and encapsulate it in the context associated to
   // the library.
 
-  for (int has_border_mask = 0; has_border_mask <= 1; has_border_mask++) {
-    for (int lp = 0; lp < 20; lp++) {
-      const int count = ctx->stats[has_border_mask][lp];
-      if (ctx->grid_[0].is_orthorhombic() && !has_border_mask) {
-        grid_library_counter_add(lp + lp_diff, GRID_BACKEND_GPU,
-                                 GRID_COLLOCATE_ORTHO, count);
-      } else {
-        grid_library_counter_add(lp + lp_diff, GRID_BACKEND_GPU,
-                                 GRID_COLLOCATE_GENERAL, count);
+  if (lp_diff > -1) {
+    for (int has_border_mask = 0; has_border_mask <= 1; has_border_mask++) {
+      for (int lp = 0; lp < 20; lp++) {
+        const int count = ctx->stats[has_border_mask][lp];
+        if (ctx->grid_[0].is_orthorhombic() && !has_border_mask) {
+          grid_library_counter_add(lp + lp_diff, GRID_BACKEND_GPU,
+                                   GRID_COLLOCATE_ORTHO, count);
+        } else {
+          grid_library_counter_add(lp + lp_diff, GRID_BACKEND_GPU,
+                                   GRID_COLLOCATE_GENERAL, count);
+        }
       }
     }
   }
@@ -481,29 +480,28 @@ extern "C" void grid_hip_integrate_task_list(
     ctx->virial_.zero(ctx->main_stream);
   }
 
-  int lp_diff;
-  int first_task = 0;
+  int lp_diff = -1;
 
   // we can actually treat the full task list without bothering about the level
   // at that stage. This can be taken care of inside the kernel.
 
   for (int level = 0; level < ctx->nlevels; level++) {
-    const int last_task = first_task + ctx->number_of_tasks_per_level_[level];
     // launch kernel, but only after grid has arrived
-    ctx->integrate_one_grid_level(level, first_task, last_task, &lp_diff);
-    first_task = last_task;
+    ctx->integrate_one_grid_level(level, &lp_diff);
   }
 
-  // update counters while we wait for kernels to finish
-  for (int has_border_mask = 0; has_border_mask <= 1; has_border_mask++) {
-    for (int lp = 0; lp < 20; lp++) {
-      const int count = ctx->stats[has_border_mask][lp];
-      if (ctx->grid_[0].is_orthorhombic() && !has_border_mask) {
-        grid_library_counter_add(lp + lp_diff, GRID_BACKEND_GPU,
-                                 GRID_INTEGRATE_ORTHO, count);
-      } else {
-        grid_library_counter_add(lp + lp_diff, GRID_BACKEND_GPU,
-                                 GRID_INTEGRATE_GENERAL, count);
+  if (lp_diff > -1) {
+    // update counters while we wait for kernels to finish
+    for (int has_border_mask = 0; has_border_mask <= 1; has_border_mask++) {
+      for (int lp = 0; lp < 20; lp++) {
+        const int count = ctx->stats[has_border_mask][lp];
+        if (ctx->grid_[0].is_orthorhombic() && !has_border_mask) {
+          grid_library_counter_add(lp + lp_diff, GRID_BACKEND_GPU,
+                                   GRID_INTEGRATE_ORTHO, count);
+        } else {
+          grid_library_counter_add(lp + lp_diff, GRID_BACKEND_GPU,
+                                   GRID_INTEGRATE_GENERAL, count);
+        }
       }
     }
   }

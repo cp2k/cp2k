@@ -39,6 +39,7 @@ namespace rocm_backend {
 // somewhere. Maybe possible to get the same thing with std::vector and
 // specific allocator.
 
+class smem_parameters;
 template <typename T> class gpu_vector {
   size_t allocated_size_{0};
   size_t current_size_{0};
@@ -313,7 +314,6 @@ struct kernel_params {
   int smem_alpha_offset{0};
   int smem_cab_offset{0};
   int first_task{0};
-  // int lp_max{0};
   int grid_full_size_[3] = {0, 0, 0};
   int grid_local_size_[3] = {0, 0, 0};
   int grid_lower_corner_[3] = {0, 0, 0};
@@ -474,11 +474,9 @@ public:
 
   void set_device() { CHECK(hipSetDevice(device_id_)); }
 
-  void collocate_one_grid_level(const int level, const int first_task,
-                                const int last_task, const enum grid_func func,
+  void collocate_one_grid_level(const int level, const enum grid_func func,
                                 int *lp_diff);
-  void integrate_one_grid_level(const int level, const int first_task,
-                                const int last_task, int *lp_diff);
+  void integrate_one_grid_level(const int level, int *lp_diff);
   void compute_hab_coefficients();
   /* basic checksum computation for simple verification that the object is sane
    */
@@ -492,6 +490,8 @@ public:
   }
 
 private:
+  kernel_params set_kernel_parameters(const int level,
+                                      const smem_parameters &smem_params);
   unsigned int compute_checksum_() {
     return natoms ^ ntasks ^ nlevels ^ nkinds ^ nblocks ^ 0x4F2C5D1A;
   }
