@@ -349,7 +349,6 @@ public:
   int nkinds{0};
   int nblocks{0};
   std::vector<double *> sphi;
-  std::vector<int> tasks_per_level;
   std::vector<hipStream_t> level_streams;
   hipStream_t main_stream;
   int stats[2][20]; // [has_border_mask][lp]
@@ -409,8 +408,6 @@ public:
       grid.reset();
     }
     grid_.clear();
-
-    tasks_per_level.clear();
   }
 
   int lmax() const { return lmax_; }

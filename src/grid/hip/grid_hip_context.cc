@@ -85,13 +85,20 @@ extern "C" void grid_hip_create_task_list(
   ctx->first_task_per_level_.resize(nlevels, 0);
   ctx->number_of_tasks_per_level_.resize(nlevels, 0);
 
+  memset(ctx->first_task_per_level_.data(), 0, sizeof(int) * nlevels);
+  memset(ctx->number_of_tasks_per_level_.data(), 0, sizeof(int) * nlevels);
+
   std::vector<rocm_backend::task_info> tasks_host(ntasks);
-  memset(&tasks_host[0], 0, sizeof(rocm_backend::task_info) * ntasks);
+  memset(tasks_host.data(), 0, sizeof(rocm_backend::task_info) * ntasks);
 
   size_t coef_size = 0;
 
   for (int i = 0; i < ntasks; i++) {
-    ctx->number_of_tasks_per_level_[level_list[i] - 1]++;
+    const int level = level_list[i] - 1;
+
+    // count the number of task per level
+    ctx->number_of_tasks_per_level_[level]++;
+
     const int iatom = iatom_list[i] - 1;
     const int jatom = jatom_list[i] - 1;
     const int iset = iset_list[i] - 1;
@@ -104,7 +111,8 @@ extern "C" void grid_hip_create_task_list(
     /* set parameters related to atom type orbital etc....  */
     const grid_basis_set *ibasis = basis_sets[ikind];
     const grid_basis_set *jbasis = basis_sets[jkind];
-    tasks_host[i].level = level_list[i] - 1;
+
+    tasks_host[i].level = level;
     tasks_host[i].iatom = iatom;
     tasks_host[i].jatom = jatom;
     tasks_host[i].iset = iset;
@@ -116,8 +124,8 @@ extern "C" void grid_hip_create_task_list(
     tasks_host[i].border_mask = border_mask_list[i];
     tasks_host[i].block_num = block_num_list[i] - 1;
 
-    if (border_mask_list[i]){
-      ctx->grid_[level_list[i] - 1].is_distributed(true);
+    if (border_mask_list[i]) {
+      ctx->grid_[level].is_distributed(true);
     }
     /* parameters for the gaussian  */
     tasks_host[i].radius = radius_list[i];
@@ -137,7 +145,7 @@ extern "C" void grid_hip_create_task_list(
       tasks_host[i].rp[d] = tasks_host[i].ra[d] + tasks_host[i].rab[d] * f;
     }
 
-    tasks_host[i].skip_task = (2 * tasks_host[i].radius < dh_max[level_list[i] - 1]);
+    tasks_host[i].skip_task = (2 * tasks_host[i].radius < dh_max[level]);
     tasks_host[i].prefactor = exp(-tasks_host[i].zeta * f * tasks_host[i].rab2);
 
     tasks_host[i].off_diag_twice = (iatom == jatom) ? 1.0 : 2.0;
@@ -197,7 +205,7 @@ extern "C" void grid_hip_create_task_list(
       tasks_host[i].coef_offset = 0;
     } else {
       tasks_host[i].coef_offset = tasks_host[i - 1].coef_offset +
-                                  rocm_backend::ncoset(tasks_host[i].lp_max);
+                                  rocm_backend::ncoset(tasks_host[i - 1].lp_max);
     }
     coef_size += rocm_backend::ncoset(tasks_host[i].lp_max);
 
@@ -312,14 +320,6 @@ std::sort(tasks_host.begin(), tasks_host.end(), [](rocm_backend::task_info a, ro
   sorted_blocks.clear();
   sorted_blocks_offset.clear();
 
-  // Count tasks per level.
-  ctx->tasks_per_level.resize(nlevels);
-  memset(ctx->tasks_per_level.data(), 0, sizeof(int) * nlevels);
-  for (int i = 0; i < ntasks; i++) {
-    ctx->tasks_per_level[level_list[i] - 1]++;
-    assert(i == 0 || level_list[i] >= level_list[i - 1]); // expect ordered list
-  }
-
   ctx->num_tasks_per_block_dev_.resize(num_tasks_per_block.size());
   ctx->num_tasks_per_block_dev_.copy_to_gpu(num_tasks_per_block);
 
@@ -377,6 +377,11 @@ extern "C" void grid_hip_collocate_task_list(const void *ptr,
 
   ctx->verify_checksum();
   ctx->set_device();
+
+  for (int level = 0; level < ctx->nlevels; level++) {
+    ctx->grid_[level].zero(ctx->level_streams[level]);
+  }
+
   ctx->pab_block_.resize(pab_blocks->size / sizeof(double));
   ctx->pab_block_.copy_to_gpu(pab_blocks->host_buffer, ctx->main_stream);
 
@@ -386,17 +391,11 @@ extern "C" void grid_hip_collocate_task_list(const void *ptr,
   int first_task = 0;
   assert(ctx->nlevels == nlevels);
 
-  for (int level = 0; level < ctx->nlevels; level++) {
-    ctx->grid_[level].zero(ctx->level_streams[level]);
-  }
-
   ctx->synchronize(ctx->main_stream);
 
   for (int level = 0; level < ctx->nlevels; level++) {
-    const int last_task = first_task + ctx->tasks_per_level[level];
+    const int last_task = first_task + ctx->number_of_tasks_per_level_[level];
     ctx->collocate_one_grid_level(level, first_task, last_task, func, &lp_diff);
-    // ctx->grid_[level].copy_to_host(grids[level]->host_buffer,
-    //                                ctx->level_streams[level]);
     first_task = last_task;
   }
 
@@ -444,6 +443,7 @@ extern "C" void grid_hip_integrate_task_list(
 
   if(ptr == nullptr)
     return;
+  assert(ctx->nlevels == nlevels);
 
   ctx->verify_checksum();
   // Select GPU device.
@@ -452,8 +452,9 @@ extern "C" void grid_hip_integrate_task_list(
   // ctx->coef_dev_.zero(ctx->level_streams[0]);
 
   for (int level = 0; level < ctx->nlevels; level++) {
-    ctx->grid_[level].copy_to_gpu(grids[level]->host_buffer,
-                                  ctx->level_streams[level]);
+    if (ctx->number_of_tasks_per_level_[level])
+      ctx->grid_[level].copy_to_gpu(grids[level]->host_buffer,
+                                    ctx->level_streams[level]);
   }
 
   if ((forces != nullptr) || (virial != nullptr)) {
@@ -482,16 +483,12 @@ extern "C" void grid_hip_integrate_task_list(
 
   int lp_diff;
   int first_task = 0;
-  assert(ctx->nlevels == nlevels);
-
-  // ctx->synchronize(ctx->level_streams[0]);
 
   // we can actually treat the full task list without bothering about the level
   // at that stage. This can be taken care of inside the kernel.
 
   for (int level = 0; level < ctx->nlevels; level++) {
-    const int last_task = first_task + ctx->tasks_per_level[level];
-    const hipStream_t level_stream = ctx->level_streams[level];
+    const int last_task = first_task + ctx->number_of_tasks_per_level_[level];
     // launch kernel, but only after grid has arrived
     ctx->integrate_one_grid_level(level, first_task, last_task, &lp_diff);
     first_task = last_task;
@@ -513,7 +510,8 @@ extern "C" void grid_hip_integrate_task_list(
 
   // need to wait for all streams to finish
   for (int level = 0; level < ctx->nlevels; level++) {
-    ctx->synchronize(ctx->level_streams[level]);
+    if (ctx->number_of_tasks_per_level_[level])
+      ctx->synchronize(ctx->level_streams[level]);
   }
 
   // computing the hab coefficients does not depend on the number of grids so we
