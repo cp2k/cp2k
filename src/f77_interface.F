@@ -112,6 +112,7 @@ MODULE f77_interface
                                               nnp_env_release,&
                                               nnp_type
    USE offload_api,                     ONLY: offload_get_device_count,&
+                                              offload_get_device_id,&
                                               offload_set_device_id
    USE periodic_table,                  ONLY: init_periodic_table
    USE pw_cuda,                         ONLY: pw_cuda_finalize,&
