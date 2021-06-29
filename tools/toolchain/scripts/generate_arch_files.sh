@@ -122,10 +122,11 @@ if [ "${ENABLE_CUDA}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
   check_lib -lcublas "cuda"
 
   # Set include flags
-  CUDA_CFLAGS=''
-  add_include_from_paths CUDA_CFLAGS "cuda.h" $INCLUDE_PATHS
-  export CUDA_CFLAGS="${CUDA_CFLAGS}"
-  CFLAGS+=" ${CUDA_CFLAGS}"
+  CUDA_FLAGS=''
+  add_include_from_paths CUDA_FLAGS "cuda.h" $INCLUDE_PATHS
+  NVFLAGS+=" ${CUDA_FLAGS}"
+  CFLAGS+=" -I${CUDA_PATH}/include"
+  CXXFLAGS+=" -I${CUDA_PATH}/include"
 
   # Set LD-flags
   CUDA_LDFLAGS=''
