@@ -11,7 +11,18 @@
 #define __OFFLOAD_CUDA
 #endif
 
+#if defined(__GRID_HIP)
+
+#if defined(__HIP_PLATFORM_NVIDIA__)
+// we can use cuda calls directly instead of relying on hip headers files
+#define __OFFLOAD_CUDA
+#else
+#define __OFFLOAD_HIP
+#endif
+#endif
+
 #ifdef __OFFLOAD_CUDA
+#include <cuda.h>
 #include <cuda_runtime.h>
 
 /*******************************************************************************
@@ -25,6 +36,20 @@
     abort();                                                                   \
   }
 
+#endif
+
+#ifdef __OFFLOAD_HIP
+#include <hip/hip_runtime_api.h>
+
+/*******************************************************************************
+ * \brief Checks given rocm status and upon failure abort with a nice message.
+ ******************************************************************************/
+#define OFFLOAD_CHECK(status)                                                  \
+  if (status != hipSuccess) {                                                  \
+    fprintf(stderr, "ERROR: %s %s %d\n", hipGetErrorString(status), __FILE__,  \
+            __LINE__);                                                         \
+    abort();                                                                   \
+  }
 #endif
 
 #ifdef __cplusplus

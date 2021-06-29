@@ -196,13 +196,16 @@ CONTAINS
       NULLIFY (para_env, f_env, dft_control)
       CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.)
 
+#if defined(__DBCSR_ACC)
       IF (offload_get_device_count() > 0) THEN
          CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit, &
                              accdrv_active_device_id=offload_get_device_id())
       ELSE
          CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit)
       ENDIF
-
+#else
+      CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit)
+#endif
       CALL cuda_nvtx_init()
 
       CALL pw_cuda_init()
@@ -282,12 +285,16 @@ CONTAINS
          CALL pw_cuda_finalize()
          CALL pw_fpga_finalize()
          CALL farming_run(input_declaration, root_section, para_env, initial_variables)
+#if defined(__DBCSR_ACC)
          IF (offload_get_device_count() > 0) THEN
             CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit, &
                                 accdrv_active_device_id=offload_get_device_id())
          ELSE
             CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit)
          ENDIF
+#else
+         CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit)
+#endif
          CALL pw_cuda_init()
          CALL pw_fpga_init()
          CALL cp_sirius_init()

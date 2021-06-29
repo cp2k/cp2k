@@ -47,7 +47,7 @@ void grid_create_task_list(
 
     // Resolve AUTO to a concrete backend.
     if (config.backend == GRID_BACKEND_AUTO) {
-#ifdef __GRID_CUDA
+#if (defined(__GRID_CUDA) || defined(__GRID_HIP))
       task_list->backend = GRID_BACKEND_GPU;
 #else
       task_list->backend = GRID_BACKEND_REF;
@@ -96,10 +96,20 @@ void grid_create_task_list(
         border_mask_list, block_num_list, radius_list, rab_list, npts_global,
         npts_local, shift_local, border_width, dh, dh_inv, &task_list->gpu);
     break;
+#elif __GRID_HIP
+  case GRID_BACKEND_GPU:
+    grid_hip_create_task_list(
+        orthorhombic, ntasks, nlevels, natoms, nkinds, nblocks, block_offsets,
+        &atom_positions[0][0], atom_kinds, basis_sets, level_list, iatom_list,
+        jatom_list, iset_list, jset_list, ipgf_list, jpgf_list,
+        border_mask_list, block_num_list, radius_list, &rab_list[0][0],
+        &npts_global[0][0], &npts_local[0][0], &shift_local[0][0],
+        &border_width[0][0], &dh[0][0][0], &dh_inv[0][0][0], &task_list->gpu);
+    break;
 #else
   case GRID_BACKEND_GPU:
     fprintf(stderr, "Error: The GPU grid backend is not available. "
-                    "Please re-compile with -D__GRID_CUDA.");
+                    "Please re-compile with -D__GRID_CUDA or -D__GRID_HIP");
     abort();
     break;
 #endif
@@ -129,6 +139,11 @@ void grid_free_task_list(grid_task_list *task_list) {
 #ifdef __GRID_CUDA
   if (task_list->gpu != NULL) {
     grid_gpu_free_task_list(task_list->gpu);
+    task_list->gpu = NULL;
+  }
+#elif __GRID_HIP
+  if (task_list->gpu != NULL) {
+    grid_hip_free_task_list(task_list->gpu);
     task_list->gpu = NULL;
   }
 #endif
@@ -168,6 +183,11 @@ void grid_collocate_task_list(const grid_task_list *task_list,
 #ifdef __GRID_CUDA
   case GRID_BACKEND_GPU:
     grid_gpu_collocate_task_list(task_list->gpu, func, nlevels, pab_blocks,
+                                 grids);
+    break;
+#elif __GRID_HIP
+  case GRID_BACKEND_GPU:
+    grid_hip_collocate_task_list(task_list->gpu, func, nlevels, pab_blocks,
                                  grids);
     break;
 #endif
@@ -251,6 +271,12 @@ void grid_integrate_task_list(
   case GRID_BACKEND_GPU:
     grid_gpu_integrate_task_list(task_list->gpu, compute_tau, natoms, nlevels,
                                  pab_blocks, grids, hab_blocks, forces, virial);
+    break;
+#elif __GRID_HIP
+  case GRID_BACKEND_GPU:
+    grid_hip_integrate_task_list(task_list->gpu, compute_tau, nlevels,
+                                 pab_blocks, grids, hab_blocks, &forces[0][0],
+                                 &virial[0][0]);
     break;
 #endif
   case GRID_BACKEND_CPU:

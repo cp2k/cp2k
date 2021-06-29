@@ -46,6 +46,7 @@ FLAG_EXCEPTIONS = (
     "__HAS_smm_ztt",
     "__INTEL_COMPILER",
     "__OFFLOAD_CUDA",
+    "__OFFLOAD_HIP",
     "__PILAENV_BLOCKSIZE",
     "__PW_CUDA_NO_HOSTALLOC",
     "__PW_CUDA_NO_HOSTALLOC",

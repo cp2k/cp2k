@@ -277,6 +277,7 @@ CONTAINS
 
          ! Initialize the DBCSR configuration
          ! Attach the time handler hooks to DBCSR
+#if defined __DBCSR_ACC
          IF (offload_get_device_count() > 0) THEN
             CALL dbcsr_init_lib(default_para_env%group, timeset_hook, timestop_hook, &
                                 cp_abort_hook, cp_warn_hook, io_unit=unit_nr, &
@@ -285,7 +286,10 @@ CONTAINS
             CALL dbcsr_init_lib(default_para_env%group, timeset_hook, timestop_hook, &
                                 cp_abort_hook, cp_warn_hook, io_unit=unit_nr)
          ENDIF
-
+#else
+         CALL dbcsr_init_lib(default_para_env%group, timeset_hook, timestop_hook, &
+                             cp_abort_hook, cp_warn_hook, io_unit=unit_nr)
+#endif
          CALL pw_cuda_init()
 
          CALL grid_library_init()

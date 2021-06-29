@@ -14,6 +14,7 @@
 #include "common/grid_constants.h"
 #include "cpu/grid_cpu_task_list.h"
 #include "gpu/grid_gpu_task_list.h"
+#include "hip/grid_hip_task_list.h"
 #include "ref/grid_ref_task_list.h"
 
 /*******************************************************************************
@@ -27,6 +28,8 @@ typedef struct {
   grid_ref_task_list *ref;
   grid_cpu_task_list *cpu;
 #ifdef __GRID_CUDA
+  grid_gpu_task_list *gpu;
+#elif defined(__GRID_HIP)
   grid_gpu_task_list *gpu;
 #endif
   // more backends to be added here
