@@ -1322,6 +1322,16 @@ CONTAINS
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="OCCUPATION_NUMBERS_STATS", &
+                          variants=s2a("OCCNUMSTATS"), &
+                          description="Print some stats (max number of occupied MOs, etc.) of the MO occupation numbers."// &
+                          " First logical toggles stats printing, first real is the occupied threshold.", &
+                          type_of_var=char_t, n_var=-1, &
+                          default_c_vals=[".FALSE.", "1.0E-6 "], &
+                          lone_keyword_c_vals=[".TRUE."], &
+                          usage="OCCUPATION_NUMBERS_STATS {Logical} [{Real}]")
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="NDIGITS", &
                           description="Specify the number of digits used to print the MO information.", &
                           default_i_val=6)
