@@ -295,8 +295,8 @@ void apply_sphere_cutoff_ortho(struct collocation_integration_ *const handler,
             int upper_corner[3] = {k + 1, j + 1, x1 + 1};
 
             compute_interval(map[2], handler->grid.full_size[2],
-                             handler->grid.size[2], xmax - lb_cube[2], x1,
-                             &x, lower_corner + 2, upper_corner + 2, xwindow);
+                             handler->grid.size[2], xmax - lb_cube[2], x1, &x,
+                             lower_corner + 2, upper_corner + 2, xwindow);
 
             if (upper_corner[2] - lower_corner[2]) {
               const int position1[3] = {kg, jg - lb_cube[1], x};
