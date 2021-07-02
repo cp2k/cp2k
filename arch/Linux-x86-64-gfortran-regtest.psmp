@@ -93,7 +93,7 @@ LIBS       += $(LIBINT_LIB)/libint2.a
 LIBS       += $(SPGLIB_LIB)/libsymspg.a
 # Only needed for SIRIUS
 LIBS       += ${SIRIUS_LIB}/libsirius.a
-LIBS       += $(GNU_PATH)/SpFFT/1.0.3/lib/libspfft.a
+LIBS       += $(GNU_PATH)/SpFFT/1.0.4/lib/libspfft.a
 LIBS       += $(GNU_PATH)/SpLA/1.4.0/lib/libspla.a
 LIBS       += $(GNU_PATH)/hdf5/1.12.0/lib/libhdf5.a
 # Only needed for COSMA
