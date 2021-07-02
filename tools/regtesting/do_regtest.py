@@ -198,8 +198,11 @@ class Config:
         self.debug = args.debug
         self.max_errors = args.maxerrors
         self.restrictdirs = args.restrictdir if args.restrictdir else [".*"]
-        cmd = "nvidia-smi --query-gpu=gpu_name --format=csv,noheader | wc -l"
-        self.num_gpus = int(subprocess.run(cmd, shell=True, capture_output=True).stdout)
+        nv_cmd = "nvidia-smi --query-gpu=gpu_name --format=csv,noheader | wc -l"
+        nv_gpus = int(subprocess.run(nv_cmd, shell=True, capture_output=True).stdout)
+        amd_cmd = "rocm-smi --showid --csv | grep card | wc -l"
+        amd_gpus = int(subprocess.run(amd_cmd, shell=True, capture_output=True).stdout)
+        self.num_gpus = nv_gpus + amd_gpus
         self.next_gpu = 0  # Used to assign devices round robin to processes.
 
     def launch_exe(
@@ -207,10 +210,12 @@ class Config:
     ) -> Coroutine[Any, Any, Process]:
         env = os.environ.copy()
         if self.num_gpus > self.mpiranks:
-            env["CUDA_VISIBLE_DEVICES"] = ""
+            visible_gpu_devices = []
             for _ in range(self.mpiranks):  # Utilize all available GPU devices.
                 self.next_gpu = (self.next_gpu + 1) % self.num_gpus
-                env["CUDA_VISIBLE_DEVICES"] += f"{self.next_gpu},"
+                visible_gpu_devices.append(f"{self.next_gpu}")
+        env["CUDA_VISIBLE_DEVICES"] = ",".join(visible_gpu_devices)
+        env["HIP_VISIBLE_DEVICES"] = ",".join(visible_gpu_devices)
         env["OMP_NUM_THREADS"] = str(self.ompthreads)
         exe = self.cp2k_root / "exe" / self.arch / f"{exe_stem}.{self.version}"
         cmd = ["mpiexec", f"-np={self.mpiranks}", exe] if self.use_mpi else [exe]
