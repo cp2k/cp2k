@@ -210,12 +210,12 @@ class Config:
     ) -> Coroutine[Any, Any, Process]:
         env = os.environ.copy()
         if self.num_gpus > self.mpiranks:
-            visible_gpu_devices = []
+            visible_gpu_devices: List[str] = []
             for _ in range(self.mpiranks):  # Utilize all available GPU devices.
                 self.next_gpu = (self.next_gpu + 1) % self.num_gpus
-                visible_gpu_devices.append(f"{self.next_gpu}")
-        env["CUDA_VISIBLE_DEVICES"] = ",".join(visible_gpu_devices)
-        env["HIP_VISIBLE_DEVICES"] = ",".join(visible_gpu_devices)
+                visible_gpu_devices.append(str(self.next_gpu))
+            env["CUDA_VISIBLE_DEVICES"] = ",".join(visible_gpu_devices)
+            env["HIP_VISIBLE_DEVICES"] = ",".join(visible_gpu_devices)
         env["OMP_NUM_THREADS"] = str(self.ompthreads)
         exe = self.cp2k_root / "exe" / self.arch / f"{exe_stem}.{self.version}"
         cmd = ["mpiexec", f"-np={self.mpiranks}", exe] if self.use_mpi else [exe]
