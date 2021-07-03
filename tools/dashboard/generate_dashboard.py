@@ -677,11 +677,14 @@ def retrieve_report(url: str) -> Optional[str]:
         report_size = int(r.headers["Content-Length"])
         assert report_size < 3 * 1024 * 1024  # 3 MB
 
+        # download full report
+        report_text = r.text.replace("\r", "")
+
         # cache miss - store response
         if "ETag" in r.headers:
-            data_file.write_text(r.text)
+            data_file.write_text(report_text)
             etag_file.write_text(r.headers["ETag"])
-        return r.text
+        return report_text
 
     except:
         traceback.print_exc()
@@ -699,14 +702,14 @@ def parse_report(report_txt: Optional[str], log: GitLog) -> Report:
     if report_txt is None:
         return Report(status="UNKNOWN", summary="Error while retrieving report.")
     try:
-        m = re.search("(^|\n)CommitSHA: (\w{40})\n", report_txt)
-        sha = GitSha(m.group(2)) if m else None
-        summary = re.findall("(^|[\n\r])Summary: (.+)\n", report_txt)[-1][1]
-        status = re.findall("(^|\n)Status: (.+)\n", report_txt)[-1][1]
-        plot_matches = re.findall("(^|\n)Plot: (.+)(?=\n)", report_txt)
-        plots = [cast(Plot, eval(f"Plot({m[1]})")) for m in plot_matches]
-        point_matches = re.findall("(^|\n)PlotPoint: (.+)(?=\n)", report_txt)
-        points = [cast(PlotPoint, eval(f"PlotPoint({m[1]})")) for m in point_matches]
+        m = re.search(r"^CommitSHA: (\w{40})$", report_txt, re.MULTILINE)
+        sha = GitSha(m.group(1)) if m else None
+        summary = re.findall(r"^Summary: (.+)$", report_txt, re.MULTILINE)[-1]
+        status = re.findall(r"^Status: (.+)$", report_txt, re.MULTILINE)[-1]
+        plot_matches = re.findall(r"^Plot: (.+)$", report_txt, re.MULTILINE)
+        plots = [cast(Plot, eval(f"Plot({m})")) for m in plot_matches]
+        point_matches = re.findall(r"^PlotPoint: (.+)$", report_txt, re.MULTILINE)
+        points = [cast(PlotPoint, eval(f"PlotPoint({m})")) for m in point_matches]
 
         # Check that every plot has at least one PlotPoint
         for plot in plots:
