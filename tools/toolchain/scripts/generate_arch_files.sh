@@ -155,7 +155,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
     Mi50)
       check_lib -lamdhip64 "hip"
       add_lib_from_paths HIP_LDFLAGS "libamdhip64.*" $LIB_PATHS
-      HIP_FLAGS+=" -D__HIP_PLATFORM_AMD__ -g --offload-arch=gfx906 -O3 -Xarch_host'-fopenmp' --std=c++11 \$(DFLAGS)"
+      HIP_FLAGS+="-fPIE -D__HIP_PLATFORM_AMD__ -g --offload-arch=gfx906 -O3 --std=c++11 \$(DFLAGS)"
       LIBS+=" IF_HIP(-lhipblas -lamdhip64|)"
       PLATFORM_FLAGS='-D__HIP_PLATFORM_AMD__'
       DFLAGS+=' IF_HIP(-D__GRID_HIP -D__HIP_PLATFORM_AMD__|)'
@@ -163,7 +163,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
     Mi100)
       check_lib -lamdhip64 "hip"
       add_lib_from_paths HIP_LDFLAGS "libamdhip64.*" $LIB_PATHS
-      HIP_FLAGS+=" -D__HIP_PLATFORM_AMD__ -g --offload-arch=gfx908 -O3 -Xarch_host='-fopenmp' --std=c++11 \$(DFLAGS)"
+      HIP_FLAGS+="-fPIE -D__HIP_PLATFORM_AMD__ -g --offload-arch=gfx908 -O3 --std=c++11 \$(DFLAGS)"
       LIBS+=" IF_HIP(-lhipblas -lamdhip64|)"
       PLATFORM_FLAGS='-D__HIP_PLATFORM_AMD__ '
       DFLAGS+=' IF_HIP(-D__GRID_HIP -D__HIP_PLATFORM_AMD__|)'
