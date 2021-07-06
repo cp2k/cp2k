@@ -44,19 +44,27 @@ MODULE rt_delta_pulse
                                               cp_fm_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_filter, dbcsr_init_p, &
-        dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric
-   USE input_section_types,             ONLY: section_get_lval,&
-                                              section_vals_type
+        dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_symmetric
+   USE input_section_types,             ONLY: section_get_ival,&
+                                              section_get_lval,&
+                                              section_get_rval,&
+                                              section_vals_type,&
+                                              section_vals_val_get
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: twopi
+<<<<<<< HEAD
    USE parallel_gemm_api,               ONLY: parallel_gemm
+=======
+   USE moments_utils,                   ONLY: get_reference_point
+>>>>>>> 8f27c26ba (add delta pulse with DFPT in length representation)
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
-   USE qs_moments,                      ONLY: build_berry_moment_matrix
+   USE qs_moments,                      ONLY: build_berry_moment_matrix,&
+                                              build_local_moment_matrix
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE rt_propagation_types,            ONLY: get_rtp,&
                                               rt_prop_type
@@ -90,21 +98,21 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: eigenvalues_sqrt
       INTEGER                                            :: handle, icol, idir, irow, ispin, nao, &
                                                             ncol_local, nmo, nrow_global, &
-                                                            nrow_local, nvirt
+                                                            nrow_local, nvirt, reference
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      LOGICAL                                            :: com_nl
+      LOGICAL                                            :: com_nl, len_rep
       REAL(KIND=dp)                                      :: eps_ppnl, factor
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_data
-      REAL(KIND=dp), DIMENSION(3)                        :: kvec
-      REAL(kind=dp), DIMENSION(:), POINTER               :: eigenvalues
+      REAL(KIND=dp), DIMENSION(3)                        :: kvec, rcc
+      REAL(kind=dp), DIMENSION(:), POINTER               :: eigenvalues, ref_point
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_cfm_type)                                  :: oo_c, oo_v, oo_vt
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type)                                   :: eigenvectors, mat_ks, mat_tmp, momentum, &
                                                             oo_1, oo_2, S_chol, S_inv_fm, tmpS, &
                                                             virtuals
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_rv, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_rv, matrix_s, matrix_r
       TYPE(dbcsr_type), POINTER                          :: S_inv
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -129,6 +137,7 @@ CONTAINS
                       input=input, &
                       particle_set=particle_set)
       com_nl = section_get_lval(section_vals=input, keyword_name="DFT%REAL_TIME_PROPAGATION%COM_NL")
+      len_rep = section_get_lval(section_vals=input, keyword_name="DFT%REAL_TIME_PROPAGATION%DFPT_LEN")
       CALL get_rtp(rtp=rtp, S_inv=S_inv)
       CALL cp_fm_create(S_chol, matrix_struct=rtp%ao_ao_fmstruct, name="S_chol")
       CALL cp_fm_create(S_inv_fm, matrix_struct=rtp%ao_ao_fmstruct, name="S_inv_fm")
@@ -140,6 +149,28 @@ CONTAINS
       CALL cp_fm_cholesky_decompose(S_chol)
       CALL cp_fm_create(mat_ks, matrix_struct=S_inv_fm%matrix_struct, name="mat_ks")
       CALL cp_fm_create(eigenvectors, matrix_struct=S_inv_fm%matrix_struct, name="eigenvectors")
+
+      IF (len_rep) THEN
+         ! get reference point
+         reference = section_get_ival(section_vals=input, &
+                                      keyword_name="DFT%PRINT%MOMENTS%REFERENCE")
+         NULLIFY (ref_point)
+         CALL section_vals_val_get(input, "DFT%PRINT%MOMENTS%REF_POINT", r_vals=ref_point)
+         CALL get_reference_point(rcc, qs_env=qs_env, reference=reference, ref_point=ref_point)
+
+         NULLIFY (sab_orb)
+         CALL get_qs_env(qs_env, sab_orb=sab_orb)
+         ! calculate dipole moment operator
+         NULLIFY (matrix_r)
+         CALL dbcsr_allocate_matrix_set(matrix_r, 3)
+         DO idir = 1, 3
+            CALL dbcsr_init_p(matrix_r(idir)%matrix)
+            CALL dbcsr_create(matrix_r(idir)%matrix, template=matrix_s(1)%matrix, matrix_type=dbcsr_type_symmetric)
+            CALL cp_dbcsr_alloc_block_from_nbl(matrix_r(idir)%matrix, sab_orb)
+            CALL dbcsr_set(matrix_r(idir)%matrix, 0._dp)
+         ENDDO
+         CALL build_local_moment_matrix(qs_env, matrix_r, 1, rcc)
+      ENDIF
 
       ! calculate non-local commutator
       IF (com_nl) THEN
@@ -200,8 +231,14 @@ CONTAINS
          DO idir = 1, 3
             factor = kvec(idir)
             IF (factor .NE. 0.0_dp) THEN
-               CALL cp_dbcsr_sm_fm_multiply(matrix_s(idir + 1)%matrix, mos_old(2*ispin - 1)%matrix, &
-                                            mos_old(2*ispin)%matrix, ncol=nmo)
+               IF (.NOT. len_rep) THEN
+                  CALL cp_dbcsr_sm_fm_multiply(matrix_s(idir + 1)%matrix, mos_old(2*ispin - 1)%matrix, &
+                                               mos_old(2*ispin)%matrix, ncol=nmo)
+               ELSE
+                  CALL cp_dbcsr_sm_fm_multiply(matrix_r(idir)%matrix, mos_old(2*ispin - 1)%matrix, &
+                                               mos_old(2*ispin)%matrix, ncol=nmo)
+               ENDIF
+
                CALL cp_fm_scale_and_add(1.0_dp, mos_new(2*ispin - 1)%matrix, factor, mos_old(2*ispin)%matrix)
                IF (com_nl) THEN
                   CALL cp_fm_set_all(mos_old(2*ispin)%matrix, 0.0_dp)
@@ -215,14 +252,16 @@ CONTAINS
          CALL parallel_gemm('T', 'N', nvirt, nmo, nao, 1.0_dp, virtuals, mos_new(2*ispin - 1)%matrix, 0.0_dp, momentum)
 
          ! the tricky bit ... rescale by the eigenvalue difference
-         CALL cp_fm_get_info(momentum, nrow_local=nrow_local, ncol_local=ncol_local, &
-                             row_indices=row_indices, col_indices=col_indices, local_data=local_data)
-         DO icol = 1, ncol_local
-            DO irow = 1, nrow_local
-               factor = 1/(eigenvalues(col_indices(icol)) - eigenvalues(nmo + row_indices(irow)))
-               local_data(irow, icol) = factor*local_data(irow, icol)
-            END DO
-         END DO
+         If (.not. len_rep) then
+            CALL cp_fm_get_info(momentum, nrow_local=nrow_local, ncol_local=ncol_local, &
+                              row_indices=row_indices, col_indices=col_indices, local_data=local_data)
+            DO icol = 1, ncol_local
+               DO irow = 1, nrow_local
+                  factor = 1/(eigenvalues(col_indices(icol)) - eigenvalues(nmo + row_indices(irow)))
+                  local_data(irow, icol) = factor*local_data(irow, icol)
+               ENDDO
+            ENDDO
+         endif
          CALL cp_fm_release(mat_tmp)
          DEALLOCATE (eigenvalues)
 
@@ -296,6 +335,7 @@ CONTAINS
       CALL cp_fm_release(eigenvectors)
 
       IF (com_nl) CALL dbcsr_deallocate_matrix_set(matrix_rv)
+      IF (len_rep) CALL dbcsr_deallocate_matrix_set(matrix_r)
 
 !***************************************************************
 !remove later
