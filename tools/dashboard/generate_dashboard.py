@@ -678,7 +678,7 @@ def retrieve_report(url: str) -> Optional[str]:
         assert report_size < 3 * 1024 * 1024  # 3 MB
 
         # download full report
-        report_text = r.text.replace("\r", "")
+        report_text = r.text.replace("\r\n", "\n").replace("\r", "\n")
 
         # cache miss - store response
         if "ETag" in r.headers:
