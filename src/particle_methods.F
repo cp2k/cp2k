@@ -123,7 +123,11 @@ CONTAINS
          DO iparticle = 1, nparticle
             CALL get_atomic_kind(particle_set(iparticle)%atomic_kind, kind_number=ikind)
             IF (PRESENT(basis)) THEN
-               CALL get_gto_basis_set(gto_basis_set=basis(ikind)%gto_basis_set, nsgf=ns)
+               IF(ASSOCIATED(basis(ikind)%gto_basis_set)) THEN
+                  CALL get_gto_basis_set(gto_basis_set=basis(ikind)%gto_basis_set, nsgf=ns)
+               ELSE
+                  ns = 0
+               END IF
             ELSE
                CALL get_qs_kind(qs_kind_set(ikind), nsgf=ns)
             END IF
@@ -565,7 +569,7 @@ CONTAINS
          WRITE (UNIT=iw, FMT="(/,/,T2,A)") &
             "MODULE "//TRIM(label)//":  ATOMIC COORDINATES IN "//TRIM(unit_str)
          WRITE (UNIT=iw, &
-                FMT="(/,T3,A,7X,2(A1,11X),A1,8X,A8,5X,A6,/)") &
+                FMT="(/,T2,A,7X,2(A1,11X),A1,8X,A8,5X,A6)") &
             "Atom  Kind  Element", "X", "Y", "Z", "  Z(eff)", "  Mass"
 
          natom = SIZE(particle_set)
@@ -577,7 +581,7 @@ CONTAINS
                                  z=z)
             CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
             WRITE (UNIT=iw, &
-                   FMT="(T2,I7,1X,I5,1X,A2,1X,I3,3F12.6,4X,F8.4,2X,F11.4)") &
+                   FMT="(I5,1X,I3,1X,A2,1X,I3,3X,3F12.6,5X,F8.4,3X,F9.4)") &
                iatom, ikind, element_symbol, z, &
                particle_set(iatom)%r(1:3)*conv, zeff, mass/massunit
          END DO

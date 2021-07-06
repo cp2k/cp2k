@@ -2548,8 +2548,6 @@ CONTAINS
       ELSE IF (dft_control%qs_control%xtb) THEN
          CALL get_qs_kind(qs_kind, xtb_parameter=xtb_parameter)
          CPASSERT(ASSOCIATED(xtb_parameter))
-         CALL get_xtb_atom_param(xtb_parameter, defined=defined)
-         CPASSERT(defined)
          CALL write_xtb_atom_param(xtb_parameter, subsys_section)
       END IF
 

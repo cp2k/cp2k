@@ -1352,8 +1352,8 @@ CONTAINS
          pot => potparm%pot(ikind, jkind)%pot
          dr = SQRT(rij(1)**2 + rij(2)**2 + rij(3)**2)
          rcut = SQRT(pot%rcutsq)
-         IF (dr <= rcut) THEN
-! splines not implemented
+         IF (dr <= rcut .AND. dr > 1.E-3_dp) THEN
+            ! splines not implemented
             enonbonded = enonbonded + ener_pot(pot, dr, energy_cutoff)
             IF (atprop%energy) THEN
                atprop%atecc(iatom) = atprop%atecc(iatom) + 0.5_dp*ener_pot(pot, dr, energy_cutoff)
@@ -1368,12 +1368,12 @@ CONTAINS
                CALL cp_warn(__LOCATION__, "Generic potential with type > 1 not implemented.")
                CPABORT("pot type")
             ENDIF
-! rmin and rmax and rcut
+            ! rmin and rmax and rcut
             IF ((pot%set(kk)%rmin /= not_initialized) .AND. (dr < pot%set(kk)%rmin)) CYCLE
             ! An upper boundary for the potential definition was defined
             IF ((pot%set(kk)%rmax /= not_initialized) .AND. (dr >= pot%set(kk)%rmax)) CYCLE
             ! If within limits let's compute the potential...
-            IF (dr <= rcut) THEN
+            IF (dr <= rcut .AND. dr > 1.E-3_dp) THEN
 
                NULLIFY (nonbonded_section)
                nonbonded_section => section_vals_get_subs_vals(qs_env%input, "DFT%QS%xTB%NONBONDED")
@@ -1391,10 +1391,10 @@ CONTAINS
                                ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'// &
                                TRIM(def_error)//' .')
                END IF
-!
+ 
                atom_i = atom_of_kind(iatom)
                atom_j = atom_of_kind(jatom)
-!
+ 
                fij(1:3) = dedf*rij(1:3)/pot%set(kk)%gp%values(1)
 
                force(ikind)%repulsive(:, atom_i) = force(ikind)%repulsive(:, atom_i) - fij(:)
@@ -1420,7 +1420,7 @@ CONTAINS
       ENDIF
 
       CALL timestop(handle)
-!
+ 
    END SUBROUTINE nonbonded_correction
 ! **************************************************************************************************
 !> \brief ...
@@ -1432,7 +1432,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE force_field_pack_nonbond_pot_correction(atomic_kind_set, nonbonded, potparm, ewald_env, do_ewald)
 
-! routine based on force_field_pack_nonbond
+      ! routine based on force_field_pack_nonbond
       TYPE(atomic_kind_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: atomic_kind_set
       TYPE(pair_potential_p_type), INTENT(IN), POINTER   :: nonbonded

@@ -1,0 +1,28 @@
+&FORCE_EVAL
+  &DFT
+    &QS
+      METHOD xTB
+    &END QS
+    &SCF
+      SCF_GUESS MOPAC
+      MAX_SCF  100
+      EPS_SCF 1.e-10
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 40.0 40.0 40.0
+    &END CELL
+    &COORD
+     UNIT bohr
+     H     0.000000    0.000000    0.000000
+     H     1.360000    0.000000    0.000000
+     X     0.680000    0.000000    0.000000
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT H2
+  RUN_TYPE ENERGY
+  PRINT_LEVEL MEDIUM
+&END GLOBAL

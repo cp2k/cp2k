@@ -259,9 +259,23 @@ CONTAINS
          END DO
          param%zeff = zval(ia)
       ELSE
-         param%defined = .FALSE.
-         CALL cp_warn(__LOCATION__, "xTB parameters for element "//element_symbol// &
-                      " were not found in the parameter file "//ADJUSTL(TRIM(filename)))
+         esym = element_symbol
+         CALL uppercase(esym)
+         IF ("X " == esym) THEN
+            param%typ = "GHOST"
+            param%symbol = element_symbol
+            param%defined = .FALSE.
+            param%z = 0
+            param%aname = "X "
+            param%lmax = 0
+            param%natorb = 0
+            param%nshell = 0
+            param%zeff = 0.0_dp
+         ELSE
+            param%defined = .FALSE.
+            CALL cp_warn(__LOCATION__, "xTB parameters for element "//element_symbol// &
+                         " were not found in the parameter file "//ADJUSTL(TRIM(filename)))
+         END IF
       END IF
       CALL parser_release(parser)
 
@@ -490,41 +504,43 @@ CONTAINS
       TYPE(sto_basis_set_type), POINTER                  :: sto_basis_set
 
       IF (ASSOCIATED(param)) THEN
-         NULLIFY (sto_basis_set)
-         CALL allocate_sto_basis_set(sto_basis_set)
-         nshell = param%nshell
+         IF (param%defined) THEN
+            NULLIFY (sto_basis_set)
+            CALL allocate_sto_basis_set(sto_basis_set)
+            nshell = param%nshell
+   
+            ALLOCATE (symbol(1:nshell))
+            symbol = ""
+            DO i = 1, nshell
+               SELECT CASE (param%lval(i))
+               CASE (0)
+                  WRITE (symbol(i), '(I1,A1)') param%nval(i), "S"
+               CASE (1)
+                  WRITE (symbol(i), '(I1,A1)') param%nval(i), "P"
+               CASE (2)
+                  WRITE (symbol(i), '(I1,A1)') param%nval(i), "D"
+               CASE (3)
+                  WRITE (symbol(i), '(I1,A1)') param%nval(i), "F"
+               CASE DEFAULT
+                  CPABORT('BASIS SET OUT OF RANGE (lval)')
+               END SELECT
+            END DO
 
-         ALLOCATE (symbol(1:nshell))
-         symbol = ""
-         DO i = 1, nshell
-            SELECT CASE (param%lval(i))
-            CASE (0)
-               WRITE (symbol(i), '(I1,A1)') param%nval(i), "S"
-            CASE (1)
-               WRITE (symbol(i), '(I1,A1)') param%nval(i), "P"
-            CASE (2)
-               WRITE (symbol(i), '(I1,A1)') param%nval(i), "D"
-            CASE (3)
-               WRITE (symbol(i), '(I1,A1)') param%nval(i), "F"
-            CASE DEFAULT
-               CPABORT('BASIS SET OUT OF RANGE (lval)')
-            END SELECT
-         END DO
+            IF (nshell > 0) THEN
+               ALLOCATE (nq(nshell), lq(nshell), zet(nshell))
+               nq(1:nshell) = param%nval(1:nshell)
+               lq(1:nshell) = param%lval(1:nshell)
+               zet(1:nshell) = param%zeta(1:nshell)
+               CALL set_sto_basis_set(sto_basis_set, name=param%aname, nshell=nshell, symbol=symbol, &
+                                      nq=nq, lq=lq, zet=zet)
+               CALL create_gto_from_sto_basis(sto_basis_set, gto_basis_set, ngauss=ngauss, ortho=.TRUE.)
+            END IF
 
-         IF (nshell > 0) THEN
-            ALLOCATE (nq(nshell), lq(nshell), zet(nshell))
-            nq(1:nshell) = param%nval(1:nshell)
-            lq(1:nshell) = param%lval(1:nshell)
-            zet(1:nshell) = param%zeta(1:nshell)
-            CALL set_sto_basis_set(sto_basis_set, name=param%aname, nshell=nshell, symbol=symbol, &
-                                   nq=nq, lq=lq, zet=zet)
-            CALL create_gto_from_sto_basis(sto_basis_set, gto_basis_set, ngauss=ngauss, ortho=.TRUE.)
+            ! this will remove the allocated arrays
+            CALL deallocate_sto_basis_set(sto_basis_set)
+            DEALLOCATE (symbol, nq, lq, zet)
          END IF
-
-         ! this will remove the allocated arrays
-         CALL deallocate_sto_basis_set(sto_basis_set)
-         DEALLOCATE (symbol, nq, lq, zet)
-
+   
       ELSE
          CPABORT("The pointer param is not associated")
       END IF

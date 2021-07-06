@@ -706,16 +706,26 @@ CONTAINS
             ELSE
                ngauss = xtb_control%sto_ng
             END IF
-            CALL init_xtb_basis(qs_kind%xtb_parameter, tmp_basis_set, ngauss)
-            CALL add_basis_set_to_container(qs_kind%basis_sets, tmp_basis_set, "ORB")
+            IF (qs_kind%xtb_parameter%defined) THEN
+               CALL init_xtb_basis(qs_kind%xtb_parameter, tmp_basis_set, ngauss)
+               CALL add_basis_set_to_container(qs_kind%basis_sets, tmp_basis_set, "ORB")
+            ELSE
+               CALL set_qs_kind(qs_kind, ghost=.TRUE.)
+               IF(ASSOCIATED(qs_kind%all_potential)) THEN
+                  DEALLOCATE (qs_kind%all_potential%elec_conf)
+                  DEALLOCATE (qs_kind%all_potential)
+               END IF
+            END IF
             ! potential
-            zeff_correction = 0.0_dp
-            CALL init_potential(qs_kind%all_potential, itype="BARE", &
-                                zeff=qs_kind%xtb_parameter%zeff, zeff_correction=zeff_correction)
-            CALL get_potential(qs_kind%all_potential, alpha_core_charge=alpha)
-            ccore = qs_kind%xtb_parameter%zeff*SQRT((alpha/pi)**3)
-            CALL set_potential(qs_kind%all_potential, ccore_charge=ccore)
-            qs_kind%xtb_parameter%zeff = qs_kind%xtb_parameter%zeff - zeff_correction
+            IF (qs_kind%xtb_parameter%defined) THEN
+               zeff_correction = 0.0_dp
+               CALL init_potential(qs_kind%all_potential, itype="BARE", &
+                                   zeff=qs_kind%xtb_parameter%zeff, zeff_correction=zeff_correction)
+               CALL get_potential(qs_kind%all_potential, alpha_core_charge=alpha)
+               ccore = qs_kind%xtb_parameter%zeff*SQRT((alpha/pi)**3)
+               CALL set_potential(qs_kind%all_potential, ccore_charge=ccore)
+               qs_kind%xtb_parameter%zeff = qs_kind%xtb_parameter%zeff - zeff_correction
+            END IF
          END DO
          !
          ! check for Ewald
@@ -950,8 +960,12 @@ CONTAINS
          ! cutoff radius
          DO ikind = 1, nkind
             qs_kind => qs_kind_set(ikind)
-            CALL get_qs_kind(qs_kind, basis_set=tmp_basis_set)
-            CALL get_gto_basis_set(tmp_basis_set, kind_radius=qs_kind%xtb_parameter%rcut)
+            IF(qs_kind%xtb_parameter%defined) THEN
+               CALL get_qs_kind(qs_kind, basis_set=tmp_basis_set)
+               CALL get_gto_basis_set(tmp_basis_set, kind_radius=qs_kind%xtb_parameter%rcut)
+            ELSE
+               qs_kind%xtb_parameter%rcut = 0.0_dp
+            END IF
          END DO
       END IF
 

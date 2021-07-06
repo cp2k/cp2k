@@ -97,7 +97,7 @@ CONTAINS
       ielem_found = -1
       symbol_in = symbol
       CALL uppercase(symbol_in)
-      DO ielem = 1, nelem
+      DO ielem = 0, nelem
          symb_ielem = ptable(ielem)%symbol
          CALL uppercase(symb_ielem)
          IF (symbol_in == symb_ielem) THEN
@@ -108,7 +108,7 @@ CONTAINS
 
       ! If requested give back the value and avoid failing
       IF (PRESENT(found)) THEN
-         found = (ielem_found > 0)
+         found = (ielem_found >= 0)
       ELSE
          IF (ielem_found < 0) THEN
             CPABORT("Unknown element symbol <"//TRIM(symbol)//"> found.")
@@ -116,7 +116,7 @@ CONTAINS
       END IF
 
       ! If the element has been identified provide the requested information
-      IF (ielem_found > 0) THEN
+      IF (ielem_found >= 0) THEN
          IF (PRESENT(ielement)) ielement = ielem_found
          IF (PRESENT(number)) number = ptable(ielem_found)%number
          IF (PRESENT(amass)) amass = ptable(ielem_found)%amass
