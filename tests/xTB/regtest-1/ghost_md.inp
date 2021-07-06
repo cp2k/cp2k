@@ -1,0 +1,94 @@
+&FORCE_EVAL
+  &DFT
+    &QS
+      METHOD xTB
+      &xTB
+         DO_EWALD F
+         DO_NONBONDED T
+         &NONBONDED
+            &GENPOT
+               ATOMS X X  
+               FUNCTION Aparam*exp(-Bparam*r)-Cparam/r**8
+               PARAMETERS Aparam Bparam Cparam
+               VALUES  1.0 1.441 6703.192
+               VARIABLES r
+            &END GENPOT
+            &GENPOT
+               ATOMS X X  
+               FUNCTION Aparam*exp(-Bparam*r)-Cparam/r**8
+               PARAMETERS Aparam Bparam Cparam
+               VALUES  1.0 1.441 6703.192
+               VARIABLES r
+            &END GENPOT
+        &END NONBONDED
+      &END XTB
+    &END QS
+    &SCF
+      SCF_GUESS MOPAC
+      MAX_SCF  100
+      EPS_SCF 1.e-10
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 40.0 40.0 40.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+     UNIT bohr
+     H     0.000000    0.000000   20.000000 H2
+     H     1.360000    0.000000   20.000000 H2
+     X     0.680000    0.000000   20.000000 H2
+     H    -2.000000    0.000000   20.000000 H2
+     H    -2.000000    1.360000   20.000000 H2
+     X    -2.000000    0.680000   20.000000 H2
+    &END COORD
+    &COLVAR
+      &DISTANCE
+        ATOMS 1 2
+      &END DISTANCE
+    &END COLVAR
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT H2
+  RUN_TYPE MD
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TIMESTEP 1.0
+    TEMPERATURE 100
+  &END MD
+  &CONSTRAINT
+    &COLLECTIVE OFF
+      MOLNAME H2
+      COLVAR 1
+      INTERMOLECULAR FALSE
+      TARGET [BOHR] 1.40
+    &END COLLECTIVE
+    &VIRTUAL_SITE
+      MOLNAME H2
+      INTERMOLECULAR FALSE
+      ATOMS 3 2 1 2
+      PARAMETERS 0.250000000 0.250000000
+    &END VIRTUAL_SITE
+  &END CONSTRAINT
+  &PRINT
+    &FORCES ON
+      &EACH
+        MD 2
+      &END EACH
+      FORMAT XYZ
+    &END FORCES
+    &VELOCITIES ON
+      &EACH
+        MD 2
+      &END EACH
+      FORMAT XYZ
+    &END VELOCITIES
+  &END PRINT
+&END MOTION
+

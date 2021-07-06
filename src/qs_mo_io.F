@@ -337,7 +337,8 @@ CONTAINS
                nset_max = MAX(nset_max, 1)
                nshell_max = MAX(nshell_max, lmax + 1)
             ELSE
-               CPABORT("Unknown basis type. ")
+               ! We assume here an atom without a basis set
+               ! CPABORT("Unknown basis type. ")
             END IF
          END DO
 
@@ -377,7 +378,8 @@ CONTAINS
                   nso_info(ishell, 1, iatom) = nso(lshell)
                END DO
             ELSE
-               CPABORT("Unknown basis set type. ")
+               ! We assume here an atom without a basis set
+               ! CPABORT("Unknown basis type. ")
             END IF
          END DO
 
@@ -855,7 +857,9 @@ CONTAINS
                         nset = 1
                         minbas = .TRUE.
                      ELSE
-                        CPABORT("Unknown basis set type. ")
+                        ! assume an atom without basis set
+                        ! CPABORT("Unknown basis set type. ")
+                        nset = 0
                      END IF
 
                      use_this = .TRUE.
@@ -1153,7 +1157,8 @@ CONTAINS
                         isgf = isgf + nso(lshell)
                      END DO
                   ELSE
-                     CPABORT("Unknown basis set type")
+                     ! assume atom without basis set
+                     ! CPABORT("Unknown basis set type")
                   END IF
                END DO ! iatom
 
@@ -1281,7 +1286,8 @@ CONTAINS
                            END DO
                         END DO
                      ELSE
-                        CPABORT("Unknown basis set type")
+                        ! assume atom without basis set
+                        ! CPABORT("Unknown basis set type")
                      END IF
 
                   ELSE
@@ -1321,7 +1327,8 @@ CONTAINS
                            END DO
                         END DO
                      ELSE
-                        CPABORT("Unknown basis type")
+                        ! assume atom without basis set
+                        ! CPABORT("Unknown basis set type")
                      END IF
 
                   END IF ! print_cartesian
