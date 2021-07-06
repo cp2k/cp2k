@@ -8335,6 +8335,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="DFPT_LEN", &
+                          description="Use length representation for DFPT delta pulse. This is NOT periodic!!!"// &
+                          " Uses the first reference point in DFT%PRINT%MOMENTS ", &
+                          usage="DFPT_LEN T", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="PERIODIC", &
                           description="Apply a delta-kick that is compatible with periodic boundary conditions"// &
                           " for any value of DELTA_PULSE_SCALE. Uses perturbation theory for the preparation of"// &
