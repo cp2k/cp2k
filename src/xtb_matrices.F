@@ -1391,10 +1391,10 @@ CONTAINS
                                ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'// &
                                TRIM(def_error)//' .')
                END IF
- 
+
                atom_i = atom_of_kind(iatom)
                atom_j = atom_of_kind(jatom)
- 
+
                fij(1:3) = dedf*rij(1:3)/pot%set(kk)%gp%values(1)
 
                force(ikind)%repulsive(:, atom_i) = force(ikind)%repulsive(:, atom_i) - fij(:)
@@ -1420,7 +1420,7 @@ CONTAINS
       ENDIF
 
       CALL timestop(handle)
- 
+
    END SUBROUTINE nonbonded_correction
 ! **************************************************************************************************
 !> \brief ...
