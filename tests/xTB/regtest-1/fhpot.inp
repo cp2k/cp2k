@@ -3,14 +3,20 @@
     &QS
       METHOD xTB
       &xTB
-         DO_EWALD F
+         DO_EWALD T
          DO_NONBONDED T
          &NONBONDED
+            # Feynman-Hibbs-Potential
+            # E : LJ epsilon value [Hartree]
+            # S : LJ sigma value [Bohr]
+            # K : hbar**2 / 24*k (mu: reduced mass, k: Boltzmann constant)
+            # T : Temperature [Kelvin]
+            # mu: reduced mass [atomic units]
             &GENPOT
-               ATOMS X X
-               FUNCTION 4*E*( (S/r)**8 - (S/r)**6 )
-               PARAMETERS E S
-               VALUES  8.2337E-5 4.830
+               ATOMS X X  
+               FUNCTION 24*E*( K/(mu*T*S*S)*( 22*(S/r)**14 - 5*(S/r)**8) + (K/(mu*T*S*S))**2*( 2002*(S/r)**16 - 140*(S/r)**10) )
+               PARAMETERS E S K T mu
+               VALUES  8.2337E-5 4.830 7.217825 20.0 0.5
                VARIABLES r
             &END GENPOT
         &END NONBONDED
@@ -19,22 +25,21 @@
     &SCF
       SCF_GUESS MOPAC
       MAX_SCF  100
-      EPS_SCF 1.e-10
+      EPS_SCF 1.e-8
     &END SCF
   &END DFT
   &SUBSYS
     &CELL
-      ABC 40.0 40.0 40.0
-      PERIODIC NONE
+      ABC 10.0 10.0 10.0
     &END CELL
     &COORD
      UNIT bohr
      H     0.000000    0.000000   20.000000 H2
      H     1.360000    0.000000   20.000000 H2
      X     0.680000    0.000000   20.000000 H2
-     H    -2.000000    0.000000   20.000000 H2
-     H    -2.000000    1.360000   20.000000 H2
-     X    -2.000000    0.680000   20.000000 H2
+     H    -4.000000    0.000000   20.000000 H2
+     H    -4.000000    1.360000   20.000000 H2
+     X    -4.000000    0.680000   20.000000 H2
     &END COORD
     &COLVAR
       &DISTANCE
@@ -56,7 +61,7 @@
     TEMPERATURE 100
   &END MD
   &CONSTRAINT
-    &COLLECTIVE 
+    &COLLECTIVE OFF
       MOLNAME H2
       COLVAR 1
       INTERMOLECULAR FALSE

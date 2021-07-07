@@ -508,7 +508,7 @@ CONTAINS
             NULLIFY (sto_basis_set)
             CALL allocate_sto_basis_set(sto_basis_set)
             nshell = param%nshell
-   
+
             ALLOCATE (symbol(1:nshell))
             symbol = ""
             DO i = 1, nshell
@@ -540,7 +540,7 @@ CONTAINS
             CALL deallocate_sto_basis_set(sto_basis_set)
             DEALLOCATE (symbol, nq, lq, zet)
          END IF
-   
+
       ELSE
          CPABORT("The pointer param is not associated")
       END IF

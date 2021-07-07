@@ -711,7 +711,7 @@ CONTAINS
                CALL add_basis_set_to_container(qs_kind%basis_sets, tmp_basis_set, "ORB")
             ELSE
                CALL set_qs_kind(qs_kind, ghost=.TRUE.)
-               IF(ASSOCIATED(qs_kind%all_potential)) THEN
+               IF (ASSOCIATED(qs_kind%all_potential)) THEN
                   DEALLOCATE (qs_kind%all_potential%elec_conf)
                   DEALLOCATE (qs_kind%all_potential)
                END IF
@@ -960,7 +960,7 @@ CONTAINS
          ! cutoff radius
          DO ikind = 1, nkind
             qs_kind => qs_kind_set(ikind)
-            IF(qs_kind%xtb_parameter%defined) THEN
+            IF (qs_kind%xtb_parameter%defined) THEN
                CALL get_qs_kind(qs_kind, basis_set=tmp_basis_set)
                CALL get_gto_basis_set(tmp_basis_set, kind_radius=qs_kind%xtb_parameter%rcut)
             ELSE

@@ -123,7 +123,7 @@ CONTAINS
          DO iparticle = 1, nparticle
             CALL get_atomic_kind(particle_set(iparticle)%atomic_kind, kind_number=ikind)
             IF (PRESENT(basis)) THEN
-               IF(ASSOCIATED(basis(ikind)%gto_basis_set)) THEN
+               IF (ASSOCIATED(basis(ikind)%gto_basis_set)) THEN
                   CALL get_gto_basis_set(gto_basis_set=basis(ikind)%gto_basis_set, nsgf=ns)
                ELSE
                   ns = 0
