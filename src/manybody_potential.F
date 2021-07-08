@@ -53,7 +53,7 @@ MODULE manybody_potential
    USE pair_potential_types,            ONLY: &
         ea_type, eam_pot_type, gal_pot_type, gal_type, pair_potential_pp_type, &
         pair_potential_single_type, quip_type, siepmann_pot_type, siepmann_type, tersoff_pot_type, &
-        tersoff_type, gal21_pot_type
+        tersoff_type, gal21_pot_type, gal21_type
    USE particle_types,                  ONLY: particle_type
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
@@ -170,6 +170,7 @@ CONTAINS
             any_quip = any_quip .OR. ANY(pot%type == quip_type)
             any_siepmann = any_siepmann .OR. ANY(pot%type == siepmann_type)
             any_gal = any_gal .OR. ANY(pot%type == gal_type)
+            any_gal21 = any_gal21 .OR. ANY(pot%type == gal21_type)
          END DO
       END DO
       CALL fist_nonbond_env_get(fist_nonbond_env, nonbonded=nonbonded, natom_types=nkinds)
@@ -435,7 +436,7 @@ CONTAINS
             neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
             npairs = neighbor_kind_pair%npairs
             IF (npairs == 0) CYCLE
-            Kind_Group_Loop_3: DO igrp = 1, neighbor_kind_pair%ngrp_kind
+            Kind_Group_Loop_5: DO igrp = 1, neighbor_kind_pair%ngrp_kind
                istart = neighbor_kind_pair%grp_kind_start(igrp)
                iend = neighbor_kind_pair%grp_kind_end(igrp)
                ikind = neighbor_kind_pair%ij_kind(1, igrp)
@@ -502,7 +503,7 @@ CONTAINS
                      DEALLOCATE (sort_list, work_list)
                   END IF
                END DO
-            END DO Kind_Group_Loop_3
+            END DO Kind_Group_Loop_5
          END DO
          CALL destroy_gal21_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a)
       END IF
@@ -913,7 +914,7 @@ CONTAINS
             neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
             npairs = neighbor_kind_pair%npairs
             IF (npairs == 0) CYCLE
-            Kind_Group_Loop4: DO igrp = 1, neighbor_kind_pair%ngrp_kind
+            Kind_Group_Loop6: DO igrp = 1, neighbor_kind_pair%ngrp_kind
                istart = neighbor_kind_pair%grp_kind_start(igrp)
                iend = neighbor_kind_pair%grp_kind_end(igrp)
                ikind = neighbor_kind_pair%ij_kind(1, igrp)
@@ -978,7 +979,7 @@ CONTAINS
                      DEALLOCATE (sort_list, work_list)
                   END IF
                END DO
-            END DO Kind_Group_Loop4
+            END DO Kind_Group_Loop6
          END DO
          CALL destroy_gal_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a)
       END IF
