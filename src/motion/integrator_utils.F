@@ -40,7 +40,8 @@ MODULE integrator_utils
                                               md_environment_type
    USE message_passing,                 ONLY: mp_max,&
                                               mp_sum
-   USE molecule_kind_types,             ONLY: molecule_kind_type
+   USE molecule_kind_types,             ONLY: molecule_kind_type, &
+                                              local_fixd_constraint_type
    USE molecule_types,                  ONLY: get_molecule,&
                                               global_constraint_type,&
                                               molecule_type
@@ -1117,7 +1118,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE vv_first(tmp, atomic_kind_set, local_particles, particle_set, &
                        core_particle_set, shell_particle_set, nparticle_kind, &
-                       shell_adiabatic, dt, u)
+                       shell_adiabatic, dt, lfixd_list, u)
 
       TYPE(tmp_variables_type), POINTER                  :: tmp
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -1127,6 +1128,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nparticle_kind
       LOGICAL, INTENT(IN)                                :: shell_adiabatic
       REAL(KIND=dp)                                      :: dt
+      TYPE(local_fixd_constraint_type), POINTER, OPTIONAL:: lfixd_list(:)
       REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL           :: u
 
       INTEGER                                            :: iparticle, iparticle_kind, &
@@ -1275,15 +1277,26 @@ CONTAINS
                      tmp%vel(3, iparticle) = &
                         particle_set(iparticle)%v(3)*tmp%scale_v(3)*tmp%scale_v(3) + &
                         tmp%scale_v(3)*tmp%poly_v(3)*dm*particle_set(iparticle)%f(3)
-                     tmp%pos(1, iparticle) = &
-                        particle_set(iparticle)%r(1)*tmp%scale_r(1)*tmp%scale_r(1) + &
-                        tmp%scale_r(1)*tmp%poly_r(1)*dt*tmp%vel(1, iparticle)
-                     tmp%pos(2, iparticle) = &
-                        particle_set(iparticle)%r(2)*tmp%scale_r(2)*tmp%scale_r(2) + &
-                        tmp%scale_r(2)*tmp%poly_r(2)*dt*tmp%vel(2, iparticle)
-                     tmp%pos(3, iparticle) = &
-                        particle_set(iparticle)%r(3)*tmp%scale_r(3)*tmp%scale_r(3) + &
-                        tmp%scale_r(3)*tmp%poly_r(3)*dt*tmp%vel(3, iparticle)
+
+                     IF ( ANY(lfixd_list(:)%ifixd_index == iparticle) ) THEN
+                     !IF (iparticle_kind == 1) THEN
+                        tmp%pos(1, iparticle) = &
+                           particle_set(iparticle)%r(1)               
+                        tmp%pos(2, iparticle) = &
+                           particle_set(iparticle)%r(2)
+                        tmp%pos(3, iparticle) = &
+                           particle_set(iparticle)%r(3)
+                     ELSE
+                        tmp%pos(1, iparticle) = &
+                           particle_set(iparticle)%r(1)*tmp%scale_r(1)*tmp%scale_r(1) + &
+                           tmp%scale_r(1)*tmp%poly_r(1)*dt*tmp%vel(1, iparticle)
+                        tmp%pos(2, iparticle) = &
+                           particle_set(iparticle)%r(2)*tmp%scale_r(2)*tmp%scale_r(2) + &
+                           tmp%scale_r(2)*tmp%poly_r(2)*dt*tmp%vel(2, iparticle)
+                        tmp%pos(3, iparticle) = &
+                           particle_set(iparticle)%r(3)*tmp%scale_r(3)*tmp%scale_r(3) + &
+                           tmp%scale_r(3)*tmp%poly_r(3)*dt*tmp%vel(3, iparticle)
+                     END IF
 
                      tmp%max_vel = MAX(tmp%max_vel, &
                                        ABS(tmp%vel(1, iparticle)), ABS(tmp%vel(2, iparticle)), ABS(tmp%vel(3, iparticle)))
@@ -1707,7 +1720,7 @@ CONTAINS
 
          CALL vv_first(tmp, atomic_kind_set, local_particles, particle_set, &
                        core_particle_set, shell_particle_set, nparticle_kind, &
-                       shell_adiabatic, dt, u)
+                       shell_adiabatic, dt, u=u)
 
       CASE (nph_uniaxial_ensemble, nph_uniaxial_damped_ensemble)
          arg_r = arg_r*simpar%dt_fact*simpar%dt_fact
