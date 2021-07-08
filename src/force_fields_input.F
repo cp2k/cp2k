@@ -1378,7 +1378,7 @@ CONTAINS
          CALL cite_reference(Clabaut2021)
          CALL section_vals_val_get(section, "ATOMS", i_rep_section=isec, c_vals=atm_names)
 
-         nonbonded%pot(start + isec)%pot%type = gal2121_type
+         nonbonded%pot(start + isec)%pot%type = gal21_type
          nonbonded%pot(start + isec)%pot%at1 = atm_names(1)
          nonbonded%pot(start + isec)%pot%at2 = atm_names(2)
          CALL uppercase(nonbonded%pot(start + isec)%pot%at1)
