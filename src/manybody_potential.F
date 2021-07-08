@@ -53,7 +53,7 @@ MODULE manybody_potential
    USE pair_potential_types,            ONLY: &
         ea_type, eam_pot_type, gal_pot_type, gal_type, pair_potential_pp_type, &
         pair_potential_single_type, quip_type, siepmann_pot_type, siepmann_type, tersoff_pot_type, &
-        tersoff_type, gal21_type
+        tersoff_type, gal21_pot_type
    USE particle_types,                  ONLY: particle_type
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
