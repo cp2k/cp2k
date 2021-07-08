@@ -83,7 +83,7 @@ MODULE bibliography
                             Stoychev2016, Futera2017, Bailey2006, Papior2017, Lehtola2018, &
                             Brieuc2016, Barca2018, Scheiber2018, Huang2011, Heaton_Burgess2007, &
                             Schuett2018, Holmberg2018, Togo2018, Staub2019, Grimme2013, Grimme2016, &
-                            Grimme2017, Kondov2007, Clabaut2020, &
+                            Grimme2017, Kondov2007, Clabaut2020, Clabaut2021, &
                             Ren2011, Ren2013, Cohen2000, Rogers2002, Filippetti2000, &
                             Limpanuparb2011, Martin2003, Yin2017, Goerigk2017, &
                             Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, Lass2018, cp2kqs2020, &
@@ -4117,6 +4117,18 @@ CONTAINS
                          "DI 10.1021/acs.jctc.0c00091", &
                          "ER"), &
                          DOI="10.1021/acs.jctc.0c00091")
+
+      CALL add_reference(key=Clabaut2021, ISI_record=s2a( &
+                         "AU Clabaut, P", &
+                         "AF Clabaut, P", &
+                         "TI Ph.D. Solvation and adsorptions at the solid/water interface : Developments and applications", &
+                         "SO ", &
+                         "SN None", &
+                         "PY 2021", &
+                         "VL None", &
+                         "DI None", &
+                         "ER"), &
+                         DOI="None")
 
       CALL add_reference(key=Richters2018, ISI_record=s2a( &
                          "AU Richters, D", &

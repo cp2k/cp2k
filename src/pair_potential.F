@@ -32,7 +32,7 @@ MODULE pair_potential
         b4_type, bm_type, compare_pot, ea_type, ft_type, ftd_type, gal_type, gp_type, gw_type, &
         ip_type, list_pot, lj_charmm_type, lj_type, multi_type, nn_type, pair_potential_pp_type, &
         pair_potential_single_type, potential_single_allocation, quip_type, siepmann_type, &
-        tersoff_type, wl_type
+        tersoff_type, wl_type, gal21_type
    USE pair_potential_util,             ONLY: ener_pot,&
                                               ener_zbl,&
                                               zbl_matching_polinomial
@@ -193,6 +193,8 @@ CONTAINS
                CASE (siepmann_type)
                   pot%no_mb = .FALSE.
                CASE (gal_type)
+                  pot%no_mb = .FALSE.
+               CASE (gal21_type)
                   pot%no_mb = .FALSE.
                CASE (nn_type)
                   ! Do nothing..
@@ -622,6 +624,8 @@ CONTAINS
             nvar = 5 + nvar
          CASE (gal_type)
             nvar = 12 + nvar
+         CASE (gal21_type)
+            nvar = 30 + nvar
          CASE (nn_type)
             nvar = nvar
          CASE DEFAULT
@@ -745,6 +749,37 @@ CONTAINS
                         pot_par(nk, 10) = potparm%pot(i, j)%pot%set(1)%gal%a
                         pot_par(nk, 11) = potparm%pot(i, j)%pot%set(1)%gal%b
                         pot_par(nk, 12) = potparm%pot(i, j)%pot%set(1)%gal%c
+                     CASE (gal21_type)
+                        pot_par(nk, 1) = potparm%pot(i, j)%pot%set(1)%gal21%epsilon1
+                        pot_par(nk, 2) = potparm%pot(i, j)%pot%set(1)%gal21%epsilon2
+                        pot_par(nk, 3) = potparm%pot(i, j)%pot%set(1)%gal21%epsilon3
+                        pot_par(nk, 4) = potparm%pot(i, j)%pot%set(1)%gal21%bxy1
+                        pot_par(nk, 5) = potparm%pot(i, j)%pot%set(1)%gal21%bxy2
+                        pot_par(nk, 6) = potparm%pot(i, j)%pot%set(1)%gal21%bz1
+                        pot_par(nk, 7) = potparm%pot(i, j)%pot%set(1)%gal21%bz2
+                        pot_par(nk, 8) = potparm%pot(i, j)%pot%set(1)%gal21%r1
+                        pot_par(nk, 9) = potparm%pot(i, j)%pot%set(1)%gal21%r2
+                        pot_par(nk, 10) = potparm%pot(i, j)%pot%set(1)%gal21%a11
+                        pot_par(nk, 11) = potparm%pot(i, j)%pot%set(1)%gal21%a12
+                        pot_par(nk, 12) = potparm%pot(i, j)%pot%set(1)%gal21%a13
+                        pot_par(nk, 13) = potparm%pot(i, j)%pot%set(1)%gal21%a21
+                        pot_par(nk, 14) = potparm%pot(i, j)%pot%set(1)%gal21%a22
+                        pot_par(nk, 15) = potparm%pot(i, j)%pot%set(1)%gal21%a23
+                        pot_par(nk, 16) = potparm%pot(i, j)%pot%set(1)%gal21%a31
+                        pot_par(nk, 17) = potparm%pot(i, j)%pot%set(1)%gal21%a32
+                        pot_par(nk, 18) = potparm%pot(i, j)%pot%set(1)%gal21%a33
+                        pot_par(nk, 19) = potparm%pot(i, j)%pot%set(1)%gal21%a41
+                        pot_par(nk, 20) = potparm%pot(i, j)%pot%set(1)%gal21%a42
+                        pot_par(nk, 21) = potparm%pot(i, j)%pot%set(1)%gal21%a43
+                        pot_par(nk, 22) = potparm%pot(i, j)%pot%set(1)%gal21%AO1
+                        pot_par(nk, 23) = potparm%pot(i, j)%pot%set(1)%gal21%AO2
+                        pot_par(nk, 24) = potparm%pot(i, j)%pot%set(1)%gal21%BO1
+                        pot_par(nk, 25) = potparm%pot(i, j)%pot%set(1)%gal21%BO2
+                        pot_par(nk, 26) = potparm%pot(i, j)%pot%set(1)%gal21%c
+                        pot_par(nk, 27) = potparm%pot(i, j)%pot%set(1)%gal21%AH1
+                        pot_par(nk, 28) = potparm%pot(i, j)%pot%set(1)%gal21%AH2
+                        pot_par(nk, 29) = potparm%pot(i, j)%pot%set(1)%gal21%BH1
+                        pot_par(nk, 30) = potparm%pot(i, j)%pot%set(1)%gal21%BH2
                      CASE (nn_type)
                         ! no checks
                      CASE DEFAULT

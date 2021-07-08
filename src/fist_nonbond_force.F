@@ -39,6 +39,7 @@ MODULE fist_nonbond_force
    USE message_passing,                 ONLY: mp_sum
    USE pair_potential_coulomb,          ONLY: potential_coulomb
    USE pair_potential_types,            ONLY: gal_type,&
+                                              gal21_type,&
                                               nosh_nosh,&
                                               nosh_sh,&
                                               pair_potential_pp_type,&
@@ -234,7 +235,7 @@ CONTAINS
                fac_ei = fac_kind
                fac_vdw = fac_kind
                full_nl = ANY(pot%type == tersoff_type) .OR. ANY(pot%type == siepmann_type) &
-                         .OR. ANY(pot%type == gal_type)
+                         .OR. ANY(pot%type == gal_type) .OR. ANY(pot%type == gal21_type)
                IF ((.NOT. full_nl) .AND. (atom_a == atom_b)) THEN
                   fac_ei = 0.5_dp*fac_ei
                   fac_vdw = 0.5_dp*fac_vdw
@@ -728,7 +729,7 @@ CONTAINS
                ! Determine the scaling factors
                fac_ei = ij_kind_full_fac(kind_a, kind_b)
                full_nl = ANY(pot%type == tersoff_type) .OR. ANY(pot%type == siepmann_type) &
-                         .OR. ANY(pot%type == gal_type)
+                         .OR. ANY(pot%type == gal_type) .OR. ANY(pot%type == gal21_type)
                IF ((.NOT. full_nl) .AND. (atom_a == atom_b)) THEN
                   fac_ei = fac_ei*0.5_dp
                END IF
