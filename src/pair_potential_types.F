@@ -2108,7 +2108,7 @@ CONTAINS
       NULLIFY (siepmann)
    END SUBROUTINE pair_potential_siepmann_release
 
- **************************************************************************************************
+! **************************************************************************************************
 !> \brief Creates the GAL19 potential type
 !>      (??)
 !> \param gal ...
