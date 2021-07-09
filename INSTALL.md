@@ -179,7 +179,7 @@ the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
 
 - Specify OFFLOAD_CC (e.g. `OFFLOAD_CC = nvcc`) and
   OFFLOAD_FLAGS (e.g. `OFFLOAD_FLAGS = -O3 -g -w --std=c++11`) variables.
-- Use the `-D__DBCSR_ACC` to enable accelerator support for matrix multiplications.
+- Use the `-D__DBCSR_ACC` and `USE_ACCEL=cuda` to enable accelerator support for matrix multiplications.
 - Add `-lstdc++ -lcudart -lnvrtc -lcuda -lcublas` to LIBS.
 - Specify the GPU type (e.g. `GPUVER   = P100`),
   possible values are K20X, K40, K80, P100, V100.
@@ -331,13 +331,17 @@ out of the box on Nvidia hardware as well.
 - Add  `-lamdhip64` to the `LIBS` variable
 - Add `OFFLOAD_FLAGS ='-fopenmp -m64 -pthread -fPIC -D__GRID_HIP -O2
   --offload-arch=gfx908 --rocm-path=$(ROCM_PATH)`' where 'ROCM_PATH' is the path
-  where the rocm dsk resides. Architectures Mi100 (gfx908), Mi50 (gfx906)
+  where the rocm sdk resides. Architectures Mi100 (gfx908), Mi50 (gfx906)
 - the hip backend for the grid library supports nvidia hardware as well. It uses
   the same code and can be used to validate the backend in case of access to
   Nvidia hardware only. To get the compilation working, follow the steps above
   and set the `OFFLOAD_FLAGS` with right `nvcc` parameters (see the cuda section
   of this document). The environment variable `HIP_PLATFORM` should be set to
   `HIP_PLATFORM=nvidia` to indicate to hipcc to use the nvcc compiler instead.
+- When the HIP backend is enabled for DBCSR using `-D__DBCSR_ACC`, then add 
+  `-D__HIP_PLATFORM_AMD__` to `CXXFLAGS` and `USE_ACCEL=hip` in the CP2K arch file. 
+  DBCSR will then be built with `CC` and `CXXFLAGS` and avoid linking with 
+  multiple conflicting OpenMP runtimes.
 
 <!---
 ### 2u. LibMaxwell (External Maxwell Solver)

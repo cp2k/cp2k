@@ -7,9 +7,12 @@ EXTSDEPS_LIB  = $(LIBEXTSDIR)/dbcsr/libdbcsr$(ARCHIVE_EXT)
 EXTSDEPS_MOD = $(OBJEXTSDIR)/dbcsr/dbcsr_api.mod $(OBJEXTSDIR)/dbcsr/dbcsr_tensor_api.mod
 $(EXTSDEPS_MOD) : ; # override builtin .mod rule to prevent circular dependency
 
-ifneq (,$(findstring __DBCSR_ACC,$(OFFLOAD_FLAGS)))
+ifeq (cuda,$(USE_ACCEL))
 ACC := $(OFFLOAD_CC)
 ACCFLAGS := $(OFFLOAD_FLAGS)
+else ifeq (hip,$(USE_ACCEL))
+ACC := $(CC)
+ACCFLAGS := $(CXXFLAGS)
 else
 ACC := ""
 ACCFLAGS := ""
@@ -25,11 +28,13 @@ dbcsr:
 	   INCLUDEMAKE=$(ARCHDIR)/$(ARCH).$(ONEVERSION) \
 	   LIBDIR=$(LIBEXTSDIR)/$@ \
 	   OBJDIR=$(OBJEXTSDIR)/$@ \
+	   USE_ACCEL="$(USE_ACCEL)" \
 	   ACC="$(ACC)" \
 	   ACCFLAGS="$(ACCFLAGS)"
 
 dbcsrversion:
 	@$(MAKE) -C $(EXTSHOME)/dbcsr -f .cp2k/Makefile \
+	   USE_ACCEL="$(USE_ACCEL)" \
 	   ACC="$(ACC)" \
 	   ACCFLAGS="$(ACCFLAGS)" \
 	   version
@@ -37,6 +42,7 @@ dbcsrversion:
 dbcsrclean:
 	@echo "Clean DBCSR"
 	@$(MAKE) -C $(EXTSHOME)/dbcsr -f .cp2k/Makefile \
+	   USE_ACCEL="$(USE_ACCEL)" \
 	   ACC="$(ACC)" \
 	   ACCFLAGS="$(ACCFLAGS)" \
 	   clean
