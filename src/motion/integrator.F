@@ -36,9 +36,7 @@ MODULE integrator
                                               shake_control,&
                                               shake_roll_control,&
                                               shake_update_targets
-   USE constraint_fxd,                  ONLY: create_local_fixd_list,&
-                                              fix_atom_control,&
-                                              release_local_fixd_list
+   USE constraint_fxd,                  ONLY: fix_atom_control
    USE constraint_util,                 ONLY: getold,&
                                               pv_constraint
    USE cp_control_types,                ONLY: dft_control_type
@@ -73,8 +71,7 @@ MODULE integrator
    USE metadynamics,                    ONLY: metadyn_integrator,&
                                               metadyn_velocities_colvar
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
-   USE molecule_kind_types,             ONLY: molecule_kind_type,&
-                                              local_fixd_constraint_type
+   USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_list_types,             ONLY: molecule_list_type
    USE molecule_types,                  ONLY: global_constraint_type,&
                                               molecule_type
@@ -1169,7 +1166,7 @@ CONTAINS
                                                             e6 = e4/42.0_dp, e8 = e6/72.0_dp
 
       INTEGER                                            :: iroll, ivar, nparticle, nparticle_kind, &
-                                                            nshell, nkind
+                                                            nshell
       INTEGER, POINTER                                   :: itimes
       LOGICAL                                            :: first, first_time, shell_adiabatic, &
                                                             shell_check_distance, shell_present
@@ -1189,7 +1186,6 @@ CONTAINS
       TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_list_type), POINTER                  :: molecules
-      TYPE(local_fixd_constraint_type), POINTER          :: lfixd_list(:)
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(npt_info_type), POINTER                       :: npt(:, :)
       TYPE(old_variables_type), POINTER                  :: old
@@ -1227,7 +1223,6 @@ CONTAINS
                          gci=gci, molecule_kinds=molecule_kinds, virial=virial)
 
       nparticle_kind = atomic_kinds%n_els
-      nkind = molecule_kinds%n_els
       atomic_kind_set => atomic_kinds%els
       molecule_kind_set => molecule_kinds%els
 
@@ -1345,13 +1340,10 @@ CONTAINS
          tmp%scale_v(1:3) = EXP(-0.25_dp*dt*npt(1, 1)%v* &
                                 (1.0_dp + 3.0_dp*infree))
 
-         NULLIFY(lfixd_list)
-         CALL create_local_fixd_list(lfixd_list, nkind, molecule_kind_set, local_particles)
          ! first half of velocity verlet
          CALL vv_first(tmp, atomic_kind_set, local_particles, particle_set, &
                        core_particle_set, shell_particle_set, nparticle_kind, &
-                       shell_adiabatic, dt, lfixd_list)
-         CALL release_local_fixd_list(lfixd_list)
+                       shell_adiabatic, dt)
 
          IF (simpar%variable_dt) CALL variable_timestep(md_env, tmp, dt, simpar, para_env, &
                                                         atomic_kind_set, local_particles, particle_set, core_particle_set, &
