@@ -15,8 +15,8 @@
 ! **************************************************************************************************
 MODULE input_cp2k_mm
    USE bibliography,                    ONLY: &
-        Clabaut2020, Devynck2012, Dick1958, Foiles1986, Mitchell1993, QUIP_ref, Siepmann1995, &
-        Tersoff1988, Tosi1964a, Tosi1964b, Yamada2000
+        Clabaut2020, Clabaut2021, Devynck2012, Dick1958, Foiles1986, Mitchell1993, QUIP_ref, &
+        Siepmann1995, Tersoff1988, Tosi1964a, Tosi1964b, Yamada2000
    USE cp_output_handling,              ONLY: cp_print_key_section_create,&
                                               debug_print_level,&
                                               high_print_level,&
@@ -1207,6 +1207,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_Gal_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_Gal21_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -2515,6 +2519,151 @@ CONTAINS
                           n_var=1, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="Fit_express", &
+                          description="Demands the particular output needed to a least square fit", &
+                          usage="Fit_express TRUE", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL create_GCN_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+   END SUBROUTINE create_Gal_section
+
+! **************************************************************************************************
+!> \brief This section specifies the input parameters for GAL21
+!>        potential type
+!>      (??)
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE create_Gal21_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="GAL21", &
+                          description="Implementation of the GAL21 forcefield, see associated paper", &
+                          citations=(/Clabaut2021/), n_keywords=1, n_subsections=1, repeats=.TRUE.)
+
+      NULLIFY (keyword, subsection)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
+                          description="Defines the atomic kind involved in the nonbond potential", &
+                          usage="ATOMS {KIND1} {KIND2}", type_of_var=char_t, &
+                          n_var=2)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="METALS", &
+                          description="Defines the two atomic kinds to be considered as part of the metallic phase in the system", &
+                          usage="METALS {KIND1} {KIND2} ..", type_of_var=char_t, &
+                          n_var=2)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="epsilon", &
+                          description="Defines the epsilon parameter of GAL21 potential", &
+                          usage="epsilon {real} {real} {real}", type_of_var=real_t, &
+                          n_var=3, unit_str="kcalmol")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="bxy", &
+                          description="Defines the b perpendicular parameter of GAL21 potential", &
+                          usage="bxy {real} {real}", type_of_var=real_t, &
+                          n_var=2, unit_str="angstrom^-2")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="bz", &
+                          description="Defines the b parallel parameter of GAL21 potential", &
+                          usage="bz {real} {real}", type_of_var=real_t, &
+                          n_var=2, unit_str="angstrom^-2")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="r", &
+                          description="Defines the R_0 parameters of GAL21 potential for the two METALS."// &
+        "This is the only parameter that is shared between the two section of the forcefield in the case of two metals (alloy)."// &
+                          "If one metal only is present, a second number should be given but won't be read", &
+                          usage="r {real} {real}", type_of_var=real_t, n_var=2, unit_str="angstrom")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="a1", &
+                          description="Defines the a1 parameter of GAL21 potential", &
+                          usage="a1 {real} {real} {real}", type_of_var=real_t, &
+                          n_var=3, unit_str="kcalmol")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="a2", &
+                          description="Defines the a2 parameter of GAL21 potential", &
+                          usage="a2 {real} {real} {real}", type_of_var=real_t, &
+                          n_var=3, unit_str="kcalmol")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="a3", &
+                          description="Defines the a3 parameter of GAL21 potential", &
+                          usage="a3 {real} {real} {real}", type_of_var=real_t, &
+                          n_var=3, unit_str="kcalmol")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="a4", &
+                          description="Defines the a4 parameter of GAL21 potential", &
+                          usage="a4 {real} {real} {real}", type_of_var=real_t, &
+                          n_var=3, unit_str="kcalmol")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="A", &
+                          description="Defines the A parameter of GAL21 potential", &
+                          usage="A {real} {real}", type_of_var=real_t, &
+                          n_var=2, unit_str="kcalmol")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="B", &
+                          description="Defines the B parameter of GAL21 potential", &
+                          usage="B {real} {real}", type_of_var=real_t, &
+                          n_var=2, unit_str="angstrom^-1")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="C", &
+                          description="Defines the C parameter of GAL21 potential", &
+                          usage="C {real}", type_of_var=real_t, &
+                          n_var=1, unit_str="angstrom^6*kcalmol")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="AH", &
+                          description="Defines the AH parameter of GAL21 potential", &
+                          usage="AH {real} {real}", type_of_var=real_t, &
+                          n_var=2, unit_str="kcalmol")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="BH", &
+                          description="Defines the BH parameter of GAL21 potential", &
+                          usage="BH {real} {real}", type_of_var=real_t, &
+                          n_var=2, unit_str="angstrom^-1")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="RCUT", &
+                          description="Defines the cutoff parameter of GAL21 potential", &
+                          usage="RCUT {real}", type_of_var=real_t, &
+                          default_r_val=cp_unit_to_cp2k(value=3.2_dp, &
+                                                        unit_str="angstrom"), &
+                          n_var=1, unit_str="angstrom")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="Fit_express", &
                           description="Demands the particular output needed to a least square fit", &
@@ -2527,10 +2676,10 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-   END SUBROUTINE create_Gal_section
+   END SUBROUTINE create_Gal21_section
 
 ! **************************************************************************************************
-!> \brief This section specifies the input parameters for the subsection GCN of GAL19
+!> \brief This section specifies the input parameters for the subsection GCN of GAL19 and GAL21
 !>        potential type
 !>      (??)
 !> \param section ...

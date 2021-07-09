@@ -270,6 +270,7 @@ Fist/regtest-field
 Fist/regtest-gauss
 QS/regtest-elpa-2                                           elpa
 Fist/regtest-gal19
+Fist/regtest-gal21
 QS/regtest-fftw                                             fftw3
 QS/regtest-elpa                                             elpa mpiranks==1||mpiranks==2||mpiranks==4||mpiranks==6||mpiranks==8||mpiranks==16
 ATOM/regtest-libxc                                          libxc
