@@ -263,7 +263,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'read_tip_file'
 
-      INTEGER                                            :: extunit, i, nat
+      INTEGER                                            :: extunit, handle, i, nat
       INTEGER, DIMENSION(3)                              :: npts
       REAL(KIND=dp)                                      :: scaling
       REAL(KIND=dp), DIMENSION(3)                        :: rdum
@@ -271,6 +271,8 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(pw_type), POINTER                             :: pw
+
+      CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, para_env=para_env)
 
@@ -309,6 +311,8 @@ CONTAINS
       CALL pw_transfer(scan_env%tip_pw_r, pw)
       scan_env%tip_pw_g => pw
       CALL pw_grid_release(pw_grid)
+
+      CALL timestop(handle)
 
    END SUBROUTINE read_tip_file
 
