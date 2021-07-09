@@ -544,7 +544,7 @@ append_path() {
 read_enable() {
   local __input_var="${1#*=}"
   case $__input_var in
-    $1)
+    "$1")
       # if there is no "=" then treat as "yes"
       echo "__TRUE__"
       ;;
@@ -564,7 +564,7 @@ read_enable() {
 read_with() {
   local __input_var="${1#--with*=}"
   case $__input_var in
-    $1)
+    "$1")
       # if there is no "=" then treat as "install"
       echo '__INSTALL__'
       ;;
@@ -695,18 +695,22 @@ write_checksums() {
 write_toolchain_env() {
   local __installdir=$1
 
+  # run the following in a subshell to not affect the currently running shell
   # we do not need to achieve complete filtering, it is sufficient to
   # remove problematic variables (TERM/TERMCAP/COLORTERM) which may trigger
   # 'too many arguments' (since the environment vars are stored in the same memory block as command line arguments)
   # or which may not be valid anymore the next time the user runs the toolchain scripts,
   # like the proxy vars which may affect fetching tarballs
-  export -p | sed \
-    -e '/^\(declare -[rx]\+ \)\?\(COLORTERM\|DISPLAY\|EDITOR\|LESS\|LESSOPEN\|LOGNAME\|LS_COLORS\|PAGER\)=/d' \
-    -e '/^\(declare -[rx]\+ \)\?\(TERM\|TERMCAP\|USER\)=/d' \
-    -e '/^\(declare -[rx]\+ \)\?\(ftp\|http\|no\)_proxy=/d' \
-    -e '/^\(declare -[rx]\+ \)\?\(GPG_AGENT_INFO\|SSH_AGENT_PID\|SSH_AUTH_SOCK\)=/d' \
-    -e '/^\(declare -[rx]\+ \)\?LS_\(COLORS\|OPTIONS\)=/d' \
-    -e '/^\(declare -[rx]\+ \)\?\(STY\|WINDOW\|XAUTHORITY\)=/d' \
-    -e '/^\(declare -[rx]\+ \)\?XDG_/d' \
-    > "${__installdir}/toolchain.env"
+  (
+    unset COLORTERM DISPLAY EDITOR LESS LESSOPEN LOGNAME LS_COLORS PAGER
+    unset TERM TERMCAP USER
+    unset ftp_proxy http_proxy no_proxy
+    unset GPG_AGENT_INFO SSH_AGENT_PID SSH_AUTH_SOCK SSH_CLIENT SSH_CONNECTION SSH_TTY
+    unset LS_COLORS LS_OPTIONS
+    unset STY WINDOW XAUTHORITY
+    unset XDG_CURRENT_DESKTOP XDG_RUNTIME_DIR XDG_SEAT XDG_SESSION_CLASS XDG_SESSION_DESKTOP XDG_SESSION_ID XDG_SESSION_TYPE XDG_VTNR XDG_CONFIG_DIRS XDG_DATA_DIRS
+    unset DBUS_SESSION_BUS_ADDRESS
+
+    export -p
+  ) > "${__installdir}/toolchain.env"
 }
