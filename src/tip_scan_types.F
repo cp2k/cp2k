@@ -46,8 +46,6 @@ CONTAINS
       TYPE(scanning_type), INTENT(INOUT)                 :: scan_info
       TYPE(section_vals_type), POINTER                   :: input_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'read_scanning_section'
-
       CHARACTER(LEN=default_string_length)               :: schar
       INTEGER                                            :: ii, ix, iy, iz, nx, ny, nz
       INTEGER, DIMENSION(:), POINTER                     :: ilist
@@ -152,8 +150,6 @@ CONTAINS
    SUBROUTINE release_scanning_type(scan_info)
 
       TYPE(scanning_type), INTENT(INOUT)                 :: scan_info
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'release_scanning_type'
 
       scan_info%num_scan_points = 0
       scan_info%ref_point = 0.0_dp

@@ -45,8 +45,6 @@ CONTAINS
       TYPE(pw_type), INTENT(IN)                          :: pw1
       TYPE(pw_type), INTENT(INOUT)                       :: pw2
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_copy_match'
-
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: cc
       INTEGER                                            :: group, group_size, ig1, ig2, ip, jg2, &
                                                             me, ng1, ng2, ngm, penow
