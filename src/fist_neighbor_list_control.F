@@ -40,8 +40,8 @@ MODULE fist_neighbor_list_control
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_max
-   USE pair_potential_types,            ONLY: gal_type,&
-                                              gal21_type,&
+   USE pair_potential_types,            ONLY: gal21_type,&
+                                              gal_type,&
                                               pair_potential_pp_type,&
                                               siepmann_type,&
                                               tersoff_type

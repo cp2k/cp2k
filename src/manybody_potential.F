@@ -51,9 +51,9 @@ MODULE manybody_potential
    USE mathlib,                         ONLY: matvec_3x3
    USE message_passing,                 ONLY: mp_sum
    USE pair_potential_types,            ONLY: &
-        ea_type, eam_pot_type, gal_pot_type, gal_type, pair_potential_pp_type, &
-        pair_potential_single_type, quip_type, siepmann_pot_type, siepmann_type, tersoff_pot_type, &
-        tersoff_type, gal21_pot_type, gal21_type
+        ea_type, eam_pot_type, gal21_pot_type, gal21_type, gal_pot_type, gal_type, &
+        pair_potential_pp_type, pair_potential_single_type, quip_type, siepmann_pot_type, &
+        siepmann_type, tersoff_pot_type, tersoff_type
    USE particle_types,                  ONLY: particle_type
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
@@ -100,8 +100,8 @@ CONTAINS
          nloc_size, npairs, nparticle, nparticle_local, nr_h3O, nr_o, nr_oh, nunique
       INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a, work_list
       INTEGER, DIMENSION(:, :), POINTER                  :: glob_loc_list, list, sort_list
-      LOGICAL                                            :: any_gal, any_quip, any_siepmann, &
-                                                            any_tersoff, any_gal21
+      LOGICAL                                            :: any_gal, any_gal21, any_quip, &
+                                                            any_siepmann, any_tersoff
       REAL(KIND=dp)                                      :: drij, embed, pot_loc, pot_quip, qr, &
                                                             rab2_max, rij(3)
       REAL(KIND=dp), DIMENSION(3)                        :: cell_v, cvi
@@ -110,8 +110,8 @@ CONTAINS
       TYPE(eam_pot_type), POINTER                        :: eam
       TYPE(eam_type), DIMENSION(:), POINTER              :: eam_data
       TYPE(fist_neighbor_type), POINTER                  :: nonbonded
-      TYPE(gal_pot_type), POINTER                        :: gal
       TYPE(gal21_pot_type), POINTER                      :: gal21
+      TYPE(gal_pot_type), POINTER                        :: gal
       TYPE(neighbor_kind_pairs_type), POINTER            :: neighbor_kind_pair
       TYPE(pair_potential_pp_type), POINTER              :: potparm
       TYPE(pair_potential_single_type), POINTER          :: pot
@@ -493,7 +493,7 @@ CONTAINS
                            IF (drij > rab2_max) CYCLE
                            drij = SQRT(drij)
                            CALL gal21_energy(pot_loc, gal21, r_last_update_pbc, atom_a, atom_b, &
-                                           cell, particle_set, mm_section)
+                                             cell, particle_set, mm_section)
 
                            pot_manybody = pot_manybody + pot_loc
                         END DO
@@ -540,8 +540,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: eam_kinds_index
       INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a, work_list
       INTEGER, DIMENSION(:, :), POINTER                  :: glob_loc_list, list, sort_list
-      LOGICAL                                            :: any_gal, any_quip, any_siepmann, &
-                                                            any_tersoff, any_gal21
+      LOGICAL                                            :: any_gal, any_gal21, any_quip, &
+                                                            any_siepmann, any_tersoff
       REAL(KIND=dp) :: f_eam, fac, fr(3), ptens11, ptens12, ptens13, ptens21, ptens22, ptens23, &
          ptens31, ptens32, ptens33, rab(3), rab2, rab2_max, rtmp(3)
       REAL(KIND=dp), DIMENSION(3)                        :: cell_v, cvi
@@ -549,8 +549,8 @@ CONTAINS
       TYPE(eam_pot_type), POINTER                        :: eam_a, eam_b
       TYPE(eam_type), DIMENSION(:), POINTER              :: eam_data
       TYPE(fist_neighbor_type), POINTER                  :: nonbonded
-      TYPE(gal_pot_type), POINTER                        :: gal
       TYPE(gal21_pot_type), POINTER                      :: gal21
+      TYPE(gal_pot_type), POINTER                        :: gal
       TYPE(neighbor_kind_pairs_type), POINTER            :: neighbor_kind_pair
       TYPE(pair_potential_pp_type), POINTER              :: potparm
       TYPE(pair_potential_single_type), POINTER          :: pot
@@ -969,8 +969,8 @@ CONTAINS
                            ipair = ipair + 1
                            IF (DOT_PRODUCT(rtmp, rtmp) <= gal21%rcutsq) THEN
                               CALL gal21_forces(gal21, r_last_update_pbc, &
-                                              atom_a, atom_b, f_nonbond, pv_nonbond,  use_virial, &
-                                              cell, particle_set)
+                                                atom_a, atom_b, f_nonbond, pv_nonbond, use_virial, &
+                                                cell, particle_set)
                            END IF
                         END DO
                         ifirst = ilast + 1

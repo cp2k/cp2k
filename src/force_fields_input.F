@@ -64,9 +64,10 @@ MODULE force_fields_input
    USE memory_utilities,                ONLY: reallocate
    USE pair_potential_types,            ONLY: &
         b4_type, bm_type, do_potential_single_allocation, ea_type, eam_pot_type, ft_pot_type, &
-        ft_type, ftd_type, gal_type, gp_type, gw_type, ip_type, ipbv_pot_type, lj_charmm_type, &
-        no_potential_single_allocation, pair_potential_p_type, pair_potential_reallocate, &
-        potential_single_allocation, quip_type, siepmann_type, tersoff_type, wl_type, gal21_type
+        ft_type, ftd_type, gal21_type, gal_type, gp_type, gw_type, ip_type, ipbv_pot_type, &
+        lj_charmm_type, no_potential_single_allocation, pair_potential_p_type, &
+        pair_potential_reallocate, potential_single_allocation, quip_type, siepmann_type, &
+        tersoff_type, wl_type
    USE shell_potential_types,           ONLY: shell_p_create,&
                                               shell_p_type
    USE string_utilities,                ONLY: uppercase
@@ -99,8 +100,8 @@ CONTAINS
       TYPE(force_field_type), INTENT(INOUT)              :: ff_type
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      INTEGER :: nb4, nbends, nbm, nbmhft, nbmhftd, nbonds, nchg, neam, ngal, ngd, ngp, nimpr, &
-         nipbv, nlj, nopbend, nquip, nshell, nsiepmann, ntersoff, ntors, ntot, nubs, nwl, ngal21
+      INTEGER :: nb4, nbends, nbm, nbmhft, nbmhftd, nbonds, nchg, neam, ngal, ngal21, ngd, ngp, &
+         nimpr, nipbv, nlj, nopbend, nquip, nshell, nsiepmann, ntersoff, ntors, ntot, nubs, nwl
       LOGICAL                                            :: explicit, unique_spline
       REAL(KIND=dp)                                      :: min_eps_spline_allowed
       TYPE(input_info_type), POINTER                     :: inp_info
@@ -1443,7 +1444,6 @@ CONTAINS
          CALL section_vals_val_get(gal21_section, "BH", i_rep_section=isec, r_vals=rvalues)
          nonbonded%pot(start + isec)%pot%set(1)%gal21%BH1 = rvalues(1)
          nonbonded%pot(start + isec)%pot%set(1)%gal21%BH2 = rvalues(2)
-
 
          NULLIFY (list)
          subsection => section_vals_get_subs_vals(section, "GCN", i_rep_section=isec)

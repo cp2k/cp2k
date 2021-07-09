@@ -1009,11 +1009,12 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: lb1_new, ub1_new
       LOGICAL, INTENT(IN), OPTIONAL                      :: lj, lj_charmm, williams, goodwin, eam, &
                                                             quip, bmhft, bmhftd, ipbv, buck4r, &
-                                                            buckmo, gp, tersoff, siepmann, gal, gal21
+                                                            buckmo, gp, tersoff, siepmann, gal, &
+                                                            gal21
 
       INTEGER                                            :: i, ipot, lb1_old, std_dim, ub1_old
-      LOGICAL :: check, lbmhft, lbmhftd, lbuck4r, lbuckmo, leam, lgal, lgoodwin, lgp, lipbv, llj, &
-         llj_charmm, lquip, lsiepmann, ltersoff, lwilliams, lgal21
+      LOGICAL :: check, lbmhft, lbmhftd, lbuck4r, lbuckmo, leam, lgal, lgal21, lgoodwin, lgp, &
+         lipbv, llj, llj_charmm, lquip, lsiepmann, ltersoff, lwilliams
       TYPE(pair_potential_p_type), POINTER               :: work
 
       NULLIFY (work)
@@ -2201,7 +2202,7 @@ CONTAINS
 !> \param gal21 ...
 ! **************************************************************************************************
    SUBROUTINE pair_potential_gal21_create(gal21)
-      TYPE(gal21_pot_type), POINTER                        :: gal21
+      TYPE(gal21_pot_type), POINTER                      :: gal21
 
       CPASSERT(.NOT. ASSOCIATED(gal21))
       ALLOCATE (gal21)
@@ -2215,7 +2216,7 @@ CONTAINS
 !> \param gal21_dest ...
 ! **************************************************************************************************
    SUBROUTINE pair_potential_gal21_copy(gal21_source, gal21_dest)
-      TYPE(gal21_pot_type), POINTER                        :: gal21_source, gal21_dest
+      TYPE(gal21_pot_type), POINTER                      :: gal21_source, gal21_dest
 
       IF (.NOT. ASSOCIATED(gal21_source)) RETURN
       IF (ASSOCIATED(gal21_dest)) CALL pair_potential_gal21_release(gal21_dest)
@@ -2265,7 +2266,7 @@ CONTAINS
 !> \param gal21 ...
 ! **************************************************************************************************
    SUBROUTINE pair_potential_gal21_clean(gal21)
-      TYPE(gal21_pot_type), POINTER                        :: gal21
+      TYPE(gal21_pot_type), POINTER                      :: gal21
 
       IF (.NOT. ASSOCIATED(gal21)) RETURN
       gal21%epsilon1 = 0.0_dp
@@ -2309,7 +2310,7 @@ CONTAINS
 !> \param gal21 ...
 ! **************************************************************************************************
    SUBROUTINE pair_potential_gal21_release(gal21)
-      TYPE(gal21_pot_type), POINTER                        :: gal21
+      TYPE(gal21_pot_type), POINTER                      :: gal21
 
       IF (ASSOCIATED(gal21)) THEN
          DEALLOCATE (gal21%gcn)

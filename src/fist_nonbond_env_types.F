@@ -18,8 +18,8 @@ MODULE fist_nonbond_env_types
                                               fist_neighbor_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE pair_potential_types,            ONLY: gal_type,&
-                                              gal21_type,&
+   USE pair_potential_types,            ONLY: gal21_type,&
+                                              gal_type,&
                                               pair_potential_pp_release,&
                                               pair_potential_pp_type,&
                                               siepmann_type,&

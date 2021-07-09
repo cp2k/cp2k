@@ -59,10 +59,10 @@ CONTAINS
 !> \author Clabaut Paul - 2019 - ENS de Lyon
 ! **************************************************************************************************
    SUBROUTINE gal21_energy(pot_loc, gal21, r_last_update_pbc, iparticle, jparticle, &
-                         cell, particle_set, mm_section)
+                           cell, particle_set, mm_section)
 
       REAL(KIND=dp), INTENT(OUT)                         :: pot_loc
-      TYPE(gal21_pot_type), POINTER                        :: gal21
+      TYPE(gal21_pot_type), POINTER                      :: gal21
       TYPE(pos_type), DIMENSION(:), POINTER              :: r_last_update_pbc
       INTEGER, INTENT(IN)                                :: iparticle, jparticle
       TYPE(cell_type), POINTER                           :: cell
@@ -73,10 +73,10 @@ CONTAINS
 
       CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER                                            :: index_outfile
-      REAL(KIND=dp)                                      :: anglepart, cosalpha, drji2, &
-                                                            nvec(3), rji(3), &
-                                                            sinalpha, sum_weight, Vang, Vgaussian, &
-                                                            VTT, VH, weight, eps, bxy, bz, AO, BO
+      REAL(KIND=dp)                                      :: anglepart, AO, BO, bxy, bz, cosalpha, &
+                                                            drji2, eps, nvec(3), rji(3), sinalpha, &
+                                                            sum_weight, Vang, Vgaussian, VH, VTT, &
+                                                            weight
       TYPE(cp_logger_type), POINTER                      :: logger
 
       pot_loc = 0.0_dp
@@ -92,14 +92,13 @@ CONTAINS
             gal21%n_vectors(:, :) = 0.0_dp
          END IF
 
-
          IF (gal21%express) THEN
-                  logger => cp_get_default_logger()
-                  index_outfile = cp_print_key_unit_nr(logger, mm_section, &
-                                                       "PRINT%PROGRAM_RUN_INFO", extension=".mmLog")
-                  IF (index_outfile > 0) WRITE (index_outfile, *) "GCN", gal21%gcn(jparticle)
-                  CALL cp_print_key_finished_output(index_outfile, logger, mm_section, &
-                                                    "PRINT%PROGRAM_RUN_INFO")
+            logger => cp_get_default_logger()
+            index_outfile = cp_print_key_unit_nr(logger, mm_section, &
+                                                 "PRINT%PROGRAM_RUN_INFO", extension=".mmLog")
+            IF (index_outfile > 0) WRITE (index_outfile, *) "GCN", gal21%gcn(jparticle)
+            CALL cp_print_key_finished_output(index_outfile, logger, mm_section, &
+                                              "PRINT%PROGRAM_RUN_INFO")
          END IF
 
          !Build epsilon attraction and the parameters of the gaussian attraction as a function of gcn
@@ -115,7 +114,7 @@ CONTAINS
              gal21%n_vectors(2, jparticle) == 0.0_dp .AND. &
              gal21%n_vectors(3, jparticle) == 0.0_dp) THEN
             gal21%n_vectors(:, jparticle) = normale(gal21, r_last_update_pbc, jparticle, &
-                                                  particle_set, cell)
+                                                    particle_set, cell)
          END IF
 
          nvec(:) = gal21%n_vectors(:, jparticle) !Else, retrive it, should not have moved sinc metal is supposed to be frozen
@@ -130,7 +129,7 @@ CONTAINS
          anglepart = 0.0_dp
          VH = 0.0_dp
          CALL angular(anglepart, VH, gal21, r_last_update_pbc, iparticle, jparticle, cell, particle_set, nvec, &
-                       .TRUE., mm_section)
+                      .TRUE., mm_section)
 
          !Build the complete angular potential while avoiding division by 0
          IF (weight /= 0) THEN
@@ -158,7 +157,7 @@ CONTAINS
 
          !Gaussian component of the energy
          Vgaussian = -1.0_dp*eps*EXP(-bz*drji2*cosalpha*cosalpha &
-                                                         - bxy*drji2*sinalpha*sinalpha)
+                                     - bxy*drji2*sinalpha*sinalpha)
          !END Gaussian%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
          AO = gal21%AO1 + gal21%AO2*gal21%gcn(jparticle)
@@ -166,12 +165,12 @@ CONTAINS
 
          !Tang and toennies potential for physisorption
          VTT = AO*EXP(-BO*SQRT(drji2)) - (1.0 - EXP(-BO*SQRT(drji2)) &
-                                                - BO*SQRT(drji2)*EXP(-BO*SQRT(drji2)) &
-                                                - (((BO*SQRT(drji2))**2)/2)*EXP(-BO*SQRT(drji2)) &
-                                                - (((BO*SQRT(drji2))**3)/6)*EXP(-BO*SQRT(drji2)) &
-                                                - (((BO*SQRT(drji2))**4)/24)*EXP(-BO*SQRT(drji2)) &
-                                                - (((BO*SQRT(drji2))**5)/120)*EXP(-BO*SQRT(drji2)) &
-                                                - (((BO*SQRT(drji2))**6)/720)*EXP(-BO*SQRT(drji2))) &
+                                          - BO*SQRT(drji2)*EXP(-BO*SQRT(drji2)) &
+                                          - (((BO*SQRT(drji2))**2)/2)*EXP(-BO*SQRT(drji2)) &
+                                          - (((BO*SQRT(drji2))**3)/6)*EXP(-BO*SQRT(drji2)) &
+                                          - (((BO*SQRT(drji2))**4)/24)*EXP(-BO*SQRT(drji2)) &
+                                          - (((BO*SQRT(drji2))**5)/120)*EXP(-BO*SQRT(drji2)) &
+                                          - (((BO*SQRT(drji2))**6)/720)*EXP(-BO*SQRT(drji2))) &
                *gal21%c/(SQRT(drji2)**6)
 
          !For fit purpose only
@@ -180,7 +179,7 @@ CONTAINS
             index_outfile = cp_print_key_unit_nr(logger, mm_section, &
                                                  "PRINT%PROGRAM_RUN_INFO", extension=".mmLog")
             IF (index_outfile > 0) WRITE (index_outfile, *) "Gau", -1.0_dp*EXP(-bz*drji2*cosalpha*cosalpha &
-                                                                                           - bxy*drji2*sinalpha*sinalpha)
+                                                                               - bxy*drji2*sinalpha*sinalpha)
             IF (weight == 0 .AND. index_outfile > 0) WRITE (index_outfile, *) "Fermi  0"
             IF (index_outfile > 0) WRITE (index_outfile, *) "expO", EXP(-BO*SQRT(drji2))
             IF (index_outfile > 0) WRITE (index_outfile, *) "cstpart", -(1.0 - EXP(-BO*SQRT(drji2)) &
@@ -192,7 +191,7 @@ CONTAINS
                                                                          - (((BO*SQRT(drji2))**6)/720)*EXP(-BO*SQRT(drji2))) &
                *gal21%c/(SQRT(drji2)**6)
             IF (index_outfile > 0) WRITE (index_outfile, *) "params_lin_eps", gal21%epsilon1, gal21%epsilon2, gal21%epsilon3
-            IF (index_outfile > 0) WRITE (index_outfile, *) "params_lin_A0", AO 
+            IF (index_outfile > 0) WRITE (index_outfile, *) "params_lin_A0", AO
             CALL cp_print_key_finished_output(index_outfile, logger, mm_section, &
                                               "PRINT%PROGRAM_RUN_INFO")
          END IF
@@ -218,7 +217,7 @@ CONTAINS
 !> \retval normale ...
 ! **************************************************************************************************
    FUNCTION normale(gal21, r_last_update_pbc, jparticle, particle_set, cell)
-      TYPE(gal21_pot_type), POINTER                        :: gal21
+      TYPE(gal21_pot_type), POINTER                      :: gal21
       TYPE(pos_type), DIMENSION(:), POINTER              :: r_last_update_pbc
       INTEGER, INTENT(IN)                                :: jparticle
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -242,7 +241,7 @@ CONTAINS
          rjk(:) = pbc(r_last_update_pbc(jparticle)%r(:), r_last_update_pbc(kparticle)%r(:), cell)
          drjk = SQRT(DOT_PRODUCT(rjk, rjk))
          IF (drjk > gal21%rcutsq) CYCLE !Keep only those within square root of the force-field cutoff distance of the metallic atom of the evaluated pair
-         normale(:) = normale(:)-rjk(:)/(drjk*drjk*drjk*drjk*drjk) !Build the normal, vector by vector
+         normale(:) = normale(:) - rjk(:)/(drjk*drjk*drjk*drjk*drjk) !Build the normal, vector by vector
       END DO
 
       ! Normalisation of the vector
@@ -263,7 +262,7 @@ CONTAINS
 !> \retval somme ...
 ! **************************************************************************************************
    FUNCTION somme(gal21, r_last_update_pbc, iparticle, particle_set, cell)
-      TYPE(gal21_pot_type), POINTER                        :: gal21
+      TYPE(gal21_pot_type), POINTER                      :: gal21
       TYPE(pos_type), DIMENSION(:), POINTER              :: r_last_update_pbc
       INTEGER, INTENT(IN)                                :: iparticle
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -312,8 +311,9 @@ CONTAINS
 !> \retval angular ...
 ! **************************************************************************************************
    SUBROUTINE angular(anglepart, VH, gal21, r_last_update_pbc, iparticle, jparticle, cell, &
-                                                        particle_set, nvec, energy, mm_section) 
-      TYPE(gal21_pot_type), POINTER                        :: gal21
+                      particle_set, nvec, energy, mm_section)
+      REAL(KIND=dp)                                      :: anglepart, VH
+      TYPE(gal21_pot_type), POINTER                      :: gal21
       TYPE(pos_type), DIMENSION(:), POINTER              :: r_last_update_pbc
       INTEGER, INTENT(IN)                                :: iparticle, jparticle
       TYPE(cell_type), POINTER                           :: cell
@@ -321,16 +321,15 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: nvec
       LOGICAL                                            :: energy
       TYPE(section_vals_type), POINTER                   :: mm_section
-      REAL(KIND=dp)                                      :: anglepart, VH
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'angular', routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER                                            :: count_h, iatom, index_h1, index_h2, &
                                                             index_outfile, natom
-      REAL(KIND=dp)                                      :: costheta, h_max_dist, rih(3), rih1(3), &
-                                                            rih2(3), rix(3), theta, rjh1(3), rjh2(3),&
-                                                            a1, a2, a3, a4, BH
+      REAL(KIND=dp)                                      :: a1, a2, a3, a4, BH, costheta, &
+                                                            h_max_dist, rih(3), rih1(3), rih2(3), &
+                                                            rix(3), rjh1(3), rjh2(3), theta
       TYPE(cp_logger_type), POINTER                      :: logger
 
       count_h = 0
@@ -372,15 +371,14 @@ CONTAINS
       IF (costheta > +1.0_dp) costheta = +1.0_dp
       theta = ACOS(costheta) ! Theta is the angle between the normal to the surface and the dipole
       anglepart = a1*costheta + a2*COS(2.0_dp*theta) + a3*COS(3.0_dp*theta) &
-                + a4*COS(4.0_dp*theta) ! build the fourier series
+                  + a4*COS(4.0_dp*theta) ! build the fourier series
 
       BH = gal21%BH1 + gal21%gcn(jparticle)*gal21%BH2
 
       rjh1(:) = pbc(r_last_update_pbc(jparticle)%r(:), r_last_update_pbc(index_h1)%r(:), cell)
       rjh2(:) = pbc(r_last_update_pbc(jparticle)%r(:), r_last_update_pbc(index_h2)%r(:), cell)
-      VH = (gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)*(exp(-BH*SQRT(DOT_PRODUCT(rjh1,rjh1))) + &
-                                                    exp(-BH*SQRT(DOT_PRODUCT(rjh2,rjh2))) ) 
-           
+      VH = (gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)*(EXP(-BH*SQRT(DOT_PRODUCT(rjh1, rjh1))) + &
+                                                         EXP(-BH*SQRT(DOT_PRODUCT(rjh2, rjh2))))
 
       ! For fit purpose
       IF (gal21%express .AND. energy) THEN
@@ -390,8 +388,8 @@ CONTAINS
 
          IF (index_outfile > 0) WRITE (index_outfile, *) "Fourier", costheta, COS(2.0_dp*theta), COS(3.0_dp*theta), &
             COS(4.0_dp*theta) !, theta
-         IF (index_outfile > 0) WRITE (index_outfile, *) "H_rep", exp(-BH*SQRT(DOT_PRODUCT(rjh1, rjh1))) + &
-                                  exp(-BH*SQRT(DOT_PRODUCT(rjh2, rjh2)))
+         IF (index_outfile > 0) WRITE (index_outfile, *) "H_rep", EXP(-BH*SQRT(DOT_PRODUCT(rjh1, rjh1))) + &
+            EXP(-BH*SQRT(DOT_PRODUCT(rjh2, rjh2)))
          !IF (index_outfile > 0) WRITE (index_outfile, *) "H_r6", -1/DOT_PRODUCT(rjh1,rjh1)**3 -1/DOT_PRODUCT(rjh2,rjh2)**3
 
          CALL cp_print_key_finished_output(index_outfile, logger, mm_section, &
@@ -414,8 +412,8 @@ CONTAINS
 !> \author Clabaut Paul - 2019 - ENS de Lyon
 ! **************************************************************************************************
    SUBROUTINE gal21_forces(gal21, r_last_update_pbc, iparticle, jparticle, f_nonbond, pv_nonbond, &
-                          use_virial, cell, particle_set)
-      TYPE(gal21_pot_type), POINTER                        :: gal21
+                           use_virial, cell, particle_set)
+      TYPE(gal21_pot_type), POINTER                      :: gal21
       TYPE(pos_type), DIMENSION(:), POINTER              :: r_last_update_pbc
       INTEGER, INTENT(IN)                                :: iparticle, jparticle
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: f_nonbond, pv_nonbond
@@ -426,9 +424,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'gal21_forces', routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=2)                                   :: element_symbol
-      REAL(KIND=dp) :: anglepart, VH, cosalpha, dGauss(3), drji, drjicosalpha(3), drjisinalpha(3), &
-         dTT(3), dweight(3), nvec(3), prefactor, rji(3), rji_hat(3), &
-         sinalpha, sum_weight, Vgaussian, weight, eps, bxy, bz, AO, BO
+      REAL(KIND=dp) :: anglepart, AO, BO, bxy, bz, cosalpha, dGauss(3), drji, drjicosalpha(3), &
+         drjisinalpha(3), dTT(3), dweight(3), eps, nvec(3), prefactor, rji(3), rji_hat(3), &
+         sinalpha, sum_weight, Vgaussian, VH, weight
       TYPE(section_vals_type), POINTER                   :: mm_section
 
       CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind, &
@@ -445,7 +443,6 @@ CONTAINS
             gal21%n_vectors(:, :) = 0.0_dp
          END IF
 
-
          !Build epsilon attraction and the a parameters of the Fourier serie as quadratic fucntion of gcn
          eps = gal21%epsilon1*gal21%gcn(jparticle)*gal21%gcn(jparticle) + gal21%epsilon2*gal21%gcn(jparticle) + gal21%epsilon3
          bxy = gal21%bxy1 + gal21%bxy2*gal21%gcn(jparticle)
@@ -458,7 +455,7 @@ CONTAINS
              gal21%n_vectors(2, jparticle) == 0.0_dp .AND. &
              gal21%n_vectors(3, jparticle) == 0.0_dp) THEN
             gal21%n_vectors(:, jparticle) = normale(gal21, r_last_update_pbc, jparticle, &
-                                                  particle_set, cell)
+                                                    particle_set, cell)
          END IF
 
          nvec(:) = gal21%n_vectors(:, jparticle) !Else, retrive it, should not have moved sinc metal is supposed to be frozen
@@ -475,7 +472,7 @@ CONTAINS
          anglepart = 0.0_dp
          VH = 0.0_dp
          CALL angular(anglepart, VH, gal21, r_last_update_pbc, iparticle, jparticle, cell, particle_set, nvec, &
-                             .FALSE., mm_section)
+                      .FALSE., mm_section)
 
          !Build the average of the exponential weight while avoiding division by 0
          IF (weight /= 0) THEN
@@ -484,23 +481,23 @@ CONTAINS
                                         anglepart/sum_weight
 
             IF (use_virial) THEN
-              pv_nonbond(1,1:3)  = pv_nonbond(1,1:3) + rji(1)*2.0_dp*dweight(1:3)*weight* &
-                                        anglepart/sum_weight
-              pv_nonbond(2,1:3)  = pv_nonbond(2,1:3) + rji(2)*2.0_dp*dweight(1:3)*weight* &
-                                        anglepart/sum_weight
-              pv_nonbond(3,1:3)  = pv_nonbond(3,1:3) + rji(3)*2.0_dp*dweight(1:3)*weight* &
-                                        anglepart/sum_weight
+               pv_nonbond(1, 1:3) = pv_nonbond(1, 1:3) + rji(1)*2.0_dp*dweight(1:3)*weight* &
+                                    anglepart/sum_weight
+               pv_nonbond(2, 1:3) = pv_nonbond(2, 1:3) + rji(2)*2.0_dp*dweight(1:3)*weight* &
+                                    anglepart/sum_weight
+               pv_nonbond(3, 1:3) = pv_nonbond(3, 1:3) + rji(3)*2.0_dp*dweight(1:3)*weight* &
+                                    anglepart/sum_weight
             END IF
 
             ! Calculate the second component of the derivativ of the angular term
             CALL somme_d(gal21, r_last_update_pbc, iparticle, jparticle, &
-                 f_nonbond, pv_nonbond, use_virial, particle_set, cell, anglepart, sum_weight)
+                         f_nonbond, pv_nonbond, use_virial, particle_set, cell, anglepart, sum_weight)
 
             prefactor = (-1.0_dp)*weight*weight/sum_weight ! Avoiding division by 0
 
             ! Calculate the third component of the derivativ of the angular term
             CALL angular_d(gal21, r_last_update_pbc, iparticle, jparticle, &
-                 f_nonbond, pv_nonbond, use_virial, prefactor, cell, particle_set, nvec)
+                           f_nonbond, pv_nonbond, use_virial, prefactor, cell, particle_set, nvec)
          END IF
          !END Angular%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -513,7 +510,7 @@ CONTAINS
 
          !Gaussian component of the energy
          Vgaussian = -1.0_dp*eps*EXP(-bz*DOT_PRODUCT(rji, rji)*cosalpha*cosalpha &
-                                                         - bxy*DOT_PRODUCT(rji, rji)*sinalpha*sinalpha)
+                                     - bxy*DOT_PRODUCT(rji, rji)*sinalpha*sinalpha)
 
          ! Calculation of partial derivativ of the gaussian components
          drjicosalpha(:) = rji_hat(:)*cosalpha + nvec(:) - cosalpha*rji_hat(:)
@@ -525,9 +522,9 @@ CONTAINS
          f_nonbond(1:3, iparticle) = f_nonbond(1:3, iparticle) + dGauss(1:3)
 
          IF (use_virial) THEN
-           pv_nonbond(1,1:3)  = pv_nonbond(1,1:3) + rji(1)*dGauss(1:3)
-           pv_nonbond(2,1:3)  = pv_nonbond(2,1:3) + rji(2)*dGauss(1:3)
-           pv_nonbond(3,1:3)  = pv_nonbond(3,1:3) + rji(3)*dGauss(1:3)
+            pv_nonbond(1, 1:3) = pv_nonbond(1, 1:3) + rji(1)*dGauss(1:3)
+            pv_nonbond(2, 1:3) = pv_nonbond(2, 1:3) + rji(2)*dGauss(1:3)
+            pv_nonbond(3, 1:3) = pv_nonbond(3, 1:3) + rji(3)*dGauss(1:3)
          END IF
          !END Gaussian%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -549,11 +546,10 @@ CONTAINS
          f_nonbond(1:3, iparticle) = f_nonbond(1:3, iparticle) - dTT(1:3)
 
          IF (use_virial) THEN
-           pv_nonbond(1,1:3)  = pv_nonbond(1,1:3) - rji(1)*dTT(1:3)
-           pv_nonbond(2,1:3)  = pv_nonbond(2,1:3) - rji(2)*dTT(1:3)
-           pv_nonbond(3,1:3)  = pv_nonbond(3,1:3) - rji(3)*dTT(1:3)
+            pv_nonbond(1, 1:3) = pv_nonbond(1, 1:3) - rji(1)*dTT(1:3)
+            pv_nonbond(2, 1:3) = pv_nonbond(2, 1:3) - rji(2)*dTT(1:3)
+            pv_nonbond(3, 1:3) = pv_nonbond(3, 1:3) - rji(3)*dTT(1:3)
          END IF
-
 
       END IF
 
@@ -577,8 +573,8 @@ CONTAINS
 !> \param sum_weight ...
 ! **************************************************************************************************
    SUBROUTINE somme_d(gal21, r_last_update_pbc, iparticle, jparticle, &
-                 f_nonbond, pv_nonbond, use_virial, particle_set, cell, anglepart, sum_weight)
-      TYPE(gal21_pot_type), POINTER                        :: gal21
+                      f_nonbond, pv_nonbond, use_virial, particle_set, cell, anglepart, sum_weight)
+      TYPE(gal21_pot_type), POINTER                      :: gal21
       TYPE(pos_type), DIMENSION(:), POINTER              :: r_last_update_pbc
       INTEGER, INTENT(IN)                                :: iparticle, jparticle
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: f_nonbond, pv_nonbond
@@ -614,12 +610,12 @@ CONTAINS
                                      *weight_rji*anglepart/(sum_weight**2)
 
          IF (use_virial) THEN
-           pv_nonbond(1,1:3)  = pv_nonbond(1,1:3) + rki(1)*dwdr(1:3)*weight_rji &
-                                       *weight_rji*anglepart/(sum_weight**2)
-           pv_nonbond(2,1:3)  = pv_nonbond(2,1:3) + rki(2)*dwdr(1:3)*weight_rji &
-                                       *weight_rji*anglepart/(sum_weight**2)
-           pv_nonbond(3,1:3)  = pv_nonbond(3,1:3) + rki(3)*dwdr(1:3)*weight_rji &
-                                       *weight_rji*anglepart/(sum_weight**2)
+            pv_nonbond(1, 1:3) = pv_nonbond(1, 1:3) + rki(1)*dwdr(1:3)*weight_rji &
+                                 *weight_rji*anglepart/(sum_weight**2)
+            pv_nonbond(2, 1:3) = pv_nonbond(2, 1:3) + rki(2)*dwdr(1:3)*weight_rji &
+                                 *weight_rji*anglepart/(sum_weight**2)
+            pv_nonbond(3, 1:3) = pv_nonbond(3, 1:3) + rki(3)*dwdr(1:3)*weight_rji &
+                                 *weight_rji*anglepart/(sum_weight**2)
          END IF
 
       END DO
@@ -643,8 +639,8 @@ CONTAINS
 !> \param nvec ...
 ! **************************************************************************************************
    SUBROUTINE angular_d(gal21, r_last_update_pbc, iparticle, jparticle, f_nonbond, &
-                 pv_nonbond, use_virial, prefactor, cell, particle_set, nvec)
-      TYPE(gal21_pot_type), POINTER                        :: gal21
+                        pv_nonbond, use_virial, prefactor, cell, particle_set, nvec)
+      TYPE(gal21_pot_type), POINTER                      :: gal21
       TYPE(pos_type), DIMENSION(:), POINTER              :: r_last_update_pbc
       INTEGER, INTENT(IN)                                :: iparticle, jparticle
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: f_nonbond, pv_nonbond
@@ -658,10 +654,10 @@ CONTAINS
 
       CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER                                            :: count_h, iatom, index_h1, index_h2, natom
-      REAL(KIND=dp)                                      :: costheta, dsumdtheta, h_max_dist, theta,&
-                                                            a1, a2, a3, a4, BH
+      REAL(KIND=dp)                                      :: a1, a2, a3, a4, BH, costheta, &
+                                                            dsumdtheta, h_max_dist, theta
       REAL(KIND=dp), DIMENSION(3)                        :: dangular, dcostheta, rih, rih1, rih2, &
-                                                            rix, rix_hat, rji, rji_hat, rjh1, rjh2
+                                                            rix, rix_hat, rjh1, rjh2, rji, rji_hat
 
       count_h = 0
       index_h1 = 0
@@ -719,46 +715,45 @@ CONTAINS
       f_nonbond(1:3, index_h2) = f_nonbond(1:3, index_h2) + dangular(1:3)
 
       IF (use_virial) THEN
-        pv_nonbond(1,1:3)  = pv_nonbond(1,1:3) + rix(1)*dangular(1:3)
-        pv_nonbond(2,1:3)  = pv_nonbond(2,1:3) + rix(2)*dangular(1:3)
-        pv_nonbond(3,1:3)  = pv_nonbond(3,1:3) + rix(3)*dangular(1:3)
+         pv_nonbond(1, 1:3) = pv_nonbond(1, 1:3) + rix(1)*dangular(1:3)
+         pv_nonbond(2, 1:3) = pv_nonbond(2, 1:3) + rix(2)*dangular(1:3)
+         pv_nonbond(3, 1:3) = pv_nonbond(3, 1:3) + rix(3)*dangular(1:3)
       END IF
 
       BH = gal21%BH1 + gal21%gcn(jparticle)*gal21%BH2
 
       rjh1(:) = pbc(r_last_update_pbc(jparticle)%r(:), r_last_update_pbc(index_h1)%r(:), cell)
       f_nonbond(1:3, index_h1) = f_nonbond(1:3, index_h1) + (gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)* &
-                  BH*exp(-BH*SQRT(DOT_PRODUCT(rjh1,rjh1)))*rjh1(:)/SQRT(DOT_PRODUCT(rjh1, rjh1))
+                                 BH*EXP(-BH*SQRT(DOT_PRODUCT(rjh1, rjh1)))*rjh1(:)/SQRT(DOT_PRODUCT(rjh1, rjh1))
 
       IF (use_virial) THEN
-        pv_nonbond(1,1:3)  = pv_nonbond(1,1:3) + rjh1(1)*((gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)* &
-                    BH*exp(-BH*SQRT(DOT_PRODUCT(rjh1,rjh1)))) &
-                    *rjh1(:)/SQRT(DOT_PRODUCT(rjh1, rjh1))
-        pv_nonbond(2,1:3)  = pv_nonbond(2,1:3) + rjh1(2)*((gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)* &
-                    BH*exp(-BH*SQRT(DOT_PRODUCT(rjh1,rjh1))))&
-                    *rjh1(:)/SQRT(DOT_PRODUCT(rjh1, rjh1))
-        pv_nonbond(3,1:3)  = pv_nonbond(3,1:3) + rjh2(3)*((gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)* &
-                    BH*exp(-BH*SQRT(DOT_PRODUCT(rjh1,rjh1))))&
-                    *rjh1(:)/SQRT(DOT_PRODUCT(rjh1, rjh1))
+         pv_nonbond(1, 1:3) = pv_nonbond(1, 1:3) + rjh1(1)*((gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)* &
+                                                            BH*EXP(-BH*SQRT(DOT_PRODUCT(rjh1, rjh1)))) &
+                              *rjh1(:)/SQRT(DOT_PRODUCT(rjh1, rjh1))
+         pv_nonbond(2, 1:3) = pv_nonbond(2, 1:3) + rjh1(2)*((gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)* &
+                                                            BH*EXP(-BH*SQRT(DOT_PRODUCT(rjh1, rjh1)))) &
+                              *rjh1(:)/SQRT(DOT_PRODUCT(rjh1, rjh1))
+         pv_nonbond(3, 1:3) = pv_nonbond(3, 1:3) + rjh2(3)*((gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)* &
+                                                            BH*EXP(-BH*SQRT(DOT_PRODUCT(rjh1, rjh1)))) &
+                              *rjh1(:)/SQRT(DOT_PRODUCT(rjh1, rjh1))
       END IF
-            
+
       rjh2(:) = pbc(r_last_update_pbc(jparticle)%r(:), r_last_update_pbc(index_h2)%r(:), cell)
       f_nonbond(1:3, index_h2) = f_nonbond(1:3, index_h2) + ((gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)* &
-                  BH*exp(-BH*SQRT(DOT_PRODUCT(rjh2,rjh2))))&
-                  *rjh2(:)/SQRT(DOT_PRODUCT(rjh2, rjh2))
+                                                             BH*EXP(-BH*SQRT(DOT_PRODUCT(rjh2, rjh2)))) &
+                                 *rjh2(:)/SQRT(DOT_PRODUCT(rjh2, rjh2))
 
       IF (use_virial) THEN
-        pv_nonbond(1,1:3)  = pv_nonbond(1,1:3) + rjh2(1)*((gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)* &
-                    BH*exp(-BH*SQRT(DOT_PRODUCT(rjh2,rjh2))))&
-                    *rjh2(:)/SQRT(DOT_PRODUCT(rjh2, rjh2))
-        pv_nonbond(2,1:3)  = pv_nonbond(2,1:3) + rjh2(2)*((gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)* &
-                    BH*exp(-BH*SQRT(DOT_PRODUCT(rjh2,rjh2))))&
-                    *rjh2(:)/SQRT(DOT_PRODUCT(rjh2, rjh2))
-        pv_nonbond(3,1:3)  = pv_nonbond(3,1:3) + rjh2(3)*((gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)* &
-                    BH*exp(-BH*SQRT(DOT_PRODUCT(rjh2,rjh2))))&
-                    *rjh2(:)/SQRT(DOT_PRODUCT(rjh2, rjh2))
+         pv_nonbond(1, 1:3) = pv_nonbond(1, 1:3) + rjh2(1)*((gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)* &
+                                                            BH*EXP(-BH*SQRT(DOT_PRODUCT(rjh2, rjh2)))) &
+                              *rjh2(:)/SQRT(DOT_PRODUCT(rjh2, rjh2))
+         pv_nonbond(2, 1:3) = pv_nonbond(2, 1:3) + rjh2(2)*((gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)* &
+                                                            BH*EXP(-BH*SQRT(DOT_PRODUCT(rjh2, rjh2)))) &
+                              *rjh2(:)/SQRT(DOT_PRODUCT(rjh2, rjh2))
+         pv_nonbond(3, 1:3) = pv_nonbond(3, 1:3) + rjh2(3)*((gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)* &
+                                                            BH*EXP(-BH*SQRT(DOT_PRODUCT(rjh2, rjh2)))) &
+                              *rjh2(:)/SQRT(DOT_PRODUCT(rjh2, rjh2))
       END IF
-
 
    END SUBROUTINE angular_d
 
@@ -773,7 +768,7 @@ CONTAINS
 !> \par History
 ! **************************************************************************************************
    SUBROUTINE setup_gal21_arrays(nonbonded, potparm, glob_loc_list, glob_cell_v, &
-                               glob_loc_list_a, cell)
+                                 glob_loc_list_a, cell)
       TYPE(fist_neighbor_type), POINTER                  :: nonbonded
       TYPE(pair_potential_pp_type), POINTER              :: potparm
       INTEGER, DIMENSION(:, :), POINTER                  :: glob_loc_list
@@ -905,7 +900,7 @@ CONTAINS
 !> \param print_o flag indicating if number O^(2-) is printed
 ! **************************************************************************************************
    SUBROUTINE print_nr_ions_gal21(nr_ions, mm_section, para_env, print_oh, &
-                                print_h3o, print_o)
+                                  print_h3o, print_o)
       INTEGER, INTENT(INOUT)                             :: nr_ions
       TYPE(section_vals_type), POINTER                   :: mm_section
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env

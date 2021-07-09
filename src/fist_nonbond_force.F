@@ -38,15 +38,9 @@ MODULE fist_nonbond_force
    USE mathlib,                         ONLY: matvec_3x3
    USE message_passing,                 ONLY: mp_sum
    USE pair_potential_coulomb,          ONLY: potential_coulomb
-   USE pair_potential_types,            ONLY: gal_type,&
-                                              gal21_type,&
-                                              nosh_nosh,&
-                                              nosh_sh,&
-                                              pair_potential_pp_type,&
-                                              pair_potential_single_type,&
-                                              sh_sh,&
-                                              siepmann_type,&
-                                              tersoff_type
+   USE pair_potential_types,            ONLY: &
+        gal21_type, gal_type, nosh_nosh, nosh_sh, pair_potential_pp_type, &
+        pair_potential_single_type, sh_sh, siepmann_type, tersoff_type
    USE particle_types,                  ONLY: particle_type
    USE shell_potential_types,           ONLY: get_shell,&
                                               shell_kind_type
