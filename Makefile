@@ -502,7 +502,7 @@ cp2k_info.o: $(GIT_REF)
 # Add some practical metadata about the build.
 FCFLAGS += -D__COMPILE_ARCH="\"$(ARCH)\""\
 					 -D__COMPILE_DATE="\"$(shell date)\""\
-					 -D__COMPILE_HOST="\"$(shell hostname)\""\
+					 -D__COMPILE_HOST="\"$(shell hostname 2>/dev/null || hostnamectl --transient)\""\
 					 -D__COMPILE_REVISION="\"$(strip $(REVISION))\""\
 					 -D__DATA_DIR="\"$(DATA_DIR)\""
 
