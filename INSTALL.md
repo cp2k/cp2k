@@ -179,7 +179,7 @@ the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
 
 - Specify OFFLOAD_CC (e.g. `OFFLOAD_CC = nvcc`) and
   OFFLOAD_FLAGS (e.g. `OFFLOAD_FLAGS = -O3 -g -w --std=c++11`) variables.
-- Use the `-D__DBCSR_ACC` and `USE_ACCEL=cuda` to enable accelerator support for 
+- Use the `-D__DBCSR_ACC` and `USE_ACCEL=cuda` to enable accelerator support for
   matrix multiplications.
 - Add `-lstdc++ -lcudart -lnvrtc -lcuda -lcublas` to LIBS.
 - Specify the GPU type (e.g. `GPUVER   = P100`),
@@ -339,9 +339,9 @@ out of the box on Nvidia hardware as well.
   and set the `OFFLOAD_FLAGS` with right `nvcc` parameters (see the cuda section
   of this document). The environment variable `HIP_PLATFORM` should be set to
   `HIP_PLATFORM=nvidia` to indicate to hipcc to use the nvcc compiler instead.
-- When the HIP backend is enabled for DBCSR using `-D__DBCSR_ACC`, then add 
-  `-D__HIP_PLATFORM_AMD__` to `CXXFLAGS` and `USE_ACCEL=hip` in the CP2K arch file. 
-  DBCSR will then be built with `CC` and `CXXFLAGS` and avoid linking with 
+- When the HIP backend is enabled for DBCSR using `-D__DBCSR_ACC`, then add
+  `-D__HIP_PLATFORM_AMD__` to `CXXFLAGS` and `USE_ACCEL=hip` in the CP2K arch file.
+  DBCSR will then be built with `CC` and `CXXFLAGS` and avoid linking with
   multiple conflicting OpenMP runtimes.
 
 <!---
