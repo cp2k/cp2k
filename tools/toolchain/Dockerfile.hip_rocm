@@ -14,8 +14,8 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
 
 # Setup HIP environment.
 ENV ROCM_PATH /opt/rocm
-ENV PATH ${PATH}:${ROCM_PATH}/hip/bin
-ENV LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:${ROCM_PATH}/hip/lib:${ROCM_PATH}/hipblas/lib
+ENV PATH ${PATH}:${ROCM_PATH}/bin
+ENV LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:${ROCM_PATH}/lib
 ENV HIP_PLATFORM amd
 RUN hipconfig
 

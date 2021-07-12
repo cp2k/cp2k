@@ -189,7 +189,7 @@ the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
 - CUFFT 7.0 has a known bug and is therefore disabled by default.
   NVIDIA's webpage list a patch (an upgraded version cufft i.e. >= 7.0.35) -
   use this together with `-D__HAS_PATCHED_CUFFT_70`.
-- Use `-D__CUDA_PROFILING` to turn on Nvidia Tools Extensions.
+- Use `-D__OFFLOAD_PROFILING` to turn on Nvidia Tools Extensions.
   It requires to link `-lnvToolsExt`.
 - Link to a blas/scalapack library that accelerates large DGEMMs (e.g. libsci_acc)
 - Use the `-D__GRID_CUDA` to compile the GPU and HYBRID backends for the grid library.
@@ -340,6 +340,8 @@ out of the box on Nvidia hardware as well.
   and set the `OFFLOAD_FLAGS` with right `nvcc` parameters (see the cuda section
   of this document). The environment variable `HIP_PLATFORM` should be set to
   `HIP_PLATFORM=nvidia` to indicate to hipcc to use the nvcc compiler instead.
+- Use `-D__OFFLOAD_PROFILING` to turn on the AMD ROC TX and Tracer libray.
+  It requires to link `-lroctx64 -lroctracer64`.
 
 <!---
 ### 2u. LibMaxwell (External Maxwell Solver)

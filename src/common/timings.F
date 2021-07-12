@@ -23,9 +23,6 @@ MODULE timings
                                               callgraph_item_type,&
                                               callgraph_items,&
                                               callgraph_set
-   USE cuda_profiling,                  ONLY: cuda_mem_info,&
-                                              cuda_nvtx_range_pop,&
-                                              cuda_nvtx_range_push
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
@@ -36,6 +33,9 @@ MODULE timings
                                               m_flush,&
                                               m_memory,&
                                               m_walltime
+   USE offload_api,                     ONLY: offload_mem_info,&
+                                              offload_timeset,&
+                                              offload_timestop
    USE routine_map,                     ONLY: routine_map_destroy,&
                                               routine_map_get,&
                                               routine_map_init,&
@@ -264,7 +264,7 @@ CONTAINS
          WRITE (sformat, *) "(A,A,", MAX(1, 3*stack_size - 4), "X,I4,1X,I6,1X,A,A)"
          WRITE (mystring, sformat) timer_env%trace_str, ">>", stack_size + 1, &
             r_stat%total_calls, TRIM(r_stat%routineN), "       start"
-         CALL cuda_mem_info(gpumem_free, gpumem_total)
+         CALL offload_mem_info(gpumem_free, gpumem_total)
          CALL m_memory(cpumem)
          WRITE (line, '(A,A,I0,A,A,I0,A)') TRIM(mystring), &
             " Hostmem: ", (cpumem + 1024*1024 - 1)/(1024*1024), " MB", &
@@ -275,9 +275,7 @@ CONTAINS
 
       handle = routine_id
 
-#if defined( __CUDA_PROFILING )
-      CALL cuda_nvtx_range_push(routineN)
-#endif
+      CALL offload_timeset(routineN)
 
 !$OMP END CRITICAL(time_setstop)
 !$OMP END MASTER
@@ -310,9 +308,7 @@ CONTAINS
 !$OMP MASTER
 !$OMP CRITICAL(time_setstop)
 
-#if defined( __CUDA_PROFILING )
-      CALL cuda_nvtx_range_pop()
-#endif
+      CALL offload_timestop()
 
       timer_env => list_peek(timers_stack)
       cs_entry = list_pop(timer_env%callstack)
@@ -375,7 +371,7 @@ CONTAINS
          WRITE (sformat, *) "(A,A,", MAX(1, 3*stack_size - 4), "X,I4,1X,I6,1X,A,F12.3)"
          WRITE (mystring, sformat) timer_env%trace_str, "<<", stack_size + 1, &
             r_stat%total_calls, TRIM(r_stat%routineN), wt_elapsed
-         CALL cuda_mem_info(gpumem_free, gpumem_total)
+         CALL offload_mem_info(gpumem_free, gpumem_total)
          CALL m_memory(cpumem)
          WRITE (line, '(A,A,I0,A,A,I0,A)') TRIM(mystring), &
             " Hostmem: ", (cpumem + 1024*1024 - 1)/(1024*1024), " MB", &
