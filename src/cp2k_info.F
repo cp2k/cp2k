@@ -224,9 +224,6 @@ CONTAINS
 #if defined(__CRAY_PM_FAKE_ENERGY)
       flags = TRIM(flags)//" cray_pm_fake_energy"
 #endif
-#if defined(__CUDA_PROFILING)
-      flags = TRIM(flags)//" cuda_profiling"
-#endif
 #if defined(__DBCSR_ACC)
       flags = TRIM(flags)//" dbcsr_acc"
 #endif
@@ -291,6 +288,9 @@ CONTAINS
 #endif
 #if defined(__GRID_HIP)
       flags = TRIM(flags)//" grid_hip"
+#endif
+#if defined(__OFFLOAD_PROFILING)
+      flags = TRIM(flags)//" offload_profiling"
 #endif
 
    END FUNCTION cp2k_flags

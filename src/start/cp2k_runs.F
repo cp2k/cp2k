@@ -42,7 +42,6 @@ MODULE cp2k_runs
                                               cp_unit_set_release,&
                                               cp_unit_set_type,&
                                               print_all_units
-   USE cuda_profiling,                  ONLY: cuda_nvtx_init
    USE dbcsr_api,                       ONLY: dbcsr_finalize_lib,&
                                               dbcsr_init_lib,&
                                               dbcsr_print_config,&
@@ -209,7 +208,6 @@ CONTAINS
 #else
       CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit)
 #endif
-      CALL cuda_nvtx_init()
 
       CALL pw_cuda_init()
 

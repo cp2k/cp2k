@@ -9,22 +9,18 @@
 
 #if defined(__GRID_CUDA) || defined(__PW_CUDA)
 #define __OFFLOAD_CUDA
-#endif
-
-#if defined(__GRID_HIP)
-
-#if defined(__HIP_PLATFORM_NVIDIA__)
-// we can use cuda calls directly instead of relying on hip headers files
-#define __OFFLOAD_CUDA
-#else
+#elif defined(__GRID_HIP)
 #define __OFFLOAD_HIP
 #endif
-#endif
 
-#ifdef __OFFLOAD_CUDA
+#if defined(__OFFLOAD_CUDA)
 #include <cuda.h>
 #include <cuda_runtime.h>
+#elif defined(__OFFLOAD_HIP)
+#include <hip/hip_runtime_api.h>
+#endif
 
+#if defined(__OFFLOAD_CUDA)
 /*******************************************************************************
  * \brief Checks given Cuda status and upon failure abort with a nice message.
  * \author Ole Schuett
@@ -35,12 +31,9 @@
             __LINE__);                                                         \
     abort();                                                                   \
   }
-
 #endif
 
-#ifdef __OFFLOAD_HIP
-#include <hip/hip_runtime_api.h>
-
+#if defined(__OFFLOAD_HIP)
 /*******************************************************************************
  * \brief Checks given rocm status and upon failure abort with a nice message.
  ******************************************************************************/
@@ -79,6 +72,24 @@ int offload_get_device_id(void);
  * \author Ole Schuett
  ******************************************************************************/
 void offload_set_device(void);
+
+/*******************************************************************************
+ * \brief Starts a timing range.
+ * \author Ole Schuett
+ ******************************************************************************/
+void offload_timeset(const char *message);
+
+/*******************************************************************************
+ * \brief Ends a timing range.
+ * \author Ole Schuett
+ ******************************************************************************/
+void offload_timestop(void);
+
+/*******************************************************************************
+ * \brief Gets free and total device memory.
+ * \author Ole Schuett
+ ******************************************************************************/
+void offload_mem_info(size_t *free, size_t *total);
 
 #ifdef __cplusplus
 }
