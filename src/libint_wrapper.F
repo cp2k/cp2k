@@ -32,8 +32,8 @@ MODULE libint_wrapper
       libint2_build, libint2_build_eri, libint2_build_eri1, libint2_cleanup_eri, &
       libint2_cleanup_eri1, libint2_init_eri, libint2_init_eri1, libint2_static_cleanup, &
       libint2_static_init, libint_t, libint2_max_am_eri, libint2_init_3eri, libint2_cleanup_3eri, &
-      libint2_init_2eri, libint2_cleanup_2eri!,&
-   !libint2_build_3eri
+      libint2_init_2eri, libint2_cleanup_2eri, &
+      libint2_build_2eri, libint2_build_3eri
 #endif
    USE orbital_pointers, ONLY: nco
 #include "./base/base_uses.f90"
@@ -72,17 +72,6 @@ MODULE libint_wrapper
       INTEGER :: unused = -1
 #endif
    END TYPE
-
-#if(__LIBINT)
-   !Fortran 2-center and 3-center integrals are bugged in libint 2.5. More specifically, the
-   !dimensions of the following array are mixed up. This should be fixed from libint 2.6 on.
-   !Then, one will be able to simply USE libint2_build_3eri & libint2_build_2eri, as currently
-   !commented above
-   TYPE(C_FUNPTR), DIMENSION(0:LIBINT2_MAX_AM, 0:LIBINT2_MAX_AM, 0:LIBINT2_MAX_AM_3eri), &
-      BIND(C) :: libint2_build_3eri
-   TYPE(C_FUNPTR), DIMENSION(0:LIBINT2_MAX_AM_2eri, 0:LIBINT2_MAX_AM_2eri), &
-      BIND(C) :: libint2_build_2eri
-#endif
 
 CONTAINS
 
