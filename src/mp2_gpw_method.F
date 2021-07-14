@@ -548,7 +548,7 @@ CONTAINS
                ALLOCATE (BIb_EX(my_B_size, my_I_batch_size, size_EX))
                BIb_EX = 0.0_dp
 
-               CALL get_group_dist(gd_exchange, proc_receive, EX_start_send, EX_end_send, size_EX_send)
+               CALL get_group_dist(gd_exchange, proc_send, EX_start_send, EX_end_send, size_EX_send)
 
                ALLOCATE (BIb_send(my_B_size, size_EX_send, my_I_batch_size))
                BIb_send(1:my_B_size, 1:size_EX_send, 1:my_I_batch_size) = &
