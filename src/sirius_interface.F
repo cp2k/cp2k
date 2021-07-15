@@ -60,16 +60,16 @@ MODULE sirius_interface
                                               qs_subsys_type
    USE sirius,                          ONLY: &
         sirius_add_atom, sirius_add_atom_type, sirius_add_atom_type_radial_function, &
-        sirius_create_context, sirius_create_ground_state, sirius_create_kset_from_grid, &
-        sirius_finalize, sirius_find_ground_state, sirius_get_band_energies, &
-        sirius_get_band_occupancies, sirius_get_energy, sirius_get_forces, &
-        sirius_get_kpoint_properties, sirius_get_num_kpoints, sirius_get_parameters, &
-        sirius_get_stress_tensor, sirius_import_parameters, sirius_initialize, &
-        sirius_initialize_context, sirius_option_add_string_to, sirius_option_get_length, &
-        sirius_option_get_name_and_type, sirius_option_set_double, sirius_option_set_int, &
-        sirius_option_set_logical, sirius_option_set_string, sirius_set_atom_position, &
-        sirius_set_atom_type_dion, sirius_set_atom_type_radial_grid, sirius_set_lattice_vectors, &
-        sirius_update_ground_state
+        sirius_add_xc_functional, sirius_create_context, sirius_create_ground_state, &
+        sirius_create_kset_from_grid, sirius_finalize, sirius_find_ground_state, &
+        sirius_get_band_energies, sirius_get_band_occupancies, sirius_get_energy, &
+        sirius_get_forces, sirius_get_kpoint_properties, sirius_get_num_kpoints, &
+        sirius_get_parameters, sirius_get_stress_tensor, sirius_import_parameters, &
+        sirius_initialize, sirius_initialize_context, sirius_option_add_string_to, &
+        sirius_option_get_length, sirius_option_get_name_and_type, sirius_option_set_double, &
+        sirius_option_set_int, sirius_option_set_logical, sirius_option_set_string, &
+        sirius_set_atom_position, sirius_set_atom_type_dion, sirius_set_atom_type_radial_grid, &
+        sirius_set_lattice_vectors, sirius_update_ground_state
    USE xc_libxc,                        ONLY: libxc_check_existence_in_libxc
 #include "./base/base_uses.f90"
 
@@ -130,7 +130,7 @@ CONTAINS
       INTEGER(KIND=C_INT), DIMENSION(3)                  :: k_grid, k_shift
       INTEGER, DIMENSION(:), POINTER                     :: kk
       LOGICAL                                            :: up, use_ref_cell
-      LOGICAL(4)                                         :: use_symmetry
+      LOGICAL(4)                                         :: use_so, use_symmetry
       REAL(KIND=C_DOUBLE), ALLOCATABLE, DIMENSION(:)     :: fun
       REAL(KIND=C_DOUBLE), ALLOCATABLE, DIMENSION(:, :)  :: dion
       REAL(KIND=C_DOUBLE), DIMENSION(3)                  :: a1, a2, a3, v1, v2
@@ -183,15 +183,18 @@ CONTAINS
                DO i = 1, n
                   CALL section_vals_val_get(xc_fun, "FUNCTIONAL", i_rep_section=i, c_val=section_name)
                   IF (section_name(1:3) == "XC_") THEN
-                     CALL sirius_option_add_string_to(sctx, 'parameters', 'xc_functionals', section_name)
+                     CALL sirius_add_xc_functional(sctx, section_name)
+!                     CALL sirius_option_add_string_to(sctx, 'parameters', 'xc_functionals', section_name)
                   ELSE
-                     CALL sirius_option_add_string_to(sctx, 'parameters', 'xc_functionals', "XC_"//section_name)
+                     CALL sirius_add_xc_functional(sctx, "XC_"//section_name)
+!                     CALL sirius_option_add_string_to(sctx, 'parameters', 'xc_functionals', "XC_"//section_name)
                   END IF
                END DO
             ELSE IF (libxc_check_existence_in_libxc(xc_fun)) THEN
                ! Here, we do not have to check whether the functional name starts with XC_
                ! because we only allow the shorter form w/o XC_
-               CALL sirius_option_add_string_to(sctx, 'parameters', 'xc_functionals', "XC_"//TRIM(xc_fun%section%name))
+               CALL sirius_add_xc_functional(sctx, "XC_"//TRIM(xc_fun%section%name))
+!               CALL sirius_option_add_string_to(sctx, 'parameters', 'xc_functionals', "XC_"//TRIM(xc_fun%section%name))
             ENDIF
          END DO
       ENDIF
@@ -217,6 +220,7 @@ CONTAINS
          k_shift(3) = kk(3)
          CALL section_vals_val_get(pwdft_sub_section, "num_mag_dims", i_val=num_mag_dims)
          CALL section_vals_val_get(pwdft_sub_section, "use_symmetry", l_val=use_symmetry)
+         CALL section_vals_val_get(pwdft_sub_section, "so_correction", l_val=use_so)
       ENDIF
 
 !     import mixer section
@@ -225,11 +229,27 @@ CONTAINS
          CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, "mixer")
       ENDIF
 
+!     import settings section
+      pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "settings")
+      IF (ASSOCIATED(pwdft_sub_section)) THEN
+         CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, "settings")
+      ENDIF
+
       !     import solver section
       pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "iterative_solver")
       IF (ASSOCIATED(pwdft_sub_section)) THEN
          CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, "iterative_solver")
       ENDIF
+
+      !
+      ! uncomment these lines when nlcg is officially supported
+      !
+
+      !     import nlcg section
+      !      pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "nlcg")
+      !      IF (ASSOCIATED(pwdft_sub_section)) THEN
+      !         CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, "nlcg")
+      !      ENDIF
 
       !CALL sirius_dump_runtime_setup(sctx, "runtime.json")
       CALL sirius_import_parameters(sctx)
@@ -507,12 +527,11 @@ CONTAINS
       CHARACTER(len=256)                                 :: option_name, option_name1
       CHARACTER(len=80)                                  :: str
       CHARACTER(len=80), DIMENSION(:), POINTER           :: tmp
-      INTEGER                                            :: ctype, elem, i, ival, j, length, &
-                                                            lvalsi(16), number_of_options
+      INTEGER                                            :: ctype, elem, ival, j, length, &
+                                                            number_of_options
       INTEGER, DIMENSION(:), POINTER                     :: ivals
-      LOGICAL                                            :: found
-      LOGICAL(4)                                         :: lval
-      LOGICAL(4), DIMENSION(:), POINTER                  :: lvals
+      LOGICAL                                            :: found, lval
+      LOGICAL, DIMENSION(:), POINTER                     :: lvals
       REAL(kind=dp)                                      :: rval
       REAL(kind=dp), DIMENSION(:), POINTER               :: rvals
 
@@ -524,7 +543,7 @@ CONTAINS
          option_name1 = TRIM(ADJUSTL(option_name))
          option_name = TRIM(ADJUSTL(option_name))//CHAR(0)
 
-         IF ((option_name1 /= 'memory_usage') .AND. (option_name1 /= 'xc_functionals')) THEN
+         IF ((option_name1 /= 'memory_usage') .AND. (option_name1 /= 'xc_functionals') .AND. (option_name1 /= 'vk')) THEN
             CALL section_vals_val_get(section, option_name1, explicit=found)
             IF (found) THEN
                SELECT CASE (ctype)
@@ -542,22 +561,11 @@ CONTAINS
                   CALL sirius_option_set_double(sctx, section_name, option_name, rvals(1), SIZE(rvals))
                CASE (3)
                   CALL section_vals_val_get(section, option_name1, l_val=lval)
-                  IF (lval) THEN
-                     CALL sirius_option_set_logical(sctx, section_name, option_name, 1, 0)
-                  ELSE
-                     CALL sirius_option_set_logical(sctx, section_name, option_name, 0, 0)
-                  ENDIF
+                  CALL sirius_option_set_logical(sctx, section_name, option_name, lval, 1)
                CASE (13)
                   CALL section_vals_val_get(section, option_name, l_vals=lvals)
                   length = SIZE(lvals)
-                  DO i = 1, length
-                     IF (lvals(i)) THEN
-                        lvalsi(i) = 1
-                     ELSE
-                        lvalsi(i) = 0
-                     ENDIF
-                  END DO
-                  CALL sirius_option_set_logical(sctx, section_name, option_name, lvalsi(1), length)
+                  CALL sirius_option_set_logical(sctx, section_name, option_name, lvals(1), length)
                CASE (4)         ! string nightmare
                   CALL section_vals_val_get(section, option_name1, c_val=str)
                   str = TRIM(ADJUSTL(str))//CHAR(0)

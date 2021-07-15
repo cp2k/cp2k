@@ -3,8 +3,8 @@
   &PW_DFT
     &CONTROL
        PROCESSING_UNIT cpu
-       STD_EVP_SOLVER_TYPE lapack
-       GEN_EVP_SOLVER_TYPE lapack
+       STD_EVP_SOLVER_NAME lapack
+       GEN_EVP_SOLVER_NAME lapack
        VERBOSITY 2
     &END CONTROL
     &PARAMETERS
@@ -15,8 +15,6 @@
        NUM_FV_STATES 40
        GK_CUTOFF 6.0
        PW_CUTOFF 20.00
-       ENERGY_TOL 1e-8
-       POTENTIAL_TOL 1e-8
        NUM_DFT_ITER 100
        NGRIDK 2 2 2
     &END PARAMETERS
