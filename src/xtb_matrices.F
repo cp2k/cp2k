@@ -1314,8 +1314,8 @@ CONTAINS
                                                             jatom, jkind, kk, ntype
       INTEGER, DIMENSION(3)                              :: cell
       LOGICAL                                            :: do_ewald
-      REAL(KIND=dp)                                      :: dedf, dr, dx, energy_cutoff, err, lerr, &
-                                                            rcut
+      REAL(KIND=dp)                                      :: dedf, dr, dx, energy_cutoff, err, fval, &
+                                                            lerr, rcut
       REAL(KIND=dp), DIMENSION(3)                        :: fij, rij
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(neighbor_list_iterator_p_type), &
@@ -1353,11 +1353,13 @@ CONTAINS
          dr = SQRT(rij(1)**2 + rij(2)**2 + rij(3)**2)
          rcut = SQRT(pot%rcutsq)
          IF (dr <= rcut .AND. dr > 1.E-3_dp) THEN
+            fval = 1.0_dp
+            IF (ikind == jkind) fval = 0.5_dp
             ! splines not implemented
-            enonbonded = enonbonded + ener_pot(pot, dr, energy_cutoff)
+            enonbonded = enonbonded + fval*ener_pot(pot, dr, energy_cutoff)
             IF (atprop%energy) THEN
-               atprop%atecc(iatom) = atprop%atecc(iatom) + 0.5_dp*ener_pot(pot, dr, energy_cutoff)
-               atprop%atecc(jatom) = atprop%atecc(jatom) + 0.5_dp*ener_pot(pot, dr, energy_cutoff)
+               atprop%atecc(iatom) = atprop%atecc(iatom) + 0.5_dp*fval*ener_pot(pot, dr, energy_cutoff)
+               atprop%atecc(jatom) = atprop%atecc(jatom) + 0.5_dp*fval*ener_pot(pot, dr, energy_cutoff)
             END IF
          ENDIF
 
@@ -1380,7 +1382,7 @@ CONTAINS
                CALL section_vals_val_get(nonbonded_section, "DX", r_val=dx)
                CALL section_vals_val_get(nonbonded_section, "ERROR_LIMIT", r_val=lerr)
 
-               dedf = evalfd(pot%set(kk)%gp%myid, 1, pot%set(kk)%gp%values, dx, err)
+               dedf = fval*evalfd(pot%set(kk)%gp%myid, 1, pot%set(kk)%gp%values, dx, err)
                IF (ABS(err) > lerr) THEN
                   WRITE (this_error, "(A,G12.6,A)") "(", err, ")"
                   WRITE (def_error, "(A,G12.6,A)") "(", lerr, ")"
