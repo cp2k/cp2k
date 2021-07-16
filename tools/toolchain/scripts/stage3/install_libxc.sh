@@ -43,7 +43,8 @@ case "$with_libxc" in
       [ -d libxc-${libxc_ver} ] && rm -rf libxc-${libxc_ver}
       tar -xzf libxc-${libxc_ver}.tar.gz
       cd libxc-${libxc_ver}
-      ./configure --prefix="${pkg_install_dir}" --libdir="${pkg_install_dir}/lib" > configure.log 2>&1
+      # CP2K does not make use of fourth derivatives, so skip their compilation with --disable-lxc
+      ./configure --prefix="${pkg_install_dir}" --libdir="${pkg_install_dir}/lib" --disable-lxc > configure.log 2>&1
       make -j $(get_nprocs) > make.log 2>&1
       make install > install.log 2>&1
       cd ..
