@@ -1786,7 +1786,7 @@ CONTAINS
          IF (simpar%ensemble == npt_i_ensemble .OR. simpar%ensemble == npe_i_ensemble) THEN
             npt(1, 1)%v = npt(1, 1)%v*scale
             md_ener%baro_kin = 0.5_dp*npt(1, 1)%v**2*npt(1, 1)%mass
-         ELSE IF (simpar%ensemble == npt_f_ensemble .OR. simpar%ensemble == npe_f_ensemble
+         ELSE IF (simpar%ensemble == npt_f_ensemble .OR. simpar%ensemble == npe_f_ensemble &
                   .OR. simpar%ensemble == npt_fa_ensemble) THEN
             md_ener%baro_kin = 0.0_dp
             DO i = 1, 3
