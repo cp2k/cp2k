@@ -121,7 +121,7 @@ CONTAINS
 
          ! User defined virial screening
          CALL section_vals_val_get(barostat_section, "VIRIAL", i_val=barostat%virial_components)
-         check = barostat%virial_components == do_clv_xyz .OR. simpar%ensemble == npt_f_ensemble
+         check = barostat%virial_components == do_clv_xyz .OR. simpar%ensemble == npt_f_ensemble &
          .OR. simpar%ensemble == npt_fa_ensemble
          IF (.NOT. check) &
             CALL cp_abort(__LOCATION__, "The screening of the components of "// &
