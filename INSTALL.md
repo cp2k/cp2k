@@ -197,7 +197,8 @@ the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
 ### 2k. libxc (optional, wider choice of xc functionals)
 
 - The version 5.1.0 (or later) of libxc can be downloaded from <https://www.tddft.org/programs/libxc>
-- CP2K does not make use of fourth derivates such that libxc may be configured with './configure --disable-lxc <other configuration flags>'.
+- CP2K does not make use of fourth derivates such that libxc may be configured
+  with './configure --disable-lxc \<other libxc configuration flags\>'.
 - During the installation, the directories `$(LIBXC_DIR)/lib`
   and `$(LIBXC_DIR)/include` are created.
 - Add `-D__LIBXC` to DFLAGS, `-I$(LIBXC_DIR)/include` to FCFLAGS
