@@ -20,7 +20,7 @@ MODULE velocity_verlet_control
         nve_ensemble, nvt_adiabatic_ensemble, nvt_ensemble, reftraj_ensemble, npt_fa_ensemble
    USE integrator,                      ONLY: &
         isokin, langevin, nph_uniaxial, nph_uniaxial_damped, npt_f, npt_i, nve, nve_respa, nvt, &
-        nvt_adiabatic, reftraj, npt_f
+        nvt_adiabatic, reftraj, npt_fa
    USE md_environment_types,            ONLY: get_md_env,&
                                               md_environment_type
    USE simpar_types,                    ONLY: simpar_type

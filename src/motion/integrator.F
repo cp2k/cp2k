@@ -36,8 +36,8 @@ MODULE integrator
                                               shake_control,&
                                               shake_roll_control,&
                                               shake_update_targets
-   USE constraint_fxd,                  ONLY: fix_atom_control, &
-                                              fix_atom_control,&
+   USE constraint_fxd,                  ONLY: fix_atom_control,&
+                                              create_local_fixd_list,& 
                                               release_local_fixd_list
    USE constraint_util,                 ONLY: getold,&
                                               pv_constraint
