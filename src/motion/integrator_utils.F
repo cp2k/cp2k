@@ -966,7 +966,7 @@ CONTAINS
          npt(:, :)%f = (1.0_dp + (3.0_dp*infree))*kin + fdotr - &
                        3.0_dp*simpar%p_ext*box%deth
       ELSEIF (simpar%ensemble == npt_f_ensemble .OR. &
-              simpar%ensemble == npe_f_ensemble .OR. &
+              simpar%ensemble == npe_f_ensemble .OR. & 
               simpar%ensemble == npt_fa_ensemble) THEN
          npt(:, :)%f = virial%pv_virial(:, :) + &
                        pv_kin(:, :) + virial%pv_constraint(:, :) - &
