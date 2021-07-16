@@ -33,6 +33,7 @@ MODULE extended_system_init
                                               nph_uniaxial_damped_ensemble,&
                                               nph_uniaxial_ensemble,&
                                               npt_f_ensemble,&
+                                              npt_fa_ensemble,&
                                               npt_i_ensemble
    USE input_cp2k_binary_restarts,      ONLY: read_binary_thermostats_nose
    USE input_section_types,             ONLY: section_vals_get,&
@@ -101,7 +102,7 @@ CONTAINS
          npt_info(:, :)%eps = LOG(cell%deth)/3.0_dp
          temp = simpar%temp_baro_ext
 
-      CASE (npt_f_ensemble, npe_f_ensemble)
+      CASE (npt_f_ensemble, npe_f_ensemble, npt_fa_ensemble)
          ALLOCATE (npt_info(3, 3))
          temp = simpar%temp_baro_ext
 
@@ -863,7 +864,7 @@ CONTAINS
       SELECT CASE (ensemble)
       CASE (npt_i_ensemble)
          npt(:, :)%mass = REAL(nfree + 3, KIND=dp)*temp_ext*tau_cell**2
-      CASE (npt_f_ensemble)
+      CASE (npt_f_ensemble, npt_fa_ensemble)
          npt(:, :)%mass = REAL(nfree + 3, KIND=dp)*temp_ext*tau_cell**2/3.0_dp
       CASE (nph_uniaxial_ensemble, nph_uniaxial_damped_ensemble)
          npt(:, :)%mass = cmass
@@ -877,7 +878,7 @@ CONTAINS
          DO j = i, SIZE(npt, 2)
             v = globenv%gaussian_rng_stream%next()
             ! Symmetrizing the initial barostat velocities to ensure
-            ! no rotation of the cell under NPT_F
+            ! no rotation of the cell under NPT_F or NPT_FA
             npt(j, i)%v = v
             npt(i, j)%v = v
          END DO

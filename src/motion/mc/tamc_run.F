@@ -54,6 +54,7 @@ MODULE tamc_run
                                               nph_uniaxial_damped_ensemble,&
                                               nph_uniaxial_ensemble,&
                                               npt_f_ensemble,&
+                                              npt_fa_ensemble,&
                                               npt_i_ensemble,&
                                               reftraj_ensemble
    USE input_cp2k_check,                ONLY: remove_restart_info
@@ -373,6 +374,7 @@ CONTAINS
       ! multiple force_evals
       IF ((simpar%ensemble == npt_i_ensemble) .OR. &
           (simpar%ensemble == npt_f_ensemble) .OR. &
+          (simpar%ensemble == npt_fa_ensemble) .OR. &
           (simpar%ensemble == npe_f_ensemble) .OR. &
           (simpar%ensemble == npe_i_ensemble) .OR. &
           (simpar%ensemble == nph_uniaxial_ensemble) .OR. &

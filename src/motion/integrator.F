@@ -36,7 +36,9 @@ MODULE integrator
                                               shake_control,&
                                               shake_roll_control,&
                                               shake_update_targets
-   USE constraint_fxd,                  ONLY: fix_atom_control
+   USE constraint_fxd,                  ONLY: fix_atom_control, &
+                                              fix_atom_control,&
+                                              release_local_fixd_list
    USE constraint_util,                 ONLY: getold,&
                                               pv_constraint
    USE cp_control_types,                ONLY: dft_control_type
@@ -61,7 +63,7 @@ MODULE integrator
    USE integrator_utils,                ONLY: &
         allocate_old, allocate_tmp, damp_v, damp_veps, deallocate_old, get_s_ds, &
         old_variables_type, rattle_roll_setup, set, tmp_variables_type, update_dealloc_tmp, &
-        update_pv, update_veps, variable_timestep, vv_first, vv_second
+        update_pv, update_veps, variable_timestep, vv_first, vv_first_frozen, vv_second
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: matmul_3x3,&
                                               transpose_3d
@@ -71,7 +73,8 @@ MODULE integrator
    USE metadynamics,                    ONLY: metadyn_integrator,&
                                               metadyn_velocities_colvar
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
-   USE molecule_kind_types,             ONLY: molecule_kind_type
+   USE molecule_kind_types,             ONLY: molecule_kind_type,&
+                                              local_fixd_constraint_type
    USE molecule_list_types,             ONLY: molecule_list_type
    USE molecule_types,                  ONLY: global_constraint_type,&
                                               molecule_type
@@ -106,7 +109,7 @@ MODULE integrator
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'integrator'
 
-   PUBLIC :: isokin, langevin, nve, nvt, npt_i, npt_f, nve_respa
+   PUBLIC :: isokin, langevin, nve, nvt, npt_i, npt_f, npt_fa, nve_respa
    PUBLIC :: nph_uniaxial_damped, nph_uniaxial, nvt_adiabatic, reftraj
 
 CONTAINS
@@ -2418,6 +2421,323 @@ CONTAINS
       END IF
 
    END SUBROUTINE npt_f
+
+! **************************************************************************************************
+!> \brief Velocity Verlet integrator for the NPT ensemble with fully flexible cell and fixed atom &
+!>        in absolute coordinates
+!> \param md_env ...
+!> \param globenv ...
+!> \par History
+!>      none
+!> \author CJM
+! **************************************************************************************************
+   SUBROUTINE npt_fa(md_env, globenv)
+
+      TYPE(md_environment_type), POINTER                 :: md_env
+      TYPE(global_environment_type), POINTER             :: globenv
+
+      REAL(KIND=dp), PARAMETER                           :: e2 = 1.0_dp/6.0_dp, e4 = e2/20.0_dp, &
+                                                            e6 = e4/42.0_dp, e8 = e6/72.0_dp
+
+      INTEGER                                            :: i, iroll, j, nparticle, nparticle_kind, &
+                                                            nshell, nkind
+      INTEGER, POINTER                                   :: itimes
+      LOGICAL                                            :: first, first_time, shell_adiabatic, &
+                                                            shell_check_distance, shell_present
+      REAL(KIND=dp)                                      :: dt, infree, kin, roll_tol, &
+                                                            roll_tol_thrs, trvg
+      REAL(KIND=dp), DIMENSION(3)                        :: vector_r, vector_v
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_kin, uh
+      TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(barostat_type), POINTER                       :: barostat
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
+      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(global_constraint_type), POINTER              :: gci
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
+      TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
+      TYPE(molecule_list_type), POINTER                  :: molecules
+      TYPE(local_fixd_constraint_type), POINTER          :: lfixd_list(:)
+      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(npt_info_type), POINTER                       :: npt(:, :)
+      TYPE(old_variables_type), POINTER                  :: old
+      TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
+                                                            shell_particles
+      TYPE(particle_type), DIMENSION(:), POINTER         :: core_particle_set, particle_set, &
+                                                            shell_particle_set
+      TYPE(simpar_type), POINTER                         :: simpar
+      TYPE(thermostat_type), POINTER                     :: thermostat_baro, thermostat_part, &
+                                                            thermostat_shell
+      TYPE(tmp_variables_type), POINTER                  :: tmp
+      TYPE(virial_type), POINTER                         :: virial
+
+      NULLIFY (gci, thermostat_baro, thermostat_part, thermostat_shell, force_env)
+      NULLIFY (atomic_kinds, cell, para_env, subsys, local_molecules, local_particles)
+      NULLIFY (molecule_kinds, molecules, molecule_kind_set, npt, barostat)
+      NULLIFY (core_particles, particles, shell_particles, tmp, old)
+      NULLIFY (core_particle_set, particle_set, shell_particle_set)
+      NULLIFY (simpar, virial, itimes)
+
+      CALL get_md_env(md_env=md_env, simpar=simpar, force_env=force_env, &
+                      thermostat_part=thermostat_part, thermostat_baro=thermostat_baro, &
+                      thermostat_shell=thermostat_shell, npt=npt, first_time=first_time, &
+                      para_env=para_env, barostat=barostat, itimes=itimes)
+      dt = simpar%dt
+      infree = 1.0_dp/REAL(simpar%nfree, KIND=dp)
+
+      CALL force_env_get(force_env, subsys=subsys, cell=cell)
+
+      ! Do some checks on coordinates and box
+      CALL apply_qmmm_walls_reflective(force_env)
+
+      CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds, local_particles=local_particles, &
+                         particles=particles, local_molecules=local_molecules, molecules=molecules, &
+                         gci=gci, molecule_kinds=molecule_kinds, virial=virial)
+
+      nparticle_kind = atomic_kinds%n_els
+      nkind = molecule_kinds%n_els
+      atomic_kind_set => atomic_kinds%els
+      molecule_kind_set => molecule_kinds%els
+
+      nparticle = particles%n_els
+      particle_set => particles%els
+      molecule_set => molecules%els
+
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
+                               shell_present=shell_present, shell_adiabatic=shell_adiabatic, &
+                               shell_check_distance=shell_check_distance)
+
+      IF (first_time) THEN
+         CALL virial_evaluate(atomic_kind_set, particle_set, &
+                              local_particles, virial, para_env%group)
+      END IF
+
+      ! Allocate work storage for positions and velocities
+      CALL allocate_old(old, particle_set, npt)
+
+      IF (shell_present) THEN
+         CALL cp_subsys_get(subsys=subsys, &
+                            shell_particles=shell_particles, core_particles=core_particles)
+         shell_particle_set => shell_particles%els
+         nshell = SIZE(shell_particles%els)
+         IF (shell_adiabatic) THEN
+            core_particle_set => core_particles%els
+         END IF
+      END IF
+
+      CALL allocate_tmp(md_env, tmp, nparticle, nshell, shell_adiabatic)
+
+      ! Apply Thermostat to Barostat
+      CALL apply_thermostat_baro(thermostat_baro, npt, para_env%group)
+
+      ! Apply Thermostat over the full set of particles
+      IF (simpar%ensemble /= npe_f_ensemble) THEN
+         IF (shell_adiabatic) THEN
+            CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set, &
+                                  particle_set, local_molecules, local_particles, para_env%group, shell_adiabatic=shell_adiabatic, &
+                                            shell_particle_set=shell_particle_set, core_particle_set=core_particle_set)
+         ELSE
+            CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set, &
+                                            particle_set, local_molecules, local_particles, para_env%group)
+         END IF
+      END IF
+
+      ! Apply Thermostat over the core-shell motion
+      CALL apply_thermostat_shells(thermostat_shell, atomic_kind_set, particle_set, &
+                                   local_particles, para_env%group, shell_particle_set=shell_particle_set, &
+                                   core_particle_set=core_particle_set)
+
+      IF (simpar%constraint) THEN
+         ! Possibly update the target values
+         CALL shake_update_targets(gci, local_molecules, molecule_set, &
+                                   molecule_kind_set, dt, force_env%root_section)
+      END IF
+
+      ! setting up for ROLL: saving old variables
+      IF (simpar%constraint) THEN
+         roll_tol_thrs = simpar%roll_tol
+         iroll = 1
+         CALL set(old, atomic_kind_set, particle_set, local_particles, cell, npt, 'F')
+         CALL getold(gci, local_molecules, molecule_set, &
+                     molecule_kind_set, particle_set, cell)
+      ELSE
+         roll_tol_thrs = EPSILON(0.0_dp)
+      ENDIF
+      roll_tol = -roll_tol_thrs
+
+      SR: DO WHILE (ABS(roll_tol) >= roll_tol_thrs) ! SHAKE-ROLL LOOP
+
+         IF (simpar%constraint) THEN
+            CALL set(old, atomic_kind_set, particle_set, local_particles, cell, npt, 'B')
+         END IF
+         CALL update_pv(gci, simpar, atomic_kind_set, particle_set, &
+                        local_molecules, molecule_set, molecule_kind_set, &
+                        local_particles, kin, pv_kin, virial, para_env%group)
+         CALL update_veps(cell, npt, simpar, pv_kin, kin, virial, infree, &
+                          virial_components=barostat%virial_components)
+
+         trvg = npt(1, 1)%v + npt(2, 2)%v + npt(3, 3)%v
+         !
+         ! find eigenvalues and eigenvectors of npt ( :, : )%v
+         !
+
+         CALL diagonalise(matrix=npt(:, :)%v, mysize=3, &
+                          storageform="UPPER", eigenvalues=tmp%e_val, eigenvectors=tmp%u)
+
+         tmp%arg_r(:) = 0.5_dp*tmp%e_val(:)*dt* &
+                        0.5_dp*tmp%e_val(:)*dt
+         tmp%poly_r = 1.0_dp + e2*tmp%arg_r + e4*tmp%arg_r*tmp%arg_r + &
+                      e6*tmp%arg_r**3 + e8*tmp%arg_r**4
+         tmp%scale_r(:) = EXP(0.5_dp*dt*tmp%e_val(:))
+
+         tmp%arg_v(:) = 0.25_dp*dt*(tmp%e_val(:) + trvg*infree)* &
+                        0.25_dp*dt*(tmp%e_val(:) + trvg*infree)
+         tmp%poly_v = 1.0_dp + e2*tmp%arg_v + e4*tmp%arg_v*tmp%arg_v + &
+                      e6*tmp%arg_v**3 + e8*tmp%arg_v**4
+         tmp%scale_v(:) = EXP(-0.25_dp*dt*(tmp%e_val(:) + trvg*infree))
+
+         NULLIFY(lfixd_list)
+         CALL create_local_fixd_list(lfixd_list, nkind, molecule_kind_set, local_particles)
+
+         CALL vv_first_frozen(tmp, atomic_kind_set, local_particles, particle_set, &
+                       core_particle_set, shell_particle_set, nparticle_kind, &
+                       shell_adiabatic, dt, lfixd_list, u=tmp%u)
+
+         CALL release_local_fixd_list(lfixd_list)
+
+         IF (simpar%variable_dt) CALL variable_timestep(md_env, tmp, dt, simpar, para_env, &
+                                                        atomic_kind_set, local_particles, particle_set, core_particle_set, &
+                                                        shell_particle_set, nparticle_kind, shell_adiabatic, npt=npt)
+
+         roll_tol = 0.0_dp
+         vector_r = tmp%scale_r*tmp%poly_r
+         vector_v = tmp%scale_v*tmp%poly_v
+
+         IF (simpar%constraint) CALL shake_roll_control(gci, local_molecules, &
+                                                        molecule_set, molecule_kind_set, particle_set, tmp%pos, tmp%vel, dt, &
+                                                        simpar, roll_tol, iroll, vector_r, vector_v, &
+                                                        para_env%group, u=tmp%u, cell=cell, &
+                                                        local_particles=local_particles)
+      END DO SR
+
+      ! Update h_mat
+      uh = MATMUL_3X3(TRANSPOSE_3D(tmp%u), cell%hmat)
+
+      DO i = 1, 3
+         DO j = 1, 3
+            uh(i, j) = uh(i, j)*tmp%scale_r(i)*tmp%scale_r(i)
+         END DO
+      END DO
+
+      cell%hmat = MATMUL_3x3(tmp%u, uh)
+      ! Update the inverse
+      CALL init_cell(cell)
+
+      ! Broadcast the new particle positions and deallocate the pos components of temporary
+      CALL update_dealloc_tmp(tmp, particle_set, shell_particle_set, &
+                              core_particle_set, para_env, shell_adiabatic, pos=.TRUE.)
+
+      IF (shell_adiabatic .AND. shell_check_distance) THEN
+         CALL optimize_shell_core(force_env, particle_set, &
+                                  shell_particle_set, core_particle_set, globenv, tmp=tmp, check=.TRUE.)
+      END IF
+
+      ! Update forces
+      CALL force_env_calc_energy_force(force_env)
+
+      ! Metadynamics
+      CALL metadyn_integrator(force_env, itimes, tmp%vel)
+
+      ! Velocity Verlet (second part)
+      CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
+                     core_particle_set, shell_particle_set, nparticle_kind, &
+                     shell_adiabatic, dt, tmp%u)
+
+      IF (simpar%constraint) THEN
+         roll_tol_thrs = simpar%roll_tol
+         first = .TRUE.
+         iroll = 1
+         CALL set(old, atomic_kind_set, particle_set, tmp%vel, local_particles, cell, npt, 'F')
+      ELSE
+         roll_tol_thrs = EPSILON(0.0_dp)
+      ENDIF
+      roll_tol = -roll_tol_thrs
+
+      RR: DO WHILE (ABS(roll_tol) >= roll_tol_thrs) ! RATTLE-ROLL LOOP
+         roll_tol = 0.0_dp
+         IF (simpar%constraint) CALL rattle_roll_setup(old, gci, atomic_kind_set, &
+                                                       particle_set, local_particles, molecule_kind_set, molecule_set, &
+                                                       local_molecules, tmp%vel, dt, cell, npt, simpar, virial, vector_v, &
+                                                       roll_tol, iroll, infree, first, para_env, u=tmp%u)
+
+         CALL update_pv(gci, simpar, atomic_kind_set, tmp%vel, particle_set, &
+                        local_molecules, molecule_set, molecule_kind_set, &
+                        local_particles, kin, pv_kin, virial, para_env%group)
+         CALL update_veps(cell, npt, simpar, pv_kin, kin, virial, infree, &
+                          virial_components=barostat%virial_components)
+      END DO RR
+
+      ! Apply Thermostat over the full set of particles
+      IF (simpar%ensemble /= npe_f_ensemble) THEN
+         IF (shell_adiabatic) THEN
+            CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set, &
+                                  particle_set, local_molecules, local_particles, para_env%group, shell_adiabatic=shell_adiabatic, &
+                                            vel=tmp%vel, shell_vel=tmp%shell_vel, core_vel=tmp%core_vel)
+
+         ELSE
+            CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set, &
+                                            particle_set, local_molecules, local_particles, para_env%group, vel=tmp%vel)
+         END IF
+      END IF
+
+      ! Apply Thermostat over the core-shell motion
+      IF (ASSOCIATED(thermostat_shell)) THEN
+         CALL apply_thermostat_shells(thermostat_shell, atomic_kind_set, particle_set, &
+                                      local_particles, para_env%group, vel=tmp%vel, shell_vel=tmp%shell_vel, &
+                                      core_vel=tmp%core_vel)
+      END IF
+
+      ! Apply Thermostat to Barostat
+      CALL apply_thermostat_baro(thermostat_baro, npt, para_env%group)
+
+      ! Annealing of particle velocities is only possible when no thermostat is active
+      IF (simpar%ensemble == npe_f_ensemble .AND. simpar%annealing) THEN
+         tmp%vel(:, :) = tmp%vel(:, :)*simpar%f_annealing
+         IF (shell_adiabatic) THEN
+            CALL shell_scale_comv(atomic_kind_set, local_particles, particle_set, &
+                                  tmp%vel, tmp%shell_vel, tmp%core_vel)
+         END IF
+      END IF
+      ! Annealing of CELL velocities is only possible when no thermostat is active
+      IF (simpar%ensemble == npe_f_ensemble .AND. simpar%annealing_cell) THEN
+         npt(:, :)%v = npt(:, :)%v*simpar%f_annealing_cell
+      END IF
+
+      ! Broadcast the new particle velocities and deallocate temporary
+      CALL update_dealloc_tmp(tmp, particle_set, shell_particle_set, &
+                              core_particle_set, para_env, shell_adiabatic, vel=.TRUE.)
+
+      ! Update constraint virial
+      IF (simpar%constraint) &
+         CALL pv_constraint(gci, local_molecules, molecule_set, &
+                            molecule_kind_set, particle_set, virial, para_env%group)
+
+      CALL virial_evaluate(atomic_kind_set, particle_set, &
+                           local_particles, virial, para_env%group)
+
+      ! Deallocate old variables
+      CALL deallocate_old(old)
+
+      IF (first_time) THEN
+         first_time = .FALSE.
+         CALL set_md_env(md_env, first_time=first_time)
+      END IF
+
+   END SUBROUTINE npt_fa
+
 
 ! **************************************************************************************************
 !> \brief RESPA integrator for nve ensemble for particle positions & momenta

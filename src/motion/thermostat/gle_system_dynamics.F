@@ -19,7 +19,7 @@ MODULE gle_system_dynamics
    USE input_constants,                 ONLY: &
         do_thermo_communication, do_thermo_no_communication, isokin_ensemble, langevin_ensemble, &
         npe_f_ensemble, npe_i_ensemble, nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
-        npt_f_ensemble, npt_i_ensemble, nve_ensemble, nvt_ensemble, reftraj_ensemble
+        npt_f_ensemble, npt_i_ensemble, nve_ensemble, nvt_ensemble, reftraj_ensemble, npt_fa_ensemble
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_remove_values,&
@@ -348,7 +348,7 @@ CONTAINS
       CASE (nve_ensemble, isokin_ensemble, npe_f_ensemble, npe_i_ensemble, nph_uniaxial_ensemble, &
             nph_uniaxial_damped_ensemble, reftraj_ensemble, langevin_ensemble)
          CPABORT("Never reach this point!")
-      CASE (nvt_ensemble, npt_i_ensemble, npt_f_ensemble)
+      CASE (nvt_ensemble, npt_i_ensemble, npt_f_ensemble, npt_fa_ensemble)
 
          map_info => gle%map_info
          nkind = SIZE(molecule_kind_set)

@@ -42,7 +42,7 @@ MODULE md_run
    USE input_constants,                 ONLY: &
         ehrenfest, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
         nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, &
-        reftraj_ensemble
+        reftraj_ensemble, npt_fa_ensemble
    USE input_cp2k_check,                ONLY: remove_restart_info
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_remove_values,&
@@ -321,6 +321,7 @@ CONTAINS
       ! multiple force_evals
       IF ((simpar%ensemble == npt_i_ensemble) .OR. &
           (simpar%ensemble == npt_f_ensemble) .OR. &
+          (simpar%ensemble == npt_fa_ensemble) .OR. &
           (simpar%ensemble == npe_f_ensemble) .OR. &
           (simpar%ensemble == npe_i_ensemble) .OR. &
           (simpar%ensemble == nph_uniaxial_ensemble) .OR. &

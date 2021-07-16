@@ -21,6 +21,7 @@ MODULE barostat_types
                                               nph_uniaxial_damped_ensemble,&
                                               nph_uniaxial_ensemble,&
                                               npt_f_ensemble,&
+                                              npt_fa_ensemble,&
                                               npt_i_ensemble
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -93,6 +94,7 @@ CONTAINS
       CALL section_vals_get(barostat_section, explicit=explicit)
       IF (simpar%ensemble == npt_i_ensemble .OR. &
           simpar%ensemble == npt_f_ensemble .OR. &
+          simpar%ensemble == npt_fa_ensemble .OR. &
           simpar%ensemble == npe_f_ensemble .OR. &
           simpar%ensemble == npe_i_ensemble .OR. &
           simpar%ensemble == nph_uniaxial_ensemble .OR. &
@@ -120,9 +122,10 @@ CONTAINS
          ! User defined virial screening
          CALL section_vals_val_get(barostat_section, "VIRIAL", i_val=barostat%virial_components)
          check = barostat%virial_components == do_clv_xyz .OR. simpar%ensemble == npt_f_ensemble
+         .OR. simpar%ensemble == npt_fa_ensemble
          IF (.NOT. check) &
             CALL cp_abort(__LOCATION__, "The screening of the components of "// &
-                          "the virial is available only with the NPT_F ensemble!")
+                          "the virial is available only with the NPT_F or NPT_FA ensemble!")
       ELSE
          IF (explicit) &
             CALL cp_warn(__LOCATION__, &

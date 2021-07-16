@@ -42,6 +42,7 @@ MODULE md_energies
                                               nph_uniaxial_damped_ensemble,&
                                               nph_uniaxial_ensemble,&
                                               npt_f_ensemble,&
+                                              npt_fa_ensemble,&
                                               npt_i_ensemble,&
                                               reftraj_ensemble
    USE input_cp2k_md,                   ONLY: create_md_section
@@ -650,6 +651,7 @@ CONTAINS
                 (simpar%ensemble == nph_uniaxial_damped_ensemble) .OR. &
                 (simpar%ensemble == npt_i_ensemble) .OR. &
                 (simpar%ensemble == npt_f_ensemble) .OR. &
+                (simpar%ensemble == npt_fa_ensemble) .OR. &
                 (simpar%ensemble == npe_i_ensemble) .OR. &
                 (simpar%ensemble == npe_f_ensemble)) THEN
                WRITE (iw, '(T2,A,T61,F20.6)') &
@@ -735,6 +737,7 @@ CONTAINS
                 (simpar%ensemble == nph_uniaxial_damped_ensemble) .OR. &
                 (simpar%ensemble == npt_i_ensemble) .OR. &
                 (simpar%ensemble == npt_f_ensemble) .OR. &
+                (simpar%ensemble == npt_fa_ensemble) .OR. &
                 (simpar%ensemble == npe_i_ensemble) .OR. &
                 (simpar%ensemble == npe_f_ensemble)) THEN
                WRITE (iw, '(T2,A,T39,2(1X,ES20.12))') &
@@ -755,6 +758,7 @@ CONTAINS
                   averages%avecc*angstrom
             END IF
             IF ((simpar%ensemble == npt_f_ensemble) .OR. &
+                (simpar%ensemble == npt_fa_ensemble) .OR. &
                 (simpar%ensemble == npe_f_ensemble)) THEN
                WRITE (iw, '(T2,A,T33,3(1X,ES15.8))') &
                   'MD| Cell angles [deg]', cell_angle(3), cell_angle(2), cell_angle(1)

@@ -26,7 +26,7 @@ MODULE md_conserved_quantities
    USE input_constants,                 ONLY: &
         isokin_ensemble, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
         nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, &
-        nve_ensemble, nvt_adiabatic_ensemble, nvt_ensemble, reftraj_ensemble
+        nve_ensemble, nvt_adiabatic_ensemble, nvt_ensemble, reftraj_ensemble, npt_fa_ensemble
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
@@ -149,7 +149,7 @@ CONTAINS
          CALL get_econs_nve(md_env, md_ener, para_env)
       CASE (nvt_ensemble)
          CALL get_econs_nvt(md_env, md_ener, para_env)
-      CASE (npt_i_ensemble, npt_f_ensemble)
+      CASE (npt_i_ensemble, npt_f_ensemble, npt_fa_ensemble)
          CALL get_econs_npt(md_env, md_ener, para_env)
          md_ener%temp_baro = md_ener%temp_baro*kelvin
       CASE (nph_uniaxial_ensemble)

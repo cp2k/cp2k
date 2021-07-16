@@ -22,6 +22,7 @@ MODULE barostat_utils
                                               nph_uniaxial_damped_ensemble,&
                                               nph_uniaxial_ensemble,&
                                               npt_f_ensemble,&
+                                              npt_fa_ensemble,&
                                               npt_i_ensemble
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -65,7 +66,8 @@ CONTAINS
       IF (simpar%ensemble == npt_i_ensemble .OR. simpar%ensemble == npe_i_ensemble) THEN
          baro_pot = simpar%p_ext*cell%deth
          baro_kin = 0.5_dp*npt(1, 1)%v**2*npt(1, 1)%mass
-      ELSE IF (simpar%ensemble == npt_f_ensemble .OR. simpar%ensemble == npe_f_ensemble) THEN
+      ELSE IF (simpar%ensemble == npt_f_ensemble .OR. simpar%ensemble == npe_f_ensemble &
+              .OR. simpar%ensemble == npt_fa_ensemble) THEN
          baro_pot = simpar%p_ext*cell%deth
          baro_kin = 0.0_dp
          DO i = 1, 3
