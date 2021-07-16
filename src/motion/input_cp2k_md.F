@@ -93,7 +93,8 @@ CONTAINS
                                         "langevin dynamics (constant temperature)", &
                                         "constant pressure ensemble (no thermostat)", &
                                         "constant pressure ensemble using an isotropic cell (no thermostat)", &
-                                        "adiabatic dynamics in constant temperature and volume ensemble (CAFES)"), &
+                                        "adiabatic dynamics in constant temperature and volume ensemble (CAFES)", &
+                                        "constant temperature and pressure using a flexible cell and keeping frozen atoms at same absolute coordinates"), &
                           citations=(/Evans1983, VandeVondele2002, Minary2003/), &
                           enum_i_vals=(/nve_ensemble, nvt_ensemble, npt_i_ensemble, npt_f_ensemble, &
                                         nph_uniaxial_ensemble, nph_uniaxial_damped_ensemble, nph_ensemble, isokin_ensemble, &
