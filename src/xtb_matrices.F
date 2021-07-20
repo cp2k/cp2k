@@ -1487,13 +1487,14 @@ CONTAINS
                         CALL cp_warn(__LOCATION__, &
                                      "Multiple NONBONDED declaration: "//TRIM(name_atm_a)// &
                                      " and "//TRIM(name_atm_b)//" OVERWRITING! ")
+                     !IF (iw > 0) WRITE (iw, *) "    FOUND ", TRIM(name_atm_a), " ", TRIM(name_atm_b)
+                     found = .TRUE.
                   END IF
-                  !IF (iw > 0) WRITE (iw, *) "    FOUND ", TRIM(name_atm_a), " ", TRIM(name_atm_b)
-                  found = .TRUE.
                END DO
             ENDIF
             IF (.NOT. found) THEN
                CALL pair_potential_single_clean(pot)
+               !IF (iw > 0) WRITE (iw, *) " NOTFOUND ", TRIM(name_atm_a), " ", TRIM(name_atm_b)
             ENDIF
          ENDDO !jkind
       ENDDO !ikind
@@ -1502,6 +1503,7 @@ CONTAINS
       IF (do_ewald) THEN
          CALL ewald_env_get(ewald_env, rcut=ewald_rcut)
          pot%rcutsq = MAX(pot%rcutsq, ewald_rcut*ewald_rcut)
+         !IF (iw > 0) WRITE (iw, *) " RCUT     ", SQRT(pot%rcutsq), ewald_rcut
       ENDIF
 
    END SUBROUTINE force_field_pack_nonbond_pot_correction
