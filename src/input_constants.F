@@ -1086,8 +1086,8 @@ MODULE input_constants
 
    ! fm matrix multiplication
    INTEGER, PARAMETER, PUBLIC               :: do_scalapack = 1, &
-                                               do_dbcsr = 2, &
-                                               do_cosma = 3
+                                               do_cosma = 2, &
+                                               do_dbcsr = 3
 
    ! Dispersion DFTB
    INTEGER, PARAMETER, PUBLIC               :: dispersion_uff = 100, &
