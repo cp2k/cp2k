@@ -32,8 +32,8 @@ MODULE integrator_utils
                                               npt_info_type
    USE input_constants,                 ONLY: &
         isokin_ensemble, npe_f_ensemble, npe_i_ensemble, nph_uniaxial_damped_ensemble, &
-        nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, nve_ensemble, nvt_ensemble, &
-        npt_ia_ensemble
+        nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, npt_ia_ensemble, nve_ensemble, &
+        nvt_ensemble
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: matvec_3x3,&
                                               transpose_3d
@@ -41,8 +41,8 @@ MODULE integrator_utils
                                               md_environment_type
    USE message_passing,                 ONLY: mp_max,&
                                               mp_sum
-   USE molecule_kind_types,             ONLY: molecule_kind_type, &
-                                              local_fixd_constraint_type
+   USE molecule_kind_types,             ONLY: local_fixd_constraint_type,&
+                                              molecule_kind_type
    USE molecule_types,                  ONLY: get_molecule,&
                                               global_constraint_type,&
                                               molecule_type
@@ -1324,8 +1324,8 @@ CONTAINS
 !> \author Paul Clabaut (Jully 2021)
 ! **************************************************************************************************
    SUBROUTINE vv_first_frozen(tmp, atomic_kind_set, local_particles, particle_set, &
-                       core_particle_set, shell_particle_set, nparticle_kind, &
-                       shell_adiabatic, dt, lfixd_list, u)
+                              core_particle_set, shell_particle_set, nparticle_kind, &
+                              shell_adiabatic, dt, lfixd_list, u)
 
       TYPE(tmp_variables_type), POINTER                  :: tmp
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -1335,7 +1335,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nparticle_kind
       LOGICAL, INTENT(IN)                                :: shell_adiabatic
       REAL(KIND=dp)                                      :: dt
-      TYPE(local_fixd_constraint_type), POINTER, OPTIONAL:: lfixd_list(:)
+      TYPE(local_fixd_constraint_type), OPTIONAL, &
+         POINTER                                         :: lfixd_list(:)
       REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL           :: u
 
       INTEGER                                            :: iparticle, iparticle_kind, &
@@ -1485,9 +1486,9 @@ CONTAINS
                         particle_set(iparticle)%v(3)*tmp%scale_v(3)*tmp%scale_v(3) + &
                         tmp%scale_v(3)*tmp%poly_v(3)*dm*particle_set(iparticle)%f(3)
 
-                     IF ( ANY(lfixd_list(:)%ifixd_index == iparticle) ) THEN
+                     IF (ANY(lfixd_list(:)%ifixd_index == iparticle)) THEN
                         tmp%pos(1, iparticle) = &
-                           particle_set(iparticle)%r(1)               
+                           particle_set(iparticle)%r(1)
                         tmp%pos(2, iparticle) = &
                            particle_set(iparticle)%r(2)
                         tmp%pos(3, iparticle) = &
@@ -1520,7 +1521,6 @@ CONTAINS
          END IF
       END DO
    END SUBROUTINE vv_first_frozen
-
 
 ! **************************************************************************************************
 !> \brief Second half of the velocity-verlet algorithm : update velocity by half
@@ -1922,10 +1922,10 @@ CONTAINS
          tmp%poly_v(1:3) = 1.0_dp + e2*arg_v(1) + e4*arg_v(1)*arg_v(1) + e6*arg_v(1)**3 + e8*arg_v(1)**4
          tmp%scale_r(1:3) = EXP(0.5_dp*dt*npt(1, 1)%v)
          tmp%scale_v(1:3) = EXP(-0.25_dp*dt*npt(1, 1)%v* &
-                                 (1.0_dp + 3.0_dp*infree))
+                                (1.0_dp + 3.0_dp*infree))
          CALL vv_first_frozen(tmp, atomic_kind_set, local_particles, particle_set, &
-                        core_particle_set, shell_particle_set, nparticle_kind, &
-                        shell_adiabatic, dt)
+                              core_particle_set, shell_particle_set, nparticle_kind, &
+                              shell_adiabatic, dt)
 
       CASE (npt_f_ensemble, npe_f_ensemble)
          trvg = npt(1, 1)%v + npt(2, 2)%v + npt(3, 3)%v

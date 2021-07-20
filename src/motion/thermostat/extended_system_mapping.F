@@ -23,7 +23,7 @@ MODULE extended_system_mapping
         do_thermo_communication, do_thermo_no_communication, do_thermo_only_master, &
         isokin_ensemble, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
         nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, &
-        nve_ensemble, nvt_adiabatic_ensemble, nvt_ensemble, reftraj_ensemble, npt_ia_ensemble
+        npt_ia_ensemble, nve_ensemble, nvt_adiabatic_ensemble, nvt_ensemble, reftraj_ensemble
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
    USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -583,7 +583,7 @@ CONTAINS
             nph_uniaxial_damped_ensemble, reftraj_ensemble, langevin_ensemble)
          CPABORT('Never reach this point!')
       CASE (nve_ensemble, nvt_ensemble, npe_f_ensemble, npe_i_ensemble, npt_i_ensemble, npt_f_ensemble, &
-           npt_ia_ensemble)
+            npt_ia_ensemble)
 
          CALL setup_nhc_thermostat(nhc, thermostat_info, deg_of_freedom, massive_shell_list, &
                                    molecule_kind_set, local_molecules, molecule_set, para_env, nshell_local, &

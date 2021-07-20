@@ -64,7 +64,7 @@ CONTAINS
       REAL(dp)                                           :: iv0, v0, v_shock
 
       IF (simpar%ensemble == npt_i_ensemble .OR. simpar%ensemble == npe_i_ensemble &
-         .OR. simpar%ensemble == npt_ia_ensemble) THEN
+          .OR. simpar%ensemble == npt_ia_ensemble) THEN
          baro_pot = simpar%p_ext*cell%deth
          baro_kin = 0.5_dp*npt(1, 1)%v**2*npt(1, 1)%mass
       ELSE IF (simpar%ensemble == npt_f_ensemble .OR. simpar%ensemble == npe_f_ensemble) THEN

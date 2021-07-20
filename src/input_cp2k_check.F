@@ -22,10 +22,10 @@ MODULE input_cp2k_check
                                               cp_unit_set_type
    USE input_constants,                 ONLY: &
         do_region_global, do_thermo_al, do_thermo_csvr, do_thermo_gle, do_thermo_nose, &
-        do_thermo_same_as_part, negf_run, npt_f_ensemble, npt_i_ensemble, vdw_nl_LMKLL, &
-        xc_funct_b3lyp, xc_funct_beefvdw, xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, &
-        xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, xc_funct_pbe, xc_funct_pbe0, &
-        xc_funct_tpss, xc_funct_xwpbe, xc_none, xc_vdw_fun_nonloc, npt_ia_ensemble
+        do_thermo_same_as_part, negf_run, npt_f_ensemble, npt_i_ensemble, npt_ia_ensemble, &
+        vdw_nl_LMKLL, xc_funct_b3lyp, xc_funct_beefvdw, xc_funct_blyp, xc_funct_bp, &
+        xc_funct_hcth120, xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, xc_funct_pbe, &
+        xc_funct_pbe0, xc_funct_tpss, xc_funct_xwpbe, xc_none, xc_vdw_fun_nonloc
    USE input_keyword_types,             ONLY: keyword_type
    USE input_parsing,                   ONLY: section_vals_parse
    USE input_section_types,             ONLY: &

@@ -25,8 +25,8 @@ MODULE input_cp2k_md
    USE input_constants,                 ONLY: &
         isokin_ensemble, langevin_ensemble, md_init_default, md_init_vib, npe_f_ensemble, &
         npe_i_ensemble, nph_ensemble, nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
-        npt_f_ensemble, npt_i_ensemble, nve_ensemble, nvt_adiabatic_ensemble, nvt_ensemble, &
-        reftraj_ensemble, npt_ia_ensemble
+        npt_f_ensemble, npt_i_ensemble, npt_ia_ensemble, nve_ensemble, nvt_adiabatic_ensemble, &
+        nvt_ensemble, reftraj_ensemble
    USE input_cp2k_barostats,            ONLY: create_barostat_section
    USE input_cp2k_thermostats,          ONLY: create_region_section,&
                                               create_thermo_fast_section,&

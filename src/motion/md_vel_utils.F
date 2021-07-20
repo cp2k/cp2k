@@ -44,7 +44,7 @@ MODULE md_vel_utils
    USE input_constants,                 ONLY: &
         md_init_default, md_init_vib, npe_f_ensemble, npe_i_ensemble, &
         nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, &
-        reftraj_ensemble, npt_ia_ensemble
+        npt_ia_ensemble, reftraj_ensemble
    USE input_cp2k_binary_restarts,      ONLY: read_binary_velocities
    USE input_restart_force_eval,        ONLY: update_subsys
    USE input_section_types,             ONLY: section_vals_get,&
@@ -1784,7 +1784,7 @@ CONTAINS
          md_ener%baro_kin = 0.0_dp
          md_ener%temp_baro = 0.0_dp
          IF (simpar%ensemble == npt_i_ensemble .OR. simpar%ensemble == npe_i_ensemble &
-            .OR. simpar%ensemble == npt_ia_ensemble) THEN
+             .OR. simpar%ensemble == npt_ia_ensemble) THEN
             npt(1, 1)%v = npt(1, 1)%v*scale
             md_ener%baro_kin = 0.5_dp*npt(1, 1)%v**2*npt(1, 1)%mass
          ELSE IF (simpar%ensemble == npt_f_ensemble .OR. simpar%ensemble == npe_f_ensemble) THEN

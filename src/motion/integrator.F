@@ -36,8 +36,8 @@ MODULE integrator
                                               shake_control,&
                                               shake_roll_control,&
                                               shake_update_targets
-   USE constraint_fxd,                  ONLY: fix_atom_control,&
-                                              create_local_fixd_list,& 
+   USE constraint_fxd,                  ONLY: create_local_fixd_list,&
+                                              fix_atom_control,&
                                               release_local_fixd_list
    USE constraint_util,                 ONLY: getold,&
                                               pv_constraint
@@ -73,8 +73,8 @@ MODULE integrator
    USE metadynamics,                    ONLY: metadyn_integrator,&
                                               metadyn_velocities_colvar
    USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
-   USE molecule_kind_types,             ONLY: molecule_kind_type,&
-                                              local_fixd_constraint_type
+   USE molecule_kind_types,             ONLY: local_fixd_constraint_type,&
+                                              molecule_kind_type
    USE molecule_list_types,             ONLY: molecule_list_type
    USE molecule_types,                  ONLY: global_constraint_type,&
                                               molecule_type
@@ -1168,8 +1168,8 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: e2 = 1.0_dp/6.0_dp, e4 = e2/20.0_dp, &
                                                             e6 = e4/42.0_dp, e8 = e6/72.0_dp
 
-      INTEGER                                            :: iroll, ivar, nparticle, nparticle_kind, &
-                                                            nshell, nkind
+      INTEGER                                            :: iroll, ivar, nkind, nparticle, &
+                                                            nparticle_kind, nshell
       INTEGER, POINTER                                   :: itimes
       LOGICAL                                            :: first, first_time, shell_adiabatic, &
                                                             shell_check_distance, shell_present
@@ -1186,10 +1186,10 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(global_constraint_type), POINTER              :: gci
+      TYPE(local_fixd_constraint_type), POINTER          :: lfixd_list(:)
       TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_list_type), POINTER                  :: molecules
-      TYPE(local_fixd_constraint_type), POINTER          :: lfixd_list(:)
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(npt_info_type), POINTER                       :: npt(:, :)
       TYPE(old_variables_type), POINTER                  :: old
@@ -1345,12 +1345,12 @@ CONTAINS
          tmp%scale_v(1:3) = EXP(-0.25_dp*dt*npt(1, 1)%v* &
                                 (1.0_dp + 3.0_dp*infree))
 
-         NULLIFY(lfixd_list)
+         NULLIFY (lfixd_list)
          CALL create_local_fixd_list(lfixd_list, nkind, molecule_kind_set, local_particles)
          ! first half of velocity verlet
          CALL vv_first_frozen(tmp, atomic_kind_set, local_particles, particle_set, &
-                       core_particle_set, shell_particle_set, nparticle_kind, &
-                       shell_adiabatic, dt, lfixd_list)
+                              core_particle_set, shell_particle_set, nparticle_kind, &
+                              shell_adiabatic, dt, lfixd_list)
          CALL release_local_fixd_list(lfixd_list)
 
          IF (simpar%variable_dt) CALL variable_timestep(md_env, tmp, dt, simpar, para_env, &
@@ -1809,7 +1809,6 @@ CONTAINS
       END IF
 
    END SUBROUTINE npt_i
-
 
 ! **************************************************************************************************
 !> \brief uses coordinates in a file and generates frame after frame of these
