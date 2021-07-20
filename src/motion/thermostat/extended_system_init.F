@@ -33,7 +33,8 @@ MODULE extended_system_init
                                               nph_uniaxial_damped_ensemble,&
                                               nph_uniaxial_ensemble,&
                                               npt_f_ensemble,&
-                                              npt_i_ensemble
+                                              npt_i_ensemble,&
+                                              npt_ia_ensemble
    USE input_cp2k_binary_restarts,      ONLY: read_binary_thermostats_nose
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -96,7 +97,7 @@ CONTAINS
 
       ! first allocating the npt_info_type if requested
       SELECT CASE (simpar%ensemble)
-      CASE (npt_i_ensemble, npe_i_ensemble)
+      CASE (npt_i_ensemble, npe_i_ensemble, npt_ia_ensemble)
          ALLOCATE (npt_info(1, 1))
          npt_info(:, :)%eps = LOG(cell%deth)/3.0_dp
          temp = simpar%temp_baro_ext
@@ -861,7 +862,7 @@ CONTAINS
       npt(:, :)%v = 0.0_dp
       npt(:, :)%f = 0.0_dp
       SELECT CASE (ensemble)
-      CASE (npt_i_ensemble)
+      CASE (npt_i_ensemble, npt_ia_ensemble)
          npt(:, :)%mass = REAL(nfree + 3, KIND=dp)*temp_ext*tau_cell**2
       CASE (npt_f_ensemble)
          npt(:, :)%mass = REAL(nfree + 3, KIND=dp)*temp_ext*tau_cell**2/3.0_dp

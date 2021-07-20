@@ -48,14 +48,9 @@ MODULE tamc_run
    USE free_energy_types,               ONLY: fe_env_create,&
                                               free_energy_type
    USE global_types,                    ONLY: global_environment_type
-   USE input_constants,                 ONLY: langevin_ensemble,&
-                                              npe_f_ensemble,&
-                                              npe_i_ensemble,&
-                                              nph_uniaxial_damped_ensemble,&
-                                              nph_uniaxial_ensemble,&
-                                              npt_f_ensemble,&
-                                              npt_i_ensemble,&
-                                              reftraj_ensemble
+   USE input_constants,                 ONLY: &
+        langevin_ensemble, npe_f_ensemble, npe_i_ensemble, nph_uniaxial_damped_ensemble, &
+        nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, npt_ia_ensemble, reftraj_ensemble
    USE input_cp2k_check,                ONLY: remove_restart_info
    USE input_cp2k_restarts,             ONLY: write_restart
    USE input_section_types,             ONLY: section_vals_get,&
@@ -372,6 +367,7 @@ CONTAINS
       ! Check for ensembles requiring the stress tensor - takes into account the possibility for
       ! multiple force_evals
       IF ((simpar%ensemble == npt_i_ensemble) .OR. &
+          (simpar%ensemble == npt_ia_ensemble) .OR. &
           (simpar%ensemble == npt_f_ensemble) .OR. &
           (simpar%ensemble == npe_f_ensemble) .OR. &
           (simpar%ensemble == npe_i_ensemble) .OR. &

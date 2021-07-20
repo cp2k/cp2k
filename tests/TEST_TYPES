@@ -1,4 +1,4 @@
-96
+97
 Total energy:!3
 MD| Potential energy!5
 Total energy \[eV\]:!4
@@ -95,6 +95,7 @@ SPGR| SPACE GROUP NUMBER: !5
 KS CSR write| !4
 Fermi energy: !3
 APT |   1  2  !7
+r(1) !3
 #
 # these are the tests the can be selected for regtesting.
 # do regtest will grep for test_grep (first column) and look if the numeric value

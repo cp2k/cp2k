@@ -50,7 +50,7 @@ MODULE thermostat_methods
    USE input_constants,                 ONLY: &
         do_region_global, do_thermo_al, do_thermo_csvr, do_thermo_gle, do_thermo_nose, &
         do_thermo_same_as_part, npe_f_ensemble, npe_i_ensemble, npt_f_ensemble, npt_i_ensemble, &
-        nve_ensemble, nvt_adiabatic_ensemble, nvt_ensemble
+        npt_ia_ensemble, nve_ensemble, nvt_adiabatic_ensemble, nvt_ensemble
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_remove_values,&
@@ -159,6 +159,7 @@ CONTAINS
       apply_thermo_adiabatic = (simpar%ensemble == nvt_adiabatic_ensemble)
 
       apply_thermo_baro = (simpar%ensemble == npt_f_ensemble) .OR. &
+                          (simpar%ensemble == npt_ia_ensemble) .OR. &
                           (simpar%ensemble == npt_i_ensemble) .AND. &
                           (.NOT. apply_thermo_adiabatic)
 
@@ -169,6 +170,7 @@ CONTAINS
                            (simpar%ensemble == nvt_ensemble) .OR. &
                            (simpar%ensemble == npt_f_ensemble) .OR. &
                            (simpar%ensemble == npt_i_ensemble) .OR. &
+                           (simpar%ensemble == npt_ia_ensemble) .OR. &
                            (simpar%ensemble == npe_i_ensemble) .OR. &
                            (simpar%ensemble == npe_f_ensemble) .AND. &
                            (.NOT. apply_thermo_adiabatic)

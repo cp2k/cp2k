@@ -25,8 +25,8 @@ MODULE input_cp2k_md
    USE input_constants,                 ONLY: &
         isokin_ensemble, langevin_ensemble, md_init_default, md_init_vib, npe_f_ensemble, &
         npe_i_ensemble, nph_ensemble, nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
-        npt_f_ensemble, npt_i_ensemble, nve_ensemble, nvt_adiabatic_ensemble, nvt_ensemble, &
-        reftraj_ensemble
+        npt_f_ensemble, npt_i_ensemble, npt_ia_ensemble, nve_ensemble, nvt_adiabatic_ensemble, &
+        nvt_ensemble, reftraj_ensemble
    USE input_cp2k_barostats,            ONLY: create_barostat_section
    USE input_cp2k_thermostats,          ONLY: create_region_section,&
                                               create_thermo_fast_section,&
@@ -80,7 +80,7 @@ CONTAINS
                           default_i_val=nve_ensemble, &
                           enum_c_vals=s2a("NVE", "NVT", "NPT_I", "NPT_F", "MSST", "MSST_DAMPED", &
                                           "HYDROSTATICSHOCK", "ISOKIN", "REFTRAJ", "LANGEVIN", "NPE_F", &
-                                          "NPE_I", "NVT_ADIABATIC"), &
+                                          "NPE_I", "NVT_ADIABATIC", "NPT_IA"), &
                           enum_desc=s2a("constant energy (microcanonical)", &
                                         "constant temperature and volume (canonical)", &
                                         "constant temperature and pressure using an isotropic cell", &
@@ -93,12 +93,13 @@ CONTAINS
                                         "langevin dynamics (constant temperature)", &
                                         "constant pressure ensemble (no thermostat)", &
                                         "constant pressure ensemble using an isotropic cell (no thermostat)", &
-                                        "adiabatic dynamics in constant temperature and volume ensemble (CAFES)"), &
+                                        "adiabatic dynamics in constant temperature and volume ensemble (CAFES)", &
+                                        "NPT_I ensemble with frozen atoms in absolute coordinate"), &
                           citations=(/Evans1983, VandeVondele2002, Minary2003/), &
                           enum_i_vals=(/nve_ensemble, nvt_ensemble, npt_i_ensemble, npt_f_ensemble, &
                                         nph_uniaxial_ensemble, nph_uniaxial_damped_ensemble, nph_ensemble, isokin_ensemble, &
                                         reftraj_ensemble, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
-                                        nvt_adiabatic_ensemble/))
+                                        nvt_adiabatic_ensemble, npt_ia_ensemble/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

@@ -1,0 +1,109 @@
+&GLOBAL
+  PROJECT test_barostat 
+  RUN_TYPE md
+  &PRINT DEBUG 
+  &END
+&END GLOBAL
+
+&MOTION
+  &PRINT
+   &STRUCTURE_DATA Low
+     POSITION 1
+   &END 
+   &TRAJECTORY
+     &EACH
+       MD 1
+     &END EACH
+   &END TRAJECTORY
+  &END PRINT
+  &CONSTRAINT
+    &FIXED_ATOMS
+      Molname u
+    &END FIXED_ATOMS
+    &G3X3
+      DISTANCES 1.808845716 1.808845716 2.860856174
+      MOLNAME WAT !To be specified in the coord.inc file
+      ATOMS 1 2 3
+    &END G3X3
+  &END CONSTRAINT
+  &MD
+    ENSEMBLE NPT_IA
+    STEPS 3 
+    TIMESTEP 1
+    &THERMOSTAT
+       TYPE  CSVR
+       REGION  GLOBAL
+       &CSVR
+         TIMECON     9.9999999999999986E+01
+       &END CSVR
+    &END THERMOSTAT
+    &BAROSTAT
+      PRESSURE 1
+    &END BAROSTAT
+    TEMPERATURE 298
+  &END MD
+&END MOTION
+
+&FORCE_EVAL
+   METHOD FIST
+   STRESS_TENSOR Analytical
+   &MM
+    &FORCEFIELD
+     MULTIPLE_POTENTIAL .TRUE.
+     &SPLINE
+       EMAX_SPLINE 10
+     &END SPLINE
+     IGNORE_MISSING_CRITICAL_PARAMS T
+     &CHARGE
+       ATOM H
+       CHARGE 0.5190
+     &END CHARGE
+     &CHARGE
+       ATOM O 
+       CHARGE -1.038
+     &END CHARGE
+     &NONBONDED
+        &LENNARD-JONES
+          atoms O O
+          EPSILON [kcalmol] 0.1825
+          SIGMA [nm] 3.234E-01
+          RCUT 10
+        &END LENNARD-JONES
+                &LENNARD-JONES
+          atoms Au O
+          EPSILON [kcalmol] 0.1825
+          SIGMA [nm] 3.234E-01
+          RCUT 10
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          atoms Au H
+          EPSILON [kcalmol] 0.1825
+          SIGMA [nm] 3.234E-01
+          RCUT 10
+        &END LENNARD-JONES
+     &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        GMAX 36 36 36 !About box size
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 32.419  32.862  31.318  !Change
+      ALPHA_BETA_GAMMA 90 90 90 !Change
+      PERIODIC  XYZ
+    &END CELL
+    &COORD
+      @INCLUDE "coord.inc"
+    &END COORD
+    &TOPOLOGY
+     &GENERATE
+       BONDPARM_FACTOR 0.1 
+     &END GENERATE
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+

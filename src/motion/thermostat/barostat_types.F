@@ -21,7 +21,8 @@ MODULE barostat_types
                                               nph_uniaxial_damped_ensemble,&
                                               nph_uniaxial_ensemble,&
                                               npt_f_ensemble,&
-                                              npt_i_ensemble
+                                              npt_i_ensemble,&
+                                              npt_ia_ensemble
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -92,6 +93,7 @@ CONTAINS
       barostat_section => section_vals_get_subs_vals(md_section, "BAROSTAT")
       CALL section_vals_get(barostat_section, explicit=explicit)
       IF (simpar%ensemble == npt_i_ensemble .OR. &
+          simpar%ensemble == npt_ia_ensemble .OR. &
           simpar%ensemble == npt_f_ensemble .OR. &
           simpar%ensemble == npe_f_ensemble .OR. &
           simpar%ensemble == npe_i_ensemble .OR. &
