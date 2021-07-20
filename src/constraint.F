@@ -44,7 +44,8 @@ MODULE constraint
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE input_constants,                 ONLY: npt_f_ensemble,&
-                                              npt_i_ensemble
+                                              npt_i_ensemble,&
+                                              npt_ia_ensemble
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: default_string_length,&
@@ -380,7 +381,7 @@ CONTAINS
       lagrange_mult = simpar%lagrange_multipliers
       dump_lm = simpar%dump_lm
       ! setting up for roll
-      IF (simpar%ensemble == npt_i_ensemble) THEN
+      IF (simpar%ensemble == npt_i_ensemble .OR. simpar%ensemble == npt_ia_ensemble) THEN
          CALL get_roll_matrix('SHAKE', r_shake, v_shake, vector_r, vector_v)
       ELSE IF (simpar%ensemble == npt_f_ensemble) THEN
          CALL get_roll_matrix('SHAKE', r_shake, v_shake, vector_r, vector_v, u)
@@ -527,7 +528,7 @@ CONTAINS
       lagrange_mult = simpar%lagrange_multipliers
       dump_lm = simpar%dump_lm
       ! setting up for roll
-      IF (simpar%ensemble == npt_i_ensemble) THEN
+      IF (simpar%ensemble == npt_i_ensemble .OR. simpar%ensemble == npt_ia_ensemble) THEN
          CALL get_roll_matrix('RATTLE', v_shake=r_rattle, vector_v=vector)
       ELSE IF (simpar%ensemble == npt_f_ensemble) THEN
          CALL get_roll_matrix('RATTLE', v_shake=r_rattle, vector_v=vector, u=u)
