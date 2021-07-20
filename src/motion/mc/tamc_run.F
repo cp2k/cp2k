@@ -55,6 +55,7 @@ MODULE tamc_run
                                               nph_uniaxial_ensemble,&
                                               npt_f_ensemble,&
                                               npt_i_ensemble,&
+                                              npt_ia_ensemble,&
                                               reftraj_ensemble
    USE input_cp2k_check,                ONLY: remove_restart_info
    USE input_cp2k_restarts,             ONLY: write_restart
@@ -372,6 +373,7 @@ CONTAINS
       ! Check for ensembles requiring the stress tensor - takes into account the possibility for
       ! multiple force_evals
       IF ((simpar%ensemble == npt_i_ensemble) .OR. &
+          (simpar%ensemble == npt_ia_ensemble) .OR. &
           (simpar%ensemble == npt_f_ensemble) .OR. &
           (simpar%ensemble == npe_f_ensemble) .OR. &
           (simpar%ensemble == npe_i_ensemble) .OR. &

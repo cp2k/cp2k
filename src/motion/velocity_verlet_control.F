@@ -17,10 +17,10 @@ MODULE velocity_verlet_control
    USE input_constants,                 ONLY: &
         isokin_ensemble, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
         nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, &
-        nve_ensemble, nvt_adiabatic_ensemble, nvt_ensemble, reftraj_ensemble
+        nve_ensemble, nvt_adiabatic_ensemble, nvt_ensemble, reftraj_ensemble, npt_ia_ensemble
    USE integrator,                      ONLY: &
         isokin, langevin, nph_uniaxial, nph_uniaxial_damped, npt_f, npt_i, nve, nve_respa, nvt, &
-        nvt_adiabatic, reftraj
+        nvt_adiabatic, reftraj, npt_ia
    USE md_environment_types,            ONLY: get_md_env,&
                                               md_environment_type
    USE simpar_types,                    ONLY: simpar_type
@@ -81,6 +81,8 @@ CONTAINS
          CALL isokin(md_env)
       CASE (npt_i_ensemble)
          CALL npt_i(md_env, globenv)
+      CASE (npt_ia_ensemble)
+         CALL npt_ia(md_env, globenv)
       CASE (npt_f_ensemble)
          CALL npt_f(md_env, globenv)
       CASE (nph_uniaxial_ensemble)

@@ -43,6 +43,7 @@ MODULE md_energies
                                               nph_uniaxial_ensemble,&
                                               npt_f_ensemble,&
                                               npt_i_ensemble,&
+                                              npt_ia_ensemble,&
                                               reftraj_ensemble
    USE input_cp2k_md,                   ONLY: create_md_section
    USE input_enumeration_types,         ONLY: enumeration_type
@@ -649,6 +650,7 @@ CONTAINS
             IF ((simpar%ensemble == nph_uniaxial_ensemble) .OR. &
                 (simpar%ensemble == nph_uniaxial_damped_ensemble) .OR. &
                 (simpar%ensemble == npt_i_ensemble) .OR. &
+                (simpar%ensemble == npt_ia_ensemble) .OR. &
                 (simpar%ensemble == npt_f_ensemble) .OR. &
                 (simpar%ensemble == npe_i_ensemble) .OR. &
                 (simpar%ensemble == npe_f_ensemble)) THEN
@@ -734,6 +736,7 @@ CONTAINS
             IF ((simpar%ensemble == nph_uniaxial_ensemble) .OR. &
                 (simpar%ensemble == nph_uniaxial_damped_ensemble) .OR. &
                 (simpar%ensemble == npt_i_ensemble) .OR. &
+                (simpar%ensemble == npt_ia_ensemble) .OR. &
                 (simpar%ensemble == npt_f_ensemble) .OR. &
                 (simpar%ensemble == npe_i_ensemble) .OR. &
                 (simpar%ensemble == npe_f_ensemble)) THEN

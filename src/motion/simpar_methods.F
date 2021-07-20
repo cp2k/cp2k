@@ -27,7 +27,7 @@ MODULE simpar_methods
    USE input_constants,                 ONLY: &
         isokin_ensemble, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
         nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, &
-        nvt_ensemble, reftraj_ensemble
+        nvt_ensemble, reftraj_ensemble, npt_ia_ensemble
    USE input_cp2k_md,                   ONLY: create_md_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enumeration_type
@@ -144,6 +144,7 @@ CONTAINS
                'MD_PAR| Annealing cell factor', simpar%f_annealing_cell
          END IF
          IF (simpar%ensemble == npt_i_ensemble .OR. &
+             simpar%ensemble == npt_ia_ensemble .OR. &
              simpar%ensemble == npt_f_ensemble .OR. &
              simpar%ensemble == npe_i_ensemble .OR. &
              simpar%ensemble == npe_f_ensemble) THEN
@@ -184,6 +185,7 @@ CONTAINS
          IF ((simpar%ensemble == nph_uniaxial_ensemble) .OR. &
              (simpar%ensemble == nph_uniaxial_damped_ensemble) .OR. &
              (simpar%ensemble == npt_i_ensemble) .OR. &
+             (simpar%ensemble == npt_ia_ensemble) .OR. &
              (simpar%ensemble == npt_f_ensemble) .OR. &
              (simpar%ensemble == npe_i_ensemble) .OR. &
              (simpar%ensemble == npe_f_ensemble)) THEN
@@ -242,10 +244,11 @@ CONTAINS
          IF (simpar%annealing) THEN
             IF ((simpar%ensemble == nvt_ensemble) .OR. &
                 (simpar%ensemble == npt_i_ensemble) .OR. &
+                (simpar%ensemble == npt_ia_ensemble) .OR. &
                 (simpar%ensemble == npt_f_ensemble)) THEN
                CALL cp_abort(__LOCATION__, &
                              "Annealing of the ions has been required "// &
-                             "even if the thermostat is active (nvt or npt_i or npt_f) "// &
+                             "even if the thermostat is active (nvt or npt_i or npt_ia or npt_f) "// &
                              "These two methods to control the temperature act one against the other.")
             END IF
          END IF
@@ -341,7 +344,7 @@ CONTAINS
 
       SELECT CASE (simpar%ensemble)
       CASE (nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
-            npt_f_ensemble, npt_i_ensemble, npe_f_ensemble, npe_i_ensemble)
+            npt_f_ensemble, npt_i_ensemble, npt_ia_ensemble, npe_f_ensemble, npe_i_ensemble)
          tmp_section => section_vals_get_subs_vals(md_section, "BAROSTAT")
          CALL section_vals_val_get(tmp_section, "PRESSURE", r_val=simpar%p_ext)
          CALL section_vals_val_get(tmp_section, "TIMECON", r_val=simpar%tau_cell)

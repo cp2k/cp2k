@@ -23,7 +23,7 @@ MODULE extended_system_mapping
         do_thermo_communication, do_thermo_no_communication, do_thermo_only_master, &
         isokin_ensemble, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
         nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, &
-        nve_ensemble, nvt_adiabatic_ensemble, nvt_ensemble, reftraj_ensemble
+        nve_ensemble, nvt_adiabatic_ensemble, nvt_ensemble, reftraj_ensemble, npt_ia_ensemble
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
    USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -72,11 +72,11 @@ CONTAINS
       SELECT CASE (simpar%ensemble)
       CASE DEFAULT
          CPABORT('Never reach this point!')
-      CASE (npt_i_ensemble, npt_f_ensemble)
+      CASE (npt_i_ensemble, npt_f_ensemble, npt_ia_ensemble)
          map_info => nhc%map_info
          map_info%dis_type = do_thermo_only_master
 
-         ! Counting the total number of thermostats ( 1 for both NPT_I and NPT_F )
+         ! Counting the total number of thermostats ( 1 for NPT_I, NPT_IA, and NPT_F )
          nhc%loc_num_nhc = 1
          nhc%glob_num_nhc = 1
          IF (simpar%ensemble == npt_f_ensemble) THEN
@@ -160,7 +160,7 @@ CONTAINS
       CASE (nve_ensemble, isokin_ensemble, npe_f_ensemble, npe_i_ensemble, nph_uniaxial_ensemble, &
             nph_uniaxial_damped_ensemble, reftraj_ensemble, langevin_ensemble)
          CPABORT('Never reach this point!')
-      CASE (nvt_ensemble, npt_i_ensemble, npt_f_ensemble)
+      CASE (nvt_ensemble, npt_i_ensemble, npt_f_ensemble, npt_ia_ensemble)
 
          CALL setup_nhc_thermostat(nhc, thermostat_info, deg_of_freedom, massive_atom_list, &
                                    molecule_kind_set, local_molecules, molecule_set, para_env, natoms_local, &
@@ -582,7 +582,8 @@ CONTAINS
       CASE (isokin_ensemble, nph_uniaxial_ensemble, &
             nph_uniaxial_damped_ensemble, reftraj_ensemble, langevin_ensemble)
          CPABORT('Never reach this point!')
-      CASE (nve_ensemble, nvt_ensemble, npe_f_ensemble, npe_i_ensemble, npt_i_ensemble, npt_f_ensemble)
+      CASE (nve_ensemble, nvt_ensemble, npe_f_ensemble, npe_i_ensemble, npt_i_ensemble, npt_f_ensemble, &
+           npt_ia_ensemble)
 
          CALL setup_nhc_thermostat(nhc, thermostat_info, deg_of_freedom, massive_shell_list, &
                                    molecule_kind_set, local_molecules, molecule_set, para_env, nshell_local, &

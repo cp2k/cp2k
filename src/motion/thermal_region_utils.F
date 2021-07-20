@@ -33,6 +33,7 @@ MODULE thermal_region_utils
    USE input_constants,                 ONLY: langevin_ensemble,&
                                               npt_f_ensemble,&
                                               npt_i_ensemble,&
+                                              npt_ia_ensemble,&
                                               nvt_ensemble
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -98,6 +99,7 @@ CONTAINS
       IF (explicit) THEN
          apply_thermostat = (simpar%ensemble == nvt_ensemble) .OR. &
                             (simpar%ensemble == npt_f_ensemble) .OR. &
+                            (simpar%ensemble == npt_ia_ensemble) .OR. &
                             (simpar%ensemble == npt_i_ensemble)
          IF (apply_thermostat) THEN
             CALL cp_warn(__LOCATION__, &
