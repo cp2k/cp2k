@@ -12,27 +12,18 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE cp_gemm_interface
-   USE ISO_C_BINDING, ONLY: C_CHAR, &
-                            C_DOUBLE, &
-                            C_INT, &
-                            C_LOC, &
-                            C_PTR
-   USE cp_dbcsr_operations, ONLY: copy_dbcsr_to_fm_bc, &
-                                  copy_fm_to_dbcsr_bc
-   USE cp_fm_basic_linalg, ONLY: cp_fm_gemm
-   USE cp_fm_types, ONLY: cp_fm_get_info, &
-                          cp_fm_get_mm_type, &
-                          cp_fm_type
-   USE dbcsr_api, ONLY: dbcsr_multiply, &
-                        dbcsr_release, &
-                        dbcsr_type
-   USE input_constants, ONLY: do_cosma, &
-                              do_dbcsr, &
-                              do_scalapack
-   USE kinds, ONLY: dp
-   USE message_passing, ONLY: mp_min
-   USE offload_api, ONLY: offload_set_device
-   USE string_utilities, ONLY: uppercase
+   USE ISO_C_BINDING,                   ONLY: C_CHAR,&
+                                              C_DOUBLE,&
+                                              C_INT,&
+                                              C_LOC,&
+                                              C_PTR
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
+   USE cp_fm_types,                     ONLY: cp_fm_get_mm_type,&
+                                              cp_fm_type
+   USE input_constants,                 ONLY: do_cosma,&
+                                              do_scalapack
+   USE kinds,                           ONLY: dp
+   USE offload_api,                     ONLY: offload_set_device
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -77,73 +68,15 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_gemm'
 
-      CHARACTER(LEN=1)                                   :: my_trans
       INTEGER                                            :: handle, handle1, my_multi
-      INTEGER, PARAMETER                                 :: &
-#if defined(__COSMA)
-         my_multi_fallback = do_cosma
-#else
-      my_multi_fallback = do_scalapack
-#endif
-      INTEGER, DIMENSION(:), POINTER                     :: a_col_loc, a_row_loc, b_col_loc, &
-                                                            b_row_loc, c_col_loc, c_row_loc
-      TYPE(dbcsr_type)                                   :: a_db, b_db, c_db
 
       CALL timeset(routineN, handle)
 
       my_multi = cp_fm_get_mm_type()
 
-      ! catch the special case that matrices have different blocking
-      ! SCALAPACK/COSMA can deal with it but dbcsr doesn't like it
-      CALL cp_fm_get_info(matrix_a, nrow_locals=a_row_loc, ncol_locals=a_col_loc)
-      CALL cp_fm_get_info(matrix_b, nrow_locals=b_row_loc, ncol_locals=b_col_loc)
-      CALL cp_fm_get_info(matrix_c, nrow_locals=c_row_loc, ncol_locals=c_col_loc)
-      IF (PRESENT(a_first_row)) my_multi = my_multi_fallback
-      IF (PRESENT(a_first_col)) my_multi = my_multi_fallback
-      IF (PRESENT(b_first_row)) my_multi = my_multi_fallback
-      IF (PRESENT(b_first_col)) my_multi = my_multi_fallback
-      IF (PRESENT(c_first_row)) my_multi = my_multi_fallback
-      IF (PRESENT(c_first_col)) my_multi = my_multi_fallback
-
-      my_trans = transa; CALL uppercase(my_trans)
-      IF (my_trans == 'T') THEN
-         CALL cp_fm_get_info(matrix_a, nrow_locals=a_col_loc, ncol_locals=a_row_loc)
-      END IF
-
-      my_trans = transb; CALL uppercase(my_trans)
-      IF (my_trans == 'T') THEN
-         CALL cp_fm_get_info(matrix_b, nrow_locals=b_col_loc, ncol_locals=b_row_loc)
-      END IF
-
-      IF (my_multi .NE. do_scalapack .AND. my_multi .NE. do_cosma) THEN
-         IF (SIZE(a_row_loc) == SIZE(c_row_loc)) THEN
-            IF (ANY(a_row_loc - c_row_loc .NE. 0)) my_multi = my_multi_fallback
-         ELSE
-            my_multi = my_multi_fallback
-         END IF
-      END IF
-      IF (my_multi .NE. do_scalapack .AND. my_multi .NE. do_cosma) THEN
-         IF (SIZE(b_col_loc) == SIZE(c_col_loc)) THEN
-            IF (ANY(b_col_loc - c_col_loc .NE. 0)) my_multi = my_multi_fallback
-         ELSE
-            my_multi = my_multi_fallback
-         END IF
-      END IF
-      IF (my_multi .NE. do_scalapack .AND. my_multi .NE. do_cosma) THEN
-         IF (SIZE(a_col_loc) == SIZE(b_row_loc)) THEN
-            IF (ANY(a_col_loc - b_row_loc .NE. 0)) my_multi = my_multi_fallback
-         ELSE
-            my_multi = my_multi_fallback
-         END IF
-      END IF
-
-      ! IMPORTANT do_scalapack is lowest value. If one processor has it set make all use it.
-      IF (cp_fm_get_mm_type() .NE. do_scalapack .AND. &
-          cp_fm_get_mm_type() .NE. do_cosma) CALL mp_min(my_multi, matrix_a%matrix_struct%para_env%group)
-
       SELECT CASE (my_multi)
       CASE (do_scalapack)
-         CALL timeset("cp_gemm_fm_gemm", handle1)
+         CALL timeset(routineN//"_fm_gemm", handle1)
          CALL cp_fm_gemm(transa, transb, m, n, k, alpha, matrix_a, matrix_b, beta, matrix_c, &
                          a_first_col=a_first_col, &
                          a_first_row=a_first_row, &
@@ -154,27 +87,20 @@ CONTAINS
          CALL timestop(handle1)
       CASE (do_cosma)
 #if defined(__COSMA)
-         CALL timeset("cp_gemm_cosma", handle1)
+         CALL timeset(routineN//"_cosma", handle1)
          CALL offload_set_device()
          CALL cosma_pdgemm(transa=transa, transb=transb, m=m, n=n, k=k, alpha=alpha, &
-                           matrix_a=matrix_a, matrix_b=matrix_b, beta=beta, matrix_c=matrix_c)
+                           matrix_a=matrix_a, matrix_b=matrix_b, beta=beta, matrix_c=matrix_c, &
+                           a_first_col=a_first_col, &
+                           a_first_row=a_first_row, &
+                           b_first_col=b_first_col, &
+                           b_first_row=b_first_row, &
+                           c_first_col=c_first_col, &
+                           c_first_row=c_first_row)
          CALL timestop(handle1)
 #else
          CPABORT("CP2K compiled without the COSMA library.")
 #endif
-      CASE (do_dbcsr)
-         CALL timeset("cp_gemm_dbcsr_mm", handle1)
-         CALL copy_fm_to_dbcsr_bc(matrix_a, a_db)
-         CALL copy_fm_to_dbcsr_bc(matrix_b, b_db)
-         CALL copy_fm_to_dbcsr_bc(matrix_c, c_db)
-
-         CALL dbcsr_multiply(transa, transb, alpha, a_db, b_db, beta, c_db, last_k=k)
-
-         CALL copy_dbcsr_to_fm_bc(c_db, matrix_c)
-         CALL dbcsr_release(a_db)
-         CALL dbcsr_release(b_db)
-         CALL dbcsr_release(c_db)
-         CALL timestop(handle1)
       END SELECT
       CALL timestop(handle)
 
@@ -193,16 +119,27 @@ CONTAINS
 !> \param matrix_b ...
 !> \param beta ...
 !> \param matrix_c ...
+!> \param a_first_col ...
+!> \param a_first_row ...
+!> \param b_first_col ...
+!> \param b_first_row ...
+!> \param c_first_col ...
+!> \param c_first_row ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE cosma_pdgemm(transa, transb, m, n, k, alpha, matrix_a, matrix_b, beta, matrix_c)
+   SUBROUTINE cosma_pdgemm(transa, transb, m, n, k, alpha, matrix_a, matrix_b, beta, matrix_c, &
+                           a_first_col, a_first_row, b_first_col, b_first_row, &
+                           c_first_col, c_first_row)
       CHARACTER(LEN=1), INTENT(IN)                       :: transa, transb
       INTEGER, INTENT(IN)                                :: m, n, k
       REAL(KIND=dp), INTENT(IN)                          :: alpha
       TYPE(cp_fm_type), POINTER                          :: matrix_a, matrix_b
       REAL(KIND=dp), INTENT(IN)                          :: beta
       TYPE(cp_fm_type), POINTER                          :: matrix_c
+      INTEGER, INTENT(IN), OPTIONAL                      :: a_first_col, a_first_row, b_first_col, &
+                                                            b_first_row, c_first_col, c_first_row
 
+      INTEGER                                            :: i_a, i_b, i_c, j_a, j_b, j_c
       INTERFACE
          SUBROUTINE cosma_pdgemm_c(transa, transb, m, n, k, alpha, a, ia, ja, desca, &
                                    b, ib, jb, descb, beta, c, ic, jc, descc) &
@@ -230,14 +167,45 @@ CONTAINS
          END SUBROUTINE cosma_pdgemm_c
       END INTERFACE
 
+      IF (PRESENT(a_first_row)) THEN
+         i_a = a_first_row
+      ELSE
+         i_a = 1
+      END IF
+      IF (PRESENT(a_first_col)) THEN
+         j_a = a_first_col
+      ELSE
+         j_a = 1
+      END IF
+      IF (PRESENT(b_first_row)) THEN
+         i_b = b_first_row
+      ELSE
+         i_b = 1
+      END IF
+      IF (PRESENT(b_first_col)) THEN
+         j_b = b_first_col
+      ELSE
+         j_b = 1
+      END IF
+      IF (PRESENT(c_first_row)) THEN
+         i_c = c_first_row
+      ELSE
+         i_c = 1
+      END IF
+      IF (PRESENT(c_first_col)) THEN
+         j_c = c_first_col
+      ELSE
+         j_c = 1
+      END IF
+
       CALL cosma_pdgemm_c(transa=transa, transb=transb, m=m, n=n, k=k, &
                           alpha=alpha, &
-                          a=C_LOC(matrix_a%local_data(1, 1)), ia=1, ja=1, &
+                          a=C_LOC(matrix_a%local_data(1, 1)), ia=i_a, ja=j_a, &
                           desca=C_LOC(matrix_a%matrix_struct%descriptor(1)), &
-                          b=C_LOC(matrix_b%local_data(1, 1)), ib=1, jb=1, &
+                          b=C_LOC(matrix_b%local_data(1, 1)), ib=i_b, jb=j_b, &
                           descb=C_LOC(matrix_b%matrix_struct%descriptor(1)), &
                           beta=beta, &
-                          c=C_LOC(matrix_c%local_data(1, 1)), ic=1, jc=1, &
+                          c=C_LOC(matrix_c%local_data(1, 1)), ic=i_c, jc=j_c, &
                           descc=C_LOC(matrix_c%matrix_struct%descriptor(1)))
 
    END SUBROUTINE cosma_pdgemm

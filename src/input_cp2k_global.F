@@ -38,13 +38,12 @@ MODULE input_cp2k_global
                                               GRID_BACKEND_REF
    USE input_constants,                 ONLY: &
         bsse_run, callgraph_all, callgraph_master, callgraph_none, cell_opt_run, debug_run, &
-        do_atom, do_band, do_cosma, do_cp2k, do_dbcsr, do_diag_elpa, do_diag_scalapack, &
-        do_farming, do_fft_fftw3, do_fft_sg, do_opt_basis, do_optimize_input, do_scalapack, &
-        do_swarm, do_tamc, do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, &
-        electronic_spectra_run, energy_force_run, energy_run, fftw_plan_estimate, &
-        fftw_plan_exhaustive, fftw_plan_measure, fftw_plan_patient, gaussian, geo_opt_run, &
-        linear_response_run, mol_dyn_run, mon_car_run, negf_run, none_run, pint_run, &
-        real_time_propagation, tree_mc_run, vib_anal
+        do_atom, do_band, do_cosma, do_cp2k, do_diag_elpa, do_diag_scalapack, do_farming, &
+        do_fft_fftw3, do_fft_sg, do_opt_basis, do_optimize_input, do_scalapack, do_swarm, do_tamc, &
+        do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, electronic_spectra_run, &
+        energy_force_run, energy_run, fftw_plan_estimate, fftw_plan_exhaustive, fftw_plan_measure, &
+        fftw_plan_patient, gaussian, geo_opt_run, linear_response_run, mol_dyn_run, mon_car_run, &
+        negf_run, none_run, pint_run, real_time_propagation, tree_mc_run, vib_anal
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -639,11 +638,10 @@ CONTAINS
                           "FORCE_BLOCK_SIZE should be set. The performance on GPU's depends "// &
                           "crucially on the BLOCK_SIZES. Make sure optimized kernels are available.", &
                           default_i_val=default_matmul, &
-                          enum_i_vals=(/do_scalapack, do_scalapack, do_dbcsr, do_cosma/), &
-                          enum_c_vals=s2a("SCALAPACK", "PDGEMM", "DBCSR_MM", "COSMA"), &
+                          enum_i_vals=(/do_scalapack, do_scalapack, do_cosma/), &
+                          enum_c_vals=s2a("SCALAPACK", "PDGEMM", "COSMA"), &
                           enum_desc=s2a("Standard ScaLAPACK pdgemm", &
                                         "Alias for ScaLAPACK", &
-                                        "DBCSR_MM is employed. This needs local transformation of the matrices", &
                                         "COSMA is employed. See https://github.com/eth-cscs/COSMA."))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
