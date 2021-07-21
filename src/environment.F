@@ -58,9 +58,9 @@ MODULE environment
    USE header,                          ONLY: cp2k_footer,&
                                               cp2k_header
    USE input_constants,                 ONLY: &
-        callgraph_all, callgraph_none, do_cosma, do_cp2k, do_dbcsr, do_diag_elpa, &
-        do_diag_scalapack, do_eip, do_farming, do_fft_fftw3, do_fft_sg, do_fist, do_qs, &
-        do_scalapack, do_sirius, do_test, energy_run, id_development_version, mol_dyn_run, none_run
+        callgraph_all, callgraph_none, do_cosma, do_cp2k, do_diag_elpa, do_diag_scalapack, do_eip, &
+        do_farming, do_fft_fftw3, do_fft_sg, do_fist, do_qs, do_scalapack, do_sirius, do_test, &
+        energy_run, id_development_version, mol_dyn_run, none_run
    USE input_cp2k_global,               ONLY: create_global_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enumeration_type
@@ -794,9 +794,6 @@ CONTAINS
          CASE (do_scalapack)
             WRITE (UNIT=output_unit, FMT="(T2,A,T72,A)") &
                start_section_label//"| Matrix multiplication library", "ScaLAPACK"
-         CASE (do_dbcsr)
-            WRITE (UNIT=output_unit, FMT="(T2,A,T76,A)") &
-               start_section_label//"| Matrix multiplication library", "DBCSR"
          CASE (do_cosma)
             WRITE (UNIT=output_unit, FMT="(T2,A,T76,A)") &
                start_section_label//"| Matrix multiplication library", "COSMA"
