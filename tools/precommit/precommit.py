@@ -200,8 +200,7 @@ def process_file(fn, allow_modifications):
     if re.match(r"./data/.*POTENTIALS?$", fn):
         check_data_files()
 
-    if re.match(r".*\.(F|fypp|c|cu|cpp|h|hpp)$", fn):
-        run_check_file_properties(fn)
+    run_check_file_properties(fn)
 
     new_content = Path(fn).read_bytes()
     if new_content == orig_content:

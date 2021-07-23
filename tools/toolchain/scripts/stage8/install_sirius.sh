@@ -110,12 +110,12 @@ case "$with_sirius" in
       mkdir build
       cd build
       COMPILATION_OPTIONS="-DHDF5_DIR=${HDF5_DIR}"
-      #if [ -n "$ELPA_LIBS" ] ; then
-      #    if [ -s "$ELPAROOT" ] ; then
-      #        export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$ELPAROOT/lib/pkgconfig:$ELPAROOT/lib64/pkgconfig
-      #    fi
-      #    COMPILATION_OPTIONS="-DUSE_ELPA=ON -DELPA_INCLUDE_DIR=${ELPAROOT}/include/elpa-${ELPAVERSION} $COMPILATION_OPTIONS"
-      #fi
+      # if [ -n "$ELPA_LIBS" ] ; then
+      #     if [ -s "$ELPAROOT" ] ; then
+      #         export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$ELPAROOT/lib/pkgconfig:$ELPAROOT/lib64/pkgconfig
+      #     fi
+      #     COMPILATION_OPTIONS="-DUSE_ELPA=ON -DELPA_INCLUDE_DIR=${ELPAROOT}/include/elpa-${ELPAVERSION} $COMPILATION_OPTIONS"
+      # fi
 
       if [ -n "$SCALAPACK_LIBS" ]; then
         export SCALAPACK_LIB="$SCALAPACK_LIBS"

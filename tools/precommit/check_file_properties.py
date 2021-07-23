@@ -98,14 +98,16 @@ C_FAMILY_EXTENSIONS = (".c", ".cu", ".cpp", ".h", ".hpp")
 
 
 @lru_cache(maxsize=None)
-def get_install_txt():
+def get_install_txt() -> str:
     return CP2K_DIR.joinpath("INSTALL.md").read_text()
 
 
 @lru_cache(maxsize=None)
-def get_flags_src():
+def get_flags_src() -> str:
     cp2k_info = CP2K_DIR.joinpath("src/cp2k_info.F").read_text()
-    return CP2K_FLAGS_RE.search(cp2k_info).group(1)
+    match = CP2K_FLAGS_RE.search(cp2k_info)
+    assert match
+    return match.group(1)
 
 
 def check_file(path: pathlib.Path) -> typing.List[str]:
@@ -174,7 +176,7 @@ def check_file(path: pathlib.Path) -> typing.List[str]:
                 continue  # ignore aptly named inclusion guards
             flags.add(word)
 
-    flags = [flag for flag in flags if not FLAG_EXCEPTIONS_RE.match(flag)]
+    flags = {flag for flag in flags if not FLAG_EXCEPTIONS_RE.match(flag)}
 
     for flag in sorted(flags):
         if flag not in get_install_txt():
