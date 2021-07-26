@@ -1,5 +1,5 @@
 # Tested with: GFortran 8.3.0, MPICH 3.3, LAPACK 3.9.1, ScaLAPACK 6819b24, FFTW 3.3.9,
-#              LIBINT 2.6.0, LIBXC 5.1.4, ELPA 2021.05.001, PLUMED 2.6.2, SPGLIB 1.16.0,
+#              LIBINT 2.6.0, LIBXC 5.1.5, ELPA 2021.05.001, PLUMED 2.6.2, SPGLIB 1.16.0,
 #              LIBVORI 210412, LIBXSMM 1.16.1, SIRIUS 7.2.5, OpenBLAS 0.3.15, COSMA 2.5.1
 # Author: Matthias Krack (matthias.krack@psi.ch, PSI, July 2021)
 
@@ -25,8 +25,8 @@ LIBINT_LIB  = $(GNU_PATH)/libint/2.6.0-lmax-6/lib
 
 LIBVORI_LIB = $(GNU_PATH)/libvori/210412/lib
 
-LIBXC_INC   = $(GNU_PATH)/libxc/5.1.4/include
-LIBXC_LIB   = $(GNU_PATH)/libxc/5.1.4/lib
+LIBXC_INC   = $(GNU_PATH)/libxc/5.1.5/include
+LIBXC_LIB   = $(GNU_PATH)/libxc/5.1.5/lib
 
 LIBXSMM_INC = $(GNU_PATH)/libxsmm/1.16.1/include
 LIBXSMM_LIB = $(GNU_PATH)/libxsmm/1.16.1/lib
