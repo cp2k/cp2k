@@ -1,7 +1,7 @@
 # Tested with: GFortran 8.3.0, MPICH 3.2.1, MKL 19.1.1.217, Libint 2.6.0,
-#              LIBXC 5.1.4, LIBVORI 210412, ELPA 2020.11.001, PLUMED 2.6.2,
+#              LIBXC 5.1.5, LIBVORI 210412, ELPA 2020.11.001, PLUMED 2.6.2,
 #              SPGLIB 1.16.0
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, May 2021)
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, July 2021)
 
 # Cray XC40 (Piz Daint, CSCS, multi-core partition)
 
@@ -36,8 +36,8 @@ LIBINT_LIB  = $(GNU_PATH)/libint/2.6.0-lmax-6/lib
 
 LIBVORI_LIB = $(GNU_PATH)/libvori/210412/lib
 
-LIBXC_INC   = $(GNU_PATH)/libxc/5.1.4/include
-LIBXC_LIB   = $(GNU_PATH)/libxc/5.1.4/lib
+LIBXC_INC   = $(GNU_PATH)/libxc/5.1.5/include
+LIBXC_LIB   = $(GNU_PATH)/libxc/5.1.5/lib
 
 SPGLIB_INC  = $(GNU_PATH)/spglib/1.16.0/include
 SPGLIB_LIB  = $(GNU_PATH)/spglib/1.16.0/lib
