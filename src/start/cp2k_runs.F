@@ -145,8 +145,11 @@ MODULE cp2k_runs
    IMPLICIT NONE
 
    PRIVATE
+
    PUBLIC :: write_xml_file, run_input
+
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp2k_runs'
+
 CONTAINS
 
 ! **************************************************************************************************
@@ -978,24 +981,22 @@ CONTAINS
 
       IF (PRESENT(mpi_comm)) THEN
          NULLIFY (para_env)
-         CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.) !XXXXXXXXXXXX uninitiliased error
+         CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.)
       ELSE
          para_env => f77_default_para_env
-         CALL cp_para_env_retain(para_env) !XXXXXXXXXXXX uninitiliased error
+         CALL cp_para_env_retain(para_env)
       END IF
       IF (para_env%ionode) THEN
          IF (output_file_path == "__STD_OUT__") THEN
             unit_nr = default_output_unit
          ELSE
-            CALL open_file(file_name=output_file_path, file_status="UNKNOWN", &
-                           file_action="WRITE", file_position="APPEND", &
-                           unit_number=unit_nr)
+            INQUIRE (FILE=output_file_path, NUMBER=unit_nr)
          END IF
       ELSE
          unit_nr = -1
       END IF
       CALL cp2k_run(input_declaration, input_file_path, unit_nr, para_env%group, initial_variables)
-      CALL cp_para_env_release(para_env) !XXXXXXXXXXXX uninitiliased error
+      CALL cp_para_env_release(para_env)
    END SUBROUTINE run_input
 
 END MODULE cp2k_runs
