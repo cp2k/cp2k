@@ -93,8 +93,8 @@ LIBS       += $(COSMA_LIB)/libcosma.a
 LIBS       += $(COSMA_LIB)/libcosta_prefixed_scalapack.a
 LIBS       += $(COSMA_LIB)/libcosta.a
 #
+LIBS       += $(FFTW_LIB)/libfftw3_omp.a
 LIBS       += $(FFTW_LIB)/libfftw3.a
-LIBS       += $(FFTW_LIB)/libfftw3_threads.a
 LIBS       += $(MPI_LIBRARY_PATH)/libscalapack.a
 LIBS       += $(GNU_PATH)/OpenBLAS/0.3.15/lib/libopenblas.a
 LIBS       += $(GSL_LIBRARY_DIR)/libgsl.a $(GSL_LIBRARY_DIR)/libgslcblas.a
