@@ -1,0 +1,58 @@
+# Tested with: GFortran 8.3.0, MPICH 3.3, ScaLAPACK 6819b24, OpenBLAS 0.3.15,
+#              FFTW 3.3.9, LIBINT 2.6.0, LIBXC 5.1.5, LIBXSMM 1.16.1, ELPA 2021.05.001
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, July 2021)
+
+CC          = mpicc
+FC          = mpif90
+LD          = mpif90
+AR          = ar -r
+
+ELPA_VER    = 2021.05.001
+ELPA_INC    = $(MPI_PATH)/elpa/$(ELPA_VER)/include/elpa_openmp-$(ELPA_VER)
+ELPA_LIB    = $(MPI_PATH)/elpa/$(ELPA_VER)/lib
+
+FFTW_INC    = $(GNU_PATH)/fftw/3.3.9/include
+FFTW_LIB    = $(GNU_PATH)/fftw/3.3.9/lib
+
+LIBINT_INC  = $(GNU_PATH)/libint/2.6.0-lmax-6/include
+LIBINT_LIB  = $(GNU_PATH)/libint/2.6.0-lmax-6/lib
+
+LIBXC_INC   = $(GNU_PATH)/libxc/5.1.5/include
+LIBXC_LIB   = $(GNU_PATH)/libxc/5.1.5/lib
+
+LIBXSMM_INC = $(GNU_PATH)/libxsmm/1.16.1/include
+LIBXSMM_LIB = $(GNU_PATH)/libxsmm/1.16.1/lib
+
+CFLAGS      = -O2 -fPIC -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -march=native -mtune=native
+
+DFLAGS      = -D__ELPA
+DFLAGS     += -D__FFTW3
+DFLAGS     += -D__LIBINT
+DFLAGS     += -D__LIBXC
+DFLAGS     += -D__LIBXSMM
+DFLAGS     += -D__MPI_VERSION=3
+DFLAGS     += -D__parallel
+DFLAGS     += -D__SCALAPACK
+
+FCFLAGS     = $(CFLAGS) $(DFLAGS)
+FCFLAGS    += -fbacktrace
+FCFLAGS    += -ffree-form
+FCFLAGS    += -ffree-line-length-none
+FCFLAGS    += -fno-omit-frame-pointer
+FCFLAGS    += -std=f2008
+FCFLAGS    += -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules
+FCFLAGS    += -I$(FFTW_INC)
+FCFLAGS    += -I$(LIBINT_INC)
+FCFLAGS    += -I$(LIBXC_INC)
+FCFLAGS    += -I$(LIBXSMM_INC)
+
+LD_SHARED   = $(FC) -shared
+LDFLAGS     = $(FCFLAGS)
+
+LIBS        = -L$(ELPA_LIB) -lelpa_openmp
+LIBS       += -L$(LIBXC_LIB) -lxcf03  -lxc
+LIBS       += -L$(LIBINT_LIB) -lint2
+LIBS       += -L$(LIBXSMM_LIB) -lxsmmf -lxsmm
+LIBS       += -L$(FFTW_LIB) -lfftw3 -lfftw3_threads
+LIBS       += -L$(MPI_LIBRARY_PATH) -lscalapack
+LIBS       += -L$(GNU_PATH)/OpenBLAS/0.3.15/lib -lopenblas
