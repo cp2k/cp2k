@@ -147,7 +147,7 @@ CONTAINS
       TYPE(C_PTR)                                        :: gs_handler = C_NULL_PTR, &
                                                             ks_handler = C_NULL_PTR, &
                                                             sctx = C_NULL_PTR
-      TYPE(cell_type), POINTER                           :: my_cell, my_cell_ref
+      TYPE(cell_type), POINTER                           :: my_cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(grid_atom_type), POINTER                      :: atom_grid
       TYPE(gth_potential_type), POINTER                  :: gth_potential
@@ -236,11 +236,15 @@ CONTAINS
 
 ! lattice vectors of the unit cell should be in [a.u.] (length is in [a.u.])
       CALL pwdft_env_get(pwdft_env=pwdft_env, qs_subsys=qs_subsys)
-      CALL qs_subsys_get(qs_subsys, cell=my_cell, cell_ref=my_cell_ref, use_ref_cell=use_ref_cell)
+      CALL qs_subsys_get(qs_subsys, cell=my_cell, use_ref_cell=use_ref_cell)
       a1(:) = my_cell%hmat(:, 1)
       a2(:) = my_cell%hmat(:, 2)
       a3(:) = my_cell%hmat(:, 3)
       CALL sirius_set_lattice_vectors(sctx, a1(1), a2(1), a3(1))
+
+      IF (use_ref_cell) THEN
+         CPWARN("The specified CELL_REF will be ignored for PW_DFT calculations")
+      END IF
 
 ! set up the atomic type definitions
       CALL qs_subsys_get(qs_subsys, &
