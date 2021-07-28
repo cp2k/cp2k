@@ -1,32 +1,49 @@
 # === For the CSCS HPE Cray EX System Alps (Eiger) ====
 # Uses only libraries provided by CSCS in the cpeGNU environment.
 #
-# To load the program environment: source this arch file with
+# USAGE:
+# 1. source this arch file to load the required modules:
 #   source arch/Eiger-gfortran.psmp
+# 2. follow the printed instructions
+# 3. Optionally: use some of the options below to tune the installation
+# 4. To run a calculation: no module has to be loaded
+#
 # \
-  module load cpeGNU ; \
+  module load cpeGNU/21.06 ; \
   module load \
       cray-fftw \
-      ELPA/2020.11.001 \
+      ELPA/2021.05.002 \
       libxsmm/1.16.1 \
-      libxc/5.1.3 \
+      libxc/5.1.5 \
       Libint-CP2K/2.6.0 \
-      gcc/10.2.0 \
+      SIRIUS/7.2.5 \
+      spglib/1.16.0 \
+      libvori/210412 \
+      PLUMED/2.7.1 \
       ; \
-    echo "Please check the output above for error messages." ; \
-    echo "If everything is OK, build CP2K with:" ; \
-    echo "    make -j ARCH=Eiger-gfortran VERSION=psmp" ; \
-    /usr/bin/test _`echo is_csh 2>/dev/null` != _is_csh && exit ; \
-    return
+  module list ; \
+  module save cp2k_gfortran_psmp ; \
+  echo "Please check the output above for error messages!" ; \
+  echo "If everything is OK, build CP2K with:" ; \
+  echo "    make -j ARCH=Eiger-gfortran VERSION=psmp" ; \
+  echo "" ; \
+  echo "To load the required modules in your sbatch script, use:" ; \
+  echo "    module restore cp2k_gfortran_psmp" ; \
+  /usr/bin/test _`echo is_csh 2>/dev/null` != _is_csh && exit ; \
+  return
 
 # === OPTIONS ===
 # To disable/enable them add them to the make call:
 #   ex.: make -j ARCH=Eiger-gfortran VERSION=psmp USE_ELPA=0
 
-WITH_MKL=1
+WITH_MKL=0
 
-USE_LIBINT=0
-USE_ELPA=0
+USE_ELPA=1
+USE_LIBINT=1
+USE_SIRIUS=1
+USE_SPGLIB=1
+USE_LIBVORI=1
+USE_PLUMED=1
 
 CHECKS=0
 
@@ -37,6 +54,8 @@ DFLAGS   = -D__parallel -D__SCALAPACK \
            -D__LIBXC
 
 # === LIBRARIES and MODULES ===
+
+LIBS    += -lfftw3 -lfftw3_omp
 
 LIBS    += -lxcf03 -lxc
 INCS    += -I$(EBROOTLIBXC)/include
@@ -56,9 +75,30 @@ LIBS    += -lint2 -lstdc++
 INCS    += -I$(EBROOTLIBINTMINCP2K)/include
 endif
 
+ifeq ($(USE_SIRIUS),1)
+DFLAGS  += -D__SIRIUS
+LIBS    += -lsirius
+INCS    += -I$(EBROOTSIRIUS)/include/sirius
+endif
+
+ifeq ($(USE_SPGLIB),1)
+DFLAGS  += -D__SPGLIB
+LIBS    += -lsymspg
+INCS    += -I$(EBROOTSPGLIB)/include
+endif
+
+ifeq ($(USE_LIBVORI),1)
+DFLAGS  += -D__LIBVORI
+LIBS    += $(EBROOTLIBVORI)/lib/libvori.a
+endif
+
+ifeq ($(USE_PLUMED),1)
+DFLAGS  += -D__PLUMED2
+LIBS    += -lplumed
+endif
+
 ifeq ($(WITH_MKL),1)
-LIBS    += -lfftw3 -lfftw3_omp \
-           -L/opt/intel/mkl/lib/intel64 -Wl,-rpath=/opt/intel/mkl/lib/intel64 \
+LIBS    += -L/opt/intel/mkl/lib/intel64 -Wl,-rpath=/opt/intel/mkl/lib/intel64 \
            -lmkl_scalapack_lp64 \
            -Wl,--start-group \
            -lmkl_gf_lp64 \
