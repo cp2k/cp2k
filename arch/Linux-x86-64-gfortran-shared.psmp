@@ -53,6 +53,6 @@ LIBS        = -L$(ELPA_LIB) -lelpa_openmp
 LIBS       += -L$(LIBXC_LIB) -lxcf03  -lxc
 LIBS       += -L$(LIBINT_LIB) -lint2
 LIBS       += -L$(LIBXSMM_LIB) -lxsmmf -lxsmm
-LIBS       += -L$(FFTW_LIB) -lfftw3 -lfftw3_threads
+LIBS       += -L$(FFTW_LIB) -lfftw3_omp -lfftw3
 LIBS       += -L$(MPI_LIBRARY_PATH) -lscalapack
 LIBS       += -L$(GNU_PATH)/OpenBLAS/0.3.15/lib -lopenblas
