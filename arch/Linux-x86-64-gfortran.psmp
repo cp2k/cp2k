@@ -1,6 +1,7 @@
-# Tested with: GFortran 8.3.0, MPICH 3.3, LAPACK 3.9.1, ScaLAPACK 6819b24, FFTW 3.3.9,
-#              LIBINT 2.6.0, LIBXC 5.1.5, ELPA 2021.05.001, PLUMED 2.6.2, SPGLIB 1.16.0,
-#              LIBVORI 210412, LIBXSMM 1.16.1, SIRIUS 7.2.5, OpenBLAS 0.3.15, COSMA 2.5.1
+# Tested with: GFortran 8.3.0, MPICH 3.3, ScaLAPACK 6819b24, OpenBLAS 0.3.15,
+#              FFTW 3.3.9, LIBINT 2.6.0, LIBXC 5.1.5, ELPA 2021.05.001,
+#              PLUMED 2.7.2, SPGLIB 1.16.0, LIBVORI 210412, LIBXSMM 1.16.1,
+#              SIRIUS 7.2.5, COSMA 2.5.1
 # Author: Matthias Krack (matthias.krack@psi.ch, PSI, July 2021)
 
 CC          = mpicc
@@ -8,7 +9,7 @@ FC          = mpif90
 LD          = mpif90
 AR          = ar -r
 
-include       $(MPI_PATH)/plumed2/2.6.2/lib/plumed/src/lib/Plumed.inc.static
+include       $(MPI_PATH)/plumed2/2.7.2/lib/plumed/src/lib/Plumed.inc.static
 
 COSMA_INC   = $(GNU_PATH)/COSMA/2.5.1/include
 COSMA_LIB   = $(GNU_PATH)/COSMA/2.5.1/lib
@@ -83,7 +84,7 @@ LIBS       += $(LIBXSMM_LIB)/libxsmmf.a
 LIBS       += $(LIBXSMM_LIB)/libxsmm.a
 # Only needed for SIRIUS
 LIBS       += ${SIRIUS_LIB}/libsirius.a
-LIBS       += $(GNU_PATH)/SpFFT/1.0.3/lib/libspfft.a
+LIBS       += $(GNU_PATH)/SpFFT/1.0.4/lib/libspfft.a
 LIBS       += $(GNU_PATH)/SpLA/1.4.0/lib/libspla.a
 LIBS       += $(GNU_PATH)/hdf5/1.12.0/lib/libhdf5.a
 # Only needed for COSMA
@@ -95,7 +96,6 @@ LIBS       += $(COSMA_LIB)/libcosta.a
 LIBS       += $(FFTW_LIB)/libfftw3.a
 LIBS       += $(FFTW_LIB)/libfftw3_threads.a
 LIBS       += $(MPI_LIBRARY_PATH)/libscalapack.a
-LIBS       += $(LIBPATH)/liblapack.a
 LIBS       += $(GNU_PATH)/OpenBLAS/0.3.15/lib/libopenblas.a
 LIBS       += $(GSL_LIBRARY_DIR)/libgsl.a $(GSL_LIBRARY_DIR)/libgslcblas.a
 LIBS       += $(LIBPATH)/libz.a
