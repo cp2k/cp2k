@@ -162,6 +162,7 @@ CONTAINS
    SUBROUTINE offload_mem_info(free, total)
       INTEGER(KIND=int_8), INTENT(OUT)                   :: free, total
 
+      INTEGER(KIND=C_SIZE_T)                             :: my_free, my_total
       INTERFACE
          SUBROUTINE offload_mem_info_c(free, total) BIND(C, name="offload_mem_info")
             IMPORT :: C_SIZE_T
@@ -169,7 +170,11 @@ CONTAINS
          END SUBROUTINE offload_mem_info_c
       END INTERFACE
 
-      CALL offload_mem_info_c(free, total)
+      CALL offload_mem_info_c(my_free, my_total)
+
+      ! On 32-bit architectures this converts from int_4 to int_8.
+      free = my_free
+      total = my_total
 
    END SUBROUTINE offload_mem_info
 
