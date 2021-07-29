@@ -12,6 +12,14 @@ if [ -z "${PYTHON}" ]; then
   exit 1
 fi
 
+GOLANG=$(command -v go || true)
+
+if [ -z "${GOLANG}" ]; then
+  # TODO: bootstrap go as well, maybe use https://github.com/stefanmaric/g
+  echo "ERROR: did not find a 'go' executable, required for some of the pre-commit hooks"
+  exit 1
+fi
+
 SCRIPTDIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 
 # here we assume that this script is located in the tools/ subfolder
@@ -70,6 +78,9 @@ echo "Installing pre-commit..."
 # this will also install things like shellcheck and a pre-built node if necessary
 
 PRE_COMMIT=$(command -v pre-commit)
+
+# Enable Go 11 style modules for shfmt
+export GO111MODULE=on
 
 echo "Letting pre-commit setup the rest..."
 "${PRE_COMMIT}" install --install-hooks
