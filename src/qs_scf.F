@@ -773,6 +773,14 @@ CONTAINS
                scf_env%qs_ot_env(:)%restricted = .FALSE.
             ENDIF
 
+            ! this will rotate the MOs to be eigen states, which is not compatible with rotation
+            ! e.g. mo_derivs here do not yet include potentially different occupations numbers
+            do_rotation = scf_env%qs_ot_env(1)%settings%do_rotation
+            ! only full all needs rotation
+            is_full_all = scf_env%qs_ot_env(1)%settings%preconditioner_type == ot_precond_full_all
+            IF (do_rotation .AND. is_full_all) &
+               CPABORT('PRECONDITIONER FULL_ALL is not compatible with ROTATION.')
+
             ! might need the KS matrix to init properly
             CALL qs_ks_update_qs_env(qs_env, just_energy=.FALSE., &
                                      calculate_forces=.FALSE.)
@@ -810,12 +818,6 @@ CONTAINS
             SELECT CASE (scf_env%qs_ot_env(1)%settings%preconditioner_type)
             CASE (ot_precond_none)
             CASE (ot_precond_full_all, ot_precond_full_single_inverse)
-               ! this will rotate the MOs to be eigen states, which is not compatible with rotation
-               ! e.g. mo_derivs here do not yet include potentially different occupations numbers
-               do_rotation = scf_env%qs_ot_env(1)%settings%do_rotation
-               ! only full all needs rotation
-               is_full_all = scf_env%qs_ot_env(1)%settings%preconditioner_type == ot_precond_full_all
-               CPASSERT(.NOT. (do_rotation .AND. is_full_all))
                DO ispin = 1, SIZE(scf_env%qs_ot_env)
                   CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin), &
                                                 scf_env%ot_preconditioner(ispin)%preconditioner)
