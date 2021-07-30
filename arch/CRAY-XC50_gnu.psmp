@@ -1,5 +1,5 @@
 # Tested with: GFortran 8.3.0, MPICH 3.2.1, Cray-libsci 20.09.1, Cray-FFTW 3.3.8, Libint 2.6.0,
-#              LIBXC 5.1.5, LIBVORI 210412, LIBXSMM 1.16.1, ELPA 2021.05.001, PLUMED 2.6.2,
+#              LIBXC 5.1.5, LIBVORI 210412, LIBXSMM 1.16.1, ELPA 2021.05.001, PLUMED 2.7.2,
 #              SPGLIB 1.16.0, GSL 2.6, SIRIUS 7.0.2, COSMA 2.5.0
 # Author: Matthias Krack (matthias.krack@psi.ch, PSI, July 2021)
 
@@ -27,7 +27,7 @@ FC          = ftn
 LD          = ftn
 AR          = ar -r
 
-include       $(MPI_PATH)/plumed2/2.6.2/lib/plumed/src/lib/Plumed.inc.static
+include       $(MPI_PATH)/plumed2/2.7.2/lib/plumed/src/lib/Plumed.inc.static
 
 COSMA_INC   = $(GNU_PATH)/COSMA/2.5.0/include
 COSMA_LIB   = $(GNU_PATH)/COSMA/2.5.0/lib
