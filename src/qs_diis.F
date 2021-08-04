@@ -245,7 +245,7 @@ CONTAINS
       INTEGER                                            :: handle, homo, ib, imo, ispin, jb, &
                                                             my_nmixing, nao, nb, nb1, nmo, nspin, &
                                                             output_unit
-      LOGICAL                                            :: eigenvectors_discarded, mo_uocc, my_roks
+      LOGICAL                                            :: eigenvectors_discarded, my_roks
       REAL(KIND=dp)                                      :: maxocc, tmp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ev, occ
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occa, occb
@@ -302,7 +302,6 @@ CONTAINS
                          homo=homo, &
                          mo_coeff=c, &
                          occupation_numbers=occa, &
-                         uniform_occupation=mo_uocc, &
                          maxocc=maxocc)
 
          new_errors => diis_buffer%error(ib, ispin)%matrix
