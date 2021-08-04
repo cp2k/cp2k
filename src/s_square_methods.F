@@ -6,9 +6,10 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief methods related to S**2 (ie. spin)
+!> \brief Methods related to (\cal S)^2 (i.e. spin)
 !> \par History
-!>      03.2006, copied compute_s_square from qs_scf_post  [Joost VandeVondele]
+!>      03.2006 copied compute_s_square from qs_scf_post (Joost VandeVondele)
+!>      08.2021 revised (Matthias Krack, MK)
 !> \author Joost VandeVondele
 ! **************************************************************************************************
 MODULE s_square_methods
@@ -32,6 +33,7 @@ MODULE s_square_methods
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
    USE qs_mo_types,                     ONLY: get_mo_set,&
+                                              has_uniform_occupation,&
                                               mo_set_p_type
 #include "./base/base_uses.f90"
 
@@ -39,7 +41,7 @@ MODULE s_square_methods
 
    PRIVATE
 
-! *** Global parameters ***
+   ! Global parameters
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 's_square_methods'
 
@@ -48,105 +50,130 @@ MODULE s_square_methods
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief compute s square of the single determinant defined by the
-!>       by the spin up and spin down orbitals
-!> \param mos , matrix_s : input
-!> \param matrix_s ...
-!> \param s_square , s_square_ideal : out
-!> \param s_square_ideal ...
-!> \param mo_derivs inout if present, add the derivative of s_square wrt mos to mo_derivs
-!> \param strength ...
+!> \brief Compute the expectation value <(\cal S)^2> of the single determinant defined by the
+!>        spin up (alpha) and spin down (beta) orbitals
+!> \param mos [in] MO set with all MO information including the alpha and beta MO coefficients
+!> \param matrix_s [in] AO overlap matrix S (do not mix with the spin operator (\cal S))
+!> \param s_square [out] <(\cal S)^2> including potential spin contaminations
+!> \param s_square_ideal [out] Ideal value for <(\cal S)^2> without any spin contaminations
+!> \param mo_derivs [inout] If present, add the derivative of s_square wrt the MOs to mo_derivs
+!> \param strength [in] Strength for constraining or restraining (\cal S)^2
 !> \par History
-!>      07.2004 created [ Joost VandeVondele ]
+!>      07.2004 created (Joost VandeVondele)
+!>      08.2021 revised (Matthias Krack, MK)
 !> \note
-!>       see Eq. 2.271 in Modern Quantum Chemistry
-!>       Szabo and Ostlund
+!>      See Eqs. 2.271 and 2.272 in Modern Quantum Chemistry by A. Szabo and N. S. Ostlund
 ! **************************************************************************************************
-   SUBROUTINE compute_s_square(mos, matrix_s, s_square, s_square_ideal, &
-                               mo_derivs, strength)
+   SUBROUTINE compute_s_square(mos, matrix_s, s_square, s_square_ideal, mo_derivs, strength)
+
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
-      REAL(KIND=dp)                                      :: s_square, s_square_ideal
+      REAL(KIND=dp), INTENT(OUT)                         :: s_square, s_square_ideal
       TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: mo_derivs
-      REAL(KIND=dp), OPTIONAL                            :: strength
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: strength
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'compute_s_square'
 
-      INTEGER                                            :: handle, i, j, na, nalpha, nb, nbeta, &
-                                                            ncol_local, nrow, nrow_local
-      LOGICAL                                            :: uniform_occupation
-      REAL(KIND=dp)                                      :: tmp
+      INTEGER                                            :: handle, i, j, nalpha, nao, nao_beta, &
+                                                            nbeta, ncol_local, nmo_alpha, &
+                                                            nmo_beta, nrow_local
+      LOGICAL                                            :: has_uniform_occupation_alpha, &
+                                                            has_uniform_occupation_beta
+      REAL(KIND=dp)                                      :: s2
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_data
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: c_alpha, c_beta, matrix_overlap, &
-                                                            matrix_sc_a, matrix_sc_b
+      TYPE(cp_fm_type), POINTER                          :: c_alpha, c_beta, catscb, sca, scb
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (fm_struct_tmp, matrix_sc_a, matrix_sc_b, matrix_overlap, para_env, context, local_data)
+      NULLIFY (catscb)
+      NULLIFY (c_alpha)
+      NULLIFY (c_beta)
+      NULLIFY (context)
+      NULLIFY (fm_struct_tmp)
+      NULLIFY (local_data)
+      NULLIFY (para_env)
+      NULLIFY (sca)
+      NULLIFY (scb)
 
       SELECT CASE (SIZE(mos))
       CASE (1)
+         ! Spin restricted case, i.e. nothing to do
          s_square = 0.0_dp
          s_square_ideal = 0.0_dp
-         ! let's not do this
-         CPASSERT(PRESENT(mo_derivs))
+         ! Restraining or constraining (\cal S) does not make sense
+         CPASSERT(PRESENT(mo_derivs) .OR. PRESENT(strength))
       CASE (2)
-         CALL get_mo_set(mo_set=mos(1)%mo_set, mo_coeff=c_alpha, homo=nalpha, uniform_occupation=uniform_occupation)
-         IF (.NOT. uniform_occupation) CPWARN("Found non-uniform occupation")
-         CALL get_mo_set(mo_set=mos(2)%mo_set, mo_coeff=c_beta, homo=nbeta, uniform_occupation=uniform_occupation)
-         IF (.NOT. uniform_occupation) CPWARN("Found non-uniform occupation")
-         CALL cp_fm_get_info(c_alpha, ncol_global=na)
-         CALL cp_fm_get_info(c_beta, ncol_global=nb)
-         s_square_ideal = REAL((nalpha - nbeta)*(nalpha - nbeta + 2), KIND=dp)/4.0_dp
-         ! create overlap matrix
-         CALL cp_fm_get_info(c_alpha, para_env=para_env, context=context)
-         CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
-                                  nrow_global=na, ncol_global=nb)
-         CALL cp_fm_create(matrix_overlap, fm_struct_tmp, name="matrix_overlap")
-         CALL cp_fm_struct_release(fm_struct_tmp)
-         ! create S C_beta and compute overlap
-         CALL cp_fm_get_info(c_beta, matrix_struct=fm_struct_tmp, nrow_global=nrow)
-         CALL cp_fm_create(matrix_sc_b, fm_struct_tmp, name="matrix_sc_beta")
-         CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, c_beta, matrix_sc_b, nb)
-         CALL cp_gemm('T', 'N', na, nb, nrow, 1.0_dp, c_alpha, matrix_sc_b, 0.0_dp, matrix_overlap)
-         ! invoke formula 2.271
-         CALL cp_fm_get_info(matrix_overlap, &
-                             local_data=local_data, &
-                             nrow_local=nrow_local, &
-                             ncol_local=ncol_local)
-         tmp = 0.0_dp
-         DO j = 1, ncol_local
-         DO i = 1, nrow_local
-            tmp = tmp + local_data(i, j)**2
-         ENDDO
-         ENDDO
-         CALL mp_sum(tmp, para_env%group)
-         s_square = s_square_ideal + nb - tmp
-         IF (PRESENT(mo_derivs)) THEN
-            ! this gets really wrong for fractional occupations
-            CPASSERT(SIZE(mo_derivs, 1) == 2)
-            CALL get_mo_set(mo_set=mos(1)%mo_set, uniform_occupation=uniform_occupation)
-            CPASSERT(uniform_occupation)
-            CALL get_mo_set(mo_set=mos(2)%mo_set, uniform_occupation=uniform_occupation)
-            CPASSERT(uniform_occupation)
-            CALL cp_gemm('N', 'T', nrow, na, nb, -1.0_dp*strength, matrix_sc_b, matrix_overlap, 1.0_dp, mo_derivs(1)%matrix)
-            CALL cp_fm_release(matrix_sc_b)
-            CALL cp_fm_get_info(c_alpha, matrix_struct=fm_struct_tmp)
-            CALL cp_fm_create(matrix_sc_a, fm_struct_tmp, name="matrix_sc_alpha")
-            CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, c_alpha, matrix_sc_a, na)
-            CALL cp_gemm('N', 'N', nrow, nb, na, -1.0_dp*strength, matrix_sc_a, matrix_overlap, 1.0_dp, mo_derivs(2)%matrix)
-            CALL cp_fm_release(matrix_sc_a)
-            CALL cp_fm_release(matrix_overlap)
+         CALL get_mo_set(mo_set=mos(1)%mo_set, mo_coeff=c_alpha, homo=nalpha, nmo=nmo_alpha, nao=nao)
+         CALL get_mo_set(mo_set=mos(2)%mo_set, mo_coeff=c_beta, homo=nbeta, nmo=nmo_beta, nao=nao_beta)
+         CPASSERT(nao == nao_beta)
+         has_uniform_occupation_alpha = has_uniform_occupation(mo_set=mos(1)%mo_set, last_mo=nalpha)
+         has_uniform_occupation_beta = has_uniform_occupation(mo_set=mos(2)%mo_set, last_mo=nbeta)
+         ! This makes only sense if we have uniform occupations for the alpha and beta spin MOs while
+         ! ignoring potentially added MOs with zero occupation
+         IF (has_uniform_occupation_alpha .AND. has_uniform_occupation_beta) THEN
+            ! Eq. 2.272 in Modern Quantum Chemistry by A. Szabo and N. S. Ostlund
+            s_square_ideal = REAL((nalpha - nbeta)*(nalpha - nbeta + 2), KIND=dp)/4.0_dp
+            ! Create overlap matrix
+            CALL cp_fm_get_info(c_alpha, para_env=para_env, context=context)
+            CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
+                                     nrow_global=nalpha, ncol_global=nbeta)
+            ! Prepare C(alpha)^T*S*C(beta)
+            CALL cp_fm_create(catscb, fm_struct_tmp, name="C(alpha)^T*S*C(beta)")
+            CALL cp_fm_struct_release(fm_struct_tmp)
+            ! Create S*C(beta)
+            CALL cp_fm_get_info(c_beta, matrix_struct=fm_struct_tmp)
+            CALL cp_fm_create(scb, fm_struct_tmp, name="S*C(beta)")
+            ! Compute S*C(beta)
+            CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, c_beta, scb, nbeta)
+            ! Compute C(alpha)^T*S*C(beta)
+            CALL cp_gemm('T', 'N', nalpha, nbeta, nao, 1.0_dp, c_alpha, scb, 0.0_dp, catscb)
+            ! Eq. 2.271 in Modern Quantum Chemistry by A. Szabo and N. S. Ostlund
+            CALL cp_fm_get_info(catscb, local_data=local_data, nrow_local=nrow_local, ncol_local=ncol_local)
+            s2 = 0.0_dp
+            DO j = 1, ncol_local
+               DO i = 1, nrow_local
+                  s2 = s2 + local_data(i, j)**2
+               END DO
+            END DO
+            CALL mp_sum(s2, para_env%group)
+            s_square = s_square_ideal + nbeta - s2
+            ! Only needed for constraining or restraining (\cal S)
+            IF (PRESENT(mo_derivs)) THEN
+               CPASSERT(SIZE(mo_derivs, 1) == 2)
+               ! This gets really wrong for fractional occupations
+               CALL get_mo_set(mo_set=mos(1)%mo_set, uniform_occupation=has_uniform_occupation_alpha)
+               CPASSERT(has_uniform_occupation_alpha)
+               CALL get_mo_set(mo_set=mos(2)%mo_set, uniform_occupation=has_uniform_occupation_beta)
+               CPASSERT(has_uniform_occupation_beta)
+               ! Add -strength*S*C(beta)*(C(alpha)^T*S*C(beta))^T to the alpha MO derivatives
+               CALL cp_gemm('N', 'T', nao, nalpha, nbeta, -strength, scb, catscb, 1.0_dp, mo_derivs(1)%matrix)
+               ! Create S*C(alpha)
+               CALL cp_fm_get_info(c_alpha, matrix_struct=fm_struct_tmp)
+               CALL cp_fm_create(sca, fm_struct_tmp, name="S*C(alpha)")
+               ! Compute S*C(alpha)
+               CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, c_alpha, sca, nalpha)
+               ! Add -strength*S*C(alpha)*C(alpha)^T*S*C(beta) to the beta MO derivatives
+               CALL cp_gemm('N', 'N', nao, nbeta, nalpha, -strength, sca, catscb, 1.0_dp, mo_derivs(2)%matrix)
+               CALL cp_fm_release(sca)
+            END IF
+            CALL cp_fm_release(scb)
+            CALL cp_fm_release(catscb)
          ELSE
-            CALL cp_fm_release(matrix_sc_b)
-            CALL cp_fm_release(matrix_overlap)
-         ENDIF
+            IF (.NOT. has_uniform_occupation_alpha) THEN
+               CPHINT("The alpha orbitals (MOs) have a non-uniform occupation")
+            END IF
+            IF (.NOT. has_uniform_occupation_beta) THEN
+               CPHINT("The beta orbitals (MOs) have a non-uniform occupation")
+            END IF
+            CPHINT("Skipping S**2 calculation")
+         END IF
       CASE DEFAULT
-         CPABORT("alpha, beta, what else ?")
+         ! We should never get here
+         CPABORT("Alpha, beta, what else ?")
       END SELECT
 
       CALL timestop(handle)
@@ -188,7 +215,7 @@ CONTAINS
          ELSE
             CALL compute_s_square(mos, matrix_s, s_square, s_square_ideal, &
                                   mo_derivs, s2_restraint_control%strength)
-         ENDIF
+         END IF
          energy = s2_restraint_control%strength*(s_square - s2_restraint_control%target)
          s2_restraint_control%s2_order_p = s_square
       CASE (do_s2_restraint) ! not yet implemented

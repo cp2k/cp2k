@@ -23,6 +23,7 @@ MODULE qs_mo_occupation
    USE kahan_sum,                       ONLY: accurate_sum
    USE kinds,                           ONLY: dp
    USE qs_mo_types,                     ONLY: get_mo_set,&
+                                              has_uniform_occupation,&
                                               mo_set_p_type,&
                                               mo_set_type,&
                                               set_mo_set
@@ -679,7 +680,7 @@ CONTAINS
       END IF ! do smear
 
       ! zeros don't count as uniform
-      mo_set%uniform_occupation = ALL(mo_set%occupation_numbers == mo_set%maxocc)
+      mo_set%uniform_occupation = has_uniform_occupation(mo_set=mo_set)
 
       CALL timestop(handle)
 
