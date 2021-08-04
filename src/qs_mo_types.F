@@ -44,34 +44,38 @@ MODULE qs_mo_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_mo_types'
 
    TYPE mo_set_type
-      ! the actual MO coefficients as a matrix
-      TYPE(cp_fm_type), POINTER                 :: mo_coeff
-      TYPE(dbcsr_type), POINTER              :: mo_coeff_b
+      ! The actual MO coefficients as a matrix
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(dbcsr_type), POINTER                          :: mo_coeff_b
       ! we are using the dbcsr mo_coeff_b
-      LOGICAL                                   :: use_mo_coeff_b
-      ! number of molecular orbitals (# cols in mo_coeff)
-      INTEGER                                   :: nmo
-      ! number of atomic orbitals (# rows in mo_coeff)
-      INTEGER                                   :: nao
-      ! occupation - eigenvalues  of the nmo states (if eigenstates)
-      REAL(KIND=dp), DIMENSION(:), POINTER    :: eigenvalues, occupation_numbers
-      ! maximum allowed occupation number of an MO (1 or 2)
-      REAL(KIND=dp)                           :: maxocc
-      ! number of electrons (taking occupation into account)
-      INTEGER                                   :: nelectron
-      REAL(KIND=dp)                             :: n_el_f
-      ! highest non-zero occupied orbital
-      INTEGER                                   :: homo
+      LOGICAL                                            :: use_mo_coeff_b
+      ! Number of molecular orbitals (# cols in mo_coeff)
+      INTEGER                                            :: nmo
+      ! Number of atomic orbitals (# rows in mo_coeff)
+      INTEGER                                            :: nao
+      ! MO occupation numbers and MO eigenvalues (if eigenstates)
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, &
+                                                            occupation_numbers
+      ! Maximum allowed occupation number of an MO, i.e.
+      ! 1 for spin unrestricted (polarized) and 2 for spin restricted
+      REAL(KIND=dp)                                      :: maxocc
+      ! Number of electrons (taking occupations into account)
+      INTEGER                                            :: nelectron
+      REAL(KIND=dp)                                      :: n_el_f
+      ! Highest orbital with non-zero occupation
+      INTEGER                                            :: homo
       ! lowest non maxocc occupied orbital (e.g. fractional or zero)
-      INTEGER                                   :: lfomo
-      ! flag that indicates if the MOS have the same occupation number
-      LOGICAL                                   :: uniform_occupation
-      ! the entropic energy contribution
-      REAL(KIND=dp)                             :: kTS
+      INTEGER                                            :: lfomo
+      ! True, if all allocated MOs have the same occupation number.
+      ! This is not the case for fractional occupations or for added MOs
+      ! with zero occupation.
+      LOGICAL                                            :: uniform_occupation
+      ! The entropic energy contribution
+      REAL(KIND=dp)                                      :: kTS
       ! Fermi energy level
-      REAL(KIND=dp)                             :: mu
+      REAL(KIND=dp)                                      :: mu
       ! Threshold value for multiplicity change
-      REAL(KIND=dp)                             :: flexible_electron_count
+      REAL(KIND=dp)                                      :: flexible_electron_count
    END TYPE mo_set_type
 
    TYPE mo_set_p_type
@@ -83,12 +87,13 @@ MODULE qs_mo_types
 
    PUBLIC :: allocate_mo_set, &
              deallocate_mo_set, &
-             get_mo_set, &
-             init_mo_set, &
-             set_mo_set, &
-             mo_set_restrict, &
              duplicate_mo_set, &
-             reassign_allocated_mos
+             get_mo_set, &
+             has_uniform_occupation, &
+             init_mo_set, &
+             mo_set_restrict, &
+             reassign_allocated_mos, &
+             set_mo_set
 
 CONTAINS
 
@@ -481,5 +486,63 @@ CONTAINS
       IF (PRESENT(flexible_electron_count)) mo_set%flexible_electron_count = flexible_electron_count
 
    END SUBROUTINE set_mo_set
+
+! **************************************************************************************************
+!> \brief   Check if the set of MOs in mo_set specifed by the MO index range [first_mo,last_mo]
+!>          an integer occupation within a tolerance.
+!> \param   mo_set :: MO set for which the uniform occupation will be checked
+!> \param   first_mo :: Index of first MO for the checked MO range
+!> \param   last_mo :: Index of last MO for the checked MO range
+!> \param   occupation :: Requested uniform MO occupation with the MO range
+!> \param   tolerance :: Requested numerical tolerance for an integer occupation
+!> \return  has_uniform_occupation :: boolean, true if an integer occupation is found otherwise false
+!> \par History
+!>      04.08.2021 Created (MK)
+!> \author  Matthias Krack (MK)
+!> \version 1.0
+! **************************************************************************************************
+   FUNCTION has_uniform_occupation(mo_set, first_mo, last_mo, occupation, tolerance)
+
+      TYPE(mo_set_type), POINTER                         :: mo_set
+      INTEGER, INTENT(IN), OPTIONAL                      :: first_mo, last_mo
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: occupation, tolerance
+      LOGICAL                                            :: has_uniform_occupation
+
+      INTEGER                                            :: my_first_mo, my_last_mo
+      REAL(KIND=dp)                                      :: my_occupation, my_tolerance
+
+      CPASSERT(ASSOCIATED(mo_set))
+
+      has_uniform_occupation = .FALSE.
+
+      IF (PRESENT(first_mo)) THEN
+         CPASSERT(first_mo >= LBOUND(mo_set%eigenvalues, 1))
+         my_first_mo = first_mo
+      ELSE
+         my_first_mo = LBOUND(mo_set%eigenvalues, 1)
+      END IF
+
+      IF (PRESENT(last_mo)) THEN
+         CPASSERT(last_mo <= UBOUND(mo_set%eigenvalues, 1))
+         my_last_mo = last_mo
+      ELSE
+         my_last_mo = UBOUND(mo_set%eigenvalues, 1)
+      END IF
+
+      IF (PRESENT(occupation)) THEN
+         my_occupation = occupation
+      ELSE
+         my_occupation = mo_set%maxocc
+      END IF
+
+      IF (PRESENT(tolerance)) THEN
+         my_tolerance = tolerance
+      ELSE
+         my_tolerance = EPSILON(0.0_dp)
+      END IF
+
+      has_uniform_occupation = ALL(ABS(mo_set%occupation_numbers(my_first_mo:my_last_mo) - my_occupation) < my_tolerance)
+
+   END FUNCTION has_uniform_occupation
 
 END MODULE qs_mo_types
