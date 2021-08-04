@@ -443,7 +443,7 @@ CONTAINS
       ! Makes the MOs eigenstates, computes eigenvalues, write cubes
       IF (do_kpoints) THEN
          IF (do_mo_cubes) THEN
-            CPWARN("Print MO Cubes not implemented for k-point calculations!!")
+            CPWARN("Print MO cubes not implemented for k-point calculations")
          END IF
       ELSE
          CALL get_qs_env(qs_env, &
@@ -451,7 +451,7 @@ CONTAINS
                          matrix_ks=ks_rmpv)
          IF ((do_mo_cubes .AND. nhomo /= 0) .OR. do_stm .OR. dft_control%do_tddfpt_calculation) THEN
             IF (dft_control%restricted) THEN
-               IF (output_unit > 0) WRITE (output_unit, *) &
+               IF (output_unit > 0) WRITE (output_unit, FMT="(/,T2,A)") &
                   " Unclear how we define MOs in the restricted case ... skipping"
             ELSE
                CALL get_qs_env(qs_env, mo_derivs=mo_derivs)
@@ -487,7 +487,7 @@ CONTAINS
          IF (do_kpoints) THEN
             CPWARN("Localization not implemented for k-point calculations!!")
          ELSEIF (dft_control%restricted) THEN
-            IF (output_unit > 0) WRITE (output_unit, *) &
+            IF (output_unit > 0) WRITE (output_unit, FMT="(/,T2,A)") &
                " Unclear how we define MOs / localization in the restricted case ... skipping"
          ELSE
             ALLOCATE (occupied_orbs(dft_control%nspins))
