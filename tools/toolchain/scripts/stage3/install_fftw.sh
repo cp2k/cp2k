@@ -83,7 +83,7 @@ case "$with_fftw" in
     ;;
 esac
 if [ "$with_fftw" != "__DONTUSE__" ]; then
-  [ "$MPI_MODE" != "no" ] && FFTW_LIBS="-lfftw3_mpi "
+  [ "$MPI_MODE" != "no" ] && FFTW_LIBS="IF_MPI(-lfftw3_mpi|) "
   FFTW_LIBS+="-lfftw3 -lfftw3_omp"
   if [ "$with_fftw" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_fftw"
