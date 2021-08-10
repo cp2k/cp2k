@@ -52,7 +52,7 @@ case "$with_plumed" in
       # note: some MPI wrappers carry a -g forward, thus stripping is not enough
 
       libs=""
-      [ -n "${MKL_LIBS}" ] && libs+="${MKL_LIBS}"
+      [ -n "${MKL_LIBS}" ] && libs+="$(resolve_string "${MKL_LIBS}" "MPI")"
 
       ./configure \
         CXX="${MPICXX}" \

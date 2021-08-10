@@ -85,6 +85,7 @@ case "$with_libvdwxc" in
           --libdir="${pkg_install_dir}/lib" \
           --disable-shared \
           --with-mpi \
+          FFTW3_LIBS="$(resolve_string "${FFTW3_LIBS}" "MPI")" \
           >> configure.log 2>&1
       fi
       make -j $(get_nprocs) > compile.log 2>&1
