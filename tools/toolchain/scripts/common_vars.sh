@@ -36,6 +36,7 @@ ENABLE_HIP=${ENABLE_HIP:-"__FALSE__"}
 ENABLE_CRAY=${ENABLE_CRAY:-"__FALSE__"}
 MPI_MODE=${MPI_MODE:-openmpi}
 MATH_MODE=${MATH_MODE:-openblas}
+DEEPMD_MODE=${DEEPMD_MODE:-cpu}
 
 # compiler flags
 export CC=${CC:-gcc}

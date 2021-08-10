@@ -92,10 +92,14 @@ G_CFLAGS="$BASEFLAGS"
 G_CFLAGS="$G_CFLAGS IF_COVERAGE($COVERAGE_FLAGS|IF_DEBUG($NOOPT_FLAGS|$OPT_FLAGS))"
 G_CFLAGS="$G_CFLAGS IF_DEBUG(|$PROFOPT_FLAGS)"
 G_CFLAGS="$G_CFLAGS $CP_CFLAGS"
+# CXXFLAGS for C++ interfaces
+G_CXXFLAGS="$CP_CXXFLAGS"
 # FCFLAGS, for gfortran
 FCFLAGS="$G_CFLAGS \$(FCDEBFLAGS) \$(WFLAGS) \$(DFLAGS)"
 # CFLAGS, special flags for gcc
 CFLAGS="$G_CFLAGS -std=c11 -Wall -Wextra -Werror \$(DFLAGS)"
+# CXXFLAGS, for g++
+CXXFLAGS="$G_CXXFLAGS \$(DFLAGS)"
 
 # Linker flags
 # About --whole-archive see: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=52590

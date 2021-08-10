@@ -143,6 +143,10 @@ CONTAINS
       flags = TRIM(flags)//" quip"
 #endif
 
+#if defined(__DEEPMD)
+      flags = TRIM(flags)//" deepmd"
+#endif
+
 #if defined(__PW_CUDA)
       flags = TRIM(flags)//" pw_cuda"
 #endif

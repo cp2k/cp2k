@@ -112,6 +112,7 @@ be installed separately by the user.
 | --------- | --------------------------------------------------------------------------------------- | -------------- |
 | cmake     | [BSD 3-Clause](https://gitlab.kitware.com/cmake/cmake/raw/master/Copyright.txt)         | Yes            |
 | cosma     | [BSD 3-Clause](https://github.com/eth-cscs/COSMA/blob/master/LICENCE)                   | Yes            |
+| deepmd    | [LGPL](https://github.com/deepmodeling/deepmd-kit/blob/master/LICENSE)                  | Yes            |
 | elpa      | [LGPL](https://gitlab.mpcdf.mpg.de/elpa/elpa/blob/master/LICENSE)                       | Yes            |
 | fftw      | [GPL](http://www.fftw.org/doc/License-and-Copyright.html)                               | Yes            |
 | gcc       | [GPL](https://gcc.gnu.org/git/?p=gcc.git;a=blob_plain;f=COPYING;hb=HEAD)                | Yes            |

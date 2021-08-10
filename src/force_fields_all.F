@@ -64,10 +64,10 @@ MODULE force_fields_all
                                               spline_nonbond_control
    USE pair_potential_coulomb,          ONLY: potential_coulomb
    USE pair_potential_types,            ONLY: &
-        ea_type, lj_charmm_type, lj_type, nn_type, nosh_nosh, nosh_sh, pair_potential_lj_create, &
-        pair_potential_pp_create, pair_potential_pp_type, pair_potential_single_add, &
-        pair_potential_single_clean, pair_potential_single_copy, pair_potential_single_type, &
-        quip_type, sh_sh, siepmann_type, tersoff_type
+        deepmd_type, ea_type, lj_charmm_type, lj_type, nn_type, nosh_nosh, nosh_sh, &
+        pair_potential_lj_create, pair_potential_pp_create, pair_potential_pp_type, &
+        pair_potential_single_add, pair_potential_single_clean, pair_potential_single_copy, &
+        pair_potential_single_type, quip_type, sh_sh, siepmann_type, tersoff_type
    USE particle_types,                  ONLY: allocate_particle_set,&
                                               particle_type
    USE physcon,                         ONLY: bohr
@@ -2042,7 +2042,7 @@ CONTAINS
                   IF (atmname == inp_info%nonbonded%pot(j)%pot%at1 .OR. &
                       atmname == inp_info%nonbonded%pot(j)%pot%at2) THEN
                      SELECT CASE (inp_info%nonbonded%pot(j)%pot%type(1))
-                     CASE (ea_type, tersoff_type, siepmann_type, quip_type)
+                     CASE (ea_type, tersoff_type, siepmann_type, quip_type, deepmd_type)
                         ! Charge is zero for EAM, TERSOFF and SIEPMANN type potential
                         ! Do nothing..
                      CASE DEFAULT

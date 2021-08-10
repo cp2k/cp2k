@@ -89,7 +89,7 @@ MODULE bibliography
                             Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, Lass2018, cp2kqs2020, &
                             Behler2007, Behler2011, Schran2020a, Schran2020b, &
                             Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Shigeta2001, Heinecke2016, &
-                            Brehm2021, Bussy2021a, Bussy2021b
+                            Brehm2021, Bussy2021a, Bussy2021b, Deepmd2018
 
 CONTAINS
 
@@ -4702,6 +4702,26 @@ CONTAINS
                          "PB MDPI", &
                          "ER"), &
                          DOI="10.3390/molecules26071875")
+
+      CALL add_reference(key=Deepmd2018, ISI_record=s2a( &
+                         "TY JOUR", &
+                         "PT J", &
+                         "AU Wang, Han", &
+                         "   Zhang, Linfeng", &
+                         "   Han, Jiequn", &
+                         "   E, Weinan", &
+                         "TI DeePMD-kit: A Deep Learning Package for Many-body", &
+                         "   Potential Energy Representation and Molecular Dynamics", &
+                         "SO Computer Physics Communications", &
+                         "JF Computer Physics Communications", &
+                         "JO Computer Physics Communications", &
+                         "SN 178-184", &
+                         "IS 7", &
+                         "PY 2018", &
+                         "VL 228", &
+                         "DI 10.1016/j.cpc.2018.03.016", &
+                         "ER"), &
+                         DOI="10.1016/j.cpc.2018.03.016")
 
    END SUBROUTINE add_all_references
 

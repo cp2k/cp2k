@@ -15,7 +15,7 @@
 ! **************************************************************************************************
 MODULE input_cp2k_mm
    USE bibliography,                    ONLY: &
-        Clabaut2020, Clabaut2021, Devynck2012, Dick1958, Foiles1986, Mitchell1993, QUIP_ref, &
+        Clabaut2020, Clabaut2021, Deepmd2018, Devynck2012, Dick1958, Foiles1986, Mitchell1993, QUIP_ref, &
         Siepmann1995, Tersoff1988, Tosi1964a, Tosi1964b, Yamada2000
    USE cp_output_handling,              ONLY: cp_print_key_section_create,&
                                               debug_print_level,&
@@ -1170,6 +1170,10 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_DEEPMD_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       CALL create_Goodwin_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -1446,6 +1450,48 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_QUIP_section
+
+! **************************************************************************************************
+!> \brief This section specifies the input parameters for DEEPMD potential type
+!> \param section the section to create
+!> \author ybzhuang
+! **************************************************************************************************
+   SUBROUTINE create_DEEPMD_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="DEEPMD", &
+                          description="This section specifies the input parameters for Deep Potential type. "// &
+                          "Mainly intended for things like neural network to DFT "// &
+                          "to achieve correlated-wavefunction-like accuracy. "// &
+                          "Requires linking with DeePMD-kit library from <a href=""http://www.deepmd.org"" "// &
+                          "target=""_blank"">http://www.deepmd.org</a> .", &
+                          citations=(/Deepmd2018/), n_keywords=1, n_subsections=0, repeats=.TRUE.)
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
+                          description="Defines the atomic kinds involved in the Deep Potential. "// &
+                          "For more than 2 elements, &DEEPMD section must be repeated until each element "// &
+                          "has been mentioned at least once. Set IGNORE_MISSING_CRITICAL_PARAMS to T "// &
+                          "in enclosing &FORCEFIELD section to avoid having to list every pair of elements separately.", &
+                          usage="ATOMS {KIND1} {KIND2}", type_of_var=char_t, &
+                          n_var=2)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="POT_FILE_NAME", &
+                          variants=(/"PARMFILE"/), &
+                          description="Specifies the filename that contains the DeePMD-kit potential.", &
+                          usage="POT_FILE_NAME {FILENAME}", default_lc_val="graph.pb")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="ATOM_DEEPMD_TYPE", &
+                          description="Specifies the atomic TYPE for the DeePMD-kit potential.", &
+                          usage="ATOM_DEEPMD_TYPE {TYPE INTEGER}", &
+                          n_var=1, type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+   END SUBROUTINE create_DEEPMD_section
 
 ! **************************************************************************************************
 !> \brief This section specifies the input parameters for Lennard-Jones potential type
