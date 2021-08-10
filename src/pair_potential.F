@@ -29,9 +29,9 @@ MODULE pair_potential
                                               default_string_length,&
                                               dp
    USE pair_potential_types,            ONLY: &
-        b4_type, bm_type, compare_pot, deepmd_type, ea_type, ft_type, ftd_type, gal21_type, gal_type, gp_type, &
-        gw_type, ip_type, list_pot, lj_charmm_type, lj_type, multi_type, nn_type, &
-        pair_potential_pp_type, pair_potential_single_type, potential_single_allocation, &
+        b4_type, bm_type, compare_pot, deepmd_type, ea_type, ft_type, ftd_type, gal21_type, &
+        gal_type, gp_type, gw_type, ip_type, list_pot, lj_charmm_type, lj_type, multi_type, &
+        nn_type, pair_potential_pp_type, pair_potential_single_type, potential_single_allocation, &
         quip_type, siepmann_type, tersoff_type, wl_type
    USE pair_potential_util,             ONLY: ener_pot,&
                                               ener_zbl,&

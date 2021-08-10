@@ -352,6 +352,18 @@ out of the box on Nvidia hardware as well.
 - see <https://brehm-research.de> for more information.
 -->
 
+### 2v. DeePMD-kit (optional, wider range of interaction potentials)
+
+DeePMD-kit - Deep Potential Molecular Dyanmics. Support for DeePMD-kit can be
+enabled via the flag `-D__DEEPMD`.
+
+:warning: Only **DeePMD-kit >= 2.0.0** is supportted.
+- Please set `--deepmd-mode` to `gpu` if GPU support is needed, and load CUDA environment before installing.
+- From exist DeePMD-kit C++ interface, with `$deepmd_root` and `$tensorflow_root` (Described [here](https://docs.deepmodeling.org/projects/deepmd/en/latest/install.html#install-the-deepmd-kit-s-c-interface) in detail), by setting `--with-deepmd=$deepmd_root` and `--with-tfcc=$tensorflow_root`.
+- From source code and library from Github and Anaconda Cloud, by setting the both flags to `install`. For now, DeePMD-kit v2.0.0.b1 and Tensorflow C++ interface 2.3.0 will be installed, and only **CUDA Toolkit 10.1** is OK from this way.
+
+For more information see <https://github.com/deepmodeling/deepmd-kit.git>.
+
 ## 3. Compile
 
 ### 3a. ARCH files

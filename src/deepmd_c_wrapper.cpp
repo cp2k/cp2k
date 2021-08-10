@@ -47,13 +47,13 @@ void compute_nnp(nnp *n, int *vecsize, double *dener, double *dforce,
   std::vector<double> coord_(dcoord_, dcoord_ + vsize * 3);
   std::vector<double> box(dbox, dbox + 9);
   std::vector<int> atype_(datype_, datype_ + vsize);
-  //	cout << "define ok" << endl;
+  // cout << "define ok" << endl;
 
   obj->compute(ener, force_, virial, atom_energy_, atom_virial_, coord_, atype_,
                box);
-  //	cout << "input ok" << endl;
+  // cout << "input ok" << endl;
   *dener = ener;
-  //	cout << "energy is " << *dener << endl;
+  // cout << "energy is " << *dener << endl;
   for (int i = 0; i < vsize * 3; i++) {
     dforce[i] = force_[i];
   }
@@ -66,6 +66,6 @@ void compute_nnp(nnp *n, int *vecsize, double *dener, double *dforce,
   for (int i = 0; i < vsize * 9; i++) {
     datom_virial[i] = atom_virial_[i];
   }
-  //	cout << "this means vector function wrap successfully" << endl;
+  // cout << "this means vector function wrap successfully" << endl;
 }
 #endif

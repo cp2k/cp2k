@@ -1,3 +1,15 @@
+/*----------------------------------------------------------------------------*/
+/*  CP2K: A general program to perform molecular dynamics simulations         */
+/*  Copyright 2000-2021 CP2K developers group <https://cp2k.org>              */
+/*                                                                            */
+/*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
+/*----------------------------------------------------------------------------*/
+
+/*******************************************************************************
+ * \brief A minimal wrapper for DeepMD-kit C++ interface.
+ * \author Yongbin Zhuang and Yunpei Liu
+ ******************************************************************************/
+
 #ifdef __cplusplus
 extern "C" {
 #endif

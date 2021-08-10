@@ -1034,8 +1034,8 @@ CONTAINS
                                                             gal21, deepmd
 
       INTEGER                                            :: i, ipot, lb1_old, std_dim, ub1_old
-      LOGICAL :: check, lbmhft, lbmhftd, lbuck4r, lbuckmo, ldeepmd, leam, lgal, lgal21, lgoodwin, lgp, &
-         lipbv, llj, llj_charmm, lquip, lsiepmann, ltersoff, lwilliams
+      LOGICAL :: check, lbmhft, lbmhftd, lbuck4r, lbuckmo, ldeepmd, leam, lgal, lgal21, lgoodwin, &
+         lgp, lipbv, llj, llj_charmm, lquip, lsiepmann, ltersoff, lwilliams
       TYPE(pair_potential_p_type), POINTER               :: work
 
       NULLIFY (work)

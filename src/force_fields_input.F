@@ -100,8 +100,9 @@ CONTAINS
       TYPE(force_field_type), INTENT(INOUT)              :: ff_type
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      INTEGER :: nb4, nbends, nbm, nbmhft, nbmhftd, nbonds, nchg, ndeepmd, neam, ngal, ngal21, ngd, ngp, &
-         nimpr, nipbv, nlj, nopbend, nquip, nshell, nsiepmann, ntersoff, ntors, ntot, nubs, nwl
+      INTEGER :: nb4, nbends, nbm, nbmhft, nbmhftd, nbonds, nchg, ndeepmd, neam, ngal, ngal21, &
+         ngd, ngp, nimpr, nipbv, nlj, nopbend, nquip, nshell, nsiepmann, ntersoff, ntors, ntot, &
+         nubs, nwl
       LOGICAL                                            :: explicit, unique_spline
       REAL(KIND=dp)                                      :: min_eps_spline_allowed
       TYPE(input_info_type), POINTER                     :: inp_info
