@@ -82,12 +82,12 @@ if [ "$with_mkl" != "__DONTUSE__" ]; then
 
   case $MPI_MODE in
     intelmpi | mpich)
-      mkl_scalapack_lib="-lmkl_scalapack_lp64"
-      mkl_blacs_lib="-lmkl_blacs_intelmpi_lp64"
+      mkl_scalapack_lib="IF_MPI(-lmkl_scalapack_lp64|)"
+      mkl_blacs_lib="IF_MPI(-lmkl_blacs_intelmpi_lp64|)"
       ;;
     openmpi)
-      mkl_scalapack_lib="-lmkl_scalapack_lp64"
-      mkl_blacs_lib="-lmkl_blacs_openmpi_lp64"
+      mkl_scalapack_lib="IF_MPI(-lmkl_scalapack_lp64|)"
+      mkl_blacs_lib="IF_MPI(-lmkl_blacs_openmpi_lp64|)"
       ;;
     *)
       echo "Not using MKL provided ScaLAPACK and BLACS"

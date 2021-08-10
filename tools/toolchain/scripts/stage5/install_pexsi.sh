@@ -57,7 +57,7 @@ case "$with_pexsi" in
           -e "s|\(PEXSI_DIR *=\).*|\1 ${PWD}|g" \
           -e "s|\(PEXSI_BUILD_DIR *=\).*|\1 ${pkg_install_dir}|g" \
           -e "s|\(CPP_LIB *=\).*|\1 -lstdc++ ${MPI_LDFLAGS} ${MPI_LIBS} |g" \
-          -e "s|\(LAPACK_LIB *=\).*|\1 ${MATH_LDFLAGS} $(resolve_string "${MATH_LIBS}")|g" \
+          -e "s|\(LAPACK_LIB *=\).*|\1 ${MATH_LDFLAGS} $(resolve_string "${MATH_LIBS}" "MPI")|g" \
           -e "s|\(BLAS_LIB *=\).*|\1|g" \
           -e "s|\(\bMETIS_LIB *=\).*|\1 ${METIS_LDFLAGS} ${METIS_LIBS}|g" \
           -e "s|\(PARMETIS_LIB *=\).*|\1 |g" \
