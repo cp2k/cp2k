@@ -81,6 +81,9 @@ case "$with_pexsi" in
       # Seemingly this should've been moved together with the other fortran files.
       mv ./src/f_interface.f90 ./fortran/
 
+      # Patch to include <limits> explicitly as required by gcc >= 11.
+      sed -i '/^#include <numeric>/a #include <limits>' ./include/pexsi/utility_impl.hpp
+
       make finstall > make.log 2>&1 # still issues with parallel make (fortran_examples target)
 
       ln -sf "${pkg_install_dir}/lib/libpexsi_${OPENBLAS_ARCH}.a" \

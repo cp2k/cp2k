@@ -49,9 +49,9 @@ case "$with_mpich" in
       unset F90
       unset F90FLAGS
 
-      # workaround for compilation with GCC-10, until properly fixed:
+      # workaround for compilation with GCC >= 10, until properly fixed:
       #   https://github.com/pmodels/mpich/issues/4300
-      ("${FC}" --version | grep -Eq 'GNU.+\s10\.') && compat_flag="-fallow-argument-mismatch" || compat_flag=""
+      ("${FC}" --version | grep -q 'GNU') && compat_flag="-fallow-argument-mismatch" || compat_flag=""
       ./configure \
         --prefix="${pkg_install_dir}" \
         --libdir="${pkg_install_dir}/lib" \
