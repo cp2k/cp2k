@@ -95,7 +95,10 @@ G_CFLAGS="$G_CFLAGS $CP_CFLAGS"
 # FCFLAGS, for gfortran
 FCFLAGS="$G_CFLAGS \$(FCDEBFLAGS) \$(WFLAGS) \$(DFLAGS)"
 # CFLAGS, special flags for gcc
-CFLAGS="$G_CFLAGS -std=c11 -Wall -Wextra -Werror \$(DFLAGS)"
+
+# TODO: Remove -Wno-vla-parameter after upgrade to gcc 11.3.
+# https://gcc.gnu.org/bugzilla//show_bug.cgi?id=101289
+CFLAGS="$G_CFLAGS -std=c11 -Wall -Wextra -Werror -Wno-vla-parameter \$(DFLAGS)"
 
 # Linker flags
 # About --whole-archive see: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=52590
