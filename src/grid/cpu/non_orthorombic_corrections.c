@@ -73,7 +73,7 @@ void exp_ij(const double alpha, const int offset_i, const int imin,
 
 void calculate_non_orthorombic_corrections_tensor(
     const double mu_mean, const double *r_ab, const double basis[3][3],
-    const int *const xmin, const int *const xmax, bool *plane,
+    const int *const xmin, const int *const xmax, bool plane[3],
     tensor *const Exp) {
   // zx, zy, yx
   const int n[3][2] = {{0, 2}, {0, 1}, {1, 2}};
@@ -253,7 +253,7 @@ void calculate_non_orthorombic_corrections_tensor_blocked(
   /* free(exp_tmp.data); */
 }
 
-void apply_non_orthorombic_corrections(const bool *restrict plane,
+void apply_non_orthorombic_corrections(const bool plane[restrict 3],
                                        const tensor *const Exp,
                                        tensor *const cube) {
   // Well we should never call non orthorombic corrections if everything is
