@@ -108,7 +108,7 @@ extern void return_cube_position(const int *lb_grid, const int *cube_center,
                                  const int *lower_boundaries_cube,
                                  const int *period, int *const position);
 
-extern void verify_orthogonality(const double dh[3][3], bool *orthogonal);
+extern void verify_orthogonality(const double dh[3][3], bool orthogonal[3]);
 
 extern int compute_cube_properties(const bool ortho, const double radius,
                                    const double dh[3][3],
