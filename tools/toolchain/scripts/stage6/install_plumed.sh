@@ -54,6 +54,9 @@ case "$with_plumed" in
       libs=""
       [ -n "${MKL_LIBS}" ] && libs+="$(resolve_string "${MKL_LIBS}" "MPI")"
 
+      # Patch to include <limits> explicitly as required by gcc >= 11.
+      sed -i '/^#include <algorithm>/a #include <limits>' ./src/lepton/Operation.h
+
       ./configure \
         CXX="${MPICXX}" \
         CXXFLAGS="${CXXFLAGS//-g/-g0} ${GSL_CFLAGS}" \
