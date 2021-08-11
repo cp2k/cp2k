@@ -11,11 +11,15 @@ ARG BASE_IMAGE
 
 USER root
 
-# install Linux packages.
+# Install Linux packages.
 COPY ./install_requirements*.sh ./
 RUN ./install_requirements.sh ${BASE_IMAGE}
 
-# copy helper scripts
+# Install Tensorflow.
+COPY ./install_tensorflow.sh ./
+RUN ./install_tensorflow.sh ${BASE_IMAGE}
+
+# Copy helper scripts.
 WORKDIR /opt/cp2k-toolchain
 RUN mkdir scripts
 COPY ./scripts/VERSION \
