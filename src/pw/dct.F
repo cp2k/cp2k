@@ -1104,6 +1104,9 @@ CONTAINS
       CASE (neumannZ)
          maxn_sendrecv = 1
          shf_yesno = (/0, 0, 1/)
+      CASE DEFAULT
+         CPABORT("Unknown neumann direction")
+         shf_yesno = (/0, 0, 0/)
       END SELECT
 
       ALLOCATE (pcs_bnds(2, 3, maxn_sendrecv))

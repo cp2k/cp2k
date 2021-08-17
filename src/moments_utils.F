@@ -98,6 +98,7 @@ CONTAINS
       CASE (use_mom_ref_com)
          rpoint = 0._dp
          mtot = 0._dp
+         center(:) = 0._dp
          IF (do_molecule) THEN
             mass_low = -HUGE(mass_low)
             ! fold the molecule around the heaviest atom in the molecule
@@ -141,6 +142,7 @@ CONTAINS
       CASE (use_mom_ref_coac)
          rpoint = 0._dp
          ztot = 0._dp
+         center(:) = 0._dp
          IF (do_molecule) THEN
             mass_low = -HUGE(mass_low)
             ! fold the molecule around the heaviest atom in the molecule

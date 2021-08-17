@@ -338,6 +338,8 @@ CONTAINS
                      rab_list(1:3, 2) = 0.0_dp
                      rab_list(1:3, 3) = 0.0_dp
                      rab_list(1:3, 4) = rab_ss(1:3) + cell_v(1:3)
+                  ELSE
+                     rab_list(:, :) = 0.0_dp
                   END IF
                   ! Compute the term only if all the pairs (cc,cs,sc,ss) are within the cut-off
                   Check_terms: DO i = 1, 4
@@ -354,6 +356,7 @@ CONTAINS
                   rab_com = rab_cc
                   shell_a = 0
                   shell_b = 0
+                  rab_list(:, :) = 0.0_dp
                END IF
                rab_com = rab_com + cell_v
                rab2_com = rab_com(1)**2 + rab_com(2)**2 + rab_com(3)**2

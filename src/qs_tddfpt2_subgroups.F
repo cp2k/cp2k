@@ -139,19 +139,19 @@ MODULE qs_tddfpt2_subgroups
 ! **************************************************************************************************
    TYPE mgrid_saved_parameters
       !> create commensurate grids
-      LOGICAL                                     :: commensurate_mgrids
+      LOGICAL                                     :: commensurate_mgrids = .FALSE.
       !> create real-space grids
-      LOGICAL                                     :: realspace_mgrids
+      LOGICAL                                     :: realspace_mgrids = .FALSE.
       !> do not perform load balancing
-      LOGICAL                                     :: skip_load_balance
+      LOGICAL                                     :: skip_load_balance = .FALSE.
       !> cutoff value at the finest grid level
-      REAL(KIND=dp)                               :: cutoff
+      REAL(KIND=dp)                               :: cutoff = 0.0_dp
       !> inverse scale factor
-      REAL(KIND=dp)                               :: progression_factor
+      REAL(KIND=dp)                               :: progression_factor = 0.0_dp
       !> relative cutoff
-      REAL(KIND=dp)                               :: relative_cutoff
+      REAL(KIND=dp)                               :: relative_cutoff = 0.0_dp
       !> list of explicitly given cutoff values
-      REAL(KIND=dp), DIMENSION(:), POINTER        :: e_cutoff
+      REAL(KIND=dp), DIMENSION(:), POINTER        :: e_cutoff => NULL()
    END TYPE mgrid_saved_parameters
 
 CONTAINS

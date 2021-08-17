@@ -3040,7 +3040,6 @@ CONTAINS
          dedxia = zcb*dedyt - ycb*dedzt
          dedyia = xcb*dedzt - zcb*dedxt
          dedzia = ycb*dedxt - xcb*dedyt
-         dedzia = ycb*dedxt - xcb*dedyt
          dedxib = yca*dedzt - zca*dedyt + zdc*dedyu - ydc*dedzu
          dedyib = zca*dedxt - xca*dedzt + xdc*dedzu - zdc*dedxu
          dedzib = xca*dedyt - yca*dedxt + ydc*dedxu - xdc*dedyu
@@ -3050,6 +3049,19 @@ CONTAINS
          dedxid = zcb*dedyu - ycb*dedzu
          dedyid = xcb*dedzu - zcb*dedxu
          dedzid = ycb*dedxu - xcb*dedyu
+      ELSE
+         dedxia = 0.0_dp
+         dedyia = 0.0_dp
+         dedzia = 0.0_dp
+         dedxib = 0.0_dp
+         dedyib = 0.0_dp
+         dedzib = 0.0_dp
+         dedxic = 0.0_dp
+         dedyic = 0.0_dp
+         dedzic = 0.0_dp
+         dedxid = 0.0_dp
+         dedyid = 0.0_dp
+         dedzid = 0.0_dp
       ENDIF
       !
       colvar%ss = e
