@@ -524,8 +524,8 @@ CONTAINS
       CPASSERT(ASSOCIATED(p_matrix_kp))
       CPASSERT(ASSOCIATED(s_matrix_kp))
 
-      nspin = SIZE(p_matrix)
-      CALL dbcsr_get_info(s_matrix, nblkrows_total=nblock)
+      nspin = SIZE(p_matrix_kp, 1)
+      CALL dbcsr_get_info(s_matrix_kp(1, 1)%matrix, nblkrows_total=nblock)
       ALLOCATE (charges(nblock, nspin), charges_im(nblock, nspin))
       charges = 0.0_dp
 

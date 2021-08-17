@@ -1099,6 +1099,8 @@ CONTAINS
             ! Get the 6 coefficients of the 5th-order polynomial -> x(1:6)
             ! and the 4 coefficients of the 3rd-order polynomial -> x(7:10)
             x(:) = MATMUL(p_inv(:, :), v(:))
+         ELSE
+            x(:) = 0.0_dp
          END IF
 
          CALL section_vals_val_get(section, "RCUT", i_rep_section=isec, r_val=rcut)

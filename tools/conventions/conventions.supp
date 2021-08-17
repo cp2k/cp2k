@@ -56,14 +56,18 @@ dumpdcd.F: Found STOP statement in procedure "abort_program"
 dumpdcd.F: Found STOP statement in procedure "dumpdcd"
 dumpdcd.F: Found WRITE statement with hardcoded unit in "abort_program"
 dumpdcd.F: Found WRITE statement with hardcoded unit in "print_help"
+dumpdcd.F: 'MEM[(struct array02_real(kind=8) &)&r_pbc].dim[0].ubound' is used uninitialized [-Wuninitialized]
+dumpdcd.F: 'MEM[(struct array02_real(kind=8) &)&r_pbc].dim[1].stride' is used uninitialized [-Wuninitialized]
+dumpdcd.F: 'MEM[(struct array02_real(kind=8) &)&s].dim[0].ubound' is used uninitialized [-Wuninitialized]
+dumpdcd.F: 'MEM[(struct array02_real(kind=8) &)&s_pbc].dim[0].ubound' is used uninitialized [-Wuninitialized]
+dumpdcd.F: 'MEM[(struct array02_real(kind=8) &)&s_pbc].dim[1].stride' is used uninitialized [-Wuninitialized]
+dumpdcd.F: 's.dim[1].stride' is used uninitialized [-Wuninitialized]
 eip_silicon.F: Found OPEN statement in procedure "eip_bazant_silicon"
 eip_silicon.F: Found OPEN statement in procedure "eip_lenosky_silicon"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_bazant_silicon"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_lenosky_silicon"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_b"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_l"
-eri_mme_lattice_summation.F: '__var_14_matmul.dim[0].lbound' is used uninitialized in this function [-Wuninitialized]
-eri_mme_lattice_summation.F: '__var_14_matmul.dim[0].ubound' is used uninitialized in this function [-Wuninitialized]
 et_coupling_proj.F: Routine INFOG2L called with an implicit interface.
 extended_system_init.F: Found WRITE statement with hardcoded unit in "init_barostat_variables"
 farming_methods.F: Found CLOSE statement in procedure "farming_parse_input"

@@ -474,6 +474,8 @@ CONTAINS
             rm(2) = SUM(int_grid%batch(ig)%rco(2, 1:np))
             rm(3) = SUM(int_grid%batch(ig)%rco(3, 1:np))
             rm(1:3) = rm(1:3)/REAL(np, KIND=dp)
+         ELSE
+            rm(:) = 0.0_dp
          END IF
          int_grid%batch(ig)%rcenter(1:3) = rm(1:3)
          dmax = 0.0_dp
