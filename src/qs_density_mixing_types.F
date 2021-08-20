@@ -89,10 +89,6 @@ MODULE qs_density_mixing_types
       TYPE(cp_1d_z_p_type), DIMENSION(:), POINTER       :: last_res, rhoin, rhoin_old
       TYPE(cp_1d_z_p_type), DIMENSION(:, :), POINTER    :: delta_res, u_vec, z_vec
       TYPE(cp_1d_z_p_type), DIMENSION(:, :), POINTER    :: drho_buffer, rhoin_buffer, res_buffer
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER      :: rho_ao_in, rho_ao_in_old, rho_ao_lastres
-      TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER   :: rho_ao_in_buffer
-      TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER   :: rho_ao_res_buffer
-      TYPE(dbcsr_type), POINTER                         :: rho_ao_mix, rho_ao_res
       !
       TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER    :: cpc_h_lastres, cpc_s_lastres
       TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER    :: cpc_h_in, cpc_s_in
@@ -171,13 +167,6 @@ CONTAINS
       NULLIFY (mixing_store%dcpc_s_in)
       NULLIFY (mixing_store%cpc_h_lastres)
       NULLIFY (mixing_store%cpc_s_lastres)
-      NULLIFY (mixing_store%rho_ao_in)
-      NULLIFY (mixing_store%rho_ao_in_old)
-      NULLIFY (mixing_store%rho_ao_in_buffer)
-      NULLIFY (mixing_store%rho_ao_lastres)
-      NULLIFY (mixing_store%rho_ao_res_buffer)
-      NULLIFY (mixing_store%rho_ao_mix)
-      NULLIFY (mixing_store%rho_ao_res)
       NULLIFY (mixing_store%cpc_h_in_buffer)
       NULLIFY (mixing_store%cpc_s_in_buffer)
       NULLIFY (mixing_store%cpc_h_res_buffer)
@@ -447,28 +436,6 @@ CONTAINS
                   END DO
                END DO
                DEALLOCATE (mixing_store%z_vec)
-            END IF
-
-            IF (ASSOCIATED(mixing_store%rho_ao_in)) THEN
-               CALL dbcsr_deallocate_matrix_set(mixing_store%rho_ao_in)
-            END IF
-            IF (ASSOCIATED(mixing_store%rho_ao_in_old)) THEN
-               CALL dbcsr_deallocate_matrix_set(mixing_store%rho_ao_in_old)
-            END IF
-            IF (ASSOCIATED(mixing_store%rho_ao_lastres)) THEN
-               CALL dbcsr_deallocate_matrix_set(mixing_store%rho_ao_lastres)
-            END IF
-            IF (ASSOCIATED(mixing_store%rho_ao_in_buffer)) THEN
-               CALL dbcsr_deallocate_matrix_set(mixing_store%rho_ao_in_buffer)
-            END IF
-            IF (ASSOCIATED(mixing_store%rho_ao_res_buffer)) THEN
-               CALL dbcsr_deallocate_matrix_set(mixing_store%rho_ao_res_buffer)
-            END IF
-            IF (ASSOCIATED(mixing_store%rho_ao_mix)) THEN
-               CALL dbcsr_deallocate_matrix(mixing_store%rho_ao_mix)
-            END IF
-            IF (ASSOCIATED(mixing_store%rho_ao_res)) THEN
-               CALL dbcsr_deallocate_matrix(mixing_store%rho_ao_res)
             END IF
 
             DEALLOCATE (mixing_store)

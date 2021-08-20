@@ -247,27 +247,7 @@ CONTAINS
                   NULLIFY (mixing_store%rhoin(ispin)%cc)
                END DO
             END IF
-            IF (mixing_store%gmix_p) THEN
-               IF (.NOT. ASSOCIATED(mixing_store%rho_ao_in)) THEN
-                  CALL dbcsr_allocate_matrix_set(mixing_store%rho_ao_in, nspins, nimg)
-                  DO i = 1, nspins
-                     DO ic = 1, nimg
-                        ALLOCATE (mixing_store%rho_ao_in(i, ic)%matrix)
-                        CALL dbcsr_create(matrix=mixing_store%rho_ao_in(i, ic)%matrix, template=refmatrix, &
-                                          name="SCF DENSITY", matrix_type=dbcsr_type_symmetric, nze=0)
-                        CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_in(i, ic)%matrix, sab_orb)
-                        CALL dbcsr_set(mixing_store%rho_ao_in(i, ic)%matrix, 0.0_dp)
-                     ENDDO
-                  END DO
-               END IF
-               IF (.NOT. ASSOCIATED(mixing_store%rho_ao_mix)) THEN
-                  ALLOCATE (mixing_store%rho_ao_mix)
-                  CALL dbcsr_create(matrix=mixing_store%rho_ao_mix, template=refmatrix, &
-                                    name="DENSITY MIX", matrix_type=dbcsr_type_symmetric, nze=0)
-                  CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_mix, sab_orb)
-                  CALL dbcsr_set(mixing_store%rho_ao_mix, 0.0_dp)
-               END IF
-            END IF
+
             IF (mixing_store%gmix_p .AND. dft_control%qs_control%gapw) THEN
                CALL get_qs_env(qs_env=qs_env, rho_atom_set=rho_atom)
                natom = SIZE(rho_atom)
@@ -313,21 +293,6 @@ CONTAINS
                END DO
             END IF
             IF (mixing_store%gmix_p) THEN
-               IF (.NOT. ASSOCIATED(mixing_store%rho_ao_in_buffer)) THEN
-                  CALL dbcsr_allocate_matrix_set(mixing_store%rho_ao_in_buffer, nspins, nimg, nbuffer)
-                  DO ispin = 1, nspins
-                     DO ic = 1, nimg
-                        DO i = 1, nbuffer
-                           ALLOCATE (mixing_store%rho_ao_in_buffer(ispin, ic, i)%matrix)
-                           CALL dbcsr_create(matrix=mixing_store%rho_ao_in_buffer(ispin, ic, i)%matrix, &
-                                             template=refmatrix, name="SCF DENSITY", &
-                                             matrix_type=dbcsr_type_symmetric, nze=0)
-                           CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_in_buffer(ispin, ic, i)%matrix, sab_orb)
-                           CALL dbcsr_set(mixing_store%rho_ao_in_buffer(ispin, ic, i)%matrix, 0.0_dp)
-                        END DO
-                     ENDDO
-                  END DO
-               END IF
                IF (dft_control%qs_control%gapw) THEN
                   IF (.NOT. ASSOCIATED(mixing_store%cpc_h_in_buffer)) THEN
                      ALLOCATE (mixing_store%cpc_h_in_buffer(nbuffer, natom, nspins))
@@ -368,39 +333,6 @@ CONTAINS
                END DO
             END IF
             IF (mixing_store%gmix_p) THEN
-               IF (.NOT. ASSOCIATED(mixing_store%rho_ao_res)) THEN
-                  ALLOCATE (mixing_store%rho_ao_res)
-                  CALL dbcsr_create(matrix=mixing_store%rho_ao_res, template=refmatrix, &
-                                    name="DENSITY MIX", matrix_type=dbcsr_type_symmetric, nze=0)
-                  CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_res, sab_orb)
-                  CALL dbcsr_set(mixing_store%rho_ao_res, 0.0_dp)
-               END IF
-
-               IF (.NOT. ASSOCIATED(mixing_store%rho_ao_in_old)) THEN
-                  CALL dbcsr_allocate_matrix_set(mixing_store%rho_ao_in_old, nspins, nimg)
-                  DO i = 1, nspins
-                     DO ic = 1, nimg
-                        ALLOCATE (mixing_store%rho_ao_in_old(i, ic)%matrix)
-                        CALL dbcsr_create(matrix=mixing_store%rho_ao_in_old(i, ic)%matrix, template=refmatrix, &
-                                          name="SCF DENSITY", matrix_type=dbcsr_type_symmetric, nze=0)
-                        CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_in_old(i, ic)%matrix, sab_orb)
-                        CALL dbcsr_set(mixing_store%rho_ao_in_old(i, ic)%matrix, 0.0_dp)
-                     ENDDO
-                  END DO
-               END IF
-
-               IF (.NOT. ASSOCIATED(mixing_store%rho_ao_lastres)) THEN
-                  CALL dbcsr_allocate_matrix_set(mixing_store%rho_ao_lastres, nspins, nimg)
-                  DO i = 1, nspins
-                     DO ic = 1, nimg
-                        ALLOCATE (mixing_store%rho_ao_lastres(i, ic)%matrix)
-                        CALL dbcsr_create(matrix=mixing_store%rho_ao_lastres(i, ic)%matrix, template=refmatrix, &
-                                          name="SCF DENSITY", matrix_type=dbcsr_type_symmetric, nze=0)
-                        CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_lastres(i, ic)%matrix, sab_orb)
-                        CALL dbcsr_set(mixing_store%rho_ao_lastres(i, ic)%matrix, 0.0_dp)
-                     ENDDO
-                  END DO
-               END IF
 
                IF (dft_control%qs_control%gapw) THEN
                   IF (.NOT. ASSOCIATED(mixing_store%cpc_h_old)) THEN
@@ -433,25 +365,7 @@ CONTAINS
             END IF
          END IF
 
-         IF (mixing_method == pulay_mixing_nr .OR. mixing_method == broyden_mixing_nr) THEN
-            IF (mixing_store%gmix_p) THEN
-               IF (.NOT. ASSOCIATED(mixing_store%rho_ao_res_buffer)) THEN
-                  CALL dbcsr_allocate_matrix_set(mixing_store%rho_ao_res_buffer, nspins, nimg, nbuffer)
-                  DO ispin = 1, nspins
-                     DO ic = 1, nimg
-                        DO i = 1, nbuffer
-                           ALLOCATE (mixing_store%rho_ao_res_buffer(ispin, ic, i)%matrix)
-                           CALL dbcsr_create(matrix=mixing_store%rho_ao_res_buffer(ispin, ic, i)%matrix, &
-                                             template=refmatrix, name="SCF DENSITY", &
-                                             matrix_type=dbcsr_type_symmetric, nze=0)
-                           CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_res_buffer(ispin, ic, i)%matrix, sab_orb)
-                           CALL dbcsr_set(mixing_store%rho_ao_res_buffer(ispin, ic, i)%matrix, 0.0_dp)
-                        END DO
-                     ENDDO
-                  END DO
-               END IF
-            END IF
-         END IF
+
          !   *** allocate broyden buffer ***
          IF (mixing_method == broyden_mixing_new_nr) THEN
             IF (.NOT. ASSOCIATED(mixing_store%u_vec)) THEN
@@ -605,13 +519,6 @@ CONTAINS
       END IF
 
       IF (mixing_store%gmix_p) THEN
-         IF (ASSOCIATED(mixing_store%rho_ao_in)) THEN
-            DO ispin = 1, nspin
-               DO ib = 1, nimg
-                  CALL dbcsr_copy(mixing_store%rho_ao_in(ispin, ib)%matrix, rho_ao_kp(ispin, ib)%matrix)
-               END DO
-            END DO
-         END IF
          IF (PRESENT(rho_atom)) THEN
             natom = SIZE(rho_atom)
             DO ispin = 1, nspin
