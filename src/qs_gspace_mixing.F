@@ -10,11 +10,6 @@ MODULE qs_gspace_mixing
 
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
-                                              dbcsr_copy,&
-                                              dbcsr_p_type,&
-                                              dbcsr_set,&
-                                              dbcsr_type
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: invert_matrix
    USE message_passing,                 ONLY: mp_sum
@@ -44,7 +39,6 @@ MODULE qs_gspace_mixing
    USE qs_rho_atom_types,               ONLY: rho_atom_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE qs_scf_methods,                  ONLY: cp_sm_mix
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -82,12 +76,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'gspace_mixing'
 
-      INTEGER                                            :: handle, i, iatom, ig, ispin, natom, ng, &
+      INTEGER                                            :: handle, iatom, ig, ispin, natom, ng, &
                                                             nimg, nspin
       LOGICAL                                            :: gapw
       REAL(dp)                                           :: alpha
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: rho_tmp
@@ -102,8 +95,8 @@ CONTAINS
                  dft_control%qs_control%semi_empirical)) THEN
 
          CPASSERT(ASSOCIATED(mixing_store))
-         NULLIFY (auxbas_pw_pool, rho_ao_kp, rho_atom, rho_g, rho_r, tot_rho_r)
-         CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp, rho_g=rho_g, rho_r=rho_r, tot_rho_r=tot_rho_r)
+         NULLIFY (auxbas_pw_pool, rho_atom, rho_g, rho_r, tot_rho_r)
+         CALL qs_rho_get(rho, rho_g=rho_g, rho_r=rho_r, tot_rho_r=tot_rho_r)
 
          nspin = SIZE(rho_g, 1)
          nimg = dft_control%nimages
@@ -132,11 +125,6 @@ CONTAINS
                DO ig = 1, ng
                   mixing_store%rhoin(ispin)%cc(ig) = rho_g(ispin)%pw%cc(ig)
                END DO
-               IF (mixing_store%gmix_p) THEN
-                  DO i = 1, nimg
-                     CALL dbcsr_copy(mixing_store%rho_ao_in(ispin, i)%matrix, rho_ao_kp(ispin, i)%matrix)
-                  END DO
-               END IF
             END DO
             IF (mixing_store%gmix_p .AND. gapw) THEN
                CALL get_qs_env(qs_env=qs_env, rho_atom_set=rho_atom)
@@ -164,10 +152,10 @@ CONTAINS
          END IF
 
          IF ((iter_count + 1 - mixing_store%nskip_mixing) <= mixing_store%n_simple_mix) THEN
-            CALL gmix_potential_only(qs_env, mixing_store, rho, para_env)
+            CALL gmix_potential_only(qs_env, mixing_store, rho)
             mixing_store%iter_method = "Kerker"
          ELSEIF (mixing_method == gspace_mixing_nr) THEN
-            CALL gmix_potential_only(qs_env, mixing_store, rho, para_env)
+            CALL gmix_potential_only(qs_env, mixing_store, rho)
             mixing_store%iter_method = "Kerker"
          ELSEIF (mixing_method == pulay_mixing_nr) THEN
             CALL pulay_mixing(qs_env, mixing_store, rho, para_env)
@@ -209,27 +197,24 @@ CONTAINS
 !> \param qs_env ...
 !> \param mixing_store ...
 !> \param rho ...
-!> \param para_env ...
 !> \par History
 !>      02.2009
 !> \author MI
 ! **************************************************************************************************
 
-   SUBROUTINE gmix_potential_only(qs_env, mixing_store, rho, para_env)
+   SUBROUTINE gmix_potential_only(qs_env, mixing_store, rho)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mixing_storage_type), POINTER                 :: mixing_store
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'gmix_potential_only'
 
       COMPLEX(dp), DIMENSION(:), POINTER                 :: cc_new
-      INTEGER                                            :: handle, iatom, ic, ig, ispin, natom, ng, &
+      INTEGER                                            :: handle, iatom, ig, ispin, natom, ng, &
                                                             nspin
       LOGICAL                                            :: gapw
-      REAL(dp)                                           :: alpha, f_mix, tmp
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s, rho_ao_kp
+      REAL(dp)                                           :: alpha, f_mix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
@@ -238,10 +223,10 @@ CONTAINS
       CPASSERT(ASSOCIATED(mixing_store%kerker_factor))
 
       CALL timeset(routineN, handle)
-      NULLIFY (cc_new, dft_control, rho_ao_kp, rho_atom, rho_g)
+      NULLIFY (cc_new, dft_control, rho_atom, rho_g)
 
-      CALL get_qs_env(qs_env, dft_control=dft_control, matrix_s_kp=matrix_s)
-      CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp, rho_g=rho_g)
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+      CALL qs_rho_get(rho, rho_g=rho_g)
 
       nspin = SIZE(rho_g, 1)
       ng = SIZE(rho_g(1)%pw%pw_grid%gsq)
@@ -262,16 +247,6 @@ CONTAINS
             mixing_store%rhoin(ispin)%cc(ig) = cc_new(ig)
          END DO
 
-         IF (mixing_store%gmix_p) THEN
-            DO ic = 1, SIZE(rho_ao_kp, 2)
-               CALL cp_sm_mix(m1=rho_ao_kp(ispin, ic)%matrix, &
-                              m2=mixing_store%rho_ao_in(ispin, ic)%matrix, &
-                              p_mix=alpha, &
-                              delta=tmp, &
-                              para_env=para_env)
-               CALL dbcsr_copy(mixing_store%rho_ao_in(ispin, ic)%matrix, rho_ao_kp(ispin, ic)%matrix)
-            END DO
-         END IF
       END DO
 
       IF (mixing_store%gmix_p .AND. gapw) THEN
@@ -320,27 +295,25 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pulay_mixing'
 
       COMPLEX(dp), ALLOCATABLE, DIMENSION(:)             :: cc_mix
-      INTEGER                                            :: handle, i, iatom, ib, ibb, ic, ig, &
-                                                            ispin, jb, n1, n2, natom, nb, nb1, &
-                                                            nbuffer, ng, nspin
+      INTEGER                                            :: handle, i, iatom, ib, ibb, ig, ispin, &
+                                                            jb, n1, n2, natom, nb, nb1, nbuffer, &
+                                                            ng, nspin
       LOGICAL                                            :: gapw
       REAL(dp)                                           :: alpha_kerker, alpha_pulay, beta, f_mix, &
                                                             inv_err, norm, norm_c_inv, vol
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: alpha_c, ev
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: a, b, c, c_inv, cpc_h_mix, cpc_s_mix
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
-      TYPE(dbcsr_type), POINTER                          :: rho_ao_mix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
 
       CPASSERT(ASSOCIATED(mixing_store%res_buffer))
       CPASSERT(ASSOCIATED(mixing_store%rhoin_buffer))
-      NULLIFY (dft_control, rho_ao_mix, rho_ao_kp, rho_atom, rho_g)
+      NULLIFY (dft_control, rho_atom, rho_g)
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
-      CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp, rho_g=rho_g)
+      CALL qs_rho_get(rho, rho_g=rho_g)
       nspin = SIZE(rho_g, 1)
       ng = SIZE(mixing_store%res_buffer(1, 1)%cc)
       vol = rho_g(1)%pw%pw_grid%vol
@@ -400,7 +373,6 @@ CONTAINS
             mixing_store%pulay_matrix(jb, ib) = mixing_store%pulay_matrix(jb, ib)*vol*vol
             mixing_store%pulay_matrix(ib, jb) = mixing_store%pulay_matrix(jb, ib)
          END DO
-
          IF (nb == 1) THEN
             DO ig = 1, ng
                f_mix = alpha_kerker*mixing_store%kerker_factor(ig)
@@ -411,18 +383,6 @@ CONTAINS
                mixing_store%rhoin_buffer(ibb, ispin)%cc(ig) = rho_g(ispin)%pw%cc(ig)
             END DO
             IF (mixing_store%gmix_p) THEN
-               DO ic = 1, SIZE(rho_ao_kp, 2)
-                  CALL dbcsr_copy(mixing_store%rho_ao_res_buffer(ispin, ic, ib)%matrix, rho_ao_kp(ispin, ic)%matrix)
-                  CALL dbcsr_add(matrix_a=mixing_store%rho_ao_res_buffer(ispin, ic, ib)%matrix, alpha_scalar=1.0_dp, &
-                                 matrix_b=mixing_store%rho_ao_in(ispin, ic)%matrix, beta_scalar=-1.0_dp)
-
-                  CALL dbcsr_add(matrix_a=rho_ao_kp(ispin, ic)%matrix, alpha_scalar=alpha_kerker, &
-                                 matrix_b=mixing_store%rho_ao_in(ispin, ic)%matrix, &
-                                 beta_scalar=(1.0_dp - alpha_kerker))
-
-                  CALL dbcsr_copy(mixing_store%rho_ao_in_buffer(ispin, ic, ib)%matrix, mixing_store%rho_ao_in(ispin, ic)%matrix)
-                  CALL dbcsr_copy(mixing_store%rho_ao_in_buffer(ispin, ic, ibb)%matrix, rho_ao_kp(ispin, ic)%matrix)
-               END DO
                IF (gapw) THEN
                   DO iatom = 1, natom
                      IF (mixing_store%paw(iatom)) THEN
@@ -484,27 +444,6 @@ CONTAINS
                END DO
             END IF
 
-            IF (mixing_store%gmix_p) THEN
-               CALL dbcsr_set(mixing_store%rho_ao_mix, 0.0_dp)
-               rho_ao_mix => mixing_store%rho_ao_mix
-               DO ic = 1, SIZE(rho_ao_kp, 2)
-                  CALL dbcsr_copy(mixing_store%rho_ao_res_buffer(ispin, ic, ib)%matrix, rho_ao_kp(ispin, ic)%matrix)
-                  CALL dbcsr_add(matrix_a=mixing_store%rho_ao_res_buffer(ispin, ic, ib)%matrix, alpha_scalar=1.0_dp, &
-                                 matrix_b=mixing_store%rho_ao_in_buffer(ispin, ic, ib)%matrix, beta_scalar=-1.0_dp)
-
-                  DO jb = 1, nb
-                     CALL dbcsr_add(matrix_a=rho_ao_mix, alpha_scalar=1.0_dp, &
-                                    matrix_b=mixing_store%rho_ao_in_buffer(ispin, ic, jb)%matrix, &
-                                    beta_scalar=alpha_c(jb))
-                     CALL dbcsr_add(matrix_a=rho_ao_mix, alpha_scalar=1.0_dp, &
-                                    matrix_b=mixing_store%rho_ao_res_buffer(ispin, ic, jb)%matrix, &
-                                    beta_scalar=alpha_c(jb)*beta)
-                  END DO
-                  CALL dbcsr_add(matrix_a=rho_ao_kp(ispin, ic)%matrix, alpha_scalar=alpha_pulay, &
-                                 matrix_b=rho_ao_mix, beta_scalar=(1.0_dp - alpha_pulay))
-                  CALL dbcsr_copy(mixing_store%rho_ao_in_buffer(ispin, ic, ibb)%matrix, rho_ao_kp(ispin, ic)%matrix)
-               END DO
-            END IF
             IF (mixing_store%gmix_p .AND. gapw) THEN
                CALL get_qs_env(qs_env=qs_env, rho_atom_set=rho_atom)
                DO iatom = 1, natom
@@ -575,17 +514,15 @@ CONTAINS
 
       COMPLEX(dp)                                        :: cc_mix
       COMPLEX(dp), ALLOCATABLE, DIMENSION(:)             :: res_rho
-      INTEGER                                            :: handle, i, iatom, ib, ic, ig, ispin, j, &
-                                                            jb, kb, n1, n2, natom, nb, nbuffer, &
-                                                            ng, nspin
+      INTEGER                                            :: handle, i, iatom, ib, ig, ispin, j, jb, &
+                                                            kb, n1, n2, natom, nb, nbuffer, ng, &
+                                                            nspin
       LOGICAL                                            :: gapw, only_kerker
       REAL(dp)                                           :: alpha, dcpc_h_res, dcpc_s_res, &
-                                                            delta_norm, f_mix, inv_err, norm, &
-                                                            res_norm, valh, vals, w0
+                                                            delta_norm, f_mix, inv_err, res_norm, &
+                                                            valh, vals, w0
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: c, g
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: a, b
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
-      TYPE(dbcsr_type), POINTER                          :: rho_ao_mix, rho_ao_res
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
@@ -594,11 +531,11 @@ CONTAINS
       CPASSERT(ASSOCIATED(mixing_store%rhoin))
       CPASSERT(ASSOCIATED(mixing_store%rhoin_old))
       CPASSERT(ASSOCIATED(mixing_store%drho_buffer))
-      NULLIFY (dft_control, rho_ao_kp, rho_ao_mix, rho_ao_res, rho_atom, rho_g)
+      NULLIFY (dft_control, rho_atom, rho_g)
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
-      CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp, rho_g=rho_g)
+      CALL qs_rho_get(rho, rho_g=rho_g)
 
       nspin = SIZE(rho_g, 1)
       ng = SIZE(mixing_store%res_buffer(1, 1)%cc)
@@ -642,19 +579,6 @@ CONTAINS
             END DO
 
             IF (mixing_store%gmix_p) THEN
-               DO ic = 1, SIZE(rho_ao_kp, 2)
-                  CALL dbcsr_copy(mixing_store%rho_ao_lastres(ispin, ic)%matrix, rho_ao_kp(ispin, ic)%matrix)
-                  CALL dbcsr_add(matrix_a=mixing_store%rho_ao_lastres(ispin, ic)%matrix, alpha_scalar=1.0_dp, &
-                                 matrix_b=mixing_store%rho_ao_in(ispin, ic)%matrix, beta_scalar=-1.0_dp)
-
-                  CALL dbcsr_add(matrix_a=rho_ao_kp(ispin, ic)%matrix, alpha_scalar=alpha, &
-                                 matrix_b=mixing_store%rho_ao_in(ispin, ic)%matrix, &
-                                 beta_scalar=(1.0_dp - alpha))
-
-                  CALL dbcsr_copy(mixing_store%rho_ao_in_old(ispin, ic)%matrix, mixing_store%rho_ao_in(ispin, ic)%matrix)
-                  CALL dbcsr_copy(mixing_store%rho_ao_in(ispin, ic)%matrix, rho_ao_kp(ispin, ic)%matrix)
-               END DO
-
                IF (gapw) THEN
                   DO iatom = 1, natom
                      IF (mixing_store%paw(iatom)) THEN
@@ -798,44 +722,6 @@ CONTAINS
             END DO
 
             IF (mixing_store%gmix_p) THEN
-               norm = 1.0_dp/delta_norm
-               f_mix = alpha*norm
-               rho_ao_mix => mixing_store%rho_ao_mix
-               rho_ao_res => mixing_store%rho_ao_res
-               DO ic = 1, SIZE(rho_ao_kp, 2)
-                  CALL dbcsr_copy(rho_ao_res, rho_ao_kp(ispin, ic)%matrix)
-                  CALL dbcsr_add(rho_ao_res, alpha_scalar=1.0_dp, &
-                                 matrix_b=mixing_store%rho_ao_in(ispin, ic)%matrix, beta_scalar=-1.0_dp)
-                  CALL dbcsr_copy(rho_ao_mix, mixing_store%rho_ao_lastres(ispin, ic)%matrix)
-                  CALL dbcsr_copy(mixing_store%rho_ao_lastres(ispin, ic)%matrix, rho_ao_res)
-
-                  CALL dbcsr_add(rho_ao_res, alpha_scalar=f_mix, &
-                                 matrix_b=rho_ao_mix, beta_scalar=-f_mix)
-
-                  CALL dbcsr_add(rho_ao_res, alpha_scalar=1.0_dp, &
-                                 matrix_b=mixing_store%rho_ao_in(ispin, ic)%matrix, beta_scalar=norm)
-                  CALL dbcsr_add(rho_ao_res, alpha_scalar=1.0_dp, &
-                                 matrix_b=mixing_store%rho_ao_in_old(ispin, ic)%matrix, beta_scalar=-norm)
-
-                  CALL dbcsr_copy(mixing_store%rho_ao_res_buffer(ispin, ic, ib)%matrix, rho_ao_res)
-
-                  CALL dbcsr_set(mixing_store%rho_ao_mix, 0.0_dp)
-                  DO jb = 1, nb
-                     CALL dbcsr_add(matrix_a=rho_ao_mix, alpha_scalar=1.0_dp, &
-                                    matrix_b=mixing_store%rho_ao_res_buffer(ispin, ic, jb)%matrix, &
-                                    beta_scalar=g(jb))
-                  END DO
-                  CALL dbcsr_add(matrix_a=rho_ao_kp(ispin, ic)%matrix, alpha_scalar=alpha, &
-                                 matrix_b=mixing_store%rho_ao_in(ispin, ic)%matrix, &
-                                 beta_scalar=(1.0_dp - alpha))
-
-                  CALL dbcsr_add(matrix_a=rho_ao_kp(ispin, ic)%matrix, alpha_scalar=1.0_dp, &
-                                 matrix_b=rho_ao_mix, beta_scalar=-1.0_dp)
-
-                  CALL dbcsr_copy(mixing_store%rho_ao_in_old(ispin, ic)%matrix, mixing_store%rho_ao_in(ispin, ic)%matrix)
-                  CALL dbcsr_copy(mixing_store%rho_ao_in(ispin, ic)%matrix, rho_ao_kp(ispin, ic)%matrix)
-               END DO
-
                IF (gapw) THEN
                   DO iatom = 1, natom
                      IF (mixing_store%paw(iatom)) THEN
