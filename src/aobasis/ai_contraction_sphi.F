@@ -20,6 +20,7 @@ MODULE ai_contraction_sphi
                       libxsmm_blasint_kind, &
                       libxsmm_dgemm, &
                       libxsmm_dispatch, &
+                      libxsmm_available, &
                       libxsmm_dmmcall, &
                       libxsmm_dmmfunction
 #endif
@@ -253,12 +254,14 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'libxsmm_abc_contract'
 
       INTEGER                                            :: handle, i
+      LOGICAL                                            :: libxsmm_kernels_available
 #if(__LIBXSMM)
       INTEGER(libxsmm_blasint_kind)                      :: m, n, k
       TYPE(libxsmm_dmmfunction)                          :: xmm1, xmm2
 #endif
 
       CALL timeset(routineN, handle)
+      libxsmm_kernels_available = .FALSE.
 
 #if(__LIBXSMM)
       !We make use of libxsmm code dispatching feature and call the same kernel multiple times
@@ -270,27 +273,31 @@ CONTAINS
       m = nsgfa; n = nsgfb; k = ncob
       CALL libxsmm_dispatch(xmm2, m, n, k, beta=0.0_dp, prefetch=LIBXSMM_PREFETCH_NONE)
 
-      !contractions over a and b
-      DO i = 1, ncoc
-         CALL libxsmm_dmmcall(xmm1, tsphi_a, sabc((i - 1)*ncoa*ncob + 1), cpp_buffer)
-         CALL libxsmm_dmmcall(xmm2, cpp_buffer, sphi_b, ccp_buffer((i - 1)*nsgfa*nsgfb + 1))
-      END DO
+      libxsmm_kernels_available = libxsmm_available(xmm1) .AND. libxsmm_available(xmm2)
 
-#else
-
-      !we follow the same flow as for libxsmm above, but use BLAS dgemm
-
-      !contractions over a and b
-      DO i = 1, ncoc
-         CALL dgemm("N", "N", nsgfa, ncob, ncoa, 1.0_dp, tsphi_a, nsgfa, sabc((i - 1)*ncoa*ncob + 1), &
-                    ncoa, 0.0_dp, cpp_buffer, nsgfa)
-         CALL dgemm("N", "N", nsgfa, nsgfb, ncob, 1.0_dp, cpp_buffer, nsgfa, sphi_b, ncob, 0.0_dp, &
-                    ccp_buffer((i - 1)*nsgfa*nsgfb + 1), nsgfa)
-      END DO
-
+      IF (libxsmm_kernels_available) THEN
+         ! contractions over a and b
+         DO i = 1, ncoc
+            CALL libxsmm_dmmcall(xmm1, tsphi_a, sabc((i - 1)*ncoa*ncob + 1), cpp_buffer)
+            CALL libxsmm_dmmcall(xmm2, cpp_buffer, sphi_b, ccp_buffer((i - 1)*nsgfa*nsgfb + 1))
+         END DO
+      ELSE
+         CPWARN("libxsmm available, but kernels are not, fallback to dgemm")
+      END IF
 #endif
 
-      !last contraciton, over c, as a larger MM
+      IF (.NOT. libxsmm_kernels_available) THEN
+         ! we follow the same flow as for libxsmm above, but use BLAS dgemm
+         ! contractions over a and b
+         DO i = 1, ncoc
+            CALL dgemm("N", "N", nsgfa, ncob, ncoa, 1.0_dp, tsphi_a, nsgfa, sabc((i - 1)*ncoa*ncob + 1), &
+                       ncoa, 0.0_dp, cpp_buffer, nsgfa)
+            CALL dgemm("N", "N", nsgfa, nsgfb, ncob, 1.0_dp, cpp_buffer, nsgfa, sphi_b, ncob, 0.0_dp, &
+                       ccp_buffer((i - 1)*nsgfa*nsgfb + 1), nsgfa)
+         END DO
+      END IF
+
+      ! last contraction, over c, as a larger MM
       CALL dgemm("N", "N", nsgfa*nsgfb, nsgfc, ncoc, 1.0_dp, ccp_buffer, nsgfa*nsgfb, sphi_c, ncoc, &
                  0.0_dp, abcint, nsgfa*nsgfb)
 
