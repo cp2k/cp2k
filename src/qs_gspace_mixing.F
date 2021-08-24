@@ -10,11 +10,6 @@ MODULE qs_gspace_mixing
 
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
-                                              dbcsr_copy,&
-                                              dbcsr_p_type,&
-                                              dbcsr_set,&
-                                              dbcsr_type
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: invert_matrix
    USE message_passing,                 ONLY: mp_sum
@@ -44,7 +39,6 @@ MODULE qs_gspace_mixing
    USE qs_rho_atom_types,               ONLY: rho_atom_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE qs_scf_methods,                  ONLY: cp_sm_mix
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -87,7 +81,6 @@ CONTAINS
       LOGICAL                                            :: gapw
       REAL(dp)                                           :: alpha
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: rho_tmp
@@ -102,8 +95,8 @@ CONTAINS
                  dft_control%qs_control%semi_empirical)) THEN
 
          CPASSERT(ASSOCIATED(mixing_store))
-         NULLIFY (auxbas_pw_pool, rho_ao_kp, rho_atom, rho_g, rho_r, tot_rho_r)
-         CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp, rho_g=rho_g, rho_r=rho_r, tot_rho_r=tot_rho_r)
+         NULLIFY (auxbas_pw_pool, rho_atom, rho_g, rho_r, tot_rho_r)
+         CALL qs_rho_get(rho, rho_g=rho_g, rho_r=rho_r, tot_rho_r=tot_rho_r)
 
          nspin = SIZE(rho_g, 1)
          nimg = dft_control%nimages
@@ -222,7 +215,6 @@ CONTAINS
                                                             nspin
       LOGICAL                                            :: gapw
       REAL(dp)                                           :: alpha, f_mix
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s, rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
@@ -231,10 +223,10 @@ CONTAINS
       CPASSERT(ASSOCIATED(mixing_store%kerker_factor))
 
       CALL timeset(routineN, handle)
-      NULLIFY (cc_new, dft_control, rho_ao_kp, rho_atom, rho_g)
+      NULLIFY (cc_new, dft_control, rho_atom, rho_g)
 
-      CALL get_qs_env(qs_env, dft_control=dft_control, matrix_s_kp=matrix_s)
-      CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp, rho_g=rho_g)
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+      CALL qs_rho_get(rho, rho_g=rho_g)
 
       nspin = SIZE(rho_g, 1)
       ng = SIZE(rho_g(1)%pw%pw_grid%gsq)
@@ -303,27 +295,25 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pulay_mixing'
 
       COMPLEX(dp), ALLOCATABLE, DIMENSION(:)             :: cc_mix
-      INTEGER                                            :: handle, i, iatom, ib, ibb, ig, &
-                                                            ispin, jb, n1, n2, natom, nb, nb1, &
-                                                            nbuffer, ng, nspin
+      INTEGER                                            :: handle, i, iatom, ib, ibb, ig, ispin, &
+                                                            jb, n1, n2, natom, nb, nb1, nbuffer, &
+                                                            ng, nspin
       LOGICAL                                            :: gapw
       REAL(dp)                                           :: alpha_kerker, alpha_pulay, beta, f_mix, &
                                                             inv_err, norm, norm_c_inv, vol
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: alpha_c, ev
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: a, b, c, c_inv, cpc_h_mix, cpc_s_mix
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
-!      TYPE(dbcsr_type), POINTER                          :: rho_ao_mix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
 
       CPASSERT(ASSOCIATED(mixing_store%res_buffer))
       CPASSERT(ASSOCIATED(mixing_store%rhoin_buffer))
-      NULLIFY (dft_control, rho_ao_kp, rho_atom, rho_g)
+      NULLIFY (dft_control, rho_atom, rho_g)
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
-      CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp, rho_g=rho_g)
+      CALL qs_rho_get(rho, rho_g=rho_g)
       nspin = SIZE(rho_g, 1)
       ng = SIZE(mixing_store%res_buffer(1, 1)%cc)
       vol = rho_g(1)%pw%pw_grid%vol
@@ -524,17 +514,15 @@ CONTAINS
 
       COMPLEX(dp)                                        :: cc_mix
       COMPLEX(dp), ALLOCATABLE, DIMENSION(:)             :: res_rho
-      INTEGER                                            :: handle, i, iatom, ib, ig, ispin, j, &
-                                                            jb, kb, n1, n2, natom, nb, nbuffer, &
-                                                            ng, nspin
+      INTEGER                                            :: handle, i, iatom, ib, ig, ispin, j, jb, &
+                                                            kb, n1, n2, natom, nb, nbuffer, ng, &
+                                                            nspin
       LOGICAL                                            :: gapw, only_kerker
       REAL(dp)                                           :: alpha, dcpc_h_res, dcpc_s_res, &
-                                                            delta_norm, f_mix, inv_err,& ! norm, &
-                                                            res_norm, valh, vals, w0
+                                                            delta_norm, f_mix, inv_err, res_norm, &
+                                                            valh, vals, w0
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: c, g
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: a, b
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
-!      TYPE(dbcsr_type), POINTER                          :: rho_ao_mix, rho_ao_res
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
@@ -543,11 +531,11 @@ CONTAINS
       CPASSERT(ASSOCIATED(mixing_store%rhoin))
       CPASSERT(ASSOCIATED(mixing_store%rhoin_old))
       CPASSERT(ASSOCIATED(mixing_store%drho_buffer))
-      NULLIFY (dft_control, rho_ao_kp , rho_atom, rho_g)
+      NULLIFY (dft_control, rho_atom, rho_g)
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
-      CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp, rho_g=rho_g)
+      CALL qs_rho_get(rho, rho_g=rho_g)
 
       nspin = SIZE(rho_g, 1)
       ng = SIZE(mixing_store%res_buffer(1, 1)%cc)

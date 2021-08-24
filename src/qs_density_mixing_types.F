@@ -13,10 +13,6 @@
 ! **************************************************************************************************
 MODULE qs_density_mixing_types
    USE ao_util,                         ONLY: exp_radius
-   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
-   USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix,&
-                                              dbcsr_p_type,&
-                                              dbcsr_type
    USE input_constants,                 ONLY: broy_mix,&
                                               broy_mix_new,&
                                               direct_p_mix,&

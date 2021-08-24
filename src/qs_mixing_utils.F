@@ -12,8 +12,7 @@ MODULE qs_mixing_utils
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_copy,&
-                                              dbcsr_create,&
+   USE dbcsr_api,                       ONLY: dbcsr_create,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
                                               dbcsr_type,&
@@ -364,7 +363,6 @@ CONTAINS
                END IF
             END IF
          END IF
-
 
          !   *** allocate broyden buffer ***
          IF (mixing_method == broyden_mixing_new_nr) THEN
