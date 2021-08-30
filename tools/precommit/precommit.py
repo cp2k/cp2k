@@ -183,7 +183,7 @@ def process_file(fn, allow_modifications):
         run_local_tool("./tools/doxify/doxify.sh", fn)
         run_prettify(fn)
 
-    if re.match(r".*\.(c|cu|cpp|h|hpp)$", fn):
+    if re.match(r".*\.(c|cu|cpp|cc|h|hpp)$", fn):
         run_remote_tool("clangformat", fn)
 
     if re.match(r"(.*/PACKAGE)|(.*\.py)$", fn):

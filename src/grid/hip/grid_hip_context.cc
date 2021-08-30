@@ -188,7 +188,7 @@ extern "C" void grid_hip_create_task_list(
 
     tasks_host[i].block_transposed = (iatom > jatom);
     tasks_host[i].subblock_offset =
-      (tasks_host[i].block_transposed)
+        (tasks_host[i].block_transposed)
             ? (tasks_host[i].sgfa * tasks_host[i].nsgfb + tasks_host[i].sgfb)
             : (tasks_host[i].sgfb * tasks_host[i].nsgfa + tasks_host[i].sgfa);
 
@@ -199,13 +199,15 @@ extern "C" void grid_hip_create_task_list(
     /* this block is only as temporary scratch for calculating the coefficients.
      * Doing this avoid a lot of atomic operations that are costly on hardware
      * that only have partial support of them. For better performance we should
-     * most probably align the offsets as well. it is 256 bytes on Mi100 and above */
+     * most probably align the offsets as well. it is 256 bytes on Mi100 and
+     * above */
     tasks_host[i].lp_max = tasks_host[i].lb_max + tasks_host[i].la_max + 6;
     if (i == 0) {
       tasks_host[i].coef_offset = 0;
     } else {
-      tasks_host[i].coef_offset = tasks_host[i - 1].coef_offset +
-                                  rocm_backend::ncoset(tasks_host[i - 1].lp_max);
+      tasks_host[i].coef_offset =
+          tasks_host[i - 1].coef_offset +
+          rocm_backend::ncoset(tasks_host[i - 1].lp_max);
     }
     coef_size += rocm_backend::ncoset(tasks_host[i].lp_max);
 
@@ -215,44 +217,43 @@ extern "C" void grid_hip_create_task_list(
     tasks_host[i].apply_border_mask = (tasks_host[i].border_mask != 0);
 
     if (grid.is_orthorhombic() && (tasks_host[i].border_mask == 0)) {
-      tasks_host[i]
-        .discrete_radius = rocm_backend::compute_cube_properties<double, double3, true>(
-          tasks_host[i].radius, grid.dh(), grid.dh_inv(),
-          (double3 *)tasks_host[i].rp, // center of the gaussian
-          &tasks_host[i].roffset, // offset compared to the closest grid point
-          &tasks_host[i].cube_center, // center coordinates in grid space
-          &tasks_host[i].lb_cube,     // lower boundary
-          &tasks_host[i].cube_size);
+      tasks_host[i].discrete_radius =
+          rocm_backend::compute_cube_properties<double, double3, true>(
+              tasks_host[i].radius, grid.dh(), grid.dh_inv(),
+              (double3 *)tasks_host[i].rp, // center of the gaussian
+              &tasks_host[i]
+                   .roffset, // offset compared to the closest grid point
+              &tasks_host[i].cube_center, // center coordinates in grid space
+              &tasks_host[i].lb_cube,     // lower boundary
+              &tasks_host[i].cube_size);
     } else {
-      tasks_host[i]
-        .discrete_radius = rocm_backend::compute_cube_properties<double, double3, false>(
-          tasks_host[i].radius, grid.dh(), grid.dh_inv(),
-          (double3 *)tasks_host[i].rp, // center of the gaussian
-          &tasks_host[i].roffset, // offset compared to the closest grid point
-          &tasks_host[i].cube_center, // center coordinates in grid space
-          &tasks_host[i].lb_cube,     // lower boundary
-          &tasks_host[i].cube_size);
+      tasks_host[i].discrete_radius =
+          rocm_backend::compute_cube_properties<double, double3, false>(
+              tasks_host[i].radius, grid.dh(), grid.dh_inv(),
+              (double3 *)tasks_host[i].rp, // center of the gaussian
+              &tasks_host[i]
+                   .roffset, // offset compared to the closest grid point
+              &tasks_host[i].cube_center, // center coordinates in grid space
+              &tasks_host[i].lb_cube,     // lower boundary
+              &tasks_host[i].cube_size);
     }
   }
 
   // we need to sort the task list although I expect it to be sorted already
-/*
- * sorting with this lambda does not work
-std::sort(tasks_host.begin(), tasks_host.end(), [](rocm_backend::task_info a, rocm_backend::task_info b) {
-    if (a.level == b.level) {
-      if (a.block_num <= b.block_num)
-        return true;
-      else
-        return false;
-    } else {
-      return (a.level < b.level);
-    }
-  });
-*/
+  /*
+   * sorting with this lambda does not work
+  std::sort(tasks_host.begin(), tasks_host.end(), [](rocm_backend::task_info a,
+  rocm_backend::task_info b) { if (a.level == b.level) { if (a.block_num <=
+  b.block_num) return true; else return false; } else { return (a.level <
+  b.level);
+      }
+    });
+  */
   // it is a exclusive scan actually
   for (int level = 1; level < ctx->number_of_tasks_per_level_.size(); level++) {
-    ctx->first_task_per_level_[level] = ctx->first_task_per_level_[level - 1] +
-      ctx->number_of_tasks_per_level_[level - 1];
+    ctx->first_task_per_level_[level] =
+        ctx->first_task_per_level_[level - 1] +
+        ctx->number_of_tasks_per_level_[level - 1];
   }
 
   ctx->tasks_dev.clear();
@@ -323,7 +324,7 @@ std::sort(tasks_host.begin(), tasks_host.end(), [](rocm_backend::task_info a, ro
   ctx->num_tasks_per_block_dev_.resize(num_tasks_per_block.size());
   ctx->num_tasks_per_block_dev_.copy_to_gpu(num_tasks_per_block);
 
-// collect stats
+  // collect stats
   memset(ctx->stats, 0, 2 * 20 * sizeof(int));
   for (int itask = 0; itask < ntasks; itask++) {
     const int iatom = iatom_list[itask] - 1;
@@ -440,7 +441,7 @@ extern "C" void grid_hip_integrate_task_list(
 
   rocm_backend::context_info *ctx = (rocm_backend::context_info *)ptr;
 
-  if(ptr == nullptr)
+  if (ptr == nullptr)
     return;
   assert(ctx->nlevels == nlevels);
 
