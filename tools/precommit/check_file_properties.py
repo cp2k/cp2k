@@ -72,7 +72,7 @@ BANNER_F = """\
 !   CP2K: A general program to perform molecular dynamics simulations                              !
 !   Copyright 2000-{:d} CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
-!   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
+!   SPDX-License-Identifier: {:s}                                                      !
 !--------------------------------------------------------------------------------------------------!
 """
 
@@ -81,7 +81,7 @@ BANNER_FYPP = """\
 #!   CP2K: A general program to perform molecular dynamics simulations                             !
 #!   Copyright 2000-{:d} CP2K developers group <https://cp2k.org>                                  !
 #!                                                                                                 !
-#!   SPDX-License-Identifier: GPL-2.0-or-later                                                     !
+#!   SPDX-License-Identifier: {:s}                                                     !
 #!-------------------------------------------------------------------------------------------------!
 """
 
@@ -90,11 +90,13 @@ BANNER_C = """\
 /*  CP2K: A general program to perform molecular dynamics simulations         */
 /*  Copyright 2000-{:d} CP2K developers group <https://cp2k.org>              */
 /*                                                                            */
-/*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
+/*  SPDX-License-Identifier: {:s}                                 */
 /*----------------------------------------------------------------------------*/
 """
 
-C_FAMILY_EXTENSIONS = (".c", ".cu", ".cpp", ".cc", ".h", ".hpp")
+C_EXTENSIONS = (".c", ".cu", ".cpp", ".cc", ".h", ".hpp")
+
+BSD_DIRECTORIES = ("src/offload/", "src/grid/")
 
 
 @lru_cache(maxsize=None)
@@ -144,11 +146,13 @@ def check_file(path: pathlib.Path) -> typing.List[str]:
 
     # check banner
     year = datetime.utcnow().year
-    if fn_ext == ".F" and not content.startswith(BANNER_F.format(year)):
+    bsd_licensed = any(str(path).startswith(d) for d in BSD_DIRECTORIES)
+    spdx = "BSD-3-Clause    " if bsd_licensed else "GPL-2.0-or-later"
+    if fn_ext == ".F" and not content.startswith(BANNER_F.format(year, spdx)):
         warnings += [f"{path}: Copyright banner malformed"]
-    if fn_ext == ".fypp" and not content.startswith(BANNER_FYPP.format(year)):
+    if fn_ext == ".fypp" and not content.startswith(BANNER_FYPP.format(year, spdx)):
         warnings += [f"{path}: Copyright banner malformed"]
-    if fn_ext in C_FAMILY_EXTENSIONS and not content.startswith(BANNER_C.format(year)):
+    if fn_ext in C_EXTENSIONS and not content.startswith(BANNER_C.format(year, spdx)):
         warnings += [f"{path}: Copyright banner malformed"]
 
     # find all flags
