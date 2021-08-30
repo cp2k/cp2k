@@ -148,22 +148,23 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_,
             if (CALCULATE_FORCES) {
               for (int k = 0; k < 3; k++) {
                 fa[k] += block_val1 * sphia * sphib *
-                  get_force_a<COMPUTE_TAU, T>(a, b, k, task.zeta, task.zetb,
-                                                  task.n1, smem_cab);
-                fb[k] += block_val1 * sphia * sphib *
-                  get_force_b<COMPUTE_TAU, T>(a, b, k, task.zeta, task.zetb,
-                                                  task.rab, task.n1, smem_cab);
+                         get_force_a<COMPUTE_TAU, T>(
+                             a, b, k, task.zeta, task.zetb, task.n1, smem_cab);
+                fb[k] +=
+                    block_val1 * sphia * sphib *
+                    get_force_b<COMPUTE_TAU, T>(a, b, k, task.zeta, task.zetb,
+                                                task.rab, task.n1, smem_cab);
               }
               if (dev_.ptr_dev[5] != nullptr) {
                 for (int k = 0; k < 3; k++) {
                   for (int l = 0; l < 3; l++) {
                     virial[3 * k + l] +=
-                      (get_virial_a<COMPUTE_TAU, T>(a, b, k, l, task.zeta,
-                                                   task.zetb, task.n1,
-                                                   smem_cab) +
-                       get_virial_b<COMPUTE_TAU, T>(a, b, k, l, task.zeta,
-                                                   task.zetb, task.rab, task.n1,
-                                                   smem_cab)) *
+                        (get_virial_a<COMPUTE_TAU, T>(a, b, k, l, task.zeta,
+                                                      task.zetb, task.n1,
+                                                      smem_cab) +
+                         get_virial_b<COMPUTE_TAU, T>(a, b, k, l, task.zeta,
+                                                      task.zetb, task.rab,
+                                                      task.n1, smem_cab)) *
                         block_val1 * sphia * sphib;
                   }
                 }
@@ -256,8 +257,10 @@ So most of the code is the same except the core of the routine that is
 specialized to the integration.
 
 ******************************************************************************/
-  template <typename T, typename T3, bool distributed__, bool orthorhombic_, int lbatch = 10>
-__global__ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
+template <typename T, typename T3, bool distributed__, bool orthorhombic_,
+          int lbatch = 10>
+__global__
+__launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
   if (dev_.tasks[dev_.first_task + blockIdx.x].skip_task)
     return;
 
@@ -283,11 +286,11 @@ __global__ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_)
 
     if (distributed__) {
       if (task.apply_border_mask) {
-        compute_window_size(dev_.grid_local_size_, dev_.grid_lower_corner_,
-                            dev_.grid_full_size_, /* also full size of the grid */
-                            dev_.tasks[dev_.first_task + blockIdx.x].border_mask,
-                            dev_.grid_border_width_, &task.window_size,
-                            &task.window_shift);
+        compute_window_size(
+            dev_.grid_local_size_, dev_.grid_lower_corner_,
+            dev_.grid_full_size_, /* also full size of the grid */
+            dev_.tasks[dev_.first_task + blockIdx.x].border_mask,
+            dev_.grid_border_width_, &task.window_size, &task.window_shift);
       }
     }
   }
@@ -347,7 +350,7 @@ __global__ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_)
           y2 += dev_.grid_full_size_[1];
 
         if (distributed__) {
-/* check if the point is within the window */
+          /* check if the point is within the window */
           if (task.apply_border_mask) {
             if ((y2 < task.window_shift.y) || (y2 > task.window_size.y)) {
               continue;
@@ -392,10 +395,9 @@ __global__ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_)
             r3.y = (y + task.lb_cube.y + task.roffset.y) * dh_[4];
             r3.z = (z + task.lb_cube.z + task.roffset.z) * dh_[8];
           } else {
-          r3 =
-            compute_coordinates(dh_, (x + task.lb_cube.x + task.roffset.x),
-                                (y + task.lb_cube.y + task.roffset.y),
-                                (z + task.lb_cube.z + task.roffset.z));
+            r3 = compute_coordinates(dh_, (x + task.lb_cube.x + task.roffset.x),
+                                     (y + task.lb_cube.y + task.roffset.y),
+                                     (z + task.lb_cube.z + task.roffset.z));
           }
           // check if the point is inside the sphere or not. Note that it does
           // not apply for the orthorhombic case when the full sphere is inside
@@ -605,49 +607,51 @@ __global__ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_)
   }
 }
 
-kernel_params context_info::set_kernel_parameters(const int level, const smem_parameters &smem_params) {
-    kernel_params params;
-    params.smem_cab_offset = smem_params.smem_cab_offset();
-    params.smem_alpha_offset = smem_params.smem_alpha_offset();
-    params.first_task = 0;
+kernel_params
+context_info::set_kernel_parameters(const int level,
+                                    const smem_parameters &smem_params) {
+  kernel_params params;
+  params.smem_cab_offset = smem_params.smem_cab_offset();
+  params.smem_alpha_offset = smem_params.smem_alpha_offset();
+  params.first_task = 0;
 
-    params.la_min_diff = smem_params.ldiffs().la_min_diff;
-    params.lb_min_diff = smem_params.ldiffs().lb_min_diff;
+  params.la_min_diff = smem_params.ldiffs().la_min_diff;
+  params.lb_min_diff = smem_params.ldiffs().lb_min_diff;
 
-    params.la_max_diff = smem_params.ldiffs().la_max_diff;
-    params.lb_max_diff = smem_params.ldiffs().lb_max_diff;
-    params.first_task = 0;
-    params.tasks = this->tasks_dev.data();
-    params.task_sorted_by_blocks_dev = task_sorted_by_blocks_dev.data();
-    params.sorted_blocks_offset_dev = sorted_blocks_offset_dev.data();
-    params.num_tasks_per_block_dev = this->num_tasks_per_block_dev_.data();
-    params.block_offsets = this->block_offsets_dev.data();
-    params.la_min_diff = smem_params.ldiffs().la_min_diff;
-    params.lb_min_diff = smem_params.ldiffs().lb_min_diff;
-    params.la_max_diff = smem_params.ldiffs().la_max_diff;
-    params.lb_max_diff = smem_params.ldiffs().lb_max_diff;
+  params.la_max_diff = smem_params.ldiffs().la_max_diff;
+  params.lb_max_diff = smem_params.ldiffs().lb_max_diff;
+  params.first_task = 0;
+  params.tasks = this->tasks_dev.data();
+  params.task_sorted_by_blocks_dev = task_sorted_by_blocks_dev.data();
+  params.sorted_blocks_offset_dev = sorted_blocks_offset_dev.data();
+  params.num_tasks_per_block_dev = this->num_tasks_per_block_dev_.data();
+  params.block_offsets = this->block_offsets_dev.data();
+  params.la_min_diff = smem_params.ldiffs().la_min_diff;
+  params.lb_min_diff = smem_params.ldiffs().lb_min_diff;
+  params.la_max_diff = smem_params.ldiffs().la_max_diff;
+  params.lb_max_diff = smem_params.ldiffs().lb_max_diff;
 
-    params.ptr_dev[0] = pab_block_.data();
+  params.ptr_dev[0] = pab_block_.data();
 
-    if (level >= 0) {
-      params.ptr_dev[1] = grid_[level].data();
-      for (int i = 0; i < 3; i++) {
-        memcpy(params.dh_, grid_[level].dh(), 9 * sizeof(double));
-        memcpy(params.dh_inv_, grid_[level].dh_inv(), 9 * sizeof(double));
-        params.grid_full_size_[i] = grid_[level].full_size(i);
-        params.grid_local_size_[i] = grid_[level].local_size(i);
-        params.grid_lower_corner_[i] = grid_[level].lower_corner(i);
-        params.grid_border_width_[i] = grid_[level].border_width(i);
-      }
-      params.first_task = first_task_per_level_[level];
+  if (level >= 0) {
+    params.ptr_dev[1] = grid_[level].data();
+    for (int i = 0; i < 3; i++) {
+      memcpy(params.dh_, grid_[level].dh(), 9 * sizeof(double));
+      memcpy(params.dh_inv_, grid_[level].dh_inv(), 9 * sizeof(double));
+      params.grid_full_size_[i] = grid_[level].full_size(i);
+      params.grid_local_size_[i] = grid_[level].local_size(i);
+      params.grid_lower_corner_[i] = grid_[level].lower_corner(i);
+      params.grid_border_width_[i] = grid_[level].border_width(i);
     }
-    params.ptr_dev[2] = this->coef_dev_.data();
-    params.ptr_dev[3] = hab_block_.data();
-    params.ptr_dev[4] = forces_.data();
-    params.ptr_dev[5] = virial_.data();
-    params.sphi_dev = this->sphi_dev.data();
-    return params;
+    params.first_task = first_task_per_level_[level];
   }
+  params.ptr_dev[2] = this->coef_dev_.data();
+  params.ptr_dev[3] = hab_block_.data();
+  params.ptr_dev[4] = forces_.data();
+  params.ptr_dev[5] = virial_.data();
+  params.sphi_dev = this->sphi_dev.data();
+  return params;
+}
 
 /*******************************************************************************
  * \brief Launches the Cuda kernel that integrates all tasks of one grid level.
@@ -678,18 +682,22 @@ void context_info::integrate_one_grid_level(const int level, int *lp_diff) {
   if (grid_[level].is_distributed()) {
     if (grid_[level].is_orthorhombic()) {
       integrate_kernel<double, double3, true, true, 10>
-        <<<number_of_tasks_per_level_[level], threads_per_block, 0, level_streams[level]>>>(params);
+          <<<number_of_tasks_per_level_[level], threads_per_block, 0,
+             level_streams[level]>>>(params);
     } else {
       integrate_kernel<double, double3, true, false, 10>
-        <<<number_of_tasks_per_level_[level], threads_per_block, 0, level_streams[level]>>>(params);
+          <<<number_of_tasks_per_level_[level], threads_per_block, 0,
+             level_streams[level]>>>(params);
     }
   } else {
     if (grid_[level].is_orthorhombic()) {
       integrate_kernel<double, double3, false, true, 10>
-        <<<number_of_tasks_per_level_[level], threads_per_block, 0, level_streams[level]>>>(params);
+          <<<number_of_tasks_per_level_[level], threads_per_block, 0,
+             level_streams[level]>>>(params);
     } else {
       integrate_kernel<double, double3, false, false, 10>
-        <<<number_of_tasks_per_level_[level], threads_per_block, 0, level_streams[level]>>>(params);
+          <<<number_of_tasks_per_level_[level], threads_per_block, 0,
+             level_streams[level]>>>(params);
     }
   }
 }
@@ -700,7 +708,7 @@ void context_info::compute_hab_coefficients() {
 
   // Compute max angular momentum.
   const ldiffs_value ldiffs =
-    process_get_ldiffs(calculate_forces, calculate_virial, compute_tau);
+      process_get_ldiffs(calculate_forces, calculate_virial, compute_tau);
 
   smem_parameters smem_params(ldiffs, lmax());
   init_constant_memory();
@@ -715,28 +723,28 @@ void context_info::compute_hab_coefficients() {
 
   if (!compute_tau && !calculate_forces) {
     compute_hab_v2<double, double3, false, false>
-      <<<this->nblocks, threads_per_block, smem_params.smem_per_block(), this->main_stream>>>(
-            params, this->ntasks);
+        <<<this->nblocks, threads_per_block, smem_params.smem_per_block(),
+           this->main_stream>>>(params, this->ntasks);
     return;
   }
 
   if (!compute_tau && calculate_forces) {
     compute_hab_v2<double, double3, false, true>
-      <<<this->nblocks, threads_per_block, smem_params.smem_per_block(), this->main_stream>>>(
-            params, this->ntasks);
+        <<<this->nblocks, threads_per_block, smem_params.smem_per_block(),
+           this->main_stream>>>(params, this->ntasks);
     return;
   }
 
   if (compute_tau && calculate_forces) {
     compute_hab_v2<double, double3, true, true>
-      <<<this->nblocks, threads_per_block, smem_params.smem_per_block(), this->main_stream>>>(
-            params, this->ntasks);
+        <<<this->nblocks, threads_per_block, smem_params.smem_per_block(),
+           this->main_stream>>>(params, this->ntasks);
   }
 
   if (compute_tau && !calculate_forces) {
     compute_hab_v2<double, double3, true, false>
-      <<<this->nblocks, threads_per_block, smem_params.smem_per_block(), this->main_stream>>>(
-            params, this->ntasks);
+        <<<this->nblocks, threads_per_block, smem_params.smem_per_block(),
+           this->main_stream>>>(params, this->ntasks);
   }
 }
 };     // namespace rocm_backend

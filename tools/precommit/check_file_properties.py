@@ -94,7 +94,7 @@ BANNER_C = """\
 /*----------------------------------------------------------------------------*/
 """
 
-C_FAMILY_EXTENSIONS = (".c", ".cu", ".cpp", ".h", ".hpp")
+C_FAMILY_EXTENSIONS = (".c", ".cu", ".cpp", ".cc", ".h", ".hpp")
 
 
 @lru_cache(maxsize=None)

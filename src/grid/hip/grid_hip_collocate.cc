@@ -135,8 +135,9 @@ __global__ void calculate_coefficients(const kernel_params dev_) {
   calculate_coefficients. We only keep the non zero elements to same memory.
 */
 
-  template <typename T, typename T3, bool distributed__, bool orthorhombic_>
-__global__ __launch_bounds__(64) void collocate_kernel(const kernel_params dev_) {
+template <typename T, typename T3, bool distributed__, bool orthorhombic_>
+__global__
+__launch_bounds__(64) void collocate_kernel(const kernel_params dev_) {
   // Copy task from global to shared memory and precompute some stuff.
   __shared__ smem_task_reduced<T, T3> task;
 
@@ -180,11 +181,11 @@ __global__ __launch_bounds__(64) void collocate_kernel(const kernel_params dev_)
 
     if (distributed__) {
       if (task.apply_border_mask) {
-        compute_window_size(dev_.grid_local_size_, dev_.grid_lower_corner_,
-                            dev_.grid_full_size_, // also full size of the grid
-                            dev_.tasks[dev_.first_task + blockIdx.x].border_mask,
-                            dev_.grid_border_width_, &task.window_size,
-                            &task.window_shift);
+        compute_window_size(
+            dev_.grid_local_size_, dev_.grid_lower_corner_,
+            dev_.grid_full_size_, // also full size of the grid
+            dev_.tasks[dev_.first_task + blockIdx.x].border_mask,
+            dev_.grid_border_width_, &task.window_size, &task.window_shift);
       }
     }
   }
@@ -200,10 +201,10 @@ __global__ __launch_bounds__(64) void collocate_kernel(const kernel_params dev_)
       // check if the point is within the window
       if (task.apply_border_mask) {
         // this test is only relevant when the grid is split over several mpi
-        // ranks. in that case we take only the points contributing to local part
-        // of the grid.
+        // ranks. in that case we take only the points contributing to local
+        // part of the grid.
         if ((z2 < task.window_shift.z) || (z2 > task.window_size.z)) {
-        continue;
+          continue;
         }
       }
     }
@@ -274,16 +275,15 @@ __global__ __launch_bounds__(64) void collocate_kernel(const kernel_params dev_)
           r3.y = (y + task.lb_cube.y + task.roffset.y) * dh_[4];
           r3.z = (z + task.lb_cube.z + task.roffset.z) * dh_[8];
         } else {
-          r3 =
-            compute_coordinates(dh_, (x + task.lb_cube.x + task.roffset.x),
-                                (y + task.lb_cube.y + task.roffset.y),
-                                (z + task.lb_cube.z + task.roffset.z));
+          r3 = compute_coordinates(dh_, (x + task.lb_cube.x + task.roffset.x),
+                                   (y + task.lb_cube.y + task.roffset.y),
+                                   (z + task.lb_cube.z + task.roffset.z));
         }
 
         if (distributed__) {
-          // check if the point is inside the sphere or not. Note that it does not
-          // apply for the orthorhombic case when the full sphere is inside the
-          // region of interest.
+          // check if the point is inside the sphere or not. Note that it does
+          // not apply for the orthorhombic case when the full sphere is inside
+          // the region of interest.
 
           if (((task.radius * task.radius) <=
                (r3.x * r3.x + r3.y * r3.y + r3.z * r3.z)) &&
@@ -408,32 +408,36 @@ void context_info::collocate_one_grid_level(const int level,
 
   if (func == GRID_FUNC_AB) {
     calculate_coefficients<double, true>
-      <<<number_of_tasks_per_level_[level], threads_per_block, smem_params.smem_per_block(), level_streams[level]>>>(
-            params);
+        <<<number_of_tasks_per_level_[level], threads_per_block,
+           smem_params.smem_per_block(), level_streams[level]>>>(params);
   } else {
     calculate_coefficients<double, false>
-      <<<number_of_tasks_per_level_[level], threads_per_block, smem_params.smem_per_block(), level_streams[level]>>>(
-            params);
+        <<<number_of_tasks_per_level_[level], threads_per_block,
+           smem_params.smem_per_block(), level_streams[level]>>>(params);
   }
 
   if (grid_[level].is_distributed()) {
     if (grid_[level].is_orthorhombic())
       collocate_kernel<double, double3, true, true>
-        <<<number_of_tasks_per_level_[level], threads_per_block, smem_params.cxyz_len() * sizeof(double),
-      level_streams[level]>>>(params);
+          <<<number_of_tasks_per_level_[level], threads_per_block,
+             smem_params.cxyz_len() * sizeof(double), level_streams[level]>>>(
+              params);
     else
       collocate_kernel<double, double3, true, false>
-        <<<number_of_tasks_per_level_[level], threads_per_block, smem_params.cxyz_len() * sizeof(double),
-      level_streams[level]>>>(params);
+          <<<number_of_tasks_per_level_[level], threads_per_block,
+             smem_params.cxyz_len() * sizeof(double), level_streams[level]>>>(
+              params);
   } else {
     if (grid_[level].is_orthorhombic())
       collocate_kernel<double, double3, false, true>
-        <<<number_of_tasks_per_level_[level], threads_per_block, smem_params.cxyz_len() * sizeof(double),
-        level_streams[level]>>>(params);
+          <<<number_of_tasks_per_level_[level], threads_per_block,
+             smem_params.cxyz_len() * sizeof(double), level_streams[level]>>>(
+              params);
     else
       collocate_kernel<double, double3, false, false>
-        <<<number_of_tasks_per_level_[level], threads_per_block, smem_params.cxyz_len() * sizeof(double),
-        level_streams[level]>>>(params);
+          <<<number_of_tasks_per_level_[level], threads_per_block,
+             smem_params.cxyz_len() * sizeof(double), level_streams[level]>>>(
+              params);
   }
 }
 } // namespace rocm_backend
