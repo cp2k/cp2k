@@ -69,7 +69,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_mos_molden'
       CHARACTER(LEN=molden_lmax+1), PARAMETER            :: angmom = "spdfg"
 
-      CHARACTER(LEN=15)                                  :: fmtstr1
+      CHARACTER(LEN=15)                                  :: fmtstr1, fmtstr2
       CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER :: gto_kind, handle, i, iatom, icgf, icol, ikind, ipgf, irow, irow_in, iset, isgf, &
          ishell, ispin, iw, lshell, ncgf, ncol_global, ndigits, nrow_global, nset, nsgf, z
@@ -95,9 +95,9 @@ CONTAINS
          print_warn = .TRUE.
 
          CALL section_vals_val_get(print_section, "NDIGITS", i_val=ndigits)
-         IF (ndigits < 1) ndigits = 3
-         IF (ndigits > 92) ndigits = 92
+         ndigits = MIN(MAX(3, ndigits), 30)
          WRITE (UNIT=fmtstr1, FMT='("(I6,1X,ES",I0,".",I0,")")') ndigits + 7, ndigits
+         WRITE (UNIT=fmtstr2, FMT='("((T51,2F",I0,".",I0,"))")') ndigits + 10, ndigits
 
          CALL section_vals_val_get(print_section, "GTO_KIND", i_val=gto_kind)
 
@@ -107,11 +107,11 @@ CONTAINS
             DO ispin = 1, SIZE(mos)
                IF (.NOT. ASSOCIATED(mos(ispin)%mo_set%mo_coeff_b)) THEN
                   CPASSERT(.FALSE.)
-               ENDIF
+               END IF
                CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b, &
                                      mos(ispin)%mo_set%mo_coeff) !fm->dbcsr
-            ENDDO
-         ENDIF
+            END DO
+         END IF
 
          IF (iw > 0) THEN
             WRITE (iw, '(T2,A)') "[Molden Format]"
@@ -145,16 +145,14 @@ CONTAINS
                      DO ishell = 1, nshell(iset)
                         lshell = l(ishell, iset)
                         IF (lshell <= molden_lmax) THEN
-                           WRITE (UNIT=iw, &
-                                  FMT="(T25,A2,4X,I4,4X,F4.2)") &
-                              angmom(lshell + 1:lshell + 1), npgf(iset), 1.0
+                           WRITE (UNIT=iw, FMT='(T25,A2,4X,I4,4X,F4.2)') &
+                              angmom(lshell + 1:lshell + 1), npgf(iset), 1.0_dp
                            ! MOLDEN expects the contraction coefficient of spherical NOT CARTESIAN NORMALISED
                            ! functions. So we undo the normalisation factors included in the gccs
                            ! Reverse engineered from basis_set_types, normalise_gcc_orb
                            prefac = 2_dp**lshell*(2/pi)**0.75_dp
                            expzet = 0.25_dp*(2*lshell + 3.0_dp)
-                           WRITE (UNIT=iw, &
-                                  FMT="((T51,2F15.6))") &
+                           WRITE (UNIT=iw, FMT=fmtstr2) &
                               (zet(ipgf, iset), gcc(ipgf, ishell, iset)/(prefac*zet(ipgf, iset)**expzet), &
                                ipgf=1, npgf(iset))
                         ELSE

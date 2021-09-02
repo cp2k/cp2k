@@ -25,7 +25,8 @@
       &END XC_FUNCTIONAL
     &END XC
     &PRINT
-      &MO_MOLDEN ON
+      &MO_MOLDEN on
+        NDIGITS 12
       &END MO_MOLDEN
       &CHARGEMOL ON
         PERIODIC
