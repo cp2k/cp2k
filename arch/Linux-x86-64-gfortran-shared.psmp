@@ -1,13 +1,13 @@
-# Tested with: GFortran 8.3.0, MPICH 3.3, ScaLAPACK 6819b24, OpenBLAS 0.3.15,
-#              FFTW 3.3.9, LIBINT 2.6.0, LIBXC 5.1.5, LIBXSMM 1.16.1, ELPA 2021.05.001
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, July 2021)
+# Tested with: GFortran 8.3.0, MPICH 3.3, ScaLAPACK 6819b24, OpenBLAS 0.3.17,
+#              FFTW 3.3.9, LIBINT 2.6.0, LIBXC 5.1.6, LIBXSMM 1.16.2, ELPA 2021.05.002
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, September 2021)
 
 CC          = mpicc
 FC          = mpif90
 LD          = mpif90
 AR          = ar -r
 
-ELPA_VER    = 2021.05.001
+ELPA_VER    = 2021.05.002
 ELPA_INC    = $(MPI_PATH)/elpa/$(ELPA_VER)/include/elpa_openmp-$(ELPA_VER)
 ELPA_LIB    = $(MPI_PATH)/elpa/$(ELPA_VER)/lib
 
@@ -17,11 +17,11 @@ FFTW_LIB    = $(GNU_PATH)/fftw/3.3.9/lib
 LIBINT_INC  = $(GNU_PATH)/libint/2.6.0-lmax-6/include
 LIBINT_LIB  = $(GNU_PATH)/libint/2.6.0-lmax-6/lib
 
-LIBXC_INC   = $(GNU_PATH)/libxc/5.1.5/include
-LIBXC_LIB   = $(GNU_PATH)/libxc/5.1.5/lib
+LIBXC_INC   = $(GNU_PATH)/libxc/5.1.6/include
+LIBXC_LIB   = $(GNU_PATH)/libxc/5.1.6/lib
 
-LIBXSMM_INC = $(GNU_PATH)/libxsmm/1.16.1/include
-LIBXSMM_LIB = $(GNU_PATH)/libxsmm/1.16.1/lib
+LIBXSMM_INC = $(GNU_PATH)/libxsmm/1.16.2/include
+LIBXSMM_LIB = $(GNU_PATH)/libxsmm/1.16.2/lib
 
 CFLAGS      = -O2 -fPIC -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -march=native -mtune=native
 
@@ -55,4 +55,4 @@ LIBS       += -L$(LIBINT_LIB) -lint2
 LIBS       += -L$(LIBXSMM_LIB) -lxsmmf -lxsmm
 LIBS       += -L$(FFTW_LIB) -lfftw3_omp -lfftw3
 LIBS       += -L$(MPI_LIBRARY_PATH) -lscalapack
-LIBS       += -L$(GNU_PATH)/OpenBLAS/0.3.15/lib -lopenblas
+LIBS       += -L$(GNU_PATH)/OpenBLAS/0.3.17/lib -lopenblas
