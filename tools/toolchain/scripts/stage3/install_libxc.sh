@@ -9,8 +9,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-libxc_ver="5.1.5"
-libxc_sha256="02e4615a22dc3ec87a23efbd3d9be5bfad2445337140bad1720699571c45c3f9"
+libxc_ver="5.1.6"
+libxc_sha256="0d0496513114ed84987c32649912f9a65d234696dab13a4b00ce8c420bfc0a1d"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
