@@ -35,12 +35,14 @@ MODULE qs_linres_kernel
                                               dbcsr_set
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
    USE hfx_energy_potential,            ONLY: integrate_four_center
+   USE hfx_ri,                          ONLY: hfx_ri_update_ks
    USE hfx_types,                       ONLY: hfx_type
    USE input_constants,                 ONLY: do_admm_aux_exch_func_none,&
                                               do_admm_basis_projection,&
                                               do_admm_exch_scaling_none,&
                                               do_admm_purify_none,&
                                               kg_tnadd_embed
+   USE input_cp2k_hfx,                  ONLY: ri_mo
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_lval,&
                                               section_get_rval,&
@@ -851,10 +853,24 @@ CONTAINS
       rho_ao_kp(1:nspins, 1:1) => rho_ao(1:nspins)
 
       DO irep = 1, n_rep_hf
-         DO ispin = 1, mspin
-            CALL integrate_four_center(qs_env, x_data, matrix_ks_kp, eh1, rho_ao_kp, hfx_sections, para_env, &
-                                       s_mstruct_changed, irep, distribute_fock_matrix, ispin=ispin)
-         END DO
+         eh1 = 0.0_dp
+
+         IF (x_data(irep, 1)%do_hfx_ri) THEN
+            IF (x_data(irep, 1)%ri_data%flavor == ri_mo) THEN
+               CPABORT("NYI with RI_FLAVOR MO")
+            END IF
+            CALL hfx_ri_update_ks(qs_env, x_data(irep, 1)%ri_data, matrix_ks_kp, eh1, &
+                                  rho_ao=rho_ao_kp, geometry_did_change=s_mstruct_changed, &
+                                  nspins=nspins, hf_fraction=x_data(irep, 1)%general_parameter%fraction)
+
+         ELSE
+
+            DO ispin = 1, mspin
+               CALL integrate_four_center(qs_env, x_data, matrix_ks_kp, eh1, rho_ao_kp, hfx_sections, para_env, &
+                                          s_mstruct_changed, irep, distribute_fock_matrix, ispin=ispin)
+            END DO
+
+         END IF
       END DO
 
       CALL timestop(handle)

@@ -1,0 +1,9 @@
+#Testing the forces:
+CH-hfx-ri-rho.inp                                      11    1.0E-8             -38.259646458859827
+CH-hfx-ri-mo.inp                                       11    1.0E-9             -38.262303893579102   
+Ne-hfx-pbc-metric-rho.inp                              11    1.0E-9            -633.525916555354343
+Ne-hfx-pbc-metric-mo.inp                               11    1.0E-9            -632.285120513072002
+CH3-b3lyp-ADMM.inp                                     11    1.0E-9              -7.413742783916254
+H2O-pbe0-stress-truncated.inp                          31    1.0E-9               2.01366131588E-01
+H2O-hfx-stress-identity.inp                            31    1.0E-9               6.44733085054E-02
+#EOF

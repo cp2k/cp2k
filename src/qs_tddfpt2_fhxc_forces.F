@@ -591,6 +591,7 @@ CONTAINS
                mhe(ispin, 1)%matrix => matrix_hfx_admm(ispin)%matrix
                mpe(ispin, 1)%matrix => matrix_px1_admm(ispin)%matrix
             END DO
+            IF (x_data(1, 1)%do_hfx_ri) CPABORT("RI-HFX with TDDFPT NYI")
             DO ispin = 1, mspin
                eh1 = 0.0
                CALL integrate_four_center(qs_env, x_data, mhe, eh1, mpe, hfx_section, &
@@ -648,6 +649,7 @@ CONTAINS
                mhe(ispin, 1)%matrix => matrix_hfx(ispin)%matrix
                mpe(ispin, 1)%matrix => matrix_px1(ispin)%matrix
             END DO
+            IF (x_data(1, 1)%do_hfx_ri) CPABORT("RI-HFX with TDDFPT NYI")
             DO ispin = 1, mspin
                eh1 = 0.0
                CALL integrate_four_center(qs_env, x_data, mhe, eh1, mpe, hfx_section, &

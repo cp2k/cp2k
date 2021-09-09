@@ -40,11 +40,13 @@ MODULE rpa_gw_sigma
         dbcsr_p_type, dbcsr_release, dbcsr_release_p, dbcsr_set, dbcsr_type, &
         dbcsr_type_antisymmetric, dbcsr_type_symmetric
    USE hfx_energy_potential,            ONLY: integrate_four_center
+   USE hfx_ri,                          ONLY: hfx_ri_update_ks
    USE input_constants,                 ONLY: do_admm_basis_projection,&
                                               do_admm_purify_none,&
                                               gw_print_exx,&
                                               gw_read_exx,&
                                               xc_none
+   USE input_cp2k_hfx,                  ONLY: ri_mo
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -125,7 +127,8 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_aux_fit, rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_aux_fit, &
+                                                            matrix_ks_aux_fit_hfx, rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: matrix_ks_2d, matrix_ks_kp_im, &
          matrix_ks_kp_re, matrix_ks_transl, matrix_sigma_x_minus_vxc, matrix_sigma_x_minus_vxc_im, &
          rho_ao_2d
@@ -141,7 +144,7 @@ CONTAINS
 
       NULLIFY (admm_env, matrix_ks, matrix_ks_aux_fit, rho_ao, matrix_sigma_x_minus_vxc, input, &
                xc_section, xc_section_admm_aux, xc_section_admm_prim, hfx_sections, rho, &
-               dft_control, para_env, ks_env, mo_coeff, matrix_sigma_x_minus_vxc_im)
+               dft_control, para_env, ks_env, mo_coeff, matrix_sigma_x_minus_vxc_im, matrix_ks_aux_fit_hfx)
 
       CALL timeset(routineN, handle)
 
@@ -167,7 +170,8 @@ CONTAINS
                          dft_control=dft_control, &
                          para_env=para_env, &
                          ks_env=ks_env, &
-                         energy=energy)
+                         energy=energy, &
+                         matrix_ks_aux_fit_hfx=matrix_ks_aux_fit_hfx)
 
          ! RPA/GW with ADMM for EXX or the exchange self-energy only implemented for
          ! ADMM_PURIFICATION_METHOD  NONE
@@ -430,11 +434,28 @@ CONTAINS
                   matrix_ks_2d(1:ns, 1:1) => matrix_ks(1:ns)
                END IF
 
-               CALL integrate_four_center(qs_env, qs_env%mp2_env%ri_rpa%x_data, matrix_ks_2d, eh1, &
-                                          rho_ao_2d, hfx_sections, &
-                                          para_env, .TRUE., irep, .TRUE., &
-                                          ispin=1)
-               ehfx = ehfx + eh1
+               IF (qs_env%mp2_env%ri_rpa%x_data(irep, 1)%do_hfx_ri) THEN
+                  IF (qs_env%mp2_env%ri_rpa%x_data(irep, 1)%ri_data%flavor == ri_mo) THEN
+                     CPABORT("NYI with RI_FLAVOR MO")
+                  END IF
+                  CALL hfx_ri_update_ks(qs_env, qs_env%mp2_env%ri_rpa%x_data(irep, 1)%ri_data, matrix_ks_2d, ehfx, &
+                                        rho_ao=rho_ao_2d, geometry_did_change=.TRUE., nspins=nspins, &
+                                        hf_fraction=qs_env%mp2_env%ri_rpa%x_data(irep, 1)%general_parameter%fraction)
+
+                  IF (do_admm_rpa) THEN
+                     !for ADMMS, we need the exchange matrix k(d) for both spins
+                     DO ispin = 1, nspins
+                        CALL dbcsr_copy(matrix_ks_aux_fit_hfx(ispin)%matrix, matrix_ks_2d(ispin, 1)%matrix, &
+                                        name="HF exch. part of matrix_ks_aux_fit for ADMMS")
+                     END DO
+                  END IF
+               ELSE
+                  CALL integrate_four_center(qs_env, qs_env%mp2_env%ri_rpa%x_data, matrix_ks_2d, eh1, &
+                                             rho_ao_2d, hfx_sections, &
+                                             para_env, .TRUE., irep, .TRUE., &
+                                             ispin=1)
+                  ehfx = ehfx + eh1
+               END IF
             END DO
          END IF
          energy_ex = ehfx

@@ -36,14 +36,14 @@ MODULE hfx_types
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                              cp_print_key_unit_nr
+                                              cp_print_key_unit_nr,&
+                                              debug_print_level
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE dbcsr_tensor_api,                ONLY: &
-        dbcsr_t_batched_contract_finalize, dbcsr_t_default_distvec, dbcsr_t_destroy, &
-        dbcsr_t_distribution_destroy, dbcsr_t_distribution_new, dbcsr_t_distribution_type, &
-        dbcsr_t_mp_dims_create, dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, &
-        dbcsr_t_type
+        dbcsr_t_create, dbcsr_t_default_distvec, dbcsr_t_destroy, dbcsr_t_distribution_destroy, &
+        dbcsr_t_distribution_new, dbcsr_t_distribution_type, dbcsr_t_mp_dims_create, &
+        dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, dbcsr_t_type
    USE hfx_helpers,                     ONLY: count_cells_perd,&
                                               next_image_cell_perd
    USE input_constants,                 ONLY: &
@@ -55,7 +55,8 @@ MODULE hfx_types
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
-                                              section_vals_val_get
+                                              section_vals_val_get,&
+                                              section_vals_val_set
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp,&
@@ -375,7 +376,7 @@ MODULE hfx_types
       REAL(KIND=dp) :: filter_eps, filter_eps_2c, filter_eps_storage, filter_eps_mo, &
                        eps_lanczos, eps_pgf_orb, eps_eigval
       INTEGER :: t2c_sqrt_order, max_iter_lanczos, flavor, unit_nr_dbcsr, unit_nr, &
-                 min_bsize, min_bsize_MO, t2c_method, nelectron_total
+                 min_bsize, max_bsize_MO, t2c_method, nelectron_total
       LOGICAL :: check_2c_inv, calc_condnum
 
       TYPE(libint_potential_type) :: ri_metric
@@ -383,6 +384,7 @@ MODULE hfx_types
       ! input parameters from hfx
       TYPE(libint_potential_type) :: hfx_pot ! interaction potential
       REAL(KIND=dp) :: eps_schwarz ! integral screening threshold
+      REAL(KIND=dp) :: eps_schwarz_forces ! integral derivatives screening threshold
 
       LOGICAL :: same_op ! whether RI operator is same as HF potential
 
@@ -411,11 +413,12 @@ MODULE hfx_types
       ! Note: changed static DIMENSION(1,1) of dbcsr_t_type to allocatables as workaround for gfortran 8.3.0,
       ! with static dimension gfortran gets stuck during compilation
 
+      ! 2c tensors in (RI | RI) format for forces
+      TYPE(dbcsr_t_type), DIMENSION(:, :), ALLOCATABLE    :: t_2c_inv
+      TYPE(dbcsr_t_type), DIMENSION(:, :), ALLOCATABLE    :: t_2c_pot
+
       ! 2c tensor in (RI | RI) format for contraction
       TYPE(dbcsr_t_type), DIMENSION(:, :), ALLOCATABLE    :: t_2c_int
-
-      ! 3c integral tensor in default format
-      TYPE(dbcsr_t_type), DIMENSION(:, :), ALLOCATABLE :: t_3c_int
 
       ! 3c integral tensor in (AO RI | AO) format for contraction
       TYPE(dbcsr_t_type), DIMENSION(:, :), ALLOCATABLE :: t_3c_int_ctr_1
@@ -974,7 +977,7 @@ CONTAINS
                CALL hfx_ri_init_read_input_from_hfx(actual_x_data%ri_data, actual_x_data, hfx_section, &
                                                     hf_sub_section, qs_kind_set, &
                                                     particle_set, atomic_kind_set, dft_control, para_env, irep, do_ot, &
-                                                    nelectron_total)
+                                                    nelectron_total, my_do_exx)
 
             ENDIF
          END DO
@@ -1001,9 +1004,11 @@ CONTAINS
 !> \param irep ...
 !> \param do_ot ...
 !> \param nelectron_total ...
+!> \param do_exx ...
 ! **************************************************************************************************
    SUBROUTINE hfx_ri_init_read_input_from_hfx(ri_data, x_data, hfx_section, ri_section, qs_kind_set, &
-                                              particle_set, atomic_kind_set, dft_control, para_env, irep, do_ot, nelectron_total)
+                                              particle_set, atomic_kind_set, dft_control, para_env, irep, &
+                                              do_ot, nelectron_total, do_exx)
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
       TYPE(hfx_type), INTENT(INOUT)                      :: x_data
       TYPE(section_vals_type), POINTER                   :: hfx_section, ri_section
@@ -1015,6 +1020,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: irep
       LOGICAL, INTENT(IN)                                :: do_ot
       INTEGER, INTENT(IN)                                :: nelectron_total
+      LOGICAL, INTENT(IN)                                :: do_exx
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_init_read_input_from_hfx'
 
@@ -1037,6 +1043,7 @@ CONTAINS
       ri_data%ri_section => ri_section
       ri_data%hfx_section => hfx_section
       ri_data%eps_schwarz = x_data%screening_parameter%eps_schwarz
+      ri_data%eps_schwarz_forces = x_data%screening_parameter%eps_schwarz_forces
 
       logger => cp_get_default_logger()
       unit_nr_dbcsr = cp_print_key_unit_nr(logger, ri_data%ri_section, "RI_INFO", &
@@ -1057,7 +1064,7 @@ CONTAINS
          t_c_filename = char_val
       END IF
 
-      IF (dft_control%do_admm) THEN
+      IF (dft_control%do_admm .AND. (.NOT. do_exx)) THEN
          orb_basis_type = "AUX_FIT"
       ELSE
          orb_basis_type = "ORB"
@@ -1112,6 +1119,7 @@ CONTAINS
       INTEGER                                            :: handle
       LOGICAL                                            :: explicit
       REAL(dp)                                           :: eps_storage_scaling
+      TYPE(section_vals_type), POINTER                   :: prog_run_info
 
       CALL timeset(routineN, handle)
 
@@ -1148,7 +1156,7 @@ CONTAINS
       CALL section_vals_val_get(ri_section, "RI_FLAVOR", i_val=ri_data%flavor)
       CALL section_vals_val_get(ri_section, "EPS_PGF_ORB", r_val=ri_data%eps_pgf_orb)
       CALL section_vals_val_get(ri_section, "MIN_BLOCK_SIZE", i_val=ri_data%min_bsize)
-      CALL section_vals_val_get(ri_section, "MIN_BLOCK_SIZE_MO", i_val=ri_data%min_bsize_MO)
+      CALL section_vals_val_get(ri_section, "MAX_BLOCK_SIZE_MO", i_val=ri_data%max_bsize_MO)
       CALL section_vals_val_get(ri_section, "MEMORY_CUT", i_val=ri_data%n_mem)
 
       IF (ri_data%flavor == ri_pmat) THEN
@@ -1169,6 +1177,9 @@ CONTAINS
 
       ri_data%loc_subsection => section_vals_get_subs_vals(ri_section, "LOCALIZE")
       ri_data%print_loc_subsection => section_vals_get_subs_vals(ri_data%loc_subsection, "PRINT")
+      prog_run_info => section_vals_get_subs_vals(ri_data%print_loc_subsection, "PROGRAM_RUN_INFO")
+      CALL section_vals_val_set(prog_run_info, keyword_name="_SECTION_PARAMETERS_", &
+                                i_val=debug_print_level) !keep output clean
 
       CALL section_vals_val_get(ri_data%loc_subsection, "_SECTION_PARAMETERS_", l_val=ri_data%do_loc)
 
@@ -1347,12 +1358,12 @@ CONTAINS
          DEALLOCATE (dist1, dist2)
 
       ELSEIF (ri_data%flavor == ri_mo) THEN
-         ALLOCATE (ri_data%t_3c_int(1, 1))
          ALLOCATE (ri_data%t_2c_int(2, 1))
 
          CALL create_2c_tensor(ri_data%t_2c_int(1, 1), dist1, dist2, ri_data%pgrid_2d, &
                                ri_data%bsizes_RI_fit, ri_data%bsizes_RI_fit, &
                                name="(RI | RI)")
+         CALL dbcsr_t_create(ri_data%t_2c_int(1, 1), ri_data%t_2c_int(2, 1))
 
          DEALLOCATE (dist1, dist2)
 
@@ -1370,7 +1381,7 @@ CONTAINS
          ! is larger than this (it is however not a problem for load balancing if actual MO dimension
          ! is slightly smaller)
          MO_dim = MAX((ri_data%nelectron_total/2 - 1)/ri_data%n_mem + 1, 1)
-         MO_dim = (MO_dim - 1)/ri_data%min_bsize_MO + 1
+         MO_dim = (MO_dim - 1)/ri_data%max_bsize_MO + 1
 
          pdims = 0
          CALL dbcsr_t_mp_dims_create(nproc, pdims, [SIZE(ri_data%bsizes_AO_split), SIZE(ri_data%bsizes_RI_split), MO_dim])
@@ -1390,6 +1401,19 @@ CONTAINS
                                [1], [2, 3], name="(AO | RI AO)")
 
       ENDIF
+
+      !For forces
+      ALLOCATE (ri_data%t_2c_inv(1, 1))
+      CALL create_2c_tensor(ri_data%t_2c_inv(1, 1), dist1, dist2, ri_data%pgrid_2d, &
+                            ri_data%bsizes_RI_split, ri_data%bsizes_RI_split, &
+                            name="(RI | RI)")
+      DEALLOCATE (dist1, dist2)
+
+      ALLOCATE (ri_data%t_2c_pot(1, 1))
+      CALL create_2c_tensor(ri_data%t_2c_pot(1, 1), dist1, dist2, ri_data%pgrid_2d, &
+                            ri_data%bsizes_RI_split, ri_data%bsizes_RI_split, &
+                            name="(RI | RI)")
+      DEALLOCATE (dist1, dist2)
 
       ri_data%dbcsr_nflop = 0
       ri_data%dbcsr_time = 0.0_dp
@@ -1499,14 +1523,13 @@ CONTAINS
          DEALLOCATE (ri_data%t_3c_int_ctr_2)
 
          DO ispin = 1, SIZE(ri_data%t_3c_int_mo, 1)
-            CALL dbcsr_t_batched_contract_finalize(ri_data%t_2c_int(ispin, 1))
-            CALL dbcsr_t_batched_contract_finalize(ri_data%t_3c_int_mo(ispin, 1, 1))
-            CALL dbcsr_t_batched_contract_finalize(ri_data%t_3c_ctr_RI(ispin, 1, 1))
-            CALL dbcsr_t_destroy(ri_data%t_2c_int(ispin, 1))
             CALL dbcsr_t_destroy(ri_data%t_3c_int_mo(ispin, 1, 1))
             CALL dbcsr_t_destroy(ri_data%t_3c_ctr_RI(ispin, 1, 1))
             CALL dbcsr_t_destroy(ri_data%t_3c_ctr_KS(ispin, 1, 1))
             CALL dbcsr_t_destroy(ri_data%t_3c_ctr_KS_copy(ispin, 1, 1))
+         ENDDO
+         DO ispin = 1, 2
+            CALL dbcsr_t_destroy(ri_data%t_2c_int(ispin, 1))
          ENDDO
          DEALLOCATE (ri_data%t_2c_int)
          DEALLOCATE (ri_data%t_3c_int_mo)
@@ -1514,6 +1537,11 @@ CONTAINS
          DEALLOCATE (ri_data%t_3c_ctr_KS)
          DEALLOCATE (ri_data%t_3c_ctr_KS_copy)
       ENDIF
+
+      CALL dbcsr_t_destroy(ri_data%t_2c_inv(1, 1))
+      DEALLOCATE (ri_data%t_2c_inv)
+      CALL dbcsr_t_destroy(ri_data%t_2c_pot(1, 1))
+      DEALLOCATE (ri_data%t_2c_pot)
 
       CALL timestop(handle)
    END SUBROUTINE
@@ -2633,10 +2661,12 @@ CONTAINS
             "HFX_RI_INFO| EPS_PGF_ORB", ri_data%eps_pgf_orb
          WRITE (UNIT=iw, FMT="((T3, A, T73, ES8.1))") &
             "HFX_RI_INFO| EPS_SCHWARZ:     ", ri_data%eps_schwarz
+         WRITE (UNIT=iw, FMT="((T3, A, T73, ES8.1))") &
+            "HFX_RI_INFO| EPS_SCHWARZ_FORCES:     ", ri_data%eps_schwarz_forces
          WRITE (UNIT=iw, FMT="(T3, A, T78, I3)") &
             "HFX_RI_INFO| Minimum block size", ri_data%min_bsize
          WRITE (UNIT=iw, FMT="(T3, A, T78, I3)") &
-            "HFX_RI_INFO| MO block size", ri_data%min_bsize_MO
+            "HFX_RI_INFO| MO block size", ri_data%max_bsize_MO
          SELECT CASE (ri_data%flavor)
          CASE (ri_mo)
             WRITE (UNIT=iw, FMT="(T3, A, T79, I2)") &

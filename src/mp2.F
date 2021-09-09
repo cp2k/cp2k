@@ -450,6 +450,7 @@ CONTAINS
          DO irep = 1, n_rep_hf
             DO i_thread = 0, n_threads - 1
                actual_x_data => qs_env%x_data(irep, i_thread + 1)
+               IF (actual_x_data%do_hfx_ri) CYCLE
 
                do_dynamic_load_balancing = .TRUE.
                IF (n_threads == 1 .OR. actual_x_data%memory_parameter%do_disk_storage) do_dynamic_load_balancing = .FALSE.
@@ -696,6 +697,7 @@ CONTAINS
          DO irep = 1, n_rep_hf
             DO i_thread = 0, n_threads - 1
                actual_x_data => qs_env%x_data(irep, i_thread + 1)
+               IF (actual_x_data%do_hfx_ri) CYCLE
 
                do_dynamic_load_balancing = .TRUE.
                IF (n_threads == 1 .OR. actual_x_data%memory_parameter%do_disk_storage) do_dynamic_load_balancing = .FALSE.
