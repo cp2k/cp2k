@@ -39,9 +39,12 @@ MODULE rpa_rse
                                               dbcsr_init_p,&
                                               dbcsr_p_type,&
                                               dbcsr_release,&
+                                              dbcsr_scale,&
                                               dbcsr_set,&
                                               dbcsr_type_symmetric
    USE hfx_energy_potential,            ONLY: integrate_four_center
+   USE hfx_ri,                          ONLY: hfx_ri_update_ks
+   USE input_cp2k_hfx,                  ONLY: ri_mo
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -353,15 +356,34 @@ CONTAINS
 
          CALL dbcsr_set(mat_mu_nu(1)%matrix, 0.0_dp)
 
-         DO irep = 1, n_rep_hf
-            rho_ao_2d(1:ns, 1:1) => P_mu_nu(1:ns)
-            mat_2d(1:ns, 1:1) => mat_mu_nu(1:ns)
-            CALL integrate_four_center(qs_env, qs_env%mp2_env%ri_rpa%x_data, mat_2d, ehfx, rho_ao_2d, hfx_sections, &
-                                       para_env, my_recalc_hfx_integrals, irep, .TRUE., &
-                                       ispin=1)
+         IF (qs_env%mp2_env%ri_rpa%x_data(1, 1)%do_hfx_ri) THEN
+            IF (qs_env%mp2_env%ri_rpa%x_data(1, 1)%ri_data%flavor == ri_mo) THEN
+               CPABORT("NYI with RI_FLAVOR MO")
+            END IF
 
-            my_recalc_hfx_integrals = .FALSE.
-         END DO
+            DO irep = 1, n_rep_hf
+               rho_ao_2d(1:ns, 1:1) => P_mu_nu(1:ns)
+               mat_2d(1:ns, 1:1) => mat_mu_nu(1:ns)
+               CALL hfx_ri_update_ks(qs_env, qs_env%mp2_env%ri_rpa%x_data(irep, 1)%ri_data, mat_2d, ehfx, &
+                                     rho_ao=rho_ao_2d, geometry_did_change=my_recalc_hfx_integrals, nspins=1, &
+                                     hf_fraction=qs_env%mp2_env%ri_rpa%x_data(irep, 1)%general_parameter%fraction)
+
+               IF (ns == 2) CALL dbcsr_scale(mat_mu_nu(1)%matrix, 2.0_dp)
+               my_recalc_hfx_integrals = .FALSE.
+            END DO
+
+         ELSE
+
+            DO irep = 1, n_rep_hf
+               rho_ao_2d(1:ns, 1:1) => P_mu_nu(1:ns)
+               mat_2d(1:ns, 1:1) => mat_mu_nu(1:ns)
+               CALL integrate_four_center(qs_env, qs_env%mp2_env%ri_rpa%x_data, mat_2d, ehfx, rho_ao_2d, hfx_sections, &
+                                          para_env, my_recalc_hfx_integrals, irep, .TRUE., &
+                                          ispin=1)
+
+               my_recalc_hfx_integrals = .FALSE.
+            END DO
+         END IF
 
          ! copy back to fm
          CALL cp_fm_set_all(fm_X_ao, 0.0_dp)

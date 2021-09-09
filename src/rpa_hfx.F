@@ -16,6 +16,8 @@ MODULE rpa_hfx
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_set
    USE hfx_energy_potential,            ONLY: integrate_four_center
+   USE hfx_ri,                          ONLY: hfx_ri_update_ks
+   USE input_cp2k_hfx,                  ONLY: ri_mo
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
@@ -133,11 +135,22 @@ CONTAINS
             ELSE
                matrix_ks_2d(1:ns, 1:1) => matrix_ks(1:ns)
             END IF
-            CALL integrate_four_center(qs_env, qs_env%mp2_env%ri_rpa%x_data, matrix_ks_2d, eh1, &
-                                       rho_ao_2d, hfx_sections, &
-                                       para_env, .TRUE., irep, .TRUE., &
-                                       ispin=1)
-            ehfx = ehfx + eh1
+
+            IF (qs_env%mp2_env%ri_rpa%x_data(irep, 1)%do_hfx_ri) THEN
+               IF (qs_env%mp2_env%ri_rpa%x_data(irep, 1)%ri_data%flavor == ri_mo) THEN
+                  CPABORT("NYI with RI_FLAVOR MO")
+               END IF
+               CALL hfx_ri_update_ks(qs_env, qs_env%mp2_env%ri_rpa%x_data(irep, 1)%ri_data, matrix_ks_2d, ehfx, &
+                                     rho_ao=rho_ao_2d, geometry_did_change=.TRUE., nspins=ns, &
+                                     hf_fraction=qs_env%mp2_env%ri_rpa%x_data(irep, 1)%general_parameter%fraction)
+            ELSE
+
+               CALL integrate_four_center(qs_env, qs_env%mp2_env%ri_rpa%x_data, matrix_ks_2d, eh1, &
+                                          rho_ao_2d, hfx_sections, &
+                                          para_env, .TRUE., irep, .TRUE., &
+                                          ispin=1)
+               ehfx = ehfx + eh1
+            END IF
          END DO
 
          ! include the EXX contribution to the total energy

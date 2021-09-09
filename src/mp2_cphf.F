@@ -48,12 +48,14 @@ MODULE mp2_cphf
                                               dbcsr_set
    USE hfx_admm_utils,                  ONLY: tddft_hfx_matrix
    USE hfx_derivatives,                 ONLY: derivatives_four_center
+   USE hfx_ri,                          ONLY: hfx_ri_update_forces
    USE hfx_types,                       ONLY: alloc_containers,&
                                               hfx_container_type,&
                                               hfx_init_container,&
                                               hfx_type
    USE input_constants,                 ONLY: do_admm_aux_exch_func_none,&
                                               ot_precond_full_all
+   USE input_cp2k_hfx,                  ONLY: ri_mo
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
@@ -282,6 +284,7 @@ CONTAINS
             DO irep = 1, n_rep_hf
                DO i_thread = 0, n_threads - 1
                   actual_x_data => qs_env%x_data(irep, i_thread + 1)
+                  IF (actual_x_data%do_hfx_ri) CYCLE
 
                   do_dynamic_load_balancing = .TRUE.
                   IF (n_threads == 1 .OR. actual_x_data%memory_parameter%do_disk_storage) do_dynamic_load_balancing = .FALSE.
@@ -970,6 +973,7 @@ CONTAINS
                                                             rho_ao, rho_ao_aux, scrm
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp, scrm_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -1019,7 +1023,8 @@ CONTAINS
                       virial=virial, &
                       sab_orb=sab_orb, &
                       energy=energy, &
-                      rho_core=rho_core)
+                      rho_core=rho_core, &
+                      x_data=x_data)
 
       p_env => qs_env%mp2_env%ri_grad%p_env
 
@@ -1364,8 +1369,22 @@ CONTAINS
             rho1 => p_env%p1
          END IF
 
-         CALL derivatives_four_center(qs_env, rho_ao_kp, rho1, hfx_sections, para_env, &
-                                      1, use_virial)
+         IF (x_data(1, 1)%do_hfx_ri) THEN
+
+            IF (x_data(1, 1)%ri_data%flavor == ri_mo) THEN
+               CPABORT("NYI with RI_FLAVOR MO")
+            END IF
+
+            CALL hfx_ri_update_forces(qs_env, x_data(1, 1)%ri_data, nspins, &
+                                      x_data(1, 1)%general_parameter%fraction, &
+                                      rho_ao=rho_ao_kp, rho_ao_resp=rho1, &
+                                      use_virial=use_virial)
+
+         ELSE
+            CALL derivatives_four_center(qs_env, rho_ao_kp, rho1, hfx_sections, para_env, &
+                                         1, use_virial)
+         END IF
+
          IF (use_virial) THEN
             virial%pv_exx = virial%pv_exx - virial%pv_fock_4c
             virial%pv_virial = virial%pv_virial - virial%pv_fock_4c

@@ -65,7 +65,7 @@
     &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-    PROJECT H2O-ri-trunc
+    PROJECT H2O-hfx-periodic-ri-truncated
     PRINT_LEVEL MEDIUM
     RUN_TYPE ENERGY
 &END GLOBAL

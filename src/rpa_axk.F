@@ -36,9 +36,11 @@ MODULE rpa_axk
         dbcsr_copy, dbcsr_create, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
         dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry
    USE hfx_energy_potential,            ONLY: integrate_four_center
+   USE hfx_ri,                          ONLY: hfx_ri_update_ks
    USE hfx_types,                       ONLY: hfx_create,&
                                               hfx_release,&
                                               hfx_type
+   USE input_cp2k_hfx,                  ONLY: ri_mo
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
@@ -52,6 +54,7 @@ MODULE rpa_axk
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
    USE rpa_communication,               ONLY: gamma_fm_to_dbcsr
+   USE scf_control_types,               ONLY: scf_control_type
    USE util,                            ONLY: get_limit
 #include "./base/base_uses.f90"
 
@@ -434,9 +437,20 @@ CONTAINS
             rho_ao_2d(1:ns, 1:1) => rho_work_ao(1:ns)
 
             CALL dbcsr_set(mat_2d(1, 1)%matrix, 0.0_dp)
-            CALL integrate_four_center(qs_env, x_data, mat_2d, ehfx, rho_ao_2d, hfx_sections, &
-                                       para_env_sub, my_recalc_hfx_integrals, irep, .TRUE., &
-                                       ispin=1)
+
+            IF (x_data(irep, 1)%do_hfx_ri) THEN
+               IF (x_data(irep, 1)%ri_data%flavor == ri_mo) THEN
+                  CPABORT("NYI with RI_FLAVOR MO")
+               END IF
+               CALL hfx_ri_update_ks(qs_env, x_data(irep, 1)%ri_data, mat_2d, ehfx, &
+                                     rho_ao=rho_ao_2d, geometry_did_change=my_recalc_hfx_integrals, &
+                                     nspins=ns, hf_fraction=x_data(irep, 1)%general_parameter%fraction)
+
+            ELSE
+               CALL integrate_four_center(qs_env, x_data, mat_2d, ehfx, rho_ao_2d, hfx_sections, &
+                                          para_env_sub, my_recalc_hfx_integrals, irep, .TRUE., &
+                                          ispin=1)
+            END IF
          END DO
 
          my_recalc_hfx_integrals = .FALSE.
@@ -479,7 +493,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_create_subgroup'
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, nelectron_total
       LOGICAL                                            :: do_hfx
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: my_cell
@@ -487,15 +501,18 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_subsys_type), POINTER                      :: subsys
+      TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: input
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (my_cell, atomic_kind_set, particle_set, dft_control, x_data, qs_kind_set)
+      NULLIFY (my_cell, atomic_kind_set, particle_set, dft_control, x_data, qs_kind_set, scf_control)
 
       CALL get_qs_env(qs_env, &
                       subsys=subsys, &
-                      input=input)
+                      input=input, &
+                      scf_control=scf_control, &
+                      nelectron_total=nelectron_total)
 
       CALL qs_subsys_get(subsys, &
                          cell=my_cell, &
@@ -512,7 +529,8 @@ CONTAINS
       IF (do_hfx) THEN
          ! Retrieve particle_set and atomic_kind_set
          CALL hfx_create(x_data, para_env_sub, hfx_section, atomic_kind_set, &
-                         qs_kind_set, particle_set, dft_control, my_cell, do_exx=.TRUE.)
+                         qs_kind_set, particle_set, dft_control, my_cell, do_exx=.TRUE., &
+                         do_ot=scf_control%use_ot, nelectron_total=nelectron_total)
       END IF
 
       CALL timestop(handle)

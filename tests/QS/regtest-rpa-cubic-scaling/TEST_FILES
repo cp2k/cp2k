@@ -6,4 +6,6 @@ Cubic_RPA_H2O_standard_svd.inp                        11      1e-08            -
 RPA_kpoints_H2O.inp                                   11      1e-08            -17.384612021187685
 RPA_kpoints_H2O_batched.inp                           11      1e-08            -17.384612021187685
 RPA_kpoints_from_Gamma_H2O.inp                        11      1e-08            -17.384615079520682
+Cubic_RPA_CH3_ri-hfx.inp                              11      1e-08             -7.414799528509679
+Cubic_RPA_H2O_ri-hfx.inp                              11      1e-08            -17.159865017693086
 #EOF

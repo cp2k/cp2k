@@ -751,6 +751,7 @@ CONTAINS
                CALL dbcsr_set(mhz(ispin, 1)%matrix, 0.0_dp)
                mpe(ispin, 1)%matrix => matrix_pe_admm(ispin)%matrix
             END DO
+            IF (x_data(1, 1)%do_hfx_ri) CPABORT("RI-HFX with TDDFPT NYI")
             DO ispin = 1, mspin
                eh1 = 0.0
                CALL integrate_four_center(qs_env, x_data, mhz, eh1, mpe, hfx_section, &
@@ -786,6 +787,7 @@ CONTAINS
                mhz(ispin, 1)%matrix => matrix_hz(ispin)%matrix
                mpe(ispin, 1)%matrix => matrix_pe(ispin)%matrix
             END DO
+            IF (x_data(1, 1)%do_hfx_ri) CPABORT("RI-HFX with TDDFPT NYI")
             DO ispin = 1, mspin
                eh1 = 0.0
                CALL integrate_four_center(qs_env, x_data, mhz, eh1, mpe, hfx_section, &

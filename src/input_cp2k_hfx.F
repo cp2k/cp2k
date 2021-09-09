@@ -633,8 +633,8 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="MIN_BLOCK_SIZE_MO", &
-                          description="Minimum tensor block size for MOs.", &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_BLOCK_SIZE_MO", &
+                          description="Maximum tensor block size for MOs.", &
                           default_i_val=64)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

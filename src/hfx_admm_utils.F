@@ -38,13 +38,15 @@ MODULE hfx_admm_utils
    USE hfx_derivatives,                 ONLY: derivatives_four_center
    USE hfx_energy_potential,            ONLY: integrate_four_center
    USE hfx_pw_methods,                  ONLY: pw_hfx
-   USE hfx_ri,                          ONLY: hfx_ri_update_ks
+   USE hfx_ri,                          ONLY: hfx_ri_update_forces,&
+                                              hfx_ri_update_ks
    USE hfx_types,                       ONLY: hfx_type
    USE input_constants,                 ONLY: &
         do_admm_aux_exch_func_bee, do_admm_aux_exch_func_default, do_admm_aux_exch_func_none, &
         do_admm_aux_exch_func_opt, do_admm_aux_exch_func_pbex, do_potential_coulomb, &
         do_potential_long, do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_short, &
         do_potential_truncated, xc_funct_no_shortcut, xc_none
+   USE input_cp2k_hfx,                  ONLY: ri_mo
    USE input_section_types,             ONLY: section_vals_duplicate,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -421,10 +423,6 @@ CONTAINS
          ! Finally the real hfx calulation
          ehfx = 0.0_dp
 
-         IF (x_data(irep, 1)%do_hfx_ri .AND. calculate_forces) THEN
-            CPABORT("RI forces not yet implemented in HFX")
-         ENDIF
-
          IF (x_data(irep, 1)%do_hfx_ri) THEN
             CALL hfx_ri_update_ks(qs_env, x_data(irep, 1)%ri_data, matrix_ks_orb, ehfx, &
                                   mo_array, rho_ao_orb, &
@@ -432,11 +430,12 @@ CONTAINS
                                   x_data(irep, 1)%general_parameter%fraction)
             IF (dft_control%do_admm) THEN
                !for ADMMS, we need the exchange matrix k(d) for both spins
-               DO ispin = 1, mspin
+               DO ispin = 1, nspins
                   CALL dbcsr_copy(matrix_ks_aux_fit_hfx(ispin)%matrix, matrix_ks_orb(ispin, 1)%matrix, &
                                   name="HF exch. part of matrix_ks_aux_fit for ADMMS")
                ENDDO
             END IF
+
          ELSE
 
             DO ispin = 1, mspin
@@ -461,8 +460,22 @@ CONTAINS
             ELSE
                NULLIFY (rho_ao_resp)
             END IF
-            CALL derivatives_four_center(qs_env, rho_ao_orb, rho_ao_resp, hfx_sections, &
-                                         para_env, irep, use_virial)
+
+            IF (x_data(irep, 1)%do_hfx_ri) THEN
+
+               CALL hfx_ri_update_forces(qs_env, x_data(irep, 1)%ri_data, nspins, &
+                                         x_data(irep, 1)%general_parameter%fraction, &
+                                         rho_ao=rho_ao_orb, mos=mo_array, &
+                                         rho_ao_resp=rho_ao_resp, &
+                                         use_virial=use_virial)
+
+            ELSE
+
+               CALL derivatives_four_center(qs_env, rho_ao_orb, rho_ao_resp, hfx_sections, &
+                                            para_env, irep, use_virial)
+
+            END IF
+
             !Scale auxiliary density matrix for ADMMP back with 1/gsi(ispin)
             IF (dft_control%do_admm) THEN
                CALL scale_dm(qs_env, rho_ao_orb, scale_back=.TRUE.)
@@ -506,7 +519,7 @@ CONTAINS
                                      x_data(irep, 1)%general_parameter%fraction)
                IF (dft_control%do_admm) THEN
                   !for ADMMS, we need the exchange matrix k(d) for both spins
-                  DO ispin = 1, mspin
+                  DO ispin = 1, nspins
                      CALL dbcsr_copy(matrix_ks_aux_fit_hfx(ispin)%matrix, matrix_ks_orb(ispin, 1)%matrix, &
                                      name="HF exch. part of matrix_ks_aux_fit for ADMMS")
                   ENDDO
@@ -523,8 +536,18 @@ CONTAINS
 
             IF (calculate_forces .AND. .NOT. do_adiabatic_rescaling) THEN
                NULLIFY (rho_ao_resp)
-               CALL derivatives_four_center(qs_env, rho_ao_orb, rho_ao_resp, hfx_sections, &
-                                            para_env, irep, use_virial)
+
+               IF (x_data(irep, 1)%do_hfx_ri) THEN
+
+                  CALL hfx_ri_update_forces(qs_env, x_data(irep, 1)%ri_data, nspins, &
+                                            x_data(irep, 1)%general_parameter%fraction, &
+                                            rho_ao=rho_ao_orb, mos=mo_array, &
+                                            use_virial=use_virial)
+
+               ELSE
+                  CALL derivatives_four_center(qs_env, rho_ao_orb, rho_ao_resp, hfx_sections, &
+                                               para_env, irep, use_virial)
+               END IF
             END IF
 
             !! If required, the calculation of the forces will be done later with adiabatic rescaling
@@ -1211,11 +1234,22 @@ CONTAINS
       DO irep = 1, n_rep_hf
          ! the real hfx calulation
          ehfx = 0.0_dp
-         DO ispin = 1, mspin
-            CALL integrate_four_center(qs_env, x_data, matrix_ks_kp, eh1, rho_ao_kp, hfx_sections, para_env, &
-                                       s_mstruct_changed, irep, distribute_fock_matrix, ispin=ispin)
-            ehfx = ehfx + eh1
-         END DO
+
+         IF (x_data(irep, 1)%do_hfx_ri) THEN
+            IF (x_data(irep, 1)%ri_data%flavor == ri_mo) THEN
+               CPABORT("NYI with RI_FLAVOR MO")
+            END IF
+            CALL hfx_ri_update_ks(qs_env, x_data(irep, 1)%ri_data, matrix_ks_kp, ehfx, &
+                                  rho_ao=rho_ao_kp, geometry_did_change=s_mstruct_changed, &
+                                  nspins=nspins, hf_fraction=x_data(irep, 1)%general_parameter%fraction)
+
+         ELSE
+            DO ispin = 1, mspin
+               CALL integrate_four_center(qs_env, x_data, matrix_ks_kp, eh1, rho_ao_kp, hfx_sections, para_env, &
+                                          s_mstruct_changed, irep, distribute_fock_matrix, ispin=ispin)
+               ehfx = ehfx + eh1
+            END DO
+         END IF
       END DO
       IF (my_update_energy) energy%ex = ehfx
 

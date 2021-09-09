@@ -53,12 +53,15 @@ MODULE response_solver
    USE exstates_types,                  ONLY: excited_energy_type
    USE hfx_derivatives,                 ONLY: derivatives_four_center
    USE hfx_energy_potential,            ONLY: integrate_four_center
+   USE hfx_ri,                          ONLY: hfx_ri_update_forces,&
+                                              hfx_ri_update_ks
    USE hfx_types,                       ONLY: hfx_type
    USE input_constants,                 ONLY: &
         do_admm_aux_exch_func_none, ec_ls_solver, ec_mo_solver, kg_tnadd_atomic, kg_tnadd_embed, &
         kg_tnadd_embed_ri, ls_s_sqrt_ns, ls_s_sqrt_proot, ot_precond_full_all, &
         ot_precond_full_kinetic, ot_precond_full_single, ot_precond_full_single_inverse, &
         ot_precond_none, ot_precond_s_inverse, precond_mlp
+   USE input_cp2k_hfx,                  ONLY: ri_mo
    USE input_section_types,             ONLY: section_get_lval,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -1609,18 +1612,36 @@ CONTAINS
                mpd(ispin, 1)%matrix => matrix_p(ispin, 1)%matrix
             END DO
             !
-            DO ispin = 1, mspin
-               eh1 = 0.0
-               CALL integrate_four_center(qs_env, x_data, mhz, eh1, mpz, hfx_section, &
-                                          para_env, s_mstruct_changed, 1, distribute_fock_matrix, &
-                                          ispin=ispin)
-            END DO
-            DO ispin = 1, mspin
-               eh1 = 0.0
-               CALL integrate_four_center(qs_env, x_data, mhd, eh1, mpd, hfx_section, &
-                                          para_env, s_mstruct_changed, 1, distribute_fock_matrix, &
-                                          ispin=ispin)
-            END DO
+            IF (x_data(1, 1)%do_hfx_ri) THEN
+
+               IF (x_data(1, 1)%ri_data%flavor == ri_mo) THEN
+                  CPABORT("NYI with RI_FLAVOR MO")
+               END IF
+
+               eh1 = 0.0_dp
+               CALL hfx_ri_update_ks(qs_env, x_data(1, 1)%ri_data, mhz, eh1, rho_ao=mpz, &
+                                     geometry_did_change=s_mstruct_changed, nspins=nspins, &
+                                     hf_fraction=x_data(1, 1)%general_parameter%fraction)
+
+               eh1 = 0.0_dp
+               CALL hfx_ri_update_ks(qs_env, x_data(1, 1)%ri_data, mhd, eh1, rho_ao=mpd, &
+                                     geometry_did_change=s_mstruct_changed, nspins=nspins, &
+                                     hf_fraction=x_data(1, 1)%general_parameter%fraction)
+
+            ELSE
+               DO ispin = 1, mspin
+                  eh1 = 0.0
+                  CALL integrate_four_center(qs_env, x_data, mhz, eh1, mpz, hfx_section, &
+                                             para_env, s_mstruct_changed, 1, distribute_fock_matrix, &
+                                             ispin=ispin)
+               END DO
+               DO ispin = 1, mspin
+                  eh1 = 0.0
+                  CALL integrate_four_center(qs_env, x_data, mhd, eh1, mpd, hfx_section, &
+                                             para_env, s_mstruct_changed, 1, distribute_fock_matrix, &
+                                             ispin=ispin)
+               END DO
+            END IF
             !
             CALL get_qs_env(qs_env, admm_env=admm_env)
             CPASSERT(ASSOCIATED(admm_env%work_aux_orb))
@@ -1671,12 +1692,25 @@ CONTAINS
                mhz(ispin, 1)%matrix => matrix_hz(ispin)%matrix
                mpz(ispin, 1)%matrix => mpa(ispin)%matrix
             END DO
-            DO ispin = 1, mspin
-               eh1 = 0.0
-               CALL integrate_four_center(qs_env, x_data, mhz, eh1, mpz, hfx_section, &
-                                          para_env, s_mstruct_changed, 1, distribute_fock_matrix, &
-                                          ispin=ispin)
-            END DO
+
+            IF (x_data(1, 1)%do_hfx_ri) THEN
+
+               IF (x_data(1, 1)%ri_data%flavor == ri_mo) THEN
+                  CPABORT("NYI with RI_FLAVOR MO")
+               END IF
+
+               eh1 = 0.0_dp
+               CALL hfx_ri_update_ks(qs_env, x_data(1, 1)%ri_data, mhz, eh1, rho_ao=mpz, &
+                                     geometry_did_change=s_mstruct_changed, nspins=nspins, &
+                                     hf_fraction=x_data(1, 1)%general_parameter%fraction)
+            ELSE
+               DO ispin = 1, mspin
+                  eh1 = 0.0
+                  CALL integrate_four_center(qs_env, x_data, mhz, eh1, mpz, hfx_section, &
+                                             para_env, s_mstruct_changed, 1, distribute_fock_matrix, &
+                                             ispin=ispin)
+               END DO
+            END IF
             DEALLOCATE (mhz, mpz)
          END IF
 
@@ -1698,13 +1732,37 @@ CONTAINS
                   CALL dbcsr_copy(matrix_pza(ispin)%matrix, matrix_pz_admm(ispin)%matrix)
                END IF
             END DO
-            CALL derivatives_four_center(qs_env, matrix_p, matrix_pza, hfx_section, para_env, &
-                                         1, use_virial, resp_only=resp_only)
+            IF (x_data(1, 1)%do_hfx_ri) THEN
+
+               IF (x_data(1, 1)%ri_data%flavor == ri_mo) THEN
+                  CPABORT("NYI with RI_FLAVOR MO")
+               END IF
+
+               CALL hfx_ri_update_forces(qs_env, x_data(1, 1)%ri_data, nspins, &
+                                         x_data(1, 1)%general_parameter%fraction, &
+                                         rho_ao=matrix_p, rho_ao_resp=matrix_pza, &
+                                         use_virial=use_virial, resp_only=resp_only)
+            ELSE
+               CALL derivatives_four_center(qs_env, matrix_p, matrix_pza, hfx_section, para_env, &
+                                            1, use_virial, resp_only=resp_only)
+            END IF
             CALL dbcsr_deallocate_matrix_set(matrix_pza)
          ELSE
             CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
-            CALL derivatives_four_center(qs_env, matrix_p, mpa, hfx_section, para_env, &
-                                         1, use_virial, resp_only=resp_only)
+            IF (x_data(1, 1)%do_hfx_ri) THEN
+
+               IF (x_data(1, 1)%ri_data%flavor == ri_mo) THEN
+                  CPABORT("NYI with RI_FLAVOR MO")
+               END IF
+
+               CALL hfx_ri_update_forces(qs_env, x_data(1, 1)%ri_data, nspins, &
+                                         x_data(1, 1)%general_parameter%fraction, &
+                                         rho_ao=matrix_p, rho_ao_resp=mpa, &
+                                         use_virial=use_virial, resp_only=resp_only)
+            ELSE
+               CALL derivatives_four_center(qs_env, matrix_p, mpa, hfx_section, para_env, &
+                                            1, use_virial, resp_only=resp_only)
+            END IF
          END IF
          IF (debug_forces) THEN
             fodeb(1:3) = force(1)%fock_4c(1:3, 1) - fodeb(1:3)
