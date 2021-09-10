@@ -109,7 +109,7 @@ CONTAINS
 
       INTEGER                                            :: bcast_output_unit, handle, i, ierr, &
                                                             output_unit
-      LOGICAL                                            :: success
+      LOGICAL                                            :: init_rng, success
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: init_rng_seed
       TYPE(cp_logger_type), POINTER                      :: logger, logger_sub
       TYPE(section_vals_type), POINTER                   :: tmc_ana_section
@@ -166,23 +166,27 @@ CONTAINS
          !CALL init_move_types(tmc_params=tmc_env%params)
 
          ! init random number generator: use determistic random numbers
-         IF (tmc_env%tmc_comp_set%group_nr .EQ. 0 .AND. &
-             tmc_env%m_env%rnd_init .GT. 0) THEN
-            ALLOCATE (init_rng_seed(3, 2))
-            init_rng_seed(:, :) = &
-               RESHAPE((/tmc_env%m_env%rnd_init*42.0_dp, &
-                         tmc_env%m_env%rnd_init*54.0_dp, &
-                         tmc_env%m_env%rnd_init*63.0_dp, &
-                         tmc_env%m_env%rnd_init*98.0_dp, &
-                         tmc_env%m_env%rnd_init*10.0_dp, &
-                         tmc_env%m_env%rnd_init*2.0_dp/), &
-                       (/3, 2/))
-            tmc_env%rng_stream = rng_stream_type( &
-                                 name="TMC_deterministic_rng_stream", &
-                                 seed=init_rng_seed(:, :), &
-                                 distribution_type=UNIFORM)
-            DEALLOCATE (init_rng_seed)
-         ELSE
+         init_rng = .TRUE.
+         IF (tmc_env%tmc_comp_set%group_nr .EQ. 0) THEN
+            IF (tmc_env%m_env%rnd_init .GT. 0) THEN
+               init_rng = .FALSE.
+               ALLOCATE (init_rng_seed(3, 2))
+               init_rng_seed(:, :) = &
+                  RESHAPE((/tmc_env%m_env%rnd_init*42.0_dp, &
+                            tmc_env%m_env%rnd_init*54.0_dp, &
+                            tmc_env%m_env%rnd_init*63.0_dp, &
+                            tmc_env%m_env%rnd_init*98.0_dp, &
+                            tmc_env%m_env%rnd_init*10.0_dp, &
+                            tmc_env%m_env%rnd_init*2.0_dp/), &
+                          (/3, 2/))
+               tmc_env%rng_stream = rng_stream_type( &
+                                    name="TMC_deterministic_rng_stream", &
+                                    seed=init_rng_seed(:, :), &
+                                    distribution_type=UNIFORM)
+               DEALLOCATE (init_rng_seed)
+            ENDIF
+         ENDIF
+         IF (init_rng) THEN
             tmc_env%rng_stream = rng_stream_type( &
                                  name="TMC_rng_stream", &
                                  distribution_type=UNIFORM)

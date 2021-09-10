@@ -72,6 +72,7 @@ import operator
 import os
 import imp
 
+
 def read_file(filename, field, special_keys, stats_keys):
     try:
         nline = 0
@@ -129,6 +130,7 @@ def read_file(filename, field, special_keys, stats_keys):
         print("Exit")
         sys.exit(-1)
 
+
 def print_value(ref, value, show_comp):
     if ref > 0:
         comp = (value - ref) / ref * 100
@@ -147,9 +149,11 @@ def print_value(ref, value, show_comp):
     else:
         sys.stdout.write(color + "%10.3f" % value + endc)
 
+
 #################
 # Main function #
 #################
+
 
 def main():
     parser = argparse.ArgumentParser(description="Comparison of CP2K output timings.")
@@ -271,7 +275,7 @@ def main():
     color = "\033[0m"
     endc = "\033[0m"
     for filename in args.file_lists:
-        if len(files[filename][1]) > 0 and ref !=0:
+        if len(files[filename][1]) > 0 and ref != 0:
             comp = (float(files[filename][1]) - ref) / ref
             if abs(comp) > 1e-14:
                 color = "\033[91m"
@@ -329,6 +333,7 @@ def main():
         print("<None>")
 
     print("")
+
 
 # ===============================================================================
 main()
