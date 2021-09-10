@@ -1,0 +1,24 @@
+# Alfio Lazzaro (alfio.lazzaro@hpe.com)
+# Tested with CCE 12.0.3 (required at least 12.0.1)
+
+# Set CP2K_LIBS to CP2K dependencies
+
+CC       = cc
+FC       = ftn
+# -M E7212: promote to error the warning `Variable XXX is used before it is defined.`
+#FC      += -M E7212 -M E7208
+LD       = ftn
+AR       = ar -r
+DFLAGS   = -D__FFTW3 -D__parallel -D__SCALAPACK -D__FORCE_USE_FAST_MATH
+# DFLAGS  += -D__LIBXSMM
+DFLAGS  += -D__LIBINT -D__MAX_CONTR=4
+DFLAGS  += -D__LIBXC
+CFLAGS   = $(DFLAGS) -O2 -fopenmp -fopenmp-simd
+FCFLAGS  = $(DFLAGS) -O2 -emf -ffree -homp
+# FCFLAGS += -I${CP2K_LIBS}/libxsmm/include
+FCFLAGS += -I${CP2K_LIBS}/libint-lmax-5/include
+FCFLAGS += -I${CP2K_LIBS}/libxc/include
+LDFLAGS  = $(FCFLAGS)
+# LIBS    += -L${CP2K_LIBS}/libxsmm/lib -lxsmmf -lxsmm -ldl
+LIBS    += -L${CP2K_LIBS}/libint-lmax-5/lib -lint2
+LIBS    += -L${CP2K_LIBS}/libxc/lib -lxcf03 -lxc
