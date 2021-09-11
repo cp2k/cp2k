@@ -1,4 +1,4 @@
-ifeq ("","$(wildcard $(EXTSHOME)/dbcsr/.cp2k/Makefile)")
+ifeq ("","$(wildcard $(EXTSHOME)/dbcsr/src)")
 $(error "No DBCSR submodule available, please run 'git submodule update --init --recursive'")
 endif
 
@@ -21,22 +21,26 @@ extclean: dbcsrclean
 	@echo "Clean EXT"
 
 dbcsr:
-	+$(MAKE) -C $(EXTSHOME)/$@ -f .cp2k/Makefile \
-	   INCLUDEMAKE=$(ARCHDIR)/$(ARCH).$(ONEVERSION) \
+	+$(MAKE) -C $(EXTSHOME)/$@ -f $(EXTSHOME)/build_$@/Makefile \
+	   ARCHFILE=$(ARCHDIR)/$(ARCH).$(ONEVERSION) \
 	   LIBDIR=$(LIBEXTSDIR)/$@ \
 	   OBJDIR=$(OBJEXTSDIR)/$@ \
 	   ACC="$(ACC)" \
 	   ACCFLAGS="$(ACCFLAGS)"
 
 dbcsrversion:
-	@$(MAKE) -C $(EXTSHOME)/dbcsr -f .cp2k/Makefile \
+	@$(MAKE) -C $(EXTSHOME)/dbcsr -f $(EXTSHOME)/build_dbcsr/Makefile \
+	   ARCHFILE=$(ARCHDIR)/$(ARCH).$(ONEVERSION) \
 	   ACC="$(ACC)" \
 	   ACCFLAGS="$(ACCFLAGS)" \
 	   version
 
 dbcsrclean:
 	@echo "Clean DBCSR"
-	@$(MAKE) -C $(EXTSHOME)/dbcsr -f .cp2k/Makefile \
+	@$(MAKE) -C $(EXTSHOME)/dbcsr -f $(EXTSHOME)/build_dbcsr/Makefile \
+	   ARCHFILE=$(ARCHDIR)/$(ARCH).$(ONEVERSION) \
+	   LIBDIR=$(LIBEXTSDIR)/$@ \
+	   OBJDIR=$(OBJEXTSDIR)/$@ \
 	   ACC="$(ACC)" \
 	   ACCFLAGS="$(ACCFLAGS)" \
 	   clean
