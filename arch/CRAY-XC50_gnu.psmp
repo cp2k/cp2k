@@ -19,6 +19,7 @@ GNU_PATH    = /store/psi/psi01/mkrack/daint/gpu/gnu/8.3.0
 MPI_PATH    = $(GNU_PATH)/mpich
 
 GPUVER      = P100
+OFFLOAD_TARGET = cuda
 
 CC          = cc
 CXX         = CC
