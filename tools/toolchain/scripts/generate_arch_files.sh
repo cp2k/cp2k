@@ -165,7 +165,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       HIP_FLAGS+="-fPIE -D__HIP_PLATFORM_AMD__ -g --offload-arch=gfx906 -O3 --std=c++11 \$(DFLAGS)"
       LIBS+=" IF_HIP(-lhipblas -lamdhip64 IF_DEBUG(-lroctx64 -lroctracer64|)|)"
       PLATFORM_FLAGS='-D__HIP_PLATFORM_AMD__'
-      DFLAGS+=' IF_HIP(-D__GRID_HIP -D__HIP_PLATFORM_AMD__ IF_DEBUG(-D__OFFLOAD_PROFILING|)|)'
+      DFLAGS+=' IF_HIP(-D__GRID_HIP -D__HIP_PLATFORM_AMD__ IF_DEBUG(-D__OFFLOAD_PROFILING|)|) -D__DBCSR_ACC'
       ;;
     Mi100)
       check_lib -lamdhip64 "hip"
@@ -177,7 +177,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       HIP_FLAGS+="-fPIE -D__HIP_PLATFORM_AMD__ -g --offload-arch=gfx908 -O3 --std=c++11 \$(DFLAGS)"
       LIBS+=" IF_HIP(-lhipblas -lamdhip64 IF_DEBUG(-lroctx64 -lroctracer64|)|)"
       PLATFORM_FLAGS='-D__HIP_PLATFORM_AMD__ '
-      DFLAGS+=' IF_HIP(-D__GRID_HIP -D__HIP_PLATFORM_AMD__ IF_DEBUG(-D__OFFLOAD_PROFILING|)|)'
+      DFLAGS+=' IF_HIP(-D__GRID_HIP -D__HIP_PLATFORM_AMD__ IF_DEBUG(-D__OFFLOAD_PROFILING|)|) -D__DBCSR_ACC'
       ;;
     *)
       check_command nvcc "cuda"
