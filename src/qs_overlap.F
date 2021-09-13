@@ -278,6 +278,7 @@ CONTAINS
       END IF
       maxs = maxder
 
+      use_virial = .FALSE.
       IF (do_forces) THEN
          CALL get_ks_env(ks_env=ks_env, force=force, virial=virial)
          use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
