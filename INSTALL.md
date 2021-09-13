@@ -2,7 +2,7 @@
 
 ## 1. Acquire the code
 
-For users, the preferred method is to [download a release](https://github.com/cp2k/cp2k/releases/).
+For users, the preferred method is to [download a release](https://github.com/cp2k/cp2k/releases/) (use the versioned tarballs, `cp2k-X.Y.tar.bz2`).
 For developers, the preferred method is to [download from Git](./README.md#downloading-cp2k-source-code).
 
 For more details on downloading CP2K, see <https://www.cp2k.org/download>.
