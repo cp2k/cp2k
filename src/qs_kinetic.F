@@ -234,6 +234,7 @@ CONTAINS
                                 sab_nl, do_symmetric)
       END IF
 
+      use_virial = .FALSE.
       IF (do_forces) THEN
          ! if forces -> maybe virial too
          CALL get_ks_env(ks_env=ks_env, force=force, virial=virial)
