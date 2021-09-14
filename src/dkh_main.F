@@ -118,6 +118,7 @@ CONTAINS
       !-----------------------------------------------------------------------
       !     Construct the matrix structure
       !-----------------------------------------------------------------------
+
       CALL get_qs_env(qs_env, blacs_env=blacs_env)
       CALL cp_fm_struct_create(fmstruct=matrix_full, &
                                context=blacs_env, &
@@ -284,7 +285,7 @@ CONTAINS
       !-----------------------------------------------------------------------
       !     Calculate v in position space
       !-----------------------------------------------------------------------
-      !
+
       CALL cp_fm_scale_and_add(1.0_dp, matrix_ev1, 1.0_dp, matrix_ev2)
       CALL cp_fm_upper_to_full(matrix_ev1, matrix_aux)
       CALL cp_fm_to_fm(matrix_ev1, matrix_v)
@@ -294,8 +295,6 @@ CONTAINS
             CALL cp_fm_scale_and_add(1.0_dp, matrix_v, 1.0_dp, matrix_ev4)
          END IF
       END IF
-
-      !-----------------------------------------------------------------------
 
       CALL cp_fm_release(matrix_eig)
       CALL cp_fm_release(matrix_aux)
@@ -360,7 +359,6 @@ CONTAINS
          e(i) = ev0t(i) + con
       END DO
 
-      RETURN
    END SUBROUTINE kintegral
 
 ! **************************************************************************************************
@@ -392,7 +390,6 @@ CONTAINS
 
       CALL cp_fm_scale_and_add(1.0_dp, matrix_ev1, 1.0_dp, matrix_aux2)
 
-      RETURN
    END SUBROUTINE even1
 
 ! **************************************************************************************************
@@ -459,10 +456,7 @@ CONTAINS
       CALL cp_fm_release(vec_a)
       CALL cp_fm_struct_release(vec_full)
 
-      RETURN
    END SUBROUTINE peven1p
-
-   !-----------------------------------------------------------------------
 
 ! **************************************************************************************************
 !> \brief 2nd order DK-approximation (original DK-transformation with U = SQRT(1+W^2) + W)
@@ -585,10 +579,8 @@ CONTAINS
 
 !    WRITE (*,*) "CAW:  DKH2 with even2c (Alex)"
 !    WRITE (*,*) "JT:  Now available in cp2k"
-      RETURN
-   END SUBROUTINE even2c
 
-   !-----------------------------------------------------------------------
+   END SUBROUTINE even2c
 
 ! **************************************************************************************************
 !> \brief ...
@@ -729,7 +721,7 @@ CONTAINS
 
 !    WRITE (*,*) "CAW:  DKH3 with even3b (Alex)"
 !    WRITE (*,*) "JT:  Now available in cp2k"
-      RETURN
+
    END SUBROUTINE even3b
 
    !-----------------------------------------------------------------------
@@ -988,7 +980,6 @@ CONTAINS
 !    WRITE (*,*) "CAW:  DKH4 with even4a (Alex)"
 !    WRITE (*,*) "JT:   Now available in cp2k"
 
-      RETURN
    END SUBROUTINE even4a
 
    !-----------------------------------------------------------------------
@@ -1038,15 +1029,12 @@ CONTAINS
       DO j = 1, ncol_local
          DO i = 1, nrow_local
             matrix_aux%local_data(i, j) = 1/(e(row_indices(i)) + e(col_indices(j)))
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       CALL cp_fm_schur_product(matrix_p, matrix_aux, matrix_pp)
 
-      RETURN
-
    END SUBROUTINE mat_1_over_h
-   !C-----------------------------------------------------------------------
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1102,15 +1090,13 @@ CONTAINS
       !     DO i=1,n
       !       DO j=1,n
       !          p(i,j)=p(i,j)*a(i)*a(j)
-      !       ENDDO
-      !     ENDDO
+      !       END DO
+      !     END DO
 
       CALL cp_fm_release(vec_a)
       CALL cp_fm_struct_release(vec_full)
 
-      RETURN
    END SUBROUTINE mat_axa
-   !C-----------------------------------------------------------------------
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1168,9 +1154,7 @@ CONTAINS
       CALL cp_fm_release(vec_a)
       CALL cp_fm_struct_release(vec_full)
 
-      RETURN
    END SUBROUTINE mat_arxra
-   !C-----------------------------------------------------------------------
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1220,10 +1204,8 @@ CONTAINS
       CALL cp_fm_column_scale(matrix_aux, vec)
 
       CALL cp_gemm("N", "N", n, n, n, alpha, matrix_aux, matrix_r, beta, matrix_p)
-      RETURN
 
    END SUBROUTINE mat_mulm
-   !C-----------------------------------------------------------------------
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1275,10 +1257,7 @@ CONTAINS
 
       CALL cp_gemm("N", "N", n, n, n, alpha, matrix_aux, matrix_r, beta, matrix_p)
 
-      RETURN
-
    END SUBROUTINE mat_muld
-   !C-----------------------------------------------------------------------
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1327,8 +1306,6 @@ CONTAINS
       !    con         prefactor, 137^2                                      *
       !-----------------------------------------------------------------------
 
-      !-----------------------------------------------------------------------
-
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: s, v, h, pVp
       INTEGER, INTENT(IN)                                :: n, dkh_order
 
@@ -1338,7 +1315,7 @@ CONTAINS
                                                             ev3t, ev4, ev4t, ove, pev1tp, pVpt, &
                                                             revt, sinv, vt
 
-      IF (dkh_order .LT. 0) RETURN
+      IF (dkh_order < 0) RETURN
 
       !CAW  pp: p^2-values (in momentum-space), stored as matrix!!
 
@@ -1517,10 +1494,7 @@ CONTAINS
       DEALLOCATE (eig, sinv, revt, ove, aux, vt, pVpt, ev1, ev2, ev3, ev4, ev1t, ev2t, ev3t, ev4t, pev1tp)
       DEALLOCATE (ev0t, e, aa, rr, tt)
 
-      RETURN
    END SUBROUTINE dkh_atom_transformation
-
-   !-----------------------------------------------------------------------
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1531,8 +1505,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE kintegral_a(n, ev0t, tt, e)
 
-      !-----------------------------------------------------------------------
-
       INTEGER, INTENT(IN)                                :: n
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: ev0t
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tt
@@ -1541,8 +1513,6 @@ CONTAINS
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: con, con2, prea, ratio, tv1, tv2, tv3, &
                                                             tv4
-
-!-----------------------------------------------------------------------
 
       DO i = 1, n
          IF (tt(i) .LT. 0.0_dp) THEN
@@ -1572,10 +1542,7 @@ CONTAINS
          e(i) = ev0t(i) + con
       END DO
 
-      RETURN
    END SUBROUTINE kintegral_a
-
-   !-----------------------------------------------------------------------
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1617,10 +1584,7 @@ CONTAINS
          END DO
       END DO
 
-      RETURN
    END SUBROUTINE even1_a
-
-   !-----------------------------------------------------------------------
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1664,10 +1628,7 @@ CONTAINS
          END DO
       END DO
 
-      RETURN
    END SUBROUTINE peven1p_a
-
-   !-----------------------------------------------------------------------
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1791,10 +1752,8 @@ CONTAINS
 
 !    WRITE (*,*) "CAW:  DKH2 with even2c (Alex)"
 !    WRITE (*,*) "!JT:  Now available in cp2k"
-      RETURN
-   END SUBROUTINE even2c_a
 
-   !-----------------------------------------------------------------------
+   END SUBROUTINE even2c_a
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1918,10 +1877,8 @@ CONTAINS
 
 !    WRITE (*,*) "CAW:  DKH3 with even3b (Alex)"
 !    WRITE (*,*) "JT:  Now available in cp2k"
-      RETURN
-   END SUBROUTINE even3b_a
 
-   !-----------------------------------------------------------------------
+   END SUBROUTINE even3b_a
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2181,7 +2138,6 @@ CONTAINS
 !    WRITE (*,*) "CAW:  DKH4 with even4a (Alex)"
 !    WRITE (*,*) "JT:   Now available in cp2k"
 
-      RETURN
    END SUBROUTINE even4a_a
 
    !-----------------------------------------------------------------------
@@ -2227,12 +2183,10 @@ CONTAINS
       DO i = 1, n
          DO j = 1, n
             p(i, j) = p(i, j)/(e(i) + e(j))
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
-      RETURN
    END SUBROUTINE mat_1_over_h_a
-   !C-----------------------------------------------------------------------
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2261,12 +2215,10 @@ CONTAINS
       DO i = 1, n
          DO j = 1, n
             p(i, j) = p(i, j)*a(i)*a(j)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
-      RETURN
    END SUBROUTINE mat_axa_a
-   !C-----------------------------------------------------------------------
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2297,12 +2249,10 @@ CONTAINS
       DO i = 1, n
          DO j = 1, n
             p(i, j) = p(i, j)*a(i)*a(j)*r(i)*r(j)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
-      RETURN
    END SUBROUTINE mat_arxra_a
-   !C-----------------------------------------------------------------------
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2347,14 +2297,14 @@ CONTAINS
       DO i = 1, n
          DO j = 1, n
             qtemp(i, j) = q(i, j)*2.0_dp*t(j)*rr(j)*rr(j)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       CALL dgemm("N", "N", n, n, n, alpha, qtemp, n, r, n, beta, p, n)
-      RETURN
+
       DEALLOCATE (qtemp)
+
    END SUBROUTINE mat_mulm_a
-   !C-----------------------------------------------------------------------
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2399,15 +2349,14 @@ CONTAINS
       DO i = 1, n
          DO j = 1, n
             qtemp(i, j) = q(i, j)*0.5_dp/(t(j)*rr(j)*rr(j))
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       CALL dgemm("N", "N", n, n, n, alpha, qtemp, n, r, n, beta, p, n)
 
-      RETURN
       DEALLOCATE (qtemp)
+
    END SUBROUTINE mat_muld_a
-   !C-----------------------------------------------------------------------
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2449,13 +2398,10 @@ CONTAINS
       DO i = 1, n
          DO j = 1, n
             p(i, j) = alpha*p(i, j) + beta*r(i, j)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
-      RETURN
    END SUBROUTINE mat_add2
-
-   !CAW---------------------------------------------------------------------
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2495,18 +2441,15 @@ CONTAINS
 
       INTEGER                                            :: i, j
 
-!C  Add matrices:
+      ! Add matrices:
 
       DO i = 1, n
          DO j = 1, n
             p(i, j) = alpha*q(i, j) + beta*r(i, j)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
-      RETURN
    END SUBROUTINE mat_add
-
-   !CAW---------------------------------------------------------------------
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2559,10 +2502,7 @@ CONTAINS
          END DO
       END DO
 
-      RETURN
    END SUBROUTINE TRSM
-
-   !JT----------------------------------------------------------------------
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2598,10 +2538,8 @@ CONTAINS
       n2 = 3*n - 1
 
       CALL JACOB2(AUX, EIG, EW, N, IC)
-      RETURN
-   END SUBROUTINE dkh_diag
 
-   !CAW---------------------------------------------------------------------
+   END SUBROUTINE dkh_diag
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2731,10 +2669,8 @@ CONTAINS
          END DO
 
       END IF
-      RETURN
-   END SUBROUTINE JACOB2
 
-   !JT---------------------------------------------------------------------
+   END SUBROUTINE JACOB2
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2753,7 +2689,6 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: a
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: g
 
-!
 !     SUBROUTINE TO CALCULATE TRANSFORMATION TO SCHMIDT-
 !     ORTHOGONALIZED BASIS.
 !     sinv-1*matrix_s_pgf*sinv = "orthogonal matrix"
@@ -2762,7 +2697,6 @@ CONTAINS
 !     matrix_sinv_pgf new overlap matrix
 !     g              scratch
 !     a              scratch
-!
 
       ALLOCATE (a(n))
       ALLOCATE (g(n, n))
@@ -2802,9 +2736,8 @@ CONTAINS
             matrix_sinv_pgf(i, j) = g(i, j)
          END DO
       END DO
-      DEALLOCATE (a, g)
 
-      RETURN
+      DEALLOCATE (a, g)
 
    END SUBROUTINE SOG
 
