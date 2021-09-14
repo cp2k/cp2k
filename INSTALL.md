@@ -180,13 +180,14 @@ the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
 
 - Specify OFFLOAD_CC (e.g. `OFFLOAD_CC = nvcc`) and
   OFFLOAD_FLAGS (e.g. `OFFLOAD_FLAGS = -O3 -g -w --std=c++11`) variables.
+  Remember to include the support for the C++11 standard.
 - Use the `-D__DBCSR_ACC` and `OFFLOAD_TARGET=cuda` to enable
   accelerator support for matrix multiplications.
 - Add `-lstdc++ -lcudart -lnvrtc -lcuda -lcublas` to LIBS.
 - Specify the GPU type (e.g. `GPUVER   = P100`),
   possible values are K20X, K40, K80, P100, V100.
-- Specify the C++ compiler (e.g. `CXX = g++`). Remember to set the flags to
-  support C++11 standard.
+- Specify the C++ compiler (e.g. `CXX = g++`) and the CXXFLAGS to support
+  the C++11 standard.
 - Use `-D__PW_CUDA` for CUDA support for PW (gather/scatter/fft) calculations.
 - CUFFT 7.0 has a known bug and is therefore disabled by default.
   NVIDIA's webpage list a patch (an upgraded version cufft i.e. >= 7.0.35) -
@@ -329,12 +330,12 @@ The code for the grid backend was developed and tested on Mi100 but should work
 out of the box on Nvidia hardware as well.
 
 - USE `-D__GRID_HIP` to enable AMD GPU support for collocate and integrate
-  runtines.
+  rountines.
 - Add `GPUVER=Mi50, Mi60, Mi100`
-- Add 'OFFLOAD_CC = hipcc'
+- Add `OFFLOAD_CC = hipcc`
 - Add  `-lamdhip64` to the `LIBS` variable
 - Add `OFFLOAD_FLAGS ='-fopenmp -m64 -pthread -fPIC -D__GRID_HIP -O2
-  --offload-arch=gfx908 --rocm-path=$(ROCM_PATH)`' where 'ROCM_PATH' is the path
+  --offload-arch=gfx908 --rocm-path=$(ROCM_PATH)'` where `ROCM_PATH` is the path
   where the rocm sdk resides. Architectures Mi100 (gfx908), Mi50 (gfx906)
 - the hip backend for the grid library supports nvidia hardware as well. It uses
   the same code and can be used to validate the backend in case of access to
@@ -342,11 +343,10 @@ out of the box on Nvidia hardware as well.
   and set the `OFFLOAD_FLAGS` with right `nvcc` parameters (see the cuda section
   of this document). The environment variable `HIP_PLATFORM` should be set to
   `HIP_PLATFORM=nvidia` to indicate to hipcc to use the nvcc compiler instead.
+- Specify the C++ compiler (e.g. `CXX = g++`). Remember to set the
+  CXXFLAGS flags to support C++11 standard.
 - When the HIP backend is enabled for DBCSR using `-D__DBCSR_ACC`, then add
-  `-D__HIP_PLATFORM_AMD__` to `CXXFLAGS` and `OFFLOAD_TARGET=hip`
-  in the CP2K arch file.
-  DBCSR will then be built with `CXX` and `CXXFLAGS` and avoid linking with
-  multiple conflicting OpenMP runtimes.
+  `-D__HIP_PLATFORM_AMD__` to `CXXFLAGS` and `OFFLOAD_TARGET=hip`.
 - Use `-D__OFFLOAD_PROFILING` to turn on the AMD ROC TX and Tracer libray.
   It requires to link `-lroctx64 -lroctracer64`.
 

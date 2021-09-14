@@ -8,15 +8,8 @@
 # For this reason, this Makefile must be compatible with the CP2K
 # compilation and tested within CP2K.
 #
-# You can compile DBCSR by running from the DBCSR main directory with:
-#
-# > make -f .cp2k/Makefile ARCH=<CP2K ARCH file>
-#
-# where we provide an ARCH file as described in the CP2K installation.
-#
 # The ARCH file can set the variables:
 #
-# CXX => C++ compiler, e.g. g++ or mpicxx
 # CC  => C compiler, e.g. gcc or mpicc
 # FC  => Fortran compiler, e.g. gfortran or mpifort
 # LD  => Linker, e.g. gfortran or mpifort
@@ -117,7 +110,6 @@ endif
 else ifeq (hip,$(USE_ACCEL))
 override ACCFLAGS += -D__HIP
 FCFLAGS += -D__HIP
-CXXFLAGS += -D__HIP
 # OpenCL backend
 else ifeq (opencl,$(USE_ACCEL))
 CFLAGS += -D__OPENCL

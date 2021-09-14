@@ -24,6 +24,8 @@ DBCSR_ACCFLAGS := $(OFFLOAD_FLAGS)
 else ifeq (hip,$(DBCSR_USE_ACCEL))
 DBCSR_ACC := $(CXX)
 DBCSR_ACCFLAGS := $(CXXFLAGS)
+else
+$(error "Invalid OFFLOAD_TARGET=$(OFFLOAD_TARGET)")
 endif
 endif
 
