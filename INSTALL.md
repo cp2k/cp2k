@@ -343,7 +343,7 @@ out of the box on Nvidia hardware as well.
   of this document). The environment variable `HIP_PLATFORM` should be set to
   `HIP_PLATFORM=nvidia` to indicate to hipcc to use the nvcc compiler instead.
 - Specify the C++ compiler (e.g. `CXX = g++`). Remember to set the
-  CXXFLAGS flags to support C++11 standard.
+  CXXFLAGS flags to support C++11 standard and OpenMP.
 - When the HIP backend is enabled for DBCSR using `-D__DBCSR_ACC`, then add
   `-D__HIP_PLATFORM_AMD__` to `CXXFLAGS` and `OFFLOAD_TARGET=hip`.
 - Use `-D__OFFLOAD_PROFILING` to turn on the AMD ROC TX and Tracer libray.
