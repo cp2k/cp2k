@@ -4,8 +4,8 @@
     &CONTROL
       CYCLIC_BLOCK_SIZE 16
       PROCESSING_UNIT cpu
-      STD_EVP_SOLVER_TYPE lapack
-      GEN_EVP_SOLVER_TYPE lapack
+      STD_EVP_SOLVER_NAME lapack
+      GEN_EVP_SOLVER_NAME lapack
       VERBOSITY 1
       REDUCE_GVEC true
     &END CONTROL

@@ -187,16 +187,11 @@ CONTAINS
       ! Print symmetry information
       CALL write_symmetry(particle_set, my_cell, subsys_section)
 
-      IF (iw > 0) THEN
-         WRITE (iw, '(A,A,A)') " ==================================", " SIRIUS INIT ", &
-            "================================="
-      END IF
       ! Sirius initialization
       CALL cp_sirius_create_env(pwdft_env)
 
       IF (iw > 0) THEN
-         WRITE (iw, '(A,A,A)') " =========================", " SIRIUS INIT FINISHED ", &
-            "================================="
+         WRITE (iw, '(A)') "SIRIUS INIT: FINISHED"
       END IF
       IF (iw > 0) CALL m_flush(iw)
 
@@ -237,16 +232,10 @@ CONTAINS
       iw = cp_logger_get_default_io_unit(logger)
 
       ! update context for new positions/cell
-      IF (iw > 0) THEN
-         WRITE (iw, '(A,A,A)') " =============================", " SIRIUS UPDATE CONTEXT", &
-            "============================"
-      END IF
       ! Sirius initialization
       CALL cp_sirius_update_context(pwdft_env)
-
       IF (iw > 0) THEN
-         WRITE (iw, '(A,A,A)') " ====================", " SIRIUS UPDATE CONTEXT FINISHED", &
-            "============================"
+         WRITE (iw, '(A)') "SIRIUS UPDATE CONTEXT : FINISHED"
       END IF
       IF (iw > 0) CALL m_flush(iw)
 
