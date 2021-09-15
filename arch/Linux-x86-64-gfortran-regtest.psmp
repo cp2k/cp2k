@@ -1,7 +1,7 @@
 # Tested with: GFortran 8.3.0, MPICH 3.3, ScaLAPACK 6819b24, OpenBLAS 0.3.17,
 #              FFTW 3.3.9, LIBINT 2.6.0, LIBXC 5.1.6, ELPA 2021.05.002,
 #              PLUMED 2.7.2, SPGLIB 1.16.2, LIBVORI 210412, GSL 2.7,
-#              SIRIUS 7.2.5, COSMA 2.5.1
+#              SIRIUS 7.2.7, COSMA 2.5.1
 # Author: Matthias Krack (matthias.krack@psi.ch, PSI, September 2021)
 
 CC          = mpicc
@@ -35,8 +35,8 @@ LIBVORI_LIB = $(GNU_PATH)/libvori/210412/lib
 LIBXC_INC   = $(GNU_PATH)/libxc/5.1.6/include
 LIBXC_LIB   = $(GNU_PATH)/libxc/5.1.6/lib
 
-SIRIUS_INC  = $(GNU_PATH)/sirius/7.2.5/include
-SIRIUS_LIB  = $(GNU_PATH)/sirius/7.2.5/lib
+SIRIUS_INC  = $(GNU_PATH)/sirius/7.2.7/include
+SIRIUS_LIB  = $(GNU_PATH)/sirius/7.2.7/lib
 
 SPGLIB_INC  = $(GNU_PATH)/spglib/1.16.2/include
 SPGLIB_LIB  = $(GNU_PATH)/spglib/1.16.2/lib
