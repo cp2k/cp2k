@@ -23,8 +23,7 @@ MODULE mp2_ri_gpw
                                               int_8
    USE libint_2c_3c,                    ONLY: compare_potential_types
    USE machine,                         ONLY: m_flush,&
-                                              m_memory,&
-                                              m_walltime
+                                              m_memory
    USE message_passing,                 ONLY: mp_allgather,&
                                               mp_min,&
                                               mp_recv,&
@@ -32,13 +31,13 @@ MODULE mp2_ri_gpw
                                               mp_sendrecv,&
                                               mp_sum
    USE mp2_ri_grad_util,                ONLY: complete_gamma
-   USE mp2_types,                       ONLY: mp2_type,&
-                                              three_dim_real_array,&
-             dgemm_counter_type, &
-             dgemm_counter_init, &
-             dgemm_counter_start, &
-             dgemm_counter_stop, &
-             dgemm_counter_write
+   USE mp2_types,                       ONLY: dgemm_counter_init,&
+                                              dgemm_counter_start,&
+                                              dgemm_counter_stop,&
+                                              dgemm_counter_type,&
+                                              dgemm_counter_write,&
+                                              mp2_type,&
+                                              three_dim_real_array
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
@@ -97,32 +96,31 @@ CONTAINS
       INTEGER :: a, a_global, b, b_global, best_block_size, best_integ_group_size, block_size, &
          end_point, handle, handle2, handle3, iiB, ij_counter, ij_counter_send, ij_index, &
          integ_group_size, irep, ispin, jjB, jspin, kspin, Lend_pos, Lstart_pos, max_ij_pairs, &
-         min_integ_group_size, &
-         my_block_size, my_group_L_end, my_group_L_size, my_group_L_size_orig, my_group_L_start, &
-         my_i, my_ij_pairs, my_j, my_new_group_L_size, ngroup, nspins, &
-         num_IJ_blocks, num_integ_group, pos_integ_group, proc_receive, proc_send, proc_shift, &
-         rec_B_size
-      INTEGER :: rec_B_virtual_end, rec_B_virtual_start, rec_L_size, send_B_size, &
-         send_B_virtual_end, send_B_virtual_start, send_block_size, send_i, send_ij_index, send_j, &
-         start_point, sub_P_color, sub_sub_color, tag, total_ij_pairs
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: integ_group_pos2color_sub, num_ij_pairs, &
-                                                            proc_map, proc_map_rep, &
-                                                            sizes_array_orig, sub_proc_map, virtual, &
-                                                            my_B_size, my_B_virtual_start, my_B_virtual_end
+         min_integ_group_size, my_block_size, my_group_L_end, my_group_L_size, &
+         my_group_L_size_orig, my_group_L_start, my_i, my_ij_pairs, my_j, my_new_group_L_size, &
+         ngroup, nspins, num_IJ_blocks, num_integ_group, pos_integ_group, proc_receive, proc_send, &
+         proc_shift, rec_B_size, rec_B_virtual_end, rec_B_virtual_start, rec_L_size, send_B_size
+      INTEGER :: send_B_virtual_end, send_B_virtual_start, send_block_size, send_i, send_ij_index, &
+         send_j, start_point, sub_P_color, sub_sub_color, tag, total_ij_pairs
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: integ_group_pos2color_sub, my_B_size, &
+         my_B_virtual_end, my_B_virtual_start, num_ij_pairs, proc_map, proc_map_rep, &
+         sizes_array_orig, sub_proc_map, virtual
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ij_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: ranges_info_array
       LOGICAL                                            :: my_alpha_alpha_case, my_alpha_beta_case, &
                                                             my_beta_beta_case, my_open_shell_SS
-      REAL(KIND=dp) :: amp_fac, mem_for_aK, mem_for_comm, mem_for_iaK, &
-         mem_for_rep, mem_min, mem_per_group, mem_real, my_Emp2_Cou, my_Emp2_EX, sym_fac
+      REAL(KIND=dp) :: amp_fac, mem_for_aK, mem_for_comm, mem_for_iaK, mem_for_rep, mem_min, &
+         mem_per_group, mem_real, my_Emp2_Cou, my_Emp2_EX, sym_fac
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: external_ab, external_i_aL, local_ab, &
-                                                            local_ba, t_ab, my_local_i_aL, my_local_j_aL
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BI_C_rec, local_i_aL, local_j_aL, Y_i_aP, &
-                                                            Y_j_aP
+                                                            local_ba, my_local_i_aL, &
+                                                            my_local_j_aL, t_ab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BI_C_rec, local_i_aL, local_j_aL, &
+                                                            Y_i_aP, Y_j_aP
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange, para_env_P, &
                                                             para_env_rep
       TYPE(dgemm_counter_type)                           :: dgemm_counter
-      TYPE(three_dim_real_array), ALLOCATABLE, DIMENSION(:) :: B_ia_Q
+      TYPE(three_dim_real_array), ALLOCATABLE, &
+         DIMENSION(:)                                    :: B_ia_Q
 
       CALL timeset(routineN, handle)
 
@@ -131,7 +129,7 @@ CONTAINS
       ALLOCATE (virtual(nspins))
       virtual(:) = nmo - homo(:)
 
-      ALLOCATE(my_B_size(nspins), my_B_virtual_start(nspins), my_B_virtual_end(nspins))
+      ALLOCATE (my_B_size(nspins), my_B_virtual_start(nspins), my_B_virtual_end(nspins))
       DO ispin = 1, nspins
          CALL get_group_dist(gd_B_virtual(ispin), para_env_sub%mepos, &
                              my_B_virtual_start(ispin), my_B_virtual_end(ispin), my_B_size(ispin))
@@ -338,7 +336,7 @@ CONTAINS
                END DO
                CALL timestop(handle3)
 
-               ALLOCATE(my_local_i_aL(dimen_RI, my_B_size(ispin)), my_local_j_aL(dimen_RI, my_B_size(jspin)))
+               ALLOCATE (my_local_i_aL(dimen_RI, my_B_size(ispin)), my_local_j_aL(dimen_RI, my_B_size(jspin)))
 
                ! loop over the block elements
                DO iiB = 1, my_block_size
@@ -493,7 +491,7 @@ CONTAINS
                   END DO ! jjB
                END DO ! iiB
 
-               DEALLOCATE(my_local_i_aL, my_local_j_aL)
+               DEALLOCATE (my_local_i_aL, my_local_j_aL)
 
             ELSE
                ! No work to do and we know that we have to receive nothing, but send something
@@ -514,10 +512,10 @@ CONTAINS
 
                      ! occupied i
                      CALL mp_send(BIb_C(ispin)%array(:, :, send_i:send_i + send_block_size - 1), &
-                                      proc_send, tag, para_env_exchange%group)
+                                  proc_send, tag, para_env_exchange%group)
                      ! occupied j
                      CALL mp_send(BIb_C(jspin)%array(:, :, send_j:send_j + send_block_size - 1), &
-                                      proc_send, tag, para_env_exchange%group)
+                                  proc_send, tag, para_env_exchange%group)
                   END IF
                END DO
             END IF
@@ -604,7 +602,7 @@ CONTAINS
 
             ! make a copy of the original integrals (ia|Q)
             my_group_L_size = my_group_L_size_orig
-            ALLOCATE(B_ia_Q(ispin:jspin))
+            ALLOCATE (B_ia_Q(ispin:jspin))
             DO kspin = ispin, jspin
                ALLOCATE (B_ia_Q(kspin)%array(homo(kspin), my_B_size(kspin), my_group_L_size))
                B_ia_Q(kspin)%array = 0.0_dp
@@ -664,7 +662,7 @@ CONTAINS
                   END DO
                END DO
                ! There is only one B_ia_Q allocated in this case
-               DEALLOCATE(B_ia_Q(ispin)%array)
+               DEALLOCATE (B_ia_Q(ispin)%array)
             ENDIF
             DEALLOCATE (B_ia_Q)
 
@@ -707,9 +705,9 @@ CONTAINS
       END DO
 
       ! We do not need this matrix later, so deallocate it here to safe memory
-      IF (calc_forces) DEALLOCATE(mp2_env%ri_grad%PQ_half)
+      IF (calc_forces) DEALLOCATE (mp2_env%ri_grad%PQ_half)
       IF (calc_forces .AND. .NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) &
-         DEALLOCATE(mp2_env%ri_grad%operator_half)
+         DEALLOCATE (mp2_env%ri_grad%operator_half)
 
       CALL dgemm_counter_write(dgemm_counter, para_env, unit_nr)
 
@@ -889,8 +887,9 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: local_ab, t_ab
       TYPE(mp2_type), POINTER                            :: mp2_env
-      INTEGER, INTENT(IN)                                :: homo(2), virtual(2), dimen_RI, my_B_size(2), &
-                                                            block_size, my_group_L_size
+      INTEGER, INTENT(IN)                                :: homo(2), virtual(2), dimen_RI, &
+                                                            my_B_size(2), block_size, &
+                                                            my_group_L_size
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: local_i_aL, local_j_aL
       LOGICAL, INTENT(IN)                                :: calc_forces
@@ -930,7 +929,7 @@ CONTAINS
             ALLOCATE (t_ab(virtual(ispin), my_B_size(jspin)))
 
             ! That is just a dummy. In that way, we can pass it as array to other routines w/o requirement for allocatable array
-            ALLOCATE (local_ba(1,1))
+            ALLOCATE (local_ba(1, 1))
          ELSE
             ! We need more integrals
             ALLOCATE (local_ba(virtual(jspin), my_B_size(ispin)))
@@ -1368,14 +1367,9 @@ CONTAINS
 !> \param open_ss ...
 !> \param Y_i_aP ...
 !> \param Y_j_aP ...
-!> \param eigenval_beta ...
-!> \param homo_beta ...
-!> \param my_B_size_beta ...
-!> \param gd_B_virtual_beta ...
-!> \param my_B_virtual_start_beta ...
-!> \param my_B_virtual_end_beta ...
-!> \param virtual_beta ...
 !> \param local_ba ...
+!> \param ispin ...
+!> \param jspin ...
 ! **************************************************************************************************
    SUBROUTINE mp2_update_P_gamma(mp2_env, para_env_sub, gd_B_virtual, &
                                  Eigenval, homo, dimen_RI, iiB, jjB, my_B_size, &
@@ -1386,9 +1380,14 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
       TYPE(group_dist_d1_type), DIMENSION(:), INTENT(IN) :: gd_B_virtual
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
-      INTEGER, INTENT(IN)                                :: dimen_RI, iiB, jjB, my_i, my_j
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, my_B_size, my_B_virtual_end, my_B_virtual_start, virtual
-      INTEGER, DIMENSION(-para_env_sub%num_pe:), INTENT(IN)     :: sub_proc_map
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
+      INTEGER, INTENT(IN)                                :: dimen_RI, iiB, jjB
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: my_B_size, my_B_virtual_end, &
+                                                            my_B_virtual_start
+      INTEGER, INTENT(IN)                                :: my_i, my_j
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: virtual
+      INTEGER, DIMENSION(-para_env_sub%num_pe:), &
+         INTENT(IN)                                      :: sub_proc_map
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: local_ab
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: t_ab, my_local_i_aL, my_local_j_aL
       LOGICAL, INTENT(IN)                                :: open_ss
@@ -1400,9 +1399,9 @@ CONTAINS
       INTEGER :: a, b, b_global, handle, proc_receive, proc_send, proc_shift, rec_B_size, &
          rec_B_virtual_end, rec_B_virtual_start, send_B_size, send_B_virtual_end, &
          send_B_virtual_start
-      LOGICAL                                            :: alpha_beta
-      REAL(KIND=dp)                                      :: factor, P_ij_diag
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: external_ab, send_ab
+      REAL(KIND=dp)                                      :: factor, P_ij_diag
+      LOGICAL                                            :: alpha_beta
 
 !
 !  In alpha-beta case Y_j_aP_beta is sent and is received as Y_j_aP
@@ -1412,7 +1411,7 @@ CONTAINS
 ! Find out whether we have an alpha-beta case
 ! update P_ab, Gamma_P_ia
 ! First, P_ab
-      alpha_beta = .NOT.(ispin == jspin)
+      alpha_beta = .NOT. (ispin == jspin)
       IF (open_ss) THEN
          factor = 1.0_dp
       ELSE
@@ -1423,8 +1422,8 @@ CONTAINS
          b_global = b + my_B_virtual_start(jspin) - 1
          DO a = 1, virtual(ispin)
             local_ab(a, b) = -local_ab(a, b)/ &
-               (Eigenval(homo(ispin) + a, ispin) + Eigenval(homo(jspin) + b_global, jspin) - &
-                Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, jspin))
+                             (Eigenval(homo(ispin) + a, ispin) + Eigenval(homo(jspin) + b_global, jspin) - &
+                              Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, jspin))
          END DO
       END DO
       IF (.NOT. (alpha_beta)) THEN
@@ -1437,8 +1436,8 @@ CONTAINS
             b_global = b + my_B_virtual_start(ispin) - 1
             DO a = 1, virtual(jspin)
                local_ba(a, b) = -local_ba(a, b)/ &
-                  (Eigenval(homo(jspin) + a, jspin) + Eigenval(homo(ispin) + b_global, ispin) - &
-                   Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, jspin))
+                                (Eigenval(homo(jspin) + a, jspin) + Eigenval(homo(ispin) + b_global, ispin) - &
+                                 Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, jspin))
             END DO
          END DO
       ENDIF
@@ -1449,7 +1448,7 @@ CONTAINS
          CALL dgemm('T', 'N', my_B_size(ispin), my_B_size(ispin), virtual(ispin), 1.0_dp, &
                     t_ab, virtual(ispin), local_ab, virtual(ispin), &
                     1.0_dp, mp2_env%ri_grad%P_ab(ispin)%array(:, &
-                       my_B_virtual_start(ispin):my_B_virtual_end(ispin)), my_B_size(ispin))
+                                                              my_B_virtual_start(ispin):my_B_virtual_end(ispin)), my_B_size(ispin))
          mp2_env%ri_grad%P_ij(ispin)%array(my_i + iiB - 1, my_i + iiB - 1) = &
             mp2_env%ri_grad%P_ij(ispin)%array(my_i + iiB - 1, my_i + iiB - 1) + P_ij_diag
       ELSE
@@ -1695,9 +1694,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_redistribute_gamma'
 
-      INTEGER :: end_point, handle, handle2, iiB, ij_counter_rec, irep, kkk, lll, &
-         Lstart_pos, proc_receive, proc_send, proc_shift, rec_block_size, rec_i, rec_ij_index, &
-         rec_j, send_L_size, start_point, my_B_size_i, my_B_size_j, tag
+      INTEGER :: end_point, handle, handle2, iiB, ij_counter_rec, irep, kkk, lll, Lstart_pos, &
+         my_B_size_i, my_B_size_j, proc_receive, proc_send, proc_shift, rec_block_size, rec_i, &
+         rec_ij_index, rec_j, send_L_size, start_point, tag
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BI_C_rec, BI_C_send
 
 ! In alpha-beta case Y_i_aP_beta is sent as Y_j_aP
@@ -1742,7 +1741,7 @@ CONTAINS
             proc_receive = proc_map(para_env_exchange%mepos - proc_shift)
 
             send_L_size = sizes_array(proc_send)
-            ALLOCATE (BI_C_send(my_block_size, my_B_size_i+my_B_size_j, send_L_size))
+            ALLOCATE (BI_C_send(my_block_size, my_B_size_i + my_B_size_j, send_L_size))
             CALL timeset(routineN//"_comm2_w", handle2)
             BI_C_send = 0.0_dp
             DO irep = 0, num_integ_group - 1
@@ -1756,7 +1755,7 @@ CONTAINS
                   lll = kkk - start_point + Lstart_pos
                   DO iiB = 1, my_block_size
                      BI_C_send(iiB, 1:my_B_size_i, kkk) = Y_i_aP(1:my_B_size_i, lll, iiB)
-                     BI_C_send(iiB, my_B_size_i+1:, kkk) = Y_j_aP(1:my_B_size_j, lll, iiB)
+                     BI_C_send(iiB, my_B_size_i + 1:, kkk) = Y_j_aP(1:my_B_size_j, lll, iiB)
                   END DO
                END DO
 !$OMP                END PARALLEL DO
@@ -1774,7 +1773,7 @@ CONTAINS
                rec_j = ij_map(ij_counter_rec, 2)
                rec_block_size = ij_map(ij_counter_rec, 3)
 
-               ALLOCATE (BI_C_rec(rec_block_size, my_B_size_i+my_B_size_j, my_group_L_size))
+               ALLOCATE (BI_C_rec(rec_block_size, my_B_size_i + my_B_size_j, my_group_L_size))
                BI_C_rec = 0.0_dp
 
                CALL mp_sendrecv(BI_C_send, proc_send, &
@@ -1788,14 +1787,14 @@ CONTAINS
 !$OMP             PARALLEL DEFAULT(NONE) SHARED(start_point,end_point,rec_block_size,&
 !$OMP                                           mp2_env,rec_i,rec_j,iiB,my_B_size_i,BI_C_rec,ispin,jspin)
 !$OMP             WORKSHARE
-                  mp2_env%ri_grad%Gamma_P_ia(ispin)%array(rec_i:rec_i+rec_block_size - 1, :, start_point:end_point) = &
-                     mp2_env%ri_grad%Gamma_P_ia(ispin)%array(rec_i:rec_i+rec_block_size - 1, :, start_point:end_point) + &
+                  mp2_env%ri_grad%Gamma_P_ia(ispin)%array(rec_i:rec_i + rec_block_size - 1, :, start_point:end_point) = &
+                     mp2_env%ri_grad%Gamma_P_ia(ispin)%array(rec_i:rec_i + rec_block_size - 1, :, start_point:end_point) + &
                      BI_C_rec(:, 1:my_B_size_i, start_point:end_point)
 !$OMP             END WORKSHARE NOWAIT
 !$OMP             WORKSHARE
-                  mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j:rec_j+rec_block_size - 1, :, start_point:end_point) = &
-                     mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j:rec_j+rec_block_size - 1, :, start_point:end_point) + &
-                     BI_C_rec(:, my_B_size_i+1:, start_point:end_point)
+                  mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j:rec_j + rec_block_size - 1, :, start_point:end_point) = &
+                     mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j:rec_j + rec_block_size - 1, :, start_point:end_point) + &
+                     BI_C_rec(:, my_B_size_i + 1:, start_point:end_point)
 !$OMP             END WORKSHARE NOWAIT
 !$OMP             END PARALLEL
                END DO
@@ -1828,7 +1827,7 @@ CONTAINS
                rec_j = ij_map(ij_counter_rec, 2)
                rec_block_size = ij_map(ij_counter_rec, 3)
 
-               ALLOCATE (BI_C_rec(rec_block_size, my_B_size_i+my_B_size_j, my_group_L_size))
+               ALLOCATE (BI_C_rec(rec_block_size, my_B_size_i + my_B_size_j, my_group_L_size))
 
                BI_C_rec = 0.0_dp
 
@@ -1841,14 +1840,14 @@ CONTAINS
 !$OMP             PARALLEL DEFAULT(NONE) SHARED(start_point,end_point,rec_block_size,&
 !$OMP                                           mp2_env,rec_i,rec_j,iiB,my_B_size_i,BI_C_rec,ispin,jspin)
 !$OMP             WORKSHARE
-                  mp2_env%ri_grad%Gamma_P_ia(ispin)%array(rec_i:rec_i+rec_block_size - 1, :, start_point:end_point) = &
-                     mp2_env%ri_grad%Gamma_P_ia(ispin)%array(rec_i:rec_i+rec_block_size - 1, :, start_point:end_point) + &
+                  mp2_env%ri_grad%Gamma_P_ia(ispin)%array(rec_i:rec_i + rec_block_size - 1, :, start_point:end_point) = &
+                     mp2_env%ri_grad%Gamma_P_ia(ispin)%array(rec_i:rec_i + rec_block_size - 1, :, start_point:end_point) + &
                      BI_C_rec(:, 1:my_B_size_i, start_point:end_point)
 !$OMP             END WORKSHARE NOWAIT
 !$OMP             WORKSHARE
-                  mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j:rec_j+rec_block_size - 1, :, start_point:end_point) = &
-                     mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j:rec_j+rec_block_size - 1, :, start_point:end_point) + &
-                     BI_C_rec(:, my_B_size_i+1:, start_point:end_point)
+                  mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j:rec_j + rec_block_size - 1, :, start_point:end_point) = &
+                     mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j:rec_j + rec_block_size - 1, :, start_point:end_point) + &
+                     BI_C_rec(:, my_B_size_i + 1:, start_point:end_point)
 !$OMP             END WORKSHARE NOWAIT
 !$OMP             END PARALLEL
                END DO
@@ -1949,8 +1948,9 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_ijk, num_ijk_beta
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ijk_map, ijk_map_beta
       REAL(KIND=dp)                                      :: amp_fac, P_ij_elem
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: external_ab, external_i_aL, t_ab, &
-         BI_C_rec, local_i_aL, local_j_aL, local_k_aL
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BI_C_rec, external_ab, external_i_aL, &
+                                                            local_i_aL, local_j_aL, local_k_aL, &
+                                                            t_ab
 
       CALL timeset(routineN//"_ij_sing", handle)
 ! Define the number of loops over orbital triplets

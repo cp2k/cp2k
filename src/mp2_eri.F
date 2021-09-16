@@ -48,7 +48,7 @@ MODULE mp2_eri
                                   section_vals_type, &
                                   section_vals_val_get
    USE kinds, ONLY: dp
-   USE libint_2c_3c,                    ONLY: libint_potential_type
+   USE libint_2c_3c, ONLY: libint_potential_type
    USE message_passing, ONLY: mp_sum
    USE orbital_pointers, ONLY: coset, &
                                init_orbital_pointers, &

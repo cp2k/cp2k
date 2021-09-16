@@ -1199,7 +1199,7 @@ CONTAINS
       INTEGER, DIMENSION(3), INTENT(IN)                  :: cell_grid
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell
-      TYPE(cell_type), POINTER, INTENT(IN)               :: cell
+      TYPE(cell_type), INTENT(IN), POINTER               :: cell
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'init_cell_index_rpa'
 

@@ -1347,7 +1347,7 @@ CONTAINS
          keyword, __LOCATION__, &
          name="OMEGA", &
          description="Range separation parameter for the longrange or shortrange potential. "// &
-                     "Only valid when longrange or shortrange potential is requested.", &
+         "Only valid when longrange or shortrange potential is requested.", &
          usage="OMEGA 0.5", type_of_var=real_t, &
          default_r_val=0.5_dp)
       CALL section_add_keyword(section, keyword)

@@ -102,8 +102,9 @@ CONTAINS
          send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, map_rec_size, map_send_size, &
                                                             req_send, sub_proc_map
-      INTEGER, ALLOCATABLE, DIMENSION(:, :) :: grid_2_mepos, grid_ref_2_send_pos, &
-         group_grid_2_mepos, indices_map_my, mepos_2_grid, mepos_2_grid_group
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: grid_2_mepos, grid_ref_2_send_pos, &
+                                                            group_grid_2_mepos, indices_map_my, &
+                                                            mepos_2_grid, mepos_2_grid_group
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: part_ia
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Gamma_2D

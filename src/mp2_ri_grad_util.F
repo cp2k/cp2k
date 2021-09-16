@@ -21,15 +21,9 @@ MODULE mp2_ri_grad_util
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_info,&
-                                              cp_fm_indxg2l,&
-                                              cp_fm_indxg2p,&
-                                              cp_fm_indxl2g,&
-                                              cp_fm_release,&
-                                              cp_fm_set_all,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_indxl2g, cp_fm_release, &
+        cp_fm_set_all, cp_fm_to_fm, cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_type_no_symmetry
@@ -105,15 +99,17 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'complete_gamma'
 
-      INTEGER :: dimen_ia, handle, i, my_ia_end, my_ia_size, my_ia_start, &
-         my_P_end, my_P_size, my_P_start, pos_group, pos_sub
+      INTEGER                                            :: dimen_ia, handle, i, my_ia_end, &
+                                                            my_ia_size, my_ia_start, my_P_end, &
+                                                            my_P_size, my_P_start, pos_group, &
+                                                            pos_sub
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pos_info
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: group_grid_2_mepos, mepos_2_grid_group
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_C_2D, Gamma_2D
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_ia, fm_struct_RI
-      TYPE(cp_fm_type), POINTER                          :: fm_Gamma, fm_Gamma_PQ, fm_Gamma_PQ_2, fm_Gamma_PQ_temp, &
-                                                            fm_Gamma_PQ_temp_2, fm_ia_P, fm_Y, PQ_half, operator_half
+      TYPE(cp_fm_type), POINTER :: fm_Gamma, fm_Gamma_PQ, fm_Gamma_PQ_2, fm_Gamma_PQ_temp, &
+         fm_Gamma_PQ_temp_2, fm_ia_P, fm_Y, operator_half, PQ_half
       TYPE(group_dist_d1_type)                           :: gd_array_new, gd_ia, gd_ia_new, gd_P, &
                                                             gd_P_new
 
@@ -250,13 +246,13 @@ CONTAINS
                       matrix_c=fm_Gamma)
          CALL cp_fm_release(fm_Y)
 
-         NULLIFY(fm_Gamma_PQ_temp_2)
+         NULLIFY (fm_Gamma_PQ_temp_2)
          CALL cp_fm_create(fm_Gamma_PQ_temp_2, fm_struct_RI, name="fm_Gamma_PQ_temp_2")
          CALL cp_gemm(transa="N", transb="T", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
                       matrix_a=fm_Gamma_PQ_temp, matrix_b=operator_half, beta=0.0_dp, &
                       matrix_c=fm_Gamma_PQ_temp_2)
 
-         NULLIFY(fm_Gamma_PQ_2)
+         NULLIFY (fm_Gamma_PQ_2)
          CALL cp_fm_create(fm_Gamma_PQ_2, fm_struct_RI, name="fm_Gamma_PQ_2")
          CALL cp_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
                       matrix_a=PQ_half, matrix_b=fm_Gamma_PQ_temp_2, beta=0.0_dp, &
@@ -266,7 +262,7 @@ CONTAINS
          CALL cp_fm_release(fm_Gamma_PQ_temp)
          CALL cp_fm_release(PQ_half)
 
-         NULLIFY(fm_Gamma_PQ)
+         NULLIFY (fm_Gamma_PQ)
          CALL cp_fm_create(fm_Gamma_PQ, fm_struct_RI)
          CALL cp_fm_struct_release(fm_struct_RI)
          CALL cp_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=-1.0_dp, &
@@ -320,20 +316,39 @@ CONTAINS
 
    END SUBROUTINE complete_gamma
 
+! **************************************************************************************************
+!> \brief Redistribute a 3d matrix to a 2d matrix
+!> \param B_ia_Q ...
+!> \param BIb_C_2D ...
+!> \param homo ...
+!> \param my_B_size ...
+!> \param virtual ...
+!> \param my_B_virtual_start ...
+!> \param my_ia_start ...
+!> \param my_ia_end ...
+!> \param my_ia_size ...
+!> \param my_group_L_size ...
+!> \param para_env_sub ...
+!> \param gd_B_virtual ...
+! **************************************************************************************************
    SUBROUTINE mat_3d_to_2d(B_ia_Q, BIb_C_2D, homo, my_B_size, virtual, my_B_virtual_start, &
                            my_ia_start, my_ia_end, my_ia_size, my_group_L_size, para_env_sub, gd_B_virtual)
-      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE, INTENT(INOUT) :: B_ia_Q
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE, INTENT(OUT) :: BIb_C_2D
-      INTEGER, INTENT(IN) :: homo, my_B_size, virtual, my_B_virtual_start, my_ia_start, my_ia_end, my_ia_size, my_group_L_size
-      TYPE(cp_para_env_type), POINTER, INTENT(IN) :: para_env_sub
-      TYPE(group_dist_d1_type), INTENT(IN) :: gd_B_virtual
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: B_ia_Q
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(OUT)                                     :: BIb_C_2D
+      INTEGER, INTENT(IN)                                :: homo, my_B_size, virtual, &
+                                                            my_B_virtual_start, my_ia_start, &
+                                                            my_ia_end, my_ia_size, my_group_L_size
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
+      TYPE(group_dist_d1_type), INTENT(IN)               :: gd_B_virtual
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mat_3d_to_2d'
 
-      INTEGER :: handle, i, iiB, jjB, ia_global, proc_shift, proc_send, proc_receive, &
-         rec_B_virtual_start, rec_B_virtual_end, rec_B_size
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: sub_proc_map
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: BIb_C_rec
+      INTEGER :: handle, i, ia_global, iiB, jjB, proc_receive, proc_send, proc_shift, rec_B_size, &
+         rec_B_virtual_end, rec_B_virtual_start
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sub_proc_map
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C_rec
 
       CALL timeset(routineN, handle)
 
@@ -386,7 +401,7 @@ CONTAINS
    END SUBROUTINE mat_3d_to_2d
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief redistribute local part of array to fm
 !> \param mat2D ...
 !> \param fm_struct ...
 !> \param num_rows ...
@@ -435,7 +450,8 @@ CONTAINS
          nrow_local, num_rec_cols, number_of_rec, number_of_send, proc_receive, proc_send, &
          proc_shift, rec_col_end, rec_col_size, rec_col_start, rec_counter, rec_pcol, rec_prow, &
          rec_row_end, rec_row_size, rec_row_start, ref_send_pcol, ref_send_prow, send_counter, &
-         send_pcol, send_prow, size_rec_buffer, size_send_buffer, start_col_block, start_row_block
+         send_pcol, send_prow, size_rec_buffer, size_send_buffer, start_col_block
+      INTEGER :: start_row_block
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, index_col_rec, map_rec_size, &
                                                             map_send_size, proc_map, req_send
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: blocks_ranges_col, blocks_ranges_row, &
@@ -805,7 +821,7 @@ CONTAINS
    END SUBROUTINE array2fm
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief redistribute fm to local part of array
 !> \param mat2D ...
 !> \param num_rows ...
 !> \param num_cols ...
@@ -816,7 +832,6 @@ CONTAINS
 !> \param my_cols ...
 !> \param my_start_col ...
 !> \param my_end_col ...
-!> \param sizes ...
 !> \param group_grid_2_mepos ...
 !> \param mepos_2_grid_group ...
 !> \param ngroup_row ...
@@ -836,18 +851,17 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: my_rows, my_start_row, my_end_row, &
                                                             my_cols, my_start_col, my_end_col
-      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: group_grid_2_mepos, &
-                                                            mepos_2_grid_group
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: group_grid_2_mepos, mepos_2_grid_group
       INTEGER, INTENT(IN)                                :: ngroup_row, ngroup_col
       TYPE(cp_fm_type), POINTER                          :: fm_mat
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fm2array'
 
-      INTEGER :: dummy_proc, handle, handle2, i, i_global, iiB, iii, itmp(2), j_global, jjB, mypcol, &
-         myprow, ncol_block, ncol_local, npcol, nprow, nrow_block, nrow_local, num_rec_rows, &
-         number_of_rec, number_of_send, proc_receive, proc_send, proc_shift, rec_col_size, &
-         rec_counter, rec_pcol, rec_prow, rec_row_size, ref_send_pcol, ref_send_prow, &
-         send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer
+      INTEGER :: dummy_proc, handle, handle2, i, i_global, iiB, iii, itmp(2), j_global, jjB, &
+         mypcol, myprow, ncol_block, ncol_local, npcol, nprow, nrow_block, nrow_local, &
+         num_rec_rows, number_of_rec, number_of_send, proc_receive, proc_send, proc_shift, &
+         rec_col_size, rec_counter, rec_pcol, rec_prow, rec_row_size, ref_send_pcol, &
+         ref_send_prow, send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, index_row_rec, map_rec_size, &
                                                             map_send_size, proc_map, req_send
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: grid_2_mepos, grid_ref_2_send_pos, &
@@ -1170,7 +1184,7 @@ CONTAINS
    END SUBROUTINE fm2array
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief redistribute 2D representation of 3d tensor to a set of dbcsr matrices
 !> \param Gamma_2D ...
 !> \param homo ...
 !> \param virtual ...
@@ -1525,7 +1539,7 @@ CONTAINS
    END SUBROUTINE create_dbcsr_gamma
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief prepare array for redistribution
 !> \param para_env ...
 !> \param para_env_sub ...
 !> \param ngroup ...
@@ -1542,8 +1556,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT), &
          OPTIONAL                                        :: pos_info
 
-      INTEGER                                            :: i, pos_group, &
-                                                            pos_sub
+      INTEGER                                            :: i, pos_group, pos_sub
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: my_pos_info
 
       ALLOCATE (my_pos_info(0:para_env%num_pe - 1))

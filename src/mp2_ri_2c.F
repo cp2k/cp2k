@@ -49,8 +49,8 @@ MODULE mp2_ri_2c
    USE cp_fm_types,                     ONLY: &
         cp_fm_copy_general, cp_fm_create, cp_fm_get_info, cp_fm_indxg2p, cp_fm_p_type, &
         cp_fm_release, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
-   USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_gemm_interface,               ONLY: cp_gemm
+   USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -249,7 +249,7 @@ CONTAINS
          ELSE
             IF (calc_forces) THEN
                ! For the gradients, we make a copy of the inverse root of L
-               NULLIFY(fm_matrix_V)
+               NULLIFY (fm_matrix_V)
                CALL cp_fm_create(fm_matrix_V, fm_matrix_L%matrix_struct)
                CALL cp_fm_to_fm(fm_matrix_L, fm_matrix_V)
 

@@ -36,8 +36,7 @@ MODULE qs_environment_types
    USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE dbcsr_api,                       ONLY: dbcsr_distribution_type,&
                                               dbcsr_p_type,&
-                                              dbcsr_release_p,&
-                                              dbcsr_type
+                                              dbcsr_release_p
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type,&
@@ -567,8 +566,8 @@ CONTAINS
                                                             matrix_s_RI_aux_kp
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_ks_aux_fit, &
          matrix_ks_aux_fit_im, matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, matrix_s, &
-         matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_s_RI_aux, matrix_w, &
-         matrix_p_mp2, matrix_p_mp2_admm
+         matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_s_RI_aux, matrix_w, matrix_p_mp2, &
+         matrix_p_mp2_admm
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho, rho_aux_fit, rho_aux_fit_buffer, &
                                                             rho_buffer, rho_xc
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env

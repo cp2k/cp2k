@@ -60,7 +60,7 @@ CONTAINS
                                       do_alpha, do_beta)
 
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval
-      TYPE(dbcsr_type), TARGET, INTENT(IN)               :: mat_SinvVSinv
+      TYPE(dbcsr_type), INTENT(IN), TARGET               :: mat_SinvVSinv
       TYPE(dbcsr_t_type)                                 :: t_3c_overl_nnP_ic, &
                                                             t_3c_overl_nnP_ic_reflected
       INTEGER, INTENT(IN)                                :: gw_corr_lev_tot, gw_corr_lev_occ, &

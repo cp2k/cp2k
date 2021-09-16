@@ -472,7 +472,7 @@ CONTAINS
 !> \author Manuel Guidon
 ! **************************************************************************************************
    ELEMENTAL SUBROUTINE xpbe_hole_t_c_lr_lda_calc_1(e_0, e_rho, e_ndrho, &
-                                          rho, ndrho, sscale, sx, R, order)
+                                                    rho, ndrho, sscale, sx, R, order)
       REAL(KIND=dp), INTENT(INOUT)                       :: e_0, e_rho, e_ndrho
       REAL(KIND=dp), INTENT(IN)                          :: rho, ndrho, sscale, sx, R
       INTEGER, INTENT(IN)                                :: order
@@ -839,7 +839,7 @@ CONTAINS
 !> \author Manuel Guidon
 ! **************************************************************************************************
    ELEMENTAL SUBROUTINE xpbe_hole_t_c_lr_lda_calc_2(e_0, e_rho, e_ndrho, &
-                                          rho, ndrho, sscale, sx, R, order)
+                                                    rho, ndrho, sscale, sx, R, order)
       REAL(KIND=dp), INTENT(INOUT)                       :: e_0, e_rho, e_ndrho
       REAL(KIND=dp), INTENT(IN)                          :: rho, ndrho, sscale, sx, R
       INTEGER, INTENT(IN)                                :: order

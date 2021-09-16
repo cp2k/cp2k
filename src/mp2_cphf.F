@@ -20,9 +20,7 @@ MODULE mp2_cphf
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                              copy_fm_to_dbcsr,&
                                               cp_dbcsr_plus_fm_fm_t,&
-                                              cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
@@ -44,35 +42,28 @@ MODULE mp2_cphf
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
-                                              dbcsr_create,&
-                                              dbcsr_deallocate_matrix,&
-                                              dbcsr_multiply,&
                                               dbcsr_p_type,&
                                               dbcsr_release,&
                                               dbcsr_scale,&
-                                              dbcsr_set,&
-                                              dbcsr_type
+                                              dbcsr_set
    USE hfx_admm_utils,                  ONLY: tddft_hfx_matrix
    USE hfx_derivatives,                 ONLY: derivatives_four_center
    USE hfx_types,                       ONLY: alloc_containers,&
                                               hfx_container_type,&
                                               hfx_init_container,&
                                               hfx_type
-   USE input_constants,                 ONLY: ot_precond_full_all,&
-                                              do_admm_aux_exch_func_none 
-   USE input_section_types,             ONLY: section_get_ival,&
-                                              section_get_rval,&
-                                              section_vals_get,&
+   USE input_constants,                 ONLY: do_admm_aux_exch_func_none,&
+                                              ot_precond_full_all
+   USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
-                                              section_vals_type,&
-                                              section_vals_val_get
+                                              section_vals_type
    USE kahan_sum,                       ONLY: accurate_dot_product
    USE kinds,                           ONLY: dp
    USE linear_systems,                  ONLY: solve_system
    USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: fourpi
    USE message_passing,                 ONLY: mp_sum
-   USE mp2_types,                       ONLY: mp2_type, two_dim_real_array
+   USE mp2_types,                       ONLY: mp2_type
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -93,19 +84,17 @@ MODULE mp2_cphf
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_p_type
-   USE qs_2nd_kernel_ao,                ONLY: apply_2nd_order_kernel,&
-                                              admm_projection_derivative
-   USE qs_collocate_density,            ONLY: calculate_rho_elec
+   USE qs_2nd_kernel_ao,                ONLY: admm_projection_derivative,&
+                                              apply_2nd_order_kernel
    USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
+   USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
-   USE qs_force_types,                  ONLY: allocate_qs_force,&
-                                              deallocate_qs_force,&
+   USE qs_force_types,                  ONLY: deallocate_qs_force,&
                                               qs_force_type,&
                                               sum_qs_force,&
-                                              total_qs_force,&
                                               zero_qs_force
    USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                               integrate_v_rspace
@@ -121,7 +110,6 @@ MODULE mp2_cphf
    USE qs_overlap,                      ONLY: build_overlap_matrix
    USE qs_p_env_methods,                ONLY: p_env_check_i_alloc,&
                                               p_env_create,&
-                                              p_env_finish_kpp1,&
                                               p_env_psi0_changed,&
                                               p_env_update_rho
    USE qs_p_env_types,                  ONLY: p_env_release,&
@@ -133,7 +121,6 @@ MODULE mp2_cphf
    USE task_list_types,                 ONLY: task_list_type
    USE virial_types,                    ONLY: virial_type,&
                                               zero_virial
-   USE qs_dispersion_types,             ONLY: qs_dispersion_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -193,8 +180,9 @@ CONTAINS
                                                             P_mo, W_mo
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER                          :: fm_back, fm_G_mu_nu
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_p_mp2, matrix_p_mp2_admm, matrix_s, &
-                                                            P_mu_nu, rho_ao, rho_ao_aux_fit, rho1_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_p_mp2, &
+                                                            matrix_p_mp2_admm, matrix_s, P_mu_nu, &
+                                                            rho1_ao, rho_ao, rho_ao_aux_fit
       TYPE(hfx_container_type), DIMENSION(:), POINTER    :: integral_containers
       TYPE(hfx_container_type), POINTER                  :: maxval_container
       TYPE(hfx_type), POINTER                            :: actual_x_data
@@ -346,7 +334,7 @@ CONTAINS
       linres_control%preconditioner_type = ot_precond_full_all
       linres_control%energy_gap = 0.02_dp
 
-      NULLIFY(p_env)
+      NULLIFY (p_env)
       CALL p_env_create(p_env, qs_env, p1_option=P_mu_nu, orthogonal_orbitals=.TRUE., linres_control=linres_control)
       CALL set_qs_env(qs_env, linres_control=linres_control)
       CALL p_env_psi0_changed(p_env, qs_env)
@@ -456,7 +444,7 @@ CONTAINS
       END DO
 
       ! create the MP2 energy weighted density matrix
-      NULLIFY(p_env%w1)
+      NULLIFY (p_env%w1)
       CALL dbcsr_allocate_matrix_set(p_env%w1, 1)
       ALLOCATE (p_env%w1(1)%matrix)
       CALL dbcsr_copy(p_env%w1(1)%matrix, matrix_s(1)%matrix, &
@@ -470,7 +458,7 @@ CONTAINS
          CALL cp_fm_release(W_mo(ispin)%matrix)
          CALL cp_dbcsr_plus_fm_fm_t(p_env%w1(1)%matrix, fm_back, mo_coeff(ispin)%matrix, dimen, 1.0_dp, .TRUE.)
       END DO
-      DEALLOCATE(W_mo)
+      DEALLOCATE (W_mo)
 
       CALL qs_rho_get(p_env%rho1, rho_ao=rho1_ao)
 
@@ -981,18 +969,21 @@ CONTAINS
       INTEGER                                            :: alpha, beta, handle, idir, iounit, &
                                                             ispin, nspins
       INTEGER, DIMENSION(3)                              :: comp
-      LOGICAL                                            :: use_virial, do_hfx
-      REAL(KIND=dp)                                      :: e_dummy, e_hartree, e_xc, exc, ehartree
+      LOGICAL                                            :: do_hfx, use_virial
+      REAL(KIND=dp)                                      :: e_dummy, e_hartree, e_xc, ehartree, exc
       REAL(KIND=dp), DIMENSION(3)                        :: deb
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_virial
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_p_mp2, matrix_p_mp2_admm, matrix_s, &
-                                                            rho_ao, scrm, rho1, rho_ao_aux
+      TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:), &
+         TARGET                                          :: matrix_ks_aux
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_p_mp2, &
+                                                            matrix_p_mp2_admm, matrix_s, rho1, &
+                                                            rho_ao, rho_ao_aux, scrm
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp, scrm_kp
-      TYPE(dbcsr_p_type), DIMENSION(:), ALLOCATABLE, TARGET :: matrix_ks_aux
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -1000,25 +991,24 @@ CONTAINS
          POINTER                                         :: sab_orb, sac_ppl, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: pot_g, pot_r, rho_tot_g, &
-                                                            temp_pw_g, vhxc_rspace
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_mp2_g, rho_mp2_r, rho_r, &
-                                                            tau_mp2_r, rho_mp2_r_aux, &
-                                                            vxc_rspace, vtau_rspace, dvg, vadmm_rspace
+      TYPE(pw_p_type)                                    :: pot_g, pot_r, rho_tot_g, temp_pw_g, &
+                                                            vhxc_rspace
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: dvg, rho_g, rho_mp2_g, rho_mp2_r, &
+                                                            rho_mp2_r_aux, rho_r, tau_mp2_r, &
+                                                            vadmm_rspace, vtau_rspace, vxc_rspace
       TYPE(pw_p_type), POINTER                           :: rho_core, vh_rspace
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux
-      TYPE(section_vals_type), POINTER                   :: input, xc_section, hfx_sections
+      TYPE(section_vals_type), POINTER                   :: hfx_sections, input, xc_section
       TYPE(task_list_type), POINTER                      :: task_list_aux_fit
       TYPE(virial_type), POINTER                         :: virial
-      TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
 
       CALL timeset(routineN, handle)
 
@@ -1139,7 +1129,7 @@ CONTAINS
       END IF
 
       ! Get the different components of the KS potential
-      NULLIFY(vh_rspace, vxc_rspace, vtau_rspace, vadmm_rspace)
+      NULLIFY (vh_rspace, vxc_rspace, vtau_rspace, vadmm_rspace)
       IF (use_virial) THEN
          h_stress = 0.0_dp
          CALL ks_ref_potential(qs_env, vh_rspace, vxc_rspace, vtau_rspace, vadmm_rspace, ehartree, exc, h_stress)
@@ -1161,7 +1151,7 @@ CONTAINS
       CALL get_qs_env(qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
-      NULLIFY(vhxc_rspace%pw)
+      NULLIFY (vhxc_rspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, vhxc_rspace%pw, &
                              use_data=REALDATA3D, in_space=REALSPACE)
       IF (use_virial) h_stress = virial%pv_virial
@@ -1215,9 +1205,8 @@ CONTAINS
          IF (ASSOCIATED(vtau_rspace)) CALL pw_pool_give_back_pw(auxbas_pw_pool, vtau_rspace(ispin)%pw)
       END DO
       CALL pw_pool_give_back_pw(auxbas_pw_pool, vhxc_rspace%pw)
-      DEALLOCATE(vxc_rspace)
-      IF (ASSOCIATED(vtau_rspace)) DEALLOCATE(vtau_rspace)
-
+      DEALLOCATE (vxc_rspace)
+      IF (ASSOCIATED(vtau_rspace)) DEALLOCATE (vtau_rspace)
 
       DO ispin = 1, nspins
          CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, -1.0_dp)
@@ -1247,9 +1236,9 @@ CONTAINS
          CALL pw_axpy(rho_mp2_g(ispin)%pw, rho_tot_g%pw)
       END DO
 
-      NULLIFY(dvg)
+      NULLIFY (dvg)
       IF (use_virial) THEN
-         ALLOCATE(dvg(3))
+         ALLOCATE (dvg(3))
          DO idir = 1, 3
             NULLIFY (dvg(idir)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, dvg(idir)%pw, &
@@ -1269,7 +1258,7 @@ CONTAINS
       IF (debug_forces) THEN
          deb(:) = force(1)%rho_core(:, 1)
          CALL mp_sum(deb, para_env%group)
-         IF (iounit > 0) WRITE(iounit, "(T3,A,T33,3F16.8)") "DEBUG:: core      ", deb
+         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: core      ", deb
          IF (use_virial) THEN
             e_dummy = third_tr(virial%pv_virial) - e_dummy
             CALL mp_sum(e_dummy, para_env%group)
@@ -1277,7 +1266,7 @@ CONTAINS
          END IF
       END IF
       CALL pw_pool_give_back_pw(auxbas_pw_pool, vh_rspace%pw)
-      DEALLOCATE(vh_rspace)
+      DEALLOCATE (vh_rspace)
 
       IF (use_virial) THEN
          ! update virial if necessary with the volume term
@@ -1320,7 +1309,7 @@ CONTAINS
          DO idir = 1, 3
             CALL pw_pool_give_back_pw(auxbas_pw_pool, dvg(idir)%pw)
          END DO
-         DEALLOCATE(dvg)
+         DEALLOCATE (dvg)
 
          virial%pv_ehartree = virial%pv_ehartree + h_stress/REAL(para_env%num_pe, dp)
          virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env%num_pe, dp)
@@ -1363,14 +1352,14 @@ CONTAINS
       IF (debug_forces) THEN
          deb(:) = force(1)%rho_elec(:, 1) - deb
          CALL mp_sum(deb, para_env%group)
-         IF (iounit > 0) WRITE(iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P0*Khxc    ", deb
+         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P0*Khxc    ", deb
          IF (use_virial) THEN
             e_dummy = third_tr(virial%pv_virial) - e_dummy
             CALL mp_sum(e_dummy, para_env%group)
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: Khxc      ", e_dummy
          END IF
       END IF
-      
+
       ! hfx section
       NULLIFY (hfx_sections)
       hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%HF")
@@ -1430,7 +1419,7 @@ CONTAINS
             IF (debug_forces) THEN
                deb(:) = force(1)%overlap_admm(:, 1) - deb
                CALL mp_sum(deb, para_env%group)
-               IF (iounit > 0) WRITE(iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*KADMM*dS'", deb
+               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*KADMM*dS'", deb
                IF (use_virial) THEN
                   e_dummy = third_tr(virial%pv_virial) - e_dummy
                   CALL mp_sum(e_dummy, para_env%group)
@@ -1439,10 +1428,10 @@ CONTAINS
             END IF
             IF (use_virial) virial%pv_exc = virial%pv_exc + (virial%pv_virial - h_stress)
 
-            ALLOCATE(matrix_ks_aux(nspins))
+            ALLOCATE (matrix_ks_aux(nspins))
             DO ispin = 1, nspins
-               NULLIFY(matrix_ks_aux(ispin)%matrix)
-               ALLOCATE(matrix_ks_aux(ispin)%matrix)
+               NULLIFY (matrix_ks_aux(ispin)%matrix)
+               ALLOCATE (matrix_ks_aux(ispin)%matrix)
                CALL dbcsr_copy(matrix_ks_aux(ispin)%matrix, p_env%kpp1_admm(ispin)%matrix)
                CALL dbcsr_set(matrix_ks_aux(ispin)%matrix, 0.0_dp)
             END DO
@@ -1488,11 +1477,11 @@ CONTAINS
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, vadmm_rspace(ispin)%pw)
                END DO
                IF (use_virial) virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - h_stress)
-               DEALLOCATE(vadmm_rspace)
+               DEALLOCATE (vadmm_rspace)
                IF (debug_forces) THEN
                   deb(:) = force(1)%rho_elec(:, 1) - deb
                   CALL mp_sum(deb, para_env%group)
-                  IF (iounit > 0) WRITE(iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*VADMM' ", deb
+                  IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*VADMM' ", deb
                   IF (use_virial) THEN
                      e_dummy = third_tr(virial%pv_virial) - e_dummy
                      CALL mp_sum(e_dummy, para_env%group)
@@ -1520,7 +1509,7 @@ CONTAINS
             IF (debug_forces) THEN
                deb(:) = force(1)%overlap_admm(:, 1) - deb
                CALL mp_sum(deb, para_env%group)
-               IF (iounit > 0) WRITE(iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*VADMM*dS'", deb
+               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*VADMM*dS'", deb
                IF (use_virial) THEN
                   e_dummy = third_tr(virial%pv_virial) - e_dummy
                   CALL mp_sum(e_dummy, para_env%group)
@@ -1535,9 +1524,9 @@ CONTAINS
 
             DO ispin = 1, nspins
                CALL dbcsr_release(matrix_ks_aux(ispin)%matrix)
-               DEALLOCATE(matrix_ks_aux(ispin)%matrix)
+               DEALLOCATE (matrix_ks_aux(ispin)%matrix)
             END DO
-            DEALLOCATE(matrix_ks_aux)
+            DEALLOCATE (matrix_ks_aux)
          END IF
       END IF
 
@@ -1561,7 +1550,7 @@ CONTAINS
       IF (debug_forces) THEN
          deb = force(1)%overlap(1:3, 1)
          CALL mp_sum(deb, para_env%group)
-         IF (iounit>0) WRITE(iounit, "(T3,A,T33,3F16.8)") "DEBUG:: W*dS     ", deb
+         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: W*dS     ", deb
          IF (use_virial) THEN
             e_dummy = third_tr(virial%pv_virial) - e_dummy
             CALL mp_sum(e_dummy, para_env%group)
@@ -1600,9 +1589,14 @@ CONTAINS
 
    END SUBROUTINE update_mp2_forces
 
+! **************************************************************************************************
+!> \brief Calculates the third of the trace of a 3x3 matrix, for debugging purposes
+!> \param matrix ...
+!> \return ...
+! **************************************************************************************************
    PURE FUNCTION third_tr(matrix)
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN) :: matrix
-      REAL(KIND=dp) :: third_tr
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: matrix
+      REAL(KIND=dp)                                      :: third_tr
 
       third_tr = (matrix(1, 1) + matrix(2, 2) + matrix(3, 3))/3.0_dp
 

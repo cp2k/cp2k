@@ -127,8 +127,7 @@ MODULE qs_ks_methods
    USE qs_ks_atom,                      ONLY: update_ks_atom
    USE qs_ks_qmmm_methods,              ONLY: qmmm_calculate_energy,&
                                               qmmm_modify_hartree_pot
-   USE qs_ks_types,                     ONLY: get_ks_env,&
-                                              qs_ks_env_type,&
+   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                               set_ks_env
    USE qs_ks_utils,                     ONLY: &
         calc_v_sic_rspace, calculate_zmp_potential, compute_matrix_vxc, &
@@ -218,7 +217,8 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ksmat, matrix_p_mp2_admm, matrix_vxc, mo_derivs, rho_ao_aux
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ksmat, matrix_p_mp2_admm, matrix_vxc, &
+                                                            mo_derivs, rho_ao_aux
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, matrix_h, matrix_s, my_rho, &
                                                             rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control

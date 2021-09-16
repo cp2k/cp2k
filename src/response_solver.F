@@ -51,9 +51,7 @@ MODULE response_solver
                                               kg_tnadd_atomic,&
                                               kg_tnadd_embed,&
                                               ot_precond_full_single_inverse
-   USE input_section_types,             ONLY: section_get_ival,&
-                                              section_get_rval,&
-                                              section_vals_get,&
+   USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -121,11 +119,8 @@ MODULE response_solver
                                               xc_prep_2nd_deriv
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                               xc_dset_release
-   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
-   USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
-                                              xc_rho_set_release,&
-                                              xc_rho_set_type,&
-                                              xc_rho_set_update
+   USE xc_rho_set_types,                ONLY: xc_rho_set_release,&
+                                              xc_rho_set_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -327,8 +322,9 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: rhoz_tot_gspace, vhxc_rspace, &
                                                             zv_hartree_gspace, zv_hartree_rspace
-      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_g, rho_g_aux, rho_r, rho_r_aux, rhoz_g, &
-         rhoz_g_aux, rhoz_r, rhoz_r_aux, tau_r, tau_r_aux, v_xc
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_g_aux, rho_r, rho_r_aux, &
+                                                            rhoz_g, rhoz_g_aux, rhoz_r, &
+                                                            rhoz_r_aux, tau_r, tau_r_aux, v_xc
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -629,7 +625,7 @@ CONTAINS
                                        basis_type="AUX_FIT", task_list_external=task_list_aux_fit)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, vadmm_rspace(ispin)%pw)
             END DO
-            DEALLOCATE(vadmm_rspace)
+            DEALLOCATE (vadmm_rspace)
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
                CALL mp_sum(fodeb, para_env%group)
@@ -1050,12 +1046,13 @@ CONTAINS
       TYPE(pw_p_type), POINTER                           :: vh_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rspace, vtau_rspace, vadmm_rspace
       REAL(KIND=dp), INTENT(OUT)                         :: ehartree, exc
-      REAL(KIND=dp), INTENT(INOUT), DIMENSION(3, 3), OPTIONAL :: h_stress
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
+         OPTIONAL                                        :: h_stress
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ks_ref_potential'
 
       INTEGER                                            :: handle, iab, ispin, nspins
-      REAL(dp)                                           :: eovrl, eself, eadmm
+      REAL(dp)                                           :: eadmm, eovrl, eself
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -1065,8 +1062,9 @@ CONTAINS
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(pw_p_type)                                    :: rho_tot_gspace, v_hartree_gspace, &
                                                             v_hartree_rspace
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_admm_rspace, v_admm_tau_rspace, &
+                                                            v_rspace, v_tau_rspace
       TYPE(pw_p_type), POINTER                           :: rho_core
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace, v_tau_rspace, v_admm_rspace, v_admm_tau_rspace
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -1127,7 +1125,7 @@ CONTAINS
       CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho, xc_section=xc_section, &
                          vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE.)
 
-      NULLIFY(v_admm_rspace, v_admm_tau_rspace)
+      NULLIFY (v_admm_rspace, v_admm_tau_rspace)
       IF (dft_control%do_admm) THEN
          IF (dft_control%admm_control%aux_exch_func /= do_admm_aux_exch_func_none) THEN
             ! For the virial, we have to save the pv_xc component because it will be reset in qs_vxc_create

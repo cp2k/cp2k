@@ -37,8 +37,6 @@ MODULE qs_kpp1_env_methods
                                               tddfpt_excitations,&
                                               tddfpt_triplet
    USE input_section_types,             ONLY: section_get_ival,&
-                                              section_get_lval,&
-                                              section_get_rval,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -56,8 +54,7 @@ MODULE qs_kpp1_env_methods
                                               pw_copy,&
                                               pw_integrate_function,&
                                               pw_scale,&
-                                              pw_transfer,&
-                                              pw_zero
+                                              pw_transfer
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -89,14 +86,9 @@ MODULE qs_kpp1_env_methods
                                               qs_rho_type
    USE qs_vxc_atom,                     ONLY: calculate_xc_2nd_deriv_atom
    USE xc,                              ONLY: xc_calc_2nd_deriv,&
-                                              xc_prep_2nd_deriv,&
-                                              xc_vxc_pw_create
+                                              xc_prep_2nd_deriv
    USE xc_derivative_set_types,         ONLY: xc_dset_release
-   USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
-                                              xc_rho_set_get,&
-                                              xc_rho_set_release,&
-                                              xc_rho_set_type,&
-                                              xc_rho_set_update
+   USE xc_rho_set_types,                ONLY: xc_rho_set_release
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -219,7 +211,8 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_p_env_type), POINTER                       :: p_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: calc_forces, calc_virial
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), OPTIONAL :: virial
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
+         OPTIONAL                                        :: virial
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calc_kpp1', routineP = moduleN//':'//routineN
 
@@ -238,8 +231,8 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: rho1_tot_gspace, v_hartree_gspace, &
                                                             v_hartree_rspace
-      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho1_g, rho1_g_pw, rho1_r, rho1_r_pw, &
-         v_rspace_new, v_xc
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_g_pw, rho1_r, rho1_r_pw, &
+                                                            v_rspace_new, v_xc
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_rho_type), POINTER                         :: rho

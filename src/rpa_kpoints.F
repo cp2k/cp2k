@@ -113,7 +113,8 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_gw_im_time, do_ri_Sigma_x, &
                                                             do_kpoints_from_Gamma, &
                                                             do_kpoints_cubic_RPA
-      TYPE(cp_cfm_p_type), DIMENSION(:, :), ALLOCATABLE, INTENT(INOUT) :: cfm_mat_W_kp_tau
+      TYPE(cp_cfm_p_type), ALLOCATABLE, &
+         DIMENSION(:, :), INTENT(INOUT)                  :: cfm_mat_W_kp_tau
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
       INTEGER, DIMENSION(:), INTENT(IN)                  :: ikp_local
       TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(INOUT) :: mat_P_omega, mat_P_omega_kp
@@ -554,7 +555,8 @@ CONTAINS
    SUBROUTINE allocate_Wc_kp_tau_GW(cfm_mat_W_kp_tau, cfm_mat_Q, num_integ_points, jquad, &
                                     nkp, ikp_local)
 
-      TYPE(cp_cfm_p_type), DIMENSION(:, :), ALLOCATABLE, INTENT(OUT) :: cfm_mat_W_kp_tau
+      TYPE(cp_cfm_p_type), ALLOCATABLE, &
+         DIMENSION(:, :), INTENT(OUT)                    :: cfm_mat_W_kp_tau
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
       INTEGER, INTENT(IN)                                :: num_integ_points, jquad, nkp
       INTEGER, DIMENSION(:), INTENT(IN)                  :: ikp_local

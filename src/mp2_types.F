@@ -33,8 +33,8 @@ MODULE mp2_types
    USE libint_2c_3c,                    ONLY: libint_potential_type
    USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_sum
-   USE qs_p_env_types,                  ONLY: qs_p_env_type
    USE qs_force_types,                  ONLY: qs_force_type
+   USE qs_p_env_types,                  ONLY: qs_p_env_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -322,14 +322,13 @@ CONTAINS
    END SUBROUTINE mp2_env_create
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Initialize a dgemm_counter
 !> \param dgemm_counter ...
 ! **************************************************************************************************
    ELEMENTAL SUBROUTINE dgemm_counter_init(dgemm_counter)
       TYPE(dgemm_counter_type), INTENT(OUT)              :: dgemm_counter
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dgemm_counter_init'
-
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dgemm_counter_init'
 
       dgemm_counter%num_dgemm_call = 0
       dgemm_counter%flop_rate = 0.0
@@ -337,21 +336,20 @@ CONTAINS
    END SUBROUTINE dgemm_counter_init
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief start timer of the counter
 !> \param dgemm_counter ...
 ! **************************************************************************************************
    SUBROUTINE dgemm_counter_start(dgemm_counter)
       TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dgemm_counter_start'
-
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dgemm_counter_start'
 
       dgemm_counter%t_start = m_walltime()
 
    END SUBROUTINE dgemm_counter_start
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief stop timer of the counter and provide matrix sizes
 !> \param dgemm_counter ...
 !> \param size1 ...
 !> \param size2 ...
@@ -361,27 +359,29 @@ CONTAINS
       TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
       INTEGER, INTENT(IN)                                :: size1, size2, size3
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dgemm_counter_stop'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dgemm_counter_stop'
 
       REAL(KIND=dp)                                      :: flop_rate, t_end
 
       t_end = m_walltime()
-      flop_rate = 2.0_dp*REAL(size1, dp)*REAL(size2, dp)*REAL(size3, dp)/MAX(0.001_dp, t_end-dgemm_counter%t_start)
+      flop_rate = 2.0_dp*REAL(size1, dp)*REAL(size2, dp)*REAL(size3, dp)/MAX(0.001_dp, t_end - dgemm_counter%t_start)
       dgemm_counter%flop_rate = dgemm_counter%flop_rate + flop_rate
       dgemm_counter%num_dgemm_call = dgemm_counter%num_dgemm_call + 1
 
    END SUBROUTINE dgemm_counter_stop
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief calculate and print flop rates
 !> \param dgemm_counter ...
+!> \param para_env ...
+!> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE dgemm_counter_write(dgemm_counter, para_env, unit_nr)
       TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
-      TYPE(cp_para_env_type), POINTER, INTENT(IN)        :: para_env
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       INTEGER, INTENT(IN)                                :: unit_nr
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dgemm_counter_write'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dgemm_counter_write'
 
       dgemm_counter%flop_rate = dgemm_counter%flop_rate/REAL(MAX(dgemm_counter%num_dgemm_call, 1), dp)/1.0E9_dp
       CALL mp_sum(dgemm_counter%flop_rate, para_env%group)

@@ -22,10 +22,7 @@ MODULE kg_correction
                                               kg_tnadd_embed,&
                                               kg_tnadd_embed_ri,&
                                               kg_tnadd_none
-   USE input_section_types,             ONLY: section_get_ival,&
-                                              section_get_rval,&
-                                              section_vals_get_subs_vals,&
-                                              section_vals_type
+   USE input_section_types,             ONLY: section_vals_type
    USE kg_environment_types,            ONLY: kg_environment_type
    USE kinds,                           ONLY: dp
    USE lri_environment_methods,         ONLY: calculate_lri_densities,&
@@ -38,13 +35,9 @@ MODULE kg_correction
    USE message_passing,                 ONLY: mp_sum
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_methods,                      ONLY: pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
+   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
-                                              pw_p_type
+   USE pw_types,                        ONLY: pw_p_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_integrate_potential,          ONLY: integrate_v_rspace,&

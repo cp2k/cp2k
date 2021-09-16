@@ -37,15 +37,9 @@ MODULE rpa_util
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_create,&
-                                              dbcsr_deallocate_matrix,&
-                                              dbcsr_filter,&
-                                              dbcsr_get_info,&
-                                              dbcsr_multiply,&
-                                              dbcsr_p_type,&
-                                              dbcsr_release,&
-                                              dbcsr_set,&
-                                              dbcsr_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_create, dbcsr_deallocate_matrix, dbcsr_filter, dbcsr_get_info, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type
    USE dbcsr_tensor_api,                ONLY: dbcsr_t_destroy,&
                                               dbcsr_t_type
    USE hfx_types,                       ONLY: block_ind_type,&
@@ -56,11 +50,12 @@ MODULE rpa_util
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
-   USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: z_zero
    USE message_passing,                 ONLY: mp_sum
    USE mp2_laplace,                     ONLY: calc_fm_mat_S_laplace
-   USE mp2_types,                       ONLY: dgemm_counter_type, dgemm_counter_start, dgemm_counter_stop
+   USE mp2_types,                       ONLY: dgemm_counter_start,&
+                                              dgemm_counter_stop,&
+                                              dgemm_counter_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE rpa_gw_kpoints,                  ONLY: compute_wkp_W
@@ -168,7 +163,8 @@ CONTAINS
                                                             my_open_shell
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :), &
          INTENT(OUT)                                     :: has_mat_P_blocks
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE, INTENT(OUT) :: wkp_W
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(OUT)                                     :: wkp_W
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L
       TYPE(cp_fm_type), POINTER                          :: fm_mat_RI_global_work, fm_mat_work, &
@@ -177,14 +173,16 @@ CONTAINS
       TYPE(dbcsr_p_type), INTENT(OUT)                    :: mat_dm, mat_L, mat_M_P_munu_occ, &
                                                             mat_M_P_munu_virt, mat_P_global_copy, &
                                                             mat_SinvVSinv
-      TYPE(dbcsr_p_type), DIMENSION(:, :, :), ALLOCATABLE :: mat_P_omega
+      TYPE(dbcsr_p_type), ALLOCATABLE, &
+         DIMENSION(:, :, :)                              :: mat_P_omega
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega_kp
       TYPE(dbcsr_type), POINTER                          :: mat_work
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'alloc_im_time'
 
       INTEGER                                            :: cell_grid_dm(3), first_ikp_local, &
-                                                            handle, i_dim, ispin, nspins_P_omega, periodic(3), i_kp, jquad
+                                                            handle, i_dim, i_kp, ispin, jquad, &
+                                                            nspins_P_omega, periodic(3)
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_size
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, fm_struct_sub_kp
@@ -256,11 +254,11 @@ CONTAINS
       nspins_P_omega = 1
       IF (do_ri_sos_laplace_mp2 .AND. my_open_shell) nspins_P_omega = 2
 
-      ALLOCATE(mat_P_omega(num_integ_points, size_P, nspins_P_omega))
+      ALLOCATE (mat_P_omega(num_integ_points, size_P, nspins_P_omega))
       DO ispin = 1, nspins_P_omega
          DO i_kp = 1, size_P
             DO jquad = 1, num_integ_points
-               NULLIFY(mat_P_omega(jquad, i_kp, ispin)%matrix)
+               NULLIFY (mat_P_omega(jquad, i_kp, ispin)%matrix)
                ALLOCATE (mat_P_omega(jquad, i_kp, ispin)%matrix)
                CALL dbcsr_create(matrix=mat_P_omega(jquad, i_kp, ispin)%matrix, &
                                  template=mat_P_global%matrix)
@@ -750,8 +748,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: mm_style, dimen_RI, dimen_ia
       REAL(KIND=dp), INTENT(IN)                          :: alpha
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_S, fm_mat_Q_gemm
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_Q
+      TYPE(cp_fm_type), POINTER                          :: fm_mat_S, fm_mat_Q_gemm, fm_mat_Q
       TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'contract_S_to_Q'
@@ -1016,7 +1013,8 @@ CONTAINS
                               t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, mat_work)
 
       TYPE(cp_fm_p_type), DIMENSION(:)                   :: fm_mo_coeff_occ, fm_mo_coeff_virt
-      TYPE(cp_fm_type), POINTER                          :: fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
+      TYPE(cp_fm_type), POINTER                          :: fm_scaled_dm_occ_tau, &
+                                                            fm_scaled_dm_virt_tau
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: ikp_local
       INTEGER, ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: index_to_cell_3c
@@ -1026,14 +1024,16 @@ CONTAINS
                                                             do_kpoints_from_Gamma, do_ri_Sigma_x
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :), &
          INTENT(INOUT)                                   :: has_mat_P_blocks
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE, INTENT(INOUT) :: wkp_W
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT)                                   :: wkp_W
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L
       TYPE(cp_fm_type), POINTER                          :: fm_mat_RI_global_work, fm_mat_work, &
                                                             fm_mo_coeff_occ_scaled, &
                                                             fm_mo_coeff_virt_scaled
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_dm, mat_L, mat_SinvVSinv
-      TYPE(dbcsr_p_type), DIMENSION(:, :, :), INTENT(INOUT), ALLOCATABLE     :: mat_P_omega
+      TYPE(dbcsr_p_type), ALLOCATABLE, &
+         DIMENSION(:, :, :), INTENT(INOUT)               :: mat_P_omega
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega_kp
       TYPE(dbcsr_t_type)                                 :: t_3c_M
       TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_O
@@ -1045,8 +1045,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dealloc_im_time'
 
-      INTEGER                                            :: cut_memory, handle, i_mem, i_size, &
-                                                            ispin, j_size, nspins, unused, i_kp, jquad
+      INTEGER                                            :: cut_memory, handle, i_kp, i_mem, i_size, &
+                                                            ispin, j_size, jquad, nspins, unused
       LOGICAL                                            :: my_open_shell
 
       CALL timeset(routineN, handle)
@@ -1102,7 +1102,7 @@ CONTAINS
             END DO
          END DO
       END DO
-      DEALLOCATE(mat_P_omega)
+      DEALLOCATE (mat_P_omega)
 
       DO i_size = 1, SIZE(t_3c_O, 1)
          DO j_size = 1, SIZE(t_3c_O, 2)

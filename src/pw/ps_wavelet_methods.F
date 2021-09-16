@@ -73,7 +73,7 @@ CONTAINS
 
       IF (ASSOCIATED(wavelet)) THEN
          CALL ps_wavelet_release(wavelet)
-         NULLIFY(wavelet)
+         NULLIFY (wavelet)
       END IF
 
       ALLOCATE (wavelet)

@@ -565,8 +565,9 @@ CONTAINS
    SUBROUTINE xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs, &
                                 xc_deriv_method_id, xc_rho_smooth_id, pw_pool)
       TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho_set
-      TYPE(pw_p_type), DIMENSION(:), INTENT(IN)          :: rho_r, tau
+      TYPE(pw_p_type), DIMENSION(:), INTENT(IN)          :: rho_r
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g
+      TYPE(pw_p_type), DIMENSION(:), INTENT(IN)          :: tau
       TYPE(xc_rho_cflags_type), INTENT(in)               :: needs
       INTEGER, INTENT(IN)                                :: xc_deriv_method_id, xc_rho_smooth_id
       TYPE(pw_pool_type), POINTER                        :: pw_pool

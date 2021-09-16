@@ -425,7 +425,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: tot_rho_r_aux
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho1_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r_aux, rho_g_aux
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g_aux, rho_r_aux
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(task_list_type), POINTER                      :: task_list
@@ -1072,8 +1072,13 @@ CONTAINS
 
    END SUBROUTINE p_postortho
 
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param p_env ...
+! **************************************************************************************************
    SUBROUTINE p_env_finish_kpp1(qs_env, p_env)
-      TYPE(qs_environment_type), POINTER, INTENT(IN)     :: qs_env
+      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(qs_p_env_type), INTENT(IN)                    :: p_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'p_env_finish_kpp1'

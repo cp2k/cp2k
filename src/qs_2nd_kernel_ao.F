@@ -20,66 +20,45 @@ MODULE qs_2nd_kernel_ao
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_plus_fm_fm_t,&
-                                              cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_set_all,&
-                                              cp_fm_type
+                                              cp_fm_set_all
    USE cp_gemm_interface,               ONLY: cp_gemm
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
-                                              dbcsr_copy,&
-                                              dbcsr_create,&
-                                              dbcsr_deallocate_matrix,&
-                                              dbcsr_p_type,&
-                                              dbcsr_release,&
-                                              dbcsr_scale,&
-                                              dbcsr_set,&
-                                              dbcsr_type,&
-                                              dbcsr_type_no_symmetry
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_p_type, dbcsr_release, &
+        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE hfx_admm_utils,                  ONLY: tddft_hfx_matrix
-   USE hfx_derivatives,                 ONLY: derivatives_four_center
    USE input_constants,                 ONLY: do_admm_aux_exch_func_none,&
                                               do_admm_basis_projection,&
                                               do_admm_exch_scaling_none,&
                                               do_admm_purify_none
-   USE input_section_types,             ONLY: section_get_ival,&
-                                              section_get_rval,&
-                                              section_vals_get,&
+   USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_methods,                      ONLY: pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
+   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_p_type
-   USE qs_collocate_density,            ONLY: calculate_rho_elec
+   USE pw_types,                        ONLY: pw_p_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: add_qs_force,&
-                                              qs_force_type,&
-                                              total_qs_force
+                                              qs_force_type
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
    USE qs_kpp1_env_methods,             ONLY: calc_kpp1
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_linres_types,                 ONLY: linres_control_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_overlap,                      ONLY: build_overlap_force
-   USE qs_p_env_types,                  ONLY: qs_p_env_type
    USE qs_p_env_methods,                ONLY: p_env_finish_kpp1
+   USE qs_p_env_types,                  ONLY: qs_p_env_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE task_list_types,                 ONLY: task_list_type
-   USE virial_types,                    ONLY: virial_type
    USE xc,                              ONLY: xc_calc_2nd_deriv
 #include "./base/base_uses.f90"
 
@@ -134,16 +113,29 @@ CONTAINS
 
    END SUBROUTINE build_dm_response
 
+! **************************************************************************************************
+!> \brief Calculate a second order kernel (DFT, HF, ADMM correction) for a given density
+!> \param qs_env ...
+!> \param p_env perturbation environment containing the correct density matrices p_env%p1, p_env%p1_admm,
+!>        the kernel will be saved in p_env%kpp1, p_env%kpp1_admm
+!> \param recalc_hfx_integrals whether to recalculate the HFX integrals
+!> \param calc_forces whether to calculate forces
+!> \param calc_virial whether to calculate virials
+!> \param virial collect the virial terms from the XC + ADMM parts (terms from integration will be added to pv_virial)
+! **************************************************************************************************
    SUBROUTINE apply_2nd_order_kernel(qs_env, p_env, recalc_hfx_integrals, calc_forces, calc_virial, virial)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
-      LOGICAL, INTENT(IN), OPTIONAL                      :: recalc_hfx_integrals, calc_forces, calc_virial
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), OPTIONAL :: virial
+      LOGICAL, INTENT(IN), OPTIONAL                      :: recalc_hfx_integrals, calc_forces, &
+                                                            calc_virial
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
+         OPTIONAL                                        :: virial
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'apply_2nd_order_kernel'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_2nd_order_kernel'
 
       INTEGER                                            :: handle, ispin
-      LOGICAL                                            :: do_hfx, my_recalc_hfx_integrals, my_calc_forces
+      LOGICAL                                            :: do_hfx, my_calc_forces, &
+                                                            my_recalc_hfx_integrals
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
@@ -212,7 +204,7 @@ CONTAINS
       INTEGER                                            :: handle, ispin, nspins
       LOGICAL                                            :: my_recalc_integrals
       REAL(KIND=dp)                                      :: alpha
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho1, work_hmat, h1_mat
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: h1_mat, rho1, work_hmat
       TYPE(dft_control_type), POINTER                    :: dft_control
 
       CALL timeset(routineN, handle)
@@ -276,15 +268,19 @@ CONTAINS
    END SUBROUTINE apply_hfx_ao
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief apply the kernel from the ADMM exchange correction
 !> \param qs_env ...
 !> \param p_env perturbation environment
+!> \param calc_forces whether to calculate forces
+!> \param calc_virial whether to calculate gradients
+!> \param virial collects the virial terms from the XC functional (virial terms from integration are collected in pv_virial)
 ! **************************************************************************************************
    SUBROUTINE apply_xc_admm_ao(qs_env, p_env, calc_forces, calc_virial, virial)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: calc_forces, calc_virial
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), OPTIONAL :: virial
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
+         OPTIONAL                                        :: virial
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_xc_admm_ao'
 
@@ -297,7 +293,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_aux_g, rho1_aux_r, tau_pw, v_xc
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_aux_g, rho1_aux_r, v_xc
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_aux
@@ -326,7 +322,7 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
          CPASSERT(ASSOCIATED(pw_env))
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-         NULLIFY (tau_pw, v_xc)
+         NULLIFY (v_xc)
          ! calculate the xc potential
          lsd = (nspins == 2)
          CALL get_qs_env(qs_env=qs_env, ks_env=ks_env, task_list_aux_fit=task_list_aux_fit, admm_env=admm_env)
@@ -339,8 +335,8 @@ CONTAINS
                                 rho1_aux_r, rho1_aux_g, auxbas_pw_pool, xc_section=xc_section, gapw=.FALSE., &
                                 compute_virial=calc_virial, virial_xc=virial)
 
-         NULLIFY(work_hmat%matrix)
-         ALLOCATE(work_hmat%matrix)
+         NULLIFY (work_hmat%matrix)
+         ALLOCATE (work_hmat%matrix)
          CALL dbcsr_copy(work_hmat%matrix, p_env%kpp1_admm(1)%matrix)
 
          alpha = 1.0_dp
@@ -361,7 +357,7 @@ CONTAINS
          END DO
 
          CALL dbcsr_release(work_hmat%matrix)
-         DEALLOCATE(work_hmat%matrix)
+         DEALLOCATE (work_hmat%matrix)
 
          DO ispin = 1, nspins
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
@@ -375,15 +371,14 @@ CONTAINS
    END SUBROUTINE apply_xc_admm_ao
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Calculate derivatives terms from overlap matrices
 !> \param qs_env ...
 !> \param matrix_hz Fock matrix part using the response density in admm basis
 !> \param matrix_pz response density in orbital basis
 ! **************************************************************************************************
    SUBROUTINE admm_projection_derivative(qs_env, matrix_hz, matrix_pz)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: matrix_hz
-      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: matrix_pz
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: matrix_hz, matrix_pz
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_projection_derivative'
 
