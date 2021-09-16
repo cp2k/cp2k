@@ -11,12 +11,9 @@
 !>      10.2013 created [Mauro Del Ben]
 ! **************************************************************************************************
 MODULE mp2_ri_grad
-   USE ao_util,                         ONLY: exp_radius_very_extended
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
-   USE basis_set_types,                 ONLY: gto_basis_set_type
-   USE cell_types,                      ONLY: cell_type,&
-                                              pbc
+   USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
@@ -34,14 +31,12 @@ MODULE mp2_ri_grad
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry, &
-        dbcsr_type_symmetric
-   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
+        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_transposed, dbcsr_type, &
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE input_constants,                 ONLY: do_eri_gpw,&
                                               do_eri_mme
    USE kinds,                           ONLY: dp
    USE libint_2c_3c,                    ONLY: compare_potential_types
-   USE mathconstants,                   ONLY: fourpi
    USE message_passing,                 ONLY: &
         mp_allgather, mp_alltoall, mp_irecv, mp_isend, mp_request_null, mp_sendrecv, mp_sum, &
         mp_wait, mp_waitall
@@ -49,8 +44,7 @@ MODULE mp2_ri_grad
                                               mp2_eri_3c_integrate,&
                                               mp2_eri_deallocate_forces,&
                                               mp2_eri_force
-   USE mp2_eri_gpw,                     ONLY: calc_potential_gpw,&
-                                              cleanup_gpw,&
+   USE mp2_eri_gpw,                     ONLY: cleanup_gpw,&
                                               integrate_potential_forces_2c,&
                                               integrate_potential_forces_3c_1c,&
                                               integrate_potential_forces_3c_2c,&
@@ -58,16 +52,8 @@ MODULE mp2_ri_grad
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               integ_mat_buffer_type_2D,&
                                               mp2_type
-   USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
-   USE pw_env_types,                    ONLY: pw_env_get,&
-                                              pw_env_type
-   USE pw_methods,                      ONLY: pw_copy,&
-                                              pw_derive,&
-                                              pw_integral_ab,&
-                                              pw_scale,&
-                                              pw_zero
-   USE pw_poisson_methods,              ONLY: pw_poisson_solve
+   USE pw_env_types,                    ONLY: pw_env_type
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
@@ -75,25 +61,14 @@ MODULE mp2_ri_grad
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               RECIPROCALSPACE,&
                                               pw_p_type
-   USE qs_collocate_density,            ONLY: calculate_rho_elec,&
-                                              calculate_wavefunction
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: allocate_qs_force,&
                                               qs_force_type,&
-                                              sum_qs_force,&
-                                              total_qs_force,&
                                               zero_qs_force
-   USE qs_integrate_potential,          ONLY: integrate_pgf_product
-   USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                              qs_kind_type
+   USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
-                                              realspace_grid_p_type,&
-                                              rs_grid_release,&
-                                              rs_grid_retain
-   USE rs_pw_interface,                 ONLY: potential_pw2rs
    USE task_list_types,                 ONLY: task_list_type
    USE util,                            ONLY: get_limit
    USE virial_types,                    ONLY: virial_type
@@ -158,32 +133,34 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_ri_mp2_nonsep'
 
-      INTEGER :: dimen, eri_method, handle, handle2, i, ikind, ispin, itmp(2), L_counter, LLL, &
-         my_P_end, my_P_size, my_P_start, natom, nspins
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, virtual, natom_of_kind
+      INTEGER                                            :: dimen, eri_method, handle, handle2, i, &
+                                                            ikind, ispin, itmp(2), L_counter, LLL, &
+                                                            my_P_end, my_P_size, my_P_start, &
+                                                            natom, nspins
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, natom_of_kind, &
+                                                            virtual
       LOGICAL                                            :: alpha_beta, use_virial
-      REAL(KIND=dp)                                      :: cutoff_old, eps_filter, &
-                                                            factor, relative_cutoff_old
+      REAL(KIND=dp)                                      :: cutoff_old, eps_filter, factor, &
+                                                            relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old, wf_vector
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G_PQ_local, G_PQ_local_2
-      REAL(KIND=dp), POINTER, DIMENSION(:, :)            :: I_tmp2
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_virial
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: I_tmp2
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: L1_mu_i, L2_nu_a
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(dbcsr_p_type)                                 :: matrix_P_munu
-      TYPE(dbcsr_p_type), DIMENSION(:), ALLOCATABLE      :: mo_coeff_o, mo_coeff_v
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_munu_local, &
-                                                            matrix_P_munu_local
-      TYPE(dbcsr_p_type), DIMENSION(:, :), ALLOCATABLE   :: G_P_ia
+      TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:)      :: mo_coeff_o, mo_coeff_v
+      TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:, :)   :: G_P_ia
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_munu_local, matrix_P_munu_local
       TYPE(dbcsr_type)                                   :: matrix_P_munu_nosym
-      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE        :: Lag_mu_i_1, Lag_nu_a_2, matrix_P_inu
+      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: Lag_mu_i_1, Lag_nu_a_2, matrix_P_inu
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp2_eri_force), ALLOCATABLE, DIMENSION(:)     :: force_2c, force_2c_RI, force_3c_aux, force_3c_orb_mu, &
-                                                            force_3c_orb_nu
+      TYPE(mp2_eri_force), ALLOCATABLE, DIMENSION(:)     :: force_2c, force_2c_RI, force_3c_aux, &
+                                                            force_3c_orb_mu, force_3c_orb_nu
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
-      TYPE(pw_p_type)                                    :: dvg(3), pot_g, psi_L, rho_g, rho_r, &
-                                                            rho_g_copy
+      TYPE(pw_p_type)                                    :: dvg(3), pot_g, psi_L, rho_g, rho_g_copy, &
+                                                            rho_r
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force, mp2_force
@@ -330,12 +307,12 @@ CONTAINS
 
          DO ikind = 1, SIZE(force)
             mp2_force(ikind)%mp2_non_sep(:, :) = -4.0_dp*force_2c(ikind)%forces(:, :) + &
-                                             force_3c_orb_mu(ikind)%forces(:, :) + &
-                                             force_3c_orb_nu(ikind)%forces(:, :) + &
-                                             force_3c_aux(ikind)%forces(:, :)
-            
+                                                 force_3c_orb_mu(ikind)%forces(:, :) + &
+                                                 force_3c_orb_nu(ikind)%forces(:, :) + &
+                                                 force_3c_aux(ikind)%forces(:, :)
+
             IF (.NOT. compare_potential_types(mp2_env%potential_parameter, mp2_env%ri_metric)) THEN
-               mp2_force(ikind)%mp2_non_sep(:, :) = mp2_force(ikind)%mp2_non_sep(:, :) -4.0_dp*force_2c_RI(ikind)%forces
+               mp2_force(ikind)%mp2_non_sep(:, :) = mp2_force(ikind)%mp2_non_sep(:, :) - 4.0_dp*force_2c_RI(ikind)%forces
             END IF
          END DO
 
@@ -460,7 +437,7 @@ CONTAINS
       IF (use_virial) mp2_env%ri_grad%mp2_virial = h_stress
 
       DEALLOCATE (G_PQ_local)
-      IF (.NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) DEALLOCATE(G_PQ_local_2)
+      IF (.NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) DEALLOCATE (G_PQ_local_2)
 
       CALL dbcsr_release(matrix_P_munu_nosym)
 
@@ -538,8 +515,7 @@ CONTAINS
    SUBROUTINE G_P_transform_MO_to_AO(G_P_munu, G_P_munu_nosym, mat_munu, G_P_ia, G_P_inu, &
                                      mo_coeff_v, mo_coeff_o, eps_filter)
       TYPE(dbcsr_type), POINTER                          :: G_P_munu
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: G_P_munu_nosym
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_munu
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: G_P_munu_nosym, mat_munu
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: G_P_ia
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: G_P_inu
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff_v, mo_coeff_o
@@ -700,9 +676,10 @@ CONTAINS
          ncol_block_2a, ncol_local, ncol_local_1i, ncol_local_2a, npcol, npcol_1i, npcol_2a, &
          nprow, nprow_1i, nprow_2a, nrow_block, nrow_block_1i, nrow_block_2a, nrow_local, &
          nrow_local_1i, nrow_local_2a, number_of_rec, number_of_send, proc_receive, &
-         proc_receive_static, proc_send, proc_send_ex, proc_send_static, proc_send_sub, proc_shift
-      INTEGER :: rec_col_size, rec_counter, rec_row_size, send_col_size, send_counter, send_pcol, &
-         send_prow, send_row_size, size_rec_buffer, size_send_buffer
+         proc_receive_static, proc_send, proc_send_ex, proc_send_static, proc_send_sub, &
+         proc_shift, rec_col_size
+      INTEGER :: rec_counter, rec_row_size, send_col_size, send_counter, send_pcol, send_prow, &
+         send_row_size, size_rec_buffer, size_send_buffer
       INTEGER, ALLOCATABLE, DIMENSION(:) :: iii_vet, map_rec_size, map_send_size, pos_info, &
          pos_info_ex, proc_2_send_pos, proc_map_ex, req_send, sub_proc_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: grid_2_mepos, mepos_2_grid, my_col_indeces_info_1i, &

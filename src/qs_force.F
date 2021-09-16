@@ -29,10 +29,8 @@ MODULE qs_force
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
-                                              dbcsr_deallocate_matrix,&
                                               dbcsr_p_type,&
-                                              dbcsr_set,&
-                                              dbcsr_type
+                                              dbcsr_set
    USE dft_plus_u,                      ONLY: plus_u
    USE efield_utils,                    ONLY: calculate_ecore_efield
    USE energy_corrections,              ONLY: energy_correction
@@ -145,8 +143,10 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_ks_aux_fit, matrix_p_mp2, matrix_p_mp2_admm, matrix_s, &
-         matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_w, rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit, matrix_p_mp2, &
+                                                            matrix_s, matrix_s_aux_fit, &
+                                                            matrix_s_aux_fit_vs_orb, matrix_w, &
+                                                            rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_w_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(lri_environment_type), POINTER                :: lri_env
@@ -311,7 +311,7 @@ CONTAINS
       ! MP2 Code
       IF (ASSOCIATED(qs_env%mp2_env)) THEN
          ! We will determine the gradients later
-         NULLIFY (matrix_p_mp2, matrix_p_mp2_admm, rho, ks_env, energy)
+         NULLIFY (matrix_p_mp2, rho, ks_env, energy)
          CALL get_qs_env(qs_env, &
                          matrix_p_mp2=matrix_p_mp2, &
                          ks_env=ks_env, &

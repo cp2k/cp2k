@@ -534,7 +534,8 @@ CONTAINS
 !> \param periodic ...
 ! **************************************************************************************************
    SUBROUTINE compute_wkp_W(wkp_W, kpoints, h_mat, h_inv, exp_kpoints, periodic)
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE, INTENT(OUT) :: wkp_W
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(OUT)                                     :: wkp_W
       TYPE(kpoint_type), INTENT(IN), POINTER             :: kpoints
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: h_mat, h_inv
       REAL(KIND=dp), INTENT(INOUT)                       :: exp_kpoints

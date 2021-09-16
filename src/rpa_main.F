@@ -67,7 +67,10 @@ MODULE rpa_main
                                               get_minimax_grid
    USE mp2_laplace,                     ONLY: SOS_MP2_postprocessing
    USE mp2_ri_grad_util,                ONLY: array2fm
-   USE mp2_types,                       ONLY: mp2_type, dgemm_counter_type, dgemm_counter_write, dgemm_counter_init, &
+   USE mp2_types,                       ONLY: dgemm_counter_init,&
+                                              dgemm_counter_type,&
+                                              dgemm_counter_write,&
+                                              mp2_type,&
                                               three_dim_real_array,&
                                               two_dim_int_array,&
                                               two_dim_real_array
@@ -160,22 +163,25 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), INTENT(OUT)                         :: Erpa
       TYPE(mp2_type), INTENT(INOUT), POINTER             :: mp2_env
-      TYPE(three_dim_real_array), DIMENSION(:), INTENT(INOUT) :: BIb_C, BIb_C_gw
+      TYPE(three_dim_real_array), DIMENSION(:), &
+         INTENT(INOUT)                                   :: BIb_C, BIb_C_gw
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(INOUT)                                   :: BIb_C_bse_ij, &
-                                                            BIb_C_bse_ab
+         INTENT(INOUT)                                   :: BIb_C_bse_ij, BIb_C_bse_ab
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
       INTEGER, INTENT(INOUT)                             :: color_sub
-      TYPE(group_dist_d1_type), INTENT(INOUT)            :: gd_array, gd_B_all, &
-                                                            gd_B_occ_bse, gd_B_virt_bse
-      TYPE(group_dist_d1_type), INTENT(INOUT), DIMENSION(:) :: gd_B_virtual
+      TYPE(group_dist_d1_type), INTENT(INOUT)            :: gd_array
+      TYPE(group_dist_d1_type), DIMENSION(:), &
+         INTENT(INOUT)                                   :: gd_B_virtual
+      TYPE(group_dist_d1_type), INTENT(INOUT)            :: gd_B_all, gd_B_occ_bse, gd_B_virt_bse
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
       TYPE(kpoint_type), POINTER                         :: kpoints
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: Eigenval
-      INTEGER, INTENT(IN)                                :: nmo, dimen_RI, dimen_RI_red, &
-                                                            unit_nr
-      INTEGER, INTENT(IN), DIMENSION(:)                  :: homo, gw_corr_lev_occ, gw_corr_lev_virt
+      INTEGER, INTENT(IN)                                :: nmo
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
+      INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_occ, gw_corr_lev_virt
+      INTEGER, INTENT(IN)                                :: unit_nr
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2, my_do_gw, &
                                                             do_im_time, do_bse
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
@@ -194,26 +200,29 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_ri_compute_en'
 
       INTEGER :: best_integ_group_size, best_num_integ_point, color_rpa_group, dimen_homo_square, &
-         dimen_nm_gw, dimen_virt_square, handle, handle2, handle3, i, &
-         ierr, iiB, input_integ_group_size, integ_group_size, jjB, min_integ_group_size, &
+         dimen_nm_gw, dimen_virt_square, handle, handle2, handle3, i, ierr, iiB, &
+         input_integ_group_size, integ_group_size, ispin, jjB, min_integ_group_size, &
          my_ab_comb_bse_end, my_ab_comb_bse_size, my_ab_comb_bse_start, my_group_L_end, &
          my_group_L_size, my_group_L_start, my_ij_comb_bse_end, my_ij_comb_bse_size, &
-         my_ij_comb_bse_start, my_nm_gw_end, my_nm_gw_size, my_nm_gw_start, ncol_block_mat
-      INTEGER :: ngroup, nrow_block_mat, num_integ_group, num_integ_points, pos_integ_group, &
-         ispin, nspins
+         my_ij_comb_bse_start, my_nm_gw_end, my_nm_gw_size, my_nm_gw_start, ncol_block_mat, &
+         ngroup, nrow_block_mat, nspins, num_integ_group, num_integ_points, pos_integ_group
       INTEGER(KIND=int_8)                                :: mem
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sub_proc_map, virtual, dimen_ia, my_ia_end, my_ia_size, my_ia_start
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dimen_ia, my_ia_end, my_ia_size, &
+                                                            my_ia_start, sub_proc_map, virtual
       LOGICAL                                            :: do_minimax_quad, my_open_shell, &
                                                             skip_integ_group_opt
-      REAL(KIND=dp) :: allowed_memory, avail_mem, E_Range, Emax, Emin, &
-         mem_for_iaK, mem_for_QK, mem_min, mem_per_group, mem_real, needed_mem
-      TYPE(two_dim_real_array), ALLOCATABLE, DIMENSION(:) :: BIb_C_2D, BIb_C_2D_gw
+      REAL(KIND=dp) :: allowed_memory, avail_mem, E_Range, Emax, Emin, mem_for_iaK, mem_for_QK, &
+         mem_min, mem_per_group, mem_real, needed_mem
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_C_2D_bse_ab, BIb_C_2D_bse_ij
-      TYPE(cp_fm_type), POINTER :: fm_mat_R_gw, fm_mat_S_ab_bse, &
-         fm_mat_S_ij_bse, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
-      TYPE(cp_fm_p_type), DIMENSION(:), ALLOCATABLE :: fm_mat_Q, fm_mat_Q_gemm, fm_mat_S, &
-         fm_mat_S_gw, fm_mo_coeff_occ, fm_mo_coeff_virt
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: fm_mat_Q, fm_mat_Q_gemm, fm_mat_S, &
+                                                            fm_mat_S_gw, fm_mo_coeff_occ, &
+                                                            fm_mo_coeff_virt
+      TYPE(cp_fm_type), POINTER                          :: fm_mat_R_gw, fm_mat_S_ab_bse, &
+                                                            fm_mat_S_ij_bse, fm_scaled_dm_occ_tau, &
+                                                            fm_scaled_dm_virt_tau
       TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
+      TYPE(two_dim_real_array), ALLOCATABLE, &
+         DIMENSION(:)                                    :: BIb_C_2D, BIb_C_2D_gw
 
       CALL timeset(routineN, handle)
 
@@ -240,7 +249,7 @@ CONTAINS
 
       nspins = SIZE(homo)
       my_open_shell = (nspins == 2)
-      ALLOCATE(virtual(nspins), dimen_ia(nspins), my_ia_end(nspins), my_ia_start(nspins), my_ia_size(nspins))
+      ALLOCATE (virtual(nspins), dimen_ia(nspins), my_ia_end(nspins), my_ia_start(nspins), my_ia_size(nspins))
       virtual(:) = nmo - homo(:)
       dimen_ia(:) = virtual(:)*homo(:)
 
@@ -444,7 +453,7 @@ CONTAINS
 
       ! not necessary for imaginary time
 
-      ALLOCATE(BIb_C_2D(nspins))
+      ALLOCATE (BIb_C_2D(nspins))
       IF (.NOT. do_im_time) THEN
 
          ! reorder the local data in such a way to help the next stage of matrix creation
@@ -461,7 +470,7 @@ CONTAINS
 
          ! in the GW case, BIb_C_2D_gw is an nm x K matrix, with n: number of corr GW levels, m=nmo
          IF (my_do_gw) THEN
-            ALLOCATE(BIb_C_2D_gw(nspins))
+            ALLOCATE (BIb_C_2D_gw(nspins))
 
             CALL timeset(routineN//"_reorder_gw", handle3)
 
@@ -517,10 +526,10 @@ CONTAINS
       ! now create the matrices needed for the calculation, Q, S and G
       ! Q and G will have omega dependence
 
-      ALLOCATE(fm_mat_Q(nspins), fm_mat_Q_gemm(nspins), fm_mat_S(nspins), fm_mo_coeff_occ(nspins), fm_mo_coeff_virt(nspins))
+      ALLOCATE (fm_mat_Q(nspins), fm_mat_Q_gemm(nspins), fm_mat_S(nspins), fm_mo_coeff_occ(nspins), fm_mo_coeff_virt(nspins))
       DO ispin = 1, nspins
-         NULLIFY(fm_mat_Q(ispin)%matrix, fm_mat_Q_gemm(ispin)%matrix, fm_mat_S(ispin)%matrix, &
-                 fm_mo_coeff_occ(ispin)%matrix, fm_mo_coeff_virt(ispin)%matrix)
+         NULLIFY (fm_mat_Q(ispin)%matrix, fm_mat_Q_gemm(ispin)%matrix, fm_mat_S(ispin)%matrix, &
+                  fm_mo_coeff_occ(ispin)%matrix, fm_mo_coeff_virt(ispin)%matrix)
       END DO
       IF (my_open_shell .AND. do_im_time .AND. do_ri_sos_laplace_mp2) THEN
          CALL create_integ_mat(BIb_C_2D(1)%array, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
@@ -571,10 +580,10 @@ CONTAINS
          END IF
 
       END IF
-      DEALLOCATE(BIb_C_2D, my_ia_end, my_ia_size, my_ia_start)
+      DEALLOCATE (BIb_C_2D, my_ia_end, my_ia_size, my_ia_start)
 
       ! for GW, we need other matrix fm_mat_S, always allocate the container to prevent crying compilers
-      ALLOCATE(fm_mat_S_gw(nspins))
+      ALLOCATE (fm_mat_S_gw(nspins))
       IF (my_do_gw .AND. .NOT. do_im_time) THEN
 
          CALL create_integ_mat(BIb_C_2D_gw(1)%array, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
@@ -596,7 +605,7 @@ CONTAINS
                                   .TRUE., fm_mat_Q(1)%matrix%matrix_struct%context, fm_mat_Q(1)%matrix%matrix_struct%context)
 
          END IF
-         DEALLOCATE(BIb_C_2D_gw)
+         DEALLOCATE (BIb_C_2D_gw)
 
       END IF
 
@@ -651,18 +660,18 @@ CONTAINS
             CALL cp_fm_release(fm_mat_Q_gemm(ispin)%matrix)
             CALL cp_fm_release(fm_mat_S(ispin)%matrix)
          END DO
-         DEALLOCATE(fm_mat_Q_gemm, fm_mat_S)
+         DEALLOCATE (fm_mat_Q_gemm, fm_mat_S)
       END IF
       DO ispin = 1, nspins
          IF (ASSOCIATED(fm_mat_Q(ispin)%matrix)) CALL cp_fm_release(fm_mat_Q(ispin)%matrix)
       END DO
-      DEALLOCATE(fm_mat_Q)
+      DEALLOCATE (fm_mat_Q)
 
       IF (my_do_gw .AND. .NOT. do_im_time) THEN
          DO ispin = 1, nspins
             CALL cp_fm_release(fm_mat_S_gw(ispin)%matrix)
          END DO
-         DEALLOCATE(fm_mat_S_gw)
+         DEALLOCATE (fm_mat_S_gw)
          CALL cp_fm_release(fm_mat_R_gw)
       END IF
 
@@ -1174,19 +1183,23 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: Erpa
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA, para_env_sub
-      INTEGER, INTENT(IN)                                :: unit_nr, dimen_RI, &
-                                                            dimen_RI_red, dimen_nm_gw
-      INTEGER, INTENT(IN), DIMENSION(:)                  :: homo, dimen_ia, virtual
+      INTEGER, INTENT(IN)                                :: unit_nr
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
+      INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: dimen_ia
+      INTEGER, INTENT(IN)                                :: dimen_nm_gw
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: Eigenval
       INTEGER, INTENT(IN)                                :: num_integ_points, num_integ_group, &
                                                             color_rpa_group
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_Q, fm_mat_Q_gemm, fm_mat_S, fm_mat_S_gw
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_R_gw, &
-                                                            fm_mat_S_ij_bse, fm_mat_S_ab_bse
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, &
+                                                            fm_mat_S_gw
+      TYPE(cp_fm_type), POINTER                          :: fm_mat_R_gw, fm_mat_S_ij_bse, &
+                                                            fm_mat_S_ab_bse
       LOGICAL, INTENT(IN)                                :: my_do_gw, do_bse
-      INTEGER, INTENT(IN), DIMENSION(:)                  :: gw_corr_lev_occ, gw_corr_lev_virt
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_occ, gw_corr_lev_virt
       LOGICAL, INTENT(IN)                                :: do_minimax_quad, do_im_time
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mo_coeff_occ, fm_mo_coeff_virt, mo_coeff
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mo_coeff_occ, fm_mo_coeff_virt, &
+                                                            mo_coeff
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
       TYPE(cp_fm_type), POINTER                          :: fm_scaled_dm_occ_tau, &
                                                             fm_scaled_dm_virt_tau
@@ -1210,11 +1223,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_num_int'
 
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :) :: vec_Sigma_c_gw
+      COMPLEX(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :, :, :)                           :: vec_Sigma_c_gw
       INTEGER :: count_ev_sc_GW, cut_memory, group_size_P, gw_corr_lev_tot, handle, handle3, &
-         iter_evGW, iter_sc_GW0, jquad, max_iter_bse, min_bsize, mm_style, nkp, &
-         nkp_self_energy, nmo, num_3c_repl, num_cells_dm, num_fit_points, &
-         num_Z_vectors, size_P, nspins, ispin
+         ispin, iter_evGW, iter_sc_GW0, jquad, max_iter_bse, min_bsize, mm_style, nkp, &
+         nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, num_fit_points, num_Z_vectors, &
+         size_P
       INTEGER(int_8)                                     :: dbcsr_nflop
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ikp_local
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c
@@ -1228,33 +1242,39 @@ CONTAINS
       REAL(KIND=dp) :: a_scaling, alpha, dbcsr_time, e_axk, e_axk_corr, eps_filter, &
          eps_filter_im_time, eps_min_trans, ext_scaling, fermi_level_offset, &
          fermi_level_offset_input, my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: delta_corr, tau_tj, tau_wj, tj, trace_Qomega, vec_omega_fit_gw, wj, e_fermi
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: Eigenval_kp, Eigenval_scf_kp, &
-         weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, vec_W_gw, Eigenval_scf, Eigenval_last
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr, e_fermi, tau_tj, tau_wj, tj, &
+                                                            trace_Qomega, vec_omega_fit_gw, wj, &
+                                                            wkp_W
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: Eigenval_kp, Eigenval_last, Eigenval_scf, &
+         Eigenval_scf_kp, vec_W_gw, weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, &
+         weights_sin_tf_t_to_w
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: B_abQ_bse_local, B_bar_iaQ_bse_local, &
                                                             B_bar_ijQ_bse_local, B_iaQ_bse_local, &
                                                             vec_Sigma_x_gw
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: wkp_W
-      TYPE(cp_cfm_p_type), DIMENSION(:, :), ALLOCATABLE  :: cfm_mat_W_kp_tau
+      TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:, :)  :: cfm_mat_W_kp_tau
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
-      TYPE(cp_fm_p_type), DIMENSION(:), ALLOCATABLE      :: fm_mat_W, fm_mat_S_gw_work
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: fm_mat_S_gw_work, fm_mat_W
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L
       TYPE(cp_fm_type), POINTER :: fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
          fm_mat_RI_global_work, fm_mat_work, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled
       TYPE(dbcsr_p_type)                                 :: mat_dm, mat_L, mat_M_P_munu_occ, &
                                                             mat_M_P_munu_virt, mat_P_global_copy, &
                                                             mat_SinvVSinv
+      TYPE(dbcsr_p_type), ALLOCATABLE, &
+         DIMENSION(:, :, :)                              :: mat_P_omega
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_berry_im_mo_mo, &
                                                             matrix_berry_re_mo_mo
-      TYPE(dbcsr_p_type), DIMENSION(:, :, :), ALLOCATABLE :: mat_P_omega
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega_kp
-      TYPE(dbcsr_t_type) :: t_3c_overl_int_ao_mo
-      TYPE(dbcsr_t_type), DIMENSION(:), ALLOCATABLE      :: t_3c_overl_int_gw_AO, &
-         t_3c_overl_int_gw_RI, t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected
+      TYPE(dbcsr_t_type)                                 :: t_3c_overl_int_ao_mo
+      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:)      :: t_3c_overl_int_gw_AO, &
+                                                            t_3c_overl_int_gw_RI, &
+                                                            t_3c_overl_nnP_ic, &
+                                                            t_3c_overl_nnP_ic_reflected
       TYPE(dbcsr_type), POINTER                          :: mat_W, mat_work
       TYPE(dgemm_counter_type)                           :: dgemm_counter
-      TYPE(hfx_compression_type), DIMENSION(:), ALLOCATABLE :: t_3c_O_mo_compressed
-      TYPE(two_dim_int_array), DIMENSION(:), ALLOCATABLE :: t_3c_O_mo_ind
+      TYPE(hfx_compression_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: t_3c_O_mo_compressed
+      TYPE(two_dim_int_array), ALLOCATABLE, DIMENSION(:) :: t_3c_O_mo_ind
 
       CALL timeset(routineN, handle)
 
@@ -1363,10 +1383,10 @@ CONTAINS
 
       END IF
 
-      ALLOCATE(e_fermi(nspins))
+      ALLOCATE (e_fermi(nspins))
       IF (do_minimax_quad .OR. do_ri_sos_laplace_mp2) THEN
          CALL get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, do_im_time, &
-                               do_ri_sos_laplace_mp2, .NOT. do_ic_model, tau_tj, tau_wj, qs_env, do_gw_im_time, &
+                               do_ri_sos_laplace_mp2,.NOT. do_ic_model, tau_tj, tau_wj, qs_env, do_gw_im_time, &
                                do_kpoints_cubic_RPA, a_scaling, e_fermi(1), tj, wj, mp2_env, &
                                weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w)
       ELSE
@@ -1393,7 +1413,7 @@ CONTAINS
                                    gw_corr_lev_occ, gw_corr_lev_virt, homo, &
                                    nmo, num_integ_group, num_integ_points, unit_nr, &
                                    gw_corr_lev_tot, num_fit_points, omega_max_fit, &
-                                   do_minimax_quad, do_periodic, do_ri_Sigma_x, .NOT. do_im_time, &
+                                   do_minimax_quad, do_periodic, do_ri_Sigma_x,.NOT. do_im_time, &
                                    first_cycle_periodic_correction, &
                                    a_scaling, Eigenval, tj, vec_omega_fit_gw, vec_Sigma_x_gw, &
                                    delta_corr, Eigenval_last, Eigenval_scf, vec_W_gw, &
@@ -1756,12 +1776,12 @@ CONTAINS
             CALL deallocate_matrices_gw(fm_mat_S_gw_work, vec_W_gw, vec_Sigma_c_gw, vec_omega_fit_gw, &
                                         mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw, &
                                         Eigenval_last, Eigenval_scf, do_periodic, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
-                                        kpoints, do_ri_Sigma_x, vec_Sigma_x_gw, .NOT. do_im_time)
+                                        kpoints, do_ri_Sigma_x, vec_Sigma_x_gw,.NOT. do_im_time)
          ELSE
             CALL deallocate_matrices_gw(fm_mat_S_gw_work, vec_W_gw, vec_Sigma_c_gw, vec_omega_fit_gw, &
                                         mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw, &
                                         Eigenval_last, Eigenval_scf, do_periodic, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
-                                        kpoints, do_ri_Sigma_x, vec_Sigma_x_gw, .NOT. do_im_time)
+                                        kpoints, do_ri_Sigma_x, vec_Sigma_x_gw,.NOT. do_im_time)
          END IF
       END IF
 

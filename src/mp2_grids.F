@@ -79,7 +79,7 @@ CONTAINS
 
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: unit_nr
-      INTEGER, INTENT(IN), DIMENSION(:)                  :: homo
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       INTEGER, INTENT(IN)                                :: num_integ_points
       LOGICAL, INTENT(IN)                                :: do_im_time, do_ri_sos_laplace_mp2, &
@@ -101,10 +101,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_minimax_grid'
       INTEGER, PARAMETER                                 :: num_points_per_magnitude = 200
 
-      INTEGER                                            :: handle, ierr, jquad, ispin, nspins
+      INTEGER                                            :: handle, ierr, ispin, jquad, nspins
       LOGICAL                                            :: my_do_kpoints, my_open_shell
-      REAL(KIND=dp)                                      :: E_Range, Emax, Emin, &
-                                                            max_error_min, scaling
+      REAL(KIND=dp)                                      :: E_Range, Emax, Emin, max_error_min, &
+                                                            scaling
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: x_tw
 
       CALL timeset(routineN, handle)

@@ -22,8 +22,7 @@ MODULE qs_tddfpt2_operators
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_set
    USE hfx_admm_utils,                  ONLY: tddft_hfx_matrix
-   USE input_section_types,             ONLY: section_get_rval,&
-                                              section_vals_get,&
+   USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
@@ -34,13 +33,8 @@ MODULE qs_tddfpt2_operators
                                               pw_zero
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
-   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
-   USE pw_types,                        ONLY: REALDATA3D,&
-                                              REALSPACE,&
-                                              pw_p_type,&
-                                              pw_release,&
+   USE pw_pool_types,                   ONLY: pw_pool_type
+   USE pw_types,                        ONLY: pw_p_type,&
                                               pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -50,8 +44,7 @@ MODULE qs_tddfpt2_operators
    USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos
    USE xc,                              ONLY: xc_calc_2nd_deriv_analytical,&
                                               xc_calc_2nd_deriv_numerical
-   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
-                                              xc_rho_set_type,&
+   USE xc_rho_set_types,                ONLY: xc_rho_set_type,&
                                               xc_rho_set_update
 #include "./base/base_uses.f90"
 
@@ -350,7 +343,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin, nspins
       LOGICAL                                            :: lsd, singlet, triplet
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_r, rho1_g, tau
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_r, tau
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
 

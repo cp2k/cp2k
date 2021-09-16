@@ -47,10 +47,10 @@ MODULE mp2_gpw_method
                                               prepare_gpw
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_type
+   USE pw_methods,                      ONLY: pw_transfer
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_type
-   USE pw_methods,                      ONLY: pw_transfer
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               pw_p_type,&
@@ -145,9 +145,9 @@ CONTAINS
          my_A_batch_size, my_A_virtual_end, my_A_virtual_start, my_B_size, my_B_virtual_end, &
          my_B_virtual_start, my_I_batch_size, my_I_occupied_end, my_I_occupied_start, &
          my_q_position, ncol_local, nfullcols_total, nfullrows_total, ngroup, nrow_local, p, p_best
-      INTEGER :: proc_receive, proc_send, q, q_best, row, row_offset, row_size, &
-         size_EX, size_EX_send, size_of_exchange_group, sub_sub_color, virtual, virtual_beta, &
-         wfn_calc, wfn_calc_best
+      INTEGER :: proc_receive, proc_send, q, q_best, row, row_offset, row_size, size_EX, &
+         size_EX_send, size_of_exchange_group, sub_sub_color, virtual, virtual_beta, wfn_calc, &
+         wfn_calc_best
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: proc_map, sub_proc_map, vector_B_sizes, &
                                                             vector_batch_A_size_group, &

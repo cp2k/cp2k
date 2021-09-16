@@ -64,7 +64,6 @@ MODULE xc
                                               xc_dset_get_derivative,&
                                               xc_dset_release,&
                                               xc_dset_zero_all
-   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type
    USE xc_derivative_types,             ONLY: xc_derivative_get,&
                                               xc_derivative_type
    USE xc_derivatives,                  ONLY: xc_functionals_eval,&
@@ -74,7 +73,6 @@ MODULE xc
         xc_deriv_spline2, xc_deriv_spline2_smooth, xc_deriv_spline3, xc_deriv_spline3_smooth, &
         xc_new_f_routine, xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, xc_rho_spline2_smooth, &
         xc_rho_spline3_smooth, xc_test_lsd_f_routine
-   USE xc_derivatives,                  ONLY: xc_functionals_get_needs
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
    USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
                                               xc_rho_set_get,&
@@ -878,7 +876,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE smooth_cutoff(pot, rho, rhoa, rhob, rho_cutoff, &
                             rho_smooth_cutoff_range, e_0, e_0_scale_factor)
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER, INTENT(IN) :: pot, rho, rhoa, rhob
+      REAL(kind=dp), DIMENSION(:, :, :), INTENT(IN), &
+         POINTER                                         :: pot, rho, rhoa, rhob
       REAL(kind=dp), INTENT(in)                          :: rho_cutoff, rho_smooth_cutoff_range
       REAL(kind=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: e_0
@@ -1351,7 +1350,7 @@ CONTAINS
                                       use_data=REALDATA3D, in_space=REALSPACE)
 !$OMP            PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data,&
 !$OMP                           pw_to_deriv_rho,drhoa,drhob,idir)
-               pw_to_deriv_rho(idir)%pw%cr3d(:, :, :) = (drhoa(idir)%array(:, :, :) + drhob(idir)%array(:, :, :))*&
+               pw_to_deriv_rho(idir)%pw%cr3d(:, :, :) = (drhoa(idir)%array(:, :, :) + drhob(idir)%array(:, :, :))* &
                                                         deriv_data(:, :, :)
 !$OMP          END PARALLEL WORKSHARE
             END DO
@@ -1586,7 +1585,7 @@ CONTAINS
                CALL pw_zero(pw_to_deriv(idir)%pw)
 !$OMP          PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data,&
 !$OMP                         pw_to_deriv,idir)
-                        pw_to_deriv(idir)%pw%cr3d(:, :, :) = deriv_data(:, :, :)
+               pw_to_deriv(idir)%pw%cr3d(:, :, :) = deriv_data(:, :, :)
 !$OMP          END PARALLEL WORKSHARE
                CALL pw_pool_create_pw(pw_pool, tmp_g, &
                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
@@ -1824,32 +1823,56 @@ CONTAINS
       CALL timestop(handle)
    END FUNCTION xc_exc_calc
 
+! **************************************************************************************************
+!> \brief Caller routine to calculate the second order potential in the direction of rho1_r
+!> \param v_xc XC potential, will be allocated, to be integrated with the KS density
+!> \param deriv_set XC derivatives from xc_prep_2nd_deriv
+!> \param rho_set XC rho set from KS rho from xc_prep_2nd_deriv
+!> \param rho1_r first-order density in r space
+!> \param rho1_g first-order density in g space
+!> \param pw_pool pw pool to create new grids
+!> \param xc_section XC section to calculate the derivatives from
+!> \param gapw whether to carry out GAPW (not possible with numerical derivatives)
+!> \param vxg GAPW potential
+!> \param lsd_singlets ...
+!> \param do_excitations ...
+!> \param do_triplet ...
+!> \param do_tddft ...
+!> \param compute_virial ...
+!> \param virial_xc virial terms will be collected here
+! **************************************************************************************************
    SUBROUTINE xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, rho1_r, rho1_g, &
                                 pw_pool, xc_section, gapw, vxg, &
                                 lsd_singlets, do_excitations, do_triplet, do_tddft, &
                                 compute_virial, virial_xc)
 
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_xc
-      TYPE(xc_derivative_set_type), POINTER, INTENT(IN)  :: deriv_set
-      TYPE(pw_pool_type), POINTER, INTENT(IN)            :: pw_pool
-      TYPE(section_vals_type), POINTER, INTENT(IN)       :: xc_section
+      TYPE(xc_derivative_set_type), INTENT(IN), POINTER  :: deriv_set
+      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_r, rho1_g
+      TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
+      TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
       LOGICAL, INTENT(IN)                                :: gapw
       REAL(KIND=dp), DIMENSION(:, :, :, :), OPTIONAL, &
          POINTER                                         :: vxg
-      LOGICAL, INTENT(IN), OPTIONAL                      :: lsd_singlets, do_excitations, do_triplet, do_tddft, compute_virial
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), OPTIONAL :: virial_xc
+      LOGICAL, INTENT(IN), OPTIONAL                      :: lsd_singlets, do_excitations, &
+                                                            do_triplet, do_tddft, compute_virial
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
+         OPTIONAL                                        :: virial_xc
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_2nd_deriv', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_2nd_deriv', &
+         routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ispin, nspins
       INTEGER, DIMENSION(2, 3)                           :: bo
-      LOGICAL                                            :: lsd, my_compute_virial, my_do_tddft, &
-                                                            my_do_excitations, my_lsd_singlets, my_do_triplet
+      LOGICAL                                            :: lsd, my_compute_virial, &
+                                                            my_do_excitations, my_do_tddft, &
+                                                            my_do_triplet, my_lsd_singlets
       REAL(KIND=dp)                                      :: fac
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_r, tau_pw
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: tau_pw
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
       TYPE(xc_rho_cflags_type)                           :: needs
-      TYPE(xc_rho_set_type), POINTER                     :: rho1_set, rho_set
+      TYPE(xc_rho_set_type), POINTER                     :: rho1_set
 
       CALL timeset(routineN, handle)
 
@@ -1889,7 +1912,7 @@ CONTAINS
          ! rho1 !
          !------!
          bo = rho1_r(1)%pw%pw_grid%bounds_local
-         NULLIFY(tau_pw, rho1_set)
+         NULLIFY (tau_pw, rho1_set)
          ! create the place where to store the argument for the functionals
          CALL xc_rho_set_create(rho1_set, bo, &
                                 rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
@@ -1930,34 +1953,51 @@ CONTAINS
 
    END SUBROUTINE xc_calc_2nd_deriv
 
+! **************************************************************************************************
+!> \brief calculates 2nd derivative numerically
+!> \param v_xc potential to be calculated (has to be allocated already)
+!> \param rho_set KS density from xc_prep_2nd_deriv
+!> \param rho1_r first-order density in r-space
+!> \param rho1_g first-order density in g-space
+!> \param pw_pool pw pool for new grids
+!> \param xc_section XC section to calculate the derivatives from
+!> \param do_triplet ...
+!> \param calc_virial whether to calculate virial terms
+!> \param virial_xc collects stress tensor components (no metaGGAs!)
+!> \param deriv_set deriv set from xc_prep_2nd_deriv (only for virials)
+! **************************************************************************************************
    SUBROUTINE xc_calc_2nd_deriv_numerical(v_xc, rho_set, rho1_r, rho1_g, &
                                           pw_pool, xc_section, &
                                           do_triplet, calc_virial, virial_xc, deriv_set)
 
-      TYPE(pw_p_type), DIMENSION(:), INTENT(INOUT)       :: v_xc
-      TYPE(xc_rho_set_type), POINTER, INTENT(IN)         :: rho_set
-      TYPE(pw_p_type), DIMENSION(:), POINTER, INTENT(IN) :: rho1_r, rho1_g
-      TYPE(pw_pool_type), POINTER, INTENT(IN)            :: pw_pool
-      TYPE(section_vals_type), POINTER, INTENT(IN)       :: xc_section
+      TYPE(pw_p_type), DIMENSION(:), INTENT(IN)          :: v_xc
+      TYPE(xc_rho_set_type), INTENT(IN), POINTER         :: rho_set
+      TYPE(pw_p_type), DIMENSION(:), INTENT(IN), POINTER :: rho1_r, rho1_g
+      TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
+      TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
       LOGICAL, INTENT(IN)                                :: do_triplet
       LOGICAL, INTENT(IN), OPTIONAL                      :: calc_virial
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), OPTIONAL :: virial_xc
-      TYPE(xc_derivative_set_type), POINTER, INTENT(IN), OPTIONAL  :: deriv_set
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
+         OPTIONAL                                        :: virial_xc
+      TYPE(xc_derivative_set_type), INTENT(IN), &
+         OPTIONAL, POINTER                               :: deriv_set
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_2nd_deriv_numerical', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_2nd_deriv_numerical', &
+         routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ispin, nspins, idir
+      INTEGER                                            :: handle, idir, ispin, nspins
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL                                            :: gradient_f, lsd, my_calc_virial
-      REAL(KIND=dp)                                      :: exc, h, gradient_cut
+      REAL(KIND=dp)                                      :: exc, gradient_cut, h
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dr1dr, dra1dra, drb1drb
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_dummy
-      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE     :: dr1dr, dra1dra, drb1drb
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: rho, rhoa, rhob, &
-         norm_drho, rho1, norm_drho2a, norm_drho2b, norm_drho2, norm_drhoa, norm_drhob, rho1a, rho1b
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: norm_drho, norm_drho2, norm_drho2a, &
+                                                            norm_drho2b, norm_drhoa, norm_drhob, &
+                                                            rho, rho1, rho1a, rho1b, rhoa, rhob
       TYPE(cp_3d_r_p_type), DIMENSION(:), POINTER        :: drho, drho1, drho1a, drho1b, drhoa, drhob
       TYPE(pw_p_type)                                    :: v_drho, v_drhoa, v_drhob
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, &
-         rho_r, tau, tau_pw, vxc_rho_1, vxc_rho_2, vxc_rho_3, vxc_rho_4
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, tau, tau_pw, vxc_rho_1, &
+                                                            vxc_rho_2, vxc_rho_3, vxc_rho_4
       TYPE(pw_type), POINTER                             :: virial_pw
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
       TYPE(xc_derivative_set_type), POINTER              :: deriv_set1, deriv_set2
@@ -2123,7 +2163,7 @@ CONTAINS
 
             gradient_cut = section_get_rval(xc_section, "GRADIENT_CUTOFF")
 
-            NULLIFY(tau_pw, rho1_set)
+            NULLIFY (tau_pw, rho1_set)
             ! create the place where to store the argument for the functionals
             CALL xc_rho_set_create(rho1_set, bo, &
                                    rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
@@ -2144,7 +2184,7 @@ CONTAINS
                                    norm_drhoa=norm_drhoa, norm_drhob=norm_drhob, can_return_null=.TRUE.)
                CALL xc_rho_set_get(rho1_set, drhoa=drho1a, drhob=drho1b)
 
-               NULLIFY(drho, drho1)
+               NULLIFY (drho, drho1)
                CALL calc_drho_from_ab(drho, drhoa, drhob)
                CALL calc_drho_from_ab(drho1, drho1a, drho1b)
             ELSE
@@ -2187,11 +2227,11 @@ CONTAINS
             END IF
 
             ! Create deriv sets with same densities but different gradients
-            NULLIFY(deriv_set1, deriv_set2)
+            NULLIFY (deriv_set1, deriv_set2)
             CALL xc_dset_create(deriv_set1, pw_pool)
             CALL xc_dset_create(deriv_set2, pw_pool)
 
-            NULLIFY(rho2_set)
+            NULLIFY (rho2_set)
             ! create the place where to store the argument for the functionals
             CALL xc_rho_set_create(rho2_set, bo, &
                                    rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
@@ -2255,12 +2295,12 @@ CONTAINS
                CALL deallocate_pw(v_drhob%pw, pw_pool)
 
                DO idir = 1, 3
-                  DEALLOCATE(drho(idir)%array)
-                  DEALLOCATE(drho1(idir)%array)
+                  DEALLOCATE (drho(idir)%array)
+                  DEALLOCATE (drho1(idir)%array)
                END DO
-               DEALLOCATE(drho, drho1)
-               DEALLOCATE(dra1dra, drb1drb)
-               
+               DEALLOCATE (drho, drho1)
+               DEALLOCATE (dra1dra, drb1drb)
+
             ELSE
                CALL xc_rho_set_get(rho1_set, rho=rho1)
                CALL xc_rho_set_get(rho2_set, norm_drho=norm_drho2)
@@ -2282,7 +2322,7 @@ CONTAINS
             CALL xc_dset_release(deriv_set1)
             CALL xc_dset_release(deriv_set2)
 
-            DEALLOCATE(dr1dr)
+            DEALLOCATE (dr1dr)
 
             CALL xc_rho_set_release(rho1_set)
             CALL xc_rho_set_release(rho2_set)
@@ -2299,15 +2339,29 @@ CONTAINS
 
    END SUBROUTINE xc_calc_2nd_deriv_numerical
 
+! **************************************************************************************************
+!> \brief calculates stress tensor and potential contributions from the first derivative
+!> \param deriv_set ...
+!> \param description ...
+!> \param virial_pw ...
+!> \param drho ...
+!> \param drho1 ...
+!> \param virial_xc ...
+!> \param norm_drho ...
+!> \param gradient_cut ...
+!> \param dr1dr ...
+!> \param v_drho ...
+! **************************************************************************************************
    SUBROUTINE apply_drho(deriv_set, description, virial_pw, drho, drho1, virial_xc, norm_drho, gradient_cut, dr1dr, v_drho)
 
-      TYPE(xc_derivative_set_type), POINTER, INTENT(IN)  :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN), POINTER  :: deriv_set
       CHARACTER(len=*), INTENT(in)                       :: description
-      REAL(KIND=dp), INTENT(IN)                          :: gradient_cut
       TYPE(pw_type), INTENT(IN)                          :: virial_pw
       TYPE(cp_3d_r_p_type), DIMENSION(3), INTENT(IN)     :: drho, drho1
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: virial_xc
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: norm_drho, dr1dr
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: norm_drho
+      REAL(KIND=dp), INTENT(IN)                          :: gradient_cut
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: dr1dr
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: v_drho
 
       CHARACTER(len=*), PARAMETER :: routineN = 'apply_drho', routineP = moduleN//':'//routineN
@@ -2333,16 +2387,33 @@ CONTAINS
 
    END SUBROUTINE apply_drho
 
+! **************************************************************************************************
+!> \brief adds potential contributions from derivatives of rho or diagonal terms of norm_drho
+!> \param deriv_set1 ...
+!> \param deriv_set2 ...
+!> \param description ...
+!> \param bo ...
+!> \param norm_drho norm_drho of which derivative is calculated
+!> \param gradient_cut ...
+!> \param h ...
+!> \param rho1 function to contract the derivative with (rho1 for rho, dr1dr for norm_drho)
+!> \param v_drho ...
+! **************************************************************************************************
    SUBROUTINE update_deriv_rho(deriv_set1, deriv_set2, description, bo, norm_drho, gradient_cut, h, rho1, v_drho)
 
-      TYPE(xc_derivative_set_type), POINTER, INTENT(IN)  :: deriv_set1, deriv_set2
+      TYPE(xc_derivative_set_type), INTENT(IN), POINTER  :: deriv_set1, deriv_set2
       CHARACTER(len=*), INTENT(in)                       :: description
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bo
+      REAL(KIND=dp), DIMENSION(bo(1, 1):bo(2, 1), bo(1, &
+         2):bo(2, 2), bo(1, 3):bo(2, 3)), INTENT(IN)     :: norm_drho
       REAL(KIND=dp), INTENT(IN)                          :: gradient_cut, h
-      REAL(KIND=dp), DIMENSION(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)), INTENT(IN)      :: norm_drho, rho1
-      REAL(KIND=dp), DIMENSION(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)), INTENT(INOUT)   :: v_drho
+      REAL(KIND=dp), DIMENSION(bo(1, 1):bo(2, 1), bo(1, &
+         2):bo(2, 2), bo(1, 3):bo(2, 3)), INTENT(IN)     :: rho1
+      REAL(KIND=dp), DIMENSION(bo(1, 1):bo(2, 1), bo(1, &
+         2):bo(2, 2), bo(1, 3):bo(2, 3)), INTENT(INOUT)  :: v_drho
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'update_deriv_rho', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'update_deriv_rho', &
+         routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, j, k
       REAL(KIND=dp)                                      :: de
@@ -2374,18 +2445,36 @@ CONTAINS
 
    END SUBROUTINE update_deriv_rho
 
+! **************************************************************************************************
+!> \brief adds mixed derivatives of norm_drho
+!> \param deriv_set1 ...
+!> \param deriv_set2 ...
+!> \param description ...
+!> \param bo ...
+!> \param norm_drhoa norm_drho of which derivatives is calculated
+!> \param gradient_cut ...
+!> \param h ...
+!> \param dra1dra dr1dr corresponding to norm_drho
+!> \param drb1drb ...
+!> \param v_drhoa potential corresponding to norm_drho
+!> \param v_drhob ...
+! **************************************************************************************************
    SUBROUTINE update_deriv_drho_ab(deriv_set1, deriv_set2, description, bo, &
                                    norm_drhoa, gradient_cut, h, dra1dra, drb1drb, v_drhoa, v_drhob)
 
-      TYPE(xc_derivative_set_type), POINTER, INTENT(IN)  :: deriv_set1, deriv_set2
+      TYPE(xc_derivative_set_type), INTENT(IN), POINTER  :: deriv_set1, deriv_set2
       CHARACTER(len=*), INTENT(in)                       :: description
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bo
+      REAL(KIND=dp), DIMENSION(bo(1, 1):bo(2, 1), bo(1, &
+         2):bo(2, 2), bo(1, 3):bo(2, 3)), INTENT(IN)     :: norm_drhoa
       REAL(KIND=dp), INTENT(IN)                          :: gradient_cut, h
-      REAL(KIND=dp), DIMENSION(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)), &
-         INTENT(IN)      :: norm_drhoa, dra1dra, drb1drb
-      REAL(KIND=dp), DIMENSION(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)), INTENT(INOUT)   :: v_drhoa, v_drhob
+      REAL(KIND=dp), DIMENSION(bo(1, 1):bo(2, 1), bo(1, &
+         2):bo(2, 2), bo(1, 3):bo(2, 3)), INTENT(IN)     :: dra1dra, drb1drb
+      REAL(KIND=dp), DIMENSION(bo(1, 1):bo(2, 1), bo(1, &
+         2):bo(2, 2), bo(1, 3):bo(2, 3)), INTENT(INOUT)  :: v_drhoa, v_drhob
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'update_deriv_drho_ab', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'update_deriv_drho_ab', &
+         routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, j, k
       REAL(KIND=dp)                                      :: de
@@ -2417,14 +2506,25 @@ CONTAINS
 
    END SUBROUTINE update_deriv_drho_ab
 
+! **************************************************************************************************
+!> \brief calculate derivative sets for helper points
+!> \param norm_drho2 norm_drho of new points
+!> \param norm_drho norm_drho of KS density
+!> \param h ...
+!> \param xc_fun_section ...
+!> \param lsd ...
+!> \param rho2_set rho_set for new points
+!> \param deriv_set1 will contain derivatives for norm_drho*(1+0.5*h)
+!> \param deriv_set2 will contain derivatives for norm_drho*(1-0.5*h)
+! **************************************************************************************************
    SUBROUTINE get_derivs_rho(norm_drho2, norm_drho, h, xc_fun_section, lsd, rho2_set, deriv_set1, deriv_set2)
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT) :: norm_drho2
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)  :: norm_drho
-      REAL(KIND=dp), INTENT(IN)                      :: h
-      TYPE(section_vals_type), POINTER, INTENT(IN)   :: xc_fun_section
-      LOGICAL, INTENT(IN)                            :: lsd
-      TYPE(xc_rho_set_type), POINTER, INTENT(IN)     :: rho2_set
-      TYPE(xc_derivative_set_type), POINTER, INTENT(IN)   :: deriv_set1, deriv_set2
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: norm_drho2
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: norm_drho
+      REAL(KIND=dp), INTENT(IN)                          :: h
+      TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_fun_section
+      LOGICAL, INTENT(IN)                                :: lsd
+      TYPE(xc_rho_set_type), INTENT(IN), POINTER         :: rho2_set
+      TYPE(xc_derivative_set_type), INTENT(IN), POINTER  :: deriv_set1, deriv_set2
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_derivs_rho', routineP = moduleN//':'//routineN
 
@@ -2490,6 +2590,8 @@ CONTAINS
 !> \param vxg ...
 !> \param tddfpt_fac factor that multiplies the crossterms (tddfpt triplets
 !>        on a closed shell system it should be -1, defaults to 1)
+!> \param compute_virial ...
+!> \param virial_xc ...
 !> \note
 !>      The old version of this routine was smarter: it handled split_desc(1)
 !>      and split_desc(2) separately, thus the code automatically handled all
@@ -2521,21 +2623,22 @@ CONTAINS
          POINTER                                         :: vxg
       REAL(kind=dp), INTENT(in), OPTIONAL                :: tddfpt_fac
       LOGICAL, INTENT(IN), OPTIONAL                      :: compute_virial
-      REAL(KIND=dp), INTENT(INOUT), DIMENSION(3, 3), OPTIONAL :: virial_xc
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
+         OPTIONAL                                        :: virial_xc
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_calc_2nd_deriv_analytical'
+      CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_2nd_deriv_analytical'
 
-      CHARACTER(len=MAX_LABEL_LENGTH), DIMENSION(:), &
-         POINTER                                         :: split_desc
-      INTEGER                                            :: handle, i, ia, idir, ir, ispin, j, jdir, k, &
-                                                            nspins, xc_deriv_method_id
+      INTEGER                                            :: handle, i, ia, idir, ir, ispin, j, jdir, &
+                                                            k, nspins, xc_deriv_method_id
       INTEGER, DIMENSION(2, 3)                           :: bo
       INTEGER, DIMENSION(3, 3)                           :: nd
-      LOGICAL                                            :: gradient_f, lsd, my_gapw, my_compute_virial
+      LOGICAL                                            :: gradient_f, lsd, my_compute_virial, &
+                                                            my_gapw
       REAL(KIND=dp)                                      :: fac, gradient_cut, tmp
-      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE     :: dr1dr, dra1dra, drb1drb
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dr1dr, dra1dra, drb1drb
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: deriv_data, e_drhoa, e_drhob, &
-                                                            e_norm_drho, rho1, rho1a, rho1b, norm_drho, norm_drhoa, norm_drhob
+                                                            e_norm_drho, norm_drho, norm_drhoa, &
+                                                            norm_drhob, rho1, rho1a, rho1b
       TYPE(cp_3d_r_p_type), DIMENSION(:), POINTER        :: drho, drho1, drho1a, drho1b, drhoa, drhob
       TYPE(pw_p_type)                                    :: v_drho
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: tmp_a, tmp_b, tmp_c, tmp_r
@@ -2544,8 +2647,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (tmp_r, tmp_a, tmp_b, tmp_c, e_drhoa, e_drhob, e_norm_drho, &
-               split_desc)
+      NULLIFY (tmp_r, tmp_a, tmp_b, tmp_c, e_drhoa, e_drhob, e_norm_drho)
 
       my_gapw = .FALSE.
       IF (PRESENT(gapw)) my_gapw = gapw
@@ -2584,7 +2686,6 @@ CONTAINS
 
       IF (my_compute_virial .AND. gradient_f) CALL allocate_pw(virial_pw, pw_pool, bo)
 
-
       IF (lsd) THEN
 
          !-------------------!
@@ -2598,7 +2699,7 @@ CONTAINS
                                 norm_drho=norm_drho, norm_drhoa=norm_drhoa, norm_drhob=norm_drhob)
             CALL xc_rho_set_get(rho1_set, drhoa=drho1a, drhob=drho1b)
 
-            NULLIFY(drho, drho1)
+            NULLIFY (drho, drho1)
             CALL calc_drho_from_ab(drho, drhoa, drhob)
             CALL calc_drho_from_ab(drho1, drho1a, drho1b)
 
@@ -2607,7 +2708,7 @@ CONTAINS
                CALL prepare_dr1dr(drb1drb, drhob, drho1b)
                CALL prepare_dr1dr(dr1dr, drho, drho1)
             ELSE
-               CALL prepare_dr1dr_ab(dr1dr, drhoa,drhob, drho1a, drho1b, fac)
+               CALL prepare_dr1dr_ab(dr1dr, drhoa, drhob, drho1a, drho1b, fac)
             END IF
 
             IF (xc_deriv_method_id == xc_deriv_pw .OR. &
@@ -2761,7 +2862,7 @@ CONTAINS
                DO j = bo(1, 2), bo(2, 2)
                   DO i = bo(1, 1), bo(2, 1)
                      v_xc(1)%pw%cr3d(i, j, k) = v_xc(1)%pw%cr3d(i, j, k) + &
-                                                   deriv_data(i, j, k)*dr1dr(i, j, k)
+                                                deriv_data(i, j, k)*dr1dr(i, j, k)
                      DO ispin = 1, nspins
                         tmp_c(ispin)%pw%cr3d(i, j, k) = tmp_c(ispin)%pw%cr3d(i, j, k) - &
                                                         deriv_data(i, j, k)*rho1a(i, j, k)
@@ -2935,7 +3036,7 @@ CONTAINS
             CALL xc_derivative_get(deriv_att, deriv_data=e_norm_drho)
 
             IF (my_compute_virial) THEN
-               CALL virial_drho_drho1_ab(virial_pw, drhoa, drhob, drho1a, drho1b, deriv_data, virial_xc)
+               CALL virial_drho_drho1(virial_pw, drho, drho1, deriv_data, virial_xc)
             END IF ! my_compute_virial
 
 !$OMP         PARALLEL DO PRIVATE(k,j,i,ispin) DEFAULT(NONE)&
@@ -2959,11 +3060,11 @@ CONTAINS
                CALL virial_drho_drho(virial_pw, drhob, tmp_b(2), virial_xc)
                DO idir = 1, 3
 !$OMP          PARALLEL WORKSHARE DEFAULT(NONE) SHARED(drho,idir,tmp_c,virial_pw)
-                  virial_pw%cr3d(:, :, :) = drho(idir)%array(:, :, :)*(tmp_c(1)%pw%cr3d(:, :, :)+tmp_c(2)%pw%cr3d(:, :, :))
+                  virial_pw%cr3d(:, :, :) = drho(idir)%array(:, :, :)*(tmp_c(1)%pw%cr3d(:, :, :) + tmp_c(2)%pw%cr3d(:, :, :))
 !$OMP          END PARALLEL WORKSHARE
                   DO jdir = 1, idir
                      tmp = -0.5_dp*virial_pw%pw_grid%dvol*accurate_dot_product(virial_pw%cr3d(:, :, :), &
-                                                                       drho(jdir)%array(:, :, :))
+                                                                               drho(jdir)%array(:, :, :))
                      virial_xc(jdir, idir) = virial_xc(jdir, idir) + tmp
                      virial_xc(idir, jdir) = virial_xc(jdir, idir)
                   END DO
@@ -3105,10 +3206,10 @@ CONTAINS
             END IF
 
             DO idir = 1, 3
-               DEALLOCATE(drho(idir)%array)
-               DEALLOCATE(drho1(idir)%array)
+               DEALLOCATE (drho(idir)%array)
+               DEALLOCATE (drho1(idir)%array)
             END DO
-            DEALLOCATE(drho, drho1)
+            DEALLOCATE (drho, drho1)
 
             DO ispin = 1, nspins
                CALL deallocate_pw(tmp_a(ispin)%pw, pw_pool)
@@ -3147,7 +3248,7 @@ CONTAINS
             CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
 !$OMP         PARALLEL WORKSHARE DEFAULT(NONE) &
 !$OMP         SHARED(v_xc,deriv_data,rho1)
-              v_xc(1)%pw%cr3d(:, :, :) = deriv_data(:, :, :)*rho1(:, :, :)
+            v_xc(1)%pw%cr3d(:, :, :) = deriv_data(:, :, :)*rho1(:, :, :)
 !$OMP         END PARALLEL WORKSHARE
          END IF
 
@@ -3187,7 +3288,7 @@ CONTAINS
                DO j = bo(1, 2), bo(2, 2)
                   DO i = bo(1, 1), bo(2, 1)
                      IF (norm_drho(i, j, k) > gradient_cut) THEN
-                        v_drho%pw%cr3d(i, j, k) = v_drho%pw%cr3d(i, j, k) + deriv_data(i, j, k)*&
+                        v_drho%pw%cr3d(i, j, k) = v_drho%pw%cr3d(i, j, k) + deriv_data(i, j, k)* &
                                                   dr1dr(i, j, k)/norm_drho(i, j, k)**2
                      END IF
                   END DO
@@ -3321,10 +3422,16 @@ CONTAINS
       CALL timestop(handle)
    END SUBROUTINE xc_calc_2nd_deriv_analytical
 
+! **************************************************************************************************
+!> \brief allocates grids using pw_pool (if associated) or with bounds
+!> \param pw ...
+!> \param pw_pool ...
+!> \param bo ...
+! **************************************************************************************************
    SUBROUTINE allocate_pw(pw, pw_pool, bo)
-      TYPE(pw_type), POINTER, INTENT(INOUT) :: pw
-      TYPE(pw_pool_type), POINTER, INTENT(IN) :: pw_pool
-      INTEGER, DIMENSION(2, 3), INTENT(IN) :: bo
+      TYPE(pw_type), INTENT(INOUT), POINTER              :: pw
+      TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
+      INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bo
 
       IF (ASSOCIATED(pw_pool)) THEN
          CALL pw_pool_create_pw(pw_pool, pw, &
@@ -3340,9 +3447,14 @@ CONTAINS
 
    END SUBROUTINE allocate_pw
 
+! **************************************************************************************************
+!> \brief deallocates grid allocated with allocate_pw
+!> \param pw ...
+!> \param pw_pool ...
+! **************************************************************************************************
    SUBROUTINE deallocate_pw(pw, pw_pool)
-      TYPE(pw_type), POINTER, INTENT(INOUT) :: pw
-      TYPE(pw_pool_type), POINTER, INTENT(IN) :: pw_pool
+      TYPE(pw_type), INTENT(INOUT), POINTER              :: pw
+      TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
 
       IF (ASSOCIATED(pw_pool)) THEN
          CALL pw_pool_give_back_pw(pw_pool, pw)
@@ -3353,14 +3465,22 @@ CONTAINS
 
    END SUBROUTINE deallocate_pw
 
+! **************************************************************************************************
+!> \brief updates virial from first derivative w.r.t. norm_drho
+!> \param virial_pw ...
+!> \param drho ...
+!> \param drho1 ...
+!> \param deriv_data ...
+!> \param virial_xc ...
+! **************************************************************************************************
    SUBROUTINE virial_drho_drho1(virial_pw, drho, drho1, deriv_data, virial_xc)
-      TYPE(pw_type), INTENT(IN) :: virial_pw
-      TYPE(cp_3d_r_p_type), DIMENSION(3), INTENT(IN) :: drho, drho1
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN) :: deriv_data
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT) :: virial_xc
+      TYPE(pw_type), INTENT(IN)                          :: virial_pw
+      TYPE(cp_3d_r_p_type), DIMENSION(3), INTENT(IN)     :: drho, drho1
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: deriv_data
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: virial_xc
 
-      INTEGER :: idir, jdir
-      REAL(KIND=dp) :: tmp
+      INTEGER                                            :: idir, jdir
+      REAL(KIND=dp)                                      :: tmp
 
       DO idir = 1, 3
 !$OMP    PARALLEL WORKSHARE DEFAULT(NONE)&
@@ -3377,39 +3497,21 @@ CONTAINS
 
    END SUBROUTINE virial_drho_drho1
 
-   SUBROUTINE virial_drho_drho1_ab(virial_pw, drhoa, drhob, drho1a, drho1b, deriv_data, virial_xc)
-      TYPE(pw_type), INTENT(IN) :: virial_pw
-      TYPE(cp_3d_r_p_type), DIMENSION(3), INTENT(IN) :: drhoa, drhob, drho1a, drho1b
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN) :: deriv_data
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT) :: virial_xc
-
-      INTEGER :: idir, jdir
-      REAL(KIND=dp) :: tmp
-
-
-      DO idir = 1, 3
-!$OMP    PARALLEL WORKSHARE DEFAULT(NONE)&
-!$OMP    SHARED(drhoa,drhob,deriv_data,idir,virial_pw)
-         virial_pw%cr3d(:, :, :) = (drhoa(idir)%array(:, :, :)+drhob(idir)%array(:, :, :))*deriv_data(:, :, :)
-!$OMP    END PARALLEL WORKSHARE
-         DO jdir = 1, 3
-            tmp = virial_pw%pw_grid%dvol*accurate_dot_product(virial_pw%cr3d(:, :, :), &
-                                                              (drho1a(jdir)%array(:, :, :)+drho1b(jdir)%array(:, :, :)))
-            virial_xc(jdir, idir) = virial_xc(jdir, idir) + tmp
-            virial_xc(idir, jdir) = virial_xc(idir, jdir) + tmp
-         END DO
-      END DO
-
-   END SUBROUTINE virial_drho_drho1_ab
-
+! **************************************************************************************************
+!> \brief Adds virial contribution from second order potential parts
+!> \param virial_pw ...
+!> \param drho ...
+!> \param v_drho ...
+!> \param virial_xc ...
+! **************************************************************************************************
    SUBROUTINE virial_drho_drho(virial_pw, drho, v_drho, virial_xc)
-      TYPE(pw_type), INTENT(IN) :: virial_pw
-      TYPE(cp_3d_r_p_type), DIMENSION(3), INTENT(IN) :: drho
-      TYPE(pw_p_type), INTENT(IN) :: v_drho
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT) :: virial_xc
+      TYPE(pw_type), INTENT(IN)                          :: virial_pw
+      TYPE(cp_3d_r_p_type), DIMENSION(3), INTENT(IN)     :: drho
+      TYPE(pw_p_type), INTENT(IN)                        :: v_drho
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: virial_xc
 
-      INTEGER :: idir, jdir
-      REAL(KIND=dp) :: tmp
+      INTEGER                                            :: idir, jdir
+      REAL(KIND=dp)                                      :: tmp
 
       DO idir = 1, 3
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE)&
@@ -3490,7 +3592,7 @@ CONTAINS
    END SUBROUTINE xc_prep_2nd_deriv
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief divides derivatives from deriv_set by norm_drho
 !> \param deriv_set ...
 !> \param rho_set ...
 !> \param lsd ...
@@ -3555,11 +3657,17 @@ CONTAINS
 
    END SUBROUTINE divide_by_norm_drho
 
+! **************************************************************************************************
+!> \brief allocates and calculates drho from given spin densities drhoa, drhob
+!> \param drho ...
+!> \param drhoa ...
+!> \param drhob ...
+! **************************************************************************************************
    SUBROUTINE calc_drho_from_ab(drho, drhoa, drhob)
       TYPE(cp_3d_r_p_type), DIMENSION(:), POINTER        :: drho
       TYPE(cp_3d_r_p_type), DIMENSION(3), INTENT(IN)     :: drhoa, drhob
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'prepare_dr1dr'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'calc_drho_from_ab'
 
       INTEGER                                            :: handle, idir
 
@@ -3567,12 +3675,12 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(drho))
 
-      ALLOCATE(drho(3))
+      ALLOCATE (drho(3))
       DO idir = 1, 3
-         NULLIFY(drho(idir)%array)
-         ALLOCATE(drho(idir)%array(LBOUND(drhoa(1)%array, 1):UBOUND(drhoa(1)%array, 1), &
-                                   LBOUND(drhoa(1)%array, 2):UBOUND(drhoa(1)%array, 2), &
-                                   LBOUND(drhoa(1)%array, 3):UBOUND(drhoa(1)%array, 3)))
+         NULLIFY (drho(idir)%array)
+         ALLOCATE (drho(idir)%array(LBOUND(drhoa(1)%array, 1):UBOUND(drhoa(1)%array, 1), &
+                                    LBOUND(drhoa(1)%array, 2):UBOUND(drhoa(1)%array, 2), &
+                                    LBOUND(drhoa(1)%array, 3):UBOUND(drhoa(1)%array, 3)))
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(drho,drhoa,drhob,idir)
          drho(idir)%array(:, :, :) = drhoa(idir)%array(:, :, :) + drhob(idir)%array(:, :, :)
 !$OMP END PARALLEL WORKSHARE
@@ -3582,8 +3690,15 @@ CONTAINS
 
    END SUBROUTINE
 
+! **************************************************************************************************
+!> \brief allocates and calculates dot products of two density gradients
+!> \param dr1dr ...
+!> \param drho ...
+!> \param drho1 ...
+! **************************************************************************************************
    SUBROUTINE prepare_dr1dr(dr1dr, drho, drho1)
-      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE, INTENT(OUT) :: dr1dr
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(OUT)                                     :: dr1dr
       TYPE(cp_3d_r_p_type), DIMENSION(3), INTENT(IN)     :: drho, drho1
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'prepare_dr1dr'
@@ -3593,9 +3708,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ALLOCATE(dr1dr(LBOUND(drho(1)%array, 1):UBOUND(drho(1)%array, 1), &
-                     LBOUND(drho(1)%array, 2):UBOUND(drho(1)%array, 2), &
-                     LBOUND(drho(1)%array, 3):UBOUND(drho(1)%array, 3)))
+      ALLOCATE (dr1dr(LBOUND(drho(1)%array, 1):UBOUND(drho(1)%array, 1), &
+                      LBOUND(drho(1)%array, 2):UBOUND(drho(1)%array, 2), &
+                      LBOUND(drho(1)%array, 3):UBOUND(drho(1)%array, 3)))
 !$OMP PARALLEL DO PRIVATE(k,j,i,idir,my_dr1dr) DEFAULT(NONE)&
 !$OMP SHARED(drho,drho1,dr1dr) COLLAPSE(3)
       DO k = LBOUND(drho(1)%array, 3), UBOUND(drho(1)%array, 3)
@@ -3613,21 +3728,31 @@ CONTAINS
       CALL timestop(handle)
    END SUBROUTINE prepare_dr1dr
 
+! **************************************************************************************************
+!> \brief allocates and calculates dot product of two densities for triplets
+!> \param dr1dr ...
+!> \param drhoa ...
+!> \param drhob ...
+!> \param drho1a ...
+!> \param drho1b ...
+!> \param fac ...
+! **************************************************************************************************
    SUBROUTINE prepare_dr1dr_ab(dr1dr, drhoa, drhob, drho1a, drho1b, fac)
-      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE, INTENT(OUT) :: dr1dr
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(OUT)                                     :: dr1dr
       TYPE(cp_3d_r_p_type), DIMENSION(3), INTENT(IN)     :: drhoa, drhob, drho1a, drho1b
       REAL(KIND=dp), INTENT(IN)                          :: fac
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'prepare_dr1dr'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'prepare_dr1dr_ab'
 
       INTEGER                                            :: handle, i, idir, j, k
       REAL(KIND=dp)                                      :: my_dr1dr
 
       CALL timeset(routineN, handle)
 
-      ALLOCATE(dr1dr(LBOUND(drhoa(1)%array, 1):UBOUND(drhoa(1)%array, 1), &
-                     LBOUND(drhoa(1)%array, 2):UBOUND(drhoa(1)%array, 2), &
-                     LBOUND(drhoa(1)%array, 3):UBOUND(drhoa(1)%array, 3)))
+      ALLOCATE (dr1dr(LBOUND(drhoa(1)%array, 1):UBOUND(drhoa(1)%array, 1), &
+                      LBOUND(drhoa(1)%array, 2):UBOUND(drhoa(1)%array, 2), &
+                      LBOUND(drhoa(1)%array, 3):UBOUND(drhoa(1)%array, 3)))
 !$OMP PARALLEL DO PRIVATE(k,j,i,idir,my_dr1dr) DEFAULT(NONE)&
 !$OMP SHARED(drhob,drho1a,drhoa,drho1b,fac,dr1dr) COLLAPSE(3)
       DO k = LBOUND(drhoa(1)%array, 3), UBOUND(drhoa(1)%array, 3)
@@ -3636,9 +3761,9 @@ CONTAINS
                my_dr1dr = 0._dp
                DO idir = 1, 3
                   my_dr1dr = my_dr1dr + drhoa(idir)%array(i, j, k)*(drho1a(idir)%array(i, j, k) + &
-                             fac*drho1b(idir)%array(i, j, k)) + &
+                                                                    fac*drho1b(idir)%array(i, j, k)) + &
                              drhob(idir)%array(i, j, k)*(fac*drho1a(idir)%array(i, j, k) + &
-                             drho1b(idir)%array(i, j, k))
+                                                         drho1b(idir)%array(i, j, k))
                END DO
                dr1dr(i, j, k) = my_dr1dr
             END DO
@@ -3648,12 +3773,18 @@ CONTAINS
       CALL timestop(handle)
    END SUBROUTINE prepare_dr1dr_ab
 
+! **************************************************************************************************
+!> \brief checks for gradients, metaGGAs will not be supported for 2nd derivatives
+!> \param deriv_set ...
+!> \param lsd ...
+!> \param gradient_f ...
+! **************************************************************************************************
    SUBROUTINE check_for_gradients(deriv_set, lsd, gradient_f)
-      TYPE(xc_derivative_set_type), POINTER, INTENT(IN)  :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN), POINTER  :: deriv_set
       LOGICAL, INTENT(IN)                                :: lsd
       LOGICAL, INTENT(OUT)                               :: gradient_f
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'check_for_gradients'
+      CHARACTER(len=*), PARAMETER :: routineN = 'check_for_gradients'
 
       CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH)          :: desc
       CHARACTER(len=MAX_LABEL_LENGTH), DIMENSION(:), &

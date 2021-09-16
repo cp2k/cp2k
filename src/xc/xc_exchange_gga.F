@@ -153,7 +153,7 @@ CONTAINS
    SUBROUTINE xgga_eval(functional, lsd, rho_set, deriv_set, order)
       INTEGER, INTENT(in)                                :: functional
       LOGICAL, INTENT(in)                                :: lsd
-      TYPE(xc_rho_set_type), POINTER, INTENT(IN)         :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN), POINTER         :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: order
 

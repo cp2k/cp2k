@@ -79,7 +79,6 @@ MODULE energy_corrections
                                               ls_s_sqrt_proot
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_lval,&
-                                              section_get_rval,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -170,7 +169,7 @@ MODULE energy_corrections
 
    LOGICAL, PARAMETER                   :: debug_forces = .TRUE.
 
-   PUBLIC :: energy_correction, calc_ks_response_potentials
+   PUBLIC :: energy_correction
 
 CONTAINS
 
@@ -1047,25 +1046,22 @@ CONTAINS
    END SUBROUTINE ec_build_ks_matrix_force
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param v_xc ...
-!> \param xc_section ...
+!> \brief High-level routine to calculate response potential
+!> \param v_xc requested response potential on a grid, has to be allocated, the grids are not allocated
+!> \param xc_section xc_section from which the potential is supposed to calculated from
 !> \param qs_env ...
-!> \param rho1_r ...
-!> \param rho1_g ...
+!> \param rho1_r first-order potential on the grid in r space
+!> \param rho1_g first-order potential on the grid in g space
 ! **************************************************************************************************
-   SUBROUTINE calc_ks_response_potentials(v_xc, xc_section, qs_env, rho1_r, rho1_g, compute_virial, virial, do_admm)
-      TYPE(pw_p_type), DIMENSION(:), INTENT(IN), POINTER :: v_xc
+   SUBROUTINE calc_ks_response_potentials(v_xc, xc_section, qs_env, rho1_r, rho1_g)
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_xc
       TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(pw_p_type), DIMENSION(:), INTENT(IN), POINTER :: rho1_r, rho1_g
-      LOGICAL, INTENT(IN), OPTIONAL :: compute_virial, do_admm
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), OPTIONAL :: virial
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_ks_response_potentials'
 
       INTEGER                                            :: handle
-      LOGICAL                                            :: my_do_admm
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, tau_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -1076,14 +1072,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      my_do_admm = .FALSE.
-      IF (PRESENT(do_admm)) my_do_admm = do_admm
-
-      IF (.NOT. my_do_admm) THEN
-         CALL get_qs_env(qs_env, ks_env=ks_env, rho=rho, pw_env=pw_env)
-      ELSE
-         CALL get_qs_env(qs_env, ks_env=ks_env, rho_aux_fit=rho, pw_env=pw_env)
-      END IF
+      CALL get_qs_env(qs_env, ks_env=ks_env, rho=rho, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       CALL qs_rho_get(rho, rho_r=rho_r, tau_r=tau_r)
 
@@ -1091,8 +1080,7 @@ CONTAINS
       CALL xc_prep_2nd_deriv(deriv_set, rho_set, rho_r, auxbas_pw_pool, xc_section=xc_section)
 
       CALL xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, &
-                             rho1_r, rho1_g, auxbas_pw_pool, xc_section=xc_section, gapw=.FALSE., &
-                             compute_virial=compute_virial, virial_xc=virial)
+                             rho1_r, rho1_g, auxbas_pw_pool, xc_section=xc_section, gapw=.FALSE.)
       CALL xc_dset_release(deriv_set)
       CALL xc_rho_set_release(rho_set)
 

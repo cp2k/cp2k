@@ -580,9 +580,15 @@ CONTAINS
 
    END SUBROUTINE set_params_2c
 
+! **************************************************************************************************
+!> \brief Helper function to compare libint_potential_types
+!> \param potential1 first potential
+!> \param potential2 second potential
+!> \return Boolean whether both potentials are equal
+! **************************************************************************************************
    PURE FUNCTION compare_potential_types(potential1, potential2) RESULT(equals)
-      TYPE(libint_potential_type), INTENT(IN) :: potential1, potential2
-      LOGICAL :: equals
+      TYPE(libint_potential_type), INTENT(IN)            :: potential1, potential2
+      LOGICAL                                            :: equals
 
       IF (potential1%potential_type /= potential2%potential_type) THEN
          equals = .FALSE.

@@ -25,9 +25,9 @@ MODULE qs_energy_utils
                                               cp_fm_release,&
                                               cp_fm_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_p_type, dbcsr_set, dbcsr_type
+        dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_set, &
+        dbcsr_type
    USE et_coupling,                     ONLY: calc_et_coupling
    USE et_coupling_proj,                ONLY: calc_et_coupling_proj
    USE input_section_types,             ONLY: section_vals_get,&

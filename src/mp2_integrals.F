@@ -263,8 +263,10 @@ CONTAINS
                                                             periodic
       LOGICAL                                            :: do_gpw, do_kpoints_from_Gamma, do_svd, &
                                                             memory_info
-      REAL(KIND=dp) :: compression_factor, cond_num, cutoff_old, mem_for_iaK, memory_3c, &
-         occ, omega_pot, rc_ang, relative_cutoff_old
+      REAL(KIND=dp)                                      :: compression_factor, cond_num, &
+                                                            cutoff_old, mem_for_iaK, memory_3c, &
+                                                            occ, omega_pot, rc_ang, &
+                                                            relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows, my_Vrows
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
@@ -405,7 +407,7 @@ CONTAINS
          CALL grep_Lcols(para_env_L, dimen_RI, fm_matrix_L, &
                          my_group_L_start, my_group_L_end, my_group_L_size, my_Lrows)
          IF (calc_forces .AND. .NOT. compare_potential_types(qs_env%mp2_env%ri_metric, &
-                                                       qs_env%mp2_env%potential_parameter)) THEN
+                                                             qs_env%mp2_env%potential_parameter)) THEN
             CALL grep_Lcols(para_env_L, dimen_RI, fm_matrix_V, &
                             my_group_L_start, my_group_L_end, my_group_L_size, my_Vrows)
             CALL cp_fm_release(fm_matrix_V)
@@ -429,7 +431,7 @@ CONTAINS
          IF (.NOT. compare_potential_types(qs_env%mp2_env%ri_metric, qs_env%mp2_env%potential_parameter)) THEN
             ALLOCATE (qs_env%mp2_env%ri_grad%operator_half(lll, my_group_L_size))
             qs_env%mp2_env%ri_grad%operator_half(:, :) = my_Vrows(itmp(1):itmp(2), 1:my_group_L_size)
-            DEALLOCATE(my_Vrows)
+            DEALLOCATE (my_Vrows)
          END IF
       END IF
 
@@ -1328,8 +1330,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: local_col_row_info, rec_col_row_info
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, col_indices_rec, &
                                                             row_indices, row_indices_rec
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: local_L, rec_L
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_L_internal
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: local_L, rec_L
 
       CALL timeset(routineN, handle)
 

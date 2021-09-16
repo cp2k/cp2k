@@ -2450,7 +2450,7 @@ CONTAINS
          Heaviside = 1.0_dp
       END IF
    END FUNCTION Heaviside
- 
+
 ! **************************************************************************************************
 !> \brief Calculate ADMM auxiliary response density
 !> \param qs_env ...

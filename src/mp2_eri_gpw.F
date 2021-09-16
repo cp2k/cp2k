@@ -17,8 +17,7 @@ MODULE mp2_eri_gpw
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_set
@@ -39,16 +38,9 @@ MODULE mp2_eri_gpw
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_release,&
                                               pw_env_type
-   USE pw_methods,                      ONLY: pw_axpy,&
-                                              pw_compl_gauss_damp,&
-                                              pw_copy,&
-                                              pw_derive,&
-                                              pw_gauss_damp,&
-                                              pw_integral_ab,&
-                                              pw_scale,&
-                                              pw_transfer,&
-                                              pw_truncated,&
-                                              pw_zero
+   USE pw_methods,                      ONLY: &
+        pw_compl_gauss_damp, pw_copy, pw_derive, pw_gauss_damp, pw_integral_ab, pw_scale, &
+        pw_transfer, pw_truncated, pw_zero
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -81,7 +73,6 @@ MODULE mp2_eri_gpw
    USE task_list_types,                 ONLY: allocate_task_list,&
                                               deallocate_task_list,&
                                               task_list_type
-   USE virial_types,                    ONLY: virial_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
@@ -121,21 +112,24 @@ CONTAINS
                                        pw_env_sub, external_vector, poisson_env, rho_r, pot_g, &
                                        potential_parameter, mat_munu, qs_env, task_list_sub)
 
-      TYPE(cp_fm_type), POINTER, INTENT(IN)              :: mo_coeff
+      TYPE(cp_fm_type), INTENT(IN), POINTER              :: mo_coeff
       TYPE(pw_p_type), INTENT(INOUT)                     :: psi_L, rho_g
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER, INTENT(IN) :: atomic_kind_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER, INTENT(IN) :: qs_kind_set
-      TYPE(cell_type), POINTER, INTENT(IN)               :: cell
-      TYPE(dft_control_type), POINTER, INTENT(IN)        :: dft_control
-      TYPE(particle_type), DIMENSION(:), POINTER, INTENT(IN) :: particle_set
-      TYPE(pw_env_type), POINTER, INTENT(IN)             :: pw_env_sub
+      TYPE(atomic_kind_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: atomic_kind_set
+      TYPE(qs_kind_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: qs_kind_set
+      TYPE(cell_type), INTENT(IN), POINTER               :: cell
+      TYPE(dft_control_type), INTENT(IN), POINTER        :: dft_control
+      TYPE(particle_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: particle_set
+      TYPE(pw_env_type), INTENT(IN), POINTER             :: pw_env_sub
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: external_vector
-      TYPE(pw_poisson_type), POINTER, INTENT(IN)         :: poisson_env
+      TYPE(pw_poisson_type), INTENT(IN), POINTER         :: poisson_env
       TYPE(pw_p_type), INTENT(INOUT)                     :: rho_r, pot_g
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
-      TYPE(qs_environment_type), POINTER, INTENT(IN)     :: qs_env
-      TYPE(task_list_type), POINTER, INTENT(IN)          :: task_list_sub
+      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
+      TYPE(task_list_type), INTENT(IN), POINTER          :: task_list_sub
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_eri_3c_integrate_gpw'
 
@@ -162,7 +156,7 @@ CONTAINS
    END SUBROUTINE mp2_eri_3c_integrate_gpw
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Integrates the potential of an RI function
 !> \param qs_env ...
 !> \param para_env_sub ...
 !> \param dimen_RI ...
@@ -178,15 +172,14 @@ CONTAINS
    SUBROUTINE mp2_eri_2c_integrate_gpw(qs_env, para_env_sub, dimen_RI, mo_coeff, my_group_L_start, my_group_L_end, &
                                        natom, potential_parameter, sab_orb_sub, L_local_col, kind_of)
 
-      TYPE(qs_environment_type), POINTER, INTENT(IN)     :: qs_env
-      TYPE(cp_para_env_type), POINTER, INTENT(IN)        :: para_env_sub
+      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
       INTEGER, INTENT(IN)                                :: dimen_RI
-      TYPE(cp_fm_type), POINTER, INTENT(IN)              :: mo_coeff
-      INTEGER, INTENT(IN)                                :: my_group_L_start, my_group_L_end, &
-                                                            natom
+      TYPE(cp_fm_type), INTENT(IN), POINTER              :: mo_coeff
+      INTEGER, INTENT(IN)                                :: my_group_L_start, my_group_L_end, natom
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER, INTENT(IN)                             :: sab_orb_sub
+         INTENT(IN), POINTER                             :: sab_orb_sub
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: L_local_col
       INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of
 
@@ -398,29 +391,63 @@ CONTAINS
 
    END SUBROUTINE
 
+! **************************************************************************************************
+!> \brief Integrates the potential of a RI function obtaining the forces and stress tensor
+!> \param rho_r ...
+!> \param wf_vector ...
+!> \param matrix ...
+!> \param rho_g ...
+!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
+!> \param particle_set ...
+!> \param cell ...
+!> \param pw_env_sub ...
+!> \param poisson_env ...
+!> \param pot_g ...
+!> \param potential_parameter ...
+!> \param use_virial ...
+!> \param rho_g_copy ...
+!> \param dvg ...
+!> \param kind_of ...
+!> \param atom_of_kind ...
+!> \param G_PQ_local ...
+!> \param force ...
+!> \param h_stress ...
+!> \param para_env_sub ...
+!> \param dft_control ...
+!> \param psi_L ...
+! **************************************************************************************************
    SUBROUTINE integrate_potential_forces_2c(rho_r, wf_vector, matrix, rho_g, atomic_kind_set, &
                                             qs_kind_set, particle_set, cell, pw_env_sub, poisson_env, pot_g, &
                                             potential_parameter, use_virial, rho_g_copy, dvg, &
                                             kind_of, atom_of_kind, G_PQ_local, force, h_stress, para_env_sub, &
                                             dft_control, psi_L)
 
-      TYPE(pw_p_type), INTENT(INOUT)                     :: rho_r, rho_g, pot_g, rho_g_copy, dvg(3), psi_L
+      TYPE(pw_p_type), INTENT(INOUT)                     :: rho_r
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wf_vector
-      TYPE(cp_fm_type), POINTER, INTENT(IN)              :: matrix
-      TYPE(cell_type), POINTER, INTENT(IN)               :: cell
-      TYPE(particle_type), DIMENSION(:), POINTER, INTENT(IN) :: particle_set
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER, INTENT(IN) :: atomic_kind_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER, INTENT(IN) :: qs_kind_set
-      TYPE(pw_env_type), POINTER, INTENT(IN)             :: pw_env_sub
-      TYPE(pw_poisson_type), POINTER, INTENT(IN)         :: poisson_env
+      TYPE(cp_fm_type), INTENT(IN), POINTER              :: matrix
+      TYPE(pw_p_type), INTENT(INOUT)                     :: rho_g
+      TYPE(atomic_kind_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: atomic_kind_set
+      TYPE(qs_kind_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: qs_kind_set
+      TYPE(particle_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: particle_set
+      TYPE(cell_type), INTENT(IN), POINTER               :: cell
+      TYPE(pw_env_type), INTENT(IN), POINTER             :: pw_env_sub
+      TYPE(pw_poisson_type), INTENT(IN), POINTER         :: poisson_env
+      TYPE(pw_p_type), INTENT(INOUT)                     :: pot_g
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       LOGICAL, INTENT(IN)                                :: use_virial
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: atom_of_kind, kind_of
+      TYPE(pw_p_type), INTENT(INOUT)                     :: rho_g_copy, dvg(3)
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of, atom_of_kind
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: G_PQ_local
-      TYPE(qs_force_type), DIMENSION(:), POINTER, INTENT(IN) :: force
+      TYPE(qs_force_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: force
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: h_stress
-      TYPE(cp_para_env_type), POINTER, INTENT(IN)        :: para_env_sub
-      TYPE(dft_control_type), POINTER, INTENT(IN)        :: dft_control
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
+      TYPE(dft_control_type), INTENT(IN), POINTER        :: dft_control
+      TYPE(pw_p_type), INTENT(INOUT)                     :: psi_L
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potential_forces_2c'
 
@@ -473,15 +500,25 @@ CONTAINS
    END SUBROUTINE integrate_potential_forces_2c
 
    ! If virial, then extract it from virial%pv_virial
+! **************************************************************************************************
+!> \brief Takes the precomputed potential of an RI wave-function and determines matrix element and
+!>        gradients with product of Gaussians
+!> \param mat_munu ...
+!> \param rho_r ...
+!> \param matrix_P_munu ...
+!> \param qs_env ...
+!> \param pw_env_sub ...
+!> \param task_list_sub ...
+! **************************************************************************************************
    SUBROUTINE integrate_potential_forces_3c_1c(mat_munu, rho_r, matrix_P_munu, qs_env, pw_env_sub, &
                                                task_list_sub)
 
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
-      TYPE(dbcsr_p_type), INTENT(IN)                     :: matrix_P_munu
-      TYPE(qs_environment_type), POINTER, INTENT(IN)     :: qs_env
-      TYPE(pw_env_type), POINTER, INTENT(IN)             :: pw_env_sub
-      TYPE(task_list_type), POINTER, INTENT(INOUT)       :: task_list_sub
       TYPE(pw_p_type), INTENT(INOUT)                     :: rho_r
+      TYPE(dbcsr_p_type), INTENT(IN)                     :: matrix_P_munu
+      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
+      TYPE(pw_env_type), INTENT(IN), POINTER             :: pw_env_sub
+      TYPE(task_list_type), INTENT(INOUT), POINTER       :: task_list_sub
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potential_forces_3c_1c'
 
@@ -500,6 +537,31 @@ CONTAINS
       CALL timestop(handle)
    END SUBROUTINE integrate_potential_forces_3c_1c
 
+! **************************************************************************************************
+!> \brief Integrates potential of two Gaussians to a potential
+!> \param matrix_P_munu ...
+!> \param rho_r ...
+!> \param rho_g ...
+!> \param task_list_sub ...
+!> \param pw_env_sub ...
+!> \param potential_parameter ...
+!> \param ks_env ...
+!> \param poisson_env ...
+!> \param pot_g ...
+!> \param use_virial ...
+!> \param rho_g_copy ...
+!> \param dvg ...
+!> \param h_stress ...
+!> \param para_env_sub ...
+!> \param kind_of ...
+!> \param atom_of_kind ...
+!> \param qs_kind_set ...
+!> \param particle_set ...
+!> \param cell ...
+!> \param LLL ...
+!> \param force ...
+!> \param dft_control ...
+! **************************************************************************************************
    SUBROUTINE integrate_potential_forces_3c_2c(matrix_P_munu, rho_r, rho_g, task_list_sub, pw_env_sub, &
                                                potential_parameter, &
                                                ks_env, poisson_env, pot_g, use_virial, rho_g_copy, dvg, &
@@ -507,29 +569,32 @@ CONTAINS
                                                qs_kind_set, particle_set, cell, LLL, force, dft_control)
 
       TYPE(dbcsr_p_type), INTENT(IN)                     :: matrix_P_munu
-      TYPE(pw_p_type), INTENT(INOUT)                     :: dvg(3), pot_g, rho_g, rho_r, &
-                                                            rho_g_copy
-      TYPE(task_list_type), POINTER, INTENT(IN)          :: task_list_sub
-      TYPE(pw_env_type), POINTER, INTENT(IN)             :: pw_env_sub
-      TYPE(pw_poisson_type), POINTER, INTENT(IN)         :: poisson_env
-      TYPE(qs_force_type), DIMENSION(:), POINTER, INTENT(IN) :: force
-      TYPE(qs_ks_env_type), POINTER, INTENT(IN)          :: ks_env
+      TYPE(pw_p_type), INTENT(INOUT)                     :: rho_r, rho_g
+      TYPE(task_list_type), INTENT(IN), POINTER          :: task_list_sub
+      TYPE(pw_env_type), INTENT(IN), POINTER             :: pw_env_sub
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(qs_ks_env_type), INTENT(IN), POINTER          :: ks_env
+      TYPE(pw_poisson_type), INTENT(IN), POINTER         :: poisson_env
+      TYPE(pw_p_type), INTENT(INOUT)                     :: pot_g
       LOGICAL, INTENT(IN)                                :: use_virial
-      TYPE(cp_para_env_type), POINTER, INTENT(IN)        :: para_env_sub
-      TYPE(cell_type), POINTER, INTENT(IN)               :: cell
-      TYPE(particle_type), DIMENSION(:), POINTER, INTENT(IN) :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER, INTENT(IN) :: qs_kind_set
+      TYPE(pw_p_type), INTENT(INOUT)                     :: rho_g_copy, dvg(3)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: h_stress
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: atom_of_kind, kind_of
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of, atom_of_kind
+      TYPE(qs_kind_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: qs_kind_set
+      TYPE(particle_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: particle_set
+      TYPE(cell_type), INTENT(IN), POINTER               :: cell
       INTEGER, INTENT(IN)                                :: LLL
-      TYPE(dft_control_type), POINTER, INTENT(IN)        :: dft_control
+      TYPE(qs_force_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: force
+      TYPE(dft_control_type), INTENT(IN), POINTER        :: dft_control
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potential_forces_3c_2c'
 
-      INTEGER :: atom_a, dir, handle, handle2, i, iatom, &
-         igrid_level, ikind, iorb, ipgf, iset, lb(3), location(3), &
-         na1, na2, ncoa, nseta, offset, sgfa, tp(3), ub(3)
+      INTEGER :: atom_a, dir, handle, handle2, i, iatom, igrid_level, ikind, iorb, ipgf, iset, &
+         lb(3), location(3), na1, na2, ncoa, nseta, offset, sgfa, tp(3), ub(3)
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: map_it_here, skip_shell
@@ -631,7 +696,7 @@ CONTAINS
                        1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
                        I_ab(1, 1), SIZE(I_ab, 1), &
                        0.0_dp, pab(1, 1), SIZE(pab, 1))
-            DEALLOCATE(I_ab)
+            DEALLOCATE (I_ab)
 
             igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, MINVAL(zeta(:, iset)))
             map_it_here = .FALSE.
@@ -651,8 +716,8 @@ CONTAINS
                   location(dir) = tp(dir) + rs_v(igrid_level)%rs_grid%desc%lb(dir)
                ENDDO
                IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
-                  lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
-                  lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
+                   lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
+                   lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
                   map_it_here = .TRUE.
                ENDIF
             ELSE
@@ -697,7 +762,7 @@ CONTAINS
          END DO
 
          force(ikind)%rho_elec(:, atom_a) = &
-         force(ikind)%rho_elec(:, atom_a) + force_a(:) + force_b(:)
+            force(ikind)%rho_elec(:, atom_a) + force_a(:) + force_b(:)
          IF (use_virial) THEN
             h_stress = h_stress + my_virial_a + my_virial_b
          END IF
@@ -711,13 +776,22 @@ CONTAINS
 
    END SUBROUTINE integrate_potential_forces_3c_2c
 
+! **************************************************************************************************
+!> \brief Calculates stress tensor contribution from the operator
+!> \param rho_g_copy ...
+!> \param pot_g ...
+!> \param rho_g ...
+!> \param dvg ...
+!> \param h_stress ...
+!> \param potential_parameter ...
+!> \param para_env_sub ...
+! **************************************************************************************************
    SUBROUTINE virial_gpw_potential(rho_g_copy, pot_g, rho_g, dvg, h_stress, potential_parameter, para_env_sub)
 
-      TYPE(pw_p_type)                                    :: dvg(3), pot_g, rho_g, &
-                                                            rho_g_copy
-      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(pw_p_type)                                    :: rho_g_copy, pot_g, rho_g, dvg(3)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: h_stress
-      TYPE(cp_para_env_type), POINTER, INTENT(IN)        :: para_env_sub
+      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_gpw_potential'
 
@@ -747,6 +821,12 @@ CONTAINS
       CALL timestop(handle)
    END SUBROUTINE virial_gpw_potential
 
+! **************************************************************************************************
+!> \brief Multiplies a potential in g space with the factor ln(V(g)/Vc(g))' with Vc(g) being the
+!>        Fourier-transformed of the Coulomg potential
+!> \param pw ...
+!> \param potential_parameter parameters of potential V(g)
+! **************************************************************************************************
    SUBROUTINE factor_virial_gpw(pw, potential_parameter)
       TYPE(pw_type), INTENT(IN)                          :: pw
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
@@ -757,14 +837,14 @@ CONTAINS
       IF (.NOT. (pw%in_space == RECIPROCALSPACE .AND. pw%in_use == COMPLEXDATA1D)) &
          CPABORT("pw in wrong space or wrong data type")
       SELECT CASE (potential_parameter%potential_type)
-      CASE(do_potential_coulomb)
+      CASE (do_potential_coulomb)
          RETURN
-      CASE(do_potential_long)
+      CASE (do_potential_long)
          omega_2 = 1.0_dp/(2.0_dp*potential_parameter%omega)**2
 !$OMP PARALLEL WORKSHARE SHARED(pw,potential_parameter)
-         pw%cc(:) = pw%cc(:)*(1.0_dp+omega_2*pw%pw_grid%gsq(:))
+         pw%cc(:) = pw%cc(:)*(1.0_dp + omega_2*pw%pw_grid%gsq(:))
 !$OMP END PARALLEL WORKSHARE
-      CASE(do_potential_short)
+      CASE (do_potential_short)
          omega_2 = 1.0_dp/(2.0_dp*potential_parameter%omega)**2
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i,tmp) &
 !$OMP             SHARED(pw,omega_2)
@@ -772,13 +852,13 @@ CONTAINS
             tmp = omega_2*pw%pw_grid%gsq(i)
             ! For too small arguments, use the Taylor polynomial to prevent division by zero
             IF (ABS(tmp) >= 0.003_dp) THEN
-               pw%cc(i) = pw%cc(i)*(1.0_dp-tmp*EXP(-tmp)/(1.0_dp-EXP(-tmp)))
+               pw%cc(i) = pw%cc(i)*(1.0_dp - tmp*EXP(-tmp)/(1.0_dp - EXP(-tmp)))
             ELSE
-               pw%cc(i) = pw%cc(i)*(0.5_dp*tmp-tmp**2/12.0_dp)
+               pw%cc(i) = pw%cc(i)*(0.5_dp*tmp - tmp**2/12.0_dp)
             END IF
          END DO
 !$OMP END PARALLEL DO
-      CASE(do_potential_truncated)
+      CASE (do_potential_truncated)
          rchalf = 0.5_dp*potential_parameter%cutoff_radius
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i,tmp) &
 !$OMP             SHARED(pw,rchalf)
@@ -786,9 +866,9 @@ CONTAINS
             tmp = rchalf*SQRT(pw%pw_grid%gsq(i))
             ! For too small arguments, use the Taylor polynomial to prevent division by zero
             IF (ABS(tmp) >= 0.0001_dp) THEN
-               pw%cc(i) = pw%cc(i)*(1.0_dp-tmp/TAN(tmp))
+               pw%cc(i) = pw%cc(i)*(1.0_dp - tmp/TAN(tmp))
             ELSE
-               pw%cc(i) = pw%cc(i)*tmp**2*(1.0_dp+tmp**2/15.0_dp)/3.0_dp
+               pw%cc(i) = pw%cc(i)*tmp**2*(1.0_dp + tmp**2/15.0_dp)/3.0_dp
             END IF
          END DO
 !$OMP END PARALLEL DO
@@ -798,26 +878,44 @@ CONTAINS
 
    END SUBROUTINE factor_virial_gpw
 
+! **************************************************************************************************
+!> \brief Integrate potential of RI function with RI function
+!> \param pw_env_sub ...
+!> \param pot_r ...
+!> \param kind_of ...
+!> \param atom_of_kind ...
+!> \param particle_set ...
+!> \param qs_kind_set ...
+!> \param G_PQ_local ...
+!> \param cell ...
+!> \param force ...
+!> \param use_virial ...
+!> \param h_stress ...
+!> \param para_env_sub ...
+!> \param dft_control ...
+! **************************************************************************************************
    SUBROUTINE integrate_potential(pw_env_sub, pot_r, kind_of, atom_of_kind, particle_set, qs_kind_set, &
                                   G_PQ_local, cell, force, use_virial, h_stress, para_env_sub, dft_control)
 
-      TYPE(pw_env_type), POINTER, INTENT(IN)             :: pw_env_sub
+      TYPE(pw_env_type), INTENT(IN), POINTER             :: pw_env_sub
       TYPE(pw_p_type), INTENT(IN)                        :: pot_r
-      TYPE(cp_para_env_type), POINTER, INTENT(IN)        :: para_env_sub
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: atom_of_kind, kind_of
-      TYPE(cell_type), POINTER, INTENT(IN)               :: cell
-      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
-      LOGICAL, INTENT(IN)                                :: use_virial
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: h_stress
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of, atom_of_kind
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: G_PQ_local
-      TYPE(dft_control_type), POINTER, INTENT(IN)        :: dft_control
+      TYPE(cell_type), INTENT(IN), POINTER               :: cell
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      LOGICAL, INTENT(IN)                                :: use_virial
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: h_stress
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
+      TYPE(dft_control_type), INTENT(IN), POINTER        :: dft_control
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potential'
 
-      INTEGER :: atom_a, dir, handle, i, iatom, igrid_level, ikind, ipgf, iset, lb(3), location(3), &
-         na1, na2, ncoa, nseta, offset, sgfa, tp(3), ub(3)
+      INTEGER                                            :: atom_a, dir, handle, i, iatom, &
+                                                            igrid_level, ikind, ipgf, iset, lb(3), &
+                                                            location(3), na1, na2, ncoa, nseta, &
+                                                            offset, sgfa, tp(3), ub(3)
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: map_it_here
@@ -907,8 +1005,8 @@ CONTAINS
                   location(dir) = tp(dir) + rs_v(igrid_level)%rs_grid%desc%lb(dir)
                ENDDO
                IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
-                  lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
-                  lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
+                   lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
+                   lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
                   map_it_here = .TRUE.
                ENDIF
             ELSE
@@ -970,7 +1068,7 @@ CONTAINS
    END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Prepares GPW calculation for RI-MP2/RI-RPA
 !> \param qs_env ...
 !> \param dft_control ...
 !> \param e_cutoff_old ...
@@ -989,15 +1087,15 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE prepare_gpw(qs_env, dft_control, e_cutoff_old, cutoff_old, relative_cutoff_old, para_env_sub, pw_env_sub, &
                           auxbas_pw_pool, poisson_env, task_list_sub, rho_r, rho_g, pot_g, psi_L, sab_orb_sub)
-      TYPE(qs_environment_type), POINTER, INTENT(IN)     :: qs_env
-      TYPE(dft_control_type), POINTER, INTENT(IN)        :: dft_control
+      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
+      TYPE(dft_control_type), INTENT(IN), POINTER        :: dft_control
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: e_cutoff_old
       REAL(KIND=dp), INTENT(OUT)                         :: cutoff_old, relative_cutoff_old
-      TYPE(cp_para_env_type), POINTER, INTENT(IN)        :: para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
-      TYPE(pw_pool_type), POINTER, INTENT(IN)            :: auxbas_pw_pool
-      TYPE(pw_poisson_type), POINTER, INTENT(IN)         :: poisson_env
+      TYPE(pw_pool_type), INTENT(IN), POINTER            :: auxbas_pw_pool
+      TYPE(pw_poisson_type), INTENT(IN), POINTER         :: poisson_env
       TYPE(task_list_type), POINTER                      :: task_list_sub
       TYPE(pw_p_type), INTENT(OUT)                       :: rho_r, rho_g, pot_g, psi_L
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -1073,7 +1171,7 @@ CONTAINS
    END SUBROUTINE prepare_gpw
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Cleanup GPW integration for RI-MP2/RI-RPA
 !> \param qs_env ...
 !> \param e_cutoff_old ...
 !> \param cutoff_old ...
@@ -1088,13 +1186,13 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cleanup_gpw(qs_env, e_cutoff_old, cutoff_old, relative_cutoff_old, pw_env_sub, &
                           task_list_sub, auxbas_pw_pool, rho_r, rho_g, pot_g, psi_L)
-      TYPE(qs_environment_type), POINTER, INTENT(IN)     :: qs_env
+      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: e_cutoff_old
       REAL(KIND=dp), INTENT(IN)                          :: cutoff_old, relative_cutoff_old
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
       TYPE(task_list_type), POINTER                      :: task_list_sub
-      TYPE(pw_pool_type), POINTER, INTENT(IN)            :: auxbas_pw_pool
+      TYPE(pw_pool_type), INTENT(IN), POINTER            :: auxbas_pw_pool
       TYPE(pw_p_type), INTENT(INOUT)                     :: rho_r, rho_g, pot_g, psi_L
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cleanup_gpw'
@@ -1125,21 +1223,22 @@ CONTAINS
    END SUBROUTINE cleanup_gpw
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Calculates potential from a given density in g-space
 !> \param pot_r on output: potential in r space
 !> \param rho_g on input: rho in g space
 !> \param poisson_env ...
 !> \param pot_g on output: potential in g space
 !> \param potential_parameter Potential parameters, if not provided, assume Coulomb potential
 !> \param dvg in output: first derivatives of the corresponding Coulomb potential
-!> \param no_transfer: whether NOT to transform potential from g-space to r-space (default: do it)
+!> \param no_transfer whether NOT to transform potential from g-space to r-space (default: do it)
 ! **************************************************************************************************
    SUBROUTINE calc_potential_gpw(pot_r, rho_g, poisson_env, pot_g, potential_parameter, dvg, no_transfer)
       TYPE(pw_p_type), INTENT(IN)                        :: pot_r, rho_g
-      TYPE(pw_poisson_type), POINTER, INTENT(IN)         :: poisson_env
+      TYPE(pw_poisson_type), INTENT(IN), POINTER         :: poisson_env
       TYPE(pw_p_type), INTENT(IN)                        :: pot_g
       TYPE(libint_potential_type), INTENT(IN), OPTIONAL  :: potential_parameter
-      TYPE(pw_p_type), INTENT(IN), DIMENSION(3), OPTIONAL :: dvg
+      TYPE(pw_p_type), DIMENSION(3), INTENT(IN), &
+         OPTIONAL                                        :: dvg
       LOGICAL, INTENT(IN), OPTIONAL                      :: no_transfer
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_potential_gpw'

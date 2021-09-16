@@ -440,7 +440,7 @@ CONTAINS
       TYPE(pw_type), INTENT(INOUT)                       :: pw
       REAL(KIND=dp), INTENT(IN)                          :: omega
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_compl_gauss_damp'
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_compl_gauss_damp'
 
       INTEGER                                            :: cnt, handle, i, n_exp
       REAL(KIND=dp)                                      :: flop, omega_2, tmp
@@ -466,7 +466,7 @@ CONTAINS
             IF (ABS(tmp) > 1.0e-5) THEN
                pw%cc(i) = pw%cc(i)*(1.0_dp - EXP(tmp))
             ELSE
-               pw%cc(i) = pw%cc(i)*(tmp+0.5_dp*tmp*(tmp+(1.0_dp/3.0_dp)*tmp**2))
+               pw%cc(i) = pw%cc(i)*(tmp + 0.5_dp*tmp*(tmp + (1.0_dp/3.0_dp)*tmp**2))
             END IF
          END DO
          flop = flop + 2*cnt
@@ -488,7 +488,7 @@ CONTAINS
 !>        V(\vec r)=1/r if r<rc, 0 else
 !>        V(\vec g)=\frac{4*\pi}{g**2}*(1-cos(g*rc))
 !> \param pw ...
-!> \param omega ...
+!> \param rcutoff ...
 !> \par History
 !>      Frederick Stein (07-06-2021) created
 !> \author Frederick Stein (07-Jun-2021)
@@ -501,7 +501,7 @@ CONTAINS
       TYPE(pw_type), INTENT(INOUT)                       :: pw
       REAL(KIND=dp), INTENT(IN)                          :: rcutoff
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gauss_damp'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_truncated'
 
       INTEGER                                            :: cnt, handle, i, n_cos, n_sqrt
       REAL(KIND=dp)                                      :: flop, tmp
@@ -523,9 +523,9 @@ CONTAINS
          DO i = 1, cnt
             tmp = SQRT(pw%pw_grid%gsq(i))*rcutoff
             IF (tmp >= 0.005_dp) THEN
-               pw%cc(i) = pw%cc(i)*(1.0_dp-COS(tmp))
+               pw%cc(i) = pw%cc(i)*(1.0_dp - COS(tmp))
             ELSE
-               pw%cc(i) = pw%cc(i)*tmp**2/2.0_dp*(1.0-tmp**2/12.0_dp)
+               pw%cc(i) = pw%cc(i)*tmp**2/2.0_dp*(1.0 - tmp**2/12.0_dp)
             END IF
          END DO
          flop = flop + 2*cnt
