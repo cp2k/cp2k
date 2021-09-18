@@ -1,14 +1,8 @@
 &GLOBAL                                                                                           
-  PROJECT     GRAD_H2O_gpw_admm_none
+  PROJECT     H2O_stress_admm
   PRINT_LEVEL LOW
-  RUN_TYPE    CELL_OPT
+  RUN_TYPE    ENERGY_FORCE
 &END GLOBAL
-&MOTION
-  &CELL_OPT
-    MAX_ITER  1
-  &END
-&END MOTION
-
 &FORCE_EVAL
   METHOD Quickstep
   STRESS_TENSOR ANALYTICAL
@@ -16,15 +10,13 @@
     BASIS_SET_FILE_NAME  HFX_BASIS
     BASIS_SET_FILE_NAME  BASIS_ADMM
     POTENTIAL_FILE_NAME  POTENTIAL
-    UKS
-    MULTIPLICITY 2
     &AUXILIARY_DENSITY_MATRIX_METHOD
       METHOD BASIS_PROJECTION
       ADMM_PURIFICATION_METHOD NONE
-      EXCH_CORRECTION_FUNC NONE
+      EXCH_CORRECTION_FUNC PBEX
     &END
     &MGRID
-      CUTOFF     150
+      CUTOFF     100
       REL_CUTOFF  30
     &END MGRID
     &QS
@@ -63,13 +55,12 @@
           FREE_HFX_BUFFER .FALSE.
           &CPHF
             EPS_CONV  1.0E-4
-            # Under the given conditions, the itertion will not converge anyway
-            MAX_ITER  1
+            MAX_ITER  10
           &END
         &END
         &INTEGRALS
           &WFC_GPW
-            CUTOFF      25
+            CUTOFF      50
             REL_CUTOFF  10
             EPS_FILTER  1.0E-12
             EPS_GRID    1.0E-8
@@ -81,7 +72,7 @@
     &END XC
   &END DFT
   &PRINT
-   &FORCES
+   &STRESS_TENSOR
    &END
   &END
   &SUBSYS
@@ -95,15 +86,16 @@
       BASIS_SET AUX_FIT cFIT3
       POTENTIAL         GTH-HF-q1
     &END KIND
-    &KIND C
+    &KIND O
       BASIS_SET         DZVP-GTH
       BASIS_SET RI_AUX  RI_DZVP-GTH
       BASIS_SET AUX_FIT cFIT3
-      POTENTIAL         GTH-HF-q4
+      POTENTIAL         GTH-HF-q6
     &END KIND
     &COORD
-  C     0.000     0.000     0.300
-  H     0.000     1.173     0.000
+      O       0.000000    0.000000    -0.211000
+      H       0.000000   -0.844000     0.495000
+      H       0.000000    0.744000     0.495000
     &END
     &TOPOLOGY
       &CENTER_COORDINATES

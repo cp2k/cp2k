@@ -36,7 +36,7 @@
     &END POISSON
     &SCF
       SCF_GUESS   ATOMIC
-      EPS_SCF     1.0E-3
+      EPS_SCF     1.0E-2
       MAX_SCF     100
     &END SCF
     &XC
@@ -70,8 +70,8 @@
           &WFC_GPW
             CUTOFF      25
             REL_CUTOFF  10
-            EPS_FILTER  1.0E-12
-            EPS_GRID    1.0E-8
+            EPS_FILTER  1.0E-6
+            EPS_GRID    1.0E-6
           &END WFC_GPW
         &END INTEGRALS
         MEMORY       1.00
@@ -85,7 +85,7 @@
   &END
   &SUBSYS
     &CELL
-      ABC [angstrom]  4.0 4.0 4.0
+      ABC [angstrom]  5.0 5.0 5.0
       PERIODIC XYZ
     &END CELL
     &KIND H

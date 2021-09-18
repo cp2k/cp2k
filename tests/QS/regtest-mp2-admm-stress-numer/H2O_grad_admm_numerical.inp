@@ -1,16 +1,11 @@
 &GLOBAL                                                                                           
   PROJECT     GRAD_H2O_gpw_admm_none
   PRINT_LEVEL LOW
-  RUN_TYPE    GEO_OPT
+  RUN_TYPE    ENERGY_FORCE
 &END GLOBAL
-&MOTION
-  &GEO_OPT
-    MAX_ITER  1
-  &END
-&END MOTION
-
 &FORCE_EVAL
   METHOD Quickstep
+  STRESS_TENSOR ANALYTICAL
   &DFT
     BASIS_SET_FILE_NAME  HFX_BASIS
     BASIS_SET_FILE_NAME  BASIS_ADMM
@@ -79,7 +74,7 @@
     &END XC
   &END DFT
   &PRINT
-   &FORCES
+   &STRESS_TENSOR
    &END
   &END
   &SUBSYS

@@ -84,7 +84,7 @@
   &END
   &SUBSYS
     &CELL
-      ABC [angstrom]  4.0 4.0 4.0
+      ABC [angstrom]  5.0 5.0 5.0
       PERIODIC XYZ
     &END CELL
     &KIND H

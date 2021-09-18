@@ -32,7 +32,7 @@
     &END QS
     &POISSON
       POISSON_SOLVER WAVELET
-      PERIODIC XYZ
+      PERIODIC NONE
     &END POISSON
     &SCF
       SCF_GUESS   ATOMIC
@@ -88,7 +88,7 @@
   &SUBSYS
     &CELL
       ABC [angstrom]  4.0 4.0 4.0
-      PERIODIC XYZ
+      PERIODIC NONE
     &END CELL
     &KIND H
       BASIS_SET         DZVP-GTH

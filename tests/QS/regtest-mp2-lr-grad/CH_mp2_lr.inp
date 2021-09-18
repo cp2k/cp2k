@@ -16,16 +16,16 @@
     UKS
     MULTIPLICITY  2
     &MGRID
-      CUTOFF     150
+      CUTOFF     100
       REL_CUTOFF  30
     &END MGRID
     &QS
       METHOD GPW
-      EPS_DEFAULT 1.0E-12
+      EPS_DEFAULT 1.0E-10
     &END QS
     &SCF
       SCF_GUESS   ATOMIC
-      EPS_SCF     1.0E-6
+      EPS_SCF     1.0E-4
       MAX_SCF     100
     &END SCF
     &XC
@@ -35,8 +35,8 @@
         FRACTION 1.0000000
         &SCREENING
           SCREEN_ON_INITIAL_P .FALSE.
-          EPS_SCHWARZ         1.0E-6
-          EPS_SCHWARZ_FORCES  1.0E-6
+          EPS_SCHWARZ         1.0E-5
+          EPS_SCHWARZ_FORCES  1.0E-5
         &END SCREENING
         &INTERACTION_POTENTIAL
           POTENTIAL_TYPE TRUNCATED
@@ -50,7 +50,7 @@
           EPS_CANONICAL 0.0001
           FREE_HFX_BUFFER .TRUE.
           &CPHF
-            EPS_CONV  1.0E-4
+            EPS_CONV  1.0E-3
             MAX_ITER  10
           &END
         &END
@@ -68,8 +68,8 @@
             OMEGA 2.0
           &END INTERACTION_POTENTIAL
           &WFC_GPW
-            CUTOFF  50
-            REL_CUTOFF 20
+            CUTOFF  30
+            REL_CUTOFF 10
             EPS_GRID 1.0E-6
             EPS_FILTER 1.0E-6
           &END WFC_GPW
@@ -85,7 +85,7 @@
   &END
   &SUBSYS
     &CELL
-      ABC [angstrom]  5.0 5.0 5.0
+      ABC [angstrom]  6.0 6.0 6.0
     &END CELL
     &KIND H
       BASIS_SET         DZVP-GTH

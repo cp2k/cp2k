@@ -30,11 +30,11 @@
     &END QS
     &POISSON
       POISSON_SOLVER WAVELET
-      PERIODIC XYZ
+      PERIODIC NONE
     &END POISSON
     &SCF
       SCF_GUESS   ATOMIC
-      EPS_SCF     1.0E-5
+      EPS_SCF     1.0E-4
       MAX_SCF     100
     &END SCF
     &XC
@@ -85,7 +85,7 @@
   &SUBSYS
     &CELL
       ABC [angstrom]  4.0 4.0 4.0
-      PERIODIC XYZ
+      PERIODIC NONE
     &END CELL
     &KIND H
       BASIS_SET         DZVP-GTH
