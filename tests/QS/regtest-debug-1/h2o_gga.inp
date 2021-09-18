@@ -25,10 +25,10 @@
       &END
       &OUTER_SCF
          MAX_SCF  10
-         EPS_SCF 1.0E-7
+         EPS_SCF 1.0E-4
       &END
       MAX_SCF  10
-      EPS_SCF 1.0E-7
+      EPS_SCF 1.0E-4
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE
@@ -43,7 +43,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom] 6.0 6.0 6.0
+      ABC [angstrom] 5.0 5.0 5.0
       PERIODIC NONE
     &END
     &COORD

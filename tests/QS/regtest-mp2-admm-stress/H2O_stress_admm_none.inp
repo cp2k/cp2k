@@ -1,14 +1,8 @@
 &GLOBAL                                                                                           
-  PROJECT     GRAD_H2O_gpw_admm_none
+  PROJECT     H2O_stress_admm_none
   PRINT_LEVEL LOW
-  RUN_TYPE    CELL_OPT
+  RUN_TYPE    ENERGY_FORCE
 &END GLOBAL
-&MOTION
-  &CELL_OPT
-    MAX_ITER  1
-  &END
-&END MOTION
-
 &FORCE_EVAL
   METHOD Quickstep
   STRESS_TENSOR ANALYTICAL
@@ -27,7 +21,7 @@
     &END MGRID
     &QS
       METHOD GPW
-      EPS_DEFAULT 1.0E-12
+      EPS_DEFAULT 1.0E-10
     &END QS
     &POISSON
       POISSON_SOLVER WAVELET
@@ -35,7 +29,7 @@
     &END POISSON
     &SCF
       SCF_GUESS   ATOMIC
-      EPS_SCF     1.0E-6
+      EPS_SCF     1.0E-5
       MAX_SCF     100
     &END SCF
     &XC
@@ -46,7 +40,7 @@
         &SCREENING
           SCREEN_ON_INITIAL_P .FALSE.
           EPS_SCHWARZ         1.0E-10
-          EPS_SCHWARZ_FORCES  1.0E-10
+          EPS_SCHWARZ_FORCES  1.0E-6
         &END SCREENING
         &INTERACTION_POTENTIAL
           POTENTIAL_TYPE TRUNCATED
@@ -60,7 +54,7 @@
           EPS_CANONICAL 0.0001
           FREE_HFX_BUFFER .FALSE.
           &CPHF
-            EPS_CONV  1.0E-6
+            EPS_CONV  1.0E-4
             MAX_ITER  10
           &END
         &END
@@ -78,7 +72,7 @@
     &END XC
   &END DFT
   &PRINT
-   &FORCES
+   &STRESS_TENSOR
    &END
   &END
   &SUBSYS
@@ -89,13 +83,13 @@
     &KIND H
       BASIS_SET         DZVP-GTH
       BASIS_SET RI_AUX  RI_DZVP-GTH
-      BASIS_SET AUX_FIT FIT3
+      BASIS_SET AUX_FIT cFIT3
       POTENTIAL         GTH-HF-q1
     &END KIND
     &KIND O
       BASIS_SET         DZVP-GTH
       BASIS_SET RI_AUX  RI_DZVP-GTH
-      BASIS_SET AUX_FIT FIT3
+      BASIS_SET AUX_FIT cFIT3
       POTENTIAL         GTH-HF-q6
     &END KIND
     &COORD

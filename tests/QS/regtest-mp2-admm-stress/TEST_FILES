@@ -1,5 +1,5 @@
-H2O_grad_admm_none.inp                                11      3e-08           -16.817072816421426
-CH_grad_admm_none.inp                                 11      6e-08            -5.849673308292491
-H2O_grad_admm.inp                                     11      1e-08           -16.874006099848796
-CH_grad_admm.inp                                      11      2e-08            -5.845135126003937
+H2O_stress_admm_none.inp                                31      1e-05           -8.79387492676E+00
+CH_stress_admm_none.inp                                 31      1e-05           -3.60942616841E+00
+H2O_stress_admm.inp                                     31      1e-05           -9.35749575951E+00
+CH_stress_admm.inp                                      31      1e-05           -3.52130924779E+00
 #EOF

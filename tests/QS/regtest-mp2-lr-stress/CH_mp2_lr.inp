@@ -1,13 +1,8 @@
 &GLOBAL                                                                                           
   PROJECT     CH_mp2_lr
   PRINT_LEVEL LOW
-  RUN_TYPE    CELL_OPT
+  RUN_TYPE    ENERGY_FORCE
 &END GLOBAL
-&MOTION
-  &CELL_OPT
-    MAX_ITER  1
-  &END
-&END MOTION
 &FORCE_EVAL
   METHOD Quickstep
   STRESS_TENSOR ANALYTICAL
@@ -37,7 +32,7 @@
         &SCREENING
           SCREEN_ON_INITIAL_P .FALSE.
           EPS_SCHWARZ         1.0E-5
-          EPS_SCHWARZ_FORCES  1.0E-5
+          EPS_SCHWARZ_FORCES  1.0E-4
         &END SCREENING
         &INTERACTION_POTENTIAL
           POTENTIAL_TYPE TRUNCATED
@@ -81,8 +76,8 @@
     &END XC
   &END DFT
   &PRINT
-   &FORCES
-   &END
+    &STRESS_TENSOR
+    &END STRESS_TENSOR
   &END
   &SUBSYS
     &CELL

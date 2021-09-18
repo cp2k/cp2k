@@ -34,7 +34,7 @@
     &END POISSON
     &SCF
       SCF_GUESS   ATOMIC
-      EPS_SCF     1.0E-5
+      EPS_SCF     1.0E-4
       MAX_SCF     100
     &END SCF
     &XC
@@ -45,7 +45,7 @@
         &SCREENING
           SCREEN_ON_INITIAL_P .FALSE.
           EPS_SCHWARZ         1.0E-10
-          EPS_SCHWARZ_FORCES  1.0E-6
+          EPS_SCHWARZ_FORCES  1.0E-5
         &END SCREENING
         &INTERACTION_POTENTIAL
           POTENTIAL_TYPE TRUNCATED
@@ -59,13 +59,13 @@
           EPS_CANONICAL 0.0001
           FREE_HFX_BUFFER .FALSE.
           &CPHF
-            EPS_CONV  1.0E-4
+            EPS_CONV  1.0E-2
             MAX_ITER  10
           &END
         &END
         &INTEGRALS
           &WFC_GPW
-            CUTOFF      50
+            CUTOFF      35
             REL_CUTOFF  10
             EPS_FILTER  1.0E-12
             EPS_GRID    1.0E-8
@@ -82,7 +82,7 @@
   &END
   &SUBSYS
     &CELL
-      ABC [angstrom]  4.0 4.0 4.0
+      ABC [angstrom]  5.0 5.0 5.0
       PERIODIC XYZ
     &END CELL
     &KIND H

@@ -7,6 +7,6 @@ h2o_dipole.inp                                        86      1e-05             
 h2o_polar.inp                                         87      1e-05             0.164538039001E+02
 h2o_pdip.inp                                          86      1e-05             0.961018561809E+00
 h2o_periodic.inp                                      87      1e-05             0.139741440657E+02
-h2o_gga.inp                                           87      1e-05             0.163373158129E+02
-h2o_gapw.inp                                          87      1e-05             0.163449230086E+02
+h2o_gga.inp                                           87      1e-05             0.165143521103E+02
+h2o_gapw.inp                                          87      1e-05             0.170647717900E+02
 #EOF

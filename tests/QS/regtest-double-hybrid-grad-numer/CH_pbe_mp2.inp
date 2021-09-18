@@ -16,16 +16,20 @@
     UKS
     MULTIPLICITY  2
     &MGRID
-      CUTOFF     150
+      CUTOFF     100
       REL_CUTOFF  30
     &END MGRID
     &QS
       METHOD GPW
-      EPS_DEFAULT 1.0E-12
+      EPS_DEFAULT 1.0E-10
     &END QS
+    &POISSON
+      POISSON_SOLVER WAVELET
+      PERIODIC NONE
+    &END POISSON
     &SCF
       SCF_GUESS   ATOMIC
-      EPS_SCF     1.0E-6
+      EPS_SCF     1.0E-4
       MAX_SCF     100
     &END SCF
     &XC
@@ -62,7 +66,8 @@
   &END
   &SUBSYS
     &CELL
-      ABC [angstrom]  5.0 5.0 5.0
+      ABC [angstrom]  4.0 4.0 4.0
+      PERIODIC NONE
     &END CELL
     &KIND H
       BASIS_SET         DZVP-GTH

@@ -1,13 +1,8 @@
 &GLOBAL                                                                                           
   PROJECT     H2O_mp2_lr
   PRINT_LEVEL LOW
-  RUN_TYPE    CELL_OPT
+  RUN_TYPE    ENERGY_FORCE
 &END GLOBAL
-&MOTION
-  &CELL_OPT
-    MAX_ITER  1
-  &END
-&END MOTION
 &FORCE_EVAL
   METHOD Quickstep
   STRESS_TENSOR ANALYTICAL
@@ -15,16 +10,16 @@
     BASIS_SET_FILE_NAME  HFX_BASIS
     POTENTIAL_FILE_NAME  POTENTIAL
     &MGRID
-      CUTOFF     150
+      CUTOFF     100
       REL_CUTOFF  30
     &END MGRID
     &QS
       METHOD GPW
-      EPS_DEFAULT 1.0E-12
+      EPS_DEFAULT 1.0E-10
     &END QS
     &SCF
       SCF_GUESS   ATOMIC
-      EPS_SCF     1.0E-6
+      EPS_SCF     1.0E-4
       MAX_SCF     100
     &END SCF
     &XC
@@ -34,8 +29,8 @@
         FRACTION 1.0000000
         &SCREENING
           SCREEN_ON_INITIAL_P .FALSE.
-          EPS_SCHWARZ         1.0E-6
-          EPS_SCHWARZ_FORCES  1.0E-6
+          EPS_SCHWARZ         1.0E-5
+          EPS_SCHWARZ_FORCES  1.0E-5
         &END SCREENING
         &INTERACTION_POTENTIAL
           POTENTIAL_TYPE TRUNCATED
@@ -78,7 +73,7 @@
     &END XC
   &END DFT
   &PRINT
-   &FORCES
+   &STRESS_TENSOR
    &END
   &END
   &SUBSYS
