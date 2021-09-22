@@ -259,10 +259,18 @@ CONTAINS
                  .OR. do_hfx_ri_mo
 
       safe_density_guess = atomic_guess
-      IF (dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb .OR. &
-          dft_control%qs_control%xtb) THEN
+      IF (dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb) THEN
          IF (density_guess == atomic_guess) density_guess = mopac_guess
          safe_density_guess = mopac_guess
+      END IF
+      IF (dft_control%qs_control%xtb) THEN
+         IF (do_kpoints) THEN
+            IF (density_guess == atomic_guess) density_guess = mopac_guess
+            safe_density_guess = mopac_guess
+         ELSE
+            IF (density_guess == atomic_guess) density_guess = core_guess
+            safe_density_guess = core_guess
+         END IF
       END IF
 
       IF (scf_control%use_ot .AND. &
