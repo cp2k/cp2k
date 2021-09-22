@@ -1,5 +1,5 @@
 H2O_mp2_lr.inp                                      11      4e-08            -16.928059662351437
 H2O_mp2_lr_mme.inp                                  11      4e-08            -16.852688077184180
-CH_mp2_lr.inp                                       11      6e-08             -7.102688886594847
+CH_mp2_lr.inp                                       11      2e-07             -7.102688886594847
 H2O_mp2_lr_Coulomb_metric.inp                        0
 #EOF
