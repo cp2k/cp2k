@@ -259,18 +259,10 @@ CONTAINS
                  .OR. do_hfx_ri_mo
 
       safe_density_guess = atomic_guess
-      IF (dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb) THEN
+      IF (dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb .OR. &
+          dft_control%qs_control%xtb) THEN
          IF (density_guess == atomic_guess) density_guess = mopac_guess
          safe_density_guess = mopac_guess
-      END IF
-      IF (dft_control%qs_control%xtb) THEN
-         IF (do_kpoints) THEN
-            IF (density_guess == atomic_guess) density_guess = mopac_guess
-            safe_density_guess = mopac_guess
-         ELSE
-            IF (density_guess == atomic_guess) density_guess = core_guess
-            safe_density_guess = core_guess
-         END IF
       END IF
 
       IF (scf_control%use_ot .AND. &
@@ -1387,7 +1379,7 @@ CONTAINS
                econf(0:maxl) = edftb(0:maxl)
             ELSEIF (dft_control%qs_control%xtb) THEN
                CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
-               CALL get_xtb_atom_param(xtb_kind, natorb=nsgf, nao=naox, lao=laox, occupation=occupation)
+               CALL get_xtb_atom_param(xtb_kind, z=z, natorb=nsgf, nao=naox, lao=laox, occupation=occupation)
             ELSEIF (has_pot) THEN
                CALL get_atomic_kind(atomic_kind_set(ikind), z=z)
                CALL get_qs_kind(qs_kind_set(ikind), nsgf=nsgf, elec_conf=elec_conf, zeff=zeff)
@@ -1434,12 +1426,18 @@ CONTAINS
                DO iatom = 1, natom
                   atom_a = atom_list(iatom)
                   isgfa = first_sgf(atom_a)
-                  DO isgf = 1, nsgf
-                     na = naox(isgf)
-                     la = laox(isgf)
-                     occ = REAL(occupation(na), dp)/REAL(2*la + 1, dp)
-                     pdiag(isgfa + isgf - 1) = occ
-                  END DO
+                  IF (z == 1 .AND. nsgf == 2) THEN
+                     ! Hydrogen 2s basis
+                     pdiag(isgfa) = 1.0_dp
+                     pdiag(isgfa + 1) = 0.0_dp
+                  ELSE
+                     DO isgf = 1, nsgf
+                        na = naox(isgf)
+                        la = laox(isgf)
+                        occ = REAL(occupation(la + 1), dp)/REAL(2*la + 1, dp)
+                        pdiag(isgfa + isgf - 1) = occ
+                     END DO
+                  END IF
                END DO
             ELSEIF (dft_control%qs_control%semi_empirical) THEN
                yy = REAL(dft_control%charge, KIND=dp)/REAL(nao, KIND=dp)
