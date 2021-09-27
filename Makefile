@@ -31,7 +31,7 @@ REVISION     := $(shell $(CP2KHOME)/tools/build_utils/get_revision_number $(SRCD
 
 EXTSDIR      := exts
 EXTSHOME     := $(CP2KHOME)/$(EXTSDIR)
-EXTSPACKAGES := $(shell cd $(EXTSHOME) ; find * -maxdepth 0 -type d )
+EXTSPACKAGES := $(shell cd $(EXTSHOME) ; find * -maxdepth 0 -type d | grep -v build_ )
 
 PYTHON       := /usr/bin/env python3
 
