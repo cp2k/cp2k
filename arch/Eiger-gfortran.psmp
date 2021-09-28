@@ -9,7 +9,7 @@
 # 4. To run a calculation: no module has to be loaded
 #
 # \
-  module load cpeGNU/21.06 ; \
+  module load cpeGNU/21.08 ; \
   module load \
       cray-fftw \
       ELPA/2021.05.002 \
