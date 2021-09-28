@@ -1,5 +1,5 @@
 H2O-ri-rpa-lr.inp                               11         1e-8        -16.847828959621648
-H2O-ri-rpa-lr-mme.inp                           11         9e-6        -16.851159582018898
+H2O-ri-rpa-lr-mme.inp                           11         1e-5        -16.851159582018898
 H2O-rpa-axk-lr.inp                              11         1e-8        -16.840956522844035
 H2O-rpa-cubic-lr.inp                            11         1e-8        -16.867724875643752
 H2O-rpa-cubic-lr-mme.inp                        11         1e-8        -16.857667483475399
