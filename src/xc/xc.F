@@ -3627,20 +3627,20 @@ CONTAINS
             DO idesc = 1, SIZE(split_desc)
                SELECT CASE (split_desc(idesc))
                CASE ("norm_drho")
-!$OMP             PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_att,norm_drho,drho_cutoff)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_att,norm_drho,drho_cutoff)
                   deriv_att%deriv_data(:, :, :) = deriv_att%deriv_data(:, :, :)/ &
                                                   MAX(norm_drho(:, :, :), drho_cutoff)
-!$OMP             END PARALLEL WORKSHARE
+!$OMP END PARALLEL WORKSHARE
                CASE ("norm_drhoa")
-!$OMP             PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_att,norm_drhoa,drho_cutoff)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_att,norm_drhoa,drho_cutoff)
                   deriv_att%deriv_data(:, :, :) = deriv_att%deriv_data(:, :, :)/ &
                                                   MAX(norm_drhoa(:, :, :), drho_cutoff)
-!$OMP             END PARALLEL WORKSHARE
+!$OMP END PARALLEL WORKSHARE
                CASE ("norm_drhob")
-!$OMP             PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_att,norm_drhob,drho_cutoff)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_att,norm_drhob,drho_cutoff)
                   deriv_att%deriv_data(:, :, :) = deriv_att%deriv_data(:, :, :)/ &
                                                   MAX(norm_drhob(:, :, :), drho_cutoff)
-!$OMP             END PARALLEL WORKSHARE
+!$OMP END PARALLEL WORKSHARE
                CASE ("rho")
                   IF (lsd) &
                      CPABORT("rho not handled in lsd: '"//TRIM(desc)//"'")
@@ -3703,30 +3703,25 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'prepare_dr1dr'
 
-      INTEGER                                            :: handle, i, idir, j, k
-      REAL(KIND=dp)                                      :: my_dr1dr
+      INTEGER                                            :: handle, idir
 
       CALL timeset(routineN, handle)
 
       ALLOCATE (dr1dr(LBOUND(drho(1)%array, 1):UBOUND(drho(1)%array, 1), &
                       LBOUND(drho(1)%array, 2):UBOUND(drho(1)%array, 2), &
                       LBOUND(drho(1)%array, 3):UBOUND(drho(1)%array, 3)))
-!$OMP PARALLEL DO PRIVATE(k,j,i,idir,my_dr1dr) DEFAULT(NONE)&
-!$OMP SHARED(drho,drho1,dr1dr)
-      DO k = LBOUND(drho(1)%array, 3), UBOUND(drho(1)%array, 3)
-         DO j = LBOUND(drho(1)%array, 2), UBOUND(drho(1)%array, 2)
-            DO i = LBOUND(drho(1)%array, 1), UBOUND(drho(1)%array, 1)
-               my_dr1dr = 0._dp
-               DO idir = 1, 3
-                  my_dr1dr = my_dr1dr + drho(idir)%array(i, j, k)*drho1(idir)%array(i, j, k)
-               END DO
-               dr1dr(i, j, k) = my_dr1dr
-            END DO
-         END DO
+
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(dr1dr,drho,drho1)
+      dr1dr(:, :, :) = drho(1)%array(:, :, :)*drho1(1)%array(:, :, :)
+!$OMP END PARALLEL WORKSHARE
+      DO idir = 2, 3
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(dr1dr,drho,drho1,idir)
+         dr1dr(:, :, :) = dr1dr(:, :, :) + drho(idir)%array(:, :, :)*drho1(idir)%array(:, :, :)
+!$OMP END PARALLEL WORKSHARE
       END DO
-!$OMP END PARALLEL DO
 
       CALL timestop(handle)
+
    END SUBROUTINE prepare_dr1dr
 
 ! **************************************************************************************************
@@ -3746,33 +3741,32 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'prepare_dr1dr_ab'
 
-      INTEGER                                            :: handle, i, idir, j, k
-      REAL(KIND=dp)                                      :: my_dr1dr
+      INTEGER                                            :: handle, idir
 
       CALL timeset(routineN, handle)
 
       ALLOCATE (dr1dr(LBOUND(drhoa(1)%array, 1):UBOUND(drhoa(1)%array, 1), &
                       LBOUND(drhoa(1)%array, 2):UBOUND(drhoa(1)%array, 2), &
                       LBOUND(drhoa(1)%array, 3):UBOUND(drhoa(1)%array, 3)))
-!$OMP PARALLEL DO PRIVATE(k,j,i,idir,my_dr1dr) DEFAULT(NONE)&
-!$OMP SHARED(drhob,drho1a,drhoa,drho1b,fac,dr1dr)
-      DO k = LBOUND(drhoa(1)%array, 3), UBOUND(drhoa(1)%array, 3)
-         DO j = LBOUND(drhoa(1)%array, 2), UBOUND(drhoa(1)%array, 2)
-            DO i = LBOUND(drhoa(1)%array, 1), UBOUND(drhoa(1)%array, 1)
-               my_dr1dr = 0._dp
-               DO idir = 1, 3
-                  my_dr1dr = my_dr1dr + drhoa(idir)%array(i, j, k)*(drho1a(idir)%array(i, j, k) + &
-                                                                    fac*drho1b(idir)%array(i, j, k)) + &
-                             drhob(idir)%array(i, j, k)*(fac*drho1a(idir)%array(i, j, k) + &
-                                                         drho1b(idir)%array(i, j, k))
-               END DO
-               dr1dr(i, j, k) = my_dr1dr
-            END DO
-         END DO
+
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(fac,dr1dr,drho1a,drho1b,drhoa,drhob)
+      dr1dr(:, :, :) = drhoa(1)%array(:, :, :)*(drho1a(1)%array(:, :, :) + &
+                                                fac*drho1b(1)%array(:, :, :)) + &
+                       drhob(1)%array(:, :, :)*(fac*drho1a(1)%array(:, :, :) + &
+                                                drho1b(1)%array(:, :, :))
+!$OMP END PARALLEL WORKSHARE
+      DO idir = 2, 3
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(fac,dr1dr,drho1a,drho1b,drhoa,drhob,idir)
+         dr1dr(:, :, :) = dr1dr(:, :, :) + &
+                          drhoa(idir)%array(:, :, :)*(drho1a(idir)%array(:, :, :) + &
+                                                      fac*drho1b(idir)%array(:, :, :)) + &
+                          drhob(idir)%array(:, :, :)*(fac*drho1a(idir)%array(:, :, :) + &
+                                                      drho1b(idir)%array(:, :, :))
+!$OMP END PARALLEL WORKSHARE
       END DO
-!$OMP END PARALLEL DO
 
       CALL timestop(handle)
+
    END SUBROUTINE prepare_dr1dr_ab
 
 ! **************************************************************************************************
