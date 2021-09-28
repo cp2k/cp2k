@@ -3712,7 +3712,7 @@ CONTAINS
                       LBOUND(drho(1)%array, 2):UBOUND(drho(1)%array, 2), &
                       LBOUND(drho(1)%array, 3):UBOUND(drho(1)%array, 3)))
 !$OMP PARALLEL DO PRIVATE(k,j,i,idir,my_dr1dr) DEFAULT(NONE)&
-!$OMP SHARED(drho,drho1,dr1dr) COLLAPSE(3)
+!$OMP SHARED(drho,drho1,dr1dr)
       DO k = LBOUND(drho(1)%array, 3), UBOUND(drho(1)%array, 3)
          DO j = LBOUND(drho(1)%array, 2), UBOUND(drho(1)%array, 2)
             DO i = LBOUND(drho(1)%array, 1), UBOUND(drho(1)%array, 1)
@@ -3724,6 +3724,7 @@ CONTAINS
             END DO
          END DO
       END DO
+!$OMP END PARALLEL DO
 
       CALL timestop(handle)
    END SUBROUTINE prepare_dr1dr
@@ -3754,7 +3755,7 @@ CONTAINS
                       LBOUND(drhoa(1)%array, 2):UBOUND(drhoa(1)%array, 2), &
                       LBOUND(drhoa(1)%array, 3):UBOUND(drhoa(1)%array, 3)))
 !$OMP PARALLEL DO PRIVATE(k,j,i,idir,my_dr1dr) DEFAULT(NONE)&
-!$OMP SHARED(drhob,drho1a,drhoa,drho1b,fac,dr1dr) COLLAPSE(3)
+!$OMP SHARED(drhob,drho1a,drhoa,drho1b,fac,dr1dr)
       DO k = LBOUND(drhoa(1)%array, 3), UBOUND(drhoa(1)%array, 3)
          DO j = LBOUND(drhoa(1)%array, 2), UBOUND(drhoa(1)%array, 2)
             DO i = LBOUND(drhoa(1)%array, 1), UBOUND(drhoa(1)%array, 1)
@@ -3769,6 +3770,7 @@ CONTAINS
             END DO
          END DO
       END DO
+!$OMP END PARALLEL DO
 
       CALL timestop(handle)
    END SUBROUTINE prepare_dr1dr_ab
