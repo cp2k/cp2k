@@ -3561,7 +3561,7 @@ CONTAINS
          IF (my_do_imag_freq) THEN
             func_val = z_one + coeff(iparam)*(gaussi*x_val - xpoints(iparam - 1))/func_val
          ELSE
-            func_val = z_one + coeff(iparam)*(z_one*x_val - xpoints(iparam - 1))/func_val
+            func_val = z_one + coeff(iparam)*(x_val*z_one - xpoints(iparam - 1))/func_val
          END IF
       ENDDO
 
@@ -3593,12 +3593,12 @@ CONTAINS
       func_val = z_one
       dev_val = z_zero
       DO iparam = nparam, 2, -1
-         numerator = coeff(iparam)*(z_one*x_val - xpoints(iparam - 1))
+         numerator = coeff(iparam)*(x_val*z_one - xpoints(iparam - 1))
          dev_numerator = coeff(iparam)*z_one
          denominator = func_val
          dev_denominator = dev_val
          dev_val = dev_numerator/denominator - (numerator*dev_denominator)/(denominator**2)
-         func_val = z_one + coeff(iparam)*(z_one*x_val - xpoints(iparam - 1))/func_val
+         func_val = z_one + coeff(iparam)*(x_val*z_one - xpoints(iparam - 1))/func_val
       ENDDO
 
       dev_val = -1.0_dp*coeff(1)/(func_val**2)*dev_val
