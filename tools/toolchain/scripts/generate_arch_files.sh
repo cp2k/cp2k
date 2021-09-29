@@ -259,6 +259,11 @@ EOF
   if [ "$__WARNALL" = "on" ]; then
     cat << EOF >> $__filename
 #
+SHELL       := bash
+FC          := set -o pipefail && \\\${FC}
+CC          := set -o pipefail && \\\${CC}
+CXX         := set -o pipefail && \\\${CXX}
+LD          := set -o pipefail && \\\${LD}
 FCLOGPIPE   = 2>&1 | tee \\\$(notdir \\\$<).warn
 EOF
   fi
