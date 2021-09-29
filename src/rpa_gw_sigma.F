@@ -559,7 +559,7 @@ CONTAINS
                   occ_virt = 'vir'
                END IF
 
-               exx_minus_vxc = REAL(vec_Sigma_x_minus_vxc_gw(n_level_gw_ref, 1, 1)*evolt)
+               exx_minus_vxc = REAL(vec_Sigma_x_minus_vxc_gw(n_level_gw_ref, 1, 1)*evolt, kind=dp)
 
                WRITE (unit_nr, '(T4,I4,3A,3F21.3)') &
                   n_level_gw_ref, ' ( ', occ_virt, ')  ', exx_minus_vxc
@@ -732,7 +732,7 @@ CONTAINS
 
                   IF (j_global == i_global .AND. i_global <= nmo) THEN
 
-                     reval = REAL(cfm_sigma_x_minus_vxc_mo_basis%local_data(iiB, jjB))
+                     reval = REAL(cfm_sigma_x_minus_vxc_mo_basis%local_data(iiB, jjB), kind=dp)
                      imval = AIMAG(cfm_sigma_x_minus_vxc_mo_basis%local_data(iiB, jjB))
 
                      vec_Sigma_x_minus_vxc_gw(i_global, ispin, ikp) = reval

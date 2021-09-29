@@ -3492,8 +3492,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: num_fit_points, nparam
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(INOUT)      :: xpoints, coeff
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_pade_parameters'
-
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: ypoints
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: g_mat
       INTEGER                                            :: idat, iparam, nstep
@@ -3547,8 +3545,6 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: xpoints, coeff
       COMPLEX(KIND=dp), INTENT(OUT)                      :: func_val
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_imag_freq
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'evaluate_pade_function'
 
       INTEGER                                            :: iparam
       LOGICAL                                            :: my_do_imag_freq
@@ -3977,8 +3973,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt, homo, &
                                                             nmo
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'shift_unshifted_levels'
-
       INTEGER                                            :: n_level_gw, n_level_gw_ref
       REAL(KIND=dp)                                      :: eigen_diff
 
@@ -4136,8 +4130,6 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: Sigma_c
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vec_omega_fit_gw
       INTEGER, INTENT(IN)                                :: num_poles, num_fit_points, n_level_gw
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_chi2'
 
       COMPLEX(KIND=dp)                                   :: func_val
       INTEGER                                            :: iii, jjj, kkk

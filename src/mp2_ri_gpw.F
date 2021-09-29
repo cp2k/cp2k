@@ -222,7 +222,8 @@ CONTAINS
                   start_point = ranges_info_array(3, irep, para_env_exchange%mepos)
                   end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
 
-!$OMP PARALLEL WORKSHARE SHARED(local_i_aL,Lstart_pos,Lend_pos,start_point,end_point,my_i,my_block_size)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
+!$OMP          SHARED(BIb_C,local_i_aL,Lstart_pos,Lend_pos,start_point,end_point,my_i,my_block_size,ispin)
                   local_i_aL(Lstart_pos:Lend_pos, :, :) = &
                      BIb_C(ispin)%array(start_point:end_point, :, my_i:my_i + my_block_size - 1)
 !$OMP END PARALLEL WORKSHARE
@@ -235,7 +236,8 @@ CONTAINS
                   start_point = ranges_info_array(3, irep, para_env_exchange%mepos)
                   end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
 
-!$OMP PARALLEL WORKSHARE SHARED(local_j_aL,Lstart_pos,Lend_pos,start_point,end_point,my_j,my_block_size)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
+!$OMP          SHARED(BIb_C,local_j_aL,Lstart_pos,Lend_pos,start_point,end_point,my_j,my_block_size,jspin)
                   local_j_aL(Lstart_pos:Lend_pos, :, :) = &
                      BIb_C(jspin)%array(start_point:end_point, :, my_j:my_j + my_block_size - 1)
 !$OMP END PARALLEL WORKSHARE
@@ -270,7 +272,8 @@ CONTAINS
                         start_point = ranges_info_array(3, irep, proc_receive)
                         end_point = ranges_info_array(4, irep, proc_receive)
 
-!$OMP PARALLEL WORKSHARE SHARED(local_i_aL,Lstart_pos,Lend_pos,start_point,end_point,my_B_size,ispin,BI_C_rec)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
+!$OMP          SHARED(local_i_aL,Lstart_pos,Lend_pos,start_point,end_point,my_B_size,ispin,BI_C_rec)
                         local_i_aL(Lstart_pos:Lend_pos, :, :) = BI_C_rec(start_point:end_point, 1:my_B_size(ispin), :)
 !$OMP END PARALLEL WORKSHARE
 
@@ -288,7 +291,8 @@ CONTAINS
                         start_point = ranges_info_array(3, irep, proc_receive)
                         end_point = ranges_info_array(4, irep, proc_receive)
 
-!$OMP PARALLEL WORKSHARE SHARED(local_j_aL,Lstart_pos,Lend_pos,start_point,end_point,my_B_size,jspin,BI_C_rec)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
+!$OMP          SHARED(local_j_aL,Lstart_pos,Lend_pos,start_point,end_point,my_B_size,jspin,BI_C_rec)
                         local_j_aL(Lstart_pos:Lend_pos, :, :) = BI_C_rec(start_point:end_point, 1:my_B_size(jspin), :)
 !$OMP END PARALLEL WORKSHARE
 
@@ -307,7 +311,8 @@ CONTAINS
                         start_point = ranges_info_array(3, irep, proc_receive)
                         end_point = ranges_info_array(4, irep, proc_receive)
 
-!$OMP PARALLEL WORKSHARE SHARED(local_i_aL,Lstart_pos,Lend_pos,start_point,end_point,my_B_size,ispin)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
+!$OMP          SHARED(BI_C_rec,local_i_aL,Lstart_pos,Lend_pos,start_point,end_point,my_B_size,ispin)
                         local_i_aL(Lstart_pos:Lend_pos, :, :) = BI_C_rec(start_point:end_point, 1:my_B_size(ispin), :)
 !$OMP END PARALLEL WORKSHARE
 
@@ -323,7 +328,8 @@ CONTAINS
                         start_point = ranges_info_array(3, irep, proc_receive)
                         end_point = ranges_info_array(4, irep, proc_receive)
 
-!$OMP PARALLEL WORKSHARE SHARED(local_j_aL,Lstart_pos,Lend_pos,start_point,end_point,my_B_size,jspin,BI_C_rec)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
+!$OMP          SHARED(local_j_aL,Lstart_pos,Lend_pos,start_point,end_point,my_B_size,jspin,BI_C_rec)
                         local_j_aL(Lstart_pos:Lend_pos, :, :) = BI_C_rec(start_point:end_point, 1:my_B_size(jspin), :)
 !$OMP END PARALLEL WORKSHARE
 
@@ -630,7 +636,8 @@ CONTAINS
                DO kspin = ispin, jspin
                   CALL mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia(kspin)%array(:, :, start_point:end_point), &
                                    proc_send, BIb_C(kspin)%array, proc_receive, para_env_rep%group)
-!$OMP PARALLEL WORKSHARE SHARED(mp2_env,BIb_C,kspin,homo,my_B_size,my_group_L_size)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
+!$OMP          SHARED(mp2_env,BIb_C,kspin,homo,my_B_size,my_group_L_size)
                   mp2_env%ri_grad%Gamma_P_ia(kspin)%array(1:homo(kspin), 1:my_B_size(kspin), 1:my_group_L_size) = &
                      mp2_env%ri_grad%Gamma_P_ia(kspin)%array(1:homo(kspin), 1:my_B_size(kspin), 1:my_group_L_size) &
                      + BIb_C(kspin)%array(:, :, :)

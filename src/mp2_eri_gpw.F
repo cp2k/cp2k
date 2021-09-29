@@ -841,7 +841,7 @@ CONTAINS
          RETURN
       CASE (do_potential_long)
          omega_2 = 1.0_dp/(2.0_dp*potential_parameter%omega)**2
-!$OMP PARALLEL WORKSHARE SHARED(pw,potential_parameter)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw,potential_parameter,omega_2)
          pw%cc(:) = pw%cc(:)*(1.0_dp + omega_2*pw%pw_grid%gsq(:))
 !$OMP END PARALLEL WORKSHARE
       CASE (do_potential_short)
