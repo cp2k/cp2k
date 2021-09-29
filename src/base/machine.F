@@ -70,7 +70,8 @@ MODULE machine
    PUBLIC :: m_walltime, m_datum, m_hostnm, m_flush, &
              m_getcwd, m_getlog, m_getpid, m_procrun, m_abort, &
              m_chdir, m_mov, m_memory, m_memory_details, m_energy, &
-             m_cpuinfo, m_cpuid_static, m_cpuid, m_cpuid_name
+             m_cpuinfo, m_cpuid_static, m_cpuid, m_cpuid_name, &
+             m_get_omp_stacksize
 
    INTERFACE
       ! **********************************************************************************************
@@ -628,21 +629,39 @@ CONTAINS
 !> \param user ...
 ! **************************************************************************************************
    SUBROUTINE m_getlog(user)
-      CHARACTER(len=*), INTENT(OUT) :: user
-      INTEGER                       :: status
+
+      CHARACTER(LEN=*), INTENT(OUT) :: user
+
+      INTEGER                       :: istat
 
       ! on a posix system LOGNAME should be defined
-      CALL get_environment_variable("LOGNAME", value=user, status=status)
+      CALL get_environment_variable("LOGNAME", value=user, status=istat)
       ! nope, check alternative
-      IF (status /= 0) &
-         CALL get_environment_variable("USER", value=user, status=status)
+      IF (istat /= 0) &
+         CALL get_environment_variable("USER", value=user, status=istat)
       ! nope, check alternative
-      IF (status /= 0) &
-         CALL get_environment_variable("USERNAME", value=user, status=status)
+      IF (istat /= 0) &
+         CALL get_environment_variable("USERNAME", value=user, status=istat)
       ! fall back
-      IF (status /= 0) &
+      IF (istat /= 0) &
          user = "<unknown>"
 
    END SUBROUTINE m_getlog
+
+! **************************************************************************************************
+!> \brief Retrieve environment variable OMP_STACKSIZE
+!> \param omp_stacksize Value of OMP_STACKSIZE
+! **************************************************************************************************
+   SUBROUTINE m_get_omp_stacksize(omp_stacksize)
+      CHARACTER(LEN=*), INTENT(OUT)                      :: omp_stacksize
+
+      INTEGER                                            :: istat
+
+      omp_stacksize = ""
+      CALL get_environment_variable("OMP_STACKSIZE", value=omp_stacksize, status=istat)
+      ! Fall back, if OMP_STACKSIZE is not set
+      IF (istat /= 0) omp_stacksize = "default"
+
+   END SUBROUTINE m_get_omp_stacksize
 
 END MODULE machine

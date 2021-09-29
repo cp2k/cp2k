@@ -75,14 +75,9 @@ MODULE environment
                                               dp,&
                                               int_8,&
                                               print_kind_info
-   USE machine,                         ONLY: flush_should_flush,&
-                                              m_cpuid,&
-                                              m_cpuid_name,&
-                                              m_cpuid_static,&
-                                              m_cpuinfo,&
-                                              m_energy,&
-                                              m_memory_details,&
-                                              m_procrun
+   USE machine,                         ONLY: &
+        flush_should_flush, m_cpuid, m_cpuid_name, m_cpuid_static, m_cpuinfo, m_energy, &
+        m_get_omp_stacksize, m_memory_details, m_procrun
    USE message_passing,                 ONLY: add_mp_perf_env,&
                                               describe_mp_perf_env,&
                                               mp_collect_timings,&
@@ -490,7 +485,7 @@ CONTAINS
 
       CHARACTER(LEN=6), PARAMETER                        :: start_section_label = "GLOBAL"
 
-      CHARACTER(len=13)                                  :: tracing_string
+      CHARACTER(len=13)                                  :: omp_stacksize, tracing_string
       CHARACTER(len=6)                                   :: print_level_string
       CHARACTER(len=default_path_length)                 :: basis_set_file_name, coord_file_name, &
                                                             mm_potential_file_name, &
@@ -847,6 +842,11 @@ CONTAINS
             start_section_label//"| Number of threads for this process", &
             num_threads, &
             start_section_label//"| This output is from process", para_env%mepos
+
+         CALL m_get_omp_stacksize(omp_stacksize)
+         WRITE (UNIT=output_unit, FMT="(T2,A,T68,A13)") &
+            start_section_label//"| Stack size for threads created by OpenMP (OMP_STACKSIZE)", &
+            ADJUSTR(omp_stacksize)
 
          CALL m_cpuinfo(model_name)
          WRITE (UNIT=output_unit, FMT="(T2,A,T30,A51)") &
