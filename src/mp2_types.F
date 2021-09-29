@@ -328,8 +328,6 @@ CONTAINS
    ELEMENTAL SUBROUTINE dgemm_counter_init(dgemm_counter)
       TYPE(dgemm_counter_type), INTENT(OUT)              :: dgemm_counter
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dgemm_counter_init'
-
       dgemm_counter%num_dgemm_call = 0
       dgemm_counter%flop_rate = 0.0
 
@@ -341,8 +339,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dgemm_counter_start(dgemm_counter)
       TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dgemm_counter_start'
 
       dgemm_counter%t_start = m_walltime()
 
@@ -358,8 +354,6 @@ CONTAINS
    SUBROUTINE dgemm_counter_stop(dgemm_counter, size1, size2, size3)
       TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
       INTEGER, INTENT(IN)                                :: size1, size2, size3
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dgemm_counter_stop'
 
       REAL(KIND=dp)                                      :: flop_rate, t_end
 
@@ -380,8 +374,6 @@ CONTAINS
       TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       INTEGER, INTENT(IN)                                :: unit_nr
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dgemm_counter_write'
 
       dgemm_counter%flop_rate = dgemm_counter%flop_rate/REAL(MAX(dgemm_counter%num_dgemm_call, 1), dp)/1.0E9_dp
       CALL mp_sum(dgemm_counter%flop_rate, para_env%group)

@@ -130,7 +130,6 @@ message_passing.F: Rank mismatch between actual argument at (1) and actual argum
 message_passing.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 mltfftsg_tools.F: Found WRITE statement with hardcoded unit in "ctrig"
 mode_selective.F: Found READ with unchecked STAT in "bfgs_guess"
-mp2.F: Found lossy conversion real_4_r8 without KIND argument in "compute_vec_sigma_x_minus_vxc_gw"
 pao_param_exp.F: Found lossy conversion real_4_r8 without KIND argument in "zheevd_wrapper"
 parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "dump_reload_check"
 parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "parallel_rng_types_test"
