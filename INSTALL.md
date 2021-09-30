@@ -162,8 +162,9 @@ the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
 
 - A library for small matrix multiplies can be built from the included source
   (see exts/dbcsr/tools/build_libsmm/README).  Usually only the double precision
-  real and perhaps complex types are needed.  Link to the generated libraries. For a
-  couple of architectures, prebuilt LIBSMMs are available at <https://www.cp2k.org/static/downloads/libsmm/>.
+  real and perhaps complex types are needed.  Link to the generated libraries.
+  For a couple of architectures, prebuilt LIBSMMs are available at
+  <https://www.cp2k.org/static/downloads/libsmm/>.
 - Add `-D__HAS_smm_dnn` to the defines to enable using the double precision
   real library.  Similarly use `-D__HAS_smm_snn` for single precision real and
   `-D__HAS_smm_znn` / `-D__HAS_smm_cnn` for double / single precision complex.
@@ -328,8 +329,8 @@ SIRIUS is a domain specific library for electronic structure calculations.
 
 ### 2u. ROCM/HIP (Support for AMD GPU)
 
-The code for the HIP based grid backend was developed and tested on Mi100 but should work
-out of the box on Nvidia hardware as well.
+The code for the HIP based grid backend was developed and tested on Mi100 but
+should work out of the box on Nvidia hardware as well.
 
 - USE `-D__GRID_HIP` to enable AMD GPU support for collocate and integrate
   rountines.
@@ -374,12 +375,13 @@ CP2K's grid backend does not yet support OpenCL devices.
   `exts/dbcsr/src/acc/opencl/smm/params/tune_multiply_A100.csv` exists). If `GPUVER`
   is not specified (or the related file does not exist), `exts/dbcsr/src/acc/opencl/smm/tune_multiply.csv`
   is used. If no parameter file exists, default parameters are used to populate kernels.
-  The content of a successfully specified parameter file is embedded into the binary,
-  i.e., the final application does not depend on a certain path. The environment variable
-  `OPENCL_LIBSMM_SMM_PARAMS=/path/to/file` can be used to supply parameters at runtime
-  of the application, or `OPENCL_LIBSMM_SMM_PARAMS=0` disables using tuned parameters.
-- The environment variable `ACC_OPENCL_VERBOSE=2` can be helpful to print information
-  about kernels generated at runtime and thereby check the installation.
+  The content of a successfully specified parameter file is embedded into the
+  binary, i.e., the final application does not depend on a certain path. The
+  environment variable `OPENCL_LIBSMM_SMM_PARAMS=/path/to/file` can be used
+  to supply parameters at runtime of the application,
+  or `OPENCL_LIBSMM_SMM_PARAMS=0` disables using tuned parameters.
+- The environment variable `ACC_OPENCL_VERBOSE=2` prints information about
+  kernels generated at runtime and thereby check the installation.
 - Refer to <https://cp2k.github.io/dbcsr/> for more information, e.g.,
   environment variables or how to tune kernels (auto tuned parameters).
 
