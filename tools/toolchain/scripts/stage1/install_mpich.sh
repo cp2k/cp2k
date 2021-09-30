@@ -51,7 +51,9 @@ case "$with_mpich" in
 
       # workaround for compilation with GCC >= 10, until properly fixed:
       #   https://github.com/pmodels/mpich/issues/4300
-      ("${FC}" --version | grep -q 'GNU') && compat_flag="-fallow-argument-mismatch" || compat_flag=""
+      if ("${FC}" --version | grep -q 'GNU'); then
+        ("${FC}" --help -v 2>&1 | grep -q 'fallow-argument-mismatch') && compat_flag="-fallow-argument-mismatch" || compat_flag=""
+      fi
       ./configure \
         --prefix="${pkg_install_dir}" \
         --libdir="${pkg_install_dir}/lib" \
