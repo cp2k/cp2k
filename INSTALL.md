@@ -139,16 +139,16 @@ the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
 ### 2g. LIBINT (optional, enables methods including HF exchange)
 
 - Hartree-Fock exchange (optional, use `-D__LIBINT`)
-  requires the libint package to be installed.
-- Recommended way to build libint: Download a CP2K-configured libint library
+  requires the LIBINT package to be installed.
+- Recommended way to build LIBINT: Download a CP2K-configured LIBINT library
   from [libint-cp2k](https://github.com/cp2k/libint-cp2k). Build and install
-  libint by following the instructions provided there. Note that using a library
+  LIBINT by following the instructions provided there. Note that using a library
   configured for higher maximum angular momentum will increase build time and
   binary size of CP2K executable (assuming static linking).
-- CP2K is not hardwired to these provided libraries and any other libint
+- CP2K is not hardwired to these provided libraries and any other LIBINT
   library (version >= 2.5.0) should be compatible as long as it was compiled
   with `--enable-eri=1` and default ordering.
-- Avoid debugging information (`-g` flag) for compiling libint since this will
+- Avoid debugging information (`-g` flag) for compiling LIBINT since this will
   increase library size by a large factor.
 - In the arch file of CP2K: add `-D__LIBINT` to the `DFLAGS`.
   Add `-L$(LIBINT_DIR)/lib -lint2 -lstdc++` to `LIBS` and `-I$(LIBINT_DIR)/include`
@@ -158,33 +158,35 @@ the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
 - `-D__MAX_CONTR=4` (default=2) can be used to compile efficient contraction
   kernels up to l=4, but the build time will increase accordingly.
 
-### 2h. libsmm (optional, improved performance for matrix multiplication)
+### 2h. LIBSMM (optional, improved performance for matrix multiplication)
 
 - A library for small matrix multiplies can be built from the included source
   (see exts/dbcsr/tools/build_libsmm/README).  Usually only the double precision
-  real and perhaps complex is needed.  Link to the generated libraries. For a
-  couple of architectures prebuilt libsmm are available at <https://www.cp2k.org/static/downloads/libsmm/>.
-- Add `-D__HAS_smm_dnn` to the defines to make the code use the double precision
+  real and perhaps complex types are needed.  Link to the generated libraries. For a
+  couple of architectures, prebuilt LIBSMMs are available at <https://www.cp2k.org/static/downloads/libsmm/>.
+- Add `-D__HAS_smm_dnn` to the defines to enable using the double precision
   real library.  Similarly use `-D__HAS_smm_snn` for single precision real and
   `-D__HAS_smm_znn` / `-D__HAS_smm_cnn` for double / single precision complex.
-- Add `-D__HAS_smm_vec` to enable the new vectorized interfaces of libsmm.
+- Add `-D__HAS_smm_vec` to enable the new vectorized interfaces of LIBSMM.
+- If LIBXSMM is available, LIBSMM is not necessary or used (see LIBXSMM section).
 
-### 2i. libxsmm (optional, improved performance for matrix multiplication)
+### 2i. LIBXSMM (optional, improved performance for matrix multiplication)
 
 - A library for matrix operations and deep learning primitives: <https://github.com/hfp/libxsmm/>.
 - Add `-D__LIBXSMM` to enable it, with suitable include and library paths,
   e.g. `FCFLAGS += -I${LIBXSMM_DIR}/include -D__LIBXSMM`
   and `LIBS += -L${LIBXSMM_DIR}/lib -lxsmmf -lxsmm -ldl`
+- LIBSMM is not used if LIBXSMM is enabled.
 
 ### 2j. CUDA (optional, improved performance on GPU systems)
 
 - Specify OFFLOAD_CC (e.g. `OFFLOAD_CC = nvcc`) and
   OFFLOAD_FLAGS (e.g. `OFFLOAD_FLAGS = -O3 -g -w --std=c++11`) variables.
   Remember to include the support for the C++11 standard.
-- Use the `-D__DBCSR_ACC` and `OFFLOAD_TARGET=cuda` to enable
+- Use the `-D__DBCSR_ACC` and `OFFLOAD_TARGET = cuda` to enable
   accelerator support for matrix multiplications.
 - Add `-lstdc++ -lcudart -lnvrtc -lcuda -lcublas` to LIBS.
-- Specify the GPU type (e.g. `GPUVER   = P100`),
+- Specify the GPU type (e.g. `GPUVER = P100`),
   possible values are K20X, K40, K80, P100, V100.
 - Specify the C++ compiler (e.g. `CXX = g++`) and the CXXFLAGS to support
   the C++11 standard.
@@ -197,11 +199,11 @@ the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
 - Link to a blas/scalapack library that accelerates large DGEMMs (e.g. libsci_acc)
 - Use the `-D__GRID_CUDA` to compile the GPU and HYBRID backends for the grid library.
 
-### 2k. libxc (optional, wider choice of xc functionals)
+### 2k. LIBXC (optional, wider choice of xc functionals)
 
-- The version 5.1.0 (or later) of libxc can be downloaded from <https://www.tddft.org/programs/libxc>
-- CP2K does not make use of fourth derivates such that libxc may be configured
-  with './configure --disable-lxc \<other libxc configuration flags\>'.
+- The version 5.1.0 (or later) of LIBXC can be downloaded from <https://www.tddft.org/programs/libxc>
+- CP2K does not make use of fourth derivates such that LIBXC may be configured
+  with './configure --disable-lxc \<other LIBXC configuration flags\>'.
 - During the installation, the directories `$(LIBXC_DIR)/lib`
   and `$(LIBXC_DIR)/include` are created.
 - Add `-D__LIBXC` to DFLAGS, `-I$(LIBXC_DIR)/include` to FCFLAGS
@@ -311,7 +313,7 @@ SIRIUS is a domain specific library for electronic structure calculations.
 - COSMA is an alternative for the pdgemm routine included in ScaLAPACK.
   The library supports both CPU and GPUs.
 - Add `-D__COSMA` to the DFLAGS to enable support for COSMA.
-- see <https://github.com/eth-cscs/COSMA> for more information.
+- See <https://github.com/eth-cscs/COSMA> for more information.
 
 ### 2t. LibVori (Voronoi Integration for Electrostatic Properties from Electron Density)
 
@@ -319,14 +321,14 @@ SIRIUS is a domain specific library for electronic structure calculations.
   (charge, dipole vector, quadrupole tensor, etc.) via integration of the total
   electron density in the Voronoi cell of each atom.
 - Add `-D__LIBVORI` to the DFLAGS to enable support for LibVori.
-- see <https://brehm-research.de/libvori> for more information.
+- See <https://brehm-research.de/libvori> for more information.
 - LibVori also enables support for the BQB file format for compressed trajectories,
   please see <https://brehm-research.de/bqb> for more information as well as
   the `bqbtool` to inspect BQB files.
 
 ### 2u. ROCM/HIP (Support for AMD GPU)
 
-The code for the grid backend was developed and tested on Mi100 but should work
+The code for the HIP based grid backend was developed and tested on Mi100 but should work
 out of the box on Nvidia hardware as well.
 
 - USE `-D__GRID_HIP` to enable AMD GPU support for collocate and integrate
@@ -334,7 +336,7 @@ out of the box on Nvidia hardware as well.
 - Add `GPUVER=Mi50, Mi60, Mi100`
 - Add `OFFLOAD_CC = hipcc`
 - Add  `-lamdhip64` to the `LIBS` variable
-- Add `OFFLOAD_FLAGS ='-fopenmp -m64 -pthread -fPIC -D__GRID_HIP -O2
+- Add `OFFLOAD_FLAGS = '-fopenmp -m64 -pthread -fPIC -D__GRID_HIP -O2
   --offload-arch=gfx908 --rocm-path=$(ROCM_PATH)'` where `ROCM_PATH` is the path
   where the rocm sdk resides. Architectures Mi100 (gfx908), Mi50 (gfx906)
 - the hip backend for the grid library supports nvidia hardware as well. It uses
@@ -346,17 +348,48 @@ out of the box on Nvidia hardware as well.
 - Specify the C++ compiler (e.g. `CXX = g++`). Remember to set the
   CXXFLAGS flags to support C++11 standard and OpenMP.
 - When the HIP backend is enabled for DBCSR using `-D__DBCSR_ACC`, then add
-  `-D__HIP_PLATFORM_AMD__` to `CXXFLAGS` and `OFFLOAD_TARGET=hip`.
+  `-D__HIP_PLATFORM_AMD__` to `CXXFLAGS` and set `OFFLOAD_TARGET = hip`.
 - Use `-D__OFFLOAD_PROFILING` to turn on the AMD ROC TX and Tracer libray.
   It requires to link `-lroctx64 -lroctracer64`.
 
+### 2v. OpenCL Devices
+
+OpenCL devices are currently supported by DBCSR and can cover GPUs and other devices.
+Kernels can be automatically tuned similar to the CUDA/HIP backend in DBCSR.
+CP2K's grid backend does not yet support OpenCL devices.
+
+- To install an OpenCL runtime depends on operating system and the device vendor.
+  However, packages like `opencl-headers` and `ocl-icd-opencl-dev` can be typically
+  installed in addition (the ICD portion "jumps" into a vendor's OpenCL runtime).
+  For example, a CUDA installation is fully equipped with an OpenCL runtime as well
+  (if no `opencl-headers` are installed, CPATH can be needed to point into the CUDA
+  installation similarly to `LIBRARY_PATH` to find `libOpenCL.so` at link-time).
+- There is no special offload compiler needed hence regular `CC` and `CFLAGS` are
+  suffient to build the OpenCL backend as well as the OpenCL based LIBSMM library.
+- To enable the OpenCL backend for DBCSR set `OFFLOAD_TARGET = opencl` and add
+  `-D__DBCSR_ACC` and `-D__OPENCL` to `CFLAGS`, i.e., `OFFLOAD_CC` and
+  `OFFLOAD_FLAGS` are set accordingly (can be used to deviate if desired).
+  Add  `-lOpenCL` to the `LIBS` variable.
+- Add `GPUVER = \<id of parameter file\>`, e.g., `GPUVER = A100` (if
+  `exts/dbcsr/src/acc/opencl/smm/params/tune_multiply_A100.csv` exists). If `GPUVER`
+  is not specified (or the related file does not exist), `exts/dbcsr/src/acc/opencl/smm/tune_multiply.csv`
+  is used. If no parameter file exists, default parameters are used to populate kernels.
+  The content of a successfully specified parameter file is embedded into the binary,
+  i.e., the final application does not depend on a certain path. The environment variable
+  `OPENCL_LIBSMM_SMM_PARAMS=/path/to/file` can be used to supply parameters at runtime
+  of the application, or `OPENCL_LIBSMM_SMM_PARAMS=0` disables using tuned parameters.
+- The environment variable `ACC_OPENCL_VERBOSE=2` can be helpful to print information
+  about kernels generated at runtime and thereby check the installation.
+- Refer to <https://cp2k.github.io/dbcsr/> for more information, e.g.,
+  environment variables or how to tune kernels (auto tuned parameters).
+
 <!---
-### 2u. LibMaxwell (External Maxwell Solver)
+### 2w. LibMaxwell (External Maxwell Solver)
 
 - LibMaxwell is a library to solve the time-dependent Maxwell equations
   and use the resulting electric field in MD runs or real-time propagation.
 - Add `-D__LIBMAXWELL` to DFLAGS to enable support for LibMaxwell.
-- see <https://brehm-research.de> for more information.
+- See <https://brehm-research.de> for more information.
 -->
 
 ## 3. Compile
@@ -434,8 +467,8 @@ The following flags should be present (or not) in the arch file,
 partially depending on installed libraries (see 2.)
 
 - `-D__parallel -D__SCALAPACK` parallel runs
-- `-D__LIBINT` use libint (needed for HF exchange)
-- `-D__LIBXC` use libxc
+- `-D__LIBINT` use LIBINT (needed for HF exchange)
+- `-D__LIBXC` use LIBXC
 - `-D__ELPA` use ELPA in place of SYEVD  to solve the eigenvalue problem
 - `-D__FFTW3` FFTW version 3 is recommended
 - `-D__PW_CUDA` CUDA FFT and associated gather/scatter on the GPU

@@ -1,0 +1,90 @@
+# Tested with: GFortran 9.4.0, Intel MPI, Intel MKL,
+#              LIBINT 2.6.0, LIBXC 5.1.6, ELPA 2021.05.002,
+#              PLUMED 2.7.2, LIBXSMM
+
+CC          = mpicc
+FC          = mpif90
+LD          = mpif90
+AR          = gcc-ar -r
+
+GPUVER      = P100
+OFFLOAD_TARGET = opencl
+
+GNU_PATH   ?= $(HOME)
+MPI_PATH   ?= $(GNU_PATH)
+
+include       $(MPI_PATH)/plumed2/gnu/lib/plumed/src/lib/Plumed.inc.static
+
+BLAS_INC    = $(MKLROOT)/include
+BLAS_LIB    = -Wl,--start-group \
+                $(MKLROOT)/lib/intel64/libmkl_scalapack_lp64.a \
+                $(MKLROOT)/lib/intel64/libmkl_gf_lp64.a \
+                $(MKLROOT)/lib/intel64/libmkl_core.a \
+                $(MKLROOT)/lib/intel64/libmkl_gnu_thread.a \
+                $(MKLROOT)/lib/intel64/libmkl_blacs_intelmpi_lp64.a \
+              -Wl,--end-group
+
+# ELPA 2021.05.002
+ELPA_INC    = $(MPI_PATH)/elpa/gnu/include/elpa
+ELPA_LIB    = $(MPI_PATH)/elpa/gnu/lib
+
+LIBINT_INC  = $(GNU_PATH)/libint/gnu/include
+LIBINT_LIB  = $(GNU_PATH)/libint/gnu/lib
+
+LIBXC_INC   = $(GNU_PATH)/libxc/gnu/include
+LIBXC_LIB   = $(GNU_PATH)/libxc/gnu/lib
+
+LIBXSMM_INC = $(GNU_PATH)/libxsmm/include
+LIBXSMM_LIB = $(GNU_PATH)/libxsmm/lib
+
+CFLAGS      = -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -march=native -mtune=native
+
+DFLAGS     += -D__DBCSR_ACC
+DFLAGS     += -D__ELPA
+DFLAGS     += -D__MKL -D__FFTW3
+DFLAGS     += -D__LIBINT -D__MAX_CONTR=4
+DFLAGS     += -D__LIBXC
+DFLAGS     += -D__LIBXSMM
+DFLAGS     += -D__MPI_VERSION=3
+DFLAGS     += -D__PLUMED2
+DFLAGS     += -D__parallel
+DFLAGS     += -D__SCALAPACK
+#DFLAGS     += -D__CHECK_DIAG
+
+FCFLAGS     = $(CFLAGS) $(DFLAGS)
+FCFLAGS    += -fbacktrace
+FCFLAGS    += -ffree-form
+FCFLAGS    += -ffree-line-length-none
+FCFLAGS    += -fno-omit-frame-pointer
+FCFLAGS    += -std=f2008
+FCFLAGS    += -I$(BLAS_INC) -I$(BLAS_INC)/fftw
+FCFLAGS    += -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules
+FCFLAGS    += -I$(LIBINT_INC)
+FCFLAGS    += -I$(LIBXC_INC)
+FCFLAGS    += -I$(LIBXSMM_INC)
+
+LDFLAGS     = $(CFLAGS) -static-libgfortran
+
+LIBS        = $(PLUMED_DEPENDENCIES) -lz
+LIBS       += $(ELPA_LIB)/libelpa.a
+LIBS       += $(LIBXC_LIB)/libxcf03.a
+LIBS       += $(LIBXC_LIB)/libxc.a
+LIBS       += $(LIBINT_LIB)/libint2.a
+LIBS       += $(LIBXSMM_LIB)/libxsmmf.a
+LIBS       += $(LIBXSMM_LIB)/libxsmm.a
+LIBS       += $(BLAS_LIB)
+LIBS       += -ldl -lstdc++
+
+# collect header and/or library from non-default location
+ifeq (,$(CUDATOOLKIT_HOME))
+  CUDATOOLKIT_HOME := $(NVSDKCOMPUTE_ROOT)
+endif
+ifeq (,$(CUDATOOLKIT_HOME))
+  NVCC := $(call which,nvcc)
+  CUDATOOLKIT_HOME := $(if $(NVCC),$(abspath $(dir $(NVCC))/..))
+endif
+ifneq (,$(CUDATOOLKIT_HOME))
+  LDFLAGS += -L$(CUDATOOLKIT_HOME)/lib64
+  LDFLAGS += -Wl,-rpath=$(CUDATOOLKIT_HOME)/lib64
+endif
+LIBS += -lOpenCL
