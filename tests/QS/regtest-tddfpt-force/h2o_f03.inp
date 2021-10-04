@@ -38,8 +38,8 @@
       &END XC_FUNCTIONAL
     &END XC
     &MGRID
-       CUTOFF  280
-       REL_CUTOFF  60
+       CUTOFF  200
+       REL_CUTOFF  40
     &END
     &POISSON
        PERIODIC NONE

@@ -637,8 +637,7 @@ CONTAINS
                       + qs_force(jkind)%rho_elec(1:3, jatom) &
                       + qs_force(jkind)%dispersion(1:3, jatom) &
                       + qs_force(jkind)%fock_4c(1:3, jatom) &
-                      + qs_force(jkind)%mp2_non_sep(1:3, jatom) &
-                      + qs_force(jkind)%mp2_sep(1:3, jatom)
+                      + qs_force(jkind)%mp2_non_sep(1:3, jatom)
 
          WRITE (UNIT=iounit, FMT=fmtstr2) &
             jatom, jkind, "       overlap", qs_force(jkind)%overlap(1:3, jatom), &
@@ -652,7 +651,6 @@ CONTAINS
             jatom, jkind, "    dispersion", qs_force(jkind)%dispersion(1:3, jatom), &
             jatom, jkind, "       fock_4c", qs_force(jkind)%fock_4c(1:3, jatom), &
             jatom, jkind, "   mp2_non_sep", qs_force(jkind)%mp2_non_sep(1:3, jatom), &
-            jatom, jkind, "       mp2_sep", qs_force(jkind)%mp2_sep(1:3, jatom), &
             jatom, jkind, "         total", total(1:3)
 
       END IF

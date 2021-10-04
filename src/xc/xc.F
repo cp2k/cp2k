@@ -3165,6 +3165,7 @@ CONTAINS
                         CALL pw_derive(tmp_g, nd(:, idir))
                         CALL pw_transfer(tmp_g, tmp_r(ispin)%pw)
                         CALL pw_axpy(tmp_r(ispin)%pw, v_xc(ispin)%pw)
+
                      CASE (xc_deriv_spline2)
                         CALL pw_transfer(tmp_r(ispin)%pw, tmp_g)
                         CALL pw_spline2_interpolate_values_g(tmp_g)
@@ -3360,6 +3361,7 @@ CONTAINS
                      CALL pw_derive(tmp_g, nd(:, idir))
                      CALL pw_transfer(tmp_g, tmp_r(1)%pw)
                      CALL pw_axpy(tmp_r(1)%pw, v_xc(1)%pw)
+
                   CASE (xc_deriv_spline2)
                      CALL pw_transfer(tmp_r(1)%pw, tmp_g)
                      CALL pw_spline2_interpolate_values_g(tmp_g)

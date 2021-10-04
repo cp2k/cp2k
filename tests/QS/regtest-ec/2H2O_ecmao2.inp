@@ -5,9 +5,10 @@
     POTENTIAL_FILE_NAME GTH_POTENTIALS
     &MGRID
       CUTOFF 200
+      REL_CUTOFF 40
     &END MGRID
     &QS
-      EPS_DEFAULT 1.E-14
+      EPS_DEFAULT 1.E-10
       EPS_KG_ORB 1.0E-5
       LS_SCF
       KG_METHOD
@@ -30,8 +31,8 @@
     &ENERGY_CORRECTION
       HARRIS_BASIS HARRIS
       MAO
-      MAO_MAX_ITER 200  
-      MAO_EPS_GRAD 1.e-5 
+      MAO_MAX_ITER 300
+      MAO_EPS_GRAD 1.e-4
       &XC
         &XC_FUNCTIONAL
            &PBE
@@ -52,7 +53,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC 10.0 10.0 10.0
+      ABC 7.0 7.0 7.0
     &END CELL
     &COORD
     O     0.000000     0.000000     0.000000    H2O1

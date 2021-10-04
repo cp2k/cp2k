@@ -126,8 +126,7 @@ MODULE qs_scf
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type
    USE qs_mo_io,                        ONLY: write_mo_set_to_restart
-   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
-                                              make_basis_simple,&
+   USE qs_mo_methods,                   ONLY: make_basis_simple,&
                                               make_basis_sm
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&

@@ -120,7 +120,8 @@ CONTAINS
             ELSE
                ! KS-DFT
                CALL response_force(qs_env, p_env, ex_env%vh_rspace, ex_env%vxc_rspace, &
-                                   ex_env%vtau_rspace, ex_env%matrix_hz, ex_env)
+                                   ex_env%vtau_rspace, ex_env%vadmm_rspace, ex_env%matrix_hz, &
+                                   ex_env)
             END IF
             ! add TD and KS forces
             CALL get_qs_env(qs_env, force=lr_force)

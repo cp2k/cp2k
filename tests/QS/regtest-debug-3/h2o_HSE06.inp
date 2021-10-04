@@ -31,6 +31,9 @@
       MAX_SCF  100
       EPS_SCF 1.0E-7
     &END SCF
+    &MGRID
+       CUTOFF 200
+    &END MGRID
     &XC
       &XC_FUNCTIONAL
         &HYB_GGA_XC_HSE06
@@ -61,7 +64,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom] 6.0 6.0 6.0
+      ABC [angstrom] 5.0 5.0 5.0
       PERIODIC NONE
     &END
     &COORD

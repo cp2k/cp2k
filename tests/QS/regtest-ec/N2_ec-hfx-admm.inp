@@ -9,10 +9,10 @@
     BASIS_SET_FILE_NAME BASIS_ADMM
     POTENTIAL_FILE_NAME GTH_POTENTIALS
     &MGRID
-      CUTOFF 240
+      CUTOFF 200
     &END MGRID
     &QS
-      EPS_DEFAULT 1.E-14
+      EPS_DEFAULT 1.E-10
     &END QS
     &AUXILIARY_DENSITY_MATRIX_METHOD
       ADMM_PURIFICATION_METHOD NONE
@@ -31,16 +31,16 @@
       &END XC
     &END ENERGY_CORRECTION
     &SCF
-      EPS_SCF 1.0E-7
-      SCF_GUESS RESTART
+      EPS_SCF 1.0E-6
+      SCF_GUESS ATOMIC
     &END
     &XC
-       &XC_FUNCTIONAL  NONE
+       &XC_FUNCTIONAL NONE
        &END
        &HF
          FRACTION 1.0
          &SCREENING
-           EPS_SCHWARZ 1.0E-14
+           EPS_SCHWARZ 1.0E-10
          &END
        &END
     &END XC
@@ -51,7 +51,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC 6.0 6.0 6.0
+      ABC 5.0 5.0 5.0
       PERIODIC NONE
     &END CELL
     &COORD

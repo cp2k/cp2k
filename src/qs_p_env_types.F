@@ -18,6 +18,7 @@ MODULE qs_p_env_types
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE hartree_local_types,             ONLY: hartree_local_release,&
                                               hartree_local_type
+   USE kinds,                           ONLY: dp
    USE preconditioner_types,            ONLY: destroy_preconditioner,&
                                               preconditioner_type
    USE qs_kpp1_env_types,               ONLY: kpp1_release,&
@@ -60,7 +61,7 @@ MODULE qs_p_env_types
    TYPE qs_p_env_type
 
       LOGICAL :: orthogonal_orbitals
-      INTEGER :: id_nr, ref_count
+      INTEGER :: id_nr, ref_count, iter
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: kpp1, kpp1_admm, p1, w1
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: p1_admm => NULL()
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: m_epsilon, &
@@ -81,6 +82,13 @@ MODULE qs_p_env_types
       ! preconditioner matrix should be symmetric and positive definite
       TYPE(preconditioner_type), DIMENSION(:), POINTER :: preconditioner
       LOGICAL :: new_preconditioner
+
+      !factors
+      REAL(KIND=dp)  :: delta, gnorm, gnorm_cross, gnorm_old, etotal, gradient
+      !line search
+      INTEGER :: ls_count
+      REAL(KIND=dp)  :: ls_pos(53), ls_energy(53), ls_grad(53)
+      LOGICAL :: only_energy, os_valid
 
    END TYPE qs_p_env_type
 

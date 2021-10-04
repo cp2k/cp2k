@@ -184,6 +184,13 @@ MODULE energy_corrections
                                               virial_create,&
                                               virial_release,&
                                               virial_type
+   USE xc,                              ONLY: xc_calc_2nd_deriv,&
+                                              xc_prep_2nd_deriv
+   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
+                                              xc_dset_release
+   USE xc_rho_set_types,                ONLY: xc_rho_set_release,&
+                                              xc_rho_set_type
+>>>>>>> 9241c20af... Resolve merge conflicts
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -940,9 +947,9 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: dv_hartree_rspace, rho_tot_gspace, &
                                                             rhodn_tot_gspace, v_hartree_gspace, &
-                                                            v_hartree_rspace, vtot_rspace
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, rhoout_g, rhoout_r, &
+                                                            v_hartree_rspace, vtot_rspace, &
                                                             v_rspace, v_tau_rspace, v_xc
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, rhoout_g, rhoout_r, tau_r, &
       TYPE(pw_p_type), POINTER                           :: rho_core
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool

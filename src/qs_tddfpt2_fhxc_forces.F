@@ -94,6 +94,7 @@ MODULE qs_tddfpt2_fhxc_forces
    USE qs_fxc,                          ONLY: qs_fgxc_create,&
                                               qs_fgxc_release
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
+   USE qs_kernel_types,                 ONLY: full_kernel_env_type
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
@@ -108,8 +109,7 @@ MODULE qs_tddfpt2_fhxc_forces
    USE qs_tddfpt2_stda_utils,           ONLY: get_lowdin_x,&
                                               setup_gamma
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
-   USE qs_tddfpt2_types,                ONLY: full_kernel_env_type,&
-                                              tddfpt_ground_state_mos,&
+   USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos,&
                                               tddfpt_work_matrices
    USE task_list_types,                 ONLY: task_list_type
    USE util,                            ONLY: get_limit

@@ -84,6 +84,7 @@ MODULE qs_tddfpt2_forces
    USE qs_fxc,                          ONLY: qs_fxc_analytic,&
                                               qs_fxc_fdiff
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
+   USE qs_kernel_types,                 ONLY: kernel_env_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
@@ -100,7 +101,6 @@ MODULE qs_tddfpt2_forces
                                               stda_force
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
    USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos,&
-                                              tddfpt_kernel_env_type,&
                                               tddfpt_work_matrices
    USE response_solver,                 ONLY: ks_ref_potential
    USE task_list_types,                 ONLY: task_list_type
@@ -141,7 +141,7 @@ CONTAINS
       TYPE(excited_energy_type), POINTER                 :: ex_env
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          POINTER                                         :: gs_mos
-      TYPE(tddfpt_kernel_env_type), INTENT(IN)           :: kernel_env
+      TYPE(kernel_env_type), INTENT(IN)                  :: kernel_env
       TYPE(tddfpt_subgroup_env_type)                     :: sub_env
       TYPE(tddfpt_work_matrices)                         :: work_matrices
 
@@ -153,7 +153,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: ehartree, exc
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: vtau_rspace, vxc_rspace
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: vadmm_rspace, vtau_rspace, vxc_rspace
       TYPE(pw_p_type), POINTER                           :: vh_rspace
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: ks_force, td_force
 
@@ -178,6 +178,7 @@ CONTAINS
          vh_rspace => ex_env%vh_rspace
          vxc_rspace => ex_env%vxc_rspace
          vtau_rspace => ex_env%vtau_rspace
+         vadmm_rspace => ex_env%vadmm_rspace
          IF (ASSOCIATED(vh_rspace)) THEN
             CALL pw_release(vh_rspace%pw)
             DEALLOCATE (vh_rspace)
@@ -194,14 +195,19 @@ CONTAINS
             END DO
             DEALLOCATE (vtau_rspace)
          END IF
-         !
-         NULLIFY (vh_rspace, vxc_rspace, vtau_rspace)
-         IF (.NOT. dft_control%qs_control%xtb) THEN
-            CALL ks_ref_potential(qs_env, vh_rspace, vxc_rspace, vtau_rspace, ehartree, exc)
+         IF (ASSOCIATED(vadmm_rspace)) THEN
+            DO iab = 1, SIZE(vadmm_rspace)
+               CALL pw_release(vadmm_rspace(iab)%pw)
+            END DO
+            DEALLOCATE (vadmm_rspace)
          END IF
+         !
+         NULLIFY (vh_rspace, vxc_rspace, vtau_rspace, vadmm_rspace)
+         CALL ks_ref_potential(qs_env, vh_rspace, vxc_rspace, vtau_rspace, vadmm_rspace, ehartree, exc)
          ex_env%vh_rspace => vh_rspace
          ex_env%vxc_rspace => vxc_rspace
          ex_env%vtau_rspace => vtau_rspace
+         ex_env%vadmm_rspace => vadmm_rspace
          !
          CALL tddfpt_force_direct(qs_env, ex_env, gs_mos, kernel_env, sub_env, &
                                   work_matrices, debug_forces)
@@ -236,7 +242,7 @@ CONTAINS
       TYPE(excited_energy_type), POINTER                 :: ex_env
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          POINTER                                         :: gs_mos
-      TYPE(tddfpt_kernel_env_type), INTENT(IN)           :: kernel_env
+      TYPE(kernel_env_type), INTENT(IN)                  :: kernel_env
       TYPE(tddfpt_subgroup_env_type)                     :: sub_env
       TYPE(tddfpt_work_matrices)                         :: work_matrices
       LOGICAL                                            :: debug_forces
@@ -978,7 +984,7 @@ CONTAINS
       TYPE(excited_energy_type), POINTER                 :: ex_env
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          POINTER                                         :: gs_mos
-      TYPE(tddfpt_kernel_env_type), INTENT(IN)           :: kernel_env
+      TYPE(kernel_env_type), INTENT(IN)                  :: kernel_env
       TYPE(tddfpt_subgroup_env_type)                     :: sub_env
       TYPE(tddfpt_work_matrices)                         :: work_matrices
       LOGICAL, INTENT(IN)                                :: debug_forces

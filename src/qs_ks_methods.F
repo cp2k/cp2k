@@ -714,7 +714,9 @@ CONTAINS
 
       ELSE
          IF (do_hfx) THEN
-            CPWARN("KS matrix not longer correct. Check possible problems with property calculations!")
+            IF (.FALSE.) THEN
+               CPWARN("KS matrix not longer correct. Check possible problems with property calculations!")
+            END IF
          END IF
       END IF ! .NOT. just energy
 

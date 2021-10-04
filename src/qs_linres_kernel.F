@@ -62,8 +62,7 @@ MODULE qs_linres_kernel
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_copy,&
-                                              pw_transfer,&
-                                              pw_zero
+                                              pw_transfer
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -214,7 +213,6 @@ CONTAINS
       CPASSERT(ASSOCIATED(c0))
       CPASSERT(ASSOCIATED(v))
       CPASSERT(ASSOCIATED(Av))
-      MARK_USED(v)
 
       CPASSERT(ASSOCIATED(p_env%kpp1))
       CPASSERT(ASSOCIATED(p_env%kpp1_env))
@@ -578,6 +576,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho1
       TYPE(xtb_atom_type), POINTER                       :: xtb_kind
 
@@ -590,11 +589,12 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(p_env%kpp1_env))
       CPASSERT(ASSOCIATED(p_env%kpp1))
+      kpp1_env => p_env%kpp1_env
 
       rho1 => p_env%rho1
       CPASSERT(ASSOCIATED(rho1))
 
-      CPASSERT(p_env%kpp1_env%ref_count > 0)
+      CPASSERT(kpp1_env%ref_count > 0)
 
       CALL get_qs_env(qs_env=qs_env, &
                       pw_env=pw_env, &
@@ -609,7 +609,7 @@ CONTAINS
       CPASSERT(.NOT. lr_triplet)
 
       nspins = SIZE(p_env%kpp1)
-      p_env%kpp1_env%iter = p_env%kpp1_env%iter + 1
+      kpp1_env%iter = kpp1_env%iter + 1
 
       DO ispin = 1, nspins
          CALL dbcsr_set(p_env%kpp1(ispin)%matrix, 0.0_dp)
@@ -926,13 +926,6 @@ CONTAINS
             CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
             CPASSERT(ASSOCIATED(pw_env))
             CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-            ALLOCATE (v_xc(nspins))
-            DO ispin = 1, nspins
-               NULLIFY (v_xc(ispin)%pw)
-               CALL pw_pool_create_pw(auxbas_pw_pool, v_xc(ispin)%pw, &
-                                      use_data=REALDATA3D, in_space=REALSPACE)
-               CALL pw_zero(v_xc(ispin)%pw)
-            END DO
             NULLIFY (tau_pw)
             ! calculate the xc potential
             lsd = (nspins == 2)
@@ -951,20 +944,6 @@ CONTAINS
             CALL admm_aux_reponse_density(qs_env, c0, v, rho1_aux_r, rho1_aux_g)
             CALL get_qs_env(qs_env, admm_env=admm_env)
             xc_section => admm_env%xc_section_aux
-
-!     NULLIFY (v_xc)
-!     deriv2_analytic = section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")
-!     IF (deriv2_analytic) THEN
-!        CALL qs_fxc_analytic(p_env%kpp1_env%deriv_set_admm, rho1_aux_r, xc_section, auxbas_pw_pool, .FALSE., v_xc)
-!     ELSE
-!        CPABORT("NYA 00013")
-!        NULLIFY (rhoz)
-!        CALL qs_rho_create(rhoz)
-!        CALL qs_rho_set(rhoz, rho_r=rhoz_r, rho_g=rhoz_g)
-!        CALL qs_fxc_fdiff(ks_env, rho, rhoz, xc_section, 6, .FALSE., v_xc, tau_r)
-!        DEALLOCATE (rhoz)
-!     END IF
-
             bo = rho1_aux_r(1)%pw%pw_grid%bounds_local
             ! create the place where to store the argument for the functionals
             NULLIFY (rho1_set)
@@ -982,10 +961,9 @@ CONTAINS
                                    section_get_ival(xc_section, "XC_GRID%XC_SMOOTH_RHO"), &
                                    auxbas_pw_pool)
             fac = 0._dp
-            CALL xc_calc_2nd_deriv(v_xc, p_env%kpp1_env%deriv_set_admm, &
-                                   p_env%kpp1_env%rho_set_admm, &
-                                   rho1_set, auxbas_pw_pool, xc_section=xc_section, &
-                                   tddfpt_fac=fac)
+            CALL xc_calc_2nd_deriv(v_xc, p_env%kpp1_env%deriv_set_admm, p_env%kpp1_env%rho_set_admm, &
+                                   rho1_aux_r, rho1_aux_g, auxbas_pw_pool, gapw=.FALSE., &
+                                   xc_section=xc_section)
             CALL xc_rho_set_release(rho1_set)
 
             tc0 => admm_env%work_aux_orb

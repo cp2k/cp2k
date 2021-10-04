@@ -188,8 +188,17 @@ CONTAINS
       p_env%ref_count = 1
       last_p_env_id = last_p_env_id + 1
       p_env%id_nr = last_p_env_id
+      p_env%iter = 0
 
       p_env%new_preconditioner = .TRUE.
+      p_env%only_energy = .FALSE.
+      p_env%os_valid = .FALSE.
+      p_env%ls_count = 0
+      p_env%delta = 0.0_dp
+      p_env%gnorm = 0.0_dp
+      p_env%gnorm_old = 0.0_dp
+      p_env%etotal = 0.0_dp
+      p_env%gradient = 0.0_dp
 
       CALL qs_rho_create(p_env%rho1)
       CALL qs_rho_create(p_env%rho1_xc)
@@ -448,7 +457,7 @@ CONTAINS
       IF (dft_control%do_admm) THEN
          IF (dft_control%admm_control%aux_exch_func /= do_admm_aux_exch_func_none) THEN
 
-            NULLIFY (ks_env, rho_g_aux, rho_r_aux, task_list)
+            NULLIFY (ks_env, rho1_ao, rho_g_aux, rho_r_aux, task_list)
 
             CALL get_qs_env(qs_env, &
                             ks_env=ks_env, &

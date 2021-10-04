@@ -9,7 +9,7 @@
        &END XC
        NSTATES      3
        MAX_ITER    50
-       CONVERGENCE [eV] 1.0e-7
+       CONVERGENCE [eV] 1.0e-6
        RKS_TRIPLETS F
     &END TDDFPT
   &END PROPERTIES
@@ -48,8 +48,8 @@
       &END XC_FUNCTIONAL
     &END XC
     &MGRID
-       CUTOFF  280
-       REL_CUTOFF  60
+       CUTOFF  200
+       REL_CUTOFF  40
     &END
     &POISSON
        PERIODIC NONE

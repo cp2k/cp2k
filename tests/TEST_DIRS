@@ -84,7 +84,6 @@ DFTB/regtest-scc
 DFTB/regtest-scc-2
 QS/regtest-hfx                                              libint
 QS/regtest-rel
-QS/regtest-debug-3                                          libint
 QS/regtest-ls-rtp
 QS/regtest-admm-qps                                         libint
 ATOM/regtest-pseudo

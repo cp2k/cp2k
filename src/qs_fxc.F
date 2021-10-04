@@ -27,9 +27,7 @@
 MODULE qs_fxc
 
    USE cp_control_types,                ONLY: dft_control_type
-   USE input_section_types,             ONLY: section_get_ival,&
-                                              section_get_rval,&
-                                              section_vals_get_subs_vals,&
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -58,10 +56,8 @@ MODULE qs_fxc
                                               xc_dset_release
    USE xc_derivatives,                  ONLY: xc_functionals_get_needs
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
-   USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
-                                              xc_rho_set_release,&
-                                              xc_rho_set_type,&
-                                              xc_rho_set_update
+   USE xc_rho_set_types,                ONLY: xc_rho_set_release,&
+                                              xc_rho_set_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -98,15 +94,15 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_fxc_analytic', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ispin, nspins
+      INTEGER                                            :: handle, nspins
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL                                            :: lsd
       REAL(KIND=dp)                                      :: fac
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho0_g, rho0_r, rho1_g, tau0_r, tau1_r
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho0_g, rho0_r, rho1_g, tau0_r
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
       TYPE(xc_derivative_set_type), POINTER              :: deriv_set
       TYPE(xc_rho_cflags_type)                           :: needs
-      TYPE(xc_rho_set_type), POINTER                     :: rho0_set, rho1_set
+      TYPE(xc_rho_set_type), POINTER                     :: rho0_set
 
       CALL timeset(routineN, handle)
 
@@ -115,38 +111,21 @@ CONTAINS
       CALL qs_rho_get(rho0, rho_r=rho0_r, rho_g=rho0_g, tau_r=tau0_r)
       nspins = SIZE(rho0_r)
 
-      ALLOCATE (v_xc(nspins))
-      DO ispin = 1, nspins
-         NULLIFY (v_xc(ispin)%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, v_xc(ispin)%pw, &
-                                use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_zero(v_xc(ispin)%pw)
-      END DO
-
       lsd = (nspins == 2)
       fac = 0._dp
       IF (is_triplet .AND. nspins == 1) fac = -1.0_dp
 
-      NULLIFY (deriv_set, rho0_set, rho1_set)
-      NULLIFY (rho1_g, tau1_r)
+      NULLIFY (deriv_set, rho0_set)
+      NULLIFY (rho1_g)
       bo = rho1_r(1)%pw%pw_grid%bounds_local
-      CALL xc_rho_set_create(rho1_set, bo, &
-                             rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
-                             drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF"), &
-                             tau_cutoff=section_get_rval(xc_section, "TAU_CUTOFF"))
       xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
       needs = xc_functionals_get_needs(xc_fun_section, lsd, .TRUE.)
       ! calculate the arguments needed by the functionals
-      CALL xc_rho_set_update(rho1_set, rho1_r, rho1_g, tau1_r, needs, &
-                             section_get_ival(xc_section, "XC_GRID%XC_DERIV"), &
-                             section_get_ival(xc_section, "XC_GRID%XC_SMOOTH_RHO"), &
-                             auxbas_pw_pool)
       CALL xc_prep_2nd_deriv(deriv_set, rho0_set, rho0_r, auxbas_pw_pool, xc_section=xc_section)
-      CALL xc_calc_2nd_deriv(v_xc, deriv_set, rho0_set, &
-                             rho1_set, auxbas_pw_pool, xc_section=xc_section, tddfpt_fac=fac)
+      CALL xc_calc_2nd_deriv(v_xc, deriv_set, rho0_set, rho1_r, rho1_g, &
+                             auxbas_pw_pool, xc_section=xc_section, gapw=.FALSE., do_triplet=is_triplet)
       CALL xc_dset_release(deriv_set)
       CALL xc_rho_set_release(rho0_set)
-      CALL xc_rho_set_release(rho1_set)
 
       CALL timestop(handle)
 

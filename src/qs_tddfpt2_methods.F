@@ -53,6 +53,7 @@ MODULE qs_tddfpt2_methods
                                               qs_environment_type
    USE qs_kernel_methods,               ONLY: create_kernel_env
    USE qs_kernel_types,                 ONLY: full_kernel_env_type,&
+                                              kernel_env_type,&
                                               release_kernel_env
    USE qs_mo_types,                     ONLY: mo_set_p_type
    USE qs_scf_methods,                  ONLY: eigensolver
@@ -82,8 +83,7 @@ MODULE qs_tddfpt2_methods
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_sub_env_init,&
                                               tddfpt_sub_env_release,&
                                               tddfpt_subgroup_env_type
-   USE qs_tddfpt2_types,                ONLY: kernel_env_type,&
-                                              stda_create_work_matrices,&
+   USE qs_tddfpt2_types,                ONLY: stda_create_work_matrices,&
                                               tddfpt_create_work_matrices,&
                                               tddfpt_ground_state_mos,&
                                               tddfpt_release_work_matrices,&

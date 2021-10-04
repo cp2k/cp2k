@@ -4,7 +4,7 @@ H2_H2_no_freeHFX.inp                                  11      2e-13             
 O2_dyn.inp                                            11      2e-11            -31.519148246527102
 O2_dyn_mme.inp                                        72       1e-8                     0.50585576
 CH_dyn_screen.inp                                     11      2e-04             -5.700371305153854
-MOM_MP2_geoopt.inp                                    11      2e-06            -13.969021542684464
-H2O_MD_mme.inp                                        11      1e-10            -17.056807611430269
+MOM_MP2_geoopt.inp                                    11      2e-06            -13.969926262647746
+H2O_MD_mme.inp                                        11      1e-10            -17.056807598425291
 H2_MP2_debug.inp                                      11      1e-10             -1.146241031776471
 #EOF

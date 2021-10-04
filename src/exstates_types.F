@@ -52,6 +52,7 @@ MODULE exstates_types
       TYPE(pw_p_type), POINTER                           :: vh_rspace => NULL()
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rspace => NULL()
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vtau_rspace => NULL()
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: vadmm_rspace => NULL()
    END TYPE excited_energy_type
 
 CONTAINS
@@ -110,6 +111,12 @@ CONTAINS
                CALL pw_release(ex_env%vtau_rspace(iab)%pw)
             END DO
             DEALLOCATE (ex_env%vtau_rspace)
+         END IF
+         IF (ASSOCIATED(ex_env%vadmm_rspace)) THEN
+            DO iab = 1, SIZE(ex_env%vadmm_rspace)
+               CALL pw_release(ex_env%vadmm_rspace(iab)%pw)
+            END DO
+            DEALLOCATE (ex_env%vadmm_rspace)
          END IF
 
          DEALLOCATE (ex_env)

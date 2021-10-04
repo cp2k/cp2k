@@ -14,9 +14,7 @@
 ! **************************************************************************************************
 MODULE qs_linres_methods
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
-                                              cp_dbcsr_sm_fm_multiply,&
-                                              dbcsr_allocate_matrix_set
+   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_external_control,             ONLY: external_control
    USE cp_files,                        ONLY: close_file,&
                                               open_file
@@ -50,13 +48,11 @@ MODULE qs_linres_methods
                                               dbcsr_set,&
                                               dbcsr_type
    USE input_constants,                 ONLY: do_loc_none,&
-                                              kg_tnadd_embed,&
                                               op_loc_berry,&
                                               ot_precond_none,&
                                               ot_precond_solver_default,&
                                               state_loc_all
-   USE input_section_types,             ONLY: section_vals_get,&
-                                              section_vals_get_subs_vals,&
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE kg_correction,                   ONLY: kg_ekin_subset
@@ -66,20 +62,11 @@ MODULE qs_linres_methods
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE message_passing,                 ONLY: mp_bcast
-   USE mulliken,                        ONLY: ao_charges
-   USE particle_types,                  ONLY: particle_type
    USE preconditioner,                  ONLY: apply_preconditioner,&
                                               make_preconditioner
-   USE pw_env_types,                    ONLY: pw_env_type
-   USE qs_2nd_kernel_ao,                ONLY: apply_hfx_ao,&
-                                              apply_xc_admm_ao,&
-                                              build_dm_response
+   USE qs_2nd_kernel_ao,                ONLY: build_dm_response
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                              get_qs_kind_set,&
-                                              qs_kind_type
-   USE qs_kpp1_env_methods,             ONLY: calc_kpp1
    USE qs_linres_kernel,                ONLY: apply_op_2
    USE qs_linres_types,                 ONLY: linres_control_type
    USE qs_loc_methods,                  ONLY: qs_loc_driver
@@ -95,17 +82,11 @@ MODULE qs_linres_methods
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
    USE qs_p_env_methods,                ONLY: p_env_check_i_alloc,&
-                                              p_env_finish_kpp1,&
                                               p_env_update_rho
    USE qs_p_env_types,                  ONLY: qs_p_env_type
-   USE qs_rho_types,                    ONLY: qs_rho_get,&
-                                              qs_rho_type
+   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
+   USE qs_rho_types,                    ONLY: qs_rho_type
    USE string_utilities,                ONLY: xstring
-   USE xtb_ehess,                       ONLY: xtb_coulomb_hessian
-   USE xtb_types,                       ONLY: get_xtb_atom_param,&
-                                              xtb_atom_type
-   USE qs_rho_methods,                  ONLY: qs_rho_rebuild,&
-                                              qs_rho_update_rho
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -347,6 +328,7 @@ CONTAINS
       ! build the preconditioner
       IF (linres_control%preconditioner_type /= ot_precond_none) THEN
          IF (p_env%new_preconditioner) THEN
+            p_env%os_valid = .FALSE.
             DO ispin = 1, nspins
                IF (ASSOCIATED(matrix_t)) THEN
                   CALL make_preconditioner(p_env%preconditioner(ispin), &
@@ -585,7 +567,7 @@ CONTAINS
       !
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: c0, v, Av, chc
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: c0, v, Av, chc
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'apply_op'
 
@@ -641,7 +623,7 @@ CONTAINS
                IF (ASSOCIATED(p_env%kpp1_admm)) CALL dbcsr_set(p_env%kpp1_admm(ispin)%matrix, 0.0_dp)
             END DO
 
-            CALL apply_op_2(qs_env, p_env, c0, Av)
+            CALL apply_op_2(qs_env, p_env, c0, v, Av)
 
          ENDIF
 

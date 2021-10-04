@@ -14,7 +14,7 @@
     &END MGRID
     &QS
       METHOD GPW
-      EPS_DEFAULT 1.0E-12
+      EPS_DEFAULT 1.0E-10
       EXTRAPOLATION USE_GUESS
     &END QS
     &SCF
@@ -22,8 +22,8 @@
       SCF_GUESS ATOMIC
       MAX_SCF  25
       &MIXING
-          METHOD DIRECT_P_MIXING
-          ALPHA   0.50
+          METHOD BROYDEN_MIXING
+          ALPHA   0.20
       &END
     &END SCF
     &XC

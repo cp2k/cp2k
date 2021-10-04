@@ -192,7 +192,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, sv
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_s_aux, rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_s_aux, rho_ao, matrix_ks
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -537,6 +537,11 @@ CONTAINS
 
       CALL get_qs_env(qs_env, dft_control=dft_control, matrix_ks=matrix_ks, &
                       matrix_s=matrix_s, mos=mos)
+
+      CALL p_env_psi0_changed(p_env, qs_env)
+      p_env%os_valid = .FALSE.
+      p_env%new_preconditioner = .TRUE.
+      !
       nspins = dft_control%nspins
 
       ! Initialize vectors:
@@ -554,6 +559,28 @@ CONTAINS
 
       should_stop = .FALSE.
       ! The response solver
+      CALL get_qs_env(qs_env, matrix_s=matrix_s, sab_orb=sab_orb)
+      CALL dbcsr_allocate_matrix_set(p_env%p1, nspins)
+      CALL dbcsr_allocate_matrix_set(p_env%w1, nspins)
+      DO ispin = 1, nspins
+         ALLOCATE (p_env%p1(ispin)%matrix, p_env%w1(ispin)%matrix)
+         CALL dbcsr_create(matrix=p_env%p1(ispin)%matrix, template=matrix_s(1)%matrix)
+         CALL dbcsr_create(matrix=p_env%w1(ispin)%matrix, template=matrix_s(1)%matrix)
+         CALL cp_dbcsr_alloc_block_from_nbl(p_env%p1(ispin)%matrix, sab_orb)
+         CALL cp_dbcsr_alloc_block_from_nbl(p_env%w1(ispin)%matrix, sab_orb)
+      END DO
+      IF (dft_control%do_admm) THEN
+         CALL get_qs_env(qs_env, matrix_s_aux_fit=matrix_s_aux)
+         CALL dbcsr_allocate_matrix_set(p_env%p1_admm, nspins)
+         DO ispin = 1, nspins
+            ALLOCATE (p_env%p1_admm(ispin)%matrix)
+            CALL dbcsr_create(p_env%p1_admm(ispin)%matrix, &
+                              template=matrix_s_aux(1)%matrix)
+            CALL dbcsr_copy(p_env%p1_admm(ispin)%matrix, matrix_s_aux(1)%matrix)
+            CALL dbcsr_set(p_env%p1_admm(ispin)%matrix, 0.0_dp)
+         END DO
+      END IF
+
       CALL linres_solver(p_env, qs_env, psi1, cpmos, psi0, iounit, should_stop)
 
       ! Building the response density matrix
@@ -620,7 +647,7 @@ CONTAINS
 !> \param p_env ...
 !> \param ex_env ...
 ! **************************************************************************************************
-   SUBROUTINE response_force(qs_env, vh_rspace, vxc_rspace, vtau_rspace, vadmm_rspace, &
+   SUBROUTINE response_force(qs_env, p_env, vh_rspace, vxc_rspace, vtau_rspace, vadmm_rspace, &
                              matrix_hz, matrix_pz, matrix_wz, zehartree, zexc, p_env, ex_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_p_type), POINTER                           :: vh_rspace
@@ -1139,8 +1166,21 @@ CONTAINS
       IF (use_virial) THEN
          virial%pv_xc = 0.0_dp
       END IF
-
+      !
       NULLIFY (v_xc)
+!MERGE
+!     deriv2_analytic = section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")
+!     IF (deriv2_analytic) THEN
+!        CALL qs_fxc_analytic(rho, rhoz_r, xc_section, auxbas_pw_pool, .FALSE., v_xc)
+!     ELSE
+!        CPABORT("NYA 00003")
+!        NULLIFY (rhoz)
+!        CALL qs_rho_create(rhoz)
+!        CALL qs_rho_set(rhoz, rho_r=rhoz_r, rho_g=rhoz_g)
+!        CALL qs_fxc_fdiff(ks_env, rho, rhoz, xc_section, 6, .FALSE., v_xc, tau_r)
+!        DEALLOCATE (rhoz)
+!     END IF
+
       CALL create_kernel(qs_env, &
                          vxc=v_xc, &
                          rho=rho, &
@@ -1150,6 +1190,7 @@ CONTAINS
                          compute_virial=use_virial, &
                          virial_xc=virial%pv_xc)
 
+!MERGE
       ! Stress-tensor XC-kernel GGA contribution
       IF (use_virial) THEN
          virial%pv_exc = virial%pv_exc + virial%pv_xc
@@ -1275,13 +1316,13 @@ CONTAINS
       IF (dft_control%do_admm) THEN
          IF (dft_control%admm_control%aux_exch_func == do_admm_aux_exch_func_none) THEN
             ! nothing to do
-            NULLIFY (mpz, mhx, mhy)
+            NULLIFY (mpz, mhz, mhx, mhy)
          ELSE
             ! add ADMM xc_section_aux terms: Pz*Vxc + P0*K0[rhoz]
             CALL get_qs_env(qs_env, admm_env=admm_env, rho_aux_fit=rho_aux_fit, &
                             matrix_s_aux_fit=scrm, task_list_aux_fit=task_list_aux_fit)
             !
-            NULLIFY (mpz, mhx, mhy)
+            NULLIFY (mpz, mhz, mhx, mhy)
             CALL dbcsr_allocate_matrix_set(mhx, nspins, 1)
             CALL dbcsr_allocate_matrix_set(mhy, nspins, 1)
             CALL dbcsr_allocate_matrix_set(mpz, nspins, 1)
@@ -1306,28 +1347,20 @@ CONTAINS
             xc_section => admm_env%xc_section_aux
             IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
             DO ispin = 1, nspins
-               CALL dbcsr_set(mhz(ispin, 1)%matrix, 0.0_dp)
                CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin), &
-                                       hmat=mhz(ispin, 1), pmat=mpz(ispin, 1), &
-!tddft         v_rspace(ispin)%pw%cr3d = v_rspace(ispin)%pw%pw_grid%dvol*v_rspace(ispin)%pw%cr3d
-!              CALL integrate_v_rspace(v_rspace=v_rspace(ispin), &
-!tddft                                 hmat=mhx(ispin, 1), pmat=mpz(ispin, 1), &
+                                       hmat=mhx(ispin, 1), pmat=mpz(ispin, 1), &
                                        qs_env=qs_env, calculate_forces=.TRUE., &
                                        basis_type="AUX_FIT", task_list_external=task_list_aux_fit)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, vadmm_rspace(ispin)%pw)
             END DO
             DEALLOCATE (vadmm_rspace)
-!tddft      DO ispin = 1, nspins
-!              CALL pw_release(v_rspace(ispin)%pw)
-!           END DO
-!           DEALLOCATE (v_rspace)
-!tddft      NULLIFY (rho_g_aux, rho_r_aux, tau_r_aux, rhoz_g_aux, rhoz_r_aux)
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
                CALL mp_sum(fodeb, para_env%group)
                IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*Vxc(rho_admm)", fodeb
             END IF
             !
+            NULLIFY (rho_g_aux, rho_r_aux, tau_r_aux, rhoz_g_aux, rhoz_r_aux)
             CALL qs_rho_get(rho_aux_fit, rho_r=rho_r_aux, rho_g=rho_g_aux, tau_r=tau_r_aux)
             ! rhoz_aux
             NULLIFY (rhoz_g_aux, rhoz_r_aux)

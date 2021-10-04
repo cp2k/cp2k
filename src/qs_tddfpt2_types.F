@@ -21,6 +21,7 @@ MODULE qs_tddfpt2_types
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
                                               cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_type
@@ -39,6 +40,11 @@ MODULE qs_tddfpt2_types
                                               ewald_environment_type
    USE ewald_pw_types,                  ONLY: ewald_pw_release,&
                                               ewald_pw_type
+   USE input_section_types,             ONLY: section_get_ival,&
+                                              section_get_lval,&
+                                              section_get_rval,&
+                                              section_vals_get_subs_vals,&
+                                              section_vals_type
    USE kinds,                           ONLY: dp
    USE pw_env_types,                    ONLY: pw_env_get
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -55,12 +61,17 @@ MODULE qs_tddfpt2_types
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_rho_methods,                  ONLY: qs_rho_rebuild
    USE qs_rho_types,                    ONLY: qs_rho_create,&
+                                              qs_rho_get,&
                                               qs_rho_release,&
                                               qs_rho_set,&
                                               qs_rho_type
-   USE qs_tddfpt2_stda_types,           ONLY: stda_env_type
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_dbcsr_create_by_dist,&
                                               tddfpt_subgroup_env_type
+   USE xc,                              ONLY: xc_prep_2nd_deriv
+   USE xc_derivative_set_types,         ONLY: xc_dset_release
+   USE xc_derivatives,                  ONLY: xc_functionals_get_needs
+   USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
+                                              xc_rho_set_release
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -74,7 +85,7 @@ MODULE qs_tddfpt2_types
    INTEGER, PARAMETER, PRIVATE          :: nderivs = 3
    INTEGER, PARAMETER, PRIVATE          :: maxspins = 2
 
-   PUBLIC :: tddfpt_ground_state_mos, tddfpt_work_matrices, kernel_env_type
+   PUBLIC :: tddfpt_ground_state_mos, tddfpt_work_matrices
    PUBLIC :: tddfpt_create_work_matrices, stda_create_work_matrices, tddfpt_release_work_matrices
 
 ! **************************************************************************************************
@@ -183,17 +194,6 @@ MODULE qs_tddfpt2_types
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
    END TYPE tddfpt_work_matrices
-
-! **************************************************************************************************
-!> \brief Type to hold environments for the different kernels
-!> \par History
-!>   * 04.2019 created [JHU]
-! **************************************************************************************************
-   TYPE kernel_env_type
-      TYPE(full_kernel_env_type), POINTER                :: full_kernel => Null()
-      TYPE(full_kernel_env_type), POINTER                :: admm_kernel => Null()
-      TYPE(stda_env_type), POINTER                       :: stda_kernel => Null()
-   END TYPE kernel_env_type
 
 CONTAINS
 
@@ -673,8 +673,6 @@ CONTAINS
 
    END SUBROUTINE tddfpt_release_work_matrices
 
-<<<<<<< HEAD
-=======
 ! **************************************************************************************************
 !> \brief Create kernel environment.
 !> \param kernel_env       kernel environment (allocated and initialised on exit)
@@ -796,5 +794,4 @@ CONTAINS
 
    END SUBROUTINE tddfpt_release_kernel_env
 
->>>>>>> 0e6b24dd2... TDA forces: Coulomb part of Kernel
 END MODULE qs_tddfpt2_types

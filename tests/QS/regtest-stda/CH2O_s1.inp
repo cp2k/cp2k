@@ -7,7 +7,6 @@
   METHOD Quickstep
   &PROPERTIES
     &TDDFPT
-#      KERNEL none
        KERNEL sTDA
        &sTDA 
           FRACTION 0.0
@@ -32,13 +31,9 @@
     &EXCITED_STATES T
        STATE 1
     &END EXCITED_STATES
-    &POISSON
-#    POISSON_SOLVER WAVELET
-#    PERIODIC NONE
-    &END POISSON
     &SCF
       MAX_SCF 50
-      SCF_GUESS RESTART
+      SCF_GUESS ATOMIC 
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE
@@ -47,8 +42,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC 8.0 8.0 8.0
-#     PERIODIC NONE
+      ABC 6.0 6.0 6.0
     &END CELL
     &TOPOLOGY
      &CENTER_COORDINATES
