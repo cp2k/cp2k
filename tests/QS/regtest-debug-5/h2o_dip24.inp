@@ -6,7 +6,7 @@
        &sTDA
           FRACTION 0.25
        &END sTDA
-       NSTATES      5
+       NSTATES      4
        MAX_ITER    50
        CONVERGENCE [eV] 1.0e-7
     &END TDDFPT
@@ -17,6 +17,10 @@
       METHOD GPW
     &END QS
     &EFIELD
+    &END
+    &MGRID
+       CUTOFF 200
+       REL_CUTOFF 40
     &END
     &EXCITED_STATES T
        STATE 2
@@ -29,15 +33,19 @@
       &END
       &OUTER_SCF
          MAX_SCF  10
-         EPS_SCF 1.0E-6
+         EPS_SCF 1.0E-8
       &END
       MAX_SCF  50
-      EPS_SCF 1.0E-6
+      EPS_SCF 1.0E-8
     &END SCF
     &XC
       &XC_FUNCTIONAL PADE
       &END XC_FUNCTIONAL
     &END XC
+    &POISSON
+       PERIODIC NONE
+       POISSON_SOLVER ANALYTIC
+    &END
     &PRINT
       &MOMENTS ON
          PERIODIC .FALSE.
@@ -47,7 +55,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom] 4.0 4.0 4.0
+      ABC [angstrom] 5.0 5.0 5.0
       PERIODIC NONE
     &END
     &COORD
@@ -80,7 +88,7 @@
    DEBUG_STRESS_TENSOR .FALSE.
    DEBUG_DIPOLE .TRUE.
    DEBUG_POLARIZABILITY .FALSE.
-   STOP_ON_MISMATCH F
-   DE 0.01
+   STOP_ON_MISMATCH T
+   DE 0.002
 &END DEBUG
 
