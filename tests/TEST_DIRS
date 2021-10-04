@@ -52,7 +52,6 @@ QS/regtest-stda-force-4                                     libint
 QS/regtest-tddfpt-force                                     libint
 QS/regtest-tddfpt-force-2                                   libint
 QS/regtest-tddfpt-force-3                                   libint
-QS/regtest-tddfpt-force-4                                   libint
 QS/regtest-cdft-diag
 xTB/regtest-1
 xTB/regtest-2
