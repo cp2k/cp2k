@@ -4,5 +4,5 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 CH2O_none.inp                                               72    1.0E-07               0.00245398  
-CH2O_s1.inp                                                 72    1.0E-07               0.00748601  
+CH2O_s1.inp                                                 72    1.0E-07               0.00745033  
 #EOF

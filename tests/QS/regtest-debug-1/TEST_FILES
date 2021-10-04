@@ -4,7 +4,7 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 h2o_dipole.inp                                        86      1e-05             0.908927636669E+00
-h2o_polar.inp                                         87      1e-05             0.164538039001E+02
+h2o_polar.inp                                         87      1e-05             0.166347691437E+02
 h2o_pdip.inp                                          86      1e-05             0.961018561809E+00
 h2o_periodic.inp                                      87      1e-05             0.139741440657E+02
 h2o_gga.inp                                           87      1e-05             0.165143521103E+02

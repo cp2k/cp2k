@@ -6,8 +6,8 @@
 h2o_pbe0.inp                                          60      1e-05             0.411901963703
 h2o_pbe0_admm.inp                                     60      1e-05             0.426369189904
 #
-h2o_HSE06.inp                                         60      1e-05             0.435592198533
-h2o_HSE06_admm.inp                                    60      1e-05             0.435020978453
+h2o_HSE06.inp                                         60      1e-05             0.436263865396
+h2o_HSE06_admm.inp                                    60      1e-05             0.381688458912
 #h2o_B88_mixcl.inp                 functional B88_LR   60      1e-05             0.000000000000E+00
 #h2o_B88_mixcl_admm.inp            functional B88_LR   60      1e-05             0.000000000000E+00
 h2o_pbe0TC.inp                                        60      1e-05             0.430192264863

@@ -12,6 +12,7 @@ H2_H2O_ecprim.inp                                     11      1e-10             
 # ENERGY : LS + KG embed + Harris (Diag) MAO basis options
 2H2O_ecmao2.inp                                       11      1e-08                 -34.5024567596
 # ENERGY : LS + KG embed + Harris (Diag) dipole 
+H2O_ec.inp                                            11      1e-08                 -17.2629537942
 HF_ec_dipole.inp                                      11      1e-08                 -24.8917060368
 # ENERGY : LS + KG embed + Harris (Diag) efield 
 HF_ec_field.inp                                       11      1e-08                 -24.8908706031
@@ -54,5 +55,5 @@ H2O_KSH_MO_an.inp                                     31      1e-05             
 H2O_KSH_AO_numdiag.inp                                31      1e-05             -2.41849782017E+00
 N2_ec.inp                                             11      1e-10                 -19.9088452474
 N2_ec-hfx.inp                                         11      1e-10                 -19.8158435718
-N2_ec-hfx-admm.inp                                    11      1e-10                 -19.8016851664
+N2_ec-hfx-admm.inp                                    11      1e-10                 -19.7796942775
 #EOF
