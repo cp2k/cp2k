@@ -14,21 +14,22 @@
 # FC  => Fortran compiler, e.g. gfortran or mpifort
 # LD  => Linker, e.g. gfortran or mpifort
 # AR  => Archive command, e.g. ar -r
-# CXXFLAGS => C++ compilation flags
-# CFLAGS   => C compilation flags
-# FCFLAGS  => Fortran compilation flags
-# LDFLAGS  => Linker flags
-# LIBS     => Libraries
-# ACC      => ACC can be nvcc (CUDA), mpicxx/mpicc or gcc/g++ (HIP), or mpicc/gcc (OpenCL)
-# ACCFLAGS => ACC flags
+# CXXFLAGS  => C++ compilation flags
+# CFLAGS    => C compilation flags
+# FCFLAGS   => Fortran compilation flags
+# LDFLAGS   => Linker flags
+# LIBS      => Libraries
+# ACC       => ACC can be nvcc (CUDA), mpicxx/mpicc or gcc/g++ (HIP), or mpicc/gcc (OpenCL)
+# ACCFLAGS  => ACC flags
 # USE_ACCEL => hip, cuda, or opencl
-# GPUVER   =>
+# GPUVER    =>
 #          - for CUDA, possible values correspond to NVIDIA GPUs:
 #            possible values are K20X, K40, K80, P100, V100
 #          - for HIP, possible values correspond to NVIDIA and AMD GPUs:
 #            possible values are K20X, K40, K80, P100, V100, Mi50, Mi100
-#          - for OpenCL, GPUVER is currently not used
-#            (TODO: represent set of tuned parameters)
+#          - for OpenCL, GPUVER maps to a file with tuned parameters:
+#            src/acc/opencl/smm/params/tune_multiply_GPUVER.csv, or
+#            src/acc/opencl/smm/tune_multiply.csv (default)
 #
 # Libraries for accelerator:
 #    - e.g. for CUDA:   LIBS += -lstdc++ -lcudart -lnvrtc -lcuda -lcublas
@@ -61,7 +62,7 @@ default_target: $(LIBRARY)
 # Read the version ==========================================================
 include $(DBCSRHOME)/VERSION
 ifeq ($(DATE),)
-DATE = "Development Version"
+  DATE = "Development Version"
 endif
 
 # Read the configuration ====================================================
@@ -69,64 +70,68 @@ ifeq (,$(ARCHFILE))
 $(error ARCH file must be provided: ARCHFILE=<CP2K ARCH file>)
 endif
 ifeq (, $(wildcard $(ARCHFILE)))
-$(error ARCH file `$(ARCHFILE)` not found)
+  $(error ARCH file `$(ARCHFILE)` not found)
 endif
 include $(ARCHFILE)
 
 # Set the compute version and ACCFLAGS =======================================
 ifneq ($(ACC),)
+
 # Set ARCH version
 ifeq ($(GPUVER),K20X)
- ARCH_NUMBER = 35
+  ARCH_NUMBER = 35
 else ifeq ($(GPUVER),K40)
- ARCH_NUMBER = 35
+  ARCH_NUMBER = 35
 else ifeq ($(GPUVER),K80)
- ARCH_NUMBER = 37
+  ARCH_NUMBER = 37
 else ifeq ($(GPUVER),P100)
- ARCH_NUMBER = 60
+  ARCH_NUMBER = 60
 else ifeq ($(GPUVER),V100)
- ARCH_NUMBER = 70
+  ARCH_NUMBER = 70
 else ifeq ($(GPUVER),Mi50)
- ARCH_NUMBER = gfx906
+  ARCH_NUMBER = gfx906
 else ifeq ($(GPUVER),Mi100)
- ARCH_NUMBER = gfx908
+  ARCH_NUMBER = gfx908
 else ifneq ($(GPUVER),)
- $(error GPUVER not recognized)
+  $(error GPUVER not recognized)
 endif
 
 # If compiling with nvcc
 ifeq (cuda,$(USE_ACCEL))
-override ACCFLAGS += -D__CUDA
-FCFLAGS += -D__CUDA
-CXXFLAGS += -D__CUDA
-#if "-arch" has not yet been set in ACCFLAGS
-ifeq (,$(findstring -arch,$(ACCFLAGS)))
-override ACCFLAGS += -arch sm_$(ARCH_NUMBER)
-endif
-ifeq (,$(findstring -Xcompiler,$(ACCFLAGS)))
-override ACCFLAGS += -Xcompiler="$(CXXFLAGS)"
-endif
+  override ACCFLAGS += -D__CUDA
+  FCFLAGS += -D__CUDA
+  CXXFLAGS += -D__CUDA
+  #if "-arch" has not yet been set in ACCFLAGS
+  ifeq (,$(findstring -arch,$(ACCFLAGS)))
+    override ACCFLAGS += -arch sm_$(ARCH_NUMBER)
+  endif
+  ifeq (,$(findstring -Xcompiler,$(ACCFLAGS)))
+    override ACCFLAGS += -Xcompiler="$(CXXFLAGS)"
+  endif
 # If compiling with hipcc
 else ifeq (hip,$(USE_ACCEL))
-override ACCFLAGS += -D__HIP
-FCFLAGS += -D__HIP
+  override ACCFLAGS += -D__HIP
+  FCFLAGS += -D__HIP
 # OpenCL backend
 else ifeq (opencl,$(USE_ACCEL))
-CFLAGS += -D__OPENCL
-LIBXSMMROOT := $(if $(LIBXSMMROOT),$(LIBXSMMROOT),$(wildcard ../../../libxsmm))
-LIBXSMMROOT := $(if $(LIBXSMMROOT),$(LIBXSMMROOT),$(wildcard $(HOME)/libxsmm))
-ifneq (,$(LIBXSMMROOT))
-CFLAGS += -I$(LIBXSMMROOT)/include
+  CFLAGS = $(ACCFLAGS) -D__OPENCL
+  # LIBXSMM is eventually included privately/quietly (header-only)
+  LIBXSMMROOT := $(if $(LIBXSMMROOT),$(LIBXSMMROOT),$(wildcard $(LIBXSMM_INC)/..))
+  LIBXSMMROOT := $(if $(LIBXSMMROOT),$(LIBXSMMROOT),$(wildcard ../../../libxsmm))
+  LIBXSMMROOT := $(if $(LIBXSMMROOT),$(LIBXSMMROOT),$(wildcard $(HOME)/libxsmm))
+  ifneq (,$(LIBXSMMROOT))
+    CFLAGS += -I$(LIBXSMMROOT)/include
+  endif
 endif
-endif
-endif
+
+endif # ACC
 
 # Set the configuration ============================================
 #
 ifneq ($(LD_SHARED),)
- ARCHIVE_EXT := .so
+  ARCHIVE_EXT := .so
 else
- ARCHIVE_EXT := .a
+  ARCHIVE_EXT := .a
 endif
 
 # Declare PHONY targets =====================================================
@@ -170,20 +175,17 @@ ALL_SRC_FILES += $(shell find $(SRCDIR) -name "*.hpp")
 ifeq ($(INCLUDE_DEPS),)
 $(LIBRARY): dirs makedep
 	@+$(MAKE) --no-print-directory -C $(OBJDIR) -f $(MAKEFILE) $(LIBDIR)/$(LIBRARY)$(ARCHIVE_EXT) INCLUDE_DEPS=true DBCSRHOME=$(DBCSRHOME)
-
 dirs:
 	@mkdir -p $(OBJDIR)
 	@mkdir -p $(LIBDIR)
-
 version:
 	@echo "DBCSR Version: "$(MAJOR)"."$(MINOR)"."$(PATCH)" ("$(DATE)")"
-
 else
 # stage 2: Include $(OBJDIR)/all.dep, expand target all, and get list of dependencies.
 
 # Check if FYPP is available  ===============================================
 ifeq (, $(shell which $(FYPPEXE) 2>/dev/null ))
-$(error No FYPP submodule available, please read README.md on how to properly download DBCSR)
+  $(error No FYPP submodule available, please read README.md on how to properly download DBCSR)
 endif
 
 endif
@@ -221,7 +223,7 @@ endif
 
 # at stage 2, load the rules generated by makedep.py
 ifeq ($(INCLUDE_DEPS), true)
-include $(OBJDIR)/all.dep
+  include $(OBJDIR)/all.dep
 endif
 
 
@@ -284,9 +286,27 @@ acc_hip.o: acc_hip.cpp acc_hip.h
 else ifeq (opencl,$(USE_ACCEL))
 OPENCL_KERNELS := $(wildcard $(LIBSMM_ACC_ABS_DIR)/../opencl/smm/kernels/*.cl)
 OPENCL_KRNLGEN := $(LIBSMM_ACC_ABS_DIR)/../opencl/acc_opencl.sh
-$(LIBSMM_ACC_ABS_DIR)/../opencl/smm/opencl_kernels.h: $(OPENCL_KRNLGEN) $(OPENCL_KERNELS)
-	$(OPENCL_KRNLGEN) $(OPENCL_KERNELS) $(LIBSMM_ACC_ABS_DIR)/../opencl/smm/tune_multiply.csv $@
+OPENCL_DEFAULT := $(LIBSMM_ACC_ABS_DIR)/../opencl/smm/tune_multiply.csv
+OPENCL_WITHGPU := $(LIBSMM_ACC_ABS_DIR)/../opencl/smm/params/tune_multiply_$(GPUVER).csv
+OPENCL_PARAMS := $(if $(wildcard $(OPENCL_WITHGPU)),$(OPENCL_WITHGPU),$(wildcard $(OPENCL_DEFAULT)))
+$(LIBSMM_ACC_ABS_DIR)/../opencl/smm/opencl_kernels.h: $(OPENCL_KRNLGEN) $(OPENCL_KERNELS) $(OPENCL_PARAMS)
+	$(OPENCL_KRNLGEN) $(OPENCL_KERNELS) $(OPENCL_PARAMS) $@
 opencl_libsmm.o: opencl_libsmm.c $(LIBSMM_ACC_ABS_DIR)/../opencl/smm/opencl_kernels.h
+ifeq (Darwin,$(shell uname))
+  LDFLAGS += -framework OpenCL
+else
+  # OpenCL include directory (cl.h not installed per "opencl-headers" package)
+  ifeq (,$(CUDATOOLKIT_HOME))
+    CUDATOOLKIT_HOME := $(NVSDKCOMPUTE_ROOT)
+  endif
+  ifeq (,$(CUDATOOLKIT_HOME))
+    NVCC := $(call which,nvcc)
+    CUDATOOLKIT_HOME := $(if $(NVCC),$(abspath $(dir $(NVCC))/..))
+  endif
+  ifneq (,$(CUDATOOLKIT_HOME))
+    CFLAGS += -I$(CUDATOOLKIT_HOME)/include
+  endif
+endif
 endif
 
 $(LIBDIR)/%:
