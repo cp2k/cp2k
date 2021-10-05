@@ -528,8 +528,7 @@ CONTAINS
                             matrix_s_sqrt_inv=matrix_s_sqrt_inv, &
                             matrix_cg=matrix_cg_z, & ! cg
                             matrix_Ax=matrix_Ax, &
-                            eps_filter=eps_filter, &
-                            iounit=iounit)
+                            eps_filter=eps_filter)
 
       ! r_0 = b - Ax0
       DO ispin = 1, nspins
@@ -640,8 +639,7 @@ CONTAINS
                                matrix_s_sqrt_inv=matrix_s_sqrt_inv, &
                                matrix_cg=matrix_cg, & ! cg
                                matrix_Ax=matrix_Ax, &
-                               eps_filter=eps_filter, &
-                               iounit=iounit)
+                               eps_filter=eps_filter)
 
          ! Matrix projector T
          CALL projector(qs_env, matrix_p, matrix_Ax, eps_filter)
@@ -675,8 +673,7 @@ CONTAINS
                                      matrix_s_sqrt_inv=matrix_s_sqrt_inv, &
                                      matrix_cg=matrix_cg, & ! cg
                                      matrix_Ax=matrix_Ax, &
-                                     eps_filter=eps_filter, &
-                                     iounit=iounit)
+                                     eps_filter=eps_filter)
 
                ! Matrix projector T
                CALL projector(qs_env, matrix_p, matrix_Ax, eps_filter)
@@ -715,8 +712,7 @@ CONTAINS
                                   matrix_s_sqrt_inv=matrix_s_sqrt_inv, &
                                   matrix_cg=matrix_cg_z, & ! cg
                                   matrix_Ax=matrix_Ax, &
-                                  eps_filter=eps_filter, &
-                                  iounit=iounit)
+                                  eps_filter=eps_filter)
             ! b
             CALL commutator(matrix_nsc, matrix_p, matrix_res, eps_filter, .FALSE., alpha=focc)
 
@@ -971,13 +967,12 @@ CONTAINS
 !> \param matrix_cg Trial matrix
 !> \param matrix_Ax Electronic Hessian applied on trial matrix (matrix_cg)
 !> \param eps_filter ...
-!> \param iounit ...
 !>
 !> \date    12.2019
 !> \author  Fabian Belleflamme
 ! **************************************************************************************************
    SUBROUTINE build_hessian_op(qs_env, matrix_ks, matrix_p, matrix_s_sqrt_inv, &
-                               matrix_cg, matrix_Ax, eps_filter, iounit)
+                               matrix_cg, matrix_Ax, eps_filter)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN), &
@@ -988,7 +983,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(OUT), &
          POINTER                                         :: matrix_Ax
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
-      INTEGER, INTENT(IN)                                :: iounit
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_hessian_op', &
          routineP = moduleN//':'//routineN
