@@ -75,11 +75,11 @@ MODULE ec_orth_solver
 
    PRIVATE
 
-! *** Global parameters ***
+   ! Global parameters
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ec_orth_solver'
 
-! *** Public subroutines ***
+   ! Public subroutines
 
    PUBLIC :: ec_response_ao
 
@@ -111,7 +111,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: matrix_ks, matrix_p, matrix_rhs
-      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(OUT), &
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT), &
          POINTER                                         :: matrix_cg_z
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       INTEGER, INTENT(IN)                                :: iounit
@@ -128,6 +128,12 @@ CONTAINS
       TYPE(linres_control_type), POINTER                 :: linres_control
 
       CALL timeset(routineN, handle)
+
+      CPASSERT(ASSOCIATED(qs_env))
+      CPASSERT(ASSOCIATED(matrix_ks))
+      CPASSERT(ASSOCIATED(matrix_p))
+      CPASSERT(ASSOCIATED(matrix_rhs))
+      CPASSERT(ASSOCIATED(matrix_cg_z))
 
       NULLIFY (dft_control, linres_control)
 
@@ -209,7 +215,7 @@ CONTAINS
          WRITE (iounit, "(/,T10,A,T25,A,T42,A,T62,A,/,T10,A)") &
             "Iteration", "Stepsize", "Convergence", "Time", &
             REPEAT("-", 58)
-      ENDIF
+      END IF
 
       alpha(:) = 0.0_dp
       max_iter = 200
@@ -283,7 +289,7 @@ CONTAINS
          ! Convergence criteria
          IF (norm_res .LT. linres_control%eps) THEN
             converged = .TRUE.
-         ENDIF
+         END IF
 
          t2 = m_walltime()
          IF (i .EQ. 1 .OR. MOD(i, 1) .EQ. 0 .OR. converged) THEN
@@ -294,15 +300,15 @@ CONTAINS
                !WRITE (iounit, "(T10,I5,T25,1E8.2,T42,1E14.8,T58,F8.2)") &
                !   i, MAXVAL(alpha), norm_res, t2 - t1
                CALL m_flush(iounit)
-            ENDIF
-         ENDIF
+            END IF
+         END IF
          IF (converged) THEN
             IF (iounit > 0) THEN
                WRITE (iounit, "(/,T10,A,I4,A,/)") "The precon solver converged in ", i, " iterations."
                CALL m_flush(iounit)
-            ENDIF
+            END IF
             EXIT iteration
-         ENDIF
+         END IF
 
          ! Max number of iteration reached
          IF (i == max_iter) THEN
@@ -310,9 +316,9 @@ CONTAINS
                WRITE (iounit, "(/,T10,A/)") &
                   "The precon solver didnt converge! Maximum number of iterations reached."
                CALL m_flush(iounit)
-            ENDIF
+            END IF
             converged = .FALSE.
-         ENDIF
+         END IF
 
       END DO iteration
 
@@ -352,7 +358,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: matrix_hz
-      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(OUT), &
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT), &
          POINTER                                         :: matrix_pz, matrix_wz
       INTEGER, INTENT(IN)                                :: iounit
       LOGICAL, INTENT(OUT)                               :: should_stop
@@ -377,6 +383,11 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: solver_section
 
       CALL timeset(routineN, handle)
+
+      CPASSERT(ASSOCIATED(qs_env))
+      CPASSERT(ASSOCIATED(matrix_hz))
+      CPASSERT(ASSOCIATED(matrix_pz))
+      CPASSERT(ASSOCIATED(matrix_wz))
 
       NULLIFY (dft_control, ksmat, matrix_s, linres_control, rho)
 
@@ -583,7 +594,7 @@ CONTAINS
          WRITE (iounit, "(/,T3,A,T16,A,T25,A,T38,A,T52,A,/,T3,A)") &
             "Iteration", "Method", "Stepsize", "Convergence", "Time", &
             REPEAT("-", 80)
-      ENDIF
+      END IF
 
       alpha(:) = 0.0_dp
       restart = .FALSE.
@@ -597,7 +608,7 @@ CONTAINS
          ! default for eps 10E-6 in MO_linres
          IF (norm_res .LT. linres_control%eps) THEN
             linres_control%converged = .TRUE.
-         ENDIF
+         END IF
 
          t2 = m_walltime()
          IF (i .EQ. 1 .OR. MOD(i, 1) .EQ. 0 .OR. linres_control%converged &
@@ -606,13 +617,13 @@ CONTAINS
                WRITE (iounit, "(T5,I5,T18,A3,T28,L1,T38,1E8.2,T48,F16.10,T68,F8.2)") &
                   i, linres_control%flag, restart, MAXVAL(alpha), norm_res, t2 - t1
                CALL m_flush(iounit)
-            ENDIF
-         ENDIF
+            END IF
+         END IF
          IF (linres_control%converged) THEN
             IF (iounit > 0) THEN
                WRITE (iounit, "(/,T2,A,I4,A,/)") "The linear solver converged in ", i, " iterations."
                CALL m_flush(iounit)
-            ENDIF
+            END IF
             EXIT iteration
          ELSE IF (should_stop) THEN
             IF (iounit > 0) THEN
@@ -620,7 +631,7 @@ CONTAINS
                CALL m_flush(iounit)
             END IF
             EXIT iteration
-         ENDIF
+         END IF
 
          ! Max number of iteration reached
          IF (i == linres_control%max_iter) THEN
@@ -628,9 +639,9 @@ CONTAINS
                WRITE (iounit, "(/,T2,A/)") &
                   "The linear solver didnt converge! Maximum number of iterations reached."
                CALL m_flush(iounit)
-            ENDIF
+            END IF
             linres_control%converged = .FALSE.
-         ENDIF
+         END IF
 
          ! Hessian Ax = [F,B] + [G(B),P]
          CALL build_hessian_op(qs_env=qs_env, &
@@ -730,9 +741,9 @@ CONTAINS
             ! r_j+1 = r_j - alpha * Ap_j
             DO ispin = 1, nspins
                CALL dbcsr_add(matrix_res(ispin)%matrix, matrix_Ax(ispin)%matrix, 1.0_dp, -alpha(ispin))
-            ENDDO
+            END DO
             restart = .FALSE.
-         ENDIF
+         END IF
 
          ! Preconditioner
          linres_control%flag = ""
@@ -843,7 +854,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: matrix_z
-      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(OUT), &
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT), &
          POINTER                                         :: matrix_wz
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
@@ -858,6 +869,10 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
 
       CALL timeset(routineN, handle)
+
+      CPASSERT(ASSOCIATED(qs_env))
+      CPASSERT(ASSOCIATED(matrix_z))
+      CPASSERT(ASSOCIATED(matrix_wz))
 
       CALL get_qs_env(qs_env=qs_env, &
                       dft_control=dft_control, &
@@ -902,7 +917,7 @@ CONTAINS
          ! Whz = ZFP + PFZ
          CALL dbcsr_copy(matrix_wz(ispin)%matrix, matrix_tmp, keep_sparsity=.TRUE.)
 
-      ENDDO
+      END DO
 
       ! Release matrices
       CALL dbcsr_release(matrix_tmp)
@@ -933,7 +948,7 @@ CONTAINS
 
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: matrix_ks, matrix_p, matrix_cg
-      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(OUT), &
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT), &
          POINTER                                         :: matrix_b, matrix_Ax
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
@@ -942,6 +957,12 @@ CONTAINS
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
+
+      CPASSERT(ASSOCIATED(matrix_ks))
+      CPASSERT(ASSOCIATED(matrix_p))
+      CPASSERT(ASSOCIATED(matrix_cg))
+      CPASSERT(ASSOCIATED(matrix_b))
+      CPASSERT(ASSOCIATED(matrix_Ax))
 
       ! Build intermediate density matrix
       ! B = [cg, P] = cg*P - P*cg = cg*P + (cg*P)^T
@@ -953,7 +974,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE hessian_op1
 
 ! **************************************************************************************************
 !> \brief  calculate lin transformation of Hessian matrix on a trial vector (matrix) matrix_cg
@@ -980,7 +1001,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix_s_sqrt_inv
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: matrix_cg
-      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(OUT), &
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT), &
          POINTER                                         :: matrix_Ax
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
@@ -995,6 +1016,12 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho, rho1
 
       CALL timeset(routineN, handle)
+
+      CPASSERT(ASSOCIATED(qs_env))
+      CPASSERT(ASSOCIATED(matrix_ks))
+      CPASSERT(ASSOCIATED(matrix_p))
+      CPASSERT(ASSOCIATED(matrix_cg))
+      CPASSERT(ASSOCIATED(matrix_Ax))
 
       CALL get_qs_env(qs_env=qs_env, &
                       dft_control=dft_control, &
@@ -1022,7 +1049,7 @@ CONTAINS
       chksum = 0.0_dp
       DO ispin = 1, nspins
          chksum = chksum + dbcsr_checksum(matrix_b(ispin)%matrix)
-      ENDDO
+      END DO
 
       ! skip the kernel if the DM is very small
       IF (chksum .GT. 1.0E-14_dp) THEN
@@ -1065,7 +1092,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE build_hessian_op
 
 ! **************************************************************************************************
 !> \brief  Calculate lin transformation of Hessian matrix on a trial vector (matrix) matrix_cg
@@ -1265,7 +1292,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE commutator(a, b, res, eps_filter, anticomm, alpha, beta)
 
-      TYPE(dbcsr_p_type), DIMENSION(:)                   :: a, b, res
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: a, b, res
       REAL(KIND=dp)                                      :: eps_filter
       LOGICAL                                            :: anticomm
       REAL(KIND=dp), OPTIONAL                            :: alpha, beta
@@ -1277,6 +1305,10 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: work, work2
 
       CALL timeset(routineN, handle)
+
+      CPASSERT(ASSOCIATED(a))
+      CPASSERT(ASSOCIATED(b))
+      CPASSERT(ASSOCIATED(res))
 
       CALL dbcsr_create(work, template=a(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_create(work2, template=a(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
@@ -1382,7 +1414,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE projector
 
 ! **************************************************************************************************
 !> \brief performs a tranformation of a matrix back to/into orthonormal basis
@@ -1427,6 +1459,6 @@ CONTAINS
       CALL dbcsr_release(matrix_work)
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE transform_m_orth
 
 END MODULE ec_orth_solver

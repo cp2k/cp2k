@@ -202,7 +202,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
@@ -363,7 +363,7 @@ CONTAINS
 
          DO ispin = 1, nspins
             CALL cp_fm_release(cpmos(ispin)%matrix)
-         ENDDO
+         END DO
          DEALLOCATE (cpmos)
 
          ! Get rid of MO environment again
@@ -482,7 +482,7 @@ CONTAINS
          WRITE (unit_nr, '(T2,A)') REPEAT("-", 79)
 
          CALL m_flush(unit_nr)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -535,7 +535,7 @@ CONTAINS
          NULLIFY (psi1(ispin)%matrix)
          CALL cp_fm_create(psi1(ispin)%matrix, fm_struct)
          CALL cp_fm_set_all(psi1(ispin)%matrix, 0.0_dp)
-      ENDDO
+      END DO
 
       should_stop = .FALSE.
       ! The response solver
@@ -948,7 +948,7 @@ CONTAINS
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_g(ispin)%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      ENDDO
+      END DO
       CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_tot_gspace%pw, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, zv_hartree_rspace%pw, &
@@ -1250,7 +1250,7 @@ CONTAINS
                                       use_data=REALDATA3D, in_space=REALSPACE)
                CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_g_aux(ispin)%pw, &
                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-            ENDDO
+            END DO
             DO ispin = 1, nspins
                CALL calculate_rho_elec(ks_env=ks_env, matrix_p=mpz(ispin, 1)%matrix, &
                                        rho=rhoz_r_aux(ispin), rho_gspace=rhoz_g_aux(ispin), &
@@ -1870,14 +1870,14 @@ CONTAINS
             IF (ASSOCIATED(v_tau_rspace)) THEN
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace(ispin)%pw)
             END IF
-         ENDDO
+         END DO
          DEALLOCATE (v_rspace)
       END IF
       IF (ASSOCIATED(v_tau_rspace)) DEALLOCATE (v_tau_rspace)
       IF (ASSOCIATED(v_admm_rspace)) THEN
          DO ispin = 1, nspins
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_admm_rspace(ispin)%pw)
-         ENDDO
+         END DO
          DEALLOCATE (v_admm_rspace)
       END IF
 
@@ -1903,7 +1903,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: matrix_hz
-      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(OUT), &
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT), &
          POINTER                                         :: matrix_whz
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
@@ -1919,6 +1919,10 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
 
       CALL timeset(routineN, handle)
+
+      CPASSERT(ASSOCIATED(qs_env))
+      CPASSERT(ASSOCIATED(matrix_hz))
+      CPASSERT(ASSOCIATED(matrix_whz))
 
       CALL get_qs_env(qs_env=qs_env, &
                       dft_control=dft_control, &
