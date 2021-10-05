@@ -399,8 +399,6 @@ CONTAINS
       CALL section_vals_val_get(solver_section, "MAX_ITER_LANCZOS", i_val=max_iter_lanczos)
 
       eps_filter = linres_control%eps_filter
-      IF (iounit > 0) WRITE (iounit, *) "ec_orth_solver - eps", linres_control%eps
-      IF (iounit > 0) WRITE (iounit, *) "ec_orth_solver - eps_filter", eps_filter
 
       CALL qs_rho_get(rho, rho_ao=rho_ao)
 
@@ -570,11 +568,9 @@ CONTAINS
 
          ! Tr(r_0 * z_0)
          CALL dbcsr_dot(matrix_res(ispin)%matrix, matrix_cg(ispin)%matrix, norm_rr(ispin))
-         IF (iounit > 0) WRITE (iounit, *) "Tr(r_0 * z_0) (norm_rr)", norm_rr(1)
 
          IF (norm_rr(ispin) .LT. 0.0_dp) CPABORT("norm_rr < 0")
          norm_res = MAX(norm_res, ABS(norm_rr(ispin)/REAL(nao, dp)))
-         IF (iounit > 0) WRITE (iounit, *) "norm_res", norm_res
       END DO
 
       ! eigenvalue shifting
@@ -655,7 +651,6 @@ CONTAINS
             CALL dbcsr_filter(matrix_Ax(ispin)%matrix, eps_filter)
             ! norm_cA = tr(Ap_j * p_j)
             CALL dbcsr_dot(matrix_cg(ispin)%matrix, matrix_Ax(ispin)%matrix, norm_cA(ispin))
-            IF (iounit > 0) WRITE (iounit, *) "norm_cA", norm_cA(ispin)
 
             IF (norm_cA(ispin) .LT. 0.0_dp) THEN
 
@@ -703,7 +698,6 @@ CONTAINS
             ELSE
                alpha(ispin) = norm_rr(ispin)/norm_cA(ispin)
             END IF
-            IF (iounit > 0) WRITE (iounit, *) "alpha", alpha(ispin)
 
             ! x_j+1 = x_j + alpha*p_j
             ! save response-denisty of this iteration
@@ -772,7 +766,6 @@ CONTAINS
             IF (new_norm(ispin) .LT. 0.0_dp) CPABORT("tr(r_j+1*z_j+1) < 0")
             IF (abnormal_value(new_norm(ispin))) &
                CPABORT("Preconditioner: Tr[r_j+1*z_j+1] is an abnormal value (NaN/Inf)")
-            IF (iounit > 0) WRITE (iounit, *) "new_norm", new_norm(1)
             norm_res = MAX(norm_res, new_norm(ispin)/REAL(nao, dp))
 
             IF (norm_rr(ispin) .LT. linres_control%eps .OR. new_norm(ispin) .LT. linres_control%eps) THEN
@@ -781,7 +774,6 @@ CONTAINS
             ELSE
                beta(ispin) = new_norm(ispin)/norm_rr(ispin)
             END IF
-            !IF (iounit > 0) WRITE (iounit,*) "beta", beta(1)
 
             ! update new search vector (matrix cg)
             ! Here: cg_j+1 = z_j+1 + beta*cg_j
@@ -868,8 +860,6 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: matrix_tmp, matrix_tmp2
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_rho_type), POINTER                         :: rho
-
-      !REAL(KIND=dp)                                      :: norm_res
 
       CALL timeset(routineN, handle)
 
@@ -974,7 +964,6 @@ CONTAINS
 !>         which is stored in response density B = [cg,P] = cg*P - P*cg = cg*P + (cg*P)^T
 !>         Ax = [F, B] + [G(B), Pin] in orthonormal basis
 !>
-!>
 !> \param qs_env ...
 !> \param matrix_ks Ground-state Kohn-Sham matrix
 !> \param matrix_p  Ground-state Density matrix
@@ -1005,13 +994,11 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ispin, nspins
-      REAL(KIND=dp)                                      :: chksum, t1, t2, t2_col
+      REAL(KIND=dp)                                      :: chksum
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_b, rho1_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_rho_type), POINTER                         :: rho, rho1
-
-!      REAL(KIND=dp)                                      :: norm_res
 
       CALL timeset(routineN, handle)
 
@@ -1042,12 +1029,9 @@ CONTAINS
       DO ispin = 1, nspins
          chksum = chksum + dbcsr_checksum(matrix_b(ispin)%matrix)
       ENDDO
-      IF (iounit > 0) WRITE (iounit, *) "chksum:", chksum
 
       ! skip the kernel if the DM is very small
       IF (chksum .GT. 1.0E-14_dp) THEN
-
-         t1 = m_walltime()
 
          CALL get_qs_env(qs_env=qs_env, rho=rho)
          ! Bring B as density on grid
@@ -1069,9 +1053,6 @@ CONTAINS
          ! Updates densities on grid wrt density matrix
          CALL qs_rho_update_rho(rho1, qs_env)
 
-         t2_col = m_walltime()
-         IF (iounit > 0) WRITE (iounit, "(T5,A,F8.2)") "TIME op2_col:", t2_col - t1
-
          ! Calculate kernel
          ! Ax = F*B - B*F + G(B)*P - P*G(B)
          !                        IN/OUT     IN        IN             IN
@@ -1083,10 +1064,6 @@ CONTAINS
 !       END IF
 
          CALL qs_rho_release(rho1)
-
-         t2 = m_walltime()
-
-         !IF (iounit > 0) WRITE (iounit, "(T5,A,F8.2)") "TIME in hessian_op2:", t2 - t1
 
       END IF
 
@@ -1287,7 +1264,7 @@ CONTAINS
 !> \param eps_filter filtering threshold for sparse matrices
 !> \param anticomm   Calculate anticommutator
 !> \param alpha      Scaling of anti-/commutator
-!> \param beta       Scaling of contens of inital contens of result matrix
+!> \param beta       Scaling of inital content of result matrix
 !>
 !> \par History
 !>       2020.07 Fabian Belleflamme  (based on commutator_symm)
