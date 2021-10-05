@@ -300,7 +300,8 @@ CONTAINS
                                                             force_mixing_labels(:)
       LOGICAL                                            :: charge_beta, charge_extended, &
                                                             charge_occup, explicit, &
-                                                            my_extended_xmol_title, new_file
+                                                            my_extended_xmol_title, new_file, &
+                                                            print_name
       REAL(dp), ALLOCATABLE                              :: fml_array(:)
       REAL(KIND=dp)                                      :: unit_conv
       TYPE(cell_type), POINTER                           :: cell
@@ -345,6 +346,7 @@ CONTAINS
       charge_occup = .FALSE.
       charge_beta = .FALSE.
       charge_extended = .FALSE.
+      print_name = .FALSE.
 
       CALL force_env_get(force_env, cell=cell, subsys=subsys)
       IF (PRESENT(particles)) THEN
@@ -389,6 +391,8 @@ CONTAINS
             ENDIF
          CASE (dump_xmol)
             my_extended_xmol_title = .FALSE.
+            CALL section_vals_val_get(root_section, "MOTION%PRINT%TRAJECTORY%PRINT_ATOM_NAME", &
+                                      l_val=print_name)
             IF (PRESENT(extended_xmol_title)) my_extended_xmol_title = extended_xmol_title
             ! This information can be digested by Molden
             IF (my_extended_xmol_title) THEN
@@ -452,11 +456,11 @@ CONTAINS
                ENDIF
             ENDIF
             CALL write_particle_coordinates(particle_set, traj_unit, outformat, TRIM(id_wpc), TRIM(title), cell, &
-                                            array=fml_array)
+                                            array=fml_array, print_name=print_name)
             DEALLOCATE (fml_array)
          ELSE
             CALL write_particle_coordinates(particle_set, traj_unit, outformat, TRIM(id_wpc), TRIM(title), cell, &
-                                            unit_conv=unit_conv, &
+                                            unit_conv=unit_conv, print_name=print_name, &
                                             charge_occup=charge_occup, &
                                             charge_beta=charge_beta, &
                                             charge_extended=charge_extended)

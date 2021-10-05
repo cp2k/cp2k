@@ -3945,6 +3945,7 @@
    &PRINT
       &TRAJECTORY
    FORMAT XYZ
+   PRINT_ATOM_NAME
    &EACH
       MD 1
    &END EACH
