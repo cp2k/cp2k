@@ -67,7 +67,6 @@ MODULE qs_environment
                                               distribution_1d_type
    USE distribution_methods,            ONLY: distribute_molecules_1d
    USE dm_ls_scf_create,                ONLY: ls_scf_create
-   USE ec_env_types,                    ONLY: energy_correction_type
    USE ec_environment,                  ONLY: ec_env_create
    USE et_coupling_types,               ONLY: et_coupling_create
    USE ewald_environment_types,         ONLY: ewald_env_create,&
@@ -265,7 +264,6 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: my_cell, my_cell_ref
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(energy_correction_type), POINTER              :: ec_env
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -275,12 +273,13 @@ CONTAINS
       TYPE(qs_wf_history_type), POINTER                  :: wf_history
       TYPE(rel_control_type), POINTER                    :: rel_control
       TYPE(scf_control_type), POINTER                    :: scf_control
-      TYPE(section_vals_type), POINTER                   :: dft_section, et_coupling_section, &
-                                                            hfx_section, kpoint_section, &
-                                                            mp2_section, transport_section
+      TYPE(section_vals_type), POINTER                   :: dft_section, ec_section, &
+                                                            et_coupling_section, hfx_section, &
+                                                            kpoint_section, mp2_section, &
+                                                            transport_section
 
       NULLIFY (my_cell, my_cell_ref, atomic_kind_set, particle_set, &
-               qs_kind_set, kpoint_section, dft_section, &
+               qs_kind_set, kpoint_section, dft_section, ec_section, &
                subsys, ks_env, dft_control, blacs_env)
 
       CALL set_qs_env(qs_env, input=force_env_section)
@@ -441,13 +440,6 @@ CONTAINS
          CALL kg_env_create(qs_env, qs_env%kg_env, qs_kind_set, qs_env%input)
       END IF
 
-      dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
-      CALL section_vals_val_get(dft_section, "ENERGY_CORRECTION%_SECTION_PARAMETERS_", &
-                                l_val=qs_env%energy_correction)
-      NULLIFY (ec_env)
-      CALL ec_env_create(qs_env, ec_env, dft_section)
-      CALL set_qs_env(qs_env, ec_env=ec_env)
-
       et_coupling_section => section_vals_get_subs_vals(qs_env%input, &
                                                         "PROPERTIES%ET_COUPLING")
       CALL section_vals_get(et_coupling_section, explicit=do_et)
@@ -462,6 +454,14 @@ CONTAINS
       IF (dft_control%qs_control%do_ls_scf) THEN
          CALL ls_scf_create(qs_env)
       ENDIF
+
+      dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
+      CALL section_vals_val_get(dft_section, "ENERGY_CORRECTION%_SECTION_PARAMETERS_", &
+                                l_val=qs_env%energy_correction)
+      ec_section => section_vals_get_subs_vals(qs_env%input, "DFT%ENERGY_CORRECTION")
+      IF (qs_env%energy_correction) THEN
+         CALL ec_env_create(qs_env, qs_env%ec_env, dft_section, ec_section)
+      END IF
 
       IF (dft_control%qs_control%do_almo_scf) THEN
          CALL almo_scf_env_create(qs_env)

@@ -77,6 +77,7 @@ MODULE qs_scf
                                               dbcsr_p_type,&
                                               dbcsr_set,&
                                               dbcsr_type
+   USE ec_env_types,                    ONLY: energy_correction_type
    USE input_constants,                 ONLY: &
         broyden_type_1, broyden_type_1_explicit, broyden_type_1_explicit_ls, broyden_type_1_ls, &
         broyden_type_2, broyden_type_2_explicit, broyden_type_2_explicit_ls, broyden_type_2_ls, &
@@ -352,6 +353,7 @@ CONTAINS
       TYPE(cp_result_type), POINTER                      :: results
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(energy_correction_type), POINTER              :: ec_env
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_last_converged
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -598,6 +600,13 @@ CONTAINS
       IF (.NOT. converged .AND. scf_control%stop_higher_iter_level) THEN
          logger%iter_info%last_iter(logger%iter_info%n_rlevel - 1) = .TRUE.
          CPWARN("MD iteration also stops")
+      END IF
+
+      ! Skip Harris functional calculation if ground-state is NOT converged
+      IF (qs_env%energy_correction) THEN
+         CALL get_qs_env(qs_env, ec_env=ec_env)
+         ec_env%do_skip = .FALSE.
+         IF (ec_env%skip_ec .AND. .NOT. converged) ec_env%do_skip = .TRUE.
       END IF
 
       ! if needed copy mo_coeff dbcsr->fm for later use in post_scf!fm->dbcsr

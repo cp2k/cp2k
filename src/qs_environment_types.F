@@ -234,6 +234,7 @@ MODULE qs_environment_types
       LOGICAL :: do_transport
       LOGICAL :: single_point_run
       LOGICAL :: given_embed_pot
+      LOGICAL :: energy_correction
       REAL(KIND=dp)                                         :: sim_time
       REAL(KIND=dp) :: start_time, target_time
       REAL(KIND=dp), DIMENSION(:, :), POINTER               :: image_matrix
@@ -283,7 +284,6 @@ MODULE qs_environment_types
       TYPE(lri_environment_type), POINTER                   :: lri_env
       TYPE(lri_density_type), POINTER                       :: lri_density
       ! Energy correction
-      LOGICAL                                               :: energy_correction
       TYPE(energy_correction_type), POINTER                 :: ec_env
       ! Empirical dispersion
       TYPE(qs_dispersion_type), POINTER                     :: dispersion_env
@@ -944,6 +944,7 @@ CONTAINS
       NULLIFY (qs_env%rtp)
       NULLIFY (qs_env%mp2_env)
       NULLIFY (qs_env%kg_env)
+      NULLIFY (qs_env%ec_env)
       NULLIFY (qs_env%WannierCentres)
 
       qs_env%outer_scf_ihistory = 0

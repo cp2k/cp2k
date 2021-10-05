@@ -1,12 +1,55 @@
 # runs are executed in the same order as in this file
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
+# ENERGY : LS + KG embed (GGA) + Harris (Diag)
 H2_H2O-xcLLP_ec.inp                                   11      1e-08                 -18.1323810074
+# ENERGY : LS + KG embed + Harris (Diag)
 H2_H2O_ec.inp                                         11      1e-10                 -18.4641086282
+# ENERGY : LS + KG embed + Harris (Diag) primitive basis
 H2_H2O_ecprim.inp                                     11      1e-10                 -18.4071025433
+# ENERGY : LS + KG embed + Harris (Diag) MAO basis
 2H2O_ecmao.inp                                        11      1e-10                 -34.0838901711
-2H2O_ecmao2.inp                                       11      1e-08                 -34.5024390041
-H2O_ec.inp                                            11      1e-08                 -17.2629537942
+# ENERGY : LS + KG embed + Harris (Diag) MAO basis options
+2H2O_ecmao2.inp                                       11      1e-08                 -34.5024567596
+# ENERGY : LS + KG embed + Harris (Diag) dipole 
 HF_ec_dipole.inp                                      11      1e-08                 -24.8917060368
+# ENERGY : LS + KG embed + Harris (Diag) efield 
 HF_ec_field.inp                                       11      1e-08                 -24.8908706031
+# ENERGY: Test Harris functional solvers 
+# TRS4
+H2O_ec_trs4.inp                                       11      1e-08            -17.296853080783347
+# TC2 
+N2_ec_tc2.inp                                         11      1e-08            -19.814762143139120   
+# Sign - Proot sign method and S-Sqrt method
+H2O_ec_sign.inp                                       11      1e-06            -17.296853984563839
+# OTDiag with ground-state density as initial guess 
+H2O_ec_otdiag_gs.inp                                  11      1e-08            -17.215533866999245
+# OTDiag with atomic block diagonal density matrix
+H2O_ec_otdiag_atomic.inp                              11      1e-08            -17.262953794245810
+#
+# FORCES: KS + Harris (Diag) + MO solver
+N2_ec.inp                                             11      1e-08                 -19.8027533258
+# FORCES: KS + Harris (Diag) + MO solver
+H2O_ec.inp                                            11      1e-08                 -17.1632800979
+# FORCES KS + KG embed + Harris (TRS4) + AO solver
+H2_H2O_KSKGeH_AO_grad.inp                             72      1E-08                     0.01991310 
+# FORCES KS + KG embed + Harris (TRS4) + MO solver
+H2_H2O_KSKGeH_MO_grad.inp                             72      1E-08                     0.02066929 
+# FORCES KS + KG atomic + Harris (TRS4) + AO solver
+H2_H2O_LSKGaH_AO_grad.inp                             72      1E-08                     0.24253827
+# FORCES KS + KG atomic + Harris (TRS4) + MO solver
+H2_H2O_LSKGaH_MO_grad.inp                             72      1E-08                     0.24256217
+#
+# STRESS: KS + KG embed  + Harris (TRS4) + AO solver
+H2_H2O_KSKGeH_AO_an.inp                               31      1e-05              1.95042985060E+02
+# STRESS: KS + KG embed  + Harris (TRS4) + MO solver
+H2_H2O_KSKGeH_MO_an.inp                               31      1e-05              8.63165126553E+00
+# STRESS: LS + KG atomic + Harris (TRS4) + AO solver
+H2_H2O_LSKGaH_AO_an.inp                               31      1e-05              1.49007996537E+02
+# STRESS: LS + KG atomic + Harris (TRS4) + MO solver
+H2_H2O_LSKGaH_MO_an.inp                               31      1e-05              1.49107834133E+02
+# STRESS: KS + Harris (Diag) + MO solver
+H2O_KSH_MO_an.inp                                     31      1e-05              4.50118137345E+01
+# STRESS: KS + Harris (Diag) + MO solver - Diagonal numerical
+H2O_KSH_AO_numdiag.inp                                31      1e-05             -2.41849782017E+00
 #EOF

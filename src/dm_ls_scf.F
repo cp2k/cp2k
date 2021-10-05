@@ -45,6 +45,7 @@ MODULE dm_ls_scf
                                               matrix_qs_to_ls,&
                                               rho_mixing_ls_init
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
+   USE ec_env_types,                    ONLY: energy_correction_type
    USE input_constants,                 ONLY: ls_cluster_atomic,&
                                               ls_scf_pexsi,&
                                               ls_scf_sign,&
@@ -91,7 +92,7 @@ MODULE dm_ls_scf
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dm_ls_scf'
 
-   PUBLIC :: ls_scf
+   PUBLIC :: calculate_w_matrix_ls, ls_scf, post_scf_sparsities
 
 CONTAINS
 
@@ -459,6 +460,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: matrix_ks_deviation, matrix_mixing_old
+      TYPE(energy_correction_type), POINTER              :: ec_env
       TYPE(qs_diis_buffer_type_sparse), POINTER          :: diis_buffer
       TYPE(transport_env_type), POINTER                  :: transport_env
 
@@ -530,6 +532,11 @@ CONTAINS
          ELSE
             IF (should_stop .OR. iscf >= ls_scf_env%max_scf) THEN
                IF (unit_nr > 0) WRITE (unit_nr, '(T2,A)') "SCF not converged! "
+               ! Skip Harris functional calculation if ground-state is NOT converged
+               IF (qs_env%energy_correction) THEN
+                  CALL get_qs_env(qs_env, ec_env=ec_env)
+                  IF (ec_env%skip_ec) ec_env%do_skip = .TRUE.
+               END IF
                EXIT
             ENDIF
          END IF
@@ -709,7 +716,14 @@ CONTAINS
             END IF
          ELSE
             ! exit criterion on the energy only for the time being
-            IF (check_convergence .AND. ABS(energy_diff) < ls_scf_env%eps_scf*ls_scf_env%nelectron_total) EXIT
+            IF (check_convergence .AND. ABS(energy_diff) < ls_scf_env%eps_scf*ls_scf_env%nelectron_total) THEN
+               ! Skip Harris functional calculation if ground-state is NOT converged
+               IF (qs_env%energy_correction) THEN
+                  CALL get_qs_env(qs_env, ec_env=ec_env)
+                  IF (ec_env%skip_ec) ec_env%do_skip = .FALSE.
+               END IF
+               EXIT
+            END IF
          END IF
 
          IF (ls_scf_env%ls_diis) THEN
@@ -801,7 +815,7 @@ CONTAINS
          IF (ls_scf_env%do_pexsi) THEN
             CALL pexsi_to_qs(ls_scf_env, qs_env, matrix_w=ls_scf_env%pexsi%matrix_w)
          ELSE
-            CALL calculate_w_matrix(matrix_w, ls_scf_env)
+            CALL calculate_w_matrix_ls(matrix_w, ls_scf_env)
          ENDIF
       ENDIF
 
@@ -1164,11 +1178,11 @@ CONTAINS
 !>       2010.11 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
-   SUBROUTINE calculate_w_matrix(matrix_w, ls_scf_env)
+   SUBROUTINE calculate_w_matrix_ls(matrix_w, ls_scf_env)
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_w
       TYPE(ls_scf_env_type)                              :: ls_scf_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix'
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_ls'
 
       INTEGER                                            :: handle, ispin
       REAL(KIND=dp)                                      :: scaling
@@ -1208,7 +1222,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE calculate_w_matrix
+   END SUBROUTINE calculate_w_matrix_ls
 
 ! **************************************************************************************************
 !> \brief a place for quick experiments

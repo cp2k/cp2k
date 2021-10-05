@@ -149,7 +149,7 @@ CONTAINS
       TYPE(kg_environment_type), POINTER                 :: kg_env
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: soo_list
+         POINTER                                         :: soo_list, soo_list1
 
       CALL timeset(routineN, handle)
 
@@ -206,6 +206,13 @@ CONTAINS
          CALL kg_build_neighborlist(qs_env, sab_orb=soo_list, molecular=.TRUE.)
          kg_env%lri_env%soo_list => soo_list
          CALL calculate_lri_integrals(kg_env%lri_env, qs_env)
+         IF (qs_env%energy_correction) THEN
+            NULLIFY (soo_list1)
+            CALL kg_build_neighborlist(qs_env, sab_orb=soo_list1, molecular=.TRUE.)
+            kg_env%lri_env1%soo_list => soo_list1
+            CALL calculate_lri_integrals(kg_env%lri_env1, qs_env)
+         END IF
+
          ! Atomic grids
       CASE (kg_tnadd_atomic)
          ! build the A-C list for the nonadditive kinetic energy potential

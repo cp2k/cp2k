@@ -497,7 +497,8 @@ MODULE input_constants
                                                ot_precond_full_kinetic = 2, &
                                                ot_precond_s_inverse = 3, &
                                                ot_precond_full_all = 5, &
-                                               ot_precond_full_single_inverse = 6
+                                               ot_precond_full_single_inverse = 6, &
+                                               precond_mlp = 7
    INTEGER, PARAMETER, PUBLIC               :: ot_precond_solver_default = 1, &
                                                ot_precond_solver_inv_chol = 2, &
                                                ot_precond_solver_direct = 3, &
@@ -1064,8 +1065,17 @@ MODULE input_constants
                                                ec_curvy_steps = 1002, &
                                                ec_matrix_sign = 1003, &
                                                ec_matrix_trs4 = 1004, &
-                                               ec_matrix_tc2 = 1005
+                                               ec_matrix_tc2 = 1005, &
+                                               ec_ot_diag = 1006
    INTEGER, PARAMETER, PUBLIC               :: ec_functional_harris = 2001
+
+   ! response solver for energy correction
+   INTEGER, PARAMETER, PUBLIC               :: ec_ot_atomic = 1, &
+                                               ec_ot_gs = 2
+
+   ! response solver for energy correction
+   INTEGER, PARAMETER, PUBLIC               :: ec_mo_solver = 1, &
+                                               ec_ls_solver = 2
 
    ! swarm parameters
    INTEGER, PARAMETER, PUBLIC               :: swarm_do_glbopt = 1

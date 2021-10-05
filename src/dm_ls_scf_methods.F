@@ -55,7 +55,7 @@ MODULE dm_ls_scf_methods
 
    PUBLIC :: ls_scf_init_matrix_S
    PUBLIC :: density_matrix_sign, density_matrix_sign_fixed_mu
-   PUBLIC :: apply_matrix_preconditioner
+   PUBLIC :: apply_matrix_preconditioner, compute_matrix_preconditioner
    PUBLIC :: density_matrix_trs4, density_matrix_tc2, compute_homo_lumo
 
 CONTAINS

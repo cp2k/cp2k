@@ -32,7 +32,7 @@ MODULE virial_methods
    IMPLICIT NONE
 
    PRIVATE
-   PUBLIC:: virial_evaluate, virial_pair_force, virial_update, &
+   PUBLIC:: one_third_sum_diag, virial_evaluate, virial_pair_force, virial_update, &
             write_stress_tensor, write_stress_tensor_components
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'virial_methods'

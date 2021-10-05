@@ -146,10 +146,12 @@ CONTAINS
       NULLIFY (kg_env%subset)
       NULLIFY (kg_env%tnadd_mat)
       NULLIFY (kg_env%lri_env)
+      NULLIFY (kg_env%lri_env1)
       NULLIFY (kg_env%int_grid_atom)
       NULLIFY (kg_env%int_grid_molecules)
       NULLIFY (kg_env%int_grid_full)
       NULLIFY (kg_env%lri_density)
+      NULLIFY (kg_env%lri_rho1)
 
       kg_env%nsubsets = 0
 
@@ -189,6 +191,12 @@ CONTAINS
          lri_section => section_vals_get_subs_vals(input, "DFT%KG_METHOD%LRIGPW")
          CALL lri_env_init(kg_env%lri_env, lri_section)
          CALL lri_env_basis("LRI", qs_env, kg_env%lri_env, qs_kind_set)
+         !
+         ! if energy correction is performed with force calculation,
+         ! then response calculation requires
+         ! perturbation density for kernel calculation
+         CALL lri_env_init(kg_env%lri_env1, lri_section)
+         CALL lri_env_basis("LRI", qs_env, kg_env%lri_env1, qs_kind_set)
          !
          ! integration grid
          !

@@ -684,7 +684,7 @@
 !> \note see mp_send_${nametype1}$
 ! *****************************************************************************
   SUBROUTINE mp_send_${nametype1}$m3(msg, dest, tag, gid)
-     ${type1}$                                  :: msg(:,:, :)
+     ${type1}$                                  :: msg(:, :, :)
      INTEGER                                  :: dest, tag, gid
 
      CHARACTER(len=*), PARAMETER :: routineN = 'mp_send_${nametype1}m3'
