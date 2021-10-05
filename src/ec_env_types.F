@@ -75,20 +75,17 @@ MODULE ec_env_types
       TYPE(qs_dispersion_type), POINTER                :: dispersion_env
       ! matrices in complete basis
       ! KS: Kohn-Sham; H: Core; S: overlap; T: kinetic energy;
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER     :: matrix_ks
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER     :: matrix_h
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER     :: matrix_s
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER     :: matrix_t
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER     :: matrix_p
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER     :: matrix_w
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER     :: matrix_ks, &
+                                                          matrix_h, &
+                                                          matrix_s, &
+                                                          matrix_t, &
+                                                          matrix_p, &
+                                                          matrix_w
       ! reduce basis
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: mao_coef
       ! CP equations
       TYPE(qs_p_env_type), POINTER                     :: p_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: matrix_hz
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: matrix_z
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: matrix_wz
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: z_admm
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: matrix_hz, matrix_z, matrix_wz, z_admm
       ! potentials from input density
       TYPE(pw_p_type), POINTER                         :: vh_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER           :: vxc_rspace, vtau_rspace, vadmm_rspace

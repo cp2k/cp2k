@@ -458,9 +458,6 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(virial_type), POINTER                         :: virial
 
-      ! fbelle
-!      REAL(KIND=dp)                                      :: ener
-
       CALL timeset(routineN, handle)
 
       logger => cp_get_default_logger()
@@ -530,16 +527,6 @@ CONTAINS
                               qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, &
                               eps_ppnl, nimages, cell_to_index, "HARRIS")
       END IF
-
-! fbelle
-
-!CALL calculate_ptrace(ec_env%matrix_h, ec_env%matrix_s, ener, dft_control%nspins)
-!IF (iounit > 0) WRITE (iounit,*) "ec_build_core_hamiltonian - Tr[Hcore*S]", ener
-!! kinetic energy
-!CALL calculate_ptrace(ec_env%matrix_t, ec_env%matrix_s, ener, dft_control%nspins)
-!IF (iounit > 0) WRITE (iounit,*) "ec_build_core_hamiltonian - Tr[T*S]", ener
-
-!--------------------
 
       ! External field (nonperiodic case)
       ec_env%efield_nuclear = 0.0_dp
