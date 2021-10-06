@@ -414,18 +414,15 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      !WRITE (unit_nr, '()')
-      WRITE (unit_nr, '(T2,A,A,A,A,A)') "!", REPEAT("-", 29), &
-         " Energy Correction ", REPEAT("-", 29), "!"
+      WRITE (unit_nr, '(T2,A)') &
+         "!"//REPEAT("-", 29)//" Energy Correction "//REPEAT("-", 29)//"!"
 
       ! Algorithm
       SELECT CASE (ec_env%ks_solver)
       CASE (ec_diagonalization)
          WRITE (unit_nr, '(T2,A,T61,A20)') "Algorithm: ", "DIAGONALIZATION"
-         WRITE (*, *) "print diagonalization"
       CASE (ec_ot_diag)
          WRITE (unit_nr, '(T2,A,T61,A20)') "Algorithm: ", "OT DIAGONALIZATION"
-         WRITE (*, *) "print ot diagonalization"
       CASE (ec_matrix_sign)
          WRITE (unit_nr, '(T2,A,T61,A20)') "Algorithm: ", "MATRIX_SIGN"
       CASE (ec_matrix_trs4)
