@@ -422,8 +422,8 @@ CONTAINS
       IF (unit_nr > 0) THEN
 
          ! linres_control
-         WRITE (unit_nr, '()')
-         WRITE (unit_nr, '(T2,A,A,A)') REPEAT("-", 30), " Linear Response Solver ", REPEAT("-", 26)
+         WRITE (unit_nr, '(/,T2,A)') &
+            REPEAT("-", 30)//" Linear Response Solver "//REPEAT("-", 25)
 
          ! Which type of solver is used
          CALL section_vals_val_get(input, "METHOD", i_val=solver_method)
