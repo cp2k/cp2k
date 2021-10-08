@@ -1273,9 +1273,7 @@ CONTAINS
          atener => atprop%atevdw
       END IF
       atstress = atprop%stress
-      IF (atstress) THEN
-         atstr => atprop%atstress
-      END IF
+      atstr => atprop%atstress
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, *)

@@ -78,10 +78,9 @@ MODULE energy_corrections
                                               gth_potential_type,&
                                               sgp_potential_type
    USE input_constants,                 ONLY: &
-        ec_curvy_steps, ec_diagonalization, ec_functional_harris, ec_matrix_sign, ec_matrix_tc2, &
-        ec_matrix_trs4, ls_s_sqrt_ns, ls_s_sqrt_proot, ec_ot_atomic, ec_ot_diag, ec_ot_gs, &
-        ot_precond_full_single_inverse, ot_precond_solver_default, &
-        vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, xc_vdw_fun_pairpot
+        ec_diagonalization, ec_functional_harris, ec_matrix_sign, ec_matrix_tc2, ec_matrix_trs4, &
+        ec_ot_atomic, ec_ot_diag, ec_ot_gs, ot_precond_full_single_inverse, &
+        ot_precond_solver_default, vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, xc_vdw_fun_pairpot
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_lval,&
                                               section_vals_get_subs_vals,&
@@ -125,32 +124,26 @@ MODULE energy_corrections
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                               calculate_ptrace
+   USE qs_density_matrices,             ONLY: calculate_density_matrix,&
+                                              calculate_w_matrix
    USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type,&
-                                              set_qs_env
-   USE qs_force_types,                  ONLY: allocate_qs_force,&
-                                              deallocate_qs_force,&
-                                              qs_force_type,&
-                                              sum_qs_force,&
+                                              qs_environment_type
+   USE qs_force_types,                  ONLY: qs_force_type,&
                                               total_qs_force,&
                                               zero_qs_force
    USE qs_initial_guess,                ONLY: calculate_atomic_block_dm
-   USE qs_fxc,                          ONLY: qs_fxc_analytic,&
-                                              qs_fxc_fdiff
    USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                               integrate_v_rspace
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
    USE qs_kinetic,                      ONLY: build_kinetic_matrix
-   USE qs_ks_methods,                   ONLY: calc_rho_tot_gspace,&
-                                              calculate_w_matrix
+   USE qs_ks_methods,                   ONLY: calc_rho_tot_gspace
    USE qs_ks_types,                     ONLY: qs_ks_env_type
-   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
-                                              calculate_subspace_eigenvalues,&
+   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues,&
                                               make_basis_sm
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                               get_mo_set,&
@@ -164,9 +157,7 @@ MODULE energy_corrections
                                               pair_radius_setup
    USE qs_ot_eigensolver,               ONLY: ot_eigensolver
    USE qs_overlap,                      ONLY: build_overlap_matrix
-   USE qs_rho_types,                    ONLY: qs_rho_create,&
-                                              qs_rho_get,&
-                                              qs_rho_set,&
+   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_vxc,                          ONLY: qs_vxc_create
    USE response_solver,                 ONLY: ks_ref_potential,&
@@ -184,13 +175,6 @@ MODULE energy_corrections
                                               virial_create,&
                                               virial_release,&
                                               virial_type
-   USE xc,                              ONLY: xc_calc_2nd_deriv,&
-                                              xc_prep_2nd_deriv
-   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
-                                              xc_dset_release
-   USE xc_rho_set_types,                ONLY: xc_rho_set_release,&
-                                              xc_rho_set_type
->>>>>>> 9241c20af... Resolve merge conflicts
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -201,7 +185,7 @@ MODULE energy_corrections
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'energy_corrections'
 
-   LOGICAL, PARAMETER                   :: debug_forces = .FALSE.
+   LOGICAL, PARAMETER                   :: debug_forces = .TRUE.
    LOGICAL, PARAMETER                   :: debug_stress = .FALSE.
 
    PUBLIC :: energy_correction
@@ -284,19 +268,9 @@ CONTAINS
             !
             IF (ec_env%should_update) THEN
                energy%nonscf_correction = ec_env%etotal - energy%total
-               energy%total = energy%total + energy%nonscf_correction
-
                CALL evaluate_ec_core_matrix_traces(qs_env, ec_env)
+               energy%total = ec_env%etotal
             END IF
-            IF (my_calc_forces) THEN
-               CALL get_qs_env(qs_env, force=ec_force)
-               IF (ASSOCIATED(ec_env%force)) CALL deallocate_qs_force(ec_env%force)
-               ec_env%force => ec_force
-               CALL zero_qs_force(ks_force)
-               CALL sum_qs_force(ks_force, ec_force)
-               CALL set_qs_env(qs_env, force=ks_force)
-            END IF
-            energy%total = energy%total + energy%nonscf_correction
          CASE DEFAULT
             CPABORT("unknown energy correction")
          END SELECT
@@ -414,8 +388,10 @@ CONTAINS
                              vadmm_rspace=ec_env%vadmm_rspace, &
                              matrix_hz=ec_env%matrix_hz, &
                              matrix_pz=ec_env%matrix_z, &
+                             matrix_pz_admm=ec_env%z_admm, &
                              matrix_wz=ec_env%matrix_wz, &
                              zehartree=ec_env%ehartree, &
+                             p_env=ec_env%p_env, &
                              zexc=ec_env%exc)
 
          CALL ec_properties(qs_env, ec_env)
@@ -807,7 +783,7 @@ CONTAINS
                                 sab_nl=sab_orb, calculate_forces=.TRUE., &
                                 matrixkp_p=ec_env%matrix_w)
       IF (debug_forces) THEN
-         fodeb(1:3) = fconv*(force(1)%overlap(1:3, 1) - fodeb(1:3))
+         fodeb(1:3) = force(1)%overlap(1:3, 1) - fodeb(1:3)
          CALL mp_sum(fodeb, para_env%group)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Wout*dS    ", fodeb
          fodeb(1:3) = force(1)%kinetic(1:3, 1)
@@ -926,10 +902,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_build_ks_matrix_force'
 
-      INTEGER                                            :: handle, i, iounit, ispin, nao, natom, &
-                                                            norb, nspins
-      LOGICAL                                            :: deriv2_analytic, use_virial
-      REAL(dp)                                           :: dehartree, eexc, ehartree, eovrl, exc, focc, &
+      INTEGER                                            :: handle, i, iounit, ispin, natom, nspins
+      LOGICAL                                            :: use_virial
+      REAL(dp)                                           :: dehartree, eexc, ehartree, eovrl, exc, &
                                                             fconv, total_rhoout
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: ftot
       REAL(dp), DIMENSION(3)                             :: fodeb
@@ -947,16 +922,16 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: dv_hartree_rspace, rho_tot_gspace, &
                                                             rhodn_tot_gspace, v_hartree_gspace, &
-                                                            v_hartree_rspace, vtot_rspace, &
+                                                            v_hartree_rspace, vtot_rspace
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, rhoout_g, rhoout_r, &
                                                             v_rspace, v_tau_rspace, v_xc
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, rhoout_g, rhoout_r, tau_r, &
       TYPE(pw_p_type), POINTER                           :: rho_core
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho, rho1
-      TYPE(section_vals_type), POINTER                   :: input, xc_section
+      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(virial_type), POINTER                         :: virdeb, virial
 
       CALL timeset(routineN, handle)
@@ -1231,30 +1206,6 @@ CONTAINS
          WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
             'STRESS| INT 2nd f_Hxc[dP]*Pin    ', one_third_sum_diag(stdeb), det_3x3(stdeb)
       END IF
-      ! CPKS vector
-      !
-      ! sign is changed in linres_solver!
-      ! Projector Q applied in linres_solver!
-      focc = 2.0_dp
-      IF (nspins == 1) focc = 4.0_dp
-      CALL get_qs_env(qs_env=qs_env, mos=mos)
-      ALLOCATE (vmos(nspins))
-      DO ispin = 1, nspins
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
-         CALL cp_fm_get_info(mo_coeff, matrix_struct=fm_struct, nrow_global=nao, ncol_global=norb)
-         NULLIFY (vmos(ispin)%matrix)
-         CALL cp_fm_create(vmos(ispin)%matrix, fm_struct)
-         CALL cp_dbcsr_sm_fm_multiply(ec_env%matrix_hz(ispin)%matrix, mo_coeff, vmos(ispin)%matrix, &
-                                      norb, alpha=focc, beta=0.0_dp)
-      END DO
-      IF (ASSOCIATED(ec_env%cpmos)) THEN
-         DO i = 1, SIZE(ec_env%cpmos)
-            CALL cp_fm_release(ec_env%cpmos(i)%matrix)
-         END DO
-         DEALLOCATE (ec_env%cpmos)
-         NULLIFY (ec_env%cpmos)
-      END IF
-
       ! Stress-tensor 2nd derivative integral contribution
       IF (use_virial) THEN
          virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - pv_loc)

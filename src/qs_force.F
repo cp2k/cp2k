@@ -300,7 +300,7 @@ CONTAINS
          CALL build_xtb_matrices(qs_env=qs_env, para_env=para_env, &
                                  calculate_forces=.TRUE.)
       ELSEIF (perform_ec) THEN
-         CALL energy_correction(qs_env, ec_init=.FALSE., calculate_forces=.TRUE.)
+         !
       ELSE
          ! Dispersion energy and forces are calculated in qs_energy?
          CALL build_core_hamiltonian_matrix(qs_env=qs_env, calculate_forces=.TRUE.)
@@ -379,6 +379,10 @@ CONTAINS
 
       IF (ASSOCIATED(qs_env%mp2_env)) THEN
          CALL update_mp2_forces(qs_env)
+      END IF
+    
+      IF (perform_ec) THEN
+         CALL energy_correction(qs_env, ec_init=.FALSE., calculate_forces=.TRUE.)
       END IF
 
       ! Excited state forces

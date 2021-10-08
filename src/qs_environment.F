@@ -448,10 +448,6 @@ CONTAINS
       dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
       CALL section_vals_val_get(dft_section, "ENERGY_CORRECTION%_SECTION_PARAMETERS_", &
                                 l_val=qs_env%energy_correction)
-      NULLIFY (ec_env)
-      CALL ec_env_create(qs_env, ec_env, dft_section)
-      CALL set_qs_env(qs_env, ec_env=ec_env)
-
       dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
       CALL section_vals_val_get(dft_section, "EXCITED_STATES%_SECTION_PARAMETERS_", &
                                 l_val=qs_env%excited_state)
@@ -474,13 +470,13 @@ CONTAINS
          CALL ls_scf_create(qs_env)
       ENDIF
 
+      NULLIFY (ec_env)
       dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
       CALL section_vals_val_get(dft_section, "ENERGY_CORRECTION%_SECTION_PARAMETERS_", &
                                 l_val=qs_env%energy_correction)
       ec_section => section_vals_get_subs_vals(qs_env%input, "DFT%ENERGY_CORRECTION")
-      IF (qs_env%energy_correction) THEN
-         CALL ec_env_create(qs_env, qs_env%ec_env, dft_section, ec_section)
-      END IF
+      CALL ec_env_create(qs_env, ec_env, dft_section, ec_section)
+      CALL set_qs_env(qs_env, ec_env=ec_env)
 
       IF (dft_control%qs_control%do_almo_scf) THEN
          CALL almo_scf_env_create(qs_env)

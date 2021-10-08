@@ -13,6 +13,8 @@
 ! **************************************************************************************************
 MODULE ec_env_types
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
+   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
+                                              cp_fm_release
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type,&
                                               ls_scf_release
@@ -22,6 +24,8 @@ MODULE ec_env_types
                                               pw_release
    USE qs_dispersion_types,             ONLY: qs_dispersion_release,&
                                               qs_dispersion_type
+   USE qs_force_types,                  ONLY: deallocate_qs_force,&
+                                              qs_force_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
                                               release_neighbor_list_sets
    USE qs_p_env_types,                  ONLY: p_env_release,&
@@ -66,6 +70,8 @@ MODULE ec_env_types
       REAL(KIND=dp)                                    :: etotal
       REAL(KIND=dp)                                    :: eband, exc, ehartree, vhxc
       REAL(KIND=dp)                                    :: edispersion, efield_nuclear
+      ! forces
+      TYPE(qs_force_type), DIMENSION(:), POINTER       :: force => Null()
       ! full neighbor lists and corresponding task list
       TYPE(neighbor_list_set_p_type), &
          DIMENSION(:), POINTER                         :: sab_orb, sac_ppl, sap_ppnl
@@ -85,6 +91,7 @@ MODULE ec_env_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: mao_coef
       ! CP equations
       TYPE(qs_p_env_type), POINTER                     :: p_env
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER        :: cpmos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: matrix_hz, matrix_z, matrix_wz, z_admm
       ! potentials from input density
       TYPE(pw_p_type), POINTER                         :: vh_rspace
@@ -115,6 +122,8 @@ CONTAINS
          CALL release_neighbor_list_sets(ec_env%sab_orb)
          CALL release_neighbor_list_sets(ec_env%sac_ppl)
          CALL release_neighbor_list_sets(ec_env%sap_ppnl)
+         ! forces
+         IF (ASSOCIATED(ec_env%force)) CALL deallocate_qs_force(ec_env%force)
          ! operator matrices
          IF (ASSOCIATED(ec_env%matrix_ks)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_ks)
          IF (ASSOCIATED(ec_env%matrix_h)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_h)
@@ -130,6 +139,14 @@ CONTAINS
          ! dispersion environment
          IF (ASSOCIATED(ec_env%dispersion_env)) THEN
             CALL qs_dispersion_release(ec_env%dispersion_env)
+         END IF
+         ! CP env
+         IF (ASSOCIATED(ec_env%cpmos)) THEN
+            DO iab = 1, SIZE(ec_env%cpmos)
+               CALL cp_fm_release(ec_env%cpmos(iab)%matrix)
+            END DO
+            DEALLOCATE (ec_env%cpmos)
+            NULLIFY (ec_env%cpmos)
          END IF
 
          IF (ASSOCIATED(ec_env%matrix_z)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_z)

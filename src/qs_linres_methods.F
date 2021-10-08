@@ -55,7 +55,6 @@ MODULE qs_linres_methods
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kg_correction,                   ONLY: kg_ekin_subset
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
@@ -676,77 +675,7 @@ CONTAINS
       !
    END SUBROUTINE apply_op_1
 
-! **************************************************************************************************
-!> \brief ...
-!> \param p_env ...
-!> \param qs_env ...
-! **************************************************************************************************
-   SUBROUTINE p_env_check_i_alloc(p_env, qs_env)
-      TYPE(qs_p_env_type), POINTER                       :: p_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'p_env_check_i_alloc'
-
-      INTEGER                                            :: handle, nspins
-      LOGICAL                                            :: gapw, gapw_xc, lr_triplet, lrigpw
-      REAL(KIND=dp)                                      :: ekin_mol
-      TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho1_ao
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(linres_control_type), POINTER                 :: linres_control
-      TYPE(qs_rho_type), POINTER                         :: rho1, rho1_xc
-      TYPE(section_vals_type), POINTER                   :: input, xc_section
-
-      CALL timeset(routineN, handle)
-
-      NULLIFY (dft_control, matrix_s)
-
-      CPASSERT(ASSOCIATED(p_env))
-      CPASSERT(p_env%ref_count > 0)
-      CALL get_qs_env(qs_env, dft_control=dft_control)
-      gapw_xc = dft_control%qs_control%gapw_xc
-      IF (.NOT. ASSOCIATED(p_env%kpp1)) THEN
-         CALL get_qs_env(qs_env, matrix_s=matrix_s)
-         nspins = dft_control%nspins
-
-      IF (dft_control%do_admm) THEN
-         CALL get_qs_env(qs_env, admm_env=admm_env)
-         xc_section => admm_env%xc_section_primary
-      ELSE
-         xc_section => section_vals_get_subs_vals(input, "DFT%XC")
-      END IF
-
-      CALL calc_kpp1(rho1_xc, rho1, xc_section, .FALSE., &
-                     .FALSE., lrigpw, .TRUE., lr_triplet, &
-                     qs_env, p_env)
-
-      nspins = SIZE(p_env%kpp1)
-      ! KG embedding, contribution of kinetic energy functional to kernel
-      IF (dft_control%qs_control%do_kg .AND. .NOT. (lr_triplet .OR. gapw .OR. gapw_xc)) THEN
-         IF (qs_env%kg_env%tnadd_method == kg_tnadd_embed) THEN
-
-            ekin_mol = 0.0_dp
-            CALL qs_rho_get(rho1, rho_ao=rho1_ao)
-            CALL kg_ekin_subset(qs_env=qs_env, &
-                                ks_matrix=p_env%kpp1, &
-                                ekin_mol=ekin_mol, &
-                                calc_force=.FALSE., &
-                                do_kernel=.TRUE., &
-                                pmat_ext=rho1_ao)
-         END IF
-      END IF
-
-      IF (.NOT. ASSOCIATED(p_env%rho1)) THEN
-         CALL qs_rho_rebuild(p_env%rho1, qs_env=qs_env)
-         IF (gapw_xc) THEN
-            CALL qs_rho_rebuild(p_env%rho1_xc, qs_env=qs_env)
-         END IF
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE p_env_check_i_alloc
-
+!MERGE
 ! **************************************************************************************************
 !> \brief ...
 !> \param v ...

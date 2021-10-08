@@ -10,9 +10,8 @@ H2_H2O_ecprim.inp                                     11      1e-10             
 # ENERGY : LS + KG embed + Harris (Diag) MAO basis
 2H2O_ecmao.inp                                        11      1e-10                 -34.0838901711
 # ENERGY : LS + KG embed + Harris (Diag) MAO basis options
-2H2O_ecmao2.inp                                       11      1e-08                 -34.5024567596
+2H2O_ecmao2.inp                                       11      1e-08                 -34.4437114917
 # ENERGY : LS + KG embed + Harris (Diag) dipole 
-H2O_ec.inp                                            11      1e-08                 -17.2629537942
 HF_ec_dipole.inp                                      11      1e-08                 -24.8917060368
 # ENERGY : LS + KG embed + Harris (Diag) efield 
 HF_ec_field.inp                                       11      1e-08                 -24.8908706031
@@ -29,9 +28,9 @@ H2O_ec_otdiag_gs.inp                                  11      1e-08            -
 H2O_ec_otdiag_atomic.inp                              11      1e-08            -17.262953794245810
 #
 # FORCES: KS + Harris (Diag) + MO solver
-N2_ec.inp                                             11      1e-08                 -19.8027533258
+N2_ec.inp                                             11      1e-08                 -19.9088452474
 # FORCES: KS + Harris (Diag) + MO solver
-H2O_ec.inp                                            11      1e-08                 -17.1632800979
+H2O_ec.inp                                            11      1e-08                 -17.2629537942
 # FORCES KS + KG embed + Harris (TRS4) + AO solver
 H2_H2O_KSKGeH_AO_grad.inp                             72      1E-08                     0.01991310 
 # FORCES KS + KG embed + Harris (TRS4) + MO solver
@@ -53,7 +52,7 @@ H2_H2O_LSKGaH_MO_an.inp                               31      1e-05             
 H2O_KSH_MO_an.inp                                     31      1e-05              4.50118137345E+01
 # STRESS: KS + Harris (Diag) + MO solver - Diagonal numerical
 H2O_KSH_AO_numdiag.inp                                31      1e-05             -2.41849782017E+00
-N2_ec.inp                                             11      1e-10                 -19.9088452474
+#
 N2_ec-hfx.inp                                         11      1e-10                 -19.8158435718
-N2_ec-hfx-admm.inp                                    11      1e-10                 -19.7796942775
+N2_ec-hfx-admm.inp                                    11      1e-10                 -19.8434174973
 #EOF

@@ -28,7 +28,7 @@
       &END XC
     &END ENERGY_CORRECTION
     &SCF
-      EPS_SCF 1.0E-8
+      EPS_SCF 1.0E-7
       SCF_GUESS ATOMIC
     &END
     &XC

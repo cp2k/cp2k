@@ -154,8 +154,6 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-! code
-
       CALL timeset(routineN, handle)
       NULLIFY (ao_mo_fm_pools, mo_mo_fm_pools, matrix_s, dft_control, para_env, blacs_env)
       CALL get_qs_env(qs_env, &

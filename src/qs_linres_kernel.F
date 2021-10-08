@@ -507,11 +507,11 @@ CONTAINS
          IF (qs_env%kg_env%tnadd_method == kg_tnadd_embed) THEN
 
             CALL qs_rho_get(rho1, rho_ao=rho1_ao)
-            IF (nspins == 2) THEN
-               alpha = 1.0_dp
-            ELSE
-               alpha = 2.0_dp
-            END IF
+!MERGE      IF (nspins == 2) THEN
+            alpha = 1.0_dp
+!           ELSE
+!              alpha = 2.0_dp
+!MERGE      END IF
 
             ekin_mol = 0.0_dp
             CALL get_qs_env(qs_env, kg_env=kg_env)
@@ -520,8 +520,8 @@ CONTAINS
                                 ekin_mol=ekin_mol, &
                                 calc_force=.FALSE., &
                                 do_kernel=.TRUE., &
-                                pmat_ext=rho1_ao, &
-                                alpha=alpha)
+                                pmat_ext=rho1_ao)
+!MERGE                           alpha=alpha)
          END IF
       END IF
 

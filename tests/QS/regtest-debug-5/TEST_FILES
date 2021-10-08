@@ -19,7 +19,7 @@ h2o_dip20.inp                                          86      1e-08            
 h2o_dip21.inp                                          86      1e-08             0.176823912039E+00
 h2o_dip22.inp                                          86      1e-08             0.135209164224E+00
 h2o_dip23.inp                                          86      1e-08             0.292668779126E+00
-h2o_dip24.inp                                          86      1e-05            -0.143426397582E+00
+h2o_dip24.inp                                          86      5e-05            -0.143426397582E+00
 h2o_dip25.inp                                          86      1e-08             0.149038318612E+00
 #h2o_dip26.inp                                          86      1e-05             0.000000000000E+00    EC - PADE - PADE HARRIS Basis
 #h2o_dip27.inp                                          86      1e-05             0.000000000000E+00    *EC - PADE - PADE HARRIS Basis

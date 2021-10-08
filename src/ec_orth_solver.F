@@ -32,7 +32,8 @@ MODULE ec_orth_solver
                                               ls_s_sqrt_ns,&
                                               ls_s_sqrt_proot,&
                                               precond_mlp
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+   USE input_section_types,             ONLY: section_vals_get,&
+                                              section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz,&
@@ -1124,6 +1125,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'hessian_op2', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ispin, nspins
+      LOGICAL                                            :: do_hfx
       REAL(KIND=dp)                                      :: ekin_mol
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_G, matrix_s, rho1_ao, rho_ao
@@ -1136,7 +1138,7 @@ CONTAINS
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(section_vals_type), POINTER                   :: input, xc_section
+      TYPE(section_vals_type), POINTER                   :: hfx_section, input, xc_section
 
       CALL timeset(routineN, handle)
 
@@ -1183,6 +1185,15 @@ CONTAINS
       ! XC-Kernel
       NULLIFY (v_xc, xc_section)
       xc_section => section_vals_get_subs_vals(input, "DFT%XC")
+
+      ! No HFX allowed
+      hfx_section => section_vals_get_subs_vals(xc_section, "HF")
+      CALL section_vals_get(hfx_section, explicit=do_hfx)
+      IF (do_hfx) THEN
+         CALL cp_warn(__LOCATION__, "HFX not possible with AO based response solver. "// &
+                      "Use the MO solver: RESPONSE_SOLVER/METOD MO_SOLVER")
+         CPABORT("hessian_op2@ec_orth_solver")
+      END IF
 
       ! add xc-kernel
       CALL create_kernel(qs_env, &

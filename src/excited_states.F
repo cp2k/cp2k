@@ -108,7 +108,7 @@ CONTAINS
             CALL set_qs_env(qs_env, force=lr_force)
             !
             NULLIFY (p_env)
-            CALL response_equation(qs_env, p_env, ex_env%cpmos)
+            CALL response_equation(qs_env, p_env, ex_env%cpmos, unit_nr)
             !
             CALL get_qs_env(qs_env, dft_control=dft_control)
             IF (dft_control%qs_control%semi_empirical) THEN
@@ -119,9 +119,12 @@ CONTAINS
                CALL response_force_xtb(qs_env, p_env, ex_env%matrix_hz, ex_env)
             ELSE
                ! KS-DFT
-               CALL response_force(qs_env, p_env, ex_env%vh_rspace, ex_env%vxc_rspace, &
-                                   ex_env%vtau_rspace, ex_env%vadmm_rspace, ex_env%matrix_hz, &
-                                   ex_env)
+               CALL response_force(qs_env=qs_env, vh_rspace=ex_env%vh_rspace, &
+                                   vxc_rspace=ex_env%vxc_rspace, vtau_rspace=ex_env%vtau_rspace, &
+                                   vadmm_rspace=ex_env%vadmm_rspace, matrix_hz=ex_env%matrix_hz, &
+                                   matrix_pz=ex_env%matrix_px1, matrix_pz_admm=p_env%p1_admm, &
+                                   matrix_wz=p_env%w1, &
+                                   p_env=p_env, ex_env=ex_env)
             END IF
             ! add TD and KS forces
             CALL get_qs_env(qs_env, force=lr_force)
