@@ -50,7 +50,6 @@ MODULE mp2_ri_2c
         cp_fm_copy_general, cp_fm_create, cp_fm_get_info, cp_fm_indxg2p, cp_fm_p_type, &
         cp_fm_release, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
-   USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -774,8 +773,9 @@ CONTAINS
       END DO
 
       ! check that very small systems are not running on too many processes
-      IF (dimen_RI < para_env%num_pe) THEN
-         CPABORT("Too large number of MPI processes. Maximum allowed number: "//cp_to_string(dimen_RI))
+      IF (dimen_RI < ngroup) THEN
+         CALL cp_abort(__LOCATION__, "Product of block size and number "// &
+                       "of RI functions should not exceed total number of processes")
       END IF
 
       CALL create_group_dist(gd_array, ngroup, dimen_RI)
