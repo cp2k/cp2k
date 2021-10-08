@@ -174,7 +174,6 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: alpha_beta, do_dynamic_load_balancing, &
                                                             do_hfx, restore_p_screen
-      REAL(KIND=dp)                                      :: out_alpha
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: L_jb, mo_coeff_o, mo_coeff_v, P_ia, &
                                                             P_mo, W_mo
@@ -344,7 +343,6 @@ CONTAINS
 
       ! update Lagrangian with the CPHF like update, occ-occ block, first call (recompute hfx integrals if needed)
       transf_type_in = 1
-      out_alpha = 0.5_dp
       ! In alpha-beta case, L_bj_alpha has Coulomb and XC alpha-alpha part
       ! and (only) Coulomb alpha-beta part and vice versa.
 
@@ -354,21 +352,11 @@ CONTAINS
       CALL cphf_like_update(qs_env, homo, virtual, dimen, nspins, &
                             mo_coeff_o, &
                             mo_coeff_v, Eigenval, p_env, &
-                            P_mo, fm_G_mu_nu, fm_back, transf_type_in, out_alpha, &
+                            P_mo, fm_G_mu_nu, fm_back, transf_type_in, &
                             L_jb, &
                             recalc_hfx_integrals=mp2_env%ri_mp2%free_hfx_buffer)
 
-      ! update Lagrangian with the CPHF like update, virt-virt block
-      transf_type_in = 2
-      out_alpha = 0.5_dp
-
-      CALL cphf_like_update(qs_env, homo, virtual, dimen, nspins, &
-                            mo_coeff_o, &
-                            mo_coeff_v, Eigenval, p_env, &
-                            P_mo, fm_G_mu_nu, fm_back, transf_type_in, out_alpha, &
-                            L_jb)
-
-      ! at this point Lagrnagian is completed ready to solve the Z-vector equations
+      ! at this point Lagrangian is completed ready to solve the Z-vector equations
       ! P_ia will contain the solution of these equations
       ALLOCATE (P_ia(nspins))
       DO ispin = 1, nspins
@@ -532,14 +520,13 @@ CONTAINS
 !> \param fm_ao ...
 !> \param fm_back ...
 !> \param transf_type_in ...
-!> \param out_alpha ...
 !> \param fm_mo_out ...
 !> \param recalc_hfx_integrals ...
 !> \author Mauro Del Ben, Vladimir Rybkin
 ! **************************************************************************************************
    SUBROUTINE cphf_like_update(qs_env, homo, virtual, dimen, nspins, &
                                mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
-                               fm_mo, fm_ao, fm_back, transf_type_in, out_alpha, &
+                               fm_mo, fm_ao, fm_back, transf_type_in, &
                                fm_mo_out, recalc_hfx_integrals)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       INTEGER, INTENT(IN)                                :: nspins, dimen
@@ -550,7 +537,6 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mo
       TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_ao, fm_back
       INTEGER, INTENT(IN)                                :: transf_type_in
-      REAL(KIND=dp), INTENT(IN)                          :: out_alpha
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: fm_mo_out
       LOGICAL, INTENT(IN), OPTIONAL                      :: recalc_hfx_integrals
 
@@ -579,8 +565,6 @@ CONTAINS
             CALL cp_gemm('N', 'N', dimen, homo(ispin), homo(ispin), 1.0_dp, &
                          mo_coeff_o(ispin)%matrix, mat_in, 0.0_dp, fm_back)
             CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_o(ispin)%matrix, homo(ispin), 1.0_dp, .TRUE.)
-
-         CASE (2)
             ! virt-virt block
             CALL cp_gemm('N', 'N', dimen, virtual(ispin), virtual(ispin), 1.0_dp, &
                          mo_coeff_v(ispin)%matrix, mat_in, 0.0_dp, fm_back, &
@@ -592,11 +576,11 @@ CONTAINS
             ! virt-occ blocks
             CALL cp_gemm('N', 'N', dimen, virtual(ispin), homo(ispin), 1.0_dp, &
                          mo_coeff_o(ispin)%matrix, mat_in, 0.0_dp, fm_back)
-            CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_v(ispin)%matrix, virtual(ispin), 0.5_dp, .TRUE.)
+            CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_v(ispin)%matrix, virtual(ispin), 1.0_dp, .TRUE.)
             ! and symmetrize (here again multiply instead of transposing)
             CALL cp_gemm('N', 'T', dimen, homo(ispin), virtual(ispin), 1.0_dp, &
                          mo_coeff_v(ispin)%matrix, mat_in, 0.0_dp, fm_back)
-            CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_o(ispin)%matrix, homo(ispin), 0.5_dp, .TRUE.)
+            CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_o(ispin)%matrix, homo(ispin), 1.0_dp, .TRUE.)
 
          CASE DEFAULT
             ! nothing
@@ -647,7 +631,7 @@ CONTAINS
          ! occ-virt block
          CALL cp_gemm('T', 'N', homo(ispin), dimen, dimen, 1.0_dp, &
                       mo_coeff_o(ispin)%matrix, fm_ao, 0.0_dp, fm_back)
-         CALL cp_gemm('N', 'N', homo(ispin), virtual(ispin), dimen, 2.0_dp*out_alpha, &
+         CALL cp_gemm('N', 'N', homo(ispin), virtual(ispin), dimen, 1.0_dp, &
                       fm_back, mo_coeff_v(ispin)%matrix, 1.0_dp, mat_out)
 
       END DO
@@ -700,7 +684,7 @@ CONTAINS
          ncol_local, nrow_local, transf_type_in
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: converged
-      REAL(KIND=dp)                                      :: eps_conv, out_alpha, t1, t2
+      REAL(KIND=dp)                                      :: eps_conv, t1, t2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: conv, proj_bi_xj, temp_vals, x_norm, xi_b
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: A_small, b_small, xi_Axi
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: b_i, precond, residual
@@ -725,9 +709,8 @@ CONTAINS
 
       ! set the transformation type (equal for all methods all updates)
       transf_type_in = 3
-      out_alpha = 1.0_dp
 
-      ! set convergece flag
+      ! set convergence flag
       converged = .FALSE.
 
       ! Pople method
@@ -834,7 +817,7 @@ CONTAINS
          CALL cphf_like_update(qs_env, homo, virtual, dimen, nspins, &
                                mo_coeff_o, &
                                mo_coeff_v, Eigenval, p_env, &
-                               xn(:, iiter), fm_G_mu_nu, fm_back, transf_type_in, out_alpha, &
+                               xn(:, iiter), fm_G_mu_nu, fm_back, transf_type_in, &
                                Ax(:, iiter))
 
          ! in order to reduce the number of calls to mp_sum here we

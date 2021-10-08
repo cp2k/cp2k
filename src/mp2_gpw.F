@@ -165,7 +165,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_coeff
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
       TYPE(cp_logger_type), POINTER                      :: logger, logger_sub
-      TYPE(cp_para_env_type), POINTER                    :: para_env_sub, para_env_sub_RPA
+      TYPE(cp_para_env_type), POINTER                    :: para_env_sub
       TYPE(dbcsr_p_type)                                 :: mat_munu, mat_P_global
       TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:)      :: mo_coeff_all, mo_coeff_gw, mo_coeff_o, &
                                                             mo_coeff_v
@@ -515,8 +515,6 @@ CONTAINS
       ! decide if to do RI-RPA or RI-MP2
       IF (my_do_ri_rpa .OR. my_do_ri_sos_laplace_mp2) THEN
 
-         para_env_sub_RPA => para_env_sub
-
          IF (do_im_time) THEN
 
             CALL create_matrix_P(mat_P_global, qs_env, mp2_env, para_env, dft_control, atomic_kind_set, &
@@ -532,7 +530,7 @@ CONTAINS
 
          ! RI-RPA
          CALL rpa_ri_compute_en(qs_env, Emp2, mp2_env, BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, &
-                                para_env, para_env_sub_RPA, color_sub, &
+                                para_env, para_env_sub, color_sub, &
                                 gd_array, gd_B_virtual, gd_B_all, gd_B_occ_bse, gd_B_virt_bse, &
                                 mo_coeff, fm_matrix_L_RI_metric, kpoints, &
                                 Eigenval, nmo, homo, dimen_RI, dimen_RI_red, gw_corr_lev_occ, gw_corr_lev_virt, &
