@@ -380,7 +380,7 @@ CONTAINS
       IF (ASSOCIATED(qs_env%mp2_env)) THEN
          CALL update_mp2_forces(qs_env)
       END IF
-    
+
       IF (perform_ec) THEN
          CALL energy_correction(qs_env, ec_init=.FALSE., calculate_forces=.TRUE.)
       END IF
