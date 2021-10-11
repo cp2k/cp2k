@@ -50,6 +50,8 @@ ifneq ($(ONEVERSION),)
 MODDEPS = "lower"
 include $(ARCHDIR)/$(ARCH).$(ONEVERSION)
 LIBDIR  := $(MAINLIBDIR)/$(ARCH)/$(ONEVERSION)
+PKGCONFIGDIR  := $(LIBDIR)/pkgconfig
+PKGCONFIG  := $(PKGCONFIGDIR)/libcp2k.pc
 LIBEXTSDIR := $(LIBDIR)/$(EXTSDIR)
 OBJDIR  := $(MAINOBJDIR)/$(ARCH)/$(ONEVERSION)
 OBJEXTSDIR := $(OBJDIR)/$(EXTSDIR)
@@ -69,7 +71,8 @@ endif
 # Declare PHONY targets =====================================================
 .PHONY : $(VERSION) $(EXE_NAMES) \
 				 dirs makedep default_target all \
-				 toolversions extversions extclean libcp2k cp2k_shell exts python-bindings \
+				 toolversions exts extversions extclean \
+				 libcp2k cp2k_shell pkgconfig python-bindings \
 				 pre-commit pre-commit-clean \
 				 pretty precommit precommitclean doxygenclean doxygen \
 				 fpretty fprettyclean \
@@ -162,7 +165,7 @@ test: dirs
 testbg: dirs makedep all
 	@+$(MAKE) --no-print-directory -C $(TSTDIR) -f $(MAKEFILE) testbg INCLUDE_DEPS=true
 
-libcp2k: makedep | dirs exts
+libcp2k: pkgconfig makedep | dirs exts
 	@+$(MAKE) --no-print-directory -C $(OBJDIR) -f $(MAKEFILE) $(LIBDIR)/libcp2k$(ARCHIVE_EXT) INCLUDE_DEPS=true
 
 python-bindings: libcp2k
@@ -180,9 +183,19 @@ dirs:
 	@mkdir -p $(OBJDIR)
 	@mkdir -p $(OBJEXTSDIR)
 	@mkdir -p $(LIBDIR)
+	@mkdir -p $(PKGCONFIGDIR)
 	@mkdir -p $(LIBEXTSDIR)
 	@mkdir -p $(EXEDIR)
 	@mkdir -p $(TSTDIR)
+
+pkgconfig: dirs
+	@echo "Writing pkg-config $(PKGCONFIG)"
+	@echo "Name: libcp2k" > $(PKGCONFIG)
+	@echo "Description: CP2K as a library" >> $(PKGCONFIG)
+	@echo "URL: https://www.cp2k.org" >> $(PKGCONFIG)
+	@echo "Version: $(REVISION)" >> $(PKGCONFIG)
+	@echo "libdir=$(LIBDIR)" >> $(PKGCONFIG)
+	@echo "Libs: -L\$${libdir} -Wl,-rpath=\$${libdir} -lcp2k $(LDFLAGS) $(LIBS)" >> $(PKGCONFIG)
 
 toolversions:
 ifneq ($(FC),)
