@@ -818,7 +818,8 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_pd, matrix_s, mpa, scrm
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_pd, matrix_pza, matrix_s, mpa, &
+                                                            scrm
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_p, mhd, mhx, mhy, mhz, &
                                                             mpd, mpz
       TYPE(dbcsr_type), POINTER                          :: dbwork
@@ -1578,14 +1579,14 @@ CONTAINS
                          s_mstruct_changed=s_mstruct_changed)
          distribute_fock_matrix = .TRUE.
          IF (dft_control%do_admm) THEN
-            CALL get_qs_env(qs_env, admm_env=admm_env)
+            CALL get_qs_env(qs_env=qs_env, admm_env=admm_env)
             CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit=scrm)
             CALL get_qs_env(qs_env=qs_env, rho_aux_fit=rho_aux_fit)
             CALL qs_rho_get(rho_aux_fit, rho_ao_kp=matrix_p)
             NULLIFY (mpz, mhz, mpd, mhd)
-            ALLOCATE (mpd(nspins, 1))
             CALL dbcsr_allocate_matrix_set(mpz, nspins, 1)
             CALL dbcsr_allocate_matrix_set(mhz, nspins, 1)
+            CALL dbcsr_allocate_matrix_set(mpd, nspins, 1)
             CALL dbcsr_allocate_matrix_set(mhd, nspins, 1)
             DO ispin = 1, nspins
                ALLOCATE (mhz(ispin, 1)%matrix, mhd(ispin, 1)%matrix)
@@ -1659,8 +1660,10 @@ CONTAINS
             CALL dbcsr_deallocate_matrix_set(mpz)
             CALL dbcsr_deallocate_matrix_set(mhz)
             CALL dbcsr_deallocate_matrix_set(mhd)
-            CALL dbcsr_deallocate_matrix_set(mhx)
-            CALL dbcsr_deallocate_matrix_set(mhy)
+            IF (ASSOCIATED(mhx) .AND. ASSOCIATED(mhy)) THEN
+               CALL dbcsr_deallocate_matrix_set(mhx)
+               CALL dbcsr_deallocate_matrix_set(mhy)
+            END IF
             DEALLOCATE (mpd)
          ELSE
             ALLOCATE (mpz(nspins, 1), mhz(nspins, 1))
@@ -1681,23 +1684,23 @@ CONTAINS
          IF (debug_forces) fodeb(1:3) = force(1)%fock_4c(1:3, 1)
          IF (dft_control%do_admm) THEN
             CALL qs_rho_get(rho_aux_fit, rho_ao_kp=matrix_p)
-            NULLIFY (matrix_pz)
-            CALL dbcsr_allocate_matrix_set(matrix_pz, nspins)
+            NULLIFY (matrix_pza)
+            CALL dbcsr_allocate_matrix_set(matrix_pza, nspins)
             DO ispin = 1, nspins
-               ALLOCATE (matrix_pz(ispin)%matrix)
+               ALLOCATE (matrix_pza(ispin)%matrix)
                IF (do_ex) THEN
-                  CALL dbcsr_create(matrix_pz(ispin)%matrix, template=p_env%p1_admm(ispin)%matrix)
-                  CALL dbcsr_copy(matrix_pz(ispin)%matrix, p_env%p1_admm(ispin)%matrix)
-                  CALL dbcsr_add(matrix_pz(ispin)%matrix, ex_env%matrix_pe_admm(ispin)%matrix, &
+                  CALL dbcsr_create(matrix_pza(ispin)%matrix, template=p_env%p1_admm(ispin)%matrix)
+                  CALL dbcsr_copy(matrix_pza(ispin)%matrix, p_env%p1_admm(ispin)%matrix)
+                  CALL dbcsr_add(matrix_pza(ispin)%matrix, ex_env%matrix_pe_admm(ispin)%matrix, &
                                  1.0_dp, 1.0_dp)
                ELSE
-                  CALL dbcsr_create(matrix_pz(ispin)%matrix, template=matrix_pz_admm(ispin)%matrix)
-                  CALL dbcsr_copy(matrix_pz(ispin)%matrix, matrix_pz_admm(ispin)%matrix)
+                  CALL dbcsr_create(matrix_pza(ispin)%matrix, template=matrix_pz_admm(ispin)%matrix)
+                  CALL dbcsr_copy(matrix_pza(ispin)%matrix, matrix_pz_admm(ispin)%matrix)
                END IF
             END DO
-            CALL derivatives_four_center(qs_env, matrix_p, matrix_pz, hfx_section, para_env, &
+            CALL derivatives_four_center(qs_env, matrix_p, matrix_pza, hfx_section, para_env, &
                                          1, use_virial, resp_only=resp_only)
-            CALL dbcsr_deallocate_matrix_set(matrix_pz)
+            CALL dbcsr_deallocate_matrix_set(matrix_pza)
          ELSE
             CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
             CALL derivatives_four_center(qs_env, matrix_p, mpa, hfx_section, para_env, &
