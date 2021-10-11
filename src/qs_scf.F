@@ -112,6 +112,7 @@ MODULE qs_scf
                                               restart_inverse_jacobian
    USE qs_cdft_types,                   ONLY: cdft_control_type
    USE qs_charges_types,                ONLY: qs_charges_type
+   USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_density_mixing_types,         ONLY: gspace_mixing_nr
    USE qs_diis,                         ONLY: qs_diis_b_clear,&
                                               qs_diis_b_create
@@ -125,8 +126,7 @@ MODULE qs_scf
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type
    USE qs_mo_io,                        ONLY: write_mo_set_to_restart
-   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
-                                              make_basis_simple,&
+   USE qs_mo_methods,                   ONLY: make_basis_simple,&
                                               make_basis_sm
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&

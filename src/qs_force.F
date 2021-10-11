@@ -35,6 +35,7 @@ MODULE qs_force
    USE ec_env_types,                    ONLY: energy_correction_type
    USE efield_utils,                    ONLY: calculate_ecore_efield
    USE energy_corrections,              ONLY: energy_correction
+   USE excited_states,                  ONLY: excited_state_energy
    USE input_constants,                 ONLY: do_admm_purify_none
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -299,7 +300,7 @@ CONTAINS
          CALL build_xtb_matrices(qs_env=qs_env, para_env=para_env, &
                                  calculate_forces=.TRUE.)
       ELSEIF (perform_ec) THEN
-         CALL energy_correction(qs_env, ec_init=.FALSE., calculate_forces=.TRUE.)
+         !
       ELSE
          ! Dispersion energy and forces are calculated in qs_energy?
          CALL build_core_hamiltonian_matrix(qs_env=qs_env, calculate_forces=.TRUE.)
@@ -379,6 +380,13 @@ CONTAINS
       IF (ASSOCIATED(qs_env%mp2_env)) THEN
          CALL update_mp2_forces(qs_env)
       END IF
+
+      IF (perform_ec) THEN
+         CALL energy_correction(qs_env, ec_init=.FALSE., calculate_forces=.TRUE.)
+      END IF
+
+      ! Excited state forces
+      CALL excited_state_energy(qs_env, calculate_forces=.TRUE.)
 
       ! replicate forces (get current pointer)
       NULLIFY (force)

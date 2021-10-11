@@ -67,6 +67,7 @@ MODULE qs_environment
                                               distribution_1d_type
    USE distribution_methods,            ONLY: distribute_molecules_1d
    USE dm_ls_scf_create,                ONLY: ls_scf_create
+   USE ec_env_types,                    ONLY: energy_correction_type
    USE ec_environment,                  ONLY: ec_env_create
    USE et_coupling_types,               ONLY: et_coupling_create
    USE ewald_environment_types,         ONLY: ewald_env_create,&
@@ -80,6 +81,8 @@ MODULE qs_environment
    USE ewald_pw_types,                  ONLY: ewald_pw_create,&
                                               ewald_pw_release,&
                                               ewald_pw_type
+   USE exstates_types,                  ONLY: excited_energy_type,&
+                                              exstate_create
    USE external_potential_types,        ONLY: get_potential,&
                                               init_potential,&
                                               set_potential
@@ -264,6 +267,8 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: my_cell, my_cell_ref
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(energy_correction_type), POINTER              :: ec_env
+      TYPE(excited_energy_type), POINTER                 :: exstate_env
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -440,6 +445,16 @@ CONTAINS
          CALL kg_env_create(qs_env, qs_env%kg_env, qs_kind_set, qs_env%input)
       END IF
 
+      dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
+      CALL section_vals_val_get(dft_section, "ENERGY_CORRECTION%_SECTION_PARAMETERS_", &
+                                l_val=qs_env%energy_correction)
+      dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
+      CALL section_vals_val_get(dft_section, "EXCITED_STATES%_SECTION_PARAMETERS_", &
+                                l_val=qs_env%excited_state)
+      NULLIFY (exstate_env)
+      CALL exstate_create(exstate_env, qs_env%excited_state, dft_section)
+      CALL set_qs_env(qs_env, exstate_env=exstate_env)
+
       et_coupling_section => section_vals_get_subs_vals(qs_env%input, &
                                                         "PROPERTIES%ET_COUPLING")
       CALL section_vals_get(et_coupling_section, explicit=do_et)
@@ -455,13 +470,13 @@ CONTAINS
          CALL ls_scf_create(qs_env)
       ENDIF
 
+      NULLIFY (ec_env)
       dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
       CALL section_vals_val_get(dft_section, "ENERGY_CORRECTION%_SECTION_PARAMETERS_", &
                                 l_val=qs_env%energy_correction)
       ec_section => section_vals_get_subs_vals(qs_env%input, "DFT%ENERGY_CORRECTION")
-      IF (qs_env%energy_correction) THEN
-         CALL ec_env_create(qs_env, qs_env%ec_env, dft_section, ec_section)
-      END IF
+      CALL ec_env_create(qs_env, ec_env, dft_section, ec_section)
+      CALL set_qs_env(qs_env, ec_env=ec_env)
 
       IF (dft_control%qs_control%do_almo_scf) THEN
          CALL almo_scf_env_create(qs_env)

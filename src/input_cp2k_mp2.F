@@ -270,6 +270,16 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="USE_OLD_GRADIENT_CODE", &
+         description="Use the original RI-MP2 gradient code.", &
+         usage="USE_OLD_GRADIENT_CODE  T", &
+         lone_keyword_l_val=.TRUE., &
+         default_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_ri_mp2
 
 ! **************************************************************************************************

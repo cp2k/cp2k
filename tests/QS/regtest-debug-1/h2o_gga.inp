@@ -17,6 +17,10 @@
     &END QS
     &EFIELD
     &END
+    &MGRID
+      CUTOFF 280
+      REL_CUTOFF 60
+    &END
     &SCF
       SCF_GUESS ATOMIC
       &OT
@@ -25,10 +29,10 @@
       &END
       &OUTER_SCF
          MAX_SCF  10
-         EPS_SCF 1.0E-4
+         EPS_SCF 1.0E-6
       &END
       MAX_SCF  10
-      EPS_SCF 1.0E-4
+      EPS_SCF 1.0E-6
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE

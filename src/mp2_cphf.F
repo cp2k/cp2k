@@ -86,6 +86,7 @@ MODULE mp2_cphf
                                               pw_p_type
    USE qs_2nd_kernel_ao,                ONLY: admm_projection_derivative,&
                                               apply_2nd_order_kernel
+   USE qs_density_matrices,             ONLY: calculate_whz_matrix
    USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -116,8 +117,7 @@ MODULE mp2_cphf
                                               qs_p_env_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE response_solver,                 ONLY: calculate_whz_matrix,&
-                                              ks_ref_potential
+   USE response_solver,                 ONLY: ks_ref_potential
    USE task_list_types,                 ONLY: task_list_type
    USE virial_types,                    ONLY: virial_type,&
                                               zero_virial
@@ -498,7 +498,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE solve_z_vector_eq
 
 ! **************************************************************************************************
 !> \brief Here we performe the CPHF like update using GPW,
@@ -1517,7 +1517,8 @@ CONTAINS
 
       ! Finish matrix_w_mp2 with occ-occ block
       DO ispin = 1, nspins
-         CALL calculate_whz_matrix(mos(ispin)%mo_set, p_env%kpp1(ispin)%matrix, p_env%w1(1)%matrix, 1.0_dp)
+         CALL calculate_whz_matrix(mos(ispin)%mo_set%mo_coeff, p_env%kpp1(ispin)%matrix, &
+                                   p_env%w1(1)%matrix, 1.0_dp)
       END DO
 
       IF (debug_forces .AND. use_virial) e_dummy = third_tr(virial%pv_virial)

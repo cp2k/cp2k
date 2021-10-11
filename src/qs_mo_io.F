@@ -68,12 +68,12 @@ MODULE qs_mo_io
    USE orbital_transformation_matrices, ONLY: orbtramat
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: evolt
+   USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
    USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
-   USE qs_mo_methods,                   ONLY: calculate_density_matrix
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: mo_set_p_type,&
                                               mo_set_type

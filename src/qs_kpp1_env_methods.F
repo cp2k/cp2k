@@ -220,6 +220,7 @@ CONTAINS
                                                             output_unit
       LOGICAL                                            :: gapw, gapw_xc, lsd, my_calc_forces
       REAL(KIND=dp)                                      :: alpha, energy_hartree, energy_hartree_1c
+      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: vxg
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -360,7 +361,7 @@ CONTAINS
 
       CALL xc_calc_2nd_deriv(v_xc, p_env%kpp1_env%deriv_set, p_env%kpp1_env%rho_set, &
                              rho1_r_pw, rho1_g_pw, auxbas_pw_pool, xc_section, .FALSE., &
-                             NULL(), lsd_singlets, do_excitations, do_triplet, do_tddft, &
+                             NULL(vxg), lsd_singlets, do_excitations, do_triplet, do_tddft, &
                              compute_virial=calc_virial, virial_xc=virial)
 
       DO ispin = 1, nspins
@@ -463,7 +464,6 @@ CONTAINS
                                        qs_env=qs_env, &
                                        calculate_forces=my_calc_forces, gapw=gapw)
             END IF
-
          END IF
 
          CALL dbcsr_add(p_env%kpp1(ispin)%matrix, p_env%kpp1_env%v_ao(ispin)%matrix, 1.0_dp, alpha)
@@ -763,13 +763,13 @@ CONTAINS
 !> \brief ...
 !> \param rho1 ...
 !> \param rho1_tot_gspace ...
-!> \param output_unit ...
+!> \param out_unit ...
 ! **************************************************************************************************
-   SUBROUTINE print_densities(rho1, rho1_tot_gspace, output_unit)
+   SUBROUTINE print_densities(rho1, rho1_tot_gspace, out_unit)
 
       TYPE(qs_rho_type), POINTER                         :: rho1
       TYPE(pw_p_type), INTENT(IN)                        :: rho1_tot_gspace
-      INTEGER                                            :: output_unit
+      INTEGER                                            :: out_unit
 
       REAL(KIND=dp)                                      :: total_rho_gspace
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho1_r
@@ -777,9 +777,9 @@ CONTAINS
       NULLIFY (tot_rho1_r)
 
       total_rho_gspace = pw_integrate_function(rho1_tot_gspace%pw, isign=-1)
-      IF (output_unit > 0) THEN
+      IF (out_unit > 0) THEN
          CALL qs_rho_get(rho1, tot_rho_r=tot_rho1_r)
-         WRITE (UNIT=output_unit, FMT="(T3,A,T60,F20.10)") &
+         WRITE (UNIT=out_unit, FMT="(T3,A,T60,F20.10)") &
             "KPP1 total charge density (r-space):", &
             accurate_sum(tot_rho1_r), &
             "KPP1 total charge density (g-space):", &

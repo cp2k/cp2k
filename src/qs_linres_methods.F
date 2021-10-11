@@ -13,9 +13,6 @@
 !> \author MI
 ! **************************************************************************************************
 MODULE qs_linres_methods
-   USE admm_types,                      ONLY: admm_type
-   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                              get_atomic_kind
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_external_control,             ONLY: external_control
@@ -51,36 +48,25 @@ MODULE qs_linres_methods
                                               dbcsr_set,&
                                               dbcsr_type
    USE input_constants,                 ONLY: do_loc_none,&
-                                              kg_tnadd_embed,&
                                               op_loc_berry,&
                                               ot_precond_none,&
                                               ot_precond_solver_default,&
                                               state_loc_all
-   USE input_section_types,             ONLY: section_vals_get,&
-                                              section_vals_get_subs_vals,&
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kg_correction,                   ONLY: kg_ekin_subset
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE message_passing,                 ONLY: mp_bcast
-   USE mulliken,                        ONLY: ao_charges
-   USE particle_types,                  ONLY: particle_type
    USE preconditioner,                  ONLY: apply_preconditioner,&
                                               make_preconditioner
-   USE pw_env_types,                    ONLY: pw_env_type
-   USE qs_2nd_kernel_ao,                ONLY: apply_hfx_ao,&
-                                              apply_xc_admm_ao,&
-                                              build_dm_response
+   USE qs_2nd_kernel_ao,                ONLY: build_dm_response
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                              get_qs_kind_set,&
-                                              qs_kind_type
-   USE qs_kpp1_env_methods,             ONLY: calc_kpp1
+   USE qs_linres_kernel,                ONLY: apply_op_2
    USE qs_linres_types,                 ONLY: linres_control_type
    USE qs_loc_methods,                  ONLY: qs_loc_driver
    USE qs_loc_types,                    ONLY: get_qs_loc_env,&
@@ -95,16 +81,11 @@ MODULE qs_linres_methods
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
    USE qs_p_env_methods,                ONLY: p_env_check_i_alloc,&
-                                              p_env_finish_kpp1,&
                                               p_env_update_rho
    USE qs_p_env_types,                  ONLY: qs_p_env_type
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
-   USE qs_rho_types,                    ONLY: qs_rho_get,&
-                                              qs_rho_type
+   USE qs_rho_types,                    ONLY: qs_rho_type
    USE string_utilities,                ONLY: xstring
-   USE xtb_ehess,                       ONLY: xtb_coulomb_hessian
-   USE xtb_types,                       ONLY: get_xtb_atom_param,&
-                                              xtb_atom_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -247,10 +228,9 @@ CONTAINS
       INTEGER                                            :: handle, ispin, iter, maxnmo, maxnmo_o, &
                                                             nao, ncol, nmo, nspins
       LOGICAL                                            :: restart
-      REAL(dp)                                           :: norm_res, t1, t2
-      REAL(dp), DIMENSION(:), POINTER                    :: alpha, beta, tr_pAp, tr_rz0, tr_rz00, &
-                                                            tr_rz1
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: Ap, chc, mo_coeff_array, p, r, Sc, z
+      REAL(dp)                                           :: alpha, beta, norm_res, t1, t2
+      REAL(dp), DIMENSION(:), POINTER                    :: tr_pAp, tr_rz0, tr_rz00, tr_rz1
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: Ap, chc, mo_coeff_array, p, r, Sc, z
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type), POINTER                          :: buf, mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -290,7 +270,7 @@ CONTAINS
       CALL check_p_env_init(p_env, linres_control, nspins)
       !
       ! allocate the vectors
-      ALLOCATE (alpha(nspins), beta(nspins), tr_pAp(nspins), tr_rz0(nspins), tr_rz00(nspins), tr_rz1(nspins), &
+      ALLOCATE (tr_pAp(nspins), tr_rz0(nspins), tr_rz00(nspins), tr_rz1(nspins), &
                 r(nspins), p(nspins), z(nspins), Ap(nspins), mo_coeff_array(nspins))
       DO ispin = 1, nspins
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff)
@@ -334,8 +314,6 @@ CONTAINS
          CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, mo_coeff, Sc(ispin)%matrix, ncol)
       ENDDO
       !
-      !
-      !
       ! header
       IF (iounit > 0) THEN
          WRITE (iounit, "(/,T3,A,T16,A,T25,A,T38,A,T52,A,T72,A,/,T3,A)") &
@@ -349,6 +327,7 @@ CONTAINS
       ! build the preconditioner
       IF (linres_control%preconditioner_type /= ot_precond_none) THEN
          IF (p_env%new_preconditioner) THEN
+            p_env%os_valid = .FALSE.
             DO ispin = 1, nspins
                IF (ASSOCIATED(matrix_t)) THEN
                   CALL make_preconditioner(p_env%preconditioner(ispin), &
@@ -401,7 +380,6 @@ CONTAINS
          linres_control%flag = "PCG"
       ENDIF
       !
-      norm_res = 0.0_dp
       DO ispin = 1, nspins
          !
          ! p_0 = z_0
@@ -409,11 +387,11 @@ CONTAINS
          !
          ! trace(r_0 * z_0)
          CALL cp_fm_trace(r(ispin)%matrix, z(ispin)%matrix, tr_rz0(ispin))
-         IF (tr_rz0(ispin) .LT. 0.0_dp) CPABORT("tr(r_j*z_j) < 0")
-         norm_res = MAX(norm_res, ABS(tr_rz0(ispin))/SQRT(REAL(nao*maxnmo_o, dp)))
       ENDDO
+      IF (SUM(tr_rz0) < 0.0_dp) CPABORT("tr(r_j*z_j) < 0")
+      norm_res = ABS(SUM(tr_rz0))/SQRT(REAL(nspins*nao*maxnmo_o, dp))
       !
-      alpha(:) = 0.0_dp
+      alpha = 0.0_dp
       restart = .FALSE.
       should_stop = .FALSE.
       iteration: DO iter = 1, linres_control%max_iter
@@ -425,23 +403,24 @@ CONTAINS
          ENDIF
          !
          t2 = m_walltime()
-         IF (iter .EQ. 1 .OR. MOD(iter, 1) .EQ. 0 .OR. linres_control%converged .OR. restart .OR. should_stop) THEN
+         IF (iter .EQ. 1 .OR. MOD(iter, 1) .EQ. 0 .OR. linres_control%converged &
+             .OR. restart .OR. should_stop) THEN
             IF (iounit > 0) THEN
                WRITE (iounit, "(T5,I5,T18,A3,T28,L1,T38,1E8.2,T48,F16.10,T68,F8.2)") &
-                  iter, linres_control%flag, restart, MAXVAL(alpha), norm_res, t2 - t1
+                  iter, linres_control%flag, restart, alpha, norm_res, t2 - t1
                CALL m_flush(iounit)
             ENDIF
          ENDIF
          !
          IF (linres_control%converged) THEN
             IF (iounit > 0) THEN
-               WRITE (iounit, "(/,T2,A,I4,A,/)") "The linear solver converged in ", iter, " iterations."
+               WRITE (iounit, "(T3,A,I4,A)") "The linear solver converged in ", iter, " iterations."
                CALL m_flush(iounit)
             ENDIF
             EXIT iteration
          ELSE IF (should_stop) THEN
             IF (iounit > 0) THEN
-               WRITE (iounit, "(/,T2,A,I4,A,/)") "The linear solver did NOT converge! External stop"
+               WRITE (iounit, "(T3,A,I4,A)") "The linear solver did NOT converge! External stop"
                CALL m_flush(iounit)
             END IF
             EXIT iteration
@@ -450,8 +429,8 @@ CONTAINS
          ! Max number of iteration reached
          IF (iter == linres_control%max_iter) THEN
             IF (iounit > 0) THEN
-               WRITE (iounit, "(/,T2,A/)") &
-                  "The linear solver didnt converge! Maximum number of iterations reached."
+               WRITE (iounit, "(T3,A)") &
+                  "The linear solver didn't converge! Maximum number of iterations reached."
                CALL m_flush(iounit)
             ENDIF
             linres_control%converged = .FALSE.
@@ -467,35 +446,18 @@ CONTAINS
             !
             ! tr(Ap_j*p_j)
             CALL cp_fm_trace(Ap(ispin)%matrix, p(ispin)%matrix, tr_pAp(ispin))
-            IF (tr_pAp(ispin) .LT. 0.0_dp) THEN
-               ! try to fix it by getting rid of the preconditioner
-               IF (iter > 1) THEN
-                  CALL cp_fm_scale_and_add(beta(ispin), p(ispin)%matrix, -1.0_dp, z(ispin)%matrix)
-                  CALL cp_fm_trace(r(ispin)%matrix, r(ispin)%matrix, tr_rz1(ispin))
-                  beta(ispin) = tr_rz1(ispin)/tr_rz00(ispin)
-                  CALL cp_fm_scale_and_add(beta(ispin), p(ispin)%matrix, 1.0_dp, r(ispin)%matrix)
-                  tr_rz0(ispin) = tr_rz1(ispin)
-               ELSE
-                  CALL cp_fm_to_fm(r(ispin)%matrix, p(ispin)%matrix)
-                  CALL cp_fm_trace(r(ispin)%matrix, r(ispin)%matrix, tr_rz0(ispin))
-               END IF
-               linres_control%flag = "CG"
-
-               CALL apply_op(qs_env, p_env, psi0_order, p, Ap, chc)
-               CALL postortho(Ap, mo_coeff_array, Sc)
-               CALL cp_fm_trace(Ap(ispin)%matrix, p(ispin)%matrix, tr_pAp(ispin))
-               CPABORT("tr(Ap_j*p_j) < 0")
-            END IF
-            !
-            ! alpha = tr(r_j*z_j) / tr(Ap_j*p_j)
-            IF (tr_pAp(ispin) .LT. 1.0e-10_dp) THEN
-               alpha(ispin) = 1.0_dp
-            ELSE
-               alpha(ispin) = tr_rz0(ispin)/tr_pAp(ispin)
-            ENDIF
+         END DO
+         !
+         ! alpha = tr(r_j*z_j) / tr(Ap_j*p_j)
+         IF (SUM(tr_pAp) < 1.0e-10_dp) THEN
+            alpha = 1.0_dp
+         ELSE
+            alpha = SUM(tr_rz0)/SUM(tr_pAp)
+         ENDIF
+         DO ispin = 1, nspins
             !
             ! x_j+1 = x_j + alpha * p_j
-            CALL cp_fm_scale_and_add(1.0_dp, psi1(ispin)%matrix, alpha(ispin), p(ispin)%matrix)
+            CALL cp_fm_scale_and_add(1.0_dp, psi1(ispin)%matrix, alpha, p(ispin)%matrix)
          ENDDO
          !
          ! need to recompute the residue
@@ -519,7 +481,7 @@ CONTAINS
             !
             ! r_j+1 = r_j - alpha * Ap_j
             DO ispin = 1, nspins
-               CALL cp_fm_scale_and_add(1.0_dp, r(ispin)%matrix, -alpha(ispin), Ap(ispin)%matrix)
+               CALL cp_fm_scale_and_add(1.0_dp, r(ispin)%matrix, -alpha, Ap(ispin)%matrix)
             ENDDO
             restart = .FALSE.
          ENDIF
@@ -543,27 +505,28 @@ CONTAINS
             linres_control%flag = "PCG"
          ENDIF
          !
-         norm_res = 0.0_dp
          DO ispin = 1, nspins
             !
             ! tr(r_j+1*z_j+1)
             CALL cp_fm_trace(r(ispin)%matrix, z(ispin)%matrix, tr_rz1(ispin))
-            IF (tr_rz1(ispin) .LT. 0.0_dp) CPABORT("tr(r_j+1*z_j+1) < 0")
-            norm_res = MAX(norm_res, tr_rz1(ispin)/SQRT(REAL(nao*maxnmo_o, dp)))
-            !
-            ! beta = tr(r_j+1*z_j+1) / tr(r_j*z_j)
-            IF (tr_rz0(ispin) .LT. 1.0e-10_dp) THEN
-               beta(ispin) = 0.0_dp
-            ELSE
-               beta(ispin) = tr_rz1(ispin)/tr_rz0(ispin)
-            ENDIF
+         END DO
+         IF (SUM(tr_rz1) < 0.0_dp) CPABORT("tr(r_j+1*z_j+1) < 0")
+         norm_res = SUM(tr_rz1)/SQRT(REAL(nspins*nao*maxnmo_o, dp))
+         !
+         ! beta = tr(r_j+1*z_j+1) / tr(r_j*z_j)
+         IF (SUM(tr_rz0) < 1.0e-10_dp) THEN
+            beta = 0.0_dp
+         ELSE
+            beta = SUM(tr_rz1)/SUM(tr_rz0)
+         ENDIF
+         DO ispin = 1, nspins
             !
             ! p_j+1 = z_j+1 + beta * p_j
-            CALL cp_fm_scale_and_add(beta(ispin), p(ispin)%matrix, 1.0_dp, z(ispin)%matrix)
+            CALL cp_fm_scale_and_add(beta, p(ispin)%matrix, 1.0_dp, z(ispin)%matrix)
             tr_rz00(ispin) = tr_rz0(ispin)
             tr_rz0(ispin) = tr_rz1(ispin)
          ENDDO
-
+         !
          ! Can we exit the SCF loop?
          CALL external_control(should_stop, "LINRES", target_time=qs_env%target_time, &
                                start_time=qs_env%start_time)
@@ -584,7 +547,7 @@ CONTAINS
          CALL cp_fm_release(Sc(ispin)%matrix)
          CALL cp_fm_release(chc(ispin)%matrix)
       ENDDO
-      DEALLOCATE (alpha, beta, tr_pAp, tr_rz0, tr_rz00, tr_rz1, r, p, z, Ap, Sc, chc, mo_coeff_array)
+      DEALLOCATE (tr_pAp, tr_rz0, tr_rz00, tr_rz1, r, p, z, Ap, Sc, chc, mo_coeff_array)
       !
       CALL timestop(handle)
       !
@@ -603,7 +566,7 @@ CONTAINS
       !
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: c0, v, Av, chc
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: c0, v, Av, chc
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'apply_op'
 
@@ -659,7 +622,7 @@ CONTAINS
                IF (ASSOCIATED(p_env%kpp1_admm)) CALL dbcsr_set(p_env%kpp1_admm(ispin)%matrix, 0.0_dp)
             END DO
 
-            CALL apply_op_2(qs_env, p_env, c0, Av)
+            CALL apply_op_2(qs_env, p_env, c0, v, Av)
 
          ENDIF
 
@@ -712,293 +675,12 @@ CONTAINS
       !
    END SUBROUTINE apply_op_1
 
+!MERGE
 ! **************************************************************************************************
 !> \brief ...
-!> \param qs_env ...
-!> \param p_env ...
-!> \param c0 ...
-!> \param Av ...
-! **************************************************************************************************
-   SUBROUTINE apply_op_2(qs_env, p_env, c0, Av)
-      !
-      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
-      TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: c0, Av
-
-      INTEGER                                            :: ispin, ncol
-      TYPE(dft_control_type), POINTER                    :: dft_control
-
-      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
-      IF (dft_control%qs_control%semi_empirical) THEN
-         CPABORT("Linear response not available with SE methods")
-      ELSEIF (dft_control%qs_control%dftb) THEN
-         CPABORT("Linear response not available with DFTB")
-      ELSEIF (dft_control%qs_control%xtb) THEN
-         CALL apply_op_2_xtb(qs_env, p_env)
-      ELSE
-         CALL apply_op_2_dft(qs_env, p_env)
-         CALL apply_hfx(qs_env, p_env)
-         CALL apply_xc_admm(qs_env, p_env)
-         CALL p_env_finish_kpp1(qs_env, p_env)
-      END IF
-
-      ! Transform second index in AO basis
-      DO ispin = 1, SIZE(p_env%kpp1)
-         CALL cp_fm_get_info(c0(ispin)%matrix, ncol_global=ncol)
-         CALL cp_dbcsr_sm_fm_multiply(p_env%kpp1(ispin)%matrix, c0(ispin)%matrix, Av(ispin)%matrix, &
-                                      ncol=ncol, alpha=1.0_dp, beta=1.0_dp)
-      END DO
-
-   END SUBROUTINE apply_op_2
-
-! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-!> \param p_env ...
-! **************************************************************************************************
-   SUBROUTINE apply_op_2_dft(qs_env, p_env)
-      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
-      TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_op_2_dft'
-
-      INTEGER                                            :: handle, nspins
-      LOGICAL                                            :: gapw, gapw_xc, lr_triplet, lrigpw
-      REAL(KIND=dp)                                      :: ekin_mol
-      TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho1_ao
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(linres_control_type), POINTER                 :: linres_control
-      TYPE(qs_rho_type), POINTER                         :: rho1, rho1_xc
-      TYPE(section_vals_type), POINTER                   :: input, xc_section
-
-      CALL timeset(routineN, handle)
-
-      NULLIFY (rho1_ao, input, dft_control)
-
-      rho1 => p_env%rho1
-      rho1_xc => p_env%rho1_xc
-      CPASSERT(ASSOCIATED(rho1))
-
-      CALL get_qs_env(qs_env=qs_env, &
-                      input=input, &
-                      linres_control=linres_control, &
-                      dft_control=dft_control)
-
-      lrigpw = dft_control%qs_control%lrigpw
-
-      lr_triplet = linres_control%lr_triplet
-
-      gapw = dft_control%qs_control%gapw
-      gapw_xc = dft_control%qs_control%gapw_xc
-
-      IF (dft_control%do_admm) THEN
-         CALL get_qs_env(qs_env, admm_env=admm_env)
-         xc_section => admm_env%xc_section_primary
-      ELSE
-         xc_section => section_vals_get_subs_vals(input, "DFT%XC")
-      END IF
-
-      CALL calc_kpp1(rho1_xc, rho1, xc_section, .FALSE., &
-                     .FALSE., lrigpw, .TRUE., lr_triplet, &
-                     qs_env, p_env)
-
-      nspins = SIZE(p_env%kpp1)
-      ! KG embedding, contribution of kinetic energy functional to kernel
-      IF (dft_control%qs_control%do_kg .AND. .NOT. (lr_triplet .OR. gapw .OR. gapw_xc)) THEN
-         IF (qs_env%kg_env%tnadd_method == kg_tnadd_embed) THEN
-
-            ekin_mol = 0.0_dp
-            CALL qs_rho_get(rho1, rho_ao=rho1_ao)
-            CALL kg_ekin_subset(qs_env=qs_env, &
-                                ks_matrix=p_env%kpp1, &
-                                ekin_mol=ekin_mol, &
-                                calc_force=.FALSE., &
-                                do_kernel=.TRUE., &
-                                pmat_ext=rho1_ao)
-         END IF
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE apply_op_2_dft
-
-! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-!> \param p_env ...
-! **************************************************************************************************
-   SUBROUTINE apply_op_2_xtb(qs_env, p_env)
-      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
-      TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_op_2_xtb'
-
-      INTEGER                                            :: atom_a, handle, iatom, ikind, is, ispin, &
-                                                            na, natom, natorb, nkind, ns, nsgf, &
-                                                            nspins
-      INTEGER, DIMENSION(25)                             :: lao
-      INTEGER, DIMENSION(5)                              :: occ
-      LOGICAL                                            :: lr_triplet
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: mcharge, mcharge1
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: aocg, aocg1, charges, charges1
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_matrix, rho_ao
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_p1, matrix_s
-      TYPE(dbcsr_type), POINTER                          :: s_matrix
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(linres_control_type), POINTER                 :: linres_control
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(qs_rho_type), POINTER                         :: rho, rho1
-      TYPE(xtb_atom_type), POINTER                       :: xtb_kind
-
-      CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(p_env%kpp1_env))
-      CPASSERT(ASSOCIATED(p_env%kpp1))
-
-      rho1 => p_env%rho1
-      CPASSERT(ASSOCIATED(rho1))
-
-      CPASSERT(p_env%kpp1_env%ref_count > 0)
-
-      CALL get_qs_env(qs_env=qs_env, &
-                      pw_env=pw_env, &
-                      para_env=para_env, &
-                      rho=rho, &
-                      linres_control=linres_control, &
-                      dft_control=dft_control)
-
-      CALL qs_rho_get(rho, rho_ao=rho_ao)
-
-      lr_triplet = linres_control%lr_triplet
-      CPASSERT(.NOT. lr_triplet)
-
-      nspins = SIZE(p_env%kpp1)
-
-      DO ispin = 1, nspins
-         CALL dbcsr_set(p_env%kpp1(ispin)%matrix, 0.0_dp)
-      ENDDO
-
-      IF (dft_control%qs_control%xtb_control%coulomb_interaction) THEN
-         ! Mulliken charges
-         CALL get_qs_env(qs_env, particle_set=particle_set, matrix_s_kp=matrix_s)
-         natom = SIZE(particle_set)
-         CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
-         CALL qs_rho_get(rho1, rho_ao_kp=matrix_p1)
-         ALLOCATE (mcharge(natom), charges(natom, 5))
-         ALLOCATE (mcharge1(natom), charges1(natom, 5))
-         charges = 0.0_dp
-         charges1 = 0.0_dp
-         CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set)
-         nkind = SIZE(atomic_kind_set)
-         CALL get_qs_kind_set(qs_kind_set, maxsgf=nsgf)
-         ALLOCATE (aocg(nsgf, natom))
-         aocg = 0.0_dp
-         ALLOCATE (aocg1(nsgf, natom))
-         aocg1 = 0.0_dp
-         p_matrix => matrix_p(:, 1)
-         s_matrix => matrix_s(1, 1)%matrix
-         CALL ao_charges(matrix_p, matrix_s, aocg, para_env)
-         CALL ao_charges(matrix_p1, matrix_s, aocg1, para_env)
-         DO ikind = 1, nkind
-            CALL get_atomic_kind(atomic_kind_set(ikind), natom=na)
-            CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
-            CALL get_xtb_atom_param(xtb_kind, natorb=natorb, lao=lao, occupation=occ)
-            DO iatom = 1, na
-               atom_a = atomic_kind_set(ikind)%atom_list(iatom)
-               charges(atom_a, :) = REAL(occ(:), KIND=dp)
-               DO is = 1, natorb
-                  ns = lao(is) + 1
-                  charges(atom_a, ns) = charges(atom_a, ns) - aocg(is, atom_a)
-                  charges1(atom_a, ns) = charges1(atom_a, ns) - aocg1(is, atom_a)
-               END DO
-            END DO
-         END DO
-         DEALLOCATE (aocg, aocg1)
-         DO iatom = 1, natom
-            mcharge(iatom) = SUM(charges(iatom, :))
-            mcharge1(iatom) = SUM(charges1(iatom, :))
-         END DO
-         ! Coulomb Kernel
-         CALL xtb_coulomb_hessian(qs_env, p_env%kpp1, charges1, mcharge1, mcharge)
-         !
-         DEALLOCATE (charges, mcharge, charges1, mcharge1)
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE apply_op_2_xtb
-
-! **************************************************************************************************
-!> \brief Update action of TDDFPT operator on trial vectors by adding exact-exchange term.
-!> \param qs_env ...
-!> \param p_env ...
-!> \par History
-!>    * 11.2019 adapted from tddfpt_apply_hfx
-! **************************************************************************************************
-   SUBROUTINE apply_hfx(qs_env, p_env)
-      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
-      TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'apply_hfx'
-
-      INTEGER                                            :: handle
-      LOGICAL                                            :: do_hfx
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(section_vals_type), POINTER                   :: hfx_section, input
-
-      CALL timeset(routineN, handle)
-
-      CALL get_qs_env(qs_env=qs_env, &
-                      input=input, &
-                      dft_control=dft_control)
-
-      hfx_section => section_vals_get_subs_vals(input, "DFT%XC%HF")
-      CALL section_vals_get(hfx_section, explicit=do_hfx)
-
-      IF (do_hfx) THEN
-         CALL apply_hfx_ao(qs_env, p_env)
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE apply_hfx
-
-! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-!> \param p_env ...
-! **************************************************************************************************
-   SUBROUTINE apply_xc_admm(qs_env, p_env)
-      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
-      TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_xc_admm'
-
-      INTEGER                                            :: handle
-      TYPE(dft_control_type), POINTER                    :: dft_control
-
-      CALL timeset(routineN, handle)
-
-      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
-
-      IF (dft_control%do_admm) THEN
-         CALL apply_xc_admm_ao(qs_env, p_env)
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE apply_xc_admm
-
-! **************************************************************************************************
-!> \brief projects first index of v onto the virtual subspace
-!> \param v matrix to be projected
-!> \param psi0 matrix with occupied orbitals
-!> \param S_psi0 matrix containing product of metric and occupied orbitals
+!> \param v ...
+!> \param psi0 ...
+!> \param S_psi0 ...
 ! **************************************************************************************************
    SUBROUTINE preortho(v, psi0, S_psi0)
       !v = (I-PS)v
@@ -1377,8 +1059,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE linres_read_restart
-
-! **************************************************************************************************
 
 ! **************************************************************************************************
 !> \brief ...

@@ -95,6 +95,8 @@ CONTAINS
       EtaInv = list2%ZetaInv
       Zeta_C = list2%zeta
       Zeta_D = list2%zetb
+      temp_CC = 0.0_dp
+      temp_DD = 0.0_dp
       DO i = 1, nimages1
          P = list1%image_list(i)%P
          R1 = list1%image_list(i)%R

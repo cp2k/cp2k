@@ -124,6 +124,8 @@ MODULE energy_corrections
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                               calculate_ptrace
+   USE qs_density_matrices,             ONLY: calculate_density_matrix,&
+                                              calculate_w_matrix
    USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -139,11 +141,9 @@ MODULE energy_corrections
                                               get_qs_kind_set,&
                                               qs_kind_type
    USE qs_kinetic,                      ONLY: build_kinetic_matrix
-   USE qs_ks_methods,                   ONLY: calc_rho_tot_gspace,&
-                                              calculate_w_matrix
+   USE qs_ks_methods,                   ONLY: calc_rho_tot_gspace
    USE qs_ks_types,                     ONLY: qs_ks_env_type
-   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
-                                              calculate_subspace_eigenvalues,&
+   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues,&
                                               make_basis_sm
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                               get_mo_set,&
@@ -185,7 +185,7 @@ MODULE energy_corrections
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'energy_corrections'
 
-   LOGICAL, PARAMETER                   :: debug_forces = .FALSE.
+   LOGICAL, PARAMETER                   :: debug_forces = .TRUE.
    LOGICAL, PARAMETER                   :: debug_stress = .FALSE.
 
    PUBLIC :: energy_correction
@@ -268,11 +268,9 @@ CONTAINS
             !
             IF (ec_env%should_update) THEN
                energy%nonscf_correction = ec_env%etotal - energy%total
-               energy%total = energy%total + energy%nonscf_correction
-
                CALL evaluate_ec_core_matrix_traces(qs_env, ec_env)
+               energy%total = ec_env%etotal
             END IF
-
          CASE DEFAULT
             CPABORT("unknown energy correction")
          END SELECT
@@ -390,8 +388,10 @@ CONTAINS
                              vadmm_rspace=ec_env%vadmm_rspace, &
                              matrix_hz=ec_env%matrix_hz, &
                              matrix_pz=ec_env%matrix_z, &
+                             matrix_pz_admm=ec_env%z_admm, &
                              matrix_wz=ec_env%matrix_wz, &
                              zehartree=ec_env%ehartree, &
+                             p_env=ec_env%p_env, &
                              zexc=ec_env%exc)
 
          CALL ec_properties(qs_env, ec_env)
@@ -461,7 +461,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       logger => cp_get_default_logger()
-      iounit = cp_logger_get_default_unit_nr(logger)
+      IF (logger%para_env%ionode) THEN
+         iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         iounit = -1
+      ENDIF
 
       ! no k-points possible
       CALL get_qs_env(qs_env=qs_env, &
@@ -569,7 +573,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       logger => cp_get_default_logger()
-      iounit = cp_logger_get_default_unit_nr(logger)
+      IF (logger%para_env%ionode) THEN
+         iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         iounit = -1
+      ENDIF
 
       calculate_forces = .FALSE.
 
@@ -711,7 +719,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       logger => cp_get_default_logger()
-      iounit = cp_logger_get_default_unit_nr(logger)
+      IF (logger%para_env%ionode) THEN
+         iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         iounit = -1
+      ENDIF
 
       IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "ec_build_core_hamiltonian_force - START"
 
@@ -771,7 +783,7 @@ CONTAINS
                                 sab_nl=sab_orb, calculate_forces=.TRUE., &
                                 matrixkp_p=ec_env%matrix_w)
       IF (debug_forces) THEN
-         fodeb(1:3) = fconv*(force(1)%overlap(1:3, 1) - fodeb(1:3))
+         fodeb(1:3) = force(1)%overlap(1:3, 1) - fodeb(1:3)
          CALL mp_sum(fodeb, para_env%group)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Wout*dS    ", fodeb
          fodeb(1:3) = force(1)%kinetic(1:3, 1)
@@ -919,13 +931,17 @@ CONTAINS
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(section_vals_type), POINTER                   :: input, xc_section
+      TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(virial_type), POINTER                         :: virdeb, virial
 
       CALL timeset(routineN, handle)
 
       logger => cp_get_default_logger()
-      iounit = cp_logger_get_default_unit_nr(logger)
+      IF (logger%para_env%ionode) THEN
+         iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         iounit = -1
+      ENDIF
 
       ! get all information on the electronic density
       NULLIFY (atomic_kind_set, blacs_env, cell, dft_control, force, ks_env, &
@@ -1125,7 +1141,7 @@ CONTAINS
       ! Pulay force from Tr P_in (V_H(drho)+ Fxc(rho_in)*drho)
       ! RHS of CPKS equations: (V_H(drho)+ Fxc(rho_in)*drho)*C0
       ! Fxc*drho term
-      CALL get_qs_env(qs_env, input=input)
+      NULLIFY (v_xc)
       xc_section => ec_env%xc_section
 
       IF (use_virial) virial%pv_xc = 0.0_dp
@@ -1190,7 +1206,6 @@ CONTAINS
          WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
             'STRESS| INT 2nd f_Hxc[dP]*Pin    ', one_third_sum_diag(stdeb), det_3x3(stdeb)
       END IF
-
       ! Stress-tensor 2nd derivative integral contribution
       IF (use_virial) THEN
          virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - pv_loc)
@@ -1919,7 +1934,6 @@ CONTAINS
          CALL build_neighbor_lists(sab_vdw, particle_set, atom2d, cell, pair_radius, &
                                    subcells=subcells, operator_type="PP", nlname="sab_vdw")
          dispersion_env%sab_vdw => sab_vdw
-
          IF (dispersion_env%pp_type == vdw_pairpot_dftd3 .OR. &
              dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
             ! Build the neighbor lists for coordination numbers as needed by the DFT-D3 method
@@ -1938,7 +1952,7 @@ CONTAINS
       CALL atom2d_cleanup(atom2d)
       DEALLOCATE (atom2d)
       DEALLOCATE (orb_present, default_present, ppl_present, ppnl_present)
-      DEALLOCATE (c_radius, orb_radius, ppl_radius, ppnl_radius)
+      DEALLOCATE (orb_radius, ppl_radius, ppnl_radius, c_radius)
       DEALLOCATE (pair_radius)
 
       ! Task list
@@ -1992,7 +2006,11 @@ CONTAINS
       rlab(3) = "Z"
 
       logger => cp_get_default_logger()
-      iounit = cp_logger_get_default_unit_nr(logger)
+      IF (logger%para_env%ionode) THEN
+         iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         iounit = -1
+      ENDIF
 
       print_key => section_vals_get_subs_vals(section_vals=qs_env%input, &
                                               subsection_name="DFT%PRINT%MOMENTS")

@@ -200,6 +200,7 @@ CONTAINS
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho)
       END IF
       IF (order >= 2 .OR. order == -2) THEN
+         CPABORT("derivatives bigger than 1 do not work correctly")
          deriv => xc_dset_get_derivative(deriv_set, "(rho)(rho)", &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho)

@@ -1,0 +1,19 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+N2_t01.inp                                             1      1e-12                 -19.81197882293305
+N2_t02.inp                                             1      5e-12                 -19.81193992209264
+N2_t03.inp                                             1      5e-12                 -19.81193992209264
+N2_t04.inp                                             1      1e-12                 -19.91950764923067
+N2_t05.inp                                             1      5e-11                 -19.45601327358312
+N2_t06.inp                                             1      1e-11                 -19.89228099201857
+N2_t07.inp                                             1      1e-12                 -19.44508292698253
+N2_t08.inp                                             1      5e-11                 -19.54242231073764
+N2_t08b.inp                                            1      5e-11                 -19.54242225427242
+N2_t09.inp                                             1      1e-12                 -19.52266035514095
+N2_t10.inp                                             1      1e-12                 -19.10767135870040
+N2_t11.inp                                             1      1e-12                 -19.87201569403329
+N2_t12.inp                                             1      1e-12                 -19.87215956274964
+N2_t13.inp                                             1      1e-12                 -19.87400375270014
+N2_t14.inp                                             1      1e-12                 -19.87377227302795
+#EOF

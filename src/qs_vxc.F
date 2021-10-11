@@ -115,7 +115,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_vxc_create'
 
-      INTEGER                                            :: handle, ispin, myfun, nelec_spin(2), vdw
+      INTEGER                                            :: handle, ispin, mspin, myfun, &
+                                                            nelec_spin(2), vdw
       LOGICAL :: compute_virial, do_adiabatic_rescaling, my_just_energy, rho_g_valid, &
          sic_scaling_b_zero, tau_r_valid, uf_grid, vdW_nl
       REAL(KIND=dp)                                      :: exc_m, factor, &
@@ -193,6 +194,10 @@ CONTAINS
          CPASSERT(ASSOCIATED(rho_struct))
          IF (dft_control%nspins /= 1 .AND. dft_control%nspins /= 2) &
             CPABORT("nspins must be 1 or 2")
+         mspin = SIZE(rho_struct_r)
+         IF (dft_control%nspins == 2 .AND. mspin == 1) &
+            CPABORT("Spin count mismatch")
+
          ! there are some options related to SIC here.
          ! Normal DFT computes E(rho_alpha,rho_beta) (or its variant E(2*rho_alpha) for non-LSD)
          ! SIC can             E(rho_alpha,rho_beta)-b*(E(rho_alpha,rho_beta)-E(rho_beta,rho_beta))
@@ -228,15 +233,15 @@ CONTAINS
          CALL pw_env_get(pw_env, xc_pw_pool=xc_pw_pool, auxbas_pw_pool=auxbas_pw_pool)
          uf_grid = .NOT. pw_grid_compare(auxbas_pw_pool%pw_grid, xc_pw_pool%pw_grid)
 
-         ALLOCATE (rho_r(dft_control%nspins))
+         ALLOCATE (rho_r(mspin))
          IF (.NOT. uf_grid) THEN
-            DO ispin = 1, dft_control%nspins
+            DO ispin = 1, mspin
                rho_r(ispin)%pw => rho_struct_r(ispin)%pw
             END DO
 
             IF (tau_r_valid) THEN
-               ALLOCATE (tau(dft_control%nspins))
-               DO ispin = 1, dft_control%nspins
+               ALLOCATE (tau(mspin))
+               DO ispin = 1, mspin
                   tau(ispin)%pw => tau_struct_r(ispin)%pw
                END DO
             END IF
@@ -244,20 +249,20 @@ CONTAINS
             ! for gradient corrected functional the density in g space might
             ! be useful so if we have it, we pass it in
             IF (rho_g_valid) THEN
-               ALLOCATE (rho_g(dft_control%nspins))
-               DO ispin = 1, dft_control%nspins
+               ALLOCATE (rho_g(mspin))
+               DO ispin = 1, mspin
                   rho_g(ispin)%pw => rho_struct_g(ispin)%pw
                END DO
             END IF
          ELSE
             CPASSERT(rho_g_valid)
-            ALLOCATE (rho_g(dft_control%nspins))
-            DO ispin = 1, dft_control%nspins
+            ALLOCATE (rho_g(mspin))
+            DO ispin = 1, mspin
                CALL pw_pool_create_pw(xc_pw_pool, rho_g(ispin)%pw, &
                                       in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D)
                CALL pw_transfer(rho_struct_g(ispin)%pw, rho_g(ispin)%pw)
             END DO
-            DO ispin = 1, dft_control%nspins
+            DO ispin = 1, mspin
                CALL pw_pool_create_pw(xc_pw_pool, rho_r(ispin)%pw, &
                                       in_space=REALSPACE, use_data=REALDATA3D)
                CALL pw_transfer(rho_g(ispin)%pw, rho_r(ispin)%pw)
@@ -267,10 +272,9 @@ CONTAINS
                CPABORT("tau with finer grids")
 !                ALLOCATE(tau(dft_control%nspins),stat=stat)
 !                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
-!                DO ispin=1,dft_control%nspins
+!                DO ispin=1,mspin
 !                   CALL pw_pool_create_pw(xc_pw_pool,tau(ispin)%pw,&
 !                        in_space=REALSPACE, use_data=REALDATA3D)
-!
 !                   CALL pw_pool_create_pw(xc_pw_pool,tmp_g,&
 !                        in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D)
 !                   CALL pw_pool_create_pw(auxbas_pw_pool,tmp_g2,&
@@ -287,7 +291,7 @@ CONTAINS
          ! add the nlcc densities
          IF (ASSOCIATED(rho_nlcc)) THEN
             factor = 1.0_dp
-            DO ispin = 1, dft_control%nspins
+            DO ispin = 1, mspin
                CALL pw_axpy(rho_nlcc%pw, rho_r(ispin)%pw, factor)
                CALL pw_axpy(rho_nlcc_g%pw, rho_g(ispin)%pw, factor)
             ENDDO
@@ -314,7 +318,7 @@ CONTAINS
          ! remove the nlcc densities (keep stuff in original state)
          IF (ASSOCIATED(rho_nlcc)) THEN
             factor = -1.0_dp
-            DO ispin = 1, dft_control%nspins
+            DO ispin = 1, mspin
                CALL pw_axpy(rho_nlcc%pw, rho_r(ispin)%pw, factor)
                CALL pw_axpy(rho_nlcc_g%pw, rho_g(ispin)%pw, factor)
             ENDDO
@@ -367,15 +371,15 @@ CONTAINS
          ! we have pw data for the xc, qs_ks requests coeff structure, here we transfer
          ! pw -> coeff
          IF (ASSOCIATED(my_vxc_rho)) THEN
-            ALLOCATE (vxc_rho(dft_control%nspins))
-            DO ispin = 1, dft_control%nspins
+            ALLOCATE (vxc_rho(mspin))
+            DO ispin = 1, mspin
                vxc_rho(ispin)%pw => my_vxc_rho(ispin)%pw
             END DO
             DEALLOCATE (my_vxc_rho)
          END IF
          IF (ASSOCIATED(my_vxc_tau)) THEN
-            ALLOCATE (vxc_tau(dft_control%nspins))
-            DO ispin = 1, dft_control%nspins
+            ALLOCATE (vxc_tau(mspin))
+            DO ispin = 1, mspin
                vxc_tau(ispin)%pw => my_vxc_tau(ispin)%pw
             END DO
             DEALLOCATE (my_vxc_tau)
@@ -566,7 +570,6 @@ CONTAINS
                DO ispin = 1, SIZE(vxc_rho)
                   CALL pw_pool_create_pw(auxbas_pw_pool, tmp_pw, &
                                          in_space=REALSPACE, use_data=REALDATA3D)
-
                   CALL pw_pool_create_pw(xc_pw_pool, tmp_g, &
                                          in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D)
                   CALL pw_pool_create_pw(auxbas_pw_pool, tmp_g2, &
@@ -576,9 +579,6 @@ CONTAINS
                   CALL pw_transfer(tmp_g2, tmp_pw)
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, tmp_g2)
                   CALL pw_pool_give_back_pw(xc_pw_pool, tmp_g)
-                  !FM              CALL pw_zero(tmp_pw)
-                  !FM              CALL pw_restrict_s3(vxc_rho(ispin)%pw,tmp_pw,&
-                  !FM                   auxbas_pw_pool,param_section=interp_section)
                   CALL pw_pool_give_back_pw(xc_pw_pool, vxc_rho(ispin)%pw)
                   vxc_rho(ispin)%pw => tmp_pw
                   NULLIFY (tmp_pw)
@@ -588,7 +588,6 @@ CONTAINS
                DO ispin = 1, SIZE(vxc_tau)
                   CALL pw_pool_create_pw(auxbas_pw_pool, tmp_pw, &
                                          in_space=REALSPACE, use_data=REALDATA3D)
-
                   CALL pw_pool_create_pw(xc_pw_pool, tmp_g, &
                                          in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D)
                   CALL pw_pool_create_pw(auxbas_pw_pool, tmp_g2, &
@@ -598,9 +597,6 @@ CONTAINS
                   CALL pw_transfer(tmp_g2, tmp_pw)
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, tmp_g2)
                   CALL pw_pool_give_back_pw(xc_pw_pool, tmp_g)
-                  !FM              CALL pw_zero(tmp_pw)
-                  !FM              CALL pw_restrict_s3(vxc_rho(ispin)%pw,tmp_pw,&
-                  !FM                   auxbas_pw_pool,param_section=interp_section)
                   CALL pw_pool_give_back_pw(xc_pw_pool, vxc_tau(ispin)%pw)
                   vxc_tau(ispin)%pw => tmp_pw
                   NULLIFY (tmp_pw)

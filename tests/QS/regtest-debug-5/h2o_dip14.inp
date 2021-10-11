@@ -1,0 +1,76 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &PROPERTIES
+    &TDDFPT
+       KERNEL FULL
+       &XC
+         &XC_FUNCTIONAL NONE
+         &END XC_FUNCTIONAL
+       &END XC
+       NSTATES      5
+       MAX_ITER    50
+       CONVERGENCE [eV] 1.0e-7
+    &END TDDFPT
+  &END PROPERTIES
+  &DFT
+    LSD
+    &QS
+      METHOD GPW
+    &END QS
+    &EFIELD
+    &END
+    &EXCITED_STATES T
+       STATE 1
+    &END EXCITED_STATES
+    &SCF
+      SCF_GUESS ATOMIC 
+      &OT
+         PRECONDITIONER FULL_SINGLE_INVERSE
+         MINIMIZER DIIS
+      &END
+      &OUTER_SCF
+         MAX_SCF  10
+         EPS_SCF 1.0E-6
+      &END
+      MAX_SCF  10
+      EPS_SCF 1.0E-6
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+    &END XC
+    &PRINT
+      &MOMENTS ON
+         PERIODIC .FALSE.
+         REFERENCE COM
+      &END
+    &END
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC [angstrom] 4.0 4.0 4.0
+      PERIODIC NONE
+    &END
+    &COORD
+    O   0.000000    0.000000    0.000000
+    H   0.000000    0.000000    0.990000
+    &END COORD
+    &TOPOLOGY
+     &CENTER_COORDINATES
+     &END
+    &END
+    &KIND H
+      BASIS_SET DZV-GTH-PADE
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT dipole
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL

@@ -556,7 +556,8 @@ MODULE input_constants
                                                tddfpt_spin_flip = 3
    INTEGER, PARAMETER, PUBLIC               :: tddfpt_lanczos = 0, &
                                                tddfpt_davidson = 1
-   INTEGER, PARAMETER, PUBLIC               :: tddfpt_kernel_full = 1, &
+   INTEGER, PARAMETER, PUBLIC               :: tddfpt_kernel_none = 2, &
+                                               tddfpt_kernel_full = 1, &
                                                tddfpt_kernel_stda = 0
    INTEGER, PARAMETER, PUBLIC               :: oe_none = 0, &
                                                oe_lb = 1, &
@@ -663,6 +664,11 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: tddfpt_dipole_berry = 1, &
                                                tddfpt_dipole_length = 2, &
                                                tddfpt_dipole_velocity = 3
+
+   ! XC Kernel derivative methods for forces
+   INTEGER, PARAMETER, PUBLIC               :: xc_kernel_method_best = 100, &
+                                               xc_kernel_method_analytic = 101, &
+                                               xc_kernel_method_numeric = 102
 
    ! Linear Response for properties
    INTEGER, PARAMETER, PUBLIC               :: lr_none = 0, &

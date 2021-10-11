@@ -100,6 +100,7 @@ MODULE qs_active_space_methods
                                               eri_type_eri_element_func,&
                                               get_irange_csr
    USE qs_collocate_density,            ONLY: calculate_wavefunction
+   USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
@@ -114,8 +115,7 @@ MODULE qs_active_space_methods
    USE qs_loc_utils,                    ONLY: qs_loc_control_init,&
                                               qs_loc_env_init,&
                                               qs_loc_init
-   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
-                                              calculate_subspace_eigenvalues
+   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               get_mo_set,&
                                               init_mo_set,&

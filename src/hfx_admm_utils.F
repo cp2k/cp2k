@@ -1184,6 +1184,7 @@ CONTAINS
                       s_mstruct_changed=s_mstruct_changed, &
                       x_data=x_data)
 
+      ! This should probably be the HF section from the TDDFPT XC section!
       hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%HF")
 
       my_update_energy = .TRUE.

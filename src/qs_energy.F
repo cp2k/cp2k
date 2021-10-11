@@ -16,6 +16,7 @@ MODULE qs_energy
    USE cp_control_types,                ONLY: dft_control_type
    USE dm_ls_scf,                       ONLY: ls_scf
    USE energy_corrections,              ONLY: energy_correction
+   USE excited_states,                  ONLY: excited_state_energy
    USE lri_environment_methods,         ONLY: lri_print_stat
    USE qs_energy_init,                  ONLY: qs_energies_init
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -112,7 +113,9 @@ CONTAINS
             CALL energy_correction(qs_env, ec_init=.TRUE., calculate_forces=.FALSE.)
          END IF
 
-         CALL qs_energies_properties(qs_env)
+         CALL qs_energies_properties(qs_env, calc_forces)
+
+         CALL excited_state_energy(qs_env, calculate_forces=.FALSE.)
 
          IF (dft_control%qs_control%lrigpw) THEN
             CALL lri_print_stat(qs_env)

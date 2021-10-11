@@ -225,9 +225,11 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "RI_SOS_MP2%SIZE_INTEG_GROUP", i_val=mp2_env%ri_laplace%integ_group_size)
 
       CALL section_vals_val_get(mp2_section, "RI_MP2%_SECTION_PARAMETERS_", l_val=do_ri_mp2)
+      mp2_env%ri_mp2%use_old_grad = .FALSE.
       IF (do_ri_mp2) THEN
          CALL check_method(mp2_env%method)
          mp2_env%method = ri_mp2_method_gpw
+         CALL section_vals_val_get(mp2_section, "RI_MP2%USE_OLD_GRADIENT_CODE", l_val=mp2_env%ri_mp2%use_old_grad)
       END IF
       CALL section_vals_val_get(mp2_section, "RI_MP2%BLOCK_SIZE", i_val=mp2_env%ri_mp2%block_size)
       CALL section_vals_val_get(mp2_section, "RI_MP2%EPS_CANONICAL", r_val=mp2_env%ri_mp2%eps_canonical)

@@ -43,6 +43,7 @@ MODULE optbas_fenv_manipulation
    USE optimize_basis_types,            ONLY: basis_optimization_type,&
                                               flex_basis_type
    USE particle_types,                  ONLY: particle_type
+   USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_energy_init,                  ONLY: qs_energies_init
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -55,7 +56,6 @@ MODULE optbas_fenv_manipulation
                                               set_ks_env
    USE qs_matrix_pools,                 ONLY: mpools_get
    USE qs_mo_io,                        ONLY: read_mo_set_from_restart
-   USE qs_mo_methods,                   ONLY: calculate_density_matrix
    USE qs_mo_types,                     ONLY: init_mo_set,&
                                               mo_set_p_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type

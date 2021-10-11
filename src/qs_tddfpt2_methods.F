@@ -15,11 +15,16 @@ MODULE qs_tddfpt2_methods
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               tddfpt2_control_type
-   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
+   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_fm_pool_types,                ONLY: fm_pool_create_fm
-   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_to_fm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -28,10 +33,15 @@ MODULE qs_tddfpt2_methods
                                               cp_print_key_finished_output,&
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+                                              dbcsr_create,&
+                                              dbcsr_p_type,&
+                                              dbcsr_set
+   USE exstates_types,                  ONLY: excited_energy_type
    USE header,                          ONLY: tddfpt_header
    USE input_constants,                 ONLY: tddfpt_dipole_velocity,&
                                               tddfpt_kernel_full,&
+                                              tddfpt_kernel_none,&
                                               tddfpt_kernel_stda
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -43,6 +53,7 @@ MODULE qs_tddfpt2_methods
                                               qs_environment_type
    USE qs_kernel_methods,               ONLY: create_kernel_env
    USE qs_kernel_types,                 ONLY: full_kernel_env_type,&
+                                              kernel_env_type,&
                                               release_kernel_env
    USE qs_mo_types,                     ONLY: mo_set_p_type
    USE qs_scf_methods,                  ONLY: eigensolver
@@ -52,6 +63,12 @@ MODULE qs_tddfpt2_methods
    USE qs_tddfpt2_eigensolver,          ONLY: tddfpt_davidson_solver,&
                                               tddfpt_orthogonalize_psi1_psi0,&
                                               tddfpt_orthonormalize_psi1_psi1
+   USE qs_tddfpt2_forces,               ONLY: tddfpt_forces,&
+                                              tddfpt_resvec1,&
+                                              tddfpt_resvec1_admm,&
+                                              tddfpt_resvec2,&
+                                              tddfpt_resvec2_xtb,&
+                                              tddfpt_resvec3
    USE qs_tddfpt2_properties,           ONLY: tddfpt_dipole_operator,&
                                               tddfpt_print_excitation_analysis,&
                                               tddfpt_print_nto_analysis,&
@@ -66,8 +83,7 @@ MODULE qs_tddfpt2_methods
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_sub_env_init,&
                                               tddfpt_sub_env_release,&
                                               tddfpt_subgroup_env_type
-   USE qs_tddfpt2_types,                ONLY: kernel_env_type,&
-                                              stda_create_work_matrices,&
+   USE qs_tddfpt2_types,                ONLY: stda_create_work_matrices,&
                                               tddfpt_create_work_matrices,&
                                               tddfpt_ground_state_mos,&
                                               tddfpt_release_work_matrices,&
@@ -99,14 +115,16 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Perform TDDFPT calculation.
 !> \param qs_env  Quickstep environment
+!> \param calc_forces ...
 !> \par History
 !>    * 05.2016 created [Sergey Chulkov]
 !>    * 06.2016 refactored to be used with Davidson eigensolver [Sergey Chulkov]
 !>    * 03.2017 cleaned and refactored [Sergey Chulkov]
 !> \note Based on the subroutines tddfpt_env_init(), and tddfpt_env_deallocate().
 ! **************************************************************************************************
-   SUBROUTINE tddfpt(qs_env)
+   SUBROUTINE tddfpt(qs_env, calc_forces)
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN)                                :: calc_forces
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt'
 
@@ -122,9 +140,12 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: dipole_op_mos_occ, evects, S_evects
+      TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_oep, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_oep, matrix_s, &
+                                                            matrix_s_aux_fit
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(excited_energy_type), POINTER                 :: ex_env
       TYPE(full_kernel_env_type), TARGET                 :: full_kernel_env, kernel_env_admm_aux
       TYPE(kernel_env_type)                              :: kernel_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -144,11 +165,15 @@ CONTAINS
       logger => cp_get_default_logger()
 
       ! input section print/xc
+      NULLIFY (tddfpt_section)
+      tddfpt_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%TDDFPT")
       CALL tddfpt_input(qs_env, do_hfx, do_admm, xc_section, tddfpt_print_section)
 
       CALL get_qs_env(qs_env, blacs_env=blacs_env, cell=cell, dft_control=dft_control, &
                       matrix_ks=matrix_ks, matrix_s=matrix_s, mos=mos, scf_env=scf_env)
       tddfpt_control => dft_control%tddfpt2_control
+      tddfpt_control%do_hfx = do_hfx
+      tddfpt_control%do_admm = do_admm
 
       CALL cite_reference(Iannuzzi2005)
       IF (tddfpt_control%kernel == tddfpt_kernel_stda) THEN
@@ -165,7 +190,7 @@ CONTAINS
       CALL tddfpt_init_mos(qs_env, gs_mos)
 
       ! obtain corrected KS-matrix
-      CALL tddfpt_oecorr(qs_env, gs_mos, matrix_ks_oep, do_hfx)
+      CALL tddfpt_oecorr(qs_env, gs_mos, matrix_ks_oep)
 
       NULLIFY (admm_env)
       IF (do_admm) CALL get_qs_env(qs_env, admm_env=admm_env)
@@ -205,7 +230,7 @@ CONTAINS
 
          ! allocate pools and work matrices
          nstates = tddfpt_control%nstates
-         CALL tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, do_hfx, qs_env, sub_env)
+         CALL tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, do_hfx, do_admm, qs_env, sub_env)
 
          CALL tddfpt_construct_ground_state_orb_density(rho_orb_struct=work_matrices%rho_orb_struct_sub, &
                                                         is_rks_triplets=tddfpt_control%rks_triplets, &
@@ -260,6 +285,13 @@ CONTAINS
          kernel_env%stda_kernel => stda_kernel
          NULLIFY (kernel_env%full_kernel)
          NULLIFY (kernel_env%admm_kernel)
+      ELSE IF (tddfpt_control%kernel == tddfpt_kernel_none) THEN
+         ! allocate pools and work matrices
+         nstates = tddfpt_control%nstates
+         CALL stda_create_work_matrices(work_matrices, gs_mos, nstates, qs_env, sub_env)
+         NULLIFY (kernel_env%full_kernel)
+         NULLIFY (kernel_env%admm_kernel)
+         NULLIFY (kernel_env%stda_kernel)
       ELSE
          CPABORT('Unknown kernel type')
       END IF
@@ -315,7 +347,7 @@ CONTAINS
          DO
             ! *** perform Davidson iterations ***
             conv = tddfpt_davidson_solver(evects=evects, evals=evals, S_evects=S_evects, gs_mos=gs_mos, &
-                                          do_hfx=do_hfx, tddfpt_control=tddfpt_control, &
+                                          tddfpt_control=tddfpt_control, &
                                           matrix_ks=matrix_ks, qs_env=qs_env, &
                                           kernel_env=kernel_env, &
                                           sub_env=sub_env, logger=logger, &
@@ -385,9 +417,112 @@ CONTAINS
       CALL tddfpt_print_nto_analysis(qs_env, evects, evals, gs_mos, matrix_s(1)%matrix, &
                                      tddfpt_print_section)
 
-      ! -- clean up all useless stuff
-      DO istate = SIZE(evects, 2), 1, -1
-         DO ispin = nspins, 1, -1
+      ! excited state potential energy surface
+      IF (qs_env%excited_state) THEN
+         CALL get_qs_env(qs_env, exstate_env=ex_env)
+         IF (ex_env%state > nstates) THEN
+            CALL cp_warn(__LOCATION__, "There were not enough excited states calculated.")
+            CPABORT("excited state potential energy surface")
+         END IF
+         !
+         ! energy
+         ex_env%evalue = evals(ex_env%state)
+         ! excitation vector
+         IF (ASSOCIATED(ex_env%evect)) THEN
+            DO ispin = 1, SIZE(ex_env%evect)
+               CALL cp_fm_release(ex_env%evect(ispin)%matrix)
+            END DO
+            DEALLOCATE (ex_env%evect)
+         END IF
+         ALLOCATE (ex_env%evect(nspins))
+         DO ispin = 1, nspins
+            CALL cp_fm_get_info(matrix=evects(ispin, 1)%matrix, matrix_struct=matrix_struct)
+            NULLIFY (ex_env%evect(ispin)%matrix)
+            CALL cp_fm_create(ex_env%evect(ispin)%matrix, matrix_struct)
+            CALL cp_fm_to_fm(evects(ispin, ex_env%state)%matrix, ex_env%evect(ispin)%matrix)
+         END DO
+         IF (calc_forces) THEN
+            ! rhs of linres equation
+            IF (ASSOCIATED(ex_env%cpmos)) THEN
+               DO ispin = 1, SIZE(ex_env%cpmos)
+                  CALL cp_fm_release(ex_env%cpmos(ispin)%matrix)
+               END DO
+               DEALLOCATE (ex_env%cpmos)
+            END IF
+            ALLOCATE (ex_env%cpmos(nspins))
+            DO ispin = 1, nspins
+               CALL cp_fm_get_info(matrix=evects(ispin, 1)%matrix, matrix_struct=matrix_struct)
+               NULLIFY (ex_env%cpmos(ispin)%matrix)
+               CALL cp_fm_create(ex_env%cpmos(ispin)%matrix, matrix_struct)
+               CALL cp_fm_set_all(ex_env%cpmos(ispin)%matrix, 0.0_dp)
+            END DO
+            CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
+            CALL dbcsr_allocate_matrix_set(ex_env%matrix_pe, nspins)
+            DO ispin = 1, nspins
+               ALLOCATE (ex_env%matrix_pe(ispin)%matrix)
+               CALL dbcsr_create(ex_env%matrix_pe(ispin)%matrix, template=matrix_s(1)%matrix)
+               CALL dbcsr_copy(ex_env%matrix_pe(ispin)%matrix, matrix_s(1)%matrix)
+               CALL dbcsr_set(ex_env%matrix_pe(ispin)%matrix, 0.0_dp)
+               CALL tddfpt_resvec1(ex_env%evect(ispin)%matrix, gs_mos(ispin)%mos_occ, &
+                                   matrix_s(1)%matrix, ex_env%matrix_pe(ispin)%matrix)
+            END DO
+            !
+            ! ground state ADMM!
+            IF (dft_control%do_admm) THEN
+               CALL get_qs_env(qs_env, admm_env=admm_env, matrix_s_aux_fit=matrix_s_aux_fit)
+               CALL dbcsr_allocate_matrix_set(ex_env%matrix_pe_admm, nspins)
+               DO ispin = 1, nspins
+                  ALLOCATE (ex_env%matrix_pe_admm(ispin)%matrix)
+                  CALL dbcsr_create(ex_env%matrix_pe_admm(ispin)%matrix, template=matrix_s_aux_fit(1)%matrix)
+                  CALL dbcsr_copy(ex_env%matrix_pe_admm(ispin)%matrix, matrix_s_aux_fit(1)%matrix)
+                  CALL dbcsr_set(ex_env%matrix_pe_admm(ispin)%matrix, 0.0_dp)
+                  CALL tddfpt_resvec1_admm(ex_env%matrix_pe(ispin)%matrix, &
+                                           admm_env, ex_env%matrix_pe_admm(ispin)%matrix)
+               END DO
+            END IF
+            !
+            CALL dbcsr_allocate_matrix_set(ex_env%matrix_hz, nspins)
+            DO ispin = 1, nspins
+               ALLOCATE (ex_env%matrix_hz(ispin)%matrix)
+               CALL dbcsr_create(ex_env%matrix_hz(ispin)%matrix, template=matrix_s(1)%matrix)
+               CALL dbcsr_copy(ex_env%matrix_hz(ispin)%matrix, matrix_s(1)%matrix)
+               CALL dbcsr_set(ex_env%matrix_hz(ispin)%matrix, 0.0_dp)
+            END DO
+            IF (dft_control%qs_control%xtb) THEN
+               CALL tddfpt_resvec2_xtb(qs_env, ex_env%matrix_pe, gs_mos, ex_env%matrix_hz, ex_env%cpmos)
+            ELSE
+               CALL tddfpt_resvec2(qs_env, ex_env%matrix_pe, ex_env%matrix_pe_admm, &
+                                   gs_mos, ex_env%matrix_hz, ex_env%cpmos)
+            END IF
+            !
+            CALL dbcsr_allocate_matrix_set(ex_env%matrix_px1, nspins)
+            DO ispin = 1, nspins
+               ALLOCATE (ex_env%matrix_px1(ispin)%matrix)
+               CALL dbcsr_create(ex_env%matrix_px1(ispin)%matrix, template=matrix_s(1)%matrix)
+               CALL dbcsr_copy(ex_env%matrix_px1(ispin)%matrix, matrix_s(1)%matrix)
+               CALL dbcsr_set(ex_env%matrix_px1(ispin)%matrix, 0.0_dp)
+            END DO
+            ! Kernel ADMM
+            IF (tddfpt_control%do_admm) THEN
+               CALL get_qs_env(qs_env, admm_env=admm_env, matrix_s_aux_fit=matrix_s_aux_fit)
+               CALL dbcsr_allocate_matrix_set(ex_env%matrix_px1_admm, nspins)
+               DO ispin = 1, nspins
+                  ALLOCATE (ex_env%matrix_px1_admm(ispin)%matrix)
+                  CALL dbcsr_create(ex_env%matrix_px1_admm(ispin)%matrix, template=matrix_s_aux_fit(1)%matrix)
+                  CALL dbcsr_copy(ex_env%matrix_px1_admm(ispin)%matrix, matrix_s_aux_fit(1)%matrix)
+                  CALL dbcsr_set(ex_env%matrix_px1_admm(ispin)%matrix, 0.0_dp)
+               END DO
+            END IF
+            ! TDA forces
+            CALL tddfpt_forces(qs_env, ex_env, gs_mos, kernel_env, sub_env, work_matrices)
+            ! Rotate res vector cpmos into original frame of occupied orbitals
+            CALL tddfpt_resvec3(qs_env, ex_env%cpmos, work_matrices)
+         END IF
+      END IF
+
+      ! clean up
+      DO istate = 1, SIZE(evects, 2)
+         DO ispin = 1, nspins
             CALL cp_fm_release(evects(ispin, istate)%matrix)
             CALL cp_fm_release(S_evects(ispin, istate)%matrix)
          END DO
@@ -399,6 +534,8 @@ CONTAINS
          CALL release_kernel_env(kernel_env%full_kernel)
       ELSE IF (tddfpt_control%kernel == tddfpt_kernel_stda) THEN
          CALL deallocate_stda_env(stda_kernel)
+      ELSE IF (tddfpt_control%kernel == tddfpt_kernel_none) THEN
+         !
       ELSE
          CPABORT('Unknown kernel type')
       END IF
@@ -464,30 +601,35 @@ CONTAINS
       tddfpt_section => section_vals_get_subs_vals(input, "PROPERTIES%TDDFPT")
       tddfpt_print_section => section_vals_get_subs_vals(tddfpt_section, "PRINT")
 
-      NULLIFY (xc_section)
-      xc_section => section_vals_get_subs_vals(tddfpt_section, "XC%XC_FUNCTIONAL")
-      CALL section_vals_get(xc_section, explicit=explicit_xc)
-      IF (explicit_xc) THEN
-         xc_section => section_vals_get_subs_vals(tddfpt_section, "XC")
-      ELSE
-         xc_section => section_vals_get_subs_vals(input, "DFT%XC")
-      END IF
-      hfx_section => section_vals_get_subs_vals(xc_section, "HF")
-
-      CALL section_vals_get(hfx_section, explicit=do_hfx)
-      IF (do_hfx) THEN
-         CALL section_vals_val_get(hfx_section, "FRACTION", r_val=C_hf)
-         do_hfx = (C_hf /= 0.0_dp)
-      END IF
-
-      do_admm = do_hfx .AND. dft_control%do_admm
-      IF (do_admm) THEN
+      IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
+         NULLIFY (xc_section)
+         xc_section => section_vals_get_subs_vals(tddfpt_section, "XC%XC_FUNCTIONAL")
+         CALL section_vals_get(xc_section, explicit=explicit_xc)
          IF (explicit_xc) THEN
-            ! 'admm_env%xc_section_primary' and 'admm_env%xc_section_aux' need to be redefined
-            CALL cp_abort(__LOCATION__, &
-                          "ADMM is not implemented for a TDDFT kernel XC-functional which is different from "// &
-                          "the one used for the ground-state calculation. A ground-state 'admm_env' cannot be reused.")
+            xc_section => section_vals_get_subs_vals(tddfpt_section, "XC")
+         ELSE
+            xc_section => section_vals_get_subs_vals(input, "DFT%XC")
          END IF
+         hfx_section => section_vals_get_subs_vals(xc_section, "HF")
+
+         CALL section_vals_get(hfx_section, explicit=do_hfx)
+         IF (do_hfx) THEN
+            CALL section_vals_val_get(hfx_section, "FRACTION", r_val=C_hf)
+            do_hfx = (C_hf /= 0.0_dp)
+         END IF
+         do_admm = do_hfx .AND. dft_control%do_admm
+
+         IF (do_admm) THEN
+            IF (explicit_xc) THEN
+               ! 'admm_env%xc_section_primary' and 'admm_env%xc_section_aux' need to be redefined
+               CALL cp_abort(__LOCATION__, &
+                             "ADMM is not implemented for a TDDFT kernel XC-functional which is different from "// &
+                             "the one used for the ground-state calculation. A ground-state 'admm_env' cannot be reused.")
+            END IF
+         END IF
+      ELSE
+         do_hfx = .FALSE.
+         do_admm = .FALSE.
       END IF
 
       ! reset rks_triplets if UKS is in use

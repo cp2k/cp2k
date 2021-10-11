@@ -9,7 +9,6 @@
     &END QS
     &POISSON
       &EWALD
-       ALPHA 2.0
        EWALD_TYPE SPME
       &END EWALD
     &END POISSON
@@ -21,8 +20,10 @@
       MAX_SCF  100
       EPS_SCF 1.e-6
       &MIXING
-          METHOD DIRECT_P_MIXING
-          ALPHA   0.40
+          #METHOD DIRECT_P_MIXING
+          METHOD BROYDEN_MIXING
+          ALPHA   0.20
+          BETA    0.50
       &END
       &SMEAR
          METHOD FERMI_DIRAC

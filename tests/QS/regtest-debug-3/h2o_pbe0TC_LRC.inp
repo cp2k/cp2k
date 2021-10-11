@@ -1,0 +1,108 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &PROPERTIES
+    &LINRES
+       PRECONDITIONER FULL_ALL
+       EPS 1.e-10
+       &POLAR
+          DO_RAMAN T
+          PERIODIC_DIPOLE_OPERATOR F
+       &END
+    &END
+  &END
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_SET
+    &QS
+      METHOD GPW
+      EPS_DEFAULT 1.e-10
+    &END QS
+    &EFIELD
+    &END
+    &SCF
+      SCF_GUESS RESTART
+      &OT OFF
+         PRECONDITIONER FULL_SINGLE_INVERSE
+         MINIMIZER DIIS
+      &END
+      &OUTER_SCF
+         MAX_SCF  10
+         EPS_SCF 1.0E-7
+      &END
+      MAX_SCF  100
+      EPS_SCF 1.0E-7
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL
+        &PBE
+          SCALE_X 0.75
+          SCALE_C 1.0
+        &END
+        &PBE_HOLE_T_C_LR
+          CUTOFF_RADIUS 2.0
+          SCALE_X 0.25
+        &END
+      &END XC_FUNCTIONAL
+      &HF
+        &SCREENING
+          EPS_SCHWARZ 1.0E-6
+          SCREEN_ON_INITIAL_P FALSE
+        &END
+        &MEMORY
+          MAX_MEMORY 900
+          EPS_STORAGE_SCALING 0.1
+        &END
+        &INTERACTION_POTENTIAL
+          POTENTIAL_TYPE TRUNCATED
+          CUTOFF_RADIUS 2.0
+          T_C_G_DATA t_c_g.dat
+        &END
+        FRACTION 0.25
+      &END
+    &END XC
+    &PRINT
+      &MOMENTS ON
+         PERIODIC .FALSE.
+         REFERENCE COM
+      &END
+    &END
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC [angstrom] 6.0 6.0 6.0
+      PERIODIC NONE
+    &END
+    &COORD
+    O   0.000000    0.000000   -0.065587
+    H   0.000000   -0.757136    0.520545
+    H   0.000000    0.757136    0.520545
+    &END COORD
+    &TOPOLOGY
+     &CENTER_COORDINATES
+     &END
+    &END
+    &KIND H
+      BASIS_SET DZV-GTH-PADE
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT dipole
+  RUN_TYPE DEBUG
+&END GLOBAL
+
+&DEBUG
+   DEBUG_FORCES .FALSE.
+   DEBUG_STRESS_TENSOR .FALSE.
+   DEBUG_DIPOLE .TRUE.
+   DEBUG_POLARIZABILITY .TRUE.
+   DE 0.0002
+   EPS_NO_ERROR_CHECK 5.e-5
+&END
+
+

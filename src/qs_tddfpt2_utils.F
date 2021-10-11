@@ -48,6 +48,7 @@ MODULE qs_tddfpt2_utils
         cholesky_dbcsr, cholesky_inverse, cholesky_off, cholesky_restore, oe_gllb, oe_lb, oe_none, &
         oe_saop, oe_shift
    USE input_section_types,             ONLY: section_vals_create,&
+                                              section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_release,&
                                               section_vals_retain,&
@@ -482,19 +483,18 @@ CONTAINS
 !> \param qs_env  Quickstep environment
 !> \param gs_mos ...
 !> \param matrix_ks_oep ...
-!> \param do_hfx ...
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_oecorr(qs_env, gs_mos, matrix_ks_oep, do_hfx)
+   SUBROUTINE tddfpt_oecorr(qs_env, gs_mos, matrix_ks_oep)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          POINTER                                         :: gs_mos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_oep
-      LOGICAL, INTENT(IN)                                :: do_hfx
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_oecorr'
 
       INTEGER                                            :: handle, iounit, ispin, nao, nmo_occ, &
                                                             nspins
+      LOGICAL                                            :: do_hfx
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: ao_mo_occ_fm_struct, &
                                                             mo_occ_mo_occ_fm_struct
@@ -502,7 +502,8 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(section_vals_type), POINTER                   :: xc_fun_empty, xc_fun_original
+      TYPE(section_vals_type), POINTER                   :: hfx_section, xc_fun_empty, &
+                                                            xc_fun_original
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
 
       CALL timeset(routineN, handle)
@@ -530,6 +531,8 @@ CONTAINS
                       "Orbital energy correction potential is an experimental feature. "// &
                       "Use it with extreme care")
 
+         hfx_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%HF")
+         CALL section_vals_get(hfx_section, explicit=do_hfx)
          IF (do_hfx) THEN
             CALL cp_abort(__LOCATION__, &
                           "Implementation of orbital energy correction XC-potentials is "// &

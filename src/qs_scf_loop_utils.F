@@ -20,6 +20,7 @@ MODULE qs_scf_loop_utils
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE kpoint_types,                    ONLY: kpoint_type
+   USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_density_mixing_types,         ONLY: broyden_mixing_new_nr,&
                                               broyden_mixing_nr,&
                                               direct_mixing_nr,&
@@ -35,7 +36,6 @@ MODULE qs_scf_loop_utils
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type
    USE qs_mixing_utils,                 ONLY: self_consistency_check
-   USE qs_mo_methods,                   ONLY: calculate_density_matrix
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: mo_set_p_type
    USE qs_mom_methods,                  ONLY: do_mom_diag

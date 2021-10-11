@@ -21,6 +21,7 @@ MODULE qs_tddfpt2_types
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
                                               cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_type
@@ -39,6 +40,11 @@ MODULE qs_tddfpt2_types
                                               ewald_environment_type
    USE ewald_pw_types,                  ONLY: ewald_pw_release,&
                                               ewald_pw_type
+   USE input_section_types,             ONLY: section_get_ival,&
+                                              section_get_lval,&
+                                              section_get_rval,&
+                                              section_vals_get_subs_vals,&
+                                              section_vals_type
    USE kinds,                           ONLY: dp
    USE pw_env_types,                    ONLY: pw_env_get
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -55,12 +61,17 @@ MODULE qs_tddfpt2_types
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_rho_methods,                  ONLY: qs_rho_rebuild
    USE qs_rho_types,                    ONLY: qs_rho_create,&
+                                              qs_rho_get,&
                                               qs_rho_release,&
                                               qs_rho_set,&
                                               qs_rho_type
-   USE qs_tddfpt2_stda_types,           ONLY: stda_env_type
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_dbcsr_create_by_dist,&
                                               tddfpt_subgroup_env_type
+   USE xc,                              ONLY: xc_prep_2nd_deriv
+   USE xc_derivative_set_types,         ONLY: xc_dset_release
+   USE xc_derivatives,                  ONLY: xc_functionals_get_needs
+   USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
+                                              xc_rho_set_release
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -74,7 +85,7 @@ MODULE qs_tddfpt2_types
    INTEGER, PARAMETER, PRIVATE          :: nderivs = 3
    INTEGER, PARAMETER, PRIVATE          :: maxspins = 2
 
-   PUBLIC :: tddfpt_ground_state_mos, tddfpt_work_matrices, kernel_env_type
+   PUBLIC :: tddfpt_ground_state_mos, tddfpt_work_matrices
    PUBLIC :: tddfpt_create_work_matrices, stda_create_work_matrices, tddfpt_release_work_matrices
 
 ! **************************************************************************************************
@@ -175,21 +186,14 @@ MODULE qs_tddfpt2_types
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: ctransformed
       !S^1/2
       TYPE(dbcsr_type), POINTER                          :: shalf
+      !Eigenvalues/eigenvectors of the overlap matrix, used in sTDA forces (Lowdin derivatives)
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: S_eigenvalues
+      TYPE(cp_fm_type), POINTER                          :: S_eigenvectors
+      TYPE(cp_fm_type), POINTER                          :: slambda
       !Ewald environments
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
    END TYPE tddfpt_work_matrices
-
-! **************************************************************************************************
-!> \brief Type to hold environments for the different kernels
-!> \par History
-!>   * 04.2019 created [JHU]
-! **************************************************************************************************
-   TYPE kernel_env_type
-      TYPE(full_kernel_env_type), POINTER                :: full_kernel => Null()
-      TYPE(full_kernel_env_type), POINTER                :: admm_kernel => Null()
-      TYPE(stda_env_type), POINTER                       :: stda_kernel => Null()
-   END TYPE kernel_env_type
 
 CONTAINS
 
@@ -200,17 +204,19 @@ CONTAINS
 !> \param nstates        number of excited states to converge
 !> \param do_hfx         flag that requested to allocate work matrices required for computation
 !>                       of exact-exchange terms
+!> \param do_admm ...
 !> \param qs_env         Quickstep environment
 !> \param sub_env        parallel group environment
 !> \par History
 !>    * 02.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, do_hfx, qs_env, sub_env)
+   SUBROUTINE tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, do_hfx, do_admm, &
+                                          qs_env, sub_env)
       TYPE(tddfpt_work_matrices), INTENT(out)            :: work_matrices
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       INTEGER, INTENT(in)                                :: nstates
-      LOGICAL, INTENT(in)                                :: do_hfx
+      LOGICAL, INTENT(in)                                :: do_hfx, do_admm
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
 
@@ -219,7 +225,6 @@ CONTAINS
       INTEGER                                            :: handle, igroup, ispin, istate, nao, &
                                                             nao_aux, ngroups, nspins
       INTEGER, DIMENSION(maxspins)                       :: nmo_occ, nmo_virt
-      LOGICAL                                            :: do_admm
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_p_type), DIMENSION(maxspins)     :: fm_struct_evects
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
@@ -239,6 +244,9 @@ CONTAINS
       NULLIFY (work_matrices%ewald_pw)
       NULLIFY (work_matrices%gamma_exchange)
       NULLIFY (work_matrices%ctransformed)
+      NULLIFY (work_matrices%S_eigenvalues)
+      NULLIFY (work_matrices%S_eigenvectors)
+      NULLIFY (work_matrices%slambda)
 
       nspins = SIZE(gs_mos)
       CALL get_qs_env(qs_env, blacs_env=blacs_env, matrix_s=matrix_s)
@@ -249,8 +257,9 @@ CONTAINS
          nmo_virt(ispin) = SIZE(gs_mos(ispin)%evals_virt)
       END DO
 
-      do_admm = do_hfx .AND. ASSOCIATED(sub_env%admm_A)
       IF (do_admm) THEN
+         CPASSERT(do_hfx)
+         CPASSERT(ASSOCIATED(sub_env%admm_A))
          CALL get_qs_env(qs_env, matrix_s_aux_fit=matrix_s_aux_fit)
          CALL dbcsr_get_info(matrix_s_aux_fit(1)%matrix, nfullrows_total=nao_aux)
       END IF
@@ -526,6 +535,13 @@ CONTAINS
       NULLIFY (work_matrices%shalf)
       CALL dbcsr_init_p(work_matrices%shalf)
       CALL dbcsr_create(work_matrices%shalf, template=matrix_s(1)%matrix)
+      ! forces
+      ALLOCATE (work_matrices%S_eigenvalues(nao))
+      NULLIFY (fm_struct)
+      CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
+      CALL cp_fm_create(work_matrices%S_eigenvectors, fm_struct)
+      CALL cp_fm_create(work_matrices%slambda, fm_struct)
+      CALL cp_fm_struct_release(fm_struct)
 
       DO ispin = nspins, 1, -1
          CALL cp_fm_struct_release(fm_struct_evects(ispin)%struct)
@@ -642,6 +658,13 @@ CONTAINS
          NULLIFY (work_matrices%ctransformed)
       ENDIF
       CALL dbcsr_release_p(work_matrices%shalf)
+      !
+      IF (ASSOCIATED(work_matrices%S_eigenvectors)) &
+         CALL cp_fm_release(work_matrices%S_eigenvectors)
+      IF (ASSOCIATED(work_matrices%slambda)) &
+         CALL cp_fm_release(work_matrices%slambda)
+      IF (ASSOCIATED(work_matrices%S_eigenvalues)) &
+         DEALLOCATE (work_matrices%S_eigenvalues)
       ! Ewald
       CALL ewald_env_release(work_matrices%ewald_env)
       CALL ewald_pw_release(work_matrices%ewald_pw)
@@ -649,5 +672,126 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE tddfpt_release_work_matrices
+
+! **************************************************************************************************
+!> \brief Create kernel environment.
+!> \param kernel_env       kernel environment (allocated and initialised on exit)
+!> \param rho_struct_sub   ground state charge density
+!> \param xc_section       input section which defines an exchange-correlation functional
+!> \param is_rks_triplets  indicates that the triplet excited states calculation using
+!>                         spin-unpolarised molecular orbitals has been requested
+!> \param sub_env          parallel group environment
+!> \par History
+!>    * 02.2017 created [Sergey Chulkov]
+!>    * 06.2018 the charge density needs to be provided via a dummy argument [Sergey Chulkov]
+! **************************************************************************************************
+   SUBROUTINE tddfpt_create_kernel_env(kernel_env, rho_struct_sub, xc_section, is_rks_triplets, sub_env)
+      TYPE(full_kernel_env_type), INTENT(out)            :: kernel_env
+      TYPE(qs_rho_type), POINTER                         :: rho_struct_sub
+      TYPE(section_vals_type), POINTER                   :: xc_section
+      LOGICAL, INTENT(in)                                :: is_rks_triplets
+      TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_create_kernel_env'
+
+      INTEGER                                            :: handle, ispin, nao, nspins
+      INTEGER, DIMENSION(maxspins)                       :: nmo_occ
+      LOGICAL                                            :: lsd
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_ij_r, rho_ij_r2, tau_ij_r, tau_ij_r2
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(section_vals_type), POINTER                   :: xc_fun_section
+
+      CALL timeset(routineN, handle)
+
+      nspins = SIZE(sub_env%mos_occ)
+      lsd = (nspins > 1) .OR. is_rks_triplets
+
+      DO ispin = 1, nspins
+         CALL cp_fm_get_info(sub_env%mos_occ(ispin)%matrix, nrow_global=nao, ncol_global=nmo_occ(ispin))
+      END DO
+
+      CALL pw_env_get(sub_env%pw_env, auxbas_pw_pool=auxbas_pw_pool)
+
+      CALL qs_rho_get(rho_struct_sub, rho_r=rho_ij_r, tau_r=tau_ij_r)
+
+      NULLIFY (kernel_env%xc_rho_set, kernel_env%xc_rho1_set, kernel_env%xc_deriv_set)
+
+      IF (is_rks_triplets) THEN
+         ! we are about to compute triplet states using spin-restricted reference MOs;
+         ! we still need the beta-spin density component in order to compute the TDDFT kernel
+         ALLOCATE (rho_ij_r2(2))
+         rho_ij_r2(1)%pw => rho_ij_r(1)%pw
+         rho_ij_r2(2)%pw => rho_ij_r(1)%pw
+
+         IF (ASSOCIATED(tau_ij_r)) THEN
+            ALLOCATE (tau_ij_r2(2))
+            tau_ij_r2(1)%pw => tau_ij_r(1)%pw
+            tau_ij_r2(2)%pw => tau_ij_r(1)%pw
+         END IF
+
+         CALL xc_prep_2nd_deriv(kernel_env%xc_deriv_set, kernel_env%xc_rho_set, rho_ij_r2, &
+                                auxbas_pw_pool, xc_section=xc_section, tau_r=tau_ij_r2)
+
+         IF (ASSOCIATED(tau_ij_r)) DEALLOCATE (tau_ij_r2)
+
+         DEALLOCATE (rho_ij_r2)
+      ELSE
+         CALL xc_prep_2nd_deriv(kernel_env%xc_deriv_set, kernel_env%xc_rho_set, rho_ij_r, &
+                                auxbas_pw_pool, xc_section=xc_section, tau_r=tau_ij_r)
+      END IF
+
+      ! ++ allocate structure for response density
+      kernel_env%xc_section => xc_section
+      kernel_env%deriv_method_id = section_get_ival(xc_section, "XC_GRID%XC_DERIV")
+      kernel_env%rho_smooth_id = section_get_ival(xc_section, "XC_GRID%XC_SMOOTH_RHO")
+
+      xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
+      kernel_env%xc_rho1_cflags = xc_functionals_get_needs(functionals=xc_fun_section, lsd=lsd, &
+                                                           add_basic_components=.TRUE.)
+
+      CALL xc_rho_set_create(kernel_env%xc_rho1_set, auxbas_pw_pool%pw_grid%bounds_local, &
+                             rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
+                             drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF"), &
+                             tau_cutoff=section_get_rval(xc_section, "TAU_CUTOFF"))
+
+      kernel_env%alpha = 1.0_dp
+      kernel_env%beta = 0.0_dp
+
+      ! kernel_env%beta is taken into account in spin-restricted case only
+      IF (nspins == 1) THEN
+         IF (is_rks_triplets) THEN
+            ! K_{triplets} = K_{alpha,alpha} - K_{alpha,beta}
+            kernel_env%beta = -1.0_dp
+         ELSE
+            !                                                 alpha                 beta
+            ! K_{singlets} = K_{alpha,alpha} + K_{alpha,beta} = 2 * K_{alpha,alpha} + 0 * K_{alpha,beta},
+            ! due to the following relation : K_{alpha,alpha,singlets} == K_{alpha,beta,singlets}
+            kernel_env%alpha = 2.0_dp
+         END IF
+      END IF
+
+      ! finite differences
+      kernel_env%deriv2_analytic = section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")
+
+      CALL timestop(handle)
+
+   END SUBROUTINE tddfpt_create_kernel_env
+
+! **************************************************************************************************
+!> \brief Release kernel environment.
+!> \param kernel_env  kernel environment (destroyed on exit)
+!> \par History
+!>    * 02.2017 created [Sergey Chulkov]
+! **************************************************************************************************
+   SUBROUTINE tddfpt_release_kernel_env(kernel_env)
+      TYPE(full_kernel_env_type), POINTER                :: kernel_env
+
+      IF (ASSOCIATED(kernel_env)) THEN
+         CALL xc_rho_set_release(kernel_env%xc_rho1_set)
+         CALL xc_dset_release(kernel_env%xc_deriv_set)
+         CALL xc_rho_set_release(kernel_env%xc_rho_set)
+      END IF
+
+   END SUBROUTINE tddfpt_release_kernel_env
 
 END MODULE qs_tddfpt2_types

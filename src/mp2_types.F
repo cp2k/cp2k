@@ -119,6 +119,7 @@ MODULE mp2_types
       INTEGER                  :: block_size
       REAL(dp)                 :: eps_canonical
       LOGICAL                  :: free_hfx_buffer
+      LOGICAL                  :: use_old_grad
    END TYPE
 
    TYPE ri_rpa_type

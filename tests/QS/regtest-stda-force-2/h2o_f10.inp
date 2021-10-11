@@ -1,0 +1,87 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &PROPERTIES
+    &TDDFPT
+       KERNEL sTDA
+       &sTDA
+          FRACTION 0.50
+       &END sTDA
+       NSTATES      2
+       MAX_ITER    50
+       CONVERGENCE [eV] 1.0e-7
+       RKS_TRIPLETS F
+    &END TDDFPT
+  &END PROPERTIES
+  &DFT
+    &QS
+      METHOD GPW
+    &END QS
+    LSD
+    CHARGE 1
+    &EXCITED_STATES T
+       STATE 1
+    &END EXCITED_STATES
+    &SCF
+      SCF_GUESS ATOMIC 
+      &OT
+         PRECONDITIONER FULL_ALL
+         MINIMIZER DIIS
+      &END
+      &OUTER_SCF
+         MAX_SCF  10
+         EPS_SCF 1.0E-6
+      &END
+      MAX_SCF  50
+      EPS_SCF 1.0E-6
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+    &END XC
+    &MGRID
+       CUTOFF  200
+       REL_CUTOFF  40
+    &END
+    &POISSON
+       PERIODIC NONE
+       POISSON_SOLVER MT
+    &END
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC [angstrom] 5.0 5.0 5.0
+      PERIODIC NONE
+    &END
+    &COORD
+    O   0.000000    0.000000    0.000000
+    H   0.000000   -0.757136    0.580545
+    H   0.000000    0.757136    0.580545
+    &END COORD
+    &TOPOLOGY
+     &CENTER_COORDINATES
+     &END
+    &END
+    &KIND H
+      BASIS_SET DZV-GTH-PADE
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+  &END SUBSYS
+  &PRINT
+     &FORCES
+     &END
+  &END
+&END FORCE_EVAL
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT ftest
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+&MOTION
+  &GEO_OPT
+     MAX_ITER 1
+  &END
+&END

@@ -26,10 +26,10 @@ MODULE qs_energy_matrix_w
    USE kpoint_methods,                  ONLY: kpoint_density_matrices,&
                                               kpoint_density_transform
    USE kpoint_types,                    ONLY: kpoint_type
+   USE qs_density_matrices,             ONLY: calculate_w_matrix,&
+                                              calculate_w_matrix_ot
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_ks_methods,                   ONLY: calculate_w_matrix,&
-                                              calculate_w_matrix_ot
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type,&
                                               mo_set_type

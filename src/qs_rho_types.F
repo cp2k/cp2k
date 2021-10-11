@@ -68,7 +68,7 @@ MODULE qs_rho_types
    TYPE qs_rho_type
       PRIVATE
       TYPE(kpoint_transitional_type)                 :: rho_ao
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER   :: rho_ao_im => Null()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER      :: rho_ao_im => Null()
       TYPE(pw_p_type), DIMENSION(:), POINTER         :: rho_g => Null(), &
                                                         rho_r => Null(), &
                                                         drho_g => Null(), &

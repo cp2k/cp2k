@@ -21,10 +21,8 @@ MODULE qs_mo_methods
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_m_by_n_from_template,&
-                                              cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                              cp_fm_syrk,&
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_syrk,&
                                               cp_fm_triangular_multiply
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
    USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
@@ -41,17 +39,20 @@ MODULE qs_mo_methods
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_copy, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
-        dbcsr_release_p, dbcsr_scale_by_vector, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+                                              dbcsr_get_info,&
+                                              dbcsr_init_p,&
+                                              dbcsr_multiply,&
+                                              dbcsr_p_type,&
+                                              dbcsr_release_p,&
+                                              dbcsr_type,&
+                                              dbcsr_type_no_symmetry
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_max
    USE physcon,                         ONLY: evolt
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              has_uniform_occupation,&
-                                              mo_set_p_type,&
-                                              mo_set_type
+                                              mo_set_p_type
    USE scf_control_types,               ONLY: scf_control_type
 #include "./base/base_uses.f90"
 
@@ -60,12 +61,8 @@ MODULE qs_mo_methods
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_mo_methods'
 
    PUBLIC :: make_basis_simple, make_basis_cholesky, make_basis_sv, make_basis_sm, &
-             make_basis_lowdin, calculate_density_matrix, calculate_subspace_eigenvalues, &
+             make_basis_lowdin, calculate_subspace_eigenvalues, &
              calculate_orthonormality, calculate_magnitude, make_mo_eig
-
-   INTERFACE calculate_density_matrix
-      MODULE PROCEDURE calculate_dm_sparse
-   END INTERFACE
 
    INTERFACE calculate_subspace_eigenvalues
       MODULE PROCEDURE subspace_eigenvalues_ks_fm
@@ -388,83 +385,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE make_basis_simple
-
-! **************************************************************************************************
-!> \brief   Calculate the density matrix
-!> \param mo_set ...
-!> \param density_matrix ...
-!> \param use_dbcsr ...
-!> \param retain_sparsity ...
-!> \date    06.2002
-!> \par History
-!>       - Fractional occupied orbitals (MK)
-!> \author  Joost VandeVondele
-!> \version 1.0
-! **************************************************************************************************
-   SUBROUTINE calculate_dm_sparse(mo_set, density_matrix, use_dbcsr, retain_sparsity)
-
-      TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(dbcsr_type), POINTER                          :: density_matrix
-      LOGICAL, INTENT(IN), OPTIONAL                      :: use_dbcsr, retain_sparsity
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_dm_sparse'
-
-      INTEGER                                            :: handle
-      LOGICAL                                            :: my_retain_sparsity, my_use_dbcsr
-      TYPE(cp_fm_type), POINTER                          :: fm_tmp
-      TYPE(dbcsr_type)                                   :: dbcsr_tmp
-
-      CALL timeset(routineN, handle)
-
-      my_use_dbcsr = .FALSE.
-      IF (PRESENT(use_dbcsr)) my_use_dbcsr = use_dbcsr
-      my_retain_sparsity = .TRUE.
-      IF (PRESENT(retain_sparsity)) my_retain_sparsity = retain_sparsity
-      IF (my_use_dbcsr) THEN
-         IF (.NOT. ASSOCIATED(mo_set%mo_coeff_b)) THEN
-            CPABORT("mo_coeff_b NOT ASSOCIATED")
-         END IF
-      END IF
-
-      CALL dbcsr_set(density_matrix, 0.0_dp)
-
-      IF (has_uniform_occupation(mo_set=mo_set, last_mo=mo_set%homo)) THEN
-         IF (my_use_dbcsr) THEN
-            CALL dbcsr_multiply("N", "T", mo_set%maxocc, mo_set%mo_coeff_b, mo_set%mo_coeff_b, &
-                                1.0_dp, density_matrix, retain_sparsity=my_retain_sparsity, &
-                                last_k=mo_set%homo)
-         ELSE
-            CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix, &
-                                       matrix_v=mo_set%mo_coeff, &
-                                       ncol=mo_set%homo, &
-                                       alpha=mo_set%maxocc)
-         END IF
-      ELSE
-         IF (my_use_dbcsr) THEN
-            CALL dbcsr_copy(dbcsr_tmp, mo_set%mo_coeff_b)
-            CALL dbcsr_scale_by_vector(dbcsr_tmp, mo_set%occupation_numbers(1:mo_set%homo), &
-                                       side='right')
-            CALL dbcsr_multiply("N", "T", 1.0_dp, mo_set%mo_coeff_b, dbcsr_tmp, &
-                                1.0_dp, density_matrix, retain_sparsity=my_retain_sparsity, &
-                                last_k=mo_set%homo)
-            CALL dbcsr_release(dbcsr_tmp)
-         ELSE
-            NULLIFY (fm_tmp)
-            CALL cp_fm_create(fm_tmp, mo_set%mo_coeff%matrix_struct)
-            CALL cp_fm_to_fm(mo_set%mo_coeff, fm_tmp)
-            CALL cp_fm_column_scale(fm_tmp, mo_set%occupation_numbers(1:mo_set%homo))
-            CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix, &
-                                       matrix_v=mo_set%mo_coeff, &
-                                       matrix_g=fm_tmp, &
-                                       ncol=mo_set%homo, &
-                                       alpha=1.0_dp)
-            CALL cp_fm_release(fm_tmp)
-         END IF
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE calculate_dm_sparse
 
 ! **************************************************************************************************
 !> \brief computes ritz values of a set of orbitals given a ks_matrix

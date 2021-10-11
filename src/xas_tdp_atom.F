@@ -1174,6 +1174,11 @@ CONTAINS
          dga2 => xas_atom_env%dga2(atom_kind)%array
          dgr1 => xas_atom_env%dgr1(atom_kind)%array
          dgr2 => xas_atom_env%dgr2(atom_kind)%array
+      ELSE
+         dga1 => xas_atom_env%dga1(atom_kind)%array
+         dga2 => xas_atom_env%dga2(atom_kind)%array
+         dgr1 => xas_atom_env%dgr1(atom_kind)%array
+         dgr2 => xas_atom_env%dgr2(atom_kind)%array
       END IF
 
 !  Need to express the ri_dcoeffs in terms of so (and not sgf)

@@ -62,6 +62,7 @@ MODULE qs_fb_env_methods
    USE orbital_pointers,                ONLY: nco,&
                                               ncoset
    USE particle_types,                  ONLY: particle_type
+   USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_diis,                         ONLY: qs_diis_b_step
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -89,7 +90,6 @@ MODULE qs_fb_env_methods
                                               mpools_rebuild_fm_pools,&
                                               mpools_release,&
                                               qs_matrix_pools_type
-   USE qs_mo_methods,                   ONLY: calculate_density_matrix
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               deallocate_mo_set,&

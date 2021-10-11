@@ -34,11 +34,11 @@
    &END xTB
   &END QS
   &SCF
-   EPS_SCF 1.0E-7
+   EPS_SCF 1.0E-6
    MAX_SCF 400
    &MIXING
        METHOD DIRECT_P_MIXING
-       ALPHA   0.25
+       ALPHA   0.50
    &END
   &END SCF
   &PERIODIC_EFIELD

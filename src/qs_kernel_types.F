@@ -8,6 +8,7 @@
 MODULE qs_kernel_types
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
+   USE qs_tddfpt2_stda_types,           ONLY: stda_env_type
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                               xc_dset_release
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
@@ -26,7 +27,7 @@ MODULE qs_kernel_types
    INTEGER, PARAMETER, PRIVATE          :: nderivs = 3
    INTEGER, PARAMETER, PRIVATE          :: maxspins = 2
 
-   PUBLIC :: full_kernel_env_type
+   PUBLIC :: full_kernel_env_type, kernel_env_type
    PUBLIC :: release_kernel_env
 
 ! **************************************************************************************************
@@ -57,6 +58,16 @@ MODULE qs_kernel_types
       LOGICAL                                            :: deriv2_analytic
       LOGICAL                                            :: deriv3_analytic
    END TYPE full_kernel_env_type
+! **************************************************************************************************
+!> \brief Type to hold environments for the different kernels
+!> \par History
+!>   * 04.2019 created [JHU]
+! **************************************************************************************************
+   TYPE kernel_env_type
+      TYPE(full_kernel_env_type), POINTER                :: full_kernel => Null()
+      TYPE(full_kernel_env_type), POINTER                :: admm_kernel => Null()
+      TYPE(stda_env_type), POINTER                       :: stda_kernel => Null()
+   END TYPE kernel_env_type
 
 CONTAINS
 

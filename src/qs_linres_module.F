@@ -40,6 +40,7 @@ MODULE qs_linres_module
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
+   USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
@@ -80,7 +81,6 @@ MODULE qs_linres_module
                                               linres_control_release,&
                                               linres_control_type,&
                                               nmr_env_type
-   USE qs_mo_methods,                   ONLY: calculate_density_matrix
    USE qs_mo_types,                     ONLY: mo_set_p_type
    USE qs_p_env_methods,                ONLY: p_env_create,&
                                               p_env_psi0_changed
