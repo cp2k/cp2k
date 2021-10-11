@@ -83,8 +83,9 @@ case "$with_mpich" in
       check_command mpicxx "mpich"
       export MPICXX=mpicxx
     fi
-    check_lib -lmpi "mpich"
+    check_lib -lmpifor "mpich"
     check_lib -lmpicxx "mpich"
+    check_lib -lmpi "mpich"
     add_include_from_paths MPICH_CFLAGS "mpi.h" $INCLUDE_PATHS
     add_lib_from_paths MPICH_LDFLAGS "libmpi.*" $LIB_PATHS
     ;;
@@ -101,7 +102,7 @@ case "$with_mpich" in
     ;;
 esac
 if [ "$with_mpich" != "__DONTUSE__" ]; then
-  MPICH_LIBS="-lmpi -lmpicxx"
+  MPICH_LIBS="-lmpifort -lmpicxx -lmpi"
   if [ "$with_mpich" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_mpich"
 prepend_path PATH "$pkg_install_dir/bin"
