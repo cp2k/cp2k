@@ -194,6 +194,8 @@ pkgconfig: dirs
 	@echo "Description: CP2K as a library" >> $(PKGCONFIG)
 	@echo "URL: https://www.cp2k.org" >> $(PKGCONFIG)
 	@echo "Version: $(REVISION)" >> $(PKGCONFIG)
+	@echo "includedir=$(SRCDIR)/start" >> $(PKGCONFIG)
+	@echo "Cflags: -I\$${includedir}" >> $(PKGCONFIG)
 	@echo "libdir=$(LIBDIR)" >> $(PKGCONFIG)
 	@echo "Libs: -L\$${libdir} -Wl,-rpath=\$${libdir} -lcp2k $(LDFLAGS) $(LIBS)" >> $(PKGCONFIG)
 
