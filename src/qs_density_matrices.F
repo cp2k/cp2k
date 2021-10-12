@@ -20,6 +20,7 @@ MODULE qs_density_matrices
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_scale_and_add,&
                                               cp_fm_symm,&
+                                              cp_fm_transpose,&
                                               cp_fm_upper_to_full
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -30,6 +31,9 @@ MODULE qs_density_matrices
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_unit_nr,&
+                                              cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_multiply,&
@@ -217,12 +221,13 @@ CONTAINS
       LOGICAL, PARAMETER                                 :: check_gradient = .FALSE., &
                                                             do_symm = .FALSE.
 
-      INTEGER                                            :: handle, ncol_block, ncol_global, &
+      INTEGER                                            :: handle, iounit, ncol_block, ncol_global, &
                                                             nrow_block, nrow_global
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers, scaling_factor
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER                          :: gradient, h_block, h_block_t, &
                                                             weighted_vectors
+      TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
       NULLIFY (weighted_vectors, h_block, fm_struct_tmp)
@@ -281,7 +286,12 @@ CONTAINS
          CALL cp_fm_column_scale(weighted_vectors, scaling_factor)
          DEALLOCATE (scaling_factor)
 
-         WRITE (*, *) " maxabs difference ", MAXVAL(ABS(weighted_vectors%local_data - 2.0_dp*gradient%local_data))
+         logger => cp_get_default_logger()
+         IF (logger%para_env%ionode) THEN
+            iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+            WRITE (iounit, *) " maxabs difference ", &
+               MAXVAL(ABS(weighted_vectors%local_data - 2.0_dp*gradient%local_data))
+         ENDIF
          CALL cp_fm_release(gradient)
       ENDIF
 

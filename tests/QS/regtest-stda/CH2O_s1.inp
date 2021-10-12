@@ -13,7 +13,7 @@
        &END sTDA
        NSTATES      5
        MAX_ITER    50
-       CONVERGENCE [eV] 1.0e-7
+       CONVERGENCE [eV] 1.0e-8
     &END TDDFPT
   &END PROPERTIES
   &PRINT
@@ -24,7 +24,8 @@
     BASIS_SET_FILE_NAME GTH_BASIS_SETS
     POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
-      CUTOFF 200
+      CUTOFF 280
+      REL_CUTOFF 60
     &END MGRID
     &QS
     &END QS
@@ -32,8 +33,17 @@
        STATE 1
     &END EXCITED_STATES
     &SCF
-      MAX_SCF 50
+      MAX_SCF 10
+      EPS_SCF 1.E-7
       SCF_GUESS ATOMIC 
+      &OT
+         MINIMIZER DIIS
+         PRECONDITIONER FULL_ALL
+      &END OT
+      &OUTER_SCF
+         MAX_SCF 5
+         EPS_SCF 1.E-7
+      &END
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE
@@ -42,7 +52,8 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC 6.0 6.0 6.0
+      ABC 5.0 5.0 5.0
+      PERIODIC NONE
     &END CELL
     &TOPOLOGY
      &CENTER_COORDINATES
