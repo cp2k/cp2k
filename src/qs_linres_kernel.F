@@ -168,7 +168,6 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: c0, v, Av
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_op_2_dft'
-      REAL(KIND=dp), PARAMETER                           :: h = 0.001_dp
 
       INTEGER                                            :: handle, ikind, ispin, ncol, nkind, ns, &
                                                             nspins
@@ -341,8 +340,6 @@ CONTAINS
       END DO
       DEALLOCATE (v_xc)
 
-!=========================================================================================================================
-
       ! ADMM Correction
       IF (dft_control%do_admm) THEN
          IF (dft_control%admm_control%aux_exch_func /= do_admm_aux_exch_func_none) THEN
@@ -507,11 +504,7 @@ CONTAINS
          IF (qs_env%kg_env%tnadd_method == kg_tnadd_embed) THEN
 
             CALL qs_rho_get(rho1, rho_ao=rho1_ao)
-!MERGE      IF (nspins == 2) THEN
             alpha = 1.0_dp
-!           ELSE
-!              alpha = 2.0_dp
-!MERGE      END IF
 
             ekin_mol = 0.0_dp
             CALL get_qs_env(qs_env, kg_env=kg_env)
@@ -521,7 +514,6 @@ CONTAINS
                                 calc_force=.FALSE., &
                                 do_kernel=.TRUE., &
                                 pmat_ext=rho1_ao)
-!MERGE                           alpha=alpha)
          END IF
       END IF
 
