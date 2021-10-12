@@ -2199,13 +2199,13 @@ CONTAINS
                END IF
                dd = SQRT(SUM(rmom(2:4, 3)**2))*debye
                WRITE (unit_number, "(T3,A)") "Dipole moment [Debye]"
-               WRITE (unit_number, "(T5,3(A,A,D14.8,1X),T60,A,T67,F14.8)") &
+               WRITE (unit_number, "(T5,3(A,A,D16.8,1X),T64,A,T71,F14.8)") &
                   (TRIM(rlab(i)), "=", rmom(i, 3)*debye, i=2, 4), "Total=", dd
             CASE (2)
                WRITE (unit_number, "(T3,A)") "Quadrupole moment [Debye*Angstrom]"
-               WRITE (unit_number, "(T17,3(A,A,D14.8,9X))") &
+               WRITE (unit_number, "(T17,3(A,A,D16.8,9X))") &
                   (TRIM(rlab(i)), "=", rmom(i, 3)*debye/bohr, i=5, 7)
-               WRITE (unit_number, "(T17,3(A,A,D14.8,9X))") &
+               WRITE (unit_number, "(T17,3(A,A,D16.8,9X))") &
                   (TRIM(rlab(i)), "=", rmom(i, 3)*debye/bohr, i=8, 10)
             CASE (3)
                WRITE (unit_number, "(T3,A)") "Octapole moment [Debye*Angstrom**2]"
@@ -2241,7 +2241,7 @@ CONTAINS
             IF (nmom >= 1) THEN
                dd = SQRT(SUM(mmom(1:3)**2))
                WRITE (unit_number, "(T3,A)") "Orbital angular momentum [a. u.]"
-               WRITE (unit_number, "(T5,3(A,A,D14.8,1X),T60,A,T67,F14.8)") &
+               WRITE (unit_number, "(T5,3(A,A,D16.8,1X),T64,A,T71,F14.8)") &
                   (TRIM(rlab(i + 1)), "=", mmom(i), i=1, 3), "Total=", dd
             END IF
          END IF
@@ -2251,13 +2251,13 @@ CONTAINS
                CASE (1)
                   dd = SQRT(SUM(rmom_vel(1:3)**2))
                   WRITE (unit_number, "(T3,A)") "Expectation value of momentum operator [a. u.]"
-                  WRITE (unit_number, "(T5,3(A,A,D14.8,1X),T60,A,T67,F14.8)") &
+                  WRITE (unit_number, "(T5,3(A,A,D16.8,1X),T64,A,T71,F14.8)") &
                      (TRIM(rlab(i + 1)), "=", rmom_vel(i), i=1, 3), "Total=", dd
                CASE (2)
                   WRITE (unit_number, "(T3,A)") "Expectation value of quadrupole operator in vel. repr. [a. u.]"
-                  WRITE (unit_number, "(T17,3(A,A,D14.8,9X))") &
+                  WRITE (unit_number, "(T17,3(A,A,D16.8,9X))") &
                      (TRIM(rlab(i + 1)), "=", rmom_vel(i), i=4, 6)
-                  WRITE (unit_number, "(T17,3(A,A,D14.8,9X))") &
+                  WRITE (unit_number, "(T17,3(A,A,D16.8,9X))") &
                      (TRIM(rlab(i + 1)), "=", rmom_vel(i), i=7, 9)
                CASE DEFAULT
                END SELECT
@@ -2288,7 +2288,7 @@ CONTAINS
             IF (nmom >= 1) THEN
                dd = SQRT(SUM(mmom(1:3)**2))
                WRITE (unit_number, "(T3,A)") "Expectation value of rx[r,V_nl] [a. u.]"
-               WRITE (unit_number, "(T5,3(A,A,D14.8,1X),T60,A,T67,F14.8)") &
+               WRITE (unit_number, "(T5,3(A,A,D16.8,1X),T64,A,T71,F14.8)") &
                   (TRIM(rlab(i + 1)), "=", mmom(i), i=1, 3), "Total=", dd
             END IF
          END IF
@@ -2298,13 +2298,13 @@ CONTAINS
                CASE (1)
                   dd = SQRT(SUM(rmom_vel(1:3)**2))
                   WRITE (unit_number, "(T3,A)") "Expectation value of [r,V_nl] [a. u.]"
-                  WRITE (unit_number, "(T5,3(A,A,D14.8,1X),T60,A,T67,F14.8)") &
+                  WRITE (unit_number, "(T5,3(A,A,D16.8,1X),T64,A,T71,F14.8)") &
                      (TRIM(rlab(i + 1)), "=", rmom_vel(i), i=1, 3), "Total=", dd
                CASE (2)
                   WRITE (unit_number, "(T3,A)") "Expectation value of [rr,V_nl] [a. u.]"
-                  WRITE (unit_number, "(T17,3(A,A,D14.8,9X))") &
+                  WRITE (unit_number, "(T17,3(A,A,D16.8,9X))") &
                      (TRIM(rlab(i + 1)), "=", rmom_vel(i), i=4, 6)
-                  WRITE (unit_number, "(T17,3(A,A,D14.8,9X))") &
+                  WRITE (unit_number, "(T17,3(A,A,D16.8,9X))") &
                      (TRIM(rlab(i + 1)), "=", rmom_vel(i), i=7, 9)
                CASE DEFAULT
                END SELECT
