@@ -20,6 +20,8 @@
        NUM_DFT_ITER 20
        NGRIDK 1 1 1
        MOLECULE true
+       DENSITY_TOL 1e-7
+       ENERGY_TOL 1e-7
        lmax_apw 8
        lmax_pot 8
        lmax_rho 8
@@ -37,6 +39,9 @@
        TYPE anderson
        MAX_HISTORY 8
     &END MIXER
+    &SETTINGS
+       MIN_OCCUPANCY 0
+    &END SETTINGS
   &END PW_DFT
     &DFT
       &XC

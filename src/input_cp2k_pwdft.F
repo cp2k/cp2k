@@ -148,7 +148,7 @@ CONTAINS
       CHARACTER(len=*), INTENT(in)                       :: section_name
 
       CHARACTER(len=128)                                 :: name, name1, possible_values(1:16)
-      CHARACTER(len=512)                                 :: default_string_val, description, usage
+      CHARACTER(len=4096)                                :: default_string_val, description, usage
       INTEGER                                            :: ctype, dummy_i, enum_i_val(1:16), i, j, &
                                                             length, num_possible_values, vec_length
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ivec
@@ -165,7 +165,7 @@ CONTAINS
       CALL sirius_option_get_length(section_name, length)
       DO i = 0, length - 1
          NULLIFY (keyword)
-         name = CHAR(0)
+         name = ''
          ! return a non null terminated string. Stupid fortran does not understand the \0 terminated string when comparing things
          CALL sirius_option_get_name_and_type(section_name, i, name, ctype)
 !    do not invert these two lines
@@ -173,13 +173,13 @@ CONTAINS
 
 !     we need to null char since SIRIUS interface is basically C
          name = TRIM(ADJUSTL(name))//CHAR(0)
-         ! I exclude these two keywords because one of them is for debugging
-         ! purpose the other one is useless and replaced by a dedicated in cp2k
+         ! I exclude these three keywords because one of them is for debugging
+         ! purpose the other are replaced by a dedicated call in cp2k
          !
          ! Moreover xc_functionals would need a special treatment.
          IF ((name1 /= 'xc_functionals') .AND. (name1 /= 'memory_usage') .AND. (name1 /= 'vk')) THEN
-            description = CHAR(0)
-            usage = CHAR(0)
+            description = ''
+            usage = ''
             CALL sirius_option_get_description_usage(section_name, name, description, usage)
             SELECT CASE (ctype)
             CASE (1)
@@ -274,13 +274,13 @@ CONTAINS
                                    default_l_vals=lvecl(1:vec_length))
             CASE (4)
                !     string need a special treatment because the parameters can only have dedicated values
-               default_string_val = CHAR(0)
+               default_string_val = ''
                CALL sirius_option_get_string(section_name, name, default_string_val)
                default_string_val = TRIM(ADJUSTL(default_string_val))
                CALL sirius_option_get_number_of_possible_values(section_name, name, num_possible_values)
                IF (num_possible_values > 0) THEN
                   DO j = 0, num_possible_values - 1
-                     possible_values(j + 1) = CHAR(0)
+                     possible_values(j + 1) = ''
                      CALL sirius_option_string_get_value(section_name, name, j, possible_values(j + 1))
                      enum_i_val(j + 1) = j
                   END DO
@@ -298,7 +298,7 @@ CONTAINS
                                       description=TRIM(ADJUSTL(description)), &
                                       !                                      usage=TRIM(ADJUSTL(usage)), &
                                       type_of_var=char_t, &
-                                      default_c_val="", &
+                                      default_c_val='', &
                                       repeats=.FALSE.)
                END IF
             CASE default
