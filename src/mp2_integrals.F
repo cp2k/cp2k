@@ -401,6 +401,7 @@ CONTAINS
          IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
             "RI_INFO| Number of non-positive Eigenvalues of (P|Q):", num_small_eigen
       END IF
+      IF (unit_nr > 0) CALL m_flush(unit_nr)
 
       IF (.NOT. do_im_time) THEN
          ! replicate the necessary row of the L^{-1} matrix on each proc
