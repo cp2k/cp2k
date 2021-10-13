@@ -60,7 +60,8 @@ MODULE mp2_cphf
    USE kahan_sum,                       ONLY: accurate_dot_product
    USE kinds,                           ONLY: dp
    USE linear_systems,                  ONLY: solve_system
-   USE machine,                         ONLY: m_walltime
+   USE machine,                         ONLY: m_flush,&
+                                              m_walltime
    USE mathconstants,                   ONLY: fourpi
    USE message_passing,                 ONLY: mp_sum
    USE mp2_types,                       ONLY: mp2_type
@@ -885,6 +886,7 @@ CONTAINS
 
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T3,I5,T13,F6.1,11X,F14.8)') iiter, t2 - t1, conv(1)
+            CALL m_flush(unit_nr)
          END IF
 
          IF (conv(1) <= eps_conv) THEN

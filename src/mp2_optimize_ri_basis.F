@@ -35,7 +35,8 @@ MODULE mp2_optimize_ri_basis
                                               hfx_basis_type
    USE kinds,                           ONLY: dp
    USE libint_wrapper,                  ONLY: build_eri_size
-   USE machine,                         ONLY: default_output_unit
+   USE machine,                         ONLY: default_output_unit,&
+                                              m_flush
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_sum
    USE mp2_direct_method,               ONLY: mp2_canonical_direct_single_batch
@@ -440,10 +441,12 @@ CONTAINS
                WRITE (unit_nr, *)
             END DO
             WRITE (unit_nr, *)
+            CALL m_flush(unit_nr)
          END IF
          IF (DI/ABS(Emp2) <= eps_DI_rel .AND. ABS(DRI_new) <= eps_DRI) THEN
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A)') 'OPTIMIZATION CONVERGED'
             IF (unit_nr > 0) WRITE (unit_nr, *)
+            CALL m_flush(unit_nr)
             EXIT
          END IF
 
@@ -794,6 +797,7 @@ CONTAINS
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,ES25.10)') 'DRI =    ', DRI
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,ES25.10)') 'DI =     ', DI
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,ES25.10)') 'DI/|Emp2| =     ', DI/ABS(Emp2)
+         IF (unit_nr > 0) CALL m_flush(unit_nr)
       END IF
 
       DEALLOCATE (Lai)

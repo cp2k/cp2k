@@ -24,6 +24,7 @@ MODULE mp2_setup
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
+   USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: erfc_cutoff
    USE mp2_types,                       ONLY: mp2_method_direct,&
                                               mp2_method_gpw,&
@@ -329,6 +330,7 @@ CONTAINS
             CPABORT("")
          END SELECT
          WRITE (unit_nr, '(T2,A)') ""
+         CALL m_flush(unit_nr)
       ENDIF
 
       CALL cp_print_key_finished_output(unit_nr, logger, mp2_section, &

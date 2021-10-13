@@ -12,6 +12,7 @@
 !>      03.2019 Refactored from mp2_ri_gpw [Frederick Stein]
 ! **************************************************************************************************
 MODULE mp2_ri_gpw
+   USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -23,7 +24,8 @@ MODULE mp2_ri_gpw
                                               int_8
    USE libint_2c_3c,                    ONLY: compare_potential_types
    USE machine,                         ONLY: m_flush,&
-                                              m_memory
+                                              m_memory,&
+                                              m_walltime
    USE message_passing,                 ONLY: mp_allgather,&
                                               mp_min,&
                                               mp_recv,&
@@ -94,7 +96,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_gpw_compute_en'
 
       INTEGER :: a, a_global, b, b_global, best_block_size, best_integ_group_size, block_size, &
-         end_point, handle, handle2, handle3, iiB, ij_counter, ij_counter_send, ij_index, &
+         decil, end_point, handle, handle2, handle3, iiB, ij_counter, ij_counter_send, ij_index, &
          integ_group_size, irep, ispin, jjB, jspin, kspin, Lend_pos, Lstart_pos, max_ij_pairs, &
          min_integ_group_size, my_block_size, my_group_L_end, my_group_L_size, &
          my_group_L_size_orig, my_group_L_start, my_i, my_ij_pairs, my_j, my_new_group_L_size, &
@@ -110,7 +112,7 @@ CONTAINS
       LOGICAL                                            :: my_alpha_alpha_case, my_alpha_beta_case, &
                                                             my_beta_beta_case, my_open_shell_SS
       REAL(KIND=dp) :: amp_fac, mem_for_aK, mem_for_comm, mem_for_iaK, mem_for_rep, mem_min, &
-         mem_per_group, mem_real, my_Emp2_Cou, my_Emp2_EX, sym_fac
+         mem_per_group, mem_real, my_Emp2_Cou, my_Emp2_EX, sym_fac, t_new, t_start
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: external_ab, external_i_aL, local_ab, &
                                                             local_ba, my_local_i_aL, &
                                                             my_local_j_aL, t_ab
@@ -203,10 +205,35 @@ CONTAINS
                               local_j_aL, calc_forces, Y_i_aP, Y_j_aP, &
                               ispin, jspin, local_ba)
 
+         IF (unit_nr > 0) THEN
+            IF (nspins == 1) THEN
+               WRITE (unit_nr, *) "Start loop run"
+            ELSE IF (ispin == 1 .AND. jspin == 1) THEN
+               WRITE (unit_nr, *) "Start loop run alpha-alpha"
+            ELSE IF (ispin == 1 .AND. jspin == 2) THEN
+               WRITE (unit_nr, *) "Start loop run alpha-beta"
+            ELSE IF (ispin == 2 .AND. jspin == 2) THEN
+               WRITE (unit_nr, *) "Start loop run beta-beta"
+            END IF
+            CALL m_flush(unit_nr)
+            t_start = m_walltime()
+         END IF
+
          CALL timeset(routineN//"_RI_loop", handle2)
          my_Emp2_Cou = 0.0_dp
          my_Emp2_EX = 0.0_dp
          DO ij_index = 1, max_ij_pairs
+
+            IF (unit_nr > 0) THEN
+               decil = ij_index*10/max_ij_pairs
+               IF (decil /= (ij_index - 1)*10/max_ij_pairs) THEN
+                  t_new = m_walltime()
+                  t_new = (t_new - t_start)/60.0_dp*(max_ij_pairs - ij_index + 1)/MAX(ij_index - 1, 1)
+                  WRITE (unit_nr, FMT="(T3,A)") "Percentage of finished loop: "// &
+                     cp_to_string(decil*10)//". Minutes left: "//cp_to_string(t_new)
+                  CALL m_flush(unit_nr)
+               END IF
+            END IF
 
             IF (ij_index <= my_ij_pairs) THEN
                ! We have work to do
