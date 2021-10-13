@@ -69,7 +69,7 @@ MODULE sirius_interface
         sirius_option_get_length, sirius_option_get_name_and_type, sirius_option_set_double, &
         sirius_option_set_int, sirius_option_set_logical, sirius_option_set_string, &
         sirius_set_atom_position, sirius_set_atom_type_dion, sirius_set_atom_type_radial_grid, &
-        sirius_set_lattice_vectors, sirius_update_ground_state
+        sirius_set_lattice_vectors, sirius_set_parameters, sirius_update_ground_state
    USE xc_libxc,                        ONLY: libxc_check_existence_in_libxc
 #include "./base/base_uses.f90"
 
@@ -184,17 +184,14 @@ CONTAINS
                   CALL section_vals_val_get(xc_fun, "FUNCTIONAL", i_rep_section=i, c_val=section_name)
                   IF (section_name(1:3) == "XC_") THEN
                      CALL sirius_add_xc_functional(sctx, section_name)
-!                     CALL sirius_option_add_string_to(sctx, 'parameters', 'xc_functionals', section_name)
                   ELSE
                      CALL sirius_add_xc_functional(sctx, "XC_"//section_name)
-!                     CALL sirius_option_add_string_to(sctx, 'parameters', 'xc_functionals', "XC_"//section_name)
                   END IF
                END DO
             ELSE IF (libxc_check_existence_in_libxc(xc_fun)) THEN
                ! Here, we do not have to check whether the functional name starts with XC_
                ! because we only allow the shorter form w/o XC_
                CALL sirius_add_xc_functional(sctx, "XC_"//TRIM(xc_fun%section%name))
-!               CALL sirius_option_add_string_to(sctx, 'parameters', 'xc_functionals', "XC_"//TRIM(xc_fun%section%name))
             ENDIF
          END DO
       ENDIF
@@ -437,12 +434,12 @@ CONTAINS
          IF (num_mag_dims .EQ. 3) THEN
             angle1 = 0.0_dp
             angle2 = 0.0_dp
-            v1(1) = zeff*magnetization*SIN(angle1)*COS(angle2)
-            v1(2) = zeff*magnetization*SIN(angle1)*SIN(angle2)
-            v1(3) = zeff*magnetization*COS(angle1)
+            v1(1) = magnetization*SIN(angle1)*COS(angle2)
+            v1(2) = magnetization*SIN(angle1)*SIN(angle2)
+            v1(3) = magnetization*COS(angle1)
          ELSE
             v1 = 0._dp
-            v1(3) = zeff*magnetization
+            v1(3) = magnetization
          ENDIF
          v2(1:3) = vs(1:3)
          CALL sirius_add_atom(sctx, label, v2(1), v1(1))
@@ -542,42 +539,47 @@ CONTAINS
          CALL sirius_option_get_name_and_type(section_name, elem, option_name, ctype)
          option_name1 = TRIM(ADJUSTL(option_name))
          option_name = TRIM(ADJUSTL(option_name))//CHAR(0)
-
-         IF ((option_name1 /= 'memory_usage') .AND. (option_name1 /= 'xc_functionals') .AND. (option_name1 /= 'vk')) THEN
-            CALL section_vals_val_get(section, option_name1, explicit=found)
-            IF (found) THEN
-               SELECT CASE (ctype)
-               CASE (1)
-                  CALL section_vals_val_get(section, option_name1, i_val=ival)
-                  CALL sirius_option_set_int(sctx, section_name, option_name, ival, 0)
-               CASE (11)
-                  CALL section_vals_val_get(section, option_name1, i_vals=ivals)
-                  CALL sirius_option_set_int(sctx, section_name, option_name, ivals(1), SIZE(ivals))
-               CASE (2)
-                  CALL section_vals_val_get(section, option_name1, r_val=rval)
-                  CALL sirius_option_set_double(sctx, section_name, option_name, rval, 0)
-               CASE (12)
-                  CALL section_vals_val_get(section, option_name1, r_vals=rvals)
-                  CALL sirius_option_set_double(sctx, section_name, option_name, rvals(1), SIZE(rvals))
-               CASE (3)
-                  CALL section_vals_val_get(section, option_name1, l_val=lval)
-                  CALL sirius_option_set_logical(sctx, section_name, option_name, lval, 1)
-               CASE (13)
-                  CALL section_vals_val_get(section, option_name, l_vals=lvals)
-                  length = SIZE(lvals)
-                  CALL sirius_option_set_logical(sctx, section_name, option_name, lvals(1), length)
-               CASE (4)         ! string nightmare
-                  CALL section_vals_val_get(section, option_name1, c_val=str)
-                  str = TRIM(ADJUSTL(str))//CHAR(0)
-                  CALL sirius_option_set_string(sctx, section_name, option_name, str)
-               CASE (14)
-                  CALL section_vals_val_get(section, option_name1, n_rep_val=length)
-                  DO j = 1, length
-                     CALL section_vals_val_get(section, option_name1, i_rep_val=j, c_vals=tmp)
-                     CALL sirius_option_add_string_to(sctx, section_name, option_name, str)
-                  END DO
-               CASE DEFAULT
-               END SELECT
+         IF (option_name1 .EQ. 'electronic_structure_method') THEN
+            CALL section_vals_val_get(section, option_name1, c_val=str)
+            str = TRIM(ADJUSTL(str))//CHAR(0)
+            CALL sirius_set_parameters(sctx, electronic_structure_method=str)
+         ELSE
+            IF ((option_name1 /= 'memory_usage') .AND. (option_name1 /= 'xc_functionals') .AND. (option_name1 /= 'vk')) THEN
+               CALL section_vals_val_get(section, option_name1, explicit=found)
+               IF (found) THEN
+                  SELECT CASE (ctype)
+                  CASE (1)
+                     CALL section_vals_val_get(section, option_name1, i_val=ival)
+                     CALL sirius_option_set_int(sctx, section_name, option_name, ival, 0)
+                  CASE (11)
+                     CALL section_vals_val_get(section, option_name1, i_vals=ivals)
+                     CALL sirius_option_set_int(sctx, section_name, option_name, ivals(1), SIZE(ivals))
+                  CASE (2)
+                     CALL section_vals_val_get(section, option_name1, r_val=rval)
+                     CALL sirius_option_set_double(sctx, section_name, option_name, rval, 0)
+                  CASE (12)
+                     CALL section_vals_val_get(section, option_name1, r_vals=rvals)
+                     CALL sirius_option_set_double(sctx, section_name, option_name, rvals(1), SIZE(rvals))
+                  CASE (3)
+                     CALL section_vals_val_get(section, option_name1, l_val=lval)
+                     CALL sirius_option_set_logical(sctx, section_name, option_name, lval, 1)
+                  CASE (13)
+                     CALL section_vals_val_get(section, option_name, l_vals=lvals)
+                     length = SIZE(lvals)
+                     CALL sirius_option_set_logical(sctx, section_name, option_name, lvals(1), length)
+                  CASE (4)      ! string nightmare
+                     CALL section_vals_val_get(section, option_name1, c_val=str)
+                     str = TRIM(ADJUSTL(str))//CHAR(0)
+                     CALL sirius_option_set_string(sctx, section_name, option_name, str)
+                  CASE (14)
+                     CALL section_vals_val_get(section, option_name1, n_rep_val=length)
+                     DO j = 1, length
+                        CALL section_vals_val_get(section, option_name1, i_rep_val=j, c_vals=tmp)
+                        CALL sirius_option_add_string_to(sctx, section_name, option_name, str)
+                     END DO
+                  CASE DEFAULT
+                  END SELECT
+               END IF
             END IF
          END IF
       END DO
