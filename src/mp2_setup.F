@@ -251,7 +251,7 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "RI%RI_METRIC%T_C_G_DATA", c_val=mp2_env%ri_metric%filename)
       IF (mp2_env%ri_metric%potential_type == do_potential_short) THEN
          CALL erfc_cutoff(mp2_env%eps_range, mp2_env%ri_metric%omega, mp2_env%ri_metric%cutoff_radius)
-      ENDIF
+      END IF
 
       CALL section_vals_val_get(mp2_section, "RI%OPT_RI_BASIS%_SECTION_PARAMETERS_", l_val=do_opt_ri_basis)
       IF (do_opt_ri_basis) THEN
@@ -302,7 +302,7 @@ CONTAINS
       IF (mp2_env%eri_method .EQ. do_eri_mme) THEN
          eri_mme_section => section_vals_get_subs_vals(mp2_section, "INTEGRALS%ERI_MME")
          CALL cp_eri_mme_init_read_input(eri_mme_section, mp2_env%eri_mme_param)
-      ENDIF
+      END IF
 
       ! Set some parameters in case of P screening
       mp2_env%not_last_hfx = .TRUE.
@@ -331,7 +331,7 @@ CONTAINS
          END SELECT
          WRITE (unit_nr, '(T2,A)') ""
          CALL m_flush(unit_nr)
-      ENDIF
+      END IF
 
       CALL cp_print_key_finished_output(unit_nr, logger, mp2_section, &
                                         "MP2%MP2_INFO")

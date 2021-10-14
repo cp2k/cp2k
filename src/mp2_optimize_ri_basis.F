@@ -239,7 +239,7 @@ CONTAINS
          local_unit_nr = cp_logger_get_default_unit_nr(logger, local=.FALSE.)
       ELSE
          local_unit_nr = default_output_unit
-      ENDIF
+      END IF
       NULLIFY (logger_sub)
       CALL cp_logger_create(logger_sub, para_env=para_env_sub, &
                             default_global_unit_nr=local_unit_nr, close_global_unit_on_dealloc=.FALSE.)
@@ -444,9 +444,10 @@ CONTAINS
             CALL m_flush(unit_nr)
          END IF
          IF (DI/ABS(Emp2) <= eps_DI_rel .AND. ABS(DRI_new) <= eps_DRI) THEN
-            IF (unit_nr > 0) WRITE (unit_nr, '(T3,A)') 'OPTIMIZATION CONVERGED'
-            IF (unit_nr > 0) WRITE (unit_nr, *)
-            IF (unit_nr > 0) CALL m_flush(unit_nr)
+            IF (unit_nr > 0) THEN
+               WRITE (unit_nr, '(T3,A,/)') 'OPTIMIZATION CONVERGED'
+               CALL m_flush(unit_nr)
+            END IF
             EXIT
          END IF
 
@@ -791,13 +792,15 @@ CONTAINS
       END IF
 
       IF (.NOT. no_write) THEN
-         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)')
-         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'Emp2 =   ', Emp2
-         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'Emp2-RI =', Emp2_RI
-         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,ES25.10)') 'DRI =    ', DRI
-         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,ES25.10)') 'DI =     ', DI
-         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,ES25.10)') 'DI/|Emp2| =     ', DI/ABS(Emp2)
-         IF (unit_nr > 0) CALL m_flush(unit_nr)
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T3,A,T56,F25.14)')
+            WRITE (unit_nr, '(T3,A,T56,F25.14)') 'Emp2 =   ', Emp2
+            WRITE (unit_nr, '(T3,A,T56,F25.14)') 'Emp2-RI =', Emp2_RI
+            WRITE (unit_nr, '(T3,A,T56,ES25.10)') 'DRI =    ', DRI
+            WRITE (unit_nr, '(T3,A,T56,ES25.10)') 'DI =     ', DI
+            WRITE (unit_nr, '(T3,A,T56,ES25.10)') 'DI/|Emp2| =     ', DI/ABS(Emp2)
+            CALL m_flush(unit_nr)
+         END IF
       END IF
 
       DEALLOCATE (Lai)
