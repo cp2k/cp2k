@@ -4,7 +4,7 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 #
-h2o_f21.inp                                                1    1.0E-11             -17.18917899753596
+h2o_f21.inp                                                1    5.0E-11             -17.18917899753596
 h2o_f22.inp                                                1    5.0E-11             -17.20666199794008
 h2o_f23.inp                                                1    1.0E-11             -16.71305460110763
 h2o_f24.inp                                                1    1.0E-11             -17.20661694192800
