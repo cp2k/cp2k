@@ -446,7 +446,7 @@ CONTAINS
          IF (DI/ABS(Emp2) <= eps_DI_rel .AND. ABS(DRI_new) <= eps_DRI) THEN
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A)') 'OPTIMIZATION CONVERGED'
             IF (unit_nr > 0) WRITE (unit_nr, *)
-            CALL m_flush(unit_nr)
+            IF (unit_nr > 0) CALL m_flush(unit_nr)
             EXIT
          END IF
 
