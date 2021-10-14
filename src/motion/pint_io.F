@@ -112,7 +112,7 @@ CONTAINS
       INTEGER                                            :: handle, handle1, iat, ib, id, idim, &
                                                             idir, ierr, outformat, should_output, &
                                                             unit_nr
-      LOGICAL                                            :: new_file, print_name
+      LOGICAL                                            :: new_file, print_kind
       REAL(kind=dp)                                      :: nb, ss, unit_conv, vv
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -157,7 +157,7 @@ CONTAINS
                          basis_section=print_key)
          IF (.NOT. BTEST(should_output, cp_p_file)) CONTINUE
 
-         print_name = .FALSE.
+         print_kind = .FALSE.
 
          ! get units of measure for output (if available)
          CALL section_vals_val_get(print_key, "UNIT", &
@@ -175,8 +175,8 @@ CONTAINS
             form = "FORMATTED"
             ext = ""
          CASE (dump_xmol)
-            CALL section_vals_val_get(print_key, "PRINT_ATOM_NAME", &
-                                      l_val=print_name)
+            CALL section_vals_val_get(print_key, "PRINT_ATOM_KIND", &
+                                      l_val=print_kind)
             form = "FORMATTED"
             ext = ".xyz"
          CASE default
@@ -237,7 +237,7 @@ CONTAINS
                title=title(id), &
                cell=cell, &
                unit_conv=unit_conv, &
-               print_name=print_name)
+               print_kind=print_kind)
 
             CALL cp_print_key_finished_output(unit_nr, logger, &
                                               print_key, "", local=.FALSE.)
