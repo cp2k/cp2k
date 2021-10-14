@@ -235,11 +235,11 @@ CONTAINS
                CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, &
                                     name=atm_name)
                dummy = qmmm_ff_precond_only_qm(id1=atm_name)
-               my_format = "(A4,"
-               name = TRIM(atm_name)
+               my_format = "(A,"
+               atm_name = TRIM(atm_name)
             ELSE
                my_format = "(T2,A2,"
-               name = TRIM(element_symbol)
+               atm_name = TRIM(element_symbol)
             END IF
             SELECT CASE (TRIM(content))
             CASE ("POS")
@@ -248,28 +248,28 @@ CONTAINS
                ELSE
                   r(:) = particle_set(iatom)%r(:)
                END IF
-               WRITE (iunit, TRIM(my_format)//"1X,3F20.10)") TRIM(name), r(1:3)*factor
+               WRITE (iunit, TRIM(my_format)//"1X,3F20.10)") TRIM(atm_name), r(1:3)*factor
             CASE ("VEL")
                IF (PRESENT(array)) THEN
                   v(1:3) = get_particle_pos_or_vel(iatom, particle_set, array)
                ELSE
                   v(:) = particle_set(iatom)%v(:)
                END IF
-               WRITE (iunit, TRIM(my_format)//"1X,3F20.10)") TRIM(name), v(1:3)*factor
+               WRITE (iunit, TRIM(my_format)//"1X,3F20.10)") TRIM(atm_name), v(1:3)*factor
             CASE ("FORCE")
                IF (PRESENT(array)) THEN
                   f(:) = array((iatom - 1)*3 + 1:(iatom - 1)*3 + 3)
                ELSE
                   f(:) = particle_set(iatom)%f(:)
                END IF
-               WRITE (iunit, TRIM(my_format)//"1X,3F20.10)") TRIM(name), f(1:3)*factor
+               WRITE (iunit, TRIM(my_format)//"1X,3F20.10)") TRIM(atm_name), f(1:3)*factor
             CASE ("FORCE_MIXING_LABELS")
                IF (PRESENT(array)) THEN
                   f(:) = array((iatom - 1)*3 + 1:(iatom - 1)*3 + 3)
                ELSE
                   f(:) = particle_set(iatom)%f(:)
                END IF
-               WRITE (iunit, TRIM(my_format)//"1X,3F20.10)") TRIM(name), f(1:3)*factor
+               WRITE (iunit, TRIM(my_format)//"1X,3F20.10)") TRIM(atm_name), f(1:3)*factor
             END SELECT
          END DO
       CASE (dump_atomic)
