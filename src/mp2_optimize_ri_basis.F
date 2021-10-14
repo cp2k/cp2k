@@ -793,12 +793,13 @@ CONTAINS
 
       IF (.NOT. no_write) THEN
          IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T3,A,T56,F25.14)')
-            WRITE (unit_nr, '(T3,A,T56,F25.14)') 'Emp2 =   ', Emp2
-            WRITE (unit_nr, '(T3,A,T56,F25.14)') 'Emp2-RI =', Emp2_RI
-            WRITE (unit_nr, '(T3,A,T56,ES25.10)') 'DRI =    ', DRI
-            WRITE (unit_nr, '(T3,A,T56,ES25.10)') 'DI =     ', DI
-            WRITE (unit_nr, '(T3,A,T56,ES25.10)') 'DI/|Emp2| =     ', DI/ABS(Emp2)
+            WRITE (unit_nr, '(/,(T3,A,T56,F25.14))') &
+               'Emp2 =', Emp2, &
+               'Emp2-RI =', Emp2_RI
+            WRITE (unit_nr, '(T3,A,T56,ES25.10)') &
+               'DRI =', DRI, &
+               'DI =', DI, &
+               'DI/|Emp2| =', DI/ABS(Emp2)
             CALL m_flush(unit_nr)
          END IF
       END IF
