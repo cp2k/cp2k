@@ -181,7 +181,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: line, title, unit_str
       INTEGER                                            :: crd, ener, frc, handle, i, irep, ndig, &
                                                             ndigl, ttst, vel
-      LOGICAL                                            :: explicit, lval, print_name
+      LOGICAL                                            :: explicit, lval, print_kind
       REAL(KIND=dp)                                      :: f_ann, tmp_r1, unit_conv
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ekin, temperatures
       TYPE(cell_type), POINTER                           :: cell
@@ -211,14 +211,14 @@ CONTAINS
             ! Gather units of measure for output
             CALL section_vals_val_get(neb_env%motion_print_section, "TRAJECTORY%UNIT", &
                                       c_val=unit_str)
-            CALL section_vals_val_get(neb_env%motion_print_section, "TRAJECTORY%PRINT_ATOM_NAME", &
-                                      l_val=print_name)
+            CALL section_vals_val_get(neb_env%motion_print_section, "TRAJECTORY%PRINT_ATOM_KIND", &
+                                      l_val=print_kind)
             unit_conv = cp_unit_from_cp2k(1.0_dp, TRIM(unit_str))
             ! This information can be digested by Molden
             WRITE (UNIT=title, FMT="(A,I8,A,F20.10)") " i =", istep, ", E =", energies(irep)
             CALL write_particle_coordinates(particle_set, crd, dump_xmol, "POS", title, &
                                             cell=cell, array=coords%xyz(:, irep), unit_conv=unit_conv, &
-                                            print_name=print_name)
+                                            print_kind=print_kind)
             CALL m_flush(crd)
          END IF
          ! Dump Velocities
@@ -226,13 +226,13 @@ CONTAINS
             ! Gather units of measure for output
             CALL section_vals_val_get(neb_env%motion_print_section, "VELOCITIES%UNIT", &
                                       c_val=unit_str)
-            CALL section_vals_val_get(neb_env%motion_print_section, "VELOCITIES%PRINT_ATOM_NAME", &
-                                      l_val=print_name)
+            CALL section_vals_val_get(neb_env%motion_print_section, "VELOCITIES%PRINT_ATOM_KIND", &
+                                      l_val=print_kind)
             unit_conv = cp_unit_from_cp2k(1.0_dp, TRIM(unit_str))
             WRITE (UNIT=title, FMT="(A,I8,A,F20.10)") " i =", istep, ", E =", energies(irep)
             CALL write_particle_coordinates(particle_set, vel, dump_xmol, "VEL", title, &
                                             cell=cell, array=vels%xyz(:, irep), unit_conv=unit_conv, &
-                                            print_name=print_name)
+                                            print_kind=print_kind)
             CALL m_flush(vel)
          END IF
          ! Dump Forces
@@ -240,13 +240,13 @@ CONTAINS
             ! Gather units of measure for output
             CALL section_vals_val_get(neb_env%motion_print_section, "FORCES%UNIT", &
                                       c_val=unit_str)
-            CALL section_vals_val_get(neb_env%motion_print_section, "FORCES%PRINT_ATOM_NAME", &
-                                      l_val=print_name)
+            CALL section_vals_val_get(neb_env%motion_print_section, "FORCES%PRINT_ATOM_KIND", &
+                                      l_val=print_kind)
             unit_conv = cp_unit_from_cp2k(1.0_dp, TRIM(unit_str))
             WRITE (UNIT=title, FMT="(A,I8,A,F20.10)") " i =", istep, ", E =", energies(irep)
             CALL write_particle_coordinates(particle_set, frc, dump_xmol, "FRC", title, &
                                             cell=cell, array=forces%xyz(:, irep), unit_conv=unit_conv, &
-                                            print_name=print_name)
+                                            print_kind=print_kind)
             CALL m_flush(frc)
          END IF
          CALL cp_print_key_finished_output(crd, logger, neb_env%motion_print_section, &

@@ -146,7 +146,7 @@ CONTAINS
                                                             molecules_file, moves_file
       LOGICAL                                            :: ionode, lbias, ldiscrete, lhmc, &
                                                             lnew_bias_env, loverlap, lreject, &
-                                                            lstop, print_name, should_stop
+                                                            lstop, print_kind, should_stop
       REAL(dp), DIMENSION(:), POINTER                    :: pbias, pmavbmc_mol, pmclus_box, &
                                                             pmhmc_box, pmrot_mol, pmtraion_mol, &
                                                             pmtrans_mol, pmvol_box
@@ -203,8 +203,8 @@ CONTAINS
       CALL section_vals_val_get(root_section, "MOTION%PRINT%TRAJECTORY%UNIT", &
                                 c_val=unit_str)
       unit_conv = cp_unit_from_cp2k(1.0_dp, TRIM(unit_str))
-      CALL section_vals_val_get(root_section, "MOTION%PRINT%TRAJECTORY%PRINT_ATOM_NAME", &
-                                l_val=print_name)
+      CALL section_vals_val_get(root_section, "MOTION%PRINT%TRAJECTORY%PRINT_ATOM_KIND", &
+                                l_val=print_kind)
 
       ! get some data out of mc_par
       CALL get_mc_par(mc_par(1)%mc_par, &
@@ -393,7 +393,7 @@ CONTAINS
             ELSE
                CALL write_particle_coordinates(particles_old(ibox)%list%els, &
                                                com_crd, dump_xmol, 'POS', 'INITIAL BOX '//TRIM(ADJUSTL(cbox)), &
-                                               unit_conv=unit_conv, print_name=print_name)
+                                               unit_conv=unit_conv, print_kind=print_kind)
             ENDIF
             CALL open_file(file_name=data_file(ibox), &
                            unit_number=data_unit(ibox), file_position='APPEND', &
