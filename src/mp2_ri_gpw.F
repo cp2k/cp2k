@@ -569,6 +569,7 @@ CONTAINS
          DEALLOCATE (local_j_aL)
          DEALLOCATE (ij_map)
          DEALLOCATE (num_ij_pairs)
+         DEALLOCATE (local_ab)
 
          IF (calc_forces) THEN
             DEALLOCATE (Y_i_aP)
@@ -588,19 +589,19 @@ CONTAINS
             IF (.NOT. my_alpha_beta_case) THEN
                CALL quasi_degenerate_P_ij( &
                   mp2_env, Eigenval(:, ispin), homo(ispin), virtual(ispin), my_open_shell_ss, &
-                  my_beta_beta_case, my_alpha_beta_case, Bib_C(ispin)%array, unit_nr, dimen_RI, &
+                  my_beta_beta_case, Bib_C(ispin)%array, unit_nr, dimen_RI, &
                   my_B_size(ispin), ngroup, num_integ_group, my_group_L_size, &
                   color_sub, ranges_info_array, para_env_exchange, para_env_sub, proc_map, &
                   my_B_virtual_start(ispin), my_B_virtual_end(ispin), gd_array%sizes, gd_B_virtual(ispin), &
-                  sub_proc_map, integ_group_pos2color_sub, local_ab)
+                  sub_proc_map, integ_group_pos2color_sub)
             ELSE
                CALL quasi_degenerate_P_ij( &
                   mp2_env, Eigenval(:, ispin), homo(ispin), virtual(ispin), my_open_shell_ss, &
-                  my_beta_beta_case, my_alpha_beta_case, Bib_C(ispin)%array, unit_nr, dimen_RI, &
+                  my_beta_beta_case, Bib_C(ispin)%array, unit_nr, dimen_RI, &
                   my_B_size(ispin), ngroup, num_integ_group, my_group_L_size, &
                   color_sub, ranges_info_array, para_env_exchange, para_env_sub, proc_map, &
                   my_B_virtual_start(ispin), my_B_virtual_end(ispin), gd_array%sizes, gd_B_virtual(ispin), &
-                  sub_proc_map, integ_group_pos2color_sub, local_ab, BIb_C(jspin)%array, my_B_size(jspin), &
+                  sub_proc_map, integ_group_pos2color_sub, BIb_C(jspin)%array, my_B_size(jspin), &
                   gd_B_virtual(jspin), my_B_virtual_start(jspin), &
                   virtual(jspin), homo(jspin), Eigenval(:, jspin), my_B_virtual_end(jspin))
             END IF
@@ -608,7 +609,6 @@ CONTAINS
          END IF
 
          DEALLOCATE (integ_group_pos2color_sub)
-         DEALLOCATE (local_ab)
 
          CALL mp_sum(my_Emp2_Cou, para_env%group)
          CALL mp_sum(my_Emp2_Ex, para_env%group)
@@ -1905,7 +1905,6 @@ CONTAINS
 !> \param virtual ...
 !> \param open_shell ...
 !> \param beta_beta ...
-!> \param alpha_beta ...
 !> \param Bib_C ...
 !> \param unit_nr ...
 !> \param dimen_RI ...
@@ -1924,7 +1923,6 @@ CONTAINS
 !> \param gd_B_virtual ...
 !> \param sub_proc_map ...
 !> \param integ_group_pos2color_sub ...
-!> \param local_ab ...
 !> \param BIb_C_beta ...
 !> \param my_B_size_beta ...
 !> \param gd_B_virtual_beta ...
@@ -1935,18 +1933,18 @@ CONTAINS
 !> \param my_B_virtual_end_beta ...
 ! **************************************************************************************************
    SUBROUTINE quasi_degenerate_P_ij(mp2_env, Eigenval, homo, virtual, open_shell, &
-                                    beta_beta, alpha_beta, Bib_C, unit_nr, dimen_RI, &
+                                    beta_beta, Bib_C, unit_nr, dimen_RI, &
                                     my_B_size, ngroup, num_integ_group, my_group_L_size, &
                                     color_sub, ranges_info_array, para_env_exchange, para_env_sub, proc_map, &
                                     my_B_virtual_start, my_B_virtual_end, sizes_array, gd_B_virtual, &
                                     sub_proc_map, integ_group_pos2color_sub, &
-                                    local_ab, BIb_C_beta, my_B_size_beta, &
+                                    BIb_C_beta, my_B_size_beta, &
                                     gd_B_virtual_beta, my_B_virtual_start_beta, &
                                     virtual_beta, homo_beta, Eigenval_beta, my_B_virtual_end_beta)
       TYPE(mp2_type), POINTER                            :: mp2_env
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       INTEGER, INTENT(IN)                                :: homo, virtual
-      LOGICAL, INTENT(IN)                                :: open_shell, beta_beta, alpha_beta
+      LOGICAL, INTENT(IN)                                :: open_shell, beta_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: BIb_C
       INTEGER, INTENT(IN)                                :: unit_nr, dimen_RI, my_B_size, ngroup, &
@@ -1960,8 +1958,6 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sizes_array
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_B_virtual
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sub_proc_map, integ_group_pos2color_sub
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(INOUT)                                   :: local_ab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(IN), OPTIONAL                            :: BIb_C_beta
       INTEGER, INTENT(IN), OPTIONAL                      :: my_B_size_beta
@@ -1981,14 +1977,17 @@ CONTAINS
          send_k, size_B_i, size_B_ij, size_B_ijk, size_B_j, size_B_k, start_point, tag
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_ijk, num_ijk_beta
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ijk_map, ijk_map_beta
+      LOGICAL                                            :: alpha_beta
       REAL(KIND=dp)                                      :: amp_fac, P_ij_elem
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BI_C_rec, external_ab, external_aL, &
-                                                            local_aL, t_ab
+                                                            local_ab, local_aL, t_ab
 
       CALL timeset(routineN//"_ij_sing", handle)
 ! Define the number of loops over orbital triplets
 
       tag = 44
+
+      alpha_beta = PRESENT(BIb_C_beta)
 
       nloops = 1
       IF (alpha_beta) nloops = 2
@@ -1997,10 +1996,10 @@ CONTAINS
 
       IF (.NOT. alpha_beta) THEN
          CALL Find_quasi_degenerate_ij(my_ijk, homo, Eigenval, mp2_env, ijk_map, unit_nr, ngroup, &
-                                       beta_beta, alpha_beta, para_env_exchange, num_ijk, max_ijk, color_sub)
+                                       beta_beta, para_env_exchange, num_ijk, max_ijk, color_sub)
       ELSE
          CALL Find_quasi_degenerate_ij(my_ijk, homo, Eigenval, mp2_env, ijk_map, unit_nr, ngroup, &
-                                       beta_beta, alpha_beta, para_env_exchange, num_ijk, max_ijk, color_sub, &
+                                       beta_beta, para_env_exchange, num_ijk, max_ijk, color_sub, &
                                        Eigenval_beta, homo_beta, ijk_map_beta, num_ijk_beta, max_ijk_beta, my_ijk_beta)
       END IF
 
@@ -2191,15 +2190,14 @@ CONTAINS
 
                ! expand integrals
                CALL timeset(routineN//"_exp_ik", handle2)
-               local_ab = 0.0_dp
                IF (iloops .EQ. 2) THEN ! For alpha-beta case for beta-beta density the dimensions are different
-                  DEALLOCATE (local_ab)
                   ALLOCATE (local_ab(virtual_beta, size_B_k))
                   local_ab = 0.0_dp
                   CALL dgemm('T', 'N', size_B_i, size_B_k, dimen_RI, 1.0_dp, &
                              local_aL(:, :size_B_i), dimen_RI, local_aL(:, size_B_ij + 1:), dimen_RI, &
                              0.0_dp, local_ab(my_B_virtual_start_beta:my_B_virtual_end_beta, 1:size_B_k), size_B_i)
                ELSE
+                  ALLOCATE (local_ab(virtual, size_B_k))
                   CALL dgemm('T', 'N', size_B_i, size_B_k, dimen_RI, 1.0_dp, &
                              local_aL(:, :size_B_i), dimen_RI, local_aL(:, size_B_ij + 1:), dimen_RI, &
                              0.0_dp, local_ab(my_B_virtual_start:my_B_virtual_end, 1:size_B_k), size_B_i)
@@ -2367,6 +2365,7 @@ CONTAINS
                END IF
                !
                P_ij_elem = SUM(local_ab*t_ab)
+               DEALLOCATE (local_ab)
                IF ((.NOT. open_shell) .AND. (.NOT. alpha_beta)) THEN
                   P_ij_elem = P_ij_elem*2.0_dp
                END IF
@@ -2457,7 +2456,6 @@ CONTAINS
 !> \param unit_nr ...
 !> \param ngroup ...
 !> \param beta_beta ...
-!> \param alpha_beta ...
 !> \param para_env_exchange ...
 !> \param num_ijk ...
 !> \param max_ijk ...
@@ -2470,7 +2468,7 @@ CONTAINS
 !> \param my_ijk_beta ...
 ! **************************************************************************************************
    SUBROUTINE Find_quasi_degenerate_ij(my_ijk, homo, Eigenval, mp2_env, ijk_map, unit_nr, ngroup, &
-                                       beta_beta, alpha_beta, para_env_exchange, num_ijk, max_ijk, color_sub, Eigenval_beta, &
+                                       beta_beta, para_env_exchange, num_ijk, max_ijk, color_sub, Eigenval_beta, &
                                        homo_beta, ijk_map_beta, num_ijk_beta, max_ijk_beta, my_ijk_beta)
 
       INTEGER, INTENT(OUT)                               :: my_ijk
@@ -2479,7 +2477,7 @@ CONTAINS
       TYPE(mp2_type), POINTER                            :: mp2_env
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: ijk_map
       INTEGER, INTENT(IN)                                :: unit_nr, ngroup
-      LOGICAL, INTENT(IN)                                :: beta_beta, alpha_beta
+      LOGICAL, INTENT(IN)                                :: beta_beta
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: num_ijk
       INTEGER, INTENT(OUT)                               :: max_ijk
@@ -2494,6 +2492,9 @@ CONTAINS
 
       INTEGER                                            :: iib, ijk_counter, jjb, kkb, my_homo, &
                                                             num_sing_ij, total_ijk
+      LOGICAL                                            :: alpha_beta
+
+      alpha_beta = PRESENT(Eigenval_beta)
 
       IF (alpha_beta) THEN
          my_homo = homo_beta
