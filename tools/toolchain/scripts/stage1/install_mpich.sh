@@ -83,7 +83,7 @@ case "$with_mpich" in
       check_command mpicxx "mpich"
       export MPICXX=mpicxx
     fi
-    check_lib -lmpifor "mpich"
+    check_lib -lmpifort "mpich"
     check_lib -lmpicxx "mpich"
     check_lib -lmpi "mpich"
     add_include_from_paths MPICH_CFLAGS "mpi.h" $INCLUDE_PATHS
