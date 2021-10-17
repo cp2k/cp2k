@@ -1967,11 +1967,11 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'quasi_degenerate_P_ij'
 
       INTEGER :: a, a_global, b, b_global, end_point, handle, handle2, ijk, ijk_counter, &
-         ijk_counter_send, ijk_index, iloops, irep, ispin, kspin, Lend_pos, Lstart_pos, &
-         max_ijk_loop, my_i, my_j, my_k, my_virtual, nloops, proc_receive, proc_send, proc_shift, &
-         rec_B_size, rec_B_virtual_end, rec_B_virtual_start, rec_L_size, send_B_size, &
-         send_B_virtual_end, send_B_virtual_start, send_i, send_ijk_index, send_j, send_k, &
-         size_B_i, size_B_ij, size_B_ijk, size_B_k, start_point, tag
+         ijk_counter_send, ijk_index, irep, ispin, kspin, Lend_pos, Lstart_pos, my_i, my_j, my_k, &
+         my_virtual, nspins, proc_receive, proc_send, proc_shift, rec_B_size, rec_B_virtual_end, &
+         rec_B_virtual_start, rec_L_size, send_B_size, send_B_virtual_end, send_B_virtual_start, &
+         send_i, send_ijk_index, send_j, send_k, size_B_i, size_B_ij, size_B_ijk, size_B_k, &
+         start_point, tag
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: max_ijk, my_ijk
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: num_ijk
       LOGICAL                                            :: alpha_beta
@@ -1985,10 +1985,8 @@ CONTAINS
 
       tag = 44
 
-      alpha_beta = (SIZE(BIb_C) == 2)
-
-      nloops = 1
-      IF (alpha_beta) nloops = 2
+      nspins = SIZE(BIb_C)
+      alpha_beta = (nspins == 2)
 
       ! Find the number of quasi-degenerate orbitals and orbital triplets
 
@@ -2000,24 +1998,22 @@ CONTAINS
       IF (open_shell) amp_fac = mp2_env%scale_T
 
       ! Loop(s) over orbital triplets
-      DO iloops = 1, nloops
-         ispin = iloops
+      DO ispin = 1, nspins
          size_B_i = my_B_size(ispin)
-         IF (iloops == 1 .AND. alpha_beta) THEN
+         IF (ispin == 1 .AND. alpha_beta) THEN
             kspin = 2
          ELSE
             kspin = 1
          END IF
          size_B_k = my_B_size(kspin)
          my_virtual = virtual(ispin)
-         max_ijk_loop = max_ijk(ispin)
          size_B_ij = 2*size_B_i
          size_B_ijk = size_B_ij + size_B_k
 
          ALLOCATE (local_aL(dimen_RI, size_B_ijk))
          ALLOCATE (t_ab(my_virtual, size_B_k))
 
-         DO ijk_index = 1, max_ijk_loop
+         DO ijk_index = 1, max_ijk(ispin)
             ijk = my_ijk(ispin)
             IF (ijk_index <= ijk) THEN
                ! work to be done
