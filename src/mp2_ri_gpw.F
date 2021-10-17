@@ -2338,97 +2338,66 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: max_ijk
       INTEGER, INTENT(IN)                                :: color_sub
 
-      INTEGER                                            :: iib, ijk_counter, jjb, kkb, my_homo, &
-                                                            num_sing_ij, total_ijk
+      INTEGER                                            :: iib, ijk_counter, ispin, jjb, kkb, &
+                                                            my_homo, nspins, num_sing_ij, total_ijk
       LOGICAL                                            :: alpha_beta
 
-      alpha_beta = (SIZE(Eigenval, 2) == 2)
+      nspins = SIZE(homo)
+      alpha_beta = (nspins == 2)
 
-      IF (alpha_beta) THEN
-         my_homo = homo(2)
-      ELSE
-         my_homo = homo(1)
-      ENDIF
+      ALLOCATE (ijk_map(nspins))
+      ALLOCATE (my_ijk(nspins))
+      ALLOCATE (num_ijk(0:para_env_exchange%num_pe - 1, nspins))
+      ALLOCATE (max_ijk(nspins))
 
       ! General case
-      num_sing_ij = 0
-      DO iiB = 1, homo(1)
-         ! diagonal elements already updated
-         DO jjB = iiB + 1, homo(1)
-            IF (ABS(Eigenval(jjB, 1) - Eigenval(iiB, 1)) < mp2_env%ri_mp2%eps_canonical) &
-               num_sing_ij = num_sing_ij + 1
-         END DO
-      END DO
-      IF (.NOT. beta_beta) THEN
-         IF (unit_nr > 0) THEN
-            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-               "MO_INFO| Number of ij pairs below EPS_CANONICAL:", num_sing_ij
-         END IF
-      ELSE
-         IF (unit_nr > 0) THEN
-            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-               "MO_INFO| Number of ij pairs (spin beta) below EPS_CANONICAL:", num_sing_ij
-         END IF
-      END IF
-      total_ijk = my_homo*num_sing_ij
-      ALLOCATE (ijk_map(SIZE(homo)))
-      ALLOCATE (ijk_map(1)%array(total_ijk, 3))
-      ijk_map(1)%array = 0
+      DO ispin = 1, nspins
+         my_homo = homo(nspins)
+         IF (ispin == 2) my_homo = homo(1)
 
-      ALLOCATE (my_ijk(SIZE(homo)))
-      my_ijk(1) = 0
-      ijk_counter = 0
-      DO iiB = 1, homo(1)
-         ! diagonal elements already updated
-         DO jjB = iiB + 1, homo(1)
-            IF (ABS(Eigenval(jjB, 1) - Eigenval(iiB, 1)) >= mp2_env%ri_mp2%eps_canonical) CYCLE
-            DO kkB = 1, my_homo
-               ijk_counter = ijk_counter + 1
-               ijk_map(1)%array(ijk_counter, 1) = iiB
-               ijk_map(1)%array(ijk_counter, 2) = jjB
-               ijk_map(1)%array(ijk_counter, 3) = kkB
-               IF (MOD(ijk_counter, ngroup) == color_sub) my_ijk(1) = my_ijk(1) + 1
-            END DO
-         END DO
-      END DO
-
-      ALLOCATE (num_ijk(0:para_env_exchange%num_pe - 1, SIZE(homo)))
-      CALL mp_allgather(my_ijk(1), num_ijk(:, 1), para_env_exchange%group)
-      ALLOCATE (max_ijk(SIZE(homo)))
-      max_ijk(1) = MAXVAL(num_ijk(:, 1))
-
-      ! Alpha-beta case: we need a second map
-      IF (alpha_beta) THEN
          num_sing_ij = 0
-         DO iiB = 1, homo(2)
+         DO iiB = 1, homo(ispin)
             ! diagonal elements already updated
-            DO jjB = iiB + 1, homo(2)
-               IF (ABS(Eigenval(jjB, 2) - Eigenval(iiB, 2)) < mp2_env%ri_mp2%eps_canonical) &
+            DO jjB = iiB + 1, homo(ispin)
+               IF (ABS(Eigenval(jjB, ispin) - Eigenval(iiB, ispin)) < mp2_env%ri_mp2%eps_canonical) &
                   num_sing_ij = num_sing_ij + 1
             END DO
          END DO
-         ! total number of elemets that have to be computed
-         total_ijk = homo(1)*num_sing_ij
-         ALLOCATE (ijk_map(2)%array(total_ijk, 3))
-         ijk_map(2)%array = 0
-         my_ijk(2) = 0
+
+         IF (.NOT. beta_beta .AND. ispin /= 2) THEN
+            IF (unit_nr > 0) THEN
+               WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+                  "MO_INFO| Number of ij pairs below EPS_CANONICAL:", num_sing_ij
+            END IF
+         ELSE
+            IF (unit_nr > 0) THEN
+               WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+                  "MO_INFO| Number of ij pairs (spin beta) below EPS_CANONICAL:", num_sing_ij
+            END IF
+         ENDIF
+         total_ijk = my_homo*num_sing_ij
+         ALLOCATE (ijk_map(ispin)%array(total_ijk, 3))
+         ijk_map(ispin)%array = 0
+
+         my_ijk(ispin) = 0
          ijk_counter = 0
-         DO iiB = 1, homo(2)
+         DO iiB = 1, homo(ispin)
             ! diagonal elements already updated
-            DO jjB = iiB + 1, homo(2)
-               IF (ABS(Eigenval(jjB, 2) - Eigenval(iiB, 2)) >= mp2_env%ri_mp2%eps_canonical) CYCLE
-               DO kkB = 1, homo(1)
+            DO jjB = iiB + 1, homo(ispin)
+               IF (ABS(Eigenval(jjB, ispin) - Eigenval(iiB, ispin)) >= mp2_env%ri_mp2%eps_canonical) CYCLE
+               DO kkB = 1, my_homo
                   ijk_counter = ijk_counter + 1
-                  ijk_map(2)%array(ijk_counter, 1) = iiB
-                  ijk_map(2)%array(ijk_counter, 2) = jjB
-                  ijk_map(2)%array(ijk_counter, 3) = kkB
-                  IF (MOD(ijk_counter, ngroup) == color_sub) my_ijk(2) = my_ijk(2) + 1
+                  ijk_map(ispin)%array(ijk_counter, 1) = iiB
+                  ijk_map(ispin)%array(ijk_counter, 2) = jjB
+                  ijk_map(ispin)%array(ijk_counter, 3) = kkB
+                  IF (MOD(ijk_counter, ngroup) == color_sub) my_ijk(ispin) = my_ijk(ispin) + 1
                END DO
             END DO
          END DO
-         CALL mp_allgather(my_ijk(2), num_ijk(:, 2), para_env_exchange%group)
-         max_ijk(2) = MAXVAL(num_ijk(:, 2))
-      ENDIF
+
+         CALL mp_allgather(my_ijk(ispin), num_ijk(:, ispin), para_env_exchange%group)
+         max_ijk(ispin) = MAXVAL(num_ijk(:, ispin))
+      END DO
 
    END SUBROUTINE Find_quasi_degenerate_ij
 
