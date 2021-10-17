@@ -292,7 +292,7 @@ CONTAINS
                      BI_C_rec = 0.0_dp
                      CALL mp_sendrecv(BIb_C(ispin)%array(:, :, send_i:send_i + send_block_size - 1), &
                                       proc_send, BI_C_rec, proc_receive, &
-                                      para_env_exchange%group)
+                                      para_env_exchange%group, tag)
                      DO irep = 0, num_integ_group - 1
                         Lstart_pos = ranges_info_array(1, irep, proc_receive)
                         Lend_pos = ranges_info_array(2, irep, proc_receive)
@@ -310,7 +310,7 @@ CONTAINS
                      BI_C_rec = 0.0_dp
                      CALL mp_sendrecv(BIb_C(jspin)%array(:, :, send_j:send_j + send_block_size - 1), &
                                       proc_send, BI_C_rec, proc_receive, &
-                                      para_env_exchange%group)
+                                      para_env_exchange%group, tag)
 
                      DO irep = 0, num_integ_group - 1
                         Lstart_pos = ranges_info_array(1, irep, proc_receive)
@@ -403,7 +403,7 @@ CONTAINS
 
                            CALL mp_sendrecv(my_local_i_aL, proc_send, &
                                             external_i_aL, proc_receive, &
-                                            para_env_sub%group)
+                                            para_env_sub%group, tag)
 
                            CALL dgemm('T', 'N', rec_B_size, my_B_size(jspin), dimen_RI, 1.0_dp, &
                                       external_i_aL, dimen_RI, my_local_j_aL, dimen_RI, &
@@ -421,7 +421,7 @@ CONTAINS
 
                               CALL mp_sendrecv(my_local_j_aL, proc_send, &
                                                external_i_aL, proc_receive, &
-                                               para_env_sub%group)
+                                               para_env_sub%group, tag)
 
                               CALL dgemm('T', 'N', rec_B_size, my_B_size(ispin), dimen_RI, 1.0_dp, &
                                          external_i_aL, dimen_RI, my_local_i_aL, dimen_RI, &
@@ -486,7 +486,7 @@ CONTAINS
 
                               CALL mp_sendrecv(local_ab(send_B_virtual_start:send_B_virtual_end, 1:my_B_size(ispin)), proc_send, &
                                                external_ab(1:my_B_size(ispin), 1:rec_B_size), proc_receive, &
-                                               para_env_sub%group)
+                                               para_env_sub%group, tag)
 
                               DO b = 1, my_B_size(ispin)
                                  b_global = b + my_B_virtual_start(ispin) - 1
@@ -652,7 +652,7 @@ CONTAINS
 
                DO kspin = ispin, jspin
                   CALL mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia(kspin)%array(:, :, start_point:end_point), &
-                                   proc_send, BIb_C(kspin)%array, proc_receive, para_env_rep%group)
+                                   proc_send, BIb_C(kspin)%array, proc_receive, para_env_rep%group, tag)
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
 !$OMP          SHARED(mp2_env,BIb_C,kspin,homo,my_B_size,my_group_L_size)
                   mp2_env%ri_grad%Gamma_P_ia(kspin)%array(1:homo(kspin), 1:my_B_size(kspin), 1:my_group_L_size) = &
@@ -2059,7 +2059,7 @@ CONTAINS
                   IF (ijk_index <= send_ijk_index) THEN
                      CALL mp_sendrecv(BIb_C(ispin)%array(1:my_group_L_size, 1:size_B_i, send_i), proc_send, &
                                       BI_C_rec(1:rec_L_size, 1:size_B_i), proc_receive, &
-                                      para_env_exchange%group)
+                                      para_env_exchange%group, tag)
                   ELSE
                      ! nothing to send
                      CALL mp_recv(BI_C_rec(1:rec_L_size, 1:size_B_i), proc_receive, tag, &
@@ -2079,7 +2079,7 @@ CONTAINS
                   IF (ijk_index <= send_ijk_index) THEN
                      CALL mp_sendrecv(BIb_C(ispin)%array(1:my_group_L_size, 1:size_B_i, send_j), proc_send, &
                                       BI_C_rec(1:rec_L_size, 1:size_B_i), proc_receive, &
-                                      para_env_exchange%group)
+                                      para_env_exchange%group, tag)
                   ELSE
                      ! nothing to send
                      CALL mp_recv(BI_C_rec(1:rec_L_size, 1:size_B_i), proc_receive, tag, &
@@ -2102,7 +2102,7 @@ CONTAINS
                   IF (ijk_index <= send_ijk_index) THEN
                      CALL mp_sendrecv(BIb_C(kspin)%array(1:my_group_L_size, 1:size_B_k, send_k), proc_send, &
                                       BI_C_rec(1:rec_L_size, 1:size_B_k), proc_receive, &
-                                      para_env_exchange%group)
+                                      para_env_exchange%group, tag)
                   ELSE
                      ! nothing to send
                      BI_C_rec = 0.0_dp
@@ -2141,7 +2141,7 @@ CONTAINS
 
                   CALL mp_sendrecv(local_aL(:, :size_B_i), proc_send, &
                                    external_aL, proc_receive, &
-                                   para_env_sub%group)
+                                   para_env_sub%group, tag)
 
                   CALL dgemm('T', 'N', rec_B_size, size_B_k, dimen_RI, 1.0_dp, &
                              external_aL, dimen_RI, local_aL(:, size_B_ij + 1:), dimen_RI, &
@@ -2188,7 +2188,7 @@ CONTAINS
                      ALLOCATE (external_ab(size_B_i, rec_B_size))
                      external_ab = 0.0_dp
                      CALL mp_sendrecv(local_ab(send_B_virtual_start:send_B_virtual_end, 1:size_B_k), proc_send, &
-                                      external_ab(1:size_B_i, 1:rec_B_size), proc_receive, para_env_sub%group)
+                                      external_ab(1:size_B_i, 1:rec_B_size), proc_receive, para_env_sub%group, tag)
 
                      DO b = 1, my_B_size(1)
                         b_global = b + my_B_virtual_start(1) - 1
@@ -2224,7 +2224,7 @@ CONTAINS
 
                   CALL mp_sendrecv(local_aL(:, size_B_i + 1:size_B_ij), proc_send, &
                                    external_aL, proc_receive, &
-                                   para_env_sub%group)
+                                   para_env_sub%group, tag)
 
                   CALL dgemm('T', 'N', rec_B_size, size_B_k, dimen_RI, 1.0_dp, &
                              external_aL, dimen_RI, local_aL(:, size_B_ij + 1:), dimen_RI, &
