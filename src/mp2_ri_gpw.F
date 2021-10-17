@@ -2073,6 +2073,16 @@ CONTAINS
 
                      local_aL(Lstart_pos:Lend_pos, 1:size_B_i) = BI_C_rec(start_point:end_point, 1:size_B_i)
                   END DO
+                  IF (my_i == my_k .AND. .NOT. alpha_beta) THEN
+                     DO irep = 0, num_integ_group - 1
+                        Lstart_pos = ranges_info_array(1, irep, proc_receive)
+                        Lend_pos = ranges_info_array(2, irep, proc_receive)
+                        start_point = ranges_info_array(3, irep, proc_receive)
+                        end_point = ranges_info_array(4, irep, proc_receive)
+
+                        local_aL(Lstart_pos:Lend_pos, size_B_ij + 1:size_B_ijk) = BI_C_rec(start_point:end_point, 1:size_B_k)
+                     END DO
+                  END IF
 
                   ! occupied j
                   BI_C_rec = 0.0_dp
@@ -2093,30 +2103,64 @@ CONTAINS
 
                      local_aL(Lstart_pos:Lend_pos, size_B_i + 1:size_B_ij) = BI_C_rec(start_point:end_point, 1:size_B_i)
                   END DO
+                  IF (my_j == my_k .AND. .NOT. alpha_beta) THEN
+                     DO irep = 0, num_integ_group - 1
+                        Lstart_pos = ranges_info_array(1, irep, proc_receive)
+                        Lend_pos = ranges_info_array(2, irep, proc_receive)
+                        start_point = ranges_info_array(3, irep, proc_receive)
+                        end_point = ranges_info_array(4, irep, proc_receive)
 
-                  ! occupied k
-                  BI_C_rec = 0.0_dp
-                  DEALLOCATE (BI_C_rec)
-                  ALLOCATE (BI_C_rec(rec_L_size, size_B_k))
-                  BI_C_rec = 0.0_dp
-                  IF (ijk_index <= send_ijk_index) THEN
-                     CALL mp_sendrecv(BIb_C(kspin)%array(1:my_group_L_size, 1:size_B_k, send_k), proc_send, &
-                                      BI_C_rec(1:rec_L_size, 1:size_B_k), proc_receive, &
-                                      para_env_exchange%group, tag)
-                  ELSE
-                     ! nothing to send
-                     BI_C_rec = 0.0_dp
-                     CALL mp_recv(BI_C_rec(1:rec_L_size, 1:size_B_k), proc_receive, tag, &
-                                  para_env_exchange%group)
+                        local_aL(Lstart_pos:Lend_pos, size_B_ij + 1:size_B_ijk) = BI_C_rec(start_point:end_point, 1:size_B_k)
+                     END DO
                   END IF
-                  DO irep = 0, num_integ_group - 1
-                     Lstart_pos = ranges_info_array(1, irep, proc_receive)
-                     Lend_pos = ranges_info_array(2, irep, proc_receive)
-                     start_point = ranges_info_array(3, irep, proc_receive)
-                     end_point = ranges_info_array(4, irep, proc_receive)
 
-                     local_aL(Lstart_pos:Lend_pos, size_B_ij + 1:size_B_ijk) = BI_C_rec(start_point:end_point, 1:size_B_k)
-                  END DO
+                  IF ((my_i /= my_k .AND. my_j /= my_k) .OR. alpha_beta) THEN
+                     IF ((send_i /= send_k .AND. send_j /= send_k) .OR. alpha_beta) THEN
+                        ! occupied k
+                        BI_C_rec = 0.0_dp
+                        DEALLOCATE (BI_C_rec)
+                        ALLOCATE (BI_C_rec(rec_L_size, size_B_k))
+                        BI_C_rec = 0.0_dp
+                        IF (ijk_index <= send_ijk_index) THEN
+                           CALL mp_sendrecv(BIb_C(kspin)%array(1:my_group_L_size, 1:size_B_k, send_k), proc_send, &
+                                            BI_C_rec(1:rec_L_size, 1:size_B_k), proc_receive, &
+                                            para_env_exchange%group, tag)
+                        ELSE
+                           ! nothing to send
+                           BI_C_rec = 0.0_dp
+                           CALL mp_recv(BI_C_rec(1:rec_L_size, 1:size_B_k), proc_receive, tag, &
+                                        para_env_exchange%group)
+                        END IF
+                        DO irep = 0, num_integ_group - 1
+                           Lstart_pos = ranges_info_array(1, irep, proc_receive)
+                           Lend_pos = ranges_info_array(2, irep, proc_receive)
+                           start_point = ranges_info_array(3, irep, proc_receive)
+                           end_point = ranges_info_array(4, irep, proc_receive)
+
+                           local_aL(Lstart_pos:Lend_pos, size_B_ij + 1:size_B_ijk) = BI_C_rec(start_point:end_point, 1:size_B_k)
+                        END DO
+                     ELSE IF (.NOT. alpha_beta) THEN
+                        ! occupied k
+                        BI_C_rec = 0.0_dp
+                        DEALLOCATE (BI_C_rec)
+                        ALLOCATE (BI_C_rec(rec_L_size, size_B_k))
+                        BI_C_rec = 0.0_dp
+                        BI_C_rec = 0.0_dp
+                        CALL mp_recv(BI_C_rec(1:rec_L_size, 1:size_B_k), proc_receive, tag, &
+                                     para_env_exchange%group)
+                        DO irep = 0, num_integ_group - 1
+                           Lstart_pos = ranges_info_array(1, irep, proc_receive)
+                           Lend_pos = ranges_info_array(2, irep, proc_receive)
+                           start_point = ranges_info_array(3, irep, proc_receive)
+                           end_point = ranges_info_array(4, irep, proc_receive)
+
+                           local_aL(Lstart_pos:Lend_pos, size_B_ij + 1:size_B_ijk) = BI_C_rec(start_point:end_point, 1:size_B_k)
+                        END DO
+                     END IF
+                  ELSE IF (send_i /= send_k .AND. send_j /= send_k .AND. .NOT. alpha_beta .AND. ijk_index <= send_ijk_index) THEN
+                     CALL mp_send(BIb_C(kspin)%array(1:my_group_L_size, 1:size_B_k, send_k), proc_send, &
+                                  tag, para_env_exchange%group)
+                  END IF
 
                   DEALLOCATE (BI_C_rec)
                END DO
@@ -2281,9 +2325,11 @@ CONTAINS
                      ! occupied j
                      CALL mp_send(BIb_C(ispin)%array(1:my_group_L_size, 1:size_B_i, send_j), proc_send, tag, &
                                   para_env_exchange%group)
-                     ! occupied k
-                     CALL mp_send(BIb_C(kspin)%array(1:my_group_L_size, 1:size_B_k, send_k), proc_send, tag, &
-                                  para_env_exchange%group)
+                     IF ((send_i /= send_k .AND. send_j /= send_k) .OR. alpha_beta) THEN
+                        ! occupied k
+                        CALL mp_send(BIb_C(kspin)%array(1:my_group_L_size, 1:size_B_k, send_k), proc_send, tag, &
+                                     para_env_exchange%group)
+                     END IF
                   END IF
 
                END DO ! proc loop
