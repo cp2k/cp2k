@@ -384,7 +384,6 @@ CONTAINS
                         CALL dgemm('T', 'N', my_B_size(ispin), my_B_size(jspin), dimen_RI, 1.0_dp, &
                                    my_local_i_aL, dimen_RI, my_local_j_aL, dimen_RI, &
                                    0.0_dp, local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), my_B_size(ispin))
-                        CALL dgemm_counter_stop(dgemm_counter, my_B_size(ispin), my_B_size(jspin), dimen_RI)
                         ! Additional integrals only for alpha_beta case and forces
                         IF (my_alpha_beta_case .AND. calc_forces) THEN
                            local_ba(my_B_virtual_start(jspin):my_B_virtual_end(jspin), :) = &
@@ -395,7 +394,8 @@ CONTAINS
                            proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
                            proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
 
-                          CALL get_group_dist(gd_B_virtual(ispin), proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
+                           CALL get_group_dist(gd_B_virtual(ispin), proc_receive, rec_B_virtual_start, &
+                                               rec_B_virtual_end, rec_B_size)
 
                            ALLOCATE (external_i_aL(dimen_RI, rec_B_size))
                            external_i_aL = 0.0_dp
@@ -404,15 +404,13 @@ CONTAINS
                                             external_i_aL, proc_receive, &
                                             para_env_sub%group)
 
-                           CALL dgemm_counter_start(dgemm_counter)
                            CALL dgemm('T', 'N', rec_B_size, my_B_size(jspin), dimen_RI, 1.0_dp, &
                                       external_i_aL, dimen_RI, my_local_j_aL, dimen_RI, &
                                       0.0_dp, local_ab(rec_B_virtual_start:rec_B_virtual_end, 1:my_B_size(jspin)), rec_B_size)
-                           CALL dgemm_counter_stop(dgemm_counter, rec_B_size, my_B_size(jspin), dimen_RI)
 
                            DEALLOCATE (external_i_aL)
                            ! Additional integrals only for alpha_beta case and forces
-                           IF ((my_alpha_beta_case) .AND. (calc_forces)) THEN
+                           IF (my_alpha_beta_case .AND. calc_forces) THEN
 
                               CALL get_group_dist(gd_B_virtual(jspin), proc_receive, rec_B_virtual_start, &
                                                   rec_B_virtual_end, rec_B_size)
@@ -424,16 +422,19 @@ CONTAINS
                                                external_i_aL, proc_receive, &
                                                para_env_sub%group)
 
-                              CALL dgemm_counter_start(dgemm_counter)
                               CALL dgemm('T', 'N', rec_B_size, my_B_size(ispin), dimen_RI, 1.0_dp, &
                                          external_i_aL, dimen_RI, my_local_i_aL, dimen_RI, &
                                          0.0_dp, local_ba(rec_B_virtual_start:rec_B_virtual_end, 1:my_B_size(ispin)), rec_B_size)
-                              CALL dgemm_counter_stop(dgemm_counter, rec_B_size, my_B_size(ispin), dimen_RI)
 
                               DEALLOCATE (external_i_aL)
                            ENDIF
 
                         END DO
+                        IF (my_alpha_beta_case .AND. calc_forces) THEN
+                           CALL dgemm_counter_stop(dgemm_counter, rec_B_size, my_B_size(ispin) + my_B_size(jspin), dimen_RI)
+                        ELSE
+                           CALL dgemm_counter_stop(dgemm_counter, rec_B_size, my_B_size(jspin), dimen_RI)
+                        END IF
                         CALL timestop(handle3)
 
                         !sample peak memory
@@ -1480,28 +1481,24 @@ CONTAINS
 
       ! P_ab and add diagonal part of P_ij
 
+      CALL dgemm_counter_start(dgemm_counter)
       IF (.NOT. (alpha_beta)) THEN
-         CALL dgemm_counter_start(dgemm_counter)
          CALL dgemm('T', 'N', my_B_size(ispin), my_B_size(ispin), virtual(ispin), 1.0_dp, &
                     t_ab, virtual(ispin), local_ab, virtual(ispin), &
                     1.0_dp, mp2_env%ri_grad%P_ab(ispin)%array(:, &
                                                               my_B_virtual_start(ispin):my_B_virtual_end(ispin)), my_B_size(ispin))
-         CALL dgemm_counter_stop(dgemm_counter, my_B_size(ispin), my_B_size(ispin), virtual(ispin))
          mp2_env%ri_grad%P_ij(ispin)%array(my_i + iiB - 1, my_i + iiB - 1) = &
             mp2_env%ri_grad%P_ij(ispin)%array(my_i + iiB - 1, my_i + iiB - 1) + P_ij_diag
       ELSE
-         CALL dgemm_counter_start(dgemm_counter)
          CALL dgemm('T', 'N', my_B_size(ispin), my_B_size(ispin), virtual(jspin), mp2_env%scale_S, &
                     local_ba, virtual(jspin), local_ba, virtual(jspin), 1.0_dp, &
                     mp2_env%ri_grad%P_ab(ispin)%array(:, my_B_virtual_start(ispin):my_B_virtual_end(ispin)), my_B_size(ispin))
          CALL dgemm_counter_stop(dgemm_counter, my_B_size(ispin), my_B_size(ispin), virtual(jspin))
          mp2_env%ri_grad%P_ij(ispin)%array(my_i + iiB - 1, my_i + iiB - 1) = &
             mp2_env%ri_grad%P_ij(ispin)%array(my_i + iiB - 1, my_i + iiB - 1) + P_ij_diag
-         CALL dgemm_counter_start(dgemm_counter)
          CALL dgemm('T', 'N', my_B_size(jspin), my_B_size(jspin), virtual(ispin), mp2_env%scale_S, &
                     local_ab, virtual(ispin), local_ab, virtual(ispin), 1.0_dp, &
                     mp2_env%ri_grad%P_ab(jspin)%array(:, my_B_virtual_start(jspin):my_B_virtual_end(jspin)), my_B_size(jspin))
-         CALL dgemm_counter_stop(dgemm_counter, my_B_size(jspin), my_B_size(jspin), virtual(ispin))
          mp2_env%ri_grad%P_ij(jspin)%array(my_j + jjB - 1, my_j + jjB - 1) = &
             mp2_env%ri_grad%P_ij(jspin)%array(my_j + jjB - 1, my_j + jjB - 1) + P_ij_diag
       END IF
@@ -1509,7 +1506,6 @@ CONTAINS
       ! both i^alpha,j^beta and i^beta,j^alpha. Formally, my_i can be equal to my_j, but they are different
       ! due to spin in alpha-beta case.
       IF ((my_i /= my_j) .AND. (.NOT. alpha_beta)) THEN
-         CALL dgemm_counter_start(dgemm_counter)
          CALL dgemm('N', 'T', my_B_size(ispin), virtual(ispin), my_B_size(ispin), 1.0_dp, &
                     t_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), my_B_size(ispin), &
                     local_ab, virtual(ispin), &
@@ -1533,18 +1529,14 @@ CONTAINS
                           para_env_sub%group)
 
          IF (.NOT. (alpha_beta)) THEN
-            CALL dgemm_counter_start(dgemm_counter)
             CALL dgemm('T', 'N', my_B_size(ispin), rec_B_size, virtual(ispin), 1.0_dp, &
                        t_ab, virtual(ispin), external_ab, virtual(ispin), &
                        1.0_dp, mp2_env%ri_grad%P_ab(ispin)%array(:, rec_B_virtual_start:rec_B_virtual_end), my_B_size(ispin))
-            CALL dgemm_counter_stop(dgemm_counter, my_B_size(ispin), rec_B_size, virtual(ispin))
          ELSE
-            CALL dgemm_counter_start(dgemm_counter)
             CALL dgemm('T', 'N', my_B_size(jspin), rec_B_size, virtual(ispin), mp2_env%scale_S, &
                        local_ab, virtual(ispin), external_ab, virtual(ispin), &
                        1.0_dp, mp2_env%ri_grad%P_ab(jspin)%array(:, rec_B_virtual_start:rec_B_virtual_end), &
                        my_B_size(jspin))
-            CALL dgemm_counter_stop(dgemm_counter, my_B_size(jspin), rec_B_size, virtual(ispin))
 
             ! For alpha-beta part of alpha-density we need a new parallel code
             DEALLOCATE (external_ab)
@@ -1556,11 +1548,9 @@ CONTAINS
             CALL mp_sendrecv(local_ba, proc_send, &
                              external_ab, proc_receive, &
                              para_env_sub%group)
-            CALL dgemm_counter_start(dgemm_counter)
             CALL dgemm('T', 'N', my_B_size(ispin), rec_B_size, virtual(jspin), mp2_env%scale_S, &
                        local_ba, virtual(jspin), external_ab, virtual(jspin), &
                        1.0_dp, mp2_env%ri_grad%P_ab(ispin)%array(:, rec_B_virtual_start:rec_B_virtual_end), my_B_size(ispin))
-            CALL dgemm_counter_stop(dgemm_counter, my_B_size(ispin), rec_B_size, virtual(jspin))
          ENDIF
 
          DEALLOCATE (external_ab)
@@ -1572,12 +1562,10 @@ CONTAINS
             ALLOCATE (send_ab(send_B_size, virtual(ispin)))
             send_ab = 0.0_dp
 
-            CALL dgemm_counter_start(dgemm_counter)
             CALL dgemm('N', 'T', send_B_size, virtual(ispin), my_B_size(ispin), 1.0_dp, &
                        t_ab(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
                        local_ab, virtual(ispin), &
                        0.0_dp, send_ab, send_B_size)
-            CALL dgemm_counter_stop(dgemm_counter, send_B_size, virtual(ispin), my_B_size(ispin))
 
             CALL mp_sendrecv(send_ab, proc_send, &
                              external_ab, proc_receive, &
@@ -1590,27 +1578,33 @@ CONTAINS
          END IF
 
       END DO
+      IF (.NOT. alpha_beta) THEN
+      IF (my_i /= my_j) THEN
+         CALL dgemm_counter_stop(dgemm_counter, 2*my_B_size(ispin), virtual(ispin), virtual(ispin))
+      ELSE
+         CALL dgemm_counter_stop(dgemm_counter, my_B_size(ispin), virtual(ispin), virtual(ispin))
+      END IF
+      ELSE
+      CALL dgemm_counter_stop(dgemm_counter, SUM(my_B_size), virtual(ispin), virtual(jspin))
+      END IF
       CALL timestop(handle)
 
       ! Now, Gamma_P_ia (made of Y_ia_P)
 
       CALL timeset(routineN//"_Gamma", handle)
+      CALL dgemm_counter_start(dgemm_counter)
       IF (.NOT. alpha_beta) THEN
          ! Alpha-alpha, beta-beta and closed shell
-         CALL dgemm_counter_start(dgemm_counter)
          CALL dgemm('N', 'T', my_B_size(ispin), dimen_RI, my_B_size(ispin), 1.0_dp, &
                     t_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), my_B_size(ispin), &
                     my_local_j_aL, dimen_RI, 1.0_dp, Y_i_aP, my_B_size(ispin))
-         CALL dgemm_counter_stop(dgemm_counter, my_B_size(ispin), dimen_RI, my_B_size(ispin))
       ELSE ! Alpha-beta
-         CALL dgemm_counter_start(dgemm_counter)
          CALL dgemm('N', 'T', my_B_size(ispin), dimen_RI, my_B_size(jspin), mp2_env%scale_S, &
                     local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), my_B_size(ispin), &
                     my_local_j_aL, dimen_RI, 1.0_dp, Y_i_aP, my_B_size(ispin))
          CALL dgemm('T', 'T', my_B_size(jspin), dimen_RI, my_B_size(ispin), mp2_env%scale_S, &
                     local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), my_B_size(ispin), &
                     my_local_i_aL, dimen_RI, 1.0_dp, Y_j_aP, my_B_size(jspin))
-         CALL dgemm_counter_stop(dgemm_counter, my_B_size(jspin), dimen_RI, my_B_size(ispin))
 
       END IF
 
@@ -1627,11 +1621,9 @@ CONTAINS
          IF (.NOT. alpha_beta) THEN
             ALLOCATE (send_ab(send_B_size, dimen_RI))
             send_ab = 0.0_dp
-            CALL dgemm_counter_start(dgemm_counter)
             CALL dgemm('N', 'T', send_B_size, dimen_RI, my_B_size(ispin), 1.0_dp, &
                        t_ab(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
                        my_local_j_aL, dimen_RI, 0.0_dp, send_ab, send_B_size)
-            CALL dgemm_counter_stop(dgemm_counter, send_B_size, dimen_RI, my_B_size(ispin))
             CALL mp_sendrecv(send_ab, proc_send, external_ab, proc_receive, para_env_sub%group)
 
             Y_i_aP(:, :) = Y_i_aP + external_ab
@@ -1641,11 +1633,9 @@ CONTAINS
             ! Alpha-alpha part
             ALLOCATE (send_ab(send_B_size, dimen_RI))
             send_ab = 0.0_dp
-            CALL dgemm_counter_start(dgemm_counter)
             CALL dgemm('N', 'T', send_B_size, dimen_RI, my_B_size(jspin), mp2_env%scale_S, &
                        local_ab(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
                        my_local_j_aL, dimen_RI, 0.0_dp, send_ab, send_B_size)
-            CALL dgemm_counter_stop(dgemm_counter, send_B_size, dimen_RI, my_B_size(jspin))
             CALL mp_sendrecv(send_ab, proc_send, external_ab, proc_receive, para_env_sub%group)
             Y_i_aP(:, :) = Y_i_aP + external_ab
             DEALLOCATE (send_ab)
@@ -1665,18 +1655,21 @@ CONTAINS
             ALLOCATE (send_ab(send_B_size, dimen_RI))
             send_ab = 0.0_dp
 
-            CALL dgemm_counter_start(dgemm_counter)
             CALL dgemm('N', 'T', send_B_size, dimen_RI, my_B_size(ispin), mp2_env%scale_S, &
                        local_ba(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
                        my_local_i_aL, dimen_RI, 0.0_dp, send_ab, send_B_size)
-            CALL dgemm_counter_stop(dgemm_counter, send_B_size, dimen_RI, my_B_size(ispin))
             CALL mp_sendrecv(send_ab, proc_send, external_ab, proc_receive, para_env_sub%group)
             Y_j_aP(:, :) = Y_j_aP + external_ab
             DEALLOCATE (send_ab)
 
          END DO
          DEALLOCATE (external_ab)
-      END IF
+
+         ! Here, we just use approximate bounds. For large systems virtual(ispin) is approx virtual(jspin), same for B_size
+         CALL dgemm_counter_stop(dgemm_counter, 3*virtual(ispin), dimen_RI, my_B_size(jspin))
+      ELSE
+         CALL dgemm_counter_stop(dgemm_counter, virtual(ispin), dimen_RI, my_B_size(ispin))
+      ENDIF
 
       IF ((my_i /= my_j) .AND. (.NOT. alpha_beta)) THEN
          ! Alpha-alpha, beta-beta and closed shell
@@ -1684,7 +1677,6 @@ CONTAINS
          CALL dgemm('T', 'T', my_B_size(ispin), dimen_RI, my_B_size(ispin), 1.0_dp, &
                     t_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), my_B_size(ispin), &
                     my_local_i_aL, dimen_RI, 1.0_dp, Y_j_aP, my_B_size(ispin))
-         CALL dgemm_counter_stop(dgemm_counter, my_B_size(ispin), dimen_RI, my_B_size(ispin))
 
          DO proc_shift = 1, para_env_sub%num_pe - 1
             proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
@@ -1698,15 +1690,15 @@ CONTAINS
             CALL mp_sendrecv(my_local_i_aL, proc_send, &
                              external_ab, proc_receive, para_env_sub%group)
 
-            CALL dgemm_counter_start(dgemm_counter)
             ! Alpha-alpha, beta-beta and closed shell
             CALL dgemm('T', 'T', my_B_size(ispin), dimen_RI, rec_B_size, 1.0_dp, &
                        t_ab(rec_B_virtual_start:rec_B_virtual_end, :), rec_B_size, &
                        external_ab, dimen_RI, 1.0_dp, Y_j_aP, my_B_size(ispin))
-            CALL dgemm_counter_stop(dgemm_counter, my_B_size(ispin), dimen_RI, rec_B_size)
 
             DEALLOCATE (external_ab)
          END DO
+
+         CALL dgemm_counter_stop(dgemm_counter, my_B_size(ispin), dimen_RI, virtual(ispin))
       END IF
 
       CALL timestop(handle)
@@ -2226,21 +2218,18 @@ CONTAINS
 
                ! expand integrals
                CALL timeset(routineN//"_exp_ik", handle2)
+               CALL dgemm_counter_start(dgemm_counter)
                IF (iloops .EQ. 2) THEN ! For alpha-beta case for beta-beta density the dimensions are different
                   ALLOCATE (local_ab(virtual_beta, size_B_k))
                   local_ab = 0.0_dp
-                  CALL dgemm_counter_start(dgemm_counter)
                   CALL dgemm('T', 'N', size_B_i, size_B_k, dimen_RI, 1.0_dp, &
                              local_aL(:, :size_B_i), dimen_RI, local_aL(:, size_B_ij + 1:), dimen_RI, &
                              0.0_dp, local_ab(my_B_virtual_start_beta:my_B_virtual_end_beta, 1:size_B_k), size_B_i)
-                  CALL dgemm_counter_stop(dgemm_counter, size_B_i, size_B_k, dimen_RI)
                ELSE
                   ALLOCATE (local_ab(virtual, size_B_k))
-                  CALL dgemm_counter_start(dgemm_counter)
                   CALL dgemm('T', 'N', size_B_i, size_B_k, dimen_RI, 1.0_dp, &
                              local_aL(:, :size_B_i), dimen_RI, local_aL(:, size_B_ij + 1:), dimen_RI, &
                              0.0_dp, local_ab(my_B_virtual_start:my_B_virtual_end, 1:size_B_k), size_B_i)
-                  CALL dgemm_counter_stop(dgemm_counter, size_B_i, size_B_k, dimen_RI)
                ENDIF
                DO proc_shift = 1, para_env_sub%num_pe - 1
                   proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
@@ -2259,14 +2248,17 @@ CONTAINS
                                    external_aL, proc_receive, &
                                    para_env_sub%group)
 
-                  CALL dgemm_counter_start(dgemm_counter)
                   CALL dgemm('T', 'N', rec_B_size, size_B_k, dimen_RI, 1.0_dp, &
                              external_aL, dimen_RI, local_aL(:, size_B_ij + 1:), dimen_RI, &
                              0.0_dp, local_ab(rec_B_virtual_start:rec_B_virtual_end, 1:size_B_k), rec_B_size)
-                  CALL dgemm_counter_stop(dgemm_counter, rec_B_size, size_B_k, dimen_RI)
 
                   DEALLOCATE (external_aL)
                END DO
+               IF (iloops .EQ. 1) THEN
+                  CALL dgemm_counter_stop(dgemm_counter, virtual, size_B_k, dimen_RI)
+               ELSE
+                  CALL dgemm_counter_stop(dgemm_counter, virtual_beta, size_B_k, dimen_RI)
+               END IF
                CALL timestop(handle2)
 
                ! Amplitudes
@@ -2335,19 +2327,15 @@ CONTAINS
                ! Expand the second set of integrals
                CALL timeset(routineN//"_exp_jk", handle2)
                local_ab = 0.0_dp
-
+               CALL dgemm_counter_start(dgemm_counter)
                IF (iloops .EQ. 2) THEN ! In alpha-beta case for beta-beta density the dimensions are different
-                  CALL dgemm_counter_start(dgemm_counter)
                   CALL dgemm('T', 'N', size_B_j, size_B_k, dimen_RI, 1.0_dp, &
                              local_aL(:, size_B_i + 1:size_B_ij), dimen_RI, local_aL(:, size_B_ij + 1:), dimen_RI, &
                              0.0_dp, local_ab(my_B_virtual_start_beta:my_B_virtual_end_beta, 1:size_B_k), size_B_j)
-                  CALL dgemm_counter_stop(dgemm_counter, size_B_j, size_B_k, dimen_RI)
                ELSE
-                  CALL dgemm_counter_start(dgemm_counter)
                   CALL dgemm('T', 'N', size_B_j, size_B_k, dimen_RI, 1.0_dp, &
                              local_aL(:, size_B_i + 1:size_B_ij), dimen_RI, local_aL(:, size_B_ij + 1:), dimen_RI, &
                              0.0_dp, local_ab(my_B_virtual_start:my_B_virtual_end, 1:size_B_k), size_B_j)
-                  CALL dgemm_counter_stop(dgemm_counter, size_B_j, size_B_k, dimen_RI)
                ENDIF
 
                DO proc_shift = 1, para_env_sub%num_pe - 1
@@ -2367,14 +2355,17 @@ CONTAINS
                                    external_aL, proc_receive, &
                                    para_env_sub%group)
 
-                  CALL dgemm_counter_start(dgemm_counter)
                   CALL dgemm('T', 'N', rec_B_size, size_B_k, dimen_RI, 1.0_dp, &
                              external_aL, dimen_RI, local_aL(:, size_B_ij + 1:), dimen_RI, &
                              0.0_dp, local_ab(rec_B_virtual_start:rec_B_virtual_end, 1:size_B_k), rec_B_size)
-                  CALL dgemm_counter_stop(dgemm_counter, rec_B_size, size_B_k, dimen_RI)
 
                   DEALLOCATE (external_aL)
                END DO
+               IF (iloops .EQ. 1) THEN
+                  CALL dgemm_counter_stop(dgemm_counter, virtual, size_B_k, dimen_RI)
+               ELSE
+                  CALL dgemm_counter_stop(dgemm_counter, virtual_beta, size_B_k, dimen_RI)
+               END IF
                CALL timestop(handle2)
 
                CALL timeset(routineN//"_Pij", handle2)
