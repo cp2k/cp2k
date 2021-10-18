@@ -1842,37 +1842,39 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="A", &
-                          description="Defines the A parameter of the dispersion-damped Fumi-Tosi Potential", &
+                          description="Defines the A parameter of the dispersion-damped Fumi-Tosi potential", &
                           usage="A {real}", type_of_var=real_t, &
                           n_var=1, unit_str="hartree")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="B", &
-                          description="Defines the B parameter of the dispersion-damped Fumi-Tosi Potential", &
+                          description="Defines the B parameter of the dispersion-damped Fumi-Tosi potential", &
                           usage="B {real}", type_of_var=real_t, &
                           n_var=1, unit_str="angstrom^-1")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="C", &
-                          description="Defines the C parameter of the dispersion-damped Fumi-Tosi Potential", &
+                          description="Defines the C parameter of the dispersion-damped Fumi-Tosi potential", &
                           usage="C {real}", type_of_var=real_t, &
                           n_var=1, unit_str="hartree*angstrom^6")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="D", &
-                          description="Defines the D parameter of the dispersion-damped Fumi-Tosi Potential", &
+                          description="Defines the D parameter of the dispersion-damped Fumi-Tosi potential", &
                           usage="D {real}", type_of_var=real_t, &
                           n_var=1, unit_str="hartree*angstrom^8")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="BD", &
-                          description="Defines the BD parameter of the dispersion-damped Fumi-Tosi Potential", &
-                          usage="D {real}", type_of_var=real_t, &
-                          n_var=1, unit_str="angstrom^-1")
+                          description="Defines the BD parameters of the dispersion-damped Fumi-Tosi potential. "// &
+                          "One or two parameter values are expected. If only one value is provided, then this "// &
+                          "value will be used both for the 6th and the 8th order term.", &
+                          usage="BD {real} {real}", type_of_var=real_t, &
+                          n_var=-1, unit_str="angstrom^-1")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
