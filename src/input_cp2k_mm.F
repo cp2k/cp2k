@@ -1800,6 +1800,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief This section specifies the input parameters for BMHFTD potential type
 !> \param section the section to create
+!> \par History
+!>      - Unused input keyword ORDER removed (18.10.2021, MK)
 !> \author Mathieu Salanne 05.2010
 ! **************************************************************************************************
    SUBROUTINE create_BMHFTD_section(section)
@@ -1809,11 +1811,10 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="BMHFTD", &
-                          description="This section specifies the input parameters for BMHFTD potential type."// &
-                          "Functional form: V(r) = A*exp(-B*r) - f_6*(r)C/r^6 - f_8(r)*D/r^8."// &
-                          "where f_order(r)=1-exp(-BD * r) * \sum_{k=0}^order (BD * r)^k / k! ."// &
-                          "(Tang-Toennies damping function)"// &
-                          "No values available inside cp2k.", &
+                          description="This section specifies the input parameters for the BMHFTD potential type."// &
+                          "Functional form: V(r) = A*exp(-B*r) - f_6*(r)C/r^6 - f_8(r)*D/r^8 "// &
+                          "where f_order(r) = 1 - exp(-BD*r)*\sum_{k=0}^order (BD*r)^k/k! "// &
+                          "(Tang-Toennies damping function). No pre-defined parameter values are available.", &
                           citations=(/Tosi1964a, Tosi1964b/), n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
@@ -1872,13 +1873,6 @@ CONTAINS
                           description="Defines the BD parameter of the dispersion-damped Fumi-Tosi Potential", &
                           usage="D {real}", type_of_var=real_t, &
                           n_var=1, unit_str="angstrom^-1")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="ORDER", &
-                          description="Defines the order for this damping.", &
-                          usage="ORDER {integer}", type_of_var=integer_t, &
-                          n_var=1, default_i_val=3)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
