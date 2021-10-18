@@ -179,7 +179,7 @@ CONTAINS
                      ip = 0
                   END IF
                END IF
-            ENDIF
+            END IF
             ! Setup of Exclusion Types
             pot%no_pp = .TRUE.
             pot%no_mb = .TRUE.
@@ -314,7 +314,7 @@ CONTAINS
             x = x - dx2
          END DO
          x = x + dx2
-      ENDDO
+      END DO
       locut = locut_found
 
    END SUBROUTINE get_spline_cutoff
@@ -380,7 +380,7 @@ CONTAINS
          fixed_spline_points = .FALSE.
          npoints = 20
          IF (.NOT. found_locut) npoints = 2
-      ENDIF
+      END IF
       spline_data => spl_p(1)%spline_data
       DO WHILE (.TRUE.)
          CALL init_splinexy(spline_data, npoints + 1)
@@ -609,7 +609,7 @@ CONTAINS
          CASE (ft_type)
             nvar = 4 + nvar
          CASE (ftd_type)
-            nvar = 5 + nvar
+            nvar = 6 + nvar
          CASE (ip_type)
             nvar = 3 + nvar
          CASE (b4_type)
@@ -694,7 +694,8 @@ CONTAINS
                         pot_par(nk, 2) = potparm%pot(i, j)%pot%set(1)%ftd%B
                         pot_par(nk, 3) = potparm%pot(i, j)%pot%set(1)%ftd%C
                         pot_par(nk, 4) = potparm%pot(i, j)%pot%set(1)%ftd%D
-                        pot_par(nk, 5) = potparm%pot(i, j)%pot%set(1)%ftd%BD
+                        pot_par(nk, 5) = potparm%pot(i, j)%pot%set(1)%ftd%BD(1)
+                        pot_par(nk, 6) = potparm%pot(i, j)%pot%set(1)%ftd%BD(2)
                      CASE (ip_type)
                         pot_par(nk, 1) = potparm%pot(i, j)%pot%set(1)%ipbv%rcore
                         pot_par(nk, 2) = potparm%pot(i, j)%pot%set(1)%ipbv%m
@@ -1034,7 +1035,7 @@ CONTAINS
          pot%spl_f%rcutsq_f = 1.0_dp
          pot%spl_f%rscale = 1.0_dp
          pot%spl_f%fscale = 1.0_dp
-      ENDDO
+      END DO
 
       IF (ANY(potential_single_allocation == pot_target)) THEN
          DO i = 1, nvalues
@@ -1062,7 +1063,7 @@ CONTAINS
                   pot%spl_f%fscale(1) = l_epsilon/m_epsilon
                END IF
             END IF
-         ENDDO
+         END DO
       END IF
 
       DO i = 1, nvalues

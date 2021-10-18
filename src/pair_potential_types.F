@@ -136,7 +136,7 @@ MODULE pair_potential_types
       REAL(KIND=dp) :: B
       REAL(KIND=dp) :: C
       REAL(KIND=dp) :: D
-      REAL(KIND=dp) :: BD
+      REAL(KIND=dp), DIMENSION(2) :: BD
    END TYPE ftd_pot_type
 
 ! **************************************************************************************************
@@ -432,7 +432,7 @@ CONTAINS
                 (pot1%set(i)%ftd%B == pot2%set(i)%ftd%B) .AND. &
                 (pot1%set(i)%ftd%C == pot2%set(i)%ftd%C) .AND. &
                 (pot1%set(i)%ftd%D == pot2%set(i)%ftd%D) .AND. &
-                (pot1%set(i)%ftd%BD == pot2%set(i)%ftd%BD)) mycompare = .TRUE.
+                (ALL(pot1%set(i)%ftd%BD(:) == pot2%set(i)%ftd%BD(:)))) mycompare = .TRUE.
          CASE (ip_type)
             IF ((SUM(ABS(pot1%set(i)%ipbv%a - pot2%set(i)%ipbv%a)) == 0.0_dp) .AND. &
                 (pot1%set(i)%ipbv%rcore == pot2%set(i)%ipbv%rcore) .AND. &
