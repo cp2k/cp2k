@@ -2095,10 +2095,10 @@ CONTAINS
             mmom(:) = nlcom_rxrv(:)
          ENDIF
          IF (my_velreprs .AND. (nmom >= 1)) THEN
-            rmom_vel(1:3) =  nlcom_rv
+            rmom_vel(1:3) = nlcom_rv
          ENDIF
          IF (my_velreprs .AND. (nmom >= 2)) THEN
-            rmom_vel(4:9) =  nlcom_rrv
+            rmom_vel(4:9) = nlcom_rrv
          ENDIF
          IF (magnetic .AND. .NOT. my_velreprs) THEN
             CALL print_moments_nl(unit_number, nmom, rlab, mmom=mmom)
