@@ -115,6 +115,7 @@ case "$with_elpa" in
           ${config_flags} \
           --enable-nvidia-gpu=$([ "$TARGET" == "nvidia" ] && echo "yes" || echo "no") \
           --with-cuda-path=${CUDA_PATH} \
+          --with-NVIDIA-GPU-compute-capability=$([ "$TARGET" == "nvidia" ] && echo "sm_$ARCH_NUM" || echo "sm_35") \
           OMPI_MCA_plm_rsh_agent=/bin/false \
           FC=${MPIFC} \
           CC=${MPICC} \
