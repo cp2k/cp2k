@@ -52,24 +52,25 @@ case "$with_cosma" in
       cd build-cpu
       case "$MATH_MODE" in
         mkl)
-          cmake \
-            -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
-            -DCMAKE_INSTALL_LIBDIR=lib \
-            -DCOSMA_BLAS=MKL \
-            -DCOSMA_SCALAPACK=MKL \
-            -DCOSMA_WITH_TESTS=NO \
-            -DCOSMA_WITH_APPS=NO .. > cmake.log 2>&1
+          cosma_blas='MKL'
+          cosma_sl='MKL'
+          ;;
+        cray)
+          cosma_blas='CRAY_LIBSCI'
+          cosma_sl='CRAY_LIBSCI'
           ;;
         *)
-          cmake \
-            -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
-            -DCMAKE_INSTALL_LIBDIR=lib \
-            -DCOSMA_BLAS=OPENBLAS \
-            -DCOSMA_SCALAPACK=CUSTOM \
-            -DCOSMA_WITH_TESTS=NO \
-            -DCOSMA_WITH_APPS=NO .. > cmake.log 2>&1
+          cosma_blas='OPENBLAS'
+          cosma_sl='CUSTOM'
           ;;
       esac
+      cmake \
+        -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCOSMA_BLAS=${cosma_blas} \
+        -DCOSMA_SCALAPACK=${cosma_sl} \
+        -DCOSMA_WITH_TESTS=NO \
+        -DCOSMA_WITH_APPS=NO .. > cmake.log 2>&1
       make -j $(get_nprocs) > make.log 2>&1
       make -j $(get_nprocs) install > install.log 2>&1
       cd ..
@@ -79,26 +80,13 @@ case "$with_cosma" in
         [ -d build-cuda ] && rm -rf "build-cuda"
         mkdir build-cuda
         cd build-cuda
-        case "$MATH_MODE" in
-          mkl)
-            cmake \
-              -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}-cuda" \
-              -DCMAKE_INSTALL_LIBDIR=lib \
-              -DCOSMA_BLAS=CUDA \
-              -DCOSMA_SCALAPACK=MKL \
-              -DCOSMA_WITH_TESTS=NO \
-              -DCOSMA_WITH_APPS=NO .. > cmake.log 2>&1
-            ;;
-          *)
-            cmake \
-              -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}-cuda" \
-              -DCMAKE_INSTALL_LIBDIR=lib \
-              -DCOSMA_BLAS=CUDA \
-              -DCOSMA_SCALAPACK=CUSTOM \
-              -DCOSMA_WITH_TESTS=NO \
-              -DCOSMA_WITH_APPS=NO .. > cmake.log 2>&1
-            ;;
-        esac
+        cmake \
+          -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}-cuda" \
+          -DCMAKE_INSTALL_LIBDIR=lib \
+          -DCOSMA_BLAS=CUDA \
+          -DCOSMA_SCALAPACK=${cosma_sl} \
+          -DCOSMA_WITH_TESTS=NO \
+          -DCOSMA_WITH_APPS=NO .. > cmake.log 2>&1
         make -j $(get_nprocs) > make.log 2>&1
         make -j $(get_nprocs) install > install.log 2>&1
         cd ..
