@@ -184,8 +184,10 @@ CONTAINS
       ALLOCATE (efield2(9, natoms))
 
       nkind = SIZE(atomic_kind_set)
-      IF (iw > 0) WRITE (iw, FMT='(/,T5,"POL_SCF|","Method: self-consistent")')
-      IF (iw > 0) WRITE (iw, FMT='(T5,"POL_SCF|","  Iteration",7X,"Conv.",T49,"Electrostatic & Induction Energy")')
+      IF (iw > 0) THEN
+         WRITE (iw, FMT='(/,T2,"POL_SCF|" ,"Method: self-consistent")')
+         WRITE (iw, FMT='(T2,"POL_SCF| ","  Iteration",7X,"Conv.",T49,"Electrostatic & Induction Energy")')
+      END IF
       pol_scf: DO iter = 1, max_ipol_iter
          ! Evaluate the electrostatic with Ewald schemes
          CALL eval_pol_ewald(ewald_type, ewald_env, ewald_pw, fist_nonbond_env, cell, &
@@ -443,8 +445,11 @@ CONTAINS
       ! The first conjugate residual is equal to the residual.
       conjugate(:, :) = residual
 
-      IF (iw > 0) WRITE (iw, FMT='(/,T5,"POL_SCF|","Method: conjugate-gradient")')
-      IF (iw > 0) WRITE (iw, FMT='(T5,"POL_SCF|","  Iteration",7X,"Conv.",T49,"Electrostatic & Induction Energy")')
+      IF (iw > 0) THEN
+         WRITE (iw, FMT="(/,T2,A,T63,A)") "POL_SCF| Method", "conjugate gradient"
+         WRITE (iw, FMT="(T2,A,T26,A,T49,A)") "POL_SCF| Iteration", &
+            "Convergence", "Electrostatic & Induction Energy"
+      END IF
       pol_scf: DO iter = 1, max_ipol_iter
          IF (debug_this_module) THEN
             ! In principle the residual must not be computed explicitly any more. It
@@ -481,10 +486,10 @@ CONTAINS
          END DO
          rmsd = SQRT(rmsd/ntot)
          IF (iw > 0) THEN
-            WRITE (iw, FMT='(T5,"POL_SCF|",5X,I5,5X,E12.6,T67,"(not computed)")') iter, rmsd
+            WRITE (iw, FMT="(T2,A,T11,I9,T22,E15.6,T67,A)") "POL_SCF|", iter, rmsd, "(not computed)"
             IF (debug_this_module) THEN
                denom = SQRT(denom/ntot)
-               WRITE (iw, FMT='(T5,"POL_SCF|",5X,"Error on implicit residual:",5X,E12.6)') denom
+               WRITE (iw, FMT="(T2,A,T66,E15.6)") "POL_SCF| Error on implicit residual", denom
             END IF
          END IF
 
@@ -556,17 +561,22 @@ CONTAINS
             END DO
          END DO
 
-         ! Quit if rmsd is low enough.
+         ! Quit if rmsd is low enough
          IF (rmsd <= eps_pol) THEN
-            IF (iw > 0) WRITE (iw, FMT='(T5,"POL_SCF|",1X,"Self-consistent Polarization achieved.")')
+            IF (iw > 0) WRITE (iw, FMT="(T2,A)") "POL_SCF| Self-consistent polarization converged"
             EXIT pol_scf
          END IF
 
-         ! Print warning when not converged.
-         iwarn = ((rmsd > eps_pol) .AND. (iter == max_ipol_iter))
-         IF (iwarn .AND. iw > 0) WRITE (iw, FMT='(T5,"POL_SCF|",1X,"Self-consistent Polarization not converged!")')
-         IF (iwarn) &
-            CPWARN("Self-consistent Polarization not converged! ")
+         ! Print warning when not converged
+         iwarn = ((rmsd > eps_pol) .AND. (iter >= max_ipol_iter))
+         IF (iwarn) THEN
+            IF (iw > 0) THEN
+               WRITE (iw, FMT="(T2,A,I0,A,ES9.3)") &
+                  "POL_SCF| Self-consistent polarization not converged in ", max_ipol_iter, &
+                  " steps to ", eps_pol
+            END IF
+            CPWARN("Self-consistent Polarization not converged!")
+         END IF
       END DO pol_scf
 
       IF (debug_this_module) THEN
@@ -595,10 +605,10 @@ CONTAINS
             END DO
          END DO
          rmsd = SQRT(rmsd/ntot)
-         IF (iw > 0) WRITE (iw, FMT='(T5,"POL_SCF|",1X,"Final RMSD of residual:",5X,E12.6)') rmsd
+         IF (iw > 0) WRITE (iw, FMT="(T2,A,T66,E15.6)") "POL_SCF| Final RMSD of residual", rmsd
          ! Stop program when congergence is not reached after all
          IF (rmsd > eps_pol) THEN
-            CPWARN("Error in the conjugate gradient method for self-consistent polarization! ")
+            CPABORT("Error in the conjugate gradient method for self-consistent polarization!")
          END IF
       ELSE
          ! Now evaluate after convergence to obtain forces and converged energies
@@ -609,14 +619,12 @@ CONTAINS
                              atomic_kind_set=atomic_kind_set, mm_section=mm_section, &
                              forces_local=fg_coulomb, forces_glob=f_nonbond, &
                              pv_local=pv_g, pv_glob=pv_nonbond)
-      ENDIF
+      END IF
       pot_nonbond = pot_nonbond + pot_nonbond_local
       CALL mp_sum(pot_nonbond_local, logger%para_env%group)
 
-      IF (iw > 0) THEN
-         WRITE (iw, FMT='(T5,"POL_SCF|",5X,"Final",T61,F20.10,/)') &
-            vg_coulomb + pot_nonbond_local + thermo%e_induction
-      END IF
+      IF (iw > 0) WRITE (iw, FMT="(T2,A,T61,F20.10)") "POL_SCF| Final", &
+         vg_coulomb + pot_nonbond_local + thermo%e_induction
 
       ! Deallocate working arrays
       DEALLOCATE (efield1)
@@ -631,6 +639,7 @@ CONTAINS
                                         "PRINT%ITER_INFO")
 
       CALL timestop(handle)
+
    END SUBROUTINE fist_pol_evaluate_cg
 
 ! **************************************************************************************************
