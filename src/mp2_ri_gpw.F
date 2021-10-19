@@ -2029,10 +2029,19 @@ CONTAINS
                   start_point = ranges_info_array(3, irep, para_env_exchange%mepos)
                   end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
 
+!$OMP PARALLEL DEFAULT(NONE) SHARED(local_aL,Lstart_pos,Lend_pos,size_B_i,size_B_ij,start_point,end_point,&
+!$OMP                               my_i,my_j,my_k,BIb_C,ispin,kspin,size_B_k)
+!$OMP WORKSHARE
                   local_aL(Lstart_pos:Lend_pos, :size_B_i) = BIb_C(ispin)%array(start_point:end_point, 1:size_B_i, my_i)
+!$OMP END WORKSHARE NOWAIT
+!$OMP WORKSHARE
                   local_aL(Lstart_pos:Lend_pos, size_B_i + 1:size_B_ij) = &
                      BIb_C(ispin)%array(start_point:end_point, 1:size_B_i, my_j)
+!$OMP END WORKSHARE NOWAIT
+!$OMP WORKSHARE
                   local_aL(Lstart_pos:Lend_pos, size_B_ij + 1:) = BIb_C(kspin)%array(start_point:end_point, 1:size_B_k, my_k)
+!$OMP END WORKSHARE NOWAIT
+!$OMP END PARALLEL
                END DO
 
                CALL timeset(routineN//"_comm", handle2)
@@ -2071,7 +2080,9 @@ CONTAINS
                      start_point = ranges_info_array(3, irep, proc_receive)
                      end_point = ranges_info_array(4, irep, proc_receive)
 
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(local_aL,Lstart_pos,Lend_pos,size_B_i,BI_C_rec,start_point,end_point)
                      local_aL(Lstart_pos:Lend_pos, 1:size_B_i) = BI_C_rec(start_point:end_point, 1:size_B_i)
+!$OMP END PARALLEL WORKSHARE
                   END DO
                   IF (my_i == my_k .AND. .NOT. alpha_beta) THEN
                      DO irep = 0, num_integ_group - 1
@@ -2080,7 +2091,9 @@ CONTAINS
                         start_point = ranges_info_array(3, irep, proc_receive)
                         end_point = ranges_info_array(4, irep, proc_receive)
 
-                        local_aL(Lstart_pos:Lend_pos, size_B_ij + 1:size_B_ijk) = BI_C_rec(start_point:end_point, 1:size_B_k)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(local_aL,Lstart_pos,Lend_pos,size_B_ij,BI_C_rec,start_point,end_point,size_B_k)
+                        local_aL(Lstart_pos:Lend_pos, size_B_ij + 1:) = BI_C_rec(start_point:end_point, 1:size_B_k)
+!$OMP END PARALLEL WORKSHARE
                      END DO
                   END IF
 
@@ -2101,7 +2114,9 @@ CONTAINS
                      start_point = ranges_info_array(3, irep, proc_receive)
                      end_point = ranges_info_array(4, irep, proc_receive)
 
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(local_aL,Lstart_pos,Lend_pos,size_B_ij,BI_C_rec,start_point,end_point,size_B_i)
                      local_aL(Lstart_pos:Lend_pos, size_B_i + 1:size_B_ij) = BI_C_rec(start_point:end_point, 1:size_B_i)
+!$OMP END PARALLEL WORKSHARE
                   END DO
                   IF (my_j == my_k .AND. .NOT. alpha_beta) THEN
                      DO irep = 0, num_integ_group - 1
@@ -2110,7 +2125,9 @@ CONTAINS
                         start_point = ranges_info_array(3, irep, proc_receive)
                         end_point = ranges_info_array(4, irep, proc_receive)
 
-                        local_aL(Lstart_pos:Lend_pos, size_B_ij + 1:size_B_ijk) = BI_C_rec(start_point:end_point, 1:size_B_k)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(local_aL,Lstart_pos,Lend_pos,size_B_ij,BI_C_rec,start_point,end_point,size_B_k)
+                        local_aL(Lstart_pos:Lend_pos, size_B_ij + 1:) = BI_C_rec(start_point:end_point, 1:size_B_k)
+!$OMP END PARALLEL WORKSHARE
                      END DO
                   END IF
 
@@ -2137,7 +2154,9 @@ CONTAINS
                            start_point = ranges_info_array(3, irep, proc_receive)
                            end_point = ranges_info_array(4, irep, proc_receive)
 
-                           local_aL(Lstart_pos:Lend_pos, size_B_ij + 1:size_B_ijk) = BI_C_rec(start_point:end_point, 1:size_B_k)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(local_aL,Lstart_pos,Lend_pos,size_B_ij,BI_C_rec,start_point,end_point,size_B_k)
+                           local_aL(Lstart_pos:Lend_pos, size_B_ij + 1:) = BI_C_rec(start_point:end_point, 1:size_B_k)
+!$OMP END PARALLEL WORKSHARE
                         END DO
                      ELSE IF (.NOT. alpha_beta) THEN
                         ! occupied k
@@ -2154,7 +2173,9 @@ CONTAINS
                            start_point = ranges_info_array(3, irep, proc_receive)
                            end_point = ranges_info_array(4, irep, proc_receive)
 
-                           local_aL(Lstart_pos:Lend_pos, size_B_ij + 1:size_B_ijk) = BI_C_rec(start_point:end_point, 1:size_B_k)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(local_aL,Lstart_pos,Lend_pos,size_B_ij,BI_C_rec,start_point,end_point,size_B_k)
+                           local_aL(Lstart_pos:Lend_pos, size_B_ij + 1:) = BI_C_rec(start_point:end_point, 1:size_B_k)
+!$OMP END PARALLEL WORKSHARE
                         END DO
                      END IF
                   ELSE IF (send_i /= send_k .AND. send_j /= send_k .AND. .NOT. alpha_beta .AND. ijk_index <= send_ijk_index) THEN
@@ -2406,17 +2427,16 @@ CONTAINS
             END DO
          END DO
 
+         IF (unit_nr > 0) THEN
          IF (.NOT. beta_beta .AND. ispin /= 2) THEN
-            IF (unit_nr > 0) THEN
-               WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-                  "MO_INFO| Number of ij pairs below EPS_CANONICAL:", num_sing_ij
-            END IF
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+               "MO_INFO| Number of ij pairs below EPS_CANONICAL:", num_sing_ij
          ELSE
-            IF (unit_nr > 0) THEN
-               WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-                  "MO_INFO| Number of ij pairs (spin beta) below EPS_CANONICAL:", num_sing_ij
-            END IF
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+               "MO_INFO| Number of ij pairs (spin beta) below EPS_CANONICAL:", num_sing_ij
          ENDIF
+         CALL m_flush(unit_nr)
+         END IF
          total_ijk = my_homo*num_sing_ij
          ALLOCATE (ijk_map(ispin)%array(total_ijk, 3))
          ijk_map(ispin)%array = 0
