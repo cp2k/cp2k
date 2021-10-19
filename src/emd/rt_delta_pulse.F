@@ -109,7 +109,7 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: eigenvectors, mat_ks, mat_tmp, momentum, &
                                                             oo_1, oo_2, S_chol, S_inv_fm, tmpS, &
                                                             virtuals
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_rv, matrix_s, matrix_r
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_r, matrix_rv, matrix_s
       TYPE(dbcsr_type), POINTER                          :: S_inv
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -250,16 +250,16 @@ CONTAINS
          CALL parallel_gemm('T', 'N', nvirt, nmo, nao, 1.0_dp, virtuals, mos_new(2*ispin - 1)%matrix, 0.0_dp, momentum)
 
          ! the tricky bit ... rescale by the eigenvalue difference
-         If (.not. len_rep) then
+         IF (.NOT. len_rep) THEN
             CALL cp_fm_get_info(momentum, nrow_local=nrow_local, ncol_local=ncol_local, &
-                              row_indices=row_indices, col_indices=col_indices, local_data=local_data)
+                                row_indices=row_indices, col_indices=col_indices, local_data=local_data)
             DO icol = 1, ncol_local
                DO irow = 1, nrow_local
                   factor = 1/(eigenvalues(col_indices(icol)) - eigenvalues(nmo + row_indices(irow)))
                   local_data(irow, icol) = factor*local_data(irow, icol)
                ENDDO
             ENDDO
-         endif
+         ENDIF
          CALL cp_fm_release(mat_tmp)
          DEALLOCATE (eigenvalues)
 
