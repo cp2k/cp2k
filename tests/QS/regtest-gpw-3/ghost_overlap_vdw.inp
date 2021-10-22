@@ -60,6 +60,12 @@
       BASIS_SET DZVP-GTH-PBE
       POTENTIAL GTH-PADE-q6
     &END KIND
+    &PRINT
+     &INTERATOMIC_DISTANCES off
+       # Disable check of interatomic distances completely
+       CHECK_INTERATOMIC_DISTANCES 0.0
+     &END INTERATOMIC_DISTANCES
+    &END PRINT
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
