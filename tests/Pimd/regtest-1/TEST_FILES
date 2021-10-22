@@ -10,6 +10,7 @@ h2o_pint_exact_harm.inp                                9      3e-14        2.854
 h2o_pint_rpmd.inp                                      9      2e-14        1.1503487725277912E-002
 h2o_pint_constraints_nose.inp                          9      2e-14        9.7527488124538198E-003
 h2o_pint_constraints_exact.inp                         9      2e-14        2.8127812079331727E-003
+h2o_pint_beadwise_constraints_exact.inp                9      2e-14        2.6566645545283095E-003
 he32_only.inp                                         40      2e-14       -2.1415575929544138E-005
 he32_only_restart.inp                                 40      2e-13       -1.4377236656991897E-005
 water-in-helium.inp                                    9      7e-14        1.0717546824070511E-003
