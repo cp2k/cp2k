@@ -196,7 +196,7 @@ CONTAINS
       IF (stack_pointer + 1 > max_stack_pointer) THEN
          CALL cp_abort(__LOCATION__, routineP// &
                        "too many default loggers, increase max_stack_pointer in "//moduleN)
-      ENDIF
+      END IF
 
       stack_pointer = stack_pointer + 1
       NULLIFY (default_logger_stack(stack_pointer)%cp_default_logger)
@@ -216,7 +216,7 @@ CONTAINS
       IF (stack_pointer - 1 < 0) THEN
          CALL cp_abort(__LOCATION__, moduleN//":cp_rm_default_logger"// &
                        "can not destroy default logger "//moduleN)
-      ENDIF
+      END IF
 
       CALL cp_logger_release(default_logger_stack(stack_pointer)%cp_default_logger)
       NULLIFY (default_logger_stack(stack_pointer)%cp_default_logger)
@@ -392,8 +392,8 @@ CONTAINS
          IF (logger%para_env%ionode) THEN
             logger%default_local_unit_nr = logger%default_global_unit_nr
             logger%close_local_unit_on_dealloc = .FALSE.
-         ENDIF
-      ENDIF
+         END IF
+      END IF
       IF (PRESENT(iter_info)) logger%iter_info => iter_info
       IF (ASSOCIATED(logger%iter_info)) THEN
          CALL cp_iteration_info_retain(logger%iter_info)
@@ -535,7 +535,7 @@ CONTAINS
          RETURN
       ELSE
          local_logger => cp_get_default_logger()
-      ENDIF
+      END IF
 
       res = cp_logger_get_default_unit_nr(local_logger, local=.FALSE., skip_not_ionode=.TRUE.)
    END FUNCTION cp_logger_get_default_io_unit
@@ -595,7 +595,7 @@ CONTAINS
          lggr => logger
       ELSE
          NULLIFY (lggr)
-      ENDIF
+      END IF
       IF (.NOT. ASSOCIATED(lggr)) lggr => cp_get_default_logger()
       IF (lggr%ref_count < 1) &
          CPABORT(routineP//" logger%ref_count<1")
@@ -775,48 +775,66 @@ CONTAINS
 !>      (should be a variable length string, but that does not work with
 !>      all the compilers)
 !> \param i the integer to convert
+!> \param fmt Optional format string
 !> \return ...
 !> \par History
 !>      4.2002 revised [fawzi]
-!> \author Fawzi Mohamed
+!> \author Fawzi Mohamed, MK
 ! **************************************************************************************************
-   FUNCTION cp_int_to_string(i) RESULT(res)
+   FUNCTION cp_int_to_string(i, fmt) RESULT(res)
       INTEGER, INTENT(in)                                :: i
-      CHARACTER(len=6)                                   :: res
+      CHARACTER(len=*), OPTIONAL                         :: fmt
+      CHARACTER(len=25)                                  :: res
 
-      CHARACTER(len=6)                                   :: t_res
+      CHARACTER(len=25)                                  :: t_res
       INTEGER                                            :: iostat
       REAL(KIND=dp)                                      :: tmp_r
 
       iostat = 0
-      IF (i > 999999 .OR. i < -99999) THEN
+      IF (PRESENT(fmt)) THEN
+         WRITE (t_res, FMT=fmt, IOSTAT=iostat) i
+      ELSE IF (i > 999999 .OR. i < -99999) THEN
          tmp_r = i
-         WRITE (t_res, fmt='(es6.1)', iostat=iostat) tmp_r
+         WRITE (t_res, FMT='(ES8.1)', IOSTAT=iostat) tmp_r
       ELSE
-         WRITE (t_res, fmt='(i6)', iostat=iostat) i
+         WRITE (t_res, FMT='(I6)', IOSTAT=iostat) i
       END IF
       res = t_res
       IF (iostat /= 0) THEN
-         PRINT *, "cp_int_to_string ioerror", iostat
+         PRINT *, "cp_int_to_string I/O error", iostat
          CALL print_stack(cp_logger_get_default_unit_nr())
       END IF
+
    END FUNCTION cp_int_to_string
 
 ! **************************************************************************************************
-!> \brief convert a double precision real in a string
+!> \brief Convert a double precision real in a string
 !>      (should be a variable length string, but that does not work with
 !>      all the compilers)
 !> \param val the number to convert
+!> \param fmt Optional format string
 !> \return ...
 !> \par History
 !>      4.2002 revised [fawzi]
-!> \author Fawzi Mohamed
+!> \author Fawzi Mohamed, MK
 ! **************************************************************************************************
-   FUNCTION cp_real_dp_to_string(val) RESULT(res)
+   FUNCTION cp_real_dp_to_string(val, fmt) RESULT(res)
       REAL(KIND=dp), INTENT(in)                          :: val
-      CHARACTER(len=11)                                  :: res
+      CHARACTER(len=*), OPTIONAL                         :: fmt
+      CHARACTER(len=25)                                  :: res
 
-      WRITE (res, '(es11.4)') val
+      INTEGER                                            :: iostat
+
+      IF (PRESENT(fmt)) THEN
+         WRITE (res, FMT=fmt, IOSTAT=iostat) val
+      ELSE
+         WRITE (res, FMT='(ES11.4)', IOSTAT=iostat) val
+      END IF
+      IF (iostat /= 0) THEN
+         PRINT *, "cp_real_dp_to_string I/O error", iostat
+         CALL print_stack(cp_logger_get_default_unit_nr())
+      END IF
+
    END FUNCTION cp_real_dp_to_string
 
 ! **************************************************************************************************
