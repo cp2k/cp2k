@@ -372,10 +372,19 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "interatomic_distances", &
-                                       description="controls the output of the interatomic distances when setting up the"// &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "INTERATOMIC_DISTANCES", &
+                                       description="Controls the printout of the interatomic distances when setting up the "// &
                                        "force environment", unit_str="angstrom", &
                                        print_level=debug_print_level, filename="__STD_OUT__")
+      CALL keyword_create(keyword, __LOCATION__, name="CHECK_INTERATOMIC_DISTANCES", &
+                          description="Minimum allowed distance between two atoms. "// &
+                          "A warning is printed, if a smaller interatomic distance is encountered. "// &
+                          "The check is disabled for the threshold value 0. "// &
+                          "The run is aborted, if an interatomic distance is smaller than the absolute "// &
+                          "value of a negative threshold value.", &
+                          default_r_val=0.5_dp*bohr, unit_str="angstrom")
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
@@ -480,7 +489,7 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="EPS_GEO", &
                           description="Accuracy required for symmetry detection", &
-                          default_r_val=1.e-4_dp)
+                          default_r_val=1.0E-4_dp)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="STANDARD_ORIENTATION", &
