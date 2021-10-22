@@ -141,6 +141,7 @@ MODULE pint_types
       TYPE(simpar_type), POINTER           :: simpar
       INTEGER                              :: n_atoms_constraints
       INTEGER, DIMENSION(:), POINTER       :: atoms_constraints
+      LOGICAL                              :: beadwise_constraints
       REAL(KIND=dp)                        :: kTcorr
 
    END TYPE pint_env_type

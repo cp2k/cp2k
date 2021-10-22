@@ -94,6 +94,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="PIMD_BEADWISE_CONSTRAINT", &
+                          description="Apply beadwise constraints to PIMD.", &
+                          usage="PIMD_BEADWISE_CONSTRAINT <LOGICAL>", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL create_hbonds_section(subsection)
       CALL restraint_info_section(subsection)
       CALL section_add_subsection(section, subsection)
