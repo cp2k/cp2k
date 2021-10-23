@@ -620,12 +620,17 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: unit_str
       INTEGER                                            :: handle, iatom, iw, jatom, natom
       INTEGER, DIMENSION(3)                              :: periodic
+      LOGICAL                                            :: explicit
       REAL(KIND=dp)                                      :: conv, dab, dab_abort, dab_min, dab_warn
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: distance_matrix
       REAL(KIND=dp), DIMENSION(3)                        :: rab
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
+
+      CPASSERT(ASSOCIATED(particle_set))
+      CPASSERT(ASSOCIATED(cell))
+      CPASSERT(ASSOCIATED(subsys_section))
 
       NULLIFY (logger)
       logger => cp_get_default_logger()
@@ -635,48 +640,58 @@ CONTAINS
       CALL section_vals_val_get(subsys_section, "PRINT%INTERATOMIC_DISTANCES%UNIT", c_val=unit_str)
       conv = cp_unit_from_cp2k(1.0_dp, TRIM(unit_str))
       CALL section_vals_val_get(subsys_section, "PRINT%INTERATOMIC_DISTANCES%CHECK_INTERATOMIC_DISTANCES", &
-                                r_val=dab_min)
+                                r_val=dab_min, explicit=explicit)
+
       dab_abort = 0.0_dp
       dab_warn = 0.0_dp
-      IF (dab_min > 0.0_dp) THEN
-         dab_warn = dab_min*conv
-      ELSE IF (dab_min < 0.0_dp) THEN
-         dab_abort = ABS(dab_min)*conv
+      natom = SIZE(particle_set)
+
+      ! Compute interatomic distances only if their printout or check is explicitly requested
+      ! Disable the default check for systems with more than 3000 atoms
+      IF (explicit .OR. (iw > 0) .OR. (natom <= 3000)) THEN
+         IF (dab_min > 0.0_dp) THEN
+            dab_warn = dab_min*conv
+         ELSE IF (dab_min < 0.0_dp) THEN
+            dab_abort = ABS(dab_min)*conv
+         END IF
       END IF
 
       IF ((iw > 0) .OR. (dab_abort > 0.0_dp) .OR. (dab_warn > 0.0_dp)) THEN
          CALL get_cell(cell=cell, periodic=periodic)
-         natom = SIZE(particle_set)
-         ALLOCATE (distance_matrix(natom, natom))
-         distance_matrix(:, :) = 0.0_dp
+         IF (iw > 0) THEN
+            ALLOCATE (distance_matrix(natom, natom))
+            distance_matrix(:, :) = 0.0_dp
+         END IF
          DO iatom = 1, natom
             DO jatom = iatom + 1, natom
                rab(:) = pbc(particle_set(iatom)%r(:), &
                             particle_set(jatom)%r(:), cell)
-               dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
-               distance_matrix(iatom, jatom) = dab*conv
-               distance_matrix(jatom, iatom) = distance_matrix(iatom, jatom)
+               dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))*conv
                IF (dab_abort > 0.0_dp) THEN
                   ! Stop the run for interatomic distances smaller than the requested threshold
-                  IF (distance_matrix(iatom, jatom) < dab_abort) THEN
+                  IF (dab < dab_abort) THEN
                      CALL cp_abort(__LOCATION__, "The distance between the atoms "// &
                                    TRIM(ADJUSTL(cp_to_string(iatom, fmt="(I8)")))//" and "// &
                                    TRIM(ADJUSTL(cp_to_string(jatom, fmt="(I8)")))//" is only "// &
-                                   TRIM(ADJUSTL(cp_to_string(distance_matrix(iatom, jatom), fmt="(F6.3)")))//" "// &
+                                   TRIM(ADJUSTL(cp_to_string(dab, fmt="(F6.3)")))//" "// &
                                    TRIM(ADJUSTL(unit_str))//" and thus smaller than the requested threshold of "// &
                                    TRIM(ADJUSTL(cp_to_string(dab_abort, fmt="(F6.3)")))//" "// &
                                    TRIM(ADJUSTL(unit_str)))
                   END IF
                END IF
-               IF (distance_matrix(iatom, jatom) < dab_warn) THEN
+               IF (dab < dab_warn) THEN
                   ! Print warning for interatomic distances smaller than the requested threshold
                   CALL cp_warn(__LOCATION__, "The distance between the atoms "// &
                                TRIM(ADJUSTL(cp_to_string(iatom, fmt="(I8)")))//" and "// &
                                TRIM(ADJUSTL(cp_to_string(jatom, fmt="(I8)")))//" is only "// &
-                               TRIM(ADJUSTL(cp_to_string(distance_matrix(iatom, jatom), fmt="(F6.3)")))//" "// &
+                               TRIM(ADJUSTL(cp_to_string(dab, fmt="(F6.3)")))//" "// &
                                TRIM(ADJUSTL(unit_str))//" and thus smaller than the threshold of "// &
                                TRIM(ADJUSTL(cp_to_string(dab_warn, fmt="(F6.3)")))//" "// &
                                TRIM(ADJUSTL(unit_str)))
+               END IF
+               IF (iw > 0) THEN
+                  distance_matrix(iatom, jatom) = dab
+                  distance_matrix(jatom, iatom) = distance_matrix(iatom, jatom)
                END IF
             END DO
          END DO
@@ -685,10 +700,10 @@ CONTAINS
             WRITE (UNIT=iw, FMT="(/,/,T2,A)") &
                "INTERATOMIC DISTANCES IN "//TRIM(unit_str)
             CALL write_particle_matrix(distance_matrix, particle_set, iw)
+            IF (ALLOCATED(distance_matrix)) DEALLOCATE (distance_matrix)
          END IF
          CALL cp_print_key_finished_output(iw, logger, subsys_section, &
                                            "PRINT%INTERATOMIC_DISTANCES")
-         IF (ALLOCATED(distance_matrix)) DEALLOCATE (distance_matrix)
       END IF
 
       CALL timestop(handle)
