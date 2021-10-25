@@ -377,7 +377,7 @@ CONTAINS
 
          CALL get_group_dist(gd_B_virtual, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
 
-         ALLOCATE (BIb_C_rec(homo, rec_B_size, my_group_L_size))
+         ALLOCATE (BIb_C_rec(homo, rec_B_size, SIZE(B_ia_Q, 3)))
          BIb_C_rec = 0.0_dp
 
          CALL mp_sendrecv(B_ia_Q, proc_send, &
