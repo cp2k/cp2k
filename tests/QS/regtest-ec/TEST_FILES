@@ -32,18 +32,18 @@ N2_ec.inp                                             11      1e-08             
 # FORCES: KS + Harris (Diag) + MO solver
 H2O_ec.inp                                            11      1e-08                 -17.2629537942
 # FORCES KS + KG embed + Harris (TRS4) + AO solver
-H2_H2O_KSKGeH_AO_grad.inp                             72      1E-08                     0.01991310 
+H2_H2O_KSKGeH_AO_grad.inp                             72      1E-06                     0.01991310 
 # FORCES KS + KG embed + Harris (TRS4) + MO solver
-H2_H2O_KSKGeH_MO_grad.inp                             72      1E-08                     0.02066929 
+H2_H2O_KSKGeH_MO_grad.inp                             72      1E-06                     0.02066929 
 # FORCES KS + KG atomic + Harris (TRS4) + AO solver
-H2_H2O_LSKGaH_AO_grad.inp                             72      1E-08                     0.24253827
+H2_H2O_LSKGaH_AO_grad.inp                             72      1E-06                     0.24253827
 # FORCES KS + KG atomic + Harris (TRS4) + MO solver
-H2_H2O_LSKGaH_MO_grad.inp                             72      1E-08                     0.24256217
+H2_H2O_LSKGaH_MO_grad.inp                             72      1E-06                     0.24256217
 #
 # STRESS: KS + KG embed  + Harris (TRS4) + AO solver
 H2_H2O_KSKGeH_AO_an.inp                               31      1e-05              1.95042985060E+02
 # STRESS: KS + KG embed  + Harris (TRS4) + MO solver
-H2_H2O_KSKGeH_MO_an.inp                               31      1e-05              8.63165126553E+00
+H2_H2O_KSKGeH_MO_an.inp                               31      1e-05             -9.06100773653E-01
 # STRESS: LS + KG atomic + Harris (TRS4) + AO solver
 H2_H2O_LSKGaH_AO_an.inp                               31      1e-05              1.49007996537E+02
 # STRESS: LS + KG atomic + Harris (TRS4) + MO solver
