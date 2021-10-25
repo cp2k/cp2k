@@ -663,11 +663,15 @@ CONTAINS
 !$OMP END PARALLEL WORKSHARE
                END DO
             END DO
-            DO kspin = ispin, jspin
-               DEALLOCATE (BIb_C(kspin)%array)
-            END DO
 
             IF (.NOT. my_open_shell_ss) THEN
+               ! Reduce size of Gamma_P_ia to save memory
+               DO kspin = ispin, jspin
+                  BIb_C(kspin)%array(:, :, :) = mp2_env%ri_grad%Gamma_P_ia(kspin)%array(:, :, 1:my_group_L_size)
+                  DEALLOCATE (mp2_env%ri_grad%Gamma_P_ia(kspin)%array)
+                  CALL MOVE_ALLOC(BIb_C(kspin)%array, mp2_env%ri_grad%Gamma_P_ia(kspin)%array)
+               END DO
+
                ! B_ia_Q(kspin)%array will be deallocated inside of complete_gamma
                DO kspin = ispin, jspin
                   CALL complete_gamma(mp2_env, B_ia_Q(kspin)%array, dimen_RI, homo(kspin), &
@@ -678,6 +682,9 @@ CONTAINS
                                       sub_proc_map, kspin)
                END DO
             ELSE
+               DO kspin = ispin, jspin
+                  DEALLOCATE (BIb_C(kspin)%array)
+               END DO
                ALLOCATE (BIb_C(ispin)%array(my_group_L_size, my_B_size(ispin), homo(ispin)))
                BIb_C(ispin)%array = 0.0_dp
                ! copy the integrals (ia|Q) back
