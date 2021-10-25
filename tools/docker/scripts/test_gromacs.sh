@@ -24,10 +24,6 @@ GROMACS_REVISION=$(git rev-parse --short HEAD)
 mkdir build
 cd build
 
-export PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:/workspace/cp2k/lib/local/pdbg/pkgconfig"
-CP2K_LIBDIR=$(pkg-config libcp2k --variable=libdir)
-CP2K_LINKER_FLAGS=$(pkg-config libcp2k --libs)
-
 echo -n "Configuring Gromacs... "
 if cmake .. \
   -DGMX_BUILD_OWN_FFTW=ON \
@@ -35,8 +31,7 @@ if cmake .. \
   -DGMX_INSTALL_NBLIB_API=OFF \
   -DGMXAPI=OFF \
   -DGMX_CP2K=ON \
-  -DCP2K_DIR="${CP2K_LIBDIR}" \
-  -DCP2K_LINKER_FLAGS="${CP2K_LINKER_FLAGS}" \
+  -DCP2K_DIR="/workspace/cp2k/lib/local/pdbg/" \
   &> cmake.out; then
   echo "done."
 else
