@@ -137,6 +137,8 @@ CONTAINS
                              my_B_virtual_start(ispin), my_B_virtual_end(ispin), my_B_size(ispin))
       END DO
 
+      CALL get_group_dist(gd_array, color_sub, my_group_L_start, my_group_L_end, my_group_L_size)
+
       CALL dgemm_counter_init(dgemm_counter)
 
       ! We cannot fix the tag because of the recv routine
@@ -167,8 +169,8 @@ CONTAINS
          CALL mp2_ri_get_sizes( &
             mp2_env, para_env, para_env_sub, gd_array, gd_B_virtual(ispin), &
             homo(ispin), dimen_RI, unit_nr, color_sub, best_block_size, best_integ_group_size, block_size, &
-            integ_group_size, min_integ_group_size, my_B_size(1), my_B_virtual_end(1), my_B_virtual_start(1), my_group_L_size, &
-            my_group_L_start, my_group_L_end, ngroup, num_IJ_blocks, &
+            integ_group_size, min_integ_group_size, &
+            ngroup, num_IJ_blocks, &
             num_integ_group, pos_integ_group, virtual(ispin), my_alpha_beta_case, &
             my_open_shell_SS, mem_for_aK, mem_for_comm, mem_for_iaK, mem_for_rep, mem_min, mem_per_group, mem_real)
 
@@ -1221,12 +1223,6 @@ CONTAINS
 !> \param block_size ...
 !> \param integ_group_size ...
 !> \param min_integ_group_size ...
-!> \param my_B_size ...
-!> \param my_B_virtual_end ...
-!> \param my_B_virtual_start ...
-!> \param my_group_L_size ...
-!> \param my_group_L_start ...
-!> \param my_group_L_end ...
 !> \param ngroup ...
 !> \param num_IJ_blocks ...
 !> \param num_integ_group ...
@@ -1245,9 +1241,8 @@ CONTAINS
    SUBROUTINE mp2_ri_get_sizes(mp2_env, para_env, para_env_sub, gd_array, gd_B_virtual, &
                                homo, dimen_RI, unit_nr, color_sub, &
                                best_block_size, best_integ_group_size, block_size, &
-                               integ_group_size, min_integ_group_size, my_B_size, &
-                               my_B_virtual_end, my_B_virtual_start, my_group_L_size, &
-                               my_group_L_start, my_group_L_end, ngroup, num_IJ_blocks, num_integ_group, &
+                               integ_group_size, min_integ_group_size, &
+                               ngroup, num_IJ_blocks, num_integ_group, &
                                pos_integ_group, virtual, my_alpha_beta_case, &
                                my_open_shell_SS, mem_for_aK, mem_for_comm, &
                                mem_for_iaK, mem_for_rep, mem_min, mem_per_group, mem_real)
@@ -1256,9 +1251,8 @@ CONTAINS
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array, gd_B_virtual
       INTEGER, INTENT(IN)                                :: homo, dimen_RI, unit_nr, color_sub
       INTEGER, INTENT(OUT) :: best_block_size, best_integ_group_size, block_size, &
-         integ_group_size, min_integ_group_size, my_B_size, my_B_virtual_end, my_B_virtual_start, &
-         my_group_L_size, my_group_L_start, my_group_L_end, ngroup, num_IJ_blocks, &
-         num_integ_group, pos_integ_group
+         integ_group_size, min_integ_group_size, ngroup, num_IJ_blocks, num_integ_group, &
+         pos_integ_group
       INTEGER, INTENT(IN)                                :: virtual
       LOGICAL, INTENT(IN)                                :: my_alpha_beta_case, my_open_shell_SS
       REAL(KIND=dp), INTENT(OUT)                         :: mem_for_aK, mem_for_comm, mem_for_iaK, &
@@ -1356,12 +1350,7 @@ CONTAINS
       END IF
 
       num_integ_group = ngroup/integ_group_size
-
       pos_integ_group = MOD(color_sub, integ_group_size)
-
-      CALL get_group_dist(gd_array, color_sub, my_group_L_start, my_group_L_end, my_group_L_size)
-
-      CALL get_group_dist(gd_B_virtual, para_env_sub%mepos, my_B_virtual_start, my_B_virtual_end, my_B_size)
 
       CALL timestop(handle)
 
