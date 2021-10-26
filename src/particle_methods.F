@@ -648,7 +648,7 @@ CONTAINS
 
       ! Compute interatomic distances only if their printout or check is explicitly requested
       ! Disable the default check for systems with more than 3000 atoms
-      IF (explicit .OR. (iw > 0) .OR. (natom <= 3000)) THEN
+      IF (explicit .OR. (iw > 0) .OR. (natom <= 2000)) THEN
          IF (dab_min > 0.0_dp) THEN
             dab_warn = dab_min*conv
          ELSE IF (dab_min < 0.0_dp) THEN

@@ -380,7 +380,7 @@ CONTAINS
                           description="Minimum allowed distance between two atoms. "// &
                           "A warning is printed, if a smaller interatomic distance is encountered. "// &
                           "The check is disabled for the threshold value 0 which is the default "// &
-                          "for systems with more than 3000 atoms (otherwise 0.5 A)."// &
+                          "for systems with more than 2000 atoms (otherwise 0.5 A)."// &
                           "The run is aborted, if an interatomic distance is smaller than the absolute "// &
                           "value of a negative threshold value.", &
                           default_r_val=0.5_dp*bohr, unit_str="angstrom")
