@@ -642,7 +642,7 @@ CONTAINS
 
             ! sum Gamma and dereplicate
             DO kspin = ispin, jspin
-               ALLOCATE (BIb_C(kspin)%array(homo(kspin), my_B_size(kspin), my_group_L_size))
+               ALLOCATE (BIb_C(kspin)%array(my_B_size(kspin), homo(kspin), my_group_L_size))
             END DO
             DO proc_shift = 1, para_env_rep%num_pe - 1
                ! invert order
@@ -657,8 +657,8 @@ CONTAINS
                                    proc_send, BIb_C(kspin)%array, proc_receive, para_env_rep%group, tag)
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
 !$OMP          SHARED(mp2_env,BIb_C,kspin,homo,my_B_size,my_group_L_size)
-                  mp2_env%ri_grad%Gamma_P_ia(kspin)%array(1:homo(kspin), 1:my_B_size(kspin), 1:my_group_L_size) = &
-                     mp2_env%ri_grad%Gamma_P_ia(kspin)%array(1:homo(kspin), 1:my_B_size(kspin), 1:my_group_L_size) &
+                  mp2_env%ri_grad%Gamma_P_ia(kspin)%array(1:my_B_size(kspin), 1:homo(kspin), 1:my_group_L_size) = &
+                     mp2_env%ri_grad%Gamma_P_ia(kspin)%array(1:my_B_size(kspin), 1:homo(kspin), 1:my_group_L_size) &
                      + BIb_C(kspin)%array(:, :, :)
 !$OMP END PARALLEL WORKSHARE
                END DO
@@ -955,7 +955,7 @@ CONTAINS
             ALLOCATE (mp2_env%ri_grad%P_ab(ispin)%array(my_B_size(ispin), virtual(ispin)))
             mp2_env%ri_grad%P_ij(ispin)%array = 0.0_dp
             mp2_env%ri_grad%P_ab(ispin)%array = 0.0_dp
-            ALLOCATE (mp2_env%ri_grad%Gamma_P_ia(ispin)%array(homo(ispin), my_B_size(ispin), my_group_L_size))
+            ALLOCATE (mp2_env%ri_grad%Gamma_P_ia(ispin)%array(my_B_size(ispin), homo(ispin), my_group_L_size))
             mp2_env%ri_grad%Gamma_P_ia(ispin)%array = 0.0_dp
 
             ! For non-alpha-beta case we need amplitudes
@@ -1765,11 +1765,11 @@ CONTAINS
             DO kkk = start_point, end_point
                lll = kkk - start_point + Lstart_pos
                DO iiB = 1, my_block_size
-                  mp2_env%ri_grad%Gamma_P_ia(ispin)%array(my_i + iiB - 1, 1:my_B_size_i, kkk) = &
-                     mp2_env%ri_grad%Gamma_P_ia(ispin)%array(my_i + iiB - 1, 1:my_B_size_i, kkk) + &
+                  mp2_env%ri_grad%Gamma_P_ia(ispin)%array(1:my_B_size_i, my_i + iiB - 1, kkk) = &
+                     mp2_env%ri_grad%Gamma_P_ia(ispin)%array(1:my_B_size_i, my_i + iiB - 1, kkk) + &
                      Y_i_aP(1:my_B_size_i, lll, iiB)
-                  mp2_env%ri_grad%Gamma_P_ia(jspin)%array(my_j + iiB - 1, 1:my_B_size_j, kkk) = &
-                     mp2_env%ri_grad%Gamma_P_ia(jspin)%array(my_j + iiB - 1, 1:my_B_size_j, kkk) + &
+                  mp2_env%ri_grad%Gamma_P_ia(jspin)%array(1:my_B_size_j, my_j + iiB - 1, kkk) = &
+                     mp2_env%ri_grad%Gamma_P_ia(jspin)%array(1:my_B_size_j, my_j + iiB - 1, kkk) + &
                      Y_j_aP(1:my_B_size_j, lll, iiB)
                END DO
             END DO
@@ -1784,7 +1784,7 @@ CONTAINS
             proc_receive = proc_map(para_env_exchange%mepos - proc_shift)
 
             send_L_size = sizes_array(proc_send)
-            ALLOCATE (BI_C_send(my_block_size, my_B_size_i + my_B_size_j, send_L_size))
+            ALLOCATE (BI_C_send(my_B_size_i + my_B_size_j, my_block_size, send_L_size))
             CALL timeset(routineN//"_comm2_w", handle2)
             BI_C_send = 0.0_dp
             DO irep = 0, num_integ_group - 1
@@ -1797,8 +1797,8 @@ CONTAINS
                DO kkk = start_point, end_point
                   lll = kkk - start_point + Lstart_pos
                   DO iiB = 1, my_block_size
-                     BI_C_send(iiB, 1:my_B_size_i, kkk) = Y_i_aP(1:my_B_size_i, lll, iiB)
-                     BI_C_send(iiB, my_B_size_i + 1:, kkk) = Y_j_aP(1:my_B_size_j, lll, iiB)
+                     BI_C_send(1:my_B_size_i, iiB, kkk) = Y_i_aP(1:my_B_size_i, lll, iiB)
+                     BI_C_send(my_B_size_i + 1:, iiB, kkk) = Y_j_aP(1:my_B_size_j, lll, iiB)
                   END DO
                END DO
 !$OMP                END PARALLEL DO
@@ -1816,7 +1816,7 @@ CONTAINS
                rec_j = ij_map(ij_counter_rec, 2)
                rec_block_size = ij_map(ij_counter_rec, 3)
 
-               ALLOCATE (BI_C_rec(rec_block_size, my_B_size_i + my_B_size_j, my_group_L_size))
+               ALLOCATE (BI_C_rec(my_B_size_i + my_B_size_j, rec_block_size, my_group_L_size))
                BI_C_rec = 0.0_dp
 
                CALL mp_sendrecv(BI_C_send, proc_send, &
@@ -1830,14 +1830,14 @@ CONTAINS
 !$OMP             PARALLEL DEFAULT(NONE) SHARED(start_point,end_point,rec_block_size,&
 !$OMP                                           mp2_env,rec_i,rec_j,iiB,my_B_size_i,BI_C_rec,ispin,jspin)
 !$OMP             WORKSHARE
-                  mp2_env%ri_grad%Gamma_P_ia(ispin)%array(rec_i:rec_i + rec_block_size - 1, :, start_point:end_point) = &
-                     mp2_env%ri_grad%Gamma_P_ia(ispin)%array(rec_i:rec_i + rec_block_size - 1, :, start_point:end_point) + &
-                     BI_C_rec(:, 1:my_B_size_i, start_point:end_point)
+                  mp2_env%ri_grad%Gamma_P_ia(ispin)%array(:, rec_i:rec_i + rec_block_size - 1, start_point:end_point) = &
+                     mp2_env%ri_grad%Gamma_P_ia(ispin)%array(:, rec_i:rec_i + rec_block_size - 1, start_point:end_point) + &
+                     BI_C_rec(1:my_B_size_i, :, start_point:end_point)
 !$OMP             END WORKSHARE NOWAIT
 !$OMP             WORKSHARE
-                  mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j:rec_j + rec_block_size - 1, :, start_point:end_point) = &
-                     mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j:rec_j + rec_block_size - 1, :, start_point:end_point) + &
-                     BI_C_rec(:, my_B_size_i + 1:, start_point:end_point)
+                  mp2_env%ri_grad%Gamma_P_ia(jspin)%array(:, rec_j:rec_j + rec_block_size - 1, start_point:end_point) = &
+                     mp2_env%ri_grad%Gamma_P_ia(jspin)%array(:, rec_j:rec_j + rec_block_size - 1, start_point:end_point) + &
+                     BI_C_rec(my_B_size_i + 1:, :, start_point:end_point)
 !$OMP             END WORKSHARE NOWAIT
 !$OMP             END PARALLEL
                END DO
@@ -1870,7 +1870,7 @@ CONTAINS
                rec_j = ij_map(ij_counter_rec, 2)
                rec_block_size = ij_map(ij_counter_rec, 3)
 
-               ALLOCATE (BI_C_rec(rec_block_size, my_B_size_i + my_B_size_j, my_group_L_size))
+               ALLOCATE (BI_C_rec(my_B_size_i + my_B_size_j, rec_block_size, my_group_L_size))
 
                BI_C_rec = 0.0_dp
 
@@ -1883,14 +1883,14 @@ CONTAINS
 !$OMP             PARALLEL DEFAULT(NONE) SHARED(start_point,end_point,rec_block_size,&
 !$OMP                                           mp2_env,rec_i,rec_j,iiB,my_B_size_i,BI_C_rec,ispin,jspin)
 !$OMP             WORKSHARE
-                  mp2_env%ri_grad%Gamma_P_ia(ispin)%array(rec_i:rec_i + rec_block_size - 1, :, start_point:end_point) = &
-                     mp2_env%ri_grad%Gamma_P_ia(ispin)%array(rec_i:rec_i + rec_block_size - 1, :, start_point:end_point) + &
-                     BI_C_rec(:, 1:my_B_size_i, start_point:end_point)
+                  mp2_env%ri_grad%Gamma_P_ia(ispin)%array(:, rec_i:rec_i + rec_block_size - 1, start_point:end_point) = &
+                     mp2_env%ri_grad%Gamma_P_ia(ispin)%array(:, rec_i:rec_i + rec_block_size - 1, start_point:end_point) + &
+                     BI_C_rec(1:my_B_size_i, :, start_point:end_point)
 !$OMP             END WORKSHARE NOWAIT
 !$OMP             WORKSHARE
-                  mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j:rec_j + rec_block_size - 1, :, start_point:end_point) = &
-                     mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j:rec_j + rec_block_size - 1, :, start_point:end_point) + &
-                     BI_C_rec(:, my_B_size_i + 1:, start_point:end_point)
+                  mp2_env%ri_grad%Gamma_P_ia(jspin)%array(:, rec_j:rec_j + rec_block_size - 1, start_point:end_point) = &
+                     mp2_env%ri_grad%Gamma_P_ia(jspin)%array(:, rec_j:rec_j + rec_block_size - 1, start_point:end_point) + &
+                     BI_C_rec(my_B_size_i + 1:, :, start_point:end_point)
 !$OMP             END WORKSHARE NOWAIT
 !$OMP             END PARALLEL
                END DO
