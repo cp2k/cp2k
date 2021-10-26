@@ -132,6 +132,69 @@ GRID_DEVICE static void prepare_pab_DABpADB(const int idir, const orbital a,
 }
 
 /*******************************************************************************
+ * \brief Implementation of function GRID_FUNC_DAB_{X,Y,Z}.
+ *        This function takes the derivates with respect to nuclear positions
+ *        which results in a change of signs compared to prepare_pab_DABpADB.
+ *        Only the derivative with respect to the primitive on the left.
+ * \author Edward Ditler
+ ******************************************************************************/
+GRID_DEVICE static void prepare_pab_DAB(const int idir, const orbital a,
+                                        const orbital b, const double zeta,
+                                        const double pab_val, const int n,
+                                        double *cab) {
+
+  // creates cab such that mapping it with pgf_a pgf_b
+  // is equivalent to mapping pab with (nabla_{idir} pgf_a) pgf_b
+  // (ddX pgf_a)( pgf_b ) =
+  //          (-lax pgf_{a-1x} - 2*zeta*pgf_{a+1x}) pgf_b
+
+  prep_term(down(idir, a), b, -a.l[idir] * pab_val, n, cab);
+  prep_term(up(idir, a), b, +2.0 * zeta * pab_val, n, cab);
+}
+
+/*******************************************************************************
+ * \brief Implementation of function GRID_FUNC_ADB_{X,Y,Z}.
+ *        This function takes the derivates with respect to nuclear positions
+ *        which results in a change of signs compared to prepare_pab_DABpADB.
+ *        Only the derivative with respect to the primitive on the right.
+ * \author Edward Ditler
+ ******************************************************************************/
+GRID_DEVICE static void prepare_pab_ADB(const int idir, const orbital a,
+                                        const orbital b, const double zetb,
+                                        const double pab_val, const int n,
+                                        double *cab) {
+
+  // creates cab such that mapping it with pgf_a pgf_b
+  // is equivalent to mapping pab with
+  //    pgf_a (nabla_{idir} pgf_b) + (nabla_{idir} pgf_a) pgf_b
+  // ( pgf_a ) (ddX pgf_b)  =
+  //          pgf_a *(-lbx pgf_{b-1x} - 2*zetb*pgf_{b+1x})
+
+  prep_term(a, down(idir, b), -b.l[idir] * pab_val, n, cab);
+  prep_term(a, up(idir, b), +2.0 * zetb * pab_val, n, cab);
+}
+
+/*******************************************************************************
+ * \brief Implementation of function GRID_FUNC_CORE_{X,Y,Z}.
+ *        This function takes the derivates with respect to nuclear positions.
+ * \author Edward Ditler
+ ******************************************************************************/
+GRID_DEVICE static void prepare_pab_core(const int idir, const orbital a,
+                                         const orbital b, const double zeta,
+                                         const double pab_val, const int n,
+                                         double *cab) {
+
+  // creates cab such that mapping it with pgf_a pgf_b
+  // is equivalent to mapping pab with (nabla_{idir} pgf_a) pgf_b
+  // (ddX pgf_a)( pgf_b ) = 2*zeta*pgf_{a+1x}) pgf_b
+
+  prep_term(a, down(idir, b), 0.0, n, cab);
+  prep_term(a, up(idir, b), 0.0, n, cab);
+  prep_term(down(idir, a), b, 0.0, n, cab);
+  prep_term(up(idir, a), b, +2.0 * zeta * pab_val, n, cab);
+}
+
+/*******************************************************************************
  * \brief Implementation of function GRID_FUNC_{DX,DY,DZ}.
  * \author Ole Schuett
  ******************************************************************************/
@@ -319,6 +382,33 @@ GRID_DEVICE static void prepare_pab(const enum grid_func func, const orbital a,
   case GRID_FUNC_DABpADB_Z:
     prepare_pab_DABpADB(2, a, b, zeta, zetb, pab_val, n, cab);
     break;
+  case GRID_FUNC_DAB_X:
+    prepare_pab_DAB(0, a, b, zeta, pab_val, n, cab);
+    break;
+  case GRID_FUNC_DAB_Y:
+    prepare_pab_DAB(1, a, b, zeta, pab_val, n, cab);
+    break;
+  case GRID_FUNC_DAB_Z:
+    prepare_pab_DAB(2, a, b, zeta, pab_val, n, cab);
+    break;
+  case GRID_FUNC_ADB_X:
+    prepare_pab_ADB(0, a, b, zetb, pab_val, n, cab);
+    break;
+  case GRID_FUNC_ADB_Y:
+    prepare_pab_ADB(1, a, b, zetb, pab_val, n, cab);
+    break;
+  case GRID_FUNC_ADB_Z:
+    prepare_pab_ADB(2, a, b, zetb, pab_val, n, cab);
+    break;
+  case GRID_FUNC_CORE_X:
+    prepare_pab_core(0, a, b, zeta, pab_val, n, cab);
+    break;
+  case GRID_FUNC_CORE_Y:
+    prepare_pab_core(1, a, b, zeta, pab_val, n, cab);
+    break;
+  case GRID_FUNC_CORE_Z:
+    prepare_pab_core(2, a, b, zeta, pab_val, n, cab);
+    break;
   case GRID_FUNC_DX:
     prepare_pab_Di(0, a, b, zeta, zetb, pab_val, n, cab);
     break;
@@ -383,6 +473,15 @@ static prepare_ldiffs prepare_get_ldiffs(const enum grid_func func) {
   case GRID_FUNC_DABpADB_X:
   case GRID_FUNC_DABpADB_Y:
   case GRID_FUNC_DABpADB_Z:
+  case GRID_FUNC_DAB_X:
+  case GRID_FUNC_DAB_Y:
+  case GRID_FUNC_DAB_Z:
+  case GRID_FUNC_ADB_X:
+  case GRID_FUNC_ADB_Y:
+  case GRID_FUNC_ADB_Z:
+  case GRID_FUNC_CORE_X:
+  case GRID_FUNC_CORE_Y:
+  case GRID_FUNC_CORE_Z:
     ldiffs.la_max_diff = +1;
     ldiffs.la_min_diff = -1;
     ldiffs.lb_max_diff = +1;

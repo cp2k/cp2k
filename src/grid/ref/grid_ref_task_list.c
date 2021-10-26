@@ -567,6 +567,7 @@ static void integrate_one_grid_level(
             /*forces=*/(forces != NULL) ? my_forces : NULL,
             /*virials=*/(virial != NULL) ? my_virials : NULL,
             /*hdab=*/NULL,
+            /*hadb=*/NULL,
             /*a_hdab=*/NULL);
 
       } // end of task loop

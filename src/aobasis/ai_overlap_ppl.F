@@ -85,13 +85,21 @@ CONTAINS
 !> \param force_a ...
 !> \param force_b ...
 !> \param fs ...
+!> \param hab2 The derivative of the ppl integrals according to the weighting factors deltaR
+!> \param hab2_work ...
+!> \param deltaR Weighting factors for the derivatives wrt. nuclear positions
+!> \param iatom ...
+!> \param jatom ...
+!> \param katom ...
 !> \date    May 2011
 !> \author  Juerg Hutter
 !> \version 1.0
+!> \note    Extended by the derivatives for DFPT [Sandra Luber, Edward Ditler, 2021]
 ! **************************************************************************************************
    SUBROUTINE ppl_integral(la_max_set, la_min_set, npgfa, rpgfa, zeta, &
                            lb_max_set, lb_min_set, npgfb, rpgfb, zetb, nexp_ppl, alpha_ppl, nct_ppl, cexp_ppl, rpgfc, &
-                           rab, dab, rac, dac, rbc, dbc, vab, s, pab, force_a, force_b, fs)
+                           rab, dab, rac, dac, rbc, dbc, vab, s, pab, force_a, force_b, fs, &
+                           hab2, hab2_work, deltaR, iatom, jatom, katom)
       INTEGER, INTENT(IN)                                :: la_max_set, la_min_set, npgfa
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rpgfa, zeta
       INTEGER, INTENT(IN)                                :: lb_max_set, lb_min_set, npgfb
@@ -113,7 +121,10 @@ CONTAINS
          OPTIONAL                                        :: pab
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT), OPTIONAL :: force_a, force_b
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), &
-         OPTIONAL                                        :: fs
+         OPTIONAL                                        :: fs, hab2, hab2_work
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: deltaR
+      INTEGER, INTENT(IN), OPTIONAL                      :: iatom, jatom, katom
 
       INTEGER                                            :: iexp, ij, ipgf, jpgf, mmax, nexp
       REAL(KIND=dp)                                      :: rho, sab, t, zetc
@@ -127,6 +138,8 @@ CONTAINS
          mmax = la_max_set + lb_max_set + 2
          force_a(:) = 0.0_dp
          force_b(:) = 0.0_dp
+      ELSE IF (PRESENT(hab2)) THEN
+         mmax = la_max_set + lb_max_set + 2
       ELSE
          mmax = la_max_set + lb_max_set
       END IF
@@ -162,7 +175,9 @@ CONTAINS
 
       CALL os_3center(la_max_set, la_min_set, npgfa, rpgfa, zeta, &
                       lb_max_set, lb_min_set, npgfb, rpgfb, zetb, auxint, rpgfc, &
-                      rab, dab, rac, dac, rbc, dbc, vab, s, pab, force_a, force_b, fs)
+                      rab, dab, rac, dac, rbc, dbc, vab, s, pab, force_a, force_b, fs, &
+                      vab2=hab2, vab2_work=hab2_work, &
+                      deltaR=deltaR, iatom=iatom, jatom=jatom, katom=katom)
 
       DEALLOCATE (auxint)
 

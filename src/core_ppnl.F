@@ -10,6 +10,7 @@
 !> \par History
 !>      - refactered from qs_core_hamiltian [Joost VandeVondele, 2008-11-01]
 !>      - full rewrite [jhu, 2009-01-23]
+!>      - Extended by the derivatives for DFPT [Sandra Luber, Edward Ditler, 2021]
 ! **************************************************************************************************
 MODULE core_ppnl
    USE ai_overlap,                      ONLY: overlap
@@ -78,10 +79,11 @@ CONTAINS
 !> \param nimages ...
 !> \param cell_to_index ...
 !> \param basis_type ...
+!> \param deltaR Weighting factors of the derivatives wrt. nuclear positions
 ! **************************************************************************************************
    SUBROUTINE build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
                               qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, &
-                              nimages, cell_to_index, basis_type)
+                              nimages, cell_to_index, basis_type, deltaR)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_p
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -98,6 +100,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nimages
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       CHARACTER(LEN=*), INTENT(IN)                       :: basis_type
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: deltaR
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_core_ppnl'
 
@@ -110,7 +114,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nprj_ppnl, &
                                                             nsgf_seta
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
-      LOGICAL                                            :: dogth, dokp, found, ppnl_present
+      LOGICAL                                            :: do_dR, dogth, dokp, found, ppnl_present
       LOGICAL, DIMENSION(0:9)                            :: is_nonlocal
       REAL(KIND=dp)                                      :: dac, f0, ppnl_radius
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: radp
@@ -126,8 +130,9 @@ CONTAINS
       TYPE(clist_type), POINTER                          :: clist
       TYPE(alist_type), POINTER                          :: alist_ac, alist_bc
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: achint, acint, bchint, bcint, c_nl
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cprj, h_block, h_nl, p_block, rpgfa, &
-                                                            sphi_a, vprj_ppnl, zeta
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cprj, h_block, h_nl, p_block, r_2block, &
+                                                            r_3block, rpgfa, sphi_a, vprj_ppnl, &
+                                                            zeta
       REAL(KIND=dp), DIMENSION(:), POINTER               :: a_nl, alpha_ppnl, hprj, set_radius_a
       REAL(KIND=dp), DIMENSION(3, SIZE(particle_set))    :: force_thread
       TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
@@ -141,6 +146,9 @@ CONTAINS
 !$    INTEGER, PARAMETER                                 :: nlock = 501
 
       MARK_USED(int_8)
+
+      do_dR = .FALSE.
+      IF (PRESENT(deltaR)) do_dR = .TRUE.
 
       IF (calculate_forces) THEN
          CALL timeset(routineN//"_forces", handle)
@@ -432,12 +440,14 @@ CONTAINS
 !$OMP DEFAULT (NONE) &
 !$OMP SHARED  (dokp, basis_set, matrix_h, cell_to_index,&
 !$OMP          sab_orb, matrix_p, sap_int, nkind, eps_ppnl, force, &
-!$OMP          locks, natom, virial, use_virial, calculate_forces) &
+!$OMP          do_dR, deltaR, maxder, nder, &
+!$OMP          locks, virial, use_virial, calculate_forces) &
 !$OMP PRIVATE (ikind, jkind, iatom, jatom, cell_b, rab, &
 !$OMP          slot, iab, atom_a, f0, irow, icol, h_block, &
+!$OMP          r_2block, r_3block, &
 !$OMP          found,p_block, iac, ibc, alist_ac, alist_bc, acint, bcint, &
 !$OMP          achint, bchint, na, np, nb, katom, j, fa, fb, rbc, rac, &
-!$OMP          kkind, kac, kbc, i, img, hash, iatom8) &
+!$OMP          kkind, kac, kbc, i, img, hash, iatom8, natom) &
 !$OMP REDUCTION (+ : pv_thread, force_thread )
 
 !$OMP SINGLE
@@ -488,6 +498,13 @@ CONTAINS
             END IF
             NULLIFY (h_block)
             CALL dbcsr_get_block_p(matrix_h(1, img)%matrix, irow, icol, h_block, found)
+
+            IF (do_dR) THEN
+               NULLIFY (r_2block, r_3block)
+               CALL dbcsr_get_block_p(matrix_h(2, img)%matrix, irow, icol, r_2block, found)
+               CALL dbcsr_get_block_p(matrix_h(3, img)%matrix, irow, icol, r_3block, found)
+            END IF
+
             IF (calculate_forces) THEN
                NULLIFY (p_block)
                CALL dbcsr_get_block_p(matrix_p(1, img)%matrix, irow, icol, p_block, found)
@@ -519,12 +536,14 @@ CONTAINS
 !$                         iatom8 = INT(iatom - 1, int_8)*INT(natom, int_8) + INT(jatom, int_8)
 !$                         hash = INT(MOD(iatom8, INT(nlock, int_8)) + 1)
 !$                         CALL omp_set_lock(locks(hash))
-                           IF (iatom <= jatom) THEN
-                              h_block(1:na, 1:nb) = h_block(1:na, 1:nb) + &
-                                                    MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 1)))
-                           ELSE
-                              h_block(1:nb, 1:na) = h_block(1:nb, 1:na) + &
-                                                    MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 1)))
+                           IF (.NOT. do_dR) THEN
+                              IF (iatom <= jatom) THEN
+                                 h_block(1:na, 1:nb) = h_block(1:na, 1:nb) + &
+                                                       MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 1)))
+                              ELSE
+                                 h_block(1:nb, 1:na) = h_block(1:nb, 1:na) + &
+                                                       MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 1)))
+                              END IF
                            END IF
 !$                         CALL omp_unset_lock(locks(hash))
                            IF (calculate_forces) THEN
@@ -556,6 +575,66 @@ CONTAINS
                                     CALL virial_pair_force(pv_thread, f0, fb, rbc)
                                  END IF
                               END IF
+                           END IF
+
+                           IF (do_dR) THEN
+                              i = 1; j = 2; 
+                              katom = alist_ac%clist(kac)%catom
+                              IF (iatom <= jatom) THEN
+                                 h_block(1:na, 1:nb) = h_block(1:na, 1:nb) + &
+                                                       (deltaR(i, iatom) - deltaR(i, katom))* &
+                                                       MATMUL(acint(1:na, 1:np, j), TRANSPOSE(bchint(1:nb, 1:np, 1)))
+
+                                 h_block(1:na, 1:nb) = h_block(1:na, 1:nb) + &
+                                                       (deltaR(i, jatom) - deltaR(i, katom))* &
+                                                       MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, j)))
+                              ELSE
+                                 h_block(1:nb, 1:na) = h_block(1:nb, 1:na) + &
+                                                       (deltaR(i, iatom) - deltaR(i, katom))* &
+                                                       MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, j)))
+                                 h_block(1:nb, 1:na) = h_block(1:nb, 1:na) + &
+                                                       (deltaR(i, jatom) - deltaR(i, katom))* &
+                                                       MATMUL(bcint(1:nb, 1:np, j), TRANSPOSE(achint(1:na, 1:np, 1)))
+                              END IF
+
+                              i = 2; j = 3; 
+                              katom = alist_ac%clist(kac)%catom
+                              IF (iatom <= jatom) THEN
+                                 r_2block(1:na, 1:nb) = r_2block(1:na, 1:nb) + &
+                                                        (deltaR(i, iatom) - deltaR(i, katom))* &
+                                                        MATMUL(acint(1:na, 1:np, j), TRANSPOSE(bchint(1:nb, 1:np, 1)))
+
+                                 r_2block(1:na, 1:nb) = r_2block(1:na, 1:nb) + &
+                                                        (deltaR(i, jatom) - deltaR(i, katom))* &
+                                                        MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, j)))
+                              ELSE
+                                 r_2block(1:nb, 1:na) = r_2block(1:nb, 1:na) + &
+                                                        (deltaR(i, iatom) - deltaR(i, katom))* &
+                                                        MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, j)))
+                                 r_2block(1:nb, 1:na) = r_2block(1:nb, 1:na) + &
+                                                        (deltaR(i, jatom) - deltaR(i, katom))* &
+                                                        MATMUL(bcint(1:nb, 1:np, j), TRANSPOSE(achint(1:na, 1:np, 1)))
+                              END IF
+
+                              i = 3; j = 4; 
+                              katom = alist_ac%clist(kac)%catom
+                              IF (iatom <= jatom) THEN
+                                 r_3block(1:na, 1:nb) = r_3block(1:na, 1:nb) + &
+                                                        (deltaR(i, iatom) - deltaR(i, katom))* &
+                                                        MATMUL(acint(1:na, 1:np, j), TRANSPOSE(bchint(1:nb, 1:np, 1)))
+
+                                 r_3block(1:na, 1:nb) = r_3block(1:na, 1:nb) + &
+                                                        (deltaR(i, jatom) - deltaR(i, katom))* &
+                                                        MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, j)))
+                              ELSE
+                                 r_3block(1:nb, 1:na) = r_3block(1:nb, 1:na) + &
+                                                        (deltaR(i, iatom) - deltaR(i, katom))* &
+                                                        MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, j)))
+                                 r_3block(1:nb, 1:na) = r_3block(1:nb, 1:na) + &
+                                                        (deltaR(i, jatom) - deltaR(i, katom))* &
+                                                        MATMUL(bcint(1:nb, 1:np, j), TRANSPOSE(achint(1:na, 1:np, 1)))
+                              END IF
+
                            END IF
                            EXIT ! We have found a match and there can be only one single match
                         END IF

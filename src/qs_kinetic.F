@@ -22,6 +22,7 @@ MODULE qs_kinetic
                                               get_atomic_kind_set
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
+   USE block_p_types,                   ONLY: block_p_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE dbcsr_api,                       ONLY: dbcsr_filter,&
@@ -64,6 +65,11 @@ MODULE qs_kinetic
 
    PUBLIC :: build_kinetic_matrix
 
+   INTEGER, DIMENSION(1:56), SAVE :: ndod = (/0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, &
+                                              1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, &
+                                              0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, &
+                                              1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1/)
+
 CONTAINS
 
 ! **************************************************************************************************
@@ -78,18 +84,20 @@ CONTAINS
 !> \param   matrix_p density matrix for force calculation (optional)
 !> \param   matrixkp_p density matrix for force calculation with kpoints (optional)
 !> \param   eps_filter Filter final matrix (optional)
+!> \param   nderivative The number of calculated derivatives
 !> \date    11.10.2010
 !> \par     History
 !>          Ported from qs_overlap, replaces code in build_core_hamiltonian
 !>          Refactoring [07.2014] JGH
 !>          Simplify options and use new kinetic energy integral routine
 !>          kpoints [08.2014] JGH
+!>          Include the derivatives [2021] SL, ED
 !> \author  JGH
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE build_kinetic_matrix(ks_env, matrix_t, matrixkp_t, matrix_name, &
                                    basis_type, sab_nl, calculate_forces, matrix_p, matrixkp_p, &
-                                   eps_filter)
+                                   eps_filter, nderivative)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
@@ -105,13 +113,15 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrixkp_p
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_filter
+      INTEGER, INTENT(IN), OPTIONAL                      :: nderivative
 
       INTEGER                                            :: natom
 
       CALL get_ks_env(ks_env, natom=natom)
 
       CALL build_kinetic_matrix_low(ks_env, matrix_t, matrixkp_t, matrix_name, basis_type, &
-                                    sab_nl, calculate_forces, matrix_p, matrixkp_p, eps_filter, natom)
+                                    sab_nl, calculate_forces, matrix_p, matrixkp_p, eps_filter, natom, &
+                                    nderivative)
 
    END SUBROUTINE build_kinetic_matrix
 
@@ -129,9 +139,11 @@ CONTAINS
 !> \param matrixkp_p ...
 !> \param eps_filter ...
 !> \param natom ...
+!> \param nderivative ...
 ! **************************************************************************************************
    SUBROUTINE build_kinetic_matrix_low(ks_env, matrix_t, matrixkp_t, matrix_name, basis_type, &
-                                       sab_nl, calculate_forces, matrix_p, matrixkp_p, eps_filter, natom)
+                                       sab_nl, calculate_forces, matrix_p, matrixkp_p, eps_filter, natom, &
+                                       nderivative)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
@@ -148,13 +160,12 @@ CONTAINS
          POINTER                                         :: matrixkp_p
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_filter
       INTEGER, INTENT(IN)                                :: natom
+      INTEGER, INTENT(IN), OPTIONAL                      :: nderivative
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_kinetic_matrix_low'
 
-      INTEGER                                            :: atom_a, handle, iatom, ic, icol, ikind, &
-                                                            irow, iset, jatom, jkind, jset, ldsab, &
-                                                            ncoa, ncob, nimg, nkind, nseta, nsetb, &
-                                                            sgfa, sgfb, slot
+      INTEGER :: atom_a, handle, i, iatom, ic, icol, ikind, irow, iset, jatom, jkind, jset, ldsab, &
+         maxder, ncoa, ncob, nder, nimg, nkind, nseta, nsetb, sgfa, sgfb, slot
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(3)                              :: cell
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
@@ -163,16 +174,18 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: do_forces, do_symmetric, dokp, found, &
                                                             trans, use_cell_mapping, use_virial
-      REAL(KIND=dp)                                      :: f0, ff, rab2, tab
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: kab, pab, qab
+      REAL(KIND=dp)                                      :: f, f0, ff, rab2, tab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pab, qab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: kab
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, rab
       REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_thread
       REAL(KIND=dp), DIMENSION(3, natom)                 :: force_thread
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: k_block, p_block, rpgfa, rpgfb, scon_a, &
-                                                            scon_b, zeta, zetb
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, rpgfa, rpgfb, scon_a, scon_b, &
+                                                            zeta, zetb
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: dab
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(block_p_type), ALLOCATABLE, DIMENSION(:)      :: k_block
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
@@ -216,6 +229,10 @@ CONTAINS
       do_forces = .FALSE.
       IF (PRESENT(calculate_forces)) do_forces = calculate_forces
 
+      nder = 0
+      IF (PRESENT(nderivative)) nder = nderivative
+      maxder = ncoset(nder)
+
       ! check for symmetry
       CPASSERT(SIZE(sab_nl) > 0)
       CALL get_neighbor_list_set_p(neighbor_list_sets=sab_nl, symmetric=do_symmetric)
@@ -229,7 +246,7 @@ CONTAINS
          CALL create_sab_matrix(ks_env, matrixkp_t, matrix_name, basis_set_list, basis_set_list, &
                                 sab_nl, do_symmetric)
       ELSE
-         CALL dbcsr_allocate_matrix_set(matrix_t, 1)
+         CALL dbcsr_allocate_matrix_set(matrix_t, maxder)
          CALL create_sab_matrix(ks_env, matrix_t, matrix_name, basis_set_list, basis_set_list, &
                                 sab_nl, do_symmetric)
       END IF
@@ -255,12 +272,12 @@ CONTAINS
 
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED (do_forces, ldsab, use_cell_mapping, do_symmetric, dokp,&
-!$OMP         sab_nl, ncoset, use_virial, matrix_t, matrixkp_t,&
+!$OMP         sab_nl, ncoset, maxder, nder, ndod, use_virial, matrix_t, matrixkp_t,&
 !$OMP         matrix_p, basis_set_list, atom_of_kind, cell_to_index, matrixkp_p, locks, natom)  &
-!$OMP PRIVATE (k_block, kab, qab, pab, ikind, jkind, iatom, jatom, rab, cell, basis_set_a, basis_set_b,&
+!$OMP PRIVATE (k_block, kab, qab, pab, ikind, jkind, iatom, jatom, rab, cell, basis_set_a, basis_set_b, f, &
 !$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, nseta, rpgfa, set_radius_a, ncoa, ncob, force_a, &
 !$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, nsgfb, p_block, dab, tab, &
-!$OMP          slot, zetb, scon_a, scon_b, ic, irow, icol, f0, ff, found, trans, rab2, sgfa, sgfb, iset, jset, &
+!$OMP          slot, zetb, scon_a, scon_b, i, ic, irow, icol, f0, ff, found, trans, rab2, sgfa, sgfb, iset, jset, &
 !$OMP          hash, hash1, hash2, iatom8) &
 !$OMP REDUCTION (+ : pv_thread, force_thread )
 
@@ -274,10 +291,15 @@ CONTAINS
 !$    END DO
 !$OMP END DO
 
-      ALLOCATE (kab(ldsab, ldsab), qab(ldsab, ldsab))
+      ALLOCATE (kab(ldsab, ldsab, maxder), qab(ldsab, ldsab))
       IF (do_forces) THEN
          ALLOCATE (dab(ldsab, ldsab, 3), pab(ldsab, ldsab))
       END IF
+
+      ALLOCATE (k_block(maxder))
+      DO i = 1, maxder
+         NULLIFY (k_block(i)%block)
+      END DO
 
 !$OMP DO SCHEDULE(GUIDED)
       DO slot = 1, sab_nl(1)%nl_size
@@ -344,15 +366,17 @@ CONTAINS
             f0 = 1.0_dp
             ff = 1.0_dp
          END IF
-         NULLIFY (k_block)
          IF (dokp) THEN
             CALL dbcsr_get_block_p(matrix=matrixkp_t(1, ic)%matrix, &
-                                   row=irow, col=icol, BLOCK=k_block, found=found)
+                                   row=irow, col=icol, BLOCK=k_block(1)%block, found=found)
             CPASSERT(found)
          ELSE
-            CALL dbcsr_get_block_p(matrix=matrix_t(1)%matrix, &
-                                   row=irow, col=icol, BLOCK=k_block, found=found)
-            CPASSERT(found)
+            DO i = 1, maxder
+               NULLIFY (k_block(i)%block)
+               CALL dbcsr_get_block_p(matrix=matrix_t(i)%matrix, &
+                                      row=irow, col=icol, BLOCK=k_block(i)%block, found=found)
+               CPASSERT(found)
+            END DO
          END IF
 
          IF (do_forces) THEN
@@ -390,13 +414,13 @@ CONTAINS
                IF (do_forces .AND. ASSOCIATED(p_block) .AND. ((iatom /= jatom) .OR. use_virial)) THEN
                   ! Decontract P matrix block
                   kab = 0.0_dp
-                  CALL block_add("OUT", kab, nsgfa(iset), nsgfb(jset), p_block, sgfa, sgfb, trans=trans)
-                  CALL decontraction(kab, pab, scon_a(:, sgfa:), ncoa, nsgfa(iset), scon_b(:, sgfb:), ncob, nsgfb(jset), &
+                  CALL block_add("OUT", kab(:, :, 1), nsgfa(iset), nsgfb(jset), p_block, sgfa, sgfb, trans=trans)
+                  CALL decontraction(kab(:, :, 1), pab, scon_a(:, sgfa:), ncoa, nsgfa(iset), scon_b(:, sgfb:), ncob, nsgfb(jset), &
                                      trans=trans)
                   ! calculate integrals and derivatives
                   CALL kinetic(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
                                lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
-                               rab, kab, dab)
+                               rab, kab(:, :, 1), dab)
                   CALL force_trace(force_a, dab, pab, ncoa, ncob, 3)
                   force_thread(:, iatom) = force_thread(:, iatom) + ff*force_a(:)
                   force_thread(:, jatom) = force_thread(:, jatom) - ff*force_a(:)
@@ -405,17 +429,27 @@ CONTAINS
                   END IF
                ELSE
                   ! calclulate integrals
-                  CALL kinetic(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
-                               lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
-                               rab, kab)
+                  IF (nder == 0) THEN
+                     CALL kinetic(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
+                                  lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
+                                  rab, kab=kab(:, :, 1))
+                  ELSE IF (nder == 1) THEN
+                     CALL kinetic(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
+                                  lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
+                                  rab, kab=kab(:, :, 1), dab=kab(:, :, 2:4))
+                  END IF
                END IF
-               ! Contraction step
-               CALL contraction(kab, qab, ca=scon_a(:, sgfa:), na=ncoa, ma=nsgfa(iset), &
-                                cb=scon_b(:, sgfb:), nb=ncob, mb=nsgfb(jset), &
-                                trans=trans)
-!$             CALL omp_set_lock(locks(hash))
-               CALL block_add("IN", qab, nsgfa(iset), nsgfb(jset), k_block, sgfa, sgfb, trans=trans)
-!$             CALL omp_unset_lock(locks(hash))
+               DO i = 1, maxder
+                  f = 1.0_dp
+                  IF (ndod(i) == 1 .AND. trans) f = -1.0_dp
+                  ! Contraction step
+                  CALL contraction(kab(:, :, i), qab, ca=scon_a(:, sgfa:), na=ncoa, ma=nsgfa(iset), &
+                                   cb=scon_b(:, sgfb:), nb=ncob, mb=nsgfb(jset), fscale=f, &
+                                   trans=trans)
+!$                CALL omp_set_lock(locks(hash))
+                  CALL block_add("IN", qab, nsgfa(iset), nsgfb(jset), k_block(i)%block, sgfa, sgfb, trans=trans)
+!$                CALL omp_unset_lock(locks(hash))
+               END DO
             END DO
          END DO
 

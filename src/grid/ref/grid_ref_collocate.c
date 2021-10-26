@@ -155,7 +155,7 @@ static void record_collocate(
                                  la_min, lb_max, lb_min, zeta, zetb, dh, dh_inv,
                                  ra, rab, npts_global, npts_local, shift_local,
                                  border_width, radius, o1, o2, n1, n2, grid,
-                                 hab, pab, forces, virials, NULL, NULL);
+                                 hab, pab, forces, virials, NULL, NULL, NULL);
 
   for (int i = o2; i < ncoset(lb_max) + o2; i++) {
     for (int j = o1; j < ncoset(la_max) + o1; j++) {

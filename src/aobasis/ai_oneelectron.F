@@ -78,13 +78,21 @@ CONTAINS
 !> \param force_a ...
 !> \param force_b ...
 !> \param fs ...
+!> \param vab2 The derivative of the 3-center integrals according to the weighting factors.
+!> \param vab2_work ...
+!> \param deltaR DIMENSION(3, natoms), weighting factors of the derivatives for each atom and direction
+!> \param iatom ...
+!> \param jatom ...
+!> \param katom ...
 !> \date    May 2011
 !> \author  Juerg Hutter
 !> \version 1.0
+!> \note    Extended by the derivatives for DFPT [Sandra Luber, Edward Ditler, 2021]
 ! **************************************************************************************************
    SUBROUTINE os_3center(la_max_set, la_min_set, npgfa, rpgfa, zeta, &
                          lb_max_set, lb_min_set, npgfb, rpgfb, zetb, auxint, rpgfc, &
-                         rab, dab, rac, dac, rbc, dbc, vab, s, pab, force_a, force_b, fs)
+                         rab, dab, rac, dac, rbc, dbc, vab, s, pab, force_a, force_b, fs, &
+                         vab2, vab2_work, deltaR, iatom, jatom, katom)
       INTEGER, INTENT(IN)                                :: la_max_set, la_min_set, npgfa
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rpgfa, zeta
       INTEGER, INTENT(IN)                                :: lb_max_set, lb_min_set, npgfb
@@ -103,14 +111,17 @@ CONTAINS
          OPTIONAL                                        :: pab
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT), OPTIONAL :: force_a, force_b
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), &
-         OPTIONAL                                        :: fs
+         OPTIONAL                                        :: fs, vab2, vab2_work
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: deltaR
+      INTEGER, INTENT(IN), OPTIONAL                      :: iatom, jatom, katom
 
       INTEGER :: ax, ay, az, bx, by, bz, cda, cdax, cday, cdaz, cdb, cdbx, cdby, cdbz, coa, coamx, &
          coamy, coamz, coapx, coapy, coapz, cob, cobmx, cobmy, cobmz, cobpx, cobpy, cobpz, da, &
          da_max, dax, day, daz, db, db_max, dbx, dby, dbz, i, ia, iap, iax, iay, iaz, ib, ibm, &
-         ibx, iby, ibz, ii(3), iim(3), ij, ipgf, ir, ir1, ir2, irm(3), irr(3), irx, iry, irz, ix, &
-         ixx(1), j, jj(3), jjp(3), jpgf, la, la_max, la_min, lb, lb_max, lb_min, llr, m, ma, mb, &
-         mmax, na, nb
+         ibx, iby, ibz, idir, ii(3), iim(3), ij, ipgf, ir, ir1, ir2, irm(3), irr(3), irx, iry, &
+         irz, ix, ixx(1), j, jj(3), jjp(3), jpgf, la, la_max, la_min, lb, lb_max, lb_min, llr, m, &
+         ma, mb, mmax, na, nb
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: iiap
       LOGICAL                                            :: calculate_force_a, calculate_force_b
       REAL(KIND=dp)                                      :: aai, abx, fax, fay, faz, fbx, fby, fbz, &
@@ -146,6 +157,11 @@ CONTAINS
          force_b = 0.0_dp
       ELSE
          db_max = 0
+      END IF
+
+      IF (PRESENT(vab2)) THEN
+         da_max = 1
+         db_max = 1
       END IF
 
       la_max = la_max_set + da_max
@@ -456,6 +472,17 @@ CONTAINS
                END DO
             END DO
 
+            ! DFPT for APTs
+            IF (PRESENT(vab2_work)) THEN
+               DO j = ncoset(lb_min_set - 1) + 1, ncoset(lb_max_set)
+                  DO i = ncoset(la_min_set - 1) + 1, ncoset(la_max_set)
+                     vab2_work(na + i, nb + j, 1) = vab2_work(na + i, nb + j, 1) + fs(i, j, 2)
+                     vab2_work(na + i, nb + j, 2) = vab2_work(na + i, nb + j, 2) + fs(i, j, 3)
+                     vab2_work(na + i, nb + j, 3) = vab2_work(na + i, nb + j, 3) + fs(i, j, 4)
+                  END DO
+               END DO
+            END IF
+
 !       *** Calculate the force contribution for the atomic center a ***
 
             IF (calculate_force_a) THEN
@@ -509,6 +536,29 @@ CONTAINS
                   END DO
                END DO
             END DO
+
+            ! DFPT for APTs
+            IF (PRESENT(vab2_work)) THEN
+               DO j = ncoset(lb_min_set - 1) + 1, ncoset(lb_max_set)
+                  DO i = ncoset(la_min_set - 1) + 1, ncoset(la_max_set)
+                     vab2_work(na + i, nb + j, 4) = vab2_work(na + i, nb + j, 4) + fs(i, j, 2)
+                     vab2_work(na + i, nb + j, 5) = vab2_work(na + i, nb + j, 5) + fs(i, j, 3)
+                     vab2_work(na + i, nb + j, 6) = vab2_work(na + i, nb + j, 6) + fs(i, j, 4)
+                  END DO
+               END DO
+
+               DO idir = 1, 3
+                  DO j = ncoset(lb_min_set - 1) + 1, ncoset(lb_max_set)
+                     DO i = ncoset(la_min_set - 1) + 1, ncoset(la_max_set)
+                        vab2(na + i, nb + j, idir) = vab2(na + i, nb + j, idir) &
+                                                     + vab2_work(na + i, nb + j, idir)*deltaR(idir, iatom) &
+                                                     - vab2_work(na + i, nb + j, idir)*deltaR(idir, katom) &
+                                                     + vab2_work(na + i, nb + j, idir + 3)*deltaR(idir, jatom) &
+                                                     - vab2_work(na + i, nb + j, idir + 3)*deltaR(idir, katom)
+                     END DO
+                  END DO
+               END DO
+            END IF
 
 !       *** Calculate the force contribution for the atomic center b ***
 

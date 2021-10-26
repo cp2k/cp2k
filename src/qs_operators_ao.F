@@ -25,6 +25,7 @@ MODULE qs_operators_ao
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
                                               dbcsr_get_matrix_type,&
+                                              dbcsr_has_symmetry,&
                                               dbcsr_p_type,&
                                               dbcsr_type_antisymmetric,&
                                               dbcsr_type_no_symmetry
@@ -81,7 +82,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
-      LOGICAL                                            :: found, new_atom_b
+      LOGICAL                                            :: do_symmetric, found, new_atom_b
       REAL(KIND=dp)                                      :: dab, rab2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: intab, rr_work
@@ -97,14 +98,14 @@ CONTAINS
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb
+         POINTER                                         :: sab_nl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (cell, sab_orb, qs_kind_set, particle_set, para_env)
+      NULLIFY (cell, sab_nl, qs_kind_set, particle_set, para_env)
       NULLIFY (logger)
 
       logger => cp_get_default_logger()
@@ -114,12 +115,18 @@ CONTAINS
                       particle_set=particle_set, &
                       neighbor_list_id=neighbor_list_id, &
                       para_env=para_env, &
-                      sab_orb=sab_orb, &
                       cell=cell)
 
       nkind = SIZE(qs_kind_set)
       natom = SIZE(particle_set)
 
+      ! Take into account the symmetry of the input matrix
+      do_symmetric = dbcsr_has_symmetry(matrix(1)%matrix)
+      IF (do_symmetric) THEN
+         CALL get_qs_env(qs_env=qs_env, sab_orb=sab_nl)
+      ELSE
+         CALL get_qs_env(qs_env=qs_env, sab_all=sab_nl)
+      END IF
 !   *** Allocate work storage ***
 
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, &
@@ -145,7 +152,7 @@ CONTAINS
             NULLIFY (basis_set_list(ikind)%gto_basis_set)
          END IF
       END DO
-      CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
+      CALL neighbor_list_iterator_create(nl_iterator, sab_nl)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, inode=inode, &
                                 iatom=iatom, jatom=jatom, r=rab)
@@ -185,12 +192,17 @@ CONTAINS
          END IF
 
          IF (new_atom_b) THEN
-            IF (iatom <= jatom) THEN
+            IF (do_symmetric) THEN
+               IF (iatom <= jatom) THEN
+                  irow = iatom
+                  icol = jatom
+               ELSE
+                  irow = jatom
+                  icol = iatom
+               END IF
+            ELSE
                irow = iatom
                icol = jatom
-            ELSE
-               irow = jatom
-               icol = iatom
             END IF
 
             DO i = 1, 3
@@ -233,22 +245,30 @@ CONTAINS
                              sphi_b(1, sgfb), SIZE(sphi_b, 1), &
                              0.0_dp, work(1, 1), SIZE(work, 1))
 
-                  IF (iatom <= jatom) THEN
+                  IF (do_symmetric) THEN
+                     IF (iatom <= jatom) THEN
 
+                        CALL dgemm("T", "N", nsgfa(iset), nsgfb(jset), ncoa, &
+                                   1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                                   work(1, 1), SIZE(work, 1), &
+                                   1.0_dp, integral(i)%block(sgfa, sgfb), &
+                                   SIZE(integral(i)%block, 1))
+
+                     ELSE
+
+                        CALL dgemm("T", "N", nsgfb(jset), nsgfa(iset), ncoa, &
+                                   -1.0_dp, work(1, 1), SIZE(work, 1), &
+                                   sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                                   1.0_dp, integral(i)%block(sgfb, sgfa), &
+                                   SIZE(integral(i)%block, 1))
+
+                     END IF
+                  ELSE
                      CALL dgemm("T", "N", nsgfa(iset), nsgfb(jset), ncoa, &
                                 1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
                                 work(1, 1), SIZE(work, 1), &
                                 1.0_dp, integral(i)%block(sgfa, sgfb), &
                                 SIZE(integral(i)%block, 1))
-
-                  ELSE
-
-                     CALL dgemm("T", "N", nsgfb(jset), nsgfa(iset), ncoa, &
-                                -1.0_dp, work(1, 1), SIZE(work, 1), &
-                                sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                                1.0_dp, integral(i)%block(sgfb, sgfa), &
-                                SIZE(integral(i)%block, 1))
-
                   END IF
 
                END DO

@@ -16,7 +16,8 @@
 !> \author MI
 ! **************************************************************************************************
 MODULE qs_linres_module
-   USE bibliography,                    ONLY: Weber2009,&
+   USE bibliography,                    ONLY: Ditler2021,&
+                                              Weber2009,&
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -40,6 +41,15 @@ MODULE qs_linres_module
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
+   USE kinds,                           ONLY: dp
+   USE qs_dcdr,                         ONLY: apt_dR,&
+                                              apt_dR_localization,&
+                                              dcdr_build_op_dR,&
+                                              dcdr_response_dR,&
+                                              prepare_per_atom
+   USE qs_dcdr_utils,                   ONLY: dcdr_env_cleanup,&
+                                              dcdr_env_init,&
+                                              dcdr_print
    USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
@@ -75,6 +85,7 @@ MODULE qs_linres_module
                                               polar_print,&
                                               polar_response
    USE qs_linres_types,                 ONLY: current_env_type,&
+                                              dcdr_env_type,&
                                               epr_env_type,&
                                               issc_env_type,&
                                               linres_control_create,&
@@ -101,6 +112,54 @@ MODULE qs_linres_module
 ! **************************************************************************************************
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief Calculates the derivatives of the MO coefficients dC/dR^lambda_beta
+!>         wrt to nuclear coordinates. The derivative is index by `beta`, the
+!>         electric dipole operator by `alpha`.
+!>        Also calculates the APT
+!>               P^lambda_alpha,beta = d< mu_alpha >/dR^lambda_beta
+!>        and calculates the sum rules for the APT elements.
+!> \param qs_env ...
+!> \param p_env ...
+! **************************************************************************************************
+   SUBROUTINE dcdr_linres(qs_env, p_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_p_env_type), POINTER                       :: p_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'dcdr_linres', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: beta, latom
+      TYPE(dcdr_env_type)                                :: dcdr_env
+
+      CALL cite_reference(Ditler2021)
+      CALL dcdr_env_init(dcdr_env, qs_env)
+      DO latom = 1, SIZE(dcdr_env%list_of_atoms)
+         dcdr_env%lambda = dcdr_env%list_of_atoms(latom)
+         CALL prepare_per_atom(dcdr_env, qs_env)
+
+         DO beta = 1, 3                   ! in every direction
+            dcdr_env%beta = beta
+            dcdr_env%deltaR(dcdr_env%beta, dcdr_env%lambda) = 1._dp
+
+            CALL dcdr_build_op_dR(dcdr_env, qs_env)
+            CALL dcdr_response_dR(dcdr_env, p_env, qs_env)
+
+            IF (.NOT. dcdr_env%localized_psi0) THEN
+               CALL apt_dR(qs_env, dcdr_env)
+            ELSE IF (dcdr_env%localized_psi0) THEN
+               CALL apt_dR_localization(qs_env, dcdr_env)
+            END IF
+
+         END DO !beta
+
+         dcdr_env%apt_total_dcdr(:, :, dcdr_env%lambda) = &
+            dcdr_env%apt_el_dcdr(:, :, dcdr_env%lambda) + dcdr_env%apt_nuc_dcdr(:, :, dcdr_env%lambda)
+      END DO !lambda
+
+      CALL dcdr_print(dcdr_env, qs_env)
+      CALL dcdr_env_cleanup(qs_env, dcdr_env)
+   END SUBROUTINE dcdr_linres
 
 ! **************************************************************************************************
 !> \brief Driver for the linear response calculatios
@@ -160,7 +219,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_calculation_low'
 
       INTEGER                                            :: handle, iounit
-      LOGICAL                                            :: epr_present, issc_present, &
+      LOGICAL                                            :: dcdr_present, epr_present, issc_present, &
                                                             lr_calculation, nmr_present, &
                                                             polar_present
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -176,6 +235,7 @@ CONTAINS
       epr_present = .FALSE.
       issc_present = .FALSE.
       polar_present = .FALSE.
+      dcdr_present = .FALSE.
 
       NULLIFY (dft_control, p_env, linres_control, logger, prop_section, lr_section)
       logger => cp_get_default_logger()
@@ -217,6 +277,14 @@ CONTAINS
          CALL section_vals_get(prop_section, explicit=polar_present)
          IF (polar_present) THEN
             CALL polar_linres(qs_env, p_env)
+         END IF
+
+         ! Nuclear Position Perturbation
+         prop_section => section_vals_get_subs_vals(lr_section, "dcdr")
+         CALL section_vals_get(prop_section, explicit=dcdr_present)
+
+         IF (dcdr_present) THEN
+            CALL dcdr_linres(qs_env, p_env)
          END IF
 
          ! Other possible LR calculations can be introduced here

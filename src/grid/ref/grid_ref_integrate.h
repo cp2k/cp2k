@@ -36,7 +36,8 @@ void grid_ref_integrate_pgf_product(
     const int border_width[3], const double radius, const int o1, const int o2,
     const int n1, const int n2, const double *grid, double hab[n2][n1],
     const double pab[n2][n1], double forces[2][3], double virials[2][3][3],
-    double hdab[n2][n1][3], double a_hdab[n2][n1][3][3]);
+    double hdab[n2][n1][3], double hadb[n2][n1][3],
+    double a_hdab[n2][n1][3][3]);
 
 #endif
 // EOF

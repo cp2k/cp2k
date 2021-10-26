@@ -405,7 +405,7 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
             lb_min, zeta, zetb, dh, dh_inv, ra, rab, npts_global, npts_local,
             shift_local, border_width, radius, o1, o2, n1, n2,
             grid_ref->host_buffer, hab_test, pab, forces_test, virials_test,
-            NULL, NULL);
+            NULL, NULL, NULL);
       }
       for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {

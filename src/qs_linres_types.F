@@ -17,9 +17,11 @@ MODULE qs_linres_types
                                               gto_basis_set_type
    USE cp_array_utils,                  ONLY: cp_2d_i_p_type,&
                                               cp_2d_r_p_type
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                               cp_fm_release
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
+                                              dbcsr_type
    USE kinds,                           ONLY: dp
    USE qs_grid_atom,                    ONLY: grid_atom_type
    USE qs_harmonics_atom,               ONLY: harmonics_atom_type
@@ -210,13 +212,48 @@ MODULE qs_linres_types
          POINTER                               :: jrho_b_h_iii, jrho_b_s_iii
    END TYPE jrho_atom_type
 
+! \param type for dC/dR calculation
+   TYPE dcdr_env_type
+      INTEGER :: nao, nmo, orb_center, beta, lambda, output_unit
+      TYPE(dbcsr_type), POINTER :: perturbed_dm_correction
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_hc, matrix_s1, matrix_t1, matrix_s, matrix_t, &
+                                                   matrix_ppnl_1, matrix_d_vhxc_dR, matrix_core_charge_1, &
+                                                   matrix_nosym_temp, &
+                                                   moments, &
+                                                   matrix_apply_op_constant, &
+                                                   hamiltonian1
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: matrix_vhxc_perturbed_basis, &
+                                                      matrix_difdip
+      REAL(dp), DIMENSION(:, :), POINTER :: deltaR, delta_basis_function
+      REAL(dp), DIMENSION(:, :, :, :), POINTER :: apt_subset, apt_at_dcdr_per_center
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: mo_coeff, dCR, dCR_prime, op_dR, chc
+
+      CHARACTER(LEN=30) :: orb_center_name
+      TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER :: center_list
+      TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER :: centers_set
+      INTEGER, DIMENSION(2) :: nbr_center, nstates
+      REAL(dp), DIMENSION(3) :: ref_point, dipole_pos
+      LOGICAL :: localized_psi0
+      INTEGER, POINTER :: list_of_atoms(:)
+
+      LOGICAL :: distributed_origin
+
+      TYPE(cp_fm_struct_type), POINTER :: aoao_fm_struct
+      TYPE(cp_fm_struct_type), POINTER :: momo_fm_struct
+      TYPE(cp_fm_struct_type), POINTER :: homohomo_fm_struct
+      TYPE(cp_fm_struct_type), POINTER :: likemos_fm_struct
+
+      REAL(dp), DIMENSION(:, :, :), POINTER :: apt_el_dcdr, apt_nuc_dcdr, apt_total_dcdr
+      REAL(dp), DIMENSION(:, :, :, :), POINTER :: apt_el_dcdr_per_center, apt_el_dcdr_per_subset
+   END TYPE dcdr_env_type
+
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_types'
 
 ! *** Public data types ***
 
    PUBLIC :: linres_control_type, &
              nmr_env_type, issc_env_type, jrho_atom_type, &
-             epr_env_type, &
+             epr_env_type, dcdr_env_type, &
              nablavks_atom_type, current_env_type, &
              realspaces_grid_p_type, polar_env_type
 
