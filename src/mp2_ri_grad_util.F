@@ -125,8 +125,8 @@ CONTAINS
       CALL mat_3d_to_2d(B_ia_Q, BIb_C_2D, homo, my_B_size, virtual, my_B_virtual_start, &
                         my_ia_start, my_ia_end, my_ia_size, my_group_L_size, para_env_sub, gd_B_virtual)
 
-      CALL mat_3d_to_2d(mp2_env%ri_grad%Gamma_P_ia(kspin)%array, Gamma_2D, homo, my_B_size, virtual, my_B_virtual_start, &
-                        my_ia_start, my_ia_end, my_ia_size, my_group_L_size, para_env_sub, gd_B_virtual)
+      CALL mat_3d_to_2d_gamma(mp2_env%ri_grad%Gamma_P_ia(kspin)%array, Gamma_2D, homo, my_B_size, virtual, my_B_virtual_start, &
+                              my_ia_start, my_ia_end, my_ia_size, my_group_L_size, para_env_sub, gd_B_virtual)
 
       ! create the processor map and size arrays
       CALL create_group_dist(gd_ia_new, para_env%num_pe)
@@ -399,6 +399,90 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE mat_3d_to_2d
+
+! **************************************************************************************************
+!> \brief Redistribute a 3d matrix to a 2d matrix, specialized for Gamma_P_ia to account for a different order of indices
+!> \param B_ia_Q ...
+!> \param BIb_C_2D ...
+!> \param homo ...
+!> \param my_B_size ...
+!> \param virtual ...
+!> \param my_B_virtual_start ...
+!> \param my_ia_start ...
+!> \param my_ia_end ...
+!> \param my_ia_size ...
+!> \param my_group_L_size ...
+!> \param para_env_sub ...
+!> \param gd_B_virtual ...
+! **************************************************************************************************
+   SUBROUTINE mat_3d_to_2d_gamma(B_ia_Q, BIb_C_2D, homo, my_B_size, virtual, my_B_virtual_start, &
+                                 my_ia_start, my_ia_end, my_ia_size, my_group_L_size, para_env_sub, gd_B_virtual)
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: B_ia_Q
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(OUT)                                     :: BIb_C_2D
+      INTEGER, INTENT(IN)                                :: homo, my_B_size, virtual, &
+                                                            my_B_virtual_start, my_ia_start, &
+                                                            my_ia_end, my_ia_size, my_group_L_size
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
+      TYPE(group_dist_d1_type), INTENT(IN)               :: gd_B_virtual
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mat_3d_to_2d_gamma'
+
+      INTEGER :: handle, i, ia_global, iiB, jjB, proc_receive, proc_send, proc_shift, rec_B_size, &
+         rec_B_virtual_end, rec_B_virtual_start
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sub_proc_map
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C_rec
+
+      CALL timeset(routineN, handle)
+
+      ALLOCATE (sub_proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe - 1))
+      DO i = 0, para_env_sub%num_pe - 1
+         sub_proc_map(i) = i
+         sub_proc_map(-i - 1) = para_env_sub%num_pe - i - 1
+         sub_proc_map(para_env_sub%num_pe + i) = i
+      ENDDO
+
+      ALLOCATE (BIb_C_2D(my_ia_size, my_group_L_size))
+      BIb_C_2D = 0.0_dp
+
+      DO iiB = 1, homo
+         DO jjB = 1, my_B_size
+            ia_global = (iiB - 1)*virtual + my_B_virtual_start + jjB - 1
+            IF (ia_global >= my_ia_start .AND. ia_global <= my_ia_end) THEN
+               BIb_C_2D(ia_global - my_ia_start + 1, :) = B_ia_Q(jjB, iiB, 1:my_group_L_size)
+            END IF
+         END DO
+      END DO
+
+      DO proc_shift = 1, para_env_sub%num_pe - 1
+         proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
+         proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
+
+         CALL get_group_dist(gd_B_virtual, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
+
+         ALLOCATE (BIb_C_rec(rec_B_size, homo, my_group_L_size))
+         BIb_C_rec = 0.0_dp
+
+         CALL mp_sendrecv(B_ia_Q, proc_send, &
+                          BIb_C_rec, proc_receive, &
+                          para_env_sub%group)
+
+         DO iiB = 1, homo
+            DO jjB = 1, rec_B_size
+               ia_global = (iiB - 1)*virtual + rec_B_virtual_start + jjB - 1
+               IF (ia_global >= my_ia_start .AND. ia_global <= my_ia_end) THEN
+                  BIb_C_2D(ia_global - my_ia_start + 1, :) = BIb_C_rec(jjB, iiB, 1:my_group_L_size)
+               END IF
+            END DO
+         END DO
+
+         DEALLOCATE (BIb_C_rec)
+      END DO
+      DEALLOCATE (B_ia_Q)
+
+      CALL timestop(handle)
+   END SUBROUTINE mat_3d_to_2d_gamma
 
 ! **************************************************************************************************
 !> \brief redistribute local part of array to fm
