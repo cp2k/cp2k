@@ -59,8 +59,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE put_result_r1(results, description, values)
       TYPE(cp_result_type), POINTER                      :: results
-      CHARACTER(LEN=default_string_length)               :: description
-      REAL(KIND=dp), DIMENSION(:)                        :: values
+      CHARACTER(LEN=default_string_length), INTENT(IN)   :: description
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: values
 
       INTEGER                                            :: isize, jsize
       LOGICAL                                            :: check
@@ -93,8 +93,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE put_result_r2(results, description, values)
       TYPE(cp_result_type), POINTER                      :: results
-      CHARACTER(LEN=default_string_length)               :: description
-      REAL(KIND=dp), DIMENSION(:, :)                     :: values
+      CHARACTER(LEN=default_string_length), INTENT(IN)   :: description
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: values
 
       INTEGER                                            :: isize, jsize
       LOGICAL                                            :: check
@@ -126,7 +126,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION test_for_result(results, description) RESULT(res_exist)
       TYPE(cp_result_type), POINTER                      :: results
-      CHARACTER(LEN=default_string_length)               :: description
+      CHARACTER(LEN=default_string_length), INTENT(IN)   :: description
       LOGICAL                                            :: res_exist
 
       INTEGER                                            :: i, nlist
@@ -159,9 +159,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_result_r1(results, description, values, nval, n_rep, n_entries)
       TYPE(cp_result_type), POINTER                      :: results
-      CHARACTER(LEN=default_string_length)               :: description
-      REAL(KIND=dp), DIMENSION(:)                        :: values
-      INTEGER, OPTIONAL                                  :: nval, n_rep, n_entries
+      CHARACTER(LEN=default_string_length), INTENT(IN)   :: description
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: values
+      INTEGER, INTENT(IN), OPTIONAL                      :: nval
+      INTEGER, INTENT(OUT), OPTIONAL                     :: n_rep, n_entries
 
       INTEGER                                            :: i, k, nlist, nrep, size_res, size_values
 
@@ -231,9 +232,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_result_r2(results, description, values, nval, n_rep, n_entries)
       TYPE(cp_result_type), POINTER                      :: results
-      CHARACTER(LEN=default_string_length)               :: description
-      REAL(KIND=dp), DIMENSION(:, :)                     :: values
-      INTEGER, OPTIONAL                                  :: nval, n_rep, n_entries
+      CHARACTER(LEN=default_string_length), INTENT(IN)   :: description
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: values
+      INTEGER, INTENT(IN), OPTIONAL                      :: nval
+      INTEGER, INTENT(OUT), OPTIONAL                     :: n_rep, n_entries
 
       INTEGER                                            :: i, k, nlist, nrep, size_res, size_values
 
@@ -302,8 +304,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_nreps(results, description, n_rep, n_entries, type_in_use)
       TYPE(cp_result_type), POINTER                      :: results
-      CHARACTER(LEN=default_string_length)               :: description
-      INTEGER, OPTIONAL                                  :: n_rep, n_entries, type_in_use
+      CHARACTER(LEN=default_string_length), INTENT(IN)   :: description
+      INTEGER, INTENT(OUT), OPTIONAL                     :: n_rep, n_entries, type_in_use
 
       INTEGER                                            :: I, nlist
 
@@ -359,8 +361,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_results_erase(results, description, nval)
       TYPE(cp_result_type), POINTER                      :: results
-      CHARACTER(LEN=default_string_length), OPTIONAL     :: description
-      INTEGER, OPTIONAL                                  :: nval
+      CHARACTER(LEN=default_string_length), INTENT(IN), &
+         OPTIONAL                                        :: description
+      INTEGER, INTENT(IN), OPTIONAL                      :: nval
 
       INTEGER                                            :: entry_deleted, i, k, new_size, nlist, &
                                                             nrep
