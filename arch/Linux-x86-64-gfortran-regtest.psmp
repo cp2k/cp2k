@@ -2,7 +2,7 @@
 #              FFTW 3.3.9, LIBINT 2.6.0, LIBXC 5.1.6, ELPA 2021.05.002,
 #              PLUMED 2.7.2, SPGLIB 1.16.2, LIBVORI 210412, GSL 2.7,
 #              SIRIUS 7.2.7, COSMA 2.5.1
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, September 2021)
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, October 2021)
 
 CC          = mpicc
 FC          = mpif90
@@ -47,6 +47,7 @@ DFLAGS      = -D__COSMA
 DFLAGS     += -D__ELPA
 DFLAGS     += -D__FFTW3
 DFLAGS     += -D__GSL
+DFLAGS     += -D__HAS_IEEE_EXCEPTIONS
 DFLAGS     += -D__LIBINT
 DFLAGS     += -D__LIBVORI
 DFLAGS     += -D__LIBXC
@@ -65,7 +66,7 @@ WFLAGS     += -Werror=conversion
 WFLAGS     += -Werror=intrinsic-shadow
 WFLAGS     += -Werror=intrinsics-std
 WFLAGS     += -Werror=line-truncation
-#WFLAGS     += -Wrealloc-lhs
+WFLAGS     += -Wrealloc-lhs
 WFLAGS     += -Werror=tabs
 WFLAGS     += -Werror=target-lifetime
 WFLAGS     += -Werror=underflow
@@ -81,6 +82,14 @@ FCFLAGS    += -ffree-line-length-none
 FCFLAGS    += -fimplicit-none
 FCFLAGS    += -fno-omit-frame-pointer
 FCFLAGS    += -std=f2008
+
+FCFLAGS    += -fcheck=all,no-array-temps
+FCFLAGS    += -ffpe-trap=invalid,overflow,zero
+FCFLAGS    += -finit-derived
+FCFLAGS    += -finit-real=snan
+FCFLAGS    += -finit-integer=-42
+FCFLAGS    += -finline-matmul-limit=0
+
 FCFLAGS    += -I$(BLAS_INC)
 FCFLAGS    += -I$(COSMA_INC)
 FCFLAGS    += -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules
