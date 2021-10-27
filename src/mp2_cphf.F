@@ -276,7 +276,7 @@ CONTAINS
       CALL section_vals_get(hfx_sections, explicit=do_hfx, n_repetition=n_rep_hf)
       IF (do_hfx) THEN
          ! here we check if we have to reallocate the HFX container
-         IF (mp2_env%ri_mp2%free_hfx_buffer) THEN
+         IF (mp2_env%ri_mp2%free_hfx_buffer .AND. (.NOT. qs_env%x_data(1, 1)%do_hfx_ri)) THEN
             CALL timeset(routineN//"_alloc_hfx", handle2)
             n_threads = 1
 !$          n_threads = omp_get_max_threads()
@@ -284,7 +284,6 @@ CONTAINS
             DO irep = 1, n_rep_hf
                DO i_thread = 0, n_threads - 1
                   actual_x_data => qs_env%x_data(irep, i_thread + 1)
-                  IF (actual_x_data%do_hfx_ri) CYCLE
 
                   do_dynamic_load_balancing = .TRUE.
                   IF (n_threads == 1 .OR. actual_x_data%memory_parameter%do_disk_storage) do_dynamic_load_balancing = .FALSE.

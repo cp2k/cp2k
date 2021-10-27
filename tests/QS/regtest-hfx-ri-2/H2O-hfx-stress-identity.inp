@@ -26,6 +26,7 @@
             &END XC_FUNCTIONAL
             &HF
                 &RI
+                   EPS_FILTER 1.0E-12
                 &END
                 &INTERACTION_POTENTIAL
                    POTENTIAL_TYPE IDENTITY
