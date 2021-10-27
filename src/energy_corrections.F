@@ -276,7 +276,7 @@ CONTAINS
          END SELECT
 
          IF (.NOT. my_calc_forces .AND. unit_nr > 0) THEN
-            WRITE (unit_nr, '(T3,A,T65,F16.10)') "Energy Correction ", energy%nonscf_correction
+            WRITE (unit_nr, '(T3,A,T56,F25.15)') "Energy Correction ", energy%nonscf_correction
          END IF
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A,A,A)') "!", REPEAT("-", 77), "!"
@@ -1487,8 +1487,8 @@ CONTAINS
       CASE (ec_ot_diag)
          CALL ec_ot_diag_solver(qs_env, ec_env, ksmat, smat, pmat, wmat)
       CASE (ec_matrix_sign, ec_matrix_trs4, ec_matrix_tc2)
-         CALL ec_ls_init(qs_env)
-         CALL ec_ls_solver(qs_env, ec_ls_method=ec_env%ks_solver)
+         CALL ec_ls_init(qs_env, ksmat, smat)
+         CALL ec_ls_solver(qs_env, pmat, wmat, ec_ls_method=ec_env%ks_solver)
       CASE DEFAULT
          CPASSERT(.FALSE.)
       END SELECT
@@ -1560,14 +1560,14 @@ CONTAINS
       CALL dbcsr_allocate_matrix_set(pmat, nspins, 1)
       DO ispin = 1, nspins
          ALLOCATE (pmat(ispin, 1)%matrix)
-         CALL dbcsr_create(pmat(ispin, 1)%matrix, template=smat(1, 1)%matrix)
+         CALL dbcsr_create(pmat(ispin, 1)%matrix, template=smat(1, 1)%matrix, name="MAO P mat")
          CALL cp_dbcsr_alloc_block_from_nbl(pmat(ispin, 1)%matrix, ec_env%sab_orb)
       END DO
 
       CALL dbcsr_allocate_matrix_set(wmat, nspins, 1)
       DO ispin = 1, nspins
          ALLOCATE (wmat(ispin, 1)%matrix)
-         CALL dbcsr_create(wmat(ispin, 1)%matrix, template=smat(1, 1)%matrix)
+         CALL dbcsr_create(wmat(ispin, 1)%matrix, template=smat(1, 1)%matrix, name="MAO W mat")
          CALL cp_dbcsr_alloc_block_from_nbl(wmat(ispin, 1)%matrix, ec_env%sab_orb)
       END DO
 
@@ -1782,12 +1782,12 @@ CONTAINS
          ec_env%eband = eband + ec_env%efield_nuclear
          ec_env%etotal = ec_env%eband + ec_env%ehartree + ec_env%exc - ec_env%vhxc + ec_env%edispersion
          IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T3,A,T65,F16.10)') "Eband    ", ec_env%eband
-            WRITE (unit_nr, '(T3,A,T65,F16.10)') "Ehartree ", ec_env%ehartree
-            WRITE (unit_nr, '(T3,A,T65,F16.10)') "Exc      ", ec_env%exc
-            WRITE (unit_nr, '(T3,A,T65,F16.10)') "Evhxc    ", ec_env%vhxc
-            WRITE (unit_nr, '(T3,A,T65,F16.10)') "Edisp    ", ec_env%edispersion
-            WRITE (unit_nr, '(T3,A,T65,F16.10)') "Etotal Harris Functional   ", ec_env%etotal
+            WRITE (unit_nr, '(T3,A,T56,F25.15)') "Eband    ", ec_env%eband
+            WRITE (unit_nr, '(T3,A,T56,F25.15)') "Ehartree ", ec_env%ehartree
+            WRITE (unit_nr, '(T3,A,T56,F25.15)') "Exc      ", ec_env%exc
+            WRITE (unit_nr, '(T3,A,T56,F25.15)') "Evhxc    ", ec_env%vhxc
+            WRITE (unit_nr, '(T3,A,T56,F25.15)') "Edisp    ", ec_env%edispersion
+            WRITE (unit_nr, '(T3,A,T56,F25.15)') "Etotal Harris Functional   ", ec_env%etotal
          END IF
 
       CASE DEFAULT
@@ -2128,12 +2128,15 @@ CONTAINS
 !>        instead of the diagonalization performed in ec_diag_solver
 !>
 !> \param qs_env ...
+!> \param matrix_ks Harris Kohn-Sham matrix
+!> \param matrix_s Overlap matrix in Harris functional basis
 !> \par History
 !>       09.2020 created
 !> \author F.Belleflamme
 ! **************************************************************************************************
-   SUBROUTINE ec_ls_init(qs_env)
+   SUBROUTINE ec_ls_init(qs_env, matrix_ks, matrix_s)
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ec_ls_init', routineP = moduleN//':'//routineN
 
@@ -2151,7 +2154,7 @@ CONTAINS
       ls_env => ec_env%ls_env
 
       ! create the matrix template for use in the ls procedures
-      CALL matrix_ls_create(matrix_ls=ls_env%matrix_s, matrix_qs=ec_env%matrix_s(1, 1)%matrix, &
+      CALL matrix_ls_create(matrix_ls=ls_env%matrix_s, matrix_qs=matrix_s(1, 1)%matrix, &
                             ls_mstruct=ls_env%ls_mstruct)
 
       IF (ALLOCATED(ls_env%matrix_p)) THEN
@@ -2174,13 +2177,13 @@ CONTAINS
       END DO
 
       ! Set up S matrix and needed functions of S
-      CALL ls_scf_init_matrix_s(ec_env%matrix_s(1, 1)%matrix, ls_env)
+      CALL ls_scf_init_matrix_s(matrix_s(1, 1)%matrix, ls_env)
 
       ! Bring KS matrix from QS to LS form
       ! EC KS-matrix already calculated
       DO ispin = 1, nspins
          CALL matrix_qs_to_ls(matrix_ls=ls_env%matrix_ks(ispin), &
-                              matrix_qs=ec_env%matrix_ks(ispin, 1)%matrix, &
+                              matrix_qs=matrix_ks(ispin, 1)%matrix, &
                               ls_mstruct=ls_env%ls_mstruct, &
                               covariant=.TRUE.)
       END DO
@@ -2194,6 +2197,8 @@ CONTAINS
 !>        instead of the diagonalization performed in ec_diag_solver
 !>
 !> \param qs_env ...
+!> \param matrix_p Harris dentiy matrix, calculated here
+!> \param matrix_w Harris energy weighted density matrix, calculated here
 !> \param ec_ls_method which purification scheme should be used
 !> \par History
 !>      12.2019 created [JGH]
@@ -2201,8 +2206,9 @@ CONTAINS
 !> \author Fabian Belleflamme
 ! **************************************************************************************************
 
-   SUBROUTINE ec_ls_solver(qs_env, ec_ls_method)
+   SUBROUTINE ec_ls_solver(qs_env, matrix_p, matrix_w, ec_ls_method)
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_w
       INTEGER, INTENT(IN)                                :: ec_ls_method
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_ls_solver', routineP = moduleN//':'//routineN
@@ -2317,13 +2323,13 @@ CONTAINS
       ! ls_scf_dm_to_ks
       ! Density matrix from LS to EC
       DO ispin = 1, nspins
-         CALL matrix_ls_to_qs(matrix_qs=ec_env%matrix_p(ispin, 1)%matrix, &
+         CALL matrix_ls_to_qs(matrix_qs=matrix_p(ispin, 1)%matrix, &
                               matrix_ls=ls_env%matrix_p(ispin), &
                               ls_mstruct=ls_env%ls_mstruct, &
                               covariant=.FALSE.)
       END DO
 
-      wmat => ec_env%matrix_w(:, 1)
+      wmat => matrix_w(:, 1)
       CALL calculate_w_matrix_ls(wmat, ec_env%ls_env)
 
       ! clean up
@@ -2361,7 +2367,7 @@ CONTAINS
 !>
 !> \param qs_env ...
 !> \param ec_env ...
-!> \param matrix_ks Harris Kohn-Sham matric
+!> \param matrix_ks Harris Kohn-Sham matrix
 !> \param matrix_s Overlap matrix in Harris functional basis
 !> \param matrix_p Harris dentiy matrix, calculated here
 !> \param matrix_w Harris energy weighted density matrix, calculated here
@@ -2442,7 +2448,8 @@ CONTAINS
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, nkind=nkind)
       CALL uppercase(ec_env%basis)
       ! Harris basis may differ from ground-state basis only if explicitly added
-      ! thus only one case needs to be tested
+      ! thus only two cases that need to be tested
+      ! 1) explicit Harris basis present?
       IF (ec_env%basis == "HARRIS") THEN
          DO ikind = 1, nkind
             qs_kind => qs_kind_set(ikind)
@@ -2456,14 +2463,18 @@ CONTAINS
             END IF
          END DO
       END IF
+      ! 2) Harris uses MAOs
+      IF (ec_env%mao) THEN
+         CPABORT("OT-Diag initial guess: not implemented for MAOs")
+      END IF
 
       ! Initital guess obtained for OT Diagonalization
       SELECT CASE (ec_env%ec_initial_guess)
       CASE (ec_ot_atomic)
 
-         p_rmpv => ec_env%matrix_p(:, 1)
+         p_rmpv => matrix_p(:, 1)
 
-         CALL calculate_atomic_block_dm(p_rmpv, ec_env%matrix_s(1, 1)%matrix, &
+         CALL calculate_atomic_block_dm(p_rmpv, matrix_s(1, 1)%matrix, &
                                         particle_set, atomic_kind_set, qs_kind_set, &
                                         nspins, nelectron_spin, iounit, para_env)
 
@@ -2492,12 +2503,12 @@ CONTAINS
          CALL cp_fm_create(sv, mo_coeff%matrix_struct, "SV")
          ! multiply times PS
          ! PS*C(:,1:nomo)+C(:,nomo+1:nmo) (nomo=NINT(nelectron/maxocc))
-         CALL cp_dbcsr_sm_fm_multiply(ec_env%matrix_s(1, 1)%matrix, mo_coeff, sv, nmo)
+         CALL cp_dbcsr_sm_fm_multiply(matrix_s(1, 1)%matrix, mo_coeff, sv, nmo)
          CALL cp_dbcsr_sm_fm_multiply(p_rmpv(ispin)%matrix, sv, mo_coeff, homo)
          CALL cp_fm_release(sv)
          ! and ortho the result
          ! If DFBT or SE, then needs has_unit_metrix option
-         CALL make_basis_sm(mo_coeff, nmo, ec_env%matrix_s(1, 1)%matrix)
+         CALL make_basis_sm(mo_coeff, nmo, matrix_s(1, 1)%matrix)
       END DO
 
       ! Preconditioner
@@ -2509,8 +2520,8 @@ CONTAINS
          CALL make_preconditioner(local_preconditioner, &
                                   precon_type=ot_precond_full_single_inverse, &
                                   solver_type=ot_precond_solver_default, &
-                                  matrix_h=ec_env%matrix_ks(ispin, 1)%matrix, &
-                                  matrix_s=ec_env%matrix_s(ispin, 1)%matrix, &
+                                  matrix_h=matrix_ks(ispin, 1)%matrix, &
+                                  matrix_s=matrix_s(ispin, 1)%matrix, &
                                   convert_precond_to_dbcsr=.TRUE., &
                                   mo_set=mos(ispin)%mo_set, energy_gap=0.2_dp)
 
