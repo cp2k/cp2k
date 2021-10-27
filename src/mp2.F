@@ -425,6 +425,7 @@ CONTAINS
       IF (ASSOCIATED(qs_env%x_data)) THEN
          free_hfx_buffer = .TRUE.
          IF (calc_forces .AND. (.NOT. mp2_env%ri_mp2%free_hfx_buffer)) free_hfx_buffer = .FALSE.
+         IF (qs_env%x_data(1, 1)%do_hfx_ri) free_hfx_buffer = .FALSE.
       END IF
 
       IF (.NOT. do_kpoints_cubic_RPA) THEN
@@ -450,7 +451,6 @@ CONTAINS
          DO irep = 1, n_rep_hf
             DO i_thread = 0, n_threads - 1
                actual_x_data => qs_env%x_data(irep, i_thread + 1)
-               IF (actual_x_data%do_hfx_ri) CYCLE
 
                do_dynamic_load_balancing = .TRUE.
                IF (n_threads == 1 .OR. actual_x_data%memory_parameter%do_disk_storage) do_dynamic_load_balancing = .FALSE.
@@ -697,7 +697,6 @@ CONTAINS
          DO irep = 1, n_rep_hf
             DO i_thread = 0, n_threads - 1
                actual_x_data => qs_env%x_data(irep, i_thread + 1)
-               IF (actual_x_data%do_hfx_ri) CYCLE
 
                do_dynamic_load_balancing = .TRUE.
                IF (n_threads == 1 .OR. actual_x_data%memory_parameter%do_disk_storage) do_dynamic_load_balancing = .FALSE.

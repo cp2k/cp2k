@@ -1875,9 +1875,6 @@ CONTAINS
                END DO
                CALL timestop(handle)
 
-               !Convert the MO tensors to dense block format (bsizes_RI_fit, or blk_size=1 since MO is not so ?)
-               !TODO: try the above for performance later (prob before S^-1 contraction) (for GPUs)
-
                ! 5) Force due to d/dx (P|Q)
                CALL timeset(routineN//"_PQ_der", handle)
                CALL dbcsr_t_copy(t_3c_2, t_3c_3)

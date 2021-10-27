@@ -7,6 +7,6 @@ CH_dyn_screen.inp                                     11      2e-04             
 MOM_MP2_geoopt.inp                                    11      2e-06            -13.969926262647746
 H2O_MD_mme.inp                                        11      1e-10            -17.056807598425291
 H2_MP2_debug.inp                                      11      1e-10             -1.146241031776471
-H2O_grad_ri-hfx.inp                                   11      1e-10            -16.763446635143474
-O2_dyn_ri-hfx.inp                                     11      1e-10            -31.518462685641584
+H2O_grad_ri-hfx.inp                                   11      1e-10            -16.763446635150810
+O2_dyn_ri-hfx.inp                                     11      1e-10            -31.518462685646885
 #EOF

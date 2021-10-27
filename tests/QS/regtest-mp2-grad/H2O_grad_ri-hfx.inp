@@ -46,6 +46,7 @@
                     T_C_G_DATA t_c_g.dat
                 &END
                 &RI
+                    EPS_FILTER 1.0E-12
                 &END RI
             &END HF
             &WF_CORRELATION
