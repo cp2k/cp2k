@@ -1,17 +1,10 @@
 # Tested with: GFortran 8.3.0, MPICH 3.2.1, Cray-libsci 20.09.1, Cray-FFTW 3.3.8, Libint 2.6.0,
-#              LIBXC 5.1.6, LIBVORI 210412, LIBXSMM 1.16.2, ELPA 2021.05.002, PLUMED 2.7.2, 
+#              LIBXC 5.1.7, LIBVORI 210412, LIBXSMM 1.16.2, ELPA 2021.05.002, PLUMED 2.7.2, 
 #              SPGLIB 1.16.2, GSL 2.7, SIRIUS 7.2.7. COSMA 2.5.1
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, September 2021)
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, October 2021)
 
 # Cray XC40 (Piz Daint, CSCS, multi-core partition)
 
-# Program environments:
-# module add daint-mc
-# module rm PrgEnv-cray
-# module add PrgEnv-gnu
-# module rm gcc/10.1.0
-# module add gcc/8.3.0
-# module add cray-fftw
 # source /store/psi/psi01/mkrack/daint/mc/gnu/8.3.0/bin/init_mc_gnu.sh
 
 GNU_PATH    = /store/psi/psi01/mkrack/daint/mc/gnu/8.3.0
@@ -39,8 +32,8 @@ LIBINT_LIB  = $(GNU_PATH)/libint/2.6.0-lmax-6/lib
 
 LIBVORI_LIB = $(GNU_PATH)/libvori/210412/lib
 
-LIBXC_INC   = $(GNU_PATH)/libxc/5.1.6/include
-LIBXC_LIB   = $(GNU_PATH)/libxc/5.1.6/lib
+LIBXC_INC   = $(GNU_PATH)/libxc/5.1.7/include
+LIBXC_LIB   = $(GNU_PATH)/libxc/5.1.7/lib
 
 LIBXSMM_INC = $(GNU_PATH)/libxsmm/1.16.2/include
 LIBXSMM_LIB = $(GNU_PATH)/libxsmm/1.16.2/lib
