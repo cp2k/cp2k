@@ -157,11 +157,10 @@ $(EXE_NAMES): makedep | dirs exts
 all: makedep | dirs exts
 	@+$(MAKE) --no-print-directory -C $(OBJDIR) -f $(MAKEFILE) all INCLUDE_DEPS=true
 
-# foreground testing, compilation happens in do_regtest
-test: dirs
-	cd $(TSTDIR); $(TOOLSRC)/regtesting/do_regtest -quick -arch $(ARCH) -version $(ONEVERSION) -cp2kdir ../../../  $(TESTOPTS)
+# compilation for testing happens here
+test: dirs makedep all
+	@+$(MAKE) --no-print-directory -C $(TSTDIR) -f $(MAKEFILE) test INCLUDE_DEPS=true
 
-# background testing, compilation happens here
 testbg: dirs makedep all
 	@+$(MAKE) --no-print-directory -C $(TSTDIR) -f $(MAKEFILE) testbg INCLUDE_DEPS=true
 
@@ -262,13 +261,13 @@ $(EXEDIR)/cp2k.popt: $(EXEDIR)/cp2k.psmp
 $(EXEDIR)/cp2k_shell.$(ONEVERSION): $(EXEDIR)/cp2k.$(ONEVERSION)
 	cd $(EXEDIR); ln -sf cp2k.$(ONEVERSION) cp2k_shell.$(ONEVERSION)
 
+test:
+	@$(TOOLSRC)/regtesting/do_regtest.py $(ARCH) $(ONEVERSION) $(TESTOPTS)
+
 testbg:
 	@echo "testing: $(ONEVERSION) : full log in $(TSTDIR)/regtest.log "
-	@$(TOOLSRC)/regtesting/do_regtest -nobuild $(ARCH) -version $(ONEVERSION) -cp2kdir ../../../  $(TESTOPTS) >& $(TSTDIR)/regtest.log
-	@cat `grep 'regtesting location error_summary file:' $(TSTDIR)/regtest.log | awk '{print $$NF}'`
-	@cat `grep 'regtesting location summary file:' $(TSTDIR)/regtest.log | awk '{print $$NF}'`
-	@grep "Number of FAILED  tests 0" $(TSTDIR)/regtest.log >& /dev/null
-	@grep "Number of WRONG   tests 0" $(TSTDIR)/regtest.log >& /dev/null
+	@$(TOOLSRC)/regtesting/do_regtest.py $(ARCH) $(ONEVERSION) $(TESTOPTS) > $(TSTDIR)/regtest.log 2>&1
+	@grep -e "Summary:" -e "Status:" $(TSTDIR)/regtest.log
 
 endif
 endif
