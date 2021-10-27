@@ -11,7 +11,7 @@ RUN ./install_basics.sh
 COPY ./scripts/install_regtest.sh .
 RUN ./install_regtest.sh local_cuda psmp
 
-ENV USE_DO_REGTEST_PY=1
+ENV TESTOPTS="--keepalive"
 COPY ./scripts/ci_entrypoint.sh ./scripts/test_regtest.sh ./
 CMD ["./ci_entrypoint.sh", "./test_regtest.sh", "local_cuda", "psmp"]
 

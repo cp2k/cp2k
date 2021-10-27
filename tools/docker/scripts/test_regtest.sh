@@ -58,12 +58,7 @@ export COSMA_DIM_THRESHOLD=0
 
 # Run regtests.
 echo -e "\n========== Running Regtests =========="
-if [ -n "${USE_DO_REGTEST_PY}" ]; then
-  ./tools/regtesting/print_environment.sh "${ARCH}" "${VERSION}"
-  ./tools/regtesting/do_regtest.py "${ARCH}" "${VERSION}"
-else
-  make ARCH="${ARCH}" VERSION="${VERSION}" TESTOPTS="${TESTOPTS}" test
-fi
+make ARCH="${ARCH}" VERSION="${VERSION}" TESTOPTS="${TESTOPTS}" test
 
 exit 0 # Prevent CI from overwriting do_regtest's summary message.
 
