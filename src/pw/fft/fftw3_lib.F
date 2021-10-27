@@ -12,12 +12,12 @@
 
 MODULE fftw3_lib
 
-   USE ISO_C_BINDING,                   ONLY: C_CHAR,&
+   USE ISO_C_BINDING,                   ONLY: C_ASSOCIATED,&
+                                              C_CHAR,&
                                               C_INT,&
-                                              C_INTPTR_T
+                                              C_PTR
    USE cp_files,                        ONLY: get_unit_number
-   USE fft_kinds,                       ONLY: dp,&
-                                              integer8_kind
+   USE fft_kinds,                       ONLY: dp
    USE fft_plan,                        ONLY: fft_plan_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
@@ -390,7 +390,7 @@ CONTAINS
 
       IMPLICIT NONE
 
-      INTEGER(KIND=integer8_kind), INTENT(INOUT)      :: plan
+      TYPE(C_PTR), INTENT(INOUT)                         :: plan
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zin
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zout
       INTEGER, INTENT(IN) :: dim_n(2), dim_istride(2), dim_ostride(2), &
@@ -406,11 +406,7 @@ CONTAINS
                                zin, zout, &
                                fft_direction, fftw_plan_type)
 
-      IF (plan .EQ. 0) THEN
-         valid = .FALSE.
-      ELSE
-         valid = .TRUE.
-      ENDIF
+      valid = C_ASSOCIATED(plan)
 
 #else
       MARK_USED(plan)
@@ -447,7 +443,7 @@ CONTAINS
       LOGICAL :: guru_supported
       INTEGER :: dim_n(2), dim_istride(2), dim_ostride(2), &
                  howmany_n(2), howmany_istride(2), howmany_ostride(2)
-      INTEGER(KIND=integer8_kind) :: test_plan
+      TYPE(C_PTR)                          :: test_plan
       COMPLEX(KIND=dp), DIMENSION(1, 1, 1) :: zin
 
 #include "fftw3.f"
@@ -540,7 +536,7 @@ CONTAINS
                                     fft_direction, fftw_plan_type, rows_per_th, &
                                     rows_per_th_r)
 
-      INTEGER(KIND=integer8_kind), INTENT(INOUT)         :: plan, plan_r
+      TYPE(C_PTR), INTENT(INOUT)                         :: plan, plan_r
       INTEGER, INTENT(INOUT)                             :: dim_n(2), dim_istride(2), &
                                                             dim_ostride(2), hm_n(2), &
                                                             hm_istride(2), hm_ostride(2)
@@ -776,7 +772,7 @@ CONTAINS
       INTEGER, INTENT(IN)                           :: split_dim, nt, tid
       INTEGER, INTENT(IN)                           :: istride, ostride
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT) :: input, output
-      INTEGER(KIND=integer8_kind)                :: plan, plan_r
+      TYPE(C_PTR)                                   :: plan, plan_r
 #if defined (__FFTW3)
       INTEGER                                     :: i_off, o_off
       INTEGER                                     :: th_planA, th_planB
@@ -1075,7 +1071,7 @@ CONTAINS
 
       INTEGER                                            :: in_offset, my_id, num_rows, out_offset, &
                                                             scal_offset
-      INTEGER(KIND=C_INTPTR_T)                           :: fftw_plan
+      TYPE(C_PTR)                                        :: fftw_plan
 
 !------------------------------------------------------------------------------
 
@@ -1090,7 +1086,7 @@ CONTAINS
 
 !$    if (my_id < plan%num_threads_needed) then
 
-         fftw_plan = INT(plan%fftw_plan, KIND(fftw_plan))
+         fftw_plan = plan%fftw_plan
 
          in_offset = 1
          out_offset = 1
@@ -1106,7 +1102,7 @@ CONTAINS
 !$       scal_offset = 1 + plan%n*plan%num_rows*my_id
 !$       IF (plan%need_alt_plan .AND. my_id .EQ. plan%num_threads_needed - 1) THEN
 !$          num_rows = plan%alt_num_rows
-!$          fftw_plan = INT(plan%alt_fftw_plan, KIND(fftw_plan))
+!$          fftw_plan = plan%alt_fftw_plan
 !$       ELSE
 !$          num_rows = plan%num_rows
 !$       ENDIF

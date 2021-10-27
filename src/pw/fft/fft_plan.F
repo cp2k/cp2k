@@ -16,7 +16,7 @@
 ! **************************************************************************************************
 
 MODULE fft_plan
-   USE fft_kinds,                       ONLY: integer8_kind
+   USE ISO_C_BINDING,                   ONLY: C_PTR
 
    IMPLICIT NONE
    PRIVATE
@@ -32,17 +32,17 @@ MODULE fft_plan
       INTEGER, DIMENSION(3)               :: n_3d
 
 !   Handle for the FFTW plan
-      INTEGER(KIND=integer8_kind)        :: fftw_plan
+      TYPE(C_PTR)                         :: fftw_plan
 
 !   Plan for the remaining rows for 1D FFT when number of threads does not divide the number of rows exactly
-!$    INTEGER(KIND=integer8_kind)        :: alt_fftw_plan
+!$    TYPE(C_PTR)                         :: alt_fftw_plan
 !$    LOGICAL                             :: need_alt_plan
 !$    INTEGER                             :: num_threads_needed, num_rows, alt_num_rows
 
 !   Individual plans (used by hand-optimised 3D FFT)
-      INTEGER(KIND=integer8_kind)        :: fftw_plan_nx, fftw_plan_ny, fftw_plan_nz
+      TYPE(C_PTR)                     :: fftw_plan_nx, fftw_plan_ny, fftw_plan_nz
 !   Plans for the remaining rows (when the number of threads does not divide the number of rows exactly)
-      INTEGER(KIND=integer8_kind)        :: fftw_plan_nx_r, fftw_plan_ny_r, fftw_plan_nz_r
+      TYPE(C_PTR)                     :: fftw_plan_nx_r, fftw_plan_ny_r, fftw_plan_nz_r
 
    END TYPE fft_plan_type
 
