@@ -52,10 +52,11 @@ async def main() -> None:
     start_time = time.perf_counter()
 
     # Query CP2K binary for feature flags.
-    version_output, _ = await (await cfg.launch_exe("cp2k", "--version")).communicate()
-    flags_line = re.search(r" cp2kflags:(.*)\n", version_output.decode("utf8"))
+    version_bytes, _ = await (await cfg.launch_exe("cp2k", "--version")).communicate()
+    version_output = version_bytes.decode("utf8", errors="replace")
+    flags_line = re.search(r" cp2kflags:(.*)\n", version_output)
     if not flags_line:
-        print(version_output.decode("utf8") + "\nCould not parse feature flags.")
+        print(version_output + "\nCould not parse feature flags.")
         sys.exit(1)
     else:
         flags = flags_line.group(1).split()
@@ -496,7 +497,8 @@ def eval_regtest(
     batch: Batch, test: Regtest, duration: float, returncode: int, timed_out: bool
 ) -> TestResult:
 
-    output = test.out_path.read_text(encoding="utf8") if test.out_path.exists() else ""
+    output_bytes = test.out_path.read_bytes() if test.out_path.exists() else b""
+    output = output_bytes.decode("utf8", errors="replace")
     output_tail = "\n".join(output.split("\n")[-100:])
     error = "x" * 100 + f"\n{test.out_path}\n"
     if timed_out:
