@@ -66,7 +66,7 @@ MODULE ex_property_calculation
 
    PRIVATE
 
-! *** Global parameters ***
+   ! Global parameters
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ex_property_calculation'
 
@@ -126,7 +126,7 @@ CONTAINS
          iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          iounit = -1
-      ENDIF
+      END IF
 
       print_key => section_vals_get_subs_vals(section_vals=qs_env%input, &
                                               subsection_name="DFT%PRINT%MOMENTS")
@@ -243,9 +243,10 @@ CONTAINS
                   END DO
                   CALL dbcsr_deallocate_matrix_set(moments)
                END IF
-               !
+
+               tdip = -(rdip + pedip + pdip + cdip)
+
                IF (unit_nr > 0) THEN
-                  tdip = -(rdip + pedip + pdip + cdip)
                   WRITE (unit_nr, "(T3,A)") "Dipoles are based on the traditional operator."
                   dd = SQRT(SUM(tdip(1:3)**2))*debye
                   WRITE (unit_nr, "(T3,A)") "Dipole moment [Debye]"
@@ -253,7 +254,7 @@ CONTAINS
                      (TRIM(rlab(i)), "=", tdip(i)*debye, i=1, 3), "Total=", dd
                   WRITE (unit_nr, FMT="(T2,A,T61,E20.12)") ' DIPOLE : CheckSum  =', SUM(ABS(tdip))
                END IF
-            ENDIF
+            END IF
          END IF
 
          CALL get_qs_env(qs_env=qs_env, results=results)
@@ -268,7 +269,5 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE ex_properties
-
-! **************************************************************************************************
 
 END MODULE ex_property_calculation
