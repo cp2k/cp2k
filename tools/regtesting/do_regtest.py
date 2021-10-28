@@ -19,9 +19,11 @@ import time
 from typing import Coroutine, TextIO
 
 try:
-    from typing import Literal
+    from typing import Literal  # not available before Python 3.8
+
+    TestStatus = Literal["OK", "WRONG RESULT", "RUNTIME FAIL", "TIMEOUT"]
 except:
-    from typing_extensions import Literal  # type: ignore
+    TestStatus = str  # type: ignore
 
 # Some tests do not work with --keepalive (which is generally considered a bug).
 KEEPALIVE_SKIP_DIRS = [
@@ -299,9 +301,6 @@ class Batch:
                 return False
         return True
 
-
-# ======================================================================================
-TestStatus = Literal["OK", "WRONG RESULT", "RUNTIME FAIL", "TIMEOUT"]
 
 # ======================================================================================
 class TestResult:
