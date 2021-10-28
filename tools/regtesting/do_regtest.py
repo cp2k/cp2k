@@ -6,7 +6,7 @@ from asyncio import Semaphore
 from asyncio.subprocess import PIPE, STDOUT, Process
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Coroutine, Dict, List, Optional, TextIO, Tuple, Union
 import argparse
 import asyncio
 import math
@@ -16,12 +16,11 @@ import shutil
 import subprocess
 import sys
 import time
-from typing import Coroutine, TextIO
 
 try:
     from typing import Literal  # not available before Python 3.8
 
-    TestStatus = Literal["OK", "WRONG RESULT", "RUNTIME FAIL", "TIMEOUT"]
+    TestStatus = Literal["OK", "WRONG RESULT", "RUNTIME FAIL", "TIMED OUT"]
 except:
     TestStatus = str  # type: ignore
 
@@ -162,7 +161,7 @@ async def main() -> None:
     print("\n-------------------------------- Summary -------------------------------")
     total_duration = time.perf_counter() - start_time
     num_tests = len(all_results)
-    num_failed = sum(r.status in ("TIMEOUT", "RUNTIME FAIL") for r in all_results)
+    num_failed = sum(r.status in ("TIMED OUT", "RUNTIME FAIL") for r in all_results)
     num_wrong = sum(r.status == "WRONG RESULT" for r in all_results)
     num_ok = sum(r.status == "OK" for r in all_results)
     print(f"Number of FAILED  tests {num_failed}")
@@ -395,10 +394,10 @@ async def wait_for_child_process(
 ) -> Tuple[bytes, int, bool]:
     try:
         output, _ = await asyncio.wait_for(child.communicate(), timeout=timeout)
-        timeout = False
+        timed_out = False
         returncode = child.returncode if child.returncode else 0
     except asyncio.TimeoutError:
-        timeout = True
+        timed_out = True
         returncode = -9
         try:
             child.terminate()  # Give mpiexec a chance to shutdown
@@ -406,7 +405,7 @@ async def wait_for_child_process(
             pass
         output, _ = await child.communicate()
 
-    return output, returncode, timeout
+    return output, returncode, timed_out
 
 
 # ======================================================================================
@@ -422,15 +421,15 @@ async def run_unittests(batch: Batch, cfg: Config) -> List[TestResult]:
     for test in batch.unittests:
         start_time = time.perf_counter()
         child = await cfg.launch_exe(test.name, str(cfg.cp2k_root), cwd=batch.workdir)
-        output, returncode, timeout = await wait_for_child_process(child, cfg.timeout)
+        output, returncode, timed_out = await wait_for_child_process(child, cfg.timeout)
         duration = time.perf_counter() - start_time
         test.out_path.write_bytes(output)
         output_lines = output.decode("utf8", errors="replace").split("\n")
         output_tail = "\n".join(output_lines[-100:])
         error = "x" * 100 + f"\n{test.out_path}\n{output_tail}\n\n"
-        if timeout:
-            error += f"Timeout after {duration} seconds."
-            results.append(TestResult(test, duration, "TIMEOUT", error))
+        if timed_out:
+            error += f"Timed out after {duration} seconds."
+            results.append(TestResult(test, duration, "TIMED OUT", error))
         elif returncode != 0:
             error += f"Runtime failure with code {returncode}."
             results.append(TestResult(test, duration, "RUNTIME FAIL", error))
@@ -460,17 +459,17 @@ async def run_regtests_keepalive(batch: Batch, cfg: Config) -> List[TestResult]:
         with open(test.out_path, "wt", encoding="utf8", errors="replace") as fh:
             try:
                 await asyncio.wait_for(shell.ready(fh), timeout=cfg.timeout)
-                timeout = False
+                timed_out = False
                 returncode = shell.returncode()
             except asyncio.TimeoutError:
-                timeout = True
+                timed_out = True
                 returncode = -9
 
         if returncode != 0:
             await shell.stop()
             await shell.start()
         duration = time.perf_counter() - start_time
-        res = eval_regtest(batch, test, duration, returncode, timeout)
+        res = eval_regtest(batch, test, duration, returncode, timed_out)
         results.append(res)
 
     await shell.stop()
@@ -483,10 +482,10 @@ async def run_regtests_classic(batch: Batch, cfg: Config) -> List[TestResult]:
     for test in batch.regtests:
         start_time = time.perf_counter()
         child = await cfg.launch_exe("cp2k", test.inp_fn, cwd=batch.workdir)
-        output, returncode, timeout = await wait_for_child_process(child, cfg.timeout)
+        output, returncode, timed_out = await wait_for_child_process(child, cfg.timeout)
         duration = time.perf_counter() - start_time
         test.out_path.write_bytes(output)
-        res = eval_regtest(batch, test, duration, returncode, timeout)
+        res = eval_regtest(batch, test, duration, returncode, timed_out)
         results.append(res)
 
     return results
@@ -494,15 +493,15 @@ async def run_regtests_classic(batch: Batch, cfg: Config) -> List[TestResult]:
 
 # ======================================================================================
 def eval_regtest(
-    batch: Batch, test: Regtest, duration: float, returncode: int, timeout: bool
+    batch: Batch, test: Regtest, duration: float, returncode: int, timed_out: bool
 ) -> TestResult:
 
     output = test.out_path.read_text(encoding="utf8") if test.out_path.exists() else ""
     output_tail = "\n".join(output.split("\n")[-100:])
     error = "x" * 100 + f"\n{test.out_path}\n"
-    if timeout:
-        error += f"{output_tail}\n\nTimeout after {duration} seconds."
-        return TestResult(test, duration, "TIMEOUT", error)
+    if timed_out:
+        error += f"{output_tail}\n\nTimed out after {duration} seconds."
+        return TestResult(test, duration, "TIMED OUT", error)
     elif returncode != 0:
         error += f"{output_tail}\n\nRuntime failure with code {returncode}."
         return TestResult(test, duration, "RUNTIME FAIL", error)
