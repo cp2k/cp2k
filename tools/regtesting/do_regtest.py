@@ -3,7 +3,7 @@
 # author: Ole Schuett
 
 from asyncio import Semaphore
-from asyncio.subprocess import PIPE, STDOUT, Process
+from asyncio.subprocess import DEVNULL, PIPE, STDOUT, Process
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Coroutine, Dict, List, Optional, TextIO, Tuple, Union
@@ -124,7 +124,7 @@ async def main() -> None:
         elif cfg.keepalive and batch.name in KEEPALIVE_SKIP_DIRS:
             print(f"Skipping {batch.name} because it doesn't work with --keepalive.")
         else:
-            tasks.append(asyncio.create_task(run_batch(batch, cfg)))  # launch
+            tasks.append(asyncio.get_event_loop().create_task(run_batch(batch, cfg)))
 
     if num_restrictdirs:
         print(f"Skipping {num_restrictdirs} test directories because of --restrictdir.")
@@ -204,10 +204,16 @@ class Config:
         self.debug = args.debug
         self.max_errors = args.maxerrors
         self.restrictdirs = args.restrictdir if args.restrictdir else [".*"]
+
+        def run_with_capture_stdout(cmd: str) -> bytes:
+            # capture_output argument not available before Python 3.7
+            return subprocess.run(cmd, shell=True, stdout=PIPE, stderr=DEVNULL).stdout
+
+        # Detect number of GPU devices.
         nv_cmd = "nvidia-smi --query-gpu=gpu_name --format=csv,noheader | wc -l"
-        nv_gpus = int(subprocess.run(nv_cmd, shell=True, capture_output=True).stdout)
+        nv_gpus = int(run_with_capture_stdout(nv_cmd))
         amd_cmd = "rocm-smi --showid --csv | grep card | wc -l"
-        amd_gpus = int(subprocess.run(amd_cmd, shell=True, capture_output=True).stdout)
+        amd_gpus = int(run_with_capture_stdout(amd_cmd))
         self.num_gpus = nv_gpus + amd_gpus
         self.next_gpu = 0  # Used to assign devices round robin to processes.
 
@@ -223,7 +229,7 @@ class Config:
             env["CUDA_VISIBLE_DEVICES"] = ",".join(visible_gpu_devices)
             env["HIP_VISIBLE_DEVICES"] = ",".join(visible_gpu_devices)
         env["OMP_NUM_THREADS"] = str(self.ompthreads)
-        exe = self.cp2k_root / "exe" / self.arch / f"{exe_stem}.{self.version}"
+        exe = str(self.cp2k_root / "exe" / self.arch / f"{exe_stem}.{self.version}")
         cmd = self.mpiexec + ["-np", str(self.mpiranks), exe] if self.use_mpi else [exe]
         if self.debug:
             print(f"Creating subprocess: {cmd} {args}")
@@ -345,7 +351,8 @@ class Cp2kShell:
         except ProcessLookupError:
             pass
         # Read output to prevent a zombie process, but do it in the background.
-        asyncio.create_task(self._child.communicate())
+        # asyncio.create_task not available before Python 3.7
+        asyncio.get_event_loop().create_task(self._child.communicate())
         self._child = None
 
     async def start(self) -> None:
@@ -543,6 +550,7 @@ def percentile(values: List[float], percent: float) -> float:
 
 # ======================================================================================
 if __name__ == "__main__":
-    asyncio.run(main())
+    # asyncio.run(main()) not available before Python 3.7
+    asyncio.get_event_loop().run_until_complete(main())
 
 # EOF
