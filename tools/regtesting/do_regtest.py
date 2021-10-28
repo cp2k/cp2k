@@ -41,6 +41,7 @@ async def main() -> None:
     parser.add_argument("--maxtasks", type=int, default=os.cpu_count())
     parser.add_argument("--timeout", type=int, default=400)
     parser.add_argument("--maxerrors", type=int, default=50)
+    parser.add_argument("--mpiexec", default="mpiexec")
     parser.add_argument("--keepalive", dest="keepalive", action="store_true")
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--restrictdir", action="append")
@@ -68,6 +69,7 @@ async def main() -> None:
     print(f"Workers:        {cfg.num_workers}")
     print(f"Timeout [s]:    {cfg.timeout}")
     print(f"Work base dir:  {cfg.work_base_dir}")
+    print(f"MPI exec:       {cfg.mpiexec}")
     print(f"Keepalive:      {cfg.keepalive}")
     print(f"Debug:          {cfg.debug}")
     print(f"ARCH:           {cfg.arch}")
@@ -195,6 +197,7 @@ class Config:
         leaf_dir = f"TEST-{args.arch}-{args.version}-{datestamp}"
         self.work_base_dir = self.cp2k_root / "regtesting" / leaf_dir
         self.error_summary = self.work_base_dir / "error_summary"
+        self.mpiexec = args.mpiexec.split()
         self.keepalive = args.keepalive
         self.arch = args.arch
         self.version = args.version
@@ -221,7 +224,7 @@ class Config:
             env["HIP_VISIBLE_DEVICES"] = ",".join(visible_gpu_devices)
         env["OMP_NUM_THREADS"] = str(self.ompthreads)
         exe = self.cp2k_root / "exe" / self.arch / f"{exe_stem}.{self.version}"
-        cmd = ["mpiexec", f"-np={self.mpiranks}", exe] if self.use_mpi else [exe]
+        cmd = self.mpiexec + ["-np", str(self.mpiranks), exe] if self.use_mpi else [exe]
         if self.debug:
             print(f"Creating subprocess: {cmd} {args}")
         return asyncio.create_subprocess_exec(
