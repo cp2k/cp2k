@@ -10,7 +10,7 @@
         POTENTIAL_FILE_NAME POTENTIAL_UZH
         AUTO_BASIS RI_HFX SMALL
         &MGRID
-            CUTOFF 200
+            CUTOFF 300
             REL_CUTOFF 30
         &END MGRID
         &QS
@@ -31,10 +31,11 @@
             &HF
                 FRACTION 0.25
                 &RI
+                   EPS_FILTER 1.0E-12
                 &END
                 &INTERACTION_POTENTIAL
                    POTENTIAL_TYPE TRUNCATED
-                   CUTOFF_RADIUS 2.0
+                   CUTOFF_RADIUS 2.5
                 &END
             &END
         &END XC
