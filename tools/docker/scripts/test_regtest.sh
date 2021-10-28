@@ -15,7 +15,7 @@ source /opt/cp2k-toolchain/install/setup
 
 # Make OpenMPI happy.
 if command -v ompi_info &> /dev/null; then
-  TESTOPTS="-mpiexec 'mpiexec --bind-to none --allow-run-as-root' ${TESTOPTS}"
+  TESTOPTS="--mpiexec='mpiexec --bind-to none --allow-run-as-root' ${TESTOPTS}"
   export OMPI_MCA_plm_rsh_agent=/bin/false
 fi
 
