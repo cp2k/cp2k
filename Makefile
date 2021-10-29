@@ -159,6 +159,7 @@ all: makedep | dirs exts
 
 # compilation for testing happens here
 test: dirs makedep all
+	@$(TOOLSRC)/regtesting/print_environment.sh $(ARCH) $(ONEVERSION)
 	@+$(MAKE) --no-print-directory -C $(TSTDIR) -f $(MAKEFILE) test INCLUDE_DEPS=true
 
 testbg: dirs makedep all
