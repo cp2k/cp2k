@@ -533,14 +533,14 @@ CONTAINS
                         CALL cp_libint_get_3eri_derivs(li, lj, lk, lib, p_deriv, a_mysize)
 
                         IF (do_ext) THEN
-                           DO k = 1, ncoc
-                              p1 = (k - 1)*ncob
-                              DO j = 1, ncob
-                                 p2 = (p1 + j - 1)*ncoa
-                                 DO i = 1, ncoa
-                                    p3 = p2 + i
+                           DO i_deriv = 1, 3
+                              DO k = 1, ncoc
+                                 p1 = (k - 1)*ncob
+                                 DO j = 1, ncob
+                                    p2 = (p1 + j - 1)*ncoa
+                                    DO i = 1, ncoa
+                                       p3 = p2 + i
 
-                                    DO i_deriv = 1, 3
                                        der_abc_1(a_offset + i, b_offset + j, c_offset + k, i_deriv) = &
                                           p_deriv(p3, permute_2(i_deriv))
                                        der_abc_1_ext_prv(i_deriv) = MAX(der_abc_1_ext_prv(i_deriv), &
@@ -556,14 +556,14 @@ CONTAINS
                               END DO
                            END DO
                         ELSE
-                           DO k = 1, ncoc
-                              p1 = (k - 1)*ncob
-                              DO j = 1, ncob
-                                 p2 = (p1 + j - 1)*ncoa
-                                 DO i = 1, ncoa
-                                    p3 = p2 + i
+                           DO i_deriv = 1, 3
+                              DO k = 1, ncoc
+                                 p1 = (k - 1)*ncob
+                                 DO j = 1, ncob
+                                    p2 = (p1 + j - 1)*ncoa
+                                    DO i = 1, ncoa
+                                       p3 = p2 + i
 
-                                    DO i_deriv = 1, 3
                                        der_abc_1(a_offset + i, b_offset + j, c_offset + k, i_deriv) = &
                                           p_deriv(p3, permute_2(i_deriv))
 
@@ -597,14 +597,14 @@ CONTAINS
                         CALL cp_libint_get_3eri_derivs(lj, li, lk, lib, p_deriv, a_mysize)
 
                         IF (do_ext) THEN
-                           DO k = 1, ncoc
-                              p1 = (k - 1)*ncoa
-                              DO i = 1, ncoa
-                                 p2 = (p1 + i - 1)*ncob
-                                 DO j = 1, ncob
-                                    p3 = p2 + j
+                           DO i_deriv = 1, 3
+                              DO k = 1, ncoc
+                                 p1 = (k - 1)*ncoa
+                                 DO i = 1, ncoa
+                                    p2 = (p1 + i - 1)*ncob
+                                    DO j = 1, ncob
+                                       p3 = p2 + j
 
-                                    DO i_deriv = 1, 3
                                        der_abc_1(a_offset + i, b_offset + j, c_offset + k, i_deriv) = &
                                           p_deriv(p3, permute_1(i_deriv))
 
@@ -621,14 +621,14 @@ CONTAINS
                               END DO
                            END DO
                         ELSE
-                           DO k = 1, ncoc
-                              p1 = (k - 1)*ncoa
-                              DO i = 1, ncoa
-                                 p2 = (p1 + i - 1)*ncob
-                                 DO j = 1, ncob
-                                    p3 = p2 + j
+                           DO i_deriv = 1, 3
+                              DO k = 1, ncoc
+                                 p1 = (k - 1)*ncoa
+                                 DO i = 1, ncoa
+                                    p2 = (p1 + i - 1)*ncob
+                                    DO j = 1, ncob
+                                       p3 = p2 + j
 
-                                    DO i_deriv = 1, 3
                                        der_abc_1(a_offset + i, b_offset + j, c_offset + k, i_deriv) = &
                                           p_deriv(p3, permute_1(i_deriv))
 
@@ -1056,11 +1056,11 @@ CONTAINS
                   a_mysize(1) = ncoa*ncob
                   CALL cp_libint_get_2eri_derivs(li, lj, lib, p_deriv, a_mysize)
 
-                  DO j = 1, ncob
-                     p1 = (j - 1)*ncoa
-                     DO i = 1, ncoa
-                        p2 = p1 + i
-                        DO i_deriv = 1, 3
+                  DO i_deriv = 1, 3
+                     DO j = 1, ncob
+                        p1 = (j - 1)*ncoa
+                        DO i = 1, ncoa
+                           p2 = p1 + i
                            der_ab(a_offset + i, b_offset + j, i_deriv) = p_deriv(p2, permute(i_deriv))
                         END DO
                      END DO

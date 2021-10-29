@@ -1120,9 +1120,8 @@ CONTAINS
                                                             nsgfj, nsgfk
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf_i, first_sgf_j, first_sgf_k
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: debug, do_kpoints_prv, found, skip
-      LOGICAL, DIMENSION(3)                              :: block_i_not_zero, block_j_not_zero, &
-                                                            block_k_not_zero, der_i_zero, &
+      LOGICAL                                            :: do_kpoints_prv, found, skip
+      LOGICAL, DIMENSION(3)                              :: block_j_not_zero, block_k_not_zero, &
                                                             der_j_zero, der_k_zero
       REAL(dp), DIMENSION(3)                             :: der_ext_i, der_ext_j, der_ext_k
       REAL(KIND=dp)                                      :: dij, dik, djk, dr_ij, dr_ik, dr_jk, &
@@ -1132,8 +1131,8 @@ CONTAINS
                                                             max_contraction_i, max_contraction_j, &
                                                             max_contraction_k
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dijk_contr, dummy_block_t
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: block_t_i, block_t_j, block_t_k, dijk_i, &
-                                                            dijk_j, dijk_k
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: block_t_i, block_t_j, block_t_k, dijk_j, &
+                                                            dijk_k
       REAL(KIND=dp), DIMENSION(3)                        :: ri, rij, rik, rj, rjk, rk
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_i, set_radius_j, set_radius_k
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgf_i, rpgf_j, rpgf_k, sphi_i, sphi_j, &
@@ -1153,8 +1152,6 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL timeset(routineN, handle)
-
-      debug = .FALSE.
 
       IF (PRESENT(do_kpoints)) THEN
          do_kpoints_prv = do_kpoints
@@ -1358,18 +1355,18 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED (nthread,do_kpoints_prv,kp_index_lbounds,kp_index_ubounds,maxli,maxlk,maxlj,bounds_i,&
 !$OMP         bounds_j,bounds_k,nimg,basis_i,basis_j,basis_k,dr_ij,dr_jk,dr_ik,ncoset,&
-!$OMP         potential_parameter,der_eps,tspj,spi,spk,debug,cell_to_index,max_ncoi,max_nsgfk,&
+!$OMP         potential_parameter,der_eps,tspj,spi,spk,cell_to_index,max_ncoi,max_nsgfk,&
 !$OMP         max_nsgfj,max_ncok,natom,nl_3c,t3c_der_i,t3c_der_k,t3c_der_j) &
 !$OMP PRIVATE (lib,nl_3c_iter,ikind,jkind,kkind,iatom,jatom,katom,rij,rjk,rik,cell_j,cell_k,&
 !$OMP          prefac,jcell,kcell,first_sgf_i,lmax_i,lmin_i,npgfi,nseti,nsgfi,rpgf_i,set_radius_i,&
 !$OMP          sphi_i,zeti,kind_radius_i,first_sgf_j,lmax_j,lmin_j,npgfj,nsetj,nsgfj,rpgf_j,&
 !$OMP          set_radius_j,sphi_j,zetj,kind_radius_j,first_sgf_k,lmax_k,lmin_k,npgfk,nsetk,nsgfk,&
 !$OMP          rpgf_k,set_radius_k,sphi_k,zetk,kind_radius_k,djk,dij,dik,ncoi,ncoj,ncok,sgfi,sgfj,&
-!$OMP          sgfk,dijk_i,dijk_j,dijk_k,ri,rj,rk,max_contraction_i,max_contraction_j,&
+!$OMP          sgfk,dijk_j,dijk_k,ri,rj,rk,max_contraction_i,max_contraction_j,&
 !$OMP          max_contraction_k,iset,jset,kset,block_t_i,blk_size,dijk_contr,cpp_buffer,ccp_buffer,&
 !$OMP          block_start_j,block_end_j,block_start_k,block_end_k,block_start_i,block_end_i,found,&
-!$OMP          dummy_block_t,sp,handle2,mepos,bo,block_t_k,der_ext_i,der_ext_j,der_ext_k,block_i_not_zero,&
-!$OMP          block_k_not_zero,der_i_zero,der_k_zero,skip,der_j_zero,block_t_j,block_j_not_zero)
+!$OMP          dummy_block_t,sp,handle2,mepos,bo,block_t_k,der_ext_i,der_ext_j,der_ext_k,&
+!$OMP          block_k_not_zero,der_k_zero,skip,der_j_zero,block_t_j,block_j_not_zero)
 
       mepos = 0
 !$    mepos = omp_get_thread_num()
@@ -1489,7 +1486,6 @@ CONTAINS
          block_t_i = 0.0_dp
          block_t_j = 0.0_dp
          block_t_k = 0.0_dp
-         block_i_not_zero = .FALSE.
          block_j_not_zero = .FALSE.
          block_k_not_zero = .FALSE.
 
@@ -1513,13 +1509,11 @@ CONTAINS
                   sgfk = first_sgf_k(1, kset)
 
                   IF (ncoj*ncok*ncoi > 0) THEN
-                     ALLOCATE (dijk_i(ncoj, ncok, ncoi, 3))
                      ALLOCATE (dijk_j(ncoj, ncok, ncoi, 3))
                      ALLOCATE (dijk_k(ncoj, ncok, ncoi, 3))
                      dijk_j(:, :, :, :) = 0.0_dp
                      dijk_k(:, :, :, :) = 0.0_dp
 
-                     der_i_zero = .FALSE.
                      der_j_zero = .FALSE.
                      der_k_zero = .FALSE.
 
@@ -1535,19 +1529,7 @@ CONTAINS
                                              djk, dij, dik, lib, potential_parameter, &
                                              der_abc_1_ext=der_ext_j, der_abc_2_ext=der_ext_k)
 
-                     !translational invariance for the 3rd center (center i)
-                     dijk_i(:, :, :, :) = -(dijk_j(:, :, :, :) + dijk_k(:, :, :, :))
-                     der_ext_i = der_ext_j + der_ext_k
-
                      IF (PRESENT(der_eps)) THEN
-                        DO i_xyz = 1, 3
-                           IF (der_eps > der_ext_i(i_xyz)*(max_contraction_i(iset)* &
-                                                           max_contraction_j(jset)* &
-                                                           max_contraction_k(kset))) THEN
-                              der_i_zero(i_xyz) = .TRUE.
-                           END IF
-                        END DO
-
                         DO i_xyz = 1, 3
                            IF (der_eps > der_ext_j(i_xyz)*(max_contraction_i(iset)* &
                                                            max_contraction_j(jset)* &
@@ -1563,8 +1545,8 @@ CONTAINS
                               der_k_zero(i_xyz) = .TRUE.
                            END IF
                         END DO
-                        IF (ALL(der_i_zero) .AND. ALL(der_j_zero) .AND. ALL(der_k_zero)) THEN
-                           DEALLOCATE (dijk_i, dijk_j, dijk_k)
+                        IF (ALL(der_j_zero) .AND. ALL(der_k_zero)) THEN
+                           DEALLOCATE (dijk_j, dijk_k)
                            CYCLE
                         END IF
                      END IF
@@ -1579,44 +1561,23 @@ CONTAINS
                      block_end_i = sgfi + nsgfi(iset) - 1
 
                      DO i_xyz = 1, 3
-                        IF (der_i_zero(i_xyz)) CYCLE
+                        IF (der_j_zero(i_xyz)) CYCLE
 
-                        block_i_not_zero(i_xyz) = .TRUE.
-                        CALL libxsmm_abc_contract(dijk_contr, dijk_i(:, :, :, i_xyz), tspj(jset, jkind)%array, &
+                        block_j_not_zero(i_xyz) = .TRUE.
+                        CALL libxsmm_abc_contract(dijk_contr, dijk_j(:, :, :, i_xyz), tspj(jset, jkind)%array, &
                                                   spk(kset, kkind)%array, spi(iset, ikind)%array, &
                                                   ncoj, ncok, ncoi, nsgfj(jset), nsgfk(kset), &
                                                   nsgfi(iset), cpp_buffer, ccp_buffer)
 
-                        block_t_i(block_start_j:block_end_j, &
+                        block_t_j(block_start_j:block_end_j, &
                                   block_start_k:block_end_k, &
                                   block_start_i:block_end_i, i_xyz) = &
-                           block_t_i(block_start_j:block_end_j, &
+                           block_t_j(block_start_j:block_end_j, &
                                      block_start_k:block_end_k, &
                                      block_start_i:block_end_i, i_xyz) + &
                            prefac*dijk_contr(:, :, :)
 
                      END DO
-
-                     IF (nl_3c%sym == symmetric_jk) THEN
-                        DO i_xyz = 1, 3
-                           IF (der_j_zero(i_xyz)) CYCLE
-
-                           block_j_not_zero(i_xyz) = .TRUE.
-                           CALL libxsmm_abc_contract(dijk_contr, dijk_j(:, :, :, i_xyz), tspj(jset, jkind)%array, &
-                                                     spk(kset, kkind)%array, spi(iset, ikind)%array, &
-                                                     ncoj, ncok, ncoi, nsgfj(jset), nsgfk(kset), &
-                                                     nsgfi(iset), cpp_buffer, ccp_buffer)
-
-                           block_t_j(block_start_j:block_end_j, &
-                                     block_start_k:block_end_k, &
-                                     block_start_i:block_end_i, i_xyz) = &
-                              block_t_j(block_start_j:block_end_j, &
-                                        block_start_k:block_end_k, &
-                                        block_start_i:block_end_i, i_xyz) + &
-                              prefac*dijk_contr(:, :, :)
-
-                        END DO
-                     END IF
 
                      DO i_xyz = 1, 3
                         IF (der_k_zero(i_xyz)) CYCLE
@@ -1637,7 +1598,7 @@ CONTAINS
 
                      END DO
 
-                     DEALLOCATE (dijk_i, dijk_j, dijk_k, dijk_contr)
+                     DEALLOCATE (dijk_j, dijk_k, dijk_contr)
                   END IF ! number of triples > 0
                END DO
             END DO
@@ -1645,20 +1606,14 @@ CONTAINS
 
          CALL timeset(routineN//"_put_dbcsr", handle2)
 !$OMP CRITICAL
-         IF (debug) THEN
-            DO i_xyz = 1, 3
-               IF (.NOT. block_i_not_zero(i_xyz)) CYCLE
-               CALL dbcsr_t_get_block(t3c_der_i(jcell, kcell, i_xyz), &
-                                      [iatom, jatom, katom], dummy_block_t, found=found)
-               CPASSERT(found)
-            END DO
-         END IF
-
          sp = SHAPE(block_t_i(:, :, :, 1))
          sp([2, 3, 1]) = sp
 
          DO i_xyz = 1, 3
-            IF (.NOT. block_i_not_zero(i_xyz)) CYCLE
+            !Derivatives wrt to center i can be obtained by translational invariance
+            IF ((.NOT. block_j_not_zero(i_xyz)) .AND. (.NOT. block_k_not_zero(i_xyz))) CYCLE
+            block_t_i(:, :, :, i_xyz) = -(block_t_j(:, :, :, i_xyz) + block_t_k(:, :, :, i_xyz))
+
             CALL dbcsr_t_put_block(t3c_der_i(jcell, kcell, i_xyz), [iatom, jatom, katom], sp, &
                                    RESHAPE(block_t_i(:, :, :, i_xyz), SHAPE=sp, ORDER=[2, 3, 1]), &
                                    summation=.TRUE.)
@@ -1666,14 +1621,6 @@ CONTAINS
 !$OMP END CRITICAL
 !$OMP CRITICAL
          IF (nl_3c%sym == symmetric_jk) THEN
-            IF (debug) THEN
-               DO i_xyz = 1, 3
-                  IF (.NOT. block_j_not_zero(i_xyz)) CYCLE
-                  CALL dbcsr_t_get_block(t3c_der_j(jcell, kcell, i_xyz), &
-                                         [iatom, jatom, katom], dummy_block_t, found=found)
-                  CPASSERT(found)
-               END DO
-            END IF
 
             sp = SHAPE(block_t_j(:, :, :, 1))
             sp([2, 3, 1]) = sp
@@ -1687,15 +1634,6 @@ CONTAINS
          END IF
 !$OMP END CRITICAL
 !$OMP CRITICAL
-         IF (debug) THEN
-            DO i_xyz = 1, 3
-               IF (.NOT. block_k_not_zero(i_xyz)) CYCLE
-               CALL dbcsr_t_get_block(t3c_der_k(jcell, kcell, i_xyz), &
-                                      [iatom, jatom, katom], dummy_block_t, found=found)
-               CPASSERT(found)
-            END DO
-         END IF
-
          sp = SHAPE(block_t_k(:, :, :, 1))
          sp([2, 3, 1]) = sp
 
