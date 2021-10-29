@@ -713,14 +713,14 @@ CONTAINS
                transm_scf_converged = scf_converged
             ELSE
                IF (scf_converged) THEN
-                  WRITE (unit_nr, '(/,T2,A,I5,A/)') "SCF run converged in ", iscf, " steps."
+                  IF (unit_nr > 0) WRITE (unit_nr, '(/,T2,A,I5,A/)') "SCF run converged in ", iscf, " steps."
                   EXIT
                END IF
             END IF
          ELSE
             ! exit criterion on the energy only for the time being
             IF (check_convergence .AND. ABS(energy_diff) < ls_scf_env%eps_scf*ls_scf_env%nelectron_total) THEN
-               WRITE (unit_nr, '(/,T2,A,I5,A/)') "SCF run converged in ", iscf, " steps."
+               IF (unit_nr > 0) WRITE (unit_nr, '(/,T2,A,I5,A/)') "SCF run converged in ", iscf, " steps."
                ! Skip Harris functional calculation if ground-state is NOT converged
                IF (qs_env%energy_correction) THEN
                   CALL get_qs_env(qs_env, ec_env=ec_env)
