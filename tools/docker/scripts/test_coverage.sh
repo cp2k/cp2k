@@ -13,11 +13,23 @@ VERSION=$1
 # shellcheck disable=SC1091
 source /opt/cp2k-toolchain/install/setup
 
-echo -e "\n========== Running Regtests =========="
 cd /workspace/cp2k || exit 1
 CP2K_REVISION=$(./tools/build_utils/get_revision_number ./src)
 rm -rf "obj/${ARCH}/${VERSION}"/*.gcda # remove old gcov statistics
 
+# Compile cp2k.
+echo -en "\nCompiling cp2k... "
+if make -j ARCH="${ARCH}" VERSION="${VERSION}" &> make.out; then
+  echo "done."
+else
+  echo -e "failed.\n\n"
+  tail -n 100 make.out
+  echo -e "\nSummary: Compilation failed."
+  echo -e "Status: FAILED\n"
+  exit 0
+fi
+
+echo -e "\n========== Running Regtests =========="
 make ARCH="${ARCH}" VERSION="${VERSION}" TESTOPTS="${TESTOPTS}" test
 
 # gcov gets stuck on some files...
