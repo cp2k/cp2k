@@ -56,7 +56,7 @@ MODULE qs_density_mixing_types
 
    TYPE mixing_storage_type
       INTEGER                                           :: ref_count
-      INTEGER                                           :: ig_max, ncall, nbuffer, n_simple_mix, &
+      INTEGER                                           :: ig_max, ncall, ncall_p(2), nbuffer, n_simple_mix, &
                                                            nskip_mixing, p_metric_method
       INTEGER, POINTER, DIMENSION(:)                    :: ig_global_index
       LOGICAL                                           :: gmix_p
@@ -70,8 +70,8 @@ MODULE qs_density_mixing_types
       REAL(KIND=dp), DIMENSION(:), POINTER              :: kerker_factor
       REAL(KIND=dp), DIMENSION(:), POINTER              :: special_metric
       REAL(KIND=dp), DIMENSION(:, :), POINTER           :: weight
-      REAL(KIND=dp), DIMENSION(:, :), POINTER           :: norm_res_buffer, pulay_matrix
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: fmat, gmat, smat
+      REAL(KIND=dp), DIMENSION(:, :), POINTER           :: norm_res_buffer
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: fmat, gmat, pulay_matrix, smat
       !
       INTEGER                                           :: nat_local, max_shell
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: acharge
@@ -121,6 +121,7 @@ CONTAINS
       mixing_store%nbuffer = 0
       mixing_store%n_simple_mix = 0
       mixing_store%ncall = 0
+      mixing_store%ncall_p = 0
       mixing_store%alpha = 1.0_dp
       mixing_store%pulay_beta = 1.0_dp
       mixing_store%beta = 1.0_dp
