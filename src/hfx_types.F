@@ -571,7 +571,6 @@ CONTAINS
 !> \param dft_control ...
 !> \param cell ...
 !> \param do_exx ...
-!> \param do_ot ...
 !> \param nelectron_total ...
 !> \par History
 !>      09.2007 created [Manuel Guidon]
@@ -581,7 +580,7 @@ CONTAINS
 !>        unknown at invocation time
 ! **************************************************************************************************
    SUBROUTINE hfx_create(x_data, para_env, hfx_section, atomic_kind_set, qs_kind_set, &
-                         particle_set, dft_control, cell, do_exx, do_ot, nelectron_total)
+                         particle_set, dft_control, cell, do_exx, nelectron_total)
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(cp_para_env_type)                             :: para_env
       TYPE(section_vals_type), POINTER                   :: hfx_section
@@ -590,7 +589,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(cell_type), POINTER                           :: cell
-      LOGICAL, OPTIONAL                                  :: do_exx, do_ot
+      LOGICAL, OPTIONAL                                  :: do_exx
       INTEGER, OPTIONAL                                  :: nelectron_total
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_create'
@@ -971,12 +970,11 @@ CONTAINS
 
             hf_sub_section => section_vals_get_subs_vals(hfx_section, "RI", i_rep_section=irep)
             IF (actual_x_data%do_hfx_ri) THEN
-               CPASSERT(PRESENT(do_ot))
                CPASSERT(PRESENT(nelectron_total))
                ALLOCATE (actual_x_data%ri_data)
                CALL hfx_ri_init_read_input_from_hfx(actual_x_data%ri_data, actual_x_data, hfx_section, &
                                                     hf_sub_section, qs_kind_set, &
-                                                    particle_set, atomic_kind_set, dft_control, para_env, irep, do_ot, &
+                                                    particle_set, atomic_kind_set, dft_control, para_env, irep, &
                                                     nelectron_total, my_do_exx)
 
             END IF
@@ -1002,13 +1000,12 @@ CONTAINS
 !> \param dft_control ...
 !> \param para_env ...
 !> \param irep ...
-!> \param do_ot ...
 !> \param nelectron_total ...
 !> \param do_exx ...
 ! **************************************************************************************************
    SUBROUTINE hfx_ri_init_read_input_from_hfx(ri_data, x_data, hfx_section, ri_section, qs_kind_set, &
                                               particle_set, atomic_kind_set, dft_control, para_env, irep, &
-                                              do_ot, nelectron_total, do_exx)
+                                              nelectron_total, do_exx)
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
       TYPE(hfx_type), INTENT(INOUT)                      :: x_data
       TYPE(section_vals_type), POINTER                   :: hfx_section, ri_section
@@ -1017,9 +1014,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(cp_para_env_type)                             :: para_env
-      INTEGER, INTENT(IN)                                :: irep
-      LOGICAL, INTENT(IN)                                :: do_ot
-      INTEGER, INTENT(IN)                                :: nelectron_total
+      INTEGER, INTENT(IN)                                :: irep, nelectron_total
       LOGICAL, INTENT(IN)                                :: do_exx
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_init_read_input_from_hfx'
@@ -1077,8 +1072,8 @@ CONTAINS
                                   para_env, unit_nr, unit_nr_dbcsr, nelectron_total, &
                                   t_c_filename=t_c_filename)
 
-      IF (ri_data%flavor == ri_mo .AND. .NOT. do_ot) THEN
-         CPABORT("RI_FLAVOR MO is not consistent with density mixing. Either use OT or RI_FLAVOR RHO.")
+      IF (dft_control%smear) THEN
+         CPABORT("RI_FLAVOR MO is not consistent with smearing. Please use RI_FLAVOR RHO.")
       END IF
 
       CALL timestop(handle)

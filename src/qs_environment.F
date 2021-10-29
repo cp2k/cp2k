@@ -413,7 +413,7 @@ CONTAINS
       IF (do_hfx) THEN
          ! Retrieve particle_set and atomic_kind_set (needed for both kinds of initialization)
          CALL hfx_create(qs_env%x_data, para_env, hfx_section, atomic_kind_set, &
-                         qs_kind_set, particle_set, dft_control, my_cell, do_ot=scf_control%use_ot, &
+                         qs_kind_set, particle_set, dft_control, my_cell, &
                          nelectron_total=nelectron_total)
       END IF
 
@@ -435,7 +435,7 @@ CONTAINS
 
             CALL hfx_create(qs_env%mp2_env%ri_rpa%x_data, para_env, hfx_section, atomic_kind_set, &
                             qs_kind_set, particle_set, dft_control, my_cell, do_exx=(.NOT. do_admm_rpa), &
-                            do_ot=scf_control%use_ot, nelectron_total=nelectron_total)
+                            nelectron_total=nelectron_total)
 
          END IF
       END IF
