@@ -331,7 +331,8 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="fixed_atoms", &
-                          description="This section is used to constraint the overall atomic position (X,Y,Z). In case "// &
+                          description="This section is used to constraint the fractional atomic position (X,Y,Z). Note "// &
+                          "that fractional coordinates are constrained, not real space coordinates. In case "// &
                           "a restraint is specified the value of the TARGET is considered to be the value of the "// &
                           "coordinates at the beginning of the run or alternatively the corresponding value in the section: "// &
                           "FIX_ATOM_RESTART.", n_keywords=3, n_subsections=0, repeats=.TRUE.)
@@ -339,8 +340,8 @@ CONTAINS
 
       ! Section Parameter
       CALL keyword_create(keyword, __LOCATION__, name="COMPONENTS_TO_FIX", &
-                          description="Specify which components (X,Y,Z or combinations) of the atoms specified in the section "// &
-                          "will be constrained/restrained.", &
+                          description="Specify which fractional components (X,Y,Z or combinations) of the atoms specified "// &
+                          "in the section will be constrained/restrained.", &
                           usage="COMPONENTS_TO_FIX (x|y|z|xy|xz|yz|xyz)", &
                           default_i_val=use_perd_xyz, &
                           enum_c_vals=s2a("x", "y", "z", "xy", "xz", "yz", "xyz"), &
