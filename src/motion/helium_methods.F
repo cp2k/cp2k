@@ -190,12 +190,17 @@ CONTAINS
          CALL helium_rng_init(helium_env)
 
          DO k = 1, mepos
-            NULLIFY (helium_env(k)%helium%ptable, helium_env(k)%helium%permutation, &
+            NULLIFY (helium_env(k)%helium%ptable, &
+                     helium_env(k)%helium%permutation, &
+                     helium_env(k)%helium%savepermutation, &
                      helium_env(k)%helium%iperm, &
+                     helium_env(k)%helium%saveiperm, &
                      helium_env(k)%helium%itmp_atoms_1d, &
                      helium_env(k)%helium%ltmp_atoms_1d, &
                      helium_env(k)%helium%itmp_atoms_np_1d, &
-                     helium_env(k)%helium%pos, helium_env(k)%helium%work, &
+                     helium_env(k)%helium%pos, &
+                     helium_env(k)%helium%savepos, &
+                     helium_env(k)%helium%work, &
                      helium_env(k)%helium%force_avrg, &
                      helium_env(k)%helium%force_inst, &
                      helium_env(k)%helium%rtmp_3_np_1d, &
@@ -587,8 +592,11 @@ CONTAINS
                CALL section_vals_val_get(helium_section, "WORM%ALLOW_OPEN", &
                                          l_val=helium_env(k)%helium%worm_allow_open)
 
+               CALL section_vals_val_get(helium_section, "WORM%MAX_OPEN_CYCLES", &
+                                         i_val=helium_env(k)%helium%worm_max_open_cycles)
+
                IF (helium_env(k)%helium%worm_staging_l + 1 >= helium_env(k)%helium%beads) THEN
-                  msg_str = "STAGING_L for worm sampling is to large"
+                  msg_str = "STAGING_L for worm sampling is too large"
                   CPABORT(msg_str)
                ELSE IF (helium_env(k)%helium%worm_staging_l < 1) THEN
                   msg_str = "STAGING_L must be positive integer"
@@ -684,6 +692,11 @@ CONTAINS
             ALLOCATE (helium_env(k)%helium%plength_avrg(helium_env(k)%helium%atoms))
             ALLOCATE (helium_env(k)%helium%plength_inst(helium_env(k)%helium%atoms))
             ALLOCATE (helium_env(k)%helium%atom_plength(helium_env(k)%helium%atoms))
+            IF (helium_env(k)%helium%worm_max_open_cycles > 0) THEN
+               ALLOCATE (helium_env(k)%helium%savepermutation(i))
+               ALLOCATE (helium_env(k)%helium%saveiperm(i))
+               ALLOCATE (helium_env(k)%helium%savepos(3, i, j))
+            END IF
 
             ! check whether rdfs should be calculated and printed
             helium_env(k)%helium%rdf_present = helium_property_active(helium_env(k)%helium, "RDF")
@@ -934,6 +947,11 @@ CONTAINS
                   helium_env(k)%helium%ptable, &
                   helium_env(k)%helium%work, &
                   helium_env(k)%helium%pos)
+               IF (helium_env(k)%helium%worm_max_open_cycles > 0) THEN
+                  DEALLOCATE(helium_env(k)%helium%saveiperm, &
+                             helium_env(k)%helium%savepermutation, &
+                             helium_env(k)%helium%savepos)
+               END IF
                NULLIFY ( &
                   helium_env(k)%helium%atom_plength, &
                   helium_env(k)%helium%plength_inst, &
@@ -944,10 +962,13 @@ CONTAINS
                   helium_env(k)%helium%nmatrix, &
                   helium_env(k)%helium%tmatrix, &
                   helium_env(k)%helium%iperm, &
+                  helium_env(k)%helium%saveiperm, &
                   helium_env(k)%helium%permutation, &
+                  helium_env(k)%helium%savepermutation, &
                   helium_env(k)%helium%ptable, &
                   helium_env(k)%helium%work, &
-                  helium_env(k)%helium%pos &
+                  helium_env(k)%helium%pos, &
+                  helium_env(k)%helium%savepos &
                   )
 
                IF (k == 1) THEN

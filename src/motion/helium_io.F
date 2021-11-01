@@ -340,6 +340,13 @@ CONTAINS
             WRITE (stmp1, *) helium%worm_show_statistics
             WRITE (stmp2, *) "WORM| Print statistics: "//TRIM(ADJUSTL(stmp1))
             CALL helium_write_line(stmp2)
+            IF (helium%worm_max_open_cycles > 0 .AND. helium%worm_allow_open) THEN
+               stmp1 = ""
+               stmp2 = ""
+               WRITE (stmp1, *) helium%worm_max_open_cycles
+               WRITE (stmp2, *) "WORM| Max. nb of MC cycles in open sector: "//TRIM(ADJUSTL(stmp1))
+               CALL helium_write_line(stmp2)
+            END IF
             stmp1 = ""
             CALL helium_write_line(stmp1)
 

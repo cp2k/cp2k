@@ -53,7 +53,7 @@ CONTAINS
 
       CHARACTER(len=default_string_length)               :: stmp
       INTEGER :: ac, iatom, ibead, icrawl, iMC, imove, ncentracc, ncentratt, ncloseacc, ncloseatt, &
-         ncrawlbwdacc, ncrawlbwdatt, ncrawlfwdacc, ncrawlfwdatt, nMC, nmoveheadacc, nmoveheadatt, &
+         ncrawlbwdacc, ncrawlbwdatt, ncrawlfwdacc, ncrawlfwdatt, ncycle, nMC, nmoveheadacc, nmoveheadatt, &
          nmovetailacc, nmovetailatt, nopenacc, nopenatt, npswapacc, nstagacc, nstagatt, nstat, &
          nswapacc, nswapatt, ntot, staging_l
       REAL(KIND=dp)                                      :: rtmp
@@ -89,8 +89,14 @@ CONTAINS
       IF (helium%solute_present) helium%force_avrg(:, :) = 0.0d0
       helium%energy_avrg(:) = 0.0d0
       helium%plength_avrg(:) = 0.0d0
+      IF (helium%worm_max_open_cycles > 0) THEN
+         helium%savepos(:,:,:) = helium%pos(:,:,:)
+         helium%saveiperm(:) = helium%iperm(:)
+         helium%savepermutation(:) = helium%permutation(:)
+      END IF
 
       nMC = helium%iter_rot
+      ncycle = 0
       IF (helium%worm_allow_open) THEN
          DO ! Exit criterion at the end of the loop
             DO iMC = 1, nMC
@@ -213,7 +219,19 @@ CONTAINS
             IF (helium%worm_is_closed) THEN
                EXIT
             ELSE
-               nMC = MAX(helium%iter_rot/10, 10)
+               ncycle = ncycle + 1
+               ! reset position and permutation and start MC cycle again
+               ! if stuck in open position for too long
+               IF (helium%worm_max_open_cycles > 0 .AND. ncycle > helium%worm_max_open_cycles) THEN
+                  nMC = helium%iter_rot
+                  ncycle = 0
+                  helium%pos = helium%savepos
+                  helium%permutation = helium%savepermutation
+                  helium%iperm = helium%saveiperm
+                  CPWARN("Trapped in open state, reset helium to closed state from last MD step.")
+               ELSE
+                  nMC = MAX(helium%iter_rot/10, 10)
+               END IF
             END IF
          END DO !attempts loop
       ELSE ! only closed configurations allowed

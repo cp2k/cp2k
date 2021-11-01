@@ -2286,7 +2286,7 @@ CONTAINS
       NULLIFY (subsection)
       CALL section_create(subsection, __LOCATION__, name="WORM", &
                           description="Enables sampling via the canonical worm algorithm adapted from Bonisegni", &
-                          n_keywords=11, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=12, n_subsections=0, repeats=.FALSE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="CENTROID_DRMAX", &
                           description="Maximum displacement allowed for the centroid moves", &
@@ -2309,6 +2309,15 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="ALLOW_OPEN", &
                           description="Enable bosonic exchange sampling", &
                           repeats=.FALSE., default_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_OPEN_CYCLES", &
+                         description="If > 0 then reset positions and permutations to the previous closed &
+                         & state if staying more than this amount of MC cycles in open state to avoid staying &
+                         & trapped in open state for too long. Use with caution as it can potentially introduce &
+                         & a bias in the sampling.", &
+                          repeats=.FALSE., default_i_val=0)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
