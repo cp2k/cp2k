@@ -336,7 +336,7 @@ CONTAINS
             rho_g(2)%pw%cc(ig) = rho_g(1)%pw%cc(ig) - rho_g(2)%pw%cc(ig)
             mixing_store%rhoin(2)%cc(ig) = mixing_store%rhoin(1)%cc(ig) - mixing_store%rhoin(2)%cc(ig)
          END DO
-         IF (gapw) THEN
+         IF (gapw  .AND. mixing_store%gmix_p) THEN
             DO iatom = 1, natom
                IF (mixing_store%paw(iatom)) THEN
                   rho_atom(iatom)%cpc_h(2)%r_coef = rho_atom(iatom)%cpc_h(1)%r_coef - rho_atom(iatom)%cpc_h(2)%r_coef
@@ -532,7 +532,7 @@ CONTAINS
             rho_g(2)%pw%cc(ig) = rho_g(1)%pw%cc(ig) - rho_g(2)%pw%cc(ig)
             mixing_store%rhoin(2)%cc(ig) = mixing_store%rhoin(1)%cc(ig) - mixing_store%rhoin(2)%cc(ig)
          END DO
-         IF (gapw) THEN
+         IF (gapw .AND. mixing_store%gmix_p) THEN
             DO iatom = 1, natom
                IF (mixing_store%paw(iatom)) THEN
                   rho_atom(iatom)%cpc_h(2)%r_coef = rho_atom(iatom)%cpc_h(1)%r_coef - rho_atom(iatom)%cpc_h(2)%r_coef
@@ -628,7 +628,7 @@ CONTAINS
             rho_g(2)%pw%cc(ig) = rho_g(1)%pw%cc(ig) - rho_g(2)%pw%cc(ig)
             mixing_store%rhoin(2)%cc(ig) = mixing_store%rhoin(1)%cc(ig) - mixing_store%rhoin(2)%cc(ig)
          END DO
-         IF (gapw) THEN
+         IF (gapw  .AND. mixing_store%gmix_p) THEN
             DO iatom = 1, natom
                IF (mixing_store%paw(iatom)) THEN
                   rho_atom(iatom)%cpc_h(2)%r_coef = rho_atom(iatom)%cpc_h(1)%r_coef - rho_atom(iatom)%cpc_h(2)%r_coef
@@ -720,9 +720,6 @@ CONTAINS
             CALL mp_sum(rho_norm, para_env%group)
             rho_norm = SQRT(rho_norm)
 
-!dbg
-!  write(*,*) 'delta', ispin, ib, delta_norm,res_norm , rho_norm
-!dbg
             IF (res_norm > 1.E-14_dp) THEN
                mixing_store%res_buffer(ib, ispin)%cc(:) = mixing_store%res_buffer(ib, ispin)%cc(:)/delta_norm
                mixing_store%drho_buffer(ib, ispin)%cc(:) = mixing_store%drho_buffer(ib, ispin)%cc(:)/delta_norm
@@ -858,7 +855,7 @@ CONTAINS
             rho_g(2)%pw%cc(ig) = rho_g(1)%pw%cc(ig) - rho_g(2)%pw%cc(ig)
             mixing_store%rhoin(2)%cc(ig) = mixing_store%rhoin(1)%cc(ig) - mixing_store%rhoin(2)%cc(ig)
          END DO
-         IF (gapw) THEN
+         IF (gapw  .AND. mixing_store%gmix_p) THEN
             DO iatom = 1, natom
                IF (mixing_store%paw(iatom)) THEN
                   rho_atom(iatom)%cpc_h(2)%r_coef = rho_atom(iatom)%cpc_h(1)%r_coef - rho_atom(iatom)%cpc_h(2)%r_coef
