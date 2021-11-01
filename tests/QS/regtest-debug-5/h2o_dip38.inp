@@ -3,6 +3,7 @@
   &PROPERTIES
     &TDDFPT
        KERNEL FULL
+       ADMM_KERNEL_CORRECTION_SYMMETRIC
        NSTATES      1
        MAX_ITER    50
        CONVERGENCE [eV] 1.0e-7

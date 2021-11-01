@@ -51,6 +51,9 @@ MODULE energy_corrections
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE cp_result_methods,               ONLY: cp_results_erase,&
+                                              put_results
+   USE cp_result_types,                 ONLY: cp_result_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_type, &
         dbcsr_dot, dbcsr_filter, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, &
@@ -1982,6 +1985,7 @@ CONTAINS
 
       CHARACTER(LEN=8), DIMENSION(3)                     :: rlab
       CHARACTER(LEN=default_path_length)                 :: filename
+      CHARACTER(LEN=default_string_length)               :: description
       INTEGER                                            :: akind, handle, i, ia, iatom, idir, &
                                                             ikind, iounit, ispin, maxmom, nspins, &
                                                             reference, unit_nr
@@ -1993,6 +1997,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_result_type), POINTER                      :: results
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, moments
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -2104,8 +2109,8 @@ CONTAINS
                END DO
                CALL dbcsr_deallocate_matrix_set(moments)
                !
+               tdip = -(rdip + pdip + cdip)
                IF (unit_nr > 0) THEN
-                  tdip = -(rdip + pdip + cdip)
                   WRITE (unit_nr, "(T3,A)") "Dipoles are based on the traditional operator."
                   dd = SQRT(SUM(tdip(1:3)**2))*debye
                   WRITE (unit_nr, "(T3,A)") "Dipole moment [Debye]"
@@ -2117,6 +2122,10 @@ CONTAINS
 
          CALL cp_print_key_finished_output(unit_nr=unit_nr, logger=logger, &
                                            basis_section=qs_env%input, print_key_path="DFT%PRINT%MOMENTS")
+         CALL get_qs_env(qs_env=qs_env, results=results)
+         description = "[DIPOLE]"
+         CALL cp_results_erase(results=results, description=description)
+         CALL put_results(results=results, description=description, values=tdip(1:3))
       END IF
 
       CALL timestop(handle)

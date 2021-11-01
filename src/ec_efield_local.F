@@ -221,7 +221,6 @@ CONTAINS
 
       IF (ec_env%should_update) THEN
          ec_env%efield_nuclear = -SUM(ci(:)*fieldpol(:))
-
          ! Update KS matrix
          matrix_ks => ec_env%matrix_h(:, 1)
          dipmat => efield%dipmat
@@ -304,11 +303,11 @@ CONTAINS
             ! density matrix
             NULLIFY (p_block_a)
             CALL dbcsr_get_block_p(ec_env%matrix_p(1, 1)%matrix, irow, icol, p_block_a, found)
-!deb        IF (.NOT. found) CYCLE
+            IF (.NOT. found) CYCLE
             IF (SIZE(ec_env%matrix_p, 1) > 1) THEN
                NULLIFY (p_block_b)
                CALL dbcsr_get_block_p(ec_env%matrix_p(2, 1)%matrix, irow, icol, p_block_b, found)
-!deb           CPASSERT(found)
+               CPASSERT(found)
             END IF
             forcea = 0.0_dp
             forceb = 0.0_dp
