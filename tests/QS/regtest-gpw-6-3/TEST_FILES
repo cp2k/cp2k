@@ -1,7 +1,7 @@
 si8_lsd_broy_wc_rst.inp                               23      2e-09                2111.2137083255
 si8_lsd_broy_wc_list.inp                              23      4e-10                 992.1693045962
 si8_lsd_broy_wc_list_rst.inp                          23      4e-10                 991.9475824044
-si8_lsd_broy_fm0.2.inp                                48    1.0E-14                      -0.049499
+si8_lsd_broy_fm0.2.inp                                48    1.0E-14                      -0.050162
 #
 c8_kerker.inp                                          1      1e-13             -44.11857062837854
 c8_pmix.inp                                            1      2e-13             -43.56688833744322
