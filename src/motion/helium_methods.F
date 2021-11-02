@@ -948,9 +948,9 @@ CONTAINS
                   helium_env(k)%helium%work, &
                   helium_env(k)%helium%pos)
                IF (helium_env(k)%helium%worm_max_open_cycles > 0) THEN
-                  DEALLOCATE(helium_env(k)%helium%saveiperm, &
-                             helium_env(k)%helium%savepermutation, &
-                             helium_env(k)%helium%savepos)
+                  DEALLOCATE (helium_env(k)%helium%saveiperm, &
+                              helium_env(k)%helium%savepermutation, &
+                              helium_env(k)%helium%savepos)
                END IF
                NULLIFY ( &
                   helium_env(k)%helium%atom_plength, &

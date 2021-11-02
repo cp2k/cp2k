@@ -53,9 +53,9 @@ CONTAINS
 
       CHARACTER(len=default_string_length)               :: stmp
       INTEGER :: ac, iatom, ibead, icrawl, iMC, imove, ncentracc, ncentratt, ncloseacc, ncloseatt, &
-         ncrawlbwdacc, ncrawlbwdatt, ncrawlfwdacc, ncrawlfwdatt, ncycle, nMC, nmoveheadacc, nmoveheadatt, &
-         nmovetailacc, nmovetailatt, nopenacc, nopenatt, npswapacc, nstagacc, nstagatt, nstat, &
-         nswapacc, nswapatt, ntot, staging_l
+         ncrawlbwdacc, ncrawlbwdatt, ncrawlfwdacc, ncrawlfwdatt, ncycle, nMC, nmoveheadacc, &
+         nmoveheadatt, nmovetailacc, nmovetailatt, nopenacc, nopenatt, npswapacc, nstagacc, &
+         nstagatt, nstat, nswapacc, nswapatt, ntot, staging_l
       REAL(KIND=dp)                                      :: rtmp
 
       CALL helium_update_coord_system(helium, pint_env)
@@ -90,7 +90,7 @@ CONTAINS
       helium%energy_avrg(:) = 0.0d0
       helium%plength_avrg(:) = 0.0d0
       IF (helium%worm_max_open_cycles > 0) THEN
-         helium%savepos(:,:,:) = helium%pos(:,:,:)
+         helium%savepos(:, :, :) = helium%pos(:, :, :)
          helium%saveiperm(:) = helium%iperm(:)
          helium%savepermutation(:) = helium%permutation(:)
       END IF
