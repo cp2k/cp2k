@@ -31,8 +31,7 @@ MODULE pw_methods
    USE fft_tools,                       ONLY: BWFFT,&
                                               FWFFT,&
                                               fft3d
-   USE kahan_sum,                       ONLY: accurate_dot_product,&
-                                              accurate_sum
+   USE kahan_sum,                       ONLY: accurate_sum
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_memory
    USE message_passing,                 ONLY: mp_sum
@@ -2090,33 +2089,33 @@ CONTAINS
 
       ! since the return value is real, only do accurate sum on the real bit ?
       IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D) THEN
-         integral_value = sum(pw1%cr3d(:, :, :) &
-                                       *pw2%cr3d(:, :, :))
+         integral_value = SUM(pw1%cr3d(:, :, :) &
+                              *pw2%cr3d(:, :, :))
       ELSE IF (pw1%in_use == REALDATA3D &
                .AND. pw2%in_use == COMPLEXDATA3D) THEN
-         integral_value = REAL(sum(pw1%cr3d(:, :, :) &
-                                            *pw2%cc3d(:, :, :)), KIND=dp) !? complex bit
+         integral_value = REAL(SUM(pw1%cr3d(:, :, :) &
+                                   *pw2%cc3d(:, :, :)), KIND=dp) !? complex bit
       ELSE IF (pw1%in_use == COMPLEXDATA3D &
                .AND. pw2%in_use == REALDATA3D) THEN
-         integral_value = REAL(sum(pw1%cc3d(:, :, :) &
-                                            *pw2%cr3d(:, :, :)), KIND=dp) !? complex bit
+         integral_value = REAL(SUM(pw1%cc3d(:, :, :) &
+                                   *pw2%cr3d(:, :, :)), KIND=dp) !? complex bit
       ELSE IF (pw1%in_use == COMPLEXDATA3D &
                .AND. pw2%in_use == COMPLEXDATA3D) THEN
-         integral_value = REAL(sum(CONJG(pw1%cc3d(:, :, :)) &
-                                            *pw2%cc3d(:, :, :)), KIND=dp) !? complex bit
+         integral_value = REAL(SUM(CONJG(pw1%cc3d(:, :, :)) &
+                                   *pw2%cc3d(:, :, :)), KIND=dp) !? complex bit
 
       ELSE IF (pw1%in_use == REALDATA1D &
                .AND. pw2%in_use == REALDATA1D) THEN
-               integral_value = sum(pw1%cr(:)*pw2%cr(:))
+         integral_value = SUM(pw1%cr(:)*pw2%cr(:))
       ELSE IF (pw1%in_use == REALDATA1D &
                .AND. pw2%in_use == COMPLEXDATA1D) THEN
-         integral_value = REAL(sum(pw1%cr(:)*pw2%cc(:)), KIND=dp) !? complex bit
+         integral_value = REAL(SUM(pw1%cr(:)*pw2%cc(:)), KIND=dp) !? complex bit
       ELSE IF (pw1%in_use == COMPLEXDATA1D &
                .AND. pw2%in_use == REALDATA1D) THEN
-         integral_value = REAL(sum(pw1%cc(:)*pw2%cr(:)), KIND=dp) !? complex bit
+         integral_value = REAL(SUM(pw1%cc(:)*pw2%cr(:)), KIND=dp) !? complex bit
       ELSE IF (pw1%in_use == COMPLEXDATA1D &
                .AND. pw2%in_use == COMPLEXDATA1D) THEN
-         integral_value = REAL(sum(CONJG(pw1%cc(:))*pw2%cc(:)), KIND=dp) !? complex bit
+         integral_value = REAL(SUM(CONJG(pw1%cc(:))*pw2%cc(:)), KIND=dp) !? complex bit
       ELSE
          CPABORT("No possible DATA")
       END IF
