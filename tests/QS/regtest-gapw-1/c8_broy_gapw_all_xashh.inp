@@ -38,6 +38,7 @@
           ALPHA   0.2
           BETA  1.0
           NBUFFER 8
+          GMIX_P
       &END
       ADDED_MOS   20 20
     &END SCF
@@ -59,6 +60,7 @@
            ALPHA 0.1
            BETA 1.5
            NBUFFER 8
+           GMIX_P
         &END MIXING
       &END
 

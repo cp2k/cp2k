@@ -8,7 +8,7 @@ si8_pmix.inp                                           1      7e-14            -
 si8_kerker.inp                                         1      1e-13            -31.15224294859119
 si8_pulay.inp                                          1      2e-13            -31.16058546019718
 si8_broy.inp                                           1      7e-14            -31.14863007620936
-si8_pulay_md.inp                                       1      3e-14            -31.16148751713639
+si8_pulay_md.inp                                       1      3e-12            -31.16216174849309
 si8_pulay_skip.inp                                     1      5e-14            -31.16145405092692
 # cholesky methods
 si8_pulay_reduce.inp                                   1      2e-13            -31.16058546019707
