@@ -13,6 +13,9 @@
     BASIS_SET_FILE_NAME BASIS_SET
     BASIS_SET_FILE_NAME BASIS_ADMM
     POTENTIAL_FILE_NAME GTH_POTENTIALS
+    &MGRID
+      CUTOFF 200
+    &END MGRID
     &QS
       METHOD GPW
     &END QS
@@ -35,10 +38,10 @@
       &END
       &OUTER_SCF
          MAX_SCF  10
-         EPS_SCF 1.0E-7
+         EPS_SCF 1.0E-6
       &END
       MAX_SCF  10
-      EPS_SCF 1.0E-7
+      EPS_SCF 1.0E-6
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE0 
