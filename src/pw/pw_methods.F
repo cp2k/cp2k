@@ -31,8 +31,7 @@ MODULE pw_methods
    USE fft_tools,                       ONLY: BWFFT,&
                                               FWFFT,&
                                               fft3d
-   USE kahan_sum,                       ONLY: accurate_dot_product,&
-                                              accurate_sum
+   USE kahan_sum,                       ONLY: accurate_sum
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_memory
    USE message_passing,                 ONLY: mp_sum
@@ -941,12 +940,12 @@ CONTAINS
          ELSE IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D) THEN
             IF (my_alpha == 1.0_dp) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2)
-               pw2%cr3d = pw2%cr3d+pw1%cr3d
+               pw2%cr3d = pw2%cr3d + pw1%cr3d
 !$OMP END PARALLEL WORKSHARE
                flop = REAL(SIZE(pw2%cr3d), KIND=dp)
             ELSE
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2, my_alpha)
-               pw2%cr3d = pw2%cr3d+my_alpha*pw1%cr3d
+               pw2%cr3d = pw2%cr3d + my_alpha*pw1%cr3d
 !$OMP END PARALLEL WORKSHARE
                flop = REAL(2*SIZE(pw2%cr3d), KIND=dp)
             END IF
@@ -954,12 +953,12 @@ CONTAINS
                   pw2%in_use == COMPLEXDATA3D) THEN
             IF (my_alpha == 1.0_dp) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2)
-               pw2%cc3d = pw2%cc3d+pw1%cc3d
+               pw2%cc3d = pw2%cc3d + pw1%cc3d
 !$OMP END PARALLEL WORKSHARE
                flop = REAL(2*SIZE(pw2%cc3d), KIND=dp)
             ELSE
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2, my_alpha)
-               pw2%cc3d = pw2%cc3d+my_alpha*pw1%cc3d
+               pw2%cc3d = pw2%cc3d + my_alpha*pw1%cc3d
 !$OMP END PARALLEL WORKSHARE
                flop = REAL(4*SIZE(pw2%cc3d), KIND=dp)
             END IF
@@ -1157,12 +1156,12 @@ CONTAINS
                   pw_out%in_use == REALDATA3D) THEN
             IF (my_alpha == 1.0_dp) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
-               pw_out%cr3d = pw_out%cr3d+pw1%cr3d*pw2%cr3d
+               pw_out%cr3d = pw_out%cr3d + pw1%cr3d*pw2%cr3d
 !$OMP END PARALLEL WORKSHARE
                flop = REAL(2*SIZE(pw2%cr3d), KIND=dp)
             ELSE
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
-               pw_out%cr3d = pw_out%cr3d+my_alpha*pw1%cr3d*pw2%cr3d
+               pw_out%cr3d = pw_out%cr3d + my_alpha*pw1%cr3d*pw2%cr3d
 !$OMP END PARALLEL WORKSHARE
                flop = REAL(3*SIZE(pw2%cr3d), KIND=dp)
             END IF
@@ -1171,12 +1170,12 @@ CONTAINS
                   pw_out%in_use == COMPLEXDATA3D) THEN
             IF (my_alpha == 1.0_dp) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2)
-               pw_out%cc3d = pw_out%cc3d+pw1%cc3d*pw2%cc3d
+               pw_out%cc3d = pw_out%cc3d + pw1%cc3d*pw2%cc3d
 !$OMP END PARALLEL WORKSHARE
                flop = REAL(3*SIZE(pw2%cc3d), KIND=dp)
             ELSE
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw_out, pw1, pw2, my_alpha)
-               pw_out%cc3d = pw_out%cc3d+my_alpha*pw1%cc3d*pw2%cc3d
+               pw_out%cc3d = pw_out%cc3d + my_alpha*pw1%cc3d*pw2%cc3d
 !$OMP END PARALLEL WORKSHARE
                flop = REAL(6*SIZE(pw2%cc3d), KIND=dp)
             END IF
@@ -2090,33 +2089,33 @@ CONTAINS
 
       ! since the return value is real, only do accurate sum on the real bit ?
       IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D) THEN
-         integral_value = sum(pw1%cr3d(:, :, :) &
-                                       *pw2%cr3d(:, :, :))
+         integral_value = SUM(pw1%cr3d(:, :, :) &
+                              *pw2%cr3d(:, :, :))
       ELSE IF (pw1%in_use == REALDATA3D &
                .AND. pw2%in_use == COMPLEXDATA3D) THEN
-         integral_value = REAL(sum(pw1%cr3d(:, :, :) &
-                                            *pw2%cc3d(:, :, :)), KIND=dp) !? complex bit
+         integral_value = REAL(SUM(pw1%cr3d(:, :, :) &
+                                   *pw2%cc3d(:, :, :)), KIND=dp) !? complex bit
       ELSE IF (pw1%in_use == COMPLEXDATA3D &
                .AND. pw2%in_use == REALDATA3D) THEN
-         integral_value = REAL(sum(pw1%cc3d(:, :, :) &
-                                            *pw2%cr3d(:, :, :)), KIND=dp) !? complex bit
+         integral_value = REAL(SUM(pw1%cc3d(:, :, :) &
+                                   *pw2%cr3d(:, :, :)), KIND=dp) !? complex bit
       ELSE IF (pw1%in_use == COMPLEXDATA3D &
                .AND. pw2%in_use == COMPLEXDATA3D) THEN
-         integral_value = REAL(sum(CONJG(pw1%cc3d(:, :, :)) &
-                                            *pw2%cc3d(:, :, :)), KIND=dp) !? complex bit
+         integral_value = REAL(SUM(CONJG(pw1%cc3d(:, :, :)) &
+                                   *pw2%cc3d(:, :, :)), KIND=dp) !? complex bit
 
       ELSE IF (pw1%in_use == REALDATA1D &
                .AND. pw2%in_use == REALDATA1D) THEN
-               integral_value = sum(pw1%cr(:)*pw2%cr(:))
+         integral_value = SUM(pw1%cr(:)*pw2%cr(:))
       ELSE IF (pw1%in_use == REALDATA1D &
                .AND. pw2%in_use == COMPLEXDATA1D) THEN
-         integral_value = REAL(sum(pw1%cr(:)*pw2%cc(:)), KIND=dp) !? complex bit
+         integral_value = REAL(SUM(pw1%cr(:)*pw2%cc(:)), KIND=dp) !? complex bit
       ELSE IF (pw1%in_use == COMPLEXDATA1D &
                .AND. pw2%in_use == REALDATA1D) THEN
-         integral_value = REAL(sum(pw1%cc(:)*pw2%cr(:)), KIND=dp) !? complex bit
+         integral_value = REAL(SUM(pw1%cc(:)*pw2%cr(:)), KIND=dp) !? complex bit
       ELSE IF (pw1%in_use == COMPLEXDATA1D &
                .AND. pw2%in_use == COMPLEXDATA1D) THEN
-         integral_value = REAL(sum(CONJG(pw1%cc(:))*pw2%cc(:)), KIND=dp) !? complex bit
+         integral_value = REAL(SUM(CONJG(pw1%cc(:))*pw2%cc(:)), KIND=dp) !? complex bit
       ELSE
          CPABORT("No possible DATA")
       END IF
