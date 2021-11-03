@@ -121,8 +121,6 @@ async def main() -> None:
             print(f"Skipping {batch.name} because its requirements are not satisfied.")
         elif not any(re.match(p, batch.name) for p in cfg.restrictdirs):
             num_restrictdirs += 1
-        elif cfg.keepalive and batch.name in KEEPALIVE_SKIP_DIRS:
-            print(f"Skipping {batch.name} because it doesn't work with --keepalive.")
         else:
             tasks.append(asyncio.get_event_loop().create_task(run_batch(batch, cfg)))
 
@@ -452,7 +450,7 @@ async def run_unittests(batch: Batch, cfg: Config) -> List[TestResult]:
 
 # ======================================================================================
 async def run_regtests(batch: Batch, cfg: Config) -> List[TestResult]:
-    if cfg.keepalive:
+    if cfg.keepalive and not batch.name in KEEPALIVE_SKIP_DIRS:
         return await run_regtests_keepalive(batch, cfg)
     else:
         return await run_regtests_classic(batch, cfg)
