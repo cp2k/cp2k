@@ -230,7 +230,7 @@ class Config:
             env["HIP_VISIBLE_DEVICES"] = ",".join(visible_gpu_devices)
         env["OMP_NUM_THREADS"] = str(self.ompthreads)
         exe = str(self.cp2k_root / "exe" / self.arch / f"{exe_stem}.{self.version}")
-        cmd = self.mpiexec + ["-np", str(self.mpiranks), exe] if self.use_mpi else [exe]
+        cmd = self.mpiexec + ["-n", str(self.mpiranks), exe] if self.use_mpi else [exe]
         if self.debug:
             print(f"Creating subprocess: {cmd} {args}")
         return asyncio.create_subprocess_exec(
