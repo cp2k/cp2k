@@ -137,6 +137,7 @@ MODULE helium_types
       INTEGER       :: worm_tail_min, worm_tail_max
       INTEGER       :: worm_swap_min, worm_swap_max
       INTEGER       :: worm_open_close_min, worm_open_close_max
+      INTEGER       :: worm_max_open_cycles
       REAL(KIND=dp) :: worm_open_close_scale
       REAL(KIND=dp) :: worm_ln_openclose_scale
       LOGICAL       :: worm_allow_open, worm_show_statistics
@@ -173,10 +174,13 @@ MODULE helium_types
       ! helium variables
       !
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: pos !< position of the helium atoms DIM(3,atoms,beads)
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: savepos !< saved position of the helium atoms DIM(3,atoms,beads)
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: work !< same dimensions as pos
       !
       INTEGER, DIMENSION(:), POINTER :: permutation !< current permutation state DIM(atoms)
+      INTEGER, DIMENSION(:), POINTER :: savepermutation !< saved permutation state DIM(atoms)
       INTEGER, DIMENSION(:), POINTER :: iperm !< inverse of the current permutation state DIM(atoms)
+      INTEGER, DIMENSION(:), POINTER :: saveiperm !< saved inverse of the current permutation state DIM(atoms)
       INTEGER, DIMENSION(:), POINTER :: ptable !< proposed cyclic permutation, DIM(max_cycle)
       INTEGER(KIND=int_8)              :: accepts !< number of accepted new configurations
       !
