@@ -172,6 +172,10 @@ CONTAINS
                                    i_val=ec_env%mao_max_iter)
          CALL section_vals_val_get(ec_section, "MAO_EPS_GRAD", &
                                    r_val=ec_env%mao_eps_grad)
+         CALL section_vals_val_get(ec_section, "MAO_EPS1", &
+                                   r_val=ec_env%mao_eps1)
+         CALL section_vals_val_get(ec_section, "MAO_IOLEVEL", &
+                                   i_val=ec_env%mao_iolevel)
          ! Skip EC calculation if ground-state calculation did not converge
          CALL section_vals_val_get(ec_section, "SKIP_EC", &
                                    l_val=ec_env%skip_ec)

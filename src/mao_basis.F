@@ -66,11 +66,12 @@ CONTAINS
 !> \param eps_grad ...
 !> \param nmao_external ...
 !> \param eps1_mao ...
+!> \param iolevel ...
 !> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE mao_generate_basis(qs_env, mao_coef, ref_basis_set, pmat_external, smat_external, &
                                  molecular, max_iter, eps_grad, nmao_external, &
-                                 eps1_mao, unit_nr)
+                                 eps1_mao, iolevel, unit_nr)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mao_coef
       CHARACTER(len=*), OPTIONAL                         :: ref_basis_set
@@ -81,14 +82,14 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_grad
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: nmao_external
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps1_mao
-      INTEGER, INTENT(IN), OPTIONAL                      :: unit_nr
+      INTEGER, INTENT(IN), OPTIONAL                      :: iolevel, unit_nr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mao_generate_basis'
 
       CHARACTER(len=10)                                  :: mao_basis_set
-      INTEGER                                            :: handle, iab, iatom, ikind, ispin, iw, &
-                                                            mao_max_iter, natom, nbas, nimages, &
-                                                            nkind, nmao, nspin
+      INTEGER                                            :: handle, iab, iatom, ikind, iolev, ispin, &
+                                                            iw, mao_max_iter, natom, nbas, &
+                                                            nimages, nkind, nmao, nspin
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, row_blk_sizes
       LOGICAL                                            :: do_nmao_external, molecule
       REAL(KIND=dp)                                      :: electra(2), eps1, eps_filter, eps_fun, &
@@ -118,6 +119,14 @@ CONTAINS
       IF (PRESENT(unit_nr)) THEN
          iw = unit_nr
       ELSE
+         iw = -1
+      END IF
+      IF (PRESENT(iolevel)) THEN
+         iolev = iolevel
+      ELSE
+         iolev = 1
+      END IF
+      IF (iolevel == 0) THEN
          iw = -1
       END IF
 
@@ -195,7 +204,7 @@ CONTAINS
                END IF
                nbas = mao_basis_set_list(ikind)%gto_basis_set%nsgf
                WRITE (UNIT=iw, FMT="(T2,A,I4,T30,A,I2,T56,A,I10)") &
-                  "MAO basis set Kind ", ikind, " Number of MAO:", nmao, " Number of BSF:", nbas
+                  "MAO basis set Kind ", ikind, " MinNum of MAO:", nmao, " Number of BSF:", nbas
             END IF
          END DO
       END IF
@@ -253,7 +262,7 @@ CONTAINS
       ! check if MAOs have been specified
       DO iab = 1, natom
          IF (col_blk_sizes(iab) < 0) &
-            CPABORT("Number of MAOs has to be specified in KIND section for all elements")
+            CPABORT("Minimum number of MAOs has to be specified in KIND section for all elements")
       END DO
       DO ispin = 1, nspin
          ! coefficients
@@ -266,7 +275,8 @@ CONTAINS
       DEALLOCATE (row_blk_sizes, col_blk_sizes)
 
       ! optimize MAOs
-      CALL mao_optimize(mao_coef, matrix_q, matrix_smm, electra, mao_max_iter, mao_eps_grad, eps1, iw)
+      CALL mao_optimize(mao_coef, matrix_q, matrix_smm, electra, mao_max_iter, mao_eps_grad, eps1, &
+                        iolev, iw)
 
       ! Deallocate the neighbor list structure
       CALL release_neighbor_list_sets(smm_list)

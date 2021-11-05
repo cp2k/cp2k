@@ -66,11 +66,11 @@ MODULE mao_methods
 
    TYPE mblocks
       INTEGER                                        :: n, ma
-      REAL(KIND=dp), DIMENSION(:, :), POINTER         :: mat
+      REAL(KIND=dp), DIMENSION(:, :), POINTER        :: mat
       REAL(KIND=dp), DIMENSION(:), POINTER           :: eig
    END TYPE mblocks
 
-   PUBLIC ::  mao_initialization, mao_function, mao_function_gradient, mao_orthogonalization, &
+   PUBLIC :: mao_initialization, mao_function, mao_function_gradient, mao_orthogonalization, &
              mao_project_gradient, mao_scalar_product, mao_build_q, mao_basis_analysis, &
              mao_reference_basis, calculate_p_gamma
 
@@ -84,14 +84,18 @@ CONTAINS
 !> \param pmat ...
 !> \param smat ...
 !> \param eps1 ...
+!> \param iolevel ...
+!> \param iw ...
 ! **************************************************************************************************
-   SUBROUTINE mao_initialization(mao_coef, pmat, smat, eps1)
+   SUBROUTINE mao_initialization(mao_coef, pmat, smat, eps1, iolevel, iw)
       TYPE(dbcsr_type)                                   :: mao_coef, pmat, smat
       REAL(KIND=dp), INTENT(IN)                          :: eps1
+      INTEGER, INTENT(IN)                                :: iolevel, iw
 
       INTEGER                                            :: group, i, iatom, info, jatom, lwork, m, &
                                                             n, nblk
-      INTEGER, DIMENSION(:), POINTER                     :: mao_blk, row_blk, row_blk_sizes
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, mao_blk, row_blk, &
+                                                            row_blk_sizes
       LOGICAL                                            :: found
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: w, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: amat, bmat
@@ -174,6 +178,26 @@ CONTAINS
          END DO
          CALL dbcsr_iterator_stop(dbcsr_iter)
          !
+      END IF
+
+      IF (iolevel > 2) THEN
+         CALL dbcsr_get_info(mao_coef, col_blk_size=col_blk_sizes, &
+                             row_blk_size=row_blk_sizes, group=group)
+         DO iatom = 1, nblk
+            n = row_blk_sizes(iatom)
+            m = col_blk_sizes(iatom)
+            ALLOCATE (w(n))
+            w(n) = 0._dp
+            IF (ASSOCIATED(mbl(iatom)%mat)) THEN
+               w(1:n) = mbl(iatom)%eig(1:n)
+            END IF
+            CALL mp_sum(w, group)
+            IF (iw > 0) THEN
+               WRITE (iw, '(A,i2,20F8.4)', ADVANCE="NO") " Spectrum/Gap  ", iatom, w(1:m)
+               WRITE (iw, '(A,F8.4)') " || ", w(m + 1)
+            END IF
+            DEALLOCATE (w)
+         END DO
       END IF
 
       CALL mao_orthogonalization(mao_coef, smat)

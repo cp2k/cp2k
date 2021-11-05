@@ -66,6 +66,8 @@ MODULE ec_env_types
       LOGICAL                                          :: do_skip, skip_ec
       INTEGER                                          :: mao_max_iter
       REAL(KIND=dp)                                    :: mao_eps_grad
+      REAL(KIND=dp)                                    :: mao_eps1
+      INTEGER                                          :: mao_iolevel
       ! energy components
       REAL(KIND=dp)                                    :: etotal
       REAL(KIND=dp)                                    :: eband, exc, ehartree, vhxc

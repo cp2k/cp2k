@@ -127,6 +127,19 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="MAO_EPS1", &
+                          description="Occupation threshold used to determine number of MAOs."// &
+                          " KIND section MAO keyword sets the minimum.", &
+                          usage="MAO_EPS1 0.001 ", default_r_val=1000.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MAO_IOLEVEL", &
+                          description="Verbosity of MAO output: (0) no output ... (3) fully verbose", &
+                          usage="MAO_IOLEVEL 0 ", default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="ALGORITHM", &
                           description="Algorithm used to solve KS equation", &
                           usage="ALGORITHM DIAGONALIZATION", &
