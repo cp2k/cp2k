@@ -542,7 +542,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create( &
          section, __LOCATION__, name="wavelet", &
-         description="Sets up parameters of  wavelet based poisson solver.", &
+         description="Sets up parameters of wavelet based poisson solver.", &
          n_keywords=1, n_subsections=0, repeats=.FALSE., &
          citations=(/Genovese2006, Genovese2007/))
 
