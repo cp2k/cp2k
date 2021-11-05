@@ -253,7 +253,8 @@ CONTAINS
 
       ! optimize MAOs
       epsx = 1000.0_dp
-      CALL mao_optimize(mao_coef, matrix_q, matrix_smm, electra, max_iter, eps_grad, epsx, unit_nr)
+      CALL mao_optimize(mao_coef, matrix_q, matrix_smm, electra, max_iter, eps_grad, epsx, &
+                        3, unit_nr)
 
       ! Analyze the MAO basis
       CALL mao_basis_analysis(mao_coef, matrix_smm, mao_basis_set_list, particle_set, &
