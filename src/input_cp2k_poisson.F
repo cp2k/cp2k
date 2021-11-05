@@ -119,6 +119,18 @@ CONTAINS
                           enum_c_vals=s2a("PERIODIC", "ANALYTIC", "MT", "MULTIPOLE", "WAVELET", "IMPLICIT"), &
                           enum_i_vals=(/pw_poisson_periodic, pw_poisson_analytic, pw_poisson_mt, pw_poisson_multipole, &
                                         pw_poisson_wavelet, pw_poisson_implicit/), &
+                          enum_desc=s2a("PERIODIC is only available for fully (3D) periodic systems.", &
+                                        "ANALYTIC is available for 0D, 1D and 2D periodic solutions using analytical green "// &
+                                        "functions in the g space (slow convergence).", &
+                                        "MT (Martyna Tuckermann) decoupling that interacts only with the nearest "// &
+                                        "neighbor. Beware results are completely wrong if the cell is smaller than twice the "// &
+                                        "cluster size (with electronic density). Available for 0D and 2D systems.", &
+                                        "MULTIPOLE uses a scheme that fits the total charge with one gaussian per atom. "// &
+                                        "Available only for cluster (0D) systems.", &
+                                        "WAVELET allows for 0D, 2D (but only PERIODIC XZ) and 3D systems. It does not "// &
+                                        "require very large unit cells, only that the density goes to zero on the faces of "// &
+                                        "the cell. The use of PREFERRED_FFT_LIBRARY FFTSG is required.", &
+                                        "IMPLICIT allows for 0D, 1D, 2D and 3D systems."), &
                           citations=(/Blochl1995, Martyna1999, Genovese2006, Genovese2007/), &
                           default_i_val=pw_poisson_periodic)
       CALL section_add_keyword(section, keyword)
@@ -530,11 +542,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create( &
          section, __LOCATION__, name="wavelet", &
-         description="Sets up parameters of  wavelet based poisson solver."// &
-         "This solver allows for non-periodic (PERIODIC NONE) boundary conditions and slab-boundary conditions "// &
-         "(but only PERIODIC XZ)."// &
-         "It does not require very large unit cells, only that the density goes to zero on the faces of the cell."// &
-         "The use of PREFERRED_FFT_LIBRARY FFTSG is required", &
+         description="Sets up parameters of wavelet based poisson solver.", &
          n_keywords=1, n_subsections=0, repeats=.FALSE., &
          citations=(/Genovese2006, Genovese2007/))
 
