@@ -187,7 +187,7 @@ CONTAINS
             n = row_blk_sizes(iatom)
             m = col_blk_sizes(iatom)
             ALLOCATE (w(n))
-            w(n) = 0._dp
+            w(1:n) = 0._dp
             IF (ASSOCIATED(mbl(iatom)%mat)) THEN
                w(1:n) = mbl(iatom)%eig(1:n)
             END IF
