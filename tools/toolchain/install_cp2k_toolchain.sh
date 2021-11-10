@@ -716,15 +716,14 @@ else
 fi
 
 # several packages require cmake.
-if [ "$with_spglib" = "__INSTALL__" ] \
-|| [ "$with_libvori" = "__INSTALL__" ] \
-|| [ "$with_scalapack" = "__INSTALL__" ] \
-|| [ "$with_superlu" = "__INSTALL__" ] \
-|| [ "$with_sirius" = "__INSTALL__" ] \
-|| [ "$with_cosma" = "__INSTALL__" ] \
-|| [ "$with_spfft" = "__INSTALL__" ] \
-|| [ "$with_spla" = "__INSTALL__" ];
-then
+if [ "$with_spglib" = "__INSTALL__" ] ||
+  [ "$with_libvori" = "__INSTALL__" ] ||
+  [ "$with_scalapack" = "__INSTALL__" ] ||
+  [ "$with_superlu" = "__INSTALL__" ] ||
+  [ "$with_sirius" = "__INSTALL__" ] ||
+  [ "$with_cosma" = "__INSTALL__" ] ||
+  [ "$with_spfft" = "__INSTALL__" ] ||
+  [ "$with_spla" = "__INSTALL__" ]; then
   [ "$with_cmake" = "__DONTUSE__" ] && with_cmake="__INSTALL__"
 fi
 
