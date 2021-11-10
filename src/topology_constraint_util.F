@@ -168,7 +168,7 @@ CONTAINS
             NULLIFY (lci%lcolv)
             NULLIFY (lci%lg3x3)
             NULLIFY (lci%lg4x6)
-         ENDIF
+         END IF
          CALL set_molecule(molecule, lci=lci)
       END DO
       ALLOCATE (gci)
@@ -618,7 +618,7 @@ CONTAINS
                                    nmolecule=nmolecule, molecule_list=molecule_list, name=molname)
             is_qm = qmmm_ff_precond_only_qm(id1=molname)
             WHERE (molname .EQ. cons_info%fixed_molnames)
-            missed_molname = .FALSE.
+               missed_molname = .FALSE.
             END WHERE
             ! Try to figure out how many atoms of the list belong to this molecule_kind
             nfixed_atoms = 0
@@ -634,7 +634,7 @@ CONTAINS
                         IF ((.NOT. is_qm) .AND. cons_info%fixed_exclude_mm(k)) fix_atom_molname = .FALSE.
                      END IF
                   END DO
-               ENDIF
+               END IF
                DO k = first, last
                   fix_atom_qmmm = .FALSE.
                   IF (PRESENT(qmmm_env)) THEN
@@ -672,7 +672,7 @@ CONTAINS
                            EXIT
                         END IF
                      END DO
-                  ENDIF
+                  END IF
                   DO k = first, last
                      ! FIXED LIST ATOMS
                      fix_fixed_atom = .FALSE.

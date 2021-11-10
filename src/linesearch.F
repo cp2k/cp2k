@@ -360,7 +360,7 @@ CONTAINS
          IF (a < 0.0_dp) THEN
             IF (unit_nr > 0) WRITE (unit_nr, *) label, "LS| had to quench curvature"
             a = 1.0E-15_dp
-         ENDIF
+         END IF
 
          step_size = -b/(2.0_dp*a)
          pred_energy = a*step_size**2 + b*step_size + c
@@ -370,12 +370,12 @@ CONTAINS
 
          IF (pred_energy > this%energies(1) .OR. pred_energy > this%energies(2)) THEN
             CPABORT(label//"LS| predicted energy not below test points")
-         ENDIF
+         END IF
 
          IF (step_size > this%max_step_size) THEN
             step_size = this%max_step_size
             IF (unit_nr > 0) WRITE (unit_nr, *) label, "LS| limiting step_size to MAX_STEP_SIZE"
-         ENDIF
+         END IF
 
          this%last_step_size = step_size
          this%count = 1
@@ -416,7 +416,7 @@ CONTAINS
          IF (step_size < this%tiny_step_size) THEN
             IF (unit_nr > 0) WRITE (unit_nr, *) label, "LS| initial step size too small, using TINY_STEP_SIZE"
             step_size = this%tiny_step_size
-         ENDIF
+         END IF
          this%scan_steps(1) = 0.0_dp
          this%scan_steps(2) = step_size
          this%count = 2
@@ -455,12 +455,12 @@ CONTAINS
          IF (step_size < 0) THEN
             step_size = this%tiny_step_size
             IF (unit_nr > 0) WRITE (unit_nr, *) label, "LS| makeing a step of size TINY_STEP_SIZE"
-         ENDIF
+         END IF
 
          IF (step_size > this%max_step_size) THEN
             step_size = this%max_step_size
             IF (unit_nr > 0) WRITE (unit_nr, *) label, "LS| limiting step_size to MAX_STEP_SIZE"
-         ENDIF
+         END IF
 
          this%last_step_size = step_size
          this%count = 1
@@ -515,7 +515,7 @@ CONTAINS
             this%right_x = this%last_step_size
             this%have_right = .TRUE.
             step_size = this%right_x*shrink_factor
-         ENDIF
+         END IF
 
       ELSE IF (.NOT. this%have_right) THEN
          IF (energy < this%middle_e) THEN
@@ -526,7 +526,7 @@ CONTAINS
             this%right_e = energy
             this%right_x = this%last_step_size
             this%have_right = .TRUE.
-         ENDIF
+         END IF
 
       ELSE IF (.NOT. this%have_middle) THEN
          IF (energy > this%left_e) THEN
@@ -537,12 +537,12 @@ CONTAINS
             this%middle_e = energy
             this%middle_x = this%last_step_size
             this%have_middle = .TRUE.
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       IF (this%count > 3) THEN
          IF (unit_nr > 0) WRITE (unit_nr, *) label, "LS| Need extra step"
-      ENDIF
+      END IF
       IF (unit_nr > 0) WRITE (unit_nr, *) label, "LS| adapt: ", this%have_left, this%have_middle, this%have_right
       IF (unit_nr > 0) WRITE (unit_nr, *) label, "LS| adapt: scan_steps: ", this%left_x, this%middle_x, this%right_x
       IF (unit_nr > 0) WRITE (unit_nr, *) label, "LS| adapt: energies: ", this%left_e, this%middle_e, this%right_e
@@ -562,7 +562,7 @@ CONTAINS
             step_size = -b/(2.0_dp*a)
          ELSE
             step_size = 0.0_dp
-         ENDIF
+         END IF
 
          CPASSERT(step_size >= 0.0_dp)
          pred_energy = a*step_size**2 + b*step_size + c
@@ -630,7 +630,7 @@ CONTAINS
             this%right_x = this%scan_steps
             this%have_right = .TRUE.
             step_size = this%right_x/phi
-         ENDIF
+         END IF
 
       ELSE IF (.NOT. this%have_right) THEN
          IF (energy < this%middle_e) THEN
@@ -641,7 +641,7 @@ CONTAINS
             this%right_e = energy
             this%right_x = this%scan_steps
             this%have_right = .TRUE.
-         ENDIF
+         END IF
 
       ELSE IF (.NOT. this%have_middle) THEN
          IF (energy > this%left_e) THEN
@@ -652,7 +652,7 @@ CONTAINS
             this%middle_e = energy
             this%middle_x = this%scan_steps
             this%have_middle = .TRUE.
-         ENDIF
+         END IF
 
       ELSE !up and running
          a = this%middle_x - this%left_x
@@ -664,7 +664,7 @@ CONTAINS
             ELSE
                this%right_e = this%middle_e
                this%right_x = this%middle_x
-            ENDIF
+            END IF
             this%middle_e = energy
             this%middle_x = this%scan_steps
          ELSE
@@ -674,9 +674,9 @@ CONTAINS
             ELSE
                this%left_e = energy
                this%left_x = this%scan_steps
-            ENDIF
-         ENDIF
-      ENDIF
+            END IF
+         END IF
+      END IF
 
       IF (unit_nr > 0) WRITE (unit_nr, *) label, "LS| gold: ", this%have_left, this%have_middle, this%have_right
       IF (unit_nr > 0) WRITE (unit_nr, *) label, "LS| gold: ", this%left_x, this%middle_x, this%right_x
@@ -711,7 +711,7 @@ CONTAINS
             this%left_x = 0.0
             this%middle_x = 0.0
             this%right_x = 0.0
-         ENDIF
+         END IF
 
       END IF
 

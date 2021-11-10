@@ -118,9 +118,9 @@ CONTAINS
                                           iblock_row, iblock_col, p_new_block)
                CPASSERT(ASSOCIATED(p_new_block))
                p_new_block(:, :) = 1.0_dp
-            ENDIF
-         ENDDO
-      ENDDO
+            END IF
+         END DO
+      END DO
       CALL dbcsr_finalize(matrix)
 
    END SUBROUTINE fill_matrix_with_ones
@@ -464,7 +464,7 @@ CONTAINS
          CALL dbcsr_release(matrix_tmp2)
          CALL dbcsr_release(matrix_tmp1)
 
-      ENDDO ! spins
+      END DO ! spins
 
       CALL timestop(handle)
 
@@ -748,7 +748,7 @@ CONTAINS
          CALL dbcsr_release(matrix_tmp7)
          CALL dbcsr_release(matrix_tmp8)
 
-      ENDDO ! spins
+      END DO ! spins
 
       CALL timestop(handle)
 
@@ -781,7 +781,7 @@ CONTAINS
       IF (almo_scf_env%domain_layout_aos == almo_domain_layout_molecular .AND. &
           almo_scf_env%mat_distr_aos == almo_mat_distr_atomic) THEN
          CPABORT("a domain must be located entirely on a CPU")
-      ENDIF
+      END IF
 
       ndomains = almo_scf_env%ndomains
       ALLOCATE (subm_tmp(ndomains))
@@ -867,9 +867,9 @@ CONTAINS
                DEALLOCATE (data_copy)
                DEALLOCATE (eigenvalues)
 
-            ENDIF ! submatrix for the domain exists
+            END IF ! submatrix for the domain exists
 
-         ENDDO ! loop over domains
+         END DO ! loop over domains
 
          CALL release_submatrices(subm_ks_xx_orthog)
 
@@ -890,7 +890,7 @@ CONTAINS
          !!CALL dbcsr_add(almo_scf_env%matrix_t(ispin),&
          !!        almo_scf_env%matrix_t_blk(ispin),1.0_dp,1.0_dp)
 
-      ENDDO ! spins
+      END DO ! spins
 
       DEALLOCATE (subm_tmp)
       DEALLOCATE (subm_ks_xx_orthog)
@@ -933,7 +933,7 @@ CONTAINS
       IF (almo_scf_env%domain_layout_aos == almo_domain_layout_molecular .AND. &
           almo_scf_env%mat_distr_aos == almo_mat_distr_atomic) THEN
          CPABORT("a domain must be located entirely on a CPU")
-      ENDIF
+      END IF
 
       DO ispin = 1, almo_scf_env%nspins
 
@@ -969,13 +969,13 @@ CONTAINS
 
             IF (iblock_row .NE. iblock_col) THEN
                CPABORT("off-diagonal block found")
-            ENDIF
+            END IF
 
             block_needed = .TRUE.
             IF (almo_scf_env%nocc_of_domain(iblock_col, ispin) .EQ. 0 .AND. &
                 almo_scf_env%nvirt_of_domain(iblock_col, ispin) .EQ. 0) THEN
                block_needed = .FALSE.
-            ENDIF
+            END IF
 
             IF (block_needed) THEN
 
@@ -1018,7 +1018,7 @@ CONTAINS
                   p_new_block(:, :) = 0.0_dp
                   DO orbital = 1, nocc_of_block
                      p_new_block(orbital, orbital) = eigenvalues(orbital)
-                  ENDDO
+                  END DO
                   !! Retrieve occupied MOs energies for smearing purpose, if requested
                   !! RS-WARNING: Hack to retrieve the occupied energies, since matrix_eoo seems to be ill-defined
                   !!             for multiprocessing (any idea for fix?)
@@ -1032,7 +1032,7 @@ CONTAINS
                                                  ispin) = eigenvalues(orbital)
                      END DO
                   END IF
-               ENDIF
+               END IF
 
                ! now virtuals
                nvirt_of_block = almo_scf_env%nvirt_of_domain(iblock_col, ispin)
@@ -1048,16 +1048,16 @@ CONTAINS
                   p_new_block(:, :) = 0.0_dp
                   DO orbital = 1, nvirt_of_block
                      p_new_block(orbital, orbital) = eigenvalues(nocc_of_block + orbital)
-                  ENDDO
-               ENDIF
+                  END DO
+               END IF
 
                DEALLOCATE (WORK)
                DEALLOCATE (data_copy)
                DEALLOCATE (eigenvalues)
 
-            ENDIF
+            END IF
 
-         ENDDO
+         END DO
          CALL dbcsr_iterator_stop(iter)
 
          CALL dbcsr_finalize(matrix_t_blk_orthog)
@@ -1088,7 +1088,7 @@ CONTAINS
          CALL dbcsr_release(matrix_t_blk_orthog)
          CALL dbcsr_release(matrix_v_blk_orthog)
 
-      ENDDO ! spins
+      END DO ! spins
 
       CALL timestop(handle)
 
@@ -1152,9 +1152,9 @@ CONTAINS
 
             DEALLOCATE (data_copy)
 
-         ENDIF
+         END IF
 
-      ENDDO
+      END DO
       CALL dbcsr_iterator_stop(iter)
 
       CALL dbcsr_finalize(matrix_out)
@@ -1217,11 +1217,11 @@ CONTAINS
 
                IF (iblock_row == iblock_col) THEN
                   block_needed = .TRUE.
-               ENDIF
+               END IF
 
                IF (.NOT. block_needed) THEN
                   CPABORT("off-diag block found")
-               ENDIF
+               END IF
 
                ! Prepare data
                ALLOCATE (eigenvalues(iblock_size))
@@ -1264,7 +1264,7 @@ CONTAINS
                DEALLOCATE (data_copy)
                DEALLOCATE (eigenvalues)
 
-            ENDDO
+            END DO
             CALL dbcsr_iterator_stop(iter)
 
             CALL dbcsr_finalize(matrix_t_blk_tmp)
@@ -1299,9 +1299,9 @@ CONTAINS
 
             CALL dbcsr_release(matrix_t_blk_tmp)
 
-         ENDIF
+         END IF
 
-      ENDDO
+      END DO
 
       CALL timestop(handle)
 
@@ -1440,13 +1440,13 @@ CONTAINS
          local_retain_sparsity = .FALSE.
       ELSE
          local_retain_sparsity = retain_overlap_sparsity
-      ENDIF
+      END IF
 
       IF (.NOT. PRESENT(smear)) THEN
          smearing = .FALSE.
       ELSE
          smearing = smear
-      ENDIF
+      END IF
 
       CALL dbcsr_create(tmp, template=ket, &
                         matrix_type=dbcsr_type_no_symmetry)
@@ -1531,7 +1531,7 @@ CONTAINS
          smearing = .FALSE.
       ELSE
          smearing = smear
-      ENDIF
+      END IF
 
       ! create block-diagonal sparsity pattern for the overlap
       ! in case retain_locality is set to true
@@ -1553,7 +1553,7 @@ CONTAINS
          DEALLOCATE (diagonal)
          CALL dbcsr_filter(overlap, eps_filter)
 
-      ENDIF
+      END IF
 
       CALL dbcsr_create(matrix_sigma_blk_sqrt, template=overlap, &
                         matrix_type=dbcsr_type_no_symmetry)
@@ -1588,7 +1588,7 @@ CONTAINS
       IF (PRESENT(overlap_sqrti)) THEN
          CALL dbcsr_copy(overlap_sqrti, &
                          matrix_sigma_blk_sqrt_inv)
-      ENDIF
+      END IF
 
       CALL dbcsr_release(matrix_t_blk_tmp)
       CALL dbcsr_release(matrix_sigma_blk_sqrt)
@@ -1658,8 +1658,8 @@ CONTAINS
          IF ((.NOT. PRESENT(s)) .OR. (.NOT. PRESENT(sigma)) .OR. &
              (.NOT. PRESENT(sigma_inv)) .OR. (.NOT. PRESENT(nocc_of_domain))) THEN
             CPABORT("Nonorthogonal orbitals need more input")
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       my_algorithm = 0
       IF (PRESENT(algorithm)) my_algorithm = algorithm
@@ -1670,13 +1670,13 @@ CONTAINS
       use_sigma_inv_guess = .FALSE.
       IF (PRESENT(use_guess)) THEN
          use_sigma_inv_guess = use_guess
-      ENDIF
+      END IF
 
       IF (.NOT. PRESENT(smear)) THEN
          smearing = .FALSE.
       ELSE
          smearing = smear
-      ENDIF
+      END IF
 
       my_accelerator = 1
       IF (PRESENT(inverse_accelerator)) my_accelerator = inverse_accelerator
@@ -1773,7 +1773,7 @@ CONTAINS
 
          CALL dbcsr_release(t_tmp)
 
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -1823,10 +1823,10 @@ CONTAINS
                   CALL dbcsr_reserve_block2d(matrix, iblock_row, iblock_col, p_new_block)
                   CPASSERT(ASSOCIATED(p_new_block))
                   p_new_block(1, 1) = value
-               ENDIF
-            ENDIF ! mynode
-         ENDIF !zero-electron block
-      ENDDO
+               END IF
+            END IF ! mynode
+         END IF !zero-electron block
+      END DO
 
       CALL dbcsr_finalize(matrix)
 
@@ -1895,7 +1895,7 @@ CONTAINS
          ELSE
             IF (.NOT. PRESENT(sig_inv_template)) THEN
                CPABORT("PROGRAMMING ERROR: provide either template or sig_inv")
-            ENDIF
+            END IF
             ! compute inverse overlap of the projector orbitals
             CALL dbcsr_create(tmp_sig, &
                               template=sig_inv_template, &
@@ -1909,14 +1909,14 @@ CONTAINS
             CALL invert_Hotelling(tmp_sig_inv, tmp_sig, &
                                   threshold=eps_filter)
             CALL dbcsr_release(tmp_sig)
-         ENDIF
+         END IF
          CALL dbcsr_multiply("N", "N", 1.0_dp, &
                              tmp_sig_inv, tmp_ov, 0.0_dp, tmp_ov2, &
                              filter_eps=eps_filter)
          CALL dbcsr_release(tmp_sig_inv)
          CALL dbcsr_copy(tmp_ov, tmp_ov2)
          CALL dbcsr_release(tmp_ov2)
-      ENDIF
+      END IF
       CALL dbcsr_release(tmp_no)
 
       ! =PSI_proj*TMP_OV
@@ -1928,7 +1928,7 @@ CONTAINS
       ! V_out=V_in-V_out
       IF (project_out) THEN
          CALL dbcsr_add(psi_out, psi_in, -1.0_dp, +1.0_dp)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -2032,7 +2032,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       CALL dbcsr_create(t1, template=X, &
                         matrix_type=dbcsr_type_no_symmetry)
@@ -2062,7 +2062,7 @@ CONTAINS
          frob_matrix = dbcsr_frobenius_norm(tmp1)
          IF (unit_nr > 0) WRITE (unit_nr, *) "Error for (inv(A)*A-I)", frob_matrix/frob_matrix_base
          CALL dbcsr_release(tmp1)
-      ENDIF
+      END IF
 
       CALL dbcsr_multiply("N", "N", 1.0_dp, delta, t2, 0.0_dp, U, &
                           filter_eps=eps_filter)
@@ -2079,7 +2079,7 @@ CONTAINS
          frob_matrix = dbcsr_frobenius_norm(tmp1)
          IF (unit_nr > 0) WRITE (unit_nr, *) "Error for (trn(U)*U-I)", frob_matrix/frob_matrix_base
          CALL dbcsr_release(tmp1)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -2134,7 +2134,7 @@ CONTAINS
       my_use_trimmer = .FALSE.
       IF (PRESENT(use_trimmer)) THEN
          my_use_trimmer = use_trimmer
-      ENDIF
+      END IF
 
       operator2_required = .FALSE.
       matrix_trimmer_required = .FALSE.
@@ -2144,14 +2144,14 @@ CONTAINS
       IF (my_use_trimmer) THEN
          matrix_trimmer_required = .TRUE.
          CPABORT("TRIMMED PROJECTOR DISABLED!")
-      ENDIF
+      END IF
 
       IF (.NOT. PRESENT(operator2) .AND. operator2_required) THEN
          CPABORT("SECOND OPERATOR IS REQUIRED")
-      ENDIF
+      END IF
       IF (.NOT. PRESENT(matrix_trimmer) .AND. matrix_trimmer_required) THEN
          CPABORT("TRIMMER MATRIX IS REQUIRED")
-      ENDIF
+      END IF
 
       ndomains = dbcsr_nblkcols_total(dpattern)
 
@@ -2184,7 +2184,7 @@ CONTAINS
                                    subm_temp, 1.0_dp, subm_out)
       ELSE
          CPABORT("ILLEGAL ACTION")
-      ENDIF
+      END IF
 
       CALL construct_dbcsr_from_submatrices(matrix_out, subm_out, dpattern)
       CALL dbcsr_filter(matrix_out, filter_eps)
@@ -2269,12 +2269,12 @@ CONTAINS
       my_use_trimmer = .FALSE.
       IF (PRESENT(use_trimmer)) THEN
          my_use_trimmer = use_trimmer
-      ENDIF
+      END IF
 
       my_skip_inversion = .FALSE.
       IF (PRESENT(skip_inversion)) THEN
          my_skip_inversion = skip_inversion
-      ENDIF
+      END IF
 
       matrix_s_inv_half_required = .FALSE.
       matrix_s_half_required = .FALSE.
@@ -2288,33 +2288,33 @@ CONTAINS
       IF (my_use_trimmer) THEN
          matrix_trimmer_required = .TRUE.
          CPABORT("TRIMMED PRECONDITIONER DISABLED!")
-      ENDIF
+      END IF
       ! tie the following optional arguments together to prevent bad calls
       IF (PRESENT(bad_modes_projector_down)) THEN
          matrix_s_inv_half_required = .TRUE.
          matrix_s_half_required = .TRUE.
          eps_zero_eigenvalues_required = .TRUE.
-      ENDIF
+      END IF
 
       ! check if all required optional arguments are provided
       IF (.NOT. PRESENT(subm_s_inv_half) .AND. matrix_s_inv_half_required) THEN
          CPABORT("S_inv_half SUBMATRICES ARE REQUIRED")
-      ENDIF
+      END IF
       IF (.NOT. PRESENT(subm_s_half) .AND. matrix_s_half_required) THEN
          CPABORT("S_half SUBMATRICES ARE REQUIRED")
-      ENDIF
+      END IF
       IF (.NOT. PRESENT(eps_zero_eigenvalues) .AND. eps_zero_eigenvalues_required) THEN
          CPABORT("EPS_ZERO_EIGENVALUES IS REQUIRED")
-      ENDIF
+      END IF
       IF (.NOT. PRESENT(subm_s_inv) .AND. matrix_s_inv_required) THEN
          CPABORT("S_inv SUBMATRICES ARE REQUIRED")
-      ENDIF
+      END IF
       IF (.NOT. PRESENT(subm_r_down) .AND. matrix_r_required) THEN
          CPABORT("R SUBMATRICES ARE REQUIRED")
-      ENDIF
+      END IF
       IF (.NOT. PRESENT(matrix_trimmer) .AND. matrix_trimmer_required) THEN
          CPABORT("TRIMMER MATRIX IS REQUIRED")
-      ENDIF
+      END IF
 
       CALL dbcsr_get_info(dpattern, &
                           nblkcols_total=ndomains, &
@@ -2355,7 +2355,7 @@ CONTAINS
          CALL release_submatrices(subm_tmp2)
          DEALLOCATE (subm_tmp2)
          DEALLOCATE (subm_tmp)
-      ENDIF
+      END IF
 
       IF (my_skip_inversion) THEN
          CALL copy_submatrices(subm_main, preconditioner, .TRUE.)
@@ -2371,14 +2371,14 @@ CONTAINS
                   index1_start = 1
                ELSE
                   index1_start = map%index1(idomain - 1)
-               ENDIF
+               END IF
                index1_end = map%index1(idomain) - 1
 
                n_domain_mos = 0
                DO row = index1_start, index1_end
                   neighbor = map%pairs(row, 1)
                   n_domain_mos = n_domain_mos + nmos(neighbor)
-               ENDDO
+               END DO
 
                naos = subm_main(idomain)%nrows
                !WRITE(*,*) "Domain, mo_self_and_neig, ao_domain: ", idomain, n_domain_mos, naos
@@ -2425,7 +2425,7 @@ CONTAINS
                ELSE
                   CALL pseudo_invert_matrix(A=subm_main(idomain)%mdata, Ainv=Minv, N=naos, method=1, &
                                             range1=nmos(idomain), range2=n_domain_mos)
-               ENDIF
+               END IF
                !!!TRIM ENDIF
 
                CALL copy_submatrices(subm_main(idomain), preconditioner(idomain), .FALSE.)
@@ -2436,13 +2436,13 @@ CONTAINS
                   CALL copy_submatrices(subm_main(idomain), bad_modes_projector_down(idomain), .FALSE.)
                   CALL copy_submatrix_data(proj_array, bad_modes_projector_down(idomain))
                   DEALLOCATE (proj_array)
-               ENDIF
+               END IF
 
-            ENDIF ! submatrix for the domain exists
+            END IF ! submatrix for the domain exists
 
-         ENDDO ! loop over domains
+         END DO ! loop over domains
 
-      ENDIF
+      END IF
 
       CALL release_submatrices(subm_main)
       DEALLOCATE (subm_main)
@@ -2522,9 +2522,9 @@ CONTAINS
             DEALLOCATE (Ssqrtinv)
             DEALLOCATE (Ssqrt)
 
-         ENDIF ! submatrix for the domain exists
+         END IF ! submatrix for the domain exists
 
-      ENDDO ! loop over domains
+      END DO ! loop over domains
 
       CALL release_submatrices(subm_s)
       DEALLOCATE (subm_s)
@@ -2589,9 +2589,9 @@ CONTAINS
 
             DEALLOCATE (Sinv)
 
-         ENDIF ! submatrix for the domain exists
+         END IF ! submatrix for the domain exists
 
-      ENDDO ! loop over domains
+      END DO ! loop over domains
 
       CALL release_submatrices(subm_s)
       DEALLOCATE (subm_s)
@@ -2741,14 +2741,14 @@ CONTAINS
       ALLOCATE (test(N, N))
       DO jj = 1, N
          test(jj, :) = Asqrtinv(:, jj)*SQRT(eigenvalues(jj))
-      ENDDO
+      END DO
       ALLOCATE (testN(N, N))
       testN(:, :) = MATMUL(Asqrtinv, test)
       Asqrt = testN
       ! now, sqrt_inv
       DO jj = 1, N
          test(jj, :) = Asqrtinv(:, jj)/SQRT(eigenvalues(jj))
-      ENDDO
+      END DO
       testN(:, :) = MATMUL(Asqrtinv, test)
       Asqrtinv = testN
       DEALLOCATE (test, testN)
@@ -2830,7 +2830,7 @@ CONTAINS
 
          IF ((PRESENT(range1) .AND. (.NOT. PRESENT(range2))) .OR. (PRESENT(range2) .AND. (.NOT. PRESENT(range1)))) THEN
             CPABORT("range1 and range2 must be provided together")
-         ENDIF
+         END IF
 
          IF (PRESENT(range1) .AND. PRESENT(range1_thr)) THEN
             use_both = .TRUE.
@@ -2843,25 +2843,25 @@ CONTAINS
                use_ranges_only = .TRUE.
             ELSE
                use_ranges_only = .FALSE.
-            ENDIF
+            END IF
 
             IF (PRESENT(range1_thr)) THEN
                use_thr_only = .TRUE.
             ELSE
                use_thr_only = .FALSE.
-            ENDIF
+            END IF
 
-         ENDIF
+         END IF
 
          IF ((PRESENT(s_half) .AND. (.NOT. PRESENT(s_inv_half))) .OR. (PRESENT(s_inv_half) .AND. (.NOT. PRESENT(s_half)))) THEN
             CPABORT("Domain overlap matrix missing")
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       my_shift = 0.0_dp
       IF (PRESENT(shift)) THEN
          my_shift = shift
-      ENDIF
+      END IF
 
       Ainv = A
       INFO = 0
@@ -2881,9 +2881,9 @@ CONTAINS
          DO ii = 1, N
             DO jj = ii + 1, N
                Ainv(ii, jj) = Ainv(jj, ii)
-            ENDDO
+            END DO
             !WRITE(*,'(100F13.9)') Ainv(ii,:)
-         ENDDO
+         END DO
 
       CASE (1)
 
@@ -2894,7 +2894,7 @@ CONTAINS
          IF (PRESENT(s_inv_half)) THEN
             CALL DSYMM('L', 'U', N, N, 1.0_dp, s_inv_half, N, A, N, 0.0_dp, temp1, N)
             CALL DSYMM('R', 'U', N, N, 1.0_dp, s_inv_half, N, temp1, N, 0.0_dp, Ainv, N)
-         ENDIF
+         END IF
          ! Query the optimal workspace for dsyev
          LWORK = -1
          ALLOCATE (WORK(MAX(1, LWORK)))
@@ -2935,8 +2935,8 @@ CONTAINS
                   temp1(jj, :) = temp2(:, jj)/(eigenvalues(jj) + my_shift)
                   IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*0.0_dp
                   range2_eiv = range2_eiv + 1
-               ENDIF
-            ENDDO
+               END IF
+            END DO
          ELSE
             IF (use_ranges_only) THEN
                DO jj = 1, N
@@ -2952,8 +2952,8 @@ CONTAINS
                      temp1(jj, :) = temp2(:, jj)/(eigenvalues(jj) + my_shift)
                      IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*0.0_dp
                      range3_eiv = range3_eiv + 1
-                  ENDIF
-               ENDDO
+                  END IF
+               END DO
             ELSE IF (use_thr_only) THEN
                DO jj = 1, N
                   IF (eigenvalues(jj) .LT. range1_thr) THEN
@@ -2964,12 +2964,12 @@ CONTAINS
                      temp1(jj, :) = temp2(:, jj)/(eigenvalues(jj) + my_shift)
                      IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*0.0_dp
                      range2_eiv = range2_eiv + 1
-                  ENDIF
-               ENDDO
+                  END IF
+               END DO
             ELSE ! no ranges, no thresholds
                CPABORT("Invert using Cholesky. It would be faster.")
-            ENDIF
-         ENDIF
+            END IF
+         END IF
          !WRITE(*,*) ' EIV RANGES: ', range1_eiv, range2_eiv, range3_eiv
          IF (PRESENT(bad_modes_projector_down)) THEN
             IF (PRESENT(s_half)) THEN
@@ -2978,8 +2978,8 @@ CONTAINS
                CALL DGEMM('N', 'N', N, N, N, 1.0_dp, Ainv, N, temp4, N, 0.0_dp, bad_modes_projector_down, N)
             ELSE
                CALL DGEMM('N', 'N', N, N, N, 1.0_dp, temp2, N, temp3, N, 0.0_dp, bad_modes_projector_down, N)
-            ENDIF
-         ENDIF
+            END IF
+         END IF
 
          IF (PRESENT(s_inv_half)) THEN
             CALL DSYMM('L', 'U', N, N, 1.0_dp, s_inv_half, N, temp2, N, 0.0_dp, temp4, N)
@@ -2987,7 +2987,7 @@ CONTAINS
             CALL DGEMM('N', 'N', N, N, N, 1.0_dp, temp4, N, temp2, N, 0.0_dp, Ainv, N)
          ELSE
             CALL DGEMM('N', 'N', N, N, N, 1.0_dp, temp2, N, temp1, N, 0.0_dp, Ainv, N)
-         ENDIF
+         END IF
          DEALLOCATE (temp1, temp2, temp4)
          IF (PRESENT(bad_modes_projector_down)) DEALLOCATE (temp3)
          DEALLOCATE (eigenvalues)
@@ -3072,14 +3072,14 @@ CONTAINS
                use_thr = .TRUE.
             ELSE
                use_thr = .FALSE.
-            ENDIF
-         ENDIF
-      ENDIF
+            END IF
+         END IF
+      END IF
 
       my_shift = 0.0_dp
       IF (PRESENT(shift)) THEN
          my_shift = shift
-      ENDIF
+      END IF
 
       Apow = A
       INFO = 0
@@ -3125,8 +3125,8 @@ CONTAINS
                range1_eiv = range1_eiv + 1
             ELSE
                temp1(jj, :) = temp2(:, jj)*((eigenvalues(jj) + my_shift)**power)
-            ENDIF
-         ENDDO
+            END IF
+         END DO
       ELSE
          IF (use_ranges) THEN
             DO jj = 1, N
@@ -3135,8 +3135,8 @@ CONTAINS
                   range1_eiv = range1_eiv + 1
                ELSE
                   temp1(jj, :) = temp2(:, jj)*((eigenvalues(jj) + my_shift)**power)
-               ENDIF
-            ENDDO
+               END IF
+            END DO
          ELSE
             IF (use_thr) THEN
                DO jj = 1, N
@@ -3146,15 +3146,15 @@ CONTAINS
                      range1_eiv = range1_eiv + 1
                   ELSE
                      temp1(jj, :) = temp2(:, jj)*((eigenvalues(jj) + my_shift)**power)
-                  ENDIF
-               ENDDO
+                  END IF
+               END DO
             ELSE
                DO jj = 1, N
                   temp1(jj, :) = temp2(:, jj)*((eigenvalues(jj) + my_shift)**power)
-               ENDDO
-            ENDIF
-         ENDIF
-      ENDIF
+               END DO
+            END IF
+         END IF
+      END IF
       !WRITE(*,*) ' EIV RANGES: ', range1_eiv, range2_eiv, range3_eiv
       Apow = MATMUL(temp2, temp1)
       DEALLOCATE (temp1, temp2)
@@ -3193,7 +3193,7 @@ CONTAINS
       DO idomain = 1, ndomains
          nao = almo_scf_env%nbasis_of_domain(idomain)
          domain_load(idomain) = (nao*nao*nao)*1.0_dp
-      ENDDO
+      END DO
 
       ALLOCATE (index0(ndomains))
 
@@ -3206,7 +3206,7 @@ CONTAINS
          least_loaded = MINLOC(cpu_load, 1)
          cpu_load(least_loaded) = cpu_load(least_loaded) + domain_load(idomain)
          almo_scf_env%cpu_of_domain(index0(idomain)) = least_loaded - 1
-      ENDDO
+      END DO
 
       DEALLOCATE (cpu_load)
       DEALLOCATE (index0)
@@ -3328,7 +3328,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       IF (optimize_theta) THEN
          CPWARN("unused option")
@@ -3342,7 +3342,7 @@ CONTAINS
          aspc_guess = .FALSE.
       ELSE
          aspc_guess = .TRUE.
-      ENDIF
+      END IF
 
       ! create initial guess
       IF (.NOT. aspc_guess) THEN
@@ -3356,9 +3356,9 @@ CONTAINS
             ELSE
                ! copy coefficients to m_guess
                CALL dbcsr_copy(m_guess(ispin), m_t_in(ispin))
-            ENDIF
+            END IF
 
-         ENDDO !ispins
+         END DO !ispins
 
       ELSE !aspc_guess
 
@@ -3424,7 +3424,7 @@ CONTAINS
                CALL dbcsr_add(m_guess(ispin), m_extrapolated, &
                               1.0_dp, (1.0_dp*alpha)/naspc)
 
-            ENDDO !iaspc
+            END DO !iaspc
 
             CALL dbcsr_release(m_extrapolated)
 
@@ -3447,11 +3447,11 @@ CONTAINS
             IF (assume_t0_q0x) THEN
                CALL dbcsr_add(m_guess(ispin), m_t0(ispin), &
                               1.0_dp, -1.0_dp)
-            ENDIF !assume_t0_q0x
+            END IF !assume_t0_q0x
 
-         ENDDO !ispin
+         END DO !ispin
 
-      ENDIF !aspc_guess?
+      END IF !aspc_guess?
 
       CALL timestop(handle)
 

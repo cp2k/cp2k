@@ -219,7 +219,7 @@ CONTAINS
                      NULLIFY (map_info%p_kin(ii, jj)%point)
                      map_info%p_scale(ii, jj)%point => unity
                   END DO
-               ENDIF
+               END IF
             END DO
             deg_of_freedom(1) = deg_of_freedom(1) + tot_const(ikind)
             map_info%index(1) = 1
@@ -243,7 +243,7 @@ CONTAINS
                      IF (map_loc_thermo_gen(kk) == HUGE(0)) THEN
                         have_thermostat = .FALSE.
                         EXIT
-                     ENDIF
+                     END IF
                   END DO
 ! If molecule has a thermostat, then map
                   IF (have_thermostat) THEN
@@ -500,7 +500,7 @@ CONTAINS
             point(2, ikind) = atm_offset + natom*nmol_per_kind
             atm_offset = point(2, ikind)
          END DO
-      ENDIF
+      END IF
       IF ((.NOT. simpar%constraint) .OR. shell) THEN
          const_mol = 0
          tot_const = 0
@@ -1066,7 +1066,7 @@ CONTAINS
                atm_offset = point(2, ikind)
             END DO
          END IF
-      ENDIF
+      END IF
       IF ((.NOT. simpar%constraint) .OR. shell) THEN
          const_mol = 0
          tot_const = 0

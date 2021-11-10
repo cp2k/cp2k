@@ -360,7 +360,7 @@ CONTAINS
                             qs_kind_set, sab_orb_sub, calc_forces)
 
       IF (unit_nr > 0) THEN
-         ASSOCIATE (ri_metric=>qs_env%mp2_env%ri_metric)
+         ASSOCIATE (ri_metric => qs_env%mp2_env%ri_metric)
             SELECT CASE (ri_metric%potential_type)
             CASE (do_potential_coulomb)
                WRITE (unit_nr, FMT="(/T3,A,T74,A)") &
@@ -764,7 +764,7 @@ CONTAINS
          pdims_t3c = 0
          CALL dbcsr_t_pgrid_create(para_env%group, pdims_t3c, pgrid_t3c_M)
 
-         ASSOCIATE (cut_memory=>qs_env%mp2_env%ri_rpa_im_time%cut_memory)
+         ASSOCIATE (cut_memory => qs_env%mp2_env%ri_rpa_im_time%cut_memory)
             CALL create_tensor_batches(sizes_AO_split, cut_memory, starts_array_mc, ends_array_mc, &
                                        starts_array_mc_block, ends_array_mc_block)
          END ASSOCIATE

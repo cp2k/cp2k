@@ -6,18 +6,18 @@
 #!-------------------------------------------------------------------------------------------------!
 #:mute
 
-#:set lmax_unroll = 4
+   #:set lmax_unroll = 4
 
-#:def i_pow(k)
-#:if k%4==0
-(1.0_dp, 0.0_dp)
-#:elif k%4==1
-(0.0_dp, 1.0_dp)
-#:elif k%4==2
-(-1.0_dp, 0.0_dp)
-#:elif k%4==3
-(0.0_dp, -1.0_dp)
-#:endif
-#:enddef
+   #:def i_pow(k)
+      #:if k%4==0
+         (1.0_dp, 0.0_dp)
+      #:elif k%4==1
+         (0.0_dp, 1.0_dp)
+      #:elif k%4==2
+         (-1.0_dp, 0.0_dp)
+      #:elif k%4==3
+         (0.0_dp, -1.0_dp)
+      #:endif
+   #:enddef
 
 #:endmute

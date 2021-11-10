@@ -173,7 +173,7 @@ CONTAINS
                ind = colv_list(i)%inp_seq_num
                colv_list(i)%expected_value = targets(ind)
             END DO
-         ENDIF
+         END IF
       END IF
       CALL timestop(handle)
 
@@ -259,7 +259,7 @@ CONTAINS
                IF (ncolv%ntot /= 0) THEN
                   CALL eval_colv_int(molecule, particle_set, coords, cell, cvalues, &
                                      Bmatrix, offset, n_tot, map)
-               ENDIF
+               END IF
             END DO
          END DO MOL
          CALL mp_sum(n_tot, force_env%para_env%group)
@@ -272,7 +272,7 @@ CONTAINS
          IF (gci%ncolv%ntot /= 0) THEN
             CALL eval_colv_ext(gci, particle_set, coords, cell, cvalues, &
                                Bmatrix, offset, n_tot, map)
-         ENDIF
+         END IF
       END IF
       CPASSERT(n_tot == SIZE(cvalues))
       ! Sort values of Collective Variables according the order of the input

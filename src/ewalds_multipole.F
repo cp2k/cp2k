@@ -56,7 +56,7 @@ MODULE ewalds_multipole
                                 structure_factor_evaluate
 #include "./base/base_uses.f90"
 
-#:include "ewalds_multipole_sr.fypp"
+   #:include "ewalds_multipole_sr.fypp"
 
    IMPLICIT NONE
    PRIVATE
@@ -478,9 +478,9 @@ CONTAINS
                   END IF
                   IF (radius > 0.0_dp) THEN
                      beta = sqrthalf/radius
-$: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_GAUSS", damping=False, store_energy=True, store_forces=True)
+                     $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_GAUSS", damping=False, store_energy=True, store_forces=True)
                   ELSE
-$: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERFC", damping=True, store_energy=True, store_forces=True )
+                     $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERFC", damping=True, store_energy=True, store_forces=True )
                   END IF
                END IF
             END DO Pairs
@@ -597,7 +597,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERFC", damping=True, store_e
                rab = particle_set(atom_b)%r - particle_set(atom_a)%r
                rab = pbc(rab, cell)
                rab2 = rab(1)**2 + rab(2)**2 + rab(3)**2
-$: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, store_forces=True)
+               $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, store_forces=True)
             END DO Pairs
          END DO Kind_Group_Loop
       END DO Lists
@@ -699,7 +699,7 @@ $: ewalds_multipole_sr_macro(mode="SCREENED_COULOMB_ERF", store_energy=True, sto
       nnodes = 0
       DO iparticle_kind = 1, nparticle_kind
          nnodes = nnodes + local_particles%n_el(iparticle_kind)
-      ENDDO
+      END DO
       CALL structure_factor_allocate(pw_grid%bounds, nnodes, exp_igr)
 
       ALLOCATE (summe_ef(1:pw_grid%ngpts_cut))

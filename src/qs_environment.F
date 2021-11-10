@@ -389,8 +389,8 @@ CONTAINS
          IF (qmmm_env_qm%qmmm_coupl_type == do_qmmm_gauss .OR. qmmm_env_qm%qmmm_coupl_type == do_qmmm_swave) THEN
             CALL cp_abort(__LOCATION__, "QM/MM with coupling GAUSS or S-WAVE requires "// &
                           "keyword FORCE_EVAL/DFT/MGRID/COMMENSURATE to be enabled.")
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       ! more kpoint stuff
       kpoints%para_env => para_env
@@ -468,7 +468,7 @@ CONTAINS
 
       IF (dft_control%qs_control%do_ls_scf) THEN
          CALL ls_scf_create(qs_env)
-      ENDIF
+      END IF
 
       NULLIFY (ec_env)
       dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
@@ -480,7 +480,7 @@ CONTAINS
 
       IF (dft_control%qs_control%do_almo_scf) THEN
          CALL almo_scf_env_create(qs_env)
-      ENDIF
+      END IF
 
       ! see if we have atomic relativistic corrections
       CALL get_qs_env(qs_env, rel_control=rel_control)
@@ -659,7 +659,7 @@ CONTAINS
          dft_control%qs_control%et_coupling_calc = .TRUE.
          dft_control%qs_control%ddapc_restraint = .TRUE.
          CALL read_ddapc_section(dft_control%qs_control, ddapc_restraint_section=et_ddapc_section)
-      ENDIF
+      END IF
 
       CALL read_mgrid_section(dft_control%qs_control, dft_section)
 
@@ -844,11 +844,11 @@ CONTAINS
                   CALL create_ri_aux_basis_set(ri_hfx_basis, qs_kind, dft_control%auto_basis_ri_hfx, basis_type="AUX_FIT")
                ELSE
                   CALL create_ri_aux_basis_set(ri_hfx_basis, qs_kind, dft_control%auto_basis_ri_hfx)
-               ENDIF
+               END IF
                CALL add_basis_set_to_container(qs_kind%basis_sets, ri_hfx_basis, "RI_HFX")
             END IF
          END DO
-      ENDIF
+      END IF
 
       IF (dft_control%qs_control%method_id == do_method_rigpw) THEN
          ! Check if RI_HXC basis is available, auto-generate if needed
@@ -880,7 +880,7 @@ CONTAINS
          IF (do_wfc_im_time .AND. sort_basis /= basis_sort_zet) THEN
             CALL cp_warn(__LOCATION__, &
                          "Low-scaling RPA requires SORT_BASIS EXP keyword (in DFT input section) for good performance")
-         ENDIF
+         END IF
 
          ! Check if RI_AUX basis (for MP2/RPA) is given, auto-generate if not
          CALL mp2_env_create(qs_env%mp2_env)
@@ -905,7 +905,7 @@ CONTAINS
             END DO
          END IF
 
-      ENDIF
+      END IF
 
       IF (dft_control%do_xas_tdp_calculation) THEN
          ! Check if RI_XAS basis is given, auto-generate if not
@@ -960,7 +960,7 @@ CONTAINS
           dft_control%qs_control%method_id == do_method_gapw_xc) THEN
          qs_control => dft_control%qs_control
          CALL init_gapw_basis_set(qs_kind_set, qs_control, qs_env%input)
-      ENDIF
+      END IF
 
       !   *** Initialize the pretabulation for the calculation of the   ***
       !   *** incomplete Gamma function F_n(t) after McMurchie-Davidson ***
@@ -1065,8 +1065,8 @@ CONTAINS
             CALL set_qs_env(qs_env=qs_env, requires_mo_derivs=.TRUE.)
          ELSE
             CALL set_qs_env(qs_env=qs_env, requires_mo_derivs=.FALSE.)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       ! XXXXXXX this is backwards XXXXXXXX
       dft_control%smear = scf_control%smear%do_smear
@@ -1147,7 +1147,7 @@ CONTAINS
             ! Setup the maximum level of multipoles to be treated in the periodic SE scheme
             IF (se_control%do_ewald) THEN
                CALL ewald_env_get(ewald_env, max_multipole=se_control%max_multipole)
-            ENDIF
+            END IF
             CALL section_vals_val_get(se_section, "NEIGHBOR_LISTS%VERLET_SKIN", &
                                       r_val=verlet_skin)
             CALL fist_nonbond_env_create(se_nonbond_env, atomic_kind_set, &
@@ -1173,7 +1173,7 @@ CONTAINS
          ! Store integral environment
          CALL semi_empirical_si_create(se_store_int_env, se_section)
          CALL set_qs_env(qs_env, se_store_int_env=se_store_int_env)
-      ENDIF
+      END IF
 
       !   Initialize possible dispersion parameters
       IF (dft_control%qs_control%method_id == do_method_gpw .OR. &
@@ -1514,7 +1514,7 @@ CONTAINS
          WRITE (output_unit, *) " restricted calculation cutting corners"
          WRITE (output_unit, *) " experimental feature, check code      "
          WRITE (output_unit, *) " **************************************"
-      ENDIF
+      END IF
 
       ! no point in allocating these things here ?
       IF (dft_control%qs_control%do_ls_scf) THEN
@@ -1569,7 +1569,7 @@ CONTAINS
                                  flexible_electron_count=dft_control%relax_multiplicity)
          END DO
          CALL set_qs_env(qs_env, mos_last_converged=mos_last_converged)
-      ENDIF
+      END IF
 
       IF (.NOT. be_silent) THEN
          ! Print the DFT control parameters
@@ -1625,8 +1625,8 @@ CONTAINS
          IF ((.NOT. dft_control%qs_control%do_ls_scf) .AND. &
              (.NOT. dft_control%qs_control%do_almo_scf)) THEN
             CALL scf_c_write_parameters(scf_control, dft_section)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       ! Sets up pw_env, qs_charges, mpools ...
       CALL qs_env_setup(qs_env)

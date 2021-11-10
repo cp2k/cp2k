@@ -259,7 +259,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       id_nr = 0
       nspin = SIZE(mo_array)
@@ -271,7 +271,7 @@ CONTAINS
                                        id_nr=id_nr, multiplicity=dft_control%multiplicity, dft_section=dft_section)
          DO ispin = 1, nspin
             CALL calculate_density_matrix(mo_array(ispin)%mo_set, p_rmpv(ispin)%matrix)
-         ENDDO
+         END DO
          IF (rtp%linear_scaling) THEN
             CALL get_rtp(rtp=rtp, rho_old=rho_old, rho_new=rho_new)
             DO ispin = 1, nspin
@@ -287,7 +287,7 @@ CONTAINS
             END DO
             DO i = 1, nspin
                CALL dbcsr_copy(rho_new(i)%matrix, rho_old(i)%matrix)
-            ENDDO
+            END DO
             CALL calc_update_rho_sparse(qs_env)
          ELSE
             CALL get_rtp(rtp=rtp, mos_old=mos_old)
@@ -295,7 +295,7 @@ CONTAINS
                CALL cp_fm_to_fm(mo_array(i)%mo_set%mo_coeff, mos_old(2*i - 1)%matrix)
                CALL cp_fm_set_all(mos_old(2*i)%matrix, zero, zero)
             END DO
-         ENDIF
+         END IF
       CASE (use_rt_restart)
          IF (rtp%linear_scaling) THEN
             CALL get_rtp(rtp=rtp, rho_old=rho_old, rho_new=rho_new)
@@ -309,18 +309,18 @@ CONTAINS
                cs_pos = dbcsr_checksum(rho_old(re)%matrix, pos=.TRUE.)
                IF (unit_nr > 0) THEN
                   WRITE (unit_nr, '(T2,A,E20.8)') "Read restart DM "//TRIM(file_name)//" with checksum: ", cs_pos
-               ENDIF
+               END IF
                WRITE (file_name, '(A,I0,A)') TRIM(project_name)//"_LS_DM_SPIN_IM", ispin, "_RESTART.dm"
                CALL dbcsr_get_info(rho_old(im)%matrix, distribution=dist)
                CALL dbcsr_binary_read(file_name, distribution=dist, matrix_new=rho_old(im)%matrix)
                cs_pos = dbcsr_checksum(rho_old(im)%matrix, pos=.TRUE.)
                IF (unit_nr > 0) THEN
                   WRITE (unit_nr, '(T2,A,E20.8)') "Read restart DM "//TRIM(file_name)//" with checksum: ", cs_pos
-               ENDIF
-            ENDDO
+               END IF
+            END DO
             DO i = 1, SIZE(rho_new)
                CALL dbcsr_copy(rho_new(i)%matrix, rho_old(i)%matrix)
-            ENDDO
+            END DO
             CALL calc_update_rho_sparse(qs_env)
          ELSE
             CALL get_rtp(rtp=rtp, mos_old=mos_old, mos_new=mos_new)
@@ -329,8 +329,8 @@ CONTAINS
             DO ispin = 1, nspin
                CALL calculate_density_matrix(mo_array(ispin)%mo_set, &
                                              p_rmpv(ispin)%matrix)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
       END SELECT
 
    END SUBROUTINE get_restart_wfn
@@ -443,7 +443,7 @@ CONTAINS
          CALL dbcsr_copy_into_existing(rho_ao(ispin)%matrix, rho_new(ispin*2 - 1)%matrix)
          IF (rtp%do_hfx .OR. rtp%track_imag_density) THEN
             CALL dbcsr_copy_into_existing(rho_ao_im(ispin)%matrix, rho_new(ispin*2)%matrix)
-         ENDIF
+         END IF
       END DO
 
       CALL qs_rho_update_rho(rho, qs_env)

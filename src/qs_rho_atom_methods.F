@@ -182,7 +182,7 @@ CONTAINS
                CALL allocate_rho_atom_rad(rho_atom_set, iatom, i, nr, max_iso_not0)
             ELSE
                CALL set2zero_rho_atom_rad(rho_atom_set, iatom, i)
-            ENDIF
+            END IF
          END DO
       END DO
 
@@ -340,9 +340,9 @@ CONTAINS
                                  rho_atom_set(iatom)%vrho_rad_s(i)%r_coef(1:nr, iso) + &
                                  vgg(1:nr, l, l_iso)*CPCS_sphere(iso1, iso2)*my_CG(iso1, iso2, iso)
 
-                           ENDDO ! icg
+                           END DO ! icg
 
-                        ENDDO ! iso
+                        END DO ! iso
 
                         DO iso = 1, max_iso_not0 !damax_iso_not0_local
                            l_iso = indso(1, iso)
@@ -362,17 +362,17 @@ CONTAINS
                               END DO
                            END DO ! icg
 
-                        ENDDO ! iso
+                        END DO ! iso
 
-                     ENDDO ! i
-                  ENDDO ! iat
+                     END DO ! i
+                  END DO ! iat
 
-               ENDDO ! ipgf2
-            ENDDO ! ipgf1
+               END DO ! ipgf2
+            END DO ! ipgf1
             m2s = m2s + maxso
-         ENDDO ! iset2
+         END DO ! iset2
          m1s = m1s + maxso
-      ENDDO ! iset1
+      END DO ! iset1
 
       DO iat = bo(1), bo(2)
          iatom = atom_list(iat)
@@ -502,8 +502,8 @@ CONTAINS
             DO ispin = 1, nspins
                rho_atom_set(iatom)%cpc_h(ispin)%r_coef = 0.0_dp
                rho_atom_set(iatom)%cpc_s(ispin)%r_coef = 0.0_dp
-            ENDDO ! ispin
-         ENDDO ! i
+            END DO ! ispin
+         END DO ! i
 
          num_pe = para_env%num_pe
          mepos = para_env%mepos
@@ -513,8 +513,8 @@ CONTAINS
             DO ispin = 1, nspins
                rho_atom_set(iatom)%ga_Vlocal_gb_h(ispin)%r_coef = 0.0_dp
                rho_atom_set(iatom)%ga_Vlocal_gb_s(ispin)%r_coef = 0.0_dp
-            ENDDO ! ispin
-         ENDDO ! i
+            END DO ! ispin
+         END DO ! i
       END DO ! ikind
 
       ALLOCATE (basis_set_list(nkind))
@@ -604,7 +604,7 @@ CONTAINS
          ELSE
             irow = jatom
             icol = iatom
-         ENDIF
+         END IF
 
          IF (nimages > 1) THEN
             img = cell_to_index(cell_b(1), cell_b(2), cell_b(3))
@@ -619,7 +619,7 @@ CONTAINS
                                    row=irow, col=icol, BLOCK=p_block_spin(ispin)%r_coef, &
                                    found=found)
             pmax = pmax + MAXVAL(ABS(p_block_spin(ispin)%r_coef))
-         ENDDO
+         END DO
 
          DO kkind = 1, nkind
             CALL get_qs_kind(qs_kind_set(kkind), &
@@ -689,7 +689,7 @@ CONTAINS
                            CALL alist_pre_align_blk(p_block_spin(ispin)%r_coef, &
                                                     SIZE(p_block_spin(ispin)%r_coef, 1), p_matrix, SIZE(p_matrix, 1), &
                                                     list_b, n_cont_b, list_a, n_cont_a)
-                        ENDIF
+                        END IF
 
                         factor = 1.0_dp
                         IF (iatom == jatom) factor = 0.5_dp
@@ -708,7 +708,7 @@ CONTAINS
                                          C_coeff_hh_a, C_coeff_ss_a, n_cont_a, &
                                          p_matrix, max_nsgf, r_coef_h, r_coef_s, nsoctot, &
                                          len_PC1, len_CPC, factor, distab)
-                        ENDIF
+                        END IF
 !$                      CALL omp_unset_lock(locks((katom - 1)*nspins + ispin))
 
                      END DO
@@ -750,7 +750,7 @@ CONTAINS
                r_coef_h(:, :) = r_coef_h(:, :) + TRANSPOSE(r_coef_h(:, :))
                r_coef_s(:, :) = r_coef_s(:, :) + TRANSPOSE(r_coef_s(:, :))
             END IF
-         ENDDO
+         END DO
 
       END DO
 
@@ -854,7 +854,7 @@ CONTAINS
                         iso = nsoset(lp - 1) + lp + 1 - ABS(mp)
                      END IF
                      my_CG(iso1, iso2, iso) = rga(il, 1)
-                     ENDIF
+                     END IF
                      IF (mp /= mm .AND. ABS(mm) <= lp) THEN
                      IF (mm >= 0) THEN
                         iso = nsoset(lp - 1) + lp + 1 + mm
@@ -862,12 +862,12 @@ CONTAINS
                         iso = nsoset(lp - 1) + lp + 1 - ABS(mm)
                      END IF
                      my_CG(iso1, iso2, iso) = rga(il, 2)
-                     ENDIF
+                     END IF
                   END DO
-               ENDDO ! iso2
-            ENDDO ! lc2
-         ENDDO ! iso1
-      ENDDO ! lc1
+               END DO ! iso2
+            END DO ! lc2
+         END DO ! iso1
+      END DO ! lc1
       DEALLOCATE (rga)
       CALL clebsch_gordon_deallocate()
 
@@ -1030,7 +1030,7 @@ CONTAINS
                      NULLIFY (rho_atom_set(iatom)%rho_rad_s_d(j, ispin)%r_coef)
                   END DO
                END DO
-            ENDIF
+            END IF
 
          END DO ! iat
 
@@ -1061,7 +1061,7 @@ CONTAINS
                   NULLIFY (rho_atom_set(iatom)%ga_Vlocal_gb_h(ispin)%r_coef)
                   NULLIFY (rho_atom_set(iatom)%ga_Vlocal_gb_s(ispin)%r_coef)
                END DO
-            ENDIF
+            END IF
 
          END DO ! iat
 

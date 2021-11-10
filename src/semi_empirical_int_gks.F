@@ -293,7 +293,7 @@ CONTAINS
          d2 = 3.0_dp*(1.0_dp - w*w3)/rr**5
          d3 = -15.0_dp*(1.0_dp - w*w4)/rr**7
          d4 = 105.0_dp*(1.0_dp - w*w5)/rr**9
-      ENDIF
+      END IF
 
       CALL build_d_tensor_gks(d1f, d2f, d3f, d4f, v=v, d1=d1, d2=d2, d3=d3, d4=d4)
 
@@ -310,35 +310,35 @@ CONTAINS
                   w = M0A(imA)*M0B(imB)*f
                   DO k1 = 1, 3
                      w = w + (M1A(k1, imA)*M0B(imB) - M0A(imA)*M1B(k1, imB))*d1f(k1)
-                  ENDDO
+                  END DO
                   DO k2 = 1, 3
                      DO k1 = 1, 3
                         w = w + (M2A(k1, k2, imA)*M0B(imB) - M1A(k1, imA)*M1B(k2, imB) + M0A(imA)*M2B(k1, k2, imB))*d2f(k1, k2)
-                     ENDDO
-                  ENDDO
+                     END DO
+                  END DO
                   DO k3 = 1, 3
                      DO k2 = 1, 3
                         DO k1 = 1, 3
                            w = w + (-M2A(k1, k2, imA)*M1B(k3, imB) + M1A(k1, imA)*M2B(k2, k3, imB))*d3f(k1, k2, k3)
-                        ENDDO
-                     ENDDO
-                  ENDDO
+                        END DO
+                     END DO
+                  END DO
 
                   DO k4 = 1, 3
                      DO k3 = 1, 3
                         DO k2 = 1, 3
                            DO k1 = 1, 3
                               w = w + M2A(k1, k2, imA)*M2B(k3, k4, imB)*d4f(k1, k2, k3, k4)
-                           ENDDO
-                        ENDDO
-                     ENDDO
-                  ENDDO
+                           END DO
+                        END DO
+                     END DO
+                  END DO
 
                   Coul(imA, imB) = w
-               ENDDO
-            ENDDO
-         ENDDO
-      ENDDO
+               END DO
+            END DO
+         END DO
+      END DO
 
    END SUBROUTINE makeCoul
 
@@ -399,7 +399,7 @@ CONTAINS
          d3 = -15.0_dp*(1.0_dp - w*w4)/rr**7
          d4 = 105.0_dp*(1.0_dp - w*w5)/rr**9
          d5 = -945.0_dp*(1.0_dp - w*w6)/rr**11
-      ENDIF
+      END IF
 
       CALL build_d_tensor_gks(d1f, d2f, d3f, d4f, d5f, v, d1, d2, d3, d4, d5)
 
@@ -422,15 +422,15 @@ CONTAINS
                      wv(1) = wv(1) + tmp*d2f(1, k1)
                      wv(2) = wv(2) + tmp*d2f(2, k1)
                      wv(3) = wv(3) + tmp*d2f(3, k1)
-                  ENDDO
+                  END DO
                   DO k2 = 1, 3
                      DO k1 = 1, 3
                         tmp = M2A(k1, k2, imA)*M0B(imB) - M1A(k1, imA)*M1B(k2, imB) + M0A(imA)*M2B(k1, k2, imB)
                         wv(1) = wv(1) + tmp*d3f(1, k1, k2)
                         wv(2) = wv(2) + tmp*d3f(2, k1, k2)
                         wv(3) = wv(3) + tmp*d3f(3, k1, k2)
-                     ENDDO
-                  ENDDO
+                     END DO
+                  END DO
                   DO k3 = 1, 3
                      DO k2 = 1, 3
                         DO k1 = 1, 3
@@ -438,9 +438,9 @@ CONTAINS
                            wv(1) = wv(1) + tmp*d4f(1, k1, k2, k3)
                            wv(2) = wv(2) + tmp*d4f(2, k1, k2, k3)
                            wv(3) = wv(3) + tmp*d4f(3, k1, k2, k3)
-                        ENDDO
-                     ENDDO
-                  ENDDO
+                        END DO
+                     END DO
+                  END DO
 
                   DO k4 = 1, 3
                      DO k3 = 1, 3
@@ -450,18 +450,18 @@ CONTAINS
                               wv(1) = wv(1) + tmp*d5f(1, k1, k2, k3, k4)
                               wv(2) = wv(2) + tmp*d5f(2, k1, k2, k3, k4)
                               wv(3) = wv(3) + tmp*d5f(3, k1, k2, k3, k4)
-                           ENDDO
-                        ENDDO
-                     ENDDO
-                  ENDDO
+                           END DO
+                        END DO
+                     END DO
+                  END DO
 
                   dCoul(1, imA, imB) = wv(1)
                   dCoul(2, imA, imB) = wv(2)
                   dCoul(3, imA, imB) = wv(3)
-               ENDDO
-            ENDDO
-         ENDDO
-      ENDDO
+               END DO
+            END DO
+         END DO
+      END DO
 
    END SUBROUTINE makedCoul
 
@@ -544,7 +544,7 @@ CONTAINS
             END IF
          END IF
 
-      ENDIF
+      END IF
    END SUBROUTINE corecore_gks
 
 ! **************************************************************************************************
@@ -635,33 +635,33 @@ CONTAINS
             w = M0A(imA)*M0B(imB)*f
             DO k1 = 1, 3
                w = w + (M1A(k1, imA)*M0B(imB) - M0A(imA)*M1B(k1, imB))*d1f(k1)
-            ENDDO
+            END DO
             DO k2 = 1, 3
                DO k1 = 1, 3
                   w = w + (M2A(k1, k2, imA)*M0B(imB) - M1A(k1, imA)*M1B(k2, imB) + M0A(imA)*M2B(k1, k2, imB))*d2f(k1, k2)
-               ENDDO
-            ENDDO
+               END DO
+            END DO
             DO k3 = 1, 3
                DO k2 = 1, 3
                   DO k1 = 1, 3
                      w = w + (-M2A(k1, k2, imA)*M1B(k3, imB) + M1A(k1, imA)*M2B(k2, k3, imB))*d3f(k1, k2, k3)
-                  ENDDO
-               ENDDO
-            ENDDO
+                  END DO
+               END DO
+            END DO
 
             DO k4 = 1, 3
                DO k3 = 1, 3
                   DO k2 = 1, 3
                      DO k1 = 1, 3
                         w = w + M2A(k1, k2, imA)*M2B(k3, k4, imB)*d4f(k1, k2, k3, k4)
-                     ENDDO
-                  ENDDO
-               ENDDO
-            ENDDO
+                     END DO
+                  END DO
+               END DO
+            END DO
 
             Coul(imA, imB) = w
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       v(1) = RAB(1)
       v(2) = RAB(2)
@@ -693,30 +693,30 @@ CONTAINS
          f = f + cc*ff
          DO k1 = 1, 3
             d1f(k1) = d1f(k1) - kk(k1)*ss*ff
-         ENDDO
+         END DO
          DO k2 = 1, 3
             DO k1 = 1, 3
                d2f(k1, k2) = d2f(k1, k2) - kk(k1)*kk(k2)*cc*ff
-            ENDDO
-         ENDDO
+            END DO
+         END DO
          DO k3 = 1, 3
             DO k2 = 1, 3
                DO k1 = 1, 3
                   d3f(k1, k2, k3) = d3f(k1, k2, k3) + kk(k1)*kk(k2)*kk(k3)*ss*ff
-               ENDDO
-            ENDDO
-         ENDDO
+               END DO
+            END DO
+         END DO
          DO k4 = 1, 3
             DO k3 = 1, 3
                DO k2 = 1, 3
                   DO k1 = 1, 3
                      d4f(k1, k2, k3, k4) = d4f(k1, k2, k3, k4) + kk(k1)*kk(k2)*kk(k3)*kk(k4)*cc*ff
-                  ENDDO
-               ENDDO
-            ENDDO
-         ENDDO
+                  END DO
+               END DO
+            END DO
+         END DO
 
-      ENDDO
+      END DO
 
       DO imA = 1, (sepi%natorb*(sepi%natorb + 1))/2
          DO imB = 1, (sepj%natorb*(sepj%natorb + 1))/2
@@ -724,41 +724,41 @@ CONTAINS
             w = M0A(imA)*M0B(imB)*f
             DO k1 = 1, 3
                w = w + (M1A(k1, imA)*M0B(imB) - M0A(imA)*M1B(k1, imB))*d1f(k1)
-            ENDDO
+            END DO
             DO k2 = 1, 3
                DO k1 = 1, 3
                   w = w + (M2A(k1, k2, imA)*M0B(imB) - M1A(k1, imA)*M1B(k2, imB) + M0A(imA)*M2B(k1, k2, imB))*d2f(k1, k2)
-               ENDDO
-            ENDDO
+               END DO
+            END DO
             DO k3 = 1, 3
                DO k2 = 1, 3
                   DO k1 = 1, 3
                      w = w + (-M2A(k1, k2, imA)*M1B(k3, imB) + M1A(k1, imA)*M2B(k2, k3, imB))*d3f(k1, k2, k3)
-                  ENDDO
-               ENDDO
-            ENDDO
+                  END DO
+               END DO
+            END DO
 
             DO k4 = 1, 3
                DO k3 = 1, 3
                   DO k2 = 1, 3
                      DO k1 = 1, 3
                         w = w + M2A(k1, k2, imA)*M2B(k3, k4, imB)*d4f(k1, k2, k3, k4)
-                     ENDDO
-                  ENDDO
-               ENDDO
-            ENDDO
+                     END DO
+                  END DO
+               END DO
+            END DO
 
             Coul(imA, imB) = Coul(imA, imB) + w
 
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       DO imA = 1, (sepi%natorb*(sepi%natorb + 1))/2
          DO imB = 1, (sepj%natorb*(sepj%natorb + 1))/2
             w = -M0A(imA)*M0B(imB)*0.25_dp*fourpi/(pw_grid%vol*alpha**2)
             Coul(imA, imB) = Coul(imA, imB) + w
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
    END SUBROUTINE makeCoulE
 
@@ -863,15 +863,15 @@ CONTAINS
                wv(1) = wv(1) + tmp*d2f(1, k1)
                wv(2) = wv(2) + tmp*d2f(2, k1)
                wv(3) = wv(3) + tmp*d2f(3, k1)
-            ENDDO
+            END DO
             DO k2 = 1, 3
                DO k1 = 1, 3
                   tmp = M2A(k1, k2, imA)*M0B(imB) - M1A(k1, imA)*M1B(k2, imB) + M0A(imA)*M2B(k1, k2, imB)
                   wv(1) = wv(1) + tmp*d3f(1, k1, k2)
                   wv(2) = wv(2) + tmp*d3f(2, k1, k2)
                   wv(3) = wv(3) + tmp*d3f(3, k1, k2)
-               ENDDO
-            ENDDO
+               END DO
+            END DO
             DO k3 = 1, 3
                DO k2 = 1, 3
                   DO k1 = 1, 3
@@ -879,9 +879,9 @@ CONTAINS
                      wv(1) = wv(1) + tmp*d4f(1, k1, k2, k3)
                      wv(2) = wv(2) + tmp*d4f(2, k1, k2, k3)
                      wv(3) = wv(3) + tmp*d4f(3, k1, k2, k3)
-                  ENDDO
-               ENDDO
-            ENDDO
+                  END DO
+               END DO
+            END DO
 
             DO k4 = 1, 3
                DO k3 = 1, 3
@@ -891,16 +891,16 @@ CONTAINS
                         wv(1) = wv(1) + tmp*d5f(1, k1, k2, k3, k4)
                         wv(2) = wv(2) + tmp*d5f(2, k1, k2, k3, k4)
                         wv(3) = wv(3) + tmp*d5f(3, k1, k2, k3, k4)
-                     ENDDO
-                  ENDDO
-               ENDDO
-            ENDDO
+                     END DO
+                  END DO
+               END DO
+            END DO
 
             dCoul(1, imA, imB) = wv(1)
             dCoul(2, imA, imB) = wv(2)
             dCoul(3, imA, imB) = wv(3)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       v(1) = RAB(1)
       v(2) = RAB(2)
@@ -933,40 +933,40 @@ CONTAINS
          f = f + cc*ff
          DO k1 = 1, 3
             d1f(k1) = d1f(k1) - kk(k1)*ss*ff
-         ENDDO
+         END DO
          DO k2 = 1, 3
             DO k1 = 1, 3
                d2f(k1, k2) = d2f(k1, k2) - kk(k1)*kk(k2)*cc*ff
-            ENDDO
-         ENDDO
+            END DO
+         END DO
          DO k3 = 1, 3
             DO k2 = 1, 3
                DO k1 = 1, 3
                   d3f(k1, k2, k3) = d3f(k1, k2, k3) + kk(k1)*kk(k2)*kk(k3)*ss*ff
-               ENDDO
-            ENDDO
-         ENDDO
+               END DO
+            END DO
+         END DO
          DO k4 = 1, 3
             DO k3 = 1, 3
                DO k2 = 1, 3
                   DO k1 = 1, 3
                      d4f(k1, k2, k3, k4) = d4f(k1, k2, k3, k4) + kk(k1)*kk(k2)*kk(k3)*kk(k4)*cc*ff
-                  ENDDO
-               ENDDO
-            ENDDO
-         ENDDO
+                  END DO
+               END DO
+            END DO
+         END DO
          DO k5 = 1, 3
             DO k4 = 1, 3
                DO k3 = 1, 3
                   DO k2 = 1, 3
                      DO k1 = 1, 3
                         d5f(k1, k2, k3, k4, k5) = d5f(k1, k2, k3, k4, k5) - kk(k1)*kk(k2)*kk(k3)*kk(k4)*kk(k5)*ss*ff
-                     ENDDO
-                  ENDDO
-               ENDDO
-            ENDDO
-         ENDDO
-      ENDDO
+                     END DO
+                  END DO
+               END DO
+            END DO
+         END DO
+      END DO
 
       DO imA = 1, (sepi%natorb*(sepi%natorb + 1))/2
          DO imB = 1, (sepj%natorb*(sepj%natorb + 1))/2
@@ -979,15 +979,15 @@ CONTAINS
                wv(1) = wv(1) + tmp*d2f(1, k1)
                wv(2) = wv(2) + tmp*d2f(2, k1)
                wv(3) = wv(3) + tmp*d2f(3, k1)
-            ENDDO
+            END DO
             DO k2 = 1, 3
                DO k1 = 1, 3
                   tmp = M2A(k1, k2, imA)*M0B(imB) - M1A(k1, imA)*M1B(k2, imB) + M0A(imA)*M2B(k1, k2, imB)
                   wv(1) = wv(1) + tmp*d3f(1, k1, k2)
                   wv(2) = wv(2) + tmp*d3f(2, k1, k2)
                   wv(3) = wv(3) + tmp*d3f(3, k1, k2)
-               ENDDO
-            ENDDO
+               END DO
+            END DO
             DO k3 = 1, 3
                DO k2 = 1, 3
                   DO k1 = 1, 3
@@ -995,9 +995,9 @@ CONTAINS
                      wv(1) = wv(1) + tmp*d4f(1, k1, k2, k3)
                      wv(2) = wv(2) + tmp*d4f(2, k1, k2, k3)
                      wv(3) = wv(3) + tmp*d4f(3, k1, k2, k3)
-                  ENDDO
-               ENDDO
-            ENDDO
+                  END DO
+               END DO
+            END DO
 
             DO k4 = 1, 3
                DO k3 = 1, 3
@@ -1007,16 +1007,16 @@ CONTAINS
                         wv(1) = wv(1) + tmp*d5f(1, k1, k2, k3, k4)
                         wv(2) = wv(2) + tmp*d5f(2, k1, k2, k3, k4)
                         wv(3) = wv(3) + tmp*d5f(3, k1, k2, k3, k4)
-                     ENDDO
-                  ENDDO
-               ENDDO
-            ENDDO
+                     END DO
+                  END DO
+               END DO
+            END DO
 
             dCoul(1, imA, imB) = dCoul(1, imA, imB) + wv(1)
             dCoul(2, imA, imB) = dCoul(2, imA, imB) + wv(2)
             dCoul(3, imA, imB) = dCoul(3, imA, imB) + wv(3)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
    END SUBROUTINE makedCoulE
 
@@ -1055,30 +1055,30 @@ CONTAINS
       d4f = 0.0_dp
       DO k1 = 1, 3
          d1f(k1) = d1f(k1) + v(k1)*d1
-      ENDDO
+      END DO
       DO k1 = 1, 3
          DO k2 = 1, 3
             d2f(k2, k1) = d2f(k2, k1) + v(k1)*v(k2)*d2
-         ENDDO
+         END DO
          d2f(k1, k1) = d2f(k1, k1) + d1
-      ENDDO
+      END DO
       DO k1 = 1, 3
          DO k2 = 1, 3
             DO k3 = 1, 3
                d3f(k3, k2, k1) = d3f(k3, k2, k1) + v(k1)*v(k2)*v(k3)*d3
-            ENDDO
+            END DO
             w = v(k1)*d2
             d3f(k1, k2, k2) = d3f(k1, k2, k2) + w
             d3f(k2, k1, k2) = d3f(k2, k1, k2) + w
             d3f(k2, k2, k1) = d3f(k2, k2, k1) + w
-         ENDDO
-      ENDDO
+         END DO
+      END DO
       DO k1 = 1, 3
          DO k2 = 1, 3
             DO k3 = 1, 3
                DO k4 = 1, 3
                   d4f(k4, k3, k2, k1) = d4f(k4, k3, k2, k1) + v(k1)*v(k2)*v(k3)*v(k4)*d4
-               ENDDO
+               END DO
                w = v(k1)*v(k2)*d3
                d4f(k1, k2, k3, k3) = d4f(k1, k2, k3, k3) + w
                d4f(k1, k3, k2, k3) = d4f(k1, k3, k2, k3) + w
@@ -1086,12 +1086,12 @@ CONTAINS
                d4f(k1, k3, k3, k2) = d4f(k1, k3, k3, k2) + w
                d4f(k3, k1, k3, k2) = d4f(k3, k1, k3, k2) + w
                d4f(k3, k3, k1, k2) = d4f(k3, k3, k1, k2) + w
-            ENDDO
+            END DO
             d4f(k1, k1, k2, k2) = d4f(k1, k1, k2, k2) + d2
             d4f(k1, k2, k1, k2) = d4f(k1, k2, k1, k2) + d2
             d4f(k1, k2, k2, k1) = d4f(k1, k2, k2, k1) + d2
-         ENDDO
-      ENDDO
+         END DO
+      END DO
       IF (PRESENT(d5f) .AND. PRESENT(d5)) THEN
          d5f = 0.0_dp
 
@@ -1101,7 +1101,7 @@ CONTAINS
                   DO k4 = 1, 3
                      DO k5 = 1, 3
                         d5f(k5, k4, k3, k2, k1) = d5f(k5, k4, k3, k2, k1) + v(k1)*v(k2)*v(k3)*v(k4)*v(k5)*d5
-                     ENDDO
+                     END DO
                      w = v(k1)*v(k2)*v(k3)*d4
                      d5f(k1, k2, k3, k4, k4) = d5f(k1, k2, k3, k4, k4) + w
                      d5f(k1, k2, k4, k3, k4) = d5f(k1, k2, k4, k3, k4) + w
@@ -1113,7 +1113,7 @@ CONTAINS
                      d5f(k1, k4, k4, k2, k3) = d5f(k1, k4, k4, k2, k3) + w
                      d5f(k4, k1, k4, k2, k3) = d5f(k4, k1, k4, k2, k3) + w
                      d5f(k4, k4, k1, k2, k3) = d5f(k4, k4, k1, k2, k3) + w
-                  ENDDO
+                  END DO
                   w = v(k1)*d3
                   d5f(k1, k2, k2, k3, k3) = d5f(k1, k2, k2, k3, k3) + w
                   d5f(k1, k2, k3, k2, k3) = d5f(k1, k2, k3, k2, k3) + w
@@ -1130,9 +1130,9 @@ CONTAINS
                   d5f(k2, k2, k3, k3, k1) = d5f(k2, k2, k3, k3, k1) + w
                   d5f(k2, k3, k2, k3, k1) = d5f(k2, k3, k2, k3, k1) + w
                   d5f(k2, k3, k3, k2, k1) = d5f(k2, k3, k3, k2, k1) + w
-               ENDDO
-            ENDDO
-         ENDDO
+               END DO
+            END DO
+         END DO
       END IF
    END SUBROUTINE build_d_tensor_gks
 
@@ -1192,19 +1192,19 @@ CONTAINS
          DO k2 = 1, 3
             DO k1 = 1, 3
                d2f(k1, k2) = d2f(k1, k2) - kk(k1)*kk(k2)*ff
-            ENDDO
-         ENDDO
+            END DO
+         END DO
          DO k4 = 1, 3
             DO k3 = 1, 3
                DO k2 = 1, 3
                   DO k1 = 1, 3
                      d4f(k1, k2, k3, k4) = d4f(k1, k2, k3, k4) + kk(k1)*kk(k2)*kk(k3)*kk(k4)*ff
-                  ENDDO
-               ENDDO
-            ENDDO
-         ENDDO
+                  END DO
+               END DO
+            END DO
+         END DO
 
-      ENDDO
+      END DO
 
       DO imA = 1, (sepi%natorb*(sepi%natorb + 1))/2
          DO imB = 1, (sepi%natorb*(sepi%natorb + 1))/2
@@ -1213,30 +1213,30 @@ CONTAINS
             DO k2 = 1, 3
                DO k1 = 1, 3
                   w = w + (M2A(k1, k2, imA)*M0A(imB) - M1A(k1, imA)*M1A(k2, imB) + M0A(imA)*M2A(k1, k2, imB))*d2f(k1, k2)
-               ENDDO
-            ENDDO
+               END DO
+            END DO
 
             DO k4 = 1, 3
                DO k3 = 1, 3
                   DO k2 = 1, 3
                      DO k1 = 1, 3
                         w = w + M2A(k1, k2, imA)*M2A(k3, k4, imB)*d4f(k1, k2, k3, k4)
-                     ENDDO
-                  ENDDO
-               ENDDO
-            ENDDO
+                     END DO
+                  END DO
+               END DO
+            END DO
 
             Coul(imA, imB) = w
 
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       DO imA = 1, (sepi%natorb*(sepi%natorb + 1))/2
          DO imB = 1, (sepi%natorb*(sepi%natorb + 1))/2
             w = -M0A(imA)*M0A(imB)*0.25_dp*fourpi/(pw_grid%vol*alpha**2)
             Coul(imA, imB) = Coul(imA, imB) + w
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       DO imA = 1, (sepi%natorb*(sepi%natorb + 1))/2
          DO imB = 1, (sepi%natorb*(sepi%natorb + 1))/2
@@ -1249,7 +1249,7 @@ CONTAINS
                w = w + M1A(k1, imA)*M1A(k1, imB)
                w = w - M0A(imA)*M2A(k1, k1, imB)
                w = w - M2A(k1, k1, imA)*M0A(imB)
-            ENDDO
+            END DO
             Coul(imA, imB) = Coul(imA, imB) - 4.0_dp*alpha**3*oorootpi*w/3.0_dp
 
             w = 0.0_dp
@@ -1257,11 +1257,11 @@ CONTAINS
                DO k1 = 1, 3
                   w = w + 2.0_dp*M2A(k1, k2, imA)*M2A(k1, k2, imB)
                   w = w + M2A(k1, k1, imA)*M2A(k2, k2, imB)
-               ENDDO
-            ENDDO
+               END DO
+            END DO
             Coul(imA, imB) = Coul(imA, imB) - 8.0_dp*alpha**5*oorootpi*w/5.0_dp
-         ENDDO
-      ENDDO
+         END DO
+      END DO
    END SUBROUTINE makeCoulE0
 
 ! **************************************************************************************************
@@ -1305,7 +1305,7 @@ CONTAINS
          M2(1, 3, indexb(i, j)) = -mpole%qq(1, 3)/3.0_dp
          M2(2, 3, indexb(i, j)) = -mpole%qq(2, 3)/3.0_dp
          M2(3, 3, indexb(i, j)) = -mpole%qq(3, 3)/3.0_dp
-      ENDDO
+      END DO
       IF (PRESENT(ACOUL)) ACOUL = sepi%acoul
    END SUBROUTINE get_se_slater_multipole
 

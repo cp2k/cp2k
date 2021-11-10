@@ -298,7 +298,7 @@ CONTAINS
          virial%ref_count = virial%ref_count - 1
          IF (virial%ref_count == 0) THEN
             DEALLOCATE (virial)
-         ENDIF
+         END IF
          NULLIFY (virial)
       END IF
 

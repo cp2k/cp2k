@@ -5,23 +5,23 @@
 #!   SPDX-License-Identifier: GPL-2.0-or-later                                                     !
 #!-------------------------------------------------------------------------------------------------!
 #:mute
-#:set nametype1 = ['d', 's', 'z', 'c']
-#:set type_nametype1 = ['REAL(kind=real_8)', 'REAL(kind=real_4)', 'COMPLEX(kind=real_8)', 'COMPLEX(kind=real_4)']
-#:set type_prec = [ 'real_8', 'real_4', 'real_8', 'real_4']
-#:set real_zero = ['0.0_real_8', '0.0_real_4', '0.0_real_8', '0.0_real_4']
-#:set nametype_zero = ['0.0_real_8', '0.0_real_4', 'CMPLX(0.0, 0.0, real_8)', 'CMPLX(0.0, 0.0, real_4)']
-#:set geev_type = [ 'cp_dbcsr_dgeev', 'cp_dbcsr_sgeev', 'cp_dbcsr_zgeev', 'cp_dbcsr_cgeev']
-#:set ctype = ['z', 'c', 'z', 'c']
-#:set rnorm_to_norm = ['norm=rnorm', 'norm=rnorm', 'norm=CMPLX(rnorm, 0.0, real_8)', 'norm=CMPLX(rnorm, 0.0, real_4)']
-#:set val_to_type = ['REAL(val,real_8)', 'REAL(val,real_4)', 'val', 'val']
-#:set nametype_one = ['1.0_real_8', '1.0_real_4', 'CMPLX(1.0, 0.0, real_8)', 'CMPLX(1.0, 0.0, real_4)']
-#:set nametype_negone = ['-1.0_real_8', '-1.0_real_4', 'CMPLX(-1.0, 0.0, real_8)', 'CMPLX(-1.0, 0.0, real_4)']
-#:set cone = ['CMPLX(1.0, 0.0, real_8)', 'CMPLX(1.0, 0.0, real_4)', 'CMPLX(1.0, 0.0, real_8)',  'CMPLX(1.0, 0.0, real_4)']
-#:set czero = ['CMPLX(0.0, 0.0, real_8)', 'CMPLX(0.0, 0.0, real_4)', 'CMPLX(0.0, 0.0, real_8)', 'CMPLX(0.0, 0.0, real_4)']
-#:set nametype_zero = ['0.0_real_8', '0.0_real_4', 'CMPLX(0.0, 0.0, real_8)', 'CMPLX(0.0, 0.0, real_4)']
-#:set vartype = ['REAL', 'REAL', 'CMPLX', 'CMPLX']
+   #:set nametype1 = ['d', 's', 'z', 'c']
+   #:set type_nametype1 = ['REAL(kind=real_8)', 'REAL(kind=real_4)', 'COMPLEX(kind=real_8)', 'COMPLEX(kind=real_4)']
+   #:set type_prec = [ 'real_8', 'real_4', 'real_8', 'real_4']
+   #:set real_zero = ['0.0_real_8', '0.0_real_4', '0.0_real_8', '0.0_real_4']
+   #:set nametype_zero = ['0.0_real_8', '0.0_real_4', 'CMPLX(0.0, 0.0, real_8)', 'CMPLX(0.0, 0.0, real_4)']
+   #:set geev_type = [ 'cp_dbcsr_dgeev', 'cp_dbcsr_sgeev', 'cp_dbcsr_zgeev', 'cp_dbcsr_cgeev']
+   #:set ctype = ['z', 'c', 'z', 'c']
+   #:set rnorm_to_norm = ['norm=rnorm', 'norm=rnorm', 'norm=CMPLX(rnorm, 0.0, real_8)', 'norm=CMPLX(rnorm, 0.0, real_4)']
+   #:set val_to_type = ['REAL(val,real_8)', 'REAL(val,real_4)', 'val', 'val']
+   #:set nametype_one = ['1.0_real_8', '1.0_real_4', 'CMPLX(1.0, 0.0, real_8)', 'CMPLX(1.0, 0.0, real_4)']
+   #:set nametype_negone = ['-1.0_real_8', '-1.0_real_4', 'CMPLX(-1.0, 0.0, real_8)', 'CMPLX(-1.0, 0.0, real_4)']
+   #:set cone = ['CMPLX(1.0, 0.0, real_8)', 'CMPLX(1.0, 0.0, real_4)', 'CMPLX(1.0, 0.0, real_8)',  'CMPLX(1.0, 0.0, real_4)']
+   #:set czero = ['CMPLX(0.0, 0.0, real_8)', 'CMPLX(0.0, 0.0, real_4)', 'CMPLX(0.0, 0.0, real_8)', 'CMPLX(0.0, 0.0, real_4)']
+   #:set nametype_zero = ['0.0_real_8', '0.0_real_4', 'CMPLX(0.0, 0.0, real_8)', 'CMPLX(0.0, 0.0, real_4)']
+   #:set vartype = ['REAL', 'REAL', 'CMPLX', 'CMPLX']
 
-#:set inst_params_1 = list(zip(nametype1, type_prec, real_zero, nametype_zero, type_nametype1, vartype))
-#:set inst_params_2 = list(zip(nametype1, type_prec, type_nametype1, nametype_zero, nametype_one, nametype_negone, czero, cone, ctype, rnorm_to_norm, val_to_type))
+   #:set inst_params_1 = list(zip(nametype1, type_prec, real_zero, nametype_zero, type_nametype1, vartype))
+   #:set inst_params_2 = list(zip(nametype1, type_prec, type_nametype1, nametype_zero, nametype_one, nametype_negone, czero, cone, ctype, rnorm_to_norm, val_to_type))
 
 #:endmute

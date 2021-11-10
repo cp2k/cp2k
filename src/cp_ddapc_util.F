@@ -455,7 +455,7 @@ CONTAINS
                IF (pmin > 1) THEN
                   dAmj_qv(:pmin - 1) = MATMUL(TRANSPOSE(dAm(pmin:pmax, :pmin - 1, j)), qv(pmin:pmax))
                   cvT_AmI_dAmj(:pmin - 1) = MATMUL(TRANSPOSE(dAm(pmin:pmax, :pmin - 1, j)), cvT_AmI(pmin:pmax))
-               ENDIF
+               END IF
                !NB multiply by block of rows that are explicitly in dAm
                dAmj_qv(pmin:pmax) = MATMUL(dAm(pmin:pmax, :, j), qv(:))
                cvT_AmI_dAmj(pmin:pmax) = MATMUL(dAm(pmin:pmax, :, j), cvT_AmI(:))
@@ -464,7 +464,7 @@ CONTAINS
                IF (pmax < SIZE(particle_set)*SIZE(radii)) THEN
                   dAmj_qv(pmax + 1:) = MATMUL(TRANSPOSE(dAm(pmin:pmax, pmax + 1:, j)), qv(pmin:pmax))
                   cvT_AmI_dAmj(pmax + 1:) = MATMUL(TRANSPOSE(dAm(pmin:pmax, pmax + 1:, j)), cvT_AmI(pmin:pmax))
-               ENDIF
+               END IF
                dAmj_qv(:) = dAmj_qv(:)/(Vol*Vol)
                cvT_AmI_dAmj(:) = cvT_AmI_dAmj(:)/(Vol*Vol)
                c3 = DOT_PRODUCT(cvT_AmI_dAmj, AmI_bv) - DOT_PRODUCT(cvT_AmI, dbv(:, j)) - c1*DOT_PRODUCT(cvT_AmI_dAmj, AmI_cv)

@@ -21,8 +21,8 @@ MODULE particle_list_types
    IMPLICIT NONE
    PRIVATE
 
-#:include "subsys_list.fypp"
+   #:include "subsys_list.fypp"
 
-$:subsys_list_macro(name='particle')
+   $:subsys_list_macro(name='particle')
 
 END MODULE particle_list_types

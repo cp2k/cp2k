@@ -160,7 +160,7 @@ CONTAINS
                   ALLOCATE (product_list(tmp_i4))
                   product_list(1:SIZE(tmp_product_list)) = tmp_product_list
                   DEALLOCATE (tmp_product_list)
-               ENDIF
+               END IF
 
                T = Rho*rpq2
                SELECT CASE (potential_parameter%potential_type)
@@ -231,7 +231,7 @@ CONTAINS
                      product_list(nproducts)%Fm(l) = product_list(nproducts)%Fm(l)* &
                                                      (potential_parameter%scale_coulomb + potential_parameter%scale_longrange) - &
                                                      Fm(l)*potential_parameter%scale_longrange
-                  ENDDO
+                  END DO
 
                   ! longrange
                   omega2 = potential_parameter%omega**2

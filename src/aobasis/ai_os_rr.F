@@ -65,8 +65,8 @@ CONTAINS
             rr(lap1, 0, 1) = REAL(la, dp)*g*rr(lam1, 0, 1) + rap(1)*rr(la, 0, 1)
             rr(lap1, 0, 2) = REAL(la, dp)*g*rr(lam1, 0, 2) + rap(2)*rr(la, 0, 2)
             rr(lap1, 0, 3) = REAL(la, dp)*g*rr(lam1, 0, 3) + rap(3)*rr(la, 0, 3)
-         ENDDO
-      ENDIF
+         END DO
+      END IF
       !
       ! recursion along lb for all la
       !
@@ -80,7 +80,7 @@ CONTAINS
             rr(la, 1, 1) = REAL(la, dp)*g*rr(lam1, 0, 1) + rbp(1)*rr(la, 0, 1)
             rr(la, 1, 2) = REAL(la, dp)*g*rr(lam1, 0, 2) + rbp(2)*rr(la, 0, 2)
             rr(la, 1, 3) = REAL(la, dp)*g*rr(lam1, 0, 3) + rbp(3)*rr(la, 0, 3)
-         ENDDO
+         END DO
          !
          DO lb = 1, lb_max - 1
             lbp1 = lb + 1
@@ -93,9 +93,9 @@ CONTAINS
                rr(la, lbp1, 1) = g*(REAL(la, dp)*rr(lam1, lb, 1) + REAL(lb, dp)*rr(la, lbm1, 1)) + rbp(1)*rr(la, lb, 1)
                rr(la, lbp1, 2) = g*(REAL(la, dp)*rr(lam1, lb, 2) + REAL(lb, dp)*rr(la, lbm1, 2)) + rbp(2)*rr(la, lb, 2)
                rr(la, lbp1, 3) = g*(REAL(la, dp)*rr(lam1, lb, 3) + REAL(lb, dp)*rr(la, lbm1, 3)) + rbp(3)*rr(la, lb, 3)
-            ENDDO
-         ENDDO
-      ENDIF
+            END DO
+         END DO
+      END IF
       !
    END SUBROUTINE os_rr_ovlp
 
@@ -156,36 +156,36 @@ CONTAINS
             IF (az .GT. 0) THEN
                DO m = 0, mmax - la
                   rr(m, coa, 1) = rap(3)*rr(m, coa1z, 1) - rcp(3)*rr(m + 1, coa1z, 1)
-               ENDDO
+               END DO
                IF (az .GT. 1) THEN
                   DO m = 0, mmax - la
                      rr(m, coa, 1) = rr(m, coa, 1) + g*REAL(az - 1, dp)*(rr(m, coa2z, 1) - rr(m + 1, coa2z, 1))
-                  ENDDO
-               ENDIF
+                  END DO
+               END IF
             ELSEIF (ay .GT. 0) THEN
                DO m = 0, mmax - la
                   rr(m, coa, 1) = rap(2)*rr(m, coa1y, 1) - rcp(2)*rr(m + 1, coa1y, 1)
-               ENDDO
+               END DO
                IF (ay .GT. 1) THEN
                   DO m = 0, mmax - la
                      rr(m, coa, 1) = rr(m, coa, 1) + g*REAL(ay - 1, dp)*(rr(m, coa2y, 1) - rr(m + 1, coa2y, 1))
-                  ENDDO
-               ENDIF
+                  END DO
+               END IF
             ELSEIF (ax .GT. 0) THEN
                DO m = 0, mmax - la
                   rr(m, coa, 1) = rap(1)*rr(m, coa1x, 1) - rcp(1)*rr(m + 1, coa1x, 1)
-               ENDDO
+               END DO
                IF (ax .GT. 1) THEN
                   DO m = 0, mmax - la
                      rr(m, coa, 1) = rr(m, coa, 1) + g*REAL(ax - 1, dp)*(rr(m, coa2x, 1) - rr(m + 1, coa2x, 1))
-                  ENDDO
-               ENDIF
+                  END DO
+               END IF
             ELSE
                CPABORT("")
-            ENDIF
-         ENDDO
-         ENDDO
-      ENDDO
+            END IF
+         END DO
+         END DO
+      END DO
       !
       ! recursion in lb with all possible la
       !
@@ -214,54 +214,54 @@ CONTAINS
                   IF (bz .GT. 0) THEN
                      DO m = 0, mmax - la - lb
                         rr(m, coa, cob) = rbp(3)*rr(m, coa, cob1z) - rcp(3)*rr(m + 1, coa, cob1z)
-                     ENDDO
+                     END DO
                      IF (bz .GT. 1) THEN
                         DO m = 0, mmax - la - lb
                            rr(m, coa, cob) = rr(m, coa, cob) + g*REAL(bz - 1, dp)*(rr(m, coa, cob2z) - rr(m + 1, coa, cob2z))
-                        ENDDO
-                     ENDIF
+                        END DO
+                     END IF
                      IF (az .GT. 0) THEN
                         DO m = 0, mmax - la - lb
                            rr(m, coa, cob) = rr(m, coa, cob) + g*REAL(az, dp)*(rr(m, coa1z, cob1z) - rr(m + 1, coa1z, cob1z))
-                        ENDDO
-                     ENDIF
+                        END DO
+                     END IF
                   ELSEIF (by .GT. 0) THEN
                      DO m = 0, mmax - la - lb
                         rr(m, coa, cob) = rbp(2)*rr(m, coa, cob1y) - rcp(2)*rr(m + 1, coa, cob1y)
-                     ENDDO
+                     END DO
                      IF (by .GT. 1) THEN
                         DO m = 0, mmax - la - lb
                            rr(m, coa, cob) = rr(m, coa, cob) + g*REAL(by - 1, dp)*(rr(m, coa, cob2y) - rr(m + 1, coa, cob2y))
-                        ENDDO
-                     ENDIF
+                        END DO
+                     END IF
                      IF (ay .GT. 0) THEN
                         DO m = 0, mmax - la - lb
                            rr(m, coa, cob) = rr(m, coa, cob) + g*REAL(ay, dp)*(rr(m, coa1y, cob1y) - rr(m + 1, coa1y, cob1y))
-                        ENDDO
-                     ENDIF
+                        END DO
+                     END IF
                   ELSEIF (bx .GT. 0) THEN
                      DO m = 0, mmax - la - lb
                         rr(m, coa, cob) = rbp(1)*rr(m, coa, cob1x) - rcp(1)*rr(m + 1, coa, cob1x)
-                     ENDDO
+                     END DO
                      IF (bx .GT. 1) THEN
                         DO m = 0, mmax - la - lb
                            rr(m, coa, cob) = rr(m, coa, cob) + g*REAL(bx - 1, dp)*(rr(m, coa, cob2x) - rr(m + 1, coa, cob2x))
-                        ENDDO
-                     ENDIF
+                        END DO
+                     END IF
                      IF (ax .GT. 0) THEN
                         DO m = 0, mmax - la - lb
                            rr(m, coa, cob) = rr(m, coa, cob) + g*REAL(ax, dp)*(rr(m, coa1x, cob1x) - rr(m + 1, coa1x, cob1x))
-                        ENDDO
-                     ENDIF
+                        END DO
+                     END IF
                   ELSE
                      CPABORT("")
-                  ENDIF
-               ENDDO
-               ENDDO
-            ENDDO
-         ENDDO
-         ENDDO
-      ENDDO
+                  END IF
+               END DO
+               END DO
+            END DO
+         END DO
+         END DO
+      END DO
       !
    END SUBROUTINE os_rr_coul
 

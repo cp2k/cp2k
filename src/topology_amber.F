@@ -515,7 +515,7 @@ CONTAINS
                CALL rd_amber_section(parser, section, strtmp_a, natom)
                DO i = 1, natom
                   atom_info%id_atmname(natom_prev + i) = str2id(strtmp_a(i))
-               ENDDO
+               END DO
                DEALLOCATE (strtmp_a)
             CASE ("CHARGE")
                IF (.NOT. do_connectivity) CYCLE
@@ -664,7 +664,7 @@ CONTAINS
 
          DO i = 1, SIZE(isymbl)
             isymbl(i) = id2str(atom_info%id_atmname(natom_prev + i))
-         ENDDO
+         END DO
 
          ! Sort atom names + charges and identify unique types
          CALL sort(isymbl, natom, iwork)
@@ -1629,7 +1629,7 @@ CONTAINS
          IF (m(iphi) - pn(icp(iwork(1))) .GT. EPSILON(1.0_dp)) THEN
             ! non integer torsions not supported
             CPABORT("")
-         ENDIF
+         END IF
 
          phi0(iphi) = phase(icp(iwork(1)))
 
@@ -1663,7 +1663,7 @@ CONTAINS
                IF (m(iphi) - pn(icp(iwork(i))) .GT. EPSILON(1.0_dp)) THEN
                   ! non integer torsions not supported
                   CPABORT("")
-               ENDIF
+               END IF
                phi0(iphi) = phase(icp(iwork(i)))
             END IF
          END DO

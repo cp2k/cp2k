@@ -88,7 +88,7 @@ CONTAINS
          IF (iw > 0) WRITE (iw, "(A)") " SWARM| Running in master / workers mode."
          !printkey iw passed on for output from swarm_mpi_init()
          CALL swarm_parallel_driver(n_workers, input_declaration, root_section, input_path, para_env, globenv, iw)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE run_swarm
@@ -256,7 +256,7 @@ CONTAINS
             CALL swarm_message_add(report, "status", "wait_done")
          ELSE
             CYCLE
-         ENDIF
+         END IF
 
          CALL swarm_master_steer(master, report, cmd)
          CALL swarm_message_free(report)
@@ -268,7 +268,7 @@ CONTAINS
          ELSE
             CALL swarm_mpi_send_command(swarm_mpi, cmd)
             IF (TRIM(command) == "shutdown") i_shutdowns = i_shutdowns + 1
-         ENDIF
+         END IF
          CALL swarm_message_free(cmd)
       END DO
 

@@ -527,7 +527,7 @@ CONTAINS
                actual_extrapolation_method_nr = wfi_use_guess_method_nr
             ELSE
                actual_extrapolation_method_nr = wfi_use_prev_wf_method_nr
-            ENDIF
+            END IF
          END IF
       CASE (wfi_linear_ps_method_nr)
          IF (wf_history%snapshot_count < 2) THEN
@@ -839,7 +839,7 @@ CONTAINS
                CALL cp_gemm('N', 'N', n, k, k, 1.0_dp, t0_state%wf(ispin)%matrix, csc, 0.0_dp, fm_tmp)
                alpha = -1.0_dp*alpha*REAL(nvec - i + 1, dp)/REAL(i, dp)
                CALL cp_fm_scale_and_add(1.0_dp, mo_coeff, alpha, fm_tmp)
-            ENDDO
+            END DO
 
             CALL cp_fm_release(csc)
             CALL cp_fm_release(fm_tmp)

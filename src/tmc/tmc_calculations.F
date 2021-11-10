@@ -446,7 +446,7 @@ CONTAINS
          ! fewer is maybe more stable
          extrapolate = a**7*b + c
          res_err = e3 - extrapolate
-      ENDIF
+      END IF
       CPASSERT(extrapolate .NE. HUGE(extrapolate))
    CONTAINS
 ! **************************************************************************************************
@@ -463,7 +463,7 @@ CONTAINS
             tmp = x2
             x2 = x1
             x1 = tmp
-         ENDIF
+         END IF
       END SUBROUTINE swap
    END SUBROUTINE three_point_extrapolate
 

@@ -239,27 +239,27 @@ CONTAINS
       tc(1) = 1._dp
       DO i = 1, j
          tc(i + 1) = tc(i)/REAL(i, KIND=dp)
-      ENDDO
+      END DO
 
       !scale
       SM = M*(1._dp/2._dp**k)
       EM = 0._dp
       DO i = 1, n
          EM(i, i) = tc(j + 1)
-      ENDDO
+      END DO
 
       !taylor exp of scaled matrix
       DO p = j, 1, -1
          EM = MATMUL(SM, EM)
          DO i = 1, n
             EM(i, i) = EM(i, i) + tc(p)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       !square
       DO p = 1, k
          EM = MATMUL(EM, EM)
-      ENDDO
+      END DO
    END SUBROUTINE gle_matrix_exp
 
 ! **************************************************************************************************
@@ -291,20 +291,20 @@ CONTAINS
             L(i, j) = SST(i, j); 
             DO k = 1, j - 1
                L(i, j) = L(i, j) - L(i, k)*L(j, k)*D(k)
-            ENDDO
+            END DO
             IF (ABS(D(j)) > EPSILON(1.0_dp)) L(i, j) = L(i, j)/D(j)
-         ENDDO
+         END DO
          DO k = 1, i - 1
             D(i) = D(i) - L(i, k)*L(i, k)*D(k)
          END DO
-      ENDDO
+      END DO
       DO i = 1, n
          DO j = 1, i
             IF ((ABS(D(j)) > EPSILON(1.0_dp)) .AND. (D(j) > 0.0_dp)) THEN
                S(i, j) = S(i, j) + L(i, j)*SQRT(D(j))
             END IF
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
    END SUBROUTINE gle_cholesky_stab
 

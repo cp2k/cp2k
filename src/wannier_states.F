@@ -140,7 +140,7 @@ CONTAINS
       IF (unit_mat > 0) THEN
          WRITE (unit_mat, '(a16,1(i0,1x))') "Wannier states: ", ns
          WRITE (unit_mat, '(a16)') "#No x y z energy "
-      ENDIF
+      END IF
       DO i = 1, ns
          CALL cp_fm_to_fm(mo_localized, b, 1, states(i), 1)
          CALL cp_dbcsr_sm_fm_multiply(Hks, b, c, 1)
@@ -161,8 +161,8 @@ CONTAINS
          WRITE (output_unit, *) "ENERGY      original MO-index"
          DO i = 1, ns
             WRITE (output_unit, '(f16.8,2x,i0)') WannierCentres%WannierHamDiag(i), states(i)
-         ENDDO
-      ENDIF
+         END DO
+      END IF
       CALL cp_fm_release(b)
       CALL cp_fm_release(c)
       CALL cp_fm_release(d)

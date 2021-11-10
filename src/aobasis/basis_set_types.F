@@ -204,10 +204,10 @@ CONTAINS
       IF (ASSOCIATED(gto_basis_set)) THEN
          IF (ASSOCIATED(gto_basis_set%cgf_symbol)) THEN
             DEALLOCATE (gto_basis_set%cgf_symbol)
-         ENDIF
+         END IF
          IF (ASSOCIATED(gto_basis_set%sgf_symbol)) THEN
             DEALLOCATE (gto_basis_set%sgf_symbol)
-         ENDIF
+         END IF
          DEALLOCATE (gto_basis_set%norm_cgf)
          DEALLOCATE (gto_basis_set%set_radius)
          DEALLOCATE (gto_basis_set%lmax)
@@ -886,7 +886,7 @@ CONTAINS
                           0.0_dp, gto_basis_set%sphi(1, first_sgf), n)
             END DO
          END DO
-      ENDIF
+      END IF
 
       ! Build the reduced transformation matrix "scon"
       ! This matrix transforms from cartesian primitifs to spherical contracted functions
@@ -1500,7 +1500,7 @@ CONTAINS
             match = .FALSE.
             ALLOCATE (gto_basis_set%cgf_symbol(ncgf))
             ALLOCATE (gto_basis_set%sgf_symbol(nsgf))
-         ENDIF
+         END IF
 
          CALL parser_release(parser)
 
@@ -1798,7 +1798,7 @@ CONTAINS
       IF (PRESENT(dft_section)) THEN
          CALL section_vals_val_get(dft_section, "SORT_BASIS", i_val=sort_method)
          CALL sort_gto_basis_set(gto_basis_set, sort_method)
-      ENDIF
+      END IF
 
    END SUBROUTINE read_gto_basis_set2
 
@@ -2341,7 +2341,7 @@ CONTAINS
             END DO search_loop
          ELSE
             match = .FALSE.
-         ENDIF
+         END IF
 
          CALL parser_release(parser)
 
@@ -2725,7 +2725,7 @@ CONTAINS
       CASE (basis_sort_zet)
          DO iset = 1, nset
             tmp(iset) = MINVAL(basis_set%zet(:npgf(iset), iset))
-         ENDDO
+         END DO
       CASE DEFAULT
          CPABORT("Request basis sort criterion not implemented.")
       END SELECT
@@ -2741,14 +2741,14 @@ CONTAINS
             DO ico = 1, nco(b%l(ishell, iset))
                ic = ic + 1
                IF (ic > ic_max) ic_max = ic
-            ENDDO
+            END DO
             lshell = b%l(ishell, iset)
             DO mm = -lshell, lshell
                is = is + 1
                IF (is > is_max) is_max = is
-            ENDDO
-         ENDDO
-      ENDDO
+            END DO
+         END DO
+      END DO
 
       icgf = 0
       isgf = 0
@@ -2765,15 +2765,15 @@ CONTAINS
                icgf = icgf + 1
                ic = ic + 1
                icgf_set(iset, ic) = icgf
-            ENDDO
+            END DO
             lshell = b%l(ishell, iset)
             DO mm = -lshell, lshell
                isgf = isgf + 1
                is = is + 1
                isgf_set(iset, is) = isgf
-            ENDDO
-         ENDDO
-      ENDDO
+            END DO
+         END DO
+      END DO
 
       ALLOCATE (cgf_symbol(SIZE(b%cgf_symbol)))
       ALLOCATE (norm_cgf(SIZE(b%norm_cgf)))
@@ -2803,7 +2803,7 @@ CONTAINS
             lz(icgf_new) = b%lz(icgf_old)
             cphi(:, icgf_new) = b%cphi(:, icgf_old)
             cgf_symbol(icgf_new) = b%cgf_symbol(icgf_old)
-         ENDDO
+         END DO
          DO is = 1, is_max
             isgf_old = isgf_set(sort_index(iset), is)
             IF (isgf_old == 0) CYCLE
@@ -2812,8 +2812,8 @@ CONTAINS
             sphi(:, isgf_new) = b%sphi(:, isgf_old)
             scon(:, isgf_new) = b%scon(:, isgf_old)
             sgf_symbol(isgf_new) = b%sgf_symbol(isgf_old)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       DEALLOCATE (b%cgf_symbol)
       b%cgf_symbol => cgf_symbol

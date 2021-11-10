@@ -173,9 +173,9 @@ CONTAINS
                              "CORE_CORRECTION /= 0.0 and "// &
                              "SURFACE_DIPOLE_CORRECTION TRUE "// &
                              "is not implemented with SCF%MOM")
-            ENDIF
-         ENDIF
-      ENDIF
+            END IF
+         END IF
+      END IF
 
       SELECT CASE (scf_env%method)
       CASE DEFAULT
@@ -194,7 +194,7 @@ CONTAINS
                           "SURFACE_DIPOLE_CORRECTION  TRUE"// &
                           "requires SCF%DIAGONALIZATION: "// &
                           "ALGORITHM STANDARD")
-         ENDIF
+         END IF
          CALL fb_env_do_diag(scf_env%filter_matrix_env, qs_env, &
                              matrix_ks, matrix_s, scf_section, diis_step)
 
@@ -277,7 +277,7 @@ CONTAINS
       DO ispin = 1, SIZE(mos)
          energy%kTS = energy%kTS + mos(ispin)%mo_set%kTS
          energy%efermi = energy%efermi + mos(ispin)%mo_set%mu
-      ENDDO
+      END DO
       energy%efermi = energy%efermi/REAL(SIZE(mos), KIND=dp)
 
       CALL timestop(handle)
@@ -360,7 +360,7 @@ CONTAINS
       DO ispin = 1, SIZE(mos, 2)
          energy%kTS = energy%kTS + mos(1, ispin)%mo_set%kTS
          energy%efermi = energy%efermi + mos(1, ispin)%mo_set%mu
-      ENDDO
+      END DO
       energy%efermi = energy%efermi/REAL(SIZE(mos, 2), KIND=dp)
 
       CALL timestop(handle)
@@ -424,7 +424,7 @@ CONTAINS
 
       DO ispin = 1, SIZE(mos)
          CALL set_mo_occupation(mo_set=mos(ispin)%mo_set, smear=smear)
-      ENDDO
+      END DO
 
       DO ispin = 1, SIZE(mos)
          CALL calculate_density_matrix(mos(ispin)%mo_set, &
@@ -602,7 +602,7 @@ CONTAINS
                END DO
             END DO
          END SELECT
-      ENDIF
+      END IF
    END SUBROUTINE qs_scf_undo_mixing
 
 ! **************************************************************************************************
@@ -699,7 +699,7 @@ CONTAINS
       CASE (ot_method_nr)
          DO ispin = 1, SIZE(scf_env%qs_ot_env)
             CALL ot_scf_destroy(scf_env%qs_ot_env(ispin))
-         ENDDO
+         END DO
          DEALLOCATE (scf_env%qs_ot_env)
       CASE (ot_diag_method_nr)
          !

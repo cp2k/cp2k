@@ -225,19 +225,19 @@ CONTAINS
             CALL optx_lsd_info(reference, shortform, needs, max_deriv)
          ELSE
             CALL optx_lda_info(reference, shortform, needs, max_deriv)
-         ENDIF
+         END IF
       CASE ("LIBXC", "KE_LIBXC")
          IF (lsd) THEN
             CALL libxc_lsd_info(functional, reference, shortform, needs, max_deriv, print_warn)
          ELSE
             CALL libxc_lda_info(functional, reference, shortform, needs, max_deriv, print_warn)
-         ENDIF
+         END IF
       CASE ("CS1")
          IF (lsd) THEN
             CALL cs1_lsd_info(reference, shortform, needs, max_deriv)
          ELSE
             CALL cs1_lda_info(reference, shortform, needs=needs, max_deriv=max_deriv)
-         ENDIF
+         END IF
       CASE ("XGGA")
          CALL section_vals_val_get(functional, "FUNCTIONAL", i_val=i_param)
          CALL xgga_info(i_param, lsd, reference, shortform, needs, max_deriv)
@@ -323,7 +323,7 @@ CONTAINS
             CALL libxc_lsd_info(functional, reference, shortform, needs, max_deriv, print_warn)
          ELSE
             CALL libxc_lda_info(functional, reference, shortform, needs, max_deriv, print_warn)
-         ENDIF
+         END IF
       END SELECT
    END SUBROUTINE xc_functional_get_info
 
@@ -430,19 +430,19 @@ CONTAINS
             CALL optx_lsd_eval(rho_set, deriv_set, deriv_order, functional)
          ELSE
             CALL optx_lda_eval(rho_set, deriv_set, deriv_order, functional)
-         ENDIF
+         END IF
       CASE ("LIBXC", "KE_LIBXC")
          IF (lsd) THEN
             CALL libxc_lsd_eval(rho_set, deriv_set, deriv_order, functional)
          ELSE
             CALL libxc_lda_eval(rho_set, deriv_set, deriv_order, functional)
-         ENDIF
+         END IF
       CASE ("CS1")
          IF (lsd) THEN
             CALL cs1_lsd_eval(rho_set, deriv_set, deriv_order)
          ELSE
             CALL cs1_lda_eval(rho_set, deriv_set, deriv_order)
-         ENDIF
+         END IF
       CASE ("XGGA")
          CALL section_vals_val_get(functional, "FUNCTIONAL", i_val=i_param)
          CALL xgga_eval(i_param, lsd, rho_set, deriv_set, deriv_order)
@@ -550,7 +550,7 @@ CONTAINS
             CALL libxc_lsd_eval(rho_set, deriv_set, deriv_order, functional)
          ELSE
             CALL libxc_lda_eval(rho_set, deriv_set, deriv_order, functional)
-         ENDIF
+         END IF
       END SELECT
 
       CALL timestop(handle)

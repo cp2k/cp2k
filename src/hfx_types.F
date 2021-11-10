@@ -722,7 +722,7 @@ CONTAINS
                ! this gives a reasonable number of blocks for binning, yet typically results in blocking.
                int_val = CEILING(0.1_dp*natom/ &
                                  REAL(actual_x_data%load_balance_parameter%nbins*n_threads*para_env%num_pe, KIND=dp)**(0.25_dp))
-            ENDIF
+            END IF
             ! at least 1 atom per block, and avoid overly large blocks
             actual_x_data%load_balance_parameter%block_size = MIN(max_atom_block, MAX(1, int_val))
 
@@ -979,7 +979,7 @@ CONTAINS
                                                     particle_set, atomic_kind_set, dft_control, para_env, irep, do_ot, &
                                                     nelectron_total, my_do_exx)
 
-            ENDIF
+            END IF
          END DO
       END DO
 
@@ -1035,7 +1035,7 @@ CONTAINS
 
       NULLIFY (hf_sub_section)
 
-      ASSOCIATE (hfx_pot=>ri_data%hfx_pot)
+      ASSOCIATE (hfx_pot => ri_data%hfx_pot)
          hfx_pot%potential_type = x_data%potential_parameter%potential_type
          hfx_pot%omega = x_data%potential_parameter%omega
          hfx_pot%cutoff_radius = x_data%potential_parameter%cutoff_radius
@@ -1068,7 +1068,7 @@ CONTAINS
          orb_basis_type = "AUX_FIT"
       ELSE
          orb_basis_type = "ORB"
-      ENDIF
+      END IF
 
       ri_basis_type = "RI_HFX"
 
@@ -1079,7 +1079,7 @@ CONTAINS
 
       IF (ri_data%flavor == ri_mo .AND. .NOT. do_ot) THEN
          CPABORT("RI_FLAVOR MO is not consistent with density mixing. Either use OT or RI_FLAVOR RHO.")
-      ENDIF
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE
@@ -1129,21 +1129,21 @@ CONTAINS
       ri_data%filter_eps_storage = ri_data%filter_eps*eps_storage_scaling
       CALL section_vals_val_get(ri_section, "EPS_FILTER_MO", r_val=ri_data%filter_eps_mo)
 
-      ASSOCIATE (ri_metric=>ri_data%ri_metric, hfx_pot=>ri_data%hfx_pot)
+      ASSOCIATE (ri_metric => ri_data%ri_metric, hfx_pot => ri_data%hfx_pot)
          CALL section_vals_val_get(ri_section, "RI_METRIC", i_val=ri_metric%potential_type, explicit=explicit)
          IF (.NOT. explicit .OR. ri_metric%potential_type == 0) THEN
             ri_metric%potential_type = hfx_pot%potential_type
-         ENDIF
+         END IF
 
          CALL section_vals_val_get(ri_section, "OMEGA", r_val=ri_metric%omega, explicit=explicit)
          IF (.NOT. explicit) THEN
             ri_metric%omega = hfx_pot%omega
-         ENDIF
+         END IF
 
          CALL section_vals_val_get(ri_section, "CUTOFF_RADIUS", r_val=ri_metric%cutoff_radius, explicit=explicit)
          IF (.NOT. explicit) THEN
             ri_metric%cutoff_radius = hfx_pot%cutoff_radius
-         ENDIF
+         END IF
       END ASSOCIATE
 
       CALL section_vals_val_get(ri_section, "2C_MATRIX_FUNCTIONS", i_val=ri_data%t2c_method)
@@ -1161,7 +1161,7 @@ CONTAINS
 
       IF (ri_data%flavor == ri_pmat) THEN
          ri_data%n_mem = FLOOR(SQRT(REAL(ri_data%n_mem, dp) - 0.1)) + 1
-      ENDIF
+      END IF
 
       ri_data%orb_basis_type = orb_basis_type
       ri_data%ri_basis_type = ri_basis_type
@@ -1170,7 +1170,7 @@ CONTAINS
       IF (PRESENT(t_c_filename)) THEN
          ri_data%ri_metric%filename = t_c_filename
          ri_data%hfx_pot%filename = t_c_filename
-      ENDIF
+      END IF
 
       ri_data%unit_nr_dbcsr = unit_nr_dbcsr
       ri_data%unit_nr = unit_nr
@@ -1247,26 +1247,26 @@ CONTAINS
          CALL init_interaction_radii_orb_basis(ri_aux_basis_set, ri_data%eps_pgf_orb)
       END DO
 
-      ASSOCIATE (ri_metric=>ri_data%ri_metric, hfx_pot=>ri_data%hfx_pot)
+      ASSOCIATE (ri_metric => ri_data%ri_metric, hfx_pot => ri_data%hfx_pot)
          IF (ri_metric%potential_type == do_potential_short) THEN
             CALL erfc_cutoff(ri_data%eps_schwarz, ri_metric%omega, ri_metric%cutoff_radius)
-         ENDIF
+         END IF
 
          IF (hfx_pot%potential_type == do_potential_short) THEN
             ! need a more accurate threshold for determining 2-center integral operator range
             ! because stability of matrix inversion/sqrt is sensitive to this
             CALL erfc_cutoff(ri_data%filter_eps_2c, hfx_pot%omega, hfx_pot%cutoff_radius)
-         ENDIF
+         END IF
          ! determine whether RI metric is same operator as used in HFX
          same_op = ri_metric%potential_type == hfx_pot%potential_type
 
          IF (same_op .AND. hfx_pot%potential_type == do_potential_truncated) THEN
             same_op = ABS(ri_metric%cutoff_radius - hfx_pot%cutoff_radius) < 1.0E-16_dp
-         ENDIF
+         END IF
 
          IF (same_op .AND. hfx_pot%potential_type == do_potential_short) THEN
             same_op = ABS(ri_metric%omega - hfx_pot%omega) < 1.0E-16_dp
-         ENDIF
+         END IF
       END ASSOCIATE
 
       ri_data%same_op = same_op
@@ -1336,8 +1336,8 @@ CONTAINS
          DO i_mem = 1, ri_data%n_mem
          DO j_mem = 1, ri_data%n_mem
             CALL alloc_containers(ri_data%store_3c(i_mem, j_mem), 1)
-         ENDDO
-         ENDDO
+         END DO
+         END DO
 
          ALLOCATE (ri_data%t_3c_int_ctr_2(1, 1))
          CALL create_3c_tensor(ri_data%t_3c_int_ctr_2(1, 1), ri_data%dist1_ao_1, ri_data%dist1_ri, ri_data%dist1_ao_2, &
@@ -1400,7 +1400,7 @@ CONTAINS
                                ri_data%pgrid_2, ri_data%bsizes_AO_split, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, &
                                [1], [2, 3], name="(AO | RI AO)")
 
-      ENDIF
+      END IF
 
       !For forces
       ALLOCATE (ri_data%t_2c_inv(1, 1))
@@ -1432,8 +1432,8 @@ CONTAINS
 
       REAL(dp)                                           :: my_flop_rate
 
-      ASSOCIATE (unit_nr=>ri_data%unit_nr, dbcsr_nflop=>ri_data%dbcsr_nflop, &
-                 dbcsr_time=>ri_data%dbcsr_time, num_pe=>ri_data%num_pe)
+      ASSOCIATE (unit_nr => ri_data%unit_nr, dbcsr_nflop => ri_data%dbcsr_nflop, &
+                 dbcsr_time => ri_data%dbcsr_time, num_pe => ri_data%num_pe)
          my_flop_rate = REAL(dbcsr_nflop, dp)/(1.0E09_dp*ri_data%dbcsr_time)
          IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(/T2,A,T73,ES8.2)") &
             "RI-HFX PERFORMANCE| DBCSR total number of flops:", REAL(dbcsr_nflop*num_pe, dp)
@@ -1465,23 +1465,23 @@ CONTAINS
       IF (ASSOCIATED(ri_data%pgrid)) THEN
          CALL dbcsr_t_pgrid_destroy(ri_data%pgrid)
          DEALLOCATE (ri_data%pgrid)
-      ENDIF
+      END IF
       IF (ASSOCIATED(ri_data%pgrid_1)) THEN
          CALL dbcsr_t_pgrid_destroy(ri_data%pgrid_1)
          DEALLOCATE (ri_data%pgrid_1)
-      ENDIF
+      END IF
       IF (ASSOCIATED(ri_data%pgrid_2)) THEN
          CALL dbcsr_t_pgrid_destroy(ri_data%pgrid_2)
          DEALLOCATE (ri_data%pgrid_2)
-      ENDIF
+      END IF
       IF (ASSOCIATED(ri_data%pgrid_3)) THEN
          CALL dbcsr_t_pgrid_destroy(ri_data%pgrid_3)
          DEALLOCATE (ri_data%pgrid_3)
-      ENDIF
+      END IF
       IF (ASSOCIATED(ri_data%pgrid_2d)) THEN
          CALL dbcsr_t_pgrid_destroy(ri_data%pgrid_2d)
          DEALLOCATE (ri_data%pgrid_2d)
-      ENDIF
+      END IF
 
       CALL distribution_3d_destroy(ri_data%dist_3d)
       CALL dbcsr_t_distribution_destroy(ri_data%dist)
@@ -1497,8 +1497,8 @@ CONTAINS
          DO i_mem = 1, ri_data%n_mem
          DO j_mem = 1, ri_data%n_mem
             CALL dealloc_containers(ri_data%store_3c(i_mem, j_mem), unused)
-         ENDDO
-         ENDDO
+         END DO
+         END DO
          CALL dbcsr_t_destroy(ri_data%t_3c_int_ctr_1(1, 1))
          DEALLOCATE (ri_data%t_3c_int_ctr_1)
          CALL dbcsr_t_destroy(ri_data%t_3c_int_ctr_2(1, 1))
@@ -1527,16 +1527,16 @@ CONTAINS
             CALL dbcsr_t_destroy(ri_data%t_3c_ctr_RI(ispin, 1, 1))
             CALL dbcsr_t_destroy(ri_data%t_3c_ctr_KS(ispin, 1, 1))
             CALL dbcsr_t_destroy(ri_data%t_3c_ctr_KS_copy(ispin, 1, 1))
-         ENDDO
+         END DO
          DO ispin = 1, 2
             CALL dbcsr_t_destroy(ri_data%t_2c_int(ispin, 1))
-         ENDDO
+         END DO
          DEALLOCATE (ri_data%t_2c_int)
          DEALLOCATE (ri_data%t_3c_int_mo)
          DEALLOCATE (ri_data%t_3c_ctr_RI)
          DEALLOCATE (ri_data%t_3c_ctr_KS)
          DEALLOCATE (ri_data%t_3c_ctr_KS_copy)
-      ENDIF
+      END IF
 
       CALL dbcsr_t_destroy(ri_data%t_2c_inv(1, 1))
       DEALLOCATE (ri_data%t_2c_inv)
@@ -1932,14 +1932,14 @@ CONTAINS
                   logger => cp_get_default_logger()
                   CALL cp_print_key_finished_output(actual_x_data%ri_data%unit_nr_dbcsr, logger, actual_x_data%ri_data%ri_section, &
                                                     "RI_INFO")
-               ENDIF
+               END IF
                IF (ASSOCIATED(actual_x_data%ri_data%hfx_section)) THEN
                   logger => cp_get_default_logger()
                   CALL cp_print_key_finished_output(actual_x_data%ri_data%unit_nr, logger, actual_x_data%ri_data%hfx_section, &
                                                     "HF_INFO")
-               ENDIF
+               END IF
                DEALLOCATE (actual_x_data%ri_data)
-            ENDIF
+            END IF
          END DO
 
       END DO
@@ -2288,7 +2288,7 @@ CONTAINS
                x_data%neighbor_cells(i)%cell = REAL(m, dp)
                CALL next_image_cell_perd(m, x_data%periodic_parameter%perd)
                i = i + 1
-            ENDDO
+            END DO
          END IF
       CASE DEFAULT
          total_number_of_cells = 0
@@ -2306,7 +2306,7 @@ CONTAINS
             x_data%neighbor_cells(i)%cell = REAL(m, dp)
             CALL next_image_cell_perd(m, x_data%periodic_parameter%perd)
             i = i + 1
-         ENDDO
+         END DO
       END SELECT
 
       ! ** Transform into real coord
@@ -2568,7 +2568,7 @@ CONTAINS
             WRITE (UNIT=iw, FMT="((T3,A,T77,A),/)") &
                "HFX_INFO| Number of periodic cells considered:     ", "NONE"
          END IF
-      ENDIF
+      END IF
    END SUBROUTINE hfx_print_std_info
 
 ! **************************************************************************************************
@@ -2595,7 +2595,7 @@ CONTAINS
 
       IF (iw > 0) THEN
 
-         ASSOCIATE (ri_metric=>ri_data%ri_metric, hfx_pot=>ri_data%hfx_pot)
+         ASSOCIATE (ri_metric => ri_data%ri_metric, hfx_pot => ri_data%hfx_pot)
             SELECT CASE (ri_metric%potential_type)
             CASE (do_potential_coulomb)
                WRITE (UNIT=iw, FMT="(/T3,A,T74,A)") &
@@ -2675,7 +2675,7 @@ CONTAINS
             WRITE (UNIT=iw, FMT="(T3, A, T79, I2)") &
                "HFX_RI_INFO| Memory reduction factor", ri_data%n_mem**2
          END SELECT
-      ENDIF
+      END IF
 
    END SUBROUTINE
 
@@ -2768,7 +2768,7 @@ CONTAINS
          CALL hfx_print_ri_info(x_data%ri_data, hfx_section)
       ELSE
          CALL hfx_print_std_info(x_data, hfx_section)
-      ENDIF
+      END IF
 
       CALL cp_print_key_finished_output(iw, logger, hfx_section, &
                                         "HF_INFO")

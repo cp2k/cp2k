@@ -91,7 +91,7 @@ CONTAINS
          evals(1 + i - j:i) = H_evals(1 + m - j:m) ! eigenvalues below gap
          j = MIN(n - m, i)
          evals(i:i + j) = H_evals(m:m + j) ! eigenvalues above gap
-      ENDIF
+      END IF
 
       ! calculate homo-lumo gap (it's useful for detecting numerical issues)
       gap = HUGE(dp)
@@ -106,12 +106,12 @@ CONTAINS
          DO j = m + 1, n
             diff = H_evals(i) - H_evals(j)
             penalty = penalty + alpha*EXP(-(diff/beta)**2)
-         ENDDO
-         ENDDO
+         END DO
+         END DO
 
          ! regularization energy
          penalty = penalty + pao%regularization*SUM(V**2)
-      ENDIF
+      END IF
 
       IF (PRESENT(G)) THEN ! TURNING POINT (if calc grad) -------------------------
 
@@ -132,15 +132,15 @@ CONTAINS
                   D1(i, j) = 1.0_dp/denom
                ELSE
                   D1(i, j) = SIGN(1e+9_dp, denom)
-               ENDIF
-            ENDIF
-         ENDDO
-         ENDDO
+               END IF
+            END IF
+         END DO
+         END DO
          IF (ASSOCIATED(M1)) THEN
             M2 = MATMUL(TRANSPOSE(M1), H_evecs)
          ELSE
             M2 = 0.0_dp
-         ENDIF
+         END IF
          M3 = M2*D1 ! Hadamard product
          M4 = MATMUL(MATMUL(H_evecs, M3), TRANSPOSE(H_evecs))
 
@@ -153,11 +153,11 @@ CONTAINS
                IF (i <= m .EQV. j <= m) CYCLE
                diff = H_evals(i) - H_evals(j)
                D2(i, i) = D2(i, i) - 2.0_dp*alpha*diff/beta**2*EXP(-(diff/beta)**2)
-            ENDDO
-            ENDDO
+            END DO
+            END DO
             M4 = M4 + MATMUL(MATMUL(H_evecs, D2), TRANSPOSE(H_evecs))
             DEALLOCATE (D2)
-         ENDIF
+         END IF
 
          ! dH / dV, return to non-orthonormal basis
          ALLOCATE (M5(n, n))
@@ -171,7 +171,7 @@ CONTAINS
          G = 0.5_dp*(M5 + TRANSPOSE(M5)) ! the final gradient
 
          DEALLOCATE (D1, M2, M3, M4, M5)
-      ENDIF
+      END IF
 
       DEALLOCATE (H, H_evals, H_evecs)
 

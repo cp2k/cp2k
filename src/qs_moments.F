@@ -416,11 +416,11 @@ CONTAINS
       ALLOCATE (mom_block_der(M_dim, 3))
       DO i = 1, nm
          NULLIFY (mom_block(i)%block)
-      ENDDO
+      END DO
       DO i = 1, M_dim
          DO idir = 1, 3
             NULLIFY (mom_block_der(i, idir)%block)
-         ENDDO
+         END DO
       END DO
 
       NULLIFY (basis_set_a, basis_set_b, basis_set_list)
@@ -476,7 +476,7 @@ CONTAINS
             rc(:) = ref_point(:)
          ELSE
             rc(:) = 0._dp
-         ENDIF
+         END IF
          ! using PBC here might screw a molecule that fits the box (but e.g. hasn't been shifted by center_molecule)
          ! by folding around the center, such screwing can be avoided for a proper choice of center.
          ra(:) = pbc(particle_set(iatom)%r(:) - rc, cell) + rc
@@ -506,7 +506,7 @@ CONTAINS
                                    row=irow, col=icol, BLOCK=mom_block(i)%block, found=found)
             CPASSERT(found .AND. ASSOCIATED(mom_block(i)%block))
             mom_block(i)%block = 0._dp
-         ENDDO
+         END DO
          DO i = 1, M_dim
             DO idir = 1, 3
                NULLIFY (mom_block_der(i, idir)%block)
@@ -516,7 +516,7 @@ CONTAINS
                                       found=found)
                CPASSERT(found .AND. ASSOCIATED(mom_block_der(i, idir)%block))
                mom_block_der(i, idir)%block = 0._dp
-            ENDDO
+            END DO
          END DO
 
          DO iset = 1, nseta
@@ -566,7 +566,7 @@ CONTAINS
                      nda = nda + ncoset(la_max(iset) + 1)
                   END DO ! ipgf
 
-               ENDDO
+               END DO
                ! Contraction step
                DO i = 1, nm
 
@@ -580,7 +580,7 @@ CONTAINS
                              work(1, 1), SIZE(work, 1), &
                              1.0_dp, mom_block(i)%block(sgfa, sgfb), &
                              SIZE(mom_block(i)%block, 1))
-               ENDDO
+               END DO
                DO i = 1, M_dim
                   DO idir = 1, 3
                      CALL dgemm("N", "N", ncoa, nsgfb(jset), ncob, &
@@ -593,12 +593,12 @@ CONTAINS
                                 work(1, 1), SIZE(work, 1), &
                                 1._dp, mom_block_der(i, idir)%block(sgfa, sgfb), &
                                 SIZE(mom_block_der(i, idir)%block, 1))
-                  ENDDO
+                  END DO
                END DO
                DEALLOCATE (mab_tmp)
             END DO
          END DO
-      ENDDO
+      END DO
       CALL neighbor_list_iterator_release(nl_iterator)
 
       ! deallocations
@@ -610,7 +610,7 @@ CONTAINS
          NULLIFY (mom_block(i)%block)
          DO idir = 1, 3
             NULLIFY (mom_block_der(i, idir)%block)
-         ENDDO
+         END DO
       END DO
       DEALLOCATE (mom_block)
       DEALLOCATE (mom_block_der)
@@ -964,7 +964,7 @@ CONTAINS
          IF (ASSOCIATED(cblock) .AND. .NOT. ASSOCIATED(sblock) .OR. &
              .NOT. ASSOCIATED(cblock) .AND. ASSOCIATED(sblock)) THEN
             CPABORT("")
-         ENDIF
+         END IF
 
          IF (ASSOCIATED(cblock) .AND. ASSOCIATED(sblock)) THEN
 
@@ -996,7 +996,7 @@ CONTAINS
                END DO
             END DO
 
-         ENDIF
+         END IF
 
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
@@ -1276,7 +1276,7 @@ CONTAINS
       IF (ASSOCIATED(qs_env%ls_scf_env)) THEN
          IF (unit_number > 0) WRITE (unit_number, *) "Periodic moment calculation not implemented in linear scaling code"
          RETURN
-      ENDIF
+      END IF
 
       CALL timeset(routineN, handle)
 
@@ -1367,7 +1367,7 @@ CONTAINS
          CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge, ghost=ghost, floating=floating)
          IF (.NOT. ghost .AND. .NOT. floating) THEN
             rmom(1, 2) = rmom(1, 2) - charge
-         ENDIF
+         END IF
       END DO
       ria = twopi*MATMUL(cell%h_inv, rcc)
       zphase = CMPLX(COS(ria), SIN(ria), dp)**rmom(1, 2)
@@ -1395,7 +1395,7 @@ CONTAINS
                      zdeta = CMPLX(COS(dd), SIN(dd), KIND=dp)**charge
                      zi(i) = zi(i)*zdeta
                   END DO
-               ENDIF
+               END IF
             END DO
             zi = zi*zphase
             ci = AIMAG(LOG(zi))/twopi
@@ -1496,7 +1496,7 @@ CONTAINS
                   zdet = zdet*zdeta
                   IF (dft_control%nspins == 1) THEN
                      zdet = zdet*zdeta
-                  ENDIF
+                  END IF
                END DO
                zi(i) = zdet
             END DO
@@ -1527,7 +1527,7 @@ CONTAINS
                      zdet = zdet*zdeta
                      IF (dft_control%nspins == 1) THEN
                         zdet = zdet*zdeta
-                     ENDIF
+                     END IF
                   END DO
                   zij(i, j) = zdet*xphase(i)*xphase(j)
                   zij(j, i) = zdet*xphase(i)*xphase(j)
@@ -1648,7 +1648,7 @@ CONTAINS
          CALL cp_dbcsr_sm_fm_multiply(sinmat, mo_coeff, opvec(i)%matrix, ncol=nmo)
          CALL cp_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff, opvec(i)%matrix, 0.0_dp, &
                       op_fm_set(2, i)%matrix)
-      ENDDO
+      END DO
 
    END SUBROUTINE op_orbbas
 
@@ -1736,7 +1736,7 @@ CONTAINS
          CALL cp_fm_struct_release(newstruct)
          CALL cp_fm_struct_release(newstruct1)
 
-      ENDDO
+      END DO
 
    END SUBROUTINE op_orbbas_rtp
 
@@ -1819,18 +1819,18 @@ CONTAINS
          IF ((nmom >= 1) .AND. my_velreprs) THEN
             ALLOCATE (nlcom_rv(3))
             nlcom_rv(:) = 0._dp
-         ENDIF
+         END IF
          IF ((nmom >= 2) .AND. my_velreprs) THEN
             ALLOCATE (nlcom_rrv(6))
             nlcom_rrv(:) = 0._dp
-         ENDIF
+         END IF
          IF (magnetic) THEN
             ALLOCATE (nlcom_rxrv(3))
             nlcom_rxrv = 0._dp
-         ENDIF
+         END IF
          ! Calculate non local correction terms
          CALL calculate_commutator_nl_terms(qs_env, nlcom_rv, nlcom_rxrv, nlcom_rrv, rcc)
-      ENDIF
+      END IF
 
       NULLIFY (moments)
       nm = (6 + 11*nmom + 6*nmom**2 + nmom**3)/6 - 1
@@ -1843,7 +1843,7 @@ CONTAINS
             CALL cp_dbcsr_alloc_block_from_nbl(moments(i)%matrix, sab_orb)
          ELSE
             CALL dbcsr_copy(moments(i)%matrix, matrix_s(1)%matrix, "Moments")
-         ENDIF
+         END IF
          CALL dbcsr_set(moments(i)%matrix, 0.0_dp)
       END DO
 
@@ -1858,12 +1858,12 @@ CONTAINS
                                  matrix_type=dbcsr_type_no_symmetry)
                CALL cp_dbcsr_alloc_block_from_nbl(moments_der(i, idir)%matrix, sab_orb)
                CALL dbcsr_set(moments_der(i, idir)%matrix, 0.0_dp)
-            ENDDO
+            END DO
          END DO
          CALL build_local_moments_der_matrix(qs_env, moments, moments_der, 2, 1, rcc)
       ELSE
          CALL build_local_moment_matrix(qs_env, moments, nmom, ref_point=rcc)
-      ENDIF
+      END IF
 
       CALL qs_rho_get(rho, rho_ao=rho_ao)
 
@@ -1878,7 +1878,7 @@ CONTAINS
          NULLIFY (tmp_ao)
          ALLOCATE (tmp_ao)
          CALL dbcsr_desymmetrize(matrix_s(1)%matrix, tmp_ao)
-      ENDIF
+      END IF
 
       trace = 0.0_dp
       DO ispin = 1, dft_control%nspins
@@ -1895,7 +1895,7 @@ CONTAINS
                CALL dbcsr_trace(tmp_ao, trace)
             ELSE
                CALL dbcsr_dot(rho_ao(ispin)%matrix, moments(i)%matrix, trace)
-            ENDIF
+            END IF
             strace = strace + trace
          END DO
          rmom(i + 1, 1) = strace
@@ -1946,7 +1946,7 @@ CONTAINS
             ! There may be other cases, where the imaginary part of the density is relevant
             NULLIFY (rho_ao)
             CALL qs_rho_get(rho, rho_ao_im=rho_ao)
-         ENDIF
+         END IF
          ! if the density is purely real this is an expensive way to calculate zero
          DO i = 1, SIZE(magmom)
             strace = 0._dp
@@ -1982,7 +1982,7 @@ CONTAINS
                                     matrix_type=dbcsr_type_antisymmetric)
                   CALL cp_dbcsr_alloc_block_from_nbl(momentum(i)%matrix, sab_orb)
                   CALL dbcsr_set(momentum(i)%matrix, 0.0_dp)
-               ENDDO
+               END DO
                CALL build_lin_mom_matrix(qs_env, momentum)
 
                ! imaginary part of the density for RTP, real part gives 0 since momentum is antisymmetric
@@ -1999,8 +1999,8 @@ CONTAINS
                         strace = strace + trace
                      END DO
                      rmom_vel(idir) = rmom_vel(idir) + strace
-                  ENDDO
-               ENDIF
+                  END DO
+               END IF
 
                CALL dbcsr_deallocate_matrix_set(momentum)
 
@@ -2021,10 +2021,10 @@ CONTAINS
                         CALL dbcsr_multiply("T", "N", 1._dp, rho_ao(ispin)%matrix, moments_der(i, idir)%matrix, 0._dp, tmp_ao)
                         CALL dbcsr_trace(tmp_ao, trace)
                         strace = strace + trace
-                     ENDDO
+                     END DO
                      qupole_der((i - 1)*3 + idir) = qupole_der((i - 1)*3 + idir) + strace
-                  ENDDO
-               ENDDO
+                  END DO
+               END DO
 
                IF (qs_env%run_rtp) THEN
                   NULLIFY (rho_ao)
@@ -2040,11 +2040,11 @@ CONTAINS
                            CALL dbcsr_multiply("T", "N", 1._dp, rho_ao(ispin)%matrix, moments_der(i, idir)%matrix, 0._dp, tmp_ao)
                            CALL dbcsr_trace(tmp_ao, trace)
                            strace = strace + trace
-                        ENDDO
+                        END DO
                         qupole_der((i - 1)*3 + idir) = qupole_der((i - 1)*3 + idir) + strace
-                     ENDDO
-                  ENDDO
-               ENDIF
+                     END DO
+                  END DO
+               END IF
 
                ! calculate vel. reprs. of quadrupole moment from derivatives
                rmom_vel(4) = -2*qupole_der(1) - rmom(1, 1)
@@ -2057,15 +2057,15 @@ CONTAINS
                DEALLOCATE (qupole_der)
             CASE DEFAULT
             END SELECT
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       IF ((my_velreprs .AND. (nmoments >= 1)) .OR. magnetic) THEN
          CALL dbcsr_deallocate_matrix(tmp_ao)
-      ENDIF
+      END IF
       IF (my_velreprs .AND. (nmoments >= 2)) THEN
          CALL dbcsr_deallocate_matrix_set(moments_der)
-      ENDIF
+      END IF
 
       description = "[DIPOLE]"
       CALL cp_results_erase(results=results, description=description)
@@ -2085,28 +2085,28 @@ CONTAINS
       IF (my_com_nl) THEN
          IF (magnetic) THEN
             mmom(:) = mmom(:) + nlcom_rxrv(:)
-         ENDIF
+         END IF
          IF (my_velreprs .AND. (nmom >= 1)) THEN
             rmom_vel(1:3) = rmom_vel(1:3) + nlcom_rv
-         ENDIF
+         END IF
          IF (my_velreprs .AND. (nmom >= 2)) THEN
             rmom_vel(4:9) = rmom_vel(4:9) + nlcom_rrv
-         ENDIF
+         END IF
          IF (magnetic .AND. .NOT. my_velreprs) THEN
             CALL print_moments_nl(unit_number, nmom, rlab, mmom=mmom)
          ELSE IF (my_velreprs .AND. .NOT. magnetic) THEN
             CALL print_moments_nl(unit_number, nmom, rlab, rmom_vel=rmom_vel)
          ELSE IF (my_velreprs .AND. magnetic) THEN
             CALL print_moments_nl(unit_number, nmom, rlab, mmom=mmom, rmom_vel=rmom_vel)
-         ENDIF
+         END IF
 
-      ENDIF
+      END IF
 
       IF (my_com_nl) THEN
          IF (nmom >= 1 .AND. my_velreprs) DEALLOCATE (nlcom_rv)
          IF (nmom >= 2 .AND. my_velreprs) DEALLOCATE (nlcom_rrv)
          IF (magnetic) DEALLOCATE (nlcom_rxrv)
-      ENDIF
+      END IF
 
       DEALLOCATE (rmom)
       DEALLOCATE (rlab)
@@ -2115,7 +2115,7 @@ CONTAINS
       END IF
       IF (my_velreprs) THEN
          DEALLOCATE (rmom_vel)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -2188,7 +2188,7 @@ CONTAINS
                   WRITE (unit_number, "(T3,A,3(F14.8,1X),A)") "[Z] [", cell%hmat(3, :)*debye, "] [k]"
                ELSE
                   WRITE (unit_number, "(T3,A)") "Dipoles are based on the traditional operator."
-               ENDIF
+               END IF
                dd = SQRT(SUM(rmom(2:4, 3)**2))*debye
                WRITE (unit_number, "(T3,A)") "Dipole moment [Debye]"
                WRITE (unit_number, "(T5,3(A,A,F14.8,1X),T60,A,T67,F14.8)") &
@@ -2253,8 +2253,8 @@ CONTAINS
                      (TRIM(rlab(i + 1)), "=", rmom_vel(i), i=7, 9)
                CASE DEFAULT
                END SELECT
-            ENDDO
-         ENDIF
+            END DO
+         END IF
       END IF
 
    END SUBROUTINE print_moments
@@ -2300,8 +2300,8 @@ CONTAINS
                      (TRIM(rlab(i + 1)), "=", rmom_vel(i), i=7, 9)
                CASE DEFAULT
                END SELECT
-            ENDDO
-         ENDIF
+            END DO
+         END IF
       END IF
 
    END SUBROUTINE print_moments_nl
@@ -2354,15 +2354,15 @@ CONTAINS
       ! the real part of the density matrix rho_ao is symmetric. Tr[A*S] = 0
       IF (calc_rv) THEN
          nlcom_rv(:) = 0._dp
-      ENDIF
+      END IF
 
       IF (calc_rrv) THEN
          nlcom_rrv(:) = 0._dp
-      ENDIF
+      END IF
 
       IF (calc_rxrv) THEN
          nlcom_rxrv(:) = 0._dp
-      ENDIF
+      END IF
 
       ! imagninary part of the density matrix
       IF (qs_env%run_rtp) THEN
@@ -2389,8 +2389,8 @@ CONTAINS
                                  matrix_type=dbcsr_type_antisymmetric)
                CALL cp_dbcsr_alloc_block_from_nbl(matrix_rv(ind)%matrix, sab_orb)
                CALL dbcsr_set(matrix_rv(ind)%matrix, 0._dp)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
 
          IF (calc_rrv) THEN
             CALL dbcsr_allocate_matrix_set(matrix_rrv, 6)
@@ -2400,8 +2400,8 @@ CONTAINS
                                  matrix_type=dbcsr_type_antisymmetric)
                CALL cp_dbcsr_alloc_block_from_nbl(matrix_rrv(ind)%matrix, sab_orb)
                CALL dbcsr_set(matrix_rrv(ind)%matrix, 0._dp)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
 
          IF (calc_rxrv) THEN
             CALL dbcsr_allocate_matrix_set(matrix_rxrv, 3)
@@ -2411,8 +2411,8 @@ CONTAINS
                                  matrix_type=dbcsr_type_antisymmetric)
                CALL cp_dbcsr_alloc_block_from_nbl(matrix_rxrv(ind)%matrix, sab_orb)
                CALL dbcsr_set(matrix_rxrv(ind)%matrix, 0._dp)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
 
          ! calculate commutators in AO basis
          IF (calc_rv .AND. calc_rrv .AND. .NOT. calc_rxrv) THEN
@@ -2436,7 +2436,7 @@ CONTAINS
          ELSE IF (calc_rxrv .AND. .NOT. calc_rv .AND. .NOT. calc_rrv) THEN
             CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_rxrv=matrix_rxrv, &
                                   ref_point=ref_point, cell=cell)
-         ENDIF
+         END IF
 
          NULLIFY (rho_ao)
          CALL qs_rho_get(rho, rho_ao_im=rho_ao)
@@ -2457,8 +2457,8 @@ CONTAINS
                   strace = strace + trace
                END DO
                nlcom_rv(ind) = nlcom_rv(ind) + strace
-            ENDDO
-         ENDIF
+            END DO
+         END IF
 
          IF (calc_rrv) THEN
             trace = 0._dp
@@ -2472,8 +2472,8 @@ CONTAINS
                   strace = strace + trace
                END DO
                nlcom_rrv(ind) = nlcom_rrv(ind) + strace
-            ENDDO
-         ENDIF
+            END DO
+         END IF
 
          IF (calc_rxrv) THEN
             trace = 0._dp
@@ -2487,13 +2487,13 @@ CONTAINS
                   strace = strace + trace
                END DO
                nlcom_rxrv(ind) = nlcom_rxrv(ind) + strace
-            ENDDO
-         ENDIF
+            END DO
+         END IF
          CALL dbcsr_deallocate_matrix(tmp_ao)
          IF (calc_rv) CALL dbcsr_deallocate_matrix_set(matrix_rv)
          IF (calc_rrv) CALL dbcsr_deallocate_matrix_set(matrix_rrv)
          IF (calc_rxrv) CALL dbcsr_deallocate_matrix_set(matrix_rxrv)
-      ENDIF ! qs_env%run_rtp
+      END IF ! qs_env%run_rtp
 
       CALL timestop(handle)
    END SUBROUTINE calculate_commutator_nl_terms

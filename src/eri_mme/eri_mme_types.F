@@ -220,7 +220,7 @@ CONTAINS
       IF (.NOT. param%is_ortho) THEN
          param%do_calib_cutoff = .FALSE.
          param%do_error_est = .FALSE.
-      ENDIF
+      END IF
 
       n_grids = param%n_grids
 
@@ -241,7 +241,7 @@ CONTAINS
                                    zet_min, l_mm, zet_max, l_max_zet, param%n_minimax, &
                                    minimax_aw, param%err_mm, param%err_c, param%C_mm, para_env)
          DEALLOCATE (minimax_aw)
-      ENDIF
+      END IF
 
       param%is_valid = .TRUE.
 
@@ -273,13 +273,13 @@ CONTAINS
          param%potential = potential
       ELSE
          param%potential = eri_mme_coulomb
-      ENDIF
+      END IF
 
       IF (PRESENT(pot_par)) THEN
          param%pot_par = pot_par
       ELSE
          param%pot_par = 0.0_dp
-      ENDIF
+      END IF
 
       ALLOCATE (minimax_aw(2*param%n_minimax))
 
@@ -355,16 +355,16 @@ CONTAINS
 
                DEALLOCATE (minimax_aw)
                EXIT
-            ENDIF
+            END IF
 
             IF (ALLOCATED(minimax_aw_prev)) DEALLOCATE (minimax_aw_prev)
             ALLOCATE (minimax_aw_prev(2*n_mm))
             minimax_aw_prev(:) = minimax_aw(:)
             DEALLOCATE (minimax_aw)
             err_mm_prev = err_mm
-         ENDDO
+         END DO
          cutoff = cutoff/cutoff_delta
-      ENDDO
+      END DO
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -381,10 +381,10 @@ CONTAINS
          DO igrid = 1, SIZE(minimax_grids)
             IF (ASSOCIATED(minimax_grids(igrid)%minimax_aw)) THEN
                DEALLOCATE (minimax_grids(igrid)%minimax_aw)
-            ENDIF
-         ENDDO
+            END IF
+         END DO
          DEALLOCATE (minimax_grids)
-      ENDIF
+      END IF
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -434,14 +434,14 @@ CONTAINS
             minimax_aw => grids(igrid)%minimax_aw
             grid_no = igrid
             EXIT
-         ENDIF
-      ENDDO
+         END IF
+      END DO
       IF (grid_no == 0) THEN
          igrid = SIZE(grids)
          n_minimax = grids(igrid)%n_minimax
          minimax_aw => grids(igrid)%minimax_aw
          grid_no = igrid
-      ENDIF
+      END IF
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -460,7 +460,7 @@ CONTAINS
          WRITE (unit_nr, '(T2, A, 1X, I2)') "ERI_MME | Number of minimax points", grid%n_minimax
          WRITE (unit_nr, '(T2, A, 1X, 2ES9.2)') "ERI_MME | minimax error", grid%error
          WRITE (unit_nr, *)
-      ENDIF
+      END IF
 
    END SUBROUTINE
 
@@ -473,7 +473,7 @@ CONTAINS
 
       IF (ALLOCATED(param%minimax_grid)) THEN
          CALL eri_mme_destroy_minimax_grids(param%minimax_grid)
-      ENDIF
+      END IF
    END SUBROUTINE eri_mme_release
 
 END MODULE eri_mme_types

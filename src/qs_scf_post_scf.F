@@ -70,7 +70,7 @@ CONTAINS
             CALL scf_post_calculation_gpw(qs_env, wf_type=wf_type)
          ELSE
             CALL scf_post_calculation_gpw(qs_env)
-         ENDIF
+         END IF
       END IF
 
       CALL calculate_band_structure(qs_env)

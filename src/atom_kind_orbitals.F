@@ -479,7 +479,7 @@ CONTAINS
                   END IF
                END DO
             END DO
-         ENDDO
+         END DO
          IF (uks) THEN
             pmat(:, :, 1) = pmat(:, :, 1) + pmat(:, :, 2)
             pmat(:, :, 2) = pmat(:, :, 1) - 2.0_dp*pmat(:, :, 2)
@@ -506,7 +506,7 @@ CONTAINS
                END DO
             END DO
             END DO
-         ENDDO
+         END DO
       END IF
 
       IF (PRESENT(density)) THEN
@@ -1127,7 +1127,7 @@ CONTAINS
                   END SELECT
                END DO
             END DO
-         ENDDO
+         END DO
          DO k1 = 1, nsgf
             DO k2 = k1, nsgf
                rtmat(k1, k2) = 0.5_dp*(rtmat(k1, k2) + rtmat(k2, k1))

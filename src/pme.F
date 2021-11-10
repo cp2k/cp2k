@@ -427,7 +427,7 @@ CONTAINS
             END IF
 
          END DO
-      ENDIF
+      END IF
       IF (PRESENT(fgshell_coulomb)) THEN
          fgshell_coulomb = 0.0_dp
          dvols = rhos1%pw%pw_grid%dvol

@@ -76,7 +76,7 @@ CONTAINS
       ! copy string
       DO i = 1, n
          version_str(i) = cp2k_version(i:i)
-      ENDDO
+      END DO
       version_str(n + 1) = C_NULL_CHAR
    END SUBROUTINE cp2k_get_version
 
@@ -588,7 +588,7 @@ CONTAINS
          IF (.NOT. ASSOCIATED(active_space_env)) &
             EXIT try
 
-         ASSOCIATE (nze=>active_space_env%eri%eri(1)%csr_mat%nze_total)
+         ASSOCIATE (nze => active_space_env%eri%eri(1)%csr_mat%nze_total)
             IF (buf_coords_len < 4*nze .OR. buf_values_len < nze) &
                EXIT try
 

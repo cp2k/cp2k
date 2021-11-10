@@ -165,7 +165,7 @@ CONTAINS
       IF (output_unit > 0) THEN
          WRITE (output_unit, FMT="(T2,A,/)") &
             "CURRENT| Calculation of the p and (r-d)xp operators applied to psi0"
-      ENDIF
+      END IF
 
       CALL get_qs_env(qs_env=qs_env, &
                       qs_kind_set=qs_kind_set, &
@@ -190,7 +190,7 @@ CONTAINS
       DO idir = 1, 3
          NULLIFY (vecbuf_Rmdc0(idir)%array)
          ALLOCATE (vecbuf_Rmdc0(idir)%array(1, nao))
-      ENDDO
+      END DO
 
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, nsgf=nsgf)
 
@@ -240,7 +240,7 @@ CONTAINS
          CALL dbcsr_copy(op_ao(idir)%matrix, op_ao(1)%matrix, &
                          "op_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))))
          CALL dbcsr_set(op_ao(idir)%matrix, 0.0_dp)
-      ENDDO
+      END DO
 
       chk(:) = 0.0_dp
       DO ispin = 1, nspins
@@ -272,13 +272,13 @@ CONTAINS
                   ! the p_psi0 fm is used as temporary matrix to store the results for the psi0 centered in dk
                   CALL cp_fm_to_fm(rxp_psi0(ispin, idir)%matrix, &
                                    p_psi0(ispin, idir)%matrix, 1, istate, istate)
-               ENDDO
+               END DO
             END DO
-         ENDDO
+         END DO
          CALL cp_fm_to_fm(p_psi0(ispin, 1)%matrix, rxp_psi0(ispin, 1)%matrix)
          CALL cp_fm_to_fm(p_psi0(ispin, 2)%matrix, rxp_psi0(ispin, 2)%matrix)
          CALL cp_fm_to_fm(p_psi0(ispin, 3)%matrix, rxp_psi0(ispin, 3)%matrix)
-      ENDDO
+      END DO
       !
       CALL dbcsr_deallocate_matrix_set(op_ao)
       !
@@ -287,7 +287,7 @@ CONTAINS
          WRITE (output_unit, '(T2,A,E23.16)') 'CURRENT| current_operators: CheckSum L_x =', chk(1)
          WRITE (output_unit, '(T2,A,E23.16)') 'CURRENT| current_operators: CheckSum L_y =', chk(2)
          WRITE (output_unit, '(T2,A,E23.16)') 'CURRENT| current_operators: CheckSum L_z =', chk(3)
-      ENDIF
+      END IF
       !
       ! Calculate the px py pz operators
       CALL dbcsr_allocate_matrix_set(op_ao, 3)
@@ -305,7 +305,7 @@ CONTAINS
          CALL dbcsr_copy(op_ao(idir)%matrix, op_ao(1)%matrix, &
                          "op_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))))
          CALL dbcsr_set(op_ao(idir)%matrix, 0.0_dp)
-      ENDDO
+      END DO
       !
       CALL build_lin_mom_matrix(qs_env, op_ao)
       !CALL p_xyz_ao(op_ao,qs_env,minimum_image=.FALSE.)
@@ -318,7 +318,7 @@ CONTAINS
          WRITE (output_unit, '(T2,A,E23.16)') 'CURRENT| current_operators: CheckSum P_x =', chk(1)
          WRITE (output_unit, '(T2,A,E23.16)') 'CURRENT| current_operators: CheckSum P_y =', chk(2)
          WRITE (output_unit, '(T2,A,E23.16)') 'CURRENT| current_operators: CheckSum P_z =', chk(3)
-      ENDIF
+      END IF
       ! Apply the p operator to the psi0
       DO idir = 1, 3
          DO ispin = 1, nspins
@@ -416,7 +416,7 @@ CONTAINS
             CALL cp_fm_release(fm_work1)
 
          END DO ! ispin
-      ENDIF
+      END IF
 
       DEALLOCATE (row_blk_sizes)
 
@@ -518,8 +518,8 @@ CONTAINS
 
          IF (output_unit > 0) THEN
             WRITE (output_unit, '(T2,A,E23.16)') 'ISSC| fermi_contact: CheckSum =', chk(1)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
       !
       ! spin-orbit integral
       !IF(do_pso) THEN
@@ -537,8 +537,8 @@ CONTAINS
             WRITE (output_unit, '(T2,A,E23.16)') 'ISSC| pso_x: CheckSum =', chk(2)
             WRITE (output_unit, '(T2,A,E23.16)') 'ISSC| pso_y: CheckSum =', chk(3)
             WRITE (output_unit, '(T2,A,E23.16)') 'ISSC| pso_z: CheckSum =', chk(4)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
       !
       ! electric field integral
       !IF(do_sd) THEN
@@ -565,13 +565,13 @@ CONTAINS
             WRITE (output_unit, '(T2,A,E23.16)') 'ISSC| efg xy: CheckSum =', chk(8)
             WRITE (output_unit, '(T2,A,E23.16)') 'ISSC| efg xz: CheckSum =', chk(9)
             WRITE (output_unit, '(T2,A,E23.16)') 'ISSC| efg yz: CheckSum =', chk(10)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
       !
       !
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(T2,A,E23.16)') 'ISSC| all operator: CheckSum =', SUM(chk(1:10))
-      ENDIF
+      END IF
       !
       !>>> debugging only  here we build the dipole matrix... debugging the kernel...
       IF (do_dso) THEN
@@ -579,7 +579,7 @@ CONTAINS
          CALL dbcsr_set(matrix_dso(2)%matrix, 0.0_dp)
          CALL dbcsr_set(matrix_dso(3)%matrix, 0.0_dp)
          CALL rRc_xyz_ao(matrix_dso, qs_env, (/0.0_dp, 0.0_dp, 0.0_dp/), 1)
-      ENDIF
+      END IF
       !
       ! multiply by the mos
       DO ispin = 1, nspins
@@ -593,8 +593,8 @@ CONTAINS
                CALL cp_dbcsr_sm_fm_multiply(matrix_efg(idir)%matrix, mo_coeff, &
                                             efg_psi0(ispin, idir)%matrix, ncol=nmo, &
                                             alpha=1.0_dp)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
          !
          ! PSO
          IF (do_pso) THEN
@@ -602,15 +602,15 @@ CONTAINS
                CALL cp_dbcsr_sm_fm_multiply(matrix_pso(idir)%matrix, mo_coeff, &
                                             pso_psi0(ispin, idir)%matrix, ncol=nmo, &
                                             alpha=-1.0_dp)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
          !
          ! FC
          IF (do_fc) THEN
             CALL cp_dbcsr_sm_fm_multiply(matrix_fc(1)%matrix, mo_coeff, &
                                          fc_psi0(ispin)%matrix, ncol=nmo, &
                                          alpha=1.0_dp)
-         ENDIF
+         END IF
          !
          !>>> for debugging only
          IF (do_dso) THEN
@@ -618,10 +618,10 @@ CONTAINS
                CALL cp_dbcsr_sm_fm_multiply(matrix_dso(idir)%matrix, mo_coeff, &
                                             dso_psi0(ispin, idir)%matrix, ncol=nmo, &
                                             alpha=-1.0_dp)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
          !<<< for debugging only
-      ENDDO
+      END DO
 
       CALL cp_print_key_finished_output(output_unit, logger, lr_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
@@ -726,7 +726,7 @@ CONTAINS
          DO i = 1, 3
             DO ispin = 1, nspins
                CALL cp_fm_set_all(dBerry_psi0(i, ispin)%matrix, 0.0_dp)
-            ENDDO
+            END DO
          END DO
 
          ! initialize all work matrices needed
@@ -777,7 +777,7 @@ CONTAINS
                CALL cp_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff, opvec(2, ispin)%matrix, 0.0_dp, &
                             op_fm_set(2, ispin)%matrix)
 
-            ENDDO
+            END DO
 
             ! Second step invert C^T S_berry C
             zdet = one
@@ -830,7 +830,7 @@ CONTAINS
          DEALLOCATE (eigrmat)
          DEALLOCATE (inv_mat)
 
-      ENDIF ! do_raman
+      END IF ! do_raman
 
       CALL timestop(handle)
 
@@ -916,7 +916,7 @@ CONTAINS
                CPASSERT(found)
                d_block = d_block + 0.5_dp*fdir*s_block
             END DO
-         ENDDO
+         END DO
          CALL dbcsr_iterator_stop(iter)
 
          ! Compute the derivative and add the result to mo_derivatives
@@ -925,7 +925,7 @@ CONTAINS
             DO i = 1, 3
                CALL cp_dbcsr_sm_fm_multiply(dipmat(i)%matrix, mo_coeff, &
                                             dBerry_psi0(i, ispin)%matrix, ncol=nmo)
-            ENDDO !x/y/z-direction
+            END DO !x/y/z-direction
          END DO
 
          DO i = 1, 3
@@ -933,7 +933,7 @@ CONTAINS
          END DO
          DEALLOCATE (dipmat)
 
-      ENDIF ! do_raman
+      END IF ! do_raman
 
       CALL timestop(handle)
    END SUBROUTINE polar_tb_operators_berry
@@ -996,7 +996,7 @@ CONTAINS
             DO i = 1, 3
                CALL cp_dbcsr_sm_fm_multiply(dipmat(i)%matrix, mo_coeff, &
                                             dBerry_psi0(i, ispin)%matrix, ncol=nmo)
-            ENDDO !x/y/z-direction
+            END DO !x/y/z-direction
          END DO
 
          DO i = 1, 3
@@ -1004,7 +1004,7 @@ CONTAINS
          END DO
          DEALLOCATE (dipmat)
 
-      ENDIF ! do_raman
+      END IF ! do_raman
 
       CALL timestop(handle)
 
@@ -1078,7 +1078,7 @@ CONTAINS
                fdir = 0.5_dp*(ria(i) + rib(i))
                d_block = s_block*fdir
             END DO
-         ENDDO
+         END DO
          CALL dbcsr_iterator_stop(iter)
 
          ! Compute the derivative and add the result to mo_derivatives
@@ -1087,7 +1087,7 @@ CONTAINS
             DO i = 1, 3
                CALL cp_dbcsr_sm_fm_multiply(dipmat(i)%matrix, mo_coeff, &
                                             dBerry_psi0(i, ispin)%matrix, ncol=nmo)
-            ENDDO !x/y/z-direction
+            END DO !x/y/z-direction
          END DO
 
          DO i = 1, 3
@@ -1095,7 +1095,7 @@ CONTAINS
          END DO
          DEALLOCATE (dipmat)
 
-      ENDIF ! do_raman
+      END IF ! do_raman
 
       CALL timestop(handle)
 
@@ -1147,7 +1147,7 @@ CONTAINS
       ELSE
          l(ii) = 1
          l(iii) = 1
-      ENDIF
+      END IF
       i = coset(l(1), l(2), l(3)) - 1
    END FUNCTION ind_m2
 
@@ -1256,8 +1256,8 @@ CONTAINS
             rra = ra(:, irow_global)
             dist = pbc(rrc, rra, cell)
             a(irow_local, icol_local) = a(irow_local, icol_local)*dist(ixyz)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 #else
       DO icol_local = 1, MIN(n, ncol_global)
          rrc = rc(:, icol_local)
@@ -1265,8 +1265,8 @@ CONTAINS
             rra = ra(:, irow_local)
             dist = pbc(rrc, rra, cell)
             a(irow_local, icol_local) = a(irow_local, icol_local)*dist(ixyz)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 #endif
 
       CALL timestop(handle)

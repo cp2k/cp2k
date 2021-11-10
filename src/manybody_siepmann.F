@@ -355,8 +355,8 @@ CONTAINS
             index_h1 = iatom
          ELSEIF (count_h == 2) THEN
             index_h2 = iatom
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       IF (count_h == 0) THEN
          IF (siepmann%allow_o_formation) THEN
@@ -364,24 +364,24 @@ CONTAINS
             siep_Phi_ij = 0.0_dp
          ELSE
             CPABORT("No H atoms for O found")
-         ENDIF
+         END IF
       ELSEIF (count_h == 1) THEN
          IF (siepmann%allow_oh_formation) THEN
             IF (PRESENT(nr_oh)) nr_oh = nr_oh + 1
             siep_Phi_ij = 0.0_dp
          ELSE
             CPABORT("Only one H atom of O atom found")
-         ENDIF
+         END IF
       ELSEIF (count_h == 3) THEN
          IF (siepmann%allow_h3o_formation) THEN
             IF (PRESENT(nr_h3o)) nr_h3o = nr_h3o + 1
             siep_Phi_ij = 0.0_dp
          ELSE
             CPABORT("Three H atoms for O atom found")
-         ENDIF
+         END IF
       ELSEIF (count_h > 3) THEN
          CPABORT("Error in Siepmann-Sprik part: too many H atoms for O")
-      ENDIF
+      END IF
 
       IF (count_h == 2) THEN
          !dipole vector rix of the H2O molecule
@@ -393,7 +393,7 @@ CONTAINS
          IF (cosphi < -1.0_dp) cosphi = -1.0_dp
          IF (cosphi > +1.0_dp) cosphi = +1.0_dp
          siep_Phi_ij = EXP(-8.0_dp*((cosphi - 1)/4.0_dp)**4)
-      ENDIF
+      END IF
    END FUNCTION siep_Phi_ij
 
 ! **************************************************************************************************
@@ -458,8 +458,8 @@ CONTAINS
             index_h1 = iatom
          ELSEIF (count_h == 2) THEN
             index_h2 = iatom
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       IF (count_h == 0 .AND. .NOT. siepmann%allow_o_formation) THEN
          CPABORT("No H atoms for O found")
@@ -469,7 +469,7 @@ CONTAINS
          CPABORT("Three H atoms for O atom found")
       ELSEIF (count_h > 3) THEN
          CPABORT("Error in Siepmann-Sprik part: too many H atoms for O")
-      ENDIF
+      END IF
 
       IF (count_h == 2) THEN
          !dipole vector rix of the H2O molecule
@@ -515,7 +515,7 @@ CONTAINS
                           " not implemented")
          END IF
 
-      ENDIF
+      END IF
    END SUBROUTINE siep_Phi_ij_d
 
 ! **************************************************************************************************
@@ -852,13 +852,13 @@ CONTAINS
 
       IF (iw > 0 .AND. nr_ions > 0 .AND. print_oh) THEN
          WRITE (iw, '(/,A,T71,I10,/)') " SIEPMANN: number of OH- ions at surface", nr_ions
-      ENDIF
+      END IF
       IF (iw > 0 .AND. nr_ions > 0 .AND. print_h3o) THEN
          WRITE (iw, '(/,A,T71,I10,/)') " SIEPMANN: number of H3O+ ions at surface", nr_ions
-      ENDIF
+      END IF
       IF (iw > 0 .AND. nr_ions > 0 .AND. print_o) THEN
          WRITE (iw, '(/,A,T71,I10,/)') " SIEPMANN: number of O^2- ions at surface", nr_ions
-      ENDIF
+      END IF
 
       CALL cp_print_key_finished_output(iw, logger, mm_section, "PRINT%PROGRAM_RUN_INFO")
 

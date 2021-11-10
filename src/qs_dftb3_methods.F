@@ -191,7 +191,7 @@ CONTAINS
                   force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j) - fi
                   fij(i) = fi
                END DO
-            ENDDO
+            END DO
             CALL dbcsr_iterator_stop(iter)
             ! use dsint list
             IF (use_virial) THEN
@@ -338,7 +338,7 @@ CONTAINS
                   CPASSERT(found)
                   ksblock = ksblock - 0.5_dp*gmij*sblock
                END DO
-            ENDDO
+            END DO
             CALL dbcsr_iterator_stop(iter)
          ELSE
             NULLIFY (n_list)

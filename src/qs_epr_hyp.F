@@ -375,7 +375,7 @@ CONTAINS
                "             ", hypaniso(1, 1, iatom), hypaniso(1, 2, iatom), hypaniso(1, 3, iatom), &
                "  A_ani [Mhz]", hypaniso(2, 1, iatom), hypaniso(2, 2, iatom), hypaniso(2, 3, iatom), &
                "             ", hypaniso(3, 1, iatom), hypaniso(3, 2, iatom), hypaniso(3, 3, iatom)
-         ENDDO
+         END DO
       END IF
 
       ! Deallocate the remainings ...

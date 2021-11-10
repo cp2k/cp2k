@@ -137,7 +137,7 @@ CONTAINS
          CALL ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, print_section=print_section)
          work%ewald_env => ewald_env
          work%ewald_pw => ewald_pw
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -415,7 +415,7 @@ CONTAINS
          CALL cp_fm_get_info(work%ctransformed(ispin)%matrix, ncol_global=nactive)
          CALL cp_dbcsr_sm_fm_multiply(work%shalf, sub_env%mos_occ(ispin)%matrix, &
                                       work%ctransformed(ispin)%matrix, nactive, alpha=1.0_dp, beta=0.0_dp)
-      ENDDO
+      END DO
 
       ! for Lowdin forces
       CALL cp_fm_create(matrix=fm_work1, matrix_struct=work%S_eigenvectors%matrix_struct, name="TMP MATRIX")
@@ -477,7 +477,7 @@ CONTAINS
          CALL cp_fm_get_info(xt(ispin)%matrix, ncol_global=nactive)
          CALL cp_dbcsr_sm_fm_multiply(shalf, xvec(ispin)%matrix, &
                                       xt(ispin)%matrix, nactive, alpha=1.0_dp, beta=0.0_dp)
-      ENDDO
+      END DO
 
       CALL timestop(handle)
 
@@ -571,7 +571,7 @@ CONTAINS
          ct => work%ctransformed(ispin)%matrix
          CALL cp_fm_get_info(ct, matrix_struct=fmstruct)
          CALL cp_fm_create(matrix=xtransformed(ispin)%matrix, matrix_struct=fmstruct, name="XTRANSFORMED")
-      ENDDO
+      END DO
       CALL get_lowdin_x(work%shalf, X, xtransformed)
 
       ALLOCATE (tcharge(natom), gtcharge(natom, 1))
@@ -608,7 +608,7 @@ CONTAINS
                   END DO
                END DO
                CALL cp_fm_release(cvecjspin)
-            ENDDO !jspin
+            END DO !jspin
             ! Apply tcharge*gab -> gtcharge
             ! gT(b) = SUM_a g(a,b)*TC(a)
             ! gab = work%gamma_exchange(1)%matrix
@@ -717,7 +717,7 @@ CONTAINS
          !
          CALL cp_fm_release(cvec)
          DEALLOCATE (tv)
-      ENDDO
+      END DO
 
       DO ispin = 1, nspins
          CALL cp_fm_release(matrix=xtransformed(ispin)%matrix)

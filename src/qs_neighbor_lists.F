@@ -202,9 +202,9 @@ CONTAINS
          DO imol = 1, SIZE(molecule_set)
             DO iat = molecule_set(imol)%first_atom, molecule_set(imol)%last_atom
                atom2mol(iat) = imol
-            ENDDO
+            END DO
          END DO
-      ENDIF
+      END IF
 
       DO ikind = 1, nkind
          NULLIFY (atom2d(ikind)%list)
@@ -268,7 +268,7 @@ CONTAINS
 
          DEALLOCATE (listsort, listindex)
 
-      ENDDO
+      END DO
 
       DEALLOCATE (atom_of_kind)
 
@@ -505,14 +505,14 @@ CONTAINS
                CALL get_gto_basis_set(gto_basis_set=orb_basis_set, kind_radius=orb_radius(ikind))
             ELSE
                orb_present(ikind) = .FALSE.
-            ENDIF
-         ENDIF
+            END IF
+         END IF
 
          IF (ASSOCIATED(aux_basis_set)) THEN
             aux_present(ikind) = .TRUE.
          ELSE
             aux_present(ikind) = .FALSE.
-         ENDIF
+         END IF
 
          IF (ASSOCIATED(aux_fit_basis_set)) THEN
             aux_fit_present(ikind) = .TRUE.
@@ -594,7 +594,7 @@ CONTAINS
          CALL build_neighbor_lists(sab_all, particle_set, atom2d, cell, pair_radius, &
                                    mic=mic, symmetric=.FALSE., subcells=subcells, molecular=molecule_only, nlname="sab_all")
          CALL set_ks_env(ks_env=ks_env, sab_all=sab_all)
-      ENDIF
+      END IF
 
       ! Build the core-core overlap neighbor lists
       IF (.NOT. (nddo .OR. dftb .OR. xtb)) THEN
@@ -604,7 +604,7 @@ CONTAINS
          CALL set_ks_env(ks_env=ks_env, sab_core=sab_core)
          CALL write_neighbor_lists(sab_core, particle_set, cell, para_env, neighbor_list_section, &
                                    "/SAB_CORE", "sab_core", "CORE CORE")
-      ENDIF
+      END IF
 
       IF (dft_control%do_admm) THEN
          CALL pair_radius_setup(aux_fit_present, aux_fit_present, aux_fit_radius, aux_fit_radius, pair_radius)
@@ -827,8 +827,8 @@ CONTAINS
                         CALL uppercase(element_symbol2)
                         IF (TRIM(dft_control%qs_control%xtb_control%nonbonded%pot(ingp)%pot%at2) == TRIM(element_symbol2)) THEN
                            nonbond2_atom(jkind) = .TRUE.
-                        ENDIF
-                     ENDDO
+                        END IF
+                     END DO
                   END IF
                END DO
                CALL pair_radius_setup(nonbond1_atom, nonbond2_atom, c_radius, c_radius, pair_radius)
@@ -838,7 +838,7 @@ CONTAINS
                CALL write_neighbor_lists(sab_xtb_nonbond, particle_set, cell, para_env, neighbor_list_section, &
                                          "/SAB_XTB_NONBOND", "sab_xtb_nonbond", "XTB NONBONDED INTERACTIONS")
             END DO
-         ENDIF
+         END IF
       END IF
 
       ! Build the neighbor lists for the vdW pair potential
@@ -905,7 +905,7 @@ CONTAINS
                CALL get_gto_basis_set(gto_basis_set=ri_basis_set, kind_radius=ri_radius(ikind))
             ELSE
                ri_present(ikind) = .FALSE.
-            ENDIF
+            END IF
          END DO
          ! set neighborlists in lri_env environment
          CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius)
@@ -941,7 +941,7 @@ CONTAINS
          CALL build_neighbor_lists(sab_almo, particle_set, atom2d, cell, pair_radius, &
                                    subcells=subcells, operator_type="PP", nlname="sab_almo")
          CALL set_ks_env(ks_env=ks_env, sab_almo=sab_almo)
-      ENDIF
+      END IF
 
       ! Print particle distribution
       print_key_path = "PRINT%DISTRIBUTION"
@@ -973,7 +973,7 @@ CONTAINS
       END IF
       IF (paw_atom_present) THEN
          DEALLOCATE (oce_present, oce_radius)
-      ENDIF
+      END IF
       IF (all_potential_present .OR. sgp_potential_present) THEN
          DEALLOCATE (all_present, all_pot_rad)
       END IF
@@ -1112,7 +1112,7 @@ CONTAINS
       ALLOCATE (r_pbc(3, natom))
       DO i = 1, natom
          r_pbc(1:3, i) = pbc(particle_set(i)%r(1:3), cell)
-      ENDDO
+      END DO
 
       ! setup the local lists of atoms
       maxat = 0
@@ -1352,8 +1352,8 @@ CONTAINS
                                              rab_pbc(:) = pbc(rab(:), cell)
                                              IF (SUM((rab_pbc - rab)**2) > EPSILON(1.0_dp)) THEN
                                                 include_ab = .FALSE.
-                                             ENDIF
-                                          ENDIF
+                                             END IF
+                                          END IF
                                           IF (include_ab) THEN
                                              CALL add_neighbor_node( &
                                                 neighbor_list=kind_a(iatom_local)%neighbor_list, &
@@ -1361,7 +1361,7 @@ CONTAINS
                                                 cell=cell_b, &
                                                 r=rab, &
                                                 nkind=nkind)
-                                          ENDIF
+                                          END IF
                                        END IF
                                     END IF
                                  END DO
@@ -1592,7 +1592,7 @@ CONTAINS
             n = n + 1
             list(n) = listb(ib)
          END DO loopb
-      ENDIF
+      END IF
    END SUBROUTINE combine_lists
 
 ! **************************************************************************************************
@@ -1703,7 +1703,7 @@ CONTAINS
          tmp = (/nblock_max, nelement_max/)
          CALL mp_max(tmp, group)
          nblock_max = tmp(1); nelement_max = tmp(2)
-      ENDIF
+      END IF
 
       IF (output_unit > 0) THEN
          IF (full_output) THEN
@@ -1722,7 +1722,7 @@ CONTAINS
             WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Maximum number of particle pairs:", nblock_max
             WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Average number of matrix element:", (nelement_sum + npe - 1)/npe
             WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Maximum number of matrix elements:", nelement_max
-         ENDIF
+         END IF
       END IF
 
       ! Release work storage

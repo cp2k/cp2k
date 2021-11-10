@@ -70,8 +70,8 @@ CONTAINS
          kterm = kterm + 1
          V_blocks(i, j, kterm) = 1.0_dp
          V_blocks(j, i, kterm) = 1.0_dp
-      ENDDO
-      ENDDO
+      END DO
+      END DO
 
       CPASSERT(kterm == nterms)
    END SUBROUTINE linpot_full_calc_terms

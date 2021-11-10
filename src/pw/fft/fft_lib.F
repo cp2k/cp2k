@@ -193,7 +193,7 @@ CONTAINS
          stat = 1
       ELSE
          stat = 0
-      ENDIF
+      END IF
 
    END SUBROUTINE fft_3d
 
@@ -282,7 +282,7 @@ CONTAINS
          stat = 1
       ELSE
          stat = 0
-      ENDIF
+      END IF
 
    END SUBROUTINE fft_1dm
 

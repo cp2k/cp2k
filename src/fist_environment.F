@@ -266,7 +266,7 @@ CONTAINS
       ELSE
          NULLIFY (prev_molecule_kind_set)
          NULLIFY (prev_local_molecules)
-      ENDIF
+      END IF
 
       ! Create the fist_energy_type
       CALL allocate_fist_energy(thermo)

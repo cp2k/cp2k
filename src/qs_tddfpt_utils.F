@@ -351,7 +351,7 @@ CONTAINS
       ! punch a checksum for the regs
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(T2,A,E14.6)') ' TDDFPT : CheckSum  =', SQRT(SUM(t_env%evals**2))
-      ENDIF
+      END IF
 
       DO spin = 1, n_spins
          CALL cp_fm_release(S_lumos(spin)%matrix)

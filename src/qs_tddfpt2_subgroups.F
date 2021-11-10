@@ -634,7 +634,7 @@ CONTAINS
          ELSE
             orb_present(ikind) = .FALSE.
             orb_radius(ikind) = 0.0_dp
-         ENDIF
+         END IF
       END DO
 
       CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius)

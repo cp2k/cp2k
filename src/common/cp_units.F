@@ -418,7 +418,7 @@ CONTAINS
                   i_high = i_high + 1
                END DO
             END IF
-         ENDIF
+         END IF
          IF (i_low > len_string) EXIT
          next_power = 1
          IF (i_high <= len_string) THEN
@@ -436,7 +436,7 @@ CONTAINS
                   i_high = i_high + 1
                END DO
             END IF
-         ENDIF
+         END IF
       END DO
       CALL cp_unit_create2(unit, kind_id=kind_id, unit_id=unit_id, &
                            power=power)

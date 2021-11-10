@@ -128,7 +128,7 @@ CONTAINS
                                        ncol=mo_set%homo, &
                                        alpha=alpha)
             CALL cp_fm_release(fm_tmp)
-         ENDIF
+         END IF
       ELSE
          IF (my_use_dbcsr) THEN
             CALL dbcsr_multiply("N", "T", mo_set%maxocc, mo_set%mo_coeff_b, mo_set%mo_coeff_b, &
@@ -140,8 +140,8 @@ CONTAINS
                                        matrix_v=mo_set%mo_coeff, &
                                        ncol=mo_set%homo, &
                                        alpha=alpha)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       CALL timestop(handle)
 
@@ -183,7 +183,7 @@ CONTAINS
 
       DO imo = 1, mo_set%homo
          eigocc(imo) = mo_set%eigenvalues(imo)*mo_set%occupation_numbers(imo)
-      ENDDO
+      END DO
       CALL cp_fm_column_scale(weighted_vectors, eigocc)
       DEALLOCATE (eigocc)
 
@@ -263,7 +263,7 @@ CONTAINS
          ! needs some investigation to find out if using this is better
          CALL cp_fm_transpose(h_block, h_block_t)
          CALL cp_fm_scale_and_add(0.5_dp, h_block, 0.5_dp, h_block_t)
-      ENDIF
+      END IF
 
       ! this could overwrite the mo_derivs to save the weighted_vectors
       CALL cp_gemm('N', 'N', nrow_global, ncol_global, ncol_global, 1.0_dp, &
@@ -291,9 +291,9 @@ CONTAINS
             iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
             WRITE (iounit, *) " maxabs difference ", &
                MAXVAL(ABS(weighted_vectors%local_data - 2.0_dp*gradient%local_data))
-         ENDIF
+         END IF
          CALL cp_fm_release(gradient)
-      ENDIF
+      END IF
 
       IF (do_symm) CALL cp_fm_release(h_block_t)
       CALL cp_fm_release(weighted_vectors)

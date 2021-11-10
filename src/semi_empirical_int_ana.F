@@ -417,7 +417,7 @@ CONTAINS
                      dscale = dscale + angstrom*EXP(-alpj*rij) - (angstrom*rij - 1._dp)*alpj*EXP(-alpj*rij)
                   END IF
                END IF
-            ENDIF
+            END IF
             IF (l_denuc) THEN
                dscale = SIGN(1.0_dp, scale*tmp)*(dscale*tmp + scale*dtmp)
                dzz = -zz/rij**2
@@ -511,8 +511,8 @@ CONTAINS
                            dax = fni2(ig)*2.0_dp*(rij - fni3(ig))
                            dscale = dscale + dzz*fni1(ig)*EXP(-ax) - dax*zz*fni1(ig)*EXP(-ax)
                         END IF
-                     ENDIF
-                  ENDIF
+                     END IF
+                  END IF
                   IF (ABS(fnj1(ig)) > 0._dp) THEN
                      ax = fnj2(ig)*(rij - fnj3(ig))**2
                      IF (ax <= 25._dp) THEN
@@ -521,10 +521,10 @@ CONTAINS
                            dax = fnj2(ig)*2.0_dp*(rij - fnj3(ig))
                            dscale = dscale + dzz*fnj1(ig)*EXP(-ax) - dax*zz*fnj1(ig)*EXP(-ax)
                         END IF
-                     ENDIF
-                  ENDIF
+                     END IF
+                  END IF
                END DO
-            ENDIF
+            END IF
             IF (itype == do_method_pdg) THEN
                ! PDDG function
                zaf = sepi%zeff/nt
@@ -609,7 +609,7 @@ CONTAINS
                         ! Hard core repulsion
                         (-12.0_dp*xtmp/rija*drija)
             END IF
-         ENDIF
+         END IF
 
          ! Only at the very end let's sum-up the several contributions energy/derivatives
          ! This assignment should be method independent
@@ -626,7 +626,7 @@ CONTAINS
          IF (debug_this_module) THEN
             CALL check_dcorecore_ana(sepi, sepj, rijv, itype, se_int_control, se_taper, enuc, denuc)
          END IF
-      ENDIF
+      END IF
    END SUBROUTINE corecore_ana
 
 ! **************************************************************************************************
@@ -1533,7 +1533,7 @@ CONTAINS
             END IF
          END IF
          CALL rotmat_release(ij_matrix)
-      ENDIF
+      END IF
    END SUBROUTINE rotint_ana
 
 ! **************************************************************************************************

@@ -187,7 +187,7 @@ CONTAINS
             my_val = 0.0_dp
          ELSE
             my_val = lambda(1)/REAL(natom, KIND=dp)
-         ENDIF
+         END IF
       END IF
       IF (ABS(lambda(1) - lambda(2)) < epsi) THEN
          IF (output_unit > 0) WRITE (output_unit, FMT='(T2,"RMSD3|",A)') &

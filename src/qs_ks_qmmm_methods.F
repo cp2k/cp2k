@@ -219,7 +219,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       fac = v_qmmm%pw%pw_grid%dvol*scale
-      v_hartree%pw%cr3d = v_hartree%pw%cr3d+fac*v_qmmm%pw%cr3d
+      v_hartree%pw%cr3d = v_hartree%pw%cr3d + fac*v_qmmm%pw%cr3d
 
       CALL timestop(handle)
    END SUBROUTINE qmmm_modify_hartree_pot

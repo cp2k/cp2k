@@ -291,7 +291,7 @@ CONTAINS
             dft_control%do_admm_dm = .TRUE.
          ELSE
             dft_control%do_admm_mo = .TRUE.
-         ENDIF
+         END IF
       END IF
 
       ! Set restricted to true, if both OT and ROKS are requested
@@ -344,8 +344,8 @@ CONTAINS
          ELSE
             dft_control%correct_el_density_dip = .FALSE.
             CPWARN("CORE_CORR_DIP keyword is activated only if SURFACE_DIPOLE_CORRECTION is TRUE")
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       CALL section_vals_val_get(dft_section, "BASIS_SET_FILE_NAME", &
                                 c_val=basis_set_file_name)
@@ -885,14 +885,14 @@ CONTAINS
                qs_control%mulliken_restraint_control%atoms(jj) = tmplist(j)
             END DO
          END DO
-      ENDIF
+      END IF
       CALL section_vals_get(ddapc_restraint_section, n_repetition=nrep, explicit=qs_control%ddapc_restraint)
       IF (qs_control%ddapc_restraint) THEN
          ALLOCATE (qs_control%ddapc_restraint_control(nrep))
          CALL read_ddapc_section(qs_control, qs_section=qs_section)
          qs_control%ddapc_restraint_is_spin = .FALSE.
          qs_control%ddapc_explicit_potential = .FALSE.
-      ENDIF
+      END IF
 
       CALL section_vals_get(s2_restraint_section, explicit=qs_control%s2_restraint)
       IF (qs_control%s2_restraint) THEN
@@ -902,12 +902,12 @@ CONTAINS
                                    r_val=qs_control%s2_restraint_control%target)
          CALL section_vals_val_get(s2_restraint_section, "FUNCTIONAL_FORM", &
                                    i_val=qs_control%s2_restraint_control%functional_form)
-      ENDIF
+      END IF
 
       CALL section_vals_get(cdft_control_section, explicit=qs_control%cdft)
       IF (qs_control%cdft) THEN
          CALL read_cdft_control_section(qs_control, cdft_control_section)
-      ENDIF
+      END IF
 
       ! Semi-empirical code
       IF (qs_control%semi_empirical) THEN
@@ -1459,11 +1459,11 @@ CONTAINS
             IF (dft_control%sic_list_id == sic_list_all) THEN
                WRITE (UNIT=output_unit, FMT="(T2,A,T66,A)") &
                   "DFT| SIC orbitals", "ALL"
-            ENDIF
+            END IF
             IF (dft_control%sic_list_id == sic_list_unpaired) THEN
                WRITE (UNIT=output_unit, FMT="(T2,A,T66,A)") &
                   "DFT| SIC orbitals", "UNPAIRED"
-            ENDIF
+            END IF
          END IF
 
          CALL section_vals_val_get(xc_section, "density_cutoff", r_val=density_cut)

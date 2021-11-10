@@ -88,7 +88,7 @@ CONTAINS
 
             DO ids = 2, la_max + lb_max + ndev + 1
                s(ipgfa, jpgfb, ids) = -xhi*s(ipgfa, jpgfb, ids - 1)
-            ENDDO
+            END DO
 
          END DO
       END DO
@@ -174,7 +174,7 @@ CONTAINS
                      DO ids = 2, nds
                         n = ids - 1
                         s(ipgfa, jpgfb, kpgfb, il + 1, ids) = (-xhi)**n*s(ipgfa, jpgfb, kpgfb, il + 1, 1)
-                     ENDDO
+                     END DO
                   CASE (1)
                      ![s|r^2|s] integral
                      sr_int = sqrt_pi3/sqrt_zet**5*(3.0_dp + 2.0_dp*pfac*rab2)/2.0_dp
@@ -184,7 +184,7 @@ CONTAINS
                         n = ids - 1
                         s(ipgfa, jpgfb, kpgfb, il + 1, ids) = (-xhi)**n*exp_rab2*sr_int &
                                                               + n*(-xhi)**(n - 1)*k*exp_rab2
-                     ENDDO
+                     END DO
                   CASE (2)
                      ![s|r^4|s] integral
                      prefac = sqrt_pi3/4.0_dp/sqrt_zet**7
@@ -200,7 +200,7 @@ CONTAINS
                         dtemp(2) = n*(-xhi)**(n - 1)*exp_rab2*dsr_int(1)
                         dtemp(3) = (n**2 - n)*(-xhi)**(n - 2)*k*exp_rab2
                         s(ipgfa, jpgfb, kpgfb, il + 1, ids) = dtemp(1) + dtemp(2) + dtemp(3)
-                     ENDDO
+                     END DO
                   CASE (3)
                      ![s|r^6|s] integral
                      prefac = sqrt_pi3/8.0_dp/sqrt_zet**9
@@ -222,7 +222,7 @@ CONTAINS
                         dtemp(4) = REAL(n*(n - 1)*(n - 2), dp)*(-xhi)**(n - 3)*k*exp_rab2
                         s(ipgfa, jpgfb, kpgfb, il + 1, ids) = dtemp(1) + dtemp(2) &
                                                               + dtemp(3) + dtemp(4)
-                     ENDDO
+                     END DO
                   CASE (4)
                      ![s|r^8|s] integral
                      prefac = sqrt_pi3/16.0_dp/sqrt_zet**11
@@ -253,7 +253,7 @@ CONTAINS
                                    *k*exp_rab2
                         s(ipgfa, jpgfb, kpgfb, il + 1, ids) = dtemp(1) + dtemp(2) + dtemp(3) &
                                                               + dtemp(4) + dtemp(5)
-                     ENDDO
+                     END DO
                   CASE (5)
                      ![s|r^10|s] integral
                      prefac = sqrt_pi3/32.0_dp/sqrt_zet**13
@@ -292,14 +292,14 @@ CONTAINS
                                    *k*exp_rab2
                         s(ipgfa, jpgfb, kpgfb, il + 1, ids) = dtemp(1) + dtemp(2) + dtemp(3) &
                                                               + dtemp(4) + dtemp(5) + dtemp(6)
-                     ENDDO
+                     END DO
                   CASE DEFAULT
                      !*** general formula; factor 1.5-2 slower than explicit expressions
                      prefac = exp_rab2/sqrt_zet**(2*il + 3)
                      sr_int = 0.0_dp
                      DO i = 0, il
                         sr_int = sr_int + coeff_srs(i + 1, 1, il + 1)*(pfac)**i*rab2**i
-                     ENDDO
+                     END DO
                      s(ipgfa, jpgfb, kpgfb, il + 1, 1) = prefac*sr_int
                      DO ids = 2, nds
                         n = ids - 1
@@ -309,16 +309,16 @@ CONTAINS
                            temp = 0.0_dp
                            DO i = j, il
                               temp = temp + coeff_srs(i + 1, j + 1, il + 1)*(pfac)**i*rab2**(i - j)
-                           ENDDO
+                           END DO
                            nfac = nfac*(n - j + 1)
                            dfsr_int = dfsr_int + temp*REAL(nfac, dp)/fac(j)*(-xhi)**(n - j)
-                        ENDDO
+                        END DO
                         s(ipgfa, jpgfb, kpgfb, il + 1, ids) = prefac*dfsr_int
-                     ENDDO
+                     END DO
 
                   END SELECT
 
-               ENDDO
+               END DO
 
             END DO
          END DO
@@ -397,7 +397,7 @@ CONTAINS
                   DO ids = 2, nds
                      n = ids - 1
                      s(ipgfa, jpgfb, m - il + 1, ids) = (-xhi)**n*s(ipgfa, jpgfb, m - il + 1, 1)
-                  ENDDO
+                  END DO
                CASE (1)
                   ![s|r^2|s] integral
                   sr_int = sqrt_pi3/sqrt_zet**5*(3.0_dp + 2.0_dp*pfac*rab2)/2.0_dp
@@ -407,7 +407,7 @@ CONTAINS
                      n = ids - 1
                      s(ipgfa, jpgfb, m - il + 1, ids) = (-xhi)**n*exp_rab2*sr_int &
                                                         + n*(-xhi)**(n - 1)*k*exp_rab2
-                  ENDDO
+                  END DO
                CASE (2)
                   ![s|r^4|s] integral
                   prefac = sqrt_pi3/4.0_dp/sqrt_zet**7
@@ -423,7 +423,7 @@ CONTAINS
                      dtemp(2) = n*(-xhi)**(n - 1)*exp_rab2*dsr_int(1)
                      dtemp(3) = (n**2 - n)*(-xhi)**(n - 2)*k*exp_rab2
                      s(ipgfa, jpgfb, m - il + 1, ids) = dtemp(1) + dtemp(2) + dtemp(3)
-                  ENDDO
+                  END DO
                CASE (3)
                   ![s|r^6|s] integral
                   prefac = sqrt_pi3/8.0_dp/sqrt_zet**9
@@ -445,7 +445,7 @@ CONTAINS
                      dtemp(4) = REAL(n*(n - 1)*(n - 2), dp)*(-xhi)**(n - 3)*k*exp_rab2
                      s(ipgfa, jpgfb, m - il + 1, ids) = dtemp(1) + dtemp(2) &
                                                         + dtemp(3) + dtemp(4)
-                  ENDDO
+                  END DO
                CASE (4)
                   ![s|r^8|s] integral
                   prefac = sqrt_pi3/16.0_dp/sqrt_zet**11
@@ -476,7 +476,7 @@ CONTAINS
                                 *k*exp_rab2
                      s(ipgfa, jpgfb, m - il + 1, ids) = dtemp(1) + dtemp(2) + dtemp(3) &
                                                         + dtemp(4) + dtemp(5)
-                  ENDDO
+                  END DO
                CASE (5)
                   ![s|r^10|s] integral
                   prefac = sqrt_pi3/32.0_dp/sqrt_zet**13
@@ -515,13 +515,13 @@ CONTAINS
                                 *k*exp_rab2
                      s(ipgfa, jpgfb, m - il + 1, ids) = dtemp(1) + dtemp(2) + dtemp(3) &
                                                         + dtemp(4) + dtemp(5) + dtemp(6)
-                  ENDDO
+                  END DO
                CASE DEFAULT
                   prefac = exp_rab2/sqrt_zet**(2*il + 3)
                   sr_int = 0.0_dp
                   DO i = 0, il
                      sr_int = sr_int + coeff_srs(i + 1, 1, il + 1)*(pfac)**i*rab2**i
-                  ENDDO
+                  END DO
                   s(ipgfa, jpgfb, m - il + 1, 1) = prefac*sr_int
                   DO ids = 2, nds
                      n = ids - 1
@@ -531,16 +531,16 @@ CONTAINS
                         temp = 0.0_dp
                         DO i = j, il
                            temp = temp + coeff_srs(i + 1, j + 1, il + 1)*(pfac)**i*rab2**(i - j)
-                        ENDDO
+                        END DO
                         nfac = nfac*(n - j + 1)
                         dfsr_int = dfsr_int + temp*REAL(nfac, dp)/fac(j)*(-xhi)**(n - j)
-                     ENDDO
+                     END DO
                      s(ipgfa, jpgfb, m - il + 1, ids) = prefac*dfsr_int
-                  ENDDO
+                  END DO
                END SELECT
-            ENDDO
-         ENDDO
-      ENDDO
+            END DO
+         END DO
+      END DO
 
       DEALLOCATE (coeff_srs)
       DEALLOCATE (dtemp, dsr_int)
@@ -566,9 +566,9 @@ CONTAINS
          DO j = 0, il
             DO k = j, il
                prefac(k + 1, j + 1, il + 1) = temp*2.0_dp**k/dfac(2*k + 1)/fac(il - k)/fac(k - j)
-            ENDDO
-         ENDDO
-      ENDDO
+            END DO
+         END DO
+      END DO
 
    END SUBROUTINE get_prefac_sabb
 
@@ -624,7 +624,7 @@ CONTAINS
             DO ids = 1, nmax
                n = ids - 1
                v(ipgfa, jpgfb, ids) = prefac*(-xhi)**n*f(n)
-            ENDDO
+            END DO
 
          END DO
       END DO
@@ -685,7 +685,7 @@ CONTAINS
             DO ids = 1, nmax
                n = ids - 1
                v(ipgfa, jpgfb, ids) = prefac*(-xhi*comega)**n*f(n)
-            ENDDO
+            END DO
 
          END DO
       END DO
@@ -748,7 +748,7 @@ CONTAINS
             DO ids = 1, nmax
                n = ids - 1
                v(ipgfa, jpgfb, ids) = prefac*(-xhi)**n*(fv(n) - SQRT(comega)*comega**n*fverf(n))
-            ENDDO
+            END DO
 
          END DO
       END DO
@@ -816,8 +816,8 @@ CONTAINS
                DO j = 0, n
                   v(ipgfa, jpgfb, ids) = v(ipgfa, jpgfb, ids) &
                                          + prefac*fac(n)/fac(j)/fac(n - j)*(-oeta)**(n - j)*(-xeta)**j*f(j)
-               ENDDO
-            ENDDO
+               END DO
+            END DO
 
          END DO
       END DO
@@ -879,7 +879,7 @@ CONTAINS
             DO ids = 1, nmax
                n = ids - 1
                v(ipgfa, jpgfb, ids) = prefac*(-oeta)**n
-            ENDDO
+            END DO
 
          END DO
       END DO
@@ -935,11 +935,11 @@ CONTAINS
                                                          + scona_shg(ipgfa, ishella) &
                                                          *sconb_shg(jpgfb, jshellb) &
                                                          *swork(ipgfa, jpgfb, ids)
-                  ENDDO
-               ENDDO
-            ENDDO
-         ENDDO
-      ENDDO
+                  END DO
+               END DO
+            END DO
+         END DO
+      END DO
 
    END SUBROUTINE contract_sint_ab_clow
 
@@ -1018,7 +1018,7 @@ CONTAINS
       DO i = 1, my_m
          CALL dgemm("T", "N", npgfb*nds_max, nshella, npgfa, 1.0_dp, swork(1:npgfa, 1:npgfb, i, 1:nds_max), npgfa, &
                     scon_ra2m(1:npgfa, i, 1:nshella), npgfa, 1.0_dp, work_pc, npgfb*nds_max)
-      ENDDO
+      END DO
       CALL dgemm("T", "N", nds_max*nshella, nshellb, npgfb, 1.0_dp, work_pc, npgfb, sconb, npgfb, 0.0_dp, &
                  swork_cont, nds_max*nshella)
 
@@ -1103,14 +1103,14 @@ CONTAINS
                               swork_cont(ids, il, ishella, jshellb, kshellb) = &
                                  swork_cont(ids, il, ishella, jshellb, kshellb) &
                                  + sconb_mix(iil + 1, fri, forb, il + 1)*work_ppc(jpgfb, kpgfb, il - iil + 1, ids, ishella)
-                           ENDDO
-                        ENDDO
-                     ENDDO
-                  ENDDO
-               ENDDO
-            ENDDO
-         ENDDO
-      ENDDO
+                           END DO
+                        END DO
+                     END DO
+                  END DO
+               END DO
+            END DO
+         END DO
+      END DO
       DEALLOCATE (work_ppc)
 
    END SUBROUTINE contract_s_overlap_abb
@@ -1192,14 +1192,14 @@ CONTAINS
                               swork_cont(ids, il, ishella, jshellb, kshella) = &
                                  swork_cont(ids, il, ishella, jshellb, kshella) &
                                  + scona_mix(iil + 1, fri, forb, il + 1)*work_ppc(ipgfa, kpgfa, il - iil + 1, ids, jshellb)
-                           ENDDO
-                        ENDDO
-                     ENDDO
-                  ENDDO
-               ENDDO
-            ENDDO
-         ENDDO
-      ENDDO
+                           END DO
+                        END DO
+                     END DO
+                  END DO
+               END DO
+            END DO
+         END DO
+      END DO
 
       DEALLOCATE (work_ppc)
    END SUBROUTINE contract_s_overlap_aba

@@ -136,7 +136,7 @@ CONTAINS
          CALL csvr_thermo_dealloc(csvr%nvt)
          CALL release_map_info_type(csvr%map_info)
          DEALLOCATE (csvr)
-      ENDIF
+      END IF
 
    END SUBROUTINE csvr_dealloc
 

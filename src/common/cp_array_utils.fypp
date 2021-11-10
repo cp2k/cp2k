@@ -6,28 +6,28 @@
 #!-------------------------------------------------------------------------------------------------!
 #:mute
 
-#:set nametype1 =['r', 'i', 'logical']
-#:set type1 = ['REAL(kind=dp)','INTEGER(kind=int_4)','logical']
+   #:set nametype1 =['r', 'i', 'logical']
+   #:set type1 = ['REAL(kind=dp)','INTEGER(kind=int_4)','logical']
 
-#:set usekinds = ['dp', 'int_4', '']
+   #:set usekinds = ['dp', 'int_4', '']
 
-#:set defaultFormatType1 = ['"(es14.6)"', '"(i6)"', '"(l1)"']
+   #:set defaultFormatType1 = ['"(es14.6)"', '"(i6)"', '"(l1)"']
 
-#:def lessQnum(el1, el2)
-${el1}$ < ${el2}$
-#:enddef
+   #:def lessQnum(el1, el2)
+      ${el1}$ < ${el2}$
+   #:enddef
 
-#:def lessQlog(el1, el2)
-(.not. ${el1}$) .and. ${el2}$
-#:enddef
+   #:def lessQlog(el1, el2)
+      (.not. ${el1}$) .and. ${el2}$
+   #:enddef
 
-#:set lessQ = [lessQnum, lessQnum, lessQlog]
+   #:set lessQ = [lessQnum, lessQnum, lessQlog]
 
-#:set inst_params = list(zip(nametype1, type1, defaultFormatType1, lessQ))
+   #:set inst_params = list(zip(nametype1, type1, defaultFormatType1, lessQ))
 
-#:def uselist(list_in)
-#!    comma-separated list of unique entries of list_in
-$:    ", ".join(list(set([_ for _ in list_in if _])))
-#:enddef
+   #:def uselist(list_in)
+      #!    comma-separated list of unique entries of list_in
+      $:    ", ".join(list(set([_ for _ in list_in if _])))
+   #:enddef
 
 #:endmute

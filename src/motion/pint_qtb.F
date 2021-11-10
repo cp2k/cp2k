@@ -83,7 +83,7 @@ CONTAINS
 
       IF (pint_env%propagator%prop_kind /= propagator_rpmd) THEN
          CPABORT("QTB is designed to work with the RPMD propagator only")
-      ENDIF
+      END IF
 
       pint_env%e_qtb = 0.0_dp
       ALLOCATE (qtb_therm)
@@ -378,7 +378,7 @@ CONTAINS
                filter(0) = SQRT(p*kT)*(1.0_dp, 0.0_dp)
             ELSE
                filter(0) = SQRT(p*kT*fp1(1))*(1.0_dp, 0.0_dp)
-            ENDIF
+            END IF
             DO i = 1, nf/2
                w = i*dw
                tmp = 0.5_dp*w*h
@@ -658,7 +658,7 @@ CONTAINS
                                      (xk(k, j) - x(kk(k, j)))
                      ELSE
                         fpxk(k, j) = aa*xk(k, j) + bb
-                     ENDIF
+                     END IF
                   END DO
                END DO
             END DO

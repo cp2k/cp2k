@@ -139,8 +139,8 @@ CONTAINS
                      zeta = CMPLX(COS(theta), SIN(theta), KIND=dp)**(-zwfc)
                      ggamma(j) = ggamma(j)*zeta
                   END DO
-               ENDDO
-            ENDDO
+               END DO
+            END DO
             ggamma = ggamma*zphase
             ci = AIMAG(LOG(ggamma))/twopi
             dipole = MATMUL(cell%hmat, ci)
@@ -164,8 +164,8 @@ CONTAINS
                DO i = 1, SIZE(qs_loc_env%localized_wfn_control%centers_set(ispins)%array, 2)
                   ria = pbc(qs_loc_env%localized_wfn_control%centers_set(ispins)%array(1:3, i), cell)
                   dipole = dipole - zwfc*(ria - rcc)
-               ENDDO
-            ENDDO
+               END DO
+            END DO
          END IF
 
          ! Print and possibly store results

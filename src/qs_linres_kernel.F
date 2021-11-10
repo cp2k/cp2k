@@ -251,7 +251,7 @@ CONTAINS
                          lri_env=lri_env, &
                          lri_density=lri_density, &
                          atomic_kind_set=atomic_kind_set)
-      ENDIF
+      END IF
 
       IF (.NOT. ASSOCIATED(kpp1_env%v_rspace)) THEN
          ALLOCATE (kpp1_env%v_rspace(nspins))
@@ -313,7 +313,7 @@ CONTAINS
                                energy_hartree, &
                                v_hartree_gspace%pw)
          CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw)
-      ENDIF
+      END IF
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho1_tot_gspace%pw)
 
@@ -423,13 +423,13 @@ CONTAINS
             IF (nspins == 1) THEN
                IF (.NOT. (lr_triplet)) THEN
                   v_rspace_new(1)%pw%cr3d = 2.0_dp*v_rspace_new(1)%pw%cr3d
-               ENDIF
+               END IF
                ! add hartree only for SINGLETS
                !IF (res_etype == tddfpt_singlet) THEN
                IF (.NOT. lr_triplet) THEN
                   v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d* &
                                              v_hartree_rspace%pw%pw_grid%dvol
-                  v_rspace_new(1)%pw%cr3d = v_rspace_new(1)%pw%cr3d+ &
+                  v_rspace_new(1)%pw%cr3d = v_rspace_new(1)%pw%cr3d + &
                                             2.0_dp*v_hartree_rspace%pw%cr3d
                END IF
             ELSE
@@ -437,7 +437,7 @@ CONTAINS
                   v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d* &
                                              v_hartree_rspace%pw%pw_grid%dvol
                END IF
-               v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d+ &
+               v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d + &
                                              v_hartree_rspace%pw%cr3d
             END IF
 
@@ -532,7 +532,7 @@ CONTAINS
                                       c0(ispin)%matrix, &
                                       Av(ispin)%matrix, &
                                       ncol=ncol, alpha=1.0_dp, beta=1.0_dp)
-      ENDDO
+      END DO
 
       CALL timestop(handle)
 
@@ -607,7 +607,7 @@ CONTAINS
 
       DO ispin = 1, nspins
          CALL dbcsr_set(p_env%kpp1(ispin)%matrix, 0.0_dp)
-      ENDDO
+      END DO
 
       IF (dft_control%qs_control%xtb_control%coulomb_interaction) THEN
          ! Mulliken charges
@@ -659,7 +659,7 @@ CONTAINS
                                       c0(ispin)%matrix, &
                                       Av(ispin)%matrix, &
                                       ncol=ncol, alpha=1.0_dp, beta=1.0_dp)
-      ENDDO
+      END DO
 
       CALL timestop(handle)
 
@@ -753,7 +753,7 @@ CONTAINS
                                           ncol=ncol, alpha=1.0_dp)
                CALL cp_dbcsr_plus_fm_fm_t(rho1_ao(ispin)%matrix, matrix_v=tc0, matrix_g=tv, &
                                           ncol=ncol, alpha=1.0_dp)
-            ENDDO
+            END DO
          ELSE
             NULLIFY (work, rho1_ao)
             CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
@@ -1071,7 +1071,7 @@ CONTAINS
                                     ncol=ncol, alpha=1.0_dp)
          CALL cp_dbcsr_plus_fm_fm_t(rho1_ao(ispin)%matrix, matrix_v=tc0, matrix_g=tc1, &
                                     ncol=ncol, alpha=1.0_dp)
-      ENDDO
+      END DO
 
       DO ispin = 1, nspins
          CALL calculate_rho_elec(matrix_p=rho1_ao(ispin)%matrix, &
@@ -1170,9 +1170,9 @@ CONTAINS
 
          DO ispin = 1, SIZE(my_rho_r)
             CALL pw_release(my_rho_r(ispin)%pw)
-         ENDDO
+         END DO
          DEALLOCATE (my_rho_r)
-      ENDIF
+      END IF
 
       ! ADMM Correction
       IF (dft_control%do_admm) THEN

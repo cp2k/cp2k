@@ -357,7 +357,7 @@ CONTAINS
          sub_proc_map(i) = i
          sub_proc_map(-i - 1) = para_env_sub%num_pe - i - 1
          sub_proc_map(para_env_sub%num_pe + i) = i
-      ENDDO
+      END DO
 
       ALLOCATE (BIb_C_2D(my_ia_size, my_group_L_size))
       BIb_C_2D = 0.0_dp
@@ -441,7 +441,7 @@ CONTAINS
          sub_proc_map(i) = i
          sub_proc_map(-i - 1) = para_env_sub%num_pe - i - 1
          sub_proc_map(para_env_sub%num_pe + i) = i
-      ENDDO
+      END DO
 
       ALLOCATE (BIb_C_2D(my_ia_size, my_group_L_size))
       BIb_C_2D = 0.0_dp
@@ -576,7 +576,7 @@ CONTAINS
          proc_map(i) = i
          proc_map(-i - 1) = para_env%num_pe - i - 1
          proc_map(para_env%num_pe + i) = i
-      ENDDO
+      END DO
 
       ! start the communication part
       ! 0) create array containing the processes position
@@ -988,7 +988,7 @@ CONTAINS
          proc_map(i) = i
          proc_map(-i - 1) = para_env%num_pe - i - 1
          proc_map(para_env%num_pe + i) = i
-      ENDDO
+      END DO
 
       ! fill the info array
       grid_2_mepos(myprow, mypcol) = para_env%mepos
@@ -1661,7 +1661,7 @@ CONTAINS
          ! and the opposite, from the global pos to the grid pos
          mepos_2_grid_group(1, i) = pos_sub
          mepos_2_grid_group(2, i) = pos_group
-      ENDDO
+      END DO
 
       IF (PRESENT(pos_info)) CALL move_alloc(my_pos_info, pos_info)
 

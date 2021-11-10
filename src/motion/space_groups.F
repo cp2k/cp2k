@@ -114,7 +114,7 @@ CONTAINS
          spgr%nparticle = nparticle
       ELSE
          spgr%nparticle = SIZE(scoor, 2)
-      ENDIF
+      END IF
 
       IF (PRESENT(n_atom)) THEN
          spgr%n_atom = n_atom
@@ -124,19 +124,19 @@ CONTAINS
          spgr%n_atom = spgr%nparticle - n_shell
       ELSE
          spgr%n_atom = spgr%nparticle
-      ENDIF
+      END IF
 
       IF (PRESENT(n_core)) THEN
          spgr%n_core = n_core
       ELSE IF (PRESENT(n_shell)) THEN
          spgr%n_core = n_shell
-      ENDIF
+      END IF
 
       IF (PRESENT(n_shell)) THEN
          spgr%n_shell = n_shell
       ELSE IF (PRESENT(n_core)) THEN
          spgr%n_shell = n_core
-      ENDIF
+      END IF
 
       IF (.NOT. (spgr%nparticle == (spgr%n_atom + spgr%n_shell))) THEN
          CPABORT("spgr_create: nparticle not equal to natom + nshell.")
@@ -178,7 +178,7 @@ CONTAINS
                   spgr%n_shell_sym = spgr%n_shell_sym - 1
                ELSE
                   CPABORT("Symmetry exclusion range larger than actual number of particles.")
-               ENDIF
+               END IF
             END DO
          END DO
       END IF
@@ -375,7 +375,7 @@ CONTAINS
          CALL spgr_create(scoord, atype, cell, gopt_env, eps_symmetry=eps_symmetry, pol=pol(1:3), &
                           nparticle=nparticle, n_atom=n_atom, &
                           n_core=n_core, n_shell=n_shell, iunit=iunit, print_atoms=print_atoms)
-      ENDIF
+      END IF
 
       NULLIFY (spgr)
       spgr => gopt_env%spgr
@@ -579,7 +579,7 @@ CONTAINS
 
       DO i = 1, spgr%n_operations
          IF (.NOT. spgr%lop(i)) mask(i) = .FALSE.
-      ENDDO
+      END DO
 
       DO i = 1, spgr%n_operations - 1
          IF (.NOT. mask(i)) CYCLE
@@ -762,7 +762,7 @@ CONTAINS
          s = MATMUL(h2ih1, r)
          r = MATMUL(s, h1ih2)
          roto(:, :, ir) = r(:, :)
-      ENDDO
+      END DO
 
       CALL timestop(handle)
 
@@ -955,7 +955,7 @@ CONTAINS
             'SPGR STRESS|      y', eigvec(2, 1:3)
          WRITE (UNIT=spgr%iunit, FMT='(T2,A,T26,3(1X,F19.12))') &
             'SPGR STRESS|      z', eigvec(3, 1:3)
-      ENDIF
+      END IF
 
    END SUBROUTINE spgr_write_stress_tensor
 

@@ -132,9 +132,9 @@ CONTAINS
                random_number = rng_stream%next()
                oi_env%variables(i_var)%value = oi_env%variables(i_var)%value* &
                                                (1.0_dp + (2*random_number - 1.0_dp)*oi_env%randomize_variables/100.0_dp)
-            ENDIF
-         ENDDO
-      ENDIF
+            END IF
+         END DO
+      END IF
 
       ! proceed to actual methods
       SELECT CASE (oi_env%method)
@@ -194,7 +194,7 @@ CONTAINS
 
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(T2,A)') 'FORCE_MATCHING| good morning....'
-      ENDIF
+      END IF
 
       ! do IO of ref traj / frc / cell
       NULLIFY (cell_traj_read, force_traj_read, pos_traj_read, energy_traj_read)
@@ -207,7 +207,7 @@ CONTAINS
       IF (oi_env%fm_env%frame_count > 0) THEN
          oi_env%fm_env%frame_stride = (oi_env%fm_env%frame_stop - oi_env%fm_env%frame_start + 1 + &
                                        oi_env%fm_env%frame_count - 1)/(oi_env%fm_env%frame_count)
-      ENDIF
+      END IF
       n_frames = (oi_env%fm_env%frame_stop - oi_env%fm_env%frame_start + oi_env%fm_env%frame_stride)/oi_env%fm_env%frame_stride
 
       ALLOCATE (force_traj(3, n_atom, n_frames), pos_traj(3, n_atom, n_frames), energy_traj(n_frames))
@@ -220,7 +220,7 @@ CONTAINS
          pos_traj(:, :, n_frames) = pos_traj_read(:, :, i_frame)
          energy_traj(n_frames) = energy_traj_read(i_frame)
          IF (ASSOCIATED(cell_traj)) cell_traj(:, :, n_frames) = cell_traj_read(:, :, i_frame)
-      ENDDO
+      END DO
       DEALLOCATE (force_traj_read, pos_traj_read, energy_traj_read)
       IF (ASSOCIATED(cell_traj_read)) DEALLOCATE (cell_traj_read)
 
@@ -249,7 +249,7 @@ CONTAINS
          initial_variables(1, i_var) = oi_env%variables(i_var)%label
          WRITE (initial_variables(2, i_var), *) oi_env%variables(i_var)%value
          IF (.NOT. oi_env%variables(i_var)%fixed) n_free_var = n_free_var + 1
-      ENDDO
+      END DO
       ALLOCATE (free_vars(n_free_var), free_var_index(n_free_var))
       i_free_var = 0
       DO i_var = 1, n_var
@@ -257,8 +257,8 @@ CONTAINS
             i_free_var = i_free_var + 1
             free_var_index(i_free_var) = i_var
             free_vars(i_free_var) = oi_env%variables(free_var_index(i_free_var))%value
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       ! create input and output file names.
       input_path = oi_env%fm_env%optimize_file_name
@@ -278,7 +278,7 @@ CONTAINS
          ostate%iprint = 1
          ostate%unit = output_unit
          ostate%state = 0
-      ENDIF
+      END IF
 
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(T2,A,T60,I20)') 'FORCE_MATCHING| number of atoms per frame ', n_atom
@@ -294,12 +294,12 @@ CONTAINS
          WRITE (output_unit, '(T2,A)') 'FORCE_MATCHING| initial values:'
          DO i_var = 1, n_var
             WRITE (output_unit, '(T2,A,1X,E28.16)') TRIM(oi_env%variables(i_var)%label), oi_env%variables(i_var)%value
-         ENDDO
+         END DO
          WRITE (output_unit, '(T2,A)') 'FORCE_MATCHING| switching to POWELL optimization of the free parameters'
          WRITE (output_unit, '()')
          WRITE (output_unit, '(T2,A20,A20,A11,A11)') 'iteration number', 'function value', 'time', 'time Force'
          CALL m_flush(output_unit)
-      ENDIF
+      END IF
 
       t1 = m_walltime()
 
@@ -318,7 +318,7 @@ CONTAINS
             DO i_free_var = 1, n_free_var
                WRITE (initial_variables(2, free_var_index(i_free_var)), *) free_vars(i_free_var)
                oi_env%variables(free_var_index(i_free_var))%value = free_vars(i_free_var)
-            ENDDO
+            END DO
 
             ierr = 0
             CALL create_force_env(new_env_id=new_env_id, input_declaration=input_declaration, &
@@ -336,7 +336,7 @@ CONTAINS
                ! set new cell if needed
                IF (ASSOCIATED(cell_traj)) THEN
                   CALL set_cell(env_id=new_env_id, new_cell=cell_traj(:, :, i_frame), ierr=ierr)
-               ENDIF
+               END IF
 
                ! copy pos from ref
                i_el = 0
@@ -345,7 +345,7 @@ CONTAINS
                   pos(i_el + 2) = pos_traj(2, i_atom, i_frame)
                   pos(i_el + 3) = pos_traj(3, i_atom, i_frame)
                   i_el = i_el + 3
-               ENDDO
+               END DO
 
                ! evaluate energy/force with new pos
                t3 = m_walltime()
@@ -361,9 +361,9 @@ CONTAINS
                   force_var(2, i_atom, i_frame) = force(i_el + 2)
                   force_var(3, i_atom, i_frame) = force(i_el + 3)
                   i_el = i_el + 3
-               ENDDO
+               END DO
 
-            ENDDO
+            END DO
 
             ! clean up force env, get ready for the next round
             CALL destroy_force_env(env_id=new_env_id, ierr=ierr)
@@ -373,7 +373,7 @@ CONTAINS
             IF (mepos_slave == 0) THEN
                CALL mp_sum(energy_var, mpi_comm_slave_primus)
                CALL mp_sum(force_var, mpi_comm_slave_primus)
-            ENDIF
+            END IF
 
             ! now evaluate the target function to be minimized (only valid on mepos_slave==0)
             IF (para_env%mepos == para_env%source) THEN
@@ -381,14 +381,14 @@ CONTAINS
                IF (oi_env%fm_env%shift_average) THEN
                   shift_mm = SUM(energy_var)/n_frames
                   shift_qm = SUM(energy_traj)/n_frames
-               ENDIF
+               END IF
                re = SQRT(SUM(((energy_var - shift_mm) - (energy_traj - shift_qm))**2)/n_frames)
                ostate%f = energy_weight*re + rf
                t2 = m_walltime()
                WRITE (output_unit, '(T2,I20,F20.12,F11.3,F11.3)') oi_env%iter_start_val + ostate%nf, ostate%f, t2 - t1, t5
                CALL m_flush(output_unit)
                t1 = m_walltime()
-            ENDIF
+            END IF
 
             ! the history file with the trajectory of the parameters
             history_unit = cp_print_key_unit_nr(logger, root_section, "OPTIMIZE_INPUT%HISTORY", &
@@ -407,7 +407,7 @@ CONTAINS
                   e1 = energy_traj(i_frame) - shift_qm
                   e2 = energy_var(i_frame) - shift_mm
                   WRITE (UNIT=energies_unit, FMT="(I20,F20.12,F20.12,F20.12)") i_frame, e1, e2, e1 - e2
-               ENDDO
+               END DO
             END IF
             CALL cp_print_key_finished_output(energies_unit, logger, root_section, "OPTIMIZE_INPUT%FORCE_MATCHING%COMPARE_ENERGIES")
 
@@ -422,7 +422,7 @@ CONTAINS
                   e3 = SQRT(SUM(SUM(force_traj(:, :, i_frame), DIM=2)**2))
                   e4 = SQRT(SUM(SUM(force_var(:, :, i_frame), DIM=2)**2))
                   WRITE (UNIT=energies_unit, FMT="(I20,F20.12,F20.12,F20.12,2F20.12)") i_frame, e1/e2, e1, e2, e3, e4
-               ENDDO
+               END DO
             END IF
             CALL cp_print_key_finished_output(energies_unit, logger, root_section, "OPTIMIZE_INPUT%FORCE_MATCHING%COMPARE_FORCES")
 
@@ -436,13 +436,13 @@ CONTAINS
                DO i_free_var = 1, n_free_var
                   CALL section_vals_val_set(variable_section, "VALUE", i_rep_section=free_var_index(i_free_var), &
                                             r_val=free_vars(i_free_var))
-               ENDDO
+               END DO
                CALL write_restart_header(restart_unit)
                CALL section_vals_write(root_section, unit_nr=restart_unit, hide_root=.TRUE.)
-            ENDIF
+            END IF
             CALL cp_print_key_finished_output(restart_unit, logger, root_section, "OPTIMIZE_INPUT%RESTART")
 
-         ENDIF
+         END IF
 
          IF (state == -1) EXIT
 
@@ -453,29 +453,29 @@ CONTAINS
          ! do a powell step if needed
          IF (para_env%mepos == para_env%source) THEN
             CALL powell_optimize(ostate%nvar, free_vars, ostate)
-         ENDIF
+         END IF
          CALL mp_bcast(free_vars, para_env%source, para_env%group)
 
-      ENDDO
+      END DO
 
       ! finally, get the best set of variables
       IF (para_env%mepos == para_env%source) THEN
          ostate%state = 8
          CALL powell_optimize(ostate%nvar, free_vars, ostate)
-      ENDIF
+      END IF
       CALL mp_bcast(free_vars, para_env%source, para_env%group)
       DO i_free_var = 1, n_free_var
          WRITE (initial_variables(2, free_var_index(i_free_var)), *) free_vars(i_free_var)
          oi_env%variables(free_var_index(i_free_var))%value = free_vars(i_free_var)
-      ENDDO
+      END DO
       IF (para_env%mepos == para_env%source) THEN
          WRITE (output_unit, '(T2,A)') ''
          WRITE (output_unit, '(T2,A,T60,F20.12)') 'FORCE_MATCHING| optimal function value found so far:', ostate%fopt
          WRITE (output_unit, '(T2,A)') 'FORCE_MATCHING| optimal variables found so far:'
          DO i_var = 1, n_var
             WRITE (output_unit, '(T2,A,1X,E28.16)') TRIM(oi_env%variables(i_var)%label), oi_env%variables(i_var)%value
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       CALL cp_rm_iter_level(logger%iter_info, "POWELL_OPT")
 
@@ -540,7 +540,7 @@ CONTAINS
          IF (n_frames > n_frames_current) THEN
             n_frames_current = 5*(n_frames_current + 10)/3
             CALL reallocate(pos_traj, 1, 3, 1, nread, 1, n_frames_current)
-         ENDIF
+         END IF
 
          ! title line
          CALL parser_read_line(local_parser, 1)
@@ -552,7 +552,7 @@ CONTAINS
             pos_traj(:, i, n_frames) = vec*bohr
          END DO
 
-      ENDDO
+      END DO
       CALL parser_release(local_parser)
 
       n_frames_current = n_frames
@@ -586,7 +586,7 @@ CONTAINS
             READ (local_parser%input_line(1:LEN_TRIM(local_parser%input_line)), *) AA, vec
             force_traj(:, i, iframe) = vec
          END DO
-      ENDDO
+      END DO
       CALL parser_release(local_parser)
 
       ! and cell, which is optional
@@ -598,9 +598,9 @@ CONTAINS
          DO iframe = 1, n_frames
             CALL parser_read_line(local_parser, 1)
             CALL parse_cell_line(local_parser%input_line, cell_itimes, cell_time, cell_traj(:, :, iframe), vol)
-         ENDDO
+         END DO
          CALL parser_release(local_parser)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -648,8 +648,8 @@ CONTAINS
                                       l_val=oi_env%variables(ivar)%fixed)
             CALL section_vals_val_get(variable_section, "LABEL", i_rep_section=ivar, &
                                       c_val=oi_env%variables(ivar)%label)
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       CALL section_vals_val_get(oi_section, "METHOD", i_val=oi_env%method)
       SELECT CASE (oi_env%method)

@@ -745,7 +745,7 @@ CONTAINS
                         local_particles, kin, pv_kin, virial, para_env%group)
          CALL update_veps(cell, npt, simpar, pv_kin, kin, virial, infree)
 
-      ENDIF
+      END IF
       first = .FALSE.
 
       ! assigning local variable
@@ -991,14 +991,14 @@ CONTAINS
             npt(1, 1)%f = virial%pv_virial(1, 1) + &
                           pv_kin(1, 1) + virial%pv_constraint(1, 1) - &
                           simpar%p0*v + infree*kin
-         ENDIF
+         END IF
          IF (debug_uniaxial_limit) THEN
             ! orthorhombic box ONLY
             npt(1, 1)%f = virial%pv_virial(1, 1) + &
                           pv_kin(1, 1) + virial%pv_constraint(1, 1) - &
                           simpar%p0*box%deth + infree*kin
          END IF
-      ENDIF
+      END IF
 
       ! update barostat velocities
       npt(:, :)%v = npt(:, :)%v + &

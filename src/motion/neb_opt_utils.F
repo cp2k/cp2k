@@ -143,9 +143,9 @@ CONTAINS
                   S(k) = 0.0_dp
                ELSE
                   S(k) = 1.0_dp/S(k)
-               ENDIF
+               END IF
                VT(k, :) = VT(k, :)*S(k)
-            ENDDO
+            END DO
             CALL DGEMM('T', 'T', np, np, np, 1.0_dp, VT, np, U, np, 0.0_dp, wrk_inv, np)
             DEALLOCATE (iwork)
             DEALLOCATE (S)

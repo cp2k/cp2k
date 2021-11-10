@@ -200,7 +200,7 @@ CONTAINS
             IF (qs_loc_env_homo%localized_wfn_control%use_history) THEN
                CALL retain_history(mo_loc_history, homo_localized)
                CALL set_qs_env(qs_env, mo_loc_history=mo_loc_history)
-            ENDIF
+            END IF
 
             !write restart for localization of occupied orbitals
             CALL loc_write_restart(qs_loc_env_homo, loc_print_section, mos, &
@@ -218,7 +218,7 @@ CONTAINS
             IF (ASSOCIATED(marked_states)) THEN
                DEALLOCATE (marked_states)
             END IF
-         ENDIF
+         END IF
 
       END IF
 

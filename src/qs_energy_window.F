@@ -240,7 +240,7 @@ CONTAINS
          DO i = 1, nao
             IF (unit_nr > 0) THEN
               WRITE (unit_nr, *) i, "H:", eigenvalues(i), "P:", P_eigenvalues(nao - i + 1), "Pnew:", window_eigenvalues(nao - i + 1)
-            ENDIF
+            END IF
          END DO
          DEALLOCATE (P_eigenvalues)
          CALL cp_fm_release(tmp_fm)

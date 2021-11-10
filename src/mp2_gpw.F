@@ -219,7 +219,7 @@ CONTAINS
 
       IF (do_kpoints_cubic_RPA .AND. mp2_env%ri_rpa%do_ri_g0w0) THEN
          CPABORT("Full RPA k-points (DO_KPOINTS in LOW_SCALING section) not implemented with GW")
-      ENDIF
+      END IF
 
       ! Get the number of spins
       nspins = SIZE(mos_mp2)
@@ -251,7 +251,7 @@ CONTAINS
          local_unit_nr = cp_logger_get_default_unit_nr(logger, local=.FALSE.)
       ELSE
          local_unit_nr = default_output_unit
-      ENDIF
+      END IF
 
       ! get stuff
       CALL get_qs_env(qs_env, &
@@ -274,8 +274,8 @@ CONTAINS
                mp2_env%ri_metric%potential_type = do_potential_id
             ELSE
                mp2_env%ri_metric%potential_type = do_potential_truncated
-            ENDIF
-         ENDIF
+            END IF
+         END IF
 
          ! statically initialize libint
          CALL cp_libint_static_init()
@@ -302,7 +302,7 @@ CONTAINS
          WRITE (UNIT=unit_nr, FMT="(T3,A,T71,F10.1)") &
             "GPW_INFO| Relative density cutoff [a.u.]:", mp2_env%mp2_gpw%relative_cutoff*0.5_dp
          CALL m_flush(unit_nr)
-      ENDIF
+      END IF
 
       ! a logger
       NULLIFY (logger_sub)
@@ -470,7 +470,7 @@ CONTAINS
             CALL dbcsr_init_p(mp2_env%ri_grad%mo_coeff_v(ispin)%matrix)
             CALL dbcsr_copy(mp2_env%ri_grad%mo_coeff_v(ispin)%matrix, mo_coeff_v(ispin)%matrix, &
                             name="mo_coeff_v"//cp_to_string(ispin))
-         ENDDO
+         END DO
          CALL get_group_dist(gd_array, color_sub, my_group_L_start, my_group_L_end, my_group_L_size)
       END IF
       ! Copy mo coeffs for RPA AXK
@@ -481,7 +481,7 @@ CONTAINS
          NULLIFY (mp2_env%ri_rpa%mo_coeff_v)
          CALL dbcsr_init_p(mp2_env%ri_rpa%mo_coeff_v)
          CALL dbcsr_copy(mp2_env%ri_rpa%mo_coeff_v, mo_coeff_v(1)%matrix, name="mo_coeff_v")
-      ENDIF
+      END IF
 
       IF (.NOT. do_im_time) THEN
 
@@ -508,7 +508,7 @@ CONTAINS
 
             CALL release_neighbor_list_sets(sab_orb_sub)
 
-         ENDIF
+         END IF
 
       END IF
 
@@ -588,7 +588,7 @@ CONTAINS
 
                   CALL dbcsr_release(mp2_env%ri_grad%mo_coeff_v(ispin)%matrix)
                   DEALLOCATE (mp2_env%ri_grad%mo_coeff_v(ispin)%matrix)
-               ENDDO
+               END DO
                DEALLOCATE (mp2_env%ri_grad%mo_coeff_o, mp2_env%ri_grad%mo_coeff_v)
 
                CALL dbcsr_release(mat_munu%matrix)
@@ -894,10 +894,10 @@ CONTAINS
                DO j = 1, col_size
                   j_global = col_offset + j - 1
                   data_block(i, j) = Cread(i_global - my_mu_start + 1, col_offset + j - 1)
-               ENDDO
+               END DO
             END IF
-         ENDDO
-      ENDDO
+         END DO
+      END DO
       CALL dbcsr_iterator_stop(iter)
 
       ! start ring communication in the subgroup for collecting the data from the other
@@ -926,10 +926,10 @@ CONTAINS
                   DO j = 1, col_size
                      j_global = col_offset + j - 1
                      data_block(i, j) = rec_C(i_global - rec_mu_start + 1, col_offset + j - 1)
-                  ENDDO
+                  END DO
                END IF
-            ENDDO
-         ENDDO
+            END DO
+         END DO
          CALL dbcsr_iterator_stop(iter)
 
          DEALLOCATE (rec_C)
@@ -1083,7 +1083,7 @@ CONTAINS
          ELSE
             orb_present(ikind) = .FALSE.
             orb_radius(ikind) = 0.0_dp
-         ENDIF
+         END IF
       END DO
 
       CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius)

@@ -258,12 +258,12 @@ CONTAINS
                                       repeats=.FALSE., &
                                       default_l_val=.FALSE., &
                                       lone_keyword_l_val=.TRUE.)
-               ENDIF
+               END IF
             CASE (13)
                CALL sirius_option_get_logical(section_name, name, lvec(1), vec_length)
                DO j = 1, vec_length
                   lvecl(j) = lvec(j)
-               ENDDO
+               END DO
                CALL keyword_create(keyword, __LOCATION__, &
                                    name=name1, &
                                    description=TRIM(ADJUSTL(description)), &

@@ -250,16 +250,16 @@ CONTAINS
          CALL read_gto_basis_set(TRIM("CA"), basis_type, fba, basis_section, irep=3)
          lcamax = MAXVAL(fba%lmax)
          lmax = MAX(lamax + lcamax, lbmax)
-      ENDIF
+      END IF
       IF (test_overlap_abb) THEN
          CALL allocate_gto_basis_set(fbb)
          CALL read_gto_basis_set(TRIM("CB"), basis_type, fbb, basis_section, irep=3)
          lcbmax = MAXVAL(fbb%lmax)
          lmax = MAX(lamax, lbmax + lcbmax)
-      ENDIF
+      END IF
       IF (test_overlap_aba .AND. test_overlap_abb) THEN
          lmax = MAX(MAX(lamax + lcamax, lbmax), MAX(lamax, lbmax + lcbmax))
-      ENDIF
+      END IF
       !*** Initialize basis set information
       CALL init_orbital_pointers(lmax + 1)
       CALL init_spherical_harmonics(lmax, output_unit=-100)
@@ -270,11 +270,11 @@ CONTAINS
       IF (test_overlap_aba) THEN
          fba%norm_type = 2
          CALL init_orb_basis_set(fba)
-      ENDIF
+      END IF
       IF (test_overlap_abb) THEN
          fbb%norm_type = 2
          CALL init_orb_basis_set(fbb)
-      ENDIF
+      END IF
       ! if shg integrals are later actually used in the code, contraction_matrix_shg should be
       ! moved to init_orb_basis_set and scon_shg should become an element of gto_basis_set_type
       CALL contraction_matrix_shg(oba, scona_shg)
@@ -291,9 +291,9 @@ CONTAINS
             DO kab = 1, nab_xyz
                count_ab = count_ab + 1
                rab(:, count_ab) = [iab*ABS(cell_par(1)), jab*ABS(cell_par(2)), kab*ABS(cell_par(3))]/nab_xyz
-            ENDDO
-         ENDDO
-      ENDDO
+            END DO
+         END DO
+      END DO
 
       !*** Calculate the SHG integrals
 
@@ -395,7 +395,7 @@ CONTAINS
                   CALL calculate_deviation_ab(vab_shg, vab_os, dvab_shg, dvab_os, dtemp, ddtemp)
                   dmax_coulomb = MAX(dmax_coulomb, dtemp)
                   ddmax_coulomb = MAX(ddmax_coulomb, ddtemp)
-               ENDIF
+               END IF
                !*** verf: (a|erf(omega*r12)/r12|b)
                IF (test_verf) THEN
                   CALL int_operators_r12_ab_shg(operator_verf, vab_shg, dvab_shg, rab(:, iab), &
@@ -406,7 +406,7 @@ CONTAINS
                   CALL calculate_deviation_ab(vab_shg, vab_os, dvab_shg, dvab_os, dtemp, ddtemp)
                   dmax_verf = MAX(dmax_verf, dtemp)
                   ddmax_verf = MAX(ddmax_verf, ddtemp)
-               ENDIF
+               END IF
                !*** verfc: (a|erfc(omega*r12)/r12|b)
                IF (test_verfc) THEN
                   CALL int_operators_r12_ab_shg(operator_verfc, vab_shg, dvab_shg, rab(:, iab), &
@@ -417,7 +417,7 @@ CONTAINS
                   CALL calculate_deviation_ab(vab_shg, vab_os, dvab_shg, dvab_os, dtemp, ddtemp)
                   dmax_verfc = MAX(dmax_verfc, dtemp)
                   ddmax_verfc = MAX(ddmax_verfc, ddtemp)
-               ENDIF
+               END IF
                !*** vgauss: (a|exp(omega*r12^2)/r12|b)
                IF (test_vgauss) THEN
                   CALL int_operators_r12_ab_shg(operator_vgauss, vab_shg, dvab_shg, rab(:, iab), &
@@ -428,7 +428,7 @@ CONTAINS
                   CALL calculate_deviation_ab(vab_shg, vab_os, dvab_shg, dvab_os, dtemp, ddtemp)
                   dmax_vgauss = MAX(dmax_vgauss, dtemp)
                   ddmax_vgauss = MAX(ddmax_vgauss, ddtemp)
-               ENDIF
+               END IF
                !*** gauss: (a|exp(omega*r12^2)|b)
                IF (test_gauss) THEN
                   CALL int_operators_r12_ab_shg(operator_gauss, vab_shg, dvab_shg, rab(:, iab), &
@@ -439,9 +439,9 @@ CONTAINS
                   CALL calculate_deviation_ab(vab_shg, vab_os, dvab_shg, dvab_os, dtemp, ddtemp)
                   dmax_gauss = MAX(dmax_gauss, dtemp)
                   ddmax_gauss = MAX(ddmax_gauss, ddtemp)
-               ENDIF
-            ENDDO
-         ENDDO
+               END IF
+            END DO
+         END DO
 
          IF (iw > 0) THEN
             WRITE (iw, FMT="(/,T2,A)") "TEST INFO FOR 2-CENTER SHG and OS INTEGRALS:"
@@ -449,44 +449,44 @@ CONTAINS
             IF (test_coulomb) THEN
                WRITE (iw, FMT="(T2,A,T53,ES12.5,4X,ES12.5)") "SHG_INTEGRALS | [a|1/r12|b]", &
                   dmax_coulomb, ddmax_coulomb
-            ENDIF
+            END IF
             IF (test_verf) THEN
                WRITE (iw, FMT="(T2,A,T53,ES12.5,4X,ES12.5)") "SHG_INTEGRALS | [a|erf(omega*r12)/r12|b]", &
                   dmax_verf, ddmax_verf
-            ENDIF
+            END IF
             IF (test_verfc) THEN
                WRITE (iw, FMT="(T2,A,T53,ES12.5,4X,ES12.5)") "SHG_INTEGRALS | [a|erfc(omega*r12)/r12|b]", &
                   dmax_verfc, ddmax_verfc
-            ENDIF
+            END IF
             IF (test_vgauss) THEN
                WRITE (iw, FMT="(T2,A,T53,ES12.5,4X,ES12.5)") "SHG_INTEGRALS | [a|exp(-omega*r12^2)/r12|b]", &
                   dmax_vgauss, ddmax_vgauss
-            ENDIF
+            END IF
             IF (test_gauss) THEN
                WRITE (iw, FMT="(T2,A,T53,ES12.5,4X,ES12.5)") "SHG_INTEGRALS | [a|exp(-omega*r12^2)|b]", &
                   dmax_gauss, ddmax_gauss
-            ENDIF
+            END IF
 
             IF (acc_check) THEN
                IF ((dmax_coulomb >= acc_param) .OR. (ddmax_coulomb >= acc_param)) THEN
                   CPABORT("[a|1/r12|b]: Dev. larger than"//cp_to_string(acc_param))
-               ENDIF
+               END IF
                IF ((dmax_verf >= acc_param) .OR. (ddmax_verf >= acc_param)) THEN
                   CPABORT("[a|erf(omega*r12)/r12|b]: Dev. larger than"//cp_to_string(acc_param))
-               ENDIF
+               END IF
                IF ((dmax_verfc >= acc_param) .OR. (ddmax_verfc >= acc_param)) THEN
                   CPABORT("[a|erfc(omega*r12)/r12|b]: Dev. larger than"//cp_to_string(acc_param))
-               ENDIF
+               END IF
                IF ((dmax_vgauss >= acc_param) .OR. (ddmax_vgauss >= acc_param)) THEN
                   CPABORT("[a|exp(-omega*r12^2)/r12|b]: Dev. larger than"//cp_to_string(acc_param))
-               ENDIF
+               END IF
                IF ((dmax_gauss >= acc_param) .OR. (ddmax_gauss >= acc_param)) THEN
                   CPABORT("[a|exp(-omega*r12^2)|b]: Dev. larger than"//cp_to_string(acc_param))
-               ENDIF
-            ENDIF
-         ENDIF
+               END IF
+            END IF
+         END IF
          DEALLOCATE (vab_shg, vab_os, dvab_shg, dvab_os)
-      ENDIF
+      END IF
 
    END SUBROUTINE test_shg_operator12_integrals
 
@@ -549,22 +549,22 @@ CONTAINS
                CALL calculate_deviation_ab(sab_shg, sab_os, dsab_shg, dsab_os, dtemp, ddtemp)
                dmax_overlap = MAX(dmax_overlap, dtemp)
                ddmax_overlap = MAX(ddmax_overlap, ddtemp)
-            ENDDO
-         ENDDO
+            END DO
+         END DO
 
          IF (iw > 0) THEN
             WRITE (iw, FMT="(/,T2,A)") "TEST INFO FOR 2-CENTER OVERLAP SHG and OS INTEGRALS:"
             WRITE (iw, FMT="(T2,A)") "Maximal deviation between SHG and OS integrals and their derivatives"
             WRITE (iw, FMT="(T2,A,T53,ES12.5,4X,ES12.5)") "SHG_INTEGRALS | [a|b]", &
                dmax_overlap, ddmax_overlap
-         ENDIF
+         END IF
          IF (acc_check) THEN
             IF ((dmax_overlap >= acc_param) .OR. (ddmax_overlap >= acc_param)) THEN
                CPABORT("[a|b]: Deviation larger than"//cp_to_string(acc_param))
-            ENDIF
-         ENDIF
+            END IF
+         END IF
          DEALLOCATE (sab_shg, sab_os, dsab_shg, dsab_os)
-      ENDIF
+      END IF
 
    END SUBROUTINE test_shg_overlap_integrals
 
@@ -623,22 +623,22 @@ CONTAINS
                CALL calculate_deviation_ab(vab_shg, vab_os, dvab_shg, dvab_os, dtemp, ddtemp)
                dmax = MAX(dmax, dtemp)
                ddmax = MAX(ddmax, ddtemp)
-            ENDDO
-         ENDDO
+            END DO
+         END DO
          IF (iw > 0) THEN
             WRITE (iw, FMT="(/,T2,A)") "TEST INFO FOR 2-CENTER RA2m SHG and OS INTEGRALS:"
             WRITE (iw, FMT="(T2,A)") "Maximal deviation between SHG and OS integrals and their derivatives"
             WRITE (iw, FMT="(T2,A,T53,ES12.5,4X,ES12.5)") "SHG_INTEGRALS | [a|(r-Ra)^(2m)|b]", &
                dmax, ddmax
-         ENDIF
+         END IF
          IF (acc_check) THEN
             IF ((dmax >= acc_param) .OR. (ddmax >= acc_param)) THEN
                CPABORT("[a|ra^(2m)|b]: Deviation larger than"//cp_to_string(acc_param))
-            ENDIF
-         ENDIF
+            END IF
+         END IF
          DEALLOCATE (scon_ra2m)
          DEALLOCATE (vab_shg, vab_os, dvab_shg, dvab_os)
-      ENDIF
+      END IF
    END SUBROUTINE test_shg_ra2m_integrals
 
 ! **************************************************************************************************
@@ -708,7 +708,7 @@ CONTAINS
             ALLOCATE (saba_shg(nba, nbb, nfa), dsaba_shg(nba, nbb, nfa, 3))
             ALLOCATE (saba_os(nba, nbb, nfa), dsaba_os(nba, nbb, nfa, 3))
             CALL contraction_matrix_shg_mix(oba, fba, oba_index, fba_index, scona_mix)
-         ENDIF
+         END IF
          IF (test_overlap_abb) THEN
             fbb%set_radius(:) = 1.0E+09_dp
             fbb%pgf_radius(:, :) = 1.0E+09_dp
@@ -718,7 +718,7 @@ CONTAINS
             ALLOCATE (sabb_shg(nba, nbb, nfb), dsabb_shg(nba, nbb, nfb, 3))
             ALLOCATE (sabb_os(nba, nbb, nfb), dsabb_os(nba, nbb, nfb, 3))
             CALL contraction_matrix_shg_mix(obb, fbb, obb_index, fbb_index, sconb_mix)
-         ENDIF
+         END IF
          dummy = 0.0_dp
          dmax_overlap_aba = 0.0_dp
          ddmax_overlap_aba = 0.0_dp
@@ -738,11 +738,11 @@ CONTAINS
                   CALL calculate_deviation_abx(saba_shg, saba_os, dsaba_shg, dsaba_os, dtemp, ddtemp)
                   dmax_overlap_aba = MAX(dmax_overlap_aba, dtemp)
                   ddmax_overlap_aba = MAX(ddmax_overlap_aba, ddtemp)
-               ENDDO
-            ENDDO
+               END DO
+            END DO
             DEALLOCATE (oba_index, fba_index, scona_mix)
             DEALLOCATE (saba_shg, saba_os, dsaba_shg, dsaba_os)
-         ENDIF
+         END IF
          IF (test_overlap_abb) THEN
             DO irep = 1, nrep
                DO iab = 1, nab
@@ -755,33 +755,33 @@ CONTAINS
                   CALL calculate_deviation_abx(sabb_shg, sabb_os, dsabb_shg, dsabb_os, dtemp, ddtemp)
                   dmax_overlap_abb = MAX(dmax_overlap_abb, dtemp)
                   ddmax_overlap_abb = MAX(ddmax_overlap_abb, ddtemp)
-               ENDDO
-            ENDDO
+               END DO
+            END DO
             DEALLOCATE (obb_index, fbb_index, sconb_mix)
             DEALLOCATE (sabb_shg, sabb_os, dsabb_shg, dsabb_os)
-         ENDIF
+         END IF
          IF (iw > 0) THEN
             WRITE (iw, FMT="(/,T2,A)") "TEST INFO [a|b|x] OVERLAP SHG and OS INTEGRALS:"
             WRITE (iw, FMT="(T2,A)") "Maximal deviation between SHG and OS integrals and their derivatives"
             IF (test_overlap_aba) THEN
                WRITE (iw, FMT="(T2,A,T53,ES12.5,4X,ES12.5)") "SHG_INTEGRALS | [a|b|a]", &
                   dmax_overlap_aba, ddmax_overlap_aba
-            ENDIF
+            END IF
             IF (test_overlap_abb) THEN
                WRITE (iw, FMT="(T2,A,T53,ES12.5,4X,ES12.5)") "SHG_INTEGRALS | [a|b|b]", &
                   dmax_overlap_abb, ddmax_overlap_abb
-            ENDIF
-         ENDIF
+            END IF
+         END IF
          IF (acc_check) THEN
             IF ((dmax_overlap_aba >= acc_param) .OR. (ddmax_overlap_aba >= acc_param)) THEN
                CPABORT("[a|b|a]: Dev. larger than"//cp_to_string(acc_param))
-            ENDIF
+            END IF
             IF ((dmax_overlap_abb >= acc_param) .OR. (ddmax_overlap_abb >= acc_param)) THEN
                CPABORT("[a|b|b]: Dev. larger than"//cp_to_string(acc_param))
-            ENDIF
-         ENDIF
+            END IF
+         END IF
          DEALLOCATE (cg_coeff, cg_none0_list, ncg_none0)
-      ENDIF
+      END IF
 
    END SUBROUTINE test_shg_overlap_aba_integrals
 
@@ -811,8 +811,8 @@ CONTAINS
          DO i = 1, SIZE(vab_shg, 1)
             diff = ABS(vab_shg(i, j) - vab_os(i, j))
             dmax = MAX(dmax, diff)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       ! derivatives dvab
       DO k = 1, 3
@@ -820,9 +820,9 @@ CONTAINS
             DO i = 1, SIZE(dvab_shg, 1)
                diff = ABS(dvab_shg(i, j, k) - dvab_os(i, j, k))
                ddmax = MAX(ddmax, diff)
-            ENDDO
-         ENDDO
-      ENDDO
+            END DO
+         END DO
+      END DO
 
    END SUBROUTINE calculate_deviation_ab
 
@@ -853,9 +853,9 @@ CONTAINS
             DO i = 1, SIZE(vab_shg, 1)
                diff = ABS(vab_shg(i, j, k) - vab_os(i, j, k))
                dmax = MAX(dmax, diff)
-            ENDDO
-         ENDDO
-      ENDDO
+            END DO
+         END DO
+      END DO
 
       ! derivatives dvab
       DO l = 1, 3
@@ -864,10 +864,10 @@ CONTAINS
                DO i = 1, SIZE(dvab_shg, 1)
                   diff = ABS(dvab_shg(i, j, k, l) - dvab_os(i, j, k, l))
                   ddmax = MAX(ddmax, diff)
-               ENDDO
-            ENDDO
-         ENDDO
-      ENDDO
+               END DO
+            END DO
+         END DO
+      END DO
 
    END SUBROUTINE calculate_deviation_abx
 

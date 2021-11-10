@@ -188,7 +188,7 @@ CONTAINS
 
          IF (ASSOCIATED(ec_env%ls_env)) THEN
             CALL ls_scf_release(ec_env%ls_env)
-         ENDIF
+         END IF
 
          DEALLOCATE (ec_env)
 

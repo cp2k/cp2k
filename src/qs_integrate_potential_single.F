@@ -223,11 +223,11 @@ CONTAINS
                IF (MODULO(iatom, rs_v%desc%group_size) == rs_v%desc%my_pos) THEN
                   npme = npme + 1
                   cores(npme) = iatom
-               ENDIF
+               END IF
             ELSE
                npme = npme + 1
                cores(npme) = iatom
-            ENDIF
+            END IF
          END DO
 
          DO j = 1, npme
@@ -423,11 +423,11 @@ CONTAINS
                   IF (MODULO(iatom, rs_v%desc%group_size) == rs_v%desc%my_pos) THEN
                      npme = npme + 1
                      cores(npme) = iatom
-                  ENDIF
+                  END IF
                ELSE
                   npme = npme + 1
                   cores(npme) = iatom
-               ENDIF
+               END IF
             END DO
 
             DO j = 1, npme
@@ -581,11 +581,11 @@ CONTAINS
                   IF (MODULO(iatom, rs_v%desc%group_size) == rs_v%desc%my_pos) THEN
                      npme = npme + 1
                      cores(npme) = iatom
-                  ENDIF
+                  END IF
                ELSE
                   npme = npme + 1
                   cores(npme) = iatom
-               ENDIF
+               END IF
             END DO
 
             DO j = 1, npme
@@ -780,19 +780,19 @@ CONTAINS
                         ELSE
                            lb(dir) = rs_grid%lb_local(dir)
                            ub(dir) = rs_grid%ub_local(dir)
-                        ENDIF
+                        END IF
                         ! distributed grid, only map if it is local to the grid
                         location(dir) = tp(dir) + rs_grid%desc%lb(dir)
-                     ENDDO
+                     END DO
                      IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
                          lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
                          lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
                         map_it(ipgf) = .TRUE.
-                     ENDIF
+                     END IF
                   ELSE
                      ! not distributed, just a round-robin distribution over the full set of CPUs
                      IF (MODULO(offset, group_size) == my_pos) map_it(ipgf) = .TRUE.
-                  ENDIF
+                  END IF
                END DO
                offset = offset + 1
                !
@@ -812,7 +812,7 @@ CONTAINS
                                 SIZE(sphi_a, 1), work_f(1, 1), SIZE(work_f, 1), 0.0_dp, pab(1, 1), &
                                 SIZE(pab, 1))
                      DEALLOCATE (work_f)
-                  ENDIF
+                  END IF
 
                   DO ipgf = 1, npgfa(iset)
                      na1 = (ipgf - 1)*ncoset(la_max(iset))
@@ -846,9 +846,9 @@ CONTAINS
                                                       force_a=force_a, force_b=force_b, &
                                                       use_virial=use_virial, &
                                                       my_virial_a=my_virial_a, my_virial_b=my_virial_b)
-                        ENDIF
-                     ENDIF
-                  ENDDO
+                        END IF
+                     END IF
+                  END DO
                   ! contract hab
                   CALL dgemm("T", "N", nsgf_seta(iset), 1, ncoa, 1.0_dp, sphi_a(1, sgfa), &
                              SIZE(sphi_a, 1), hab(1, 1), SIZE(hab, 1), 0.0_dp, work_i(1, 1), SIZE(work_i, 1))
@@ -857,15 +857,15 @@ CONTAINS
                      int_res(ikind)%v_int(iatom, sgfa:sgfa - 1 + nsgf_seta(iset)) + work_i(1:nsgf_seta(iset), 1)
                   DEALLOCATE (work_i)
                END IF
-            ENDDO
+            END DO
             !
             IF (calculate_forces) THEN
                int_res(ikind)%v_dfdr(iatom, :) = int_res(ikind)%v_dfdr(iatom, :) + force_a(:)
                IF (use_virial) THEN
                   virial%pv_lrigpw = virial%pv_lrigpw + my_virial_a
                   virial%pv_virial = virial%pv_virial + my_virial_a
-               ENDIF
-            ENDIF
+               END IF
+            END IF
 
             DEALLOCATE (map_it)
 
@@ -990,7 +990,7 @@ CONTAINS
                IF (use_virial) THEN
                   my_virial_a = 0.0_dp
                   my_virial_b = 0.0_dp
-               ENDIF
+               END IF
             END IF
             m1 = MAXVAL(npgfa(1:nseta))
             ALLOCATE (map_it2(m1, m1))
@@ -1018,19 +1018,19 @@ CONTAINS
                               ELSE
                                  lb(dir) = rs_grid%lb_local(dir)
                                  ub(dir) = rs_grid%ub_local(dir)
-                              ENDIF
+                              END IF
                               ! distributed grid, only map if it is local to the grid
                               location(dir) = tp(dir) + rs_grid%desc%lb(dir)
-                           ENDDO
+                           END DO
                            IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
                                lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
                                lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
                               map_it2(ipgf, jpgf) = .TRUE.
-                           ENDIF
+                           END IF
                         ELSE
                            ! not distributed, just a round-robin distribution over the full set of CPUs
                            IF (MODULO(offset, group_size) == my_pos) map_it2(ipgf, jpgf) = .TRUE.
-                        ENDIF
+                        END IF
                      END DO
                   END DO
                   offset = offset + 1
@@ -1087,10 +1087,10 @@ CONTAINS
                                     hab=hab, o1=na1, o2=nb1, &
                                     radius=radius, &
                                     calculate_forces=.FALSE.)
-                              ENDIF
-                           ENDIF
-                        ENDDO
-                     ENDDO
+                              END IF
+                           END IF
+                        END DO
+                     END DO
                      ! contract hab
                      CALL dgemm("N", "N", ncoa, nsgf_seta(jset), ncob, &
                                 1.0_dp, hab(1, 1), SIZE(hab, 1), &
@@ -1101,8 +1101,8 @@ CONTAINS
                                 work(1, 1), SIZE(work, 1), &
                                 1.0_dp, hmat(sgfa, sgfb), SIZE(hmat, 1))
                   END IF
-               ENDDO
-            ENDDO
+               END DO
+            END DO
             DEALLOCATE (map_it2)
             ! update KS matrix
             CALL mp_sum(hmat, para_env%group)
@@ -1118,7 +1118,7 @@ CONTAINS
                      virial%pv_virial = virial%pv_virial + 2.0_dp*my_virial_a
                   END IF
                END IF
-            ENDIF
+            END IF
          END DO
          DEALLOCATE (hab, work, hmat)
          IF (calculate_forces) DEALLOCATE (pab, pblk)

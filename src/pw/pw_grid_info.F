@@ -114,7 +114,7 @@ CONTAINS
          my_icommensurate = 1
       ELSE
          my_icommensurate = 0
-      ENDIF
+      END IF
       CPASSERT(my_icommensurate <= my_ncommensurate)
       CPASSERT(my_icommensurate > 0 .OR. my_ncommensurate <= 0)
       CPASSERT(my_ncommensurate >= 0)
@@ -151,7 +151,7 @@ CONTAINS
                      ELSE
                         ! subgrid wasn't OK, increment ntest and try again
                         ntest(idir) = n(idir) + 1
-                     ENDIF
+                     END IF
                   END DO
                END DO
             END IF
@@ -169,7 +169,7 @@ CONTAINS
             ftest = ANY(MODULO(n, 2**(my_ncommensurate - my_icommensurate)) .NE. 0)
             CPASSERT(.NOT. ftest)
          END DO
-      ENDIF
+      END IF
 
    END FUNCTION pw_grid_find_n
 
@@ -232,7 +232,7 @@ CONTAINS
 
       DO i = 1, 3
          alat(i) = SUM(hmat(:, i)**2)
-      ENDDO
+      END DO
       CPASSERT(ALL(alat /= 0._dp))
       n = 2*FLOOR(SQRT(2.0_dp*cutoff*alat)/twopi) + 1
 

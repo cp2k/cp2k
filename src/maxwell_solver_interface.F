@@ -126,7 +126,7 @@ CONTAINS
          IF (iounit > 0) THEN
             WRITE (iounit, *) ""
             WRITE (iounit, *) "MAXWELL| Called, step = ", sim_step, " time = ", sim_time
-         ENDIF
+         END IF
 
          res = libcp2kmw_setgrid( &
                ubounds(1) - lbounds(1) + 1, &
@@ -148,9 +148,9 @@ CONTAINS
          IF (iounit > 0) THEN
             WRITE (iounit, *) "MAXWELL| Returned with value ", res
             WRITE (iounit, *) "MAXWELL| Distributing potential to MPI processes..."
-         ENDIF
+         END IF
 
-      ENDIF
+      END IF
 
       ! The following code block is copied from src/pw/realspace_grid_cube.F
 
@@ -166,12 +166,12 @@ CONTAINS
                IF (num_pe > 1) THEN
                   DO ip = 1, num_pe - 1
                      CALL mp_send(buffer(lbounds(3):ubounds(3)), ip, tag, gid)
-                  ENDDO
-               ENDIF
+                  END DO
+               END IF
             ELSE
                master = 0
                CALL mp_recv(buffer(lbounds(3):ubounds(3)), master, tag, gid)
-            ENDIF
+            END IF
 
             CALL mp_sync(gid)
 
@@ -180,14 +180,14 @@ CONTAINS
                 (lbounds_local(2) <= j) .AND. (j <= ubounds_local(2))) THEN
                !allow scaling of external potential values by factor 'scaling' (SCALING_FACTOR in input file)
                v_ee%pw%cr3d(i, j, lbounds(3):ubounds(3)) = buffer(lbounds(3):ubounds(3))*scaling_factor
-            ENDIF
+            END IF
 
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       IF (iounit > 0) THEN
          WRITE (iounit, *) "MAXWELL| All done."
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 

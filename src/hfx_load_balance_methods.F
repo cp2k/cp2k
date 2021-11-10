@@ -631,7 +631,7 @@ CONTAINS
                current_cost = 0
                last_bin_needs_to_be_filled = .FALSE.
             END IF
-         ENDDO
+         END DO
 
 !$OMP BARRIER
 !$OMP MASTER
@@ -708,16 +708,16 @@ CONTAINS
             IF (icpu .NE. ncpu - 1) THEN
                CALL mp_isendrecv(sendbuffer, dest, recbuffer, source, &
                                  para_env%group, req(1), req(2), 13)
-            ENDIF
+            END IF
             data_from = MODULO(mepos - icpu, ncpu)
             cost_matrix(data_from*nbins*n_threads + 1:data_from*nbins*n_threads + nbins*n_threads) = sendbuffer
             IF (icpu .NE. ncpu - 1) THEN
                CALL mp_waitall(req)
-            ENDIF
+            END IF
             swapbuffer => sendbuffer
             sendbuffer => recbuffer
             recbuffer => swapbuffer
-         ENDDO
+         END DO
          DEALLOCATE (recbuffer, sendbuffer)
 !$OMP END MASTER
 !$OMP BARRIER
@@ -776,7 +776,7 @@ CONTAINS
             IF (icpu .NE. ncpu - 1) THEN
                CALL mp_isendrecv(sendbuffer, dest, recbuffer, source, &
                                  para_env%group, req(1), req(2), 13)
-            ENDIF
+            END IF
             data_from = MODULO(mepos - icpu, ncpu)
             DO j = 1, n_threads
                DO i = 1, nbins
@@ -788,11 +788,11 @@ CONTAINS
 
             IF (icpu .NE. ncpu - 1) THEN
                CALL mp_waitall(req)
-            ENDIF
+            END IF
             swapbuffer => sendbuffer
             sendbuffer => recbuffer
             recbuffer => swapbuffer
-         ENDDO
+         END DO
          DEALLOCATE (recbuffer, sendbuffer)
 
          ! sync before/after ring of isendrecv
@@ -1616,7 +1616,7 @@ CONTAINS
             IF (icpu .NE. ncpu - 1) THEN
                CALL mp_isendrecv(sendbuffer, dest, recbuffer, source, &
                                  para_env%group, req(1), req(2), 13)
-            ENDIF
+            END IF
             data_from = MODULO(mepos - icpu, ncpu)
             start_idx = SUM(bins_per_rank(1:data_from + 1)) - bins_per_rank(data_from + 1) + 1
             end_idx = start_idx + bins_per_rank(data_from + 1) - 1
@@ -1624,11 +1624,11 @@ CONTAINS
 
             IF (icpu .NE. ncpu - 1) THEN
                CALL mp_waitall(req)
-            ENDIF
+            END IF
             swapbuffer => sendbuffer
             sendbuffer => recbuffer
             recbuffer => swapbuffer
-         ENDDO
+         END DO
          DEALLOCATE (recbuffer, sendbuffer)
          ! sync before/after ring of isendrecv
          CALL mp_sync(para_env%group)
@@ -1674,7 +1674,7 @@ CONTAINS
             IF (icpu .NE. ncpu - 1) THEN
                CALL mp_isendrecv(sendbuffer, dest, recbuffer, source, &
                                  para_env%group, req(1), req(2), 13)
-            ENDIF
+            END IF
             data_from = MODULO(mepos - icpu, ncpu)
             DO j = 1, n_threads
                DO i = 1, max_bin_size
@@ -1686,11 +1686,11 @@ CONTAINS
 
             IF (icpu .NE. ncpu - 1) THEN
                CALL mp_waitall(req)
-            ENDIF
+            END IF
             swapbuffer => sendbuffer
             sendbuffer => recbuffer
             recbuffer => swapbuffer
-         ENDDO
+         END DO
          ! sync before/after ring of isendrecv
          DEALLOCATE (recbuffer, sendbuffer)
          CALL mp_sync(para_env%group)
@@ -1877,8 +1877,8 @@ CONTAINS
             itmp = tmp_cpu_index(j)
             distribution_vector(tmp_index(i - j + 1)) = itmp
             my_cost_cpu(itmp) = my_cost_cpu(itmp) + bin_costs(tmp_index(i - j + 1))
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       DEALLOCATE (tmp_cost, tmp_index, tmp_cpu_cost)
       DEALLOCATE (tmp_cpu_index, my_cost_cpu)
@@ -2206,10 +2206,10 @@ CONTAINS
                                            p1_forces, p2_forces, p3_forces)
                      estimate_block_cost = estimate_block_cost + INT(cost_tmp, KIND=int_8)
                   END SELECT
-               ENDDO ! i_set_list_kl
-            ENDDO ! i_set_list_ij
-         ENDDO ! i_list_kl
-      ENDDO ! i_list_ij
+               END DO ! i_set_list_kl
+            END DO ! i_set_list_ij
+         END DO ! i_list_kl
+      END DO ! i_list_ij
 
    END FUNCTION estimate_block_cost
 

@@ -72,7 +72,7 @@ CONTAINS
       DO i = 1, ngrid_levels
          gridlevel_info%cutoff(i) = cutoff(i)
          gridlevel_info%count(i) = 0
-      ENDDO
+      END DO
       gridlevel_info%print_section => print_section
       CALL section_vals_retain(print_section)
    END SUBROUTINE init_gaussian_gridlevel
@@ -150,8 +150,8 @@ CONTAINS
       DO i = 1, gridlevel_info%ngrid_levels
          IF ((gridlevel_info%cutoff(i) + 1E-6_dp) .GE. needed_cutoff) THEN
             gridlevel = i
-         ENDIF
-      ENDDO
+         END IF
+      END DO
       !$OMP CRITICAL(add_counts)
       gridlevel_info%total_count = gridlevel_info%total_count + 1
       gridlevel_info%count(gridlevel) = gridlevel_info%count(gridlevel) + 1

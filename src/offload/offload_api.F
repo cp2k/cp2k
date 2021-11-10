@@ -214,7 +214,7 @@ CONTAINS
 
       IF (ASSOCIATED(buffer%host_buffer)) THEN
          IF (SIZE(buffer%host_buffer) == 0) DEALLOCATE (buffer%host_buffer)
-      ENDIF
+      END IF
 
       CALL offload_create_buffer_c(length=length, buffer=buffer%c_ptr)
       CPASSERT(C_ASSOCIATED(buffer%c_ptr))
@@ -226,7 +226,7 @@ CONTAINS
          host_buffer_c = offload_get_buffer_host_pointer_c(buffer%c_ptr)
          CPASSERT(C_ASSOCIATED(host_buffer_c))
          CALL C_F_POINTER(host_buffer_c, buffer%host_buffer, shape=(/length/))
-      ENDIF
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE offload_create_buffer
@@ -262,7 +262,7 @@ CONTAINS
          DEALLOCATE (buffer%host_buffer)
       ELSE
          NULLIFY (buffer%host_buffer)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE offload_free_buffer

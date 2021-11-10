@@ -1634,7 +1634,7 @@ CONTAINS
                               afun = afun + pv
                            END IF
                         END IF
-                     ENDIF
+                     END IF
                   END DO
                END DO
             END IF

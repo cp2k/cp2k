@@ -2289,7 +2289,7 @@ CONTAINS
                         damping%damp(k)%order = inp_info%damping_list(i)%order
                         damping%damp(k)%bij = inp_info%damping_list(i)%bij
                         damping%damp(k)%cij = inp_info%damping_list(i)%cij
-                     ENDIF
+                     END IF
 
                   END DO
                   IF (.NOT. found) &
@@ -2297,10 +2297,10 @@ CONTAINS
                                   "Atom "//TRIM(my_atm_name2)// &
                                   " in damping parameters for atom "//TRIM(my_atm_name1)// &
                                   " not found! ")
-               ENDIF
+               END IF
             END DO
 
-         ENDIF
+         END IF
 
          CALL set_atomic_kind(atomic_kind=atomic_kind, damping=damping)
          NULLIFY (damping)
@@ -3436,7 +3436,7 @@ CONTAINS
             END SELECT
             IF (found) EXIT
          END DO
-      ENDIF
+      END IF
       IF (.NOT. found) THEN
          nsize = nsize + 1
          CALL reallocate(array, 1, nsize)

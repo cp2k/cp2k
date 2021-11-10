@@ -144,7 +144,7 @@ CONTAINS
             CALL cp_para_env_release(work_redistribute%para_env_new)
          ELSE
             CALL mp_comm_free(work_redistribute%subgroup)
-         ENDIF
+         END IF
          DEALLOCATE (work_redistribute%group_distribution)
          DEALLOCATE (work_redistribute%group_partition)
       END IF
@@ -243,7 +243,7 @@ CONTAINS
             IF (gcd(ipe, jpe) >= gcd_max) THEN
                npcol = jpe
                gcd_max = gcd(ipe, jpe)
-            ENDIF
+            END IF
          END DO
 
          ! Count the number of processors without any columns
@@ -425,12 +425,12 @@ CONTAINS
                           matrix%matrix_struct%descriptor, &
                           fake_local_data(1, 1), 1, 1, fake_descriptor, &
                           matrix%matrix_struct%context%group)
-         ENDIF
+         END IF
       ELSE
          ! No need to redistribute, just return pointers to the original arrays
          matrix_new => matrix
          eigenvectors_new => eigenvectors
-      ENDIF
+      END IF
 
       IF (PRESENT(redist_info)) &
          redist_info = rdinfo
@@ -501,7 +501,7 @@ CONTAINS
             CALL pdgemr2d(n, n, fake_local_data(1, 1), 1, 1, fake_descriptor, &
                           eigenvectors%local_data(1, 1), 1, 1, eigenvectors%matrix_struct%descriptor, &
                           eigenvectors%matrix_struct%context%group)
-         ENDIF
+         END IF
          ! free work
          CALL cp_fm_redistribute_work_finalize(work_redistribute%group_distribution(mepos_old) == 0)
 
@@ -513,7 +513,7 @@ CONTAINS
          NULLIFY (matrix_new)
          NULLIFY (eigenvectors_new)
 
-      ENDIF
+      END IF
 
 #else
 

@@ -103,10 +103,10 @@ CONTAINS
 
       IF (PRESENT(order_p)) THEN
          order_p = my_order_p
-      ENDIF
+      END IF
       IF (PRESENT(energy)) THEN
          energy = my_energy
-      ENDIF
+      END IF
 
       IF (PRESENT(ks_matrix)) THEN
 
@@ -125,11 +125,11 @@ CONTAINS
 
                ks_block = ks_block + mult*s_block
 
-            ENDDO
+            END DO
             CALL dbcsr_iterator_stop(iter)
-         ENDDO
+         END DO
 
-      ENDIF
+      END IF
 
       IF (PRESENT(w_matrix)) THEN
 
@@ -151,9 +151,9 @@ CONTAINS
 
             END DO
             CALL dbcsr_iterator_stop(iter)
-         ENDDO
+         END DO
 
-      ENDIF
+      END IF
 
       DEALLOCATE (charges)
       DEALLOCATE (charges_deriv)
@@ -190,7 +190,7 @@ CONTAINS
       DO I = 1, mulliken_restraint_control%natoms
          order_p = order_p + charges(mulliken_restraint_control%atoms(I), 1) &
                    - charges(mulliken_restraint_control%atoms(I), 2) ! spin density on the relevant atoms
-      ENDDO
+      END DO
       ! energy
       energy = mulliken_restraint_control%strength*(order_p - mulliken_restraint_control%target)**2
       ! derivative
@@ -198,7 +198,7 @@ CONTAINS
       DO I = 1, mulliken_restraint_control%natoms
          charges_deriv(mulliken_restraint_control%atoms(I), 1) = dum
          charges_deriv(mulliken_restraint_control%atoms(I), 2) = -dum
-      ENDDO
+      END DO
    END SUBROUTINE restraint_functional
 
 ! **************************************************************************************************
@@ -243,15 +243,15 @@ CONTAINS
                mult = 0.5_dp ! avoid double counting of diagonal blocks
             ELSE
                mult = 1.0_dp
-            ENDIF
+            END IF
             charges(iblock_row, ispin) = charges(iblock_row, ispin) + &
                                          mult*SUM(p_block*s_block)
             charges(iblock_col, ispin) = charges(iblock_col, ispin) + &
                                          mult*SUM(p_block*s_block)
 
-         ENDDO
+         END DO
          CALL dbcsr_iterator_stop(iter)
-      ENDDO
+      END DO
       CALL mp_sum(charges, para_env%group)
 
    END SUBROUTINE compute_charges
@@ -292,10 +292,10 @@ CONTAINS
             mult = 0.5_dp ! avoid double counting of diagonal blocks
          ELSE
             mult = 1.0_dp
-         ENDIF
+         END IF
          charges(iblock_row) = charges(iblock_row) + mult*SUM(p_block*s_block)
          charges(iblock_col) = charges(iblock_col) + mult*SUM(p_block*s_block)
-      ENDDO
+      END DO
       CALL dbcsr_iterator_stop(iter)
 
       CALL mp_sum(charges, para_env%group)
@@ -344,7 +344,7 @@ CONTAINS
                mult = 0.5_dp ! avoid double counting of diagonal blocks
             ELSE
                mult = 1.0_dp
-            ENDIF
+            END IF
             charges(iblock_row, ispin) = charges(iblock_row, ispin) + mult*SUM(p_block*s_block)
             charges(iblock_col, ispin) = charges(iblock_col, ispin) + mult*SUM(p_block*s_block)
             DO ider = 1, 3
@@ -354,9 +354,9 @@ CONTAINS
                dcharges(iblock_col, ider) = dcharges(iblock_col, ider) + mult*SUM(p_block*ds_block)
             END DO
 
-         ENDDO
+         END DO
          CALL dbcsr_iterator_stop(iter)
-      ENDDO
+      END DO
       CALL mp_sum(charges, para_env%group)
       CALL mp_sum(dcharges, para_env%group)
 
@@ -672,7 +672,7 @@ CONTAINS
          IF (.NOT. (ASSOCIATED(sp) .AND. ASSOCIATED(ps))) CYCLE
 
          bond_order(iat, jat) = bond_order(iat, jat) + SUM(ps*sp)
-      ENDDO
+      END DO
       CALL dbcsr_iterator_stop(iter)
 
    END SUBROUTINE compute_bond_order
@@ -733,9 +733,9 @@ CONTAINS
                   END DO
                END DO
             END IF
-         ENDDO
+         END DO
          CALL dbcsr_iterator_stop(iter)
-      ENDDO
+      END DO
       CALL mp_sum(charges, para_env%group)
 
       CALL timestop(handle)
@@ -796,9 +796,9 @@ CONTAINS
                END DO
             END IF
 
-         ENDDO
+         END DO
          CALL dbcsr_iterator_stop(iter)
-      ENDDO
+      END DO
       CALL mp_sum(charges, para_env%group)
 
       CALL timestop(handle)

@@ -741,14 +741,14 @@ CONTAINS
          IF (ASSOCIATED(ks_env%dbcsr_dist)) THEN
             CALL dbcsr_distribution_release(ks_env%dbcsr_dist)
             DEALLOCATE (ks_env%dbcsr_dist)
-         ENDIF
+         END IF
          ks_env%dbcsr_dist => dbcsr_dist
-      ENDIF
+      END IF
       IF (PRESENT(distribution_2d)) THEN
          CALL distribution_2d_retain(distribution_2d)
          CALL distribution_2d_release(ks_env%distribution_2d)
          ks_env%distribution_2d => distribution_2d
-      ENDIF
+      END IF
       IF (PRESENT(pw_env)) THEN
          CALL pw_env_retain(pw_env)
          CALL pw_env_release(ks_env%pw_env)
@@ -758,12 +758,12 @@ CONTAINS
          CALL cp_para_env_retain(para_env)
          CALL cp_para_env_release(ks_env%para_env)
          ks_env%para_env => para_env
-      ENDIF
+      END IF
       IF (PRESENT(blacs_env)) THEN
          CALL cp_blacs_env_retain(blacs_env)
          CALL cp_blacs_env_release(ks_env%blacs_env)
          ks_env%blacs_env => blacs_env
-      ENDIF
+      END IF
    END SUBROUTINE set_ks_env
 
 ! **************************************************************************************************
@@ -832,27 +832,27 @@ CONTAINS
             IF (ASSOCIATED(ks_env%rho_nlcc_g)) THEN
                CALL pw_release(ks_env%rho_nlcc_g%pw)
                DEALLOCATE (ks_env%rho_nlcc_g)
-            ENDIF
+            END IF
             IF (ASSOCIATED(ks_env%rho_nlcc)) THEN
                CALL pw_release(ks_env%rho_nlcc%pw)
                DEALLOCATE (ks_env%rho_nlcc)
-            ENDIF
+            END IF
             IF (ASSOCIATED(ks_env%rho_core)) THEN
                CALL pw_release(ks_env%rho_core%pw)
                DEALLOCATE (ks_env%rho_core)
-            ENDIF
+            END IF
             IF (ASSOCIATED(ks_env%vppl)) THEN
                CALL pw_release(ks_env%vppl%pw)
                DEALLOCATE (ks_env%vppl)
-            ENDIF
+            END IF
             IF (ASSOCIATED(ks_env%vee)) THEN
                CALL pw_release(ks_env%vee%pw)
                DEALLOCATE (ks_env%vee)
-            ENDIF
+            END IF
             IF (ASSOCIATED(ks_env%dbcsr_dist)) THEN
                CALL dbcsr_distribution_release(ks_env%dbcsr_dist)
                DEALLOCATE (ks_env%dbcsr_dist)
-            ENDIF
+            END IF
 
             CALL release_neighbor_list_sets(ks_env%sab_orb)
             CALL release_neighbor_list_sets(ks_env%sac_ae)
@@ -949,7 +949,7 @@ CONTAINS
          IF (full_reset) THEN
             ks_env%potential_changed = .TRUE.
             my_mstruct_chg = .TRUE.
-         ENDIF
+         END IF
       END IF
 
       IF (my_mstruct_chg) THEN
@@ -960,7 +960,7 @@ CONTAINS
          !TODO: deallocate imaginary parts as well
          !CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_im)
          !CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_im)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 

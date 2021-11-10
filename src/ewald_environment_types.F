@@ -287,9 +287,9 @@ CONTAINS
             CALL section_vals_release(ewald_env%poisson_section)
             IF (ASSOCIATED(ewald_env%interaction_cutoffs)) THEN
                DEALLOCATE (ewald_env%interaction_cutoffs)
-            ENDIF
+            END IF
             DEALLOCATE (ewald_env)
-         ENDIF
+         END IF
       END IF
       NULLIFY (ewald_env)
    END SUBROUTINE ewald_env_release
@@ -328,7 +328,7 @@ CONTAINS
             CALL section_vals_val_get(ewald_section, "RCUT", r_val=ewald_env%rcut)
          ELSE
             ewald_env%rcut = find_ewald_optimal_value(ewald_env%precs)/ewald_env%alpha
-         ENDIF
+         END IF
       END IF
       ! we have no defaults for gmax, gmax is only needed for ewald and spme
       SELECT CASE (ewald_env%ewald_type)
@@ -460,14 +460,14 @@ CONTAINS
          END IF
       ELSE
          ewald_env%ewald_type = do_ewald_spme
-      ENDIF
+      END IF
 
       CALL section_vals_val_get(ewald_section, "ALPHA", explicit=explicit)
       IF (explicit) THEN
          CALL section_vals_val_get(ewald_section, "ALPHA", r_val=ewald_env%alpha)
       ELSE
          ewald_env%alpha = 1.0_dp
-      ENDIF
+      END IF
 
       CALL section_vals_val_get(ewald_section, "EWALD_ACCURACY", r_val=ewald_env%precs)
       CALL section_vals_val_get(ewald_section, "O_SPLINE", i_val=ewald_env%o_spline)
@@ -477,7 +477,7 @@ CONTAINS
          CALL section_vals_val_get(ewald_section, "RCUT", r_val=ewald_env%rcut)
       ELSE
          ewald_env%rcut = find_ewald_optimal_value(ewald_env%precs)/ewald_env%alpha
-      ENDIF
+      END IF
 
       CALL section_vals_val_get(ewald_section, "GMAX", explicit=explicit)
       IF (explicit) THEN
@@ -497,8 +497,8 @@ CONTAINS
             alat = SUM(hmat(:, i)**2)
             CPASSERT(alat /= 0._dp)
             ewald_env%gmax(i) = 2*FLOOR(SQRT(2.0_dp*cutoff*alat)/twopi) + 1
-         ENDDO
-      ENDIF
+         END DO
+      END IF
       n = ewald_env%gmax
       ewald_env%gmax = pw_grid_n_for_fft(n, odd=.TRUE.)
 

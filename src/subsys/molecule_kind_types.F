@@ -492,7 +492,7 @@ CONTAINS
             END IF
             IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%molecule_list)) THEN
                DEALLOCATE (molecule_kind_set(imolecule_kind)%molecule_list)
-            ENDIF
+            END IF
          END DO
 
          DEALLOCATE (molecule_kind_set)
@@ -744,7 +744,7 @@ CONTAINS
       nmolecule_kind = SIZE(molecule_kind_set)
 
       DO imolecule_kind = 1, nmolecule_kind
-         ASSOCIATE (molecule_kind=>molecule_kind_set(imolecule_kind))
+         ASSOCIATE (molecule_kind => molecule_kind_set(imolecule_kind))
 
             CALL get_molecule_kind(molecule_kind=molecule_kind, &
                                    natom=na, &
@@ -1054,7 +1054,7 @@ CONTAINS
             natom = SIZE(molecule_kind_set(imolecule_kind)%atom_list)
             nmolecule = SIZE(molecule_kind_set(imolecule_kind)%molecule_list)
             IF (natom*nmolecule > 1) all_single_atoms = .FALSE.
-         ENDDO
+         END DO
 
          IF (all_single_atoms) THEN
             WRITE (UNIT=output_unit, FMT="(/,/,T2,A)") &
@@ -1063,7 +1063,7 @@ CONTAINS
             DO imolecule_kind = 1, nmolecule_kind
                CALL write_molecule_kind(molecule_kind_set(imolecule_kind), output_unit)
             END DO
-         ENDIF
+         END IF
 
          CALL get_molecule_kind_set(molecule_kind_set=molecule_kind_set, &
                                     nbond=nbond, &

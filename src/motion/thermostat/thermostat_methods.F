@@ -216,7 +216,7 @@ CONTAINS
                                         molecules%els, molecule_kinds%els, para_env, globenv, &
                                         thermostats%thermostat_slow%nhc, nose_section=work_section, gci=gci, &
                                         save_mem=save_mem)
-            ENDIF
+            END IF
          ELSE
             CALL cp_warn(__LOCATION__, &
                          "Adiabatic Thermostat has been defined but the ensemble provided "// &
@@ -391,7 +391,7 @@ CONTAINS
          CALL release_thermostat_info(thermostats%thermostat_info_part)
          CALL release_thermostat_info(thermostats%thermostat_info_shell)
 
-      ENDIF ! Adiabitic_NVT screening
+      END IF ! Adiabitic_NVT screening
       ! If no thermostats have been allocated deallocate the full structure
       IF ((.NOT. ASSOCIATED(thermostats%thermostat_part)) .AND. &
           (.NOT. ASSOCIATED(thermostats%thermostat_shell)) .AND. &

@@ -146,11 +146,11 @@ CONTAINS
       ELSEIF (op == do_potential_coulomb) THEN
          dr_bc = 1000000.0_dp
          dr_ac = 1000000.0_dp
-      ENDIF
+      END IF
 
       IF (PRESENT(int_abc_ext)) THEN
          int_abc_ext = 0.0_dp
-      ENDIF
+      END IF
 
       !Note: we want to compute all possible integrals based on the 3-centers (ab|c) before
       !      having to switch to (ba|c) (or the other way around) due to angular momenta in libint
@@ -218,7 +218,7 @@ CONTAINS
                                  END DO
                               END DO
                            END DO
-                        ENDIF
+                        END IF
 
                      END DO !lk
                   END DO !lj
@@ -263,7 +263,7 @@ CONTAINS
                                  END DO
                               END DO
                            END DO
-                        ENDIF
+                        END IF
 
                      END DO !lk
                   END DO !li
@@ -481,7 +481,7 @@ CONTAINS
       ELSEIF (op == do_potential_coulomb) THEN
          dr_bc = 1000000.0_dp
          dr_ac = 1000000.0_dp
-      ENDIF
+      END IF
 
       do_ext = .FALSE.
       IF (PRESENT(der_abc_1_ext) .OR. PRESENT(der_abc_2_ext)) do_ext = .TRUE.
@@ -573,7 +573,7 @@ CONTAINS
                                  END DO
                               END DO
                            END DO
-                        ENDIF
+                        END IF
 
                         DEALLOCATE (p_deriv)
                      END DO !lk
@@ -638,7 +638,7 @@ CONTAINS
                                  END DO
                               END DO
                            END DO
-                        ENDIF
+                        END IF
 
                         DEALLOCATE (p_deriv)
                      END DO !lk
@@ -817,7 +817,7 @@ CONTAINS
          dr_ab = potential_parameter%cutoff_radius*cutoff_screen_factor
       ELSEIF (potential_parameter%potential_type == do_potential_coulomb) THEN
          dr_ab = 1000000.0_dp
-      ENDIF
+      END IF
 
       !Looping over the pgfs
       DO ipgf = 1, npgfa
@@ -1030,7 +1030,7 @@ CONTAINS
          dr_ab = potential_parameter%cutoff_radius*cutoff_screen_factor
       ELSEIF (potential_parameter%potential_type == do_potential_coulomb) THEN
          dr_ab = 1000000.0_dp
-      ENDIF
+      END IF
 
       !Looping over the pgfs
       DO ipgf = 1, npgfa

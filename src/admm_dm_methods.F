@@ -104,7 +104,7 @@ CONTAINS
          CALL revert_purify_mcweeny(ks_env, matrix_ks_merge)
       ELSE
          CALL get_ks_env(ks_env, matrix_ks_aux_fit=matrix_ks_merge)
-      ENDIF
+      END IF
 
       SELECT CASE (admm_dm%method)
       CASE (do_admm_basis_projection)
@@ -166,11 +166,11 @@ CONTAINS
          IF (.NOT. ASSOCIATED(admm_dm%matrix_A)) THEN
             ALLOCATE (admm_dm%matrix_A)
             CALL dbcsr_create(admm_dm%matrix_A, template=matrix_s_mixed(1)%matrix, matrix_type="N")
-         ENDIF
+         END IF
          CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_s_aux_inv, matrix_s_mixed(1)%matrix, &
                              0.0_dp, admm_dm%matrix_A)
          CALL dbcsr_release(matrix_s_aux_inv)
-      ENDIF
+      END IF
 
       ! Calculate P_aux = A * P * A^T
       CALL dbcsr_create(matrix_tmp, template=admm_dm%matrix_A)
@@ -227,7 +227,7 @@ CONTAINS
             END IF
          END DO
          CALL dbcsr_iterator_stop(iter)
-      ENDDO
+      END DO
 
    END SUBROUTINE map_dm_blocked
 
@@ -347,7 +347,7 @@ CONTAINS
          END DO
          CALL dbcsr_iterator_stop(iter)
          CALL dbcsr_add(matrix_ks(ispin)%matrix, matrix_ks_merge(ispin)%matrix, 1.0_dp, 1.0_dp)
-      ENDDO
+      END DO
 
    END SUBROUTINE merge_dm_blocked
 

@@ -144,7 +144,7 @@ CONTAINS
             CALL cp_fm_vect_dealloc(p_env%Smo_inv)
             IF (ASSOCIATED(p_env%rho1_xc)) THEN
                CALL qs_rho_release(p_env%rho1_xc)
-            ENDIF
+            END IF
             CALL qs_rho_release(p_env%rho1)
             IF (ASSOCIATED(p_env%rho1_admm)) CALL qs_rho_release(p_env%rho1_admm)
             IF (ASSOCIATED(p_env%kpp1)) CALL dbcsr_deallocate_matrix_set(p_env%kpp1)

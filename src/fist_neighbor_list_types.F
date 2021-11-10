@@ -127,7 +127,7 @@ CONTAINS
       IF (.NOT. ASSOCIATED(fist_neighbor)) THEN
          ALLOCATE (fist_neighbor)
          NULLIFY (fist_neighbor%neighbor_kind_pairs)
-      ENDIF
+      END IF
 
       nlistmin = (2*MAXVAL(ncell) + 1)**3
       IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs)) THEN
@@ -164,7 +164,7 @@ CONTAINS
                IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%is_onfo)) THEN
                   DEALLOCATE (fist_neighbor%neighbor_kind_pairs(i)%is_onfo)
                END IF
-            ENDDO
+            END DO
             DO i = SIZE(fist_neighbor%neighbor_kind_pairs) + 1, nlistmin
                ALLOCATE (new_pairs(i)%list(2, 0))
                ALLOCATE (new_pairs(i)%id_kind(0))
@@ -172,7 +172,7 @@ CONTAINS
                         new_pairs(i)%grp_kind_start, &
                         new_pairs(i)%grp_kind_end)
                NULLIFY (new_pairs(i)%ei_scale, new_pairs(i)%vdw_scale, new_pairs(i)%is_onfo)
-            ENDDO
+            END DO
             DEALLOCATE (fist_neighbor%neighbor_kind_pairs)
             fist_neighbor%neighbor_kind_pairs => new_pairs
          ELSE
@@ -180,7 +180,7 @@ CONTAINS
                list_size = SIZE(fist_neighbor%neighbor_kind_pairs(i)%list)
                CALL reallocate(fist_neighbor%neighbor_kind_pairs(i)%id_kind, 1, list_size)
             END DO
-         ENDIF
+         END IF
       ELSE
          ALLOCATE (fist_neighbor%neighbor_kind_pairs(nlistmin))
          DO i = 1, nlistmin
@@ -192,8 +192,8 @@ CONTAINS
             NULLIFY (fist_neighbor%neighbor_kind_pairs(i)%ij_kind, &
                      fist_neighbor%neighbor_kind_pairs(i)%grp_kind_start, &
                      fist_neighbor%neighbor_kind_pairs(i)%grp_kind_end)
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       fist_neighbor%nlists = nlistmin
       DO i = 1, nlistmin
@@ -202,7 +202,7 @@ CONTAINS
          fist_neighbor%neighbor_kind_pairs(i)%id_kind = HUGE(0)
          fist_neighbor%neighbor_kind_pairs(i)%cell_vector = HUGE(0)
          fist_neighbor%neighbor_kind_pairs(i)%nscale = 0
-      ENDDO
+      END DO
       CALL timestop(handle)
    END SUBROUTINE fist_neighbor_init
 
@@ -267,7 +267,7 @@ CONTAINS
                is_onfo = .FALSE.
             END IF
          END IF
-      ENDIF
+      END IF
 
       ! The skip option is .TRUE. for QM-QM pairs in an QM/MM run. In case these
       ! interactions have an ex_ei option, we store it in the neighbor list to
@@ -336,7 +336,7 @@ CONTAINS
          new_id_kind(1:old_npairs) = neighbor_kind_pair%id_kind(1:old_npairs)
          DEALLOCATE (neighbor_kind_pair%id_kind)
          neighbor_kind_pair%id_kind => new_id_kind
-      ENDIF
+      END IF
 
       ! Store the pair ...
       npairs = neighbor_kind_pair%npairs + 1

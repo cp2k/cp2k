@@ -763,7 +763,7 @@ CONTAINS
       ELSE
          DO ispin = 1, nspins
             CALL cp_fm_release(psi1(ispin)%matrix)
-         ENDDO
+         END DO
          DEALLOCATE (psi1)
       END IF
       DEALLOCATE (psi0)
@@ -858,7 +858,7 @@ CONTAINS
          iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          iounit = -1
-      ENDIF
+      END IF
 
       do_ex = .FALSE.
       IF (PRESENT(ex_env)) do_ex = .TRUE.
@@ -1891,7 +1891,7 @@ CONTAINS
          iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          iounit = -1
-      ENDIF
+      END IF
 
       do_ex = .FALSE.
       IF (PRESENT(ex_env)) do_ex = .TRUE.

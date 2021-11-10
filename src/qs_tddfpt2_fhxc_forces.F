@@ -194,7 +194,7 @@ CONTAINS
          iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          iounit = -1
-      ENDIF
+      END IF
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
       tddfpt_control => dft_control%tddfpt2_control
@@ -221,7 +221,7 @@ CONTAINS
                                     matrix_v=evect(ispin)%matrix, &
                                     matrix_g=gs_mos(ispin)%mos_occ, &
                                     ncol=norb, alpha=focc)
-      ENDDO
+      END DO
       !
       IF (do_admm) THEN
          CALL get_qs_env(qs_env, admm_env=admm_env)
@@ -252,7 +252,7 @@ CONTAINS
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, rhox_g(ispin)%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      ENDDO
+      END DO
       CALL pw_pool_create_pw(auxbas_pw_pool, rhox_tot_gspace%pw, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
@@ -418,7 +418,7 @@ CONTAINS
                                          use_data=REALDATA3D, in_space=REALSPACE)
                   CALL pw_pool_create_pw(auxbas_pw_pool, rhox_g_aux(ispin)%pw, &
                                          use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-               ENDDO
+               END DO
                DO ispin = 1, nspins
                   CALL calculate_rho_elec(ks_env=ks_env, matrix_p=matrix_px1_admm(ispin)%matrix, &
                                           rho=rhox_r_aux(ispin), rho_gspace=rhox_g_aux(ispin), &
@@ -947,7 +947,7 @@ CONTAINS
          iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          iounit = -1
-      ENDIF
+      END IF
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
       tddfpt_control => dft_control%tddfpt2_control
@@ -991,7 +991,7 @@ CONTAINS
          ct => work%ctransformed(ispin)%matrix
          CALL cp_fm_get_info(ct, matrix_struct=fmstruct)
          CALL cp_fm_create(matrix=xtransformed(ispin)%matrix, matrix_struct=fmstruct, name="XTRANSFORMED")
-      ENDDO
+      END DO
       CALL get_lowdin_x(work%shalf, X, xtransformed)
 
       ALLOCATE (tcharge(natom), gtcharge(natom, 4))
@@ -1044,7 +1044,7 @@ CONTAINS
                   END DO
                END DO
                CALL cp_fm_release(cvecjspin)
-            ENDDO !jspin
+            END DO !jspin
             ! Apply tcharge*gab -> gtcharge
             ! gT(b) = SUM_a g(a,b)*TC(a)
             ! gab = work%gamma_exchange(1)%matrix
@@ -1345,7 +1345,7 @@ CONTAINS
          CALL cp_fm_release(cvec)
          CALL cp_fm_release(xvec)
          DEALLOCATE (tv)
-      ENDDO
+      END DO
 
       DO ispin = 1, nspins
          CALL cp_fm_release(matrix=xtransformed(ispin)%matrix)

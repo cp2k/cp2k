@@ -2410,7 +2410,7 @@ CONTAINS
             is_constraint(catom(i)) = .TRUE.
          IF (in_memory .OR. mixed_cdft%first_iteration) &
             coefficients(catom(i)) = cdft_control%group(1)%coeff(i)
-      ENDDO
+      END DO
       CALL pw_env_get(pw_env=mixed_cdft%pw_env, auxbas_pw_pool=auxbas_pw_pool)
       bo = auxbas_pw_pool%pw_grid%bounds_local
       np = auxbas_pw_pool%pw_grid%npts
@@ -2566,11 +2566,11 @@ CONTAINS
                      IF (MODULO(iatom, rs_cavity%desc%group_size) == rs_cavity%desc%my_pos) THEN
                         npme = npme + 1
                         cores(npme) = iatom
-                     ENDIF
+                     END IF
                   ELSE
                      npme = npme + 1
                      cores(npme) = iatom
-                  ENDIF
+                  END IF
                END DO
                DO j = 1, npme
                   iatom = cores(j)
@@ -2594,7 +2594,7 @@ CONTAINS
                                                 radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                                 use_subpatch=.TRUE., &
                                                 subpatch_pattern=0)
-                  ENDIF
+                  END IF
                END DO
             END DO
             DEALLOCATE (cores)

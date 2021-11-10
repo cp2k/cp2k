@@ -643,11 +643,11 @@ CONTAINS
             DO ispin = 1, SIZE(mos)
                IF (.NOT. ASSOCIATED(mos(ispin)%mo_set%mo_coeff_b)) THEN
                   CPASSERT(.FALSE.)
-               ENDIF
+               END IF
                CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b, &
                                      mos(ispin)%mo_set%mo_coeff)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
 
          DO ispin = 1, nspins
             CALL cp_fm_get_info(mos(ispin)%mo_set%mo_coeff, &

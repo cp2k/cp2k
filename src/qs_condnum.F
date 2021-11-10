@@ -143,7 +143,7 @@ CONTAINS
                ELSE
                   WRITE (iunit, '(T4,A,ES11.3E3,T32,A,ES11.3E3,T63,A)') &
                      "CN : max/min EV: ", max_ev, " / ", min_ev, "Log(CN): infinity"
-               ENDIF
+               END IF
             END IF
          END IF
          IF (use_arnoldi) THEN
@@ -161,8 +161,8 @@ CONTAINS
                ELSE
                   WRITE (iunit, '(T4,A,ES11.3E3,T32,A,ES11.3E3,T63,A)') &
                      "CN : max/min ev: ", max_ev, " / ", min_ev, "Log(CN): infinity"
-               ENDIF
-            ENDIF
+               END IF
+            END IF
 
             IF (converged) THEN
                IF (min_ev == 0) THEN
@@ -173,7 +173,7 @@ CONTAINS
             ELSE
                CPWARN("Condition number estimate of overlap matrix is not reliable (not converged).")
             END IF
-         ENDIF
+         END IF
       END IF
       IF (SIZE(matrixkp_s, 2) == 1) THEN
          NULLIFY (smat)

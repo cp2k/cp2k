@@ -103,7 +103,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       ! Note: tmp1 and tmp2 have the same matrix type as the
       ! initial matrix (tmp3 does not have symmetry constraints)
@@ -154,11 +154,11 @@ CONTAINS
          ELSE
             WRITE (unit_nr, '(T6,A28,1X,I15)') &
                "Recursive iteration:", recursion_depth
-         ENDIF
+         END IF
          WRITE (unit_nr, '(T6,A28,1X,F15.10)') &
             "Frobenius norm:", frobnorm
          CALL m_flush(unit_nr)
-      ENDIF
+      END IF
 
       IF (frobnorm .GE. 1.0_dp) THEN
 
@@ -224,19 +224,19 @@ CONTAINS
                   det, t2 - t1, &
                   flop1/(1.0E6_dp*MAX(0.001_dp, t2 - t1))
                CALL m_flush(unit_nr)
-            ENDIF
+            END IF
 
             ! exit if the trace is close to zero
             IF (maxnorm < threshold) EXIT
 
-         ENDDO ! end iterations
+         END DO ! end iterations
 
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '()')
             CALL m_flush(unit_nr)
-         ENDIF
+         END IF
 
-      ENDIF ! decide to do sqrt or not
+      END IF ! decide to do sqrt or not
 
       IF (unit_nr > 0) THEN
          IF (recursion_depth .EQ. 0) THEN
@@ -246,9 +246,9 @@ CONTAINS
          ELSE
             WRITE (unit_nr, '(T6,A28,1X,F15.10)') &
                "Recursive determinant:", det
-         ENDIF
+         END IF
          CALL m_flush(unit_nr)
-      ENDIF
+      END IF
 
       CALL dbcsr_release(tmp1)
       CALL dbcsr_release(tmp2)
@@ -306,7 +306,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
       IF (PRESENT(silent)) THEN
          IF (silent) unit_nr = -1
       END IF
@@ -348,8 +348,8 @@ CONTAINS
             DO i = 1, nrows
                IF (p_diagonal(i) .NE. 0.0_dp) THEN
                   p_diagonal(i) = 1.0_dp/p_diagonal(i)
-               ENDIF
-            ENDDO
+               END IF
+            END DO
             CALL dbcsr_set(matrix_inverse, 0.0_dp)
             CALL dbcsr_add_on_diag(matrix_inverse, 1.0_dp)
             CALL dbcsr_set_diag(matrix_inverse, p_diagonal)
@@ -361,7 +361,7 @@ CONTAINS
 
          CPABORT("Guess is NYI")
 
-      ENDIF
+      END IF
 
       CALL dbcsr_multiply("N", "N", 1.0_dp, tmp1, matrix_inverse, &
                           0.0_dp, tmp2, filter_eps=filter_eps)
@@ -400,16 +400,16 @@ CONTAINS
                maxnorm_matrix, t2 - t1, &
                flop2/(1.0E6_dp*MAX(0.001_dp, t2 - t1))
             CALL m_flush(unit_nr)
-         ENDIF
+         END IF
 
          IF (maxnorm_matrix < convergence) THEN
             converged = .TRUE.
             EXIT
-         ENDIF
+         END IF
 
          t1 = m_walltime()
 
-      ENDDO
+      END DO
 
       !last convergence check
       CALL dbcsr_multiply("N", "N", 1.0_dp, matrix, matrix_inverse, 0.0_dp, tmp1, &
@@ -421,17 +421,17 @@ CONTAINS
          WRITE (unit_nr, '(T6,A,E12.5)') "Final Taylor error", maxnorm_matrix
          WRITE (unit_nr, '()')
          CALL m_flush(unit_nr)
-      ENDIF
+      END IF
       IF (maxnorm_matrix > convergence) THEN
          converged = .FALSE.
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, *) 'Final convergence check failed'
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       IF (.NOT. converged) THEN
          CPABORT("Taylor inversion did not converge")
-      ENDIF
+      END IF
 
       CALL dbcsr_release(tmp1)
       CALL dbcsr_release(tmp2)
@@ -496,7 +496,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
       IF (PRESENT(silent)) THEN
          IF (silent) unit_nr = -1
       END IF
@@ -545,7 +545,7 @@ CONTAINS
          ! be non symmetric
          CALL dbcsr_create(tmp1, template=matrix_inverse, matrix_type=dbcsr_type_no_symmetry)
 
-      ENDIF
+      END IF
 
       CALL dbcsr_create(tmp2, template=matrix_inverse)
 
@@ -575,7 +575,7 @@ CONTAINS
             WRITE (unit_nr, '(T6,A,1X,L1,A,E12.3)') "Lanczos converged: ", arnoldi_converged, " threshold:", my_eps_lanczos
             WRITE (unit_nr, '(T6,A,1X,E12.3,E12.3)') "Est. extremal eigenvalues:", max_eV, min_eV
             WRITE (unit_nr, '(T6,A,1X,E12.3)') "Est. condition number :", max_eV/MAX(min_eV, EPSILON(min_eV))
-         ENDIF
+         END IF
 
          ! 2.0 would be the correct scaling however, we should make sure here, that we are in the convergence radius
          scalingf = 1.9_dp/(max_eV + min_eV)
@@ -583,7 +583,7 @@ CONTAINS
          CALL dbcsr_scale(matrix_inverse, scalingf)
          min_ev = min_ev*scalingf
 
-      ENDIF
+      END IF
 
       ! done with the initial guess, start iterations
       converged = .FALSE.
@@ -611,35 +611,35 @@ CONTAINS
          IF (accelerator_type == 1) THEN
             min_ev = min_ev*(2.0_dp - min_ev)
             IF (PRESENT(norm_convergence)) maxnorm_matrix = ABS(min_eV - 1.0_dp)
-         ENDIF
+         END IF
 
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T6,A,1X,I3,1X,F10.8,E12.3,F12.3,F13.3)') "Hotelling iter", i, occ_matrix, &
                maxnorm_matrix, t2 - t1, &
                (flop1 + flop2)/(1.0E6_dp*MAX(0.001_dp, t2 - t1))
             CALL m_flush(unit_nr)
-         ENDIF
+         END IF
 
          IF (maxnorm_matrix < convergence) THEN
             converged = .TRUE.
             EXIT
-         ENDIF
+         END IF
 
          ! scale the matrix for improved convergence
          IF (accelerator_type == 1) THEN
             min_ev = min_ev*2.0_dp/(min_ev + 1.0_dp)
             CALL dbcsr_scale(matrix_inverse, 2.0_dp/(min_ev + 1.0_dp))
-         ENDIF
+         END IF
 
          t1 = m_walltime()
          CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_inverse, matrix, &
                              0.0_dp, tmp1, flop=flop1, filter_eps=my_filter_eps)
 
-      ENDDO
+      END DO
 
       IF (.NOT. converged) THEN
          CPABORT("Hotelling inversion did not converge")
-      ENDIF
+      END IF
 
       ! try to symmetrize the output matrix
       IF (dbcsr_get_matrix_type(matrix_inverse) == dbcsr_type_no_symmetry) THEN
@@ -653,7 +653,7 @@ CONTAINS
 !              maxnorm_matrix
          WRITE (unit_nr, '()')
          CALL m_flush(unit_nr)
-      ENDIF
+      END IF
 
       CALL dbcsr_release(tmp1)
       CALL dbcsr_release(tmp2)
@@ -697,23 +697,23 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       IF (PRESENT(sign_order)) THEN
          order = sign_order
       ELSE
          order = 2
-      ENDIF
+      END IF
 
       CALL dbcsr_create(tmp1, template=matrix_sign)
 
       CALL dbcsr_create(tmp2, template=matrix_sign)
       IF (ABS(order) .GE. 4) THEN
          CALL dbcsr_create(tmp3, template=matrix_sign)
-      ENDIF
+      END IF
       IF (ABS(order) .GT. 4) THEN
          CALL dbcsr_create(tmp4, template=matrix_sign)
-      ENDIF
+      END IF
 
       CALL dbcsr_copy(matrix_sign, matrix)
       CALL dbcsr_filter(matrix_sign, threshold)
@@ -937,7 +937,7 @@ CONTAINS
             prefactor = 231.0_dp/1024.0_dp
          ELSE
             CPABORT("requested order is not implemented.")
-         ENDIF
+         END IF
 
          ! tmp2 = X * prefactor *
          CALL dbcsr_multiply("N", "N", prefactor, matrix_sign, tmp1, 0.0_dp, tmp2, &
@@ -956,12 +956,12 @@ CONTAINS
                frob_matrix/frob_matrix_base, t2 - t1, &
                floptot/(1.0E6_dp*MAX(0.001_dp, t2 - t1))
             CALL m_flush(unit_nr)
-         ENDIF
+         END IF
 
          ! frob_matrix/frob_matrix_base < SQRT(threshold)
          IF (frob_matrix*frob_matrix < (threshold*frob_matrix_base*frob_matrix_base)) EXIT
 
-      ENDDO
+      END DO
 
       ! this check is not really needed
       CALL dbcsr_multiply("N", "N", +1.0_dp, matrix_sign, matrix_sign, 0.0_dp, tmp1, &
@@ -975,16 +975,16 @@ CONTAINS
             frob_matrix/frob_matrix_base
          WRITE (unit_nr, '()')
          CALL m_flush(unit_nr)
-      ENDIF
+      END IF
 
       CALL dbcsr_release(tmp1)
       CALL dbcsr_release(tmp2)
       IF (ABS(order) .GE. 4) THEN
          CALL dbcsr_release(tmp3)
-      ENDIF
+      END IF
       IF (ABS(order) .GT. 4) THEN
          CALL dbcsr_release(tmp4)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -1026,13 +1026,13 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       IF (PRESENT(sign_order)) THEN
          order = sign_order
       ELSE
          order = 2
-      ENDIF
+      END IF
 
       CALL dbcsr_create(tmp1, template=matrix_sign)
 
@@ -1073,7 +1073,7 @@ CONTAINS
             frob_matrix/frob_matrix_base
          WRITE (unit_nr, '()')
          CALL m_flush(unit_nr)
-      ENDIF
+      END IF
 
       CALL dbcsr_release(tmp1)
       CALL dbcsr_release(tmp2)
@@ -1136,7 +1136,7 @@ CONTAINS
          frob_matrix_base = dlange('F', sz, sz, tmp1, sz, work)
          DO j = 1, sz
             tmp1(j, j) = tmp1(j, j) + 1.0_dp
-         ENDDO
+         END DO
          frob_matrix = dlange('F', sz, sz, tmp1, sz, work)
 
          IF (sign_order .EQ. 2) THEN
@@ -1144,18 +1144,18 @@ CONTAINS
             ! update the above to 3*I-X*X
             DO j = 1, sz
                tmp1(j, j) = tmp1(j, j) + 2.0_dp
-            ENDDO
+            END DO
          ELSE IF (sign_order .EQ. 3) THEN
             tmp2(:, :) = tmp1
             tmp1 = tmp1*4.0_dp/3.0_dp
             DO j = 1, sz
                tmp1(j, j) = tmp1(j, j) + 8.0_dp/3.0_dp
-            ENDDO
+            END DO
             CALL dgemm('N', 'N', sz, sz, sz, 1.0_dp, tmp2, sz, tmp2, sz, 1.0_dp, tmp1, sz)
             prefactor = 3.0_dp/8.0_dp
          ELSE
             CPABORT("requested order is not implemented.")
-         ENDIF
+         END IF
 
          CALL dgemm('N', 'N', sz, sz, sz, prefactor, matrix_sign, sz, tmp1, sz, 0.0_dp, tmp2, sz)
          matrix_sign = tmp2
@@ -1167,8 +1167,8 @@ CONTAINS
             CALL m_flush(unit_nr)
             converged = .TRUE.
             EXIT
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       IF (.NOT. converged) &
          CPABORT("dense_matrix_sign_Newton_Schulz did not converge within 100 iterations")
@@ -1260,8 +1260,8 @@ CONTAINS
             sm_sign(i, i) = -1.0
          ELSE
             sm_sign(i, i) = 0.0
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       ! Create matrix with eigenvalues in {-1,0,1} and eigenvectors of sm:
       ! sm_sign = eigvecs * sm_sign * eigvecs.T
@@ -1301,17 +1301,17 @@ CONTAINS
             mapped_eigvals(i) = -1.0
          ELSE
             mapped_eigvals(i) = 0.0
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       trace = 0.0_dp
       DO i = firstcol, lastcol
          tmpsum = 0.0_dp
          DO j = 1, sm_size
             tmpsum = tmpsum + (eigvecs(i, j)*mapped_eigvals(j)*eigvecs(i, j))
-         ENDDO
+         END DO
          trace = trace - 0.5_dp*tmpsum + 0.5_dp
-      ENDDO
+      END DO
    END FUNCTION trace_from_eigdecomp
 
 ! **************************************************************************************************
@@ -1377,7 +1377,7 @@ CONTAINS
          order = sign_order
       ELSE
          order = 2
-      ENDIF
+      END IF
 
       CALL dbcsr_get_info(matrix=matrix, nblkcols_total=nblkcols, distribution=dist, group=group)
       CALL dbcsr_distribution_get(dist=dist, mynode=myrank)
@@ -1411,7 +1411,7 @@ CONTAINS
          END SELECT
          CALL dissection%copy_resultcol(my_sms(i), sm_sign)
          DEALLOCATE (sm, sm_sign)
-      ENDDO
+      END DO
       !$OMP END DO
       !$OMP END PARALLEL
 
@@ -1506,11 +1506,11 @@ CONTAINS
             CALL sign_from_eigdecomp(sm_sign, eigbufs(i)%eigvals, tmp, sm_size, 0.0_dp)
             CALL dissection%copy_resultcol(my_sms(i), sm_sign)
             DEALLOCATE (sm_sign, tmp)
-         ENDIF
+         END IF
 
          DEALLOCATE (sm)
          trace = trace + trace_from_eigdecomp(eigbufs(i)%eigvals, eigbufs(i)%eigvecs, sm_firstcol, sm_lastcol, 0.0_dp)
-      ENDDO
+      END DO
       !$OMP END DO
       !$OMP END PARALLEL
 
@@ -1533,12 +1533,12 @@ CONTAINS
             new_mu = new_mu - increment
             has_mu_high = .TRUE.
             increment = increment*2
-         ENDIF
+         END IF
 
          IF (has_mu_low .AND. has_mu_high) THEN
             new_mu = (mu_low + mu_high)/2
             IF (ABS(mu_high - mu_low) < threshold) EXIT
-         ENDIF
+         END IF
 
          trace = 0
 ! gfortran before 8.3 complains about internal symbols not being specified in
@@ -1557,10 +1557,10 @@ CONTAINS
             sm_size = SIZE(eigbufs(j)%eigvals)
             CALL dissection%get_relevant_sm_columns(my_sms(j), sm_firstcol, sm_lastcol)
             trace = trace + trace_from_eigdecomp(eigbufs(j)%eigvals, eigbufs(j)%eigvecs, sm_firstcol, sm_lastcol, new_mu - mu)
-         ENDDO
+         END DO
          !$OMP END DO
          !$OMP END PARALLEL
-      ENDDO
+      END DO
 
       ! Finalize sign matrix from eigendecompositions if we kept all eigenvectors
       IF (variant .EQ. ls_scf_submatrix_sign_direct_muadj) THEN
@@ -1582,10 +1582,10 @@ CONTAINS
             CALL sign_from_eigdecomp(sm_sign, eigbufs(i)%eigvals, eigbufs(i)%eigvecs, sm_size, new_mu - mu)
             CALL dissection%copy_resultcol(my_sms(i), sm_sign)
             DEALLOCATE (sm_sign)
-         ENDDO
+         END DO
          !$OMP END DO
          !$OMP END PARALLEL
-      ENDIF
+      END IF
 
       DEALLOCATE (eigbufs)
 
@@ -1608,15 +1608,15 @@ CONTAINS
             sm_size = SIZE(sm, 1)
             DO j = 1, sm_size
                sm(j, j) = sm(j, j) + mu - new_mu
-            ENDDO
+            END DO
             ALLOCATE (sm_sign(sm_size, sm_size))
             CALL dense_matrix_sign_direct(sm_sign, sm, sm_size)
             CALL dissection%copy_resultcol(my_sms(i), sm_sign)
             DEALLOCATE (sm, sm_sign)
-         ENDDO
+         END DO
          !$OMP END DO
          !$OMP END PARALLEL
-      ENDIF
+      END IF
 
       mu = new_mu
 
@@ -1671,21 +1671,21 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       IF (PRESENT(converged)) converged = .FALSE.
       IF (PRESENT(symmetrize)) THEN
          tsym = symmetrize
       ELSE
          tsym = .TRUE.
-      ENDIF
+      END IF
 
       ! for stability symmetry can not be assumed
       CALL dbcsr_create(tmp1, template=matrix, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_create(tmp2, template=matrix, matrix_type=dbcsr_type_no_symmetry)
       IF (order .GE. 4) THEN
          CALL dbcsr_create(tmp3, template=matrix, matrix_type=dbcsr_type_no_symmetry)
-      ENDIF
+      END IF
 
       CALL dbcsr_set(matrix_sqrt_inv, 0.0_dp)
       CALL dbcsr_add_on_diag(matrix_sqrt_inv, 1.0_dp)
@@ -1709,19 +1709,19 @@ CONTAINS
             WRITE (unit_nr, '(T6,A,1X,L1,A,E12.3)') "Lanczos converged: ", arnoldi_converged, " threshold:", eps_lanczos
             WRITE (unit_nr, '(T6,A,1X,E12.3,E12.3)') "Est. extremal eigenvalues:", max_ev, min_ev
             WRITE (unit_nr, '(T6,A,1X,E12.3)') "Est. condition number :", max_ev/MAX(min_ev, EPSILON(min_ev))
-         ENDIF
+         END IF
          ! conservatively assume we get a relatively large error (100*threshold_lanczos) in the estimates
          ! and adjust the scaling to be on the safe side
          scaling = 2.0_dp/(max_ev + min_ev + 100*eps_lanczos)
 
-      ENDIF
+      END IF
 
       CALL dbcsr_scale(matrix_sqrt, scaling)
       CALL dbcsr_filter(matrix_sqrt, threshold)
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, *)
          WRITE (unit_nr, *) "Order=", order
-      ENDIF
+      END IF
 
       DO i = 1, 100
 
@@ -1822,7 +1822,7 @@ CONTAINS
                conv, t2 - t1, &
                (flop1 + flop2 + flop3 + flop4 + flop5)/(1.0E6_dp*MAX(0.001_dp, t2 - t1))
             CALL m_flush(unit_nr)
-         ENDIF
+         END IF
 
          IF (abnormal_value(conv)) &
             CPABORT("conv is an abnormal value (NaN/Inf).")
@@ -1831,20 +1831,20 @@ CONTAINS
          IF ((conv*conv) < threshold) THEN
             IF (PRESENT(converged)) converged = .TRUE.
             EXIT
-         ENDIF
+         END IF
 
-      ENDDO
+      END DO
 
       ! symmetrize the matrices as this is not guaranteed by the algorithm
       IF (tsym) THEN
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T6,A20)') "Symmetrizing Results"
-         ENDIF
+         END IF
          CALL dbcsr_transposed(tmp1, matrix_sqrt_inv)
          CALL dbcsr_add(matrix_sqrt_inv, tmp1, 0.5_dp, 0.5_dp)
          CALL dbcsr_transposed(tmp1, matrix_sqrt)
          CALL dbcsr_add(matrix_sqrt, tmp1, 0.5_dp, 0.5_dp)
-      ENDIF
+      END IF
 
       ! this check is not really needed
       CALL dbcsr_multiply("N", "N", +1.0_dp, matrix_sqrt_inv, matrix_sqrt, 0.0_dp, tmp1, &
@@ -1858,7 +1858,7 @@ CONTAINS
             frob_matrix/frob_matrix_base
          WRITE (unit_nr, '()')
          CALL m_flush(unit_nr)
-      ENDIF
+      END IF
 
       ! scale to proper end results
       CALL dbcsr_scale(matrix_sqrt, 1/SQRT(scaling))
@@ -1868,7 +1868,7 @@ CONTAINS
       CALL dbcsr_release(tmp2)
       IF (order .GE. 4) THEN
          CALL dbcsr_release(tmp3)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -1921,14 +1921,14 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       IF (PRESENT(converged)) converged = .FALSE.
       IF (PRESENT(symmetrize)) THEN
          tsym = symmetrize
       ELSE
          tsym = .TRUE.
-      ENDIF
+      END IF
 
       ! for stability symmetry can not be assumed
       CALL dbcsr_create(tmp1, template=matrix, matrix_type=dbcsr_type_no_symmetry)
@@ -1947,7 +1947,7 @@ CONTAINS
             WRITE (unit_nr, '(T6,A,1X,L1,A,E12.3)') "Lanczos converged: ", arnoldi_converged, " threshold:", eps_lanczos
             WRITE (unit_nr, '(T6,A,1X,E12.3,E12.3)') "Est. extremal eigenvalues:", max_ev, min_ev
             WRITE (unit_nr, '(T6,A,1X,E12.3)') "Est. condition number :", max_ev/MAX(min_ev, EPSILON(min_ev))
-         ENDIF
+         END IF
          ! conservatively assume we get a relatively large error (100*threshold_lanczos) in the estimates
          ! and adjust the scaling to be on the safe side
          scaling = 2.0_dp/(max_ev + min_ev + 100*eps_lanczos)
@@ -1955,7 +1955,7 @@ CONTAINS
          CALL dbcsr_filter(matrixS, threshold)
       ELSE
          scaling = 1.0_dp
-      ENDIF
+      END IF
 
       CALL dbcsr_set(matrix_sqrt_inv, 0.0_dp)
       CALL dbcsr_add_on_diag(matrix_sqrt_inv, 1.0_dp)
@@ -1964,7 +1964,7 @@ CONTAINS
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, *)
          WRITE (unit_nr, *) "Order=", order
-      ENDIF
+      END IF
 
       DO i = 1, 100
 
@@ -1993,9 +1993,9 @@ CONTAINS
                   CALL dbcsr_multiply("N", "N", 1.0_dp, tmp3, Rmat, 0.0_dp, tmp2, &
                                       filter_eps=threshold, flop=f)
                   flop3 = flop3 + f
-               ENDIF
+               END IF
                CALL dbcsr_add(tmp1, tmp2, 1.0_dp, 1.0_dp)
-            ENDDO
+            END DO
          ELSE
             CALL dbcsr_create(BK2A, template=matrix, matrix_type=dbcsr_type_no_symmetry)
             CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_sqrt_inv, matrixS, 0.0_dp, tmp3, &
@@ -2022,10 +2022,10 @@ CONTAINS
                   CALL dbcsr_multiply("N", "N", 1.0_dp, tmp3, BK2A, 0.0_dp, tmp2, &
                                       filter_eps=threshold, flop=f)
                   flop3 = flop3 + f
-               ENDIF
-            ENDDO
+               END IF
+            END DO
             CALL dbcsr_release(BK2A)
-         ENDIF
+         END IF
 
          CALL dbcsr_copy(tmp3, matrix_sqrt_inv)
          CALL dbcsr_multiply("N", "N", 0.5_dp, tmp3, tmp1, 0.0_dp, matrix_sqrt_inv, &
@@ -2043,7 +2043,7 @@ CONTAINS
                conv, t2 - t1, &
                (flop1 + flop2 + flop3 + flop4 + flop5)/(1.0E6_dp*MAX(0.001_dp, t2 - t1))
             CALL m_flush(unit_nr)
-         ENDIF
+         END IF
 
          IF (abnormal_value(conv)) &
             CPABORT("conv is an abnormal value (NaN/Inf).")
@@ -2052,9 +2052,9 @@ CONTAINS
          IF ((conv*conv) < threshold) THEN
             IF (PRESENT(converged)) converged = .TRUE.
             EXIT
-         ENDIF
+         END IF
 
-      ENDDO
+      END DO
 
       ! scale to proper end results
       CALL dbcsr_scale(matrix_sqrt_inv, SQRT(scaling))
@@ -2065,12 +2065,12 @@ CONTAINS
       IF (tsym) THEN
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(A20)') "SYMMETRIZING RESULTS"
-         ENDIF
+         END IF
          CALL dbcsr_transposed(tmp1, matrix_sqrt_inv)
          CALL dbcsr_add(matrix_sqrt_inv, tmp1, 0.5_dp, 0.5_dp)
          CALL dbcsr_transposed(tmp1, matrix_sqrt)
          CALL dbcsr_add(matrix_sqrt, tmp1, 0.5_dp, 0.5_dp)
-      ENDIF
+      END IF
 
       ! this check is not really needed
       IF (test) THEN
@@ -2085,7 +2085,7 @@ CONTAINS
                frob_matrix/frob_matrix_base
             WRITE (unit_nr, '()')
             CALL m_flush(unit_nr)
-         ENDIF
+         END IF
 
          ! this check is not really needed
          CALL dbcsr_multiply("N", "N", +1.0_dp, matrix_sqrt_inv, matrix_sqrt_inv, 0.0_dp, tmp2, &
@@ -2101,8 +2101,8 @@ CONTAINS
                frob_matrix/frob_matrix_base
             WRITE (unit_nr, '()')
             CALL m_flush(unit_nr)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       CALL dbcsr_release(tmp1)
       CALL dbcsr_release(tmp2)
@@ -2142,7 +2142,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       ! Calculate the norm of the matrix alpha*matrix, and scale it until it is less than 1.0
       norm_scalar = ABS(alpha)*dbcsr_frobenius_norm(matrix)
@@ -2246,7 +2246,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       CALL dbcsr_create(matrix_pp, template=matrix_p(1), matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_create(matrix_tmp, template=matrix_p(1), matrix_type=dbcsr_type_no_symmetry)
@@ -2311,7 +2311,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       CALL dbcsr_create(matrix_ps, template=matrix_p(1), matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_create(matrix_psp, template=matrix_p(1), matrix_type=dbcsr_type_no_symmetry)

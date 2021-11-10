@@ -87,7 +87,7 @@ CONTAINS
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
          CALL pao_param_count_linpot(pao, qs_env, ikind, nterms)
          col_blk_size(iatom) = nterms
-      ENDDO
+      END DO
 
       ! allocate matrix_V_terms
       CALL dbcsr_get_info(pao%matrix_Y, row_blk_size=blk_sizes_pri)
@@ -116,7 +116,7 @@ CONTAINS
          CALL linpot_calc_terms(pao, qs_env, iatom, V_blocks)
          block_V_terms = RESHAPE(V_blocks, (/N*N, nterms/)) ! convert matrices into vectors
          DEALLOCATE (V_blocks)
-      ENDDO
+      END DO
       CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
 
@@ -192,13 +192,13 @@ CONTAINS
             DO i = 1, nterms
             DO j = 1, nterms
                block_R(i, j) = block_R(i, j) + w*S_evecs(i, k)*S_evecs(j, k)
-            ENDDO
-            ENDDO
-         ENDDO
+            END DO
+            END DO
+         END DO
 
          ! clean up
          DEALLOCATE (S, S_evals, S_evecs)
-      ENDDO
+      END DO
       CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
 
@@ -273,12 +273,12 @@ CONTAINS
             DO j = 1, nterms
                block_precon(i, j) = block_precon(i, j) + S_evecs(i, k)*S_evecs(j, k)/SQRT(eval_capped)
                block_precon_inv(i, j) = block_precon_inv(i, j) + S_evecs(i, k)*S_evecs(j, k)*SQRT(eval_capped)
-            ENDDO
-            ENDDO
-         ENDDO
+            END DO
+            END DO
+         END DO
 
          DEALLOCATE (S, S_evecs, S_evals)
-      ENDDO
+      END DO
       CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
 
@@ -298,7 +298,7 @@ CONTAINS
       IF (pao%precondition) THEN
          CALL dbcsr_release(pao%matrix_precon)
          CALL dbcsr_release(pao%matrix_precon_inv)
-      ENDIF
+      END IF
 
    END SUBROUTINE pao_param_finalize_linpot
 
@@ -337,7 +337,7 @@ CONTAINS
          CASE DEFAULT
             CPABORT("unknown parameterization")
          END SELECT
-      ENDIF
+      END IF
 
    END SUBROUTINE pao_param_count_linpot
 
@@ -435,21 +435,21 @@ CONTAINS
                   block_G(:, 1) = MATMUL(vec_M2, block_V_terms)
                   IF (PRESENT(penalty)) &
                      block_G = block_G + 2.0_dp*MATMUL(block_R, block_X) ! regularization gradient
-               ENDIF
+               END IF
 
                ! forced dE/dR
                IF (PRESENT(forces)) THEN
                   ALLOCATE (M_blocks(n, n, nterms))
                   DO kterm = 1, nterms
                      M_blocks(:, :, kterm) = block_M2*block_X(kterm, 1)
-                  ENDDO
+                  END DO
                   CALL linpot_calc_forces(pao, qs_env, iatom=iatom, M_blocks=M_blocks, forces=forces)
                   DEALLOCATE (M_blocks)
-               ENDIF
+               END IF
 
                DEALLOCATE (vec_M2)
-            ENDIF
-         ENDIF
+            END IF
+         END IF
          DEALLOCATE (vec_V)
       END DO
       CALL dbcsr_iterator_stop(iter)
@@ -459,7 +459,7 @@ CONTAINS
          CALL mp_sum(penalty, group)
          CALL mp_sum(regu_energy, group)
          penalty = penalty + regu_energy
-      ENDIF
+      END IF
 
       ! print stuff, but not during second invocation for forces
       IF (.NOT. PRESENT(forces)) THEN
@@ -468,20 +468,20 @@ CONTAINS
          IF (pao%iw_fockev > 0) THEN
             DO iatom = 1, natoms
                WRITE (pao%iw_fockev, *) "PAO| atom:", iatom, " fock evals around gap:", evals(:, iatom)
-            ENDDO
+            END DO
             CALL m_flush(pao%iw_fockev)
-         ENDIF
+         END IF
          ! print homo-lumo gap encountered by fock-layer
          CALL mp_min(gaps, group)
          IF (pao%iw_gap > 0) THEN
             DO iatom = 1, natoms
                WRITE (pao%iw_gap, *) "PAO| atom:", iatom, " fock gap:", gaps(iatom)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
          ! one-line summaries
          IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| linpot regularization energy:", regu_energy
          IF (pao%iw > 0) WRITE (pao%iw, "(A,E20.10,A,T71,I10)") " PAO| min_gap:", MINVAL(gaps), " for atom:", MINLOC(gaps)
-      ENDIF
+      END IF
 
       DEALLOCATE (gaps, evals)
       CALL timestop(handle)
@@ -598,16 +598,16 @@ CONTAINS
             DO i = 1, nterms
             DO j = 1, nterms
                S_inv(i, j) = S_inv(i, j) + w*S_evecs(i, k)*S_evecs(j, k)
-            ENDDO
-            ENDDO
-         ENDDO
+            END DO
+            END DO
+         END DO
 
          ! perform fit
          block_X(:, 1) = MATMUL(MATMUL(S_inv, TRANSPOSE(V_terms)), V_guess_vec)
 
          ! clean up
          DEALLOCATE (V_guess_vec, S, S_evecs, S_evals, S_inv)
-      ENDDO
+      END DO
       CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
 

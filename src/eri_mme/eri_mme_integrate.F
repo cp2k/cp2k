@@ -114,7 +114,7 @@ CONTAINS
          norm = normalize
       ELSE
          norm = .FALSE.
-      ENDIF
+      END IF
 
       l_max = la_max + lb_max
 
@@ -122,13 +122,13 @@ CONTAINS
          exact = .TRUE.
       ELSE
          exact = .FALSE.
-      ENDIF
+      END IF
 
       IF (exact) THEN
          is_ortho = .FALSE.
       ELSE
          is_ortho = param%is_ortho
-      ENDIF
+      END IF
 
       IF (is_ortho) THEN
          ALLOCATE (S_G(0:l_max, 3, n_aw))
@@ -137,12 +137,12 @@ CONTAINS
          IF (param%debug) THEN
             ALLOCATE (S_G_1(0:l_max))
             ALLOCATE (S_G_2(0:l_max))
-         ENDIF
+         END IF
       ELSE
          ALLOCATE (S_G_no(ncoset(l_max)))
          S_G_no(:) = 0.0_dp
          ALLOCATE (S_G_no_H(ncoset(l_max)))
-      ENDIF
+      END IF
 
       IF (exact) THEN
          alpha_G = 0.25_dp/zeta + 0.25_dp/zetb
@@ -179,7 +179,7 @@ CONTAINS
                   ELSE
                      CALL pgf_sum_2c_rspace_1d(S_G(:, i_xyz, i_aw), -rab(i_xyz), alpha_R, lgth, R_bounds(i_xyz))
                      IF (PRESENT(R_count)) R_count = R_count + 1
-                  ENDIF
+                  END IF
 
                   IF (param%debug) THEN
                      ! check consistency of summation methods
@@ -188,8 +188,8 @@ CONTAINS
                      max_error = MAXVAL(ABS(S_G_1 - S_G_2)/(0.5_dp*(ABS(S_G_1) + ABS(S_G_2)) + 1.0_dp))
 
                      CPASSERT(max_error .LE. param%debug_delta)
-                  ENDIF
-               ENDDO
+                  END IF
+               END DO
 
             ELSE ! general cell
 
@@ -201,11 +201,11 @@ CONTAINS
                ELSE
                   CALL pgf_sum_2c_rspace_3d(S_G_no_H, l_max, -rab, alpha_R, hmat, h_inv, R_bounds, R_rad)
                   IF (PRESENT(R_count)) R_count = R_count + 1
-               ENDIF
+               END IF
                S_G_no(:) = S_G_no(:) + aw(n_aw + i_aw)*S_G_no_H
-            ENDIF
-         ENDDO
-      ENDIF
+            END IF
+         END DO
+      END IF
 
       ! prefactor for integral values (unnormalized Hermite Gaussians)
       prefac = SQRT(1.0_dp/(zeta*zetb))
@@ -223,15 +223,15 @@ CONTAINS
                   Ixyz = 1.0_dp
                   DO i_xyz = 1, 3
                      Ixyz = Ixyz*S_G(la_xyz(i_xyz) + lb_xyz(i_xyz), i_xyz, i_aw)*prefac
-                  ENDDO
+                  END DO
                   Imm = Imm + aw(n_aw + i_aw)*Ixyz
-               ENDDO
+               END DO
             ELSE
                Imm = S_G_no(coset(ax + bx, ay + by, az + bz))*prefac**3
-            ENDIF
+            END IF
             IF (la + lb .EQ. 0 .AND. .NOT. exact) THEN
                Imm = Imm - SUM(aw(n_aw + 1:2*n_aw))*prefac**3/vol ! subtracting G = 0 term
-            ENDIF
+            END IF
             IF (.NOT. norm) THEN
                ! rescaling needed due to Hermite Gaussians (such that they can be contracted same way as Cartesian Gaussians)
                ! and factor of 4 pi**4 (-1)**lb
@@ -240,9 +240,9 @@ CONTAINS
                ! same thing for normalized Hermite Gaussians
                hab(o1 + ico, o2 + jco) = Imm*4.0_dp*pi**4*(-1.0_dp)**lb*hermite_gauss_norm(zeta, la_xyz)* &
                                          hermite_gauss_norm(zetb, lb_xyz)
-            ENDIF
-         ENDDO ! la
-      ENDDO ! lb
+            END IF
+         END DO ! la
+      END DO ! lb
 
    END SUBROUTINE eri_mme_2c_integrate
 
@@ -289,7 +289,7 @@ CONTAINS
          CALL eri_mme_3c_integrate_nonortho(param, la_min, la_max, lb_min, lb_max, lc_min, lc_max, zeta, zetb, zetc, RA, RB, RC, &
                                             habc, o1, o2, o3, GG_count, GR_count, RR_count)
 
-      ENDIF
+      END IF
    END SUBROUTINE eri_mme_3c_integrate
 
 ! **************************************************************************************************
@@ -381,7 +381,7 @@ CONTAINS
          CALL pgf_sum_2c_rspace_1d(S_G_0(:, 2), RB(2) - RA(2), alpha_R_0, lgth, R_rad_0/lgth)
          lgth = ABS(hmat(3, 3))
          CALL pgf_sum_2c_rspace_1d(S_G_0(:, 3), RB(3) - RA(3), alpha_R_0, lgth, R_rad_0/lgth)
-      ENDIF
+      END IF
 
       DO i_aw = 1, n_aw
          CALL eri_mme_3c_get_bounds(hmat, h_inv, vol, .TRUE., param%G_min, param%R_min, la_max, lb_max, lc_max, &
@@ -400,7 +400,7 @@ CONTAINS
                             R_bounds_3(:, 3))
 
          IF (PRESENT(RR_count)) RR_count = RR_count + 3
-      ENDDO
+      END DO
 
       CALL eri_mme_3c_collect_ortho(vol, la_min, la_max, lb_min, lb_max, lc_min, lc_max, &
                                     zeta, zetb, zetc, n_aw, aw, S_G, S_G_0, prefac, habc, o1, o2, o3)
@@ -491,7 +491,7 @@ CONTAINS
          ALLOCATE (S_G_no_1(ncoset(la_max), ncoset(lb_max), ncoset(lc_max)))
          ALLOCATE (S_G_no_2(ncoset(la_max), ncoset(lb_max), ncoset(lc_max)))
          ALLOCATE (S_G_no_3(ncoset(la_max), ncoset(lb_max), ncoset(lc_max)))
-      ENDIF
+      END IF
 
       ! Preparations for G=0 component
       G_res = 0.5_dp*param%G_min
@@ -504,7 +504,7 @@ CONTAINS
          S_G_no_1(:, :, :) = -1.0_dp
          S_G_no_2(:, :, :) = -1.0_dp
          S_G_no_3(:, :, :) = -1.0_dp
-      ENDIF
+      END IF
       ALLOCATE (S_G_no_H(ncoset(la_max), ncoset(lb_max), ncoset(lc_max)))
 
       ! G= 0 components
@@ -523,8 +523,8 @@ CONTAINS
             CALL pgf_sum_2c_gspace_3d(S_G_0_no, lmax_0, R_0, alpha_G_0, h_inv, G_bound_0, G_rad_0, vol)
          ELSE
             CALL pgf_sum_2c_rspace_3d(S_G_0_no, lmax_0, R_0, alpha_R_0, hmat, h_inv, R_bound_0, R_rad_0)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       DO i_aw = 1, n_aw
          CALL eri_mme_3c_get_bounds(hmat, h_inv, vol, .FALSE., param%G_min, param%R_min, la_max, lb_max, lc_max, &
@@ -561,7 +561,7 @@ CONTAINS
             IF (param%unit_nr > 0) THEN
                WRITE (param%unit_nr, *) "ERI_MME DEBUG | number of summands (GG / GR / RR)", n_sum_3d
                WRITE (param%unit_nr, *) "ERI_MME DEBUG | sum methods to be compared (GG / GR / RR)", db_sum1, db_sum2, db_sum3
-            ENDIF
+            END IF
 
             S_G_no_1(:, :, :) = 0.0_dp
             S_G_no_2(:, :, :) = 0.0_dp
@@ -574,7 +574,7 @@ CONTAINS
                                   G_rads_1, R_rads_2, R_rads_3, &
                                   method=1)
                nresults = nresults + 1
-            ENDIF
+            END IF
 
             IF (db_sum2) THEN
                CALL pgf_sum_3c_3d(S_G_no_2, la_max, lb_max, lc_max, RA, RB, RC, &
@@ -583,7 +583,7 @@ CONTAINS
                                   G_rads_1, R_rads_2, R_rads_3, &
                                   method=2)
                nresults = nresults + 1
-            ENDIF
+            END IF
 
             IF (db_sum3) THEN
                CALL pgf_sum_3c_3d(S_G_no_3, la_max, lb_max, lc_max, RA, RB, RC, &
@@ -592,7 +592,7 @@ CONTAINS
                                   G_rads_1, R_rads_2, R_rads_3, &
                                   method=3)
                nresults = nresults + 1
-            ENDIF
+            END IF
 
             max_error = 0.0_dp
             ALLOCATE (results_no(nresults))
@@ -609,30 +609,30 @@ CONTAINS
                      IF (db_sum1) THEN
                         ir = ir + 1
                         results_no(ir) = S_G_no_1(ico, jco, kco)
-                     ENDIF
+                     END IF
 
                      IF (db_sum2) THEN
                         ir = ir + 1
                         results_no(ir) = S_G_no_2(ico, jco, kco)
-                     ENDIF
+                     END IF
 
                      IF (db_sum3) THEN
                         ir = ir + 1
                         results_no(ir) = S_G_no_3(ico, jco, kco)
-                     ENDIF
+                     END IF
 
                      max_result = MAXVAL(results_no)
                      min_result = MINVAL(results_no)
                      IF (nresults > 0) max_error = MAX(max_error, &
                                                     (max_result - min_result)/(0.5_dp*(ABS(max_result) + ABS(min_result)) + 1.0_dp))
-                  ENDDO
-               ENDDO
-            ENDDO
+                  END DO
+               END DO
+            END DO
 
             CPASSERT(max_error .LE. param%debug_delta)
             DEALLOCATE (results_no)
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       ! assemble integral values
 
@@ -716,7 +716,7 @@ CONTAINS
                            S_G_0(ay + by, 2)* &
                            S_G_0(az + bz, 3) &
                            /vol*mone_lb
-               ENDIF
+               END IF
                Imm = SUM(aw(n_aw + 1:2*n_aw)*( &
                          S_G(1:n_aw, 1, ax, bx, cx)* &
                          S_G(1:n_aw, 2, ay, by, cy)* &
@@ -725,11 +725,11 @@ CONTAINS
                ! rescaling needed due to Hermite Gaussians
                habc(o1 + ico, o2 + jco, o3 + kco) = Imm*prefac/(resc_a*resc_b*resc_c)
                la_prev = la
-            ENDDO ! la
+            END DO ! la
             lb_prev = lb
-         ENDDO ! lb
+         END DO ! lb
          lc_prev = lc
-      ENDDO ! lc
+      END DO ! lc
 
    END SUBROUTINE
 
@@ -806,16 +806,16 @@ CONTAINS
                ELSE
                   ijco = coset(ax + bx, ay + by, az + bz)
                   Imm = S_G(ico, jco, kco) - SUM(aw(n_aw + 1:2*n_aw))*S_G_0(ijco)/vol*mone_lb
-               ENDIF
+               END IF
 
                ! rescaling needed due to Hermite Gaussians
                habc(o1 + ico, o2 + jco, o3 + kco) = Imm*prefac/(resc_a*resc_b*resc_c)
                la_prev = la
-            ENDDO ! la
+            END DO ! la
             lb_prev = lb
-         ENDDO ! lb
+         END DO ! lb
          lc_prev = lc
-      ENDDO ! lc
+      END DO ! lc
 
    END SUBROUTINE
 

@@ -72,7 +72,7 @@ CONTAINS
 
       IF (.NOT. restart) THEN
          CALL init_al_variables(al)
-      ENDIF
+      END IF
 
    END SUBROUTINE initialize_al_part
 

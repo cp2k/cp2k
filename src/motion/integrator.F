@@ -250,7 +250,7 @@ CONTAINS
             iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
             IF (do_langevin(iparticle)) THEN
                sigma = var_w(iparticle)*mass
-               ASSOCIATE (rng_stream=>local_particles%local_particle_set(iparticle_kind)% &
+               ASSOCIATE (rng_stream => local_particles%local_particle_set(iparticle_kind)% &
                           rng(iparticle_local))
                   w(1, iparticle) = rng_stream%stream%next(variance=sigma)
                   w(2, iparticle) = rng_stream%stream%next(variance=sigma)
@@ -529,7 +529,7 @@ CONTAINS
 
          IF (ehrenfest_md) THEN
             CALL rt_prop_output(force_env%qs_env, ehrenfest, delta_iter=force_env%qs_env%rtp%delta_iter)
-         ENDIF
+         END IF
 
          ! Metadynamics
          CALL metadyn_integrator(force_env, itimes, tmp%vel)
@@ -781,8 +781,8 @@ CONTAINS
          IF (force_env%meta_env%langevin) THEN
             ALLOCATE (rand(force_env%meta_env%n_colvar))
             rand(:) = 0.0_dp
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       !  Allocate work storage for positions and velocities
       IF (shell_present) THEN
@@ -823,10 +823,10 @@ CONTAINS
          IF (force_env%meta_env%langevin) THEN
             DO ivar = 1, force_env%meta_env%n_colvar
                rand(ivar) = force_env%meta_env%rng(ivar)%next()
-            ENDDO
+            END DO
             CALL metadyn_velocities_colvar(force_env, rand)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       ! Velocity Verlet (first part)
       CALL vv_first(tmp, atomic_kind_set, local_particles, particle_set, &
@@ -895,8 +895,8 @@ CONTAINS
       IF (ASSOCIATED(force_env%meta_env)) THEN
          IF (force_env%meta_env%langevin) THEN
             DEALLOCATE (rand)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       ! Update constraint virial
       IF (simpar%constraint) CALL pv_constraint(gci, local_molecules, &
@@ -989,8 +989,8 @@ CONTAINS
          IF (force_env%meta_env%langevin) THEN
             ALLOCATE (rand(force_env%meta_env%n_colvar))
             rand(:) = 0.0_dp
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       !  Allocate work storage for positions and velocities
       IF (shell_present) THEN
@@ -1028,10 +1028,10 @@ CONTAINS
          IF (force_env%meta_env%langevin) THEN
             DO ivar = 1, force_env%meta_env%n_colvar
                rand(ivar) = force_env%meta_env%rng(ivar)%next()
-            ENDDO
+            END DO
             CALL metadyn_velocities_colvar(force_env, rand)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       ! Velocity Verlet (first part)
       CALL vv_first(tmp, atomic_kind_set, local_particles, particle_set, &
@@ -1135,8 +1135,8 @@ CONTAINS
       IF (ASSOCIATED(force_env%meta_env)) THEN
          IF (force_env%meta_env%langevin) THEN
             DEALLOCATE (rand)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       ! Update constraint virial
       IF (simpar%constraint) CALL pv_constraint(gci, local_molecules, &
@@ -1247,8 +1247,8 @@ CONTAINS
          IF (force_env%meta_env%langevin) THEN
             ALLOCATE (rand(force_env%meta_env%n_colvar))
             rand(:) = 0.0_dp
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       IF (shell_present) THEN
          CALL cp_subsys_get(subsys=subsys, &
@@ -1301,7 +1301,7 @@ CONTAINS
                      molecule_kind_set, particle_set, cell)
       ELSE
          roll_tol_thrs = EPSILON(0.0_dp)
-      ENDIF
+      END IF
       roll_tol = -roll_tol_thrs
 
       !    *** Velocity Verlet for Langeving *** v(t)--> v(t+1/2)
@@ -1309,10 +1309,10 @@ CONTAINS
          IF (force_env%meta_env%langevin) THEN
             DO ivar = 1, force_env%meta_env%n_colvar
                rand(ivar) = force_env%meta_env%rng(ivar)%next()
-            ENDDO
+            END DO
             CALL metadyn_velocities_colvar(force_env, rand)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       SR: DO WHILE (ABS(roll_tol) >= roll_tol_thrs) ! SHAKE-ROLL LOOP
 
@@ -1397,7 +1397,7 @@ CONTAINS
          CALL set(old, atomic_kind_set, particle_set, tmp%vel, local_particles, cell, npt, 'F')
       ELSE
          roll_tol_thrs = EPSILON(0.0_dp)
-      ENDIF
+      END IF
       roll_tol = -roll_tol_thrs
 
       RR: DO WHILE (ABS(roll_tol) >= roll_tol_thrs) ! RATTLE-ROLL LOOP
@@ -1465,8 +1465,8 @@ CONTAINS
       IF (ASSOCIATED(force_env%meta_env)) THEN
          IF (force_env%meta_env%langevin) THEN
             DEALLOCATE (rand)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       IF (first_time) THEN
          first_time = .FALSE.
@@ -1727,7 +1727,7 @@ CONTAINS
                      molecule_kind_set, particle_set, cell)
       ELSE
          roll_tol_thrs = EPSILON(0.0_dp)
-      ENDIF
+      END IF
       roll_tol = -roll_tol_thrs
 
       SR: DO WHILE (ABS(roll_tol) >= roll_tol_thrs) ! SHAKE-ROLL LOOP
@@ -1816,7 +1816,7 @@ CONTAINS
          CALL set(old, atomic_kind_set, particle_set, tmp%vel, local_particles, cell, npt, 'F')
       ELSE
          roll_tol_thrs = EPSILON(0.0_dp)
-      ENDIF
+      END IF
       roll_tol = -roll_tol_thrs
 
       RR: DO WHILE (ABS(roll_tol) >= roll_tol_thrs) ! RATTLE-ROLL LOOP
@@ -1973,7 +1973,7 @@ CONTAINS
                      molecule_kind_set, particle_set, cell)
       ELSE
          roll_tol_thrs = EPSILON(0.0_dp)
-      ENDIF
+      END IF
       roll_tol = -roll_tol_thrs
 
       SR: DO WHILE (ABS(roll_tol) >= roll_tol_thrs) ! SHAKE-ROLL LOOP
@@ -2062,7 +2062,7 @@ CONTAINS
          CALL set(old, atomic_kind_set, particle_set, tmp%vel, local_particles, cell, npt, 'F')
       ELSE
          roll_tol_thrs = EPSILON(0.0_dp)
-      ENDIF
+      END IF
       roll_tol = -roll_tol_thrs
 
       RR: DO WHILE (ABS(roll_tol) >= roll_tol_thrs) ! RATTLE-ROLL LOOP
@@ -2251,7 +2251,7 @@ CONTAINS
                      molecule_kind_set, particle_set, cell)
       ELSE
          roll_tol_thrs = EPSILON(0.0_dp)
-      ENDIF
+      END IF
       roll_tol = -roll_tol_thrs
 
       SR: DO WHILE (ABS(roll_tol) >= roll_tol_thrs) ! SHAKE-ROLL LOOP
@@ -2344,7 +2344,7 @@ CONTAINS
          CALL set(old, atomic_kind_set, particle_set, tmp%vel, local_particles, cell, npt, 'F')
       ELSE
          roll_tol_thrs = EPSILON(0.0_dp)
-      ENDIF
+      END IF
       roll_tol = -roll_tol_thrs
 
       RR: DO WHILE (ABS(roll_tol) >= roll_tol_thrs) ! RATTLE-ROLL LOOP

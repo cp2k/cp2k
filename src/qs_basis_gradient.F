@@ -156,8 +156,8 @@ CONTAINS
                END DO
             END DO
             CALL set_ks_env(ks_env, matrix_w_kp=matrix_w_kp)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
       ! time to compute the w matrix
       CALL qs_energies_compute_w(qs_env, .TRUE.)
 

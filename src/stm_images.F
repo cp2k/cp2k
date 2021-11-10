@@ -203,7 +203,7 @@ CONTAINS
             CALL cp_fm_to_fm(unoccupied_orbs(ispin)%matrix, mo_arrays(ispin)%matrix, &
                              nadd_unocc(ispin), 1, nmo + 1)
          END IF
-      ENDDO
+      END DO
       IF (use_ref_energy) efermi = ref_energy
 
       CALL stm_cubes(ks_env, stm_section, stm_density_ao, wf_r, wf_g, mo_arrays, evals, &
@@ -329,9 +329,9 @@ CONTAINS
                END DO
                IF ((output_unit > 0) .AND. evals(ispin)%array(nmo) < efermi + stm_biases(ibias)) &
                   WRITE (output_unit, '(T4,A)') "Warning: E-Fermi+bias above highest computed unoccupied MO"
-            ENDIF
+            END IF
             istates = istates + nstates(ispin)
-         ENDDO
+         END DO
          IF ((output_unit > 0)) WRITE (output_unit, '(T4,A,I0,A)') "Using a total of ", istates, " states"
          IF (istates == 0) CYCLE
 
@@ -358,7 +358,7 @@ CONTAINS
                   alpha - occupation(ispin)%array(state_start(ispin):state_start(ispin) - 1 + nstates(ispin))
             END IF
             istates = istates + nstates(ispin)
-         ENDDO
+         END DO
 
          CALL cp_fm_column_scale(matrix_vf, occ_tot(1:istates))
          alpha = 1.0_dp
@@ -397,7 +397,7 @@ CONTAINS
          CALL cp_fm_release(matrix_vf)
          DEALLOCATE (occ_tot)
 
-      ENDDO
+      END DO
 
       CALL timestop(handle)
 

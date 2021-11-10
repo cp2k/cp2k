@@ -95,7 +95,7 @@ CONTAINS
                                        TG1 = (2*X1 - 0.284374999999999989E+00_dp)*0.355555555555555429E+02_dp
                                        TG2 = (2*X2 - 0.156250000000000000E+00_dp)*0.320000000000000000E+02_dp
                                        CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 3))
-                                    ENDIF
+                                    END IF
                                  ELSE
                                     IF (X1 <= 0.128124999999999989E+00_dp) THEN
                                        IF (X2 <= 0.109375000000000000E+00_dp) THEN
@@ -106,19 +106,19 @@ CONTAINS
                                           TG1 = (2*X1 - 0.228124999999999994E+00_dp)*0.355555555555555785E+02_dp
                                           TG2 = (2*X2 - 0.234375000000000000E+00_dp)*0.640000000000000000E+02_dp
                                           CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 5))
-                                       ENDIF
+                                       END IF
                                     ELSE
                                        TG1 = (2*X1 - 0.284374999999999989E+00_dp)*0.355555555555555429E+02_dp
                                        TG2 = (2*X2 - 0.218750000000000000E+00_dp)*0.320000000000000000E+02_dp
                                        CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 6))
-                                    ENDIF
-                                 ENDIF
+                                    END IF
+                                 END IF
                               ELSE
                                  TG1 = (2*X1 - 0.368750000000000022E+00_dp)*0.177777777777777715E+02_dp
                                  TG2 = (2*X2 - 0.187500000000000000E+00_dp)*0.160000000000000000E+02_dp
                                  CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 7))
-                              ENDIF
-                           ENDIF
+                              END IF
+                           END IF
                         ELSE
                            IF (X2 <= 0.187500000000000000E+00_dp) THEN
                               IF (X1 <= 0.156250000000000000E+00_dp) THEN
@@ -131,7 +131,7 @@ CONTAINS
                                        TG1 = (2*X1 - 0.284374999999999989E+00_dp)*0.355555555555555429E+02_dp
                                        TG2 = (2*X2 - 0.281250000000000000E+00_dp)*0.320000000000000000E+02_dp
                                        CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 9))
-                                    ENDIF
+                                    END IF
                                  ELSE
                                     IF (X1 <= 0.128124999999999989E+00_dp) THEN
                                        IF (X1 <= 0.114062499999999997E+00_dp) THEN
@@ -142,13 +142,13 @@ CONTAINS
                                           TG1 = (2*X1 - 0.242187500000000000E+00_dp)*0.711111111111111569E+02_dp
                                           TG2 = (2*X2 - 0.343750000000000000E+00_dp)*0.320000000000000000E+02_dp
                                           CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 11))
-                                       ENDIF
+                                       END IF
                                     ELSE
                                        TG1 = (2*X1 - 0.284374999999999989E+00_dp)*0.355555555555555429E+02_dp
                                        TG2 = (2*X2 - 0.343750000000000000E+00_dp)*0.320000000000000000E+02_dp
                                        CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 12))
-                                    ENDIF
-                                 ENDIF
+                                    END IF
+                                 END IF
                               ELSE
                                  IF (X2 <= 0.156250000000000000E+00_dp) THEN
                                     TG1 = (2*X1 - 0.368750000000000022E+00_dp)*0.177777777777777715E+02_dp
@@ -158,8 +158,8 @@ CONTAINS
                                     TG1 = (2*X1 - 0.368750000000000022E+00_dp)*0.177777777777777715E+02_dp
                                     TG2 = (2*X2 - 0.343750000000000000E+00_dp)*0.320000000000000000E+02_dp
                                     CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 14))
-                                 ENDIF
-                              ENDIF
+                                 END IF
+                              END IF
                            ELSE
                               IF (X1 <= 0.156250000000000000E+00_dp) THEN
                                  IF (X1 <= 0.128124999999999989E+00_dp) THEN
@@ -172,12 +172,12 @@ CONTAINS
                                           TG1 = (2*X1 - 0.242187500000000000E+00_dp)*0.711111111111111569E+02_dp
                                           TG2 = (2*X2 - 0.406250000000000000E+00_dp)*0.320000000000000000E+02_dp
                                           CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 16))
-                                       ENDIF
+                                       END IF
                                     ELSE
                                        TG1 = (2*X1 - 0.228124999999999994E+00_dp)*0.355555555555555785E+02_dp
                                        TG2 = (2*X2 - 0.468750000000000000E+00_dp)*0.320000000000000000E+02_dp
                                        CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 17))
-                                    ENDIF
+                                    END IF
                                  ELSE
                                     IF (X2 <= 0.218750000000000000E+00_dp) THEN
                                        TG1 = (2*X1 - 0.284374999999999989E+00_dp)*0.355555555555555429E+02_dp
@@ -187,8 +187,8 @@ CONTAINS
                                        TG1 = (2*X1 - 0.284374999999999989E+00_dp)*0.355555555555555429E+02_dp
                                        TG2 = (2*X2 - 0.468750000000000000E+00_dp)*0.320000000000000000E+02_dp
                                        CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 19))
-                                    ENDIF
-                                 ENDIF
+                                    END IF
+                                 END IF
                               ELSE
                                  IF (X2 <= 0.218750000000000000E+00_dp) THEN
                                     TG1 = (2*X1 - 0.368750000000000022E+00_dp)*0.177777777777777715E+02_dp
@@ -198,10 +198,10 @@ CONTAINS
                                     TG1 = (2*X1 - 0.368750000000000022E+00_dp)*0.177777777777777715E+02_dp
                                     TG2 = (2*X2 - 0.468750000000000000E+00_dp)*0.320000000000000000E+02_dp
                                     CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 21))
-                                 ENDIF
-                              ENDIF
-                           ENDIF
-                        ENDIF
+                                 END IF
+                              END IF
+                           END IF
+                        END IF
                      ELSE
                         IF (X2 <= 0.125000000000000000E+00_dp) THEN
                            TG1 = (2*X1 - 0.537500000000000089E+00_dp)*0.888888888888888928E+01_dp
@@ -217,7 +217,7 @@ CONTAINS
                                  TG1 = (2*X1 - 0.593750000000000000E+00_dp)*0.177777777777777892E+02_dp
                                  TG2 = (2*X2 - 0.312500000000000000E+00_dp)*0.160000000000000000E+02_dp
                                  CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 24))
-                              ENDIF
+                              END IF
                            ELSE
                               IF (X1 <= 0.268750000000000044E+00_dp) THEN
                                  TG1 = (2*X1 - 0.481250000000000067E+00_dp)*0.177777777777777715E+02_dp
@@ -227,10 +227,10 @@ CONTAINS
                                  TG1 = (2*X1 - 0.593750000000000000E+00_dp)*0.177777777777777892E+02_dp
                                  TG2 = (2*X2 - 0.437500000000000000E+00_dp)*0.160000000000000000E+02_dp
                                  CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 26))
-                              ENDIF
-                           ENDIF
-                        ENDIF
-                     ENDIF
+                              END IF
+                           END IF
+                        END IF
+                     END IF
                   ELSE
                      IF (X2 <= 0.125000000000000000E+00_dp) THEN
                         TG1 = (2*X1 - 0.875000000000000000E+00_dp)*0.444444444444444375E+01_dp
@@ -245,9 +245,9 @@ CONTAINS
                            TG1 = (2*X1 - 0.875000000000000000E+00_dp)*0.444444444444444375E+01_dp
                            TG2 = (2*X2 - 0.437500000000000000E+00_dp)*0.160000000000000000E+02_dp
                            CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 29))
-                        ENDIF
-                     ENDIF
-                  ENDIF
+                        END IF
+                     END IF
+                  END IF
                ELSE
                   IF (X2 <= 0.125000000000000000E+00_dp) THEN
                      TG1 = (2*X1 - 0.155000000000000004E+01_dp)*0.222222222222222232E+01_dp
@@ -257,8 +257,8 @@ CONTAINS
                      TG1 = (2*X1 - 0.155000000000000004E+01_dp)*0.222222222222222232E+01_dp
                      TG2 = (2*X2 - 0.375000000000000000E+00_dp)*0.800000000000000000E+01_dp
                      CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 31))
-                  ENDIF
-               ENDIF
+                  END IF
+               END IF
             ELSE
                IF (X1 <= 0.550000000000000044E+00_dp) THEN
                   IF (X1 <= 0.325000000000000011E+00_dp) THEN
@@ -274,7 +274,7 @@ CONTAINS
                                     TG1 = (2*X1 - 0.228124999999999994E+00_dp)*0.355555555555555785E+02_dp
                                     TG2 = (2*X2 - 0.687500000000000000E+00_dp)*0.160000000000000000E+02_dp
                                     CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 33))
-                                 ENDIF
+                                 END IF
                               ELSE
                                  IF (X2 <= 0.312500000000000000E+00_dp) THEN
                                     IF (X2 <= 0.281250000000000000E+00_dp) THEN
@@ -285,18 +285,18 @@ CONTAINS
                                        TG1 = (2*X1 - 0.284374999999999989E+00_dp)*0.355555555555555429E+02_dp
                                        TG2 = (2*X2 - 0.593750000000000000E+00_dp)*0.320000000000000000E+02_dp
                                        CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 35))
-                                    ENDIF
+                                    END IF
                                  ELSE
                                     TG1 = (2*X1 - 0.284374999999999989E+00_dp)*0.355555555555555429E+02_dp
                                     TG2 = (2*X2 - 0.687500000000000000E+00_dp)*0.160000000000000000E+02_dp
                                     CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 36))
-                                 ENDIF
-                              ENDIF
+                                 END IF
+                              END IF
                            ELSE
                               TG1 = (2*X1 - 0.256249999999999978E+00_dp)*0.177777777777777786E+02_dp
                               TG2 = (2*X2 - 0.875000000000000000E+00_dp)*0.800000000000000000E+01_dp
                               CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 37))
-                           ENDIF
+                           END IF
                         ELSE
                            IF (X2 <= 0.375000000000000000E+00_dp) THEN
                               IF (X2 <= 0.312500000000000000E+00_dp) THEN
@@ -308,7 +308,7 @@ CONTAINS
                                     TG1 = (2*X1 - 0.396875000000000033E+00_dp)*0.355555555555555429E+02_dp
                                     TG2 = (2*X2 - 0.562500000000000000E+00_dp)*0.160000000000000000E+02_dp
                                     CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 39))
-                                 ENDIF
+                                 END IF
                               ELSE
                                  IF (X1 <= 0.184375000000000011E+00_dp) THEN
                                     TG1 = (2*X1 - 0.340625000000000011E+00_dp)*0.355555555555555429E+02_dp
@@ -318,8 +318,8 @@ CONTAINS
                                     TG1 = (2*X1 - 0.396875000000000033E+00_dp)*0.355555555555555429E+02_dp
                                     TG2 = (2*X2 - 0.687500000000000000E+00_dp)*0.160000000000000000E+02_dp
                                     CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 41))
-                                 ENDIF
-                              ENDIF
+                                 END IF
+                              END IF
                            ELSE
                               IF (X1 <= 0.184375000000000011E+00_dp) THEN
                                  TG1 = (2*X1 - 0.340625000000000011E+00_dp)*0.355555555555555429E+02_dp
@@ -329,9 +329,9 @@ CONTAINS
                                  TG1 = (2*X1 - 0.396875000000000033E+00_dp)*0.355555555555555429E+02_dp
                                  TG2 = (2*X2 - 0.875000000000000000E+00_dp)*0.800000000000000000E+01_dp
                                  CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 43))
-                              ENDIF
-                           ENDIF
-                        ENDIF
+                              END IF
+                           END IF
+                        END IF
                      ELSE
                         IF (X2 <= 0.375000000000000000E+00_dp) THEN
                            IF (X2 <= 0.312500000000000000E+00_dp) THEN
@@ -343,7 +343,7 @@ CONTAINS
                                  TG1 = (2*X1 - 0.593750000000000000E+00_dp)*0.177777777777777892E+02_dp
                                  TG2 = (2*X2 - 0.562500000000000000E+00_dp)*0.160000000000000000E+02_dp
                                  CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 45))
-                              ENDIF
+                              END IF
                            ELSE
                               IF (X1 <= 0.268750000000000044E+00_dp) THEN
                                  TG1 = (2*X1 - 0.481250000000000067E+00_dp)*0.177777777777777715E+02_dp
@@ -353,8 +353,8 @@ CONTAINS
                                  TG1 = (2*X1 - 0.593750000000000000E+00_dp)*0.177777777777777892E+02_dp
                                  TG2 = (2*X2 - 0.687500000000000000E+00_dp)*0.160000000000000000E+02_dp
                                  CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 47))
-                              ENDIF
-                           ENDIF
+                              END IF
+                           END IF
                         ELSE
                            IF (X1 <= 0.268750000000000044E+00_dp) THEN
                               TG1 = (2*X1 - 0.481250000000000067E+00_dp)*0.177777777777777715E+02_dp
@@ -364,9 +364,9 @@ CONTAINS
                               TG1 = (2*X1 - 0.593750000000000000E+00_dp)*0.177777777777777892E+02_dp
                               TG2 = (2*X2 - 0.875000000000000000E+00_dp)*0.800000000000000000E+01_dp
                               CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 49))
-                           ENDIF
-                        ENDIF
-                     ENDIF
+                           END IF
+                        END IF
+                     END IF
                   ELSE
                      IF (X2 <= 0.375000000000000000E+00_dp) THEN
                         IF (X1 <= 0.437500000000000000E+00_dp) THEN
@@ -377,7 +377,7 @@ CONTAINS
                            TG1 = (2*X1 - 0.987500000000000044E+00_dp)*0.888888888888888573E+01_dp
                            TG2 = (2*X2 - 0.625000000000000000E+00_dp)*0.800000000000000000E+01_dp
                            CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 51))
-                        ENDIF
+                        END IF
                      ELSE
                         IF (X2 <= 0.437500000000000000E+00_dp) THEN
                            IF (X1 <= 0.437500000000000000E+00_dp) THEN
@@ -388,7 +388,7 @@ CONTAINS
                               TG1 = (2*X1 - 0.987500000000000044E+00_dp)*0.888888888888888573E+01_dp
                               TG2 = (2*X2 - 0.812500000000000000E+00_dp)*0.160000000000000000E+02_dp
                               CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 53))
-                           ENDIF
+                           END IF
                         ELSE
                            IF (X1 <= 0.437500000000000000E+00_dp) THEN
                               TG1 = (2*X1 - 0.762499999999999956E+00_dp)*0.888888888888888928E+01_dp
@@ -398,10 +398,10 @@ CONTAINS
                               TG1 = (2*X1 - 0.987500000000000044E+00_dp)*0.888888888888888573E+01_dp
                               TG2 = (2*X2 - 0.937500000000000000E+00_dp)*0.160000000000000000E+02_dp
                               CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 55))
-                           ENDIF
-                        ENDIF
-                     ENDIF
-                  ENDIF
+                           END IF
+                        END IF
+                     END IF
+                  END IF
                ELSE
                   IF (X2 <= 0.375000000000000000E+00_dp) THEN
                      IF (X2 <= 0.312500000000000000E+00_dp) THEN
@@ -412,7 +412,7 @@ CONTAINS
                         TG1 = (2*X1 - 0.155000000000000004E+01_dp)*0.222222222222222232E+01_dp
                         TG2 = (2*X2 - 0.687500000000000000E+00_dp)*0.160000000000000000E+02_dp
                         CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 57))
-                     ENDIF
+                     END IF
                   ELSE
                      IF (X2 <= 0.437500000000000000E+00_dp) THEN
                         TG1 = (2*X1 - 0.155000000000000004E+01_dp)*0.222222222222222232E+01_dp
@@ -427,11 +427,11 @@ CONTAINS
                            TG1 = (2*X1 - 0.177499999999999991E+01_dp)*0.444444444444444464E+01_dp
                            TG2 = (2*X2 - 0.937500000000000000E+00_dp)*0.160000000000000000E+02_dp
                            CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 60))
-                        ENDIF
-                     ENDIF
-                  ENDIF
-               ENDIF
-            ENDIF
+                        END IF
+                     END IF
+                  END IF
+               END IF
+            END IF
          ELSE
             IF (X1 <= 0.550000000000000044E+00_dp) THEN
                IF (X1 <= 0.325000000000000011E+00_dp) THEN
@@ -445,12 +445,12 @@ CONTAINS
                            TG1 = (2*X1 - 0.368750000000000022E+00_dp)*0.177777777777777715E+02_dp
                            TG2 = (2*X2 - 0.125000000000000000E+01_dp)*0.400000000000000000E+01_dp
                            CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 62))
-                        ENDIF
+                        END IF
                      ELSE
                         TG1 = (2*X1 - 0.312500000000000000E+00_dp)*0.888888888888888751E+01_dp
                         TG2 = (2*X2 - 0.175000000000000000E+01_dp)*0.400000000000000000E+01_dp
                         CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 63))
-                     ENDIF
+                     END IF
                   ELSE
                      IF (X2 <= 0.750000000000000000E+00_dp) THEN
                         IF (X2 <= 0.625000000000000000E+00_dp) THEN
@@ -462,18 +462,18 @@ CONTAINS
                               TG1 = (2*X1 - 0.593750000000000000E+00_dp)*0.177777777777777892E+02_dp
                               TG2 = (2*X2 - 0.112500000000000000E+01_dp)*0.800000000000000000E+01_dp
                               CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 65))
-                           ENDIF
+                           END IF
                         ELSE
                            TG1 = (2*X1 - 0.537500000000000089E+00_dp)*0.888888888888888928E+01_dp
                            TG2 = (2*X2 - 0.137500000000000000E+01_dp)*0.800000000000000000E+01_dp
                            CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 66))
-                        ENDIF
+                        END IF
                      ELSE
                         TG1 = (2*X1 - 0.537500000000000089E+00_dp)*0.888888888888888928E+01_dp
                         TG2 = (2*X2 - 0.175000000000000000E+01_dp)*0.400000000000000000E+01_dp
                         CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 67))
-                     ENDIF
-                  ENDIF
+                     END IF
+                  END IF
                ELSE
                   IF (X2 <= 0.750000000000000000E+00_dp) THEN
                      IF (X2 <= 0.625000000000000000E+00_dp) THEN
@@ -485,7 +485,7 @@ CONTAINS
                            TG1 = (2*X1 - 0.987500000000000044E+00_dp)*0.888888888888888573E+01_dp
                            TG2 = (2*X2 - 0.112500000000000000E+01_dp)*0.800000000000000000E+01_dp
                            CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 69))
-                        ENDIF
+                        END IF
                      ELSE
                         IF (X1 <= 0.437500000000000000E+00_dp) THEN
                            TG1 = (2*X1 - 0.762499999999999956E+00_dp)*0.888888888888888928E+01_dp
@@ -495,8 +495,8 @@ CONTAINS
                            TG1 = (2*X1 - 0.987500000000000044E+00_dp)*0.888888888888888573E+01_dp
                            TG2 = (2*X2 - 0.137500000000000000E+01_dp)*0.800000000000000000E+01_dp
                            CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 71))
-                        ENDIF
-                     ENDIF
+                        END IF
+                     END IF
                   ELSE
                      IF (X1 <= 0.437500000000000000E+00_dp) THEN
                         TG1 = (2*X1 - 0.762499999999999956E+00_dp)*0.888888888888888928E+01_dp
@@ -506,9 +506,9 @@ CONTAINS
                         TG1 = (2*X1 - 0.987500000000000044E+00_dp)*0.888888888888888573E+01_dp
                         TG2 = (2*X2 - 0.175000000000000000E+01_dp)*0.400000000000000000E+01_dp
                         CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 73))
-                     ENDIF
-                  ENDIF
-               ENDIF
+                     END IF
+                  END IF
+               END IF
             ELSE
                IF (X2 <= 0.750000000000000000E+00_dp) THEN
                   IF (X2 <= 0.625000000000000000E+00_dp) THEN
@@ -520,7 +520,7 @@ CONTAINS
                         TG1 = (2*X1 - 0.177499999999999991E+01_dp)*0.444444444444444464E+01_dp
                         TG2 = (2*X2 - 0.112500000000000000E+01_dp)*0.800000000000000000E+01_dp
                         CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 75))
-                     ENDIF
+                     END IF
                   ELSE
                      IF (X1 <= 0.775000000000000022E+00_dp) THEN
                         TG1 = (2*X1 - 0.132500000000000018E+01_dp)*0.444444444444444464E+01_dp
@@ -530,8 +530,8 @@ CONTAINS
                         TG1 = (2*X1 - 0.177499999999999991E+01_dp)*0.444444444444444464E+01_dp
                         TG2 = (2*X2 - 0.137500000000000000E+01_dp)*0.800000000000000000E+01_dp
                         CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 77))
-                     ENDIF
-                  ENDIF
+                     END IF
+                  END IF
                ELSE
                   IF (X2 <= 0.875000000000000000E+00_dp) THEN
                      TG1 = (2*X1 - 0.155000000000000004E+01_dp)*0.222222222222222232E+01_dp
@@ -541,10 +541,10 @@ CONTAINS
                      TG1 = (2*X1 - 0.155000000000000004E+01_dp)*0.222222222222222232E+01_dp
                      TG2 = (2*X2 - 0.187500000000000000E+01_dp)*0.800000000000000000E+01_dp
                      CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 79))
-                  ENDIF
-               ENDIF
-            ENDIF
-         ENDIF
+                  END IF
+               END IF
+            END IF
+         END IF
       ELSE
          X1 = SQRT(81.0_dp/T)
          lower = (SQRT(T) - SQRT(eps))/n
@@ -576,9 +576,9 @@ CONTAINS
                                  TG1 = (2*X1 - 0.875000000000000000E+00_dp)*0.800000000000000000E+01_dp
                                  TG2 = (2*X2 - 0.687500000000000000E+00_dp)*0.160000000000000000E+02_dp
                                  CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 84))
-                              ENDIF
-                           ENDIF
-                        ENDIF
+                              END IF
+                           END IF
+                        END IF
                      ELSE
                         IF (X1 <= 0.250000000000000000E+00_dp) THEN
                            IF (X2 <= 0.437500000000000000E+00_dp) THEN
@@ -590,7 +590,7 @@ CONTAINS
                                  TG1 = (2*X1 - 0.375000000000000000E+00_dp)*0.800000000000000000E+01_dp
                                  TG2 = (2*X2 - 0.812500000000000000E+00_dp)*0.160000000000000000E+02_dp
                                  CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 86))
-                              ENDIF
+                              END IF
                            ELSE
                               IF (X1 <= 0.125000000000000000E+00_dp) THEN
                                  IF (X2 <= 0.468750000000000000E+00_dp) THEN
@@ -601,7 +601,7 @@ CONTAINS
                                     TG1 = (2*X1 - 0.125000000000000000E+00_dp)*0.800000000000000000E+01_dp
                                     TG2 = (2*X2 - 0.968750000000000000E+00_dp)*0.320000000000000000E+02_dp
                                     CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 88))
-                                 ENDIF
+                                 END IF
                               ELSE
                                  IF (X2 <= 0.468750000000000000E+00_dp) THEN
                                     TG1 = (2*X1 - 0.375000000000000000E+00_dp)*0.800000000000000000E+01_dp
@@ -611,9 +611,9 @@ CONTAINS
                                     TG1 = (2*X1 - 0.375000000000000000E+00_dp)*0.800000000000000000E+01_dp
                                     TG2 = (2*X2 - 0.968750000000000000E+00_dp)*0.320000000000000000E+02_dp
                                     CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 90))
-                                 ENDIF
-                              ENDIF
-                           ENDIF
+                                 END IF
+                              END IF
+                           END IF
                         ELSE
                            IF (X2 <= 0.437500000000000000E+00_dp) THEN
                               IF (X2 <= 0.406250000000000000E+00_dp) THEN
@@ -625,20 +625,20 @@ CONTAINS
                                     TG1 = (2*X1 - 0.875000000000000000E+00_dp)*0.800000000000000000E+01_dp
                                     TG2 = (2*X2 - 0.781250000000000000E+00_dp)*0.320000000000000000E+02_dp
                                     CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 92))
-                                 ENDIF
+                                 END IF
                               ELSE
                                  TG1 = (2*X1 - 0.750000000000000000E+00_dp)*0.400000000000000000E+01_dp
                                  TG2 = (2*X2 - 0.843750000000000000E+00_dp)*0.320000000000000000E+02_dp
                                  CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 93))
-                              ENDIF
+                              END IF
                            ELSE
                               TG1 = (2*X1 - 0.750000000000000000E+00_dp)*0.400000000000000000E+01_dp
                               TG2 = (2*X2 - 0.937500000000000000E+00_dp)*0.160000000000000000E+02_dp
                               CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 94))
-                           ENDIF
-                        ENDIF
-                     ENDIF
-                  ENDIF
+                           END IF
+                        END IF
+                     END IF
+                  END IF
                ELSE
                   IF (X2 <= 0.250000000000000000E+00_dp) THEN
                      IF (X2 <= 0.125000000000000000E+00_dp) THEN
@@ -665,9 +665,9 @@ CONTAINS
                                     TG1 = (2*X1 - 0.187500000000000000E+01_dp)*0.800000000000000000E+01_dp
                                     TG2 = (2*X2 - 0.343750000000000000E+00_dp)*0.320000000000000000E+02_dp
                                     CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 99))
-                                 ENDIF
-                              ENDIF
-                           ENDIF
+                                 END IF
+                              END IF
+                           END IF
                         ELSE
                            IF (X1 <= 0.750000000000000000E+00_dp) THEN
                               IF (X1 <= 0.625000000000000000E+00_dp) THEN
@@ -678,7 +678,7 @@ CONTAINS
                                  TG1 = (2*X1 - 0.137500000000000000E+01_dp)*0.800000000000000000E+01_dp
                                  TG2 = (2*X2 - 0.437500000000000000E+00_dp)*0.160000000000000000E+02_dp
                                  CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 101))
-                              ENDIF
+                              END IF
                            ELSE
                               IF (X1 <= 0.875000000000000000E+00_dp) THEN
                                  IF (X2 <= 0.218750000000000000E+00_dp) THEN
@@ -689,7 +689,7 @@ CONTAINS
                                     TG1 = (2*X1 - 0.162500000000000000E+01_dp)*0.800000000000000000E+01_dp
                                     TG2 = (2*X2 - 0.468750000000000000E+00_dp)*0.320000000000000000E+02_dp
                                     CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 103))
-                                 ENDIF
+                                 END IF
                               ELSE
                                  IF (X2 <= 0.218750000000000000E+00_dp) THEN
                                     TG1 = (2*X1 - 0.187500000000000000E+01_dp)*0.800000000000000000E+01_dp
@@ -699,11 +699,11 @@ CONTAINS
                                     TG1 = (2*X1 - 0.187500000000000000E+01_dp)*0.800000000000000000E+01_dp
                                     TG2 = (2*X2 - 0.468750000000000000E+00_dp)*0.320000000000000000E+02_dp
                                     CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 105))
-                                 ENDIF
-                              ENDIF
-                           ENDIF
-                        ENDIF
-                     ENDIF
+                                 END IF
+                              END IF
+                           END IF
+                        END IF
+                     END IF
                   ELSE
                      IF (X2 <= 0.375000000000000000E+00_dp) THEN
                         IF (X1 <= 0.750000000000000000E+00_dp) THEN
@@ -716,7 +716,7 @@ CONTAINS
                                  TG1 = (2*X1 - 0.137500000000000000E+01_dp)*0.800000000000000000E+01_dp
                                  TG2 = (2*X2 - 0.562500000000000000E+00_dp)*0.160000000000000000E+02_dp
                                  CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 107))
-                              ENDIF
+                              END IF
                            ELSE
                               IF (X1 <= 0.625000000000000000E+00_dp) THEN
                                  TG1 = (2*X1 - 0.112500000000000000E+01_dp)*0.800000000000000000E+01_dp
@@ -726,8 +726,8 @@ CONTAINS
                                  TG1 = (2*X1 - 0.137500000000000000E+01_dp)*0.800000000000000000E+01_dp
                                  TG2 = (2*X2 - 0.687500000000000000E+00_dp)*0.160000000000000000E+02_dp
                                  CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 109))
-                              ENDIF
-                           ENDIF
+                              END IF
+                           END IF
                         ELSE
                            IF (X2 <= 0.312500000000000000E+00_dp) THEN
                               IF (X1 <= 0.875000000000000000E+00_dp) THEN
@@ -738,7 +738,7 @@ CONTAINS
                                  TG1 = (2*X1 - 0.187500000000000000E+01_dp)*0.800000000000000000E+01_dp
                                  TG2 = (2*X2 - 0.562500000000000000E+00_dp)*0.160000000000000000E+02_dp
                                  CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 111))
-                              ENDIF
+                              END IF
                            ELSE
                               IF (X1 <= 0.875000000000000000E+00_dp) THEN
                                  TG1 = (2*X1 - 0.162500000000000000E+01_dp)*0.800000000000000000E+01_dp
@@ -753,10 +753,10 @@ CONTAINS
                                     TG1 = (2*X1 - 0.193750000000000000E+01_dp)*0.160000000000000000E+02_dp
                                     TG2 = (2*X2 - 0.687500000000000000E+00_dp)*0.160000000000000000E+02_dp
                                     CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 114))
-                                 ENDIF
-                              ENDIF
-                           ENDIF
-                        ENDIF
+                                 END IF
+                              END IF
+                           END IF
+                        END IF
                      ELSE
                         IF (X1 <= 0.750000000000000000E+00_dp) THEN
                            IF (X1 <= 0.625000000000000000E+00_dp) THEN
@@ -772,8 +772,8 @@ CONTAINS
                                  TG1 = (2*X1 - 0.137500000000000000E+01_dp)*0.800000000000000000E+01_dp
                                  TG2 = (2*X2 - 0.937500000000000000E+00_dp)*0.160000000000000000E+02_dp
                                  CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 117))
-                              ENDIF
-                           ENDIF
+                              END IF
+                           END IF
                         ELSE
                            IF (X1 <= 0.875000000000000000E+00_dp) THEN
                               IF (X2 <= 0.437500000000000000E+00_dp) THEN
@@ -785,12 +785,12 @@ CONTAINS
                                     TG1 = (2*X1 - 0.168750000000000000E+01_dp)*0.160000000000000000E+02_dp
                                     TG2 = (2*X2 - 0.812500000000000000E+00_dp)*0.160000000000000000E+02_dp
                                     CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 119))
-                                 ENDIF
+                                 END IF
                               ELSE
                                  TG1 = (2*X1 - 0.162500000000000000E+01_dp)*0.800000000000000000E+01_dp
                                  TG2 = (2*X2 - 0.937500000000000000E+00_dp)*0.160000000000000000E+02_dp
                                  CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 120))
-                              ENDIF
+                              END IF
                            ELSE
                               IF (X2 <= 0.437500000000000000E+00_dp) THEN
                                  IF (X1 <= 0.937500000000000000E+00_dp) THEN
@@ -801,17 +801,17 @@ CONTAINS
                                     TG1 = (2*X1 - 0.193750000000000000E+01_dp)*0.160000000000000000E+02_dp
                                     TG2 = (2*X2 - 0.812500000000000000E+00_dp)*0.160000000000000000E+02_dp
                                     CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 122))
-                                 ENDIF
+                                 END IF
                               ELSE
                                  TG1 = (2*X1 - 0.187500000000000000E+01_dp)*0.800000000000000000E+01_dp
                                  TG2 = (2*X2 - 0.937500000000000000E+00_dp)*0.160000000000000000E+02_dp
                                  CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 123))
-                              ENDIF
-                           ENDIF
-                        ENDIF
-                     ENDIF
-                  ENDIF
-               ENDIF
+                              END IF
+                           END IF
+                        END IF
+                     END IF
+                  END IF
+               END IF
             ELSE
                IF (X1 <= 0.500000000000000000E+00_dp) THEN
                   IF (X2 <= 0.750000000000000000E+00_dp) THEN
@@ -829,7 +829,7 @@ CONTAINS
                               TG1 = (2*X1 - 0.875000000000000000E+00_dp)*0.800000000000000000E+01_dp
                               TG2 = (2*X2 - 0.112500000000000000E+01_dp)*0.800000000000000000E+01_dp
                               CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 126))
-                           ENDIF
+                           END IF
                         ELSE
                            IF (X1 <= 0.375000000000000000E+00_dp) THEN
                               IF (X2 <= 0.687500000000000000E+00_dp) THEN
@@ -840,7 +840,7 @@ CONTAINS
                                  TG1 = (2*X1 - 0.625000000000000000E+00_dp)*0.800000000000000000E+01_dp
                                  TG2 = (2*X2 - 0.143750000000000000E+01_dp)*0.160000000000000000E+02_dp
                                  CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 128))
-                              ENDIF
+                              END IF
                            ELSE
                               IF (X2 <= 0.687500000000000000E+00_dp) THEN
                                  IF (X1 <= 0.437500000000000000E+00_dp) THEN
@@ -851,15 +851,15 @@ CONTAINS
                                     TG1 = (2*X1 - 0.937500000000000000E+00_dp)*0.160000000000000000E+02_dp
                                     TG2 = (2*X2 - 0.131250000000000000E+01_dp)*0.160000000000000000E+02_dp
                                     CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 130))
-                                 ENDIF
+                                 END IF
                               ELSE
                                  TG1 = (2*X1 - 0.875000000000000000E+00_dp)*0.800000000000000000E+01_dp
                                  TG2 = (2*X2 - 0.143750000000000000E+01_dp)*0.160000000000000000E+02_dp
                                  CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 131))
-                              ENDIF
-                           ENDIF
-                        ENDIF
-                     ENDIF
+                              END IF
+                           END IF
+                        END IF
+                     END IF
                   ELSE
                      IF (X1 <= 0.250000000000000000E+00_dp) THEN
                         IF (X2 <= 0.875000000000000000E+00_dp) THEN
@@ -881,9 +881,9 @@ CONTAINS
                                     TG1 = (2*X1 - 0.437500000000000000E+00_dp)*0.160000000000000000E+02_dp
                                     TG2 = (2*X2 - 0.168750000000000000E+01_dp)*0.160000000000000000E+02_dp
                                     CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 135))
-                                 ENDIF
-                              ENDIF
-                           ENDIF
+                                 END IF
+                              END IF
+                           END IF
                         ELSE
                            IF (X1 <= 0.125000000000000000E+00_dp) THEN
                               IF (X2 <= 0.937500000000000000E+00_dp) THEN
@@ -900,8 +900,8 @@ CONTAINS
                                        TG1 = (2*X1 - 0.187500000000000000E+00_dp)*0.160000000000000000E+02_dp
                                        TG2 = (2*X2 - 0.184375000000000000E+01_dp)*0.320000000000000000E+02_dp
                                        CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 138))
-                                    ENDIF
-                                 ENDIF
+                                    END IF
+                                 END IF
                               ELSE
                                  IF (X1 <= 0.625000000000000000E-01_dp) THEN
                                     IF (X2 <= 0.968750000000000000E+00_dp) THEN
@@ -913,7 +913,7 @@ CONTAINS
                                           TG1 = (2*X1 - 0.937500000000000000E-01_dp)*0.320000000000000000E+02_dp
                                           TG2 = (2*X2 - 0.190625000000000000E+01_dp)*0.320000000000000000E+02_dp
                                           CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 140))
-                                       ENDIF
+                                       END IF
                                     ELSE
                                        IF (X1 <= 0.312500000000000000E-01_dp) THEN
                                           IF (X2 <= 0.984375000000000000E+00_dp) THEN
@@ -924,13 +924,13 @@ CONTAINS
                                              TG1 = (2*X1 - 0.312500000000000000E-01_dp)*0.320000000000000000E+02_dp
                                              TG2 = (2*X2 - 0.198437500000000000E+01_dp)*0.640000000000000000E+02_dp
                                              CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 142))
-                                          ENDIF
+                                          END IF
                                        ELSE
                                           TG1 = (2*X1 - 0.937500000000000000E-01_dp)*0.320000000000000000E+02_dp
                                           TG2 = (2*X2 - 0.196875000000000000E+01_dp)*0.320000000000000000E+02_dp
                                           CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 143))
-                                       ENDIF
-                                    ENDIF
+                                       END IF
+                                    END IF
                                  ELSE
                                     IF (X2 <= 0.968750000000000000E+00_dp) THEN
                                        IF (X1 <= 0.937500000000000000E-01_dp) THEN
@@ -941,14 +941,14 @@ CONTAINS
                                           TG1 = (2*X1 - 0.218750000000000000E+00_dp)*0.320000000000000000E+02_dp
                                           TG2 = (2*X2 - 0.190625000000000000E+01_dp)*0.320000000000000000E+02_dp
                                           CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 145))
-                                       ENDIF
+                                       END IF
                                     ELSE
                                        TG1 = (2*X1 - 0.187500000000000000E+00_dp)*0.160000000000000000E+02_dp
                                        TG2 = (2*X2 - 0.196875000000000000E+01_dp)*0.320000000000000000E+02_dp
                                        CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 146))
-                                    ENDIF
-                                 ENDIF
-                              ENDIF
+                                    END IF
+                                 END IF
+                              END IF
                            ELSE
                               IF (X2 <= 0.937500000000000000E+00_dp) THEN
                                  IF (X1 <= 0.187500000000000000E+00_dp) THEN
@@ -960,19 +960,19 @@ CONTAINS
                                        TG1 = (2*X1 - 0.312500000000000000E+00_dp)*0.160000000000000000E+02_dp
                                        TG2 = (2*X2 - 0.184375000000000000E+01_dp)*0.320000000000000000E+02_dp
                                        CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 148))
-                                    ENDIF
+                                    END IF
                                  ELSE
                                     TG1 = (2*X1 - 0.437500000000000000E+00_dp)*0.160000000000000000E+02_dp
                                     TG2 = (2*X2 - 0.181250000000000000E+01_dp)*0.160000000000000000E+02_dp
                                     CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 149))
-                                 ENDIF
+                                 END IF
                               ELSE
                                  TG1 = (2*X1 - 0.375000000000000000E+00_dp)*0.800000000000000000E+01_dp
                                  TG2 = (2*X2 - 0.193750000000000000E+01_dp)*0.160000000000000000E+02_dp
                                  CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 150))
-                              ENDIF
-                           ENDIF
-                        ENDIF
+                              END IF
+                           END IF
+                        END IF
                      ELSE
                         IF (X2 <= 0.875000000000000000E+00_dp) THEN
                            IF (X1 <= 0.375000000000000000E+00_dp) THEN
@@ -985,12 +985,12 @@ CONTAINS
                                     TG1 = (2*X1 - 0.687500000000000000E+00_dp)*0.160000000000000000E+02_dp
                                     TG2 = (2*X2 - 0.156250000000000000E+01_dp)*0.160000000000000000E+02_dp
                                     CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 152))
-                                 ENDIF
+                                 END IF
                               ELSE
                                  TG1 = (2*X1 - 0.625000000000000000E+00_dp)*0.800000000000000000E+01_dp
                                  TG2 = (2*X2 - 0.168750000000000000E+01_dp)*0.160000000000000000E+02_dp
                                  CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 153))
-                              ENDIF
+                              END IF
                            ELSE
                               IF (X2 <= 0.812500000000000000E+00_dp) THEN
                                  TG1 = (2*X1 - 0.875000000000000000E+00_dp)*0.800000000000000000E+01_dp
@@ -1000,15 +1000,15 @@ CONTAINS
                                  TG1 = (2*X1 - 0.875000000000000000E+00_dp)*0.800000000000000000E+01_dp
                                  TG2 = (2*X2 - 0.168750000000000000E+01_dp)*0.160000000000000000E+02_dp
                                  CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 155))
-                              ENDIF
-                           ENDIF
+                              END IF
+                           END IF
                         ELSE
                            TG1 = (2*X1 - 0.750000000000000000E+00_dp)*0.400000000000000000E+01_dp
                            TG2 = (2*X2 - 0.187500000000000000E+01_dp)*0.800000000000000000E+01_dp
                            CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 156))
-                        ENDIF
-                     ENDIF
-                  ENDIF
+                        END IF
+                     END IF
+                  END IF
                ELSE
                   IF (X2 <= 0.750000000000000000E+00_dp) THEN
                      IF (X1 <= 0.750000000000000000E+00_dp) THEN
@@ -1027,8 +1027,8 @@ CONTAINS
                                     TG1 = (2*X1 - 0.118750000000000000E+01_dp)*0.160000000000000000E+02_dp
                                     TG2 = (2*X2 - 0.118750000000000000E+01_dp)*0.160000000000000000E+02_dp
                                     CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 159))
-                                 ENDIF
-                              ENDIF
+                                 END IF
+                              END IF
                            ELSE
                               IF (X2 <= 0.562500000000000000E+00_dp) THEN
                                  TG1 = (2*X1 - 0.137500000000000000E+01_dp)*0.800000000000000000E+01_dp
@@ -1038,8 +1038,8 @@ CONTAINS
                                  TG1 = (2*X1 - 0.137500000000000000E+01_dp)*0.800000000000000000E+01_dp
                                  TG2 = (2*X2 - 0.118750000000000000E+01_dp)*0.160000000000000000E+02_dp
                                  CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 161))
-                              ENDIF
-                           ENDIF
+                              END IF
+                           END IF
                         ELSE
                            IF (X1 <= 0.625000000000000000E+00_dp) THEN
                               IF (X2 <= 0.687500000000000000E+00_dp) THEN
@@ -1050,13 +1050,13 @@ CONTAINS
                                  TG1 = (2*X1 - 0.112500000000000000E+01_dp)*0.800000000000000000E+01_dp
                                  TG2 = (2*X2 - 0.143750000000000000E+01_dp)*0.160000000000000000E+02_dp
                                  CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 163))
-                              ENDIF
+                              END IF
                            ELSE
                               TG1 = (2*X1 - 0.137500000000000000E+01_dp)*0.800000000000000000E+01_dp
                               TG2 = (2*X2 - 0.137500000000000000E+01_dp)*0.800000000000000000E+01_dp
                               CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 164))
-                           ENDIF
-                        ENDIF
+                           END IF
+                        END IF
                      ELSE
                         IF (X2 <= 0.625000000000000000E+00_dp) THEN
                            IF (X1 <= 0.875000000000000000E+00_dp) THEN
@@ -1068,18 +1068,18 @@ CONTAINS
                                  TG1 = (2*X1 - 0.162500000000000000E+01_dp)*0.800000000000000000E+01_dp
                                  TG2 = (2*X2 - 0.118750000000000000E+01_dp)*0.160000000000000000E+02_dp
                                  CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 166))
-                              ENDIF
+                              END IF
                            ELSE
                               TG1 = (2*X1 - 0.187500000000000000E+01_dp)*0.800000000000000000E+01_dp
                               TG2 = (2*X2 - 0.112500000000000000E+01_dp)*0.800000000000000000E+01_dp
                               CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 167))
-                           ENDIF
+                           END IF
                         ELSE
                            TG1 = (2*X1 - 0.175000000000000000E+01_dp)*0.400000000000000000E+01_dp
                            TG2 = (2*X2 - 0.137500000000000000E+01_dp)*0.800000000000000000E+01_dp
                            CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 168))
-                        ENDIF
-                     ENDIF
+                        END IF
+                     END IF
                   ELSE
                      IF (X1 <= 0.750000000000000000E+00_dp) THEN
                         TG1 = (2*X1 - 0.125000000000000000E+01_dp)*0.400000000000000000E+01_dp
@@ -1089,10 +1089,10 @@ CONTAINS
                         TG1 = (2*X1 - 0.175000000000000000E+01_dp)*0.400000000000000000E+01_dp
                         TG2 = (2*X2 - 0.175000000000000000E+01_dp)*0.400000000000000000E+01_dp
                         CALL PD2VAL(RES, NDERIV, TG1, TG2, C0(1, 170))
-                     ENDIF
-                  ENDIF
-               ENDIF
-            ENDIF
+                     END IF
+                  END IF
+               END IF
+            END IF
          ELSE
             DO i = 1, NDERIV + 1
                RES(i) = 0.0_dp
@@ -1127,7 +1127,7 @@ CONTAINS
          DO I = 1, patches
             READ (iunit, *) chunk
             C0(1:(Nder + 1)*(degree + 1)*(degree + 2)/2, I) = chunk(1:(Nder + 1)*(degree + 1)*(degree + 2)/2)
-         ENDDO
+         END DO
          DEALLOCATE (chunk)
       END IF
       CALL mp_bcast(C0, 0, group)
@@ -1209,7 +1209,7 @@ CONTAINS
          RES(K) = RES(K) + DOT_PRODUCT(T1(0:2), C0(131:133, K))*T2(13)
          RES(K) = RES(K) + DOT_PRODUCT(T1(0:1), C0(134:135, K))*T2(14)
          RES(K) = RES(K) + DOT_PRODUCT(T1(0:0), C0(136:136, K))*T2(15)
-      ENDDO
+      END DO
    END SUBROUTINE PD2VAL
 
 END MODULE t_sh_p_s_c

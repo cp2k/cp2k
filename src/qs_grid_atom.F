@@ -225,7 +225,7 @@ CONTAINS
          DO l = 1, llmax + 1
             grid_atom%rad2l(:, l) = grid_atom%rad2l(:, l - 1)*rad(:)
             grid_atom%oorad2l(:, l) = grid_atom%oorad2l(:, l - 1)/rad(:)
-         ENDDO
+         END DO
 
          IF (ll > 0) THEN
             grid_atom%wa(1:na) = 4._dp*pi*lebedev_grid(ll)%w(1:na)
@@ -258,7 +258,7 @@ CONTAINS
                   grid_atom%usin_azi(ia) = 1.0_dp
                END IF
 
-            ENDDO
+            END DO
 
          END IF
 

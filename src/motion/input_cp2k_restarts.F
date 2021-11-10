@@ -465,8 +465,8 @@ CONTAINS
                CALL get_md_env(md_env=md_env, simpar=simpar)
                IF (simpar%do_respa) THEN
                   do_respa = .TRUE.
-               ENDIF
-            ENDIF
+               END IF
+            END IF
 
             CALL update_force_eval(force_env=my_force_env, &
                                    root_section=root_section, &
@@ -2599,7 +2599,7 @@ CONTAINS
             IF (istat /= 0) CALL stop_write(TRIM(section_label)//", nhc_size "// &
                                             "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")", &
                                             output_unit)
-         ENDIF
+         END IF
          n_char_size = n_char_size + LEN(section_label)
          n_int_size = n_int_size + 1
          IF (output_unit > 0 .AND. log_unit > 0) THEN ! only ionode
@@ -2627,7 +2627,7 @@ CONTAINS
             IF (istat /= 0) CALL stop_write("nhc_size "// &
                                             "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")", &
                                             output_unit)
-         ENDIF
+         END IF
          n_char_size = n_char_size + LEN(section_label)
          n_int_size = n_int_size + 1
          IF (output_unit > 0 .AND. log_unit > 0) THEN ! only ionode
@@ -2648,7 +2648,7 @@ CONTAINS
             IF (istat /= 0) CALL stop_write(TRIM(section_label)//", write_velocities "// &
                                             "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")", &
                                             output_unit)
-         ENDIF
+         END IF
          n_char_size = n_char_size + LEN(section_label)
          n_int_size = n_int_size + 1
          IF (print_info .AND. log_unit > 0) THEN
@@ -2864,7 +2864,7 @@ CONTAINS
          INQUIRE (UNIT=unit_number, EXIST=file_exists)
       ELSE
          file_exists = .FALSE.
-      ENDIF
+      END IF
       IF (file_exists) THEN
          INQUIRE (UNIT=unit_number, NAME=file_name)
          WRITE (UNIT=message, FMT="(A)") &

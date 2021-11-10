@@ -76,7 +76,7 @@ CONTAINS
          inpp%variable_name = initial_variables(1, :)
          ALLOCATE (inpp%variable_value(inpp%num_variables))
          inpp%variable_value = initial_variables(2, :)
-      ENDIF
+      END IF
 
    END SUBROUTINE create_inpp_type
 

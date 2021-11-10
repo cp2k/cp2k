@@ -139,7 +139,7 @@ CONTAINS
             CALL release_status_type(parser%status)
             IF (ASSOCIATED(parser%initial_variables)) THEN
                DEALLOCATE (parser%initial_variables)
-            ENDIF
+            END IF
             DEALLOCATE (parser)
          END IF
       END IF
@@ -242,8 +242,8 @@ CONTAINS
          IF (SIZE(initial_variables, 2) > 0) THEN
             ALLOCATE (parser%initial_variables(2, SIZE(initial_variables, 2)))
             parser%initial_variables = initial_variables
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       parser%input_line_number = 0
       parser%icol = 0

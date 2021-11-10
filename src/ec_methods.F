@@ -259,7 +259,7 @@ CONTAINS
                                                    template=matrix_s, &
                                                    n=nmo, &
                                                    sym=dbcsr_type_no_symmetry)
-         ENDIF
+         END IF
       END DO
 
       CALL mpools_release(mpools=my_mpools)

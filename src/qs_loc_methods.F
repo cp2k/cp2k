@@ -226,7 +226,7 @@ CONTAINS
                IF (output_unit > 0) WRITE (output_unit, "(T4,A,I6,/,T4,A)") &
                   " Crazy Wannier localization not converged after ", sweeps, &
                   " iterations, and jacobi_fallback switched off "
-            ENDIF
+            END IF
          END IF
       CASE (do_loc_direct)
          CALL direct_mini(weights, zij_fm_set, vectors, max_iter=max_iter, &
@@ -242,14 +242,14 @@ CONTAINS
       CASE (do_loc_none)
          IF (output_unit > 0) THEN
             WRITE (output_unit, '(T4,A,I6,A)') " No MOS localization applied "
-         ENDIF
+         END IF
       CASE DEFAULT
          CPABORT("Unknown localization method")
       END SELECT
       IF (output_unit > 0) THEN
          IF (sweeps <= max_iter) WRITE (output_unit, '(T4,A,I3,A,I6,A)') " Localization  for spin ", ispin, &
             " converged in ", sweeps, " iterations"
-      ENDIF
+      END IF
 
       CALL centers_spreads_berry(qs_loc_env, zij_fm_set, nmoloc, cell, weights, &
                                  ispin, print_loc_section)
@@ -455,7 +455,7 @@ CONTAINS
                DO idir = 1, 3
                   c(idir) = c(idir) + &
                             (cell%hmat(idir, jdir)/twopi)*AIMAG(LOG(z))
-               ENDDO
+               END DO
             END IF
          END DO
          cpbc = pbc(c, cell)
@@ -465,7 +465,7 @@ CONTAINS
          sum_spread_i = sum_spread_i + centers(4, istate)
          sum_spread_ii = sum_spread_ii + centers(5, istate)
          IF (unit_out_s > 0 .AND. .NOT. my_only_init) WRITE (unit_out_s, '(I6,2F16.8)') istate, centers(4:5, istate)
-      ENDDO
+      END DO
 
       ! Print of wannier centers
       print_key => section_vals_get_subs_vals(print_loc_section, "WANNIER_CENTERS")
@@ -796,7 +796,7 @@ CONTAINS
                   IF (istate == jstate) THEN
                      centers(1:6, i) = localized_wfn_control%centers_set(ispin)%array(1:6, j)
                      EXIT
-                  ENDIF
+                  END IF
                END DO
             END DO ! ncubes
 

@@ -95,12 +95,12 @@ CONTAINS
             WRITE (output_unit, '()')
             WRITE (output_unit, '(T2,A)') "Performing wfn mixing"
             WRITE (output_unit, '(T2,A)') "====================="
-         ENDIF
+         END IF
 
          ALLOCATE (mos_new(SIZE(mos)))
          DO ispin = 1, SIZE(mos)
             CALL duplicate_mo_set(mos_new(ispin)%mo_set, mos(ispin)%mo_set)
-         ENDDO
+         END DO
 
          ! a single vector matrix structure
          NULLIFY (fm_struct_vector)
@@ -142,7 +142,7 @@ CONTAINS
                                 mos(orig_spin_index)%mo_set%nmo - orig_mo_index + 1, 1)
             ELSE
                CALL cp_fm_to_fm(unoccupied_orbs(orig_spin_index)%matrix, matrix_x, 1, orig_mo_index, 1)
-            ENDIF
+            END IF
 
             ! now get a copy of the target
             CALL cp_fm_to_fm(mos_new(result_spin_index)%mo_set%mo_coeff, matrix_y, &
@@ -155,7 +155,7 @@ CONTAINS
             CALL cp_fm_to_fm(matrix_y, mos_new(result_spin_index)%mo_set%mo_coeff, &
                              1, 1, mos_new(result_spin_index)%mo_set%nmo - result_mo_index + 1)
 
-         ENDDO
+         END DO
 
          CALL cp_fm_release(matrix_x)
          CALL cp_fm_release(matrix_y)
@@ -171,7 +171,7 @@ CONTAINS
             WRITE (output_unit, '(T2,A,T61,E20.4)') &
                "Maximum deviation from MO S-orthonormality", orthonormality
             WRITE (output_unit, '(T2,A)') "Writing new MOs to file"
-         ENDIF
+         END IF
 
          ! *** Write WaveFunction restart file ***
 
@@ -188,10 +188,10 @@ CONTAINS
 
          DO ispin = 1, SIZE(mos_new)
             CALL deallocate_mo_set(mos_new(ispin)%mo_set)
-         ENDDO
+         END DO
          DEALLOCATE (mos_new)
 
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 

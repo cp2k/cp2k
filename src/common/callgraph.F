@@ -12,12 +12,12 @@ MODULE callgraph
    IMPLICIT NONE
    PRIVATE
 
-#:include 'hash_map.fypp'
+   #:include 'hash_map.fypp'
 
-#:call hash_map(prefix='callgraph', &
-                key_type='INTEGER(kind=int_4), DIMENSION(2)', &
-                value_type='TYPE(call_stat_type), POINTER')
-#:endcall hash_map
+   #:call hash_map(prefix='callgraph', &
+      key_type='INTEGER(kind=int_4), DIMENSION(2)', &
+      value_type='TYPE(call_stat_type), POINTER')
+   #:endcall hash_map
 
 ! **************************************************************************************************
 !> \brief ...

@@ -314,7 +314,7 @@ CONTAINS
                   omat(1:ii, 1:ii) = MATMUL(TRANSPOSE(integrals%utrans(1:n, 1:ii, l)), integrals%utrans(1:n, 1:ii, l))
                   DO i = 1, ii
                      integrals%uptrans(i, i, l) = 1._dp
-                  ENDDO
+                  END DO
                   CALL lapack_sgesv(ii, ii, omat(1:ii, 1:ii), ii, ipiv, integrals%uptrans(1:ii, 1:ii, l), ii, info)
                   CPASSERT(info == 0)
                END IF

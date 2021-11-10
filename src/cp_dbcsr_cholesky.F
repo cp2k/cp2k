@@ -104,7 +104,7 @@ CONTAINS
          CALL pspotrf('U', my_n, a_sp(1, 1), 1, 1, desca, info)
       ELSE
          CALL pdpotrf('U', my_n, a(1, 1), 1, 1, desca, info)
-      ENDIF
+      END IF
 
 #else
 
@@ -112,7 +112,7 @@ CONTAINS
          CALL spotrf('U', my_n, a_sp(1, 1), SIZE(a_sp, 1), info)
       ELSE
          CALL dpotrf('U', my_n, a(1, 1), SIZE(a, 1), info)
-      ENDIF
+      END IF
 
 #endif
 
@@ -187,7 +187,7 @@ CONTAINS
          CALL pspotri('U', my_n, a_sp(1, 1), 1, 1, desca, info)
       ELSE
          CALL pdpotri('U', my_n, a(1, 1), 1, 1, desca, info)
-      ENDIF
+      END IF
 
 #else
 
@@ -195,7 +195,7 @@ CONTAINS
          CALL spotri('U', my_n, a_sp(1, 1), SIZE(a_sp, 1), info)
       ELSE
          CALL dpotri('U', my_n, a(1, 1), SIZE(a, 1), info)
-      ENDIF
+      END IF
 
 #endif
 
@@ -205,7 +205,7 @@ CONTAINS
          CALL cp_fm_create(fm_matrix_tmp, fm_matrix%matrix_struct, name="fm_matrix_tmp")
          CALL cp_fm_upper_to_full(fm_matrix, fm_matrix_tmp)
          CALL cp_fm_release(fm_matrix_tmp)
-      ENDIF
+      END IF
 
       CALL copy_fm_to_dbcsr(fm_matrix, matrix)
 
@@ -300,7 +300,7 @@ CONTAINS
          END SELECT
       ELSE
          chol_pos = 'L'
-      ENDIF
+      END IF
 
       chol_transa = 'N'
       IF (PRESENT(transa)) chol_transa = transa
@@ -327,23 +327,23 @@ CONTAINS
             CALL pscopy(n, a_sp(1, 1), 1, i, desca, 1, out_sp(1, 1), 1, i, descout, 1)
          ELSE
             CALL pdcopy(n, a(1, 1), 1, i, desca, 1, out(1, 1), 1, i, descout, 1)
-         ENDIF
-      ENDDO
+         END IF
+      END DO
       IF (op .EQ. "SOLVE") THEN
          IF (fm_matrix%use_sp) THEN
             CALL pstrsm(chol_pos, 'U', chol_transa, 'N', n, neig, REAL(alpha, sp), b_sp(1, 1), 1, 1, descb, &
                         out_sp(1, 1), 1, 1, descout)
          ELSE
             CALL pdtrsm(chol_pos, 'U', chol_transa, 'N', n, neig, alpha, b(1, 1), 1, 1, descb, out(1, 1), 1, 1, descout)
-         ENDIF
+         END IF
       ELSE
          IF (fm_matrix%use_sp) THEN
             CALL pstrmm(chol_pos, 'U', chol_transa, 'N', n, neig, REAL(alpha, sp), b_sp(1, 1), 1, 1, descb, &
                         out_sp(1, 1), 1, 1, descout)
          ELSE
             CALL pdtrmm(chol_pos, 'U', chol_transa, 'N', n, neig, alpha, b(1, 1), 1, 1, descb, out(1, 1), 1, 1, descout)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 #else
 
       alpha = 1.0_dp
@@ -351,20 +351,20 @@ CONTAINS
          CALL scopy(neig*n, a_sp(1, 1), 1, out_sp(1, 1), 1)
       ELSE
          CALL dcopy(neig*n, a(1, 1), 1, out(1, 1), 1)
-      ENDIF
+      END IF
       IF (op .EQ. "SOLVE") THEN
          IF (fm_matrix%use_sp) THEN
             CALL strsm(chol_pos, 'U', chol_transa, 'N', n, neig, REAL(alpha, sp), b_sp(1, 1), SIZE(b_sp, 1), out_sp(1, 1), n)
          ELSE
             CALL dtrsm(chol_pos, 'U', chol_transa, 'N', n, neig, alpha, b(1, 1), SIZE(b, 1), out(1, 1), n)
-         ENDIF
+         END IF
       ELSE
          IF (fm_matrix%use_sp) THEN
             CALL strmm(chol_pos, 'U', chol_transa, 'N', n, neig, REAL(alpha, sp), b_sp(1, 1), n, out_sp(1, 1), n)
          ELSE
             CALL dtrmm(chol_pos, 'U', chol_transa, 'N', n, neig, alpha, b(1, 1), n, out(1, 1), n)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
 #endif
 

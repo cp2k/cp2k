@@ -5,7 +5,7 @@
 #!   SPDX-License-Identifier: GPL-2.0-or-later                                                     !
 #!-------------------------------------------------------------------------------------------------!
 #:mute
-#:def array_sort(prefix, type)
+   #:def array_sort(prefix, type)
 
 ! **************************************************************************************************
 !> \brief Sorts an array inplace using a combination of merge- and bubble-sort.
@@ -17,29 +17,29 @@
 !>      12.2012 created [ole]
 !> \author Ole Schuett
 ! **************************************************************************************************
-SUBROUTINE ${prefix}$_sort(arr, n, indices)
-   INTEGER, INTENT(IN)                      :: n
-   ${type}$, DIMENSION(1:n), INTENT(INOUT)  :: arr
-   integer, DIMENSION(1:n), INTENT(INOUT)   :: indices
+      SUBROUTINE ${prefix}$_sort(arr, n, indices)
+         INTEGER, INTENT(IN)                      :: n
+         ${type}$, DIMENSION(1:n), INTENT(INOUT)  :: arr
+         integer, DIMENSION(1:n), INTENT(INOUT)   :: indices
 
-   INTEGER                                  :: i
-   ${type}$, ALLOCATABLE                    :: tmp_arr(:)
-   INTEGER, ALLOCATABLE                     :: tmp_idx(:)
+         INTEGER                                  :: i
+         ${type}$, ALLOCATABLE                    :: tmp_arr(:)
+         INTEGER, ALLOCATABLE                     :: tmp_idx(:)
 
-   IF (n > 1) THEN
-      ! scratch space used during the merge step
-      ALLOCATE (tmp_arr((n + 1)/2), tmp_idx((n + 1)/2))
+         IF (n > 1) THEN
+            ! scratch space used during the merge step
+            ALLOCATE (tmp_arr((n + 1)/2), tmp_idx((n + 1)/2))
 
-      indices = (/(i, i=1, n)/)
+            indices = (/(i, i=1, n)/)
 
-      CALL ${prefix}$_sort_low(arr(1:n), indices, tmp_arr, tmp_idx)
+            CALL ${prefix}$_sort_low(arr(1:n), indices, tmp_arr, tmp_idx)
 
-      DEALLOCATE (tmp_arr, tmp_idx)
-   ELSE IF (n > 0) THEN ! can be a frequent case in cp2k
-      indices(1) = 1
-   ENDIF
+            DEALLOCATE (tmp_arr, tmp_idx)
+         ELSE IF (n > 0) THEN ! can be a frequent case in cp2k
+            indices(1) = 1
+         END IF
 
-END SUBROUTINE ${prefix}$_sort
+      END SUBROUTINE ${prefix}$_sort
 
 ! **************************************************************************************************
 !> \brief The actual sort routing. Only ${prefix}$_sort and itself should call this.
@@ -51,81 +51,81 @@ END SUBROUTINE ${prefix}$_sort
 !>      12.2012 created [ole]
 !> \author Ole Schuett
 ! **************************************************************************************************
-RECURSIVE SUBROUTINE ${prefix}$_sort_low(arr, indices, tmp_arr, tmp_idx)
-   ${type}$, DIMENSION(:), INTENT(INOUT)                 :: arr
-   INTEGER, DIMENSION(size(arr)), INTENT(INOUT)          :: indices
-   ${type}$, DIMENSION((size(arr) + 1)/2), INTENT(INOUT)   :: tmp_arr
-   INTEGER, DIMENSION((size(arr) + 1)/2), INTENT(INOUT)    :: tmp_idx
-   ${type}$                                              :: a
-   INTEGER                                               :: t, m, i, j, k
-   LOGICAL                                               :: swapped
-   ! a,t:  used during swaping of elements in arr and indices
+      RECURSIVE SUBROUTINE ${prefix}$_sort_low(arr, indices, tmp_arr, tmp_idx)
+         ${type}$, DIMENSION(:), INTENT(INOUT)                 :: arr
+         INTEGER, DIMENSION(size(arr)), INTENT(INOUT)          :: indices
+         ${type}$, DIMENSION((size(arr) + 1)/2), INTENT(INOUT)   :: tmp_arr
+         INTEGER, DIMENSION((size(arr) + 1)/2), INTENT(INOUT)    :: tmp_idx
+         ${type}$                                              :: a
+         INTEGER                                               :: t, m, i, j, k
+         LOGICAL                                               :: swapped
+         ! a,t:  used during swaping of elements in arr and indices
 
-   swapped = .TRUE.
+         swapped = .TRUE.
 
-   ! If only a few elements are left we switch to bubble-sort for efficiency.
-   IF (size(arr) <= 7) THEN ! 7 seems to be a good choice for the moment
-      DO j = size(arr) - 1, 1, -1
-         swapped = .FALSE.
-         DO i = 1, j
-            IF (${prefix}$_less_than(arr(i + 1), arr(i))) THEN
-               ! swap arr(i) with arr(i+1)
-               a = arr(i)
-               arr(i) = arr(i + 1)
-               arr(i + 1) = a
-               ! swap indices(i) with indices(i+1)
-               t = indices(i)
-               indices(i) = indices(i + 1)
-               indices(i + 1) = t
-               swapped = .TRUE.
-            END IF
-         END DO
-         IF (.NOT. swapped) EXIT
-      END DO
-      RETURN
-   ENDIF
+         ! If only a few elements are left we switch to bubble-sort for efficiency.
+         IF (size(arr) <= 7) THEN ! 7 seems to be a good choice for the moment
+            DO j = size(arr) - 1, 1, -1
+               swapped = .FALSE.
+               DO i = 1, j
+                  IF (${prefix}$_less_than(arr(i + 1), arr(i))) THEN
+                     ! swap arr(i) with arr(i+1)
+                     a = arr(i)
+                     arr(i) = arr(i + 1)
+                     arr(i + 1) = a
+                     ! swap indices(i) with indices(i+1)
+                     t = indices(i)
+                     indices(i) = indices(i + 1)
+                     indices(i + 1) = t
+                     swapped = .TRUE.
+                  END IF
+               END DO
+               IF (.NOT. swapped) EXIT
+            END DO
+            RETURN
+         END IF
 
-   ! split list in half and recursively sort both sublists
-   m = (size(arr) + 1)/2 ! index where we're going to divide the list in two
-   CALL ${prefix}$_sort_low(arr(1:m), indices(1:m), tmp_arr, tmp_idx)
-   CALL ${prefix}$_sort_low(arr(m + 1:), indices(m + 1:), tmp_arr, tmp_idx)
+         ! split list in half and recursively sort both sublists
+         m = (size(arr) + 1)/2 ! index where we're going to divide the list in two
+         CALL ${prefix}$_sort_low(arr(1:m), indices(1:m), tmp_arr, tmp_idx)
+         CALL ${prefix}$_sort_low(arr(m + 1:), indices(m + 1:), tmp_arr, tmp_idx)
 
-   ! Check for a special case: Can we just concate the two sorted sublists?
-   ! This leads to O(n) scaling if the input is already sorted.
-   IF (${prefix}$_less_than(arr(m + 1), arr(m))) THEN
-      ! ...no - let's merge the two sorted sublists arr(:m) and arr(m+1:)
-      ! Merge will be performed directly in arr. Need backup of first sublist.
-      tmp_arr(1:m) = arr(1:m)
-      tmp_idx(1:m) = indices(1:m)
-      i = 1; ! number of elemens consumed from 1st sublist
-      j = 1; ! number of elemens consumed from 2nd sublist
-      k = 1; ! number of elemens already merged
+         ! Check for a special case: Can we just concate the two sorted sublists?
+         ! This leads to O(n) scaling if the input is already sorted.
+         IF (${prefix}$_less_than(arr(m + 1), arr(m))) THEN
+            ! ...no - let's merge the two sorted sublists arr(:m) and arr(m+1:)
+            ! Merge will be performed directly in arr. Need backup of first sublist.
+            tmp_arr(1:m) = arr(1:m)
+            tmp_idx(1:m) = indices(1:m)
+            i = 1; ! number of elemens consumed from 1st sublist
+            j = 1; ! number of elemens consumed from 2nd sublist
+            k = 1; ! number of elemens already merged
 
-      DO WHILE (i <= m .and. j <= size(arr) - m)
-         IF (${prefix}$_less_than(arr(m + j), tmp_arr(i))) THEN
-            arr(k) = arr(m + j)
-            indices(k) = indices(m + j)
-            j = j + 1
-         ELSE
-            arr(k) = tmp_arr(i)
-            indices(k) = tmp_idx(i)
-            i = i + 1
-         ENDIF
-         k = k + 1
-      ENDDO
+            DO WHILE (i <= m .and. j <= size(arr) - m)
+               IF (${prefix}$_less_than(arr(m + j), tmp_arr(i))) THEN
+                  arr(k) = arr(m + j)
+                  indices(k) = indices(m + j)
+                  j = j + 1
+               ELSE
+                  arr(k) = tmp_arr(i)
+                  indices(k) = tmp_idx(i)
+                  i = i + 1
+               END IF
+               k = k + 1
+            END DO
 
-      ! One of the two sublist is now empty.
-      ! Copy possibly remaining tail of 1st sublist
-      DO WHILE (i <= m)
-         arr(k) = tmp_arr(i)
-         indices(k) = tmp_idx(i)
-         i = i + 1
-         k = k + 1
-      ENDDO
-      ! The possibly remaining tail of 2nd sublist is already at the right spot.
-   ENDIF
+            ! One of the two sublist is now empty.
+            ! Copy possibly remaining tail of 1st sublist
+            DO WHILE (i <= m)
+               arr(k) = tmp_arr(i)
+               indices(k) = tmp_idx(i)
+               i = i + 1
+               k = k + 1
+            END DO
+            ! The possibly remaining tail of 2nd sublist is already at the right spot.
+         END IF
 
-END SUBROUTINE ${prefix}$_sort_low
+      END SUBROUTINE ${prefix}$_sort_low
 
-#:enddef
+   #:enddef
 #:endmute

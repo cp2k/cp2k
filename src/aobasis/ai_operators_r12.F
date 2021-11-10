@@ -610,8 +610,8 @@ CONTAINS
          DO j = 0, n - 1
             v(1, 1, n) = v(1, 1, n) + f0*fsign* &
                          fac(n - 1)/fac(n - j - 1)/fac(j)*(-tau)**(n - j - 1)*(-eta)**j*f(j)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       DEALLOCATE (f)
 

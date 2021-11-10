@@ -503,7 +503,7 @@ CONTAINS
       IF (almo_scf_env%xalmo_trial_wf .EQ. xalmo_trial_r0_out .AND. &
           almo_scf_env%xalmo_update_algorithm .EQ. almo_scf_trustr) THEN
          CPABORT("Trust region algorithm cannot optimize projected XALMOs")
-      ENDIF
+      END IF
 
       CALL section_vals_val_get(almo_scf_section, "XALMO_ALGORITHM", &
                                 i_val=almo_scf_env%xalmo_update_algorithm)
@@ -512,55 +512,55 @@ CONTAINS
       IF (almo_scf_env%deloc_method .EQ. almo_deloc_xalmo_1diag .AND. &
           almo_scf_env%xalmo_update_algorithm .NE. almo_scf_diag) THEN
          CPABORT("1-step delocalization correction requires a different algorithm")
-      ENDIF
+      END IF
 
       IF (almo_scf_env%xalmo_trial_wf .EQ. xalmo_trial_r0_out .AND. &
           almo_scf_env%almo_update_algorithm .EQ. almo_scf_skip .AND. &
           almo_scf_env%almo_scf_guess .NE. molecular_guess) THEN
          CPABORT("R0 projector requires optimized ALMOs")
-      ENDIF
+      END IF
 
       IF (almo_scf_env%deloc_method .EQ. almo_deloc_none .AND. &
           almo_scf_env%almo_update_algorithm .EQ. almo_scf_skip) THEN
          CPABORT("No optimization requested")
-      ENDIF
+      END IF
 
       IF (almo_scf_env%deloc_truncate_virt .EQ. virt_number .AND. &
           almo_scf_env%deloc_virt_per_domain .LE. 0) THEN
          CPABORT("specify a positive number of virtual orbitals")
-      ENDIF
+      END IF
 
       IF (almo_scf_env%deloc_truncate_virt .EQ. virt_minimal) THEN
          CPABORT("VIRT TRUNCATION TO MINIMAL BASIS IS NIY")
-      ENDIF
+      END IF
 
       IF (almo_scf_env%domain_layout_mos .NE. almo_domain_layout_molecular) THEN
          CPABORT("use MOLECULAR domains")
-      ENDIF
+      END IF
 
       IF (almo_scf_env%domain_layout_aos .NE. almo_domain_layout_molecular) THEN
          CPABORT("use MOLECULAR domains")
-      ENDIF
+      END IF
 
       IF (almo_scf_env%mat_distr_mos .NE. almo_mat_distr_molecular) THEN
          CPABORT("use MOLECULAR distr for MOs")
-      ENDIF
+      END IF
 
       IF (almo_scf_env%mat_distr_aos == almo_mat_distr_molecular .AND. &
           almo_scf_env%domain_layout_aos == almo_domain_layout_atomic) THEN
          CPABORT("AO blocks cannot be larger than domains")
-      ENDIF
+      END IF
 
       IF (almo_scf_env%mat_distr_mos == almo_mat_distr_molecular .AND. &
           almo_scf_env%domain_layout_mos == almo_domain_layout_atomic) THEN
          CPABORT("MO blocks cannot be larger than domains")
-      ENDIF
+      END IF
 
       IF (almo_scf_env%quencher_r1_factor .GT. almo_max_cutoff_multiplier) THEN
          CALL cp_abort(__LOCATION__, &
                        "XALMO_R_CUTOFF_FACTOR is larger than almo_max_cutoff_multiplier. "// &
                        "Increase the hard-coded almo_max_cutoff_multiplier")
-      ENDIF
+      END IF
 
       ! check analysis settings
       IF (almo_scf_env%almo_analysis%do_analysis) THEN
@@ -568,9 +568,9 @@ CONTAINS
          IF (almo_scf_env%almo_analysis%frozen_mo_energy_term == almo_frz_crystal &
              .AND. almo_scf_env%almo_scf_guess .NE. molecular_guess) THEN
             CPABORT("To compute frozen-MO energy term set ALMO_SCF_GUESS MOLECULAR")
-         ENDIF
+         END IF
 
-      ENDIF ! end analysis settings
+      END IF ! end analysis settings
 
       CALL timestop(handle)
 

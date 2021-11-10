@@ -156,8 +156,8 @@ CONTAINS
                                     name="SCF DENSITY", matrix_type=dbcsr_type_symmetric, nze=0)
                   CALL cp_dbcsr_alloc_block_from_nbl(p_mix_new(i, ic)%matrix, sab_orb)
                   CALL dbcsr_set(p_mix_new(i, ic)%matrix, 0.0_dp)
-               ENDDO
-            ENDDO
+               END DO
+            END DO
          END IF
       END IF
 
@@ -173,8 +173,8 @@ CONTAINS
                                        name="SCF DENSITY", matrix_type=dbcsr_type_symmetric, nze=0)
                      CALL cp_dbcsr_alloc_block_from_nbl(p_delta(i, ic)%matrix, sab_orb)
                      CALL dbcsr_set(p_delta(i, ic)%matrix, 0.0_dp)
-                  ENDDO
-               ENDDO
+                  END DO
+               END DO
             END IF
             CPASSERT(ASSOCIATED(mixing_store))
          END IF

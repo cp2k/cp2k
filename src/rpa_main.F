@@ -231,11 +231,11 @@ CONTAINS
 
       IF (mp2_env%ri_rpa%do_ri_axk) THEN
          CALL cite_reference(Bates2013)
-      ENDIF
+      END IF
       IF (mp2_env%ri_rpa%do_rse) THEN
          CALL cite_reference(Ren2011)
          CALL cite_reference(Ren2013)
-      ENDIF
+      END IF
 
       IF (my_do_gw) THEN
          CALL cite_reference(Wilhelm2016a)
@@ -685,7 +685,7 @@ CONTAINS
          DEALLOCATE (mp2_env%ri_rpa%mo_coeff_o)
          CALL dbcsr_release(mp2_env%ri_rpa%mo_coeff_v)
          DEALLOCATE (mp2_env%ri_rpa%mo_coeff_v)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -779,7 +779,7 @@ CONTAINS
                   END IF
                END DO
             END DO
-         ENDDO
+         END DO
 
          DEALLOCATE (BIb_C_rec)
       END DO
@@ -1610,7 +1610,7 @@ CONTAINS
 
                ! Evaluate the final AXK energy correction
                e_axk = e_axk + e_axk_corr*wj(jquad)
-            ENDIF ! do_ri_axk
+            END IF ! do_ri_axk
 
             IF (do_ri_sos_laplace_mp2) THEN
                CALL SOS_MP2_postprocessing(fm_mat_Q, Erpa, tau_wj(jquad))
@@ -1662,7 +1662,7 @@ CONTAINS
             E_axk = E_axk/(pi*2.0_dp)
             IF (do_minimax_quad) E_axk = E_axk/2.0_dp
             mp2_env%ri_rpa%ener_axk = E_axk
-         ENDIF
+         END IF
 
          IF (do_im_time) THEN
 

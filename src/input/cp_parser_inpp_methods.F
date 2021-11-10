@@ -104,7 +104,7 @@ CONTAINS
       IF (((pos1 > 0) .AND. (pos1 < indi)) .OR. ((pos2 > 0) .AND. (pos2 < indi))) THEN
          ! nothing to do here.
          RETURN
-      ENDIF
+      END IF
 
       ! Get the start of the instruction and find "@KEYWORD" (or "@")
       indf = indi
@@ -124,7 +124,7 @@ CONTAINS
                "INPP_@INCLUDE: Incorrect @INCLUDE directive in file: ", &
                TRIM(input_file_name), "  Line:", input_line_number
             CPABORT(TRIM(message))
-         ENDIF
+         END IF
          indi = 1
          DO WHILE (is_whitespace(filename(indi:indi)))
             indi = indi + 1
@@ -149,10 +149,10 @@ CONTAINS
                      "INPP_@INCLUDE: Incorrect quoting of include file in file: ", &
                      TRIM(input_file_name), "  Line:", input_line_number
                   CPABORT(TRIM(message))
-               ENDIF
+               END IF
                ! nothing to do. unquoted filename.
-            ENDIF
-         ENDIF
+            END IF
+         END IF
 
          ! Let's check that files already opened won't be again opened
          DO i = 1, inpp%io_stack_level
@@ -197,7 +197,7 @@ CONTAINS
                "INPP_@XCTYPE: Incorrect @XCTYPE directive in file: ", &
                TRIM(input_file_name), "  Line:", input_line_number
             CPABORT(TRIM(message))
-         ENDIF
+         END IF
          indi = 1
          DO WHILE (is_whitespace(filename(indi:indi)))
             indi = indi + 1
@@ -222,10 +222,10 @@ CONTAINS
                      "INPP_@XCTYPE: Incorrect quoting of include file in file: ", &
                      TRIM(input_file_name), "  Line:", input_line_number
                   CPABORT(TRIM(message))
-               ENDIF
+               END IF
                ! nothing to do. unquoted filename.
-            ENDIF
-         ENDIF
+            END IF
+         END IF
 
          ! add file extension ".sec"
          filename = TRIM(filename)//".sec"
@@ -235,7 +235,7 @@ CONTAINS
                ! this is an absolute path filename, don't change
             ELSE
                filename = "xc_section"//'/'//filename
-            ENDIF
+            END IF
          END IF
          IF (.NOT. file_exists(TRIM(filename))) THEN
             WRITE (UNIT=message, FMT="(3A,I6)") &
@@ -286,7 +286,7 @@ CONTAINS
                "INPP_@SET: Incorrect @SET directive in file: ", &
                TRIM(input_file_name), "  Line:", input_line_number
             CPABORT(TRIM(message))
-         ENDIF
+         END IF
 
          indi = 1
          DO WHILE (is_whitespace(varname(indi:indi)))
@@ -304,7 +304,7 @@ CONTAINS
                "INPP_@SET: Invalid variable name in @SET directive in file: ", &
                TRIM(input_file_name), "  Line:", input_line_number
             CPABORT(TRIM(message))
-         ENDIF
+         END IF
 
          indi = 1
          DO WHILE (is_whitespace(value(indi:indi)))
@@ -317,7 +317,7 @@ CONTAINS
                "INPP_@SET: Incorrect @SET directive in file: ", &
                TRIM(input_file_name), "  Line:", input_line_number
             CPABORT(TRIM(message))
-         ENDIF
+         END IF
 
          ! sort into table of variables.
          indi = inpp_find_variable(inpp, varname)
@@ -344,7 +344,7 @@ CONTAINS
                WRITE (output_unit, *) TRIM(message)
             END IF
             inpp%variable_value(indi) = value
-         ENDIF
+         END IF
 
          IF (debug_this_module) CALL inpp_list_variables(inpp, 6)
 
@@ -371,7 +371,7 @@ CONTAINS
                   "INPP_@IF: Incorrect @IF directive in file: ", &
                   TRIM(input_file_name), "  Line:", input_line_number
                CPABORT(TRIM(message))
-            ENDIF
+            END IF
          ELSEIF (pos2 > 0) THEN
             cond1 = input_line(indi:pos2 - 1)
             cond2 = input_line(pos2 + 2:)
@@ -381,7 +381,7 @@ CONTAINS
                   "INPP_@IF: Incorrect @IF directive in file: ", &
                   TRIM(input_file_name), "  Line:", input_line_number
                CPABORT(TRIM(message))
-            ENDIF
+            END IF
          ELSE
             IF (LEN_TRIM(input_line(indi:)) > 0) THEN
                IF (TRIM(input_line(indi:)) == '0') THEN
@@ -392,13 +392,13 @@ CONTAINS
                   cond1 = 'XXX'
                   cond2 = 'XXX'
                   check = .TRUE.
-               ENDIF
+               END IF
             ELSE
                cond1 = 'XXX'
                cond2 = 'XXX'
                check = .FALSE.
-            ENDIF
-         ENDIF
+            END IF
+         END IF
 
          ! Get rid of possible parentheses
          IF (INDEX(cond1, "(") /= 0) cond1 = cond1(INDEX(cond1, "(") + 1:)
@@ -423,7 +423,7 @@ CONTAINS
                "INPP_@IF: Incorrect @IF directive in file: ", &
                TRIM(input_file_name), "  Line:", input_line_number
             CPABORT(TRIM(message))
-         ENDIF
+         END IF
 
          IF ((TRIM(cond1) == TRIM(cond2)) .EQV. check) THEN
             IF (debug_this_module .AND. output_unit > 0) THEN
@@ -459,7 +459,7 @@ CONTAINS
                IF (((pos1 > 0) .AND. (pos1 < indi)) .OR. ((pos2 > 0) .AND. (pos2 < indi))) THEN
                   ! comment. nothing to do here.
                   CYCLE
-               ENDIF
+               END IF
 
                ! Get the start of the instruction and find "@KEYWORD"
                indi = MAX(1, indi)
@@ -476,15 +476,15 @@ CONTAINS
                      WRITE (output_unit, *) "INPP_@IF: found @ENDIF. End of skipping."
                   END IF
                   RETURN
-               ENDIF
+               END IF
             END DO
             IF (istat /= 0) THEN
                WRITE (UNIT=message, FMT="(3A,I6)") &
                   "INPP_@IF: Error while looking for @ENDIF directive in file: ", &
                   TRIM(input_file_name), "  Line:", input_line_number
                CPABORT(TRIM(message))
-            ENDIF
-         ENDIF
+            END IF
+         END IF
 
       CASE ("@ENDIF")
          IF (debug_this_module .AND. output_unit > 0) THEN
@@ -533,7 +533,7 @@ CONTAINS
          CALL reallocate(inpp%io_stack_channel, 1, inpp%io_stack_level)
          CALL reallocate(inpp%io_stack_lineno, 1, inpp%io_stack_level)
          CALL reallocate(inpp%io_stack_filename, 1, inpp%io_stack_level)
-      ENDIF
+      END IF
 
    END SUBROUTINE inpp_end_include
 
@@ -571,7 +571,7 @@ CONTAINS
                "Missing '}' in file: ", &
                TRIM(input_file_name), "  Line:", input_line_number
             CPABORT(TRIM(message))
-         ENDIF
+         END IF
 
          pos2 = pos1 + pos2 - 2
          var_name = input_line(pos1:pos2)
@@ -581,14 +581,14 @@ CONTAINS
          IF (default_val_sep_idx > 0) THEN
             var_value = var_name(default_val_sep_idx + 1:)
             var_name = var_name(:default_val_sep_idx - 1)
-         ENDIF
+         END IF
 
          IF (.NOT. is_valid_varname(var_name)) THEN
             WRITE (UNIT=message, FMT="(5A,I6)") &
                "Invalid variable name ${", var_name, "} in file: ", &
                TRIM(input_file_name), "  Line:", input_line_number
             CPABORT(TRIM(message))
-         ENDIF
+         END IF
 
          idx = inpp_find_variable(inpp, var_name)
 
@@ -597,7 +597,7 @@ CONTAINS
                "Variable ${", var_name, "} not defined in file: ", &
                TRIM(input_file_name), "  Line:", input_line_number
             CPABORT(TRIM(message))
-         ENDIF
+         END IF
 
          IF (idx > 0) &
             var_value = TRIM(inpp%variable_value(idx))
@@ -624,14 +624,14 @@ CONTAINS
                "Invalid variable name ${", var_name, "} in file: ", &
                TRIM(input_file_name), "  Line:", input_line_number
             CPABORT(TRIM(message))
-         ENDIF
+         END IF
 
          IF (idx == 0) THEN
             WRITE (UNIT=message, FMT="(5A,I6)") &
                "Variable $", var_name, " not defined in file: ", &
                TRIM(input_file_name), "  Line:", input_line_number
             CPABORT(TRIM(message))
-         ENDIF
+         END IF
 
          newline = input_line(1:pos1 - 2)//TRIM(inpp%variable_value(idx))//input_line(pos2 + 1:)
          input_line = newline
@@ -660,7 +660,7 @@ CONTAINS
          IF (TRIM(varname) == TRIM(inpp%variable_name(i))) THEN
             idx = i
             RETURN
-         ENDIF
+         END IF
       END DO
       RETURN
    END FUNCTION inpp_find_variable

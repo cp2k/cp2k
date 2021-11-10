@@ -355,7 +355,7 @@ CONTAINS
                WRITE (UNIT=unit_nr, FMT="(T12,A,T15,6F11.5)") &
                   "AT", ((efg_tensor(i, j, iatom) - efg_pw(i, j, iatom), i=1, j), j=1, 3)
             END IF
-         ENDDO
+         END DO
          IF (unit_nr > 0) THEN
             WRITE (UNIT=unit_nr, FMT=*)
          END IF
@@ -380,7 +380,7 @@ CONTAINS
                (efg_diagval(1, iatom) - efg_diagval(2, iatom))/efg_diagval(3, iatom)
             WRITE (UNIT=unit_nr, FMT=*)
          END IF
-      ENDDO
+      END DO
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
       IF (.NOT. efg_interpolation) THEN
@@ -533,7 +533,7 @@ CONTAINS
                         CPC_sphere(i1:i1 + size1 - 1, i2:i2 + size2 - 1) = &
                            CPC_sphere(i1:i1 + size1 - 1, i2:i2 + size2 - 1) - &
                            coeff(iso1_first:iso1_last, iso2_first:iso2_last)
-                     ENDDO ! i
+                     END DO ! i
 
                      DO iso = 1, max_iso_not0_local
                         l_iso = indso(1, iso)
@@ -547,17 +547,17 @@ CONTAINS
                               vlimit(iatom, m_iso) = vlimit(iatom, m_iso) + &
                                                      vgg(l/2)*CPC_sphere(iso1, iso2)*my_CG(iso1, iso2, iso)
                            END IF
-                        ENDDO ! icg
-                     ENDDO ! iso
+                        END DO ! icg
+                     END DO ! iso
 
-                  ENDDO ! iat
+                  END DO ! iat
 
-               ENDDO ! ipgf2
-            ENDDO ! ipgf1
+               END DO ! ipgf2
+            END DO ! ipgf1
             m2s = m2s + maxso
-         ENDDO ! iset2
+         END DO ! iset2
          m1s = m1s + maxso
-      ENDDO ! iset1
+      END DO ! iset1
 
       CALL mp_sum(vlimit, para_env%group)
 

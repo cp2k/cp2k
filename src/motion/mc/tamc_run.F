@@ -275,7 +275,7 @@ CONTAINS
       ! Set V0 if needed
       IF (simpar%ensemble == nph_uniaxial_ensemble .OR. simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
          IF (simpar%v0 == 0._dp) simpar%v0 = cell%deth
-      ENDIF
+      END IF
 
       ! Initialize velocities possibly applying constraints at the zeroth MD step
 ! ! !     CALL section_vals_val_get(motion_section,"PRINT%RESTART%SPLIT_RESTART_FILE",&
@@ -351,7 +351,7 @@ CONTAINS
          WRITE (output_unit, '(a,i0,a)') "HMC| Print every ", iprint, " cycles"
          WRITE (output_unit, '(a,i0)') "HMC| Number of random numbers to skip ", rand2skip
          WRITE (output_unit, '(a,f16.8,a)') "HMC| Temperature ", temp, "K"
-      ENDIF
+      END IF
 
       CALL force_env_get(force_env, subsys=subsys)
 
@@ -362,8 +362,8 @@ CONTAINS
          auxRandom = rng_stream_mc%next()
          DO j = 1, 3*SIZE(particles%els)
             auxRandom = globenv%gaussian_rng_stream%next()
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       CALL mc_env_create(mc_env)
       CALL set_mc_env(mc_env, mc_par=mc_par, force_env=force_env)
@@ -437,9 +437,9 @@ CONTAINS
                   DO i = 1, force_env%meta_env%n_colvar
                      auxRandom = force_env%meta_env%rng(i)%next()
                      auxRandom = force_env%meta_env%rng(i)%next()
-                  ENDDO
-               ENDDO
-            ENDIF
+                  END DO
+               END DO
+            END IF
 !           IF (force_env%meta_env%well_tempered) THEN
 !              force_env%meta_env%wttemperature = simpar%temp_ext
 !              IF (force_env%meta_env%wtgamma>EPSILON(1._dp)) THEN
@@ -460,7 +460,7 @@ CONTAINS
 !           ENDIF
             CALL tamc_force(force_env)
 !           CALL metadyn_write_colvar(force_env)
-         ENDIF
+         END IF
 
          IF (simpar%do_respa) THEN
             CALL force_env_calc_energy_force(force_env%sub_force_env(1)%force_env, &
@@ -507,7 +507,7 @@ CONTAINS
 
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(a)') "HMC|==== Initial average forces"
-      ENDIF
+      END IF
       CALL metadyn_write_colvar_header(force_env)
       moves%hmc%attempts = 0
       moves%hmc%successes = 0
@@ -524,17 +524,17 @@ CONTAINS
                                          i_rep_val=i, r_val=rval)
                fz(i) = rval*rand2skip
             END IF
-         ENDDO
+         END DO
 
          CALL HMCsampler(globenv, force_env, MCaverages, r, mc_par, moves, gmoves, rng_stream_mc, output_unit, &
                          fz, zbuff, nskip=rand2skip)
          CALL cp_iterate(logger%iter_info, last=.FALSE., iter_nr=0)
          CALL section_vals_val_set(mc_section, "RANDOMTOSKIP", i_val=rand2skip + nmccycles)
          CALL write_restart(md_env=md_env, root_section=force_env%root_section)
-      ENDIF
+      END IF
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(a)') "HMC|==== end initial average forces"
-      ENDIF
+      END IF
 !     call set_md_env(md_env, init=.FALSE.)
 
       CALL metadyn_write_colvar(force_env)
@@ -546,7 +546,7 @@ CONTAINS
          IF (output_unit > 0) THEN
             WRITE (output_unit, '(a)') "HMC|==================================="
             WRITE (output_unit, '(a,1x,i0)') "HMC| on z step ", istep
-         ENDIF
+         END IF
          !needed when electric field fields are applied
          IF (ASSOCIATED(force_env%qs_env)) THEN
             force_env%qs_env%sim_time = time
@@ -622,7 +622,7 @@ CONTAINS
          IF (output_unit > 0) THEN
             WRITE (output_unit, '(a,1x,i0)') "HMC| end z step ", istep
             WRITE (output_unit, '(a)') "HMC|==================================="
-         ENDIF
+         END IF
       END DO
       CALL cp_iterate(logger%iter_info, last=.TRUE., iter_nr=itimes)
       force_env%qs_env%sim_time = 0.0_dp
@@ -699,7 +699,7 @@ CONTAINS
          sigma = SQRT((meta_env%temp_wanted*kelvin)*2.0_dp*(boltzmann/joule)*cv%gamma/cv%mass)
          cv%vvp = cv%vvp + 0.5_dp*dt*(fft/cv%mass - cv%gamma*cv%vvp)*(1.0_dp - 0.25_dp*dt*cv%gamma) + An(i_c)
          meta_env%epot_walls = meta_env%epot_walls + cv%epot_walls
-      ENDDO
+      END DO
       CALL timestop(handle)
    END SUBROUTINE tamc_velocities_colvar
 
@@ -743,7 +743,7 @@ CONTAINS
             ! A periodic COLVAR is always within [-pi,pi]
             cv%ss0 = SIGN(1.0_dp, ASIN(SIN(cv%ss0)))*ACOS(COS(cv%ss0))
          END IF
-      ENDDO
+      END DO
       CALL timestop(handle)
 
    END SUBROUTINE tamc_position_colvar
@@ -810,7 +810,7 @@ CONTAINS
                cv%vvp = rval
             ELSE
                CALL setup_velocities_z(force_env)
-            ENDIF
+            END IF
             ss_section => section_vals_get_subs_vals(meta_env%metadyn_section, "EXT_LAGRANGE_SS")
             CALL section_vals_get(ss_section, explicit=explicit)
             IF (explicit) THEN
@@ -820,7 +820,7 @@ CONTAINS
             END IF
          END IF
          !
-      ENDDO
+      END DO
       ! forces on the atoms
       NULLIFY (particles)
       CALL cp_subsys_get(subsys, colvar_p=colvar_p, &
@@ -844,9 +844,9 @@ CONTAINS
          DO ii = 1, colvar_p(icolvar)%colvar%n_atom_s
             i = colvar_p(icolvar)%colvar%i_atom(ii)
             particles%els(i)%f = particles%els(i)%f - cv%ff_s*colvar_p(icolvar)%colvar%dsdr(:, ii)
-         ENDDO
+         END DO
 
-      ENDDO
+      END DO
       IF (PRESENT(zpot)) zpot = meta_env%epot_s
       CALL fix_atom_control(force_env)
 
@@ -951,7 +951,7 @@ CONTAINS
          sigma = SQRT((force_env%meta_env%temp_wanted*kelvin)*2.0_dp*(boltzmann/joule)*gamma/mass)
          An(ivar) = 0.5_dp*SQRT(dt)*sigma*(xieta(ivar)*(1.0_dp - 0.5_dp*dt*gamma) - &
                                            dt*gamma*xieta(ivar + force_env%meta_env%n_colvar)/SQRT(12.0_dp))
-      ENDDO
+      END DO
 !    *** Velocity Verlet for Langeving *** v(t)--> v(t+1/2)
       CALL tamc_velocities_colvar(force_env, An)
 !    *** Velocity Verlet for Langevin S(t)->S(t+1)
@@ -1015,7 +1015,7 @@ CONTAINS
          nsamples = 0
          fz = 0.0_dp
          ishift = 0
-      ENDIF
+      END IF
 !      lrestart = .false.
 !      if (present(logger) .and. present(iter)) THEN
 !       lrestart=.true.
@@ -1036,7 +1036,7 @@ CONTAINS
          WRITE (output_unit, '(a,3(f16.8,1x))') &
             "HMC|Ep, Epx, Epz ", old_epx + force_env%meta_env%epot_s, old_epx, force_env%meta_env%epot_s
          WRITE (output_unit, '(a)') "#HMC| No | z.. | theta.. | ff_z... | ff_z/n |"
-      ENDIF
+      END IF
       DO i = 1, nstep
          IF (MOD(i, iprint) == 0 .AND. (output_unit > 0)) THEN
             WRITE (output_unit, '(a,1x,i0)') "HMC|========== On Monte Carlo cycle ", i + ishift
@@ -1047,9 +1047,9 @@ CONTAINS
                WRITE (output_unit, '(f16.8,1x,f16.8,1x,f16.8)', advance="no") force_env%meta_env%metavar(j)%ss0, &
                   force_env%meta_env%metavar(j)%ss, &
                   force_env%meta_env%metavar(j)%ff_s !,fz(j)/real(i+ishift,dp)
-            ENDDO
+            END DO
             WRITE (output_unit, *)
-         ENDIF
+         END IF
 
          CALL mc_hmc_move(mc_par, force_env, globenv, moves, gmoves, old_epx, old_epz, energy_check, &
                           r, output_unit, rng_stream_mc, zbuff)
@@ -1059,7 +1059,7 @@ CONTAINS
                                old_epx/REAL(i, dp)
          DO j = 1, force_env%meta_env%n_colvar
             fz(j) = fz(j) + force_env%meta_env%metavar(j)%ff_s
-         ENDDO
+         END DO
          IF (output_unit > 0) THEN
             WRITE (output_unit, '(a,1x,i0)') "HMC|end mini-trajectory", i + ishift
 !!!!!!!! this prints z and theta(x) --ss0,ss-- needed to determine an acceptable k then
@@ -1069,14 +1069,14 @@ CONTAINS
                WRITE (output_unit, '(f16.8,1x,f16.8,1x,f16.8,1x,f16.8)', advance="no") force_env%meta_env%metavar(j)%ss0, &
                   force_env%meta_env%metavar(j)%ss, &
                   force_env%meta_env%metavar(j)%ff_s, fz(j)/REAL(i + ishift, dp)
-            ENDDO
+            END DO
             WRITE (output_unit, *)
-         ENDIF
+         END IF
          nsamples = nsamples + 1
          IF (MOD(i, iprint) == 0 .AND. (output_unit > 0)) THEN
             WRITE (output_unit, '(a,f16.8)') "HMC| Running average for potential energy ", averages%ave_energy
             WRITE (output_unit, '(a,1x,i0)') "HMC|======== End Monte Carlo cycle ", i + ishift
-         ENDIF
+         END IF
 !         IF (lrestart) THEN
 !           k=nstep/5
 !           IF(MOD(i,k) == 0) THEN
@@ -1091,7 +1091,7 @@ CONTAINS
 ! !              CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=iter)
 !           ENDIF
 !         ENDIF
-      ENDDO
+      END DO
       force_env%qs_env%sim_time = t1
       force_env%qs_env%sim_step = it1
       IF (output_unit > 0) THEN
@@ -1099,11 +1099,11 @@ CONTAINS
             moves%hmc%attempts, "=", REAL(moves%hmc%successes, dp)/REAL(moves%hmc%attempts, dp)
          WRITE (output_unit, '(a,i0,a,i0,a,f16.8)') "HMC| global acceptance ratio: ", gmoves%hmc%successes, "/", &
             gmoves%hmc%attempts, "=", REAL(gmoves%hmc%successes, dp)/REAL(gmoves%hmc%attempts, dp)
-      ENDIF
+      END IF
       !average force
       DO j = 1, force_env%meta_env%n_colvar
          force_env%meta_env%metavar(j)%ff_s = fz(j)/nsamples
-      ENDDO
+      END DO
    END SUBROUTINE HMCsampler
 
 ! **************************************************************************************************
@@ -1180,7 +1180,7 @@ CONTAINS
 ! save the old coordinates just in case we need to go back
       DO iatom = 1, nAtoms
          r(1:3, iatom) = particles_set%els(iatom)%r(1:3)
-      ENDDO
+      END DO
       localise = .TRUE.
 ! the same for collective variables data should be made,ss first half and ff_s the last half
       DO j = 1, force_env%meta_env%n_colvar
@@ -1189,8 +1189,8 @@ CONTAINS
          IF ((oldsys%colvar_p(force_env%meta_env%metavar(j)%icolvar)%colvar%type_id == HBP_colvar_id) .OR. &
              (oldsys%colvar_p(force_env%meta_env%metavar(j)%icolvar)%colvar%type_id == WC_colvar_id)) THEN
             localise = .FALSE.
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
 ! now run the MD simulation
       meta_env_saved => force_env%meta_env
@@ -1199,12 +1199,12 @@ CONTAINS
       force_env%qs_env%sim_step = 0
       IF (.NOT. localise) THEN
          CALL section_vals_val_set(dft_section, "LOCALIZE%_SECTION_PARAMETERS_", l_val=.FALSE.)
-      ENDIF
+      END IF
       CALL qs_mol_dyn(force_env, globenv, hmc_e_initial=hmc_ekin%initial_ekin, hmc_e_final=hmc_ekin%final_ekin)
       IF (.NOT. localise) THEN
          CALL section_vals_val_set(dft_section, "LOCALIZE%_SECTION_PARAMETERS_", l_val=.TRUE.)
          CALL scf_post_calculation_gpw(force_env%qs_env)
-      ENDIF
+      END IF
 
       CALL force_env_get(force_env, potential_energy=new_epx)
 
@@ -1215,7 +1215,7 @@ CONTAINS
          WRITE (output_unit, '(a,4(f16.8,1x))') &
             "HMC|old Ep, Ekx, Epz, Epx ", old_epx + old_epz, hmc_ekin%initial_ekin, old_epz, old_epx
          WRITE (output_unit, '(a,4(f16.8,1x))') "HMC|new Ep, Ekx, Epz, Epx ", new_energy, hmc_ekin%final_ekin, new_epz, new_epx
-      ENDIF
+      END IF
       energy_term = new_energy - old_epx - old_epz + hmc_ekin%final_ekin - hmc_ekin%initial_ekin
 
       value = -BETA*(energy_term)
@@ -1226,7 +1226,7 @@ CONTAINS
          w = 0.0_dp
       ELSE
          w = EXP(value)
-      ENDIF
+      END IF
 
       rand = rng_stream%next()
       IF (rand < w) THEN
@@ -1241,13 +1241,13 @@ CONTAINS
 ! reset the cell and particle positions
          DO iatom = 1, nAtoms
             particles_set%els(iatom)%r(1:3) = r(1:3, iatom)
-         ENDDO
+         END DO
          DO j = 1, force_env%meta_env%n_colvar
             force_env%meta_env%metavar(j)%ss = zbuff(j)
             force_env%meta_env%metavar(j)%ff_s = zbuff(j + force_env%meta_env%n_colvar)
-         ENDDO
+         END DO
 
-      ENDIF
+      END IF
 
       DEALLOCATE (hmc_ekin)
 
@@ -1313,7 +1313,7 @@ CONTAINS
             label6 = TRIM(label6)//TRIM(aux)
             m = 15*i - LEN_TRIM(label6) - 1
             label6 = TRIM(label6)//REPEAT(" ", m)//"|"
-         ENDDO
+         END DO
          WRITE (fmt, '("(a17,6a",i0 ,",4a15)")') meta_env%n_colvar*15
          WRITE (iw, TRIM(fmt)) "#Time[fs] |", &
             TRIM(label1), &
@@ -1363,7 +1363,7 @@ CONTAINS
          DO i_c = 1, meta_env%n_colvar
             cv => meta_env%metavar(i_c)
             meta_env%ekin_s = meta_env%ekin_s + 0.5_dp*cv%mass*cv%vvp**2
-         ENDDO
+         END DO
       END IF
 
       ! write COLVAR file
@@ -1405,7 +1405,7 @@ CONTAINS
             WRITE (iw, '( A,T51,f10.2,T71,f10.2)') ' COLVARS INSTANTANEOUS/AVERAGE TEMPERATURE ', &
                temp, meta_env%avg_temp
             WRITE (iw, '(T2,79("-"))')
-         ENDIF
+         END IF
          CALL cp_print_key_finished_output(iw, logger, meta_env%metadyn_section, &
                                            "PRINT%TEMPERATURE_COLVAR")
       END IF
@@ -1438,6 +1438,6 @@ CONTAINS
       DO i_c = 1, meta_env%n_colvar
          cv => meta_env%metavar(i_c)
          cv%vvp = cv%vvp*fac_t
-      ENDDO
+      END DO
    END SUBROUTINE setup_velocities_z
 END MODULE tamc_run
