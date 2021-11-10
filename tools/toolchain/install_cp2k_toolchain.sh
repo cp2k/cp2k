@@ -326,7 +326,7 @@ if (command -v mpirun >&- 2>&-); then
     export MPI_MODE=mpich
   fi
 else
-  report_warning $LINENO "No MPI installation detected on your system. Ignore this message if you are using Cray Linux Environment"
+  report_warning $LINENO "No MPI installation detected (ignore this message in Cray Linux Environment or when MPI installation was requested)."
   export MPI_MODE=no
 fi
 
@@ -715,8 +715,15 @@ else
   fi
 fi
 
-# spglib and libvori require cmake.
-if [ "$with_spglib" = "__INSTALL__" ] || [ "$with_libvori" = "__INSTALL__" ]; then
+# several packages require cmake.
+if [ "$with_spglib" = "__INSTALL__" ] ||
+  [ "$with_libvori" = "__INSTALL__" ] ||
+  [ "$with_scalapack" = "__INSTALL__" ] ||
+  [ "$with_superlu" = "__INSTALL__" ] ||
+  [ "$with_sirius" = "__INSTALL__" ] ||
+  [ "$with_cosma" = "__INSTALL__" ] ||
+  [ "$with_spfft" = "__INSTALL__" ] ||
+  [ "$with_spla" = "__INSTALL__" ]; then
   [ "$with_cmake" = "__DONTUSE__" ] && with_cmake="__INSTALL__"
 fi
 
