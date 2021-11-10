@@ -28,7 +28,9 @@ cd "${BUILDDIR}"
 case "$with_libxsmm" in
   __INSTALL__)
     echo "==================== Installing Libxsmm ===================="
-    if [ "$OPENBLAS_ARCH" != "x86_64" ]; then
+    if [[ ("$OPENBLAS_ARCH" != "x86_64") && \
+          ("$OPENBLAS_ARCH" != "arm64" || "$libxsmm_ver" != "master") ]];
+    then
       report_warning $LINENO "libxsmm is not supported on arch ${OPENBLAS_ARCH}"
       cat << EOF > "${BUILDDIR}/setup_libxsmm"
 with_libxsmm="__DONTUSE__"
