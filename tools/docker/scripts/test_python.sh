@@ -23,6 +23,9 @@ echo "Using $(python3 --version) and $(mypy --version)."
 echo ""
 
 run_test ./tools/prettify/prettify_test.py
+run_test ./tools/minimax_tools/minimax_to_fortran_source.py --check
+
+run_test mypy --strict ./tools/minimax_tools/minimax_to_fortran_source.py
 run_test mypy --strict ./tools/dashboard/generate_dashboard.py
 run_test mypy --strict ./tools/regtesting/do_regtest.py
 run_test mypy --strict ./tools/regtesting/optimize_test_dirs.py

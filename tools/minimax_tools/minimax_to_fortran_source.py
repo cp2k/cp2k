@@ -1,244 +1,300 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 
 import re
-import sys
-import os.path
+import argparse
+from pathlib import Path
+from typing import Any, List, Literal
+from dataclasses import dataclass
 
-# 1) parse data #
-#################
 
-reldir = r"www.mis.mpg.de/scicomp/EXP_SUM/1_x/"
+# ======================================================================================
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Generates minimax_exp_k53.F file.")
+    parser.add_argument("--check", action="store_true")
+    args = parser.parse_args()
 
-txt = open(reldir + "tabelle", "r", encoding="utf8")
+    script_dir = Path(__file__).parent
+    input_path = script_dir / "1_xData"
+    output_path = script_dir.parent.parent / "src" / "minimax" / "minimax_exp_k53.F"
+    assert input_path.exists()
+    assert output_path.exists()
 
-re_header = re.compile("k =  \| *(?P<kval>([\d]+ *)+)")
-re_body = re.compile("(?P<Rc>\dE\d\d) \|(?P<err>[\w\.\- ]+)")
-re_sep = re.compile("[\-]{50,100}")
+    approx = parse_data_set(input_path)
+    approx = filter_orig(approx)
+    code = generate_fortran_code(approx)
 
-read_header = True
-read_sep1 = False
-read_body = False
-read_sep2 = False
+    if args.check:
+        assert output_path.read_text(encoding="utf8") == code
+        print(f"File {output_path} is consisted with generator script.")
+    else:
+        output_path.write_text(code, encoding="utf8")
+        print(f"Wrote {output_path}.")
 
-k = []
-Rc = []
-err = []
-coeff_file = []
-missing = []
-a = []
-w = []
 
-start_line = 46
-end_line = 288
+# ======================================================================================
+@dataclass
+class Approximation:
+    k: int
+    Rc: float
+    err: float
+    omega: List[float]
+    alpha: List[float]
 
-for l, line in enumerate(txt.readlines()):
-    if l < start_line - 1:
-        continue
-    if l > end_line - 1:
-        break
 
-    if read_header:
-        if re_header.match(line):
-            kvals = [int(_) for _ in re_header.match(line).group("kval").split()]
-            read_sep1 = True
-            read_header = False
+# ======================================================================================
+def parse_data_set(input_path: Path) -> List[Approximation]:
+    with open(input_path / "tabelle", "r", encoding="utf8") as fh:
+        lines = [line.strip() for line in fh.readlines()]
+
+    ExpectEnum = Literal["HEADER", "SEPERATOR", "BODY"]
+    expect: ExpectEnum = "HEADER"
+    approx: List[Approximation] = []
+
+    for line in lines[41:540]:
+        if expect == "HEADER":
+            if line == "":
+                break  # we are done
+            assert line.startswith("k =  |")
+            kvals = [int(x) for x in line[6:].split()]
+            expect = "SEPERATOR"
             continue
 
-    if read_sep1:
-        if re_sep.match(line):
-            read_body = True
-            read_sep1 = False
+        if expect == "SEPERATOR":
+            assert line == "-" * 76
+            expect = "BODY"
             continue
 
-    if read_body:
-        if re_body.match(line):
-            Rcval = float(re_body.match(line).group("Rc"))
-            Rcstr = re_body.match(line).group("Rc")
-            # slight change of notation e.g. 6E09 --> 6E9
-            Rcstr = re.sub("E0(?=\d)", "E", Rcstr)
-            errvals = [
-                float(_) if _ != "--" else 0.0
-                for _ in re_body.match(line).group("err").split()
-            ]
+        if expect == "BODY":
+            if line == "-" * 76:
+                expect = "HEADER"
+                continue
 
-            for i, errval in enumerate(errvals):
-                if errval > 0.0:
-                    # hack: slight change of notation e.g. 1 --> 01
-                    kstr = str(kvals[i])
-                    if len(kstr) == 1:
-                        kstr = "0" + kstr
-                    filename = reldir + "1_xk" + kstr + "_" + Rcstr
-                    if not os.path.isfile(filename):
-                        missing.append(filename)
-                        continue
+            Rc_str, errors_str = line.split("|")
+            errors_str = errors_str.replace("--", "0.0")
+            errors_str = errors_str.replace("**", "1e-18")  # an educated guess
+            Rc = float(Rc_str)
+            errors = [float(x) for x in errors_str.split()]
 
-                    # read parameters
-                    txt2 = open(filename, "r", encoding="utf8")
-                    ww = []
-                    aa = []
-                    for l2, line2 in enumerate(txt2.readlines()):
-                        if l2 < kvals[i]:
-                            ww.append(float(line2.split()[0]))
-                        else:
-                            aa.append(float(line2.split()[0]))
-                    a.append(aa)
-                    w.append(ww)
-                    coeff_file.append(filename)
-                    Rc.append(Rcval)
-                    err.append(errval)
-                    k.append(kvals[i])
+            for k, err in zip(kvals, errors):
+                if err == 0.0 or k >= 58:
+                    continue
+                # slight change of notation e.g. 6E09 --> 6_9
+                Rc_filename = re.sub("E0?(?=\d)", "_", Rc_str.strip())
+                filename = input_path / f"1_xk{k:02d}.{Rc_filename}"
+                assert filename.exists()
 
-            continue
-        else:
-            read_body = False
-            read_sep2 = True
+                # read coefficients
+                coeff_lines = filename.read_text(encoding="utf8").strip().split("\n")
+                assert len(coeff_lines) == 2 * k
+                ww = [float(x.split()[0]) for x in coeff_lines[:k]]
+                aa = [float(x.split()[0]) for x in coeff_lines[k:]]
+                approx.append(Approximation(k=k, Rc=Rc, err=err, omega=ww, alpha=aa))
 
-    if read_sep2:
-        if re_sep.match(line):
-            read_body = False
-            read_header = True
-            read_sep2 = False
-            continue
+    assert len(approx) == 2761  # sanity check
+    return approx
 
-# 2) sort all data w.r.t. 1) Rc, 2) k #
-#######################################
 
-data_2_sort = zip(k, Rc, err, a, w)
-data_sorted = sorted(data_2_sort)
+# ======================================================================================
+def format_array(
+    array: List[Any],
+    indent: int,
+    fmt: str = "{}",
+    wrap: int = 5,
+    begin: str = "[",
+    end: str = "]",
+) -> List[str]:
 
-k = [_[0] for _ in data_sorted]
-Rc = [_[1] for _ in data_sorted]
-err = [_[2] for _ in data_sorted]
-a = [_[3] for _ in data_sorted]
-w = [_[4] for _ in data_sorted]
+    lines: List[str] = [" " * indent + begin]
+    for i, x in enumerate(array):
+        if i % wrap == 0 and i > 0:
+            lines[-1] += "&"
+            lines.append(" " * (indent + 1))
+        lines[-1] += fmt.format(x)
+        if not i + 1 == len(array):
+            lines[-1] += ", "
+    lines[-1] += end
 
-print("missing files")
-print(missing)
+    return lines
 
-txt.close()
 
-# pointers to k
-k_p = []
-my_k = 0
-for i, kk in enumerate(k):
-    if my_k < kk:
-        my_k = kk
-        k_p.append(i + 1)
+# ======================================================================================
+def filter_orig(approx_in: List[Approximation]) -> List[Approximation]:
+    """Filters to roughly match the first version of the data set."""
 
-k_p.append(len(k) + 1)
+    Rc_range = [
+        (2e00, 1e01),
+        (2e00, 5e01),
+        (2e00, 2e02),
+        (2e00, 5e02),
+        (2e00, 2e03),
+        (2e00, 3e03),
+        (2e00, 7e03),
+        (1e01, 2e04),
+        (1e01, 3e04),
+        (1e01, 1e05),
+        (1e01, 2e05),
+        (1e01, 3e05),
+        (1e01, 4e05),
+        (1e01, 7e05),
+        (1e01, 2e06),
+        (1e01, 3e06),
+        (2e01, 4e06),
+        (4e01, 7e06),
+        (5e01, 1e07),
+        (6e01, 2e07),
+        (9e01, 3e07),
+        (1e02, 4e07),
+        (2e02, 7e07),
+        (2e02, 1e08),
+        (2e02, 2e08),
+        (4e02, 3e08),
+        (1e04, 4e08),
+        (1e08, 7e08),
+        (7e08, 1e09),
+        (7e08, 2e09),
+        (7e08, 2e09),
+        (7e08, 3e09),
+        (7e08, 4e09),
+        (7e08, 7e09),
+        (7e08, 1e10),
+        (1e10, 2e10),
+        (1e10, 2e10),
+        (1e10, 3e10),
+        (1e10, 4e10),
+        (1e10, 5e10),
+        (1e10, 7e10),
+        (1e10, 1e11),
+        (1e11, 2e11),
+        (1e11, 2e11),
+        (1e11, 3e11),
+        (1e11, 4e11),
+        (1e11, 5e11),
+        (1e11, 7e11),
+        (1e11, 1e12),
+        (2e08, 2e12),
+        (1e12, 2e12),
+        (1e12, 3e12),
+        (4e11, 4e12),
+    ]
 
-# 3) generate fortran file #
-############################
+    approx_out = []
+    for a in approx_in:
+        if a.k <= 53:
+            Rc_min, Rc_max = Rc_range[a.k - 1]
+            if Rc_min <= a.Rc and a.Rc <= Rc_max:
+                approx_out.append(a)
 
-out = open("../../src/minimax/minimax_exp_k53.F", "w", encoding="utf8")
-out.write(
-    """
-!--------------------------------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2021 CP2K developers group <https://cp2k.org>                                   !
-!                                                                                                  !
-!   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
-!--------------------------------------------------------------------------------------------------!
-""".strip()
-    + "\n\n"
-)
+    return approx_out
 
-out.write(
-    "! **************************************************************************************************\n\
-!> \\brief Routines to calculate the minimax coefficients in order to\n\
-!>        approximate 1/x as a sum over exponential functions\n\
-!>        1/x ~ SUM_{i}^{K} w_i EXP(-a_i * x) for x belonging to [1:Rc].\n\
-!>        This module contains coefficients for minimax approximations with 1 <= k <= 53.\n\
-!>        Generated from data from\n\
-!>        http://www.mis.mpg.de/scicomp/EXP_SUM/1_x\n\
-!>        This module should not be modified manually and should not be used anywhere\n\
-!>        except in main minimax module.\n\
-!>        This file was created using the scripts in cp2k/tools/minimax_tools.\n\
-! **************************************************************************************************\n\n"
-)
 
-out.write("MODULE minimax_exp_k53\n")
-out.write("USE kinds, ONLY: dp\n")
+# ======================================================================================
+def generate_fortran_code(approx: List[Approximation]) -> str:
+    approx.sort(key=lambda a: (a.k, a.Rc))
 
-out.write("IMPLICIT NONE\n")
-out.write("PRIVATE\n")
-out.write(
-    "PUBLIC :: R_max, R_mm, err_mm, get_minimax_coeff_low, k_max, k_mm, k_p, n_approx\n\n"
-)
+    # pointers to k
+    k_p: List[int] = []
+    my_k = 0
+    for i, a in enumerate(approx):
+        if my_k < a.k:
+            my_k = a.k
+            k_p.append(i + 1)
+    k_p.append(len(approx) + 1)
 
-out.write("INTEGER, PARAMETER :: n_approx = {}\n".format(len(k)))
-out.write("INTEGER, PARAMETER :: n_k = {}\n".format(len(k_p) - 1))
-out.write("INTEGER, PARAMETER :: k_max = {}\n".format((max(k))))
-out.write("REAL(KIND=dp), PARAMETER :: R_max = {:.1E}_dp\n\n".format((max(Rc))))
+    output: List[str] = []
+    output += [
+        "!--------------------------------------------------------------------------------------------------!",
+        "!   CP2K: A general program to perform molecular dynamics simulations                              !",
+        "!   Copyright 2000-2021 CP2K developers group <https://cp2k.org>                                   !",
+        "!                                                                                                  !",
+        "!   SPDX-License-Identifier: GPL-2.0-or-later                                                      !",
+        "!--------------------------------------------------------------------------------------------------!",
+        "",
+        r"! **************************************************************************************************",
+        r"!> \brief Routines to calculate the minimax coefficients in order to",
+        r"!>        approximate 1/x as a sum over exponential functions",
+        r"!>        1/x ~ SUM_{i}^{K} w_i EXP(-a_i * x) for x belonging to [1:Rc].",
+        r"!>        This module contains coefficients for minimax approximations with 1 <= k <= 53.",
+        r"!>        Generated from data from",
+        r"!>        http://www.mis.mpg.de/scicomp/EXP_SUM/1_x",
+        r"!>        See also https://doi.org/10.1007/s00791-018-00308-4",
+        r"!>        This module should not be modified manually and should not be used anywhere",
+        r"!>        except in main minimax module.",
+        r"!>        This file was created using the scripts in cp2k/tools/minimax_tools.",
+        r"! **************************************************************************************************",
+        "MODULE minimax_exp_k53",
+        "   USE kinds,                           ONLY: dp",
+        "",
+        "   IMPLICIT NONE",
+        "   PRIVATE",
+        "   PUBLIC :: R_max, R_mm, err_mm, get_minimax_coeff_low, k_max, k_mm, k_p, n_approx",
+        "",
+        "   INTEGER, PARAMETER :: n_approx = {}".format(len(approx)),
+        "   INTEGER, PARAMETER :: n_k = {}".format(len(k_p) - 1),
+        "   INTEGER, PARAMETER :: k_max = {}".format((max(a.k for a in approx))),
+        "   REAL(KIND=dp), PARAMETER :: R_max = {:.1E}_dp".format(
+            max(a.Rc for a in approx)
+        ),
+        "",
+    ]
 
-out.write("INTEGER, PARAMETER, DIMENSION(n_k+1) :: k_p = &\n[ ")
-for i, kkp in enumerate(k_p):
-    if i % 5 == 0 and i > 0:
-        out.write("&\n  ")
-    out.write("{:3}".format(kkp))
-    if not i + 1 == len(k_p):
-        out.write(",")
-    out.write(" ")
-out.write("]\n\n")
+    output += ["   INTEGER, PARAMETER, DIMENSION(n_k + 1) :: k_p = &"]
+    output += format_array(k_p, indent=45)
+    output += [""]
 
-out.write("INTEGER, PARAMETER, DIMENSION(n_approx) :: k_mm = &\n[ ")
-for i, kk in enumerate(k):
-    if i % 5 == 0 and i > 0:
-        out.write("&\n  ")
-    out.write("{:2}".format(kk))
-    if not i + 1 == len(k):
-        out.write(",")
-    out.write(" ")
-out.write("]\n\n")
+    output += ["   INTEGER, PARAMETER, DIMENSION(n_approx) :: k_mm = &"]
+    output += format_array([a.k for a in approx], indent=46)
+    output += [""]
 
-out.write("REAL(KIND=dp), PARAMETER, DIMENSION(n_approx) :: R_mm = &\n[ ")
-for i, RR in enumerate(Rc):
-    if i % 5 == 0 and i > 0:
-        out.write("&\n  ")
-    out.write("{:.1E}_dp".format(RR))
-    if not i + 1 == len(Rc):
-        out.write(",")
-    out.write(" ")
-out.write("]\n\n")
+    output += ["   REAL(KIND=dp), PARAMETER, DIMENSION(n_approx) :: R_mm = &"]
+    output += format_array([a.Rc for a in approx], indent=52, fmt="{:.1E}_dp")
+    output += [""]
 
-out.write("REAL(KIND=dp), PARAMETER, DIMENSION(n_approx) :: err_mm = &\n[ ")
-for i, EE in enumerate(err):
-    if i % 5 == 0 and i > 0:
-        out.write("&\n  ")
-    out.write("{:.3E}_dp".format(EE))
-    if not i + 1 == len(err):
-        out.write(",")
-    out.write(" ")
-out.write("]\n\n")
+    output += ["   REAL(KIND=dp), PARAMETER, DIMENSION(n_approx) :: err_mm = &"]
+    output += format_array([a.err for a in approx], indent=52, fmt="{:.3E}_dp")
+    output += [""]
 
-out.write("CONTAINS\n\n")
-out.write("SUBROUTINE get_minimax_coeff_low(i, aw)\n")
-out.write("INTEGER, INTENT(IN) :: i\n")
-out.write("REAL(KIND=dp), DIMENSION(k_mm(i)*2), INTENT(OUT) :: aw\n\n")
+    output += [
+        "CONTAINS",
+        "",
+        r"! **************************************************************************************************",
+        r"!> \brief ...",
+        r"!> \param i ...",
+        r"!> \param aw ...",
+        r"! **************************************************************************************************",
+        "   SUBROUTINE get_minimax_coeff_low(i, aw)",
+        "      INTEGER, INTENT(IN)                                :: i",
+        "      REAL(KIND=dp), DIMENSION(k_mm(i)*2), INTENT(OUT)   :: aw",
+        "",
+        "      SELECT CASE (i)",
+        "",
+    ]
 
-out.write("SELECT CASE(i)\n\n")
-for i, (kk, RR, EE, CC) in enumerate(zip(k, Rc, err, coeff_file)):
+    for i, a in enumerate(approx):
+        output += [f"      CASE ({i+1})"]
+        output += [""]
+        output += ["         aw(:) = & ! a"]
+        output += format_array(
+            a.alpha, indent=12, fmt="{}_dp", wrap=3, begin="[", end=", &"
+        )
+        output += ["             ! w"]
+        output += format_array(
+            a.omega, indent=12, fmt="{}_dp", wrap=3, begin=" ", end="]"
+        )
+        output += [""]
 
-    out.write("CASE({})\n\n".format(i + 1))
-    # out.write(''.format(i))
-    out.write("  aw(:) = & ! a\n[ ")
+    output += [
+        "      END SELECT",
+        "",
+        "   END SUBROUTINE get_minimax_coeff_low",
+        "END MODULE minimax_exp_k53",
+        "",
+    ]
 
-    offset = len(a[i])
-    for j, aa in enumerate(a[i]):
-        if j % 3 == 0 and j > 0:
-            out.write("&\n  ")
-        out.write("{}_dp, ".format(repr(aa)))
-    out.write("&\n            ! w\n  ")
-    for j, ww in enumerate(w[i]):
-        if j % 3 == 0 and j > 0:
-            out.write("&\n  ")
-        out.write("{}_dp".format(repr(ww)))
-        if not j + 1 == offset:
-            out.write(",")
-        out.write(" ")
-    out.write("]\n\n")
+    return "\n".join(output)
 
-out.write("END SELECT\n\n")
-out.write("END SUBROUTINE get_minimax_coeff_low\n")
-out.write("END MODULE minimax_exp_k53\n")
-out.close()
+
+# ======================================================================================
+if __name__ == "__main__":
+    main()
+
+# EOF

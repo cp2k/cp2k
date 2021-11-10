@@ -88,6 +88,8 @@ def main():
                 continue
             if root.startswith("./tools/autotools"):
                 continue
+            if root.startswith("./tools/minimax_tools/1_xData"):
+                continue
             if root.startswith("./data/DFTB/scc"):
                 continue
             if root.startswith("./arch"):
@@ -105,6 +107,8 @@ def main():
             if root.startswith("./regtesting"):
                 continue
             if root.startswith("./.git"):
+                continue
+            if "/.mypy_cache/" in root:
                 continue
             file_list += [os.path.join(root, fn) for fn in files]
 
