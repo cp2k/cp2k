@@ -517,7 +517,9 @@ CONTAINS
       END IF
 
       CALL elpa_obj%set("real_kernel", elpa_kernel, success)
-      CPASSERT(success == elpa_ok)
+      IF (success /= elpa_ok) THEN
+         CPWARN("Setting real_kernel for ELPA failed")
+      END IF
 
       IF (use_qr) THEN
          CALL elpa_obj%set("qr", 1, success)
