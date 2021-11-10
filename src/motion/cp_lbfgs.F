@@ -275,7 +275,7 @@ CONTAINS
             upper_bound(i) = x(i) + trust_radius
             nbd(i) = 2
          END DO
-      ENDIF
+      END IF
 
       ! passes spgr to mainlb
       CALL mainlb(n, m, x, lower_bound, upper_bound, nbd, f, g, factr, pgtol, &
@@ -685,7 +685,7 @@ CONTAINS
                        iwhere, wrk, updatd, constrained, iprint, iter)
             nact = n - nfree
 
-         ENDIF
+         END IF
 
 !     If there are no free variables or B=theta*I, then
 !                                        skip the subspace minimization.
@@ -780,7 +780,7 @@ CONTAINS
             d(i) = z(i) - x(i)
          END DO
          CALL timer(cpu1)
-      ENDIF
+      END IF
       IF (.NOT. first .OR. .NOT. (task(1:5) == 'NEW_X')) THEN
          ! applies rotation matrices to coordinates
          IF (keep_space_group) THEN
@@ -865,7 +865,7 @@ CONTAINS
                             cpu1, cachyt, sbtime, lnscht, time1, gd, step_max, g_inf_norm, stp, gdold, dtd)
             RETURN
          END IF
-      ENDIF
+      END IF
 
 !     Test for termination.
 
@@ -971,23 +971,23 @@ CONTAINS
       END DO
 
 1001  FORMAT(//, 'ITERATION ', i5)
-1002  FORMAT                                                            &
-      &  (/, 'At iterate', i5, 4x, 'f= ', 1p, d12.5, 4x, '|proj g|= ', 1p, d12.5)
+1002  FORMAT &
+         (/, 'At iterate', i5, 4x, 'f= ', 1p, d12.5, 4x, '|proj g|= ', 1p, d12.5)
 1003  FORMAT(2(1x, i4), 5x, '-', 5x, '-', 3x, '-', 5x, '-', 5x, '-', 8x, '-', 3x, &
              1p, 2(1x, d10.3))
 1004  FORMAT('  ys=', 1p, e10.3, '  -gs=', 1p, e10.3, ' BFGS update SKIPPED')
-1005  FORMAT(/,                                                        &
-      &' Singular triangular system detected;', /,                        &
-      &'   refresh the lbfgs memory and restart the iteration.')
-1006  FORMAT(/,                                                        &
-      &' Nonpositive definiteness in Cholesky factorization in formk;', /,&
-      &'   refresh the lbfgs memory and restart the iteration.')
-1007  FORMAT(/,                                                        &
-      &' Nonpositive definiteness in Cholesky factorization in formt;', /,&
-      &'   refresh the lbfgs memory and restart the iteration.')
-1008  FORMAT(/,                                                        &
-      &' Bad direction in the line search;', /,                           &
-      &'   refresh the lbfgs memory and restart the iteration.')
+1005  FORMAT(/, &
+              ' Singular triangular system detected;', /, &
+              '   refresh the lbfgs memory and restart the iteration.')
+1006  FORMAT(/, &
+              ' Nonpositive definiteness in Cholesky factorization in formk;', /, &
+              '   refresh the lbfgs memory and restart the iteration.')
+1007  FORMAT(/, &
+              ' Nonpositive definiteness in Cholesky factorization in formt;', /, &
+              '   refresh the lbfgs memory and restart the iteration.')
+1008  FORMAT(/, &
+              ' Bad direction in the line search;', /, &
+              '   refresh the lbfgs memory and restart the iteration.')
 
       RETURN
 
@@ -2386,7 +2386,7 @@ CONTAINS
          ifun = 0
          iback = 0
          csave = 'START'
-      ENDIF
+      END IF
       gd = ddot(n, g, 1, d, 1)
       IF (ifun == 0) THEN
          gdold = gd
@@ -2557,24 +2557,24 @@ CONTAINS
       END IF
 
 1004  FORMAT(/, a4, 1p, 6(1x, d11.4), /, (4x, 1p, 6(1x, d11.4)))
-2001  FORMAT('RUNNING THE L-BFGS-B CODE', /, /,                          &
-      & 'it    = iteration number', /,                                    &
-      & 'nf    = number of function evaluations', /,                      &
-      & 'nseg  = number of segments explored during the Cauchy search', /,&
-      & 'nact  = number of active bounds at the generalized Cauchy point'&
-      & , /,                                                              &
-      & 'sub   = manner in which the subspace minimization terminated:'  &
-      & , /, '        con = converged, bnd = a bound was reached', /,       &
-      & 'itls  = number of iterations performed in the line search', /,   &
-      & 'stepl = step length used', /,                                    &
-      & 'tstep = norm of the displacement (total step)', /,               &
-      & 'projg = norm of the projected gradient', /,                      &
-      & 'f     = function value', /, /,                                    &
-      & '           * * *', /, /,                                          &
-      & 'Machine precision =', 1p, d10.3)
-7001  FORMAT('RUNNING THE L-BFGS-B CODE', /, /,                          &
-      & '           * * *', /, /,                                          &
-      & 'Machine precision =', 1p, d10.3)
+2001  FORMAT('RUNNING THE L-BFGS-B CODE', /, /, &
+             'it    = iteration number', /, &
+             'nf    = number of function evaluations', /, &
+             'nseg  = number of segments explored during the Cauchy search', /, &
+             'nact  = number of active bounds at the generalized Cauchy point' &
+             , /, &
+             'sub   = manner in which the subspace minimization terminated:' &
+             , /, '        con = converged, bnd = a bound was reached', /, &
+             'itls  = number of iterations performed in the line search', /, &
+             'stepl = step length used', /, &
+             'tstep = norm of the displacement (total step)', /, &
+             'projg = norm of the projected gradient', /, &
+             'f     = function value', /, /, &
+             '           * * *', /, /, &
+             'Machine precision =', 1p, d10.3)
+7001  FORMAT('RUNNING THE L-BFGS-B CODE', /, /, &
+             '           * * *', /, /, &
+             'Machine precision =', 1p, d10.3)
 9001  FORMAT(/, 3x, 'it', 3x, 'nf', 2x, 'nseg', 2x, 'nact', 2x, 'sub', 2x, 'itls', &
               2x, 'stepl', 4x, 'tstep', 5x, 'projg', 8x, 'f')
 
@@ -2650,8 +2650,8 @@ CONTAINS
          iter, nfgv, nseg, nact, word, iback, stp, xstep, g_inf_norm, f
 
 1004  FORMAT(/, a4, 1p, 6(1x, d11.4), /, (4x, 1p, 6(1x, d11.4)))
-2001  FORMAT                                                            &
-      &  (/, 'At iterate', i5, 4x, 'f= ', 1p, d12.5, 4x, '|proj g|= ', 1p, d12.5)
+2001  FORMAT &
+         (/, 'At iterate', i5, 4x, 'f= ', 1p, d12.5, 4x, '|proj g|= ', 1p, d12.5)
 3001  FORMAT(2(1x, i4), 2(1x, i5), 2x, a3, 1x, i4, 1p, 2(2x, d7.1), 1p, 2(1x, d10.3))
 
       RETURN
@@ -2758,47 +2758,47 @@ CONTAINS
 
 1004  FORMAT(/, a4, 1p, 6(1x, d11.4), /, (4x, 1p, 6(1x, d11.4)))
 3002  FORMAT(2(1x, i4), 2(1x, i5), 2x, a3, 1x, i4, 1p, 2(2x, d7.1), 6x, '-', 10x, '-')
-3003  FORMAT(/,                                                        &
-      & '           * * *', /, /,                                          &
-      & 'Tit   = total number of iterations', /,                          &
-      & 'Tnf   = total number of function evaluations', /,                &
-      & 'Tnint = total number of segments explored during',              &
-      &           ' Cauchy searches', /,                                  &
-      & 'Skip  = number of BFGS updates skipped', /,                      &
-      & 'Nact  = number of active bounds at final generalized',          &
-      &          ' Cauchy point', /,                                      &
-      & 'Projg = norm of the final projected gradient', /,                &
-      & 'F     = final function value', /, /,                              &
-      & '           * * *')
-3004  FORMAT(/, 3x, 'N', 4x, 'Tit', 5x, 'Tnf', 2x, 'Tnint', 2x,                 &
-      &       'Skip', 2x, 'Nact', 5x, 'Projg', 8x, 'F')
+3003  FORMAT(/, &
+              '           * * *', /, /, &
+              'Tit   = total number of iterations', /, &
+              'Tnf   = total number of function evaluations', /, &
+              'Tnint = total number of segments explored during', &
+              ' Cauchy searches', /, &
+              'Skip  = number of BFGS updates skipped', /, &
+              'Nact  = number of active bounds at final generalized', &
+              ' Cauchy point', /, &
+              'Projg = norm of the final projected gradient', /, &
+              'F     = final function value', /, /, &
+              '           * * *')
+3004  FORMAT(/, 3x, 'N', 4x, 'Tit', 5x, 'Tnf', 2x, 'Tnint', 2x, &
+              'Skip', 2x, 'Nact', 5x, 'Projg', 8x, 'F')
 3005  FORMAT(i5, 2(1x, i6), (1x, i6), (2x, i4), (1x, i5), 1p, 2(2x, d10.3))
-3007  FORMAT(/, ' Cauchy                time', 1p, e10.3, ' seconds.', /    &
-      &        ' Subspace minimization time', 1p, e10.3, ' seconds.', /      &
-      &        ' Line search           time', 1p, e10.3, ' seconds.')
+3007  FORMAT(/, ' Cauchy                time', 1p, e10.3, ' seconds.', / &
+              ' Subspace minimization time', 1p, e10.3, ' seconds.', / &
+              ' Line search           time', 1p, e10.3, ' seconds.')
 3008  FORMAT(/, ' Total User time', 1p, e10.3, ' seconds.',/)
 3009  FORMAT(/, a60)
-9011  FORMAT(/,                                                        &
-      &' Matrix in 1st Cholesky factorization in formk is not Pos. Def.')
-9012  FORMAT(/,                                                        &
-      &' Matrix in 2st Cholesky factorization in formk is not Pos. Def.')
-9013  FORMAT(/,                                                        &
-      &' Matrix in the Cholesky factorization in formt is not Pos. Def.')
-9014  FORMAT(/,                                                        &
-      &' Derivative >= 0, backtracking line search impossible.', /,       &
-      &'   Previous x, f and g restored.', /,                             &
-      &' Possible causes: 1 error in function or gradient evaluation;', /,&
-      &'                  2 rounding errors dominate computation.')
-9015  FORMAT(/,                                                        &
-      &' Warning:  more than 10 function and gradient', /,                &
-      &'   evaluations in the last line search.  Termination', /,         &
-      &'   may possibly be caused by a bad search direction.')
+9011  FORMAT(/, &
+              ' Matrix in 1st Cholesky factorization in formk is not Pos. Def.')
+9012  FORMAT(/, &
+              ' Matrix in 2st Cholesky factorization in formk is not Pos. Def.')
+9013  FORMAT(/, &
+              ' Matrix in the Cholesky factorization in formt is not Pos. Def.')
+9014  FORMAT(/, &
+              ' Derivative >= 0, backtracking line search impossible.', /, &
+              '   Previous x, f and g restored.', /, &
+              ' Possible causes: 1 error in function or gradient evaluation;', /, &
+              '                  2 rounding errors dominate computation.')
+9015  FORMAT(/, &
+              ' Warning:  more than 10 function and gradient', /, &
+              '   evaluations in the last line search.  Termination', /, &
+              '   may possibly be caused by a bad search direction.')
 9018  FORMAT(/, ' The triangular system is singular.')
-9019  FORMAT(/,                                                        &
-      &' Line search cannot locate an adequate point after 20 function', /&
-      &, '  and gradient evaluations.  Previous x, f and g restored.', /,  &
-      &' Possible causes: 1 error in function or gradient evaluation;', /,&
-      &'                  2 rounding error dominate computation.')
+9019  FORMAT(/, &
+              ' Line search cannot locate an adequate point after 20 function', /, &
+              '  and gradient evaluations.  Previous x, f and g restored.', /, &
+              ' Possible causes: 1 error in function or gradient evaluation;', /, &
+              '                  2 rounding error dominate computation.')
 
       RETURN
 
@@ -3425,8 +3425,8 @@ CONTAINS
 
             task = 'FG'
 
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
 !     Save local variables.
 
@@ -3969,7 +3969,7 @@ CONTAINS
 !> \author Samuel Andermatt (01.15)
 ! **************************************************************************************************
 
-      SUBROUTINE save_local(lsave,isave,dsave,x_projected,constrained,boxed,updatd,nintol,itfile,iback,nskip,head,col,itail,&
+   SUBROUTINE save_local(lsave,isave,dsave,x_projected,constrained,boxed,updatd,nintol,itfile,iback,nskip,head,col,itail,&
                   iter, iupdat, nseg, nfgv, info, ifun, iword, nfree, nact, ileave, nenter, theta, fold, tol, dnorm, epsmch, cpu1, &
                          cachyt, sbtime, lnscht, time1, gd, step_max, g_inf_norm, stp, gdold, dtd)
       LOGICAL, INTENT(out)                               :: lsave(4)
