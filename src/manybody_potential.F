@@ -179,7 +179,7 @@ CONTAINS
          CALL quip_energy_store_force_virial(particle_set, cell, atomic_kind_set, potparm, &
                                              fist_nonbond_env, pot_quip, para_env)
          pot_manybody = pot_manybody + pot_quip
-      ENDIF
+      END IF
       ! TERSOFF
       IF (any_tersoff) THEN
          NULLIFY (glob_loc_list, glob_cell_v, glob_loc_list_a)
@@ -663,7 +663,7 @@ CONTAINS
                      ptens23 = ptens23 + rab(2)*fr(3)
                      ptens33 = ptens33 + rab(3)*fr(3)
                   END IF
-               ENDIF
+               END IF
             END DO
          END DO Kind_Group_Loop1
       END DO

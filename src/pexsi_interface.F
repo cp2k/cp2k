@@ -343,7 +343,7 @@ CONTAINS
       ! MARK_USED macro does not work on assumed shape variables
       IF (.FALSE.) THEN; DO
             IF (colptrLocal(1) > rowindLocal(1) .OR. HnzvalLocal(1) > SnzvalLocal(1)) EXIT
-         ENDDO; ENDIF
+         END DO; END IF
 #endif
    END SUBROUTINE cp_pexsi_load_real_hs_matrix
 

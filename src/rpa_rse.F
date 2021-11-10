@@ -257,7 +257,7 @@ CONTAINS
                IF ((i_global .LE. homo(ispin)) .AND. (j_global .GT. homo(ispin))) THEN
                   corr = corr + fm_X_mo(ispin)%matrix%local_data(iib, jjb)**2.0_dp/ &
                          (eigenval(i_global, ispin) - eigenval(j_global, ispin) - diag_diff(i_global) + diag_diff(j_global))
-               ENDIF
+               END IF
             END DO
          END DO
 !$OMP END PARALLEL DO
@@ -285,7 +285,7 @@ CONTAINS
          CALL cp_fm_release(fm_XC_mo(ispin)%matrix)
          CALL dbcsr_release(mat_mu_nu(ispin)%matrix)
          DEALLOCATE (mat_mu_nu(ispin)%matrix)
-      ENDDO
+      END DO
       DEALLOCATE (fm_P_mu_nu, fm_X_mo, fm_XC_mo, mat_mu_nu)
 
       CALL timestop(handle)
@@ -349,7 +349,7 @@ CONTAINS
          CALL dbcsr_create(P_mu_nu(is)%matrix, template=rho_work_ao(1)%matrix)
          CALL dbcsr_copy(P_mu_nu(is)%matrix, rho_work_ao(1)%matrix)
          CALL dbcsr_set(P_mu_nu(is)%matrix, 0.0_dp)
-      ENDDO
+      END DO
 
       DO is = 1, ns
          CALL copy_fm_to_dbcsr(fm_P_mu_nu(is)%matrix, P_mu_nu(1)%matrix, keep_sparsity=.TRUE.)
@@ -404,7 +404,7 @@ CONTAINS
       DO is = 1, SIZE(P_mu_nu)
          CALL dbcsr_release(P_mu_nu(is)%matrix)
          DEALLOCATE (P_mu_nu(is)%matrix)
-      ENDDO
+      END DO
       DEALLOCATE (P_mu_nu)
 
       CALL timestop(handle)
@@ -451,7 +451,7 @@ CONTAINS
 
       DO i = 1, SIZE(v_rspace)
          CALL pw_release(v_rspace(i)%pw)
-      ENDDO
+      END DO
       DEALLOCATE (v_rspace)
 
       DO i = 1, SIZE(matrix_vxc)
@@ -467,12 +467,12 @@ CONTAINS
          CALL cp_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
                       fm_XC_ao_mo, mo_coeff(i)%matrix, 1.0_dp, fm_XC_mo(i)%matrix)
 
-      ENDDO
+      END DO
 
       DO i = 1, SIZE(matrix_vxc)
          CALL dbcsr_release(matrix_vxc(i)%matrix)
          DEALLOCATE (matrix_vxc(i)%matrix)
-      ENDDO
+      END DO
       DEALLOCATE (matrix_vxc)
 
       CALL timestop(handle)
@@ -534,7 +534,7 @@ CONTAINS
             END DO
          END DO
 !$OMP END PARALLEL DO
-      ENDDO
+      END DO
 
       rse_corr = 0.0_dp
 
@@ -637,7 +637,7 @@ CONTAINS
          CALL cp_fm_release(fm_O)
          CALL cp_fm_release(fm_tmp)
 
-      ENDDO
+      END DO
 
       CALL mp_sum(rse_corr, para_env%group)
       rse_corr = rse_corr/nspins

@@ -552,7 +552,7 @@ CONTAINS
 
             CALL release_fft_scratch(fft_scratch)
 
-         ENDIF
+         END IF
 
          DEALLOCATE (p2p)
 
@@ -744,7 +744,7 @@ CONTAINS
 
             CALL release_fft_scratch(fft_scratch)
 
-         ENDIF
+         END IF
 
          DEALLOCATE (p2p)
 

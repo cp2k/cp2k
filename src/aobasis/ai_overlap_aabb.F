@@ -127,10 +127,10 @@ CONTAINS
             jpgf_start = ipgf
             DO i = 1, jpgf_start - 1
                ncoa2 = ncoa2 + ncoset(la_max_set2)
-            ENDDO
+            END DO
          ELSE
             jpgf_start = 1
-         ENDIF
+         END IF
 
          DO jpgf = jpgf_start, npgfa2
 
@@ -147,10 +147,10 @@ CONTAINS
                   lpgf_start = kpgf
                   DO i = 1, lpgf_start - 1
                      ncob2 = ncob2 + ncoset(lb_max_set2)
-                  ENDDO
+                  END DO
                ELSE
                   lpgf_start = 1
-               ENDIF
+               END IF
 
                DO lpgf = lpgf_start, npgfb2
 
@@ -170,11 +170,11 @@ CONTAINS
                                     saabb(ncoa2 + ja, ncoa1 + ia, ncob1 + ib, ncob2 + jb) = 0._dp
                                     saabb(ncoa1 + ia, ncoa2 + ja, ncob2 + jb, ncob1 + ib) = 0._dp
                                     saabb(ncoa2 + ja, ncoa1 + ia, ncob2 + jb, ncob1 + ib) = 0._dp
-                                 ENDIF
-                              ENDDO
-                           ENDDO
-                        ENDDO
-                     ENDDO
+                                 END IF
+                              END DO
+                           END DO
+                        END DO
+                     END DO
                      ncob2 = ncob2 + ncoset(lb_max_set2)
                      CYCLE
                   END IF
@@ -585,8 +585,8 @@ CONTAINS
                                           saabb(ncoa2 + ja, ncoa1 + ia, ncob1 + ib, ncob2 + jb) = s(i, j)
                                           saabb(ncoa1 + ia, ncoa2 + ja, ncob2 + jb, ncob1 + ib) = s(i, j)
                                           saabb(ncoa2 + ja, ncoa1 + ia, ncob2 + jb, ncob1 + ib) = s(i, j)
-                                       ENDIF
-                                    ENDIF
+                                       END IF
+                                    END IF
                                  END DO
                               END DO
                            END DO

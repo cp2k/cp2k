@@ -106,7 +106,7 @@ CONTAINS
          CALL mp_comm_split(para_env%group, mixed_env%new_group, mixed_env%ngroups, mixed_env%group_distribution, &
                             n_subgroups=ngroup_wish, &
                             group_partition=group_partition)
-      ENDIF
+      END IF
       IF (output_unit > 0) THEN
          WRITE (output_unit, FMT="(T2,A,T71,I10)") "MIXED_ENV| Number of created MPI groups:", mixed_env%ngroups
          WRITE (output_unit, FMT="(T2,A)", ADVANCE="NO") "MIXED_ENV| Task to group correspondence:"
@@ -116,7 +116,7 @@ CONTAINS
                "  (", i, " : ", mixed_env%group_distribution(i), ")"
          END DO
          WRITE (output_unit, *)
-      ENDIF
+      END IF
       IF (ASSOCIATED(group_partition)) THEN
          DEALLOCATE (group_partition)
       END IF

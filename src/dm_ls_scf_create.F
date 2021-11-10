@@ -103,7 +103,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       ALLOCATE (ls_scf_env)
 
@@ -149,7 +149,7 @@ CONTAINS
          IF (dft_control%qs_control%eps_filter_matrix .NE. 0.0_dp) &
             CPABORT("EPS_FILTER_MATRIX must be set to 0 for PEXSI.")
          CALL lib_pexsi_init(ls_scf_env%pexsi, ls_scf_env%para_env%group, ls_scf_env%nspins)
-      ENDIF
+      END IF
 
       ! initialize PAO
       CALL pao_init(qs_env, ls_scf_env)
@@ -249,7 +249,7 @@ CONTAINS
          ls_scf_env%chebyshev%print_key_cube => &
             section_vals_get_subs_vals(chebyshev_section, "PRINT_SPECIFIC_E_DENSITY_CUBE")
          CALL section_vals_retain(ls_scf_env%chebyshev%print_key_cube)
-      ENDIF
+      END IF
 
       mixing_section => section_vals_get_subs_vals(input, "DFT%LS_SCF%RHO_MIXING")
       CALL section_vals_get(mixing_section, explicit=ls_scf_env%do_rho_mixing)
@@ -275,7 +275,7 @@ CONTAINS
          ! the easiest way to make sure S is untouched is to set eps_filter to zero (which should be inconsequential,
          ! as a run based on pexsi should execute exactly zero multiplications)
          ls_scf_env%eps_filter = 0.0_dp
-      ENDIF
+      END IF
 
       ! Turn off S inversion and set eps_filter to zero for transport
       IF (ls_scf_env%do_transport) THEN
@@ -335,7 +335,7 @@ CONTAINS
          ls_scf_env%needs_s_inv = .FALSE.
          ls_scf_env%use_s_sqrt = .FALSE.
          ls_scf_env%has_s_preconditioner = .FALSE.
-      ENDIF
+      END IF
 
       pao_section => section_vals_get_subs_vals(input, "DFT%LS_SCF%PAO")
       CALL section_vals_get(pao_section, explicit=ls_scf_env%do_pao)
@@ -359,14 +359,14 @@ CONTAINS
             END IF
          ELSE
             WRITE (unit_nr, '(T2,A,T61,E20.3)') "mixing_fraction:", ls_scf_env%mixing_fraction
-         ENDIF
+         END IF
          WRITE (unit_nr, '(T2,A,T61,I20)') "max_scf:", ls_scf_env%max_scf
          IF (ls_scf_env%ls_diis) THEN
             WRITE (unit_nr, '(T2,A,T61,I20)') "DIIS: max_diis:", ls_scf_env%max_diis
             WRITE (unit_nr, '(T2,A,T61,E20.3)') "DIIS: eps_diis:", ls_scf_env%eps_diis
             WRITE (unit_nr, '(T2,A,T61,I20)') "DIIS: ini_diis:", ls_scf_env%iter_ini_diis
             WRITE (unit_nr, '(T2,A,T61,I20)') "DIIS: nmixing:", ls_scf_env%nmixing
-         ENDIF
+         END IF
          WRITE (unit_nr, '(T2,A,T61,L20)') "fixed chemical potential (mu)", ls_scf_env%fixed_mu
          WRITE (unit_nr, '(T2,A,T61,L20)') "has unit metric:", ls_scf_env%has_unit_metric
          WRITE (unit_nr, '(T2,A,T61,L20)') "Computing inv(S):", ls_scf_env%needs_s_inv
@@ -400,7 +400,7 @@ CONTAINS
          IF (ls_scf_env%curvy_steps) THEN
             WRITE (unit_nr, '(T2,A,T61,A30)') "Using curvy steps to optimize the density matrix"
             CALL cite_reference(Shao2003)
-         ENDIF
+         END IF
 
          SELECT CASE (ls_scf_env%purification_method)
          CASE (ls_scf_sign)
@@ -458,14 +458,14 @@ CONTAINS
             WRITE (unit_nr, '(T2,A,T61,I20)') "N_GRIDPOINT_DOS:", ls_scf_env%chebyshev%n_gridpoint_dos
          ELSE
             WRITE (unit_nr, '(T2,A,T61,A20)') "Computing Chebyshev", ADJUSTR("FALSE")
-         ENDIF
+         END IF
 
          WRITE (unit_nr, '(T2,A,T61,L20)') "Using PAO", ls_scf_env%do_pao
 
          WRITE (unit_nr, '(T2,A)') REPEAT("-", 79)
          WRITE (unit_nr, '()')
          CALL m_flush(unit_nr)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 

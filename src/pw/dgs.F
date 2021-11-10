@@ -117,7 +117,7 @@ CONTAINS
       ELSE
          CALL pw_grid_setup(b_cell_hmat, grid_b, bounds=bo, cutoff=ecut, spherical=.TRUE., &
                             rs_dims=rs_dims, iounit=iounit, fft_usage=fft_usage)
-      ENDIF
+      END IF
 
       CALL dg_find_basis(grid_b%npts, b_cell_hmat, unit_cell_hmat)
 
@@ -196,15 +196,15 @@ CONTAINS
       IF (nout(1) > grid_b%npts(1)) THEN
          grid_b%npts(1) = nout(1)
          dr(1) = cell_lengths(1)/REAL(nout(1), KIND=dp)
-      ENDIF
+      END IF
       IF (nout(2) > grid_b%npts(2)) THEN
          grid_b%npts(2) = nout(2)
          dr(2) = cell_lengths(2)/REAL(nout(2), KIND=dp)
-      ENDIF
+      END IF
       IF (nout(3) > grid_b%npts(3)) THEN
          grid_b%npts(3) = nout(3)
          dr(3) = cell_lengths(3)/REAL(nout(3), KIND=dp)
-      ENDIF
+      END IF
 
 ! big grid bounds
       grid_b%bounds(1, :) = -grid_b%npts/2
@@ -425,7 +425,7 @@ CONTAINS
             folded = .TRUE.
          ELSE
             rs%px(ia) = ii + 1
-         ENDIF
+         END IF
       END DO
       DO i = rhos%pw%pw_grid%bounds(1, 2), rhos%pw%pw_grid%bounds(2, 2)
          ia = i - rhos%pw%pw_grid%bounds(1, 2) + 1
@@ -438,7 +438,7 @@ CONTAINS
             folded = .TRUE.
          ELSE
             rs%py(ia) = ii + 1
-         ENDIF
+         END IF
       END DO
       DO i = rhos%pw%pw_grid%bounds(1, 3), rhos%pw%pw_grid%bounds(2, 3)
          ia = i - rhos%pw%pw_grid%bounds(1, 3) + 1
@@ -451,7 +451,7 @@ CONTAINS
             folded = .TRUE.
          ELSE
             rs%pz(ia) = ii + 1
-         ENDIF
+         END IF
       END DO
 
       IF (folded) THEN
@@ -500,7 +500,7 @@ CONTAINS
             folded = .TRUE.
          ELSE
             rs%px(ia) = ii + 1
-         ENDIF
+         END IF
       END DO
       DO i = lb(2), ub(2)
          ia = i - lb(2) + 1
@@ -513,7 +513,7 @@ CONTAINS
             folded = .TRUE.
          ELSE
             rs%py(ia) = ii + 1
-         ENDIF
+         END IF
       END DO
       DO i = lb(3), ub(3)
          ia = i - lb(3) + 1
@@ -526,7 +526,7 @@ CONTAINS
             folded = .TRUE.
          ELSE
             rs%pz(ia) = ii + 1
-         ENDIF
+         END IF
       END DO
 
       IF (folded) THEN
@@ -576,7 +576,7 @@ CONTAINS
             folded = .TRUE.
          ELSE
             drpot(1)%rs_grid%px(ia) = ii + 1
-         ENDIF
+         END IF
       END DO
       DO i = lb(2), ub(2)
          ia = i - lb(2) + 1
@@ -589,7 +589,7 @@ CONTAINS
             folded = .TRUE.
          ELSE
             drpot(1)%rs_grid%py(ia) = ii + 1
-         ENDIF
+         END IF
       END DO
       DO i = lb(3), ub(3)
          ia = i - lb(3) + 1
@@ -602,7 +602,7 @@ CONTAINS
             folded = .TRUE.
          ELSE
             drpot(1)%rs_grid%pz(ia) = ii + 1
-         ENDIF
+         END IF
       END DO
 
       IF (folded) THEN
@@ -655,7 +655,7 @@ CONTAINS
             folded = .TRUE.
          ELSE
             drpot%px(ia) = ii + 1
-         ENDIF
+         END IF
       END DO
       DO i = lb(2), ub(2)
          ia = i - lb(2) + 1
@@ -668,7 +668,7 @@ CONTAINS
             folded = .TRUE.
          ELSE
             drpot%py(ia) = ii + 1
-         ENDIF
+         END IF
       END DO
       DO i = lb(3), ub(3)
          ia = i - lb(3) + 1
@@ -681,7 +681,7 @@ CONTAINS
             folded = .TRUE.
          ELSE
             drpot%pz(ia) = ii + 1
-         ENDIF
+         END IF
       END DO
 
       IF (folded) THEN
@@ -727,7 +727,7 @@ CONTAINS
             folded = .TRUE.
          ELSE
             drpot(1)%rs_grid%px(ia) = ii + 1
-         ENDIF
+         END IF
       END DO
       DO i = rhos%pw%pw_grid%bounds(1, 2), rhos%pw%pw_grid%bounds(2, 2)
          ia = i - rhos%pw%pw_grid%bounds(1, 2) + 1
@@ -740,7 +740,7 @@ CONTAINS
             folded = .TRUE.
          ELSE
             drpot(1)%rs_grid%py(ia) = ii + 1
-         ENDIF
+         END IF
       END DO
       DO i = rhos%pw%pw_grid%bounds(1, 3), rhos%pw%pw_grid%bounds(2, 3)
          ia = i - rhos%pw%pw_grid%bounds(1, 3) + 1
@@ -753,7 +753,7 @@ CONTAINS
             folded = .TRUE.
          ELSE
             drpot(1)%rs_grid%pz(ia) = ii + 1
-         ENDIF
+         END IF
       END DO
 
       IF (folded) THEN
@@ -801,7 +801,7 @@ CONTAINS
             folded = .TRUE.
          ELSE
             drpot%px(ia) = ii + 1
-         ENDIF
+         END IF
       END DO
       DO i = rhos%pw%pw_grid%bounds(1, 2), rhos%pw%pw_grid%bounds(2, 2)
          ia = i - rhos%pw%pw_grid%bounds(1, 2) + 1
@@ -814,7 +814,7 @@ CONTAINS
             folded = .TRUE.
          ELSE
             drpot%py(ia) = ii + 1
-         ENDIF
+         END IF
       END DO
       DO i = rhos%pw%pw_grid%bounds(1, 3), rhos%pw%pw_grid%bounds(2, 3)
          ia = i - rhos%pw%pw_grid%bounds(1, 3) + 1
@@ -827,7 +827,7 @@ CONTAINS
             folded = .TRUE.
          ELSE
             drpot%pz(ia) = ii + 1
-         ENDIF
+         END IF
       END DO
 
       IF (folded) THEN

@@ -125,7 +125,7 @@ CONTAINS
                            template=sample_err)
          CALL dbcsr_create(diis_env%m_var(im), &
                            template=sample_var)
-      ENDDO
+      END DO
 
       ! current B matrices are only 1-by-1, they will be expanded on-the-fly
       ! only one matrix is used with dbcsr version of DIIS
@@ -138,8 +138,8 @@ CONTAINS
          IF (diis_env%m_b(idomain)%domain .GT. 0) THEN
             ALLOCATE (diis_env%m_b(idomain)%mdata(1, 1))
             diis_env%m_b(idomain)%mdata(:, :) = 0.0_dp
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       CALL timestop(handle)
 
@@ -199,8 +199,8 @@ CONTAINS
          IF (diis_env%m_b(idomain)%domain .GT. 0) THEN
             ALLOCATE (diis_env%m_b(idomain)%mdata(1, 1))
             diis_env%m_b(idomain)%mdata(:, :) = 0.0_dp
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       CALL timestop(handle)
 
@@ -235,14 +235,14 @@ CONTAINS
       IF (diis_env%diis_env_type .EQ. diis_env_dbcsr) THEN
          IF (.NOT. (PRESENT(var) .AND. PRESENT(err))) THEN
             CPABORT("provide DBCSR matrices")
-         ENDIF
+         END IF
       ELSE IF (diis_env%diis_env_type .EQ. diis_env_domain) THEN
          IF (.NOT. (PRESENT(d_var) .AND. PRESENT(d_err))) THEN
             CPABORT("provide domain submatrices")
-         ENDIF
+         END IF
       ELSE
          CPABORT("illegal DIIS ENV type")
-      ENDIF
+      END IF
 
       in_point = diis_env%in_point
 
@@ -253,7 +253,7 @@ CONTAINS
       ELSE IF (diis_env%diis_env_type .EQ. diis_env_domain) THEN
          CALL copy_submatrices(d_var, diis_env%d_var(in_point, :), copy_data=.TRUE.)
          CALL copy_submatrices(d_err, diis_env%d_err(in_point, :), copy_data=.TRUE.)
-      ENDIF
+      END IF
 
       ! update the buffer length
       old_buffer_length = diis_env%buffer_length
@@ -296,10 +296,10 @@ CONTAINS
                ALLOCATE (diis_env%m_b(idomain)%mdata(diis_env%buffer_length + 1, &
                                                      diis_env%buffer_length + 1))
                diis_env%m_b(idomain)%mdata(:, :) = m_b_tmp(:, :)
-            ENDIF
-         ENDDO
+            END IF
+         END DO
          DEALLOCATE (m_b_tmp)
-      ENDIF
+      END IF
       DO idomain = 1, ndomains
          IF (diis_env%m_b(idomain)%domain .GT. 0) THEN
             diis_env%m_b(idomain)%mdata(1, in_point + 1) = -1.0_dp
@@ -312,12 +312,12 @@ CONTAINS
                   trace0 = almo_scf_diis_error_overlap(diis_env, &
                                                        d_A=diis_env%d_err(irow, idomain), &
                                                        d_B=diis_env%d_err(in_point, idomain))
-               ENDIF
+               END IF
                diis_env%m_b(idomain)%mdata(irow + 1, in_point + 1) = trace0
                diis_env%m_b(idomain)%mdata(in_point + 1, irow + 1) = trace0
-            ENDDO ! loop over prev errors
-         ENDIF
-      ENDDO ! loop over domains
+            END DO ! loop over prev errors
+         END IF
+      END DO ! loop over domains
 
       ! update the insertion point for the next "PUSH"
       diis_env%in_point = diis_env%in_point + 1
@@ -359,19 +359,19 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       IF (diis_env%diis_env_type .EQ. diis_env_dbcsr) THEN
          IF (.NOT. PRESENT(extr_var)) THEN
             CPABORT("provide DBCSR matrix")
-         ENDIF
+         END IF
       ELSE IF (diis_env%diis_env_type .EQ. diis_env_domain) THEN
          IF (.NOT. PRESENT(d_extr_var)) THEN
             CPABORT("provide domain submatrices")
-         ENDIF
+         END IF
       ELSE
          CPABORT("illegal DIIS ENV type")
-      ENDIF
+      END IF
 
       ! Prepare data
       ALLOCATE (eigenvalues(diis_env%buffer_length + 1))
@@ -430,7 +430,7 @@ CONTAINS
                   CALL dbcsr_add(extr_var, diis_env%m_var(im), &
                                  1.0_dp, coeff(im + 1))
                   checksum = checksum + coeff(im + 1)
-               ENDDO
+               END DO
             ELSE IF (diis_env%diis_env_type .EQ. diis_env_domain) THEN
                CALL copy_submatrices(diis_env%d_var(1, idomain), &
                                      d_extr_var(idomain), &
@@ -441,15 +441,15 @@ CONTAINS
                                        coeff(im + 1), diis_env%d_var(im, idomain), &
                                        'N')
                   checksum = checksum + coeff(im + 1)
-               ENDDO
-            ENDIF
+               END DO
+            END IF
             !WRITE(*,*) checksum
 
             DEALLOCATE (coeff)
 
-         ENDIF ! domain is local to this mpi node
+         END IF ! domain is local to this mpi node
 
-      ENDDO ! loop over domains
+      END DO ! loop over domains
 
       DEALLOCATE (eigenvalues)
       DEALLOCATE (m_b_copy)
@@ -488,14 +488,14 @@ CONTAINS
       IF (diis_env%diis_env_type .EQ. diis_env_dbcsr) THEN
          IF (.NOT. (PRESENT(A) .AND. PRESENT(B))) THEN
             CPABORT("provide DBCSR matrices")
-         ENDIF
+         END IF
       ELSE IF (diis_env%diis_env_type .EQ. diis_env_domain) THEN
          IF (.NOT. (PRESENT(d_A) .AND. PRESENT(d_B))) THEN
             CPABORT("provide domain submatrices")
-         ENDIF
+         END IF
       ELSE
          CPABORT("illegal DIIS ENV type")
-      ENDIF
+      END IF
 
       SELECT CASE (diis_env%error_type)
       CASE (diis_error_orthogonal)
@@ -508,7 +508,7 @@ CONTAINS
             CPASSERT(d_A%domain .GT. 0)
             CPASSERT(d_B%domain .GT. 0)
             trace = SUM(d_A%mdata(:, :)*d_B%mdata(:, :))
-         ENDIF
+         END IF
       CASE DEFAULT
          CPABORT("Vector type is unknown")
       END SELECT
@@ -543,12 +543,12 @@ CONTAINS
          ELSE IF (diis_env%diis_env_type .EQ. diis_env_domain) THEN
             CALL release_submatrices(diis_env%d_var(im, :))
             CALL release_submatrices(diis_env%d_err(im, :))
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       IF (diis_env%diis_env_type .EQ. diis_env_domain) THEN
          CALL release_submatrices(diis_env%m_b(:))
-      ENDIF
+      END IF
 
       IF (ALLOCATED(diis_env%m_b)) DEALLOCATE (diis_env%m_b)
       IF (ALLOCATED(diis_env%m_err)) DEALLOCATE (diis_env%m_err)

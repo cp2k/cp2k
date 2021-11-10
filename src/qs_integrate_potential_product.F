@@ -270,8 +270,8 @@ CONTAINS
       DO igrid_level = 1, gridlevel_info%ngrid_levels
          IF (rs_v(igrid_level)%rs_grid%desc%distributed) THEN
             distributed_grids = .TRUE.
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       ALLOCATE (forces_array(3, natoms))
 
@@ -291,7 +291,7 @@ CONTAINS
             CALL rs_scatter_matrices(deltap, task_list%pab_buffer, task_list, group)
          ELSE
             CALL rs_copy_to_buffer(deltap, task_list%pab_buffer, task_list)
-         ENDIF
+         END IF
          DEALLOCATE (deltap)
       END IF
 
@@ -341,7 +341,7 @@ CONTAINS
          CALL rs_gather_matrices(task_list%hab_buffer, dhmat, task_list, group)
       ELSE
          CALL rs_copy_to_matrices(task_list%hab_buffer, dhmat, task_list)
-      ENDIF
+      END IF
       DEALLOCATE (dhmat)
 
       IF (ASSOCIATED(rs_v)) THEN

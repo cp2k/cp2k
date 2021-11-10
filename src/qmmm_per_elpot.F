@@ -182,7 +182,7 @@ CONTAINS
                            Ak = pgf%Ak(Ig)*Pi**(3.0_dp/2.0_dp)*Gk**3.0_dp
                            LG(idim) = LG(idim) - Ak*EXP(-(g*Gk)**2.0_dp/4.0_dp)
                         END DO
-                     ENDIF
+                     END IF
                      LG(idim) = fs*LG(idim)*1.0_dp/Vol
                      gx(idim) = fac(1)*REAL(ix, KIND=dp)
                      gy(idim) = fac(2)*REAL(iy, KIND=dp)

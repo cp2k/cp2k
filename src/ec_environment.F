@@ -152,7 +152,7 @@ CONTAINS
             unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
          ELSE
             unit_nr = -1
-         ENDIF
+         END IF
 
          CALL section_vals_val_get(ec_section, "ALGORITHM", &
                                    i_val=ec_env%ks_solver)

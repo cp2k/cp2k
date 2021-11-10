@@ -183,14 +183,14 @@ CONTAINS
       DO istore = 1, MIN(ls_scf_env%scf_history%istore, ls_scf_env%scf_history%nstore)
          DO ispin = 1, SIZE(ls_scf_env%scf_history%matrix, 1)
             CALL dbcsr_release(ls_scf_env%scf_history%matrix(ispin, istore))
-         ENDDO
-      ENDDO
+         END DO
+      END DO
       DEALLOCATE (ls_scf_env%scf_history%matrix)
 
       IF (ALLOCATED(ls_scf_env%matrix_p)) THEN
          DO ispin = 1, SIZE(ls_scf_env%matrix_p)
             CALL dbcsr_release(ls_scf_env%matrix_p(ispin))
-         ENDDO
+         END DO
          DEALLOCATE (ls_scf_env%matrix_p)
       END IF
 
@@ -200,18 +200,18 @@ CONTAINS
          CALL section_vals_release(ls_scf_env%chebyshev%print_key_cube)
       IF (ASSOCIATED(ls_scf_env%chebyshev%min_energy)) THEN
          DEALLOCATE (ls_scf_env%chebyshev%min_energy)
-      ENDIF
+      END IF
       IF (ASSOCIATED(ls_scf_env%chebyshev%max_energy)) THEN
          DEALLOCATE (ls_scf_env%chebyshev%max_energy)
-      ENDIF
+      END IF
 
       IF (ASSOCIATED(ls_scf_env%mixing_store)) THEN
          CALL mixing_storage_release(ls_scf_env%mixing_store)
-      ENDIF
+      END IF
 
       IF (ls_scf_env%do_pexsi) THEN
          CALL lib_pexsi_finalize(ls_scf_env%pexsi)
-      ENDIF
+      END IF
 
       IF (ls_scf_env%do_pao) &
          CALL pao_finalize(ls_scf_env%pao_env)

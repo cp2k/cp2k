@@ -196,7 +196,7 @@ CONTAINS
          CALL get_mc_env(mc_env(ibox)%mc_env, &
                          mc_par=mc_par(ibox)%mc_par, &
                          force_env=force_env(ibox)%force_env)
-      ENDDO
+      END DO
 
       ! Gather units of measure for output (if available)
       root_section => force_env(1)%force_env%root_section
@@ -242,19 +242,19 @@ CONTAINS
                             displacement_file=displacement_file(ibox), &
                             molecules_file=molecules_file(ibox), pmvol_box=pmvol_box(ibox), &
                             pmclus_box=pmclus_box(ibox), pmhmc_box=pmhmc_box(ibox))
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       ! this is a check we can't do in the input checking
       IF (pmvol_box(nboxes) .LT. 1.0E0_dp) THEN
          CPABORT('The last value of PMVOL_BOX needs to be 1.0')
-      ENDIF
+      END IF
       IF (pmclus_box(nboxes) .LT. 1.0E0_dp) THEN
          CPABORT('The last value of PMVOL_BOX needs to be 1.0')
-      ENDIF
+      END IF
       IF (pmhmc_box(nboxes) .LT. 1.0E0_dp) THEN
          CPABORT('The last value of PMHMC_BOX needs to be 1.0')
-      ENDIF
+      END IF
 
       ! allocate the particle positions array for broadcasting
       ALLOCATE (r_old(3, SUM(nunits_tot), 1:nboxes))
@@ -268,7 +268,7 @@ CONTAINS
          WRITE (iw, *) 'Beginning the Monte Carlo calculation.'
          WRITE (iw, *)
          WRITE (iw, *)
-      ENDIF
+      END IF
 
       ! initialize running average variables
       energy_check(:) = 0.0E0_dp
@@ -281,7 +281,7 @@ CONTAINS
          DO itype = 1, nmol_types
             CALL init_mc_moves(moves(itype, ibox)%moves)
             CALL init_mc_moves(move_updates(itype, ibox)%moves)
-         ENDDO
+         END DO
          CALL mc_averages_create(averages(ibox)%averages)
 
          ! find the energy of the initial configuration
@@ -292,7 +292,7 @@ CONTAINS
                                potential_energy=old_energy(ibox))
          ELSE
             old_energy(ibox) = 0.0E0_dp
-         ENDIF
+         END IF
          initial_energy(ibox) = old_energy(ibox)
 
 ! don't care about overlaps if we're only doing HMC
@@ -302,12 +302,12 @@ CONTAINS
             start_mol = 1
             DO jbox = 1, ibox - 1
                start_mol = start_mol + SUM(nchains(:, jbox))
-            ENDDO
+            END DO
             end_mol = start_mol + SUM(nchains(:, ibox)) - 1
             CALL check_for_overlap(force_env(ibox)%force_env, nchains(:, ibox), &
                                    nunits, loverlap, mol_type(start_mol:end_mol))
             IF (loverlap) CPABORT("overlap in an initial configuration")
-         ENDIF
+         END IF
 
          ! get the subsystems and the cell information
          CALL force_env_get(force_env(ibox)%force_env, &
@@ -319,7 +319,7 @@ CONTAINS
          DO iparticle = 1, nunits_tot(ibox)
             r_old(1:3, iparticle, ibox) = &
                particles_old(ibox)%list%els(iparticle)%r(1:3)
-         ENDDO
+         END DO
 
          ! find the bias energy of the initial run
          IF (lbias) THEN
@@ -332,8 +332,8 @@ CONTAINS
                   atom_names_box(atom_number) = &
                      atom_names(iunit, mol_type(imolecule + start_mol - 1))
                   atom_number = atom_number + 1
-               ENDDO
-            ENDDO
+               END DO
+            END DO
 
             CALL get_mc_par(mc_par(ibox)%mc_par, mc_bias_file=mc_bias_file)
             nchains_box => nchains(:, ibox)
@@ -349,13 +349,13 @@ CONTAINS
 
             ELSE
                last_bias_energy(ibox) = 0.0E0_dp
-            ENDIF
+            END IF
             bias_energy(ibox) = last_bias_energy(ibox)
             DEALLOCATE (atom_names_box)
-         ENDIF
+         END IF
          lnew_bias_env = .FALSE.
 
-      ENDDO
+      END DO
 
       ! back to seriel for a bunch of I/O stuff
       IF (ionode) THEN
@@ -378,7 +378,7 @@ CONTAINS
          DO ibox = 1, nboxes
             WRITE (com_mol, *) 'Initial Molecules:       ', &
                nchains(:, ibox)
-         ENDDO
+         END DO
          DO ibox = 1, nboxes
             WRITE (cell_unit, *) 'Initial: ', &
                abc(1:3, ibox)*angstrom
@@ -394,7 +394,7 @@ CONTAINS
                CALL write_particle_coordinates(particles_old(ibox)%list%els, &
                                                com_crd, dump_xmol, 'POS', 'INITIAL BOX '//TRIM(ADJUSTL(cbox)), &
                                                unit_conv=unit_conv, print_kind=print_kind)
-            ENDIF
+            END IF
             CALL open_file(file_name=data_file(ibox), &
                            unit_number=data_unit(ibox), file_position='APPEND', &
                            file_action='WRITE', file_status='UNKNOWN')
@@ -408,10 +408,10 @@ CONTAINS
                            unit_number=cl(ibox), file_position='APPEND', &
                            file_action='WRITE', file_status='UNKNOWN')
 
-         ENDDO
+         END DO
 
          ! back to parallel mode
-      ENDIF
+      END IF
 
       DO ibox = 1, nboxes
          CALL mp_bcast(cl(ibox), source, group)
@@ -420,7 +420,7 @@ CONTAINS
          ! set all the units numbers that we just opened in the respective mc_par
          CALL set_mc_par(mc_par(ibox)%mc_par, cl=cl(ibox), rm=rm(ibox), &
                          diff=diff(ibox))
-      ENDDO
+      END DO
 
       ! if we're doing a discrete volume move, we need to set up the array
       ! that keeps track of which direction we can move in
@@ -429,7 +429,7 @@ CONTAINS
             CPABORT('ldiscrete=.true. ONLY for systems with 1 box')
          CALL create_discrete_array(abc(:, 1), discrete_array(:, :), &
                                     discrete_step)
-      ENDIF
+      END IF
 
       ! find out how many steps we're doing...change the updates to be in cycles
       ! if the total number of steps is measured in cycles
@@ -437,14 +437,14 @@ CONTAINS
          nstep = nstep*nchain_total
          iuptrans = iuptrans*nchain_total
          iupvolume = iupvolume*nchain_total
-      ENDIF
+      END IF
 
       DO nnstep = nstart + 1, nstart + nstep
 
          IF (MOD(nnstep, iprint) == 0 .AND. (iw > 0)) THEN
             WRITE (iw, *)
             WRITE (iw, *) "------- On Monte Carlo Step ", nnstep
-         ENDIF
+         END IF
 
          IF (ionode) rand = rng_stream%next()
          ! broadcast the random number, to make sure we're on the same move
@@ -455,7 +455,7 @@ CONTAINS
             IF (MOD(nnstep, iprint) == 0 .AND. (iw > 0)) THEN
                WRITE (iw, *) "Attempting a volume move"
                WRITE (iw, *)
-            ENDIF
+            END IF
 
             SELECT CASE (ensemble)
             CASE ("TRADITIONAL")
@@ -478,8 +478,8 @@ CONTAINS
                   IF (rand .LE. pmvol_box(ibox)) THEN
                      box_number = ibox
                      EXIT
-                  ENDIF
-               ENDDO
+                  END IF
+               END DO
 
                CALL mc_volume_move(mc_par(box_number)%mc_par, &
                                    force_env(box_number)%force_env, &
@@ -498,7 +498,7 @@ CONTAINS
                CALL get_cell(cell(ibox)%cell, abc=abc(:, ibox))
                CALL cp_subsys_get(oldsys(ibox)%subsys, &
                                   particles=particles_old(ibox)%list)
-            ENDDO
+            END DO
 
             ! we need a new biasing environment now, if we're into that sort of thing
             IF (lbias) THEN
@@ -509,7 +509,7 @@ CONTAINS
                   start_mol = 1
                   DO jbox = 1, ibox - 1
                      start_mol = start_mol + SUM(nchains(:, jbox))
-                  ENDDO
+                  END DO
                   end_mol = start_mol + SUM(nchains(:, ibox)) - 1
                   atom_number = 1
                   DO imolecule = 1, SUM(nchains(:, ibox))
@@ -517,8 +517,8 @@ CONTAINS
                         atom_names_box(atom_number) = &
                            atom_names(iunit, mol_type(imolecule + start_mol - 1))
                         atom_number = atom_number + 1
-                     ENDDO
-                  ENDDO
+                     END DO
+                  END DO
 
 ! need to find out what the cell lengths are
                   CALL force_env_get(force_env(ibox)%force_env, &
@@ -542,11 +542,11 @@ CONTAINS
                                         potential_energy=last_bias_energy(ibox))
                   ELSE
                      last_bias_energy(ibox) = 0.0E0_dp
-                  ENDIF
+                  END IF
                   bias_energy(ibox) = last_bias_energy(ibox)
                   DEALLOCATE (atom_names_box)
-               ENDDO
-            ENDIF
+               END DO
+            END IF
 
          ELSEIF (rand .LT. pmswap) THEN
 
@@ -554,7 +554,7 @@ CONTAINS
             IF (MOD(nnstep, iprint) == 0 .AND. (iw > 0)) THEN
                WRITE (iw, *) "Attempting a swap move"
                WRITE (iw, *)
-            ENDIF
+            END IF
 
             CALL mc_ge_swap_move(mc_par, force_env, bias_env, moves, &
                                  energy_check(:), r_old(:, :, :), old_energy(:), input_declaration, &
@@ -573,7 +573,7 @@ CONTAINS
             IF (MOD(nnstep, iprint) == 0 .AND. (iw > 0)) THEN
                WRITE (iw, *) "Attempting a hybrid Monte Carlo move"
                WRITE (iw, *)
-            ENDIF
+            END IF
 
 ! pick a box at random
             IF (ionode) rand = rng_stream%next()
@@ -583,8 +583,8 @@ CONTAINS
                IF (rand .LE. pmhmc_box(ibox)) THEN
                   box_number = ibox
                   EXIT
-               ENDIF
-            ENDDO
+               END IF
+            END DO
 
             CALL mc_hmc_move(mc_par(box_number)%mc_par, &
                              force_env(box_number)%force_env, globenv, &
@@ -599,7 +599,7 @@ CONTAINS
             IF (MOD(nnstep, iprint) == 0 .AND. (iw > 0)) THEN
                WRITE (iw, *) "Attempting an AVBMC1 move"
                WRITE (iw, *)
-            ENDIF
+            END IF
 
             ! first, pick a box to do it for
             IF (ionode) rand = rng_stream%next()
@@ -610,10 +610,10 @@ CONTAINS
                   box_number = 1
                ELSE
                   box_number = 2
-               ENDIF
+               END IF
             ELSE
                box_number = 1
-            ENDIF
+            END IF
 
             ! now pick a molecule type to do it for
             IF (ionode) rand = rng_stream%next()
@@ -623,8 +623,8 @@ CONTAINS
                IF (rand .LT. pmavbmc_mol(imol_type)) THEN
                   molecule_type_swap = imol_type
                   EXIT
-               ENDIF
-            ENDDO
+               END IF
+            END DO
             IF (molecule_type_swap == 0) &
                CPABORT('Did not choose a molecule type to swap...check AVBMC input')
 
@@ -651,14 +651,14 @@ CONTAINS
                         start_atom_target = start_atom_target + &
                                             avbmc_atom(molecule_type_target) - 1
                         EXIT
-                     ENDIF
-                  ENDDO
+                     END IF
+                  END DO
 
                   ! choose if we're swapping into the bonded region of mol_target, or
                   ! into the nonbonded region
                   rand = rng_stream%next()
 
-               ENDIF
+               END IF
                CALL mp_bcast(start_atom_swap, source, group)
                CALL mp_bcast(box_number, source, group)
                CALL mp_bcast(start_atom_target, source, group)
@@ -668,7 +668,7 @@ CONTAINS
                   move_type_avbmc = 'in'
                ELSE
                   move_type_avbmc = 'out'
-               ENDIF
+               END IF
 
                CALL mc_avbmc_move(mc_par(box_number)%mc_par, &
                                   force_env(box_number)%force_env, &
@@ -681,14 +681,14 @@ CONTAINS
                                   last_bias_energy(box_number), &
                                   move_type_avbmc, rng_stream)
 
-            ENDIF
+            END IF
 
          ELSE
 
             IF (MOD(nnstep, iprint) == 0 .AND. (iw > 0)) THEN
                WRITE (iw, *) "Attempting an inner move"
                WRITE (iw, *)
-            ENDIF
+            END IF
 
             DO imove = 1, nmoves
 
@@ -704,10 +704,10 @@ CONTAINS
                         box_number = 1
                      ELSE
                         box_number = 2
-                     ENDIF
+                     END IF
                   ELSE
                      box_number = 1
-                  ENDIF
+                  END IF
 
                   ! figure out which molecule type we're looking for
                   IF (ionode) rand = rng_stream%next()
@@ -717,8 +717,8 @@ CONTAINS
                      IF (rand .LT. pmtraion_mol(imol_type)) THEN
                         molecule_type = imol_type
                         EXIT
-                     ENDIF
-                  ENDDO
+                     END IF
+                  END DO
                   IF (molecule_type == 0) CALL cp_abort( &
                      __LOCATION__, &
                      'Did not choose a molecule type to conf change...PMTRAION_MOL should not be all 0.0')
@@ -739,7 +739,7 @@ CONTAINS
 
                         ! choose if we're changing a bond length or an angle
                         rand = rng_stream%next()
-                     ENDIF
+                     END IF
                      CALL mp_bcast(rand, source, group)
                      CALL mp_bcast(start_atom, source, group)
                      CALL mp_bcast(box_number, source, group)
@@ -753,7 +753,7 @@ CONTAINS
                         move_type = 'angle'
                      ELSE
                         move_type = 'dihedral'
-                     ENDIF
+                     END IF
                      box_flag(box_number) = 1
                      CALL mc_conformation_change(mc_par(box_number)%mc_par, &
                                                  force_env(box_number)%force_env, &
@@ -764,7 +764,7 @@ CONTAINS
                                                  bias_energy(box_number), &
                                                  move_type, lreject, rng_stream)
                      IF (lreject) EXIT
-                  ENDIF
+                  END IF
                ELSEIF (rand .LT. pmtrans) THEN
                   ! translate a whole molecule in the system
                   ! pick a molecule type
@@ -775,8 +775,8 @@ CONTAINS
                      IF (rand .LT. pmtrans_mol(imol_type)) THEN
                         molecule_type = imol_type
                         EXIT
-                     ENDIF
-                  ENDDO
+                     END IF
+                  END DO
                   IF (molecule_type == 0) CALL cp_abort( &
                      __LOCATION__, &
                      'Did not choose a molecule type to translate...PMTRANS_MOL should not be all 0.0')
@@ -807,8 +807,8 @@ CONTAINS
                   IF (rand .LE. pmclus_box(ibox)) THEN
                      box_number = ibox
                      EXIT
-                  ENDIF
-                  ENDDO
+                  END IF
+                  END DO
                   box_flag(box_number) = 1
                   CALL mc_cluster_translation(mc_par(box_number)%mc_par, &
                                               force_env(box_number)%force_env, &
@@ -828,8 +828,8 @@ CONTAINS
                      IF (rand .LT. pmrot_mol(imol_type)) THEN
                         molecule_type = imol_type
                         EXIT
-                     ENDIF
-                  ENDDO
+                     END IF
+                  END DO
                   IF (molecule_type == 0) CALL cp_abort( &
                      __LOCATION__, &
                      'Did not choose a molecule type to rotate...PMROT_MOL should not be all 0.0')
@@ -850,9 +850,9 @@ CONTAINS
                                             molecule_type, bias_energy(box_number), &
                                             lreject, rng_stream)
                   IF (lreject) EXIT
-               ENDIF
+               END IF
 
-            ENDDO
+            END DO
 
             ! now do a Quickstep calculation to see if we accept the sequence
             CALL mc_Quickstep_move(mc_par, force_env, bias_env, &
@@ -861,7 +861,7 @@ CONTAINS
                                    nboxes, box_flag(:), oldsys, particles_old, &
                                    rng_stream, unit_conv)
 
-         ENDIF
+         END IF
 
          ! make sure the pointers are pointing correctly since the subsys may
          ! have changed
@@ -871,7 +871,7 @@ CONTAINS
             CALL get_cell(cell(ibox)%cell, abc=abc(:, ibox))
             CALL cp_subsys_get(oldsys(ibox)%subsys, &
                                particles=particles_old(ibox)%list)
-         ENDDO
+         END DO
 
          IF (ionode) THEN
 
@@ -887,7 +887,7 @@ CONTAINS
                   DO itype = 1, nmol_types
                      CALL write_move_stats(moves(itype, ibox)%moves, &
                                            nnstep, move_unit(ibox))
-                  ENDDO
+                  END DO
 
                   ! write a restart file
                   CALL write_mc_restart(nnstep, mc_par(ibox)%mc_par, &
@@ -910,9 +910,9 @@ CONTAINS
                         'BOX '//TRIM(ADJUSTL(cbox))// &
                         ',  STEP '//TRIM(ADJUSTL(cstep)), &
                         unit_conv=unit_conv)
-                  ENDIF
-               ENDDO
-            ENDIF ! end the things we only do every iprint moves
+                  END IF
+               END DO
+            END IF ! end the things we only do every iprint moves
 
             DO ibox = 1, nboxes
                ! compute some averages
@@ -937,7 +937,7 @@ CONTAINS
                CALL m_flush(cl(ibox))
                CALL m_flush(rm(ibox))
 
-            ENDDO
+            END DO
 
             ! flush more buffers to the files
             CALL m_flush(cell_unit)
@@ -945,7 +945,7 @@ CONTAINS
             CALL m_flush(com_crd)
             CALL m_flush(com_mol)
 
-         ENDIF
+         END IF
 
          ! reset the box flags
          box_flag(:) = 0
@@ -961,15 +961,15 @@ CONTAINS
                   CALL mc_move_update(mc_par(ibox)%mc_par, &
                                       move_updates(itype, ibox)%moves, itype, &
                                       "trans", nnstep, ionode)
-               ENDDO
-            ENDIF
+               END DO
+            END IF
 
             IF (MOD(nnstep - nstart, iupvolume) == 0) THEN
                CALL mc_move_update(mc_par(ibox)%mc_par, &
                                    move_updates(1, ibox)%moves, 1337, &
                                    "volume", nnstep, ionode)
-            ENDIF
-         ENDDO
+            END IF
+         END DO
 
          ! check to see if there are any overlaps in the boxes, and fold coordinates
 ! don't care about overlaps if we're only doing HMC
@@ -979,7 +979,7 @@ CONTAINS
                   start_mol = 1
                   DO jbox = 1, ibox - 1
                      start_mol = start_mol + SUM(nchains(:, jbox))
-                  ENDDO
+                  END DO
                   end_mol = start_mol + SUM(nchains(:, ibox)) - 1
                   CALL check_for_overlap(force_env(ibox)%force_env, &
                                          nchains(:, ibox), nunits, loverlap, &
@@ -995,7 +995,7 @@ CONTAINS
                      DO iunit = 1, nunits_tot(ibox)
                         r_temp(1:3, iunit) = &
                            particles_old(ibox)%list%els(iunit)%r(1:3)
-                     ENDDO
+                     END DO
 
                      CALL mc_coordinate_fold(r_temp(:, :), &
                                              SUM(nchains(:, ibox)), mol_type(start_mol:end_mol), &
@@ -1006,7 +1006,7 @@ CONTAINS
                         r_old(1:3, iunit, ibox) = r_temp(1:3, iunit)
                         particles_old(ibox)%list%els(iunit)%r(1:3) = &
                            r_temp(1:3, iunit)
-                     ENDDO
+                     END DO
 
                      ! if we're biasing, we need to do the same
                      IF (lbias) THEN
@@ -1018,14 +1018,14 @@ CONTAINS
                         DO iunit = 1, nunits_tot(ibox)
                            particles_bias%els(iunit)%r(1:3) = &
                               r_temp(1:3, iunit)
-                        ENDDO
-                     ENDIF
+                        END DO
+                     END IF
 
                      DEALLOCATE (r_temp)
-                  ENDIF
-               ENDIF
-            ENDDO
-         ENDIF
+                  END IF
+               END IF
+            END DO
+         END IF
 
          !debug code
          IF (debug_this_module) THEN
@@ -1037,7 +1037,7 @@ CONTAINS
                                      potential_energy=test_energy)
                ELSE
                   test_energy = 0.0E0_dp
-               ENDIF
+               END IF
 
                IF (ABS(initial_energy(ibox) + energy_check(ibox) - &
                        test_energy) .GT. 0.0000001E0_dp) THEN
@@ -1050,18 +1050,18 @@ CONTAINS
                      WRITE (iw, *) 'nchains ', nchains(:, ibox)
                   END IF
                   CPABORT('!!!!!!! We have an energy problem. !!!!!!!!')
-               ENDIF
-            ENDDO
-         ENDIF
-      ENDDO
+               END IF
+            END DO
+         END IF
+      END DO
 
       ! write a restart file
       IF (ionode) THEN
          DO ibox = 1, nboxes
             CALL write_mc_restart(nnstep, mc_par(ibox)%mc_par, &
                                   nchains(:, ibox), force_env(ibox)%force_env)
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       ! calculate the final energy
       DO ibox = 1, nboxes
@@ -1072,11 +1072,11 @@ CONTAINS
                                potential_energy=final_energy(ibox))
          ELSE
             final_energy(ibox) = 0.0E0_dp
-         ENDIF
+         END IF
          IF (lbias) THEN
             CALL force_env_release(bias_env(ibox)%force_env)
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       ! do some stuff in serial
       IF (ionode .OR. (iw > 0)) THEN
@@ -1094,7 +1094,7 @@ CONTAINS
                   particles_old(ibox)%list%els, &
                   com_crd, dump_xmol, 'POS', &
                   'FINAL BOX '//TRIM(ADJUSTL(cbox)), unit_conv=unit_conv)
-            ENDIF
+            END IF
 
             ! write a bunch of data to the screen
             WRITE (iw, '(A)') &
@@ -1116,14 +1116,14 @@ CONTAINS
             CALL close_file(unit_number=move_unit(ibox))
             CALL close_file(unit_number=cl(ibox))
             CALL close_file(unit_number=rm(ibox))
-         ENDDO
+         END DO
 
          ! close some more files
          CALL close_file(unit_number=cell_unit)
          CALL close_file(unit_number=com_ene)
          CALL close_file(unit_number=com_crd)
          CALL close_file(unit_number=com_mol)
-      ENDIF
+      END IF
 
       DO ibox = 1, nboxes
          CALL set_mc_env(mc_env(ibox)%mc_env, &
@@ -1134,9 +1134,9 @@ CONTAINS
          DO itype = 1, nmol_types
             CALL mc_moves_release(move_updates(itype, ibox)%moves)
             CALL mc_moves_release(moves(itype, ibox)%moves)
-         ENDDO
+         END DO
          CALL mc_averages_release(averages(ibox)%averages)
-      ENDDO
+      END DO
 
       DEALLOCATE (pmhmc_box)
       DEALLOCATE (pmvol_box)
@@ -1242,7 +1242,7 @@ CONTAINS
          WRITE (iw, *) 'Beginning the calculation of the second virial coefficient'
          WRITE (iw, *)
          WRITE (iw, *)
-      ENDIF
+      END IF
 
       ! get some data from the molecule types
       CALL get_mc_molecule_info(mc_molecule_info, &
@@ -1255,7 +1255,7 @@ CONTAINS
 
       DO itemp = 1, nvirial_temps
          BETA(itemp) = 1/virial_temps(itemp)/boltzmann*joule
-      ENDDO
+      END DO
 
       ! get the subsystems and the cell information
       CALL force_env_get(force_env(1)%force_env, &
@@ -1281,7 +1281,7 @@ CONTAINS
       DO iparticle = 1, nunits_tot(1)
          r_old(1:3, iparticle) = &
             particles(1)%list%els(iparticle)%r(1:3)
-      ENDDO
+      END DO
 
       ! move the center of mass of molecule 1 to the origin
       start_atom = 1
@@ -1290,11 +1290,11 @@ CONTAINS
                               center_of_mass(:), mass(1:nunits(mol_type(1)), mol_type(1)))
       DO iunit = start_atom, end_atom
          r_old(:, iunit) = r_old(:, iunit) - center_of_mass(:)
-      ENDDO
+      END DO
       ! set them in the force_env, so the first molecule is ready for the energy calc
       DO iparticle = start_atom, end_atom
          particles(1)%list%els(iparticle)%r(1:3) = r_old(1:3, iparticle)
-      ENDDO
+      END DO
 
       ! print out a notice every 1%
       iprint = FLOOR(REAL(nvirial, KIND=dp)/100.0_dp)
@@ -1316,7 +1316,7 @@ CONTAINS
                                  center_of_mass(:), mass(1:nunits(mol_type(2)), mol_type(2)))
          DO iunit = start_atom, end_atom
             r_old(:, iunit) = r_old(:, iunit) - center_of_mass(:)
-         ENDDO
+         END DO
 
          ! now we need a random orientation for molecule 2...this routine is
          ! only done in serial since it calls a random number
@@ -1324,7 +1324,7 @@ CONTAINS
             CALL rotate_molecule(r_old(:, start_atom:end_atom), &
                                  mass(1:nunits(mol_type(2)), mol_type(2)), &
                                  nunits(mol_type(2)), rng_stream)
-         ENDIF
+         END IF
          CALL mp_bcast(r_old(:, :), source, group)
 
          distance = 0.0E0_dp
@@ -1336,8 +1336,8 @@ CONTAINS
                IF (distance .LT. virial_cutoffs(idivision) - virial_stepsize(idivision)/2.0E0_dp) THEN
                   current_division = idivision
                   EXIT
-               ENDIF
-            ENDDO
+               END IF
+            END DO
             IF (current_division == 0) EXIT
             distance = distance + virial_stepsize(current_division)
 
@@ -1346,7 +1346,7 @@ CONTAINS
                particles(1)%list%els(iparticle)%r(1) = r_old(1, iparticle) + distance
                particles(1)%list%els(iparticle)%r(2) = r_old(2, iparticle)
                particles(1)%list%els(iparticle)%r(3) = r_old(3, iparticle)
-            ENDDO
+            END DO
 
             ! check for overlaps
             CALL check_for_overlap(force_env(1)%force_env, nchains(:, 1), nunits, loverlap, mol_type)
@@ -1356,7 +1356,7 @@ CONTAINS
             IF (loverlap) THEN
                DO itemp = 1, nvirial_temps
                   mayer(itemp, ibin) = mayer(itemp, ibin) - 1.0_dp
-               ENDDO
+               END DO
             ELSE
                CALL force_env_calc_energy_force(force_env(1)%force_env, &
                                                 calc_force=.FALSE.)
@@ -1371,19 +1371,19 @@ CONTAINS
                      exponent = exp_max_val
                   ELSEIF (exponent .LT. exp_min_val) THEN
                      exponent = exp_min_val
-                  ENDIF
+                  END IF
                   mayer(itemp, ibin) = mayer(itemp, ibin) + EXP(exponent) - 1.0_dp
-               ENDDO
-            ENDIF
+               END DO
+            END IF
 
             ibin = ibin + 1
-         ENDDO
+         END DO
          ! write out some info that keeps track of where we are
          IF (iw > 0) THEN
             IF (MOD(ivirial, iprint) == 0) &
                WRITE (iw, '(A,I6,A,I6)') ' Done with config ', ivirial, ' out of ', nvirial
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       ! now we integrate this average potential
       mayer(:, :) = mayer(:, :)/REAL(nvirial, dp)
@@ -1399,8 +1399,8 @@ CONTAINS
                IF (distance .LT. virial_cutoffs(idivision) - virial_stepsize(idivision)/2.0E0_dp) THEN
                   current_division = idivision
                   EXIT
-               ENDIF
-            ENDDO
+               END IF
+            END DO
             IF (current_division == 0) EXIT
             distance = distance + virial_stepsize(current_division)
 
@@ -1415,7 +1415,7 @@ CONTAINS
             integral = integral + square_value + triangle_value
             previous_value = current_value
             ibin = ibin + 1
-         ENDDO
+         END DO
 
          ! now that the integration is done, compute the second virial that results
          ave_virial = -2.0E0_dp*pi*integral
@@ -1433,8 +1433,8 @@ CONTAINS
                ' cm**3/mol               ***'
             WRITE (iw, *) '*********************************************************************'
             WRITE (iw, *)
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       ! deallocate some stuff
       DEALLOCATE (mc_par)

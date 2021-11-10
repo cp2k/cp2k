@@ -252,7 +252,7 @@ CONTAINS
       l_max = 0
       DO ikind = 1, nkind
          l_max = MAX(l_max, MAXVAL(qs_env%x_data(1, 1)%basis_parameter(ikind)%lmax))
-      ENDDO
+      END DO
       l_max = 4*l_max + 1
       CALL init_md_ftable(l_max)
 
@@ -462,8 +462,8 @@ CONTAINS
             ! the maximum value after multiplication with sphi_b
             max_contraction(jset, jatom) = MAXVAL((/(SUM(ABS(sphi_b(1:ncob, i))), i=sgfb, sgfb + nsgfb(jset) - 1)/))
             max_pgf = MAX(max_pgf, npgfb(jset))
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       ncpu = para_env%num_pe
       n_processes = ncpu*n_threads
@@ -556,7 +556,7 @@ CONTAINS
          IF (nspins == 2) THEN
             full_density_beta(:, 1) = &
                full_density_beta(:, 1) - full_density_resp_beta
-         ENDIF
+         END IF
          ! full_density_resp=full_density+full_density_resp
       END IF
 
@@ -605,8 +605,8 @@ CONTAINS
          DO iset = 1, nseta
             ncos_max = MAX(ncos_max, ncoset(la_max(iset)))
             nsgf_max = MAX(nsgf_max, nsgfa(iset))
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       !! Allocate work arrays
       ALLOCATE (primitive_forces(12*nsgf_max**4))
@@ -842,7 +842,7 @@ CONTAINS
       my_bin_size = SIZE(actual_x_data%distribution_forces)
       DO bin = 1, my_bin_size
          actual_x_data%distribution_forces(bin)%time_forces = 0.0_dp
-      ENDDO
+      END DO
 !$OMP END MASTER
 !$OMP BARRIER
 
@@ -1433,7 +1433,7 @@ CONTAINS
                                                            iset, jset, kset, lset, offset_bd_set, offset_bc_set, &
                                                            offset_ad_set, offset_ac_set, atomic_offset_bd, atomic_offset_bc, &
                                                            atomic_offset_ad, atomic_offset_ac, is_anti_symmetric)
-                           ENDIF
+                           END IF
                         END IF
                         IF (spherical_estimate*pmax_entry >= eps_schwarz) THEN
                            DO coord = 1, 12
@@ -1463,7 +1463,7 @@ CONTAINS
                                     CALL update_forces(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
                                                        pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, fac, &
                                                        T2, force, forces_map, coord)
-                                 ENDIF
+                                 END IF
                               END IF
                            END DO !coord
                         END IF
@@ -1494,7 +1494,7 @@ CONTAINS
                                        CALL update_virial(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
                                                           pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, &
                                                           fac, T2, tmp_virial, coord, i)
-                                    ENDIF
+                                    END IF
                                  END IF
                               END DO
                            END DO !coord

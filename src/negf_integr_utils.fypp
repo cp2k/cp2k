@@ -5,7 +5,7 @@
 #!   SPDX-License-Identifier: GPL-2.0-or-later                                                     !
 #!-------------------------------------------------------------------------------------------------!
 #:mute
-#:set nametype1 = ['d', 'z']
-#:set type1 = ['REAL(kind=dp)', 'COMPLEX(kind=dp)']
-#:set inst_params = list(zip(nametype1, type1))
+   #:set nametype1 = ['d', 'z']
+   #:set type1 = ['REAL(kind=dp)', 'COMPLEX(kind=dp)']
+   #:set inst_params = list(zip(nametype1, type1))
 #:endmute

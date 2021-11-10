@@ -378,8 +378,8 @@ CONTAINS
             mp2_env%ri_g0w0%nparam_pade = num_fit_points
             IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T74,I7)") &
                "Number of pade parameters:", mp2_env%ri_g0w0%nparam_pade
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       ! create new arrays containing omega values at which we calculate vec_Sigma_c_gw
       ALLOCATE (vec_omega_fit_gw(num_fit_points))
@@ -717,7 +717,7 @@ CONTAINS
             CALL dbcsr_t_destroy(t_3c_overl_nnP_ic_reflected(ispin))
          END DO
          DEALLOCATE (t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected)
-      ENDIF
+      END IF
 
       DO ispin = 1, nspins
          DEALLOCATE (t_3c_O_mo_ind(ispin)%array)
@@ -3333,13 +3333,13 @@ CONTAINS
          DO jquad = 1, num_fit_points
             Sigma_c_gw_reorder(jquad) = vec_Sigma_c_gw(n_level_gw, jquad)
             vec_omega_fit_gw_sign_reorder(jquad) = vec_omega_fit_gw_sign(jquad)
-         ENDDO
+         END DO
       ELSE
          DO jquad = 1, num_fit_points
             Sigma_c_gw_reorder(jquad) = vec_Sigma_c_gw(n_level_gw, num_fit_points - jquad + 1)
             vec_omega_fit_gw_sign_reorder(jquad) = vec_omega_fit_gw_sign(num_fit_points - jquad + 1)
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       !*** evaluate parameters for pade approximation
       ALLOCATE (coeff_pade(nparam_pade))
@@ -3361,7 +3361,7 @@ CONTAINS
                            REAL(sigma_c_pade) + &
                            vec_Sigma_x_minus_vxc_gw(n_level_gw_ref))* &
                           z_value(n_level_gw)
-      ENDIF
+      END IF
 
       !*** perform crossing search
       SELECT CASE (crossing_search)
@@ -3505,7 +3505,7 @@ CONTAINS
          xpoints(iparam) = gaussi*x(idat)
          ypoints(iparam) = y(idat)
          idat = idat + nstep
-      ENDDO
+      END DO
       xpoints(nparam) = gaussi*x(num_fit_points)
       ypoints(nparam) = y(num_fit_points)
 
@@ -3517,12 +3517,12 @@ CONTAINS
          DO idat = iparam, nparam
             g_mat(idat, iparam) = (g_mat(iparam - 1, iparam - 1) - g_mat(idat, iparam - 1))/ &
                                   ((xpoints(idat) - xpoints(iparam - 1))*g_mat(idat, iparam - 1))
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       DO iparam = 1, nparam
          coeff(iparam) = g_mat(iparam, iparam)
-      ENDDO
+      END DO
 
       DEALLOCATE (ypoints)
       DEALLOCATE (g_mat)
@@ -3559,7 +3559,7 @@ CONTAINS
          ELSE
             func_val = z_one + coeff(iparam)*(x_val*z_one - xpoints(iparam - 1))/func_val
          END IF
-      ENDDO
+      END DO
 
       func_val = coeff(1)/func_val
 
@@ -3595,7 +3595,7 @@ CONTAINS
          dev_denominator = dev_val
          dev_val = dev_numerator/denominator - (numerator*dev_denominator)/(denominator**2)
          func_val = z_one + coeff(iparam)*(x_val*z_one - xpoints(iparam - 1))/func_val
-      ENDDO
+      END DO
 
       dev_val = -1.0_dp*coeff(1)/(func_val**2)*dev_val
       func_val = coeff(1)/func_val
@@ -3603,7 +3603,7 @@ CONTAINS
       IF (PRESENT(z_value)) THEN
          z_value = 1.0_dp - REAL(dev_val)
          z_value = 1.0_dp/z_value
-      ENDIF
+      END IF
       IF (PRESENT(m_value)) m_value = REAL(dev_val)
 
    END SUBROUTINE get_z_and_m_value_pade
@@ -3648,7 +3648,7 @@ CONTAINS
          my_start_val = start_val
       ELSE
          my_start_val = Eigenval_scf
-      ENDIF
+      END IF
 
       qp_energy = my_start_val
       qp_energy_old = my_start_val
@@ -3670,8 +3670,8 @@ CONTAINS
                "MO ", TRIM(n_level_gw_ref_char), " has not been found."
             CPWARN(error_msg)
             EXIT
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       gw_energ = REAL(sigma_c)
 
@@ -3720,7 +3720,7 @@ CONTAINS
          my_start_val = start_val
       ELSE
          my_start_val = Eigenval_scf
-      ENDIF
+      END IF
 
       qp_energy = my_start_val
       qp_energy_old = my_start_val
@@ -3745,8 +3745,8 @@ CONTAINS
                "MO ", TRIM(n_level_gw_ref_char), " has not been found."
             CPWARN(error_msg)
             EXIT
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       gw_energ = REAL(sigma_c)
 
@@ -4289,7 +4289,7 @@ CONTAINS
          unit_nr_prv = unit_nr
       ELSE
          unit_nr_prv = 0
-      ENDIF
+      END IF
 
       mo_start = homo - gw_corr_lev_occ + 1
       mo_end = homo + gw_corr_lev_virt
@@ -4395,7 +4395,7 @@ CONTAINS
                                    t_3c_ctr_RI, t_3c_ctr_AO, calculate_ctr_ri=.FALSE.)
 
             CALL trace_sigma_gw(t_3c_ctr_AO, t_3c_ctr_RI, vec_Sigma_c_gw_pos_tau(:, jquad), mo_start, mo_bounds, para_env)
-         ENDDO
+         END DO
          CALL dbcsr_t_batched_contract_finalize(t_3c_overl_int_gw_AO)
          CALL dbcsr_t_batched_contract_finalize(t_3c_overl_int_gw_RI)
          CALL dbcsr_t_batched_contract_finalize(t_3c_ctr_AO)
@@ -4496,7 +4496,7 @@ CONTAINS
                                    t_3c_ctr_RI, t_3c_ctr_AO, calculate_ctr_ri=.TRUE.)
 
             CALL trace_sigma_gw(t_3c_ctr_AO, t_3c_ctr_RI, vec_Sigma_x_gw(mo_start:mo_end, 1), mo_start, mo_bounds, para_env)
-         ENDDO
+         END DO
          CALL dbcsr_t_batched_contract_finalize(t_3c_overl_int_gw_AO)
          CALL dbcsr_t_batched_contract_finalize(t_3c_overl_int_gw_RI)
          CALL dbcsr_t_batched_contract_finalize(t_dm)
@@ -4641,7 +4641,7 @@ CONTAINS
                                bounds_3=ctr_bounds_mo, &
                                unit_nr=unit_nr)
 
-      ENDIF
+      END IF
 
       CALL dbcsr_t_get_info(t_3c_overl_int_gw_AO, nfull_total=bounds_3c)
       ctr_bounds_mo(:, 1) = [1, bounds_3c(2)]
@@ -4710,7 +4710,7 @@ CONTAINS
          ELSE
             n_start_block = 1
             n_start = boff(3) - mo_bounds(1) + 1
-         ENDIF
+         END IF
 
          IF (boff(3) + bsize(3) - 1 > mo_bounds(2)) THEN
             n_end_block = mo_bounds(2) - boff(3) + 1
@@ -4718,7 +4718,7 @@ CONTAINS
          ELSE
             n_end_block = bsize(3)
             n_end = boff(3) + bsize(3) - mo_bounds(1)
-         ENDIF
+         END IF
 
          trace_shape(1) = SIZE(block_1, 1)*SIZE(block_1, 2)
          vec_Sigma_prv(n_start:n_end) = &
@@ -4727,7 +4727,7 @@ CONTAINS
                            RESHAPE(block_2(:, :, n), trace_shape)), &
                n=n_start_block, n_end_block)/)
          DEALLOCATE (block_1, block_2)
-      ENDDO
+      END DO
       CALL dbcsr_t_iterator_stop(iter)
 
       CALL dbcsr_t_destroy(t3c_1_redist)

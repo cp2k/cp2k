@@ -108,8 +108,8 @@ CONTAINS
                IF (mass > mass_low) THEN
                   mass_low = mass
                   center = particle_set(iatom)%r
-               ENDIF
-            ENDDO
+               END IF
+            END DO
             DO iatom = ifirst, ilast
                ria = particle_set(iatom)%r
                ria = pbc(ria - center, cell) + center
@@ -152,8 +152,8 @@ CONTAINS
                IF (mass > mass_low) THEN
                   mass_low = mass
                   center = particle_set(iatom)%r
-               ENDIF
-            ENDDO
+               END IF
+            END DO
             DO iatom = ifirst, ilast
                ria = particle_set(iatom)%r
                ria = pbc(ria - center, cell) + center

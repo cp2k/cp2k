@@ -121,9 +121,9 @@ CONTAINS
          DO ir = 1, nr
             WRITE (extunit, fmt='(T1,E24.15,T26,E24.15,T51,E24.15,T76,E24.15,T101,E24.15,T126,E24.15)') &
                atom%basis%grid%rad(ir), rho(ir, 1), deltarho(ir), vxc(ir), vxc1(ir), vxc2(ir)
-         ENDDO
+         END DO
          CALL close_file(unit_number=extunit)
-      ENDIF
+      END IF
 
       IF (PRESENT(xcmat)) CALL numpot_matrix(xcmat%op, vxc, atom%basis, 0)
 
@@ -169,9 +169,9 @@ CONTAINS
          DO ir = 1, nr
             WRITE (extunit, fmt='(T1,E24.15,T26,E24.15,T51,E24.15)') &
                atom%basis%grid%rad(ir), rho(ir, 1), vxc(ir)
-         ENDDO
+         END DO
          CALL close_file(unit_number=extunit)
-      ENDIF
+      END IF
 
       atom%energy%exc = fourpi*integrate_grid(vxc, rho(:, 1), atom%basis%grid)
       IF (PRESENT(xcmat)) CALL numpot_matrix(xcmat%op, vxc, atom%basis, 0)
@@ -306,9 +306,9 @@ CONTAINS
                CALL open_file(unit_number=unit_nr, file_status="UNKNOWN", file_action="WRITE", file_name="atom.dat")
                DO i = 1, SIZE(xcpot(:, 1, 1))
                   WRITE (unit_nr, *) atom%basis%grid%rad(i), rho(i, 1), xcpot(i, 1, 1)
-               ENDDO
+               END DO
                CALL close_file(unit_nr)
-            ENDIF
+            END IF
 
             IF (needs%rho) THEN
                deriv => xc_dset_get_derivative(deriv_set, "(rho)", allocate_deriv=.FALSE.)
@@ -318,9 +318,9 @@ CONTAINS
                   CALL open_file(unit_number=unit_nr, file_status="UNKNOWN", file_action="WRITE", file_name="atompot.dat")
                   DO i = 1, SIZE(xcpot(:, 1, 1))
                      WRITE (unit_nr, *) atom%basis%grid%rad(i), rho(i, 1), xcpot(i, 1, 1)
-                  ENDDO
+                  END DO
                   CALL close_file(unit_nr)
-               ENDIF
+               END IF
                DEALLOCATE (rho)
             END IF
             IF (needs%norm_drho) THEN
@@ -331,9 +331,9 @@ CONTAINS
                   CALL open_file(unit_number=unit_nr, file_status="UNKNOWN", file_action="WRITE", file_name="atomdpot.dat")
                   DO i = 1, SIZE(xcpot(:, 1, 1))
                      WRITE (unit_nr, *) atom%basis%grid%rad(i), drho(i, 1), xcpot(i, 1, 1)
-                  ENDDO
+                  END DO
                   CALL close_file(unit_nr)
-               ENDIF
+               END IF
                DEALLOCATE (drho)
             END IF
             IF (needs%tau) THEN

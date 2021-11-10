@@ -171,7 +171,7 @@ CONTAINS
 
          IF (ri_data%check_2c_inv) THEN
             CALL check_inverse(t_2c_op_RI_inv(1), t_2c_op_RI(1), unit_nr=unit_nr)
-         ENDIF
+         END IF
 
          CALL dbcsr_release(t_2c_op_RI(1))
 
@@ -205,7 +205,7 @@ CONTAINS
 
          IF (ri_data%check_2c_inv) THEN
             CALL check_sqrt(t_2c_op_pot(1), matrix_sqrt=t_2c_op_pot_sqrt(1), unit_nr=unit_nr)
-         ENDIF
+         END IF
          CALL dbcsr_create(t_2c_int_mat(1), template=t_2c_op_pot(1), matrix_type=dbcsr_type_no_symmetry)
          CALL dbcsr_multiply("N", "N", 1.0_dp, t_2c_op_RI_inv(1), t_2c_op_pot_sqrt(1), &
                              0.0_dp, t_2c_int_mat(1), filter_eps=ri_data%filter_eps)
@@ -227,7 +227,7 @@ CONTAINS
          END SELECT
          IF (ri_data%check_2c_inv) THEN
             CALL check_sqrt(t_2c_op_pot(1), matrix_sqrt_inv=t_2c_int_mat(1), unit_nr=unit_nr)
-         ENDIF
+         END IF
 
          !We need (P|Q)^-1 for the forces
          CALL dbcsr_copy(dbcsr_work_1(1), t_2c_int_mat(1))
@@ -240,7 +240,7 @@ CONTAINS
          CALL dbcsr_t_copy(t_2c_work(1), ri_data%t_2c_inv(1, 1), move_data=.TRUE.)
          CALL dbcsr_t_destroy(t_2c_work(1))
          CALL dbcsr_t_filter(ri_data%t_2c_inv(1, 1), ri_data%filter_eps)
-      ENDIF
+      END IF
 
       CALL dbcsr_release(t_2c_op_pot(1))
 
@@ -249,7 +249,7 @@ CONTAINS
       CALL dbcsr_release(t_2c_int_mat(1))
       DO ispin = 1, nspins
          CALL dbcsr_t_copy(t_2c_int(1), ri_data%t_2c_int(ispin, 1))
-      ENDDO
+      END DO
       CALL dbcsr_t_destroy(t_2c_int(1))
       CALL timestop(handle2)
 
@@ -284,7 +284,7 @@ CONTAINS
          name_prv = name
       ELSE
          CALL dbcsr_get_info(matrix_1, name=name_prv)
-      ENDIF
+      END IF
 
       CALL dbcsr_create(matrix_tmp, template=matrix_1)
       CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_1, matrix_2, &
@@ -296,7 +296,7 @@ CONTAINS
       IF (unit_nr > 0) THEN
          WRITE (UNIT=unit_nr, FMT="(T3,A,A,A,T73,ES8.1)") &
             "HFX_RI_INFO| Error for INV(", TRIM(name_prv), "):", error
-      ENDIF
+      END IF
 
       CALL dbcsr_release(matrix_tmp)
    END SUBROUTINE
@@ -323,7 +323,7 @@ CONTAINS
          name_prv = name
       ELSE
          CALL dbcsr_get_info(matrix, name=name_prv)
-      ENDIF
+      END IF
       IF (PRESENT(matrix_sqrt)) THEN
          CALL dbcsr_create(matrix_tmp, template=matrix)
          CALL dbcsr_copy(matrix_copy, matrix_sqrt)
@@ -334,10 +334,10 @@ CONTAINS
          IF (unit_nr > 0) THEN
             WRITE (UNIT=unit_nr, FMT="(T3,A,A,A,T73,ES8.1)") &
                "HFX_RI_INFO| Error for SQRT(", TRIM(name_prv), "):", frob_matrix
-         ENDIF
+         END IF
          CALL dbcsr_release(matrix_tmp)
          CALL dbcsr_release(matrix_copy)
-      ENDIF
+      END IF
 
       IF (PRESENT(matrix_sqrt_inv)) THEN
          CALL dbcsr_create(matrix_tmp, template=matrix)
@@ -347,7 +347,7 @@ CONTAINS
          CALL check_inverse(matrix_tmp, matrix, name="SQRT("//TRIM(name_prv)//")", unit_nr=unit_nr)
          CALL dbcsr_release(matrix_tmp)
          CALL dbcsr_release(matrix_copy)
-      ENDIF
+      END IF
 
    END SUBROUTINE
 
@@ -418,7 +418,7 @@ CONTAINS
          ! (since hartree-fock needs very tight eps_pgf_orb for Kohn-Sham/Fock matrix but eps_pgf_orb
          ! can be much looser in RI HFX since no systematic error is introduced with tensor sparsity)
          CALL init_interaction_radii_orb_basis(orb_basis, ri_data%eps_pgf_orb)
-      ENDDO
+      END DO
 
       n_mem = ri_data%n_mem
       CALL create_tensor_batches(sizes_AO, n_mem, starts_array_mc_int, ends_array_mc_int, &
@@ -455,7 +455,7 @@ CONTAINS
                                  bounds_j=[starts_array_mc_block_int(i_mem), ends_array_mc_block_int(i_mem)])
          CALL dbcsr_t_copy(t_3c_int_batched(1, 1), t_3c_int(1, 1), summation=.TRUE., move_data=.TRUE.)
          CALL dbcsr_t_filter(t_3c_int(1, 1), ri_data%filter_eps/2)
-      ENDDO
+      END DO
 
       CALL dbcsr_t_destroy(t_3c_int_batched(1, 1))
 
@@ -473,7 +473,7 @@ CONTAINS
          CALL dbcsr_t_filter(t_3c_int(1, 1), ri_data%filter_eps)
       ELSE
          CALL dbcsr_t_filter(t_3c_int(1, 1), ri_data%filter_eps_storage/2)
-      ENDIF
+      END IF
 
       CALL dbcsr_t_destroy(t_3c_tmp)
 
@@ -508,13 +508,13 @@ CONTAINS
                                  ri_data%ri_metric)
 
          CALL release_neighbor_list_sets(nl_2c_RI)
-      ENDIF
+      END IF
 
       DO ibasis = 1, SIZE(basis_set_AO)
          orb_basis => basis_set_AO(ibasis)%gto_basis_set
          ! reset interaction radii of orb basis
          CALL init_interaction_radii_orb_basis(orb_basis, dft_control%qs_control%eps_pgf_orb)
-      ENDDO
+      END DO
 
       IF (ri_data%calc_condnum) THEN
          CALL arnoldi_extremal(t_2c_int_pot(1), max_ev, min_ev, threshold=ri_data%eps_lanczos, &
@@ -522,7 +522,7 @@ CONTAINS
 
          IF (.NOT. converged) THEN
             CPWARN("Condition number estimate of (P|Q) (HFX potential) is not reliable (not converged).")
-         ENDIF
+         END IF
 
          IF (ri_data%unit_nr > 0) THEN
             WRITE (ri_data%unit_nr, '(T2,A)') "2-Norm Condition Number of (P|Q) integrals (HFX potential)"
@@ -532,8 +532,8 @@ CONTAINS
             ELSE
                WRITE (ri_data%unit_nr, '(T4,A,ES11.3E3,T32,A,ES11.3E3,T63,A)') &
                   "CN : max/min ev: ", max_ev, " / ", min_ev, "Log(CN): infinity"
-            ENDIF
-         ENDIF
+            END IF
+         END IF
 
          IF (.NOT. ri_data%same_op) THEN
             CALL arnoldi_extremal(t_2c_int_RI(1), max_ev, min_ev, threshold=ri_data%eps_lanczos, &
@@ -541,7 +541,7 @@ CONTAINS
 
             IF (.NOT. converged) THEN
                CPWARN("Condition number estimate of (P|Q) matrix (RI metric) is not reliable (not converged).")
-            ENDIF
+            END IF
 
             IF (ri_data%unit_nr > 0) THEN
                WRITE (ri_data%unit_nr, '(T2,A)') "2-Norm Condition Number of (P|Q) integrals (RI metric)"
@@ -551,10 +551,10 @@ CONTAINS
                ELSE
                   WRITE (ri_data%unit_nr, '(T4,A,ES11.3E3,T32,A,ES11.3E3,T63,A)') &
                      "CN : max/min ev: ", max_ev, " / ", min_ev, "Log(CN): infinity"
-               ENDIF
-            ENDIF
-         ENDIF
-      ENDIF
+               END IF
+            END IF
+         END IF
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE
@@ -628,7 +628,7 @@ CONTAINS
 
       IF (ri_data%check_2c_inv) THEN
          CALL check_inverse(t_2c_int_mat(1), t_2c_op_RI(1), unit_nr=unit_nr)
-      ENDIF
+      END IF
 
       !Need to save the (P|Q)^-1 tensor for forces (inverse metric if not same_op)
       CALL dbcsr_t_create(t_2c_int_mat(1), t_2c_work(1))
@@ -660,7 +660,7 @@ CONTAINS
          CALL dbcsr_release(t_2c_tmp(1))
          CALL dbcsr_release(t_2c_int_mat(1))
          t_2c_int_mat(1) = t_2c_tmp_2(1)
-      ENDIF
+      END IF
 
       CALL dbcsr_t_create(t_2c_int_mat(1), t_2c_int(1), name="(RI|RI)")
       CALL dbcsr_t_copy_matrix_to_tensor(t_2c_int_mat(1), t_2c_int(1))
@@ -713,11 +713,11 @@ CONTAINS
                                  memory_3c)
 
             CALL timestop(handle2)
-         ENDDO
+         END DO
          CALL dbcsr_t_batched_contract_finalize(ri_data%t_2c_int(1, 1))
          CALL dbcsr_t_batched_contract_finalize(ri_data%t_3c_int_ctr_3(1, 1))
          CALL dbcsr_t_batched_contract_finalize(t_3c_2)
-      ENDDO
+      END DO
 
       CALL mp_sum(memory_3c, para_env%group)
       compression_factor = REAL(nze_O, dp)*1.0E-06*8.0_dp/memory_3c
@@ -771,8 +771,8 @@ CONTAINS
          DO WHILE (blk_ind(end_ind + 1, 1) == irow)
             end_ind = end_ind + 1
             IF (end_ind + 1 > nblk) EXIT
-         ENDDO
-         ENDIF
+         END DO
+         END IF
 
          ncols = end_ind - start_ind + 1
          ALLOCATE (sort_2(ncols))
@@ -785,7 +785,7 @@ CONTAINS
          start_ind = end_ind + 1
 
          DEALLOCATE (sort_2, ind_2)
-      ENDDO
+      END DO
 
       ALLOCATE (blk_ind_tmp(nblk, 2))
       blk_ind_tmp = 0
@@ -795,11 +795,11 @@ CONTAINS
          IF (iblk >= 1) THEN
             IF (ALL(blk_ind_tmp(iblk, :) == blk_ind(iblk_all, :))) THEN
                CYCLE
-            ENDIF
-         ENDIF
+            END IF
+         END IF
          iblk = iblk + 1
          blk_ind_tmp(iblk, :) = blk_ind(iblk_all, :)
-      ENDDO
+      END DO
       nblk = iblk
 
       DEALLOCATE (blk_ind)
@@ -867,7 +867,7 @@ CONTAINS
             ALLOCATE (occupied_orbs(nspins))
             ALLOCATE (occupied_evals(nspins))
             ALLOCATE (homo_localized(nspins))
-         ENDIF
+         END IF
          DO ispin = 1, nspins
             NULLIFY (mo_coeff_b_tmp)
             mo_set => mos(ispin)%mo_set
@@ -880,15 +880,15 @@ CONTAINS
             ELSE
                IF (mo_set%use_mo_coeff_b) CALL copy_dbcsr_to_fm(mo_coeff_b_tmp, mo_coeff)
                CALL dbcsr_create(mo_coeff_b(ispin), template=mo_coeff_b_tmp)
-            ENDIF
+            END IF
 
             IF (ri_data%do_loc) THEN
                occupied_orbs(ispin)%matrix => mo_coeff
                occupied_evals(ispin)%array => mo_eigenvalues
                CALL cp_fm_create(homo_localized(ispin)%matrix, occupied_orbs(ispin)%matrix%matrix_struct)
                CALL cp_fm_to_fm(occupied_orbs(ispin)%matrix, homo_localized(ispin)%matrix)
-            ENDIF
-         ENDDO
+            END IF
+         END DO
 
          IF (ri_data%do_loc) THEN
             CALL qs_loc_env_create(ri_data%qs_loc_env)
@@ -897,25 +897,25 @@ CONTAINS
             DO ispin = 1, nspins
                CALL qs_loc_driver(qs_env, ri_data%qs_loc_env, ri_data%print_loc_subsection, ispin, &
                                   ext_mo_coeff=homo_localized(ispin)%matrix)
-            ENDDO
+            END DO
             CALL get_qs_loc_env(qs_loc_env=ri_data%qs_loc_env, moloc_coeff=moloc_coeff)
 
             DO ispin = 1, nspins
                CALL cp_fm_release(homo_localized(ispin)%matrix)
-            ENDDO
+            END DO
 
             DEALLOCATE (occupied_orbs, occupied_evals, homo_localized)
 
-         ENDIF
+         END IF
 
          DO ispin = 1, nspins
             mo_set => mos(ispin)%mo_set
             IF (ri_data%do_loc) THEN
                CALL copy_fm_to_dbcsr(moloc_coeff(ispin)%matrix, mo_coeff_b(ispin))
-            ENDIF
+            END IF
             CALL dbcsr_scale(mo_coeff_b(ispin), SQRT(mo_set%maxocc))
             homo(ispin) = mo_set%homo
-         ENDDO
+         END DO
 
          IF (ri_data%do_loc) CALL qs_loc_env_release(ri_data%qs_loc_env)
          CALL timestop(handle2)
@@ -931,8 +931,8 @@ CONTAINS
             CALL mp_sum(nblks, para_env%group)
             IF (nblks == 0) THEN
                CPABORT("received empty density matrix")
-            ENDIF
-         ENDDO
+            END IF
+         END DO
 
          CALL hfx_ri_update_ks_pmat(qs_env, ri_data, ks_matrix, rho_ao, &
                                     geometry_did_change, nspins)
@@ -941,12 +941,12 @@ CONTAINS
 
       DO ispin = 1, nspins
          CALL dbcsr_release(mo_coeff_b(ispin))
-      ENDDO
+      END DO
 
       DO ispin = 1, nspins
          CALL dbcsr_scale(ks_matrix(ispin, 1)%matrix, -fac)
          CALL dbcsr_filter(ks_matrix(ispin, 1)%matrix, ri_data%filter_eps)
-      ENDDO
+      END DO
 
       CALL timeset(routineN//"_energy", handle2)
       ! Calculate the exchange energy
@@ -956,7 +956,7 @@ CONTAINS
                         etmp)
          ehfx = ehfx + 0.5_dp*etmp
 
-      ENDDO
+      END DO
       CALL timestop(handle2)
 
       CALL timestop(handle)
@@ -1015,19 +1015,19 @@ CONTAINS
 
       IF (geometry_did_change) THEN
          CALL hfx_ri_pre_scf_mo(qs_env, ri_data, nspins)
-      ENDIF
+      END IF
 
       nblks = dbcsr_t_get_num_blocks_total(ri_data%t_3c_int_ctr_1(1, 1))
       IF (nblks == 0) THEN
          CPABORT("3-center integrals are not available (first call requires geometry_did_change=.TRUE.)")
-      ENDIF
+      END IF
 
       DO ispin = 1, nspins
          nblks = dbcsr_t_get_num_blocks_total(ri_data%t_2c_int(ispin, 1))
          IF (nblks == 0) THEN
             CPABORT("2-center integrals are not available (first call requires geometry_did_change=.TRUE.)")
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       IF (.NOT. ALLOCATED(ri_data%t_3c_int_mo)) THEN
          do_initialize = .TRUE.
@@ -1040,7 +1040,7 @@ CONTAINS
          ALLOCATE (ri_data%t_3c_ctr_KS_copy(nspins, 1, 1))
       ELSE
          do_initialize = .FALSE.
-      ENDIF
+      END IF
 
       CALL get_qs_env(qs_env, para_env=para_env)
 
@@ -1073,7 +1073,7 @@ CONTAINS
          DO i_mem = 1, n_mem
             bsize = SUM(mo_bsizes_2(mem_start_block_2(i_mem):mem_end_block_2(i_mem)))
             mem_size(i_mem) = bsize
-         ENDDO
+         END DO
 
          CALL split_block_sizes(mem_size, mo_bsizes_1, ri_data%max_bsize_MO)
          ALLOCATE (mem_start_block_1(n_mem))
@@ -1091,12 +1091,12 @@ CONTAINS
                      mem_start_block_1(i_mem) = 1
                   ELSE
                      mem_start_block_1(i_mem) = mem_end_block_1(i_mem - 1) + 1
-                  ENDIF
+                  END IF
                   mem_end_block_1(i_mem) = iblock
                   EXIT
-               ENDIF
-            ENDDO
-         ENDDO
+               END IF
+            END DO
+         END DO
 
          ALLOCATE (batch_ranges_1(ri_data%n_mem + 1))
          batch_ranges_1(:ri_data%n_mem) = mem_start_block_1(:)
@@ -1152,7 +1152,7 @@ CONTAINS
 
             CALL dbcsr_t_create(ri_data%t_3c_int_mo(ispin, 1, 1), ri_data%t_3c_ctr_RI(ispin, 1, 1), name="(RI | MO AO)")
             CALL dbcsr_t_create(ri_data%t_3c_ctr_KS(ispin, 1, 1), ri_data%t_3c_ctr_KS_copy(ispin, 1, 1))
-         ENDIF
+         END IF
 
          CALL dbcsr_t_create(mo_coeff(ispin), mo_coeff_t, name="MO coeffs")
          CALL dbcsr_t_copy_matrix_to_tensor(mo_coeff(ispin), mo_coeff_t)
@@ -1264,7 +1264,7 @@ CONTAINS
             ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
 
             CALL timestop(handle2)
-         ENDDO
+         END DO
 
          CALL dbcsr_t_batched_contract_finalize(ks_t)
          CALL dbcsr_t_batched_contract_finalize(ri_data%t_3c_ctr_KS(ispin, 1, 1))
@@ -1290,7 +1290,7 @@ CONTAINS
          DEALLOCATE (mem_end, mem_start, mo_bsizes_2, mem_size, mem_start_block_1, mem_end_block_1, &
                      mem_start_block_2, mem_end_block_2, batch_ranges_1, batch_ranges_2)
 
-      ENDDO
+      END DO
 
       CALL dbcsr_t_pgrid_destroy(pgrid_2d)
       CALL dbcsr_t_destroy(ks_t)
@@ -1358,12 +1358,12 @@ CONTAINS
 
       IF (geometry_did_change) THEN
          CALL hfx_ri_pre_scf_Pmat(qs_env, ri_data)
-      ENDIF
+      END IF
 
       nblks = dbcsr_t_get_num_blocks_total(ri_data%t_3c_int_ctr_2(1, 1))
       IF (nblks == 0) THEN
          CPABORT("3-center integrals are not available (first call requires geometry_did_change=.TRUE.)")
-      ENDIF
+      END IF
 
       n_mem = ri_data%n_mem
 
@@ -1485,18 +1485,18 @@ CONTAINS
 
                ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
 
-            ENDDO
+            END DO
             CALL dbcsr_t_batched_contract_finalize(rho_ao_t, unit_nr=unit_nr_dbcsr)
             CALL dbcsr_t_batched_contract_finalize(ri_data%t_3c_int_ctr_2(1, 1))
             CALL dbcsr_t_batched_contract_finalize(t_3c_1)
-         ENDDO
+         END DO
          CALL dbcsr_t_batched_contract_finalize(ks_t, unit_nr=unit_nr_dbcsr)
          CALL dbcsr_t_batched_contract_finalize(ri_data%t_3c_int_ctr_1(1, 1))
          CALL dbcsr_t_batched_contract_finalize(t_3c_3)
 
          DO i_mem = 1, n_mem
             DO j_mem = 1, n_mem
-               ASSOCIATE (blk_indices=>ri_data%blk_indices(i_mem, j_mem), t_3c=>ri_data%t_3c_int_ctr_1(1, 1))
+               ASSOCIATE (blk_indices => ri_data%blk_indices(i_mem, j_mem), t_3c => ri_data%t_3c_int_ctr_1(1, 1))
                   CALL decompress_tensor(tensor_old, blk_indices%ind, &
                                          ri_data%store_3c(i_mem, j_mem), ri_data%filter_eps_storage)
                   CALL dbcsr_t_copy(tensor_old, t_3c, move_data=.TRUE.)
@@ -1510,8 +1510,8 @@ CONTAINS
                   CALL compress_tensor(t_3c, ri_data%store_3c(i_mem, j_mem), ri_data%filter_eps_storage, &
                                        unused)
                END ASSOCIATE
-            ENDDO
-         ENDDO
+            END DO
+         END DO
 
          CALL dbcsr_t_destroy(tensor_old)
 
@@ -1534,9 +1534,9 @@ CONTAINS
                'Occupancy after contraction with P:', REAL(nze_3c_1, dp), '/', occ_3c_1*100, '%'
             WRITE (unit_nr, '(T6,A,T63,ES7.1,1X,A1,1X,F7.3,A1)') &
                'Occupancy of Kohn-Sham matrix:', REAL(nze_ks, dp), '/', occ_ks*100, '%'
-         ENDIF
+         END IF
 
-      ENDDO
+      END DO
 
       CALL mp_sync(para_env%group)
       t2 = m_walltime()
@@ -2773,7 +2773,7 @@ CONTAINS
             ALLOCATE (occupied_orbs(nspins))
             ALLOCATE (occupied_evals(nspins))
             ALLOCATE (homo_localized(nspins))
-         ENDIF
+         END IF
          DO ispin = 1, nspins
             NULLIFY (mo_coeff_b_tmp)
             mo_set => mos(ispin)%mo_set
@@ -2786,15 +2786,15 @@ CONTAINS
             ELSE
                IF (mo_set%use_mo_coeff_b) CALL copy_dbcsr_to_fm(mo_coeff_b_tmp, mo_coeff)
                CALL dbcsr_create(mo_coeff_b(ispin), template=mo_coeff_b_tmp)
-            ENDIF
+            END IF
 
             IF (ri_data%do_loc) THEN
                occupied_orbs(ispin)%matrix => mo_coeff
                occupied_evals(ispin)%array => mo_eigenvalues
                CALL cp_fm_create(homo_localized(ispin)%matrix, occupied_orbs(ispin)%matrix%matrix_struct)
                CALL cp_fm_to_fm(occupied_orbs(ispin)%matrix, homo_localized(ispin)%matrix)
-            ENDIF
-         ENDDO
+            END IF
+         END DO
 
          IF (ri_data%do_loc) THEN
             CALL qs_loc_env_create(ri_data%qs_loc_env)
@@ -2803,25 +2803,25 @@ CONTAINS
             DO ispin = 1, nspins
                CALL qs_loc_driver(qs_env, ri_data%qs_loc_env, ri_data%print_loc_subsection, ispin, &
                                   ext_mo_coeff=homo_localized(ispin)%matrix)
-            ENDDO
+            END DO
             CALL get_qs_loc_env(qs_loc_env=ri_data%qs_loc_env, moloc_coeff=moloc_coeff)
 
             DO ispin = 1, nspins
                CALL cp_fm_release(homo_localized(ispin)%matrix)
-            ENDDO
+            END DO
 
             DEALLOCATE (occupied_orbs, occupied_evals, homo_localized)
 
-         ENDIF
+         END IF
 
          DO ispin = 1, nspins
             mo_set => mos(ispin)%mo_set
             IF (ri_data%do_loc) THEN
                CALL copy_fm_to_dbcsr(moloc_coeff(ispin)%matrix, mo_coeff_b(ispin))
-            ENDIF
+            END IF
             CALL dbcsr_scale(mo_coeff_b(ispin), SQRT(mo_set%maxocc))
             homo(ispin) = mo_set%homo
-         ENDDO
+         END DO
 
          IF (ri_data%do_loc) CALL qs_loc_env_release(ri_data%qs_loc_env)
 
@@ -2901,7 +2901,7 @@ CONTAINS
       DO ibasis = 1, SIZE(basis_set_AO)
          orb_basis => basis_set_AO(ibasis)%gto_basis_set
          CALL init_interaction_radii_orb_basis(orb_basis, ri_data%eps_pgf_orb)
-      ENDDO
+      END DO
 
       !Dealing with the 3c derivatives
       CALL create_3c_tensor(t_3c_template, dist_RI, dist_AO_1, dist_AO_2, ri_data%pgrid, &

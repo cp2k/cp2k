@@ -5,15 +5,15 @@
 #!   SPDX-License-Identifier: GPL-2.0-or-later                                                     !
 #!-------------------------------------------------------------------------------------------------!
 #:mute
-#:set nametype1 = ['i', 'l', 'd', 'r', 'z', 'c']
-#:set type1 = ['INTEGER(KIND=int_4)', 'INTEGER(KIND=int_8)', 'REAL(kind=real_8)', 'REAL(kind=real_4)', 'COMPLEX(kind=real_8)', 'COMPLEX(kind=real_4)']
-#:set mpi_type1 = ['MPI_INTEGER', 'MPI_INTEGER8', 'MPI_DOUBLE_PRECISION', 'MPI_REAL', 'MPI_DOUBLE_COMPLEX', 'MPI_COMPLEX']
-#:set mpi_2type1 = ['MPI_2INTEGER', 'MPI_INTEGER8', 'MPI_2DOUBLE_PRECISION', 'MPI_2REAL', 'MPI_2DOUBLE_COMPLEX', 'MPI_2COMPLEX']
-#:set kind1 = ['int_4', 'int_8', 'real_8', 'real_4', 'real_8', 'real_4']
-#:set bytes1 = ['int_4_size','int_8_size','real_8_size','real_4_size','(2*real_8_size)','(2*real_4_size)']
-#:set handle1 = ['17', '19', '3', '1', '7', '5']
-#:set zero1 = ['0_int_4', '0_int_8', '0.0_real_8', '0.0_real_4', 'CMPLX(0.0, 0.0, real_8)', 'CMPLX(0.0, 0.0, real_4)']
-#:set one1 = ['1_int_4', '1_int_8', '1.0_real_8', '1.0_real_4', 'CMPLX(1.0, 0.0, real_8)', 'CMPLX(1.0, 0.0, real_4)']
+   #:set nametype1 = ['i', 'l', 'd', 'r', 'z', 'c']
+   #:set type1 = ['INTEGER(KIND=int_4)', 'INTEGER(KIND=int_8)', 'REAL(kind=real_8)', 'REAL(kind=real_4)', 'COMPLEX(kind=real_8)', 'COMPLEX(kind=real_4)']
+   #:set mpi_type1 = ['MPI_INTEGER', 'MPI_INTEGER8', 'MPI_DOUBLE_PRECISION', 'MPI_REAL', 'MPI_DOUBLE_COMPLEX', 'MPI_COMPLEX']
+   #:set mpi_2type1 = ['MPI_2INTEGER', 'MPI_INTEGER8', 'MPI_2DOUBLE_PRECISION', 'MPI_2REAL', 'MPI_2DOUBLE_COMPLEX', 'MPI_2COMPLEX']
+   #:set kind1 = ['int_4', 'int_8', 'real_8', 'real_4', 'real_8', 'real_4']
+   #:set bytes1 = ['int_4_size','int_8_size','real_8_size','real_4_size','(2*real_8_size)','(2*real_4_size)']
+   #:set handle1 = ['17', '19', '3', '1', '7', '5']
+   #:set zero1 = ['0_int_4', '0_int_8', '0.0_real_8', '0.0_real_4', 'CMPLX(0.0, 0.0, real_8)', 'CMPLX(0.0, 0.0, real_4)']
+   #:set one1 = ['1_int_4', '1_int_8', '1.0_real_8', '1.0_real_4', 'CMPLX(1.0, 0.0, real_8)', 'CMPLX(1.0, 0.0, real_4)']
 
-#:set inst_params = list(zip(nametype1, type1, mpi_type1, mpi_2type1, kind1, bytes1, handle1, zero1, one1))
+   #:set inst_params = list(zip(nametype1, type1, mpi_type1, mpi_2type1, kind1, bytes1, handle1, zero1, one1))
 #:endmute

@@ -5,7 +5,7 @@
 #!   SPDX-License-Identifier: GPL-2.0-or-later                                                     !
 #!-------------------------------------------------------------------------------------------------!
 #:mute
-#:def hash_map(prefix, key_type, value_type)
+   #:def hash_map(prefix, key_type, value_type)
 ! **************************************************************************************************
 !> \brief A hash map (also known as hashtable or dictionary).
 !>        Internally the hash map uses an array to holds its data.
@@ -18,50 +18,50 @@
 !> \author Ole Schuett
 ! ***************************************************************************************************
 
-PUBLIC :: ${prefix}$_init
-PUBLIC :: ${prefix}$_items
-PUBLIC :: ${prefix}$_haskey
-PUBLIC :: ${prefix}$_set
-PUBLIC :: ${prefix}$_get
-PUBLIC :: ${prefix}$_size
-PUBLIC :: ${prefix}$_destroy
-PUBLIC :: ${prefix}$_type
-PUBLIC :: ${prefix}$_item_type
+      PUBLIC :: ${prefix}$_init
+      PUBLIC :: ${prefix}$_items
+      PUBLIC :: ${prefix}$_haskey
+      PUBLIC :: ${prefix}$_set
+      PUBLIC :: ${prefix}$_get
+      PUBLIC :: ${prefix}$_size
+      PUBLIC :: ${prefix}$_destroy
+      PUBLIC :: ${prefix}$_type
+      PUBLIC :: ${prefix}$_item_type
 
 !this is an internal type
 !Calculating hashes might be expensive, therefore they are stored
 !for use during change_capacity().
-TYPE private_item_type
-   PRIVATE
-   ${key_type}$                                :: key
-   ${value_type}$                              :: value
-   INTEGER(KIND=int_8)                         :: hash
-   TYPE(private_item_type), POINTER            :: next => Null()
-END TYPE private_item_type
+      TYPE private_item_type
+         PRIVATE
+         ${key_type}$                                :: key
+         ${value_type}$                              :: value
+         INTEGER(KIND=int_8)                         :: hash
+         TYPE(private_item_type), POINTER            :: next => Null()
+      END TYPE private_item_type
 
 !this is an internal type
-TYPE private_item_p_type
-   PRIVATE
-   TYPE(private_item_type), POINTER           :: p => Null()
-END TYPE private_item_p_type
+      TYPE private_item_p_type
+         PRIVATE
+         TYPE(private_item_type), POINTER           :: p => Null()
+      END TYPE private_item_p_type
 
 ! this is the public type, which holds a hash map instance
-TYPE ${prefix}$_type
-   PRIVATE
-   TYPE(private_item_p_type), DIMENSION(:), POINTER      :: buckets => Null()
-   INTEGER                                               :: size = -1
-END TYPE ${prefix}$_type
+      TYPE ${prefix}$_type
+         PRIVATE
+         TYPE(private_item_p_type), DIMENSION(:), POINTER      :: buckets => Null()
+         INTEGER                                               :: size = -1
+      END TYPE ${prefix}$_type
 
 ! this is a public type, its returned by  ${prefix}$_items()
-TYPE ${prefix}$_item_type
-   ${key_type}$        :: key
-   ${value_type}$      :: value
-END TYPE ${prefix}$_item_type
+      TYPE ${prefix}$_item_type
+         ${key_type}$        :: key
+         ${value_type}$      :: value
+      END TYPE ${prefix}$_item_type
 
-CONTAINS
+      CONTAINS
 
-#:set key_assign = "=>" if 'POINTER' in key_type.upper() else "="
-#:set value_assign = "=>" if 'POINTER' in value_type.upper() else "="
+      #:set key_assign = "=>" if 'POINTER' in key_type.upper() else "="
+      #:set value_assign = "=>" if 'POINTER' in value_type.upper() else "="
 
 ! **************************************************************************************************
 !> \brief Allocates the internal data-structures of the given hash map.
@@ -69,28 +69,28 @@ CONTAINS
 !> \param initial_capacity The initial size of the internal array (default=11).
 !> \author Ole Schuett
 ! **************************************************************************************************
-SUBROUTINE ${prefix}$_init(hash_map, initial_capacity)
-   TYPE(${prefix}$_type), INTENT(inout)                 :: hash_map
-   INTEGER, INTENT(in), OPTIONAL                             :: initial_capacity
+      SUBROUTINE ${prefix}$_init(hash_map, initial_capacity)
+         TYPE(${prefix}$_type), INTENT(inout)                 :: hash_map
+         INTEGER, INTENT(in), OPTIONAL                             :: initial_capacity
 
-   INTEGER :: initial_capacity_
+         INTEGER :: initial_capacity_
 
-   IF (PRESENT(initial_capacity)) THEN
-      initial_capacity_ = initial_capacity
-   ELSE
-      initial_capacity_ = 11
-   ENDIF
+         IF (PRESENT(initial_capacity)) THEN
+            initial_capacity_ = initial_capacity
+         ELSE
+            initial_capacity_ = 11
+         END IF
 
-   IF (initial_capacity_ < 1) &
-      CPABORT("initial_capacity < 1")
+         IF (initial_capacity_ < 1) &
+            CPABORT("initial_capacity < 1")
 
-   IF (ASSOCIATED(hash_map%buckets)) &
-      CPABORT("hash map is already initialized.")
+         IF (ASSOCIATED(hash_map%buckets)) &
+            CPABORT("hash map is already initialized.")
 
-   ALLOCATE (hash_map%buckets(initial_capacity_))
-   hash_map%size = 0
+         ALLOCATE (hash_map%buckets(initial_capacity_))
+         hash_map%size = 0
 
-END SUBROUTINE ${prefix}$_init
+      END SUBROUTINE ${prefix}$_init
 
 ! **************************************************************************************************
 !> \brief Test if the given hash map has been initialized.
@@ -98,11 +98,11 @@ END SUBROUTINE ${prefix}$_init
 !> \return ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-FUNCTION ${prefix}$_isready(hash_map) RESULT(res)
-   TYPE(${prefix}$_type), INTENT(inout)             :: hash_map
-   LOGICAL                                               :: res
-   res = ASSOCIATED(hash_map%buckets)
-END FUNCTION ${prefix}$_isready
+      FUNCTION ${prefix}$_isready(hash_map) RESULT(res)
+         TYPE(${prefix}$_type), INTENT(inout)             :: hash_map
+         LOGICAL                                               :: res
+         res = ASSOCIATED(hash_map%buckets)
+      END FUNCTION ${prefix}$_isready
 
 ! **************************************************************************************************
 !> \brief Deallocated the internal data-structures if the given hash map.
@@ -111,25 +111,25 @@ END FUNCTION ${prefix}$_isready
 !> \param hash_map ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-SUBROUTINE ${prefix}$_destroy(hash_map)
-   TYPE(${prefix}$_type), INTENT(inout)  :: hash_map
-   TYPE(private_item_type), POINTER           :: item, prev_item
-   INTEGER :: i
+      SUBROUTINE ${prefix}$_destroy(hash_map)
+         TYPE(${prefix}$_type), INTENT(inout)  :: hash_map
+         TYPE(private_item_type), POINTER           :: item, prev_item
+         INTEGER :: i
 
-   CPASSERT(ASSOCIATED(hash_map%buckets))
+         CPASSERT(ASSOCIATED(hash_map%buckets))
 
-   DO i = 1, size(hash_map%buckets)
-      item => hash_map%buckets(i)%p
-      DO WHILE (ASSOCIATED(item))
-         prev_item => item
-         item => item%next
-         DEALLOCATE (prev_item)
-      END DO
-   END DO
+         DO i = 1, size(hash_map%buckets)
+            item => hash_map%buckets(i)%p
+            DO WHILE (ASSOCIATED(item))
+               prev_item => item
+               item => item%next
+               DEALLOCATE (prev_item)
+            END DO
+         END DO
 
-   DEALLOCATE (hash_map%buckets)
-   hash_map%size = -1
-END SUBROUTINE ${prefix}$_destroy
+         DEALLOCATE (hash_map%buckets)
+         hash_map%size = -1
+      END SUBROUTINE ${prefix}$_destroy
 
 ! **************************************************************************************************
 !> \brief Stores, and possibly overwrites, a given value under a given key.
@@ -138,16 +138,16 @@ END SUBROUTINE ${prefix}$_destroy
 !> \param value ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-SUBROUTINE ${prefix}$_set(hash_map, key, value)
-   TYPE(${prefix}$_type), INTENT(inout)             :: hash_map
-   ${key_type}$, INTENT(in)                            :: key
-   ${value_type}$, INTENT(in)                            :: value
-   INTEGER(KIND=int_8)                                   :: hash
-   CPASSERT(ASSOCIATED(hash_map%buckets))
+      SUBROUTINE ${prefix}$_set(hash_map, key, value)
+         TYPE(${prefix}$_type), INTENT(inout)             :: hash_map
+         ${key_type}$, INTENT(in)                            :: key
+         ${value_type}$, INTENT(in)                            :: value
+         INTEGER(KIND=int_8)                                   :: hash
+         CPASSERT(ASSOCIATED(hash_map%buckets))
 
-   hash = ${prefix}$_hash_function(key)
-   CALL ${prefix}$_set_hashed(hash_map, key, value, hash)
-END SUBROUTINE ${prefix}$_set
+         hash = ${prefix}$_hash_function(key)
+         CALL ${prefix}$_set_hashed(hash_map, key, value, hash)
+      END SUBROUTINE ${prefix}$_set
 
 ! **************************************************************************************************
 !> \brief Common code used internally by ${prefix}$_set() and ${prefix}$_change_capacity().
@@ -157,44 +157,44 @@ END SUBROUTINE ${prefix}$_set
 !> \param hash ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-RECURSIVE SUBROUTINE ${prefix}$_set_hashed(hash_map, key, value, hash)
-   TYPE(${prefix}$_type), INTENT(inout)               :: hash_map
-   ${key_type}$, intent(in)                              :: key
-   ${value_type}$, intent(in)                              :: value
-   INTEGER(KIND=int_8), intent(in)                         :: hash
-   TYPE(private_item_type), POINTER                        :: item, new_item
-   INTEGER(KIND=int_8)                                     :: idx
+      RECURSIVE SUBROUTINE ${prefix}$_set_hashed(hash_map, key, value, hash)
+         TYPE(${prefix}$_type), INTENT(inout)               :: hash_map
+         ${key_type}$, intent(in)                              :: key
+         ${value_type}$, intent(in)                              :: value
+         INTEGER(KIND=int_8), intent(in)                         :: hash
+         TYPE(private_item_type), POINTER                        :: item, new_item
+         INTEGER(KIND=int_8)                                     :: idx
 
-   idx = MOD(hash, INT(size(hash_map%buckets), KIND=int_8)) + 1
+         idx = MOD(hash, INT(size(hash_map%buckets), KIND=int_8)) + 1
 
-   ! if already in hash map just update its value
-   item => hash_map%buckets(idx)%p
-   DO WHILE (ASSOCIATED(item))
-      IF (item%hash == hash) THEN
-         IF (${prefix}$_keys_equal(item%key, key)) THEN
-            item%value ${value_assign}$value
-            RETURN
+         ! if already in hash map just update its value
+         item => hash_map%buckets(idx)%p
+         DO WHILE (ASSOCIATED(item))
+            IF (item%hash == hash) THEN
+               IF (${prefix}$_keys_equal(item%key, key)) THEN
+                  item%value ${value_assign}$value
+                  RETURN
+               END IF
+            END IF
+            item => item%next
+         END DO
+
+         ! check load-factor
+         IF (4*hash_map%size > 3*size(hash_map%buckets)) THEN ! load-factor > 75%
+            call ${prefix}$_change_capacity(hash_map, 2*size(hash_map%buckets)) !double capacity
+            idx = MOD(hash, INT(size(hash_map%buckets), KIND=int_8)) + 1
          END IF
-      END IF
-      item => item%next
-   END DO
 
-   ! check load-factor
-   IF (4*hash_map%size > 3*size(hash_map%buckets)) THEN ! load-factor > 75%
-      call ${prefix}$_change_capacity(hash_map, 2*size(hash_map%buckets)) !double capacity
-      idx = MOD(hash, INT(size(hash_map%buckets), KIND=int_8)) + 1
-   END IF
+         ! create a new item
+         allocate (new_item)
+         new_item%hash = hash
+         new_item%key ${key_assign}$key
+         new_item%value ${value_assign}$value
+         new_item%next => hash_map%buckets(idx)%p
+         hash_map%buckets(idx)%p => new_item
+         hash_map%size = hash_map%size + 1
 
-   ! create a new item
-   allocate (new_item)
-   new_item%hash = hash
-   new_item%key ${key_assign}$key
-   new_item%value ${value_assign}$value
-   new_item%next => hash_map%buckets(idx)%p
-   hash_map%buckets(idx)%p => new_item
-   hash_map%size = hash_map%size + 1
-
-END SUBROUTINE ${prefix}$_set_hashed
+      END SUBROUTINE ${prefix}$_set_hashed
 
 ! **************************************************************************************************
 !> \brief Internal routine for changing the hash map's capacity.
@@ -202,39 +202,39 @@ END SUBROUTINE ${prefix}$_set_hashed
 !> \param new_capacity ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-RECURSIVE SUBROUTINE ${prefix}$_change_capacity(hash_map, new_capacity)
-   TYPE(${prefix}$_type), INTENT(inout)         :: hash_map
-   INTEGER, INTENT(in)                               :: new_capacity
-   INTEGER                                           :: i, old_size, new_cap
-   TYPE(private_item_type), POINTER                  :: item, prev_item
-   TYPE(private_item_p_type), DIMENSION(:), POINTER  :: old_buckets
-   new_cap = new_capacity
-   ! pre checks
-   IF (new_cap > HUGE(i)) THEN
-      IF (size(hash_map%buckets) == HUGE(i)) RETURN ! reached maximum - stay there.
-      new_cap = HUGE(i) ! grow as far as possible
-   END IF
-   CPASSERT(new_cap >= 1)
-   CPASSERT(4*hash_map%size < 3*new_cap)
+      RECURSIVE SUBROUTINE ${prefix}$_change_capacity(hash_map, new_capacity)
+         TYPE(${prefix}$_type), INTENT(inout)         :: hash_map
+         INTEGER, INTENT(in)                               :: new_capacity
+         INTEGER                                           :: i, old_size, new_cap
+         TYPE(private_item_type), POINTER                  :: item, prev_item
+         TYPE(private_item_p_type), DIMENSION(:), POINTER  :: old_buckets
+         new_cap = new_capacity
+         ! pre checks
+         IF (new_cap > HUGE(i)) THEN
+            IF (size(hash_map%buckets) == HUGE(i)) RETURN ! reached maximum - stay there.
+            new_cap = HUGE(i) ! grow as far as possible
+         END IF
+         CPASSERT(new_cap >= 1)
+         CPASSERT(4*hash_map%size < 3*new_cap)
 
-   old_size = hash_map%size
-   old_buckets => hash_map%buckets
-   ALLOCATE (hash_map%buckets(new_capacity))
-   hash_map%size = 0
-   DO i = 1, size(old_buckets)
-      item => old_buckets(i)%p
-      DO WHILE (ASSOCIATED(item))
-         CALL ${prefix}$_set_hashed(hash_map, item%key, item%value, item%hash)
-         prev_item => item
-         item => item%next
-         DEALLOCATE (prev_item)
-      END DO
-   END DO
+         old_size = hash_map%size
+         old_buckets => hash_map%buckets
+         ALLOCATE (hash_map%buckets(new_capacity))
+         hash_map%size = 0
+         DO i = 1, size(old_buckets)
+            item => old_buckets(i)%p
+            DO WHILE (ASSOCIATED(item))
+               CALL ${prefix}$_set_hashed(hash_map, item%key, item%value, item%hash)
+               prev_item => item
+               item => item%next
+               DEALLOCATE (prev_item)
+            END DO
+         END DO
 
-   DEALLOCATE (old_buckets)
+         DEALLOCATE (old_buckets)
 
-   CPASSERT(old_size == hash_map%size)
-END SUBROUTINE ${prefix}$_change_capacity
+         CPASSERT(old_size == hash_map%size)
+      END SUBROUTINE ${prefix}$_change_capacity
 
 ! **************************************************************************************************
 !> \brief Gets a value for a given key from the hash map.
@@ -246,37 +246,37 @@ END SUBROUTINE ${prefix}$_change_capacity
 !> \return ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-FUNCTION ${prefix}$_get(hash_map, key, default_value) RESULT(value)
-   TYPE(${prefix}$_type), INTENT(in)              :: hash_map
-   ${key_type}$, INTENT(in)                            :: key
-   ${value_type}$, INTENT(in), OPTIONAL                :: default_value
-   ${value_type}$                                      :: value
-   TYPE(private_item_type), POINTER                    :: item
-   INTEGER(KIND=int_8)                                 :: hash, idx
+      FUNCTION ${prefix}$_get(hash_map, key, default_value) RESULT(value)
+         TYPE(${prefix}$_type), INTENT(in)              :: hash_map
+         ${key_type}$, INTENT(in)                            :: key
+         ${value_type}$, INTENT(in), OPTIONAL                :: default_value
+         ${value_type}$                                      :: value
+         TYPE(private_item_type), POINTER                    :: item
+         INTEGER(KIND=int_8)                                 :: hash, idx
 
-   CPASSERT(ASSOCIATED(hash_map%buckets))
+         CPASSERT(ASSOCIATED(hash_map%buckets))
 
-   hash = ${prefix}$_hash_function(key)
-   idx = MOD(hash, INT(size(hash_map%buckets), KIND=int_8)) + 1
+         hash = ${prefix}$_hash_function(key)
+         idx = MOD(hash, INT(size(hash_map%buckets), KIND=int_8)) + 1
 
-   item => hash_map%buckets(idx)%p
-   DO WHILE (ASSOCIATED(item))
-      IF (item%hash == hash) THEN
-         IF (${prefix}$_keys_equal(item%key, key)) THEN
-            value ${value_assign}$item%value
+         item => hash_map%buckets(idx)%p
+         DO WHILE (ASSOCIATED(item))
+            IF (item%hash == hash) THEN
+               IF (${prefix}$_keys_equal(item%key, key)) THEN
+                  value ${value_assign}$item%value
+                  RETURN
+               END IF
+            END IF
+            item => item%next
+         END DO
+
+         IF (PRESENT(default_value)) THEN
+            value ${value_assign}$default_value
             RETURN
          END IF
-      END IF
-      item => item%next
-   END DO
 
-   IF (PRESENT(default_value)) THEN
-      value ${value_assign}$default_value
-      RETURN
-   END IF
-
-   CPABORT("Key not found.")
-END FUNCTION ${prefix}$_get
+         CPABORT("Key not found.")
+      END FUNCTION ${prefix}$_get
 
 ! **************************************************************************************************
 !> \brief Remove the value for a given key from the hash map.
@@ -285,38 +285,38 @@ END FUNCTION ${prefix}$_get
 !> \param key ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-SUBROUTINE ${prefix}$_del(hash_map, key)
-   TYPE(${prefix}$_type), INTENT(inout)               :: hash_map
-   ${key_type}$, INTENT(in)                                :: key
-   TYPE(private_item_type), POINTER                        :: item, prev_item
-   INTEGER(KIND=int_8)                                     :: hash, idx
+      SUBROUTINE ${prefix}$_del(hash_map, key)
+         TYPE(${prefix}$_type), INTENT(inout)               :: hash_map
+         ${key_type}$, INTENT(in)                                :: key
+         TYPE(private_item_type), POINTER                        :: item, prev_item
+         INTEGER(KIND=int_8)                                     :: hash, idx
 
-   CPASSERT(ASSOCIATED(hash_map%buckets))
+         CPASSERT(ASSOCIATED(hash_map%buckets))
 
-   hash = ${prefix}$_hash_function(key)
-   idx = MOD(hash, INT(size(hash_map%buckets), KIND=int_8)) + 1
+         hash = ${prefix}$_hash_function(key)
+         idx = MOD(hash, INT(size(hash_map%buckets), KIND=int_8)) + 1
 
-   item => hash_map%buckets(idx)%p
-   prev_item => Null()
-   DO WHILE (ASSOCIATED(item))
-      IF (item%hash == hash) THEN
-         IF (${prefix}$_keys_equal(item%key, key)) THEN
-            IF (ASSOCIATED(prev_item)) THEN
-               prev_item%next => item%next
-            ELSE
-               hash_map%buckets(idx)%p => item%next
+         item => hash_map%buckets(idx)%p
+         prev_item => Null()
+         DO WHILE (ASSOCIATED(item))
+            IF (item%hash == hash) THEN
+               IF (${prefix}$_keys_equal(item%key, key)) THEN
+                  IF (ASSOCIATED(prev_item)) THEN
+                     prev_item%next => item%next
+                  ELSE
+                     hash_map%buckets(idx)%p => item%next
+                  END IF
+                  DEALLOCATE (item)
+                  hash_map%size = hash_map%size - 1
+                  RETURN
+               END IF
             END IF
-            DEALLOCATE (item)
-            hash_map%size = hash_map%size - 1
-            RETURN
-         END IF
-      END IF
-      prev_item => item
-      item => item%next
-   END DO
+            prev_item => item
+            item => item%next
+         END DO
 
-   CPABORT("Key not found.")
-END SUBROUTINE ${prefix}$_del
+         CPABORT("Key not found.")
+      END SUBROUTINE ${prefix}$_del
 
 ! **************************************************************************************************
 !> \brief Returns the number of key/value-items currently stored in the hash map.
@@ -324,13 +324,13 @@ END SUBROUTINE ${prefix}$_del
 !> \return ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-FUNCTION ${prefix}$_size(hash_map) RESULT(size)
-   TYPE(${prefix}$_type), INTENT(IN)  :: hash_map
-   INTEGER                                 :: size
+      FUNCTION ${prefix}$_size(hash_map) RESULT(size)
+         TYPE(${prefix}$_type), INTENT(IN)  :: hash_map
+         INTEGER                                 :: size
 
-   CPASSERT(ASSOCIATED(hash_map%buckets))
-   size = hash_map%size
-END FUNCTION ${prefix}$_size
+         CPASSERT(ASSOCIATED(hash_map%buckets))
+         size = hash_map%size
+      END FUNCTION ${prefix}$_size
 
 ! **************************************************************************************************
 !> \brief Checks whether a given key is currently stored in the hash_map.
@@ -339,33 +339,33 @@ END FUNCTION ${prefix}$_size
 !> \return ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-FUNCTION ${prefix}$_haskey(hash_map, key) RESULT(res)
-   TYPE(${prefix}$_type), INTENT(IN)                :: hash_map
-   ${key_type}$, INTENT(IN)                              :: key
-   LOGICAL                                               :: res
-   TYPE(private_item_type), POINTER                      :: item
-   INTEGER(KIND=int_8)                                   :: hash, idx
+      FUNCTION ${prefix}$_haskey(hash_map, key) RESULT(res)
+         TYPE(${prefix}$_type), INTENT(IN)                :: hash_map
+         ${key_type}$, INTENT(IN)                              :: key
+         LOGICAL                                               :: res
+         TYPE(private_item_type), POINTER                      :: item
+         INTEGER(KIND=int_8)                                   :: hash, idx
 
-   CPASSERT(ASSOCIATED(hash_map%buckets))
+         CPASSERT(ASSOCIATED(hash_map%buckets))
 
-   res = .FALSE.
-   IF (hash_map%size == 0) RETURN
+         res = .FALSE.
+         IF (hash_map%size == 0) RETURN
 
-   hash = ${prefix}$_hash_function(key)
-   idx = MOD(hash, INT(size(hash_map%buckets), KIND=int_8)) + 1
+         hash = ${prefix}$_hash_function(key)
+         idx = MOD(hash, INT(size(hash_map%buckets), KIND=int_8)) + 1
 
-   item => hash_map%buckets(idx)%p
-   DO WHILE (ASSOCIATED(item))
-      IF (item%hash == hash) THEN
-         IF (${prefix}$_keys_equal(item%key, key)) THEN
-            res = .TRUE.
-            return
-         END IF
-      END IF
-      item => item%next
-   END DO
+         item => hash_map%buckets(idx)%p
+         DO WHILE (ASSOCIATED(item))
+            IF (item%hash == hash) THEN
+               IF (${prefix}$_keys_equal(item%key, key)) THEN
+                  res = .TRUE.
+                  return
+               END IF
+            END IF
+            item => item%next
+         END DO
 
-END FUNCTION ${prefix}$_haskey
+      END FUNCTION ${prefix}$_haskey
 
 ! **************************************************************************************************
 !> \brief Returns a pointer to an array of all key/value-items stored in the hash map.
@@ -374,29 +374,29 @@ END FUNCTION ${prefix}$_haskey
 !> \return ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-FUNCTION ${prefix}$_items(hash_map) RESULT(items)
-   TYPE(${prefix}$_type), INTENT(IN)                 :: hash_map
-   TYPE(${prefix}$_item_type), DIMENSION(:), POINTER :: items
+      FUNCTION ${prefix}$_items(hash_map) RESULT(items)
+         TYPE(${prefix}$_type), INTENT(IN)                 :: hash_map
+         TYPE(${prefix}$_item_type), DIMENSION(:), POINTER :: items
 
-   TYPE(private_item_type), POINTER  :: item
-   INTEGER :: i, j
+         TYPE(private_item_type), POINTER  :: item
+         INTEGER :: i, j
 
-   CPASSERT(ASSOCIATED(hash_map%buckets))
+         CPASSERT(ASSOCIATED(hash_map%buckets))
 
-   ALLOCATE (items(hash_map%size))
-   j = 1
-   DO i = 1, size(hash_map%buckets)
-      item => hash_map%buckets(i)%p
-      DO WHILE (ASSOCIATED(item))
-         items(j)%key ${key_assign}$item%key
-         items(j)%value ${value_assign}$item%value
-         j = j + 1
-         item => item%next
-      END DO
-   END DO
+         ALLOCATE (items(hash_map%size))
+         j = 1
+         DO i = 1, size(hash_map%buckets)
+            item => hash_map%buckets(i)%p
+            DO WHILE (ASSOCIATED(item))
+               items(j)%key ${key_assign}$item%key
+               items(j)%value ${value_assign}$item%value
+               j = j + 1
+               item => item%next
+            END DO
+         END DO
 
-   CPASSERT(j == hash_map%size + 1)
-END FUNCTION ${prefix}$_items
+         CPASSERT(j == hash_map%size + 1)
+      END FUNCTION ${prefix}$_items
 
 ! **************************************************************************************************
 !> \brief Copies all key/values-items from one hash map to another.
@@ -407,21 +407,21 @@ END FUNCTION ${prefix}$_items
 !> \param from_hash_map source of items - will not be change
 !> \author Ole Schuett
 ! **************************************************************************************************
-SUBROUTINE ${prefix}$_update(hash_map, from_hash_map)
-   TYPE(${prefix}$_type), INTENT(inout)              :: hash_map
-   TYPE(${prefix}$_type), INTENT(in)                 :: from_hash_map
-   TYPE(${prefix}$_item_type), DIMENSION(:), POINTER :: from_items
-   INTEGER :: i
+      SUBROUTINE ${prefix}$_update(hash_map, from_hash_map)
+         TYPE(${prefix}$_type), INTENT(inout)              :: hash_map
+         TYPE(${prefix}$_type), INTENT(in)                 :: from_hash_map
+         TYPE(${prefix}$_item_type), DIMENSION(:), POINTER :: from_items
+         INTEGER :: i
 
-   CPASSERT(ASSOCIATED(hash_map%buckets))
-   CPASSERT(ASSOCIATED(from_hash_map%buckets))
+         CPASSERT(ASSOCIATED(hash_map%buckets))
+         CPASSERT(ASSOCIATED(from_hash_map%buckets))
 
-   from_items => ${prefix}$_items(from_hash_map)
-   DO i = 1, size(from_items)
-      CALL ${prefix}$_set(hash_map, from_items(i)%key, from_items(i)%value)
-   END DO
-   DEALLOCATE (from_items)
-END SUBROUTINE ${prefix}$_update
+         from_items => ${prefix}$_items(from_hash_map)
+         DO i = 1, size(from_items)
+            CALL ${prefix}$_set(hash_map, from_items(i)%key, from_items(i)%value)
+         END DO
+         DEALLOCATE (from_items)
+      END SUBROUTINE ${prefix}$_update
 
-#:enddef
+   #:enddef
 #:endmute

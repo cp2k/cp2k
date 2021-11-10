@@ -95,9 +95,9 @@ CONTAINS
                IF (.NOT. ASSOCIATED(this%next)) ALLOCATE (this%next)
                ipos = ipos + 1
                this => this%next
-            ENDIF
-         ENDIF
-      ENDDO
+            END IF
+         END IF
+      END DO
       id = IOR(index, ISHFT(ipos, Nbit))
    END FUNCTION str2id
 
@@ -123,7 +123,7 @@ CONTAINS
       this => hash_table(index)
       DO i = 1, ipos
          this => this%next
-      ENDDO
+      END DO
       str = this%str
    END FUNCTION id2str
 
@@ -181,7 +181,7 @@ CONTAINS
          IF (ASSOCIATED(hash_table(i)%str)) THEN
             DEALLOCATE (hash_table(i)%str)
             ilist = ilist + 1
-         ENDIF
+         END IF
          this => hash_table(i)%next
          DO WHILE (ASSOCIATED(this))
             ipos = ipos + 1
@@ -189,16 +189,16 @@ CONTAINS
             IF (ASSOCIATED(this%str)) DEALLOCATE (this%str)
             DEALLOCATE (this)
             this => next
-         ENDDO
+         END DO
          ipos_max = MAX(ipos_max, ipos)
-      ENDDO
+      END DO
       DEALLOCATE (hash_table)
       IF (iw > 0) THEN
          WRITE (iw, *) "string table: # inserted str = ", inserted_strings
          WRITE (iw, *) "              # actual       = ", actual_strings
          WRITE (iw, *) "              # lists        = ", ilist, " / ", hash_table_size
          WRITE (iw, *) "              longest list   = ", ipos_max
-      ENDIF
+      END IF
       actual_strings = 0
       inserted_strings = 0
    END SUBROUTINE string_table_deallocate
@@ -230,7 +230,7 @@ CONTAINS
          hash = IAND(hash + ICHAR(key(i:i)), b32)
          hash = IAND(hash + IAND(ISHFT(hash, 10), b32), b32)
          hash = IAND(IEOR(hash, IAND(ISHFT(hash, -6), b32)), b32)
-      ENDDO
+      END DO
       hash = IAND(hash + IAND(ISHFT(hash, 3), b32), b32)
       hash = IAND(IEOR(hash, IAND(ISHFT(hash, -11), b32)), b32)
       hash = IAND(hash + IAND(ISHFT(hash, 15), b32), b32)

@@ -462,7 +462,7 @@ CONTAINS
                                         qs_env=qs_env, soft_valid=gapw)
             END DO
             CALL qs_rho_set(rho_struct, drho_r_valid=.TRUE., drho_g_valid=.TRUE.)
-         ENDIF
+         END IF
 
          ! if needed compute also the kinetic energy density
          IF (dft_control%use_kinetic_energy_density) THEN
@@ -479,7 +479,7 @@ CONTAINS
                                        pw_env_external=pw_env)
             END DO
             CALL qs_rho_set(rho_struct, tau_r_valid=.TRUE., tau_g_valid=.TRUE.)
-         ENDIF
+         END IF
       END IF
 
       ! GAPW o GAPW_XC require the calculation of hard and soft local densities
@@ -494,7 +494,7 @@ CONTAINS
          CPASSERT(ASSOCIATED(rho_atom_set))
          CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
          CALL calculate_rho_atom_coeff(qs_env, rho_ao_kp, rho_atom_set, qs_kind_set, oce, sab, para_env)
-      ENDIF
+      END IF
       IF (gapw_xc) THEN
          CPASSERT(.NOT. PRESENT(task_list_external))
          CPASSERT(.NOT. PRESENT(pw_env_external))
@@ -536,7 +536,7 @@ CONTAINS
                                         qs_env=qs_env, soft_valid=gapw_xc)
             END DO
             CALL qs_rho_set(rho_xc, drho_r_valid=.TRUE., drho_g_valid=.TRUE.)
-         ENDIF
+         END IF
          ! if needed compute also the kinetic energy density
          IF (dft_control%use_kinetic_energy_density) THEN
             DO ispin = 1, nspins
@@ -549,8 +549,8 @@ CONTAINS
                                        compute_tau=.TRUE.)
             END DO
             CALL qs_rho_set(rho_xc, tau_r_valid=.TRUE., tau_g_valid=.TRUE.)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       CALL timestop(handle)
 

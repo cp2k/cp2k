@@ -126,7 +126,7 @@ CONTAINS
             END DO
          END DO
          CALL set_ks_env(ks_env, matrix_w_kp=matrix_w)
-      ENDIF
+      END IF
 
    END SUBROUTINE qs_energies_init
 
@@ -275,7 +275,7 @@ CONTAINS
       IF (do_kpoints) THEN
          CALL get_qs_env(qs_env, sab_kp=sab_nl)
          CALL kpoint_init_cell_index(kpoints, sab_nl, para_env, dft_control)
-      ENDIF
+      END IF
       IF (dft_control%qs_control%cdft) THEN
          IF (.NOT. (dft_control%qs_control%cdft_control%external_control)) &
             dft_control%qs_control%cdft_control%need_pot = .TRUE.
@@ -325,7 +325,7 @@ CONTAINS
          ELSE IF (dft_control%qs_control%rigpw) THEN
             CALL get_qs_env(qs_env=qs_env, lri_env=lri_env)
             CALL build_ri_matrices(lri_env, qs_env, calculate_forces=.FALSE.)
-         ENDIF
+         END IF
 
          ! ZMP addition to read external density
          CALL external_read_density(qs_env)
@@ -346,11 +346,11 @@ CONTAINS
       IF (dft_control%qs_control%dfet_embedded) THEN
          dft_control%apply_embed_pot = .TRUE.
          CALL given_embed_pot(qs_env)
-      ENDIF
+      END IF
       ! Matrix embedding potential
       IF (dft_control%qs_control%dmfet_embedded) THEN
          dft_control%apply_dmfet_pot = .TRUE.
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 

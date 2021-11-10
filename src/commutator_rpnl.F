@@ -392,7 +392,7 @@ CONTAINS
                      END DO
                   END DO
                END DO
-            ENDIF
+            END IF
          END DO
 !$OMP END PARALLEL
          CALL neighbor_list_iterator_release(nl_iterator)
@@ -473,7 +473,7 @@ CONTAINS
       IF (PRESENT(matrix_rv)) my_rv = .TRUE.
       IF (.NOT. (my_rv .OR. my_rxrv .OR. my_rrv)) THEN
          CPABORT('No dbcsr matrix provided for commutator calculation!')
-      ENDIF
+      END IF
 
       natom = SIZE(particle_set)
 
@@ -482,14 +482,14 @@ CONTAINS
          CPASSERT(PRESENT(ref_point)) ! need reference point for r x [r,Vnl] and [rr,Vnl]
       ELSE
          order = 1
-      ENDIF
+      END IF
 
       my_ref = .FALSE.
       IF (PRESENT(ref_point)) THEN
          CPASSERT(PRESENT(cell)) ! need cell as well if refpoint is provided
          rf = ref_point
          my_ref = .TRUE.
-      ENDIF
+      END IF
 
       nkind = SIZE(qs_kind_set)
 
@@ -507,7 +507,7 @@ CONTAINS
                              particle_set=particle_set, cell=cell)
       ELSE
          CALL build_sap_ints(sap_int, sap_ppnl, qs_kind_set, order, moment_mode=.TRUE.)
-      ENDIF
+      END IF
 
       ! *** Set up a sorting index
       CALL sap_sort(sap_int)
@@ -520,7 +520,7 @@ CONTAINS
          ELSE
             NULLIFY (basis_set(ikind)%gto_basis_set)
          END IF
-      ENDDO
+      END DO
 
       ! *** All integrals needed have been calculated and stored in sap_int
       ! *** We now calculate the commutator matrix elements
@@ -571,32 +571,32 @@ CONTAINS
          ! allocate blocks
          IF (my_rv) THEN
             ALLOCATE (blocks_rv(3))
-         ENDIF
+         END IF
          IF (my_rxrv) THEN
             ALLOCATE (blocks_rxrv(3))
-         ENDIF
+         END IF
          IF (my_rrv) THEN
             ALLOCATE (blocks_rrv(6))
-         ENDIF
+         END IF
 
          ! get blocks
          IF (my_rv) THEN
             DO ind = 1, 3
                CALL dbcsr_get_block_p(matrix_rv(ind)%matrix, irow, icol, blocks_rv(ind)%block, found)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
 
          IF (my_rxrv) THEN
             DO ind = 1, 3
                CALL dbcsr_get_block_p(matrix_rxrv(ind)%matrix, irow, icol, blocks_rxrv(ind)%block, found)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
 
          IF (my_rrv) THEN
             DO ind = 1, 6
                CALL dbcsr_get_block_p(matrix_rrv(ind)%matrix, irow, icol, blocks_rrv(ind)%block, found)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
 
          ! check whether all blocks are associated
          go = .TRUE.
@@ -604,20 +604,20 @@ CONTAINS
             asso_rv = (ASSOCIATED(blocks_rv(1)%block) .AND. ASSOCIATED(blocks_rv(2)%block) .AND. &
                        ASSOCIATED(blocks_rv(3)%block))
             go = go .AND. asso_rv
-         ENDIF
+         END IF
 
          IF (my_rxrv) THEN
             asso_rxrv = (ASSOCIATED(blocks_rxrv(1)%block) .AND. ASSOCIATED(blocks_rxrv(2)%block) .AND. &
                          ASSOCIATED(blocks_rxrv(3)%block))
             go = go .AND. asso_rxrv
-         ENDIF
+         END IF
 
          IF (my_rrv) THEN
             asso_rrv = (ASSOCIATED(blocks_rrv(1)%block) .AND. ASSOCIATED(blocks_rrv(2)%block) .AND. &
                         ASSOCIATED(blocks_rrv(3)%block) .AND. ASSOCIATED(blocks_rrv(4)%block) .AND. &
                         ASSOCIATED(blocks_rrv(5)%block) .AND. ASSOCIATED(blocks_rrv(6)%block))
             go = go .AND. asso_rrv
-         ENDIF
+         END IF
 
          ! loop over all kinds for projector atom
          IF (go) THEN
@@ -668,7 +668,7 @@ CONTAINS
                                                                MATMUL(bchint(1:nb, 1:np, 3), TRANSPOSE(acint(1:na, 1:np, 1)))
                               blocks_rv(3)%block(1:nb, 1:na) = blocks_rv(3)%block(1:nb, 1:na) + &
                                                                MATMUL(bchint(1:nb, 1:np, 4), TRANSPOSE(acint(1:na, 1:np, 1)))
-                           ENDIF
+                           END IF
                            ! -Vnl r
                            ! with LAPACK
                            ! CALL dgemm("N", "T", na, nb, np, -1._dp, achint(1, 1, 1), na, &
@@ -692,9 +692,9 @@ CONTAINS
                                                                MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 3)))
                               blocks_rv(3)%block(1:nb, 1:na) = blocks_rv(3)%block(1:nb, 1:na) - &
                                                                MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 4)))
-                           ENDIF
+                           END IF
 
-                        ENDIF
+                        END IF
 
                         IF (my_rxrv) THEN
                            ! x-component (y [z,Vnl] - z [y, Vnl])
@@ -726,7 +726,7 @@ CONTAINS
                                                                  MATMUL(bchint(1:nb, 1:np, 9), TRANSPOSE(acint(1:na, 1:np, 1)))    ! -zyV
                               blocks_rxrv(1)%block(1:nb, 1:na) = blocks_rxrv(1)%block(1:nb, 1:na) + &
                                                                  MATMUL(bchint(1:nb, 1:np, 4), TRANSPOSE(acint(1:na, 1:np, 3)))    ! zVy
-                           ENDIF
+                           END IF
 
                            ! y-component (z [x,Vnl] - x [z, Vnl])
                            ! with LAPACK
@@ -757,7 +757,7 @@ CONTAINS
                                                                  MATMUL(bchint(1:nb, 1:np, 7), TRANSPOSE(acint(1:na, 1:np, 1)))    ! -xzV
                               blocks_rxrv(2)%block(1:nb, 1:na) = blocks_rxrv(2)%block(1:nb, 1:na) + &
                                                                  MATMUL(bchint(1:nb, 1:np, 2), TRANSPOSE(acint(1:na, 1:np, 4)))    ! xVz
-                           ENDIF
+                           END IF
 
                            ! z-component (x [y,Vnl] - y [x, Vnl])
                            ! with LAPACK
@@ -788,8 +788,8 @@ CONTAINS
                                                                  MATMUL(bchint(1:nb, 1:np, 6), TRANSPOSE(acint(1:na, 1:np, 1)))    ! -yxV
                               blocks_rxrv(3)%block(1:nb, 1:na) = blocks_rxrv(3)%block(1:nb, 1:na) + &
                                                                  MATMUL(bchint(1:nb, 1:np, 3), TRANSPOSE(acint(1:na, 1:np, 2)))    ! zVx
-                           ENDIF
-                        ENDIF
+                           END IF
+                        END IF
 
                         IF (my_rrv) THEN
                            ! r_alpha * r_beta * Vnl
@@ -833,7 +833,7 @@ CONTAINS
                                                                 MATMUL(bchint(1:nb, 1:np, 9), TRANSPOSE(acint(1:na, 1:np, 1)))   ! yzV
                               blocks_rrv(6)%block(1:nb, 1:na) = blocks_rrv(6)%block(1:nb, 1:na) + &
                                                                 MATMUL(bchint(1:nb, 1:np, 10), TRANSPOSE(acint(1:na, 1:np, 1)))   ! zzV
-                           ENDIF
+                           END IF
 
                            ! - Vnl * r_alpha * r_beta
                            ! with LAPACK
@@ -876,33 +876,33 @@ CONTAINS
                                                                 MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 9)))   ! -Vyz
                               blocks_rrv(6)%block(1:nb, 1:na) = blocks_rrv(6)%block(1:nb, 1:na) - &
                                                                 MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 10)))   ! -Vzz
-                           ENDIF
-                        ENDIF
+                           END IF
+                        END IF
 !$                      CALL omp_unset_lock(locks(hash))
                         EXIT ! We have found a match and there can be only one single match
                      END IF
                   END DO
                END DO
             END DO
-         ENDIF
+         END IF
          IF (my_rv) THEN
             DO ind = 1, 3
                NULLIFY (blocks_rv(ind)%block)
-            ENDDO
+            END DO
             DEALLOCATE (blocks_rv)
-         ENDIF
+         END IF
          IF (my_rxrv) THEN
             DO ind = 1, 3
                NULLIFY (blocks_rxrv(ind)%block)
-            ENDDO
+            END DO
             DEALLOCATE (blocks_rxrv)
-         ENDIF
+         END IF
          IF (my_rrv) THEN
             DO ind = 1, 6
                NULLIFY (blocks_rrv(ind)%block)
-            ENDDO
+            END DO
             DEALLOCATE (blocks_rrv)
-         ENDIF
+         END IF
       END DO
 
 !$OMP DO

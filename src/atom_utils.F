@@ -501,7 +501,7 @@ CONTAINS
       ELSE
          WRITE (iw, fmt="(' ZMP       | WARNING! Restart file not found')")
          WRITE (iw, fmt="(' ZMP       | WARNING! Starting ZMP calculation form initial atomic guess')")
-      ENDIF
+      END IF
    END SUBROUTINE atom_read_zmp_restart
 
 ! **************************************************************************************************
@@ -541,7 +541,7 @@ CONTAINS
                nr, atom%basis%grid%nr
             IF (iw > 0) WRITE (iw, fmt="(' ZMP       | ERROR! Stopping ZMP calculation')")
             CPABORT("")
-         ENDIF
+         END IF
 
          DO ir = 1, nr
             READ (extunit, *) rr, density(ir)
@@ -551,8 +551,8 @@ CONTAINS
                IF (iw > 0) WRITE (iw, fmt='(" ZMP       |",T14,E24.15,T39,E24.15,T64,E24.15)') &
                   rr, atom%basis%grid%rad(ir), ABS(rr - atom%basis%grid%rad(ir))
                CPABORT("")
-            ENDIF
-         ENDDO
+            END IF
+         END DO
          CALL close_file(unit_number=extunit)
       ELSE
          READ (extunit, *) maxl_occ
@@ -566,9 +566,9 @@ CONTAINS
                READ (extunit, *) (pmatread(j, k, l), j=1, k)
                DO j = 1, k
                   pmatread(k, j, l) = pmatread(j, k, l)
-               ENDDO
-            ENDDO
-         ENDDO
+               END DO
+            END DO
+         END DO
 
          CALL close_file(unit_number=extunit)
 
@@ -588,12 +588,12 @@ CONTAINS
          DO ir = 1, nr
             WRITE (extunit, fmt='(T1,E24.15,T26,E24.15)') &
                atom%basis%grid%rad(ir), density(ir)
-         ENDDO
+         END DO
          DEALLOCATE (pmatread)
 
          CALL close_file(unit_number=extunit)
 
-      ENDIF
+      END IF
 
    END SUBROUTINE atom_read_external_density
 
@@ -628,7 +628,7 @@ CONTAINS
             nr, atom%basis%grid%nr
          IF (iw > 0) WRITE (iw, fmt="(' ZMP       | ERROR! Stopping ZMP calculation')")
          CPABORT("")
-      ENDIF
+      END IF
       DO ir = 1, nr
          READ (extunit, *) rr, vxc(ir)
          IF (ABS(rr - atom%basis%grid%rad(ir)) .GT. atom%zmpvxcgrid_tol) THEN
@@ -637,8 +637,8 @@ CONTAINS
             IF (iw > 0) WRITE (iw, fmt='(" ZMP       |",T14,E24.15,T39,E24.15,T64,E24.15)') &
                rr, atom%basis%grid%rad(ir), ABS(rr - atom%basis%grid%rad(ir))
             CPABORT("")
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
    END SUBROUTINE atom_read_external_vxc
 
@@ -2110,18 +2110,18 @@ CONTAINS
             CPASSERT(ns >= l + mo)
             DO counter = 1, mo
                ne(l + 1, l + counter) = NINT(state%occ(l, counter))
-            ENDDO
+            END DO
          ELSE
             mc = mm(l) ! number of levels in the core
             CPASSERT(SUM(state%occ(l, 1:mc)) == 0)
             CPASSERT(ns >= l + mc)
             DO counter = 1, mc
                ne(l + 1, l + counter) = NINT(state%core(l, counter))
-            ENDDO
+            END DO
             CPASSERT(ns >= l + mc + mo)
             DO counter = mc + 1, mc + mo
                ne(l + 1, l + counter) = NINT(state%occ(l, counter))
-            ENDDO
+            END DO
          END IF
       END DO
 

@@ -183,7 +183,7 @@ CONTAINS
       ELSE
          mx = m2
          my = m1
-      ENDIF
+      END IF
       IF (mx*my == 0) THEN
          f = 1.0_dp
       ELSE IF (m == 0) THEN
@@ -498,7 +498,7 @@ CONTAINS
             pf = REAL(2*l + 1, KIND=dp)/t
          ELSE
             pf = (REAL(2*l + 1, KIND=dp)*lmm)/(t*lpm)
-         ENDIF
+         END IF
          pf = SQRT(pf)
          DO i = 1, SIZE(r, 2)
             z = r(3, i)
@@ -628,7 +628,7 @@ CONTAINS
             pf = REAL(2*l + 1, KIND=dp)/t
          ELSE
             pf = (REAL(2*l + 1, KIND=dp)*lmm)/(t*lpm)
-         ENDIF
+         END IF
          pf = SQRT(pf)
          z = r(3)
          plm = legendre(z, l, m)
@@ -802,7 +802,7 @@ CONTAINS
             pf = REAL(2*l + 1, KIND=dp)/t
          ELSE
             pf = (REAL(2*l + 1, KIND=dp)*lmm)/(t*lpm)
-         ENDIF
+         END IF
          pf = SQRT(pf)
          DO i = 1, n
             z = r(3, i)
@@ -956,7 +956,7 @@ CONTAINS
             pf = REAL(2*l + 1, KIND=dp)/t
          ELSE
             pf = (REAL(2*l + 1, KIND=dp)*lmm)/(t*lpm)
-         ENDIF
+         END IF
          pf = SQRT(pf)
          z = r(3)
          plm = legendre(z, l, m)
@@ -1115,7 +1115,7 @@ CONTAINS
             pf = REAL(2*l + 1, KIND=dp)/tt
          ELSE
             pf = (REAL(2*l + 1, KIND=dp)*lmm)/(tt*lpm)
-         ENDIF
+         END IF
          pf = SQRT(pf)
          z = ct
          dplm = dlegendre(z, l, m)
@@ -1533,7 +1533,7 @@ CONTAINS
          choose = REAL(NINT(fac(n)/(fac(k)*fac(n - k))), KIND=dp)
       ELSE
          choose = 0.0_dp
-      ENDIF
+      END IF
 
    END FUNCTION choose
 

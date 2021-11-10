@@ -281,8 +281,8 @@ CONTAINS
 
             END IF
 
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       ! set DFT functional to none and hfx_fraction to zero
       hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%HF")

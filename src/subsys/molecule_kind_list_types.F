@@ -20,8 +20,8 @@ MODULE molecule_kind_list_types
    IMPLICIT NONE
    PRIVATE
 
-#:include "subsys_list.fypp"
+   #:include "subsys_list.fypp"
 
-$:subsys_list_macro(name='molecule_kind')
+   $:subsys_list_macro(name='molecule_kind')
 
 END MODULE molecule_kind_list_types

@@ -175,7 +175,7 @@ CONTAINS
      strength = (efield%envelop_r_vars(lower + 2)*(upper*dt - sim_time) + efield%envelop_r_vars(upper + 2)*(sim_time - lower*dt))/dt
             ELSE
                strength = 0.0_dp
-            ENDIF
+            END IF
             field = field + strength*pol(:)
          END IF
       END DO

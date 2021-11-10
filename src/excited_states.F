@@ -85,7 +85,7 @@ CONTAINS
             unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
          ELSE
             unit_nr = -1
-         ENDIF
+         END IF
 
          CALL get_qs_env(qs_env, exstate_env=ex_env, energy=energy)
 

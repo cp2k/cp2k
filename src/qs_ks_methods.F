@@ -304,10 +304,10 @@ CONTAINS
       rigpw = dft_control%qs_control%rigpw
       IF (rigpw) THEN
          CPASSERT(nimages == 1)
-      ENDIF
+      END IF
       IF (lrigpw .AND. rigpw) THEN
          CPABORT(" LRI and RI are not compatible")
-      ENDIF
+      END IF
 
       ! Check for GAPW method : additional terms for local densities
       gapw = dft_control%qs_control%gapw
@@ -317,10 +317,10 @@ CONTAINS
       END IF
       IF ((gapw .AND. lrigpw) .OR. (gapw_xc .AND. lrigpw)) THEN
          CPABORT(" GAPW/GAPW_XC and LRIGPW are not compatible")
-      ENDIF
+      END IF
       IF ((gapw .AND. rigpw) .OR. (gapw_xc .AND. rigpw)) THEN
          CPABORT(" GAPW/GAPW_XC and RIGPW are not compatible")
-      ENDIF
+      END IF
 
       do_ppl = dft_control%qs_control%do_ppl_method == do_ppl_grid
       IF (do_ppl) THEN
@@ -342,7 +342,7 @@ CONTAINS
       ! ***  Prepare densities for gapw ***
       IF (gapw .OR. gapw_xc) THEN
          CALL prepare_gapw_den(qs_env, do_rho0=(.NOT. gapw_xc))
-      ENDIF
+      END IF
 
       ! Calculate the Hartree potential
       CALL pw_pool_create_pw(auxbas_pw_pool, &
@@ -493,8 +493,8 @@ CONTAINS
                      potential=v_hartree_rspace, coeff=qs_env%image_coeff, &
                      forces=qs_env%qmmm_env_qm%image_charge_pot%image_forcesMM, &
                      qmmm_env=qs_env%qmmm_env_qm, qs_env=qs_env)
-               ENDIF
-            ENDIF
+               END IF
+            END IF
             CALL pw_release(qs_env%ks_qmmm_env%v_metal_rspace%pw)
          END IF
          IF (.NOT. just_energy) THEN
@@ -524,8 +524,8 @@ CONTAINS
             END IF
          ELSEIF (dft_control%do_admm_dm) THEN
             CALL admm_dm_calc_rho_aux(ks_env)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       ! only activate stress calculation if
       IF (use_virial .AND. calculate_forces) virial%pv_calculate = .TRUE.
@@ -581,7 +581,7 @@ CONTAINS
             energy%embed_corr = 0.0_dp
             CALL get_embed_potential_energy(qs_env, rho, v_rspace_embed, dft_control, &
                                             energy%embed_corr, just_energy)
-         ENDIF
+         END IF
          ! Everything else
          CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
                             vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
@@ -591,7 +591,7 @@ CONTAINS
          IF (qs_env%requires_matrix_vxc .AND. ASSOCIATED(v_rspace_new)) THEN
             CALL compute_matrix_vxc(qs_env=qs_env, v_rspace=v_rspace_new, matrix_vxc=matrix_vxc)
             CALL set_ks_env(ks_env, matrix_vxc=matrix_vxc)
-         ENDIF
+         END IF
 
          IF (gapw .OR. gapw_xc) THEN
             CALL calculate_vxc_atom(qs_env, just_energy_xc, energy%exc1, xc_section_external=xc_section)
@@ -601,9 +601,9 @@ CONTAINS
                   CPABORT("MGGA STRESS with GAPW not implemneted")
                END IF
             END IF
-         ENDIF
+         END IF
 
-      ENDIF
+      END IF
 
       NULLIFY (rho_struct)
       IF (use_virial .AND. calculate_forces) THEN
@@ -630,7 +630,7 @@ CONTAINS
             CALL integrate_rho_nlcc(v_rspace_new(ispin), qs_env)
             IF (dft_control%do_admm) CALL integrate_rho_nlcc(v_rspace_new_aux_fit(ispin), qs_env)
          END DO
-      ENDIF
+      END IF
 
       ! calculate KG correction
       IF (dft_control%qs_control%do_kg .AND. just_energy) THEN
@@ -766,7 +766,7 @@ CONTAINS
             ! Integrals of the Hartree potential with g0_soft
             CALL qmmm_modify_hartree_pot(v_hartree=v_hartree_rspace, &
                                          v_qmmm=vee, scale=-1.0_dp)
-         ENDIF
+         END IF
          CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, para_env, calculate_forces)
       END IF
 
@@ -803,7 +803,7 @@ CONTAINS
             CALL dbcsr_filter(ks_matrix(ispin, img)%matrix, &
                               dft_control%qs_control%eps_filter_matrix)
          END DO
-      ENDDO
+      END DO
 
       !** merge the auxiliary KS matrix and the primary one
       IF (dft_control%do_admm_mo) THEN
@@ -811,10 +811,10 @@ CONTAINS
             CALL rtp_admm_merge_ks_matrix(qs_env)
          ELSE
             CALL admm_mo_merge_ks_matrix(qs_env)
-         ENDIF
+         END IF
       ELSEIF (dft_control%do_admm_dm) THEN
          CALL admm_dm_merge_ks_matrix(ks_env)
-      ENDIF
+      END IF
 
       ! External field (nonperiodic case)
       CALL qs_efield_local_operator(qs_env, just_energy, calculate_forces)
@@ -828,7 +828,7 @@ CONTAINS
          CPASSERT(nimages == 1)
          ksmat => ks_matrix(:, 1)
          CALL calc_mo_derivatives(qs_env, ksmat, mo_derivs)
-      ENDIF
+      END IF
 
       ! deal with low spin roks
       CALL low_spin_roks(energy, qs_env, dft_control, just_energy, &
@@ -986,8 +986,8 @@ CONTAINS
             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, mo_coeff=mo_coeff) !fm->dbcsr
             NULLIFY (mo_derivs_tmp(ispin)%matrix)
             CALL cp_fm_create(mo_derivs_tmp(ispin)%matrix, mo_coeff%matrix_struct) !fm->dbcsr
-         ENDDO !fm->dbcsr
-      ENDIF !fm->dbcsr
+         END DO !fm->dbcsr
+      END IF !fm->dbcsr
 
       DO ispin = 1, SIZE(mo_derivs)
 
@@ -1046,16 +1046,16 @@ CONTAINS
             CALL dbcsr_add(mo_derivs(1)%matrix, mo_derivs2_tmp2, 1.0_dp, 1.0_dp)
             CALL dbcsr_release(mo_derivs2_tmp1)
             CALL dbcsr_release(mo_derivs2_tmp2)
-         ENDIF
+         END IF
 
-      ENDDO
+      END DO
 
       IF (dft_control%do_admm_mo) THEN !fm->dbcsr
          DO ispin = 1, SIZE(mo_derivs) !fm->dbcsr
             CALL cp_fm_release(mo_derivs_tmp(ispin)%matrix) !fm->dbcsr
-         ENDDO !fm->dbcsr
+         END DO !fm->dbcsr
          DEALLOCATE (mo_derivs_tmp) !fm->dbcsr
-      ENDIF !fm->dbcsr
+      END IF !fm->dbcsr
 
    END SUBROUTINE calc_mo_derivatives
 
@@ -1099,7 +1099,7 @@ CONTAINS
          CALL timeset(routineN//'_forces', handle)
       ELSE
          CALL timeset(routineN, handle)
-      ENDIF
+      END IF
 
       CPASSERT(ASSOCIATED(qs_env))
 
@@ -1278,8 +1278,8 @@ CONTAINS
                                  name=TRIM(headline), matrix_type=dbcsr_type_symmetric, nze=0)
                CALL cp_dbcsr_alloc_block_from_nbl(matrixkp_ks(ispin, ic)%matrix, sab_orb)
                CALL dbcsr_set(matrixkp_ks(ispin, ic)%matrix, 0.0_dp)
-            ENDDO
-         ENDDO
+            END DO
+         END DO
          CALL set_ks_env(ks_env, matrix_ks_kp=matrixkp_ks)
       END IF
 
@@ -1302,7 +1302,7 @@ CONTAINS
                                  matrix_type=dbcsr_type_symmetric, nze=0)
                CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit(ispin)%matrix, sab_aux_fit)
                CALL dbcsr_set(matrix_ks_aux_fit(ispin)%matrix, 0.0_dp)
-            ENDDO
+            END DO
             CALL set_ks_env(ks_env, matrix_ks_aux_fit=matrix_ks_aux_fit)
          END IF
          ! same allocation procedure for matrix_ks_aux_fit_dft
@@ -1316,7 +1316,7 @@ CONTAINS
                                  matrix_type=dbcsr_type_symmetric, nze=0)
                CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit_dft(ispin)%matrix, sab_aux_fit)
                CALL dbcsr_set(matrix_ks_aux_fit_dft(ispin)%matrix, 0.0_dp)
-            ENDDO
+            END DO
             CALL set_ks_env(ks_env, matrix_ks_aux_fit_dft=matrix_ks_aux_fit_dft)
          END IF
          ! same allocation procedure for matrix_ks_aux_fit_hfx
@@ -1330,7 +1330,7 @@ CONTAINS
                                  matrix_type=dbcsr_type_symmetric, nze=0)
                CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit_hfx(ispin)%matrix, sab_aux_fit)
                CALL dbcsr_set(matrix_ks_aux_fit_hfx(ispin)%matrix, 0.0_dp)
-            ENDDO
+            END DO
             CALL set_ks_env(ks_env, matrix_ks_aux_fit_hfx=matrix_ks_aux_fit_hfx)
          END IF
 

@@ -136,7 +136,7 @@ CONTAINS
       nnodes = 0
       DO iparticle_kind = 1, nparticle_kind
          nnodes = nnodes + local_particles%n_el(iparticle_kind)
-      ENDDO
+      END DO
 
       CALL structure_factor_allocate(pw_grid%bounds, nnodes, exp_igr)
 

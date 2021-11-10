@@ -153,7 +153,7 @@ CONTAINS
                   nstates(1) = molecule_set(imol)%lmi(ispin)%nstates
                ELSE
                   nstates(1) = 0
-               ENDIF
+               END IF
                nstates(2) = para_env%mepos
                CALL mp_maxloc(nstates, para_env%group)
                IF (nstates(1) == 0) CYCLE
@@ -225,7 +225,7 @@ CONTAINS
                   ns = SIZE(molecule_set(imol_now)%lmi(ispin)%states)
                   charge_set(imol_now) = charge_set(imol_now) - zwfc*ns
                END IF
-            ENDDO
+            END DO
             !
             IF (norder > 0) THEN
                ! nuclear contribution
@@ -266,8 +266,8 @@ CONTAINS
                n2 = ncoset(n) - 1
                WRITE (UNIT=iounit, FMT='(T4,A,I2,10(T16,6F12.6))') "Order:", n, moment_set(n1:n2, i)
             END DO
-         ENDDO
-      ENDIF
+         END DO
+      END IF
       CALL cp_print_key_finished_output(iounit, logger, loc_print_key, &
                                         "MOLECULAR_MOMENTS")
 

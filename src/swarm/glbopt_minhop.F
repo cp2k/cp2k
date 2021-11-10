@@ -144,7 +144,7 @@ CONTAINS
          WRITE (this%iw, '(A,T71,F10.3)') " MINHOP| Initial acceptance energy [Hartree]", this%Eaccept0
          WRITE (this%iw, '(A,T71,F10.3)') " MINHOP| Initial temperature [Kelvin]", this%temp_init*kelvin
          WRITE (this%iw, '(A,T71,L10)') " MINHOP| All workers share a single history", this%share_history
-      ENDIF
+      END IF
    END SUBROUTINE minhop_init
 
 ! **************************************************************************************************
@@ -179,7 +179,7 @@ CONTAINS
             "MINHOP| Sending worker", wid, &
             "initial temperature [Kelvin]", this%worker_state(wid)%temp*kelvin
          RETURN
-      ENDIF
+      END IF
 
       hid = wid ! history_id = worker_id unless ....
       IF (this%share_history) hid = 1 !...there is ONE shared history.
@@ -211,7 +211,7 @@ CONTAINS
             IF (this%iw > 0) WRITE (this%iw, '(A)') " MINHOP| Escaped, new minima"
             this%worker_state(wid)%temp = this%worker_state(wid)%temp*this%beta3 !decreasing temperature
             CALL history_add(this%history(hid), report_fp)
-         ENDIF
+         END IF
 
          IF (report_Epot < this%worker_state(wid)%Epot_hop) THEN
             ! new locally lowest
@@ -221,7 +221,7 @@ CONTAINS
                ALLOCATE (this%worker_state(wid)%pos_hop(SIZE(report_positions)))
             this%worker_state(wid)%pos_hop(:) = report_positions
             this%worker_state(wid)%fp_hop = report_fp
-         ENDIF
+         END IF
 
          IF (this%worker_state(wid)%Epot_hop - this%worker_state(wid)%Epot < this%worker_state(wid)%Eaccept) THEN
             ! accept
@@ -238,7 +238,7 @@ CONTAINS
             IF (this%iw > 0) WRITE (this%iw, '(A)') " MINHOP| Reject"
             this%worker_state(wid)%Eaccept = this%worker_state(wid)%Eaccept*this%alpha2 !increasing Eaccept
             this%n_rejected = this%n_rejected + 1
-         ENDIF
+         END IF
       END IF
 
       IF (this%iw > 0) THEN
@@ -259,7 +259,7 @@ CONTAINS
             " MINHOP| Total number of accepted minima", this%n_accepted
          WRITE (this%iw, '(A,30X,I10)') &
             " MINHOP| Total number of rejected minima", this%n_rejected
-      ENDIF
+      END IF
 
       DEALLOCATE (report_positions)
    END SUBROUTINE minhop_steer

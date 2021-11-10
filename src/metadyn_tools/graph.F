@@ -120,7 +120,7 @@ PROGRAM graph
       WRITE (iw, *) 'DEFAULT OUTPUT: fes.dat'
       WRITE (iw, *) ''
       CPABORT("Please provide arguments to run FES!")
-   ENDIF
+   END IF
 
    DO i = 1, COMMAND_ARGUMENT_COUNT()
       CALL GET_COMMAND_ARGUMENT(i, wq_char, status=istat)
@@ -130,7 +130,7 @@ PROGRAM graph
          CALL GET_COMMAND_ARGUMENT(i + 1, wq_char, status=istat)
          CPASSERT(istat == 0)
          READ (wq_char, *) file
-      ENDIF
+      END IF
 
       IF (INDEX(wq_char, '-out') .NE. 0) THEN
          CALL GET_COMMAND_ARGUMENT(i + 1, wq_char, status=istat)
@@ -139,65 +139,65 @@ PROGRAM graph
          ! we read only 1 filename. If none is specified we differentiate between fes.dat and fes_int.dat
          ! otherwise we use the one provided by the user
          out2 = out1
-      ENDIF
+      END IF
 
       IF (INDEX(wq_char, '-ndim') .NE. 0) THEN
          CALL GET_COMMAND_ARGUMENT(i + 1, wq_char, status=istat)
          CPASSERT(istat == 0)
          READ (wq_char, *) ndim
-      ENDIF
+      END IF
 
       IF (INDEX(wq_char, '-stride') .NE. 0) THEN
          CALL GET_COMMAND_ARGUMENT(i + 1, wq_char, status=istat)
          CPASSERT(istat == 0)
          READ (wq_char, *) nt_p
          lstride = .TRUE.
-      ENDIF
+      END IF
 
       IF (INDEX(wq_char, '-cutoff') .NE. 0) THEN
          CALL GET_COMMAND_ARGUMENT(i + 1, wq_char, status=istat)
          CPASSERT(istat == 0)
          READ (wq_char, *) eps_cut
-      ENDIF
+      END IF
 
       IF (INDEX(wq_char, '-integrated_fes') .NE. 0) THEN
          l_fes_int = .TRUE.
-      ENDIF
+      END IF
 
       IF (INDEX(wq_char, '-orac') .NE. 0) THEN
          l_orac = .TRUE.
-      ENDIF
+      END IF
 
       IF (INDEX(wq_char, '-cp2k') .NE. 0) THEN
          l_cp2k = .TRUE.
-      ENDIF
+      END IF
 
       IF (INDEX(wq_char, '-cpmd') .NE. 0) THEN
          l_cpmd = .TRUE.
-      ENDIF
+      END IF
 
       IF (INDEX(wq_char, '-find-minima') .NE. 0) THEN
          l_fmin = .TRUE.
-      ENDIF
+      END IF
 
       IF (INDEX(wq_char, '-find-path') .NE. 0) THEN
          l_pmin = .TRUE.
-      ENDIF
+      END IF
 
       IF (INDEX(wq_char, '-mathlab') .NE. 0) THEN
          l_math = .TRUE.
-      ENDIF
+      END IF
 
       IF (INDEX(wq_char, '-cube') .NE. 0) THEN
          l_cube = .TRUE.
-      ENDIF
+      END IF
 
       IF (INDEX(wq_char, '-opt-path') .NE. 0) THEN
          l_popt = .TRUE.
          CALL GET_COMMAND_ARGUMENT(i + 1, wq_char, status=istat)
          CPASSERT(istat == 0)
          READ (wq_char, *) path_file
-      ENDIF
+      END IF
 
    END DO
    IF (COUNT((/l_orac, l_cp2k, l_cpmd/)) /= 1) &
@@ -244,8 +244,8 @@ PROGRAM graph
                ndw = ndw + 1
             ELSE
                EXIT ndw_loop
-            ENDIF
-         ENDDO ndw_loop
+            END IF
+         END DO ndw_loop
 
          ALLOCATE (idw(ndw), stat=stat)
          IF (stat /= 0) CPABORT("Allocation Error")
@@ -254,8 +254,8 @@ PROGRAM graph
             CALL GET_COMMAND_ARGUMENT(i + id, wq_char, status=istat)
             CPASSERT(istat == 0)
             READ (wq_char, *) idw(id)
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       IF (INDEX(wq_char, '-periodic') .NE. 0) THEN
          nprd = 0
@@ -266,8 +266,8 @@ PROGRAM graph
                nprd = nprd + 1
             ELSE
                EXIT nprd_loop
-            ENDIF
-         ENDDO nprd_loop
+            END IF
+         END DO nprd_loop
 
          DEALLOCATE (iprd)
          ALLOCATE (iprd(nprd), stat=stat)
@@ -277,8 +277,8 @@ PROGRAM graph
             CALL GET_COMMAND_ARGUMENT(i + id, wq_char, status=istat)
             CPASSERT(istat == 0)
             READ (wq_char, *) iprd(id)
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       IF (INDEX(wq_char, '-ngrid') .NE. 0) THEN
          DO ix = 1, ndim
@@ -287,7 +287,7 @@ PROGRAM graph
             READ (wq_char, *) ngrid(ix)
             l_grid = .TRUE.
          END DO
-      ENDIF
+      END IF
 
       IF (INDEX(wq_char, '-dp') .NE. 0) THEN
          l_dp = .TRUE.
@@ -308,9 +308,9 @@ PROGRAM graph
             CALL GET_COMMAND_ARGUMENT(i + 2*(id - 1) + 2, wq_char, status=istat)
             CPASSERT(istat == 0)
             READ (wq_char, *) xfw(id)
-         ENDDO
-      ENDIF
-   ENDDO
+         END DO
+      END IF
+   END DO
 
    IF (l_pmin) THEN
       ALLOCATE (mep_input_data%minima(ndw, 2))
@@ -328,34 +328,34 @@ PROGRAM graph
                CALL GET_COMMAND_ARGUMENT(i + id, wq_char, status=istat)
                CPASSERT(istat == 0)
                READ (wq_char, *) mep_input_data%minima(id, 1)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
 
          IF (INDEX(wq_char, '-point-b') .NE. 0) THEN
             DO id = 1, ndw
                CALL GET_COMMAND_ARGUMENT(i + id, wq_char, status=istat)
                CPASSERT(istat == 0)
                READ (wq_char, *) mep_input_data%minima(id, 2)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
 
          IF (INDEX(wq_char, '-mep-iter') .NE. 0) THEN
             CALL GET_COMMAND_ARGUMENT(i + 1, wq_char, status=istat)
             CPASSERT(istat == 0)
             READ (wq_char, *) mep_input_data%max_iter
-         ENDIF
+         END IF
 
          IF (INDEX(wq_char, '-mep-kb') .NE. 0) THEN
             CALL GET_COMMAND_ARGUMENT(i + 1, wq_char, status=istat)
             CPASSERT(istat == 0)
             READ (wq_char, *) mep_input_data%kb
-         ENDIF
+         END IF
 
          IF (INDEX(wq_char, '-mep-nreplica') .NE. 0) THEN
             CALL GET_COMMAND_ARGUMENT(i + 1, wq_char, status=istat)
             CPASSERT(istat == 0)
             READ (wq_char, *) mep_input_data%nreplica
-         ENDIF
+         END IF
 
       END DO
       IF (ANY(mep_input_data%minima == HUGE(0.0_dp))) &
@@ -378,19 +378,19 @@ PROGRAM graph
             CALL GET_COMMAND_ARGUMENT(i + 1, wq_char, status=istat)
             CPASSERT(istat == 0)
             READ (wq_char, *) mep_input_data%kb
-         ENDIF
+         END IF
 
          IF (INDEX(wq_char, '-mep-iter') .NE. 0) THEN
             CALL GET_COMMAND_ARGUMENT(i + 1, wq_char, status=istat)
             CPASSERT(istat == 0)
             READ (wq_char, *) mep_input_data%max_iter
-         ENDIF
+         END IF
 
          IF (INDEX(wq_char, '-mep-nreplica') .NE. 0) THEN
             CALL GET_COMMAND_ARGUMENT(i + 1, wq_char, status=istat)
             CPASSERT(istat == 0)
             READ (wq_char, *) mep_input_data%nreplica
-         ENDIF
+         END IF
       END DO
 
       ALLOCATE (mep_input_data%minima(ndw, mep_input_data%nreplica))
@@ -413,14 +413,14 @@ PROGRAM graph
 
    DO id = 1, ndw
       i_map(idw(id)) = id
-   ENDDO
+   END DO
    ix = ndw
    DO id = 1, ndim
       IF (i_map(id) == 0) THEN
          ix = ix + 1
          i_map(id) = ix
-      ENDIF
-   ENDDO
+      END IF
+   END DO
 
    ! Revert the order so we can perform averages (when projecting FES) more
    ! efficiently
@@ -530,20 +530,20 @@ PROGRAM graph
    DO id = 1, ndim
       x0(id) = HUGE(1.0_dp)
       xf(id) = -HUGE(1.0_dp)
-   ENDDO
+   END DO
    IF (fix) THEN
       DO it = 1, nt
          DO id = 1, ndim - ndw
             x0(id) = MIN(x0(id), ss0(id, it) - 3.*delta_s(id, it))
             xf(id) = MAX(xf(id), ss0(id, it) + 3.*delta_s(id, it))
-         ENDDO
-      ENDDO
+         END DO
+      END DO
       it = 0
       DO id = ndim, ndim - ndw + 1, -1
          it = it + 1
          x0(id) = x0w(it)
          xf(id) = xfw(it)
-      ENDDO
+      END DO
    ELSE
       DO it = 1, nt
          DO id = ndim, 1, -1
@@ -554,9 +554,9 @@ PROGRAM graph
                x0(id) = MIN(x0(id), ss0(id, it) - 3.*delta_s(id, it))
                xf(id) = MAX(xf(id), ss0(id, it) + 3.*delta_s(id, it))
             END IF
-         ENDDO
-      ENDDO
-   ENDIF
+         END DO
+      END DO
+   END IF
 
    IF (l_dp) THEN
       ALLOCATE (tmpr(ndim))

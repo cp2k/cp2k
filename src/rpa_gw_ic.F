@@ -251,7 +251,7 @@ CONTAINS
          ELSE
             n_start_block = 1
             n_start = boff(3) - mo_bounds(1) + 1
-         ENDIF
+         END IF
 
          IF (boff(3) + bsize(3) - 1 > mo_bounds(2)) THEN
             n_end_block = mo_bounds(2) - boff(3) + 1
@@ -259,7 +259,7 @@ CONTAINS
          ELSE
             n_end_block = bsize(3)
             n_end = boff(3) + bsize(3) - mo_bounds(1)
-         ENDIF
+         END IF
 
          Delta_Sigma_Neaton(n_start:n_end) = &
             Delta_Sigma_Neaton(n_start:n_end) + &
@@ -267,7 +267,7 @@ CONTAINS
                            block_2(:, n, n)), &
                n=n_start_block, n_end_block)/)
          DEALLOCATE (block_1, block_2)
-      ENDDO
+      END DO
       CALL dbcsr_t_iterator_stop(iter)
 
       CALL mp_sum(Delta_Sigma_Neaton, para_env%group)

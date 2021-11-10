@@ -105,11 +105,11 @@ CONTAINS
                DO j = nb + 1, nb + ncoset(lb_max)
                   DO i = na + 1, na + ncoset(la_max)
                      fcab(i, j) = 0.0_dp
-                  ENDDO
-               ENDDO
+                  END DO
+               END DO
                nb = nb + ncoset(lb_max)
                CYCLE
-            ENDIF
+            END IF
 
             ! *** Calculate some prefactors ***
 
@@ -144,21 +144,21 @@ CONTAINS
 
                         fcab(ma, mb) = f0*fax*fay*faz
 
-                     ENDDO
-                  ENDDO
-                  ENDDO !la
+                     END DO
+                  END DO
+                  END DO !la
 
-               ENDDO
-            ENDDO
-            ENDDO !lb
+               END DO
+            END DO
+            END DO !lb
 
             nb = nb + ncoset(lb_max)
 
-         ENDDO
+         END DO
 
          na = na + ncoset(la_max)
 
-      ENDDO
+      END DO
 
    END SUBROUTINE fermi_contact
 

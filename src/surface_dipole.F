@@ -139,7 +139,7 @@ CONTAINS
 !  is that the cell angles are 90 degrees.
             END IF
          END IF
-      ENDDO
+      END DO
 
       ilow = wf_r%pw%pw_grid%bounds(1, idir_surfdip)
       iup = wf_r%pw%pw_grid%bounds(2, idir_surfdip)
@@ -173,7 +173,7 @@ CONTAINS
          DO i = bo(1, 1), bo(2, 1)
             rhoavsurf(i) = accurate_sum(wf_r%pw%cr3d(i, bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
          END DO
-      ENDIF
+      END IF
       wf_r%pw%cr3d = wf_r%pw%cr3d/wf_r%pw%pw_grid%vol
       rhoavsurf = rhoavsurf/wf_r%pw%pw_grid%vol
 
@@ -219,7 +219,7 @@ CONTAINS
             cutoff = 1.0_dp
          ELSE
             cutoff = ABS(SIN(0.5_dp*pi*REAL(ABS(irho - ilayer_min), dp)/REAL(width, dp)))
-         ENDIF
+         END IF
          dip_hh = dip_hh + rhoavsurf(irho)*hh*dip_fac*cutoff
       END DO
 
@@ -245,7 +245,7 @@ CONTAINS
             cutoff = 1.0_dp
          ELSE
             cutoff = ABS(SIN(0.5_dp*pi*REAL(ABS(irho - ilayer_min), dp)/REAL(width, dp)))
-         ENDIF
+         END IF
          vdip = vdip*cutoff
 
          IF (idir_surfdip == 3) THEN
@@ -272,7 +272,7 @@ CONTAINS
       END IF
 
 !    Add the dipole potential to the hartree potential on the realspace grid
-      v_hartree_rspace%cr3d = v_hartree_rspace%cr3d+vdip_r%pw%cr3d
+      v_hartree_rspace%cr3d = v_hartree_rspace%cr3d + vdip_r%pw%cr3d
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, vdip_r%pw)

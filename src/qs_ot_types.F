@@ -280,14 +280,14 @@ CONTAINS
             CALL dbcsr_set(qs_ot_env%rot_mat_dx, 0.0_dp)
          IF (qs_ot_env%use_gx_old) &
             CALL dbcsr_set(qs_ot_env%rot_mat_gx_old, 0.0_dp)
-      ENDIF
+      END IF
       IF (qs_ot_env%settings%do_ener) THEN
          qs_ot_env%ener_gx(:) = 0.0_dp
          IF (qs_ot_env%use_dx) &
             qs_ot_env%ener_dx(:) = 0.0_dp
          IF (qs_ot_env%use_gx_old) &
             qs_ot_env%ener_gx_old(:) = 0.0_dp
-      ENDIF
+      END IF
 
    END SUBROUTINE qs_ot_init
 
@@ -330,7 +330,7 @@ CONTAINS
          my_ortho_k = ortho_k
       ELSE
          my_ortho_k = k
-      ENDIF
+      END IF
 
       m_diis = qs_ot_env%settings%diis_m
 
@@ -358,7 +358,7 @@ CONTAINS
          ALLOCATE (qs_ot_env%c_broy(m_diis))
          ALLOCATE (qs_ot_env%energy_h(m_diis))
          ALLOCATE (qs_ot_env%ipivot(m_diis + 1))
-      ENDIF
+      END IF
 
       ALLOCATE (qs_ot_env%evals(k))
       ALLOCATE (qs_ot_env%dum(k))
@@ -420,13 +420,13 @@ CONTAINS
          CALL dbcsr_init_p(qs_ot_env%matrix_dx)
          CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_dx, template=matrix_s, n=k, &
                                                 sym=dbcsr_type_no_symmetry, data_type=dbcsr_type_real_8)
-      ENDIF
+      END IF
 
       IF (qs_ot_env%use_gx_old) THEN
          CALL dbcsr_init_p(qs_ot_env%matrix_gx_old)
          CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_gx_old, template=matrix_s, n=k, &
                                                 sym=dbcsr_type_no_symmetry, data_type=dbcsr_type_real_8)
-      ENDIF
+      END IF
 
       SELECT CASE (qs_ot_env%settings%ot_algorithm)
       CASE ("TOD")
@@ -544,8 +544,8 @@ CONTAINS
             CALL dbcsr_init_p(qs_ot_env%matrix_h_e(i)%matrix)
             CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_h_e(i)%matrix, template=matrix_s, n=k, &
                                                    sym=dbcsr_type_no_symmetry, data_type=dbcsr_type_real_8)
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       NULLIFY (qs_ot_env%rot_mat_u, qs_ot_env%rot_mat_x, qs_ot_env%rot_mat_h_e, qs_ot_env%rot_mat_h_x, &
                qs_ot_env%rot_mat_gx, qs_ot_env%rot_mat_gx_old, qs_ot_env%rot_mat_dx, &
@@ -579,8 +579,8 @@ CONTAINS
                CALL dbcsr_init_p(qs_ot_env%rot_mat_h_x(i)%matrix)
                CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_h_x(i)%matrix, template=matrix_s, m=k, n=k, &
                                                   sym=dbcsr_type_no_symmetry)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
 
          ALLOCATE (qs_ot_env%rot_mat_evals(k))
 
@@ -596,15 +596,15 @@ CONTAINS
             CALL dbcsr_init_p(qs_ot_env%rot_mat_gx_old)
             CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_gx_old, template=matrix_s, m=k, n=k, &
                                                sym=dbcsr_type_no_symmetry)
-         ENDIF
+         END IF
 
          IF (qs_ot_env%use_dx) THEN
             CALL dbcsr_init_p(qs_ot_env%rot_mat_dx)
             CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_dx, template=matrix_s, m=k, n=k, &
                                                sym=dbcsr_type_no_symmetry)
-         ENDIF
+         END IF
 
-      ENDIF
+      END IF
 
       IF (qs_ot_env%settings%do_ener) THEN
          ncoef = k
@@ -613,19 +613,19 @@ CONTAINS
          IF (qs_ot_env%settings%ot_method .EQ. "DIIS") THEN
             ALLOCATE (qs_ot_env%ener_h_e(m_diis, ncoef))
             ALLOCATE (qs_ot_env%ener_h_x(m_diis, ncoef))
-         ENDIF
+         END IF
 
          ALLOCATE (qs_ot_env%ener_gx(ncoef))
 
          IF (qs_ot_env%use_gx_old) THEN
             ALLOCATE (qs_ot_env%ener_gx_old(ncoef))
-         ENDIF
+         END IF
 
          IF (qs_ot_env%use_dx) THEN
             ALLOCATE (qs_ot_env%ener_dx(ncoef))
             qs_ot_env%ener_dx = 0.0_dp
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
    END SUBROUTINE qs_ot_allocate
 
@@ -686,7 +686,7 @@ CONTAINS
          DEALLOCATE (qs_ot_env%c_broy)
          DEALLOCATE (qs_ot_env%energy_h)
          DEALLOCATE (qs_ot_env%ipivot)
-      ENDIF
+      END IF
 
       IF (qs_ot_env%settings%do_rotation) THEN
 
@@ -698,7 +698,7 @@ CONTAINS
          IF (qs_ot_env%settings%ot_method .EQ. "DIIS") THEN
             CALL dbcsr_deallocate_matrix_set(qs_ot_env%rot_mat_h_x)
             CALL dbcsr_deallocate_matrix_set(qs_ot_env%rot_mat_h_e)
-         ENDIF
+         END IF
 
          DEALLOCATE (qs_ot_env%rot_mat_evals)
 
@@ -706,7 +706,7 @@ CONTAINS
          IF (ASSOCIATED(qs_ot_env%rot_mat_gx)) CALL dbcsr_release_p(qs_ot_env%rot_mat_gx)
          IF (ASSOCIATED(qs_ot_env%rot_mat_gx_old)) CALL dbcsr_release_p(qs_ot_env%rot_mat_gx_old)
          IF (ASSOCIATED(qs_ot_env%rot_mat_dx)) CALL dbcsr_release_p(qs_ot_env%rot_mat_dx)
-      ENDIF
+      END IF
 
       IF (qs_ot_env%settings%do_ener) THEN
          DEALLOCATE (qs_ot_env%ener_x)
@@ -714,13 +714,13 @@ CONTAINS
          IF (qs_ot_env%settings%ot_method .EQ. "DIIS") THEN
             DEALLOCATE (qs_ot_env%ener_h_x)
             DEALLOCATE (qs_ot_env%ener_h_e)
-         ENDIF
+         END IF
          IF (qs_ot_env%use_dx) THEN
             DEALLOCATE (qs_ot_env%ener_dx)
-         ENDIF
+         END IF
          IF (qs_ot_env%use_gx_old) THEN
             DEALLOCATE (qs_ot_env%ener_gx_old)
-         ENDIF
+         END IF
       END IF
 
    END SUBROUTINE qs_ot_destroy
@@ -759,25 +759,25 @@ CONTAINS
       CALL section_vals_val_get(ot_section, "IRAC_DEGREE", i_val=settings%irac_degree)
       IF (settings%irac_degree < 2 .OR. settings%irac_degree > 4) THEN
          CPABORT("READ OT IRAC_DEGREE: Value unknown")
-      ENDIF
+      END IF
       CALL section_vals_val_get(ot_section, "MAX_IRAC", i_val=settings%max_irac)
       IF (settings%max_irac < 1) THEN
          CPABORT("READ OT MAX_IRAC: VALUE MUST BE GREATER THAN ZERO")
-      ENDIF
+      END IF
       CALL section_vals_val_get(ot_section, "EPS_IRAC_FILTER_MATRIX", r_val=settings%eps_irac_filter_matrix)
       CALL section_vals_val_get(ot_section, "EPS_IRAC", r_val=settings%eps_irac)
       IF (settings%eps_irac < 0.0_dp) THEN
          CPABORT("READ OT EPS_IRAC: VALUE MUST BE GREATER THAN ZERO")
-      ENDIF
+      END IF
       CALL section_vals_val_get(ot_section, "EPS_IRAC_QUICK_EXIT", r_val=settings%eps_irac_quick_exit)
       IF (settings%eps_irac_quick_exit < 0.0_dp) THEN
          CPABORT("READ OT EPS_IRAC_QUICK_EXIT: VALUE MUST BE GREATER THAN ZERO")
-      ENDIF
+      END IF
 
       CALL section_vals_val_get(ot_section, "EPS_IRAC_SWITCH", r_val=settings%eps_irac_switch)
       IF (settings%eps_irac_switch < 0.0_dp) THEN
          CPABORT("READ OT EPS_IRAC_SWITCH: VALUE MUST BE GREATER THAN ZERO")
-      ENDIF
+      END IF
 
       CALL section_vals_val_get(ot_section, "ORTHO_IRAC", i_val=ot_ortho_irac)
       SELECT CASE (ot_ortho_irac)
@@ -918,7 +918,7 @@ CONTAINS
                WRITE (output_unit, '(A,I3,A)') "                                         safer DIIS on"
             ELSE
                WRITE (output_unit, '(A,I3,A)') "                                         safer DIIS off"
-            ENDIF
+            END IF
          CASE ("BROY")
             WRITE (output_unit, '(A)') "  Minimizer      : BROYDEN             : Broyden "
             WRITE (output_unit, '(A,F16.8)') "                   BETA                : ", settings%broyden_beta
@@ -968,13 +968,13 @@ CONTAINS
             CASE DEFAULT
                WRITE (output_unit, '(3A)') "  Line search : ", settings%line_search_method, " : UNKNOWN"
             END SELECT
-         ENDIF
+         END IF
          WRITE (output_unit, '(A,F14.8,T49,A,F14.8)') "  stepsize       :", settings%ds_min, &
             "  energy_gap     :", settings%energy_gap
          IF (settings%ot_algorithm .EQ. 'TOD') THEN
             WRITE (output_unit, '(A,E14.5,T49,A,I14)') "  eps_taylor     :", settings%eps_taylor, &
                "  max_taylor     :", settings%max_taylor
-         ENDIF
+         END IF
          IF (settings%ot_algorithm .EQ. 'REF') THEN
             WRITE (output_unit, '(A,1X,A,T49,A,I14)') "  ortho_irac     :", settings%ortho_irac, &
                "  irac_degree    :", settings%irac_degree

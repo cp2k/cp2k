@@ -185,7 +185,7 @@ CONTAINS
          ALLOCATE (ext_density(atom%basis%grid%nr))
          ext_density = 0._dp
          CALL atom_read_external_density(ext_density, atom, iw)
-      ENDIF
+      END IF
 
       ! ZMP starting to read external vxc for the zmp calculation
       need_vxc = atom%read_vxc
@@ -197,7 +197,7 @@ CONTAINS
          ALLOCATE (ext_vxc(atom%basis%grid%nr))
          ext_vxc = 0._dp
          CALL atom_read_external_vxc(ext_vxc, atom, iw)
-      ENDIF
+      END IF
 
       ! check for relativistic method
       reltyp = atom%relativistic
@@ -377,7 +377,7 @@ CONTAINS
                CALL atom_print_zmp_iteration(iter, deps, atom, iw)
             ELSE
                CALL atom_print_iteration(iter, deps, atom%energy%etot, iw)
-            ENDIF
+            END IF
          END IF
 
          IF (deps < eps_scf) THEN

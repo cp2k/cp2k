@@ -268,7 +268,7 @@ CONTAINS
                          lri_env=lri_env, &
                          lri_density=lri_density, &
                          atomic_kind_set=atomic_kind_set)
-      ENDIF
+      END IF
 
       gapw = (section_get_ival(input, "DFT%QS%METHOD") == do_method_gapw)
       gapw_xc = (section_get_ival(input, "DFT%QS%METHOD") == do_method_gapw_xc)
@@ -430,11 +430,11 @@ CONTAINS
 
                ! add hartree only for SINGLETS
                IF (.NOT. do_triplet) THEN
-                  v_rspace_new(1)%pw%cr3d = v_rspace_new(1)%pw%cr3d+ &
+                  v_rspace_new(1)%pw%cr3d = v_rspace_new(1)%pw%cr3d + &
                                             v_hartree_rspace%pw%cr3d
                END IF
             ELSE
-               v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d+ &
+               v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d + &
                                              v_hartree_rspace%pw%cr3d
             END IF
 
@@ -543,7 +543,7 @@ CONTAINS
       DO ispin = 1, SIZE(k_p_p1)
          CALL dbcsr_add(rho_ao(ispin)%matrix, rho1_ao(ispin)%matrix, &
                         alpha_scalar=1.0_dp, beta_scalar=my_diff)
-         rho_r(ispin)%pw%cr3d = rho_r(ispin)%pw%cr3d+my_diff*rho1_r(ispin)%pw%cr3d
+         rho_r(ispin)%pw%cr3d = rho_r(ispin)%pw%cr3d + my_diff*rho1_r(ispin)%pw%cr3d
          rho_g(ispin)%pw%cc = rho_g(ispin)%pw%cc + my_diff*rho1_g(ispin)%pw%cc
       END DO
 
@@ -564,7 +564,7 @@ CONTAINS
       DO ispin = 1, nspins
          CALL dbcsr_add(rho_ao(ispin)%matrix, rho1_ao(ispin)%matrix, &
                         alpha_scalar=1.0_dp, beta_scalar=my_diff)
-         rho_r(ispin)%pw%cr3d = rho_r(ispin)%pw%cr3d+my_diff*rho1_r(ispin)%pw%cr3d
+         rho_r(ispin)%pw%cr3d = rho_r(ispin)%pw%cr3d + my_diff*rho1_r(ispin)%pw%cr3d
          rho_g(ispin)%pw%cc = rho_g(ispin)%pw%cc + my_diff*rho1_g(ispin)%pw%cc
       END DO
 
@@ -578,7 +578,7 @@ CONTAINS
       DO ispin = 1, nspins
          CALL dbcsr_add(rho_ao(ispin)%matrix, rho1_ao(ispin)%matrix, &
                         alpha_scalar=1.0_dp, beta_scalar=my_diff)
-         rho_r(ispin)%pw%cr3d = rho_r(ispin)%pw%cr3d+my_diff*rho1_r(ispin)%pw%cr3d
+         rho_r(ispin)%pw%cr3d = rho_r(ispin)%pw%cr3d + my_diff*rho1_r(ispin)%pw%cr3d
          rho_g(ispin)%pw%cc = rho_g(ispin)%pw%cc + my_diff*rho1_g(ispin)%pw%cc
       END DO
 

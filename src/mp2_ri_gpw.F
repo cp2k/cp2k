@@ -376,13 +376,13 @@ CONTAINS
                   DO jjB = 1, my_block_size
                      CALL timeset(routineN//"_expansion", handle3)
 
-                     ASSOCIATE (my_local_i_aL=>local_i_aL(:, :, iiB), my_local_j_aL=>local_j_aL(:, :, jjB))
+                     ASSOCIATE (my_local_i_aL => local_i_aL(:, :, iiB), my_local_j_aL => local_j_aL(:, :, jjB))
 
                         ! calculate the integrals (ia|jb) strating from my local data ...
                         local_ab = 0.0_dp
                         IF ((my_alpha_beta_case) .AND. (calc_forces)) THEN
                            local_ba = 0.0_dp
-                        ENDIF
+                        END IF
                         CALL dgemm_counter_start(dgemm_counter)
                         CALL dgemm('T', 'N', my_B_size(ispin), my_B_size(jspin), dimen_RI, 1.0_dp, &
                                    my_local_i_aL, dimen_RI, my_local_j_aL, dimen_RI, &
@@ -391,7 +391,7 @@ CONTAINS
                         IF (my_alpha_beta_case .AND. calc_forces) THEN
                            local_ba(my_B_virtual_start(jspin):my_B_virtual_end(jspin), :) = &
                               TRANSPOSE(local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :))
-                        ENDIF
+                        END IF
                         ! ... and from the other of my subgroup
                         DO proc_shift = 1, para_env_sub%num_pe - 1
                            proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
@@ -430,7 +430,7 @@ CONTAINS
                                          0.0_dp, local_ba(rec_B_virtual_start:rec_B_virtual_end, 1:my_B_size(ispin)), rec_B_size)
 
                               DEALLOCATE (external_i_aL)
-                           ENDIF
+                           END IF
 
                         END DO
                         IF (my_alpha_beta_case .AND. calc_forces) THEN
@@ -1536,7 +1536,7 @@ CONTAINS
             CALL dgemm('T', 'N', my_B_size(ispin), rec_B_size, virtual(jspin), mp2_env%scale_S, &
                        local_ba, virtual(jspin), external_ab, virtual(jspin), &
                        1.0_dp, mp2_env%ri_grad%P_ab(ispin)%array(:, rec_B_virtual_start:rec_B_virtual_end), my_B_size(ispin))
-         ENDIF
+         END IF
 
          DEALLOCATE (external_ab)
 
@@ -1654,7 +1654,7 @@ CONTAINS
          CALL dgemm_counter_stop(dgemm_counter, 3*virtual(ispin), dimen_RI, my_B_size(jspin))
       ELSE
          CALL dgemm_counter_stop(dgemm_counter, virtual(ispin), dimen_RI, my_B_size(ispin))
-      ENDIF
+      END IF
 
       IF ((my_i /= my_j) .AND. (.NOT. alpha_beta)) THEN
          ! Alpha-alpha, beta-beta and closed shell
@@ -2237,7 +2237,7 @@ CONTAINS
                                              - Eigenval(homo(ispin) + a_global, ispin) - Eigenval(homo(kspin) + b_global, kspin))
                      END DO
                   END DO
-               ENDIF
+               END IF
 
                IF (.NOT. alpha_beta) THEN
                   DO proc_shift = 1, para_env_sub%num_pe - 1
@@ -2311,14 +2311,14 @@ CONTAINS
                DEALLOCATE (local_ab)
                IF ((.NOT. open_shell) .AND. (.NOT. alpha_beta)) THEN
                   P_ij_elem = P_ij_elem*2.0_dp
-               ENDIF
+               END IF
                IF (beta_beta) THEN
                   mp2_env%ri_grad%P_ij(2)%array(my_i, my_j) = mp2_env%ri_grad%P_ij(2)%array(my_i, my_j) - P_ij_elem
                   mp2_env%ri_grad%P_ij(2)%array(my_j, my_i) = mp2_env%ri_grad%P_ij(2)%array(my_j, my_i) - P_ij_elem
                ELSE
                   mp2_env%ri_grad%P_ij(ispin)%array(my_i, my_j) = mp2_env%ri_grad%P_ij(ispin)%array(my_i, my_j) - P_ij_elem
                   mp2_env%ri_grad%P_ij(ispin)%array(my_j, my_i) = mp2_env%ri_grad%P_ij(ispin)%array(my_j, my_i) - P_ij_elem
-               ENDIF
+               END IF
                CALL timestop(handle2)
             ELSE
                CALL timeset(routineN//"_comm", handle2)
@@ -2430,7 +2430,7 @@ CONTAINS
          ELSE
             WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
                "MO_INFO| Number of ij pairs (spin beta) below EPS_CANONICAL:", num_sing_ij
-         ENDIF
+         END IF
          CALL m_flush(unit_nr)
          END IF
          total_ijk = my_homo*num_sing_ij

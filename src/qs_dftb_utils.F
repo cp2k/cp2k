@@ -852,7 +852,7 @@ CONTAINS
          IF (dift .LT. dif) THEN
             ns = i
             dif = dift
-         ENDIF
+         END IF
          c(i) = ya(i)
          d(i) = ya(i)
       END DO
@@ -875,7 +875,7 @@ CONTAINS
          ELSE
             dy = d(ns)
             ns = ns - 1
-         ENDIF
+         END IF
          y = y + dy
       END DO
 !
@@ -975,7 +975,7 @@ CONTAINS
                         erep = erep + scoeff(isp, jsp + 1)*rz**(jsp)
                      ELSE
                         erep = erep + surr(jsp - 3)*rz**(jsp)
-                     ENDIF
+                     END IF
                   END DO
                   IF (dograd) THEN
                      DO jsp = 1, nsp
@@ -983,7 +983,7 @@ CONTAINS
                            de_z = de_z + jsp*scoeff(isp, jsp + 1)*rz**(jsp - 1)
                         ELSE
                            de_z = de_z + jsp*surr(jsp - 3)*rz**(jsp - 1)
-                        ENDIF
+                        END IF
                      END DO
                   END IF
                END IF

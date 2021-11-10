@@ -206,7 +206,7 @@ CONTAINS
 
          ! Store two electron integrals in the triangular format
          CALL store_2el_2c_diag(limij, limkl, ww, w)
-      ENDIF
+      END IF
    END SUBROUTINE rotint_num
 
 ! **************************************************************************************************
@@ -542,7 +542,7 @@ CONTAINS
             IF (nt == 8 .OR. nt == 9) THEN
                IF (sepi%z == 7 .OR. sepi%z == 8) scale = scale + (angstrom*rij - 1._dp)*EXP(-alpi*rij)
                IF (sepj%z == 7 .OR. sepj%z == 8) scale = scale + (angstrom*rij - 1._dp)*EXP(-alpj*rij)
-            ENDIF
+            END IF
             scale = ABS(scale*zz*ssss)
             zz = zz/rij
             IF (itype == do_method_am1 .OR. itype == do_method_pm3 .OR. itype == do_method_pdg) THEN
@@ -592,16 +592,16 @@ CONTAINS
                      ax = fni2(ig)*(rij - fni3(ig))**2
                      IF (ax <= 25._dp) THEN
                         scale = scale + zz*fni1(ig)*EXP(-ax)
-                     ENDIF
-                  ENDIF
+                     END IF
+                  END IF
                   IF (ABS(fnj1(ig)) > 0._dp) THEN
                      ax = fnj2(ig)*(rij - fnj3(ig))**2
                      IF (ax <= 25._dp) THEN
                         scale = scale + zz*fnj1(ig)*EXP(-ax)
-                     ENDIF
-                  ENDIF
+                     END IF
+                  END IF
                END DO
-            ENDIF
+            END IF
             IF (itype == do_method_pdg) THEN
                ! PDDG function
                zaf = sepi%zeff/nt

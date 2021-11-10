@@ -318,7 +318,7 @@ CONTAINS
          pv_scalar = cp_unit_from_cp2k(pv_scalar, "bar")
          pv_xx_nc = virial%pv_total(1, 1)/cell%deth
          pv_xx = cp_unit_from_cp2k(virial%pv_total(1, 1)/cell%deth, "bar")
-      ENDIF
+      END IF
 
       CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds)
       atomic_kind_set => atomic_kinds%els
@@ -342,7 +342,7 @@ CONTAINS
          IF ((reftraj%isnap == reftraj%info%first_snapshot)) THEN
             my_pos = "REWIND"
          END IF
-      ENDIF
+      END IF
 
       ! Performing protocol relevant to the first step of an MD run
       IF (init) THEN
@@ -352,7 +352,7 @@ CONTAINS
             IF (simpar%e0 == 0._dp) simpar%e0 = md_ener%epot + md_ener%ekin
             hugoniot = md_ener%epot + md_ener%ekin - simpar%e0 - 0.5_dp*(pv_xx_nc + simpar%p0)* &
                        (simpar%v0 - cell%deth)
-         ENDIF
+         END IF
 
          IF (simpar%ensemble == reftraj_ensemble) reftraj%init = init
       ELSE
@@ -410,7 +410,7 @@ CONTAINS
                CALL m_flush(ener_mix)
             END IF
             CALL cp_print_key_finished_output(ener_mix, logger, motion_section, "PRINT%MIXED_ENERGIES")
-         ENDIF
+         END IF
 
          ! Print QMMM translation vector if requested
          IF (qmmm) THEN

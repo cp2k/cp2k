@@ -347,7 +347,7 @@ CONTAINS
       DO I = 1, ddapc_restraint_control%natoms
          ind = (ddapc_restraint_control%atoms(I) - 1)*n_gauss
          order_p = order_p + ddapc_restraint_control%coeff(I)*SUM(charges(ind + 1:ind + n_gauss))
-      ENDDO
+      END DO
       ddapc_restraint_control%ddapc_order_p = order_p
 
       SELECT CASE (ddapc_restraint_control%functional_form)
@@ -360,7 +360,7 @@ CONTAINS
          DO I = 1, ddapc_restraint_control%natoms
             ind = (ddapc_restraint_control%atoms(I) - 1)*n_gauss
             uv(ind + 1:ind + n_gauss) = dE*ddapc_restraint_control%coeff(I)
-         ENDDO
+         END DO
       CASE (do_ddapc_constraint)
          energy_res = ddapc_restraint_control%strength*(order_p - ddapc_restraint_control%target)
 
@@ -368,7 +368,7 @@ CONTAINS
          DO I = 1, ddapc_restraint_control%natoms
             ind = (ddapc_restraint_control%atoms(I) - 1)*n_gauss
             uv(ind + 1:ind + n_gauss) = ddapc_restraint_control%strength*ddapc_restraint_control%coeff(I)
-         ENDDO
+         END DO
 
       CASE DEFAULT
          CPABORT("")

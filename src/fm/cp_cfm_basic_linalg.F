@@ -442,7 +442,7 @@ CONTAINS
       DO irow = 1, nrow_global
          IF (ipivot(irow) .NE. irow) counter = counter + 1
          determinant = determinant*a(irow, irow)
-      ENDDO
+      END DO
       IF (MOD(counter, 2) == 1) determinant = -1.0_dp*determinant
 #endif
 
@@ -742,7 +742,7 @@ CONTAINS
          DO irow = 1, nrow_global
             IF (ipivot(irow) .NE. irow) counter = counter + 1
             determinant = determinant*a(irow, irow)
-         ENDDO
+         END DO
          IF (MOD(counter, 2) == 1) determinant = -1.0_dp*determinant
       END IF
       CALL zgetrs("N", nrow_global, nrow_global, a(1, 1), lda, ipivot, a_general(1, 1), ldb, info)

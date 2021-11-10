@@ -243,7 +243,7 @@ CONTAINS
                force(ikind)%efield(1:3, atom_a) = force(ikind)%efield(1:3, atom_a) + fdir*fij(1:3)
                force(jkind)%efield(1:3, atom_b) = force(jkind)%efield(1:3, atom_b) - fdir*fij(1:3)
             END IF
-         ENDDO
+         END DO
          CALL dbcsr_iterator_stop(iter)
 
          IF (calculate_forces) THEN
@@ -435,7 +435,7 @@ CONTAINS
                   force(ikind)%efield(1:3, atom_a) = force(ikind)%efield(1:3, atom_a) + fdir*fij(1:3)
                   force(jkind)%efield(1:3, atom_b) = force(jkind)%efield(1:3, atom_b) - fdir*fij(1:3)
                END IF
-            ENDDO
+            END DO
             CALL dbcsr_iterator_stop(iter)
             !
             ! stress tensor for Gamma point needs to recalculate overlap integral derivatives
@@ -802,7 +802,7 @@ CONTAINS
                   force(jkind)%efield(1:3, atom_b) = force(jkind)%efield(1:3, atom_b) - fdir*fij(1:3)
                END IF
 
-            ENDDO
+            END DO
             CALL dbcsr_iterator_stop(iter)
          ELSE
             CALL neighbor_list_iterator_create(nl_iterator, sab_orb)

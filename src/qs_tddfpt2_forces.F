@@ -273,7 +273,7 @@ CONTAINS
          iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          iounit = -1
-      ENDIF
+      END IF
 
       evect => ex_env%evect
 
@@ -441,7 +441,7 @@ CONTAINS
             iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
          ELSE
             iounit = -1
-         ENDIF
+         END IF
          CPWARN("Electron count of excitation density matrix is non-zero.")
          IF (iounit > 0) THEN
             WRITE (iounit, "(T2,A,T61,G20.10)") "Measured electron count is ", tmp
@@ -565,7 +565,7 @@ CONTAINS
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, trho_g(ispin)%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      ENDDO
+      END DO
       CALL pw_zero(rho_tot_gspace%pw)
       DO ispin = 1, nspins
          CALL calculate_rho_elec(ks_env=ks_env, matrix_p=matrix_pe(ispin)%matrix, &
@@ -579,7 +579,7 @@ CONTAINS
                iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
             ELSE
                iounit = -1
-            ENDIF
+            END IF
             CPWARN("Real space electron count of excitation density is non-zero.")
             IF (iounit > 0) THEN
                WRITE (iounit, "(T2,A,T61,G20.10)") "Measured electron count is ", total_rho
@@ -668,7 +668,7 @@ CONTAINS
                                       use_data=REALDATA3D, in_space=REALSPACE)
                CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_g_aux(ispin)%pw, &
                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-            ENDDO
+            END DO
             DO ispin = 1, nspins
                CALL calculate_rho_elec(ks_env=ks_env, matrix_p=mpe(ispin, 1)%matrix, &
                                        rho=rhoz_r_aux(ispin), rho_gspace=rhoz_g_aux(ispin), &

@@ -446,7 +446,7 @@ CONTAINS
       CALL qs_rho_get(p_env%rho1, rho_ao=rho1_ao)
       DO ispin = 1, SIZE(rho1_ao)
          CALL dbcsr_copy(rho1_ao(ispin)%matrix, p_env%p1(ispin)%matrix)
-      ENDDO
+      END DO
 
       CALL qs_rho_update_rho(rho_struct=p_env%rho1, &
                              local_rho_set=p_env%local_rho_set, &
@@ -861,8 +861,8 @@ CONTAINS
          ! hack to avoid crashes in ep regs
          IF (.NOT. ASSOCIATED(rho1_ao(ispin)%matrix, p1(ispin)%matrix)) THEN
             CALL dbcsr_copy(rho1_ao(ispin)%matrix, p1(ispin)%matrix)
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       IF (ASSOCIATED(p_env%local_rho_set)) THEN
          CALL qs_rho_update_rho(rho_struct=p_env%rho1, qs_env=qs_env, local_rho_set=p_env%local_rho_set)

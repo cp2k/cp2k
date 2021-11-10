@@ -113,7 +113,7 @@ CONTAINS
          CASE (do_admm_purify_mo_no_diag, do_admm_purify_none, do_admm_purify_cauchy)
             ! do nothing
          END SELECT
-      ENDIF
+      END IF
 
    END SUBROUTINE admm_correct_for_eigenvalues
 
@@ -172,7 +172,7 @@ CONTAINS
          CASE (do_admm_purify_mo_no_diag, do_admm_purify_none, do_admm_purify_cauchy)
             ! do nothing
          END SELECT
-      ENDIF
+      END IF
    END SUBROUTINE admm_uncorrect_for_eigenvalues
 
 END MODULE admm_utils

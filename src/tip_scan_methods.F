@@ -285,12 +285,12 @@ CONTAINS
          !skip header comments
          DO i = 1, 2
             READ (extunit, *)
-         ENDDO
+         END DO
          READ (extunit, *) nat, rdum
          DO i = 1, 3
             READ (extunit, *) npts(i), dcell(i, 1:3)
             dcell(i, 1:3) = npts(i)*dcell(i, 1:3)
-         ENDDO
+         END DO
          CALL close_file(unit_number=extunit)
       END IF
 

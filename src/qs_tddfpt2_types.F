@@ -652,11 +652,11 @@ CONTAINS
       IF (ASSOCIATED(work_matrices%gamma_exchange)) THEN
          CALL dbcsr_deallocate_matrix_set(work_matrices%gamma_exchange)
          NULLIFY (work_matrices%gamma_exchange)
-      ENDIF
+      END IF
       IF (ASSOCIATED(work_matrices%ctransformed)) THEN
          CALL cp_fm_vect_dealloc(work_matrices%ctransformed)
          NULLIFY (work_matrices%ctransformed)
-      ENDIF
+      END IF
       CALL dbcsr_release_p(work_matrices%shalf)
       !
       IF (ASSOCIATED(work_matrices%S_eigenvectors)) &

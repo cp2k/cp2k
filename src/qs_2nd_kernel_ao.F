@@ -109,7 +109,7 @@ CONTAINS
                                     matrix_g=c0(ispin)%matrix, &
                                     ncol=ncol, alpha=1.0_dp, &
                                     keep_sparsity=.TRUE.)
-      ENDDO
+      END DO
 
    END SUBROUTINE build_dm_response
 

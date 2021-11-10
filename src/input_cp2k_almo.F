@@ -678,7 +678,7 @@ CONTAINS
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
 
-      ENDIF
+      END IF
 
       IF (optimizer_type .EQ. optimizer_pcg .OR. &
           optimizer_type .EQ. optimizer_lin_eq_pcg .OR. &
@@ -707,7 +707,7 @@ CONTAINS
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
 
-      ENDIF
+      END IF
 
       IF (optimizer_type .EQ. optimizer_pcg) THEN
 
@@ -734,7 +734,7 @@ CONTAINS
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
 
-      ENDIF
+      END IF
 
       IF (optimizer_type .EQ. optimizer_pcg .OR. &
           optimizer_type .EQ. optimizer_trustr) THEN
@@ -755,7 +755,7 @@ CONTAINS
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
 
-      ENDIF
+      END IF
 
       IF (optimizer_type .EQ. optimizer_trustr) THEN
 
@@ -801,7 +801,7 @@ CONTAINS
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
 
-      ENDIF
+      END IF
 
    END SUBROUTINE create_optimizer_section
 

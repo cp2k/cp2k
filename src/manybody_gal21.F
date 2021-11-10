@@ -349,14 +349,14 @@ CONTAINS
             index_h1 = iatom
          ELSEIF (count_h == 2) THEN
             index_h2 = iatom
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       ! Abort if the oxygen is not part of a water molecule (2 H)
       IF (count_h /= 2) THEN
          CALL cp_abort(__LOCATION__, &
                        " Error: Found "//cp_to_string(count_h)//" H atoms for O atom "//cp_to_string(iparticle))
-      ENDIF
+      END IF
 
       a1 = gal21%a11 + gal21%a12*gal21%gcn(jparticle) + gal21%a13*gal21%gcn(jparticle)*gal21%gcn(jparticle)
       a2 = gal21%a21 + gal21%a22*gal21%gcn(jparticle) + gal21%a23*gal21%gcn(jparticle)*gal21%gcn(jparticle)
@@ -394,7 +394,7 @@ CONTAINS
 
          CALL cp_print_key_finished_output(index_outfile, logger, mm_section, &
                                            "PRINT%PROGRAM_RUN_INFO")
-      ENDIF
+      END IF
 
    END SUBROUTINE
 
@@ -676,14 +676,14 @@ CONTAINS
             index_h1 = iatom
          ELSEIF (count_h == 2) THEN
             index_h2 = iatom
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       ! Abort if the oxygen is not part of a water molecule (2 H)
       IF (count_h /= 2) THEN
          CALL cp_abort(__LOCATION__, &
                        " Error: Found "//cp_to_string(count_h)//" H atoms for O atom "//cp_to_string(iparticle))
-      ENDIF
+      END IF
 
       a1 = gal21%a11 + gal21%a12*gal21%gcn(jparticle) + gal21%a13*gal21%gcn(jparticle)*gal21%gcn(jparticle)
       a2 = gal21%a21 + gal21%a22*gal21%gcn(jparticle) + gal21%a23*gal21%gcn(jparticle)*gal21%gcn(jparticle)
@@ -922,13 +922,13 @@ CONTAINS
 
       IF (iw > 0 .AND. nr_ions > 0 .AND. print_oh) THEN
          WRITE (iw, '(/,A,T71,I10,/)') " gal21: number of OH- ions at surface", nr_ions
-      ENDIF
+      END IF
       IF (iw > 0 .AND. nr_ions > 0 .AND. print_h3o) THEN
          WRITE (iw, '(/,A,T71,I10,/)') " gal21: number of H3O+ ions at surface", nr_ions
-      ENDIF
+      END IF
       IF (iw > 0 .AND. nr_ions > 0 .AND. print_o) THEN
          WRITE (iw, '(/,A,T71,I10,/)') " gal21: number of O^2- ions at surface", nr_ions
-      ENDIF
+      END IF
 
       CALL cp_print_key_finished_output(iw, logger, mm_section, "PRINT%PROGRAM_RUN_INFO")
 

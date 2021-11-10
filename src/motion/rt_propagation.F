@@ -214,13 +214,13 @@ CONTAINS
                   CALL apply_delta_pulse_periodic(qs_env, mos_old, mos_new)
                ELSE
                   CALL apply_delta_pulse(qs_env, mos_old, mos_new)
-               ENDIF
+               END IF
             ELSE
                DO i = 1, SIZE(mos)
                   CALL cp_fm_to_fm(mos(i)%mo_set%mo_coeff, mos_old(2*i - 1)%matrix)
                   CALL cp_fm_set_all(mos_old(2*i)%matrix, zero, zero)
                END DO
-            ENDIF
+            END IF
          END IF
 
          DO i = 1, SIZE(mos_old)
@@ -244,8 +244,8 @@ CONTAINS
                   CALL dbcsr_copy(rho_old(re)%matrix, qs_env%ls_scf_env%matrix_p(ispin))
                   CALL dbcsr_copy(rho_new(re)%matrix, qs_env%ls_scf_env%matrix_p(ispin))
                END DO
-            ENDIF
-         ENDIF
+            END IF
+         END IF
          CALL calc_update_rho_sparse(qs_env)
       END IF
 
@@ -376,7 +376,7 @@ CONTAINS
       ! coming from RTP
       IF (.NOT. PRESENT(md_env)) THEN
          CALL section_vals_val_set(motion_section, "MD%STEP_START_VAL", i_val=force_env%qs_env%sim_step)
-      ENDIF
+      END IF
 
       CALL write_restart(md_env=md_env, root_section=root_section)
 
@@ -446,7 +446,7 @@ CONTAINS
                   END IF
                END DO
             END IF
-         ENDIF
+         END IF
          ALLOCATE (qs_env%rtp)
          CALL get_qs_env(qs_env, matrix_s=matrix_s)
          CALL rt_prop_create(qs_env%rtp, qs_env%mos, qs_env%mpools, dft_control, matrix_s(1)%matrix, &

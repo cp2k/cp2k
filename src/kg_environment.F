@@ -648,7 +648,7 @@ CONTAINS
          ALLOCATE (msg_gather(2, npairs*para_env%num_pe))
       ELSE
          ALLOCATE (msg_gather(2, 1))
-      ENDIF
+      END IF
 
       msg_gather = 0
 
@@ -682,7 +682,7 @@ CONTAINS
          ! write to file, nnodes = number of molecules
          IF (.FALSE.) THEN
             CALL write_to_file(pairs, SIZE(kg_env%molecule_set))
-         ENDIF
+         END IF
 
          ! vertex coloring algorithm
          CALL kg_vertex_coloring(kg_env, pairs, ncolors, color_of_node)

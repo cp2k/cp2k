@@ -192,15 +192,15 @@ CONTAINS
                ! Here, we do not have to check whether the functional name starts with XC_
                ! because we only allow the shorter form w/o XC_
                CALL sirius_add_xc_functional(sctx, "XC_"//TRIM(xc_fun%section%name))
-            ENDIF
+            END IF
          END DO
-      ENDIF
+      END IF
 
 !     import control section
       pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "control")
       IF (ASSOCIATED(pwdft_sub_section)) THEN
          CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, "control")
-      ENDIF
+      END IF
 
 !     import parameters section
       pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "parameters")
@@ -218,25 +218,25 @@ CONTAINS
          CALL section_vals_val_get(pwdft_sub_section, "num_mag_dims", i_val=num_mag_dims)
          CALL section_vals_val_get(pwdft_sub_section, "use_symmetry", l_val=use_symmetry)
          CALL section_vals_val_get(pwdft_sub_section, "so_correction", l_val=use_so)
-      ENDIF
+      END IF
 
 !     import mixer section
       pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "mixer")
       IF (ASSOCIATED(pwdft_sub_section)) THEN
          CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, "mixer")
-      ENDIF
+      END IF
 
 !     import settings section
       pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "settings")
       IF (ASSOCIATED(pwdft_sub_section)) THEN
          CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, "settings")
-      ENDIF
+      END IF
 
       !     import solver section
       pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "iterative_solver")
       IF (ASSOCIATED(pwdft_sub_section)) THEN
          CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, "iterative_solver")
-      ENDIF
+      END IF
 
       !
       ! uncomment these lines when nlcg is officially supported
@@ -440,10 +440,10 @@ CONTAINS
          ELSE
             v1 = 0._dp
             v1(3) = magnetization
-         ENDIF
+         END IF
          v2(1:3) = vs(1:3)
          CALL sirius_add_atom(sctx, label, v2(1), v1(1))
-      ENDDO
+      END DO
 ! initialize global variables/indices/arrays/etc. of the simulation
       CALL sirius_initialize_context(sctx)
 
@@ -453,7 +453,7 @@ CONTAINS
          CALL sirius_create_kset_from_grid(sctx, k_grid(1), k_shift(1), use_symmetry=.TRUE., kset_handler=ks_handler)
       ELSE
          CALL sirius_create_kset_from_grid(sctx, k_grid(1), k_shift(1), use_symmetry=.FALSE., kset_handler=ks_handler)
-      ENDIF
+      END IF
 ! create ground-state class
       CALL sirius_create_ground_state(ks_handler, gs_handler)
 
@@ -501,7 +501,7 @@ CONTAINS
          CALL real_to_scaled(vs, vr, my_cell)
          v2(1:3) = vs(1:3)
          CALL sirius_set_atom_position(sctx, iatom, v2(1))
-      ENDDO
+      END DO
 
 ! update ground-state class
       CALL sirius_update_ground_state(gs_handler)
@@ -638,14 +638,14 @@ CONTAINS
          ! cp2k : forces(atoms, coordinates)
          forces = -TRANSPOSE(cforces(:, :))
          DEALLOCATE (cforces)
-      ENDIF
+      END IF
 
       IF (calculate_stress_tensor) THEN
          cstress = 0.0_C_DOUBLE
          CALL sirius_get_stress_tensor(gs_handler, 'total', cstress(1, 1))
          stress(1:3, 1:3) = cstress(1:3, 1:3)
          CALL pwdft_env_set(pwdft_env=pwdft_env, stress=stress)
-      ENDIF
+      END IF
 
       CALL pwdft_env_get(pwdft_env=pwdft_env, pwdft_input=pwdft_input)
       print_section => section_vals_get_subs_vals(pwdft_input, "PRINT")

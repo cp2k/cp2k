@@ -172,10 +172,10 @@ CONTAINS
          END IF
          IF (ASSOCIATED(lnhc%nvt)) THEN
             DEALLOCATE (lnhc%nvt)
-         ENDIF
+         END IF
          CALL release_map_info_type(lnhc%map_info)
          DEALLOCATE (lnhc)
-      ENDIF
+      END IF
 
    END SUBROUTINE lnhc_dealloc
 

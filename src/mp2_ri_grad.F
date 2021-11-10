@@ -188,7 +188,7 @@ CONTAINS
          DO LLL = 1, my_group_L_size
             G_P_ia(ispin, LLL)%matrix => mp2_env%ri_grad%G_P_ia(LLL, ispin)%matrix
          END DO
-      ENDDO
+      END DO
       DEALLOCATE (mp2_env%ri_grad%G_P_ia)
 
       itmp = get_limit(dimen_RI, para_env_sub%num_pe, para_env_sub%mepos)
@@ -201,7 +201,7 @@ CONTAINS
       DO ispin = 1, nspins
          G_PQ_local(my_P_start:my_P_end, :) = G_PQ_local(my_P_start:my_P_end, :) + mp2_env%ri_grad%Gamma_PQ(ispin)%array
          DEALLOCATE (mp2_env%ri_grad%Gamma_PQ(ispin)%array)
-      ENDDO
+      END DO
       G_PQ_local(my_P_start:my_P_end, :) = G_PQ_local(my_P_start:my_P_end, :)/REAL(nspins, dp)
       CALL mp_sum(G_PQ_local, para_env_sub%group)
       IF (.NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) THEN
@@ -210,7 +210,7 @@ CONTAINS
          DO ispin = 1, nspins
             G_PQ_local_2(my_P_start:my_P_end, :) = G_PQ_local_2(my_P_start:my_P_end, :) + mp2_env%ri_grad%Gamma_PQ_2(ispin)%array
             DEALLOCATE (mp2_env%ri_grad%Gamma_PQ_2(ispin)%array)
-         ENDDO
+         END DO
          G_PQ_local_2(my_P_start:my_P_end, :) = G_PQ_local_2(my_P_start:my_P_end, :)/REAL(nspins, dp)
          CALL mp_sum(G_PQ_local_2, para_env_sub%group)
       END IF
@@ -219,7 +219,7 @@ CONTAINS
       ALLOCATE (matrix_P_inu(nspins))
       DO ispin = 1, nspins
          CALL dbcsr_create(matrix_P_inu(ispin), template=mo_coeff_o(ispin)%matrix)
-      ENDDO
+      END DO
 
       ! non symmetric matrix
       CALL dbcsr_create(matrix_P_munu_nosym, template=mat_munu%matrix, &
@@ -230,13 +230,13 @@ CONTAINS
       DO ispin = 1, nspins
          CALL dbcsr_create(Lag_mu_i_1(ispin), template=mo_coeff_o(ispin)%matrix)
          CALL dbcsr_set(Lag_mu_i_1(ispin), 0.0_dp)
-      ENDDO
+      END DO
 
       ALLOCATE (Lag_nu_a_2(nspins))
       DO ispin = 1, nspins
          CALL dbcsr_create(Lag_nu_a_2(ispin), template=mo_coeff_v(ispin)%matrix)
          CALL dbcsr_set(Lag_nu_a_2(ispin), 0.0_dp)
-      ENDDO
+      END DO
 
       ! get forces
       NULLIFY (force, virial)
@@ -266,7 +266,7 @@ CONTAINS
             CALL G_P_transform_MO_to_AO(matrix_P_munu_local(L_counter)%matrix, matrix_P_munu_nosym, mat_munu%matrix, &
                                         G_P_ia(:, L_counter), matrix_P_inu, &
                                         mo_coeff_v, mo_coeff_o, eps_filter)
-         ENDDO
+         END DO
 
          ALLOCATE (I_tmp2(dimen_RI, my_group_L_size))
          I_tmp2(:, :) = 0.0_dp
@@ -297,13 +297,13 @@ CONTAINS
             DO ispin = 1, nspins
                CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v(ispin)%matrix, G_P_ia(ispin, L_counter)%matrix, &
                                    0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter)
-            ENDDO
+            END DO
 
             ! The matrices of G_P_ia are deallocated here
             CALL update_lagrangian(mat_munu_local(L_counter)%matrix, matrix_P_inu, Lag_mu_i_1, &
                                    G_P_ia(:, L_counter), mo_coeff_o, Lag_nu_a_2, &
                                    eps_filter)
-         ENDDO
+         END DO
 
          DO ikind = 1, SIZE(force)
             mp2_force(ikind)%mp2_non_sep(:, :) = -4.0_dp*force_2c(ikind)%forces(:, :) + &
@@ -432,7 +432,7 @@ CONTAINS
          CALL dbcsr_release(matrix_P_munu%matrix)
          DEALLOCATE (matrix_P_munu%matrix)
 
-      ENDIF
+      END IF
 
       IF (use_virial) mp2_env%ri_grad%mp2_virial = h_stress
 
@@ -443,7 +443,7 @@ CONTAINS
 
       DO ispin = 1, nspins
          CALL dbcsr_release(matrix_P_inu(ispin))
-      ENDDO
+      END DO
       DEALLOCATE (matrix_P_inu, G_P_ia)
 
       ! move the forces in the correct place
@@ -452,7 +452,7 @@ CONTAINS
             mp2_force(ikind)%mp2_non_sep(:, :) = force(ikind)%rho_elec(:, :)
             force(ikind)%rho_elec(:, :) = 0.0_dp
          END DO
-      ENDIF
+      END IF
 
       ! Now we move from the local matrices to the global ones
       ! defined over all MPI tasks
@@ -484,7 +484,7 @@ CONTAINS
 
          ! release Lag_nu_a_2
          CALL dbcsr_release(Lag_nu_a_2(ispin))
-      ENDDO
+      END DO
       DEALLOCATE (Lag_mu_i_1, Lag_nu_a_2)
 
       ! Set the factor to multiply P_ij (depends on the open or closed shell)
@@ -495,7 +495,7 @@ CONTAINS
          CALL create_W_P(qs_env, mp2_env, mo_coeff(ispin)%matrix, homo(ispin), virtual(ispin), dimen, para_env, &
                          para_env_sub, Eigenval(:, ispin), L1_mu_i(ispin)%matrix, L2_nu_a(ispin)%matrix, &
                          factor, ispin)
-      ENDDO
+      END DO
 
       CALL timestop(handle)
 
@@ -634,7 +634,7 @@ CONTAINS
          ! release the actual gamma_P_ia
          CALL dbcsr_release(G_P_ia(ispin)%matrix)
          DEALLOCATE (G_P_ia(ispin)%matrix)
-      ENDDO
+      END DO
 
       CALL timestop(handle)
 

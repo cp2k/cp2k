@@ -553,7 +553,7 @@ CONTAINS
 
             CPASSERT(.TRUE.)
             CALL dbcsr_deallocate_matrix_set(subspace_env%p_matrix_store)
-         ENDIF
+         END IF
          DO i = 1, SIZE(subspace_env%chc_mat)
             CALL cp_fm_release(subspace_env%chc_mat(i)%matrix)
          END DO

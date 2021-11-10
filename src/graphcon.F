@@ -93,7 +93,7 @@ CONTAINS
          ! generate a hash based on the the kind of each atom and the kind of its bonded atoms
          DO I = 1, N
             kind_new(I) = hash_kind(kind_ref(I), kind_ref(reference(I)%bonds))
-         ENDDO
+         END DO
          kind_ref = kind_new
          ! find the number of equivalent atoms
          CALL sort(kind_new, N, index)
@@ -103,13 +103,13 @@ CONTAINS
             IF (kind_new(I) .NE. old_class) THEN
                Nclasses = Nclasses + 1
                old_class = kind_new(I)
-            ENDIF
-         ENDDO
+            END IF
+         END DO
          ! if we have not generated new classes, we have presumably found all equivalence classes
          IF (Nclasses == Nclasses_old) EXIT
          Nclasses_old = Nclasses
          ! write(*,*) "Classes",Ihash, Nclasses
-      ENDDO
+      END DO
       ! hash (sorted) kinds to a molecular hash
       hash = joaat_hash_i(kind_new)
       DEALLOCATE (kind_new, index)
@@ -154,7 +154,7 @@ CONTAINS
       IF (SIZE(reference) .NE. SIZE(unordered)) THEN
          matches = .FALSE.
          RETURN
-      ENDIF
+      END IF
 
       ! catch the case where the molecules are already in the right order
       N = SIZE(order)
@@ -162,7 +162,7 @@ CONTAINS
       IF (matrix_equal(reference, unordered, order)) THEN
          matches = .TRUE.
          RETURN
-      ENDIF
+      END IF
 
       ! determine the kind of each atom, and the hash of the whole molecule
       ALLOCATE (kind_ref(N), kind_un(N), index_ref(N), index_un(N), &
@@ -173,7 +173,7 @@ CONTAINS
       IF (hash_re .NE. hash_un) THEN
          matches = .FALSE.
          RETURN
-      ENDIF
+      END IF
 
       ! generate the classes of equivalent atoms, i.e. the groups of atoms of the same topological kind
       kind_ref_ordered(:) = kind_ref
@@ -183,7 +183,7 @@ CONTAINS
       IF (ANY(kind_ref_ordered .NE. kind_un_ordered)) THEN
          matches = .FALSE.
          RETURN
-      ENDIF
+      END IF
 
       ! count different classes, assign their kinds, and the number of elements
       Nclasses = 1
@@ -192,8 +192,8 @@ CONTAINS
          IF (kind_ref_ordered(I) .NE. old_class) THEN
             Nclasses = Nclasses + 1
             old_class = kind_ref_ordered(I)
-         ENDIF
-      ENDDO
+         END IF
+      END DO
       ALLOCATE (classes(Nclasses))
       classes(1)%kind = kind_ref_ordered(1)
       Nclasses = 1
@@ -205,8 +205,8 @@ CONTAINS
             classes(Nclasses)%Nele = 1
          ELSE
             classes(Nclasses)%Nele = classes(Nclasses)%Nele + 1
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       ! assign the atoms to their classes
       iele = 0
@@ -218,13 +218,13 @@ CONTAINS
             iele = iele + 1
             classes(I)%reference(J) = index_ref(iele)
             classes(I)%unordered(J) = index_un(iele)
-         ENDDO
+         END DO
          class_of_atom(classes(I)%reference) = I
          ALLOCATE (classes(I)%order(Nele))
          ALLOCATE (classes(I)%q(Nele))
          classes(I)%order = (/(J, J=1, Nele)/)
          classes(I)%first = .TRUE.
-      ENDDO
+      END DO
 
       ! find which groups of classes (superclasses) that can be solved independently.
       ! only classes with more than one element that are connected need to be reordered simultaniously
@@ -237,8 +237,8 @@ CONTAINS
          IF (superclass_of_atom(I) .EQ. -1 .AND. classes(class_of_atom(I))%Nele > 1) THEN
             isuperclass = isuperclass + 1
             CALL spread_superclass(I, isuperclass, superclass_of_atom, class_of_atom, classes, reference)
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       ! put classes into superclasses
       ALLOCATE (superclasses(isuperclass))
@@ -246,18 +246,18 @@ CONTAINS
       DO I = 1, Nclasses
          J = superclass_of_atom(classes(I)%reference(1))
          IF (J > 0) superclasses(J)%Nele = superclasses(J)%Nele + 1
-      ENDDO
+      END DO
       DO I = 1, isuperclass
          ALLOCATE (superclasses(I)%classes(superclasses(I)%Nele))
          superclasses(I)%Nele = 0
-      ENDDO
+      END DO
       DO I = 1, Nclasses
          J = superclass_of_atom(classes(I)%reference(1))
          IF (J > 0) THEN
             superclasses(J)%Nele = superclasses(J)%Nele + 1
             superclasses(J)%classes(superclasses(J)%Nele) = I
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       ! write(*,*) "Class generation time",t2-t1
       ! WRITE(*,*) "Nclasses, max size, total-non-1 ",Nclasses,MAXVAL(classes%Nele),COUNT(classes%Nele>1)
@@ -266,7 +266,7 @@ CONTAINS
       ! assign the order array to their initial value
       DO Iclass = 1, Nclasses
          order(classes(Iclass)%unordered) = classes(Iclass)%reference(classes(Iclass)%order)
-      ENDDO
+      END DO
 
       ! reorder the atoms superclass after superclass
       itries = 0
@@ -278,7 +278,7 @@ CONTAINS
             DO iclass = 1, superclasses(I)%Nele
                J = superclasses(I)%classes(iclass)
                order(classes(J)%unordered) = classes(J)%reference(classes(J)%order)
-            ENDDO
+            END DO
 
             ! check for matches within this superclass only, be happy if we have a match
             matches = matrix_superclass_equal(reference, unordered, order, superclasses(I), classes)
@@ -286,7 +286,7 @@ CONTAINS
                WRITE (*, *) "Could not find the 1-to-1 mapping to prove graph isomorphism"
                WRITE (*, *) "Reordering failed, assuming these molecules are different"
                EXIT
-            ENDIF
+            END IF
             IF (matches) EXIT
 
             ! generate next permutation within this superclass
@@ -295,15 +295,15 @@ CONTAINS
                CALL all_permutations(classes(J)%order, classes(J)%Nele, &
                                      classes(J)%q, classes(J)%first)
                IF (.NOT. classes(J)%first) EXIT
-            ENDDO
+            END DO
 
             ! we are back at the original permutation so we're unable to match this superclass.
             IF (iclass .EQ. superclasses(I)%Nele .AND. &
                 classes(superclasses(I)%classes(superclasses(I)%Nele))%first) EXIT
-         ENDDO
+         END DO
          ! failed in this superblock, can exit now
          IF (.NOT. matches) EXIT
-      ENDDO
+      END DO
 
       ! the final check, just to be sure
       matches = matrix_equal(reference, unordered, order)
@@ -313,11 +313,11 @@ CONTAINS
          DEALLOCATE (classes(Iclass)%unordered)
          DEALLOCATE (classes(Iclass)%order)
          DEALLOCATE (classes(Iclass)%q)
-      ENDDO
+      END DO
       DEALLOCATE (classes)
       DO I = 1, isuperclass
          DEALLOCATE (superclasses(I)%classes)
-      ENDDO
+      END DO
       DEALLOCATE (superclasses)
    END SUBROUTINE reorder_graph
 
@@ -348,12 +348,12 @@ CONTAINS
          DO J = 1, classes(class_of_atom(I))%Nele
             CALL spread_superclass(classes(class_of_atom(I))%reference(J), isuperclass, &
                                    superclass_of_atom, class_of_atom, classes, reference)
-         ENDDO
+         END DO
          DO J = 1, SIZE(reference(I)%bonds)
             CALL spread_superclass(reference(I)%bonds(J), isuperclass, &
                                    superclass_of_atom, class_of_atom, classes, reference)
-         ENDDO
-      ENDIF
+         END DO
+      END IF
    END SUBROUTINE spread_superclass
 
 ! **************************************************************************************************
@@ -388,13 +388,13 @@ CONTAINS
                   IF (ALL(reference(order(I))%bonds(:) .NE. order(unordered(I)%bonds(J)))) THEN
                      res = .FALSE.
                      EXIT loop
-                  ENDIF
-               ENDDO
+                  END IF
+               END DO
             ELSE
                EXIT loop
-            ENDIF
-         ENDDO
-      ENDDO loop
+            END IF
+         END DO
+      END DO loop
    END FUNCTION matrix_superclass_equal
 
 ! **************************************************************************************************
@@ -422,12 +422,12 @@ CONTAINS
                IF (ALL(reference(order(I))%bonds(:) .NE. order(unordered(I)%bonds(J)))) THEN
                   res = .FALSE.
                   EXIT loop
-               ENDIF
-            ENDDO
+               END IF
+            END DO
          ELSE
             EXIT loop
-         ENDIF
-      ENDDO loop
+         END IF
+      END DO loop
    END FUNCTION matrix_equal
 
 ! **************************************************************************************************
@@ -454,7 +454,7 @@ CONTAINS
       ALLOCATE (ordered_bonds(N + 1), INDEX(N))
       DO I = 1, N
          ordered_bonds(I) = bonds(I)
-      ENDDO
+      END DO
       ordered_bonds(N + 1) = me
       ! N: only sort the bonds, not me
       CALL sort(ordered_bonds, N, index)
@@ -498,7 +498,7 @@ CONTAINS
          hash = IAND(hash + IBITS(key(i), 24, 8), b32)
          hash = IAND(hash + IAND(ISHFT(hash, 10), b32), b32)
          hash = IAND(IEOR(hash, IAND(ISHFT(hash, -6), b32)), b32)
-      ENDDO
+      END DO
       hash = IAND(hash + IAND(ISHFT(hash, 3), b32), b32)
       hash = IAND(IEOR(hash, IAND(ISHFT(hash, -11), b32)), b32)
       hash = IAND(hash + IAND(ISHFT(hash, 15), b32), b32)
@@ -535,20 +535,20 @@ CONTAINS
          DO m = 1, n - 1
             q(m) = n
          END DO
-      ENDIF
+      END IF
       IF (q(n - 1) .EQ. n) THEN
          q(n - 1) = n - 1
          t = x(n)
          x(n) = x(n - 1)
          x(n - 1) = t
          RETURN
-      ENDIF
+      END IF
       DO k = n - 1, 1, -1
          IF (q(k) .EQ. k) THEN
             q(k) = n
          ELSE
             go to 1
-         ENDIF
+         END IF
       END DO
       first = .TRUE.
       k = 1

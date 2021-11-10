@@ -250,7 +250,7 @@ CONTAINS
                   CALL get_gto_basis_set(gto_basis_set=orb_basis_set, nsgf=nsgf)
                ELSE
                   nsgf = 0
-               ENDIF
+               END IF
                n_ao = n_ao + nsgf
 
             END DO ! iatom

@@ -253,7 +253,7 @@ CONTAINS
             ELSE
                hole_spin = 2
                occ_spin = 1
-            ENDIF
+            END IF
             CALL set_mo_occupation(mo_set=mos(hole_spin)%mo_set, &
                                    smear=scf_control%smear, &
                                    xas_env=xas_env)
@@ -269,7 +269,7 @@ CONTAINS
             DO ispin = 1, nspin
                energy%kTS = energy%kTS + mos(ispin)%mo_set%kTS
                energy%efermi = energy%efermi + mos(ispin)%mo_set%mu
-            ENDDO
+            END DO
             energy%efermi = energy%efermi/REAL(nspin, KIND=dp)
 
          END SELECT
@@ -345,7 +345,7 @@ CONTAINS
                ! does not yet handle k-points
                CALL dbcsr_copy(rho_ao_kp(ispin, 1)%matrix, scf_env%p_mix_new(ispin, 1)%matrix)
             END DO
-         ENDIF
+         END IF
 
          ! ** update qs_env%rho
          CALL qs_rho_update_rho(rho, qs_env=qs_env)
@@ -609,7 +609,7 @@ CONTAINS
                           source_start=1, target_start=1)
          DO istate = 1, nmo
             all_evals(istate) = eigenvalues(istate)
-         ENDDO
+         END DO
          IF (nvirtual2 .GT. 0) THEN
             CALL cp_fm_to_fm(uno_orbs, all_vectors, ncol=nvirtual2, &
                              source_start=1, target_start=1 + nmo)
@@ -690,7 +690,7 @@ CONTAINS
             CALL get_xas_env(xas_env=xas_env, scf_env=scf_env)
          ELSE
             CALL qs_scf_env_initialize(qs_env, scf_env, scf_control, scf_section)
-         ENDIF
+         END IF
 
          CALL scf_env_do_scf(scf_env=scf_env, scf_control=scf_control, qs_env=qs_env, &
                              converged=converged, should_stop=should_stop, total_scf_steps=tsteps)
@@ -721,7 +721,7 @@ CONTAINS
                        source_start=1, target_start=1)
       DO istate = 1, nmo
          all_evals(istate) = eigenvalues(istate)
-      ENDDO
+      END DO
 
       IF (nvirtual2 /= 0) THEN
          IF (output_unit > 0) THEN

@@ -49,7 +49,7 @@ CONTAINS
       IF (ASSOCIATED(this%ptr_1d)) THEN
          IF (SIZE(this%ptr_2d, 2) /= 1) &
             CPABORT("Method not implemented for k-points")
-      ENDIF
+      END IF
 
       res => this%ptr_1d
    END FUNCTION get_1d_pointer
@@ -87,7 +87,7 @@ CONTAINS
       ELSE
          this%ptr_1d => Null()
          this%ptr_2d => Null()
-      ENDIF
+      END IF
    END SUBROUTINE set_1d_pointer
 
 ! **************************************************************************************************
@@ -107,7 +107,7 @@ CONTAINS
       ELSE
          this%ptr_1d => Null()
          this%ptr_2d => Null()
-      ENDIF
+      END IF
    END SUBROUTINE set_2d_pointer
 
 ! **************************************************************************************************
@@ -123,8 +123,8 @@ CONTAINS
             CALL dbcsr_deallocate_matrix_set(this%ptr_1d)
          ELSE
             CALL dbcsr_deallocate_matrix_set(this%ptr_2d)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
       NULLIFY (this%ptr_1d, this%ptr_2d)
    END SUBROUTINE kpoint_transitional_release
 

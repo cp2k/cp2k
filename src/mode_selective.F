@@ -477,7 +477,7 @@ CONTAINS
          ! should use the cp_fm_read_unformatted...
          DO i = 1, ncoord
             READ (UNIT=hesunit, IOSTAT=stat) ms_vib%hes_bfgs(:, i)
-         ENDDO
+         END DO
          CALL close_file(hesunit)
          IF (output_unit > 0) THEN
             IF (stat /= 0) THEN
@@ -859,7 +859,7 @@ CONTAINS
 
          DEALLOCATE (ms_vib%b_mat)
          DEALLOCATE (ms_vib%s_mat)
-      ENDIF
+      END IF
 
       ALLOCATE (ms_vib%b_mat(3*natoms, ms_vib%mat_size + nrep))
       ALLOCATE (ms_vib%s_mat(3*natoms, ms_vib%mat_size + nrep))
@@ -962,7 +962,7 @@ CONTAINS
          ELSE
             CALL ms_out(output_unit_ms, converged, freq, criteria, ms_vib, &
                         input, nrep, approx_H, eigenval, calc_intens, logger=logger)
-         ENDIF
+         END IF
          dump_only_positive = ms_vib%low_freq .GT. 0.0_dp
          CALL write_vibrations_molden(input, particles, eigenval, tmp_b, intensities, calc_intens, &
                                       dump_only_positive=dump_only_positive, logger=logger)
@@ -971,7 +971,7 @@ CONTAINS
          END IF
          DEALLOCATE (tmp_b)
          DEALLOCATE (tmp_s)
-      ENDIF
+      END IF
 
       IF (.NOT. converged) CALL ms_out(output_unit_ms, converged, freq, criteria, &
                                        ms_vib, input, nrep, approx_H, eigenval, calc_intens, logger=logger)
@@ -1159,7 +1159,7 @@ CONTAINS
                WRITE (iw, '(3X,5(4X, A))') 'FREQUENCY', 'INTENSITY', 'MAXVAL CRITERIA', 'NORM CRITERIA', 'CONVERGENCE'
             ELSE
                WRITE (iw, '(3X,5(4X, A))') 'FREQUENCY', 'MAXVAL CRITERIA', 'NORM CRITERIA', 'CONVERGENCE'
-            ENDIF
+            END IF
             DO i = 1, SIZE(ms_vib%b_mat, 2)
                residuum = 0._dp
                DO j = 1, SIZE(ms_vib%b_mat, 2)
@@ -1177,7 +1177,7 @@ CONTAINS
                   ELSE
                      IF (eigenval(i) .GT. ms_vib%low_freq) WRITE (iw, '(2X,A,2X,F9.3,1X,F12.6,3X,E12.3,7X,E12.3,11X,A)') &
                         'VIB|', eigenval(i), intensities(i), crit_a, crit_b, 'NO'
-                  ENDIF
+                  END IF
                ELSE
                   IF (crit_a .LE. ms_vib%eps(1) .AND. crit_b .LE. ms_vib%eps(2)) THEN
                      IF (eigenval(i) .GT. ms_vib%low_freq) WRITE (iw, '(2X,A,2X,F9.3,5X,E12.6,5X,E12.3,11X,A)') &
@@ -1185,7 +1185,7 @@ CONTAINS
                   ELSE
                      IF (eigenval(i) .GT. ms_vib%low_freq) WRITE (iw, '(2X,A,2X,F9.3,5X,E12.6,5X,E12.3,11X,A)') &
                         'VIB|', eigenval(i), crit_a, crit_b, 'NO'
-                  ENDIF
+                  END IF
                END IF
             END DO
             DEALLOCATE (residuum)

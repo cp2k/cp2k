@@ -680,7 +680,7 @@ CONTAINS
             (error_max < eps_diis), ")"
          WRITE (unit_nr, '(A75)') &
             "DIIS: diis_step=T : Perform DIIS  error_max<eps_diis=T : Update DIIS buffer"
-      ENDIF
+      END IF
 
       ! Update the SCF DIIS buffer
       IF (error_max < eps_diis) THEN
@@ -730,7 +730,7 @@ CONTAINS
 
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(A40,I3)') 'DIIS: Updating Kohn-Sham matrix at iscf=', iscf
-            ENDIF
+            END IF
 
             DO ispin = 1, nspin
                CALL dbcsr_set(matrix_ks(ispin)%matrix, & ! reset matrix
@@ -741,7 +741,7 @@ CONTAINS
                                  1.0_dp, -ev(jb))
                END DO ! end-loop-jb
             END DO ! end-loop-ispin
-         ENDIF ! if-iscf-to-updateKS------ END
+         END IF ! if-iscf-to-updateKS------ END
 
          DEALLOCATE (a)
          DEALLOCATE (b)
@@ -752,7 +752,7 @@ CONTAINS
             parameters => diis_buffer%parameter(ib, ispin)%matrix
             CALL dbcsr_copy(parameters, & ! out
                             matrix_ks(ispin)%matrix) ! in
-         ENDDO ! end-loop-ispin
+         END DO ! end-loop-ispin
       END IF
       CALL dbcsr_release(matrix_tmp)
       CALL dbcsr_release(matrix_KSerr_t)

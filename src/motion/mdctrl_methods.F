@@ -50,7 +50,7 @@ CONTAINS
 
       ELSE
          CPABORT("mdctrl_callback: No hook found.")
-      ENDIF
+      END IF
 
    END SUBROUTINE mdctrl_callback
 

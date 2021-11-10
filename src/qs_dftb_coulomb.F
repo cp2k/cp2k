@@ -405,7 +405,7 @@ CONTAINS
                      fij(i) = fi
                   END DO
                END IF
-            ENDDO
+            END DO
             CALL dbcsr_iterator_stop(iter)
             !
             IF (do_gamma_stress) THEN
@@ -744,7 +744,7 @@ CONTAINS
                   dsblock = dsblock/(2.0_dp*ddr)
 
                   clist%acint(1:n1, 1:n2, i) = -dsblock(1:n1, 1:n2)
-               ENDDO
+               END DO
                DEALLOCATE (dsblock, dsblockm)
             END IF
          END IF

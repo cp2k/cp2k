@@ -235,7 +235,7 @@ CONTAINS
          DO i = 1, SIZE(qs_loc_env%op_sm_set, 2)
             DO j = 1, SIZE(qs_loc_env%op_sm_set, 1)
                CALL dbcsr_deallocate_matrix(qs_loc_env%op_sm_set(j, i)%matrix)
-            ENDDO
+            END DO
          END DO
          DEALLOCATE (qs_loc_env%op_sm_set)
       END IF
@@ -326,16 +326,16 @@ CONTAINS
          IF (localized_wfn_control%ref_count == 0) THEN
             IF (ASSOCIATED(localized_wfn_control%loc_states)) THEN
                DEALLOCATE (localized_wfn_control%loc_states)
-            ENDIF
+            END IF
             IF (ASSOCIATED(localized_wfn_control%centers_set(1)%array)) THEN
                DEALLOCATE (localized_wfn_control%centers_set(1)%array)
-            ENDIF
+            END IF
             IF (ASSOCIATED(localized_wfn_control%centers_set(2)%array)) THEN
                DEALLOCATE (localized_wfn_control%centers_set(2)%array)
-            ENDIF
+            END IF
             localized_wfn_control%ref_count = 0
             DEALLOCATE (localized_wfn_control)
-         ENDIF
+         END IF
       END IF
    END SUBROUTINE localized_wfn_control_release
 

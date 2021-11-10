@@ -201,7 +201,7 @@ CONTAINS
          mixing_store%wbroy(nv) = wfac/mixing_store%wbroy(nv)
       ELSE
          mixing_store%wbroy(nv) = maxw
-      ENDIF
+      END IF
       IF (mixing_store%wbroy(nv) < minw) mixing_store%wbroy(nv) = minw
 
       ! dfbroy

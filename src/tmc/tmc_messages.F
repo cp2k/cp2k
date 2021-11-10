@@ -1347,7 +1347,7 @@ CONTAINS
       IF (DEBUG .GT. 0) THEN
          IF ((m_send%task_int(counter + 1) .NE. elem%sub_tree_nr) .AND. (m_send%task_int(counter + 3) .NE. elem%nr)) THEN
             CPABORT("read_NMC_result_massage: got result of wrong element")
-         ENDIF
+         END IF
          counter = counter + 2 + 2
       END IF
       ! the molecule information

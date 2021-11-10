@@ -243,7 +243,7 @@ CONTAINS
          IF (report_Epot < this%E_lowest) THEN
             this%E_lowest = report_Epot
             CALL write_progress_traj(this, report)
-         ENDIF
+         END IF
 
          IF (this%iw > 0) THEN
             WRITE (this%iw, '(A,46X,I8)') &

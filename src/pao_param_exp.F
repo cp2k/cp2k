@@ -208,7 +208,7 @@ CONTAINS
          DO i = 1, nparams
             block_X_full(MOD(i - 1, M) + 1, M + (i - 1)/M + 1) = +block_X(i, 1)
             block_X_full(M + (i - 1)/M + 1, MOD(i - 1, M) + 1) = -block_X(i, 1)
-         ENDDO
+         END DO
 
          ! diagonalize block_X_full
          ALLOCATE (evals(N), evecs(N, N))
@@ -220,9 +220,9 @@ CONTAINS
             DO i = 1, N
                DO j = 1, N
                   block_U(i, j) = block_U(i, j) + REAL(EXP(evals(k))*evecs(i, k)*CONJG(evecs(j, k)), dp)
-               ENDDO
-            ENDDO
-         ENDDO
+               END DO
+            END DO
+         END DO
 
          block_U = MATMUL(block_U0, block_U) ! prepend initial guess rotation
 
@@ -245,24 +245,24 @@ CONTAINS
                      block_D(i, j) = (EXP(evals(i)) - EXP(evals(j)))/denom
                   ELSE
                      block_D(i, j) = 1.0_dp ! limit according to L'Hospital's rule
-                  ENDIF
-               ENDDO
-            ENDDO
+                  END IF
+               END DO
+            END DO
 
             IF (ASSOCIATED(block_M)) THEN
                block_tmp = MATMUL(TRANSPOSE(block_U0), block_M)
             ELSE
                block_tmp = 0.0_dp
-            ENDIF
+            END IF
             block_G_full = fold_derivatives(block_tmp, block_D, evecs)
 
             ! return only gradient for rotations between occupied and virtuals
             DO i = 1, nparams
                block_G(i, 1) = 2.0_dp*block_G_full(MOD(i - 1, M) + 1, M + (i - 1)/M + 1)
-            ENDDO
+            END DO
 
             DEALLOCATE (block_D, block_tmp, block_G_full)
-         ENDIF
+         END IF
 
          DEALLOCATE (block_X_full, evals, evecs)
 

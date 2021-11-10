@@ -225,7 +225,7 @@ CONTAINS
       CALL section_vals_val_get(metadyn_section, "LANGEVIN", l_val=do_langevin)
       IF (do_langevin) THEN
          ALLOCATE (meta_env%rng(meta_env%n_colvar))
-      ENDIF
+      END IF
    END SUBROUTINE metadyn_create
 
 ! **************************************************************************************************

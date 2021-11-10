@@ -367,7 +367,7 @@ CONTAINS
                         CPASSERT(ASSOCIATED(dsblocks(i + 1)%block))
                         dsblocks(i + 1)%block = dsblocks(i + 1)%block + dsblock
                      END IF
-                  ENDDO
+                  END DO
                   IF (use_virial) THEN
 !deb iatom=jatom f0=0.5*f0
                      IF (iatom == jatom) f0 = 0.5_dp*f0
@@ -435,12 +435,12 @@ CONTAINS
          DO img = 1, nimg
             CALL dbcsr_finalize(matrix_s(i, img)%matrix)
          END DO
-      ENDDO
+      END DO
       DO i = 1, SIZE(matrix_h, 1)
          DO img = 1, nimg
             CALL dbcsr_finalize(matrix_h(i, img)%matrix)
          END DO
-      ENDDO
+      END DO
 
       ! set repulsive energy
       CALL mp_sum(erep, para_env%group)
@@ -650,11 +650,11 @@ CONTAINS
                             mo_coeff_b=mo_coeff, occupation_numbers=occupation_numbers)
             IF (.NOT. mo_array(ispin)%mo_set%use_mo_coeff_b) THEN
                CPABORT("")
-            ENDIF
+            END IF
             CALL dbcsr_multiply('n', 'n', 1.0_dp, ks_matrix(ispin, 1)%matrix, mo_coeff, &
                                 0.0_dp, mo_derivs(ispin)%matrix)
-         ENDDO
-      ENDIF
+         END DO
+      END IF
 
       CALL timestop(handle)
 
@@ -827,7 +827,7 @@ CONTAINS
                         dsblocks(indder)%block = dsblocks(indder)%block + &
                                                  (dsblock1(:, :, i) - 2.0_dp*sblock)/ddr**2
                      END IF
-                  ENDDO
+                  END DO
 
                   IF (nderivative .GT. 1) THEN
                      DO i = 1, 2
@@ -862,7 +862,7 @@ CONTAINS
 
       DO i = 1, SIZE(matrix_s, 1)
          CALL dbcsr_finalize(matrix_s(i)%matrix)
-      ENDDO
+      END DO
 
       CALL timestop(handle)
 

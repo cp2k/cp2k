@@ -458,7 +458,7 @@ CONTAINS
             IF (ispin == nspin_read) EXIT
          END DO
 
-      ENDIF
+      END IF
 
    END SUBROUTINE read_kpoints_restart_low
 

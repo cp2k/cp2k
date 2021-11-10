@@ -254,12 +254,12 @@ CONTAINS
 
          IF (master%iw > 0) WRITE (master%iw, '(A,A,1X,I8,A,A)') ' SWARM| ', REPEAT("*", 15), &
             master%i_iteration, ' Master / Worker Communication  ', REPEAT("*", 15)
-      ENDIF
+      END IF
 
       IF (master%i_iteration >= master%max_iter .AND. .NOT. master%should_stop) THEN
          IF (master%iw > 0) WRITE (master%iw, '(A)') " SWARM| Reached MAX_ITER. Quitting."
          master%should_stop = .TRUE.
-      ENDIF
+      END IF
 
       IF (.NOT. master%should_stop) THEN
          CALL external_control(master%should_stop, "SWARM", master%globenv)
@@ -287,8 +287,8 @@ CONTAINS
             IF (master%iw > 0) WRITE (master%iw, '(1X,A,T71,I10)') &
                "SWARM| Sending shutdown command to worker", worker_id
             master%should_stop = .TRUE.
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       CALL swarm_message_add(cmd, "worker_id", worker_id)
 
@@ -323,7 +323,7 @@ CONTAINS
       IF (master%iw > 0) THEN
          WRITE (master%iw, "(1X,A,T71,I10)") "SWARM| Total number of iterations ", master%i_iteration
          WRITE (master%iw, "(A)") " SWARM| Shutting down the master."
-      ENDIF
+      END IF
 
       SELECT CASE (master%behavior)
       CASE (swarm_do_glbopt)

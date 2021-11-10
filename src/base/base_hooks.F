@@ -78,7 +78,7 @@ CONTAINS
          WRITE (default_output_unit, *) "ABORT in "//TRIM(location)//" "//TRIM(message)
          CALL m_flush(default_output_unit)
          CALL m_abort()
-      ENDIF
+      END IF
       ! compiler hint
       STOP "Never return from here"
    END SUBROUTINE cp_abort
@@ -97,7 +97,7 @@ CONTAINS
       ELSE
          WRITE (default_output_unit, *) "WARNING in "//TRIM(location)//" "//TRIM(message)
          CALL m_flush(default_output_unit)
-      ENDIF
+      END IF
    END SUBROUTINE cp_warn
 
 ! **************************************************************************************************
@@ -114,7 +114,7 @@ CONTAINS
       ELSE
          WRITE (default_output_unit, *) "HINT in "//TRIM(location)//" "//TRIM(message)
          CALL m_flush(default_output_unit)
-      ENDIF
+      END IF
    END SUBROUTINE cp_hint
 
 ! **************************************************************************************************
@@ -131,7 +131,7 @@ CONTAINS
          CALL timeset_hook(routineN, handle)
       ELSE
          handle = -1
-      ENDIF
+      END IF
    END SUBROUTINE timeset
 
 ! **************************************************************************************************
@@ -147,7 +147,7 @@ CONTAINS
       ELSE
          IF (handle /= -1) &
             CALL cp_abort(cp__l("base_hooks.F", __LINE__), "Got wrong handle")
-      ENDIF
+      END IF
    END SUBROUTINE timestop
 
 ! **************************************************************************************************

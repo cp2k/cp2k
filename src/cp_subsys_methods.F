@@ -238,7 +238,7 @@ CONTAINS
       DO ig = 1, ncol
          NULLIFY (subsys%colvar_p(ig)%colvar)
          CALL colvar_read(subsys%colvar_p(ig)%colvar, ig, colvar_section, subsys%para_env)
-      ENDDO
+      END DO
    END SUBROUTINE cp_subsys_read_colvar
 
 ! **************************************************************************************************

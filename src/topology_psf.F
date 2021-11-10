@@ -125,7 +125,7 @@ CONTAINS
             IF (psf_type == do_conn_psf) THEN
                ! X-PLOR PSF format "similar" to the plain CHARMM PSF format
                psf_format = '(I8,1X,A4,I5,1X,A4,1X,A4,1X,A4,1X,2G14.6,I8)'
-            ENDIF
+            END IF
          CASE ("EXT")
             IF (psf_type == do_conn_psf) THEN
                ! EXTEnded CHARMM31 format
@@ -133,7 +133,7 @@ CONTAINS
                c_int = 'I10'
             ELSE
                CPABORT("PSF_INFO| "//field(1:3)//" :: not available for UPSF format!")
-            ENDIF
+            END IF
          CASE DEFAULT
             CPABORT("PSF_INFO| "//field(1:3)//" :: Unimplemented keyword in CP2K PSF/UPSF format!")
          END SELECT
@@ -489,7 +489,7 @@ CONTAINS
       ALLOCATE (ex_bond_list(natom))
       DO I = 1, natom
          ALLOCATE (ex_bond_list(I)%array1(0))
-      ENDDO
+      END DO
       N = 0
       IF (ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a)
       CALL reorder_structure(ex_bond_list, conn_info%bond_a, conn_info%bond_b, N)
@@ -497,7 +497,7 @@ CONTAINS
       ALLOCATE (ex_bend_list(natom))
       DO I = 1, natom
          ALLOCATE (ex_bend_list(I)%array1(0))
-      ENDDO
+      END DO
       N = 0
       IF (ASSOCIATED(conn_info%theta_a)) N = SIZE(conn_info%theta_a)
       CALL reorder_structure(ex_bend_list, conn_info%theta_a, conn_info%theta_c, N)
@@ -512,18 +512,18 @@ CONTAINS
       ! deallocate bends
       DO I = 1, natom
          DEALLOCATE (ex_bend_list(I)%array1)
-      ENDDO
+      END DO
       DEALLOCATE (ex_bend_list)
       ! deallocate bonds
       DO I = 1, natom
          DEALLOCATE (ex_bond_list(I)%array1)
-      ENDDO
+      END DO
       DEALLOCATE (ex_bond_list)
       ! Get unique onfo
       ALLOCATE (ex_bond_list(natom))
       DO I = 1, natom
          ALLOCATE (ex_bond_list(I)%array1(0))
-      ENDDO
+      END DO
       N = 0
       IF (ASSOCIATED(conn_info%onfo_a)) N = nonfo
       CALL reorder_structure(ex_bond_list, conn_info%onfo_a, conn_info%onfo_b, N)
@@ -542,7 +542,7 @@ CONTAINS
       END DO
       DO I = 1, natom
          DEALLOCATE (ex_bond_list(I)%array1)
-      ENDDO
+      END DO
       DEALLOCATE (ex_bond_list)
       CALL reallocate(conn_info%onfo_a, 1, nonfo)
       CALL reallocate(conn_info%onfo_b, 1, nonfo)
@@ -613,7 +613,7 @@ CONTAINS
             ALLOCATE (wrk(natom))
             DO j = 1, natom
                ALLOCATE (ex_bond_list(j)%array1(0))
-            ENDDO
+            END DO
             CALL reorder_structure(ex_bond_list, conn_info%bond_a, conn_info%bond_b, nbond + n_rep)
             ! Loop over atoms to possiblyt change molecule name
             tag_mols = -1
@@ -649,7 +649,7 @@ CONTAINS
             ! Deallocate bonds
             DO i = 1, natom
                DEALLOCATE (ex_bond_list(i)%array1)
-            ENDDO
+            END DO
             DEALLOCATE (ex_bond_list)
             DEALLOCATE (tag_mols)
             DEALLOCATE (wrk)
@@ -775,7 +775,7 @@ CONTAINS
       ! fixup for topology output
       DO j = 1, topology%natoms
          IF (charges(j) .EQ. -HUGE(0.0_dp)) charges(j) = -99.0_dp
-      ENDDO
+      END DO
       record = cp_print_key_generate_filename(logger, print_key, &
                                               extension=".psf", my_local=.FALSE.)
       ! build the EXT format

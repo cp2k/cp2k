@@ -104,7 +104,7 @@ CONTAINS
       CALL cp_subsys_get(subsys_new, atomic_kinds=new_atomic_kinds, local_particles=new_local_particles)
       IF (ASSOCIATED(local_particles%local_particle_set)) THEN
          CALL copy_wiener_process(atomic_kinds, local_particles, new_atomic_kinds, new_local_particles)
-      ENDIF
+      END IF
 
       CALL qmmm_env_get(force_env%qmmmx_env%ext, subsys=subsys)
       CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, local_particles=local_particles)
@@ -112,7 +112,7 @@ CONTAINS
       CALL cp_subsys_get(subsys_new, atomic_kinds=new_atomic_kinds, local_particles=new_local_particles)
       IF (ASSOCIATED(local_particles%local_particle_set)) THEN
          CALL copy_wiener_process(atomic_kinds, local_particles, new_atomic_kinds, new_local_particles)
-      ENDIF
+      END IF
 
       CALL section_vals_release(qmmm_core_section)
       CALL section_vals_release(qmmm_extended_section)
@@ -188,7 +188,7 @@ CONTAINS
                      from_local_particles%local_particle_set(from_iparticle_kind)%rng(from_iparticle_local(1))%stream
                   found_it = .TRUE.
                   EXIT
-               ENDIF
+               END IF
             END DO
             CPASSERT(found_it)
 

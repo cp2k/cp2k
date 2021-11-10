@@ -243,7 +243,7 @@ CONTAINS
          END IF
          IF (ASSOCIATED(kpoint%kp_dist)) THEN
             DEALLOCATE (kpoint%kp_dist)
-         ENDIF
+         END IF
 
          CALL mpools_release(kpoint%mpools)
          CALL cp_blacs_env_release(kpoint%blacs_env)
@@ -479,7 +479,7 @@ CONTAINS
       IF (PRESENT(cell_to_index)) THEN
          IF (ASSOCIATED(kpoint%cell_to_index)) DEALLOCATE (kpoint%cell_to_index)
          kpoint%cell_to_index => cell_to_index
-      ENDIF
+      END IF
 
    END SUBROUTINE set_kpoint_info
 

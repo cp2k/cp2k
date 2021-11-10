@@ -132,7 +132,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       CALL timeset(routineN, handle)
 
@@ -147,20 +147,20 @@ CONTAINS
       IF ((pexsi_env%num_ranks_per_pole .GT. numnodes) &
           .OR. (pexsi_env%num_ranks_per_pole .EQ. 0)) THEN
          pexsi_env%num_ranks_per_pole = numnodes
-      ENDIF
+      END IF
 
       ! Find num_ranks_per_pole from user input MIN_RANKS_PER_POLE s.t. num_ranks_per_pole
       ! is the smallest number greater or equal to min_ranks_per_pole that divides
       ! MPI size without remainder.
       DO WHILE (MOD(numnodes, pexsi_env%num_ranks_per_pole) .NE. 0)
          pexsi_env%num_ranks_per_pole = pexsi_env%num_ranks_per_pole + 1
-      ENDDO
+      END DO
 
       CALL cp_pexsi_get_options(pexsi_env%options, npSymbFact=npSymbFact)
       IF ((npSymbFact .GT. pexsi_env%num_ranks_per_pole) .OR. (npSymbFact .EQ. 0)) THEN
          ! Use maximum possible number of ranks for symbolic factorization
          CALL cp_pexsi_set_options(pexsi_env%options, npSymbFact=pexsi_env%num_ranks_per_pole)
-      ENDIF
+      END IF
 
       ! Create dimensions for MPI cartesian grid for PEXSI
       pexsi_env%mp_dims = 0
@@ -174,7 +174,7 @@ CONTAINS
       ALLOCATE (pexsi_env%matrix_w(nspin))
       DO ispin = 1, pexsi_env%nspin
          ALLOCATE (pexsi_env%matrix_w(ispin)%matrix)
-      ENDDO
+      END DO
 
       ! Initialize PEXSI
       pexsi_env%plan = cp_pexsi_plan_initialize(pexsi_env%mp_group, pexsi_env%mp_dims(1), &
@@ -208,7 +208,7 @@ CONTAINS
       DEALLOCATE (pexsi_env%max_ev_vector)
       DO ispin = 1, pexsi_env%nspin
          DEALLOCATE (pexsi_env%matrix_w(ispin)%matrix)
-      ENDDO
+      END DO
       DEALLOCATE (pexsi_env%matrix_w)
       CALL timestop(handle)
    END SUBROUTINE lib_pexsi_finalize

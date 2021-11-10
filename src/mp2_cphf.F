@@ -224,7 +224,7 @@ CONTAINS
          P_mo(ispin)%matrix => mp2_env%ri_grad%P_mo(ispin)%matrix
          W_mo(ispin)%matrix => mp2_env%ri_grad%W_mo(ispin)%matrix
          L_jb(ispin)%matrix => mp2_env%ri_grad%L_jb(ispin)%matrix
-      ENDDO
+      END DO
       ALLOCATE (virtual(nspins))
       virtual(:) = dimen - homo(:)
 
@@ -319,7 +319,7 @@ CONTAINS
                mp2_env%p_screen = .FALSE.
             ELSE
                mp2_env%p_screen = .TRUE.
-            ENDIF
+            END IF
          END IF
       END IF
 

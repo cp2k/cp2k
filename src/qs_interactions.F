@@ -350,8 +350,8 @@ CONTAINS
                                           exp_radius(lprj, zeta, qs_control%eps_pgf_orb, &
                                                      1.0_dp, rlow=rzetprj(ip, lprj)))
                   rcprj = MAX(rcprj, rzetprj(ip, lprj))
-               ENDDO
-            ENDDO
+               END DO
+            END DO
             CALL set_paw_proj_set(paw_proj_set=paw_proj_set, &
                                   rzetprj=rzetprj, &
                                   rcprj=rcprj)

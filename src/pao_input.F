@@ -200,7 +200,7 @@ CONTAINS
                                    i_rep_val=i, c_val=pao%ml_training_set(i)%fn)
          IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,A)") " PAO|", "MACHINE_LEARNING%TRAINING_SET", &
             TRIM(pao%ml_training_set(i)%fn)
-      ENDDO
+      END DO
 
       IF (pao%iw > 0) WRITE (pao%iw, *) "" ! an empty separator line
 

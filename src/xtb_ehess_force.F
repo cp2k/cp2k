@@ -142,7 +142,7 @@ CONTAINS
          iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          iounit = -1
-      ENDIF
+      END IF
 
       CPASSERT(ASSOCIATED(matrix_p1))
 
@@ -403,7 +403,7 @@ CONTAINS
             force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j) - fi
          END DO
          DEALLOCATE (gcij0, gcij1)
-      ENDDO
+      END DO
       CALL dbcsr_iterator_stop(iter)
       IF (debug_forces) THEN
          fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
@@ -517,7 +517,7 @@ CONTAINS
             force(ikind)%rho_elec(i, atom_i) = force(ikind)%rho_elec(i, atom_i) + fi
             force(jkind)%rho_elec(i, atom_j) = force(jkind)%rho_elec(i, atom_j) - fi
          END DO
-      ENDDO
+      END DO
       CALL dbcsr_iterator_stop(iter)
       DEALLOCATE (atom_of_kind, kind_of)
 

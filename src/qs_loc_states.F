@@ -103,8 +103,8 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, WannierCentres=wc)
          IF (.NOT. ASSOCIATED(wc)) THEN
             ALLOCATE (wc(dft_control%nspins))
-         ENDIF
-      ENDIF
+         END IF
+      END IF
       !
       DO ispin = 1, dft_control%nspins
          !
@@ -145,14 +145,14 @@ CONTAINS
                IF (.NOT. ASSOCIATED(wc(ispin)%centres)) THEN
                   ALLOCATE (wc(ispin)%WannierHamDiag(ns))
                   ALLOCATE (wc(ispin)%centres(3, ns))
-               ENDIF
+               END IF
 
                wc(ispin)%centres(:, :) = scenter(1 + (ispin - 1)*3:ispin*3, :)
                lstates => qs_loc_env%localized_wfn_control%loc_states(:, ispin)
                CALL construct_wannier_states(mo_local(ispin)%matrix, &
                                              ks_rmpv(ispin)%matrix, qs_env, loc_print_section=loc_print_section, &
                                              WannierCentres=wc(ispin), ns=ns, states=lstates)
-            ENDIF
+            END IF
             ! Compute the molecular states
             IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
                                                  "MOLECULAR_STATES"), cp_p_file)) THEN
@@ -170,9 +170,9 @@ CONTAINS
                   marked_states(:, ispin, mystate) = marked_states_spin(:)
                   DEALLOCATE (marked_states_spin)
                END IF
-            ENDIF
+            END IF
          END IF
-      ENDDO
+      END DO
 
       ! Compute molecular dipoles
       IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
@@ -189,7 +189,7 @@ CONTAINS
       IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
                                            "WANNIER_STATES"), cp_p_file)) THEN
          CALL set_qs_env(qs_env=qs_env, WannierCentres=wc)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 

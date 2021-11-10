@@ -109,19 +109,19 @@ CONTAINS
 
       IF (l .LT. 0) THEN
          CPABORT("The angular momentum quantum number is negative")
-      ENDIF
+      END IF
 
       IF (alpha .EQ. 0.0_dp) THEN
          CPABORT("The Gaussian function exponent is zero")
       ELSE
          a = ABS(alpha)
-      ENDIF
+      END IF
 
       IF (threshold .NE. 0.0_dp) THEN
          t = ABS(threshold)
       ELSE
          CPABORT("The requested threshold is zero")
-      ENDIF
+      END IF
 
       radius = 0.0_dp
       IF (PRESENT(rlow)) radius = rlow
@@ -144,7 +144,7 @@ CONTAINS
          g(1) = d*EXP(REAL(-a*radius*radius, KIND=prec_exp))*radius**l
          IF (g(1) .LT. t) EXIT
          r = radius; radius = r*next + step
-      ENDDO
+      END DO
 
       ! consider absolute and relative accuracy (interval width)
       IF (PRESENT(epsabs)) THEN
@@ -153,7 +153,7 @@ CONTAINS
          eps = mineps
       ELSE
          eps = HUGE(eps)
-      ENDIF
+      END IF
       IF (PRESENT(epsrel)) eps = MIN(eps, epsrel*r)
 
       dr = 0.0_dp
@@ -169,13 +169,13 @@ CONTAINS
                EXIT
             ELSE
                r = s(j) ! interval [sj, radius)
-            ENDIF
-         ENDDO
+            END IF
+         END DO
          dr = rd
-      ENDDO
+      END DO
       IF (i .GE. itermax) THEN
          CPABORT("Maximum number of iterations reached")
-      ENDIF
+      END IF
 
    END FUNCTION exp_radius
 
@@ -239,16 +239,16 @@ CONTAINS
                   ico = coset(lxa, lya, lza)
                   jco = coset(lxb, lyb, lzb)
                   prefactor_local = MAX(ABS(pab(o1 + ico, o2 + jco)), prefactor_local)
-               ENDDO
-               ENDDO
-            ENDDO
-            ENDDO
-         ENDDO
-         ENDDO
+               END DO
+               END DO
+            END DO
+            END DO
+         END DO
+         END DO
          prefactor_local = prefactor*prefactor_local
       ELSE
          prefactor_local = prefactor*MAX(1.0_dp, cutoff)
-      ENDIF
+      END IF
 
       !
       ! assumes that we can compute the radius for the case where
@@ -271,21 +271,21 @@ CONTAINS
                coef(lxa + lxb - i - j) = coef(lxa + lxb - i - j) + bini*binj*s1*s2
                binj = (binj*(lxb - j))/(j + 1)
                s2 = s2*(rad_b)
-            ENDDO
+            END DO
             bini = (bini*(lxa - i))/(i + 1)
             s1 = s1*(rad_a)
-         ENDDO
+         END DO
          DO i = 0, lxa + lxb
             polycoef(i) = MAX(polycoef(i), coef(i))
-         ENDDO
-      ENDDO
-      ENDDO
+         END DO
+      END DO
+      END DO
 
       polycoef(0:la_max + lb_max) = polycoef(0:la_max + lb_max)*prefactor_local
       radius = 0.0_dp
       DO i = 0, la_max + lb_max
          radius = MAX(radius, exp_radius(i, zetp, eps, polycoef(i), epsin_local, rlow=radius))
-      ENDDO
+      END DO
 
    END FUNCTION exp_radius_very_extended
 
@@ -313,7 +313,7 @@ CONTAINS
       ELSE
          !odd l:
          gaussint_sph = 0.5_dp*fac((l + 1)/2)/SQRT(alpha)**(l + 3)
-      ENDIF
+      END IF
 
    END FUNCTION gaussint_sph
 
@@ -352,8 +352,8 @@ CONTAINS
                t2 = t2 + A(i1 + 1, i2)*B(i1 + 1, i2)
                t3 = t3 + A(i1 + 2, i2)*B(i1 + 2, i2)
                t4 = t4 + A(i1 + 3, i2)*B(i1 + 3, i2)
-            ENDDO
-         ENDDO
+            END DO
+         END DO
       CASE (1)
          mminus3 = m - 3
          DO i2 = 1, n
@@ -362,9 +362,9 @@ CONTAINS
                t2 = t2 + A(i1 + 1, i2)*B(i1 + 1, i2)
                t3 = t3 + A(i1 + 2, i2)*B(i1 + 2, i2)
                t4 = t4 + A(i1 + 3, i2)*B(i1 + 3, i2)
-            ENDDO
+            END DO
             t1 = t1 + A(m, i2)*B(m, i2)
-         ENDDO
+         END DO
       CASE (2)
          mminus3 = m - 3
          DO i2 = 1, n
@@ -373,10 +373,10 @@ CONTAINS
                t2 = t2 + A(i1 + 1, i2)*B(i1 + 1, i2)
                t3 = t3 + A(i1 + 2, i2)*B(i1 + 2, i2)
                t4 = t4 + A(i1 + 3, i2)*B(i1 + 3, i2)
-            ENDDO
+            END DO
             t1 = t1 + A(m - 1, i2)*B(m - 1, i2)
             t2 = t2 + A(m, i2)*B(m, i2)
-         ENDDO
+         END DO
       CASE (3)
          mminus3 = m - 3
          DO i2 = 1, n
@@ -385,11 +385,11 @@ CONTAINS
                t2 = t2 + A(i1 + 1, i2)*B(i1 + 1, i2)
                t3 = t3 + A(i1 + 2, i2)*B(i1 + 2, i2)
                t4 = t4 + A(i1 + 3, i2)*B(i1 + 3, i2)
-            ENDDO
+            END DO
             t1 = t1 + A(m - 2, i2)*B(m - 2, i2)
             t2 = t2 + A(m - 1, i2)*B(m - 1, i2)
             t3 = t3 + A(m, i2)*B(m, i2)
-         ENDDO
+         END DO
       END SELECT
       trace_r_AxB = t1 + t2 + t3 + t4
 

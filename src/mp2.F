@@ -166,7 +166,7 @@ CONTAINS
       IF (qs_env%mp2_env%hf_fail) THEN
          CALL cp_abort(__LOCATION__, "SCF not converged: "// &
                        "not possible to run MP2")
-      ENDIF
+      END IF
 
       NULLIFY (virial, dft_control, blacs_env, kpoints)
       CALL timeset(routineN, handle)
@@ -238,7 +238,7 @@ CONTAINS
             WRITE (unit_nr, '(T2,A)') '--------------'
             WRITE (unit_nr, *)
          END IF
-      ENDIF
+      END IF
 
       IF (calc_forces) THEN
          CALL cite_reference(DelBen2015b)
@@ -246,13 +246,13 @@ CONTAINS
          IF (mp2_env%method /= ri_mp2_method_gpw) THEN
             CPABORT("No forces/gradients for the selected method.")
          END IF
-      ENDIF
+      END IF
 
       IF (.NOT. do_kpoints_cubic_RPA) THEN
          IF (virial%pv_availability .AND. (.NOT. virial%pv_numer) .AND. mp2_env%eri_method == do_eri_mme) THEN
             CPABORT("analytical stress not implemented with ERI_METHOD = MME")
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       IF (mp2_env%do_im_time .AND. mp2_env%eri_method .NE. do_eri_gpw) THEN
          mp2_env%mp2_num_proc = 1
@@ -263,7 +263,7 @@ CONTAINS
          IF (unit_nr > 0 .AND. mp2_env%mp2_num_proc .NE. -1) &
             WRITE (unit_nr, '(T3,A,T76,I5)') 'Requested number of processes per group:', mp2_env%mp2_num_proc
          mp2_env%mp2_num_proc = para_env%num_pe
-      ENDIF
+      END IF
       IF (.NOT. mp2_env%do_im_time) THEN
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T76,I5)') 'Used number of processes per group:', mp2_env%mp2_num_proc
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'Maximum allowed memory usage per MPI process:', &
@@ -645,7 +645,7 @@ CONTAINS
                ELSE
                   ! unknown if Emp2_ex is not computed
                   Emp2_T = 0.0_dp
-               ENDIF
+               END IF
             END IF
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'MP2 Energy SO component (singlet) = ', Emp2_S
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'MP2 Energy SS component (triplet) = ', Emp2_T
@@ -666,23 +666,23 @@ CONTAINS
          IF (unit_nr > 0 .AND. update_xc_energy) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'RI-RPA energy  =   ', Emp2
          IF (mp2_env%ri_rpa%do_ri_axk) THEN
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'RI-RPA-AXK energy=', mp2_env%ri_rpa%ener_axk
-         ENDIF
+         END IF
          IF (mp2_env%ri_rpa%do_rse) THEN
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'Diagonal singles correction (dRSE) = ', &
                mp2_env%ri_rpa%rse_corr_diag
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'Full singles correction (RSE) =', &
                mp2_env%ri_rpa%rse_corr
-         ENDIF
+         END IF
       END IF
       IF (unit_nr > 0) WRITE (unit_nr, *)
 
       ! we have it !!!!
       IF (mp2_env%ri_rpa%do_ri_axk) THEN
          Emp2 = Emp2 + mp2_env%ri_rpa%ener_axk
-      ENDIF
+      END IF
       IF (mp2_env%ri_rpa%do_rse) THEN
          Emp2 = Emp2 + mp2_env%ri_rpa%rse_corr
-      ENDIF
+      END IF
       energy%mp2 = Emp2
       energy%total = energy%total + Emp2
 

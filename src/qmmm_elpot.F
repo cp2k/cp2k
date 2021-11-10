@@ -217,7 +217,7 @@ CONTAINS
                Ndim = SIZE(mm_atom_index)
                mm_atom_index(Ndim) = J
                CALL reallocate(mm_atom_index, 1, Ndim + 1)
-            ENDIF
+            END IF
          END DO
          CALL reallocate(mm_atom_index, 1, Ndim)
 

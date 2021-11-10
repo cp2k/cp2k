@@ -126,7 +126,7 @@ CONTAINS
                IF (PRESENT(dab)) dab(ma + 1:ma + na, mb + 1:mb + nb, 1:3) = 0.0_dp
                mb = mb + nb
                CYCLE
-            ENDIF
+            END IF
 
             ! Calculate some prefactors
             a = zeta(ipgf)
@@ -211,12 +211,12 @@ CONTAINS
                      dab(ia, ib, 1:3) = f0*dab(ia, ib, 1:3)
                   END IF
                   !
-               ENDDO
-               ENDDO
-               ENDDO !la
-            ENDDO
-            ENDDO
-            ENDDO !lb
+               END DO
+               END DO
+               END DO !la
+            END DO
+            END DO
+            END DO !lb
 
             mb = mb + nb
          END DO

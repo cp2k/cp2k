@@ -363,7 +363,7 @@ CONTAINS
          CALL section_vals_val_get(root_section, "MOTION%PRINT%"//TRIM(my_pk_name)//"%UNIT", &
                                    c_val=unit_str)
          unit_conv = cp_unit_from_cp2k(1.0_dp, TRIM(unit_str))
-      ENDIF
+      END IF
 
       ! Get the output format
       CALL get_output_format(root_section, "MOTION%PRINT%"//TRIM(my_pk_name), my_form, my_ext)
@@ -388,7 +388,7 @@ CONTAINS
                WRITE (UNIT=traj_unit) 2, remark1, remark2
                WRITE (UNIT=traj_unit) nat
                CALL m_flush(traj_unit)
-            ENDIF
+            END IF
          CASE (dump_xmol)
             my_extended_xmol_title = .FALSE.
             CALL section_vals_val_get(root_section, "MOTION%PRINT%TRAJECTORY%PRINT_ATOM_KIND", &
@@ -453,8 +453,8 @@ CONTAINS
                      CPASSERT(ii <= SIZE(particle_set))
                      fml_array((ii - 1)*3 + 1:(ii - 1)*3 + 3) = force_mixing_labels(i)
                   END DO
-               ENDIF
-            ENDIF
+               END IF
+            END IF
             CALL write_particle_coordinates(particle_set, traj_unit, outformat, TRIM(id_wpc), TRIM(title), cell, &
                                             array=fml_array, print_kind=print_kind)
             DEALLOCATE (fml_array)

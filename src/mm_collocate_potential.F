@@ -142,7 +142,7 @@ CONTAINS
             force(1) = force(1) + fx2*zdat(1, iz)*ydat(1, iy2)
             force(2) = force(2) + fyz2*zdat(1, iz)*ydat(2, iy2)
             force(3) = force(3) + fyz2*zdat(2, iz)*ydat(1, iy2)
-         ENDIF
+         END IF
 
       END DO ! Loop on z
 
@@ -218,17 +218,17 @@ CONTAINS
             rpg = REAL(ig - gbo(1, 3), dp)*dr(3) - rpl(3)
             zap = EXP(-zetp*rpg**2)
             zdat(ig) = scale*W*zap
-         ENDDO
+         END DO
          DO ig = ylb, yub
             rpg = REAL(ig - gbo(1, 2), dp)*dr(2) - rpl(2)
             yap = EXP(-zetp*rpg**2)
             ydat(ig) = yap
-         ENDDO
+         END DO
          DO ig = xlb, xub
             rpg = REAL(ig - gbo(1, 1), dp)*dr(1) - rpl(1)
             xap = EXP(-zetp*rpg**2)
             xdat(ig) = xap
-         ENDDO
+         END DO
          CALL collocate_gf_npbc(grid, xdat, ydat, zdat, bo, bo2, zlb, zub, ylb, yub, xlb, xub)
       ELSE
          DO iz = -n_rep_real(3), n_rep_real(3)
@@ -250,17 +250,17 @@ CONTAINS
                      rpg = REAL(ig - gbo(1, 3), dp)*dr(3) - rpl(3)
                      zap = EXP(-zetp*rpg**2)
                      zdat(ig) = scale*W*zap
-                  ENDDO
+                  END DO
                   DO ig = ylb, yub
                      rpg = REAL(ig - gbo(1, 2), dp)*dr(2) - rpl(2)
                      yap = EXP(-zetp*rpg**2)
                      ydat(ig) = yap
-                  ENDDO
+                  END DO
                   DO ig = xlb, xub
                      rpg = REAL(ig - gbo(1, 1), dp)*dr(1) - rpl(1)
                      xap = EXP(-zetp*rpg**2)
                      xdat(ig) = xap
-                  ENDDO
+                  END DO
                   CALL collocate_gf_npbc(grid, xdat, ydat, zdat, bo, bo2, zlb, zub, ylb, yub, xlb, xub)
                END DO
             END DO
@@ -343,19 +343,19 @@ CONTAINS
             zap = EXP(-zetp*rpg**2)
             zdat(1, ig) = scale*W*zap
             zdat(2, ig) = rpg*zdat(1, ig)*zetp*2.0_dp
-         ENDDO
+         END DO
          DO ig = ylb, yub
             rpg = REAL(ig - gbo(1, 2), dp)*dr(2) - rpl(2)
             yap = EXP(-zetp*rpg**2)
             ydat(1, ig) = yap
             ydat(2, ig) = rpg*ydat(1, ig)*zetp*2.0_dp
-         ENDDO
+         END DO
          DO ig = xlb, xub
             rpg = REAL(ig - gbo(1, 1), dp)*dr(1) - rpl(1)
             xap = EXP(-zetp*rpg**2)
             xdat(1, ig) = xap
             xdat(2, ig) = rpg*xdat(1, ig)*zetp*2.0_dp
-         ENDDO
+         END DO
          CALL integrate_gf_npbc(grid, xdat, ydat, zdat, bo, zlb, zub, ylb, yub, xlb, xub, force)
       ELSE
          DO iz = -n_rep_real(3), n_rep_real(3)
@@ -378,19 +378,19 @@ CONTAINS
                      zap = EXP(-zetp*rpg**2)
                      zdat(1, ig) = scale*W*zap
                      zdat(2, ig) = rpg*zdat(1, ig)*zetp*2.0_dp
-                  ENDDO
+                  END DO
                   DO ig = ylb, yub
                      rpg = REAL(ig - gbo(1, 2), dp)*dr(2) - rpl(2)
                      yap = EXP(-zetp*rpg**2)
                      ydat(1, ig) = yap
                      ydat(2, ig) = rpg*ydat(1, ig)*zetp*2.0_dp
-                  ENDDO
+                  END DO
                   DO ig = xlb, xub
                      rpg = REAL(ig - gbo(1, 1), dp)*dr(1) - rpl(1)
                      xap = EXP(-zetp*rpg**2)
                      xdat(1, ig) = xap
                      xdat(2, ig) = rpg*xdat(1, ig)*zetp*2.0_dp
-                  ENDDO
+                  END DO
                   CALL integrate_gf_npbc(grid, xdat, ydat, zdat, bo, &
                                          zlb, zub, ylb, yub, xlb, xub, force)
                END DO

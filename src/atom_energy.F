@@ -342,7 +342,7 @@ CONTAINS
                                           atom=atom_info(in, im)%atom, &
                                           lprint=.TRUE.)
                   DEALLOCATE (ext_density)
-               ENDIF
+               END IF
                ! ZMP If we have the external v_xc calculate KS quantities
                IF (atom_info(in, im)%atom%read_vxc) THEN
                   ALLOCATE (ext_vxc(atom_info(in, im)%atom%basis%grid%nr))
@@ -352,7 +352,7 @@ CONTAINS
                                               atom=atom_info(in, im)%atom, &
                                               lprint=.TRUE.)
                   DEALLOCATE (ext_vxc)
-               ENDIF
+               END IF
 
                ! Print out the orbitals if requested
                iw = cp_print_key_unit_nr(logger, atom_section, "PRINT%ORBITALS", extension=".log")
@@ -561,10 +561,10 @@ CONTAINS
             DO j = 1, i - 1
                o = DOT_PRODUCT(rbasis(1:m, j, l), RESHAPE(MATMUL(ovlp(1:m, 1:m, l), rbasis(1:m, i:i, l)), (/m/)))
                rbasis(1:m, i, l) = rbasis(1:m, i, l) - o*rbasis(1:m, j, l)
-            ENDDO
+            END DO
             o = DOT_PRODUCT(rbasis(1:m, i, l), RESHAPE(MATMUL(ovlp(1:m, 1:m, l), rbasis(1:m, i:i, l)), (/m/)))
             rbasis(1:m, i, l) = rbasis(1:m, i, l)/SQRT(o)
-         ENDDO
+         END DO
 
          ! check
          ALLOCATE (amat(n, n))

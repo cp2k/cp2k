@@ -348,7 +348,7 @@ CONTAINS
                END IF
             END DO
          END IF
-      ENDIF
+      END IF
 
       DO ispin = 1, nspin
          ib = MODULO(mixing_store%ncall_p(ispin), nbuffer) + 1
@@ -391,7 +391,7 @@ CONTAINS
             ALLOCATE (ev(nb1))
             ev = 0.0_dp
 
-         ENDIF
+         END IF
 
          DO jb = 1, nb
             mixing_store%pulay_matrix(jb, ib, ispin) = 0.0_dp
@@ -521,7 +521,7 @@ CONTAINS
             DEALLOCATE (b)
             DEALLOCATE (ev)
             DEALLOCATE (c, c_inv, alpha_c)
-         ENDIF
+         END IF
 
       END DO ! ispin
 
@@ -545,7 +545,7 @@ CONTAINS
             END DO
          END IF
 
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -640,7 +640,7 @@ CONTAINS
                END IF
             END DO
          END IF
-      ENDIF
+      END IF
 
       DO ispin = 1, nspin
          res_rho = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
@@ -797,7 +797,7 @@ CONTAINS
                CALL dgemv('T', nb, nb, 1.0_dp, B, nb, C, 1, 0.0_dp, G, 1)
             ELSE
                G = 0.0_dp
-            ENDIF
+            END IF
 
             DO ig = 1, ng
                cc_mix = CMPLX(0.0_dp, 0.0_dp, kind=dp)
@@ -868,7 +868,7 @@ CONTAINS
             END DO
          END IF
 
-      ENDIF
+      END IF
 
       DEALLOCATE (res_rho)
 
@@ -1042,14 +1042,14 @@ CONTAINS
 
             DO jb = 1, nb
                fmat(ib, jb) = fmat(jb, ib)
-            ENDDO
+            END DO
 
             DO jb = 1, nb
                a(jb, jb) = weight(jb, ispin)*weight(jb, ispin)*fmat(jb, jb)
                DO kb = 1, jb - 1
                   a(jb, kb) = weight(jb, ispin)*weight(kb, ispin)*fmat(jb, kb)
                   a(kb, jb) = weight(jb, ispin)*weight(kb, ispin)*fmat(kb, jb)
-               ENDDO
+               END DO
             END DO
             IF (.TRUE.) THEN
                b = 0.0_dp
@@ -1071,9 +1071,9 @@ CONTAINS
                      aval(kb) = 0.0_dp
                   ELSE
                      aval(kb) = 1.0_dp/aval(kb)
-                  ENDIF
+                  END IF
                   av(kb, :) = av(kb, :)*aval(kb)
-               ENDDO
+               END DO
                CALL DGEMM('T', 'T', ib - 1, ib - 1, ib - 1, 1.0_dp, av, ib - 1, au, ib - 1, 0.0_dp, b, ib - 1)
                DEALLOCATE (iwork, aval, au, av, work_dgesdd, work)
             END IF

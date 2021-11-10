@@ -114,7 +114,7 @@ CONTAINS
          IF (ASSOCIATED(hirshfeld_env%fnorm)) THEN
             CALL pw_release(hirshfeld_env%fnorm%pw)
             DEALLOCATE (hirshfeld_env%fnorm)
-         ENDIF
+         END IF
 
          DEALLOCATE (hirshfeld_env)
 

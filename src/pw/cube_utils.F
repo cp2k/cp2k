@@ -107,7 +107,7 @@ CONTAINS
          !
          WRITE (*, *) info%max_rad_ga, radius
          CPABORT("Called with too large radius.")
-      ENDIF
+      END IF
 
       ! get the min/max indices of a cube that contains a sphere of the given radius around rp
       ! if the cell is very non-orthogonal this implies that many useless points are included
@@ -123,9 +123,9 @@ CONTAINS
          CALL matvec_3x3(res, info%dh_inv, point)
          lb = MIN(lb, FLOOR(res))
          ub = MAX(ub, CEILING(res))
-      ENDDO
-      ENDDO
-      ENDDO
+      END DO
+      END DO
+      END DO
 
    END SUBROUTINE return_cube_nonortho
 
@@ -156,13 +156,13 @@ CONTAINS
             ! in the call to init_cube_info
             !
             CPABORT("Called with too large radius.")
-         ENDIF
+         END IF
          lb_cube(:) = info%lb_cube(:, imr)
          ub_cube(:) = info%ub_cube(:, imr)
          sphere_bounds => info%sphere_bounds(imr)%p
       ELSE
          ! nothing yet, we should check the radius
-      ENDIF
+      END IF
 
    END SUBROUTINE return_cube
 
@@ -197,7 +197,7 @@ CONTAINS
          DEALLOCATE (info%sphere_bounds)
       ELSE
          ! no info to be deallocated
-      ENDIF
+      END IF
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -276,11 +276,11 @@ CONTAINS
                   igmin = do_and_hide_it_1(dxi, i, drmin, dz2, dy2, kg2, jg2)
                   check_1 = MODULO((kgmin*97 + jgmin*37 + igmin*113)*check_1 + 1277, 9343)
                   k = k + 1
-               ENDDO
-            ENDDO
+               END DO
+            END DO
             info%sphere_bounds_count(i) = k - 1
             ALLOCATE (info%sphere_bounds(i)%p(info%sphere_bounds_count(i)))
-         ENDDO
+         END DO
 
 !       init sphere_bounds array
          ! notice : as many points in lb_cube..0 as 1..ub_cube
@@ -306,10 +306,10 @@ CONTAINS
                   info%lb_cube(1, i) = MIN(igmin, info%lb_cube(1, i))
                   info%sphere_bounds(i)%p(k) = igmin
                   k = k + 1
-               ENDDO
-            ENDDO
+               END DO
+            END DO
             info%ub_cube(:, i) = 1 - info%lb_cube(:, i)
-         ENDDO
+         END DO
          IF (check_1 .NE. check_2) THEN
             CPABORT("Irreproducible fp math caused memory corruption")
          END IF

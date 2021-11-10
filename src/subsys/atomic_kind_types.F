@@ -254,7 +254,7 @@ CONTAINS
 
       nkind = SIZE(atomic_kind_set)
       DO ikind = 1, nkind
-         ASSOCIATE (atomic_kind=>atomic_kind_set(ikind))
+         ASSOCIATE (atomic_kind => atomic_kind_set(ikind))
             CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                  fist_potential=fist_potential, &
                                  shell=shell, &

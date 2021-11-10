@@ -146,7 +146,7 @@ CONTAINS
          my_scf_control => scf_control
       ELSE
          CALL get_qs_env(qs_env, scf_control=my_scf_control)
-      ENDIF
+      END IF
 
       dft_section => section_vals_get_subs_vals(input, "DFT")
       IF (PRESENT(scf_section)) THEN
@@ -285,7 +285,7 @@ CONTAINS
          scf_env%outer_scf%count = 0
          ALLOCATE (scf_env%outer_scf%gradient(nvariables, nhistory))
          ALLOCATE (scf_env%outer_scf%energy(nhistory))
-      ENDIF
+      END IF
 
    END SUBROUTINE qs_scf_ensure_outer_loop_vars
 
@@ -333,7 +333,7 @@ CONTAINS
          ALLOCATE (dft_control%qs_control%cdft_control%constraint%gradient(nvariables, nhistory))
          ALLOCATE (dft_control%qs_control%cdft_control%constraint%energy(nhistory))
          CALL qs_scf_ensure_outer_loop_vars(scf_env, scf_control, nvariables)
-      ENDIF
+      END IF
       ! Executed only on first call (OT settings active in scf_control)
       ! Save OT settings and constraint initial values in CDFT control
       ! Then switch to constraint outer_scf settings for proper initialization of history
@@ -573,7 +573,7 @@ CONTAINS
       CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
       IF (dft_control%switch_surf_dip) THEN
          CALL get_qs_env(qs_env, mos_last_converged=mos_last_converged)
-      ENDIF
+      END IF
 
       nmo_mat = dft_control%nspins
       IF (dft_control%restricted) nmo_mat = 1 ! right now, there might be more mos than needed derivs
@@ -593,7 +593,7 @@ CONTAINS
             CALL dbcsr_init_p(mos(ispin)%mo_set%mo_coeff_b)
             CALL cp_dbcsr_m_by_n_from_row_template(mos(ispin)%mo_set%mo_coeff_b, template=matrix_s(1, 1)%matrix, n=nmo, &
                                                    sym=dbcsr_type_no_symmetry)
-         ENDIF
+         END IF
       END DO
 !   *** get the mo_derivs OK if needed ***
       IF (qs_env%requires_mo_derivs) THEN
@@ -607,13 +607,13 @@ CONTAINS
                CALL dbcsr_create(mo_derivs(ispin)%matrix, template=mo_coeff_b, &
                                  name="mo_derivs", matrix_type=dbcsr_type_no_symmetry, &
                                  nze=0, data_type=dbcsr_type_real_default)
-            ENDDO
+            END DO
             CALL set_qs_env(qs_env, mo_derivs=mo_derivs)
-         ENDIF
+         END IF
 
       ELSE
          ! nothing should be done
-      ENDIF
+      END IF
 
 !   *** finish initialization of the MOs for ADMM and derivs if needed ***
       IF (dft_control%do_admm) THEN
@@ -636,7 +636,7 @@ CONTAINS
                CALL cp_dbcsr_m_by_n_from_row_template(mos_aux_fit(ispin)%mo_set%mo_coeff_b, &
                                                       template=matrix_s_aux_fit(1)%matrix, n=nmo, &
                                                       sym=dbcsr_type_no_symmetry)
-            ENDIF
+            END IF
          END DO
          IF (qs_env%requires_mo_derivs) THEN
             CALL get_qs_env(qs_env, mo_derivs_aux_fit=mo_derivs_aux_fit)
@@ -645,12 +645,12 @@ CONTAINS
                DO ispin = 1, nmo_mat
                   CALL get_mo_set(mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit)
                   CALL cp_fm_create(mo_derivs_aux_fit(ispin)%matrix, mo_coeff_aux_fit%matrix_struct)
-               ENDDO
+               END DO
                CALL set_qs_env(qs_env, mo_derivs_aux_fit=mo_derivs_aux_fit)
-            ENDIF
+            END IF
          ELSE
             ! nothing should be done
-         ENDIF
+         END IF
       END IF
 
 ! *** finish initialization of mos_last_converged *** [SGh]
@@ -1033,7 +1033,7 @@ CONTAINS
       ! extrapolate outer loop variables
       IF (scf_control%outer_scf%have_scf) THEN
          CALL outer_loop_extrapolate(qs_env)
-      ENDIF
+      END IF
 
       ! initializes rho and the mos
       IF (ASSOCIATED(qs_env%xas_env)) THEN
@@ -1065,8 +1065,8 @@ CONTAINS
          IF (qs_env%qmmm .AND. qs_env%qmmm_env_qm%image_charge) THEN
             CALL conditional_calc_image_matrix(qs_env=qs_env, &
                                                qmmm_env=qs_env%qmmm_env_qm)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       CALL timestop(handle)
 
@@ -1175,8 +1175,8 @@ CONTAINS
          IF (mos(ispin)%mo_set%use_mo_coeff_b) THEN
             CALL copy_fm_to_dbcsr(mos(ispin)%mo_set%mo_coeff, &
                                   mos(ispin)%mo_set%mo_coeff_b) !fm->dbcsr
-         ENDIF
-      ENDDO !fm->dbcsr
+         END IF
+      END DO !fm->dbcsr
 
       CALL timestop(handle)
 

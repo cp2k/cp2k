@@ -233,7 +233,7 @@ CONTAINS
                izero = izero + 1
             ELSE
                eval(i) = SQRT(1.0_dp/eval(i))
-            ENDIF
+            END IF
          END DO
          CALL dbcsr_scale_by_vector(emat, eval, side='right')
          CALL dbcsr_create(lri_env%ri_sinv(1)%matrix, template=lri_env%ri_smat(1)%matrix)
@@ -411,7 +411,7 @@ CONTAINS
          lri_coef => lri_density%lri_coefs(ispin)%lri_kinds
          CALL calculate_lri_rho_elec(rho_g(ispin), rho_r(ispin), qs_env, &
                                      lri_coef, tot_rho_r(ispin), "RI_HXC", .FALSE.)
-      ENDDO
+      END DO
 
       CALL timestop(handle)
 

@@ -277,7 +277,7 @@ CONTAINS
                                                  "DFT%PRINT%AO_MATRICES/W_MATRIX")
             END IF
          END DO
-      ENDIF
+      END IF
 
       ! Check if energy correction should be skipped
       perform_ec = .FALSE.
@@ -317,7 +317,7 @@ CONTAINS
          IF (dft_control%qs_control%rigpw) THEN
             CALL get_qs_env(qs_env=qs_env, lri_env=lri_env)
             CALL build_ri_matrices(lri_env, qs_env, calculate_forces=.TRUE.)
-         ENDIF
+         END IF
       END IF
 
       ! MP2 Code

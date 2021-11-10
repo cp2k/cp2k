@@ -131,9 +131,9 @@ CONTAINS
             DO istore = 1, MIN(history%istore(ivartype) + 1, history%nstore)
                !WRITE(*,*) "ZREL: ispin,istore,vartype", ispin, istore, ivartype
                CALL dbcsr_release(history%matrix(ispin, istore, ivartype))
-            ENDDO
-         ENDDO
-      ENDDO
+            END DO
+         END DO
+      END DO
       DEALLOCATE (history%matrix)
       DEALLOCATE (history%rho)
 
@@ -169,7 +169,7 @@ CONTAINS
          !   WRITE (unit_nr, *) "Rho in cell ", istore, " is computed ", history%rho(ispin, istore)
          !ENDIF
 
-      ENDDO ! ispin
+      END DO ! ispin
 
    END SUBROUTINE lbfgs_history_last_rho
 
@@ -216,21 +216,21 @@ CONTAINS
             !IF (unit_nr > 0) THEN
             !   WRITE (unit_nr, *) "Creating new matrix..."
             !END IF
-         ENDIF
+         END IF
 
          IF (action .EQ. 1) THEN
             CALL dbcsr_copy(history%matrix(ispin, istore, vartype), matrix(ispin))
          ELSE
             CALL dbcsr_add(history%matrix(ispin, istore, vartype), matrix(ispin), -1.0_dp, 1.0_dp)
-         ENDIF
+         END IF
 
-      ENDDO ! ispin
+      END DO ! ispin
 
       ! allow the pointer to move forward only if deltas are stored (action==2)
       ! otherwise return the pointer to the previous value
       IF (action .EQ. 1) THEN
          history%istore(vartype) = history%istore(vartype) - 1
-      ENDIF
+      END IF
 
    END SUBROUTINE lbfgs_history_push
 
@@ -260,7 +260,7 @@ CONTAINS
 
       IF (history%istore(1) .NE. history%istore(2)) THEN
          CPABORT("BFGS APIs are not used correctly")
-      ENDIF
+      END IF
 
       nterms = MIN(history%istore(1), history%nstore)
       !IF (unit_nr > 0) THEN
@@ -297,9 +297,9 @@ CONTAINS
                !IF (unit_nr > 0) THEN
                !   WRITE (unit_nr, *) "Gamma_k: ", gammak
                !END IF
-            ENDIF
+            END IF
 
-         ENDDO ! iterm, first loop from recent to oldest
+         END DO ! iterm, first loop from recent to oldest
 
          ! now q stores Nocedal's r = (gamma_k*I).q
          CALL dbcsr_scale(q, gammak)
@@ -314,7 +314,7 @@ CONTAINS
             beta = history%rho(ispin, istore)*beta
             CALL dbcsr_add(q, history%matrix(ispin, istore, 1), 1.0_dp, alpha(iterm) - beta)
 
-         ENDDO ! iterm, forst loop from recent to oldest
+         END DO ! iterm, forst loop from recent to oldest
 
          !RZK-warning: unclear whether q should be multiplied by minus one
          CALL dbcsr_scale(q, -1.0)
@@ -322,7 +322,7 @@ CONTAINS
 
          CALL dbcsr_release(q)
 
-      ENDDO !ispin
+      END DO !ispin
 
       DEALLOCATE (alpha)
 

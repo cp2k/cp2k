@@ -215,8 +215,8 @@ CONTAINS
                NULLIFY (efgint(i)%block)
                CALL dbcsr_get_block_p(matrix=matrix_efg(i)%matrix, &
                                       row=irow, col=icol, BLOCK=efgint(i)%block, found=found)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
 
          DO iset = 1, nseta
 
@@ -261,13 +261,13 @@ CONTAINS
                                 sphi_a(1, sgfa), SIZE(sphi_a, 1), &
                                 1.0_dp, efgint(i)%block(sgfb, sgfa), &
                                 SIZE(efgint(i)%block, 1))
-                  ENDIF
+                  END IF
 
-               ENDDO
+               END DO
 
-            ENDDO
+            END DO
 
-         ENDDO
+         END DO
 
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)

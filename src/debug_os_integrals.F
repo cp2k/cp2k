@@ -572,7 +572,7 @@ CONTAINS
                                                 nbb = indco(1:3, k) + indco(1:3, l)
                                                 IF (ALL(na == naa) .AND. ALL(nb == nbb)) THEN
                                                    dmax = MAX(dmax, ABS(res1 - saabb(coa1 + i, coa2 + j, cob1 + k, cob2 + l)))
-                                                ENDIF
+                                                END IF
                                              END DO
                                           END DO
                                        END DO

@@ -1430,23 +1430,23 @@ CONTAINS
             IF (ASSOCIATED(qs_env%mo_derivs)) THEN
                DO I = 1, SIZE(qs_env%mo_derivs)
                   CALL dbcsr_release_p(qs_env%mo_derivs(I)%matrix)
-               ENDDO
+               END DO
                DEALLOCATE (qs_env%mo_derivs)
-            ENDIF
+            END IF
 
             IF (ASSOCIATED(qs_env%mo_derivs_aux_fit)) THEN
                DO I = 1, SIZE(qs_env%mo_derivs_aux_fit)
                   CALL cp_fm_release(qs_env%mo_derivs_aux_fit(I)%matrix)
-               ENDDO
+               END DO
                DEALLOCATE (qs_env%mo_derivs_aux_fit)
-            ENDIF
+            END IF
 
             IF (ASSOCIATED(qs_env%mo_loc_history)) THEN
                DO I = 1, SIZE(qs_env%mo_loc_history)
                   CALL cp_fm_release(qs_env%mo_loc_history(I)%matrix)
-               ENDDO
+               END DO
                DEALLOCATE (qs_env%mo_loc_history)
-            ENDIF
+            END IF
             IF (ASSOCIATED(qs_env%rtp)) THEN
                CALL rt_prop_release(qs_env%rtp)
                DEALLOCATE (qs_env%rtp)
@@ -1454,7 +1454,7 @@ CONTAINS
             IF (ASSOCIATED(qs_env%outer_scf_history)) THEN
                DEALLOCATE (qs_env%outer_scf_history)
                qs_env%outer_scf_ihistory = 0
-            ENDIF
+            END IF
             IF (ASSOCIATED(qs_env%gradient_history)) &
                DEALLOCATE (qs_env%gradient_history)
             IF (ASSOCIATED(qs_env%variable_history)) &
@@ -1475,16 +1475,16 @@ CONTAINS
 
             IF (ASSOCIATED(qs_env%almo_scf_env)) THEN
                CALL almo_scf_env_release(qs_env%almo_scf_env)
-            ENDIF
+            END IF
 
             IF (ASSOCIATED(qs_env%ls_scf_env)) THEN
                CALL ls_scf_release(qs_env%ls_scf_env)
-            ENDIF
+            END IF
             CALL molecular_scf_guess_env_destroy(qs_env%molecular_scf_guess_env)
 
             IF (ASSOCIATED(qs_env%transport_env)) THEN
                CALL transport_env_release(qs_env%transport_env)
-            ENDIF
+            END IF
 
             !Only if do_xas_calculation
             IF (ASSOCIATED(qs_env%xas_env)) THEN
@@ -1494,13 +1494,13 @@ CONTAINS
             CALL ewald_pw_release(qs_env%ewald_pw)
             IF (ASSOCIATED(qs_env%image_matrix)) THEN
                DEALLOCATE (qs_env%image_matrix)
-            ENDIF
+            END IF
             IF (ASSOCIATED(qs_env%ipiv)) THEN
                DEALLOCATE (qs_env%ipiv)
-            ENDIF
+            END IF
             IF (ASSOCIATED(qs_env%image_coeff)) THEN
                DEALLOCATE (qs_env%image_coeff)
-            ENDIF
+            END IF
             ! ZMP
             IF (ASSOCIATED(qs_env%rho_external)) THEN
                CALL qs_rho_release(qs_env%rho_external)
@@ -1508,14 +1508,14 @@ CONTAINS
             IF (ASSOCIATED(qs_env%external_vxc)) THEN
                CALL pw_release(qs_env%external_vxc%pw)
                DEALLOCATE (qs_env%external_vxc)
-            ENDIF
+            END IF
             IF (ASSOCIATED(qs_env%mask)) THEN
                CALL pw_release(qs_env%mask%pw)
                DEALLOCATE (qs_env%mask)
-            ENDIF
+            END IF
             IF (ASSOCIATED(qs_env%active_space)) THEN
                CALL release_active_space_type(qs_env%active_space)
-            ENDIF
+            END IF
             ! Embedding potentials if provided as input
             IF (qs_env%given_embed_pot) THEN
                CALL pw_release(qs_env%embed_pot%pw)
@@ -1523,8 +1523,8 @@ CONTAINS
                IF (ASSOCIATED(qs_env%spin_embed_pot)) THEN
                   CALL pw_release(qs_env%spin_embed_pot%pw)
                   DEALLOCATE (qs_env%spin_embed_pot)
-               ENDIF
-            ENDIF
+               END IF
+            END IF
 
             ! Polarisability tensor
             CALL polar_env_release(qs_env%polar_env)
@@ -1594,9 +1594,9 @@ CONTAINS
                DO i = 1, SIZE(qs_env%WannierCentres)
                   DEALLOCATE (qs_env%WannierCentres(i)%WannierHamDiag)
                   DEALLOCATE (qs_env%WannierCentres(i)%centres)
-               ENDDO
+               END DO
                DEALLOCATE (qs_env%WannierCentres)
-            ENDIF
+            END IF
             ! Resp charges
             IF (ASSOCIATED(qs_env%rhs)) DEALLOCATE (qs_env%rhs)
             ! now we are ready to deallocate the full structure

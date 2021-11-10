@@ -135,7 +135,7 @@ CONTAINS
             IF (output_unit > 0 .AND. .NOT. check) THEN
                WRITE (unit=output_unit, fmt='("ip, j, pos, lat_pos ",2I6,6F12.5)') ip, j, &
                   particles_qm(ip)%r, DOT_PRODUCT(qm_cell%h_inv(j, :), particles_qm(ip)%r)
-            ENDIF
+            END IF
             IF (.NOT. check) &
                CALL cp_abort(__LOCATION__, &
                              "QM/MM QM atoms must be fully contained in the same image of the QM box "// &

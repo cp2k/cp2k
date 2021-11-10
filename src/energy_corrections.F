@@ -469,7 +469,7 @@ CONTAINS
          iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          iounit = -1
-      ENDIF
+      END IF
 
       ! no k-points possible
       CALL get_qs_env(qs_env=qs_env, &
@@ -581,7 +581,7 @@ CONTAINS
          iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          iounit = -1
-      ENDIF
+      END IF
 
       calculate_forces = .FALSE.
 
@@ -727,7 +727,7 @@ CONTAINS
          iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          iounit = -1
-      ENDIF
+      END IF
 
       IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "ec_build_core_hamiltonian_force - START"
 
@@ -945,7 +945,7 @@ CONTAINS
          iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          iounit = -1
-      ENDIF
+      END IF
 
       ! get all information on the electronic density
       NULLIFY (atomic_kind_set, blacs_env, cell, dft_control, force, ks_env, &
@@ -2016,7 +2016,7 @@ CONTAINS
          iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          iounit = -1
-      ENDIF
+      END IF
 
       print_key => section_vals_get_subs_vals(section_vals=qs_env%input, &
                                               subsection_name="DFT%PRINT%MOMENTS")

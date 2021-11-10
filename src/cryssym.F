@@ -284,7 +284,7 @@ CONTAINS
                xkp(:, i) = REAL(is_shift + 2*ixkp(:, i), KIND=dp)/REAL(2*nk(:), KIND=dp)
                j = iwkp(i) + 1
                wkp(j) = wkp(j) + 1.0_dp
-            ENDDO
+            END DO
             csym%kplink(1, 1:nkpts) = iwkp(1:nkpts) + 1
             DEALLOCATE (ixkp, iwkp)
          END IF

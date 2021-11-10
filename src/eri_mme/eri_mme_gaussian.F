@@ -61,8 +61,8 @@ CONTAINS
       DO l = 0, l_max - 1
          DO k = 0, l + 1
             h_to_c(k, l + 1) = -(k + 1)*h_to_c(k + 1, l) + 2.0_dp*zet*h_to_c(k - 1, l)
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
    END SUBROUTINE create_hermite_to_cartesian
 
@@ -111,15 +111,15 @@ CONTAINS
          potential_prv = potential
       ELSE
          potential_prv = eri_mme_coulomb
-      ENDIF
+      END IF
 
       IF (potential_prv > 3) THEN
          CPABORT("unknown potential")
-      ENDIF
+      END IF
 
       IF ((potential_prv >= 2) .AND. .NOT. PRESENT(pot_par)) THEN
          CPABORT("potential parameter pot_par required for yukawa or long-range Coulomb")
-      ENDIF
+      END IF
 
       dG = 1.0E-3 ! Resolution in G to determine error of minimax approximation
 
@@ -135,7 +135,7 @@ CONTAINS
          minimax_Rc = (G_max/G_min)**2
       ELSEIF (potential_prv == eri_mme_yukawa) THEN
          minimax_Rc = (G_max**2 + pot_par**2)/(G_min**2 + pot_par**2)
-      ENDIF
+      END IF
 
       CALL get_exp_minimax_coeff(n_minimax, minimax_Rc, minimax_aw, err_minimax)
 
@@ -170,8 +170,8 @@ CONTAINS
          ELSEIF (potential_prv == eri_mme_longrange) THEN
             err_minimax = err_minimax/G_min**2 ! approx. of Coulomb
             err_minimax = err_minimax*EXP(-G_min**2/pot_par**2) ! exponential factor
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
    END SUBROUTINE get_minimax_coeff_v_gspace
 
@@ -215,15 +215,15 @@ CONTAINS
                      E(t, ll + 1, mm) = c1*E(t - 1, ll, mm) + & ! cost: 8 flops
                                         c2*E(t, ll, mm) + &
                                         (t + 1)*E(t + 1, ll, mm)
-                  ENDIF
+                  END IF
                   IF (mm .LT. m) THEN
                      E(t, ll, mm + 1) = c1*E(t - 1, ll, mm) + & ! cost: 8 flops
                                         c3*E(t, ll, mm) + &
                                         (t + 1)*E(t + 1, ll, mm)
-                  ENDIF
-               ENDDO
-            ENDDO
-         ENDDO
+                  END IF
+               END DO
+            END DO
+         END DO
       ELSE ! Hermite overlap dist
          DO mm = 0, m
             DO ll = 0, l
@@ -233,18 +233,18 @@ CONTAINS
                                            2*c2*E(t, ll, mm) + &
                                            2*(t + 1)*E(t + 1, ll, mm) - &
                                            2*ll*E(t, ll - 1, mm))
-                  ENDIF
+                  END IF
                   IF (mm .LT. m) THEN
                      E(t, ll, mm + 1) = b*(2*c1*E(t - 1, ll, mm) + & ! cost: 16 flops
                                            2*c3*E(t, ll, mm) + &
                                            2*(t + 1)*E(t + 1, ll, mm) - &
                                            2*mm*E(t, ll, mm - 1))
 
-                  ENDIF
-               ENDDO
-            ENDDO
-         ENDDO
-      ENDIF
+                  END IF
+               END DO
+            END DO
+         END DO
+      END IF
 
    END SUBROUTINE create_gaussian_overlap_dist_to_hermite
 END MODULE eri_mme_gaussian

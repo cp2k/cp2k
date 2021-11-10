@@ -139,7 +139,7 @@ CONTAINS
          CALL pao_build_selector(pao, qs_env)
          CALL pao_build_core_hamiltonian(pao, qs_env)
          pao%constants_ready = .TRUE.
-      ENDIF
+      END IF
 
       CALL pao_param_init(pao, qs_env)
 
@@ -153,13 +153,13 @@ CONTAINS
             CALL pao_ml_predict(pao, qs_env)
          ELSE
             CALL pao_param_initial_guess(pao, qs_env)
-         ENDIF
+         END IF
          pao%matrix_X_ready = .TRUE.
       ELSE IF (SIZE(pao%ml_training_set) > 0) THEN
          CALL pao_ml_predict(pao, qs_env)
       ELSE
          IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| reusing matrix_X from previous optimization"
-      ENDIF
+      END IF
 
       ! init line-search
       section => section_vals_get_subs_vals(input, "DFT%LS_SCF%PAO%LINE_SEARCH")
@@ -210,7 +210,7 @@ CONTAINS
       IF (.NOT. ls_scf_env%do_pao) THEN
          pao_is_done = .TRUE.
          RETURN
-      ENDIF
+      END IF
 
       ls_mstruct => ls_scf_env%ls_mstruct
       pao => ls_scf_env%pao_env
@@ -218,19 +218,19 @@ CONTAINS
       IF (.NOT. pao%matrix_P_ready) THEN
          CALL pao_guess_initial_P(pao, qs_env, ls_scf_env)
          pao%matrix_P_ready = .TRUE.
-      ENDIF
+      END IF
 
       IF (pao%max_pao == 0) THEN
          pao_is_done = .TRUE.
          RETURN
-      ENDIF
+      END IF
 
       IF (pao%need_initial_scf) THEN
          pao_is_done = .FALSE.
          pao%need_initial_scf = .FALSE.
          IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| Performing initial SCF optimization."
          RETURN
-      ENDIF
+      END IF
 
       CALL timeset(routineN, handle)
 
@@ -238,7 +238,7 @@ CONTAINS
       do_mixing = pao%mixing /= 1.0_dp .AND. pao%istep > 1
       IF (do_mixing) THEN
          CALL dbcsr_copy(matrix_X_mixing, pao%matrix_X)
-      ENDIF
+      END IF
 
       cycle_converged = .FALSE.
       icycle = 0
@@ -275,7 +275,7 @@ CONTAINS
                pao_is_done = icycle < 3
                IF (pao_is_done .AND. pao%iw > 0) WRITE (pao%iw, *) "PAO| converged after ", pao%istep, " steps :-)"
                EXIT
-            ENDIF
+            END IF
 
             ! if we have reached the maximum number of cycles exit in order
             ! to restart with a fresh hamiltonian
@@ -283,11 +283,11 @@ CONTAINS
                IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| CG not yet converged after ", icycle, " cylces."
                pao_is_done = .FALSE.
                EXIT
-            ENDIF
+            END IF
 
             IF (MOD(icycle, pao%write_cycles) == 0) &
                CALL pao_write_restart(pao, qs_env, energy) ! write an intermediate restart file
-         ENDIF
+         END IF
 
          ! check for early abort without convergence?
          CALL external_control(should_stop, "PAO", start_time=qs_env%start_time, target_time=qs_env%target_time)
@@ -295,7 +295,7 @@ CONTAINS
             CPWARN("PAO not converged!")
             pao_is_done = .TRUE.
             EXIT
-         ENDIF
+         END IF
 
          ! perform line-search step
          CALL linesearch_step(pao%linesearch, energy=energy, slope=pao%norm_G**2)
@@ -304,7 +304,7 @@ CONTAINS
 
          CALL dbcsr_copy(pao%matrix_X, pao%matrix_X_orig) !restore X
          CALL dbcsr_add(pao%matrix_X, pao%matrix_D, 1.0_dp, pao%linesearch%step_size)
-      ENDDO
+      END DO
 
       ! perform mixing of matrix_X
       IF (do_mixing) THEN
@@ -312,7 +312,7 @@ CONTAINS
          CALL dbcsr_release(matrix_X_mixing)
          IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| Recalculating energy after mixing."
          CALL pao_calc_energy(pao, qs_env, ls_scf_env, energy)
-      ENDIF
+      END IF
 
       CALL pao_write_restart(pao, qs_env, energy)
       CALL pao_opt_finalize(pao)

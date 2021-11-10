@@ -20,8 +20,8 @@ MODULE atomic_kind_list_types
    IMPLICIT NONE
    PRIVATE
 
-#:include "subsys_list.fypp"
+   #:include "subsys_list.fypp"
 
-$:subsys_list_macro(name='atomic_kind')
+   $:subsys_list_macro(name='atomic_kind')
 
 END MODULE atomic_kind_list_types

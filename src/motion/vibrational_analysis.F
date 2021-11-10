@@ -357,13 +357,13 @@ CONTAINS
             DO i = 1, natoms
                imap = Mlist(i)
                particles(imap)%r(1:3) = pos0((i - 1)*3 + 1:(i - 1)*3 + 3)
-            ENDDO
+            END DO
             DO j = 1, nrep
                DO i = 1, ncoord
                   imap = Clist(i)
                   rep_env%r(imap, j) = pos0(i)
                END DO
-            ENDDO
+            END DO
             CALL rep_env_calc_e_f(rep_env, calc_f=.TRUE.)
             j = 1
             minimum_energy = rep_env%f(rep_env%ndim + 1, j)
@@ -406,12 +406,12 @@ CONTAINS
                DO i = 1, natoms
                   imap = Mlist(i)
                   particles(imap)%f(1:3) = rep_env%f((imap - 1)*3 + 1:(imap - 1)*3 + 3, 1)
-               ENDDO
+               END DO
                ALLOCATE (Hint1(ncoord, ncoord), rmass(ncoord))
                DO i = 1, natoms
                   imap = Mlist(i)
                   rmass(3*(imap - 1) + 1:3*(imap - 1) + 3) = mass(imap)
-               ENDDO
+               END DO
                DO i = 1, ncoord
                   DO j = 1, ncoord
                      Hint1(j, i) = Hessian(j, i)*rmass(i)*rmass(j)*1.0E-6_dp
@@ -431,7 +431,7 @@ CONTAINS
                DO i = 1, natoms
                   imap = Mlist(i)
                   particles(imap)%f(1:3) = rep_env%f((imap - 1)*3 + 1:(imap - 1)*3 + 3, 1)
-               ENDDO
+               END DO
                nfrozen = SIZE(particles) - natoms
                CPASSERT(nfrozen == 0)
                CALL write_scine(print_scine, f_env%force_env, particles, minimum_energy, hessian=Hessian)
@@ -512,7 +512,7 @@ CONTAINS
                END IF
                IF (.NOT. something_frozen .AND. calc_thchdata) THEN
                   CALL get_thch_values(H_eigval2, iw, mass, nvib, inertia, 1, minimum_energy, tc_temp, tc_press)
-               ENDIF
+               END IF
                CALL write_vibrations_molden(input, particles, H_eigval2, D, intensities, calc_intens, &
                                             dump_only_positive=.FALSE., logger=logger, list=Mlist)
             ELSE
@@ -807,7 +807,7 @@ CONTAINS
       freqsum = 0.0_dp
       DO i = 1, nvib
          freqsum = freqsum + freqs(i)
-      ENDDO
+      END DO
 
 !   ZPE
       zpe = 0.5_dp*(h_bar*2._dp*pi)*freqsum*(hertz/wavenumbers)*n_avogadro
@@ -872,7 +872,7 @@ CONTAINS
          vib_entropy = vib_entropy + freq_arg/exp_min_one - LOG(one_min_exp)
 !      vib_cv = vib_cv + fact*fact*freqs(i)*freqs(i)*exp(fact*freqs(i))/(exp(fact*freqs(i))-1.0_dp)/(exp(fact*freqs(i))-1.0_dp)
          vib_cv = vib_cv + freq_arg*freq_arg*EXP(freq_arg)/exp_min_one/exp_min_one
-      ENDDO
+      END DO
       vib_energy = vib_energy*n_avogadro ! it contains already ZPE
       vib_entropy = vib_entropy*(n_avogadro*boltzmann)
       vib_cv = vib_cv*(n_avogadro*boltzmann)
@@ -915,7 +915,7 @@ CONTAINS
          WRITE (UNIT=iw, FMT="(T2,'VIB|', T20, 'Gibbs energy correction [kJ/mol]:',T60,F26.8)") Gibbs/1000.0_dp
          WRITE (UNIT=iw, FMT="(T2,'VIB|', T20, 'Heat capacity [kJ/(mol*K)]:',T70,F16.8)") heat_capacity/1000.0_dp
          WRITE (UNIT=iw, FMT="(/)")
-      ENDIF
+      END IF
 
    END SUBROUTINE get_thch_values
 

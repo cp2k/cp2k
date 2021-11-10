@@ -208,7 +208,7 @@ CONTAINS
             fact = fact*xsq/REAL(i*isvar, KIND=dp)
             bessel0 = bessel0 + fact
             IF (ABS(fact) < tol) EXIT
-         ENDDO
+         END DO
          IF (ABS(fact) > tol) CPABORT("BESSEL0 NOT CONVERGED")
       END IF
 

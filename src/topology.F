@@ -353,7 +353,7 @@ CONTAINS
       ALLOCATE (elements(SIZE(topology%atom_info%id_element)))
       DO i = 1, SIZE(elements)
          elements(i) = id2str(topology%atom_info%id_element(i))
-      ENDDO
+      END DO
 
       DO i = 1, topology%natoms
          IF (elements(i) == "__DEF__") CYCLE

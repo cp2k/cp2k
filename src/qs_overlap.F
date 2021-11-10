@@ -518,7 +518,7 @@ CONTAINS
       IF (do_forces .AND. use_virial) THEN
          virial%pv_overlap = virial%pv_overlap + pv_thread
          virial%pv_virial = virial%pv_virial + pv_thread
-      ENDIF
+      END IF
 
       IF (dokp) THEN
          DO i = 1, maxs
@@ -526,14 +526,14 @@ CONTAINS
                CALL dbcsr_finalize(matrixkp_s(i, ic)%matrix)
                CALL dbcsr_filter(matrixkp_s(i, ic)%matrix, &
                                  dft_control%qs_control%eps_filter_matrix)
-            ENDDO
-         ENDDO
+            END DO
+         END DO
       ELSE
          DO i = 1, maxs
             CALL dbcsr_finalize(matrix_s(i)%matrix)
             CALL dbcsr_filter(matrix_s(i)%matrix, &
                               dft_control%qs_control%eps_filter_matrix)
-         ENDDO
+         END DO
       END IF
 
       ! *** Release work storage ***

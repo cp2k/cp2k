@@ -182,7 +182,7 @@ CONTAINS
          NULLIFY (e_ndrho(ispin)%array)
          NULLIFY (rho(ispin)%array)
          NULLIFY (ndrho(ispin)%array)
-      ENDDO
+      END DO
 
       CALL section_vals_val_get(optx_params, "scale_x", r_val=sx)
       CALL section_vals_val_get(optx_params, "a1", r_val=a1)
@@ -225,7 +225,7 @@ CONTAINS
                             npoints=npoints, epsilon_rho=epsilon_rho, &
                             epsilon_drho=epsilon_drho, sx=sx, &
                             a1=a1, a2=a2, gam=gam)
-      ENDDO
+      END DO
    END SUBROUTINE optx_lsd_eval
 
 ! **************************************************************************************************

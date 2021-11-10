@@ -153,7 +153,7 @@ CONTAINS
                          gradient_history=gradient_history, &
                          variable_history=variable_history)
          CALL set_qs_env(qs_env, outer_scf_ihistory=0)
-      ENDIF
+      END IF
 
       ! set up pw_env
       CALL qs_env_rebuild_pw_env(qs_env)
@@ -164,7 +164,7 @@ CONTAINS
       IF (ASSOCIATED(qs_env%mos)) THEN
          CALL mpools_rebuild_fm_pools(qs_env%mpools, mos=qs_env%mos, &
                                       blacs_env=blacs_env, para_env=para_env)
-      ENDIF
+      END IF
 
       ! If we use auxiliary density matrix methods rebuild fm_pools
       IF (dft_control%do_admm) THEN
@@ -239,7 +239,7 @@ CONTAINS
          CALL pw_env_create(new_pw_env)
          CALL set_ks_env(ks_env, pw_env=new_pw_env)
          CALL pw_env_release(new_pw_env)
-      ENDIF
+      END IF
 
       CALL get_qs_env(qs_env, pw_env=new_pw_env, dft_control=dft_control, &
                       cell=cell)
@@ -290,7 +290,7 @@ CONTAINS
             IF (ASSOCIATED(rho_core)) THEN
                CALL pw_release(rho_core%pw)
                DEALLOCATE (rho_core)
-            ENDIF
+            END IF
             ALLOCATE (rho_core)
             CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_core%pw, &
@@ -306,7 +306,7 @@ CONTAINS
             IF (ASSOCIATED(vppl)) THEN
                CALL pw_release(vppl%pw)
                DEALLOCATE (vppl)
-            ENDIF
+            END IF
             ALLOCATE (vppl)
             CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
             CALL pw_pool_create_pw(auxbas_pw_pool, vppl%pw, use_data=REALDATA3D)
@@ -324,7 +324,7 @@ CONTAINS
             IF (ASSOCIATED(rho_nlcc)) THEN
                CALL pw_release(rho_nlcc%pw)
                DEALLOCATE (rho_nlcc)
-            ENDIF
+            END IF
             ALLOCATE (rho_nlcc)
             CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_nlcc%pw, use_data=REALDATA3D)
@@ -336,7 +336,7 @@ CONTAINS
             IF (ASSOCIATED(rho_nlcc_g)) THEN
                CALL pw_release(rho_nlcc_g%pw)
                DEALLOCATE (rho_nlcc_g)
-            ENDIF
+            END IF
             ALLOCATE (rho_nlcc_g)
             CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_nlcc_g%pw, use_data=COMPLEXDATA1D)
@@ -351,7 +351,7 @@ CONTAINS
             IF (ASSOCIATED(vee)) THEN
                CALL pw_release(vee%pw)
                DEALLOCATE (vee)
-            ENDIF
+            END IF
             ALLOCATE (vee)
             CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
             CALL pw_pool_create_pw(auxbas_pw_pool, vee%pw, use_data=REALDATA3D)
@@ -367,7 +367,7 @@ CONTAINS
             IF (ASSOCIATED(external_vxc)) THEN
                CALL pw_release(external_vxc%pw)
                DEALLOCATE (external_vxc)
-            ENDIF
+            END IF
             ALLOCATE (external_vxc)
             CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
             CALL pw_pool_create_pw(auxbas_pw_pool, external_vxc%pw, use_data=REALDATA3D)
@@ -383,7 +383,7 @@ CONTAINS
             IF (ASSOCIATED(embed_pot)) THEN
                CALL pw_release(embed_pot%pw)
                DEALLOCATE (embed_pot)
-            ENDIF
+            END IF
             ALLOCATE (embed_pot)
             CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
             CALL pw_pool_create_pw(auxbas_pw_pool, embed_pot%pw, use_data=REALDATA3D)
@@ -395,7 +395,7 @@ CONTAINS
             IF (ASSOCIATED(spin_embed_pot)) THEN
                CALL pw_release(spin_embed_pot%pw)
                DEALLOCATE (spin_embed_pot)
-            ENDIF
+            END IF
             ALLOCATE (spin_embed_pot)
             CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
             CALL pw_pool_create_pw(auxbas_pw_pool, spin_embed_pot%pw, use_data=REALDATA3D)
@@ -411,7 +411,7 @@ CONTAINS
          CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL set_ks_env(ks_env, v_hartree_rspace=v_hartree_rspace)
-      ENDIF
+      END IF
 
       !update the time in the poisson environment, to update time dependant constraints
       new_pw_env%poisson_env%parameters%dbc_params%time = qs_env%sim_time

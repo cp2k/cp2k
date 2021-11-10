@@ -1218,7 +1218,7 @@ CONTAINS
          CALL dbcsr_get_block_p(vb, row=irow, col=icol, block=vbb, found=found)
          res = res + SUM(vba*vbb)
          CPASSERT(found)
-      ENDDO
+      END DO
       CALL dbcsr_iterator_stop(iter)
       CALL mp_sum(res, group)
 
@@ -1308,7 +1308,7 @@ CONTAINS
             CALL cp_pw_to_cube(wf_r%pw, unit_nr, title, particles=particles, stride=stride, mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, print_section, '', &
                                               ignore_should_output=.TRUE., mpi_io=mpi_io)
-         ENDDO
+         END DO
       END DO
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g%pw)

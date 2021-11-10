@@ -141,7 +141,7 @@ CONTAINS
          ! both of them need the coefficients as fm's, more matrix mess
          IF (use_mo_coeff_b) THEN
             CALL copy_dbcsr_to_fm(mo_coeff_b, mo_coeff)
-         ENDIF
+         END IF
       CASE (ot_precond_full_single)
          needs_homo = .TRUE.
          ! XXXX to be removed if homo estimate only is implemented
@@ -170,13 +170,13 @@ CONTAINS
          ELSE
             CALL calculate_subspace_eigenvalues(mo_coeff, matrix_h, &
                                                 eigenvalues_ot, do_rotation=.FALSE.)
-         ENDIF
+         END IF
          IF (k > 0) energy_homo = eigenvalues_ot(k)
       ELSE
          IF (needs_homo) THEN
             CPABORT("Not yet implemented")
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       ! After all bits and pieces of checking and initialization, here comes the
       ! part where the preconditioner matrix gets created and solved.
@@ -205,11 +205,11 @@ CONTAINS
       ELSE
          CALL transfer_dbcsr_to_fm(preconditioner_env%dbcsr_matrix, preconditioner_env%fm, &
                                    preconditioner_env%para_env, preconditioner_env%ctxt)
-      ENDIF
+      END IF
 
       IF (needs_full_spectrum) THEN
          DEALLOCATE (eigenvalues_ot)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -242,7 +242,7 @@ CONTAINS
             DO ispin = 1, SIZE(preconditioner)
                CALL destroy_preconditioner(preconditioner(ispin)%preconditioner)
                DEALLOCATE (preconditioner(ispin)%preconditioner)
-            ENDDO
+            END DO
             DEALLOCATE (preconditioner)
          CASE (ot_precond_none, ot_precond_full_kinetic, ot_precond_s_inverse, ot_precond_full_single_inverse) ! these are 'independent'
             ! do nothing
@@ -264,7 +264,7 @@ CONTAINS
             CALL init_preconditioner(preconditioner(ispin)%preconditioner, &
                                      para_env=para_env, &
                                      blacs_env=blacs_env)
-         ENDDO
+         END DO
       END IF
 
    END SUBROUTINE restart_preconditioner

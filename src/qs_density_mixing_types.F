@@ -225,15 +225,15 @@ CONTAINS
 
             IF (ASSOCIATED(mixing_store%kerker_factor)) THEN
                DEALLOCATE (mixing_store%kerker_factor)
-            ENDIF
+            END IF
 
             IF (ASSOCIATED(mixing_store%special_metric)) THEN
                DEALLOCATE (mixing_store%special_metric)
-            ENDIF
+            END IF
 
             IF (ASSOCIATED(mixing_store%pulay_matrix)) THEN
                DEALLOCATE (mixing_store%pulay_matrix)
-            ENDIF
+            END IF
 
             IF (ASSOCIATED(mixing_store%rhoin_buffer)) THEN
                DO i = 1, SIZE(mixing_store%rhoin_buffer, 2)
@@ -242,7 +242,7 @@ CONTAINS
                   END DO
                END DO
                DEALLOCATE (mixing_store%rhoin_buffer)
-            ENDIF
+            END IF
 
             IF (ASSOCIATED(mixing_store%paw)) THEN
                DEALLOCATE (mixing_store%paw)
@@ -325,7 +325,7 @@ CONTAINS
                END DO
                DEALLOCATE (mixing_store%cpc_h_lastres)
                DEALLOCATE (mixing_store%cpc_s_lastres)
-            ENDIF
+            END IF
 
             IF (ASSOCIATED(mixing_store%res_buffer)) THEN
                DO i = 1, SIZE(mixing_store%res_buffer, 2)
@@ -334,15 +334,15 @@ CONTAINS
                   END DO
                END DO
                DEALLOCATE (mixing_store%res_buffer)
-            ENDIF
+            END IF
 
             IF (ASSOCIATED(mixing_store%norm_res_buffer)) THEN
                DEALLOCATE (mixing_store%norm_res_buffer)
-            ENDIF
+            END IF
 
             IF (ASSOCIATED(mixing_store%ig_global_index)) THEN
                DEALLOCATE (mixing_store%ig_global_index)
-            ENDIF
+            END IF
 
             IF (ASSOCIATED(mixing_store%drho_buffer)) THEN
                DO i = 1, SIZE(mixing_store%drho_buffer, 2)
@@ -351,7 +351,7 @@ CONTAINS
                   END DO
                END DO
                DEALLOCATE (mixing_store%drho_buffer)
-            ENDIF
+            END IF
 
             IF (ASSOCIATED(mixing_store%last_res)) THEN
                DO i = 1, SIZE(mixing_store%last_res)
@@ -471,16 +471,16 @@ CONTAINS
             ls = .TRUE.
          ELSE
             ls = .FALSE.
-         ENDIF
+         END IF
       ELSE
          ls = .FALSE.
-      ENDIF
+      END IF
 
       IF (ls) THEN
          section_name = "RHO_MIXING"
       ELSE
          section_name = "MIXING"
-      ENDIF
+      END IF
 
       CALL section_create(section, __LOCATION__, &
                           name=section_name, &
@@ -509,7 +509,7 @@ CONTAINS
          default_mix = direct_p_mix
       ELSE
          default_mix = broy_mix
-      ENDIF
+      END IF
 
       CALL keyword_create(keyword, __LOCATION__, &
                           name="METHOD", &

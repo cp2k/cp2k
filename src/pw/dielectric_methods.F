@@ -834,8 +834,8 @@ CONTAINS
       CALL dielectric_constant_sccs(rho, swch_func, dswch_func_drho, 2.0_dp, &
                                     dielectric_params%rho_max, dielectric_params%rho_min)
 
-      eps%cr3d = ((swch_func%cr3d-1.0_dp)*(eps_sptldep%cr3d-1.0_dp)) + 1.0_dp
-      deps_drho%cr3d = dswch_func_drho%cr3d*(eps_sptldep%cr3d-1.0_dp)
+      eps%cr3d = ((swch_func%cr3d - 1.0_dp)*(eps_sptldep%cr3d - 1.0_dp)) + 1.0_dp
+      deps_drho%cr3d = dswch_func_drho%cr3d*(eps_sptldep%cr3d - 1.0_dp)
 
       CALL pw_pool_give_back_pw(pw_pool, dswch_func_drho)
       CALL pw_pool_give_back_pw(pw_pool, swch_func)

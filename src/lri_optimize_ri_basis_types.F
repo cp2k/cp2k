@@ -109,23 +109,23 @@ CONTAINS
          IF (ASSOCIATED(lri_opt%subset)) THEN
             DO i = 1, SIZE(lri_opt%subset)
                DEALLOCATE (lri_opt%subset(i)%ncont_l)
-            ENDDO
+            END DO
             DEALLOCATE (lri_opt%subset)
-         ENDIF
+         END IF
          IF (ASSOCIATED(lri_opt%x)) THEN
             DEALLOCATE (lri_opt%x)
-         ENDIF
+         END IF
          IF (ASSOCIATED(lri_opt%zet_init)) THEN
             DEALLOCATE (lri_opt%zet_init)
-         ENDIF
+         END IF
          IF (ASSOCIATED(lri_opt%ri_gcc_orig)) THEN
             DO i = 1, SIZE(lri_opt%ri_gcc_orig)
                DEALLOCATE (lri_opt%ri_gcc_orig(i)%gcc_orig)
-            ENDDO
+            END DO
             DEALLOCATE (lri_opt%ri_gcc_orig)
-         ENDIF
+         END IF
          DEALLOCATE (lri_opt)
-      ENDIF
+      END IF
    END SUBROUTINE deallocate_lri_opt
 
 ! **************************************************************************************************
@@ -186,10 +186,10 @@ CONTAINS
                ELSE
                   il = il + 1
                   ncont_l(il) = 1
-               ENDIF
-            ENDDO
+               END IF
+            END DO
          END DO
-      ENDIF
+      END IF
 
    END SUBROUTINE get_original_gcc
 
@@ -221,16 +221,16 @@ CONTAINS
                              DOT_PRODUCT(gcc(:, ishell1, iset), gcc(:, ishell1, iset))
                   gcc(:, ishell2, iset) = gcc(:, ishell2, iset) - &
                                           gs_scale*gcc(:, ishell1, iset)
-               ENDDO
-            ENDDO
+               END DO
+            END DO
             istart = istart + lri_opt%subset(iset)%ncont_l(il)
-         ENDDO
+         END DO
 
          DO ishell = 1, gto_basis_set%nshell(iset)
             gcc(:, ishell, iset) = gcc(:, ishell, iset)/ &
                                    SQRT(DOT_PRODUCT(gcc(:, ishell, iset), gcc(:, ishell, iset)))
          END DO
-      ENDDO
+      END DO
 
    END SUBROUTINE orthonormalize_gcc
 

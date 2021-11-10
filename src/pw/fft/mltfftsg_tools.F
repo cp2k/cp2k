@@ -95,7 +95,7 @@ CONTAINS
          ELSE
             CALL fftstp_cmplx(LDAX, NFFT, N, LOT, N, A(ITR, 1), Z(1, 1, id), &
                               TRIG, NOW(1), AFTER(1), BEFORE(1), ISIG)
-         ENDIF
+         END IF
          IF (TSCAL) THEN
             IF (LOT == NFFT) THEN
                CALL scaled(2*LOT*N, SCALE, Z(1, 1, id))
@@ -110,7 +110,7 @@ CONTAINS
                CALL zgetmo(Z(1, 1, id), LOT, NFFT, N, B(1, ITR), LDBX)
             ELSE
                CALL matmov(NFFT, N, Z(1, 1, id), LOT, B(ITR, 1), LDBX)
-            ENDIF
+            END IF
          ELSE
             INZEE = 1
             DO I = 2, IC - 1
@@ -118,16 +118,16 @@ CONTAINS
                                  Z(1, 3 - INZEE, id), TRIG, NOW(I), AFTER(I), &
                                  BEFORE(I), ISIG)
                INZEE = 3 - INZEE
-            ENDDO
+            END DO
             IF (TRANSB == 'N' .OR. TRANSB == 'n') THEN
                CALL fftrot_cmplx(LOT, NFFT, N, NFFT, LDBX, Z(1, INZEE, id), &
                                  B(1, ITR), TRIG, NOW(IC), AFTER(IC), BEFORE(IC), ISIG)
             ELSE
                CALL fftstp_cmplx(LOT, NFFT, N, LDBX, N, Z(1, INZEE, id), &
                                  B(ITR, 1), TRIG, NOW(IC), AFTER(IC), BEFORE(IC), ISIG)
-            ENDIF
-         ENDIF
-      ENDDO
+            END IF
+         END IF
+      END DO
 
 !$OMP END PARALLEL
 
@@ -139,7 +139,7 @@ CONTAINS
       ELSE
          B(1:LDBX, N + 1:LDBY) = CMPLX(0._dp, 0._dp, dp)
          B(M + 1:LDBX, 1:N) = CMPLX(0._dp, 0._dp, dp)
-      ENDIF
+      END IF
 
    END SUBROUTINE mltfftsg
 

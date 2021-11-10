@@ -291,12 +291,12 @@ CONTAINS
       r_offset(1) = 1
       DO row = 2, nblkrows_total
          r_offset(row) = r_offset(row - 1) + row_blk_size(row - 1)
-      ENDDO
+      END DO
       nr = SUM(row_blk_size)
       c_offset(1) = 1
       DO col = 2, nblkcols_total
          c_offset(col) = c_offset(col - 1) + col_blk_size(col - 1)
-      ENDDO
+      END DO
       nc = SUM(col_blk_size)
       !<
 
@@ -310,9 +310,9 @@ CONTAINS
          DO j = 1, SIZE(DATA, 2)
          DO i = 1, SIZE(DATA, 1)
             fm(r_offset(row) + i - 1, c_offset(col) + j - 1) = DATA(i, j)
-         ENDDO
-         ENDDO
-      ENDDO
+         END DO
+         END DO
+      END DO
       CALL dbcsr_iterator_stop(iter)
 
       DEALLOCATE (r_offset, c_offset)
@@ -391,7 +391,7 @@ CONTAINS
             fmtstr2 = "(T2,   (1X,F  .  ))"
          ELSE
             fmtstr2 = "(T2,2I5,2X,A2,1X,A8,   (1X,F  .  ))"
-         ENDIF
+         END IF
 
          ! *** Write headline ***
          WRITE (UNIT=output_unit, FMT="(/,/,T2,A)") TRIM(matrix_name)
@@ -425,7 +425,7 @@ CONTAINS
             to = MIN((from + ncol - 1), last_col)
             IF (.NOT. omit_headers) THEN
                WRITE (UNIT=output_unit, FMT=fmtstr1) (jcol, jcol=from, to)
-            ENDIF
+            END IF
             irow = 1
             DO iatom = 1, natom
                NULLIFY (orb_basis_set)
@@ -557,7 +557,7 @@ CONTAINS
             WRITE (UNIT=fmtstr2(22:23), FMT="(I2)") ncol
             WRITE (UNIT=fmtstr2(29:30), FMT="(I2)") width - 1
             WRITE (UNIT=fmtstr2(32:33), FMT="(I2)") ndigits
-         ENDIF
+         END IF
 
          ! *** Write the matrix in the selected format ***
          DO icol = first_col, last_col, ncol
@@ -656,7 +656,7 @@ CONTAINS
          tmp = (/nblock_max, nelement_max/)
          CALL mp_max(tmp, group)
          nblock_max = tmp(1); nelement_max = tmp(2)
-      ENDIF
+      END IF
 
       IF (matrix_type == dbcsr_type_symmetric .OR. &
           matrix_type == dbcsr_type_antisymmetric) THEN
@@ -689,7 +689,7 @@ CONTAINS
                (nelement_sum + npe - 1)/npe
             WRITE (UNIT=output_unit, FMT="(T15,A,T68,I13)") "Maximum number of matrix elements per CPU:", &
                nelement_max
-         ENDIF
+         END IF
       END IF
 
       ! *** Release work storage ***

@@ -726,7 +726,7 @@ CONTAINS
          WRITE (tmp_chr, *) mol_arr(1:counter)
          CPWARN("selected molecules:"//TRIM(tmp_chr))
          short_loop = .TRUE.
-      ENDIF
+      END IF
 
       ! rotate the molecule along the not involved O-H bond
       !   (about the angle in of the neighboring chain elements)

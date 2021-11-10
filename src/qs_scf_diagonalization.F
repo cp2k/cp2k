@@ -308,7 +308,7 @@ CONTAINS
       ELSE
          CALL set_mo_occupation(mo_array=mos, &
                                 smear=scf_control%smear)
-      ENDIF
+      END IF
 
       DO ispin = 1, nspin
          CALL calculate_density_matrix(mos(ispin)%mo_set, &
@@ -849,7 +849,7 @@ CONTAINS
             CALL cp_dbcsr_alloc_block_from_nbl(subspace_env%p_matrix_store(i)%matrix, &
                                                sab_orb)
             CALL dbcsr_set(subspace_env%p_matrix_store(i)%matrix, 0.0_dp)
-         ENDDO
+         END DO
 
       END IF
 

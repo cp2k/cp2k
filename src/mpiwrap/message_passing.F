@@ -755,9 +755,9 @@ CONTAINS
 !$       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_init_thread @ mp_world_init")
 !$       IF (provided_tsl .LT. MPI_THREAD_SERIALIZED) THEN
 !$          CALL mp_stop(0, "MPI library does not support the requested level of threading (MPI_THREAD_SERIALIZED).")
-!$       ENDIF
+!$       END IF
 !$OMP END MASTER
-!$    ENDIF
+!$    END IF
 #if __MPI_VERSION > 2
       CALL mpi_comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN, ierr)
 #else
@@ -841,7 +841,7 @@ CONTAINS
          ! A bug, we're leaking or double-freeing communicators. Needs to be fixed where the leak happens.
          ! Memory leak checking might be helpful to locate the culprit
          CPABORT("mp_world_finalize: assert failed:  leaking communicators")
-      ENDIF
+      END IF
       CALL mpi_finalize(ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_finalize @ mp_world_finalize")
 #else
@@ -869,7 +869,7 @@ CONTAINS
       stack_pointer = stack_pointer + 1
       IF (stack_pointer > max_stack_size) THEN
          CPABORT("stack_pointer too large : message_passing @ add_mp_perf_env")
-      ENDIF
+      END IF
       NULLIFY (mp_perf_stack(stack_pointer)%mp_perf_env)
       IF (PRESENT(perf_env)) THEN
          mp_perf_stack(stack_pointer)%mp_perf_env => perf_env
@@ -893,7 +893,7 @@ CONTAINS
       ALLOCATE (perf_env, stat=stat)
       IF (stat /= 0) THEN
          CPABORT("allocation failed in mp_perf_env_create")
-      ENDIF
+      END IF
       last_mp_perf_env_id = last_mp_perf_env_id + 1
       perf_env%id_nr = last_mp_perf_env_id
       perf_env%ref_count = 1
@@ -957,10 +957,10 @@ CONTAINS
 
       IF (.NOT. ASSOCIATED(perf_env)) THEN
          CPABORT("unassociated perf_env : message_passing @ mp_perf_env_describe")
-      ENDIF
+      END IF
       IF (perf_env%ref_count < 1) THEN
          CPABORT("invalid perf_env%ref_count : message_passing @ mp_perf_env_describe")
-      ENDIF
+      END IF
 #if defined(__parallel)
       IF (iw > 0) THEN
          WRITE (iw, '( /, 1X, 79("-") )')
@@ -982,7 +982,7 @@ CONTAINS
                      ADJUSTL(perf_env%mp_perfs(i)%name), perf_env%mp_perfs(i)%count, &
                      vol
                END IF
-            ENDIF
+            END IF
 
          END DO
          WRITE (iw, '( 1X, 79("-"), / )')
@@ -998,7 +998,7 @@ CONTAINS
    SUBROUTINE rm_mp_perf_env()
       IF (stack_pointer < 1) THEN
          CPABORT("no perf_env in the stack : message_passing @ rm_mp_perf_env")
-      ENDIF
+      END IF
       CALL mp_perf_env_release(mp_perf_stack(stack_pointer)%mp_perf_env)
       stack_pointer = stack_pointer - 1
    END SUBROUTINE rm_mp_perf_env
@@ -1012,7 +1012,7 @@ CONTAINS
 
       IF (stack_pointer < 1) THEN
          CPABORT("no perf_env in the stack : message_passing @ get_mp_perf_env")
-      ENDIF
+      END IF
       res => mp_perf_stack(stack_pointer)%mp_perf_env
    END FUNCTION get_mp_perf_env
 
@@ -2031,35 +2031,35 @@ CONTAINS
 
       IF (.NOT. PRESENT(subgroup_min_size) .AND. .NOT. PRESENT(n_subgroups)) THEN
          CPABORT(routineP//" missing arguments")
-      ENDIF
+      END IF
       IF (PRESENT(subgroup_min_size) .AND. PRESENT(n_subgroups)) THEN
          CPABORT(routineP//" too many arguments")
-      ENDIF
+      END IF
 
       CALL mp_environ(nnodes, mepos, comm)
 
       IF (UBOUND(group_distribution, 1) .NE. nnodes - 1) THEN
          CPABORT(routineP//" group_distribution wrong bounds")
-      ENDIF
+      END IF
 
 #if defined(__parallel)
       IF (PRESENT(subgroup_min_size)) THEN
          IF (subgroup_min_size < 0 .OR. subgroup_min_size > nnodes) THEN
             CPABORT(routineP//" subgroup_min_size too small or too large")
-         ENDIF
+         END IF
          ngroups = nnodes/subgroup_min_size
          my_subgroup_min_size = subgroup_min_size
       ELSE ! n_subgroups
          IF (n_subgroups <= 0) THEN
             CPABORT(routineP//" n_subgroups too small")
-         ENDIF
+         END IF
          IF (nnodes/n_subgroups > 0) THEN ! we have a least one cpu per group
             ngroups = n_subgroups
          ELSE ! well, only one group then
             ngroups = 1
-         ENDIF
+         END IF
          my_subgroup_min_size = nnodes/ngroups
-      ENDIF
+      END IF
 
       ! rank_permutation: is a permutation of ranks, so that groups are not necessarily continuous in rank of the master group
       ! while the order is not critical (we only color ranks), it can e.g. be used to make groups that have just 1 rank per node
@@ -2072,12 +2072,12 @@ CONTAINS
          DO irank = istride - 1, nnodes - 1, local_stride
             rank_permutation(k) = irank
             k = k + 1
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       DO i = 0, nnodes - 1
          group_distribution(rank_permutation(i)) = MIN(i/my_subgroup_min_size, ngroups - 1)
-      ENDDO
+      END DO
       ! even the user gave a partition, see if we can use it to overwrite this choice
       IF (PRESENT(group_partition)) THEN
          IF (ALL(group_partition > 0) .AND. (SUM(group_partition) .EQ. nnodes) .AND. (ngroups == SIZE(group_partition))) THEN
@@ -2086,12 +2086,12 @@ CONTAINS
                DO j = 1, group_partition(i)
                   group_distribution(rank_permutation(k)) = i
                   k = k + 1
-               ENDDO
-            ENDDO
+               END DO
+            END DO
          ELSE
             ! just ignore silently as we have reasonable defaults. Probably a warning would not be to bad
-         ENDIF
-      ENDIF
+         END IF
+      END IF
       color = group_distribution(mepos)
       CALL mpi_comm_split(comm, color, 0, sub_comm, ierr)
       debug_comm_count = debug_comm_count + 1
@@ -2639,7 +2639,7 @@ CONTAINS
       ierr = 0
       IF ("d" .EQ. "l" .AND. real_8 .EQ. int_8) THEN
          CPABORT("Minimal location not available with long integers @ "//routineN)
-      ENDIF
+      END IF
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
@@ -2684,7 +2684,7 @@ CONTAINS
       ierr = 0
       IF ("i" .EQ. "l" .AND. int_4 .EQ. int_8) THEN
          CPABORT("Minimal location not available with long integers @ "//routineN)
-      ENDIF
+      END IF
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
@@ -2727,7 +2727,7 @@ CONTAINS
       ierr = 0
       IF ("l" .EQ. "l" .AND. int_8 .EQ. int_8) THEN
          CPABORT("Minimal location not available with long integers @ "//routineN)
-      ENDIF
+      END IF
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
@@ -2770,7 +2770,7 @@ CONTAINS
       ierr = 0
       IF ("r" .EQ. "l" .AND. real_4 .EQ. int_8) THEN
          CPABORT("Minimal location not available with long integers @ "//routineN)
-      ENDIF
+      END IF
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
@@ -2813,7 +2813,7 @@ CONTAINS
       ierr = 0
       IF ("d" .EQ. "l" .AND. real_8 .EQ. int_8) THEN
          CPABORT("Maximal location not available with long integers @ "//routineN)
-      ENDIF
+      END IF
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
@@ -2856,7 +2856,7 @@ CONTAINS
       ierr = 0
       IF ("i" .EQ. "l" .AND. int_4 .EQ. int_8) THEN
          CPABORT("Maximal location not available with long integers @ "//routineN)
-      ENDIF
+      END IF
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
@@ -2899,7 +2899,7 @@ CONTAINS
       ierr = 0
       IF ("l" .EQ. "l" .AND. int_8 .EQ. int_8) THEN
          CPABORT("Maximal location not available with long integers @ "//routineN)
-      ENDIF
+      END IF
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
@@ -2942,7 +2942,7 @@ CONTAINS
       ierr = 0
       IF ("r" .EQ. "l" .AND. real_4 .EQ. int_8) THEN
          CPABORT("Maximal location not available with long integers @ "//routineN)
-      ENDIF
+      END IF
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
@@ -3012,7 +3012,7 @@ CONTAINS
       IF (msglen .GT. 0) THEN
          CALL mpi_allreduce(MPI_IN_PLACE, msg, msglen, MPI_LOGICAL, MPI_LOR, gid, ierr)
          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
-      ENDIF
+      END IF
 #else
       MARK_USED(msg)
       MARK_USED(gid)
@@ -3048,7 +3048,7 @@ CONTAINS
          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
       ELSE
          request = mp_request_null
-      ENDIF
+      END IF
 #else
       MARK_USED(msg)
       MARK_USED(gid)
@@ -3579,7 +3579,7 @@ CONTAINS
 #endif
          old_types(i) = subtypes(i)%type_handle
          lengths(i) = subtypes(i)%length
-      ENDDO
+      END DO
 #if defined(__parallel)
       CALL MPI_Type_create_struct(n, &
                                   lengths, displacements, old_types, &
@@ -3592,7 +3592,7 @@ CONTAINS
 #endif
       IF (PRESENT(vector_descriptor) .OR. PRESENT(index_descriptor)) THEN
          CPABORT(routineN//" Vectors and indices NYI")
-      ENDIF
+      END IF
    END FUNCTION mp_type_make_struct
 
 ! **************************************************************************************************
@@ -3614,9 +3614,9 @@ CONTAINS
       IF (ASSOCIATED(type_descriptor%subtype)) THEN
          DO i = 1, SIZE(type_descriptor%subtype)
             CALL mp_type_free_m(type_descriptor%subtype(i))
-         ENDDO
+         END DO
          DEALLOCATE (type_descriptor%subtype)
-      ENDIF
+      END IF
 #if defined(__parallel)
       CALL MPI_Type_free(type_descriptor%type_handle, ierr)
       IF (ierr /= 0) &
@@ -3639,7 +3639,7 @@ CONTAINS
 
       DO i = 1, SIZE(type_descriptors)
          CALL mp_type_free(type_descriptors(i))
-      ENDDO
+      END DO
 
    END SUBROUTINE mp_type_free_v
 
@@ -4190,7 +4190,7 @@ CONTAINS
       CALL mp_timestop(handle)
    END SUBROUTINE mp_win_unlock_all
 
-#:include 'message_passing.f90'
+   #:include 'message_passing.f90'
 
 ! **************************************************************************************************
 !> \brief Tests the MPI library
@@ -4233,7 +4233,7 @@ CONTAINS
          WRITE (output_unit, *) "running messages with npow = ", npow
          WRITE (output_unit, *) "use MPI X in the input for larger (e.g. 6) of smaller (e.g. 3) messages"
          IF (MODULO(nprocs, 2) .NE. 0) WRITE (output_unit, *) "Testing only with an even number of tasks"
-      ENDIF
+      END IF
 
       IF (MODULO(nprocs, 2) .NE. 0) RETURN
 
@@ -4280,12 +4280,12 @@ CONTAINS
             t1 = MPI_WTIME()
             buffer2(1:ncount) = buffer1(1:ncount)
             t2 = t2 + MPI_WTIME() - t1 + threshold
-         ENDDO
+         END DO
          CALL MPI_REDUCE(t2, t1, 1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
          IF (ionode .AND. output_unit > 0) THEN
             WRITE (output_unit, '(I9,A,F12.4,A)') 8*ncount, " Bytes ", (3**(npow - i))*ncount*8.0E-6_dp/t1, " MB/s"
-         ENDIF
-      ENDDO
+         END IF
+      END DO
       CALL MPI_BARRIER(comm, ierror)
       ! -------------------------------------------------------------------------------------------
       ! ------------------------------ some in memory tests                   ---------------------
@@ -4294,7 +4294,7 @@ CONTAINS
       IF (ionode .AND. output_unit > 0) THEN
          WRITE (output_unit, *) "Testing in memory copies all cpus"
          WRITE (output_unit, *) "  is the memory bandwidth affected on an SMP machine ?"
-      ENDIF
+      END IF
       DO i = 1, npow
          ncount = 10**i
          t2 = 0.0E0_dp
@@ -4304,12 +4304,12 @@ CONTAINS
             t1 = MPI_WTIME()
             buffer2(1:ncount) = buffer1(1:ncount)
             t2 = t2 + MPI_WTIME() - t1 + threshold
-         ENDDO
+         END DO
          CALL MPI_REDUCE(t2, t1, 1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
          IF (ionode .AND. output_unit > 0) THEN
             WRITE (output_unit, '(I9,A,F12.4,A)') 8*ncount, " Bytes ", (3**(npow - i))*ncount*8.0E-6_dp/t1, " MB/s"
-         ENDIF
-      ENDDO
+         END IF
+      END DO
       CALL MPI_BARRIER(comm, ierror)
       ! -------------------------------------------------------------------------------------------
       ! ------------------------------ first test point to point communication ---------------------
@@ -4318,7 +4318,7 @@ CONTAINS
       IF (ionode .AND. output_unit > 0) THEN
          WRITE (output_unit, *) "Testing truly point to point communication (i with j only)"
          WRITE (output_unit, *) "  is there some different connection between i j (e.g. shared memory comm)"
-      ENDIF
+      END IF
       ncount = 10**npow
       IF (ionode .AND. output_unit > 0) WRITE (output_unit, *) "For messages of ", ncount*8, " bytes"
       IF (ncount .GT. nbufmax) CPABORT("")
@@ -4328,22 +4328,22 @@ CONTAINS
             t1 = MPI_WTIME()
             IF (taskid .EQ. itask) THEN
                CALL MPI_SEND(buffer1, ncount, MPI_DOUBLE_PRECISION, jtask, itask*jtask, comm, ierror)
-            ENDIF
+            END IF
             IF (taskid .EQ. jtask) THEN
                CALL MPI_RECV(buffer1, ncount, MPI_DOUBLE_PRECISION, itask, itask*jtask, comm, MPI_STATUS_IGNORE, ierror)
-            ENDIF
+            END IF
             send_timings(itask, jtask) = MPI_WTIME() - t1 + threshold
-         ENDDO
-      ENDDO
+         END DO
+      END DO
       send_timings2(:, :) = send_timings
       CALL MPI_REDUCE(send_timings2, send_timings, nprocs**2, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
       IF (ionode .AND. output_unit > 0) THEN
          DO itask = 0, nprocs - 1
             DO jtask = itask + 1, nprocs - 1
                WRITE (output_unit, '(I4,I4,F12.4,A)') itask, jtask, ncount*8.0E-6_dp/send_timings(itask, jtask), " MB/s"
-            ENDDO
-         ENDDO
-      ENDIF
+            END DO
+         END DO
+      END IF
       CALL MPI_BARRIER(comm, ierror)
       ! -------------------------------------------------------------------------------------------
       ! ------------------------------ second test point to point communication -------------------
@@ -4352,7 +4352,7 @@ CONTAINS
       IF (ionode .AND. output_unit > 0) THEN
          WRITE (output_unit, *) "Testing all nearby point to point communication (0,1)(2,3)..."
          WRITE (output_unit, *) "    these could / should all be on the same shared memory node "
-      ENDIF
+      END IF
       DO i = 1, npow
          ncount = 10**i
          t2 = 0.0E0_dp
@@ -4364,14 +4364,14 @@ CONTAINS
                CALL MPI_SEND(buffer1, ncount, MPI_DOUBLE_PRECISION, taskid + 1, 0, comm, ierror)
             ELSE
                CALL MPI_RECV(buffer1, ncount, MPI_DOUBLE_PRECISION, taskid - 1, 0, comm, MPI_STATUS_IGNORE, ierror)
-            ENDIF
+            END IF
             t2 = t2 + MPI_WTIME() - t1 + threshold
-         ENDDO
+         END DO
          CALL MPI_REDUCE(t2, t1, 1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
          IF (ionode .AND. output_unit > 0) THEN
             WRITE (output_unit, '(I9,A,F12.4,A)') 8*ncount, " Bytes ", (3**(npow - i))*ncount*8.0E-6_dp/t1, " MB/s"
-         ENDIF
-      ENDDO
+         END IF
+      END DO
       CALL MPI_BARRIER(comm, ierror)
       ! -------------------------------------------------------------------------------------------
       ! ------------------------------ third test point to point communication -------------------
@@ -4380,7 +4380,7 @@ CONTAINS
       IF (ionode .AND. output_unit > 0) THEN
          WRITE (output_unit, *) "Testing all far point to point communication (0,nprocs/2),(1,nprocs/2+1),.."
          WRITE (output_unit, *) "    these could all be going over the network, and stress it a lot"
-      ENDIF
+      END IF
       DO i = 1, npow
          ncount = 10**i
          t2 = 0.0E0_dp
@@ -4393,14 +4393,14 @@ CONTAINS
                CALL MPI_SEND(buffer1, ncount, MPI_DOUBLE_PRECISION, taskid + nprocs/2, 0, comm, ierror)
             ELSE
                CALL MPI_RECV(buffer1, ncount, MPI_DOUBLE_PRECISION, taskid - nprocs/2, 0, comm, MPI_STATUS_IGNORE, ierror)
-            ENDIF
+            END IF
             t2 = t2 + MPI_WTIME() - t1 + threshold
-         ENDDO
+         END DO
          CALL MPI_REDUCE(t2, t1, 1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
          IF (ionode .AND. output_unit > 0) THEN
             WRITE (output_unit, '(I9,A,F12.4,A)') 8*ncount, " Bytes ", (3**(npow - i))*ncount*8.0E-6_dp/t1, " MB/s"
-         ENDIF
-      ENDDO
+         END IF
+      END DO
       ! -------------------------------------------------------------------------------------------
       ! ------------------------------ test root to all broadcast               -------------------
       ! -------------------------------------------------------------------------------------------
@@ -4408,7 +4408,7 @@ CONTAINS
       IF (ionode .AND. output_unit > 0) THEN
          WRITE (output_unit, *) "Testing root to all broadcast "
          WRITE (output_unit, *) "    using trees at least ? "
-      ENDIF
+      END IF
       DO i = 1, npow
          ncount = 10**i
          t2 = 0.0E0_dp
@@ -4418,12 +4418,12 @@ CONTAINS
             t1 = MPI_WTIME()
             CALL MPI_BCAST(buffer1, ncount, MPI_DOUBLE_PRECISION, 0, comm, ierror)
             t2 = t2 + MPI_WTIME() - t1 + threshold
-         ENDDO
+         END DO
          CALL MPI_REDUCE(t2, t1, 1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
          IF (ionode .AND. output_unit > 0) THEN
             WRITE (output_unit, '(I9,A,F12.4,A)') 8*ncount, " Bytes ", (3**(npow - i))*ncount*8.0E-6_dp/t1, " MB/s"
-         ENDIF
-      ENDDO
+         END IF
+      END DO
       ! -------------------------------------------------------------------------------------------
       ! ------------------------------ test mp_sum like behavior                -------------------
       ! -------------------------------------------------------------------------------------------
@@ -4438,12 +4438,12 @@ CONTAINS
             t1 = MPI_WTIME()
             CALL MPI_ALLREDUCE(buffer1, buffer2, ncount, MPI_DOUBLE_PRECISION, MPI_SUM, comm, ierr)
             t2 = t2 + MPI_WTIME() - t1 + threshold
-         ENDDO
+         END DO
          CALL MPI_REDUCE(t2, t1, 1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
          IF (ionode .AND. output_unit > 0) THEN
             WRITE (output_unit, '(I9,A,F12.4,A)') 8*ncount, " Bytes ", (3**(npow - i))*ncount*8.0E-6_dp/t1, " MB/s"
-         ENDIF
-      ENDDO
+         END IF
+      END DO
       ! -------------------------------------------------------------------------------------------
       ! ------------------------------ test all to all communication            -------------------
       ! -------------------------------------------------------------------------------------------
@@ -4451,7 +4451,7 @@ CONTAINS
       IF (ionode .AND. output_unit > 0) THEN
          WRITE (output_unit, *) "Test all to all communication (mpi_alltoallv)"
          WRITE (output_unit, *) "    mpi/network getting confused ? "
-      ENDIF
+      END IF
       DO i = 1, npow
          ncount = 10**i
          t2 = 0.0E0_dp
@@ -4461,20 +4461,20 @@ CONTAINS
          DO j = 1, nprocs
             sdispl(j) = (j - 1)*(ncount/nprocs)
             rdispl(j) = (j - 1)*(ncount/nprocs)
-         ENDDO
+         END DO
          DO j = 1, 3**(npow - i)
             CALL MPI_BARRIER(comm, ierror)
             t1 = MPI_WTIME()
             CALL mpi_alltoallv(buffer1, scount, sdispl, MPI_DOUBLE_PRECISION, &
                                buffer2, rcount, rdispl, MPI_DOUBLE_PRECISION, comm, ierr)
             t2 = t2 + MPI_WTIME() - t1 + threshold
-         ENDDO
+         END DO
          CALL MPI_REDUCE(t2, t1, 1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
          IF (ionode .AND. output_unit > 0) THEN
             WRITE (output_unit, '(I9,A,F12.4,A)') 8*(ncount/nprocs)*nprocs, " Bytes ", &
                (3**(npow - i))*(ncount/nprocs)*nprocs*8.0E-6_dp/t1, " MB/s"
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       ! -------------------------------------------------------------------------------------------
       ! ------------------------------ other stuff                            ---------------------
@@ -4482,7 +4482,7 @@ CONTAINS
       IF (ionode .AND. output_unit > 0) THEN
          WRITE (output_unit, *) " Clean tests completed "
          WRITE (output_unit, *) " Testing MPI_REDUCE scatter"
-      ENDIF
+      END IF
       rcount = Nloc
       DO itests = 1, 3
          IF (ionode .AND. output_unit > 0) &
@@ -4491,8 +4491,8 @@ CONTAINS
          DO j = 1, Nprocs
             DO i = 1, Nloc
                grid(i, j) = MODULO(i*j*taskid, itests)
-            ENDDO
-         ENDDO
+            END DO
+         END DO
          t1 = MPI_WTIME()
          CALL MPI_REDUCE_SCATTER(grid, lgrid, rcount, MPI_DOUBLE_PRECISION, MPI_SUM, comm, ierr)
          t2 = MPI_WTIME() - t1 + threshold
@@ -4502,8 +4502,8 @@ CONTAINS
          DO j = 1, Nprocs
             DO i = 1, Nloc
                grid2(i, j) = MODULO(i*j*taskid, itests)
-            ENDDO
-         ENDDO
+            END DO
+         END DO
          left = MODULO(taskid - 1, Nprocs)
          right = MODULO(taskid + 1, Nprocs)
          t3 = MPI_WTIME()
@@ -4512,7 +4512,7 @@ CONTAINS
             lgrid2(:) = lgrid2 + grid(:, MODULO(taskid - i, Nprocs) + 1)
             IF (i .EQ. nprocs) EXIT
             CALL MPI_SENDRECV_REPLACE(lgrid2, nloc, MPI_DOUBLE_PRECISION, right, 0, left, 0, comm, MPI_STATUS_IGNORE, ierr)
-         ENDDO
+         END DO
          t4 = MPI_WTIME() - t3 + threshold
          CALL mpi_allreduce(t4, res, 1, MPI_DOUBLE_PRECISION, MPI_MAX, comm, ierr)
          maxdiff = MAXVAL(ABS(lgrid2 - lgrid))
@@ -4523,8 +4523,8 @@ CONTAINS
          DO j = 1, Nprocs
             DO i = 1, Nloc
                grid3(i, j) = MODULO(i*j*taskid, itests)
-            ENDDO
-         ENDDO
+            END DO
+         END DO
          t3 = MPI_WTIME()
          ! first sum the grid in pairs (0,1),(2,3) should be within an LPAR and fast XXXXXXXXX
          ! 0 will only need parts 0,2,4,... correctly summed
@@ -4536,15 +4536,15 @@ CONTAINS
                CALL MPI_SENDRECV(grid3(1, i + 1), nloc, MPI_DOUBLE_PRECISION, partner, 17, &
                                  lgrid3, nloc, MPI_DOUBLE_PRECISION, partner, 19, comm, MPI_STATUS_IGNORE, ierr)
                grid3(:, i) = grid3(:, i) + lgrid3(:)
-            ENDDO
+            END DO
          ELSE
             partner = taskid - 1
             DO i = 1, Nprocs, 2
                CALL MPI_SENDRECV(grid3(1, i), nloc, MPI_DOUBLE_PRECISION, partner, 19, &
                                  lgrid3, nloc, MPI_DOUBLE_PRECISION, partner, 17, comm, MPI_STATUS_IGNORE, ierr)
                grid3(:, i + 1) = grid3(:, i + 1) + lgrid3(:)
-            ENDDO
-         ENDIF
+            END DO
+         END IF
          t4 = MPI_WTIME() - t3 + threshold
          ! now send a given buffer from 1 to 3 to 5 .. adding the right part of the data
          ! since we've summed an lgrid does only need to pass by even or odd tasks
@@ -4556,14 +4556,14 @@ CONTAINS
             lgrid3(:) = lgrid3 + grid3(:, MODULO(taskid - i - 1, Nprocs) + 1)
             IF (i .EQ. nprocs - 1) EXIT
             CALL MPI_SENDRECV_REPLACE(lgrid3, nloc, MPI_DOUBLE_PRECISION, right, 0, left, 0, comm, MPI_STATUS_IGNORE, ierr)
-         ENDDO
+         END DO
          t5 = MPI_WTIME() - t3 + threshold
          CALL mpi_allreduce(t4, res, 1, MPI_DOUBLE_PRECISION, MPI_MAX, comm, ierr)
          CALL mpi_allreduce(t5, res2, 1, MPI_DOUBLE_PRECISION, MPI_MAX, comm, ierr)
          maxdiff = MAXVAL(ABS(lgrid3 - lgrid))
          CALL mpi_allreduce(maxdiff, res3, 1, MPI_DOUBLE_PRECISION, MPI_MAX, comm, ierr)
        IF (ionode .AND. output_unit > 0) WRITE (output_unit, *) "INVOLVED SHIFT        ", res + res2, "(", res, ",", res2, ")", res3
-      ENDDO
+      END DO
       DEALLOCATE (rcount)
       DEALLOCATE (scount)
       DEALLOCATE (sdispl)

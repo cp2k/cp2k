@@ -517,8 +517,8 @@ CONTAINS
                   p_new_block(i, j) = p_old_block(i, j) + p_mix*p_new_block(i, j)
                END DO
             END DO
-         ENDIF
-      ENDDO
+         END IF
+      END DO
       CALL dbcsr_iterator_stop(iter)
 
       CALL mp_max(delta, para_env%group)

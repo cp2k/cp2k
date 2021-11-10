@@ -383,7 +383,7 @@ CONTAINS
       CALL get_W_matrix(la_max_all, lb_max, lmax, Rc, Rs, Waux_mat)
       IF (calculate_forces) THEN
          CALL get_dW_matrix(la_max_all, lb_max, Waux_mat, dWaux_mat)
-      ENDIF
+      END IF
 
       DEALLOCATE (Rc, Rs, la_max_all)
 
@@ -498,7 +498,7 @@ CONTAINS
                CALL construct_dev_shg_ab(la(:, iset), first_sgfa(:, iset), nshella(iset), &
                                          lb(:, jset), first_sgfb(:, jset), nshellb(jset), &
                                          -rab, swork_cont, Waux_mat, dWaux_mat, dvab)
-            ENDIF
+            END IF
          END DO
       END DO
 
@@ -616,7 +616,7 @@ CONTAINS
                                           lb(:, jset), npgfb(jset), nshellb(jset), &
                                           sconb_shg(:, :, jset), &
                                           swork, swork_cont, calculate_forces)
-            ENDIF
+            END IF
             IF (calculate_ints) THEN
                CALL construct_int_shg_ab(la(:, iset), first_sgfa(:, iset), nshella(iset), &
                                          lb(:, jset), first_sgfb(:, jset), nshellb(jset), &
@@ -627,7 +627,7 @@ CONTAINS
                CALL construct_dev_shg_ab(la(:, iset), first_sgfa(:, iset), nshella(iset), &
                                          lb(:, jset), first_sgfb(:, jset), nshellb(jset), &
                                          -rab, swork_cont, Waux_mat, dWaux_mat, dsab)
-            ENDIF
+            END IF
          END DO
       END DO
 
@@ -739,9 +739,9 @@ CONTAINS
                CALL construct_dev_shg_ab(la(:, iset), first_sgfa(:, iset), nshella(iset), &
                                          lb(:, jset), first_sgfb(:, jset), nshellb(jset), &
                                          -rab, swork_cont, Waux_mat, dWaux_mat, dvab)
-            ENDIF
-         ENDDO
-      ENDDO
+            END IF
+         END DO
+      END DO
 
       DEALLOCATE (swork, swork_cont)
 
@@ -893,7 +893,7 @@ CONTAINS
                                                  lcb(:, kset), first_sgfcb(:, kset), nshellcb(kset), &
                                                  cg_coeff, cg_none0_list, &
                                                  ncg_none0, swork_cont, Waux_mat, abbint)
-               ENDIF
+               END IF
                IF (calculate_forces) THEN
                   !*** -rab, since Eq. in Ref. use Ra-Rb, not Rb-Ra
                   CALL dev_overlap_shg_abb(la(:, iset), first_sgfa(:, iset), nshella(iset), &
@@ -901,7 +901,7 @@ CONTAINS
                                            lcb(:, kset), first_sgfcb(:, kset), nshellcb(kset), &
                                            cg_coeff, cg_none0_list, ncg_none0, -rab, swork_cont, &
                                            Waux_mat, dWaux_mat, dabbint)
-               ENDIF
+               END IF
                ! max value of integrals in this set triple
                sgfa = first_sgfa(1, iset)
                na = sgfa + nsgfa(iset) - 1
@@ -986,7 +986,7 @@ CONTAINS
             sgfa_start = first_sgfa(ishella, iset)
             sgfa_end = sgfa_start + 2*la(ishella, iset)
             lai_set(sgfa_start:sgfa_end) = la(ishella, iset)
-         ENDDO
+         END DO
          istart = first_sgfa(1, iset)
          iend = istart + nsgfa_set(iset) - 1
 
@@ -997,7 +997,7 @@ CONTAINS
                sgfa_start = first_sgfa(jshella, jset)
                sgfa_end = sgfa_start + 2*la(jshella, jset)
                laj_set(sgfa_start:sgfa_end) = la(jshella, jset)
-            ENDDO
+            END DO
             jstart = first_sgfa(1, jset)
             jend = jstart + nsgfa_set(jset) - 1
 
@@ -1009,7 +1009,7 @@ CONTAINS
                   sgfa_start = first_sgfca(kshella, kset)
                   sgfa_end = sgfa_start + 2*lca(kshella, kset)
                   lak_set(sgfa_start:sgfa_end) = lca(kshella, kset)
-               ENDDO
+               END DO
                kstart = first_sgfca(1, kset)
                kend = kstart + nsgfca_set(kset) - 1
                DO ksgfa = kstart, kend
@@ -1027,8 +1027,8 @@ CONTAINS
                               DO i = 1, 3
                                  dabbint(isgfa, jsgfa, ksgfa, i) = &
                                     -dabdaint(jsgfa, isgfa, ksgfa, i)
-                              ENDDO
-                           ENDIF
+                              END DO
+                           END IF
                         ELSE
                            IF (calculate_ints) THEN
                               abbint(isgfa, jsgfa, ksgfa) = &
@@ -1038,15 +1038,15 @@ CONTAINS
                               DO i = 1, 3
                                  dabbint(isgfa, jsgfa, ksgfa, i) = &
                                     dabdaint(jsgfa, isgfa, ksgfa, i)
-                              ENDDO
-                           ENDIF
-                        ENDIF
-                     ENDDO
-                  ENDDO
-               ENDDO
-            ENDDO
-         ENDDO
-      ENDDO
+                              END DO
+                           END IF
+                        END IF
+                     END DO
+                  END DO
+               END DO
+            END DO
+         END DO
+      END DO
 
       DEALLOCATE (lai_set, laj_set, lak_set)
 
@@ -1199,7 +1199,7 @@ CONTAINS
                                                  lca(:, kset), first_sgfca(:, kset), nshellca(kset), &
                                                  cg_coeff, cg_none0_list, ncg_none0, &
                                                  swork_cont, Waux_mat, abaint)
-               ENDIF
+               END IF
                IF (calculate_forces) THEN
                   !*** -rab, since Eq. in Ref. use Ra-Rb, not Rb-Ra
                   CALL dev_overlap_shg_aba(la(:, iset), first_sgfa(:, iset), nshella(iset), &
@@ -1207,7 +1207,7 @@ CONTAINS
                                            lca(:, kset), first_sgfca(:, kset), nshellca(kset), &
                                            cg_coeff, cg_none0_list, ncg_none0, &
                                            -rab, swork_cont, Waux_mat, dWaux_mat, dabdaint)
-               ENDIF
+               END IF
                ! max value of integrals in this set triple
                sgfa = first_sgfa(1, iset)
                na = sgfa + nsgfa(iset) - 1
@@ -1302,22 +1302,22 @@ CONTAINS
          j = size_int(isize, 2)
          k = li_max_all(j)
          IF (k < i) li_max_all(j) = i
-      ENDDO
+      END DO
       temp = li_max_all(lj_max)
       DO j = lj_max, 0, -1
          IF (li_max_all(j) < temp) THEN
             li_max_all(j) = temp
          ELSE
             temp = li_max_all(j)
-         ENDIF
-      ENDDO
+         END IF
+      END DO
 
       !*** -rab, since Eq. in Ref. use Ra-Rb, not Rb-Ra
       CALL get_real_scaled_solid_harmonic(Rc, Rs, lmax, -rab, rab2)
       CALL get_W_matrix(li_max_all, lj_max, lmax, Rc, Rs, Waux_mat)
       IF (calculate_forces) THEN
          CALL get_dW_matrix(li_max_all, lj_max, Waux_mat, dWaux_mat)
-      ENDIF
+      END IF
 
       DEALLOCATE (Rc, Rs, li_max_all)
 

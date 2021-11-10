@@ -190,7 +190,7 @@ CONTAINS
          CALL timeset(routineN//"_forces", handle)
       ELSE
          CALL timeset(routineN, handle)
-      ENDIF
+      END IF
 
       NULLIFY (logger)
       logger => cp_get_default_logger()
@@ -231,8 +231,8 @@ CONTAINS
          IF (dft_control%rtp_control%apply_delta_pulse .AND. &
              dft_control%rtp_control%periodic) THEN
             nders = 1
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       IF (dft_control%tddfpt2_control%enabled) THEN
          nders = 1
@@ -475,7 +475,7 @@ CONTAINS
       ! force analytic ppl calculation for GAPW methods
       IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
          dft_control%qs_control%do_ppl_method = do_ppl_analytic
-      ENDIF
+      END IF
 
       ! force
       NULLIFY (force)

@@ -55,13 +55,13 @@ CONTAINS
                IF (ASSOCIATED(exclusions(iatom)%list_exclude_ei)) THEN
                   DEALLOCATE (exclusions(iatom)%list_exclude_ei)
                END IF
-            ENDIF
+            END IF
             IF (ASSOCIATED(exclusions(iatom)%list_onfo)) THEN
                DEALLOCATE (exclusions(iatom)%list_onfo)
-            ENDIF
-         ENDDO
+            END IF
+         END DO
          DEALLOCATE (exclusions)
-      ENDIF
+      END IF
    END SUBROUTINE exclusion_release
 
 END MODULE exclusion_types

@@ -265,7 +265,7 @@ CONTAINS
                pa_b(1:natorb_a2) = RESHAPE(pa_block_b, (/natorb_a2/))
             END IF
 
-         ENDIF
+         END IF
 
          dr1 = DOT_PRODUCT(rij, rij)
          IF (dr1 > rij_threshold) THEN
@@ -999,7 +999,7 @@ CONTAINS
                pa_b(1:natorb_a2) = RESHAPE(pa_block_b, (/natorb_a2/))
             END IF
 
-         ENDIF
+         END IF
 
          dr1 = DOT_PRODUCT(rij, rij)
          IF (dr1 > rij_threshold) THEN
