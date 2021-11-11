@@ -299,6 +299,7 @@ CONTAINS
          CALL run_optimize_basis(input_declaration, root_section, para_env)
          globenv%run_type_id = none_run
       CASE (do_cp2k)
+         IF (method_name_id == do_sirius) CALL cp_sirius_init()
          CALL create_force_env(new_env_id, &
                                input_declaration=input_declaration, &
                                input_path=input_file_name, &
@@ -311,7 +312,6 @@ CONTAINS
          force_env => f_env%force_env
          CALL force_env_get(force_env, globenv=globenv)
          CALL globenv_retain(globenv)
-         IF (method_name_id == do_sirius) CALL cp_sirius_init()
       CASE (do_test)
          CALL lib_test(root_section, para_env, globenv)
       CASE (do_tree_mc) ! TMC entry point
