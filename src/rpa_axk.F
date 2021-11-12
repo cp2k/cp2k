@@ -40,7 +40,6 @@ MODULE rpa_axk
    USE hfx_types,                       ONLY: hfx_create,&
                                               hfx_release,&
                                               hfx_type
-   USE input_cp2k_hfx,                  ONLY: ri_mo
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
@@ -439,9 +438,6 @@ CONTAINS
             CALL dbcsr_set(mat_2d(1, 1)%matrix, 0.0_dp)
 
             IF (x_data(irep, 1)%do_hfx_ri) THEN
-               IF (x_data(irep, 1)%ri_data%flavor == ri_mo) THEN
-                  CPABORT("NYI with RI_FLAVOR MO")
-               END IF
                CALL hfx_ri_update_ks(qs_env, x_data(irep, 1)%ri_data, mat_2d, ehfx, &
                                      rho_ao=rho_ao_2d, geometry_did_change=my_recalc_hfx_integrals, &
                                      nspins=ns, hf_fraction=x_data(irep, 1)%general_parameter%fraction)

@@ -55,7 +55,6 @@ MODULE mp2_cphf
                                               hfx_type
    USE input_constants,                 ONLY: do_admm_aux_exch_func_none,&
                                               ot_precond_full_all
-   USE input_cp2k_hfx,                  ONLY: ri_mo
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
@@ -1369,10 +1368,6 @@ CONTAINS
          END IF
 
          IF (x_data(1, 1)%do_hfx_ri) THEN
-
-            IF (x_data(1, 1)%ri_data%flavor == ri_mo) THEN
-               CPABORT("NYI with RI_FLAVOR MO")
-            END IF
 
             CALL hfx_ri_update_forces(qs_env, x_data(1, 1)%ri_data, nspins, &
                                       x_data(1, 1)%general_parameter%fraction, &

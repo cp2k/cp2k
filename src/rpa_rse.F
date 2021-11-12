@@ -44,7 +44,6 @@ MODULE rpa_rse
                                               dbcsr_type_symmetric
    USE hfx_energy_potential,            ONLY: integrate_four_center
    USE hfx_ri,                          ONLY: hfx_ri_update_ks
-   USE input_cp2k_hfx,                  ONLY: ri_mo
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -357,9 +356,6 @@ CONTAINS
          CALL dbcsr_set(mat_mu_nu(1)%matrix, 0.0_dp)
 
          IF (qs_env%mp2_env%ri_rpa%x_data(1, 1)%do_hfx_ri) THEN
-            IF (qs_env%mp2_env%ri_rpa%x_data(1, 1)%ri_data%flavor == ri_mo) THEN
-               CPABORT("NYI with RI_FLAVOR MO")
-            END IF
 
             DO irep = 1, n_rep_hf
                rho_ao_2d(1:ns, 1:1) => P_mu_nu(1:ns)

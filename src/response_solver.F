@@ -61,7 +61,6 @@ MODULE response_solver
         kg_tnadd_embed_ri, ls_s_sqrt_ns, ls_s_sqrt_proot, ot_precond_full_all, &
         ot_precond_full_kinetic, ot_precond_full_single, ot_precond_full_single_inverse, &
         ot_precond_none, ot_precond_s_inverse, precond_mlp
-   USE input_cp2k_hfx,                  ONLY: ri_mo
    USE input_section_types,             ONLY: section_get_lval,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -1614,10 +1613,6 @@ CONTAINS
             !
             IF (x_data(1, 1)%do_hfx_ri) THEN
 
-               IF (x_data(1, 1)%ri_data%flavor == ri_mo) THEN
-                  CPABORT("NYI with RI_FLAVOR MO")
-               END IF
-
                eh1 = 0.0_dp
                CALL hfx_ri_update_ks(qs_env, x_data(1, 1)%ri_data, mhz, eh1, rho_ao=mpz, &
                                      geometry_did_change=s_mstruct_changed, nspins=nspins, &
@@ -1695,10 +1690,6 @@ CONTAINS
 
             IF (x_data(1, 1)%do_hfx_ri) THEN
 
-               IF (x_data(1, 1)%ri_data%flavor == ri_mo) THEN
-                  CPABORT("NYI with RI_FLAVOR MO")
-               END IF
-
                eh1 = 0.0_dp
                CALL hfx_ri_update_ks(qs_env, x_data(1, 1)%ri_data, mhz, eh1, rho_ao=mpz, &
                                      geometry_did_change=s_mstruct_changed, nspins=nspins, &
@@ -1734,10 +1725,6 @@ CONTAINS
             END DO
             IF (x_data(1, 1)%do_hfx_ri) THEN
 
-               IF (x_data(1, 1)%ri_data%flavor == ri_mo) THEN
-                  CPABORT("NYI with RI_FLAVOR MO")
-               END IF
-
                CALL hfx_ri_update_forces(qs_env, x_data(1, 1)%ri_data, nspins, &
                                          x_data(1, 1)%general_parameter%fraction, &
                                          rho_ao=matrix_p, rho_ao_resp=matrix_pza, &
@@ -1750,10 +1737,6 @@ CONTAINS
          ELSE
             CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
             IF (x_data(1, 1)%do_hfx_ri) THEN
-
-               IF (x_data(1, 1)%ri_data%flavor == ri_mo) THEN
-                  CPABORT("NYI with RI_FLAVOR MO")
-               END IF
 
                CALL hfx_ri_update_forces(qs_env, x_data(1, 1)%ri_data, nspins, &
                                          x_data(1, 1)%general_parameter%fraction, &

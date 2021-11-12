@@ -36,6 +36,7 @@
             &HF
                 FRACTION 0.2
                 &RI
+                  BLOCK_SIZE_RI DENSE
                 &END
             &END
         &END XC

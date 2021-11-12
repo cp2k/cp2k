@@ -47,7 +47,9 @@ MODULE hfx_types
         do_hfx_auto_shells, do_potential_coulomb, do_potential_gaussian, do_potential_id, &
         do_potential_long, do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_mix_lg, &
         do_potential_short, do_potential_truncated, hfx_ri_do_2c_diag, hfx_ri_do_2c_iter
-   USE input_cp2k_hfx,                  ONLY: ri_mo,&
+   USE input_cp2k_hfx,                  ONLY: ri_dense,&
+                                              ri_min_block,&
+                                              ri_mo,&
                                               ri_pmat
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -106,7 +108,7 @@ MODULE hfx_types
              hfx_pgf_product_list, hfx_block_range_type, &
              alloc_containers, dealloc_containers, hfx_task_list_type, init_t_c_g0_lmax, &
              hfx_create_neighbor_cells, hfx_create_basis_types, hfx_release_basis_types, &
-             hfx_ri_type, hfx_compression_type, block_ind_type
+             hfx_ri_type, hfx_compression_type, block_ind_type, hfx_ri_init, hfx_ri_release
 
 #define CACHE_SIZE 1024
 #define BITS_MAX_VAL 6
@@ -372,7 +374,7 @@ MODULE hfx_types
       REAL(KIND=dp) :: filter_eps, filter_eps_2c, filter_eps_storage, filter_eps_mo, &
                        eps_lanczos, eps_pgf_orb, eps_eigval
       INTEGER :: t2c_sqrt_order, max_iter_lanczos, flavor, unit_nr_dbcsr, unit_nr, &
-                 min_bsize, max_bsize_MO, t2c_method, nelectron_total
+                 min_bsize, max_bsize_MO, t2c_method, nelectron_total, default_bsize_RI, input_flavor
       LOGICAL :: check_2c_inv, calc_condnum
 
       TYPE(libint_potential_type) :: ri_metric
@@ -396,11 +398,6 @@ MODULE hfx_types
       TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env => NULL()
       TYPE(section_vals_type), POINTER                   :: loc_subsection => NULL(), print_loc_subsection => NULL()
       LOGICAL                                            :: do_loc
-
-      INTEGER, DIMENSION(:), ALLOCATABLE :: dist1_AO_1, dist1_AO_2, dist1_RI
-      INTEGER, DIMENSION(:), ALLOCATABLE :: dist2_AO_1, dist2_AO_2, dist2_RI
-      INTEGER, DIMENSION(:), ALLOCATABLE :: dist3_AO_1, dist3_AO_2, dist3_RI
-      INTEGER, DIMENSION(:), ALLOCATABLE :: dist4_AO_1, dist4_AO_2, dist4_RI
 
       ! block sizes for RI and AO tensor dimensions (split)
       INTEGER, DIMENSION(:), ALLOCATABLE :: bsizes_RI, bsizes_AO, bsizes_RI_split, bsizes_AO_split, &
@@ -427,16 +424,12 @@ MODULE hfx_types
 
       ! 3c integral tensor in ( RI | AO AO ) format for contraction
       TYPE(dbcsr_t_type), DIMENSION(:, :), ALLOCATABLE :: t_3c_int_ctr_3
-      TYPE(dbcsr_t_pgrid_type), POINTER                :: pgrid_3 => NULL()
 
       ! 3c integral tensor in (RI | MO AO ) format for contraction
       TYPE(dbcsr_t_type), DIMENSION(:, :, :), ALLOCATABLE :: t_3c_int_mo
       TYPE(dbcsr_t_type), DIMENSION(:, :, :), ALLOCATABLE :: t_3c_ctr_RI
       TYPE(dbcsr_t_type), DIMENSION(:, :, :), ALLOCATABLE :: t_3c_ctr_KS
       TYPE(dbcsr_t_type), DIMENSION(:, :, :), ALLOCATABLE :: t_3c_ctr_KS_copy
-      ! 3c integral tensor in ( RI AO | AO ) format for contraction
-      !TYPE(dbcsr_t_type), DIMENSION(:, :), ALLOCATABLE :: t_3c_int_ctr_4
-      !TYPE(dbcsr_t_pgrid_type), POINTER                :: pgrid_4 => NULL()
 
       ! optional: sections for output handling
       ! alternatively set unit_nr_dbcsr (for logging tensor operations) and unit_nr (for general
@@ -447,7 +440,7 @@ MODULE hfx_types
       CHARACTER(len=default_string_length) :: orb_basis_type, ri_basis_type
 
       ! memory reduction factor
-      INTEGER :: n_mem
+      INTEGER :: n_mem_input, n_mem, n_mem_RI
 
       ! offsets for memory batches
       INTEGER, DIMENSION(:), ALLOCATABLE :: starts_array_mem_block, ends_array_mem_block
@@ -1145,15 +1138,13 @@ CONTAINS
       CALL section_vals_val_get(ri_section, "EPS_PGF_ORB", r_val=ri_data%eps_pgf_orb)
       CALL section_vals_val_get(ri_section, "MIN_BLOCK_SIZE", i_val=ri_data%min_bsize)
       CALL section_vals_val_get(ri_section, "MAX_BLOCK_SIZE_MO", i_val=ri_data%max_bsize_MO)
-      CALL section_vals_val_get(ri_section, "MEMORY_CUT", i_val=ri_data%n_mem)
-
-      IF (ri_data%flavor == ri_pmat) THEN
-         ri_data%n_mem = FLOOR(SQRT(REAL(ri_data%n_mem, dp) - 0.1)) + 1
-      END IF
+      CALL section_vals_val_get(ri_section, "BLOCK_SIZE_RI", i_val=ri_data%default_bsize_RI)
+      CALL section_vals_val_get(ri_section, "MEMORY_CUT", i_val=ri_data%n_mem_input)
 
       ri_data%orb_basis_type = orb_basis_type
       ri_data%ri_basis_type = ri_basis_type
       ri_data%nelectron_total = nelectron_total
+      ri_data%input_flavor = ri_data%flavor
 
       IF (PRESENT(t_c_filename)) THEN
          ri_data%ri_metric%filename = t_c_filename
@@ -1162,6 +1153,8 @@ CONTAINS
 
       ri_data%unit_nr_dbcsr = unit_nr_dbcsr
       ri_data%unit_nr = unit_nr
+      ri_data%dbcsr_nflop = 0
+      ri_data%dbcsr_time = 0.0_dp
 
       ri_data%loc_subsection => section_vals_get_subs_vals(ri_section, "LOCALIZE")
       ri_data%print_loc_subsection => section_vals_get_subs_vals(ri_data%loc_subsection, "PRINT")
@@ -1195,9 +1188,11 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_ri_init'
 
       INTEGER                                            :: handle, i_mem, iproc, j_mem, MO_dim, &
-                                                            mp_comm_3d, natom, nkind, nproc
+                                                            mp_comm_3d, natom, nkind, nproc, &
+                                                            RI_bsize
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bsizes_AO_store, bsizes_RI_store, dist1, &
-                                                            dist2, dist_AO_1, dist_AO_2, dist_RI
+                                                            dist2, dist3, dist_AO_1, dist_AO_2, &
+                                                            dist_RI
       INTEGER, DIMENSION(2)                              :: pdims_2d
       INTEGER, DIMENSION(3)                              :: pcoord, pdims
       LOGICAL                                            :: same_op
@@ -1212,6 +1207,7 @@ CONTAINS
 
       natom = SIZE(particle_set)
       nkind = SIZE(qs_kind_set, 1)
+      CALL mp_environ(nproc, iproc, para_env%group)
 
       ASSOCIATE (ri_metric => ri_data%ri_metric, hfx_pot => ri_data%hfx_pot)
          IF (ri_metric%potential_type == do_potential_short) THEN
@@ -1271,10 +1267,23 @@ CONTAINS
 
       DEALLOCATE (dist_AO_1, dist_AO_2, dist_RI)
 
-      ! initialize tensors expressed in basis representation
+      ri_data%num_pe = para_env%num_pe
 
+      !Default RI block size
+      SELECT CASE (ri_data%default_bsize_RI)
+      CASE (ri_min_block)
+         CALL pgf_block_sizes(atomic_kind_set, basis_set_RI, ri_data%min_bsize, ri_data%bsizes_RI_split)
+
+      CASE (ri_dense)
+         !Best GPU dimension is 64*64=4*4*256=4096
+         RI_bsize = 4096/ri_data%min_bsize**2
+         !Want at least one block per proc row/col
+         RI_bsize = MIN(RI_bsize, SUM(ri_data%bsizes_RI)/(FLOOR(SQRT(REAL(ri_data%num_pe, dp)))))
+         CALL split_block_sizes([SUM(ri_data%bsizes_RI)], ri_data%bsizes_RI_split, RI_bsize)
+      END SELECT
+
+      ! initialize tensors expressed in basis representation
       CALL pgf_block_sizes(atomic_kind_set, basis_set_AO, ri_data%min_bsize, ri_data%bsizes_AO_split)
-      CALL pgf_block_sizes(atomic_kind_set, basis_set_RI, ri_data%min_bsize, ri_data%bsizes_RI_split)
 
       CALL pgf_block_sizes(atomic_kind_set, basis_set_AO, 1, bsizes_AO_store)
       CALL pgf_block_sizes(atomic_kind_set, basis_set_RI, 1, bsizes_RI_store)
@@ -1282,40 +1291,58 @@ CONTAINS
       CALL split_block_sizes([SUM(ri_data%bsizes_AO)], ri_data%bsizes_AO_fit, default_block_size)
       CALL split_block_sizes([SUM(ri_data%bsizes_RI)], ri_data%bsizes_RI_fit, default_block_size)
 
+      ri_data%n_mem = ri_data%n_mem_input
+      ri_data%n_mem_RI = ri_data%n_mem_input
+
       IF (ri_data%flavor == ri_pmat) THEN
+
+         !2 batching loops in RHO flavor SCF calculations => need to take the square root of MEMORY_CUT
+         ri_data%n_mem = FLOOR(SQRT(ri_data%n_mem - 0.1)) + 1
+         ri_data%n_mem_RI = ri_data%n_mem
 
          CALL create_tensor_batches(ri_data%bsizes_AO_split, ri_data%n_mem, ri_data%starts_array_mem, ri_data%ends_array_mem, &
                                     ri_data%starts_array_mem_block, ri_data%ends_array_mem_block)
 
-         CALL create_tensor_batches(ri_data%bsizes_RI_split, ri_data%n_mem, &
+         CALL create_tensor_batches(ri_data%bsizes_RI_split, ri_data%n_mem_RI, &
                                     ri_data%starts_array_RI_mem, ri_data%ends_array_RI_mem, &
                                     ri_data%starts_array_RI_mem_block, ri_data%ends_array_RI_mem_block)
 
-         ALLOCATE (ri_data%t_3c_int_ctr_1(1, 1))
-         CALL create_3c_tensor(ri_data%t_3c_int_ctr_1(1, 1), ri_data%dist1_ao_1, ri_data%dist1_ri, ri_data%dist1_ao_2, &
-                               ri_data%pgrid, ri_data%bsizes_AO_split, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, &
-                               [1, 2], [3], &
-                               name="(AO RI | AO)")
+         ALLOCATE (ri_data%pgrid_1)
+         ALLOCATE (ri_data%pgrid_2)
+         pdims = 0
+         CALL dbcsr_t_mp_dims_create(nproc, pdims, [SIZE(ri_data%bsizes_AO_split), SIZE(ri_data%bsizes_RI_split), &
+                                                    SIZE(ri_data%bsizes_AO_split)])
 
-         ALLOCATE (ri_data%blk_indices(ri_data%n_mem, ri_data%n_mem))
-         ALLOCATE (ri_data%store_3c(ri_data%n_mem, ri_data%n_mem))
+         CALL dbcsr_t_pgrid_create(para_env%group, pdims, ri_data%pgrid_1)
+
+         pdims = pdims([2, 1, 3])
+         CALL dbcsr_t_pgrid_create(para_env%group, pdims, ri_data%pgrid_2)
+
+         ALLOCATE (ri_data%t_3c_int_ctr_1(1, 1))
+         CALL create_3c_tensor(ri_data%t_3c_int_ctr_1(1, 1), dist1, dist2, dist3, &
+                               ri_data%pgrid_1, ri_data%bsizes_AO_split, ri_data%bsizes_RI_split, &
+                               ri_data%bsizes_AO_split, [1, 2], [3], name="(AO RI | AO)")
+         DEALLOCATE (dist1, dist2, dist3)
+
+         ALLOCATE (ri_data%blk_indices(ri_data%n_mem, ri_data%n_mem_RI))
+         ALLOCATE (ri_data%store_3c(ri_data%n_mem, ri_data%n_mem_RI))
          DO i_mem = 1, ri_data%n_mem
-         DO j_mem = 1, ri_data%n_mem
+         DO j_mem = 1, ri_data%n_mem_RI
             CALL alloc_containers(ri_data%store_3c(i_mem, j_mem), 1)
          END DO
          END DO
 
          ALLOCATE (ri_data%t_3c_int_ctr_2(1, 1))
-         CALL create_3c_tensor(ri_data%t_3c_int_ctr_2(1, 1), ri_data%dist1_ao_1, ri_data%dist1_ri, ri_data%dist1_ao_2, &
-                               ri_data%pgrid, ri_data%bsizes_AO_split, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, &
-                               [1, 2], [3], &
-                               name="(AO RI | AO)")
+         CALL create_3c_tensor(ri_data%t_3c_int_ctr_2(1, 1), dist1, dist2, dist3, &
+                               ri_data%pgrid_1, ri_data%bsizes_AO_split, ri_data%bsizes_RI_split, &
+                               ri_data%bsizes_AO_split, [1, 2], [3], name="(AO RI | AO)")
+         DEALLOCATE (dist1, dist2, dist3)
 
          ALLOCATE (ri_data%t_3c_int_ctr_3(1, 1))
-         CALL create_3c_tensor(ri_data%t_3c_int_ctr_3(1, 1), ri_data%dist3_RI, ri_data%dist3_AO_1, ri_data%dist3_AO_2, &
-                               ri_data%pgrid, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, ri_data%bsizes_AO_split, &
-                               [1], [2, 3], &
-                               name="(RI | AO AO)")
+         CALL create_3c_tensor(ri_data%t_3c_int_ctr_3(1, 1), dist1, dist2, dist3, &
+                               ri_data%pgrid_2, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, &
+                               ri_data%bsizes_AO_split, [1], [2, 3], name="(RI | AO AO)")
+         DEALLOCATE (dist1, dist2, dist3)
 
          ALLOCATE (ri_data%t_2c_int(1, 1))
          CALL create_2c_tensor(ri_data%t_2c_int(1, 1), dist1, dist2, ri_data%pgrid_2d, &
@@ -1332,8 +1359,6 @@ CONTAINS
          CALL dbcsr_t_create(ri_data%t_2c_int(1, 1), ri_data%t_2c_int(2, 1))
 
          DEALLOCATE (dist1, dist2)
-
-         CALL mp_environ(nproc, iproc, para_env%group)
 
          ALLOCATE (ri_data%t_3c_int_ctr_1(1, 1))
 
@@ -1357,14 +1382,16 @@ CONTAINS
          pdims = pdims([3, 2, 1])
          CALL dbcsr_t_pgrid_create(para_env%group, pdims, ri_data%pgrid_2)
 
-         CALL create_3c_tensor(ri_data%t_3c_int_ctr_1(1, 1), ri_data%dist1_ao_1, ri_data%dist1_ri, ri_data%dist1_ao_2, &
+         CALL create_3c_tensor(ri_data%t_3c_int_ctr_1(1, 1), dist1, dist2, dist3, &
                                ri_data%pgrid_1, ri_data%bsizes_AO_split, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, &
                                [1, 2], [3], name="(AO RI | AO)")
+         DEALLOCATE (dist1, dist2, dist3)
 
          ALLOCATE (ri_data%t_3c_int_ctr_2(1, 1))
-         CALL create_3c_tensor(ri_data%t_3c_int_ctr_2(1, 1), ri_data%dist2_ao_1, ri_data%dist2_ri, ri_data%dist2_ao_2, &
+         CALL create_3c_tensor(ri_data%t_3c_int_ctr_2(1, 1), dist1, dist2, dist3, &
                                ri_data%pgrid_2, ri_data%bsizes_AO_split, ri_data%bsizes_RI_split, ri_data%bsizes_AO_split, &
                                [1], [2, 3], name="(AO | RI AO)")
+         DEALLOCATE (dist1, dist2, dist3)
 
       END IF
 
@@ -1380,10 +1407,6 @@ CONTAINS
                             ri_data%bsizes_RI_split, ri_data%bsizes_RI_split, &
                             name="(RI | RI)")
       DEALLOCATE (dist1, dist2)
-
-      ri_data%dbcsr_nflop = 0
-      ri_data%dbcsr_time = 0.0_dp
-      ri_data%num_pe = para_env%num_pe
 
       CALL timestop(handle)
 
@@ -1413,20 +1436,25 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param ri_data ...
+!> \param write_stats ...
 ! **************************************************************************************************
-   SUBROUTINE hfx_ri_release(ri_data)
+   SUBROUTINE hfx_ri_release(ri_data, write_stats)
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
+      LOGICAL, OPTIONAL                                  :: write_stats
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_ri_release'
 
       INTEGER                                            :: handle, i_mem, ispin, j_mem, unused
+      LOGICAL                                            :: my_write_stats
 
       CALL timeset(routineN, handle)
 
       ! cleanup libint
       CALL cp_libint_static_cleanup()
 
-      CALL hfx_ri_write_stats(ri_data)
+      my_write_stats = .TRUE.
+      IF (PRESENT(write_stats)) my_write_stats = write_stats
+      IF (my_write_stats) CALL hfx_ri_write_stats(ri_data)
 
       IF (ASSOCIATED(ri_data%pgrid)) THEN
          CALL dbcsr_t_pgrid_destroy(ri_data%pgrid)
@@ -1439,10 +1467,6 @@ CONTAINS
       IF (ASSOCIATED(ri_data%pgrid_2)) THEN
          CALL dbcsr_t_pgrid_destroy(ri_data%pgrid_2)
          DEALLOCATE (ri_data%pgrid_2)
-      END IF
-      IF (ASSOCIATED(ri_data%pgrid_3)) THEN
-         CALL dbcsr_t_pgrid_destroy(ri_data%pgrid_3)
-         DEALLOCATE (ri_data%pgrid_3)
       END IF
       IF (ASSOCIATED(ri_data%pgrid_2d)) THEN
          CALL dbcsr_t_pgrid_destroy(ri_data%pgrid_2d)
@@ -1461,7 +1485,7 @@ CONTAINS
 
       IF (ri_data%flavor == ri_pmat) THEN
          DO i_mem = 1, ri_data%n_mem
-         DO j_mem = 1, ri_data%n_mem
+         DO j_mem = 1, ri_data%n_mem_RI
             CALL dealloc_containers(ri_data%store_3c(i_mem, j_mem), unused)
          END DO
          END DO
@@ -1469,8 +1493,6 @@ CONTAINS
          DEALLOCATE (ri_data%t_3c_int_ctr_1)
          CALL dbcsr_t_destroy(ri_data%t_3c_int_ctr_2(1, 1))
          DEALLOCATE (ri_data%t_3c_int_ctr_2)
-         DEALLOCATE (ri_data%dist1_RI, ri_data%dist1_AO_1, ri_data%dist1_AO_2)
-         DEALLOCATE (ri_data%dist3_RI, ri_data%dist3_AO_1, ri_data%dist3_AO_2)
          CALL dbcsr_t_destroy(ri_data%t_3c_int_ctr_3(1, 1))
          DEALLOCATE (ri_data%t_3c_int_ctr_3)
          CALL dbcsr_t_destroy(ri_data%t_2c_int(1, 1))
@@ -2633,14 +2655,16 @@ CONTAINS
             "HFX_RI_INFO| Minimum block size", ri_data%min_bsize
          WRITE (UNIT=iw, FMT="(T3, A, T78, I3)") &
             "HFX_RI_INFO| MO block size", ri_data%max_bsize_MO
-         SELECT CASE (ri_data%flavor)
-         CASE (ri_mo)
-            WRITE (UNIT=iw, FMT="(T3, A, T79, I2)") &
-               "HFX_RI_INFO| Memory reduction factor", ri_data%n_mem
-         CASE (ri_pmat)
-            WRITE (UNIT=iw, FMT="(T3, A, T79, I2)") &
-               "HFX_RI_INFO| Memory reduction factor", ri_data%n_mem**2
+         SELECT CASE (ri_data%default_bsize_RI)
+         CASE (ri_min_block)
+            WRITE (UNIT=iw, FMT="(T3, A, T74, A)") &
+               "HFX_RI_INFO| RI block size:", "MINIMAL"
+         CASE (ri_dense)
+            WRITE (UNIT=iw, FMT="(T3, A, T76, A)") &
+               "HFX_RI_INFO| RI block size:", "DENSE"
          END SELECT
+         WRITE (UNIT=iw, FMT="(T3, A, T79, I2)") &
+            "HFX_RI_INFO| Memory reduction factor", ri_data%n_mem_input
       END IF
 
    END SUBROUTINE

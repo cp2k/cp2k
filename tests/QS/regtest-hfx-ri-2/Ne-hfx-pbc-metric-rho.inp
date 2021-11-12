@@ -26,6 +26,7 @@
                 &RI
                    RI_FLAVOR RHO
                    RI_METRIC IDENTITY
+                   BLOCK_SIZE_RI MINIMAL
                 &END
                 &INTERACTION_POTENTIAL
                     POTENTIAL_TYPE TRUNCATED
