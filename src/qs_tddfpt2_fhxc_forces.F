@@ -54,6 +54,8 @@ MODULE qs_tddfpt2_fhxc_forces
    USE exstates_types,                  ONLY: excited_energy_type
    USE hfx_derivatives,                 ONLY: derivatives_four_center
    USE hfx_energy_potential,            ONLY: integrate_four_center
+   USE hfx_ri,                          ONLY: hfx_ri_update_forces,&
+                                              hfx_ri_update_ks
    USE hfx_types,                       ONLY: hfx_type
    USE input_constants,                 ONLY: do_admm_aux_exch_func_none,&
                                               tddfpt_kernel_full,&
@@ -591,13 +593,19 @@ CONTAINS
                mhe(ispin, 1)%matrix => matrix_hfx_admm(ispin)%matrix
                mpe(ispin, 1)%matrix => matrix_px1_admm(ispin)%matrix
             END DO
-            IF (x_data(1, 1)%do_hfx_ri) CPABORT("RI-HFX with TDDFPT NYI")
-            DO ispin = 1, mspin
-               eh1 = 0.0
-               CALL integrate_four_center(qs_env, x_data, mhe, eh1, mpe, hfx_section, &
-                                          para_env, s_mstruct_changed, 1, distribute_fock_matrix, &
-                                          ispin=ispin)
-            END DO
+            IF (x_data(1, 1)%do_hfx_ri) THEN
+               eh1 = 0.0_dp
+               CALL hfx_ri_update_ks(qs_env, x_data(1, 1)%ri_data, mhe, eh1, rho_ao=mpe, &
+                                     geometry_did_change=s_mstruct_changed, nspins=nspins, &
+                                     hf_fraction=x_data(1, 1)%general_parameter%fraction)
+            ELSE
+               DO ispin = 1, mspin
+                  eh1 = 0.0
+                  CALL integrate_four_center(qs_env, x_data, mhe, eh1, mpe, hfx_section, &
+                                             para_env, s_mstruct_changed, 1, distribute_fock_matrix, &
+                                             ispin=ispin)
+               END DO
+            END IF
             !
             nao = admm_env%nao_orb
             nao_aux = admm_env%nao_aux_fit
@@ -631,8 +639,15 @@ CONTAINS
             NULLIFY (mdum)
             fval = 2.0_dp*REAL(nspins, KIND=dp)
             IF (debug_forces) fodeb(1:3) = force(1)%fock_4c(1:3, 1)
-            CALL derivatives_four_center(qs_env, mpe, mdum, hfx_section, para_env, 1, use_virial, &
-                                         adiabatic_rescale_factor=fval)
+            IF (x_data(1, 1)%do_hfx_ri) THEN
+               CALL hfx_ri_update_forces(qs_env, x_data(1, 1)%ri_data, nspins, &
+                                         x_data(1, 1)%general_parameter%fraction, &
+                                         rho_ao=mpe, rho_ao_resp=mdum, &
+                                         use_virial=use_virial, rescale_factor=fval)
+            ELSE
+               CALL derivatives_four_center(qs_env, mpe, mdum, hfx_section, para_env, 1, use_virial, &
+                                            adiabatic_rescale_factor=fval)
+            END IF
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%fock_4c(1:3, 1) - fodeb(1:3)
                CALL mp_sum(fodeb, para_env%group)
@@ -649,20 +664,33 @@ CONTAINS
                mhe(ispin, 1)%matrix => matrix_hfx(ispin)%matrix
                mpe(ispin, 1)%matrix => matrix_px1(ispin)%matrix
             END DO
-            IF (x_data(1, 1)%do_hfx_ri) CPABORT("RI-HFX with TDDFPT NYI")
-            DO ispin = 1, mspin
-               eh1 = 0.0
-               CALL integrate_four_center(qs_env, x_data, mhe, eh1, mpe, hfx_section, &
-                                          para_env, s_mstruct_changed, 1, distribute_fock_matrix, &
-                                          ispin=ispin)
-            END DO
+            IF (x_data(1, 1)%do_hfx_ri) THEN
+               eh1 = 0.0_dp
+               CALL hfx_ri_update_ks(qs_env, x_data(1, 1)%ri_data, mhe, eh1, rho_ao=mpe, &
+                                     geometry_did_change=s_mstruct_changed, nspins=nspins, &
+                                     hf_fraction=x_data(1, 1)%general_parameter%fraction)
+            ELSE
+               DO ispin = 1, mspin
+                  eh1 = 0.0
+                  CALL integrate_four_center(qs_env, x_data, mhe, eh1, mpe, hfx_section, &
+                                             para_env, s_mstruct_changed, 1, distribute_fock_matrix, &
+                                             ispin=ispin)
+               END DO
+            END IF
             ! forces
             use_virial = .FALSE.
             NULLIFY (mdum)
             fval = 2.0_dp*REAL(nspins, KIND=dp)
             IF (debug_forces) fodeb(1:3) = force(1)%fock_4c(1:3, 1)
-            CALL derivatives_four_center(qs_env, mpe, mdum, hfx_section, para_env, 1, use_virial, &
-                                         adiabatic_rescale_factor=fval)
+            IF (x_data(1, 1)%do_hfx_ri) THEN
+               CALL hfx_ri_update_forces(qs_env, x_data(1, 1)%ri_data, nspins, &
+                                         x_data(1, 1)%general_parameter%fraction, &
+                                         rho_ao=mpe, rho_ao_resp=mdum, &
+                                         use_virial=use_virial, rescale_factor=fval)
+            ELSE
+               CALL derivatives_four_center(qs_env, mpe, mdum, hfx_section, para_env, 1, use_virial, &
+                                            adiabatic_rescale_factor=fval)
+            END IF
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%fock_4c(1:3, 1) - fodeb(1:3)
                CALL mp_sum(fodeb, para_env%group)

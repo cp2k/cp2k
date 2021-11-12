@@ -46,7 +46,6 @@ MODULE rpa_gw_sigma
                                               gw_print_exx,&
                                               gw_read_exx,&
                                               xc_none
-   USE input_cp2k_hfx,                  ONLY: ri_mo
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -435,9 +434,6 @@ CONTAINS
                END IF
 
                IF (qs_env%mp2_env%ri_rpa%x_data(irep, 1)%do_hfx_ri) THEN
-                  IF (qs_env%mp2_env%ri_rpa%x_data(irep, 1)%ri_data%flavor == ri_mo) THEN
-                     CPABORT("NYI with RI_FLAVOR MO")
-                  END IF
                   CALL hfx_ri_update_ks(qs_env, qs_env%mp2_env%ri_rpa%x_data(irep, 1)%ri_data, matrix_ks_2d, ehfx, &
                                         rho_ao=rho_ao_2d, geometry_did_change=.TRUE., nspins=nspins, &
                                         hf_fraction=qs_env%mp2_env%ri_rpa%x_data(irep, 1)%general_parameter%fraction)

@@ -38,6 +38,7 @@ MODULE qs_tddfpt2_forces
         dbcsr_set, dbcsr_type
    USE exstates_types,                  ONLY: excited_energy_type
    USE hfx_energy_potential,            ONLY: integrate_four_center
+   USE hfx_ri,                          ONLY: hfx_ri_update_ks
    USE hfx_types,                       ONLY: hfx_type
    USE input_constants,                 ONLY: do_admm_aux_exch_func_none,&
                                               tddfpt_kernel_full,&
@@ -751,13 +752,19 @@ CONTAINS
                CALL dbcsr_set(mhz(ispin, 1)%matrix, 0.0_dp)
                mpe(ispin, 1)%matrix => matrix_pe_admm(ispin)%matrix
             END DO
-            IF (x_data(1, 1)%do_hfx_ri) CPABORT("RI-HFX with TDDFPT NYI")
-            DO ispin = 1, mspin
-               eh1 = 0.0
-               CALL integrate_four_center(qs_env, x_data, mhz, eh1, mpe, hfx_section, &
-                                          para_env, s_mstruct_changed, 1, distribute_fock_matrix, &
-                                          ispin=ispin)
-            END DO
+            IF (x_data(1, 1)%do_hfx_ri) THEN
+               eh1 = 0.0_dp
+               CALL hfx_ri_update_ks(qs_env, x_data(1, 1)%ri_data, mhz, eh1, rho_ao=mpe, &
+                                     geometry_did_change=s_mstruct_changed, nspins=nspins, &
+                                     hf_fraction=x_data(1, 1)%general_parameter%fraction)
+            ELSE
+               DO ispin = 1, mspin
+                  eh1 = 0.0
+                  CALL integrate_four_center(qs_env, x_data, mhz, eh1, mpe, hfx_section, &
+                                             para_env, s_mstruct_changed, 1, distribute_fock_matrix, &
+                                             ispin=ispin)
+               END DO
+            END IF
             !
             CPASSERT(ASSOCIATED(admm_env%work_aux_orb))
             CPASSERT(ASSOCIATED(admm_env%work_orb_orb))
@@ -787,13 +794,19 @@ CONTAINS
                mhz(ispin, 1)%matrix => matrix_hz(ispin)%matrix
                mpe(ispin, 1)%matrix => matrix_pe(ispin)%matrix
             END DO
-            IF (x_data(1, 1)%do_hfx_ri) CPABORT("RI-HFX with TDDFPT NYI")
-            DO ispin = 1, mspin
-               eh1 = 0.0
-               CALL integrate_four_center(qs_env, x_data, mhz, eh1, mpe, hfx_section, &
-                                          para_env, s_mstruct_changed, 1, distribute_fock_matrix, &
-                                          ispin=ispin)
-            END DO
+            IF (x_data(1, 1)%do_hfx_ri) THEN
+               eh1 = 0.0_dp
+               CALL hfx_ri_update_ks(qs_env, x_data(1, 1)%ri_data, mhz, eh1, rho_ao=mpe, &
+                                     geometry_did_change=s_mstruct_changed, nspins=nspins, &
+                                     hf_fraction=x_data(1, 1)%general_parameter%fraction)
+            ELSE
+               DO ispin = 1, mspin
+                  eh1 = 0.0
+                  CALL integrate_four_center(qs_env, x_data, mhz, eh1, mpe, hfx_section, &
+                                             para_env, s_mstruct_changed, 1, distribute_fock_matrix, &
+                                             ispin=ispin)
+               END DO
+            END IF
             DEALLOCATE (mpe, mhz)
          END IF
       END IF

@@ -46,7 +46,6 @@ MODULE hfx_admm_utils
         do_admm_aux_exch_func_opt, do_admm_aux_exch_func_pbex, do_potential_coulomb, &
         do_potential_long, do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_short, &
         do_potential_truncated, xc_funct_no_shortcut, xc_none
-   USE input_cp2k_hfx,                  ONLY: ri_mo
    USE input_section_types,             ONLY: section_vals_duplicate,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -1236,9 +1235,6 @@ CONTAINS
          ehfx = 0.0_dp
 
          IF (x_data(irep, 1)%do_hfx_ri) THEN
-            IF (x_data(irep, 1)%ri_data%flavor == ri_mo) THEN
-               CPABORT("NYI with RI_FLAVOR MO")
-            END IF
             CALL hfx_ri_update_ks(qs_env, x_data(irep, 1)%ri_data, matrix_ks_kp, ehfx, &
                                   rho_ao=rho_ao_kp, geometry_did_change=s_mstruct_changed, &
                                   nspins=nspins, hf_fraction=x_data(irep, 1)%general_parameter%fraction)

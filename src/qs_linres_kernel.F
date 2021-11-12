@@ -42,7 +42,6 @@ MODULE qs_linres_kernel
                                               do_admm_exch_scaling_none,&
                                               do_admm_purify_none,&
                                               kg_tnadd_embed
-   USE input_cp2k_hfx,                  ONLY: ri_mo
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_lval,&
                                               section_get_rval,&
@@ -856,9 +855,6 @@ CONTAINS
          eh1 = 0.0_dp
 
          IF (x_data(irep, 1)%do_hfx_ri) THEN
-            IF (x_data(irep, 1)%ri_data%flavor == ri_mo) THEN
-               CPABORT("NYI with RI_FLAVOR MO")
-            END IF
             CALL hfx_ri_update_ks(qs_env, x_data(irep, 1)%ri_data, matrix_ks_kp, eh1, &
                                   rho_ao=rho_ao_kp, geometry_did_change=s_mstruct_changed, &
                                   nspins=nspins, hf_fraction=x_data(irep, 1)%general_parameter%fraction)

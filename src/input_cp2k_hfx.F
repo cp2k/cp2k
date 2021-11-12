@@ -42,7 +42,8 @@ MODULE input_cp2k_hfx
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_hfx'
-   INTEGER, PARAMETER, PUBLIC                 :: ri_mo = 1, ri_pmat = 2
+   INTEGER, PARAMETER, PUBLIC                 :: ri_mo = 1, ri_pmat = 2, &
+                                                 ri_min_block = 1, ri_dense = 2
 
    PUBLIC :: create_hfx_section
 
@@ -629,7 +630,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="MIN_BLOCK_SIZE", &
                           description="Minimum tensor block size.", &
-                          default_i_val=3)
+                          default_i_val=4)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -639,10 +640,26 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="BLOCK_SIZE_RI", &
+                          description="Default block size in the RI dimension of 3-center tensors. "// &
+                          "Smaller blocks lead to more sparsity, but also more overhead in "// &
+                          "GPU tensor contraction.", &
+                          enum_c_vals=s2a("MINIMAL", "DENSE"), &
+                          enum_desc=s2a("The RI block size is set to match MIN_BLOCK_SIZE for maximum sparsity. "// &
+                                        "Ideal for sparse systems with a short range RI_METRIC.", &
+                                        "The RI block sizes are such that AOxAOxRI blocks have the ideal "// &
+                                        "size for GPU tensor contractions. Comes at the cost of sparsity. "// &
+                                        "Better for dense systems and/or diffuse basis sets. "), &
+                          enum_i_vals=(/ri_min_block, ri_dense/), &
+                          default_i_val=ri_min_block)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="MEMORY_CUT", &
-                          description="Memory reduction factor. For RI_FLAVOR RHO, this should be a square number "// &
-                          "(if not, the next greater square number is used).", &
-                          default_i_val=9)
+                          description="Memory reduction factor. This keyword controls the batching of tensor "// &
+                          "contractions into smaller, more manageable chunks. The details vary "// &
+                          "depending on the RI_FLAVOR.", &
+                          default_i_val=8)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
