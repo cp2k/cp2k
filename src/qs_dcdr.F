@@ -247,7 +247,7 @@ CONTAINS
       CALL timestop(handle)
    END SUBROUTINE dcdr_build_op_dR
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Get the dC/dR by solving the Sternheimer equation, using the op_dR matrix
 !> \param dcdr_env ...
 !> \param p_env ...
@@ -338,7 +338,7 @@ CONTAINS
 
    END SUBROUTINE dcdr_response_dR
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Calculate atomic polar tensor
 !> \param qs_env ...
 !> \param dcdr_env ...
@@ -449,7 +449,7 @@ CONTAINS
       CALL timestop(handle)
    END SUBROUTINE apt_dR
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Calculate atomic polar tensor using the localized dipole operator
 !> \param qs_env ...
 !> \param dcdr_env ...

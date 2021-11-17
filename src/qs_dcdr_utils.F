@@ -670,7 +670,7 @@ CONTAINS
       CALL timestop(handle)
    END SUBROUTINE get_loc_setting
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Initialize the dcdr environment
 !> \param dcdr_env ...
 !> \param qs_env ...
@@ -994,7 +994,7 @@ CONTAINS
       CALL timestop(handle)
    END SUBROUTINE dcdr_env_init
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Deallocate the dcdr environment
 !> \param qs_env ...
 !> \param dcdr_env ...
@@ -1072,7 +1072,6 @@ CONTAINS
       CALL dbcsr_deallocate_matrix_set(dcdr_env%matrix_hc)
       CALL dbcsr_deallocate_matrix_set(dcdr_env%matrix_ppnl_1)
 
-      CLOSE (11111)
 
    END SUBROUTINE dcdr_env_cleanup
 
