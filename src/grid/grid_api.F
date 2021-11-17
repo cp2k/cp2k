@@ -55,6 +55,16 @@ MODULE grid_api
    INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DXDX = 801
    INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DYDY = 802
    INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DZDZ = 803
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DAB_X = 901
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DAB_Y = 902
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_DAB_Z = 903
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ADB_X = 904
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ADB_Y = 905
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_ADB_Z = 906
+
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_CORE_X = 1001
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_CORE_Y = 1002
+   INTEGER, PARAMETER, PUBLIC :: GRID_FUNC_CORE_Z = 1003
 
    INTEGER, PARAMETER, PUBLIC :: GRID_BACKEND_AUTO = 10
    INTEGER, PARAMETER, PUBLIC :: GRID_BACKEND_REF = 11
@@ -262,7 +272,8 @@ CONTAINS
 !> \param use_virial ...
 !> \param my_virial_a ...
 !> \param my_virial_b ...
-!> \param hdab ...
+!> \param hdab Derivative with respect to the primitive on the left.
+!> \param hadb Derivative with respect to the primitive on the right.
 !> \param a_hdab ...
 !> \param use_subpatch ...
 !> \param subpatch_pattern ...
@@ -275,7 +286,7 @@ CONTAINS
                                     calculate_forces, force_a, force_b, &
                                     compute_tau, &
                                     use_virial, my_virial_a, &
-                                    my_virial_b, hdab, a_hdab, use_subpatch, subpatch_pattern)
+                                    my_virial_b, hdab, hadb, a_hdab, use_subpatch, subpatch_pattern)
 
       INTEGER, INTENT(IN)                                :: la_max
       REAL(KIND=dp), INTENT(IN)                          :: zeta
@@ -296,7 +307,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: compute_tau, use_virial
       REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL           :: my_virial_a, my_virial_b
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
-         POINTER                                         :: hdab
+         POINTER                                         :: hdab, hadb
       REAL(KIND=dp), DIMENSION(:, :, :, :), OPTIONAL, &
          POINTER                                         :: a_hdab
       LOGICAL, OPTIONAL                                  :: use_subpatch
@@ -310,8 +321,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 2), TARGET             :: forces
       REAL(KIND=dp), DIMENSION(3, 3, 2), TARGET          :: virials
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grid
-      TYPE(C_PTR)                                        :: a_hdab_cptr, forces_cptr, hdab_cptr, &
-                                                            pab_cptr, virials_cptr
+      TYPE(C_PTR)                                        :: a_hdab_cptr, forces_cptr, hadb_cptr, &
+                                                            hdab_cptr, pab_cptr, virials_cptr
       INTERFACE
          SUBROUTINE grid_ref_integrate_pgf_product_c(orthorhombic, compute_tau, &
                                                      border_mask, &
@@ -319,7 +330,7 @@ CONTAINS
                                                      zeta, zetb, dh, dh_inv, ra, rab, &
                                                      npts_global, npts_local, shift_local, border_width, &
                                                      radius, o1, o2, n1, n2, grid, hab, pab, &
-                                                     forces, virials, hdab, a_hdab) &
+                                                     forces, virials, hdab, hadb, a_hdab) &
             BIND(C, name="grid_ref_integrate_pgf_product")
             IMPORT :: C_PTR, C_INT, C_DOUBLE, C_BOOL
             LOGICAL(KIND=C_BOOL), VALUE               :: orthorhombic
@@ -350,6 +361,7 @@ CONTAINS
             TYPE(C_PTR), VALUE                        :: forces
             TYPE(C_PTR), VALUE                        :: virials
             TYPE(C_PTR), VALUE                        :: hdab
+            TYPE(C_PTR), VALUE                        :: hadb
             TYPE(C_PTR), VALUE                        :: a_hdab
          END SUBROUTINE grid_ref_integrate_pgf_product_c
       END INTERFACE
@@ -400,10 +412,15 @@ CONTAINS
       END IF
 
       IF (calculate_forces .AND. PRESENT(hdab)) THEN
-         hdab(:, :, :) = 0.0_dp
          hdab_cptr = C_LOC(hdab(1, 1, 1))
       ELSE
          hdab_cptr = C_NULL_PTR
+      END IF
+
+      IF (calculate_forces .AND. PRESENT(hadb)) THEN
+         hadb_cptr = C_LOC(hadb(1, 1, 1))
+      ELSE
+         hadb_cptr = C_NULL_PTR
       END IF
 
       IF (calculate_forces .AND. my_use_virial .AND. PRESENT(a_hdab)) THEN
@@ -473,6 +490,7 @@ CONTAINS
                                             forces=forces_cptr, &
                                             virials=virials_cptr, &
                                             hdab=hdab_cptr, &
+                                            hadb=hadb_cptr, &
                                             a_hdab=a_hdab_cptr)
 
       IF (PRESENT(force_a) .AND. C_ASSOCIATED(forces_cptr)) &

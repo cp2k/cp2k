@@ -251,6 +251,10 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_dcdr_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="printing of information during the linear response calculation", &
                           repeats=.FALSE.)
@@ -277,6 +281,115 @@ CONTAINS
       CALL section_release(subsection)
 
    END SUBROUTINE create_linres_section
+
+! **************************************************************************************************
+!> \brief creates the input structure used to activate
+!>      calculation of position perturbation  DFPT
+!> \param section ...
+!> \author Sandra Luber, Edward Ditler
+! **************************************************************************************************
+   SUBROUTINE create_dcdr_section(section)
+
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_dcdr_section', &
+         routineP = moduleN//':'//routineN
+
+      LOGICAL                                            :: failure
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: print_key, subsection
+
+      failure = .FALSE.
+      NULLIFY (keyword, print_key, subsection)
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+
+      IF (.NOT. failure) THEN
+         CALL section_create(section, __LOCATION__, name="DCDR", &
+                             description="Compute analytical gradients the dipole moments.", &
+                             n_keywords=50, n_subsections=1, repeats=.FALSE.)
+
+         CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+                             description="controls the activation of the APT calculation", &
+                             usage="&DCDR T", &
+                             default_l_val=.FALSE., &
+                             lone_keyword_l_val=.TRUE.)
+         CALL section_add_keyword(section, keyword)
+         CALL keyword_release(keyword)
+
+         CALL keyword_create(keyword, __LOCATION__, name="LIST_OF_ATOMS", &
+                             description="Specifies a list of atoms.", &
+                             usage="LIST {integer} {integer} .. {integer}", repeats=.TRUE., &
+                             n_var=-1, type_of_var=integer_t)
+         CALL section_add_keyword(section, keyword)
+         CALL keyword_release(keyword)
+
+         CALL keyword_create(keyword, __LOCATION__, name="DISTRIBUTED_ORIGIN", &
+                             variants=(/"DO_GAUGE"/), &
+                             description="Use the distributed origin (DO) gauge?", &
+                             usage="DISTRIBUTED_ORIGIN T", &
+                             default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+         CALL section_add_keyword(section, keyword)
+         CALL keyword_release(keyword)
+
+         CALL keyword_create(keyword, __LOCATION__, name="ORBITAL_CENTER", &
+                             description="The orbital center.", &
+                             usage="ORBITAL_CENTER WANNIER", &
+                             default_i_val=current_orb_center_wannier, &
+                             enum_c_vals=s2a("WANNIER", "COMMON", "ATOM", "BOX"), &
+                             enum_desc=s2a("Use the Wannier centers.", &
+                                           "Use a common center (works only for an isolate molecule).", &
+                                           "Use the atoms as center.", &
+                                           "Boxing."), &
+                             enum_i_vals=(/current_orb_center_wannier, current_orb_center_common, &
+                                           current_orb_center_atom, current_orb_center_box/))
+         CALL section_add_keyword(section, keyword)
+         CALL keyword_release(keyword)
+
+         CALL keyword_create(keyword, __LOCATION__, name="REFERENCE", &
+                             description="Gauge origin of the velocity gauge factor.", &
+                             enum_c_vals=s2a("COM", "COAC", "USER_DEFINED", "ZERO"), &
+                             enum_desc=s2a("Use Center of Mass", &
+                                           "Use Center of Atomic Charges", &
+                                           "Use User-defined Point", &
+                                           "Use Origin of Coordinate System"), &
+                             enum_i_vals=(/use_mom_ref_com, &
+                                           use_mom_ref_coac, &
+                                           use_mom_ref_user, &
+                                           use_mom_ref_zero/), &
+                             default_i_val=use_mom_ref_zero)
+         CALL section_add_keyword(section, keyword)
+         CALL keyword_release(keyword)
+
+         CALL keyword_create(keyword, __LOCATION__, name="REFERENCE_POINT", &
+                             description="User-defined reference point of the velocity gauge factor.", &
+                             usage="REFERENCE_POINT x y z", &
+                             repeats=.FALSE., n_var=3, type_of_var=real_t, unit_str='bohr')
+         CALL section_add_keyword(section, keyword)
+         CALL keyword_release(keyword)
+
+         NULLIFY (subsection)
+         CALL section_create(subsection, __LOCATION__, name="PRINT", &
+                             description="print results of the magnetic dipole moment calculation", &
+                             repeats=.FALSE.)
+
+         CALL cp_print_key_section_create(print_key, __LOCATION__, "APT", &
+                                          description="Controls the printing of the electric dipole gradient", &
+                                          print_level=low_print_level, add_last=add_last_numeric, filename="")
+         CALL section_add_subsection(subsection, print_key)
+         CALL section_release(print_key)
+
+         CALL section_add_subsection(section, subsection)
+         CALL section_release(subsection)
+
+         NULLIFY (subsection)
+         CALL create_interp_section(subsection)
+         CALL section_add_subsection(section, subsection)
+         CALL section_release(subsection)
+
+      END IF
+
+   END SUBROUTINE create_dcdr_section
 
 ! **************************************************************************************************
 !> \brief creates the input structure used to activate

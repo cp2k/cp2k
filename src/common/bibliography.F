@@ -89,7 +89,7 @@ MODULE bibliography
                             Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, Lass2018, cp2kqs2020, &
                             Behler2007, Behler2011, Schran2020a, Schran2020b, &
                             Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Shigeta2001, Heinecke2016, &
-                            Brehm2021, Bussy2021a, Bussy2021b
+                            Brehm2021, Bussy2021a, Bussy2021b, Ditler2021
 
 CONTAINS
 
@@ -4702,6 +4702,22 @@ CONTAINS
                          "PB MDPI", &
                          "ER"), &
                          DOI="10.3390/molecules26071875")
+
+      CALL add_reference(key=Ditler2021, ISI_record=s2a( &
+                         "TY JOUR", &
+                         "PT J", &
+                         "AU Ditler, Edward", &
+                         "   Kumar, Chandan", &
+                         "   Luber, Sandra", &
+                         "TI Analytic calculation and analysis of atomic polar tensors", &
+                         "    for molecules and materials using the Gaussian and plane waves approach", &
+                         "SO The Journal of Chemical Physics", &
+                         "PY 2021", &
+                         "VL 154", &
+                         "AR 104121", &
+                         "DI 10.1063/5.0041056", &
+                         "ER"), &
+                         DOI="10.1063/5.0041056")
 
    END SUBROUTINE add_all_references
 

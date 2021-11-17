@@ -21,7 +21,8 @@
 ! **************************************************************************************************
 MODULE qs_integrate_potential
    USE grid_api,                        ONLY: integrate_pgf_product
-   USE qs_integrate_potential_product,  ONLY: integrate_v_rspace
+   USE qs_integrate_potential_product,  ONLY: integrate_v_dbasis,&
+                                              integrate_v_rspace
    USE qs_integrate_potential_single,   ONLY: integrate_ppl_rspace,&
                                               integrate_rho_nlcc,&
                                               integrate_v_core_rspace,&
@@ -38,7 +39,8 @@ MODULE qs_integrate_potential
 ! *** Public subroutines ***
 
    ! included from qs_integrate_potential_product
-   PUBLIC :: integrate_v_rspace
+   PUBLIC :: integrate_v_rspace, &
+             integrate_v_dbasis
 
    ! included from qs_integrate_potential_single
    PUBLIC :: integrate_v_rspace_one_center, &

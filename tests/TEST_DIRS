@@ -170,6 +170,7 @@ QS/regtest-ot-2
 Fist/regtest-7-2
 QS/regtest-sparsity                                         libint
 QS/regtest-polar
+QS/regtest-dcdr
 SE/regtest-4
 QS/regtest-nonortho
 QS/regtest-hybrid-3                                         libint

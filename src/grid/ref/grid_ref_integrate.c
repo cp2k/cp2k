@@ -31,7 +31,8 @@ void grid_ref_integrate_pgf_product(
     const int border_width[3], const double radius, const int o1, const int o2,
     const int n1, const int n2, const double *grid, double hab[n2][n1],
     const double pab[n2][n1], double forces[2][3], double virials[2][3][3],
-    double hdab[n2][n1][3], double a_hdab[n2][n1][3][3]) {
+    double hdab[n2][n1][3], double hadb[n2][n1][3],
+    double a_hdab[n2][n1][3][3]) {
 
   const bool calculate_forces = (forces != NULL || hdab != NULL);
   const bool calculate_virial = (virials != NULL || a_hdab != NULL);
@@ -97,12 +98,19 @@ void grid_ref_integrate_pgf_product(
                 }
               }
 
-              // Update hdab and a_hdab (not used in batch mode).
+              // Update hdab, hadb, and a_hdab (not used in batch mode).
               if (hdab != NULL) {
                 assert(!compute_tau);
                 for (int i = 0; i < 3; i++) {
                   hdab[o2 + idx(b)][o1 + idx(a)][i] +=
                       get_force_a(a, b, i, zeta, zetb, m1, cab, false);
+                }
+              }
+              if (hadb != NULL) {
+                assert(!compute_tau);
+                for (int i = 0; i < 3; i++) {
+                  hadb[o2 + idx(b)][o1 + idx(a)][i] +=
+                      get_force_b(a, b, i, zeta, zetb, rab, m1, cab, false);
                 }
               }
               if (a_hdab != NULL) {
