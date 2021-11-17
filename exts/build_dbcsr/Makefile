@@ -116,7 +116,7 @@ else ifeq (hip,$(USE_ACCEL))
 else ifeq (opencl,$(USE_ACCEL))
   CFLAGS = $(ACCFLAGS) -D__OPENCL
   # LIBXSMM is eventually included privately/quietly (header-only)
-  LIBXSMMROOT := $(if $(LIBXSMMROOT),$(LIBXSMMROOT),$(wildcard $(LIBXSMM_INC)/..))
+  LIBXSMMROOT := $(if $(LIBXSMMROOT),$(LIBXSMMROOT),$(if $(LIBXSMM_INC),$(wildcard $(LIBXSMM_INC)/..)))
   LIBXSMMROOT := $(if $(LIBXSMMROOT),$(LIBXSMMROOT),$(wildcard ../../../libxsmm))
   LIBXSMMROOT := $(if $(LIBXSMMROOT),$(LIBXSMMROOT),$(wildcard $(HOME)/libxsmm))
   ifneq (,$(LIBXSMMROOT))
@@ -191,18 +191,20 @@ endif
 endif
 
 clean:
+	rm -f $(LIBSMM_ACC_ABS_DIR)/parameters.h $(LIBSMM_ACC_ABS_DIR)/smm_acc_kernels.h $(LIBSMM_ACC_ABS_DIR)/*.so
+	rm -f $(LIBSMM_ACC_ABS_DIR)/../opencl/smm/opencl_kernels.h
 	rm -f $(TESTSDIR)/libsmm_acc_unittest_multiply.cpp
 	rm -f $(TESTSDIR)/libsmm_acc_timer_multiply.cpp
 	rm -rf $(OBJDIR)
-	rm -f $(LIBSMM_ACC_ABS_DIR)/parameters.h $(LIBSMM_ACC_ABS_DIR)/smm_acc_kernels.h $(LIBSMM_ACC_ABS_DIR)/*.so
-	rm -f $(LIBSMM_ACC_ABS_DIR)/../opencl/smm/opencl_kernels.h
 
 # Libsmm_acc stuff ==========================================================
-ifneq ($(GPUVER),)
+ifneq ($(ACC),)
+ifneq (opencl,$(USE_ACCEL))
 $(LIBSMM_ACC_ABS_DIR)/parameters.h: $(LIBSMM_ACC_ABS_DIR)/generate_parameters.py $(wildcard $(LIBSMM_ACC_ABS_DIR)/parameters_*.txt)
 	cd $(LIBSMM_ACC_ABS_DIR); $(PYTHON) generate_parameters.py --gpu_version=$(GPUVER)
 $(LIBSMM_ACC_ABS_DIR)/smm_acc_kernels.h: $(LIBSMM_ACC_ABS_DIR)/generate_kernels.py $(wildcard $(LIBSMM_ACC_ABS_DIR)/kernels/*.h)
 	cd $(LIBSMM_ACC_ABS_DIR); $(PYTHON) generate_kernels.py
+endif
 endif
 
 # automatic dependency generation ===========================================
@@ -258,6 +260,7 @@ FYPPFLAGS ?= -n
 
 # Compile the CUDA/HIP files
 ifneq ($(ACC),)
+ifneq (opencl,$(USE_ACCEL))
 %.o: %.cpp
 	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
 libsmm_acc.o: libsmm_acc.cpp parameters.h smm_acc_kernels.h
@@ -266,6 +269,7 @@ libsmm_acc_benchmark.o: libsmm_acc_benchmark.cpp parameters.h
 	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
 libsmm_acc_init.o: libsmm_acc_init.cpp libsmm_acc_init.h parameters.h
 	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
+endif
 endif
 
 # if compiling CUDA backend
