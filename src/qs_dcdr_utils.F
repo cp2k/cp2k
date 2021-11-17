@@ -1072,7 +1072,6 @@ CONTAINS
       CALL dbcsr_deallocate_matrix_set(dcdr_env%matrix_hc)
       CALL dbcsr_deallocate_matrix_set(dcdr_env%matrix_ppnl_1)
 
-
    END SUBROUTINE dcdr_env_cleanup
 
 END MODULE qs_dcdr_utils
