@@ -389,7 +389,7 @@ CONTAINS
       TYPE(distribution_3d_type)                         :: dist_3d
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
          DIMENSION(:), TARGET                            :: basis_set_AO, basis_set_RI
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis, ri_basis
       TYPE(neighbor_list_3c_type)                        :: nl_3c
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: nl_2c_pot, nl_2c_RI
@@ -414,10 +414,12 @@ CONTAINS
 
       DO ibasis = 1, SIZE(basis_set_AO)
          orb_basis => basis_set_AO(ibasis)%gto_basis_set
+         ri_basis => basis_set_RI(ibasis)%gto_basis_set
          ! interaction radii should be based on eps_pgf_orb controlled in RI section
          ! (since hartree-fock needs very tight eps_pgf_orb for Kohn-Sham/Fock matrix but eps_pgf_orb
          ! can be much looser in RI HFX since no systematic error is introduced with tensor sparsity)
          CALL init_interaction_radii_orb_basis(orb_basis, ri_data%eps_pgf_orb)
+         CALL init_interaction_radii_orb_basis(ri_basis, ri_data%eps_pgf_orb)
       END DO
 
       n_mem = ri_data%n_mem
@@ -512,8 +514,10 @@ CONTAINS
 
       DO ibasis = 1, SIZE(basis_set_AO)
          orb_basis => basis_set_AO(ibasis)%gto_basis_set
+         ri_basis => basis_set_RI(ibasis)%gto_basis_set
          ! reset interaction radii of orb basis
          CALL init_interaction_radii_orb_basis(orb_basis, dft_control%qs_control%eps_pgf_orb)
+         CALL init_interaction_radii_orb_basis(ri_basis, dft_control%qs_control%eps_pgf_orb)
       END DO
 
       IF (ri_data%calc_condnum) THEN
@@ -3130,23 +3134,24 @@ CONTAINS
       TYPE(dbcsr_t_type)                                 :: t_2c_tmp, t_3c_template
       TYPE(dbcsr_t_type), DIMENSION(1, 1, 3)             :: t_3c_der_AO_prv, t_3c_der_RI_prv
       TYPE(dbcsr_type), DIMENSION(1, 3)                  :: t_2c_der_metric_prv, t_2c_der_RI_prv
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_2d_type), POINTER                :: dist_2d
       TYPE(distribution_3d_type)                         :: dist_3d
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
          DIMENSION(:), TARGET                            :: basis_set_AO, basis_set_RI
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis, ri_basis
       TYPE(neighbor_list_3c_type)                        :: nl_3c
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: nl_2c
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-      NULLIFY (qs_kind_set, orb_basis, dist_2d, nl_2c, particle_set)
+      NULLIFY (qs_kind_set, orb_basis, dist_2d, nl_2c, particle_set, dft_control)
 
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, nkind=nkind, qs_kind_set=qs_kind_set, distribution_2d=dist_2d, &
-                      particle_set=particle_set)
+                      particle_set=particle_set, dft_control=dft_control)
 
       ALLOCATE (basis_set_RI(nkind), basis_set_AO(nkind))
       CALL basis_set_list_setup(basis_set_RI, ri_data%ri_basis_type, qs_kind_set)
@@ -3157,6 +3162,8 @@ CONTAINS
       DO ibasis = 1, SIZE(basis_set_AO)
          orb_basis => basis_set_AO(ibasis)%gto_basis_set
          CALL init_interaction_radii_orb_basis(orb_basis, ri_data%eps_pgf_orb)
+         ri_basis => basis_set_RI(ibasis)%gto_basis_set
+         CALL init_interaction_radii_orb_basis(ri_basis, ri_data%eps_pgf_orb)
       END DO
 
       !Dealing with the 3c derivatives
@@ -3276,6 +3283,13 @@ CONTAINS
 
       CALL dbcsr_distribution_release(dbcsr_dist)
       DEALLOCATE (row_bsize, col_bsize)
+
+      DO ibasis = 1, SIZE(basis_set_AO)
+         orb_basis => basis_set_AO(ibasis)%gto_basis_set
+         ri_basis => basis_set_RI(ibasis)%gto_basis_set
+         CALL init_interaction_radii_orb_basis(orb_basis, dft_control%qs_control%eps_pgf_orb)
+         CALL init_interaction_radii_orb_basis(ri_basis, dft_control%qs_control%eps_pgf_orb)
+      END DO
 
       CALL timestop(handle)
 
