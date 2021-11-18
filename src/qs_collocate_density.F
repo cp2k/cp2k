@@ -1041,7 +1041,6 @@ CONTAINS
       CASE (3)
          dabqadb_func = GRID_FUNC_CORE_Z
       CASE DEFAULT
-         PRINT *, 'beta', beta
          CPABORT("invalid beta")
       END SELECT
       DO ikind = 1, SIZE(atomic_kind_set)

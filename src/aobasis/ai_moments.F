@@ -97,7 +97,7 @@ CONTAINS
          OPTIONAL, POINTER                               :: deltaR
       INTEGER, INTENT(IN), OPTIONAL                      :: iatom, jatom
 
-      INTEGER                                            :: imom, istat, lda, lda_min, ldb, ldb_min
+      INTEGER                                            :: imom, lda, lda_min, ldb, ldb_min
       REAL(KIND=dp)                                      :: dab, rab(3)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: difmab_tmp
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: mab
@@ -115,7 +115,7 @@ CONTAINS
          mab => mab_ext
       ELSE
          ALLOCATE (mab(npgfa*ncoset(la_max + 1), npgfb*ncoset(lb_max + 1), &
-                       ncoset(order) - 1), STAT=istat)
+                       ncoset(order) - 1))
          mab = 0.0_dp
 !     *** Calculate the primitive moment integrals ***
          CALL moment(la_max + 1, npgfa, zeta, rpgfa, lda_min, &
