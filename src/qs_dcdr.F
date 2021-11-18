@@ -20,8 +20,7 @@ MODULE qs_dcdr
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                              cp_fm_scale,&
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                               cp_fm_scale_and_add,&
                                               cp_fm_trace
    USE cp_fm_types,                     ONLY: cp_fm_create,&
@@ -388,16 +387,16 @@ CONTAINS
       CALL cp_fm_scale_and_add(0._dp, dcdr_env%dCR_prime(1)%matrix, 1._dp, dcdr_env%dCR(1)%matrix)
       CALL cp_dbcsr_sm_fm_multiply(dcdr_env%matrix_s1(dcdr_env%beta + 1)%matrix, mo_coeff, &
                                    tmp_fm_like_mos%matrix, ncol=nmo)
-      CALL cp_fm_gemm("T", "N", nmo, nmo, nao, &
-                      1.0_dp, mo_coeff, tmp_fm_like_mos%matrix, &
-                      0.0_dp, overlap1_MO%matrix)
+      CALL cp_gemm("T", "N", nmo, nmo, nao, &
+                   1.0_dp, mo_coeff, tmp_fm_like_mos%matrix, &
+                   0.0_dp, overlap1_MO%matrix)
 
       !   C^1 <- -dCR - 0.5 * mo_coeff @ S1_ij
       !    We get the negative of the coefficients out of the linres solver
       !    And apply the constant correction due to the overlap derivative.
-      CALL cp_fm_gemm("N", "N", nao, nmo, nmo, &
-                      -0.5_dp, mo_coeff, overlap1_MO%matrix, &
-                      -1.0_dp, dcdr_env%dCR_prime(1)%matrix)
+      CALL cp_gemm("N", "N", nao, nmo, nmo, &
+                   -0.5_dp, mo_coeff, overlap1_MO%matrix, &
+                   -1.0_dp, dcdr_env%dCR_prime(1)%matrix)
 
       DO alpha = 1, 3
          ! FIRST CONTRIBUTION: dCR * moments * mo
@@ -554,14 +553,14 @@ CONTAINS
       CALL cp_fm_scale_and_add(0._dp, dcdr_env%dCR_prime(1)%matrix, 1._dp, dcdr_env%dCR(1)%matrix)
       CALL cp_dbcsr_sm_fm_multiply(dcdr_env%matrix_s1(dcdr_env%beta + 1)%matrix, mo_coeff, &
                                    tmp_fm%matrix, ncol=nmo)
-      CALL cp_fm_gemm("T", "N", nmo, nmo, nao, &
-                      1.0_dp, mo_coeff, tmp_fm%matrix, &
-                      0.0_dp, tmp_fm_momo(1)%matrix)
+      CALL cp_gemm("T", "N", nmo, nmo, nao, &
+                   1.0_dp, mo_coeff, tmp_fm%matrix, &
+                   0.0_dp, tmp_fm_momo(1)%matrix)
 
       !   C^1 <- -dCR - 0.5 * mo_coeff @ S1_ij
-      CALL cp_fm_gemm("N", "N", nao, nmo, nmo, &
-                      -0.5_dp, mo_coeff, tmp_fm_momo(1)%matrix, &
-                      -1.0_dp, dcdr_env%dCR_prime(1)%matrix)
+      CALL cp_gemm("N", "N", nao, nmo, nmo, &
+                   -0.5_dp, mo_coeff, tmp_fm_momo(1)%matrix, &
+                   -1.0_dp, dcdr_env%dCR_prime(1)%matrix)
 
       ! FIRST CONTRIBUTION: dCR * moments * mo
       this_factor = -2._dp*f_spin
@@ -576,9 +575,9 @@ CONTAINS
             CALL dbcsr_set(dcdr_env%moments(alpha)%matrix, 0.0_dp)
          END DO
 
-         CALL cp_fm_gemm("T", "N", nmo, nmo, nao, &
-                         1.0_dp, mo_coeff, tmp_fm_like_mos(alpha)%matrix, &
-                         0.0_dp, tmp_fm_momo(alpha)%matrix)
+         CALL cp_gemm("T", "N", nmo, nmo, nao, &
+                      1.0_dp, mo_coeff, tmp_fm_like_mos(alpha)%matrix, &
+                      0.0_dp, tmp_fm_momo(alpha)%matrix)
          CALL cp_fm_get_diag(tmp_fm_momo(alpha)%matrix, diagonal_elements)
 
          DO icenter = 1, dcdr_env%nbr_center(1)
@@ -617,9 +616,9 @@ CONTAINS
                                        res=tmp_fm_like_mos(alpha)%matrix)
          END DO ! icenter
 
-         CALL cp_fm_gemm("T", "N", nmo, nmo, nao, &
-                         1.0_dp, mo_coeff, tmp_fm_like_mos(alpha)%matrix, &
-                         0.0_dp, tmp_fm_momo(alpha)%matrix)
+         CALL cp_gemm("T", "N", nmo, nmo, nao, &
+                      1.0_dp, mo_coeff, tmp_fm_like_mos(alpha)%matrix, &
+                      0.0_dp, tmp_fm_momo(alpha)%matrix)
          CALL cp_fm_get_diag(tmp_fm_momo(alpha)%matrix, diagonal_elements)
 
          DO icenter = 1, dcdr_env%nbr_center(1)

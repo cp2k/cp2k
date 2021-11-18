@@ -890,6 +890,7 @@ CONTAINS
       CALL dbcsr_allocate_matrix_set(dcdr_env%matrix_hc, 3)
       CALL dbcsr_allocate_matrix_set(dcdr_env%matrix_ppnl_1, 3)
 
+      NULLIFY (dcdr_env%perturbed_dm_correction)
       CALL dbcsr_init_p(dcdr_env%perturbed_dm_correction)
       CALL dbcsr_copy(dcdr_env%perturbed_dm_correction, matrix_ks(1)%matrix)
 
