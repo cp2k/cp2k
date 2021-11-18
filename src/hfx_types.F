@@ -16,12 +16,9 @@ MODULE hfx_types
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
                                               get_atomic_kind_set
-   USE auto_basis,                      ONLY: create_ri_aux_basis_set
-   USE basis_set_container_types,       ONLY: add_basis_set_to_container
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_p_type,&
-                                              gto_basis_set_type,&
-                                              init_orb_basis_set
+                                              gto_basis_set_type
    USE bibliography,                    ONLY: cite_reference,&
                                               guidon2008,&
                                               guidon2009
@@ -77,7 +74,6 @@ MODULE hfx_types
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE qs_integral_utils,               ONLY: basis_set_list_setup
-   USE qs_interactions,                 ONLY: init_interaction_radii_orb_basis
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
@@ -1068,9 +1064,8 @@ CONTAINS
       ri_basis_type = "RI_HFX"
 
       CALL hfx_ri_init_read_input(ri_data, ri_section, qs_kind_set, particle_set, atomic_kind_set, &
-                                  orb_basis_type, ri_basis_type, dft_control%auto_basis_ri_hfx, &
-                                  para_env, unit_nr, unit_nr_dbcsr, nelectron_total, &
-                                  t_c_filename=t_c_filename)
+                                  orb_basis_type, ri_basis_type, para_env, unit_nr, unit_nr_dbcsr, &
+                                  nelectron_total, t_c_filename=t_c_filename)
 
       IF (dft_control%smear) THEN
          CPABORT("RI_FLAVOR MO is not consistent with smearing. Please use RI_FLAVOR RHO.")
@@ -1088,7 +1083,6 @@ CONTAINS
 !> \param atomic_kind_set ...
 !> \param orb_basis_type ...
 !> \param ri_basis_type ...
-!> \param auto_basis_cntrl ...
 !> \param para_env ...
 !> \param unit_nr unit number of general output
 !> \param unit_nr_dbcsr unit number for logging DBCSR tensor operations
@@ -1096,7 +1090,7 @@ CONTAINS
 !> \param t_c_filename ...
 ! **************************************************************************************************
    SUBROUTINE hfx_ri_init_read_input(ri_data, ri_section, qs_kind_set, &
-                                     particle_set, atomic_kind_set, orb_basis_type, ri_basis_type, auto_basis_cntrl, para_env, &
+                                     particle_set, atomic_kind_set, orb_basis_type, ri_basis_type, para_env, &
                                      unit_nr, unit_nr_dbcsr, nelectron_total, t_c_filename)
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
       TYPE(section_vals_type), POINTER                   :: ri_section
@@ -1104,7 +1098,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       CHARACTER(LEN=*), INTENT(IN)                       :: orb_basis_type, ri_basis_type
-      INTEGER, INTENT(IN)                                :: auto_basis_cntrl
       TYPE(cp_para_env_type)                             :: para_env
       INTEGER, INTENT(IN)                                :: unit_nr, unit_nr_dbcsr, nelectron_total
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: t_c_filename
@@ -1178,7 +1171,7 @@ CONTAINS
 
       CALL section_vals_val_get(ri_data%loc_subsection, "_SECTION_PARAMETERS_", l_val=ri_data%do_loc)
 
-      CALL hfx_ri_init(ri_data, qs_kind_set, particle_set, atomic_kind_set, para_env, auto_basis_cntrl)
+      CALL hfx_ri_init(ri_data, qs_kind_set, particle_set, atomic_kind_set, para_env)
 
       CALL timestop(handle)
 
@@ -1191,20 +1184,18 @@ CONTAINS
 !> \param particle_set ...
 !> \param atomic_kind_set ...
 !> \param para_env ...
-!> \param basis_cntrl ...
 ! **************************************************************************************************
-   SUBROUTINE hfx_ri_init(ri_data, qs_kind_set, particle_set, atomic_kind_set, para_env, basis_cntrl)
+   SUBROUTINE hfx_ri_init(ri_data, qs_kind_set, particle_set, atomic_kind_set, para_env)
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_para_env_type)                             :: para_env
-      INTEGER, INTENT(IN)                                :: basis_cntrl
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_ri_init'
 
-      INTEGER                                            :: handle, i_mem, ikind, iproc, j_mem, &
-                                                            MO_dim, mp_comm_3d, natom, nkind, nproc
+      INTEGER                                            :: handle, i_mem, iproc, j_mem, MO_dim, &
+                                                            mp_comm_3d, natom, nkind, nproc
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bsizes_AO_store, bsizes_RI_store, dist1, &
                                                             dist2, dist_AO_1, dist_AO_2, dist_RI
       INTEGER, DIMENSION(2)                              :: pdims_2d
@@ -1213,34 +1204,14 @@ CONTAINS
       TYPE(distribution_3d_type)                         :: dist_3d
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: basis_set_AO, basis_set_RI
-      TYPE(gto_basis_set_type), POINTER                  :: ri_aux_basis_set
-      TYPE(qs_kind_type), POINTER                        :: qs_kind
 
       CALL timeset(routineN, handle)
 
       ! initialize libint
       CALL cp_libint_static_init()
 
-      NULLIFY (ri_aux_basis_set, qs_kind)
-
       natom = SIZE(particle_set)
       nkind = SIZE(qs_kind_set, 1)
-
-      ! initialise RI basis
-      DO ikind = 1, nkind
-         NULLIFY (ri_aux_basis_set)
-         qs_kind => qs_kind_set(ikind)
-         CALL get_qs_kind(qs_kind=qs_kind, basis_set=ri_aux_basis_set, &
-                          basis_type=ri_data%ri_basis_type)
-         IF (.NOT. (ASSOCIATED(ri_aux_basis_set))) THEN
-            ! Generate a default basis
-            CALL create_ri_aux_basis_set(ri_aux_basis_set, qs_kind, basis_cntrl, ri_data%orb_basis_type)
-
-            CALL add_basis_set_to_container(qs_kind%basis_sets, ri_aux_basis_set, ri_data%ri_basis_type)
-         END IF
-         CALL init_orb_basis_set(ri_aux_basis_set)
-         CALL init_interaction_radii_orb_basis(ri_aux_basis_set, ri_data%eps_pgf_orb)
-      END DO
 
       ASSOCIATE (ri_metric => ri_data%ri_metric, hfx_pot => ri_data%hfx_pot)
          IF (ri_metric%potential_type == do_potential_short) THEN
