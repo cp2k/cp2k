@@ -63,7 +63,7 @@ MODULE xas_tdp_methods
         op_loc_berry, state_loc_list, tddfpt_singlet, tddfpt_spin_cons, tddfpt_spin_flip, &
         tddfpt_triplet, xas_1s_type, xas_2p_type, xas_2s_type, xas_dip_len, xas_dip_vel, &
         xas_not_excited, xas_tdp_by_index, xas_tdp_by_kind
-   USE input_cp2k_dft,                  ONLY: create_localize_section
+   USE input_cp2k_loc,                  ONLY: create_localize_section
    USE input_section_types,             ONLY: section_release,&
                                               section_type,&
                                               section_vals_create,&
