@@ -18,12 +18,12 @@ MODULE input_cp2k_dft
         Andermatt2016, Andreussi2012, Avezac2005, BaniHashemian2016, Becke1988b, Bengtsson1999, &
         Blochl1995, Brehm2018, Brehm2020, Brehm2021, Brelaz1979, Dewar1977, Dewar1985, &
         Dudarev1997, Dudarev1998, Ehrhardt1985, Fattebert2002, Golze2017a, Golze2017b, Guidon2010, &
-        Heinzmann1976, Holmberg2017, Holmberg2018, Hunt2003, Iannuzzi2005, Iannuzzi2006, &
-        Iannuzzi2007, Kolafa2004, Krack2000, Krack2002, Kuhne2007, Kunert2003, Lippert1997, &
-        Lippert1999, Lu2004, Perdew1981, Repasky2002, Rocha2006, Rycroft2009, Schenter2008, &
-        Schiffmann2015, Shigeta2001, Stewart1982, Stewart1989, Stewart2007, Thiel1992, Thomas2015, &
-        VanVoorhis2015, VandeVondele2003, VandeVondele2005a, VandeVondele2005b, VandeVondele2006, &
-        Weber2008, Yin2017
+        Heinzmann1976, Holmberg2017, Holmberg2018, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, &
+        Kolafa2004, Krack2000, Krack2002, Kuhne2007, Kunert2003, Lippert1997, Lippert1999, Lu2004, &
+        Perdew1981, Repasky2002, Rocha2006, Rycroft2009, Schenter2008, Schiffmann2015, &
+        Shigeta2001, Stewart1982, Stewart1989, Stewart2007, Thiel1992, Thomas2015, VanVoorhis2015, &
+        VandeVondele2003, VandeVondele2005a, VandeVondele2005b, VandeVondele2006, Weber2008, &
+        Yin2017
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               debug_print_level,&
@@ -51,47 +51,45 @@ MODULE input_cp2k_dft
         do_admm_purify_cauchy_subspace, do_admm_purify_mcweeny, do_admm_purify_mo_diag, &
         do_admm_purify_mo_no_diag, do_admm_purify_none, do_admm_purify_none_dm, do_arnoldi, &
         do_bch, do_cn, do_ddapc_constraint, do_ddapc_restraint, do_em, do_etrs, do_full_density, &
-        do_gapw_gcs, do_gapw_gct, do_gapw_log, do_loc_both, do_loc_crazy, do_loc_direct, &
-        do_loc_homo, do_loc_jacobi, do_loc_l1_norm_sd, do_loc_lumo, do_loc_max, do_loc_min, &
-        do_loc_none, do_loc_scdm, do_lri_inv, do_lri_inv_auto, do_lri_opt_all, do_lri_opt_coeff, &
-        do_lri_opt_exps, do_lri_pseudoinv_diag, do_lri_pseudoinv_svd, do_method_am1, &
-        do_method_dftb, do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_lrigpw, &
-        do_method_mndo, do_method_mndod, do_method_ofgpw, do_method_pdg, do_method_pm3, &
-        do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rigpw, do_method_rm1, &
-        do_method_xtb, do_pade, do_potential_coulomb, do_potential_id, do_potential_short, &
-        do_potential_truncated, do_ppl_analytic, do_ppl_grid, do_pwgrid_ns_fullspace, &
-        do_pwgrid_ns_halfspace, do_pwgrid_spherical, do_s2_constraint, do_s2_restraint, &
-        do_se_is_kdso, do_se_is_kdso_d, do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, &
-        do_se_lr_ewald_r3, do_se_lr_none, do_spin_density, do_taylor, ehrenfest, embed_diff, &
-        embed_fa, embed_grid_angstrom, embed_grid_bohr, embed_level_shift, embed_none, &
-        embed_quasi_newton, embed_resp, embed_steep_desc, eri_method_full_gpw, eri_method_gpw_ht, &
-        eri_operator_coulomb, eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, &
-        eri_operator_yukawa, gaussian, general_roks, gto_cartesian, gto_spherical, hf_model, &
-        high_spin_roks, history_guess, jacobian_fd1, jacobian_fd1_backward, jacobian_fd1_central, &
-        jacobian_fd2, jacobian_fd2_backward, kg_color_dsatur, kg_color_greedy, kg_tnadd_atomic, &
-        kg_tnadd_embed, kg_tnadd_embed_ri, kg_tnadd_none, ls_2pnt, ls_3pnt, ls_gold, ls_none, &
-        mao_basis_ext, mao_basis_orb, mao_basis_prim, mao_projection, mopac_guess, no_excitations, &
-        no_guess, numerical, oe_gllb, oe_lb, oe_none, oe_saop, oe_sic, op_loc_berry, op_loc_boys, &
-        op_loc_pipek, orb_dx2, orb_dxy, orb_dy2, orb_dyz, orb_dz2, orb_dzx, orb_px, orb_py, &
-        orb_pz, orb_s, ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, &
-        ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, ot_poly_irac, ot_precond_full_all, &
-        ot_precond_full_kinetic, ot_precond_full_single, ot_precond_full_single_inverse, &
-        ot_precond_none, ot_precond_s_inverse, ot_precond_solver_default, &
-        ot_precond_solver_direct, ot_precond_solver_inv_chol, ot_precond_solver_update, &
-        outer_scf_basis_center_opt, outer_scf_becke_constraint, outer_scf_cdft_constraint, &
-        outer_scf_ddapc_constraint, outer_scf_hirshfeld_constraint, outer_scf_none, &
-        outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, outer_scf_optimizer_diis, &
-        outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, outer_scf_optimizer_none, &
-        outer_scf_optimizer_sd, outer_scf_optimizer_secant, outer_scf_s2_constraint, &
-        plus_u_lowdin, plus_u_mulliken, plus_u_mulliken_charges, radius_covalent, radius_default, &
-        radius_single, radius_user, radius_vdw, random_guess, real_time_propagation, &
-        ref_charge_atomic, ref_charge_mulliken, rel_dkh, rel_none, rel_pot_erfc, rel_pot_full, &
-        rel_sczora_mp, rel_trans_atom, rel_trans_full, rel_trans_molecule, rel_zora, &
-        rel_zora_full, rel_zora_mp, restart_guess, rsdft_model, sccs_andreussi, &
-        sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
-        sccs_fattebert_gygi, shape_function_density, shape_function_gaussian, sic_ad, sic_eo, &
-        sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
-        smear_energy_window, smear_fermi_dirac, smear_list, sparse_guess, tddfpt_davidson, &
+        do_gapw_gcs, do_gapw_gct, do_gapw_log, do_lri_inv, do_lri_inv_auto, do_lri_opt_all, &
+        do_lri_opt_coeff, do_lri_opt_exps, do_lri_pseudoinv_diag, do_lri_pseudoinv_svd, &
+        do_method_am1, do_method_dftb, do_method_gapw, do_method_gapw_xc, do_method_gpw, &
+        do_method_lrigpw, do_method_mndo, do_method_mndod, do_method_ofgpw, do_method_pdg, &
+        do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rigpw, &
+        do_method_rm1, do_method_xtb, do_pade, do_potential_coulomb, do_potential_id, &
+        do_potential_short, do_potential_truncated, do_ppl_analytic, do_ppl_grid, &
+        do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, do_s2_constraint, &
+        do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, do_se_is_slater, do_se_lr_ewald, &
+        do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, do_spin_density, do_taylor, &
+        ehrenfest, embed_diff, embed_fa, embed_grid_angstrom, embed_grid_bohr, embed_level_shift, &
+        embed_none, embed_quasi_newton, embed_resp, embed_steep_desc, eri_method_full_gpw, &
+        eri_method_gpw_ht, eri_operator_coulomb, eri_operator_erf, eri_operator_erfc, &
+        eri_operator_gaussian, eri_operator_yukawa, gaussian, general_roks, gto_cartesian, &
+        gto_spherical, hf_model, high_spin_roks, history_guess, jacobian_fd1, &
+        jacobian_fd1_backward, jacobian_fd1_central, jacobian_fd2, jacobian_fd2_backward, &
+        kg_color_dsatur, kg_color_greedy, kg_tnadd_atomic, kg_tnadd_embed, kg_tnadd_embed_ri, &
+        kg_tnadd_none, ls_2pnt, ls_3pnt, ls_gold, ls_none, mao_basis_ext, mao_basis_orb, &
+        mao_basis_prim, mao_projection, mopac_guess, no_excitations, no_guess, numerical, oe_gllb, &
+        oe_lb, oe_none, oe_saop, oe_sic, orb_dx2, orb_dxy, orb_dy2, orb_dyz, orb_dz2, orb_dzx, &
+        orb_px, orb_py, orb_pz, orb_s, ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, &
+        ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, ot_poly_irac, &
+        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
+        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
+        ot_precond_solver_default, ot_precond_solver_direct, ot_precond_solver_inv_chol, &
+        ot_precond_solver_update, outer_scf_basis_center_opt, outer_scf_becke_constraint, &
+        outer_scf_cdft_constraint, outer_scf_ddapc_constraint, outer_scf_hirshfeld_constraint, &
+        outer_scf_none, outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, &
+        outer_scf_optimizer_diis, outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, &
+        outer_scf_optimizer_none, outer_scf_optimizer_sd, outer_scf_optimizer_secant, &
+        outer_scf_s2_constraint, plus_u_lowdin, plus_u_mulliken, plus_u_mulliken_charges, &
+        radius_covalent, radius_default, radius_single, radius_user, radius_vdw, random_guess, &
+        real_time_propagation, ref_charge_atomic, ref_charge_mulliken, rel_dkh, rel_none, &
+        rel_pot_erfc, rel_pot_full, rel_sczora_mp, rel_trans_atom, rel_trans_full, &
+        rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, restart_guess, rsdft_model, &
+        sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, &
+        sccs_derivative_fft, sccs_fattebert_gygi, shape_function_density, shape_function_gaussian, &
+        sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, &
+        slater, smear_energy_window, smear_fermi_dirac, smear_list, sparse_guess, tddfpt_davidson, &
         tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, tddfpt_spin_cons, tddfpt_spin_flip, &
         tddfpt_triplet, use_mom_ref_coac, use_mom_ref_com, use_mom_ref_user, use_mom_ref_zero, &
         use_restart_wfn, use_rt_restart, use_scf_wfn, voro_radii_cov, voro_radii_unity, &
@@ -113,10 +111,11 @@ MODULE input_cp2k_dft
    USE input_cp2k_field,                ONLY: create_efield_section,&
                                               create_per_efield_section
    USE input_cp2k_kpoints,              ONLY: create_kpoints_section
+   USE input_cp2k_loc,                  ONLY: create_localize_section,&
+                                              print_wanniers
    USE input_cp2k_ls,                   ONLY: create_ls_scf_section
    USE input_cp2k_mm,                   ONLY: create_dipoles_section,&
                                               create_neighbor_lists_section
-   USE input_cp2k_motion_print,         ONLY: add_format_keyword
    USE input_cp2k_poisson,              ONLY: create_poisson_section
    USE input_cp2k_rsgrid,               ONLY: create_rsgrid_section
    USE input_cp2k_tb,                   ONLY: create_dftb_control_section,&
@@ -162,7 +161,7 @@ MODULE input_cp2k_dft
    PUBLIC :: create_dft_section
    PUBLIC :: create_bsse_section, create_qs_section
    PUBLIC :: create_scf_section
-   PUBLIC :: create_interp_section, create_localize_section
+   PUBLIC :: create_interp_section
    PUBLIC :: create_ddapc_restraint_section
    PUBLIC :: create_mgrid_section
 
@@ -628,335 +627,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
    END SUBROUTINE create_center_section
-
-! **************************************************************************************************
-!> \brief parameters fo the localization of wavefunctions
-!> \param section ...
-!> \par History
-!>      03.2005 created [MI]
-! **************************************************************************************************
-   SUBROUTINE create_localize_section(section)
-
-      TYPE(section_type), POINTER                        :: section
-
-      TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: print_key, print_section, subsection
-
-      CPASSERT(.NOT. ASSOCIATED(section))
-
-      NULLIFY (keyword, print_key)
-      CALL section_create(section, __LOCATION__, name="LOCALIZE", &
-                          description="Use one of the available methods to define the localization "// &
-                          " and possibly to optimize it to a minimum or a maximum.", &
-                          n_keywords=8, n_subsections=0, repeats=.FALSE.)
-
-      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
-                          description="controls the activation of the MOS localization procedure", &
-                          usage="&LOCALIZE T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER", &
-                          description="Maximum number of iterations used for localization methods", &
-                          usage="MAX_ITER 2000", default_i_val=10000)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, name="MAX_CRAZY_ANGLE", &
-         description="Largest allowed angle for the crazy rotations algorithm (smaller is slower but more stable).", &
-         usage="MAX_CRAZY_ANGLE 0.1", unit_str="rad", default_r_val=0.2_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="CRAZY_SCALE", &
-                          description="scale angles", &
-                          usage="CRAZY_SCALE 0.9", default_r_val=1.0_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="CRAZY_USE_DIAG", &
-                          description="Use diagonalization (slow) or pade based calculation of matrix exponentials.", &
-                          usage="CRAZY_USE_DIAG ", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, name="USE_HISTORY", &
-         description="Generate an improved initial guess based on a history of results, which is useful during MD."// &
-         "Will only work if the number of states to be localized remains constant.", &
-         usage="USE_HISTORY ", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, name="EPS_OCCUPATION", &
-         description="Tolerance in the occupation number to select only fully occupied orbitals for the rotation", &
-         usage="EPS_OCCUPATION 1.E-5", default_r_val=1.0E-8_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="OUT_ITER_EACH", &
-                          description="Every how many iterations of the localization algorithm"// &
-                          "(Jacobi) the tolerance value is printed out", &
-                          usage="OUT_ITER_EACH 100", default_i_val=100)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="EPS_LOCALIZATION", &
-                          description="Tolerance used in the convergence criterion of the localization methods.", &
-                          usage="EPS_LOCALIZATION 1.0E-2", default_r_val=1.0E-4_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="MIN_OR_MAX", &
-                          description="Requires the maximization of the spread of the wfn", &
-                          usage="MIN_OR_MAX (SPREADMIN|SPREADMAX)", &
-                          enum_c_vals=(/"SPREADMIN", "SPREADMAX"/), &
-                          enum_i_vals=(/do_loc_min, do_loc_max/), &
-                          default_i_val=do_loc_min)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, name="METHOD", &
-         description="Method of optimization if any", &
-         usage="METHOD (JACOBI|CRAZY|DIRECT|L1SD|SCDM|NONE)", &
-         enum_c_vals=s2a("NONE", "JACOBI", "CRAZY", "L1SD", "DIRECT", "SCDM"), &
-         enum_i_vals=(/do_loc_none, &
-                       do_loc_jacobi, &
-                       do_loc_crazy, &
-                       do_loc_l1_norm_sd, &
-                       do_loc_direct, do_loc_scdm/), &
-         enum_desc=s2a("No localization is applied", &
-                       "Using 2 x 2 rotations of the orbitals, slow but robust", &
-                       "A new fast method is applied, might be slightly less robust than jacobi, but usually much faster", &
-                       "Steepest descent minimization of an approximate l1 norm", &
-                       "Using a direct minimisation approacha", "Use QR factorization"), &
-         default_i_val=do_loc_jacobi)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="JACOBI_FALLBACK", &
-                          description="Use Jacobi method in case no convergence was achieved"// &
-                          " by using the crazy rotations method.", &
-                          usage="JACOBI_FALLBACK", default_l_val=.TRUE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="JACOBI_REFINEMENT", &
-                          description="Use Jacobi method to refine the localisation obtained by SCDM", &
-                          usage="JACOBI_REFINEMENT", default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="RESTART", &
-                          description="Restart the localization from a set of orbitals"// &
-                          " read from a localization restart file.", &
-                          usage="RESTART", default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="LOCHOMO_RESTART_FILE_NAME", &
-                          description="File name where to read the MOS from"// &
-                          "which to restart the localization procedure for occupied states", &
-                          usage="LOCHOMO_RESTART_FILE_NAME <FILENAME>", &
-                          type_of_var=lchar_t)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="LOCLUMO_RESTART_FILE_NAME", &
-                          description="File name where to read the MOS from"// &
-                          "which to restart the localization procedure for unoccupied states", &
-                          usage="LOCLUMO_RESTART_FILE_NAME <FILENAME>", &
-                          type_of_var=lchar_t)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="OPERATOR", &
-                          description="Type of opertator which defines the spread functional", &
-                          usage="OPERATOR (BERRY|BOYS|PIPEK)", &
-                          enum_c_vals=s2a("BERRY", "BOYS", "PIPEK"), &
-                          enum_i_vals=(/op_loc_berry, op_loc_boys, op_loc_pipek/), &
-                          default_i_val=op_loc_berry)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="LIST", &
-                          description="Indexes of the occupied wfn to be localized"// &
-                          "This keyword can be repeated several times"// &
-                          "(useful if you have to specify many indexes).", &
-                          usage="LIST 1 2", &
-                          n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="LIST_UNOCCUPIED", &
-                          description="Indexes of the unoccupied states to be localized, "// &
-                          "up to now only valid in combination with GPW. "// &
-                          "This keyword has to be present if unoccupied states should be localized. "// &
-                          "This keyword can be repeated several times"// &
-                          "(useful if you have to specify many indexes).", &
-                          usage="LIST 1 2", &
-                          n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="STATES", &
-                          description="Which states to localize, LUMO up to now only available in GPW", &
-                          usage="STATES (HOMO|LUMO|ALL)", &
-                          enum_c_vals=s2a("OCCUPIED", "UNOCCUPIED", "ALL"), &
-                          enum_i_vals=(/do_loc_homo, do_loc_lumo, do_loc_both/), &
-                          default_i_val=do_loc_homo)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, &
-         name="ENERGY_RANGE", &
-         description="Select the orbitals to be localized within the given energy range."// &
-         "This type of selection cannot be added on top of the selection through a LIST. It reads to reals that are"// &
-         " lower and higher boundaries of the energy range.", &
-         usage=" ENERGY_RANGE lower_bound {real}, higher_bound {real}", &
-         repeats=.FALSE., &
-         n_var=2, default_r_vals=(/0._dp, 0._dp/), unit_str='eV', &
-         type_of_var=real_t)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      NULLIFY (print_section)
-      CALL section_create(print_section, __LOCATION__, name="PRINT", &
-                          description="Collects all printing options related to the Wannier centers and "// &
-                          "properties computed with Wannier centers.", &
-                          n_keywords=0, n_subsections=1, repeats=.FALSE.)
-      NULLIFY (print_key)
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "program_run_info", &
-                                       description="Controls the printing basic info about the method", &
-                                       print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
-      CALL section_add_subsection(print_section, print_key)
-      CALL section_release(print_key)
-      ! Add printing of wannier infos
-      CALL print_wanniers(print_section)
-      NULLIFY (subsection)
-      ! Total Dipoles with wannier
-      CALL create_dipoles_section(subsection, "TOTAL_DIPOLE", debug_print_level + 1)
-      CALL section_add_subsection(print_section, subsection)
-      CALL section_release(subsection)
-      ! Molecular Dipoles with wannier
-      CALL create_dipoles_section(subsection, "MOLECULAR_DIPOLES", debug_print_level + 1)
-      CALL section_add_subsection(print_section, subsection)
-      CALL section_release(subsection)
-      ! Molecular Mulipole Moments with wannier
-      CALL cp_print_key_section_create(subsection, __LOCATION__, name="MOLECULAR_MOMENTS", &
-                                       description="Section controlling the calculation of molecular multipole moments.", &
-                                       print_level=debug_print_level + 1, filename="__STD_OUT__")
-      CALL keyword_create(keyword, __LOCATION__, name="ORDER", &
-                          description="Maximum order of mulitpoles to be calculated.", &
-                          usage=" ORDER {integer}", default_i_val=2, type_of_var=integer_t)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-      !
-      CALL section_add_subsection(print_section, subsection)
-      CALL section_release(subsection)
-      ! Molecular States with wannier
-      CALL create_molecular_states_section(subsection)
-      CALL section_add_subsection(print_section, subsection)
-      CALL section_release(subsection)
-      ! Wannier States with wannier
-      CALL create_wannier_states_section(subsection)
-      CALL section_add_subsection(print_section, subsection)
-      CALL section_release(subsection)
-      CALL section_add_subsection(section, print_section)
-      CALL section_release(print_section)
-
-   END SUBROUTINE create_localize_section
-
-! **************************************************************************************************
-!> \brief Controls the printing of the basic info coming from the LOCALIZE
-!>        section
-!> \param section ...
-!> \author teo
-! **************************************************************************************************
-   SUBROUTINE print_wanniers(section)
-      TYPE(section_type), POINTER                        :: section
-
-      TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: print_key
-
-      CPASSERT(ASSOCIATED(section))
-      NULLIFY (print_key, keyword)
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "WANNIER_CUBES", &
-                                       description="Controls the printing of the wannier functions ", &
-                                       print_level=high_print_level, add_last=add_last_numeric, filename="")
-      CALL keyword_create(keyword, __LOCATION__, name="stride", &
-                          description="The stride (X,Y,Z) used to write the cube file "// &
-                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
-                          " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="CUBES_LU_BOUNDS", &
-                          variants=(/"CUBES_LU"/), &
-                          description="The lower and upper index of the states to be printed as cube", &
-                          usage="CUBES_LU_BOUNDS integer integer", &
-                          n_var=2, default_i_vals=(/0, -2/), type_of_var=integer_t)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="CUBES_LIST", &
-                          description="Indexes of the states to be printed as cube files"// &
-                          "This keyword can be repeated several times"// &
-                          "(useful if you have to specify many indexes).", &
-                          usage="CUBES_LIST 1 2", &
-                          n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
-                          description="append the cube files when they already exist", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL section_add_subsection(section, print_key)
-      CALL section_release(print_key)
-
-      NULLIFY (print_key)
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "WANNIER_CENTERS", &
-                                       description="Controls the printing of the wannier functions", &
-                                       print_level=high_print_level, add_last=add_last_numeric, filename="", &
-                                       unit_str="angstrom")
-
-      CALL keyword_create(keyword, __LOCATION__, name="IONS+CENTERS", &
-                          description="prints out the wannier centers together with the particles", &
-                          usage="IONS+CENTERS", default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL add_format_keyword(keyword, print_key, pos=.TRUE., &
-                              description="Specifies the format of the output file when IONS+CENTERS is enabled.")
-      CALL section_add_subsection(section, print_key)
-      CALL section_release(print_key)
-
-      NULLIFY (print_key)
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "WANNIER_SPREADS", &
-                                       description="Controls the printing of the wannier functions", &
-                                       print_level=high_print_level, add_last=add_last_numeric, filename="")
-      CALL section_add_subsection(section, print_key)
-      CALL section_release(print_key)
-
-      NULLIFY (print_key)
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "LOC_RESTART", &
-                                       description="Controls the printing of restart file for localized MOS", &
-                                       print_level=high_print_level, add_last=add_last_numeric, filename="")
-      CALL section_add_subsection(section, print_key)
-      CALL section_release(print_key)
-
-   END SUBROUTINE print_wanniers
 
 ! **************************************************************************************************
 !> \brief Create the print dft section
@@ -3127,107 +2797,6 @@ CONTAINS
       CALL section_release(subsection)
 
    END SUBROUTINE create_wfn_mix_section
-
-! **************************************************************************************************
-!> \brief creates the input section for the molecular states
-!> \param print_key ...
-!> \author teo
-! **************************************************************************************************
-   SUBROUTINE create_molecular_states_section(print_key)
-      TYPE(section_type), POINTER                        :: print_key
-
-      TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: print_key2
-
-      CPASSERT(.NOT. ASSOCIATED(print_key))
-      NULLIFY (print_key2, keyword)
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "MOLECULAR_STATES", &
-                                       description="Controls printing of molecular states ", &
-                                       print_level=high_print_level, filename=" ", citations=(/Hunt2003/))
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, name="CUBE_EVAL_RANGE", &
-         description="only write cubes if the eigenvalues of the corresponding molecular states lie in the given interval. "// &
-         "Default is all states.", &
-         usage="CUBE_EVAL_RANGE -1.0 1.0", unit_str="hartree", n_var=2, type_of_var=real_t)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="MARK_STATES", &
-                          description="Can be used to mark given molecular states."// &
-                          " Sets a mark to both, occupied and unoccupied states. "// &
-                          "Occupied states are counted beginning with HOMO=1, "// &
-                          "unoccupied states are counted beginning with LUMO=1, "// &
-                          "This is only meaningful in combination with WFN_MIX. "// &
-                          "First integer specifies the molecule, second integer specifies the state.", &
-                          usage="MARK_STATES integer integer", &
-                          n_var=2, default_i_vals=(/-1, -1/), type_of_var=integer_t, repeats=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL cp_print_key_section_create(print_key2, __LOCATION__, "cubes", &
-                                       description="Controls the printing of cube files", &
-                                       print_level=high_print_level, filename="")
-      CALL keyword_create(keyword, __LOCATION__, name="stride", &
-                          description="The stride (X,Y,Z) used to write the cube file "// &
-                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
-                          " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
-      CALL section_add_keyword(print_key2, keyword)
-      CALL keyword_release(keyword)
-      CALL section_add_subsection(print_key, print_key2)
-      CALL section_release(print_key2)
-   END SUBROUTINE create_molecular_states_section
-
-! **************************************************************************************************
-!> \brief ...
-!> \param print_key ...
-! **************************************************************************************************
-   SUBROUTINE create_wannier_states_section(print_key)
-      TYPE(section_type), POINTER                        :: print_key
-
-      TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: print_key2
-
-      CPASSERT(.NOT. ASSOCIATED(print_key))
-      NULLIFY (print_key2, keyword)
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "WANNIER_STATES", &
-                                       description="Controls printing of molecular states ", &
-                                       print_level=high_print_level, filename=" ")
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, name="CUBE_EVAL_RANGE", &
-         description="only write cubes if the eigenvalues of the corresponding molecular states lie in the given interval. "// &
-         "Default is all states.", &
-         usage="CUBE_EVAL_RANGE -1.0 1.0", unit_str="hartree", n_var=2, type_of_var=real_t)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="MARK_STATES", &
-                          description="Can be used to mark given molecular states."// &
-                          " Sets a mark to both, occupied and unoccupied states. "// &
-                          "Occupied states are counted beginning with HOMO=1, "// &
-                          "unoccupied states are counted beginning with LUMO=1, "// &
-                          "This is only meaningful in combination with WFN_MIX. "// &
-                          "First integer specifies the molecule, second integer specifies the state.", &
-                          usage="MARK_STATES integer integer", &
-                          n_var=2, default_i_vals=(/-1, -1/), type_of_var=integer_t, repeats=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL cp_print_key_section_create(print_key2, __LOCATION__, "cubes", &
-                                       description="Controls the printing of cube files", &
-                                       print_level=high_print_level, filename="")
-      CALL keyword_create(keyword, __LOCATION__, name="stride", &
-                          description="The stride (X,Y,Z) used to write the cube file "// &
-                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
-                          " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
-      CALL section_add_keyword(print_key2, keyword)
-      CALL keyword_release(keyword)
-      CALL section_add_subsection(print_key, print_key2)
-      CALL section_release(print_key2)
-   END SUBROUTINE create_wannier_states_section
 
 ! **************************************************************************************************
 !> \brief creates the input section for the qs part
