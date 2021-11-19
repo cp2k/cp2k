@@ -93,7 +93,9 @@ else ifeq ($(GPUVER),Mi50)
 else ifeq ($(GPUVER),Mi100)
   ARCH_NUMBER = gfx908
 else ifneq ($(GPUVER),)
+ifneq (opencl,$(USE_ACCEL))
   $(error GPUVER not recognized)
+endif
 endif
 
 # If compiling with nvcc
