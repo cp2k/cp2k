@@ -346,6 +346,12 @@ CONTAINS
       DEALLOCATE (buff)
 
       ! store seed before deletion (unclear if this is the proper seed)
+
+      ! Note that, the initial state (rng%ig) instead of the current state (rng%cg) is stored in the
+      ! seed variable. As a consequence, each invocation of cp_fm_init_random uses exactly the same
+      ! stream of random numbers. While this seems odd and contrary to the original design,
+      ! it was probably introduced to improve reproducibility.
+      ! See also https://github.com/cp2k/cp2k/pull/506
       CALL rng%get(ig=seed)
 
       CALL timestop(handle)
