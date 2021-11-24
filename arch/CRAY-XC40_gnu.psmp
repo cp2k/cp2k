@@ -1,11 +1,15 @@
 #!/bin/bash
 #
+# CP2K arch file for Cray-XC40 (Piz Daint, CSCS, multi-core partition)
+#
 # Tested with: GFortran 8.3.0, MPICH 3.2.1, Cray-libsci 20.09.1, Cray-FFTW 3.3.8, Libint 2.6.0,
-#              LIBXC 5.1.7, LIBVORI 210412, LIBXSMM 1.16.2, ELPA 2021.05.002, PLUMED 2.7.2, 
-#              SPGLIB 1.16.2, GSL 2.7, SIRIUS 7.2.7. COSMA 2.5.1
+#              LIBXC 5.1.7, LIBVORI 210412, LIBXSMM 1.16.2, ELPA 2021.05.002, PLUMED 2.7.2,
+#              SPGLIB 1.16.2, GSL 2.7, SIRIUS 7.2.7, COSMA 2.5.1
+#
+# Usage: Source this arch file and then run make as instructed
+#
 # Author: Matthias Krack (matthias.krack@psi.ch, PSI, November 2021)
 #
-# Cray XC40 (Piz Daint, CSCS, multi-core partition)
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
       echo "ERROR: Script ${0##*/} must be sourced"; \
@@ -37,152 +41,151 @@
    echo "   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.}"; \
    return
 
-# Set options (leave option empty to disable)
+# Set options (leave option blank or comment line to disable)
+DO_CHECKS      := yes
+GNU_VERSION    := 8.3.0
+USE_COSMA      := 2.5.1
+USE_ELPA       := 2021.05.002
+USE_LIBINT     := 2.6.0
+USE_LIBVORI    := 210412
+USE_LIBXC      := 5.1.7
+USE_LIBXSMM    := 1.16.2
+USE_PLUMED     := 2.7.2
+USE_SIRIUS     := 7.2.7
+USE_SPGLIB     := 1.16.2
+LMAX           := 6
 
-DO_CHECKS   := yes
-GNU_VERSION := 8.3.0
-USE_COSMA   := 2.5.1
-USE_ELPA    := 2021.05.002
-USE_LIBINT  := 2.6.0
-USE_LIBVORI := 210412
-USE_LIBXC   := 5.1.7
-USE_LIBXSMM := 1.16.2
-USE_PLUMED  := 2.7.2
-USE_SIRIUS  := 7.2.7
-USE_SPGLIB  := 1.16.2
-LMAX        := 6
-
-CC          := cc
-FC          := ftn
-LD          := ftn
-AR          := ar -r
+CC             := cc
+FC             := ftn
+LD             := ftn
+AR             := ar -r
 
 # cc, CC, and ftn include already the proper -march flag
-CFLAGS      := -O3 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g
+CFLAGS         := -O3 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g
 
-DFLAGS      := -D__parallel
-DFLAGS      += -D__SCALAPACK
-DFLAGS      += -D__FFTW3
-DFLAGS      += -D__MAX_CONTR=4
-DFLAGS      += -D__MPI_VERSION=3
+DFLAGS         := -D__parallel
+DFLAGS         += -D__SCALAPACK
+DFLAGS         += -D__FFTW3
+DFLAGS         += -D__MAX_CONTR=4
+DFLAGS         += -D__MPI_VERSION=3
 
-GNU_PATH    := /store/psi/psi01/mkrack/daint/mc/gnu/$(GNU_VERSION)
-MPI_PATH    := $(GNU_PATH)/mpich
+GNU_PATH       := /store/psi/psi01/mkrack/daint/mc/gnu/$(GNU_VERSION)
+MPI_PATH       := $(GNU_PATH)/mpich
 
 ifeq ($(DO_CHECKS), yes)
-DFLAGS      += -D__CHECK_DIAG
+DFLAGS         += -D__CHECK_DIAG
 endif
 
 ifneq ($(USE_PLUMED),)
-USE_PLUMED  := $(strip $(USE_PLUMED))
+USE_PLUMED     := $(strip $(USE_PLUMED))
 include $(MPI_PATH)/plumed2/$(USE_PLUMED)/lib/plumed/src/lib/Plumed.inc.static
-DFLAGS      += -D__PLUMED2
-LIBS        += $(PLUMED_DEPENDENCIES)
-USE_GSL     := 2.7
-USE_LIBZ    := yes
+DFLAGS         += -D__PLUMED2
+LIBS           += $(PLUMED_DEPENDENCIES)
+USE_GSL        := 2.7
+USE_LIBZ       := yes
 endif
 
 ifneq ($(USE_ELPA),)
-USE_ELPA    := $(strip $(USE_ELPA))
-ELPA_INC    := $(MPI_PATH)/elpa/$(USE_ELPA)/include/elpa-$(USE_ELPA)
-ELPA_LIB    := $(MPI_PATH)/elpa/$(USE_ELPA)/lib
-CFLAGS      += -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules
-DFLAGS      += -D__ELPA
-LIBS        += $(ELPA_LIB)/libelpa.a
+USE_ELPA       := $(strip $(USE_ELPA))
+ELPA_INC       := $(MPI_PATH)/elpa/$(USE_ELPA)/include/elpa-$(USE_ELPA)
+ELPA_LIB       := $(MPI_PATH)/elpa/$(USE_ELPA)/lib
+CFLAGS         += -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules
+DFLAGS         += -D__ELPA
+LIBS           += $(ELPA_LIB)/libelpa.a
 endif
 
 ifneq ($(USE_LIBVORI),)
-USE_LIBVORI := $(strip $(USE_LIBVORI))
-LIBVORI_LIB := $(GNU_PATH)/libvori/$(USE_LIBVORI)/lib
-DFLAGS      += -D__LIBVORI
-LIBS        += $(LIBVORI_LIB)/libvori.a
+USE_LIBVORI    := $(strip $(USE_LIBVORI))
+LIBVORI_LIB    := $(GNU_PATH)/libvori/$(USE_LIBVORI)/lib
+DFLAGS         += -D__LIBVORI
+LIBS           += $(LIBVORI_LIB)/libvori.a
 endif
 
 ifneq ($(USE_LIBXC),)
-USE_LIBXC   := $(strip $(USE_LIBXC))
-LIBXC_INC   := $(GNU_PATH)/libxc/$(USE_LIBXC)/include
-LIBXC_LIB   := $(GNU_PATH)/libxc/$(USE_LIBXC)/lib
-CFLAGS      += -I$(LIBXC_INC)
-DFLAGS      += -D__LIBXC
-LIBS        += $(LIBXC_LIB)/libxcf03.a
-LIBS        += $(LIBXC_LIB)/libxc.a
+USE_LIBXC      := $(strip $(USE_LIBXC))
+LIBXC_INC      := $(GNU_PATH)/libxc/$(USE_LIBXC)/include
+LIBXC_LIB      := $(GNU_PATH)/libxc/$(USE_LIBXC)/lib
+CFLAGS         += -I$(LIBXC_INC)
+DFLAGS         += -D__LIBXC
+LIBS           += $(LIBXC_LIB)/libxcf03.a
+LIBS           += $(LIBXC_LIB)/libxc.a
 endif
 
 ifneq ($(USE_LIBINT),)
-USE_LIBINT  := $(strip $(USE_LIBINT))
-LMAX        := $(strip $(LMAX))
-LIBINT_INC  := $(GNU_PATH)/libint/$(USE_LIBINT)-lmax-$(LMAX)/include
-LIBINT_LIB  := $(GNU_PATH)/libint/$(USE_LIBINT)-lmax-$(LMAX)/lib
-CFLAGS      += -I$(LIBINT_INC)
-DFLAGS      += -D__LIBINT
-LIBS        += $(LIBINT_LIB)/libint2.a
+USE_LIBINT     := $(strip $(USE_LIBINT))
+LMAX           := $(strip $(LMAX))
+LIBINT_INC     := $(GNU_PATH)/libint/$(USE_LIBINT)-lmax-$(LMAX)/include
+LIBINT_LIB     := $(GNU_PATH)/libint/$(USE_LIBINT)-lmax-$(LMAX)/lib
+CFLAGS         += -I$(LIBINT_INC)
+DFLAGS         += -D__LIBINT
+LIBS           += $(LIBINT_LIB)/libint2.a
 endif
 
 ifneq ($(USE_SPGLIB),)
-USE_SPGLIB  := $(strip $(USE_SPGLIB))
-SPGLIB_INC  := $(GNU_PATH)/spglib/$(USE_SPGLIB)/include
-SPGLIB_LIB  := $(GNU_PATH)/spglib/$(USE_SPGLIB)/lib
-CFLAGS      += -I$(SPGLIB_INC)
-DFLAGS      += -D__SPGLIB
-LIBS        += $(SPGLIB_LIB)/libsymspg.a
+USE_SPGLIB     := $(strip $(USE_SPGLIB))
+SPGLIB_INC     := $(GNU_PATH)/spglib/$(USE_SPGLIB)/include
+SPGLIB_LIB     := $(GNU_PATH)/spglib/$(USE_SPGLIB)/lib
+CFLAGS         += -I$(SPGLIB_INC)
+DFLAGS         += -D__SPGLIB
+LIBS           += $(SPGLIB_LIB)/libsymspg.a
 endif
 
 ifneq ($(USE_LIBXSMM),)
-USE_LIBXSMM := $(strip $(USE_LIBXSMM))
-LIBXSMM_INC := $(GNU_PATH)/libxsmm/$(USE_LIBXSMM)/include
-LIBXSMM_LIB := $(GNU_PATH)/libxsmm/$(USE_LIBXSMM)/lib
-CFLAGS      += -I$(LIBXSMM_INC)
-DFLAGS      += -D__LIBXSMM
-LIBS        += $(LIBXSMM_LIB)/libxsmmf.a
-LIBS        += $(LIBXSMM_LIB)/libxsmm.a
+USE_LIBXSMM    := $(strip $(USE_LIBXSMM))
+LIBXSMM_INC    := $(GNU_PATH)/libxsmm/$(USE_LIBXSMM)/include
+LIBXSMM_LIB    := $(GNU_PATH)/libxsmm/$(USE_LIBXSMM)/lib
+CFLAGS         += -I$(LIBXSMM_INC)
+DFLAGS         += -D__LIBXSMM
+LIBS           += $(LIBXSMM_LIB)/libxsmmf.a
+LIBS           += $(LIBXSMM_LIB)/libxsmm.a
 endif
 
 ifneq ($(USE_SIRIUS),)
-USE_SIRIUS  := $(strip $(USE_SIRIUS))
-SIRIUS_INC  := $(GNU_PATH)/sirius/$(USE_SIRIUS)/include
-SIRIUS_LIB  := $(GNU_PATH)/sirius/$(USE_SIRIUS)/lib
-CFLAGS      += -I$(SIRIUS_INC)
-DFLAGS      += -D__SIRIUS
-LIBS        += ${SIRIUS_LIB}/libsirius.a
-LIBS        += $(GNU_PATH)/SpFFT/1.0.4/lib/libspfft.a
-LIBS        += $(GNU_PATH)/SpLA/1.5.1/lib/libspla.a
-LIBS        += $(GNU_PATH)/hdf5/1.12.0/lib/libhdf5.a
+USE_SIRIUS     := $(strip $(USE_SIRIUS))
+SIRIUS_INC     := $(GNU_PATH)/sirius/$(USE_SIRIUS)/include
+SIRIUS_LIB     := $(GNU_PATH)/sirius/$(USE_SIRIUS)/lib
+CFLAGS         += -I$(SIRIUS_INC)
+DFLAGS         += -D__SIRIUS
+LIBS           += ${SIRIUS_LIB}/libsirius.a
+LIBS           += $(GNU_PATH)/SpFFT/1.0.4/lib/libspfft.a
+LIBS           += $(GNU_PATH)/SpLA/1.5.1/lib/libspla.a
+LIBS           += $(GNU_PATH)/hdf5/1.12.0/lib/libhdf5.a
 endif
 
 ifneq ($(USE_COSMA),)
-USE_COSMA   := $(strip $(USE_COSMA))
-COSMA_INC   := $(GNU_PATH)/COSMA/$(USE_COSMA)/include
-COSMA_LIB   := $(GNU_PATH)/COSMA/$(USE_COSMA)/lib
-CFLAGS      += -I$(COSMA_INC)
-DFLAGS      += -D__COSMA
-LIBS        += $(COSMA_LIB)/libcosma_prefixed_pxgemm.a
-LIBS        += $(COSMA_LIB)/libcosma.a
-LIBS        += $(COSMA_LIB)/libcosta_prefixed_scalapack.a
-LIBS        += $(COSMA_LIB)/libcosta.a
+USE_COSMA      := $(strip $(USE_COSMA))
+COSMA_INC      := $(GNU_PATH)/COSMA/$(USE_COSMA)/include
+COSMA_LIB      := $(GNU_PATH)/COSMA/$(USE_COSMA)/lib
+CFLAGS         += -I$(COSMA_INC)
+DFLAGS         += -D__COSMA
+LIBS           += $(COSMA_LIB)/libcosma_prefixed_pxgemm.a
+LIBS           += $(COSMA_LIB)/libcosma.a
+LIBS           += $(COSMA_LIB)/libcosta_prefixed_scalapack.a
+LIBS           += $(COSMA_LIB)/libcosta.a
 endif
 
 ifneq ($(USE_GSL),)
-USE_GSL     := $(strip $(USE_GSL))
-GSL_INC     := $(GNU_PATH)/gsl/$(USE_GSL)/include
-GSL_LIB     := $(GNU_PATH)/gsl/$(USE_GSL)/lib
-CFLAGS      += -I$(GSL_INC)
-DFLAGS      += -D__GSL
-LIBS        += $(GSL_LIB)/libgsl.a
+USE_GSL        := $(strip $(USE_GSL))
+GSL_INC        := $(GNU_PATH)/gsl/$(USE_GSL)/include
+GSL_LIB        := $(GNU_PATH)/gsl/$(USE_GSL)/lib
+CFLAGS         += -I$(GSL_INC)
+DFLAGS         += -D__GSL
+LIBS           += $(GSL_LIB)/libgsl.a
 endif
 
 ifeq ($(USE_LIBZ), yes)
-LIBS        += $(GNU_PATH)/lib/libz.a
+LIBS           += $(GNU_PATH)/lib/libz.a
 endif
 
-CFLAGS      += $(DFLAGS)
+CFLAGS         += $(DFLAGS)
 
-FCFLAGS     := $(CFLAGS)
-FCFLAGS     += -fbacktrace
-FCFLAGS     += -ffree-form
-FCFLAGS     += -ffree-line-length-none
-FCFLAGS     += -fno-omit-frame-pointer
-FCFLAGS     += -std=f2008
+FCFLAGS        := $(CFLAGS)
+FCFLAGS        += -fbacktrace
+FCFLAGS        += -ffree-form
+FCFLAGS        += -ffree-line-length-none
+FCFLAGS        += -fno-omit-frame-pointer
+FCFLAGS        += -std=f2008
 
-LDFLAGS     := $(FCFLAGS) -static
+LDFLAGS        := $(FCFLAGS) -static
 
-LIBS        += -ldl -lstdc++
+LIBS           += -ldl -lstdc++
