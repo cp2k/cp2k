@@ -3,6 +3,7 @@
 # author: Ole Schuett & Tiziano Müller
 
 import argparse
+import os
 import pathlib
 import re
 import sys
@@ -125,6 +126,7 @@ def check_file(path: pathlib.Path) -> typing.List[str]:
     fn_ext = path.suffix
     abspath = path.resolve()
     basefn = path.name
+    is_executable = os.access(abspath, os.X_OK)
 
     if not PORTABLE_FILENAME_RE.match(str(path)):
         warnings += [f"Filename '{path}' not portable"]
@@ -154,6 +156,11 @@ def check_file(path: pathlib.Path) -> typing.List[str]:
         warnings += [f"{path}: Copyright banner malformed"]
     if fn_ext in C_EXTENSIONS and not content.startswith(BANNER_C.format(year, spdx)):
         warnings += [f"{path}: Copyright banner malformed"]
+
+    # check shebang
+    PY_SHEBANG = "#!/usr/bin/env python3"
+    if fn_ext == ".py" and is_executable and not content.startswith(f"{PY_SHEBANG}\n"):
+        warnings += [f"{path}: Wrong shebang, please use '{PY_SHEBANG}'"]
 
     # find all flags
     flags = set()
