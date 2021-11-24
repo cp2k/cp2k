@@ -1,121 +1,213 @@
+#!/bin/bash
+#
+# CP2K arch file for Cray-XC50 (Piz Daint, CSCS, GPU partition)
+#
 # Tested with: GFortran 8.3.0, MPICH 3.2.1, Cray-libsci 20.09.1, Cray-FFTW 3.3.8, Libint 2.6.0,
 #              LIBXC 5.1.7, LIBVORI 210412, LIBXSMM 1.16.2, ELPA 2021.05.002, PLUMED 2.7.2,
 #              SPGLIB 1.16.2, GSL 2.7, SIRIUS 7.2.7, COSMA 2.5.1
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, October 2021)
+#
+# Usage: Source this arch file and then run make as instructed
+#
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, November 2021)
+#
+# \
+   if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
+      echo "ERROR: Script ${0##*/} must be sourced"; \
+      echo "Usage: source ${0##*/}"; \
+      exit 1; \
+   fi; \
+   this_file=${BASH_SOURCE##*/}; \
+   module rm daint-mc; \
+   module add daint-gpu; \
+   module rm PrgEnv-cray; \
+   module add PrgEnv-gnu; \
+   module rm gcc/10.1.0; \
+   module add gcc/8.3.0; \
+   module add cray-fftw; \
+   module add cudatoolkit; \
+   echo "Expected setup:"; \
+   echo "  daint-gpu"; \
+   echo "  craype-haswell"; \
+   echo "  gcc/8.3.0"; \
+   echo "  cray-mpich/7.7.16"; \
+   echo "  cray-libsci/20.09.1"; \
+   echo "  PrgEnv-gnu/6.0.9"; \
+   echo "  cray-fftw/3.3.8.8"; \
+   echo "  cudatoolkit/11.0.2_3.38-8.1__g5b73779"; \
+   module list; \
+   module -f save cp2k_gpu_gnu_psmp; \
+   echo "Check the output above for error messages and consistency!"; \
+   echo "To load the required modules in your batch job script, use:"; \
+   echo "   module restore cp2k_gpu_gnu_psmp"; \
+   echo "If everything is OK, build CP2K with:"; \
+   echo "   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.}"; \
+   return
 
-# Cray XC50 (Piz Daint, CSCS, GPU partition)
+# Set options (leave option blank or comment line to disable)
+DO_CHECKS      := yes
+GNU_VERSION    := 8.3.0
+USE_ACC        := yes
+USE_COSMA      := 2.5.1
+USE_ELPA       := 2021.05.002
+USE_LIBINT     := 2.6.0
+USE_LIBVORI    := 210412
+USE_LIBXC      := 5.1.7
+USE_LIBXSMM    := 1.16.2
+USE_PLUMED     := 2.7.2
+USE_SIRIUS     := 7.2.7
+USE_SPGLIB     := 1.16.2
+LMAX           := 6
 
-# source /store/psi/psi01/mkrack/daint/gpu/gnu/8.3.0/bin/init_gpu_gnu.sh
+GPUVER         := P100
+OFFLOAD_TARGET := cuda
 
-GNU_PATH    = /store/psi/psi01/mkrack/daint/gpu/gnu/8.3.0
-MPI_PATH    = $(GNU_PATH)/mpich
-
-GPUVER      = P100
-OFFLOAD_TARGET = cuda
-
-CC          = cc
-CXX         = CC
-OFFLOAD_CC  = nvcc
-FC          = ftn
-LD          = ftn
-AR          = ar -r
-
-include       $(MPI_PATH)/plumed2/2.7.2/lib/plumed/src/lib/Plumed.inc.static
-
-COSMA_INC   = $(GNU_PATH)/COSMA/2.5.1/include
-COSMA_LIB   = $(GNU_PATH)/COSMA/2.5.1/lib
-
-ELPA_VER    = 2021.05.002
-ELPA_INC    = $(MPI_PATH)/elpa/$(ELPA_VER)/include/elpa-$(ELPA_VER)
-ELPA_LIB    = $(MPI_PATH)/elpa/$(ELPA_VER)/lib
-
-GSL_INC     = $(GNU_PATH)/gsl/2.7/include
-GSL_LIB     = $(GNU_PATH)/gsl/2.7/lib
-
-LIBINT_INC  = $(GNU_PATH)/libint/2.6.0-lmax-6/include
-LIBINT_LIB  = $(GNU_PATH)/libint/2.6.0-lmax-6/lib
-
-LIBVORI_LIB = $(GNU_PATH)/libvori/210412/lib
-
-LIBXC_INC   = $(GNU_PATH)/libxc/5.1.7/include
-LIBXC_LIB   = $(GNU_PATH)/libxc/5.1.7/lib
-
-LIBXSMM_INC = $(GNU_PATH)/libxsmm/1.16.2/include
-LIBXSMM_LIB = $(GNU_PATH)/libxsmm/1.16.2/lib
-
-SIRIUS_INC  = $(GNU_PATH)/sirius/7.2.7/include
-SIRIUS_LIB  = $(GNU_PATH)/sirius/7.2.7/lib
-
-SPGLIB_INC  = $(GNU_PATH)/spglib/1.16.2/include
-SPGLIB_LIB  = $(GNU_PATH)/spglib/1.16.2/lib
+CC             := cc
+CXX            := CC
+OFFLOAD_CC     := nvcc
+FC             := ftn
+LD             := ftn
+AR             := ar -r
 
 # cc, CC, and ftn include already the proper -march flag
-CFLAGS      = -O3 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g
+CFLAGS         := -O3 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g
 
-DFLAGS      = -D__COSMA
-DFLAGS     += -D__DBCSR_ACC
-DFLAGS     += -D__ELPA -D__ELPA_NVIDIA_GPU
-DFLAGS     += -D__FFTW3
-DFLAGS     += -D__GRID_CUDA
-DFLAGS     += -D__GSL
-DFLAGS     += -D__LIBINT
-DFLAGS     += -D__LIBVORI
-DFLAGS     += -D__LIBXC
-DFLAGS     += -D__LIBXSMM
-DFLAGS     += -D__MAX_CONTR=4
-DFLAGS     += -D__MPI_VERSION=3
-DFLAGS     += -D__PLUMED2
-#DFLAGS     += -D__PW_CUDA
-DFLAGS     += -D__SPGLIB
-DFLAGS     += -D__parallel
-DFLAGS     += -D__SCALAPACK
-DFLAGS     += -D__SIRIUS
-#DFLAGS     += -D__CHECK_DIAG
+DFLAGS         := -D__parallel
+DFLAGS         += -D__SCALAPACK
+DFLAGS         += -D__FFTW3
+DFLAGS         += -D__MAX_CONTR=4
+DFLAGS         += -D__MPI_VERSION=3
 
-OFFLOAD_FLAGS = $(DFLAGS) -O3 -Xcompiler="-fopenmp" -arch sm_60 --std=c++11
+GNU_PATH       := /store/psi/psi01/mkrack/daint/gpu/gnu/$(GNU_VERSION)
+MPI_PATH       := $(GNU_PATH)/mpich
 
-CFLAGS     += $(DFLAGS)
-CFLAGS     += -I$(COSMA_INC)
-CFLAGS     += -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules
-CFLAGS     += -I$(GSL_INC)
-CFLAGS     += -I$(LIBINT_INC)
-CFLAGS     += -I$(LIBXC_INC)
-CFLAGS     += -I$(LIBXSMM_INC)
-CFLAGS     += -I$(SIRIUS_INC)
-CFLAGS     += -I$(SPGLIB_INC)
+ifeq ($(DO_CHECKS), yes)
+DFLAGS         += -D__CHECK_DIAG
+endif
 
-CXXFLAGS    = $(CFLAGS) -std=c++11
+ifeq ($(USE_ACC), yes)
+DFLAGS         += -D__DBCSR_ACC
+DFLAGS         += -D__GRID_CUDA
+# No performance gain with PW_CUDA currently
+# DFLAGS         += -D__PW_CUDA 
+endif
 
-FCFLAGS     = $(CFLAGS)
-FCFLAGS    += -fbacktrace
-FCFLAGS    += -ffree-form
-FCFLAGS    += -ffree-line-length-none
-FCFLAGS    += -fno-omit-frame-pointer
-FCFLAGS    += -std=f2008
+ifneq ($(USE_PLUMED),)
+USE_PLUMED     := $(strip $(USE_PLUMED))
+include $(MPI_PATH)/plumed2/$(USE_PLUMED)/lib/plumed/src/lib/Plumed.inc.static
+DFLAGS         += -D__PLUMED2
+LIBS           += $(PLUMED_DEPENDENCIES)
+USE_GSL        := 2.7
+USE_LIBZ       := yes
+endif
 
-LDFLAGS     = $(FCFLAGS) # -static not possible with CUDA
+ifneq ($(USE_ELPA),)
+USE_ELPA       := $(strip $(USE_ELPA))
+ELPA_INC       := $(MPI_PATH)/elpa/$(USE_ELPA)/include/elpa-$(USE_ELPA)
+ELPA_LIB       := $(MPI_PATH)/elpa/$(USE_ELPA)/lib
+CFLAGS         += -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules
+DFLAGS         += -D__ELPA
+DFLAGS         += -D__ELPA_NVIDIA_GPU
+LIBS           += $(ELPA_LIB)/libelpa.a
+endif
 
-LIBS        = $(PLUMED_DEPENDENCIES)
-LIBS       += $(ELPA_LIB)/libelpa.a
-LIBS       += $(LIBVORI_LIB)/libvori.a
-LIBS       += $(LIBXC_LIB)/libxcf03.a
-LIBS       += $(LIBXC_LIB)/libxc.a
-LIBS       += $(LIBINT_LIB)/libint2.a
-LIBS       += $(SPGLIB_LIB)/libsymspg.a
-LIBS       += $(LIBXSMM_LIB)/libxsmmf.a
-LIBS       += $(LIBXSMM_LIB)/libxsmm.a
-# Only needed for SIRIUS
-LIBS       += ${SIRIUS_LIB}/libsirius.a
-LIBS       += $(GNU_PATH)/SpFFT/1.0.4/lib/libspfft.a
-LIBS       += $(GNU_PATH)/SpLA/1.5.1/lib/libspla.a
-LIBS       += $(GNU_PATH)/hdf5/1.12.0/lib/libhdf5.a
-# Only needed for COSMA
-LIBS       += $(COSMA_LIB)/libcosma_prefixed_pxgemm.a
-LIBS       += $(COSMA_LIB)/libcosma.a
-LIBS       += $(COSMA_LIB)/libcosta_prefixed_scalapack.a
-LIBS       += $(COSMA_LIB)/libcosta.a
-#
-LIBS       += $(GSL_LIB)/libgsl.a
-LIBS       += $(GNU_PATH)/lib/libz.a
-LIBS       += -lcudart -lcublas -lcufft -lnvrtc -lrt
-LIBS       += -ldl -lstdc++
+ifneq ($(USE_LIBVORI),)
+USE_LIBVORI    := $(strip $(USE_LIBVORI))
+LIBVORI_LIB    := $(GNU_PATH)/libvori/$(USE_LIBVORI)/lib
+DFLAGS         += -D__LIBVORI
+LIBS           += $(LIBVORI_LIB)/libvori.a
+endif
+
+ifneq ($(USE_LIBXC),)
+USE_LIBXC      := $(strip $(USE_LIBXC))
+LIBXC_INC      := $(GNU_PATH)/libxc/$(USE_LIBXC)/include
+LIBXC_LIB      := $(GNU_PATH)/libxc/$(USE_LIBXC)/lib
+CFLAGS         += -I$(LIBXC_INC)
+DFLAGS         += -D__LIBXC
+LIBS           += $(LIBXC_LIB)/libxcf03.a
+LIBS           += $(LIBXC_LIB)/libxc.a
+endif
+
+ifneq ($(USE_LIBINT),)
+USE_LIBINT     := $(strip $(USE_LIBINT))
+LMAX           := $(strip $(LMAX))
+LIBINT_INC     := $(GNU_PATH)/libint/$(USE_LIBINT)-lmax-$(LMAX)/include
+LIBINT_LIB     := $(GNU_PATH)/libint/$(USE_LIBINT)-lmax-$(LMAX)/lib
+CFLAGS         += -I$(LIBINT_INC)
+DFLAGS         += -D__LIBINT
+LIBS           += $(LIBINT_LIB)/libint2.a
+endif
+
+ifneq ($(USE_SPGLIB),)
+USE_SPGLIB     := $(strip $(USE_SPGLIB))
+SPGLIB_INC     := $(GNU_PATH)/spglib/$(USE_SPGLIB)/include
+SPGLIB_LIB     := $(GNU_PATH)/spglib/$(USE_SPGLIB)/lib
+CFLAGS         += -I$(SPGLIB_INC)
+DFLAGS         += -D__SPGLIB
+LIBS           += $(SPGLIB_LIB)/libsymspg.a
+endif
+
+ifneq ($(USE_LIBXSMM),)
+USE_LIBXSMM    := $(strip $(USE_LIBXSMM))
+LIBXSMM_INC    := $(GNU_PATH)/libxsmm/$(USE_LIBXSMM)/include
+LIBXSMM_LIB    := $(GNU_PATH)/libxsmm/$(USE_LIBXSMM)/lib
+CFLAGS         += -I$(LIBXSMM_INC)
+DFLAGS         += -D__LIBXSMM
+LIBS           += $(LIBXSMM_LIB)/libxsmmf.a
+LIBS           += $(LIBXSMM_LIB)/libxsmm.a
+endif
+
+ifneq ($(USE_SIRIUS),)
+USE_SIRIUS     := $(strip $(USE_SIRIUS))
+SIRIUS_INC     := $(GNU_PATH)/sirius/$(USE_SIRIUS)/include
+SIRIUS_LIB     := $(GNU_PATH)/sirius/$(USE_SIRIUS)/lib
+CFLAGS         += -I$(SIRIUS_INC)
+DFLAGS         += -D__SIRIUS
+LIBS           += ${SIRIUS_LIB}/libsirius.a
+LIBS           += $(GNU_PATH)/SpFFT/1.0.4/lib/libspfft.a
+LIBS           += $(GNU_PATH)/SpLA/1.5.1/lib/libspla.a
+LIBS           += $(GNU_PATH)/hdf5/1.12.0/lib/libhdf5.a
+endif
+
+ifneq ($(USE_COSMA),)
+USE_COSMA      := $(strip $(USE_COSMA))
+COSMA_INC      := $(GNU_PATH)/COSMA/$(USE_COSMA)/include
+COSMA_LIB      := $(GNU_PATH)/COSMA/$(USE_COSMA)/lib
+CFLAGS         += -I$(COSMA_INC)
+DFLAGS         += -D__COSMA
+LIBS           += $(COSMA_LIB)/libcosma_prefixed_pxgemm.a
+LIBS           += $(COSMA_LIB)/libcosma.a
+LIBS           += $(COSMA_LIB)/libcosta_prefixed_scalapack.a
+LIBS           += $(COSMA_LIB)/libcosta.a
+endif
+
+ifneq ($(USE_GSL),)
+USE_GSL        := $(strip $(USE_GSL))
+GSL_INC        := $(GNU_PATH)/gsl/$(USE_GSL)/include
+GSL_LIB        := $(GNU_PATH)/gsl/$(USE_GSL)/lib
+CFLAGS         += -I$(GSL_INC)
+DFLAGS         += -D__GSL
+LIBS           += $(GSL_LIB)/libgsl.a
+endif
+
+ifeq ($(USE_LIBZ), yes)
+LIBS           += $(GNU_PATH)/lib/libz.a
+endif
+
+CFLAGS         += $(DFLAGS)
+
+CXXFLAGS       := $(CFLAGS) -std=c++11
+
+OFFLOAD_FLAGS  := $(DFLAGS) -O3 -Xcompiler="-fopenmp" -arch sm_60 --std=c++11
+
+FCFLAGS        := $(CFLAGS)
+FCFLAGS        += -fbacktrace
+FCFLAGS        += -ffree-form
+FCFLAGS        += -ffree-line-length-none
+FCFLAGS        += -fno-omit-frame-pointer
+FCFLAGS        += -std=f2008
+
+# -static not possible with CUDA
+LDFLAGS        := $(FCFLAGS)
+
+LIBS           += -lcudart -lcublas -lcufft -lnvrtc -lrt
+LIBS           += -ldl -lstdc++
