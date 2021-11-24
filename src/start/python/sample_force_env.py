@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #  vim: set ts=4 sw=4 tw=0 :
 
 from tempfile import NamedTemporaryFile
