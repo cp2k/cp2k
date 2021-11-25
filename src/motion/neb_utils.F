@@ -426,8 +426,8 @@ CONTAINS
                   IF (output_unit > 0) THEN
                      WRITE (output_unit, '(T2,A,I5,A,I5,A)') &
                         "NEB| REPLICA Nr.", irep + j, "- Energy and Forces"
-                     WRITE (output_unit, '(T2,A,T42,A,9X,F15.9)') &
-                        "NEB|", " Total Energy: ", rep_env%f(rep_env%ndim + 1, j + 1)
+                     WRITE (output_unit, '(T2,A,T43,A,T57,F24.12)') &
+                        "NEB|", "Total energy:", rep_env%f(rep_env%ndim + 1, j + 1)
                      WRITE (output_unit, '(T2,"NEB|",T10,"ATOM",T33,3(9X,A,7X))') lab(1), lab(2), lab(3)
                      DO i = 1, SIZE(particle_set)
                         WRITE (output_unit, '(T2,"NEB|",T12,A,T30,3(2X,F15.9))') &
@@ -443,8 +443,8 @@ CONTAINS
                   IF (output_unit > 0) THEN
                      WRITE (output_unit, '(/,T2,A,I5,A,I5,A)') &
                         "NEB| REPLICA Nr.", irep + j, "- Energy, Collective Variables,  Forces"
-                     WRITE (output_unit, '(T2,A,T42,A,9X,F15.9)') &
-                        "NEB|", " Total Energy: ", rep_env%f(rep_env%ndim + 1, j + 1)
+                     WRITE (output_unit, '(T2,A,T43,A,T57,F24.12)') &
+                        "NEB|", "Total energy:", rep_env%f(rep_env%ndim + 1, j + 1)
                      WRITE (output_unit, &
                             '(T2,"NEB|",T10,"CV Nr.",12X,"Expected COLVAR",5X,"Present COLVAR",10X,"Forces")')
                      DO i = 1, n_int

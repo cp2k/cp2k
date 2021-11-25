@@ -272,9 +272,8 @@ CONTAINS
                            "VIB| REPLICA Nr.", j, "- Energy and Forces for particle:", &
                            iparticle1, "  coordinate: ", lab(imap - (iparticle1 - 1)*3), &
                            " + D"//TRIM(lab(imap - (iparticle1 - 1)*3))
-                        !
-                        WRITE (output_unit, '(T2,A,T42,A,9X,F15.9)') &
-                           "VIB|", " Total Energy: ", rep_env%f(rep_env%ndim + 1, j)
+                        WRITE (output_unit, '(T2,A,T43,A,T57,F24.12)') &
+                           "VIB|", "Total energy:", rep_env%f(rep_env%ndim + 1, j)
                         WRITE (output_unit, '(T2,"VIB|",T10,"ATOM",T33,3(9X,A,7X))') lab(1), lab(2), lab(3)
                         DO i = 1, natoms
                            imap = Mlist(i)
@@ -326,9 +325,8 @@ CONTAINS
                            "VIB| REPLICA Nr.", j, "- Energy and Forces for particle:", &
                            iparticle1, "  coordinate: ", lab(imap - (iparticle1 - 1)*3), &
                            " - D"//TRIM(lab(imap - (iparticle1 - 1)*3))
-                        !
-                        WRITE (output_unit, '(T2,A,T42,A,9X,F15.9)') &
-                           "VIB|", " Total Energy: ", rep_env%f(rep_env%ndim + 1, j)
+                        WRITE (output_unit, '(T2,A,T43,A,T57,F24.12)') &
+                           "VIB|", "Total energy:", rep_env%f(rep_env%ndim + 1, j)
                         WRITE (output_unit, '(T2,"VIB|",T10,"ATOM",T33,3(9X,A,7X))') lab(1), lab(2), lab(3)
                         DO i = 1, natoms
                            imap = Mlist(i)
@@ -370,9 +368,8 @@ CONTAINS
             IF (output_unit > 0) THEN
                WRITE (output_unit, '(T2,A)') &
                   "VIB| ", " Minimum Structure - Energy and Forces:"
-               !
-               WRITE (output_unit, '(T2,A,T42,A,9X,F15.9)') &
-                  "VIB|", " Total Energy: ", rep_env%f(rep_env%ndim + 1, j)
+               WRITE (output_unit, '(T2,A,T43,A,T57,F24.12)') &
+                  "VIB|", "Total energy:", rep_env%f(rep_env%ndim + 1, j)
                WRITE (output_unit, '(T2,"VIB|",T10,"ATOM",T33,3(9X,A,7X))') lab(1), lab(2), lab(3)
                DO i = 1, natoms
                   imap = Mlist(i)
