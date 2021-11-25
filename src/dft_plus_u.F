@@ -877,7 +877,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, nshell, orbitals
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf, l, last_sgf
       LOGICAL                                            :: debug, dft_plus_u_atom, found, &
-                                                            just_energy, smear
+                                                            just_energy, occupation_enforced, smear
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: is_plus_u_kind, orb_occ
       REAL(KIND=dp)                                      :: eps_scf, eps_u_ramping, fspin, occ, trq, &
                                                             trq2, u_minus_j, u_minus_j_target, &
@@ -934,6 +934,7 @@ CONTAINS
       smear = .FALSE.
       max_scf = -1
       eps_scf = 1.0E30_dp
+      occupation_enforced = .FALSE.
 
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
@@ -1257,6 +1258,7 @@ CONTAINS
                         DEALLOCATE (orb_occ)
                         DEALLOCATE (q_eigval)
                         DEALLOCATE (q_eigvec)
+                        occupation_enforced = .TRUE.
                      END IF
                   END IF ! orbitals associated
 
@@ -1461,10 +1463,13 @@ CONTAINS
 
       CALL mp_sum(energy%dft_plus_u, para_env%group)
 
-      IF (energy%dft_plus_u < 0.0_dp) &
-         CALL cp_warn(__LOCATION__, &
-                      "DFT+U energy contibution is negative possibly due "// &
-                      "to unphysical Mulliken charges!")
+      IF (energy%dft_plus_u < 0.0_dp) THEN
+         IF (.NOT. occupation_enforced) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "DFT+U energy contibution is negative possibly due "// &
+                         "to unphysical Mulliken charges!")
+         END IF
+      END IF
 
       CALL dbcsr_deallocate_matrix(sm_q)
       CALL dbcsr_deallocate_matrix(sm_v)
