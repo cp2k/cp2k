@@ -2,7 +2,7 @@
 #
 # CP2K arch file for Cray-XC40 (Piz Daint, CSCS, multi-core partition)
 #
-# Tested with: GFortran 8.3.0, MPICH 3.2.1, Cray-libsci 20.09.1, Cray-FFTW 3.3.8, Libint 2.6.0,
+# Tested with: GFortran 8.3.0, Cray-MPICH 7.7.16, Cray-libsci 20.09.1, Cray-FFTW 3.3.8, Libint 2.6.0,
 #              LIBXC 5.1.7, LIBVORI 210412, LIBXSMM 1.16.2, ELPA 2021.05.002, PLUMED 2.7.2,
 #              SPGLIB 1.16.2, GSL 2.7, SIRIUS 7.2.7, COSMA 2.5.1
 #
@@ -17,7 +17,6 @@
       exit 1; \
    fi; \
    this_file=${BASH_SOURCE##*/}; \
-   module rm daint-gpu; \
    module add daint-mc; \
    module rm PrgEnv-cray; \
    module add PrgEnv-gnu; \
@@ -25,12 +24,14 @@
    module add gcc/8.3.0; \
    module add cray-fftw; \
    echo "Expected setup:"; \
-   echo "  daint-mc"; \
-   echo "  craype-broadwell"; \
-   echo "  gcc/8.3.0"; \
    echo "  cray-mpich/7.7.16"; \
+   echo "  craype-broadwell"; \
+   echo "  daint-mc"; \
+   echo "  cray-mpich/7.7.16"; \
+   echo "  craype/2.7.3"; \
    echo "  cray-libsci/20.09.1"; \
    echo "  PrgEnv-gnu/6.0.9"; \
+   echo "  gcc/8.3.0"; \
    echo "  cray-fftw/3.3.8.8"; \
    module list; \
    module -f save cp2k_mc_gnu_psmp; \
@@ -42,7 +43,7 @@
    return
 
 # Set options (leave option blank or comment line to disable)
-DO_CHECKS      := yes
+DO_CHECKS      := no
 GNU_VERSION    := 8.3.0
 USE_COSMA      := 2.5.1
 USE_ELPA       := 2021.05.002
