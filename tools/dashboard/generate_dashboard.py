@@ -586,6 +586,7 @@ def html_linkbox() -> str:
     output += '<a href="regtest_survey.html">Regtest Survey</a><br>\n'
     output += '<a href="https://www.cp2k.org/static/coverage/">Test Coverage</a><br>\n'
     output += '<a href="discontinued_tests.html">Discontinued Tests</a><br>\n'
+    output += '<a href="https://www.cp2k.org/dev:compiler_support/">Supported compilers</a><br>\n'
     output += "</div>\n"
     return output
 
