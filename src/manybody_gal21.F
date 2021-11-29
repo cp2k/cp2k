@@ -203,11 +203,9 @@ CONTAINS
    END SUBROUTINE gal21_energy
 
 ! **************************************************************************************************
-! The idea is to build a vector normal to the local surface by using the symetry of the surface that
-! make the opposite vectors compensate themself. The vector is therefore in the direction of the
-! missing atoms of a large coordination sphere
-! **************************************************************************************************
-!> \brief ...
+!> \brief The idea is to build a vector normal to the local surface by using the symetry of the
+!>        surface that make the opposite vectors compensate themself. The vector is therefore in the
+!>.       direction of the missing atoms of a large coordination sphere
 !> \param gal21 ...
 !> \param r_last_update_pbc ...
 !> \param jparticle ...
@@ -250,9 +248,7 @@ CONTAINS
    END FUNCTION normale
 
 ! **************************************************************************************************
-! Scan all the Me atoms that have been counted in the O-Me paires and sum their exponential weights
-! **************************************************************************************************
-!> \brief ...
+!> \brief Scan all the Me atoms that have been counted in the O-Me paires and sum their exp. weights
 !> \param gal21 ...
 !> \param r_last_update_pbc ...
 !> \param iparticle ...
@@ -291,11 +287,7 @@ CONTAINS
    END FUNCTION somme
 
 ! **************************************************************************************************
-
-! **************************************************************************************************
-! Compute the angular dependance (on theta) of the forcefield
-! **************************************************************************************************
-!> \brief ...
+!> \brief Compute the angular dependance (on theta) of the forcefield
 !> \param anglepart ...
 !> \param VH ...
 !> \param gal21 ...
@@ -554,12 +546,9 @@ CONTAINS
       END IF
 
    END SUBROUTINE gal21_forces
-! **************************************************************************************************
-! Derivativ of the second component of angular dependance
-! **************************************************************************************************
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Derivativ of the second component of angular dependance
 !> \param gal21 ...
 !> \param r_last_update_pbc ...
 !> \param iparticle ...
@@ -623,9 +612,7 @@ CONTAINS
    END SUBROUTINE somme_d
 
 ! **************************************************************************************************
-! Derivativ of the third component of angular term
-! **************************************************************************************************
-!> \brief ...
+!> \brief Derivativ of the third component of angular term
 !> \param gal21 ...
 !> \param r_last_update_pbc ...
 !> \param iparticle ...
@@ -733,7 +720,7 @@ CONTAINS
          pv_nonbond(2, 1:3) = pv_nonbond(2, 1:3) + rjh1(2)*((gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)* &
                                                             BH*EXP(-BH*SQRT(DOT_PRODUCT(rjh1, rjh1)))) &
                               *rjh1(:)/SQRT(DOT_PRODUCT(rjh1, rjh1))
-         pv_nonbond(3, 1:3) = pv_nonbond(3, 1:3) + rjh2(3)*((gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)* &
+         pv_nonbond(3, 1:3) = pv_nonbond(3, 1:3) + rjh1(3)*((gal21%AH2*gal21%gcn(jparticle) + gal21%AH1)* &
                                                             BH*EXP(-BH*SQRT(DOT_PRODUCT(rjh1, rjh1)))) &
                               *rjh1(:)/SQRT(DOT_PRODUCT(rjh1, rjh1))
       END IF
