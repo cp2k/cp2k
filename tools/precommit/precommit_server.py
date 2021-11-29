@@ -53,6 +53,12 @@ def clangformat():
 
 
 # ======================================================================================
+@app.route("/cmakeformat", methods=["POST"])
+def cmakeformat():
+    return run_tool(["cmake-format", "-i"])
+
+
+# ======================================================================================
 def run_tool(cmd, timeout=30):
     assert len(request.files) == 1
     orig_fn = list(request.files.keys())[0]

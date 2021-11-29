@@ -201,6 +201,9 @@ def process_file(fn, allow_modifications):
     if re.match(r".*\.md$", fn):
         run_remote_tool("markdownlint", fn)
 
+    if re.match(r"(.*/CMakeLists.txt)|(.*\.cmake)$", fn):
+        run_remote_tool("cmakeformat", fn)
+
     if re.match(r"./data/.*POTENTIALS?$", fn):
         check_data_files()
 
