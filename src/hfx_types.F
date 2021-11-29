@@ -47,9 +47,7 @@ MODULE hfx_types
         do_hfx_auto_shells, do_potential_coulomb, do_potential_gaussian, do_potential_id, &
         do_potential_long, do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_mix_lg, &
         do_potential_short, do_potential_truncated, hfx_ri_do_2c_diag, hfx_ri_do_2c_iter
-   USE input_cp2k_hfx,                  ONLY: ri_dense,&
-                                              ri_min_block,&
-                                              ri_mo,&
+   USE input_cp2k_hfx,                  ONLY: ri_mo,&
                                               ri_pmat
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -374,7 +372,7 @@ MODULE hfx_types
       REAL(KIND=dp) :: filter_eps, filter_eps_2c, filter_eps_storage, filter_eps_mo, &
                        eps_lanczos, eps_pgf_orb, eps_eigval
       INTEGER :: t2c_sqrt_order, max_iter_lanczos, flavor, unit_nr_dbcsr, unit_nr, &
-                 min_bsize, max_bsize_MO, t2c_method, nelectron_total, default_bsize_RI, input_flavor
+                 min_bsize, max_bsize_MO, t2c_method, nelectron_total, input_flavor
       LOGICAL :: check_2c_inv, calc_condnum
 
       TYPE(libint_potential_type) :: ri_metric
@@ -440,7 +438,7 @@ MODULE hfx_types
       CHARACTER(len=default_string_length) :: orb_basis_type, ri_basis_type
 
       ! memory reduction factor
-      INTEGER :: n_mem_input, n_mem, n_mem_RI
+      INTEGER :: n_mem_input, n_mem, n_mem_RI, n_mem_flavor_switch
 
       ! offsets for memory batches
       INTEGER, DIMENSION(:), ALLOCATABLE :: starts_array_mem_block, ends_array_mem_block
@@ -1138,8 +1136,8 @@ CONTAINS
       CALL section_vals_val_get(ri_section, "EPS_PGF_ORB", r_val=ri_data%eps_pgf_orb)
       CALL section_vals_val_get(ri_section, "MIN_BLOCK_SIZE", i_val=ri_data%min_bsize)
       CALL section_vals_val_get(ri_section, "MAX_BLOCK_SIZE_MO", i_val=ri_data%max_bsize_MO)
-      CALL section_vals_val_get(ri_section, "BLOCK_SIZE_RI", i_val=ri_data%default_bsize_RI)
       CALL section_vals_val_get(ri_section, "MEMORY_CUT", i_val=ri_data%n_mem_input)
+      CALL section_vals_val_get(ri_section, "FLAVOR_SWITCH_MEMORY_CUT", i_val=ri_data%n_mem_flavor_switch)
 
       ri_data%orb_basis_type = orb_basis_type
       ri_data%ri_basis_type = ri_basis_type
@@ -1188,8 +1186,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_ri_init'
 
       INTEGER                                            :: handle, i_mem, iproc, j_mem, MO_dim, &
-                                                            mp_comm_3d, natom, nkind, nproc, &
-                                                            RI_bsize
+                                                            mp_comm_3d, natom, nkind, nproc
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bsizes_AO_store, bsizes_RI_store, dist1, &
                                                             dist2, dist3, dist_AO_1, dist_AO_2, &
                                                             dist_RI
@@ -1269,21 +1266,9 @@ CONTAINS
 
       ri_data%num_pe = para_env%num_pe
 
-      !Default RI block size
-      SELECT CASE (ri_data%default_bsize_RI)
-      CASE (ri_min_block)
-         CALL pgf_block_sizes(atomic_kind_set, basis_set_RI, ri_data%min_bsize, ri_data%bsizes_RI_split)
-
-      CASE (ri_dense)
-         !Best GPU dimension is 64*64=4*4*256=4096
-         RI_bsize = 4096/ri_data%min_bsize**2
-         !Want at least one block per proc row/col
-         RI_bsize = MIN(RI_bsize, SUM(ri_data%bsizes_RI)/(FLOOR(SQRT(REAL(ri_data%num_pe, dp)))))
-         CALL split_block_sizes([SUM(ri_data%bsizes_RI)], ri_data%bsizes_RI_split, RI_bsize)
-      END SELECT
-
       ! initialize tensors expressed in basis representation
       CALL pgf_block_sizes(atomic_kind_set, basis_set_AO, ri_data%min_bsize, ri_data%bsizes_AO_split)
+      CALL pgf_block_sizes(atomic_kind_set, basis_set_RI, ri_data%min_bsize, ri_data%bsizes_RI_split)
 
       CALL pgf_block_sizes(atomic_kind_set, basis_set_AO, 1, bsizes_AO_store)
       CALL pgf_block_sizes(atomic_kind_set, basis_set_RI, 1, bsizes_RI_store)
@@ -1310,6 +1295,7 @@ CONTAINS
          ALLOCATE (ri_data%pgrid_1)
          ALLOCATE (ri_data%pgrid_2)
          pdims = 0
+
          CALL dbcsr_t_mp_dims_create(nproc, pdims, [SIZE(ri_data%bsizes_AO_split), SIZE(ri_data%bsizes_RI_split), &
                                                     SIZE(ri_data%bsizes_AO_split)])
 
@@ -2655,14 +2641,6 @@ CONTAINS
             "HFX_RI_INFO| Minimum block size", ri_data%min_bsize
          WRITE (UNIT=iw, FMT="(T3, A, T78, I3)") &
             "HFX_RI_INFO| MO block size", ri_data%max_bsize_MO
-         SELECT CASE (ri_data%default_bsize_RI)
-         CASE (ri_min_block)
-            WRITE (UNIT=iw, FMT="(T3, A, T74, A)") &
-               "HFX_RI_INFO| RI block size:", "MINIMAL"
-         CASE (ri_dense)
-            WRITE (UNIT=iw, FMT="(T3, A, T76, A)") &
-               "HFX_RI_INFO| RI block size:", "DENSE"
-         END SELECT
          WRITE (UNIT=iw, FMT="(T3, A, T79, I2)") &
             "HFX_RI_INFO| Memory reduction factor", ri_data%n_mem_input
       END IF

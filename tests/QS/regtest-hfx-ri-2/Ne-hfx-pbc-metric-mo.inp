@@ -26,7 +26,6 @@
                 &RI
                    RI_FLAVOR MO
                    RI_METRIC IDENTITY
-                   BLOCK_SIZE_RI MINIMAL
                 &END
                 &INTERACTION_POTENTIAL
                     POTENTIAL_TYPE SHORTRANGE

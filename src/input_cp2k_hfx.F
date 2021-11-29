@@ -42,8 +42,7 @@ MODULE input_cp2k_hfx
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_hfx'
-   INTEGER, PARAMETER, PUBLIC                 :: ri_mo = 1, ri_pmat = 2, &
-                                                 ri_min_block = 1, ri_dense = 2
+   INTEGER, PARAMETER, PUBLIC                 :: ri_mo = 1, ri_pmat = 2
 
    PUBLIC :: create_hfx_section
 
@@ -640,26 +639,19 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="BLOCK_SIZE_RI", &
-                          description="Default block size in the RI dimension of 3-center tensors. "// &
-                          "Smaller blocks lead to more sparsity, but also more overhead in "// &
-                          "GPU tensor contraction.", &
-                          enum_c_vals=s2a("MINIMAL", "DENSE"), &
-                          enum_desc=s2a("The RI block size is set to match MIN_BLOCK_SIZE for maximum sparsity. "// &
-                                        "Ideal for sparse systems with a short range RI_METRIC.", &
-                                        "The RI block sizes are such that AOxAOxRI blocks have the ideal "// &
-                                        "size for GPU tensor contractions. Comes at the cost of sparsity. "// &
-                                        "Better for dense systems and/or diffuse basis sets. "), &
-                          enum_i_vals=(/ri_min_block, ri_dense/), &
-                          default_i_val=ri_min_block)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="MEMORY_CUT", &
                           description="Memory reduction factor. This keyword controls the batching of tensor "// &
                           "contractions into smaller, more manageable chunks. The details vary "// &
                           "depending on the RI_FLAVOR.", &
-                          default_i_val=8)
+                          default_i_val=9)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FLAVOR_SWITCH_MEMORY_CUT", &
+                          description="Memory reduction factor to be applied upon RI_FLAVOR switching "// &
+                          "from MO to RHO. The RHO flavor typically requires more memory, "// &
+                          "and depending on the ressources available, a higher MEMORY_CUT.", &
+                          default_i_val=9)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
