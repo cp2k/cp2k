@@ -25,7 +25,10 @@ MODULE pwdft_environment_types
                               qs_subsys_type
 
 #if defined(__SIRIUS)
-   USE sirius, ONLY: sirius_free_handler
+   USE sirius, ONLY: sirius_free_handler, &
+                     sirius_context_handler, &
+                     sirius_ground_state_handler, &
+                     sirius_kpoint_set_handler
 #endif
 
 #include "./base/base_uses.f90"
@@ -77,9 +80,9 @@ MODULE pwdft_environment_types
       REAL(KIND=dp), DIMENSION(3, 3)                   :: stress
 !     16 different functionals should be enough
       CHARACTER(len=80)                                :: xc_func(16)
-      TYPE(C_PTR)                                      :: sctx = C_NULL_PTR
-      TYPE(C_PTR)                                      :: gs_handler = C_NULL_PTR
-      TYPE(C_PTR)                                      :: ks_handler = C_NULL_PTR
+      TYPE(sirius_context_handler)                     :: sctx
+      TYPE(sirius_ground_state_handler)                :: gs_handler
+      TYPE(sirius_kpoint_set_handler)                  :: ks_handler
    END TYPE pwdft_environment_type
 
 ! **************************************************************************************************
@@ -186,7 +189,9 @@ CONTAINS
       TYPE(pwdft_energy_type), OPTIONAL, POINTER         :: energy
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: forces
       REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL           :: stress
-      TYPE(C_PTR), OPTIONAL                              :: sctx, gs_handler, ks_handler
+      TYPE(sirius_context_handler), OPTIONAL             :: sctx
+      TYPE(sirius_ground_state_handler), OPTIONAL        :: gs_handler
+      TYPE(sirius_kpoint_set_handler), OPTIONAL          :: ks_handler
 
 !   ------------------------------------------------------------------------
 
@@ -246,7 +251,9 @@ CONTAINS
       TYPE(pwdft_energy_type), OPTIONAL, POINTER         :: energy
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: forces
       REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL           :: stress
-      TYPE(C_PTR), OPTIONAL                              :: sctx, gs_handler, ks_handler
+      TYPE(sirius_context_handler), OPTIONAL             :: sctx
+      TYPE(sirius_ground_state_handler), OPTIONAL        :: gs_handler
+      TYPE(sirius_kpoint_set_handler), OPTIONAL          :: ks_handler
 
 !   ------------------------------------------------------------------------
 
@@ -304,9 +311,6 @@ CONTAINS
          NULLIFY (pwdft_env%forces)
       END IF
       pwdft_env%stress = 0.0_dp
-      pwdft_env%sctx = C_NULL_PTR
-      pwdft_env%gs_handler = C_NULL_PTR
-      pwdft_env%ks_handler = C_NULL_PTR
 
    END SUBROUTINE pwdft_env_clear
 
