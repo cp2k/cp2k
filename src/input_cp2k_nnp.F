@@ -91,8 +91,9 @@ CONTAINS
                           repeats=.FALSE., &
                           n_var=1, &
                           type_of_var=real_t, &
-                          default_r_val=0.1_dp, &
-                          usage="K_B 0.1", &
+                          default_r_val=cp_unit_to_cp2k(value=0.1_dp, unit_str="hartree^-1"), &
+                          unit_str="hartree^-1", &
+                          usage="K_B [hartree^-1] 0.1", &
                           citations=(/Schran2020b/))
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
