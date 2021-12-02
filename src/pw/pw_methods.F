@@ -72,6 +72,8 @@ MODULE pw_methods
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_methods'
    LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .FALSE.
+   INTEGER, PARAMETER, PUBLIC  ::  do_accurate_sum = 0,&
+                                   do_standard_sum = 1
 
    INTERFACE pw_gather
       MODULE PROCEDURE pw_gather_s, pw_gather_p
@@ -2073,51 +2075,114 @@ CONTAINS
 !>      JGH (14-Mar-2001) : Parallel sum and some tests, HALFSPACE case
 !> \author apsi
 ! **************************************************************************************************
-   FUNCTION pw_integral_ab(pw1, pw2) RESULT(integral_value)
+   FUNCTION pw_integral_ab(pw1, pw2, sumtype) RESULT(integral_value)
 
       TYPE(pw_type), INTENT(IN)                          :: pw1, pw2
       REAL(KIND=dp)                                      :: integral_value
+      INTEGER, INTENT(IN), OPTIONAL                      :: sumtype
+      INTEGER                                            :: loc_sumtype
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_integral_ab'
 
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
+
+      loc_sumtype = do_accurate_sum
+      IF (PRESENT(sumtype)) loc_sumtype = sumtype
+
       IF (pw1%pw_grid%id_nr /= pw2%pw_grid%id_nr) THEN
          CPABORT("Grids incompatible")
       END IF
 
-      ! since the return value is real, only do accurate sum on the real bit ?
-      IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D) THEN
-         integral_value = SUM(pw1%cr3d(:, :, :) &
-                              *pw2%cr3d(:, :, :))
-      ELSE IF (pw1%in_use == REALDATA3D &
-               .AND. pw2%in_use == COMPLEXDATA3D) THEN
-         integral_value = REAL(SUM(pw1%cr3d(:, :, :) &
-                                   *pw2%cc3d(:, :, :)), KIND=dp) !? complex bit
-      ELSE IF (pw1%in_use == COMPLEXDATA3D &
-               .AND. pw2%in_use == REALDATA3D) THEN
-         integral_value = REAL(SUM(pw1%cc3d(:, :, :) &
-                                   *pw2%cr3d(:, :, :)), KIND=dp) !? complex bit
-      ELSE IF (pw1%in_use == COMPLEXDATA3D &
-               .AND. pw2%in_use == COMPLEXDATA3D) THEN
-         integral_value = REAL(SUM(CONJG(pw1%cc3d(:, :, :)) &
-                                   *pw2%cc3d(:, :, :)), KIND=dp) !? complex bit
+      ! do standard sum
+      IF (loc_sumtype == do_standard_sum) THEN
 
-      ELSE IF (pw1%in_use == REALDATA1D &
-               .AND. pw2%in_use == REALDATA1D) THEN
-         integral_value = SUM(pw1%cr(:)*pw2%cr(:))
-      ELSE IF (pw1%in_use == REALDATA1D &
-               .AND. pw2%in_use == COMPLEXDATA1D) THEN
-         integral_value = REAL(SUM(pw1%cr(:)*pw2%cc(:)), KIND=dp) !? complex bit
-      ELSE IF (pw1%in_use == COMPLEXDATA1D &
-               .AND. pw2%in_use == REALDATA1D) THEN
-         integral_value = REAL(SUM(pw1%cc(:)*pw2%cr(:)), KIND=dp) !? complex bit
-      ELSE IF (pw1%in_use == COMPLEXDATA1D &
-               .AND. pw2%in_use == COMPLEXDATA1D) THEN
-         integral_value = REAL(SUM(CONJG(pw1%cc(:))*pw2%cc(:)), KIND=dp) !? complex bit
+          ! since the return value is real, only do accurate sum on the real bit ?
+          IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D) THEN
+             !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2, integral_value)
+             integral_value = SUM(pw1%cr3d(:, :, :) &
+                                  *pw2%cr3d(:, :, :))
+             !$OMP END PARALLEL WORKSHARE
+          ELSE IF (pw1%in_use == REALDATA3D &
+                   .AND. pw2%in_use == COMPLEXDATA3D) THEN
+             !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2, integral_value)
+             integral_value = REAL(SUM(pw1%cr3d(:, :, :) &
+                                       *pw2%cc3d(:, :, :)), KIND=dp) !? complex bit
+             !$OMP END PARALLEL WORKSHARE
+          ELSE IF (pw1%in_use == COMPLEXDATA3D &
+                   .AND. pw2%in_use == REALDATA3D) THEN
+             !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2, integral_value)
+             integral_value = REAL(SUM(pw1%cc3d(:, :, :) &
+                                       *pw2%cr3d(:, :, :)), KIND=dp) !? complex bit
+             !$OMP END PARALLEL WORKSHARE
+          ELSE IF (pw1%in_use == COMPLEXDATA3D &
+                   .AND. pw2%in_use == COMPLEXDATA3D) THEN
+             !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2, integral_value)
+             integral_value = REAL(SUM(CONJG(pw1%cc3d(:, :, :)) &
+                                       *pw2%cc3d(:, :, :)), KIND=dp) !? complex bit
+             !$OMP END PARALLEL WORKSHARE
+ 
+          ELSE IF (pw1%in_use == REALDATA1D &
+                   .AND. pw2%in_use == REALDATA1D) THEN
+             !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2, integral_value)
+             integral_value = DOT_PRODUCT(pw1%cr(:),pw2%cr(:))
+             !$OMP END PARALLEL WORKSHARE
+          ELSE IF (pw1%in_use == REALDATA1D &
+                   .AND. pw2%in_use == COMPLEXDATA1D) THEN
+             !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2, integral_value)
+             integral_value = REAL(DOT_PRODUCT(pw1%cr(:),pw2%cc(:)), KIND=dp) !? complex bit
+             !$OMP END PARALLEL WORKSHARE
+          ELSE IF (pw1%in_use == COMPLEXDATA1D &
+                   .AND. pw2%in_use == REALDATA1D) THEN
+             !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2, integral_value)
+             integral_value = REAL(DOT_PRODUCT(pw1%cc(:),pw2%cr(:)), KIND=dp) !? complex bit
+             !$OMP END PARALLEL WORKSHARE
+          ELSE IF (pw1%in_use == COMPLEXDATA1D &
+                   .AND. pw2%in_use == COMPLEXDATA1D) THEN
+             !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw1, pw2, integral_value)
+             integral_value = REAL(DOT_PRODUCT(CONJG(pw1%cc(:)),CONJG(pw2%cc(:))), KIND=dp) !? complex bit
+             !$OMP END PARALLEL WORKSHARE
+          ELSE
+             CPABORT("No possible DATA")
+          END IF
+
+      ! do accurate sum
       ELSE
-         CPABORT("No possible DATA")
+                  
+          ! since the return value is real, only do accurate sum on the real bit ?
+          IF (pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D) THEN
+             integral_value = accurate_sum(pw1%cr3d(:, :, :) &
+                                           *pw2%cr3d(:, :, :))
+          ELSE IF (pw1%in_use == REALDATA3D &
+                   .AND. pw2%in_use == COMPLEXDATA3D) THEN
+             integral_value = REAL(accurate_sum(pw1%cr3d(:, :, :) &
+                                                *pw2%cc3d(:, :, :)), KIND=dp) !? complex bit
+          ELSE IF (pw1%in_use == COMPLEXDATA3D &
+                   .AND. pw2%in_use == REALDATA3D) THEN
+             integral_value = REAL(accurate_sum(pw1%cc3d(:, :, :) &
+                                                *pw2%cr3d(:, :, :)), KIND=dp) !? complex bit
+          ELSE IF (pw1%in_use == COMPLEXDATA3D &
+                   .AND. pw2%in_use == COMPLEXDATA3D) THEN
+             integral_value = REAL(accurate_sum(CONJG(pw1%cc3d(:, :, :)) &
+                                                *pw2%cc3d(:, :, :)), KIND=dp) !? complex bit
+ 
+          ELSE IF (pw1%in_use == REALDATA1D &
+                   .AND. pw2%in_use == REALDATA1D) THEN
+             integral_value = accurate_sum(pw1%cr(:)*pw2%cr(:))
+          ELSE IF (pw1%in_use == REALDATA1D &
+                   .AND. pw2%in_use == COMPLEXDATA1D) THEN
+             integral_value = REAL(accurate_sum(pw1%cr(:)*pw2%cc(:)), KIND=dp) !? complex bit
+          ELSE IF (pw1%in_use == COMPLEXDATA1D &
+                   .AND. pw2%in_use == REALDATA1D) THEN
+             integral_value = REAL(accurate_sum(pw1%cc(:)*pw2%cr(:)), KIND=dp) !? complex bit
+          ELSE IF (pw1%in_use == COMPLEXDATA1D &
+                   .AND. pw2%in_use == COMPLEXDATA1D) THEN
+             integral_value = REAL(accurate_sum(CONJG(pw1%cc(:))*pw2%cc(:)), KIND=dp) !? complex bit
+          ELSE
+             CPABORT("No possible DATA")
+          END IF
+
       END IF
 
       IF (pw1%in_use == REALDATA3D .OR. pw1%in_use == COMPLEXDATA3D) THEN

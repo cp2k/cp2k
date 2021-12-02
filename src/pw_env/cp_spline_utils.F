@@ -16,7 +16,9 @@ MODULE cp_spline_utils
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE pw_methods,                      ONLY: pw_axpy,&
-                                              pw_zero
+                                              pw_zero,&
+                                              do_standard_sum,&
+                                              do_accurate_sum
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
@@ -125,11 +127,11 @@ CONTAINS
       IF (pbc) THEN
          success = find_coeffs(values=values, coeffs=coeffs, &
                                linOp=spl3_pbc, preconditioner=precond, pool=coarse_pool, &
-                               eps_r=eps_r, eps_x=eps_x, max_iter=max_iter)
+                               eps_r=eps_r, eps_x=eps_x, max_iter=max_iter, sumtype=do_standard_sum)
       ELSE
          success = find_coeffs(values=values, coeffs=coeffs, &
                                linOp=spl3_nopbct, preconditioner=precond, pool=coarse_pool, &
-                               eps_r=eps_r, eps_x=eps_x, max_iter=max_iter)
+                               eps_r=eps_r, eps_x=eps_x, max_iter=max_iter, sumtype=do_standard_sum)
       END IF
       CALL pw_spline_precond_release(precond)
 
@@ -200,12 +202,12 @@ CONTAINS
          success = find_coeffs(values=pw_coarse_in, coeffs=coeffs, &
                                linOp=spl3_pbc, preconditioner=precond, pool=coarse_pool, &
                                eps_r=eps_r, eps_x=eps_x, &
-                               max_iter=max_iter)
+                               max_iter=max_iter, sumtype=do_standard_sum)
       ELSE
          success = find_coeffs(values=pw_coarse_in, coeffs=coeffs, &
                                linOp=spl3_nopbc, preconditioner=precond, pool=coarse_pool, &
                                eps_r=eps_r, eps_x=eps_x, &
-                               max_iter=max_iter)
+                               max_iter=max_iter, sumtype=do_standard_sum)
       END IF
       CPASSERT(success)
       CALL pw_spline_precond_release(precond)
