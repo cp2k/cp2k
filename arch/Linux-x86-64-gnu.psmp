@@ -1,0 +1,316 @@
+#!/bin/bash
+#
+# CP2K arch file for Merlin (PSI)
+#
+# Tested with: GNU 10.3.0, MPICH 3.3.2, ScaLAPACK 3f898b5, OpenBLAS 0.3.18,
+#              FFTW 3.3.10, LIBINT 2.6.0, LIBXC 5.1.7, ELPA 2021.05.002,
+#              PLUMED 2.7.2, SPGLIB 1.16.2, LIBVORI 210412, GSL 2.7,
+#              SIRIUS 7.2.7, COSMA 2.5.1
+#
+# Usage: Source this arch file and then run make as instructed
+#
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, December 2021)
+#
+# \
+   if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
+   echo "ERROR: Script ${0##*/} must be sourced"; \
+   echo "Usage: source ${0##*/}"; \
+   exit 1; \
+   fi; \
+   this_file=${BASH_SOURCE##*/}; \
+   module add gcc/10.3.0; \
+   module add mpich/3.3.2; \
+   echo "Expected setup:"; \
+   echo "  gcc/10.3.0"; \
+   echo "  mpich/3.3.2"; \
+   module list; \
+   echo "Check the output above for error messages and consistency!"; \
+   echo "If everything is OK, you can build a CP2K production binary with"; \
+   echo "   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.}"; \
+   echo "Alternatively, you can add further checks, e.g. for regression testing, with"; \
+   echo "   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.} DO_CHECKS=yes"; \
+   echo "or build CP2K only with shared libraries using"; \
+   echo "   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.} SHARED=yes"; \
+   echo "or build CP2K as a library with"; \
+   echo "   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.} libcp2k"; \
+   return
+
+# Set options (leave option blank or comment line to disable)
+DO_CHECKS      := no
+SHARED         := no
+GNU_VERSION    := 10.3.0
+MPI_VERSION    := 3.3.2
+USE_COSMA      := 2.5.1
+USE_ELPA       := 2021.05.002
+USE_FFTW       := 3.3.10
+USE_LIBINT     := 2.6.0
+USE_LIBVORI    := 210412
+USE_LIBXC      := 5.1.7
+USE_LIBXSMM    := 1.16.2
+USE_OPENBLAS   := 0.3.18
+USE_PLUMED     := 2.7.2
+USE_SIRIUS     := 7.2.7
+USE_SPGLIB     := 1.16.2
+SPFFT_VER      := 1.0.4
+SPLA_VER       := 1.5.1
+HDF5_VER       := 1.12.0
+LMAX           := 6
+
+CC             := mpicc
+FC             := mpif90
+LD             := mpif90
+AR             := ar -r
+
+CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g
+
+DFLAGS         := -D__parallel
+DFLAGS         += -D__SCALAPACK
+DFLAGS         += -D__HAS_IEEE_EXCEPTIONS
+DFLAGS         += -D__MPI_VERSION=3
+DFLAGS         += -D__MAX_CONTR=4
+
+GNU_PATH       := /data/user/krack/gnu/$(GNU_VERSION)
+MPI_PATH       := $(GNU_PATH)/mpich/$(MPI_VERSION)
+
+ifeq ($(SHARED), yes)
+   CFLAGS         += -fPIC
+   LD_SHARED      := $(FC) -shared
+else
+   LDFLAGS        := -static-libgfortran -static-libstdc++ -static-libgcc
+endif
+
+# Settings for regression testing
+ifeq ($(DO_CHECKS), yes)
+   LMAX           := 4
+   DFLAGS         += -D__CHECK_DIAG
+   FCFLAGS_DEBUG  := -fcheck=bounds,do,recursion,pointer
+   FCFLAGS_DEBUG  += -fcheck=all,no-array-temps
+   FCFLAGS_DEBUG  += -ffpe-trap=invalid,overflow,zero
+   FCFLAGS_DEBUG  += -fimplicit-none
+   FCFLAGS_DEBUG  += -finit-derived
+   FCFLAGS_DEBUG  += -finit-real=snan
+   FCFLAGS_DEBUG  += -finit-integer=-42
+   FCFLAGS_DEBUG  += -finline-matmul-limit=0
+   LDFLAGS        := -fsanitize=leak
+   WFLAGS         := -Werror=aliasing
+   WFLAGS         += -Werror=ampersand
+   WFLAGS         += -Werror=c-binding-type
+   WFLAGS         += -Werror=conversion
+   WFLAGS         += -Werror=intrinsic-shadow
+   WFLAGS         += -Werror=intrinsics-std
+   WFLAGS         += -Werror=line-truncation
+   WFLAGS         += -Wrealloc-lhs
+   WFLAGS         += -Werror=tabs
+   WFLAGS         += -Werror=target-lifetime
+   WFLAGS         += -Werror=underflow
+   WFLAGS         += -Werror=unused-but-set-variable
+   WFLAGS         += -Werror=unused-dummy-argument
+   WFLAGS         += -Werror=unused-variable
+endif
+
+ifneq ($(USE_PLUMED),)
+   USE_PLUMED     := $(strip $(USE_PLUMED))
+   PLUMED_LIB     := $(MPI_PATH)/plumed2/$(USE_PLUMED)/lib
+   DFLAGS         += -D__PLUMED2
+   USE_GSL        := 2.7
+   USE_LIBZ       := yes
+   ifeq ($(SHARED), yes)
+      LIBS           += -Wl,-rpath=$(PLUMED_LIB) -L$(PLUMED_LIB) -lplumed -lplumedKernel
+   else
+      LIBS           += $(MPI_PATH)/plumed2/$(USE_PLUMED)/lib/libplumed.a
+   endif
+endif
+
+ifneq ($(USE_ELPA),)
+   USE_ELPA       := $(strip $(USE_ELPA))
+   ELPA_INC       := $(MPI_PATH)/elpa/$(USE_ELPA)/include/elpa_openmp-$(USE_ELPA)
+   ELPA_LIB       := $(MPI_PATH)/elpa/$(USE_ELPA)/lib
+   CFLAGS         += -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules
+   DFLAGS         += -D__ELPA
+   ifeq ($(SHARED), yes)
+      LIBS           += -Wl,-rpath=$(ELPA_LIB) -L$(ELPA_LIB) -lelpa_openmp
+   else
+      LIBS           += $(ELPA_LIB)/libelpa_openmp.a
+   endif
+endif
+
+ifneq ($(USE_LIBVORI),)
+   USE_LIBVORI    := $(strip $(USE_LIBVORI))
+   LIBVORI_LIB    := $(GNU_PATH)/libvori/$(USE_LIBVORI)/lib
+   DFLAGS         += -D__LIBVORI
+   ifeq ($(SHARED), yes)
+      LIBS           += -Wl,-rpath=$(LIBVORI_LIB) -L$(LIBVORI_LIB) -lvori
+   else
+      LIBS           += $(LIBVORI_LIB)/libvori.a
+   endif
+endif
+
+ifneq ($(USE_LIBXC),)
+   USE_LIBXC      := $(strip $(USE_LIBXC))
+   LIBXC_INC      := $(GNU_PATH)/libxc/$(USE_LIBXC)/include
+   LIBXC_LIB      := $(GNU_PATH)/libxc/$(USE_LIBXC)/lib
+   CFLAGS         += -I$(LIBXC_INC)
+   DFLAGS         += -D__LIBXC
+   ifeq ($(SHARED), yes)
+      LIBS           += -Wl,-rpath=$(LIBXC_LIB) -L$(LIBXC_LIB) -lxcf03 -lxc
+   else
+      LIBS           += $(LIBXC_LIB)/libxcf03.a
+      LIBS           += $(LIBXC_LIB)/libxc.a
+   endif
+endif
+
+ifneq ($(USE_LIBINT),)
+   USE_LIBINT     := $(strip $(USE_LIBINT))
+   LMAX           := $(strip $(LMAX))
+   LIBINT_INC     := $(GNU_PATH)/libint/$(USE_LIBINT)-lmax-$(LMAX)/include
+   LIBINT_LIB     := $(GNU_PATH)/libint/$(USE_LIBINT)-lmax-$(LMAX)/lib
+   CFLAGS         += -I$(LIBINT_INC)
+   DFLAGS         += -D__LIBINT
+   ifeq ($(SHARED), yes)
+      LIBS           += -Wl,-rpath=$(LIBINT_LIB) -L$(LIBINT_LIB) -lint2
+   else
+      LIBS           += $(LIBINT_LIB)/libint2.a
+      LIBS           += $(LIBINT_LIB)/libint2.a
+   endif
+endif
+
+ifneq ($(USE_SPGLIB),)
+   USE_SPGLIB     := $(strip $(USE_SPGLIB))
+   SPGLIB_INC     := $(GNU_PATH)/spglib/$(USE_SPGLIB)/include
+   SPGLIB_LIB     := $(GNU_PATH)/spglib/$(USE_SPGLIB)/lib
+   CFLAGS         += -I$(SPGLIB_INC)
+   DFLAGS         += -D__SPGLIB
+   ifeq ($(SHARED), yes)
+      LIBS           += -Wl,-rpath=$(SPGLIB_LIB) -L$(SPGLIB_LIB) -lsymspg
+   else
+      LIBS           += $(SPGLIB_LIB)/libsymspg.a
+   endif
+endif
+
+ifneq ($(USE_LIBXSMM),)
+   USE_LIBXSMM    := $(strip $(USE_LIBXSMM))
+   LIBXSMM_INC    := $(GNU_PATH)/libxsmm/$(USE_LIBXSMM)/include
+   LIBXSMM_LIB    := $(GNU_PATH)/libxsmm/$(USE_LIBXSMM)/lib
+   CFLAGS         += -I$(LIBXSMM_INC)
+   DFLAGS         += -D__LIBXSMM
+   ifeq ($(SHARED), yes)
+      LIBS           += -Wl,-rpath=$(LIBXSMM_LIB) -L$(LIBXSMM_LIB) -lxsmmf -lxsmm
+   else
+      LIBS           += $(LIBXSMM_LIB)/libxsmmf.a
+      LIBS           += $(LIBXSMM_LIB)/libxsmm.a
+   endif
+endif
+
+ifneq ($(USE_SIRIUS),)
+   USE_SIRIUS     := $(strip $(USE_SIRIUS))
+   SIRIUS_INC     := $(GNU_PATH)/sirius/$(USE_SIRIUS)/include
+   SIRIUS_LIB     := $(GNU_PATH)/sirius/$(USE_SIRIUS)/lib
+   SPFFT_LIB      := $(GNU_PATH)/SpFFT/$(SPFFT_VER)/lib
+   SPLA_LIB       := $(GNU_PATH)/SpLA/$(SPLA_VER)/lib
+   HDF5_LIB       := $(GNU_PATH)/hdf5/$(HDF5_VER)/lib
+   CFLAGS         += -I$(SIRIUS_INC)
+   DFLAGS         += -D__SIRIUS
+   ifeq ($(SHARED), yes)
+      LIBS           += -Wl,-rpath=$(SIRIUS_LIB) -L$(SIRIUS_LIB) -lsirius
+      LIBS           += -Wl,-rpath=$(SPFFT_LIB) -L$(SPFFT_LIB) -lspfft
+      LIBS           += -Wl,-rpath=$(SPLA_LIB) -L$(SPLA_LIB) -lspla
+      LIBS           += -Wl,-rpath=$(HDF5_LIB) -L$(HDF5_LIB) -lhdf5
+   else
+      LIBS           += $(SIRIUS_LIB)/libsirius.a
+      LIBS           += $(SPFFT_LIB)/libspfft.a
+      LIBS           += $(SPLA_LIB)/libspla.a
+      LIBS           += $(HDF5_LIB)/libhdf5.a
+   endif
+endif
+
+ifneq ($(USE_COSMA),)
+   USE_COSMA      := $(strip $(USE_COSMA))
+   COSMA_INC      := $(GNU_PATH)/COSMA/$(USE_COSMA)/include
+   COSMA_LIB      := $(GNU_PATH)/COSMA/$(USE_COSMA)/lib
+   CFLAGS         += -I$(COSMA_INC)
+   DFLAGS         += -D__COSMA
+   ifeq ($(SHARED), yes)
+      LIBS           += -Wl,-rpath=$(COSMA_LIB) -L$(COSMA_LIB) -lcosma_prefixed_pxgemm -lcosma -lcosta_prefixed_scalapack -lcosta
+   else
+      LIBS           += $(COSMA_LIB)/libcosma_prefixed_pxgemm.a
+      LIBS           += $(COSMA_LIB)/libcosma.a
+      LIBS           += $(COSMA_LIB)/libcosta_prefixed_scalapack.a
+      LIBS           += $(COSMA_LIB)/libcosta.a
+   endif
+endif
+
+ifneq ($(USE_FFTW),)
+   USE_FFTW       := $(strip $(USE_FFTW))
+   FFTW_INC       := $(GNU_PATH)/fftw/$(USE_FFTW)/include
+   FFTW_LIB       := $(GNU_PATH)/fftw/$(USE_FFTW)/lib
+   CFLAGS         += -I$(FFTW_INC)
+   DFLAGS         += -D__FFTW3
+   ifeq ($(SHARED), yes)
+      LIBS           += -Wl,-rpath=$(FFTW_LIB) -L$(FFTW_LIB) -lfftw3_omp -lfftw3
+   else
+      LIBS           += $(FFTW_LIB)/libfftw3_omp.a
+      LIBS           += $(FFTW_LIB)/libfftw3.a
+   endif
+endif
+
+SCALAPACK_LIB  := $(MPI_PATH)/lib
+ifeq ($(SHARED), yes)
+   LIBS           += -Wl,-rpath=$(SCALAPACK_LIB) -L$(SCALAPACK_LIB) -lscalapack
+else
+   LIBS           += $(SCALAPACK_LIB)/libscalapack.a
+endif
+
+ifneq ($(USE_OPENBLAS),)
+   USE_OPENBLAS   := $(strip $(USE_OPENBLAS))
+   OPENBLAS_INC   := $(GNU_PATH)/OpenBLAS/$(USE_OPENBLAS)/include
+   OPENBLAS_LIB   := $(GNU_PATH)/OpenBLAS/$(USE_OPENBLAS)/lib
+   CFLAGS         += -I$(OPENBLAS_INC)
+   ifeq ($(SHARED), yes)
+      LIBS           += -Wl,-rpath=$(OPENBLAS_LIB) -L$(OPENBLAS_LIB) -lopenblas
+   else
+      LIBS           += $(OPENBLAS_LIB)/libopenblas.a
+   endif
+endif
+
+ifneq ($(USE_GSL),)
+   USE_GSL        := $(strip $(USE_GSL))
+   GSL_INC        := $(GNU_PATH)/gsl/$(USE_GSL)/include
+   GSL_LIB        := $(GNU_PATH)/gsl/$(USE_GSL)/lib
+   CFLAGS         += -I$(GSL_INC)
+   DFLAGS         += -D__GSL
+   ifeq ($(SHARED), yes)
+      LIBS           += -Wl,-rpath=$(GSL_LIB) -L$(GSL_LIB) -lgsl
+   else
+      LIBS           += $(GSL_LIB)/libgsl.a
+   endif
+endif
+
+ifeq ($(USE_LIBZ), yes)
+   Z_LIB    := $(GNU_PATH)/lib
+   ifeq ($(SHARED), yes)
+      LIBS           += -Wl,-rpath=$(Z_LIB) -L$(Z_LIB) -lz
+   else
+      LIBS           += $(Z_LIB)/libz.a
+   endif
+endif
+
+ifeq ($(SHARED), yes)
+   DBCSR_LIB      := $(PWD)/lib/$(ARCH)/$(ONEVERSION)/exts/dbcsr
+   LIBS           += -Wl,-rpath=$(DBCSR_LIB)
+endif
+
+LIBS           += -ldl -lstdc++
+
+CFLAGS         += $(DFLAGS)
+
+FCFLAGS        := $(CFLAGS) $(FCFLAGS_DEBUG) $(WFLAGS)
+FCFLAGS        += -fallow-argument-mismatch
+FCFLAGS        += -fbacktrace
+FCFLAGS        += -ffree-form
+FCFLAGS        += -ffree-line-length-none
+FCFLAGS        += -fno-omit-frame-pointer
+FCFLAGS        += -std=f2008
+
+LDFLAGS        += $(FCFLAGS)
+
+# End
