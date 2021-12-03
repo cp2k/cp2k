@@ -107,7 +107,9 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: dft_section
       TYPE(section_vals_type), OPTIONAL, POINTER         :: ec_section
 
-      INTEGER                                            :: ikind, maxlgto, nkind, unit_nr
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_ec_env', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, ikind, maxlgto, nkind, unit_nr
       LOGICAL                                            :: explicit
       REAL(KIND=dp)                                      :: eps_pgf_orb
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -120,6 +122,8 @@ CONTAINS
       TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(section_vals_type), POINTER                   :: nl_section, pp_section, section1, &
                                                             section2, xc_section
+
+      CALL timeset(routineN, handle)
 
       NULLIFY (atomic_kind_set, dispersion_env, ec_env%ls_env, para_env)
       NULLIFY (ec_env%sab_orb, ec_env%sac_ppl, ec_env%sap_ppnl)
@@ -140,6 +144,7 @@ CONTAINS
       NULLIFY (ec_env%vxc_rspace)
       NULLIFY (ec_env%vtau_rspace)
       NULLIFY (ec_env%vadmm_rspace)
+      NULLIFY (ec_env%rhoout_r, ec_env%rhoz_r)
       ec_env%should_update = .TRUE.
       ec_env%mao = .FALSE.
 
@@ -287,6 +292,8 @@ CONTAINS
          END IF
 
       END IF
+
+      CALL timestop(handle)
 
    END SUBROUTINE init_ec_env
 

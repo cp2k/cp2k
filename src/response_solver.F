@@ -80,6 +80,7 @@ MODULE response_solver
                                               pw_env_type
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_methods,                      ONLY: pw_axpy,&
+                                              pw_copy,&
                                               pw_integral_ab,&
                                               pw_scale,&
                                               pw_transfer,&
@@ -785,18 +786,20 @@ CONTAINS
 !> \param matrix_wz Energy-weighted linear response density
 !> \param zehartree Hartree volume response contribution to stress tensor
 !> \param zexc XC volume response contribution to stress tensor
+!> \param rhopz_r Response density on real space grid
 !> \param p_env ...
 !> \param ex_env ...
 ! **************************************************************************************************
    SUBROUTINE response_force(qs_env, vh_rspace, vxc_rspace, vtau_rspace, vadmm_rspace, &
                              matrix_hz, matrix_pz, matrix_pz_admm, matrix_wz, &
-                             zehartree, zexc, p_env, ex_env)
+                             zehartree, zexc, rhopz_r, p_env, ex_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_p_type), POINTER                           :: vh_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rspace, vtau_rspace, vadmm_rspace
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hz, matrix_pz, matrix_pz_admm, &
                                                             matrix_wz
       REAL(KIND=dp), OPTIONAL                            :: zehartree, zexc
+      TYPE(pw_p_type), DIMENSION(:), OPTIONAL, POINTER   :: rhopz_r
       TYPE(qs_p_env_type), OPTIONAL, POINTER             :: p_env
       TYPE(excited_energy_type), OPTIONAL, POINTER       :: ex_env
 
@@ -1198,6 +1201,13 @@ CONTAINS
                                  total_rho=total_rhoz)
          CALL pw_axpy(rhoz_g(ispin)%pw, rhoz_tot_gspace%pw)
       END DO
+
+      ! Save response density on real space grid for properties
+      IF (PRESENT(rhopz_r)) THEN
+         DO ispin = 1, nspins
+            CALL pw_copy(rhoz_r(ispin)%pw, rhopz_r(ispin)%pw)
+         END DO
+      END IF
 
       ! Stress-tensor contribution second derivative
       ! Volume : int v_H[n^z]*n_in

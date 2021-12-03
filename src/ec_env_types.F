@@ -83,6 +83,7 @@ MODULE ec_env_types
       TYPE(qs_dispersion_type), POINTER                :: dispersion_env
       ! matrices in complete basis
       ! KS: Kohn-Sham; H: Core; S: overlap; T: kinetic energy;
+      ! P: Harris density, W: Harris energy weighted density
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER     :: matrix_ks, &
                                                           matrix_h, &
                                                           matrix_s, &
@@ -95,6 +96,8 @@ MODULE ec_env_types
       TYPE(qs_p_env_type), POINTER                     :: p_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER        :: cpmos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: matrix_hz, matrix_z, matrix_wz, z_admm
+      ! Harris (rhoout), and response density (rhoz) on grid
+      TYPE(pw_p_type), DIMENSION(:), POINTER           :: rhoout_r, rhoz_r
       ! potentials from input density
       TYPE(pw_p_type), POINTER                         :: vh_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER           :: vxc_rspace, vtau_rspace, vadmm_rspace

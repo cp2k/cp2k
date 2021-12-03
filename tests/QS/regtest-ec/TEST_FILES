@@ -13,6 +13,8 @@ H2_H2O_ecprim.inp                                     11      1e-10             
 2H2O_ecmao2.inp                                       11      1e-08                 -34.4437114917
 # ENERGY : LS + KG embed + Harris (Diag) dipole 
 HF_ec_dipole.inp                                      11      1e-08                 -24.8917060368
+# ENERGY : LS + KG embed + Harris (Diag) dipole 
+HF_ec_voronoi.inp                                     11      1e-08                 -24.8917060368
 # ENERGY : LS + KG embed + Harris (Diag) efield 
 HF_ec_field.inp                                       11      1e-08                 -24.8908706031
 # ENERGY: Test Harris functional solvers 

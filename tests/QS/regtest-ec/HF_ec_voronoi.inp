@@ -1,10 +1,6 @@
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    &EFIELD
-       INTENSITY    0.001
-       POLARISATION 0.0 0.0 1.0
-    &END
     BASIS_SET_FILE_NAME BASIS_SET
     POTENTIAL_FILE_NAME GTH_POTENTIALS
     &MGRID
@@ -26,6 +22,11 @@
         &MOMENTS ON
            PERIODIC .FALSE.
            REFERENCE COM
+        &END
+        &VORONOI
+          SANITY_CHECK T
+          VERBOSE T
+          REFINEMENT_FACTOR 1
         &END
       &END
     &END ENERGY_CORRECTION
