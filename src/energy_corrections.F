@@ -118,12 +118,14 @@ MODULE energy_corrections
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
+                                              pw_pool_p_type,&
                                               pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type
+                                              pw_p_type,&
+                                              pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                               calculate_ptrace
@@ -178,6 +180,7 @@ MODULE energy_corrections
                                               virial_create,&
                                               virial_release,&
                                               virial_type
+   USE voronoi_interface,               ONLY: entry_voronoi_or_bqb
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -351,7 +354,11 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calculate_forces
       INTEGER, INTENT(IN)                                :: unit_nr
 
+      INTEGER                                            :: ispin, nspins
       REAL(KIND=dp)                                      :: exc
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
 
       IF (ec_env%should_update) THEN
          CALL ec_build_neighborlist(qs_env, ec_env)
@@ -385,6 +392,19 @@ CONTAINS
 
          CALL response_calculation(qs_env, ec_env)
 
+         ! Allocate response density on real space grid for use in properties
+         ! Calculated in response_force
+         CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, pw_env=pw_env)
+         nspins = dft_control%nspins
+         CPASSERT(ASSOCIATED(pw_env))
+         CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+         ALLOCATE (ec_env%rhoz_r(nspins))
+         DO ispin = 1, nspins
+            NULLIFY (ec_env%rhoz_r(nspins)%pw)
+            CALL pw_pool_create_pw(auxbas_pw_pool, ec_env%rhoz_r(ispin)%pw, &
+                                   use_data=REALDATA3D, in_space=REALSPACE)
+         END DO
+
          CALL response_force(qs_env, &
                              vh_rspace=ec_env%vh_rspace, &
                              vxc_rspace=ec_env%vxc_rspace, &
@@ -394,11 +414,19 @@ CONTAINS
                              matrix_pz=ec_env%matrix_z, &
                              matrix_pz_admm=ec_env%z_admm, &
                              matrix_wz=ec_env%matrix_wz, &
+                             rhopz_r=ec_env%rhoz_r, &
                              zehartree=ec_env%ehartree, &
                              p_env=ec_env%p_env, &
                              zexc=ec_env%exc)
 
          CALL ec_properties(qs_env, ec_env)
+
+         ! Deallocate Harris density and response density on grid
+         DO ispin = 1, nspins
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, ec_env%rhoout_r(ispin)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, ec_env%rhoz_r(ispin)%pw)
+         END DO
+         DEALLOCATE (ec_env%rhoout_r, ec_env%rhoz_r)
 
          ! Deallocate matrices
          IF (ASSOCIATED(ec_env%matrix_ks)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_ks)
@@ -1014,6 +1042,15 @@ CONTAINS
                                  total_rho=total_rhoout, &
                                  basis_type="HARRIS", &
                                  task_list_external=ec_env%task_list)
+      END DO
+
+      ! Save Harris on real space grid for use in properties
+      ALLOCATE (ec_env%rhoout_r(nspins))
+      DO ispin = 1, nspins
+         NULLIFY (ec_env%rhoout_r(ispin)%pw)
+         CALL pw_pool_create_pw(auxbas_pw_pool, ec_env%rhoout_r(ispin)%pw, &
+                                use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_copy(rhoout_r(ispin)%pw, ec_env%rhoout_r(ispin)%pw)
       END DO
 
       IF (use_virial) THEN
@@ -1985,12 +2022,12 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ec_properties'
 
       CHARACTER(LEN=8), DIMENSION(3)                     :: rlab
-      CHARACTER(LEN=default_path_length)                 :: filename
+      CHARACTER(LEN=default_path_length)                 :: filename, my_pos_voro
       CHARACTER(LEN=default_string_length)               :: description
-      INTEGER                                            :: akind, handle, i, ia, iatom, idir, &
-                                                            ikind, iounit, ispin, maxmom, nspins, &
-                                                            reference, unit_nr
-      LOGICAL                                            :: magnetic, periodic
+      INTEGER :: akind, handle, i, ia, iatom, idir, ikind, iounit, ispin, maxmom, nspins, &
+         reference, should_print_bqb, should_print_voro, unit_nr, unit_nr_voro
+      LOGICAL                                            :: append_voro, magnetic, periodic, &
+                                                            voro_print_txt
       REAL(KIND=dp)                                      :: charge, dd, focc, tmp
       REAL(KIND=dp), DIMENSION(3)                        :: cdip, pdip, rcc, rdip, ria, tdip
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
@@ -2000,10 +2037,17 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_result_type), POINTER                      :: results
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, moments
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_p_type)                                    :: rho_elec_rspace
+      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), POINTER                             :: mb_rho
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(section_vals_type), POINTER                   :: print_key
+      TYPE(section_vals_type), POINTER                   :: ec_section, print_key, print_key_bqb, &
+                                                            print_key_voro
 
       CALL timeset(routineN, handle)
 
@@ -2018,23 +2062,27 @@ CONTAINS
          iounit = -1
       END IF
 
-      print_key => section_vals_get_subs_vals(section_vals=qs_env%input, &
-                                              subsection_name="DFT%PRINT%MOMENTS")
+      NULLIFY (dft_control)
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+
+      ec_section => section_vals_get_subs_vals(qs_env%input, "DFT%ENERGY_CORRECTION")
+      print_key => section_vals_get_subs_vals(section_vals=ec_section, &
+                                              subsection_name="PRINT%MOMENTS")
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
 
-         maxmom = section_get_ival(section_vals=qs_env%input, &
-                                   keyword_name="DFT%PRINT%MOMENTS%MAX_MOMENT")
-         periodic = section_get_lval(section_vals=qs_env%input, &
-                                     keyword_name="DFT%PRINT%MOMENTS%PERIODIC")
-         reference = section_get_ival(section_vals=qs_env%input, &
-                                      keyword_name="DFT%PRINT%MOMENTS%REFERENCE")
-         magnetic = section_get_lval(section_vals=qs_env%input, &
-                                     keyword_name="DFT%PRINT%MOMENTS%MAGNETIC")
+         maxmom = section_get_ival(section_vals=ec_section, &
+                                   keyword_name="PRINT%MOMENTS%MAX_MOMENT")
+         periodic = section_get_lval(section_vals=ec_section, &
+                                     keyword_name="PRINT%MOMENTS%PERIODIC")
+         reference = section_get_ival(section_vals=ec_section, &
+                                      keyword_name="PRINT%MOMENTS%REFERENCE")
+         magnetic = section_get_lval(section_vals=ec_section, &
+                                     keyword_name="PRINT%MOMENTS%MAGNETIC")
          NULLIFY (ref_point)
-         CALL section_vals_val_get(qs_env%input, "DFT%PRINT%MOMENTS%REF_POINT", r_vals=ref_point)
-         unit_nr = cp_print_key_unit_nr(logger=logger, basis_section=qs_env%input, &
-                                        print_key_path="DFT%PRINT%MOMENTS", extension=".dat", &
+         CALL section_vals_val_get(ec_section, "PRINT%MOMENTS%REF_POINT", r_vals=ref_point)
+         unit_nr = cp_print_key_unit_nr(logger=logger, basis_section=ec_section, &
+                                        print_key_path="PRINT%MOMENTS", extension=".dat", &
                                         middle_name="moments", log_filename=.FALSE.)
 
          IF (iounit > 0) THEN
@@ -2122,11 +2170,83 @@ CONTAINS
          END IF
 
          CALL cp_print_key_finished_output(unit_nr=unit_nr, logger=logger, &
-                                           basis_section=qs_env%input, print_key_path="DFT%PRINT%MOMENTS")
+                                           basis_section=ec_section, print_key_path="PRINT%MOMENTS")
          CALL get_qs_env(qs_env=qs_env, results=results)
          description = "[DIPOLE]"
          CALL cp_results_erase(results=results, description=description)
          CALL put_results(results=results, description=description, values=tdip(1:3))
+      END IF
+
+      ! Do a Voronoi Integration or write a compressed BQB File
+      print_key_voro => section_vals_get_subs_vals(ec_section, "PRINT%VORONOI")
+      print_key_bqb => section_vals_get_subs_vals(ec_section, "PRINT%E_DENSITY_BQB")
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key_voro), cp_p_file)) THEN
+         should_print_voro = 1
+      ELSE
+         should_print_voro = 0
+      END IF
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key_bqb), cp_p_file)) THEN
+         should_print_bqb = 1
+      ELSE
+         should_print_bqb = 0
+      END IF
+      IF ((should_print_voro /= 0) .OR. (should_print_bqb /= 0)) THEN
+
+         CALL get_qs_env(qs_env=qs_env, &
+                         pw_env=pw_env)
+         CALL pw_env_get(pw_env=pw_env, &
+                         auxbas_pw_pool=auxbas_pw_pool, &
+                         pw_pools=pw_pools)
+         CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
+                                pw=rho_elec_rspace%pw, &
+                                use_data=REALDATA3D, &
+                                in_space=REALSPACE)
+
+         IF (dft_control%nspins > 1) THEN
+
+            ! add Pout and Pz
+            CALL pw_copy(ec_env%rhoout_r(1)%pw, rho_elec_rspace%pw)
+            CALL pw_axpy(ec_env%rhoout_r(2)%pw, rho_elec_rspace%pw)
+
+            CALL pw_axpy(ec_env%rhoz_r(1)%pw, rho_elec_rspace%pw)
+            CALL pw_axpy(ec_env%rhoz_r(2)%pw, rho_elec_rspace%pw)
+
+            mb_rho => rho_elec_rspace%pw
+         ELSE
+
+            ! add Pout and Pz
+            CALL pw_copy(ec_env%rhoout_r(1)%pw, rho_elec_rspace%pw)
+            CALL pw_axpy(ec_env%rhoz_r(1)%pw, rho_elec_rspace%pw)
+
+            mb_rho => rho_elec_rspace%pw
+         END IF ! nspins
+
+         IF (should_print_voro /= 0) THEN
+            CALL section_vals_val_get(print_key_voro, "OUTPUT_TEXT", l_val=voro_print_txt)
+            IF (voro_print_txt) THEN
+               append_voro = section_get_lval(ec_section, "PRINT%VORONOI%APPEND")
+               my_pos_voro = "REWIND"
+               IF (append_voro) THEN
+                  my_pos_voro = "APPEND"
+               END IF
+               unit_nr_voro = cp_print_key_unit_nr(logger, ec_section, "PRINT%VORONOI", extension=".voronoi", &
+                                                   file_position=my_pos_voro, log_filename=.FALSE.)
+            ELSE
+               unit_nr_voro = 0
+            END IF
+         ELSE
+            unit_nr_voro = 0
+         END IF
+
+         CALL entry_voronoi_or_bqb(should_print_voro, should_print_bqb, print_key_voro, print_key_bqb, &
+                                   unit_nr_voro, qs_env, mb_rho)
+
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_elec_rspace%pw)
+
+         IF (unit_nr_voro > 0) THEN
+            CALL cp_print_key_finished_output(unit_nr_voro, logger, ec_section, "PRINT%VORONOI")
+         END IF
+
       END IF
 
       CALL timestop(handle)

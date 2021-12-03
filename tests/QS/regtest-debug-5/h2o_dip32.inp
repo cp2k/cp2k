@@ -19,6 +19,12 @@
            &END
         &END
       &END XC
+      &PRINT
+        &MOMENTS ON
+           PERIODIC .FALSE.
+           REFERENCE COM
+        &END
+      &END
     &END ENERGY_CORRECTION
     &SCF
       SCF_GUESS ATOMIC 
@@ -37,12 +43,6 @@
       &XC_FUNCTIONAL PBE
       &END XC_FUNCTIONAL
     &END XC
-    &PRINT
-      &MOMENTS ON
-         PERIODIC .FALSE.
-         REFERENCE COM
-      &END
-    &END
   &END DFT
   &SUBSYS
     &CELL
