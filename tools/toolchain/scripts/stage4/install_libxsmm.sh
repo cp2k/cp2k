@@ -9,8 +9,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-libxsmm_ver="1.16.2"
-libxsmm_sha256="bdc7554b56b9e0a380fc9c7b4f4394b41be863344858bc633bc9c25835c4c64e"
+libxsmm_ver="1.17"
+libxsmm_sha256="8b642127880e92e8a75400125307724635ecdf4020ca4481e5efe7640451bb92"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -66,16 +66,12 @@ EOF
       # library
       cd libxsmm-${libxsmm_ver}
       make -j $(get_nprocs) \
-        MALLOC=0 \
-        INTRINSICS=1 \
         CXX=$CXX \
         CC=$CC \
         FC=$FC \
         PREFIX=${pkg_install_dir} \
         > make.log 2>&1
       make -j $(get_nprocs) \
-        MALLOC=0 \
-        INTRINSICS=1 \
         CXX=$CXX \
         CC=$CC \
         FC=$FC \
