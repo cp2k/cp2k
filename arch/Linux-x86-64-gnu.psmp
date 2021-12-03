@@ -73,9 +73,12 @@ DFLAGS         += -D__MAX_CONTR=4
 INSTALL_PATH   := $(PWD)/tools/toolchain/install
 
 ifeq ($(SHARED), yes)
+   LD_SHARED      := $(FC) -shared
    CFLAGS         += -fPIC
    LDFLAGS        := -Wl,--enable-new-dtags
-   LD_SHARED      := $(FC) -shared
+   CP2K_LIB       := $(PWD)/lib/$(ARCH)/$(ONEVERSION)
+   LDFLAGS        += -Wl,-rpath=$(CP2K_LIB)
+   LDFLAGS        += -Wl,-rpath=$(CP2K_LIB)/exts/dbcsr
 endif
 
 # Settings for regression testing
@@ -282,11 +285,6 @@ ifneq ($(USE_OPENBLAS),)
    else
       LIBS           += $(OPENBLAS_LIB)/libopenblas.a
    endif
-endif
-
-ifeq ($(SHARED), yes)
-   DBCSR_LIB      := $(PWD)/lib/$(ARCH)/$(ONEVERSION)/exts/dbcsr
-   LIBS           += -Wl,-rpath=$(DBCSR_LIB)
 endif
 
 LIBS           += -ldl -lz -lstdc++
