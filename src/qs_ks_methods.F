@@ -678,6 +678,7 @@ CONTAINS
          ! sum up potentials and integrate
          ! Pointing my_rho to the density matrix rho_ao
          my_rho => rho_ao
+
          CALL sum_up_and_integrate(qs_env, ks_matrix, rho, my_rho, vppl_rspace, &
                                    v_rspace_new, v_rspace_new_aux_fit, v_tau_rspace, v_tau_rspace_aux_fit, &
                                    v_efield_rspace, v_sic_rspace, v_spin_ddapc_rest_r, v_sccs_rspace, v_rspace_embed, &

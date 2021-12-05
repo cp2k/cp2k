@@ -74,7 +74,11 @@ MODULE rpa_main
                                               three_dim_real_array,&
                                               two_dim_int_array,&
                                               two_dim_real_array
-   USE qs_environment_types,            ONLY: qs_environment_type
+   USE qs_band_structure,               ONLY: calculate_kp_orbitals
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_env_release,&
+                                              qs_environment_type
+   USE qs_gamma2kp,                     ONLY: create_kp_from_gamma
    USE rpa_axk,                         ONLY: compute_axk_ener
    USE rpa_gw,                          ONLY: GW_matrix_operations,&
                                               allocate_matrices_gw,&
@@ -209,8 +213,8 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dimen_ia, my_ia_end, my_ia_size, &
                                                             my_ia_start, sub_proc_map, virtual
-      LOGICAL                                            :: do_minimax_quad, my_open_shell, &
-                                                            skip_integ_group_opt
+      LOGICAL                                            :: do_kpoints_from_Gamma, do_minimax_quad, &
+                                                            my_open_shell, skip_integ_group_opt
       REAL(KIND=dp) :: allowed_memory, avail_mem, E_Range, Emax, Emin, mem_for_iaK, mem_for_QK, &
          mem_min, mem_per_group, mem_real, needed_mem
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_C_2D_bse_ab, BIb_C_2D_bse_ij
@@ -288,12 +292,6 @@ CONTAINS
          input_integ_group_size = mp2_env%ri_rpa%rpa_integ_group_size
 
          IF (my_do_gw .AND. do_minimax_quad) THEN
-            IF (.NOT. ANY(num_integ_points == (/26, 28, 30, 32, 34/))) THEN
-               IF (unit_nr > 0) &
-                  CALL cp_warn(__LOCATION__, &
-                               "Please use NUM_INTEG_POINTS 30 for low-scaling GW to "// &
-                               "achieve good accuracy.")
-            END IF
             IF (num_integ_points > 34) THEN
                IF (unit_nr > 0) &
                   CALL cp_warn(__LOCATION__, &
@@ -631,6 +629,11 @@ CONTAINS
 
       END IF
 
+      do_kpoints_from_Gamma = SUM(mp2_env%ri_rpa_im_time%kp_grid) > 0
+      IF (do_kpoints_from_Gamma) THEN
+         CALL get_bandstruc_and_k_dependent_MOs(qs_env, kpoints, virtual(1))
+      END IF
+
       ! Now start the RPA calculation
       ! fm_mo_coeff_occ, fm_mo_coeff_virt will be deallocated here
       CALL rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
@@ -646,7 +649,7 @@ CONTAINS
                        t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                        starts_array_mc, ends_array_mc, &
                        starts_array_mc_block, ends_array_mc_block, &
-                       matrix_s, kpoints, gd_array, color_sub, &
+                       matrix_s, do_kpoints_from_Gamma, kpoints, gd_array, color_sub, &
                        do_ri_sos_laplace_mp2=do_ri_sos_laplace_mp2)
 
       DEALLOCATE (sub_proc_map)
@@ -690,6 +693,154 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE rpa_ri_compute_en
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param kpoints ...
+!> \param virtual ...
+! **************************************************************************************************
+   SUBROUTINE get_bandstruc_and_k_dependent_MOs(qs_env, kpoints, virtual)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      INTEGER                                            :: virtual
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_bandstruc_and_k_dependent_MOs'
+
+      INTEGER                                            :: handle, i_dim
+      INTEGER, DIMENSION(3)                              :: nkp_grid_G, nkp_grid_W
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (qs_env%mp2_env%ri_rpa_im_time%kpoints_G, &
+               qs_env%mp2_env%ri_rpa_im_time%kpoints_Sigma, &
+               qs_env%mp2_env%ri_rpa_im_time%kpoints_Sigma_no_xc, &
+               para_env)
+
+      nkp_grid_W(1:3) = kpoints%nkp_grid(1:3)
+      DO i_dim = 1, 3
+         IF (nkp_grid_W(i_dim) == 1) THEN
+            nkp_grid_G(i_dim) = 1
+         ELSE
+            nkp_grid_G(i_dim) = nkp_grid_W(i_dim)*qs_env%mp2_env%ri_rpa_im_time%k_mesh_g_factor
+         END IF
+      END DO
+
+      CALL get_qs_env(qs_env=qs_env, para_env=para_env)
+
+      CALL create_kp_and_calc_kp_orbitals(qs_env, qs_env%mp2_env%ri_rpa_im_time%kpoints_G, &
+                                          "MONKHORST-PACK", virtual, para_env%num_pe, &
+                                          mp_grid=nkp_grid_G(1:3))
+
+      ! JW: set up k-points for GW band structure calculation, will be completed later
+!      CALL get_kpgeneral_for_Sigma_kpoints(qs_env, kpgeneral)
+!
+!      CALL create_kp_and_calc_kp_orbitals(qs_env, qs_env%mp2_env%ri_rpa_im_time%kpoints_Sigma, &
+!                                          "GENERAL", virtual, para_env%num_pe, &
+!                                          kpgeneral=kpgeneral)
+!
+!      CALL create_kp_and_calc_kp_orbitals(qs_env, qs_env%mp2_env%ri_rpa_im_time%kpoints_Sigma_no_xc, &
+!                                          "GENERAL", virtual, para_env%num_pe, &
+!                                          kpgeneral=kpgeneral, with_xc_terms=.FALSE.)
+!
+!      DEALLOCATE(kpgeneral)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE get_bandstruc_and_k_dependent_MOs
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param kpoints ...
+!> \param scheme ...
+!> \param nadd ...
+!> \param group_size_ext ...
+!> \param mp_grid ...
+!> \param kpgeneral ...
+!> \param with_xc_terms ...
+! **************************************************************************************************
+   SUBROUTINE create_kp_and_calc_kp_orbitals(qs_env, kpoints, scheme, nadd, &
+                                             group_size_ext, mp_grid, kpgeneral, with_xc_terms)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      CHARACTER(LEN=*), INTENT(IN)                       :: scheme
+      INTEGER                                            :: nadd, group_size_ext
+      INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: mp_grid
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: kpgeneral
+      LOGICAL, OPTIONAL                                  :: with_xc_terms
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_kp_and_calc_kp_orbitals'
+
+      INTEGER                                            :: handle
+      LOGICAL                                            :: my_with_xc_terms
+      TYPE(qs_environment_type), POINTER                 :: qs_env_kp_from_Gamma
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (qs_env_kp_from_Gamma)
+
+      my_with_xc_terms = .TRUE.
+      IF (PRESENT(with_xc_terms)) my_with_xc_terms = with_xc_terms
+
+      CALL create_kp_from_gamma(qs_env, qs_env_kp_from_Gamma, with_xc_terms=my_with_xc_terms)
+
+      ! k-dep. MO coeff. and band structure for Green's function
+      CALL calculate_kp_orbitals(qs_env_kp_from_Gamma, kpoints, scheme, nadd=nadd, kpgeneral=kpgeneral, &
+                                 mp_grid=mp_grid, group_size_ext=group_size_ext)
+
+      CALL qs_env_release(qs_env_kp_from_Gamma)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param kpgeneral ...
+! **************************************************************************************************
+   SUBROUTINE get_kpgeneral_for_Sigma_kpoints(qs_env, kpgeneral)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: kpgeneral
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_kpgeneral_for_Sigma_kpoints'
+
+      INTEGER                                            :: handle, i_kp_in_kp_line, i_special_kp, &
+                                                            ikk, n_kp_in_kp_line, n_special_kp, &
+                                                            nkp_bandstruc
+
+      CALL timeset(routineN, handle)
+
+      n_special_kp = qs_env%mp2_env%ri_g0w0%n_special_kp
+      n_kp_in_kp_line = qs_env%mp2_env%ri_g0w0%n_kp_in_kp_line
+
+      nkp_bandstruc = n_kp_in_kp_line*(n_special_kp - 1) + 1
+
+      ALLOCATE (kpgeneral(3, nkp_bandstruc))
+
+      kpgeneral(1:3, 1) = qs_env%mp2_env%ri_g0w0%xkp_special_kp(1:3, 1)
+
+      ikk = 1
+
+      DO i_special_kp = 2, n_special_kp
+         DO i_kp_in_kp_line = 1, n_kp_in_kp_line
+
+            ikk = ikk + 1
+            kpgeneral(1:3, ikk) = qs_env%mp2_env%ri_g0w0%xkp_special_kp(1:3, i_special_kp - 1) + &
+                                  REAL(i_kp_in_kp_line, KIND=dp)/REAL(n_kp_in_kp_line, KIND=dp)* &
+                                  (qs_env%mp2_env%ri_g0w0%xkp_special_kp(1:3, i_special_kp) - &
+                                   qs_env%mp2_env%ri_g0w0%xkp_special_kp(1:3, i_special_kp - 1))
+
+         END DO
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE get_kpgeneral_for_Sigma_kpoints
 
 ! **************************************************************************************************
 !> \brief reorder the local data in such a way to help the next stage of matrix creation;
@@ -1158,6 +1309,7 @@ CONTAINS
 !> \param starts_array_mc_block ...
 !> \param ends_array_mc_block ...
 !> \param matrix_s ...
+!> \param do_kpoints_from_Gamma ...
 !> \param kpoints ...
 !> \param gd_array ...
 !> \param color_sub ...
@@ -1176,7 +1328,7 @@ CONTAINS
                           t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                           starts_array_mc, ends_array_mc, &
                           starts_array_mc_block, ends_array_mc_block, &
-                          matrix_s, kpoints, gd_array, color_sub, &
+                          matrix_s, do_kpoints_from_Gamma, kpoints, gd_array, color_sub, &
                           do_ri_sos_laplace_mp2)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -1216,6 +1368,7 @@ CONTAINS
                                                             starts_array_mc_block, &
                                                             ends_array_mc_block
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      LOGICAL                                            :: do_kpoints_from_Gamma
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
       INTEGER, INTENT(IN)                                :: color_sub
@@ -1236,15 +1389,15 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, prim_blk_sizes, &
                                                             RI_blk_sizes
       LOGICAL :: do_apply_ic_corr_to_gw, do_gw_im_time, do_ic_model, do_kpoints_cubic_RPA, &
-         do_kpoints_from_Gamma, do_periodic, do_ri_Sigma_x, exit_ev_gw, first_cycle, &
-         first_cycle_periodic_correction, my_open_shell, print_ic_values
+         do_periodic, do_ri_Sigma_x, exit_ev_gw, first_cycle, first_cycle_periodic_correction, &
+         my_open_shell, print_ic_values
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
       REAL(KIND=dp) :: a_scaling, alpha, dbcsr_time, e_axk, e_axk_corr, eps_filter, &
          eps_filter_im_time, eps_min_trans, ext_scaling, fermi_level_offset, &
          fermi_level_offset_input, my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr, e_fermi, tau_tj, tau_wj, tj, &
                                                             trace_Qomega, vec_omega_fit_gw, wj, &
-                                                            wkp_W
+                                                            wkp_V, wkp_W
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: Eigenval_kp, Eigenval_last, Eigenval_scf, &
          Eigenval_scf_kp, vec_W_gw, weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, &
          weights_sin_tf_t_to_w
@@ -1288,7 +1441,6 @@ CONTAINS
       print_ic_values = mp2_env%ri_g0w0%print_ic_values
       do_periodic = mp2_env%ri_g0w0%do_periodic
       do_kpoints_cubic_RPA = mp2_env%ri_rpa_im_time%do_im_time_kpoints
-      do_kpoints_from_Gamma = SUM(mp2_env%ri_rpa_im_time%kp_grid) > 0
 
       ! For SOS-MP2 only gemm is implemented
       mm_style = wfc_mm_style_gemm
@@ -1319,16 +1471,6 @@ CONTAINS
 
       IF (do_im_time) THEN
          CPASSERT(do_minimax_quad .OR. do_ri_sos_laplace_mp2)
-      END IF
-
-      IF (do_ic_model) THEN
-         ! image charge model only implemented for cubic scaling GW
-         CPASSERT(do_gw_im_time)
-         CPASSERT(.NOT. do_periodic)
-      END IF
-
-      ! set up the least-square time grid and other matrices specifically for imag time
-      IF (do_im_time) THEN
 
          group_size_P = mp2_env%ri_rpa_im_time%group_size_P
          cut_memory = mp2_env%ri_rpa_im_time%cut_memory
@@ -1349,7 +1491,7 @@ CONTAINS
                             col_blk_size, &
                             do_ic_model, do_kpoints_cubic_RPA, &
                             do_kpoints_from_Gamma, do_ri_Sigma_x, my_open_shell, &
-                            has_mat_P_blocks, wkp_W, &
+                            has_mat_P_blocks, wkp_W, wkp_V, &
                             cfm_mat_Q, fm_mat_L, fm_mat_RI_global_work, fm_mat_work, fm_mo_coeff_occ_scaled, &
                             fm_mo_coeff_virt_scaled, mat_dm, mat_L, mat_M_P_munu_occ, mat_M_P_munu_virt, mat_P_global_copy, &
                             mat_SinvVSinv, mat_P_omega, mat_P_omega_kp, mat_work)
@@ -1381,6 +1523,13 @@ CONTAINS
             END IF
          END IF
 
+      END IF
+
+      IF (do_ic_model) THEN
+         ! image charge model only implemented for cubic scaling GW
+         CPASSERT(do_gw_im_time)
+         CPASSERT(.NOT. do_periodic)
+         IF (cut_memory .NE. 1) CPABORT("For IC, use MEMORY_CUT 1 in the LOW_SCALING section.")
       END IF
 
       ALLOCATE (e_fermi(nspins))
@@ -1499,7 +1648,8 @@ CONTAINS
                                      eps_filter_im_time, Eigenval(:, 1), nmo, &
                                      num_integ_points, cut_memory, &
                                      unit_nr, mp2_env, para_env, &
-                                     qs_env, index_to_cell_3c, cell_to_index_3c, &
+                                     qs_env, do_kpoints_from_Gamma, &
+                                     index_to_cell_3c, cell_to_index_3c, &
                                      has_mat_P_blocks, do_ri_sos_laplace_mp2, &
                                      dbcsr_time, dbcsr_nflop)
 
@@ -1522,7 +1672,8 @@ CONTAINS
                                            eps_filter_im_time, Eigenval(:, 2), nmo, &
                                            num_integ_points, cut_memory, &
                                            unit_nr, mp2_env, para_env, &
-                                           qs_env, index_to_cell_3c, cell_to_index_3c, &
+                                           qs_env, do_kpoints_from_Gamma, &
+                                           index_to_cell_3c, cell_to_index_3c, &
                                            has_mat_P_blocks, do_ri_sos_laplace_mp2, &
                                            dbcsr_time, dbcsr_nflop)
                ELSE
@@ -1539,7 +1690,8 @@ CONTAINS
                                            eps_filter_im_time, Eigenval(:, 2), nmo, &
                                            num_integ_points, cut_memory, &
                                            unit_nr, mp2_env, para_env, &
-                                           qs_env, index_to_cell_3c, cell_to_index_3c, &
+                                           qs_env, do_kpoints_from_Gamma, &
+                                           index_to_cell_3c, cell_to_index_3c, &
                                            has_mat_P_blocks, do_ri_sos_laplace_mp2, &
                                            dbcsr_time, dbcsr_nflop)
                END IF ! do_ri_sos_laplace_mp2
@@ -1619,10 +1771,10 @@ CONTAINS
 
                IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
                   CALL RPA_postprocessing_kp(dimen_RI, num_integ_points, jquad, nkp, count_ev_sc_GW, para_env, &
-                                             para_env_RPA, Erpa, tau_tj, tj, wj, weights_cos_tf_w_to_t, wkp_W, do_gw_im_time, &
-                                             do_ri_Sigma_x, do_kpoints_from_Gamma, do_kpoints_cubic_RPA, cfm_mat_W_kp_tau, &
-                                             cfm_mat_Q, ikp_local, mat_P_omega(:, :, 1), &
-                                             mat_P_omega_kp, qs_env, eps_filter_im_time, &
+                                             para_env_RPA, Erpa, tau_tj, tj, wj, weights_cos_tf_w_to_t, &
+                                             wkp_W, wkp_V, do_gw_im_time, do_ri_Sigma_x, do_kpoints_from_Gamma, &
+                                             do_kpoints_cubic_RPA, cfm_mat_W_kp_tau, cfm_mat_Q, ikp_local, &
+                                             mat_P_omega(:, :, 1), mat_P_omega_kp, qs_env, eps_filter_im_time, unit_nr, &
                                              kpoints, fm_mat_L, fm_mat_W, fm_mat_RI_global_work, mat_SinvVSinv)
                ELSE
                   CALL RPA_postprocessing_nokp(dimen_RI_red, trace_Qomega, fm_mat_Q(1)%matrix, para_env_RPA, Erpa, wj(jquad))
@@ -1791,11 +1943,13 @@ CONTAINS
                               cell_to_index_3c, do_ic_model, &
                               do_kpoints_cubic_RPA, do_kpoints_from_Gamma, do_ri_Sigma_x, &
                               has_mat_P_blocks, &
-                              wkp_W, cfm_mat_Q, fm_mat_L, fm_mat_RI_global_work, fm_mat_work, &
+                              wkp_W, wkp_V, cfm_mat_Q, fm_mat_L, fm_mat_RI_global_work, fm_mat_work, &
                               fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, mat_dm, mat_L, &
                               mat_SinvVSinv, mat_P_omega, mat_P_omega_kp, &
-                              t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
-                              mat_work)
+                              t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, mat_work, &
+                              qs_env%mp2_env%ri_rpa_im_time%kpoints_G, &
+                              qs_env%mp2_env%ri_rpa_im_time%kpoints_Sigma, &
+                              qs_env%mp2_env%ri_rpa_im_time%kpoints_Sigma_no_xc)
 
          IF (my_do_gw) THEN
             CALL deallocate_matrices_gw_im_time(weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, do_ic_model, &

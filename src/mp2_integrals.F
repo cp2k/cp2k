@@ -53,14 +53,10 @@ MODULE mp2_integrals
    USE hfx_types,                       ONLY: alloc_containers,&
                                               block_ind_type,&
                                               hfx_compression_type
-   USE input_constants,                 ONLY: do_eri_gpw,&
-                                              do_eri_mme,&
-                                              do_eri_os,&
-                                              do_potential_coulomb,&
-                                              do_potential_id,&
-                                              do_potential_long,&
-                                              do_potential_short,&
-                                              do_potential_truncated
+   USE input_constants,                 ONLY: &
+        do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
+        do_potential_long, do_potential_short, do_potential_truncated, kp_weights_W_auto, &
+        kp_weights_W_tailored, kp_weights_W_uniform
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
@@ -1252,13 +1248,11 @@ CONTAINS
       kpoints%eps_geo = 1.e-6_dp
       kpoints%full_grid = .TRUE.
       nkp_grid(1:3) = qs_env%mp2_env%ri_rpa_im_time%kp_grid(1:3)
-      kpoints%nkp_grid(1:3) = nkp_grid(1:3)
-
       num_dim = periodic(1) + periodic(2) + periodic(3)
 
       DO i_dim = 1, 3
          IF (periodic(i_dim) == 1) THEN
-            CPASSERT(MODULO(kpoints%nkp_grid(i_dim), 2) == 0)
+            CPASSERT(MODULO(nkp_grid(i_dim), 2) == 0)
          END IF
       END DO
 
@@ -1270,12 +1264,10 @@ CONTAINS
          nkp = MAX(nkp_grid(1)/2, nkp_grid(2)/2, nkp_grid(3)/2)
       END IF
 
-      kpoints%nkp = nkp
-
-      IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-         "KPOINT_INFO| Number of kpoints for V and W:", nkp
-
       ALLOCATE (kpoints%xkp(3, nkp), kpoints%wkp(nkp))
+
+      kpoints%nkp_grid(1:3) = nkp_grid(1:3)
+      kpoints%nkp = nkp
       kpoints%wkp(:) = 1.0_dp/REAL(nkp, KIND=dp)
 
       i = 0
@@ -1297,6 +1289,25 @@ CONTAINS
       CALL kpoint_init_cell_index(kpoints, sab_orb, para_env, dft_control)
 
       CALL set_qs_env(qs_env, kpoints=kpoints)
+
+      IF (unit_nr > 0) THEN
+
+         WRITE (UNIT=unit_nr, FMT="(T3,A,T69,3I4)") "KPOINT_INFO| K-point mesh for V and W:", nkp_grid(1:3)
+         WRITE (UNIT=unit_nr, FMT="(T3,A,T75,I6)") "KPOINT_INFO| Number of kpoints for V and W:", nkp
+
+         SELECT CASE (qs_env%mp2_env%ri_rpa_im_time%kpoint_weights_W_method)
+         CASE (kp_weights_W_tailored)
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T81)") &
+               "KPOINT_INFO| K-point weights for W:                                   TAILORED"
+         CASE (kp_weights_W_auto)
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T81)") &
+               "KPOINT_INFO| K-point weights for W:                                       AUTO"
+         CASE (kp_weights_W_uniform)
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T81)") &
+               "KPOINT_INFO| K-point weights for W:                                    UNIFORM"
+         END SELECT
+
+      END IF
 
       CALL timestop(handle)
 

@@ -17,13 +17,16 @@ MODULE mp2_setup
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
+   USE cp_parser_methods,               ONLY: read_float_object
    USE input_constants,                 ONLY: &
         do_eri_mme, do_potential_short, mp2_method_direct, mp2_method_gpw, mp2_method_none, &
         mp2_ri_optimize_basis, ri_mp2_laplace, ri_mp2_method_gpw, ri_rpa_method_gpw
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp,&
+                                              max_line_length
    USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: erfc_cutoff
    USE mp2_types,                       ONLY: mp2_method_direct,&
@@ -57,7 +60,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'read_mp2_section'
 
-      INTEGER                                            :: handle, ival, unit_nr
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: string_pointer
+      CHARACTER(LEN=max_line_length)                     :: error_message
+      INTEGER                                            :: handle, i, i_special_kp, ival, unit_nr
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL                                            :: do_mp2, do_opt_ri_basis, do_ri_mp2, &
                                                             do_ri_sos_mp2, do_rpa
@@ -163,28 +169,45 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%IC%EPS_DIST", &
                                 r_val=mp2_env%ri_g0w0%eps_dist)
 
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PERIODIC", &
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PERIODIC_CORRECTION", &
                                 l_val=mp2_env%ri_g0w0%do_periodic)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PERIODIC%KPOINTS", &
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PERIODIC_CORRECTION%KPOINTS", &
                                 i_vals=mp2_env%ri_g0w0%kp_grid)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PERIODIC%NUM_KP_GRIDS", &
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PERIODIC_CORRECTION%NUM_KP_GRIDS", &
                                 i_val=mp2_env%ri_g0w0%num_kp_grids)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PERIODIC%EPS_KPOINT", &
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PERIODIC_CORRECTION%EPS_KPOINT", &
                                 r_val=mp2_env%ri_g0w0%eps_kpoint)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PERIODIC%MO_COEFF_GAMMA", &
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PERIODIC_CORRECTION%MO_COEFF_GAMMA", &
                                 l_val=mp2_env%ri_g0w0%do_mo_coeff_gamma)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PERIODIC%AVERAGE_DEGENERATE_LEVELS", &
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PERIODIC_CORRECTION%AVERAGE_DEGENERATE_LEVELS", &
                                 l_val=mp2_env%ri_g0w0%do_average_deg_levels)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PERIODIC%EPS_EIGENVAL", &
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PERIODIC_CORRECTION%EPS_EIGENVAL", &
                                 r_val=mp2_env%ri_g0w0%eps_eigenval)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PERIODIC%EXTRAPOLATE_KPOINTS", &
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PERIODIC_CORRECTION%EXTRAPOLATE_KPOINTS", &
                                 l_val=mp2_env%ri_g0w0%do_extra_kpoints)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PERIODIC%DO_AUX_BAS_GW", &
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PERIODIC_CORRECTION%DO_AUX_BAS_GW", &
                                 l_val=mp2_env%ri_g0w0%do_aux_bas_gw)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PERIODIC%FRACTION_AUX_MOS", &
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PERIODIC_CORRECTION%FRACTION_AUX_MOS", &
                                 r_val=mp2_env%ri_g0w0%frac_aux_mos)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PERIODIC%NUM_OMEGA_POINTS", &
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PERIODIC_CORRECTION%NUM_OMEGA_POINTS", &
                                 i_val=mp2_env%ri_g0w0%num_omega_points)
+
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%KPOINT_SET%NPOINTS", &
+                                i_val=mp2_env%ri_g0w0%n_kp_in_kp_line)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%KPOINT_SET%SPECIAL_POINT", &
+                                n_rep_val=mp2_env%ri_g0w0%n_special_kp)
+      ALLOCATE (mp2_env%ri_g0w0%xkp_special_kp(3, mp2_env%ri_g0w0%n_special_kp))
+      DO i_special_kp = 1, mp2_env%ri_g0w0%n_special_kp
+         CALL section_vals_val_get(mp2_section, "RI_RPA%GW%KPOINT_SET%SPECIAL_POINT", &
+                                   i_rep_val=i_special_kp, c_vals=string_pointer)
+         CPASSERT(SIZE(string_pointer(:), 1) == 4)
+         DO i = 1, 3
+            CALL read_float_object(string_pointer(i + 1), &
+                                   mp2_env%ri_g0w0%xkp_special_kp(i, i_special_kp), &
+                                   error_message)
+            IF (LEN_TRIM(error_message) > 0) CPABORT(TRIM(error_message))
+         END DO
+      END DO
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT%SELF_ENERGY", &
                                 l_val=mp2_env%ri_g0w0%print_self_energy)
@@ -204,12 +227,20 @@ CONTAINS
 
       CALL section_vals_val_get(low_scaling_section, "DO_KPOINTS", &
                                 l_val=mp2_env%ri_rpa_im_time%do_im_time_kpoints)
-      CALL section_vals_val_get(low_scaling_section, "CUTOFF_W", &
-                                r_val=mp2_env%ri_rpa_im_time%cutoff)
       CALL section_vals_val_get(low_scaling_section, "KPOINTS", &
                                 i_vals=mp2_env%ri_rpa_im_time%kp_grid)
-      CALL section_vals_val_get(low_scaling_section, "EXP_KPOINTS", &
-                                r_val=mp2_env%ri_rpa_im_time%exp_kpoints)
+      CALL section_vals_val_get(low_scaling_section, "KPOINT_WEIGHTS_W", &
+                                i_val=mp2_env%ri_rpa_im_time%kpoint_weights_W_method)
+      CALL section_vals_val_get(low_scaling_section, "EXPONENT_TAILORED_WEIGHTS", &
+                                r_val=mp2_env%ri_rpa_im_time%exp_tailored_weights)
+      CALL section_vals_val_get(low_scaling_section, "REL_CUTOFFS_CHI_W", &
+                                r_vals=mp2_env%ri_rpa_im_time%rel_cutoffs_chi_W)
+      CALL section_vals_val_get(low_scaling_section, "REGULARIZATION_RI", &
+                                r_val=mp2_env%ri_rpa_im_time%regularization_RI)
+      CALL section_vals_val_get(low_scaling_section, "MAKE_CHI_POS_DEFINITE", &
+                                l_val=mp2_env%ri_rpa_im_time%make_chi_pos_definite)
+      CALL section_vals_val_get(low_scaling_section, "K_MESH_G_FACTOR", &
+                                i_val=mp2_env%ri_rpa_im_time%k_mesh_g_factor)
 
       CALL section_vals_val_get(low_scaling_section, "MIN_BLOCK_SIZE", &
                                 i_val=mp2_env%ri_rpa_im_time%min_bsize)

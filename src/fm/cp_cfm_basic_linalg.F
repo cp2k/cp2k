@@ -844,6 +844,7 @@ CONTAINS
 !> \par History
 !>      05.2002 created [JVdV]
 !>      12.2002 updated, added n optional parm [fawzi]
+!>      09.2021 removed CPASSERT(info == 0) since there is already check of info [Jan Wilhelm]
 !> \author Joost
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_cholesky_decompose(matrix, n, info_out)
@@ -888,9 +889,8 @@ CONTAINS
                           "Cholesky decompose failed: matrix is not positive definite  or ill-conditioned")
       END IF
 
-      CPASSERT(info == 0)
-
       CALL timestop(handle)
+
    END SUBROUTINE cp_cfm_cholesky_decompose
 
 ! **************************************************************************************************

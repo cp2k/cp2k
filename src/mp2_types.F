@@ -30,6 +30,7 @@ MODULE mp2_types
                                               ri_mp2_method_gpw,&
                                               ri_rpa_method_gpw
    USE kinds,                           ONLY: dp
+   USE kpoint_types,                    ONLY: kpoint_type
    USE libint_2c_3c,                    ONLY: libint_potential_type
    USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_sum
@@ -143,13 +144,16 @@ MODULE mp2_types
 
    TYPE ri_rpa_im_time_type
       INTEGER                  :: cut_memory
-      LOGICAL                  :: memory_info
-      REAL(KIND=dp)            :: eps_filter, cutoff, &
-                                  exp_kpoints, eps_filter_factor, eps_compress
-      INTEGER                  :: group_size_P, group_size_3c
+      LOGICAL                  :: memory_info, make_chi_pos_definite
+      REAL(KIND=dp)            :: eps_filter, &
+                                  eps_filter_factor, eps_compress, exp_tailored_weights, regularization_RI
+      REAL(KIND=dp), DIMENSION(:), POINTER :: rel_cutoffs_chi_W
+      REAL(KIND=dp), DIMENSION(2) :: abs_cutoffs_chi_W
+      INTEGER                  :: group_size_P, group_size_3c, kpoint_weights_W_method, k_mesh_g_factor
       INTEGER, DIMENSION(:), POINTER     :: kp_grid
       LOGICAL                  :: do_im_time_kpoints
       INTEGER                  :: min_bsize, min_bsize_mo
+      TYPE(kpoint_type), POINTER :: kpoints_G, kpoints_Sigma, kpoints_Sigma_no_xc
    END TYPE
 
    TYPE ri_g0w0_type
@@ -186,6 +190,8 @@ MODULE mp2_types
       INTEGER :: print_exx
       LOGICAL :: do_gamma_only_sigma
       LOGICAL :: update_xc_energy
+      INTEGER :: n_kp_in_kp_line, n_special_kp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: xkp_special_kp
    END TYPE
 
    TYPE ri_basis_opt
