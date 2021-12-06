@@ -8,5 +8,6 @@ scGW0_H2O_PBE0_trunc_minimax_RI_HFX.inp               11      1e-08            -
 G0W0_H2O_PBE_periodic.inp                             78      1e-05                          16.47
 G0W0_OH_PBE.inp                                       79      1e-05                          11.80
 G0W0_kpoints_from_Gamma.inp                           78      1e-05                          14.55
+G0W0_kpoints_from_Gamma_RI_regularization_1E-3.inp    78      1e-05                          14.71
 G0W0_OH_PBE_svd.inp                                   79      1e-05                          11.80
 #EOF
