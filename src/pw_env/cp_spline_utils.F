@@ -15,10 +15,9 @@ MODULE cp_spline_utils
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE pw_methods,                      ONLY: pw_axpy,&
-                                              pw_zero,&
-                                              do_standard_sum,&
-                                              do_accurate_sum
+   USE pw_methods,                      ONLY: do_standard_sum,&
+                                              pw_axpy,&
+                                              pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_type

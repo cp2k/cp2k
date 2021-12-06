@@ -30,9 +30,7 @@ MODULE pw_spline_utils
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_copy,&
                                               pw_integral_ab,&
-                                              pw_zero,&
-                                              do_standard_sum,&
-                                              do_accurate_sum
+                                              pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_give_back_pw,&
                                               pw_pool_release,&
@@ -2703,6 +2701,7 @@ CONTAINS
 !> \param eps_r the requested precision on the residual
 !> \param eps_x the requested precision on the solution
 !> \param max_iter maximum number of iteration allowed
+!> \param sumtype ...
 !> \return ...
 !> \author fawzi
 ! **************************************************************************************************
@@ -2730,7 +2729,6 @@ CONTAINS
                                                             r_z_new
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(pw_type), POINTER                             :: Ap, p, r, z
-
 
       last = .FALSE.
 
