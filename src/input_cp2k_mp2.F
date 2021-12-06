@@ -737,7 +737,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="PERIODIC_CORRECTION", &
                           description="If true, the periodic correction scheme is used employing k-points. "// &
                           "Method is not recommended to use, use instead PERIODIC_LOW_SCALING which much "// &
-                          "more accurate", &
+                          "more accurate than the periodic correction.", &
                           usage="PERIODIC_CORRECTION", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
@@ -1201,8 +1201,8 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, &
          name="MAKE_CHI_POS_DEFINITE", &
-         description="If true, makes and eigenvalue decomposition of chi(iw,k) and removes negative "// &
-         "values. May increase computational cost significantly. Only recommended to try in case "// &
+         description="If true, makes eigenvalue decomposition of chi(iw,k) and removes negative "// &
+         "eigenvalues. May increase computational cost significantly. Only recommended to try in case "// &
          "Cholesky decomposition of epsilon(iw,k) fails.", &
          usage="MAKE_CHI_POS_DEFINITE", &
          default_l_val=.TRUE., &
