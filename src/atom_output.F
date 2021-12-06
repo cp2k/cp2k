@@ -37,7 +37,8 @@ MODULE atom_output
    USE periodic_table,                  ONLY: ptable
    USE physcon,                         ONLY: evolt
    USE xc_derivatives,                  ONLY: xc_functional_get_info
-   USE xc_libxc,                        ONLY: libxc_get_reference_length,&
+   USE xc_libxc,                        ONLY: libxc_check_existence_in_libxc,&
+                                              libxc_get_reference_length,&
                                               libxc_version_info
 #include "./base/base_uses.f90"
 
@@ -609,7 +610,11 @@ CONTAINS
                xc_fun => section_vals_get_subs_vals2(xc_fun_section, i_section=ifun)
                IF (.NOT. ASSOCIATED(xc_fun)) EXIT
                IF (TRIM(xc_fun%section%name) /= "LIBXC") THEN
-                  ALLOCATE (CHARACTER(LEN=20*default_string_length) :: reference)
+                  IF (libxc_check_existence_in_libxc(xc_fun)) THEN
+                     ALLOCATE (CHARACTER(LEN=libxc_get_reference_length(xc_fun, lsd)) :: reference)
+                  ELSE
+                     ALLOCATE (CHARACTER(LEN=20*default_string_length) :: reference)
+                  END IF
                   CALL xc_functional_get_info(xc_fun, lsd=lsd, reference=reference, shortform=shortform)
                   WRITE (iw, fmt="(' FUNCTIONAL| ',a,':')") &
                      TRIM(xc_fun%section%name)
