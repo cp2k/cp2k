@@ -28,11 +28,12 @@ MODULE input_cp2k_mp2
         do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
         do_potential_long, do_potential_short, do_potential_truncated, do_potential_tshpsc, &
         eri_default, gaussian, gw_no_print_exx, gw_pade_approx, gw_print_exx, gw_read_exx, &
-        gw_skip_for_regtest, gw_two_pole_model, mp2_method_direct, mp2_method_gpw, &
-        mp2_method_none, numerical, ri_default, ri_rpa_g0w0_crossing_bisection, &
-        ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_z_shot, wfc_mm_style_gemm, &
-        wfc_mm_style_syrk
+        gw_skip_for_regtest, gw_two_pole_model, kp_weights_W_auto, kp_weights_W_tailored, &
+        kp_weights_W_uniform, mp2_method_direct, mp2_method_gpw, mp2_method_none, numerical, &
+        ri_default, ri_rpa_g0w0_crossing_bisection, ri_rpa_g0w0_crossing_newton, &
+        ri_rpa_g0w0_crossing_z_shot, wfc_mm_style_gemm, wfc_mm_style_syrk
    USE input_cp2k_hfx,                  ONLY: create_hfx_section
+   USE input_cp2k_kpoints,              ONLY: create_kpoint_set_section
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -708,8 +709,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="RI_SIGMA_X", &
                           description="If true, the exchange self-energy is calculated approximatively with RI. "// &
-                          "This is only recommended in case exact exchange is very costly, e.g. when "// &
-                          "using diffuse basis functions (seems not to work for periodic systems).", &
+                          "If false, the Hartree-Fock implementation in CP2K is used.", &
                           usage="RI_SIGMA_X", &
                           default_l_val=.TRUE., &
                           lone_keyword_l_val=.TRUE.)
@@ -734,9 +734,11 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="PERIODIC", &
-                          description="If true, the periodic correction scheme is used employing k-points.", &
-                          usage="PERIODIC", &
+      CALL keyword_create(keyword, __LOCATION__, name="PERIODIC_CORRECTION", &
+                          description="If true, the periodic correction scheme is used employing k-points. "// &
+                          "Method is not recommended to use, use instead PERIODIC_LOW_SCALING which much "// &
+                          "more accurate than the periodic correction.", &
+                          usage="PERIODIC_CORRECTION", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -825,6 +827,11 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      ! here we generate a subsection for calculating the GW band structures
+      CALL create_kpoint_set_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
    END SUBROUTINE create_ri_g0w0
 
 ! **************************************************************************************************
@@ -866,8 +873,9 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, __LOCATION__, name="PERIODIC", &
-                          description="Parameters influencing correction for periodic GW.", &
+      CALL section_create(section, __LOCATION__, name="PERIODIC_CORRECTION", &
+                          description="Parameters influencing correction for periodic GW. Old method, "// &
+                          "not recommended to use", &
                           n_keywords=12, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (keyword)
@@ -1127,19 +1135,11 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, __LOCATION__, &
-         name="CUTOFF_W", &
-         description="Cutoff for screened Coulomb interaction for GW kpoints.", &
-         usage="CUTOFF_W 0.5", &
-         default_r_val=0.5_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
          keyword, __LOCATION__, name="KPOINTS", &
-         description="For periodic calculations, using kpoints for the density response and the "// &
-         "Coulomb operator are strongly recommended. For 2d periodic systems (e.g. xy "// &
-         "periodicity, please specify KPOINTS  N_x  0  N_z.", &
+         description="Keyword activates periodic, low-scaling GW calculations (&LOW_SCALING section also needed). "// &
+         "For periodic calculations, kpoints are used for the density response, the "// &
+         "Coulomb interaction and the screened Coulomb interaction. For 2d periodic systems, e.g. xz "// &
+         "periodicity, please also specify KPOINTS, e.g.  N_x  1  N_z.", &
          usage="KPOINTS  N_x  N_y  N_z", &
          n_var=3, type_of_var=integer_t, default_i_vals=(/0, 0, 0/))
       CALL section_add_keyword(section, keyword)
@@ -1147,17 +1147,77 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, &
-         name="EXP_KPOINTS", &
-         description="For kpoints in low-scaling GW, a Monkhorst-Pack mesh is used. Because the screened Coulomb "// &
-         "interaction W(k) diverges at the Gamma point with W(k) ~ k^alpha, we adapt the weights of the "// &
-         "Monkhorst-Pack mesh to compute int_BZ k^alpha dk (BZ=Brllouin zone) correctly with the Monkhorst-Pack "// &
-         "mesh. You can enter here the exponent alpha. For solids, the exponent is -2 (known from plane waves), "// &
-         "for 2d periodic systems -1 and for 1d systems W(k) ~ log(1-cos(a*k)) where a is the length of the unit "// &
-         "cell in periodic direction. If you enter 1.0, one of these three functions are picked according to the "// &
-         "periodicity. If you enter a value bigger than 2.0, the ordinary Monkhorst-Pack mesh with identical "// &
-         "weights is chosen.", &
-         usage="EXP_KPOINTS -2.0", &
-         default_r_val=1.0_dp)
+         name="KPOINT_WEIGHTS_W", &
+         description="For kpoints in low-scaling GW, a Monkhorst-Pack mesh is used. The screened Coulomb "// &
+         "interaction W(k) needs special care near the Gamma point (e.g. in 3d, W(k) diverges at the "// &
+         "Gamma point with W(k) ~ k^alpha). KPOINT_WEIGHTS_W decides how the weights of the "// &
+         "Monkhorst-Pack mesh are chosen to compute W(R) = int_BZ W(k) exp(ikR) dk (BZ=Brllouin zone). ", &
+         usage="KPOINT_WEIGHTS_W AUTO", &
+         enum_c_vals=s2a("TAILORED", "AUTO", "UNIFORM"), &
+         enum_i_vals=(/kp_weights_W_tailored, kp_weights_W_auto, kp_weights_W_uniform/), &
+         enum_desc=s2a("Choose k-point integration weights such that the function f(k)=k^alpha is "// &
+                       "exactly integrated. alpha is specified using EXPONENT_TAILORED_WEIGHTS.", &
+                       "As 'TAILORED', but alpha is chosen automatically according to dimensionality "// &
+                       "(3D: alpha = -2 for 3D, 2D: alpha = -1 for exchange self-energy, uniform "// &
+                       "weights for correlation self-energy).", &
+                       "Choose the same weight for every k-point (original Monkhorst-Pack method)."), &
+         default_i_val=kp_weights_W_auto)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="EXPONENT_TAILORED_WEIGHTS", &
+         description="Gives the exponent of exactly integrated function in case 'KPOINT_WEIGHTS_W "// &
+         "TAILORED' is chosen.", &
+         usage="EXPONENT_TAILORED_WEIGHTS -2", &
+         default_r_val=-2.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="REL_CUTOFFS_CHI_W", &
+         description="For periodic calculations, the irreducible density reponse chi^0(r,r') and the screened "// &
+         "Coulomb interaction W(r,r') is truncated "// &
+         "in real space. No truncation of chi^0(r,r') and W(r,r') for |r-r'| < cutoff_1*(smallest lattice vector length), "// &
+         "chi^0(r,r') is set to zero for |r-r'| > cutoff_2*(smallest lattice vector length). Smooth transition "// &
+         "in between. For cutoff_1 = 0.5, and cutoff_2 = 0.5, we have the minimum image convention (that is also default).", &
+         usage="REL_CUTOFFS_CHI cutoff_1 cutoff_2", &
+         n_var=2, type_of_var=real_t, default_r_vals=(/0.5_dp, 0.5_dp/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="REGULARIZATION_RI", &
+         description="Parameter to reduce the expansion coefficients in RI for periodic GW. Larger parameter "// &
+         "means smaller expansion coefficients that leads to a more stable calculation at the price "// &
+         "of a slightly worse RI approximation. In case the parameter 0.0 is chosen, ordinary RI is used.", &
+         usage="REGULARIZATION_RI 1.0E-4", &
+         default_r_val=1.0E-2_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="MAKE_CHI_POS_DEFINITE", &
+         description="If true, makes eigenvalue decomposition of chi(iw,k) and removes negative "// &
+         "eigenvalues. May increase computational cost significantly. Only recommended to try in case "// &
+         "Cholesky decomposition of epsilon(iw,k) fails.", &
+         usage="MAKE_CHI_POS_DEFINITE", &
+         default_l_val=.TRUE., &
+         lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="K_MESH_G_FACTOR", &
+         description="The k-mesh for the Green's function can be chosen to be larger than the k-mesh for "// &
+         "W (without much higher computational cost). The factor given here multiplies the mesh for W to obtain"// &
+         "the k-mesh for G. Example: factor 4, k-mesh for W: 4x4x1 -> k-mesh for G: 16x16x1 (z-dir. is "// &
+         "non-periodic).", &
+         default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1497,7 +1557,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="SIZE_LATTICE_SUM", &
                           description="Size of sum range L. ", &
                           usage="SIZE_LATTICE_SUM  10", &
-                          default_i_val=6)
+                          default_i_val=5)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

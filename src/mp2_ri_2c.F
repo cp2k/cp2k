@@ -22,12 +22,9 @@ MODULE mp2_ri_2c
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_cholesky_decompose,&
-                                              cp_cfm_gemm,&
-                                              cp_cfm_scale_and_add_fm,&
-                                              cp_cfm_triangular_invert
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm,&
+                                              cp_cfm_scale_and_add_fm
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
-                                              cp_cfm_get_info,&
                                               cp_cfm_release,&
                                               cp_cfm_to_fm,&
                                               cp_cfm_type
@@ -97,6 +94,7 @@ MODULE mp2_ri_2c
    USE qs_tensors,                      ONLY: build_2c_integrals,&
                                               build_2c_neighbor_lists
    USE rpa_communication,               ONLY: communicate_buffer
+   USE rpa_kpoints,                     ONLY: cp_cfm_robust_cholesky
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
@@ -242,6 +240,8 @@ CONTAINS
 
             CALL compute_V_by_lattice_sum(qs_env, fm_matrix_L_kpoints, fm_matrix_L_RI_metric, kpoints)
 
+            CALL regularize_RI_expansion(fm_matrix_L_RI_metric, qs_env%mp2_env%ri_rpa_im_time%regularization_RI)
+
             CALL inversion_of_S_and_mult_with_chol_dec_of_V(fm_matrix_L_RI_metric, fm_matrix_L_kpoints, &
                                                             dimen_RI, kpoints)
 
@@ -382,8 +382,6 @@ CONTAINS
 
       INTEGER                                            :: handle, i_dim, i_real_imag, ikp, nkp
       INTEGER, DIMENSION(3)                              :: periodic
-      REAL(dp)                                           :: cutoff
-      REAL(KIND=dp), DIMENSION(3)                        :: abc
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_RI_aux_transl, matrix_v_RI_kp
@@ -440,23 +438,11 @@ CONTAINS
 
       END DO
 
-      CALL get_cell(cell=cell, abc=abc, periodic=periodic)
-      IF (periodic(1) == 0) THEN
-         abc(1) = 1.0E10_dp
-      END IF
-      IF (periodic(2) == 0) THEN
-         abc(2) = 1.0E10_dp
-      END IF
-      IF (periodic(3) == 0) THEN
-         abc(3) = 1.0E10_dp
-      END IF
-      cutoff = 1.0_dp/(qs_env%mp2_env%ri_rpa_im_time%cutoff*MIN(abc(1), abc(2), abc(3)))
-
       CALL build_2c_coulomb_matrix_kp(matrix_v_RI_kp, kpoints, basis_type="RI_AUX", &
                                       cell=cell, particle_set=particle_set, qs_kind_set=qs_kind_set, &
                                       atomic_kind_set=atomic_kind_set, &
                                       size_lattice_sum=qs_env%mp2_env%mp2_gpw%size_lattice_sum, &
-                                      operator_type=operator_coulomb, cutoff=cutoff)
+                                      operator_type=operator_coulomb)
 
       DO ikp = 1, nkp
 
@@ -1382,6 +1368,50 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param fm_matrix_L_RI_metric ...
+!> \param regularization_RI ...
+! **************************************************************************************************
+   SUBROUTINE regularize_RI_expansion(fm_matrix_L_RI_metric, regularization_RI)
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
+      REAL(KIND=dp)                                      :: regularization_RI
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'regularize_RI_expansion'
+
+      INTEGER                                            :: handle, i_global, iiB, ikp, j_global, &
+                                                            jjB, ncol_local, nkp, nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+
+      CALL timeset(routineN, handle)
+
+      nkp = SIZE(fm_matrix_L_RI_metric, 1)
+
+      CALL cp_fm_get_info(matrix=fm_matrix_L_RI_metric(1, 1)%matrix, &
+                          nrow_local=nrow_local, &
+                          ncol_local=ncol_local, &
+                          row_indices=row_indices, &
+                          col_indices=col_indices)
+
+      DO ikp = 1, nkp
+
+         DO iiB = 1, nrow_local
+            i_global = row_indices(iiB)
+            DO jjB = 1, ncol_local
+               j_global = col_indices(jjB)
+               IF (j_global == i_global) THEN
+                  fm_matrix_L_RI_metric(ikp, 1)%matrix%local_data(iiB, jjB) = &
+                     fm_matrix_L_RI_metric(ikp, 1)%matrix%local_data(iiB, jjB) + regularization_RI
+               END IF
+            END DO
+         END DO
+
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE regularize_RI_expansion
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_matrix_L_RI_metric ...
 !> \param fm_matrix_L_kpoints ...
 !> \param dimen_RI ...
 !> \param kpoints ...
@@ -1398,10 +1428,7 @@ CONTAINS
       COMPLEX(KIND=dp), PARAMETER :: cone = CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
          czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp), ione = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
 
-      INTEGER                                            :: handle, i_global, iiB, ikp, info_chol, &
-                                                            j_global, jjB, ncol_local, nkp, &
-                                                            nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      INTEGER                                            :: handle, ikp, nkp
       TYPE(cp_cfm_type), POINTER                         :: cfm_matrix_K_tmp, cfm_matrix_L_tmp, &
                                                             cfm_matrix_S_inv_tmp, cfm_matrix_S_tmp
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
@@ -1427,49 +1454,13 @@ CONTAINS
          CALL cp_cfm_scale_and_add_fm(czero, cfm_matrix_L_tmp, cone, fm_matrix_L_kpoints(ikp, 1)%matrix)
          CALL cp_cfm_scale_and_add_fm(cone, cfm_matrix_L_tmp, ione, fm_matrix_L_kpoints(ikp, 2)%matrix)
 
-         ! Cholesky decomposition S=U(T)U
-         CALL cp_cfm_cholesky_decompose(cfm_matrix_S_tmp, info_out=info_chol)
-         CPASSERT(info_chol == 0)
+         CALL cp_cfm_robust_cholesky(cfm_matrix_S_tmp, cfm_matrix_S_inv_tmp, threshold=1.0E-12_dp, exponent=-0.5_dp)
 
-         ! Invert to get U^(-1)
-         CALL cp_cfm_triangular_invert(cfm_matrix_S_tmp, uplo='U')
-
-         ! clean the lower part of the U^{-1} matrix (just to not have surprises afterwards)
-         CALL cp_cfm_get_info(matrix=cfm_matrix_S_tmp, &
-                              nrow_local=nrow_local, &
-                              ncol_local=ncol_local, &
-                              row_indices=row_indices, &
-                              col_indices=col_indices)
-
-         DO iiB = 1, nrow_local
-            i_global = row_indices(iiB)
-            DO jjB = 1, ncol_local
-               j_global = col_indices(jjB)
-               IF (j_global < i_global) cfm_matrix_S_tmp%local_data(iiB, jjB) = czero
-            END DO
-         END DO
-
-         ! get S^(-1) = U^(-1)U^(-H)
-         CALL cp_cfm_gemm("N", "C", dimen_RI, dimen_RI, dimen_RI, cone, cfm_matrix_S_tmp, cfm_matrix_S_tmp, &
+         ! get S^(-1) = U^(-H)U^(-1)
+         CALL cp_cfm_gemm("C", "N", dimen_RI, dimen_RI, dimen_RI, cone, cfm_matrix_S_tmp, cfm_matrix_S_tmp, &
                           czero, cfm_matrix_S_inv_tmp)
 
-         ! Cholesky decomposition V=L(T)L
-         CALL cp_cfm_cholesky_decompose(cfm_matrix_L_tmp, info_out=info_chol)
-         CPASSERT(info_chol == 0)
-
-         ! clean the lower part of the L matrix (just to not have surprises afterwards)
-         CALL cp_cfm_get_info(matrix=cfm_matrix_L_tmp, &
-                              nrow_local=nrow_local, &
-                              ncol_local=ncol_local, &
-                              row_indices=row_indices, &
-                              col_indices=col_indices)
-         DO iiB = 1, nrow_local
-            i_global = row_indices(iiB)
-            DO jjB = 1, ncol_local
-               j_global = col_indices(jjB)
-               IF (j_global < i_global) cfm_matrix_L_tmp%local_data(iiB, jjB) = czero
-            END DO
-         END DO
+         CALL cp_cfm_robust_cholesky(cfm_matrix_L_tmp, cfm_matrix_S_tmp, threshold=0.0_dp, exponent=0.5_dp)
 
          ! get K = S^(-1)*L, where L is the Cholesky decomposition of V = L^T*L
          CALL cp_cfm_gemm("N", "C", dimen_RI, dimen_RI, dimen_RI, cone, cfm_matrix_S_inv_tmp, cfm_matrix_L_tmp, &
@@ -1568,4 +1559,5 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE create_matrix_L
+
 END MODULE mp2_ri_2c

@@ -35,6 +35,7 @@ MODULE input_cp2k_kpoints
                                               use_complex_wfn = 100
 
    PUBLIC :: create_kpoints_section
+   PUBLIC :: create_kpoint_set_section
    PUBLIC :: use_real_wfn, use_complex_wfn
 
 CONTAINS
@@ -148,5 +149,45 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_kpoints_section
+
+! **************************************************************************************************
+!> \brief ...
+!> \param section ...
+!> \author JGH (moved to a new routine by Jan Wilhelm, 11.2021)
+! **************************************************************************************************
+   SUBROUTINE create_kpoint_set_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="KPOINT_SET", &
+                          description="Specifies a k-point line to be calculated.", &
+                          n_keywords=0, n_subsections=0, repeats=.TRUE.)
+      ! keywords
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="SPECIAL_POINT", &
+                          description="Name and coordinates of a special k-point", &
+                          usage="SPECIAL_POINT GAMMA 0.0 0.0 0.0", n_var=-1, type_of_var=char_t, repeats=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      !
+      CALL keyword_create(keyword, __LOCATION__, name="NPOINTS", &
+                          description="Number of k-points along the line.", &
+                          default_i_val=0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      !
+      CALL keyword_create(keyword, __LOCATION__, name="UNITS", &
+                          description="Special k-points are defined either in units"// &
+                          " of reciprocal lattice vectors or in Cartesian coordinates in uints of 2Pi/len."// &
+                          " B_VECTOR: in multiples of the reciprocal lattice vectors (b)."// &
+                          " CART_ANGSTROM: In units of 2*Pi/Angstrom."// &
+                          " CART_BOHR: In units of 2*Pi/Bohr.", &
+                          usage="UNITS <value>", type_of_var=char_t, default_c_val="B_VECTOR")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_kpoint_set_section
 
 END MODULE input_cp2k_kpoints

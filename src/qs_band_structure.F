@@ -12,15 +12,12 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE qs_band_structure
-   USE cell_types,                      ONLY: cell_type,&
-                                              get_cell
+   USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_retain,&
                                               cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
-   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type
-   USE cp_fm_types,                     ONLY: cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_para_env,                     ONLY: cp_para_env_retain
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -35,6 +32,7 @@ MODULE qs_band_structure
                                               max_line_length
    USE kpoint_methods,                  ONLY: kpoint_env_initialize,&
                                               kpoint_init_cell_index,&
+                                              kpoint_initialize_mo_set,&
                                               kpoint_initialize_mos
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_create,&
@@ -51,10 +49,7 @@ MODULE qs_band_structure
                                               qs_env_release,&
                                               qs_environment_type
    USE qs_gamma2kp,                     ONLY: create_kp_from_gamma
-   USE qs_matrix_pools,                 ONLY: mpools_get
-   USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              init_mo_set,&
-                                              mo_set_p_type
+   USE qs_mo_types,                     ONLY: get_mo_set
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_scf_diagonalization,          ONLY: do_general_diag_kp
    USE qs_scf_types,                    ONLY: qs_scf_env_type
@@ -315,18 +310,11 @@ CONTAINS
          OPTIONAL                                        :: kpgeneral
       INTEGER, INTENT(IN), OPTIONAL                      :: group_size_ext
 
-      INTEGER                                            :: i, ic, ik, ikk, ispin, ix, iy, iz, &
-                                                            npoints
-      REAL(KIND=dp), DIMENSION(3)                        :: kpt_latt
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_inv
-      TYPE(cell_type), POINTER                           :: cell
+      INTEGER                                            :: i, ix, iy, iz, npoints
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:, :), POINTER      :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
@@ -365,17 +353,14 @@ CONTAINS
          kpoint%nkp = npoints
          ALLOCATE (kpoint%xkp(3, npoints), kpoint%wkp(npoints))
          kpoint%wkp(:) = 1._dp/REAL(npoints, KIND=dp)
-         CALL get_qs_env(qs_env, cell=cell)
-         CALL get_cell(cell, h_inv=h_inv)
          i = 0
          DO ix = 1, mp_grid(1)
             DO iy = 1, mp_grid(2)
                DO iz = 1, mp_grid(3)
                   i = i + 1
-                  kpt_latt(1) = REAL(2*ix - mp_grid(1) - 1, KIND=dp)/(2._dp*REAL(mp_grid(1), KIND=dp))
-                  kpt_latt(2) = REAL(2*iy - mp_grid(2) - 1, KIND=dp)/(2._dp*REAL(mp_grid(2), KIND=dp))
-                  kpt_latt(3) = REAL(2*iz - mp_grid(3) - 1, KIND=dp)/(2._dp*REAL(mp_grid(3), KIND=dp))
-                  kpoint%xkp(1:3, i) = MATMUL(TRANSPOSE(h_inv), kpt_latt(:))
+                  kpoint%xkp(1, i) = REAL(2*ix - mp_grid(1) - 1, KIND=dp)/(2._dp*REAL(mp_grid(1), KIND=dp))
+                  kpoint%xkp(2, i) = REAL(2*iy - mp_grid(2) - 1, KIND=dp)/(2._dp*REAL(mp_grid(2), KIND=dp))
+                  kpoint%xkp(3, i) = REAL(2*iz - mp_grid(3) - 1, KIND=dp)/(2._dp*REAL(mp_grid(3), KIND=dp))
                END DO
             END DO
          END DO
@@ -412,24 +397,11 @@ CONTAINS
       CALL kpoint_env_initialize(kpoint)
 
       CALL kpoint_initialize_mos(kpoint, qs_env%mos, nadd)
-      DO ik = 1, SIZE(kpoint%kp_env)
-         CALL mpools_get(kpoint%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
-         mos => kpoint%kp_env(ik)%kpoint_env%mos
-         ikk = kpoint%kp_range(1) + ik - 1
-         CPASSERT(ASSOCIATED(mos))
-         DO ispin = 1, SIZE(mos, 2)
-            DO ic = 1, SIZE(mos, 1)
-               CALL get_mo_set(mos(ic, ispin)%mo_set, mo_coeff=mo_coeff)
-               IF (.NOT. ASSOCIATED(mo_coeff)) THEN
-                  CALL init_mo_set(mos(ic, ispin)%mo_set, &
-                                   fm_pool=ao_mo_fm_pools(ispin)%pool, name="kpoints")
-               END IF
-            END DO
-         END DO
-      END DO
+      CALL kpoint_initialize_mo_set(kpoint)
+
       CALL get_qs_env(qs_env, sab_kp=sab_nl, dft_control=dft_control)
       CALL kpoint_init_cell_index(kpoint, sab_nl, para_env, dft_control)
-      !
+
       CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks, matrix_s_kp=matrix_s, &
                       scf_env=scf_env, scf_control=scf_control)
       CALL do_general_diag_kp(matrix_ks, matrix_s, kpoint, scf_env, scf_control, .FALSE.)

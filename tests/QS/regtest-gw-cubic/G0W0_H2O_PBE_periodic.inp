@@ -60,11 +60,11 @@
             ANALYTIC_CONTINUATION TWO_POLE
             CROSSING_SEARCH       Z_SHOT
             RI_SIGMA_X            FALSE
-            PERIODIC
-            &PERIODIC
+            PERIODIC_CORRECTION
+            &PERIODIC_CORRECTION
               # That value should be chosen much larger !
               NUM_OMEGA_POINTS   5
-            &END
+            &END PERIODIC_CORRECTION
           &END GW
         &END RI_RPA
         MEMORY  200.

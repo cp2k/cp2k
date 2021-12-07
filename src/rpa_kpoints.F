@@ -15,13 +15,17 @@ MODULE rpa_kpoints
                                               get_cell,&
                                               pbc
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_cholesky_decompose,&
+                                              cp_cfm_column_scale,&
                                               cp_cfm_gemm,&
-                                              cp_cfm_scale_and_add_fm
+                                              cp_cfm_scale_and_add_fm,&
+                                              cp_cfm_transpose
+   USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_p_type,&
                                               cp_cfm_release,&
                                               cp_cfm_set_all,&
+                                              cp_cfm_to_cfm,&
                                               cp_cfm_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
@@ -31,6 +35,7 @@ MODULE rpa_kpoints
                                               cp_fm_set_all,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_get_block_p, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
@@ -40,10 +45,12 @@ MODULE rpa_kpoints
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
    USE mathconstants,                   ONLY: gaussi,&
+                                              pi,&
                                               twopi,&
                                               z_one,&
                                               z_zero
-   USE message_passing,                 ONLY: mp_sum
+   USE message_passing,                 ONLY: mp_sum,&
+                                              mp_sync
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -58,7 +65,7 @@ MODULE rpa_kpoints
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_kpoints'
 
-   PUBLIC :: RPA_postprocessing_kp
+   PUBLIC :: RPA_postprocessing_kp, cp_cfm_robust_cholesky
 
 CONTAINS
 
@@ -77,6 +84,7 @@ CONTAINS
 !> \param wj ...
 !> \param weights_cos_tf_w_to_t ...
 !> \param wkp_W ...
+!> \param wkp_V ...
 !> \param do_gw_im_time ...
 !> \param do_ri_Sigma_x ...
 !> \param do_kpoints_from_Gamma ...
@@ -88,6 +96,7 @@ CONTAINS
 !> \param mat_P_omega_kp ...
 !> \param qs_env ...
 !> \param eps_filter_im_time ...
+!> \param unit_nr ...
 !> \param kpoints ...
 !> \param fm_mat_L ...
 !> \param fm_mat_W ...
@@ -95,9 +104,10 @@ CONTAINS
 !> \param mat_SinvVSinv ...
 ! **************************************************************************************************
    SUBROUTINE RPA_postprocessing_kp(dimen_RI, num_integ_points, jquad, nkp, count_ev_sc_GW, para_env, para_env_RPA, &
-                                    Erpa, tau_tj, tj, wj, weights_cos_tf_w_to_t, wkp_W, do_gw_im_time, do_ri_Sigma_x, &
-                                    do_kpoints_from_Gamma, do_kpoints_cubic_RPA, cfm_mat_W_kp_tau, cfm_mat_Q, ikp_local, &
-                                    mat_P_omega, mat_P_omega_kp, qs_env, eps_filter_im_time, kpoints, fm_mat_L, fm_mat_W, &
+                                    Erpa, tau_tj, tj, wj, weights_cos_tf_w_to_t, wkp_W, wkp_V, do_gw_im_time, &
+                                    do_ri_Sigma_x, do_kpoints_from_Gamma, do_kpoints_cubic_RPA, &
+                                    cfm_mat_W_kp_tau, cfm_mat_Q, ikp_local, mat_P_omega, mat_P_omega_kp, &
+                                    qs_env, eps_filter_im_time, unit_nr, kpoints, fm_mat_L, fm_mat_W, &
                                     fm_mat_RI_global_work, mat_SinvVSinv)
 
       INTEGER, INTENT(IN)                                :: dimen_RI, num_integ_points, jquad, nkp, &
@@ -109,7 +119,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tj, wj
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(IN)                                      :: weights_cos_tf_w_to_t
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wkp_W
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wkp_W, wkp_V
       LOGICAL, INTENT(IN)                                :: do_gw_im_time, do_ri_Sigma_x, &
                                                             do_kpoints_from_Gamma, &
                                                             do_kpoints_cubic_RPA
@@ -120,6 +130,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(INOUT) :: mat_P_omega, mat_P_omega_kp
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter_im_time
+      INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_W
@@ -140,7 +151,7 @@ CONTAINS
       END IF
 
       IF (do_kpoints_from_Gamma) THEN
-         CALL get_P_cell_T_from_P_gamma(mat_P_omega, qs_env, kpoints, jquad)
+         CALL get_P_cell_T_from_P_gamma(mat_P_omega, qs_env, kpoints, jquad, unit_nr)
       END IF
 
       CALL transform_P_from_real_space_to_kpoints(mat_P_omega, mat_P_omega_kp, &
@@ -148,18 +159,22 @@ CONTAINS
 
       ALLOCATE (trace_Qomega(dimen_RI))
 
+      IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T69,I9,A,I2)') &
+         'GW_INFO| Computing chi and W for frequency point: ', jquad, '/', num_integ_points
+
       DO ikp = 1, nkp
 
-         ! parallization
+         ! parallization, we either have all kpoints on all processors or a single kpoint per group
          IF (ikp_local(ikp) .NE. ikp) CYCLE
 
-         ! 1. multiplication Q(iw,k) = K^H(k)P(iw,k)K(k)
+         ! 1. remove all spurious negative eigenvalues from P(iw,k), multiplication Q(iw,k) = K^H(k)P(iw,k)K(k)
          CALL compute_Q_kp_RPA(cfm_mat_Q, &
                                mat_P_omega_kp, &
                                fm_mat_L(ikp, 1)%matrix, &
                                fm_mat_L(ikp, 2)%matrix, &
                                fm_mat_RI_global_work, &
-                               dimen_RI, ikp, nkp, ikp_local, para_env)
+                               dimen_RI, ikp, nkp, ikp_local, para_env, &
+                               qs_env%mp2_env%ri_rpa_im_time%make_chi_pos_definite)
 
          ! 2. Cholesky decomposition of Id + Q(iw,k)
          CALL cholesky_decomp_Q(cfm_mat_Q, para_env_RPA, trace_Qomega, dimen_RI)
@@ -181,7 +196,7 @@ CONTAINS
                                                  fm_mat_L(ikp, 2)%matrix, &
                                                  dimen_RI, 1, 1, &
                                                  ikp, tj_dummy, tau_tj_dummy, weights_cos_tf_w_to_t_dummy, &
-                                                 ikp_local, para_env, kpoints, qs_env, wkp_W, &
+                                                 ikp_local, para_env, kpoints, qs_env, wkp_V, &
                                                  mat_SinvVSinv, do_W_and_not_V=.FALSE.)
 
                CALL release_dummys(tj_dummy, tau_tj_dummy, weights_cos_tf_w_to_t_dummy)
@@ -219,6 +234,63 @@ CONTAINS
    END SUBROUTINE RPA_postprocessing_kp
 
 ! **************************************************************************************************
+!> \brief Decomposition A = L^H*L of a Hermitian matrix A
+!> \param matrix ...
+!> \param work ...
+!> \param threshold ...
+!> \param exponent ...
+!> \param min_eigval ...
+!> \author Jan Wilhelm, 07.2021
+! **************************************************************************************************
+   SUBROUTINE cp_cfm_robust_cholesky(matrix, work, threshold, exponent, min_eigval)
+      TYPE(cp_cfm_type), POINTER                         :: matrix, work
+      REAL(KIND=dp)                                      :: threshold, exponent
+      REAL(KIND=dp), OPTIONAL                            :: min_eigval
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_cfm_robust_cholesky'
+      COMPLEX(KIND=dp), PARAMETER :: cone = CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
+         czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: eigenvalues_exponent
+      INTEGER                                            :: handle, i, ncol_global, nrow_global
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
+
+      CALL timeset(routineN, handle)
+
+      ! Test that matrix is square
+      CALL cp_cfm_get_info(matrix, nrow_global=nrow_global, ncol_global=ncol_global)
+      CPASSERT(nrow_global == ncol_global)
+      ALLOCATE (eigenvalues(nrow_global))
+      eigenvalues(:) = 0.0_dp
+      ALLOCATE (eigenvalues_exponent(nrow_global))
+      eigenvalues_exponent(:) = czero
+
+      ! Diagonalize matrix: get eigenvectors and eigenvalues
+      CALL cp_cfm_heevd(matrix, work, eigenvalues)
+
+      DO i = 1, nrow_global
+         IF (eigenvalues(i) > threshold) THEN
+            eigenvalues_exponent(i) = CMPLX((eigenvalues(i))**exponent, threshold, KIND=dp)
+         ELSE
+            IF (PRESENT(min_eigval)) THEN
+               eigenvalues_exponent(i) = CMPLX(min_eigval, 0.0_dp, KIND=dp)
+            ELSE
+               eigenvalues_exponent(i) = czero
+            END IF
+         END IF
+      END DO
+
+      CALL cp_cfm_column_scale(work, eigenvalues_exponent)
+
+      CALL cp_cfm_transpose(work, 'C', matrix)
+
+      DEALLOCATE (eigenvalues, eigenvalues_exponent)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_cfm_robust_cholesky
+
+! **************************************************************************************************
 !> \brief ...
 !> \param cfm_mat_Q ...
 !> \param mat_P_omega_kp ...
@@ -230,9 +302,11 @@ CONTAINS
 !> \param nkp ...
 !> \param ikp_local ...
 !> \param para_env ...
+!> \param make_chi_pos_definite ...
 ! **************************************************************************************************
    SUBROUTINE compute_Q_kp_RPA(cfm_mat_Q, mat_P_omega_kp, fm_mat_L_re, fm_mat_L_im, &
-                               fm_mat_RI_global_work, dimen_RI, ikp, nkp, ikp_local, para_env)
+                               fm_mat_RI_global_work, dimen_RI, ikp, nkp, ikp_local, para_env, &
+                               make_chi_pos_definite)
 
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
       TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(INOUT) :: mat_P_omega_kp
@@ -241,6 +315,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dimen_RI, ikp, nkp
       INTEGER, DIMENSION(:), INTENT(IN)                  :: ikp_local
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      LOGICAL, INTENT(IN)                                :: make_chi_pos_definite
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_Q_kp_RPA'
 
@@ -262,18 +337,29 @@ CONTAINS
       CALL cp_fm_create(fm_mat_work, fm_mat_L_re%matrix_struct)
       CALL cp_fm_set_all(fm_mat_work, 0.0_dp)
 
+      ! 1. Convert the dbcsr matrix mat_P_omega_kp (that is chi(k,iw)) to a full matrix and
+      !    distribute it to subgroups
       CALL mat_P_to_subgroup(mat_P_omega_kp, fm_mat_RI_global_work, &
                              fm_mat_work, cfm_mat_Q, ikp, nkp, ikp_local, para_env)
 
-      ! 2. Copy fm_mat_L_re and fm_mat_L_re to cfm_mat_L
+      ! 2. Remove all negative eigenvalues from chi(k,iw)
+      IF (make_chi_pos_definite) THEN
+         CALL cp_cfm_robust_cholesky(cfm_mat_Q, cfm_mat_work, threshold=0.0_dp, exponent=0.5_dp)
+         CALL cp_cfm_gemm("C", "N", dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_Q, cfm_mat_Q, &
+                          z_zero, cfm_mat_work)
+         CALL cp_cfm_to_cfm(cfm_mat_work, cfm_mat_Q)
+
+      END IF
+
+      ! 3. Copy fm_mat_L_re and fm_mat_L_re to cfm_mat_L
       CALL cp_cfm_scale_and_add_fm(z_zero, cfm_mat_L, z_one, fm_mat_L_re)
       CALL cp_cfm_scale_and_add_fm(z_one, cfm_mat_L, gaussi, fm_mat_L_im)
 
-      ! 3. work = P(iw,k)*L(k)
+      ! 4. work = P(iw,k)*L(k)
       CALL cp_cfm_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_Q, cfm_mat_L, &
                        z_zero, cfm_mat_work)
 
-      ! 4. Q(iw,k) = L^H(k)*work
+      ! 5. Q(iw,k) = L^H(k)*work
       CALL cp_cfm_gemm('C', 'N', dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_L, cfm_mat_work, &
                        z_zero, cfm_mat_Q)
 
@@ -362,6 +448,8 @@ CONTAINS
 
       END IF
 
+      CALL mp_sync(para_env%group)
+
       CALL timestop(handle)
 
    END SUBROUTINE mat_P_to_subgroup
@@ -385,8 +473,17 @@ CONTAINS
       INTEGER                                            :: handle, i_global, iiB, info_chol, &
                                                             j_global, jjB, ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q_tmp, cfm_mat_work
 
       CALL timeset(routineN, handle)
+
+      NULLIFY (cfm_mat_work)
+      CALL cp_cfm_create(cfm_mat_work, cfm_mat_Q%matrix_struct)
+      CALL cp_cfm_set_all(cfm_mat_work, z_zero)
+
+      NULLIFY (cfm_mat_Q_tmp)
+      CALL cp_cfm_create(cfm_mat_Q_tmp, cfm_mat_Q%matrix_struct)
+      CALL cp_cfm_set_all(cfm_mat_Q_tmp, z_zero)
 
       ! get info of fm_mat_Q
       CALL cp_cfm_get_info(matrix=cfm_mat_Q, &
@@ -411,8 +508,14 @@ CONTAINS
       END DO
       CALL mp_sum(trace_Qomega, para_env_RPA%group)
 
+      CALL cp_cfm_to_cfm(cfm_mat_Q, cfm_mat_Q_tmp)
+
       CALL cp_cfm_cholesky_decompose(matrix=cfm_mat_Q, n=dimen_RI, info_out=info_chol)
+
       CPASSERT(info_chol == 0)
+
+      CALL cp_cfm_release(cfm_mat_work)
+      CALL cp_cfm_release(cfm_mat_Q_tmp)
 
       CALL timestop(handle)
 
@@ -591,12 +694,13 @@ CONTAINS
 !> \param qs_env ...
 !> \param kpoints ...
 !> \param jquad ...
+!> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE get_P_cell_T_from_P_gamma(mat_P_omega, qs_env, kpoints, jquad)
+   SUBROUTINE get_P_cell_T_from_P_gamma(mat_P_omega, qs_env, kpoints, jquad, unit_nr)
       TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(IN)    :: mat_P_omega
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(kpoint_type), POINTER                         :: kpoints
-      INTEGER, INTENT(IN)                                :: jquad
+      INTEGER, INTENT(IN)                                :: jquad, unit_nr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_P_cell_T_from_P_gamma'
 
@@ -604,12 +708,11 @@ CONTAINS
                                                             num_integ_points, row
       INTEGER, DIMENSION(3)                              :: cell_grid_P, periodic
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_P
-      LOGICAL                                            :: found
-      REAL(KIND=dp)                                      :: cutoff_exp, d_0, sum_exp, weight
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: abs_rab_cell
+      REAL(KIND=dp)                                      :: abs_rab_cell_i, first_cutoff, &
+                                                            second_cutoff, weight
       REAL(KIND=dp), DIMENSION(3)                        :: cell_vector, rab_cell_i
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block_to_compute, data_block
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -647,59 +750,60 @@ CONTAINS
                          mat_P_omega(jquad, 1)%matrix)
       END DO
 
-      ! exponential decay parameter
-      d_0 = qs_env%mp2_env%ri_rpa_im_time%cutoff
-      cutoff_exp = 100.0_dp
+      first_cutoff = qs_env%mp2_env%ri_rpa_im_time%abs_cutoffs_chi_W(1)
+      second_cutoff = qs_env%mp2_env%ri_rpa_im_time%abs_cutoffs_chi_W(2)
 
-      ALLOCATE (abs_rab_cell(1:num_cells_P))
+      IF (jquad == 1 .AND. unit_nr > 0) THEN
+         WRITE (unit_nr, '(T3,A,T72,F9.2)') 'GW_INFO| Relative cutoff 1: ', &
+            qs_env%mp2_env%ri_rpa_im_time%rel_cutoffs_chi_W(1)
+         WRITE (unit_nr, '(T3,A,T72,F9.2)') 'GW_INFO| Relative cutoff 2: ', &
+            qs_env%mp2_env%ri_rpa_im_time%rel_cutoffs_chi_W(2)
+         WRITE (unit_nr, '(T3,A,T72,F9.2)') 'GW_INFO| Cutoff radius 1 (Angstroem):', &
+            cp_unit_from_cp2k(first_cutoff, "angstrom")
+         WRITE (unit_nr, '(T3,A,T72,F9.2)') 'GW_INFO| Cutoff radius 2 (Angstroem):', &
+            cp_unit_from_cp2k(second_cutoff, "angstrom")
+         WRITE (unit_nr, '(T3,A,T72,F9.2)') &
+            'GW_INFO| If Cutoff radius 1 = Cutoff radius 2 = 0.5: minimum image convention.'
+         WRITE (unit_nr, '(T3,A,T66,ES15.2)') 'GW_INFO| RI regularization parameter: ', &
+            qs_env%mp2_env%ri_rpa_im_time%regularization_RI
+         IF (qs_env%mp2_env%ri_rpa_im_time%make_chi_pos_definite) THEN
+            WRITE (unit_nr, '(T3,A,T81)') &
+               'GW_INFO| Make chi(iw,k) positive definite?                                TRUE'
+         ELSE
+            WRITE (unit_nr, '(T3,A,T81)') &
+               'GW_INFO| Make chi(iw,k) positive definite?                               FALSE'
+         END IF
 
-      ! loop over blocks of mat_P_omega(i_cell=1)
-      CALL dbcsr_iterator_start(iter, mat_P_omega(jquad, 1)%matrix)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, row, col, data_block)
+      END IF
 
-         sum_exp = 0.0_dp
+      DO i_cell = 1, num_cells_P
 
-         DO i_cell = 1, num_cells_P
+         CALL dbcsr_iterator_start(iter, mat_P_omega(jquad, i_cell)%matrix)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, row, col, data_block)
 
             cell_vector(1:3) = MATMUL(hmat, REAL(index_to_cell_P(1:3, i_cell), dp))
             rab_cell_i(1:3) = pbc(particle_set(row)%r(1:3), cell) - &
                               (pbc(particle_set(col)%r(1:3), cell) + cell_vector(1:3))
-            abs_rab_cell(i_cell) = SQRT(rab_cell_i(1)**2 + rab_cell_i(2)**2 + rab_cell_i(3)**2)
-            IF (abs_rab_cell(i_cell)/d_0 < cutoff_exp) THEN
-               sum_exp = sum_exp + EXP(-abs_rab_cell(i_cell)/d_0)
-            END IF
+            abs_rab_cell_i = SQRT(rab_cell_i(1)**2 + rab_cell_i(2)**2 + rab_cell_i(3)**2)
 
-         END DO
-
-         IF (abs_rab_cell(1)/d_0 < cutoff_exp) THEN
-            weight = EXP(-abs_rab_cell(1)/d_0)/sum_exp
-         ELSE
-            weight = 0.0_dp
-         END IF
-         data_block(:, :) = data_block(:, :)*weight
-
-         DO i_cell = 2, num_cells_P
-
-            ! THE SYMMETRY EQUIVALENT LATTICE VECTORS ENTER HERE: ONLY LATT. VEC. WITH POS. X-COMP ARE CONSIDERED
-            IF (abs_rab_cell(i_cell)/d_0 < cutoff_exp .AND. index_to_cell_P(1, i_cell) .LE. 0) THEN
-               weight = EXP(-abs_rab_cell(i_cell)/d_0)/sum_exp
+            ! smooth function that is only one if atoms are very close and becomes smoothly zero
+            ! for larger distances
+            IF (abs_rab_cell_i < first_cutoff) THEN
+               weight = 1.0_dp
+            ELSE IF (abs_rab_cell_i < second_cutoff) THEN
+               weight = 0.5_dp*(COS(pi*(abs_rab_cell_i - first_cutoff)/ &
+                                    (second_cutoff - first_cutoff)) + 1.0_dp)
             ELSE
                weight = 0.0_dp
             END IF
 
-            NULLIFY (block_to_compute)
-            CALL dbcsr_get_block_p(matrix=mat_P_omega(jquad, i_cell)%matrix, &
-                                   row=row, col=col, block=block_to_compute, found=found)
-            CPASSERT(found)
-            block_to_compute(:, :) = block_to_compute(:, :)*weight
+            data_block(:, :) = data_block(:, :)*weight
 
          END DO
+         CALL dbcsr_iterator_stop(iter)
 
       END DO
-      CALL dbcsr_iterator_stop(iter)
-
-      DEALLOCATE (abs_rab_cell)
 
       CALL timestop(handle)
 
@@ -789,7 +893,6 @@ CONTAINS
          CALL dbcsr_set(real_mat_kp(ik)%matrix, 0.0_dp)
          CALL dbcsr_set(imag_mat_kp(ik)%matrix, 0.0_dp)
 
-         ! JW to check: high memory consumption
          CALL dbcsr_reserve_all_blocks(real_mat_kp(ik)%matrix)
          CALL dbcsr_reserve_all_blocks(imag_mat_kp(ik)%matrix)
 

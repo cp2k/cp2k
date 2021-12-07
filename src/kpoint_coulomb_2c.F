@@ -61,10 +61,9 @@ CONTAINS
 !> \param atomic_kind_set ...
 !> \param size_lattice_sum ...
 !> \param operator_type ...
-!> \param cutoff ...
 ! **************************************************************************************************
    SUBROUTINE build_2c_coulomb_matrix_kp(matrix_v_kp, kpoints, basis_type, cell, particle_set, qs_kind_set, &
-                                         atomic_kind_set, size_lattice_sum, operator_type, cutoff)
+                                         atomic_kind_set, size_lattice_sum, operator_type)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_v_kp
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -74,7 +73,6 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       INTEGER                                            :: size_lattice_sum, operator_type
-      REAL(dp)                                           :: cutoff
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_2c_coulomb_matrix_kp'
 
@@ -89,7 +87,7 @@ CONTAINS
 
       CALL lattice_sum(matrix_v_kp, kpoints, basis_type, cell, particle_set, &
                        qs_kind_set, atomic_kind_set, size_lattice_sum, matrix_v_L_tmp, &
-                       operator_type, cutoff)
+                       operator_type)
 
       CALL deallocate_tmp(matrix_v_L_tmp)
 
@@ -109,11 +107,10 @@ CONTAINS
 !> \param size_lattice_sum ...
 !> \param matrix_v_L_tmp ...
 !> \param operator_type ...
-!> \param cutoff ...
 ! **************************************************************************************************
    SUBROUTINE lattice_sum(matrix_v_kp, kpoints, basis_type, cell, particle_set, &
                           qs_kind_set, atomic_kind_set, size_lattice_sum, matrix_v_L_tmp, &
-                          operator_type, cutoff)
+                          operator_type)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_v_kp
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -125,7 +122,6 @@ CONTAINS
       INTEGER                                            :: size_lattice_sum
       TYPE(dbcsr_type), POINTER                          :: matrix_v_L_tmp
       INTEGER                                            :: operator_type
-      REAL(dp)                                           :: cutoff
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'lattice_sum'
 
@@ -213,7 +209,7 @@ CONTAINS
                         ! Compute (P 0 | Q vec_L) and store it in matrix_v_L_tmp
                         CALL compute_v_transl(matrix_v_L_tmp, blocks_of_v_L, vec_L, particle_set, &
                                               qs_kind_set, atomic_kind_set, basis_type, cell, &
-                                              operator_type, cutoff)
+                                              operator_type)
 
                         DO i_block = 1, SIZE(blocks_of_v_L)
                            blocks_of_v_L_store(i_block)%block(:, :) = blocks_of_v_L_store(i_block)%block(:, :) &
@@ -320,10 +316,9 @@ CONTAINS
 !> \param basis_type ...
 !> \param cell ...
 !> \param operator_type ...
-!> \param cutoff ...
 ! **************************************************************************************************
    SUBROUTINE compute_v_transl(matrix_v_L_tmp, blocks_of_v_L, vec_L, particle_set, &
-                               qs_kind_set, atomic_kind_set, basis_type, cell, operator_type, cutoff)
+                               qs_kind_set, atomic_kind_set, basis_type, cell, operator_type)
 
       TYPE(dbcsr_type), POINTER                          :: matrix_v_L_tmp
       TYPE(two_d_util_type), ALLOCATABLE, DIMENSION(:)   :: blocks_of_v_L
@@ -334,7 +329,6 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: basis_type
       TYPE(cell_type), POINTER                           :: cell
       INTEGER                                            :: operator_type
-      REAL(dp)                                           :: cutoff
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_v_transl'
 
@@ -384,7 +378,7 @@ CONTAINS
          blocks_of_v_L(i_block)%block = 0.0_dp
 
          CALL int_operators_r12_ab_shg(operator_type, blocks_of_v_L(i_block)%block, rab=rab_L, &
-                                       fba=basis_set_a, fbb=basis_set_b, scona_shg=contr_a, sconb_shg=contr_b, omega=cutoff, &
+                                       fba=basis_set_a, fbb=basis_set_b, scona_shg=contr_a, sconb_shg=contr_b, &
                                        calculate_forces=.FALSE.)
 
          i_block = i_block + 1

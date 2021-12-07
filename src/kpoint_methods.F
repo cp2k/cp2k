@@ -73,6 +73,7 @@ MODULE kpoint_methods
                                               qs_matrix_pools_type
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               get_mo_set,&
+                                              init_mo_set,&
                                               mo_set_p_type,&
                                               mo_set_type,&
                                               set_mo_set
@@ -93,7 +94,7 @@ MODULE kpoint_methods
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kpoint_methods'
 
-   PUBLIC :: kpoint_initialize, kpoint_env_initialize, kpoint_initialize_mos
+   PUBLIC :: kpoint_initialize, kpoint_env_initialize, kpoint_initialize_mos, kpoint_initialize_mo_set
    PUBLIC :: kpoint_init_cell_index, kpoint_set_mo_occupation
    PUBLIC :: kpoint_density_matrices, kpoint_density_transform
    PUBLIC :: rskp_transform
@@ -547,6 +548,42 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE kpoint_initialize_mos
+
+! **************************************************************************************************
+!> \brief ...
+!> \param kpoint ...
+! **************************************************************************************************
+   SUBROUTINE kpoint_initialize_mo_set(kpoint)
+      TYPE(kpoint_type), POINTER                         :: kpoint
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_initialize_mo_set'
+
+      INTEGER                                            :: handle, ic, ik, ikk, ispin
+      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(mo_set_p_type), DIMENSION(:, :), POINTER      :: moskp
+
+      CALL timeset(routineN, handle)
+
+      DO ik = 1, SIZE(kpoint%kp_env)
+         CALL mpools_get(kpoint%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
+         moskp => kpoint%kp_env(ik)%kpoint_env%mos
+         ikk = kpoint%kp_range(1) + ik - 1
+         CPASSERT(ASSOCIATED(moskp))
+         DO ispin = 1, SIZE(moskp, 2)
+            DO ic = 1, SIZE(moskp, 1)
+               CALL get_mo_set(moskp(ic, ispin)%mo_set, mo_coeff=mo_coeff)
+               IF (.NOT. ASSOCIATED(mo_coeff)) THEN
+                  CALL init_mo_set(moskp(ic, ispin)%mo_set, &
+                                   fm_pool=ao_mo_fm_pools(ispin)%pool, name="kpoints")
+               END IF
+            END DO
+         END DO
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE kpoint_initialize_mo_set
 
 ! **************************************************************************************************
 !> \brief Generates the mapping of cell indices and linear RS index

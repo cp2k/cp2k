@@ -49,6 +49,7 @@ MODULE rpa_util
                                               wfc_mm_style_syrk
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                              kpoint_release,&
                                               kpoint_type
    USE mathconstants,                   ONLY: z_zero
    USE message_passing,                 ONLY: mp_sum
@@ -105,6 +106,7 @@ CONTAINS
 !> \param my_open_shell ...
 !> \param has_mat_P_blocks ...
 !> \param wkp_W ...
+!> \param wkp_V ...
 !> \param cfm_mat_Q ...
 !> \param fm_mat_L ...
 !> \param fm_mat_RI_global_work ...
@@ -132,7 +134,7 @@ CONTAINS
                             col_blk_size, &
                             do_ic_model, do_kpoints_cubic_RPA, &
                             do_kpoints_from_Gamma, do_ri_Sigma_x, my_open_shell, &
-                            has_mat_P_blocks, wkp_W, &
+                            has_mat_P_blocks, wkp_W, wkp_V, &
                             cfm_mat_Q, fm_mat_L, fm_mat_RI_global_work, fm_mat_work, fm_mo_coeff_occ_scaled, &
                             fm_mo_coeff_virt_scaled, mat_dm, mat_L, mat_M_P_munu_occ, mat_M_P_munu_virt, mat_P_global_copy, &
                             mat_SinvVSinv, mat_P_omega, mat_P_omega_kp, &
@@ -164,7 +166,7 @@ CONTAINS
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :), &
          INTENT(OUT)                                     :: has_mat_P_blocks
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(OUT)                                     :: wkp_W
+         INTENT(OUT)                                     :: wkp_W, wkp_V
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L
       TYPE(cp_fm_type), POINTER                          :: fm_mat_RI_global_work, fm_mat_work, &
@@ -217,7 +219,7 @@ CONTAINS
       IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
 
          CALL get_sub_para_kp(fm_struct_sub_kp, para_env, kpoints%nkp, &
-                              dimen_RI, ikp_local, first_ikp_local, do_kpoints_cubic_RPA)
+                              dimen_RI, ikp_local, first_ikp_local)
 
          NULLIFY (cfm_mat_Q)
          CALL cp_cfm_create(cfm_mat_Q, fm_struct_sub_kp)
@@ -237,8 +239,8 @@ CONTAINS
          CALL get_kpoint_info(kpoints, nkp=nkp)
          ! compute k-point weights such that functions 1/k^2, 1/k and const function are
          ! integrated correctly
-         CALL compute_wkp_W(wkp_W, kpoints, cell%hmat, cell%h_inv, &
-                            qs_env%mp2_env%ri_rpa_im_time%exp_kpoints, periodic)
+         CALL compute_wkp_W(qs_env, wkp_W, wkp_V, kpoints, cell%h_inv, periodic)
+
       ELSE
          nkp = 1
       END IF
@@ -914,16 +916,14 @@ CONTAINS
 !> \param dimen_RI ...
 !> \param ikp_local ...
 !> \param first_ikp_local ...
-!> \param do_kpoints_cubic_RPA ...
 ! **************************************************************************************************
    SUBROUTINE get_sub_para_kp(fm_struct_sub_kp, para_env, nkp, dimen_RI, &
-                              ikp_local, first_ikp_local, do_kpoints_cubic_RPA)
+                              ikp_local, first_ikp_local)
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_sub_kp
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: nkp, dimen_RI
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: ikp_local
       INTEGER, INTENT(OUT)                               :: first_ikp_local
-      LOGICAL, INTENT(IN)                                :: do_kpoints_cubic_RPA
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'get_sub_para_kp'
 
@@ -934,13 +934,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (nkp > para_env%num_pe .OR. do_kpoints_cubic_RPA) THEN
-         ! we have all kpoints on every processpr
-         num_proc_per_kp = para_env%num_pe
-      ELSE
-         ! we have only one kpoint per group
-         num_proc_per_kp = para_env%num_pe/nkp
-      END IF
+      ! JW we use all processors for every k-point, a subgroup does not improve the
+      ! performance substantially
+      num_proc_per_kp = para_env%num_pe
 
       color_sub_kp = MOD(para_env%mepos/num_proc_per_kp, nkp)
       CALL cp_para_env_split(para_env_sub_kp, para_env, color_sub_kp)
@@ -960,10 +956,7 @@ CONTAINS
       ikp_local = 0
       first_ikp_local = 1
       DO ikp = 1, nkp
-         IF (nkp > para_env%num_pe .OR. do_kpoints_cubic_RPA .OR. ikp == color_sub_kp + 1) THEN
-            ikp_local(ikp) = ikp
-            first_ikp_local = ikp
-         END IF
+         ikp_local(ikp) = ikp
       END DO
 
       CALL timestop(handle)
@@ -985,6 +978,7 @@ CONTAINS
 !> \param do_ri_Sigma_x ...
 !> \param has_mat_P_blocks ...
 !> \param wkp_W ...
+!> \param wkp_V ...
 !> \param cfm_mat_Q ...
 !> \param fm_mat_L ...
 !> \param fm_mat_RI_global_work ...
@@ -1001,16 +995,20 @@ CONTAINS
 !> \param t_3c_O_compressed ...
 !> \param t_3c_O_ind ...
 !> \param mat_work ...
+!> \param kpoints_G ...
+!> \param kpoints_Sigma ...
+!> \param kpoints_Sigma_no_xc ...
 ! **************************************************************************************************
    SUBROUTINE dealloc_im_time(fm_mo_coeff_occ, fm_mo_coeff_virt, &
                               fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, ikp_local, index_to_cell_3c, &
                               cell_to_index_3c, do_ic_model, &
                               do_kpoints_cubic_RPA, do_kpoints_from_Gamma, do_ri_Sigma_x, &
                               has_mat_P_blocks, &
-                              wkp_W, cfm_mat_Q, fm_mat_L, fm_mat_RI_global_work, fm_mat_work, &
+                              wkp_W, wkp_V, cfm_mat_Q, fm_mat_L, fm_mat_RI_global_work, fm_mat_work, &
                               fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, mat_dm, mat_L, &
                               mat_SinvVSinv, mat_P_omega, mat_P_omega_kp, &
-                              t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, mat_work)
+                              t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
+                              mat_work, kpoints_G, kpoints_Sigma, kpoints_Sigma_no_xc)
 
       TYPE(cp_fm_p_type), DIMENSION(:)                   :: fm_mo_coeff_occ, fm_mo_coeff_virt
       TYPE(cp_fm_type), POINTER                          :: fm_scaled_dm_occ_tau, &
@@ -1025,7 +1023,7 @@ CONTAINS
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :), &
          INTENT(INOUT)                                   :: has_mat_P_blocks
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(INOUT)                                   :: wkp_W
+         INTENT(INOUT)                                   :: wkp_W, wkp_V
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L
       TYPE(cp_fm_type), POINTER                          :: fm_mat_RI_global_work, fm_mat_work, &
@@ -1042,6 +1040,8 @@ CONTAINS
       TYPE(block_ind_type), ALLOCATABLE, &
          DIMENSION(:, :, :), INTENT(INOUT)               :: t_3c_O_ind
       TYPE(dbcsr_type), POINTER                          :: mat_work
+      TYPE(kpoint_type), POINTER                         :: kpoints_G, kpoints_Sigma, &
+                                                            kpoints_Sigma_no_xc
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dealloc_im_time'
 
@@ -1120,6 +1120,7 @@ CONTAINS
          CALL cp_fm_release(fm_mat_RI_global_work)
          CALL dbcsr_deallocate_matrix_set(mat_P_omega_kp)
          DEALLOCATE (wkp_W)
+         DEALLOCATE (wkp_V)
       END IF
 
       cut_memory = SIZE(t_3c_O_compressed, 3)
@@ -1133,6 +1134,15 @@ CONTAINS
          END DO
       END DO
       DEALLOCATE (t_3c_O_compressed)
+
+      IF (do_kpoints_from_Gamma) THEN
+         IF (ASSOCIATED(kpoints_G)) CALL kpoint_release(kpoints_G)
+         ! JW later for band structures from GW
+         IF (.NOT. do_kpoints_from_Gamma) THEN
+            IF (ASSOCIATED(kpoints_Sigma)) CALL kpoint_release(kpoints_Sigma)
+            IF (ASSOCIATED(kpoints_Sigma_no_xc)) CALL kpoint_release(kpoints_Sigma_no_xc)
+         END IF
+      END IF
 
       CALL timestop(handle)
 

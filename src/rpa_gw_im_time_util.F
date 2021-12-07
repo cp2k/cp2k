@@ -41,6 +41,8 @@ MODULE rpa_gw_im_time_util
                                               hfx_compression_type
    USE kinds,                           ONLY: dp,&
                                               int_8
+   USE mathconstants,                   ONLY: pi,&
+                                              twopi
    USE message_passing,                 ONLY: mp_alltoall,&
                                               mp_dims_create,&
                                               mp_sum
@@ -67,7 +69,8 @@ MODULE rpa_gw_im_time_util
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_gw_im_time_util'
 
-   PUBLIC :: get_tensor_3c_overl_int_gw
+   PUBLIC :: get_tensor_3c_overl_int_gw, compute_weight_re_im, get_atom_index_from_basis_function_index, &
+             compute_shortest_lattice_vector
 CONTAINS
 
 ! **************************************************************************************************
@@ -417,7 +420,7 @@ CONTAINS
 
       IF (unit_nr > 0) THEN
          WRITE (UNIT=unit_nr, FMT="((T3,A,T66,F11.2,A4))") &
-            "MEMORY_INFO| Memory for MO-contracted integral tensor (compressed):", memory_3c, ' MiB'
+            "MEMORY_INFO| Memory of MO-contracted tensor (compressed):", memory_3c, ' MiB'
 
          WRITE (UNIT=unit_nr, FMT="((T3,A,T60,F21.2))") &
             "MEMORY_INFO| Compression factor:                  ", compression_factor
@@ -732,5 +735,175 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param atom_from_basis_index ...
+!> \param basis_size ...
+!> \param basis_type ...
+! **************************************************************************************************
+   SUBROUTINE get_atom_index_from_basis_function_index(qs_env, atom_from_basis_index, basis_size, basis_type)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_from_basis_index
+      INTEGER                                            :: basis_size
+      CHARACTER(LEN=*)                                   :: basis_type
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_atom_index_from_basis_function_index'
+
+      INTEGER                                            :: iatom, LLL, natom, nkind
+      INTEGER, DIMENSION(:), POINTER                     :: row_blk_end, row_blk_start
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      NULLIFY (qs_kind_set, particle_set)
+      CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, natom=natom, nkind=nkind, &
+                      particle_set=particle_set)
+
+      ALLOCATE (row_blk_start(natom))
+      ALLOCATE (row_blk_end(natom))
+      ALLOCATE (basis_set(nkind))
+      CALL basis_set_list_setup(basis_set, basis_type, qs_kind_set)
+      CALL get_particle_set(particle_set, qs_kind_set, first_sgf=row_blk_start, last_sgf=row_blk_end, &
+                            basis=basis_set)
+      DO LLL = 1, basis_size
+         DO iatom = 1, natom
+            IF (LLL >= row_blk_start(iatom) .AND. LLL <= row_blk_end(iatom)) THEN
+               atom_from_basis_index(LLL) = iatom
+            END IF
+         END DO
+      END DO
+
+      DEALLOCATE (basis_set)
+      DEALLOCATE (row_blk_start)
+      DEALLOCATE (row_blk_end)
+
+   END SUBROUTINE get_atom_index_from_basis_function_index
+
+! **************************************************************************************************
+!> \brief ...
+!> \param weight_re ...
+!> \param weight_im ...
+!> \param num_cells ...
+!> \param iatom ...
+!> \param jatom ...
+!> \param xkp ...
+!> \param wkp_W ...
+!> \param cell ...
+!> \param index_to_cell ...
+!> \param hmat ...
+!> \param particle_set ...
+!> \param abs_cutoffs_chi_W ...
+! **************************************************************************************************
+   SUBROUTINE compute_weight_re_im(weight_re, weight_im, &
+                                   num_cells, iatom, jatom, xkp, wkp_W, &
+                                   cell, index_to_cell, hmat, particle_set, abs_cutoffs_chi_W)
+
+      REAL(KIND=dp)                                      :: weight_re, weight_im
+      INTEGER                                            :: num_cells, iatom, jatom
+      REAL(KIND=dp), DIMENSION(3)                        :: xkp
+      REAL(KIND=dp)                                      :: wkp_W
+      TYPE(cell_type), POINTER                           :: cell
+      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      REAL(KIND=dp), DIMENSION(2)                        :: abs_cutoffs_chi_W
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_weight_re_im'
+
+      INTEGER                                            :: handle, icell, xcell, ycell, zcell
+      REAL(KIND=dp)                                      :: abs_rab_cell, arg, coskl, &
+                                                            dampening_function, first_cutoff, &
+                                                            second_cutoff, sinkl
+      REAL(KIND=dp), DIMENSION(3)                        :: cell_vector, rab_cell_i
+
+      CALL timeset(routineN, handle)
+
+      first_cutoff = abs_cutoffs_chi_W(1)
+      second_cutoff = abs_cutoffs_chi_W(2)
+
+      weight_re = 0.0_dp
+      weight_im = 0.0_dp
+
+      DO icell = 1, num_cells
+
+         xcell = index_to_cell(1, icell)
+         ycell = index_to_cell(2, icell)
+         zcell = index_to_cell(3, icell)
+
+         arg = REAL(xcell, dp)*xkp(1) + REAL(ycell, dp)*xkp(2) + REAL(zcell, dp)*xkp(3)
+
+         coskl = wkp_W*COS(twopi*arg)
+         sinkl = wkp_W*SIN(twopi*arg)
+
+         cell_vector(1:3) = MATMUL(hmat, REAL(index_to_cell(1:3, icell), dp))
+
+         rab_cell_i(1:3) = pbc(particle_set(iatom)%r(1:3), cell) - &
+                           (pbc(particle_set(jatom)%r(1:3), cell) + cell_vector(1:3))
+
+         abs_rab_cell = SQRT(rab_cell_i(1)**2 + rab_cell_i(2)**2 + rab_cell_i(3)**2)
+
+         ! smooth function that is only one if atoms are very close and becomes smoothly zero
+         ! for larger distances
+         IF (abs_rab_cell < first_cutoff) THEN
+            weight_re = 1.0_dp*coskl
+            weight_im = 1.0_dp*sinkl
+         ELSE IF (abs_rab_cell < second_cutoff) THEN
+            dampening_function = 0.5_dp*(COS(pi*(abs_rab_cell - first_cutoff)/ &
+                                             (second_cutoff - first_cutoff)) + 1.0_dp)
+            weight_re = dampening_function*coskl
+            weight_im = dampening_function*sinkl
+         END IF
+
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE compute_weight_re_im
+
+! **************************************************************************************************
+!> \brief ...
+!> \param shortest_lattice_vector ...
+!> \param hmat ...
+!> \param index_to_cell ...
+!> \param num_cells ...
+! **************************************************************************************************
+   SUBROUTINE compute_shortest_lattice_vector(shortest_lattice_vector, hmat, index_to_cell, num_cells)
+
+      REAL(KIND=dp)                                      :: shortest_lattice_vector
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
+      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell
+      INTEGER                                            :: num_cells
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_shortest_lattice_vector'
+
+      INTEGER                                            :: handle, icell, xcell, ycell, zcell
+      REAL(KIND=dp)                                      :: abs_cell_vector
+      REAL(KIND=dp), DIMENSION(3)                        :: cell_vector
+
+      CALL timeset(routineN, handle)
+
+      shortest_lattice_vector = 1.0E9_dp
+
+      DO icell = 1, num_cells
+
+         xcell = index_to_cell(1, icell)
+         ycell = index_to_cell(2, icell)
+         zcell = index_to_cell(3, icell)
+
+         IF (xcell == 0 .AND. ycell == 0 .AND. zcell == 0) CYCLE
+
+         cell_vector(1:3) = MATMUL(hmat, REAL(index_to_cell(1:3, icell), dp))
+
+         abs_cell_vector = SQRT(cell_vector(1)**2 + cell_vector(2)**2 + cell_vector(3)**2)
+
+         IF (abs_cell_vector < shortest_lattice_vector) shortest_lattice_vector = abs_cell_vector
+
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE compute_shortest_lattice_vector
 
 END MODULE rpa_gw_im_time_util

@@ -23,7 +23,6 @@ MODULE qs_wannier90
                                               dbcsr_deallocate_matrix_set
    USE cp_files,                        ONLY: close_file,&
                                               open_file
-   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -53,6 +52,7 @@ MODULE qs_wannier90
                                               dp
    USE kpoint_methods,                  ONLY: kpoint_env_initialize,&
                                               kpoint_init_cell_index,&
+                                              kpoint_initialize_mo_set,&
                                               kpoint_initialize_mos,&
                                               rskp_transform
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -70,9 +70,7 @@ MODULE qs_wannier90
                                               qs_env_release,&
                                               qs_environment_type
    USE qs_gamma2kp,                     ONLY: create_kp_from_gamma
-   USE qs_matrix_pools,                 ONLY: mpools_get
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              init_mo_set,&
                                               mo_set_p_type
    USE qs_moments,                      ONLY: build_berry_kpoint_matrix
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
@@ -160,8 +158,8 @@ CONTAINS
       CHARACTER(len=20), ALLOCATABLE, DIMENSION(:)       :: atom_symbols
       CHARACTER(LEN=256)                                 :: datx
       CHARACTER(len=default_string_length)               :: filename, seed_name
-      INTEGER :: i, i_rep, ib, ib1, ib2, ibs, ic, ik, ik2, ikk, ikpgr, ispin, iunit, ix, iy, iz, &
-         k, n_rep, nadd, nao, nbs, nexcl, nkp, nmo, nntot, nspins, num_atoms, num_bands, &
+      INTEGER :: i, i_rep, ib, ib1, ib2, ibs, ik, ik2, ikk, ikpgr, ispin, iunit, ix, iy, iz, k, &
+         n_rep, nadd, nao, nbs, nexcl, nkp, nmo, nntot, nspins, num_atoms, num_bands, &
          num_bands_tot, num_kpts, num_wann
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: exclude_bands
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: nblist, nnlist
@@ -183,10 +181,9 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fmk1, fmk2
-      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct_mmn, matrix_struct_work
       TYPE(cp_fm_type), POINTER                          :: fm_tmp, fmdummy, fmi, fmr, mmn_imag, &
-                                                            mmn_real, mo_coeff
+                                                            mmn_real
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
       TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix
@@ -194,7 +191,6 @@ CONTAINS
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: kpoint
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(mo_set_p_type), DIMENSION(:, :), POINTER      :: moskp
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -356,21 +352,7 @@ CONTAINS
       CALL cp_blacs_env_retain(blacs_env)
       CALL kpoint_env_initialize(kpoint)
       CALL kpoint_initialize_mos(kpoint, mos, nadd)
-      DO ik = 1, SIZE(kpoint%kp_env)
-         CALL mpools_get(kpoint%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
-         moskp => kpoint%kp_env(ik)%kpoint_env%mos
-         ikk = kpoint%kp_range(1) + ik - 1
-         CPASSERT(ASSOCIATED(moskp))
-         DO ispin = 1, SIZE(moskp, 2)
-            DO ic = 1, SIZE(moskp, 1)
-               CALL get_mo_set(moskp(ic, ispin)%mo_set, mo_coeff=mo_coeff)
-               IF (.NOT. ASSOCIATED(mo_coeff)) THEN
-                  CALL init_mo_set(moskp(ic, ispin)%mo_set, &
-                                   fm_pool=ao_mo_fm_pools(ispin)%pool, name="kpoints")
-               END IF
-            END DO
-         END DO
-      END DO
+      CALL kpoint_initialize_mo_set(kpoint)
       !
       CALL get_qs_env(qs_env=qs_env_kp, sab_orb=sab_nl, dft_control=dft_control)
       CALL kpoint_init_cell_index(kpoint, sab_nl, para_env, dft_control)

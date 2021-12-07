@@ -1381,14 +1381,14 @@ CONTAINS
                CALL print_and_update_for_ev_sc( &
                   vec_gw_energ(:, 1), &
                   z_value(:, 1), m_value(:, 1), mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1, ikp), Eigenval(:, 1), &
-                  Eigenval_last(:, 1), Eigenval_scf(:, 1), gw_corr_lev_occ(1), gw_corr_lev_tot, &
+                  Eigenval_last(:, 1), Eigenval_scf(:, 1), gw_corr_lev_occ(1), gw_corr_lev_virt(1), gw_corr_lev_tot, &
                   crossing_search, homo(1), unit_nr, count_ev_sc_GW_print, count_sc_GW0_print, &
                   ikp, nkp_self_energy, kpoints, 1)
 
                CALL print_and_update_for_ev_sc( &
                   vec_gw_energ(:, 2), &
                   z_value(:, 2), m_value(:, 2), mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 2, ikp), Eigenval(:, 2), &
-                  Eigenval_last(:, 2), Eigenval_scf(:, 2), gw_corr_lev_occ(2), gw_corr_lev_tot, &
+                  Eigenval_last(:, 2), Eigenval_scf(:, 2), gw_corr_lev_occ(2), gw_corr_lev_virt(2), gw_corr_lev_tot, &
                   crossing_search, homo(2), unit_nr, count_ev_sc_GW_print, count_sc_GW0_print, &
                   ikp, nkp_self_energy, kpoints, 2)
 
@@ -1409,7 +1409,7 @@ CONTAINS
                CALL print_and_update_for_ev_sc( &
                   vec_gw_energ(:, 1), &
                   z_value(:, 1), m_value(:, 1), mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1, ikp), Eigenval(:, 1), &
-                  Eigenval_last(:, 1), Eigenval_scf(:, 1), gw_corr_lev_occ(1), gw_corr_lev_tot, &
+                  Eigenval_last(:, 1), Eigenval_scf(:, 1), gw_corr_lev_occ(1), gw_corr_lev_virt(1), gw_corr_lev_tot, &
                   crossing_search, homo(1), unit_nr, count_ev_sc_GW_print, count_sc_GW0_print, &
                   ikp, nkp_self_energy, kpoints, 0)
 
@@ -3765,6 +3765,7 @@ CONTAINS
 !> \param Eigenval_last ...
 !> \param Eigenval_scf ...
 !> \param gw_corr_lev_occ ...
+!> \param gw_corr_lev_virt ...
 !> \param gw_corr_lev_tot ...
 !> \param crossing_search ...
 !> \param homo ...
@@ -3778,15 +3779,16 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE print_and_update_for_ev_sc(vec_gw_energ, &
                                          z_value, m_value, vec_Sigma_x_minus_vxc_gw, Eigenval, &
-                                         Eigenval_last, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_tot, &
+                                         Eigenval_last, Eigenval_scf, &
+                                         gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, &
                                          crossing_search, homo, unit_nr, count_ev_sc_GW, count_sc_GW0, &
                                          ikp, nkp_self_energy, kpoints, ispin)
 
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: vec_gw_energ, z_value, m_value
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: vec_Sigma_x_minus_vxc_gw, Eigenval, &
                                                             Eigenval_last, Eigenval_scf
-      INTEGER, INTENT(IN) :: gw_corr_lev_occ, gw_corr_lev_tot, crossing_search, homo, unit_nr, &
-         count_ev_sc_GW, count_sc_GW0, ikp, nkp_self_energy
+      INTEGER, INTENT(IN) :: gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, crossing_search, &
+         homo, unit_nr, count_ev_sc_GW, count_sc_GW0, ikp, nkp_self_energy
       TYPE(kpoint_type), INTENT(IN), POINTER             :: kpoints
       INTEGER, INTENT(IN)                                :: ispin
 
@@ -3796,7 +3798,8 @@ CONTAINS
       INTEGER                                            :: handle, n_level_gw, n_level_gw_ref
       LOGICAL                                            :: do_alpha, do_beta, do_closed_shell, &
                                                             do_kpoints, is_energy_okay
-      REAL(KIND=dp)                                      :: new_energy
+      REAL(KIND=dp)                                      :: E_GAP_GW, E_HOMO_GW, E_LUMO_GW, &
+                                                            new_energy
 
       CALL timeset(routineN, handle)
 
@@ -3937,15 +3940,19 @@ CONTAINS
       END DO
 
       IF (unit_nr > 0) THEN
+         E_HOMO_GW = MAXVAL(Eigenval(homo - gw_corr_lev_occ + 1:homo))
+         E_LUMO_GW = MINVAL(Eigenval(homo + 1:homo + gw_corr_lev_virt))
+         E_GAP_GW = E_LUMO_GW - E_HOMO_GW
+
          IF (do_closed_shell) THEN
             WRITE (unit_nr, '(T3,A)') ' '
-            WRITE (unit_nr, '(T3,A,F57.2)') 'GW HOMO-LUMO gap (eV)', (Eigenval(homo + 1) - Eigenval(homo))*evolt
+            WRITE (unit_nr, '(T3,A,F57.2)') 'GW HOMO-LUMO gap (eV)', E_GAP_GW*evolt
          ELSE IF (do_alpha) THEN
             WRITE (unit_nr, '(T3,A)') ' '
-            WRITE (unit_nr, '(T3,A,F51.2)') 'Alpha GW HOMO-LUMO gap (eV)', (Eigenval(homo + 1) - Eigenval(homo))*evolt
+            WRITE (unit_nr, '(T3,A,F51.2)') 'Alpha GW HOMO-LUMO gap (eV)', E_GAP_GW*evolt
          ELSE IF (do_beta) THEN
             WRITE (unit_nr, '(T3,A)') ' '
-            WRITE (unit_nr, '(T3,A,F52.2)') 'Beta GW HOMO-LUMO gap (eV)', (Eigenval(homo + 1) - Eigenval(homo))*evolt
+            WRITE (unit_nr, '(T3,A,F52.2)') 'Beta GW HOMO-LUMO gap (eV)', E_GAP_GW*evolt
          END IF
       END IF
 

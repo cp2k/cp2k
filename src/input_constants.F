@@ -1006,17 +1006,19 @@ MODULE input_constants
                                                wfc_mm_style_gemm = 11, &
                                                wfc_mm_style_syrk = 12
 
-   ! G0W0 parameter
+   ! GW parameter
    INTEGER, PARAMETER, PUBLIC               :: ri_rpa_g0w0_crossing_z_shot = 1, &
                                                ri_rpa_g0w0_crossing_newton = 2, &
                                                ri_rpa_g0w0_crossing_bisection = 3, &
                                                gw_no_print_exx = 5, &
                                                gw_print_exx = 6, &
                                                gw_read_exx = 7, &
-                                               gw_skip_for_regtest = 8
-
-   INTEGER, PARAMETER, PUBLIC               :: gw_pade_approx = 0, &
-                                               gw_two_pole_model = 1
+                                               gw_skip_for_regtest = 8, &
+                                               gw_pade_approx = 9, &
+                                               gw_two_pole_model = 10, &
+                                               kp_weights_W_auto = 11, &
+                                               kp_weights_W_uniform = 12, &
+                                               kp_weights_W_tailored = 13
 
    ! periodic RESP parameters
    INTEGER, PARAMETER, PUBLIC               :: do_resp_x_dir = 0, &

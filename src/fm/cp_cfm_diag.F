@@ -212,7 +212,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ! Test sizees
+      ! Test sizes
       CALL cp_cfm_get_info(amatrix, nrow_global=nao)
       nmo = SIZE(eigenvalues)
       ALLOCATE (evals(nao), cevals(nao))
