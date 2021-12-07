@@ -5,9 +5,11 @@
 # Tested with: GNU 10.3.0, MPICH 3.3.2, ScaLAPACK 2.1.0, OpenBLAS 0.3.18,
 #              FFTW 3.3.10, LIBINT 2.6.0, LIBXC 5.1.7, ELPA 2021.05.002,
 #              PLUMED 2.7.3, SPGLIB 1.16.2, LIBVORI 210412, GSL 2.7,
-#              SIRIUS 7.2.7, COSMA 2.5.1
+#              COSMA 2.5.1, SIRIUS 7.2.7
 #
 # Usage: Source this arch file and then run make as instructed
+#        The compiler version can be specified as argument.
+#        Otherwise a toolchain installation is expected as default.
 #
 # Author: Matthias Krack (matthias.krack@psi.ch, PSI, December 2021)
 #
@@ -18,12 +20,18 @@
    exit 1; \
    fi; \
    this_file=${BASH_SOURCE##*/}; \
-   module add gcc/10.3.0; \
-   module add mpich/3.3.2; \
-   echo "Expected setup:"; \
-   echo "  gcc/10.3.0"; \
-   echo "  mpich/3.3.2"; \
-   module list; \
+   if [[ -n "${1}" ]]; then \
+      module add gcc/${1}; \
+      module add mpich/3.3.2; \
+      echo "Expected setup:"; \
+      echo "   gcc/${1}"; \
+      echo "   mpich/3.3.2"; \
+      module list; \
+   else \
+      printf "Sourcing ${PWD}/tools/toolchain/install/setup ... "; \
+      source ${PWD}/tools/toolchain/install/setup; \
+      printf "done\n"; \
+   fi; \
    echo "Check the output above for error messages and consistency!"; \
    echo "If everything is OK, you can build a CP2K production binary with"; \
    echo "   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.}"; \
@@ -35,11 +43,9 @@
    echo "   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.} libcp2k"; \
    return
 
-# Set options (leave option blank or comment line to disable)
+# Set options
 DO_CHECKS      := no
 SHARED         := no
-GNU_VERSION    := 10.3.0
-MPI_VERSION    := 3.3.2
 USE_COSMA      := 2.5.1
 USE_ELPA       := 2021.05.002
 USE_FFTW       := 3.3.10
@@ -52,10 +58,14 @@ USE_PLUMED     := 2.7.3
 USE_SCALAPACK  := 2.1.0
 USE_SIRIUS     := 7.2.7
 USE_SPGLIB     := 1.16.2
+# Only needed for SIRIUS
+LIBVDWXC_VER   := 0.4.0
 SPFFT_VER      := 1.0.5
 SPLA_VER       := 1.5.2
 HDF5_VER       := 1.12.0
+
 LMAX           := 5
+MAX_CONTR      := 4
 
 CC             := mpicc
 FC             := mpif90
@@ -68,7 +78,7 @@ DFLAGS         := -D__parallel
 DFLAGS         += -D__SCALAPACK
 DFLAGS         += -D__HAS_IEEE_EXCEPTIONS
 DFLAGS         += -D__MPI_VERSION=3
-DFLAGS         += -D__MAX_CONTR=4
+DFLAGS         += -D__MAX_CONTR=$(strip $(MAX_CONTR))
 
 INSTALL_PATH   := $(PWD)/tools/toolchain/install
 
@@ -208,18 +218,25 @@ ifneq ($(USE_SIRIUS),)
    SPFFT_LIB      := $(INSTALL_PATH)/SpFFT-$(SPFFT_VER)/lib
    SPLA_LIB       := $(INSTALL_PATH)/SpLA-$(SPLA_VER)/lib
    HDF5_LIB       := $(INSTALL_PATH)/hdf5-$(HDF5_VER)/lib
+   LIBVDWXC_LIB   := $(INSTALL_PATH)/libvdwxc-$(LIBVDWXC_VER)/lib
    CFLAGS         += -I$(SIRIUS_INC)
+   DFLAGS         += -D__SPFFT
+   DFLAGS         += -D__SPLA
+   DFLAGS         += -D__HDF5
+   DFLAGS         += -D__LIBVDWXC
    DFLAGS         += -D__SIRIUS
    ifeq ($(SHARED), yes)
       LIBS           += -Wl,-rpath=$(SIRIUS_LIB) -L$(SIRIUS_LIB) -lsirius
       LIBS           += -Wl,-rpath=$(SPFFT_LIB) -L$(SPFFT_LIB) -lspfft
       LIBS           += -Wl,-rpath=$(SPLA_LIB) -L$(SPLA_LIB) -lspla
       LIBS           += -Wl,-rpath=$(HDF5_LIB) -L$(HDF5_LIB) -lhdf5
+      LIBS           += -Wl,-rpath=$(LIBVDWXC_LIB) -L$(LIBVDWXC_LIB) -lvdwxc
    else
       LIBS           += $(SIRIUS_LIB)/libsirius.a
       LIBS           += $(SPFFT_LIB)/libspfft.a
       LIBS           += $(SPLA_LIB)/libspla.a
       LIBS           += $(HDF5_LIB)/libhdf5.a
+      LIBS           += $(LIBVDWXC_LIB)/libvdwxc.a
    endif
 endif
 
@@ -246,8 +263,9 @@ ifneq ($(USE_FFTW),)
    CFLAGS         += -I$(FFTW_INC)
    DFLAGS         += -D__FFTW3
    ifeq ($(SHARED), yes)
-      LIBS           += -Wl,-rpath=$(FFTW_LIB) -L$(FFTW_LIB) -lfftw3_omp -lfftw3
+      LIBS           += -Wl,-rpath=$(FFTW_LIB) -L$(FFTW_LIB) -lfftw3_mpi -lfftw3_omp -lfftw3
    else
+      LIBS           += $(FFTW_LIB)/libfftw3_mpi.a
       LIBS           += $(FFTW_LIB)/libfftw3_omp.a
       LIBS           += $(FFTW_LIB)/libfftw3.a
    endif
