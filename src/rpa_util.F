@@ -1137,6 +1137,11 @@ CONTAINS
 
       IF (do_kpoints_from_Gamma) THEN
          IF (ASSOCIATED(kpoints_G)) CALL kpoint_release(kpoints_G)
+         ! JW later for band structures from GW
+         IF (.NOT. do_kpoints_from_Gamma) THEN
+            IF (ASSOCIATED(kpoints_Sigma)) CALL kpoint_release(kpoints_Sigma)
+            IF (ASSOCIATED(kpoints_Sigma_no_xc)) CALL kpoint_release(kpoints_Sigma_no_xc)
+         END IF
       END IF
 
       CALL timestop(handle)
