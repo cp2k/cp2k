@@ -2,9 +2,9 @@
 #
 # CP2K arch file for Merlin (PSI)
 #
-# Tested with: GNU 10.3.0, MPICH 3.3.2, ScaLAPACK 2.1.0, OpenBLAS 0.3.18,
-#              FFTW 3.3.10, LIBINT 2.6.0, LIBXC 5.1.7, ELPA 2021.05.002,
-#              PLUMED 2.7.3, SPGLIB 1.16.2, LIBVORI 210412, GSL 2.7,
+# Tested with: Intel 21.3, Intel MPI, Intel MKL, GSL 2.7,
+#              LIBINT 2.6.0, LIBXC 5.1.7, ELPA 2021.05.002,
+#              PLUMED 2.7.3, SPGLIB 1.16.2, LIBVORI 210412,
 #              COSMA 2.5.1, SIRIUS 7.2.7
 #
 # Usage: Source this arch file and then run make as instructed.
@@ -21,11 +21,9 @@
    fi; \
    this_file=${BASH_SOURCE##*/}; \
    if [[ -n "${1}" ]]; then \
-      module add gcc/${1}; \
-      module add mpich/3.3.2; \
+      module add intel/${1}; \
       echo "Expected setup:"; \
-      echo "   gcc/${1}"; \
-      echo "   mpich/3.3.2"; \
+      echo "   intel/${1}"; \
       module list; \
    else \
       printf "Sourcing ${PWD}/tools/toolchain/install/setup ... "; \
@@ -48,18 +46,13 @@ DO_CHECKS      := no
 SHARED         := no
 USE_COSMA      := 2.5.1
 USE_ELPA       := 2021.05.002
-USE_FFTW       := 3.3.10
 USE_LIBINT     := 2.6.0
 USE_LIBVORI    := 210412
 USE_LIBXC      := 5.1.7
 USE_LIBXSMM    := 1.17
-USE_OPENBLAS   := 0.3.18
 USE_PLUMED     := 2.7.3
-USE_SCALAPACK  := 2.1.0
 USE_SIRIUS     := 7.2.7
 USE_SPGLIB     := 1.16.2
-# Only needed for SIRIUS
-LIBVDWXC_VER   := 0.4.0
 SPFFT_VER      := 1.0.5
 SPLA_VER       := 1.5.2
 HDF5_VER       := 1.12.0
@@ -67,20 +60,23 @@ HDF5_VER       := 1.12.0
 LMAX           := 5
 MAX_CONTR      := 4
 
-CC             := mpicc
-FC             := mpif90
-LD             := mpif90
+CC             := mpiicc
+FC             := mpiifort
+LD             := mpiifort
 AR             := ar -r
 
-CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g
+CFLAGS         := -O2 -fopenmp -fp-model precise -funroll-loops -g -qopenmp-simd -traceback -xHost
 
 DFLAGS         := -D__parallel
 DFLAGS         += -D__SCALAPACK
-DFLAGS         += -D__HAS_IEEE_EXCEPTIONS
+DFLAGS         += -D__MKL
+DFLAGS         += -D__FFTW3
 DFLAGS         += -D__MPI_VERSION=3
 DFLAGS         += -D__MAX_CONTR=$(strip $(MAX_CONTR))
 
 INSTALL_PATH   := $(PWD)/tools/toolchain/install
+
+MKL_LIB        := $(MKLROOT)/lib/intel64
 
 ifeq ($(SHARED), yes)
    LD_SHARED      := $(FC) -shared
@@ -89,34 +85,13 @@ ifeq ($(SHARED), yes)
    CP2K_LIB       := $(PWD)/lib/$(ARCH)/$(ONEVERSION)
    LDFLAGS        += -Wl,-rpath=$(CP2K_LIB)
    LDFLAGS        += -Wl,-rpath=$(CP2K_LIB)/exts/dbcsr
+else
+   LDFLAGS        := -static-intel -static_mpi
 endif
 
 # Settings for regression testing
 ifeq ($(DO_CHECKS), yes)
    DFLAGS         += -D__CHECK_DIAG
-   FCFLAGS_DEBUG  := -fcheck=bounds,do,recursion,pointer
-   FCFLAGS_DEBUG  += -fcheck=all,no-array-temps
-   FCFLAGS_DEBUG  += -ffpe-trap=invalid,overflow,zero
-   FCFLAGS_DEBUG  += -fimplicit-none
-   FCFLAGS_DEBUG  += -finit-derived
-   FCFLAGS_DEBUG  += -finit-real=snan
-   FCFLAGS_DEBUG  += -finit-integer=-42
-   FCFLAGS_DEBUG  += -finline-matmul-limit=0
-   LDFLAGS        += -fsanitize=leak
-   WFLAGS         := -Werror=aliasing
-   WFLAGS         += -Werror=ampersand
-   WFLAGS         += -Werror=c-binding-type
-   WFLAGS         += -Werror=conversion
-   WFLAGS         += -Werror=intrinsic-shadow
-   WFLAGS         += -Werror=intrinsics-std
-   WFLAGS         += -Werror=line-truncation
-   WFLAGS         += -Wrealloc-lhs
-   WFLAGS         += -Werror=tabs
-   WFLAGS         += -Werror=target-lifetime
-   WFLAGS         += -Werror=underflow
-   WFLAGS         += -Werror=unused-but-set-variable
-   WFLAGS         += -Werror=unused-dummy-argument
-   WFLAGS         += -Werror=unused-variable
 endif
 
 ifneq ($(USE_PLUMED),)
@@ -218,25 +193,21 @@ ifneq ($(USE_SIRIUS),)
    SPFFT_LIB      := $(INSTALL_PATH)/SpFFT-$(SPFFT_VER)/lib
    SPLA_LIB       := $(INSTALL_PATH)/SpLA-$(SPLA_VER)/lib
    HDF5_LIB       := $(INSTALL_PATH)/hdf5-$(HDF5_VER)/lib
-   LIBVDWXC_LIB   := $(INSTALL_PATH)/libvdwxc-$(LIBVDWXC_VER)/lib
    CFLAGS         += -I$(SIRIUS_INC)
    DFLAGS         += -D__SPFFT
    DFLAGS         += -D__SPLA
    DFLAGS         += -D__HDF5
-   DFLAGS         += -D__LIBVDWXC
    DFLAGS         += -D__SIRIUS
    ifeq ($(SHARED), yes)
       LIBS           += -Wl,-rpath=$(SIRIUS_LIB) -L$(SIRIUS_LIB) -lsirius
       LIBS           += -Wl,-rpath=$(SPFFT_LIB) -L$(SPFFT_LIB) -lspfft
       LIBS           += -Wl,-rpath=$(SPLA_LIB) -L$(SPLA_LIB) -lspla
       LIBS           += -Wl,-rpath=$(HDF5_LIB) -L$(HDF5_LIB) -lhdf5
-      LIBS           += -Wl,-rpath=$(LIBVDWXC_LIB) -L$(LIBVDWXC_LIB) -lvdwxc
    else
       LIBS           += $(SIRIUS_LIB)/libsirius.a
       LIBS           += $(SPFFT_LIB)/libspfft.a
       LIBS           += $(SPLA_LIB)/libspla.a
       LIBS           += $(HDF5_LIB)/libhdf5.a
-      LIBS           += $(LIBVDWXC_LIB)/libvdwxc.a
    endif
 endif
 
@@ -256,28 +227,22 @@ ifneq ($(USE_COSMA),)
    endif
 endif
 
-ifneq ($(USE_FFTW),)
-   USE_FFTW       := $(strip $(USE_FFTW))
-   FFTW_INC       := $(INSTALL_PATH)/fftw-$(USE_FFTW)/include
-   FFTW_LIB       := $(INSTALL_PATH)/fftw-$(USE_FFTW)/lib
-   CFLAGS         += -I$(FFTW_INC)
-   DFLAGS         += -D__FFTW3
-   ifeq ($(SHARED), yes)
-      LIBS           += -Wl,-rpath=$(FFTW_LIB) -L$(FFTW_LIB) -lfftw3_mpi -lfftw3_omp -lfftw3
-   else
-      LIBS           += $(FFTW_LIB)/libfftw3_mpi.a
-      LIBS           += $(FFTW_LIB)/libfftw3_omp.a
-      LIBS           += $(FFTW_LIB)/libfftw3.a
-   endif
-endif
-
-ifneq ($(USE_SCALAPACK),)
-   SCALAPACK_LIB  := $(INSTALL_PATH)/scalapack-$(USE_SCALAPACK)/lib
-   ifeq ($(SHARED), yes)
-      LIBS           += -Wl,-rpath=$(SCALAPACK_LIB) -L$(SCALAPACK_LIB) -lscalapack
-   else
-      LIBS           += $(SCALAPACK_LIB)/libscalapack.a
-   endif
+ifeq ($(SHARED), yes)
+   LIBS           += -Wl,-rpath=$(MKL_LIB) -L$(MKL_LIB) -lbmkl_scalapack_lp64
+   LIBS           += -Wl,--start-group
+   LIBS           += -lmkl_intel_lp64
+   LIBS           += -lmkl_sequential
+   LIBS           += -lmkl_core
+   LIBS           += -lmkl_blacs_intelmpi_lp64
+   LIBS           += -Wl,--end-group
+else
+   LIBS           += $(MKL_LIB)/libmkl_scalapack_lp64.a
+   LIBS           += -Wl,--start-group
+   LIBS           += $(MKL_LIB)/libmkl_intel_lp64.a
+   LIBS           += $(MKL_LIB)/libmkl_sequential.a
+   LIBS           += $(MKL_LIB)/libmkl_core.a
+   LIBS           += $(MKL_LIB)/libmkl_blacs_intelmpi_lp64.a
+   LIBS           += -Wl,--end-group
 endif
 
 ifneq ($(USE_GSL),)
@@ -293,30 +258,23 @@ ifneq ($(USE_GSL),)
    endif
 endif
 
-ifneq ($(USE_OPENBLAS),)
-   USE_OPENBLAS   := $(strip $(USE_OPENBLAS))
-   OPENBLAS_INC   := $(INSTALL_PATH)/openblas-$(USE_OPENBLAS)/include
-   OPENBLAS_LIB   := $(INSTALL_PATH)/openblas-$(USE_OPENBLAS)/lib
-   CFLAGS         += -I$(OPENBLAS_INC)
-   ifeq ($(SHARED), yes)
-      LIBS           += -Wl,-rpath=$(OPENBLAS_LIB) -L$(OPENBLAS_LIB) -lopenblas
-   else
-      LIBS           += $(OPENBLAS_LIB)/libopenblas.a
-   endif
-endif
-
-LIBS           += -ldl -lz -lstdc++
+LIBS           += -lz -lstdc++
 
 CFLAGS         += $(DFLAGS)
+CFLAGS         += -I$(MKLROOT)/include
+CFLAGS         += -I$(MKLROOT)/include/fftw
 
-FCFLAGS        := $(CFLAGS) $(FCFLAGS_DEBUG) $(WFLAGS)
-FCFLAGS        += -fallow-argument-mismatch
-FCFLAGS        += -fbacktrace
-FCFLAGS        += -ffree-form
-FCFLAGS        += -ffree-line-length-none
-FCFLAGS        += -fno-omit-frame-pointer
-FCFLAGS        += -std=f2008
+FCFLAGS        := $(CFLAGS)
+FCFLAGS        += -diag-disable=8291
+FCFLAGS        += -diag-disable=8293
+FCFLAGS        += -fpp
+FCFLAGS        += -free
 
 LDFLAGS        += $(FCFLAGS)
+LDFLAGS_C      := -nofor-main
+
+# Required due to memory leak that occurs if high optimisations are used
+mp2_optimize_ri_basis.o: mp2_optimize_ri_basis.F
+	$(FC) -c $(subst O2,O0,$(FCFLAGS)) $<
 
 # End
