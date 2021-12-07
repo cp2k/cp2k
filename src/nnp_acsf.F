@@ -343,13 +343,15 @@ CONTAINS
             DO j = 1, nnp%n_rad(ind)
                nnp%arc(ind)%layer(1)%node(j) = &
                   nnp%arc(ind)%layer(1)%node(j)/ &
-                  (nnp%rad(ind)%loc_max(j) - nnp%rad(ind)%loc_min(j))
+                  (nnp%rad(ind)%loc_max(j) - nnp%rad(ind)%loc_min(j))* &
+                  (nnp%scmax - nnp%scmin) + nnp%scmin
             END DO
             off = nnp%n_rad(ind)
             DO j = 1, nnp%n_ang(ind)
                nnp%arc(ind)%layer(1)%node(j + off) = &
                   nnp%arc(ind)%layer(1)%node(j + off)/ &
-                  (nnp%ang(ind)%loc_max(j) - nnp%ang(ind)%loc_min(j))
+                  (nnp%ang(ind)%loc_max(j) - nnp%ang(ind)%loc_min(j))* &
+                  (nnp%scmax - nnp%scmin) + nnp%scmin
             END DO
          END IF
       ELSE IF (nnp%scale_acsf) THEN
@@ -364,6 +366,20 @@ CONTAINS
             nnp%arc(ind)%layer(1)%node(j + off) = &
                (nnp%ang(ind)%y(j) - nnp%ang(ind)%loc_min(j))/ &
                (nnp%ang(ind)%loc_max(j) - nnp%ang(ind)%loc_min(j))* &
+               (nnp%scmax - nnp%scmin) + nnp%scmin
+         END DO
+      ELSE IF (nnp%scale_sigma_acsf) THEN
+         DO j = 1, nnp%n_rad(ind)
+            nnp%arc(ind)%layer(1)%node(j) = &
+               (nnp%rad(ind)%y(j) - nnp%rad(ind)%loc_av(j))/ &
+               nnp%rad(ind)%sigma(j)* &
+               (nnp%scmax - nnp%scmin) + nnp%scmin
+         END DO
+         off = nnp%n_rad(ind)
+         DO j = 1, nnp%n_ang(ind)
+            nnp%arc(ind)%layer(1)%node(j + off) = &
+               (nnp%ang(ind)%y(j) - nnp%ang(ind)%loc_av(j))/ &
+               nnp%ang(ind)%sigma(j)* &
                (nnp%scmax - nnp%scmin) + nnp%scmin
          END DO
       ELSE
@@ -392,6 +408,22 @@ CONTAINS
                   dsymdxyz(:, j + off, k) = dsymdxyz(:, j + off, k)/ &
                                             (nnp%ang(ind)%loc_max(j) - &
                                              nnp%ang(ind)%loc_min(j))* &
+                                            (nnp%scmax - nnp%scmin)
+               END DO
+            END DO
+         ELSE IF (nnp%scale_sigma_acsf) THEN
+            DO k = 1, nnp%num_atoms
+               DO j = 1, nnp%n_rad(ind)
+                  dsymdxyz(:, j, k) = dsymdxyz(:, j, k)/ &
+                                      nnp%rad(ind)%sigma(j)* &
+                                      (nnp%scmax - nnp%scmin)
+               END DO
+            END DO
+            off = nnp%n_rad(ind)
+            DO k = 1, nnp%num_atoms
+               DO j = 1, nnp%n_ang(ind)
+                  dsymdxyz(:, j + off, k) = dsymdxyz(:, j + off, k)/ &
+                                            nnp%ang(ind)%sigma(j)* &
                                             (nnp%scmax - nnp%scmin)
                END DO
             END DO
