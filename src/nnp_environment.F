@@ -256,13 +256,14 @@ CONTAINS
       CHARACTER(len=2)                                   :: ele
       CHARACTER(len=def_str_len)                         :: dummy, line
       CHARACTER(len=default_path_length)                 :: base_name, file_name
-      INTEGER                                            :: handle, i, i_com, iweight, j, k, l, &
+      INTEGER                                            :: handle, i, i_com, io, iweight, j, k, l, &
                                                             n_weight, nele, nuc_ele, symfnct_type, &
                                                             unit_nr
       LOGICAL                                            :: at_end, atom_e_found, explicit, first, &
                                                             found
       REAL(KIND=dp)                                      :: energy
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: weights
+      REAL(KIND=dp), DIMENSION(7)                        :: test_array
       REAL(KIND=dp), DIMENSION(:), POINTER               :: work
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_parser_type), POINTER                      :: parser
@@ -292,6 +293,7 @@ CONTAINS
 
       ! read number of elements and cut_type and check for scale and center
       nnp_env%scale_acsf = .FALSE.
+      nnp_env%scale_sigma_acsf = .FALSE.
       ! Defaults for scale min and max:
       nnp_env%scmin = 0.0_dp
       nnp_env%scmax = 1.0_dp
@@ -318,7 +320,11 @@ CONTAINS
 
       CALL parser_search_string(parser, "scale_symmetry_functions_sigma", .TRUE., found, &
                                 search_from_begin_of_file=.TRUE.)
-      IF (found) CPABORT("NNP| Option scale_symmetry_functions_sigma not yet supported.")
+      nnp_env%scale_sigma_acsf = found
+      ! keywords are identical up to ending
+      IF (nnp_env%scale_acsf .AND. nnp_env%scale_sigma_acsf) THEN
+         nnp_env%scale_acsf = .FALSE.
+      END IF
 
       CALL parser_search_string(parser, "scale_min_short_atomic", .TRUE., found, line, &
                                 search_from_begin_of_file=.TRUE.)
@@ -331,6 +337,10 @@ CONTAINS
       CALL parser_search_string(parser, "center_symmetry_functions", .TRUE., found, &
                                 search_from_begin_of_file=.TRUE.)
       nnp_env%center_acsf = found
+      ! n2p2 overwrites sigma scaling, if centering is requested:
+      IF (nnp_env%scale_sigma_acsf .AND. nnp_env%center_acsf) THEN
+         nnp_env%scale_sigma_acsf = .FALSE.
+      END IF
 
       CALL parser_search_string(parser, "normalize_nodes", .TRUE., found, &
                                 search_from_begin_of_file=.TRUE.)
@@ -491,6 +501,7 @@ CONTAINS
          ALLOCATE (nnp_env%rad(i)%loc_min(nnp_env%n_rad(i)))
          ALLOCATE (nnp_env%rad(i)%loc_max(nnp_env%n_rad(i)))
          ALLOCATE (nnp_env%rad(i)%loc_av(nnp_env%n_rad(i)))
+         ALLOCATE (nnp_env%rad(i)%sigma(nnp_env%n_rad(i)))
          ALLOCATE (nnp_env%rad(i)%ele(nnp_env%n_rad(i)))
          ALLOCATE (nnp_env%rad(i)%nuc_ele(nnp_env%n_rad(i)))
          nnp_env%rad(i)%funccut = 0.0_dp
@@ -508,6 +519,7 @@ CONTAINS
          ALLOCATE (nnp_env%ang(i)%loc_min(nnp_env%n_ang(i)))
          ALLOCATE (nnp_env%ang(i)%loc_max(nnp_env%n_ang(i)))
          ALLOCATE (nnp_env%ang(i)%loc_av(nnp_env%n_ang(i)))
+         ALLOCATE (nnp_env%ang(i)%sigma(nnp_env%n_ang(i)))
          ALLOCATE (nnp_env%ang(i)%ele1(nnp_env%n_ang(i)))
          ALLOCATE (nnp_env%ang(i)%ele2(nnp_env%n_ang(i)))
          ALLOCATE (nnp_env%ang(i)%nuc_ele1(nnp_env%n_ang(i)))
@@ -611,27 +623,59 @@ CONTAINS
       CALL nnp_write_arc(nnp_env, logger%para_env)
 
       ! read scaling information from file
-      IF (nnp_env%scale_acsf .OR. nnp_env%center_acsf) THEN
+      IF (nnp_env%scale_acsf .OR. nnp_env%center_acsf .OR. nnp_env%scale_sigma_acsf) THEN
          IF (logger%para_env%ionode) THEN
             WRITE (unit_nr, *) "NNP| Reading scaling information from file: ", TRIM(file_name)
          END IF
          CALL section_vals_val_get(nnp_env%nnp_input, "SCALE_FILE_NAME", &
                                    c_val=file_name)
          CALL parser_create(parser, file_name, para_env=logger%para_env)
+
+         ! Get number of elements in scaling file
+         CALL parser_read_line(parser, 1)
+         k = 0
+         DO WHILE (k < 7)
+            READ (parser%input_line, *, IOSTAT=io) test_array(1:k)
+            IF (io == -1) EXIT
+            k = k + 1
+         END DO
+         k = k - 1
+
+         IF (k == 5 .AND. nnp_env%scale_sigma_acsf) THEN
+            CPABORT("Sigma scaling requested, but scaling.data does not contain sigma.")
+         END IF
+
+         CALL parser_reset(parser)
          DO i = 1, nnp_env%n_ele
             DO j = 1, nnp_env%n_rad(i)
                CALL parser_read_line(parser, 1)
-               READ (parser%input_line, *) dummy, dummy, &
-                  nnp_env%rad(i)%loc_min(j), &
-                  nnp_env%rad(i)%loc_max(j), &
-                  nnp_env%rad(i)%loc_av(j)
+               IF (nnp_env%scale_sigma_acsf) THEN
+                  READ (parser%input_line, *) dummy, dummy, &
+                     nnp_env%rad(i)%loc_min(j), &
+                     nnp_env%rad(i)%loc_max(j), &
+                     nnp_env%rad(i)%loc_av(j), &
+                     nnp_env%rad(i)%sigma(j)
+               ELSE
+                  READ (parser%input_line, *) dummy, dummy, &
+                     nnp_env%rad(i)%loc_min(j), &
+                     nnp_env%rad(i)%loc_max(j), &
+                     nnp_env%rad(i)%loc_av(j)
+               END IF
             END DO
             DO j = 1, nnp_env%n_ang(i)
                CALL parser_read_line(parser, 1)
-               READ (parser%input_line, *) dummy, dummy, &
-                  nnp_env%ang(i)%loc_min(j), &
-                  nnp_env%ang(i)%loc_max(j), &
-                  nnp_env%ang(i)%loc_av(j)
+               IF (nnp_env%scale_sigma_acsf) THEN
+                  READ (parser%input_line, *) dummy, dummy, &
+                     nnp_env%ang(i)%loc_min(j), &
+                     nnp_env%ang(i)%loc_max(j), &
+                     nnp_env%ang(i)%loc_av(j), &
+                     nnp_env%ang(i)%sigma(j)
+               ELSE
+                  READ (parser%input_line, *) dummy, dummy, &
+                     nnp_env%ang(i)%loc_min(j), &
+                     nnp_env%ang(i)%loc_max(j), &
+                     nnp_env%ang(i)%loc_av(j)
+               END IF
             END DO
          END DO
          CALL parser_release(parser)

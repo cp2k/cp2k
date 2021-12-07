@@ -92,6 +92,7 @@ MODULE nnp_environment_types
       CHARACTER(len=2), ALLOCATABLE, DIMENSION(:)         :: ele ! elements(n_ele)
       INTEGER, ALLOCATABLE, DIMENSION(:)                  :: nuc_ele ! elements(n_ele)
       LOGICAL                                             :: scale_acsf
+      LOGICAL                                             :: scale_sigma_acsf
       LOGICAL                                             :: center_acsf
       LOGICAL                                             :: normnodes
       INTEGER                                             :: n_radgrp
@@ -163,9 +164,10 @@ MODULE nnp_environment_types
 !> \param funccut - distance cutoff                           bohr - DIM(n_rad)
 !> \param eta     - eta parameter of radial sym fncts      bohr^-2 - DIM(n_rad)
 !> \param rs      - r shift parameter of radial sym fncts     bohr - DIM(n_rad)
-!> \param loc_min - minimum of the sym fnct                          DIM(n_rad,n_com)
-!> \param loc_max - maximum of the sym fnct                          DIM(n_rad,n_com)
-!> \param loc_av  - average of the sym fnct                          DIM(n_rad,n_com)
+!> \param loc_min - minimum of the sym fnct                          DIM(n_rad)
+!> \param loc_max - maximum of the sym fnct                          DIM(n_rad)
+!> \param loc_av  - average of the sym fnct                          DIM(n_rad)
+!> \param sigma   - SD of the sym fnc                                DIM(n_rad)
 !> \param ele     - element associated to the sym fnct               DIM(n_rad)
 !> \param nuc_ele - associated atomic number                         DIM(n_rad)
 !> \author Christoph Schran (christoph.schran@rub.de)
@@ -179,6 +181,7 @@ MODULE nnp_environment_types
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)            :: loc_min
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)            :: loc_max
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)            :: loc_av
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)            :: sigma
       CHARACTER(len=2), ALLOCATABLE, DIMENSION(:)         :: ele
       INTEGER, ALLOCATABLE, DIMENSION(:)                  :: nuc_ele
       INTEGER                                             :: n_symfgrp
@@ -192,9 +195,10 @@ MODULE nnp_environment_types
 !> \param eta       - eta  param. of angular sym fncts    bohr^-2 - DIM(n_ang)
 !> \param zeta      - zeta param. of angular sym fncts              DIM(n_ang)
 !> \param lam       - lambda  param. of angular sym fncts           DIM(n_ang)
-!> \param loc_min   - minimum of the sym fnct                       DIM(n_ang,n_com)
-!> \param loc_max   - maximum of the sym fnct                       DIM(n_ang,n_com)
-!> \param loc_av    - average of the sym fnct                       DIM(n_ang,n_com)
+!> \param loc_min   - minimum of the sym fnct                       DIM(n_ang)
+!> \param loc_max   - maximum of the sym fnct                       DIM(n_ang)
+!> \param loc_av    - average of the sym fnct                       DIM(n_ang)
+!> \param sigma     - SD of the sym fnc                             DIM(n_ang)
 !> \param ele1,ele2 - elements associated to the sym fnct           DIM(n_ang)
 !> \param nuc_ele2, nuc_ele2 - associated atomic numbers            DIM(n_ang)
 !> \author Christoph Schran (christoph.schran@rub.de)
@@ -210,6 +214,7 @@ MODULE nnp_environment_types
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)            :: loc_min
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)            :: loc_max
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)            :: loc_av
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)            :: sigma
       CHARACTER(len=2), ALLOCATABLE, DIMENSION(:)         :: ele1
       CHARACTER(len=2), ALLOCATABLE, DIMENSION(:)         :: ele2
       INTEGER, ALLOCATABLE, DIMENSION(:)                  :: nuc_ele1
@@ -333,6 +338,7 @@ CONTAINS
                               nnp_env%rad(i)%loc_min, &
                               nnp_env%rad(i)%loc_max, &
                               nnp_env%rad(i)%loc_av, &
+                              nnp_env%rad(i)%sigma, &
                               nnp_env%rad(i)%ele, &
                               nnp_env%rad(i)%nuc_ele, &
                               nnp_env%rad(i)%symfgrp)
@@ -356,6 +362,7 @@ CONTAINS
                               nnp_env%ang(i)%loc_min, &
                               nnp_env%ang(i)%loc_max, &
                               nnp_env%ang(i)%loc_av, &
+                              nnp_env%ang(i)%sigma, &
                               nnp_env%ang(i)%ele1, &
                               nnp_env%ang(i)%ele2, &
                               nnp_env%ang(i)%nuc_ele1, &
