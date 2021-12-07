@@ -417,8 +417,6 @@ CONTAINS
                             subsys=subsys)
       CASE (use_nnp_force)
          CPASSERT(ASSOCIATED(force_env%nnp_env))
-         CPASSERT(.NOT. PRESENT(qs_env))
-         CPASSERT(.NOT. PRESENT(fist_env))
          CALL nnp_env_get(force_env%nnp_env, &
                           nnp_potential_energy=potential_energy, &
                           subsys=subsys)
