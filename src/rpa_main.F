@@ -733,19 +733,6 @@ CONTAINS
                                           "MONKHORST-PACK", virtual, para_env%num_pe, &
                                           mp_grid=nkp_grid_G(1:3))
 
-      ! JW: set up k-points for GW band structure calculation, will be completed later
-!      CALL get_kpgeneral_for_Sigma_kpoints(qs_env, kpgeneral)
-!
-!      CALL create_kp_and_calc_kp_orbitals(qs_env, qs_env%mp2_env%ri_rpa_im_time%kpoints_Sigma, &
-!                                          "GENERAL", virtual, para_env%num_pe, &
-!                                          kpgeneral=kpgeneral)
-!
-!      CALL create_kp_and_calc_kp_orbitals(qs_env, qs_env%mp2_env%ri_rpa_im_time%kpoints_Sigma_no_xc, &
-!                                          "GENERAL", virtual, para_env%num_pe, &
-!                                          kpgeneral=kpgeneral, with_xc_terms=.FALSE.)
-!
-!      DEALLOCATE(kpgeneral)
-
       CALL timestop(handle)
 
    END SUBROUTINE get_bandstruc_and_k_dependent_MOs
