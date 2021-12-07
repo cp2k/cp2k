@@ -248,8 +248,7 @@ CONTAINS
       REAL(KIND=dp), OPTIONAL                            :: min_eigval
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_cfm_robust_cholesky'
-      COMPLEX(KIND=dp), PARAMETER :: cone = CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
-         czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      COMPLEX(KIND=dp), PARAMETER :: czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: eigenvalues_exponent
       INTEGER                                            :: handle, i, ncol_global, nrow_global
