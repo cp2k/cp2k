@@ -2701,11 +2701,12 @@ CONTAINS
 !> \param eps_r the requested precision on the residual
 !> \param eps_x the requested precision on the solution
 !> \param max_iter maximum number of iteration allowed
+!> \param sumtype ...
 !> \return ...
 !> \author fawzi
 ! **************************************************************************************************
    FUNCTION find_coeffs(values, coeffs, linOp, preconditioner, pool, &
-                        eps_r, eps_x, max_iter) RESULT(res)
+                        eps_r, eps_x, max_iter, sumtype) RESULT(res)
       TYPE(pw_type), POINTER                             :: values, coeffs
       INTERFACE
 ! **************************************************************************************************
@@ -2718,6 +2719,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: pool
       REAL(kind=dp), INTENT(in)                          :: eps_r, eps_x
       INTEGER, INTENT(in)                                :: max_iter
+      INTEGER, INTENT(in), OPTIONAL                      :: sumtype
       LOGICAL                                            :: res
 
       INTEGER                                            :: i, iiter, iter, j, k
@@ -2745,21 +2747,21 @@ CONTAINS
          CALL pw_axpy(values, r)
          CALL pw_spline_do_precond(preconditioner, in_v=r, out_v=z)
          CALL pw_copy(z, p)
-         r_z = pw_integral_ab(r, z)
+         r_z = pw_integral_ab(r, z, sumtype)
 
          DO iter = iiter, MIN(iiter + 9, max_iter)
-            eps_r_att = SQRT(pw_integral_ab(r, r))
+            eps_r_att = SQRT(pw_integral_ab(r, r, sumtype))
             IF (eps_r_att == 0._dp) THEN
                eps_x_att = 0._dp
                last = .TRUE.
             ELSE
                CALL pw_zero(Ap)
                CALL linOp(pw_in=p, pw_out=Ap)
-               alpha = r_z/pw_integral_ab(Ap, p)
+               alpha = r_z/pw_integral_ab(Ap, p, sumtype)
 
                CALL pw_axpy(p, coeffs, alpha=alpha)
 
-               eps_x_att = alpha*SQRT(pw_integral_ab(p, p)) ! try to spare if unneeded?
+               eps_x_att = alpha*SQRT(pw_integral_ab(p, p, sumtype)) ! try to spare if unneeded?
                IF (eps_r_att < eps_r .AND. eps_x_att < eps_x) last = .TRUE.
             END IF
             !CALL cp_iterate(logger%iter_info,last=last)
@@ -2772,7 +2774,7 @@ CONTAINS
 
             CALL pw_spline_do_precond(preconditioner, in_v=r, out_v=z)
 
-            r_z_new = pw_integral_ab(r, z)
+            r_z_new = pw_integral_ab(r, z, sumtype)
             beta = r_z_new/r_z
             r_z = r_z_new
 
