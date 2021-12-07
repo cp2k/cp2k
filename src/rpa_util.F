@@ -936,15 +936,6 @@ CONTAINS
 
       ! JW we use all processors for every k-point, a subgroup does not improve the
       ! performance substantially
-
-!      IF (nkp > para_env%num_pe .OR. do_kpoints_cubic_RPA) THEN
-!         ! we have all kpoints on every processor
-!         num_proc_per_kp = para_env%num_pe
-!      ELSE
-!         ! we have only one kpoint per group
-!         num_proc_per_kp = para_env%num_pe/nkp
-!      END IF
-
       num_proc_per_kp = para_env%num_pe
 
       color_sub_kp = MOD(para_env%mepos/num_proc_per_kp, nkp)
