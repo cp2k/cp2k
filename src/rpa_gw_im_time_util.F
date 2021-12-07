@@ -749,8 +749,6 @@ CONTAINS
       INTEGER                                            :: basis_size
       CHARACTER(LEN=*)                                   :: basis_type
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_atom_index_from_basis_function_index'
-
       INTEGER                                            :: iatom, LLL, natom, nkind
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_end, row_blk_start
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set
