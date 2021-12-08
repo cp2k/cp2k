@@ -394,9 +394,9 @@ CONTAINS
       TYPE(cp_libint_t)                                  :: lib
       INTEGER                                            :: a_mysize(1)
       REAL(dp), DIMENSION(:, :), POINTER                    :: p_work
-      REAL(dp), DIMENSION(:), POINTER                    :: p_work_tmp
 
 #if(__LIBINT)
+      REAL(dp), DIMENSION(:), POINTER                    :: p_work_tmp
       PROCEDURE(libint2_build), POINTER                  :: pbuild
       INTEGER :: i
 
@@ -437,9 +437,9 @@ CONTAINS
       TYPE(cp_libint_t)                                  :: lib
       INTEGER                                            :: a_mysize(1)
       REAL(dp), DIMENSION(:, :), POINTER                 :: p_work
-      REAL(dp), DIMENSION(:), POINTER                    :: p_work_tmp
 
 #if(__LIBINT)
+      REAL(dp), DIMENSION(:), POINTER                    :: p_work_tmp
       PROCEDURE(libint2_build), POINTER                  :: pbuild
       INTEGER :: i
 

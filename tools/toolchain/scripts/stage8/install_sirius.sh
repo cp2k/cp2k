@@ -9,8 +9,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-sirius_ver="7.2.7"
-sirius_sha256="929bf7f131a4847624858b9c4295532c24b0c06f6dcef5453c0dfc33fb78eb03"
+sirius_ver="7.2.8"
+sirius_sha256="338da4fe9d479baedabbc6dd6f503edd0130985bb5a8fa9ac228880f1016dafd"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh

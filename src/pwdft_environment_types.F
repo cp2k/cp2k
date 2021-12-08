@@ -25,7 +25,10 @@ MODULE pwdft_environment_types
                               qs_subsys_type
 
 #if defined(__SIRIUS)
-   USE sirius, ONLY: sirius_free_handler
+   USE sirius, ONLY: sirius_free_handler, &
+                     sirius_context_handler, &
+                     sirius_ground_state_handler, &
+                     sirius_kpoint_set_handler
 #endif
 
 #include "./base/base_uses.f90"
@@ -77,9 +80,16 @@ MODULE pwdft_environment_types
       REAL(KIND=dp), DIMENSION(3, 3)                   :: stress
 !     16 different functionals should be enough
       CHARACTER(len=80)                                :: xc_func(16)
-      TYPE(C_PTR)                                      :: sctx = C_NULL_PTR
-      TYPE(C_PTR)                                      :: gs_handler = C_NULL_PTR
-      TYPE(C_PTR)                                      :: ks_handler = C_NULL_PTR
+#if defined(__SIRIUS)
+      TYPE(sirius_context_handler)                     :: sctx
+      TYPE(sirius_ground_state_handler)                :: gs_handler
+      TYPE(sirius_kpoint_set_handler)                  :: ks_handler
+#else
+      TYPE(C_PTR)                                      :: sctx
+      TYPE(C_PTR)                                      :: gs_handler
+      TYPE(C_PTR)                                      :: ks_handler
+#endif
+
    END TYPE pwdft_environment_type
 
 ! **************************************************************************************************
@@ -124,6 +134,8 @@ CONTAINS
 
       TYPE(pwdft_environment_type), POINTER              :: pwdft_env
 
+#if defined(__SIRIUS)
+
 !   ------------------------------------------------------------------------
 
       IF (ASSOCIATED(pwdft_env)) THEN
@@ -131,11 +143,9 @@ CONTAINS
          pwdft_env%ref_count = pwdft_env%ref_count - 1
          IF (pwdft_env%ref_count < 1) THEN
 
-#if defined(__SIRIUS)
             CALL sirius_free_handler(pwdft_env%gs_handler)
             CALL sirius_free_handler(pwdft_env%ks_handler)
             CALL sirius_free_handler(pwdft_env%sctx)
-#endif
 
             IF (ASSOCIATED(pwdft_env%qs_subsys)) THEN
                CALL qs_subsys_release(pwdft_env%qs_subsys)
@@ -150,6 +160,7 @@ CONTAINS
             DEALLOCATE (pwdft_env)
          END IF
       END IF
+#endif
       NULLIFY (pwdft_env)
    END SUBROUTINE pwdft_env_release
 
@@ -186,9 +197,17 @@ CONTAINS
       TYPE(pwdft_energy_type), OPTIONAL, POINTER         :: energy
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: forces
       REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL           :: stress
-      TYPE(C_PTR), OPTIONAL                              :: sctx, gs_handler, ks_handler
-
-!   ------------------------------------------------------------------------
+#if defined(__SIRIUS)
+      TYPE(sirius_context_handler), OPTIONAL             :: sctx
+      TYPE(sirius_ground_state_handler), OPTIONAL        :: gs_handler
+      TYPE(sirius_kpoint_set_handler), OPTIONAL          :: ks_handler
+#else
+      !work around because the contexts are typed.
+      TYPE(C_PTR), OPTIONAL                              :: sctx
+      TYPE(C_PTR), OPTIONAL                              :: gs_handler
+      TYPE(C_PTR), OPTIONAL                              :: ks_handler
+#endif
+!     ------------------------------------------------------------------------
 
       CPASSERT(ASSOCIATED(pwdft_env))
       CPASSERT(pwdft_env%ref_count > 0)
@@ -205,10 +224,10 @@ CONTAINS
       IF (PRESENT(energy)) energy => pwdft_env%energy
       IF (PRESENT(forces)) forces => pwdft_env%forces
       IF (PRESENT(stress)) stress(1:3, 1:3) = pwdft_env%stress(1:3, 1:3)
+      ! it will never be allocated if SIRIUS is not included during compilation
       IF (PRESENT(sctx)) sctx = pwdft_env%sctx
       IF (PRESENT(gs_handler)) gs_handler = pwdft_env%gs_handler
       IF (PRESENT(ks_handler)) ks_handler = pwdft_env%ks_handler
-
    END SUBROUTINE pwdft_env_get
 
 ! **************************************************************************************************
@@ -246,8 +265,16 @@ CONTAINS
       TYPE(pwdft_energy_type), OPTIONAL, POINTER         :: energy
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: forces
       REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL           :: stress
-      TYPE(C_PTR), OPTIONAL                              :: sctx, gs_handler, ks_handler
-
+#if defined(__SIRIUS)
+      TYPE(sirius_context_handler), OPTIONAL             :: sctx
+      TYPE(sirius_ground_state_handler), OPTIONAL        :: gs_handler
+      TYPE(sirius_kpoint_set_handler), OPTIONAL          :: ks_handler
+#else
+!work around because the contexts are typed.
+      TYPE(C_PTR), OPTIONAL                              :: sctx
+      TYPE(C_PTR), OPTIONAL                              :: gs_handler
+      TYPE(C_PTR), OPTIONAL                              :: ks_handler
+#endif
 !   ------------------------------------------------------------------------
 
       CPASSERT(ASSOCIATED(pwdft_env))
@@ -267,13 +294,13 @@ CONTAINS
       IF (PRESENT(cp_subsys)) THEN
          CALL qs_subsys_set(pwdft_env%qs_subsys, cp_subsys=cp_subsys)
       END IF
+
       IF (PRESENT(energy)) pwdft_env%energy => energy
       IF (PRESENT(forces)) pwdft_env%forces => forces
       IF (PRESENT(stress)) pwdft_env%stress(1:3, 1:3) = stress(1:3, 1:3)
       IF (PRESENT(sctx)) pwdft_env%sctx = sctx
       IF (PRESENT(gs_handler)) pwdft_env%gs_handler = gs_handler
       IF (PRESENT(ks_handler)) pwdft_env%ks_handler = ks_handler
-
    END SUBROUTINE pwdft_env_set
 
 ! **************************************************************************************************
@@ -304,9 +331,6 @@ CONTAINS
          NULLIFY (pwdft_env%forces)
       END IF
       pwdft_env%stress = 0.0_dp
-      pwdft_env%sctx = C_NULL_PTR
-      pwdft_env%gs_handler = C_NULL_PTR
-      pwdft_env%ks_handler = C_NULL_PTR
 
    END SUBROUTINE pwdft_env_clear
 

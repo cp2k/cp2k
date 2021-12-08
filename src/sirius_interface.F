@@ -15,8 +15,7 @@
 MODULE sirius_interface
    USE ISO_C_BINDING,                   ONLY: C_DOUBLE,&
                                               C_INT,&
-                                              C_NULL_PTR,&
-                                              C_PTR
+                                              C_LOC
    USE atom_kind_orbitals,              ONLY: calculate_atomic_orbitals,&
                                               gth_potential_conversion
    USE atom_types,                      ONLY: atom_gthpot_type
@@ -59,17 +58,19 @@ MODULE sirius_interface
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
    USE sirius,                          ONLY: &
-        sirius_add_atom, sirius_add_atom_type, sirius_add_atom_type_radial_function, &
-        sirius_add_xc_functional, sirius_create_context, sirius_create_ground_state, &
-        sirius_create_kset_from_grid, sirius_finalize, sirius_find_ground_state, &
-        sirius_get_band_energies, sirius_get_band_occupancies, sirius_get_energy, &
-        sirius_get_forces, sirius_get_kpoint_properties, sirius_get_num_kpoints, &
-        sirius_get_parameters, sirius_get_stress_tensor, sirius_import_parameters, &
-        sirius_initialize, sirius_initialize_context, sirius_option_add_string_to, &
-        sirius_option_get_length, sirius_option_get_name_and_type, sirius_option_set_double, &
-        sirius_option_set_int, sirius_option_set_logical, sirius_option_set_string, &
+        SIRIUS_INTEGER_ARRAY_TYPE, SIRIUS_INTEGER_TYPE, SIRIUS_LOGICAL_ARRAY_TYPE, &
+        SIRIUS_LOGICAL_TYPE, SIRIUS_NUMBER_ARRAY_TYPE, SIRIUS_NUMBER_TYPE, &
+        SIRIUS_STRING_ARRAY_TYPE, SIRIUS_STRING_TYPE, sirius_add_atom, sirius_add_atom_type, &
+        sirius_add_atom_type_radial_function, sirius_add_xc_functional, sirius_context_handler, &
+        sirius_create_context, sirius_create_ground_state, sirius_create_kset_from_grid, &
+        sirius_finalize, sirius_find_ground_state, sirius_get_band_energies, &
+        sirius_get_band_occupancies, sirius_get_energy, sirius_get_forces, &
+        sirius_get_kpoint_properties, sirius_get_num_kpoints, sirius_get_parameters, &
+        sirius_get_stress_tensor, sirius_ground_state_handler, sirius_import_parameters, &
+        sirius_initialize, sirius_initialize_context, sirius_kpoint_set_handler, &
+        sirius_option_get_info, sirius_option_get_section_length, sirius_option_set, &
         sirius_set_atom_position, sirius_set_atom_type_dion, sirius_set_atom_type_radial_grid, &
-        sirius_set_lattice_vectors, sirius_set_parameters, sirius_update_ground_state
+        sirius_set_lattice_vectors, sirius_update_ground_state
    USE xc_libxc,                        ONLY: libxc_check_existence_in_libxc
 #include "./base/base_uses.f90"
 
@@ -120,6 +121,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_sirius_create_env(pwdft_env)
       TYPE(pwdft_environment_type), POINTER              :: pwdft_env
+#if defined(__SIRIUS)
 
       CHARACTER(len=2)                                   :: element_symbol
       CHARACTER(len=64)                                  :: section_name
@@ -144,9 +146,6 @@ CONTAINS
       TYPE(atom_upfpot_type), POINTER                    :: upf_pot
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
-      TYPE(C_PTR)                                        :: gs_handler = C_NULL_PTR, &
-                                                            ks_handler = C_NULL_PTR, &
-                                                            sctx = C_NULL_PTR
       TYPE(cell_type), POINTER                           :: my_cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(grid_atom_type), POINTER                      :: atom_grid
@@ -156,9 +155,13 @@ CONTAINS
       TYPE(qs_subsys_type), POINTER                      :: qs_subsys
       TYPE(section_vals_type), POINTER                   :: pwdft_section, pwdft_sub_section, &
                                                             xc_fun, xc_section
+      TYPE(sirius_context_handler)                       :: sctx
+      TYPE(sirius_ground_state_handler)                  :: gs_handler
+      TYPE(sirius_kpoint_set_handler)                    :: ks_handler
 
       CPASSERT(ASSOCIATED(pwdft_env))
-! create context of simulation
+
+      ! create context of simulation
       CALL pwdft_env_get(pwdft_env, para_env=para_env)
       sirius_mpi_comm = para_env%group
       CALL sirius_create_context(sirius_mpi_comm, sctx)
@@ -249,7 +252,7 @@ CONTAINS
       !      ENDIF
 
       !CALL sirius_dump_runtime_setup(sctx, "runtime.json")
-      CALL sirius_import_parameters(sctx)
+      CALL sirius_import_parameters(sctx, '{}')
 
 ! lattice vectors of the unit cell should be in [a.u.] (length is in [a.u.])
       CALL pwdft_env_get(pwdft_env=pwdft_env, qs_subsys=qs_subsys)
@@ -458,6 +461,7 @@ CONTAINS
       CALL sirius_create_ground_state(ks_handler, gs_handler)
 
       CALL pwdft_env_set(pwdft_env, sctx=sctx, gs_handler=gs_handler, ks_handler=ks_handler)
+#endif
    END SUBROUTINE cp_sirius_create_env
 
 !***************************************************************************************************
@@ -474,11 +478,11 @@ CONTAINS
       INTEGER                                            :: iatom, natom
       REAL(KIND=C_DOUBLE), DIMENSION(3)                  :: a1, a2, a3, v2
       REAL(KIND=dp), DIMENSION(3)                        :: vr, vs
-      TYPE(C_PTR)                                        :: gs_handler = C_NULL_PTR, &
-                                                            sctx = C_NULL_PTR
       TYPE(cell_type), POINTER                           :: my_cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_subsys_type), POINTER                      :: qs_subsys
+      TYPE(sirius_context_handler)                       :: sctx
+      TYPE(sirius_ground_state_handler)                  :: gs_handler
 
       CPASSERT(ASSOCIATED(pwdft_env))
       CALL pwdft_env_get(pwdft_env, sctx=sctx, gs_handler=gs_handler)
@@ -517,69 +521,85 @@ CONTAINS
 !> \param section_name ...
 ! **************************************************************************************************
    SUBROUTINE cp_sirius_fill_in_section(sctx, section, section_name)
-      TYPE(C_PTR), INTENT(INOUT)                         :: sctx
+      TYPE(sirius_context_handler), INTENT(INOUT)        :: sctx
       TYPE(section_vals_type), POINTER                   :: section
-      CHARACTER(*), INTENT(in), TARGET                   :: section_name
+      CHARACTER(*), INTENT(in)                           :: section_name
 
-      CHARACTER(len=256)                                 :: option_name, option_name1
-      CHARACTER(len=80)                                  :: str
+      CHARACTER(len=256), TARGET                         :: option_name
+      CHARACTER(len=4096)                                :: description, usage
       CHARACTER(len=80), DIMENSION(:), POINTER           :: tmp
-      INTEGER                                            :: ctype, elem, ival, j, length, &
-                                                            number_of_options
+      CHARACTER(len=80), TARGET                          :: str
+      INTEGER                                            :: ctype, elem, ic, j
       INTEGER, DIMENSION(:), POINTER                     :: ivals
-      LOGICAL                                            :: found, lval
+      INTEGER, TARGET                                    :: enum_length, ival, length, &
+                                                            num_possible_values, number_of_options
+      LOGICAL                                            :: explicit
       LOGICAL, DIMENSION(:), POINTER                     :: lvals
-      REAL(kind=dp)                                      :: rval
+      LOGICAL, TARGET                                    :: found, lval
       REAL(kind=dp), DIMENSION(:), POINTER               :: rvals
+      REAL(kind=dp), TARGET                              :: rval
 
-      CALL sirius_option_get_length(section_name, number_of_options)
+      CALL sirius_option_get_section_length(section_name, number_of_options)
 
-      DO elem = 0, number_of_options - 1
-         option_name = CHAR(0)
-         CALL sirius_option_get_name_and_type(section_name, elem, option_name, ctype)
-         option_name1 = TRIM(ADJUSTL(option_name))
-         option_name = TRIM(ADJUSTL(option_name))//CHAR(0)
-         IF (option_name1 .EQ. 'electronic_structure_method') THEN
-            CALL section_vals_val_get(section, option_name1, c_val=str)
-            str = TRIM(ADJUSTL(str))//CHAR(0)
-            CALL sirius_set_parameters(sctx, electronic_structure_method=str)
-         ELSE
-            IF ((option_name1 /= 'memory_usage') .AND. (option_name1 /= 'xc_functionals') .AND. (option_name1 /= 'vk')) THEN
-               CALL section_vals_val_get(section, option_name1, explicit=found)
-               IF (found) THEN
-                  SELECT CASE (ctype)
-                  CASE (1)
-                     CALL section_vals_val_get(section, option_name1, i_val=ival)
-                     CALL sirius_option_set_int(sctx, section_name, option_name, ival, 0)
-                  CASE (11)
-                     CALL section_vals_val_get(section, option_name1, i_vals=ivals)
-                     CALL sirius_option_set_int(sctx, section_name, option_name, ivals(1), SIZE(ivals))
-                  CASE (2)
-                     CALL section_vals_val_get(section, option_name1, r_val=rval)
-                     CALL sirius_option_set_double(sctx, section_name, option_name, rval, 0)
-                  CASE (12)
-                     CALL section_vals_val_get(section, option_name1, r_vals=rvals)
-                     CALL sirius_option_set_double(sctx, section_name, option_name, rvals(1), SIZE(rvals))
-                  CASE (3)
-                     CALL section_vals_val_get(section, option_name1, l_val=lval)
-                     CALL sirius_option_set_logical(sctx, section_name, option_name, lval, 1)
-                  CASE (13)
-                     CALL section_vals_val_get(section, option_name, l_vals=lvals)
-                     length = SIZE(lvals)
-                     CALL sirius_option_set_logical(sctx, section_name, option_name, lvals(1), length)
-                  CASE (4)      ! string nightmare
-                     CALL section_vals_val_get(section, option_name1, c_val=str)
-                     str = TRIM(ADJUSTL(str))//CHAR(0)
-                     CALL sirius_option_set_string(sctx, section_name, option_name, str)
-                  CASE (14)
-                     CALL section_vals_val_get(section, option_name1, n_rep_val=length)
-                     DO j = 1, length
-                        CALL section_vals_val_get(section, option_name1, i_rep_val=j, c_vals=tmp)
-                        CALL sirius_option_add_string_to(sctx, section_name, option_name, str)
-                     END DO
-                  CASE DEFAULT
-                  END SELECT
-               END IF
+      DO elem = 1, number_of_options
+         option_name = ''
+         CALL sirius_option_get_info(section_name, &
+                                     elem, &
+                                     option_name, &
+                                     256, &
+                                     ctype, &
+                                     num_possible_values, &
+                                     enum_length, &
+                                     description, &
+                                     4096, &
+                                     usage, &
+                                     4096)
+         IF ((option_name /= 'memory_usage') .AND. (option_name /= 'xc_functionals') .AND. (option_name /= 'vk')) THEN
+            CALL section_vals_val_get(section, option_name, explicit=found)
+            IF (found) THEN
+               SELECT CASE (ctype)
+               CASE (SIRIUS_INTEGER_TYPE)
+                  CALL section_vals_val_get(section, option_name, i_val=ival)
+                  CALL sirius_option_set(sctx, section_name, option_name, ctype, C_LOC(ival))
+               CASE (SIRIUS_NUMBER_TYPE)
+                  CALL section_vals_val_get(section, option_name, r_val=rval)
+                  CALL sirius_option_set(sctx, section_name, option_name, ctype, C_LOC(rval))
+               CASE (SIRIUS_LOGICAL_TYPE)
+                  CALL section_vals_val_get(section, option_name, l_val=lval)
+                  CALL sirius_option_set(sctx, section_name, option_name, ctype, C_LOC(lval))
+               CASE (SIRIUS_STRING_TYPE)      ! string nightmare
+                  str = ''
+                  CALL section_vals_val_get(section, option_name, explicit=explicit, c_val=str)
+                  str = TRIM(ADJUSTL(str))
+                  DO j = 1, LEN(str)
+                     ic = ICHAR(str(j:j))
+                     IF (ic >= 65 .AND. ic < 90) str(j:j) = CHAR(ic + 32)
+                  END DO
+
+                  CALL sirius_option_set(sctx, section_name, option_name, ctype, C_LOC(str), max_length=LEN_TRIM(str))
+               CASE (SIRIUS_INTEGER_ARRAY_TYPE)
+                  CALL section_vals_val_get(section, option_name, i_vals=ivals)
+                  CALL sirius_option_set(sctx, section_name, option_name, ctype, C_LOC(ivals(1)), &
+                                         max_length=num_possible_values)
+               CASE (SIRIUS_NUMBER_ARRAY_TYPE)
+                  CALL section_vals_val_get(section, option_name, r_vals=rvals)
+                  CALL sirius_option_set(sctx, section_name, option_name, ctype, C_LOC(rvals(1)), &
+                                         max_length=num_possible_values)
+               CASE (SIRIUS_LOGICAL_ARRAY_TYPE)
+                  CALL section_vals_val_get(section, option_name, l_vals=lvals)
+                  CALL sirius_option_set(sctx, section_name, option_name, ctype, C_LOC(lvals(1)), &
+                                         max_length=num_possible_values)
+               CASE (SIRIUS_STRING_ARRAY_TYPE)
+                  CALL section_vals_val_get(section, option_name, explicit=explicit, n_rep_val=length)
+                  DO j = 1, length
+                     str = ''
+                     CALL section_vals_val_get(section, option_name, i_rep_val=j, explicit=explicit, c_vals=tmp)
+                     str = TRIM(ADJUSTL(tmp(j)))
+                     CALL sirius_option_set(sctx, section_name, option_name, ctype, C_LOC(str), &
+                                            max_length=LEN_TRIM(str), append=.TRUE.)
+                  END DO
+               CASE DEFAULT
+               END SELECT
             END IF
          END IF
       END DO
@@ -607,13 +627,11 @@ CONTAINS
       REAL(KIND=C_DOUBLE), DIMENSION(3, 3)               :: cstress
       REAL(KIND=dp), DIMENSION(3, 3)                     :: stress
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: forces
-      TYPE(C_PTR)                                        :: gs_handler
       TYPE(pwdft_energy_type), POINTER                   :: energy
       TYPE(section_vals_type), POINTER                   :: print_section, pwdft_input
+      TYPE(sirius_ground_state_handler)                  :: gs_handler
 
       CPASSERT(ASSOCIATED(pwdft_env))
-
-      gs_handler = C_NULL_PTR
 
       CALL pwdft_env_get(pwdft_env=pwdft_env, gs_handler=gs_handler)
       CALL sirius_find_ground_state(gs_handler)
@@ -681,8 +699,10 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: wkpt
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ehist, hist, occval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: energies, occupations
-      TYPE(C_PTR)                                        :: gs_handler, ks_handler, sctx
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(sirius_context_handler)                       :: sctx
+      TYPE(sirius_ground_state_handler)                  :: gs_handler
+      TYPE(sirius_kpoint_set_handler)                    :: ks_handler
 
       NULLIFY (logger)
       logger => cp_get_default_logger()
@@ -692,11 +712,8 @@ CONTAINS
       ! Density of States
       dos = BTEST(cp_print_key_should_output(logger%iter_info, print_section, "DOS"), cp_p_file)
       IF (dos) THEN
-         ks_handler = C_NULL_PTR
          CALL pwdft_env_get(pwdft_env, ks_handler=ks_handler)
-         gs_handler = C_NULL_PTR
          CALL pwdft_env_get(pwdft_env, gs_handler=gs_handler)
-         sctx = C_NULL_PTR
          CALL pwdft_env_get(pwdft_env, sctx=sctx)
 
          CALL section_vals_val_get(print_section, "DOS%DELTA_E", r_val=de)
@@ -715,16 +732,16 @@ CONTAINS
          occupations = 0.0_dp
          ALLOCATE (wkpt(nkpts))
          ALLOCATE (slist(nbands))
-         DO ik = 0, nkpts - 1
+         DO ik = 1, nkpts
             CALL sirius_get_kpoint_properties(ks_handler, ik, creal)
-            wkpt(ik + 1) = creal
+            wkpt(ik) = creal
          END DO
          DO ik = 1, nkpts
-            DO ispn = 0, nspins - 1
+            DO ispn = 1, nspins
                CALL sirius_get_band_energies(ks_handler, ik, ispn, slist(1))
-               energies(1:nbands, ispn + 1, ik) = slist(1:nbands)
+               energies(1:nbands, ispn, ik) = slist(1:nbands)
                CALL sirius_get_band_occupancies(ks_handler, ik, ispn, slist(1))
-               occupations(1:nbands, ispn + 1, ik) = slist(1:nbands)
+               occupations(1:nbands, ispn, ik) = slist(1:nbands)
             END DO
          END DO
          emin = MINVAL(energies)
