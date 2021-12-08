@@ -19,7 +19,8 @@ MODULE nnp_force
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE cp_subsys_types,                 ONLY: cp_subsys_type
+   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                              cp_subsys_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -38,6 +39,7 @@ MODULE nnp_force
    USE particle_types,                  ONLY: particle_type
    USE periodic_table,                  ONLY: get_ptable_info
    USE physcon,                         ONLY: angstrom
+   USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -68,14 +70,16 @@ CONTAINS
       INTEGER                                            :: handle, i, i_com, ig, ind, istart, j, k, &
                                                             m, mecalc
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: allcalc
+      LOGICAL                                            :: calc_stress
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: denergydsym
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dsymdxyz
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dsymdxyz, stress
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: print_section
+      TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
 
@@ -88,10 +92,17 @@ CONTAINS
                        subsys=subsys, local_particles=local_particles, &
                        atomic_kind_set=atomic_kind_set)
 
+      CALL cp_subsys_get(subsys, &
+                         virial=virial)
+
+      calc_stress = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+      IF (calc_stress .AND. .NOT. calc_forces) CPABORT('Stress cannot be calculated without forces')
+
       ! Initialize energy and gradient:
       nnp%atomic_energy(:, :) = 0.0_dp
       IF (calc_forces) nnp%myforce(:, :, :) = 0.0_dp
       IF (calc_forces) nnp%committee_forces(:, :, :) = 0.0_dp
+      IF (calc_stress) nnp%committee_stress(:, :, :) = 0.0_dp
 
       !fill coord array
       ig = 1
@@ -138,7 +149,13 @@ CONTAINS
             nnp%arc(ind)%layer(1)%node_grad(:) = 0.0_dp
             ALLOCATE (dsymdxyz(3, nnp%arc(ind)%n_nodes(1), nnp%num_atoms))
             dsymdxyz(:, :, :) = 0.0_dp
-            CALL nnp_calc_acsf(nnp, i, dsymdxyz)
+            IF (calc_stress) THEN
+               ALLOCATE (stress(3, 3, nnp%arc(ind)%n_nodes(1)))
+               stress(:, :, :) = 0.0_dp
+               CALL nnp_calc_acsf(nnp, i, dsymdxyz, stress)
+            ELSE
+               CALL nnp_calc_acsf(nnp, i, dsymdxyz)
+            END IF
          ELSE
             CALL nnp_calc_acsf(nnp, i)
          END IF
@@ -160,6 +177,10 @@ CONTAINS
                         nnp%myforce(m, k, i_com) = nnp%myforce(m, k, i_com) - denergydsym(j)*dsymdxyz(m, j, k)
                      END DO
                   END DO
+                  IF (calc_stress) THEN
+                     nnp%committee_stress(:, :, i_com) = nnp%committee_stress(:, :, i_com) - &
+                                                         denergydsym(j)*stress(:, :, j)
+                  END IF
                END DO
                DEALLOCATE (denergydsym)
             END IF
@@ -168,6 +189,9 @@ CONTAINS
          !deallocate memory
          IF (calc_forces) THEN
             DEALLOCATE (dsymdxyz)
+            IF (calc_stress) THEN
+               DEALLOCATE (stress)
+            END IF
          END IF
 
       END DO ! loop over num_atoms
@@ -189,6 +213,11 @@ CONTAINS
          DO j = 1, nnp%num_atoms
             particle_set(j)%f(:) = nnp%nnp_forces(:, j)
          END DO
+      END IF
+
+      IF (calc_stress) THEN
+         CALL mp_sum(nnp%committee_stress, logger%para_env%group)
+         virial%pv_virial = SUM(nnp%committee_stress, DIM=3)/REAL(nnp%n_committee, dp)
       END IF
 
       ! Bias the standard deviation of committee disagreement

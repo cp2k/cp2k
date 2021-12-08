@@ -287,6 +287,7 @@ CONTAINS
       ALLOCATE (nnp_env%committee_energy(nnp_env%n_committee))
       ALLOCATE (nnp_env%myforce(3, nnp_env%num_atoms, nnp_env%n_committee))
       ALLOCATE (nnp_env%committee_forces(3, nnp_env%num_atoms, nnp_env%n_committee))
+      ALLOCATE (nnp_env%committee_stress(3, 3, nnp_env%n_committee))
 
       CALL section_vals_val_get(nnp_env%nnp_input, "NNP_INPUT_FILE_NAME", c_val=file_name)
       CALL parser_create(parser, file_name, para_env=logger%para_env)
