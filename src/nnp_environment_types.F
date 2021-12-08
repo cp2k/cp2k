@@ -119,7 +119,7 @@ MODULE nnp_environment_types
       INTEGER, ALLOCATABLE, DIMENSION(:)                  :: ele_ind, nuc_atoms, sort, sort_inv
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)         :: coord
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)      :: myforce
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)      :: committee_forces
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)      :: committee_forces, committee_stress
       CHARACTER(len=default_string_length), &
          ALLOCATABLE, DIMENSION(:)                        :: atoms
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE         :: nnp_forces
@@ -413,6 +413,7 @@ CONTAINS
             IF (ALLOCATED(nnp_env%coord)) DEALLOCATE (nnp_env%coord)
             IF (ALLOCATED(nnp_env%myforce)) DEALLOCATE (nnp_env%myforce)
             IF (ALLOCATED(nnp_env%committee_forces)) DEALLOCATE (nnp_env%committee_forces)
+            IF (ALLOCATED(nnp_env%committee_stress)) DEALLOCATE (nnp_env%committee_stress)
             IF (ALLOCATED(nnp_env%atoms)) DEALLOCATE (nnp_env%atoms)
             IF (ALLOCATED(nnp_env%nnp_forces)) DEALLOCATE (nnp_env%nnp_forces)
 

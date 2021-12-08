@@ -51,15 +51,16 @@ CONTAINS
 !> \param nnp ...
 !> \param i ...
 !> \param dsymdxyz ...
+!> \param stress ...
 !> \date   2020-10-10
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
-   SUBROUTINE nnp_calc_acsf(nnp, i, dsymdxyz)
+   SUBROUTINE nnp_calc_acsf(nnp, i, dsymdxyz, stress)
 
       TYPE(nnp_type), INTENT(INOUT), POINTER             :: nnp
       INTEGER, INTENT(IN)                                :: i
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), &
-         OPTIONAL                                        :: dsymdxyz
+         OPTIONAL                                        :: dsymdxyz, stress
 
       CHARACTER(len=*), PARAMETER :: routineN = 'nnp_calc_acsf', routineP = moduleN//':'//routineN
 
@@ -105,6 +106,11 @@ CONTAINS
                      dsymdxyz(l, m, i) = dsymdxyz(l, m, i) + forcetmp(l, sf)
                      dsymdxyz(l, m, jj) = dsymdxyz(l, m, jj) - forcetmp(l, sf)
                   END DO
+                  IF (PRESENT(stress)) THEN
+                     DO l = 1, 3
+                        stress(:, l, m) = stress(:, l, m) + rvect1(:)*forcetmp(l, sf)
+                     END DO
+                  END IF
                   nnp%rad(ind)%y(m) = nnp%rad(ind)%y(m) + symtmp(sf)
                END DO
             END DO
@@ -144,6 +150,12 @@ CONTAINS
                               dsymdxyz(l, m, kk) = dsymdxyz(l, m, kk) &
                                                    + force3tmp(l, 3, sf)
                            END DO
+                           IF (PRESENT(stress)) THEN
+                              DO l = 1, 3
+                                 stress(:, l, m) = stress(:, l, m) - rvect1(:)*force3tmp(l, 2, sf)
+                                 stress(:, l, m) = stress(:, l, m) - rvect2(:)*force3tmp(l, 3, sf)
+                              END DO
+                           END IF
                            nnp%ang(ind)%y(m - off) = nnp%ang(ind)%y(m - off) + symtmp(sf)
                         END DO
                      END IF
@@ -177,6 +189,12 @@ CONTAINS
                               dsymdxyz(l, m, kk) = dsymdxyz(l, m, kk) &
                                                    + force3tmp(l, 3, sf)
                            END DO
+                           IF (PRESENT(stress)) THEN
+                              DO l = 1, 3
+                                 stress(:, l, m) = stress(:, l, m) - rvect1(:)*force3tmp(l, 2, sf)
+                                 stress(:, l, m) = stress(:, l, m) - rvect2(:)*force3tmp(l, 3, sf)
+                              END DO
+                           END IF
                            nnp%ang(ind)%y(m - off) = nnp%ang(ind)%y(m - off) + symtmp(sf)
                         END DO
                      END IF
@@ -259,7 +277,11 @@ CONTAINS
       CALL nnp_check_extrapolation(nnp, ind)
 
       IF (PRESENT(dsymdxyz)) THEN
-         CALL nnp_scale_acsf(nnp, ind, dsymdxyz)
+         IF (PRESENT(stress)) THEN
+            CALL nnp_scale_acsf(nnp, ind, dsymdxyz, stress)
+         ELSE
+            CALL nnp_scale_acsf(nnp, ind, dsymdxyz)
+         END IF
       ELSE
          CALL nnp_scale_acsf(nnp, ind)
       END IF
@@ -316,15 +338,16 @@ CONTAINS
 !> \param nnp ...
 !> \param ind ...
 !> \param dsymdxyz ...
+!> \param stress ...
 !> \date   2020-10-10
 !> \author Christoph Schran (christoph.schran@rub.de)
 ! **************************************************************************************************
-   SUBROUTINE nnp_scale_acsf(nnp, ind, dsymdxyz)
+   SUBROUTINE nnp_scale_acsf(nnp, ind, dsymdxyz, stress)
 
       TYPE(nnp_type), INTENT(INOUT)                      :: nnp
       INTEGER, INTENT(IN)                                :: ind
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT), &
-         OPTIONAL                                        :: dsymdxyz
+         OPTIONAL                                        :: dsymdxyz, stress
 
       INTEGER                                            :: j, k, off
 
@@ -426,6 +449,36 @@ CONTAINS
                                             nnp%ang(ind)%sigma(j)* &
                                             (nnp%scmax - nnp%scmin)
                END DO
+            END DO
+         END IF
+      END IF
+
+      IF (PRESENT(stress)) THEN
+         IF (nnp%scale_acsf) THEN
+            DO j = 1, nnp%n_rad(ind)
+               stress(:, :, j) = stress(:, :, j)/ &
+                                 (nnp%rad(ind)%loc_max(j) - &
+                                  nnp%rad(ind)%loc_min(j))* &
+                                 (nnp%scmax - nnp%scmin)
+            END DO
+            off = nnp%n_rad(ind)
+            DO j = 1, nnp%n_ang(ind)
+               stress(:, :, j + off) = stress(:, :, j + off)/ &
+                                       (nnp%ang(ind)%loc_max(j) - &
+                                        nnp%ang(ind)%loc_min(j))* &
+                                       (nnp%scmax - nnp%scmin)
+            END DO
+         ELSE IF (nnp%scale_sigma_acsf) THEN
+            DO j = 1, nnp%n_rad(ind)
+               stress(:, :, j) = stress(:, :, j)/ &
+                                 nnp%rad(ind)%sigma(j)* &
+                                 (nnp%scmax - nnp%scmin)
+            END DO
+            off = nnp%n_rad(ind)
+            DO j = 1, nnp%n_ang(ind)
+               stress(:, :, j + off) = stress(:, :, j + off)/ &
+                                       nnp%ang(ind)%sigma(j)* &
+                                       (nnp%scmax - nnp%scmin)
             END DO
          END IF
       END IF
