@@ -418,6 +418,7 @@ CONTAINS
       MARK_USED(lib)
       MARK_USED(p_work)
       MARK_USED(a_mysize)
+      MARK_USED(p_work_tmp)
       CPABORT("This CP2K executable has not been linked against the required library libint.")
 #endif
 
@@ -460,6 +461,7 @@ CONTAINS
       MARK_USED(lib)
       MARK_USED(p_work)
       MARK_USED(a_mysize)
+      MARK_USED(p_work_tmp)
       CPABORT("This CP2K executable has not been linked against the required library libint.")
 #endif
 
