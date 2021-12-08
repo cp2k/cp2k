@@ -121,6 +121,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_sirius_create_env(pwdft_env)
       TYPE(pwdft_environment_type), POINTER              :: pwdft_env
+#if defined(__SIRIUS)
 
       CHARACTER(len=2)                                   :: element_symbol
       CHARACTER(len=64)                                  :: section_name
@@ -159,7 +160,8 @@ CONTAINS
       TYPE(sirius_kpoint_set_handler)                    :: ks_handler
 
       CPASSERT(ASSOCIATED(pwdft_env))
-! create context of simulation
+
+      ! create context of simulation
       CALL pwdft_env_get(pwdft_env, para_env=para_env)
       sirius_mpi_comm = para_env%group
       CALL sirius_create_context(sirius_mpi_comm, sctx)
@@ -459,6 +461,7 @@ CONTAINS
       CALL sirius_create_ground_state(ks_handler, gs_handler)
 
       CALL pwdft_env_set(pwdft_env, sctx=sctx, gs_handler=gs_handler, ks_handler=ks_handler)
+#endif
    END SUBROUTINE cp_sirius_create_env
 
 !***************************************************************************************************
