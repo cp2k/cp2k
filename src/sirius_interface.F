@@ -45,6 +45,7 @@ MODULE sirius_interface
    USE mathconstants,                   ONLY: fourpi,&
                                               gamma1
    USE particle_types,                  ONLY: particle_type
+   USE physcon,                         ONLY: massunit
    USE pwdft_environment_types,         ONLY: pwdft_energy_type,&
                                               pwdft_env_get,&
                                               pwdft_env_set,&
@@ -280,7 +281,8 @@ CONTAINS
          CALL get_qs_kind(qs_kind_set(ikind), upf_potential=upf_pot, gth_potential=gth_potential)
          IF (ASSOCIATED(upf_pot)) THEN
             CALL sirius_add_atom_type(sctx, label, fname=upf_pot%filename, &
-                                      mass=REAL(mass, KIND=C_DOUBLE))
+                                      symbol=element_symbol, &
+                                      mass=REAL(mass/massunit, KIND=C_DOUBLE))
          ELSEIF (ASSOCIATED(gth_potential)) THEN
 !
             NULLIFY (atom_grid)
@@ -304,7 +306,8 @@ CONTAINS
 ! add new atom type
             CALL sirius_add_atom_type(sctx, label, &
                                       zn=NINT(zeff + 0.001d0), &
-                                      mass=REAL(mass, KIND=C_DOUBLE), &
+                                      symbol=element_symbol, &
+                                      mass=REAL(mass/massunit, KIND=C_DOUBLE), &
                                       spin_orbit=.FALSE.)
 !
             ALLOCATE (gth_atompot)
