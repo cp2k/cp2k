@@ -315,15 +315,20 @@ CONTAINS
          CPABORT("NNP| number of elements missing in NNP_INPUT_FILE")
       END IF
 
+      CALL parser_search_string(parser, "scale_symmetry_functions_sigma", .TRUE., found, &
+                                search_from_begin_of_file=.TRUE.)
+      nnp_env%scale_sigma_acsf = found
+
       CALL parser_search_string(parser, "scale_symmetry_functions", .TRUE., found, &
                                 search_from_begin_of_file=.TRUE.)
       nnp_env%scale_acsf = found
 
-      CALL parser_search_string(parser, "scale_symmetry_functions_sigma", .TRUE., found, &
-                                search_from_begin_of_file=.TRUE.)
-      nnp_env%scale_sigma_acsf = found
-      ! keywords are identical up to ending
-      IF (nnp_env%scale_acsf .AND. nnp_env%scale_sigma_acsf) THEN
+      ! Test if there are two keywords of this:
+      CALL parser_search_string(parser, "scale_symmetry_functions", .TRUE., found)
+      IF (found .AND. nnp_env%scale_sigma_acsf) THEN
+         CPWARN('Two scaling keywords in the input, we will ignore sigma scaling in this case')
+         nnp_env%scale_sigma_acsf = .FALSE.
+      ELSE IF (.NOT. found .AND. nnp_env%scale_sigma_acsf) THEN
          nnp_env%scale_acsf = .FALSE.
       END IF
 
