@@ -833,6 +833,7 @@ CONTAINS
       CALL section_vals_val_get(qs_env%input, "DFT%XC%HF%RI%_SECTION_PARAMETERS_", l_val=do_ri_hfx)
       IF (do_ri_hfx) THEN
          CALL get_qs_env(qs_env, nkind=nkind)
+         CALL section_vals_val_get(qs_env%input, "DFT%SORT_BASIS", i_val=sort_basis)
          DO ikind = 1, nkind
             NULLIFY (ri_hfx_basis)
             qs_kind => qs_kind_set(ikind)
@@ -841,9 +842,11 @@ CONTAINS
             IF (.NOT. (ASSOCIATED(ri_hfx_basis))) THEN
                CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto)
                IF (dft_control%do_admm) THEN
-                  CALL create_ri_aux_basis_set(ri_hfx_basis, qs_kind, dft_control%auto_basis_ri_hfx, basis_type="AUX_FIT")
+                  CALL create_ri_aux_basis_set(ri_hfx_basis, qs_kind, dft_control%auto_basis_ri_hfx, &
+                                               basis_type="AUX_FIT", basis_sort=sort_basis)
                ELSE
-                  CALL create_ri_aux_basis_set(ri_hfx_basis, qs_kind, dft_control%auto_basis_ri_hfx)
+                  CALL create_ri_aux_basis_set(ri_hfx_basis, qs_kind, dft_control%auto_basis_ri_hfx, &
+                                               basis_sort=sort_basis)
                END IF
                CALL add_basis_set_to_container(qs_kind%basis_sets, ri_hfx_basis, "RI_HFX")
             END IF
