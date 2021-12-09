@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# CP2K arch file Merlin (PSI)
+# CP2K (GNU) arch file for the Merlin cluster (PSI)
 #
 # Tested with: GNU 10.3.0, MPICH 3.3.2, ScaLAPACK 2.1.0, OpenBLAS 0.3.18,
 #              FFTW 3.3.10, LIBINT 2.6.0, LIBXC 5.1.7, ELPA 2021.05.002,
