@@ -1,11 +1,11 @@
 #!/bin/bash
 #
-# CP2K arch file for Merlin (PSI)
+# CP2K arch file Merlin (PSI)
 #
 # Tested with: GNU 10.3.0, MPICH 3.3.2, ScaLAPACK 2.1.0, OpenBLAS 0.3.18,
 #              FFTW 3.3.10, LIBINT 2.6.0, LIBXC 5.1.7, ELPA 2021.05.002,
 #              PLUMED 2.7.3, SPGLIB 1.16.2, LIBVORI 210412, GSL 2.7,
-#              COSMA 2.5.1, SIRIUS 7.2.7
+#              COSMA 2.5.1, SIRIUS 7.2.8
 #
 # Usage: Source this arch file and then run make as instructed.
 #        The compiler version can be specified as argument.
@@ -15,9 +15,9 @@
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
-   echo "ERROR: Script ${0##*/} must be sourced"; \
-   echo "Usage: source ${0##*/}"; \
-   exit 1; \
+      echo "ERROR: Script ${0##*/} must be sourced"; \
+      echo "Usage: source ${0##*/}"; \
+      exit 1; \
    fi; \
    this_file=${BASH_SOURCE##*/}; \
    if [[ -n "${1}" ]]; then \
@@ -56,7 +56,7 @@ USE_LIBXSMM    := 1.17
 USE_OPENBLAS   := 0.3.18
 USE_PLUMED     := 2.7.3
 USE_SCALAPACK  := 2.1.0
-USE_SIRIUS     := 7.2.7
+USE_SIRIUS     := 7.2.8
 USE_SPGLIB     := 1.16.2
 # Only needed for SIRIUS
 LIBVDWXC_VER   := 0.4.0
@@ -305,12 +305,12 @@ ifneq ($(USE_OPENBLAS),)
    endif
 endif
 
-LIBS           += -ldl -lz -lstdc++
-
 CFLAGS         += $(DFLAGS)
 
 FCFLAGS        := $(CFLAGS) $(FCFLAGS_DEBUG) $(WFLAGS)
-FCFLAGS        += -fallow-argument-mismatch
+ifeq ($(shell (( $(shell gcc -dumpversion | cut -d. -f1) > 9 )) && echo yes), yes)
+   FCFLAGS        += -fallow-argument-mismatch
+endif
 FCFLAGS        += -fbacktrace
 FCFLAGS        += -ffree-form
 FCFLAGS        += -ffree-line-length-none
@@ -318,5 +318,7 @@ FCFLAGS        += -fno-omit-frame-pointer
 FCFLAGS        += -std=f2008
 
 LDFLAGS        += $(FCFLAGS)
+
+LIBS           += -lz -ldl -lstdc++
 
 # End
