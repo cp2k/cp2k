@@ -74,6 +74,7 @@ MODULE qs_tddfpt2_methods
                                               tddfpt_print_nto_analysis,&
                                               tddfpt_print_summary
    USE qs_tddfpt2_restart,              ONLY: tddfpt_read_restart,&
+                                              tddfpt_write_newtonx_output,&
                                               tddfpt_write_restart
    USE qs_tddfpt2_stda_types,           ONLY: allocate_stda_env,&
                                               deallocate_stda_env,&
@@ -403,6 +404,8 @@ CONTAINS
 
       ! *** print summary information ***
       log_unit = cp_logger_get_default_io_unit()
+
+      CALL tddfpt_write_newtonx_output(evects, evals, gs_mos, logger, tddfpt_print_section, qs_env)
 
       IF (ASSOCIATED(matrix_ks_oep) .AND. tddfpt_control%dipole_form == tddfpt_dipole_velocity) THEN
          CALL cp_warn(__LOCATION__, &

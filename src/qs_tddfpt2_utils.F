@@ -53,7 +53,8 @@ MODULE qs_tddfpt2_utils
                                               section_vals_release,&
                                               section_vals_retain,&
                                               section_vals_set_subs_vals,&
-                                              section_vals_type
+                                              section_vals_type,&
+                                              section_vals_val_get
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE message_passing,                 ONLY: mp_min,&
@@ -109,21 +110,27 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_init_mos'
 
-      INTEGER                                            :: handle, ispin, nmo_avail, nmo_occ, &
-                                                            nmo_virt, nspins
+      INTEGER                                            :: handle, iounit, ispin, nmo_avail, &
+                                                            nmo_occ, nmo_virt, nspins
+      LOGICAL                                            :: print_virtuals_newtonx
       REAL(kind=dp), DIMENSION(:), POINTER               :: evals_virt_spin
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: evals_virt
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_virt
       TYPE(cp_fm_type), POINTER                          :: mos_virt_spin
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(section_vals_type), POINTER                   :: print_section
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
 
       CALL timeset(routineN, handle)
+
+      logger => cp_get_default_logger()
+      iounit = cp_logger_get_default_io_unit(logger)
 
       CALL get_qs_env(qs_env, blacs_env=blacs_env, cell=cell, dft_control=dft_control, &
                       matrix_ks=matrix_ks, matrix_s=matrix_s, mos=mos, scf_env=scf_env)
@@ -134,12 +141,17 @@ CONTAINS
       nspins = dft_control%nspins
       ALLOCATE (gs_mos(nspins))
 
+      ! check if virtuals should be constructed for NAMD interface with NEWTONX
+      print_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%TDDFPT%PRINT")
+      CALL section_vals_val_get(print_section, "NAMD_PRINT%PRINT_VIRTUALS", l_val=print_virtuals_newtonx)
+
       ! when the number of unoccupied orbitals is limited and OT has been used
       ! for the ground-state DFT calculation,
       ! compute the missing unoccupied orbitals using OT as well.
       NULLIFY (evals_virt, evals_virt_spin, mos_virt, mos_virt_spin)
       IF (ASSOCIATED(scf_env)) THEN
-         IF (scf_env%method == ot_method_nr .AND. tddfpt_control%nlumo > 0) THEN
+         IF ((scf_env%method == ot_method_nr .AND. tddfpt_control%nlumo > 0) .OR. &
+             (scf_env%method == ot_method_nr .AND. print_virtuals_newtonx)) THEN
             ! As OT with ADDED_MOS/=0 is currently not implemented, the following block is equivalent to:
             ! nmo_virt = tddfpt_control%nlumo
             ! number of already computed unoccupied orbitals (added_mos) .
@@ -150,10 +162,12 @@ CONTAINS
             END DO
             ! number of unoccupied orbitals to compute
             nmo_virt = tddfpt_control%nlumo - nmo_virt
-            IF (nmo_virt > 0) THEN
-               ALLOCATE (evals_virt(nspins), mos_virt(nspins))
-               ! the number of actually computed unoccupied orbitals will be stored as 'nmo_avail'
-               CALL make_lumo_gpw(qs_env, scf_env, mos_virt, evals_virt, nmo_virt, nmo_avail)
+            IF (.NOT. print_virtuals_newtonx) THEN
+               IF (nmo_virt > 0) THEN
+                  ALLOCATE (evals_virt(nspins), mos_virt(nspins))
+                  ! the number of actually computed unoccupied orbitals will be stored as 'nmo_avail'
+                  CALL make_lumo_gpw(qs_env, scf_env, mos_virt, evals_virt, nmo_virt, nmo_avail)
+               END IF
             END IF
          END IF
       END IF
