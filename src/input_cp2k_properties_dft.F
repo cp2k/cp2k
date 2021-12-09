@@ -1559,6 +1559,17 @@ CONTAINS
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name="NAMD_PRINT", &
+                                       description="Controls the printout required for NAMD with NEWTONX.", &
+                                       print_level=debug_print_level + 1, filename="CP2K_NEWTONX")
+      CALL keyword_create(keyword, __LOCATION__, name="PRINT_VIRTUALS", &
+                          description="Print occupied AND virtual molecular orbital coefficients", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
