@@ -1310,10 +1310,10 @@ CONTAINS
                                ri_data%bsizes_AO_split, [1, 2], [3], name="(AO RI | AO)")
          DEALLOCATE (dist1, dist2, dist3)
 
-         ALLOCATE (ri_data%blk_indices(ri_data%n_mem, ri_data%n_mem_RI))
-         ALLOCATE (ri_data%store_3c(ri_data%n_mem, ri_data%n_mem_RI))
+         ALLOCATE (ri_data%blk_indices(ri_data%n_mem, ri_data%n_mem))
+         ALLOCATE (ri_data%store_3c(ri_data%n_mem, ri_data%n_mem))
          DO i_mem = 1, ri_data%n_mem
-         DO j_mem = 1, ri_data%n_mem_RI
+         DO j_mem = 1, ri_data%n_mem
             CALL alloc_containers(ri_data%store_3c(i_mem, j_mem), 1)
          END DO
          END DO
@@ -1471,7 +1471,7 @@ CONTAINS
 
       IF (ri_data%flavor == ri_pmat) THEN
          DO i_mem = 1, ri_data%n_mem
-         DO j_mem = 1, ri_data%n_mem_RI
+         DO j_mem = 1, ri_data%n_mem
             CALL dealloc_containers(ri_data%store_3c(i_mem, j_mem), unused)
          END DO
          END DO
