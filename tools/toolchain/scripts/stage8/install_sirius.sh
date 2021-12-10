@@ -163,6 +163,7 @@ case "$with_sirius" in
           cmake -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
           -DCMAKE_CXXFLAGS_RELEASE="${SIRIUS_OPT}" \
           -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
+          -DCMAKE_CUDA_FLAGS="-std=c++14 -allow-unsupported-compiler" \
           -DUSE_CUDA=ON \
           -DUSE_ELPA=OFF \
           -DGPU_MODEL=P100 \
