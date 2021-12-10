@@ -28,15 +28,15 @@
       module add gcc/${1}; \
       module add cray-fftw; \
       echo "Expected setup:"; \
-      echo "  cray-mpich/7.7.16"; \
-      echo "  craype-broadwell"; \
-      echo "  daint-mc"; \
-      echo "  cray-mpich/7.7.16"; \
-      echo "  craype/2.7.3"; \
-      echo "  cray-libsci/20.09.1"; \
-      echo "  PrgEnv-gnu/6.0.9"; \
-      echo "  gcc/${1}"; \
-      echo "  cray-fftw/3.3.8.8"; \
+      echo "   cray-mpich/7.7.16"; \
+      echo "   craype-broadwell"; \
+      echo "   daint-mc"; \
+      echo "   cray-mpich/7.7.16"; \
+      echo "   craype/2.7.3"; \
+      echo "   cray-libsci/20.09.1"; \
+      echo "   PrgEnv-gnu/6.0.9"; \
+      echo "   gcc/${1}"; \
+      echo "   cray-fftw/3.3.8.8"; \
       module list; \
       module -f save cp2k_mc_gnu_psmp; \
       echo "To load the required modules in your batch job script, use:"; \
@@ -55,7 +55,7 @@
    echo "   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.} libcp2k"; \
    return
 
-# Set options (leave option blank or comment line to disable)
+# Set options
 DO_CHECKS      := no
 USE_COSMA      := 2.5.1
 USE_ELPA       := 2021.05.002
@@ -92,7 +92,7 @@ DFLAGS         += -D__MAX_CONTR=$(strip $(MAX_CONTR))
 INSTALL_PATH   := $(PWD)/tools/toolchain/install
 
 ifeq ($(DO_CHECKS), yes)
-DFLAGS         += -D__CHECK_DIAG
+   DFLAGS         += -D__CHECK_DIAG
 endif
 
 ifneq ($(USE_PLUMED),)
@@ -136,7 +136,6 @@ ifneq ($(USE_LIBINT),)
    LIBINT_LIB     := $(INSTALL_PATH)/libint-v$(USE_LIBINT)-cp2k-lmax-$(LMAX)/lib
    CFLAGS         += -I$(LIBINT_INC)
    DFLAGS         += -D__LIBINT
-   LIBS           += $(LIBINT_LIB)/libint2.a
    LIBS           += $(LIBINT_LIB)/libint2.a
 endif
 
@@ -216,3 +215,5 @@ FCFLAGS        += -std=f2008
 LDFLAGS        := $(FCFLAGS) -static
 
 LIBS           += -lz -ldl -lstdc++
+
+# End
