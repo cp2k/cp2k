@@ -116,6 +116,7 @@ case "$with_elpa" in
           --enable-nvidia-gpu=$([ "$TARGET" == "nvidia" ] && echo "yes" || echo "no") \
           --with-cuda-path=${CUDA_PATH} \
           --with-NVIDIA-GPU-compute-capability=$([ "$TARGET" == "nvidia" ] && echo "sm_$ARCH_NUM" || echo "sm_35") \
+          CUDA_CFLAGS="-std=c++14 -allow-unsupported-compiler" \
           OMPI_MCA_plm_rsh_agent=/bin/false \
           FC=${MPIFC} \
           CC=${MPICC} \

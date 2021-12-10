@@ -66,6 +66,7 @@ case "$with_spfft" in
           -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
           -DCMAKE_INSTALL_LIBDIR=lib \
           -DCMAKE_CXX_COMPILER="${MPICXX}" \
+          -DCMAKE_CUDA_FLAGS="-std=c++14 -allow-unsupported-compiler" \
           -DSPFFT_OMP=ON \
           -DSPFFT_MPI=ON \
           -DSPFFT_STATIC=ON \
