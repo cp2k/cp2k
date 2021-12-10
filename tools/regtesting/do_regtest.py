@@ -31,6 +31,7 @@ KEEPALIVE_SKIP_DIRS = [
     "TMC/regtest_ana_post_proc",
     "LIBTEST/libvori",
     "LIBTEST/libbqb",
+    "QS/regtest-ec"
 ]
 
 # ======================================================================================
