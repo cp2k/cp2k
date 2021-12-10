@@ -59,9 +59,8 @@ CONTAINS
       INTEGER                                            :: ikind, iunit, nkind, ounit
       INTEGER, SAVE                                      :: ncalls = 0
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(gto_basis_set_type), POINTER                  :: aux_fit_basis, lri_aux_basis, orb_basis, &
-                                                            ri_aux_basis, ri_hfx_basis, &
-                                                            ri_hxc_basis, ri_xas_basis
+      TYPE(gto_basis_set_type), POINTER :: aux_fit_basis, lri_aux_basis, orb_basis, &
+         p_lri_aux_basis, ri_aux_basis, ri_hfx_basis, ri_hxc_basis, ri_xas_basis
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
 
@@ -88,12 +87,13 @@ CONTAINS
       DO ikind = 1, nkind
          qs_kind => qs_kind_set(ikind)
          CALL get_qs_kind(qs_kind, element_symbol=element_symbol)
-         NULLIFY (orb_basis, ri_aux_basis, lri_aux_basis, aux_fit_basis)
+         NULLIFY (orb_basis, ri_aux_basis, lri_aux_basis, p_lri_aux_basis, aux_fit_basis)
          CALL get_qs_kind(qs_kind, basis_set=orb_basis, basis_type="ORB")
          CALL get_qs_kind(qs_kind, basis_set=ri_aux_basis, basis_type="RI_AUX")
          CALL get_qs_kind(qs_kind, basis_set=ri_hxc_basis, basis_type="RI_HXC")
          CALL get_qs_kind(qs_kind, basis_set=ri_hfx_basis, basis_type="RI_HFX")
          CALL get_qs_kind(qs_kind, basis_set=lri_aux_basis, basis_type="LRI_AUX")
+         CALL get_qs_kind(qs_kind, basis_set=p_lri_aux_basis, basis_type="P_LRI_AUX")
          CALL get_qs_kind(qs_kind, basis_set=aux_fit_basis, basis_type="AUX_FIT")
          CALL get_qs_kind(qs_kind, basis_set=ri_xas_basis, basis_type="RI_XAS")
          IF (ounit > 0) THEN
@@ -112,6 +112,10 @@ CONTAINS
             IF (ASSOCIATED(lri_aux_basis)) THEN
                bname = "local_lri_aux"
                CALL basis_out(lri_aux_basis, element_symbol, bname, iunit)
+            END IF
+            IF (ASSOCIATED(p_lri_aux_basis)) THEN
+               bname = "local_p_lri_aux"
+               CALL basis_out(p_lri_aux_basis, element_symbol, bname, iunit)
             END IF
             IF (ASSOCIATED(aux_fit_basis)) THEN
                bname = "local_aux_fit"

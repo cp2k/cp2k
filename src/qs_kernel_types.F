@@ -8,6 +8,8 @@
 MODULE qs_kernel_types
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
+   USE lri_environment_types,           ONLY: lri_density_type,&
+                                              lri_environment_type
    USE qs_tddfpt2_stda_types,           ONLY: stda_env_type
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                               xc_dset_release
@@ -57,6 +59,9 @@ MODULE qs_kernel_types
       !> flags for finite differences/analytic XC kernels
       LOGICAL                                            :: deriv2_analytic
       LOGICAL                                            :: deriv3_analytic
+      ! Local resolution of the identity for Coulomb (at the moment only for flex kernel)
+      TYPE(lri_environment_type), POINTER                :: lri_env
+      TYPE(lri_density_type), POINTER                    :: lri_density
    END TYPE full_kernel_env_type
 ! **************************************************************************************************
 !> \brief Type to hold environments for the different kernels
@@ -66,6 +71,7 @@ MODULE qs_kernel_types
    TYPE kernel_env_type
       TYPE(full_kernel_env_type), POINTER                :: full_kernel => Null()
       TYPE(full_kernel_env_type), POINTER                :: admm_kernel => Null()
+      TYPE(full_kernel_env_type), POINTER                :: flex_kernel => Null()
       TYPE(stda_env_type), POINTER                       :: stda_kernel => Null()
    END TYPE kernel_env_type
 

@@ -622,7 +622,7 @@ CONTAINS
          pmat(ispin, 1)%matrix => density_matrix(ispin)%matrix
       END DO
       CALL calculate_lri_densities(lri_env, lri_density, qs_env, pmat, cell_to_index, &
-                                   rho_struct, atomic_kind_set, para_env)
+                                   rho_struct, atomic_kind_set, para_env, response_density=.FALSE.)
       kg_env%lri_density => lri_density
 
       DEALLOCATE (pmat)
@@ -645,7 +645,7 @@ CONTAINS
             pmat(ispin, 1)%matrix => pmat_ext(ispin)%matrix
          END DO
          CALL calculate_lri_densities(lri_env1, lri_rho1, qs_env, pmat, cell_to_index, &
-                                      rho1, atomic_kind_set, para_env)
+                                      rho1, atomic_kind_set, para_env, response_density=.FALSE.)
          kg_env%lri_rho1 => lri_rho1
          DEALLOCATE (pmat)
 

@@ -44,7 +44,8 @@ MODULE qs_tddfpt2_subgroups
    USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                               distribution_2d_type
    USE distribution_methods,            ONLY: distribute_molecules_2d
-   USE input_constants,                 ONLY: tddfpt_kernel_full,&
+   USE input_constants,                 ONLY: tddfpt_kernel_flex,&
+                                              tddfpt_kernel_full,&
                                               tddfpt_kernel_none,&
                                               tddfpt_kernel_stda
    USE input_section_types,             ONLY: section_vals_type,&
@@ -262,7 +263,7 @@ CONTAINS
          END IF
       END IF
 
-      IF (kernel == tddfpt_kernel_full) THEN
+      IF ((kernel == tddfpt_kernel_full) .OR. (kernel == tddfpt_kernel_flex)) THEN
          ! ++ allocate a new plane wave environment
          sub_env%is_mgrid = sub_env%is_split .OR. tddfpt_control%mgrid_is_explicit
 

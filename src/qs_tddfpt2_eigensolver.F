@@ -29,7 +29,8 @@ MODULE qs_tddfpt2_eigensolver
    USE dbcsr_api,                       ONLY: dbcsr_get_info,&
                                               dbcsr_p_type,&
                                               dbcsr_type
-   USE input_constants,                 ONLY: tddfpt_kernel_full,&
+   USE input_constants,                 ONLY: tddfpt_kernel_flex,&
+                                              tddfpt_kernel_full,&
                                               tddfpt_kernel_none,&
                                               tddfpt_kernel_stda
    USE input_section_types,             ONLY: section_vals_type
@@ -317,13 +318,18 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin, ivect, nspins, nvects
       INTEGER, DIMENSION(maxspins)                       :: nmo_occ
-      LOGICAL                                            :: do_admm, do_hfx, is_rks_triplets
+      LOGICAL                                            :: do_admm, do_hfx, do_lri_response, &
+                                                            is_rks_triplets
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(full_kernel_env_type), POINTER                :: full_kernel_env, kernel_env_admm_aux
 
       CALL timeset(routineN, handle)
 
-      full_kernel_env => kernel_env%full_kernel
+      IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
+         full_kernel_env => kernel_env%full_kernel
+      ELSE IF (tddfpt_control%kernel == tddfpt_kernel_flex) THEN
+         full_kernel_env => kernel_env%flex_kernel
+      END IF
 
       nspins = SIZE(evects, 1)
       nvects = SIZE(evects, 2)
@@ -335,6 +341,7 @@ CONTAINS
          NULLIFY (kernel_env_admm_aux)
       END IF
       is_rks_triplets = tddfpt_control%rks_triplets
+      do_lri_response = tddfpt_control%do_lrigpw
 
       IF (debug_this_module) THEN
          CPASSERT(nspins > 0)
@@ -364,7 +371,7 @@ CONTAINS
             ! full TDDFPT kernel
             CALL fhxc_kernel(Aop_evects, evects, is_rks_triplets, do_hfx, do_admm, qs_env, &
                              full_kernel_env, kernel_env_admm_aux, sub_env, work_matrices, &
-                             tddfpt_control%admm_symm)
+                             tddfpt_control%admm_symm, do_lri_response)
          ELSE IF (tddfpt_control%kernel == tddfpt_kernel_stda) THEN
             ! sTDA kernel
             CALL stda_kernel(Aop_evects, evects, is_rks_triplets, qs_env, tddfpt_control%stda_control, &
@@ -376,6 +383,11 @@ CONTAINS
                   CALL cp_fm_set_all(Aop_evects(ispin, ivect)%matrix, 0.0_dp)
                END DO
             END DO
+         ELSE IF (tddfpt_control%kernel == tddfpt_kernel_flex) THEN
+            ! flex kernel
+            CALL fhxc_kernel(Aop_evects, evects, is_rks_triplets, do_hfx, do_admm, qs_env, &
+                             full_kernel_env, kernel_env_admm_aux, sub_env, work_matrices, &
+                             tddfpt_control%admm_symm, do_lri_response)
          ELSE
             CPABORT("Kernel type not implemented")
          END IF

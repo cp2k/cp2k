@@ -119,6 +119,7 @@ QS/regtest-gapw
 QMMM/SE/regtest
 QS/regtest-hfx-periodic                                     libint
 QS/regtest-tddfpt-stda                                      libint
+QS/regtest-tddfpt-lri                                       libint
 Fist/regtest-opt
 QS/regtest-nmr-6
 QS/regtest-gpw-1                                            libint

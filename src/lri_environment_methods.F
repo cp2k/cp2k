@@ -562,9 +562,10 @@ CONTAINS
 !> \param lri_rho_struct ...
 !> \param atomic_kind_set ...
 !> \param para_env ...
+!> \param response_density ...
 ! **************************************************************************************************
    SUBROUTINE calculate_lri_densities(lri_env, lri_density, qs_env, pmatrix, cell_to_index, &
-                                      lri_rho_struct, atomic_kind_set, para_env)
+                                      lri_rho_struct, atomic_kind_set, para_env, response_density)
 
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_density_type), POINTER                    :: lri_density
@@ -574,10 +575,12 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: lri_rho_struct
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      LOGICAL, INTENT(IN)                                :: response_density
 
-      CALL calculate_avec_lri(lri_env, lri_density, pmatrix, cell_to_index)
+      CALL calculate_avec_lri(lri_env, lri_density, pmatrix, cell_to_index, response_density)
       CALL distribute_lri_density_on_the_grid(lri_env, lri_density, qs_env, &
-                                              lri_rho_struct, atomic_kind_set, para_env)
+                                              lri_rho_struct, atomic_kind_set, para_env, &
+                                              response_density)
 
    END SUBROUTINE calculate_lri_densities
 
@@ -590,20 +593,22 @@ CONTAINS
 !> \param lri_density ...
 !> \param pmatrix ...
 !> \param cell_to_index ...
+!> \param response_density ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_avec_lri(lri_env, lri_density, pmatrix, cell_to_index)
+   SUBROUTINE calculate_avec_lri(lri_env, lri_density, pmatrix, cell_to_index, response_density)
 
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: pmatrix
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      LOGICAL, INTENT(IN), OPTIONAL                      :: response_density
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_avec_lri'
 
       INTEGER :: handle, i, iac, iatom, ic, ikind, ilist, ispin, jatom, jkind, jneighbor, mepos, &
          nba, nbb, nfa, nfb, nkind, nlist, nn, nneighbor, nspin, nthread
       INTEGER, DIMENSION(3)                              :: cell
-      LOGICAL                                            :: found, trans, use_cell_mapping
+      LOGICAL                                            :: found, lresponse, trans, use_cell_mapping
       REAL(KIND=dp)                                      :: dab, rab(3), threshold
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: m
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: int3, paa, pab, pbb
@@ -619,6 +624,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       NULLIFY (lrii, lri_rho, nl_iterator, pbij, pmat, soo_list)
+
+      lresponse = .FALSE.
+      IF (PRESENT(response_density)) lresponse = response_density
 
       IF (ASSOCIATED(lri_env%soo_list)) THEN
          soo_list => lri_env%soo_list
@@ -641,7 +649,8 @@ CONTAINS
 
             CALL neighbor_list_iterator_create(nl_iterator, soo_list, nthread=nthread)
 !$OMP PARALLEL DEFAULT(NONE)&
-!$OMP SHARED (nthread,nl_iterator,lri_env,lri_rho,pmatrix,nkind,cell_to_index,use_cell_mapping,ispin)&
+!$OMP SHARED (nthread,nl_iterator,lri_env,lri_rho,pmatrix,nkind,cell_to_index,use_cell_mapping,ispin,&
+!$OMP         lresponse)&
 !$OMP PRIVATE (mepos,ikind,jkind,iatom,jatom,nlist,ilist,nneighbor,jneighbor,rab,dab,iac,&
 !$OMP          trans,found,pmat,pbij,pab,paa,pbb,int3,lrho,lrii,nba,nbb,nfa,nfb,nn,threshold,i,m,cell,ic)
 
@@ -666,6 +675,7 @@ CONTAINS
                END IF
                pmat => pmatrix(ispin, ic)%matrix
                ! get the density matrix Pab
+               ! this needs to be response density for LRI-TDDFT
                NULLIFY (pbij)
                IF (iatom <= jatom) THEN
                   CALL dbcsr_get_block_p(matrix=pmat, row=iatom, col=jatom, block=pbij, found=found)
@@ -799,9 +809,11 @@ CONTAINS
 !> \param lri_rho_struct ...
 !> \param atomic_kind_set ...
 !> \param para_env ...
+!> \param response_density ...
 ! **************************************************************************************************
    SUBROUTINE distribute_lri_density_on_the_grid(lri_env, lri_density, qs_env, &
-                                                 lri_rho_struct, atomic_kind_set, para_env)
+                                                 lri_rho_struct, atomic_kind_set, para_env, &
+                                                 response_density)
 
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_density_type), POINTER                    :: lri_density
@@ -809,6 +821,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: lri_rho_struct
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      LOGICAL, INTENT(IN)                                :: response_density
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_lri_density_on_the_grid'
 
@@ -940,10 +953,17 @@ CONTAINS
                CALL dbcsr_replicate_all(pmat_diag)
             END IF
             !
-            CALL calculate_lri_rho_elec(rho_g(ispin), &
-                                        rho_r(ispin), qs_env, &
-                                        lri_density%lri_coefs(ispin)%lri_kinds, tot_rho_r(ispin), &
-                                        "LRI_AUX", lri_env%exact_1c_terms, pmat=pmat_diag)
+            IF (.NOT. response_density) THEN
+               CALL calculate_lri_rho_elec(rho_g(ispin), &
+                                           rho_r(ispin), qs_env, &
+                                           lri_density%lri_coefs(ispin)%lri_kinds, tot_rho_r(ispin), &
+                                           "LRI_AUX", lri_env%exact_1c_terms, pmat=pmat_diag)
+            ELSE
+               CALL calculate_lri_rho_elec(rho_g(ispin), &
+                                           rho_r(ispin), qs_env, &
+                                           lri_density%lri_coefs(ispin)%lri_kinds, tot_rho_r(ispin), &
+                                           "P_LRI_AUX", lri_env%exact_1c_terms, pmat=pmat_diag)
+            END IF
             lri_env%stat%rho_tt = lri_env%stat%rho_tt + tot_rho_r(ispin)
             !
             IF (lri_env%exact_1c_terms) CALL dbcsr_release(pmat_diag)
@@ -1220,12 +1240,17 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
+!> \param ltddfpt ...
+!> \param tddfpt_lri_env ...
 ! **************************************************************************************************
-   SUBROUTINE lri_print_stat(qs_env)
+   SUBROUTINE lri_print_stat(qs_env, ltddfpt, tddfpt_lri_env)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, OPTIONAL                                  :: ltddfpt
+      TYPE(lri_environment_type), OPTIONAL, POINTER      :: tddfpt_lri_env
 
       INTEGER                                            :: iunit
+      LOGICAL                                            :: my_ltddfpt
       REAL(KIND=dp) :: abai_mem, coef_mem, oint_mem, overlap_error, pairs_ff, pairs_sr, pairs_tt, &
          ppli_mem, ppx, rho_1c, rho_ff, rho_sr, rho_tt, rhos_mem
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -1233,7 +1258,17 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(section_vals_type), POINTER                   :: input
 
-      CALL get_qs_env(qs_env, lri_env=lri_env, input=input, para_env=para_env)
+      my_ltddfpt = .FALSE.
+      IF (PRESENT(ltddfpt)) my_ltddfpt = ltddfpt
+
+      IF (.NOT. my_ltddfpt) THEN
+         CALL get_qs_env(qs_env, lri_env=lri_env, input=input, para_env=para_env)
+      ELSE
+         CALL get_qs_env(qs_env, input=input, para_env=para_env)
+         NULLIFY (lri_env)
+         lri_env => tddfpt_lri_env
+      END IF
+
       IF (lri_env%statistics) THEN
          logger => cp_get_default_logger()
          iunit = cp_print_key_unit_nr(logger, input, "PRINT%PROGRAM_RUN_INFO", extension=".Log")

@@ -208,6 +208,8 @@ CONTAINS
                dft_control%auto_basis_aux_fit = isize
             CASE ("LRI_AUX")
                dft_control%auto_basis_lri_aux = isize
+            CASE ("P_LRI_AUX")
+               dft_control%auto_basis_p_lri_aux = isize
             CASE ("RI_HXC")
                dft_control%auto_basis_ri_hxc = isize
             CASE ("RI_XAS")
@@ -1241,7 +1243,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_tddfpt2_control'
 
-      INTEGER                                            :: handle
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: tmpstringlist
+      INTEGER                                            :: handle, irep, isize, nrep
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inds
       LOGICAL                                            :: explicit, multigrid_set
       TYPE(section_vals_type), POINTER                   :: dipole_section, mgrid_section, &
@@ -1267,7 +1271,45 @@ CONTAINS
 
       CALL section_vals_val_get(t_section, "RESTART", l_val=t_control%is_restart)
       CALL section_vals_val_get(t_section, "RKS_TRIPLETS", l_val=t_control%rks_triplets)
+      CALL section_vals_val_get(t_section, "DO_LRIGPW", l_val=t_control%do_lrigpw)
       CALL section_vals_val_get(t_section, "ADMM_KERNEL_CORRECTION_SYMMETRIC", l_val=t_control%admm_symm)
+
+      t_control%do_response_now = .FALSE. ! logical to control that update of response density is distinguished
+      ! from update of GS density, necessary for flex kernel
+
+      ! read automatically generated auxiliary basis for LRI
+      CALL section_vals_val_get(t_section, "AUTO_BASIS", n_rep_val=nrep)
+      DO irep = 1, nrep
+         CALL section_vals_val_get(t_section, "AUTO_BASIS", i_rep_val=irep, c_vals=tmpstringlist)
+         IF (SIZE(tmpstringlist) == 2) THEN
+            CALL uppercase(tmpstringlist(2))
+            SELECT CASE (tmpstringlist(2))
+            CASE ("X")
+               isize = -1
+            CASE ("SMALL")
+               isize = 0
+            CASE ("MEDIUM")
+               isize = 1
+            CASE ("LARGE")
+               isize = 2
+            CASE ("HUGE")
+               isize = 3
+            CASE DEFAULT
+               CPABORT("Unknown basis size in AUTO_BASIS keyword:"//TRIM(tmpstringlist(1)))
+            END SELECT
+            !
+            SELECT CASE (tmpstringlist(1))
+            CASE ("X")
+            CASE ("P_LRI_AUX")
+               t_control%auto_basis_p_lri_aux = isize
+            CASE DEFAULT
+               CPABORT("Unknown basis type in AUTO_BASIS keyword:"//TRIM(tmpstringlist(1)))
+            END SELECT
+         ELSE
+            CALL cp_abort(__LOCATION__, &
+                          "AUTO_BASIS keyword in &PROPERTIES &TDDFT section has a wrong number of arguments.")
+         END IF
+      END DO
 
       IF (t_control%conv < 0) &
          t_control%conv = ABS(t_control%conv)
