@@ -3,8 +3,8 @@
 # CP2K arch file for Cray-XC50 (Piz Daint, CSCS, GPU partition)
 #
 # Tested with: GFortran 8.3.0, Cray-MPICH 7.7.16, Cray-libsci 20.09.1, Cray-FFTW 3.3.8, Libint 2.6.0,
-#              LIBXC 5.1.7, LIBVORI 210412, LIBXSMM 1.16.2, ELPA 2021.05.002, PLUMED 2.7.2,
-#              SPGLIB 1.16.2, GSL 2.7, SIRIUS 7.2.7, COSMA 2.5.1
+#              LIBXC 5.1.7, LIBVORI 210412, LIBXSMM 1.16.2, ELPA 2021.05.002, PLUMED 2.7.3,
+#              SPGLIB 1.16.2, GSL 2.7, SIRIUS 7.2.8, COSMA 2.5.1
 #
 # Usage: Source this arch file and then run make as instructed
 #
@@ -52,9 +52,9 @@ USE_ELPA       := 2021.05.002
 USE_LIBINT     := 2.6.0
 USE_LIBVORI    := 210412
 USE_LIBXC      := 5.1.7
-USE_LIBXSMM    := 1.16.2
-USE_PLUMED     := 2.7.2
-USE_SIRIUS     := 7.2.7
+USE_LIBXSMM    := 1.17
+USE_PLUMED     := 2.7.3
+USE_SIRIUS     := 7.2.8
 USE_SPGLIB     := 1.16.2
 LMAX           := 6
 
@@ -102,8 +102,8 @@ endif
 
 ifneq ($(USE_ELPA),)
 USE_ELPA       := $(strip $(USE_ELPA))
-ELPA_INC       := $(MPI_PATH)/elpa/$(USE_ELPA)/include/elpa-$(USE_ELPA)
-ELPA_LIB       := $(MPI_PATH)/elpa/$(USE_ELPA)/lib
+ELPA_INC       := $(MPI_PATH)/elpa/$(USE_ELPA)_bugfix/gpu/include/elpa-$(USE_ELPA)
+ELPA_LIB       := $(MPI_PATH)/elpa/$(USE_ELPA)_bugfix/gpu/lib
 CFLAGS         += -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules
 DFLAGS         += -D__ELPA
 DFLAGS         += -D__ELPA_NVIDIA_GPU
@@ -163,8 +163,8 @@ SIRIUS_LIB     := $(GNU_PATH)/sirius/$(USE_SIRIUS)/lib
 CFLAGS         += -I$(SIRIUS_INC)
 DFLAGS         += -D__SIRIUS
 LIBS           += ${SIRIUS_LIB}/libsirius.a
-LIBS           += $(GNU_PATH)/SpFFT/1.0.4/lib/libspfft.a
-LIBS           += $(GNU_PATH)/SpLA/1.5.1/lib/libspla.a
+LIBS           += $(GNU_PATH)/SpFFT/1.0.5/lib/libspfft.a
+LIBS           += $(GNU_PATH)/SpLA/1.5.2/lib/libspla.a
 LIBS           += $(GNU_PATH)/hdf5/1.12.0/lib/libhdf5.a
 endif
 
