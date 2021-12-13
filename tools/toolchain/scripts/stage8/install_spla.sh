@@ -51,7 +51,7 @@ case "$with_spla" in
         -DSPLA_OMP=ON \
         -DSPLA_MPI=ON \
         -DSPLA_INSTALL=ON \
-        -DSPLA_STATIC=OM \
+        -DSPLA_STATIC=ON \
         .. > cmake.log 2>&1
       make -j $(get_nprocs) > make.log 2>&1
       make -j $(get_nprocs) install > install.log 2>&1
@@ -67,7 +67,7 @@ case "$with_spla" in
           -DBUILD_SHARED_LIBS=OFF \
           -DSPLA_OMP=ON \
           -DSPLA_MPI=ON \
-          -DSPLA_STATIC=OM \
+          -DSPLA_STATIC=ON \
           -DSPLA_INSTALL=ON \
           -DSPLA_GPU_BACKEND=CUDA \
           .. > cmake.log 2>&1
