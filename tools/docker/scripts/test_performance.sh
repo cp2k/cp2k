@@ -48,6 +48,7 @@ fi
 echo -e '\n========== Running Performance Test =========='
 mkdir -p /workspace/artifacts
 cd ./benchmarks
+TIME_START=$(date +%s)
 
 BENCHMARKS=(
   "QS/H2O-64.inp"
@@ -101,7 +102,10 @@ else
   exit 1
 fi
 
-echo -e "\nSummary: Performance test works fine."
+TIME_END=$(date +%s)
+DURATION=$(printf "%i" $(((TIME_END - TIME_START) / 60)))
+
+echo -e "\nSummary: Performance test took ${DURATION} minutes."
 echo -e "Status: OK\n"
 
 #EOF
