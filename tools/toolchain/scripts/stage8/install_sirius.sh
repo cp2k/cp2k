@@ -10,7 +10,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
 sirius_ver="7.2.8"
-sirius_sha256="338da4fe9d479baedabbc6dd6f503edd0130985bb5a8fa9ac228880f1016dafd"
+sirius_sha256="3e6eafb5f7403933528f31eadba5530fda11095693e04a0c4db774f8666ad0c8"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
