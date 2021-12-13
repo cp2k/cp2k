@@ -1598,6 +1598,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      ! even if scaling parameter for exchange FRACTION (see above) is zero, the semi-empirical electron repulsion
+      ! operator for exchange is not, so that a keyword is required to switch off sTDA exchange (if wanted)
+      CALL keyword_create(keyword, __LOCATION__, name="DO_EXCHANGE", &
+                          description="Explicitly including or switching off sTDA exchange", &
+                          usage="DO_EXCHANGE", default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="DO_EWALD", &
                           description="Use Ewald type method for Coulomb interaction", &
                           usage="DO_EWALD", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)

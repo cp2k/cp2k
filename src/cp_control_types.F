@@ -420,6 +420,7 @@ MODULE cp_control_types
 ! **************************************************************************************************
    TYPE stda_control_type
       LOGICAL                                :: do_ewald
+      LOGICAL                                :: do_exchange
       REAL(KIND=dp)                          :: hfx_fraction
       REAL(KIND=dp)                          :: eps_td_filter
    END TYPE stda_control_type

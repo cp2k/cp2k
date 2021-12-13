@@ -43,7 +43,7 @@ MODULE cp_control_utils
         real_time_propagation, sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, &
         sccs_derivative_cd7, sccs_derivative_fft, sccs_fattebert_gygi, sic_ad, sic_eo, &
         sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
-        tddfpt_excitations, use_mom_ref_user, xas_dip_len
+        tddfpt_excitations, tddfpt_kernel_stda, use_mom_ref_user, xas_dip_len
    USE input_cp2k_check,                ONLY: xc_functionals_expand
    USE input_cp2k_dft,                  ONLY: create_dft_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
@@ -1243,7 +1243,9 @@ CONTAINS
 
       INTEGER                                            :: handle
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inds
-      LOGICAL                                            :: explicit, multigrid_set
+      LOGICAL                                            :: do_ewald, do_exchange, expl, explicit, &
+                                                            multigrid_set
+      REAL(KIND=dp)                                      :: filter, hfx
       TYPE(section_vals_type), POINTER                   :: dipole_section, mgrid_section, &
                                                             stda_section, xc_func, xc_section
 
@@ -1357,15 +1359,22 @@ CONTAINS
 
       ! sTDA subsection
       stda_section => section_vals_get_subs_vals(t_section, "STDA")
-      CALL section_vals_get(stda_section, explicit=explicit)
-      IF (explicit) THEN
-         CALL section_vals_val_get(stda_section, "HFX_FRACTION", r_val=t_control%stda_control%hfx_fraction)
-         CALL section_vals_val_get(stda_section, "EPS_TD_FILTER", r_val=t_control%stda_control%eps_td_filter)
-         CALL section_vals_val_get(stda_section, "DO_EWALD", l_val=t_control%stda_control%do_ewald)
-      ELSE
+      IF (t_control%kernel == tddfpt_kernel_stda) THEN
          t_control%stda_control%hfx_fraction = 0.0_dp
+         t_control%stda_control%do_exchange = .TRUE.
          t_control%stda_control%eps_td_filter = 1.e-10_dp
          t_control%stda_control%do_ewald = .FALSE.
+      END IF
+      CALL section_vals_get(stda_section, explicit=explicit)
+      IF (explicit) THEN
+         CALL section_vals_val_get(stda_section, "HFX_FRACTION", r_val=hfx, explicit=expl)
+         IF (expl) t_control%stda_control%hfx_fraction = hfx
+         CALL section_vals_val_get(stda_section, "EPS_TD_FILTER", r_val=filter, explicit=expl)
+         IF (expl) t_control%stda_control%eps_td_filter = filter
+         CALL section_vals_val_get(stda_section, "DO_EWALD", l_val=do_ewald, explicit=expl)
+         IF (expl) t_control%stda_control%do_ewald = do_ewald
+         CALL section_vals_val_get(stda_section, "DO_EXCHANGE", l_val=do_exchange, explicit=expl)
+         IF (expl) t_control%stda_control%do_exchange = do_exchange
       END IF
 
       CALL timestop(handle)
