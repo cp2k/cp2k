@@ -9,8 +9,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-elpa_ver="2021.05.002"
-elpa_sha256="6fd39006c38a8ffe35069ebe447819187e2cd3625521109a88512d7cd739985f"
+elpa_ver="2021.11.001.rc1"
+elpa_sha256="c62022aa3b287736fd4f3c6293d1f9655c56b2c4fd517f4f84c45d5e85ec779f"
 patches=(
   "${SCRIPT_DIR}/stage5/elpa-${elpa_ver}-fix_nvcc_wrap.patch"
 )
