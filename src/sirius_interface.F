@@ -71,7 +71,7 @@ MODULE sirius_interface
         sirius_initialize, sirius_initialize_context, sirius_kpoint_set_handler, &
         sirius_option_get_info, sirius_option_get_section_length, sirius_option_set, &
         sirius_set_atom_position, sirius_set_atom_type_dion, sirius_set_atom_type_radial_grid, &
-        sirius_set_lattice_vectors, sirius_update_ground_state
+        sirius_set_lattice_vectors, sirius_set_mpi_grid_dims, sirius_update_ground_state
    USE xc_libxc,                        ONLY: libxc_check_existence_in_libxc
 #include "./base/base_uses.f90"
 
@@ -130,6 +130,7 @@ CONTAINS
       INTEGER                                            :: i, iatom, ibeta, ifun, ikind, iwf, j, l, &
                                                             n, natom, nbeta, nkind, nmesh, &
                                                             num_mag_dims, sirius_mpi_comm
+      INTEGER, DIMENSION(:), POINTER                     :: mpi_grid_dims
       INTEGER(KIND=C_INT), DIMENSION(3)                  :: k_grid, k_shift
       INTEGER, DIMENSION(:), POINTER                     :: kk
       LOGICAL                                            :: up, use_ref_cell
@@ -204,6 +205,7 @@ CONTAINS
       pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "control")
       IF (ASSOCIATED(pwdft_sub_section)) THEN
          CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, "control")
+         CALL section_vals_val_get(pwdft_sub_section, "mpi_grid_dims", i_vals=mpi_grid_dims)
       END IF
 
 !     import parameters section
@@ -450,6 +452,9 @@ CONTAINS
          v2(1:3) = vs(1:3)
          CALL sirius_add_atom(sctx, label, v2(1), v1(1))
       END DO
+
+      CALL sirius_set_mpi_grid_dims(sctx, 2, mpi_grid_dims)
+
 ! initialize global variables/indices/arrays/etc. of the simulation
       CALL sirius_initialize_context(sctx)
 
@@ -542,6 +547,8 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:), POINTER               :: rvals
       REAL(kind=dp), TARGET                              :: rval
 
+      NULLIFY (rvals)
+      NULLIFY (ivals)
       CALL sirius_option_get_section_length(section_name, number_of_options)
 
       DO elem = 1, number_of_options
