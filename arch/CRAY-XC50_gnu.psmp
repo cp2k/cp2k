@@ -3,12 +3,12 @@
 # CP2K arch file for Cray-XC50 (Piz Daint, CSCS, GPU partition)
 #
 # Tested with: GFortran 8.3.0, Cray-MPICH 7.7.16, Cray-libsci 20.09.1, Cray-FFTW 3.3.8, Libint 2.6.0,
-#              LIBXC 5.1.7, LIBVORI 210412, LIBXSMM 1.16.2, ELPA 2021.11.001.rc1, PLUMED 2.7.3,
-#              SPGLIB 1.16.2, GSL 2.7, SIRIUS 7.2.8, COSMA 2.5.1
+#              LIBXC 5.1.7, LIBVORI 210412, LIBXSMM 1.16.2, ELPA 2021.05.002, PLUMED 2.7.3,
+#              SPGLIB 1.16.2, GSL 2.7, SIRIUS 7.3.0, COSMA 2.5.1
 #
 # Usage: Source this arch file and then run make as instructed
 #
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, November 2021)
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, December 2021)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -48,13 +48,13 @@ DO_CHECKS      := no
 GNU_VERSION    := 8.3.0
 USE_ACC        := yes
 USE_COSMA      := 2.5.1
-USE_ELPA       := 2021.11.001.rc1
+USE_ELPA       := 2021.05.001
 USE_LIBINT     := 2.6.0
 USE_LIBVORI    := 210412
 USE_LIBXC      := 5.1.7
 USE_LIBXSMM    := 1.17
 USE_PLUMED     := 2.7.3
-USE_SIRIUS     := 7.2.8
+USE_SIRIUS     := 7.3.0
 USE_SPGLIB     := 1.16.2
 LMAX           := 6
 
@@ -69,7 +69,7 @@ LD             := ftn
 AR             := ar -r
 
 # cc, CC, and ftn include already the proper -march flag
-CFLAGS         := -O3 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g
+CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g
 
 DFLAGS         := -D__parallel
 DFLAGS         += -D__SCALAPACK
@@ -102,8 +102,8 @@ endif
 
 ifneq ($(USE_ELPA),)
 USE_ELPA       := $(strip $(USE_ELPA))
-ELPA_INC       := $(MPI_PATH)/elpa/$(USE_ELPA)_bugfix/gpu/include/elpa-$(USE_ELPA)
-ELPA_LIB       := $(MPI_PATH)/elpa/$(USE_ELPA)_bugfix/gpu/lib
+ELPA_INC       := $(MPI_PATH)/elpa/$(USE_ELPA)/gpu/include/elpa-$(USE_ELPA)
+ELPA_LIB       := $(MPI_PATH)/elpa/$(USE_ELPA)/gpu/lib
 CFLAGS         += -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules
 DFLAGS         += -D__ELPA
 DFLAGS         += -D__ELPA_NVIDIA_GPU
