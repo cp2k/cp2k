@@ -39,8 +39,9 @@ MODULE qs_tddfpt2_stda_types
    END TYPE
 
    TYPE stda_env_type
-      !fraction of non-local HF exchange !! REDUNDANT also in stda_control
+      !fraction of non-local HF exchange
       REAL(KIND=dp)                                :: hfx_fraction
+      LOGICAL                                      :: do_exchange
       ! empirical parameters
       REAL(KIND=dp)                                :: alpha_param
       REAL(KIND=dp)                                :: beta_param
@@ -140,8 +141,15 @@ CONTAINS
                               z=stda_kernel%kind_param_set(ikind)%kind_param%z)
       END DO
 
-      ! HFx_fraction
-      stda_kernel%hfx_fraction = stda_control%hfx_fraction
+      IF (stda_control%do_exchange) THEN ! option to switch off exchange
+         ! HFx_fraction
+         stda_kernel%do_exchange = .TRUE.
+         stda_kernel%hfx_fraction = stda_control%hfx_fraction
+      ELSE
+         stda_kernel%do_exchange = .FALSE.
+         stda_kernel%hfx_fraction = 0.0_dp
+      END IF
+
       ! alpha and beta parameter
       stda_kernel%alpha_param = alpha(1) + stda_kernel%hfx_fraction*alpha(2)
       stda_kernel%beta_param = beta(1) + stda_kernel%hfx_fraction*beta(2)
@@ -179,9 +187,9 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(stda_kind_type), POINTER                      :: kind_param
 
-      stda_kernel%hfx_fraction = 0.0d0
-      stda_kernel%alpha_param = 0.0d0
-      stda_kernel%beta_param = 0.0d0
+      stda_kernel%hfx_fraction = 0.0_dp
+      stda_kernel%alpha_param = 0.0_dp
+      stda_kernel%beta_param = 0.0_dp
       stda_kernel%nactive = 0
       stda_kernel%nactive(1:2) = nactive(1:2)
       stda_kernel%n_ao = n_ao

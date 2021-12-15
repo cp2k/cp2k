@@ -11,6 +11,7 @@
        KERNEL sTDA
        &sTDA
           FRACTION 0.0
+          DO_EXCHANGE F
        &END sTDA
        NSTATES      1
        MAX_ITER    50

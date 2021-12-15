@@ -6,6 +6,7 @@
        RKS_TRIPLETS T
        &sTDA
           FRACTION 0.0
+          DO_EXCHANGE F
        &END sTDA
        NSTATES      5
        MAX_ITER    50

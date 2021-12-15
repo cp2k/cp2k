@@ -1231,7 +1231,7 @@ CONTAINS
          !
          ! *** Exchange contribution
          !
-         IF (stda_env%hfx_fraction > 0.0_dp) THEN
+         IF (stda_env%do_exchange) THEN
             !
             IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
             !
@@ -1266,12 +1266,26 @@ CONTAINS
                eta = (stda_env%kind_param_set(ikind)%kind_param%hardness_param + &
                       stda_env%kind_param_set(jkind)%kind_param%hardness_param)/2.0_dp
                rbeta = dr**bp
-               gabr = (1._dp/(rbeta + (hfx*eta)**(-bp)))**(1._dp/bp)
+               IF (hfx > 0.0_dp) THEN
+                  gabr = (1._dp/(rbeta + (hfx*eta)**(-bp)))**(1._dp/bp)
+               ELSE
+                  IF (dr < 1.0e-6_dp) THEN
+                     gabr = 0.0_dp
+                  ELSE
+                     gabr = 1._dp/dr
+                  END IF
+               END IF
+               !      gabr = (1._dp/(rbeta + (hfx*eta)**(-bp)))**(1._dp/bp)
                ! forces
                IF (dr > 1.0e-6_dp) THEN
-                  dgabr = -(1._dp/bp)*(1._dp/(rbeta + (hfx*eta)**(-bp)))**(1._dp/bp + 1._dp)
-                  dgabr = bp*rbeta/dr**2*dgabr
-                  dgabr = SUM(pblock**2)*dgabr
+                  IF (hfx > 0.0_dp) THEN
+                     dgabr = -(1._dp/bp)*(1._dp/(rbeta + (hfx*eta)**(-bp)))**(1._dp/bp + 1._dp)
+                     dgabr = bp*rbeta/dr**2*dgabr
+                     dgabr = SUM(pblock**2)*dgabr
+                  ELSE
+                     dgabr = -1.0_dp/dr**3
+                     dgabr = SUM(pblock**2)*dgabr
+                  END IF
                   atom_i = atom_of_kind(iatom)
                   atom_j = atom_of_kind(jatom)
                   DO i = 1, 3

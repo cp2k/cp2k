@@ -6,6 +6,7 @@
 CH2O_tddfpt_stda-s-1.inp                                   37    1.0E-05               0.349917E+00
 CH2Oplus_tddfpt_stda-lsd.inp                               37    1.0E-05               0.212156E+00
 CH2O_tddfpt_stda-pbe-s.inp                                 37    1.0E-05               0.125452E+00
+CH2O_tddfpt_stda-pbe-s_doexchange.inp                      37    1.0E-05               0.155105E+00
 CH2O_tddfpt_stda-xtb-s.inp                                 37    1.0E-05               0.150482E+00
 CH2O_stda-xtb-s.inp                                        37    1.0E-05               0.256889E-01
 H2O_tddfpt_stda-pbe-s.inp                                  37    1.0E-05               0.599658E+00

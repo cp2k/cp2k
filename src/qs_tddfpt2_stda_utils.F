@@ -516,7 +516,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, kind_of, last_sgf
       INTEGER, DIMENSION(2)                              :: nactive, nlim
       LOGICAL                                            :: calculate_forces, do_coulomb, do_ewald, &
-                                                            use_virial
+                                                            do_exchange, use_virial
       REAL(KIND=dp)                                      :: alpha, bp, dr, eta, gabr, hfx, rbeta, &
                                                             spinfac
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tcharge, tv
@@ -554,6 +554,7 @@ CONTAINS
          do_coulomb = .TRUE.
       END IF
       do_ewald = stda_control%do_ewald
+      do_exchange = stda_control%do_exchange
 
       para_env => sub_env%para_env
 
@@ -673,7 +674,8 @@ CONTAINS
          !
          ! *** Exchange contribution
          !
-         IF (stda_env%hfx_fraction > 0.0_dp) THEN
+         IF (do_exchange) THEN ! option to explicitly switch off exchange
+            ! (exchange contributes also if hfx_fraction=0)
             ALLOCATE (kind_of(natom))
             CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set)
             CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of)
@@ -702,7 +704,15 @@ CONTAINS
                eta = (stda_env%kind_param_set(ikind)%kind_param%hardness_param + &
                       stda_env%kind_param_set(jkind)%kind_param%hardness_param)/2.0_dp
                rbeta = dr**bp
-               gabr = (1._dp/(rbeta + (hfx*eta)**(-bp)))**(1._dp/bp)
+               IF (hfx > 0.0_dp) THEN
+                  gabr = (1._dp/(rbeta + (hfx*eta)**(-bp)))**(1._dp/bp)
+               ELSE
+                  IF (dr < 1.e-6) THEN
+                     gabr = 0.0_dp
+                  ELSE
+                     gabr = 1._dp/dr
+                  END IF
+               END IF
                pblock = gabr*pblock
             END DO
             CALL dbcsr_iterator_stop(iter)
