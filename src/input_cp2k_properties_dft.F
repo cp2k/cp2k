@@ -37,11 +37,12 @@ MODULE input_cp2k_properties_dft
         ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
         ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, scan_x, scan_xy, &
         scan_xyz, scan_xz, scan_y, scan_yz, scan_z, tddfpt_dipole_berry, tddfpt_dipole_length, &
-        tddfpt_dipole_velocity, tddfpt_kernel_full, tddfpt_kernel_none, tddfpt_kernel_stda, &
-        use_mom_ref_coac, use_mom_ref_com, use_mom_ref_user, use_mom_ref_zero
+        tddfpt_dipole_velocity, tddfpt_kernel_flex, tddfpt_kernel_full, tddfpt_kernel_none, &
+        tddfpt_kernel_stda, use_mom_ref_coac, use_mom_ref_com, use_mom_ref_user, use_mom_ref_zero
    USE input_cp2k_atprop,               ONLY: create_atprop_section
    USE input_cp2k_dft,                  ONLY: create_ddapc_restraint_section,&
                                               create_interp_section,&
+                                              create_lrigpw_section,&
                                               create_mgrid_section
    USE input_cp2k_loc,                  ONLY: create_localize_section
    USE input_cp2k_resp,                 ONLY: create_resp_section
@@ -54,7 +55,8 @@ MODULE input_cp2k_properties_dft
                                               section_create,&
                                               section_release,&
                                               section_type
-   USE input_val_types,                 ONLY: integer_t,&
+   USE input_val_types,                 ONLY: char_t,&
+                                              integer_t,&
                                               lchar_t,&
                                               logical_t,&
                                               real_t
@@ -1304,8 +1306,9 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="KERNEL", &
                           description="Options to compute the kernel", &
                           usage="KERNEL FULL", &
-                          enum_c_vals=s2a("FULL", "sTDA", "NONE"), &
-                          enum_i_vals=(/tddfpt_kernel_full, tddfpt_kernel_stda, tddfpt_kernel_none/), &
+                          enum_c_vals=s2a("FULL", "sTDA", "NONE", "FLEX"), &
+                          enum_i_vals=(/tddfpt_kernel_full, tddfpt_kernel_stda, tddfpt_kernel_none, &
+                                        tddfpt_kernel_flex/), &
                           default_i_val=tddfpt_kernel_full)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1392,6 +1395,21 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="DO_LRIGPW", &
+                          description="Local resolution of identity for Coulomb contribution.", &
+                          n_var=1, type_of_var=logical_t, &
+                          default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="AUTO_BASIS", &
+                          description="Specify size of automatically generated auxiliary basis sets: "// &
+                          "Options={small,medium,large,huge}", &
+                          usage="AUTO_BASIS {basis_type} {basis_size}", &
+                          type_of_var=char_t, repeats=.TRUE., n_var=-1, default_c_vals=(/"X", "X"/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       ! Strings
       CALL keyword_create(keyword, __LOCATION__, name="WFN_RESTART_FILE_NAME", &
                           variants=(/"RESTART_FILE_NAME"/), &
@@ -1460,6 +1478,11 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      ! LRI subsection
+      CALL create_lrigpw_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       ! PRINT subsection
       CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="Printing of information during the TDDFT run.", repeats=.FALSE.)
@@ -1487,6 +1510,12 @@ CONTAINS
                                        description="Controls the printing of detailed energy information "// &
                                        "during the TDDFT run.", &
                                        print_level=medium_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name="BASIS_SET_FILE", &
+                                       description="Controls the printing of a file with all basis sets used.", &
+                                       print_level=debug_print_level, filename="BASIS_SETS")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 

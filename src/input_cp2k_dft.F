@@ -165,6 +165,7 @@ MODULE input_cp2k_dft
    PUBLIC :: create_interp_section
    PUBLIC :: create_ddapc_restraint_section
    PUBLIC :: create_mgrid_section
+   PUBLIC :: create_lrigpw_section
 
 CONTAINS
 

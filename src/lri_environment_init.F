@@ -147,6 +147,8 @@ CONTAINS
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, basis_type="ORB")
          IF (ri_type == "LRI") THEN
             CALL get_qs_kind(qs_kind_set(ikind), basis_set=ri_basis_set, basis_type="LRI_AUX")
+         ELSE IF (ri_type == "P_LRI") THEN
+            CALL get_qs_kind(qs_kind_set(ikind), basis_set=ri_basis_set, basis_type="P_LRI_AUX")
          ELSE IF (ri_type == "RI") THEN
             CALL get_qs_kind(qs_kind_set(ikind), basis_set=ri_basis_set, basis_type="RI_HXC")
          ELSE
@@ -164,7 +166,7 @@ CONTAINS
          maxl_ri = MAX(maxl_ri, lmax_ikind_ri)
       END DO
 
-      IF (ri_type == "LRI") THEN
+      IF ((ri_type == "LRI") .OR. (ri_type == "P_LRI")) THEN
          ! CG coefficients needed for lri integrals
          IF (ASSOCIATED(lri_env%cg_shg)) THEN
             CALL get_clebsch_gordon_coefficients(lri_env%cg_shg%cg_coeff, &

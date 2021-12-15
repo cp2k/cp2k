@@ -463,6 +463,13 @@ MODULE cp_control_types
       LOGICAL                              :: is_restart
       !> compute triplet excited states using spin-unpolarised molecular orbitals
       LOGICAL                              :: rks_triplets
+      !> local resolution of identity for Coulomb contribution
+      LOGICAL                              :: do_lrigpw
+      !> logical to distinguish response and GS density during update, necessary for flex kernel
+      ! in contrast to logical enabled, this is only set to true when GS finished and TDDFPT2 starts
+      LOGICAL                              :: do_response_now
+      ! automatic generation of auxiliary basis for LRI-TDDFT
+      INTEGER                              :: auto_basis_p_lri_aux = 1
       !> use symmetric definition of ADMM Kernel correction
       LOGICAL                              :: admm_symm
       !
@@ -532,6 +539,7 @@ MODULE cp_control_types
       INTEGER                              :: auto_basis_ri_aux = 1, &
                                               auto_basis_aux_fit = 1, &
                                               auto_basis_lri_aux = 1, &
+                                              auto_basis_p_lri_aux = 1, &
                                               auto_basis_ri_hxc = 1, &
                                               auto_basis_ri_xas = 1, &
                                               auto_basis_ri_hfx = 1

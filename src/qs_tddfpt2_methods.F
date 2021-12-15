@@ -40,6 +40,7 @@ MODULE qs_tddfpt2_methods
    USE exstates_types,                  ONLY: excited_energy_type
    USE header,                          ONLY: tddfpt_header
    USE input_constants,                 ONLY: tddfpt_dipole_velocity,&
+                                              tddfpt_kernel_flex,&
                                               tddfpt_kernel_full,&
                                               tddfpt_kernel_none,&
                                               tddfpt_kernel_stda
@@ -48,6 +49,9 @@ MODULE qs_tddfpt2_methods
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
+   USE lri_environment_methods,         ONLY: lri_print_stat
+   USE lri_environment_types,           ONLY: lri_density_release,&
+                                              lri_env_release
    USE machine,                         ONLY: m_flush
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -69,6 +73,7 @@ MODULE qs_tddfpt2_methods
                                               tddfpt_resvec2,&
                                               tddfpt_resvec2_xtb,&
                                               tddfpt_resvec3
+   USE qs_tddfpt2_lri_utils,            ONLY: tddfpt2_lri_init
    USE qs_tddfpt2_properties,           ONLY: tddfpt_dipole_operator,&
                                               tddfpt_print_excitation_analysis,&
                                               tddfpt_print_nto_analysis,&
@@ -151,8 +156,8 @@ CONTAINS
       TYPE(kernel_env_type)                              :: kernel_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
-      TYPE(section_vals_type), POINTER                   :: tddfpt_print_section, tddfpt_section, &
-                                                            xc_section
+      TYPE(section_vals_type), POINTER                   :: lri_section, tddfpt_print_section, &
+                                                            tddfpt_section, xc_section
       TYPE(stda_env_type), TARGET                        :: stda_kernel
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
@@ -168,7 +173,7 @@ CONTAINS
       ! input section print/xc
       NULLIFY (tddfpt_section)
       tddfpt_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%TDDFPT")
-      CALL tddfpt_input(qs_env, do_hfx, do_admm, xc_section, tddfpt_print_section)
+      CALL tddfpt_input(qs_env, do_hfx, do_admm, xc_section, tddfpt_print_section, lri_section)
 
       CALL get_qs_env(qs_env, blacs_env=blacs_env, cell=cell, dft_control=dft_control, &
                       matrix_ks=matrix_ks, matrix_s=matrix_s, mos=mos, scf_env=scf_env)
@@ -192,6 +197,10 @@ CONTAINS
 
       ! obtain corrected KS-matrix
       CALL tddfpt_oecorr(qs_env, gs_mos, matrix_ks_oep)
+
+      IF ((tddfpt_control%do_lrigpw) .AND. (tddfpt_control%kernel /= tddfpt_kernel_flex)) THEN
+         CALL cp_abort(__LOCATION__, "LRI only implemented for flex kernel")
+      END IF
 
       NULLIFY (admm_env)
       IF (do_admm) CALL get_qs_env(qs_env, admm_env=admm_env)
@@ -223,7 +232,7 @@ CONTAINS
       CALL tddfpt_sub_env_init(sub_env, qs_env, mos_occ=evects(:, 1), kernel=tddfpt_control%kernel)
       DEALLOCATE (evects)
 
-      IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
+      IF ((tddfpt_control%kernel == tddfpt_kernel_full) .OR. (tddfpt_control%kernel == tddfpt_kernel_flex)) THEN
          ! create environment for Full Kernel
          IF (dft_control%qs_control%xtb) THEN
             CPABORT("TDDFPT: xTB only works with sTDA Kernel")
@@ -238,6 +247,10 @@ CONTAINS
                                                         qs_env=qs_env, sub_env=sub_env, &
                                                         wfm_rho_orb=work_matrices%rho_ao_orb_fm_sub)
 
+         tddfpt_control%do_response_now = .TRUE. ! needs to be after tddfpt_construct_ground_state_orb_density
+      END IF
+
+      IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
          IF (do_admm) THEN
             ! Full kernel with ADMM
             CALL create_kernel_env(kernel_env=full_kernel_env, &
@@ -293,8 +306,26 @@ CONTAINS
          NULLIFY (kernel_env%full_kernel)
          NULLIFY (kernel_env%admm_kernel)
          NULLIFY (kernel_env%stda_kernel)
+      ELSE IF (tddfpt_control%kernel == tddfpt_kernel_flex) THEN
+         nactive = 0
+         CALL cp_fm_get_info(gs_mos(1)%mos_occ, nrow_global=nao)
+         DO ispin = 1, SIZE(gs_mos)
+            CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, ncol_global=nactive(ispin))
+         END DO
+         CALL create_kernel_env(kernel_env=full_kernel_env, &
+                                rho_struct_sub=work_matrices%rho_orb_struct_sub, &
+                                xc_section=xc_section, &
+                                is_rks_triplets=tddfpt_control%rks_triplets, sub_env=sub_env)
+         kernel_env%flex_kernel => full_kernel_env
+         NULLIFY (kernel_env%full_kernel)
+         NULLIFY (kernel_env%admm_kernel)
+         NULLIFY (kernel_env%stda_kernel)
       ELSE
          CPABORT('Unknown kernel type')
+      END IF
+
+      IF (tddfpt_control%do_lrigpw) THEN
+         CALL tddfpt2_lri_init(qs_env, kernel_env, lri_section, tddfpt_print_section)
       END IF
 
       ALLOCATE (evals(nstates))
@@ -420,6 +451,10 @@ CONTAINS
       CALL tddfpt_print_nto_analysis(qs_env, evects, evals, gs_mos, matrix_s(1)%matrix, &
                                      tddfpt_print_section)
 
+      IF (tddfpt_control%do_lrigpw) THEN
+         CALL lri_print_stat(qs_env, ltddfpt=.TRUE., tddfpt_lri_env=kernel_env%flex_kernel%lri_env)
+      END IF
+
       ! excited state potential energy surface
       IF (qs_env%excited_state) THEN
          CALL get_qs_env(qs_env, exstate_env=ex_env)
@@ -539,6 +574,12 @@ CONTAINS
          CALL deallocate_stda_env(stda_kernel)
       ELSE IF (tddfpt_control%kernel == tddfpt_kernel_none) THEN
          !
+      ELSE IF (tddfpt_control%kernel == tddfpt_kernel_flex) THEN
+         IF (tddfpt_control%do_lrigpw) THEN
+            CALL lri_env_release(kernel_env%flex_kernel%lri_env)
+            CALL lri_density_release(kernel_env%flex_kernel%lri_density)
+         END IF
+         CALL release_kernel_env(kernel_env%flex_kernel)
       ELSE
          CPABORT('Unknown kernel type')
       END IF
@@ -573,11 +614,13 @@ CONTAINS
 !> \param do_admm ...
 !> \param xc_section ...
 !> \param tddfpt_print_section ...
+!> \param lri_section ...
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_input(qs_env, do_hfx, do_admm, xc_section, tddfpt_print_section)
+   SUBROUTINE tddfpt_input(qs_env, do_hfx, do_admm, xc_section, tddfpt_print_section, lri_section)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(INOUT)                             :: do_hfx, do_admm
-      TYPE(section_vals_type), POINTER                   :: xc_section, tddfpt_print_section
+      TYPE(section_vals_type), POINTER                   :: xc_section, tddfpt_print_section, &
+                                                            lri_section
 
       CHARACTER(len=20)                                  :: nstates_str
       LOGICAL                                            :: explicit_xc
@@ -604,7 +647,7 @@ CONTAINS
       tddfpt_section => section_vals_get_subs_vals(input, "PROPERTIES%TDDFPT")
       tddfpt_print_section => section_vals_get_subs_vals(tddfpt_section, "PRINT")
 
-      IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
+      IF ((tddfpt_control%kernel == tddfpt_kernel_full) .OR. (tddfpt_control%kernel == tddfpt_kernel_flex)) THEN
          NULLIFY (xc_section)
          xc_section => section_vals_get_subs_vals(tddfpt_section, "XC%XC_FUNCTIONAL")
          CALL section_vals_get(xc_section, explicit=explicit_xc)
@@ -639,6 +682,11 @@ CONTAINS
       IF (tddfpt_control%rks_triplets .AND. dft_control%nspins > 1) THEN
          tddfpt_control%rks_triplets = .FALSE.
          CALL cp_warn(__LOCATION__, "Keyword RKS_TRIPLETS has been ignored for spin-polarised calculations")
+      END IF
+
+      ! lri input
+      IF (tddfpt_control%do_lrigpw) THEN
+         lri_section => section_vals_get_subs_vals(tddfpt_section, "LRIGPW")
       END IF
 
    END SUBROUTINE tddfpt_input

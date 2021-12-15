@@ -558,7 +558,8 @@ MODULE input_constants
                                                tddfpt_davidson = 1
    INTEGER, PARAMETER, PUBLIC               :: tddfpt_kernel_none = 2, &
                                                tddfpt_kernel_full = 1, &
-                                               tddfpt_kernel_stda = 0
+                                               tddfpt_kernel_stda = 0, &
+                                               tddfpt_kernel_flex = 3
    INTEGER, PARAMETER, PUBLIC               :: oe_none = 0, &
                                                oe_lb = 1, &
                                                oe_gllb = 2, &
@@ -811,7 +812,8 @@ MODULE input_constants
                                                use_aux_fit_basis_set = 2, &
                                                use_aux_basis_set = 3, &
                                                use_ri_aux_basis_set = 4, &
-                                               use_lri_basis_set = 5
+                                               use_lri_basis_set = 5, &
+                                               use_p_lri_basis_set = 6
    ! ADMM PARAMETER
    ! This parameter defines the method to use for the purification
    INTEGER, PARAMETER, PUBLIC               :: do_admm_purify_none = 1, &

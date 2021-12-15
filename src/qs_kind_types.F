@@ -2771,6 +2771,8 @@ CONTAINS
                   bstring = "Auxiliary Fit Basis Set"
                CASE ("LRI_AUX")
                   bstring = "LRI Basis Set"
+               CASE ("P_LRI_AUX")
+                  bstring = "LRI Basis Set for TDDFPT"
                CASE ("RI_XAS")
                   bstring = "RI XAS Basis Set"
                CASE ("RI_HFX")
@@ -2971,6 +2973,8 @@ CONTAINS
                      bstring = "Auxiliary Fit Basis Set"
                   CASE ("LRI_AUX")
                      bstring = "LRI Basis Set"
+                  CASE ("P_LRI_AUX")
+                     bstring = "LRI Basis Set for TDDFPT"
                   CASE ("RI_HFX")
                      bstring = "RI HFX Basis Set"
                   END SELECT

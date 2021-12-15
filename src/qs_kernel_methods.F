@@ -55,7 +55,7 @@ CONTAINS
 !> \param xc_section       input section which defines an exchange-correlation functional
 !> \param is_rks_triplets  indicates that the triplet excited states calculation using
 !>                         spin-unpolarised molecular orbitals has been requested
-!> \param rho_struct_sub   ground state charge densityi, if not associated on input, it will be associated on output
+!> \param rho_struct_sub   ground state charge density, if not associated on input, it will be associated on output
 !> \param lsd_singlets ...
 !> \param do_excitations ...
 !> \param sub_env          parallel group environment

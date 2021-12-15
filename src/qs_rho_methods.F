@@ -334,22 +334,27 @@ CONTAINS
 !> \param local_rho_set ...
 !> \param pw_env_external    external plane wave environment
 !> \param task_list_external external task list
+!> \param tddfpt_lri_env ...
+!> \param tddfpt_lri_density ...
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, pw_env_external, task_list_external)
+   SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, pw_env_external, task_list_external, &
+                                tddfpt_lri_env, tddfpt_lri_density)
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(local_rho_type), OPTIONAL, POINTER            :: local_rho_set
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_external
       TYPE(task_list_type), OPTIONAL, POINTER            :: task_list_external
+      TYPE(lri_environment_type), OPTIONAL, POINTER      :: tddfpt_lri_env
+      TYPE(lri_density_type), OPTIONAL, POINTER          :: tddfpt_lri_density
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_rho_update_rho'
 
       INTEGER                                            :: handle, img, ispin, nimg, nspins
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: gapw, gapw_xc
+      LOGICAL                                            :: gapw, gapw_xc, lri_response
       REAL(KIND=dp)                                      :: dum
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r, tot_rho_r_xc
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -409,23 +414,42 @@ CONTAINS
       gapw = dft_control%qs_control%gapw
       gapw_xc = dft_control%qs_control%gapw_xc
 
+      lri_response = .FALSE.
+      IF (dft_control%tddfpt2_control%do_lrigpw .AND. &
+          dft_control%tddfpt2_control%do_response_now) lri_response = .TRUE.
+
+      IF (lri_response .AND. (.NOT. PRESENT(tddfpt_lri_density) .OR. &
+                              (.NOT. PRESENT(tddfpt_lri_env)))) CPABORT("no lri response density / env")
+
       IF (dft_control%qs_control%semi_empirical) THEN
          !
          CALL qs_rho_set(rho_struct, rho_r_valid=.FALSE., rho_g_valid=.FALSE.)
       ELSEIF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
          !
          CALL qs_rho_set(rho_struct, rho_r_valid=.FALSE., rho_g_valid=.FALSE.)
-      ELSEIF (dft_control%qs_control%lrigpw) THEN
+      ELSEIF ((dft_control%qs_control%lrigpw) .AND. (.NOT. dft_control%tddfpt2_control%do_response_now) &
+              .OR. (lri_response)) THEN
          CPASSERT(.NOT. dft_control%use_kinetic_energy_density)
          CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
          CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
          CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
-         CALL get_qs_env(qs_env, lri_density=lri_density)
+         IF (.NOT. lri_response) THEN
+            CALL get_qs_env(qs_env, lri_density=lri_density)
+         ELSE
+            lri_density => tddfpt_lri_density
+            lri_env => tddfpt_lri_env
+         END IF
          CALL calculate_lri_densities(lri_env, lri_density, qs_env, rho_ao_kp, cell_to_index, &
                                       lri_rho_struct=rho_struct, &
                                       atomic_kind_set=atomic_kind_set, &
-                                      para_env=para_env)
-         CALL set_qs_env(qs_env, lri_density=lri_density)
+                                      para_env=para_env, &
+                                      response_density=lri_response)
+         IF (.NOT. lri_response) THEN
+            CALL set_qs_env(qs_env, lri_density=lri_density)
+         ELSE
+            tddfpt_lri_density => lri_density
+            tddfpt_lri_env => lri_env
+         END IF
          CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
       ELSEIF (dft_control%qs_control%rigpw) THEN
          CPASSERT(.NOT. dft_control%use_kinetic_energy_density)

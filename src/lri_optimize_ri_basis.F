@@ -85,7 +85,8 @@ MODULE lri_optimize_ri_basis
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_optimize_ri_basis'
 
-   PUBLIC :: optimize_lri_basis
+   PUBLIC :: optimize_lri_basis, &
+             get_condition_number_of_overlap
 
 ! **************************************************************************************************
 
