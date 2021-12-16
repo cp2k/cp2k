@@ -66,7 +66,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: subsection
+      TYPE(section_type), POINTER                        :: print_key, subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="WF_CORRELATION", &
@@ -151,6 +151,13 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      NULLIFY (print_key)
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "PRINT", &
+                                       description="Controls the printing basic info about WFC methods", &
+                                       print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
    END SUBROUTINE create_mp2_section
 
 ! **************************************************************************************************
@@ -161,7 +168,6 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: print_key
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="MP2", &
@@ -190,13 +196,6 @@ CONTAINS
          default_i_val=mp2_method_direct)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-
-      NULLIFY (print_key)
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "MP2_INFO", &
-                                       description="Controls the printing basic info about MP2 method", &
-                                       print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
-      CALL section_add_subsection(section, print_key)
-      CALL section_release(print_key)
 
       CALL keyword_create( &
          keyword, __LOCATION__, &

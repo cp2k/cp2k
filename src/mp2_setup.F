@@ -340,7 +340,7 @@ CONTAINS
       mp2_env%p_screen = .TRUE.
 
       ! print some info about the MP2 parameters
-      unit_nr = cp_print_key_unit_nr(logger, mp2_section, "MP2%MP2_INFO", &
+      unit_nr = cp_print_key_unit_nr(logger, mp2_section, "PRINT", &
                                      extension=".mp2Log")
       IF ((mp2_env%method .NE. mp2_method_none) .AND. unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A)') ""
@@ -365,7 +365,7 @@ CONTAINS
       END IF
 
       CALL cp_print_key_finished_output(unit_nr, logger, mp2_section, &
-                                        "MP2%MP2_INFO")
+                                        "PRINT")
 
       CALL timestop(handle)
 
