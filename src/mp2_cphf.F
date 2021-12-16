@@ -37,8 +37,9 @@ MODULE mp2_cphf
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_get_default_unit_nr,&
                                               cp_logger_type
+   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                              cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
@@ -1000,9 +1001,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      logger => cp_get_default_logger()
-      iounit = cp_logger_get_default_unit_nr(logger)
-
       NULLIFY (input, pw_env, matrix_s, rho, energy, force, virial, &
                matrix_p_mp2, matrix_p_mp2_admm, matrix_ks, rho_core)
       CALL get_qs_env(qs_env, &
@@ -1024,6 +1022,10 @@ CONTAINS
                       energy=energy, &
                       rho_core=rho_core, &
                       x_data=x_data)
+
+      logger => cp_get_default_logger()
+      iounit = cp_print_key_unit_nr(logger, input, "DFT%XC%WF_CORRELATION%MP2%MP2_INFO", &
+                                    extension=".mp2Log")
 
       p_env => qs_env%mp2_env%ri_grad%p_env
 
@@ -1584,6 +1586,9 @@ CONTAINS
       ! Add the dispersion forces and virials
       CALL get_qs_env(qs_env, dispersion_env=dispersion_env)
       CALL calculate_dispersion_pairpot(qs_env, dispersion_env, e_dummy, .TRUE.)
+
+      CALL cp_print_key_finished_output(iounit, logger, input, &
+                                        "DFT%XC%WF_CORRELATION%MP2%MP2_INFO")
 
       CALL timestop(handle)
 
