@@ -1024,7 +1024,7 @@ CONTAINS
                       x_data=x_data)
 
       logger => cp_get_default_logger()
-      iounit = cp_print_key_unit_nr(logger, input, "DFT%XC%WF_CORRELATION%MP2%MP2_INFO", &
+      iounit = cp_print_key_unit_nr(logger, input, "DFT%XC%WF_CORRELATION%PRINT", &
                                     extension=".mp2Log")
 
       p_env => qs_env%mp2_env%ri_grad%p_env
@@ -1588,7 +1588,7 @@ CONTAINS
       CALL calculate_dispersion_pairpot(qs_env, dispersion_env, e_dummy, .TRUE.)
 
       CALL cp_print_key_finished_output(iounit, logger, input, &
-                                        "DFT%XC%WF_CORRELATION%MP2%MP2_INFO")
+                                        "DFT%XC%WF_CORRELATION%PRINT")
 
       CALL timestop(handle)
 

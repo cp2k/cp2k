@@ -221,7 +221,7 @@ CONTAINS
 
       END IF
 
-      unit_nr = cp_print_key_unit_nr(logger, input, "DFT%XC%WF_CORRELATION%MP2%MP2_INFO", &
+      unit_nr = cp_print_key_unit_nr(logger, input, "DFT%XC%WF_CORRELATION%PRINT", &
                                      extension=".mp2Log")
 
       IF (unit_nr > 0) THEN
@@ -739,7 +739,7 @@ CONTAINS
       END IF
 
       CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                        "DFT%XC%WF_CORRELATION%MP2%MP2_INFO")
+                                        "DFT%XC%WF_CORRELATION%PRINT")
 
       CALL timestop(handle)
 
