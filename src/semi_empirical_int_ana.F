@@ -55,8 +55,8 @@ MODULE semi_empirical_int_ana
 
    IMPLICIT NONE
    PRIVATE
+
 #include "semi_empirical_int_debug.f90"
-#include "semi_empirical_int_args.f90"
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_ana'
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
@@ -1090,38 +1090,38 @@ CONTAINS
       ij = indexa(1, 1)
       IF (l_ssss) THEN
          ! Store the value for the derivative of <S  S  | S  S  > (Used for computing the core-core interactions)
-         dssss = d_ijkl_sp(sepi, sepj, ij, ij, 0, 0, 0, 0, -1, rij, CPPint_args)
+         dssss = d_ijkl_sp(sepi, sepj, ij, ij, 0, 0, 0, 0, -1, rij, se_int_control, se_int_screen, itype)
       END IF
 
       IF (l_core) THEN
          !     <S  S  | S  S  >
          kl = indexa(1, 1)
-         dcore(1, 1) = d_ijkl_sp(sepi, sepj, kl, ij, 0, 0, 0, 0, 2, rij, CPPint_args)*sepj%zeff
+         dcore(1, 1) = d_ijkl_sp(sepi, sepj, kl, ij, 0, 0, 0, 0, 2, rij, se_int_control, se_int_screen, itype)*sepj%zeff
          IF (si) THEN
             !  <S  P  | S  S  >
             kl = indexa(2, 1)
-            dcore(2, 1) = d_ijkl_sp(sepi, sepj, kl, ij, 0, 1, 0, 0, 2, rij, CPPint_args)*sepj%zeff
+            dcore(2, 1) = d_ijkl_sp(sepi, sepj, kl, ij, 0, 1, 0, 0, 2, rij, se_int_control, se_int_screen, itype)*sepj%zeff
             !  <P  P  | S  S  >
             kl = indexa(2, 2)
-            dcore(3, 1) = d_ijkl_sp(sepi, sepj, kl, ij, 1, 1, 0, 0, 2, rij, CPPint_args)*sepj%zeff
+            dcore(3, 1) = d_ijkl_sp(sepi, sepj, kl, ij, 1, 1, 0, 0, 2, rij, se_int_control, se_int_screen, itype)*sepj%zeff
             !  <P+ P+ | S  S  >
             kl = indexa(3, 3)
-            dcore(4, 1) = d_ijkl_sp(sepi, sepj, kl, ij, 1, 1, 0, 0, 2, rij, CPPint_args)*sepj%zeff
+            dcore(4, 1) = d_ijkl_sp(sepi, sepj, kl, ij, 1, 1, 0, 0, 2, rij, se_int_control, se_int_screen, itype)*sepj%zeff
          END IF
 
          !     <S  S  | S  S  >
          kl = indexa(1, 1)
-         dcore(1, 2) = d_ijkl_sp(sepi, sepj, ij, kl, 0, 0, 0, 0, 1, rij, CPPint_args)*sepi%zeff
+         dcore(1, 2) = d_ijkl_sp(sepi, sepj, ij, kl, 0, 0, 0, 0, 1, rij, se_int_control, se_int_screen, itype)*sepi%zeff
          IF (sj) THEN
             !  <S  S  | S  P  >
             kl = indexa(2, 1)
-            dcore(2, 2) = d_ijkl_sp(sepi, sepj, ij, kl, 0, 0, 0, 1, 1, rij, CPPint_args)*sepi%zeff
+            dcore(2, 2) = d_ijkl_sp(sepi, sepj, ij, kl, 0, 0, 0, 1, 1, rij, se_int_control, se_int_screen, itype)*sepi%zeff
             !  <S  S  | P  P  >
             kl = indexa(2, 2)
-            dcore(3, 2) = d_ijkl_sp(sepi, sepj, ij, kl, 0, 0, 1, 1, 1, rij, CPPint_args)*sepi%zeff
+            dcore(3, 2) = d_ijkl_sp(sepi, sepj, ij, kl, 0, 0, 1, 1, 1, rij, se_int_control, se_int_screen, itype)*sepi%zeff
             !  <S  S  | P+ P+ >
             kl = indexa(3, 3)
-            dcore(4, 2) = d_ijkl_sp(sepi, sepj, ij, kl, 0, 0, 1, 1, 1, rij, CPPint_args)*sepi%zeff
+            dcore(4, 2) = d_ijkl_sp(sepi, sepj, ij, kl, 0, 0, 1, 1, 1, rij, se_int_control, se_int_screen, itype)*sepi%zeff
          END IF
       END IF
    END SUBROUTINE dnucint_sp_ana
@@ -1165,42 +1165,42 @@ CONTAINS
          IF (sepj%dorb) THEN
             !  <S S | D S>
             kl = indexa(5, 1)
-            dcore(5, 2) = d_ijkl_d(sepi, sepj, ij, kl, 0, 0, 2, 0, 1, rij, CPPint_args)*sepi%zeff
+            dcore(5, 2) = d_ijkl_d(sepi, sepj, ij, kl, 0, 0, 2, 0, 1, rij, se_int_control, se_int_screen, itype)*sepi%zeff
             !  <S S | D P >
             kl = indexa(5, 2)
-            dcore(6, 2) = d_ijkl_d(sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, CPPint_args)*sepi%zeff
+            dcore(6, 2) = d_ijkl_d(sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, se_int_control, se_int_screen, itype)*sepi%zeff
             !  <S S | D D >
             kl = indexa(5, 5)
-            dcore(7, 2) = d_ijkl_d(sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, CPPint_args)*sepi%zeff
+            dcore(7, 2) = d_ijkl_d(sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, se_int_control, se_int_screen, itype)*sepi%zeff
             !  <S S | D+P+>
             kl = indexa(6, 3)
-            dcore(8, 2) = d_ijkl_d(sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, CPPint_args)*sepi%zeff
+            dcore(8, 2) = d_ijkl_d(sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, se_int_control, se_int_screen, itype)*sepi%zeff
             !  <S S | D+D+>
             kl = indexa(6, 6)
-            dcore(9, 2) = d_ijkl_d(sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, CPPint_args)*sepi%zeff
+            dcore(9, 2) = d_ijkl_d(sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, se_int_control, se_int_screen, itype)*sepi%zeff
             !  <S S | D#D#>
             kl = indexa(8, 8)
-            dcore(10, 2) = d_ijkl_d(sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, CPPint_args)*sepi%zeff
+            dcore(10, 2) = d_ijkl_d(sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, se_int_control, se_int_screen, itype)*sepi%zeff
          END IF
          IF (sepi%dorb) THEN
             !  <D S | S S>
             kl = indexa(5, 1)
-            dcore(5, 1) = d_ijkl_d(sepi, sepj, kl, ij, 2, 0, 0, 0, 2, rij, CPPint_args)*sepj%zeff
+            dcore(5, 1) = d_ijkl_d(sepi, sepj, kl, ij, 2, 0, 0, 0, 2, rij, se_int_control, se_int_screen, itype)*sepj%zeff
             !  <D P | S S >
             kl = indexa(5, 2)
-            dcore(6, 1) = d_ijkl_d(sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, CPPint_args)*sepj%zeff
+            dcore(6, 1) = d_ijkl_d(sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, se_int_control, se_int_screen, itype)*sepj%zeff
             !  <D D | S S >
             kl = indexa(5, 5)
-            dcore(7, 1) = d_ijkl_d(sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, CPPint_args)*sepj%zeff
+            dcore(7, 1) = d_ijkl_d(sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, se_int_control, se_int_screen, itype)*sepj%zeff
             !  <D+P+| S S >
             kl = indexa(6, 3)
-            dcore(8, 1) = d_ijkl_d(sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, CPPint_args)*sepj%zeff
+            dcore(8, 1) = d_ijkl_d(sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, se_int_control, se_int_screen, itype)*sepj%zeff
             !  <D+D+| S S >
             kl = indexa(6, 6)
-            dcore(9, 1) = d_ijkl_d(sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, CPPint_args)*sepj%zeff
+            dcore(9, 1) = d_ijkl_d(sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, se_int_control, se_int_screen, itype)*sepj%zeff
             !  <D#D#| S S >
             kl = indexa(8, 8)
-            dcore(10, 1) = d_ijkl_d(sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, CPPint_args)*sepj%zeff
+            dcore(10, 1) = d_ijkl_d(sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, se_int_control, se_int_screen, itype)*sepj%zeff
          END IF
       END IF
    END SUBROUTINE dnucint_d_ana

@@ -49,7 +49,6 @@ MODULE semi_empirical_int_num
    IMPLICIT NONE
 
    PRIVATE
-#include "semi_empirical_int_args.f90"
 
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_num'
@@ -858,38 +857,38 @@ CONTAINS
       ij = indexa(1, 1)
       IF (l_ssss) THEN
          ! Store the value for <S  S  | S  S  > (Used for computing the core-core interactions)
-         ssss = ijkl_sp(sepi, sepj, ij, ij, 0, 0, 0, 0, -1, rij, CPPint_args)
+         ssss = ijkl_sp(sepi, sepj, ij, ij, 0, 0, 0, 0, -1, rij, se_int_control, se_int_screen, itype)
       END IF
 
       IF (l_core) THEN
          !     <S  S  | S  S  >
          kl = indexa(1, 1)
-         core(1, 1) = ijkl_sp(sepi, sepj, kl, ij, 0, 0, 0, 0, 2, rij, CPPint_args)*sepj%zeff
+         core(1, 1) = ijkl_sp(sepi, sepj, kl, ij, 0, 0, 0, 0, 2, rij, se_int_control, se_int_screen, itype)*sepj%zeff
          IF (si) THEN
             !  <S  P  | S  S  >
             kl = indexa(2, 1)
-            core(2, 1) = ijkl_sp(sepi, sepj, kl, ij, 0, 1, 0, 0, 2, rij, CPPint_args)*sepj%zeff
+            core(2, 1) = ijkl_sp(sepi, sepj, kl, ij, 0, 1, 0, 0, 2, rij, se_int_control, se_int_screen, itype)*sepj%zeff
             !  <P  P  | S  S  >
             kl = indexa(2, 2)
-            core(3, 1) = ijkl_sp(sepi, sepj, kl, ij, 1, 1, 0, 0, 2, rij, CPPint_args)*sepj%zeff
+            core(3, 1) = ijkl_sp(sepi, sepj, kl, ij, 1, 1, 0, 0, 2, rij, se_int_control, se_int_screen, itype)*sepj%zeff
             !  <P+ P+ | S  S  >
             kl = indexa(3, 3)
-            core(4, 1) = ijkl_sp(sepi, sepj, kl, ij, 1, 1, 0, 0, 2, rij, CPPint_args)*sepj%zeff
+            core(4, 1) = ijkl_sp(sepi, sepj, kl, ij, 1, 1, 0, 0, 2, rij, se_int_control, se_int_screen, itype)*sepj%zeff
          END IF
 
          !     <S  S  | S  S  >
          kl = indexa(1, 1)
-         core(1, 2) = ijkl_sp(sepi, sepj, ij, kl, 0, 0, 0, 0, 1, rij, CPPint_args)*sepi%zeff
+         core(1, 2) = ijkl_sp(sepi, sepj, ij, kl, 0, 0, 0, 0, 1, rij, se_int_control, se_int_screen, itype)*sepi%zeff
          IF (sj) THEN
             !  <S  S  | S  P  >
             kl = indexa(2, 1)
-            core(2, 2) = ijkl_sp(sepi, sepj, ij, kl, 0, 0, 0, 1, 1, rij, CPPint_args)*sepi%zeff
+            core(2, 2) = ijkl_sp(sepi, sepj, ij, kl, 0, 0, 0, 1, 1, rij, se_int_control, se_int_screen, itype)*sepi%zeff
             !  <S  S  | P  P  >
             kl = indexa(2, 2)
-            core(3, 2) = ijkl_sp(sepi, sepj, ij, kl, 0, 0, 1, 1, 1, rij, CPPint_args)*sepi%zeff
+            core(3, 2) = ijkl_sp(sepi, sepj, ij, kl, 0, 0, 1, 1, 1, rij, se_int_control, se_int_screen, itype)*sepi%zeff
             !  <S  S  | P+ P+ >
             kl = indexa(3, 3)
-            core(4, 2) = ijkl_sp(sepi, sepj, ij, kl, 0, 0, 1, 1, 1, rij, CPPint_args)*sepi%zeff
+            core(4, 2) = ijkl_sp(sepi, sepj, ij, kl, 0, 0, 1, 1, 1, rij, se_int_control, se_int_screen, itype)*sepi%zeff
          END IF
       END IF
 
@@ -934,42 +933,42 @@ CONTAINS
          IF (sepj%dorb) THEN
             !  <S S | D S>
             kl = indexa(5, 1)
-            core(5, 2) = ijkl_d(sepi, sepj, ij, kl, 0, 0, 2, 0, 1, rij, CPPint_args)*sepi%zeff
+            core(5, 2) = ijkl_d(sepi, sepj, ij, kl, 0, 0, 2, 0, 1, rij, se_int_control, se_int_screen, itype)*sepi%zeff
             !  <S S | D P >
             kl = indexa(5, 2)
-            core(6, 2) = ijkl_d(sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, CPPint_args)*sepi%zeff
+            core(6, 2) = ijkl_d(sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, se_int_control, se_int_screen, itype)*sepi%zeff
             !  <S S | D D >
             kl = indexa(5, 5)
-            core(7, 2) = ijkl_d(sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, CPPint_args)*sepi%zeff
+            core(7, 2) = ijkl_d(sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, se_int_control, se_int_screen, itype)*sepi%zeff
             !  <S S | D+P+>
             kl = indexa(6, 3)
-            core(8, 2) = ijkl_d(sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, CPPint_args)*sepi%zeff
+            core(8, 2) = ijkl_d(sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, se_int_control, se_int_screen, itype)*sepi%zeff
             !  <S S | D+D+>
             kl = indexa(6, 6)
-            core(9, 2) = ijkl_d(sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, CPPint_args)*sepi%zeff
+            core(9, 2) = ijkl_d(sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, se_int_control, se_int_screen, itype)*sepi%zeff
             !  <S S | D#D#>
             kl = indexa(8, 8)
-            core(10, 2) = ijkl_d(sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, CPPint_args)*sepi%zeff
+            core(10, 2) = ijkl_d(sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, se_int_control, se_int_screen, itype)*sepi%zeff
          END IF
          IF (sepi%dorb) THEN
             !  <D S | S S>
             kl = indexa(5, 1)
-            core(5, 1) = ijkl_d(sepi, sepj, kl, ij, 2, 0, 0, 0, 2, rij, CPPint_args)*sepj%zeff
+            core(5, 1) = ijkl_d(sepi, sepj, kl, ij, 2, 0, 0, 0, 2, rij, se_int_control, se_int_screen, itype)*sepj%zeff
             !  <D P | S S >
             kl = indexa(5, 2)
-            core(6, 1) = ijkl_d(sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, CPPint_args)*sepj%zeff
+            core(6, 1) = ijkl_d(sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, se_int_control, se_int_screen, itype)*sepj%zeff
             !  <D D | S S >
             kl = indexa(5, 5)
-            core(7, 1) = ijkl_d(sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, CPPint_args)*sepj%zeff
+            core(7, 1) = ijkl_d(sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, se_int_control, se_int_screen, itype)*sepj%zeff
             !  <D+P+| S S >
             kl = indexa(6, 3)
-            core(8, 1) = ijkl_d(sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, CPPint_args)*sepj%zeff
+            core(8, 1) = ijkl_d(sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, se_int_control, se_int_screen, itype)*sepj%zeff
             !  <D+D+| S S >
             kl = indexa(6, 6)
-            core(9, 1) = ijkl_d(sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, CPPint_args)*sepj%zeff
+            core(9, 1) = ijkl_d(sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, se_int_control, se_int_screen, itype)*sepj%zeff
             !  <D#D#| S S >
             kl = indexa(8, 8)
-            core(10, 1) = ijkl_d(sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, CPPint_args)*sepj%zeff
+            core(10, 1) = ijkl_d(sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, se_int_control, se_int_screen, itype)*sepj%zeff
          END IF
 
       END IF
