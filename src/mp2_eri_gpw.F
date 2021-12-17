@@ -25,6 +25,7 @@ MODULE mp2_eri_gpw
    USE input_constants,                 ONLY: do_potential_coulomb,&
                                               do_potential_id,&
                                               do_potential_long,&
+                                              do_potential_mix_cl,&
                                               do_potential_short,&
                                               do_potential_truncated
    USE kinds,                           ONLY: dp
@@ -39,8 +40,8 @@ MODULE mp2_eri_gpw
                                               pw_env_release,&
                                               pw_env_type
    USE pw_methods,                      ONLY: &
-        pw_compl_gauss_damp, pw_copy, pw_derive, pw_gauss_damp, pw_integral_ab, pw_scale, &
-        pw_transfer, pw_truncated, pw_zero
+        pw_compl_gauss_damp, pw_copy, pw_derive, pw_gauss_damp, pw_gauss_damp_mix, pw_integral_ab, &
+        pw_scale, pw_transfer, pw_truncated, pw_zero
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -832,7 +833,8 @@ CONTAINS
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
 
       INTEGER                                            :: i
-      REAL(KIND=dp)                                      :: omega_2, rchalf, tmp
+      REAL(KIND=dp)                                      :: omega_2, rchalf, scale_coul, scale_long, &
+                                                            tmp
 
       IF (.NOT. (pw%in_space == RECIPROCALSPACE .AND. pw%in_use == COMPLEXDATA1D)) &
          CPABORT("pw in wrong space or wrong data type")
@@ -856,6 +858,17 @@ CONTAINS
             ELSE
                pw%cc(i) = pw%cc(i)*(0.5_dp*tmp - tmp**2/12.0_dp)
             END IF
+         END DO
+!$OMP END PARALLEL DO
+      CASE (do_potential_mix_cl)
+         omega_2 = 1.0_dp/(2.0_dp*potential_parameter%omega)**2
+         scale_coul = potential_parameter%scale_coulomb
+         scale_long = potential_parameter%scale_longrange
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i,tmp) &
+!$OMP             SHARED(pw,omega_2,scale_long,scale_coul)
+         DO i = 1, SIZE(pw%cc)
+            tmp = omega_2*pw%pw_grid%gsq(i)
+            pw%cc(i) = pw%cc(i)*(1.0_dp + scale_long*tmp*EXP(-tmp)/(scale_coul + scale_long*EXP(-tmp)))
          END DO
 !$OMP END PARALLEL DO
       CASE (do_potential_truncated)
@@ -1263,6 +1276,9 @@ CONTAINS
          IF (my_potential_type == do_potential_long) CALL pw_gauss_damp(pot_g%pw, potential_parameter%omega)
          IF (my_potential_type == do_potential_short) CALL pw_compl_gauss_damp(pot_g%pw, potential_parameter%omega)
          IF (my_potential_type == do_potential_truncated) CALL pw_truncated(pot_g%pw, potential_parameter%cutoff_radius)
+         IF (my_potential_type == do_potential_mix_cl) CALL pw_gauss_damp_mix(pot_g%pw, potential_parameter%omega, &
+                                                                              potential_parameter%scale_coulomb, &
+                                                                              potential_parameter%scale_longrange)
          IF (my_transfer) CALL pw_transfer(pot_g%pw, pot_r%pw)
       ELSE
          ! If we use an overlap metric, make sure to use the correct potential=density on output

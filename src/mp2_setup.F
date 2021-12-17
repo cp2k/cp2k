@@ -326,6 +326,10 @@ CONTAINS
                                 c_val=mp2_env%potential_parameter%filename)
       CALL section_vals_val_get(mp2_section, "INTEGRALS%INTERACTION_POTENTIAL%OMEGA", &
                                 r_val=mp2_env%potential_parameter%omega)
+      CALL section_vals_val_get(mp2_section, "INTEGRALS%INTERACTION_POTENTIAL%SCALE_COULOMB", &
+                                r_val=mp2_env%potential_parameter%scale_coulomb)
+      CALL section_vals_val_get(mp2_section, "INTEGRALS%INTERACTION_POTENTIAL%SCALE_LONGRANGE", &
+                                r_val=mp2_env%potential_parameter%scale_longrange)
 
       NULLIFY (mp2_env%eri_mme_param)
       ALLOCATE (mp2_env%eri_mme_param)

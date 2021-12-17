@@ -26,12 +26,13 @@ MODULE input_cp2k_mp2
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
         do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
-        do_potential_long, do_potential_short, do_potential_truncated, do_potential_tshpsc, &
-        eri_default, gaussian, gw_no_print_exx, gw_pade_approx, gw_print_exx, gw_read_exx, &
-        gw_skip_for_regtest, gw_two_pole_model, kp_weights_W_auto, kp_weights_W_tailored, &
-        kp_weights_W_uniform, mp2_method_direct, mp2_method_gpw, mp2_method_none, numerical, &
-        ri_default, ri_rpa_g0w0_crossing_bisection, ri_rpa_g0w0_crossing_newton, &
-        ri_rpa_g0w0_crossing_z_shot, wfc_mm_style_gemm, wfc_mm_style_syrk
+        do_potential_long, do_potential_mix_cl, do_potential_short, do_potential_truncated, &
+        do_potential_tshpsc, eri_default, gaussian, gw_no_print_exx, gw_pade_approx, gw_print_exx, &
+        gw_read_exx, gw_skip_for_regtest, gw_two_pole_model, kp_weights_W_auto, &
+        kp_weights_W_tailored, kp_weights_W_uniform, mp2_method_direct, mp2_method_gpw, &
+        mp2_method_none, numerical, ri_default, ri_rpa_g0w0_crossing_bisection, &
+        ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_z_shot, wfc_mm_style_gemm, &
+        wfc_mm_style_syrk
    USE input_cp2k_hfx,                  ONLY: create_hfx_section
    USE input_cp2k_kpoints,              ONLY: create_kpoint_set_section
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -1371,12 +1372,13 @@ CONTAINS
          description="Which interaction potential should be used "// &
          "(Coulomb, TShPSC operator).", &
          usage="POTENTIAL_TYPE TSHPSC", &
-         enum_c_vals=s2a("COULOMB", "TShPSC", "LONGRANGE", "SHORTRANGE", "TRUNCATED"), &
+         enum_c_vals=s2a("COULOMB", "TShPSC", "LONGRANGE", "SHORTRANGE", "TRUNCATED", "MIX_CL"), &
          enum_i_vals=(/do_potential_coulomb, &
                        do_potential_TShPSC, &
                        do_potential_long, &
                        do_potential_short, &
-                       do_potential_truncated/), &
+                       do_potential_truncated, &
+                       do_potential_mix_cl/), &
          enum_desc=s2a("Coulomb potential: 1/r", &
                        "TShPSC:<ul><li>1/x - s/Rc for x &le; Rc</li>"// &
                        "<li>(1 - s)/Rc - (x - Rc)/Rc^2 + (x - Rc)^2/Rc^3 - "// &
@@ -1386,7 +1388,8 @@ CONTAINS
                        "<li>0 for x &gt; n*Rc</li></ul>", &
                        "Longrange Coulomb potential: erf(w*r)/r)", &
                        "Shortrange Coulomb potential: erfc(w*r)/r", &
-                       "Truncated Coulomb potential"), &
+                       "Truncated Coulomb potential", &
+                       "Mixed Coulomb/Longrange Coulomb potential"), &
          default_i_val=do_potential_coulomb)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1419,6 +1422,26 @@ CONTAINS
          "Only valid when longrange or shortrange potential is requested.", &
          usage="OMEGA 0.5", type_of_var=real_t, &
          default_r_val=0.5_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="SCALE_COULOMB", &
+         description="Scaling factor of (truncated) Coulomb potential in mixed (truncated) Coulomb/Longrange potential."// &
+         "Only valid when mixed potential is requested.", &
+         usage="OMEGA 0.5", type_of_var=real_t, &
+         default_r_val=1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="SCALE_LONGRANGE", &
+         description="Scaling factor of longrange Coulomb potential in mixed (truncated) Coulomb/Longrange potential."// &
+         "Only valid when mixed potential is requested.", &
+         usage="OMEGA 0.5", type_of_var=real_t, &
+         default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
