@@ -147,52 +147,95 @@ CONTAINS
       DEALLOCATE (entries)
    END SUBROUTINE sort_cv
 
+#:for argtype, itemtype in [['INTEGER', 'INTEGER'], ['CHARACTER(LEN=*)', 'CHARACTER(LEN=LEN(matrix))']]
 ! **************************************************************************************************
-!> \brief Sorts a multiple arrays of integers M(j,i), ordering iteratively over
-!>        i with fixed j
+!> \brief Sorts a multiple arrays M(j,i), ordering iteratively over i with fixed j
 !> \param matrix ...
 !> \param istart ...
 !> \param iend ...
 !> \param j ...
 !> \param jsize ...
-!> \param INDEX ...
+!> \param index ...
 !> \author Teodoro Laino [tlaino] - University of Zurich  10.2008
 ! **************************************************************************************************
-   RECURSIVE SUBROUTINE sort_im(matrix, istart, iend, j, jsize, INDEX)
-      INTEGER, DIMENSION(:, :), INTENT(INOUT)            :: matrix
-      INTEGER, INTENT(IN)                                :: istart, iend, j, jsize
-      INTEGER, DIMENSION(:), INTENT(INOUT)               :: INDEX
+   RECURSIVE SUBROUTINE sort_${argtype[0]}$m(matrix, istart, iend, j, jsize, index)
+      ${argtype}$, DIMENSION(:, :), INTENT(INOUT)            :: matrix
+      INTEGER, INTENT(IN)                                    :: istart, iend, j, jsize
+      INTEGER, DIMENSION(:), INTENT(INOUT)                   :: index
 
-      INTEGER                                            :: i, ind, isize, item, k, kend, kstart
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bck_index, tmp_index, work, work2
 
-#include "sort_m.f90"
-   END SUBROUTINE sort_im
+      ${itemtype}$                                           :: item
+      ${itemtype}$, ALLOCATABLE, DIMENSION(:)                :: work, work2
+      INTEGER                                                :: i, ind, isize, k, kend, kstart
+      INTEGER, ALLOCATABLE, DIMENSION(:)                     :: bck_index, tmp_index
 
-! **************************************************************************************************
-!> \brief Sorts a multiple arrays of strings C(j,i), ordering iteratively over
-!>        i with fixed j
-!> \param matrix ...
-!> \param istart ...
-!> \param iend ...
-!> \param j ...
-!> \param jsize ...
-!> \param INDEX ...
-!> \author Teodoro Laino [tlaino] - 11.2008
-! **************************************************************************************************
-   RECURSIVE SUBROUTINE sort_cm(matrix, istart, iend, j, jsize, INDEX)
-      CHARACTER(LEN=*), DIMENSION(:, :), INTENT(INOUT)   :: matrix
-      INTEGER, INTENT(IN)                                :: istart, iend, j, jsize
-      INTEGER, DIMENSION(:), INTENT(INOUT)               :: INDEX
+    isize = iend - istart + 1
+    ! Initialize the INDEX array only for the first row..
+    IF (j == 1) THEN
+       DO i = 1, isize
+          INDEX(i) = i
+       ENDDO
+    END IF
 
-      CHARACTER(LEN=LEN(matrix))                         :: item
-      CHARACTER(LEN=LEN(matrix)), ALLOCATABLE, &
-         DIMENSION(:)                                    :: work, work2
-      INTEGER                                            :: i, ind, isize, k, kend, kstart
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bck_index, tmp_index
+    ! Allocate scratch arrays
+    ALLOCATE (work(isize), work2(isize), tmp_index(isize), bck_index(isize))
+    ind = 0
+    DO i = istart, iend
+       ind = ind + 1
+       work(ind) = matrix(j, i)
+       bck_index(ind) = INDEX(i)
+    END DO
 
-#include "sort_m.f90"
-   END SUBROUTINE sort_cm
+    ! Ordering row (j) interval istart..iend
+    CALL sort(work, isize, tmp_index)
+
+    ! Copy into global INDEX array with a proper mapping
+    ind = 0
+    DO i = istart, iend
+       ind = ind + 1
+       INDEX(i) = bck_index(tmp_index(ind))
+       matrix(j, i) = work(ind)
+    END DO
+
+    ! Reorder the rest of the array according the present reordering
+    DO k = j + 1, jsize
+       ind = 0
+       DO i = istart, iend
+          ind = ind + 1
+          work2(ind) = matrix(k, i)
+       END DO
+       ind = 0
+       DO i = istart, iend
+          ind = ind + 1
+          matrix(k, i) = work2(tmp_index(ind))
+       END DO
+    END DO
+
+    ! There are more rows to order..
+    IF (j < jsize) THEN
+       kstart = istart
+       item = work(1)
+       ind = 0
+       DO i = istart, iend
+          ind = ind + 1
+          IF (item /= work(ind)) THEN
+             kend = i - 1
+             IF (kstart /= kend) THEN
+                CALL sort(matrix, kstart, kend, j + 1, jsize, INDEX)
+             END IF
+             item = work(ind)
+             kstart = i
+          END IF
+       END DO
+       kend = i - 1
+       IF (kstart /= kend) THEN
+          CALL sort(matrix, kstart, kend, j + 1, jsize, INDEX)
+       END IF
+    END IF
+    DEALLOCATE (work, work2, tmp_index, bck_index)
+
+   END SUBROUTINE sort_${argtype[0]}$m
+#:endfor
 
 ! **************************************************************************************************
 !> \brief divide m entries into n parts, return size of part me
