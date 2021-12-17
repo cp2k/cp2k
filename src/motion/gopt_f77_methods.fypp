@@ -1,11 +1,11 @@
-!--------------------------------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2021 CP2K developers group <https://cp2k.org>                                   !
-!                                                                                                  !
-!   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
-!--------------------------------------------------------------------------------------------------!
+#!-------------------------------------------------------------------------------------------------!
+#!   CP2K: A general program to perform molecular dynamics simulations                             !
+#!   Copyright 2000-2021 CP2K developers group <https://cp2k.org>                                  !
+#!                                                                                                 !
+#!   SPDX-License-Identifier: GPL-2.0-or-later                                                     !
+#!-------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief evaluete the potential energy and its gradients using an array
 !>      with same dimension as the particle_set
 !> \param gopt_env the geometry optimization environment
@@ -17,7 +17,7 @@
 !> \par History
 !>      none
 !> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
-! *****************************************************************************
+! **************************************************************************************************
 INTERFACE
 
    RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
