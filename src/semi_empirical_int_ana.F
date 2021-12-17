@@ -17,46 +17,46 @@
 ! **************************************************************************************************
 MODULE semi_empirical_int_ana
 
-   USE input_constants,                 ONLY: do_method_am1,&
-                                              do_method_pchg,&
-                                              do_method_pdg,&
-                                              do_method_pm3,&
-                                              do_method_pm6,&
-                                              do_method_pm6fm,&
-                                              do_method_undef,&
-                                              do_se_IS_kdso_d
-   USE kinds,                           ONLY: dp
-   USE multipole_types,                 ONLY: do_multipole_none
-   USE physcon,                         ONLY: angstrom,&
-                                              evolt
-   USE semi_empirical_int_arrays,       ONLY: &
-        fac_x_to_z, ijkl_ind, ijkl_sym, inddd, inddp, indexa, indexb, indpp, int2c_type, l_index, &
-        map_x_to_z, rij_threshold
-   USE semi_empirical_int_num,          ONLY: nucint_d_num,&
-                                              nucint_sp_num,&
-                                              terep_d_num,&
-                                              terep_sp_num
-   USE semi_empirical_int_utils,        ONLY: d_ijkl_d,&
-                                              d_ijkl_sp,&
-                                              rot_2el_2c_first,&
-                                              rotmat,&
-                                              store_2el_2c_diag
-   USE semi_empirical_types,            ONLY: rotmat_create,&
-                                              rotmat_release,&
-                                              rotmat_type,&
-                                              se_int_control_type,&
-                                              se_int_screen_type,&
-                                              se_taper_type,&
-                                              semi_empirical_type,&
-                                              setup_se_int_control_type
-   USE taper_types,                     ONLY: dtaper_eval,&
-                                              taper_eval
+   USE input_constants, ONLY: do_method_am1, &
+                              do_method_pchg, &
+                              do_method_pdg, &
+                              do_method_pm3, &
+                              do_method_pm6, &
+                              do_method_pm6fm, &
+                              do_method_undef, &
+                              do_se_IS_kdso_d
+   USE kinds, ONLY: dp
+   USE multipole_types, ONLY: do_multipole_none
+   USE physcon, ONLY: angstrom, &
+                      evolt
+   USE semi_empirical_int_arrays, ONLY: &
+      fac_x_to_z, ijkl_ind, ijkl_sym, inddd, inddp, indexa, indexb, indpp, int2c_type, l_index, &
+      map_x_to_z, rij_threshold
+   USE semi_empirical_int_num, ONLY: nucint_d_num, &
+                                     nucint_sp_num, &
+                                     terep_d_num, &
+                                     terep_sp_num
+   USE semi_empirical_int_utils, ONLY: d_ijkl_d, &
+                                       d_ijkl_sp, &
+                                       rot_2el_2c_first, &
+                                       rotmat, &
+                                       store_2el_2c_diag
+   USE semi_empirical_types, ONLY: rotmat_create, &
+                                   rotmat_release, &
+                                   rotmat_type, &
+                                   se_int_control_type, &
+                                   se_int_screen_type, &
+                                   se_taper_type, &
+                                   semi_empirical_type, &
+                                   setup_se_int_control_type
+   USE taper_types, ONLY: dtaper_eval, &
+                          taper_eval
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
 
-#include "semi_empirical_int_debug.f90"
+   #:include 'semi_empirical_int_debug.fypp'
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_ana'
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
@@ -356,8 +356,8 @@ CONTAINS
       INTEGER                                            :: ig, nt
       LOGICAL                                            :: l_denuc, l_enuc
       REAL(dp) :: aab, alpi, alpj, apdg, ax, dai, daj, dax, dbi, dbj, denuc_loc, dqcorr, drija, &
-         dscale, dssss, dssss_sr, dtmp, dzz, enuc_loc, pai, paj, pbi, pbj, qcorr, rij, rija, &
-         scale, ssss, ssss_sr, tmp, xab, xtmp, zaf, zbf, zz
+                  dscale, dssss, dssss_sr, dtmp, dzz, enuc_loc, pai, paj, pbi, pbj, qcorr, rij, rija, &
+                  scale, ssss, ssss_sr, tmp, xab, xtmp, zaf, zbf, zz
       REAL(dp), DIMENSION(3)                             :: drij
       REAL(dp), DIMENSION(4)                             :: fni1, fni2, fni3, fnj1, fnj2, fnj3
       TYPE(se_int_control_type)                          :: se_int_control_off
