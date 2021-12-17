@@ -68,6 +68,8 @@ MODULE libint_2c_3c
       REAL(dp)                              :: omega !SR: erfc(w*r)/r
       REAL(dp)                              :: cutoff_radius !TC cutoff/effective SR range
       CHARACTER(default_path_length)        :: filename
+      REAL(dp)                              :: scale_coulomb ! Only, for WFC methods
+      REAL(dp)                              :: scale_longrange ! Only, for WFC methods
    END TYPE
 
 CONTAINS
