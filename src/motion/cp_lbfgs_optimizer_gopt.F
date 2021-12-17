@@ -20,35 +20,36 @@
 !>      @version 2.2002
 ! **************************************************************************************************
 MODULE cp_lbfgs_optimizer_gopt
-   USE cp_lbfgs,                        ONLY: setulb
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_type,&
-                                              cp_to_string
-   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                              cp_print_key_unit_nr
-   USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                              cp_para_env_retain
-   USE cp_para_types,                   ONLY: cp_para_env_type
-   USE cp_subsys_types,                 ONLY: cp_subsys_type
-   USE force_env_types,                 ONLY: force_env_get,&
-                                              force_env_type
-   USE gopt_f_methods,                  ONLY: gopt_f_io
-   USE gopt_f_types,                    ONLY: gopt_f_release,&
-                                              gopt_f_retain,&
-                                              gopt_f_type
-   USE gopt_param_types,                ONLY: gopt_param_type
-   USE input_section_types,             ONLY: section_vals_type
-   USE kinds,                           ONLY: dp
-   USE machine,                         ONLY: m_walltime
-   USE message_passing,                 ONLY: mp_bcast
-   USE space_groups,                    ONLY: spgr_apply_rotations_coord,&
-                                              spgr_apply_rotations_force
-   USE space_groups_types,              ONLY: spgr_type
+   USE cp_lbfgs, ONLY: setulb
+   USE cp_log_handling, ONLY: cp_get_default_logger, &
+                              cp_logger_type, &
+                              cp_to_string
+   USE cp_output_handling, ONLY: cp_print_key_finished_output, &
+                                 cp_print_key_unit_nr
+   USE cp_para_env, ONLY: cp_para_env_release, &
+                          cp_para_env_retain
+   USE cp_para_types, ONLY: cp_para_env_type
+   USE cp_subsys_types, ONLY: cp_subsys_type
+   USE force_env_types, ONLY: force_env_get, &
+                              force_env_type
+   USE gopt_f_methods, ONLY: gopt_f_io
+   USE gopt_f_types, ONLY: gopt_f_release, &
+                           gopt_f_retain, &
+                           gopt_f_type
+   USE gopt_param_types, ONLY: gopt_param_type
+   USE input_section_types, ONLY: section_vals_type
+   USE kinds, ONLY: dp
+   USE machine, ONLY: m_walltime
+   USE message_passing, ONLY: mp_bcast
+   USE space_groups, ONLY: spgr_apply_rotations_coord, &
+                           spgr_apply_rotations_force
+   USE space_groups_types, ONLY: spgr_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
-#include "gopt_f77_methods.f90"
+
+   #:include "gopt_f77_methods.fypp"
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_lbfgs_optimizer_gopt'
@@ -882,7 +883,7 @@ CONTAINS
    ! files are almost the same (multi-line use change it a bit)
    ! [template(type1,nametype1,USE,type1_retain,type1_release,type1_eval_at)]
 ! ARGS:
-!  INTERFACE = "#include "gopt_f77_methods.f90""
+!  INTERFACE = "#:include "gopt_f77_methods.fypp""
 !  USE = "USE gopt_f_types, ONLY: gopt_f_type, gopt_f_release,gopt_f_retain"
 !  nametype1 = "gopt"
 !  type1 = "type(gopt_f_type)"

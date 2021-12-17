@@ -11,28 +11,29 @@
 !>      10.2005
 ! **************************************************************************************************
 MODULE cg_utils
-   USE cp_external_control,             ONLY: external_control
-   USE dimer_types,                     ONLY: dimer_env_type
-   USE dimer_utils,                     ONLY: dimer_thrs,&
-                                              rotate_dimer
-   USE global_types,                    ONLY: global_environment_type
-   USE gopt_f_types,                    ONLY: gopt_f_type
-   USE gopt_param_types,                ONLY: gopt_param_type
-   USE input_constants,                 ONLY: default_cell_method_id,&
-                                              default_minimization_method_id,&
-                                              default_shellcore_method_id,&
-                                              default_ts_method_id,&
-                                              ls_2pnt,&
-                                              ls_fit,&
-                                              ls_gold
-   USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: pi
-   USE memory_utilities,                ONLY: reallocate
+   USE cp_external_control, ONLY: external_control
+   USE dimer_types, ONLY: dimer_env_type
+   USE dimer_utils, ONLY: dimer_thrs, &
+                          rotate_dimer
+   USE global_types, ONLY: global_environment_type
+   USE gopt_f_types, ONLY: gopt_f_type
+   USE gopt_param_types, ONLY: gopt_param_type
+   USE input_constants, ONLY: default_cell_method_id, &
+                              default_minimization_method_id, &
+                              default_shellcore_method_id, &
+                              default_ts_method_id, &
+                              ls_2pnt, &
+                              ls_fit, &
+                              ls_gold
+   USE kinds, ONLY: dp
+   USE mathconstants, ONLY: pi
+   USE memory_utilities, ONLY: reallocate
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
-#include "gopt_f77_methods.f90"
+
+   #:include "gopt_f77_methods.fypp"
 
    PUBLIC :: cg_linmin, get_conjugate_direction
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.

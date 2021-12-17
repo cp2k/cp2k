@@ -12,62 +12,63 @@
 !>      none
 ! **************************************************************************************************
 MODULE gopt_f_methods
-   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
-   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                              get_atomic_kind_set
-   USE cell_types,                      ONLY: cell_copy,&
-                                              cell_create,&
-                                              cell_release,&
-                                              cell_type,&
-                                              init_cell,&
-                                              real_to_scaled,&
-                                              scaled_to_real
-   USE cp_log_handling,                 ONLY: cp_to_string
-   USE cp_para_types,                   ONLY: cp_para_env_type
-   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                              cp_subsys_set,&
-                                              cp_subsys_type,&
-                                              pack_subsys_particles
-   USE cp_units,                        ONLY: cp_unit_from_cp2k
-   USE dimer_types,                     ONLY: dimer_env_type
-   USE dimer_utils,                     ONLY: update_dimer_vec
-   USE distribution_1d_types,           ONLY: distribution_1d_type
-   USE force_env_types,                 ONLY: force_env_get,&
-                                              force_env_get_natom,&
-                                              force_env_get_nparticle,&
-                                              force_env_type,&
-                                              use_qmmm,&
-                                              use_qmmmx
-   USE gopt_f_types,                    ONLY: gopt_f_type
-   USE gopt_param_types,                ONLY: gopt_param_type
-   USE input_constants,                 ONLY: default_cell_direct_id,&
-                                              default_cell_geo_opt_id,&
-                                              default_cell_md_id,&
-                                              default_cell_method_id,&
-                                              default_minimization_method_id,&
-                                              default_shellcore_method_id,&
-                                              default_ts_method_id,&
-                                              fix_none
-   USE input_cp2k_restarts,             ONLY: write_restart
-   USE input_section_types,             ONLY: section_vals_type
-   USE kinds,                           ONLY: default_string_length,&
-                                              dp
-   USE machine,                         ONLY: m_flush
-   USE motion_utils,                    ONLY: write_simulation_cell,&
-                                              write_stress_tensor,&
-                                              write_trajectory
-   USE particle_list_types,             ONLY: particle_list_type
-   USE particle_methods,                ONLY: write_structure_data
-   USE particle_types,                  ONLY: particle_type
-   USE qmmm_util,                       ONLY: apply_qmmm_translate
-   USE qmmmx_util,                      ONLY: apply_qmmmx_translate
-   USE virial_methods,                  ONLY: virial_evaluate
-   USE virial_types,                    ONLY: virial_type
+   USE atomic_kind_list_types, ONLY: atomic_kind_list_type
+   USE atomic_kind_types, ONLY: atomic_kind_type, &
+                                get_atomic_kind_set
+   USE cell_types, ONLY: cell_copy, &
+                         cell_create, &
+                         cell_release, &
+                         cell_type, &
+                         init_cell, &
+                         real_to_scaled, &
+                         scaled_to_real
+   USE cp_log_handling, ONLY: cp_to_string
+   USE cp_para_types, ONLY: cp_para_env_type
+   USE cp_subsys_types, ONLY: cp_subsys_get, &
+                              cp_subsys_set, &
+                              cp_subsys_type, &
+                              pack_subsys_particles
+   USE cp_units, ONLY: cp_unit_from_cp2k
+   USE dimer_types, ONLY: dimer_env_type
+   USE dimer_utils, ONLY: update_dimer_vec
+   USE distribution_1d_types, ONLY: distribution_1d_type
+   USE force_env_types, ONLY: force_env_get, &
+                              force_env_get_natom, &
+                              force_env_get_nparticle, &
+                              force_env_type, &
+                              use_qmmm, &
+                              use_qmmmx
+   USE gopt_f_types, ONLY: gopt_f_type
+   USE gopt_param_types, ONLY: gopt_param_type
+   USE input_constants, ONLY: default_cell_direct_id, &
+                              default_cell_geo_opt_id, &
+                              default_cell_md_id, &
+                              default_cell_method_id, &
+                              default_minimization_method_id, &
+                              default_shellcore_method_id, &
+                              default_ts_method_id, &
+                              fix_none
+   USE input_cp2k_restarts, ONLY: write_restart
+   USE input_section_types, ONLY: section_vals_type
+   USE kinds, ONLY: default_string_length, &
+                    dp
+   USE machine, ONLY: m_flush
+   USE motion_utils, ONLY: write_simulation_cell, &
+                           write_stress_tensor, &
+                           write_trajectory
+   USE particle_list_types, ONLY: particle_list_type
+   USE particle_methods, ONLY: write_structure_data
+   USE particle_types, ONLY: particle_type
+   USE qmmm_util, ONLY: apply_qmmm_translate
+   USE qmmmx_util, ONLY: apply_qmmmx_translate
+   USE virial_methods, ONLY: virial_evaluate
+   USE virial_types, ONLY: virial_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
-#include "gopt_f77_methods.f90"
+
+   #:include "gopt_f77_methods.fypp"
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gopt_f_methods'
