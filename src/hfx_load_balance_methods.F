@@ -12,31 +12,31 @@
 !> \author Manuel Guidon
 ! **************************************************************************************************
 MODULE hfx_load_balance_methods
-   USE cell_types,                      ONLY: cell_type
-   USE cp_files,                        ONLY: close_file,&
-                                              open_file
-   USE cp_para_types,                   ONLY: cp_para_env_type
-   USE hfx_pair_list_methods,           ONLY: build_atomic_pair_list,&
-                                              build_pair_list
-   USE hfx_types,                       ONLY: &
-        hfx_basis_type, hfx_block_range_type, hfx_distribution, hfx_load_balance_type, hfx_p_kind, &
-        hfx_screen_coeff_type, hfx_set_distr_energy, hfx_set_distr_forces, hfx_type, &
-        pair_list_type, pair_set_list_type
-   USE input_constants,                 ONLY: hfx_do_eval_energy,&
-                                              hfx_do_eval_forces
-   USE kinds,                           ONLY: dp,&
-                                              int_8
-   USE message_passing,                 ONLY: mp_allgather,&
-                                              mp_gatherv,&
-                                              mp_isendrecv,&
-                                              mp_max,&
-                                              mp_sum,&
-                                              mp_sync,&
-                                              mp_waitall
-   USE parallel_rng_types,              ONLY: UNIFORM,&
-                                              rng_stream_type
-   USE particle_types,                  ONLY: particle_type
-   USE util,                            ONLY: sort
+   USE cell_types, ONLY: cell_type
+   USE cp_files, ONLY: close_file, &
+                       open_file
+   USE cp_para_types, ONLY: cp_para_env_type
+   USE hfx_pair_list_methods, ONLY: build_atomic_pair_list, &
+                                    build_pair_list
+   USE hfx_types, ONLY: &
+      hfx_basis_type, hfx_block_range_type, hfx_distribution, hfx_load_balance_type, hfx_p_kind, &
+      hfx_screen_coeff_type, hfx_set_distr_energy, hfx_set_distr_forces, hfx_type, &
+      pair_list_type, pair_set_list_type
+   USE input_constants, ONLY: hfx_do_eval_energy, &
+                              hfx_do_eval_forces
+   USE kinds, ONLY: dp, &
+                    int_8
+   USE message_passing, ONLY: mp_allgather, &
+                              mp_gatherv, &
+                              mp_isendrecv, &
+                              mp_max, &
+                              mp_sum, &
+                              mp_sync, &
+                              mp_waitall
+   USE parallel_rng_types, ONLY: UNIFORM, &
+                                 rng_stream_type
+   USE particle_types, ONLY: particle_type
+   USE util, ONLY: sort
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -161,14 +161,14 @@ CONTAINS
 
       CHARACTER(LEN=512)                                 :: error_msg
       INTEGER :: block_size, current_block_id, data_from, dest, handle, handle_inner, &
-         handle_range, i, iatom_block, iatom_end, iatom_start, ibin, icpu, j, jatom_block, &
-         jatom_end, jatom_start, katom_block, katom_end, katom_start, latom_block, latom_end, &
-         latom_start, mepos, my_process_id, n_processes, natom, nbins, nblocks, ncpu, &
-         new_iatom_end, new_iatom_start, new_jatom_end, new_jatom_start, non_empty_blocks, &
-         objective_block_size, objective_nblocks, req(2), source, total_blocks
+                 handle_range, i, iatom_block, iatom_end, iatom_start, ibin, icpu, j, jatom_block, &
+                 jatom_end, jatom_start, katom_block, katom_end, katom_start, latom_block, latom_end, &
+                 latom_start, mepos, my_process_id, n_processes, natom, nbins, nblocks, ncpu, &
+                 new_iatom_end, new_iatom_start, new_jatom_end, new_jatom_start, non_empty_blocks, &
+                 objective_block_size, objective_nblocks, req(2), source, total_blocks
       INTEGER(int_8) :: atom_block, cost_per_bin, cost_per_core, current_cost, &
-         distribution_counter_end, distribution_counter_start, global_quartet_counter, &
-         local_quartet_counter, self_cost_per_block, tmp_block, total_block_self_cost
+                        distribution_counter_end, distribution_counter_start, global_quartet_counter, &
+                        local_quartet_counter, self_cost_per_block, tmp_block, total_block_self_cost
       INTEGER(int_8), ALLOCATABLE, DIMENSION(:)          :: buffer_in, buffer_out
       INTEGER(int_8), DIMENSION(:), POINTER              :: local_cost_matrix, recbuffer, &
                                                             sendbuffer, swapbuffer
@@ -943,8 +943,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_recursive_load_balance'
 
       INTEGER :: handle, i, iatom_block, iatom_end, iatom_start, j, jatom_block, jatom_end, &
-         jatom_start, katom_block, katom_end, katom_start, latom_block, latom_end, latom_start, &
-         nP, nQ, numBins, p, q, sizeP, sizeQ, unit_nr
+                 jatom_start, katom_block, katom_end, katom_start, latom_block, latom_end, latom_start, &
+                 nP, nQ, numBins, p, q, sizeP, sizeQ, unit_nr
       INTEGER(int_8)                                     :: local_cost, pidx, qidx, sumP, sumQ
       INTEGER(int_8), ALLOCATABLE, DIMENSION(:)          :: local_cost_vector
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: blocksize, p_atom_blocks, permute, &
@@ -1251,11 +1251,11 @@ CONTAINS
       LOGICAL, DIMENSION(:, :), POINTER                  :: atomic_pair_list
 
       INTEGER :: col, endoffset, i, iatom_block, iatom_end, iatom_start, idx, inv_perm, &
-         jatom_block, jatom_end, jatom_start, katom_block, katom_end, katom_start, latom_block, &
-         latom_end, latom_start, nbins, nProc, row, startoffset
+                 jatom_block, jatom_end, jatom_start, katom_block, katom_end, katom_start, latom_block, &
+                 latom_end, latom_start, nbins, nProc, row, startoffset
       INTEGER(int_8)                                     :: atom_block, tmp_block
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ithblocksize, localblocksize
-      INTEGER, DIMENSION(blockend-blockstart+1)          :: bin_perm, tmp_perm
+      INTEGER, DIMENSION(blockend - blockstart + 1)          :: bin_perm, tmp_perm
       REAL(dp)                                           :: partialcost
       REAL(dp), DIMENSION(nblocks*nblocks)               :: cost_vector
 
@@ -1494,7 +1494,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_update_load_balance'
 
       INTEGER :: data_from, dest, end_idx, handle, i, ibin, icpu, iprocess, j, mepos, my_bin_size, &
-         my_global_start_idx, my_process_id, n_processes, nbins, ncpu, req(2), source, start_idx
+                 my_global_start_idx, my_process_id, n_processes, nbins, ncpu, req(2), source, start_idx
       INTEGER(int_8), DIMENSION(:), POINTER              :: local_cost_matrix, recbuffer, &
                                                             sendbuffer, swapbuffer
       INTEGER(int_8), DIMENSION(:), POINTER, SAVE        :: cost_matrix
@@ -1790,10 +1790,10 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
       REAL(KIND=dp) FUNCTION estimate_basic(p) RESULT(res)
-      REAL(KIND=dp)                                      :: p(12)
+         REAL(KIND=dp)                                      :: p(12)
 
-      REAL(KIND=dp)                                      :: p1, p10, p11, p12, p2, p3, p4, p5, p6, &
-                                                            p7, p8, p9
+         REAL(KIND=dp)                                      :: p1, p10, p11, p12, p2, p3, p4, p5, p6, &
+                                                               p7, p8, p9
 
          p1 = p(1); p2 = p(2); p3 = p(3); p4 = p(4)
          p5 = p(5); p6 = p(6); p7 = p(7); p8 = p(8)
@@ -1814,8 +1814,8 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
       REAL(KIND=dp) FUNCTION poly2(x, a0, a1, a2)
-      INTEGER                                            :: x
-      REAL(KIND=dp)                                      :: a0, a1, a2
+         INTEGER                                            :: x
+         REAL(KIND=dp)                                      :: a0, a1, a2
 
          poly2 = a0 + a1*x + a2*x*x
       END FUNCTION poly2
@@ -1987,8 +1987,8 @@ CONTAINS
       INTEGER(int_8)                                     :: estimate_block_cost
 
       INTEGER :: i_list_ij, i_list_kl, i_set_list_ij, i_set_list_ij_start, i_set_list_ij_stop, &
-         i_set_list_kl, i_set_list_kl_start, i_set_list_kl_stop, iatom, ikind, iset, jatom, jkind, &
-         jset, katom, kind_kind_idx, kkind, kset, latom, lkind, lset, swap_id
+                 i_set_list_kl, i_set_list_kl_start, i_set_list_kl_stop, iatom, ikind, iset, jatom, jkind, &
+                 jset, katom, kind_kind_idx, kkind, kset, latom, lkind, lset, swap_id
       INTEGER, DIMENSION(:), POINTER                     :: npgfa, npgfb, npgfc, npgfd, nsgfa, &
                                                             nsgfb, nsgfc, nsgfd
       REAL(dp)                                           :: actual_pmax_atom, cost_tmp, max_val1, &
@@ -2512,6 +2512,6 @@ CONTAINS
 
    END SUBROUTINE collect_load_balance_info
 
-#include "hfx_get_pmax_val.f90"
+   #:include 'hfx_get_pmax_val.fypp'
 
 END MODULE hfx_load_balance_methods
