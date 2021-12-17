@@ -75,7 +75,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  8.000   8.000  8.000
+      ABC [angstrom]  5.000   5.000  5.000
       PERIODIC XYZ
     &END CELL
     &KIND H
